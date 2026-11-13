@@ -249,3 +249,18 @@ fn a_blank_shot_number_is_refused() {
     assert!(matches!(err, Err(ServiceError::BadValue { .. })), "{err:?}");
     assert_eq!(s.shots()[0].number, before);
 }
+
+#[test]
+fn script_text_is_replaced_and_saved() {
+    let dir = copy("session-script");
+    let mut s = Session::open(&dir).unwrap();
+    assert!(s.script_text().starts_with("INT. SÄNGERSAAL"));
+
+    let text = "INT. SÄNGERSAAL – TAG #12#\n\nNeu.\n";
+    s.set_script_text(text);
+    assert!(s.is_dirty());
+    assert_eq!(s.script_lines()[0].text, "Neu.");
+    s.save().unwrap();
+
+    assert_eq!(Session::open(&dir).unwrap().script_text(), text);
+}
