@@ -1,6 +1,8 @@
 //! Elements to Fountain text.
 
-use crate::parse::{parse, parse_elements};
+use crate::parse::{
+    parse, parse_elements, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING, FORCE_TRANSITION,
+};
 use crate::{Element, Script};
 
 const TITLE_INDENT: &str = "   ";
@@ -32,7 +34,7 @@ pub fn write(script: &Script) -> String {
     let reads_as_title = script.title_page.is_empty() && !parse(&out).title_page.is_empty();
     if reads_as_title {
         if let Some(marker) = script.elements.first().and_then(marker) {
-            out.insert_str(body_start, marker);
+            out.insert(body_start, marker);
         }
     }
 
@@ -40,12 +42,12 @@ pub fn write(script: &Script) -> String {
 }
 
 /// The marker that forces an element's plain form to stay what it is.
-fn marker(el: &Element) -> Option<&'static str> {
+fn marker(el: &Element) -> Option<char> {
     match el {
-        Element::SceneHeading { .. } => Some("."),
-        Element::Action(_) => Some("!"),
-        Element::Character { .. } => Some("@"),
-        Element::Transition(_) => Some(">"),
+        Element::SceneHeading { .. } => Some(FORCE_HEADING),
+        Element::Action(_) => Some(FORCE_ACTION),
+        Element::Character { .. } => Some(FORCE_CHARACTER),
+        Element::Transition(_) => Some(FORCE_TRANSITION),
         _ => None,
     }
 }
@@ -83,9 +85,9 @@ fn render(el: &Element, next: Option<&Element>) -> String {
                 Some(n) => format!("{text} #{n}#"),
                 None => text.clone(),
             };
-            forced(el, &plain, &plain, ".")
+            forced(el, &plain, &plain, FORCE_HEADING)
         }
-        Element::Action(text) => forced(el, text, text, "!"),
+        Element::Action(text) => forced(el, text, text, FORCE_ACTION),
         Element::Character {
             name,
             extension,
@@ -104,9 +106,9 @@ fn render(el: &Element, next: Option<&Element>) -> String {
                 _ => "\n\n",
             };
             let probe = format!("{plain}{below}");
-            forced(el, &plain, &probe, "@")
+            forced(el, &plain, &probe, FORCE_CHARACTER)
         }
-        Element::Transition(text) => forced(el, text, text, ">"),
+        Element::Transition(text) => forced(el, text, text, FORCE_TRANSITION),
         Element::Parenthetical(text) => format!("({text})"),
         Element::Dialogue(text) => text.clone(),
         Element::Centered(text) => format!("> {text} <"),
@@ -119,7 +121,7 @@ fn render(el: &Element, next: Option<&Element>) -> String {
 }
 
 /// `plain` if parsing `probe` gives back `el`, else `plain` behind `marker`.
-fn forced(el: &Element, plain: &str, probe: &str, marker: &str) -> String {
+fn forced(el: &Element, plain: &str, probe: &str, marker: char) -> String {
     if parse_elements(probe).first() == Some(el) {
         return plain.to_string();
     }
