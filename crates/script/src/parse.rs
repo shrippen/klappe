@@ -2,10 +2,10 @@
 
 use crate::{Element, Script};
 
-const FORCE_ACTION: char = '!';
-const FORCE_HEADING: char = '.';
-const FORCE_CHARACTER: char = '@';
-const FORCE_TRANSITION: char = '>';
+pub(crate) const FORCE_ACTION: char = '!';
+pub(crate) const FORCE_HEADING: char = '.';
+pub(crate) const FORCE_CHARACTER: char = '@';
+pub(crate) const FORCE_TRANSITION: char = '>';
 const CENTER_END: char = '<';
 const LYRICS: char = '~';
 const SECTION: char = '#';

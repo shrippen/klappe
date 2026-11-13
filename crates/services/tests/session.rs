@@ -249,3 +249,35 @@ fn a_blank_shot_number_is_refused() {
     assert!(matches!(err, Err(ServiceError::BadValue { .. })), "{err:?}");
     assert_eq!(s.shots()[0].number, before);
 }
+
+#[test]
+fn script_text_is_replaced_and_saved() {
+    let dir = copy("session-script");
+    let mut s = Session::open(&dir).unwrap();
+    assert!(s.script_text().starts_with("INT. SÄNGERSAAL"));
+
+    let text = "INT. SÄNGERSAAL – TAG #12#\n\nNeu.\n";
+    s.set_script_text(text);
+    assert!(s.is_dirty());
+    assert_eq!(s.script_lines()[0].text, "Neu.");
+    s.save().unwrap();
+
+    assert_eq!(Session::open(&dir).unwrap().script_text(), text);
+}
+
+#[test]
+fn save_script_leaves_other_files_alone() {
+    let dir = copy("session-save-script");
+    let mut s = Session::open(&dir).unwrap();
+    let foreign = dir.join("szenen/neu.json");
+    std::fs::write(&foreign, "{}\n").unwrap();
+    let project = std::fs::read(dir.join("projekt.toml")).unwrap();
+
+    s.set_script_text("Neu.\n");
+    s.save_script().unwrap();
+
+    assert!(foreign.exists());
+    assert_eq!(std::fs::read(dir.join("projekt.toml")).unwrap(), project);
+    let script = std::fs::read_to_string(dir.join("drehbuch.fountain")).unwrap();
+    assert_eq!(script, "Neu.\n");
+}
