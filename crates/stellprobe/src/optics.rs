@@ -55,6 +55,22 @@ mod tests {
         assert_eq!(horizontal_fov_deg(Sensor::Super35, 0.0), 0.0);
     }
 
+    /// 0° faces right, 90° down (y grows downwards); the first edge is the one counter-
+    /// clockwise of the facing on screen.
+    #[test]
+    fn frustum_turns_clockwise_on_screen() {
+        let [_, left, right] = frustum(Point::default(), 90.0, 90.0, 2.0_f64.sqrt());
+
+        assert!(
+            (left.x_m - 1.0).abs() < 1e-9 && (left.y_m - 1.0).abs() < 1e-9,
+            "{left:?}"
+        );
+        assert!(
+            (right.x_m + 1.0).abs() < 1e-9 && (right.y_m - 1.0).abs() < 1e-9,
+            "{right:?}"
+        );
+    }
+
     #[test]
     fn frustum_is_symmetric_around_facing() {
         let [apex, left, right] = frustum(Point::default(), 0.0, 90.0, 1.0);

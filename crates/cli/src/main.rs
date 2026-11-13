@@ -39,6 +39,10 @@ fn fov(lens_mm: f64, sensor: &str) -> ExitCode {
         eprintln!("klappe-cli: unknown sensor {sensor}");
         return ExitCode::FAILURE;
     };
+    if !is_length(lens_mm) {
+        eprintln!("klappe-cli: lens must be a positive length in mm, not {lens_mm}");
+        return ExitCode::FAILURE;
+    }
 
     let fov = klappe_stellprobe::horizontal_fov_deg(sensor, lens_mm);
     println!("{fov:.1}°");
@@ -54,9 +58,14 @@ fn parse_sensor(name: &str) -> Option<Sensor> {
         _ => name
             .parse()
             .ok()
-            .filter(|w: &f64| *w > 0.0)
+            .filter(|w: &f64| is_length(*w))
             .map(|width_mm| Sensor::Custom { width_mm }),
     }
+}
+
+/// A finite, positive number of millimetres.
+fn is_length(mm: f64) -> bool {
+    mm.is_finite() && mm > 0.0
 }
 
 #[cfg(test)]
@@ -72,5 +81,14 @@ mod tests {
         );
         assert_eq!(parse_sensor("-1"), None);
         assert_eq!(parse_sensor("imax"), None);
+    }
+
+    /// Review of PR 1: 0, NaN and infinite values printed an angle and exit 0.
+    #[test]
+    fn nonsense_values_are_refused() {
+        assert_eq!(parse_sensor("inf"), None);
+        assert_eq!(parse_sensor("NaN"), None);
+        assert_eq!(fov(0.0, "s35"), ExitCode::FAILURE);
+        assert_eq!(fov(f64::NAN, "s35"), ExitCode::FAILURE);
     }
 }

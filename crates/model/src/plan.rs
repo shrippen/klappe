@@ -55,16 +55,17 @@ impl FloorPlan {
         self.cameras.iter().find(|c| c.id == id)
     }
 
-    /// End of the last mark of any figure or camera: the length of the scene's blocking.
+    /// End of the last mark of any figure or camera, its pause included, or of the last
+    /// shot: the length of the scene's blocking.
     pub fn duration_s(&self) -> f64 {
         let figures = self
             .figures
             .iter()
-            .flat_map(|f| f.marks.iter().map(|m| m.at_s));
+            .flat_map(|f| f.marks.iter().map(|m| m.at_s + m.hold_s));
         let cameras = self
             .cameras
             .iter()
-            .flat_map(|c| c.marks.iter().map(|m| m.at_s));
+            .flat_map(|c| c.marks.iter().map(|m| m.at_s + m.hold_s));
         let shots = self.shots.iter().map(|s| s.to_s);
 
         figures.chain(cameras).chain(shots).fold(0.0, f64::max)
@@ -199,4 +200,28 @@ pub enum LinkTarget {
     Shot {
         id: String,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Review of PR 1: the pause at the last mark was cut off (LH-63).
+    #[test]
+    fn duration_holds_at_the_last_mark() {
+        let mut plan = FloorPlan::new("p", "Plan A");
+        let at = Point::new(0.0, 0.0);
+        plan.figures = vec![FigureTrack {
+            character: "e".into(),
+            marks: vec![Mark {
+                at_s: 10.0,
+                at,
+                facing_deg: 0.0,
+                pose: Pose::Standing,
+                hold_s: 5.0,
+            }],
+        }];
+
+        assert_eq!(plan.duration_s(), 15.0);
+    }
 }

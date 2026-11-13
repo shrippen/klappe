@@ -437,6 +437,48 @@ mod tests {
         ));
     }
 
+    /// A 2 m wide, flat object turned by 90° stands upright: corners at y = -1 and y = 1.
+    #[test]
+    fn objects_turn_clockwise() {
+        let o = SetObject {
+            id: "t".into(),
+            kind: "table".into(),
+            label: String::new(),
+            at: Point::new(0.0, 0.0),
+            width_m: 2.0,
+            depth_m: 0.0,
+            rotation_deg: 90.0,
+        };
+        let corners = object_corners(&o);
+
+        assert!((corners[0].x_m).abs() < 1e-9 && (corners[0].y_m + 1.0).abs() < 1e-9);
+        assert!((corners[1].x_m).abs() < 1e-9 && (corners[1].y_m - 1.0).abs() < 1e-9);
+    }
+
+    /// The nose points where the body faces: 90° is down.
+    #[test]
+    fn nose_points_where_it_faces() {
+        let tip = nose(Point::new(0.0, 0.0), 90.0, 1.0)[1];
+
+        assert!(tip.x_m.abs() < 1e-9);
+        assert!((tip.y_m - (1.0 + NOSE_M)).abs() < 1e-9);
+    }
+
+    /// The axis runs through both figures and on by the set's diagonal on each side.
+    #[test]
+    fn axis_reaches_across_the_set() {
+        let list = render(&project(), &set(), &plan(), 0.0);
+        let axis = list.items.iter().find_map(|i| match (i.role, &i.shape) {
+            (Role::Axis, Shape::Line { from, to, .. }) => Some((*from, *to)),
+            _ => None,
+        });
+        let diagonal = 20.0_f64.hypot(13.0);
+
+        let (from, to) = axis.unwrap();
+        assert!((from.x_m - (2.0 - diagonal)).abs() < 1e-9 && (from.y_m - 6.0).abs() < 1e-9);
+        assert!((to.x_m - (12.0 + diagonal)).abs() < 1e-9);
+    }
+
     #[test]
     fn unknown_character_is_skipped() {
         let mut p = plan();
