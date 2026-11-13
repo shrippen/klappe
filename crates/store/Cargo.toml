@@ -1,0 +1,17 @@
+[package]
+name = "klappe-store"
+description = "Reads and writes a Klappe project folder: text files that Git can version and diff (FORMAT.md)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+klappe-model.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,86 @@
+id = "saengersaal"
+name = "Sängersaal"
+
+[set]
+width_m = 20.0
+depth_m = 13.0
+
+[[set.walls]]
+thickness_m = 0.4
+
+[set.walls.from]
+x_m = 0.0
+y_m = 0.0
+
+[set.walls.to]
+x_m = 20.0
+y_m = 0.0
+
+[[set.walls]]
+thickness_m = 0.4
+
+[set.walls.from]
+x_m = 20.0
+y_m = 0.0
+
+[set.walls.to]
+x_m = 20.0
+y_m = 13.0
+
+[[set.walls]]
+thickness_m = 0.4
+
+[set.walls.from]
+x_m = 20.0
+y_m = 13.0
+
+[set.walls.to]
+x_m = 0.0
+y_m = 13.0
+
+[[set.walls]]
+thickness_m = 0.4
+
+[set.walls.from]
+x_m = 0.0
+y_m = 13.0
+
+[set.walls.to]
+x_m = 0.0
+y_m = 0.0
+
+[[set.objects]]
+id = "tisch"
+kind = "table"
+label = "Tafel"
+width_m = 6.0
+depth_m = 1.2
+rotation_deg = 0.0
+
+[set.objects.at]
+x_m = 10.0
+y_m = 6.5
+
+[[set.objects]]
+id = "saeule-1"
+kind = "pillar"
+label = "Säule"
+width_m = 0.8
+depth_m = 0.8
+rotation_deg = 0.0
+
+[set.objects.at]
+x_m = 6.0
+y_m = 4.0
+
+[[set.objects]]
+id = "saeule-2"
+kind = "pillar"
+label = "Säule"
+width_m = 0.8
+depth_m = 0.8
+rotation_deg = 0.0
+
+[set.objects.at]
+x_m = 14.0
+y_m = 4.0
