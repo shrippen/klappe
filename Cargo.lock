@@ -170,6 +170,18 @@ name = "klappe-script"
 version = "0.0.1"
 
 [[package]]
+name = "klappe-services"
+version = "0.0.1"
+dependencies = [
+ "klappe-model",
+ "klappe-script",
+ "klappe-stellprobe",
+ "klappe-store",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "klappe-stellprobe"
 version = "0.0.1"
 dependencies = [
