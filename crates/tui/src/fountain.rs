@@ -5,6 +5,9 @@ use klappe_services::{parse, Element};
 /// Rows of text before the first paragraph, so a `Key: value` paragraph is no title page.
 const PARAGRAPH_PREFIX: &str = "x\n\n";
 
+const BONEYARD_OPEN: &str = "/*";
+const BONEYARD_CLOSE: &str = "*/";
+
 /// Display-only indents in columns (the stored text stays plain Fountain).
 const INDENT_CHARACTER: usize = 20;
 const INDENT_PARENTHETICAL: usize = 15;
@@ -76,6 +79,7 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
         scenes: Vec::new(),
     };
     let mut start = 0;
+    let mut in_boneyard = false;
 
     while start < lines.len() {
         if lines[start].trim().is_empty() {
@@ -87,11 +91,39 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
             .iter()
             .take_while(|l| !l.trim().is_empty())
             .count();
-        paragraph(&lines[start..start + len], start, &mut out);
+        let para = &lines[start..start + len];
+        let was_inside = in_boneyard;
+        in_boneyard = boneyard_after(was_inside, para);
+
+        // A paragraph that begins in a boneyard is not parsed: the parser would see
+        // it as text. It shows as plain action and lists no scene.
+        match was_inside {
+            true => out.kinds[start..start + len].fill(LineKind::Action),
+            false => paragraph(para, start, &mut out),
+        }
         start += len;
     }
 
     out
+}
+
+/// Whether a boneyard `/* ... */` is still open after `lines`, given if one was open before.
+fn boneyard_after(mut inside: bool, lines: &[String]) -> bool {
+    let text = lines.join("\n");
+    let mut rest = text.as_str();
+
+    loop {
+        let marker = if inside {
+            BONEYARD_CLOSE
+        } else {
+            BONEYARD_OPEN
+        };
+        let Some(at) = rest.find(marker) else {
+            return inside;
+        };
+        rest = &rest[at + marker.len()..];
+        inside = !inside;
+    }
 }
 
 /// Number of text lines an element took, and its kind.
@@ -201,6 +233,14 @@ mod tests {
 
         assert_eq!(a.scene_at(2), Some(0));
         assert_eq!(a.scene_at(5), Some(1));
+    }
+
+    #[test]
+    fn boneyard_across_paragraphs_hides_its_scenes() {
+        let a = analyse(&lines("INT. A\n\nx\n\n/*\n\nINT. B\n\n*/\n"));
+
+        let headings: Vec<_> = a.scenes.iter().map(|s| s.heading.as_str()).collect();
+        assert_eq!(headings, ["INT. A"]);
     }
 
     #[test]
