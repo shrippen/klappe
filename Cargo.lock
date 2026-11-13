@@ -143,8 +143,7 @@ name = "klappe-cli"
 version = "0.0.1"
 dependencies = [
  "clap",
- "klappe-model",
- "klappe-stellprobe",
+ "klappe-services",
 ]
 
 [[package]]
