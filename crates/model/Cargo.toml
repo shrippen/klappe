@@ -1,0 +1,16 @@
+[package]
+name = "klappe-model"
+description = "Klappe's data model, shared by every module: project, scenes, characters, locations, floor plans, shots."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

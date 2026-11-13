@@ -59,24 +59,25 @@ Kontra und lmix, weniger Sicherheit, TUI und Export hängen an Qt oder doppeltem
 ## 4. Schichten (nur zum direkten Nachbarn darunter)
 
 ```
-gui/  QML, Kirigami, Kante      tui/  ratatui        cli/  Kommandozeile
-   │ (cxx-qt-Brücke)               │                    │
-   └───────────────┬───────────────┴────────────────────┘
-                   ↓
-dienste/   Projekt-Sitzung: öffnen, speichern, Autosave, Rückgängig, Wiedergabeuhr
-                   ↓
-kern/      modell      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
-           stellprobe  Geometrie, Optik (Bildwinkel), Achse, Animation, Darstellungsliste
-           drehbuch    Fountain lesen und schreiben
-                   ↓
-ablage/    Projektordner lesen/schreiben      ausgabe/  PDF, SVG, CSV, XLSX
+app/   QML, Kirigami, Kante      tui/  ratatui        cli/  Kommandozeile
+   │ (cxx-qt-Brücke)                │                    │
+   └────────────────┬───────────────┴────────────────────┘
+                    ↓
+services/   Projekt-Sitzung: öffnen, speichern, Autosave, Rückgängig, Wiedergabeuhr
+                    ↓
+stellprobe/ Optik, Bewegung, Achse, Darstellungsliste   script/  Fountain
+store/      Projektordner lesen und schreiben           export/  PDF, SVG, CSV, XLSX
+                    ↓
+model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
 ```
 
-- Jede Schicht ein Crate; Abhängigkeiten sichtbar in `Cargo.toml`.
-- Oberflächen rufen nur `dienste/`; nie Dateien, Export oder Kern direkt.
-- `stellprobe` erzeugt eine **Darstellungsliste** (Linien, Flächen, Symbole, Text in Metern).
-  Die GUI zeichnet sie, `ausgabe/` schreibt sie als PDF oder SVG. Was am Bildschirm steht,
-  steht genauso im Ausdruck, und Tests prüfen die Liste ohne Fenster.
+- Jede Schicht ein Crate unter `crates/`; Abhängigkeiten sichtbar in `Cargo.toml`.
+- Oberflächen rufen nur `services/`; nie Dateien, Export oder Kern direkt.
+- Die mittlere Ebene steht nebeneinander: `export/` liest die Darstellungsliste aus
+  `stellprobe/`, `store/` nutzt `script/` für das Drehbuch. Sonst rufen sie sich nicht.
+- `stellprobe` erzeugt eine **Darstellungsliste** (Linien, Flächen, Kreise, Beschriftungen in
+  Metern, Farben als Rollen). Die GUI zeichnet sie, `export/` schreibt sie als PDF oder SVG.
+  Was am Bildschirm steht, steht genauso im Ausdruck, und Tests prüfen die Liste ohne Fenster.
 
 ## 5. Projektformat
 
@@ -127,3 +128,4 @@ Eigentümer, 2026-11-13:
 | E-11 | Projektformat | Ordner aus Textdateien; zum Weitergeben als Zip (`.klappe`). |
 | E-12 | Technik des Kamerablicks | Eigene einfache Perspektivprojektion im Kern. |
 | E-13 | CI | Wie Kontra: Prüfungen und Flatpak auf dem GitHub-Mirror, Status an Gitea. |
+| E-14 | Oberfläche | Entwurf B der Runde 2 („Drehbuch daneben“): Drehbuch links, Plan in der Mitte, Shot mit Vorschau und Daten rechts, Zeitleiste mit Ebenenschaltern unten. Seitenleisten und Zeitleiste ein- und ausklappbar; oben Kopfzeile und Werkzeugleiste wie Entwurf A. Entwürfe: https://claude.ai/artifact/9UDTh7hdqccSMz62NLZztN |

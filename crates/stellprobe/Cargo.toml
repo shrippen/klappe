@@ -1,0 +1,13 @@
+[package]
+name = "klappe-stellprobe"
+description = "Stellprobe's core: optics, blocking over time, the 180-degree axis and the display list of a floor plan."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+klappe-model.workspace = true
+
+[lints]
+workspace = true
