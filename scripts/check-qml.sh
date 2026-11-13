@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs the app's QML tests (crates/app/tests/qml) offscreen. Needs qmltestrunner
-# (qt6-declarative) and Kirigami; skips with a note if qmltestrunner is missing.
+# (qt6-declarative) and Kirigami. Without qmltestrunner it skips with a note locally, but
+# fails in CI (CI set), so a missing package cannot turn the step green.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -12,6 +13,10 @@ for c in /usr/lib/qt6/bin/qmltestrunner qmltestrunner-qt6 qmltestrunner; do
     fi
 done
 if [ -z "$RUNNER" ]; then
+    if [ -n "${CI:-}" ]; then
+        echo "check-qml: qmltestrunner not found" >&2
+        exit 1
+    fi
     echo "check-qml: qmltestrunner not found, skipped"
     exit 0
 fi
