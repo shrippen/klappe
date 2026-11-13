@@ -7,7 +7,7 @@
 
 use std::fmt::Write;
 
-use crate::canvas::{dash_array, num, Doc, Fill, Geom, Prim, Rect, Stroke, Weight};
+use crate::canvas::{dash_array, num, Anchor, Doc, Fill, Geom, Prim, Rect, Stroke, Weight};
 
 const HEADER: &[u8] = b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
 const OBJ_CATALOG: usize = 1;
@@ -19,6 +19,9 @@ const OBJ_FONT_BOLD: usize = 6;
 const OBJ_FIRST_STATE: usize = 7;
 /// Circle quarter as a cubic Bézier: 4/3 * (sqrt 2 - 1).
 const BEZIER_KAPPA: f64 = 0.552_284_749_8;
+/// Mean advance of Helvetica text in em; PDF has no layout, so centring estimates the width
+/// instead of carrying a metrics table (a few points off on a one-word label).
+const AVG_CHAR_EM: f64 = 0.5;
 /// Opacity is keyed in thousandths so equal values share one state.
 const OPACITY_STEPS: f64 = 1000.0;
 
@@ -156,6 +159,10 @@ fn content(doc: &Doc, states: &[u32]) -> Vec<u8> {
     s.into_bytes()
 }
 
+fn text_width(text: &str, size_pt: f64) -> f64 {
+    text.chars().count() as f64 * size_pt * AVG_CHAR_EM
+}
+
 fn colour(rgb: [f64; 3]) -> String {
     format!("{} {} {}", num3(rgb[0]), num3(rgb[1]), num3(rgb[2]))
 }
@@ -167,6 +174,7 @@ fn operators(prim: &Prim, h: f64, states: &[u32]) -> String {
         } => shape_ops(geom, *fill, *stroke, h, states),
         Prim::Text {
             at,
+            anchor,
             size_pt,
             weight,
             rgb,
@@ -177,11 +185,15 @@ fn operators(prim: &Prim, h: f64, states: &[u32]) -> String {
                 Weight::Regular => "F1",
                 Weight::Bold => "F2",
             };
+            let x = match anchor {
+                Anchor::Start => at.0,
+                Anchor::Middle => at.0 - text_width(text, *size_pt) / 2.0,
+            };
             format!(
                 "BT /{font} {} Tf {} rg {} {} Td ({}) Tj ET\n",
                 num(*size_pt),
                 colour(rgb.unit()),
-                num(at.0),
+                num(x),
                 num(h - at.1),
                 pdf_string(text)
             )

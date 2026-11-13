@@ -34,7 +34,7 @@ Alle Module arbeiten auf demselben Projekt und demselben Datenmodell.
 | TUI | ratatui + crossterm | MIT | Läuft in jedem Terminal, auch unter Windows. |
 | Texteditor (TUI) | eigener Editor auf ropey | MIT | Fountain braucht eigenes Verhalten (Figurennamen, Szenenköpfe, Einrückung). |
 | Drehbuchformat | Fountain, eigener Parser | MIT | Offener Klartext-Standard; Git-tauglich; von anderen Programmen lesbar. |
-| PDF | krilla | MIT/Apache-2.0 | Headless, ohne Qt; Export auch über CLI. |
+| PDF | eigener Schreiber (PDF 1.4, Vektor, Helvetica WinAnsi), keine Abhängigkeit | MIT | Headless, ohne Qt; Export auch über CLI. Der Plan braucht nur Pfade und Text; eine PDF-Bibliothek brächte viele Crates mit, und derselbe Code schreibt SVG und PDF. |
 | SVG, CSV | eigene Ausgabe | MIT | klein |
 | XLSX | rust_xlsxwriter | MIT/Apache-2.0 | LH-85 |
 | Kamerablick (3D) | eigene einfache Perspektivprojektion im Kern (Wände, Kästen, Figuren als Silhouetten) | MIT | Qt Quick 3D ist nur unter GPLv3 frei; reicht für LH-36 ohne GPU-Stack. |

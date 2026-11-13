@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use crate::canvas::{dash_array, num, Doc, Fill, Geom, Prim, Pt, Rect, Stroke, Weight};
+use crate::canvas::{dash_array, num, Anchor, Doc, Fill, Geom, Prim, Pt, Rect, Stroke, Weight};
 
 const FONT_FAMILY: &str = "Helvetica, Arial, sans-serif";
 const CLIP_ID: &str = "plan";
@@ -123,6 +123,7 @@ fn element(prim: &Prim) -> String {
         Prim::Text {
             class,
             at,
+            anchor,
             size_pt,
             weight,
             rgb,
@@ -132,8 +133,12 @@ fn element(prim: &Prim) -> String {
                 Weight::Bold => " font-weight=\"bold\"",
                 Weight::Regular => "",
             };
+            let anchor = match anchor {
+                Anchor::Middle => " text-anchor=\"middle\"",
+                Anchor::Start => "",
+            };
             format!(
-                "<text class=\"{class}\" x=\"{}\" y=\"{}\" font-family=\"{FONT_FAMILY}\" font-size=\"{}\"{bold} fill=\"{}\">{}</text>\n",
+                "<text class=\"{class}\" x=\"{}\" y=\"{}\" font-family=\"{FONT_FAMILY}\" font-size=\"{}\"{bold}{anchor} fill=\"{}\">{}</text>\n",
                 num(at.0),
                 num(at.1),
                 num(*size_pt),

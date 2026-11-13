@@ -42,6 +42,13 @@ pub(crate) struct Stroke {
     pub dash: Dash,
 }
 
+/// Where `at.0` sits on the text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Anchor {
+    Start,
+    Middle,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Weight {
     Regular,
@@ -59,6 +66,7 @@ pub(crate) enum Prim {
     Text {
         class: String,
         at: Pt,
+        anchor: Anchor,
         size_pt: f64,
         weight: Weight,
         rgb: Rgb,

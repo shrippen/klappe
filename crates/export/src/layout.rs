@@ -15,7 +15,7 @@
 use klappe_model::Point;
 use klappe_stellprobe::{DisplayList, Item, Role, Shape};
 
-use crate::canvas::{Dash, Doc, Geom, Prim, Pt, Rect, Stroke, Weight};
+use crate::canvas::{Anchor, Dash, Doc, Geom, Prim, Pt, Rect, Stroke, Weight};
 use crate::error::ExportError;
 use crate::page::{Orientation, Page, Paper, Texts};
 use crate::palette::{palette, Palette, Theme};
@@ -48,7 +48,9 @@ const SCALE_BAR_PT: f64 = 1.5;
 /// The bar takes at most this much of the page width.
 const SCALE_BAR_MAX_PT: f64 = 160.0;
 /// Round lengths for the scale bar, in metres.
-const SCALE_STEPS_M: [f64; 9] = [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0];
+const SCALE_STEPS_M: [f64; 14] = [
+    0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0,
+];
 
 const LEGEND_ENTRIES: usize = 6;
 
@@ -110,6 +112,7 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
         frame_prim(frame, pal),
         Prim::Text {
             class: "title".into(),
+            anchor: Anchor::Start,
             at: (margin, margin + TITLE_PT),
             size_pt: TITLE_PT,
             weight: Weight::Bold,
@@ -117,15 +120,7 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
             text: page.title.clone(),
         },
     ];
-    scale_bar(
-        &map,
-        margin,
-        footer_y,
-        content_w,
-        &page.texts,
-        pal,
-        &mut chrome,
-    );
+    scale_bar(&map, margin, footer_y, &page.texts, pal, &mut chrome);
     legend(
         list,
         margin,
@@ -239,19 +234,26 @@ fn item_prims(
     let bottom = bounds.iter().map(|p| p.1).fold(f64::MIN, f64::max);
 
     // Circles carry the facing wedge on their right: label below, others right of the shape.
-    let at = match item.shape {
+    let (at, anchor) = match item.shape {
         Shape::Circle { .. } => (
-            (bounds[0].0 + right) / 2.0,
-            bottom + LABEL_GAP_PT + LABEL_PT,
+            (
+                (bounds[0].0 + right) / 2.0,
+                bottom + LABEL_GAP_PT + LABEL_PT,
+            ),
+            Anchor::Middle,
         ),
         _ => (
-            right + LABEL_GAP_PT,
-            (top + bottom) / 2.0 + LABEL_PT * BASELINE_SHIFT,
+            (
+                right + LABEL_GAP_PT,
+                (top + bottom) / 2.0 + LABEL_PT * BASELINE_SHIFT,
+            ),
+            Anchor::Start,
         ),
     };
 
     out.push(Prim::Text {
         class: "label".into(),
+        anchor,
         at,
         size_pt: LABEL_PT,
         weight: Weight::Regular,
@@ -272,17 +274,9 @@ fn scale_length_m(scale: f64) -> f64 {
         .unwrap_or(SCALE_STEPS_M[0])
 }
 
-fn scale_bar(
-    map: &Map,
-    x: f64,
-    y: f64,
-    max_w: f64,
-    texts: &Texts,
-    pal: &Palette,
-    out: &mut Vec<Prim>,
-) {
+fn scale_bar(map: &Map, x: f64, y: f64, texts: &Texts, pal: &Palette, out: &mut Vec<Prim>) {
     let length_m = scale_length_m(map.scale);
-    let length_pt = (length_m * map.scale).min(max_w);
+    let length_pt = length_m * map.scale;
     let mid = y + SCALE_ROW_PT / 2.0;
     let stroke = Some(Stroke {
         rgb: pal.foreground,
@@ -311,6 +305,7 @@ fn scale_bar(
     let text = format!("{number} {}", texts.unit);
     out.push(Prim::Text {
         class: "scale-label".into(),
+        anchor: Anchor::Start,
         at: (
             x + length_pt + LABEL_GAP_PT,
             mid + LEGEND_PT * BASELINE_SHIFT,
@@ -344,29 +339,34 @@ fn legend(
 ) -> Result<(), ExportError> {
     let color = figure_color(list);
     let entries = [
-        (texts.figure.as_str(), Role::Figure(color), Swatch::Dot),
-        (texts.camera.as_str(), Role::Camera, Swatch::Wedge),
-        (texts.light.as_str(), Role::Light, Swatch::Dot),
-        (texts.axis.as_str(), Role::Axis, Swatch::Line),
-        (texts.path.as_str(), Role::FigurePath(color), Swatch::Line),
-        (texts.mark.as_str(), Role::Mark(color), Swatch::Dot),
+        ("figure", &texts.figure, Role::Figure(color), Swatch::Figure),
+        ("camera", &texts.camera, Role::Camera, Swatch::Camera),
+        ("light", &texts.light, Role::Light, Swatch::Light),
+        ("axis", &texts.axis, Role::Axis, Swatch::Line),
+        ("path", &texts.path, Role::FigurePath(color), Swatch::Line),
+        ("mark", &texts.mark, Role::Mark(color), Swatch::Mark),
     ];
 
-    for (i, (name, role, swatch)) in entries.into_iter().enumerate() {
+    for (i, (key, name, role, swatch)) in entries.into_iter().enumerate() {
         let col = (i % columns) as f64;
         let row = (i / columns) as f64;
         let left = x + col * LEGEND_ENTRY_PT;
         let mid = y + row * LEGEND_ROW_PT + LEGEND_ROW_PT / 2.0;
         let style = role_style(role, pal)?;
 
-        out.push(Prim::Shape {
-            class: "legend".into(),
-            geom: swatch.geom(left, mid),
-            fill: style.fill,
-            stroke: style.stroke,
-        });
+        for geom in swatch.geoms(left, mid) {
+            // Rays and lines have no inside; an open mark shows the ring only.
+            let open = matches!(geom, Geom::Open(_)) || swatch == Swatch::Mark;
+            out.push(Prim::Shape {
+                class: format!("legend {key}"),
+                geom,
+                fill: style.fill.filter(|_| !open),
+                stroke: style.stroke,
+            });
+        }
         out.push(Prim::Text {
             class: "legend-label".into(),
+            anchor: Anchor::Start,
             at: (
                 left + SWATCH_PT + SWATCH_TEXT_GAP_PT,
                 mid + LEGEND_PT * BASELINE_SHIFT,
@@ -381,29 +381,63 @@ fn legend(
     Ok(())
 }
 
-#[derive(Clone, Copy)]
+/// Each symbol has its own shape, so the legend reads without colour: the figure is the plan's
+/// circle with its facing wedge, the lamp a circle with rays, the camera its wedge, the mark
+/// a ring, path and axis a dotted and a dashed line.
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Swatch {
-    Dot,
-    Wedge,
+    Figure,
+    Light,
+    Camera,
+    Mark,
     Line,
 }
 
 impl Swatch {
-    fn geom(self, left: f64, mid: f64) -> Geom {
+    fn geoms(self, left: f64, mid: f64) -> Vec<Geom> {
         let cx = left + SWATCH_PT / 2.0;
         let r = SWATCH_RADIUS_PT;
 
         match self {
-            Swatch::Dot => Geom::Circle {
-                center: (cx, mid),
-                radius: r,
-            },
-            Swatch::Wedge => Geom::Closed(vec![
+            Swatch::Figure => {
+                let c = cx - r / 2.0;
+                vec![
+                    Geom::Circle {
+                        center: (c, mid),
+                        radius: r,
+                    },
+                    Geom::Closed(vec![
+                        (c + r * 0.8, mid - r * 0.6),
+                        (c + r * 1.5, mid),
+                        (c + r * 0.8, mid + r * 0.6),
+                    ]),
+                ]
+            }
+            Swatch::Light => {
+                let body = r * 0.75;
+                let (from, to) = (r * 1.2, r * 1.8);
+                let mut geoms = vec![Geom::Circle {
+                    center: (cx, mid),
+                    radius: body,
+                }];
+                for (dx, dy) in [(1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)] {
+                    geoms.push(Geom::Open(vec![
+                        (cx + dx * from, mid + dy * from),
+                        (cx + dx * to, mid + dy * to),
+                    ]));
+                }
+                geoms
+            }
+            Swatch::Camera => vec![Geom::Closed(vec![
                 (cx - r, mid - r),
                 (cx + r + 2.0, mid),
                 (cx - r, mid + r),
-            ]),
-            Swatch::Line => Geom::Open(vec![(left, mid), (left + SWATCH_PT, mid)]),
+            ])],
+            Swatch::Mark => vec![Geom::Circle {
+                center: (cx, mid),
+                radius: r,
+            }],
+            Swatch::Line => vec![Geom::Open(vec![(left, mid), (left + SWATCH_PT, mid)])],
         }
     }
 }

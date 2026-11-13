@@ -206,7 +206,13 @@ fn information_is_not_only_colour() {
 fn legend_and_scale_bar_are_present() {
     let out = svg(&list(), &page(), Theme::Light).unwrap();
 
-    assert_eq!(lines_with(&out, "legend").len(), 6);
+    assert_eq!(lines_with(&out, "legend-label").len(), 6);
+    for key in ["figure", "camera", "light", "axis", "path", "mark"] {
+        assert!(
+            !lines_with(&out, &format!("legend {key}")).is_empty(),
+            "{key}"
+        );
+    }
     for name in ["Figur", "Kamera", "Licht", "Achse", "Weg", "Mark"] {
         assert!(out.contains(&format!(">{name}</text>")), "{name}");
     }
@@ -362,4 +368,122 @@ fn texts_come_from_the_caller() {
     assert!(out.contains(">Actor</text>"));
     assert!(!out.contains(">Figur</text>"));
     assert!(lines_with(&out, "scale-label")[0].contains(" metres</text>"));
+}
+
+/// What a legend symbol looks like apart from colour and place.
+fn signature(line: &str) -> String {
+    let tag = line[1..].split(' ').next().unwrap_or_default();
+    let points = line.split(" points=\"").nth(1).map_or(0, |p| {
+        p.split('"').next().unwrap_or_default().split(' ').count()
+    });
+    let has = |name: &str| line.contains(name);
+
+    format!(
+        "{tag} r={} points={points} dash=[{}] opacity={} filled={}",
+        if has(" r=\"") { attr(line, "r") } else { 0.0 },
+        line.split(" stroke-dasharray=\"")
+            .nth(1)
+            .map_or("solid", |d| d.split('"').next().unwrap_or_default()),
+        has("fill-opacity"),
+        !has("fill=\"none\""),
+    )
+}
+
+#[test]
+fn legend_symbols_differ_in_shape_not_only_colour() {
+    let out = svg(&list(), &page(), Theme::Light).unwrap();
+    let mut seen: Vec<(String, String)> = Vec::new();
+
+    for key in ["figure", "camera", "light", "axis", "path", "mark"] {
+        let mut parts: Vec<String> = lines_with(&out, &format!("legend {key}"))
+            .into_iter()
+            .map(signature)
+            .collect();
+        parts.sort();
+        let sig = parts.join(" | ");
+
+        if let Some((other, _)) = seen.iter().find(|(_, s)| *s == sig) {
+            panic!("legend {key} looks like legend {other}: {sig}");
+        }
+        seen.push((key.to_string(), sig));
+    }
+}
+
+/// A4 landscape is 297 x 210 mm = 841.89 x 595.28 pt (72 / 25.4 pt per mm); margin 10 mm
+/// = 28.35 pt. Content width 841.89 - 2 * 28.35 = 785.20 pt. Footer = scale row 26 +
+/// one legend row 16 = 42 pt (9 legend columns fit), title band 24, two gaps of 6. Plan
+/// area height 595.28 - 56.69 - 24 - 42 - 12 = 460.58 pt. Scale = min(785.20 / 20 m,
+/// 460.58 / 13 m) = 35.43 pt/m. Frame 708.59 x 460.58 pt, centred: x = 28.35 + (785.20 -
+/// 708.59) / 2 = 66.65, y = 28.35 + 24 + 6 = 58.35. Longest round bar <= 160 pt is 2 m.
+#[test]
+fn the_scale_matches_hand_worked_numbers() {
+    let out = svg(&list(), &page(), Theme::Light).unwrap();
+    let frame = lines_with(&out, "frame")[0];
+    let near = |got: f64, want: f64| assert!((got - want).abs() < 0.011, "{got} vs {want}");
+
+    near(attr(frame, "x"), 66.65);
+    near(attr(frame, "y"), 58.35);
+    near(attr(frame, "width"), 708.59);
+    near(attr(frame, "height"), 460.58);
+
+    let bar = lines_with(&out, "scale")[0];
+    let points = bar
+        .split(" points=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    let xs: Vec<f64> = points
+        .split(' ')
+        .map(|p| p.split(',').next().unwrap().parse().unwrap())
+        .collect();
+    near(xs[1] - xs[0], 70.86);
+    assert!(lines_with(&out, "scale-label")[0].contains(">2 m<"));
+}
+
+#[test]
+fn bar_and_label_agree_on_tiny_plans() {
+    let tiny = DisplayList {
+        width_m: 0.2,
+        depth_m: 0.2,
+        ..DisplayList::default()
+    };
+    let out = svg(&tiny, &page(), Theme::Light).unwrap();
+    let scale = attr(lines_with(&out, "frame")[0], "width") / 0.2;
+
+    let bar = lines_with(&out, "scale")[0];
+    let points = bar
+        .split(" points=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    let xs: Vec<f64> = points
+        .split(' ')
+        .map(|p| p.split(',').next().unwrap().parse().unwrap())
+        .collect();
+    let label = lines_with(&out, "scale-label")[0];
+    let text = label
+        .split('>')
+        .nth(1)
+        .unwrap()
+        .split(" m<")
+        .next()
+        .unwrap();
+    let metres: f64 = text.replace(',', ".").parse().unwrap();
+
+    assert!(((xs[1] - xs[0]) / scale - metres).abs() < 0.001, "{label}");
+}
+
+#[test]
+fn labels_under_circles_are_centred() {
+    let out = svg(&list(), &page(), Theme::Light).unwrap();
+    let label = out
+        .lines()
+        .find(|l| l.contains("class=\"label\"") && l.contains(">Elisabeth<"))
+        .unwrap();
+
+    assert!(label.contains("text-anchor=\"middle\""));
 }
