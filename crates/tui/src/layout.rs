@@ -1,5 +1,7 @@
 //! Soft wrapping: which part of which line is on which screen row.
 
+use unicode_width::UnicodeWidthChar;
+
 use crate::buffer::Pos;
 use crate::fountain::LineKind;
 
@@ -7,6 +9,22 @@ use crate::fountain::LineKind;
 const MIN_WRAP: usize = 8;
 /// An indent takes at most this share of the width: 1/3.
 const INDENT_SHARE: usize = 3;
+
+/// Columns a tab takes; it is drawn as this many spaces.
+pub(crate) const TAB_WIDTH: usize = 4;
+
+/// Screen columns of one character: a tab is `TAB_WIDTH`, wide ones are 2, marks 0.
+fn char_cols(c: char) -> usize {
+    if c == '\t' {
+        return TAB_WIDTH;
+    }
+    c.width().unwrap_or(0)
+}
+
+/// Screen columns of a text.
+pub(crate) fn cols(text: impl IntoIterator<Item = char>) -> usize {
+    text.into_iter().map(char_cols).sum()
+}
 
 /// One screen row: characters `start..end` of `line`, after `indent` blank columns.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,7 +43,7 @@ pub(crate) struct Layout {
     first_row: Vec<usize>,
 }
 
-/// Splits a line into `(start, end)` character ranges of at most `width`, at spaces.
+/// Splits a line into `(start, end)` character ranges of at most `width` columns, at spaces.
 ///
 /// The space stays at the end of the row it ends, so ranges are gapless and the cursor
 /// has a place for every column. An empty line has one empty range.
@@ -35,8 +53,9 @@ pub(crate) fn wrap(line: &str, width: usize) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
     let mut start = 0;
 
-    while chars.len() - start > width {
-        let limit = start + width;
+    // A single character wider than the width stays on its row.
+    while chars.len() - start > 1 && cols(chars[start..].iter().copied()) > width {
+        let limit = fit(&chars[start..], width) + start;
         let space = chars[start..limit].iter().rposition(|&c| c == ' ');
         let end = match space {
             Some(at) => start + at + 1,
@@ -48,6 +67,20 @@ pub(crate) fn wrap(line: &str, width: usize) -> Vec<(usize, usize)> {
 
     out.push((start, chars.len()));
     out
+}
+
+/// How many leading characters fit in `width` columns; at least one, so wrapping advances.
+fn fit(chars: &[char], width: usize) -> usize {
+    let mut used = 0;
+
+    for (i, &c) in chars.iter().enumerate() {
+        used += char_cols(c);
+        if used > width {
+            return i.max(1);
+        }
+    }
+
+    chars.len()
 }
 
 impl Layout {
@@ -133,6 +166,14 @@ mod tests {
     #[test]
     fn breaks_after_the_last_space_that_fits() {
         assert_eq!(wrap("aaa bbb ccc", 8), [(0, 8), (8, 11)]);
+    }
+
+    #[test]
+    fn ranges_count_columns() {
+        // Each of these is 2 columns wide; a tab is TAB_WIDTH.
+        assert_eq!(wrap("日本語日本語", 6), [(0, 3), (3, 6)]);
+        assert_eq!(wrap("\t\t\t", 8), [(0, 2), (2, 3)]);
+        assert_eq!(wrap("日", 1), [(0, 1)]);
     }
 
     #[test]

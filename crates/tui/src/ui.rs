@@ -9,6 +9,7 @@ use ratatui::Frame;
 use crate::app::{App, Focus, Mode, Notice};
 use crate::fountain::LineKind;
 use crate::i18n::{help, tr, Text};
+use crate::layout::{cols, TAB_WIDTH};
 
 /// Share of the width the scene list takes: 1/4, but at least `LIST_MIN` columns.
 const LIST_SHARE: u16 = 4;
@@ -44,9 +45,21 @@ fn border_style(focused: bool) -> Style {
     Style::new().add_modifier(Modifier::DIM)
 }
 
-/// Characters `start..end` of a line.
+/// Characters `start..end` of a line, tabs as spaces.
 fn slice(line: &str, start: usize, end: usize) -> String {
-    line.chars().skip(start).take(end - start).collect()
+    let tab = " ".repeat(TAB_WIDTH);
+
+    line.chars()
+        .skip(start)
+        .take(end - start)
+        .map(|c| {
+            if c == '\t' {
+                tab.clone()
+            } else {
+                c.to_string()
+            }
+        })
+        .collect()
 }
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
@@ -153,7 +166,9 @@ fn place_cursor(frame: &mut Frame, app: &App, inner: Rect) {
         return;
     }
 
-    let x = row.indent + cursor.col - row.start;
+    let text = app.editor.lines().get(row.line).map_or("", String::as_str);
+    let before = text.chars().skip(row.start).take(cursor.col - row.start);
+    let x = row.indent + cols(before);
     let (Ok(x), Ok(y)) = (u16::try_from(x), u16::try_from(y)) else {
         return;
     };

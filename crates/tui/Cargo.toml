@@ -19,6 +19,8 @@ klappe-services.workspace = true
 # Terminal UI and its backend (MIT); crossterm comes through `ratatui::crossterm`, so the
 # two cannot drift apart.
 ratatui = "0.30"
+# Display width of characters (MIT/Apache-2.0); the version ratatui already uses.
+unicode-width = "0.2.3"
 
 [lints]
 workspace = true

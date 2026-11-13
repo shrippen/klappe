@@ -215,3 +215,25 @@ fn cursor_stays_in_view_while_moving_down() {
 
     assert!(app.scroll > 0);
 }
+
+/// Terminal column of the cursor, relative to the editor's text area.
+fn cursor_x(app: &mut App, text: &str) -> u16 {
+    typed(app, text);
+    let mut terminal =
+        Terminal::new(TestBackend::new(120, 20)).unwrap_or_else(|e| unreachable!("{e}"));
+    terminal
+        .draw(|f| draw(f, app))
+        .unwrap_or_else(|e| unreachable!("{e}"));
+    let at = terminal
+        .get_cursor_position()
+        .unwrap_or_else(|e| unreachable!("{e}"));
+    // Scene list is 30 columns wide at 120, plus the editor's border.
+    at.x - 31
+}
+
+#[test]
+fn cursor_follows_display_width() {
+    assert_eq!(cursor_x(&mut app(), "\tab"), 4 + 2, "tab");
+    assert_eq!(cursor_x(&mut app(), "日本語日本語"), 12, "wide");
+    assert_eq!(cursor_x(&mut app(), "a😀b"), 4, "emoji");
+}
