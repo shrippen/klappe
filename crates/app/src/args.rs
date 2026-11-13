@@ -17,6 +17,22 @@ klappe [--open FOLDER] [--language de|en] [--time SECONDS] [--shot ID]
 /// Wait before a screenshot so the window has laid out and painted.
 const SCREENSHOT_AFTER_MS: i32 = 1500;
 
+/// Qt's own options that take a value (`-platform offscreen`); every other single-dash
+/// option is a flag (`-reverse`) and leaves the next argument alone.
+const QT_VALUE_OPTIONS: &[&str] = &[
+    "-platform",
+    "-platformpluginpath",
+    "-platformtheme",
+    "-plugin",
+    "-qwindowgeometry",
+    "-qwindowtitle",
+    "-qwindowicon",
+    "-style",
+    "-display",
+    "-geometry",
+    "-session",
+];
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AppArgs {
     pub open: Option<PathBuf>,
@@ -58,7 +74,9 @@ impl AppArgs {
                 }
                 // Qt's own options (e.g. -qwindowgeometry, -platform) pass through.
                 other if other.starts_with('-') && !other.starts_with("--") => {
-                    let _ = args.next();
+                    if QT_VALUE_OPTIONS.contains(&other) {
+                        let _ = args.next();
+                    }
                 }
                 other => {
                     if out.unknown.is_none() {
@@ -95,5 +113,28 @@ mod tests {
         let a = parse(&["-qwindowgeometry", "800x600", "--frob"]);
 
         assert_eq!(a.unknown.as_deref(), Some("--frob"));
+    }
+
+    #[test]
+    fn qt_flags_without_value_keep_the_next_argument() {
+        let a = parse(&["-reverse", "--open", "x.klappe"]);
+
+        assert_eq!(a.unknown, None);
+        assert_eq!(a.open, Some(PathBuf::from("x.klappe")));
+    }
+
+    #[test]
+    fn qt_options_with_value_swallow_it() {
+        let a = parse(&[
+            "-platform",
+            "offscreen",
+            "-style",
+            "Fusion",
+            "--open",
+            "x.klappe",
+        ]);
+
+        assert_eq!(a.unknown, None);
+        assert_eq!(a.open, Some(PathBuf::from("x.klappe")));
     }
 }
