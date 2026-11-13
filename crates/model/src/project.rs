@@ -49,14 +49,13 @@ pub struct Character {
     pub color: FigureColor,
 }
 
-/// The colour a figure is drawn in. A role, not a hex value: the UI maps it to Kante's
-/// semantic colours, so both themes stay readable.
+/// The colour a figure is drawn in. A role, not a hex value: one of Kante's label colours
+/// (`KanteStyle.labels`), so both themes stay readable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum FigureColor {
     Purple,
     Blue,
-    Aqua,
     Green,
     Yellow,
     Orange,
