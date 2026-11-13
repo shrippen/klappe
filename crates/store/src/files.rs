@@ -11,6 +11,9 @@ use crate::{StoreError, JSON_EXT, TOML_EXT};
 
 const TEMP_PREFIX: &str = ".";
 const TEMP_SUFFIX: &str = ".tmp";
+/// Characters Windows does not allow in file names (`/` and `\` are checked as separators).
+const WINDOWS_FORBIDDEN: &str = "<>:\"|?*/\\";
+const WINDOWS_DEVICES: [&str; 4] = ["con", "prn", "aux", "nul"];
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Kind {
@@ -70,12 +73,19 @@ impl Dir {
         }
     }
 
-    pub(crate) fn write<T: Serialize>(&self, id: &str, value: &T) -> Result<(), StoreError> {
+    /// The target path and file content of one document.
+    pub(crate) fn encode<T: Serialize + for<'de> Deserialize<'de>>(
+        &self,
+        id: &str,
+        value: &T,
+    ) -> Result<(PathBuf, Vec<u8>), StoreError> {
         let path = self.path.join(format!("{id}.{}", self.kind.ext()));
-        match self.kind {
-            Kind::Toml => write_toml(&path, value),
-            Kind::Json => write_json(&path, value),
-        }
+        let bytes = match self.kind {
+            Kind::Toml => encode_toml(&path, value)?,
+            Kind::Json => encode_json(&path, value)?,
+        };
+
+        Ok((path, bytes))
     }
 
     /// Deletes the documents whose id is not in `keep`.
@@ -91,12 +101,28 @@ impl Dir {
     }
 }
 
-/// Ids become file names: no separators, no `..`, not hidden, not empty.
+/// Ids become file names, so they must be valid on every system: no separators, no `..`,
+/// not hidden, not empty, and nothing Windows rejects.
 pub(crate) fn safe_name(id: &str) -> bool {
-    let unsafe_id =
-        id.is_empty() || id.starts_with('.') || id.contains("..") || id.contains(['/', '\\', '\0']);
+    let unsafe_id = id.is_empty()
+        || id.starts_with('.')
+        || id.contains("..")
+        || id.ends_with([' ', '.'])
+        || id.contains(|c: char| c.is_control() || WINDOWS_FORBIDDEN.contains(c))
+        || is_device_name(id);
 
     !unsafe_id
+}
+
+/// Windows reserves `con`, `nul`, `com1` … with any extension (`con.txt` too).
+fn is_device_name(id: &str) -> bool {
+    let stem = id.split('.').next().unwrap_or(id).to_ascii_lowercase();
+    let numbered = |prefix: &str| {
+        stem.strip_prefix(prefix)
+            .is_some_and(|n| matches!(n.as_bytes(), [b'1'..=b'9']))
+    };
+
+    WINDOWS_DEVICES.contains(&stem.as_str()) || numbered("com") || numbered("lpt")
 }
 
 pub(crate) fn exists(path: &Path) -> Result<bool, StoreError> {
@@ -129,7 +155,12 @@ fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, StoreError>
     })
 }
 
-pub(crate) fn write_toml<T: Serialize>(path: &Path, value: &T) -> Result<(), StoreError> {
+/// Serializes `value` to TOML text. Refuses NaN and infinity.
+pub(crate) fn encode_toml<T: Serialize + for<'de> Deserialize<'de>>(
+    path: &Path,
+    value: &T,
+) -> Result<Vec<u8>, StoreError> {
+    check_finite(path, value)?;
     let mut text = toml::to_string_pretty(value).map_err(|e| StoreError::Encode {
         path: path.to_path_buf(),
         message: e.to_string(),
@@ -138,17 +169,39 @@ pub(crate) fn write_toml<T: Serialize>(path: &Path, value: &T) -> Result<(), Sto
         text.push('\n');
     }
 
-    write_atomic(path, text.as_bytes())
+    Ok(text.into_bytes())
 }
 
-fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), StoreError> {
+/// Serializes `value` to pretty JSON. Refuses NaN and infinity.
+fn encode_json<T: Serialize + for<'de> Deserialize<'de>>(
+    path: &Path,
+    value: &T,
+) -> Result<Vec<u8>, StoreError> {
+    check_finite(path, value)?;
     let mut text = serde_json::to_string_pretty(value).map_err(|e| StoreError::Encode {
         path: path.to_path_buf(),
         message: e.to_string(),
     })?;
     text.push('\n');
 
-    write_atomic(path, text.as_bytes())
+    Ok(text.into_bytes())
+}
+
+/// serde_json turns NaN and infinity into `null`, which does not read back as a number.
+/// Converting to a JSON value and back fails exactly then, and names the field.
+fn check_finite<T: Serialize + for<'de> Deserialize<'de>>(
+    path: &Path,
+    value: &T,
+) -> Result<(), StoreError> {
+    let encode_err = |message: String| StoreError::Encode {
+        path: path.to_path_buf(),
+        message,
+    };
+    let json = serde_json::to_value(value).map_err(|e| encode_err(e.to_string()))?;
+
+    serde_json::from_value::<T>(json)
+        .map(drop)
+        .map_err(|e| encode_err(format!("non-finite number: {e}")))
 }
 
 /// Writes to a temp file next to `path`, then renames it over `path`: a crash leaves the old

@@ -17,7 +17,9 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 - **Formatversion:** `format_version` in `projekt.toml` (aktuell 1). Eine neuere Version als die
   des Programms wird nicht geladen, sondern gemeldet.
 - **Ids:** Drehort- und Szenen-Ids sind Dateinamen und müssen mit der `id` in der Datei
-  übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`.
+  übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`, Ende auf `.` oder Leerzeichen,
+  `<>:"|?*`, Steuerzeichen, Windows-Gerätenamen (`con`, `nul`, `com1` …). Ids, die sich nur
+  in der Groß-/Kleinschreibung unterscheiden, gelten als gleich.
 - **Reihenfolge:** Drehorte und Szenen werden nach Id sortiert gelesen. Die Reihenfolge der
   Figuren steht in `figuren.toml`, die der Shots (Schnittfolge) im Floorplan.
 - **JSON:** eingerückt, Schlüssel in der Feldreihenfolge des Modells, Zeilenumbruch am Ende.

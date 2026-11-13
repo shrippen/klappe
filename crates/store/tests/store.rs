@@ -466,3 +466,86 @@ fn broken_file_names_it() {
 
     assert!(error.to_string().contains("szene-012.json"));
 }
+
+#[test]
+fn float_round_trip_is_exact() {
+    let dir = test_dir("float");
+    let mut project = example();
+    project.scenes[0].plans[0].figures[0].marks[0].at.x_m = 14.815548635762573;
+
+    save(&dir, &project, None).unwrap();
+
+    assert_eq!(load(&dir).unwrap().project, project);
+}
+
+#[test]
+fn non_finite_numbers_are_refused_before_any_write() {
+    for value in [f64::NAN, f64::INFINITY] {
+        let dir = test_dir("non-finite");
+        save(&dir, &example(), None).unwrap();
+        let before = fs::read_to_string(dir.join("projekt.toml")).unwrap();
+
+        let mut project = example();
+        project.title = "Neu".into();
+        project.scenes[0].plans[0].figures[0].marks[0].at_s = value;
+        let result = save(&dir, &project, None);
+
+        assert!(matches!(result, Err(StoreError::Encode { .. })), "{value}");
+        assert_eq!(
+            fs::read_to_string(dir.join("projekt.toml")).unwrap(),
+            before
+        );
+        assert_eq!(load(&dir).unwrap().project, example());
+    }
+}
+
+#[test]
+fn newer_format_wins_over_missing_title() {
+    let dir = test_dir("newer-no-title");
+    fs::create_dir_all(&dir).unwrap();
+    let newer = FORMAT_VERSION + 1;
+    fs::write(
+        dir.join("projekt.toml"),
+        format!("format_version = {newer}\n"),
+    )
+    .unwrap();
+
+    let error = load(&dir).unwrap_err();
+
+    assert!(matches!(error, StoreError::NewerFormat { .. }), "{error}");
+}
+
+#[test]
+fn windows_invalid_ids_are_rejected() {
+    let ids = [
+        "12:A", "con", "CON", "aux", "nul", "prn", "com1", "LPT9", "con.txt", "a.", "a ", "a<b",
+        "a>b", "a\"b", "a|b", "a?b", "a*b",
+    ];
+    for id in ids {
+        let dir = test_dir("win-id");
+        let mut project = example();
+        project.scenes[0].id = id.into();
+
+        let result = save(&dir, &project, None);
+
+        assert!(matches!(result, Err(StoreError::BadId { .. })), "{id:?}");
+    }
+}
+
+#[test]
+fn ids_equal_ignoring_case_are_duplicates() {
+    let dir = test_dir("case-id");
+    let mut project = example();
+    let mut scene = project.scenes[0].clone();
+    scene.id = "SZENE-012".into();
+    project.scenes.push(scene);
+    let result = save(&dir, &project, None);
+    assert!(matches!(result, Err(StoreError::DuplicateId { .. })));
+
+    let mut project = example();
+    let mut place = project.locations[0].clone();
+    place.id = "Saengersaal".into();
+    project.locations.push(place);
+    let result = save(&dir, &project, None);
+    assert!(matches!(result, Err(StoreError::DuplicateId { .. })));
+}
