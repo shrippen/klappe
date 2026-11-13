@@ -5,7 +5,7 @@
 //! ```
 
 use clap::{Parser, Subcommand};
-use klappe_model::Sensor;
+use klappe_services::Sensor;
 use std::process::ExitCode;
 
 #[derive(Debug, Parser)]
@@ -44,7 +44,7 @@ fn fov(lens_mm: f64, sensor: &str) -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    let fov = klappe_stellprobe::horizontal_fov_deg(sensor, lens_mm);
+    let fov = klappe_services::horizontal_fov_deg(sensor, lens_mm);
     println!("{fov:.1}°");
     ExitCode::SUCCESS
 }

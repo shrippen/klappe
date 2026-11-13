@@ -11,8 +11,7 @@ name = "klappe-cli"
 path = "src/main.rs"
 
 [dependencies]
-klappe-model.workspace = true
-klappe-stellprobe.workspace = true
+klappe-services.workspace = true
 # Argument parsing (MIT/Apache-2.0).
 clap = { version = "4.5", features = ["derive"] }
 

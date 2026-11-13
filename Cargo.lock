@@ -143,8 +143,7 @@ name = "klappe-cli"
 version = "0.0.1"
 dependencies = [
  "clap",
- "klappe-model",
- "klappe-stellprobe",
+ "klappe-services",
 ]
 
 [[package]]
@@ -168,6 +167,19 @@ dependencies = [
 [[package]]
 name = "klappe-script"
 version = "0.0.1"
+
+[[package]]
+name = "klappe-services"
+version = "0.0.1"
+dependencies = [
+ "klappe-export",
+ "klappe-model",
+ "klappe-script",
+ "klappe-stellprobe",
+ "klappe-store",
+ "serde",
+ "thiserror",
+]
 
 [[package]]
 name = "klappe-stellprobe"

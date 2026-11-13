@@ -32,7 +32,6 @@ model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
 - Wie `planung/KONZEPT.md`, Abschnitt 4. Die mittlere Ebene steht nebeneinander: `export/`
   liest die Darstellungsliste aus `stellprobe/`, `store/` nutzt `script/`; sonst rufen sie sich
   nicht.
-- Bis `services/` existiert, ruft `cli/` den Kern direkt; danach nur noch `services/`.
 - Oberflächen zeichnen die Darstellungsliste aus `stellprobe/`; eigene Geometrie in QML ist ein
   Fehler.
 - Jede Schicht ist ein eigenes Crate; Abhängigkeiten nur zum Nachbarn darunter (in
