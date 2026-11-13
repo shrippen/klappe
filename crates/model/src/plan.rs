@@ -61,15 +61,28 @@ impl FloorPlan {
         let figures = self
             .figures
             .iter()
-            .flat_map(|f| f.marks.iter().map(|m| m.at_s + m.hold_s));
+            .map(|f| track_end(f.marks.iter().map(|m| (m.at_s, m.hold_s))));
         let cameras = self
             .cameras
             .iter()
-            .flat_map(|c| c.marks.iter().map(|m| m.at_s + m.hold_s));
+            .map(|c| track_end(c.marks.iter().map(|m| (m.at_s, m.hold_s))));
         let shots = self.shots.iter().map(|s| s.to_s);
 
         figures.chain(cameras).chain(shots).fold(0.0, f64::max)
     }
+}
+
+/// Last arrival plus its pause; earlier pauses end at the next mark anyway.
+fn track_end(marks: impl Iterator<Item = (f64, f64)>) -> f64 {
+    let mut end = 0.0_f64;
+    let mut last_hold = 0.0;
+
+    for (at_s, hold_s) in marks {
+        end = end.max(at_s);
+        last_hold = hold_s;
+    }
+
+    end + last_hold
 }
 
 /// A character's way through the scene: marks 1, 2, 3 … in time order (LH-21).
@@ -223,5 +236,25 @@ mod tests {
         }];
 
         assert_eq!(plan.duration_s(), 15.0);
+    }
+
+    /// Review round 2: a pause longer than the way to the next mark counted in full.
+    #[test]
+    fn pause_ends_at_the_next_mark() {
+        let mut plan = FloorPlan::new("p", "Plan A");
+        let at = Point::new(0.0, 0.0);
+        let mark = |at_s, hold_s| Mark {
+            at_s,
+            at,
+            facing_deg: 0.0,
+            pose: Pose::Standing,
+            hold_s,
+        };
+        plan.figures = vec![FigureTrack {
+            character: "e".into(),
+            marks: vec![mark(0.0, 20.0), mark(5.0, 0.0)],
+        }];
+
+        assert_eq!(plan.duration_s(), 5.0);
     }
 }
