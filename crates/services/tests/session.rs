@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{Layer, LinkKind, Session, ShotField, TrackKind, Visibility};
+use klappe_services::{Layer, LinkKind, ServiceError, Session, ShotField, TrackKind, Visibility};
 use klappe_stellprobe::Role;
 
 fn example() -> PathBuf {
@@ -200,4 +200,20 @@ fn prints_the_plan_as_pdf() {
     let bytes = std::fs::read(&path).unwrap();
     assert!(bytes.starts_with(b"%PDF-"));
     assert_eq!(s.plan_title(), "12 · INT. SÄNGERSAAL – TAG · Plan A");
+}
+
+#[test]
+fn a_lens_outside_a_sensible_range_is_refused() {
+    let mut s = open();
+
+    for bad in ["inf", "1e999", "1e-300", "NaN"] {
+        let err = s.edit_shot("s12-1", ShotField::Lens, bad);
+        assert!(
+            matches!(err, Err(ServiceError::BadValue { .. })),
+            "{bad}: {err:?}"
+        );
+    }
+
+    assert_eq!(s.shots()[0].lens_mm, 35.0);
+    assert!(!s.can_undo());
 }

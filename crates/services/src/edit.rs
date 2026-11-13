@@ -52,6 +52,11 @@ impl ShotField {
     }
 }
 
+/// Focal lengths accepted; outside, the angle of view is absurd (1e-300 mm is ~180 degrees)
+/// and `inf` would be saved as `null`. Also excludes NaN.
+const MIN_LENS_MM: f64 = 1.0;
+const MAX_LENS_MM: f64 = 2000.0;
+
 /// Sets one field of `shot` from text. Lens: millimetres, empty = the camera's lens.
 pub(crate) fn apply(shot: &mut Shot, field: ShotField, value: &str) -> Result<(), ServiceError> {
     let bad = || ServiceError::BadValue {
@@ -83,7 +88,9 @@ fn lens_of(value: &str) -> Option<Option<f64>> {
     }
 
     let mm: f64 = digits.parse().ok()?;
-    (mm > 0.0).then_some(Some(mm))
+    (MIN_LENS_MM..=MAX_LENS_MM)
+        .contains(&mm)
+        .then_some(Some(mm))
 }
 
 /// Names as the model serializes them, e.g. `close-up`.
