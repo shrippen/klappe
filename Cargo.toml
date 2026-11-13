@@ -13,6 +13,7 @@ publish = false
 klappe-model = { path = "crates/model" }
 klappe-stellprobe = { path = "crates/stellprobe" }
 klappe-services = { path = "crates/services" }
+klappe-export = { path = "crates/export" }
 klappe-script = { path = "crates/script" }
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }

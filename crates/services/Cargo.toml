@@ -11,6 +11,7 @@ klappe-model.workspace = true
 klappe-stellprobe.workspace = true
 klappe-script.workspace = true
 klappe-store.workspace = true
+klappe-export.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

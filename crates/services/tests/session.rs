@@ -178,3 +178,26 @@ fn save_writes_the_edit() {
     assert_eq!(again.shots()[2].description, "Burgvogt, Reaktion");
     assert!(!s.is_dirty());
 }
+
+#[test]
+fn prints_the_plan_as_pdf() {
+    let s = open();
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan.pdf");
+    let texts = klappe_services::Texts {
+        figure: "Figur".into(),
+        camera: "Kamera".into(),
+        light: "Licht".into(),
+        axis: "Achse".into(),
+        path: "Weg".into(),
+        mark: "Mark".into(),
+        unit: "m".into(),
+        decimal_separator: ',',
+    };
+
+    s.export_pdf(&path, klappe_services::Paper::A4, texts)
+        .unwrap();
+
+    let bytes = std::fs::read(&path).unwrap();
+    assert!(bytes.starts_with(b"%PDF-"));
+    assert_eq!(s.plan_title(), "12 · INT. SÄNGERSAAL – TAG · Plan A");
+}

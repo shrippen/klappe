@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::{FigureColor, FloorPlan, LinkTarget, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{axis_jumps, render, DisplayList, Role, Source};
@@ -200,6 +201,25 @@ impl Session {
             _ => return true,
         };
         !self.hidden_tracks.contains(id)
+    }
+
+    /// Prints the current plan at the playhead as PDF (LH-80); `title` names scene and plan.
+    pub fn export_pdf(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
+        let page = Page::new(paper, Orientation::Landscape, self.plan_title(), texts);
+        let bytes = klappe_export::pdf(&self.display_list(), &page, Theme::Light)?;
+
+        std::fs::write(path, bytes).map_err(|source| ServiceError::Write {
+            path: path.to_owned(),
+            source,
+        })
+    }
+
+    /// "Szene 12 · INT. SÄNGERSAAL – TAG · Plan A" without the word "Szene": the surface adds it.
+    pub fn plan_title(&self) -> String {
+        let (Some(scene), Some(plan)) = (self.scene(), self.plan()) else {
+            return String::new();
+        };
+        format!("{} · {} · {}", scene.number, scene.heading, plan.name)
     }
 
     /// The shot list of the current plan, in cut order.

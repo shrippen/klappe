@@ -173,6 +173,7 @@ version = "0.0.1"
 name = "klappe-services"
 version = "0.0.1"
 dependencies = [
+ "klappe-export",
  "klappe-model",
  "klappe-script",
  "klappe-stellprobe",
