@@ -217,3 +217,14 @@ fn a_lens_outside_a_sensible_range_is_refused() {
     assert_eq!(s.shots()[0].lens_mm, 35.0);
     assert!(!s.can_undo());
 }
+
+#[test]
+fn an_unknown_camera_is_refused() {
+    let mut s = open();
+
+    let err = s.edit_shot("s12-1", ShotField::Camera, "nope");
+
+    assert!(matches!(err, Err(ServiceError::BadValue { .. })), "{err:?}");
+    assert_eq!(s.shots()[0].camera_label, "A");
+    assert!(!s.can_undo());
+}

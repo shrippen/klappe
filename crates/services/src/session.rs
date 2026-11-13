@@ -262,14 +262,18 @@ impl Session {
         value: &str,
     ) -> Result<(), ServiceError> {
         let mut next = self.project.clone();
-        let shot = next
+        let plan = next
             .scenes
             .get_mut(self.scene)
             .and_then(|s| s.plans.get_mut(self.plan))
-            .and_then(|p| p.shots.iter_mut().find(|s| s.id == id))
+            .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
+        let shot = plan
+            .shots
+            .iter_mut()
+            .find(|s| s.id == id)
             .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
 
-        edit::apply(shot, field, value)?;
+        edit::apply(shot, &plan.cameras, field, value)?;
         if next == self.project {
             return Ok(());
         }

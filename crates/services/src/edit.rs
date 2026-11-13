@@ -1,4 +1,4 @@
-use klappe_model::{Movement, Shot, ShotSize};
+use klappe_model::{Camera, Movement, Shot, ShotSize};
 
 use crate::error::ServiceError;
 
@@ -57,8 +57,14 @@ impl ShotField {
 const MIN_LENS_MM: f64 = 1.0;
 const MAX_LENS_MM: f64 = 2000.0;
 
-/// Sets one field of `shot` from text. Lens: millimetres, empty = the camera's lens.
-pub(crate) fn apply(shot: &mut Shot, field: ShotField, value: &str) -> Result<(), ServiceError> {
+/// Sets one field of `shot` from text. Camera: an id of `cameras`. Lens: millimetres,
+/// empty = the camera's lens.
+pub(crate) fn apply(
+    shot: &mut Shot,
+    cameras: &[Camera],
+    field: ShotField,
+    value: &str,
+) -> Result<(), ServiceError> {
     let bad = || ServiceError::BadValue {
         field: field.name(),
         value: value.to_owned(),
@@ -66,7 +72,7 @@ pub(crate) fn apply(shot: &mut Shot, field: ShotField, value: &str) -> Result<()
 
     match field {
         ShotField::Number => shot.number = value.trim().to_owned(),
-        ShotField::Camera => shot.camera = value.trim().to_owned(),
+        ShotField::Camera => shot.camera = camera_of(cameras, value).ok_or_else(bad)?,
         ShotField::Size => shot.size = size_of(value).ok_or_else(bad)?,
         ShotField::Movement => shot.movement = movement_of(value).ok_or_else(bad)?,
         ShotField::Lens => shot.lens_mm = lens_of(value).ok_or_else(bad)?,
@@ -78,6 +84,11 @@ pub(crate) fn apply(shot: &mut Shot, field: ShotField, value: &str) -> Result<()
     }
 
     Ok(())
+}
+
+fn camera_of(cameras: &[Camera], value: &str) -> Option<String> {
+    let id = value.trim();
+    cameras.iter().find(|c| c.id == id).map(|c| c.id.clone())
 }
 
 /// `"85"`, `"85 mm"` or `"85,5"`; empty means "use the camera's lens".
