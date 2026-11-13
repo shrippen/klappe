@@ -60,6 +60,8 @@
  "timeline.cut": "Schnittfolge",
  "timeline.hide": "Ausblenden",
  "timeline.show": "Einblenden",
+ "timeline.start": "Anfang",
+ "timeline.clock": "{time} / {total} {unit}",
  "tip.camera": "Kamera {label}",
  "tip.lens": "{lens} mm · {fov}°",
  "tip.height": "Höhe {height} m",
@@ -82,6 +84,7 @@
  "error.export": "Export fehlgeschlagen: {detail}",
  "error.write": "Kann nicht schreiben: {detail}",
  "unit.m": "m",
+ "unit.s": "s",
  "unit.decimal": ",",
  "empty.title": "Kein Projekt geöffnet",
  "empty.text": "Starte Klappe mit --open <Ordner>.klappe."

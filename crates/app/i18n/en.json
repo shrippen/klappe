@@ -60,6 +60,8 @@
  "timeline.cut": "Cut order",
  "timeline.hide": "Hide",
  "timeline.show": "Show",
+ "timeline.start": "Start",
+ "timeline.clock": "{time} / {total} {unit}",
  "tip.camera": "Camera {label}",
  "tip.lens": "{lens} mm · {fov}°",
  "tip.height": "Height {height} m",
@@ -82,6 +84,7 @@
  "error.export": "Export failed: {detail}",
  "error.write": "Cannot write: {detail}",
  "unit.m": "m",
+ "unit.s": "s",
  "unit.decimal": ".",
  "empty.title": "No project open",
  "empty.text": "Start Klappe with --open <folder>.klappe."

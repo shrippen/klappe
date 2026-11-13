@@ -31,13 +31,18 @@ Item {
         RowLayout {
             spacing: Kirigami.Units.smallSpacing
             KanteToolButton {
-                icon.name: "media-skip-backward"
-                text: "0 s"
-                display: KanteToolButton.TextBesideIcon
+                objectName: "startButton"
+                text: line.texts.t("timeline.start")
+                Accessible.name: text
                 onClicked: line.controller.seek(0)
             }
             KanteSectionLabel {
-                text: line.controller.time.toFixed(1) + " / " + line.controller.duration.toFixed(1) + " s"
+                objectName: "clock"
+                text: line.texts.t("timeline.clock", {
+                    time: line.texts.fixed(line.controller.time, 1),
+                    total: line.texts.fixed(line.controller.duration, 1),
+                    unit: line.texts.t("unit.s")
+                })
             }
             Item { Layout.fillWidth: true }
             KanteSectionLabel { text: line.texts.t("layer.title") }

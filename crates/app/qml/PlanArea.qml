@@ -49,12 +49,12 @@ Item {
         const t = area.texts
         switch (d.kind) {
         case "camera":
-            return [t.t("tip.camera", { label: d.label }), t.t("tip.lens", { lens: d.lens, fov: d.fov }),
-                    t.t("tip.height", { height: d.height }), d.shots ? t.t("tip.shots", { shots: d.shots }) : ""]
+            return [t.t("tip.camera", { label: d.label }), t.t("tip.lens", { lens: t.num(d.lens, 1), fov: t.num(d.fov, 1) }),
+                    t.t("tip.height", { height: t.num(d.height, 2) }), d.shots ? t.t("tip.shots", { shots: d.shots }) : ""]
         case "figure":
             return [t.t("tip.figure", { name: d.name })]
         case "mark":
-            return [t.t("tip.mark", { name: d.name, index: d.index }), t.t("tip.at", { time: d.time })]
+            return [t.t("tip.mark", { name: d.name, index: d.index }), t.t("tip.at", { time: t.num(d.time, 1) })]
         case "light":
             return [t.t("tip.light", { label: d.label, temp: d.temp, power: d.power })]
         case "object":
