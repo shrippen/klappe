@@ -76,6 +76,14 @@ fn shot_rows_take_the_camera_lens_unless_set() {
 }
 
 #[test]
+fn shot_rows_tell_the_own_lens_apart() {
+    let rows = open().shots();
+
+    assert_eq!(rows[0].own_lens_mm, None);
+    assert_eq!(rows[1].own_lens_mm, Some(40.0));
+}
+
+#[test]
 fn edit_undo_redo() {
     let mut s = open();
 

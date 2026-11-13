@@ -166,8 +166,8 @@ Kirigami.ApplicationWindow {
                     Layout.fillHeight: true
                     visible: root.showShot && ctl.loaded
                     texts: texts
+                    controller: ctl
                     shot: root.selected
-                    onEdit: (field, value) => ctl.editShot(root.selected.id, field, value)
                 }
             }
 

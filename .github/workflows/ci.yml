@@ -121,6 +121,8 @@ jobs:
           key: app-arch-${{ hashFiles('Cargo.lock') }}
       - run: cargo clippy -p klappe-app --all-targets -- -D warnings
       - run: cargo test -p klappe-app
+      # qmltestrunner comes with qt6-declarative; runs offscreen.
+      - run: scripts/check-qml.sh
       - name: Screenshots (de, en)
         run: |
           mkdir -p shots

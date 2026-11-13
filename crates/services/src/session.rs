@@ -278,6 +278,7 @@ impl Session {
                     size: size_name(shot.size).to_owned(),
                     movement: movement_name(shot.movement).to_owned(),
                     lens_mm: shot.lens_mm.or(camera.map(|c| c.lens_mm)).unwrap_or(0.0),
+                    own_lens_mm: shot.lens_mm,
                     from_s: shot.from_s,
                     to_s: shot.to_s,
                     description: shot.description.clone(),
