@@ -35,6 +35,12 @@ const CUT_TRACK: &str = "cut";
 /// Colours the cut order gives its cameras, in camera order.
 const CAMERA_LABELS: [&str; 4] = ["yellow", "green", "cyan", "orange"];
 
+/// Colour of the lights' tracks.
+const LIGHT_LABEL: &str = "orange";
+
+/// Colour of the cut track.
+const CUT_LABEL: &str = "yellow";
+
 /// One open project and what the user looks at.
 #[derive(Debug)]
 pub struct Session {
@@ -376,7 +382,7 @@ impl Session {
                 kind: TrackKind::Light,
                 id: light.id.clone(),
                 name: light.label.clone(),
-                label: "orange".to_owned(),
+                label: LIGHT_LABEL.to_owned(),
                 shown: self.track_shown(&light.id, Layer::Lights),
                 segments: vec![Segment {
                     from_s: 0.0,
@@ -419,7 +425,7 @@ impl Session {
             kind: TrackKind::Cut,
             id: CUT_TRACK.to_owned(),
             name: String::new(),
-            label: "yellow".to_owned(),
+            label: CUT_LABEL.to_owned(),
             shown: true,
             segments,
             markers: Vec::new(),
