@@ -1,0 +1,197 @@
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls as QQC2
+import org.kde.kirigami as Kirigami
+import Kante
+import io.github.shrippen.klappe
+
+// E-14 (planung/KONZEPT.md): header and tool bar on top, script left, plan in the middle,
+// shot right, timeline below. Script, shot and timeline fold away.
+//
+//  ┌ Klappe · Wartburg · Szene 12 …            Rückgängig  Speichern  PDF ┐
+//  ├ Auswahl Wand Objekt Figur Kamera Licht │ Drehbuch Shot Zeitleiste    ┤
+//  │ Drehbuch │            Plan             │ Shot 12.3                   │
+//  ├──────────┴─────────────────────────────┴─────────────────────────────┤
+//  │ Zeitleiste: Schnittfolge, Figuren, Kameras, Licht                    │
+//  └──────────────────────────────────────────────────────────────────────┘
+Kirigami.ApplicationWindow {
+    id: root
+
+    title: texts.t("app.name") + (ctl.loaded ? " – " + ctl.title : "")
+    width: Kirigami.Units.gridUnit * 80
+    height: Kirigami.Units.gridUnit * 50
+    minimumWidth: Kirigami.Units.gridUnit * 40
+    minimumHeight: Kirigami.Units.gridUnit * 26
+    pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
+    color: KanteStyle.backgroundColor
+
+    property bool showScript: true
+    property bool showShot: true
+    property bool showTimeline: true
+
+    Controller { id: ctl }
+    Texts { id: texts; source: ctl.texts }
+
+    Binding { target: KanteStyle; property: "kind"; value: KanteStyle.Kind.Kante }
+    KanteScope { target: root.contentItem }
+
+    readonly property var shots: ctl.shotsJson ? JSON.parse(ctl.shotsJson) : []
+    readonly property var selected: shots.find(s => s.id === ctl.selectedShot) || null
+
+    pageStack.initialPage: Kirigami.Page {
+        id: page
+        padding: 0
+        background: Rectangle { color: KanteStyle.backgroundColor }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0
+
+            // Header: where we are, and what applies to the whole project.
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.smallSpacing
+                spacing: Kirigami.Units.largeSpacing
+
+                KanteHeading {
+                    text: texts.t("app.name")
+                    level: 2
+                }
+                KanteSectionLabel {
+                    text: texts.t("app.module")
+                }
+                Kirigami.Heading {
+                    Layout.fillWidth: true
+                    level: 4
+                    elide: Text.ElideRight
+                    color: KanteStyle.mutedTextColor
+                    text: ctl.loaded ? ctl.title + " · " + texts.t("app.scene", { number: ctl.planTitle }) : ""
+                }
+                Kirigami.Heading {
+                    level: 5
+                    color: KanteStyle.mutedTextColor
+                    text: ctl.status !== "" ? ctl.status : (ctl.dirty ? texts.t("menu.unsaved") : "")
+                    visible: text !== ""
+                }
+                KanteButton {
+                    text: texts.t("menu.undo")
+                    enabled: ctl.canUndo
+                    onClicked: ctl.undo()
+                }
+                KanteButton {
+                    text: texts.t("menu.redo")
+                    enabled: ctl.canRedo
+                    onClicked: ctl.redo()
+                }
+                KanteButton {
+                    text: texts.t("menu.save")
+                    enabled: ctl.loaded
+                    onClicked: ctl.save()
+                }
+                KanteButton {
+                    text: texts.t("menu.pdf")
+                    enabled: ctl.loaded
+                    onClicked: ctl.exportPdf()
+                }
+            }
+
+            // Tool bar: drawing tools (later), then what to show.
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Kirigami.Units.smallSpacing
+                Layout.rightMargin: Kirigami.Units.smallSpacing
+                spacing: Kirigami.Units.smallSpacing
+
+                Repeater {
+                    model: ["select", "wall", "object", "figure", "camera", "light"]
+                    delegate: KanteToolButton {
+                        required property string modelData
+                        text: texts.t("tool." + modelData)
+                        checkable: true
+                        checked: modelData === "select"
+                        // Drawing tools come with editing (LH-10 ff.); for now only selection.
+                        enabled: modelData === "select"
+                        QQC2.ToolTip.text: texts.t("tool.soon")
+                        QQC2.ToolTip.visible: !enabled && hovered
+                    }
+                }
+                Item { Layout.fillWidth: true }
+                KanteToolButton {
+                    text: texts.t("toggle.script")
+                    checkable: true
+                    checked: root.showScript
+                    onToggled: root.showScript = checked
+                }
+                KanteToolButton {
+                    text: texts.t("toggle.shot")
+                    checkable: true
+                    checked: root.showShot
+                    onToggled: root.showShot = checked
+                }
+                KanteToolButton {
+                    text: texts.t("toggle.timeline")
+                    checkable: true
+                    checked: root.showTimeline
+                    onToggled: root.showTimeline = checked
+                }
+            }
+
+            Kirigami.Separator { Layout.fillWidth: true }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 0
+
+                ScriptPanel {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 20
+                    Layout.fillHeight: true
+                    visible: root.showScript && ctl.loaded
+                    texts: texts
+                    lines: ctl.scriptJson ? JSON.parse(ctl.scriptJson) : []
+                    onChipClicked: (kind, target, at) => kind === "shot" ? ctl.selectShot(target) : ctl.seek(at)
+                }
+                Kirigami.Separator { Layout.fillHeight: true; visible: root.showScript && ctl.loaded }
+
+                PlanArea {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    texts: texts
+                    controller: ctl
+                }
+
+                Kirigami.Separator { Layout.fillHeight: true; visible: root.showShot && ctl.loaded }
+                ShotPanel {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 20
+                    Layout.fillHeight: true
+                    visible: root.showShot && ctl.loaded
+                    texts: texts
+                    shot: root.selected
+                    onEdit: (field, value) => ctl.editShot(root.selected.id, field, value)
+                }
+            }
+
+            Kirigami.Separator { Layout.fillWidth: true; visible: root.showTimeline && ctl.loaded }
+            Timeline {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 16
+                visible: root.showTimeline && ctl.loaded
+                texts: texts
+                controller: ctl
+            }
+        }
+    }
+
+    // Tests and release screenshots: --screenshot PATH [--screenshot-after MS], then quit.
+    Timer {
+        interval: Math.max(100, ctl.screenshotAfter)
+        running: ctl.screenshotPath !== ""
+        onTriggered: {
+            // The window itself has no engine to grab with; the page has (Kontra's lesson).
+            page.grabToImage(function(result) {
+                result.saveToFile(ctl.screenshotPath)
+                Qt.quit()
+            })
+        }
+    }
+}

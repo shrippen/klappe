@@ -4,7 +4,8 @@ Film-Vorproduktionssuite für Linux, Windows und macOS. Erstes Modul: **Stellpro
 Floorplans mit Blocking, Kameras, Licht und Shotliste.
 
 Stand: Phase 0 (Gerüst). Arbeitsstand: [`planung/STAND.md`](planung/STAND.md).
-Bauen und prüfen: `make check` (Rust stable, `cargo-deny`).
+Bauen und prüfen: `make check` (Rust stable, `cargo-deny`, Qt 6 mit Kirigami).
+Starten mit dem Beispielprojekt: `make run`.
 
 Konzept: [`planung/KONZEPT.md`](planung/KONZEPT.md),
 Lastenheft Stellprobe: [`planung/stellprobe/LASTENHEFT.md`](planung/stellprobe/LASTENHEFT.md).

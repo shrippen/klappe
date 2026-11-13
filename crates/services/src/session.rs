@@ -92,6 +92,10 @@ impl Session {
         })
     }
 
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
     pub fn project(&self) -> &Project {
         &self.project
     }
@@ -111,7 +115,8 @@ impl Session {
         self.project.scenes.get(self.scene)
     }
 
-    fn plan(&self) -> Option<&FloorPlan> {
+    /// The plan shown: the current scene's first plan for now.
+    pub fn plan(&self) -> Option<&FloorPlan> {
         self.scene()?.plans.get(self.plan)
     }
 
