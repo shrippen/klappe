@@ -132,8 +132,12 @@ impl Session {
         self.plan().map(FloorPlan::duration_s).unwrap_or(0.0)
     }
 
-    /// Moves the playhead, kept within the scene.
+    /// Moves the playhead, kept within the scene. NaN is ignored.
     pub fn set_time(&mut self, t_s: f64) {
+        if t_s.is_nan() {
+            return;
+        }
+
         self.time_s = t_s.clamp(0.0, self.duration_s());
     }
 

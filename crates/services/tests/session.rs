@@ -228,3 +228,13 @@ fn an_unknown_camera_is_refused() {
     assert_eq!(s.shots()[0].camera_label, "A");
     assert!(!s.can_undo());
 }
+
+#[test]
+fn a_time_that_is_not_a_number_is_ignored() {
+    let mut s = open();
+    s.set_time(5.0);
+
+    s.set_time(f64::NAN);
+
+    assert_eq!(s.time_s(), 5.0);
+}
