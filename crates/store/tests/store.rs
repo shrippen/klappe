@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use klappe_model::*;
-use klappe_store::{load, save, StoreError};
+use klappe_store::{load, save, save_script, StoreError};
 
 const EXAMPLE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -548,4 +548,22 @@ fn ids_equal_ignoring_case_are_duplicates() {
     project.locations.push(place);
     let result = save(&dir, &project, None);
     assert!(matches!(result, Err(StoreError::DuplicateId { .. })));
+}
+
+#[test]
+fn save_script_writes_nothing_else() {
+    let dir = test_dir("save-script");
+    save(&dir, &example(), Some(SCRIPT)).unwrap();
+    let foreign = dir.join("szenen/neu.json");
+    fs::write(&foreign, "{}\n").unwrap();
+    let project = fs::read(dir.join("projekt.toml")).unwrap();
+
+    save_script(&dir, "Neu.\n").unwrap();
+
+    assert!(foreign.exists());
+    assert_eq!(fs::read(dir.join("projekt.toml")).unwrap(), project);
+    assert_eq!(
+        fs::read_to_string(dir.join("drehbuch.fountain")).unwrap(),
+        "Neu.\n"
+    );
 }

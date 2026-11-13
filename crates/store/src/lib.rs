@@ -139,6 +139,11 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     Ok(())
 }
 
+/// Writes `drehbuch.fountain` in `dir` atomically and nothing else.
+pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
+    files::write_atomic(&dir.join(SCRIPT_FILE), script.as_bytes())
+}
+
 /// Reads every file of a kind in `dir`, sorted by file name; the id inside must match it.
 fn load_all<T>(dir: &Path, kind: Kind, id_of: impl Fn(&T) -> &String) -> Result<Vec<T>, StoreError>
 where

@@ -107,6 +107,13 @@ impl Session {
         Ok(())
     }
 
+    /// Writes only the screenplay; every other file of the folder stays as it is on disk.
+    pub fn save_script(&self) -> Result<(), ServiceError> {
+        let text = self.script_text.as_deref().unwrap_or_default();
+        klappe_store::save_script(&self.dir, text)?;
+        Ok(())
+    }
+
     pub fn scene(&self) -> Option<&Scene> {
         self.project.scenes.get(self.scene)
     }
@@ -230,6 +237,21 @@ impl Session {
             return String::new();
         };
         format!("{} · {} · {}", scene.number, scene.heading, plan.name)
+    }
+
+    /// The screenplay as Fountain text (`""` when the project has none yet).
+    pub fn script_text(&self) -> &str {
+        self.script_text.as_deref().unwrap_or_default()
+    }
+
+    /// Replaces the screenplay (the TUI editor, E-09); written with the next `save` or `save_script`.
+    pub fn set_script_text(&mut self, text: &str) {
+        if self.script_text.as_deref() == Some(text) {
+            return;
+        }
+        self.script = klappe_script::parse(text);
+        self.script_text = Some(text.to_owned());
+        self.dirty = true;
     }
 
     /// The shot list of the current plan, in cut order.
