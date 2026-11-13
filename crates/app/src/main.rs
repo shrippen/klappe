@@ -6,6 +6,7 @@
 mod args;
 mod bridge;
 mod catalog;
+mod notice;
 mod plan;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};

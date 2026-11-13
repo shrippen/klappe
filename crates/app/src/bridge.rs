@@ -92,11 +92,13 @@ use serde_json::json;
 
 use crate::args::AppArgs;
 use crate::catalog::Language;
+use crate::notice::{error_text, Status};
 use crate::plan;
 
 pub struct ControllerRust {
     session: Option<Session>,
     language: Language,
+    notice: Status,
     texts: QString,
     loaded: bool,
     title: QString,
@@ -127,7 +129,7 @@ impl Default for ControllerRust {
     fn default() -> Self {
         let args = AppArgs::from_env();
         let language = Language::pick(args.language.as_deref());
-        let mut status = String::new();
+        let mut notice = Status::default();
 
         let session = args.open.as_ref().and_then(|dir| match Session::open(dir) {
             Ok(mut s) => {
@@ -138,7 +140,7 @@ impl Default for ControllerRust {
                 Some(s)
             }
             Err(e) => {
-                status = e.to_string();
+                notice.say(error_text(language, &e));
                 None
             }
         });
@@ -146,6 +148,8 @@ impl Default for ControllerRust {
         let mut this = Self {
             session,
             language,
+            status: q(notice.text()),
+            notice,
             texts: q(language.json()),
             loaded: false,
             title: QString::default(),
@@ -161,7 +165,6 @@ impl Default for ControllerRust {
             can_undo: false,
             can_redo: false,
             dirty: false,
-            status: q(&status),
             screenshot_path: args
                 .screenshot
                 .map(|p| q(&p.to_string_lossy()))
@@ -277,8 +280,17 @@ impl qobject::Controller {
         self.as_mut().set_dirty(dirty);
     }
 
-    fn text(self: Pin<&mut Self>, key: &str) -> String {
-        self.rust().language.text(key)
+    /// Shows `text` in the header until the project changes.
+    fn say(mut self: Pin<&mut Self>, text: String) {
+        self.as_mut().rust_mut().get_mut().notice.say(text.clone());
+        self.set_status(q(&text));
+    }
+
+    /// The project changed: a "saved" or error message no longer fits.
+    fn changed(mut self: Pin<&mut Self>) {
+        if self.as_mut().rust_mut().get_mut().notice.project_changed() {
+            self.set_status(QString::default());
+        }
     }
 
     fn seek(mut self: Pin<&mut Self>, time: f64) {
@@ -300,17 +312,18 @@ impl qobject::Controller {
     }
 
     fn edit_shot(mut self: Pin<&mut Self>, id: &QString, field: &QString, value: &QString) -> bool {
+        let language = self.rust().language;
         let Some(field) = ShotField::from_name(&field.to_string()) else {
             return false;
         };
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-        if s.edit_shot(&id.to_string(), field, &value.to_string())
-            .is_err()
-        {
+        if let Err(e) = s.edit_shot(&id.to_string(), field, &value.to_string()) {
+            self.say(error_text(language, &e));
             return false;
         }
+        self.as_mut().changed();
         self.refresh();
         true
     }
@@ -319,6 +332,7 @@ impl qobject::Controller {
         if let Some(s) = self.as_mut().session() {
             s.undo();
         }
+        self.as_mut().changed();
         self.refresh();
     }
 
@@ -326,20 +340,22 @@ impl qobject::Controller {
         if let Some(s) = self.as_mut().session() {
             s.redo();
         }
+        self.as_mut().changed();
         self.refresh();
     }
 
     fn save(mut self: Pin<&mut Self>) -> bool {
+        let language = self.rust().language;
         let result = match self.as_mut().session() {
-            Some(s) => s.save().map_err(|e| e.to_string()),
+            Some(s) => s.save().map_err(|e| error_text(language, &e)),
             None => return false,
         };
 
         let message = match &result {
-            Ok(()) => self.as_mut().text("menu.saved"),
+            Ok(()) => language.text("menu.saved"),
             Err(e) => e.clone(),
         };
-        self.as_mut().set_status(q(&message));
+        self.as_mut().say(message);
         self.refresh();
         result.is_ok()
     }
@@ -378,10 +394,10 @@ impl qobject::Controller {
             Ok(()) => language
                 .text("menu.pdfSaved")
                 .replace("{path}", &path.to_string_lossy()),
-            Err(e) => e.to_string(),
+            Err(e) => error_text(language, &e),
         };
         let ok = path.exists();
-        self.as_mut().set_status(q(&message));
+        self.as_mut().say(message);
         ok
     }
 
