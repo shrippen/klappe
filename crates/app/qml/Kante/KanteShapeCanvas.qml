@@ -135,6 +135,13 @@ FocusScope {
         canvas.requestPaint()
     }
 
+    // Space held while the focus leaves never sends its release.
+    onActiveFocusChanged: {
+        if (!activeFocus) {
+            _spaceDown = false
+        }
+    }
+
     onPanXChanged: canvas.requestPaint()
     onPanYChanged: canvas.requestPaint()
     onShapesChanged: canvas.requestPaint()
@@ -253,7 +260,13 @@ FocusScope {
     /** The key of the topmost shape under a pixel, "" for none. */
     function keyAt(px, py) {
         const i = shapeAt(px, py)
-        return i < 0 ? "" : String(shapes[i].key || "")
+        if (i < 0) {
+            return ""
+        }
+
+        // A key of 0 is a key.
+        const key = shapes[i].key
+        return key === undefined || key === null ? "" : String(key)
     }
 
     Keys.onPressed: function (event) {

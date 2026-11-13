@@ -11,7 +11,8 @@ import "."
  *   position    the playhead in seconds
  *   tracks      [{ name, label, shown, segments: [{ from, to, text, selected }],
  *               markers: [{ at, text }] }]; seconds. label: a colour name of
- *               KanteStyle.labels, "" for the text colour. shown false: the row is dimmed
+ *               KanteStyle.labels, or "text", "muted", "accent", "focus", "warning";
+ *               "" or an unknown name gives the text colour. shown false: the row is dimmed
  *   trackHeight height of a row, labelWidth width of the name column (KanteStyle units)
  *   hideText, showText   the app's words for the toggle: "<hideText>: <name>" while shown,
  *               "<showText>: <name>" while hidden (tooltip and name for screen readers)
@@ -61,6 +62,7 @@ FocusScope {
     readonly property int tickCount: Math.floor(Math.max(0, duration) / tickStep) + 1
     readonly property real markerSize: KanteStyle.unit(12)
     property var hovered: null
+    onTracksChanged: hovered = null
 
     implicitWidth: KanteStyle.unit(640)
     implicitHeight: rulerHeight + tracks.length * trackHeight
@@ -125,8 +127,16 @@ FocusScope {
         return null
     }
 
+    // Colour of a label name; the same names as KanteShapeCanvas.
     function _labelColor(name) {
-        return name === "" || name === undefined ? KanteStyle.textColor : KanteStyle.labelColor(name)
+        switch (name) {
+        case "muted": return KanteStyle.mutedTextColor
+        case "accent": return KanteStyle.accentColor
+        case "focus": return KanteStyle.focusColor
+        case "warning": return KanteStyle.warningColor
+        }
+        const c = KanteStyle.labelColor(name)
+        return c.a > 0 ? c : KanteStyle.textColor
     }
 
     function _clock(s) {
@@ -337,7 +347,11 @@ FocusScope {
 
         QQC2.ToolTip {
             visible: root.hovered !== null && area.containsMouse
-            text: root.hovered ? root.tracks[root.hovered.track].markers[root.hovered.index].text || "" : ""
+            text: {
+                const track = root.hovered ? root.tracks[root.hovered.track] : null
+                const mark = track && track.markers ? track.markers[root.hovered.index] : null
+                return mark && mark.text ? mark.text : ""
+            }
         }
     }
 
