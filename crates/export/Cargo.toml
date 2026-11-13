@@ -1,0 +1,16 @@
+[package]
+name = "klappe-export"
+description = "Writes Stellprobe's display list as SVG and PDF."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+klappe-model.workspace = true
+klappe-stellprobe.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
