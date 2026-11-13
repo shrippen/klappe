@@ -1,0 +1,10 @@
+[package]
+name = "klappe-script"
+description = "Fountain screenplay parser and writer: elements, scenes and a lossless round trip."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

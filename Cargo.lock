@@ -134,6 +134,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "klappe-script"
+version = "0.0.1"
+
+[[package]]
 name = "klappe-stellprobe"
 version = "0.0.1"
 dependencies = [
