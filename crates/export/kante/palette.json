@@ -1,0 +1,449 @@
+{
+  "meta": {
+    "name": "Kante",
+    "version": "1.15.0",
+    "source": "https://github.com/shrippen/Kante",
+    "base": "Gruvbox Dark (morhetz)",
+    "formerly": "shrippen Design Default"
+  },
+  "backgrounds": {
+    "bg-void": "#141312",
+    "bg-hard": "#1d2021",
+    "bg0": "#282828",
+    "bg1": "#3c3836",
+    "bg2": "#504945",
+    "bg-panel": "#2a2826"
+  },
+  "foregrounds": {
+    "fg0": "#fbf1c7",
+    "fg1": "#ebdbb2",
+    "fg2": "#d5c4a1",
+    "fg3": "#a89984"
+  },
+  "accent": "#e8dcc4",
+  "semantic": {
+    "blue": {
+      "bright": "#83a598",
+      "neutral": "#458588",
+      "faded": "#076678"
+    },
+    "aqua": {
+      "bright": "#8ec07c",
+      "neutral": "#689d6a",
+      "faded": "#427b58"
+    },
+    "green": {
+      "bright": "#b8bb26",
+      "neutral": "#98971a",
+      "faded": "#79740e"
+    },
+    "yellow": {
+      "bright": "#fabd2f",
+      "neutral": "#d79921",
+      "faded": "#b57614"
+    },
+    "orange": {
+      "bright": "#fe8019",
+      "neutral": "#d65d0e",
+      "faded": "#af3a03"
+    },
+    "red": {
+      "bright": "#fb4934",
+      "neutral": "#cc241d",
+      "faded": "#9d0006"
+    },
+    "purple": {
+      "bright": "#d3869b",
+      "neutral": "#b16286",
+      "faded": "#8f3f71"
+    },
+    "cyan": {
+      "bright": "#5ccfc4",
+      "neutral": "#3f9a94",
+      "faded": "#0f6b66"
+    }
+  },
+  "typography": {
+    "heading": "Rajdhani",
+    "headingWeights": [
+      600,
+      700
+    ],
+    "headingSource": "https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap",
+    "body": "system-sans",
+    "mono": "JetBrains Mono, Fira Code, Cascadia Code, Consolas, monospace",
+    "headingCase": "uppercase",
+    "headingLetterSpacing": 0.08,
+    "labelFont": "mono",
+    "labelCase": "uppercase",
+    "labelLetterSpacing": 0.14,
+    "figures": "mono (timers, times, durations, amounts)",
+    "bundled": [
+      "Rajdhani-600.ttf",
+      "Rajdhani-700.ttf",
+      "JetBrainsMono-400.ttf",
+      "JetBrainsMono-500.ttf",
+      "Bravura.otf"
+    ]
+  },
+  "badges": {
+    "labelColor": "1c1c20",
+    "version": "fabd2f",
+    "tech": "5ccfc4",
+    "license": "a89984"
+  },
+  "roles": {
+    "field": "bg-hard (dark) / bg1 (light)",
+    "score": "yellow",
+    "hl": "cyan (current selection)",
+    "focus": "cyan",
+    "link": "cyan",
+    "info": "cyan",
+    "warn": "orange",
+    "danger": "red",
+    "danger-text": "red-text (red that reads as small text on every ground, 4.5:1)"
+  },
+  "light": {
+    "name": "Leinen",
+    "usage": "opt-in via data-theme=\"light\"; token names are roles, not lightness",
+    "backgrounds": {
+      "bg-void": "#f0e9d6",
+      "bg-hard": "#e6dec6",
+      "bg0": "#f0e9d6",
+      "bg-panel": "#f7f2e4",
+      "bg1": "#fbf8ee",
+      "bg2": "#d3c8ac"
+    },
+    "foregrounds": {
+      "fg0": "#282828",
+      "fg1": "#3c3836",
+      "fg2": "#665c54",
+      "fg3": "#6a5f52"
+    },
+    "accent": "#3c3836",
+    "semantic": {
+      "blue": "#076678",
+      "blue-hover": "#05505f",
+      "aqua": "#3a6e4e",
+      "green": "#4f5d0a",
+      "yellow": "#8a5a00",
+      "orange": "#af3a03",
+      "red": "#9d0006",
+      "purple": "#8f3f71",
+      "cyan": "#0f6b66"
+    },
+    "alternative": {
+      "name": "Sand",
+      "bg-void": "#ebe3cf",
+      "bg-panel": "#f4eedd",
+      "bg1": "#f9f5e8",
+      "bg-hard": "#e0d6bb",
+      "bg2": "#cdc1a3"
+    },
+    "extra": {
+      "cyan-tint": "#d9ebe4",
+      "primary": "#fabd2f",
+      "on-primary": "#141312",
+      "yellow-hi": "#fcc845",
+      "yellow-lo": "#e5a823",
+      "on-state": "#fbf8ee",
+      "red-text": "#9d0006"
+    }
+  },
+  "shape": {
+    "chamfer": 16,
+    "chamferSmall": 10,
+    "note": "top-right corner cut on surfaces (16), buttons and tiles (10), small parts (6); a second cut bottom-left only on primary and danger buttons, dialogs and the install box. Fields stay rectangular. No border radius except icons (soft signs in hard frames) and Kante Light. Web: --chamfer, --cut-m, --cut-s. Apps: KanteStyle.chamfer / chamferSmall.",
+    "cutM": 10,
+    "cutS": 6,
+    "controlHeights": [
+      32,
+      40,
+      48
+    ],
+    "heights": {
+      "small": 32,
+      "medium": 40,
+      "large": 48
+    },
+    "cutSmall": 6,
+    "glassBlur": 48,
+    "lines": {
+      "border": 1,
+      "mark": 2,
+      "edge": 3,
+      "note": "1 px borders and grid lines, 2 px lines that mark (today, the picked day, the now line, underlines), 3 px the colour edge of an entry (a calendar's or project's colour). Web: --line-border, --line-mark, --line-edge. Apps: KanteStyle.borderWidth, lineWidth, edgeWidth."
+    },
+    "dash": [
+      6,
+      4
+    ]
+  },
+  "levels": {
+    "wash": 0.06,
+    "fill": 0.12,
+    "strongFill": 0.22,
+    "edge": 0.4,
+    "done": 0.6,
+    "dim": 0.5,
+    "note": "Tint levels of a colour that is data (a project's, a calendar's) over the ground: wash (a tray), fill (free time, a draft), strongFill (a planned block), edge (the border of such an area); opacity of something done and of something out of range or minor. Web: --level-wash, --level-fill, --level-strong, --level-edge (color-mix percentages), --level-done, --level-dim. Apps: KanteStyle.washLevel, fillLevel, strongFillLevel, edgeLevel, doneOpacity, dimOpacity."
+  },
+  "app": {
+    "usage": "Qt Quick / Kirigami apps and Plasma widgets (qml/Kante). Surfaces are tints with alpha so a blurred or translucent platform ground shows through; colour only in small opaque areas.",
+    "dark": {
+      "text": "fg1",
+      "strongText": "fg0",
+      "mutedText": "#bdae93",
+      "disabledText": "fg3",
+      "ground": "bg-hard",
+      "accent": "yellow",
+      "accentText": "yellow",
+      "accentForeground": "bg-void",
+      "positive": "aqua",
+      "neutral": "orange",
+      "negative": "red",
+      "info": "cyan",
+      "tag": "purple",
+      "labelRed": "red",
+      "labelOrange": "orange",
+      "labelYellow": "yellow",
+      "labelGreen": "aqua",
+      "labelCyan": "cyan",
+      "labelBlue": "blue",
+      "labelPurple": "purple",
+      "warning": "orange",
+      "card": [
+        "bg1",
+        0.6
+      ],
+      "sunken": [
+        "bg-void",
+        0.5
+      ],
+      "frame": [
+        "fg1",
+        0.16
+      ],
+      "rule": [
+        "fg1",
+        0.14
+      ],
+      "dialog": [
+        "bg0",
+        0.97
+      ],
+      "glass": [
+        "bg0",
+        0.93
+      ],
+      "glassDense": [
+        "bg0",
+        0.96
+      ],
+      "focus": "cyan",
+      "selection": "cyan-tint",
+      "accentHover": "yellow-hi",
+      "accentPressed": "yellow-lo",
+      "onState": "bg-void",
+      "scrim": [
+        "bg-void",
+        0.62
+      ],
+      "stage": "bg0",
+      "stageText": "fg1",
+      "string0": "purple",
+      "string1": "cyan",
+      "string2": "yellow",
+      "string3": "fg0",
+      "string4": "#bdae93",
+      "string5": "cyan"
+    },
+    "light": {
+      "text": "fg1",
+      "strongText": "fg0",
+      "mutedText": "fg2",
+      "disabledText": "fg3",
+      "ground": "bg-void",
+      "accent": "#fabd2f",
+      "accentText": "yellow",
+      "accentForeground": "#141312",
+      "positive": "aqua",
+      "neutral": "orange",
+      "negative": "red",
+      "info": "cyan",
+      "tag": "purple",
+      "labelRed": "red",
+      "labelOrange": "orange",
+      "labelYellow": "yellow",
+      "labelGreen": "aqua",
+      "labelCyan": "cyan",
+      "labelBlue": "blue",
+      "labelPurple": "purple",
+      "warning": "orange",
+      "card": [
+        "bg1",
+        0.7
+      ],
+      "sunken": [
+        "bg-hard",
+        0.6
+      ],
+      "frame": [
+        "fg1",
+        0.18
+      ],
+      "rule": [
+        "fg1",
+        0.14
+      ],
+      "dialog": [
+        "bg-panel",
+        0.98
+      ],
+      "glass": [
+        "bg-panel",
+        0.94
+      ],
+      "glassDense": [
+        "bg-panel",
+        0.97
+      ],
+      "focus": "cyan",
+      "selection": "cyan-tint",
+      "accentHover": "#fcc845",
+      "accentPressed": "#e5a823",
+      "onState": "#fbf8ee",
+      "scrim": [
+        "fg0",
+        0.5
+      ],
+      "stage": "#282828",
+      "stageText": "#ebdbb2",
+      "string0": "#bc2f6c",
+      "string1": "blue",
+      "string2": "yellow",
+      "string3": "fg0",
+      "string4": "fg2",
+      "string5": "cyan"
+    },
+    "notes": {
+      "mutedText": "#bdae93 is fg3 one step lighter, for secondary text on glass (4.5:1 on the darkest tint)",
+      "stage": "picture areas (monitors, video previews, image stages) stay dark in both themes: judging colour on a beige ground misleads. Light uses the dark bg0 and fg1, as the web .stage",
+      "accent (light)": "#fabd2f is the primary fill on linen, as in the dark theme, with ink #141312; text in the accent uses accentText (#8a5a00)",
+      "string0..5": "string colours of the \"kante\" preset (KanteStyle.stringColor), 0 = the lowest string. Dark: purple, cyan, yellow, strong text, muted, cyan. Light (Leinen and Kante Light, 1.51): raspberry, blue, ochre, strong text, muted, cyan; at least 4.5:1 on the light grounds (the fret digits are drawn in them) and the four bass strings apart under deuteranopia (purple and cyan were not)"
+    }
+  },
+  "extra": {
+    "cyan-tint": "#1e2b2a",
+    "yellow-hi": "#fdc94a",
+    "yellow-lo": "#e5a823",
+    "red-text": "#ff7d6b"
+  },
+  "motion": {
+    "fast": 120,
+    "base": 200,
+    "slow": 450,
+    "easeOut": "cubic-bezier(.2,.8,.2,1)",
+    "easeSnap": "cubic-bezier(.3,1.5,.5,1)",
+    "note": "warm and mechanical, never glitch; all motion only under prefers-reduced-motion: no-preference"
+  },
+  "data": [
+    "cyan",
+    "yellow",
+    "purple",
+    "aqua",
+    "orange",
+    "fg3"
+  ],
+  "data_note": "Series colours of charts, in this order (red stays danger). Web: --d1..--d6; QML: KanteStyle.dataColor(i).",
+  "knust": {
+    "usage": "Knust (Kimai theme, shrippen/kimai-knust-bundle): kante/tools/build-knust.py writes docs/v1/knust-palette.css from this file, with Knust's --shr-* names",
+    "gray_note": "Tabler's grey scale, 50 to 950, as one warm scale for both themes: Leinen steps at the light end, Gruvbox at the dark end. \"theme.token\" or a hex value (500 is Gruvbox gray)",
+    "gray": {
+      "50": "light.bg-panel",
+      "100": "light.bg-void",
+      "200": "light.bg-hard",
+      "300": "light.bg2",
+      "400": "dark.fg3",
+      "500": "#928374",
+      "600": "light.fg2",
+      "700": "dark.bg2",
+      "800": "dark.bg1",
+      "900": "dark.bg0",
+      "950": "dark.bg-hard"
+    }
+  },
+  "gold": {
+    "name": "Kante Gold",
+    "usage": "opt-in via data-kante=\"gold\"; dark only; Kintsugi only (AGENT-RULE.md)",
+    "backgrounds": {
+      "bg-void": "#14110f",
+      "bg-hard": "#0f0d0b",
+      "bg0": "#1c1815",
+      "bg-panel": "#1c1815",
+      "bg1": "#262019",
+      "bg2": "#3b3229"
+    },
+    "foregrounds": {
+      "fg0": "#faf5e9",
+      "fg1": "#efe8d8",
+      "fg2": "#cdc2ae",
+      "fg3": "#a39885"
+    },
+    "accent": "#e8d4a6",
+    "semantic": {
+      "blue": "#8aa1ab",
+      "blue-hover": "#77909a",
+      "aqua": "#97ad7a",
+      "green": "#a9b26b",
+      "yellow": "#d4a640",
+      "orange": "#d08a55",
+      "red": "#d0705a",
+      "purple": "#c497a8",
+      "cyan": "#8fb8aa"
+    },
+    "extra": {
+      "cyan-n": "#6f9488",
+      "cyan-tint": "#1b2321",
+      "yellow-hi": "#e0b65a",
+      "yellow-lo": "#b88f2f",
+      "red-text": "#e48b74"
+    },
+    "names": {
+      "bg-void": "urushi",
+      "bg-panel": "lacquer",
+      "fg1": "paper",
+      "fg3": "ash",
+      "accent": "pale gold",
+      "yellow": "gold",
+      "cyan": "patina",
+      "aqua": "jade",
+      "orange": "copper",
+      "red": "cinnabar",
+      "purple": "ume",
+      "blue": "slate"
+    },
+    "typography": {
+      "heading": "Spectral",
+      "headingWeights": [
+        400,
+        500,
+        600
+      ],
+      "headingSource": "Google Fonts or fonts.css (woff2, SIL OFL)",
+      "control": "Rajdhani",
+      "headingLetterSpacing": "0.06em"
+    },
+    "shape": {
+      "gild": "1.6px",
+      "bar": "2px",
+      "goldLine": "yellow at 32 %"
+    },
+    "motion": {
+      "fast": "160ms",
+      "base": "280ms",
+      "slow": "700ms",
+      "easeSnap": "cubic-bezier(.2,.8,.2,1)"
+    }
+  }
+}
