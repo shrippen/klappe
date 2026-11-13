@@ -57,7 +57,8 @@ model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
 
 ## Gelernte Fehler
 
-(noch keine)
+- Prüfkette vor einem Commit mit `&&`, nicht mit `;`: sonst wird trotz rotem Build committet
+  (13.11.2026, Syntaxfehler im Commit).
 
 ## GUI (this project)
 
@@ -73,7 +74,9 @@ model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
   `github / test` there is success (`.github/workflows/ci.yml` on the GitHub mirror, every
   pushed commit; `scripts/gitea/merge-when-green.sh`). No status there yet means wait, not
   merge.
-- PR-Agent is not set up here; a new Claude agent reviews every round (skill `pr-review`).
+- PR-Agent: `.gitea/workflows/pr-agent.yml` as in Kontra; it also keeps Gitea from running
+  `.github/workflows/` itself. Paused like everywhere (skill `pr-review`): a new Claude agent
+  reviews every round.
 - The owner also confirms: a PR that changes `packaging/`.
 - Claude merges PRs itself when `github / test` is green and the review leaves no **Wichtig**
   open (owner, 13.11.2026: „Pushe und merge wenn Review und CI grün sind“).

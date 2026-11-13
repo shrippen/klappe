@@ -1,0 +1,49 @@
+# PR-Agent settings for Klappe (.gitea/workflows/pr-agent.yml); the rest
+# are PR-Agent's defaults.
+[config]
+git_provider = "gitea"
+response_language = "de-DE"
+# Input budget: PR-Agent shortens larger diffs to fit. 128000 left the model no room to
+# answer on stacked PRs (#15, #19: "Empty content in model response (finish_reason: length)").
+max_model_tokens = 64000
+fallback_models = []
+publish_output_progress = false
+# Claude Opus 4.7+ and Claude 5 take no temperature, only adaptive thinking
+# with an effort (Opus 5.5 defaults to medium); the effort applies to other
+# reasoning models too.
+enable_claude_adaptive_thinking = true
+reasoning_effort = "high"
+# The repository rules and the review guide go along as context.
+repo_context_files = ["agent.md", "RULES.md", "REVIEW.md"]
+
+[pr_reviewer]
+num_max_findings = 5
+require_can_be_split_review = true
+enable_review_labels_effort = false
+enable_review_labels_security = false
+extra_instructions = """
+You review pull requests of Klappe, a film preproduction suite (floor
+plans and blocking, screenplay): Rust workspace (crates model,
+stellprobe, script, store, export, services, app, tui, cli), GUI in QML
+(Kirigami, Kante) via cxx-qt, TUI via ratatui. The PRs are written by an
+AI agent; review them as a careful second reader, not as their author.
+
+Report only findings that matter:
+- Bugs: a concrete input or state and the wrong result or crash it gives.
+  Name file and line.
+- Units that do not match their names (_m, _deg, _s, _mm, _k), plan
+  coordinates (origin top left, y down, 0° right, clockwise).
+- Layering: a crate calling past its neighbour below, new `pub`, `unsafe`
+  outside the cxx-qt bridge, `unwrap`/`expect` outside tests.
+- New dependencies without a reason or under a licence agent.md forbids.
+- Missing tests for new behaviour, and docs (LASTENHEFT, KONZEPT,
+  STAND, FORMAT) that the change made wrong.
+- Other breaches of the repository rules (agent.md, RULES.md).
+
+Label each finding **Wichtig**, **Kleinigkeit** or **Bestand** as REVIEW.md
+defines them, at the start of its title.
+
+Skip style, naming and formatting (rustfmt and clippy run separately),
+praise, and guesses you cannot back with the diff. When you find
+nothing that matters, say so in one line.
+"""
