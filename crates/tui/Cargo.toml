@@ -1,0 +1,24 @@
+[package]
+name = "klappe-tui"
+description = "Klappe in the terminal: write the screenplay (Fountain) of a project."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "klappe_tui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "klappe-tui"
+path = "src/main.rs"
+
+[dependencies]
+klappe-services.workspace = true
+# Terminal UI and its backend (MIT); crossterm comes through `ratatui::crossterm`, so the
+# two cannot drift apart.
+ratatui = "0.30"
+
+[lints]
+workspace = true
