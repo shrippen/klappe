@@ -238,7 +238,7 @@ impl App {
     /// Writes the text through the session.
     fn save(&mut self) -> Flow {
         self.session.set_script_text(&self.editor.text());
-        self.notice = Some(match self.session.save() {
+        self.notice = Some(match self.session.save_script() {
             Ok(()) => {
                 self.saved_revision = self.editor.revision();
                 Notice::Saved

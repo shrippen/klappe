@@ -80,3 +80,21 @@ fn saved_project_quits_without_asking() {
         Flow::Quit
     );
 }
+
+/// The TUI writes the script only (E-09): other files stay as they are on disk.
+#[test]
+fn save_touches_only_the_script() {
+    let dir = copy("tui-script-only");
+    let mut app = App::open(&dir, Language::En).unwrap();
+    let foreign = dir.join("szenen/neu.json");
+    std::fs::write(&foreign, "{}\n").unwrap();
+    let project = std::fs::read(dir.join("projekt.toml")).unwrap();
+
+    key(&mut app, KeyCode::Char('x'), KeyModifiers::NONE);
+    key(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL);
+
+    assert!(foreign.exists(), "foreign scene file was deleted");
+    assert_eq!(std::fs::read(dir.join("projekt.toml")).unwrap(), project);
+    let script = std::fs::read_to_string(dir.join("drehbuch.fountain")).unwrap();
+    assert!(script.starts_with('x'), "{script}");
+}
