@@ -1,0 +1,127 @@
+name: ci
+
+# Public mirror: Gitea pushes every branch here on each commit. This runs the checks and reports
+# the result back to the commit on Gitea as the status "github / test", where the pull requests
+# live. There are no pull requests on GitHub, so everything runs on push.
+#
+# Stays local: anything that opens a visible window.
+#
+# Needs the secret GITEA_TOKEN: a Gitea token with write access to the repository (commit
+# statuses).
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+# No concurrency group: every commit runs to the end and keeps its own status.
+
+permissions:
+  contents: read
+
+env:
+  GITEA_STATUS: https://git.arianw.de/api/v1/repos/shrippen/klappe/statuses/${{ github.sha }}
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  pending:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    outputs:
+      started: ${{ steps.start.outputs.t }}
+    steps:
+      # A missing status is no reason to fail the checks.
+      - id: start
+        name: Report pending to Gitea
+        run: |
+          echo "t=$(date +%s)" >> "$GITHUB_OUTPUT"
+          curl -fsS -X POST "$GITEA_STATUS" \
+            -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"state\":\"pending\",\"context\":\"github / test\",\"description\":\"running\",\"target_url\":\"$RUN_URL\"}" \
+            || echo "::warning::Gitea status not reported"
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+
+  core:
+    # Everything below the GUI: no Qt needed.
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The commit message check needs the pushed range and main.
+          fetch-depth: 0
+      - name: Commit messages of the push (RULES.md, commit rules 1-6)
+        run: |
+          python3 scripts/commit-msg.py --self-test
+          git fetch -q origin main || true
+          base="${{ github.event.before }}"
+          # A new branch, a force push or a manual run: what is not on main yet.
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base=$(git merge-base origin/main HEAD)
+          fi
+          python3 scripts/commit-msg.py --range "$base..HEAD"
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal -c rustfmt,clippy && rustup default stable
+      - uses: actions/cache@v4
+        # Without the cache the job only takes longer.
+        continue-on-error: true
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/bin/cargo-deny
+            target
+          key: core-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: command -v cargo-deny || cargo install --locked cargo-deny
+      - run: cargo deny check licenses bans sources
+
+  windows:
+    # Everything below the GUI builds and passes its tests on Windows (MSVC): nothing
+    # Linux-only creeps into the core (E-07).
+    timeout-minutes: 45
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal -c clippy && rustup default stable
+      - uses: actions/cache@v4
+        # Without the cache the job only takes longer.
+        continue-on-error: true
+        with:
+          path: |
+            ~/.cargo/registry
+            target
+          key: windows-${{ hashFiles('Cargo.lock') }}
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace --no-fail-fast
+
+  # Also runs when a check failed or was cancelled, so Gitea never keeps a stale "pending".
+  report:
+    needs: [pending, core, windows]
+    if: always()
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report result to Gitea
+        run: |
+          all="$CORE $WINDOWS"
+          if [ "$all" = "success success" ]; then
+            state=success
+          elif echo "$all" | grep -qw failure; then
+            state=failure
+          else
+            state=error
+          fi
+          desc="core $CORE, windows $WINDOWS"
+          if [ -n "$STARTED" ]; then desc="$desc in $(( ($(date +%s) - STARTED) / 60 )) min"; fi
+          # Retried: a lost result would leave "pending" and the merge waiting.
+          curl -fsS --retry 10 --retry-delay 15 --retry-all-errors -X POST "$GITEA_STATUS" \
+            -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"state\":\"$state\",\"context\":\"github / test\",\"description\":\"$desc\",\"target_url\":\"$RUN_URL\"}"
+        env:
+          CORE: ${{ needs.core.result }}
+          WINDOWS: ${{ needs.windows.result }}
+          STARTED: ${{ needs.pending.outputs.started }}
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}

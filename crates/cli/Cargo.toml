@@ -1,0 +1,20 @@
+[package]
+name = "klappe-cli"
+description = "Klappe on the command line: optics and checks without the GUI."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "klappe-cli"
+path = "src/main.rs"
+
+[dependencies]
+klappe-model.workspace = true
+klappe-stellprobe.workspace = true
+# Argument parsing (MIT/Apache-2.0).
+clap = { version = "4.5", features = ["derive"] }
+
+[lints]
+workspace = true

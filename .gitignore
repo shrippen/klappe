@@ -1,0 +1,10 @@
+/target/
+/target-*/
+/build/
+/dist/
+/shots-local/
+/crates/app/.qmlls.ini
+__pycache__/
+/.flatpak-builder/
+/flatpak-build/
+/flatpak-repo/
