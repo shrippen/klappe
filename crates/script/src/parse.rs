@@ -12,6 +12,7 @@ const SECTION: char = '#';
 const SYNOPSIS: char = '=';
 const NUMBER_MARK: char = '#';
 const DUAL_MARK: char = '^';
+const SHARP_S: char = 'ß';
 const PAGE_BREAK_MIN: usize = 3;
 const TRANSITION_END: &str = "TO:";
 const NOTE_OPEN: &str = "[[";
@@ -24,7 +25,8 @@ const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext",
 
 /// Parses Fountain text. Never fails; unknown input becomes `Element::Action`.
 pub fn parse(text: &str) -> Script {
-    let text = strip_boneyard(text);
+    // CRLF and lone CR become LF, so blank-line searches see one kind of break.
+    let text = strip_boneyard(&text.replace("\r\n", "\n").replace('\r', "\n"));
     let (title_page, body) = split_title_page(&text);
 
     Script {
@@ -277,7 +279,10 @@ fn heading(t: &str) -> Element {
 
 /// No lowercase letter and at least one letter.
 fn is_upper(s: &str) -> bool {
-    s.chars().any(char::is_alphabetic) && !s.chars().any(char::is_lowercase)
+    // `ß` has no uppercase form in everyday use, so it counts as uppercase.
+    let lower = |c: char| c.is_lowercase() && c != SHARP_S;
+
+    s.chars().any(char::is_alphabetic) && !s.chars().any(lower)
 }
 
 /// Parses `NAME (EXT)^`; `Auto` also demands an all-uppercase name.

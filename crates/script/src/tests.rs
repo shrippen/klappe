@@ -294,3 +294,111 @@ fn write_forces_when_needed() {
     assert!(text.contains("@McBride"));
     assert!(text.contains(">ÜBERBLENDEN"));
 }
+
+fn round_trips(script: &Script) -> bool {
+    parse(&write(script)) == *script
+}
+
+#[test]
+fn cue_without_dialogue_round_trips() {
+    let script = parse("@BURGVOGT\n\nEr schweigt.\n");
+    assert_eq!(
+        script.elements,
+        vec![cue("BURGVOGT", None, false), action("Er schweigt.")]
+    );
+    assert_eq!(parse(&write(&script)), script);
+
+    let script = parse("Text.\n\n@BURGVOGT\n");
+    assert_eq!(parse(&write(&script)), script);
+}
+
+#[test]
+fn key_like_first_element_round_trips() {
+    let script = Script {
+        title_page: Vec::new(),
+        elements: vec![action("Ort: Burghof"), heading("INT. A - TAG", None)],
+    };
+    assert_eq!(parse(&write(&script)), script);
+}
+
+#[test]
+fn crlf_title_page() {
+    let script = parse("Title: Die Burg\r\nAuthor: A\r\n\r\nINT. A - TAG\r\n\r\nText.\r\n");
+    assert_eq!(script.title_page.len(), 2);
+    assert_eq!(
+        script.elements,
+        vec![heading("INT. A - TAG", None), action("Text.")]
+    );
+
+    let lone_cr = parse("Title: X\r\rText.");
+    assert_eq!(lone_cr.title_page.len(), 1);
+    assert_eq!(lone_cr.elements, vec![action("Text.")]);
+}
+
+#[test]
+fn sharp_s_in_cue() {
+    assert_eq!(els("GROßVATER\nHallo.")[0], cue("GROßVATER", None, false));
+}
+
+/// One sample per element kind, as a block that can stand anywhere.
+fn samples() -> Vec<Vec<Element>> {
+    vec![
+        vec![heading("INT. A - TAG", Some("1"))],
+        vec![heading("ALTER SAAL", None)],
+        vec![action("Sie wartet.\nNoch immer.")],
+        vec![action("INT. KEIN KOPF")],
+        vec![action("Ort: Burghof")],
+        vec![action("# kein Abschnitt")],
+        vec![action("")],
+        vec![cue("BURGVOGT", Some("V.O."), true)],
+        vec![cue("McBride", None, false)],
+        vec![
+            cue("ELISABETH", None, false),
+            Element::Parenthetical("leise".into()),
+            Element::Dialogue("Eins.\nZwei.".into()),
+        ],
+        vec![
+            cue("BOB: X", None, false),
+            Element::Dialogue("Hi: ja".into()),
+        ],
+        vec![Element::Transition("CUT TO:".into())],
+        vec![Element::Transition("ÜBERBLENDEN".into())],
+        vec![Element::Centered("ENDE".into())],
+        vec![Element::Section {
+            depth: 2,
+            text: "Akt".into(),
+        }],
+        vec![Element::Synopsis("Kurz.".into())],
+        vec![Element::Note("Notiz".into())],
+        vec![Element::PageBreak],
+        vec![Element::Lyrics("Lied".into())],
+    ]
+}
+
+#[test]
+fn every_kind_in_every_position_round_trips() {
+    let titles = [
+        Vec::new(),
+        vec![("Title".to_string(), "Die Burg".to_string())],
+    ];
+    let filler = action("Füller.");
+
+    for title_page in titles {
+        for block in samples() {
+            let variants = [
+                block.clone(),
+                [block.clone(), vec![filler.clone()]].concat(),
+                [vec![filler.clone()], block.clone()].concat(),
+                [vec![filler.clone()], block.clone(), vec![filler.clone()]].concat(),
+                [block.clone(), block.clone()].concat(),
+            ];
+            for elements in variants {
+                let script = Script {
+                    title_page: title_page.clone(),
+                    elements,
+                };
+                assert!(round_trips(&script), "{script:?}\n{:?}", write(&script));
+            }
+        }
+    }
+}

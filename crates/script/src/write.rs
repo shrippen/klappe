@@ -1,6 +1,6 @@
 //! Elements to Fountain text.
 
-use crate::parse::parse_elements;
+use crate::parse::{parse, parse_elements};
 use crate::{Element, Script};
 
 const TITLE_INDENT: &str = "   ";
@@ -19,15 +19,35 @@ pub fn write(script: &Script) -> String {
         out.push('\n');
     }
 
+    let body_start = out.len();
     for (i, el) in script.elements.iter().enumerate() {
         if i > 0 && !same_block(&script.elements[i - 1], el) {
             out.push('\n');
         }
-        out.push_str(&render(el));
+        out.push_str(&render(el, script.elements.get(i + 1)));
         out.push('\n');
     }
 
+    // Without a title page, a first line like `Ort: Burghof` would become one.
+    let reads_as_title = script.title_page.is_empty() && !parse(&out).title_page.is_empty();
+    if reads_as_title {
+        if let Some(marker) = script.elements.first().and_then(marker) {
+            out.insert_str(body_start, marker);
+        }
+    }
+
     out
+}
+
+/// The marker that forces an element's plain form to stay what it is.
+fn marker(el: &Element) -> Option<&'static str> {
+    match el {
+        Element::SceneHeading { .. } => Some("."),
+        Element::Action(_) => Some("!"),
+        Element::Character { .. } => Some("@"),
+        Element::Transition(_) => Some(">"),
+        _ => None,
+    }
 }
 
 fn title_entry(key: &str, value: &str) -> String {
@@ -56,7 +76,7 @@ fn same_block(prev: &Element, next: &Element) -> bool {
 }
 
 /// The text of one element, forced where the plain form would be misread.
-fn render(el: &Element) -> String {
+fn render(el: &Element, next: Option<&Element>) -> String {
     match el {
         Element::SceneHeading { text, number } => {
             let plain = match number {
@@ -78,8 +98,12 @@ fn render(el: &Element) -> String {
             if *dual {
                 plain.push('^');
             }
-            // A cue only counts with a line below it.
-            let probe = format!("{plain}\nx");
+            // A cue only counts with a line below it: the dialogue that follows, or none.
+            let below = match next {
+                Some(Element::Parenthetical(_) | Element::Dialogue(_)) => "\nx",
+                _ => "\n\n",
+            };
+            let probe = format!("{plain}{below}");
             forced(el, &plain, &probe, "@")
         }
         Element::Transition(text) => forced(el, text, text, ">"),
