@@ -238,3 +238,14 @@ fn a_time_that_is_not_a_number_is_ignored() {
 
     assert_eq!(s.time_s(), 5.0);
 }
+
+#[test]
+fn a_blank_shot_number_is_refused() {
+    let mut s = open();
+    let before = s.shots()[0].number.clone();
+
+    let err = s.edit_shot("s12-1", ShotField::Number, "  ");
+
+    assert!(matches!(err, Err(ServiceError::BadValue { .. })), "{err:?}");
+    assert_eq!(s.shots()[0].number, before);
+}

@@ -71,7 +71,7 @@ pub(crate) fn apply(
     };
 
     match field {
-        ShotField::Number => shot.number = value.trim().to_owned(),
+        ShotField::Number => shot.number = number_of(value).ok_or_else(bad)?,
         ShotField::Camera => shot.camera = camera_of(cameras, value).ok_or_else(bad)?,
         ShotField::Size => shot.size = size_of(value).ok_or_else(bad)?,
         ShotField::Movement => shot.movement = movement_of(value).ok_or_else(bad)?,
@@ -84,6 +84,12 @@ pub(crate) fn apply(
     }
 
     Ok(())
+}
+
+/// A shot number is never empty.
+fn number_of(value: &str) -> Option<String> {
+    let number = value.trim();
+    (!number.is_empty()).then(|| number.to_owned())
 }
 
 fn camera_of(cameras: &[Camera], value: &str) -> Option<String> {
