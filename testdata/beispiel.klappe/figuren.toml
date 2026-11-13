@@ -1,0 +1,11 @@
+[[figur]]
+id = "elisabeth"
+name = "Elisabeth"
+short = "E"
+color = "purple"
+
+[[figur]]
+id = "burgvogt"
+name = "Burgvogt"
+short = "B"
+color = "blue"

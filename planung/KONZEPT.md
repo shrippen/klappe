@@ -85,20 +85,21 @@ Ein Projekt ist ein Ordner aus Textdateien, damit Git es versionieren und vergle
 
 ```
 wartburg.klappe/
-├── projekt.toml            Titel, Formatversion, Einstellungen
+├── projekt.toml            Formatversion, Titel
+├── figuren.toml            Figuren: Id, Name, Kürzel, Farbe
 ├── drehbuch.fountain       Drehbuch; Szenen tragen feste Nummern (#12#)
-├── figuren.toml            Figuren: Id, Name, Farbe, Kürzel
 ├── drehorte/
-│   ├── rittersaal.toml     Set: Wände, Objekte, Maßstab
-│   └── rittersaal.png      Hintergrund
-├── stellprobe/
-│   └── szene-012.json      Floorplans, Marks, Kameras, Licht, Shots einer Szene
-└── bibliothek/             eigene Objekte (SVG + TOML)
+│   └── saengersaal.toml    Drehort mit Set: Maße, Wände, Objekte
+└── szenen/
+    └── szene-012.json      Szene mit ihren Floorplans: Marks, Kameras, Licht, Shots, Verweise
 ```
 
-- Feste Ids statt Positionen in Listen; JSON mit fester Schlüsselreihenfolge und einem
-  Element je Zeile, damit Diffs lesbar bleiben.
-- Schema in `schema/`, Formatbeschreibung in `FORMAT.md` (wie Kontra).
+Genaue Beschreibung: [`../FORMAT.md`](../FORMAT.md). Hintergrundbilder (LH-13) und eigene
+Bibliotheken (LH-12) kommen später dazu.
+
+- Feste Ids als Dateinamen; JSON eingerückt mit fester Schlüsselreihenfolge, damit Diffs
+  lesbar bleiben.
+- Ein JSON-Schema in `schema/` folgt später (wie Kontra).
 - Zum Weitergeben: derselbe Ordner als Zip (`.klappe`-Datei).
 
 ## 6. Phase 0: Prototyp, bevor gebaut wird

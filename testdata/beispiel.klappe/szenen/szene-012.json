@@ -1,0 +1,250 @@
+{
+  "id": "szene-012",
+  "number": "12",
+  "heading": "INT. SÄNGERSAAL – TAG",
+  "location": "saengersaal",
+  "plans": [
+    {
+      "id": "plan-a",
+      "name": "Plan A",
+      "figures": [
+        {
+          "character": "elisabeth",
+          "marks": [
+            {
+              "at_s": 0.0,
+              "at": {
+                "x_m": 3.0,
+                "y_m": 6.5
+              },
+              "facing_deg": 0.0,
+              "pose": "standing",
+              "hold_s": 2.0
+            },
+            {
+              "at_s": 6.0,
+              "at": {
+                "x_m": 10.0,
+                "y_m": 6.5
+              },
+              "facing_deg": 0.0,
+              "pose": "standing",
+              "hold_s": 4.0
+            },
+            {
+              "at_s": 14.0,
+              "at": {
+                "x_m": 16.0,
+                "y_m": 3.0
+              },
+              "facing_deg": 270.0,
+              "pose": "standing",
+              "hold_s": 0.0
+            }
+          ]
+        },
+        {
+          "character": "burgvogt",
+          "marks": [
+            {
+              "at_s": 0.0,
+              "at": {
+                "x_m": 17.0,
+                "y_m": 9.5
+              },
+              "facing_deg": 180.0,
+              "pose": "standing",
+              "hold_s": 5.0
+            },
+            {
+              "at_s": 9.0,
+              "at": {
+                "x_m": 12.0,
+                "y_m": 6.5
+              },
+              "facing_deg": 180.0,
+              "pose": "standing",
+              "hold_s": 0.0
+            }
+          ]
+        }
+      ],
+      "cameras": [
+        {
+          "id": "a",
+          "label": "A",
+          "sensor": "super35",
+          "lens_mm": 35.0,
+          "aspect": 2.39,
+          "marks": [
+            {
+              "at_s": 0.0,
+              "at": {
+                "x_m": 8.0,
+                "y_m": 11.0
+              },
+              "facing_deg": 330.0,
+              "height_m": 1.6,
+              "tilt_deg": 0.0,
+              "hold_s": 6.0
+            },
+            {
+              "at_s": 6.0,
+              "at": {
+                "x_m": 9.0,
+                "y_m": 8.0
+              },
+              "facing_deg": 320.0,
+              "height_m": 1.6,
+              "tilt_deg": 0.0,
+              "hold_s": 0.0
+            }
+          ],
+          "follows": null
+        },
+        {
+          "id": "b",
+          "label": "B",
+          "sensor": "super35",
+          "lens_mm": 50.0,
+          "aspect": 2.39,
+          "marks": [
+            {
+              "at_s": 0.0,
+              "at": {
+                "x_m": 18.0,
+                "y_m": 4.0
+              },
+              "facing_deg": 200.0,
+              "height_m": 1.6,
+              "tilt_deg": 0.0,
+              "hold_s": 0.0
+            }
+          ],
+          "follows": "burgvogt"
+        }
+      ],
+      "lights": [
+        {
+          "id": "led-1",
+          "label": "LED-Panel",
+          "kind": "led-panel",
+          "at": {
+            "x_m": 1.0,
+            "y_m": 10.0
+          },
+          "facing_deg": 330.0,
+          "beam_deg": 60.0,
+          "color_temp_k": 5600.0,
+          "power_w": 200.0
+        }
+      ],
+      "shots": [
+        {
+          "id": "s12-1",
+          "number": "12.1",
+          "camera": "a",
+          "size": "wide",
+          "movement": "static",
+          "lens_mm": null,
+          "from_s": 0.0,
+          "to_s": 6.0,
+          "description": "",
+          "props": "",
+          "gear": "",
+          "crew": "",
+          "note": ""
+        },
+        {
+          "id": "s12-2",
+          "number": "12.2",
+          "camera": "a",
+          "size": "medium",
+          "movement": "dolly",
+          "lens_mm": 40.0,
+          "from_s": 6.0,
+          "to_s": 14.0,
+          "description": "Fahrt auf Elisabeth",
+          "props": "",
+          "gear": "Dolly, 4 m Schiene",
+          "crew": "",
+          "note": ""
+        },
+        {
+          "id": "s12-3",
+          "number": "12.3",
+          "camera": "b",
+          "size": "close-up",
+          "movement": "static",
+          "lens_mm": null,
+          "from_s": 6.0,
+          "to_s": 9.0,
+          "description": "",
+          "props": "",
+          "gear": "",
+          "crew": "",
+          "note": ""
+        },
+        {
+          "id": "s12-4",
+          "number": "12.4",
+          "camera": "b",
+          "size": "medium-close",
+          "movement": "static",
+          "lens_mm": null,
+          "from_s": 9.0,
+          "to_s": 14.0,
+          "description": "",
+          "props": "",
+          "gear": "",
+          "crew": "",
+          "note": ""
+        },
+        {
+          "id": "s12-5",
+          "number": "12.5",
+          "camera": "a",
+          "size": "medium-wide",
+          "movement": "handheld",
+          "lens_mm": null,
+          "from_s": 14.0,
+          "to_s": 20.0,
+          "description": "",
+          "props": "",
+          "gear": "",
+          "crew": "",
+          "note": ""
+        }
+      ],
+      "links": [
+        {
+          "element": 0,
+          "target": {
+            "kind": "mark",
+            "character": "elisabeth",
+            "index": 0
+          }
+        },
+        {
+          "element": 1,
+          "target": {
+            "kind": "shot",
+            "id": "s12-2"
+          }
+        },
+        {
+          "element": 3,
+          "target": {
+            "kind": "mark",
+            "character": "burgvogt",
+            "index": 1
+          }
+        }
+      ],
+      "axis": {
+        "a": "elisabeth",
+        "b": "burgvogt"
+      }
+    }
+  ]
+}
