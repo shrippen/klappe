@@ -1,0 +1,56 @@
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Paper {
+    A4,
+    A3,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Orientation {
+    Landscape,
+    Portrait,
+}
+
+const DEFAULT_MARGIN_MM: f64 = 10.0;
+
+/// The sheet around the plan.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Page {
+    pub paper: Paper,
+    pub orientation: Orientation,
+    pub margin_mm: f64,
+    /// e.g. "Szene 12 · Sängersaal · Plan A".
+    pub title: String,
+    pub texts: Texts,
+}
+
+/// Every other visible text. The caller fills it from its translation catalogue.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Texts {
+    pub figure: String,
+    pub camera: String,
+    pub light: String,
+    pub axis: String,
+    pub path: String,
+    pub mark: String,
+    /// Metre unit, e.g. "m".
+    pub unit: String,
+    /// Between whole and fraction of a length: ',' or '.'.
+    pub decimal_separator: char,
+}
+
+impl Page {
+    pub fn new(
+        paper: Paper,
+        orientation: Orientation,
+        title: impl Into<String>,
+        texts: Texts,
+    ) -> Self {
+        Self {
+            paper,
+            orientation,
+            margin_mm: DEFAULT_MARGIN_MM,
+            title: title.into(),
+            texts,
+        }
+    }
+}
