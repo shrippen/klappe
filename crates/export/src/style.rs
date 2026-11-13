@@ -26,7 +26,6 @@ pub(crate) fn colour_name(color: FigureColor) -> &'static str {
     match color {
         FigureColor::Purple => "purple",
         FigureColor::Blue => "blue",
-        FigureColor::Aqua => "aqua",
         FigureColor::Green => "green",
         FigureColor::Yellow => "yellow",
         FigureColor::Orange => "orange",
