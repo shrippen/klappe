@@ -116,6 +116,7 @@
  "error.gone": "The element no longer exists",
  "error.noLocation": "Location not found: {detail}",
  "error.noFreeCamera": "All camera letters A–Z are taken",
+ "error.noBackup": "There is no backup",
  "error.cameraInUse": "Camera {camera} is used by shot {shot}",
  "unit.m": "m",
  "unit.s": "s",
