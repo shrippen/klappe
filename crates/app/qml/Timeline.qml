@@ -1,12 +1,14 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// Timeline (round 2, design 1 and 5): cut order, then figures, cameras and lights, each with
-// its own visibility switch; above it the switches for whole layers: shown and locked (a
-// locked layer is drawn but cannot be picked or changed).
+// Timeline (round 2, design 1 and 5, D-06): cut order, then figures, cameras and lights, each
+// with its own visibility switch; above it the transport bar (LH-60). The layers are in
+// LayerPopover on the plan.
+//
+// Playing: a timer asks the controller to advance by the real time since its last tick; the
+// controller (services) does the arithmetic and says when the end is reached.
 Item {
     id: line
 
@@ -14,8 +16,44 @@ Item {
     required property var controller
 
     readonly property var source: controller.tracksJson ? JSON.parse(controller.tracksJson) : []
-    readonly property var layers: controller.layersJson ? JSON.parse(controller.layersJson) : ({})
-    readonly property var locks: controller.locksJson ? JSON.parse(controller.locksJson) : ({})
+
+    readonly property var speedSteps: [0.25, 0.5, 1]
+    readonly property int tickMs: 40
+    readonly property real msPerS: 1000
+    /// Within this of the end (s), play starts again from the beginning.
+    readonly property real endEpsS: 0.05
+
+    property bool playing: false
+    property bool looping: false
+    property real speed: 1
+
+    function togglePlay() {
+        if (playing) {
+            playing = false
+            return
+        }
+        if (!looping && controller.time >= controller.duration - endEpsS) {
+            controller.seek(0)
+        }
+        playing = true
+    }
+
+    Timer {
+        id: clock
+        interval: line.tickMs
+        repeat: true
+        running: line.playing
+        property double lastMs: 0
+        onRunningChanged: lastMs = Date.now()
+        onTriggered: {
+            const now = Date.now()
+            const dt = (now - lastMs) / line.msPerS
+            lastMs = now
+            if (!line.controller.advance(dt, line.speed, line.looping ? "shot" : "off")) {
+                line.playing = false
+            }
+        }
+    }
 
     // The services' tracks in KanteTrackTimeline's shape.
     readonly property var tracks: source.map(tr => ({
@@ -31,50 +69,35 @@ Item {
         anchors.margins: Kirigami.Units.smallSpacing
         spacing: Kirigami.Units.smallSpacing
 
-        RowLayout {
-            spacing: Kirigami.Units.smallSpacing
-            KanteToolButton {
-                objectName: "startButton"
-                text: line.texts.t("timeline.start")
-                Accessible.name: text
-                onClicked: line.controller.seek(0)
-            }
-            KanteSectionLabel {
-                objectName: "clock"
-                text: line.texts.t("timeline.clock", {
-                    time: line.texts.fixed(line.controller.time, 1),
-                    total: line.texts.fixed(line.controller.duration, 1),
-                    unit: line.texts.t("unit.s")
-                })
-            }
-            Item { Layout.fillWidth: true }
-            KanteSectionLabel { text: line.texts.t("layer.title") }
-            Repeater {
-                model: ["set", "figures", "cameras", "lights", "notes", "drawings"]
-                delegate: RowLayout {
-                    required property string modelData
-                    spacing: 0
+        KanteTransportBar {
+            id: bar
+            objectName: "transport"
+            Layout.fillWidth: true
+            metronomeVisible: false
+            countInVisible: false
+            markersVisible: true
+            timeFormat: "mm:ss,d"
+            speedSteps: line.speedSteps
+            playing: line.playing
+            looping: line.looping
+            speed: line.speed
+            position: line.controller.time
+            duration: line.controller.duration
+            rewindText: line.texts.t("timeline.start")
+            playText: line.texts.t("timeline.play")
+            pauseText: line.texts.t("timeline.pause")
+            loopText: line.texts.t("timeline.loop")
+            speedText: line.texts.t("timeline.speed")
+            markerBackText: line.texts.t("timeline.markerBack")
+            markerOnText: line.texts.t("timeline.markerOn")
+            positionName: line.texts.t("timeline.position")
+            accessibleName: line.texts.t("timeline.transport")
 
-                    KanteToolButton {
-                        objectName: "layerButton_" + modelData
-                        text: line.texts.t("layer." + modelData)
-                        checkable: true
-                        checked: line.layers[modelData] !== false
-                        onToggled: line.controller.setLayer(modelData, checked ? "shown" : "hidden")
-                    }
-                    KanteToolButton {
-                        objectName: "lockButton_" + modelData
-                        text: line.texts.t("layer.locked")
-                        Accessible.name: line.texts.t("layer.lockTip", { layer: line.texts.t("layer." + modelData) })
-                        checkable: true
-                        checked: line.locks[modelData] === true
-                        onToggled: line.controller.setLock(modelData, checked ? "locked" : "unlocked")
-                        QQC2.ToolTip.text: Accessible.name
-                        QQC2.ToolTip.visible: hovered
-                        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-                    }
-                }
-            }
+            onRewind: line.controller.seek(0)
+            onPlayToggled: line.togglePlay()
+            onLoopToggled: line.looping = !line.looping
+            onSpeedChangeRequested: s => line.speed = s
+            onMarkerStepRequested: direction => line.controller.stepMark(direction)
         }
 
         KanteTrackTimeline {

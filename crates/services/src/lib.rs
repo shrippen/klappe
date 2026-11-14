@@ -27,7 +27,9 @@ pub use error::ServiceError;
 pub use field::Field;
 pub use plan_edit::{MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{ProjectEdit, ShotsGo};
-pub use session::{Autosave, BackupState, Layer, Lock, Session, Visibility};
+pub use session::{
+    Autosave, BackupState, Layer, Lock, Looping, Playing, Session, Step, Visibility,
+};
 pub use views::{
     Chip, LibraryEntry, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind,
 };
