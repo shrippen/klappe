@@ -70,6 +70,9 @@ stellprobe/ Optik, Bewegung, Achse, Darstellungsliste   script/  Fountain
 store/      Projektordner lesen und schreiben           export/  PDF, SVG, CSV, XLSX
                     ↓
 model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
+
+demo/       Werkzeug (crates/demo), nicht ausgeliefert: erzeugt die Beispielprojekte im
+            Ordner demo/ des Repos über model/, script/, store/ (neben services/)
 ```
 
 - Jede Schicht ein Crate unter `crates/`; Abhängigkeiten sichtbar in `Cargo.toml`.

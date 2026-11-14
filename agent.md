@@ -29,8 +29,8 @@ store/      Projektordner                                export/ PDF, SVG, CSV
                        ↓
 model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
 
-demo/       Werkzeug, nicht ausgeliefert: erzeugt die Beispielprojekte aus demo/world.json
-            über model/, script/, store/ (neben services/, keine Editier-Sitzung)
+demo/       Werkzeug (crates/demo), nicht ausgeliefert: erzeugt die Beispielprojekte im
+            Ordner demo/ des Repos über model/, script/, store/ (neben services/)
 ```
 - Wie `planung/KONZEPT.md`, Abschnitt 4. Die mittlere Ebene steht nebeneinander: `export/`
   liest die Darstellungsliste aus `stellprobe/`, `store/` nutzt `script/`; sonst rufen sie sich
