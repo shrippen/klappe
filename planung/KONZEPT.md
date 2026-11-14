@@ -89,7 +89,7 @@ wartburg.klappe/
 ├── projekt.toml            Formatversion, Titel
 ├── figuren.toml            Figuren: Id, Name, Kürzel, Farbe
 ├── bibliothek.toml         eigene Objekte der Bibliothek (optional)
-├── drehbuch.fountain       Drehbuch; Szenen tragen feste Nummern (#12#)
+├── drehbuch.fountain       Drehbuch; Szenen tragen Nummern (#12#), Zuordnung DB-65
 ├── drehorte/
 │   └── saengersaal.toml    Drehort mit Set: Maße, Wände, Objekte, Hintergrundbild
 ├── bilder/
