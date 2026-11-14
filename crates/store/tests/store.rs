@@ -728,6 +728,11 @@ fn a_failed_drop_leaves_no_valid_backup() {
     save_backup(&dir, &changed("Alt"), None).unwrap();
     let scenes = dir.join(".sicherung/szenen");
     fs::set_permissions(&scenes, fs::Permissions::from_mode(0o500)).unwrap();
+    // Root may delete in a read-only folder; then no delete can be made to fail here.
+    if fs::write(scenes.join("probe"), "").is_ok() {
+        fs::set_permissions(&scenes, fs::Permissions::from_mode(0o700)).unwrap();
+        return;
+    }
 
     let dropped = drop_backup(&dir);
     fs::set_permissions(&scenes, fs::Permissions::from_mode(0o700)).unwrap();
