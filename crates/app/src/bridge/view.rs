@@ -17,7 +17,7 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Layer, LightKind, Lock, Point, Pose,
-    Session, Snapping, Source, Visibility,
+    Rig, Session, Snapping, Source, Visibility,
 };
 use serde_json::json;
 
@@ -177,6 +177,7 @@ pub(super) fn choices_json(s: &Session) -> String {
     let poses: Vec<_> = Pose::ALL.iter().map(|p| p.name()).collect();
     let arrivals: Vec<_> = Arrival::ALL.iter().map(|a| a.name()).collect();
     let departures: Vec<_> = Departure::ALL.iter().map(|d| d.name()).collect();
+    let rigs: Vec<_> = Rig::ALL.iter().map(|r| r.name()).collect();
     let layers: Vec<_> = Layer::ALL.iter().map(|l| l.name()).collect();
 
     json!({
@@ -190,6 +191,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "pose": poses,
         "arrival": arrivals,
         "departure": departures,
+        "rig": rigs,
         "layer": layers,
     })
     .to_string()
@@ -431,6 +433,10 @@ mod tests {
         );
         assert_eq!(choices["dash"], json!(["solid", "dashed", "dotted"]));
         assert_eq!(choices["fill"], json!(["outline", "filled"]));
+        assert_eq!(
+            choices["rig"],
+            json!(["tripod", "dolly", "track", "crane", "handheld", "gimbal"])
+        );
         assert_eq!(
             choices["color"],
             json!(["red", "orange", "yellow", "green", "cyan", "blue", "purple"])

@@ -69,12 +69,12 @@ TestCase {
         }
     }
 
-    function make(own, follows) {
+    function make(own, follows, hint) {
         fake.calls = []
         fake.follows = []
         fake.shotCalls = []
         fake.accept = true
-        const panel = createTemporaryObject(panelComponent, tc, { shot: row(own, follows) })
+        const panel = createTemporaryObject(panelComponent, tc, { shot: Object.assign(row(own, follows), { movement_hint: hint || "" }) })
         verify(panel)
         return panel
     }
@@ -173,6 +173,24 @@ TestCase {
         box.activated(0)
 
         compare(fake.follows.length, 0)
+    }
+
+    // LH-33: a shot without a movement shows what the camera marks do, and a button takes it.
+    function test_a_movement_hint_is_shown_and_taken() {
+        const panel = make(null, "", "crane")
+
+        verify(field(panel, "movementHintRow").visible)
+        compare(field(panel, "movementHint").text, "Aus den Kamera-Marks: Kran")
+
+        field(panel, "movementTake").clicked()
+
+        compare(fake.calls, [["s12-3", "movement", "crane"]])
+    }
+
+    function test_no_hint_no_row() {
+        const panel = make(null)
+
+        verify(!field(panel, "movementHintRow").visible)
     }
 
     function test_the_perspective_chooser_lists_the_angles() {

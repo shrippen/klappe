@@ -213,6 +213,32 @@ Item {
                 }
             }
 
+            // What the camera's marks do during a shot without a movement of its own (LH-33);
+            // the button takes it over.
+            RowLayout {
+                objectName: "movementHintRow"
+                Layout.fillWidth: true
+                Layout.leftMargin: Kirigami.Units.largeSpacing
+                Layout.rightMargin: Kirigami.Units.largeSpacing
+                visible: panel.shot !== null && !!panel.shot.movement_hint
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Label {
+                    objectName: "movementHint"
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: KanteStyle.mutedTextColor
+                    text: panel.shot && panel.shot.movement_hint
+                          ? panel.texts.t("shot.movementHint", { movement: panel.texts.t("movement." + panel.shot.movement_hint) })
+                          : ""
+                }
+                KanteButton {
+                    objectName: "movementTake"
+                    text: panel.texts.t("form.apply")
+                    onClicked: panel.commit("movement", panel.shot.movement_hint, panel.shot.movement)
+                }
+            }
+
             // The shot's camera follows a figure, keeping distance and angle (LH-37).
             ColumnLayout {
                 Layout.fillWidth: true

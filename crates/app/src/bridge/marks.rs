@@ -8,7 +8,7 @@ use crate::mark;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
-use klappe_services::{Arrival, Departure, Pose, Session, Source};
+use klappe_services::{Arrival, Departure, Pose, Rig, Session, Source};
 use serde_json::json;
 
 impl qobject::Controller {
@@ -74,6 +74,22 @@ impl qobject::Controller {
         self.commit_typed(typed)
     }
 
+    pub(super) fn set_mark_rig(self: Pin<&mut Self>, rig: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = mark::rig_edit(selected, &rig.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
+    pub(super) fn set_mark_lens(self: Pin<&mut Self>, lens: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let typed = mark::mark_lens_edit(selected, &lens.to_string());
+
+        self.commit_typed(typed)
+    }
+
     pub(super) fn set_mark_pace(self: Pin<&mut Self>, pace: &QString) -> bool {
         let selected = self.rust().selected.only();
         let Some(edit) = mark::pace_edit(selected, &pace.to_string()) else {
@@ -107,6 +123,8 @@ fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
         "pace": info.pace_m_s,
         "height": info.height_m,
         "tilt": info.tilt_deg,
+        "rig": info.rig.map(Rig::name).unwrap_or_default(),
+        "lens": info.lens_mm,
     })
 }
 
@@ -144,6 +162,10 @@ mod tests {
         assert_eq!(camera["hold"], 6.0);
         assert_eq!(camera["height"], 1.6);
         assert_eq!(camera["tilt"], 0.0);
+        assert_eq!(camera["rig"], "dolly");
+        assert_eq!(camera["lens"], serde_json::Value::Null);
+        assert_eq!(second["rig"], "");
+        assert_eq!(second["lens"], serde_json::Value::Null);
         assert_eq!(second["height"], serde_json::Value::Null);
         assert_eq!(second["tilt"], serde_json::Value::Null);
 

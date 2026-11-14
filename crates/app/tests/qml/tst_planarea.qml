@@ -63,7 +63,7 @@ TestCase {
                 return JSON.stringify({ kind: "note", text: "Vorhang schließen" })
             }
             if (key === "camera:b") {
-                return JSON.stringify({ kind: "camera", label: "B", lens: 50, fov: 27.9, height: 1.6, shots: "", follows: "Elisabeth" })
+                return JSON.stringify({ kind: "camera", label: "B", lens: 50, fov: 27.9, height: 1.6, shots: "", follows: "Elisabeth", rig: "crane" })
             }
             return JSON.stringify({ kind: "camera", label: "A", lens: 35, fov: 39.6, height: 1.6, shots: "12.1" })
         }
@@ -152,6 +152,16 @@ TestCase {
         const area = createTemporaryObject(areaComponent, tc, { texts: de })
 
         verify(area.tipLines("camera:b").indexOf("folgt Elisabeth") >= 0)
+    }
+
+    // LH-33: a camera that came to its mark with a rig names it.
+    function test_a_camera_tooltip_names_the_rig() {
+        const area = createTemporaryObject(areaComponent, tc, { texts: de })
+        const en_area = createTemporaryObject(areaComponent, tc, { texts: en })
+
+        verify(area.tipLines("camera:b").indexOf("Gerät: Kran") >= 0)
+        verify(en_area.tipLines("camera:b").indexOf("Rig: Crane") >= 0)
+        verify(area.tipLines("camera:a").every(l => l.indexOf("Gerät") < 0))
     }
 
     function test_english_tooltip_has_points() {
