@@ -6,8 +6,8 @@
 
 use ratatui::style::Color;
 
-/// `backgrounds.bg0`: the ground.
-const GROUND_HEX: u32 = 0x28_28_28;
+/// `backgrounds.bg-hard`: the ground.
+const GROUND_HEX: u32 = 0x1d_20_21;
 /// `backgrounds.bg1`: bars and the heading band.
 const SURFACE_HEX: u32 = 0x3c_38_36;
 /// `backgrounds.bg2`: the selected row.
@@ -18,8 +18,8 @@ const TEXT_HEX: u32 = 0xeb_db_b2;
 const STRONG_HEX: u32 = 0xfb_f1_c7;
 /// `foregrounds.fg2`: text a step back.
 const SOFT_HEX: u32 = 0xd5_c4_a1;
-/// `foregrounds.fg3`: quiet text (numbers, hints).
-const MUTED_HEX: u32 = 0xa8_99_84;
+/// `app.dark.mutedText`: quiet text (numbers, hints).
+const MUTED_HEX: u32 = 0xbd_ae_93;
 /// `semantic.yellow.bright`: the accent.
 const ACCENT_HEX: u32 = 0xfa_bd_2f;
 /// `semantic.blue.bright`.
@@ -109,5 +109,18 @@ mod tests {
             let role_name = format!("label{}{}", name[..1].to_uppercase(), &name[1..]);
             assert_eq!(label(name), role(&palette, &role_name), "{name}");
         }
+    }
+
+    #[test]
+    fn roles_follow_the_app() {
+        let palette = palette();
+        assert_eq!(GROUND, role(&palette, "ground"), "ground");
+        assert_eq!(TEXT, role(&palette, "text"), "text");
+        assert_eq!(STRONG, role(&palette, "strongText"), "strong");
+        assert_eq!(MUTED, role(&palette, "mutedText"), "muted");
+        assert_eq!(ACCENT, role(&palette, "accent"), "accent");
+        assert_eq!(SURFACE, resolve(&palette, "bg1"), "surface");
+        assert_eq!(RAISED, resolve(&palette, "bg2"), "raised");
+        assert_eq!(SOFT, resolve(&palette, "fg2"), "soft");
     }
 }
