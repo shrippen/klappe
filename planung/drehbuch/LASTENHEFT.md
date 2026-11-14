@@ -136,7 +136,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | DB-60 | Drehbuchauszug (Tags) je Szene: Besetzung, Statisterie, Requisite, Kostüm, Maske, Fahrzeug, Tier, Spezialeffekt, Stunt, Ton, Musik, Sonstiges. Der Fountain-Text bleibt sauber (Frage F-02). | S |
 | DB-61 | Berichte: Szenen (Nr., Kopf, Länge, Figuren), Drehorte, Figuren je Szene, Drehbuchauszug je Szene; als PDF und CSV. Grundlage für das Modul Planung. | S |
 | DB-62 | Rollen-Auszüge (Sides): nur die Szenen einer Figur als PDF. | K |
-| DB-63 | In der GUI von der Szene im Drehbuch zu Floorplan, Marks und Shots in Stellprobe springen und zurück. | M, GUI |
+| DB-63 | In der GUI von der Szene im Drehbuch zu Floorplan, Marks und Shots in Stellprobe springen und zurück. Die TUI ist vorerst nur zum Schreiben des Drehbuchs. | M, GUI |
 | DB-64 | Verknüpfungen aus Stellprobe (Szene, Szenenkopf, verknüpfte Drehbuchzeilen von Marks und Shots) bleiben beim Bearbeiten, Verschieben und Streichen gültig; was sich nicht eindeutig zuordnen lässt, legt das Programm dem Nutzer zur Zuordnung vor, statt still auf eine andere Zeile zu zeigen. | M |
 | DB-65 | Szenen behalten ihre Identität über Änderungen am Buch: Klappe merkt sich beim Speichern jede Szene (Nummer, Kopf, Inhalt) im Projektordner und ordnet beim nächsten Öffnen die Szenen des Buchs diesen zu, auch nach einer Änderung außerhalb von Klappe. Eine umnummerierte, verschobene oder umgeschriebene Szene behält ihren Floorplan; was sich nicht eindeutig zuordnen lässt, legt das Programm dem Nutzer vor (wie DB-64). Der Fountain-Text bleibt dabei sauber (F-02). | M |
 
@@ -155,7 +155,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DN-01 | Läuft im Terminal unter Linux, Windows und macOS (ratatui, E-06); 80 Spalten reichen. | M |
-| DN-02 | Ein Buch von 120 Seiten bleibt beim Tippen flüssig: neu paginieren und auswerten in höchstens 50 ms je Tastendruck. | M |
+| DN-02 | Tippen wird nie durch Rechnen gebremst: Seitenumbrüche, Längen und Auswertung rechnet Klappe neu, wenn 5 s lang keine Taste gedrückt wurde, und vor Export, Druck und Speichern (DN-07); dazwischen dürfen sie veraltet sein. | M |
 | DN-03 | Offline, ohne Konto, ohne Cloud (NF-02). Zusammenarbeit über Git: der Fountain-Text lässt sich in Git zusammenführen. | M |
 | DN-04 | Tastatur zuerst; jede Funktion ohne Maus erreichbar, Kürzel in der Hilfe (F1). | M |
 | DN-05 | Deutsch und Englisch; Fachbegriffe nach Filmpraxis im Buch und im PDF nach der Sprache des Projekts (wie F-04): ein englisches Projekt nutzt die internationalen Begriffe, ein deutsches die deutschen oder auf Wunsch die internationalen (je Projekt wählbar); die Oberfläche folgt NF-09; Szenenkopf-Präfixe beider Sprachen erkennen (INT./INNEN, EXT./AUSSEN, TAG/NACHT). | M |
@@ -195,6 +195,8 @@ Entschieden vom Eigentümer am 2026-11-14:
 | DB-33 | Ändern sich Szenennummern mit Floorplan nie automatisch? | Nein: sie passen sich an, wenn sich das Buch ändert, auch extern; Klappe verfolgt die Szenen (DB-65). |
 | DB-64 | Verknüpfungen überstehen das Umschreiben | Einverstanden. |
 | Begriffe | Deutsch nach Filmpraxis | Einverstanden, mit Mehrsprachigkeit: ein englisches Buch hat internationale Begriffe, ein deutsches kann sie auf Wunsch auch haben; maßgeblich ist die Sprache des Projekts (DN-05). |
+| DB-63 | Springen nur in der GUI? | Ja; die TUI ist vorerst nur zum Drehbuchschreiben. |
+| DN-02 | Neu berechnen nach jedem Tastendruck (50 ms)? | Nein: erst wenn 5 s keine Taste gedrückt wurde (und vor Export, Druck, Speichern). |
 
 ## Anhang A: Analyse Fade In und Beat
 
