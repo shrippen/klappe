@@ -21,6 +21,8 @@ HeaderMenu {
 
     required property var texts
     required property var controller
+    // While the backup question is open nothing may change the project, also not from the palette.
+    property bool locked: false
 
     readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : { plans: [], plan: "" }
     readonly property var plans: project.plans
@@ -66,7 +68,7 @@ HeaderMenu {
         cmd: "plan.snapshot"
         group: "plans"
         text: chooser.texts.t("plan.snapshot")
-        enabled: chooser.current !== null
+        enabled: !chooser.locked && chooser.current !== null
         onTriggered: form.show("snapshot", chooser.current)
     }
     CommandAction {
@@ -74,7 +76,7 @@ HeaderMenu {
         cmd: "plan.new"
         group: "plans"
         text: chooser.texts.t("plan.new")
-        enabled: chooser.current !== null
+        enabled: !chooser.locked && chooser.current !== null
         onTriggered: form.show("new", null)
     }
     CommandAction {
@@ -82,7 +84,7 @@ HeaderMenu {
         cmd: "plan.rename"
         group: "plans"
         text: chooser.texts.t("plan.rename")
-        enabled: chooser.current !== null
+        enabled: !chooser.locked && chooser.current !== null
         onTriggered: form.show("rename", chooser.current)
     }
     CommandAction {
@@ -90,7 +92,7 @@ HeaderMenu {
         cmd: "plan.remove"
         group: "plans"
         text: chooser.texts.t("plan.remove")
-        enabled: chooser.plans.length > 1
+        enabled: !chooser.locked && chooser.plans.length > 1
         onTriggered: {
             chooser.controller.clearStatus()
             confirm.open()

@@ -77,6 +77,7 @@ RowLayout {
         enabled: !header.locked && plans.length > 0
         texts: header.texts
         controller: header.controller
+        locked: header.locked
     }
 
     Item { Layout.fillWidth: true }
@@ -197,7 +198,7 @@ RowLayout {
         cmd: "background.set"
         group: "file"
         text: header.texts.t("menu.background")
-        enabled: header.controller.loaded
+        enabled: !header.locked && header.controller.loaded
         onTriggered: header.backgroundRequested()
     }
     CommandAction {
@@ -205,7 +206,7 @@ RowLayout {
         cmd: "background.remove"
         group: "file"
         text: header.texts.t("menu.backgroundRemove")
-        enabled: header.controller.loaded && header.controller.hasBackground
+        enabled: !header.locked && header.controller.loaded && header.controller.hasBackground
         onTriggered: header.controller.removeBackground()
     }
 

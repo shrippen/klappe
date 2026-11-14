@@ -380,8 +380,10 @@ TestCase {
         const header = make()
         header.locked = true
         fakeTools.enabled = false
+        fake.hasBackground = true
 
-        for (const id of ["scene:s13", "plan:plan-b", "tool:wall", "project.new"]) {
+        for (const id of ["scene:s13", "plan:plan-b", "tool:wall", "project.new", "plan.snapshot",
+                          "plan.new", "plan.rename", "plan.remove", "background.set", "background.remove"]) {
             verify(!header.commandPalette.commands.find(c => c.id === id).enabled, id)
         }
     }
