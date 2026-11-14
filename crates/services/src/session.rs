@@ -372,6 +372,29 @@ impl Session {
         Ok(())
     }
 
+    /// Refuses a result `next` in which a locked camera layer has moved: a figure drags its
+    /// coupled cameras along (LH-37), and a camera left behind would break distance and angle.
+    fn check_cameras(&self, next: &Project) -> Result<(), ServiceError> {
+        if self.lock(Layer::Cameras) == Lock::Unlocked {
+            return Ok(());
+        }
+
+        let marks = |project: &Project| {
+            let plan = project.scenes.get(self.scene)?.plans.get(self.plan)?;
+            Some(
+                plan.cameras
+                    .iter()
+                    .map(|c| c.marks.clone())
+                    .collect::<Vec<_>>(),
+            )
+        };
+        if marks(next) == marks(&self.project) {
+            return Ok(());
+        }
+
+        Err(ServiceError::Locked(Layer::Cameras))
+    }
+
     /// Shows or hides one figure, camera or light in plan and timeline.
     pub fn set_track(&mut self, id: &str, visibility: Visibility) {
         match visibility {
@@ -557,6 +580,7 @@ impl Session {
                     number: shot.number.clone(),
                     camera: shot.camera.clone(),
                     camera_label: camera.map(|c| c.label.clone()).unwrap_or_default(),
+                    follows: camera.and_then(|c| c.follows.clone()).unwrap_or_default(),
                     size: shot.size.name().to_owned(),
                     angle: shot.angle.name().to_owned(),
                     movement: shot.movement.name().to_owned(),
@@ -619,6 +643,7 @@ impl Session {
             self.snapping,
             &edit,
         )?;
+        self.check_cameras(&next)?;
         if next == self.project {
             return Ok(());
         }
@@ -671,6 +696,7 @@ impl Session {
             self.snapping,
             edit,
         )?;
+        self.check_cameras(&next)?;
 
         Ok(self.list_of(&next, selected))
     }

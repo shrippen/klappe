@@ -25,5 +25,6 @@ Stand: 2026-11-14.
 | Freies Zeichnen (LH-19): Linie, Pfeil, Rechteck, Ellipse, Fläche je Szenenplan, Farbe, Strichart, Füllung, Ebene, Export | erste Fassung; offen: Stil einer vorhandenen Zeichnung ändern, Punkte und Ecken ziehen, Drehen, Zeichnungen in der Legende, Werkzeugleiste bei schmalen Fenstern |
 | Ebenen sperren (LH-15): Schalter „gesperrt“ je Ebene, nichts wählbar oder änderbar | erste Fassung; die Sperre gilt für die Sitzung und steht nicht im Projekt |
 | Wege als Kurven (LH-21): `via` je Mark (quadratische Bézierkurve vom vorigen Mark), gleichmäßiges Tempo, Griff in der Mitte des gewählten Wegs ziehen, Taste G macht ihn gerade | erste Fassung; offen: Kurve mit mehr als einem Knick (Spline), Griff beim Verschieben der Marks mitführen |
+| Kamera folgt Figur (LH-37): Verschieben und Drehen eines Marks nimmt die Kamera-Marks im Zeitfenster des Marks mit; Auswahl im Shot-Bereich, Hinweis im Tooltip | erste Fassung; die Kopplung gilt je Kamera für alle Marks im Fenster, bei gesperrter Kamera-Ebene wird die Figurenänderung abgelehnt |
 | Perspektive und Drehreihenfolge der Shotliste (LH-71, LH-72) | fertig |
 | Demo-Modus mit „Studio Weber“ für Screenshots | offen |

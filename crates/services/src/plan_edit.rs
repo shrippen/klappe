@@ -103,6 +103,12 @@ pub enum PlanEdit {
     },
     /// Takes the background off the set; its file stays in `bilder/`.
     RemoveBackground,
+    /// Couples the camera `camera` to the figure `figure` (LH-37), or lets it go with `None`.
+    /// A coupled camera moves and turns with the figure's marks.
+    Follow {
+        camera: String,
+        figure: Option<String>,
+    },
 }
 
 /// Whether points snap to the grid (LH-14).
@@ -211,7 +217,7 @@ impl PlanEdit {
             | PlanEdit::Remove { source }
             | PlanEdit::Straighten { source } => layer_of_source(source),
             PlanEdit::AddMark { .. } => Layer::Figures,
-            PlanEdit::AddCamera { .. } => Layer::Cameras,
+            PlanEdit::AddCamera { .. } | PlanEdit::Follow { .. } => Layer::Cameras,
             PlanEdit::AddLight { .. } => Layer::Lights,
             PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } => Layer::Notes,
             PlanEdit::AddDrawing { .. } => Layer::Drawings,
@@ -312,12 +318,18 @@ pub(crate) fn apply(
     };
 
     match edit {
-        PlanEdit::Move { source, to } => move_to(&mut scope, source, *to),
-        PlanEdit::Shift { source, dx_m, dy_m } => {
-            shift(&mut scope, source, (*dx_m, *dy_m), snapping)
+        PlanEdit::Move { source, to } => {
+            carry_cameras(&mut scope, source, |s| move_to(s, source, *to))
         }
-        PlanEdit::Spin { source, by_deg } => spin(&mut scope, source, *by_deg),
-        PlanEdit::Turn { source, facing_deg } => turn(&mut scope, source, *facing_deg),
+        PlanEdit::Shift { source, dx_m, dy_m } => carry_cameras(&mut scope, source, |s| {
+            shift(s, source, (*dx_m, *dy_m), snapping)
+        }),
+        PlanEdit::Spin { source, by_deg } => {
+            carry_cameras(&mut scope, source, |s| spin(s, source, *by_deg))
+        }
+        PlanEdit::Turn { source, facing_deg } => {
+            carry_cameras(&mut scope, source, |s| turn(s, source, *facing_deg))
+        }
         PlanEdit::Remove { source } => remove(&mut scope, source),
         PlanEdit::Straighten { source } => straighten(&mut scope, source),
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
@@ -341,6 +353,7 @@ pub(crate) fn apply(
         } => calibrate(&mut scope, (*from, *to), *distance_m),
         PlanEdit::MoveBackground { dx_m, dy_m } => move_background(&mut scope, (*dx_m, *dy_m)),
         PlanEdit::RemoveBackground => remove_background(&mut scope),
+        PlanEdit::Follow { camera, figure } => follow(&mut scope, camera, figure.as_deref()),
     }
 }
 
@@ -380,7 +393,8 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::Straighten { .. }
         | PlanEdit::EditNote { .. }
         | PlanEdit::SetBackground { .. }
-        | PlanEdit::RemoveBackground => Ok(()),
+        | PlanEdit::RemoveBackground
+        | PlanEdit::Follow { .. } => Ok(()),
     }
 }
 
@@ -950,6 +964,100 @@ fn add_camera(scope: &mut Scope<'_>, at: Point, facing_deg: f64) -> Result<(), S
         follows: None,
     };
     scope.plan.cameras.push(camera);
+
+    Ok(())
+}
+
+/// The mark of a figure that `source` names, as its character and index.
+fn figure_mark(scope: &Scope<'_>, source: &Source) -> Option<(String, usize)> {
+    match source {
+        Source::Mark { character, index } => Some((character.clone(), *index)),
+        Source::Figure(character) => {
+            let track = scope.plan.figure(character)?;
+            let index = current_index(track.marks.iter().map(|m| m.at_s), scope.time_s)?;
+            Some((character.clone(), index))
+        }
+        _ => None,
+    }
+}
+
+/// Runs `change`; if it moved or turned a mark of a figure that cameras follow (LH-37), those
+/// cameras' marks within the mark's time window (arrival to the end of the pause) take the
+/// same move and turn about the mark, so distance and angle to the figure stay. In the same
+/// edit, hence one undo step.
+fn carry_cameras(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    change: impl FnOnce(&mut Scope<'_>) -> Result<(), ServiceError>,
+) -> Result<(), ServiceError> {
+    let Some((character, index)) = figure_mark(scope, source) else {
+        return change(scope);
+    };
+    let mark_of = |plan: &FloorPlan| plan.figure(&character)?.marks.get(index).cloned();
+    let before = mark_of(scope.plan);
+
+    change(scope)?;
+
+    let (Some(before), Some(after)) = (before, mark_of(scope.plan)) else {
+        return Ok(());
+    };
+    let (dx_m, dy_m) = (after.at.x_m - before.at.x_m, after.at.y_m - before.at.y_m);
+    let turn_deg = normalize_deg(after.facing_deg - before.facing_deg);
+    let window_s = before.at_s..=before.at_s + before.hold_s;
+
+    let followers = scope
+        .plan
+        .cameras
+        .iter_mut()
+        .filter(|c| c.follows.as_deref() == Some(character.as_str()));
+    for camera in followers {
+        for camera_mark in camera
+            .marks
+            .iter_mut()
+            .filter(|m| window_s.contains(&m.at_s))
+        {
+            let moved = Point::new(camera_mark.at.x_m + dx_m, camera_mark.at.y_m + dy_m);
+            camera_mark.at = rotate(moved, after.at, turn_deg);
+            camera_mark.facing_deg = normalize_deg(camera_mark.facing_deg + turn_deg);
+        }
+    }
+
+    Ok(())
+}
+
+/// `point` turned clockwise on the plan by `deg` about `centre`.
+fn rotate(point: Point, centre: Point, deg: f64) -> Point {
+    if deg == 0.0 {
+        return point;
+    }
+
+    let (sin, cos) = deg.to_radians().sin_cos();
+    let (x_m, y_m) = (point.x_m - centre.x_m, point.y_m - centre.y_m);
+
+    Point::new(
+        centre.x_m + x_m * cos - y_m * sin,
+        centre.y_m + x_m * sin + y_m * cos,
+    )
+}
+
+/// Couples `camera` to `figure`, a figure of this plan, or lets it go.
+fn follow(scope: &mut Scope<'_>, camera: &str, figure: Option<&str>) -> Result<(), ServiceError> {
+    if let Some(character) = figure {
+        if scope.plan.figure(character).is_none() {
+            return Err(ServiceError::BadValue {
+                field: "follows",
+                value: character.to_owned(),
+            });
+        }
+    }
+
+    let camera = scope
+        .plan
+        .cameras
+        .iter_mut()
+        .find(|c| c.id == camera)
+        .ok_or(ServiceError::Gone)?;
+    camera.follows = figure.map(str::to_owned);
 
     Ok(())
 }

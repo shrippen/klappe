@@ -87,6 +87,12 @@ pub mod qobject {
         #[cxx_name = "editShot"]
         fn edit_shot(self: Pin<&mut Self>, id: &QString, field: &QString, value: &QString) -> bool;
 
+        /// Couples the camera to a figure (character id), or lets it go with an empty
+        /// `figure`; false if refused.
+        #[qinvokable]
+        #[cxx_name = "setFollow"]
+        fn set_follow(self: Pin<&mut Self>, camera: &QString, figure: &QString) -> bool;
+
         #[qinvokable]
         fn undo(self: Pin<&mut Self>);
 
@@ -877,6 +883,15 @@ impl qobject::Controller {
         self.as_mut().changed();
         self.refresh();
         true
+    }
+
+    fn set_follow(self: Pin<&mut Self>, camera: &QString, figure: &QString) -> bool {
+        let figure = figure.to_string();
+
+        self.commit_edit(PlanEdit::Follow {
+            camera: camera.to_string(),
+            figure: (!figure.is_empty()).then_some(figure),
+        })
     }
 
     fn undo(mut self: Pin<&mut Self>) {
@@ -1671,6 +1686,12 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 .filter(|shot| shot.camera == id)
                 .map(|shot| shot.number.as_str())
                 .collect();
+            let follows = c
+                .follows
+                .as_deref()
+                .and_then(|character| s.project().character(character))
+                .map(|character| character.name.clone())
+                .unwrap_or_default();
             let lens_mm = s.lens_now_mm(id).unwrap_or(c.lens_mm);
             json!({
                 "kind": "camera",
@@ -1679,6 +1700,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 "fov": (horizontal_fov_deg(c.sensor, lens_mm) * 10.0).round() / 10.0,
                 "height": c.marks.first().map(|m| m.height_m).unwrap_or(0.0),
                 "shots": shots.join(", "),
+                "follows": follows,
             })
         }
         "figure" | "mark" => {
