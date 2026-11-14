@@ -12,10 +12,11 @@ use crate::StoreError;
 
 const BUILTIN: &str = include_str!("../library/standard.toml");
 
-/// A library file: one `[[objekt]]` per item.
+/// A library file: one `[[objekt]]` per item. Other keys or no `objekt` at all mean the file
+/// is no library (an import of `projekt.toml` would read as an empty one otherwise).
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct LibraryFile {
-    #[serde(default)]
     objekt: Vec<LibraryItem>,
 }
 

@@ -561,3 +561,27 @@ fn a_locked_set_refuses_a_resize_and_the_other_layers_do_not() {
     .unwrap();
     assert_eq!(s.project().library.len(), 1);
 }
+
+/// Review of PR 28: an object with a size no library takes (here a hand-edited depth of 0)
+/// went into the library and then every save and autosave failed on `bibliothek.toml`.
+#[test]
+fn an_unusable_object_does_not_go_into_the_library() {
+    let dir = copy("unusable-object");
+    let file = dir.join("drehorte/saengersaal.toml");
+    let text = fs::read_to_string(&file).unwrap();
+    fs::write(&file, text.replacen("depth_m = 1.2", "depth_m = 0.0", 1)).unwrap();
+    let mut s = Session::open(&dir).unwrap();
+
+    let laid = s.edit_project(ProjectEdit::LibraryFromObject {
+        location: "saengersaal".into(),
+        object: "tisch".into(),
+        name: "Tisch flach".into(),
+    });
+
+    assert!(
+        matches!(laid, Err(ServiceError::BadValue { .. })),
+        "{laid:?}"
+    );
+    assert!(s.project().library.is_empty());
+    assert!(s.save().is_ok());
+}

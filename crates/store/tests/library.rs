@@ -261,3 +261,19 @@ fn the_backup_keeps_own_objects() {
     assert_eq!(backup.project.library, vec![throne()]);
     assert!(!dir.join("bibliothek.toml").exists());
 }
+
+/// Review of PR 28: any TOML file read as an empty library, so importing `projekt.toml` or a
+/// file with a misspelt `[[objkt]]` said "nothing new" instead of "not a library".
+#[test]
+fn a_file_that_is_no_library_is_an_error() {
+    let dir = test_dir("no-library");
+    for (name, text) in [
+        ("typo.toml", "[[objkt]]\nkind = \"thron\"\n"),
+        ("projekt.toml", "title = \"Wartburg\"\n"),
+    ] {
+        let path = dir.join(name);
+        fs::write(&path, text).unwrap();
+
+        assert!(load_library(&path).is_err(), "{name}");
+    }
+}

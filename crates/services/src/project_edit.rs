@@ -335,14 +335,19 @@ fn library_from_object(
         .ok_or(ServiceError::Gone)?;
     let (width_m, depth_m, shape) = (object.width_m, object.depth_m, object.shape);
 
+    // A hand-edited set can hold sizes no library takes; checked here, or every later save
+    // fails on `bibliothek.toml`.
     let kind = free_kind(project, &slug(&name, LIBRARY_KIND_FALLBACK));
-    project.library.push(LibraryItem {
+    let item = LibraryItem {
         kind,
         label: name,
         width_m,
         depth_m,
         shape,
-    });
+    };
+    check_item(&item)?;
+
+    project.library.push(item);
     Ok(())
 }
 
