@@ -159,7 +159,13 @@ impl Painter {
             .iter()
             .map(|d| d * self.scale)
             .collect();
-        let polys = outline(&points, closure, line.width_pt * self.scale, &dash_px);
+        let polys = outline(
+            &points,
+            closure,
+            line.width_pt * self.scale,
+            &dash_px,
+            self.clip,
+        );
         self.fill(&polys, line.rgb, 1.0);
     }
 
@@ -581,5 +587,104 @@ mod tests {
             render(&doc(vec![broken])),
             Err(ExportError::Image { .. })
         ));
+    }
+
+    /// Coordinates a hand-edited project can carry: far away, and past what a double holds.
+    const FAR_PT: [f64; 7] = [1e6, 1e12, 1e300, 1e307, f64::MAX, f64::INFINITY, f64::NAN];
+    const FAR_FINITE_PT: [f64; 3] = [1e6, 1e12, 1e300];
+    const FAR_BUDGET: std::time::Duration = std::time::Duration::from_secs(5);
+
+    /// Whether the coordinate is still a number once scaled to pixels.
+    fn fits(far: f64) -> bool {
+        (far * (RESOLUTION_DPI / PT_PER_INCH)).is_finite()
+    }
+
+    fn timed(prims: Vec<Prim>) -> Surface {
+        let start = std::time::Instant::now();
+        let s = render(&doc(prims)).unwrap();
+
+        assert!(start.elapsed() < FAR_BUDGET, "took {:?}", start.elapsed());
+
+        s
+    }
+
+    fn line(dash: Dash) -> Stroke {
+        Stroke {
+            rgb: INK,
+            width_pt: 2.0,
+            dash,
+        }
+    }
+
+    #[test]
+    fn a_dashed_path_far_outside_renders_fast_and_in_phase() {
+        for far in FAR_PT {
+            let geom = Geom::Open(vec![(10.0, 12.0), (far, 12.0)]);
+            let s = timed(vec![shape(geom, None, Some(line(Dash::Dashed)))]);
+
+            // 12 pt on from 10 pt = 20.83..45.83 px, then 6 pt (12.5 px) off.
+            let drawn = fits(far);
+            assert_eq!(at(&s, 30, 25) == ink(), drawn, "{far}");
+            assert_eq!(at(&s, 50, 25), [250, 250, 245], "{far}");
+        }
+    }
+
+    #[test]
+    fn a_dashed_path_across_the_page_from_far_away_shows() {
+        for far in FAR_FINITE_PT {
+            let geom = Geom::Open(vec![(-far, 12.0), (far, 12.0)]);
+            let s = timed(vec![shape(geom, None, Some(line(Dash::Dashed)))]);
+
+            let inked = (0..s.width).filter(|x| at(&s, *x, 25) == ink()).count();
+            assert!(inked > 0 && inked < s.width as usize, "{far}: {inked}");
+        }
+    }
+
+    #[test]
+    fn a_solid_path_far_outside_renders_fast() {
+        for far in FAR_PT {
+            let geom = Geom::Open(vec![(-far, 12.0), (far, 12.0)]);
+            let s = timed(vec![shape(geom, None, Some(line(Dash::Solid)))]);
+
+            let drawn = fits(far);
+            assert_eq!(at(&s, 30, 25) == ink(), drawn, "{far}");
+        }
+    }
+
+    #[test]
+    fn a_huge_fill_covers_the_page_or_nothing() {
+        let fill = Fill {
+            rgb: INK,
+            opacity: 1.0,
+        };
+        for far in FAR_PT {
+            let rect = Rect {
+                x: -far,
+                y: -far,
+                w: 2.0 * far,
+                h: 2.0 * far,
+            };
+            let s = timed(vec![shape(Geom::Rect(rect), Some(fill), None)]);
+            let drawn = fits(far);
+            assert_eq!(at(&s, 30, 25) == ink(), drawn, "{far}");
+
+            let ring = Geom::Closed(vec![(-far, -far), (far, -far), (far, far), (-far, far)]);
+            timed(vec![shape(ring, Some(fill), Some(line(Dash::Dotted)))]);
+        }
+    }
+
+    #[test]
+    fn a_huge_circle_renders_fast() {
+        let fill = Fill {
+            rgb: INK,
+            opacity: 1.0,
+        };
+        for far in FAR_PT {
+            let geom = Geom::Circle {
+                center: (48.0, 24.0),
+                radius: far,
+            };
+            timed(vec![shape(geom, Some(fill), Some(line(Dash::Dashed)))]);
+        }
     }
 }
