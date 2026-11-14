@@ -82,6 +82,28 @@ fn the_preview_is_reused_until_the_project_is_newer() {
     assert!(!preview.exists());
 }
 
+/// Review of PR 58: the temp file of a preview cut off midway goes with the old previews.
+#[test]
+fn a_cut_off_preview_is_cleaned_up() {
+    let (dir, cache) = project("start-cut-off");
+    let preview = project_card(&dir, &cache, Language::German)
+        .preview
+        .unwrap();
+    let name = preview.file_name().unwrap().to_string_lossy();
+    let stale = preview.with_file_name(format!(".{name}.tmp"));
+    fs::write(&stale, b"half").unwrap();
+
+    let file = fs::File::options()
+        .write(true)
+        .open(dir.join("projekt.toml"))
+        .unwrap();
+    file.set_modified(SystemTime::now() + Duration::from_secs(60))
+        .unwrap();
+    project_card(&dir, &cache, Language::German);
+
+    assert!(!stale.exists());
+}
+
 #[test]
 fn a_project_without_a_plan_gets_the_placeholder() {
     let dir = scratch("start-empty").join("leer");

@@ -118,7 +118,9 @@ fn remove_old_previews(keep: &Path) {
         return;
     };
 
+    // Also the temp file of a write cut off midway: `.<hash>-<time>.png.tmp`.
     klappe_store::remove_prefixed(folder, &format!("{hash}-"));
+    klappe_store::remove_prefixed(folder, &format!(".{hash}-"));
 }
 
 fn seconds(time: SystemTime) -> Option<u64> {
