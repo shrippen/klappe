@@ -268,11 +268,8 @@ pub mod qobject {
             id: &QString,
             number: &QString,
             heading: &QString,
+            location: &QString,
         ) -> bool;
-
-        #[qinvokable]
-        #[cxx_name = "moveScene"]
-        fn move_scene(self: Pin<&mut Self>, id: &QString, location: &QString) -> bool;
 
         #[qinvokable]
         #[cxx_name = "removeScene"]
@@ -1279,17 +1276,17 @@ impl qobject::Controller {
         }))
     }
 
-    fn edit_scene(self: Pin<&mut Self>, id: &QString, number: &QString, heading: &QString) -> bool {
+    fn edit_scene(
+        self: Pin<&mut Self>,
+        id: &QString,
+        number: &QString,
+        heading: &QString,
+        location: &QString,
+    ) -> bool {
         self.commit_project(Ok(ProjectEdit::EditScene {
             id: id.to_string(),
             number: number.to_string(),
             heading: heading.to_string(),
-        }))
-    }
-
-    fn move_scene(self: Pin<&mut Self>, id: &QString, location: &QString) -> bool {
-        self.commit_project(Ok(ProjectEdit::MoveScene {
-            id: id.to_string(),
             location: location.to_string(),
         }))
     }

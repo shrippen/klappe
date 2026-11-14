@@ -32,10 +32,7 @@ FormDialog {
         if (!scene) {
             return controller.addScene(numberField.text, headingField.text, location)
         }
-        if (!controller.editScene(scene.id, numberField.text, headingField.text)) {
-            return false
-        }
-        return scene.location === location || controller.moveScene(scene.id, location)
+        return controller.editScene(scene.id, numberField.text, headingField.text, location)
     }
 
     KanteSectionLabel { text: form.texts.t("scene.number") }

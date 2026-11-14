@@ -168,6 +168,7 @@ fn changing_the_heading_keeps_the_number() {
         id: "szene-012".into(),
         number: "12".into(),
         heading: " INT. SÄNGERSAAL – NACHT ".into(),
+        location: "saengersaal".into(),
     })
     .unwrap();
 
@@ -188,6 +189,7 @@ fn renumbers_a_scene_but_not_onto_another() {
             id: "szene-013".into(),
             number: "12".into(),
             heading: "x".into(),
+            location: "saengersaal".into(),
         })
         .unwrap_err();
     assert!(matches!(err, ServiceError::NumberTaken(_)));
@@ -196,6 +198,7 @@ fn renumbers_a_scene_but_not_onto_another() {
         id: "szene-013".into(),
         number: "14".into(),
         heading: "x".into(),
+        location: "saengersaal".into(),
     })
     .unwrap();
 
@@ -204,24 +207,40 @@ fn renumbers_a_scene_but_not_onto_another() {
 }
 
 #[test]
-fn moves_a_scene_to_another_location() {
+fn edits_a_scene_and_moves_it_in_one_undo_step() {
     let mut s = open("manage-move");
     s.edit_project(add_location("Burghof")).unwrap();
 
-    s.edit_project(ProjectEdit::MoveScene {
+    s.edit_project(ProjectEdit::EditScene {
         id: "szene-012".into(),
+        number: "13".into(),
+        heading: "EXT. BURGHOF".into(),
         location: "burghof".into(),
     })
     .unwrap();
-    assert_eq!(s.project().scene("szene-012").unwrap().location, "burghof");
+    let scene = s.project().scene("szene-012").unwrap();
+    assert_eq!(scene.number, "13");
+    assert_eq!(scene.location, "burghof");
+
+    s.undo();
+    let scene = s.project().scene("szene-012").unwrap();
+    assert_eq!(scene.number, "12");
+    assert_eq!(scene.heading, "INT. SÄNGERSAAL – TAG");
+    assert_eq!(scene.location, "saengersaal");
 
     let err = s
-        .edit_project(ProjectEdit::MoveScene {
+        .edit_project(ProjectEdit::EditScene {
             id: "szene-012".into(),
+            number: "12".into(),
+            heading: "x".into(),
             location: "nirgends".into(),
         })
         .unwrap_err();
     assert!(matches!(err, ServiceError::NoLocation(_)));
+    assert_eq!(
+        s.project().scene("szene-012").unwrap().heading,
+        "INT. SÄNGERSAAL – TAG"
+    );
 }
 
 #[test]

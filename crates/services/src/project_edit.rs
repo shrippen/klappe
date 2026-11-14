@@ -16,16 +16,12 @@ pub enum ProjectEdit {
         heading: String,
         location: String,
     },
-    /// Sets number and heading; the number is only checked when it changes, so a scene
-    /// whose script is linked by its number keeps it while the heading changes.
+    /// Sets number, heading and location; the number is only checked when it changes, so a
+    /// scene whose script is linked by its number keeps it while the heading changes.
     EditScene {
         id: String,
         number: String,
         heading: String,
-    },
-    /// Sets the location of a scene.
-    MoveScene {
-        id: String,
         location: String,
     },
     RemoveScene {
@@ -90,8 +86,8 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             id,
             number,
             heading,
-        } => edit_scene(project, id, number, heading),
-        ProjectEdit::MoveScene { id, location } => move_scene(project, id, location),
+            location,
+        } => edit_scene(project, id, number, heading, location),
         ProjectEdit::RemoveScene { id } => remove_scene(project, id),
         ProjectEdit::AddLocation {
             name,
@@ -147,6 +143,7 @@ fn edit_scene(
     id: &str,
     number: &str,
     heading: &str,
+    location: &str,
 ) -> Result<(), ServiceError> {
     let current = project
         .scene(id)
@@ -155,21 +152,13 @@ fn edit_scene(
         true => current.number.clone(),
         false => free_number(project, number, Some(id))?,
     };
+    check_location(project, location)?;
 
     let Some(scene) = project.scenes.iter_mut().find(|s| s.id == id) else {
         return Err(ServiceError::NoScene(id.to_owned()));
     };
     scene.number = number;
     scene.heading = heading.trim().to_owned();
-    Ok(())
-}
-
-fn move_scene(project: &mut Project, id: &str, location: &str) -> Result<(), ServiceError> {
-    check_location(project, location)?;
-
-    let Some(scene) = project.scenes.iter_mut().find(|s| s.id == id) else {
-        return Err(ServiceError::NoScene(id.to_owned()));
-    };
     scene.location = location.to_owned();
     Ok(())
 }

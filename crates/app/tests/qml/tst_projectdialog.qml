@@ -45,8 +45,7 @@ TestCase {
         function clearStatus() { status = "" }
         function selectScene(id) { return call("selectScene", [id]) }
         function addScene(n, h, l) { return call("addScene", [n, h, l]) }
-        function editScene(id, n, h) { return call("editScene", [id, n, h]) }
-        function moveScene(id, l) { return call("moveScene", [id, l]) }
+        function editScene(id, n, h, l) { return call("editScene", [id, n, h, l]) }
         function removeScene(id) { return call("removeScene", [id]) }
         function addLocation(n, w, d) { return call("addLocation", [n, w, d]) }
         function editLocation(id, n, w, d) { return call("editLocation", [id, n, w, d]) }
@@ -164,10 +163,10 @@ TestCase {
         findChild(form, "headingField").text = "INT. SÄNGERSAAL – NACHT"
         form.accept()
 
-        compare(fake.calls, [["editScene", "szene-012", "12", "INT. SÄNGERSAAL – NACHT"]])
+        compare(fake.calls, [["editScene", "szene-012", "12", "INT. SÄNGERSAAL – NACHT", "saengersaal"]])
     }
 
-    function test_another_location_moves_the_scene() {
+    function test_another_location_is_one_edit() {
         const pd = make()
         opened(pd)
         const scenes = listOf(pd, "sceneList")
@@ -179,8 +178,7 @@ TestCase {
         findChild(form, "locationBox").currentIndex = 0
         form.accept()
 
-        compare(fake.calls.map(c => c[0]), ["editScene", "moveScene"])
-        compare(fake.calls[1], ["moveScene", "szene-012", "hof"])
+        compare(fake.calls, [["editScene", "szene-012", "12", "INT. SÄNGERSAAL – TAG", "hof"]])
     }
 
     function test_a_refusal_keeps_the_form_open_with_the_message() {
