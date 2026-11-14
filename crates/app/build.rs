@@ -18,6 +18,7 @@ const PAGES: &[&str] = &[
     "qml/NewProjectDialog.qml",
     "qml/ManageList.qml",
     "qml/ProjectDialog.qml",
+    "qml/ProjectButtons.qml",
     "qml/StartPage.qml",
 ];
 

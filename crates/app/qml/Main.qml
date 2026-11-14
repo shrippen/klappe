@@ -162,20 +162,12 @@ Kirigami.ApplicationWindow {
                     controller: ctl
                 }
                 Item { Layout.fillWidth: true }
-                KanteButton {
-                    objectName: "newProjectButton"
-                    text: texts.t("menu.new")
-                    onClicked: root.switchProject(() => newFolderDialog.open())
-                }
-                KanteButton {
-                    objectName: "openProjectButton"
-                    text: texts.t("menu.open")
-                    onClicked: root.switchProject(() => openFolderDialog.open())
-                }
-                KanteButton {
-                    objectName: "projectButton"
-                    text: texts.t("menu.project")
-                    onClicked: projectDialog.open()
+                ProjectButtons {
+                    texts: texts
+                    locked: backupNotice.blocking
+                    onNewRequested: root.switchProject(() => newFolderDialog.open())
+                    onOpenRequested: root.switchProject(() => openFolderDialog.open())
+                    onProjectRequested: projectDialog.open()
                 }
                 KanteToolButton {
                     text: texts.t("toggle.script")
