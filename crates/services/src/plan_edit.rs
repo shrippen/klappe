@@ -384,20 +384,22 @@ fn move_to(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Serv
     Ok(())
 }
 
-/// Moves by `by_m` (dx, dy) from where the element is now; the new place is snapped.
+/// Moves by `by_m` (dx, dy) from where the element is now; the new place is snapped. A wall
+/// snaps its start, not its middle: a wall 3.25 m long keeps both ends where they meet others.
 fn shift(
     scope: &mut Scope<'_>,
     source: &Source,
     by_m: (f64, f64),
     snapping: Snapping,
 ) -> Result<(), ServiceError> {
-    let now = match target(scope, source)? {
-        Target::Place { at, .. } => *at,
-        Target::Wall(wall) => middle(wall),
+    let (anchor, middle_now) = match target(scope, source)? {
+        Target::Place { at, .. } => (*at, *at),
+        Target::Wall(wall) => (wall.from, middle(wall)),
     };
-    let to = snap(Point::new(now.x_m + by_m.0, now.y_m + by_m.1), snapping);
+    let landed = snap(Point::new(anchor.x_m + by_m.0, anchor.y_m + by_m.1), snapping);
+    let (dx, dy) = (landed.x_m - anchor.x_m, landed.y_m - anchor.y_m);
 
-    move_to(scope, source, to)
+    move_to(scope, source, Point::new(middle_now.x_m + dx, middle_now.y_m + dy))
 }
 
 fn spin(scope: &mut Scope<'_>, source: &Source, by_deg: f64) -> Result<(), ServiceError> {

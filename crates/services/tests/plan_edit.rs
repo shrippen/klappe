@@ -647,7 +647,7 @@ fn a_shift_lands_on_the_grid() {
 /// Wall 0 runs (0, 0) to (20, 0), middle (10, 0). By (0.3, 0.4) the middle would reach
 /// (10.3, 0.4) -> (10.25, 0.5): the wall shifts by (0.25, 0.5) and keeps its length.
 #[test]
-fn a_shift_snaps_the_middle_of_a_wall() {
+fn a_shift_snaps_the_start_of_a_wall() {
     let mut s = open();
 
     s.edit_plan(PlanEdit::Shift {
@@ -660,6 +660,30 @@ fn a_shift_snaps_the_middle_of_a_wall() {
     let wall = &location_set(&s).walls[0];
     assert!(near(wall.from, p(0.25, 0.5)), "{:?}", wall.from);
     assert!(near(wall.to, p(20.25, 0.5)), "{:?}", wall.to);
+}
+
+/// Review of PR 13: a wall 3.25 m long moved straight down kept its middle on the grid and
+/// slid 12.5 cm aside; its start stays on the grid instead, so it still meets its neighbours.
+#[test]
+fn a_shift_keeps_a_wall_start_on_the_grid() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::AddWall {
+        from: p(2.0, 2.0),
+        to: p(5.25, 2.0),
+    })
+    .unwrap();
+    let index = location_set(&s).walls.len() - 1;
+
+    s.edit_plan(PlanEdit::Shift {
+        source: Source::Wall(index),
+        dx_m: 0.0,
+        dy_m: 1.0,
+    })
+    .unwrap();
+
+    let wall = &location_set(&s).walls[index];
+    assert!(near(wall.from, p(2.0, 3.0)), "{:?}", wall.from);
+    assert!(near(wall.to, p(5.25, 3.0)), "{:?}", wall.to);
 }
 
 /// Camera A faces 330 at the start: 15 more is 345; Elisabeth's first mark faces 0: 15 less
