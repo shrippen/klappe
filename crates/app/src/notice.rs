@@ -9,6 +9,15 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
     let (key, detail) = match error {
         ServiceError::NoScene(id) => ("error.noScene", id.clone()),
         ServiceError::NoShot(id) => ("error.noShot", id.clone()),
+        ServiceError::Gone => ("error.gone", String::new()),
+        ServiceError::NoLocation(id) => ("error.noLocation", id.clone()),
+        ServiceError::NoFreeCamera => ("error.noFreeCamera", String::new()),
+        ServiceError::CameraInUse { camera, shot } => {
+            return language
+                .text("error.cameraInUse")
+                .replace("{camera}", camera)
+                .replace("{shot}", shot);
+        }
         ServiceError::BadValue { field, value } => {
             let name = language.text(&format!("field.{field}"));
             return language
@@ -93,11 +102,32 @@ mod tests {
         );
     }
 
+    /// Review of PR 10: label and shot number, no code text.
+    #[test]
+    fn a_camera_in_use_names_label_and_shot() {
+        let error = ServiceError::CameraInUse {
+            camera: "B".to_owned(),
+            shot: "12.3".to_owned(),
+        };
+
+        assert_eq!(
+            error_text(Language::German, &error),
+            "Kamera B wird von Shot 12.3 genutzt"
+        );
+        assert_eq!(
+            error_text(Language::English, &error),
+            "Camera B is used by shot 12.3"
+        );
+    }
+
     #[test]
     fn every_error_kind_has_a_text_in_both_languages() {
         let errors = [
             ServiceError::NoScene("s".to_owned()),
             ServiceError::NoShot("x".to_owned()),
+            ServiceError::Gone,
+            ServiceError::NoLocation("l".to_owned()),
+            ServiceError::NoFreeCamera,
         ];
 
         for error in &errors {
