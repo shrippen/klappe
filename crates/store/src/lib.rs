@@ -10,6 +10,7 @@
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
 
+mod camera;
 mod error;
 mod files;
 mod images;
@@ -21,6 +22,7 @@ use std::path::Path;
 use klappe_model::{Character, Location, Project, Scene, FORMAT_VERSION};
 use serde::{Deserialize, Serialize};
 
+pub use camera::builtin_camera_presets;
 pub use error::StoreError;
 use files::{Dir, Kind};
 pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};

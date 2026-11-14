@@ -1,0 +1,52 @@
+# The built-in camera presets (LH-32). A body is a sensor format: its active width in
+# millimetres and the frame it is usually shot in. Formats only, no makes: the width of one
+# make differs from the next. A lens set is named in the catalogue (`lensSet.<id>`); a prime
+# set lists its focal lengths in millimetres, a zoom its shortest and longest.
+
+[[kamera]]
+id = "super35"
+name = "Super 35"
+width_mm = 24.89
+aspect = 2.39
+
+[[kamera]]
+id = "full-frame"
+name = "Full Frame"
+width_mm = 36.0
+aspect = 1.78
+
+[[kamera]]
+id = "micro-four-thirds"
+name = "Micro Four Thirds"
+width_mm = 17.3
+aspect = 1.78
+
+[[kamera]]
+id = "aps-c"
+name = "APS-C"
+width_mm = 23.5
+aspect = 1.78
+
+[[kamera]]
+id = "super16"
+name = "Super 16"
+width_mm = 12.52
+aspect = 1.78
+
+[[kamera]]
+id = "large-format"
+name = "Large Format"
+width_mm = 54.12
+aspect = 2.39
+
+[[objektiv]]
+id = "primes"
+primes_mm = [18.0, 25.0, 32.0, 50.0, 75.0, 100.0, 135.0]
+
+[[objektiv]]
+id = "zoom-standard"
+zoom_mm = [24.0, 70.0]
+
+[[objektiv]]
+id = "zoom-tele"
+zoom_mm = [70.0, 200.0]

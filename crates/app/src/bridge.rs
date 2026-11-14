@@ -256,6 +256,13 @@ pub mod qobject {
         #[cxx_name = "resizeSelected"]
         fn resize_selected(self: Pin<&mut Self>, width: &QString, depth: &QString) -> bool;
 
+        /// Sets one field of the selected camera (LH-32): `field` is `body` (a body id of
+        /// `choicesJson`), `sensor` (mm), `lens` (mm) or `aspect` (`2,39` or `16:9`). False
+        /// when no camera is selected or the value is not usable; a refusal by the session
+        /// goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setCameraField"]
+        fn set_camera_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool;
         /// The fields of the selected mark (a figure's, or a camera's) as JSON: `kind`
         /// (`figure` or `camera`), `pose` (empty for a camera), `hold` in seconds, `hasWay`,
         /// `pace` in m/s (null without time on the way). `{}` for any other selection.
@@ -444,6 +451,7 @@ use klappe_services::{
 use serde_json::json;
 
 use crate::args::AppArgs;
+use crate::camera::{self, CameraField};
 use crate::catalog::Language;
 use crate::manage;
 use crate::notice::{backup_view, error_text, Status};
@@ -740,6 +748,7 @@ fn choices_json(s: &Session) -> String {
     json!({
         "figure": figures,
         "object": s.library(),
+        "camera": camera::presets_json(s.camera_presets()),
         "light": lights,
         "color": colors,
         "dash": dashes,
@@ -1423,6 +1432,22 @@ impl qobject::Controller {
         self.commit_edit(edit)
     }
 
+    fn set_camera_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool {
+        let Some(field) = CameraField::named(&field.to_string()) else {
+            return false;
+        };
+        let Some(s) = self.rust().session.as_ref() else {
+            return false;
+        };
+        let selected = self.rust().selected.only();
+        let edit = camera::camera_edit(selected, s.camera_presets(), field, &value.to_string());
+        let Some(edit) = edit else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
     fn mark_info(&self) -> QString {
         let Some(s) = self.rust().session.as_ref() else {
             return q("{}");
@@ -2063,6 +2088,10 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 "kind": "camera",
                 "label": c.label,
                 "lens": lens_mm,
+                "ownLens": c.lens_mm,
+                "sensor": c.sensor.width_mm(),
+                "aspect": c.aspect,
+                "body": camera::body_id(s.camera_presets(), c.sensor.width_mm()),
                 "fov": (horizontal_fov_deg(c.sensor, lens_mm) * 10.0).round() / 10.0,
                 "height": c.marks.first().map(|m| m.height_m).unwrap_or(0.0),
                 "shots": shots.join(", "),
@@ -2183,6 +2212,26 @@ mod tests {
             (Some(6.0), Some(1.2))
         );
         assert_eq!(describe(&s, "object:o99"), json!({}));
+    }
+
+    /// The camera card starts from what the selected camera has now, and offers the presets.
+    #[test]
+    fn describe_gives_the_cameras_body_and_frame() {
+        let s = example();
+
+        let a = describe(&s, "camera:a");
+
+        assert_eq!(a["body"], "super35");
+        assert_eq!(a["sensor"], 24.89);
+        assert_eq!(a["aspect"], 2.39);
+        assert_eq!(a["ownLens"], 35.0);
+
+        let choices: serde_json::Value = serde_json::from_str(&choices_json(&s)).unwrap();
+        assert_eq!(choices["camera"]["bodies"][0]["id"], "super35");
+        assert!(!choices["camera"]["lens_sets"]
+            .as_array()
+            .unwrap()
+            .is_empty());
     }
 
     #[test]

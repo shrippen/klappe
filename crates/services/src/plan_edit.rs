@@ -8,6 +8,7 @@ use klappe_model::{
 };
 use klappe_stellprobe::{bend_point, hit, via_through, way_length_m, within, Item, Role, Source};
 
+use crate::camera_edit;
 use crate::error::ServiceError;
 use crate::library;
 use crate::session::Layer;
@@ -165,6 +166,24 @@ pub enum PlanEdit {
     Follow {
         camera: String,
         figure: Option<String>,
+    },
+    /// Gives the camera `camera` the sensor of `width_mm` (a named format when the width is
+    /// its own, else a custom one), and the frame `aspect` when given (LH-32).
+    SetSensor {
+        camera: String,
+        width_mm: f64,
+        aspect: Option<f64>,
+    },
+    /// Gives the camera `camera` the focal length `lens_mm`; shots with a lens of their own
+    /// keep it.
+    SetLens {
+        camera: String,
+        lens_mm: f64,
+    },
+    /// Gives the camera `camera` the frame `aspect`, width to height (LH-38).
+    SetAspect {
+        camera: String,
+        aspect: f64,
     },
 }
 
@@ -349,7 +368,11 @@ impl PlanEdit {
                 return sources.iter().map(layer_of_source).collect();
             }
             PlanEdit::AddMark { .. } => Layer::Figures,
-            PlanEdit::AddCamera { .. } | PlanEdit::Follow { .. } => Layer::Cameras,
+            PlanEdit::AddCamera { .. }
+            | PlanEdit::Follow { .. }
+            | PlanEdit::SetSensor { .. }
+            | PlanEdit::SetLens { .. }
+            | PlanEdit::SetAspect { .. } => Layer::Cameras,
             PlanEdit::AddLight { .. } => Layer::Lights,
             PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } => Layer::Notes,
             PlanEdit::AddDrawing { .. } => Layer::Drawings,
@@ -509,6 +532,17 @@ pub(crate) fn apply(
         PlanEdit::MoveBackground { dx_m, dy_m } => move_background(&mut scope, (*dx_m, *dy_m)),
         PlanEdit::RemoveBackground => remove_background(&mut scope),
         PlanEdit::Follow { camera, figure } => follow(&mut scope, camera, figure.as_deref()),
+        PlanEdit::SetSensor {
+            camera,
+            width_mm,
+            aspect,
+        } => camera_edit::set_sensor(scope.plan, camera, *width_mm, *aspect),
+        PlanEdit::SetLens { camera, lens_mm } => {
+            camera_edit::set_lens(scope.plan, camera, *lens_mm)
+        }
+        PlanEdit::SetAspect { camera, aspect } => {
+            camera_edit::set_aspect(scope.plan, camera, *aspect)
+        }
         PlanEdit::SetPose { source, pose } => set_pose(&mut scope, source, *pose),
         PlanEdit::SetHold { source, hold_s } => set_hold(&mut scope, source, *hold_s),
         PlanEdit::SetPace { source, pace } => set_pace(&mut scope, source, *pace),
@@ -555,6 +589,11 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             width_m, depth_m, ..
         } => check_object_size(*width_m, *depth_m),
         PlanEdit::AddDrawing { shape, .. } => check_shape(shape),
+        PlanEdit::SetSensor {
+            width_mm, aspect, ..
+        } => camera_edit::check_sensor(*width_mm, *aspect),
+        PlanEdit::SetLens { lens_mm, .. } => camera_edit::check_lens(*lens_mm),
+        PlanEdit::SetAspect { aspect, .. } => camera_edit::check_aspect(*aspect),
         PlanEdit::SetHold { hold_s, .. } => check_hold(*hold_s),
         PlanEdit::Remove { .. }
         | PlanEdit::RemoveGroup { .. }
