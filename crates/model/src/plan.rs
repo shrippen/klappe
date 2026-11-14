@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::geometry::Point;
+use crate::project::FigureColor;
 use crate::shot::Shot;
 
 /// The plan of one scene: who stands and moves where, cameras, lights, shots (LH-04: a scene
@@ -24,6 +25,9 @@ pub struct FloorPlan {
     /// figures.
     #[serde(default)]
     pub axis: Option<AxisPair>,
+    /// Lines, arrows and shapes drawn on the plan by hand (LH-19).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub drawings: Vec<Drawing>,
 }
 
 /// Ids of the two characters that span the axis.
@@ -44,6 +48,7 @@ impl FloorPlan {
             shots: Vec::new(),
             links: Vec::new(),
             axis: None,
+            drawings: Vec::new(),
         }
     }
 
@@ -83,6 +88,69 @@ fn track_end(marks: impl Iterator<Item = (f64, f64)>) -> f64 {
     }
 
     end + last_hold
+}
+
+/// A free drawing on the plan of a scene, e.g. an arrow for a move or a marked area (LH-19).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Drawing {
+    /// Stable id within the plan, e.g. `d1`.
+    pub id: String,
+    pub shape: DrawingShape,
+    /// A role, drawn in one of Kante's label colours.
+    pub color: FigureColor,
+    #[serde(default)]
+    pub dash: Dash,
+    /// Only shapes with an inside (rectangle, ellipse, area) are filled.
+    #[serde(default)]
+    pub fill: Fill,
+}
+
+/// What a drawing is made of; points in metres.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "kind")]
+pub enum DrawingShape {
+    Line {
+        from: Point,
+        to: Point,
+    },
+    /// A line with its head at `to`.
+    Arrow {
+        from: Point,
+        to: Point,
+    },
+    /// Axis-parallel, between two opposite corners.
+    Rect {
+        from: Point,
+        to: Point,
+    },
+    /// Axis-parallel, inscribed in the rectangle between the two corners.
+    Ellipse {
+        from: Point,
+        to: Point,
+    },
+    /// A closed polygon; the last point joins the first.
+    Area {
+        points: Vec<Point>,
+    },
+}
+
+/// How a line is drawn; the dash tells drawings apart where colour does not.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Dash {
+    #[default]
+    Solid,
+    Dashed,
+    Dotted,
+}
+
+/// Whether the inside of a closed shape is tinted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Fill {
+    #[default]
+    Outline,
+    Filled,
 }
 
 /// A character's way through the scene: marks 1, 2, 3 … in time order (LH-21).
@@ -218,6 +286,31 @@ pub enum LinkTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A plan without drawings writes no `drawings` key; a file without it has none.
+    #[test]
+    fn drawings_are_optional_in_json() {
+        let plan = FloorPlan::new("p", "Plan A");
+
+        let json = serde_json::to_string(&plan).unwrap();
+        let back: FloorPlan = serde_json::from_str(&json).unwrap();
+
+        assert!(!json.contains("drawings"), "{json}");
+        assert!(back.drawings.is_empty());
+    }
+
+    /// Dash and fill default to solid and outline; shapes are tagged by kind.
+    #[test]
+    fn a_drawing_reads_with_defaults() {
+        let json = r#"{"id":"d1","shape":{"kind":"area","points":[
+            {"x_m":0.0,"y_m":0.0},{"x_m":1.0,"y_m":0.0},{"x_m":1.0,"y_m":1.0}]},"color":"red"}"#;
+
+        let drawing: Drawing = serde_json::from_str(json).unwrap();
+
+        assert_eq!(drawing.dash, Dash::Solid);
+        assert_eq!(drawing.fill, Fill::Outline);
+        assert!(matches!(drawing.shape, DrawingShape::Area { ref points } if points.len() == 3));
+    }
 
     /// Review of PR 1: the pause at the last mark was cut off (LH-63).
     #[test]

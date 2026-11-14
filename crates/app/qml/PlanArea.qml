@@ -14,7 +14,8 @@ Item {
     required property var controller
 
     readonly property var plan: controller.planJson ? JSON.parse(controller.planJson) : null
-    /// The tool of PlanTools: select, wall, object, figure, camera, light, scale or note.
+    /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, note, line,
+    /// arrow, rect, ellipse or area.
     property string tool: "select"
     property string tipKey: ""
     /// The pointer is over something the select tool can move: a left drag then moves it,
@@ -166,6 +167,19 @@ Item {
         sequence: "Escape"
         enabled: area.tool === "scale" && area.controller.scalePoints > 0 && !area.dragging
         onActivated: area.controller.cancelScale()
+    }
+
+    // Area tool: Enter closes the area, Escape drops it (once its points are there).
+    readonly property bool drawsArea: area.tool === "area" && controller.areaPoints > 0 && !area.dragging
+    Shortcut {
+        sequence: "Escape"
+        enabled: area.drawsArea
+        onActivated: area.controller.cancelArea()
+    }
+    Shortcut {
+        sequences: ["Return", "Enter"]
+        enabled: area.drawsArea
+        onActivated: area.controller.finishArea()
     }
 
     // Escape drops the drag in progress; only then, so it stays free for dialogs.

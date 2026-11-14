@@ -8,6 +8,7 @@
 //!                           ├── figures  FigureTrack → Mark (time, place, facing)
 //!                           ├── cameras  Camera      → CameraMark
 //!                           ├── lights   Light
+//!                           ├── drawings Drawing  (lines, arrows, shapes)
 //!                           ├── shots    Shot (cut order = list order)
 //!                           └── links    ScriptLink  (script element ↔ mark or shot)
 //! ```
@@ -23,8 +24,8 @@ mod shot;
 
 pub use geometry::Point;
 pub use plan::{
-    AxisPair, Camera, CameraMark, FigureTrack, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose,
-    ScriptLink, Sensor,
+    AxisPair, Camera, CameraMark, Dash, Drawing, DrawingShape, FigureTrack, Fill, FloorPlan, Light,
+    LightKind, LinkTarget, Mark, Pose, ScriptLink, Sensor,
 };
 pub use project::{
     Background, Character, FigureColor, Location, Note, Project, Scene, SetObject, SetPlan, Wall,

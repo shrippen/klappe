@@ -12,6 +12,7 @@ pub fn layer_name(layer: Layer) -> &'static str {
         Layer::Cameras => "cameras",
         Layer::Lights => "lights",
         Layer::Notes => "notes",
+        Layer::Drawings => "drawings",
     }
 }
 
@@ -190,6 +191,7 @@ mod tests {
             Layer::Cameras,
             Layer::Lights,
             Layer::Notes,
+            Layer::Drawings,
         ];
 
         for layer in layers {
