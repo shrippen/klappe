@@ -219,12 +219,25 @@ Kirigami.ApplicationWindow {
                 }
                 Kirigami.Separator { Layout.fillHeight: true; visible: root.showScript && ctl.loaded }
 
-                PlanArea {
-                    tool: planTools.tool
+                ColumnLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    texts: texts
-                    controller: ctl
+                    spacing: 0
+
+                    PlanChooser {
+                        Layout.fillWidth: true
+                        Layout.margins: Kirigami.Units.smallSpacing
+                        visible: ctl.loaded
+                        texts: texts
+                        controller: ctl
+                    }
+                    PlanArea {
+                        tool: planTools.tool
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        texts: texts
+                        controller: ctl
+                    }
                 }
 
                 Kirigami.Separator { Layout.fillHeight: true; visible: root.showShot && ctl.loaded }
