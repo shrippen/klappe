@@ -415,6 +415,14 @@ impl Grip {
 
         (Grip::Held(grabbed.clone()), grabbed)
     }
+
+    /// The grip after a step: kept while moving, let go when the drag is done.
+    pub fn after(self, phase: DragPhase) -> Grip {
+        match phase {
+            DragPhase::Moving => self,
+            DragPhase::Done => Grip::Free,
+        }
+    }
 }
 
 /// How far the scale gesture has come: the points picked so far.
@@ -815,6 +823,15 @@ mod tests {
 
         assert_eq!(first, Some(figure.clone()));
         assert_eq!(next, Some(figure));
+    }
+
+    /// Review of PR 27: the grip stays held while dragging and is free after Done.
+    #[test]
+    fn a_grip_is_free_after_done() {
+        let held = Grip::Held(Some(Source::Figure("burgvogt".into())));
+
+        assert_eq!(held.clone().after(DragPhase::Moving), held);
+        assert_eq!(held.after(DragPhase::Done), Grip::Free);
     }
 
     /// Review of PR 21: with the notes layer locked the tool still asked for a text and
