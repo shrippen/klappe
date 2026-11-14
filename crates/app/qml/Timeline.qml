@@ -57,8 +57,6 @@ Item {
     Connections {
         target: line.controller
         function onSwitched() { line.playing = false }
-        // Also a scene gone by an edit (removed, undone) is a switch.
-        function onSceneIdChanged() { line.playing = false }
     }
 
     Timer {

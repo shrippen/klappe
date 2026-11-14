@@ -20,7 +20,6 @@ TestCase {
         property var advances: []
         property bool running: true
         signal switched()
-        property string sceneId: "s12"
 
         function seek(at) { seeks.push(at) }
         function stepMark(direction) { steps.push(direction) }
@@ -61,13 +60,6 @@ TestCase {
 
     // The controller says `switched` for another project, scene or plan (also one with the
     // same title or scene id).
-    function test_a_scene_gone_by_an_edit_stops_playing() {
-        const line = make(de)
-        line.togglePlay()
-        fake.sceneId = fake.sceneId === "s12" ? "s13" : "s12"
-        verify(!line.playing)
-    }
-
     function test_a_switch_stops_playing() {
         const line = make(de)
         line.togglePlay()

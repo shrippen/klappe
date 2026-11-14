@@ -81,8 +81,9 @@ pub mod qobject {
         #[qproperty(i32, screenshot_after, cxx_name = "screenshotAfter")]
         type Controller = super::ControllerRust;
 
-        /// Another project, scene or plan is shown (also one with the same title or scene id):
-        /// play stops, nobody pressed it there.
+        /// Another project, scene or plan is shown (chosen, opened, or by undo, redo or removing
+        /// the one on view; also a project with the same title and scene id): play stops,
+        /// nobody pressed it there.
         #[qsignal]
         fn switched(self: Pin<&mut Self>);
 
@@ -545,6 +546,13 @@ use crate::tools::{
     Pick, Preview, ScaleStep, Selection, Tool,
 };
 
+/// Whether `refresh` found another scene or plan on view than before.
+#[derive(Debug, PartialEq, Eq)]
+enum View {
+    Same,
+    Switched,
+}
+
 pub struct ControllerRust {
     session: Option<Session>,
     language: Language,
@@ -715,13 +723,14 @@ impl ControllerRust {
 
     /// Notes the scene and plan on screen; when they changed, the drafts made on the old
     /// one go (undo, redo and project edits can change the view, not only a click).
-    fn follow_view(&mut self, shown: String) {
+    fn follow_view(&mut self, shown: String) -> View {
         if shown == self.shown {
-            return;
+            return View::Same;
         }
 
         self.drop_drafts();
         self.shown = shown;
+        View::Switched
     }
 
     /// What a pick does to the selection: Shift held adds to it.
@@ -982,7 +991,10 @@ impl qobject::Controller {
             .as_ref()
             .map(shown_view)
             .unwrap_or_default();
-        self.as_mut().rust_mut().get_mut().follow_view(shown);
+        // Undo, redo or removing the plan on view can show another one: play stops there.
+        if self.as_mut().rust_mut().get_mut().follow_view(shown) == View::Switched {
+            self.as_mut().switched();
+        }
         self.as_mut().drop_stale();
 
         // Undo and redo can take the image away; its scale points go with it.
@@ -2650,5 +2662,23 @@ mod tests {
         c.follow_view("szene-013/a".into());
         assert!(c.area.is_empty());
         assert_eq!(c.shown, "szene-013/a");
+    }
+
+    /// Review of PR 47, round 2: undo across a plan, or removing the plan on view, showed
+    /// another plan while play went on. Every change of the view is a switch.
+    #[test]
+    fn undo_across_a_plan_is_a_switch() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+        let mut session = Session::open(&dir).unwrap();
+        session.copy_plan("Stand 1").unwrap();
+        let mut c = ControllerRust {
+            shown: shown_view(&session),
+            ..ControllerRust::default()
+        };
+
+        assert_eq!(c.follow_view(shown_view(&session)), View::Same);
+        session.undo();
+        assert_eq!(c.follow_view(shown_view(&session)), View::Switched);
     }
 }
