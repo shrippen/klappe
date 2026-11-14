@@ -41,6 +41,7 @@ TestCase {
         property var filed: []
         property bool fileOk: true
 
+        function markInfo() { return "{}" }
         function describe(key) {
             if (key === "object:o1") {
                 return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9 })
