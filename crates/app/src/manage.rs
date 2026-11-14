@@ -27,69 +27,7 @@ const HOME_SHORT: &str = "~";
 /// those of the scene on view and `plan` the id of the one shown. The colour is the model's
 /// role name (`purple`), which Kante's `labelColor` takes as it is.
 pub fn project_json(session: &Session) -> String {
-    let project = session.project();
-    let scenes: Vec<_> = project
-        .scenes
-        .iter()
-        .map(|s| {
-            let location = project.location(&s.location).map(|l| l.name.as_str());
-            json!({
-                "id": s.id,
-                "number": s.number,
-                "heading": s.heading,
-                "location": s.location,
-                "locationName": location.unwrap_or_default(),
-            })
-        })
-        .collect();
-
-    let locations: Vec<_> = project
-        .locations
-        .iter()
-        .map(|l| {
-            let scenes = project.scenes.iter().filter(|s| s.location == l.id).count();
-            json!({
-                "id": l.id,
-                "name": l.name,
-                "width": l.set.width_m,
-                "depth": l.set.depth_m,
-                "scenes": scenes,
-            })
-        })
-        .collect();
-
-    let characters: Vec<_> = project
-        .characters
-        .iter()
-        .map(|c| {
-            json!({
-                "id": c.id,
-                "name": c.name,
-                "short": c.short,
-                "color": c.color.name(),
-                "group": c.group.unwrap_or(NO_GROUP),
-            })
-        })
-        .collect();
-
-    // The variants of the scene on view (LH-04): what the plan chooser lists.
-    let plans: Vec<_> = session
-        .scene()
-        .map(|s| s.plans.as_slice())
-        .unwrap_or_default()
-        .iter()
-        .map(|p| json!({ "id": p.id, "name": p.name, "shots": p.shots.len() }))
-        .collect();
-    let plan = session.plan().map(|p| p.id.as_str()).unwrap_or_default();
-
-    json!({
-        "scenes": scenes,
-        "locations": locations,
-        "characters": characters,
-        "plans": plans,
-        "plan": plan,
-    })
-    .to_string()
+    serde_json::to_string(&session.overview()).unwrap_or_default()
 }
 
 /// What the bridge and the form use for "a single person".

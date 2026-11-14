@@ -19,6 +19,7 @@ mod scene;
 mod shots;
 mod timeline;
 mod undo;
+mod views;
 
 /// Groups of the plan the timeline's layer switches show or hide.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
