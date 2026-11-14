@@ -1,5 +1,6 @@
-//! The one reader of a JPEG file's head. `store` checks an image with it when it is added,
-//! `export` reads the colour model from it; both must agree on what a JPEG is.
+//! The one reader of the head of a JPEG or PNG file. `store` checks an image with it when it is
+//! added, `export` reads the colour model from it; both must agree on what an image is and
+//! what can be printed.
 
 /// Start of a JPEG file.
 pub const JPEG_SOI: [u8; 2] = [0xFF, 0xD8];
@@ -15,6 +16,21 @@ const PRECISION_AT: usize = 2;
 const HEIGHT_AT: usize = 3;
 const WIDTH_AT: usize = 5;
 const COMPONENTS_AT: usize = 7;
+/// The only sample precision of a JPEG the export prints.
+pub const JPEG_SAMPLE_BITS: u8 = 8;
+
+/// Start of a PNG file.
+pub const PNG_SIGNATURE: [u8; 8] = *b"\x89PNG\r\n\x1a\n";
+const IHDR: &[u8; 4] = b"IHDR";
+/// After the signature: IHDR length (4), type (4).
+const IHDR_DATA_AT: usize = 16;
+/// Data of IHDR: width (4), height (4), bit depth, colour type, compression, filter, interlace.
+const IHDR_LEN: usize = 13;
+const PNG_HEIGHT_AT: usize = 4;
+const PNG_DEPTH_AT: usize = 8;
+const PNG_COLOR_AT: usize = 9;
+const PNG_INTERLACE_AT: usize = 12;
+const PNG_ADAM7: u8 = 1;
 
 /// What a JPEG's frame header (SOFn) says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +41,23 @@ pub struct JpegFrame {
     pub precision: u8,
     /// Colour components: 1 gray, 3 colour, 4 CMYK.
     pub components: u8,
+}
+
+impl JpegFrame {
+    /// Whether the PDF export can print this JPEG: gray or RGB, 8 bits per sample.
+    pub fn check_printable(&self) -> Result<(), String> {
+        if !matches!(self.components, 1 | 3) {
+            return Err(format!(
+                "JPEG with {} colour channels (CMYK) is not supported",
+                self.components
+            ));
+        }
+        if self.precision != JPEG_SAMPLE_BITS {
+            return Err(format!("JPEG with {} bits per sample", self.precision));
+        }
+
+        Ok(())
+    }
 }
 
 /// The first frame header of `bytes`; `None` if it is no JPEG, the header is cut off or a
@@ -69,6 +102,92 @@ pub fn jpeg_frame(bytes: &[u8]) -> Option<JpegFrame> {
 
         at += usize::try_from(be(at)?).ok()?;
     }
+}
+
+/// The colour types of PNG that the export knows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PngColor {
+    Gray,
+    Rgb,
+    Indexed,
+    GrayAlpha,
+    Rgba,
+}
+
+impl PngColor {
+    fn from_code(code: u8) -> Result<Self, String> {
+        match code {
+            0 => Ok(PngColor::Gray),
+            2 => Ok(PngColor::Rgb),
+            3 => Ok(PngColor::Indexed),
+            4 => Ok(PngColor::GrayAlpha),
+            6 => Ok(PngColor::Rgba),
+            _ => Err(format!("unknown PNG colour type {code}")),
+        }
+    }
+
+    pub fn channels(self) -> usize {
+        match self {
+            PngColor::Gray | PngColor::Indexed => 1,
+            PngColor::GrayAlpha => 2,
+            PngColor::Rgb => 3,
+            PngColor::Rgba => 4,
+        }
+    }
+
+    pub fn has_alpha(self) -> bool {
+        matches!(self, PngColor::GrayAlpha | PngColor::Rgba)
+    }
+
+    /// The bit depths the PNG standard allows for this colour type.
+    fn allows(self, depth: u8) -> bool {
+        match self {
+            PngColor::Gray => matches!(depth, 1 | 2 | 4 | 8 | 16),
+            PngColor::Indexed => matches!(depth, 1 | 2 | 4 | 8),
+            _ => matches!(depth, 8 | 16),
+        }
+    }
+}
+
+/// What a PNG's `IHDR` chunk says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PngHead {
+    pub width: u32,
+    pub height: u32,
+    /// Bits per sample.
+    pub depth: u8,
+    pub color: PngColor,
+    pub interlaced: bool,
+}
+
+/// The `IHDR` chunk of `bytes`, which must come first; `Err` if it is missing or cut off, the
+/// colour type or bit depth is invalid, or a side has zero pixels.
+pub fn png_head(bytes: &[u8]) -> Result<PngHead, String> {
+    let data = bytes
+        .get(IHDR_DATA_AT - IHDR.len()..IHDR_DATA_AT)
+        .filter(|kind| *kind == IHDR)
+        .and_then(|_| bytes.get(IHDR_DATA_AT..IHDR_DATA_AT + IHDR_LEN))
+        .filter(|_| bytes.starts_with(&PNG_SIGNATURE))
+        .ok_or("no PNG header")?;
+    let be = |at: usize| u32::from_be_bytes([data[at], data[at + 1], data[at + 2], data[at + 3]]);
+
+    let color = PngColor::from_code(data[PNG_COLOR_AT])?;
+    let head = PngHead {
+        width: be(0),
+        height: be(PNG_HEIGHT_AT),
+        depth: data[PNG_DEPTH_AT],
+        color,
+        interlaced: data[PNG_INTERLACE_AT] == PNG_ADAM7,
+    };
+
+    if !color.allows(head.depth) {
+        return Err("bit depth does not fit the colour type".to_owned());
+    }
+    if head.width == 0 || head.height == 0 {
+        return Err("PNG without pixels".to_owned());
+    }
+
+    Ok(head)
 }
 
 #[cfg(test)]
@@ -121,5 +240,64 @@ mod tests {
         // Cut off right after the width: no component count.
         let head = jpeg_head(8, 8);
         assert_eq!(jpeg_frame(&head[..head.len() - 4]), None);
+    }
+
+    /// A PNG head: signature, IHDR of `w` x `h`, `depth` bits, colour type `color`.
+    fn png(w: u32, h: u32, depth: u8, color: u8) -> Vec<u8> {
+        let mut b = PNG_SIGNATURE.to_vec();
+        b.extend_from_slice(&13_u32.to_be_bytes());
+        b.extend_from_slice(b"IHDR");
+        b.extend_from_slice(&w.to_be_bytes());
+        b.extend_from_slice(&h.to_be_bytes());
+        b.extend_from_slice(&[depth, color, 0, 0, 0]);
+        b
+    }
+
+    #[test]
+    fn reads_the_png_head() {
+        let mut bytes = png(1000, 640, 4, 3);
+        bytes[16 + 12] = 1;
+
+        assert_eq!(
+            png_head(&bytes),
+            Ok(PngHead {
+                width: 1000,
+                height: 640,
+                depth: 4,
+                color: PngColor::Indexed,
+                interlaced: true
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_broken_png_heads() {
+        assert!(png_head(b"GIF89a").is_err());
+        assert!(png_head(&png(1, 1, 8, 2)[..20]).is_err());
+        assert!(png_head(&png(0, 5, 8, 2)).is_err());
+        assert!(png_head(&png(5, 0, 8, 2)).is_err());
+        // Unknown colour type, depth that does not fit it.
+        assert!(png_head(&png(1, 1, 8, 1)).is_err());
+        assert!(png_head(&png(1, 1, 3, 2)).is_err());
+        assert!(png_head(&png(1, 1, 16, 3)).is_err());
+
+        let mut late = png(1, 1, 8, 2);
+        late[12..16].copy_from_slice(b"IDAT");
+        assert!(png_head(&late).is_err());
+    }
+
+    #[test]
+    fn only_gray_and_rgb_jpegs_of_8_bits_print() {
+        let frame = |precision, components| JpegFrame {
+            width: 1,
+            height: 1,
+            precision,
+            components,
+        };
+
+        assert!(frame(8, 1).check_printable().is_ok());
+        assert!(frame(8, 3).check_printable().is_ok());
+        assert!(frame(8, 4).check_printable().is_err());
+        assert!(frame(12, 3).check_printable().is_err());
     }
 }

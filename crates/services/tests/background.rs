@@ -17,13 +17,14 @@ fn p(x_m: f64, y_m: f64) -> Point {
     Point::new(x_m, y_m)
 }
 
-/// A PNG header of `w` x `h` pixels.
+/// A PNG header of `w` x `h` pixels, 8-bit RGB.
 fn png(w: u32, h: u32) -> Vec<u8> {
     let mut b = b"\x89PNG\r\n\x1a\n".to_vec();
     b.extend_from_slice(&13_u32.to_be_bytes());
     b.extend_from_slice(b"IHDR");
     b.extend_from_slice(&w.to_be_bytes());
     b.extend_from_slice(&h.to_be_bytes());
+    b.extend_from_slice(&[8, 2, 0, 0, 0]);
     b
 }
 
