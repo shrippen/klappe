@@ -180,6 +180,7 @@
  "tip.shots": "Shots {shots}",
  "tip.figure": "{name}",
  "tip.mark": "{name} · mark {index}",
+ "tip.bend": "Way to mark {index} · drag to bend, G straightens it",
  "tip.at": "from {time} s",
  "tip.light": "{label} · {temp} K · {power} W",
  "tip.object": "{label}",

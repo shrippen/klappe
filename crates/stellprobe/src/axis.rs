@@ -103,6 +103,7 @@ mod tests {
                 facing_deg: 0.0,
                 pose: Pose::Standing,
                 hold_s: 0.0,
+                via: None,
             }],
         }
     }
@@ -122,6 +123,7 @@ mod tests {
                 height_m: 1.6,
                 tilt_deg: 0.0,
                 hold_s: 0.0,
+                via: None,
             }],
             follows: None,
         }

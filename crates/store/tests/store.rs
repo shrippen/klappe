@@ -38,6 +38,7 @@ fn mark(at_s: f64, x: f64, y: f64, facing_deg: f64, hold_s: f64) -> Mark {
         facing_deg,
         pose: Pose::Standing,
         hold_s,
+        via: None,
     }
 }
 
@@ -49,6 +50,7 @@ fn cam_mark(at_s: f64, x: f64, y: f64, facing_deg: f64, hold_s: f64) -> CameraMa
         height_m: 1.6,
         tilt_deg: 0.0,
         hold_s,
+        via: None,
     }
 }
 
@@ -87,7 +89,10 @@ fn plan() -> FloorPlan {
             marks: vec![
                 mark(0.0, 3.0, 6.5, 0.0, 2.0),
                 mark(6.0, 10.0, 6.5, 0.0, 4.0),
-                mark(14.0, 16.0, 3.0, 270.0, 0.0),
+                Mark {
+                    via: Some(Point::new(11.0, 2.5)),
+                    ..mark(14.0, 16.0, 3.0, 270.0, 0.0)
+                },
             ],
         },
         FigureTrack {
@@ -314,6 +319,10 @@ fn loads_example() {
 
     let plan = &scene.plans[0];
     assert_eq!(plan.figure("elisabeth").unwrap().marks.len(), 3);
+    assert_eq!(
+        plan.figure("elisabeth").unwrap().marks[2].via,
+        Some(Point::new(11.0, 2.5))
+    );
     assert_eq!(plan.camera("a").unwrap().sensor, Sensor::Super35);
     assert_eq!(plan.camera("a").unwrap().marks.len(), 2);
     assert_eq!(plan.camera("b").unwrap().lens_mm, 50.0);
@@ -332,6 +341,30 @@ fn example_matches_generator() {
     let loaded = load(Path::new(EXAMPLE)).unwrap();
 
     assert_eq!(loaded.project, example());
+}
+
+/// A way without a bend writes no `via` key, and a file without it loads as before (LH-21);
+/// one with a bend keeps it, on figures and cameras.
+#[test]
+fn a_bend_is_written_only_when_there_is() {
+    let dir = test_dir("via");
+    let mut project = example();
+    let plan = &mut project.scenes[0].plans[0];
+    plan.figures[0].marks[2].via = None;
+
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    assert!(!text.contains("via"), "{text}");
+    assert_eq!(load(&dir).unwrap().project, project);
+
+    let plan = &mut project.scenes[0].plans[0];
+    plan.figures[0].marks[2].via = Some(Point::new(11.0, 2.5));
+    plan.cameras[0].marks[1].via = Some(Point::new(8.0, 9.0));
+
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    assert_eq!(text.matches("\"via\"").count(), 2, "{text}");
+    assert_eq!(load(&dir).unwrap().project, project);
 }
 
 /// A set without notes writes no `notes` key, and a file without it loads as before (LH-16).

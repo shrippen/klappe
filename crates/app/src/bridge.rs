@@ -217,6 +217,11 @@ pub mod qobject {
         #[cxx_name = "removeSelected"]
         fn remove_selected(self: Pin<&mut Self>) -> bool;
 
+        /// Makes the selected way straight again; false when nothing is selected.
+        #[qinvokable]
+        #[cxx_name = "straightenSelected"]
+        fn straighten_selected(self: Pin<&mut Self>) -> bool;
+
         /// Turns the selected element by `step_deg`, clockwise when positive.
         #[qinvokable]
         #[cxx_name = "turnSelected"]
@@ -397,8 +402,8 @@ use crate::manage;
 use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
 use crate::tools::{
-    self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Key, NoteDraft, Preview, ScaleStep,
-    Tool,
+    self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Grip, Key, NoteDraft, Preview,
+    ScaleStep, Tool,
 };
 
 pub struct ControllerRust {
@@ -443,6 +448,8 @@ pub struct ControllerRust {
     note_text: QString,
     /// What the plan on screen shows: a drag preview or the project.
     preview: Preview,
+    /// What the drag in progress moves; `Free` between drags.
+    grip: Grip,
     status: QString,
     backup_state: QString,
     backup_message: QString,
@@ -523,6 +530,7 @@ impl Default for ControllerRust {
             asks_note: false,
             note_text: QString::default(),
             preview: Preview::Hidden,
+            grip: Grip::Free,
             backup_state: QString::default(),
             backup_message: QString::default(),
             autosave_ms: AUTOSAVE_S * MS_PER_S,
@@ -749,7 +757,7 @@ impl qobject::Controller {
             let this = self.as_ref();
             match (&this.rust().session, &this.rust().selected) {
                 (Some(s), Some(selected)) => !s
-                    .display_list()
+                    .display_list_for(Some(selected))
                     .items
                     .iter()
                     .any(|i| i.source.as_ref() == Some(selected)),
@@ -790,7 +798,7 @@ impl qobject::Controller {
             (
                 plan_json(
                     s,
-                    &s.display_list(),
+                    &s.display_list_for(this.rust().selected.as_ref()),
                     this.rust().selected.as_ref(),
                     &this.rust().picked(),
                 ),
@@ -1031,15 +1039,17 @@ impl qobject::Controller {
     ) -> bool {
         let tool = self.rust().tool.clone();
         let style = self.rust().draw;
+        let selected = self.rust().selected.clone();
+
+        // The canvas' key can name a view cone or a path that lies over the thing meant;
+        // the session picks what a user can grab, once per drag.
+        let from = Point::new(from_x, from_y);
+        let to = Point::new(x, y);
+        let grip = std::mem::take(&mut self.as_mut().rust_mut().get_mut().grip);
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-
-        // The canvas' key can name a view cone or a path that lies over the thing meant;
-        // the session picks what a user can grab.
-        let from = Point::new(from_x, from_y);
-        let to = Point::new(x, y);
-        let grabbed = s.pick(from);
+        let (grip, grabbed) = grip.take(|| s.pick_for(from, selected.as_ref()));
 
         // Select and Scale move by a distance (the session snaps where an element lands, a
         // background moves freely); the other tools draw between two points, which snap here.
@@ -1058,6 +1068,10 @@ impl qobject::Controller {
         } else {
             DragPhase::Moving
         };
+        self.as_mut().rust_mut().get_mut().grip = match phase {
+            DragPhase::Done => Grip::Free,
+            DragPhase::Moving => grip,
+        };
 
         if tool == Tool::Select && edit.is_some() {
             self.as_mut().rust_mut().get_mut().selected = grabbed;
@@ -1075,12 +1089,13 @@ impl qobject::Controller {
 
     fn place(mut self: Pin<&mut Self>, x: f64, y: f64) -> bool {
         let tool = self.rust().tool.clone();
+        let selected = self.rust().selected.clone();
         let Some(s) = self.as_mut().session() else {
             return false;
         };
 
         if tool == Tool::Select {
-            let picked = s.pick(Point::new(x, y));
+            let picked = s.pick_for(Point::new(x, y), selected.as_ref());
             let found = picked.is_some();
             self.as_mut().rust_mut().get_mut().selected = picked;
             self.refresh();
@@ -1210,7 +1225,8 @@ impl qobject::Controller {
         let Some(s) = self.rust().session.as_ref() else {
             return false;
         };
-        s.pick(Point::new(x, y)).is_some()
+        s.pick_for(Point::new(x, y), self.rust().selected.as_ref())
+            .is_some()
     }
 
     fn remove_selected(mut self: Pin<&mut Self>) -> bool {
@@ -1221,6 +1237,14 @@ impl qobject::Controller {
 
         // The indices of what is left may shift, so the selection goes either way.
         self.as_mut().rust_mut().get_mut().selected = None;
+        self.commit_edit(edit)
+    }
+
+    fn straighten_selected(self: Pin<&mut Self>) -> bool {
+        let Some(edit) = tools::key_edit(Key::Straighten, self.rust().selected.as_ref()) else {
+            return false;
+        };
+
         self.commit_edit(edit)
     }
 
@@ -1316,7 +1340,8 @@ impl qobject::Controller {
         self.set_snapping_on(on);
     }
 
-    fn cancel_drag(self: Pin<&mut Self>) {
+    fn cancel_drag(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().get_mut().grip = Grip::Free;
         self.refresh();
     }
 
@@ -1389,7 +1414,7 @@ impl qobject::Controller {
         let json = {
             let this = self.as_ref();
             this.rust().session.as_ref().and_then(|s| {
-                let list = s.preview(edit).ok()?;
+                let list = s.preview_for(edit, this.rust().selected.as_ref()).ok()?;
                 let picked = this.rust().picked();
                 Some(plan_json(s, &list, this.rust().selected.as_ref(), &picked))
             })
@@ -1800,6 +1825,10 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 .and_then(|i| plan.figure(id)?.marks.get(i))
                 .map(|m| m.at_s);
             json!({ "kind": kind, "name": name, "index": index.map(|i| i + 1), "time": at })
+        }
+        "figurevia" | "cameravia" => {
+            let index: Option<usize> = parts.next().and_then(|i| i.parse().ok());
+            json!({ "kind": "bend", "index": index.map(|i| i + 1) })
         }
         "light" => {
             let Some(l) = plan.lights.iter().find(|l| l.id == id) else {

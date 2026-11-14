@@ -47,6 +47,8 @@ fn look(role: Role) -> Look {
         Role::Camera => l("yellow", SOLID, "solid"),
         Role::FigurePath(c) => l(color(c), DOTTED, "none"),
         Role::Mark(c) => l(color(c), SOLID, "none"),
+        Role::FigureHandle(c) => l(color(c), SOLID, "solid"),
+        Role::CameraHandle => l("yellow", SOLID, "solid"),
         Role::Figure(c) => l(color(c), SOLID, "solid"),
     }
 }
@@ -88,6 +90,8 @@ pub fn key(source: &Source) -> String {
         Source::Camera(id) => format!("camera:{id}"),
         Source::Figure(id) => format!("figure:{id}"),
         Source::Mark { character, index } => format!("mark:{character}:{index}"),
+        Source::FigureVia { character, index } => format!("figurevia:{character}:{index}"),
+        Source::CameraVia { camera, index } => format!("cameravia:{camera}:{index}"),
         Source::Wall(index) => format!("wall:{index}"),
         Source::Note(id) => format!("note:{id}"),
         Source::Drawing(id) => format!("drawing:{id}"),
@@ -345,6 +349,21 @@ mod tests {
         assert_eq!(v["shapes"][0]["key"], "drawing:d1");
         assert_eq!(v["shapes"][1]["stroke"], "solid");
         assert_eq!(v["shapes"][1]["fill"], "solid");
+    }
+
+    #[test]
+    fn grip_keys_name_track_and_index() {
+        let figure = Source::FigureVia {
+            character: "e".into(),
+            index: 1,
+        };
+        let camera = Source::CameraVia {
+            camera: "a".into(),
+            index: 1,
+        };
+
+        assert_eq!(key(&figure), "figurevia:e:1");
+        assert_eq!(key(&camera), "cameravia:a:1");
     }
 
     #[test]

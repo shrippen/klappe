@@ -4,7 +4,7 @@ use klappe_model::{
 };
 
 use crate::axis::axis_at;
-use crate::motion::{camera_at, figure_at};
+use crate::motion::{bend_point, camera_at, figure_at, path};
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
 
 /// What the GUI draws and the export writes, back to front, in metres (planung/KONZEPT.md,
@@ -78,6 +78,9 @@ pub enum Role {
     /// The filled head of an arrow, in the arrow's colour.
     ArrowHead(FigureColor),
     FigurePath(FigureColor),
+    /// The grip that bends the way to a mark (LH-21); only drawn for a selected way.
+    FigureHandle(FigureColor),
+    CameraHandle,
     Mark(FigureColor),
     Figure(FigureColor),
 }
@@ -92,6 +95,16 @@ pub enum Source {
         character: String,
         index: usize,
     },
+    /// The bend of the way to mark `index` of a character's track (LH-21).
+    FigureVia {
+        character: String,
+        index: usize,
+    },
+    /// The bend of the way to mark `index` of a camera (LH-21).
+    CameraVia {
+        camera: String,
+        index: usize,
+    },
     /// Index into the set's walls.
     Wall(usize),
     Note(String),
@@ -104,6 +117,8 @@ pub const FIGURE_RADIUS_M: f64 = 0.35;
 const MARK_RADIUS_M: f64 = 0.22;
 /// Camera and lamp bodies.
 const BODY_RADIUS_M: f64 = 0.25;
+/// The grip on a way's bend.
+const HANDLE_RADIUS_M: f64 = 0.15;
 /// The marker a note is pinned with.
 const NOTE_RADIUS_M: f64 = 0.15;
 /// How long an arrow's head is, and how far its wings stand off the shaft.
@@ -411,7 +426,7 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
             items.push(Item {
                 role: Role::CameraPath,
                 shape: Shape::Polyline {
-                    points: camera.marks.iter().map(|m| m.at).collect(),
+                    points: path(camera.marks.iter().map(|m| (m.at, m.via))),
                 },
                 label: None,
                 source: source.clone(),
@@ -454,7 +469,7 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
             items.push(Item {
                 role: Role::FigurePath(color),
                 shape: Shape::Polyline {
-                    points: track.marks.iter().map(|m| m.at).collect(),
+                    points: path(track.marks.iter().map(|m| (m.at, m.via))),
                 },
                 label: None,
                 source: Some(Source::Figure(track.character.clone())),
@@ -499,6 +514,76 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
             source,
         });
     }
+}
+
+/// The grips on the bends of the way `selected` belongs to: a figure, camera or mark of it,
+/// or one of its grips (LH-21). One per mark after the first, halfway along the way to it.
+/// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
+/// out, and with it the export.
+pub fn handles(project: &Project, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
+    match selected {
+        Source::Figure(c)
+        | Source::Mark { character: c, .. }
+        | Source::FigureVia { character: c, .. } => figure_handles(project, plan, c),
+        Source::Camera(id) | Source::CameraVia { camera: id, .. } => camera_handles(plan, id),
+        _ => Vec::new(),
+    }
+}
+
+fn figure_handles(project: &Project, plan: &FloorPlan, character: &str) -> Vec<Item> {
+    let (Some(track), Some(who)) = (plan.figure(character), project.character(character)) else {
+        return Vec::new();
+    };
+    let stops: Vec<_> = track.marks.iter().map(|m| (m.at, m.via)).collect();
+
+    handle_places(&stops)
+        .into_iter()
+        .map(|(index, center)| Item {
+            role: Role::FigureHandle(who.color),
+            shape: handle_shape(center),
+            label: None,
+            source: Some(Source::FigureVia {
+                character: character.to_owned(),
+                index,
+            }),
+        })
+        .collect()
+}
+
+fn camera_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
+    let Some(camera) = plan.camera(id) else {
+        return Vec::new();
+    };
+    let stops: Vec<_> = camera.marks.iter().map(|m| (m.at, m.via)).collect();
+
+    handle_places(&stops)
+        .into_iter()
+        .map(|(index, center)| Item {
+            role: Role::CameraHandle,
+            shape: handle_shape(center),
+            label: None,
+            source: Some(Source::CameraVia {
+                camera: id.to_owned(),
+                index,
+            }),
+        })
+        .collect()
+}
+
+fn handle_shape(center: Point) -> Shape {
+    Shape::Circle {
+        center,
+        radius_m: HANDLE_RADIUS_M,
+    }
+}
+
+/// Mark index and place of each grip: halfway along the curve, or the leg.
+fn handle_places(stops: &[(Point, Option<Point>)]) -> Vec<(usize, Point)> {
+    stops
+        .windows(2)
+        .enumerate()
+        .map(|(i, pair)| (i + 1, bend_point(pair[0].0, pair[1].1, pair[1].0)))
+        .collect()
 }
 
 /// A wedge in front of a body of `radius_m`, pointing where it faces.
@@ -564,6 +649,7 @@ mod tests {
             facing_deg: 0.0,
             pose: Pose::Standing,
             hold_s: 0.0,
+            via: None,
         }
     }
 
@@ -592,6 +678,7 @@ mod tests {
                 height_m: 1.6,
                 tilt_deg: 0.0,
                 hold_s: 0.0,
+                via: None,
             }],
             follows: None,
         }];
@@ -1081,5 +1168,105 @@ mod tests {
         let list = render(&project(), &set(), &p, 0.0, None);
 
         assert_eq!(count(&list, Role::Mark(FigureColor::Purple)), 0);
+    }
+
+    fn path_of(list: &DisplayList, role: Role) -> Vec<Point> {
+        let item = list.items.iter().find(|i| i.role == role).unwrap();
+        match &item.shape {
+            Shape::Polyline { points } => points.clone(),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    /// A way with a `via` is drawn along the curve; without, it stays two points.
+    #[test]
+    fn a_curved_way_is_a_polyline_along_the_curve() {
+        let mut p = plan();
+        let straight = render(&project(), &set(), &p, 0.0, None);
+        p.figures[0].marks[1].via = Some(Point::new(4.5, 0.0));
+        let curved = render(&project(), &set(), &p, 0.0, None);
+
+        let role = Role::FigurePath(FigureColor::Purple);
+        assert_eq!(path_of(&straight, role).len(), 2);
+
+        // From (2, 6) over (4.5, 0) to (7, 6): halfway along it is at (4.5, 3).
+        let points = path_of(&curved, role);
+        assert!(points.len() > 2);
+        assert!(points
+            .iter()
+            .any(|q| q.distance_m(Point::new(4.5, 3.0)) < 1e-9));
+        assert_eq!(points.first(), Some(&Point::new(2.0, 6.0)));
+        assert_eq!(points.last(), Some(&Point::new(7.0, 6.0)));
+    }
+
+    /// The camera's path bends the same way.
+    #[test]
+    fn a_curved_camera_path_is_a_polyline_too() {
+        let mut p = plan();
+        let mut second = p.cameras[0].marks[0].clone();
+        second.at = Point::new(12.0, 12.0);
+        second.via = Some(Point::new(10.0, 6.0));
+        p.cameras[0].marks.push(second);
+
+        let list = render(&project(), &set(), &p, 0.0, None);
+
+        assert!(path_of(&list, Role::CameraPath).len() > 2);
+    }
+
+    /// Grips: one per leg of the selected way, halfway along it, none in `render`.
+    #[test]
+    fn only_the_selected_way_has_handles() {
+        let mut p = plan();
+        p.figures[0].marks[1].via = Some(Point::new(4.5, 0.0));
+
+        assert!(render(&project(), &set(), &p, 0.0, None)
+            .items
+            .iter()
+            .all(|i| !matches!(i.source, Some(Source::FigureVia { .. }))));
+
+        let via = |index| Source::FigureVia {
+            character: "e".into(),
+            index,
+        };
+        let grips = handles(&project(), &p, &Source::Figure("e".into()));
+        assert_eq!(grips.len(), 1);
+        assert_eq!(grips[0].source, Some(via(1)));
+        assert_eq!(grips[0].role, Role::FigureHandle(FigureColor::Purple));
+        assert!(matches!(
+            grips[0].shape,
+            Shape::Circle { center, .. } if center == Point::new(4.5, 3.0)
+        ));
+
+        // The grip of a selected grip, and of a mark, belong to the same way.
+        assert_eq!(handles(&project(), &p, &via(1)), grips);
+        let mark = Source::Mark {
+            character: "e".into(),
+            index: 0,
+        };
+        assert_eq!(handles(&project(), &p, &mark), grips);
+
+        // Another way's, a one-mark way's, and a wall's: none.
+        assert!(handles(&project(), &p, &Source::Figure("v".into())).is_empty());
+        assert!(handles(&project(), &p, &Source::Wall(0)).is_empty());
+    }
+
+    #[test]
+    fn a_camera_has_handles_when_selected() {
+        let mut p = plan();
+        let mut second = p.cameras[0].marks[0].clone();
+        second.at = Point::new(12.0, 12.0);
+        p.cameras[0].marks.push(second);
+
+        let grips = handles(&project(), &p, &Source::Camera("a".into()));
+
+        assert_eq!(grips.len(), 1);
+        assert_eq!(grips[0].role, Role::CameraHandle);
+        assert_eq!(
+            grips[0].source,
+            Some(Source::CameraVia {
+                camera: "a".into(),
+                index: 1
+            })
+        );
     }
 }
