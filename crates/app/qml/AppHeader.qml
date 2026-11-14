@@ -17,7 +17,8 @@ RowLayout {
 
     required property var texts
     required property var controller
-    /// The tool bar (PlanTools), for the palette: `names`, `keys`, `tool`, `enabled`.
+    /// The tool bar (PlanTools), for the palette: `names`, `keys`, `modes`, `modeKeys`, `tool`,
+    /// `mode`, `enabled`.
     property var tools: null
     /// While the backup question is open: what changes or replaces the project is locked.
     property bool locked: false
@@ -336,9 +337,9 @@ RowLayout {
         return [header.controller.title, sceneText].filter(t => t !== "").join(" › ") + " ›"
     }
 
-    // What the palette lists: the tools, the actions, the scenes, the plans. Each is listed
-    // with the key it has anywhere else.
-    readonly property var commands: [].concat(toolCommands(), actionCommands(entries), sceneCommands(),
+    // What the palette lists: the modes, the tools, the actions, the scenes, the plans. Each is
+    // listed with the key it has anywhere else.
+    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), sceneCommands(),
                                               actionCommands(planMenu.actions), planCommands())
 
     function actionCommands(actions) {
@@ -348,6 +349,19 @@ RowLayout {
             group: texts.t("palette.group." + a.group),
             keys: a.keys,
             enabled: a.enabled
+        }))
+    }
+
+    function modeCommands() {
+        if (!tools) {
+            return []
+        }
+        return tools.modes.map((id, i) => ({
+            id: "mode:" + id,
+            text: texts.t("palette.mode", { name: texts.t("mode." + id) }),
+            group: texts.t("palette.group.modes"),
+            keys: tools.modeKeys[i],
+            enabled: tools.enabled
         }))
     }
 
@@ -388,6 +402,9 @@ RowLayout {
         const kind = at < 0 ? id : id.substring(0, at)
         const target = id.substring(at + 1)
         switch (kind) {
+        case "mode":
+            tools.mode = target
+            return
         case "tool":
             tools.tool = target
             return

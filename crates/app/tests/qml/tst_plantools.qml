@@ -2,8 +2,9 @@ import QtQuick
 import QtTest
 import "../../qml"
 
-// PlanTools: keys pick the tool, the list shows only for the tool that needs it, and the
-// controller is told tool and choice.
+// PlanTools: keys pick the tool, the modes (D-01) decide which tools the bar shows, the list shows
+// only for the tool that needs it, and the controller is told tool and choice. The working mode
+// is kept in the settings (scripts/check-qml.sh points XDG_CONFIG_HOME to a folder of its own).
 TestCase {
     id: tc
     name: "PlanTools"
@@ -61,11 +62,24 @@ TestCase {
         }
     }
 
+    // The settings need the names the app sets; the runner has none.
+    function initTestCase() {
+        Qt.application.organization = "klappe-test"
+        Qt.application.domain = "klappe.test"
+    }
+
     function init() {
         fake.choicesJson = JSON.stringify(fake.choices)
         fake.tools = []
         fake.snaps = []
         fake.styles = []
+
+        // The settings keep the mode over the test cases: start each from the default.
+        const stale = createTemporaryObject(toolsComponent, tc)
+        stale.mode = "build"
+        wait(50)
+        stale.destroy()
+        wait(50)
     }
 
     function make() {
@@ -73,6 +87,146 @@ TestCase {
         verify(bar)
         waitForRendering(bar)
         return bar
+    }
+
+    function shownNames(bar) {
+        return bar.shown.map(e => e.tool.name)
+    }
+
+    function test_the_bar_starts_in_build_mode() {
+        const bar = make()
+
+        compare(bar.mode, "build")
+        compare(shownNames(bar), ["select", "wall", "object", "scale", "measure"])
+    }
+
+    // D-01 (table "Werkzeuge je Modus"): each mode shows its tools; selecting and measuring are in all.
+    function test_each_mode_shows_its_tools() {
+        const bar = make()
+        const wanted = {
+            build: ["select", "wall", "object", "scale", "measure"],
+            stage: ["select", "figure", "measure"],
+            resolve: ["select", "camera", "light", "measure"],
+            draw: ["select", "note", "line", "arrow", "rect", "ellipse", "area", "measure"]
+        }
+
+        for (const mode of Object.keys(wanted)) {
+            bar.mode = mode
+            compare(shownNames(bar).slice().sort(), wanted[mode].slice().sort(), mode)
+            for (const name of bar.names) {
+                const button = findChild(bar, "tool." + name)
+                compare(!!button && button.visible, wanted[mode].indexOf(name) >= 0, mode + " " + name)
+            }
+        }
+    }
+
+    function test_every_tool_is_in_a_mode() {
+        const bar = make()
+        const all = []
+        for (const mode of bar.modes) {
+            bar.mode = mode
+            shownNames(bar).forEach(n => all.push(n))
+        }
+
+        compare(bar.names.filter(n => all.indexOf(n) < 0), [])
+    }
+
+    function test_the_mode_buttons_switch_the_bar() {
+        const bar = make()
+        const box = findChild(bar, "modeBox")
+
+        compare(box.model, ["Set bauen", "Inszenieren", "Auflösen", "Zeichnen"])
+        compare(box.tooltips[2], "Auflösen (3)")
+        box.select(3)
+
+        compare(bar.mode, "draw")
+        compare(box.currentIndex, 3)
+        verify(findChild(bar, "tool.arrow").visible)
+        verify(!findChild(bar, "tool.wall") || !findChild(bar, "tool.wall").visible)
+    }
+
+    function test_keys_1_to_4_pick_the_mode() {
+        const bar = make()
+        const keys = [[Qt.Key_2, "stage"], [Qt.Key_3, "resolve"], [Qt.Key_4, "draw"], [Qt.Key_1, "build"]]
+
+        for (const [key, mode] of keys) {
+            keyClick(key)
+            compare(bar.mode, mode)
+            compare(findChild(bar, "modeBox").currentIndex, bar.modes.indexOf(mode))
+        }
+    }
+
+    function test_the_key_of_a_tool_of_another_mode_switches_the_mode() {
+        const bar = make()
+
+        keyClick(Qt.Key_C)
+        compare(bar.mode, "resolve")
+        compare(bar.tool, "camera")
+        compare(fake.tools[fake.tools.length - 1], ["camera", ""])
+
+        keyClick(Qt.Key_N)
+        compare(bar.mode, "draw")
+        compare(bar.tool, "note")
+
+        keyClick(Qt.Key_W)
+        compare(bar.mode, "build")
+        compare(bar.tool, "wall")
+    }
+
+    function test_selecting_and_measuring_keep_the_mode() {
+        const bar = make()
+
+        for (const mode of bar.modes) {
+            bar.mode = mode
+            keyClick(Qt.Key_D)
+            compare(bar.tool, "measure", mode)
+            compare(bar.mode, mode)
+            keyClick(Qt.Key_V)
+            compare(bar.tool, "select", mode)
+            compare(bar.mode, mode)
+        }
+    }
+
+    function test_a_mode_without_the_tool_falls_back_to_select() {
+        const bar = make()
+        bar.tool = "wall"
+
+        bar.mode = "stage"
+
+        compare(bar.tool, "select")
+        compare(fake.tools[fake.tools.length - 1], ["select", ""])
+    }
+
+    function test_a_mode_keeps_a_tool_it_shows() {
+        const bar = make()
+        keyClick(Qt.Key_D)
+
+        bar.mode = "draw"
+
+        compare(bar.tool, "measure")
+    }
+
+    function test_a_locked_bar_ignores_the_mode_keys() {
+        const bar = make()
+        bar.enabled = false
+
+        keyClick(Qt.Key_3)
+        compare(bar.mode, "build")
+    }
+
+    function test_the_mode_is_kept_over_a_restart() {
+        const first = make()
+        first.mode = "draw"
+        // The settings store on the next turn of the event loop; a destroyed bar is gone after one.
+        wait(50)
+        first.destroy()
+        wait(50)
+
+        const second = make()
+
+        compare(second.mode, "draw")
+        compare(findChild(second, "modeBox").currentIndex, 3)
+        compare(second.tool, "select")
     }
 
     function test_select_is_the_first_tool() {

@@ -55,9 +55,12 @@ TestCase {
     QtObject {
         id: fakeTools
         property string tool: "select"
+        property string mode: "build"
         property bool enabled: true
         readonly property var names: ["select", "wall", "camera"]
         readonly property var keys: ["V", "W", "C"]
+        readonly property var modes: ["build", "stage", "resolve", "draw"]
+        readonly property var modeKeys: ["1", "2", "3", "4"]
     }
 
     TestTexts { id: de; language: "de" }
@@ -93,6 +96,7 @@ TestCase {
         fake.plan = "plan-a"
         fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan })
         fakeTools.tool = "select"
+        fakeTools.mode = "build"
         fakeTools.enabled = true
     }
 
@@ -310,6 +314,24 @@ TestCase {
         compare(camera.group, "Werkzeuge")
     }
 
+    function test_the_palette_lists_the_modes_with_their_keys() {
+        const header = make()
+
+        const modes = header.commandPalette.commands.filter(c => c.id.startsWith("mode:"))
+
+        compare(modes.map(c => c.text), ["Modus: Set bauen", "Modus: Inszenieren", "Modus: Auflösen", "Modus: Zeichnen"])
+        compare(modes.map(c => c.keys), ["1", "2", "3", "4"])
+        compare(modes[0].group, "Modus")
+    }
+
+    function test_a_mode_from_the_palette_is_picked() {
+        const header = make()
+
+        header.run("mode:draw")
+
+        compare(fakeTools.mode, "draw")
+    }
+
     function test_a_tool_from_the_palette_is_picked() {
         const header = make()
 
@@ -382,7 +404,7 @@ TestCase {
         fakeTools.enabled = false
         fake.hasBackground = true
 
-        for (const id of ["scene:s13", "plan:plan-b", "tool:wall", "project.new", "plan.snapshot",
+        for (const id of ["scene:s13", "plan:plan-b", "tool:wall", "mode:stage", "project.new", "plan.snapshot",
                           "plan.new", "plan.rename", "plan.remove", "background.set", "background.remove"]) {
             verify(!header.commandPalette.commands.find(c => c.id === id).enabled, id)
         }
@@ -391,7 +413,7 @@ TestCase {
     function test_the_texts_are_in_both_languages() {
         for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewOrder",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
-                           "palette.group.tools", "palette.group.file", "palette.group.export",
+                           "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",
                            "palette.group.plans", "key.ctrl", "key.shift"]) {
             verify(de.t(key) !== key, "de " + key)
