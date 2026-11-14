@@ -57,33 +57,10 @@ Kontra und lmix, weniger Sicherheit, TUI und Export hängen an Qt oder doppeltem
 - Rust mit egui, iced oder Slint: Kante gibt es nur für QML.
 - Electron/Web: kein natives Programm, schwer, widerspricht dem Ziel.
 
-## 4. Schichten (nur zur Ebene direkt darunter; Ausnahme: `services/` auch an `model/`)
+## 4. Schichten
 
-```
-app/   QML, Kirigami, Kante      tui/  ratatui        cli/  Kommandozeile
-   │ (cxx-qt-Brücke)                │                    │
-   └────────────────┬───────────────┴────────────────────┘
-                    ↓
-services/   Projekt-Sitzung: öffnen, speichern, Autosave, Rückgängig, Wiedergabeuhr
-                    ↓
-stellprobe/ Optik, Bewegung, Achse, Darstellungsliste   script/  Fountain
-store/      Projektordner lesen und schreiben           export/  PDF, SVG, CSV, XLSX
-                    ↓
-model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
-imagehead/  JPEG-Kopf lesen (ohne Abhängigkeit; store/ und export/ rufen es)
-
-demo/       Werkzeug (crates/demo), nicht ausgeliefert: erzeugt die Beispielprojekte im
-            Ordner demo/ des Repos über model/, script/, store/ (neben services/)
-```
-
-- Jede Schicht ein Crate unter `crates/`; Abhängigkeiten sichtbar in `Cargo.toml`.
-- Oberflächen rufen nur `services/`; nie Dateien, Export oder Kern direkt.
-- Die mittlere Ebene steht nebeneinander: `export/` liest die Darstellungsliste aus
-  `stellprobe/`, `store/` hängt an `model/` (nicht an `script/`); beide lesen JPEG-Köpfe über `imagehead/`. Sonst
-  rufen sie sich nicht.
-- `stellprobe` erzeugt eine **Darstellungsliste** (Linien, Flächen, Kreise, Beschriftungen in
-  Metern, Farben als Rollen). Die GUI zeichnet sie, `export/` schreibt sie als PDF, SVG oder PNG.
-  Was am Bildschirm steht, steht genauso im Ausdruck, und Tests prüfen die Liste ohne Fenster.
+Bausteine, Schichten und ihre Regeln stehen in [`../ARCHITECTURE.md`](../ARCHITECTURE.md),
+nur dort.
 
 ## 5. Projektformat
 
