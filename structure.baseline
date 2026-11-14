@@ -6,7 +6,6 @@ crates/app/src/bridge.rs	switched	length=455
 crates/app/src/bridge/view.rs	refresh	length=122
 crates/app/src/notice.rs	error_text	ccn=23
 crates/app/src/plan.rs	look	ccn=18
-crates/app/src/tools.rs	-	lines=1666
 crates/app/tests/qml/tst_planarea.qml	-	lines=812
 crates/export/src/deflate.rs	block	length=86
 crates/export/src/font.rs	composite_glyph	ccn=23
