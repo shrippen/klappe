@@ -18,6 +18,15 @@ import "."
  *     text     small caption beside the shape, always at the same size on screen
  *     key      id given back by the signals; selected: framed wider in the focus colour
  *     Drawn in order, so the last shape is on top (and wins the hit test).
+ *   Image     { kind: "image", source, points: [x, y], width, height, rotation, opacity, key }
+ *             a background such as a scanned plan. source is an absolute url or path:
+ *             loadImage resolves a relative one against Kante, so pass Qt.resolvedUrl(...);
+ *             points is the top left corner and width, height the size, both in model units;
+ *             rotation in degrees, clockwise, about the top left corner; opacity 0..1 (default 1).
+ *             Drawn in order like any shape. Loaded on first use and the view repaints when it
+ *             arrives; a missing image draws nothing and is no error. It is background: the hit
+ *             test never finds it (keyAt gives "" over it, shapeClicked and shapeDragged report
+ *             what lies beneath, or empty ground), and it takes no label, fill, stroke or text.
  *   zoom       pixels per model unit; writing it zooms about the middle of the view
  *   fitOnLoad  fit() when the view gets its size, until the view is panned or zoomed
  *   fit()      the whole plan in view, centred
@@ -233,6 +242,9 @@ FocusScope {
         const filled = s.fill === "solid" || s.fill === "tint"
         const half = (s.width || 0) / 2
         switch (s.kind) {
+        case "image":
+            // Background: never hit.
+            return false
         case "circle":
             if (pts.length < 2) {
                 return false
@@ -326,6 +338,10 @@ FocusScope {
         id: canvas
         anchors.fill: parent
 
+        // Image sources already asked for.
+        property var _asked: ({})
+        onImageLoaded: requestPaint()
+
         // Strokes and fills of one shape, in view pixels.
         function _trace(ctx, s) {
             const pts = s.points || []
@@ -356,6 +372,34 @@ FocusScope {
                 ctx.closePath()
             }
             return true
+        }
+
+        // An image shape: top left corner, size in model units, turned about the corner.
+        function _image(ctx, s) {
+            const pts = s.points || []
+            if (!s.source || pts.length < 2) {
+                return
+            }
+
+            const src = String(s.source)
+            // Asked once; onImageLoaded repaints. An image Qt already holds is ready at once
+            // and sends no signal, so look again right after asking.
+            if (!isImageLoaded(src) && !_asked[src]) {
+                _asked[src] = true
+                loadImage(src)
+            }
+            if (!isImageLoaded(src)) {
+                return
+            }
+
+            const alpha = s.opacity === undefined ? 1 : Math.max(0, Math.min(1, s.opacity))
+            ctx.save()
+            ctx.globalAlpha = alpha
+            const a = (s.rotation || 0) * Math.PI / 180
+            ctx.transform(Math.cos(a), Math.sin(a), -Math.sin(a), Math.cos(a),
+                          root.panX + pts[0] * root.zoom, root.panY + pts[1] * root.zoom)
+            ctx.drawImage(src, 0, 0, (s.width || 0) * root.zoom, (s.height || 0) * root.zoom)
+            ctx.restore()
         }
 
         function _dash(ctx, stroke) {
@@ -456,6 +500,11 @@ FocusScope {
 
             const frame = KanteStyle.unit(2)
             for (const s of root.shapes) {
+                if (s.kind === "image") {
+                    _image(ctx, s)
+                    continue
+                }
+
                 const color = root._colorOf(s.label)
                 const lineW = Math.max(1, (s.width || 0) * root.zoom)
                 if (!_trace(ctx, s)) {
@@ -482,7 +531,7 @@ FocusScope {
             // Captions last, so no shape covers one.
             ctx.setLineDash([])
             for (const s of root.shapes) {
-                if (s.text) {
+                if (s.text && s.kind !== "image") {
                     _caption(ctx, s, root._colorOf(s.label))
                 }
             }
