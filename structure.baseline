@@ -1,0 +1,41 @@
+# What is over a structure limit today (tools/structure-check.py). An entry may shrink,
+# never grow; a raised or new entry needs its reason in the PR. Rewrite with --update.
+# Lines: exclude<TAB>glob | path<TAB>function or - for the file<TAB>metric=value ...
+exclude	crates/app/qml/Kante/**
+crates/app/src/bridge.rs	switched	length=455
+crates/app/src/bridge/view.rs	refresh	length=122
+crates/app/src/notice.rs	error_text	ccn=23
+crates/app/src/plan.rs	look	ccn=18
+crates/app/src/tools.rs	-	lines=1666
+crates/app/tests/qml/tst_planarea.qml	-	lines=812
+crates/export/src/deflate.rs	block	length=86
+crates/export/src/font.rs	composite_glyph	ccn=23
+crates/export/src/inflate.rs	dynamic	ccn=21
+crates/export/src/jpeg.rs	-	lines=883
+crates/export/src/jpeg.rs	decode_jpeg	ccn=21
+crates/export/src/jpeg.rs	decode_planes	nesting=5
+crates/export/src/jpeg.rs	frame	ccn=19
+crates/export/src/layout.rs	compose	length=83
+crates/export/src/layout.rs	item_prims	length=106
+crates/export/src/pdf.rs	write	length=89
+crates/export/src/png.rs	parse	ccn=18
+crates/export/src/png.rs	rgb_over	ccn=17
+crates/export/src/scan.rs	scan	ccn=22 length=98
+crates/export/src/stroke.rs	visible	ccn=17
+crates/export/src/style.rs	role_style	ccn=30 length=119
+crates/imagehead/src/lib.rs	jpeg_frame	ccn=22
+crates/script/src/write.rs	render	ccn=16
+crates/services/src/edit.rs	apply	ccn=17
+crates/services/src/field.rs	name	ccn=34
+crates/services/src/plan_edit.rs	apply	ccn=37 length=122
+crates/services/src/plan_edit/check.rs	check	ccn=20
+crates/services/src/plan_edit/group.rs	copy	ccn=19 length=84
+crates/services/src/plan_edit/moving.rs	target	ccn=23 length=116
+crates/services/src/plan_edit/remove.rs	remove	ccn=18
+crates/services/tests/plan_edit.rs	-	lines=842
+crates/stellprobe/src/display.rs	-	lines=1540
+crates/stellprobe/src/display.rs	figure_items	length=85
+crates/store/src/lib.rs	save	ccn=19
+crates/store/tests/store.rs	-	lines=997
+crates/store/tests/store.rs	plan	length=130
+crates/tui/src/app.rs	editor_key	ccn=19

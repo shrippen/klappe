@@ -72,6 +72,9 @@ jobs:
             target
           key: core-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo fmt --all --check
+      # Function and file sizes stay within the limits or the inventory (structure.baseline).
+      - name: Structure limits
+        run: pipx run tools/structure-check.py
       # The Qt app builds in the job `app` (Arch: current Qt 6 and Kirigami).
       - run: cargo clippy --workspace --exclude klappe-app --all-targets -- -D warnings
       - run: cargo test --workspace --exclude klappe-app
