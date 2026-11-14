@@ -16,6 +16,7 @@ mod hit;
 mod motion;
 mod movement;
 mod optics;
+mod rig;
 mod setup;
 
 pub use axis::{axis_at, axis_jumps, Axis, Side};

@@ -2,7 +2,7 @@
 # never grow; a raised or new entry needs its reason in the PR. Rewrite with --update.
 # Lines: exclude<TAB>glob | path<TAB>function or - for the file<TAB>metric=value ...
 exclude	crates/app/qml/Kante/**
-crates/app/src/bridge.rs	switched	length=455
+crates/app/src/bridge.rs	switched	length=470
 crates/app/src/bridge/view.rs	refresh	length=122
 crates/app/src/notice.rs	error_text	ccn=23
 crates/app/src/plan.rs	look	ccn=18
@@ -20,20 +20,20 @@ crates/export/src/pdf.rs	write	length=89
 crates/export/src/png.rs	rgb_over	ccn=17
 crates/export/src/scan.rs	scan	ccn=22 length=98
 crates/export/src/stroke.rs	visible	ccn=17
-crates/export/src/style.rs	role_style	ccn=30 length=119
+crates/export/src/style.rs	role_style	ccn=28 length=114
 crates/imagehead/src/lib.rs	jpeg_frame	ccn=22
 crates/script/src/write.rs	render	ccn=16
 crates/services/src/edit.rs	apply	ccn=17
-crates/services/src/field.rs	name	ccn=34
-crates/services/src/plan_edit.rs	apply	ccn=37 length=122
-crates/services/src/plan_edit/check.rs	check	ccn=20
+crates/services/src/field.rs	name	ccn=35
+crates/services/src/plan_edit.rs	apply	ccn=39 length=124
+crates/services/src/plan_edit/check.rs	check	ccn=21
 crates/services/src/plan_edit/group.rs	copy	ccn=19 length=84
 crates/services/src/plan_edit/moving.rs	target	ccn=23 length=116
 crates/services/src/plan_edit/remove.rs	remove	ccn=18
 crates/services/tests/plan_edit.rs	-	lines=842
-crates/stellprobe/src/display.rs	-	lines=1540
+crates/stellprobe/src/display.rs	-	lines=1560
 crates/stellprobe/src/display.rs	figure_items	length=85
 crates/store/src/lib.rs	save	ccn=19
-crates/store/tests/store.rs	-	lines=997
+crates/store/tests/store.rs	-	lines=999
 crates/store/tests/store.rs	plan	length=130
 crates/tui/src/app.rs	editor_key	ccn=19

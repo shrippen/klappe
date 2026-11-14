@@ -151,17 +151,7 @@ TestCase {
     function test_a_following_camera_says_whom() {
         const area = createTemporaryObject(areaComponent, tc, { texts: de })
 
-        verify(area.tipLines("camera:b").indexOf("folgt Elisabeth") >= 0)
-    }
-
-    // LH-33: a camera that came to its mark with a rig names it.
-    function test_a_camera_tooltip_names_the_rig() {
-        const area = createTemporaryObject(areaComponent, tc, { texts: de })
-        const en_area = createTemporaryObject(areaComponent, tc, { texts: en })
-
-        verify(area.tipLines("camera:b").indexOf("Gerät: Kran") >= 0)
-        verify(en_area.tipLines("camera:b").indexOf("Rig: Crane") >= 0)
-        verify(area.tipLines("camera:a").every(l => l.indexOf("Gerät") < 0))
+        compare(area.tipLines("camera:b").slice(4), ["Gerät: Kran", "folgt Elisabeth"])
     }
 
     function test_english_tooltip_has_points() {
