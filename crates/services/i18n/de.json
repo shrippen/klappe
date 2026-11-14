@@ -34,6 +34,8 @@
  "tool.light": "Licht",
  "tool.scale": "Maßstab",
  "tool.scaleTip": "Maßstab ({key}): zwei Punkte einer bekannten Strecke anklicken; Ziehen verschiebt das Bild",
+ "tool.measure": "Messen",
+ "tool.measureTip": "Messen ({key}): zwei Punkte anklicken, die Länge steht an der Linie; ein weiterer Klick beginnt neu, Esc verwirft",
  "tool.note": "Notiz",
  "tool.noteTip": "Notiz ({key}): auf den Plan klicken und den Text eingeben; Klick auf eine Notiz ändert ihren Text",
  "tool.line": "Linie",

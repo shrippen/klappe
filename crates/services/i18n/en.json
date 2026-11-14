@@ -34,6 +34,8 @@
  "tool.light": "Light",
  "tool.scale": "Scale",
  "tool.scaleTip": "Scale ({key}): click two points of a known length; dragging moves the image",
+ "tool.measure": "Measure",
+ "tool.measureTip": "Measure ({key}): click two points, the length shows on the line; another click starts over, Esc drops it",
  "tool.note": "Note",
  "tool.noteTip": "Note ({key}): click the plan and type the text; click a note to change its text",
  "tool.line": "Line",

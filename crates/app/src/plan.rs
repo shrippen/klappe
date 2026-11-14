@@ -218,15 +218,35 @@ fn marquee_shape((a, b): (Point, Point)) -> Value {
     })
 }
 
+/// A measurement on the plan: its points (one or two) and, with two, the length as text.
+pub struct Measure {
+    pub points: Vec<Point>,
+    pub caption: String,
+}
+
+/// The measuring tool's dashed line with a dot at each end, the length written on it. Not
+/// part of the project.
+fn measure_shapes(measure: &Measure) -> Vec<Value> {
+    let mut shapes = guide(&measure.points);
+
+    // `guide` puts the line first, when there is one.
+    if let Some(line) = shapes.first_mut().filter(|s| s["kind"] == "line") {
+        line["text"] = json!(measure.caption);
+    }
+
+    shapes
+}
+
 /// `{ width, depth, shapes: [...] }` for the canvas; `selected` marks the shot's camera.
 /// `dir` is the project folder the image files lie in; `picked` the points of a scale in
-/// progress, `marquee` the box being pulled up.
+/// progress, `marquee` the box being pulled up, `measure` the measurement on screen.
 pub fn shapes_json(
     list: &DisplayList,
     dir: &Path,
     selected: &dyn Fn(&Source) -> bool,
     picked: &[Point],
     marquee: Option<(Point, Point)>,
+    measure: Option<&Measure>,
 ) -> String {
     let mut shapes: Vec<Value> = list
         .items
@@ -235,6 +255,7 @@ pub fn shapes_json(
         .collect();
     shapes.extend(guide(picked));
     shapes.extend(marquee.map(marquee_shape));
+    shapes.extend(measure.map(measure_shapes).unwrap_or_default());
 
     json!({ "width": list.width_m, "depth": list.depth_m, "shapes": shapes }).to_string()
 }
@@ -279,7 +300,7 @@ mod tests {
         };
         let is_a = |s: &Source| matches!(s, Source::Camera(id) if id == "a");
 
-        let json = shapes_json(&list, Path::new("/p"), &is_a, &[], None);
+        let json = shapes_json(&list, Path::new("/p"), &is_a, &[], None, None);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["width"], 20.0);
@@ -307,7 +328,7 @@ mod tests {
             depth_m: 13.0,
         };
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None);
+        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None, None);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][0]["text"], "Vorhang schließen");
@@ -353,7 +374,7 @@ mod tests {
             depth_m: 13.0,
         };
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None);
+        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None, None);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][0]["label"], "cyan");
@@ -416,6 +437,7 @@ mod tests {
             &|_| false,
             &[],
             None,
+            None,
         );
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
         let image = &v["shapes"][0];
@@ -449,7 +471,7 @@ mod tests {
         let list = DisplayList::default();
         let corners = Some((Point::new(1.0, 2.0), Point::new(4.0, 3.0)));
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], corners);
+        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], corners, None);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][0]["kind"], "polygon");
@@ -468,7 +490,7 @@ mod tests {
         let two = [Point::new(1.0, 1.0), Point::new(4.0, 5.0)];
 
         let shapes = |picked: &[Point]| -> Vec<Value> {
-            let json = shapes_json(&list, Path::new("/p"), &|_| false, picked, None);
+            let json = shapes_json(&list, Path::new("/p"), &|_| false, picked, None, None);
             serde_json::from_str::<Value>(&json).unwrap_or_default()["shapes"]
                 .as_array()
                 .cloned()
@@ -482,5 +504,56 @@ mod tests {
         assert_eq!(both.len(), 3);
         assert_eq!(both[0]["kind"], "line");
         assert_eq!(both[0]["points"], json!([1.0, 1.0, 4.0, 5.0]));
+    }
+
+    #[test]
+    fn a_measurement_is_a_dashed_line_with_its_length() {
+        let list = DisplayList::default();
+        let measure = Measure {
+            points: vec![Point::new(1.0, 1.0), Point::new(4.0, 5.0)],
+            caption: "5 m".into(),
+        };
+
+        let json = shapes_json(
+            &list,
+            Path::new("/p"),
+            &|_| false,
+            &[],
+            None,
+            Some(&measure),
+        );
+        let v: Value = serde_json::from_str(&json).unwrap_or_default();
+        let shapes = v["shapes"].as_array().cloned().unwrap_or_default();
+
+        assert_eq!(shapes.len(), 3);
+        assert_eq!(shapes[0]["kind"], "line");
+        assert_eq!(shapes[0]["stroke"], "dashed");
+        assert_eq!(shapes[0]["text"], "5 m");
+        assert_eq!(shapes[0]["points"], json!([1.0, 1.0, 4.0, 5.0]));
+        assert_eq!(shapes[1]["kind"], "circle");
+        assert_eq!(shapes[2]["kind"], "circle");
+    }
+
+    #[test]
+    fn a_first_measure_point_has_no_line_and_no_text() {
+        let list = DisplayList::default();
+        let measure = Measure {
+            points: vec![Point::new(1.0, 1.0)],
+            caption: String::new(),
+        };
+
+        let json = shapes_json(
+            &list,
+            Path::new("/p"),
+            &|_| false,
+            &[],
+            None,
+            Some(&measure),
+        );
+        let v: Value = serde_json::from_str(&json).unwrap_or_default();
+
+        assert_eq!(v["shapes"].as_array().map(Vec::len), Some(1));
+        assert_eq!(v["shapes"][0]["kind"], "circle");
+        assert_eq!(v["shapes"][0]["text"], "");
     }
 }

@@ -14,7 +14,7 @@ Item {
     required property var controller
 
     readonly property var plan: controller.planJson ? JSON.parse(controller.planJson) : null
-    /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, note, line,
+    /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, measure, note, line,
     /// arrow, rect, ellipse or area.
     property string tool: "select"
     property string tipKey: ""
@@ -71,6 +71,14 @@ Item {
                 if (active) {
                     area.controller.extendSelection = (point.modifiers & Qt.ShiftModifier) !== 0
                 }
+            }
+        }
+        // Measure tool, first point set: the pointer is the other end, the controller draws.
+        HoverHandler {
+            enabled: area.tool === "measure" && area.controller.measuring
+            onPointChanged: {
+                const m = canvas.mapToModel(point.position.x, point.position.y)
+                area.controller.hover(m.x, m.y)
             }
         }
     }
@@ -313,6 +321,13 @@ Item {
         sequence: "Escape"
         enabled: area.tool === "scale" && area.controller.scalePoints > 0 && !area.dragging
         onActivated: area.controller.cancelScale()
+    }
+
+    // Measure tool: Escape drops the measurement.
+    Shortcut {
+        sequence: "Escape"
+        enabled: area.tool === "measure" && area.controller.measuring && !area.dragging
+        onActivated: area.controller.cancelMeasure()
     }
 
     // Area tool: Enter closes the area, Escape drops it (once its points are there).

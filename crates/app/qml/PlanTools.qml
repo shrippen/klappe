@@ -7,7 +7,7 @@ import Kante
 
 // The drawing tools of the tool bar (LH-08 ff.): one tool at a time, a list for the tools that
 // need a choice (object from the library, figure, lamp kind), the snapping switch. The object
-// tool also offers to import and export library files (LH-12): the window asks for the file. Keys V W O F C L M N I A B
+// tool also offers to import and export library files (LH-12): the window asks for the file. Keys V W O F C L M D N I A B
 // E P pick the tool (NF-06). The drawing tools (line, arrow, rect, ellipse, area; LH-19) also
 // show colour, line style and, for closed shapes, fill. The controller does the work: this only
 // says which tool and which choice.
@@ -47,9 +47,9 @@ RowLayout {
     /// Rectangle, ellipse and area have an inside to fill.
     readonly property bool closedShape: ["rect", "ellipse", "area"].indexOf(tool) >= 0
 
-    readonly property var _names: ["select", "wall", "object", "figure", "camera", "light", "scale", "note",
+    readonly property var _names: ["select", "wall", "object", "figure", "camera", "light", "scale", "measure", "note",
                                    "line", "arrow", "rect", "ellipse", "area"]
-    readonly property var _keys: ["V", "W", "O", "F", "C", "L", "M", "N", "I", "A", "B", "E", "P"]
+    readonly property var _keys: ["V", "W", "O", "F", "C", "L", "M", "D", "N", "I", "A", "B", "E", "P"]
     readonly property var _choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : { figure: [], object: [], light: [], color: [], dash: [], fill: [] }
 
     spacing: Kirigami.Units.smallSpacing
@@ -78,12 +78,13 @@ RowLayout {
         delegate: KanteToolButton {
             required property int index
             required property string modelData
+            objectName: "tool." + modelData
             text: tools.texts.t("tool." + modelData)
             checkable: true
             checked: tools.tool === modelData
             QQC2.ButtonGroup.group: group
             onClicked: tools.tool = modelData
-            QQC2.ToolTip.text: modelData === "scale" || modelData === "note" || modelData === "area"
+            QQC2.ToolTip.text: modelData === "scale" || modelData === "measure" || modelData === "note" || modelData === "area"
                 ? tools.texts.t("tool." + modelData + "Tip", { key: tools._keys[index] })
                 : tools.texts.t("tool.tip", { name: text, key: tools._keys[index] })
             QQC2.ToolTip.visible: hovered

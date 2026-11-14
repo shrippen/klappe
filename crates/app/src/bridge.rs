@@ -51,6 +51,8 @@ pub mod qobject {
         #[qproperty(bool, has_background, cxx_name = "hasBackground")]
         /// Points picked so far by the scale tool: 0, 1 or 2 (then the length is asked).
         #[qproperty(i32, scale_points, cxx_name = "scalePoints")]
+        /// Whether the measuring tool has a point set (`cancelMeasure` drops it).
+        #[qproperty(bool, measuring)]
         /// Points picked so far by the area tool: 0 for none, else the area is open (Enter or a
         /// click on the first point closes it, `cancelArea` drops it).
         #[qproperty(i32, area_points, cxx_name = "areaPoints")]
@@ -191,6 +193,16 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "cancelScale"]
         fn cancel_scale(self: Pin<&mut Self>);
+
+        /// The measuring tool: the pointer is at (`x`, `y`) metres; an open measurement follows
+        /// it. False when nothing changed.
+        #[qinvokable]
+        fn hover(self: Pin<&mut Self>, x: f64, y: f64) -> bool;
+
+        /// Drops the measurement.
+        #[qinvokable]
+        #[cxx_name = "cancelMeasure"]
+        fn cancel_measure(self: Pin<&mut Self>);
 
         /// What the drawing tools draw with: names as `choicesJson` lists them. False for an
         /// unknown name.
@@ -455,10 +467,10 @@ use crate::camera::{self, CameraField};
 use crate::catalog::Language;
 use crate::manage;
 use crate::notice::{backup_view, error_text, Status};
-use crate::plan;
+use crate::plan::{self, Measure};
 use crate::tools::{
-    self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Grip, Key, NoteDraft, Pick, Preview,
-    ScaleStep, Selection, Tool,
+    self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Grip, Key, MeasureStep, NoteDraft,
+    Pick, Preview, ScaleStep, Selection, Tool,
 };
 
 pub struct ControllerRust {
@@ -492,6 +504,9 @@ pub struct ControllerRust {
     marquee: Option<(Point, Point)>,
     tool: Tool,
     scale: ScaleStep,
+    /// The measurement of the measuring tool: a tool state of the session, not the plan's.
+    measure: MeasureStep,
+    measuring: bool,
     /// What the drawing tools draw with, and the area they are drawing.
     draw: DrawStyle,
     area: AreaDraft,
@@ -582,6 +597,8 @@ impl Default for ControllerRust {
             marquee: None,
             tool: Tool::Select,
             scale: ScaleStep::Idle,
+            measure: MeasureStep::Idle,
+            measuring: false,
             draw: DrawStyle::default(),
             area: AreaDraft::default(),
             shown: String::new(),
@@ -618,6 +635,7 @@ impl ControllerRust {
         self.selected = Selection::default();
         self.marquee = None;
         self.scale = ScaleStep::Idle;
+        self.measure = MeasureStep::Idle;
         self.note = NoteDraft::Idle;
         self.area = AreaDraft::default();
     }
@@ -663,6 +681,24 @@ impl ControllerRust {
         points
     }
 
+    /// The measurement to draw: its points, and the length once there are two.
+    fn measure_view(&self) -> Option<Measure> {
+        let points = self.measure.points();
+        if points.is_empty() {
+            return None;
+        }
+
+        let caption = self.measure.length_m().map(|length_m| {
+            let decimal = self.language.text("unit.decimal");
+            tools::length_text(length_m, &decimal, &self.language.text("unit.m"))
+        });
+
+        Some(Measure {
+            points,
+            caption: caption.unwrap_or_default(),
+        })
+    }
+
     /// Every property from the session, at start (no signals needed yet).
     fn fill(&mut self) {
         let Some(s) = &self.session else {
@@ -676,7 +712,7 @@ impl ControllerRust {
             s,
             &s.display_list(),
             &Selection::default(),
-            (&[], None),
+            (&[], None, None),
         ));
         self.has_background = has_background(s);
         self.tracks_json = q(&to_json(&s.tracks()));
@@ -716,7 +752,7 @@ fn plan_json(
     s: &Session,
     list: &DisplayList,
     selected: &Selection,
-    (picked, marquee): (&[Point], Option<(Point, Point)>),
+    (picked, marquee, measure): (&[Point], Option<(Point, Point)>, Option<&Measure>),
 ) -> String {
     let camera = s
         .selected_shot()
@@ -727,7 +763,7 @@ fn plan_json(
             || matches!(source, Source::Camera(id) if Some(id) == camera.as_ref())
     };
 
-    plan::shapes_json(list, s.dir(), &marked, picked, marquee)
+    plan::shapes_json(list, s.dir(), &marked, picked, marquee, measure)
 }
 
 /// What the tool lists of the tool bar offer: the project's characters, the object library
@@ -891,12 +927,13 @@ impl qobject::Controller {
             let Some(s) = this.rust().session.as_ref() else {
                 return;
             };
+            let measure = this.rust().measure_view();
             (
                 plan_json(
                     s,
                     &s.display_list_for(this.rust().selected.only()),
                     &this.rust().selected,
-                    (&this.rust().picked(), this.rust().marquee),
+                    (&this.rust().picked(), this.rust().marquee, measure.as_ref()),
                 ),
                 to_json(&s.tracks()),
                 to_json(&s.shots()),
@@ -930,6 +967,7 @@ impl qobject::Controller {
         let scale_points = self.rust().scale.points().len();
         let area_points = self.rust().area.points().len();
         let asks_note = self.rust().note != NoteDraft::Idle;
+        let measuring = self.rust().measure != MeasureStep::Idle;
 
         // Restoring a backup or undoing it can change what only the start used to set.
         let header = {
@@ -977,6 +1015,7 @@ impl qobject::Controller {
         self.as_mut()
             .set_area_points(i32::try_from(area_points).unwrap_or_default());
         self.as_mut().set_asks_note(asks_note);
+        self.as_mut().set_measuring(measuring);
     }
 
     /// Shows `text` in the header until the project changes.
@@ -1161,6 +1200,7 @@ impl qobject::Controller {
 
         // Points picked for a scale do not outlast the tool.
         let leaves_scale = tool != Tool::Scale && self.rust().scale != ScaleStep::Idle;
+        let leaves_measure = tool != Tool::Measure && self.rust().measure != MeasureStep::Idle;
         let leaves_note = tool != Tool::Note && self.rust().note != NoteDraft::Idle;
         let leaves_area = tool != Tool::Area && !self.rust().area.is_empty();
         self.as_mut().rust_mut().get_mut().tool = tool;
@@ -1169,6 +1209,9 @@ impl qobject::Controller {
         }
         if leaves_area {
             self.as_mut().cancel_area();
+        }
+        if leaves_measure {
+            self.as_mut().cancel_measure();
         }
         if leaves_note {
             self.cancel_note();
@@ -1262,6 +1305,9 @@ impl qobject::Controller {
         if tool == Tool::Scale {
             return self.pick_scale_point(at);
         }
+        if tool == Tool::Measure {
+            return self.click_measure(at);
+        }
         if tool == Tool::Note {
             let picked = s.pick(Point::new(x, y));
             return self.ask_note(NoteDraft::click(at, picked.as_ref()));
@@ -1305,6 +1351,31 @@ impl qobject::Controller {
 
         self.as_mut().rust_mut().get_mut().scale = ScaleStep::Idle;
         self.commit_edit(edit)
+    }
+
+    fn hover(mut self: Pin<&mut Self>, x: f64, y: f64) -> bool {
+        if self.rust().tool != Tool::Measure {
+            return false;
+        }
+
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+        let at = s.snap(Point::new(x, y));
+        let step = self.rust().measure;
+        let live = step.hover(at);
+        if live == step {
+            return false;
+        }
+
+        self.as_mut().rust_mut().get_mut().measure = live;
+        self.show_plan();
+        true
+    }
+
+    fn cancel_measure(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().get_mut().measure = MeasureStep::Idle;
+        self.refresh();
     }
 
     fn cancel_scale(mut self: Pin<&mut Self>) {
@@ -1572,7 +1643,12 @@ impl qobject::Controller {
                     let selected = &this.rust().selected;
                     let list = s.display_list_for(selected.only());
 
-                    plan_json(s, &list, selected, (&this.rust().picked(), Some(corners)))
+                    plan_json(
+                        s,
+                        &list,
+                        selected,
+                        (&this.rust().picked(), Some(corners), None),
+                    )
                 })
             };
             if let Some(json) = json {
@@ -1653,6 +1729,35 @@ impl qobject::Controller {
         true
     }
 
+    /// A click of the measuring tool: the first or the second point, or a new start.
+    fn click_measure(mut self: Pin<&mut Self>, at: Point) -> bool {
+        let step = self.rust().measure.click(at);
+        self.as_mut().rust_mut().get_mut().measure = step;
+        self.refresh();
+        true
+    }
+
+    /// Sets the plan on screen again, nothing else: for what changes with the pointer.
+    fn show_plan(self: Pin<&mut Self>) {
+        let json = {
+            let this = self.as_ref();
+            this.rust().session.as_ref().map(|s| {
+                let measure = this.rust().measure_view();
+                plan_json(
+                    s,
+                    &s.display_list_for(this.rust().selected.only()),
+                    &this.rust().selected,
+                    (&this.rust().picked(), this.rust().marquee, measure.as_ref()),
+                )
+            })
+        };
+
+        let Some(json) = json else {
+            return;
+        };
+        self.set_plan_json(q(&json));
+    }
+
     /// A click of the scale tool: the next point of the stretch. Without a background there
     /// is nothing to scale.
     fn pick_scale_point(mut self: Pin<&mut Self>, at: Point) -> bool {
@@ -1674,7 +1779,12 @@ impl qobject::Controller {
             this.rust().session.as_ref().and_then(|s| {
                 let list = s.preview_for(edit, this.rust().selected.only()).ok()?;
                 let picked = this.rust().picked();
-                Some(plan_json(s, &list, &this.rust().selected, (&picked, None)))
+                Some(plan_json(
+                    s,
+                    &list,
+                    &this.rust().selected,
+                    (&picked, None, None),
+                ))
             })
         };
 
@@ -2251,6 +2361,7 @@ mod tests {
         let mut c = ControllerRust {
             area: AreaDraft::default().click(Point::new(1.0, 1.0)),
             scale: ScaleStep::Idle.click(Point::new(2.0, 2.0)),
+            measure: MeasureStep::Idle.click(Point::new(4.0, 4.0)),
             note: NoteDraft::New(Point::new(3.0, 3.0)),
             selected: Selection::of(Some(Source::Wall(0))),
             ..ControllerRust::default()
@@ -2258,6 +2369,7 @@ mod tests {
 
         c.drop_drafts();
 
+        assert_eq!(c.measure, MeasureStep::Idle);
         assert!(c.area.is_empty());
         assert_eq!(c.scale, ScaleStep::Idle);
         assert_eq!(c.note, NoteDraft::Idle);
