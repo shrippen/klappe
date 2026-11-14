@@ -5,6 +5,7 @@
 //! load(dir)                  ◄──         drehbuch.fountain
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
+//! load_library, save_library ◄──►          bibliothek.toml, or any library file to pass on
 //! ```
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
@@ -12,6 +13,7 @@
 mod error;
 mod files;
 mod images;
+mod library;
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -22,6 +24,7 @@ use serde::{Deserialize, Serialize};
 pub use error::StoreError;
 use files::{Dir, Kind};
 pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
+pub use library::{builtin_library, load_library, save_library};
 
 /// Whether `id` may name a location or scene file on every system (FORMAT.md, Ids).
 pub fn is_safe_id(id: &str) -> bool {
@@ -30,6 +33,7 @@ pub fn is_safe_id(id: &str) -> bool {
 
 const PROJECT_FILE: &str = "projekt.toml";
 const CHARACTERS_FILE: &str = "figuren.toml";
+const LIBRARY_FILE: &str = "bibliothek.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
@@ -92,6 +96,12 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         false => Characters { figur: Vec::new() },
     };
 
+    let library_path = dir.join(LIBRARY_FILE);
+    let library = match files::exists(&library_path)? {
+        true => load_library(&library_path)?,
+        false => Vec::new(),
+    };
+
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     let scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
@@ -102,14 +112,15 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             characters: characters.figur,
             locations,
             scenes,
+            library,
         },
         script,
     })
 }
 
 /// Writes `project` into `dir`, creating it if needed. Each file is replaced atomically;
-/// location and scene files of other ids are removed. `script: None` leaves an existing
-/// `drehbuch.fountain` untouched.
+/// location and scene files of other ids are removed, and `bibliothek.toml` when the project
+/// has no own objects. `script: None` leaves an existing `drehbuch.fountain` untouched.
 pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), StoreError> {
     // Ids become file names: check all before the first write.
     check_ids(project.locations.iter().map(|l| l.id.as_str()))?;
@@ -131,6 +142,14 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     let path = dir.join(CHARACTERS_FILE);
     writes.push((path.clone(), files::encode_toml(&path, &characters)?));
 
+    let library_path = dir.join(LIBRARY_FILE);
+    if !project.library.is_empty() {
+        writes.push((
+            library_path.clone(),
+            library::encode(&library_path, &project.library)?,
+        ));
+    }
+
     let locations = Dir::new(dir.join(LOCATIONS_DIR), Kind::Toml);
     for location in &project.locations {
         writes.push(locations.encode(&location.id, location)?);
@@ -143,6 +162,11 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
 
     for (path, bytes) in &writes {
         files::write_atomic(path, bytes)?;
+    }
+
+    // No own objects left: the file goes, so the folder shows what the project holds.
+    if project.library.is_empty() {
+        files::remove_file(&library_path)?;
     }
 
     let keep: HashSet<&str> = project.locations.iter().map(|l| l.id.as_str()).collect();

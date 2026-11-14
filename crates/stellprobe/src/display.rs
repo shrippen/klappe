@@ -1,6 +1,6 @@
 use klappe_model::{
-    Background, Dash, DrawingShape, FigureColor, Fill, FloorPlan, Note, Point, Project, SetObject,
-    SetPlan,
+    Background, Dash, DrawingShape, FigureColor, Fill, FloorPlan, Note, ObjectShape, Point,
+    Project, SetObject, SetPlan,
 };
 
 use crate::axis::axis_at;
@@ -203,12 +203,23 @@ fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
     }
 }
 
-/// The four corners of a set object, rotated about its centre.
+/// The outline of a set object, rotated about its centre: four corners for a rectangle, the
+/// ellipse inscribed in that rectangle otherwise.
 fn object_corners(o: &SetObject) -> Vec<Point> {
     let (hw, hd) = (o.width_m / 2.0, o.depth_m / 2.0);
     let (sin, cos) = o.rotation_deg.to_radians().sin_cos();
 
-    [(-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd)]
+    let local = match o.shape {
+        ObjectShape::Rect => vec![(-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd)],
+        ObjectShape::Ellipse => (0..ELLIPSE_CORNERS)
+            .map(|i| {
+                let turn = std::f64::consts::TAU * i as f64 / ELLIPSE_CORNERS as f64;
+                (hw * turn.cos(), hd * turn.sin())
+            })
+            .collect(),
+    };
+
+    local
         .iter()
         .map(|(x, y)| Point::new(o.at.x_m + x * cos - y * sin, o.at.y_m + x * sin + y * cos))
         .collect()
@@ -930,11 +941,54 @@ mod tests {
             width_m: 2.0,
             depth_m: 0.0,
             rotation_deg: 90.0,
+            shape: ObjectShape::Rect,
         };
         let corners = object_corners(&o);
 
         assert!((corners[0].x_m).abs() < 1e-9 && (corners[0].y_m + 1.0).abs() < 1e-9);
         assert!((corners[1].x_m).abs() < 1e-9 && (corners[1].y_m - 1.0).abs() < 1e-9);
+    }
+
+    fn object(kind: &str, shape: ObjectShape, rotation_deg: f64) -> SetObject {
+        SetObject {
+            id: "o1".into(),
+            kind: kind.into(),
+            label: String::new(),
+            at: Point::new(10.0, 5.0),
+            width_m: 4.0,
+            depth_m: 2.0,
+            rotation_deg,
+            shape,
+        }
+    }
+
+    /// A 4 by 2 m ellipse at (10, 5): rightmost point (12, 5), lowest (10, 6), every corner
+    /// on the curve; turned by 90° the long axis stands upright.
+    #[test]
+    fn an_ellipse_object_is_inscribed_in_its_box() {
+        let corners = object_corners(&object("pillar", ObjectShape::Ellipse, 0.0));
+
+        assert_eq!(corners.len(), ELLIPSE_CORNERS);
+        assert!((corners[0].x_m - 12.0).abs() < 1e-9 && (corners[0].y_m - 5.0).abs() < 1e-9);
+        let quarter = corners[ELLIPSE_CORNERS / 4];
+        assert!((quarter.x_m - 10.0).abs() < 1e-9 && (quarter.y_m - 6.0).abs() < 1e-9);
+        for c in &corners {
+            let (dx, dy) = ((c.x_m - 10.0) / 2.0, (c.y_m - 5.0) / 1.0);
+            assert!((dx * dx + dy * dy - 1.0).abs() < 1e-9);
+        }
+
+        let upright = object_corners(&object("pillar", ObjectShape::Ellipse, 90.0));
+        assert!((upright[0].x_m - 10.0).abs() < 1e-9 && (upright[0].y_m - 7.0).abs() < 1e-9);
+    }
+
+    /// An object whose kind no library knows (an old project) is a rectangle of its own size.
+    #[test]
+    fn an_unknown_kind_is_drawn_as_a_rectangle() {
+        let corners = object_corners(&object("zeppelin", ObjectShape::default(), 0.0));
+
+        assert_eq!(corners.len(), 4);
+        assert_eq!((corners[0].x_m, corners[0].y_m), (8.0, 4.0));
+        assert_eq!((corners[2].x_m, corners[2].y_m), (12.0, 6.0));
     }
 
     /// The nose points where the body faces: 90° is down.
