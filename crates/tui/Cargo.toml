@@ -22,5 +22,8 @@ ratatui = "0.30"
 # Display width of characters (MIT/Apache-2.0); the version ratatui already uses.
 unicode-width = "0.2.3"
 
+[dev-dependencies]
+serde_json.workspace = true
+
 [lints]
 workspace = true

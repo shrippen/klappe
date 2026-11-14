@@ -1,9 +1,8 @@
 //! Kante's dark colours (Gruvbox base) for the terminal.
 //!
 //! The values are copied from `crates/export/kante/palette.json`, not read from it at run
-//! time: reading it needs a JSON parser the TUI does not depend on (it would be a new
-//! dependency), and a terminal frame wants plain constants. The test below fails when a
-//! value is no longer in that file.
+//! time: a terminal frame wants plain constants. The tests below fail when a constant no
+//! longer has the colour the app gives its role (`app.dark`).
 
 use ratatui::style::Color;
 
@@ -25,8 +24,8 @@ const MUTED_HEX: u32 = 0xa8_99_84;
 const ACCENT_HEX: u32 = 0xfa_bd_2f;
 /// `semantic.blue.bright`.
 const BLUE_HEX: u32 = 0x83_a5_98;
-/// `semantic.green.bright`.
-const GREEN_HEX: u32 = 0xb8_bb_26;
+/// `semantic.aqua.bright`: the app's green label.
+const GREEN_HEX: u32 = 0x8e_c0_7c;
 /// `semantic.orange.bright`.
 const ORANGE_HEX: u32 = 0xfe_80_19;
 /// `semantic.red.bright`.
@@ -35,25 +34,6 @@ const RED_HEX: u32 = 0xfb_49_34;
 const PURPLE_HEX: u32 = 0xd3_86_9b;
 /// `semantic.cyan.bright`.
 const CYAN_HEX: u32 = 0x5c_cf_c4;
-
-/// Every value above, for the test.
-#[cfg(test)]
-const ALL_HEX: [u32; 14] = [
-    GROUND_HEX,
-    SURFACE_HEX,
-    RAISED_HEX,
-    TEXT_HEX,
-    STRONG_HEX,
-    SOFT_HEX,
-    MUTED_HEX,
-    ACCENT_HEX,
-    BLUE_HEX,
-    GREEN_HEX,
-    ORANGE_HEX,
-    RED_HEX,
-    PURPLE_HEX,
-    CYAN_HEX,
-];
 
 const fn rgb(hex: u32) -> Color {
     Color::Rgb((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
@@ -87,14 +67,47 @@ pub(crate) fn label(name: &str) -> Color {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
 
     const PALETTE: &str = include_str!("../../export/kante/palette.json");
 
+    fn palette() -> Value {
+        serde_json::from_str(PALETTE).unwrap_or_else(|e| unreachable!("palette.json: {e}"))
+    }
+
+    /// A token of `palette.json` as the app resolves it: a literal `#rrggbb`, a background
+    /// or foreground name, or a semantic colour's bright shade.
+    fn resolve(palette: &Value, token: &str) -> Color {
+        let hex = if token.starts_with('#') {
+            Some(token)
+        } else {
+            palette["backgrounds"][token]
+                .as_str()
+                .or_else(|| palette["foregrounds"][token].as_str())
+                .or_else(|| palette["semantic"][token]["bright"].as_str())
+        };
+        let hex = hex.unwrap_or_else(|| unreachable!("unknown token {token}"));
+        let value = u32::from_str_radix(hex.trim_start_matches('#'), 16)
+            .unwrap_or_else(|e| unreachable!("{hex}: {e}"));
+
+        rgb(value)
+    }
+
+    /// The colour of a role in `app.dark`.
+    fn role(palette: &Value, name: &str) -> Color {
+        let token = palette["app"]["dark"][name]
+            .as_str()
+            .unwrap_or_else(|| unreachable!("no app.dark.{name}"));
+
+        resolve(palette, token)
+    }
+
     #[test]
-    fn colours_are_in_the_kante_palette() {
-        for hex in ALL_HEX {
-            let text = format!("\"#{hex:06x}\"");
-            assert!(PALETTE.contains(&text), "{text} is not in palette.json");
+    fn labels_follow_the_app() {
+        let palette = palette();
+        for name in ["purple", "blue", "green", "yellow", "orange", "red", "cyan"] {
+            let role_name = format!("label{}{}", name[..1].to_uppercase(), &name[1..]);
+            assert_eq!(label(name), role(&palette, &role_name), "{name}");
         }
     }
 }
