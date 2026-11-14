@@ -1,0 +1,11 @@
+[[figur]]
+id = "ilva"
+name = "Ilva Brandes"
+short = "IB"
+color = "purple"
+
+[[figur]]
+id = "waerter"
+name = "Keeper"
+short = "K"
+color = "orange"

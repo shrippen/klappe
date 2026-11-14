@@ -1,0 +1,181 @@
+id = "leuchtturm"
+name = "Graufeld lighthouse"
+
+[set]
+width_m = 6.0
+depth_m = 6.0
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 1.9
+y_m = 0.4
+
+[set.walls.to]
+x_m = 4.1
+y_m = 0.4
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 4.1
+y_m = 0.4
+
+[set.walls.to]
+x_m = 5.6
+y_m = 1.9
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 5.6
+y_m = 1.9
+
+[set.walls.to]
+x_m = 5.6
+y_m = 4.1
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 5.6
+y_m = 4.1
+
+[set.walls.to]
+x_m = 4.1
+y_m = 5.6
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 4.1
+y_m = 5.6
+
+[set.walls.to]
+x_m = 1.9
+y_m = 5.6
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 1.9
+y_m = 5.6
+
+[set.walls.to]
+x_m = 0.4
+y_m = 4.1
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 0.4
+y_m = 4.1
+
+[set.walls.to]
+x_m = 0.4
+y_m = 1.9
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 0.4
+y_m = 1.9
+
+[set.walls.to]
+x_m = 1.9
+y_m = 0.4
+
+[[set.objects]]
+id = "tuer"
+kind = "door"
+label = "Door"
+width_m = 0.9
+depth_m = 0.5
+rotation_deg = 90.0
+height_m = 2.1
+
+[set.objects.at]
+x_m = 5.6
+y_m = 3.0
+
+[[set.objects]]
+id = "fenster-n"
+kind = "window"
+label = "Window"
+width_m = 1.2
+depth_m = 0.5
+rotation_deg = 0.0
+height_m = 1.2
+
+[set.objects.at]
+x_m = 3.0
+y_m = 0.4
+
+[[set.objects]]
+id = "fenster-w"
+kind = "window"
+label = "Window"
+width_m = 1.2
+depth_m = 0.5
+rotation_deg = 90.0
+height_m = 1.2
+
+[set.objects.at]
+x_m = 0.4
+y_m = 3.0
+
+[[set.objects]]
+id = "tisch"
+kind = "table"
+label = "Table"
+width_m = 1.4
+depth_m = 0.8
+rotation_deg = 0.0
+height_m = 0.75
+
+[set.objects.at]
+x_m = 2.6
+y_m = 2.0
+
+[[set.objects]]
+id = "stuhl"
+kind = "chair"
+label = "Chair"
+width_m = 0.45
+depth_m = 0.45
+rotation_deg = 90.0
+height_m = 0.9
+
+[set.objects.at]
+x_m = 2.6
+y_m = 2.9
+
+[[set.objects]]
+id = "treppe"
+kind = "pillar"
+label = "Spiral stair"
+width_m = 1.0
+depth_m = 1.0
+rotation_deg = 0.0
+shape = "ellipse"
+height_m = 3.0
+
+[set.objects.at]
+x_m = 4.3
+y_m = 4.2
+
+[[set.notes]]
+id = "n1"
+text = "Fog machine outside"
+
+[set.notes.at]
+x_m = 3.0
+y_m = 5.0

@@ -9,6 +9,7 @@ fmt:
 lint:
 	cargo clippy --workspace --all-targets -- -D warnings
 
+# Also checks that demo/beispiel-*.klappe are what `cargo run -p klappe-demo` makes of demo/world.json.
 test:
 	cargo test --workspace
 
