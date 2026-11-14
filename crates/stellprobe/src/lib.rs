@@ -15,7 +15,7 @@ mod motion;
 mod optics;
 
 pub use axis::{axis_at, axis_jumps, Axis, Side};
-pub use display::{render, DisplayList, Item, Role, Shape, Source};
+pub use display::{render, DisplayList, Item, Role, Shape, Source, FIGURE_RADIUS_M};
 pub use hit::hit;
 pub use motion::{camera_at, figure_at, Placement};
 pub use optics::{frustum, horizontal_fov_deg, lens_at};

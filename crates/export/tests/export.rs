@@ -520,3 +520,45 @@ fn legend_light_is_a_circle_with_a_cone() {
 
     assert_eq!((circles, cones, parts.len()), (1, 1, 2), "{parts:#?}");
 }
+
+/// A circle's centre y and radius from its svg line.
+fn circle_y_r(line: &str) -> (f64, f64) {
+    (attr(line, "cy"), attr(line, "r"))
+}
+
+/// The number above a mark must clear the figure standing on it, at every scale.
+#[test]
+fn mark_number_clears_the_figure() {
+    let sizes_m = [(20.0, 13.0), (3.0, 2.0), (80.0, 50.0)];
+    let papers = [Paper::A4, Paper::A3];
+
+    for (width_m, depth_m) in sizes_m {
+        for paper in papers {
+            let mut room = set();
+            (room.width_m, room.depth_m) = (width_m, depth_m);
+            let mut plan = plan();
+            plan.figures.truncate(1);
+            plan.figures[0].marks = vec![mark(0.0, width_m / 2.0, depth_m / 2.0)];
+            let list = render(&project(), &room, &plan, 0.0);
+            let page = Page::new(paper, Orientation::Landscape, TITLE, german());
+            let out = svg(&list, &page, Theme::Light).unwrap();
+
+            let figure = out
+                .lines()
+                .find(|l| l.contains("class=\"item figure ") && l.contains("<circle"))
+                .unwrap();
+            let (cy, r) = circle_y_r(figure);
+            let number = lines_with(&out, "label")
+                .into_iter()
+                .find(|l| l.contains(">1<"))
+                .unwrap();
+
+            // Digits have no descender: the baseline is the glyph's lowest point.
+            let clear_pt = cy - r - attr(number, "y");
+            assert!(
+                clear_pt > 0.0,
+                "{width_m}x{depth_m} {paper:?}: {clear_pt} pt\n{figure}\n{number}"
+            );
+        }
+    }
+}
