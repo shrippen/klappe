@@ -297,6 +297,7 @@ fn an_export_replaces_the_file_whole() {
 }
 
 /// Review of PR 58: a failed export names the file the user chose, not the temp file beside it.
+#[cfg(unix)]
 #[test]
 fn a_failed_export_names_the_file() {
     use std::os::unix::fs::PermissionsExt;
