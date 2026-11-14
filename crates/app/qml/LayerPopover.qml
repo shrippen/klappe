@@ -13,7 +13,7 @@ Item {
     required property var texts
     required property var controller
 
-    readonly property var names: ["set", "figures", "cameras", "lights", "notes", "drawings"]
+    readonly property var names: controller.choicesJson ? JSON.parse(controller.choicesJson).layer : []
     readonly property var shown: controller.layersJson ? JSON.parse(controller.layersJson) : ({})
     readonly property var locks: controller.locksJson ? JSON.parse(controller.locksJson) : ({})
     readonly property bool unusual: names.some(n => shown[n] === false || locks[n] === true)

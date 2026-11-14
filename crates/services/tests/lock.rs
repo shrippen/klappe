@@ -20,6 +20,22 @@ const LAYERS: [Layer; 6] = [
     Layer::Drawings,
 ];
 
+/// The names QML and the catalogue use; `from_name` reads each back.
+#[test]
+fn layers_are_listed_by_name() {
+    let names: Vec<_> = Layer::ALL.iter().map(|l| l.name()).collect();
+
+    assert_eq!(Layer::ALL, LAYERS);
+    assert_eq!(
+        names,
+        ["set", "figures", "cameras", "lights", "notes", "drawings"]
+    );
+    for layer in Layer::ALL {
+        assert_eq!(Layer::from_name(layer.name()), Some(layer));
+    }
+    assert_eq!(Layer::from_name("floor"), None);
+}
+
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
 }

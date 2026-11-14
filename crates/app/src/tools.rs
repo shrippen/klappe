@@ -13,26 +13,6 @@ const NEW_CAMERA_FACING_DEG: f64 = 0.0;
 /// Decimals a measured length shows.
 const MEASURE_DECIMALS: usize = 2;
 
-/// Lamp kinds the tool bar offers, with the name QML and the catalogue (`lightKind.<name>`) use.
-pub const LIGHT_KINDS: [(&str, LightKind); 6] = [
-    ("fresnel", LightKind::Fresnel),
-    ("led-panel", LightKind::LedPanel),
-    ("tube", LightKind::Tube),
-    ("balloon", LightKind::Balloon),
-    ("reflector", LightKind::Reflector),
-    ("flag", LightKind::Flag),
-];
-
-/// Line styles of the drawing tools (`dash.<name>` in the catalogue).
-pub const DRAW_DASHES: [(&str, Dash); 3] = [
-    ("solid", Dash::Solid),
-    ("dashed", Dash::Dashed),
-    ("dotted", Dash::Dotted),
-];
-
-/// Fills of the drawing tools (`fill.<name>` in the catalogue).
-pub const DRAW_FILLS: [(&str, Fill); 2] = [("outline", Fill::Outline), ("filled", Fill::Filled)];
-
 /// How far from its first point a click still closes an area, in metres: the grid is 0.25 m,
 /// so a click that snaps to a neighbour of the first point, diagonal ones (0.354 m) too,
 /// closes it; the next ring (0.5 m) does not.
@@ -64,16 +44,10 @@ impl DrawStyle {
     pub fn parse(color: &str, dash: &str, fill: &str) -> Option<DrawStyle> {
         Some(DrawStyle {
             color: FigureColor::from_name(color)?,
-            dash: named(&DRAW_DASHES, dash)?,
-            fill: named(&DRAW_FILLS, fill)?,
+            dash: Dash::from_name(dash)?,
+            fill: Fill::from_name(fill)?,
         })
     }
-}
-
-fn named<T: Copy>(list: &[(&str, T)], name: &str) -> Option<T> {
-    list.iter()
-        .find(|(n, _)| *n == name)
-        .map(|(_, value)| *value)
 }
 
 /// The tool of the tool bar together with what was picked for it.
@@ -123,10 +97,7 @@ impl Tool {
             "rect" => Some(Tool::Rect),
             "ellipse" => Some(Tool::Ellipse),
             "area" => Some(Tool::Area),
-            "light" => LIGHT_KINDS
-                .iter()
-                .find(|(n, _)| *n == choice)
-                .map(|(_, kind)| Tool::Light(*kind)),
+            "light" => LightKind::from_name(choice).map(Tool::Light),
             _ => None,
         }
     }

@@ -17,7 +17,7 @@ impl qobject::Controller {
     }
 
     pub(super) fn set_layer(mut self: Pin<&mut Self>, layer: &QString, shown: &QString) {
-        let Some(layer) = layer_of(&layer.to_string()) else {
+        let Some(layer) = Layer::from_name(&layer.to_string()) else {
             return;
         };
         if let Some(s) = self.as_mut().session() {
@@ -27,7 +27,7 @@ impl qobject::Controller {
     }
 
     pub(super) fn set_lock(mut self: Pin<&mut Self>, layer: &QString, locked: &QString) {
-        let Some(layer) = layer_of(&layer.to_string()) else {
+        let Some(layer) = Layer::from_name(&layer.to_string()) else {
             return;
         };
         let lock = match locked.to_string() == LOCKED {
@@ -46,16 +46,4 @@ fn visibility(text: &QString) -> Visibility {
         return Visibility::Shown;
     }
     Visibility::Hidden
-}
-
-fn layer_of(name: &str) -> Option<Layer> {
-    match name {
-        "set" => Some(Layer::Set),
-        "figures" => Some(Layer::Figures),
-        "cameras" => Some(Layer::Cameras),
-        "lights" => Some(Layer::Lights),
-        "notes" => Some(Layer::Notes),
-        "drawings" => Some(Layer::Drawings),
-        _ => None,
-    }
 }
