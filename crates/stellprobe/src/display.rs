@@ -83,6 +83,8 @@ pub enum Role {
     CameraHandle,
     Mark(FigureColor),
     Figure(FigureColor),
+    /// A dot inside a group's body; in the body's colour it would vanish.
+    GroupDot,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -113,6 +115,12 @@ pub enum Source {
 
 /// Figure body radius on the plan.
 pub const FIGURE_RADIUS_M: f64 = 0.35;
+/// A group's body is larger than a single figure (LH-23); inside it stand `GROUP_DOTS` small
+/// circles, however many people the group counts.
+const GROUP_RADIUS_M: f64 = 0.6;
+const GROUP_DOT_RADIUS_M: f64 = 0.17;
+const GROUP_DOT_RING_M: f64 = 0.3;
+const GROUP_DOTS: usize = 3;
 /// Mark circles are smaller than the figure.
 const MARK_RADIUS_M: f64 = 0.22;
 /// Camera and lamp bodies.
@@ -507,10 +515,14 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
             continue;
         };
         let source = Some(Source::Figure(track.character.clone()));
+        let radius_m = match character.group {
+            Some(_) => GROUP_RADIUS_M,
+            None => FIGURE_RADIUS_M,
+        };
         items.push(Item {
             role: Role::Figure(color),
             shape: Shape::Polygon {
-                points: nose(place.at, place.facing_deg, FIGURE_RADIUS_M),
+                points: nose(place.at, place.facing_deg, radius_m),
             },
             label: None,
             source: source.clone(),
@@ -519,12 +531,42 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
             role: Role::Figure(color),
             shape: Shape::Circle {
                 center: place.at,
-                radius_m: FIGURE_RADIUS_M,
+                radius_m,
             },
-            label: Some(character.name.clone()),
-            source,
+            label: Some(character.title()),
+            source: source.clone(),
         });
+
+        // Dots inside the body mark a group; a click on one still takes the whole group.
+        if character.group.is_none() {
+            continue;
+        }
+        for center in group_dots(place.at) {
+            items.push(Item {
+                role: Role::GroupDot,
+                shape: Shape::Circle {
+                    center,
+                    radius_m: GROUP_DOT_RADIUS_M,
+                },
+                label: None,
+                source: source.clone(),
+            });
+        }
     }
+}
+
+/// The centres of the dots in a group's body: evenly on a ring, one straight up.
+fn group_dots(at: Point) -> Vec<Point> {
+    (0..GROUP_DOTS)
+        .map(|i| {
+            let deg = -90.0 + 360.0 * i as f64 / GROUP_DOTS as f64;
+            let a = deg.to_radians();
+            Point::new(
+                at.x_m + GROUP_DOT_RING_M * a.cos(),
+                at.y_m + GROUP_DOT_RING_M * a.sin(),
+            )
+        })
+        .collect()
 }
 
 fn mark_label(index: usize, mark: &Mark) -> String {
@@ -645,12 +687,14 @@ mod tests {
                 name: "Elisabeth".into(),
                 short: "E".into(),
                 color: FigureColor::Purple,
+                group: None,
             },
             Character {
                 id: "v".into(),
                 name: "Burgvogt".into(),
                 short: "B".into(),
                 color: FigureColor::Blue,
+                group: None,
             },
         ];
         p
@@ -740,6 +784,96 @@ mod tests {
         assert_eq!(count(&list, Role::Frustum), 1);
         assert_eq!(count(&list, Role::Mark(FigureColor::Purple)), 2);
         assert_eq!(count(&list, Role::Figure(FigureColor::Blue)), 2);
+    }
+
+    fn group_list() -> DisplayList {
+        let mut p = project();
+        p.characters[0].group = Some(12);
+        render(&p, &set(), &plan(), 0.0, None)
+    }
+
+    /// A group is one larger body with three dots, however many people it counts, and its
+    /// label names the count (LH-23).
+    #[test]
+    fn a_group_is_drawn_as_a_group() {
+        let list = group_list();
+        let purple = |i: &&Item| i.role == Role::Figure(FigureColor::Purple);
+        let radii: Vec<f64> = list
+            .items
+            .iter()
+            .filter(purple)
+            .filter_map(|i| match i.shape {
+                Shape::Circle { radius_m, .. } => Some(radius_m),
+                _ => None,
+            })
+            .collect();
+        let label = list
+            .items
+            .iter()
+            .filter(purple)
+            .find_map(|i| i.label.clone());
+
+        assert_eq!(radii.len(), 1);
+        assert!(radii[0] > FIGURE_RADIUS_M);
+        assert_eq!(label.as_deref(), Some("Elisabeth (12)"));
+    }
+
+    /// The dots in a group's body are a role of their own: in the body's colour they vanish.
+    #[test]
+    fn group_dots_differ_from_the_body() {
+        let list = group_list();
+        let dots: Vec<&Item> = list
+            .items
+            .iter()
+            .filter(|i| matches!(i.shape, Shape::Circle { radius_m, .. } if radius_m == GROUP_DOT_RADIUS_M))
+            .collect();
+
+        assert_eq!(dots.len(), GROUP_DOTS);
+        assert!(dots
+            .iter()
+            .all(|i| i.role != Role::Figure(FigureColor::Purple)));
+    }
+
+    /// A single person keeps the one small circle and the plain name.
+    #[test]
+    fn a_single_figure_has_no_dots() {
+        let list = render(&project(), &set(), &plan(), 0.0, None);
+        let circles = list
+            .items
+            .iter()
+            .filter(|i| i.role == Role::Figure(FigureColor::Purple))
+            .filter(|i| matches!(i.shape, Shape::Circle { .. }))
+            .count();
+        let label = list.items.iter().find_map(|i| match i.role {
+            Role::Figure(FigureColor::Purple) => i.label.clone(),
+            _ => None,
+        });
+
+        assert_eq!(circles, 1);
+        assert_eq!(label.as_deref(), Some("Elisabeth"));
+    }
+
+    /// Every part of the group, dots and rim included, selects the group's one track.
+    #[test]
+    fn the_whole_group_is_hit() {
+        let list = group_list();
+        let centre = Point::new(2.0, 6.0);
+        // Beyond a single figure's radius, inside the group's.
+        let rim = Point::new(2.0 + 0.5, 6.0);
+        let hits = |at: Point| -> Vec<Option<Source>> {
+            list.items
+                .iter()
+                .filter(|i| i.role == Role::Figure(FigureColor::Purple))
+                .filter(|i| crate::hit::hit(i, at, 0.0))
+                .map(|i| i.source.clone())
+                .collect()
+        };
+
+        assert!(hits(rim).contains(&Some(Source::Figure("e".into()))));
+        assert!(hits(centre)
+            .iter()
+            .all(|s| *s == Some(Source::Figure("e".into()))));
+        assert!(!hits(Point::new(2.0 + 1.5, 6.0)).contains(&Some(Source::Figure("e".into()))));
     }
 
     #[test]

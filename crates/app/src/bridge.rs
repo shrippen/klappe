@@ -73,7 +73,8 @@ pub mod qobject {
         #[qproperty(QString, project_json, cxx_name = "projectJson")]
         /// Id of the scene on view, empty for none.
         #[qproperty(QString, scene_id, cxx_name = "sceneId")]
-        /// `[{ path, name }]`: the projects opened last, those still on disk.
+        /// `[{ path, name, state, scenes, modifiedS, preview }]`: the projects opened last, with
+        /// the preview of their first plan as it is made (`state` `loading` until then).
         #[qproperty(QString, recent_json, cxx_name = "recentJson")]
         /// The same list as the app's settings keep it; QML stores it when it changes.
         #[qproperty(QString, recent_store, cxx_name = "recentStore")]
@@ -403,6 +404,11 @@ pub mod qobject {
         #[cxx_name = "loadRecent"]
         fn load_recent(self: Pin<&mut Self>, stored: &QString);
 
+        /// Takes a project out of the list of recent ones.
+        #[qinvokable]
+        #[cxx_name = "forgetRecent"]
+        fn forget_recent(self: Pin<&mut Self>, path: &QString);
+
         /// Makes an empty project in the folder `path` (a path or a `file://` URL) and opens
         /// it; an error goes to `status`.
         #[qinvokable]
@@ -472,7 +478,8 @@ pub mod qobject {
         #[cxx_name = "removeLocation"]
         fn remove_location(self: Pin<&mut Self>, id: &QString) -> bool;
 
-        /// `color` is a role name (`purple`, `blue` …).
+        /// `color` is a role name (`purple`, `blue` …); `group` is the head count of a group
+        /// of extras, 0 for a single person.
         #[qinvokable]
         #[cxx_name = "addCharacter"]
         fn add_character(
@@ -480,6 +487,7 @@ pub mod qobject {
             name: &QString,
             label: &QString,
             color: &QString,
+            group: u32,
         ) -> bool;
 
         #[qinvokable]
@@ -490,6 +498,7 @@ pub mod qobject {
             name: &QString,
             label: &QString,
             color: &QString,
+            group: u32,
         ) -> bool;
 
         #[qinvokable]
@@ -523,10 +532,13 @@ pub mod qobject {
         #[cxx_name = "removePlanWithShots"]
         fn remove_plan_with_shots(self: Pin<&mut Self>, id: &QString) -> bool;
     }
+
+    // The start page's cards are read on a thread of their own and handed back through it.
+    impl cxx_qt::Threading for Controller {}
 }
 
 use core::pin::Pin;
-use cxx_qt::CxxQtType;
+use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klappe_services::{
     horizontal_fov_deg, Autosave, DisplayList, Field, FigureColor, Layer, Lock, Looping, Paper,
@@ -534,6 +546,7 @@ use klappe_services::{
     Snapping, Source, Step, Texts, Visibility,
 };
 use serde_json::json;
+use std::path::Path;
 
 use crate::args::AppArgs;
 use crate::camera::{self, CameraField};
@@ -2037,16 +2050,21 @@ impl qobject::Controller {
         q(&describe(s, &key.to_string()).to_string())
     }
 
-    fn load_recent(mut self: Pin<&mut Self>, stored: &QString) {
+    fn load_recent(self: Pin<&mut Self>, stored: &QString) {
         let mut list = manage::parse_recent(&stored.to_string());
         // A project opened from the command line counts as opened last.
         if let Some(s) = self.rust().session.as_ref() {
             list = manage::push_recent(&list, &s.dir().to_string_lossy());
         }
 
-        self.as_mut()
-            .set_recent_json(q(&manage::recent_view(&list)));
-        self.set_recent_store(q(&manage::recent_store(&list)));
+        self.show_recent(&list);
+    }
+
+    fn forget_recent(self: Pin<&mut Self>, path: &QString) {
+        let list = manage::parse_recent(&self.rust().recent_store.to_string());
+        let list = manage::forget_recent(&list, &path.to_string());
+
+        self.show_recent(&list);
     }
 
     fn create_project(self: Pin<&mut Self>, path: &QString, title: &QString) -> bool {
@@ -2153,11 +2171,13 @@ impl qobject::Controller {
         name: &QString,
         label: &QString,
         color: &QString,
+        group: u32,
     ) -> bool {
         let edit = color_edit(color).map(|color| ProjectEdit::AddCharacter {
             name: name.to_string(),
             short: label.to_string(),
             color,
+            group: manage::group_of(group),
         });
         self.commit_project(edit)
     }
@@ -2168,12 +2188,14 @@ impl qobject::Controller {
         name: &QString,
         label: &QString,
         color: &QString,
+        group: u32,
     ) -> bool {
         let edit = color_edit(color).map(|color| ProjectEdit::EditCharacter {
             id: id.to_string(),
             name: name.to_string(),
             short: label.to_string(),
             color,
+            group: manage::group_of(group),
         });
         self.commit_project(edit)
     }
@@ -2300,13 +2322,43 @@ impl qobject::Controller {
     }
 
     /// Puts the folder first in the list of recent projects.
-    fn remember(mut self: Pin<&mut Self>, dir: &str) {
+    fn remember(self: Pin<&mut Self>, dir: &str) {
         let list = manage::parse_recent(&self.rust().recent_store.to_string());
         let list = manage::push_recent(&list, dir);
 
-        self.as_mut()
-            .set_recent_json(q(&manage::recent_view(&list)));
-        self.set_recent_store(q(&manage::recent_store(&list)));
+        self.show_recent(&list);
+    }
+
+    /// Shows `list` at once (names only), stores it, and reads the cards on a thread of
+    /// their own: a preview takes a rendering and must not hold up the window. Each finished
+    /// card reaches `recentJson` through the Qt thread, unless the list has changed since.
+    fn show_recent(mut self: Pin<&mut Self>, list: &[String]) {
+        let store = manage::recent_store(list);
+        self.as_mut().set_recent_json(q(&manage::recent_view(list)));
+        self.as_mut().set_recent_store(q(&store));
+
+        let qt = self.qt_thread();
+        let language = self.rust().language;
+        let list = list.to_vec();
+        std::thread::spawn(move || {
+            let cache = manage::cache_dir().unwrap_or_else(std::env::temp_dir);
+            let mut cards = Vec::new();
+            for path in &list {
+                cards.push(klappe_services::project_card(
+                    Path::new(path),
+                    &cache,
+                    language,
+                ));
+                let json = manage::cards_view(&list, &cards);
+                let store = store.clone();
+                // Fails only when the window is gone; then nobody waits for the cards.
+                let _ = qt.queue(move |mut this| {
+                    if this.recent_store.to_string() == store {
+                        this.as_mut().set_recent_json(q(&json));
+                    }
+                });
+            }
+        });
     }
 }
 
@@ -2407,7 +2459,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 .follows
                 .as_deref()
                 .and_then(|character| s.project().character(character))
-                .map(|character| character.name.clone())
+                .map(|character| character.title())
                 .unwrap_or_default();
             let lens_mm = s.lens_now_mm(id).unwrap_or(c.lens_mm);
             json!({
@@ -2428,7 +2480,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
             let name = s
                 .project()
                 .character(id)
-                .map(|c| c.name.clone())
+                .map(|c| c.title())
                 .unwrap_or_default();
             let index: Option<usize> = parts.next().and_then(|i| i.parse().ok());
             let at = index
@@ -2512,6 +2564,26 @@ mod tests {
 
         assert_eq!(mark_json(&s, Some(&Source::Wall(0))), json!({}));
         assert_eq!(mark_json(&s, None), json!({}));
+    }
+
+    /// A group's tooltip, and the camera that follows it, name it with its head count.
+    #[test]
+    fn describe_names_a_group_with_its_count() {
+        let mut s = example();
+        s.edit_project(ProjectEdit::EditCharacter {
+            id: "burgvogt".into(),
+            name: "Burgvogt".into(),
+            short: "B".into(),
+            color: FigureColor::Blue,
+            group: Some(12),
+        })
+        .unwrap();
+
+        let figure = describe(&s, "figure:burgvogt");
+        let camera = describe(&s, "camera:b");
+
+        assert_eq!(figure["name"], "Burgvogt (12)");
+        assert_eq!(camera["follows"], "Burgvogt (12)");
     }
 
     /// The object tool lists the library: sizes in metres, built in first.

@@ -1,13 +1,19 @@
 //! What the project view and the start page need besides the session: the lists as JSON for
 //! QML, the recent projects, and the texts QML sends back parsed (LH-01 to LH-03).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use klappe_services::{Field, FigureColor, ServiceError, Session};
+use klappe_services::{CardState, Field, FigureColor, ProjectCard, ServiceError, Session};
 use serde_json::{json, Value};
 
 /// Projects the start page remembers.
 pub const RECENT_MAX: usize = 8;
+
+const STATE_LOADING: &str = "loading";
+const STATE_MISSING: &str = "missing";
+const CACHE_VAR: &str = "XDG_CACHE_HOME";
+const HOME_VAR: &str = "HOME";
+const CACHE_APP_DIR: &str = "klappe";
 
 /// `{ scenes, locations, characters, plans, plan }`: lists of plain objects for QML, `plans`
 /// those of the scene on view and `plan` the id of the one shown. The colour is the model's
@@ -53,6 +59,7 @@ pub fn project_json(session: &Session) -> String {
                 "name": c.name,
                 "short": c.short,
                 "color": color_name(c.color),
+                "group": c.group.unwrap_or(NO_GROUP),
             })
         })
         .collect();
@@ -75,6 +82,17 @@ pub fn project_json(session: &Session) -> String {
         "plan": plan,
     })
     .to_string()
+}
+
+/// What the bridge and the form use for "a single person".
+const NO_GROUP: u32 = 0;
+
+/// The head count as the model has it: `None` for a single person.
+pub(crate) fn group_of(count: u32) -> Option<u32> {
+    match count {
+        NO_GROUP => None,
+        n => Some(n),
+    }
 }
 
 /// The role as the model writes it in `figuren.toml`.
@@ -118,15 +136,71 @@ pub fn recent_store(list: &[String]) -> String {
     serde_json::to_string(list).unwrap_or_default()
 }
 
-/// `[{ path, name }]` of the folders that still exist, for the start page.
+/// `[{ path, name, state }]` for the start page before the cards are read: the folder's name,
+/// `loading` while the folder is there and `missing` while it is not.
 pub fn recent_view(list: &[String]) -> String {
     let rows: Vec<_> = list
         .iter()
-        .filter(|p| Path::new(p).is_dir())
-        .map(|p| json!({ "path": p, "name": folder_name(p) }))
+        .map(|p| {
+            let state = if Path::new(p).is_dir() {
+                STATE_LOADING
+            } else {
+                STATE_MISSING
+            };
+            json!({ "path": p, "name": folder_name(p), "state": state })
+        })
         .collect();
 
     Value::Array(rows).to_string()
+}
+
+/// The same rows with what the cards found: `{ path, name, state, scenes, modifiedS, preview }`,
+/// `state` being `ready`, `missing` or `unreadable`, `preview` a file path or empty. `cards`
+/// are the first of `list` that are read; the others stay as `recent_view` shows them.
+pub fn cards_view(list: &[String], cards: &[ProjectCard]) -> String {
+    let Ok(Value::Array(mut rows)) = serde_json::from_str::<Value>(&recent_view(list)) else {
+        return String::from("[]");
+    };
+
+    for (row, card) in rows.iter_mut().zip(cards) {
+        *row = json!({
+            "path": card.path.to_string_lossy(),
+            "name": card.name,
+            "state": card_state(card.state),
+            "scenes": card.scenes,
+            "modifiedS": card.modified_s,
+            "preview": card.preview.as_ref().map(|p| p.to_string_lossy()).unwrap_or_default(),
+        });
+    }
+
+    Value::Array(rows).to_string()
+}
+
+/// `list` without `path`.
+pub fn forget_recent(list: &[String], path: &str) -> Vec<String> {
+    list.iter()
+        .filter(|p| p.as_str() != path)
+        .cloned()
+        .collect()
+}
+
+/// Where the app keeps what it can make again (previews): `$XDG_CACHE_HOME/klappe`, else
+/// `~/.cache/klappe`.
+pub fn cache_dir() -> Option<PathBuf> {
+    let base = match std::env::var_os(CACHE_VAR) {
+        Some(dir) if !dir.is_empty() => PathBuf::from(dir),
+        _ => PathBuf::from(std::env::var_os(HOME_VAR)?).join(".cache"),
+    };
+
+    Some(base.join(CACHE_APP_DIR))
+}
+
+fn card_state(state: CardState) -> &'static str {
+    match state {
+        CardState::Ready => "ready",
+        CardState::Missing => STATE_MISSING,
+        CardState::Unreadable => "unreadable",
+    }
 }
 
 fn folder_name(path: &str) -> String {
@@ -174,15 +248,47 @@ mod tests {
     }
 
     #[test]
-    fn the_view_drops_folders_that_are_gone() {
+    fn the_view_keeps_folders_that_are_gone_as_missing() {
         let here = env!("CARGO_MANIFEST_DIR");
         let view: Value = serde_json::from_str(&recent_view(&list(&[here, "/gibt/es/nicht"])))
             .unwrap_or_default();
 
-        let rows = view.as_array().map(Vec::len);
-        assert_eq!(rows, Some(1));
+        assert_eq!(view.as_array().map(Vec::len), Some(2));
         assert_eq!(view[0]["name"], "app");
         assert_eq!(view[0]["path"], here);
+        assert_eq!(view[0]["state"], STATE_LOADING);
+        assert_eq!(view[1]["name"], "nicht");
+        assert_eq!(view[1]["state"], STATE_MISSING);
+    }
+
+    #[test]
+    fn the_cards_replace_the_rows_they_cover() {
+        let here = env!("CARGO_MANIFEST_DIR");
+        let card = ProjectCard {
+            path: PathBuf::from(here),
+            name: "Film".into(),
+            scenes: 3,
+            modified_s: 7,
+            preview: Some(PathBuf::from("/cache/a.png")),
+            state: CardState::Ready,
+        };
+        let view: Value =
+            serde_json::from_str(&cards_view(&list(&[here, "/gibt/es/nicht"]), &[card]))
+                .unwrap_or_default();
+
+        assert_eq!(view[0]["name"], "Film");
+        assert_eq!(view[0]["state"], "ready");
+        assert_eq!(view[0]["scenes"], 3);
+        assert_eq!(view[0]["modifiedS"], 7);
+        assert_eq!(view[0]["preview"], "/cache/a.png");
+        assert_eq!(view[1]["state"], STATE_MISSING);
+    }
+
+    #[test]
+    fn a_forgotten_project_leaves_the_list() {
+        let rest = forget_recent(&list(&["/a", "/b", "/c"]), "/b");
+
+        assert_eq!(rest, list(&["/a", "/c"]));
     }
 
     #[test]
@@ -251,6 +357,7 @@ mod tests {
                 name: "Anna".to_owned(),
                 short: "A".to_owned(),
                 color: FigureColor::Red,
+                group: Some(12),
             })
             .unwrap();
 
@@ -266,6 +373,7 @@ mod tests {
         assert_eq!(value["locations"][0]["scenes"], 1);
         assert_eq!(value["locations"][0]["width"], 8.0);
         assert_eq!(value["characters"][0]["color"], "red");
+        assert_eq!(value["characters"][0]["group"], 12);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

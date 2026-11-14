@@ -29,8 +29,8 @@ TestCase {
                 { id: "saengersaal", name: "Sängersaal", width: 20, depth: 13, scenes: 1 }
             ],
             characters: [
-                { id: "elisabeth", name: "Elisabeth", short: "E", color: "purple" },
-                { id: "burgvogt", name: "Burgvogt", short: "B", color: "blue" }
+                { id: "elisabeth", name: "Elisabeth", short: "E", color: "purple", group: 0 },
+                { id: "burgvogt", name: "Burgvogt", short: "B", color: "blue", group: 0 }
             ]
         })
 
@@ -50,8 +50,8 @@ TestCase {
         function addLocation(n, w, d) { return call("addLocation", [n, w, d]) }
         function editLocation(id, n, w, d) { return call("editLocation", [id, n, w, d]) }
         function removeLocation(id) { return call("removeLocation", [id]) }
-        function addCharacter(n, s, c) { return call("addCharacter", [n, s, c]) }
-        function editCharacter(id, n, s, c) { return call("editCharacter", [id, n, s, c]) }
+        function addCharacter(n, s, c, g) { return call("addCharacter", [n, s, c, g]) }
+        function editCharacter(id, n, s, c, g) { return call("editCharacter", [id, n, s, c, g]) }
         function removeCharacter(id) { return call("removeCharacter", [id]) }
     }
 
@@ -261,7 +261,7 @@ TestCase {
         compare(findChild(form, "shortField").text, "G")
         form.accept()
 
-        compare(fake.calls, [["addCharacter", "graf", "G", "red"]])
+        compare(fake.calls, [["addCharacter", "graf", "G", "red", 0]])
     }
 
     function test_a_character_edit_keeps_its_colour_and_picks_another() {
@@ -279,7 +279,54 @@ TestCase {
         findChild(form, "colorPicker").picked(3)
         form.accept()
 
-        compare(fake.calls, [["editCharacter", "elisabeth", "Elisabeth", "E", "green"]])
+        compare(fake.calls, [["editCharacter", "elisabeth", "Elisabeth", "E", "green", 0]])
+    }
+
+    function test_a_new_group_sends_its_head_count() {
+        const pd = make()
+        opened(pd)
+        const form = findChild(pd, "characterForm")
+
+        form.show(null)
+        tryCompare(form, "opened", true)
+        compare(findChild(form, "groupSwitch").checked, false)
+        compare(findChild(form, "groupSize").visible, false)
+
+        findChild(form, "nameField").text = "Wachen"
+        findChild(form, "groupSwitch").checked = true
+        compare(findChild(form, "groupSize").visible, true)
+        findChild(form, "groupSize").value = 6
+        form.accept()
+
+        compare(fake.calls[0][4], 6)
+    }
+
+    function test_a_group_edit_starts_from_its_count_and_can_become_single() {
+        const pd = make()
+        opened(pd)
+        const form = findChild(pd, "characterForm")
+
+        form.show({ id: "gaeste", name: "Gäste", short: "G", color: "green", group: 12 })
+        tryCompare(form, "opened", true)
+        compare(findChild(form, "groupSwitch").checked, true)
+        compare(findChild(form, "groupSize").value, 12)
+
+        findChild(form, "groupSwitch").checked = false
+        form.accept()
+
+        compare(fake.calls, [["editCharacter", "gaeste", "Gäste", "G", "green", 0]])
+    }
+
+    function test_the_group_size_is_limited_to_two_to_999() {
+        const pd = make()
+        opened(pd)
+        const form = findChild(pd, "characterForm")
+
+        form.show(null)
+        tryCompare(form, "opened", true)
+
+        compare(findChild(form, "groupSize").from, 2)
+        compare(findChild(form, "groupSize").to, 999)
     }
 
     function test_the_short_label_has_room_for_three_letters() {

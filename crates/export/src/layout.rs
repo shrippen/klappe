@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use klappe_model::Point;
-use klappe_stellprobe::{DisplayList, Item, Role, Shape, FIGURE_RADIUS_M};
+use klappe_stellprobe::{DisplayList, Item, Role, Shape, Source, FIGURE_RADIUS_M};
 
 use crate::canvas::{Anchor, Dash, Doc, Geom, Prim, Pt, Rect, Stroke, Weight};
 use crate::error::ExportError;
@@ -111,7 +111,7 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
     for item in &list.items {
         match &item.shape {
             Shape::Image { .. } => image_prim(item, &map, &page.images, &mut plan)?,
-            _ => item_prims(item, &map, pal, &mut plan)?,
+            _ => item_prims(item, &map, pal, body_radius_m(list, item), &mut plan)?,
         }
     }
 
@@ -221,10 +221,28 @@ fn image_prim(
     Ok(())
 }
 
+/// The radius of the figure that stands on a mark (a group's is wider than a person's);
+/// `FIGURE_RADIUS_M` when the figure is not in the list or the item is no mark.
+fn body_radius_m(list: &DisplayList, item: &Item) -> f64 {
+    let Some(Source::Mark { character, .. }) = &item.source else {
+        return FIGURE_RADIUS_M;
+    };
+
+    list.items
+        .iter()
+        .filter(|i| matches!(&i.source, Some(Source::Figure(c)) if c == character))
+        .find_map(|i| match (i.role, &i.shape) {
+            (Role::Figure(_), Shape::Circle { radius_m, .. }) => Some(*radius_m),
+            _ => None,
+        })
+        .unwrap_or(FIGURE_RADIUS_M)
+}
+
 fn item_prims(
     item: &Item,
     map: &Map,
     pal: &Palette,
+    body_m: f64,
     out: &mut Vec<Prim>,
 ) -> Result<(), ExportError> {
     let RoleStyle {
@@ -289,12 +307,12 @@ fn item_prims(
 
     // Circles carry the facing wedge on their right: label below, others right of the shape.
     // A mark's number goes above instead, so a figure standing on it keeps its name below;
-    // it sits above the figure's rim, which is wider than the mark's.
+    // it sits above the rim of the figure on the mark (`body_m`), which is wider than the mark's.
     let (at, anchor) = match (item.role, &item.shape) {
         (Role::Mark(_), Shape::Circle { .. }) => (
             (
                 (bounds[0].0 + right) / 2.0,
-                (top + bottom) / 2.0 - FIGURE_RADIUS_M * map.scale - LABEL_GAP_PT,
+                (top + bottom) / 2.0 - body_m * map.scale - LABEL_GAP_PT,
             ),
             Anchor::Middle,
         ),

@@ -223,12 +223,14 @@ fn example() -> Project {
             name: "Elisabeth".into(),
             short: "E".into(),
             color: FigureColor::Purple,
+            group: None,
         },
         Character {
             id: "burgvogt".into(),
             name: "Burgvogt".into(),
             short: "B".into(),
             color: FigureColor::Blue,
+            group: None,
         },
     ];
 
@@ -414,6 +416,25 @@ fn an_object_height_is_written_only_when_given() {
     assert_eq!(load(&dir).unwrap().project, project);
 }
 
+/// A group's head count is written only for a group, reads back, and a file without it
+/// loads as a single person (LH-23).
+#[test]
+fn a_group_is_written_only_when_given() {
+    let dir = test_dir("group");
+    let mut project = example();
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("figuren.toml")).unwrap();
+    assert!(!text.contains("group"), "{text}");
+    assert_eq!(load(&dir).unwrap().project.characters[0].group, None);
+
+    project.characters[0].group = Some(12);
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("figuren.toml")).unwrap();
+
+    assert_eq!(text.matches("group = 12").count(), 1, "{text}");
+    assert_eq!(load(&dir).unwrap().project, project);
+}
+
 /// A set without notes writes no `notes` key, and a file without it loads as before (LH-16).
 #[test]
 fn a_set_without_notes_loads_and_writes_none() {
@@ -553,6 +574,33 @@ fn duplicate_ids_are_rejected() {
     let result = save(&dir, &project, None);
 
     assert!(matches!(result, Err(StoreError::DuplicateId { .. })));
+}
+
+/// A group has two to 999 people; the file of a project that says otherwise is refused.
+#[test]
+fn a_bad_group_size_is_refused() {
+    for (group, usable) in [
+        (0, false),
+        (1, false),
+        (2, true),
+        (999, true),
+        (1000, false),
+    ] {
+        let dir = test_dir("bad-group");
+        let mut project = example();
+        project.characters[0].group = Some(group);
+        save(&dir, &project, None).unwrap();
+
+        let loaded = load(&dir);
+
+        assert_eq!(loaded.is_ok(), usable, "group {group}");
+        if !usable {
+            assert!(
+                matches!(loaded, Err(StoreError::Parse { .. })),
+                "group {group}"
+            );
+        }
+    }
 }
 
 #[test]
