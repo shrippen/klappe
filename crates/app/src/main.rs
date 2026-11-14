@@ -9,6 +9,7 @@ mod camera;
 mod catalog;
 mod fileurl;
 mod manage;
+mod mark;
 mod notice;
 mod plan;
 mod tools;

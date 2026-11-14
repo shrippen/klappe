@@ -4,7 +4,7 @@ use super::q;
 use super::qobject;
 use crate::camera;
 use crate::camera::CameraField;
-use crate::tools;
+use crate::mark;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
@@ -14,7 +14,7 @@ use serde_json::json;
 impl qobject::Controller {
     pub(super) fn set_camera_aim(self: Pin<&mut Self>, height: &QString, tilt: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let typed = tools::aim_edit(selected, &height.to_string(), &tilt.to_string());
+        let typed = mark::aim_edit(selected, &height.to_string(), &tilt.to_string());
 
         self.commit_typed(typed)
     }
@@ -42,7 +42,7 @@ impl qobject::Controller {
 
     pub(super) fn set_mark_pose(self: Pin<&mut Self>, pose: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::pose_edit(selected, &pose.to_string()) else {
+        let Some(edit) = mark::pose_edit(selected, &pose.to_string()) else {
             return false;
         };
 
@@ -51,7 +51,7 @@ impl qobject::Controller {
 
     pub(super) fn set_mark_arrival(self: Pin<&mut Self>, arrival: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::arrival_edit(selected, &arrival.to_string()) else {
+        let Some(edit) = mark::arrival_edit(selected, &arrival.to_string()) else {
             return false;
         };
 
@@ -60,7 +60,7 @@ impl qobject::Controller {
 
     pub(super) fn set_mark_departure(self: Pin<&mut Self>, departure: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::departure_edit(selected, &departure.to_string()) else {
+        let Some(edit) = mark::departure_edit(selected, &departure.to_string()) else {
             return false;
         };
 
@@ -69,14 +69,14 @@ impl qobject::Controller {
 
     pub(super) fn set_mark_hold(self: Pin<&mut Self>, seconds: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let typed = tools::hold_edit(selected, &seconds.to_string());
+        let typed = mark::hold_edit(selected, &seconds.to_string());
 
         self.commit_typed(typed)
     }
 
     pub(super) fn set_mark_pace(self: Pin<&mut Self>, pace: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::pace_edit(selected, &pace.to_string()) else {
+        let Some(edit) = mark::pace_edit(selected, &pace.to_string()) else {
             return false;
         };
 
