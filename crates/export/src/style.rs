@@ -79,14 +79,14 @@ fn class_of(role: Role) -> String {
     plain_class(role).unwrap_or_default().into()
 }
 
-/// 0 for what the export does not stroke.
-fn width_pt(role: Role) -> f64 {
+/// `None` for what the export does not stroke.
+fn width_pt(role: Role) -> Option<f64> {
     match role {
-        Role::Background | Role::FigureHandle(_) | Role::CameraHandle => 0.0,
-        Role::CameraPath | Role::FigurePath(_) => PATH_PT,
-        Role::Axis => AXIS_PT,
-        Role::Mark(_) => MARK_PT,
-        Role::Drawing { .. } | Role::ArrowHead(_) => DRAWING_PT,
+        Role::Background | Role::FigureHandle(_) | Role::CameraHandle => None,
+        Role::CameraPath | Role::FigurePath(_) => Some(PATH_PT),
+        Role::Axis => Some(AXIS_PT),
+        Role::Mark(_) => Some(MARK_PT),
+        Role::Drawing { .. } | Role::ArrowHead(_) => Some(DRAWING_PT),
         Role::Wall
         | Role::Object
         | Role::LightBeam
@@ -95,7 +95,7 @@ fn width_pt(role: Role) -> f64 {
         | Role::Frustum
         | Role::Camera
         | Role::Figure(_)
-        | Role::GroupDot => OUTLINE_PT,
+        | Role::GroupDot => Some(OUTLINE_PT),
     }
 }
 
@@ -145,17 +145,16 @@ fn dash_of(dash: DrawDash) -> Dash {
 /// adds widths, opacities and the outline of a solid shape.
 pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportError> {
     let class = class_of(role);
-    let width_pt = width_pt(role);
 
     // Grips only show on screen; a list for export has none, and one that had draws nothing.
     // The image is drawn by its own code.
-    if width_pt == 0.0 {
+    let Some(width_pt) = width_pt(role) else {
         return Ok(RoleStyle {
             class,
             fill: None,
             stroke: None,
         });
-    }
+    };
 
     let look = look(role);
     let colour = hue_rgb(look.hue, pal)?;
