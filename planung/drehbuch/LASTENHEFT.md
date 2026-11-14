@@ -113,9 +113,10 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DB-40 | Fassungen benennen und sperren (z. B. „Drehfassung“); eine gesperrte Fassung ist die Basis für Revisionen. | M |
-| DB-41 | Revisionen: Änderungen seit der gesperrten Fassung werden markiert. Revisionsfarben in der üblichen Reihenfolge (Blau, Rosa, Gelb, Grün, Goldgelb, …), Randmarke `*` im PDF, Fassungsname und Datum in der Kopfzeile. | S |
+| DB-41 | Revisionen: Änderungen seit der gesperrten Fassung werden markiert (Vergleich mit der beim Sperren gespeicherten Fassung, F-03). Revisionsfarben in der üblichen Reihenfolge (Blau, Rosa, Gelb, Grün, Goldgelb, …), Randmarke `*` im PDF, Fassungsname und Datum in der Kopfzeile. | S |
 | DB-42 | Vergleich zweier Fassungen als Liste und im Text (hinzugefügt, gestrichen, geändert); über Git oder ohne. | S |
 | DB-43 | Nur geänderte Seiten drucken (Revisionsseiten). | K |
+| DB-44 | Verschobene Szenen erkennen: eine Szene, die nur ihren Platz gewechselt hat, gilt als verschoben, nicht als gestrichen und neu eingefügt; ihr Text bleibt unmarkiert. | S |
 
 ### 6.5 Figuren, Orte, Auswertung
 
@@ -186,14 +187,9 @@ Entschieden vom Eigentümer am 2026-11-14:
 |---|---|---|
 | F-01 | Papierformat | A4 ist Standard, US Letter wählbar; Minutenschätzung je Format. |
 | F-02 | Wo stehen Revisionen, Tags, gesperrte Seitennummern? (Beat: JSON-Block am Ende der Fountain-Datei) | Eigene Dateien im Projektordner (`drehbuch/fassungen/`, `drehbuch/tags.toml`); der Fountain-Text bleibt sauber. Szenennummern bleiben im Text (DB-33), Szenen werden per Nummer referenziert. |
+| F-03 | Woher kommen Revisionen: Markierung beim Tippen (Fade In, Beat), Git oder Vergleich? | Vergleich mit einer beim Sperren gespeicherten Fassung im Projektordner; Git optional. Verschobene Szenen werden eigens erkannt (DB-44). |
 | F-04 | (MORE)/(CONT'D) oder (WEITER)/(FORTS.) im PDF | Je Projekt wählbar, Standard nach Sprache des Projekts. |
 | F-05 | Nach der ersten Version: GUI-Editor (DB-23) oder Produktion (DB-60, DB-61)? | Erst Produktion, weil Planung darauf aufbaut. |
-
-Offen:
-
-| Nr | Frage | Vorschlag |
-|---|---|---|
-| F-03 | Revisionen: eigene Markierung beim Tippen wie Fade In/Beat, aus Git oder Vergleich mit einer gespeicherten gesperrten Fassung? | Vergleich mit einer gespeicherten gesperrten Fassung im Projektordner; Git optional. |
 
 ## Anhang A: Analyse Fade In und Beat
 
