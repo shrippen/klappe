@@ -14,6 +14,13 @@ pub enum PlanEdit {
         source: Source,
         to: Point,
     },
+    /// Moves it by a distance: a drag that began beside the middle. With snapping on, its new
+    /// place (centre, mark, middle of a wall) lands on the grid.
+    Shift {
+        source: Source,
+        dx_m: f64,
+        dy_m: f64,
+    },
     /// Turns it to face `facing_deg` (objects: rotation; walls: their direction).
     Turn {
         source: Source,
@@ -148,13 +155,15 @@ enum Target<'a> {
     Wall(&'a mut Wall),
 }
 
-/// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`. On an error the
-/// project may be half changed: the caller works on a copy.
+/// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snapping` is for
+/// `Shift`, the other edits take their points as given. On an error the project may be half
+/// changed: the caller works on a copy.
 pub(crate) fn apply(
     project: &mut Project,
     scene: usize,
     plan: usize,
     time_s: f64,
+    snapping: Snapping,
     edit: &PlanEdit,
 ) -> Result<(), ServiceError> {
     check(edit)?;
@@ -188,6 +197,9 @@ pub(crate) fn apply(
 
     match edit {
         PlanEdit::Move { source, to } => move_to(&mut scope, source, *to),
+        PlanEdit::Shift { source, dx_m, dy_m } => {
+            shift(&mut scope, source, (*dx_m, *dy_m), snapping)
+        }
         PlanEdit::Turn { source, facing_deg } => turn(&mut scope, source, *facing_deg),
         PlanEdit::Remove { source } => remove(&mut scope, source),
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
@@ -205,6 +217,7 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::AddMark { at, .. }
         | PlanEdit::AddLight { at, .. }
         | PlanEdit::AddObject { at, .. } => check_point(*at),
+        PlanEdit::Shift { dx_m, dy_m, .. } => check_point(Point::new(*dx_m, *dy_m)),
         PlanEdit::Turn { facing_deg, .. } => check_angle(*facing_deg),
         PlanEdit::AddCamera { at, facing_deg } => {
             check_point(*at)?;
@@ -359,6 +372,22 @@ fn move_to(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Serv
     }
 
     Ok(())
+}
+
+/// Moves by `by_m` (dx, dy) from where the element is now; the new place is snapped.
+fn shift(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    by_m: (f64, f64),
+    snapping: Snapping,
+) -> Result<(), ServiceError> {
+    let now = match target(scope, source)? {
+        Target::Place { at, .. } => *at,
+        Target::Wall(wall) => middle(wall),
+    };
+    let to = snap(Point::new(now.x_m + by_m.0, now.y_m + by_m.1), snapping);
+
+    move_to(scope, source, to)
 }
 
 fn turn(scope: &mut Scope<'_>, source: &Source, facing_deg: f64) -> Result<(), ServiceError> {
@@ -669,7 +698,7 @@ mod tests {
             at: Point::new(1.0, 2.0),
             facing_deg: 0.0,
         };
-        apply(project, 0, 0, 3.0, &edit).unwrap();
+        apply(project, 0, 0, 3.0, Snapping::On, &edit).unwrap();
     }
 
     #[test]
@@ -707,10 +736,26 @@ mod tests {
             at: Point::new(0.0, 0.0),
         };
         for _ in 0..2 {
-            apply(&mut project, 0, 0, 0.0, &light(LightKind::Flag)).unwrap();
+            apply(
+                &mut project,
+                0,
+                0,
+                0.0,
+                Snapping::On,
+                &light(LightKind::Flag),
+            )
+            .unwrap();
         }
         project.scenes[0].plans[0].lights.remove(0);
-        apply(&mut project, 0, 0, 0.0, &light(LightKind::Flag)).unwrap();
+        apply(
+            &mut project,
+            0,
+            0,
+            0.0,
+            Snapping::On,
+            &light(LightKind::Flag),
+        )
+        .unwrap();
 
         let ids: Vec<_> = project.scenes[0].plans[0]
             .lights
@@ -737,7 +782,7 @@ mod tests {
         };
 
         assert!(matches!(
-            apply(&mut project, 0, 0, 0.0, &edit),
+            apply(&mut project, 0, 0, 0.0, Snapping::On, &edit),
             Err(ServiceError::NoLocation(ref id)) if id == "l"
         ));
     }

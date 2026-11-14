@@ -202,14 +202,20 @@ impl Session {
 
     /// The plan at the playhead, without hidden layers and tracks.
     pub fn display_list(&self) -> DisplayList {
-        let (Some(scene), Some(plan)) = (self.scene(), self.plan()) else {
+        self.list_of(&self.project)
+    }
+
+    /// `display_list` of `project`, a changed copy of this session's.
+    fn list_of(&self, project: &Project) -> DisplayList {
+        let scene = project.scenes.get(self.scene);
+        let Some((scene, plan)) = scene.and_then(|s| Some((s, s.plans.get(self.plan)?))) else {
             return DisplayList::default();
         };
-        let Some(location) = self.project.location(&scene.location) else {
+        let Some(location) = project.location(&scene.location) else {
             return DisplayList::default();
         };
 
-        let mut list = render(&self.project, &location.set, plan, self.time_s);
+        let mut list = render(project, &location.set, plan, self.time_s);
         list.items
             .retain(|item| self.shows(item.role, item.source.as_ref()));
         list
@@ -333,13 +339,24 @@ impl Session {
     /// Changes the current plan; undoable. Points are taken as given: surfaces call `snap`.
     pub fn edit_plan(&mut self, edit: PlanEdit) -> Result<(), ServiceError> {
         let mut next = self.project.clone();
-        plan_edit::apply(&mut next, self.scene, self.plan, self.time_s, &edit)?;
+        let at = (self.scene, self.plan);
+        plan_edit::apply(&mut next, at.0, at.1, self.time_s, self.snapping, &edit)?;
         if next == self.project {
             return Ok(());
         }
 
         self.commit(next);
         Ok(())
+    }
+
+    /// The display list as it would be after `edit`, without committing it or taking an undo
+    /// step: what a drag shows while the button is down.
+    pub fn preview(&self, edit: &PlanEdit) -> Result<DisplayList, ServiceError> {
+        let mut next = self.project.clone();
+        let at = (self.scene, self.plan);
+        plan_edit::apply(&mut next, at.0, at.1, self.time_s, self.snapping, edit)?;
+
+        Ok(self.list_of(&next))
     }
 
     /// Topmost shown item at `at` (front of the display list first), within the pick radius.
@@ -349,6 +366,10 @@ impl Session {
 
     pub fn set_snapping(&mut self, snapping: Snapping) {
         self.snapping = snapping;
+    }
+
+    pub fn snapping(&self) -> Snapping {
+        self.snapping
     }
 
     /// `at` on the grid when snapping is on.
