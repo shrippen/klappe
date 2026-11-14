@@ -12,7 +12,9 @@ import "."
  *     kind     "line" (2 points), "polyline", "polygon" (closed), "circle" (points [cx, cy], radius)
  *     points   [x0, y0, x1, y1, …] in model units
  *     width    stroke width in model units, 0 = hairline (always at least one pixel)
- *     label    a colour of KanteStyle.labels, or "text", "muted", "accent", "focus", "warning"
+ *     label    a colour of KanteStyle.labels, or "text", "muted", "accent", "focus", "warning",
+ *              "ground" (the app's background: a sign on a filled shape, such as a dot in a
+ *              filled circle, reads in every label colour)
  *     stroke   "solid" (default), "dashed", "dotted": a dash is a mark, not only a colour
  *     fill     "none" (default), "solid", "tint" (the colour at a fifth of its strength)
  *     text     small caption beside the shape, always at the same size on screen
@@ -193,6 +195,7 @@ FocusScope {
         case "accent": return KanteStyle.accentColor
         case "focus": return KanteStyle.focusColor
         case "warning": return KanteStyle.warningColor
+        case "ground": return KanteStyle.backgroundColor
         }
         const c = KanteStyle.labelColor(name)
         return c.a > 0 ? c : KanteStyle.textColor
