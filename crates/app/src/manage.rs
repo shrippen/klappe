@@ -1,6 +1,7 @@
 //! What the project view and the start page need besides the session: the lists as JSON for
 //! QML, the recent projects, and the texts QML sends back parsed (LH-01 to LH-03).
 
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
@@ -17,6 +18,8 @@ const STATE_LOADING: &str = "loading";
 const STATE_MISSING: &str = "missing";
 const CACHE_VAR: &str = "XDG_CACHE_HOME";
 const HOME_VAR: &str = "HOME";
+const CACHE_FALLBACK: &str = ".cache";
+const DATA_FALLBACK: &str = ".local/share";
 const CACHE_APP_DIR: &str = "klappe";
 const DATA_VAR: &str = "XDG_DATA_HOME";
 const DATA_APP_DIR: &str = "klappe";
@@ -124,13 +127,24 @@ pub fn forget_recent(list: &[String], path: &str) -> Vec<String> {
         .collect()
 }
 
+/// `xdg` as the base if absolute, else `home` joined with `fallback` if absolute; `None` if
+/// neither is. Empty and relative values count as unset, or the path would depend on the
+/// working directory.
+fn base_dir(xdg: Option<OsString>, home: Option<OsString>, fallback: &str) -> Option<PathBuf> {
+    let absolute = |v: OsString| Some(PathBuf::from(v)).filter(|p| p.is_absolute());
+
+    xdg.and_then(absolute)
+        .or_else(|| home.and_then(absolute).map(|h| h.join(fallback)))
+}
+
 /// Where the app keeps what it can make again (previews): `$XDG_CACHE_HOME/klappe`, else
 /// `~/.cache/klappe`.
 pub fn cache_dir() -> Option<PathBuf> {
-    let base = match std::env::var_os(CACHE_VAR) {
-        Some(dir) if !dir.is_empty() => PathBuf::from(dir),
-        _ => PathBuf::from(std::env::var_os(HOME_VAR)?).join(".cache"),
-    };
+    let base = base_dir(
+        std::env::var_os(CACHE_VAR),
+        std::env::var_os(HOME_VAR),
+        CACHE_FALLBACK,
+    )?;
 
     Some(base.join(CACHE_APP_DIR))
 }
@@ -138,10 +152,11 @@ pub fn cache_dir() -> Option<PathBuf> {
 /// Where the app keeps what the user may change (the example copies): `$XDG_DATA_HOME/klappe`,
 /// else `~/.local/share/klappe`.
 pub fn data_dir() -> Option<PathBuf> {
-    let base = match std::env::var_os(DATA_VAR) {
-        Some(dir) if !dir.is_empty() => PathBuf::from(dir),
-        _ => PathBuf::from(std::env::var_os(HOME_VAR)?).join(".local/share"),
-    };
+    let base = base_dir(
+        std::env::var_os(DATA_VAR),
+        std::env::var_os(HOME_VAR),
+        DATA_FALLBACK,
+    )?;
 
     Some(base.join(DATA_APP_DIR))
 }
@@ -191,6 +206,29 @@ fn folder_name(path: &str) -> String {
 mod tests {
     use super::*;
     use klappe_services::{FigureColor, ProjectEdit};
+
+    fn os(s: &str) -> Option<OsString> {
+        Some(OsString::from(s))
+    }
+
+    #[test]
+    fn an_empty_or_relative_home_is_no_base() {
+        assert_eq!(base_dir(None, os(""), DATA_FALLBACK), None);
+        assert_eq!(base_dir(None, os("home"), DATA_FALLBACK), None);
+        assert_eq!(base_dir(None, None, DATA_FALLBACK), None);
+    }
+
+    #[test]
+    fn an_empty_or_relative_xdg_falls_back_to_home() {
+        let want = Some(PathBuf::from("/h/.cache"));
+
+        assert_eq!(base_dir(os(""), os("/h"), CACHE_FALLBACK), want);
+        assert_eq!(base_dir(os("rel"), os("/h"), CACHE_FALLBACK), want);
+        assert_eq!(
+            base_dir(os("/x"), os("/h"), CACHE_FALLBACK),
+            Some(PathBuf::from("/x"))
+        );
+    }
 
     fn list(paths: &[&str]) -> Vec<String> {
         paths.iter().map(|p| (*p).to_owned()).collect()
