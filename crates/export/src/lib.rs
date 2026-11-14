@@ -12,12 +12,16 @@ mod canvas;
 mod error;
 mod image;
 mod inflate;
+#[allow(dead_code)] // used once the PNG rasteriser lands
+mod jpeg;
 mod layout;
 mod metrics;
 mod page;
 mod palette;
 mod pdf;
 mod png;
+#[allow(dead_code)] // used once the PNG rasteriser lands
+mod rgb8;
 mod shots;
 mod style;
 mod svg;
