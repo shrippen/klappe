@@ -25,6 +25,11 @@ RowLayout {
     required property var controller
 
     property string tool: "select"
+    /// D-09: below the wide step the options (colour, line, fill, snapping, library) sit in a
+    /// popover, and so do the tools that do not fit the bar.
+    property bool compact: false
+    /// How many of the `shown` tools the bar has room for; the rest are in the popover.
+    property int fitCount: shown.length
     /// The working mode: the id of an entry of `_modes`.
     property string mode: "build"
     /// The value picked in the current tool's list: library kind, character id or lamp kind.
@@ -104,6 +109,7 @@ RowLayout {
 
     // The controller keeps the tool: its drags and clicks do not repeat it.
     onToolChanged: {
+        _fit()
         // A tool of another mode (its key, the palette) takes its mode along.
         if (!_inMode(tool, mode)) {
             mode = _ownerMode(tool)
@@ -136,6 +142,26 @@ RowLayout {
         const owner = _modes.find(m => _inMode(name, m.id))
         return owner ? owner.id : _modes[0].id
     }
+    // Tools beyond the room go to the popover. The room is what the width leaves after the mode
+    // box, the popover's button and the tool's list.
+    function _fit() {
+        if (!compact) {
+            fitCount = shown.length
+            return
+        }
+        let room = width - modeBox.width - moreButton.implicitWidth - spacing * 2
+        room -= objectBox.visible ? objectBox.Layout.minimumWidth + spacing : 0
+        room -= figureBox.visible ? figureBox.implicitWidth + spacing : 0
+        room -= lightBox.visible ? lightBox.implicitWidth + spacing : 0
+        let count = 0
+        while (count < slots.count && slots.itemAt(count).implicitWidth + spacing <= room) {
+            room -= slots.itemAt(count).implicitWidth + spacing
+            count++
+        }
+        fitCount = count
+    }
+    onWidthChanged: _fit()
+    onCompactChanged: _fit()
     function _tell() {
         controller.setTool(tool, choice)
     }
@@ -149,6 +175,7 @@ RowLayout {
     KanteSegmented {
         id: modeBox
         objectName: "modeBox"
+        Layout.minimumWidth: implicitWidth
         Accessible.name: tools.texts.t("mode.name")
         model: tools.modes.map(id => tools.texts.t("mode." + id))
         tooltips: tools.modes.map((id, i) => tools.texts.t("tool.tip", { name: tools.texts.t("mode." + id), key: tools.modeKeys[i] }))
@@ -161,13 +188,19 @@ RowLayout {
     }
 
     Repeater {
+        id: slots
         model: tools.shown
+        onItemAdded: tools._fit()
+        onItemRemoved: tools._fit()
         delegate: RowLayout {
             id: slot
+            required property int index
             required property var modelData
             readonly property string name: modelData.tool.name
             readonly property string key: modelData.tool.key
             spacing: tools.spacing
+            visible: index < tools.fitCount
+            onImplicitWidthChanged: tools._fit()
 
             Kirigami.Separator {
                 visible: slot.modelData.gap
@@ -179,6 +212,7 @@ RowLayout {
             }
             KanteToolButton {
                 objectName: "tool." + slot.name
+                Layout.minimumWidth: implicitWidth
                 text: tools.texts.t("tool." + slot.name)
                 icon.name: slot.modelData.tool.icon
                 // Kante shows the name when the theme lacks the icon.
@@ -201,8 +235,13 @@ RowLayout {
     KanteSearchCombo {
         id: objectBox
         objectName: "objectBox"
+        onVisibleChanged: tools._fit()
         visible: tools.tool === "object"
         implicitWidth: Kirigami.Units.gridUnit * 12
+        // Gives way before anything else does when the bar is narrow (only a filling item shrinks).
+        Layout.fillWidth: true
+        Layout.minimumWidth: Kirigami.Units.gridUnit * 6
+        Layout.maximumWidth: implicitWidth
         Accessible.name: tools.texts.t("tool.pick.object")
         placeholderText: tools.texts.t("library.search")
         textRole: "text"
@@ -214,28 +253,10 @@ RowLayout {
         onActivated: index => pickedKind = model[index].value
         onModelChanged: currentIndex = Math.max(0, model.findIndex(o => o.value === pickedKind))
     }
-    KanteToolButton {
-        objectName: "libraryImport"
-        visible: tools.tool === "object"
-        text: tools.texts.t("library.import")
-        onClicked: tools.importRequested()
-        QQC2.ToolTip.text: tools.texts.t("library.importTip")
-        QQC2.ToolTip.visible: hovered
-        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-    }
-    KanteToolButton {
-        objectName: "libraryExport"
-        visible: tools.tool === "object"
-        enabled: tools.hasOwnObjects
-        text: tools.texts.t("library.export")
-        onClicked: tools.exportRequested()
-        QQC2.ToolTip.text: tools.texts.t("library.exportTip")
-        QQC2.ToolTip.visible: hovered
-        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-    }
     KanteComboBox {
         id: figureBox
         objectName: "figureBox"
+        onVisibleChanged: tools._fit()
         visible: tools.tool === "figure"
         Accessible.name: tools.texts.t("tool.pick.figure")
         textRole: "text"
@@ -246,6 +267,7 @@ RowLayout {
     KanteComboBox {
         id: lightBox
         objectName: "lightBox"
+        onVisibleChanged: tools._fit()
         visible: tools.tool === "light"
         Accessible.name: tools.texts.t("tool.pick.light")
         textRole: "text"
@@ -253,47 +275,129 @@ RowLayout {
         model: tools._choices.light.map(k => ({ value: k, text: tools.texts.t("lightKind." + k) }))
     }
 
-    KanteSwatchPicker {
-        objectName: "colorPicker"
-        visible: tools.drawing
-        Accessible.name: tools.texts.t("draw.color")
-        colors: (tools._choices.color || []).map(n => KanteStyle.labelColor(n))
-        names: (tools._choices.color || []).map(n => tools.texts.t("color." + n))
-        currentIndex: (tools._choices.color || []).indexOf(tools.drawColor)
-        onPicked: index => tools.drawColor = tools._choices.color[index]
-    }
-    KanteComboBox {
-        id: dashBox
-        objectName: "dashBox"
-        visible: tools.drawing
-        Accessible.name: tools.texts.t("draw.dash")
-        textRole: "text"
-        valueRole: "value"
-        model: (tools._choices.dash || []).map(k => ({ value: k, text: tools.texts.t("dash." + k) }))
-        currentIndex: Math.max(0, (tools._choices.dash || []).indexOf(tools.drawDash))
-        onActivated: tools.drawDash = String(currentValue)
-    }
-    KanteComboBox {
-        id: fillBox
-        objectName: "fillBox"
-        visible: tools.closedShape
-        Accessible.name: tools.texts.t("draw.fill")
-        textRole: "text"
-        valueRole: "value"
-        model: (tools._choices.fill || []).map(k => ({ value: k, text: tools.texts.t("fill." + k) }))
-        currentIndex: Math.max(0, (tools._choices.fill || []).indexOf(tools.drawFill))
-        onActivated: tools.drawFill = String(currentValue)
+    // D-09: the buttons of the options, inline while wide, in a popover below that.
+    Component {
+        id: optionsItems
+        GridLayout {
+            rowSpacing: tools.spacing
+            columnSpacing: tools.spacing
+            // One column stacks them in the popover; many put them in a row.
+            columns: tools.compact ? 1 : tools._tools.length
+
+            KanteToolButton {
+                objectName: "libraryImport"
+                visible: tools.tool === "object"
+                text: tools.texts.t("library.import")
+                onClicked: tools.importRequested()
+                QQC2.ToolTip.text: tools.texts.t("library.importTip")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+            KanteToolButton {
+                objectName: "libraryExport"
+                visible: tools.tool === "object"
+                enabled: tools.hasOwnObjects
+                text: tools.texts.t("library.export")
+                onClicked: tools.exportRequested()
+                QQC2.ToolTip.text: tools.texts.t("library.exportTip")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+            KanteSwatchPicker {
+                objectName: "colorPicker"
+                visible: tools.drawing
+                Accessible.name: tools.texts.t("draw.color")
+                colors: (tools._choices.color || []).map(n => KanteStyle.labelColor(n))
+                names: (tools._choices.color || []).map(n => tools.texts.t("color." + n))
+                currentIndex: (tools._choices.color || []).indexOf(tools.drawColor)
+                onPicked: index => tools.drawColor = tools._choices.color[index]
+            }
+            KanteComboBox {
+                id: dashBox
+                objectName: "dashBox"
+                visible: tools.drawing
+                Accessible.name: tools.texts.t("draw.dash")
+                textRole: "text"
+                valueRole: "value"
+                model: (tools._choices.dash || []).map(k => ({ value: k, text: tools.texts.t("dash." + k) }))
+                currentIndex: Math.max(0, (tools._choices.dash || []).indexOf(tools.drawDash))
+                onActivated: tools.drawDash = String(currentValue)
+            }
+            KanteComboBox {
+                id: fillBox
+                objectName: "fillBox"
+                visible: tools.closedShape
+                Accessible.name: tools.texts.t("draw.fill")
+                textRole: "text"
+                valueRole: "value"
+                model: (tools._choices.fill || []).map(k => ({ value: k, text: tools.texts.t("fill." + k) }))
+                currentIndex: Math.max(0, (tools._choices.fill || []).indexOf(tools.drawFill))
+                onActivated: tools.drawFill = String(currentValue)
+            }
+
+            KanteToolButton {
+                objectName: "snapButton"
+                text: tools.texts.t("tool.snapping")
+                checkable: true
+                checked: tools.controller.snappingOn
+                onToggled: tools.controller.setSnapping(checked)
+                QQC2.ToolTip.text: tools.texts.t("tool.snappingTip")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+        }
     }
 
+    Loader {
+        active: !tools.compact
+        visible: active
+        sourceComponent: optionsItems
+    }
     KanteToolButton {
-        objectName: "snapButton"
-        text: tools.texts.t("tool.snapping")
-        checkable: true
-        checked: tools.controller.snappingOn
-        onToggled: tools.controller.setSnapping(checked)
-        QQC2.ToolTip.text: tools.texts.t("tool.snappingTip")
+        id: moreButton
+        objectName: "optionsButton"
+        visible: tools.compact
+        Layout.minimumWidth: implicitWidth
+        display: QQC2.AbstractButton.IconOnly
+        icon.name: "overflow-menu"
+        text: tools.texts.t("tool.options")
+        Accessible.name: text
+        onClicked: optionsPopover.openAt(moreButton)
+        QQC2.ToolTip.text: text
         QQC2.ToolTip.visible: hovered
         QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+    }
+    KantePopover {
+        id: optionsPopover
+        objectName: "optionsPopover"
+        title: tools.texts.t("tool.options")
+
+        Flow {
+            objectName: "overflowTools"
+            width: parent.width
+            spacing: tools.spacing
+            Repeater {
+                model: tools.shown.slice(tools.fitCount)
+                delegate: KanteToolButton {
+                    required property var modelData
+                    objectName: "overflow." + modelData.tool.name
+                    text: tools.texts.t("tool." + modelData.tool.name)
+                    icon.name: modelData.tool.icon
+                    display: QQC2.AbstractButton.IconOnly
+                    checkable: true
+                    checked: tools.tool === modelData.tool.name
+                    Accessible.name: text
+                    onClicked: {
+                        tools.tool = modelData.tool.name
+                        optionsPopover.close()
+                    }
+                }
+            }
+        }
+        Loader {
+            active: tools.compact
+            sourceComponent: optionsItems
+        }
     }
 
     // A list in focus takes letters and digits to pick its entry, like a text field does.
