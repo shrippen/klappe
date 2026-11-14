@@ -367,12 +367,14 @@ impl Session {
 
     /// Refuses `edit` when it changes a locked layer.
     fn check_lock(&self, edit: &PlanEdit) -> Result<(), ServiceError> {
-        let layer = edit.layer();
-        if self.lock(layer) == Lock::Locked {
-            return Err(ServiceError::Locked(layer));
+        match edit
+            .layers()
+            .into_iter()
+            .find(|layer| self.lock(*layer) == Lock::Locked)
+        {
+            Some(layer) => Err(ServiceError::Locked(layer)),
+            None => Ok(()),
         }
-
-        Ok(())
     }
 
     /// Refuses a result `next` in which a locked camera layer has moved: a figure drags its
@@ -744,6 +746,14 @@ impl Session {
         let locked = |role| self.lock(layer_of(role)) == Lock::Locked;
 
         plan_edit::pick(&self.display_list_for(selected).items, at, locked)
+    }
+
+    /// Every element whose shown items lie wholly in the box with corners `a` and `b` (LH-08).
+    /// Items of locked layers are not taken; no grips (they show for one selected way only).
+    pub fn pick_in(&self, a: Point, b: Point) -> Vec<Source> {
+        let locked = |role| self.lock(layer_of(role)) == Lock::Locked;
+
+        plan_edit::pick_in(&self.display_list().items, (a, b), locked)
     }
 
     pub fn set_snapping(&mut self, snapping: Snapping) {
