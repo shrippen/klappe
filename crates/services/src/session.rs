@@ -85,6 +85,8 @@ pub struct Session {
     dirty: bool,
     /// Changed since the last save or autosave: what `autosave` writes.
     unbacked: bool,
+    /// The project (not only the screenplay) changed since the last save.
+    project_changed: bool,
     backup: BackupState,
 }
 
@@ -121,6 +123,7 @@ impl Session {
             redo: Vec::new(),
             dirty: false,
             unbacked: false,
+            project_changed: false,
             backup,
         })
     }
@@ -142,6 +145,7 @@ impl Session {
         klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
         self.dirty = false;
         self.unbacked = false;
+        self.project_changed = false;
         self.backup = BackupState::None;
         klappe_store::drop_backup(&self.dir)?;
         Ok(())
@@ -189,9 +193,25 @@ impl Session {
     }
 
     /// Writes only the screenplay; every other file of the folder stays as it is on disk.
-    pub fn save_script(&self) -> Result<(), ServiceError> {
+    /// The backup then no longer holds the screenplay as unsaved work: it is removed if only
+    /// the screenplay was unsaved, else rewritten with the saved screenplay. An unanswered
+    /// backup (`Found`, `Unreadable`) stays for the user to decide.
+    pub fn save_script(&mut self) -> Result<(), ServiceError> {
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;
+        if self.backup != BackupState::None {
+            return Ok(());
+        }
+
+        if self.project_changed {
+            klappe_store::save_backup(&self.dir, &self.project, self.script_text.as_deref())?;
+            self.unbacked = false;
+            return Ok(());
+        }
+
+        self.dirty = false;
+        self.unbacked = false;
+        klappe_store::drop_backup(&self.dir)?;
         Ok(())
     }
 
@@ -448,6 +468,7 @@ impl Session {
             self.undo.remove(0);
         }
         self.redo.clear();
+        self.project_changed = true;
         self.touch();
     }
 
@@ -480,6 +501,7 @@ impl Session {
         };
         self.redo
             .push(std::mem::replace(&mut self.project, previous));
+        self.project_changed = true;
         self.touch();
     }
 
@@ -488,6 +510,7 @@ impl Session {
             return;
         };
         self.undo.push(std::mem::replace(&mut self.project, next));
+        self.project_changed = true;
         self.touch();
     }
 

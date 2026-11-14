@@ -476,3 +476,40 @@ fn autosave_keeps_an_unanswered_backup() {
         backup
     );
 }
+
+#[test]
+fn save_script_alone_removes_a_script_only_backup() {
+    let dir = copy("session-script-only");
+    let mut s = Session::open(&dir).unwrap();
+    s.set_script_text("Neu.\n");
+    s.autosave().unwrap();
+    assert!(dir.join(".sicherung").exists());
+
+    s.save_script().unwrap();
+
+    assert!(!dir.join(".sicherung").exists());
+    assert!(!s.is_dirty());
+    assert_eq!(s.autosave().unwrap(), Autosave::Clean);
+    assert_eq!(Session::open(&dir).unwrap().backup(), &BackupState::None);
+}
+
+#[test]
+fn save_script_rewrites_the_backup_when_the_project_changed() {
+    let dir = copy("session-script-and-project");
+    let mut s = Session::open(&dir).unwrap();
+    change_lens(&mut s);
+    s.set_script_text("Neu.\n");
+    s.autosave().unwrap();
+
+    s.save_script().unwrap();
+
+    assert!(s.is_dirty());
+    assert_eq!(s.autosave().unwrap(), Autosave::Clean);
+    // Reopened: the backup differs by the lens only; the script is saved already.
+    let mut s = Session::open(&dir).unwrap();
+    assert_eq!(s.backup(), &BackupState::Found);
+    assert_eq!(s.script_text(), "Neu.\n");
+    s.restore_backup().unwrap();
+    assert_eq!(s.shots()[0].lens_mm, 85.0);
+    assert_eq!(s.script_text(), "Neu.\n");
+}

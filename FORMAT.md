@@ -38,8 +38,9 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   gleiche wird still gelöscht. Die Sicherung wird als Ganzes ersetzt: erst entsteht
   `.sicherung.neu/` (zuletzt die Datei `fertig`), dann wird `.sicherung/` entfernt und der
   neue Ordner umbenannt. Ein vollständiger `.sicherung.neu/` (mit `fertig`) ist neuer und wird
-  zuerst gelesen, einer ohne `fertig` ist ein Absturzrest und wird ignoriert.
-  `load` liest `.sicherung/` nie
+  zuerst gelesen, einer ohne `fertig` ist ein Absturzrest und wird ignoriert. Speichert der
+  Nutzer nur das Drehbuch, wird die Sicherung entfernt, wenn nur das Drehbuch ungesichert
+  war, sonst mit dem gespeicherten Drehbuch neu geschrieben. `load` liest `.sicherung/` nie
   als Teil des Projekts. Git soll die Ordner ignorieren; Vorschlag für `.gitignore` im Projekt:
 
   ```
