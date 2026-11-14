@@ -15,7 +15,7 @@ const NO_GROUP: u32 = 0;
 
 impl Session {
     /// The location of the scene on view.
-    pub fn scene_location(&self) -> Option<&Location> {
+    pub(crate) fn scene_location(&self) -> Option<&Location> {
         self.project().location(&self.scene()?.location)
     }
 

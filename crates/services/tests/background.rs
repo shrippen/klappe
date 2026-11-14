@@ -76,6 +76,15 @@ fn background(s: &Session) -> Option<Background> {
 }
 
 #[test]
+fn has_background_follows_the_scenes_set() {
+    let (dir, _) = project_dir("bg-has");
+    let (with, _) = with_background("bg-has-with");
+
+    assert!(!Session::open(&dir).unwrap().has_background());
+    assert!(with.has_background());
+}
+
+#[test]
 fn sets_a_background_as_wide_as_the_set_and_it_survives_save_and_undo() {
     let (dir, source) = project_dir("bg-set");
     let mut s = Session::open(&dir).unwrap();

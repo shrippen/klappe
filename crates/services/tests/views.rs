@@ -111,7 +111,6 @@ fn the_overview_serialises_as_the_view_reads_it() {
 fn the_scene_location_gives_the_set() {
     let s = open();
 
-    assert_eq!(s.scene_location(), s.project().locations.first());
     assert!(!s.has_background());
     assert_eq!(s.note_text("n1").as_deref(), Some("Vorhang schließen"));
     assert_eq!(s.note_text("x"), None);
