@@ -33,12 +33,17 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 - Fehlende `figuren.toml`, fehlende Ordner und fehlendes Drehbuch gelten als leer.
 - **Sicherung (LH-05):** ungespeicherte Änderungen schreibt die Sitzung regelmäßig nach
   `.sicherung/`, ein vollständiger Projektordner im selben Format. Die Projektdateien bleiben
-  dabei unberührt; erst der Nutzer speichert, und das Speichern löscht `.sicherung/`. Beim
+  dabei unberührt; erst der Nutzer speichert, und das Speichern löscht `.sicherung/`, außer die Sitzung
+  hat sie beim Öffnen gefunden und der Nutzer hat noch nicht entschieden. Beim
   Öffnen bietet die Sitzung eine abweichende Sicherung zur Wiederherstellung an; eine
-  gleiche wird still gelöscht. Die Sicherung wird als Ganzes ersetzt: erst entsteht
-  `.sicherung.neu/` (zuletzt die Datei `fertig`), dann wird `.sicherung/` entfernt und der
-  neue Ordner umbenannt. Ein vollständiger `.sicherung.neu/` (mit `fertig`) ist neuer und wird
-  zuerst gelesen, einer ohne `fertig` ist ein Absturzrest und wird ignoriert. Speichert der
+  gleiche wird still gelöscht. Ein Sicherungsordner gilt nur mit
+  der Datei `fertig`: sie wird zuletzt geschrieben und beim Löschen zuerst entfernt, ein
+  Absturz hinterlässt also nie einen lesbaren halben Ordner. Die Sicherung wird als Ganzes
+  ersetzt: erst entsteht `.sicherung.neu/` (zuletzt `fertig`), dann wird `.sicherung/` zu
+  `.sicherung.alt/` umbenannt, `.sicherung.neu/` zu `.sicherung/` und `.sicherung.alt/`
+  gelöscht. Ein fertiger `.sicherung.neu/` ist neuer als `.sicherung/` und wird zuerst
+  gelesen; vor dem nächsten Schreiben wird er befördert, nie gelöscht. Ordner ohne `fertig`
+  sind Absturzreste und werden ignoriert. Speichert der
   Nutzer nur das Drehbuch, wird die Sicherung entfernt, wenn nur das Drehbuch ungesichert
   war, sonst mit dem gespeicherten Drehbuch neu geschrieben. `load` liest `.sicherung/` nie
   als Teil des Projekts. Git soll die Ordner ignorieren; Vorschlag für `.gitignore` im Projekt:
@@ -46,4 +51,5 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   ```
   .sicherung/
   .sicherung.neu/
+  .sicherung.alt/
   ```

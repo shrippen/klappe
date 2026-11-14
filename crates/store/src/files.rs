@@ -138,6 +138,15 @@ pub(crate) fn remove_dir(path: &Path) -> Result<(), StoreError> {
     }
 }
 
+/// Deletes a file; a file that is not there is fine.
+pub(crate) fn remove_file(path: &Path) -> Result<(), StoreError> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(io_err(path, e)),
+    }
+}
+
 pub(crate) fn rename(from: &Path, to: &Path) -> Result<(), StoreError> {
     fs::rename(from, to).map_err(|e| io_err(to, e))
 }

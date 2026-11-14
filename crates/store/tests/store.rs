@@ -704,3 +704,54 @@ fn save_backup_clears_leftovers_and_drop_removes_both() {
     drop_backup(&dir).unwrap();
     assert!(!new.exists() && !dir.join(".sicherung").exists());
 }
+
+#[test]
+fn a_backup_folder_without_marker_is_not_read() {
+    let dir = test_dir("backup-no-marker");
+    save(&dir, &example(), None).unwrap();
+    save_backup(&dir, &changed("Alt"), None).unwrap();
+    // What a crash in the middle of a delete leaves: no marker, parts gone.
+    fs::remove_file(dir.join(".sicherung/fertig")).unwrap();
+    fs::remove_dir_all(dir.join(".sicherung/szenen")).unwrap();
+
+    assert_eq!(load_backup(&dir).unwrap(), None);
+}
+
+/// A delete that fails midway must leave no readable backup.
+#[cfg(unix)]
+#[test]
+fn a_failed_drop_leaves_no_valid_backup() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = test_dir("backup-drop-fails");
+    save(&dir, &example(), None).unwrap();
+    save_backup(&dir, &changed("Alt"), None).unwrap();
+    let scenes = dir.join(".sicherung/szenen");
+    fs::set_permissions(&scenes, fs::Permissions::from_mode(0o500)).unwrap();
+
+    let dropped = drop_backup(&dir);
+    fs::set_permissions(&scenes, fs::Permissions::from_mode(0o700)).unwrap();
+
+    assert!(dropped.is_err());
+    assert_eq!(load_backup(&dir).unwrap(), None);
+}
+
+/// Crash between removing `.sicherung` and the rename leaves only a finished `.neu`; the
+/// next write must not delete it before its own is finished.
+#[test]
+fn a_finished_leftover_survives_a_failing_write() {
+    let dir = test_dir("backup-double-crash");
+    save(&dir, &example(), None).unwrap();
+    let new = dir.join(".sicherung.neu");
+    save(&new, &changed("Gerettet"), None).unwrap();
+    fs::write(new.join("fertig"), "").unwrap();
+    let mut bad = example();
+    bad.locations[0].id = "..".into();
+
+    assert!(save_backup(&dir, &bad, None).is_err());
+
+    assert_eq!(
+        load_backup(&dir).unwrap().unwrap().project.title,
+        "Gerettet"
+    );
+}
