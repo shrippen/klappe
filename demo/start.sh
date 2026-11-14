@@ -37,6 +37,7 @@ fi
 
 # One run per shot of the plan: {name, open, time, shot} -> a PNG named <name>.
 export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-offscreen} QT_FORCE_STDERR_LOGGING=1
+START_AFTER_MS=4000
 python3 -c '
 import json, os
 for s in json.loads(os.environ["SHOT_PLAN"]):
@@ -45,6 +46,9 @@ for s in json.loads(os.environ["SHOT_PLAN"]):
     set -- --language "$lang" --screenshot "$SHOT_DIR/$name.png"
     if [ -n "$open" ]; then
         set -- "$@" --open "$project"
+    else
+        # The start page draws the tile previews first (the cache is fresh on every start).
+        set -- "$@" --screenshot-after "$START_AFTER_MS"
     fi
     if [ -n "$time" ]; then
         set -- "$@" --time "$time"
