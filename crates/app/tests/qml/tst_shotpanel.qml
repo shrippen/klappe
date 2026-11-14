@@ -22,7 +22,21 @@ TestCase {
         property var calls: []
         property var follows: []
         property bool accept: true
+        property var shotCalls: []
+        property bool loaded: true
 
+        function addShot() {
+            shotCalls.push(["add"])
+            return accept
+        }
+        function copyShot(id) {
+            shotCalls.push(["copy", id])
+            return accept
+        }
+        function deleteShot(id) {
+            shotCalls.push(["delete", id])
+            return accept
+        }
         function setFollow(camera, figure) {
             follows.push([camera, figure])
             return accept
@@ -57,6 +71,7 @@ TestCase {
     function make(own, follows) {
         fake.calls = []
         fake.follows = []
+        fake.shotCalls = []
         fake.accept = true
         const panel = createTemporaryObject(panelComponent, tc, { shot: row(own, follows) })
         verify(panel)
@@ -185,5 +200,43 @@ TestCase {
         box.activated(1)
 
         compare(fake.calls.length, 0)
+    }
+
+    function test_new_shot_works_without_a_selected_shot() {
+        const panel = createTemporaryObject(panelComponent, tc, { shot: null })
+        fake.shotCalls = []
+
+        const button = field(panel, "newShotButton")
+        verify(button.enabled)
+        button.clicked()
+
+        compare(fake.shotCalls, [["add"]])
+        verify(!field(panel, "copyShotButton").enabled)
+        verify(!field(panel, "deleteShotButton").enabled)
+    }
+
+    function test_copy_sends_the_selected_shot() {
+        const panel = make(null)
+
+        field(panel, "copyShotButton").clicked()
+
+        compare(fake.shotCalls, [["copy", "s12-3"]])
+    }
+
+    function test_delete_asks_first_and_sends_only_when_confirmed() {
+        const panel = make(null)
+        const dialog = field(panel, "confirmDelete")
+
+        field(panel, "deleteShotButton").clicked()
+
+        verify(dialog.opened || dialog.visible)
+        compare(fake.shotCalls.length, 0)
+
+        dialog.reject()
+        compare(fake.shotCalls.length, 0)
+
+        field(panel, "deleteShotButton").clicked()
+        dialog.accept()
+        compare(fake.shotCalls, [["delete", "s12-3"]])
     }
 }

@@ -16,6 +16,7 @@ mod library;
 mod plan_edit;
 mod project_edit;
 mod session;
+mod shot_edit;
 mod views;
 
 pub use catalog::Language;

@@ -29,4 +29,5 @@ Stand: 2026-11-14.
 | Objektbibliothek (LH-11, LH-12): eingebaute Bibliothek als Datei (Tisch, Stuhl, Bett, Sofa, Tür, Fenster, Säule, Kamin, Treppe, Auto, Kutsche, Pferd, Baum, Podest), Form Rechteck oder Ellipse, eigene Objekte je Projekt in `bibliothek.toml`, Ablegen aus einem Objekt, Import und Export einer Bibliotheksdatei | erste Fassung; offen: eigene Objekte löschen oder umbenennen, Gruppen in der Bibliothek, Höhe (LH-17) |
 | Größe von Objekten ändern (LH-25): Breite und Tiefe als Felder, Rückgängig, Sperre der Set-Ebene | erste Fassung für Objekte; offen: Figuren, Griffe zum Ziehen |
 | Perspektive und Drehreihenfolge der Shotliste (LH-71, LH-72) | fertig |
+| Shots anlegen, kopieren, löschen (LH-70): Knöpfe und Taste S im Shot-Bereich (Kamera aus der Plan-Auswahl, Spanne ab Abspielkopf bis zum nächsten Mark), Nummer `Szene.n` fortlaufend, Rückgängig, Kameraebene-Sperre | erste Fassung; offen: Anlegen mit gezogener Spanne in der Zeitleiste, eigene Shotliste als Tabelle mit Zeilenwahl, Shot einem anderen Setup zuordnen (LH-77) |
 | Demo-Modus mit „Studio Weber“ für Screenshots | offen |

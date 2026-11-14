@@ -20,6 +20,9 @@ pub enum ServiceError {
     /// The scene's location is missing, so its set cannot change.
     #[error("no location {0}")]
     NoLocation(String),
+    /// A shot needs a camera, and the plan has none.
+    #[error("the plan has no camera")]
+    NoCamera,
     #[error("every camera letter is taken")]
     NoFreeCamera,
     /// By label and shot number, as the user knows them.
