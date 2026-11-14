@@ -8,6 +8,7 @@ TestCase {
     name: "ShotPanel"
     width: 480
     height: 700
+    visible: true
     when: windowShown
 
     QtObject {
@@ -238,5 +239,25 @@ TestCase {
         field(panel, "deleteShotButton").clicked()
         dialog.accept()
         compare(fake.shotCalls, [["delete", "s12-3"]])
+    }
+
+    // Review of PR 29: S adds a shot, except while a field takes the letter.
+    function test_s_adds_a_shot() {
+        const panel = make(null)
+
+        keyClick(Qt.Key_S)
+
+        compare(fake.shotCalls, [["add"]])
+    }
+
+    function test_s_in_a_field_adds_no_shot() {
+        const panel = make(null)
+        const number = field(panel, "numberField")
+        number.forceActiveFocus()
+        verify(number.activeFocus)
+
+        keyClick(Qt.Key_S)
+
+        compare(fake.shotCalls.length, 0)
     }
 }
