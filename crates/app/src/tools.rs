@@ -4,7 +4,10 @@
 
 use std::path::PathBuf;
 
-use klappe_services::{Layer, LightKind, Lock, PlanEdit, Point, ServiceError, Source};
+use klappe_services::{
+    Dash, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, PlanEdit, Point, ServiceError,
+    Source,
+};
 
 const FILE_URL: &str = "file://";
 
@@ -32,6 +35,70 @@ pub const OBJECT_KINDS: [&str; 7] = [
     "fireplace",
 ];
 
+/// Colours the drawing tools offer, in Kante's order of labels: the name QML and the
+/// catalogue (`color.<name>`) use.
+pub const DRAW_COLORS: [(&str, FigureColor); 7] = [
+    ("red", FigureColor::Red),
+    ("orange", FigureColor::Orange),
+    ("yellow", FigureColor::Yellow),
+    ("green", FigureColor::Green),
+    ("cyan", FigureColor::Cyan),
+    ("blue", FigureColor::Blue),
+    ("purple", FigureColor::Purple),
+];
+
+/// Line styles of the drawing tools (`dash.<name>` in the catalogue).
+pub const DRAW_DASHES: [(&str, Dash); 3] = [
+    ("solid", Dash::Solid),
+    ("dashed", Dash::Dashed),
+    ("dotted", Dash::Dotted),
+];
+
+/// Fills of the drawing tools (`fill.<name>` in the catalogue).
+pub const DRAW_FILLS: [(&str, Fill); 2] = [("outline", Fill::Outline), ("filled", Fill::Filled)];
+
+/// How far from its first point a click still closes an area, in metres: the grid is 0.25 m,
+/// so a click that snaps to a neighbour of the first point closes it too.
+const AREA_CLOSE_M: f64 = 0.3;
+
+/// An area has an inside from three points on.
+const MIN_AREA_POINTS: usize = 3;
+
+/// What the drawing tools draw with: picked in the tool bar, kept until changed.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DrawStyle {
+    pub color: FigureColor,
+    pub dash: Dash,
+    pub fill: Fill,
+}
+
+impl Default for DrawStyle {
+    fn default() -> Self {
+        Self {
+            color: FigureColor::Red,
+            dash: Dash::Solid,
+            fill: Fill::Outline,
+        }
+    }
+}
+
+impl DrawStyle {
+    /// The names the tool bar spells; `None` when one of them is unknown.
+    pub fn parse(color: &str, dash: &str, fill: &str) -> Option<DrawStyle> {
+        Some(DrawStyle {
+            color: named(&DRAW_COLORS, color)?,
+            dash: named(&DRAW_DASHES, dash)?,
+            fill: named(&DRAW_FILLS, fill)?,
+        })
+    }
+}
+
+fn named<T: Copy>(list: &[(&str, T)], name: &str) -> Option<T> {
+    list.iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, value)| *value)
+}
+
 /// The tool of the tool bar together with what was picked for it.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Tool {
@@ -48,6 +115,13 @@ pub enum Tool {
     /// A click on empty ground pins a note (the text is asked next); a click on a note asks
     /// for its text again.
     Note,
+    /// Drawing tools: a drag draws a line, an arrow, a rectangle or an ellipse between its
+    /// two corners; clicks set the points of an area.
+    Line,
+    Arrow,
+    Rect,
+    Ellipse,
+    Area,
 }
 
 impl Tool {
@@ -63,6 +137,11 @@ impl Tool {
             "camera" => Some(Tool::Camera),
             "scale" => Some(Tool::Scale),
             "note" => Some(Tool::Note),
+            "line" => Some(Tool::Line),
+            "arrow" => Some(Tool::Arrow),
+            "rect" => Some(Tool::Rect),
+            "ellipse" => Some(Tool::Ellipse),
+            "area" => Some(Tool::Area),
             "light" => LIGHT_KINDS
                 .iter()
                 .find(|(n, _)| *n == choice)
@@ -85,7 +164,15 @@ pub enum Key {
 /// A click at `at`: the tools that put something there. Select only selects, which is no edit.
 pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
     match tool {
-        Tool::Select | Tool::Wall | Tool::Scale | Tool::Note => None,
+        Tool::Select
+        | Tool::Wall
+        | Tool::Scale
+        | Tool::Note
+        | Tool::Line
+        | Tool::Arrow
+        | Tool::Rect
+        | Tool::Ellipse
+        | Tool::Area => None,
         Tool::Object(kind) if kind.is_empty() => None,
         Tool::Object(kind) => Some(PlanEdit::AddObject {
             kind: kind.clone(),
@@ -128,6 +215,31 @@ pub fn drag_edit(
             dy_m: to.y_m - from.y_m,
         }),
         _ => None,
+    }
+}
+
+/// A drag with a drawing tool from `from` to `to` (both snapped already): the drawing it
+/// makes. `None` for the other tools, for a drag that goes nowhere, and for a rectangle or
+/// ellipse without width or height.
+pub fn draw_edit(tool: &Tool, style: DrawStyle, from: Point, to: Point) -> Option<PlanEdit> {
+    let boxed = from.x_m != to.x_m && from.y_m != to.y_m;
+    let shape = match tool {
+        Tool::Line if from != to => DrawingShape::Line { from, to },
+        Tool::Arrow if from != to => DrawingShape::Arrow { from, to },
+        Tool::Rect if boxed => DrawingShape::Rect { from, to },
+        Tool::Ellipse if boxed => DrawingShape::Ellipse { from, to },
+        _ => return None,
+    };
+
+    Some(add_drawing(shape, style))
+}
+
+fn add_drawing(shape: DrawingShape, style: DrawStyle) -> PlanEdit {
+    PlanEdit::AddDrawing {
+        shape,
+        color: style.color,
+        dash: style.dash,
+        fill: style.fill,
     }
 }
 
@@ -183,6 +295,63 @@ impl ScaleStep {
             ScaleStep::First(a) => vec![a],
             ScaleStep::Both(a, b) => vec![a, b],
         }
+    }
+}
+
+/// The points of an area picked so far; the area is made on closing.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct AreaDraft(Vec<Point>);
+
+impl AreaDraft {
+    /// The draft with `at` as its next point. A click on the point before changes nothing
+    /// (a double click is no new corner).
+    pub fn click(mut self, at: Point) -> AreaDraft {
+        if self.0.last() != Some(&at) {
+            self.0.push(at);
+        }
+
+        self
+    }
+
+    /// Whether a click at `at` closes the area: it has three points and `at` is on the first.
+    pub fn closes(&self, at: Point) -> bool {
+        let Some(first) = self.0.first() else {
+            return false;
+        };
+
+        self.0.len() >= MIN_AREA_POINTS && first.distance_m(at) <= AREA_CLOSE_M
+    }
+
+    /// The points picked, for the preview on the plan.
+    pub fn points(&self) -> &[Point] {
+        &self.0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+/// The area closed from its draft; `None` below three points.
+pub fn area_edit(draft: &AreaDraft, style: DrawStyle) -> Option<PlanEdit> {
+    if draft.0.len() < MIN_AREA_POINTS {
+        return None;
+    }
+
+    Some(add_drawing(
+        DrawingShape::Area {
+            points: draft.0.clone(),
+        },
+        style,
+    ))
+}
+
+/// Whether the area tool may take points: not while the drawings layer is locked, or the
+/// points would be lost on the refused edit.
+pub fn drawing_open(lock: Lock) -> Result<(), ServiceError> {
+    match lock {
+        Lock::Locked => Err(ServiceError::Locked(Layer::Drawings)),
+        Lock::Unlocked => Ok(()),
     }
 }
 
@@ -687,6 +856,157 @@ mod tests {
         );
         assert_eq!(note_edit(&NoteDraft::New(at), "  "), None);
         assert_eq!(note_edit(&NoteDraft::Idle, "x"), None);
+    }
+
+    fn blue_dotted_filled() -> DrawStyle {
+        DrawStyle {
+            color: FigureColor::Blue,
+            dash: Dash::Dotted,
+            fill: Fill::Filled,
+        }
+    }
+
+    #[test]
+    fn the_drawing_tools_are_named_and_a_click_edits_nothing() {
+        for name in ["line", "arrow", "rect", "ellipse", "area"] {
+            let tool = Tool::parse(name, "");
+
+            assert!(tool.is_some(), "{name}");
+            assert_eq!(click_edit(&tool.unwrap_or(Tool::Select), p(1.0, 1.0)), None);
+        }
+    }
+
+    #[test]
+    fn a_drag_draws_the_shape_of_the_tool_in_the_style_picked() {
+        let (from, to) = (p(1.0, 1.0), p(4.0, 3.0));
+        let style = blue_dotted_filled();
+        let drawn = |shape| PlanEdit::AddDrawing {
+            shape,
+            color: FigureColor::Blue,
+            dash: Dash::Dotted,
+            fill: Fill::Filled,
+        };
+
+        let edit = |tool| draw_edit(&tool, style, from, to);
+
+        assert_eq!(
+            edit(Tool::Line),
+            Some(drawn(DrawingShape::Line { from, to }))
+        );
+        assert_eq!(
+            edit(Tool::Arrow),
+            Some(drawn(DrawingShape::Arrow { from, to }))
+        );
+        assert_eq!(
+            edit(Tool::Rect),
+            Some(drawn(DrawingShape::Rect { from, to }))
+        );
+        assert_eq!(
+            edit(Tool::Ellipse),
+            Some(drawn(DrawingShape::Ellipse { from, to }))
+        );
+        assert_eq!(edit(Tool::Wall), None);
+        assert_eq!(edit(Tool::Area), None);
+    }
+
+    /// A line needs a length; a rectangle and an ellipse a width and a height.
+    #[test]
+    fn a_drag_that_makes_nothing_draws_nothing() {
+        let style = DrawStyle::default();
+        let at = p(2.0, 2.0);
+
+        assert_eq!(draw_edit(&Tool::Line, style, at, at), None);
+        assert_eq!(draw_edit(&Tool::Arrow, style, at, at), None);
+        assert_eq!(draw_edit(&Tool::Rect, style, at, p(5.0, 2.0)), None);
+        assert_eq!(draw_edit(&Tool::Ellipse, style, at, p(2.0, 5.0)), None);
+        assert!(draw_edit(&Tool::Line, style, at, p(5.0, 2.0)).is_some());
+    }
+
+    #[test]
+    fn the_style_is_read_from_the_names_of_the_tool_bar() {
+        assert_eq!(
+            DrawStyle::parse("blue", "dotted", "filled"),
+            Some(blue_dotted_filled())
+        );
+        assert_eq!(DrawStyle::parse("pink", "solid", "outline"), None);
+        assert_eq!(DrawStyle::parse("red", "wavy", "outline"), None);
+        assert_eq!(DrawStyle::parse("red", "solid", "half"), None);
+        assert_eq!(
+            DrawStyle::parse("red", "solid", "outline"),
+            Some(DrawStyle::default())
+        );
+    }
+
+    /// The tool bar translates each name with `color.<name>`, `dash.<name>`, `fill.<name>`.
+    #[test]
+    fn every_style_name_has_a_text_in_both_languages() {
+        let keys = DRAW_COLORS
+            .iter()
+            .map(|(n, _)| format!("color.{n}"))
+            .chain(DRAW_DASHES.iter().map(|(n, _)| format!("dash.{n}")))
+            .chain(DRAW_FILLS.iter().map(|(n, _)| format!("fill.{n}")));
+
+        for key in keys {
+            for language in [Language::German, Language::English] {
+                assert_ne!(language.text(&key), key);
+            }
+        }
+    }
+
+    #[test]
+    fn clicks_collect_the_points_of_an_area() {
+        let (a, b, c) = (p(0.0, 0.0), p(4.0, 0.0), p(4.0, 3.0));
+
+        let draft = AreaDraft::default().click(a).click(b).click(b).click(c);
+
+        assert_eq!(draft.points(), [a, b, c]);
+        assert!(!draft.is_empty());
+    }
+
+    /// Two points make no area: a click on the first point adds a point. With three, a click
+    /// within 0.3 m of the first closes; further away it adds.
+    #[test]
+    fn a_click_on_the_first_point_closes_from_three_points_on() {
+        let (a, b, c) = (p(0.0, 0.0), p(4.0, 0.0), p(4.0, 3.0));
+        let two = AreaDraft::default().click(a).click(b);
+        let three = two.clone().click(c);
+
+        assert!(!AreaDraft::default().closes(a));
+        assert!(!two.closes(a));
+        assert!(three.closes(a));
+        assert!(three.closes(p(0.25, 0.0)));
+        assert!(!three.closes(p(0.5, 0.0)));
+    }
+
+    #[test]
+    fn an_area_needs_three_points_and_takes_the_style() {
+        let (a, b, c) = (p(0.0, 0.0), p(4.0, 0.0), p(4.0, 3.0));
+        let two = AreaDraft::default().click(a).click(b);
+        let three = two.clone().click(c);
+
+        assert_eq!(area_edit(&two, DrawStyle::default()), None);
+        assert_eq!(
+            area_edit(&three, blue_dotted_filled()),
+            Some(PlanEdit::AddDrawing {
+                shape: DrawingShape::Area {
+                    points: vec![a, b, c]
+                },
+                color: FigureColor::Blue,
+                dash: Dash::Dotted,
+                fill: Fill::Filled,
+            })
+        );
+    }
+
+    /// Like the notes: with the drawings layer locked the tool took points and dropped the
+    /// area on closing.
+    #[test]
+    fn a_locked_drawings_layer_takes_no_points() {
+        assert!(matches!(
+            drawing_open(Lock::Locked),
+            Err(ServiceError::Locked(Layer::Drawings))
+        ));
+        assert!(drawing_open(Lock::Unlocked).is_ok());
     }
 
     #[test]

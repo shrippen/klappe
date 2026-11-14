@@ -19,13 +19,21 @@ TestCase {
         property string choicesJson: JSON.stringify({
             figure: [{ id: "elisabeth", name: "Elisabeth" }, { id: "burgvogt", name: "Burgvogt" }],
             object: ["table", "chair"],
-            light: ["fresnel", "led-panel"]
+            light: ["fresnel", "led-panel"],
+            color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
+            dash: ["solid", "dashed", "dotted"],
+            fill: ["outline", "filled"]
         })
         property var tools: []
         property var snaps: []
+        property var styles: []
 
         function setTool(tool, choice) {
             tools.push([tool, choice])
+            return true
+        }
+        function setDrawStyle(color, dash, fill) {
+            styles.push([color, dash, fill])
             return true
         }
         function setSnapping(on) {
@@ -46,6 +54,7 @@ TestCase {
     function init() {
         fake.tools = []
         fake.snaps = []
+        fake.styles = []
     }
 
     function make() {
@@ -67,7 +76,8 @@ TestCase {
         const bar = make()
         const keys = [[Qt.Key_W, "wall"], [Qt.Key_O, "object"], [Qt.Key_F, "figure"],
                       [Qt.Key_C, "camera"], [Qt.Key_L, "light"], [Qt.Key_M, "scale"],
-                      [Qt.Key_N, "note"],
+                      [Qt.Key_N, "note"], [Qt.Key_I, "line"], [Qt.Key_A, "arrow"],
+                      [Qt.Key_B, "rect"], [Qt.Key_E, "ellipse"], [Qt.Key_P, "area"],
                       [Qt.Key_V, "select"]]
 
         for (const [key, tool] of keys) {
@@ -122,6 +132,52 @@ TestCase {
         compare(findChild(bar, "objectBox").textAt(0), "Tisch")
         bar.tool = "light"
         compare(findChild(bar, "lightBox").textAt(1), "LED-Panel")
+    }
+
+    // LH-19: colour and line style for every drawing tool, the fill only where there is an inside.
+    function test_the_style_shows_for_the_drawing_tools() {
+        const bar = make()
+        const shown = () => ["colorPicker", "dashBox", "fillBox"].filter(n => findChild(bar, n).visible)
+
+        compare(shown(), [])
+        for (const tool of ["line", "arrow"]) {
+            bar.tool = tool
+            compare(shown(), ["colorPicker", "dashBox"], tool)
+        }
+        for (const tool of ["rect", "ellipse", "area"]) {
+            bar.tool = tool
+            compare(shown(), ["colorPicker", "dashBox", "fillBox"], tool)
+        }
+        bar.tool = "wall"
+        compare(shown(), [])
+    }
+
+    function test_the_style_goes_to_the_controller() {
+        const bar = make()
+        bar.tool = "rect"
+
+        compare(fake.styles[fake.styles.length - 1], ["red", "solid", "outline"])
+
+        findChild(bar, "colorPicker").picked(5)
+        compare(fake.styles[fake.styles.length - 1], ["blue", "solid", "outline"])
+
+        const dash = findChild(bar, "dashBox")
+        dash.currentIndex = 2
+        dash.activated(2)
+        compare(fake.styles[fake.styles.length - 1], ["blue", "dotted", "outline"])
+
+        const fill = findChild(bar, "fillBox")
+        fill.currentIndex = 1
+        fill.activated(1)
+        compare(fake.styles[fake.styles.length - 1], ["blue", "dotted", "filled"])
+    }
+
+    function test_the_style_controls_have_translated_names() {
+        const bar = make()
+        bar.tool = "area"
+
+        compare(findChild(bar, "dashBox").textAt(1), "Gestrichelt")
+        compare(findChild(bar, "fillBox").textAt(1), "Gefüllt")
     }
 
     function test_snapping_switch_tells_the_controller() {

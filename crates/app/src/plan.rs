@@ -175,14 +175,20 @@ fn shape(dir: &Path, item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<
     }))
 }
 
-/// The points picked so far for a scale, and the line between two: a preview on top of the
-/// plan. Not part of the project.
+/// The points picked so far for a scale or an area, and the line or path between them: a
+/// preview on top of the plan. Not part of the project.
 fn guide(points: &[Point]) -> Vec<Value> {
     let mut shapes = Vec::new();
 
     if let [from, to] = points {
         shapes.push(json!({
             "kind": "line", "points": flat(&[*from, *to]), "radius": 0.0, "width": 0.0,
+            "label": "focus", "stroke": DASHED, "fill": "none", "text": "", "key": "",
+        }));
+    }
+    if points.len() > 2 {
+        shapes.push(json!({
+            "kind": "polyline", "points": flat(points), "radius": 0.0, "width": 0.0,
             "label": "focus", "stroke": DASHED, "fill": "none", "text": "", "key": "",
         }));
     }

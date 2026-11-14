@@ -39,12 +39,16 @@ pub mod qobject {
         #[qproperty(QString, selected_key, cxx_name = "selectedKey")]
         /// Whether points snap to the grid; change it with `setSnapping`.
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
-        /// `{ figure: [{ id, name }], object: [kind], light: [kind] }`: what the tool lists offer.
+        /// `{ figure: [{ id, name }], object: [kind], light: [kind], color: [name], dash: [name],
+        /// fill: [name] }`: what the tool lists offer.
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Whether the set has a background image.
         #[qproperty(bool, has_background, cxx_name = "hasBackground")]
         /// Points picked so far by the scale tool: 0, 1 or 2 (then the length is asked).
         #[qproperty(i32, scale_points, cxx_name = "scalePoints")]
+        /// Points picked so far by the area tool: 0 for none, else the area is open (Enter or a
+        /// click on the first point closes it, `cancelArea` drops it).
+        #[qproperty(i32, area_points, cxx_name = "areaPoints")]
         /// Whether the text of a note is being asked (`commitNote` or `cancelNote` answers).
         #[qproperty(bool, asks_note, cxx_name = "asksNote")]
         /// The text the question starts with: the note's own when it is edited.
@@ -157,6 +161,27 @@ pub mod qobject {
         #[cxx_name = "cancelScale"]
         fn cancel_scale(self: Pin<&mut Self>);
 
+        /// What the drawing tools draw with: names as `choicesJson` lists them. False for an
+        /// unknown name.
+        #[qinvokable]
+        #[cxx_name = "setDrawStyle"]
+        fn set_draw_style(
+            self: Pin<&mut Self>,
+            color: &QString,
+            dash: &QString,
+            fill: &QString,
+        ) -> bool;
+
+        /// Closes the area being drawn; false below three points.
+        #[qinvokable]
+        #[cxx_name = "finishArea"]
+        fn finish_area(self: Pin<&mut Self>) -> bool;
+
+        /// Drops the area being drawn.
+        #[qinvokable]
+        #[cxx_name = "cancelArea"]
+        fn cancel_area(self: Pin<&mut Self>);
+
         /// Gives the asked note its text; false for a blank text or no question.
         #[qinvokable]
         #[cxx_name = "commitNote"]
@@ -232,7 +257,10 @@ use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
-use crate::tools::{self, Backdrop, DragPhase, DragStep, Key, NoteDraft, Preview, ScaleStep, Tool};
+use crate::tools::{
+    self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Key, NoteDraft, Preview, ScaleStep,
+    Tool,
+};
 
 pub struct ControllerRust {
     session: Option<Session>,
@@ -261,6 +289,10 @@ pub struct ControllerRust {
     selected: Option<Source>,
     tool: Tool,
     scale: ScaleStep,
+    /// What the drawing tools draw with, and the area they are drawing.
+    draw: DrawStyle,
+    area: AreaDraft,
+    area_points: i32,
     has_background: bool,
     scale_points: i32,
     /// The note whose text is asked, if any.
@@ -335,6 +367,9 @@ impl Default for ControllerRust {
             selected: None,
             tool: Tool::Select,
             scale: ScaleStep::Idle,
+            draw: DrawStyle::default(),
+            area: AreaDraft::default(),
+            area_points: 0,
             has_background: false,
             scale_points: 0,
             note: NoteDraft::Idle,
@@ -356,6 +391,14 @@ impl Default for ControllerRust {
 }
 
 impl ControllerRust {
+    /// The points picked for a scale or an area: a preview on top of the plan.
+    fn picked(&self) -> Vec<Point> {
+        let mut points = self.scale.points();
+        points.extend_from_slice(self.area.points());
+
+        points
+    }
+
     /// Every property from the session, at start (no signals needed yet).
     fn fill(&mut self) {
         let Some(s) = &self.session else {
@@ -424,7 +467,19 @@ fn choices_json(s: &Session) -> String {
         .collect();
     let lights: Vec<_> = tools::LIGHT_KINDS.iter().map(|(name, _)| name).collect();
 
-    json!({ "figure": figures, "object": tools::OBJECT_KINDS, "light": lights }).to_string()
+    let colors: Vec<_> = tools::DRAW_COLORS.iter().map(|(n, _)| n).collect();
+    let dashes: Vec<_> = tools::DRAW_DASHES.iter().map(|(n, _)| n).collect();
+    let fills: Vec<_> = tools::DRAW_FILLS.iter().map(|(n, _)| n).collect();
+
+    json!({
+        "figure": figures,
+        "object": tools::OBJECT_KINDS,
+        "light": lights,
+        "color": colors,
+        "dash": dashes,
+        "fill": fills,
+    })
+    .to_string()
 }
 
 fn layers_json(s: &Session) -> String {
@@ -555,7 +610,7 @@ impl qobject::Controller {
                     s,
                     &s.display_list(),
                     this.rust().selected.as_ref(),
-                    &this.rust().scale.points(),
+                    &this.rust().picked(),
                 ),
                 to_json(&s.tracks()),
                 to_json(&s.shots()),
@@ -573,6 +628,7 @@ impl qobject::Controller {
         let (plan, tracks, shots, script, layers, locks, time, shot, undo, redo, dirty, selected) =
             values;
         let scale_points = self.rust().scale.points().len();
+        let area_points = self.rust().area.points().len();
         let asks_note = self.rust().note != NoteDraft::Idle;
 
         // Restoring a backup or undoing it can change what only the start used to set.
@@ -612,6 +668,8 @@ impl qobject::Controller {
         self.as_mut().set_has_background(background);
         self.as_mut()
             .set_scale_points(i32::try_from(scale_points).unwrap_or_default());
+        self.as_mut()
+            .set_area_points(i32::try_from(area_points).unwrap_or_default());
         self.as_mut().set_asks_note(asks_note);
     }
 
@@ -754,9 +812,13 @@ impl qobject::Controller {
         // Points picked for a scale do not outlast the tool.
         let leaves_scale = tool != Tool::Scale && self.rust().scale != ScaleStep::Idle;
         let leaves_note = tool != Tool::Note && self.rust().note != NoteDraft::Idle;
+        let leaves_area = tool != Tool::Area && !self.rust().area.is_empty();
         self.as_mut().rust_mut().get_mut().tool = tool;
         if leaves_scale {
             self.as_mut().cancel_scale();
+        }
+        if leaves_area {
+            self.as_mut().cancel_area();
         }
         if leaves_note {
             self.cancel_note();
@@ -773,6 +835,7 @@ impl qobject::Controller {
         done: bool,
     ) -> bool {
         let tool = self.rust().tool.clone();
+        let style = self.rust().draw;
         let Some(s) = self.as_mut().session() else {
             return false;
         };
@@ -789,7 +852,8 @@ impl qobject::Controller {
             Tool::Select | Tool::Scale => (from, to),
             _ => (s.snap(from), s.snap(to)),
         };
-        let mut edit = tools::drag_edit(&tool, grabbed.as_ref(), from, to);
+        let mut edit = tools::drag_edit(&tool, grabbed.as_ref(), from, to)
+            .or_else(|| tools::draw_edit(&tool, style, from, to));
         if tool == Tool::Scale && !has_background(s) {
             edit = None;
         }
@@ -836,6 +900,9 @@ impl qobject::Controller {
             let picked = s.pick(Point::new(x, y));
             return self.ask_note(NoteDraft::click(at, picked.as_ref()));
         }
+        if tool == Tool::Area {
+            return self.click_area(at);
+        }
 
         let Some(edit) = tools::click_edit(&tool, at) else {
             return false;
@@ -876,6 +943,42 @@ impl qobject::Controller {
 
     fn cancel_scale(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().get_mut().scale = ScaleStep::Idle;
+        self.refresh();
+    }
+
+    fn set_draw_style(
+        mut self: Pin<&mut Self>,
+        color: &QString,
+        dash: &QString,
+        fill: &QString,
+    ) -> bool {
+        let names = (color.to_string(), dash.to_string(), fill.to_string());
+        let Some(style) = DrawStyle::parse(&names.0, &names.1, &names.2) else {
+            return false;
+        };
+
+        self.as_mut().rust_mut().get_mut().draw = style;
+        true
+    }
+
+    fn finish_area(mut self: Pin<&mut Self>) -> bool {
+        let style = self.rust().draw;
+        let Some(edit) = tools::area_edit(&self.rust().area, style) else {
+            return false;
+        };
+
+        // The points stay when the edit is refused, so the work is not lost.
+        if !self.as_mut().commit_edit(edit) {
+            return false;
+        }
+
+        self.as_mut().rust_mut().get_mut().area = AreaDraft::default();
+        self.refresh();
+        true
+    }
+
+    fn cancel_area(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().get_mut().area = AreaDraft::default();
         self.refresh();
     }
 
@@ -974,6 +1077,29 @@ impl qobject::Controller {
         true
     }
 
+    /// A click of the area tool: the next point, or the closing click on the first one.
+    fn click_area(mut self: Pin<&mut Self>, at: Point) -> bool {
+        let language = self.rust().language;
+        let lock = self
+            .rust()
+            .session
+            .as_ref()
+            .map(|s| s.lock(Layer::Drawings));
+        if let Some(Err(e)) = lock.map(tools::drawing_open) {
+            self.as_mut().say(error_text(language, &e));
+            return false;
+        }
+
+        let draft = self.rust().area.clone();
+        if draft.closes(at) {
+            return self.finish_area();
+        }
+
+        self.as_mut().rust_mut().get_mut().area = draft.click(at);
+        self.refresh();
+        true
+    }
+
     /// A click of the scale tool: the next point of the stretch. Without a background there
     /// is nothing to scale.
     fn pick_scale_point(mut self: Pin<&mut Self>, at: Point) -> bool {
@@ -994,7 +1120,7 @@ impl qobject::Controller {
             let this = self.as_ref();
             this.rust().session.as_ref().and_then(|s| {
                 let list = s.preview(edit).ok()?;
-                let picked = this.rust().scale.points();
+                let picked = this.rust().picked();
                 Some(plan_json(s, &list, this.rust().selected.as_ref(), &picked))
             })
         };

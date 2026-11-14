@@ -32,6 +32,9 @@ TestCase {
         property int noteCancels: 0
         property int noteEdits: 0
         property bool noteOk: true
+        property int areaPoints: 0
+        property int areaFinishes: 0
+        property int areaCancels: 0
 
         function describe(key) {
             if (key === "note:n1") {
@@ -63,6 +66,14 @@ TestCase {
             asksNote = false
         }
         function editSelectedNote() { noteEdits++ }
+        function finishArea() {
+            areaFinishes++
+            return true
+        }
+        function cancelArea() {
+            areaCancels++
+            areaPoints = 0
+        }
         function cancelScale() {
             scaleCancels++
             scalePoints = 0
@@ -117,6 +128,9 @@ TestCase {
         fake.noteCancels = 0
         fake.noteEdits = 0
         fake.noteOk = true
+        fake.areaPoints = 0
+        fake.areaFinishes = 0
+        fake.areaCancels = 0
     }
 
     function drawn(tool) {
@@ -142,6 +156,50 @@ TestCase {
         verify(!fake.drags[0].done)
         verify(fake.drags[fake.drags.length - 1].done)
         verify(fake.drags[0].to[0] > fake.drags[0].from[0])
+    }
+
+    // LH-19: a drag with a drawing tool draws; the area tool takes clicks.
+    function test_a_drawing_tool_drag_goes_to_the_controller() {
+        for (const tool of ["line", "arrow", "rect", "ellipse"]) {
+            fake.drags = []
+            const area = drawn(tool)
+
+            drag(area, 3)
+
+            verify(fake.drags.length >= 2, tool)
+            verify(fake.drags[fake.drags.length - 1].done, tool)
+        }
+    }
+
+    function test_enter_closes_the_area_and_escape_drops_it() {
+        const area = drawn("area")
+        fake.areaPoints = 3
+
+        keyClick(Qt.Key_Return)
+        compare(fake.areaFinishes, 1)
+        keyClick(Qt.Key_Enter)
+        compare(fake.areaFinishes, 2)
+
+        keyClick(Qt.Key_Escape)
+        compare(fake.areaCancels, 1)
+        compare(fake.areaPoints, 0)
+
+        // Nothing drawn: the keys stay free.
+        keyClick(Qt.Key_Return)
+        keyClick(Qt.Key_Escape)
+        compare(fake.areaFinishes, 2)
+        compare(fake.areaCancels, 1)
+    }
+
+    function test_the_area_keys_belong_to_the_area_tool() {
+        const area = drawn("wall")
+        fake.areaPoints = 3
+
+        keyClick(Qt.Key_Return)
+        keyClick(Qt.Key_Escape)
+
+        compare(fake.areaFinishes, 0)
+        compare(fake.areaCancels, 0)
     }
 
     function test_select_pans_on_empty_ground() {
