@@ -557,12 +557,13 @@ use std::path::Path;
 use crate::args::AppArgs;
 use crate::camera::{self, CameraField};
 use crate::catalog::Language;
+use crate::fileurl;
 use crate::manage;
 use crate::notice::{backup_view, error_text, Status};
-use crate::plan::{self, Measure};
+use crate::plan::{self, ElementKind, Measure};
 use crate::tools::{
     self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Grip, Key, MeasureStep, NoteDraft,
-    Pick, Preview, ScaleStep, Selection, Tool,
+    Pick, Preview, ScaleStep, Selection, Tool, Typed,
 };
 
 /// Whether `refresh` found another scene or plan on view than before.
@@ -1453,7 +1454,7 @@ impl qobject::Controller {
     }
 
     fn set_background(mut self: Pin<&mut Self>, path: &QString) -> bool {
-        let source = tools::local_path(&path.to_string());
+        let source = fileurl::to_path(&path.to_string());
         if !self
             .as_mut()
             .commit_edit(PlanEdit::SetBackground { source })
@@ -1474,8 +1475,9 @@ impl qobject::Controller {
 
     fn calibrate(mut self: Pin<&mut Self>, distance: &QString) -> bool {
         let step = self.rust().scale;
-        let Some(edit) = tools::scale_edit(step, &distance.to_string()) else {
-            return false;
+        let edit = match tools::scale_edit(step, &distance.to_string()) {
+            Some(Ok(edit)) => edit,
+            typed => return self.commit_typed(typed),
         };
 
         self.as_mut().rust_mut().get_mut().scale = ScaleStep::Idle;
@@ -1624,30 +1626,23 @@ impl qobject::Controller {
 
     fn resize_selected(self: Pin<&mut Self>, width: &QString, depth: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::resize_edit(selected, &width.to_string(), &depth.to_string())
-        else {
-            return false;
-        };
+        let typed = tools::resize_edit(selected, &width.to_string(), &depth.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::object_height_edit(selected, &height.to_string()) else {
-            return false;
-        };
+        let typed = tools::object_height_edit(selected, &height.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn set_camera_aim(self: Pin<&mut Self>, height: &QString, tilt: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::aim_edit(selected, &height.to_string(), &tilt.to_string()) else {
-            return false;
-        };
+        let typed = tools::aim_edit(selected, &height.to_string(), &tilt.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn set_camera_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool {
@@ -1658,12 +1653,9 @@ impl qobject::Controller {
             return false;
         };
         let selected = self.rust().selected.only();
-        let edit = camera::camera_edit(selected, s.camera_presets(), field, &value.to_string());
-        let Some(edit) = edit else {
-            return false;
-        };
+        let typed = camera::camera_edit(selected, s.camera_presets(), field, &value.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn mark_info(&self) -> QString {
@@ -1703,11 +1695,9 @@ impl qobject::Controller {
 
     fn set_mark_hold(self: Pin<&mut Self>, seconds: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::hold_edit(selected, &seconds.to_string()) else {
-            return false;
-        };
+        let typed = tools::hold_edit(selected, &seconds.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn set_mark_pace(self: Pin<&mut Self>, pace: &QString) -> bool {
@@ -1746,7 +1736,7 @@ impl qobject::Controller {
 
     fn import_library(mut self: Pin<&mut Self>, path: &QString) -> bool {
         let language = self.rust().language;
-        let path = tools::local_path(&path.to_string());
+        let path = fileurl::to_path(&path.to_string());
         let Some(s) = self.as_mut().session() else {
             return false;
         };
@@ -1767,7 +1757,7 @@ impl qobject::Controller {
 
     fn export_library(mut self: Pin<&mut Self>, path: &QString) -> bool {
         let language = self.rust().language;
-        let path = tools::local_path(&path.to_string());
+        let path = fileurl::to_path(&path.to_string());
         let Some(s) = self.as_mut().session() else {
             return false;
         };
@@ -1962,6 +1952,16 @@ impl qobject::Controller {
         true
     }
 
+    /// Applies what a typed field made of the selection; a refused text goes to the status
+    /// line.
+    fn commit_typed(self: Pin<&mut Self>, typed: Typed) -> bool {
+        match typed {
+            None => false,
+            Some(Ok(edit)) => self.commit_edit(edit),
+            Some(Err(e)) => self.report(Some(Err(e))),
+        }
+    }
+
     /// Applies `edit`; an error goes to the status line.
     fn commit_edit(mut self: Pin<&mut Self>, edit: PlanEdit) -> bool {
         let language = self.rust().language;
@@ -2074,14 +2074,14 @@ impl qobject::Controller {
     }
 
     fn create_project(self: Pin<&mut Self>, path: &QString, title: &QString) -> bool {
-        let dir = tools::local_path(&path.to_string());
+        let dir = fileurl::to_path(&path.to_string());
         let created = Session::create(&dir, &title.to_string());
 
         self.switch_to(created)
     }
 
     fn open_project(self: Pin<&mut Self>, path: &QString) -> bool {
-        let dir = tools::local_path(&path.to_string());
+        let dir = fileurl::to_path(&path.to_string());
         let opened = Session::open(&dir);
 
         self.switch_to(opened)
@@ -2385,10 +2385,7 @@ impl qobject::Controller {
 
 /// Width and depth typed in the location form.
 fn sizes(width: &QString, depth: &QString) -> Result<(f64, f64), ServiceError> {
-    let width_m = manage::metres(Field::Width, &width.to_string())?;
-    let depth_m = manage::metres(Field::Depth, &depth.to_string())?;
-
-    Ok((width_m, depth_m))
+    manage::sizes(&width.to_string(), &depth.to_string())
 }
 
 /// The colour a form sends by its role name.
@@ -2457,8 +2454,7 @@ fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
 
 /// Data for a tooltip; QML puts it into words with the catalogue.
 fn describe(s: &Session, key: &str) -> serde_json::Value {
-    let mut parts = key.split(':');
-    let (Some(kind), Some(id)) = (parts.next(), parts.next()) else {
+    let Some(plan::ParsedKey { kind, id, index }) = plan::parse_key(key) else {
         return json!({});
     };
     let Some(plan) = s.plan() else {
@@ -2466,7 +2462,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
     };
 
     match kind {
-        "camera" => {
+        ElementKind::Camera => {
             let Some(c) = plan.camera(id) else {
                 return json!({});
             };
@@ -2497,29 +2493,27 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 "follows": follows,
             })
         }
-        "figure" | "mark" => {
+        ElementKind::Figure | ElementKind::Mark => {
             let name = s
                 .project()
                 .character(id)
                 .map(|c| c.title())
                 .unwrap_or_default();
-            let index: Option<usize> = parts.next().and_then(|i| i.parse().ok());
             let at = index
                 .and_then(|i| plan.figure(id)?.marks.get(i))
                 .map(|m| m.at_s);
-            json!({ "kind": kind, "name": name, "index": index.map(|i| i + 1), "time": at })
+            json!({ "kind": kind.name(), "name": name, "index": index.map(|i| i + 1), "time": at })
         }
-        "figurevia" | "cameravia" => {
-            let index: Option<usize> = parts.next().and_then(|i| i.parse().ok());
+        ElementKind::FigureVia | ElementKind::CameraVia => {
             json!({ "kind": "bend", "index": index.map(|i| i + 1) })
         }
-        "light" => {
+        ElementKind::Light => {
             let Some(l) = plan.lights.iter().find(|l| l.id == id) else {
                 return json!({});
             };
             json!({ "kind": "light", "label": l.label, "temp": l.color_temp_k, "power": l.power_w })
         }
-        "object" => {
+        ElementKind::Object => {
             let set = s
                 .scene()
                 .and_then(|sc| s.project().location(&sc.location))
@@ -2536,8 +2530,10 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 "height": o.height_m,
             })
         }
-        "note" => json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() }),
-        _ => json!({}),
+        ElementKind::Note => {
+            json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() })
+        }
+        ElementKind::Wall | ElementKind::Drawing => json!({}),
     }
 }
 
@@ -2605,6 +2601,41 @@ mod tests {
 
         assert_eq!(figure["name"], "Burgvogt (12)");
         assert_eq!(camera["follows"], "Burgvogt (12)");
+    }
+
+    /// A tooltip reads back the key the plan wrote: the kind, the id and the index.
+    #[test]
+    fn describe_reads_the_keys_the_plan_writes() {
+        let s = example();
+        let described = |source: Source| describe(&s, &plan::key(&source));
+        let mark = |index| Source::Mark {
+            character: "elisabeth".into(),
+            index,
+        };
+
+        assert_eq!(described(Source::Camera("a".into()))["kind"], "camera");
+        assert_eq!(
+            described(Source::Figure("elisabeth".into()))["kind"],
+            "figure"
+        );
+        assert_eq!(described(mark(0))["kind"], "mark");
+        assert_eq!(described(mark(0))["index"], 1);
+        assert_eq!(described(mark(2))["index"], 3);
+
+        let via = described(Source::FigureVia {
+            character: "elisabeth".into(),
+            index: 1,
+        });
+        assert_eq!(via, json!({ "kind": "bend", "index": 2 }));
+        let via = described(Source::CameraVia {
+            camera: "a".into(),
+            index: 0,
+        });
+        assert_eq!(via, json!({ "kind": "bend", "index": 1 }));
+
+        assert_eq!(described(Source::Wall(0)), json!({}));
+        assert_eq!(described(Source::Drawing("d".into())), json!({}));
+        assert_eq!(describe(&s, "nonsense:x"), json!({}));
     }
 
     /// The object tool lists the library: sizes in metres, built in first.

@@ -6,6 +6,8 @@ use std::path::Path;
 use klappe_services::{Dash, DisplayList, Fill, Item, Point, Role, Shape, Source};
 use serde_json::{json, Value};
 
+use crate::fileurl;
+
 /// Radius of the points of the scale gesture on the plan.
 const GUIDE_POINT_RADIUS_M: f64 = 0.15;
 
@@ -71,20 +73,93 @@ fn fill_of(fill: Fill) -> &'static str {
     }
 }
 
+/// The kinds of element a key names; `name` is the key's first part.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ElementKind {
+    Object,
+    Light,
+    Camera,
+    Figure,
+    Mark,
+    FigureVia,
+    CameraVia,
+    Wall,
+    Note,
+    Drawing,
+}
+
+impl ElementKind {
+    const ALL: [ElementKind; 10] = [
+        Self::Object,
+        Self::Light,
+        Self::Camera,
+        Self::Figure,
+        Self::Mark,
+        Self::FigureVia,
+        Self::CameraVia,
+        Self::Wall,
+        Self::Note,
+        Self::Drawing,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Object => "object",
+            Self::Light => "light",
+            Self::Camera => "camera",
+            Self::Figure => "figure",
+            Self::Mark => "mark",
+            Self::FigureVia => "figurevia",
+            Self::CameraVia => "cameravia",
+            Self::Wall => "wall",
+            Self::Note => "note",
+            Self::Drawing => "drawing",
+        }
+    }
+
+    fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|kind| kind.name() == name)
+    }
+}
+
 /// `camera:a`, `figure:elisabeth`, `mark:elisabeth:0` …; the app's tooltips read it back.
 pub fn key(source: &Source) -> String {
-    match source {
-        Source::Object(id) => format!("object:{id}"),
-        Source::Light(id) => format!("light:{id}"),
-        Source::Camera(id) => format!("camera:{id}"),
-        Source::Figure(id) => format!("figure:{id}"),
-        Source::Mark { character, index } => format!("mark:{character}:{index}"),
-        Source::FigureVia { character, index } => format!("figurevia:{character}:{index}"),
-        Source::CameraVia { camera, index } => format!("cameravia:{camera}:{index}"),
-        Source::Wall(index) => format!("wall:{index}"),
-        Source::Note(id) => format!("note:{id}"),
-        Source::Drawing(id) => format!("drawing:{id}"),
-    }
+    let (kind, rest) = match source {
+        Source::Object(id) => (ElementKind::Object, id.clone()),
+        Source::Light(id) => (ElementKind::Light, id.clone()),
+        Source::Camera(id) => (ElementKind::Camera, id.clone()),
+        Source::Figure(id) => (ElementKind::Figure, id.clone()),
+        Source::Mark { character, index } => (ElementKind::Mark, format!("{character}:{index}")),
+        Source::FigureVia { character, index } => {
+            (ElementKind::FigureVia, format!("{character}:{index}"))
+        }
+        Source::CameraVia { camera, index } => {
+            (ElementKind::CameraVia, format!("{camera}:{index}"))
+        }
+        Source::Wall(index) => (ElementKind::Wall, index.to_string()),
+        Source::Note(id) => (ElementKind::Note, id.clone()),
+        Source::Drawing(id) => (ElementKind::Drawing, id.clone()),
+    };
+
+    format!("{}:{rest}", kind.name())
+}
+
+/// A key taken apart: `mark:elisabeth:0` is `Mark`, `elisabeth` and index 0.
+pub struct ParsedKey<'a> {
+    pub kind: ElementKind,
+    pub id: &'a str,
+    /// The third part, when it is a number.
+    pub index: Option<usize>,
+}
+
+/// What `key` wrote, read back; `None` for a key of no known kind or without an id.
+pub fn parse_key(key: &str) -> Option<ParsedKey<'_>> {
+    let mut parts = key.split(':');
+    let kind = ElementKind::from_name(parts.next()?)?;
+    let id = parts.next()?;
+    let index = parts.next().and_then(|i| i.parse().ok());
+
+    Some(ParsedKey { kind, id, index })
 }
 
 fn flat(points: &[Point]) -> Vec<f64> {
@@ -92,27 +167,12 @@ fn flat(points: &[Point]) -> Vec<f64> {
 }
 
 /// A `file://` URL for `file` (relative to the project folder `dir`): the canvas wants an
-/// absolute URL. Anything but unreserved characters and `/` is percent-encoded.
+/// absolute URL.
 fn file_url(dir: &Path, file: &str) -> String {
     let joined = dir.join(file);
     let absolute = std::path::absolute(&joined).unwrap_or(joined);
-    let path = absolute.to_string_lossy().replace('\\', "/");
 
-    // A Windows path (`C:/…`) needs the slash after `file://`.
-    let mut url = String::from("file://");
-    if !path.starts_with('/') {
-        url.push('/');
-    }
-    for byte in path.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' | b':' => {
-                url.push(char::from(byte));
-            }
-            _ => url.push_str(&format!("%{byte:02X}")),
-        }
-    }
-
-    url
+    fileurl::from_path(&absolute)
 }
 
 fn image(dir: &Path, shape: &Shape) -> Option<Value> {
@@ -414,6 +474,62 @@ mod tests {
         assert_eq!(key(&camera), "cameravia:a:1");
     }
 
+    /// Every kind of element reads back from the key it is written as.
+    #[test]
+    fn every_key_reads_back() {
+        let sources = [
+            (Source::Object("o".into()), ElementKind::Object, "o", None),
+            (Source::Light("l".into()), ElementKind::Light, "l", None),
+            (Source::Camera("a".into()), ElementKind::Camera, "a", None),
+            (Source::Figure("e".into()), ElementKind::Figure, "e", None),
+            (
+                Source::Mark {
+                    character: "e".into(),
+                    index: 2,
+                },
+                ElementKind::Mark,
+                "e",
+                Some(2),
+            ),
+            (
+                Source::FigureVia {
+                    character: "e".into(),
+                    index: 1,
+                },
+                ElementKind::FigureVia,
+                "e",
+                Some(1),
+            ),
+            (
+                Source::CameraVia {
+                    camera: "a".into(),
+                    index: 3,
+                },
+                ElementKind::CameraVia,
+                "a",
+                Some(3),
+            ),
+            (Source::Wall(4), ElementKind::Wall, "4", None),
+            (Source::Note("n".into()), ElementKind::Note, "n", None),
+            (Source::Drawing("d".into()), ElementKind::Drawing, "d", None),
+        ];
+        assert_eq!(sources.len(), ElementKind::ALL.len());
+
+        for (source, kind, id, index) in sources {
+            let text = key(&source);
+            let parsed = parse_key(&text);
+
+            let Some(parsed) = parsed else {
+                panic!("{text} does not read back");
+            };
+            assert_eq!(parsed.kind, kind, "{text}");
+            assert_eq!(parsed.id, id, "{text}");
+            assert_eq!(parsed.index, index, "{text}");
+        }
+        assert!(parse_key("nonsense:x").is_none());
+        assert!(parse_key("camera").is_none());
+    }
+
     #[test]
     fn mark_keys_name_character_and_index() {
         let k = key(&Source::Mark {
@@ -478,6 +594,17 @@ mod tests {
 
         assert!(url.starts_with("file:///"), "{url}");
         assert!(url.ends_with("/projekt/bilder/a.png"), "{url}");
+    }
+
+    /// A project folder with a space, a `#` and an umlaut: the URL gives the same path back.
+    #[test]
+    fn a_file_url_reads_back_as_the_path() {
+        let dir = Path::new("/home/a b/p#1");
+        let file = "bilder/Grundriss Nr 1 \u{e4}\u{f6}.png";
+
+        let url = file_url(dir, file);
+
+        assert_eq!(fileurl::to_path(&url), dir.join(file));
     }
 
     #[test]

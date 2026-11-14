@@ -2,14 +2,10 @@
 //! choice made in the tool bar become one plan edit. No geometry beyond the two points a
 //! gesture hands over (agent.md); the session snaps them and does the work.
 
-use std::path::PathBuf;
-
 use klappe_services::{
-    Arrival, Dash, Departure, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, Pace,
-    PlanEdit, Point, Pose, ProjectEdit, ServiceError, Source,
+    read_number, Arrival, Dash, Departure, DrawingShape, Field, FigureColor, Fill, Layer,
+    LightKind, Lock, Pace, PlanEdit, Point, Pose, ProjectEdit, Range, ServiceError, Source, Unit,
 };
-
-const FILE_URL: &str = "file://";
 
 /// A new camera looks to the right (0°); the user turns it afterwards.
 const NEW_CAMERA_FACING_DEG: f64 = 0.0;
@@ -625,63 +621,52 @@ pub fn note_edit(draft: &NoteDraft, text: &str) -> Option<PlanEdit> {
     }
 }
 
-/// A length in metres as typed: a comma or a point as decimal separator, more than zero.
-pub fn parse_metres(text: &str) -> Option<f64> {
-    let metres: f64 = text.trim().replace(',', ".").parse().ok()?;
+/// What a typed field makes of the selection: `None` when the selection does not fit the
+/// field, an error (for the status line) when the text is no value.
+pub type Typed = Option<Result<PlanEdit, ServiceError>>;
 
-    (metres.is_finite() && metres > 0.0).then_some(metres)
+/// A length in metres as typed, more than zero.
+fn length_m(field: Field, text: &str) -> Result<f64, ServiceError> {
+    read_number(field, text, Unit::Metre, Range::Positive)
 }
 
-/// The size typed for the selected object, as an edit. `None` when something other than an
-/// object is selected or a side is not a length.
-pub fn resize_edit(selected: Option<&Source>, width: &str, depth: &str) -> Option<PlanEdit> {
+/// The size typed for the selected object, as an edit.
+pub fn resize_edit(selected: Option<&Source>, width: &str, depth: &str) -> Typed {
     let Some(Source::Object(id)) = selected else {
         return None;
     };
+    let resized = length_m(Field::Width, width).and_then(|width_m| {
+        Ok(PlanEdit::Resize {
+            source: Source::Object(id.clone()),
+            width_m,
+            depth_m: length_m(Field::Depth, depth)?,
+        })
+    });
 
-    Some(PlanEdit::Resize {
-        source: Source::Object(id.clone()),
-        width_m: parse_metres(width)?,
-        depth_m: parse_metres(depth)?,
-    })
+    Some(resized)
 }
 
 /// The height typed for the selected object, as an edit (LH-17): an empty text takes the
-/// height off. `None` when something other than an object is selected or the text is no
-/// length.
-pub fn object_height_edit(selected: Option<&Source>, text: &str) -> Option<PlanEdit> {
+/// height off.
+pub fn object_height_edit(selected: Option<&Source>, text: &str) -> Typed {
     let Some(Source::Object(id)) = selected else {
         return None;
     };
     let height_m = match text.trim().is_empty() {
-        true => None,
-        false => Some(parse_metres(text)?),
+        true => Ok(None),
+        false => length_m(Field::Height, text).map(Some),
     };
 
-    Some(PlanEdit::SetObjectHeight {
+    Some(height_m.map(|height_m| PlanEdit::SetObjectHeight {
         source: Source::Object(id.clone()),
         height_m,
-    })
+    }))
 }
 
 /// The mark of a figure, as a selection names it: itself, or the figure for its mark at the
 /// playhead.
 fn is_figure_mark(selected: &Source) -> bool {
     matches!(selected, Source::Mark { .. } | Source::Figure(_))
-}
-
-/// A time in seconds as typed: a comma or a point as decimal separator, zero or more.
-fn parse_seconds(text: &str) -> Option<f64> {
-    let seconds: f64 = text.trim().replace(',', ".").parse().ok()?;
-
-    (seconds.is_finite() && seconds >= 0.0).then_some(seconds)
-}
-
-/// A number as typed, of either sign: a comma or a point as decimal separator.
-fn parse_number(text: &str) -> Option<f64> {
-    let number: f64 = text.trim().replace(',', ".").parse().ok()?;
-
-    number.is_finite().then_some(number)
 }
 
 /// The pose `name` for the selected figure mark, as an edit. `None` for a selection that is
@@ -720,27 +705,31 @@ pub fn departure_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit>
     })
 }
 
-/// The pause typed for the selected mark (figure or camera), as an edit. `None` for another
-/// selection or a text that is no time.
-pub fn hold_edit(selected: Option<&Source>, text: &str) -> Option<PlanEdit> {
+/// The pause typed for the selected mark (figure or camera), as an edit.
+pub fn hold_edit(selected: Option<&Source>, text: &str) -> Typed {
     let source = selected.filter(|s| is_figure_mark(s) || matches!(s, Source::Camera(_)))?;
+    let hold_s = read_number(Field::HoldS, text, Unit::Second, Range::NotNegative);
 
-    Some(PlanEdit::SetHold {
+    Some(hold_s.map(|hold_s| PlanEdit::SetHold {
         source: source.clone(),
-        hold_s: parse_seconds(text)?,
-    })
+        hold_s,
+    }))
 }
 
 /// The lens height and the tilt typed for the selected camera mark, as an edit (LH-34). The
-/// session checks the limits. `None` for another selection or a text that is no number.
-pub fn aim_edit(selected: Option<&Source>, height: &str, tilt: &str) -> Option<PlanEdit> {
+/// session checks the limits.
+pub fn aim_edit(selected: Option<&Source>, height: &str, tilt: &str) -> Typed {
     let source = selected.filter(|s| matches!(s, Source::Camera(_)))?;
+    let height_m = read_number(Field::Height, height, Unit::Metre, Range::Any);
+    let aimed = height_m.and_then(|height_m| {
+        Ok(PlanEdit::SetCameraAim {
+            source: source.clone(),
+            height_m,
+            tilt_deg: read_number(Field::Tilt, tilt, Unit::Degree, Range::Any)?,
+        })
+    });
 
-    Some(PlanEdit::SetCameraAim {
-        source: source.clone(),
-        height_m: parse_number(height)?,
-        tilt_deg: parse_number(tilt)?,
-    })
+    Some(aimed)
 }
 
 /// The pace `name` for the way to the selected figure mark, as an edit. `None` for a
@@ -779,52 +768,17 @@ pub fn library_edit(
 }
 
 /// Both points picked and a length typed: the scale edit. `None` until then.
-pub fn scale_edit(step: ScaleStep, distance: &str) -> Option<PlanEdit> {
+pub fn scale_edit(step: ScaleStep, distance: &str) -> Typed {
     let ScaleStep::Both(from, to) = step else {
         return None;
     };
+    let distance_m = length_m(Field::Distance, distance);
 
-    Some(PlanEdit::Calibrate {
+    Some(distance_m.map(|distance_m| PlanEdit::Calibrate {
         from,
         to,
-        distance_m: parse_metres(distance)?,
-    })
-}
-
-/// `file://` URL or plain path as the file dialog hands it over, as a path. Percent-escapes
-/// in a URL are decoded.
-pub fn local_path(url: &str) -> PathBuf {
-    let Some(rest) = url.strip_prefix(FILE_URL) else {
-        return PathBuf::from(url);
-    };
-
-    let mut bytes = Vec::with_capacity(rest.len());
-    let raw = rest.as_bytes();
-    let mut i = 0;
-    while i < raw.len() {
-        let escaped = (raw[i] == b'%')
-            .then(|| raw.get(i + 1..i + 3))
-            .flatten()
-            .and_then(|hex| std::str::from_utf8(hex).ok())
-            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
-        match escaped {
-            Some(byte) => {
-                bytes.push(byte);
-                i += 3;
-            }
-            None => {
-                bytes.push(raw[i]);
-                i += 1;
-            }
-        }
-    }
-
-    let path = String::from_utf8_lossy(&bytes).into_owned();
-    // `file:///C:/x`: no slash before a drive letter.
-    match path.as_bytes() {
-        [b'/', drive, b':', ..] if drive.is_ascii_alphabetic() => PathBuf::from(&path[1..]),
-        _ => PathBuf::from(path),
-    }
+        distance_m,
+    }))
 }
 
 /// Where a drag stands: still moving, or let go.
@@ -1001,6 +955,11 @@ mod tests {
     use super::*;
     use crate::catalog::Language;
 
+    /// The edit a typed field made, if it made one.
+    fn edit_of(typed: Typed) -> Option<PlanEdit> {
+        typed?.ok()
+    }
+
     fn p(x_m: f64, y_m: f64) -> Point {
         Point::new(x_m, y_m)
     }
@@ -1096,18 +1055,18 @@ mod tests {
         let object = Source::Object("o1".into());
 
         assert_eq!(
-            resize_edit(Some(&object), "2,5", " 0.8 "),
+            edit_of(resize_edit(Some(&object), "2,5", " 0.8 ")),
             Some(PlanEdit::Resize {
                 source: object.clone(),
                 width_m: 2.5,
                 depth_m: 0.8
             })
         );
-        assert_eq!(resize_edit(Some(&object), "2,5", "0"), None);
-        assert_eq!(resize_edit(Some(&object), "", "1"), None);
-        assert_eq!(resize_edit(Some(&object), "1", "breit"), None);
-        assert_eq!(resize_edit(Some(&Source::Wall(0)), "1", "1"), None);
-        assert_eq!(resize_edit(None, "1", "1"), None);
+        assert_eq!(edit_of(resize_edit(Some(&object), "2,5", "0")), None);
+        assert_eq!(edit_of(resize_edit(Some(&object), "", "1")), None);
+        assert_eq!(edit_of(resize_edit(Some(&object), "1", "breit")), None);
+        assert_eq!(edit_of(resize_edit(Some(&Source::Wall(0)), "1", "1")), None);
+        assert_eq!(edit_of(resize_edit(None, "1", "1")), None);
     }
 
     #[test]
@@ -1493,15 +1452,47 @@ mod tests {
 
     #[test]
     fn metres_take_comma_or_point() {
-        assert_eq!(parse_metres("4,5"), Some(4.5));
-        assert_eq!(parse_metres(" 4.5 "), Some(4.5));
-        assert_eq!(parse_metres("12"), Some(12.0));
-        assert_eq!(parse_metres("0"), None);
-        assert_eq!(parse_metres("-3"), None);
-        assert_eq!(parse_metres("1,234.5"), None);
-        assert_eq!(parse_metres("abc"), None);
-        assert_eq!(parse_metres(""), None);
-        assert_eq!(parse_metres("inf"), None);
+        assert_eq!(length_m(Field::Width, "4,5").ok(), Some(4.5));
+        assert_eq!(length_m(Field::Width, " 4.5 ").ok(), Some(4.5));
+        assert_eq!(length_m(Field::Width, "12").ok(), Some(12.0));
+        assert_eq!(length_m(Field::Width, "0").ok(), None);
+        assert_eq!(length_m(Field::Width, "-3").ok(), None);
+        assert_eq!(length_m(Field::Width, "1,234.5").ok(), None);
+        assert_eq!(length_m(Field::Width, "abc").ok(), None);
+        assert_eq!(length_m(Field::Width, "").ok(), None);
+        assert_eq!(length_m(Field::Width, "inf").ok(), None);
+    }
+
+    /// Audit, Fund 2: a field takes its own unit, as the lens in the shot list always did.
+    #[test]
+    fn typed_units_are_taken_by_the_plan_tools() {
+        let object = Source::Object("o".into());
+        let camera = Source::Camera("a".into());
+        let (a, b) = (p(1.0, 1.0), p(4.0, 1.0));
+
+        assert!(edit_of(resize_edit(Some(&object), "2 m", "1,5 m")).is_some());
+        assert!(edit_of(object_height_edit(Some(&object), "1 m")).is_some());
+        assert!(edit_of(scale_edit(ScaleStep::Both(a, b), "3 m")).is_some());
+        assert!(edit_of(hold_edit(Some(&camera), "2 s")).is_some());
+        assert!(edit_of(aim_edit(Some(&camera), "1 m", "10°")).is_some());
+        assert!(edit_of(resize_edit(Some(&object), "2 s", "1")).is_none());
+    }
+
+    /// Audit, Fund 2: a refused text is an error for the status line, a selection that does
+    /// not fit is no error.
+    #[test]
+    fn a_refused_text_names_its_field() {
+        let object = Source::Object("o".into());
+        let refused = resize_edit(Some(&object), "2", "breit");
+
+        assert!(matches!(
+            refused,
+            Some(Err(ServiceError::BadValue {
+                field: Field::Depth,
+                ..
+            }))
+        ));
+        assert!(resize_edit(Some(&Source::Wall(0)), "x", "x").is_none());
     }
 
     #[test]
@@ -1509,16 +1500,16 @@ mod tests {
         let (a, b) = (p(1.0, 1.0), p(4.0, 1.0));
 
         assert_eq!(
-            scale_edit(ScaleStep::Both(a, b), "3,5"),
+            edit_of(scale_edit(ScaleStep::Both(a, b), "3,5")),
             Some(PlanEdit::Calibrate {
                 from: a,
                 to: b,
                 distance_m: 3.5
             })
         );
-        assert_eq!(scale_edit(ScaleStep::Both(a, b), "x"), None);
-        assert_eq!(scale_edit(ScaleStep::First(a), "3"), None);
-        assert_eq!(scale_edit(ScaleStep::Idle, "3"), None);
+        assert_eq!(edit_of(scale_edit(ScaleStep::Both(a, b), "x")), None);
+        assert_eq!(edit_of(scale_edit(ScaleStep::First(a), "3")), None);
+        assert_eq!(edit_of(scale_edit(ScaleStep::Idle, "3")), None);
     }
 
     #[test]
@@ -1728,20 +1719,6 @@ mod tests {
     }
 
     #[test]
-    fn the_dialog_url_becomes_a_path() {
-        assert_eq!(
-            local_path("file:///home/a%20b/Plan%C3%A4.png"),
-            PathBuf::from("/home/a b/Planä.png")
-        );
-        assert_eq!(local_path("/home/x/p.png"), PathBuf::from("/home/x/p.png"));
-        assert_eq!(
-            local_path("file:///C:/x/p.png"),
-            PathBuf::from("C:/x/p.png")
-        );
-        assert_eq!(local_path("file:///a%zz"), PathBuf::from("/a%zz"));
-    }
-
-    #[test]
     fn a_pose_name_for_a_figure_mark_is_a_set_pose() {
         let mark = Source::Mark {
             character: "elisabeth".into(),
@@ -1799,18 +1776,18 @@ mod tests {
         let camera = Source::Camera("a".into());
 
         assert_eq!(
-            hold_edit(Some(&camera), " 2,5 "),
+            edit_of(hold_edit(Some(&camera), " 2,5 ")),
             Some(PlanEdit::SetHold {
                 source: camera.clone(),
                 hold_s: 2.5
             })
         );
-        assert!(hold_edit(Some(&camera), "0").is_some());
-        assert_eq!(hold_edit(Some(&camera), "-1"), None);
-        assert_eq!(hold_edit(Some(&camera), "lang"), None);
-        assert_eq!(hold_edit(Some(&camera), ""), None);
-        assert_eq!(hold_edit(Some(&Source::Wall(0)), "1"), None);
-        assert_eq!(hold_edit(None, "1"), None);
+        assert!(edit_of(hold_edit(Some(&camera), "0")).is_some());
+        assert_eq!(edit_of(hold_edit(Some(&camera), "-1")), None);
+        assert_eq!(edit_of(hold_edit(Some(&camera), "lang")), None);
+        assert_eq!(edit_of(hold_edit(Some(&camera), "")), None);
+        assert_eq!(edit_of(hold_edit(Some(&Source::Wall(0)), "1")), None);
+        assert_eq!(edit_of(hold_edit(None, "1")), None);
     }
 
     #[test]
@@ -1818,22 +1795,22 @@ mod tests {
         let camera = Source::Camera("a".into());
 
         assert_eq!(
-            aim_edit(Some(&camera), " 2,4 ", "-15.5"),
+            edit_of(aim_edit(Some(&camera), " 2,4 ", "-15.5")),
             Some(PlanEdit::SetCameraAim {
                 source: camera.clone(),
                 height_m: 2.4,
                 tilt_deg: -15.5
             })
         );
-        assert!(aim_edit(Some(&camera), "0", "0").is_some());
-        assert_eq!(aim_edit(Some(&camera), "", "0"), None);
-        assert_eq!(aim_edit(Some(&camera), "1", ""), None);
-        assert_eq!(aim_edit(Some(&camera), "hoch", "0"), None);
-        assert_eq!(aim_edit(Some(&camera), "1", "NaN"), None);
-        assert_eq!(aim_edit(Some(&camera), "inf", "0"), None);
+        assert!(edit_of(aim_edit(Some(&camera), "0", "0")).is_some());
+        assert_eq!(edit_of(aim_edit(Some(&camera), "", "0")), None);
+        assert_eq!(edit_of(aim_edit(Some(&camera), "1", "")), None);
+        assert_eq!(edit_of(aim_edit(Some(&camera), "hoch", "0")), None);
+        assert_eq!(edit_of(aim_edit(Some(&camera), "1", "NaN")), None);
+        assert_eq!(edit_of(aim_edit(Some(&camera), "inf", "0")), None);
         let figure = Source::Figure("elisabeth".into());
-        assert_eq!(aim_edit(Some(&figure), "1", "0"), None);
-        assert_eq!(aim_edit(None, "1", "0"), None);
+        assert_eq!(edit_of(aim_edit(Some(&figure), "1", "0")), None);
+        assert_eq!(edit_of(aim_edit(None, "1", "0")), None);
     }
 
     #[test]
@@ -1846,14 +1823,20 @@ mod tests {
             })
         };
 
-        assert_eq!(object_height_edit(Some(&object), " 1,2 "), edit(Some(1.2)));
+        assert_eq!(
+            edit_of(object_height_edit(Some(&object), " 1,2 ")),
+            edit(Some(1.2))
+        );
         // Empty takes the height off.
-        assert_eq!(object_height_edit(Some(&object), "  "), edit(None));
-        assert_eq!(object_height_edit(Some(&object), "0"), None);
-        assert_eq!(object_height_edit(Some(&object), "-1"), None);
-        assert_eq!(object_height_edit(Some(&object), "hoch"), None);
-        assert_eq!(object_height_edit(Some(&Source::Wall(0)), "1"), None);
-        assert_eq!(object_height_edit(None, "1"), None);
+        assert_eq!(edit_of(object_height_edit(Some(&object), "  ")), edit(None));
+        assert_eq!(edit_of(object_height_edit(Some(&object), "0")), None);
+        assert_eq!(edit_of(object_height_edit(Some(&object), "-1")), None);
+        assert_eq!(edit_of(object_height_edit(Some(&object), "hoch")), None);
+        assert_eq!(
+            edit_of(object_height_edit(Some(&Source::Wall(0)), "1")),
+            None
+        );
+        assert_eq!(edit_of(object_height_edit(None, "1")), None);
     }
 
     #[test]
