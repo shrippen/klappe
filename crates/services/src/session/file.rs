@@ -6,7 +6,7 @@ use klappe_model::Project;
 use klappe_store::Loaded;
 
 use super::{check_empty, Autosave, BackupState, Session};
-use crate::error::{write_failed, ServiceError};
+use crate::error::ServiceError;
 use crate::field::Field;
 use crate::plan_edit::Snapping;
 
@@ -186,15 +186,4 @@ fn check_backup(dir: &Path, loaded: &Loaded) -> BackupState {
         Ok(Some(_)) => BackupState::Found,
         Err(e) => BackupState::Unreadable(e.to_string()),
     }
-}
-
-/// A failed write names `path`, the file the user chose, not the temp file beside it.
-pub(super) fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
-    klappe_store::write_atomic(path, &bytes).map_err(|e| match e {
-        klappe_store::StoreError::Io { source, .. } => ServiceError::Write {
-            path: path.to_owned(),
-            source,
-        },
-        other => write_failed(other),
-    })
 }

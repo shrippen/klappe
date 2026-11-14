@@ -4,9 +4,8 @@ use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::FloorPlan;
 use klappe_stellprobe::{DisplayList, Shape, ShotOrder};
 
-use super::file::write_file;
 use super::Session;
-use crate::error::ServiceError;
+use crate::error::{write_failed, ServiceError};
 
 impl Session {
     /// Prints the current plan at the playhead as PDF (LH-80), followed by its shot list;
@@ -81,4 +80,15 @@ impl Session {
 
         write_file(path, csv.into_bytes())
     }
+}
+
+/// A failed write names `path`, the file the user chose, not the temp file beside it.
+fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
+    klappe_store::write_atomic(path, &bytes).map_err(|e| match e {
+        klappe_store::StoreError::Io { source, .. } => ServiceError::Write {
+            path: path.to_owned(),
+            source,
+        },
+        other => write_failed(other),
+    })
 }
