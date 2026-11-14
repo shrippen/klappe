@@ -402,6 +402,7 @@ impl Session {
                     camera: shot.camera.clone(),
                     camera_label: camera.map(|c| c.label.clone()).unwrap_or_default(),
                     size: shot.size.name().to_owned(),
+                    angle: shot.angle.name().to_owned(),
                     movement: shot.movement.name().to_owned(),
                     lens_mm: shot.lens_mm.or(camera.map(|c| c.lens_mm)).unwrap_or(0.0),
                     own_lens_mm: shot.lens_mm,

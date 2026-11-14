@@ -159,8 +159,8 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Autosave, DisplayList, Layer, Movement, Paper, PlanEdit, Point, Session,
-    ShotColumns, ShotField, ShotSize, ShotTexts, Snapping, Source, Texts, Visibility,
+    horizontal_fov_deg, Angle, Autosave, DisplayList, Layer, Movement, Paper, PlanEdit, Point,
+    Session, ShotColumns, ShotField, ShotSize, ShotTexts, Snapping, Source, Texts, Visibility,
 };
 use serde_json::json;
 
@@ -815,6 +815,7 @@ fn shot_texts(language: Language) -> ShotTexts {
             camera: t("field.camera"),
             lens_mm: t("field.lens"),
             size: t("field.size"),
+            angle: t("field.perspective"),
             movement: t("field.movement"),
             from_s: t("field.from"),
             to_s: t("field.to"),
@@ -828,6 +829,10 @@ fn shot_texts(language: Language) -> ShotTexts {
         sizes: ShotSize::ALL
             .iter()
             .map(|s| (*s, t(&format!("size.{}", s.name()))))
+            .collect(),
+        angles: Angle::ALL
+            .iter()
+            .map(|a| (*a, t(&format!("angle.{}", a.name()))))
             .collect(),
         movements: Movement::ALL
             .iter()

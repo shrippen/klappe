@@ -27,7 +27,7 @@ pub use plan::{
     ScriptLink, Sensor,
 };
 pub use project::{Character, FigureColor, Location, Project, Scene, SetObject, SetPlan, Wall};
-pub use shot::{Movement, Shot, ShotSize};
+pub use shot::{Angle, Movement, Shot, ShotSize};
 
 /// The version of the project format this model reads and writes (FORMAT.md).
 pub const FORMAT_VERSION: u32 = 1;

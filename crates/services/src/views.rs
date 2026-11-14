@@ -11,6 +11,8 @@ pub struct ShotRow {
     pub camera_label: String,
     /// Model name, e.g. `close-up`; the surface translates it.
     pub size: String,
+    /// Model name, e.g. `birds-eye`; the surface translates it.
+    pub angle: String,
     pub movement: String,
     /// The shot's lens, else its camera's.
     pub lens_mm: f64,

@@ -33,6 +33,7 @@ Item {
     }
 
     readonly property var sizes: ["extreme-wide", "wide", "medium-wide", "cowboy", "medium", "medium-close", "close-up", "extreme-close-up"]
+    readonly property var angles: ["eye-level", "high", "low", "birds-eye", "worms-eye", "dutch"]
     readonly property var movements: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"]
 
     KanteEmptyState {
@@ -115,8 +116,15 @@ Item {
                     onActivated: index => panel.commit("movement", panel.movements[index], panel.shot.movement)
                 }
 
+                KanteSectionLabel { text: panel.texts.t("field.perspective") }
                 KanteSectionLabel { text: panel.texts.t("field.lens") }
-                Item { Layout.fillWidth: true }
+                KanteComboBox {
+                    objectName: "angleBox"
+                    Layout.fillWidth: true
+                    model: panel.angles.map(a => panel.texts.t("angle." + a))
+                    currentIndex: panel.shot ? panel.angles.indexOf(panel.shot.angle) : -1
+                    onActivated: index => panel.commit("angle", panel.angles[index], panel.shot.angle)
+                }
                 // Empty: the shot follows its camera, whose lens is the hint.
                 KanteTextField {
                     objectName: "lensField"

@@ -64,6 +64,7 @@ fn shot(
         number: number.into(),
         camera: camera.into(),
         size,
+        angle: Default::default(),
         movement,
         lens_mm: None,
         from_s,
@@ -158,6 +159,11 @@ fn plan() -> FloorPlan {
             20.0,
         ),
     ];
+    plan.shots[1].angle = Angle::Low;
+    plan.shots[2].angle = Angle::High;
+    plan.shots[4].angle = Angle::Dutch;
+    // The same camera, place and lens as 12.2: one setup (LH-72).
+    plan.shots[4].lens_mm = Some(40.0);
 
     plan.axis = Some(AxisPair {
         a: "elisabeth".into(),

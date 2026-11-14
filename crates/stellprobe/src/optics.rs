@@ -85,6 +85,7 @@ mod tests {
             number: "1.1".into(),
             camera: camera.into(),
             size: ShotSize::Wide,
+            angle: Default::default(),
             movement: Movement::Static,
             lens_mm,
             from_s,

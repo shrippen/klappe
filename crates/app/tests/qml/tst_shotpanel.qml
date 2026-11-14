@@ -30,7 +30,7 @@ TestCase {
 
     function row(own) {
         return {
-            id: "s12-3", number: "12.3", camera: "b", camera_label: "B", size: "medium",
+            id: "s12-3", number: "12.3", camera: "b", camera_label: "B", size: "medium", angle: "eye-level",
             movement: "static", lens_mm: own === null ? 50 : own, own_lens_mm: own,
             description: "", props: "", gear: "", crew: "", note: "", axis_jump: false
         }
@@ -118,6 +118,26 @@ TestCase {
         box.activated(0)
 
         compare(fake.calls, [["s12-3", "camera", "a"]])
+    }
+
+    function test_the_perspective_chooser_lists_the_angles() {
+        const box = field(make(null), "angleBox")
+
+        compare(box.count, 6)
+        compare(box.currentIndex, 0)
+        compare(box.currentText, "Normalsicht")
+
+        box.activated(3)
+
+        compare(fake.calls, [["s12-3", "angle", "birds-eye"]])
+    }
+
+    function test_the_current_perspective_is_not_sent_again() {
+        const box = field(make(null), "angleBox")
+
+        box.activated(0)
+
+        compare(fake.calls.length, 0)
     }
 
     function test_the_current_camera_is_not_sent_again() {

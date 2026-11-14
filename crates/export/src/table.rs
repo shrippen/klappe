@@ -10,9 +10,9 @@
 //! └──────────────────────────────────────────┘
 //! ```
 //!
-//! Short columns (number, camera, lens, size, movement, times) take what their words need;
+//! Short columns (number, camera, lens, size, angle, movement, times) take what their words need;
 //! the free text columns share the rest and wrap. Sheets are always landscape, whatever the
-//! plan page: thirteen columns need the width.
+//! plan page: fourteen columns need the width.
 
 use klappe_model::{FloorPlan, Shot};
 
@@ -36,8 +36,8 @@ const ROW_RULE_PT: f64 = 0.5;
 const MAX_CELL_LINES: usize = 8;
 const ELLIPSIS: char = '…';
 /// Columns before this index are short (number … duration); the rest are free text.
-const FIRST_TEXT_COLUMN: usize = 8;
-const DESCRIPTION_COLUMN: usize = 8;
+const FIRST_TEXT_COLUMN: usize = 9;
+const DESCRIPTION_COLUMN: usize = 9;
 /// Share of the table a short column may take at most.
 const SHORT_COLUMN_MAX: f64 = 0.2;
 /// The description gets twice the room of the other free text columns.

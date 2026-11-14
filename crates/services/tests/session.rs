@@ -86,6 +86,29 @@ fn shot_rows_tell_the_own_lens_apart() {
 }
 
 #[test]
+fn shot_rows_carry_the_angle() {
+    let rows = open().shots();
+
+    assert_eq!(rows[0].angle, "eye-level");
+    assert_eq!(rows[1].angle, "low");
+    assert_eq!(rows[2].angle, "high");
+    assert_eq!(rows[4].angle, "dutch");
+}
+
+#[test]
+fn the_angle_is_edited_undone_and_validated() {
+    let mut s = open();
+
+    s.edit_shot("s12-1", ShotField::Angle, "birds-eye").unwrap();
+    assert_eq!(s.shots()[0].angle, "birds-eye");
+
+    s.undo();
+    assert_eq!(s.shots()[0].angle, "eye-level");
+
+    assert!(s.edit_shot("s12-1", ShotField::Angle, "schief").is_err());
+}
+
+#[test]
 fn edit_undo_redo() {
     let mut s = open();
 

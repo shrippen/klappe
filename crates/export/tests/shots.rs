@@ -5,7 +5,7 @@ use klappe_export::{
     pdf, pdf_with_shots, shots_csv, Orientation, Page, Paper, ShotColumns, ShotTexts, Texts, Theme,
 };
 use klappe_model::{
-    Camera, CameraMark, FloorPlan, Movement, Point, Project, Sensor, SetPlan, Shot, ShotSize,
+    Angle, Camera, CameraMark, FloorPlan, Movement, Point, Project, Sensor, SetPlan, Shot, ShotSize,
 };
 use klappe_stellprobe::{render, DisplayList};
 
@@ -19,6 +19,7 @@ fn texts() -> ShotTexts {
             camera: "Kamera".into(),
             lens_mm: "Objektiv (mm)".into(),
             size: "Größe".into(),
+            angle: "Perspektive".into(),
             movement: "Bewegung".into(),
             from_s: "Von (s)".into(),
             to_s: "Bis (s)".into(),
@@ -30,6 +31,7 @@ fn texts() -> ShotTexts {
             note: "Notiz".into(),
         },
         sizes: vec![(ShotSize::Wide, "Totale".into())],
+        angles: vec![(Angle::Low, "Untersicht".into())],
         movements: vec![(Movement::Pan, "Schwenk".into())],
     }
 }
@@ -59,6 +61,7 @@ fn shot(n: usize) -> Shot {
         number: format!("12.{n}"),
         camera: "a".into(),
         size: ShotSize::Wide,
+        angle: Default::default(),
         movement: Movement::Pan,
         lens_mm: None,
         from_s: n as f64,
@@ -129,11 +132,12 @@ fn csv_quotes_what_rfc_4180_says() {
     plan.shots[0].props = "Käfig, Löffel".into();
     plan.shots[0].note = "Zeile 1\nZeile 2".into();
     plan.shots[0].gear = "ohne Sonderzeichen".into();
+    plan.shots[0].angle = Angle::Low;
 
     let csv = shots_csv(&plan, &texts());
 
-    let expected = "Nummer,Kamera,Objektiv (mm),Größe,Bewegung,Von (s),Bis (s),Dauer (s),Inhalt,Requisiten,Technik,Team,Notiz\r\n\
-        12.1,A,35,Totale,Schwenk,1,3.5,2.5,\"Sie sagt: \"\"Hallo, Welt\"\"\",\"Käfig, Löffel\",ohne Sonderzeichen,\"Kamera, Ton\",\"Zeile 1\nZeile 2\"\r\n";
+    let expected = "Nummer,Kamera,Objektiv (mm),Größe,Perspektive,Bewegung,Von (s),Bis (s),Dauer (s),Inhalt,Requisiten,Technik,Team,Notiz\r\n\
+        12.1,A,35,Totale,Untersicht,Schwenk,1,3.5,2.5,\"Sie sagt: \"\"Hallo, Welt\"\"\",\"Käfig, Löffel\",ohne Sonderzeichen,\"Kamera, Ton\",\"Zeile 1\nZeile 2\"\r\n";
     assert_eq!(csv, expected);
 }
 
