@@ -108,10 +108,10 @@
             {
               "at_s": 0.0,
               "at": {
-                "x_m": 4.2,
-                "y_m": 4.7
+                "x_m": 3.5,
+                "y_m": 4.8
               },
-              "facing_deg": 228.0,
+              "facing_deg": 245.0,
               "height_m": 1.4,
               "tilt_deg": 0.0,
               "hold_s": 40.0
@@ -199,7 +199,7 @@
           "number": "14.3",
           "camera": "a",
           "size": "medium",
-          "angle": "low",
+          "angle": "eye-level",
           "movement": "dolly",
           "lens_mm": 35.0,
           "from_s": 19.0,
@@ -231,7 +231,7 @@
           "number": "14.5",
           "camera": "a",
           "size": "medium-wide",
-          "angle": "high",
+          "angle": "eye-level",
           "movement": "static",
           "lens_mm": null,
           "from_s": 36.0,

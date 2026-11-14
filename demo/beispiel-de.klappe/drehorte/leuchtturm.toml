@@ -169,8 +169,8 @@ shape = "ellipse"
 height_m = 3.0
 
 [set.objects.at]
-x_m = 4.5
-y_m = 4.4
+x_m = 4.3
+y_m = 4.2
 
 [[set.notes]]
 id = "n1"
