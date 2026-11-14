@@ -565,6 +565,8 @@ mod notes;
 mod plans;
 mod playback;
 mod project;
+#[cfg(test)]
+mod qml_tests;
 mod script;
 mod selection;
 mod shots;
@@ -619,6 +621,8 @@ pub struct ControllerRust {
     note_text: QString,
     /// What the plan on screen shows: a drag preview or the project.
     preview: Preview,
+    /// The last step of the drag in progress (`from_x, from_y, x, y`), shown again as time moves.
+    drag_step: Option<[f64; 4]>,
     /// What the drag in progress moves; `Free` between drags.
     grip: Grip,
     status: QString,
@@ -703,6 +707,7 @@ impl Default for ControllerRust {
             asks_note: false,
             note_text: QString::default(),
             preview: Preview::Hidden,
+            drag_step: None,
             grip: Grip::Free,
             backup_state: QString::default(),
             backup_message: QString::default(),

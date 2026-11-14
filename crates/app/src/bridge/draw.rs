@@ -49,6 +49,9 @@ impl qobject::Controller {
         y: f64,
         done: bool,
     ) -> bool {
+        let step = (!done).then_some([from_x, from_y, x, y]);
+        self.as_mut().rust_mut().get_mut().drag_step = step;
+
         let tool = self.rust().tool.clone();
         let style = self.rust().draw;
         let selected = self.rust().selected.clone();

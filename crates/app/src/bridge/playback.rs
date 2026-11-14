@@ -1,7 +1,9 @@
 //! Playback: the time on the timeline and the play head.
 
 use super::qobject;
+use crate::tools::Preview;
 use core::pin::Pin;
+use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{Looping, Playing, Step};
 
@@ -42,6 +44,19 @@ impl qobject::Controller {
             false => Looping::Off,
         };
         let playing = s.advance(dt, speed, looping);
+        let time = s.time_s();
+
+        // A refresh would drop a drag preview: show the drag again at the new time, as the
+        // release will store it.
+        let drag = self
+            .rust()
+            .drag_step
+            .filter(|_| self.rust().preview == Preview::Shown);
+        if let Some([from_x, from_y, x, y]) = drag {
+            self.as_mut().set_time(time);
+            self.drag(from_x, from_y, x, y, false);
+            return playing == Playing::Running;
+        }
         self.refresh();
         playing == Playing::Running
     }
