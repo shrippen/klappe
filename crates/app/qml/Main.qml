@@ -29,6 +29,9 @@ Kirigami.ApplicationWindow {
     property bool showScript: true
     property bool showShot: true
     property bool showTimeline: true
+    // The order of the exported shot list: the film's or the shoot's (LH-72).
+    readonly property var shotOrders: ["cut", "shooting"]
+    property string shotOrder: "cut"
 
     Controller { id: ctl }
     Texts { id: texts; source: ctl.texts }
@@ -89,6 +92,13 @@ Kirigami.ApplicationWindow {
                     enabled: ctl.loaded
                     onClicked: ctl.save()
                 }
+                KanteSegmented {
+                    objectName: "shotOrderChooser"
+                    enabled: ctl.loaded
+                    model: root.shotOrders.map(o => texts.t("export.order." + o))
+                    currentIndex: root.shotOrders.indexOf(root.shotOrder)
+                    onActivated: index => root.shotOrder = root.shotOrders[index]
+                }
                 KanteButton {
                     objectName: "backgroundButton"
                     text: texts.t("menu.background")
@@ -104,12 +114,12 @@ Kirigami.ApplicationWindow {
                 KanteButton {
                     text: texts.t("menu.pdf")
                     enabled: ctl.loaded
-                    onClicked: ctl.exportPdf()
+                    onClicked: ctl.exportPdf(root.shotOrder)
                 }
                 KanteButton {
                     text: texts.t("menu.csv")
                     enabled: ctl.loaded
-                    onClicked: ctl.exportCsv()
+                    onClicked: ctl.exportCsv(root.shotOrder)
                 }
             }
 

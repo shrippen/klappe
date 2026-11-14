@@ -5,12 +5,13 @@
 //!                                                 └─► table (the PDF sheets)
 //! ```
 
-use klappe_model::{FloorPlan, Movement, Shot, ShotSize};
+use klappe_model::{Angle, FloorPlan, Movement, Shot, ShotSize};
+use klappe_stellprobe::{ordered_shots, ShotOrder};
 
 use crate::canvas::num;
 use crate::page::{ShotColumns, ShotTexts};
 
-pub(crate) const COLUMNS: usize = 13;
+pub(crate) const COLUMNS: usize = 14;
 
 const SEPARATOR: char = ',';
 const QUOTE: char = '"';
@@ -24,6 +25,7 @@ pub(crate) fn heads(columns: &ShotColumns) -> [&str; COLUMNS] {
         &columns.camera,
         &columns.lens_mm,
         &columns.size,
+        &columns.angle,
         &columns.movement,
         &columns.from_s,
         &columns.to_s,
@@ -52,6 +54,7 @@ pub(crate) fn cells(
         camera.map_or_else(|| shot.camera.clone(), |c| c.label.clone()),
         lens_mm.map(number).unwrap_or_default(),
         size_name(shot.size, texts),
+        angle_name(shot.angle, texts),
         movement_name(shot.movement, texts),
         number(shot.from_s),
         number(shot.to_s),
@@ -72,6 +75,14 @@ fn size_name(size: ShotSize, texts: &ShotTexts) -> String {
         .map_or_else(|| size.name().to_owned(), |(_, name)| name.clone())
 }
 
+fn angle_name(angle: Angle, texts: &ShotTexts) -> String {
+    texts
+        .angles
+        .iter()
+        .find(|(a, _)| *a == angle)
+        .map_or_else(|| angle.name().to_owned(), |(_, name)| name.clone())
+}
+
 fn movement_name(movement: Movement, texts: &ShotTexts) -> String {
     texts
         .movements
@@ -80,12 +91,23 @@ fn movement_name(movement: Movement, texts: &ShotTexts) -> String {
         .map_or_else(|| movement.name().to_owned(), |(_, name)| name.clone())
 }
 
-/// The plan's shots as CSV: head row, then one row per shot in cut order. Numbers use a
-/// point, whatever the language.
-pub(crate) fn csv(plan: &FloorPlan, texts: &ShotTexts) -> String {
-    let mut out = row(&heads(&texts.columns));
-    for shot in &plan.shots {
-        out.push_str(&row(&cells(shot, plan, texts, POINT)));
+/// The plan's shots as CSV: head row, then one row per shot in `order`. In shooting order a
+/// first column holds the setup number. Numbers use a point, whatever the language.
+pub(crate) fn csv(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> String {
+    let with_setup = order == ShotOrder::Shooting;
+    let mut head: Vec<&str> = Vec::new();
+    if with_setup {
+        head.push(&texts.columns.setup);
+    }
+    head.extend(heads(&texts.columns));
+
+    let mut out = row(&head);
+    for (setup, shot) in ordered_shots(plan, order) {
+        let mut cells = cells(shot, plan, texts, POINT).to_vec();
+        if with_setup {
+            cells.insert(0, setup.to_string());
+        }
+        out.push_str(&row(&cells));
     }
 
     out

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use klappe_model::{Movement, ShotSize};
+use klappe_model::{Angle, Movement, ShotSize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Paper {
@@ -46,23 +46,27 @@ pub struct Texts {
     pub shots: ShotTexts,
 }
 
-/// The shot list's words: heading, column heads and the names of sizes and movements.
+/// The shot list's words: heading, column heads and the names of sizes, angles and movements.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ShotTexts {
     /// e.g. "Shotliste"; follows the page title on the printed sheets.
     pub title: String,
     pub columns: ShotColumns,
     pub sizes: Vec<(ShotSize, String)>,
+    pub angles: Vec<(Angle, String)>,
     pub movements: Vec<(Movement, String)>,
 }
 
 /// Column heads, in the order of the table.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ShotColumns {
+    /// Head of the setup column in shooting order, and the word before a setup's number.
+    pub setup: String,
     pub number: String,
     pub camera: String,
     pub lens_mm: String,
     pub size: String,
+    pub angle: String,
     pub movement: String,
     pub from_s: String,
     pub to_s: String,

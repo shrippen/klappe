@@ -133,6 +133,7 @@ mod tests {
             number: id.into(),
             camera: camera.into(),
             size: ShotSize::Medium,
+            angle: Default::default(),
             movement: Movement::Static,
             lens_mm: None,
             from_s: 0.0,

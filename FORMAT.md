@@ -24,6 +24,11 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   in der Groß-/Kleinschreibung unterscheiden, gelten als gleich.
 - **Reihenfolge:** Drehorte und Szenen werden nach Id sortiert gelesen. Die Reihenfolge der
   Figuren steht in `figuren.toml`, die der Shots (Schnittfolge) im Floorplan.
+- **Shots:** `size` (Einstellungsgröße), `angle` (Perspektive) und `movement` sind Namen in
+  Kleinschreibung mit Bindestrich. `angle`: `eye-level` (Normalsicht), `high` (Aufsicht), `low`
+  (Untersicht), `birds-eye` (Vogelperspektive), `worms-eye` (Froschperspektive), `dutch`
+  (gekippt). Fehlt `angle`, gilt `eye-level`. Die Drehreihenfolge (Setups gruppiert) steht nicht
+  in der Datei; sie ergibt sich aus Kamera, Ort und Objektiv.
 - **JSON:** eingerückt, Schlüssel in der Feldreihenfolge des Modells, Zeilenumbruch am Ende.
 - **Einheiten:** im Feldnamen (`_m`, `_deg`, `_s`, `_mm`, `_k`, `_w`); Ursprung oben links, y nach
   unten.

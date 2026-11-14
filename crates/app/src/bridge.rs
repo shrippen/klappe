@@ -165,14 +165,16 @@ pub mod qobject {
         fn cancel_drag(self: Pin<&mut Self>);
 
         /// Writes the plan as PDF next to the project folder; the path goes to `status`.
+        /// `order` is `cut` or `shooting`: the order of the shot list.
         #[qinvokable]
         #[cxx_name = "exportPdf"]
-        fn export_pdf(self: Pin<&mut Self>) -> bool;
+        fn export_pdf(self: Pin<&mut Self>, order: &QString) -> bool;
 
         /// Writes the shot list as CSV next to the project folder; the path goes to `status`.
+        /// `order` is `cut` or `shooting`.
         #[qinvokable]
         #[cxx_name = "exportCsv"]
-        fn export_csv(self: Pin<&mut Self>) -> bool;
+        fn export_csv(self: Pin<&mut Self>, order: &QString) -> bool;
 
         /// What a tooltip says about a plan element (`camera:a` …), as JSON.
         #[qinvokable]
@@ -184,8 +186,9 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Autosave, DisplayList, Layer, Movement, Paper, PlanEdit, Point, Session,
-    ShotColumns, ShotField, ShotSize, ShotTexts, Snapping, Source, Texts, Visibility,
+    horizontal_fov_deg, Angle, Autosave, DisplayList, Layer, Movement, Paper, PlanEdit, Point,
+    Session, ShotColumns, ShotField, ShotOrder, ShotSize, ShotTexts, Snapping, Source, Texts,
+    Visibility,
 };
 use serde_json::json;
 
@@ -394,6 +397,14 @@ fn visibility(text: &QString) -> Visibility {
         return Visibility::Shown;
     }
     Visibility::Hidden
+}
+
+/// `shooting` is the shooting order; anything else is the cut order.
+fn shot_order(name: &str) -> ShotOrder {
+    match name {
+        "shooting" => ShotOrder::Shooting,
+        _ => ShotOrder::Cut,
+    }
 }
 
 fn layer_of(name: &str) -> Option<Layer> {
@@ -871,7 +882,7 @@ impl qobject::Controller {
         self.refresh();
     }
 
-    fn export_pdf(mut self: Pin<&mut Self>) -> bool {
+    fn export_pdf(mut self: Pin<&mut Self>, order: &QString) -> bool {
         let language = self.rust().language;
         let texts = print_texts(language);
         let Some(s) = self.as_mut().session() else {
@@ -879,7 +890,7 @@ impl qobject::Controller {
         };
 
         let path = plan_file(s, "pdf");
-        let message = match s.export_pdf(&path, Paper::A4, texts) {
+        let message = match s.export_pdf(&path, Paper::A4, texts, shot_order(&order.to_string())) {
             Ok(()) => language
                 .text("menu.pdfSaved")
                 .replace("{path}", &path.to_string_lossy()),
@@ -890,7 +901,7 @@ impl qobject::Controller {
         ok
     }
 
-    fn export_csv(mut self: Pin<&mut Self>) -> bool {
+    fn export_csv(mut self: Pin<&mut Self>, order: &QString) -> bool {
         let language = self.rust().language;
         let texts = print_texts(language);
         let Some(s) = self.as_mut().session() else {
@@ -898,7 +909,7 @@ impl qobject::Controller {
         };
 
         let path = plan_file(s, "csv");
-        let message = match s.export_csv(&path, &texts) {
+        let message = match s.export_csv(&path, &texts, shot_order(&order.to_string())) {
             Ok(()) => language
                 .text("menu.csvSaved")
                 .replace("{path}", &path.to_string_lossy()),
@@ -940,7 +951,9 @@ fn shot_texts(language: Language) -> ShotTexts {
             number: t("field.number"),
             camera: t("field.camera"),
             lens_mm: t("field.lens"),
+            setup: t("field.setup"),
             size: t("field.size"),
+            angle: t("field.perspective"),
             movement: t("field.movement"),
             from_s: t("field.from"),
             to_s: t("field.to"),
@@ -954,6 +967,10 @@ fn shot_texts(language: Language) -> ShotTexts {
         sizes: ShotSize::ALL
             .iter()
             .map(|s| (*s, t(&format!("size.{}", s.name()))))
+            .collect(),
+        angles: Angle::ALL
+            .iter()
+            .map(|a| (*a, t(&format!("angle.{}", a.name()))))
             .collect(),
         movements: Movement::ALL
             .iter()
