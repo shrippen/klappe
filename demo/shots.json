@@ -1,0 +1,10 @@
+{
+  "kind": "command",
+  "start": "demo/start.sh {lang}",
+  "timeout": 600,
+  "viewport": [1440, 900],
+  "shots": [
+    {"name": "start"},
+    {"name": "plan", "open": true, "time": 20, "shot": "s14-3"}
+  ]
+}
