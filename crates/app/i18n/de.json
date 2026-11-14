@@ -125,6 +125,7 @@
  "backup.unreadable": "Eine Sicherung ist unlesbar: {message}",
  "backup.restore": "Wiederherstellen",
  "backup.discard": "Verwerfen",
+ "backup.discardSure": "Wirklich verwerfen?",
  "empty.title": "Kein Projekt geöffnet",
  "empty.text": "Starte Klappe mit --open <Ordner>.klappe."
 }

@@ -125,6 +125,7 @@
  "backup.unreadable": "A backup is unreadable: {message}",
  "backup.restore": "Restore",
  "backup.discard": "Discard",
+ "backup.discardSure": "Really discard?",
  "empty.title": "No project open",
  "empty.text": "Start Klappe with --open <folder>.klappe."
 }

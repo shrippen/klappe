@@ -97,10 +97,35 @@ TestCase {
         verify(!notice.visible)
     }
 
+    // Review of PR 15: while the question is open nothing is backed up, so it must be
+    // answered before work goes on.
+    function test_an_open_question_blocks_work() {
+        fake.backupState = "found"
+        const notice = make()
+        verify(notice.blocking)
+        fake.backupState = "unreadable"
+        verify(notice.blocking)
+        fake.backupState = "none"
+        verify(!notice.blocking)
+    }
+
+    // Review of PR 15: discarding cannot be undone, so the first click only asks again.
+    function test_discard_asks_once_more() {
+        fake.backupState = "found"
+        const notice = make()
+        const discard = findChild(notice, "discard")
+        discard.clicked()
+        compare(fake.calls, [])
+        compare(discard.text, "Wirklich verwerfen?")
+        discard.clicked()
+        compare(fake.calls, ["discard"])
+    }
+
     function test_discard_calls_the_controller_and_the_note_goes() {
         fake.backupState = "unreadable"
         const notice = make()
 
+        findChild(notice, "discard").clicked()
         findChild(notice, "discard").clicked()
 
         compare(fake.calls, ["discard"])
