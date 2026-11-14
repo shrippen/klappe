@@ -71,59 +71,113 @@ impl Analysis {
 
 /// Classifies every line.
 ///
-/// Each paragraph (lines up to a blank one) goes through the real parser alone, so the
-/// rules stay the parser's; a paragraph is always surrounded by blank lines in the text.
+/// The text is first cut as the parser cuts it (boneyards out, see [`strip`]); each
+/// paragraph of what is left goes through the real parser alone, so the rules stay the
+/// parser's. Lines that lie wholly in a boneyard show as plain action.
 pub(crate) fn analyse(lines: &[String]) -> Analysis {
-    let mut out = Analysis {
-        kinds: vec![LineKind::Blank; lines.len()],
+    let cut = strip(lines);
+    let mut seen = Analysis {
+        kinds: vec![LineKind::Blank; cut.lines.len()],
         scenes: Vec::new(),
     };
     let mut start = 0;
-    let mut in_boneyard = false;
 
-    while start < lines.len() {
-        if lines[start].trim().is_empty() {
+    while start < cut.lines.len() {
+        if cut.lines[start].trim().is_empty() {
             start += 1;
             continue;
         }
 
-        let len = lines[start..]
+        let len = cut.lines[start..]
             .iter()
             .take_while(|l| !l.trim().is_empty())
             .count();
-        let para = &lines[start..start + len];
-        let was_inside = in_boneyard;
-        in_boneyard = boneyard_after(was_inside, para);
-
-        // A paragraph that begins in a boneyard is not parsed: the parser would see
-        // it as text. It shows as plain action and lists no scene.
-        match was_inside {
-            true => out.kinds[start..start + len].fill(LineKind::Action),
-            false => paragraph(para, start, &mut out),
-        }
+        paragraph(&cut.lines[start..start + len], start, &mut seen);
         start += len;
     }
 
-    out
+    back_to_lines(lines, &cut, seen)
 }
 
-/// Whether a boneyard `/* ... */` is still open after `lines`, given if one was open before.
-fn boneyard_after(mut inside: bool, lines: &[String]) -> bool {
-    let text = lines.join("\n");
-    let mut rest = text.as_str();
+/// The text as the parser sees it: line `i` of `lines` starts at line `origin[i]` of the
+/// typed text. A boneyard swallows its line breaks, so `foo /*⏎⏎*/ bar` is one line.
+struct Cut {
+    lines: Vec<String>,
+    origin: Vec<usize>,
+}
 
-    loop {
-        let marker = if inside {
-            BONEYARD_CLOSE
-        } else {
-            BONEYARD_OPEN
-        };
-        let Some(at) = rest.find(marker) else {
-            return inside;
-        };
-        rest = &rest[at + marker.len()..];
-        inside = !inside;
+/// Cuts `/* … */` out like `klappe_script`'s `strip_boneyard`; an unclosed one runs to the end.
+fn strip(lines: &[String]) -> Cut {
+    let mut cut = Cut {
+        lines: Vec::new(),
+        origin: Vec::new(),
+    };
+    let mut inside = false;
+
+    for (i, line) in lines.iter().enumerate() {
+        // Outside a boneyard the line break survives: a new line of the cut text.
+        if !inside || cut.lines.is_empty() {
+            cut.lines.push(String::new());
+            cut.origin.push(i);
+        }
+
+        let mut rest = line.as_str();
+        loop {
+            let marker = if inside {
+                BONEYARD_CLOSE
+            } else {
+                BONEYARD_OPEN
+            };
+            let Some(at) = rest.find(marker) else {
+                if !inside {
+                    push_last(&mut cut, rest);
+                }
+                break;
+            };
+            if !inside {
+                push_last(&mut cut, &rest[..at]);
+            }
+            rest = &rest[at + marker.len()..];
+            inside = !inside;
+        }
     }
+
+    cut
+}
+
+fn push_last(cut: &mut Cut, text: &str) {
+    if let Some(last) = cut.lines.last_mut() {
+        last.push_str(text);
+    }
+}
+
+/// Kinds and scenes of the cut text, put back on the typed lines.
+fn back_to_lines(lines: &[String], cut: &Cut, seen: Analysis) -> Analysis {
+    // Typed text that is no line of its own for the parser lies in a boneyard.
+    let mut kinds: Vec<LineKind> = lines
+        .iter()
+        .map(|l| match l.trim().is_empty() {
+            true => LineKind::Blank,
+            false => LineKind::Action,
+        })
+        .collect();
+
+    for (kind, &at) in seen.kinds.iter().zip(&cut.origin) {
+        if *kind != LineKind::Blank {
+            kinds[at] = *kind;
+        }
+    }
+
+    let scenes = seen
+        .scenes
+        .into_iter()
+        .map(|s| Scene {
+            line: cut.origin[s.line],
+            ..s
+        })
+        .collect();
+
+    Analysis { kinds, scenes }
 }
 
 /// Number of text lines an element took, and its kind.
@@ -241,6 +295,88 @@ mod tests {
 
         let headings: Vec<_> = a.scenes.iter().map(|s| s.heading.as_str()).collect();
         assert_eq!(headings, ["INT. A"]);
+    }
+
+    #[test]
+    fn text_after_a_closed_boneyard_is_parsed() {
+        let text = "INT. A\n\nx\n\n/*\n\nINT. B\n\n*/\nINT. C\n\ny\n";
+
+        let tui: Vec<_> = analyse(&lines(text))
+            .scenes
+            .iter()
+            .map(|s| s.heading.clone())
+            .collect();
+        let parsed: Vec<_> = parse(text)
+            .elements
+            .iter()
+            .filter_map(|el| match el {
+                Element::SceneHeading { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(parsed, ["INT. A", "INT. C"]);
+        assert_eq!(tui, parsed);
+    }
+
+    /// Review of PR 8: text behind `*/` joins the next line's paragraph, as in `parse`.
+    #[test]
+    fn text_behind_the_close_stays_in_its_paragraph() {
+        for text in [
+            "INT. A\n\n/*\n\nINT. B\n\nx */ more\nINT. C\n\ny\n",
+            "INT. A\n\n/*\n\nINT. B\n\n*/ more\nINT. C\n\ny\n",
+            // Review of PR 8, round 2: text before `/*` joins the text behind `*/`.
+            "INT. A\n\nfoo /*\n\n*/ INT. C\n\ny\n",
+            "INT. A\n\nfoo /*\n\nbar */\nINT. C\n\ny\n",
+            "INT. A\n\nx */ INT. D\n\n/* a */ INT. E\n\nb /* c */\n\nINT. F\n",
+        ] {
+            assert_eq!(headings(text), scene_headings(text), "{text:?}");
+        }
+    }
+
+    /// Every text of up to four lines from these pieces lists the parser's scenes.
+    #[test]
+    fn scenes_match_the_parser_around_boneyards() {
+        const PIECES: [&str; 8] = [
+            "",
+            "INT. A",
+            "x /*",
+            "*/ INT. B",
+            "/* y */",
+            "z */",
+            "/*",
+            "a",
+        ];
+
+        let mut texts = vec![String::new()];
+        for _ in 0..4 {
+            texts = texts
+                .iter()
+                .flat_map(|t| PIECES.iter().map(move |p| format!("{t}{p}\n")))
+                .collect();
+            for text in &texts {
+                assert_eq!(headings(text), scene_headings(text), "{text:?}");
+            }
+        }
+    }
+
+    fn headings(text: &str) -> Vec<String> {
+        analyse(&lines(text))
+            .scenes
+            .iter()
+            .map(|s| s.heading.clone())
+            .collect()
+    }
+
+    fn scene_headings(text: &str) -> Vec<String> {
+        parse(text)
+            .elements
+            .iter()
+            .filter_map(|el| match el {
+                Element::SceneHeading { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect()
     }
 
     #[test]

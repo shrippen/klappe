@@ -41,6 +41,8 @@ pub(crate) struct Row {
 pub(crate) struct Layout {
     rows: Vec<Row>,
     first_row: Vec<usize>,
+    /// Per row: screen columns before each of its characters, plus the total at the end.
+    offsets: Vec<Vec<usize>>,
 }
 
 /// Splits a line into `(start, end)` character ranges of at most `width` columns, at spaces.
@@ -83,9 +85,23 @@ fn fit(chars: &[char], width: usize) -> usize {
     chars.len()
 }
 
+/// Screen columns before each character of `chars`, plus the total at the end.
+fn col_offsets(chars: &[char]) -> Vec<usize> {
+    let mut used = 0;
+    let mut out = vec![0];
+
+    for &c in chars {
+        used += char_cols(c);
+        out.push(used);
+    }
+
+    out
+}
+
 impl Layout {
     pub(crate) fn build(lines: &[String], kinds: &[LineKind], width: usize) -> Self {
         let mut rows = Vec::new();
+        let mut offsets = Vec::new();
         let mut first_row = Vec::with_capacity(lines.len());
 
         for (i, line) in lines.iter().enumerate() {
@@ -94,10 +110,12 @@ impl Layout {
             // One column stays free for the cursor behind the last character.
             let room = width.saturating_sub(indent + 1).max(MIN_WRAP);
             let parts = wrap(line, room);
+            let chars: Vec<char> = line.chars().collect();
             let count = parts.len();
 
             first_row.push(rows.len());
             for (n, (start, end)) in parts.into_iter().enumerate() {
+                offsets.push(col_offsets(&chars[start..end]));
                 rows.push(Row {
                     line: i,
                     start,
@@ -108,7 +126,11 @@ impl Layout {
             }
         }
 
-        Self { rows, first_row }
+        Self {
+            rows,
+            first_row,
+            offsets,
+        }
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -133,17 +155,40 @@ impl Layout {
         at
     }
 
-    /// Position at column `x` of a row, kept on that row.
+    /// Screen columns from the start of a row to character `col` of its line.
+    pub(crate) fn col_in_row(&self, row: usize, col: usize) -> usize {
+        let (Some(r), Some(offsets)) = (self.rows.get(row), self.offsets.get(row)) else {
+            return 0;
+        };
+        let at = col.saturating_sub(r.start).min(offsets.len() - 1);
+
+        offsets[at]
+    }
+
+    /// Screen columns a row takes.
+    pub(crate) fn row_cols(&self, row: usize) -> usize {
+        self.offsets
+            .get(row)
+            .and_then(|o| o.last())
+            .copied()
+            .unwrap_or(0)
+    }
+
+    /// Position at screen column `x` of a row, kept on that row.
+    ///
+    /// A wide character covering `x` is not reached: the position is before it.
     pub(crate) fn pos_at(&self, row: usize, x: usize) -> Pos {
-        let Some(row) = self.rows.get(row).or(self.rows.last()) else {
+        let index = row.min(self.rows.len().saturating_sub(1));
+        let (Some(row), Some(offsets)) = (self.rows.get(index), self.offsets.get(index)) else {
             return Pos::default();
         };
         let len = row.end - row.start;
         let max = if row.last { len } else { len.saturating_sub(1) };
+        let reach = offsets.partition_point(|&o| o <= x).saturating_sub(1);
 
         Pos {
             line: row.line,
-            col: row.start + x.min(max),
+            col: row.start + reach.min(max),
         }
     }
 }

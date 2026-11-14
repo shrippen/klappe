@@ -12,7 +12,7 @@ Stand: 2026-11-13.
 | Projektordner lesen und schreiben | fertig (#3) |
 | Export SVG und PDF aus der Darstellungsliste | fertig (#4) |
 | Sitzung (`services`): Szene, Zeit, Shot bearbeiten, Rückgängig, Ansichten | fertig (#5) |
-| TUI-Editor (`klappe-tui`), schreibt nur das Drehbuch | erste Fassung (#6); offen: Boneyard-Rest nach `*/`, Zielspalte bei Pfeil auf/ab nach Anzeigebreite |
+| TUI-Editor (`klappe-tui`), schreibt nur das Drehbuch | fertig (#6, #8) |
 | GUI-Gerüst (cxx-qt, Kirigami, Kante), Layout E-14: Drehbuch, Plan, Shot, Zeitleiste, ausklappbar | erste Fassung (#7, Kante #170); offen: Sichtkegel nach dem Objektiv des Shots, Zeichenwerkzeuge |
 | App in der CI (Arch, QML-Tests, offscreen-Screenshots) | fertig (#7) |
 | Flatpak und Windows-Build der App | offen |
