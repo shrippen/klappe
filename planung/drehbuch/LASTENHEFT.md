@@ -3,8 +3,8 @@
 Modul der Film-Vorproduktionssuite **Klappe**. Stand: 2026-11-14, Entwurf.
 
 Das Lastenheft beschreibt, *was* das Modul Drehbuch leisten muss. *Wie* es umgesetzt wird,
-steht in [`../KONZEPT.md`](../KONZEPT.md) und später im Pflichtenheft. Offene Fragen an den
-Eigentümer: Abschnitt 10.
+steht in [`../KONZEPT.md`](../KONZEPT.md) und später im Pflichtenheft. Entscheidungen des
+Eigentümers: Abschnitt 10.
 
 ## 1. Ausgangslage
 
@@ -200,7 +200,7 @@ Dateiformate werden nicht übernommen. Klappe steht unter MIT.
 
 - **Fade In** (proprietär, GCC Productions): nur öffentliche Seiten.
 - **Beat** (GPL v3, Lauri-Matti Parppei): öffentliche Seiten. Auf Wunsch des Eigentümers
-  (2026-11-14, bestätigt im Review von #17) wurden auch einzelne Quelldateien gelesen, um Verhalten zu verstehen
+  (2026-11-14, bestätigt in einem Kommentar zu #17) wurden auch einzelne Quelldateien gelesen, um Verhalten zu verstehen
   (Paginierung, Revisionen, Dokumenteinstellungen, Tagging, Autovervollständigung). Daraus
   steht hier nur Verhalten in eigenen Worten. Wer Klappe programmiert, schreibt nach diesem
   Lastenheft, nicht mit Beat-Code daneben.
