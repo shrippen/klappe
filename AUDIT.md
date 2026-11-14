@@ -14,7 +14,7 @@ Das Repo lässt sich gut warten: Die Bausteine folgen dem Plan, und zu fast jede
 ## Funde
 
 ### 1. Die Namen der Figurenfarben stehen viermal im Code, die Namen von Haltung, Ankunft und Abgang in einer eigenen Tabelle der Oberfläche
-Eine neue Figurenfarbe muss heute an vier Stellen gleich geschrieben werden: in der Planansicht der App, in der Zeitleiste der Sitzung, im Export und, über einen dritten Weg, beim Lesen und Schreiben der Projektdatei. Vergessen kann man dabei keine Stelle, denn das Programm lässt sich erst wieder bauen, wenn alle vier ergänzt sind. Ein Tippfehler im Namen an einer Stelle fällt aber nicht auf: Dann zeigt die App die Farbe an, der Ausdruck nicht, oder umgekehrt. Für Haltung, Ankunft, Abgang und Tempo hält die Oberfläche eigene Namenstabellen; dort fällt auch eine fehlende Zeile nicht auf. Diese Namen sind dieselben, die auch die Projektdatei schreibt. Für die Bildgröße ist das schon richtig gelöst: Das Modell kennt dort den Namen selbst, mit Test.
+Eine neue Figurenfarbe muss heute an vier Stellen gleich geschrieben werden: in der Planansicht der App, in der Zeitleiste der Sitzung, im Export und, über einen dritten Weg, beim Lesen und Schreiben der Projektdatei. Drei dieser Stellen werden von Hand gepflegt, die vierte leitet den Namen selbst ab, und alle müssen gleich lauten. Vergessen kann man keine Stelle, denn das Programm lässt sich erst wieder bauen, wenn alle ergänzt sind. Ein Tippfehler im Namen an einer Stelle fällt aber nicht auf: Dann zeigt die App die Farbe an, der Ausdruck nicht, oder umgekehrt. Für Haltung, Ankunft, Abgang und Tempo hält die Oberfläche eigene Namenstabellen; dort fällt auch eine fehlende Zeile nicht auf. Diese Namen sind dieselben, die auch die Projektdatei schreibt. Für die Bildgröße ist das schon richtig gelöst: Das Modell kennt dort den Namen selbst, mit Test.
 
 Vorschlag: Jede dieser Auswahlarten bekommt im Modell einmal eine Funktion „Name“ und eine Funktion „aus dem Namen“, und alle anderen Stellen nutzen sie. Aufwand klein. Risiko gering, Tests für Projektdatei und Export sind vorhanden.
 
@@ -57,7 +57,7 @@ Vorschlag: Die Sitzung liefert auch diese Ansichten als fertige Strukturen, wie 
 Beleg: `crates/app/src/manage.rs:27`, `crates/app/src/bridge.rs:2433`, `crates/app/src/bridge.rs:2459`, `crates/app/src/bridge.rs:845`, `crates/app/src/bridge.rs:2427`, `crates/app/src/bridge.rs:2525`, Vorbild `crates/services/src/views.rs:7`.
 
 ### 6. Das Terminalprogramm (TUI) baut Regeln des Drehbuchformats nach, weil der Drehbuchleser keine Zeilennummern liefert
-Der Editor im Terminal muss für jede Zeile wissen, was sie ist. Der Leser für das Drehbuchformat Fountain sagt das aber nicht. Darum schneidet er auskommentierte Stellen (`/* … */`) selbst heraus, mit einer zweiten Fassung der Regel aus dem Leser. Dann gibt sie jeden Absatz einzeln an den Leser, mit einem vorangestellten Platzhalter, und zählt die Zeilen aus den Zeilenumbrüchen des Ergebnisses zurück.
+Der Editor im Terminal muss für jede Zeile wissen, was sie ist. Der Leser für das Drehbuchformat Fountain sagt das aber nicht. Darum schneidet das Terminalprogramm auskommentierte Stellen (`/* … */`) selbst heraus, mit einer zweiten Fassung der Regel aus dem Leser. Dann gibt es jeden Absatz einzeln an den Leser, mit einem vorangestellten Platzhalter, und zählt die Zeilen aus den Zeilenumbrüchen des Ergebnisses zurück.
 
 Ändert sich eine Regel im Leser, etwa wie ein `/*` im Text als gewöhnliches Zeichen gilt, zeigt der Editor andere Zeilenarten an, als der Leser sieht. Kein Test verbindet beide.
 
@@ -82,7 +82,7 @@ Vorschlag: Die Daten bleiben in einem Baustein, die Funktionen kommen aber nach 
 Beleg: `crates/services/src/session.rs:119`, `crates/services/src/session.rs:147`, `crates/services/src/session.rs:601`, `crates/services/src/session.rs:1166`.
 
 ### 9. Zu Umwandlungen in Text fehlt die Rückrichtung an derselben Stelle, und die Dokumentation der Schichten stimmt an einer Stelle nicht
-Ein Element im Plan wird für die Oberfläche als kurzer Text geschrieben (etwa „Marke 0 von Elisabeth“). Wieder gelesen wird dieser Text aber in einer anderen Datei, mit einer eigenen Liste der Arten. Eine neue Elementart muss darum an beiden Stellen gleich ergänzt werden. Ebenso stehen die Umwandlung von Dateipfad in Datei-Adresse, ihre Rückrichtung und eine dritte Fassung in der Oberfläche an drei verschiedenen Orten.
+Ein Element im Plan wird für die Oberfläche als kurzer Text geschrieben (etwa `mark:elisabeth:0` für Marke 0 von Elisabeth). Wieder gelesen wird dieser Text aber in einer anderen Datei, mit einer eigenen Liste der Arten. Eine neue Elementart muss darum an beiden Stellen gleich ergänzt werden. Ebenso stehen die Umwandlung von Dateipfad in Datei-Adresse, ihre Rückrichtung und eine dritte Fassung in der Oberfläche an drei verschiedenen Orten.
 
 Außerdem behaupten `agent.md` und `planung/KONZEPT.md`, die Ablage nutze den Drehbuchleser. Sie hängt aber nur am Modell, und ihr Kopfkommentar sagt das auch. Wer die Schichten aus der Doku lernt, lernt sie an dieser Stelle falsch.
 
