@@ -6,7 +6,7 @@ use klappe_model::{FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{axis_jumps, lens_at, render, DisplayList, Role, Source};
 
-use crate::edit::{self, movement_name, size_name, ShotField};
+use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit, Snapping};
 use crate::views::{Chip, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind};
@@ -241,15 +241,26 @@ impl Session {
         !self.hidden_tracks.contains(id)
     }
 
-    /// Prints the current plan at the playhead as PDF (LH-80); `title` names scene and plan.
+    /// Prints the current plan at the playhead as PDF (LH-80), followed by its shot list;
+    /// `title` names scene and plan.
     pub fn export_pdf(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
         let page = Page::new(paper, Orientation::Landscape, self.plan_title(), texts);
-        let bytes = klappe_export::pdf(&self.display_list(), &page, Theme::Light)?;
+        let list = self.display_list();
+        let bytes = match self.plan() {
+            Some(plan) => klappe_export::pdf_with_shots(&list, &page, Theme::Light, plan)?,
+            None => klappe_export::pdf(&list, &page, Theme::Light)?,
+        };
 
-        std::fs::write(path, bytes).map_err(|source| ServiceError::Write {
-            path: path.to_owned(),
-            source,
-        })
+        write_file(path, bytes)
+    }
+
+    /// Writes the plan's shot list as CSV (LH-82); `texts` carries the column heads and the
+    /// names of sizes and movements.
+    pub fn export_csv(&self, path: &Path, texts: &Texts) -> Result<(), ServiceError> {
+        let empty = FloorPlan::new("", "");
+        let csv = klappe_export::shots_csv(self.plan().unwrap_or(&empty), &texts.shots);
+
+        write_file(path, csv.into_bytes())
     }
 
     /// "Szene 12 · INT. SÄNGERSAAL – TAG · Plan A" without the word "Szene": the surface adds it.
@@ -291,8 +302,8 @@ impl Session {
                     number: shot.number.clone(),
                     camera: shot.camera.clone(),
                     camera_label: camera.map(|c| c.label.clone()).unwrap_or_default(),
-                    size: size_name(shot.size).to_owned(),
-                    movement: movement_name(shot.movement).to_owned(),
+                    size: shot.size.name().to_owned(),
+                    movement: shot.movement.name().to_owned(),
                     lens_mm: shot.lens_mm.or(camera.map(|c| c.lens_mm)).unwrap_or(0.0),
                     own_lens_mm: shot.lens_mm,
                     from_s: shot.from_s,
@@ -656,4 +667,11 @@ fn mark_current(lines: &mut [ScriptLine], t_s: f64) {
     if let Some(i) = current {
         lines[i].current = true;
     }
+}
+
+fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
+    std::fs::write(path, bytes).map_err(|source| ServiceError::Write {
+        path: path.to_owned(),
+        source,
+    })
 }

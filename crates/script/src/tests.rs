@@ -406,7 +406,19 @@ fn every_kind_in_every_position_round_trips() {
 /// `/*` in an action starts a boneyard on reading; the writer must protect it.
 #[test]
 fn boneyard_opener_in_text_round_trips() {
-    let texts = ["*/*/", "a /* b", "/*", "\\/*", "/*/*", "x */ y"];
+    let texts = [
+        "*/*/",
+        "a /* b",
+        "/*",
+        "\\/*",
+        "/*/*",
+        "x */ y",
+        "a /\\* b",
+        "/\\*",
+        "C:\\/\\*",
+        "/\\\\*",
+        "/\\*/*/\\\\*",
+    ];
 
     for text in texts {
         let script = Script {

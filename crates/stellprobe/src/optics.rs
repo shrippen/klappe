@@ -12,13 +12,17 @@ pub fn horizontal_fov_deg(sensor: Sensor, lens_mm: f64) -> f64 {
 }
 
 /// The lens in use at `t_s`: that of the first shot of this camera covering `t_s`, if it has
-/// its own; else the camera's.
+/// its own; else the camera's. At the end of a shot nothing else of this camera starts at,
+/// that shot still holds (the scene's end is `to_s`).
 ///
 /// Example: camera 35 mm, shot 12.2 from 0 s to 4 s with 40 mm: at 2 s this gives 40.
 pub fn lens_at(camera: &Camera, shots: &[Shot], t_s: f64) -> f64 {
-    shots
-        .iter()
-        .find(|s| s.camera == camera.id && s.from_s <= t_s && t_s < s.to_s)
+    let of_camera = || shots.iter().filter(|s| s.camera == camera.id);
+    let covering = of_camera().find(|s| s.from_s <= t_s && t_s < s.to_s);
+
+    // A shot ending exactly at `t_s` holds only when no shot of the camera starts there.
+    covering
+        .or_else(|| of_camera().find(|s| s.to_s == t_s))
         .and_then(|s| s.lens_mm)
         .unwrap_or(camera.lens_mm)
 }
@@ -108,6 +112,25 @@ mod tests {
         assert_eq!(lens_at(&cam, &shots[2..], 2.0), 40.0);
         assert_eq!(lens_at(&cam, &shots[2..], 4.0), 50.0);
         assert_eq!(lens_at(&cam, &shots, 9.0), 35.0);
+    }
+
+    #[test]
+    fn lens_holds_at_the_end_of_the_last_shot() {
+        let shots = [
+            shot("a", Some(85.0), 14.0, 20.0),
+            shot("a", Some(50.0), 20.0, 24.0),
+            shot("a", Some(70.0), 30.0, 40.0),
+        ];
+        let cam = camera(35.0);
+
+        // Scene ends at 40 s: the last shot still holds.
+        assert_eq!(lens_at(&cam, &shots[2..], 40.0), 70.0);
+        // End of a shot with a successor: the successor starts there.
+        assert_eq!(lens_at(&cam, &shots[..2], 20.0), 50.0);
+        // End of a shot, nothing follows.
+        assert_eq!(lens_at(&cam, &shots[..1], 20.0), 85.0);
+        // Past the end.
+        assert_eq!(lens_at(&cam, &shots[..1], 21.0), 35.0);
     }
 
     #[test]

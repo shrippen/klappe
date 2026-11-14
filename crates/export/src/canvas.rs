@@ -84,6 +84,16 @@ pub(crate) struct Doc {
     pub plan: Vec<Prim>,
     /// Title, scale bar, legend.
     pub chrome: Vec<Prim>,
+    /// Further pages after the plan (the shot list); SVG has none.
+    pub sheets: Vec<Sheet>,
+}
+
+/// A page of its own size, drawn as is.
+#[derive(Debug)]
+pub(crate) struct Sheet {
+    pub width_pt: f64,
+    pub height_pt: f64,
+    pub prims: Vec<Prim>,
 }
 
 /// Dash pattern in points for a stroke of `width_pt`; empty for solid.

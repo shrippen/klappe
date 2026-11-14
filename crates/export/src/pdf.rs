@@ -1,22 +1,21 @@
 //! A minimal PDF 1.4 writer: vector paths and Helvetica text, nothing else.
 //!
 //! ```text
-//! 1 Catalog → 2 Pages → 3 Page → 4 content stream
-//!                         5 Helvetica, 6 Helvetica-Bold, 7… ExtGState (fill opacity)
+//! 1 Catalog → 2 Pages → pages, each a Page object and its content stream (last)
+//!                         3 Helvetica, 4 Helvetica-Bold, 5… ExtGState (fill opacity)
 //! ```
 
 use std::fmt::Write;
 
-use crate::canvas::{dash_array, num, Anchor, Doc, Fill, Geom, Prim, Rect, Stroke, Weight};
+use crate::canvas::{dash_array, num, Anchor, Doc, Fill, Geom, Prim, Rect, Sheet, Stroke, Weight};
+use crate::palette::Rgb;
 
 const HEADER: &[u8] = b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
 const OBJ_CATALOG: usize = 1;
 const OBJ_PAGES: usize = 2;
-const OBJ_PAGE: usize = 3;
-const OBJ_CONTENT: usize = 4;
-const OBJ_FONT_REGULAR: usize = 5;
-const OBJ_FONT_BOLD: usize = 6;
-const OBJ_FIRST_STATE: usize = 7;
+const OBJ_FONT_REGULAR: usize = 3;
+const OBJ_FONT_BOLD: usize = 4;
+const OBJ_FIRST_STATE: usize = 5;
 /// Circle quarter as a cubic Bézier: 4/3 * (sqrt 2 - 1).
 const BEZIER_KAPPA: f64 = 0.552_284_749_8;
 /// Mean advance of Helvetica text in em; PDF has no layout, so centring estimates the width
@@ -27,7 +26,16 @@ const OPACITY_STEPS: f64 = 1000.0;
 
 pub(crate) fn write(doc: &Doc) -> Vec<u8> {
     let states = opacities(doc);
-    let content = content(doc, &states);
+
+    // Page 1 is the plan, then the sheets; each page is two objects, page and content.
+    let mut pages = vec![(doc.width_pt, doc.height_pt, content(doc, &states))];
+    for sheet in &doc.sheets {
+        pages.push((sheet.width_pt, sheet.height_pt, sheet_content(doc, sheet)));
+    }
+    let first_page = OBJ_FIRST_STATE + states.len();
+    let kids: Vec<String> = (0..pages.len())
+        .map(|i| format!("{} 0 R", first_page + 2 * i))
+        .collect();
 
     let mut resources =
         format!("<< /Font << /F1 {OBJ_FONT_REGULAR} 0 R /F2 {OBJ_FONT_BOLD} 0 R >> /ExtGState <<");
@@ -38,14 +46,12 @@ pub(crate) fn write(doc: &Doc) -> Vec<u8> {
 
     let mut objects: Vec<Vec<u8>> = vec![
         format!("<< /Type /Catalog /Pages {OBJ_PAGES} 0 R >>").into_bytes(),
-        format!("<< /Type /Pages /Kids [{OBJ_PAGE} 0 R] /Count 1 >>").into_bytes(),
         format!(
-            "<< /Type /Page /Parent {OBJ_PAGES} 0 R /MediaBox [0 0 {} {}] /Resources {resources} /Contents {OBJ_CONTENT} 0 R >>",
-            num(doc.width_pt),
-            num(doc.height_pt)
+            "<< /Type /Pages /Kids [{}] /Count {} >>",
+            kids.join(" "),
+            pages.len()
         )
         .into_bytes(),
-        stream(&content),
         font("Helvetica").into_bytes(),
         font("Helvetica-Bold").into_bytes(),
     ];
@@ -53,7 +59,19 @@ pub(crate) fn write(doc: &Doc) -> Vec<u8> {
         let ca = f64::from(*key) / OPACITY_STEPS;
         objects.push(format!("<< /Type /ExtGState /ca {} >>", num3(ca)).into_bytes());
     }
-    debug_assert_eq!(objects.len(), OBJ_FIRST_STATE - 1 + states.len());
+    for (i, (width_pt, height_pt, content)) in pages.iter().enumerate() {
+        objects.push(
+            format!(
+                "<< /Type /Page /Parent {OBJ_PAGES} 0 R /MediaBox [0 0 {} {}] /Resources {resources} /Contents {} 0 R >>",
+                num(*width_pt),
+                num(*height_pt),
+                first_page + 2 * i + 1
+            )
+            .into_bytes(),
+        );
+        objects.push(stream(content));
+    }
+    debug_assert_eq!(objects.len(), first_page - 1 + 2 * pages.len());
 
     let mut out = HEADER.to_vec();
     let mut offsets = Vec::with_capacity(objects.len());
@@ -121,21 +139,32 @@ fn opacities(doc: &Doc) -> Vec<u32> {
     keys
 }
 
-fn content(doc: &Doc, states: &[u32]) -> Vec<u8> {
-    let h = doc.height_pt;
-    let mut s = String::new();
+/// The sheet's paper colour over the whole page.
+fn paper(rgb: Rgb, width_pt: f64, height_pt: f64) -> String {
+    let [r, g, b] = rgb.unit();
 
-    // Paper.
-    let [r, g, b] = doc.paper.unit();
-    let _ = writeln!(
-        s,
-        "{} {} {} rg 0 0 {} {} re f",
+    format!(
+        "{} {} {} rg 0 0 {} {} re f\n",
         num3(r),
         num3(g),
         num3(b),
-        num(doc.width_pt),
-        num(h)
-    );
+        num(width_pt),
+        num(height_pt)
+    )
+}
+
+fn sheet_content(doc: &Doc, sheet: &Sheet) -> Vec<u8> {
+    let mut s = paper(doc.paper, sheet.width_pt, sheet.height_pt);
+    for prim in &sheet.prims {
+        s.push_str(&operators(prim, sheet.height_pt, &[]));
+    }
+
+    s.into_bytes()
+}
+
+fn content(doc: &Doc, states: &[u32]) -> Vec<u8> {
+    let h = doc.height_pt;
+    let mut s = paper(doc.paper, doc.width_pt, h);
 
     // The plan is clipped to the set; the axis runs past it.
     let c = doc.clip;

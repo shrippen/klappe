@@ -110,61 +110,12 @@ fn lens_of(value: &str) -> Option<Option<f64>> {
         .then_some(Some(mm))
 }
 
-/// Names as the model serializes them, e.g. `close-up`.
-pub(crate) fn size_name(size: ShotSize) -> &'static str {
-    match size {
-        ShotSize::ExtremeWide => "extreme-wide",
-        ShotSize::Wide => "wide",
-        ShotSize::MediumWide => "medium-wide",
-        ShotSize::Cowboy => "cowboy",
-        ShotSize::Medium => "medium",
-        ShotSize::MediumClose => "medium-close",
-        ShotSize::CloseUp => "close-up",
-        ShotSize::ExtremeCloseUp => "extreme-close-up",
-    }
-}
-
-const SIZES: [ShotSize; 8] = [
-    ShotSize::ExtremeWide,
-    ShotSize::Wide,
-    ShotSize::MediumWide,
-    ShotSize::Cowboy,
-    ShotSize::Medium,
-    ShotSize::MediumClose,
-    ShotSize::CloseUp,
-    ShotSize::ExtremeCloseUp,
-];
-
 fn size_of(name: &str) -> Option<ShotSize> {
-    SIZES.into_iter().find(|s| size_name(*s) == name)
+    ShotSize::ALL.into_iter().find(|s| s.name() == name)
 }
-
-pub(crate) fn movement_name(movement: Movement) -> &'static str {
-    match movement {
-        Movement::Static => "static",
-        Movement::Pan => "pan",
-        Movement::Tilt => "tilt",
-        Movement::Dolly => "dolly",
-        Movement::Crane => "crane",
-        Movement::Handheld => "handheld",
-        Movement::Gimbal => "gimbal",
-        Movement::Zoom => "zoom",
-    }
-}
-
-const MOVEMENTS: [Movement; 8] = [
-    Movement::Static,
-    Movement::Pan,
-    Movement::Tilt,
-    Movement::Dolly,
-    Movement::Crane,
-    Movement::Handheld,
-    Movement::Gimbal,
-    Movement::Zoom,
-];
 
 fn movement_of(name: &str) -> Option<Movement> {
-    MOVEMENTS.into_iter().find(|m| movement_name(*m) == name)
+    Movement::ALL.into_iter().find(|m| m.name() == name)
 }
 
 #[cfg(test)]
@@ -183,11 +134,11 @@ mod tests {
 
     #[test]
     fn names_round_trip() {
-        for s in SIZES {
-            assert_eq!(size_of(size_name(s)), Some(s));
+        for s in ShotSize::ALL {
+            assert_eq!(size_of(s.name()), Some(s));
         }
-        for m in MOVEMENTS {
-            assert_eq!(movement_of(movement_name(m)), Some(m));
+        for m in Movement::ALL {
+            assert_eq!(movement_of(m.name()), Some(m));
         }
     }
 

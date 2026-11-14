@@ -72,7 +72,7 @@ pub enum Source {
 }
 
 /// Figure body radius on the plan.
-const FIGURE_RADIUS_M: f64 = 0.35;
+pub const FIGURE_RADIUS_M: f64 = 0.35;
 /// Mark circles are smaller than the figure.
 const MARK_RADIUS_M: f64 = 0.22;
 /// Camera and lamp bodies.
@@ -537,7 +537,7 @@ mod tests {
         };
 
         let during = frustum_of(&p, 2.0);
-        let after = frustum_of(&p, 4.0);
+        let after = frustum_of(&p, 5.0);
 
         assert!(
             (during[1].x_m - expect(40.0)[1].x_m).abs() < 1e-6,
