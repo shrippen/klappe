@@ -74,6 +74,13 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   läuft entlang der Kurve mit gleichmäßigem Tempo, die Ankunftszeiten bleiben die der Marks.
   Ohne Kurven fehlt der Schlüssel; ältere Projekte laden und speichern unverändert. Keine
   neue Formatversion, wie bei den Notizen.
+- **Auftritt und Abgang (LH-26):** jeder Mark einer Figur (`marks` in `szenen/<id>.json`) hat
+  optional `arrival` (`walk` oder `appear`, Standard `walk`) und `departure` (`stay` oder
+  `leave`, Standard `stay`). Bei `appear` ist die Figur vor `at_s` dieses Marks nicht zu sehen
+  und erscheint dort, statt vom vorigen Mark zu laufen; am ersten Mark heißt das: vor `at_s`
+  unsichtbar. Bei `leave` ist sie nach `at_s + hold_s` nicht mehr zu sehen, bis ein späterer Mark
+  `appear` hat. Ein Wert mit Standard wird nicht geschrieben; ältere Projekte laden und speichern
+  unverändert. Keine neue Formatversion, wie bei den Notizen.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.

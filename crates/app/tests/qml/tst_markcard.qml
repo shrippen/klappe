@@ -20,6 +20,8 @@ TestCase {
         property var poses: []
         property var holds: []
         property var paces: []
+        property var arrivals: []
+        property var departures: []
         property bool poseOk: true
         property bool holdOk: true
 
@@ -31,6 +33,14 @@ TestCase {
         function setMarkHold(text) {
             holds.push(text)
             return holdOk
+        }
+        function setMarkArrival(name) {
+            arrivals.push(name)
+            return true
+        }
+        function setMarkDeparture(name) {
+            departures.push(name)
+            return true
         }
         function setMarkPace(name) {
             paces.push(name)
@@ -55,12 +65,14 @@ TestCase {
         fake.poses = []
         fake.holds = []
         fake.paces = []
+        fake.arrivals = []
+        fake.departures = []
         fake.poseOk = true
         fake.holdOk = true
     }
 
     function figureMark(extra) {
-        fake.info = Object.assign({ kind: "figure", pose: "sitting", hold: 2.5, hasWay: true, pace: 1.4 }, extra || {})
+        fake.info = Object.assign({ kind: "figure", pose: "sitting", arrival: "walk", departure: "stay", hold: 2.5, hasWay: true, pace: 1.4 }, extra || {})
         fake.selectedKey = "mark:elisabeth:1"
     }
 
@@ -146,6 +158,36 @@ TestCase {
         findChild(card, "paceRun").clicked()
 
         compare(fake.paces, ["walk", "run"])
+    }
+
+    function test_a_figure_mark_shows_arrival_and_departure() {
+        const card = createTemporaryObject(cardComponent, tc)
+
+        figureMark({ arrival: "appear", departure: "leave" })
+
+        verify(findChild(card, "cueRow").visible)
+        compare(findChild(card, "arrivalChoice").currentIndex, 1)
+        compare(findChild(card, "departureChoice").currentIndex, 1)
+    }
+
+    function test_choosing_arrival_and_departure_goes_to_the_controller() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+
+        findChild(card, "arrivalChoice").select(1)
+        findChild(card, "departureChoice").select(1)
+
+        compare(fake.arrivals, ["appear"])
+        compare(fake.departures, ["leave"])
+    }
+
+    function test_a_camera_mark_has_no_arrival_or_departure() {
+        const card = createTemporaryObject(cardComponent, tc)
+
+        fake.info = { kind: "camera", pose: "", arrival: "", departure: "", hold: 6, hasWay: true, pace: 0.5 }
+        fake.selectedKey = "camera:a"
+
+        verify(!findChild(card, "cueRow").visible)
     }
 
     function test_the_first_mark_has_no_way_to_time() {

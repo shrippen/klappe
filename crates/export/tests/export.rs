@@ -5,9 +5,9 @@ use klappe_export::{
     pdf, png, svg, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme,
 };
 use klappe_model::{
-    Camera, CameraMark, Character, Dash, Drawing, DrawingShape, FigureColor, FigureTrack, Fill,
-    FloorPlan, Light, LightKind, Mark, Note, ObjectShape, Point, Pose, Project, Sensor, SetObject,
-    SetPlan, Wall,
+    Arrival, Camera, CameraMark, Character, Dash, Departure, Drawing, DrawingShape, FigureColor,
+    FigureTrack, Fill, FloorPlan, Light, LightKind, Mark, Note, ObjectShape, Point, Pose, Project,
+    Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{render, DisplayList};
 use serde_json::Value;
@@ -60,6 +60,8 @@ fn mark(at_s: f64, x: f64, y: f64) -> Mark {
         pose: Pose::Standing,
         hold_s: 0.0,
         via: None,
+        arrival: Arrival::Walk,
+        departure: Departure::Stay,
     }
 }
 
@@ -315,6 +317,27 @@ fn pdf_is_well_formed() {
             "{n}"
         );
     }
+}
+
+/// LH-26: a figure out of the scene is left out of the print; its marks stay.
+#[test]
+fn a_figure_that_left_is_not_printed() {
+    let mut p = plan();
+    p.figures[0].marks[0].departure = Departure::Leave;
+    let at = |t_s| {
+        let list = render(&project(), &set(), &p, t_s, None);
+        svg(&list, &page(), Theme::Light).unwrap()
+    };
+    let figures = |out: &str| lines_with(out, "item figure purple").len();
+
+    let before = figures(&at(0.0));
+    let after = figures(&at(1.0));
+
+    assert!(before > after, "{before} {after}");
+    assert_eq!(
+        lines_with(&at(0.0), "item mark purple").len(),
+        lines_with(&at(1.0), "item mark purple").len()
+    );
 }
 
 /// LH-16: a note shows in SVG and PDF with its text.

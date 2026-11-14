@@ -1,6 +1,6 @@
 use klappe_model::{
-    Background, Dash, DrawingShape, FigureColor, Fill, FloorPlan, Note, ObjectShape, Point,
-    Project, SetObject, SetPlan,
+    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Note,
+    ObjectShape, Point, Project, SetObject, SetPlan,
 };
 
 use crate::axis::axis_at;
@@ -130,6 +130,9 @@ const ELLIPSE_CORNERS: usize = 48;
 const BEAM_REACH_M: f64 = 4.0;
 /// How far a camera's view is drawn when the set gives no size.
 const VIEW_REACH_FALLBACK_M: f64 = 8.0;
+/// Shown before a mark's number where the figure appears, after it where it leaves (LH-26).
+const APPEAR_SIGN: &str = "+";
+const LEAVE_SIGN: &str = "-";
 /// The facing wedge: how far it reaches beyond the body and how wide it is.
 const NOSE_M: f64 = 0.25;
 const NOSE_HALF_DEG: f64 = 35.0;
@@ -465,18 +468,24 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
         };
         let color = character.color;
 
-        if track.marks.len() > 1 {
+        // A way to a mark the figure appears at is not walked, so it is not drawn: the way
+        // breaks there (LH-26).
+        for way in track.marks.chunk_by(|_, m| m.arrival == Arrival::Walk) {
+            if way.len() < 2 {
+                continue;
+            }
+
             items.push(Item {
                 role: Role::FigurePath(color),
                 shape: Shape::Polyline {
-                    points: path(track.marks.iter().map(|m| (m.at, m.via))),
+                    points: path(way.iter().map(|m| (m.at, m.via))),
                 },
                 label: None,
                 source: Some(Source::Figure(track.character.clone())),
             });
         }
 
-        // Numbered marks 1, 2, 3 …
+        // Numbered marks 1, 2, 3 …, `+` before an appearing one and `-` after a leaving one.
         for (index, mark) in track.marks.iter().enumerate() {
             items.push(Item {
                 role: Role::Mark(color),
@@ -484,7 +493,7 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
                     center: mark.at,
                     radius_m: MARK_RADIUS_M,
                 },
-                label: Some((index + 1).to_string()),
+                label: Some(mark_label(index, mark)),
                 source: Some(Source::Mark {
                     character: track.character.clone(),
                     index,
@@ -516,6 +525,21 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
     }
 }
 
+fn mark_label(index: usize, mark: &Mark) -> String {
+    let appears = if mark.arrival == Arrival::Appear {
+        APPEAR_SIGN
+    } else {
+        ""
+    };
+    let leaves = if mark.departure == Departure::Leave {
+        LEAVE_SIGN
+    } else {
+        ""
+    };
+
+    format!("{appears}{}{leaves}", index + 1)
+}
+
 /// The grips on the bends of the way `selected` belongs to: a figure, camera or mark of it,
 /// or one of its grips (LH-21). One per mark after the first, halfway along the way to it.
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
@@ -536,8 +560,10 @@ fn figure_handles(project: &Project, plan: &FloorPlan, character: &str) -> Vec<I
     };
     let stops: Vec<_> = track.marks.iter().map(|m| (m.at, m.via)).collect();
 
+    // No way leads to a mark the figure appears at, so there is nothing to bend (LH-26).
     handle_places(&stops)
         .into_iter()
+        .filter(|(index, _)| track.marks[*index].arrival == Arrival::Walk)
         .map(|(index, center)| Item {
             role: Role::FigureHandle(who.color),
             shape: handle_shape(center),
@@ -604,8 +630,8 @@ fn nose(at: Point, facing_deg: f64, radius_m: f64) -> Vec<Point> {
 mod tests {
     use super::*;
     use klappe_model::{
-        Camera, CameraMark, Character, Drawing, FigureTrack, Light, LightKind, Mark, Movement,
-        Pose, Sensor, Shot, ShotSize, Wall,
+        Arrival, Camera, CameraMark, Character, Departure, Drawing, FigureTrack, Light, LightKind,
+        Mark, Movement, Pose, Sensor, Shot, ShotSize, Wall,
     };
 
     fn project() -> Project {
@@ -650,6 +676,8 @@ mod tests {
             pose: Pose::Standing,
             hold_s: 0.0,
             via: None,
+            arrival: Arrival::Walk,
+            departure: Departure::Stay,
         }
     }
 
@@ -1268,5 +1296,91 @@ mod tests {
                 index: 1
             })
         );
+    }
+
+    /// Elisabeth: mark 1 at 0 s, mark 2 (leaves) at 10 s, mark 3 (appears) at 20 s.
+    fn coming_and_going() -> FloorPlan {
+        let mut p = plan();
+        let mut track = FigureTrack {
+            character: "e".into(),
+            marks: vec![
+                mark(0.0, 1.0, 1.0),
+                mark(10.0, 5.0, 1.0),
+                mark(20.0, 9.0, 1.0),
+            ],
+        };
+        track.marks[1].departure = Departure::Leave;
+        track.marks[2].arrival = Arrival::Appear;
+        p.figures = vec![track];
+
+        p
+    }
+
+    fn bodies(list: &DisplayList) -> usize {
+        count(list, Role::Figure(FigureColor::Purple))
+    }
+
+    /// A figure that is not in the scene is not drawn; its marks and way stay (LH-26).
+    #[test]
+    fn a_figure_out_of_the_scene_is_not_drawn() {
+        let p = coming_and_going();
+        let at = |t_s| render(&project(), &set(), &p, t_s, None);
+
+        assert_eq!(bodies(&at(5.0)), 2);
+        assert_eq!(bodies(&at(15.0)), 0);
+        assert_eq!(bodies(&at(20.0)), 2);
+        assert_eq!(count(&at(15.0), Role::Mark(FigureColor::Purple)), 3);
+        assert_eq!(count(&at(15.0), Role::FigurePath(FigureColor::Purple)), 1);
+    }
+
+    /// The way to a mark that is appeared at is not drawn: two marks and no way after it.
+    #[test]
+    fn no_way_leads_to_an_appearing_mark() {
+        let mut p = coming_and_going();
+        let way = |p: &FloorPlan| {
+            let list = render(&project(), &set(), p, 0.0, None);
+            list.items
+                .iter()
+                .filter_map(|i| match (&i.role, &i.shape) {
+                    (Role::FigurePath(_), Shape::Polyline { points }) => Some(points.len()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(way(&p), [2]);
+
+        p.figures[0].marks[2].arrival = Arrival::Walk;
+        assert_eq!(way(&p), [3]);
+    }
+
+    /// An appearing mark has no way, so no grip to bend it (LH-26).
+    #[test]
+    fn an_appearing_mark_has_no_grip() {
+        let p = coming_and_going();
+        let grips = handles(&project(), &p, &Source::Figure("e".into()));
+
+        assert_eq!(grips.len(), 1);
+        assert_eq!(
+            grips[0].source,
+            Some(Source::FigureVia {
+                character: "e".into(),
+                index: 1
+            })
+        );
+    }
+
+    /// The mark's number says it: `+` where the figure appears, `-` where it leaves.
+    #[test]
+    fn marks_show_appearing_and_leaving() {
+        let list = render(&project(), &set(), &coming_and_going(), 0.0, None);
+        let labels: Vec<_> = list
+            .items
+            .iter()
+            .filter(|i| matches!(i.role, Role::Mark(FigureColor::Purple)))
+            .filter_map(|i| i.label.as_deref())
+            .collect();
+
+        assert_eq!(labels, ["1", "2-", "+3"]);
     }
 }

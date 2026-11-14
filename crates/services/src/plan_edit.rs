@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::is_object_size_m;
 use klappe_model::{
-    Background, Camera, CameraMark, Character, Dash, Drawing, DrawingShape, FigureColor,
-    FigureTrack, Fill, FloorPlan, LibraryItem, Light, LightKind, LinkTarget, Mark, Note,
-    ObjectShape, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
+    Arrival, Background, Camera, CameraMark, Character, Dash, Departure, Drawing, DrawingShape,
+    FigureColor, FigureTrack, Fill, FloorPlan, LibraryItem, Light, LightKind, LinkTarget, Mark,
+    Note, ObjectShape, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{bend_point, hit, via_through, way_length_m, within, Item, Role, Source};
 
@@ -146,6 +146,18 @@ pub enum PlanEdit {
         source: Source,
         pose: Pose,
     },
+    /// Sets how the figure comes to a mark (LH-26): `Source::Mark`, or `Source::Figure` for
+    /// the mark at the playhead.
+    SetArrival {
+        source: Source,
+        arrival: Arrival,
+    },
+    /// Sets whether the figure leaves after the pause at a mark (LH-26): `Source::Mark`, or
+    /// `Source::Figure` for the mark at the playhead.
+    SetDeparture {
+        source: Source,
+        departure: Departure,
+    },
     /// Sets the pause at a mark of a figure or a camera (LH-63): `Source::Mark`, or
     /// `Source::Figure` and `Source::Camera` for the mark at the playhead. The later marks
     /// of the track move in time by the change, so their ways keep their duration.
@@ -189,6 +201,10 @@ impl Pace {
 pub struct MarkInfo {
     /// `None` for a camera's mark.
     pub pose: Option<Pose>,
+    /// `None` for a camera's mark.
+    pub arrival: Option<Arrival>,
+    /// `None` for a camera's mark.
+    pub departure: Option<Departure>,
     pub hold_s: f64,
     /// A way leads to the mark: it is not the first of its track.
     pub has_way: bool,
@@ -338,6 +354,8 @@ impl PlanEdit {
             | PlanEdit::Turn { source, .. }
             | PlanEdit::Resize { source, .. }
             | PlanEdit::SetPose { source, .. }
+            | PlanEdit::SetArrival { source, .. }
+            | PlanEdit::SetDeparture { source, .. }
             | PlanEdit::SetHold { source, .. }
             | PlanEdit::SetPace { source, .. }
             | PlanEdit::Remove { source }
@@ -510,6 +528,10 @@ pub(crate) fn apply(
         PlanEdit::RemoveBackground => remove_background(&mut scope),
         PlanEdit::Follow { camera, figure } => follow(&mut scope, camera, figure.as_deref()),
         PlanEdit::SetPose { source, pose } => set_pose(&mut scope, source, *pose),
+        PlanEdit::SetArrival { source, arrival } => set_arrival(&mut scope, source, *arrival),
+        PlanEdit::SetDeparture { source, departure } => {
+            set_departure(&mut scope, source, *departure)
+        }
         PlanEdit::SetHold { source, hold_s } => set_hold(&mut scope, source, *hold_s),
         PlanEdit::SetPace { source, pace } => set_pace(&mut scope, source, *pace),
     }
@@ -564,6 +586,8 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::RemoveBackground
         | PlanEdit::Follow { .. }
         | PlanEdit::SetPose { .. }
+        | PlanEdit::SetArrival { .. }
+        | PlanEdit::SetDeparture { .. }
         | PlanEdit::SetPace { .. } => Ok(()),
     }
 }
@@ -1125,6 +1149,8 @@ fn add_mark(scope: &mut Scope<'_>, character: &str, at: Point) -> Result<(), Ser
         pose: Pose::Standing,
         hold_s: 0.0,
         via: None,
+        arrival: Arrival::Walk,
+        departure: Departure::Stay,
     });
 
     Ok(())
@@ -1286,6 +1312,42 @@ fn set_pose(scope: &mut Scope<'_>, source: &Source, pose: Pose) -> Result<(), Se
     Ok(())
 }
 
+fn set_arrival(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    arrival: Arrival,
+) -> Result<(), ServiceError> {
+    figure_mark_mut(scope, source)?.arrival = arrival;
+
+    Ok(())
+}
+
+fn set_departure(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    departure: Departure,
+) -> Result<(), ServiceError> {
+    figure_mark_mut(scope, source)?.departure = departure;
+
+    Ok(())
+}
+
+/// The figure mark `source` names.
+fn figure_mark_mut<'a>(
+    scope: &'a mut Scope<'_>,
+    source: &Source,
+) -> Result<&'a mut Mark, ServiceError> {
+    let (character, index) = figure_mark(scope, source).ok_or_else(|| bad_mark("source", ""))?;
+
+    scope
+        .plan
+        .figures
+        .iter_mut()
+        .find(|f| f.character == character)
+        .and_then(|f| f.marks.get_mut(index))
+        .ok_or(ServiceError::Gone)
+}
+
 /// The arrival and the pause of the mark `source` names, with those of the marks after it in
 /// the same track.
 struct Timing<'a> {
@@ -1416,6 +1478,8 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
 
             Some(MarkInfo {
                 pose: None,
+                arrival: None,
+                departure: None,
                 hold_s: mark.hold_s,
                 has_way: index > 0,
                 pace_m_s,
@@ -1439,6 +1503,8 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
 
     Some(MarkInfo {
         pose: Some(mark.pose),
+        arrival: Some(mark.arrival),
+        departure: Some(mark.departure),
         hold_s: mark.hold_s,
         has_way: index > 0,
         pace_m_s,

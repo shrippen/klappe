@@ -5,7 +5,8 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // A mark is selected (LH-22, LH-63): the pose of a figure's mark, the pause at it, and the
-// pace of the way that leads to it. The pace is shown as the plan has it; the two buttons
+// pace of the way that leads to it. A figure's mark also says how the figure comes to it and
+// whether it leaves after it (LH-26). The pace is shown as the plan has it; the two buttons
 // time the way for walking or running and move the later marks along. No geometry here: the
 // controller has the numbers from the session.
 KanteCard {
@@ -15,6 +16,8 @@ KanteCard {
     required property var controller
 
     readonly property var poses: ["standing", "sitting", "lying"]
+    readonly property var arrivals: ["walk", "appear"]
+    readonly property var departures: ["stay", "leave"]
     readonly property var info: {
         // The plan changes with every edit; the key alone would not tell the new values.
         card.controller.planJson
@@ -26,8 +29,10 @@ KanteCard {
 
     visible: info !== null
     implicitWidth: Math.min(parent ? parent.width - Kirigami.Units.largeSpacing * 2 : Infinity,
-                            row.implicitWidth + Kirigami.Units.largeSpacing * 2)
+                            Math.max(row.implicitWidth, cueRow.implicitWidth)
+                            + Kirigami.Units.largeSpacing * 2)
     implicitHeight: row.implicitHeight + Kirigami.Units.largeSpacing * 2
+                    + (cueRow.visible ? cueRow.implicitHeight + Kirigami.Units.smallSpacing : 0)
 
     onInfoChanged: card.fill()
 
@@ -37,6 +42,8 @@ KanteCard {
             return
         }
         poseChoice.currentIndex = Math.max(0, poses.indexOf(info.pose))
+        arrivalChoice.currentIndex = Math.max(0, arrivals.indexOf(info.arrival))
+        departureChoice.currentIndex = Math.max(0, departures.indexOf(info.departure))
         if (!holdField.activeFocus) {
             holdField.text = texts.num(info.hold, 2)
         }
@@ -52,7 +59,9 @@ KanteCard {
 
     RowLayout {
         id: row
-        anchors.centerIn: parent
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
         spacing: Kirigami.Units.smallSpacing
 
         KanteSectionLabel { text: card.texts.t("mark.title") }
@@ -114,6 +123,42 @@ KanteCard {
             QQC2.ToolTip.text: card.texts.t("mark.paceTip")
             QQC2.ToolTip.visible: hovered
             QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
+    }
+
+    RowLayout {
+        id: cueRow
+        objectName: "cueRow"
+        visible: card.isFigure
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: row.bottom
+        anchors.topMargin: Kirigami.Units.smallSpacing
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteSectionLabel { text: card.texts.t("mark.arrival") }
+        KanteSegmented {
+            id: arrivalChoice
+            objectName: "arrivalChoice"
+            model: card.arrivals.map(a => card.texts.t("arrival." + a))
+            onActivated: index => {
+                if (!card.controller.setMarkArrival(card.arrivals[index])) {
+                    card.fill()
+                }
+            }
+        }
+
+        Kirigami.Separator { Layout.fillHeight: true }
+
+        KanteSectionLabel { text: card.texts.t("mark.departure") }
+        KanteSegmented {
+            id: departureChoice
+            objectName: "departureChoice"
+            model: card.departures.map(d => card.texts.t("departure." + d))
+            onActivated: index => {
+                if (!card.controller.setMarkDeparture(card.departures[index])) {
+                    card.fill()
+                }
+            }
         }
     }
 }

@@ -39,6 +39,8 @@ fn mark(at_s: f64, x: f64, y: f64, facing_deg: f64, hold_s: f64) -> Mark {
         pose: Pose::Standing,
         hold_s,
         via: None,
+        arrival: Arrival::Walk,
+        departure: Departure::Stay,
     }
 }
 
@@ -364,6 +366,32 @@ fn a_bend_is_written_only_when_there_is() {
     save(&dir, &project, None).unwrap();
     let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
     assert_eq!(text.matches("\"via\"").count(), 2, "{text}");
+    assert_eq!(load(&dir).unwrap().project, project);
+}
+
+/// A mark that walks and stays writes neither key, and a file without them loads as before;
+/// one that appears or leaves keeps it (LH-26).
+#[test]
+fn appearing_and_leaving_are_written_only_when_set() {
+    let dir = test_dir("entrance");
+    let mut project = example();
+
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    assert!(
+        !text.contains("arrival") && !text.contains("departure"),
+        "{text}"
+    );
+    assert_eq!(load(&dir).unwrap().project, project);
+
+    let marks = &mut project.scenes[0].plans[0].figures[0].marks;
+    marks[0].arrival = Arrival::Appear;
+    marks[2].departure = Departure::Leave;
+
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    assert_eq!(text.matches("\"arrival\"").count(), 1, "{text}");
+    assert_eq!(text.matches("\"departure\"").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
 
