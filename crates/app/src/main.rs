@@ -5,6 +5,7 @@
 
 mod args;
 mod bridge;
+mod camera;
 mod catalog;
 mod manage;
 mod notice;

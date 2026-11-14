@@ -242,6 +242,17 @@ Item {
         }
     }
 
+    // A camera is selected (LH-32): body, sensor, lens and frame.
+    CameraCard {
+        objectName: "cameraCard"
+        texts: area.texts
+        controller: area.controller
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+        width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
+    }
+
     Connections {
         target: area.controller
         function onAsksNoteChanged() {
