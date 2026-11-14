@@ -1,7 +1,6 @@
 use klappe_model::{FloorPlan, Point, Shot};
 
 use crate::motion::camera_at;
-use crate::optics::lens_at;
 
 /// Cameras this close (metres) at a shot's start stand at the same place (LH-72).
 pub const SETUP_TOLERANCE_M: f64 = 0.5;
@@ -23,8 +22,9 @@ struct Setup {
 }
 
 impl Setup {
-    /// Where the shot's camera stands at its start, and with which lens. A camera that is
-    /// gone has no place and only the shot's own lens.
+    /// Where the shot's camera stands at its start, and with which lens: the shot's own,
+    /// else the camera's (as the shot list prints it). A camera that is gone has no place
+    /// and only the shot's own lens.
     fn of(shot: &Shot, plan: &FloorPlan) -> Self {
         let camera = plan.camera(&shot.camera);
 
@@ -32,7 +32,7 @@ impl Setup {
             camera: shot.camera.clone(),
             at: camera.and_then(|c| camera_at(c, shot.from_s)).map(|p| p.at),
             lens_mm: match camera {
-                Some(c) => lens_at(c, &plan.shots, shot.from_s),
+                Some(c) => shot.lens_mm.unwrap_or(c.lens_mm),
                 None => shot.lens_mm.unwrap_or_default(),
             },
         }
@@ -227,6 +227,19 @@ mod tests {
 
         // 3's own 35 mm is the camera's lens: same as 1.
         assert_eq!(shot_setups(&plan), [1, 2, 1]);
+    }
+
+    #[test]
+    fn overlapping_shots_keep_their_own_lens() {
+        // The same action twice: once wide on the camera's lens, once on 85 mm.
+        let mut plan = FloorPlan::new("p", "Plan A");
+        plan.cameras = vec![camera("a", 35.0, &[(0.0, 0.0, 0.0)])];
+        plan.shots = vec![
+            shot("1", "a", None, 0.0, 10.0),
+            shot("2", "a", Some(85.0), 0.0, 10.0),
+        ];
+
+        assert_eq!(shot_setups(&plan), [1, 2]);
     }
 
     #[test]

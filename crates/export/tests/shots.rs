@@ -307,3 +307,24 @@ fn pdf_in_cut_order_has_no_setup_headings() {
 
     assert!(!String::from_utf8_lossy(&bytes).contains("(Setup "));
 }
+
+#[test]
+fn a_setup_heading_repeats_on_each_sheet() {
+    // 120 shots of one setup fill several sheets; each sheet says which setup it shows.
+    let plan = plan(120);
+    let bytes = pdf_with_shots(
+        &list(&plan),
+        &page(),
+        Theme::Light,
+        &plan,
+        ShotOrder::Shooting,
+    )
+    .unwrap();
+    let sheets = pages(&bytes) - 1;
+
+    assert!(sheets > 1, "{sheets} sheets");
+    assert_eq!(
+        String::from_utf8_lossy(&bytes).matches("(Setup 1)").count(),
+        sheets
+    );
+}

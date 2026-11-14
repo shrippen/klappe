@@ -98,14 +98,17 @@ pub(crate) fn sheets(
         let lines = wrapped(row, &widths, Weight::Regular);
         let height = row_height(&lines);
 
-        // A setup's heading never stands alone at the foot of a sheet.
-        let starts_setup = order == ShotOrder::Shooting && *shot_setup != setup;
-        let band_h = if starts_setup { BAND_PT } else { 0.0 };
+        // A setup's heading never stands alone at the foot of a sheet, and a setup that
+        // runs onto a new sheet gets its heading again there.
+        let shooting = order == ShotOrder::Shooting;
+        let mut heading = shooting && *shot_setup != setup;
+        let band_h = if heading { BAND_PT } else { 0.0 };
         if ctx.y + band_h + height > bottom && ctx.rows > 0 {
             ctx.finish(width_pt, height_pt);
             ctx.begin();
+            heading = shooting;
         }
-        if starts_setup {
+        if heading {
             setup = *shot_setup;
             ctx.band(&format!("{} {setup}", texts.columns.setup));
         }
