@@ -12,6 +12,7 @@ use serde_json::Value;
 const PALETTE_JSON: &str = include_str!("../kante/palette.json");
 const TITLE: &str = "Szene 12 · Sängersaal · Plan A";
 const FRAME_TOLERANCE: f64 = 0.01;
+const MIN_LABEL_PT: f64 = 8.0;
 
 fn project() -> Project {
     let mut p = Project::new("Test");
@@ -486,4 +487,20 @@ fn labels_under_circles_are_centred() {
         .unwrap();
 
     assert!(label.contains("text-anchor=\"middle\""));
+}
+
+/// A figure on its mark: the number and the name must not sit on top of each other.
+#[test]
+fn mark_number_and_name_do_not_overlap() {
+    let out = svg(&list(), &page(), Theme::Light).unwrap();
+    let labels = lines_with(&out, "label");
+    let name = labels.iter().find(|l| l.contains(">Elisabeth<")).unwrap();
+    let number = labels
+        .iter()
+        .find(|l| l.contains(">1<") && (attr(l, "x") - attr(name, "x")).abs() < FRAME_TOLERANCE)
+        .unwrap();
+
+    let apart = (attr(number, "y") - attr(name, "y")).abs();
+
+    assert!(apart >= MIN_LABEL_PT, "{apart} pt apart\n{number}\n{name}");
 }
