@@ -92,6 +92,10 @@ impl Session {
         })
     }
 
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
     pub fn project(&self) -> &Project {
         &self.project
     }
@@ -118,7 +122,8 @@ impl Session {
         self.project.scenes.get(self.scene)
     }
 
-    fn plan(&self) -> Option<&FloorPlan> {
+    /// The plan shown: the current scene's first plan for now.
+    pub fn plan(&self) -> Option<&FloorPlan> {
         self.scene()?.plans.get(self.plan)
     }
 
@@ -273,6 +278,7 @@ impl Session {
                     size: size_name(shot.size).to_owned(),
                     movement: movement_name(shot.movement).to_owned(),
                     lens_mm: shot.lens_mm.or(camera.map(|c| c.lens_mm)).unwrap_or(0.0),
+                    own_lens_mm: shot.lens_mm,
                     from_s: shot.from_s,
                     to_s: shot.to_s,
                     description: shot.description.clone(),

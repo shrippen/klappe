@@ -6,10 +6,15 @@ Stand: 2026-11-13.
 
 | Schritt | Stand |
 |---|---|
-| Repo-Grundlage: Workspace, CI, Regeln | in Arbeit |
-| Kern: Modell, Optik, Bewegung, Achse, Darstellungsliste | in Arbeit |
-| GUI-Gerüst (cxx-qt, Kirigami, Kante), Layout E-14 | offen |
-| Projektordner lesen und schreiben | offen |
-| Export SVG und PDF aus der Darstellungsliste | offen |
-| Fountain-Parser und TUI-Editor | Parser fertig; TUI-Editor (`klappe-tui`) erste Fassung in Arbeit |
-| Flatpak und Windows-Build der App in der CI | offen |
+| Repo-Grundlage: Workspace, CI, Regeln | fertig (#1) |
+| Kern: Modell, Optik, Bewegung, Achse, Darstellungsliste | fertig (#1) |
+| Fountain-Parser | fertig (#2) |
+| Projektordner lesen und schreiben | fertig (#3) |
+| Export SVG und PDF aus der Darstellungsliste | fertig (#4) |
+| Sitzung (`services`): Szene, Zeit, Shot bearbeiten, Rückgängig, Ansichten | fertig (#5) |
+| TUI-Editor (`klappe-tui`), schreibt nur das Drehbuch | erste Fassung (#6); offen: Boneyard-Rest nach `*/`, Zielspalte bei Pfeil auf/ab nach Anzeigebreite |
+| GUI-Gerüst (cxx-qt, Kirigami, Kante), Layout E-14: Drehbuch, Plan, Shot, Zeitleiste, ausklappbar | erste Fassung (#7, Kante #170); offen: Sichtkegel nach dem Objektiv des Shots, Zeichenwerkzeuge |
+| App in der CI (Arch, QML-Tests, offscreen-Screenshots) | fertig (#7) |
+| Flatpak und Windows-Build der App | offen |
+| Werkzeuge zum Zeichnen (Wand, Objekt, Figur, Kamera, Licht) | offen |
+| Demo-Modus mit „Studio Weber“ für Screenshots | offen |

@@ -58,6 +58,10 @@ model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
 
 - Prüfkette vor einem Commit mit `&&`, nicht mit `;`: sonst wird trotz rotem Build committet
   (13.11.2026, Syntaxfehler im Commit).
+- Qt schreibt Meldungen (auch `console.log`) ins Journal, wenn stderr kein Terminal ist: in
+  Tests und Skripten `QT_FORCE_STDERR_LOGGING=1` setzen, sonst sieht ein hängender Start leer aus.
+- `grabToImage` auf dem Fenster scheitert („item has no QML engine“); Screenshots nehmen die
+  Seite (`page`), wie in Kontra.
 
 ## GUI (this project)
 

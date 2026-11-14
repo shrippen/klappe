@@ -4,7 +4,7 @@ name: ci
 # the result back to the commit on Gitea as the status "github / test", where the pull requests
 # live. There are no pull requests on GitHub, so everything runs on push.
 #
-# Stays local: anything that opens a visible window.
+# Stays local: anything that opens a visible window (the app job takes offscreen screenshots).
 #
 # Needs the secret GITEA_TOKEN: a Gitea token with write access to the repository (commit
 # statuses).
@@ -72,8 +72,9 @@ jobs:
             target
           key: core-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      # The Qt app builds in the job `app` (Arch: current Qt 6 and Kirigami).
+      - run: cargo clippy --workspace --exclude klappe-app --all-targets -- -D warnings
+      - run: cargo test --workspace --exclude klappe-app
       - run: command -v cargo-deny || cargo install --locked cargo-deny
       - run: cargo deny check licenses bans sources
 
@@ -94,27 +95,68 @@ jobs:
             ~/.cargo/registry
             target
           key: windows-${{ hashFiles('Cargo.lock') }}
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace --no-fail-fast
+      - run: cargo clippy --workspace --exclude klappe-app --all-targets -- -D warnings
+      - run: cargo test --workspace --exclude klappe-app --no-fail-fast
+
+  app:
+    # The Qt app against current Qt 6 and Kirigami (ci-regeln: KDE/Qt projects run in Arch).
+    # Screenshots offscreen, never a window.
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      # actions/checkout runs on Node.
+      - name: Qt, Kirigami, Rust
+        run: |
+          pacman -Syu --noconfirm --needed nodejs git base-devel clang cmake rust \
+            qt6-base qt6-declarative qt6-svg kirigami noto-fonts
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        # Without the cache the job only takes longer.
+        continue-on-error: true
+        with:
+          path: |
+            ~/.cargo/registry
+            target
+          key: app-arch-${{ hashFiles('Cargo.lock') }}
+      - run: cargo clippy -p klappe-app --all-targets -- -D warnings
+      - run: cargo test -p klappe-app
+      # qmltestrunner comes with qt6-declarative; runs offscreen.
+      - run: scripts/check-qml.sh
+      - name: Screenshots (de, en)
+        run: |
+          mkdir -p shots
+          cargo build -p klappe-app
+          for lang in de en; do
+            QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 timeout 120 target/debug/klappe \
+              --open testdata/beispiel.klappe --shot s12-3 --language "$lang" \
+              --screenshot "shots/stellprobe-$lang.png" -qwindowgeometry 1440x900
+            test -s "shots/stellprobe-$lang.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots/
 
   # Also runs when a check failed or was cancelled, so Gitea never keeps a stale "pending".
   report:
-    needs: [pending, core, windows]
+    needs: [pending, core, windows, app]
     if: always()
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - name: Report result to Gitea
         run: |
-          all="$CORE $WINDOWS"
-          if [ "$all" = "success success" ]; then
+          all="$CORE $WINDOWS $APP"
+          if [ "$all" = "success success success" ]; then
             state=success
           elif echo "$all" | grep -qw failure; then
             state=failure
           else
             state=error
           fi
-          desc="core $CORE, windows $WINDOWS"
+          desc="core $CORE, windows $WINDOWS, app $APP"
           if [ -n "$STARTED" ]; then desc="$desc in $(( ($(date +%s) - STARTED) / 60 )) min"; fi
           # Retried: a lost result would leave "pending" and the merge waiting.
           curl -fsS --retry 10 --retry-delay 15 --retry-all-errors -X POST "$GITEA_STATUS" \
@@ -123,5 +165,6 @@ jobs:
         env:
           CORE: ${{ needs.core.result }}
           WINDOWS: ${{ needs.windows.result }}
+          APP: ${{ needs.app.result }}
           STARTED: ${{ needs.pending.outputs.started }}
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}

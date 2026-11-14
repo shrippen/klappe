@@ -14,6 +14,8 @@ pub struct ShotRow {
     pub movement: String,
     /// The shot's lens, else its camera's.
     pub lens_mm: f64,
+    /// Only the shot's own lens; `None` follows the camera.
+    pub own_lens_mm: Option<f64>,
     pub from_s: f64,
     pub to_s: f64,
     pub description: String,
