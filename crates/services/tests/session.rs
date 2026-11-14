@@ -318,3 +318,16 @@ fn save_script_leaves_other_files_alone() {
     let script = std::fs::read_to_string(dir.join("drehbuch.fountain")).unwrap();
     assert_eq!(script, "Neu.\n");
 }
+
+/// Shot 12.2 (camera a, 6 s to 14 s) has 40 mm; the camera has 35 mm.
+#[test]
+fn lens_now_follows_the_shot() {
+    let mut s = open();
+
+    s.set_time(9.0);
+    assert_eq!(s.lens_now_mm("a"), Some(40.0));
+
+    s.set_time(0.0);
+    assert_eq!(s.lens_now_mm("a"), Some(35.0));
+    assert_eq!(s.lens_now_mm("nobody"), None);
+}

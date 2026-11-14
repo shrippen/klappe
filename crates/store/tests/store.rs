@@ -499,6 +499,20 @@ fn non_finite_numbers_are_refused_before_any_write() {
     }
 }
 
+/// `Some(NAN)` used to be written as `null` and read back as `None`.
+#[test]
+fn non_finite_optional_numbers_are_refused() {
+    for value in [f64::NAN, f64::INFINITY] {
+        let dir = test_dir("non-finite-option");
+        let mut project = example();
+        project.scenes[0].plans[0].shots[0].lens_mm = Some(value);
+
+        let result = save(&dir, &project, None);
+
+        assert!(matches!(result, Err(StoreError::Encode { .. })), "{value}");
+    }
+}
+
 #[test]
 fn newer_format_wins_over_missing_title() {
     let dir = test_dir("newer-no-title");
