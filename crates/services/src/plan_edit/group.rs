@@ -7,8 +7,8 @@ use klappe_model::Point;
 use klappe_stellprobe::Source;
 
 use super::{
-    anchor_pair, carry_cameras, figure_mark, free_letter, move_to, points_mut, remove, rotate,
-    snap, target, turn, Scope, Snapping, Target,
+    anchor_pair, carry_cameras, figure_mark, free_id, free_letter, move_to, points_mut, remove,
+    rotate, snap, target, turn, Scope, Snapping, Target,
 };
 use crate::error::ServiceError;
 
@@ -218,15 +218,6 @@ fn removable(sources: &[Source]) -> Vec<Source> {
     });
 
     kept
-}
-
-/// The first id `<prefix><n>` that `taken` does not have.
-fn free_id<'a>(prefix: &str, taken: impl Iterator<Item = &'a str> + Clone) -> String {
-    let n = (1..)
-        .find(|n| !taken.clone().any(|id| id == format!("{prefix}{n}")))
-        .unwrap_or(1);
-
-    format!("{prefix}{n}")
 }
 
 fn shifted(p: Point, by_m: (f64, f64)) -> Point {
