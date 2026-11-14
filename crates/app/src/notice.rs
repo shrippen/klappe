@@ -51,6 +51,15 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
                 .text("error.characterInUse")
                 .replace("{count}", &plans.to_string());
         }
+        ServiceError::LastPlan(_) => ("error.lastPlan", String::new()),
+        ServiceError::PlanHasShots { shots, .. } => {
+            return language
+                .text("error.planHasShots")
+                .replace("{count}", &shots.to_string());
+        }
+        ServiceError::PlanNameTaken(name) => {
+            return language.text("error.planNameTaken").replace("{name}", name);
+        }
         ServiceError::Locked(layer) => {
             let name = language.text(&format!("layer.{}", layer_name(*layer)));
             return language.text("error.locked").replace("{layer}", &name);
@@ -208,6 +217,29 @@ mod tests {
         assert_eq!(
             error_text(Language::English, &bad),
             "Invalid value for Lens (mm): 5000"
+        );
+    }
+
+    #[test]
+    fn plan_refusals_are_translated() {
+        let shots = ServiceError::PlanHasShots {
+            id: "plan-a".to_owned(),
+            shots: 5,
+        };
+        let taken = ServiceError::PlanNameTaken("Plan B".to_owned());
+        let last = ServiceError::LastPlan("plan-a".to_owned());
+
+        assert_eq!(
+            error_text(Language::German, &shots),
+            "Der Plan enthält 5 Shot(s): lösche sie zuerst"
+        );
+        assert_eq!(
+            error_text(Language::English, &taken),
+            "This scene already has a plan called Plan B"
+        );
+        assert_eq!(
+            error_text(Language::English, &last),
+            "A scene keeps its last plan"
         );
     }
 

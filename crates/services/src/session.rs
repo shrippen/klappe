@@ -269,7 +269,7 @@ impl Session {
         self.project.scenes.get(self.scene)
     }
 
-    /// The plan shown: the current scene's first plan for now.
+    /// The plan on view in the current scene.
     pub fn plan(&self) -> Option<&FloorPlan> {
         self.scene()?.plans.get(self.plan)
     }
@@ -773,9 +773,69 @@ impl Session {
         }
 
         let on_view = self.scene().map(|s| s.id.clone());
+        let plan_on_view = self.plan().map(|p| p.id.clone());
         self.commit(next);
-        self.follow_scene(on_view);
+        self.follow_scene(on_view, plan_on_view);
         Ok(())
+    }
+
+    /// Adds an empty plan to the current scene and shows it; `name` empty: `Plan B` …
+    /// Undoable. Returns the new plan's id.
+    pub fn add_plan(&mut self, name: &str) -> Result<String, ServiceError> {
+        let mut next = self.project.clone();
+        let at = project_edit::add_plan(&mut next, self.scene, name)?;
+
+        Ok(self.commit_new_plan(next, at))
+    }
+
+    /// Snapshot (LH-04): copies the plan on view under a new name and shows the copy; `name`
+    /// empty: `Plan A (2)` …. Going back is choosing the earlier plan again. Undoable.
+    /// Returns the copy's id.
+    pub fn copy_plan(&mut self, name: &str) -> Result<String, ServiceError> {
+        let mut next = self.project.clone();
+        let at = project_edit::copy_plan(&mut next, self.scene, self.plan, name)?;
+
+        Ok(self.commit_new_plan(next, at))
+    }
+
+    /// Changes the name of the plan `id` of the current scene; undoable.
+    pub fn rename_plan(&mut self, id: &str, name: &str) -> Result<(), ServiceError> {
+        let mut next = self.project.clone();
+        project_edit::rename_plan(&mut next, self.scene, id, name)?;
+        if next == self.project {
+            return Ok(());
+        }
+
+        self.commit(next);
+        Ok(())
+    }
+
+    /// Deletes the plan `id` of the current scene; undoable. Refused for the last plan of a
+    /// scene and for one with shots. When it was on view, the plan before it is.
+    pub fn remove_plan(&mut self, id: &str) -> Result<(), ServiceError> {
+        let mut next = self.project.clone();
+        project_edit::remove_plan(&mut next, self.scene, id)?;
+
+        let on_view = self.scene().map(|s| s.id.clone());
+        let plan_on_view = self.plan().map(|p| p.id.clone());
+        let was_shown = plan_on_view.as_deref() == Some(id);
+        let before = self.plan.saturating_sub(1);
+        self.commit(next);
+        self.follow_scene(on_view, plan_on_view);
+        if was_shown {
+            self.plan = before;
+        }
+        Ok(())
+    }
+
+    /// Commits `next`, which has a new plan at `at` in the current scene, and shows it.
+    fn commit_new_plan(&mut self, next: Project, at: usize) -> String {
+        self.commit(next);
+        self.plan = at;
+        self.time_s = 0.0;
+        self.selected_shot = None;
+
+        self.plan().map(|p| p.id.clone()).unwrap_or_default()
     }
 
     /// What the object tool offers: the built-in library, then the project's own objects.
@@ -897,7 +957,7 @@ impl Session {
     }
 
     /// The view stays with the scene `id` if the (new) project has it, else it starts over.
-    fn follow_scene(&mut self, id: Option<String>) {
+    fn follow_scene(&mut self, id: Option<String>, plan: Option<String>) {
         let index = id.and_then(|id| self.project.scenes.iter().position(|s| s.id == id));
         let Some(index) = index else {
             self.scene = self.scene.min(self.project.scenes.len().saturating_sub(1));
@@ -910,6 +970,20 @@ impl Session {
         if index != self.scene {
             self.scene = index;
             self.plan = 0;
+        }
+
+        // Plans come and go too (add, snapshot, delete, undo): stay with the one on view.
+        let plan_index = plan.and_then(|id| {
+            self.scene()
+                .and_then(|s| s.plans.iter().position(|p| p.id == id))
+        });
+        match plan_index {
+            Some(index) => self.plan = index,
+            None => {
+                self.plan = 0;
+                self.time_s = 0.0;
+                self.selected_shot = None;
+            }
         }
         self.keep_view_valid();
     }
@@ -946,11 +1020,12 @@ impl Session {
             return;
         };
         let on_view = self.scene().map(|s| s.id.clone());
+        let plan_on_view = self.plan().map(|p| p.id.clone());
         self.redo
             .push(std::mem::replace(&mut self.project, previous));
         self.project_changed = true;
         self.touch();
-        self.follow_scene(on_view);
+        self.follow_scene(on_view, plan_on_view);
     }
 
     pub fn redo(&mut self) {
@@ -958,10 +1033,11 @@ impl Session {
             return;
         };
         let on_view = self.scene().map(|s| s.id.clone());
+        let plan_on_view = self.plan().map(|p| p.id.clone());
         self.undo.push(std::mem::replace(&mut self.project, next));
         self.project_changed = true;
         self.touch();
-        self.follow_scene(on_view);
+        self.follow_scene(on_view, plan_on_view);
     }
 
     /// The timeline: cut order first, then figures, cameras and lights.
