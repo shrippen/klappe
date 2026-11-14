@@ -2,12 +2,16 @@
 //!
 //! ```text
 //! 1 Catalog → 2 Pages → pages, each a Page object and its content stream (last)
-//!                         3 Helvetica, 4 Helvetica-Bold, 5… ExtGState (fill opacity)
+//!                         3 Helvetica, 4 Helvetica-Bold, 5… ExtGState (fill opacity),
+//!                         then one image object per picture of the plan
 //! ```
 
 use std::fmt::Write;
+use std::sync::Arc;
 
 use crate::canvas::{dash_array, num, Anchor, Doc, Fill, Geom, Prim, Rect, Sheet, Stroke, Weight};
+use crate::error::ExportError;
+use crate::image::Picture;
 use crate::palette::Rgb;
 
 const HEADER: &[u8] = b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
@@ -24,15 +28,21 @@ const AVG_CHAR_EM: f64 = 0.5;
 /// Opacity is keyed in thousandths so equal values share one state.
 const OPACITY_STEPS: f64 = 1000.0;
 
-pub(crate) fn write(doc: &Doc) -> Vec<u8> {
+pub(crate) fn write(doc: &Doc) -> Result<Vec<u8>, ExportError> {
     let states = opacities(doc);
+    let pictures = pictures(doc);
 
     // Page 1 is the plan, then the sheets; each page is two objects, page and content.
-    let mut pages = vec![(doc.width_pt, doc.height_pt, content(doc, &states))];
+    let mut pages = vec![(
+        doc.width_pt,
+        doc.height_pt,
+        content(doc, &states, &pictures),
+    )];
     for sheet in &doc.sheets {
         pages.push((sheet.width_pt, sheet.height_pt, sheet_content(doc, sheet)));
     }
-    let first_page = OBJ_FIRST_STATE + states.len();
+    let first_image = OBJ_FIRST_STATE + states.len();
+    let first_page = first_image + pictures.len();
     let kids: Vec<String> = (0..pages.len())
         .map(|i| format!("{} 0 R", first_page + 2 * i))
         .collect();
@@ -42,7 +52,15 @@ pub(crate) fn write(doc: &Doc) -> Vec<u8> {
     for i in 0..states.len() {
         let _ = write!(resources, " /G{i} {} 0 R", OBJ_FIRST_STATE + i);
     }
-    resources.push_str(" >> >>");
+    resources.push_str(" >>");
+    if !pictures.is_empty() {
+        resources.push_str(" /XObject <<");
+        for i in 0..pictures.len() {
+            let _ = write!(resources, " /Im{i} {} 0 R", first_image + i);
+        }
+        resources.push_str(" >>");
+    }
+    resources.push_str(" >>");
 
     let mut objects: Vec<Vec<u8>> = vec![
         format!("<< /Type /Catalog /Pages {OBJ_PAGES} 0 R >>").into_bytes(),
@@ -58,6 +76,9 @@ pub(crate) fn write(doc: &Doc) -> Vec<u8> {
     for key in &states {
         let ca = f64::from(*key) / OPACITY_STEPS;
         objects.push(format!("<< /Type /ExtGState /ca {} >>", num3(ca)).into_bytes());
+    }
+    for picture in &pictures {
+        objects.push(picture.pdf_object(doc.paper)?);
     }
     for (i, (width_pt, height_pt, content)) in pages.iter().enumerate() {
         objects.push(
@@ -94,7 +115,7 @@ pub(crate) fn write(doc: &Doc) -> Vec<u8> {
     );
     out.extend_from_slice(table.as_bytes());
 
-    out
+    Ok(out)
 }
 
 fn font(name: &str) -> String {
@@ -119,16 +140,28 @@ fn key(opacity: f64) -> u32 {
     (opacity.clamp(0.0, 1.0) * OPACITY_STEPS).round() as u32
 }
 
-/// The distinct translucent fills of the page, in first-use order.
+/// The pictures of the plan, in drawing order.
+fn pictures(doc: &Doc) -> Vec<Arc<Picture>> {
+    doc.plan
+        .iter()
+        .filter_map(|prim| match prim {
+            Prim::Image { picture, .. } => Some(Arc::clone(picture)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// The distinct translucent fills and pictures of the page, in first-use order.
 fn opacities(doc: &Doc) -> Vec<u32> {
     let mut keys = Vec::new();
     for prim in doc.plan.iter().chain(&doc.chrome) {
-        let Prim::Shape {
-            fill: Some(Fill { opacity, .. }),
-            ..
-        } = prim
-        else {
-            continue;
+        let opacity = match prim {
+            Prim::Shape {
+                fill: Some(Fill { opacity, .. }),
+                ..
+            }
+            | Prim::Image { opacity, .. } => opacity,
+            _ => continue,
         };
         let k = key(*opacity);
         if k < OPACITY_STEPS as u32 && !keys.contains(&k) {
@@ -156,13 +189,13 @@ fn paper(rgb: Rgb, width_pt: f64, height_pt: f64) -> String {
 fn sheet_content(doc: &Doc, sheet: &Sheet) -> Vec<u8> {
     let mut s = paper(doc.paper, sheet.width_pt, sheet.height_pt);
     for prim in &sheet.prims {
-        s.push_str(&operators(prim, sheet.height_pt, &[]));
+        s.push_str(&operators(prim, sheet.height_pt, &[], &[]));
     }
 
     s.into_bytes()
 }
 
-fn content(doc: &Doc, states: &[u32]) -> Vec<u8> {
+fn content(doc: &Doc, states: &[u32], pictures: &[Arc<Picture>]) -> Vec<u8> {
     let h = doc.height_pt;
     let mut s = paper(doc.paper, doc.width_pt, h);
 
@@ -177,12 +210,12 @@ fn content(doc: &Doc, states: &[u32]) -> Vec<u8> {
         num(c.h)
     );
     for prim in &doc.plan {
-        s.push_str(&operators(prim, h, states));
+        s.push_str(&operators(prim, h, states, pictures));
     }
     s.push_str("Q\n");
 
     for prim in &doc.chrome {
-        s.push_str(&operators(prim, h, states));
+        s.push_str(&operators(prim, h, states, pictures));
     }
 
     s.into_bytes()
@@ -196,8 +229,9 @@ fn colour(rgb: [f64; 3]) -> String {
     format!("{} {} {}", num3(rgb[0]), num3(rgb[1]), num3(rgb[2]))
 }
 
-fn operators(prim: &Prim, h: f64, states: &[u32]) -> String {
+fn operators(prim: &Prim, h: f64, states: &[u32], pictures: &[Arc<Picture>]) -> String {
     match prim {
+        Prim::Image { .. } => image_ops(prim, h, states, pictures),
         Prim::Shape {
             geom, fill, stroke, ..
         } => shape_ops(geom, *fill, *stroke, h, states),
@@ -228,6 +262,47 @@ fn operators(prim: &Prim, h: f64, states: &[u32]) -> String {
             )
         }
     }
+}
+
+/// `q [opacity] a b c d e f cm /ImN Do Q`. The image fills the unit square, its top left at
+/// (0, 1). The matrix maps that to the page: x runs along the image's width, y up along its
+/// height, both turned clockwise on screen by the rotation, about the top left corner.
+fn image_ops(prim: &Prim, h: f64, states: &[u32], pictures: &[Arc<Picture>]) -> String {
+    let Prim::Image {
+        at,
+        width_pt,
+        height_pt,
+        rotation_deg,
+        opacity,
+        picture,
+        ..
+    } = prim
+    else {
+        return String::new();
+    };
+    let Some(index) = pictures.iter().position(|p| Arc::ptr_eq(p, picture)) else {
+        return String::new();
+    };
+
+    let (sin, cos) = rotation_deg.to_radians().sin_cos();
+    let matrix = [
+        width_pt * cos,
+        -width_pt * sin,
+        height_pt * sin,
+        height_pt * cos,
+        at.0 - height_pt * sin,
+        (h - at.1) - height_pt * cos,
+    ];
+    let numbers: Vec<String> = matrix.iter().map(|v| num(*v)).collect();
+
+    let mut s = String::from("q ");
+    let state = states.iter().position(|k| *k == key(*opacity));
+    if let (Some(i), true) = (state, *opacity < 1.0) {
+        let _ = write!(s, "/G{i} gs ");
+    }
+    let _ = writeln!(s, "{} cm /Im{index} Do Q", numbers.join(" "));
+
+    s
 }
 
 fn shape_ops(

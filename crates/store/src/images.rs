@@ -72,11 +72,9 @@ pub fn add_image(dir: &Path, source: &Path) -> Result<String, StoreError> {
     Err(bad("no free file name"))
 }
 
-/// Width and height in pixels of `file` (relative to `dir`), read from the file header.
-pub fn image_size(dir: &Path, file: &str) -> Result<(u32, u32), StoreError> {
-    let path = dir.join(file);
-    let relative = Path::new(file);
-    let inside = relative
+/// The bytes of `file` (relative to `dir`, inside it), e.g. for the export.
+pub fn read_image(dir: &Path, file: &str) -> Result<Vec<u8>, StoreError> {
+    let inside = Path::new(file)
         .components()
         .all(|c| matches!(c, Component::Normal(_)));
     if !inside {
@@ -85,9 +83,16 @@ pub fn image_size(dir: &Path, file: &str) -> Result<(u32, u32), StoreError> {
         });
     }
 
-    let bytes = fs::read(&path).map_err(|e| io_err(&path, e))?;
+    let path = dir.join(file);
+    fs::read(&path).map_err(|e| io_err(&path, e))
+}
+
+/// Width and height in pixels of `file` (relative to `dir`), read from the file header.
+pub fn image_size(dir: &Path, file: &str) -> Result<(u32, u32), StoreError> {
+    let bytes = read_image(dir, file)?;
+
     dimensions(&bytes).ok_or_else(|| StoreError::BadImage {
-        path,
+        path: dir.join(file),
         message: "not a readable PNG or JPEG image".to_owned(),
     })
 }

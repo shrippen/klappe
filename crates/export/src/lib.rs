@@ -10,11 +10,14 @@
 
 mod canvas;
 mod error;
+mod image;
+mod inflate;
 mod layout;
 mod metrics;
 mod page;
 mod palette;
 mod pdf;
+mod png;
 mod shots;
 mod style;
 mod svg;
@@ -34,7 +37,7 @@ pub fn svg(list: &DisplayList, page: &Page, theme: Theme) -> Result<String, Expo
 
 /// The plan on one page as PDF 1.4.
 pub fn pdf(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, ExportError> {
-    Ok(pdf::write(&layout::compose(list, page, theme)?))
+    pdf::write(&layout::compose(list, page, theme)?)
 }
 
 /// The plan as PDF 1.4, followed by the plan's shot list on landscape sheets (LH-80).
@@ -47,7 +50,7 @@ pub fn pdf_with_shots(
     let mut doc = layout::compose(list, page, theme)?;
     doc.sheets = table::sheets(plan, page, palette::palette(theme)?)?;
 
-    Ok(pdf::write(&doc))
+    pdf::write(&doc)
 }
 
 /// The plan's shots in cut order as CSV (LH-82): RFC 4180, UTF-8, `\r\n`, numbers with a point.

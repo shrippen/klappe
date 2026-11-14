@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::{FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
-use klappe_stellprobe::{axis_jumps, lens_at, render, DisplayList, Role, Source};
+use klappe_stellprobe::{axis_jumps, lens_at, render, DisplayList, Role, Shape, Source};
 
 use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
@@ -268,8 +268,15 @@ impl Session {
     /// Prints the current plan at the playhead as PDF (LH-80), followed by its shot list;
     /// `title` names scene and plan.
     pub fn export_pdf(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
-        let page = Page::new(paper, Orientation::Landscape, self.plan_title(), texts);
+        let mut page = Page::new(paper, Orientation::Landscape, self.plan_title(), texts);
         let list = self.display_list();
+        for item in &list.items {
+            let Shape::Image { file, .. } = &item.shape else {
+                continue;
+            };
+            page.images
+                .insert(file.clone(), klappe_store::read_image(&self.dir, file)?);
+        }
         let bytes = match self.plan() {
             Some(plan) => klappe_export::pdf_with_shots(&list, &page, Theme::Light, plan)?,
             None => klappe_export::pdf(&list, &page, Theme::Light)?,

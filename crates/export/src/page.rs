@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use klappe_model::{Movement, ShotSize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +25,9 @@ pub struct Page {
     /// e.g. "Szene 12 · Sängersaal · Plan A".
     pub title: String,
     pub texts: Texts,
+    /// The files of the images the display list names (`Shape::Image`), by the name in the
+    /// list. The export reads no files: the caller hands the bytes in.
+    pub images: HashMap<String, Vec<u8>>,
 }
 
 /// Every other visible text. The caller fills it from its translation catalogue.
@@ -82,6 +87,7 @@ impl Page {
             margin_mm: DEFAULT_MARGIN_MM,
             title: title.into(),
             texts,
+            images: HashMap::new(),
         }
     }
 }

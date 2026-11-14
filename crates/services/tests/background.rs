@@ -288,3 +288,36 @@ fn a_missing_image_is_left_out_and_a_known_size_is_remembered() {
     let fresh = Session::open(&dir).unwrap();
     assert!(!has_image(&fresh));
 }
+
+/// A JPEG of 1000 x 500 px: SOI, SOF0 (8 bits, 500 high, 1000 wide, 3 components), EOI.
+const JPEG: [u8; 23] = [
+    0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x01, 0xF4, 0x03, 0xE8, 0x03, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0xFF, 0xD9,
+];
+
+#[test]
+fn the_pdf_carries_the_background_image() {
+    let (_, dir) = with_background("bg-pdf");
+    std::fs::write(dir.join(IMAGE), JPEG).unwrap();
+    let s = Session::open(&dir).unwrap();
+    let path = dir.join("plan.pdf");
+    let texts = klappe_services::Texts {
+        figure: "Figur".into(),
+        camera: "Kamera".into(),
+        light: "Licht".into(),
+        axis: "Achse".into(),
+        path: "Weg".into(),
+        mark: "Mark".into(),
+        unit: "m".into(),
+        decimal_separator: ',',
+        shots: klappe_services::ShotTexts::default(),
+    };
+
+    s.export_pdf(&path, klappe_services::Paper::A4, texts)
+        .unwrap();
+
+    let bytes = std::fs::read(&path).unwrap();
+    let text = String::from_utf8_lossy(&bytes);
+    assert!(text.contains("/Width 1000 /Height 500 /ColorSpace /DeviceRGB"));
+    assert!(text.contains("/Filter /DCTDecode"));
+}

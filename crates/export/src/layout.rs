@@ -12,11 +12,15 @@
 //! └─────────────────────────────┘
 //! ```
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use klappe_model::Point;
 use klappe_stellprobe::{DisplayList, Item, Role, Shape, FIGURE_RADIUS_M};
 
 use crate::canvas::{Anchor, Dash, Doc, Geom, Prim, Pt, Rect, Stroke, Weight};
 use crate::error::ExportError;
+use crate::image::Picture;
 use crate::page::{Orientation, Page, Paper, Texts};
 use crate::palette::{palette, Palette, Theme};
 use crate::style::{role_style, RoleStyle};
@@ -104,7 +108,10 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
 
     let mut plan = Vec::new();
     for item in &list.items {
-        item_prims(item, &map, pal, &mut plan)?;
+        match &item.shape {
+            Shape::Image { .. } => image_prim(item, &map, &page.images, &mut plan)?,
+            _ => item_prims(item, &map, pal, &mut plan)?,
+        }
     }
 
     let footer_y = area.y + area.h + GAP_PT;
@@ -168,6 +175,49 @@ fn frame_prim(frame: Rect, pal: &Palette) -> Prim {
             dash: Dash::Solid,
         }),
     }
+}
+
+/// The background image, from the bytes the caller handed in for its file. An image that is
+/// not there is an error, not a gap in the printout: the caller read what the list names.
+fn image_prim(
+    item: &Item,
+    map: &Map,
+    images: &HashMap<String, Vec<u8>>,
+    out: &mut Vec<Prim>,
+) -> Result<(), ExportError> {
+    let Shape::Image {
+        file,
+        at,
+        width_m,
+        depth_m,
+        rotation_deg,
+        opacity,
+    } = &item.shape
+    else {
+        return Ok(());
+    };
+
+    let bytes = images.get(file).ok_or_else(|| ExportError::Image {
+        file: file.clone(),
+        message: "its bytes were not handed to the export".to_owned(),
+    })?;
+    let numbers = [width_m, depth_m, rotation_deg, opacity, &at.x_m, &at.y_m];
+    let drawn = numbers.iter().all(|v| v.is_finite());
+    if !drawn || *width_m <= 0.0 || *depth_m <= 0.0 {
+        return Ok(());
+    }
+
+    out.push(Prim::Image {
+        class: "background".into(),
+        at: map.pt(*at),
+        width_pt: width_m * map.scale,
+        height_pt: depth_m * map.scale,
+        rotation_deg: *rotation_deg,
+        opacity: opacity.clamp(0.0, 1.0),
+        picture: Arc::new(Picture::parse(file, bytes)?),
+    });
+
+    Ok(())
 }
 
 fn item_prims(
