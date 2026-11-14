@@ -8,6 +8,7 @@ use std::path::Path;
 
 use crate::catalog::Language;
 use crate::error::ServiceError;
+use crate::session::check_empty;
 
 include!(concat!(env!("OUT_DIR"), "/examples.rs"));
 
@@ -26,21 +27,6 @@ pub fn copy_example(language: Language, dir: &Path) -> Result<(), ServiceError> 
             std::fs::create_dir_all(parent).map_err(|source| write_error(parent, source))?;
         }
         std::fs::write(&path, bytes).map_err(|source| write_error(&path, source))?;
-    }
-
-    Ok(())
-}
-
-/// `dir` may be missing or an empty folder; anything else would mix the example with it.
-fn check_empty(dir: &Path) -> Result<(), ServiceError> {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(mut entries) => entries.next().is_some(),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
-        Err(source) => return Err(write_error(dir, source)),
-    };
-
-    if entries {
-        return Err(ServiceError::NotEmpty(dir.to_owned()));
     }
 
     Ok(())
