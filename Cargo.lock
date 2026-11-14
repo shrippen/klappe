@@ -876,6 +876,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "klappe-demo"
+version = "0.0.1"
+dependencies = [
+ "klappe-model",
+ "klappe-script",
+ "klappe-store",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "klappe-export"
 version = "0.0.1"
 dependencies = [
