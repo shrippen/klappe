@@ -73,7 +73,7 @@ A change that needs more places than listed is a finding for the audit.
 
 | Change | Touch |
 |---|---|
-| New kind of element on the plan | `model/` (data) and `FORMAT.md`; `stellprobe/` display list (role, source, shape, hit test); `services/` plan edits (add, move, remove, check) and its layer; `app/` tool and Kante look (`plan.rs`, `tools.rs`, `PlanTools.qml`); its tooltip (`Hint` and a `*_hint` in `services/` views, `bridge/hints.rs`, `tipLines` in `PlanArea.qml`); `export/` print look (`style.rs`); texts. |
+| New kind of element on the plan | `model/` (data) and `FORMAT.md`; `stellprobe/` display list (role, source, shape, hit test) and its look (`look.rs`); `services/` plan edits (add, move, remove, check) and its layer; `app/` tool (`tools.rs`, `PlanTools.qml`) and the translation of the look to Kante (`plan.rs`); its tooltip (`Hint` and a `*_hint` in `services/` views, `bridge/hints.rs`, `tipLines` in `PlanArea.qml`); `export/` translation of the look to print (`style.rs`); texts. |
 | New choice in a list (pose, light kind, line style, layer) | The type with its full list and names: in `model/`, layers in `services/` (`session.rs`, `session/layers.rs`); `stellprobe/` if it draws differently; texts. Nothing in a surface. |
 | New field on a card (mark, camera, shot) | `model/` and `FORMAT.md`; the edit in `services/` (`plan_edit/marks.rs`, `camera_edit.rs`, `shot_edit.rs`, `field.rs` for refused input); the card in `app/` (`mark.rs`, `camera.rs`, the card's QML, its `bridge/` file); texts; `export/` if the shot list prints it. |
 | New value shown in the window | A view in `services/` (`views.rs`, `session/views.rs`); one property in the `app/` bridge (`bridge.rs`: declaration, field, start value) and its field in `Shown` with a line in `collect`, `fill` and `show` (`bridge/view.rs`); the QML page. |
@@ -86,8 +86,6 @@ A change that needs more places than listed is a finding for the audit.
 
 ## Known deviations
 
-- Colour and line style of an element are decided twice, in `app/src/plan.rs` and
-  `export/src/style.rs`, and already differ. `AUDIT.md`, finding 3.
 - The window has no screenplay editor yet (`ScriptPanel.qml` only lists the script); the
   terminal writes it today. Planned in `planung/drehbuch/LASTENHEFT.md` (DB-23, after F-05).
 - `app/src/tools.rs` has several tasks (tool choice, selection, measuring, object fields,

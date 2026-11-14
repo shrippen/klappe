@@ -1,12 +1,12 @@
 //! Display-list roles mapped to Kante palette roles (planung/KONZEPT.md, section 4).
 //! Translucent areas use opacity, not extra colours.
 
-use klappe_model::{Dash as DrawDash, Fill as DrawFill};
-use klappe_stellprobe::Role;
+use klappe_model::{Dash as DrawDash, FigureColor};
+use klappe_stellprobe::{look, Area, Hue, Role};
 
 use crate::canvas::{Dash, Fill, Stroke};
 use crate::error::ExportError;
-use crate::palette::Palette;
+use crate::palette::{Palette, Rgb};
 
 const OUTLINE_PT: f64 = 0.75;
 const PATH_PT: f64 = 1.25;
@@ -24,122 +24,323 @@ pub(crate) struct RoleStyle {
     pub stroke: Option<Stroke>,
 }
 
+/// The class of a role that carries a figure colour: its name and the colour.
+fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
+    match role {
+        Role::Drawing { color, .. } => Some(("drawing", color)),
+        Role::ArrowHead(c) => Some(("arrow-head", c)),
+        Role::FigurePath(c) => Some(("figure-path", c)),
+        Role::Mark(c) => Some(("mark", c)),
+        Role::Figure(c) => Some(("figure", c)),
+        Role::Background
+        | Role::FigureHandle(_)
+        | Role::CameraHandle
+        | Role::Wall
+        | Role::Object
+        | Role::Camera
+        | Role::Frustum
+        | Role::CameraPath
+        | Role::Light
+        | Role::LightBeam
+        | Role::Note
+        | Role::Axis
+        | Role::GroupDot => None,
+    }
+}
+
+/// The class of a role without a figure colour; `None` for the coloured ones.
+fn plain_class(role: Role) -> Option<&'static str> {
+    match role {
+        Role::Background => Some("background"),
+        Role::FigureHandle(_) | Role::CameraHandle => Some("handle"),
+        Role::Wall => Some("wall"),
+        Role::Object => Some("object"),
+        Role::Camera => Some("camera"),
+        Role::Frustum => Some("frustum"),
+        Role::CameraPath => Some("camera-path"),
+        Role::Light => Some("light"),
+        Role::LightBeam => Some("beam"),
+        Role::Note => Some("note"),
+        Role::Axis => Some("axis"),
+        Role::GroupDot => Some("group-dot"),
+        Role::Drawing { .. }
+        | Role::ArrowHead(_)
+        | Role::FigurePath(_)
+        | Role::Mark(_)
+        | Role::Figure(_) => None,
+    }
+}
+
+fn class_of(role: Role) -> String {
+    if let Some((name, c)) = coloured_class(role) {
+        return format!("{name} {}", c.name());
+    }
+
+    plain_class(role).unwrap_or_default().into()
+}
+
+/// `None` for what the export does not stroke.
+fn width_pt(role: Role) -> Option<f64> {
+    match role {
+        Role::Background | Role::FigureHandle(_) | Role::CameraHandle => None,
+        Role::CameraPath | Role::FigurePath(_) => Some(PATH_PT),
+        Role::Axis => Some(AXIS_PT),
+        Role::Mark(_) => Some(MARK_PT),
+        Role::Drawing { .. } | Role::ArrowHead(_) => Some(DRAWING_PT),
+        Role::Wall
+        | Role::Object
+        | Role::LightBeam
+        | Role::Light
+        | Role::Note
+        | Role::Frustum
+        | Role::Camera
+        | Role::Figure(_)
+        | Role::GroupDot => Some(OUTLINE_PT),
+    }
+}
+
+fn tint_opacity(role: Role) -> f64 {
+    match role {
+        Role::Mark(_) => MARK_OPACITY,
+        Role::Drawing { .. } => DRAWING_OPACITY,
+        Role::Background
+        | Role::Wall
+        | Role::Object
+        | Role::LightBeam
+        | Role::Light
+        | Role::Note
+        | Role::Axis
+        | Role::CameraPath
+        | Role::Frustum
+        | Role::Camera
+        | Role::CameraHandle
+        | Role::ArrowHead(_)
+        | Role::FigurePath(_)
+        | Role::FigureHandle(_)
+        | Role::Figure(_)
+        | Role::GroupDot => AREA_OPACITY,
+    }
+}
+
+fn hue_rgb(hue: Hue, pal: &Palette) -> Result<Rgb, ExportError> {
+    match hue {
+        Hue::Ground => Ok(pal.paper),
+        Hue::Text => Ok(pal.foreground),
+        Hue::Muted => Ok(pal.muted),
+        // Paper has no accent colour; a note takes the set-object ground.
+        Hue::Accent | Hue::Surface => Ok(pal.surface),
+        Hue::Color(c) => pal.semantic(c.name()),
+    }
+}
+
+fn dash_of(dash: DrawDash) -> Dash {
+    match dash {
+        DrawDash::Solid => Dash::Solid,
+        DrawDash::Dashed => Dash::Dashed,
+        DrawDash::Dotted => Dash::Dotted,
+    }
+}
+
+/// What stellprobe's look becomes on paper; the look says the colour, line and fill, this
+/// adds widths, opacities and the outline of a solid shape.
 pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportError> {
-    let solid = |rgb| Fill { rgb, opacity: 1.0 };
-    let tint = |rgb, opacity| Fill { rgb, opacity };
-    let line = |rgb, width_pt, dash| Stroke {
-        rgb,
-        width_pt,
-        dash,
+    let class = class_of(role);
+
+    // Grips only show on screen; a list for export has none, and one that had draws nothing.
+    // The image is drawn by its own code.
+    let Some(width_pt) = width_pt(role) else {
+        return Ok(RoleStyle {
+            class,
+            fill: None,
+            stroke: None,
+        });
     };
 
-    let fg = pal.foreground;
-    let style = match role {
-        Role::Background => ("background".to_string(), None, None),
-        // Grips only show on screen; a list for export has none, and one that had draws nothing.
-        Role::FigureHandle(_) | Role::CameraHandle => ("handle".to_string(), None, None),
-        Role::Wall => (
-            "wall".to_string(),
-            None,
-            Some(line(fg, OUTLINE_PT, Dash::Solid)),
-        ),
-        Role::Object => (
-            "object".to_string(),
-            Some(solid(pal.surface)),
-            Some(line(pal.muted, OUTLINE_PT, Dash::Solid)),
-        ),
-        Role::Camera => (
-            "camera".to_string(),
-            Some(solid(pal.semantic("yellow")?)),
-            Some(line(fg, OUTLINE_PT, Dash::Solid)),
-        ),
-        Role::Frustum => {
-            let c = pal.semantic("yellow")?;
-            (
-                "frustum".to_string(),
-                Some(tint(c, AREA_OPACITY)),
-                Some(line(c, OUTLINE_PT, Dash::Solid)),
-            )
-        }
-        Role::CameraPath => (
-            "camera-path".to_string(),
-            None,
-            Some(line(pal.semantic("yellow")?, PATH_PT, Dash::Dotted)),
-        ),
-        Role::Light => (
-            "light".to_string(),
-            Some(solid(pal.semantic("orange")?)),
-            Some(line(fg, OUTLINE_PT, Dash::Solid)),
-        ),
-        Role::LightBeam => {
-            let c = pal.semantic("orange")?;
-            (
-                "beam".to_string(),
-                Some(tint(c, AREA_OPACITY)),
-                Some(line(c, OUTLINE_PT, Dash::Solid)),
-            )
-        }
-        Role::Note => (
-            "note".to_string(),
-            Some(solid(pal.surface)),
-            Some(line(fg, OUTLINE_PT, Dash::Solid)),
-        ),
-        Role::Drawing { color, dash, fill } => {
-            let c = pal.semantic(color.name())?;
-            let tinted = (fill == DrawFill::Filled).then(|| tint(c, DRAWING_OPACITY));
-            let dash = match dash {
-                DrawDash::Solid => Dash::Solid,
-                DrawDash::Dashed => Dash::Dashed,
-                DrawDash::Dotted => Dash::Dotted,
-            };
-            (
-                format!("drawing {}", color.name()),
-                tinted,
-                Some(line(c, DRAWING_PT, dash)),
-            )
-        }
-        Role::ArrowHead(color) => {
-            let c = pal.semantic(color.name())?;
-            (
-                format!("arrow-head {}", color.name()),
-                Some(solid(c)),
-                Some(line(c, DRAWING_PT, Dash::Solid)),
-            )
-        }
-        Role::Axis => (
-            "axis".to_string(),
-            None,
-            Some(line(pal.semantic("orange")?, AXIS_PT, Dash::Dashed)),
-        ),
-        Role::FigurePath(color) => (
-            format!("figure-path {}", color.name()),
-            None,
-            Some(line(pal.semantic(color.name())?, PATH_PT, Dash::Dotted)),
-        ),
-        Role::Mark(color) => {
-            let c = pal.semantic(color.name())?;
-            (
-                format!("mark {}", color.name()),
-                Some(tint(c, MARK_OPACITY)),
-                Some(line(c, MARK_PT, Dash::Solid)),
-            )
-        }
-        Role::Figure(color) => (
-            format!("figure {}", color.name()),
-            Some(solid(pal.semantic(color.name())?)),
-            Some(line(fg, OUTLINE_PT, Dash::Solid)),
-        ),
-        // Paper with an outline: stands out on every figure colour.
-        Role::GroupDot => (
-            "group-dot".to_string(),
-            Some(solid(pal.paper)),
-            Some(line(fg, OUTLINE_PT, Dash::Solid)),
-        ),
+    let look = look(role);
+    let colour = hue_rgb(look.hue, pal)?;
+
+    let fill_rgb = hue_rgb(look.paper_fill, pal)?;
+    let fill = match look.on_paper {
+        Area::None => None,
+        Area::Tint => Some(Fill {
+            rgb: fill_rgb,
+            opacity: tint_opacity(role),
+        }),
+        Area::Solid => Some(Fill {
+            rgb: fill_rgb,
+            opacity: 1.0,
+        }),
     };
+    // A solid shape (not an arrow head) gets a text-coloured outline.
+    let outlined = look.area == Area::Solid && !matches!(role, Role::ArrowHead(_));
+    let outline = if outlined { pal.foreground } else { colour };
 
     Ok(RoleStyle {
-        class: style.0,
-        fill: style.1,
-        stroke: style.2,
+        class,
+        fill,
+        stroke: Some(Stroke {
+            rgb: outline,
+            width_pt,
+            dash: dash_of(look.line),
+        }),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::palette::{palette, Theme};
+    use klappe_model::{FigureColor, Fill as DrawFill};
+
+    type Expected = (Option<(Rgb, f64)>, Option<(Rgb, f64, Dash)>);
+    type Case = (Role, String, Expected);
+
+    fn line(rgb: Rgb, width: f64, dash: Dash) -> Option<(Rgb, f64, Dash)> {
+        Some((rgb, width, dash))
+    }
+
+    fn fill(rgb: Rgb, opacity: f64) -> Option<(Rgb, f64)> {
+        Some((rgb, opacity))
+    }
+
+    /// What is not stroked, and the outlines in the text, muted and path styles.
+    fn plain_cases(pal: &Palette) -> Result<Vec<Case>, ExportError> {
+        let fg = pal.foreground;
+        let yellow = pal.semantic("yellow")?;
+        let orange = pal.semantic("orange")?;
+        let red = FigureColor::Red;
+
+        Ok(vec![
+            (Role::Background, "background".into(), (None, None)),
+            (Role::FigureHandle(red), "handle".into(), (None, None)),
+            (Role::CameraHandle, "handle".into(), (None, None)),
+            (
+                Role::Wall,
+                "wall".into(),
+                (None, line(fg, 0.75, Dash::Solid)),
+            ),
+            (
+                Role::Object,
+                "object".into(),
+                (fill(pal.surface, 1.0), line(pal.muted, 0.75, Dash::Solid)),
+            ),
+            (
+                Role::Frustum,
+                "frustum".into(),
+                (fill(yellow, 0.15), line(yellow, 0.75, Dash::Solid)),
+            ),
+            (
+                Role::CameraPath,
+                "camera-path".into(),
+                (None, line(yellow, 1.25, Dash::Dotted)),
+            ),
+            (
+                Role::LightBeam,
+                "beam".into(),
+                (fill(orange, 0.15), line(orange, 0.75, Dash::Solid)),
+            ),
+            (
+                Role::Axis,
+                "axis".into(),
+                (None, line(orange, 1.5, Dash::Dashed)),
+            ),
+        ])
+    }
+
+    /// The solid shapes with a text-coloured outline, and the coloured roles.
+    fn solid_cases(pal: &Palette) -> Result<Vec<Case>, ExportError> {
+        let fg = pal.foreground;
+        let (red, c_red) = (pal.semantic("red")?, FigureColor::Red);
+        let yellow = pal.semantic("yellow")?;
+        let orange = pal.semantic("orange")?;
+        let outline = line(fg, 0.75, Dash::Solid);
+
+        Ok(vec![
+            (Role::Camera, "camera".into(), (fill(yellow, 1.0), outline)),
+            (Role::Light, "light".into(), (fill(orange, 1.0), outline)),
+            (Role::Note, "note".into(), (fill(pal.surface, 1.0), outline)),
+            (
+                Role::GroupDot,
+                "group-dot".into(),
+                (fill(pal.paper, 1.0), outline),
+            ),
+            (
+                Role::Figure(c_red),
+                "figure red".into(),
+                (fill(red, 1.0), outline),
+            ),
+            (
+                Role::ArrowHead(c_red),
+                "arrow-head red".into(),
+                (fill(red, 1.0), line(red, 1.5, Dash::Solid)),
+            ),
+            (
+                Role::FigurePath(c_red),
+                "figure-path red".into(),
+                (None, line(red, 1.25, Dash::Dotted)),
+            ),
+            (
+                Role::Mark(c_red),
+                "mark red".into(),
+                (fill(red, 0.3), line(red, 1.25, Dash::Solid)),
+            ),
+        ])
+    }
+
+    fn drawing_cases(pal: &Palette) -> Result<Vec<Case>, ExportError> {
+        let blue = pal.semantic("blue")?;
+        let dashes = [
+            (DrawDash::Solid, Dash::Solid),
+            (DrawDash::Dashed, Dash::Dashed),
+            (DrawDash::Dotted, Dash::Dotted),
+        ];
+        let fills = [
+            (DrawFill::Outline, None),
+            (DrawFill::Filled, fill(blue, 0.25)),
+        ];
+        let mut cases = Vec::new();
+
+        for (draw_dash, dash) in dashes {
+            for (draw_fill, tint) in fills {
+                let role = Role::Drawing {
+                    color: FigureColor::Blue,
+                    dash: draw_dash,
+                    fill: draw_fill,
+                };
+
+                cases.push((role, "drawing blue".into(), (tint, line(blue, 1.5, dash))));
+            }
+        }
+
+        Ok(cases)
+    }
+
+    /// Class, fill (colour, opacity) and stroke (colour, width, dash) of every role, per theme.
+    #[test]
+    fn every_role_has_its_style() -> Result<(), ExportError> {
+        for theme in [Theme::Light, Theme::Dark] {
+            let pal = palette(theme)?;
+            let mut cases = plain_cases(pal)?;
+            cases.extend(solid_cases(pal)?);
+            cases.extend(drawing_cases(pal)?);
+
+            for (role, class, (want_fill, want_stroke)) in cases {
+                let got = role_style(role, pal)?;
+
+                assert_eq!(got.class, class, "{role:?}");
+                assert_eq!(
+                    got.fill.map(|f| (f.rgb, f.opacity)),
+                    want_fill,
+                    "{role:?} fill"
+                );
+                assert_eq!(
+                    got.stroke.map(|s| (s.rgb, s.width_pt, s.dash)),
+                    want_stroke,
+                    "{role:?} stroke"
+                );
+            }
+        }
+
+        Ok(())
+    }
 }
