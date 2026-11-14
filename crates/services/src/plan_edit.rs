@@ -1130,7 +1130,6 @@ fn add_mark(scope: &mut Scope<'_>, character: &str, at: Point) -> Result<(), Ser
     Ok(())
 }
 
-/// The first camera letter no camera of the plan has.
 /// The first id `<prefix><n>` that `taken` does not have.
 pub(super) fn free_id<'a>(prefix: &str, taken: impl Iterator<Item = &'a str> + Clone) -> String {
     let n = (1..)
@@ -1140,6 +1139,7 @@ pub(super) fn free_id<'a>(prefix: &str, taken: impl Iterator<Item = &'a str> + C
     format!("{prefix}{n}")
 }
 
+/// The first camera letter no camera of the plan has.
 fn free_letter(cameras: &[Camera]) -> Result<char, ServiceError> {
     ('A'..='Z')
         .find(|l| {
