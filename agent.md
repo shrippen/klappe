@@ -28,6 +28,9 @@ stellprobe/ Optik, Bewegung, Achse, Darstellungsliste    script/ Fountain
 store/      Projektordner                                export/ PDF, SVG, CSV
                        ↓
 model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
+
+demo/       Werkzeug (crates/demo), nicht ausgeliefert: erzeugt die Beispielprojekte im
+            Ordner demo/ des Repos über model/, script/, store/ (neben services/)
 ```
 - Wie `planung/KONZEPT.md`, Abschnitt 4. Die mittlere Ebene steht nebeneinander: `export/`
   liest die Darstellungsliste aus `stellprobe/`, `store/` nutzt `script/`; sonst rufen sie sich
@@ -35,7 +38,8 @@ model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
 - Oberflächen zeichnen die Darstellungsliste aus `stellprobe/`; eigene Geometrie in QML ist ein
   Fehler.
 - Jede Schicht ist ein eigenes Crate; Abhängigkeiten nur zum Nachbarn darunter (in
-  `Cargo.toml` sichtbar).
+  `Cargo.toml` sichtbar). `demo/` ist ein Werkzeug auf der Ebene von `services/`; App, TUI und
+  CLI hängen nie an ihm, ausgeliefert wird nur das erzeugte Beispiel (über `services/`).
 - Alles privat; `pub` nur, wo das Design es braucht. Jede neue `pub`-Schnittstelle steht im PR.
 
 ## Konventionen

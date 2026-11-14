@@ -1431,7 +1431,8 @@ fn mark_current(lines: &mut [ScriptLine], t_s: f64) {
 }
 
 /// `dir` may be missing or an empty folder; anything else would mix the project with it.
-fn check_empty(dir: &Path) -> Result<(), ServiceError> {
+/// Also for the example (`copy_example`).
+pub(crate) fn check_empty(dir: &Path) -> Result<(), ServiceError> {
     let entries = match std::fs::read_dir(dir) {
         Ok(mut entries) => entries.next().is_some(),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
