@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use klappe_export::{Orientation, Page, Paper, Texts, Theme};
@@ -59,6 +60,10 @@ pub struct Session {
     undo: Vec<Project>,
     redo: Vec<Project>,
     dirty: bool,
+    /// Pixel size of the image files read so far: every redraw asks, the file header is read
+    /// once. A file keeps its name for good (`add_image` numbers clashing names), so the
+    /// entry stays right; unreadable files are not kept and are tried again.
+    image_px: RefCell<HashMap<String, (u32, u32)>>,
 }
 
 impl Session {
@@ -92,6 +97,7 @@ impl Session {
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: false,
+            image_px: RefCell::new(HashMap::new()),
         })
     }
 
@@ -215,10 +221,28 @@ impl Session {
             return DisplayList::default();
         };
 
-        let mut list = render(project, &location.set, plan, self.time_s, None);
+        let background_px = location
+            .set
+            .background
+            .as_ref()
+            .and_then(|b| self.image_size(&b.file));
+        let mut list = render(project, &location.set, plan, self.time_s, background_px);
         list.items
             .retain(|item| self.shows(item.role, item.source.as_ref()));
         list
+    }
+
+    /// Pixel size of an image of the project folder; remembered per file.
+    fn image_size(&self, file: &str) -> Option<(u32, u32)> {
+        let mut known = self.image_px.borrow_mut();
+        if let Some(px) = known.get(file) {
+            return Some(*px);
+        }
+
+        let px = klappe_store::image_size(&self.dir, file).ok()?;
+        known.insert(file.to_owned(), px);
+
+        Some(px)
     }
 
     /// The lens a camera has at the playhead: its shot's own, else its own.
@@ -351,7 +375,15 @@ impl Session {
     pub fn edit_plan(&mut self, edit: PlanEdit) -> Result<(), ServiceError> {
         let mut next = self.project.clone();
         let at = (self.scene, self.plan);
-        plan_edit::apply(&mut next, at.0, at.1, self.time_s, self.snapping, &edit)?;
+        plan_edit::apply(
+            &self.dir,
+            &mut next,
+            at.0,
+            at.1,
+            self.time_s,
+            self.snapping,
+            &edit,
+        )?;
         if next == self.project {
             return Ok(());
         }
@@ -365,7 +397,19 @@ impl Session {
     pub fn preview(&self, edit: &PlanEdit) -> Result<DisplayList, ServiceError> {
         let mut next = self.project.clone();
         let at = (self.scene, self.plan);
-        plan_edit::apply(&mut next, at.0, at.1, self.time_s, self.snapping, edit)?;
+        // Copying a file is no preview: the list stays as it is until the edit is made.
+        if matches!(edit, PlanEdit::SetBackground { .. }) {
+            return Ok(self.display_list());
+        }
+        plan_edit::apply(
+            &self.dir,
+            &mut next,
+            at.0,
+            at.1,
+            self.time_s,
+            self.snapping,
+            edit,
+        )?;
 
         Ok(self.list_of(&next))
     }
