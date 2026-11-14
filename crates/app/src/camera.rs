@@ -113,6 +113,7 @@ pub fn presets_json(presets: &CameraPresets) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tools::edit_of;
     use klappe_services::Session;
 
     /// The presets outlive the session that hands them out.
@@ -121,11 +122,6 @@ mod tests {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
 
         Session::open(&dir).unwrap().camera_presets()
-    }
-
-    /// The edit a typed field made, if it made one.
-    fn edit_of(typed: Typed) -> Option<PlanEdit> {
-        typed?.ok()
     }
 
     fn camera() -> Source {

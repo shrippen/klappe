@@ -91,11 +91,7 @@ pub fn pace_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// The edit a typed field made, if it made one.
-    fn edit_of(typed: Typed) -> Option<PlanEdit> {
-        typed?.ok()
-    }
+    use crate::tools::edit_of;
 
     #[test]
     fn a_pose_name_for_a_figure_mark_is_a_set_pose() {

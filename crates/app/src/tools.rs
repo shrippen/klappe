@@ -625,6 +625,12 @@ pub fn note_edit(draft: &NoteDraft, text: &str) -> Option<PlanEdit> {
 /// field, an error (for the status line) when the text is no value.
 pub type Typed = Option<Result<PlanEdit, ServiceError>>;
 
+/// The edit a typed field made, if it made one.
+#[cfg(test)]
+pub(crate) fn edit_of(typed: Typed) -> Option<PlanEdit> {
+    typed?.ok()
+}
+
 /// A length in metres as typed, more than zero.
 fn length_m(field: Field, text: &str) -> Result<f64, ServiceError> {
     read_number(field, text, Unit::Metre, Range::Positive)
@@ -874,11 +880,6 @@ mod tests {
     use super::*;
     use crate::catalog::Language;
     use crate::mark::{aim_edit, hold_edit};
-
-    /// The edit a typed field made, if it made one.
-    fn edit_of(typed: Typed) -> Option<PlanEdit> {
-        typed?.ok()
-    }
 
     fn p(x_m: f64, y_m: f64) -> Point {
         Point::new(x_m, y_m)
