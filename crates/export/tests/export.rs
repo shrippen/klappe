@@ -376,6 +376,32 @@ fn a_group_is_printed_with_its_count() {
     assert_eq!(lines_with(&out, "item group-dot").len(), 6);
 }
 
+/// A mark's number sits above the figure standing on it, also above a group's wider body.
+#[test]
+fn a_mark_number_clears_a_group() {
+    let mut who = project();
+    who.characters[0].group = Some(12);
+    let out = svg(
+        &render(&who, &set(), &plan(), 0.0, None),
+        &page(),
+        Theme::Light,
+    )
+    .unwrap();
+
+    let body = lines_with(&out, "item figure purple")
+        .into_iter()
+        .find(|l| l.starts_with("<circle"))
+        .unwrap();
+    let body_top = attr(body, "cy") - attr(body, "r");
+    let number = out
+        .lines()
+        .filter(|l| l.contains("class=\"label\"") && l.ends_with(">1</text>"))
+        .find(|l| (attr(l, "x") - attr(body, "cx")).abs() < 0.01)
+        .unwrap();
+
+    assert!(attr(number, "y") < body_top, "{number} {body}");
+}
+
 /// LH-19: drawings show in SVG, PDF and PNG; an arrow's head is a filled area, a dash tells
 /// a dashed line from a solid one, a fill tints the inside.
 #[test]
