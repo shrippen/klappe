@@ -11,6 +11,14 @@ const PAGES: &[&str] = &[
     "qml/PlanArea.qml",
     "qml/PlanTools.qml",
     "qml/Timeline.qml",
+    "qml/FormDialog.qml",
+    "qml/SceneForm.qml",
+    "qml/LocationForm.qml",
+    "qml/CharacterForm.qml",
+    "qml/NewProjectDialog.qml",
+    "qml/ManageList.qml",
+    "qml/ProjectDialog.qml",
+    "qml/StartPage.qml",
 ];
 
 fn main() {

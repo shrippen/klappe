@@ -19,6 +19,7 @@ Stand: 2026-11-14.
 | Flatpak und Windows-Build der App | offen |
 | Werkzeuge zum Zeichnen (Wand, Objekt, Figur, Kamera, Licht) | erste Fassung |
 | Automatisches Speichern (LH-05) | fertig |
+| Projekte, Szenen, Drehorte, Figuren verwalten (LH-01 bis LH-03): Startseite mit zuletzt geöffneten Projekten, Projektdialog mit Listen, Rückgängig | erste Fassung; offen: Szenen und Figuren umsortieren, Szenennummern automatisch vergeben und beim Drehbuch-Umbau nachführen (DB-33) |
 | Hintergrundbild mit Maßstab (LH-13) | erste Fassung; offen: PDF als Hintergrund |
 | Notizen im Plan (LH-16): Werkzeug, Ebene, Export | erste Fassung; offen: Doppelklick zum Bearbeiten (F2 oder Klick mit dem Notiz-Werkzeug), Textform statt Marker mit Beschriftung |
 | Ebenen sperren (LH-15): Schalter „gesperrt“ je Ebene, nichts wählbar oder änderbar | erste Fassung; die Sperre gilt für die Sitzung und steht nicht im Projekt |

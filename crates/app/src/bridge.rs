@@ -58,6 +58,14 @@ pub mod qobject {
         #[qproperty(QString, backup_message, cxx_name = "backupMessage")]
         /// Milliseconds between two calls of `autosave`.
         #[qproperty(i32, autosave_ms, cxx_name = "autosaveMs")]
+        /// `{ scenes, locations, characters }` of the project, for the project view.
+        #[qproperty(QString, project_json, cxx_name = "projectJson")]
+        /// Id of the scene on view, empty for none.
+        #[qproperty(QString, scene_id, cxx_name = "sceneId")]
+        /// `[{ path, name }]`: the projects opened last, those still on disk.
+        #[qproperty(QString, recent_json, cxx_name = "recentJson")]
+        /// The same list as the app's settings keep it; QML stores it when it changes.
+        #[qproperty(QString, recent_store, cxx_name = "recentStore")]
         #[qproperty(QString, screenshot_path, cxx_name = "screenshotPath")]
         #[qproperty(i32, screenshot_after, cxx_name = "screenshotAfter")]
         type Controller = super::ControllerRust;
@@ -216,6 +224,107 @@ pub mod qobject {
         /// What a tooltip says about a plan element (`camera:a` …), as JSON.
         #[qinvokable]
         fn describe(self: &Self, key: &QString) -> QString;
+
+        /// Takes the list stored in the settings (`recentStore`) and shows it in `recentJson`.
+        #[qinvokable]
+        #[cxx_name = "loadRecent"]
+        fn load_recent(self: Pin<&mut Self>, stored: &QString);
+
+        /// Makes an empty project in the folder `path` (a path or a `file://` URL) and opens
+        /// it; an error goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "createProject"]
+        fn create_project(self: Pin<&mut Self>, path: &QString, title: &QString) -> bool;
+
+        /// Opens the project folder `path`; the open one is backed up first.
+        #[qinvokable]
+        #[cxx_name = "openProject"]
+        fn open_project(self: Pin<&mut Self>, path: &QString) -> bool;
+
+        /// Shows the scene `id`.
+        #[qinvokable]
+        #[cxx_name = "selectScene"]
+        fn select_scene(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Empties the status line (a form opens without the last error).
+        #[qinvokable]
+        #[cxx_name = "clearStatus"]
+        fn clear_status(self: Pin<&mut Self>);
+
+        /// The project view's changes. False when refused; the reason goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "addScene"]
+        fn add_scene(
+            self: Pin<&mut Self>,
+            number: &QString,
+            heading: &QString,
+            location: &QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "editScene"]
+        fn edit_scene(
+            self: Pin<&mut Self>,
+            id: &QString,
+            number: &QString,
+            heading: &QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "moveScene"]
+        fn move_scene(self: Pin<&mut Self>, id: &QString, location: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removeScene"]
+        fn remove_scene(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Sizes are text in metres (`8,5`).
+        #[qinvokable]
+        #[cxx_name = "addLocation"]
+        fn add_location(
+            self: Pin<&mut Self>,
+            name: &QString,
+            width: &QString,
+            depth: &QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "editLocation"]
+        fn edit_location(
+            self: Pin<&mut Self>,
+            id: &QString,
+            name: &QString,
+            width: &QString,
+            depth: &QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removeLocation"]
+        fn remove_location(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// `color` is a role name (`purple`, `blue` …).
+        #[qinvokable]
+        #[cxx_name = "addCharacter"]
+        fn add_character(
+            self: Pin<&mut Self>,
+            name: &QString,
+            label: &QString,
+            color: &QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "editCharacter"]
+        fn edit_character(
+            self: Pin<&mut Self>,
+            id: &QString,
+            name: &QString,
+            label: &QString,
+            color: &QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removeCharacter"]
+        fn remove_character(self: Pin<&mut Self>, id: &QString) -> bool;
     }
 }
 
@@ -223,13 +332,14 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Autosave, DisplayList, Layer, Lock, Paper, PlanEdit, Point, ServiceError,
-    Session, ShotField, ShotOrder, Snapping, Source, Texts, Visibility,
+    horizontal_fov_deg, Autosave, DisplayList, FigureColor, Layer, Lock, Paper, PlanEdit, Point,
+    ProjectEdit, ServiceError, Session, ShotField, ShotOrder, Snapping, Source, Texts, Visibility,
 };
 use serde_json::json;
 
 use crate::args::AppArgs;
 use crate::catalog::Language;
+use crate::manage;
 use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
 use crate::tools::{self, Backdrop, DragPhase, DragStep, Key, NoteDraft, Preview, ScaleStep, Tool};
@@ -273,6 +383,10 @@ pub struct ControllerRust {
     backup_state: QString,
     backup_message: QString,
     autosave_ms: i32,
+    project_json: QString,
+    scene_id: QString,
+    recent_json: QString,
+    recent_store: QString,
     screenshot_path: QString,
     screenshot_after: i32,
 }
@@ -344,6 +458,10 @@ impl Default for ControllerRust {
             backup_state: QString::default(),
             backup_message: QString::default(),
             autosave_ms: AUTOSAVE_S * MS_PER_S,
+            project_json: QString::default(),
+            scene_id: QString::default(),
+            recent_json: q("[]"),
+            recent_store: q("[]"),
             screenshot_path: args
                 .screenshot
                 .map(|p| q(&p.to_string_lossy()))
@@ -376,6 +494,8 @@ impl ControllerRust {
         self.selected_shot = q(s.selected_shot().unwrap_or_default());
         self.snapping_on = s.snapping() == Snapping::On;
         self.choices_json = q(&choices_json(s));
+        self.project_json = q(&manage::project_json(s));
+        self.scene_id = q(s.scene().map(|sc| sc.id.as_str()).unwrap_or_default());
 
         let (state, message) = backup_view(s.backup());
         self.backup_state = q(state);
@@ -581,10 +701,14 @@ impl qobject::Controller {
                     s.plan_title(),
                     s.duration_s(),
                     choices_json(s),
+                    manage::project_json(s),
+                    s.scene().map(|sc| sc.id.clone()).unwrap_or_default(),
                 )
             })
         };
-        if let Some((title, plan_title, duration, choices)) = header {
+        if let Some((title, plan_title, duration, choices, project, scene)) = header {
+            self.as_mut().set_project_json(q(&project));
+            self.as_mut().set_scene_id(q(&scene));
             self.as_mut().set_title(q(&title));
             self.as_mut().set_plan_title(q(&plan_title));
             self.as_mut().set_duration(duration);
@@ -1098,6 +1222,231 @@ impl qobject::Controller {
         };
         q(&describe(s, &key.to_string()).to_string())
     }
+
+    fn load_recent(mut self: Pin<&mut Self>, stored: &QString) {
+        let mut list = manage::parse_recent(&stored.to_string());
+        // A project opened from the command line counts as opened last.
+        if let Some(s) = self.rust().session.as_ref() {
+            list = manage::push_recent(&list, &s.dir().to_string_lossy());
+        }
+
+        self.as_mut()
+            .set_recent_json(q(&manage::recent_view(&list)));
+        self.set_recent_store(q(&manage::recent_store(&list)));
+    }
+
+    fn create_project(self: Pin<&mut Self>, path: &QString, title: &QString) -> bool {
+        let dir = tools::local_path(&path.to_string());
+        let created = Session::create(&dir, &title.to_string());
+
+        self.switch_to(created)
+    }
+
+    fn open_project(self: Pin<&mut Self>, path: &QString) -> bool {
+        let dir = tools::local_path(&path.to_string());
+        let opened = Session::open(&dir);
+
+        self.switch_to(opened)
+    }
+
+    fn select_scene(mut self: Pin<&mut Self>, id: &QString) -> bool {
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+        if s.select_scene(&id.to_string()).is_err() {
+            return false;
+        }
+
+        self.refresh();
+        true
+    }
+
+    fn clear_status(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().get_mut().notice.say(String::new());
+        self.set_status(QString::default());
+    }
+
+    fn add_scene(
+        self: Pin<&mut Self>,
+        number: &QString,
+        heading: &QString,
+        location: &QString,
+    ) -> bool {
+        self.commit_project(Ok(ProjectEdit::AddScene {
+            number: number.to_string(),
+            heading: heading.to_string(),
+            location: location.to_string(),
+        }))
+    }
+
+    fn edit_scene(self: Pin<&mut Self>, id: &QString, number: &QString, heading: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::EditScene {
+            id: id.to_string(),
+            number: number.to_string(),
+            heading: heading.to_string(),
+        }))
+    }
+
+    fn move_scene(self: Pin<&mut Self>, id: &QString, location: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::MoveScene {
+            id: id.to_string(),
+            location: location.to_string(),
+        }))
+    }
+
+    fn remove_scene(self: Pin<&mut Self>, id: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::RemoveScene { id: id.to_string() }))
+    }
+
+    fn add_location(
+        self: Pin<&mut Self>,
+        name: &QString,
+        width: &QString,
+        depth: &QString,
+    ) -> bool {
+        let edit = sizes(width, depth).map(|(width_m, depth_m)| ProjectEdit::AddLocation {
+            name: name.to_string(),
+            width_m,
+            depth_m,
+        });
+        self.commit_project(edit)
+    }
+
+    fn edit_location(
+        self: Pin<&mut Self>,
+        id: &QString,
+        name: &QString,
+        width: &QString,
+        depth: &QString,
+    ) -> bool {
+        let edit = sizes(width, depth).map(|(width_m, depth_m)| ProjectEdit::EditLocation {
+            id: id.to_string(),
+            name: name.to_string(),
+            width_m,
+            depth_m,
+        });
+        self.commit_project(edit)
+    }
+
+    fn remove_location(self: Pin<&mut Self>, id: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::RemoveLocation { id: id.to_string() }))
+    }
+
+    fn add_character(
+        self: Pin<&mut Self>,
+        name: &QString,
+        label: &QString,
+        color: &QString,
+    ) -> bool {
+        let edit = color_edit(color).map(|color| ProjectEdit::AddCharacter {
+            name: name.to_string(),
+            short: label.to_string(),
+            color,
+        });
+        self.commit_project(edit)
+    }
+
+    fn edit_character(
+        self: Pin<&mut Self>,
+        id: &QString,
+        name: &QString,
+        label: &QString,
+        color: &QString,
+    ) -> bool {
+        let edit = color_edit(color).map(|color| ProjectEdit::EditCharacter {
+            id: id.to_string(),
+            name: name.to_string(),
+            short: label.to_string(),
+            color,
+        });
+        self.commit_project(edit)
+    }
+
+    fn remove_character(self: Pin<&mut Self>, id: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::RemoveCharacter { id: id.to_string() }))
+    }
+
+    /// Applies `edit` (or says why its input was refused) to the project; an error goes to
+    /// the status line.
+    fn commit_project(mut self: Pin<&mut Self>, edit: Result<ProjectEdit, ServiceError>) -> bool {
+        let language = self.rust().language;
+        let result = match (edit, self.as_mut().session()) {
+            (Ok(edit), Some(s)) => s.edit_project(edit),
+            (Err(e), _) => Err(e),
+            (_, None) => return false,
+        };
+
+        let ok = result.is_ok();
+        match result {
+            Ok(()) => self.as_mut().changed(),
+            Err(e) => self.as_mut().say(error_text(language, &e)),
+        }
+        self.refresh();
+        ok
+    }
+
+    /// Makes `next` the open project: the one on screen goes to its backup first, so a
+    /// switch loses nothing. A refusal leaves the open project as it is.
+    fn switch_to(mut self: Pin<&mut Self>, next: Result<Session, ServiceError>) -> bool {
+        let language = self.rust().language;
+        let session = match next {
+            Ok(session) => session,
+            Err(e) => {
+                self.say(error_text(language, &e));
+                return false;
+            }
+        };
+
+        if let Some(old) = self.as_mut().session() {
+            if let Err(e) = old.autosave() {
+                self.say(error_text(language, &e));
+                return false;
+            }
+        }
+
+        let dir = session.dir().to_string_lossy().into_owned();
+        {
+            let this = self.as_mut().rust_mut().get_mut();
+            this.session = Some(session);
+            this.selected = None;
+            this.scale = ScaleStep::Idle;
+            this.note = NoteDraft::Idle;
+        }
+        self.as_mut().set_loaded(true);
+        self.as_mut().changed();
+        self.as_mut().refresh();
+        self.as_mut().show_backup();
+        self.remember(&dir);
+        true
+    }
+
+    /// Puts the folder first in the list of recent projects.
+    fn remember(mut self: Pin<&mut Self>, dir: &str) {
+        let list = manage::parse_recent(&self.rust().recent_store.to_string());
+        let list = manage::push_recent(&list, dir);
+
+        self.as_mut()
+            .set_recent_json(q(&manage::recent_view(&list)));
+        self.set_recent_store(q(&manage::recent_store(&list)));
+    }
+}
+
+/// Width and depth typed in the location form.
+fn sizes(width: &QString, depth: &QString) -> Result<(f64, f64), ServiceError> {
+    let width_m = manage::metres("width", &width.to_string())?;
+    let depth_m = manage::metres("depth", &depth.to_string())?;
+
+    Ok((width_m, depth_m))
+}
+
+/// The colour a form sends by its role name.
+fn color_edit(name: &QString) -> Result<FigureColor, ServiceError> {
+    let name = name.to_string();
+
+    manage::color_of(&name).ok_or(ServiceError::BadValue {
+        field: "color",
+        value: name,
+    })
 }
 
 /// Where an export of the current plan goes: next to the project folder, named by the plan.
