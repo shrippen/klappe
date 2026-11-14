@@ -442,28 +442,6 @@ fn plan_file(s: &Session, extension: &str) -> std::path::PathBuf {
         .unwrap_or_else(|| name.into())
 }
 
-/// Sizes and movements in the order the model lists them, with their catalogue keys.
-const SIZES: [(ShotSize, &str); 8] = [
-    (ShotSize::ExtremeWide, "extreme-wide"),
-    (ShotSize::Wide, "wide"),
-    (ShotSize::MediumWide, "medium-wide"),
-    (ShotSize::Cowboy, "cowboy"),
-    (ShotSize::Medium, "medium"),
-    (ShotSize::MediumClose, "medium-close"),
-    (ShotSize::CloseUp, "close-up"),
-    (ShotSize::ExtremeCloseUp, "extreme-close-up"),
-];
-const MOVEMENTS: [(Movement, &str); 8] = [
-    (Movement::Static, "static"),
-    (Movement::Pan, "pan"),
-    (Movement::Tilt, "tilt"),
-    (Movement::Dolly, "dolly"),
-    (Movement::Crane, "crane"),
-    (Movement::Handheld, "handheld"),
-    (Movement::Gimbal, "gimbal"),
-    (Movement::Zoom, "zoom"),
-];
-
 /// The shot list's words from the catalogue.
 fn shot_texts(language: Language) -> ShotTexts {
     let t = |k: &str| language.text(k);
@@ -485,13 +463,13 @@ fn shot_texts(language: Language) -> ShotTexts {
             crew: t("field.crew"),
             note: t("field.note"),
         },
-        sizes: SIZES
+        sizes: ShotSize::ALL
             .iter()
-            .map(|(size, key)| (*size, t(&format!("size.{key}"))))
+            .map(|s| (*s, t(&format!("size.{}", s.name()))))
             .collect(),
-        movements: MOVEMENTS
+        movements: Movement::ALL
             .iter()
-            .map(|(movement, key)| (*movement, t(&format!("movement.{key}"))))
+            .map(|m| (*m, t(&format!("movement.{}", m.name()))))
             .collect(),
     }
 }

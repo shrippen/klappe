@@ -11,7 +11,8 @@
 //! ```
 //!
 //! Short columns (number, camera, lens, size, movement, times) take what their words need;
-//! the free text columns share the rest and wrap, so A4 upright stays readable.
+//! the free text columns share the rest and wrap. Sheets are always landscape, whatever the
+//! plan page: thirteen columns need the width.
 
 use klappe_model::{FloorPlan, Shot};
 
@@ -53,7 +54,7 @@ pub(crate) fn sheets(
         return Ok(Vec::new());
     }
 
-    // Landscape like the plan: thirteen columns need the width; upright A4 broke words.
+    // Always landscape (see above); upright A4 broke words.
     let (short_mm, long_mm) = paper_mm(page.paper);
     let (width_pt, height_pt) = (long_mm * PT_PER_MM, short_mm * PT_PER_MM);
     let margin = page.margin_mm.max(0.0) * PT_PER_MM;

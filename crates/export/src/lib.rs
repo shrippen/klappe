@@ -37,7 +37,7 @@ pub fn pdf(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, Exp
     Ok(pdf::write(&layout::compose(list, page, theme)?))
 }
 
-/// The plan as PDF 1.4, followed by the plan's shot list on upright sheets (LH-80).
+/// The plan as PDF 1.4, followed by the plan's shot list on landscape sheets (LH-80).
 pub fn pdf_with_shots(
     list: &DisplayList,
     page: &Page,

@@ -69,7 +69,7 @@ fn size_name(size: ShotSize, texts: &ShotTexts) -> String {
         .sizes
         .iter()
         .find(|(s, _)| *s == size)
-        .map_or_else(|| format!("{size:?}"), |(_, name)| name.clone())
+        .map_or_else(|| size.name().to_owned(), |(_, name)| name.clone())
 }
 
 fn movement_name(movement: Movement, texts: &ShotTexts) -> String {
@@ -77,7 +77,7 @@ fn movement_name(movement: Movement, texts: &ShotTexts) -> String {
         .movements
         .iter()
         .find(|(m, _)| *m == movement)
-        .map_or_else(|| format!("{movement:?}"), |(_, name)| name.clone())
+        .map_or_else(|| movement.name().to_owned(), |(_, name)| name.clone())
 }
 
 /// The plan's shots as CSV: head row, then one row per shot in cut order. Numbers use a

@@ -6,7 +6,7 @@ use klappe_model::{FigureColor, FloorPlan, LinkTarget, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{axis_jumps, lens_at, render, DisplayList, Role, Source};
 
-use crate::edit::{self, movement_name, size_name, ShotField};
+use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
 use crate::views::{Chip, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind};
 
@@ -293,8 +293,8 @@ impl Session {
                     number: shot.number.clone(),
                     camera: shot.camera.clone(),
                     camera_label: camera.map(|c| c.label.clone()).unwrap_or_default(),
-                    size: size_name(shot.size).to_owned(),
-                    movement: movement_name(shot.movement).to_owned(),
+                    size: shot.size.name().to_owned(),
+                    movement: shot.movement.name().to_owned(),
                     lens_mm: shot.lens_mm.or(camera.map(|c| c.lens_mm)).unwrap_or(0.0),
                     own_lens_mm: shot.lens_mm,
                     from_s: shot.from_s,

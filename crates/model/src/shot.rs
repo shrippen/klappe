@@ -56,6 +56,34 @@ pub enum ShotSize {
     ExtremeCloseUp,
 }
 
+impl ShotSize {
+    /// Every size, widest first.
+    pub const ALL: [ShotSize; 8] = [
+        ShotSize::ExtremeWide,
+        ShotSize::Wide,
+        ShotSize::MediumWide,
+        ShotSize::Cowboy,
+        ShotSize::Medium,
+        ShotSize::MediumClose,
+        ShotSize::CloseUp,
+        ShotSize::ExtremeCloseUp,
+    ];
+
+    /// The name the file format uses, e.g. `close-up`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            ShotSize::ExtremeWide => "extreme-wide",
+            ShotSize::Wide => "wide",
+            ShotSize::MediumWide => "medium-wide",
+            ShotSize::Cowboy => "cowboy",
+            ShotSize::Medium => "medium",
+            ShotSize::MediumClose => "medium-close",
+            ShotSize::CloseUp => "close-up",
+            ShotSize::ExtremeCloseUp => "extreme-close-up",
+        }
+    }
+}
+
 /// LH-33.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -68,4 +96,58 @@ pub enum Movement {
     Handheld,
     Gimbal,
     Zoom,
+}
+
+impl Movement {
+    pub const ALL: [Movement; 8] = [
+        Movement::Static,
+        Movement::Pan,
+        Movement::Tilt,
+        Movement::Dolly,
+        Movement::Crane,
+        Movement::Handheld,
+        Movement::Gimbal,
+        Movement::Zoom,
+    ];
+
+    /// The name the file format uses, e.g. `handheld`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Movement::Static => "static",
+            Movement::Pan => "pan",
+            Movement::Tilt => "tilt",
+            Movement::Dolly => "dolly",
+            Movement::Crane => "crane",
+            Movement::Handheld => "handheld",
+            Movement::Gimbal => "gimbal",
+            Movement::Zoom => "zoom",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `name` is what the file holds, and `ALL` lists every variant once.
+    #[test]
+    fn names_are_the_file_names() {
+        for size in ShotSize::ALL {
+            let json = serde_json::to_string(&size).unwrap();
+            assert_eq!(json, format!("\"{}\"", size.name()));
+        }
+        for movement in Movement::ALL {
+            let json = serde_json::to_string(&movement).unwrap();
+            assert_eq!(json, format!("\"{}\"", movement.name()));
+        }
+
+        let mut sizes: Vec<_> = ShotSize::ALL.iter().map(|s| s.name()).collect();
+        let mut movements: Vec<_> = Movement::ALL.iter().map(|m| m.name()).collect();
+        sizes.sort_unstable();
+        sizes.dedup();
+        movements.sort_unstable();
+        movements.dedup();
+        assert_eq!(sizes.len(), ShotSize::ALL.len());
+        assert_eq!(movements.len(), Movement::ALL.len());
+    }
 }
