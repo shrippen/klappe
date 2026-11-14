@@ -296,13 +296,19 @@ TestCase {
         tryVerify(() => part(work, "scriptDrawer").visible)
         compare(work.scriptShown, true)
         const drawer = part(work, "scriptDrawer").contentItem
+        // The buttons' row stays free: both buttons can be clicked to close.
+        const row = part(work, "drawerButtons")
+        const rowEnd = row.mapToItem(work, 0, row.height).y
+        verify(drawer.mapToItem(work, 0, 0).y >= rowEnd - tolerance, "drawer covers the buttons")
+        verify(drawer.mapToItem(work, 0, drawer.height).y <= work.height + tolerance)
         verify(drawer.mapToItem(work, 0, 0).x >= -tolerance)
         verify(drawer.mapToItem(work, drawer.width, 0).x <= work.width / 2)
         wait(300)
         shoot(work, "medium-drawer")
 
-        work.setArea("script", false)
+        mouseClick(part(work, "scriptButton"))
         tryCompare(part(work, "scriptDrawer"), "opened", false)
+        compare(work.area, "plan")
     }
 
     function test_medium_buttons_open_the_drawers() {

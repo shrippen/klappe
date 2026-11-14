@@ -145,6 +145,7 @@ Item {
 
                     // Medium: the drawers' buttons; Narrow: the tabs.
                     RowLayout {
+                        id: drawerButtons
                         objectName: "drawerButtons"
                         visible: work.tier === Workspace.Tier.Medium
                         Layout.fillWidth: true
@@ -240,7 +241,9 @@ Item {
                 parent: body
                 edge: Qt.LeftEdge
                 width: Math.min(work.paneDefault, body.width)
-                height: body.height
+                // Below the buttons' row, so the button that opened it stays in view.
+                y: drawerButtons.height + drawerButtons.Layout.margins * 2
+                height: body.height - y
                 modal: false
                 interactive: false
                 closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
@@ -259,7 +262,9 @@ Item {
                 parent: body
                 edge: Qt.RightEdge
                 width: Math.min(work.paneDefault, body.width)
-                height: body.height
+                // Below the buttons' row, so the button that opened it stays in view.
+                y: drawerButtons.height + drawerButtons.Layout.margins * 2
+                height: body.height - y
                 modal: false
                 interactive: false
                 closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
