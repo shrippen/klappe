@@ -7,7 +7,8 @@ How this repository is meant to be built. Where the code differs today is listed
 
 Klappe is a film pre-production suite for directors and their crew. Its first module,
 Stellprobe, plans a scene on a floor plan (blocking, cameras, light, the 180° axis, shot
-list); the screenplay is written as Fountain in the terminal. Every module works on one
+list); the screenplay is written as Fountain in the window and, as a second way, in the
+terminal. Every module works on one
 project, a folder of text files.
 
 ## Building blocks
@@ -16,9 +17,9 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 
 | Path | Its one task |
 |---|---|
-| `app/` | The desktop window: QML pages, and the bridge that hands them the session's data and turns the display list into Kante shapes. |
+| `app/` | The desktop window, the main way to work, the screenplay included: QML pages, and the bridge that hands them the session's data and turns the display list into Kante shapes. |
 | `app/qml/Kante` | Copy of the Kante design system (`scripts/sync-kante.sh`); never edited here. |
-| `tui/` | The terminal program for writing the screenplay. |
+| `tui/` | The terminal program: a second way to write the screenplay, beside the window. |
 | `cli/` | The command line: exports and checks without a window. |
 | `services/` | The project session, the one door for every surface: open, select, edit, undo, play, save, export. Hands out data ready to show and holds all texts (`i18n/`). |
 | `stellprobe/` | Stellprobe's calculations, without files or window: who stands where at a time, what a camera sees, the axis, and the display list (what a plan shows, in metres, colours as roles). |
