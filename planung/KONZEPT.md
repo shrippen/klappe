@@ -8,7 +8,7 @@ Anforderungen des ersten Moduls: [`stellprobe/LASTENHEFT.md`](stellprobe/LASTENH
 | Modul | Zweck | Oberfläche | Reihenfolge |
 |---|---|---|---|
 | Stellprobe | Floorplans, Blocking, Kameras, Licht, Shotliste | GUI | zuerst |
-| Drehbuch | Drehbuch schreiben (Fountain) | **TUI**, später GUI | zweites |
+| Drehbuch | Drehbuch schreiben (Fountain), Lastenheft: [`drehbuch/LASTENHEFT.md`](drehbuch/LASTENHEFT.md) | **TUI**, später GUI | zweites |
 | Planung | Drehplan, Dispo, Drehorte, Team | GUI | später |
 
 Alle Module arbeiten auf demselben Projekt und demselben Datenmodell.
