@@ -1131,6 +1131,15 @@ fn add_mark(scope: &mut Scope<'_>, character: &str, at: Point) -> Result<(), Ser
 }
 
 /// The first camera letter no camera of the plan has.
+/// The first id `<prefix><n>` that `taken` does not have.
+pub(super) fn free_id<'a>(prefix: &str, taken: impl Iterator<Item = &'a str> + Clone) -> String {
+    let n = (1..)
+        .find(|n| !taken.clone().any(|id| id == format!("{prefix}{n}")))
+        .unwrap_or(1);
+
+    format!("{prefix}{n}")
+}
+
 fn free_letter(cameras: &[Camera]) -> Result<char, ServiceError> {
     ('A'..='Z')
         .find(|l| {
@@ -1470,15 +1479,12 @@ fn follow(scope: &mut Scope<'_>, camera: &str, figure: Option<&str>) -> Result<(
 }
 
 fn add_light(scope: &mut Scope<'_>, kind: LightKind, at: Point) -> Result<(), ServiceError> {
-    let lights = &scope.plan.lights;
-    let n = (1..)
-        .find(|n| !lights.iter().any(|l| l.id == format!("l{n}")))
-        .unwrap_or(1);
+    let id = free_id("l", scope.plan.lights.iter().map(|l| l.id.as_str()));
     let defaults = light_defaults(kind);
 
     scope.plan.lights.push(Light {
-        id: format!("l{n}"),
-        label: format!("L{n}"),
+        label: id.to_uppercase(),
+        id,
         kind,
         at,
         facing_deg: 0.0,
@@ -1503,9 +1509,7 @@ fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result<(), Servic
         .set
         .as_deref_mut()
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
-    let n = (1..)
-        .find(|n| !set.objects.iter().any(|o| o.id == format!("o{n}")))
-        .unwrap_or(1);
+    let id = free_id("o", set.objects.iter().map(|o| o.id.as_str()));
 
     // An old project may name a kind no library has: a square it is.
     let (label, width_m, depth_m, shape) = match library::find(scope.library, kind) {
@@ -1519,7 +1523,7 @@ fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result<(), Servic
     };
 
     set.objects.push(SetObject {
-        id: format!("o{n}"),
+        id,
         kind: kind.to_owned(),
         label,
         at,
@@ -1590,15 +1594,9 @@ fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(), ServiceE
         .set
         .as_deref_mut()
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
-    let n = (1..)
-        .find(|n| !set.notes.iter().any(|note| note.id == format!("n{n}")))
-        .unwrap_or(1);
+    let id = free_id("n", set.notes.iter().map(|n| n.id.as_str()));
 
-    set.notes.push(Note {
-        id: format!("n{n}"),
-        at,
-        text,
-    });
+    set.notes.push(Note { id, at, text });
 
     Ok(())
 }
@@ -1636,13 +1634,10 @@ fn add_drawing(
         });
     }
 
-    let drawings = &scope.plan.drawings;
-    let n = (1..)
-        .find(|n| !drawings.iter().any(|d| d.id == format!("d{n}")))
-        .unwrap_or(1);
+    let id = free_id("d", scope.plan.drawings.iter().map(|d| d.id.as_str()));
 
     scope.plan.drawings.push(Drawing {
-        id: format!("d{n}"),
+        id,
         shape: shape.clone(),
         color,
         dash,
