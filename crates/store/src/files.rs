@@ -129,6 +129,15 @@ pub(crate) fn exists(path: &Path) -> Result<bool, StoreError> {
     path.try_exists().map_err(|e| io_err(path, e))
 }
 
+/// Deletes a folder and its content; a folder that is not there is fine.
+pub(crate) fn remove_dir(path: &Path) -> Result<(), StoreError> {
+    match fs::remove_dir_all(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(io_err(path, e)),
+    }
+}
+
 pub(crate) fn read_optional(path: &Path) -> Result<Option<String>, StoreError> {
     match fs::read_to_string(path) {
         Ok(text) => Ok(Some(text)),

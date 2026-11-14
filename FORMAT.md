@@ -9,7 +9,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── figuren.toml         Figuren, je ein [[figur]]
 ├── drehorte/<id>.toml   ein Drehort samt Set (Wände, Objekte)
 ├── szenen/<id>.json     eine Szene: Nummer, Überschrift, Drehort, Floorplans
-└── drehbuch.fountain    Drehbuch als Text (optional)
+├── drehbuch.fountain    Drehbuch als Text (optional)
+└── .sicherung/          Sicherung ungespeicherter Änderungen (optional, siehe unten)
 ```
 
 ## Regeln
@@ -30,3 +31,13 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `drehorte/` und `szenen/`, deren Id nicht mehr zum Projekt gehört, werden gelöscht, sonst
   nichts. Ohne Drehbuchtext bleibt eine vorhandene `drehbuch.fountain` unberührt.
 - Fehlende `figuren.toml`, fehlende Ordner und fehlendes Drehbuch gelten als leer.
+- **Sicherung (LH-05):** ungespeicherte Änderungen schreibt die Sitzung regelmäßig nach
+  `.sicherung/`, ein vollständiger Projektordner im selben Format. Die Projektdateien bleiben
+  dabei unberührt; erst der Nutzer speichert, und das Speichern löscht `.sicherung/`. Beim
+  Öffnen bietet die Sitzung eine abweichende Sicherung zur Wiederherstellung an; eine
+  gleiche wird still gelöscht. `load` liest `.sicherung/` nie als Teil des Projekts. Git soll
+  den Ordner ignorieren; Vorschlag für `.gitignore` im Projekt:
+
+  ```
+  .sicherung/
+  ```

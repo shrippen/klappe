@@ -3,6 +3,7 @@
 //! ```text
 //! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen/
 //! load(dir)                  ◄──         drehbuch.fountain
+//! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
 //! ```
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
@@ -24,6 +25,8 @@ const CHARACTERS_FILE: &str = "figuren.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
+/// Folder of the unsaved-changes backup inside a project folder (FORMAT.md).
+const BACKUP_DIR: &str = ".sicherung";
 const TOML_EXT: &str = "toml";
 const JSON_EXT: &str = "json";
 
@@ -142,6 +145,27 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
 /// Writes `drehbuch.fountain` in `dir` atomically and nothing else.
 pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
     files::write_atomic(&dir.join(SCRIPT_FILE), script.as_bytes())
+}
+
+/// Writes `project` as a backup into `dir/.sicherung`, in the project format. The project
+/// files stay as they are, so the user alone decides what a save changes (LH-05).
+pub fn save_backup(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), StoreError> {
+    save(&dir.join(BACKUP_DIR), project, script)
+}
+
+/// Reads the backup of `dir`; `None` if there is none.
+pub fn load_backup(dir: &Path) -> Result<Option<Loaded>, StoreError> {
+    let backup = dir.join(BACKUP_DIR);
+    if !files::exists(&backup)? {
+        return Ok(None);
+    }
+
+    load(&backup).map(Some)
+}
+
+/// Removes the backup of `dir`; no backup is not an error.
+pub fn drop_backup(dir: &Path) -> Result<(), StoreError> {
+    files::remove_dir(&dir.join(BACKUP_DIR))
 }
 
 /// Reads every file of a kind in `dir`, sorted by file name; the id inside must match it.

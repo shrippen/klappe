@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use klappe_model::*;
-use klappe_store::{load, save, save_script, StoreError};
+use klappe_store::{drop_backup, load, load_backup, save, save_backup, save_script, StoreError};
 
 const EXAMPLE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -580,4 +580,57 @@ fn save_script_writes_nothing_else() {
         fs::read_to_string(dir.join("drehbuch.fountain")).unwrap(),
         "Neu.\n"
     );
+}
+
+#[test]
+fn backup_round_trip_leaves_project_files_alone() {
+    let dir = test_dir("backup-round-trip");
+    save(&dir, &example(), Some(SCRIPT)).unwrap();
+    let before = fs::read(dir.join("projekt.toml")).unwrap();
+    let mut changed = example();
+    changed.title = "Geändert".into();
+
+    save_backup(&dir, &changed, Some("Neu.\n")).unwrap();
+
+    let backup = load_backup(&dir).unwrap().unwrap();
+    assert_eq!(backup.project, changed);
+    assert_eq!(backup.script.as_deref(), Some("Neu.\n"));
+    assert_eq!(fs::read(dir.join("projekt.toml")).unwrap(), before);
+    assert_eq!(load(&dir).unwrap().project, example());
+}
+
+#[test]
+fn no_backup_loads_as_none_and_drops_quietly() {
+    let dir = test_dir("backup-none");
+    save(&dir, &example(), None).unwrap();
+
+    assert_eq!(load_backup(&dir).unwrap(), None);
+    drop_backup(&dir).unwrap();
+}
+
+#[test]
+fn drop_backup_removes_the_folder() {
+    let dir = test_dir("backup-drop");
+    save(&dir, &example(), None).unwrap();
+    save_backup(&dir, &example(), None).unwrap();
+
+    drop_backup(&dir).unwrap();
+
+    assert!(!dir.join(".sicherung").exists());
+    assert_eq!(load_backup(&dir).unwrap(), None);
+}
+
+#[test]
+fn load_ignores_the_backup_folder() {
+    let dir = test_dir("backup-ignored");
+    save(&dir, &example(), Some(SCRIPT)).unwrap();
+    let mut changed = example();
+    changed.title = "Geändert".into();
+    changed.scenes.clear();
+    save_backup(&dir, &changed, Some("Neu.\n")).unwrap();
+
+    let loaded = load(&dir).unwrap();
+
+    assert_eq!(loaded.project, example());
+    assert_eq!(loaded.script.as_deref(), Some(SCRIPT));
 }

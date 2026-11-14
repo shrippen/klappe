@@ -3,7 +3,9 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{Layer, LinkKind, ServiceError, Session, ShotField, TrackKind, Visibility};
+use klappe_services::{
+    Autosave, BackupState, Layer, LinkKind, ServiceError, Session, ShotField, TrackKind, Visibility,
+};
 use klappe_stellprobe::Role;
 
 fn example() -> PathBuf {
@@ -330,4 +332,147 @@ fn lens_now_follows_the_shot() {
     s.set_time(0.0);
     assert_eq!(s.lens_now_mm("a"), Some(35.0));
     assert_eq!(s.lens_now_mm("nobody"), None);
+}
+
+fn change_lens(s: &mut Session) {
+    s.edit_shot("s12-1", ShotField::Lens, "85 mm").unwrap();
+}
+
+#[test]
+fn autosave_survives_a_crash_and_restores() {
+    let dir = copy("session-autosave");
+    let mut s = Session::open(&dir).unwrap();
+    change_lens(&mut s);
+    let saved = std::fs::read(dir.join("szenen/szene-012.json")).unwrap();
+
+    assert_eq!(s.autosave().unwrap(), Autosave::Written);
+    drop(s); // the crash: no save
+
+    // Project files are untouched.
+    assert_eq!(
+        std::fs::read(dir.join("szenen/szene-012.json")).unwrap(),
+        saved
+    );
+    let mut s = Session::open(&dir).unwrap();
+    assert_eq!(s.backup(), &BackupState::Found);
+    assert_eq!(s.shots()[0].lens_mm, 35.0);
+
+    s.restore_backup().unwrap();
+
+    assert_eq!(s.shots()[0].lens_mm, 85.0);
+    assert_eq!(s.backup(), &BackupState::None);
+    assert!(s.is_dirty());
+}
+
+#[test]
+fn undo_follows_restore() {
+    let dir = copy("session-restore-undo");
+    let mut s = Session::open(&dir).unwrap();
+    change_lens(&mut s);
+    s.autosave().unwrap();
+    let mut s = Session::open(&dir).unwrap();
+
+    s.restore_backup().unwrap();
+    assert!(s.can_undo());
+    s.undo();
+
+    assert_eq!(s.shots()[0].lens_mm, 35.0);
+}
+
+#[test]
+fn restore_takes_the_script_too() {
+    let dir = copy("session-restore-script");
+    let mut s = Session::open(&dir).unwrap();
+    s.set_script_text("Neu.\n");
+    s.autosave().unwrap();
+    let mut s = Session::open(&dir).unwrap();
+
+    s.restore_backup().unwrap();
+
+    assert_eq!(s.script_text(), "Neu.\n");
+}
+
+#[test]
+fn save_removes_the_backup() {
+    let dir = copy("session-save-backup");
+    let mut s = Session::open(&dir).unwrap();
+    change_lens(&mut s);
+    s.autosave().unwrap();
+    assert!(dir.join(".sicherung").exists());
+
+    s.save().unwrap();
+
+    assert!(!dir.join(".sicherung").exists());
+    assert_eq!(Session::open(&dir).unwrap().backup(), &BackupState::None);
+}
+
+#[test]
+fn autosave_writes_only_after_a_change() {
+    let dir = copy("session-autosave-clean");
+    let mut s = Session::open(&dir).unwrap();
+
+    assert_eq!(s.autosave().unwrap(), Autosave::Clean);
+    assert!(!dir.join(".sicherung").exists());
+
+    change_lens(&mut s);
+    assert_eq!(s.autosave().unwrap(), Autosave::Written);
+    assert_eq!(s.autosave().unwrap(), Autosave::Clean);
+
+    s.save().unwrap();
+    assert_eq!(s.autosave().unwrap(), Autosave::Clean);
+    assert!(!dir.join(".sicherung").exists());
+}
+
+#[test]
+fn a_backup_equal_to_the_project_is_removed_on_open() {
+    let dir = copy("session-backup-equal");
+    let mut s = Session::open(&dir).unwrap();
+    change_lens(&mut s);
+    s.undo();
+    assert_eq!(s.autosave().unwrap(), Autosave::Written);
+    assert!(dir.join(".sicherung").exists());
+
+    let s = Session::open(&dir).unwrap();
+
+    assert_eq!(s.backup(), &BackupState::None);
+    assert!(!dir.join(".sicherung").exists());
+}
+
+#[test]
+fn an_unreadable_backup_does_not_stop_open() {
+    let dir = copy("session-backup-broken");
+    let mut s = Session::open(&dir).unwrap();
+    change_lens(&mut s);
+    s.autosave().unwrap();
+    std::fs::write(dir.join(".sicherung/projekt.toml"), "kaputt = [").unwrap();
+
+    let mut s = Session::open(&dir).unwrap();
+
+    let BackupState::Unreadable(message) = s.backup() else {
+        panic!("expected Unreadable, got {:?}", s.backup());
+    };
+    assert!(message.contains("projekt.toml"), "{message}");
+    assert!(s.restore_backup().is_err());
+
+    s.discard_backup().unwrap();
+    assert_eq!(s.backup(), &BackupState::None);
+    assert!(!dir.join(".sicherung").exists());
+}
+
+#[test]
+fn autosave_keeps_an_unanswered_backup() {
+    let dir = copy("session-backup-held");
+    let mut s = Session::open(&dir).unwrap();
+    change_lens(&mut s);
+    s.autosave().unwrap();
+    let mut s = Session::open(&dir).unwrap();
+    let backup = std::fs::read(dir.join(".sicherung/szenen/szene-012.json")).unwrap();
+
+    s.edit_shot("s12-1", ShotField::Lens, "50 mm").unwrap();
+
+    assert_eq!(s.autosave().unwrap(), Autosave::Held);
+    assert_eq!(
+        std::fs::read(dir.join(".sicherung/szenen/szene-012.json")).unwrap(),
+        backup
+    );
 }
