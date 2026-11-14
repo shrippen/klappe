@@ -16,6 +16,9 @@ Item {
     // Cameras of the plan (the timeline's camera tracks), for the camera chooser.
     readonly property var cameras: controller.tracksJson ? JSON.parse(controller.tracksJson).filter(t => t.kind === "camera") : []
 
+    // Figures of the plan, for the follow chooser.
+    readonly property var figures: controller.tracksJson ? JSON.parse(controller.tracksJson).filter(t => t.kind === "figure") : []
+
     // Counts refused values; the fields' text bindings read it, so they snap back to the model.
     property int refused: 0
 
@@ -28,6 +31,16 @@ Item {
             return
         }
         if (!controller.editShot(shot.id, field, value)) {
+            refused++
+        }
+    }
+
+    // Couples the shot's camera to the figure `id`, or lets it go with an empty id.
+    function follow(id) {
+        if (id === shot.follows) {
+            return
+        }
+        if (!controller.setFollow(shot.camera, id)) {
             refused++
         }
     }
@@ -133,6 +146,23 @@ Item {
                     placeholderText: panel.shot ? panel.texts.num(panel.shot.lens_mm, 1) : ""
                     inputMethodHints: Qt.ImhFormattedNumbersOnly
                     onEditingFinished: panel.commit("lens", text, panel.ownLens)
+                }
+            }
+
+            // The shot's camera follows a figure, keeping distance and angle (LH-37).
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Kirigami.Units.largeSpacing
+                Layout.rightMargin: Kirigami.Units.largeSpacing
+                spacing: Kirigami.Units.smallSpacing
+                KanteSectionLabel { text: panel.texts.t("field.follows") }
+                KanteComboBox {
+                    objectName: "followBox"
+                    Layout.fillWidth: true
+                    // Index 0 is "none"; the figures come after it.
+                    model: [panel.texts.t("follows.none")].concat(panel.figures.map(f => f.name))
+                    currentIndex: { panel.refused; return panel.shot ? 1 + panel.figures.findIndex(f => f.id === panel.shot.follows) : -1 }
+                    onActivated: index => panel.follow(index === 0 ? "" : panel.figures[index - 1].id)
                 }
             }
 

@@ -9,6 +9,8 @@ pub struct ShotRow {
     pub number: String,
     pub camera: String,
     pub camera_label: String,
+    /// Character id of the figure the shot's camera follows (LH-37), else empty.
+    pub follows: String,
     /// Model name, e.g. `close-up`; the surface translates it.
     pub size: String,
     /// Model name, e.g. `birds-eye`; the surface translates it.

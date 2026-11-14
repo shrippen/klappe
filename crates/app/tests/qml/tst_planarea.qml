@@ -40,6 +40,9 @@ TestCase {
             if (key === "note:n1") {
                 return JSON.stringify({ kind: "note", text: "Vorhang schließen" })
             }
+            if (key === "camera:b") {
+                return JSON.stringify({ kind: "camera", label: "B", lens: 50, fov: 27.9, height: 1.6, shots: "", follows: "Elisabeth" })
+            }
             return JSON.stringify({ kind: "camera", label: "A", lens: 35, fov: 39.6, height: 1.6, shots: "12.1" })
         }
         function drag(fromX, fromY, x, y, done) {
@@ -100,6 +103,12 @@ TestCase {
         const area = createTemporaryObject(areaComponent, tc, { texts: de })
 
         compare(area.tipLines("camera:a"), ["Kamera A", "35 mm · 39,6°", "Höhe 1,6 m", "Shots 12.1"])
+    }
+
+    function test_a_following_camera_says_whom() {
+        const area = createTemporaryObject(areaComponent, tc, { texts: de })
+
+        verify(area.tipLines("camera:b").indexOf("folgt Elisabeth") >= 0)
     }
 
     function test_english_tooltip_has_points() {

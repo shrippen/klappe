@@ -229,6 +229,7 @@ Item {
         case "camera":
             return [t.t("tip.camera", { label: d.label }), t.t("tip.lens", { lens: t.num(d.lens, 1), fov: t.num(d.fov, 1) }),
                     t.t("tip.height", { height: t.num(d.height, 2) }), d.shots ? t.t("tip.shots", { shots: d.shots }) : ""]
+                .concat(d.follows ? [t.t("tip.follows", { name: d.follows })] : [])
         case "figure":
             return [t.t("tip.figure", { name: d.name })]
         case "mark":
