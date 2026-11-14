@@ -8,6 +8,14 @@ pub fn is_object_size_m(size_m: f64) -> bool {
     size_m.is_finite() && size_m > 0.0 && size_m <= MAX_OBJECT_M
 }
 
+/// Tallest an object can be: a church tower fits; 1e300 m would not make sense.
+pub const MAX_OBJECT_HEIGHT_M: f64 = 100.0;
+
+/// Whether `height_m` is a height an object can have: a number, more than nothing, not absurd.
+pub fn is_object_height_m(height_m: f64) -> bool {
+    height_m.is_finite() && height_m > 0.0 && height_m <= MAX_OBJECT_HEIGHT_M
+}
+
 /// How an object is drawn within its width and depth.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -31,4 +39,7 @@ pub struct LibraryItem {
     pub depth_m: f64,
     #[serde(default)]
     pub shape: ObjectShape,
+    /// Height of a new object of this kind (LH-17); `None` for flat ones like a rug.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height_m: Option<f64>,
 }

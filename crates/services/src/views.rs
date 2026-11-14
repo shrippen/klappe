@@ -116,6 +116,8 @@ pub struct LibraryEntry {
     pub width_m: f64,
     pub depth_m: f64,
     pub shape: ObjectShape,
+    /// Height of a new object of this entry (LH-17); `None` when it has none.
+    pub height_m: Option<f64>,
     /// An entry of the project (`bibliothek.toml`) rather than a built-in one.
     pub custom: bool,
 }
@@ -128,6 +130,7 @@ impl LibraryEntry {
             width_m: item.width_m,
             depth_m: item.depth_m,
             shape: item.shape,
+            height_m: item.height_m,
             custom,
         }
     }

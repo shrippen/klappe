@@ -153,9 +153,10 @@ Item {
         }
     }
 
-    // An object is selected (LH-25, LH-12): its size as two fields, and filing it in the
-    // library under a name. Enter in a size field sets the size; a size that is no length
-    // marks the field and changes nothing.
+    // An object is selected (LH-25, LH-12, LH-17): its size as two fields, its height (empty
+    // is none), and filing it in the library under a name. Enter in a size field sets the
+    // size, Enter in the height field the height; a value that is no length marks the field
+    // and changes nothing.
     readonly property var objectInfo: {
         // The plan changes with every edit; the key alone would not tell the new size.
         area.controller.planJson
@@ -180,16 +181,42 @@ Item {
         if (!depthField.activeFocus) {
             depthField.text = area.texts.num(info.depth, 2)
         }
+        if (!heightField.activeFocus) {
+            heightField.text = area.shownHeight(info)
+        }
         const kindName = area.texts.t("objectKind." + info.library)
         if (!libraryName.activeFocus) {
             libraryName.text = info.label !== "" ? info.label : (kindName !== "objectKind." + info.library ? kindName : "")
         }
     }
 
+    // The height as the field shows it: empty when the object has none.
+    function shownHeight(info) {
+        return info.height === null ? "" : area.texts.num(info.height, 2)
+    }
+
+    function setObjectHeight() {
+        heightField.invalid = !controller.setObjectHeight(heightField.text)
+    }
+
+    // The button sets what was changed: the size always, the height when it differs. The
+    // size edit refills the fields, so the typed height is taken before and put back.
+    function applyObject() {
+        const typed = heightField.text
+        const changed = area.objectInfo !== null && typed.trim() !== area.shownHeight(area.objectInfo)
+        // A refused size stops the apply: the height alone would be half of what was asked.
+        if (!area.setObjectSize() || !changed) {
+            return
+        }
+        heightField.text = typed
+        area.setObjectHeight()
+    }
+
     function setObjectSize() {
         const ok = controller.resizeSelected(widthField.text, depthField.text)
         widthField.invalid = !ok
         depthField.invalid = !ok
+        return ok
     }
 
     function fileObject() {
@@ -235,10 +262,20 @@ Item {
                 onTextChanged: invalid = false
                 onAccepted: area.setObjectSize()
             }
+            KanteTextField {
+                id: heightField
+                objectName: "heightField"
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                Accessible.name: area.texts.t("field.height")
+                placeholderText: area.texts.t("field.height")
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                onTextChanged: invalid = false
+                onAccepted: area.setObjectHeight()
+            }
             KanteButton {
                 objectName: "objectApply"
                 text: area.texts.t("form.apply")
-                onClicked: area.setObjectSize()
+                onClicked: area.applyObject()
             }
 
             Kirigami.Separator { Layout.fillHeight: true }
@@ -412,7 +449,8 @@ Item {
         case "light":
             return [t.t("tip.light", { label: d.label, temp: d.temp, power: d.power })]
         case "object":
-            return [t.t("tip.object", { label: d.label })]
+            return [t.t("tip.object", { label: d.label }),
+                    d.height !== null ? t.t("tip.objectHeight", { height: t.num(d.height, 2) }) : ""]
         case "note":
             return [t.t("tip.note", { text: d.text })]
         }

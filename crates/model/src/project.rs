@@ -143,6 +143,9 @@ pub struct SetObject {
     /// Drawn as a rectangle unless it says otherwise.
     #[serde(default, skip_serializing_if = "is_rect")]
     pub shape: ObjectShape,
+    /// How tall the object is (LH-17); `None` when not given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height_m: Option<f64>,
 }
 
 fn is_rect(shape: &ObjectShape) -> bool {

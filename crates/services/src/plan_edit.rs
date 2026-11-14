@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use klappe_model::is_object_size_m;
+use klappe_model::{is_object_height_m, is_object_size_m};
 use klappe_model::{
     Arrival, Background, Camera, CameraMark, Character, Dash, Departure, Drawing, DrawingShape,
     FigureColor, FigureTrack, Fill, FloorPlan, LibraryItem, Light, LightKind, LinkTarget, Mark,
@@ -100,6 +100,12 @@ pub enum PlanEdit {
         width_m: f64,
         depth_m: f64,
     },
+    /// Sets how tall the object `source` is (LH-17), or takes the height off with `None`. Only
+    /// objects have a height.
+    SetObjectHeight {
+        source: Source,
+        height_m: Option<f64>,
+    },
     AddWall {
         from: Point,
         to: Point,
@@ -168,6 +174,13 @@ pub enum PlanEdit {
         source: Source,
         hold_s: f64,
     },
+    /// Sets the lens height and the tilt of the camera mark at the playhead (LH-34):
+    /// `Source::Camera`. Tilt is up from the horizon, positive looks up.
+    SetCameraAim {
+        source: Source,
+        height_m: f64,
+        tilt_deg: f64,
+    },
     /// Times the way to a figure's mark for `pace` (LH-63): the mark arrives after the pause
     /// at the mark before and the walk along the way (a curve counts by its length). The
     /// later marks move in time by the change. The first mark has no way to it.
@@ -227,6 +240,10 @@ pub struct MarkInfo {
     /// `None` for a camera's mark.
     pub departure: Option<Departure>,
     pub hold_s: f64,
+    /// Lens height; `None` for a figure's mark (LH-34).
+    pub height_m: Option<f64>,
+    /// Tilt up from the horizon; `None` for a figure's mark (LH-34).
+    pub tilt_deg: Option<f64>,
     /// The figure walks a way to the mark: not the first of its track, not one it appears at or
     /// is gone at after leaving (LH-26).
     pub has_way: bool,
@@ -254,6 +271,12 @@ const WALK_SPEED_M_S: f64 = 1.4;
 const RUN_SPEED_M_S: f64 = 4.0;
 
 const DEFAULT_CAMERA_HEIGHT_M: f64 = 1.6;
+
+/// Highest a lens can be: a crane or a drone, not a satellite.
+const MAX_CAMERA_HEIGHT_M: f64 = 50.0;
+
+/// A camera looks straight down at -90° and straight up at 90°.
+const MAX_TILT_DEG: f64 = 90.0;
 const DEFAULT_SENSOR: Sensor = Sensor::Super35;
 const DEFAULT_LENS_MM: f64 = 35.0;
 const DEFAULT_ASPECT: f64 = 2.39;
@@ -379,6 +402,8 @@ impl PlanEdit {
             | PlanEdit::SetArrival { source, .. }
             | PlanEdit::SetDeparture { source, .. }
             | PlanEdit::SetHold { source, .. }
+            | PlanEdit::SetCameraAim { source, .. }
+            | PlanEdit::SetObjectHeight { source, .. }
             | PlanEdit::SetPace { source, .. }
             | PlanEdit::Remove { source }
             | PlanEdit::Straighten { source } => layer_of_source(source),
@@ -570,6 +595,14 @@ pub(crate) fn apply(
             set_departure(&mut scope, source, *departure)
         }
         PlanEdit::SetHold { source, hold_s } => set_hold(&mut scope, source, *hold_s),
+        PlanEdit::SetCameraAim {
+            source,
+            height_m,
+            tilt_deg,
+        } => set_camera_aim(&mut scope, source, (*height_m, *tilt_deg)),
+        PlanEdit::SetObjectHeight { source, height_m } => {
+            set_object_height(&mut scope, source, *height_m)
+        }
         PlanEdit::SetPace { source, pace } => set_pace(&mut scope, source, *pace),
     }
 }
@@ -620,6 +653,10 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         PlanEdit::SetLens { lens_mm, .. } => camera_edit::check_lens(*lens_mm),
         PlanEdit::SetAspect { aspect, .. } => camera_edit::check_aspect(*aspect),
         PlanEdit::SetHold { hold_s, .. } => check_hold(*hold_s),
+        PlanEdit::SetCameraAim {
+            height_m, tilt_deg, ..
+        } => check_camera_aim(*height_m, *tilt_deg),
+        PlanEdit::SetObjectHeight { height_m, .. } => check_object_height(*height_m),
         PlanEdit::Remove { .. }
         | PlanEdit::RemoveGroup { .. }
         | PlanEdit::Straighten { .. }
@@ -656,6 +693,39 @@ fn check_hold(hold_s: f64) -> Result<(), ServiceError> {
     Err(ServiceError::BadValue {
         field: "hold_s",
         value: hold_s.to_string(),
+    })
+}
+
+/// A lens height from the floor up to a crane's, and a tilt within straight down and up.
+fn check_camera_aim(height_m: f64, tilt_deg: f64) -> Result<(), ServiceError> {
+    if !height_m.is_finite() || !(0.0..=MAX_CAMERA_HEIGHT_M).contains(&height_m) {
+        return Err(ServiceError::BadValue {
+            field: "height",
+            value: height_m.to_string(),
+        });
+    }
+    if !tilt_deg.is_finite() || !(-MAX_TILT_DEG..=MAX_TILT_DEG).contains(&tilt_deg) {
+        return Err(ServiceError::BadValue {
+            field: "tilt",
+            value: tilt_deg.to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+/// An object's height, when given: a number, more than nothing, not absurd.
+fn check_object_height(height_m: Option<f64>) -> Result<(), ServiceError> {
+    let Some(height_m) = height_m else {
+        return Ok(());
+    };
+    if is_object_height_m(height_m) {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: "height",
+        value: height_m.to_string(),
     })
 }
 
@@ -1470,6 +1540,54 @@ fn set_hold(scope: &mut Scope<'_>, source: &Source, hold_s: f64) -> Result<(), S
     Ok(())
 }
 
+fn set_camera_aim(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    (height_m, tilt_deg): (f64, f64),
+) -> Result<(), ServiceError> {
+    let Source::Camera(id) = source else {
+        return Err(bad_mark("source", ""));
+    };
+    let time_s = scope.time_s;
+    let camera = scope
+        .plan
+        .cameras
+        .iter_mut()
+        .find(|c| c.id == *id)
+        .ok_or(ServiceError::Gone)?;
+    let index = current_index(camera.marks.iter().map(|m| m.at_s), time_s);
+    let mark = index
+        .and_then(|i| camera.marks.get_mut(i))
+        .ok_or(ServiceError::Gone)?;
+
+    mark.height_m = height_m;
+    mark.tilt_deg = tilt_deg;
+
+    Ok(())
+}
+
+fn set_object_height(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    height_m: Option<f64>,
+) -> Result<(), ServiceError> {
+    let Source::Object(id) = source else {
+        return Err(ServiceError::BadValue {
+            field: "source",
+            value: String::new(),
+        });
+    };
+    let object = scope
+        .set
+        .as_deref_mut()
+        .and_then(|s| s.objects.iter_mut().find(|o| o.id == *id))
+        .ok_or(ServiceError::Gone)?;
+
+    object.height_m = height_m;
+
+    Ok(())
+}
+
 fn set_pace(scope: &mut Scope<'_>, source: &Source, pace: Pace) -> Result<(), ServiceError> {
     let (character, index) = figure_mark(scope, source).ok_or_else(|| bad_mark("source", ""))?;
     let before = index
@@ -1529,6 +1647,8 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
                 arrival: None,
                 departure: None,
                 hold_s: mark.hold_s,
+                height_m: Some(mark.height_m),
+                tilt_deg: Some(mark.tilt_deg),
                 has_way: index > 0,
                 pace_m_s,
             })
@@ -1556,6 +1676,8 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
         arrival: Some(mark.arrival),
         departure: Some(mark.departure),
         hold_s: mark.hold_s,
+        height_m: None,
+        tilt_deg: None,
         has_way,
         pace_m_s,
     })
@@ -1628,13 +1750,20 @@ fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result<(), Servic
     let id = free_id("o", set.objects.iter().map(|o| o.id.as_str()));
 
     // An old project may name a kind no library has: a square it is.
-    let (label, width_m, depth_m, shape) = match library::find(scope.library, kind) {
-        Some(item) => (item.label.clone(), item.width_m, item.depth_m, item.shape),
+    let (label, width_m, depth_m, shape, height_m) = match library::find(scope.library, kind) {
+        Some(item) => (
+            item.label.clone(),
+            item.width_m,
+            item.depth_m,
+            item.shape,
+            item.height_m,
+        ),
         None => (
             String::new(),
             DEFAULT_OBJECT_M,
             DEFAULT_OBJECT_M,
             ObjectShape::Rect,
+            None,
         ),
     };
 
@@ -1647,6 +1776,7 @@ fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result<(), Servic
         depth_m,
         rotation_deg: 0.0,
         shape,
+        height_m,
     });
 
     Ok(())

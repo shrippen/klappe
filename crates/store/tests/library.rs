@@ -30,6 +30,7 @@ fn own(kind: &str, label: &str, width_m: f64, depth_m: f64, shape: ObjectShape) 
         width_m,
         depth_m,
         shape,
+        height_m: None,
     }
 }
 
@@ -77,6 +78,20 @@ fn every_built_in_item_has_a_usable_size_and_a_kind_of_its_own() {
     }
 }
 
+/// LH-17: a built-in height is one an object can have; the flat ones have none.
+#[test]
+fn every_built_in_height_is_usable() {
+    for item in builtin_library() {
+        let height_m = item.height_m.unwrap_or(1.0);
+
+        assert!(height_m > 0.0 && height_m <= 100.0, "{}", item.kind);
+    }
+    let find = |kind: &str| builtin_library().iter().find(|i| i.kind == kind).unwrap();
+
+    assert_eq!(find("table").height_m, Some(0.75));
+    assert_eq!(find("door").height_m, Some(2.1));
+}
+
 #[test]
 fn a_round_pillar_and_a_square_table() {
     let find = |kind: &str| builtin_library().iter().find(|i| i.kind == kind).unwrap();
@@ -97,6 +112,25 @@ fn own_objects_are_saved_and_loaded_with_the_project() {
 
     assert!(text.contains("[[objekt]]") && text.contains("label = \"Thron\""));
     assert_eq!(load(&dir).unwrap().project.library, vec![throne(), pond()]);
+}
+
+/// LH-17: the height of an own object is kept in `bibliothek.toml`, and not written when
+/// the object has none.
+#[test]
+fn the_height_of_an_own_object_round_trips() {
+    let dir = test_dir("library-height");
+    let tall = LibraryItem {
+        height_m: Some(1.1),
+        ..throne()
+    };
+    let mut project = Project::new("Eigene");
+    project.library = vec![tall.clone(), pond()];
+
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("bibliothek.toml")).unwrap();
+
+    assert_eq!(text.matches("height_m").count(), 1, "{text}");
+    assert_eq!(load(&dir).unwrap().project.library, vec![tall, pond()]);
 }
 
 #[test]
@@ -180,6 +214,12 @@ fn items_that_cannot_be_used_refuse_the_whole_file() {
     assert!(parse_error(&item("x", "inf", "1.0")).contains("not usable"));
     assert!(parse_error(&item("x", "5000.0", "1.0")).contains("not usable"));
     assert!(parse_error(&item("  ", "1.0", "1.0")).contains("kind is empty"));
+
+    // A height is more than nothing and at most 100 m (LH-17).
+    let tall = |h: &str| format!("{}height_m = {h}\n", item("x", "1.0", "1.0"));
+    for bad in ["0.0", "-1.0", "nan", "inf", "100.5"] {
+        assert!(parse_error(&tall(bad)).contains("height"), "{bad}");
+    }
 
     // A good item before a bad one does not save the file.
     let text = format!("{}{}", item("ok", "1.0", "1.0"), item("bad", "0.0", "1.0"));

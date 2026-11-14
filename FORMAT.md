@@ -54,6 +54,17 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `bibliothek.toml` eines Projekts dann beim Öffnen mit Meldung. Ohne eigene Objekte gibt es die
   Datei nicht: `save` löscht sie dann. Keine neue Formatversion: ältere Fassungen kennen `shape`
   und `bibliothek.toml` nicht und verlieren sie beim Speichern.
+- **Höhe von Objekten (LH-17):** `[[set.objects]]` und `[[objekt]]` der Bibliothek haben optional
+  `height_m`, die Höhe in Metern (größer als 0, höchstens 100). Fehlt der Schlüssel, ist keine
+  Höhe angegeben (Fläche, Teppich); ein Objekt ohne Höhe schreibt ihn nicht, ältere Projekte
+  laden und speichern unverändert. Ein neues Objekt übernimmt die Höhe seines
+  Bibliothekseintrags, „Als Bibliotheksobjekt ablegen“ die des Objekts. Eine Bibliotheksdatei mit
+  unbrauchbarer Höhe wird als Ganzes abgelehnt. Keine neue Formatversion, wie bei den Notizen.
+- **Kamerahöhe und Neigung (LH-34):** jeder Kamera-Mark (`marks` in `szenen/<id>.json`) hat
+  `height_m` (Höhe des Objektivs über dem Boden, 0 bis 50) und `tilt_deg` (Standard 0, −90 bis
+  90). Die Neigung gilt vom Horizont aus: positiv blickt nach oben, negativ nach unten, 0 ist
+  waagerecht. Beides gab es schon im Format; neu sind die Grenzen und die Bedienung. Keine
+  neue Formatversion.
 - **Notizen (LH-16):** `[[set.notes]]` im Drehort: `id` (`n1`, `n2` …, innerhalb des Drehorts),
   Ort `at` in Metern und `text`. Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue

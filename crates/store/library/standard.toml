@@ -1,76 +1,91 @@
 # The built-in object library (LH-11). Sizes in metres at rotation 0; what has a front or a
-# long side (car, carriage, horse, stairs) lies along x and faces right (0 degrees). The names
+# long side (car, carriage, horse, stairs) lies along x and faces right (0 degrees). `height_m`
+# is optional (LH-17): a flat object has none. The names
 # are in the catalogue (`objectKind.<kind>`); an own object brings its `label` instead.
 
 [[objekt]]
 kind = "table"
 width_m = 1.6
 depth_m = 0.9
+height_m = 0.75
 
 [[objekt]]
 kind = "chair"
 width_m = 0.45
 depth_m = 0.45
+height_m = 0.9
 
 [[objekt]]
 kind = "bed"
 width_m = 1.4
 depth_m = 2.0
+height_m = 0.6
 
 [[objekt]]
 kind = "sofa"
 width_m = 2.0
 depth_m = 0.9
+height_m = 0.85
 
 [[objekt]]
 kind = "door"
 width_m = 0.9
 depth_m = 0.2
+height_m = 2.1
 
 [[objekt]]
 kind = "window"
 width_m = 1.2
 depth_m = 0.2
+height_m = 1.2
 
 [[objekt]]
 kind = "pillar"
 width_m = 0.4
 depth_m = 0.4
 shape = "ellipse"
+height_m = 3.0
 
 [[objekt]]
 kind = "fireplace"
 width_m = 1.2
 depth_m = 0.5
+height_m = 1.2
 
 [[objekt]]
 kind = "stairs"
 width_m = 3.0
 depth_m = 1.0
+height_m = 2.5
 
 [[objekt]]
 kind = "car"
 width_m = 4.5
 depth_m = 1.8
+height_m = 1.5
 
 [[objekt]]
 kind = "carriage"
 width_m = 3.5
 depth_m = 1.6
+height_m = 2.4
 
 [[objekt]]
 kind = "horse"
 width_m = 2.4
 depth_m = 0.7
 shape = "ellipse"
+height_m = 1.6
 
 [[objekt]]
 kind = "tree"
 width_m = 3.0
 depth_m = 3.0
 shape = "ellipse"
+height_m = 6.0
 
 [[objekt]]
 kind = "platform"
 width_m = 2.0
 depth_m = 2.0
+height_m = 0.4

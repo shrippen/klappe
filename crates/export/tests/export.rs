@@ -46,6 +46,7 @@ fn set() -> SetPlan {
             depth_m: 1.0,
             rotation_deg: 0.0,
             shape: ObjectShape::Rect,
+            height_m: None,
         }],
         background: None,
         notes: Vec::new(),

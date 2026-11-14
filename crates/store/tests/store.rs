@@ -28,6 +28,7 @@ fn object(id: &str, kind: &str, label: &str, at: Point, w: f64, d: f64) -> SetOb
         depth_m: d,
         rotation_deg: 0.0,
         shape: ObjectShape::Rect,
+        height_m: None,
     }
 }
 
@@ -392,6 +393,24 @@ fn appearing_and_leaving_are_written_only_when_set() {
     let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
     assert_eq!(text.matches("\"arrival\"").count(), 1, "{text}");
     assert_eq!(text.matches("\"departure\"").count(), 1, "{text}");
+    assert_eq!(load(&dir).unwrap().project, project);
+}
+
+/// An object's height is written only when given, and reads back (LH-17); the example, which
+/// has no heights, loads and saves without the key as before.
+#[test]
+fn an_object_height_is_written_only_when_given() {
+    let dir = test_dir("object-height");
+    let mut project = example();
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
+    assert!(!text.contains("height_m"), "{text}");
+
+    project.locations[0].set.objects[0].height_m = Some(0.75);
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
+
+    assert_eq!(text.matches("height_m = 0.75").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
 

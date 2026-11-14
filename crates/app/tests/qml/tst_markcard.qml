@@ -20,10 +20,12 @@ TestCase {
         property var poses: []
         property var holds: []
         property var paces: []
+        property var aims: []
         property var arrivals: []
         property var departures: []
         property bool poseOk: true
         property bool holdOk: true
+        property bool aimOk: true
 
         function markInfo() { return JSON.stringify(info) }
         function setMarkPose(pose) {
@@ -33,6 +35,10 @@ TestCase {
         function setMarkHold(text) {
             holds.push(text)
             return holdOk
+        }
+        function setCameraAim(height, tilt) {
+            aims.push([height, tilt])
+            return aimOk
         }
         function setMarkArrival(name) {
             arrivals.push(name)
@@ -69,6 +75,13 @@ TestCase {
         fake.departures = []
         fake.poseOk = true
         fake.holdOk = true
+        fake.aims = []
+        fake.aimOk = true
+    }
+
+    function cameraMark(extra) {
+        fake.info = Object.assign({ kind: "camera", pose: "", arrival: "", departure: "", hold: 6, hasWay: true, pace: 0.5, height: 1.6, tilt: -12.5 }, extra || {})
+        fake.selectedKey = "camera:a"
     }
 
     function figureMark(extra) {
@@ -188,6 +201,75 @@ TestCase {
         fake.selectedKey = "camera:a"
 
         verify(!findChild(card, "cueRow").visible)
+    }
+
+    // LH-34: a camera's mark shows height and tilt, a figure's does not.
+    function test_a_camera_mark_shows_height_and_tilt() {
+        const card = createTemporaryObject(cardComponent, tc)
+
+        cameraMark()
+
+        verify(findChild(card, "aimRow").visible)
+        compare(findChild(card, "heightField").text, "1,6")
+        compare(findChild(card, "tiltField").text, "-12,5")
+    }
+
+    function test_english_uses_the_point_for_height_and_tilt() {
+        const card = createTemporaryObject(cardComponent, tc, { texts: en })
+
+        cameraMark()
+
+        compare(findChild(card, "heightField").text, "1.6")
+        compare(findChild(card, "tiltField").text, "-12.5")
+    }
+
+    function test_a_figure_mark_has_no_height_or_tilt() {
+        const card = createTemporaryObject(cardComponent, tc)
+
+        figureMark()
+
+        verify(!findChild(card, "aimRow").visible)
+    }
+
+    function test_height_and_tilt_go_to_the_controller_together() {
+        const card = createTemporaryObject(cardComponent, tc)
+        cameraMark()
+        const height = findChild(card, "heightField")
+        const tilt = findChild(card, "tiltField")
+
+        height.text = "2,4"
+        tilt.text = "15"
+        findChild(card, "aimApply").clicked()
+        height.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+        tilt.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+
+        compare(fake.aims, [["2,4", "15"], ["2,4", "15"], ["2,4", "15"]])
+        verify(!height.invalid)
+        verify(!tilt.invalid)
+    }
+
+    function test_a_refused_height_or_tilt_marks_both_fields() {
+        const card = createTemporaryObject(cardComponent, tc)
+        cameraMark()
+        fake.aimOk = false
+        const height = findChild(card, "heightField")
+        const tilt = findChild(card, "tiltField")
+
+        height.text = "99"
+        findChild(card, "aimApply").clicked()
+
+        verify(height.invalid)
+        verify(tilt.invalid)
+        tilt.text = "1"
+        verify(!tilt.invalid)
+    }
+
+    // The tilt's tooltip names the direction of positive values, in both languages.
+    function test_the_tilt_tip_says_which_way_is_positive() {
+        compare(de.t("mark.tiltTip"), "Neigung der Kamera: positiv blickt nach oben, negativ nach unten")
+        compare(en.t("mark.tiltTip"), "Tilt of the camera: positive looks up, negative down")
     }
 
     function test_the_first_mark_has_no_way_to_time() {

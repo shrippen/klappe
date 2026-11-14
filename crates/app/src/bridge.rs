@@ -268,6 +268,13 @@ pub mod qobject {
         #[cxx_name = "resizeSelected"]
         fn resize_selected(self: Pin<&mut Self>, width: &QString, depth: &QString) -> bool;
 
+        /// Sets the height in metres of the selected object (LH-17); an empty text takes it
+        /// off. False when no object is selected or the text is no length; a refusal by the
+        /// session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setObjectHeight"]
+        fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool;
+
         /// Sets one field of the selected camera (LH-32): `field` is `body` (a body id of
         /// `choicesJson`), `sensor` (mm), `lens` (mm) or `aspect` (`2,39` or `16:9`). False
         /// when no camera is selected or the value is not usable; a refusal by the session
@@ -278,10 +285,18 @@ pub mod qobject {
         /// The fields of the selected mark (a figure's, or a camera's) as JSON: `kind`
         /// (`figure` or `camera`), `pose`, `arrival` (`walk`, `appear`) and `departure` (`stay`,
         /// `leave`), each empty for a camera, `hold` in seconds, `hasWay`,
-        /// `pace` in m/s (null without time on the way). `{}` for any other selection.
+        /// `pace` in m/s (null without time on the way), `height` in m and `tilt` in degrees
+        /// (null for a figure). `{}` for any other selection.
         #[qinvokable]
         #[cxx_name = "markInfo"]
         fn mark_info(self: &Self) -> QString;
+
+        /// Sets lens height (m) and tilt (degrees, positive looks up) of the selected camera
+        /// mark (LH-34), comma or point as decimal separator. False for another selection or
+        /// a text that is no number; a refusal by the session (limits) goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setCameraAim"]
+        fn set_camera_aim(self: Pin<&mut Self>, height: &QString, tilt: &QString) -> bool;
 
         /// Sets the pose (`standing`, `sitting`, `lying`) of the selected figure mark. False for
         /// another selection or name; a refusal by the session goes to `status`.
@@ -1516,6 +1531,24 @@ impl qobject::Controller {
         self.commit_edit(edit)
     }
 
+    fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = tools::object_height_edit(selected, &height.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
+    fn set_camera_aim(self: Pin<&mut Self>, height: &QString, tilt: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = tools::aim_edit(selected, &height.to_string(), &tilt.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
     fn set_camera_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool {
         let Some(field) = CameraField::named(&field.to_string()) else {
             return false;
@@ -2196,6 +2229,8 @@ fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
         "hold": info.hold_s,
         "hasWay": info.has_way,
         "pace": info.pace_m_s,
+        "height": info.height_m,
+        "tilt": info.tilt_deg,
     })
 }
 
@@ -2277,6 +2312,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 "library": o.kind,
                 "width": o.width_m,
                 "depth": o.depth_m,
+                "height": o.height_m,
             })
         }
         "note" => json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() }),
@@ -2321,6 +2357,10 @@ mod tests {
         assert_eq!(camera["arrival"], "");
         assert_eq!(camera["departure"], "");
         assert_eq!(camera["hold"], 6.0);
+        assert_eq!(camera["height"], 1.6);
+        assert_eq!(camera["tilt"], 0.0);
+        assert_eq!(second["height"], serde_json::Value::Null);
+        assert_eq!(second["tilt"], serde_json::Value::Null);
 
         assert_eq!(mark_json(&s, Some(&Source::Wall(0))), json!({}));
         assert_eq!(mark_json(&s, None), json!({}));
@@ -2339,6 +2379,7 @@ mod tests {
         assert_eq!(objects[0]["depth_m"], 0.9);
         assert_eq!(objects[0]["shape"], "rect");
         assert_eq!(objects[0]["custom"], false);
+        assert_eq!(objects[0]["height_m"], 0.75);
         assert!(objects
             .iter()
             .any(|o| o["kind"] == "horse" && o["shape"] == "ellipse"));
@@ -2358,6 +2399,8 @@ mod tests {
             (table["width"].as_f64(), table["depth"].as_f64()),
             (Some(6.0), Some(1.2))
         );
+        // The example's table has no height: `null`, the field stays empty.
+        assert_eq!(table["height"], serde_json::Value::Null);
         assert_eq!(describe(&s, "object:o99"), json!({}));
     }
 
