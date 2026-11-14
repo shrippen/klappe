@@ -2089,9 +2089,16 @@ impl qobject::Controller {
 
     fn open_example(self: Pin<&mut Self>) -> bool {
         let language = self.rust().language;
-        let data = manage::data_dir().unwrap_or_else(std::env::temp_dir);
-        let opened = manage::ensure_example(language, &data).and_then(|dir| Session::open(&dir));
 
+        // Without a data folder the copy would land in a temporary one and vanish unnoticed.
+        let Some(data) = manage::data_dir() else {
+            self.say(language.text("start.noDataDir"));
+            return false;
+        };
+
+        let dir = manage::example_dir(language, &data);
+        let opened =
+            klappe_services::ensure_example(language, &dir).and_then(|()| Session::open(&dir));
         self.switch_to(opened)
     }
 

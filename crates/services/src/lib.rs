@@ -26,7 +26,7 @@ mod views;
 pub use catalog::Language;
 pub use edit::ShotField;
 pub use error::ServiceError;
-pub use example::copy_example;
+pub use example::{copy_example, ensure_example};
 pub use field::Field;
 pub use plan_edit::{MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{ProjectEdit, ShotsGo};

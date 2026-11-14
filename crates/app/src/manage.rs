@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    copy_example, CardState, Field, FigureColor, Language, ProjectCard, ServiceError, Session,
+    CardState, Field, FigureColor, Language, ProjectCard, ServiceError, Session,
 };
 use serde_json::{json, Value};
 
@@ -230,19 +230,6 @@ pub fn example_dir(language: Language, data: &Path) -> PathBuf {
     data.join(EXAMPLES_DIR).join(name)
 }
 
-/// The folder of the user's example copy, made first if it is not there. An existing copy is
-/// left as it is, so what the user changed in it is not lost by another click.
-pub fn ensure_example(language: Language, data: &Path) -> Result<PathBuf, ServiceError> {
-    let dir = example_dir(language, data);
-    let there = std::fs::read_dir(&dir).is_ok_and(|mut entries| entries.next().is_some());
-    if there {
-        return Ok(dir);
-    }
-
-    copy_example(language, &dir)?;
-    Ok(dir)
-}
-
 /// `path` with `home` at its start as `~`; unchanged elsewhere.
 fn tilde(path: &str, home: &Path) -> String {
     match Path::new(path).strip_prefix(home) {
@@ -366,15 +353,6 @@ mod tests {
         assert_eq!(view[0]["shortPath"], "/gibt/es/nicht");
     }
 
-    /// A scratch folder next to the test binary, empty.
-    fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::current_exe()
-            .map(|e| e.with_file_name(name))
-            .unwrap_or_default();
-        let _ = std::fs::remove_dir_all(&dir);
-        dir
-    }
-
     #[test]
     fn the_example_copy_lives_in_the_data_folder_by_language() {
         let data = Path::new("/data/klappe");
@@ -387,35 +365,6 @@ mod tests {
             example_dir(Language::English, data),
             Path::new("/data/klappe/beispiel/beispiel-en.klappe")
         );
-    }
-
-    #[test]
-    fn the_example_is_copied_once_and_then_opened_as_it_is() {
-        let data = scratch("manage-example");
-
-        let first = ensure_example(Language::German, &data).unwrap();
-        assert!(Session::open(&first).is_ok());
-
-        // The user's work stays: a marker file survives the second call.
-        let marker = first.join("meins.txt");
-        std::fs::write(&marker, "x").unwrap();
-        let second = ensure_example(Language::German, &data).unwrap();
-
-        assert_eq!(first, second);
-        assert!(marker.exists());
-        let _ = std::fs::remove_dir_all(&data);
-    }
-
-    #[test]
-    fn an_empty_example_folder_is_filled_again() {
-        let data = scratch("manage-example-empty");
-        let dir = example_dir(Language::English, &data);
-        std::fs::create_dir_all(&dir).unwrap();
-
-        ensure_example(Language::English, &data).unwrap();
-
-        assert!(Session::open(&dir).is_ok());
-        let _ = std::fs::remove_dir_all(&data);
     }
 
     #[test]
