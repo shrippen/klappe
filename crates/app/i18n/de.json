@@ -121,6 +121,11 @@
  "unit.m": "m",
  "unit.s": "s",
  "unit.decimal": ",",
+ "backup.found": "Ungespeicherte Änderungen aus einer früheren Sitzung gefunden. Wiederherstellen ersetzt auch das Drehbuch auf der Platte.",
+ "backup.unreadable": "Eine Sicherung ist unlesbar: {message}",
+ "backup.restore": "Wiederherstellen",
+ "backup.discard": "Verwerfen",
+ "backup.discardSure": "Wirklich verwerfen?",
  "empty.title": "Kein Projekt geöffnet",
  "empty.text": "Starte Klappe mit --open <Ordner>.klappe."
 }
