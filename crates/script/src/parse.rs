@@ -1,6 +1,8 @@
 //! Fountain text to elements.
 
-use crate::{Element, Script};
+use std::ops::Range;
+
+use crate::{Element, Located, Script};
 
 pub(crate) const FORCE_ACTION: char = '!';
 pub(crate) const FORCE_HEADING: char = '.';
@@ -37,8 +39,7 @@ const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext",
 
 /// Parses Fountain text. Never fails; unknown input becomes `Element::Action`.
 pub fn parse(text: &str) -> Script {
-    // CRLF and lone CR become LF, so blank-line searches see one kind of break.
-    let text = strip_boneyard(&text.replace("\r\n", "\n").replace('\r', "\n"));
+    let (text, _) = cut_boneyard(text);
     let (title_page, body) = split_title_page(&text);
 
     Script {
@@ -47,23 +48,70 @@ pub fn parse(text: &str) -> Script {
     }
 }
 
+/// Like [`parse`], but each element carries the lines of `text` it stands on, so a
+/// caller that shows the text can tell what each line is without redoing the rules.
+///
+/// Lines count from 0, in the text with CR and CRLF read as one line break. A boneyard
+/// swallows its line breaks: `foo /*⏎⏎*/ bar` is one line of the parser's text and
+/// stands on the line where `foo` is. The title page has no element.
+pub fn parse_located(text: &str) -> Vec<Located> {
+    let (text, origin) = cut_boneyard(text);
+    let (_, body) = split_title_page(&text);
+    let skipped = text[..text.len() - body.len()].matches('\n').count();
+    let (elements, spans) = parse_with_lines(body);
+
+    elements
+        .into_iter()
+        .zip(spans)
+        .map(|(element, span)| Located {
+            element,
+            lines: span
+                .filter_map(|l| origin.get(skipped + l).copied())
+                .collect(),
+        })
+        .collect()
+}
+
+/// The text without boneyards and, for each of its lines, the line of the typed text
+/// it starts on.
+fn cut_boneyard(text: &str) -> (String, Vec<usize>) {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+
+    strip_boneyard(&text)
+}
+
 /// Cuts `/* ... */` out of the text; an unclosed one runs to the end. An escaped opener
-/// (`/\*`) is no opener and reads as `/*`.
-fn strip_boneyard(text: &str) -> String {
+/// (`/\*`) is no opener and reads as `/*`. Also returns the line of `text` each line of
+/// the result starts on.
+fn strip_boneyard(text: &str) -> (String, Vec<usize>) {
     let mut out = String::with_capacity(text.len());
+    let mut origin = vec![0];
+    let mut line = 0;
     let mut rest = text;
 
     while let Some(start) = rest.find(BONEYARD_OPEN) {
-        out.push_str(&rest[..start]);
+        keep(&rest[..start], &mut out, &mut origin, &mut line);
         let after = &rest[start + BONEYARD_OPEN.len()..];
         let Some(end) = after.find(BONEYARD_CLOSE) else {
-            return escape_openers(&out, Escape::Remove);
+            return (escape_openers(&out, Escape::Remove), origin);
         };
+        // The boneyard's line breaks are gone, but the typed lines still count.
+        line += after[..end].matches('\n').count();
         rest = &after[end + BONEYARD_CLOSE.len()..];
     }
 
-    out.push_str(rest);
-    escape_openers(&out, Escape::Remove)
+    keep(rest, &mut out, &mut origin, &mut line);
+    (escape_openers(&out, Escape::Remove), origin)
+}
+
+/// Appends text that stays; every line break in it starts a line of the result.
+fn keep(text: &str, out: &mut String, origin: &mut Vec<usize>, line: &mut usize) {
+    out.push_str(text);
+
+    for _ in text.matches('\n') {
+        *line += 1;
+        origin.push(*line);
+    }
 }
 
 /// Adds or removes one backslash in every `/`, backslashes, `*` run (`/*` has none), so
@@ -164,8 +212,14 @@ struct Around {
 
 /// Parses text without title page and boneyard.
 pub(crate) fn parse_elements(text: &str) -> Vec<Element> {
+    parse_with_lines(text).0
+}
+
+/// The elements of the text and, for each, the lines it stands on.
+fn parse_with_lines(text: &str) -> (Vec<Element>, Vec<Range<usize>>) {
     let lines: Vec<&str> = text.lines().map(str::trim_end).collect();
     let mut out = Vec::new();
+    let mut spans = Vec::new();
     let mut i = 0;
 
     while i < lines.len() {
@@ -178,10 +232,28 @@ pub(crate) fn parse_elements(text: &str) -> Vec<Element> {
             prev_blank: i == 0 || is_blank(lines[i - 1]),
             next_blank: i + 1 >= lines.len() || is_blank(lines[i + 1]),
         };
-        i += parse_at(&lines, i, &around, &mut out);
+        let used = parse_at(&lines, i, &around, &mut out);
+
+        // The elements the line took follow each other: a cue, its parentheticals and
+        // its dialogue stand on consecutive lines.
+        let mut line = i;
+        for el in &out[spans.len()..] {
+            let end = line + line_count(el);
+            spans.push(line..end);
+            line = end;
+        }
+        i += used;
     }
 
-    out
+    (out, spans)
+}
+
+/// Number of text lines an element takes.
+fn line_count(el: &Element) -> usize {
+    match el {
+        Element::Action(t) | Element::Dialogue(t) => t.matches('\n').count() + 1,
+        _ => 1,
+    }
 }
 
 fn is_blank(line: &str) -> bool {
