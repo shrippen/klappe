@@ -173,6 +173,33 @@ mod tests {
         text.split('\n').map(str::to_owned).collect()
     }
 
+    fn scene_lines(a: &Analysis) -> Vec<usize> {
+        a.scenes.iter().map(|s| s.line).collect()
+    }
+
+    /// Review of PR 57: a lone CR from another program breaks the line in the editor too,
+    /// so the reader's line numbers match the editor's.
+    #[test]
+    fn a_lone_cr_breaks_the_line() {
+        let buf = crate::buffer::Buffer::from_text("INT. A\n\na\rb\n\nINT. B\n\nc\n\nINT. C");
+        let a = analyse(buf.lines());
+
+        let headings: Vec<_> = a.scenes.iter().map(|s| buf.line(s.line)).collect();
+        assert_eq!(headings, ["INT. A", "INT. B", "INT. C"]);
+    }
+
+    /// The editor reads a title page as the reader does (PR 57): its lines are no
+    /// element, and a first block of `key: value` lines is one.
+    #[test]
+    fn a_title_page_is_no_element() {
+        let a = analyse(&lines("Title: Foo\nAuthor: Bar\n\nINT. A\n\nx"));
+        assert!(a.element_at(0).is_none());
+        assert_eq!(scene_lines(&a), [3]);
+
+        let a = analyse(&lines("EXT HOF: NACHT\n\nx\n\nINT. B"));
+        assert_eq!(scene_lines(&a), [4]);
+    }
+
     #[test]
     fn kinds_of_a_dialogue_scene() {
         let a = analyse(&lines(
