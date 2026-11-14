@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use klappe_model::{
     is_object_height_m, is_object_size_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
-    Project, Scene, SetPlan,
+    Project, Scene, SetPlan, MAX_GROUP, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -86,10 +86,6 @@ const MAX_SET_M: f64 = 1000.0;
 
 /// The label in a figure's circle has room for this many letters.
 const MAX_SHORT_CHARS: usize = 3;
-
-/// A group has two to 999 people; one person is a figure, more would not fit the label.
-const MIN_GROUP: u32 = 2;
-const MAX_GROUP: u32 = 999;
 
 /// Scene ids pad the number's digits so that file order is scene order (`szene-012`).
 const SCENE_ID_DIGITS: usize = 3;

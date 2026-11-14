@@ -58,6 +58,10 @@ pub struct Character {
     pub group: Option<u32>,
 }
 
+/// A group has two to 999 people; one person is a figure, more would not fit the label.
+pub const MIN_GROUP: u32 = 2;
+pub const MAX_GROUP: u32 = 999;
+
 impl Character {
     /// The name with the head count of a group: `Gäste (12)`.
     pub fn title(&self) -> String {

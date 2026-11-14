@@ -576,6 +576,33 @@ fn duplicate_ids_are_rejected() {
     assert!(matches!(result, Err(StoreError::DuplicateId { .. })));
 }
 
+/// A group has two to 999 people; the file of a project that says otherwise is refused.
+#[test]
+fn a_bad_group_size_is_refused() {
+    for (group, usable) in [
+        (0, false),
+        (1, false),
+        (2, true),
+        (999, true),
+        (1000, false),
+    ] {
+        let dir = test_dir("bad-group");
+        let mut project = example();
+        project.characters[0].group = Some(group);
+        save(&dir, &project, None).unwrap();
+
+        let loaded = load(&dir);
+
+        assert_eq!(loaded.is_ok(), usable, "group {group}");
+        if !usable {
+            assert!(
+                matches!(loaded, Err(StoreError::Parse { .. })),
+                "group {group}"
+            );
+        }
+    }
+}
+
 #[test]
 fn newer_format_is_rejected() {
     let dir = test_dir("newer");
