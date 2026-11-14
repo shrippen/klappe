@@ -78,7 +78,7 @@ fn hue_rgb(hue: Hue, pal: &Palette) -> Result<Rgb, ExportError> {
         Hue::Text => Ok(pal.foreground),
         Hue::Muted => Ok(pal.muted),
         // Paper has no accent colour; a note takes the set-object ground.
-        Hue::Accent => Ok(pal.surface),
+        Hue::Accent | Hue::Surface => Ok(pal.surface),
         Hue::Color(c) => pal.semantic(c.name()),
     }
 }
@@ -110,23 +110,19 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
     let look = look(role);
     let colour = hue_rgb(look.hue, pal)?;
 
-    // Print deviations from the screen: a set object is filled with its ground tone, not
-    // tinted; a solid shape (not an arrow head) gets a text-coloured outline.
-    let fill = match (role, look.on_paper) {
-        (Role::Object, _) => Some(Fill {
-            rgb: pal.surface,
-            opacity: 1.0,
-        }),
-        (_, Area::None) => None,
-        (_, Area::Tint) => Some(Fill {
-            rgb: colour,
+    let fill_rgb = hue_rgb(look.paper_fill, pal)?;
+    let fill = match look.on_paper {
+        Area::None => None,
+        Area::Tint => Some(Fill {
+            rgb: fill_rgb,
             opacity: tint_opacity(role),
         }),
-        (_, Area::Solid) => Some(Fill {
-            rgb: colour,
+        Area::Solid => Some(Fill {
+            rgb: fill_rgb,
             opacity: 1.0,
         }),
     };
+    // A solid shape (not an arrow head) gets a text-coloured outline.
     let outlined = look.area == Area::Solid && !matches!(role, Role::ArrowHead(_));
     let outline = if outlined { pal.foreground } else { colour };
 

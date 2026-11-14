@@ -39,6 +39,7 @@ fn hue_name(hue: Hue) -> &'static str {
         Hue::Text => "text",
         Hue::Muted => "muted",
         Hue::Accent => "accent",
+        Hue::Surface => "surface",
         Hue::Color(c) => c.name(),
     }
 }
