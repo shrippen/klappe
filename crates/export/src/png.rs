@@ -240,7 +240,7 @@ impl Png {
 
     /// 8-bit RGB, alpha (channel or `tRNS`) laid over `paper`; 16-bit samples keep their high
     /// byte, samples under 8 bits are stretched to 0..255.
-    fn rgb_over(&self, paper: Rgb) -> Result<Vec<u8>> {
+    pub(crate) fn rgb_over(&self, paper: Rgb) -> Result<Vec<u8>> {
         let (w, h) = (self.width as usize, self.height as usize);
         let depth = usize::from(self.depth);
         let channels = self.color.channels();
