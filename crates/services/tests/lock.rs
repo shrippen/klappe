@@ -1,20 +1,23 @@
 //! Locking layers (LH-15), on the example project: the table `tisch` and the walls are on
 //! the set, Elisabeth's second mark is at (10, 6.5) on the figures, `led-1` stands at
-//! (1, 10), the note `n1` at (3, 11.5).
+//! (1, 10), the note `n1` at (3, 11.5), the arrow `d1`
+//! from (6, 10) to (6, 7.5).
 #![allow(clippy::unwrap_used)]
 
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Layer, LightKind, Lock, PlanEdit, Point, Role, ServiceError, Session, Source, Visibility,
+    Dash, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, PlanEdit, Point, Role,
+    ServiceError, Session, Source, Visibility,
 };
 
-const LAYERS: [Layer; 5] = [
+const LAYERS: [Layer; 6] = [
     Layer::Set,
     Layer::Figures,
     Layer::Cameras,
     Layer::Lights,
     Layer::Notes,
+    Layer::Drawings,
 ];
 
 fn example() -> PathBuf {
@@ -133,6 +136,7 @@ fn changing_what_is_on_a_locked_layer_is_refused() {
         (Layer::Cameras, Source::Camera("a".into())),
         (Layer::Lights, Source::Light("led-1".into())),
         (Layer::Notes, Source::Note("n1".into())),
+        (Layer::Drawings, Source::Drawing("d1".into())),
     ];
 
     for (layer, source) in cases {
@@ -213,6 +217,18 @@ fn adding_to_a_locked_layer_is_refused() {
             PlanEdit::AddNote {
                 at,
                 text: "x".into(),
+            },
+        ),
+        (
+            Layer::Drawings,
+            PlanEdit::AddDrawing {
+                shape: DrawingShape::Line {
+                    from: at,
+                    to: p(6.0, 5.0),
+                },
+                color: FigureColor::Red,
+                dash: Dash::Solid,
+                fill: Fill::Outline,
             },
         ),
         (

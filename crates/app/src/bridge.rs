@@ -25,9 +25,9 @@ pub mod qobject {
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
         #[qproperty(QString, script_json, cxx_name = "scriptJson")]
-        /// `{ set, figures, cameras, lights, notes }`: true when shown.
+        /// `{ set, figures, cameras, lights, notes, drawings }`: true when shown.
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
-        /// `{ set, figures, cameras, lights, notes }`: true when locked.
+        /// `{ set, figures, cameras, lights, notes, drawings }`: true when locked.
         #[qproperty(QString, locks_json, cxx_name = "locksJson")]
         #[qproperty(f64, time)]
         #[qproperty(f64, duration)]
@@ -436,6 +436,7 @@ fn layers_json(s: &Session) -> String {
         "cameras": shown(Layer::Cameras),
         "lights": shown(Layer::Lights),
         "notes": shown(Layer::Notes),
+        "drawings": shown(Layer::Drawings),
     })
     .to_string()
 }
@@ -449,6 +450,7 @@ fn locks_json(s: &Session) -> String {
         "cameras": locked(Layer::Cameras),
         "lights": locked(Layer::Lights),
         "notes": locked(Layer::Notes),
+        "drawings": locked(Layer::Drawings),
     })
     .to_string()
 }
@@ -475,6 +477,7 @@ fn layer_of(name: &str) -> Option<Layer> {
         "cameras" => Some(Layer::Cameras),
         "lights" => Some(Layer::Lights),
         "notes" => Some(Layer::Notes),
+        "drawings" => Some(Layer::Drawings),
         _ => None,
     }
 }

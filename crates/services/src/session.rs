@@ -24,6 +24,7 @@ pub enum Layer {
     Cameras,
     Lights,
     Notes,
+    Drawings,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -885,6 +886,7 @@ fn layer_of(role: Role) -> Layer {
         Role::Light | Role::LightBeam => Layer::Lights,
         Role::Camera | Role::Frustum | Role::CameraPath => Layer::Cameras,
         Role::Note => Layer::Notes,
+        Role::Drawing { .. } | Role::ArrowHead(_) => Layer::Drawings,
         Role::Axis | Role::Figure(_) | Role::FigurePath(_) | Role::Mark(_) => Layer::Figures,
     }
 }

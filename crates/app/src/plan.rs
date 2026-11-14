@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use klappe_services::{DisplayList, FigureColor, Item, Point, Role, Shape, Source};
+use klappe_services::{Dash, DisplayList, FigureColor, Fill, Item, Point, Role, Shape, Source};
 use serde_json::{json, Value};
 
 /// Radius of the points of the scale gesture on the plan.
@@ -35,6 +35,12 @@ fn look(role: Role) -> Look {
         Role::LightBeam => l("orange", SOLID, "tint"),
         Role::Light => l("orange", SOLID, "solid"),
         Role::Note => l("accent", SOLID, "solid"),
+        Role::Drawing {
+            color: c,
+            dash,
+            fill,
+        } => l(color(c), stroke_of(dash), fill_of(fill)),
+        Role::ArrowHead(c) => l(color(c), SOLID, "solid"),
         Role::Axis => l("orange", DASHED, "none"),
         Role::CameraPath => l("yellow", DOTTED, "none"),
         Role::Frustum => l("yellow", SOLID, "tint"),
@@ -42,6 +48,22 @@ fn look(role: Role) -> Look {
         Role::FigurePath(c) => l(color(c), DOTTED, "none"),
         Role::Mark(c) => l(color(c), SOLID, "none"),
         Role::Figure(c) => l(color(c), SOLID, "solid"),
+    }
+}
+
+fn stroke_of(dash: Dash) -> &'static str {
+    match dash {
+        Dash::Solid => SOLID,
+        Dash::Dashed => DASHED,
+        Dash::Dotted => DOTTED,
+    }
+}
+
+/// A filled drawing is tinted, like the view cone: the plan below stays readable.
+fn fill_of(fill: Fill) -> &'static str {
+    match fill {
+        Fill::Outline => "none",
+        Fill::Filled => "tint",
     }
 }
 
@@ -68,6 +90,7 @@ pub fn key(source: &Source) -> String {
         Source::Mark { character, index } => format!("mark:{character}:{index}"),
         Source::Wall(index) => format!("wall:{index}"),
         Source::Note(id) => format!("note:{id}"),
+        Source::Drawing(id) => format!("drawing:{id}"),
     }
 }
 
@@ -267,6 +290,55 @@ mod tests {
         assert_eq!(v["shapes"][0]["text"], "Vorhang schließen");
         assert_eq!(v["shapes"][0]["key"], "note:n1");
         assert_eq!(v["shapes"][0]["label"], "accent");
+    }
+
+    /// A dashed, filled drawing keeps its colour, dash and fill on the canvas; its arrow head
+    /// is solid whatever the shaft is.
+    #[test]
+    fn a_drawing_keeps_colour_dash_and_fill() {
+        let at = Some(Source::Drawing("d1".into()));
+        let list = DisplayList {
+            items: vec![
+                item(
+                    Role::Drawing {
+                        color: FigureColor::Cyan,
+                        dash: Dash::Dashed,
+                        fill: Fill::Filled,
+                    },
+                    Shape::Polygon {
+                        points: vec![
+                            Point::new(0.0, 0.0),
+                            Point::new(1.0, 0.0),
+                            Point::new(1.0, 1.0),
+                        ],
+                    },
+                    at.clone(),
+                ),
+                item(
+                    Role::ArrowHead(FigureColor::Cyan),
+                    Shape::Polygon {
+                        points: vec![
+                            Point::new(0.0, 0.0),
+                            Point::new(1.0, 0.0),
+                            Point::new(1.0, 1.0),
+                        ],
+                    },
+                    at,
+                ),
+            ],
+            width_m: 20.0,
+            depth_m: 13.0,
+        };
+
+        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[]);
+        let v: Value = serde_json::from_str(&json).unwrap_or_default();
+
+        assert_eq!(v["shapes"][0]["label"], "cyan");
+        assert_eq!(v["shapes"][0]["stroke"], "dashed");
+        assert_eq!(v["shapes"][0]["fill"], "tint");
+        assert_eq!(v["shapes"][0]["key"], "drawing:d1");
+        assert_eq!(v["shapes"][1]["stroke"], "solid");
+        assert_eq!(v["shapes"][1]["fill"], "solid");
     }
 
     #[test]

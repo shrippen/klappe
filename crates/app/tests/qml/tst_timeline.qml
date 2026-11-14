@@ -74,7 +74,7 @@ TestCase {
     function test_every_layer_has_a_lock_next_to_its_switch() {
         const line = make(de)
 
-        for (const layer of ["set", "figures", "cameras", "lights", "notes"]) {
+        for (const layer of ["set", "figures", "cameras", "lights", "notes", "drawings"]) {
             const lock = findChild(line, "lockButton_" + layer)
             verify(lock, layer)
             verify(findChild(line, "layerButton_" + layer))
