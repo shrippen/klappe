@@ -22,7 +22,11 @@ pub(super) fn shift(
 ) -> Result<(), ServiceError> {
     let members = movers(scope, sources);
     let placings = placings(scope, &members)?;
-    let Some(first) = placings.first() else {
+
+    // The element listed first (the one the pointer holds) snaps, wherever `movers` sorted it.
+    let lead = movers(scope, &sources[..sources.len().min(1)]);
+    let at = members.iter().position(|m| lead.first() == Some(m));
+    let Some(first) = at.and_then(|i| placings.get(i)).or(placings.first()) else {
         return Ok(());
     };
 

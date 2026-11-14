@@ -8,6 +8,9 @@ use std::path::{Path, PathBuf};
 
 use klappe_services::{Layer, Lock, PlanEdit, Point, ServiceError, Session, Snapping, Source};
 
+/// The grid the example snaps to.
+const GRID_M: f64 = 0.25;
+
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
 }
@@ -142,6 +145,34 @@ fn a_group_snaps_by_its_first_element() {
 
     assert!(near(object_at(&s, "saeule-1"), p(6.25, 4.0)));
     assert!(near(object_at(&s, "saeule-2"), p(14.25, 4.0)));
+}
+
+/// Review of PR 31: the element first in the list is the one under the pointer and snaps,
+/// even when it is a camera, which moves after the objects.
+#[test]
+fn a_group_snaps_by_the_camera_held() {
+    let mut s = open();
+    // Off the grid first, so the pillar and the camera snap apart.
+    s.edit_plan(PlanEdit::ShiftGroup {
+        sources: vec![object("saeule-1")],
+        dx_m: 0.1,
+        dy_m: 0.0,
+    })
+    .unwrap();
+    s.set_snapping(Snapping::On);
+    let pillar_before = object_at(&s, "saeule-1");
+
+    s.edit_plan(PlanEdit::ShiftGroup {
+        sources: vec![Source::Camera("b".into()), object("saeule-1")],
+        dx_m: 0.3,
+        dy_m: 0.1,
+    })
+    .unwrap();
+
+    let camera = s.plan().unwrap().camera("b").unwrap().marks[0].at;
+    let on_grid = |v: f64| ((v / GRID_M).round() * GRID_M - v).abs() < 1e-9;
+    assert!(on_grid(camera.x_m) && on_grid(camera.y_m), "{camera:?}");
+    assert!(!near(object_at(&s, "saeule-1"), pillar_before));
 }
 
 #[test]
