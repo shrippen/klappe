@@ -103,6 +103,7 @@
  "camera.aspectTip": "e.g. 2.39 or 16:9",
  "camera.lensSet": "Lens set",
  "camera.lensPick": "Choose focal length",
+ "camera.lensValue": "{lens} mm",
  "camera.lens": "Focal length (mm)",
  "lensSet.primes": "Primes",
  "lensSet.zoom-standard": "Zoom 24–70 mm",

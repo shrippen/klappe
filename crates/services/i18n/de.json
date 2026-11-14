@@ -103,6 +103,7 @@
  "camera.aspectTip": "z. B. 2,39 oder 16:9",
  "camera.lensSet": "Objektivsatz",
  "camera.lensPick": "Brennweite wählen",
+ "camera.lensValue": "{lens} mm",
  "camera.lens": "Brennweite (mm)",
  "lensSet.primes": "Festbrennweiten",
  "lensSet.zoom-standard": "Zoom 24–70 mm",
