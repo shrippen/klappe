@@ -409,6 +409,25 @@ impl qobject::Controller {
         };
         let (plan, tracks, shots, script, layers, time, shot, undo, redo, dirty, selected) = values;
 
+        // Restoring a backup or undoing it can change what only the start used to set.
+        let header = {
+            let this = self.as_ref();
+            this.rust().session.as_ref().map(|s| {
+                (
+                    s.project().title.clone(),
+                    s.plan_title(),
+                    s.duration_s(),
+                    choices_json(s),
+                )
+            })
+        };
+        if let Some((title, plan_title, duration, choices)) = header {
+            self.as_mut().set_title(q(&title));
+            self.as_mut().set_plan_title(q(&plan_title));
+            self.as_mut().set_duration(duration);
+            self.as_mut().set_choices_json(q(&choices));
+        }
+
         // The plan set here is the project's: a preview is gone.
         self.as_mut().rust_mut().get_mut().preview = Preview::Hidden;
         self.as_mut().set_plan_json(q(&plan));
