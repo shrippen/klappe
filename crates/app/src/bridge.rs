@@ -193,7 +193,7 @@ use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
-use crate::tools::{self, DragPhase, DragStep, Key, Preview, ScaleStep, Tool};
+use crate::tools::{self, Backdrop, DragPhase, DragStep, Key, Preview, ScaleStep, Tool};
 
 pub struct ControllerRust {
     session: Option<Session>,
@@ -432,6 +432,17 @@ impl qobject::Controller {
     /// Pushes what may have changed after a call to the properties (and their signals).
     fn refresh(mut self: Pin<&mut Self>) {
         self.as_mut().drop_stale();
+
+        // Undo and redo can take the image away; its scale points go with it.
+        let background = self.rust().session.as_ref().is_some_and(has_background);
+        let backdrop = if background {
+            Backdrop::Present
+        } else {
+            Backdrop::Missing
+        };
+        let scale = self.rust().scale.under(backdrop);
+        self.as_mut().rust_mut().get_mut().scale = scale;
+
         let values = {
             let this = self.as_ref();
             let Some(s) = this.rust().session.as_ref() else {
@@ -457,7 +468,6 @@ impl qobject::Controller {
             )
         };
         let (plan, tracks, shots, script, layers, time, shot, undo, redo, dirty, selected) = values;
-        let background = self.rust().session.as_ref().is_some_and(has_background);
         let scale_points = self.rust().scale.points().len();
 
         // Restoring a backup or undoing it can change what only the start used to set.
@@ -707,7 +717,7 @@ impl qobject::Controller {
             return found;
         }
 
-        let at = s.snap(Point::new(x, y));
+        let at = tools::lands_at(&tool, Point::new(x, y), |p| s.snap(p));
         if tool == Tool::Scale {
             return self.pick_scale_point(at);
         }

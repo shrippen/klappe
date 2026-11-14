@@ -127,6 +127,23 @@ pub fn drag_edit(
     }
 }
 
+/// Where a click lands on the plan: `snap` puts it on the grid. The scale tool keeps the
+/// exact point: a stretch measured on the grid gives a wrong scale.
+pub fn lands_at(tool: &Tool, at: Point, snap: impl Fn(Point) -> Point) -> Point {
+    if *tool == Tool::Scale {
+        return at;
+    }
+
+    snap(at)
+}
+
+/// Whether the plan on screen has a background image to scale.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backdrop {
+    Missing,
+    Present,
+}
+
 /// How far the scale gesture has come: the points picked so far.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ScaleStep {
@@ -144,6 +161,14 @@ impl ScaleStep {
             ScaleStep::First(first) if first == at => self,
             ScaleStep::First(first) => ScaleStep::Both(first, at),
             ScaleStep::Idle | ScaleStep::Both(..) => ScaleStep::First(at),
+        }
+    }
+
+    /// The points still valid once the plan shows `backdrop` (undo can take the image away).
+    pub fn under(self, backdrop: Backdrop) -> ScaleStep {
+        match backdrop {
+            Backdrop::Missing => ScaleStep::Idle,
+            Backdrop::Present => self,
         }
     }
 
@@ -263,6 +288,27 @@ pub fn key_edit(key: Key, selected: Option<&Source>) -> Option<PlanEdit> {
 
 #[cfg(test)]
 mod tests {
+
+    /// Review of PR 19: scale points snapped to the 25 cm grid gave a wrong scale
+    /// (2.8 m picked, 3.0 m used). Tools that place things still snap.
+    #[test]
+    fn scale_points_do_not_snap() {
+        let snap = |p: Point| Point::new(p.x_m.round(), p.y_m.round());
+        let at = Point::new(1.1, 1.0);
+
+        assert_eq!(lands_at(&Tool::Scale, at, snap), at);
+        assert_eq!(lands_at(&Tool::Camera, at, snap), Point::new(1.0, 1.0));
+    }
+
+    /// Review of PR 19: undoing the background left the picked points and the length
+    /// field; a valid length then failed as if it were invalid.
+    #[test]
+    fn scale_points_go_with_the_background() {
+        let both = ScaleStep::Both(Point::new(0.0, 0.0), Point::new(1.0, 0.0));
+
+        assert_eq!(both.under(Backdrop::Missing), ScaleStep::Idle);
+        assert_eq!(both.under(Backdrop::Present), both);
+    }
 
     /// Review of PR 13: a drag that ends in no edit (a wall snapped to length 0) or whose
     /// preview fails must show the project again, not the last preview.
