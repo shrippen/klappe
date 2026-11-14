@@ -344,6 +344,7 @@ mod tests {
                 thickness_m: 0.2,
             }],
             objects: vec![],
+            background: None,
         }
     }
 

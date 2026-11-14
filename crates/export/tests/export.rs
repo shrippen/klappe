@@ -43,6 +43,7 @@ fn set() -> SetPlan {
             depth_m: 1.0,
             rotation_deg: 0.0,
         }],
+        background: None,
     }
 }
 

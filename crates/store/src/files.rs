@@ -231,7 +231,7 @@ pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> 
     })
 }
 
-fn io_err(path: &Path, source: io::Error) -> StoreError {
+pub(crate) fn io_err(path: &Path, source: io::Error) -> StoreError {
     StoreError::Io {
         path: path.to_path_buf(),
         source,

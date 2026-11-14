@@ -3,12 +3,14 @@
 //! ```text
 //! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen/
 //! load(dir)                  ◄──         drehbuch.fountain
+//! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! ```
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
 
 mod error;
 mod files;
+mod images;
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -18,12 +20,14 @@ use serde::{Deserialize, Serialize};
 
 pub use error::StoreError;
 use files::{Dir, Kind};
+pub use images::{add_image, image_size};
 
 const PROJECT_FILE: &str = "projekt.toml";
 const CHARACTERS_FILE: &str = "figuren.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
+const IMAGES_DIR: &str = "bilder";
 const TOML_EXT: &str = "toml";
 const JSON_EXT: &str = "json";
 

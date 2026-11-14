@@ -84,6 +84,7 @@ fn list(plan: &FloorPlan) -> DisplayList {
         depth_m: 13.0,
         walls: Vec::new(),
         objects: Vec::new(),
+        background: None,
     };
 
     render(&Project::new("Test"), &set, plan, 0.0)
