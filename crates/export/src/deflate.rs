@@ -41,6 +41,15 @@ const CODE_LENGTH_ORDER: [usize; LENGTH_CODES] = [
 const REPEAT_PREVIOUS: usize = 16;
 const REPEAT_ZERO_SHORT: usize = 17;
 const REPEAT_ZERO_LONG: usize = 18;
+/// Run lengths each repeat code covers and the bits it spends on the count (RFC 1951, 3.2.7).
+const REPEAT_PREVIOUS_MIN: usize = 3;
+const REPEAT_PREVIOUS_MAX: usize = 6;
+const REPEAT_PREVIOUS_BITS: u32 = 2;
+const REPEAT_ZERO_SHORT_MIN: usize = 3;
+const REPEAT_ZERO_SHORT_BITS: u32 = 3;
+const REPEAT_ZERO_LONG_MIN: usize = 11;
+const REPEAT_ZERO_LONG_MAX: usize = 138;
+const REPEAT_ZERO_LONG_BITS: u32 = 7;
 
 const ZLIB_HEADER: [u8; 2] = [0x78, 0xDA];
 const ADLER_MOD: u32 = 65521;
@@ -118,9 +127,12 @@ pub(crate) fn zlib(data: &[u8]) -> Vec<u8> {
             pos = end;
         }
 
-        let last = pos >= data.len();
+        let last = match pos >= data.len() {
+            true => Final::Yes,
+            false => Final::No,
+        };
         block(&mut out, &tokens, last);
-        if last {
+        if last == Final::Yes {
             break;
         }
     }
@@ -370,11 +382,19 @@ fn run_lengths(lengths: &[u8]) -> Vec<(usize, u32, u32)> {
         let value = lengths[i];
         let run = lengths[i..].iter().take_while(|l| **l == value).count();
 
-        if value == 0 && run >= 3 {
-            let n = run.min(138);
-            match n >= 11 {
-                true => out.push((REPEAT_ZERO_LONG, (n - 11) as u32, 7)),
-                false => out.push((REPEAT_ZERO_SHORT, (n - 3) as u32, 3)),
+        if value == 0 && run >= REPEAT_ZERO_SHORT_MIN {
+            let n = run.min(REPEAT_ZERO_LONG_MAX);
+            match n >= REPEAT_ZERO_LONG_MIN {
+                true => out.push((
+                    REPEAT_ZERO_LONG,
+                    (n - REPEAT_ZERO_LONG_MIN) as u32,
+                    REPEAT_ZERO_LONG_BITS,
+                )),
+                false => out.push((
+                    REPEAT_ZERO_SHORT,
+                    (n - REPEAT_ZERO_SHORT_MIN) as u32,
+                    REPEAT_ZERO_SHORT_BITS,
+                )),
             }
             i += n;
             continue;
@@ -385,9 +405,13 @@ fn run_lengths(lengths: &[u8]) -> Vec<(usize, u32, u32)> {
 
         // Further copies of a non-zero length repeat the one just written.
         let mut repeats = run - 1;
-        while value != 0 && repeats >= 3 {
-            let n = repeats.min(6);
-            out.push((REPEAT_PREVIOUS, (n - 3) as u32, 2));
+        while value != 0 && repeats >= REPEAT_PREVIOUS_MIN {
+            let n = repeats.min(REPEAT_PREVIOUS_MAX);
+            out.push((
+                REPEAT_PREVIOUS,
+                (n - REPEAT_PREVIOUS_MIN) as u32,
+                REPEAT_PREVIOUS_BITS,
+            ));
             repeats -= n;
             i += n;
         }
@@ -396,7 +420,14 @@ fn run_lengths(lengths: &[u8]) -> Vec<(usize, u32, u32)> {
     out
 }
 
-fn block(out: &mut BitWriter, tokens: &[Token], last: bool) {
+/// Whether a block is the last of the stream (BFINAL).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Final {
+    Yes,
+    No,
+}
+
+fn block(out: &mut BitWriter, tokens: &[Token], last: Final) {
     let mut literal_freq = vec![0_u32; LITERAL_CODES];
     let mut distance_freq = vec![0_u32; DISTANCE_CODES];
     literal_freq[END_OF_BLOCK] = 1;
@@ -442,7 +473,7 @@ fn block(out: &mut BitWriter, tokens: &[Token], last: bool) {
         .rposition(|s| run_lengths_of[*s] > 0)
         .map_or(4, |i| (i + 1).max(4));
 
-    out.put(u32::from(last), 1);
+    out.put(u32::from(last == Final::Yes), 1);
     out.put(BLOCK_DYNAMIC, 2);
     out.put((literal_count - LENGTH_FIRST_CODE) as u32, 5);
     out.put((distance_count - 1) as u32, 5);

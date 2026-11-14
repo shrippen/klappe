@@ -29,6 +29,12 @@ const TAG_HMTX: &[u8; 4] = b"hmtx";
 const TAG_LOCA: &[u8; 4] = b"loca";
 const TAG_GLYF: &[u8; 4] = b"glyf";
 
+// Byte offsets of the fields read from each table (OpenType spec).
+const HEAD_UNITS_PER_EM: usize = 18;
+const HEAD_INDEX_TO_LOC_FORMAT: usize = 50;
+const MAXP_NUM_GLYPHS: usize = 4;
+const HHEA_NUMBER_OF_H_METRICS: usize = 34;
+
 /// Simple glyph flags.
 const ON_CURVE: u8 = 0x01;
 const X_SHORT: u8 = 0x02;
@@ -152,7 +158,7 @@ impl Font {
         let head = table(data, TAG_HEAD)?;
         let maxp = table(data, TAG_MAXP)?;
         let hhea = table(data, TAG_HHEA)?;
-        let units = rd_u16(data, head + 18)?;
+        let units = rd_u16(data, head + HEAD_UNITS_PER_EM)?;
         if units == 0 {
             return Err(FontError("unitsPerEm is zero"));
         }
@@ -160,9 +166,9 @@ impl Font {
         Ok(Font {
             data,
             units_per_em: f64::from(units),
-            long_loca: rd_i16(data, head + 50)? != 0,
-            glyph_count: rd_u16(data, maxp + 4)?,
-            metric_count: rd_u16(data, hhea + 34)?,
+            long_loca: rd_i16(data, head + HEAD_INDEX_TO_LOC_FORMAT)? != 0,
+            glyph_count: rd_u16(data, maxp + MAXP_NUM_GLYPHS)?,
+            metric_count: rd_u16(data, hhea + HHEA_NUMBER_OF_H_METRICS)?,
             cmap: pick_cmap(data, table(data, TAG_CMAP)?)?,
             hmtx: table(data, TAG_HMTX)?,
             loca: table(data, TAG_LOCA)?,
