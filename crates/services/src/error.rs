@@ -6,6 +6,8 @@ pub enum ServiceError {
     Store(#[from] klappe_store::StoreError),
     #[error("no scene {0}")]
     NoScene(String),
+    #[error("there is no backup")]
+    NoBackup,
     #[error("no shot {0}")]
     NoShot(String),
     /// What an edit names is no longer in the plan.

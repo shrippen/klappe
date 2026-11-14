@@ -3,6 +3,7 @@
 //! ```text
 //! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen/
 //! load(dir)                  ◄──         drehbuch.fountain
+//! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
 //! ```
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
@@ -24,6 +25,14 @@ const CHARACTERS_FILE: &str = "figuren.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
+/// Folder of the unsaved-changes backup inside a project folder (FORMAT.md).
+const BACKUP_DIR: &str = ".sicherung";
+/// Where a new backup is built; it replaces `BACKUP_DIR` as a whole.
+const BACKUP_NEW_DIR: &str = ".sicherung.neu";
+/// Written last into `BACKUP_NEW_DIR`: only then the folder is complete.
+const BACKUP_DONE_FILE: &str = "fertig";
+/// The old backup while a finished `BACKUP_NEW_DIR` takes its place.
+const BACKUP_OLD_DIR: &str = ".sicherung.alt";
 const TOML_EXT: &str = "toml";
 const JSON_EXT: &str = "json";
 
@@ -142,6 +151,82 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
 /// Writes `drehbuch.fountain` in `dir` atomically and nothing else.
 pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
     files::write_atomic(&dir.join(SCRIPT_FILE), script.as_bytes())
+}
+
+/// Writes `project` as a backup into `dir/.sicherung`, in the project format. The project
+/// files stay as they are, so the user alone decides what a save changes (LH-05).
+///
+/// A backup folder counts only with its marker `fertig`: it is written last and removed
+/// first, so a crash while writing or deleting never leaves a readable half.
+///
+/// ```text
+/// 1. promote a finished .sicherung.neu left by a crash (see 3.)
+/// 2. build .sicherung.neu/, last file `fertig`   (crash: old .sicherung stays valid)
+/// 3. promote: .sicherung -> .sicherung.alt       (crash: .sicherung.neu is finished)
+///             .sicherung.neu -> .sicherung
+///             remove .sicherung.alt
+/// ```
+pub fn save_backup(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), StoreError> {
+    let new = dir.join(BACKUP_NEW_DIR);
+
+    // A finished leftover may be the only copy: keep it before anything else is deleted.
+    promote(dir)?;
+    // What is left has no marker: a crashed write.
+    remove_backup(&new)?;
+    save(&new, project, script)?;
+    files::write_atomic(&new.join(BACKUP_DONE_FILE), b"")?;
+
+    promote(dir)
+}
+
+/// Reads the backup of `dir`; `None` if there is none. Only a folder with the marker `fertig`
+/// counts. A finished `.sicherung.neu` is newer than `.sicherung` and wins.
+pub fn load_backup(dir: &Path) -> Result<Option<Loaded>, StoreError> {
+    for name in [BACKUP_NEW_DIR, BACKUP_DIR] {
+        let folder = dir.join(name);
+        if files::exists(&folder.join(BACKUP_DONE_FILE))? {
+            return load(&folder).map(Some);
+        }
+    }
+
+    Ok(None)
+}
+
+/// Removes the backup of `dir` and any leftover of a write; no backup is not an error.
+pub fn drop_backup(dir: &Path) -> Result<(), StoreError> {
+    for name in [BACKUP_NEW_DIR, BACKUP_DIR, BACKUP_OLD_DIR] {
+        remove_backup(&dir.join(name))?;
+    }
+
+    Ok(())
+}
+
+/// Makes a finished `.sicherung.neu` the backup `.sicherung`; nothing if there is none.
+fn promote(dir: &Path) -> Result<(), StoreError> {
+    let (new, current, old) = (
+        dir.join(BACKUP_NEW_DIR),
+        dir.join(BACKUP_DIR),
+        dir.join(BACKUP_OLD_DIR),
+    );
+
+    remove_backup(&old)?;
+    if !files::exists(&new.join(BACKUP_DONE_FILE))? {
+        return Ok(());
+    }
+
+    if files::exists(&current)? {
+        files::rename(&current, &old)?;
+    }
+    files::rename(&new, &current)?;
+
+    remove_backup(&old)
+}
+
+/// Deletes a backup folder: the marker first (atomic, the folder is invalid from then on),
+/// then the rest, so a crash in between leaves nothing that reads as a backup.
+fn remove_backup(folder: &Path) -> Result<(), StoreError> {
+    files::remove_file(&folder.join(BACKUP_DONE_FILE))?;
+    files::remove_dir(folder)
 }
 
 /// Reads every file of a kind in `dir`, sorted by file name; the id inside must match it.

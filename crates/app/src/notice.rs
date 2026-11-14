@@ -12,6 +12,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         ServiceError::Gone => ("error.gone", String::new()),
         ServiceError::NoLocation(id) => ("error.noLocation", id.clone()),
         ServiceError::NoFreeCamera => ("error.noFreeCamera", String::new()),
+        ServiceError::NoBackup => ("error.noBackup", String::new()),
         ServiceError::CameraInUse { camera, shot } => {
             return language
                 .text("error.cameraInUse")
@@ -128,6 +129,7 @@ mod tests {
             ServiceError::Gone,
             ServiceError::NoLocation("l".to_owned()),
             ServiceError::NoFreeCamera,
+            ServiceError::NoBackup,
         ];
 
         for error in &errors {

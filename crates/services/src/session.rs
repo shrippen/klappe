@@ -5,6 +5,7 @@ use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::{FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{axis_jumps, lens_at, render, DisplayList, Role, Source};
+use klappe_store::Loaded;
 
 use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
@@ -42,6 +43,29 @@ const LIGHT_LABEL: &str = "orange";
 /// Colour of the cut track.
 const CUT_LABEL: &str = "yellow";
 
+/// What `Session::autosave` did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Autosave {
+    /// The backup now holds the current state.
+    Written,
+    /// Nothing changed since the last save or autosave.
+    Clean,
+    /// An unanswered backup from an earlier run is on disk; writing would destroy it.
+    /// `restore_backup` or `discard_backup` first.
+    Held,
+}
+
+/// The backup of unsaved changes that `Session::open` found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BackupState {
+    None,
+    /// Differs from the saved project: offer `restore_backup` and `discard_backup`.
+    Found,
+    /// A backup exists but cannot be read (the message says why): offer `discard_backup`.
+    /// `open` must not fail on it, or the project could not be opened at all.
+    Unreadable(String),
+}
+
 /// One open project and what the user looks at.
 #[derive(Debug)]
 pub struct Session {
@@ -59,12 +83,18 @@ pub struct Session {
     undo: Vec<Project>,
     redo: Vec<Project>,
     dirty: bool,
+    /// Changed since the last save or autosave: what `autosave` writes.
+    unbacked: bool,
+    /// The project (not only the screenplay) changed since the last save.
+    project_changed: bool,
+    backup: BackupState,
 }
 
 impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
         let loaded = klappe_store::load(dir)?;
+        let backup = check_backup(dir, &loaded);
         let script = loaded
             .script
             .as_deref()
@@ -92,6 +122,9 @@ impl Session {
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: false,
+            unbacked: false,
+            project_changed: false,
+            backup,
         })
     }
 
@@ -107,17 +140,83 @@ impl Session {
         self.dirty
     }
 
-    /// Writes the project back to its folder.
+    /// Writes the project back to its folder and removes the backup. An unanswered backup
+    /// (`Found`, `Unreadable`) stays, as with `autosave`: the user decides on it.
     pub fn save(&mut self) -> Result<(), ServiceError> {
         klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
         self.dirty = false;
+        self.unbacked = false;
+        self.project_changed = false;
+        if self.backup != BackupState::None {
+            return Ok(());
+        }
+
+        klappe_store::drop_backup(&self.dir)?;
+        Ok(())
+    }
+
+    /// Writes the unsaved state into the backup, if it changed since the last save or
+    /// autosave. The project files stay untouched. The surface calls this on a timer.
+    pub fn autosave(&mut self) -> Result<Autosave, ServiceError> {
+        if self.backup != BackupState::None {
+            return Ok(Autosave::Held);
+        }
+        if !self.unbacked {
+            return Ok(Autosave::Clean);
+        }
+
+        klappe_store::save_backup(&self.dir, &self.project, self.script_text.as_deref())?;
+        self.unbacked = false;
+        Ok(Autosave::Written)
+    }
+
+    /// The backup `open` found.
+    pub fn backup(&self) -> &BackupState {
+        &self.backup
+    }
+
+    /// Takes project and screenplay from the backup. The project change can be undone; the
+    /// screenplay text cannot (undo covers the project only). The backup's screenplay replaces
+    /// the one on disk at the next save, also a newer one saved after the crash.
+    pub fn restore_backup(&mut self) -> Result<(), ServiceError> {
+        let loaded = klappe_store::load_backup(&self.dir)?.ok_or(ServiceError::NoBackup)?;
+
+        self.commit(loaded.project);
+        if let Some(text) = loaded.script {
+            self.set_script_text(&text);
+        }
+        self.keep_view_valid();
+        self.backup = BackupState::None;
+        Ok(())
+    }
+
+    /// Removes the backup.
+    pub fn discard_backup(&mut self) -> Result<(), ServiceError> {
+        klappe_store::drop_backup(&self.dir)?;
+        self.backup = BackupState::None;
         Ok(())
     }
 
     /// Writes only the screenplay; every other file of the folder stays as it is on disk.
-    pub fn save_script(&self) -> Result<(), ServiceError> {
+    /// The backup then no longer holds the screenplay as unsaved work: it is removed if only
+    /// the screenplay was unsaved, else rewritten with the saved screenplay. An unanswered
+    /// backup (`Found`, `Unreadable`) stays for the user to decide.
+    pub fn save_script(&mut self) -> Result<(), ServiceError> {
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;
+        if self.backup != BackupState::None {
+            return Ok(());
+        }
+
+        if self.project_changed {
+            klappe_store::save_backup(&self.dir, &self.project, self.script_text.as_deref())?;
+            self.unbacked = false;
+            return Ok(());
+        }
+
+        self.dirty = false;
+        self.unbacked = false;
+        klappe_store::drop_backup(&self.dir)?;
         Ok(())
     }
 
@@ -283,7 +382,7 @@ impl Session {
         }
         self.script = klappe_script::parse(text);
         self.script_text = Some(text.to_owned());
-        self.dirty = true;
+        self.touch();
     }
 
     /// The shot list of the current plan, in cut order.
@@ -395,7 +494,23 @@ impl Session {
             self.undo.remove(0);
         }
         self.redo.clear();
+        self.project_changed = true;
+        self.touch();
+    }
+
+    fn touch(&mut self) {
         self.dirty = true;
+        self.unbacked = true;
+    }
+
+    /// Scene and plan indices of the view fit the (new) project again.
+    fn keep_view_valid(&mut self) {
+        if self.scene >= self.project.scenes.len() {
+            self.scene = 0;
+        }
+        if self.scene().is_none_or(|s| self.plan >= s.plans.len()) {
+            self.plan = 0;
+        }
     }
 
     pub fn can_undo(&self) -> bool {
@@ -412,7 +527,8 @@ impl Session {
         };
         self.redo
             .push(std::mem::replace(&mut self.project, previous));
-        self.dirty = true;
+        self.project_changed = true;
+        self.touch();
     }
 
     pub fn redo(&mut self) {
@@ -420,7 +536,8 @@ impl Session {
             return;
         };
         self.undo.push(std::mem::replace(&mut self.project, next));
-        self.dirty = true;
+        self.project_changed = true;
+        self.touch();
     }
 
     /// The timeline: cut order first, then figures, cameras and lights.
@@ -585,6 +702,21 @@ impl Session {
                 }
             })
             .collect()
+    }
+}
+
+/// Looks at the backup next to the project. One equal to the project is removed (nothing
+/// would be lost); an unreadable one is reported, not fatal.
+fn check_backup(dir: &Path, loaded: &Loaded) -> BackupState {
+    match klappe_store::load_backup(dir) {
+        Ok(None) => BackupState::None,
+        Ok(Some(backup)) if backup == *loaded => {
+            // A failed removal is harmless: the next open compares again.
+            let _ = klappe_store::drop_backup(dir);
+            BackupState::None
+        }
+        Ok(Some(_)) => BackupState::Found,
+        Err(e) => BackupState::Unreadable(e.to_string()),
     }
 }
 
