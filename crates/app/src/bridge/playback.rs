@@ -46,9 +46,15 @@ impl qobject::Controller {
         let playing = s.advance(dt, speed, looping);
         let time = s.time_s();
 
-        // A refresh would drop a drag preview: the plan holds still, only the time moves.
-        if self.rust().preview == Preview::Shown {
-            self.set_time(time);
+        // A refresh would drop a drag preview: show the drag again at the new time, as the
+        // release will store it.
+        let drag = self
+            .rust()
+            .drag_step
+            .filter(|_| self.rust().preview == Preview::Shown);
+        if let Some([from_x, from_y, x, y]) = drag {
+            self.as_mut().set_time(time);
+            self.drag(from_x, from_y, x, y, false);
             return playing == Playing::Running;
         }
         self.refresh();
