@@ -27,6 +27,8 @@ pub mod qobject {
         #[qproperty(QString, script_json, cxx_name = "scriptJson")]
         /// `{ set, figures, cameras, lights, notes }`: true when shown.
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
+        /// `{ set, figures, cameras, lights, notes }`: true when locked.
+        #[qproperty(QString, locks_json, cxx_name = "locksJson")]
         #[qproperty(f64, time)]
         #[qproperty(f64, duration)]
         #[qproperty(QString, selected_shot, cxx_name = "selectedShot")]
@@ -106,6 +108,12 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setLayer"]
         fn set_layer(self: Pin<&mut Self>, layer: &QString, shown: &QString);
+
+        /// `layer` as for `setLayer`; `locked`: "locked" or "unlocked". A locked layer cannot
+        /// be picked or changed.
+        #[qinvokable]
+        #[cxx_name = "setLock"]
+        fn set_lock(self: Pin<&mut Self>, layer: &QString, locked: &QString);
 
         /// The tool in use: `select`, `wall`, `object` …; `choice` is the value picked in the
         /// tool's list (object kind, character id, lamp kind). False for an unknown tool.
@@ -205,9 +213,9 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Angle, Autosave, DisplayList, Layer, Movement, Paper, PlanEdit, Point,
-    Session, ShotColumns, ShotField, ShotOrder, ShotSize, ShotTexts, Snapping, Source, Texts,
-    Visibility,
+    horizontal_fov_deg, Angle, Autosave, DisplayList, Layer, Lock, Movement, Paper, PlanEdit,
+    Point, Session, ShotColumns, ShotField, ShotOrder, ShotSize, ShotTexts, Snapping, Source,
+    Texts, Visibility,
 };
 use serde_json::json;
 
@@ -230,6 +238,7 @@ pub struct ControllerRust {
     shots_json: QString,
     script_json: QString,
     layers_json: QString,
+    locks_json: QString,
     time: f64,
     duration: f64,
     selected_shot: QString,
@@ -264,6 +273,7 @@ fn q(s: &str) -> QString {
 }
 
 const SHOWN: &str = "shown";
+const LOCKED: &str = "locked";
 
 /// Seconds between two backups of unsaved changes while a project is open.
 const AUTOSAVE_S: i32 = 30;
@@ -303,6 +313,7 @@ impl Default for ControllerRust {
             shots_json: QString::default(),
             script_json: QString::default(),
             layers_json: QString::default(),
+            locks_json: QString::default(),
             time: 0.0,
             duration: 0.0,
             selected_shot: QString::default(),
@@ -350,6 +361,7 @@ impl ControllerRust {
         self.shots_json = q(&to_json(&s.shots()));
         self.script_json = q(&to_json(&s.script_lines()));
         self.layers_json = q(&layers_json(s));
+        self.locks_json = q(&locks_json(s));
         self.time = s.time_s();
         self.duration = s.duration_s();
         self.selected_shot = q(s.selected_shot().unwrap_or_default());
@@ -415,6 +427,19 @@ fn layers_json(s: &Session) -> String {
         "cameras": shown(Layer::Cameras),
         "lights": shown(Layer::Lights),
         "notes": shown(Layer::Notes),
+    })
+    .to_string()
+}
+
+fn locks_json(s: &Session) -> String {
+    let locked = |l| s.lock(l) == Lock::Locked;
+
+    json!({
+        "set": locked(Layer::Set),
+        "figures": locked(Layer::Figures),
+        "cameras": locked(Layer::Cameras),
+        "lights": locked(Layer::Lights),
+        "notes": locked(Layer::Notes),
     })
     .to_string()
 }
@@ -498,6 +523,7 @@ impl qobject::Controller {
                 to_json(&s.shots()),
                 to_json(&s.script_lines()),
                 layers_json(s),
+                locks_json(s),
                 s.time_s(),
                 s.selected_shot().unwrap_or_default().to_owned(),
                 s.can_undo(),
@@ -506,7 +532,8 @@ impl qobject::Controller {
                 this.rust().selected.as_ref().map(plan::key),
             )
         };
-        let (plan, tracks, shots, script, layers, time, shot, undo, redo, dirty, selected) = values;
+        let (plan, tracks, shots, script, layers, locks, time, shot, undo, redo, dirty, selected) =
+            values;
         let scale_points = self.rust().scale.points().len();
         let asks_note = self.rust().note != NoteDraft::Idle;
 
@@ -536,6 +563,7 @@ impl qobject::Controller {
         self.as_mut().set_shots_json(q(&shots));
         self.as_mut().set_script_json(q(&script));
         self.as_mut().set_layers_json(q(&layers));
+        self.as_mut().set_locks_json(q(&locks));
         self.as_mut().set_time(time);
         self.as_mut().set_selected_shot(q(&shot));
         self.as_mut()
@@ -959,6 +987,20 @@ impl qobject::Controller {
         };
         if let Some(s) = self.as_mut().session() {
             s.set_layer(layer, visibility(shown));
+        }
+        self.refresh();
+    }
+
+    fn set_lock(mut self: Pin<&mut Self>, layer: &QString, locked: &QString) {
+        let Some(layer) = layer_of(&layer.to_string()) else {
+            return;
+        };
+        let lock = match locked.to_string() == LOCKED {
+            true => Lock::Locked,
+            false => Lock::Unlocked,
+        };
+        if let Some(s) = self.as_mut().session() {
+            s.set_lock(layer, lock);
         }
         self.refresh();
     }

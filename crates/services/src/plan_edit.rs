@@ -7,6 +7,7 @@ use klappe_model::{
 use klappe_stellprobe::{hit, Item, Role, Source};
 
 use crate::error::ServiceError;
+use crate::session::Layer;
 
 /// What a tool or a drag does to the current plan.
 #[derive(Debug, Clone, PartialEq)]
@@ -159,12 +160,13 @@ pub(crate) fn snap(at: Point, snapping: Snapping) -> Point {
     Point::new(on_grid(at.x_m), on_grid(at.y_m))
 }
 
-/// The topmost item the user can grab at `at`: the display list is back to front.
-pub(crate) fn pick(items: &[Item], at: Point) -> Option<Source> {
+/// The topmost item the user can grab at `at`: the display list is back to front. Items for
+/// which `locked` is true are left out.
+pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> Option<Source> {
     items
         .iter()
         .rev()
-        .filter(|item| grabbable(item.role))
+        .filter(|item| grabbable(item.role) && !locked(item.role))
         .find(|item| hit(item, at, PICK_RADIUS_M))
         .and_then(|item| item.source.clone())
 }
@@ -180,6 +182,40 @@ fn grabbable(role: Role) -> bool {
             | Role::FigurePath(_)
             | Role::LightBeam
     )
+}
+
+impl PlanEdit {
+    /// The layer the edit changes something on; a locked layer refuses it.
+    pub(crate) fn layer(&self) -> Layer {
+        match self {
+            PlanEdit::Move { source, .. }
+            | PlanEdit::Shift { source, .. }
+            | PlanEdit::Spin { source, .. }
+            | PlanEdit::Turn { source, .. }
+            | PlanEdit::Remove { source } => layer_of_source(source),
+            PlanEdit::AddMark { .. } => Layer::Figures,
+            PlanEdit::AddCamera { .. } => Layer::Cameras,
+            PlanEdit::AddLight { .. } => Layer::Lights,
+            PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } => Layer::Notes,
+            PlanEdit::AddObject { .. }
+            | PlanEdit::AddWall { .. }
+            | PlanEdit::SetBackground { .. }
+            | PlanEdit::Calibrate { .. }
+            | PlanEdit::MoveBackground { .. }
+            | PlanEdit::RemoveBackground => Layer::Set,
+        }
+    }
+}
+
+/// The layer an element of the plan is on.
+fn layer_of_source(source: &Source) -> Layer {
+    match source {
+        Source::Object(_) | Source::Wall(_) => Layer::Set,
+        Source::Light(_) => Layer::Lights,
+        Source::Camera(_) => Layer::Cameras,
+        Source::Figure(_) | Source::Mark { .. } => Layer::Figures,
+        Source::Note(_) => Layer::Notes,
+    }
 }
 
 /// The parts of the project one edit works on, borrowed apart.
