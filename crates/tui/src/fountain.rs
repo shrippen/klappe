@@ -52,15 +52,45 @@ pub(crate) struct Scene {
     pub heading: String,
 }
 
+/// An element (not a heading) and where the project's script links find it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ElementPos {
+    /// The first text line the element stands on.
+    pub line: usize,
+    /// Number of the scene it is in, `None` before the first heading or without a number.
+    pub scene: Option<String>,
+    /// Position within the scene, as `ScriptLink::element` counts.
+    pub index: usize,
+}
+
+impl Scene {
+    /// The number in the script, else the position in the list (1-based).
+    pub(crate) fn display_number(&self, index: usize) -> String {
+        self.number
+            .clone()
+            .unwrap_or_else(|| (index + 1).to_string())
+    }
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct Analysis {
     pub kinds: Vec<LineKind>,
     pub scenes: Vec<Scene>,
+    /// In text order.
+    pub elements: Vec<ElementPos>,
+    /// Scene number and element count of the scene the parsing is in.
+    current: (Option<String>, usize),
 }
 
 impl Analysis {
     pub(crate) fn kind(&self, line: usize) -> LineKind {
         self.kinds.get(line).copied().unwrap_or(LineKind::Action)
+    }
+
+    /// The element that starts on this line.
+    pub(crate) fn element_at(&self, line: usize) -> Option<&ElementPos> {
+        let at = self.elements.binary_search_by_key(&line, |e| e.line).ok()?;
+        self.elements.get(at)
     }
 
     /// Index of the scene the line belongs to: the last heading at or above it.
@@ -78,7 +108,7 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
     let cut = strip(lines);
     let mut seen = Analysis {
         kinds: vec![LineKind::Blank; cut.lines.len()],
-        scenes: Vec::new(),
+        ..Analysis::default()
     };
     let mut start = 0;
 
@@ -177,7 +207,21 @@ fn back_to_lines(lines: &[String], cut: &Cut, seen: Analysis) -> Analysis {
         })
         .collect();
 
-    Analysis { kinds, scenes }
+    let elements = seen
+        .elements
+        .into_iter()
+        .map(|e| ElementPos {
+            line: cut.origin[e.line],
+            ..e
+        })
+        .collect();
+
+    Analysis {
+        kinds,
+        scenes,
+        elements,
+        ..Analysis::default()
+    }
 }
 
 /// Number of text lines an element took, and its kind.
@@ -212,6 +256,14 @@ fn paragraph(lines: &[String], first: usize, out: &mut Analysis) {
                 number: number.clone(),
                 heading: text.clone(),
             });
+            out.current = (number.clone(), 0);
+        } else {
+            out.elements.push(ElementPos {
+                line: at,
+                scene: out.current.0.clone(),
+                index: out.current.1,
+            });
+            out.current.1 += 1;
         }
 
         let stop = (at + count).min(end);
@@ -279,6 +331,19 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn elements_count_per_scene_from_the_heading() {
+        let a = analyse(&lines("INT. A #1#\n\nx\n\nBOB\nhi\n\nINT. B #2#\n\ny\n"));
+        let at = |line| a.element_at(line).map(|e| (e.scene.clone(), e.index));
+
+        assert_eq!(at(2), Some((Some("1".into()), 0)));
+        assert_eq!(at(4), Some((Some("1".into()), 1)), "cue");
+        assert_eq!(at(5), Some((Some("1".into()), 2)), "dialogue");
+        assert_eq!(at(9), Some((Some("2".into()), 0)), "counting restarts");
+        assert_eq!(at(0), None, "a heading is no element");
+        assert_eq!(at(3), None);
     }
 
     #[test]

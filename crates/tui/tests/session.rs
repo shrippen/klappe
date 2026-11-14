@@ -38,7 +38,7 @@ fn key(app: &mut App, code: KeyCode, modifiers: KeyModifiers) -> Flow {
 #[test]
 fn save_writes_the_edit_and_a_new_session_reads_it() {
     let dir = copy("tui-save");
-    let mut app = App::open(&dir, Language::En).unwrap();
+    let mut app = App::open(&dir, Language::English).unwrap();
 
     for c in "Äö – ".chars() {
         key(&mut app, KeyCode::Char(c), KeyModifiers::NONE);
@@ -59,7 +59,7 @@ fn save_writes_the_edit_and_a_new_session_reads_it() {
 fn unchanged_save_keeps_the_file_text() {
     let dir = copy("tui-same");
     let before = std::fs::read_to_string(dir.join("drehbuch.fountain")).unwrap();
-    let mut app = App::open(&dir, Language::En).unwrap();
+    let mut app = App::open(&dir, Language::English).unwrap();
     key(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL);
 
     assert_eq!(
@@ -71,7 +71,7 @@ fn unchanged_save_keeps_the_file_text() {
 #[test]
 fn saved_project_quits_without_asking() {
     let dir = copy("tui-quit");
-    let mut app = App::open(&dir, Language::En).unwrap();
+    let mut app = App::open(&dir, Language::English).unwrap();
     key(&mut app, KeyCode::Char('x'), KeyModifiers::NONE);
     key(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL);
 
@@ -85,7 +85,7 @@ fn saved_project_quits_without_asking() {
 #[test]
 fn save_touches_only_the_script() {
     let dir = copy("tui-script-only");
-    let mut app = App::open(&dir, Language::En).unwrap();
+    let mut app = App::open(&dir, Language::English).unwrap();
     let foreign = dir.join("szenen/neu.json");
     std::fs::write(&foreign, "{}\n").unwrap();
     let project = std::fs::read(dir.join("projekt.toml")).unwrap();
