@@ -1,3 +1,5 @@
+use klappe_model::{Movement, ShotSize};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Paper {
     A4,
@@ -36,6 +38,35 @@ pub struct Texts {
     pub unit: String,
     /// Between whole and fraction of a length: ',' or '.'.
     pub decimal_separator: char,
+    pub shots: ShotTexts,
+}
+
+/// The shot list's words: heading, column heads and the names of sizes and movements.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ShotTexts {
+    /// e.g. "Shotliste"; follows the page title on the printed sheets.
+    pub title: String,
+    pub columns: ShotColumns,
+    pub sizes: Vec<(ShotSize, String)>,
+    pub movements: Vec<(Movement, String)>,
+}
+
+/// Column heads, in the order of the table.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ShotColumns {
+    pub number: String,
+    pub camera: String,
+    pub lens_mm: String,
+    pub size: String,
+    pub movement: String,
+    pub from_s: String,
+    pub to_s: String,
+    pub duration_s: String,
+    pub description: String,
+    pub props: String,
+    pub gear: String,
+    pub crew: String,
+    pub note: String,
 }
 
 impl Page {

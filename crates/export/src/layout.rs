@@ -22,24 +22,24 @@ use crate::palette::{palette, Palette, Theme};
 use crate::style::{role_style, RoleStyle};
 use klappe_model::FigureColor;
 
-const PT_PER_MM: f64 = 72.0 / 25.4;
+pub(crate) const PT_PER_MM: f64 = 72.0 / 25.4;
 /// Print text never goes below this.
-const MIN_TEXT_PT: f64 = 8.0;
+pub(crate) const MIN_TEXT_PT: f64 = 8.0;
 const LABEL_PT: f64 = MIN_TEXT_PT;
-const TITLE_PT: f64 = 14.0;
+pub(crate) const TITLE_PT: f64 = 14.0;
 const LEGEND_PT: f64 = MIN_TEXT_PT;
 /// Gap between a shape and its label.
 const LABEL_GAP_PT: f64 = 3.0;
 /// Baseline sits this fraction of the font size below the text's middle.
 const BASELINE_SHIFT: f64 = 0.35;
-const TITLE_BAND_PT: f64 = 24.0;
+pub(crate) const TITLE_BAND_PT: f64 = 24.0;
 const SCALE_ROW_PT: f64 = 26.0;
 const LEGEND_ROW_PT: f64 = 16.0;
 const LEGEND_ENTRY_PT: f64 = 84.0;
 const SWATCH_PT: f64 = 18.0;
 const SWATCH_RADIUS_PT: f64 = 4.0;
 const SWATCH_TEXT_GAP_PT: f64 = 5.0;
-const GAP_PT: f64 = 6.0;
+pub(crate) const GAP_PT: f64 = 6.0;
 /// A thin wall must still show.
 const MIN_WALL_PT: f64 = 1.0;
 const FRAME_PT: f64 = 0.75;
@@ -54,7 +54,7 @@ const SCALE_STEPS_M: [f64; 14] = [
 
 const LEGEND_ENTRIES: usize = 6;
 
-fn paper_mm(paper: Paper) -> (f64, f64) {
+pub(crate) fn paper_mm(paper: Paper) -> (f64, f64) {
     match paper {
         Paper::A4 => (210.0, 297.0),
         Paper::A3 => (297.0, 420.0),
@@ -138,6 +138,7 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
         clip: frame,
         plan,
         chrome,
+        sheets: Vec::new(),
     })
 }
 

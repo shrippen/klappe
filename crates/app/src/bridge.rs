@@ -76,6 +76,11 @@ pub mod qobject {
         #[cxx_name = "exportPdf"]
         fn export_pdf(self: Pin<&mut Self>) -> bool;
 
+        /// Writes the shot list as CSV next to the project folder; the path goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "exportCsv"]
+        fn export_csv(self: Pin<&mut Self>) -> bool;
+
         /// What a tooltip says about a plan element (`camera:a` …), as JSON.
         #[qinvokable]
         fn describe(self: &Self, key: &QString) -> QString;
@@ -86,7 +91,8 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Layer, Paper, Session, ShotField, Source, Texts, Visibility,
+    horizontal_fov_deg, Layer, Movement, Paper, Session, ShotColumns, ShotField, ShotSize,
+    ShotTexts, Source, Texts, Visibility,
 };
 use serde_json::json;
 
@@ -384,15 +390,29 @@ impl qobject::Controller {
             return false;
         };
 
-        let name = format!("{}.pdf", s.plan_title().replace([' ', '·', '/', '–'], "-"));
-        let path = s
-            .dir()
-            .parent()
-            .map(|p| p.join(&name))
-            .unwrap_or_else(|| name.clone().into());
+        let path = plan_file(s, "pdf");
         let message = match s.export_pdf(&path, Paper::A4, texts) {
             Ok(()) => language
                 .text("menu.pdfSaved")
+                .replace("{path}", &path.to_string_lossy()),
+            Err(e) => error_text(language, &e),
+        };
+        let ok = path.exists();
+        self.as_mut().say(message);
+        ok
+    }
+
+    fn export_csv(mut self: Pin<&mut Self>) -> bool {
+        let language = self.rust().language;
+        let texts = print_texts(language);
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        let path = plan_file(s, "csv");
+        let message = match s.export_csv(&path, &texts) {
+            Ok(()) => language
+                .text("menu.csvSaved")
                 .replace("{path}", &path.to_string_lossy()),
             Err(e) => error_text(language, &e),
         };
@@ -409,6 +429,51 @@ impl qobject::Controller {
     }
 }
 
+/// Where an export of the current plan goes: next to the project folder, named by the plan.
+fn plan_file(s: &Session, extension: &str) -> std::path::PathBuf {
+    let name = format!(
+        "{}.{extension}",
+        s.plan_title().replace([' ', '·', '/', '–'], "-")
+    );
+
+    s.dir()
+        .parent()
+        .map(|p| p.join(&name))
+        .unwrap_or_else(|| name.into())
+}
+
+/// The shot list's words from the catalogue.
+fn shot_texts(language: Language) -> ShotTexts {
+    let t = |k: &str| language.text(k);
+
+    ShotTexts {
+        title: t("shots.title"),
+        columns: ShotColumns {
+            number: t("field.number"),
+            camera: t("field.camera"),
+            lens_mm: t("field.lens"),
+            size: t("field.size"),
+            movement: t("field.movement"),
+            from_s: t("field.from"),
+            to_s: t("field.to"),
+            duration_s: t("field.duration"),
+            description: t("field.description"),
+            props: t("field.props"),
+            gear: t("field.gear"),
+            crew: t("field.crew"),
+            note: t("field.note"),
+        },
+        sizes: ShotSize::ALL
+            .iter()
+            .map(|s| (*s, t(&format!("size.{}", s.name()))))
+            .collect(),
+        movements: Movement::ALL
+            .iter()
+            .map(|m| (*m, t(&format!("movement.{}", m.name()))))
+            .collect(),
+    }
+}
+
 /// The printed texts from the catalogue (E-05: no texts in code).
 fn print_texts(language: Language) -> Texts {
     let t = |k: &str| language.text(k);
@@ -422,6 +487,7 @@ fn print_texts(language: Language) -> Texts {
         mark: t("legend.mark"),
         unit: t("unit.m"),
         decimal_separator: t("unit.decimal").chars().next().unwrap_or('.'),
+        shots: shot_texts(language),
     }
 }
 
