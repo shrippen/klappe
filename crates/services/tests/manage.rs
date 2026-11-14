@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{FigureColor, ProjectEdit, ServiceError, Session};
+use klappe_services::{Field, FigureColor, ProjectEdit, ServiceError, Session};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -100,7 +100,13 @@ fn create_refuses_a_folder_with_files() {
 fn create_refuses_an_empty_title() {
     let err = Session::create(&scratch("manage-create-title"), "  ").unwrap_err();
 
-    assert!(matches!(err, ServiceError::BadValue { field: "title", .. }));
+    assert!(matches!(
+        err,
+        ServiceError::BadValue {
+            field: Field::Title,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -149,7 +155,7 @@ fn a_scene_needs_a_number_and_a_known_location() {
     assert!(matches!(
         err,
         ServiceError::BadValue {
-            field: "number",
+            field: Field::Number,
             ..
         }
     ));
@@ -318,14 +324,20 @@ fn a_location_gets_a_name_and_a_size() {
     let mut s = open("manage-location-bad");
 
     let err = s.edit_project(add_location(" ")).unwrap_err();
-    assert!(matches!(err, ServiceError::BadValue { field: "name", .. }));
+    assert!(matches!(
+        err,
+        ServiceError::BadValue {
+            field: Field::Name,
+            ..
+        }
+    ));
 
     for (width_m, depth_m, field) in [
-        (0.0, 5.0, "width"),
-        (5.0, -1.0, "depth"),
-        (f64::NAN, 5.0, "width"),
-        (5.0, f64::INFINITY, "depth"),
-        (5000.0, 5.0, "width"),
+        (0.0, 5.0, Field::Width),
+        (5.0, -1.0, Field::Depth),
+        (f64::NAN, 5.0, Field::Width),
+        (5.0, f64::INFINITY, Field::Depth),
+        (5000.0, 5.0, Field::Width),
     ] {
         let err = s
             .edit_project(ProjectEdit::AddLocation {
@@ -438,11 +450,23 @@ fn a_character_needs_a_name_and_a_short_label() {
     let mut s = open("manage-character-bad");
 
     let err = s.edit_project(add_character("", "X")).unwrap_err();
-    assert!(matches!(err, ServiceError::BadValue { field: "name", .. }));
+    assert!(matches!(
+        err,
+        ServiceError::BadValue {
+            field: Field::Name,
+            ..
+        }
+    ));
 
     for short in ["", "  ", "ABCD"] {
         let err = s.edit_project(add_character("Graf", short)).unwrap_err();
-        assert!(matches!(err, ServiceError::BadValue { field: "short", .. }));
+        assert!(matches!(
+            err,
+            ServiceError::BadValue {
+                field: Field::Short,
+                ..
+            }
+        ));
     }
 
     let err = s

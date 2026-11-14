@@ -1,6 +1,7 @@
 use klappe_model::{Angle, Camera, Movement, Shot, ShotSize};
 
 use crate::error::ServiceError;
+use crate::field::Field;
 
 /// The fields of a shot the user edits directly (LH-71).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,19 +39,19 @@ impl ShotField {
         Some(field)
     }
 
-    fn name(self) -> &'static str {
+    fn field(self) -> Field {
         match self {
-            Self::Number => "number",
-            Self::Camera => "camera",
-            Self::Size => "size",
-            Self::Angle => "angle",
-            Self::Movement => "movement",
-            Self::Lens => "lens",
-            Self::Description => "description",
-            Self::Props => "props",
-            Self::Gear => "gear",
-            Self::Crew => "crew",
-            Self::Note => "note",
+            Self::Number => Field::Number,
+            Self::Camera => Field::Camera,
+            Self::Size => Field::Size,
+            Self::Angle => Field::Angle,
+            Self::Movement => Field::Movement,
+            Self::Lens => Field::Lens,
+            Self::Description => Field::Description,
+            Self::Props => Field::Props,
+            Self::Gear => Field::Gear,
+            Self::Crew => Field::Crew,
+            Self::Note => Field::Note,
         }
     }
 }
@@ -69,7 +70,7 @@ pub(crate) fn apply(
     value: &str,
 ) -> Result<(), ServiceError> {
     let bad = || ServiceError::BadValue {
-        field: field.name(),
+        field: field.field(),
         value: value.to_owned(),
     };
 
@@ -169,7 +170,7 @@ mod tests {
             ShotField::Note,
         ];
         for f in fields {
-            assert_eq!(ShotField::from_name(f.name()), Some(f));
+            assert_eq!(ShotField::from_name(f.field().name()), Some(f));
         }
     }
 }

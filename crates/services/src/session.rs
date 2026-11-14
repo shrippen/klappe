@@ -14,6 +14,7 @@ use klappe_store::Loaded;
 
 use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
+use crate::field::Field;
 use crate::library;
 use crate::plan_edit::{self, MarkInfo, PlanEdit, Snapping};
 use crate::project_edit::{self, ProjectEdit};
@@ -163,7 +164,7 @@ impl Session {
         let title = title.trim();
         if title.is_empty() {
             return Err(ServiceError::BadValue {
-                field: "title",
+                field: Field::Title,
                 value: String::new(),
             });
         }
@@ -720,7 +721,7 @@ impl Session {
         match plan.camera(&wanted) {
             Some(c) => Ok(c.id.clone()),
             None => Err(ServiceError::BadValue {
-                field: "camera",
+                field: Field::Camera,
                 value: wanted,
             }),
         }

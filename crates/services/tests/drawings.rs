@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Dash, DrawingShape, FigureColor, Fill, Layer, Lock, PlanEdit, Point, Role, ServiceError,
+    Dash, DrawingShape, Field, FigureColor, Fill, Layer, Lock, PlanEdit, Point, Role, ServiceError,
     Session, Source, Visibility,
 };
 
@@ -103,23 +103,23 @@ fn a_freed_id_is_taken_again() {
 fn a_drawing_of_nothing_is_refused() {
     let at = p(2.0, 2.0);
     let cases = [
-        (DrawingShape::Line { from: at, to: at }, "drawing"),
-        (DrawingShape::Arrow { from: at, to: at }, "drawing"),
-        (rect(at, p(5.0, 2.0)), "drawing"),
+        (DrawingShape::Line { from: at, to: at }, Field::Drawing),
+        (DrawingShape::Arrow { from: at, to: at }, Field::Drawing),
+        (rect(at, p(5.0, 2.0)), Field::Drawing),
         (
             DrawingShape::Ellipse {
                 from: at,
                 to: p(2.0, 5.0),
             },
-            "drawing",
+            Field::Drawing,
         ),
         (
             DrawingShape::Area {
                 points: vec![at, p(3.0, 3.0)],
             },
-            "drawing",
+            Field::Drawing,
         ),
-        (rect(at, p(f64::NAN, 5.0)), "point"),
+        (rect(at, p(f64::NAN, 5.0)), Field::Point),
     ];
 
     for (shape, field) in cases {

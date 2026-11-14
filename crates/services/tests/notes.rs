@@ -4,7 +4,9 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{Layer, PlanEdit, Point, Role, ServiceError, Session, Source, Visibility};
+use klappe_services::{
+    Field, Layer, PlanEdit, Point, Role, ServiceError, Session, Source, Visibility,
+};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -95,11 +97,17 @@ fn an_empty_text_is_refused() {
 
     assert!(matches!(
         s.edit_plan(add),
-        Err(ServiceError::BadValue { field: "note", .. })
+        Err(ServiceError::BadValue {
+            field: Field::Note,
+            ..
+        })
     ));
     assert!(matches!(
         s.edit_plan(edit),
-        Err(ServiceError::BadValue { field: "note", .. })
+        Err(ServiceError::BadValue {
+            field: Field::Note,
+            ..
+        })
     ));
     assert!(!s.is_dirty());
 }
@@ -115,7 +123,10 @@ fn a_note_at_nan_is_refused() {
 
     assert!(matches!(
         s.edit_plan(edit),
-        Err(ServiceError::BadValue { field: "point", .. })
+        Err(ServiceError::BadValue {
+            field: Field::Point,
+            ..
+        })
     ));
 }
 
