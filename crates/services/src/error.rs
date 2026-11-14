@@ -8,6 +8,10 @@ pub enum ServiceError {
     NoScene(String),
     #[error("no shot {0}")]
     NoShot(String),
+    #[error("nothing to edit: {0}")]
+    NoTarget(String),
+    #[error("camera {0} is used by a shot")]
+    CameraInUse(String),
     #[error("bad value for {field}: {value}")]
     BadValue { field: &'static str, value: String },
     #[error(transparent)]

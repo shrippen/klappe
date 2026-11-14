@@ -9,6 +9,8 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
     let (key, detail) = match error {
         ServiceError::NoScene(id) => ("error.noScene", id.clone()),
         ServiceError::NoShot(id) => ("error.noShot", id.clone()),
+        ServiceError::NoTarget(what) => ("error.noTarget", what.clone()),
+        ServiceError::CameraInUse(id) => ("error.cameraInUse", id.clone()),
         ServiceError::BadValue { field, value } => {
             let name = language.text(&format!("field.{field}"));
             return language
