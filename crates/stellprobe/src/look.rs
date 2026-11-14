@@ -54,11 +54,7 @@ fn plain(hue: Hue, line: Dash, area: Area) -> Look {
 
 pub fn look(role: Role) -> Look {
     match role {
-        Role::Drawing {
-            color,
-            dash,
-            fill,
-        } => plain(Hue::Color(color), dash, drawing_area(fill)),
+        Role::Drawing { color, dash, fill } => plain(Hue::Color(color), dash, drawing_area(fill)),
         Role::ArrowHead(c) | Role::FigureHandle(c) | Role::Figure(c) => {
             plain(Hue::Color(c), Dash::Solid, Area::Solid)
         }

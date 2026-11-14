@@ -1,7 +1,7 @@
 //! Display-list roles mapped to Kante palette roles (planung/KONZEPT.md, section 4).
 //! Translucent areas use opacity, not extra colours.
 
-use klappe_model::Dash as DrawDash;
+use klappe_model::{Dash as DrawDash, FigureColor};
 use klappe_stellprobe::{look, Area, Hue, Role};
 
 use crate::canvas::{Dash, Fill, Stroke};
@@ -24,32 +24,59 @@ pub(crate) struct RoleStyle {
     pub stroke: Option<Stroke>,
 }
 
-fn class_of(role: Role) -> String {
+/// The class of a role that carries a figure colour: its name and the colour.
+fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
     match role {
-        Role::Drawing { color, .. } => format!("drawing {}", color.name()),
-        Role::ArrowHead(c) => format!("arrow-head {}", c.name()),
-        Role::FigurePath(c) => format!("figure-path {}", c.name()),
-        Role::Mark(c) => format!("mark {}", c.name()),
-        Role::Figure(c) => format!("figure {}", c.name()),
-        _ => plain_class(role).into(),
+        Role::Drawing { color, .. } => Some(("drawing", color)),
+        Role::ArrowHead(c) => Some(("arrow-head", c)),
+        Role::FigurePath(c) => Some(("figure-path", c)),
+        Role::Mark(c) => Some(("mark", c)),
+        Role::Figure(c) => Some(("figure", c)),
+        Role::Background
+        | Role::FigureHandle(_)
+        | Role::CameraHandle
+        | Role::Wall
+        | Role::Object
+        | Role::Camera
+        | Role::Frustum
+        | Role::CameraPath
+        | Role::Light
+        | Role::LightBeam
+        | Role::Note
+        | Role::Axis
+        | Role::GroupDot => None,
     }
 }
 
-fn plain_class(role: Role) -> &'static str {
+/// The class of a role without a figure colour; `None` for the coloured ones.
+fn plain_class(role: Role) -> Option<&'static str> {
     match role {
-        Role::Background => "background",
-        Role::FigureHandle(_) | Role::CameraHandle => "handle",
-        Role::Wall => "wall",
-        Role::Object => "object",
-        Role::Camera => "camera",
-        Role::Frustum => "frustum",
-        Role::CameraPath => "camera-path",
-        Role::Light => "light",
-        Role::LightBeam => "beam",
-        Role::Note => "note",
-        Role::Axis => "axis",
-        _ => "group-dot",
+        Role::Background => Some("background"),
+        Role::FigureHandle(_) | Role::CameraHandle => Some("handle"),
+        Role::Wall => Some("wall"),
+        Role::Object => Some("object"),
+        Role::Camera => Some("camera"),
+        Role::Frustum => Some("frustum"),
+        Role::CameraPath => Some("camera-path"),
+        Role::Light => Some("light"),
+        Role::LightBeam => Some("beam"),
+        Role::Note => Some("note"),
+        Role::Axis => Some("axis"),
+        Role::GroupDot => Some("group-dot"),
+        Role::Drawing { .. }
+        | Role::ArrowHead(_)
+        | Role::FigurePath(_)
+        | Role::Mark(_)
+        | Role::Figure(_) => None,
     }
+}
+
+fn class_of(role: Role) -> String {
+    if let Some((name, c)) = coloured_class(role) {
+        return format!("{name} {}", c.name());
+    }
+
+    plain_class(role).unwrap_or_default().into()
 }
 
 /// 0 for what the export does not stroke.
@@ -60,7 +87,15 @@ fn width_pt(role: Role) -> f64 {
         Role::Axis => AXIS_PT,
         Role::Mark(_) => MARK_PT,
         Role::Drawing { .. } | Role::ArrowHead(_) => DRAWING_PT,
-        _ => OUTLINE_PT,
+        Role::Wall
+        | Role::Object
+        | Role::LightBeam
+        | Role::Light
+        | Role::Note
+        | Role::Frustum
+        | Role::Camera
+        | Role::Figure(_)
+        | Role::GroupDot => OUTLINE_PT,
     }
 }
 
@@ -68,7 +103,22 @@ fn tint_opacity(role: Role) -> f64 {
     match role {
         Role::Mark(_) => MARK_OPACITY,
         Role::Drawing { .. } => DRAWING_OPACITY,
-        _ => AREA_OPACITY,
+        Role::Background
+        | Role::Wall
+        | Role::Object
+        | Role::LightBeam
+        | Role::Light
+        | Role::Note
+        | Role::Axis
+        | Role::CameraPath
+        | Role::Frustum
+        | Role::Camera
+        | Role::CameraHandle
+        | Role::ArrowHead(_)
+        | Role::FigurePath(_)
+        | Role::FigureHandle(_)
+        | Role::Figure(_)
+        | Role::GroupDot => AREA_OPACITY,
     }
 }
 
