@@ -32,6 +32,35 @@ pub enum Layer {
     Drawings,
 }
 
+impl Layer {
+    /// Every layer, in the order the layer list shows.
+    pub const ALL: [Layer; 6] = [
+        Layer::Set,
+        Layer::Figures,
+        Layer::Cameras,
+        Layer::Lights,
+        Layer::Notes,
+        Layer::Drawings,
+    ];
+
+    /// How QML and the catalogue (`layer.<name>`) call the layer.
+    pub fn name(self) -> &'static str {
+        match self {
+            Layer::Set => "set",
+            Layer::Figures => "figures",
+            Layer::Cameras => "cameras",
+            Layer::Lights => "lights",
+            Layer::Notes => "notes",
+            Layer::Drawings => "drawings",
+        }
+    }
+
+    /// The layer `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|l| l.name() == name)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility {
     Shown,

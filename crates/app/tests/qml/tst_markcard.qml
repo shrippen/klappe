@@ -16,6 +16,11 @@ TestCase {
         id: fake
         property string planJson: ""
         property string selectedKey: ""
+        property string choicesJson: JSON.stringify({
+            pose: ["standing", "sitting", "lying"],
+            arrival: ["walk", "appear"],
+            departure: ["stay", "leave"]
+        })
         property var info: ({})
         property var poses: []
         property var holds: []

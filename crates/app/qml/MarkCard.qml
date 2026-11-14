@@ -16,9 +16,10 @@ KanteCard {
     required property var texts
     required property var controller
 
-    readonly property var poses: ["standing", "sitting", "lying"]
-    readonly property var arrivals: ["walk", "appear"]
-    readonly property var departures: ["stay", "leave"]
+    readonly property var choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : ({})
+    readonly property var poses: choices.pose || []
+    readonly property var arrivals: choices.arrival || []
+    readonly property var departures: choices.departure || []
     readonly property var info: {
         // The plan changes with every edit; the key alone would not tell the new values.
         card.controller.planJson

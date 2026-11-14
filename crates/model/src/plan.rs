@@ -144,6 +144,25 @@ pub enum Dash {
     Dotted,
 }
 
+impl Dash {
+    /// Every dash, in the order the tool bar offers.
+    pub const ALL: [Dash; 3] = [Dash::Solid, Dash::Dashed, Dash::Dotted];
+
+    /// The name the file format uses, e.g. `dashed`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Dash::Solid => "solid",
+            Dash::Dashed => "dashed",
+            Dash::Dotted => "dotted",
+        }
+    }
+
+    /// The dash `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|d| d.name() == name)
+    }
+}
+
 /// Whether the inside of a closed shape is tinted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -151,6 +170,24 @@ pub enum Fill {
     #[default]
     Outline,
     Filled,
+}
+
+impl Fill {
+    /// Every fill, in the order the tool bar offers.
+    pub const ALL: [Fill; 2] = [Fill::Outline, Fill::Filled];
+
+    /// The name the file format uses, e.g. `filled`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Fill::Outline => "outline",
+            Fill::Filled => "filled",
+        }
+    }
+
+    /// The fill `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|f| f.name() == name)
+    }
 }
 
 /// A character's way through the scene: marks 1, 2, 3 … in time order (LH-21).
@@ -371,6 +408,35 @@ pub enum LightKind {
     Flag,
 }
 
+impl LightKind {
+    /// Every lamp kind, in the order the tool bar offers.
+    pub const ALL: [LightKind; 6] = [
+        LightKind::Fresnel,
+        LightKind::LedPanel,
+        LightKind::Tube,
+        LightKind::Balloon,
+        LightKind::Reflector,
+        LightKind::Flag,
+    ];
+
+    /// The name the file format uses, e.g. `led-panel`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            LightKind::Fresnel => "fresnel",
+            LightKind::LedPanel => "led-panel",
+            LightKind::Tube => "tube",
+            LightKind::Balloon => "balloon",
+            LightKind::Reflector => "reflector",
+            LightKind::Flag => "flag",
+        }
+    }
+
+    /// The lamp kind `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|k| k.name() == name)
+    }
+}
+
 /// Ties an element of the scene's script to the plan (design B: "when what happens").
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScriptLink {
@@ -417,6 +483,29 @@ mod tests {
         assert_eq!(Pose::from_name("flying"), None);
         assert_eq!(Arrival::from_name("fly"), None);
         assert_eq!(Departure::from_name("vanish"), None);
+    }
+
+    /// Same for the drawing tools' dash and fill and for the lamp kinds.
+    #[test]
+    fn tool_names_are_the_file_names() {
+        for dash in Dash::ALL {
+            let json = serde_json::to_string(&dash).unwrap();
+            assert_eq!(json, format!("\"{}\"", dash.name()));
+            assert_eq!(Dash::from_name(dash.name()), Some(dash));
+        }
+        for fill in Fill::ALL {
+            let json = serde_json::to_string(&fill).unwrap();
+            assert_eq!(json, format!("\"{}\"", fill.name()));
+            assert_eq!(Fill::from_name(fill.name()), Some(fill));
+        }
+        for kind in LightKind::ALL {
+            let json = serde_json::to_string(&kind).unwrap();
+            assert_eq!(json, format!("\"{}\"", kind.name()));
+            assert_eq!(LightKind::from_name(kind.name()), Some(kind));
+        }
+        assert_eq!(Dash::from_name("wavy"), None);
+        assert_eq!(Fill::from_name("hatched"), None);
+        assert_eq!(LightKind::from_name("laser"), None);
     }
 
     /// A plan without drawings writes no `drawings` key; a file without it has none.
