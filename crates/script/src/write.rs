@@ -1,8 +1,8 @@
 //! Elements to Fountain text.
 
 use crate::parse::{
-    parse, parse_elements, BONEYARD_ESCAPE, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING,
-    FORCE_TRANSITION,
+    parse, parse_elements, BONEYARD_OPEN, BONEYARD_OPEN_ESCAPED, FORCE_ACTION, FORCE_CHARACTER,
+    FORCE_HEADING, FORCE_TRANSITION,
 };
 use crate::{Element, Script};
 
@@ -44,7 +44,7 @@ pub fn write(script: &Script) -> String {
 
 /// Escapes each `/*`, which the parser would read as a boneyard.
 fn protect(text: &str) -> String {
-    text.replace("/*", &format!("{BONEYARD_ESCAPE}/*"))
+    text.replace(BONEYARD_OPEN, BONEYARD_OPEN_ESCAPED)
 }
 
 /// The marker that forces an element's plain form to stay what it is.

@@ -17,10 +17,11 @@ const PAGE_BREAK_MIN: usize = 3;
 const TRANSITION_END: &str = "TO:";
 const NOTE_OPEN: &str = "[[";
 const NOTE_CLOSE: &str = "]]";
-const BONEYARD_OPEN: &str = "/*";
+pub(crate) const BONEYARD_OPEN: &str = "/*";
 const BONEYARD_CLOSE: &str = "*/";
-/// Before `/*`: the opener is text, the escape is dropped (`\/*` reads as `/*`).
-pub(crate) const BONEYARD_ESCAPE: char = '\\';
+/// `/*` written with Fountain's backslash escape on the star: text, never a boneyard
+/// (`/\*` reads as `/*`, and other Fountain programs show it the same).
+pub(crate) const BONEYARD_OPEN_ESCAPED: &str = "/\\*";
 
 /// Prefixes of scene headings, longest first; each must be followed by `.` or a space.
 const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext", "est"];
@@ -37,31 +38,23 @@ pub fn parse(text: &str) -> Script {
     }
 }
 
-/// Cuts `/* ... */` out of the text; an unclosed one runs to the end.
-/// An opener behind `BONEYARD_ESCAPE` stays in the text.
+/// Cuts `/* ... */` out of the text; an unclosed one runs to the end. An escaped opener
+/// (`BONEYARD_OPEN_ESCAPED`) is no opener and reads as `/*`.
 fn strip_boneyard(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
 
     while let Some(start) = rest.find(BONEYARD_OPEN) {
-        if rest[..start].ends_with(BONEYARD_ESCAPE) {
-            let literal_end = start + BONEYARD_OPEN.len();
-            out.push_str(&rest[..start - BONEYARD_ESCAPE.len_utf8()]);
-            out.push_str(&rest[start..literal_end]);
-            rest = &rest[literal_end..];
-            continue;
-        }
-
         out.push_str(&rest[..start]);
         let after = &rest[start + BONEYARD_OPEN.len()..];
         let Some(end) = after.find(BONEYARD_CLOSE) else {
-            return out;
+            return out.replace(BONEYARD_OPEN_ESCAPED, BONEYARD_OPEN);
         };
         rest = &after[end + BONEYARD_CLOSE.len()..];
     }
 
     out.push_str(rest);
-    out
+    out.replace(BONEYARD_OPEN_ESCAPED, BONEYARD_OPEN)
 }
 
 /// Splits `Key: value` lines at the top of the text from the body.
