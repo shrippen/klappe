@@ -86,6 +86,7 @@ Kirigami.ApplicationWindow {
                 onNewRequested: root.switchProject(() => newFolderDialog.open())
                 onOpenRequested: root.switchProject(() => openFolderDialog.open())
                 onRecentRequested: path => ctl.openProject(path)
+                onForgetRequested: path => ctl.forgetRecent(path)
             }
 
             // Tool bar: the drawing tools.

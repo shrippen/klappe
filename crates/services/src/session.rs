@@ -622,6 +622,15 @@ impl Session {
         write_file(path, bytes)
     }
 
+    /// Writes the current plan as a PNG without the sheet title, for the start page's tile.
+    pub fn export_preview(&self, path: &Path, texts: Texts) -> Result<(), ServiceError> {
+        let (list, mut page) = self.printout(Paper::A4, texts)?;
+        page.title.clear();
+        let bytes = klappe_export::png(&list, &page, Theme::Light)?;
+
+        write_file(path, bytes)
+    }
+
     /// Writes the current plan at the playhead as SVG (LH-81), without the shot list.
     pub fn export_svg(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
         let (list, page) = self.printout(paper, texts)?;
@@ -1167,7 +1176,7 @@ impl Session {
             tracks.push(Track {
                 kind: TrackKind::Figure,
                 id: figure.character.clone(),
-                name: character.name.clone(),
+                name: character.title(),
                 label: label_of(character.color).to_owned(),
                 shown: self.track_shown(&figure.character, Layer::Figures),
                 segments: walks(figure.marks.iter().map(|m| (m.at_s, m.hold_s))),
@@ -1343,6 +1352,7 @@ fn layer_of(role: Role) -> Layer {
         Role::Drawing { .. } | Role::ArrowHead(_) => Layer::Drawings,
         Role::Axis
         | Role::Figure(_)
+        | Role::GroupDot
         | Role::FigurePath(_)
         | Role::FigureHandle(_)
         | Role::Mark(_) => Layer::Figures,

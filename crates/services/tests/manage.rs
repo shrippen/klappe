@@ -57,6 +57,7 @@ fn add_character(name: &str, short: &str) -> ProjectEdit {
         name: name.into(),
         short: short.into(),
         color: FigureColor::Green,
+        group: None,
     }
 }
 
@@ -437,6 +438,7 @@ fn adds_and_changes_a_character() {
         name: "Dietrich".into(),
         short: "D".into(),
         color: FigureColor::Red,
+        group: None,
     })
     .unwrap();
 
@@ -475,9 +477,82 @@ fn a_character_needs_a_name_and_a_short_label() {
             name: "x".into(),
             short: "x".into(),
             color: FigureColor::Blue,
+            group: None,
         })
         .unwrap_err();
     assert!(matches!(err, ServiceError::NoCharacter(_)));
+}
+
+fn group_edit(id: &str, group: Option<u32>) -> ProjectEdit {
+    ProjectEdit::EditCharacter {
+        id: id.into(),
+        name: "Gäste".into(),
+        short: "G".into(),
+        color: FigureColor::Cyan,
+        group,
+    }
+}
+
+#[test]
+fn a_group_is_set_changed_and_cleared_with_undo() {
+    let mut s = open("manage-group");
+
+    s.edit_project(ProjectEdit::AddCharacter {
+        name: "Gäste".into(),
+        short: "G".into(),
+        color: FigureColor::Cyan,
+        group: Some(12),
+    })
+    .unwrap();
+    assert_eq!(s.project().character("gaeste").unwrap().group, Some(12));
+
+    s.edit_project(group_edit("gaeste", Some(999))).unwrap();
+    assert_eq!(s.project().character("gaeste").unwrap().group, Some(999));
+
+    s.edit_project(group_edit("gaeste", None)).unwrap();
+    assert_eq!(s.project().character("gaeste").unwrap().group, None);
+
+    s.undo();
+    assert_eq!(s.project().character("gaeste").unwrap().group, Some(999));
+}
+
+#[test]
+fn a_group_has_two_to_999_people() {
+    let mut s = open("manage-group-bounds");
+    s.edit_project(add_character("Gäste", "G")).unwrap();
+
+    for count in [0, 1, 1000] {
+        let err = s
+            .edit_project(group_edit("gaeste", Some(count)))
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            ServiceError::BadValue {
+                field: Field::Group,
+                ..
+            }
+        ));
+    }
+    assert_eq!(s.project().character("gaeste").unwrap().group, None);
+
+    s.edit_project(group_edit("gaeste", Some(2))).unwrap();
+    assert_eq!(s.project().character("gaeste").unwrap().group, Some(2));
+
+    let err = s
+        .edit_project(ProjectEdit::AddCharacter {
+            name: "Wachen".into(),
+            short: "W".into(),
+            color: FigureColor::Red,
+            group: Some(1),
+        })
+        .unwrap_err();
+    assert!(matches!(
+        err,
+        ServiceError::BadValue {
+            field: Field::Group,
+            ..
+        }
+    ));
 }
 
 #[test]

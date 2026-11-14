@@ -19,7 +19,7 @@ mod library;
 use std::collections::HashSet;
 use std::path::Path;
 
-use klappe_model::{Character, Location, Project, Scene, FORMAT_VERSION};
+use klappe_model::{Character, Location, Project, Scene, FORMAT_VERSION, MAX_GROUP, MIN_GROUP};
 use serde::{Deserialize, Serialize};
 
 pub use camera::builtin_camera_presets;
@@ -97,6 +97,10 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         true => files::read_toml(&characters_path)?,
         false => Characters { figur: Vec::new() },
     };
+    check_groups(&characters.figur).map_err(|message| StoreError::Parse {
+        path: characters_path.clone(),
+        message,
+    })?;
 
     let library_path = dir.join(LIBRARY_FILE);
     let library = match files::exists(&library_path)? {
@@ -285,6 +289,23 @@ where
     }
 
     Ok(items)
+}
+
+/// A group has between `MIN_GROUP` and `MAX_GROUP` people.
+fn check_groups(characters: &[Character]) -> Result<(), String> {
+    for character in characters {
+        let Some(count) = character.group else {
+            continue;
+        };
+        if !(MIN_GROUP..=MAX_GROUP).contains(&count) {
+            return Err(format!(
+                "{}: group of {count} is not usable ({MIN_GROUP} to {MAX_GROUP})",
+                character.id
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 /// Rejects ids that are unsafe as file names (path traversal) or used twice.
