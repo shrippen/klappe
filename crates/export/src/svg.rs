@@ -1,6 +1,7 @@
 use std::fmt::Write;
 
 use crate::canvas::{dash_array, num, Anchor, Doc, Fill, Geom, Prim, Pt, Rect, Stroke, Weight};
+use crate::image::base64;
 
 const FONT_FAMILY: &str = "Helvetica, Arial, sans-serif";
 const CLIP_ID: &str = "plan";
@@ -120,6 +121,7 @@ fn element(prim: &Prim) -> String {
                 ),
             }
         }
+        Prim::Image { .. } => image(prim),
         Prim::Text {
             class,
             at,
@@ -147,6 +149,45 @@ fn element(prim: &Prim) -> String {
             )
         }
     }
+}
+
+/// Embedded as a `data:` URI, so the file can be sent or opened anywhere: a relative path
+/// would point into the project folder and break once the SVG is moved out of it.
+fn image(prim: &Prim) -> String {
+    let Prim::Image {
+        class,
+        at,
+        width_pt,
+        height_pt,
+        rotation_deg,
+        opacity,
+        picture,
+    } = prim
+    else {
+        return String::new();
+    };
+
+    // SVG turns clockwise for a positive angle too (y points down).
+    let turn = match *rotation_deg == 0.0 {
+        true => String::new(),
+        false => format!(
+            " transform=\"rotate({} {} {})\"",
+            num(*rotation_deg),
+            num(at.0),
+            num(at.1)
+        ),
+    };
+
+    format!(
+        "<image class=\"{class}\" x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" preserveAspectRatio=\"none\" opacity=\"{}\"{turn} href=\"data:{};base64,{}\"/>\n",
+        num(at.0),
+        num(at.1),
+        num(*width_pt),
+        num(*height_pt),
+        num(*opacity),
+        picture.mime(),
+        base64(&picture.bytes)
+    )
 }
 
 fn escape(text: &str) -> String {

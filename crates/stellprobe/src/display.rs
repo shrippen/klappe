@@ -1,4 +1,4 @@
-use klappe_model::{FigureColor, FloorPlan, Point, Project, SetObject, SetPlan};
+use klappe_model::{Background, FigureColor, FloorPlan, Point, Project, SetObject, SetPlan};
 
 use crate::axis::axis_at;
 use crate::motion::{camera_at, figure_at};
@@ -40,10 +40,22 @@ pub enum Shape {
         center: Point,
         radius_m: f64,
     },
+    /// A picture file of the project folder, `width_m` by `depth_m` from its top left corner
+    /// `at`, turned clockwise about `at`. The list names the file; reading it is the caller's.
+    Image {
+        file: String,
+        at: Point,
+        width_m: f64,
+        depth_m: f64,
+        rotation_deg: f64,
+        opacity: f64,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
+    /// The set's background image, behind everything else.
+    Background,
     Wall,
     Object,
     LightBeam,
@@ -86,10 +98,21 @@ const NOSE_M: f64 = 0.25;
 const NOSE_HALF_DEG: f64 = 35.0;
 
 /// The display list of a floor plan on its location's set at time `t_s` (LH-60).
-pub fn render(project: &Project, set: &SetPlan, plan: &FloorPlan, t_s: f64) -> DisplayList {
+/// `background_px` is the pixel size of the set's background image; Stellprobe reads no
+/// files, so the caller looks it up. Without it the background is left out.
+pub fn render(
+    project: &Project,
+    set: &SetPlan,
+    plan: &FloorPlan,
+    t_s: f64,
+    background_px: Option<(u32, u32)>,
+) -> DisplayList {
     let mut items = Vec::new();
     let reach_m = set_diagonal_m(set).unwrap_or(VIEW_REACH_FALLBACK_M);
 
+    if let (Some(background), Some(px)) = (&set.background, background_px) {
+        background_item(background, px, &mut items);
+    }
     set_items(set, &mut items);
     light_items(plan, &mut items);
     axis_items(plan, t_s, reach_m, &mut items);
@@ -106,6 +129,28 @@ pub fn render(project: &Project, set: &SetPlan, plan: &FloorPlan, t_s: f64) -> D
 fn set_diagonal_m(set: &SetPlan) -> Option<f64> {
     let d = set.width_m.hypot(set.depth_m);
     (d > 0.0).then_some(d)
+}
+
+/// The image keeps its aspect ratio: depth = width * pixel height / pixel width.
+fn background_item(background: &Background, px: (u32, u32), items: &mut Vec<Item>) {
+    let (width_px, height_px) = px;
+    if width_px == 0 || height_px == 0 {
+        return;
+    }
+
+    items.push(Item {
+        role: Role::Background,
+        shape: Shape::Image {
+            file: background.file.clone(),
+            at: background.at,
+            width_m: background.width_m,
+            depth_m: background.width_m * f64::from(height_px) / f64::from(width_px),
+            rotation_deg: background.rotation_deg,
+            opacity: background.opacity,
+        },
+        label: None,
+        source: None,
+    });
 }
 
 fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
@@ -344,6 +389,7 @@ mod tests {
                 thickness_m: 0.2,
             }],
             objects: vec![],
+            background: None,
         }
     }
 
@@ -404,7 +450,7 @@ mod tests {
 
     #[test]
     fn draws_every_part_of_the_plan() {
-        let list = render(&project(), &set(), &plan(), 0.0);
+        let list = render(&project(), &set(), &plan(), 0.0, None);
 
         assert_eq!(count(&list, Role::Wall), 1);
         assert_eq!(count(&list, Role::Light), 1);
@@ -416,7 +462,7 @@ mod tests {
 
     #[test]
     fn walls_are_selectable_by_index() {
-        let list = render(&project(), &set(), &plan(), 0.0);
+        let list = render(&project(), &set(), &plan(), 0.0, None);
 
         assert_eq!(list.items[0].source, Some(Source::Wall(0)));
     }
@@ -424,7 +470,7 @@ mod tests {
     #[test]
     fn figure_moves_with_time() {
         let at = |t: f64| {
-            render(&project(), &set(), &plan(), t)
+            render(&project(), &set(), &plan(), t, None)
                 .items
                 .into_iter()
                 .find_map(|i| match (i.role, i.shape) {
@@ -441,13 +487,65 @@ mod tests {
 
     #[test]
     fn walls_come_first_figures_last() {
-        let list = render(&project(), &set(), &plan(), 0.0);
+        let list = render(&project(), &set(), &plan(), 0.0, None);
 
         assert_eq!(list.items.first().map(|i| i.role), Some(Role::Wall));
         assert!(matches!(
             list.items.last().map(|i| i.role),
             Some(Role::Figure(_))
         ));
+    }
+
+    /// 1000 x 500 px set 12.5 m wide is 6.25 m deep; it is the first, hindmost item.
+    #[test]
+    fn background_is_first_and_keeps_its_aspect() {
+        let mut room = set();
+        room.background = Some(Background {
+            file: "bilder/saal.png".into(),
+            at: Point::new(1.0, 2.0),
+            width_m: 12.5,
+            rotation_deg: 30.0,
+            opacity: 0.5,
+        });
+
+        let list = render(&project(), &room, &plan(), 0.0, Some((1000, 500)));
+
+        assert_eq!(
+            list.items.first(),
+            Some(&Item {
+                role: Role::Background,
+                shape: Shape::Image {
+                    file: "bilder/saal.png".into(),
+                    at: Point::new(1.0, 2.0),
+                    width_m: 12.5,
+                    depth_m: 6.25,
+                    rotation_deg: 30.0,
+                    opacity: 0.5,
+                },
+                label: None,
+                source: None,
+            })
+        );
+        assert_eq!(list.items.get(1).map(|i| i.role), Some(Role::Wall));
+    }
+
+    #[test]
+    fn background_needs_a_set_entry_and_a_size() {
+        let mut room = set();
+        let none_set = render(&project(), &room, &plan(), 0.0, Some((10, 10)));
+        room.background = Some(Background {
+            file: "bilder/saal.png".into(),
+            at: Point::default(),
+            width_m: 5.0,
+            rotation_deg: 0.0,
+            opacity: 1.0,
+        });
+        let unknown_size = render(&project(), &room, &plan(), 0.0, None);
+        let zero_size = render(&project(), &room, &plan(), 0.0, Some((0, 10)));
+
+        for list in [none_set, unknown_size, zero_size] {
+            assert_eq!(count(&list, Role::Background), 0);
+        }
     }
 
     /// A 2 m wide, flat object turned by 90° stands upright: corners at y = -1 and y = 1.
@@ -480,7 +578,7 @@ mod tests {
     /// The axis runs through both figures and on by the set's diagonal on each side.
     #[test]
     fn axis_reaches_across_the_set() {
-        let list = render(&project(), &set(), &plan(), 0.0);
+        let list = render(&project(), &set(), &plan(), 0.0, None);
         let axis = list.items.iter().find_map(|i| match (i.role, &i.shape) {
             (Role::Axis, Shape::Line { from, to, .. }) => Some((*from, *to)),
             _ => None,
@@ -511,7 +609,7 @@ mod tests {
     }
 
     fn frustum_of(plan: &FloorPlan, t_s: f64) -> Vec<Point> {
-        render(&project(), &set(), plan, t_s)
+        render(&project(), &set(), plan, t_s, None)
             .items
             .into_iter()
             .find_map(|i| match (i.role, i.shape) {
@@ -554,7 +652,7 @@ mod tests {
         let mut p = plan();
         p.figures[0].character = "nobody".into();
 
-        let list = render(&project(), &set(), &p, 0.0);
+        let list = render(&project(), &set(), &p, 0.0, None);
 
         assert_eq!(count(&list, Role::Mark(FigureColor::Purple)), 0);
     }

@@ -1,6 +1,8 @@
+use std::path::{Path, PathBuf};
+
 use klappe_model::{
-    Camera, CameraMark, Character, FigureTrack, FloorPlan, Light, LightKind, LinkTarget, Mark,
-    Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
+    Background, Camera, CameraMark, Character, FigureTrack, FloorPlan, Light, LightKind,
+    LinkTarget, Mark, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{hit, Item, Role, Source};
 
@@ -56,6 +58,27 @@ pub enum PlanEdit {
         from: Point,
         to: Point,
     },
+    /// Takes the image file `source` (PNG or JPEG) as the set's background, copied into the
+    /// project's `bilder/`, as wide as the set from its top left corner. Undo takes the
+    /// background back out of the model; the copy stays in `bilder/`, it is the user's file.
+    SetBackground {
+        source: PathBuf,
+    },
+    /// Scales the background about `from` so that the stretch from `from` to `to`, as they lie
+    /// on the plan now, measures `distance_m` in truth: the way to set the image's scale from
+    /// a length known on site.
+    Calibrate {
+        from: Point,
+        to: Point,
+        distance_m: f64,
+    },
+    /// Moves the background without changing its scale.
+    MoveBackground {
+        dx_m: f64,
+        dy_m: f64,
+    },
+    /// Takes the background off the set; its file stays in `bilder/`.
+    RemoveBackground,
 }
 
 /// Whether points snap to the grid (LH-14).
@@ -78,6 +101,9 @@ const DEFAULT_CAMERA_HEIGHT_M: f64 = 1.6;
 const DEFAULT_SENSOR: Sensor = Sensor::Super35;
 const DEFAULT_LENS_MM: f64 = 35.0;
 const DEFAULT_ASPECT: f64 = 2.39;
+
+/// A new background lets the plan underneath show through.
+const BACKGROUND_OPACITY: f64 = 0.5;
 
 const DEFAULT_OBJECT_M: f64 = 1.0;
 const DEFAULT_WALL_M: f64 = 0.2;
@@ -137,7 +163,12 @@ pub(crate) fn pick(items: &[Item], at: Point) -> Option<Source> {
 fn grabbable(role: Role) -> bool {
     !matches!(
         role,
-        Role::Frustum | Role::Axis | Role::CameraPath | Role::FigurePath(_) | Role::LightBeam
+        Role::Background
+            | Role::Frustum
+            | Role::Axis
+            | Role::CameraPath
+            | Role::FigurePath(_)
+            | Role::LightBeam
     )
 }
 
@@ -162,9 +193,11 @@ enum Target<'a> {
 }
 
 /// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snapping` is for
-/// `Shift`, the other edits take their points as given. On an error the project may be half
-/// changed: the caller works on a copy.
+/// `Shift`, the other edits take their points as given. `dir` is the project folder, where
+/// `SetBackground` copies its image to. On an error the project may be half changed: the
+/// caller works on a copy.
 pub(crate) fn apply(
+    dir: &Path,
     project: &mut Project,
     scene: usize,
     plan: usize,
@@ -214,6 +247,14 @@ pub(crate) fn apply(
         PlanEdit::AddLight { kind, at } => add_light(&mut scope, *kind, *at),
         PlanEdit::AddObject { kind, at } => add_object(&mut scope, kind, *at),
         PlanEdit::AddWall { from, to } => add_wall(&mut scope, *from, *to),
+        PlanEdit::SetBackground { source } => set_background(&mut scope, dir, source),
+        PlanEdit::Calibrate {
+            from,
+            to,
+            distance_m,
+        } => calibrate(&mut scope, (*from, *to), *distance_m),
+        PlanEdit::MoveBackground { dx_m, dy_m } => move_background(&mut scope, (*dx_m, *dy_m)),
+        PlanEdit::RemoveBackground => remove_background(&mut scope),
     }
 }
 
@@ -237,8 +278,32 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             check_point(*from)?;
             check_point(*to)
         }
-        PlanEdit::Remove { .. } => Ok(()),
+        PlanEdit::Calibrate {
+            from,
+            to,
+            distance_m,
+        } => {
+            check_point(*from)?;
+            check_point(*to)?;
+            check_distance(*distance_m)
+        }
+        PlanEdit::MoveBackground { dx_m, dy_m } => check_point(Point::new(*dx_m, *dy_m)),
+        PlanEdit::Remove { .. } | PlanEdit::SetBackground { .. } | PlanEdit::RemoveBackground => {
+            Ok(())
+        }
     }
+}
+
+/// A length in truth: more than nothing, and a number.
+fn check_distance(distance_m: f64) -> Result<(), ServiceError> {
+    if distance_m.is_finite() && distance_m > 0.0 {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: "distance",
+        value: distance_m.to_string(),
+    })
 }
 
 fn check_point(p: Point) -> Result<(), ServiceError> {
@@ -698,6 +763,78 @@ fn add_wall(scope: &mut Scope<'_>, from: Point, to: Point) -> Result<(), Service
     Ok(())
 }
 
+fn set_background(scope: &mut Scope<'_>, dir: &Path, source: &Path) -> Result<(), ServiceError> {
+    let set = scope
+        .set
+        .as_deref_mut()
+        .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
+    if !(set.width_m.is_finite() && set.width_m > 0.0) {
+        return Err(ServiceError::BadValue {
+            field: "set width",
+            value: set.width_m.to_string(),
+        });
+    }
+
+    set.background = Some(Background {
+        file: klappe_store::add_image(dir, source)?,
+        at: Point::default(),
+        width_m: set.width_m,
+        rotation_deg: 0.0,
+        opacity: BACKGROUND_OPACITY,
+    });
+
+    Ok(())
+}
+
+/// The set's background, or `Gone` when it has none (or no set).
+fn background<'a>(scope: &'a mut Scope<'_>) -> Result<&'a mut Background, ServiceError> {
+    scope
+        .set
+        .as_deref_mut()
+        .and_then(|s| s.background.as_mut())
+        .ok_or(ServiceError::Gone)
+}
+
+/// Scaling the image by k about `from` keeps `from` where it is and turns every length into
+/// k times as much: width, and the distance of its corner `at` from `from`. The rotation is
+/// untouched, a scaling does not turn anything.
+fn calibrate(
+    scope: &mut Scope<'_>,
+    (from, to): (Point, Point),
+    distance_m: f64,
+) -> Result<(), ServiceError> {
+    let shown_m = from.distance_m(to);
+    if shown_m == 0.0 {
+        return Err(ServiceError::BadValue {
+            field: "points",
+            value: "same".to_owned(),
+        });
+    }
+
+    let k = distance_m / shown_m;
+    let bg = background(scope)?;
+    bg.at = from.lerp(bg.at, k);
+    bg.width_m *= k;
+
+    Ok(())
+}
+
+fn move_background(scope: &mut Scope<'_>, by_m: (f64, f64)) -> Result<(), ServiceError> {
+    let bg = background(scope)?;
+    bg.at = Point::new(bg.at.x_m + by_m.0, bg.at.y_m + by_m.1);
+
+    Ok(())
+}
+
+fn remove_background(scope: &mut Scope<'_>) -> Result<(), ServiceError> {
+    background(scope)?;
+    if let Some(set) = scope.set.as_deref_mut() {
+        set.background = None;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -726,7 +863,7 @@ mod tests {
             at: Point::new(1.0, 2.0),
             facing_deg: 0.0,
         };
-        apply(project, 0, 0, 3.0, Snapping::On, &edit).unwrap();
+        apply(Path::new("."), project, 0, 0, 3.0, Snapping::On, &edit).unwrap();
     }
 
     #[test]
@@ -765,6 +902,7 @@ mod tests {
         };
         for _ in 0..2 {
             apply(
+                Path::new("."),
                 &mut project,
                 0,
                 0,
@@ -776,6 +914,7 @@ mod tests {
         }
         project.scenes[0].plans[0].lights.remove(0);
         apply(
+            Path::new("."),
             &mut project,
             0,
             0,
@@ -810,7 +949,7 @@ mod tests {
         };
 
         assert!(matches!(
-            apply(&mut project, 0, 0, 0.0, Snapping::On, &edit),
+            apply(Path::new("."), &mut project, 0, 0, 0.0, Snapping::On, &edit),
             Err(ServiceError::NoLocation(ref id)) if id == "l"
         ));
     }

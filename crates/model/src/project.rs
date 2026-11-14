@@ -82,6 +82,25 @@ pub struct SetPlan {
     pub walls: Vec<Wall>,
     #[serde(default)]
     pub objects: Vec<SetObject>,
+    /// An image under the set, e.g. a floor plan or an aerial photo (LH-13).
+    #[serde(default)]
+    pub background: Option<Background>,
+}
+
+/// An image behind the plan, scaled so that its pixels measure what they do on site. The
+/// height follows from the image's aspect ratio, which the model does not know: whoever
+/// needs it reads the pixel size of `file`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Background {
+    /// Relative to the project folder, e.g. `bilder/saengersaal.png`.
+    pub file: String,
+    /// The image's top left corner on the plan.
+    pub at: Point,
+    pub width_m: f64,
+    /// Clockwise on screen about `at`.
+    pub rotation_deg: f64,
+    /// 0 = invisible, 1 = opaque.
+    pub opacity: f64,
 }
 
 /// A wall segment (LH-10); doors and windows are set objects on it.
