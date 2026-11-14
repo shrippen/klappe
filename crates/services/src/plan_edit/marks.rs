@@ -1,7 +1,9 @@
 //! The marks of figures and cameras: pose, arrival, departure, hold and pace, and the mark info
-//! shown for them (hold and mark info apply to cameras too).
+//! shown for them (hold and mark info apply to cameras too); a camera mark's rig and lens.
 
-use klappe_model::{Arrival, Departure, FigureTrack, FloorPlan, Mark, Point, Pose};
+use klappe_model::{
+    Arrival, CameraMark, Departure, FigureTrack, FloorPlan, Mark, Point, Pose, Rig,
+};
 use klappe_stellprobe::{walked_ways, way_length_m, Source};
 
 use super::{bad_mark, current_index, figure_mark, Scope};
@@ -54,6 +56,11 @@ pub struct MarkInfo {
     pub height_m: Option<f64>,
     /// Tilt up from the horizon; `None` for a figure's mark (LH-34).
     pub tilt_deg: Option<f64>,
+    /// How the camera comes to the mark; `None` for a figure's mark (LH-33).
+    pub rig: Option<Rig>,
+    /// The lens the mark states; `None` for a figure's mark and for a camera mark that
+    /// states none (LH-33).
+    pub lens_mm: Option<f64>,
     /// The figure walks a way to the mark: not the first of its track, not one it appears at or
     /// is gone at after leaving (LH-26).
     pub has_way: bool,
@@ -208,6 +215,76 @@ pub(super) fn set_hold(
     Ok(())
 }
 
+/// The camera mark `source` names: the one at the playhead.
+fn camera_mark_mut<'a>(
+    scope: &'a mut Scope<'_>,
+    source: &Source,
+) -> Result<&'a mut CameraMark, ServiceError> {
+    let Source::Camera(id) = source else {
+        return Err(bad_mark(Field::Source, ""));
+    };
+    let time_s = scope.time_s;
+    let camera = scope
+        .plan
+        .cameras
+        .iter_mut()
+        .find(|c| c.id == *id)
+        .ok_or(ServiceError::Gone)?;
+    let index = current_index(camera.marks.iter().map(|m| m.at_s), time_s);
+
+    index
+        .and_then(|i| camera.marks.get_mut(i))
+        .ok_or(ServiceError::Gone)
+}
+
+pub(super) fn set_rig(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    rig: Rig,
+) -> Result<(), ServiceError> {
+    camera_mark_mut(scope, source)?.rig = rig;
+
+    Ok(())
+}
+
+pub(super) fn set_mark_lens(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    lens_mm: Option<f64>,
+) -> Result<(), ServiceError> {
+    camera_mark_mut(scope, source)?.lens_mm = lens_mm;
+
+    Ok(())
+}
+
+/// The camera marks that are on a tripod but not where the mark before is: a tripod does not
+/// move (LH-33). As camera id and index.
+fn moved_tripods(plan: &FloorPlan) -> Vec<(&str, usize)> {
+    let mut found = Vec::new();
+
+    for camera in &plan.cameras {
+        for (i, pair) in camera.marks.windows(2).enumerate() {
+            if pair[1].rig == Rig::Tripod && pair[1].at != pair[0].at {
+                found.push((camera.id.as_str(), i + 1));
+            }
+        }
+    }
+
+    found
+}
+
+/// Refuses a plan `after` an edit in which a tripod mark has moved off the place of the mark
+/// before, where it was not off before: the edit moved the mark, the mark before it, or set
+/// the tripod.
+pub(crate) fn check_tripods(before: &FloorPlan, after: &FloorPlan) -> Result<(), ServiceError> {
+    let known = moved_tripods(before);
+
+    match moved_tripods(after).iter().any(|t| !known.contains(t)) {
+        true => Err(bad_mark(Field::Rig, Rig::Tripod.name())),
+        false => Ok(()),
+    }
+}
+
 pub(super) fn set_pace(
     scope: &mut Scope<'_>,
     source: &Source,
@@ -274,6 +351,8 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
                 hold_s: mark.hold_s,
                 height_m: Some(mark.height_m),
                 tilt_deg: Some(mark.tilt_deg),
+                rig: Some(mark.rig),
+                lens_mm: mark.lens_mm,
                 has_way: index > 0,
                 pace_m_s,
             })
@@ -303,6 +382,8 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
         hold_s: mark.hold_s,
         height_m: None,
         tilt_deg: None,
+        rig: None,
+        lens_mm: None,
         has_way,
         pace_m_s,
     })
@@ -337,6 +418,17 @@ mod tests {
     fn every_pace_has_a_text_in_both_languages() {
         for pace in Pace::ALL {
             let key = format!("pace.{}", pace.name());
+            for language in [Language::German, Language::English] {
+                assert_ne!(language.text(&key), key);
+            }
+        }
+    }
+
+    /// The mark card shows `rig.<name>` and sends the name back.
+    #[test]
+    fn every_rig_has_a_text_in_both_languages() {
+        for rig in Rig::ALL {
+            let key = format!("rig.{}", rig.name());
             for language in [Language::German, Language::English] {
                 assert_ne!(language.text(&key), key);
             }

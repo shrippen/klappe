@@ -17,6 +17,9 @@ pub struct ShotRow {
     /// Model name, e.g. `birds-eye`; the surface translates it.
     pub angle: String,
     pub movement: String,
+    /// What the camera's marks do during a shot without a movement of its own (LH-33): a
+    /// model name like `crane`; empty when the shot has a movement or the camera is static.
+    pub movement_hint: String,
     /// The shot's lens, else its camera's.
     pub lens_mm: f64,
     /// Only the shot's own lens; `None` follows the camera.
@@ -212,6 +215,9 @@ pub enum Hint {
         /// Horizontal angle of view, to a tenth of a degree.
         #[serde(rename = "fov")]
         fov_deg: f64,
+        /// How the camera came to its mark at the playhead, e.g. `crane`; empty at the first
+        /// mark (LH-33).
+        rig: String,
         /// Lens height at the first mark.
         #[serde(rename = "height")]
         height_m: f64,

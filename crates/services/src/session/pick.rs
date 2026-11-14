@@ -98,6 +98,7 @@ impl Session {
             edit,
         )?;
         self.check_cameras(&next)?;
+        self.check_tripods(&next)?;
 
         Ok(self.list_of(&next, selected))
     }

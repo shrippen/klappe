@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     Arrival, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
-    LibraryItem, LightKind, Point, Pose, Project, Scene, SetPlan, Wall,
+    LibraryItem, LightKind, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
 };
 use klappe_stellprobe::{hit, within, Item, Role, Source};
 
@@ -25,8 +25,8 @@ use add::{
 };
 use background::{calibrate, move_background, remove_background, set_background};
 use check::check;
-pub(crate) use marks::mark_info;
-use marks::{set_arrival, set_departure, set_hold, set_pace, set_pose};
+pub(crate) use marks::{check_tripods, mark_info};
+use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_pose, set_rig};
 pub use marks::{MarkInfo, Pace};
 use moving::{anchor_pair, carry_cameras, move_to, points_mut, rotate, shift, spin, target, turn};
 use remove::remove;
@@ -195,6 +195,18 @@ pub enum PlanEdit {
         height_m: f64,
         tilt_deg: f64,
     },
+    /// Sets the rig of the camera mark at the playhead (LH-33): `Source::Camera`. A tripod
+    /// keeps the place of the mark before; the edit is refused when this mark lies elsewhere.
+    SetRig {
+        source: Source,
+        rig: Rig,
+    },
+    /// Sets the lens at the camera mark at the playhead (LH-33), or takes it away with `None`:
+    /// `Source::Camera`. Between marks with a lens the focal length runs with time.
+    SetMarkLens {
+        source: Source,
+        lens_mm: Option<f64>,
+    },
     /// Times the way to a figure's mark for `pace` (LH-63): the mark arrives after the pause
     /// at the mark before and the walk along the way (a curve counts by its length). The
     /// later marks move in time by the change. The first mark has no way to it.
@@ -325,6 +337,8 @@ impl PlanEdit {
             | PlanEdit::SetDeparture { source, .. }
             | PlanEdit::SetHold { source, .. }
             | PlanEdit::SetCameraAim { source, .. }
+            | PlanEdit::SetRig { source, .. }
+            | PlanEdit::SetMarkLens { source, .. }
             | PlanEdit::SetObjectHeight { source, .. }
             | PlanEdit::SetPace { source, .. }
             | PlanEdit::Remove { source }
@@ -522,6 +536,8 @@ pub(crate) fn apply(
             height_m,
             tilt_deg,
         } => set_camera_aim(&mut scope, source, (*height_m, *tilt_deg)),
+        PlanEdit::SetRig { source, rig } => set_rig(&mut scope, source, *rig),
+        PlanEdit::SetMarkLens { source, lens_mm } => set_mark_lens(&mut scope, source, *lens_mm),
         PlanEdit::SetObjectHeight { source, height_m } => {
             set_object_height(&mut scope, source, *height_m)
         }
