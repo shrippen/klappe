@@ -224,3 +224,24 @@ fn a_shot_without_a_movement_gets_a_hint() {
     // The list keeps what is set.
     assert_eq!(hint(&s).movement, "static");
 }
+
+/// The tooltip's height is the running one: the later mark's at its time, not the first's.
+#[test]
+fn the_tooltip_height_is_the_one_at_the_playhead() {
+    let mut s = open();
+    s.set_time(7.0);
+    s.edit_plan(PlanEdit::SetCameraAim {
+        source: camera(),
+        height_m: 2.4,
+        tilt_deg: 0.0,
+    })
+    .unwrap();
+    let height = |s: &Session| match s.camera_hint("a") {
+        Some(Hint::Camera { height_m, .. }) => height_m,
+        _ => panic!("no hint"),
+    };
+
+    assert_eq!(height(&s), 2.4);
+    s.set_time(0.0);
+    assert_eq!(height(&s), 1.6);
+}

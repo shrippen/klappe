@@ -218,7 +218,7 @@ pub enum Hint {
         /// How the camera came to its mark at the playhead, e.g. `crane`; empty at the first
         /// mark (LH-33).
         rig: String,
-        /// Lens height at the first mark.
+        /// Lens height at the playhead (it runs between marks, LH-33).
         #[serde(rename = "height")]
         height_m: f64,
         /// Numbers of the shots from this camera, comma separated.

@@ -1,5 +1,7 @@
 use klappe_model::{Camera, CameraMark, Point, Sensor, Shot};
 
+use crate::motion::progress;
+
 /// Horizontal angle of view in degrees (LH-31): `2·atan(w / 2f)` with the sensor's active width.
 ///
 /// Example: Super 35 (24.89 mm) with a 35 mm lens sees about 39.1°.
@@ -59,13 +61,7 @@ pub(crate) fn mark_lens_at(camera: &Camera, t_s: f64) -> Option<f64> {
             continue;
         }
 
-        let leave_s = (from.at_s + from.hold_s).min(to.at_s);
-        if t_s <= leave_s {
-            return Some(from_mm);
-        }
-
-        let t = (t_s - leave_s) / (to.at_s - leave_s);
-        return Some(from_mm + (to_mm - from_mm) * t);
+        return Some(from_mm + (to_mm - from_mm) * progress(from, to, t_s));
     }
 
     stated.last().map(|(_, lens_mm)| *lens_mm)

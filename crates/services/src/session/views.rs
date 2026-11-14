@@ -2,7 +2,7 @@
 //! the project lists, the tooltips and the set of the current scene.
 
 use klappe_model::{CameraPresets, Location};
-use klappe_stellprobe::{horizontal_fov_deg, Source};
+use klappe_stellprobe::{aim_at, horizontal_fov_deg, Source};
 
 use super::Session;
 use crate::views::{CharacterRow, Hint, LocationRow, Overview, PlanRow, SceneRow};
@@ -114,7 +114,7 @@ impl Session {
             body: body_id(self.camera_presets(), c.sensor.width_mm()).to_owned(),
             fov_deg: (fov_deg * FOV_STEPS_PER_DEG).round() / FOV_STEPS_PER_DEG,
             rig,
-            height_m: c.marks.first().map(|m| m.height_m).unwrap_or(0.0),
+            height_m: aim_at(c, self.time_s).map_or(0.0, |(height_m, _)| height_m),
             shots: shots.join(", "),
             follows,
         })

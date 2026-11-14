@@ -72,7 +72,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   und optional `lens_mm`, die Brennweite an diesem Mark (größer als 0, höchstens 5000). Am ersten
   Mark zählt `rig` nicht. Zwischen zwei Marks mit `lens_mm` läuft die Brennweite linear mit der
   Zeit (nach der Pause des ersten bis zur Ankunft am zweiten, wie der Ort); davor und danach
-  hält sie. Hat irgendein Mark der Kamera `lens_mm`, gilt allein das; sonst gelten wie bisher
+  hält sie. Höhe und Neigung (`height_m`, `tilt_deg`) laufen ebenso linear zwischen den Marks.
+  Hat irgendein Mark der Kamera `lens_mm`, gilt allein das; sonst gelten wie bisher
   das Objektiv des Shots, dann das der Kamera. Ein Wert mit Standard (`dolly`, keine Brennweite)
   wird nicht geschrieben; ältere Projekte laden und speichern unverändert. Ein Mark mit
   `tripod` an einem anderen Ort als der vorige lässt die Bearbeitung nicht zu; eine Datei mit
