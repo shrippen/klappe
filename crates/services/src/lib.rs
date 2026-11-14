@@ -18,7 +18,7 @@ mod views;
 pub use edit::ShotField;
 pub use error::ServiceError;
 pub use plan_edit::{PlanEdit, Snapping};
-pub use session::{Autosave, BackupState, Layer, Session, Visibility};
+pub use session::{Autosave, BackupState, Layer, Lock, Session, Visibility};
 pub use views::{Chip, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind};
 
 // What surfaces draw and print, handed through so they need no lower crate.

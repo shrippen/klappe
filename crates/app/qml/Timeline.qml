@@ -1,10 +1,12 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
 // Timeline (round 2, design 1 and 5): cut order, then figures, cameras and lights, each with
-// its own visibility switch; above it the switches for whole layers.
+// its own visibility switch; above it the switches for whole layers: shown and locked (a
+// locked layer is drawn but cannot be picked or changed).
 Item {
     id: line
 
@@ -13,6 +15,7 @@ Item {
 
     readonly property var source: controller.tracksJson ? JSON.parse(controller.tracksJson) : []
     readonly property var layers: controller.layersJson ? JSON.parse(controller.layersJson) : ({})
+    readonly property var locks: controller.locksJson ? JSON.parse(controller.locksJson) : ({})
 
     // The services' tracks in KanteTrackTimeline's shape.
     readonly property var tracks: source.map(tr => ({
@@ -47,13 +50,29 @@ Item {
             Item { Layout.fillWidth: true }
             KanteSectionLabel { text: line.texts.t("layer.title") }
             Repeater {
-                model: ["set", "figures", "cameras", "lights"]
-                delegate: KanteToolButton {
+                model: ["set", "figures", "cameras", "lights", "notes"]
+                delegate: RowLayout {
                     required property string modelData
-                    text: line.texts.t("layer." + modelData)
-                    checkable: true
-                    checked: line.layers[modelData] !== false
-                    onToggled: line.controller.setLayer(modelData, checked ? "shown" : "hidden")
+                    spacing: 0
+
+                    KanteToolButton {
+                        objectName: "layerButton_" + modelData
+                        text: line.texts.t("layer." + modelData)
+                        checkable: true
+                        checked: line.layers[modelData] !== false
+                        onToggled: line.controller.setLayer(modelData, checked ? "shown" : "hidden")
+                    }
+                    KanteToolButton {
+                        objectName: "lockButton_" + modelData
+                        text: line.texts.t("layer.locked")
+                        Accessible.name: line.texts.t("layer.lockTip", { layer: line.texts.t("layer." + modelData) })
+                        checkable: true
+                        checked: line.locks[modelData] === true
+                        onToggled: line.controller.setLock(modelData, checked ? "locked" : "unlocked")
+                        QQC2.ToolTip.text: Accessible.name
+                        QQC2.ToolTip.visible: hovered
+                        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    }
                 }
             }
         }

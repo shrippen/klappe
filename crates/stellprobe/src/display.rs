@@ -1,4 +1,4 @@
-use klappe_model::{Background, FigureColor, FloorPlan, Point, Project, SetObject, SetPlan};
+use klappe_model::{Background, FigureColor, FloorPlan, Note, Point, Project, SetObject, SetPlan};
 
 use crate::axis::axis_at;
 use crate::motion::{camera_at, figure_at};
@@ -64,6 +64,8 @@ pub enum Role {
     CameraPath,
     Frustum,
     Camera,
+    /// A text pinned to the plan (LH-16): a small marker, the text as its label.
+    Note,
     FigurePath(FigureColor),
     Mark(FigureColor),
     Figure(FigureColor),
@@ -81,6 +83,7 @@ pub enum Source {
     },
     /// Index into the set's walls.
     Wall(usize),
+    Note(String),
 }
 
 /// Figure body radius on the plan.
@@ -89,6 +92,8 @@ pub const FIGURE_RADIUS_M: f64 = 0.35;
 const MARK_RADIUS_M: f64 = 0.22;
 /// Camera and lamp bodies.
 const BODY_RADIUS_M: f64 = 0.25;
+/// The marker a note is pinned with.
+const NOTE_RADIUS_M: f64 = 0.15;
 /// How far a lamp's beam is drawn.
 const BEAM_REACH_M: f64 = 4.0;
 /// How far a camera's view is drawn when the set gives no size.
@@ -118,6 +123,7 @@ pub fn render(
     axis_items(plan, t_s, reach_m, &mut items);
     camera_items(plan, t_s, reach_m, &mut items);
     figure_items(project, plan, t_s, &mut items);
+    note_items(set, &mut items);
 
     DisplayList {
         items,
@@ -188,6 +194,21 @@ fn object_corners(o: &SetObject) -> Vec<Point> {
         .iter()
         .map(|(x, y)| Point::new(o.at.x_m + x * cos - y * sin, o.at.y_m + x * sin + y * cos))
         .collect()
+}
+
+/// Notes lie on top of everything, so a figure never hides one.
+fn note_items(set: &SetPlan, items: &mut Vec<Item>) {
+    for Note { id, at, text } in &set.notes {
+        items.push(Item {
+            role: Role::Note,
+            shape: Shape::Circle {
+                center: *at,
+                radius_m: NOTE_RADIUS_M,
+            },
+            label: Some(text.clone()),
+            source: Some(Source::Note(id.clone())),
+        });
+    }
 }
 
 fn light_items(plan: &FloorPlan, items: &mut Vec<Item>) {
@@ -390,6 +411,7 @@ mod tests {
             }],
             objects: vec![],
             background: None,
+            notes: Vec::new(),
         }
     }
 
@@ -483,6 +505,37 @@ mod tests {
 
         assert_eq!(at(0.0), Some(Point::new(2.0, 6.0)));
         assert_eq!(at(4.0), Some(Point::new(4.5, 6.0)));
+    }
+
+    /// A note is a marker with its text as label, on top of the figures.
+    #[test]
+    fn notes_come_last_with_their_text() {
+        let mut room = set();
+        room.notes = vec![Note {
+            id: "n1".into(),
+            at: Point::new(3.0, 4.0),
+            text: "Vorhang schließen".into(),
+        }];
+
+        let list = render(&project(), &room, &plan(), 0.0, None);
+
+        let last = list.items.last();
+        assert_eq!(last.map(|i| i.role), Some(Role::Note));
+        assert_eq!(
+            last.and_then(|i| i.label.as_deref()),
+            Some("Vorhang schließen")
+        );
+        assert_eq!(
+            last.and_then(|i| i.source.clone()),
+            Some(Source::Note("n1".into()))
+        );
+        assert_eq!(
+            last.map(|i| i.shape.clone()),
+            Some(Shape::Circle {
+                center: Point::new(3.0, 4.0),
+                radius_m: NOTE_RADIUS_M,
+            })
+        );
     }
 
     #[test]

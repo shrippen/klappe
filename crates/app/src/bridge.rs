@@ -25,8 +25,10 @@ pub mod qobject {
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
         #[qproperty(QString, script_json, cxx_name = "scriptJson")]
-        /// `{ set, figures, cameras, lights }`: true when shown.
+        /// `{ set, figures, cameras, lights, notes }`: true when shown.
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
+        /// `{ set, figures, cameras, lights, notes }`: true when locked.
+        #[qproperty(QString, locks_json, cxx_name = "locksJson")]
         #[qproperty(f64, time)]
         #[qproperty(f64, duration)]
         #[qproperty(QString, selected_shot, cxx_name = "selectedShot")]
@@ -43,6 +45,10 @@ pub mod qobject {
         #[qproperty(bool, has_background, cxx_name = "hasBackground")]
         /// Points picked so far by the scale tool: 0, 1 or 2 (then the length is asked).
         #[qproperty(i32, scale_points, cxx_name = "scalePoints")]
+        /// Whether the text of a note is being asked (`commitNote` or `cancelNote` answers).
+        #[qproperty(bool, asks_note, cxx_name = "asksNote")]
+        /// The text the question starts with: the note's own when it is edited.
+        #[qproperty(QString, note_text, cxx_name = "noteText")]
         /// Last message for the status line, already translated.
         #[qproperty(QString, status)]
         /// Backup found at open: `none`, `found` or `unreadable`; answer with `restoreBackup`
@@ -103,6 +109,12 @@ pub mod qobject {
         #[cxx_name = "setLayer"]
         fn set_layer(self: Pin<&mut Self>, layer: &QString, shown: &QString);
 
+        /// `layer` as for `setLayer`; `locked`: "locked" or "unlocked". A locked layer cannot
+        /// be picked or changed.
+        #[qinvokable]
+        #[cxx_name = "setLock"]
+        fn set_lock(self: Pin<&mut Self>, layer: &QString, locked: &QString);
+
         /// The tool in use: `select`, `wall`, `object` …; `choice` is the value picked in the
         /// tool's list (object kind, character id, lamp kind). False for an unknown tool.
         #[qinvokable]
@@ -145,6 +157,21 @@ pub mod qobject {
         #[cxx_name = "cancelScale"]
         fn cancel_scale(self: Pin<&mut Self>);
 
+        /// Gives the asked note its text; false for a blank text or no question.
+        #[qinvokable]
+        #[cxx_name = "commitNote"]
+        fn commit_note(self: Pin<&mut Self>, text: &QString) -> bool;
+
+        /// Drops the question for a note's text.
+        #[qinvokable]
+        #[cxx_name = "cancelNote"]
+        fn cancel_note(self: Pin<&mut Self>);
+
+        /// Asks for the text of the selected note; false when no note is selected.
+        #[qinvokable]
+        #[cxx_name = "editSelectedNote"]
+        fn edit_selected_note(self: Pin<&mut Self>) -> bool;
+
         /// Removes the selected element.
         #[qinvokable]
         #[cxx_name = "removeSelected"]
@@ -186,9 +213,9 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Angle, Autosave, DisplayList, Layer, Movement, Paper, PlanEdit, Point,
-    Session, ShotColumns, ShotField, ShotOrder, ShotSize, ShotTexts, Snapping, Source, Texts,
-    Visibility,
+    horizontal_fov_deg, Angle, Autosave, DisplayList, Layer, Lock, Movement, Paper, PlanEdit,
+    Point, Session, ShotColumns, ShotField, ShotOrder, ShotSize, ShotTexts, Snapping, Source,
+    Texts, Visibility,
 };
 use serde_json::json;
 
@@ -196,7 +223,7 @@ use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
-use crate::tools::{self, Backdrop, DragPhase, DragStep, Key, Preview, ScaleStep, Tool};
+use crate::tools::{self, Backdrop, DragPhase, DragStep, Key, NoteDraft, Preview, ScaleStep, Tool};
 
 pub struct ControllerRust {
     session: Option<Session>,
@@ -211,6 +238,7 @@ pub struct ControllerRust {
     shots_json: QString,
     script_json: QString,
     layers_json: QString,
+    locks_json: QString,
     time: f64,
     duration: f64,
     selected_shot: QString,
@@ -226,6 +254,10 @@ pub struct ControllerRust {
     scale: ScaleStep,
     has_background: bool,
     scale_points: i32,
+    /// The note whose text is asked, if any.
+    note: NoteDraft,
+    asks_note: bool,
+    note_text: QString,
     /// What the plan on screen shows: a drag preview or the project.
     preview: Preview,
     status: QString,
@@ -241,6 +273,7 @@ fn q(s: &str) -> QString {
 }
 
 const SHOWN: &str = "shown";
+const LOCKED: &str = "locked";
 
 /// Seconds between two backups of unsaved changes while a project is open.
 const AUTOSAVE_S: i32 = 30;
@@ -280,6 +313,7 @@ impl Default for ControllerRust {
             shots_json: QString::default(),
             script_json: QString::default(),
             layers_json: QString::default(),
+            locks_json: QString::default(),
             time: 0.0,
             duration: 0.0,
             selected_shot: QString::default(),
@@ -294,6 +328,9 @@ impl Default for ControllerRust {
             scale: ScaleStep::Idle,
             has_background: false,
             scale_points: 0,
+            note: NoteDraft::Idle,
+            asks_note: false,
+            note_text: QString::default(),
             preview: Preview::Hidden,
             backup_state: QString::default(),
             backup_message: QString::default(),
@@ -324,6 +361,7 @@ impl ControllerRust {
         self.shots_json = q(&to_json(&s.shots()));
         self.script_json = q(&to_json(&s.script_lines()));
         self.layers_json = q(&layers_json(s));
+        self.locks_json = q(&locks_json(s));
         self.time = s.time_s();
         self.duration = s.duration_s();
         self.selected_shot = q(s.selected_shot().unwrap_or_default());
@@ -388,6 +426,20 @@ fn layers_json(s: &Session) -> String {
         "figures": shown(Layer::Figures),
         "cameras": shown(Layer::Cameras),
         "lights": shown(Layer::Lights),
+        "notes": shown(Layer::Notes),
+    })
+    .to_string()
+}
+
+fn locks_json(s: &Session) -> String {
+    let locked = |l| s.lock(l) == Lock::Locked;
+
+    json!({
+        "set": locked(Layer::Set),
+        "figures": locked(Layer::Figures),
+        "cameras": locked(Layer::Cameras),
+        "lights": locked(Layer::Lights),
+        "notes": locked(Layer::Notes),
     })
     .to_string()
 }
@@ -413,6 +465,7 @@ fn layer_of(name: &str) -> Option<Layer> {
         "figures" => Some(Layer::Figures),
         "cameras" => Some(Layer::Cameras),
         "lights" => Some(Layer::Lights),
+        "notes" => Some(Layer::Notes),
         _ => None,
     }
 }
@@ -470,6 +523,7 @@ impl qobject::Controller {
                 to_json(&s.shots()),
                 to_json(&s.script_lines()),
                 layers_json(s),
+                locks_json(s),
                 s.time_s(),
                 s.selected_shot().unwrap_or_default().to_owned(),
                 s.can_undo(),
@@ -478,8 +532,10 @@ impl qobject::Controller {
                 this.rust().selected.as_ref().map(plan::key),
             )
         };
-        let (plan, tracks, shots, script, layers, time, shot, undo, redo, dirty, selected) = values;
+        let (plan, tracks, shots, script, layers, locks, time, shot, undo, redo, dirty, selected) =
+            values;
         let scale_points = self.rust().scale.points().len();
+        let asks_note = self.rust().note != NoteDraft::Idle;
 
         // Restoring a backup or undoing it can change what only the start used to set.
         let header = {
@@ -507,6 +563,7 @@ impl qobject::Controller {
         self.as_mut().set_shots_json(q(&shots));
         self.as_mut().set_script_json(q(&script));
         self.as_mut().set_layers_json(q(&layers));
+        self.as_mut().set_locks_json(q(&locks));
         self.as_mut().set_time(time);
         self.as_mut().set_selected_shot(q(&shot));
         self.as_mut()
@@ -517,6 +574,7 @@ impl qobject::Controller {
         self.as_mut().set_has_background(background);
         self.as_mut()
             .set_scale_points(i32::try_from(scale_points).unwrap_or_default());
+        self.as_mut().set_asks_note(asks_note);
     }
 
     /// Shows `text` in the header until the project changes.
@@ -657,9 +715,13 @@ impl qobject::Controller {
 
         // Points picked for a scale do not outlast the tool.
         let leaves_scale = tool != Tool::Scale && self.rust().scale != ScaleStep::Idle;
+        let leaves_note = tool != Tool::Note && self.rust().note != NoteDraft::Idle;
         self.as_mut().rust_mut().get_mut().tool = tool;
         if leaves_scale {
-            self.cancel_scale();
+            self.as_mut().cancel_scale();
+        }
+        if leaves_note {
+            self.cancel_note();
         }
         true
     }
@@ -732,6 +794,10 @@ impl qobject::Controller {
         if tool == Tool::Scale {
             return self.pick_scale_point(at);
         }
+        if tool == Tool::Note {
+            let picked = s.pick(Point::new(x, y));
+            return self.ask_note(NoteDraft::click(at, picked.as_ref()));
+        }
 
         let Some(edit) = tools::click_edit(&tool, at) else {
             return false;
@@ -775,6 +841,35 @@ impl qobject::Controller {
         self.refresh();
     }
 
+    fn commit_note(mut self: Pin<&mut Self>, text: &QString) -> bool {
+        let draft = self.rust().note.clone();
+        let Some(edit) = tools::note_edit(&draft, &text.to_string()) else {
+            return false;
+        };
+
+        // The draft stays open when the edit is refused, so the typed text is not lost.
+        if !self.as_mut().commit_edit(edit) {
+            return false;
+        }
+
+        self.as_mut().rust_mut().get_mut().note = NoteDraft::Idle;
+        self.refresh();
+        true
+    }
+
+    fn cancel_note(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().get_mut().note = NoteDraft::Idle;
+        self.refresh();
+    }
+
+    fn edit_selected_note(self: Pin<&mut Self>) -> bool {
+        let Some(Source::Note(id)) = self.rust().selected.clone() else {
+            return false;
+        };
+
+        self.ask_note(NoteDraft::Edit(id))
+    }
+
     fn grabbable(&self, x: f64, y: f64) -> bool {
         let Some(s) = self.rust().session.as_ref() else {
             return false;
@@ -812,6 +907,33 @@ impl qobject::Controller {
 
     fn cancel_drag(self: Pin<&mut Self>) {
         self.refresh();
+    }
+
+    /// Starts asking for a note's text: empty for a new note, the note's own for an edit.
+    /// False when the note to edit is gone.
+    fn ask_note(mut self: Pin<&mut Self>, draft: NoteDraft) -> bool {
+        let language = self.rust().language;
+        let lock = self.rust().session.as_ref().map(|s| s.lock(Layer::Notes));
+        if let Some(Err(e)) = lock.map(tools::note_open) {
+            self.as_mut().say(error_text(language, &e));
+            return false;
+        }
+
+        let text = match &draft {
+            NoteDraft::Edit(id) => {
+                let text = self.rust().session.as_ref().and_then(|s| note_text(s, id));
+                let Some(text) = text else {
+                    return false;
+                };
+                text
+            }
+            _ => String::new(),
+        };
+
+        self.as_mut().rust_mut().get_mut().note = draft;
+        self.as_mut().set_note_text(q(&text));
+        self.refresh();
+        true
     }
 
     /// A click of the scale tool: the next point of the stretch. Without a background there
@@ -878,6 +1000,20 @@ impl qobject::Controller {
         };
         if let Some(s) = self.as_mut().session() {
             s.set_layer(layer, visibility(shown));
+        }
+        self.refresh();
+    }
+
+    fn set_lock(mut self: Pin<&mut Self>, layer: &QString, locked: &QString) {
+        let Some(layer) = layer_of(&layer.to_string()) else {
+            return;
+        };
+        let lock = match locked.to_string() == LOCKED {
+            true => Lock::Locked,
+            false => Lock::Unlocked,
+        };
+        if let Some(s) = self.as_mut().session() {
+            s.set_lock(layer, lock);
         }
         self.refresh();
     }
@@ -996,6 +1132,13 @@ fn print_texts(language: Language) -> Texts {
     }
 }
 
+/// The text of the current set's note `id`.
+fn note_text(s: &Session, id: &str) -> Option<String> {
+    let location = s.project().location(&s.scene()?.location)?;
+
+    Some(location.set.notes.iter().find(|n| n.id == id)?.text.clone())
+}
+
 /// Data for a tooltip; QML puts it into words with the catalogue.
 fn describe(s: &Session, key: &str) -> serde_json::Value {
     let mut parts = key.split(':');
@@ -1056,6 +1199,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 .unwrap_or_default();
             json!({ "kind": "object", "label": label })
         }
+        "note" => json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() }),
         _ => json!({}),
     }
 }

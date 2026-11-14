@@ -23,12 +23,20 @@ pub enum Layer {
     Figures,
     Cameras,
     Lights,
+    Notes,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility {
     Shown,
     Hidden,
+}
+
+/// A locked layer can be seen but not picked or changed (LH-15).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Lock {
+    Unlocked,
+    Locked,
 }
 
 /// Undo keeps this many steps (LH-06 asks for no fixed limit within a session; this only
@@ -85,6 +93,7 @@ pub struct Session {
     time_s: f64,
     selected_shot: Option<String>,
     hidden_layers: HashSet<Layer>,
+    locked_layers: HashSet<Layer>,
     hidden_tracks: HashSet<String>,
     snapping: Snapping,
     undo: Vec<Project>,
@@ -129,6 +138,7 @@ impl Session {
             time_s: 0.0,
             selected_shot: None,
             hidden_layers: HashSet::new(),
+            locked_layers: HashSet::new(),
             hidden_tracks: HashSet::new(),
             snapping: Snapping::On,
             undo: Vec::new(),
@@ -302,6 +312,33 @@ impl Session {
             return Visibility::Hidden;
         }
         Visibility::Shown
+    }
+
+    /// Locks or unlocks a layer for this session: its elements cannot be picked, and edits
+    /// that change or add something on it are refused with `ServiceError::Locked`. The lock
+    /// is a view setting like `set_layer`, not part of the project.
+    pub fn set_lock(&mut self, layer: Layer, lock: Lock) {
+        match lock {
+            Lock::Unlocked => self.locked_layers.remove(&layer),
+            Lock::Locked => self.locked_layers.insert(layer),
+        };
+    }
+
+    pub fn lock(&self, layer: Layer) -> Lock {
+        if self.locked_layers.contains(&layer) {
+            return Lock::Locked;
+        }
+        Lock::Unlocked
+    }
+
+    /// Refuses `edit` when it changes a locked layer.
+    fn check_lock(&self, edit: &PlanEdit) -> Result<(), ServiceError> {
+        let layer = edit.layer();
+        if self.lock(layer) == Lock::Locked {
+            return Err(ServiceError::Locked(layer));
+        }
+
+        Ok(())
     }
 
     /// Shows or hides one figure, camera or light in plan and timeline.
@@ -505,6 +542,8 @@ impl Session {
 
     /// Changes the current plan; undoable. Points are taken as given: surfaces call `snap`.
     pub fn edit_plan(&mut self, edit: PlanEdit) -> Result<(), ServiceError> {
+        self.check_lock(&edit)?;
+
         let mut next = self.project.clone();
         let at = (self.scene, self.plan);
         plan_edit::apply(
@@ -527,6 +566,8 @@ impl Session {
     /// The display list as it would be after `edit`, without committing it or taking an undo
     /// step: what a drag shows while the button is down.
     pub fn preview(&self, edit: &PlanEdit) -> Result<DisplayList, ServiceError> {
+        self.check_lock(edit)?;
+
         let mut next = self.project.clone();
         let at = (self.scene, self.plan);
         // Copying a file is no preview: the list stays as it is until the edit is made.
@@ -547,8 +588,11 @@ impl Session {
     }
 
     /// Topmost shown item at `at` (front of the display list first), within the pick radius.
+    /// Items of locked layers are not taken.
     pub fn pick(&self, at: Point) -> Option<Source> {
-        plan_edit::pick(&self.display_list().items, at)
+        let locked = |role| self.lock(layer_of(role)) == Lock::Locked;
+
+        plan_edit::pick(&self.display_list().items, at, locked)
     }
 
     pub fn set_snapping(&mut self, snapping: Snapping) {
@@ -803,6 +847,7 @@ fn layer_of(role: Role) -> Layer {
         Role::Background | Role::Wall | Role::Object => Layer::Set,
         Role::Light | Role::LightBeam => Layer::Lights,
         Role::Camera | Role::Frustum | Role::CameraPath => Layer::Cameras,
+        Role::Note => Layer::Notes,
         Role::Axis | Role::Figure(_) | Role::FigurePath(_) | Role::Mark(_) => Layer::Figures,
     }
 }

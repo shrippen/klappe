@@ -26,8 +26,17 @@ TestCase {
         property var calibrations: []
         property int scaleCancels: 0
         property bool calibrateOk: true
+        property bool asksNote: false
+        property string noteText: ""
+        property var notes: []
+        property int noteCancels: 0
+        property int noteEdits: 0
+        property bool noteOk: true
 
         function describe(key) {
+            if (key === "note:n1") {
+                return JSON.stringify({ kind: "note", text: "Vorhang schließen" })
+            }
             return JSON.stringify({ kind: "camera", label: "A", lens: 35, fov: 39.6, height: 1.6, shots: "12.1" })
         }
         function drag(fromX, fromY, x, y, done) {
@@ -45,6 +54,15 @@ TestCase {
             calibrations.push(text)
             return calibrateOk
         }
+        function commitNote(text) {
+            notes.push(text)
+            return noteOk
+        }
+        function cancelNote() {
+            noteCancels++
+            asksNote = false
+        }
+        function editSelectedNote() { noteEdits++ }
         function cancelScale() {
             scaleCancels++
             scalePoints = 0
@@ -93,6 +111,12 @@ TestCase {
         fake.calibrations = []
         fake.scaleCancels = 0
         fake.calibrateOk = true
+        fake.asksNote = false
+        fake.noteText = ""
+        fake.notes = []
+        fake.noteCancels = 0
+        fake.noteEdits = 0
+        fake.noteOk = true
     }
 
     function drawn(tool) {
@@ -256,5 +280,87 @@ TestCase {
 
         verify(fake.drags.length >= 2)
         verify(fake.drags[fake.drags.length - 1].done)
+    }
+
+    function test_a_note_tooltip_shows_its_text() {
+        const area = createTemporaryObject(areaComponent, tc, { texts: de })
+
+        compare(area.tipLines("note:n1"), ["Vorhang schließen"])
+    }
+
+    function test_the_note_card_asks_for_the_text_with_its_start_value() {
+        const area = drawn("note")
+        const card = findChild(area, "noteCard")
+        const field = findChild(area, "noteField")
+
+        verify(!card.visible)
+        fake.noteText = "Vorhang schließen"
+        fake.asksNote = true
+
+        verify(card.visible)
+        verify(field.activeFocus)
+        compare(field.text, "Vorhang schließen")
+    }
+
+    function test_enter_gives_the_note_text_to_the_controller() {
+        const area = drawn("note")
+        fake.asksNote = true
+        const field = findChild(area, "noteField")
+
+        field.text = "Tür quietscht"
+        keyClick(Qt.Key_Return)
+
+        compare(fake.notes, ["Tür quietscht"])
+        verify(!field.invalid)
+    }
+
+    function test_a_refused_note_text_marks_the_field() {
+        const area = drawn("note")
+        fake.asksNote = true
+        fake.noteOk = false
+        const field = findChild(area, "noteField")
+
+        field.text = " "
+        keyClick(Qt.Key_Return)
+
+        verify(field.invalid)
+        field.text = "x"
+        verify(!field.invalid)
+    }
+
+    function test_escape_drops_the_note_question() {
+        const area = drawn("note")
+        fake.asksNote = true
+
+        keyClick(Qt.Key_Escape)
+
+        compare(fake.noteCancels, 1)
+        verify(!findChild(area, "noteCard").visible)
+    }
+
+    // Letters typed into the text are text: no turn, no delete on the selection.
+    function test_typing_a_note_leaves_the_selection_alone() {
+        const area = drawn("note")
+        fake.selectedKey = "note:n1"
+        fake.asksNote = true
+
+        keyClick(Qt.Key_R)
+        keyClick(Qt.Key_Delete)
+
+        compare(fake.turns.length, 0)
+        compare(fake.removes, 0)
+        compare(findChild(area, "noteField").text, "r")
+    }
+
+    function test_f2_edits_a_selected_note_only() {
+        const area = drawn("select")
+
+        fake.selectedKey = "camera:a"
+        keyClick(Qt.Key_F2)
+        compare(fake.noteEdits, 0)
+
+        fake.selectedKey = "note:n1"
+        keyClick(Qt.Key_F2)
+        compare(fake.noteEdits, 1)
     }
 }
