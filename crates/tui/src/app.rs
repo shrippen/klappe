@@ -138,9 +138,13 @@ impl App {
         self.editor.cursor()
     }
 
-    /// The terminal width of the frame being drawn.
+    /// The terminal width of the frame being drawn. A list that is no longer on screen
+    /// gives up the focus: keys would go to something the user cannot see.
     pub(crate) fn set_screen(&mut self, cols: u16) {
         self.screen_cols = cols;
+        if !self.list_shown() && self.focus == Focus::List {
+            self.focus = Focus::Editor;
+        }
     }
 
     /// Whether the scene list is on screen.

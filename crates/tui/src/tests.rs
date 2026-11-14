@@ -436,3 +436,17 @@ fn ctrl_b_shows_the_list_on_a_narrow_terminal_and_tab_too() {
     ctrl(&mut app, 'b');
     assert_eq!(app.focus, Focus::Editor, "hiding the list leaves it");
 }
+
+#[test]
+fn shrinking_the_terminal_moves_focus_from_the_hidden_list() {
+    let mut app = app();
+    let _ = screen(&mut app, 120, 20);
+    press(&mut app, KeyCode::Tab);
+    assert_eq!(app.focus, Focus::List);
+
+    let narrow = screen(&mut app, 80, 20);
+    assert_eq!(app.focus, Focus::Editor, "{narrow}");
+
+    typed(&mut app, "zzz");
+    assert!(app.text().contains("zzz"), "typing went to the hidden list");
+}
