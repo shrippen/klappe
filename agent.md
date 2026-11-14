@@ -34,7 +34,7 @@ demo/       Werkzeug (crates/demo), nicht ausgeliefert: erzeugt die Beispielproj
             Ordner demo/ des Repos über model/, script/, store/ (neben services/)
 ```
 - Wie `planung/KONZEPT.md`, Abschnitt 4. Die mittlere Ebene steht nebeneinander: `export/`
-  liest die Darstellungsliste aus `stellprobe/`, `store/` nutzt `script/`; beide lesen JPEG-Köpfe über
+  liest die Darstellungsliste aus `stellprobe/`, `store/` hängt an `model/` (nicht an `script/`); beide lesen JPEG-Köpfe über
   `imagehead/`; sonst rufen sie sich nicht.
 - Oberflächen zeichnen die Darstellungsliste aus `stellprobe/`; eigene Geometrie in QML ist ein
   Fehler.
