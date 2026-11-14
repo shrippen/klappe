@@ -263,6 +263,27 @@ pub enum Backdrop {
     Present,
 }
 
+/// What a drag holds: picked once when it starts, kept until it ends. Picking again on every
+/// step found other things as the selection changed (a figure's path handle on the figure).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum Grip {
+    #[default]
+    Free,
+    Held(Option<Source>),
+}
+
+impl Grip {
+    /// The element this drag moves: `pick`'s answer on the first step, the same after.
+    pub fn take(self, pick: impl FnOnce() -> Option<Source>) -> (Grip, Option<Source>) {
+        let grabbed = match self {
+            Grip::Held(held) => held,
+            Grip::Free => pick(),
+        };
+
+        (Grip::Held(grabbed.clone()), grabbed)
+    }
+}
+
 /// How far the scale gesture has come: the points picked so far.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ScaleStep {
@@ -515,6 +536,23 @@ pub fn key_edit(key: Key, selected: Option<&Source>) -> Option<PlanEdit> {
 
 #[cfg(test)]
 mod tests {
+
+    /// Review of PR 27: a figure on its own path handle was grabbed on the first step and
+    /// the handle on the next, so the drag bent the path instead of moving the figure.
+    #[test]
+    fn a_drag_keeps_what_it_grabbed() {
+        let figure = Source::Figure("burgvogt".into());
+        let handle = Source::FigureVia {
+            character: "burgvogt".into(),
+            index: 1,
+        };
+
+        let (grip, first) = Grip::Free.take(|| Some(figure.clone()));
+        let (_, next) = grip.take(|| Some(handle.clone()));
+
+        assert_eq!(first, Some(figure.clone()));
+        assert_eq!(next, Some(figure));
+    }
 
     /// Review of PR 21: with the notes layer locked the tool still asked for a text and
     /// dropped it on Enter.

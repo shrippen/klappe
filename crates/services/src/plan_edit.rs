@@ -1016,13 +1016,24 @@ fn carry_cameras(
             .iter_mut()
             .filter(|m| window_s.contains(&m.at_s))
         {
-            let moved = Point::new(camera_mark.at.x_m + dx_m, camera_mark.at.y_m + dy_m);
-            camera_mark.at = rotate(moved, after.at, turn_deg);
+            // The bend of the move goes along, or the move turns into a loop (LH-21).
+            camera_mark.at = carry(camera_mark.at, (dx_m, dy_m), after.at, turn_deg);
+            camera_mark.via = camera_mark
+                .via
+                .map(|via| carry(via, (dx_m, dy_m), after.at, turn_deg));
             camera_mark.facing_deg = normalize_deg(camera_mark.facing_deg + turn_deg);
         }
     }
 
     Ok(())
+}
+
+/// `point` shifted by `delta_m`, then turned by `deg` about `centre`: where a following
+/// camera's point goes when its figure moves and turns.
+fn carry(point: Point, delta_m: (f64, f64), centre: Point, deg: f64) -> Point {
+    let moved = Point::new(point.x_m + delta_m.0, point.y_m + delta_m.1);
+
+    rotate(moved, centre, deg)
 }
 
 /// `point` turned clockwise on the plan by `deg` about `centre`.

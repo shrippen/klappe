@@ -146,7 +146,8 @@ fn along(a: Point, via: Option<Point>, b: Point, t: f64) -> Point {
         return a;
     }
 
-    // The table step that holds the wanted length, then the share of it by linear search.
+    // The table step that holds the wanted length (binary search), then the share of it
+    // within that step, linearly.
     let wanted_m = total_m * t;
     let step = lengths
         .partition_point(|l| *l < wanted_m)

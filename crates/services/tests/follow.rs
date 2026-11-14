@@ -306,3 +306,36 @@ fn removing_the_figure_works_under_a_camera_lock() {
     assert!(result.is_ok());
     assert_eq!(s.plan().unwrap().camera("b").unwrap().follows, None);
 }
+
+/// Review of PR 27: the bend of a following camera's move stayed where it was while its marks
+/// moved with the figure, so the move could turn into a loop.
+#[test]
+fn the_bend_of_a_following_camera_moves_too() {
+    let mut s = open();
+    couple(&mut s, "a", "elisabeth");
+    s.edit_plan(PlanEdit::Move {
+        source: Source::CameraVia {
+            camera: "a".into(),
+            index: 1,
+        },
+        to: p(10.0, 6.0),
+    })
+    .unwrap();
+    let via = |s: &Session| s.plan().unwrap().camera("a").unwrap().marks[1].via.unwrap();
+    let (before, at) = (
+        via(&s),
+        s.plan().unwrap().figure("elisabeth").unwrap().marks[1].at,
+    );
+
+    s.edit_plan(PlanEdit::Move {
+        source: mark("elisabeth", 1),
+        to: p(at.x_m + 1.0, at.y_m + 2.0),
+    })
+    .unwrap();
+
+    assert!(
+        near(via(&s), p(before.x_m + 1.0, before.y_m + 2.0)),
+        "{:?}",
+        via(&s)
+    );
+}

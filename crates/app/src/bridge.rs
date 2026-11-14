@@ -376,8 +376,8 @@ use crate::manage;
 use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
 use crate::tools::{
-    self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Key, NoteDraft, Preview, ScaleStep,
-    Tool,
+    self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Grip, Key, NoteDraft, Preview,
+    ScaleStep, Tool,
 };
 
 pub struct ControllerRust {
@@ -422,6 +422,8 @@ pub struct ControllerRust {
     note_text: QString,
     /// What the plan on screen shows: a drag preview or the project.
     preview: Preview,
+    /// What the drag in progress moves; `Free` between drags.
+    grip: Grip,
     status: QString,
     backup_state: QString,
     backup_message: QString,
@@ -502,6 +504,7 @@ impl Default for ControllerRust {
             asks_note: false,
             note_text: QString::default(),
             preview: Preview::Hidden,
+            grip: Grip::Free,
             backup_state: QString::default(),
             backup_message: QString::default(),
             autosave_ms: AUTOSAVE_S * MS_PER_S,
@@ -1010,15 +1013,16 @@ impl qobject::Controller {
         let tool = self.rust().tool.clone();
         let style = self.rust().draw;
         let selected = self.rust().selected.clone();
+
+        // The canvas' key can name a view cone or a path that lies over the thing meant;
+        // the session picks what a user can grab, once per drag.
+        let from = Point::new(from_x, from_y);
+        let to = Point::new(x, y);
+        let grip = std::mem::take(&mut self.as_mut().rust_mut().get_mut().grip);
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-
-        // The canvas' key can name a view cone or a path that lies over the thing meant;
-        // the session picks what a user can grab.
-        let from = Point::new(from_x, from_y);
-        let to = Point::new(x, y);
-        let grabbed = s.pick_for(from, selected.as_ref());
+        let (grip, grabbed) = grip.take(|| s.pick_for(from, selected.as_ref()));
 
         // Select and Scale move by a distance (the session snaps where an element lands, a
         // background moves freely); the other tools draw between two points, which snap here.
@@ -1036,6 +1040,10 @@ impl qobject::Controller {
             DragPhase::Done
         } else {
             DragPhase::Moving
+        };
+        self.as_mut().rust_mut().get_mut().grip = match phase {
+            DragPhase::Done => Grip::Free,
+            DragPhase::Moving => grip,
         };
 
         if tool == Tool::Select && edit.is_some() {
@@ -1230,7 +1238,8 @@ impl qobject::Controller {
         self.set_snapping_on(on);
     }
 
-    fn cancel_drag(self: Pin<&mut Self>) {
+    fn cancel_drag(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().get_mut().grip = Grip::Free;
         self.refresh();
     }
 
