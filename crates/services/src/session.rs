@@ -1439,6 +1439,13 @@ pub(crate) fn check_empty(dir: &Path) -> Result<(), ServiceError> {
     Ok(())
 }
 
+/// A failed write names `path`, the file the user chose, not the temp file beside it.
 fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
-    klappe_store::write_atomic(path, &bytes).map_err(write_failed)
+    klappe_store::write_atomic(path, &bytes).map_err(|e| match e {
+        klappe_store::StoreError::Io { source, .. } => ServiceError::Write {
+            path: path.to_owned(),
+            source,
+        },
+        other => write_failed(other),
+    })
 }
