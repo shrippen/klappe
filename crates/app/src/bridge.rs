@@ -39,8 +39,9 @@ pub mod qobject {
         #[qproperty(QString, selected_key, cxx_name = "selectedKey")]
         /// Whether points snap to the grid; change it with `setSnapping`.
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
-        /// `{ figure: [{ id, name }], object: [kind], light: [kind], color: [name], dash: [name],
-        /// fill: [name] }`: what the tool lists offer.
+        /// `{ figure: [{ id, name }], object: [{ kind, label, width_m, depth_m, shape, custom }],
+        /// light: [kind], color: [name], dash: [name], fill: [name] }`: what the tool lists
+        /// offer. The objects are the library: built in, then the project's own.
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Whether the set has a background image.
         #[qproperty(bool, has_background, cxx_name = "hasBackground")]
@@ -220,6 +221,31 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "turnSelected"]
         fn turn_selected(self: Pin<&mut Self>, step_deg: f64) -> bool;
+
+        /// Gives the selected object a new width and depth (comma or point as decimal
+        /// separator). False when no object is selected or a side is not a length; a refusal
+        /// by the session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "resizeSelected"]
+        fn resize_selected(self: Pin<&mut Self>, width: &QString, depth: &QString) -> bool;
+
+        /// Files the selected object, with its size and shape, in the project's library under
+        /// `name`. False for no object or a blank name.
+        #[qinvokable]
+        #[cxx_name = "saveToLibrary"]
+        fn save_to_library(self: Pin<&mut Self>, name: &QString) -> bool;
+
+        /// Takes the objects of the library file `path` (a path or a `file://` URL) into the
+        /// project; the result goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "importLibrary"]
+        fn import_library(self: Pin<&mut Self>, path: &QString) -> bool;
+
+        /// Writes the project's own objects to the library file `path`; the result goes to
+        /// `status`.
+        #[qinvokable]
+        #[cxx_name = "exportLibrary"]
+        fn export_library(self: Pin<&mut Self>, path: &QString) -> bool;
 
         #[qinvokable]
         #[cxx_name = "setSnapping"]
@@ -605,7 +631,8 @@ fn plan_json(
     plan::shapes_json(list, s.dir(), &marked, picked)
 }
 
-/// What the tool lists of the tool bar offer: the project's characters, object and lamp kinds.
+/// What the tool lists of the tool bar offer: the project's characters, the object library
+/// and the lamp kinds.
 fn choices_json(s: &Session) -> String {
     let figures: Vec<_> = s
         .project()
@@ -621,7 +648,7 @@ fn choices_json(s: &Session) -> String {
 
     json!({
         "figure": figures,
-        "object": tools::OBJECT_KINDS,
+        "object": s.library(),
         "light": lights,
         "color": colors,
         "dash": dashes,
@@ -1206,6 +1233,81 @@ impl qobject::Controller {
         self.commit_edit(edit)
     }
 
+    fn resize_selected(self: Pin<&mut Self>, width: &QString, depth: &QString) -> bool {
+        let selected = self.rust().selected.as_ref();
+        let Some(edit) = tools::resize_edit(selected, &width.to_string(), &depth.to_string())
+        else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
+    fn save_to_library(mut self: Pin<&mut Self>, name: &QString) -> bool {
+        let language = self.rust().language;
+        let name = name.to_string();
+        let location = {
+            let this = self.as_ref();
+            let scene = this.rust().session.as_ref().and_then(|s| s.scene());
+            scene.map(|scene| scene.location.clone())
+        };
+        let selected = self.rust().selected.as_ref();
+        let Some(edit) = tools::library_edit(selected, location.as_deref(), &name) else {
+            return false;
+        };
+
+        if !self.as_mut().commit_project(Ok(edit)) {
+            return false;
+        }
+
+        // The edit cleared the status line; the result goes there.
+        let saved = language
+            .text("library.saved")
+            .replace("{name}", name.trim());
+        self.as_mut().say(saved);
+        true
+    }
+
+    fn import_library(mut self: Pin<&mut Self>, path: &QString) -> bool {
+        let language = self.rust().language;
+        let path = tools::local_path(&path.to_string());
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        let (message, ok) = match s.import_library(&path) {
+            Ok(0) => (language.text("library.importedNone"), true),
+            Ok(count) => {
+                let text = language.text("library.imported");
+                (text.replace("{count}", &count.to_string()), true)
+            }
+            Err(e) => (error_text(language, &e), false),
+        };
+        self.as_mut().changed();
+        self.as_mut().refresh();
+        self.as_mut().say(message);
+        ok
+    }
+
+    fn export_library(mut self: Pin<&mut Self>, path: &QString) -> bool {
+        let language = self.rust().language;
+        let path = tools::local_path(&path.to_string());
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        let (message, ok) = match s.export_library(&path) {
+            Ok(count) => {
+                let text = language.text("library.exported");
+                let text = text.replace("{count}", &count.to_string());
+                (text.replace("{path}", &path.to_string_lossy()), true)
+            }
+            Err(e) => (error_text(language, &e), false),
+        };
+        self.as_mut().say(message);
+        ok
+    }
+
     fn set_snapping(mut self: Pin<&mut Self>, on: bool) {
         let snapping = if on { Snapping::On } else { Snapping::Off };
         if let Some(s) = self.as_mut().session() {
@@ -1710,11 +1812,16 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 .scene()
                 .and_then(|sc| s.project().location(&sc.location))
                 .map(|l| &l.set);
-            let label = set
-                .and_then(|set| set.objects.iter().find(|o| o.id == id))
-                .map(|o| o.label.clone())
-                .unwrap_or_default();
-            json!({ "kind": "object", "label": label })
+            let Some(o) = set.and_then(|set| set.objects.iter().find(|o| o.id == id)) else {
+                return json!({});
+            };
+            json!({
+                "kind": "object",
+                "label": o.label,
+                "library": o.kind,
+                "width": o.width_m,
+                "depth": o.depth_m,
+            })
         }
         "note" => json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() }),
         _ => json!({}),
@@ -1724,6 +1831,47 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn example() -> Session {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+        Session::open(&dir).unwrap()
+    }
+
+    /// The object tool lists the library: sizes in metres, built in first.
+    #[test]
+    fn the_object_list_is_the_library() {
+        let s = example();
+
+        let choices: serde_json::Value = serde_json::from_str(&choices_json(&s)).unwrap();
+        let objects = choices["object"].as_array().unwrap();
+
+        assert_eq!(objects[0]["kind"], "table");
+        assert_eq!(objects[0]["width_m"], 1.6);
+        assert_eq!(objects[0]["depth_m"], 0.9);
+        assert_eq!(objects[0]["shape"], "rect");
+        assert_eq!(objects[0]["custom"], false);
+        assert!(objects
+            .iter()
+            .any(|o| o["kind"] == "horse" && o["shape"] == "ellipse"));
+        assert_eq!(objects.len(), s.library().len());
+    }
+
+    /// The size fields show what the selected object measures now.
+    #[test]
+    fn describe_gives_the_size_of_an_object() {
+        let s = example();
+
+        let table = describe(&s, "object:tisch");
+
+        assert_eq!(table["kind"], "object");
+        assert_eq!(table["library"], "table");
+        assert_eq!(
+            (table["width"].as_f64(), table["depth"].as_f64()),
+            (Some(6.0), Some(1.2))
+        );
+        assert_eq!(describe(&s, "object:o99"), json!({}));
+    }
 
     /// Review of PR 23: area, scale and note drafts outlived a change of scene or project;
     /// Enter then made an area from the old plan's points in the new one.

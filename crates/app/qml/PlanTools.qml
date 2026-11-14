@@ -6,7 +6,8 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The drawing tools of the tool bar (LH-08 ff.): one tool at a time, a list for the tools that
-// need a choice (object kind, figure, lamp kind), the snapping switch. Keys V W O F C L M N I A B
+// need a choice (object from the library, figure, lamp kind), the snapping switch. The object
+// tool also offers to import and export library files (LH-12): the window asks for the file. Keys V W O F C L M N I A B
 // E P pick the tool (NF-06). The drawing tools (line, arrow, rect, ellipse, area; LH-19) also
 // show colour, line style and, for closed shapes, fill. The controller does the work: this only
 // says which tool and which choice.
@@ -17,11 +18,26 @@ RowLayout {
     required property var controller
 
     property string tool: "select"
-    /// The value picked in the current tool's list: object kind, character id or lamp kind.
+    /// The value picked in the current tool's list: library kind, character id or lamp kind.
     readonly property string choice: {
-        const box = tool === "figure" ? figureBox : tool === "object" ? objectBox : tool === "light" ? lightBox : null
+        if (tool === "object") {
+            const entry = objectBox.model[objectBox.currentIndex]
+            return entry ? entry.value : ""
+        }
+        const box = tool === "figure" ? figureBox : tool === "light" ? lightBox : null
         return box && box.currentValue !== undefined ? String(box.currentValue) : ""
     }
+
+    /// The library as the list shows it: built in first, then the project's own, in groups.
+    readonly property var _objects: (_choices.object || []).map(o => ({
+        value: o.kind,
+        text: o.custom ? (o.label || o.kind) : texts.t("objectKind." + o.kind),
+        group: texts.t(o.custom ? "library.custom" : "library.builtin")
+    }))
+    readonly property bool hasOwnObjects: (_choices.object || []).some(o => o.custom)
+
+    signal importRequested()
+    signal exportRequested()
 
     /// What the drawing tools draw with: names as the controller lists them in `choicesJson`.
     property string drawColor: "red"
@@ -75,14 +91,41 @@ RowLayout {
         }
     }
 
-    KanteComboBox {
+    // Type to narrow the list; the groups keep the built-in and the own objects apart.
+    KanteSearchCombo {
         id: objectBox
         objectName: "objectBox"
         visible: tools.tool === "object"
+        implicitWidth: Kirigami.Units.gridUnit * 12
         Accessible.name: tools.texts.t("tool.pick.object")
+        placeholderText: tools.texts.t("library.search")
         textRole: "text"
-        valueRole: "value"
-        model: tools._choices.object.map(k => ({ value: k, text: tools.texts.t("objectKind." + k) }))
+        sectionRole: "group"
+        currentIndex: 0
+        model: tools._objects
+        // A new list (an object was filed, a file imported) keeps the kind that was picked.
+        property string pickedKind: ""
+        onActivated: index => pickedKind = model[index].value
+        onModelChanged: currentIndex = Math.max(0, model.findIndex(o => o.value === pickedKind))
+    }
+    KanteToolButton {
+        objectName: "libraryImport"
+        visible: tools.tool === "object"
+        text: tools.texts.t("library.import")
+        onClicked: tools.importRequested()
+        QQC2.ToolTip.text: tools.texts.t("library.importTip")
+        QQC2.ToolTip.visible: hovered
+        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+    }
+    KanteToolButton {
+        objectName: "libraryExport"
+        visible: tools.tool === "object"
+        enabled: tools.hasOwnObjects
+        text: tools.texts.t("library.export")
+        onClicked: tools.exportRequested()
+        QQC2.ToolTip.text: tools.texts.t("library.exportTip")
+        QQC2.ToolTip.visible: hovered
+        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
     }
     KanteComboBox {
         id: figureBox

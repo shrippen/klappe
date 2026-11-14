@@ -16,14 +16,19 @@ TestCase {
         id: fake
         property bool loaded: true
         property bool snappingOn: true
-        property string choicesJson: JSON.stringify({
+        readonly property var choices: ({
             figure: [{ id: "elisabeth", name: "Elisabeth" }, { id: "burgvogt", name: "Burgvogt" }],
-            object: ["table", "chair"],
+            object: [
+                { kind: "table", label: "", width_m: 1.6, depth_m: 0.9, shape: "rect", custom: false },
+                { kind: "chair", label: "", width_m: 0.45, depth_m: 0.45, shape: "rect", custom: false },
+                { kind: "thron", label: "Thron", width_m: 0.9, depth_m: 0.8, shape: "rect", custom: true }
+            ],
             light: ["fresnel", "led-panel"],
             color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
             dash: ["solid", "dashed", "dotted"],
             fill: ["outline", "filled"]
         })
+        property string choicesJson: JSON.stringify(choices)
         property var tools: []
         property var snaps: []
         property var styles: []
@@ -44,6 +49,11 @@ TestCase {
     TestTexts { id: de; language: "de" }
 
     Component {
+        id: spyComponent
+        SignalSpy {}
+    }
+
+    Component {
         id: toolsComponent
         PlanTools {
             controller: fake
@@ -52,6 +62,7 @@ TestCase {
     }
 
     function init() {
+        fake.choicesJson = JSON.stringify(fake.choices)
         fake.tools = []
         fake.snaps = []
         fake.styles = []
@@ -123,6 +134,90 @@ TestCase {
 
         bar.tool = "light"
         compare(bar.choice, "fresnel")
+    }
+
+    function test_the_library_lists_built_in_then_own_objects_in_groups() {
+        const bar = make()
+        const box = findChild(bar, "objectBox")
+
+        compare(box.model.map(o => o.text), ["Tisch", "Stuhl", "Thron"])
+        compare(box.model.map(o => o.group), ["Eingebaut", "Eingebaut", "Eigene"])
+        compare(box.sectionAt(2), "Eigene")
+    }
+
+    function test_the_picked_object_goes_to_the_controller() {
+        const bar = make()
+        const box = findChild(bar, "objectBox")
+
+        bar.tool = "object"
+        compare(bar.choice, "table")
+        compare(fake.tools[fake.tools.length - 1], ["object", "table"])
+
+        box.currentIndex = 2
+        box.activated(2)
+        compare(bar.choice, "thron")
+        compare(fake.tools[fake.tools.length - 1], ["object", "thron"])
+    }
+
+    // An object filed or a file imported changes the list; the pick stays what it was.
+    function test_a_new_list_keeps_the_picked_object() {
+        const bar = make()
+        const box = findChild(bar, "objectBox")
+        bar.tool = "object"
+        box.currentIndex = 1
+        box.activated(1)
+
+        const objects = JSON.parse(fake.choicesJson).object
+        objects.unshift({ kind: "bed", label: "", width_m: 1.4, depth_m: 2, shape: "rect", custom: false })
+        fake.choicesJson = JSON.stringify({ figure: [], object: objects, light: [], color: [], dash: [], fill: [] })
+
+        compare(box.currentIndex, 2)
+        compare(bar.choice, "chair")
+    }
+
+    function test_typing_narrows_the_library() {
+        const bar = make()
+        const box = findChild(bar, "objectBox")
+        bar.tool = "object"
+
+        box.forceActiveFocus()
+        keyClick(Qt.Key_T)
+        keyClick(Qt.Key_H)
+
+        // Letters typed into the search are text: no tool change.
+        compare(bar.tool, "object")
+        compare(box.matches.map(i => box.textAt(i)), ["Thron"])
+    }
+
+    function test_the_library_files_are_asked_for_by_the_object_tool() {
+        const bar = make()
+        const importButton = findChild(bar, "libraryImport")
+        const exportButton = findChild(bar, "libraryExport")
+        const imports = createTemporaryObject(spyComponent, tc, { target: bar, signalName: "importRequested" })
+        const exports = createTemporaryObject(spyComponent, tc, { target: bar, signalName: "exportRequested" })
+
+        verify(!importButton.visible)
+        verify(!exportButton.visible)
+        bar.tool = "object"
+        verify(importButton.visible)
+        verify(exportButton.visible)
+        verify(exportButton.enabled)
+
+        importButton.clicked()
+        exportButton.clicked()
+        compare(imports.count, 1)
+        compare(exports.count, 1)
+    }
+
+    // Nothing of the project's own to pass on: no export.
+    function test_without_own_objects_there_is_nothing_to_export() {
+        const bar = make()
+        const objects = JSON.parse(fake.choicesJson).object.filter(o => !o.custom)
+        fake.choicesJson = JSON.stringify({ figure: [], object: objects, light: [], color: [], dash: [], fill: [] })
+        bar.tool = "object"
+
+        verify(!findChild(bar, "libraryExport").enabled)
+        verify(findChild(bar, "libraryImport").enabled)
     }
 
     function test_lists_have_translated_names() {

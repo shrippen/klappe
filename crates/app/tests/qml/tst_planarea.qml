@@ -35,8 +35,21 @@ TestCase {
         property int areaPoints: 0
         property int areaFinishes: 0
         property int areaCancels: 0
+        property var sizes: []
+        property bool sizeOk: true
+        property var filed: []
+        property bool fileOk: true
 
         function describe(key) {
+            if (key === "object:o1") {
+                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9 })
+            }
+            if (key === "object:o2") {
+                return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8 })
+            }
+            if (key === "object:o3") {
+                return JSON.stringify({ kind: "object", label: "", library: "zeppelin", width: 12, depth: 3 })
+            }
             if (key === "note:n1") {
                 return JSON.stringify({ kind: "note", text: "Vorhang schließen" })
             }
@@ -85,6 +98,14 @@ TestCase {
         function removeSelected() { removes++ }
         function turnSelected(step) { turns.push(step) }
         function cancelDrag() { cancels++ }
+        function resizeSelected(width, depth) {
+            sizes.push([width, depth])
+            return sizeOk
+        }
+        function saveToLibrary(name) {
+            filed.push(name)
+            return fileOk
+        }
     }
 
     TestTexts { id: de; language: "de" }
@@ -140,6 +161,10 @@ TestCase {
         fake.areaPoints = 0
         fake.areaFinishes = 0
         fake.areaCancels = 0
+        fake.sizes = []
+        fake.sizeOk = true
+        fake.filed = []
+        fake.fileOk = true
     }
 
     function drawn(tool) {
@@ -429,5 +454,122 @@ TestCase {
         fake.selectedKey = "note:n1"
         keyClick(Qt.Key_F2)
         compare(fake.noteEdits, 1)
+    }
+
+    // LH-25: an object selected shows its size in two fields, with the catalogue's separator.
+    function test_the_object_card_shows_the_size_of_the_selected_object() {
+        const area = drawn("select")
+        const card = findChild(area, "objectCard")
+        verify(!card.visible)
+
+        fake.selectedKey = "camera:a"
+        verify(!card.visible)
+
+        fake.selectedKey = "object:o1"
+        verify(card.visible)
+        compare(findChild(area, "widthField").text, "1,6")
+        compare(findChild(area, "depthField").text, "0,9")
+
+        fake.selectedKey = ""
+        verify(!card.visible)
+    }
+
+    function test_enter_gives_the_size_to_the_controller() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+        const width = findChild(area, "widthField")
+
+        width.forceActiveFocus()
+        width.text = "2,5"
+        keyClick(Qt.Key_Return)
+
+        compare(fake.sizes, [["2,5", "0,9"]])
+        verify(!width.invalid)
+        verify(!findChild(area, "depthField").invalid)
+    }
+
+    function test_the_apply_button_gives_the_size_to_the_controller() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+
+        findChild(area, "depthField").text = "0.5"
+        findChild(area, "objectApply").clicked()
+
+        compare(fake.sizes, [["1,6", "0.5"]])
+    }
+
+    function test_a_refused_size_marks_both_fields() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+        fake.sizeOk = false
+        const width = findChild(area, "widthField")
+        const depth = findChild(area, "depthField")
+
+        width.text = "0"
+        findChild(area, "objectApply").clicked()
+
+        verify(width.invalid)
+        verify(depth.invalid)
+        width.text = "1"
+        verify(!width.invalid)
+    }
+
+    // Letters and Delete typed into a size or a name are text: no turn, no delete.
+    function test_typing_a_size_leaves_the_selection_alone() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+
+        for (const name of ["widthField", "depthField", "libraryName"]) {
+            findChild(area, name).forceActiveFocus()
+            keyClick(Qt.Key_R)
+            keyClick(Qt.Key_Delete)
+        }
+
+        compare(fake.turns.length, 0)
+        compare(fake.removes, 0)
+    }
+
+    // LH-12: the name of the entry starts with the object's own label, else its kind's name;
+    // a kind without a name (an old project) starts empty.
+    function test_the_library_name_starts_with_the_objects_name() {
+        const area = drawn("select")
+        const name = findChild(area, "libraryName")
+
+        fake.selectedKey = "object:o1"
+        compare(name.text, "Tisch")
+        fake.selectedKey = "object:o2"
+        compare(name.text, "Thron")
+        fake.selectedKey = "object:o3"
+        compare(name.text, "")
+    }
+
+    function test_filing_gives_the_name_to_the_controller() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+        const name = findChild(area, "libraryName")
+
+        name.text = "Lange Tafel"
+        findChild(area, "libraryFile").clicked()
+
+        compare(fake.filed, ["Lange Tafel"])
+        verify(!name.invalid)
+
+        name.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+        compare(fake.filed, ["Lange Tafel", "Lange Tafel"])
+    }
+
+    function test_a_refused_name_marks_the_field() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+        fake.fileOk = false
+        const name = findChild(area, "libraryName")
+
+        name.text = " "
+        findChild(area, "libraryFile").clicked()
+
+        verify(name.invalid)
+        name.text = "x"
+        verify(!name.invalid)
     }
 }
