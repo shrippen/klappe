@@ -629,18 +629,28 @@ pub(crate) fn rename_plan(
     Ok(())
 }
 
-/// Refused for the scene's last plan and for a plan with shots.
+/// What deleting a plan does with the shots it holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShotsGo {
+    /// The plan stays: deleting it is refused.
+    Refuse,
+    /// The shots go with the plan.
+    Delete,
+}
+
+/// Refused for the scene's last plan and, with `ShotsGo::Refuse`, for a plan with shots.
 pub(crate) fn remove_plan(
     project: &mut Project,
     scene: usize,
     id: &str,
+    shots_go: ShotsGo,
 ) -> Result<(), ServiceError> {
     let scene = scene_at(project, scene)?;
     let shots = plan_of(scene, id)?.shots.len();
     if scene.plans.len() == 1 {
         return Err(ServiceError::LastPlan(id.to_owned()));
     }
-    if shots > 0 {
+    if shots > 0 && shots_go == ShotsGo::Refuse {
         return Err(ServiceError::PlanHasShots {
             id: id.to_owned(),
             shots,

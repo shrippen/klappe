@@ -504,6 +504,10 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "removePlan"]
         fn remove_plan(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removePlanWithShots"]
+        fn remove_plan_with_shots(self: Pin<&mut Self>, id: &QString) -> bool;
     }
 }
 
@@ -512,8 +516,8 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     horizontal_fov_deg, Autosave, DisplayList, Field, FigureColor, Layer, Lock, Paper, PlanEdit,
-    Point, ProjectEdit, ServiceError, Session, ShotField, ShotOrder, Snapping, Source, Texts,
-    Visibility,
+    Point, ProjectEdit, ServiceError, Session, ShotField, ShotOrder, ShotsGo, Snapping, Source,
+    Texts, Visibility,
 };
 use serde_json::json;
 
@@ -2167,11 +2171,19 @@ impl qobject::Controller {
         self.report(result)
     }
 
-    fn remove_plan(mut self: Pin<&mut Self>, id: &QString) -> bool {
+    fn remove_plan(self: Pin<&mut Self>, id: &QString) -> bool {
+        self.drop_plan(id, ShotsGo::Refuse)
+    }
+
+    fn remove_plan_with_shots(self: Pin<&mut Self>, id: &QString) -> bool {
+        self.drop_plan(id, ShotsGo::Delete)
+    }
+
+    fn drop_plan(mut self: Pin<&mut Self>, id: &QString, shots_go: ShotsGo) -> bool {
         let result = self
             .as_mut()
             .session()
-            .map(|s| s.remove_plan(&id.to_string()));
+            .map(|s| s.remove_plan(&id.to_string(), shots_go));
         self.report(result)
     }
 

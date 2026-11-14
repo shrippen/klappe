@@ -17,7 +17,7 @@ use crate::error::ServiceError;
 use crate::field::Field;
 use crate::library;
 use crate::plan_edit::{self, MarkInfo, PlanEdit, Snapping};
-use crate::project_edit::{self, ProjectEdit};
+use crate::project_edit::{self, ProjectEdit, ShotsGo};
 use crate::shot_edit;
 use crate::views::{
     Chip, LibraryEntry, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind,
@@ -811,11 +811,12 @@ impl Session {
         Ok(())
     }
 
-    /// Deletes the plan `id` of the current scene; undoable. Refused for the last plan of a
-    /// scene and for one with shots. When it was on view, the plan before it is.
-    pub fn remove_plan(&mut self, id: &str) -> Result<(), ServiceError> {
+    /// Deletes the plan `id` of the current scene; one undo step. Refused for the last plan of
+    /// a scene, and for one with shots unless `shots_go` is `Delete`, which takes them along.
+    /// When it was on view, the plan before it is.
+    pub fn remove_plan(&mut self, id: &str, shots_go: ShotsGo) -> Result<(), ServiceError> {
         let mut next = self.project.clone();
-        project_edit::remove_plan(&mut next, self.scene, id)?;
+        project_edit::remove_plan(&mut next, self.scene, id, shots_go)?;
 
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());

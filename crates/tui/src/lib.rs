@@ -14,7 +14,9 @@ mod editor;
 mod fountain;
 mod i18n;
 mod layout;
+mod links;
 mod terminal;
+mod theme;
 mod ui;
 
 pub use app::{App, Flow};
@@ -23,16 +25,16 @@ pub use terminal::run;
 pub use ui::draw;
 
 /// The usage line.
-pub fn usage(lang: Language) -> &'static str {
-    i18n::tr(lang, i18n::Text::Usage)
+pub fn usage(lang: Language) -> String {
+    lang.text("tui.usage")
 }
 
-pub fn unknown_language(lang: Language) -> &'static str {
-    i18n::tr(lang, i18n::Text::UnknownLanguage)
+pub fn unknown_language(lang: Language) -> String {
+    lang.text("tui.unknownLanguage")
 }
 
-pub fn open_failed(lang: Language) -> &'static str {
-    i18n::tr(lang, i18n::Text::OpenFailed)
+pub fn open_failed(lang: Language) -> String {
+    lang.text("tui.openFailed")
 }
 
 #[cfg(test)]

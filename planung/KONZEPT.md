@@ -134,4 +134,4 @@ Eigentümer, 2026-11-13:
 | E-11 | Projektformat | Ordner aus Textdateien; zum Weitergeben als Zip (`.klappe`). |
 | E-12 | Technik des Kamerablicks | Eigene einfache Perspektivprojektion im Kern. |
 | E-13 | CI | Wie Kontra: Prüfungen und Flatpak auf dem GitHub-Mirror, Status an Gitea. |
-| E-14 | Oberfläche | Entwurf B der Runde 2 („Drehbuch daneben“): Drehbuch links, Plan in der Mitte, Shot mit Vorschau und Daten rechts, Zeitleiste mit Ebenenschaltern unten. Seitenleisten und Zeitleiste ein- und ausklappbar; oben Kopfzeile und Werkzeugleiste wie Entwurf A. Entwürfe: https://claude.ai/artifact/9UDTh7hdqccSMz62NLZztN |
+| E-14 | Oberfläche | Entwurf B der Runde 2 („Drehbuch daneben“): Drehbuch links, Plan in der Mitte, Shot mit Vorschau und Daten rechts, Zeitleiste mit Ebenenschaltern unten. Seitenleisten und Zeitleiste ein- und ausklappbar; oben Kopfzeile und Werkzeugleiste wie Entwurf A. Entwürfe: https://claude.ai/artifact/9UDTh7hdqccSMz62NLZztN Abgelöst, wo sie sich unterscheiden, durch die Designrunde vom 14.11.2026: [DESIGN.md](DESIGN.md) D-01 bis D-10. |

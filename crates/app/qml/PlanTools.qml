@@ -50,6 +50,9 @@ RowLayout {
     readonly property var _names: ["select", "wall", "object", "figure", "camera", "light", "scale", "measure", "note",
                                    "line", "arrow", "rect", "ellipse", "area"]
     readonly property var _keys: ["V", "W", "O", "F", "C", "L", "M", "D", "N", "I", "A", "B", "E", "P"]
+    /// The tools and their keys, in the order of the buttons (the command palette lists them).
+    readonly property var names: _names
+    readonly property var keys: _keys
     readonly property var _choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : { figure: [], object: [], light: [], color: [], dash: [], fill: [] }
 
     spacing: Kirigami.Units.smallSpacing
