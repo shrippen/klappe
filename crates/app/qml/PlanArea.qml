@@ -204,8 +204,8 @@ Item {
     function applyObject() {
         const typed = heightField.text
         const changed = area.objectInfo !== null && typed.trim() !== area.shownHeight(area.objectInfo)
-        area.setObjectSize()
-        if (!changed) {
+        // A refused size stops the apply: the height alone would be half of what was asked.
+        if (!area.setObjectSize() || !changed) {
             return
         }
         heightField.text = typed
@@ -216,6 +216,7 @@ Item {
         const ok = controller.resizeSelected(widthField.text, depthField.text)
         widthField.invalid = !ok
         depthField.invalid = !ok
+        return ok
     }
 
     function fileObject() {

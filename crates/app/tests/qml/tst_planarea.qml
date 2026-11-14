@@ -662,6 +662,20 @@ TestCase {
         compare(fake.heights, ["2", ""])
     }
 
+    // Review of PR 37: a refused size still let Apply set the height.
+    function test_a_refused_size_sets_no_height() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+        fake.sizeOk = false
+
+        findChild(area, "widthField").text = "abc"
+        findChild(area, "heightField").text = "2"
+        findChild(area, "objectApply").clicked()
+
+        compare(fake.heights, [])
+        verify(findChild(area, "widthField").invalid)
+    }
+
     function test_a_refused_height_marks_the_field() {
         const area = drawn("select")
         fake.selectedKey = "object:o1"
