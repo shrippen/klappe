@@ -48,6 +48,18 @@ Item {
         playing = true
     }
 
+    // Locked (backup question), another scene or another project: stop, nobody pressed play there.
+    onEnabledChanged: {
+        if (!enabled) {
+            playing = false
+        }
+    }
+    Connections {
+        target: line.controller
+        function onSceneIdChanged() { line.playing = false }
+        function onTitleChanged() { line.playing = false }
+    }
+
     Timer {
         id: clock
         interval: line.tickMs

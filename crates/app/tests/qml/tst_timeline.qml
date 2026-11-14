@@ -19,6 +19,8 @@ TestCase {
         property var steps: []
         property var advances: []
         property bool running: true
+        property string title: "A"
+        property string sceneId: "s12"
 
         function seek(at) { seeks.push(at) }
         function stepMark(direction) { steps.push(direction) }
@@ -45,6 +47,32 @@ TestCase {
     function init() {
         fake.time = 6
         fake.running = true
+        fake.title = "A"
+        fake.sceneId = "s12"
+    }
+
+    // Play stops when the timeline is locked (backup question) and when another scene or project
+    // comes in: the time is that of the new one, nobody pressed play there.
+    function test_a_locked_timeline_stops_playing() {
+        const line = make(de)
+        line.togglePlay()
+        verify(line.playing)
+        line.enabled = false
+        verify(!line.playing)
+    }
+
+    function test_another_scene_stops_playing() {
+        const line = make(de)
+        line.togglePlay()
+        fake.sceneId = "s13"
+        verify(!line.playing)
+    }
+
+    function test_another_project_stops_playing() {
+        const line = make(de)
+        line.togglePlay()
+        fake.title = "B"
+        verify(!line.playing)
     }
 
     function make(texts) {
