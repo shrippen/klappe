@@ -49,4 +49,4 @@ pub use klappe_stellprobe::{
 };
 
 // Fountain, so the TUI editor can style and list what it types without the script crate.
-pub use klappe_script::{parse, Element};
+pub use klappe_script::{parse, parse_located, Element, Located};

@@ -7,7 +7,7 @@
 mod parse;
 mod write;
 
-pub use parse::parse;
+pub use parse::{parse, parse_located};
 pub use write::write;
 
 /// One block of a screenplay.
@@ -41,6 +41,15 @@ pub enum Element {
     Note(String),
     PageBreak,
     Lyrics(String),
+}
+
+/// An element and the lines of the text it was read from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Located {
+    pub element: Element,
+    /// From 0, in text order: one per line the element takes, several for an action or
+    /// dialogue of more than one line.
+    pub lines: Vec<usize>,
 }
 
 /// A parsed screenplay.

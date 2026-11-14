@@ -439,3 +439,75 @@ fn boneyard_opener_in_title_round_trips() {
 
     assert!(round_trips(&script), "{:?}", write(&script));
 }
+
+fn at(text: &str) -> Vec<(Element, Vec<usize>)> {
+    parse_located(text)
+        .into_iter()
+        .map(|l| (l.element, l.lines))
+        .collect()
+}
+
+#[test]
+fn located_elements_carry_their_lines() {
+    let found = at("INT. A\n\nx\ny\n\nBOB\n(leise)\nhi\nda\n\n===\n");
+
+    assert_eq!(
+        found,
+        [
+            (heading("INT. A", None), vec![0]),
+            (action("x\ny"), vec![2, 3]),
+            (cue("BOB", None, false), vec![5]),
+            (Element::Parenthetical("leise".into()), vec![6]),
+            (Element::Dialogue("hi\nda".into()), vec![7, 8]),
+            (Element::PageBreak, vec![10]),
+        ]
+    );
+}
+
+#[test]
+fn located_elements_skip_the_title_page_and_blank_runs() {
+    let found = at("\n\nTitle: Foo\nAuthor: Bar\n\n\n\nINT. A\n\nx");
+
+    assert_eq!(
+        found,
+        [(heading("INT. A", None), vec![7]), (action("x"), vec![9])]
+    );
+}
+
+#[test]
+fn located_lines_count_through_boneyards() {
+    let found = at("INT. A\n\n/*\nINT. B\n*/\n\nfoo /*\n\n*/ bar\n\nINT. C\n");
+
+    assert_eq!(
+        found,
+        [
+            (heading("INT. A", None), vec![0]),
+            (action("foo  bar"), vec![6]),
+            (heading("INT. C", None), vec![10]),
+        ]
+    );
+}
+
+#[test]
+fn located_lines_read_cr_as_a_line_break() {
+    assert_eq!(
+        at("INT. A\r\n\r\nx\r\ny"),
+        [
+            (heading("INT. A", None), vec![0]),
+            (action("x\ny"), vec![2, 3])
+        ]
+    );
+}
+
+#[test]
+fn located_elements_are_those_of_parse() {
+    for text in [
+        SCENE,
+        "a /* b\n\nc */ d\n\nINT. X\n\nA\nB\n(c)\nd",
+        "!x\n\n@bob\nhi",
+    ] {
+        let located: Vec<_> = parse_located(text).into_iter().map(|l| l.element).collect();
+
+        assert_eq!(located, parse(text).elements, "{text:?}");
+    }
+}
