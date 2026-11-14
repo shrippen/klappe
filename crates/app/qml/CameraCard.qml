@@ -44,9 +44,9 @@ KanteCard {
     implicitWidth: cardRows.implicitWidth + Kirigami.Units.largeSpacing * 2
     implicitHeight: cardRows.implicitHeight + Kirigami.Units.largeSpacing * 2
 
-    onInfoChanged: card.fill()
+    onInfoChanged: card.fill(CameraCard.Fill.Unfocused)
     onLensSetChanged: card.syncBoxes()
-    Component.onCompleted: card.fill()
+    Component.onCompleted: card.fill(CameraCard.Fill.Unfocused)
 
     // A combo box drops its binding once the user picks; the boxes follow the camera again.
     function syncBoxes() {
@@ -58,8 +58,11 @@ KanteCard {
         lensBox.currentIndex = lensBox.indexOfValue(card.info.ownLens)
     }
 
-    function fill() {
-        if (!card.info) {
+    // Which fields `fill()` writes: those without focus, or all of them after an apply.
+    enum Fill { Unfocused, All }
+
+    function fill(which) {
+        if (!card.info || card.applying) {
             return
         }
         const values = [
@@ -69,41 +72,45 @@ KanteCard {
         ]
         for (const [field, value] of values) {
             field.shown = card.texts.num(value, 2)
-            if (!field.activeFocus) {
+            if (which === CameraCard.Fill.All || !field.activeFocus) {
                 field.text = field.shown
             }
         }
         card.syncBoxes()
     }
 
-    // Sets one field to `text` when it was typed in; marks it when the value is refused.
-    function applyField(name, field, text) {
-        if (text === field.shown) {
-            return
-        }
-        const ok = card.controller.setCameraField(name, text)
-        if (ok) {
-            field.shown = text
-            field.invalid = false
-            return
-        }
+    // Whether an apply is running: its edits refresh the plan, and `fill()` waits for the end.
+    property bool applying: false
 
-        // A refused value stays to be fixed, though the refresh wrote the old one back.
-        field.text = text
-        field.invalid = true
+    // Sets each typed field of `fields` ([name, field] pairs). The texts are read first and
+    // the fields filled once at the end: each edit refreshes the plan, and a fill in between
+    // would write the camera's values over fields not yet applied. An accepted field then
+    // shows the camera's value, so a second apply sends nothing; a refused one keeps its text
+    // and is marked.
+    function apply(fields) {
+        const typed = fields.map(([name, field]) => [name, field, field.text])
+        const refused = []
+
+        card.applying = true
+        for (const [name, field, text] of typed) {
+            if (text === field.shown) {
+                continue
+            }
+            if (!card.controller.setCameraField(name, text)) {
+                refused.push([field, text])
+            }
+        }
+        card.applying = false
+
+        card.fill(CameraCard.Fill.All)
+        for (const [field, text] of refused) {
+            field.text = text
+            field.invalid = true
+        }
     }
 
-    // Reads every field first: each edit refreshes the plan, and `fill()` then writes the
-    // camera's values into the fields not yet applied.
     function applyAll() {
-        const typed = [
-            ["sensor", sensorField, sensorField.text],
-            ["lens", lensField, lensField.text],
-            ["aspect", aspectField, aspectField.text],
-        ]
-        for (const [name, field, text] of typed) {
-            card.applyField(name, field, text)
-        }
+        card.apply([["sensor", sensorField], ["lens", lensField], ["aspect", aspectField]])
     }
 
     function choose(name, value) {
@@ -147,7 +154,7 @@ KanteCard {
                 placeholderText: card.texts.t("camera.sensor")
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
                 onTextChanged: invalid = false
-                onAccepted: card.applyField("sensor", sensorField, sensorField.text)
+                onAccepted: card.apply([["sensor", sensorField]])
             }
             KanteTextField {
                 id: aspectField
@@ -160,7 +167,7 @@ KanteCard {
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                 onTextChanged: invalid = false
-                onAccepted: card.applyField("aspect", aspectField, aspectField.text)
+                onAccepted: card.apply([["aspect", aspectField]])
             }
         }
 
@@ -197,7 +204,7 @@ KanteCard {
                 placeholderText: card.texts.t("camera.lens")
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
                 onTextChanged: invalid = false
-                onAccepted: card.applyField("lens", lensField, lensField.text)
+                onAccepted: card.apply([["lens", lensField]])
             }
             KanteButton {
                 objectName: "cameraApply"

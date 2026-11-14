@@ -16,7 +16,11 @@ TestCase {
         property string planJson: "{}"
         property string selectedKey: ""
         property bool fieldOk: true
+        // A field the controller refuses without an edit, as it does a text that is no number.
+        property string refused: ""
         property var sets: []
+        // The sensor the camera has; a set sensor comes back from `describe` as a number.
+        property real sensor: 24.89
         property string choicesJson: JSON.stringify({
             camera: {
                 bodies: [
@@ -35,11 +39,18 @@ TestCase {
             const lens = { "camera:a": 35, "camera:b": 50, "camera:c": 200 }[key]
             return JSON.stringify({
                 kind: "camera", label: key.substring(7).toUpperCase(), lens: lens, ownLens: lens,
-                sensor: 24.89, aspect: 2.39, body: "super35", fov: 39.6, height: 1.6, shots: "",
+                sensor: sensor, aspect: 2.39, body: "super35", fov: 39.6, height: 1.6, shots: "",
             })
         }
         function setCameraField(field, value) {
             sets.push([field, value])
+            if (field === refused) {
+                return false
+            }
+            const mm = Number(String(value).replace(",", "."))
+            if (fieldOk && field === "sensor" && mm > 0) {
+                sensor = mm
+            }
             // Like the bridge: every edit gives a new plan, so the card reads the camera again.
             planJson = JSON.stringify({ edits: sets.length })
             return fieldOk
@@ -62,6 +73,8 @@ TestCase {
         fake.planJson = "{}"
         fake.sets = []
         fake.fieldOk = true
+        fake.sensor = 24.89
+        fake.refused = ""
     }
 
     function shown(key, texts) {
@@ -207,6 +220,33 @@ TestCase {
         findChild(card, "cameraApply").clicked()
 
         compare(fake.sets, [["sensor", "30"], ["lens", "40"]])
+    }
+
+    // Review of PR 33: after Apply the field showed the rounded value but remembered the
+    // typed one, so the next Apply sent the rounded value and changed the camera.
+    function test_a_second_apply_sends_nothing_new() {
+        const card = shown("camera:a")
+
+        findChild(card, "cameraSensorField").text = "30.123"
+        findChild(card, "cameraApply").clicked()
+        findChild(card, "cameraApply").clicked()
+
+        compare(fake.sets, [["sensor", "30.123"]])
+    }
+
+    // Review of PR 33: a later field of the same Apply refreshed the plan and wiped the
+    // refused value and its mark.
+    function test_a_refused_value_stays_beside_an_accepted_one() {
+        const card = shown("camera:a")
+        const sensor = findChild(card, "cameraSensorField")
+        fake.refused = "sensor"
+
+        sensor.text = "abc"
+        findChild(card, "cameraLensField").text = "40"
+        findChild(card, "cameraApply").clicked()
+
+        compare(sensor.text, "abc")
+        verify(sensor.invalid)
     }
 
     function test_a_refused_value_marks_the_field_until_typing() {
