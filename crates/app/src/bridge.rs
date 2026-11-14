@@ -2696,6 +2696,61 @@ mod tests {
             .is_empty());
     }
 
+    /// Every kind of element a tooltip describes, as QML reads it.
+    #[test]
+    fn describe_gives_every_kind_its_fields() {
+        let s = example();
+
+        assert_eq!(
+            describe(&s, "camera:b"),
+            json!({
+                "kind": "camera", "label": "B", "lens": 50.0, "ownLens": 50.0, "sensor": 24.89,
+                "aspect": 2.39, "body": "super35", "fov": 28.0, "height": 1.6,
+                "shots": "12.3, 12.4", "follows": "Burgvogt",
+            })
+        );
+        assert_eq!(describe(&s, "camera:a")["shots"], "12.1, 12.2, 12.5");
+        assert_eq!(describe(&s, "camera:x"), json!({}));
+        assert_eq!(
+            describe(&s, "light:led-1"),
+            json!({ "kind": "light", "label": "LED-Panel", "temp": 5600.0, "power": 200.0 })
+        );
+        assert_eq!(describe(&s, "light:x"), json!({}));
+        assert_eq!(
+            describe(&s, "note:n1"),
+            json!({ "kind": "note", "text": "Vorhang schließen" })
+        );
+        assert_eq!(
+            describe(&s, "note:x"),
+            json!({ "kind": "note", "text": "" })
+        );
+        assert_eq!(
+            describe(&s, "figure:elisabeth"),
+            json!({ "kind": "figure", "name": "Elisabeth", "index": null, "time": null })
+        );
+        assert_eq!(
+            describe(&s, "mark:elisabeth:1"),
+            json!({ "kind": "mark", "name": "Elisabeth", "index": 2, "time": 6.0 })
+        );
+        assert_eq!(
+            describe(&s, "object:tisch"),
+            json!({
+                "kind": "object", "label": "Tafel", "library": "table", "width": 6.0,
+                "depth": 1.2, "height": null,
+            })
+        );
+    }
+
+    /// The scene's set decides the background and the notes the tooltips read.
+    #[test]
+    fn the_set_of_the_scene_gives_background_and_notes() {
+        let s = example();
+
+        assert!(!has_background(&s));
+        assert_eq!(note_text(&s, "n1").as_deref(), Some("Vorhang schließen"));
+        assert_eq!(note_text(&s, "x"), None);
+    }
+
     #[test]
     fn shift_makes_a_pick_extend_the_selection() {
         let mut c = ControllerRust::default();
