@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{Field, PlanEdit, Point, ServiceError, Session, Source};
+use klappe_services::{Field, PlanEdit, Point, ServiceError, Session, ShotsGo, Source};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -128,7 +128,7 @@ fn the_free_letter_is_taken_for_an_unnamed_plan() {
     let mut s = open("variants-letters");
     s.add_plan("").unwrap();
     s.add_plan("").unwrap();
-    s.remove_plan("plan-b").unwrap();
+    s.remove_plan("plan-b", ShotsGo::Refuse).unwrap();
 
     let id = s.add_plan("").unwrap();
 
@@ -264,7 +264,7 @@ fn renaming_is_refused_for_bad_names_and_unknown_plans() {
 fn the_last_plan_stays() {
     let mut s = open("variants-last");
 
-    let refused = s.remove_plan("plan-a");
+    let refused = s.remove_plan("plan-a", ShotsGo::Refuse);
 
     assert!(matches!(refused, Err(ServiceError::LastPlan(id)) if id == "plan-a"));
     assert_eq!(plans(&s).len(), 1);
@@ -275,7 +275,7 @@ fn a_plan_with_shots_stays_and_the_refusal_counts_them() {
     let mut s = open("variants-shots");
     s.add_plan("").unwrap();
 
-    let refused = s.remove_plan("plan-a");
+    let refused = s.remove_plan("plan-a", ShotsGo::Refuse);
 
     assert!(matches!(
         refused,
@@ -285,12 +285,49 @@ fn a_plan_with_shots_stays_and_the_refusal_counts_them() {
 }
 
 #[test]
+fn a_plan_with_shots_goes_with_them_when_told_to() {
+    let mut s = open("variants-shots-go");
+    s.add_plan("").unwrap();
+    s.select_plan("plan-a").unwrap();
+
+    s.remove_plan("plan-a", ShotsGo::Delete).unwrap();
+
+    assert_eq!(plans(&s), [pair("plan-b", "Plan B")]);
+    assert_eq!(shown(&s), "plan-b");
+}
+
+#[test]
+fn undo_brings_back_the_plan_and_its_shots_in_one_step() {
+    let mut s = open("variants-shots-undo");
+    s.add_plan("").unwrap();
+    let before = s.scene().unwrap().plans.clone();
+    s.remove_plan("plan-a", ShotsGo::Delete).unwrap();
+
+    s.undo();
+
+    assert_eq!(s.scene().unwrap().plans, before);
+    assert_eq!(s.scene().unwrap().plans[0].shots.len(), 5);
+    s.redo();
+    assert_eq!(plans(&s), [pair("plan-b", "Plan B")]);
+}
+
+#[test]
+fn the_last_plan_stays_even_with_its_shots_to_go() {
+    let mut s = open("variants-shots-last");
+
+    let refused = s.remove_plan("plan-a", ShotsGo::Delete);
+
+    assert!(matches!(refused, Err(ServiceError::LastPlan(id)) if id == "plan-a"));
+    assert_eq!(s.plan().unwrap().shots.len(), 5);
+}
+
+#[test]
 fn an_unknown_plan_cannot_go() {
     let mut s = open("variants-unknown");
     s.add_plan("").unwrap();
 
     assert!(matches!(
-        s.remove_plan("plan-z"),
+        s.remove_plan("plan-z", ShotsGo::Refuse),
         Err(ServiceError::NoPlan(_))
     ));
 }
@@ -302,7 +339,7 @@ fn deleting_the_plan_on_view_shows_the_one_before() {
     s.add_plan("").unwrap();
     s.select_plan("plan-b").unwrap();
 
-    s.remove_plan("plan-b").unwrap();
+    s.remove_plan("plan-b", ShotsGo::Refuse).unwrap();
 
     assert_eq!(
         plans(&s),
@@ -320,7 +357,7 @@ fn deleting_another_plan_keeps_the_view() {
     s.set_time(1.5);
     assert_eq!(s.time_s(), 1.5);
 
-    s.remove_plan("plan-c").unwrap();
+    s.remove_plan("plan-c", ShotsGo::Refuse).unwrap();
 
     assert_eq!(shown(&s), "plan-a");
     assert_eq!(s.time_s(), 1.5);
@@ -343,7 +380,7 @@ fn deleting_the_first_plan_shows_the_next_when_it_was_on_view() {
         s.delete_shot(&id).unwrap();
     }
 
-    s.remove_plan("plan-a").unwrap();
+    s.remove_plan("plan-a", ShotsGo::Refuse).unwrap();
 
     assert_eq!(shown(&s), "plan-b");
 }
@@ -354,7 +391,7 @@ fn deleting_is_undone_with_the_plan_back_on_view() {
     s.add_plan("").unwrap();
     s.add_plan("").unwrap();
     s.select_plan("plan-b").unwrap();
-    s.remove_plan("plan-b").unwrap();
+    s.remove_plan("plan-b", ShotsGo::Refuse).unwrap();
 
     s.undo();
 
@@ -376,7 +413,7 @@ fn undo_stays_with_the_plan_on_view_when_indices_shift() {
     s.add_plan("").unwrap();
     s.add_plan("").unwrap();
     s.select_plan("plan-c").unwrap();
-    s.remove_plan("plan-b").unwrap();
+    s.remove_plan("plan-b", ShotsGo::Refuse).unwrap();
 
     // Plan B comes back before the plan on view, which moves from index 1 to 2.
     s.undo();
