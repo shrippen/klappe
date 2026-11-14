@@ -12,6 +12,7 @@
 mod axis;
 mod display;
 mod hit;
+mod look;
 mod motion;
 mod optics;
 mod setup;
@@ -19,6 +20,7 @@ mod setup;
 pub use axis::{axis_at, axis_jumps, Axis, Side};
 pub use display::{handles, render, DisplayList, Item, Role, Shape, Source, FIGURE_RADIUS_M};
 pub use hit::{hit, within};
+pub use look::{look, Area, Hue, Look};
 pub use motion::{
     bend_point, camera_at, figure_at, via_through, walked_ways, way_length_m, Placement,
 };
