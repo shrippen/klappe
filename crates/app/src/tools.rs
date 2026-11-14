@@ -156,6 +156,8 @@ impl Tool {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Key {
     Remove,
+    /// Takes the bend out of the selected way (LH-21).
+    Straighten,
     /// Clockwise for a positive angle.
     Turn {
         by_deg: f64,
@@ -506,6 +508,7 @@ pub fn key_edit(key: Key, selected: Option<&Source>) -> Option<PlanEdit> {
 
     match key {
         Key::Remove => Some(PlanEdit::Remove { source }),
+        Key::Straighten => Some(PlanEdit::Straighten { source }),
         Key::Turn { by_deg } => Some(PlanEdit::Spin { source, by_deg }),
     }
 }
@@ -741,6 +744,12 @@ mod tests {
             })
         );
         assert_eq!(key_edit(Key::Remove, None), None);
+        assert_eq!(
+            key_edit(Key::Straighten, Some(&Source::Camera("a".into()))),
+            Some(PlanEdit::Straighten {
+                source: Source::Camera("a".into())
+            })
+        );
     }
 
     #[test]

@@ -52,6 +52,13 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   (Standard `solid`), `fill` `outline` oder `filled` (Standard `outline`; nur Rechteck, Ellipse und
   Fläche haben ein Inneres). Ohne Zeichnungen fehlt der Schlüssel; ältere Projekte laden und
   speichern unverändert. Keine neue Formatversion, wie bei den Notizen.
+- **Kurvenwege (LH-21):** jeder Mark einer Figur und einer Kamera (`marks` in `szenen/<id>.json`)
+  hat optional `via`, einen Punkt in Metern: der Weg vom vorigen Mark zu diesem ist die
+  quadratische Bézierkurve mit `via` als Kontrollpunkt (die Kurve zieht zu `via` hin, geht aber
+  nicht durch). Ohne `via` ist der Weg gerade; am ersten Mark zählt `via` nicht. Die Bewegung
+  läuft entlang der Kurve mit gleichmäßigem Tempo, die Ankunftszeiten bleiben die der Marks.
+  Ohne Kurven fehlt der Schlüssel; ältere Projekte laden und speichern unverändert. Keine
+  neue Formatversion, wie bei den Notizen.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.

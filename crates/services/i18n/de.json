@@ -150,6 +150,7 @@
  "tip.shots": "Shots {shots}",
  "tip.figure": "{name}",
  "tip.mark": "{name} · Mark {index}",
+ "tip.bend": "Weg zu Mark {index} · ziehen zum Krümmen, G macht ihn gerade",
  "tip.at": "ab {time} s",
  "tip.light": "{label} · {temp} K · {power} W",
  "tip.object": "{label}",

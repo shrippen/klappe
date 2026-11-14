@@ -39,7 +39,11 @@
               },
               "facing_deg": 270.0,
               "pose": "standing",
-              "hold_s": 0.0
+              "hold_s": 0.0,
+              "via": {
+                "x_m": 11.0,
+                "y_m": 2.5
+              }
             }
           ]
         },

@@ -172,6 +172,10 @@ pub struct Mark {
     /// Seconds the figure stays before it walks on (LH-63: pause at a mark).
     #[serde(default)]
     pub hold_s: f64,
+    /// Control point of the quadratic Bézier curve from the previous mark to this one; `None`
+    /// walks straight. Ignored on the first mark (LH-21).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via: Option<Point>,
 }
 
 /// LH-22.
@@ -211,6 +215,10 @@ pub struct CameraMark {
     pub tilt_deg: f64,
     #[serde(default)]
     pub hold_s: f64,
+    /// Control point of the quadratic Bézier curve from the previous mark to this one; `None`
+    /// walks straight. Ignored on the first mark (LH-21).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via: Option<Point>,
 }
 
 /// Sensor formats with their active width; the frame's aspect crops the height (LH-32).
@@ -325,6 +333,7 @@ mod tests {
                 facing_deg: 0.0,
                 pose: Pose::Standing,
                 hold_s: 5.0,
+                via: None,
             }],
         }];
 
@@ -342,6 +351,7 @@ mod tests {
             facing_deg: 0.0,
             pose: Pose::Standing,
             hold_s,
+            via: None,
         };
         plan.figures = vec![FigureTrack {
             character: "e".into(),

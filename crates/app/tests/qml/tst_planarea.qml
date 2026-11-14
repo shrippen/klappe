@@ -21,6 +21,7 @@ TestCase {
         property var places: []
         property var turns: []
         property int removes: 0
+        property int straightens: 0
         property int cancels: 0
         property int scalePoints: 0
         property var calibrations: []
@@ -80,6 +81,7 @@ TestCase {
         }
         function grabbable(x, y) { return grab }
         function removeSelected() { removes++ }
+        function straightenSelected() { straightens++ }
         function turnSelected(step) { turns.push(step) }
         function cancelDrag() { cancels++ }
     }
@@ -117,6 +119,7 @@ TestCase {
         fake.places = []
         fake.turns = []
         fake.removes = 0
+        fake.straightens = 0
         fake.cancels = 0
         fake.scalePoints = 0
         fake.calibrations = []
@@ -270,6 +273,18 @@ TestCase {
         compare(fake.removes, 1)
     }
 
+    // G straightens the selected way, and only with something selected (LH-21).
+    function test_g_straightens_the_selected_way() {
+        drawn("select")
+
+        keyClick(Qt.Key_G)
+        compare(fake.straightens, 0)
+
+        fake.selectedKey = "figurevia:e:1"
+        keyClick(Qt.Key_G)
+        compare(fake.straightens, 1)
+    }
+
     function test_scale_asks_for_the_length_after_two_clicks() {
         const area = drawn("scale")
         const card = findChild(area, "lengthCard")
@@ -403,11 +418,13 @@ TestCase {
         fake.asksNote = true
 
         keyClick(Qt.Key_R)
+        keyClick(Qt.Key_G)
         keyClick(Qt.Key_Delete)
 
         compare(fake.turns.length, 0)
+        compare(fake.straightens, 0)
         compare(fake.removes, 0)
-        compare(findChild(area, "noteField").text, "r")
+        compare(findChild(area, "noteField").text, "rg")
     }
 
     function test_f2_edits_a_selected_note_only() {

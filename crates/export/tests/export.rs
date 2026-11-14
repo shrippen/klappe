@@ -58,6 +58,7 @@ fn mark(at_s: f64, x: f64, y: f64) -> Mark {
         facing_deg: 0.0,
         pose: Pose::Standing,
         hold_s: 0.0,
+        via: None,
     }
 }
 
@@ -86,6 +87,7 @@ fn plan() -> FloorPlan {
             height_m: 1.6,
             tilt_deg: 0.0,
             hold_s: 0.0,
+            via: None,
         }],
         follows: None,
     }];
