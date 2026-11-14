@@ -1,112 +1,87 @@
-# Code-Audit Klappe, 14.11.2026, Stand 0d38fc2
+# Code-Audit Klappe, 14.11.2026, Stand 30f23f5
 
 ## Urteil
-Das Repo lässt sich gut warten: Die Bausteine folgen dem Plan, und zu fast jedem Teil gibt es Tests, die das Verhalten prüfen (20 Testdateien für die Projekt-Sitzung, 12 Oberflächentests). Schwach ist, dass zwei zentrale Dateien mit jeder Funktion weiter wachsen und dasselbe Wissen an mehreren Orten steht. Außerdem greift die Sitzung an der Ablage vorbei selbst auf Dateien zu. Dies ist das erste Audit, darum gibt es keinen Vergleich.
+Das Repo lässt sich besser warten als beim letzten Audit. Alle zehn Funde sind bearbeitet und neun davon im Code behoben. Die beiden großen Dateien sind nach Themen aufgeteilt, die Bestandsliste ist von 47 auf 36 Einträge geschrumpft, und die Strukturprüfung läuft jetzt in der CI. Was bleibt, ist kleiner: Die Oberfläche führt für einige Auswahlarten weiter eigene Namenslisten. Bildschirm und Ausdruck entscheiden je für sich, in welcher Farbe und Linienart ein Element erscheint. Die Beschreibung der Schichten steht in zwei Dokumenten, die von Hand gleich gehalten werden.
 
 ## Kennzahlen
 | | letztes Audit | jetzt |
 |---|---|---|
-| Quelldateien | | 165 (ohne die Kopie von Kante) |
-| Einträge in der Bestandsliste | | 47 (ohne 20 in der Kopie von Kante; `structure.baseline` gibt es noch nicht) |
-| größte Datei (Zeilen) | | 2777 (`crates/app/src/bridge.rs`) |
-| längste Funktion (Zeilen) | | 130 (`plan` in einem Test der Ablage); ohne Tests 123 (`role_style`). Der Eintrag `switched` mit 455 Zeilen ist keine Funktion, sondern die Liste der Aufrufe, die die Verbindung zur Oberfläche anmeldet. |
+| Quelldateien | 165 (ohne die Kopie von Kante) | 213 (ohne die Kopie von Kante, so gezählt wie die Strukturprüfung; ein Teil des Zuwachses kommt vom Aufteilen großer Dateien) |
+| Einträge in der Bestandsliste | 47 (ohne die Kopie von Kante) | 36 |
+| größte Datei (Zeilen) | 2777 (`crates/app/src/bridge.rs`) | 1540 (`crates/stellprobe/src/display.rs`, davon 866 Zeilen Tests) |
+| längste Funktion (Zeilen) | 130 (`plan` in einem Test der Ablage); ohne Tests 123 (`role_style`) | 130 (unverändert `plan` in einem Test der Ablage); ohne Tests 122 (`apply` in `plan_edit.rs` und `refresh` in `bridge/view.rs`). `switched` mit 455 Zeilen ist weiter keine Funktion, sondern die Liste der Aufrufe der Verbindung zur Oberfläche. |
 
 ## Funde
 
-### 1. Die Namen der Figurenfarben stehen viermal im Code, die Namen von Haltung, Ankunft und Abgang in einer eigenen Tabelle der Oberfläche
-Eine neue Figurenfarbe muss heute an vier Stellen gleich lauten: in der Planansicht der App, in der Zeitleiste der Sitzung, im Export und, über einen dritten Weg, beim Lesen und Schreiben der Projektdatei. Drei dieser Stellen werden von Hand gepflegt, die vierte leitet den Namen selbst ab, und alle müssen gleich lauten. Vergessen kann man keine Stelle, denn das Programm lässt sich erst wieder bauen, wenn alle ergänzt sind. Ein Tippfehler im Namen an einer Stelle fällt aber nicht auf: Dann zeigt die App die Farbe an, der Ausdruck nicht, oder umgekehrt. Für Haltung, Ankunft, Abgang und Tempo hält die Oberfläche eigene Namenstabellen; dort fällt auch eine fehlende Zeile nicht auf. Diese Namen sind dieselben, die auch die Projektdatei schreibt. Für die Bildgröße ist das schon richtig gelöst: Das Modell kennt dort den Namen selbst, mit Test.
+### 1. Für Ebenen, Lichtarten, Strich, Füllung und die Auswahl an einer Marke hält die Oberfläche eigene Namenslisten
+Fund 1 des letzten Audits hat die Namen der Figurenfarben, der Haltung, der Ankunft und des Abgangs ins Modell gelegt. Das Modell ist der Teil des Programms, der die Projektdaten beschreibt. Für andere Auswahlarten gibt es solche Listen weiter in der Oberfläche.
 
-Vorschlag: Jede dieser Auswahlarten bekommt im Modell einmal eine Funktion „Name“ und eine Funktion „aus dem Namen“, und alle anderen Stellen nutzen sie. Aufwand klein. Risiko gering, Tests für Projektdatei und Export sind vorhanden.
+Die Namen der sechs Ebenen stehen an fünf Stellen: einmal als Umwandlung in Text, einmal getrennt davon als Rückweg, zweimal als feste Felder für die Anzeige von „sichtbar“ und „gesperrt“ und einmal als Liste in der Oberfläche. Kommt eine Ebene hinzu, bricht der Bau des Programms nur an der ersten dieser Stellen ab, und an den vier anderen fehlt sie dann ohne Warnung. Lichtarten, Strich und Füllung der Zeichenwerkzeuge haben in der App eigene Tabellen neben den Namen, die das Modell in die Projektdatei schreibt. Die Auswahllisten für Haltung, Ankunft und Abgang stehen fest in der Karte einer Marke, obwohl das Modell sie inzwischen vollständig kennt.
 
-Beleg: `crates/app/src/plan.rs:75`, `crates/services/src/session.rs:1363`, `crates/export/src/style.rs:27`, `crates/app/src/manage.rs:105`, `crates/app/src/manage.rs:113`, `crates/app/src/tools.rs:680`, `crates/app/src/tools.rs:730`, `crates/app/src/tools.rs:734`, Vorbild `crates/model/src/shot.rs:76`.
+Vorschlag: Jede dieser Arten bekommt wie `ElementKind` und `Pose` eine vollständige Liste mit „Name“ und „aus dem Namen“, und die Oberfläche bekommt die Listen von dort, wie sie es bei den Farben schon tut. Aufwand klein. Risiko gering, es gibt Tests für Projektdatei und Werkzeugleiste.
 
-### 2. Eingetippte Zahlen werden an sechs Stellen gelesen, jede mit eigenen Regeln
-Je nach Feld gelten heute andere Regeln. Im Feld Brennweite der Shotliste ist „85 mm“ erlaubt, auf der Kamerakarte wird dieselbe Eingabe abgewiesen. Bei der Breite eines Drehorts ist „8 m“ erlaubt, bei der Größe eines Möbels nicht.
+Beleg: `crates/app/src/notice.rs:8`, `crates/app/src/bridge/layers.rs:51`, `crates/app/src/bridge/view.rs:189`, `crates/app/src/bridge/view.rs:203`, `crates/app/qml/LayerPopover.qml:16`, `crates/app/src/tools.rs:17`, `crates/app/src/tools.rs:27`, `crates/app/src/tools.rs:34`, `crates/app/qml/MarkCard.qml:19`, Vorbild `crates/app/src/plan.rs:91`, `crates/model/src/plan.rs:264`, `crates/app/src/bridge/view.rs:173`.
 
-Auch die Rückmeldung ist verschieden. Eine falsche Breite des Drehorts erzeugt eine Meldung in der Statuszeile. Bei einer falschen Möbelgröße wird das Feld nur rot umrandet, ohne Text. Wer eine Regel ändern will, zum Beispiel Einheiten überall erlauben, muss alle sechs Stellen finden. Fünf davon liegen in der Oberfläche; das Terminalprogramm und die Kommandozeile müssten sie also noch einmal bauen.
+### 2. Es gibt keine `ARCHITECTURE.md`; der Aufbau steht doppelt in `agent.md` und `planung/KONZEPT.md`
+`ARCHITECTURE.md` ist die Datei, die nach den Regeln aller Repos den gewollten Aufbau festhält. Sie fehlt. Stattdessen beschreiben `agent.md` und `planung/KONZEPT.md` die Schichten mit fast derselben Zeichnung und denselben Sätzen. Seit dem letzten Audit mussten vier Commits beide Dateien gleich korrigieren. Eine Stelle, die sagt, wo eine neue Art von Änderung hingehört (neue Ebene, neues Exportformat, neues Feld), gibt es nicht. Ohne diese Datei hat das Audit keinen Maßstab für die Schichten, an dem es messen könnte.
 
-Vorschlag: Ein Leser für Zahlen mit Einheit und Bereich gehört in die Sitzung. Er gibt immer dieselbe Fehlerart zurück, und die Oberfläche reicht nur den Text weiter. Aufwand klein bis mittel. Risiko gering, Tests für die einzelnen Leser sind vorhanden.
+Vorschlag: Die Hauptsitzung legt nach dem Skill `architektur` eine `ARCHITECTURE.md` an. Die Zeichnung der Schichten zieht aus `agent.md` und `KONZEPT.md` dorthin um, und beide verweisen nur noch darauf. Aufwand klein. Risiko keins, es ändert sich kein Code. Der Eigentümer bestätigt die erste Fassung.
 
-Beleg: `crates/app/src/tools.rs:641`, `crates/app/src/tools.rs:696`, `crates/app/src/tools.rs:703`, `crates/app/src/camera.rs:35`, `crates/app/src/camera.rs:82`, `crates/app/src/manage.rs:118`, `crates/services/src/edit.rs:107`, stille Abweisung `crates/app/src/bridge.rs:1625`.
+Beleg: `agent.md:20`, `planung/KONZEPT.md:60`, Commits `978448f`, `aa9fdc5`, `45a6040`, `3e87a1d`.
 
-### 3. Die Sitzung schreibt und liest Dateien selbst, an der Ablage vorbei
-Laut Plan ist allein die Ablage (`store`) für Dateien zuständig. Die Sitzung legt aber das Beispielprojekt selbst an und schreibt die Vorschaubilder der Startseite. Sie prüft selbst, ob ein Ordner leer ist, und schreibt die Exportdateien.
+### 3. Farbe und Linienart eines Elements legen Bildschirm und Ausdruck je für sich fest
+Laut Konzept steht im Ausdruck dasselbe wie am Bildschirm. Welche Farbe und welche Linienart jedes Element hat, steht aber in zwei Tabellen: einer für die Planansicht der App und einer für PDF und SVG. Beide sagen zum Beispiel „Achse orange gestrichelt“ und „Kameraweg gelb gepunktet“, und beide übersetzen die Linienart einer Zeichnung je auf eigene Weise. An einigen Stellen weichen sie schon voneinander ab: Eine Marke ist am Bildschirm nur umrandet, im Ausdruck getönt. Ob das gewollt ist, sagt keine der beiden Stellen. Wer etwa die Achse gepunktet haben will, muss beide Tabellen ändern, und kein Test merkt, wenn eine fehlt.
 
-Dafür gibt es drei verschiedene Lösungen für „erst daneben schreiben, dann umbenennen“, obwohl die Ablage dafür schon eine eigene Funktion hat. Die Exporte schreibt die Sitzung sogar ohne diesen Schutz. Außerdem weiß die Startseite, dass die Ablage ihre Sicherungen in Ordnern versteckt, deren Name mit einem Punkt beginnt. Ändert die Ablage diese Namen, zeigt die Startseite falsche Änderungszeiten, ohne dass ein Test der Ablage das merkt.
+Vorschlag: Die Darstellungsliste in `stellprobe` gibt zu jeder Rolle einmal Farbe, Linienart und Art der Füllung an. App und Export übersetzen das nur noch in ihr Format (Kante-Name oder Druckfarbe, Strichstärke), und gewollte Unterschiede stehen dort ausdrücklich. Aufwand klein bis mittel. Risiko gering, beide Tabellen haben Tests.
 
-Vorschlag: Diese Dateizugriffe wandern als Funktionen in die Ablage, und die Sitzung ruft nur diese auf. Aufwand mittel. Risiko gering, `services/tests/start.rs` und `services/tests/example.rs` sind vorhanden.
+Beleg: `crates/app/src/plan.rs:25`, `crates/app/src/plan.rs:46`, `crates/app/src/plan.rs:47`, `crates/app/src/plan.rs:51`, `crates/app/src/plan.rs:60`, `crates/export/src/style.rs:27`, `crates/export/src/style.rs:64`, `crates/export/src/style.rs:109`, `crates/export/src/style.rs:119`, `crates/export/src/style.rs:89`, `planung/KONZEPT.md:86`.
 
-Beleg: `crates/services/src/example.rs:31`, `crates/services/src/start.rs:93`, `crates/services/src/start.rs:146`, `crates/services/src/session.rs:1435`, `crates/services/src/session.rs:1453`, `crates/store/src/files.rs:231`, `crates/store/src/lib.rs:44`.
+### 4. Der Kopf einer PNG-Datei wird an zwei Stellen gelesen, mit verschiedenen Regeln
+Fund 4 des letzten Audits ist für JPEG gelöst: Es gibt jetzt ein kleines Paket, das den Kopf einer JPEG-Datei liest, und Ablage und Export nutzen es beide. Für PNG fehlt das. Die Ablage nimmt beim Hinzufügen eines Hintergrundbilds jede Datei an, die mit der PNG-Kennung beginnt und an einer festen Stelle zwei Zahlen über null hat. Ob dort wirklich der Kopf der Datei (der Abschnitt `IHDR`) steht und ob die Farbart gültig ist, prüft sie nicht. Der Export prüft beides. Eine Datei mit unbekannter Farbart, zum Beispiel 1, wird darum als Hintergrund angenommen, und der Export bricht später mit „unknown PNG colour type“ ab. Dasselbe gilt für JPEG mit CMYK-Farben, die die Ablage annimmt und der PDF-Export abweist.
 
-### 4. Der Kopf einer JPEG-Datei wird an drei Stellen gelesen, zweimal fast wörtlich kopiert
-Die Ablage liest die Bildgröße, und der Export liest Größe und Farbtiefe. Beide Stellen gehen die Abschnitte der Datei Schritt für Schritt durch, mit kopierten Konstanten und gleicher Schleife. Ein dritter Durchlauf im Teil des Exports, der JPEG-Bilder entpackt, duldet anderen Unsinn zwischen den Abschnitten als die beiden ersten.
+Vorschlag: Das Paket für Bildköpfe liest auch den PNG-Kopf, und die Ablage prüft beim Hinzufügen mit denselben Regeln, die der Export braucht. Aufwand klein. Risiko gering, `store/tests/images.rs` und `export/tests/background.rs` sind vorhanden.
 
-Eine Datei kann darum in der Ablage als Bild gelten und im Export abgewiesen werden. Eine Korrektur an einer Stelle erreicht die anderen nicht.
+Beleg: `crates/store/src/images.rs:117`, `crates/store/src/images.rs:126`, `crates/export/src/png.rs:93`, `crates/export/src/png.rs:118`, `crates/export/src/png.rs:120`, `crates/export/src/image.rs:206`, `crates/imagehead/src/lib.rs:1`.
 
-Vorschlag: Nur der Export liest JPEG-Köpfe. Die Sitzung, die über beiden liegt, fragt ihn nach der Bildgröße, und die Ablage kopiert die Bilder nur noch. Wenn die Prüfung beim Hinzufügen in der Ablage bleiben muss, kommt das Lesen des Kopfs in ein kleines eigenes Paket unter beiden. Aufwand klein bis mittel. Risiko gering, `store/tests/images.rs` und `export/tests/background.rs` sind vorhanden.
+### 5. Die Werte für die Oberfläche werden zweimal von Hand aus der Sitzung geholt
+Beim Start füllt eine Funktion alle Anzeigewerte der Oberfläche (Titel, Plan, Zeitleiste, Shotliste, Ebenen …). Nach jeder Änderung holt eine zweite Funktion dieselben Werte noch einmal mit eigenem Code. Diese zweite Funktion ist mit 122 Zeilen eine der längsten im Repo und steht in der Bestandsliste. Eine neue Anzeige muss darum an fünf Stellen ergänzt werden: in der Anmeldung der Eigenschaft, im Speicherfeld, beim Startwert, beim Füllen und beim Auffrischen. Fehlt sie beim Auffrischen, zeigt die Oberfläche nach einer Änderung einen alten Wert.
 
-Beleg: `crates/store/src/images.rs:14`, `crates/store/src/images.rs:146`, `crates/export/src/image.rs:11`, `crates/export/src/image.rs:158`, `crates/export/src/jpeg.rs:85`.
+Vorschlag: Eine Funktion stellt alle Werte aus der Sitzung zusammen, und Start und Auffrischen nutzen beide dieses Ergebnis. Aufwand klein bis mittel. Risiko mittel: Die Oberflächentests arbeiten mit Attrappen, die Verbindung selbst prüfen nur einige Tests in `bridge/view.rs` und drei Abläufe in `app/tests/controller`.
 
-### 5. Einen Teil ihrer Ansichten baut die App selbst aus dem rohen Modell, den anderen bekommt sie fertig von der Sitzung
-Zeitleiste, Shotliste und Drehbuchzeilen liefert die Sitzung als fertige Ansichten. Die Projektliste, die Hinweise beim Überfahren mit der Maus und die Felder einer Marke setzt die App dagegen selbst aus den Daten des Modells zusammen. Sie durchsucht dazu selbst die Shots eines Plans und die Möbel eines Drehorts. Die Suche „Drehort der gewählten Szene“ steht dreimal in der App.
+Beleg: `crates/app/src/bridge/view.rs:103`, `crates/app/src/bridge/view.rs:245`, `crates/app/src/bridge/view.rs:325`, `crates/app/src/bridge.rs:22`, `crates/app/src/bridge.rs:582`, `crates/app/src/bridge.rs:676`.
 
-Ändert sich der Aufbau des Modells, muss die App mitgeändert werden, obwohl laut `planung/KONZEPT.md` die Oberfläche nur mit der Sitzung spricht. Terminalprogramm und Kommandozeile können diese Ansichten außerdem nicht nutzen.
+### 6. Die Datei der Zeichenwerkzeuge hat wieder mehrere Aufgaben und steht kurz vor der Größengrenze
+Nachdem die Felder von Marke und Kamera ausgezogen sind, regelt die Datei weiter die Wahl des Werkzeugs, die Auswahl im Plan, Messen, Maßstab, Flächen, Notizen, die Felder eines Möbels (Größe, Höhe, Bibliothek), die Vorschau beim Ziehen und die Tasten. Mit 786 Zeilen liegt sie knapp unter der Grenze von 800. Seit dem letzten Audit wurde sie in 8 von 52 Commits geändert. Die nächste Funktion bringt sie über die Grenze, und Änderungen an verschiedenen Themen stoßen hier aufeinander.
 
-Vorschlag: Die Sitzung liefert auch diese Ansichten als fertige Strukturen, wie in `views.rs`, und die App wandelt sie nur noch in JSON (das Datenformat für die Oberfläche). Aufwand mittel. Risiko mittel: Für die Sitzung gibt es Tests, für die Hinweistexte in der App keine.
+Vorschlag: Die Auswahl und die Felder eines Möbels kommen in eigene Dateien, so wie es `mark.rs` und `camera.rs` schon vormachen. Aufwand klein. Risiko gering, `tools/tests.rs` deckt die Datei ab.
 
-Beleg: `crates/app/src/manage.rs:27`, `crates/app/src/bridge.rs:2433`, `crates/app/src/bridge.rs:2459`, `crates/app/src/bridge.rs:845`, `crates/app/src/bridge.rs:2427`, `crates/app/src/bridge.rs:2525`, Vorbild `crates/services/src/views.rs:7`.
+Beleg: `crates/app/src/tools.rs:155`, `crates/app/src/tools.rs:285`, `crates/app/src/tools.rs:640`, `crates/app/src/tools.rs:675`, Vorbild `crates/app/src/mark.rs:1`, `crates/app/src/camera.rs:1`.
 
-### 6. Das Terminalprogramm (TUI) baut Regeln des Drehbuchformats nach, weil der Drehbuchleser keine Zeilennummern liefert
-Der Editor im Terminal muss für jede Zeile wissen, was sie ist. Der Leser für das Drehbuchformat Fountain sagt das aber nicht. Darum schneidet das Terminalprogramm auskommentierte Stellen (`/* … */`) selbst heraus, mit einer zweiten Fassung der Regel aus dem Leser. Dann gibt es jeden Absatz einzeln an den Leser, mit einem vorangestellten Platzhalter, und zählt die Zeilen aus den Zeilenumbrüchen des Ergebnisses zurück.
-
-Ändert sich eine Regel im Leser, etwa wie ein `/*` im Text als gewöhnliches Zeichen gilt, zeigt der Editor andere Zeilenarten an, als der Leser sieht. Kein Test verbindet beide.
-
-Vorschlag: Der Leser gibt zu jedem Element die Zeile an, in der es beginnt, und das Terminalprogramm nutzt nur noch diese Angabe. Aufwand mittel. Risiko gering, `script/src/tests.rs` und `tui/src/tests.rs` sind vorhanden.
-
-Beleg: `crates/tui/src/fountain.rs:6`, `crates/tui/src/fountain.rs:139`, `crates/tui/src/fountain.rs:228`, `crates/tui/src/fountain.rs:245`, `crates/script/src/parse.rs:52`.
-
-### 7. Die Verbindung zur Oberfläche ist ein einziger Baustein für alles und wird bei fast jeder dritten Änderung angefasst
-Über eine einzige Datei ruft die Oberfläche die Programmlogik auf. Darin steht ein einziger Baustein mit 51 Zuständen und einem Block von 1430 Zeilen. Er regelt Wiedergabe, Zeichenwerkzeuge, Notizen, Messen, Maßstab, Projektverwaltung, zuletzt geöffnete Projekte, Export und Bibliothek. Die Datei wurde in 50 der 183 Commits am Code geändert.
-
-Jede neue Funktion verlängert sie, und zwei gleichzeitige Änderungen stoßen hier fast immer aufeinander. Die Datei der Werkzeuge mischt ebenso Zeichenwerkzeuge, die Felder einer Marke und das Umwandeln von Datei-Adressen.
-
-Vorschlag: Der Block wird nach Themen auf eigene Dateien verteilt; die Technik der Verbindung erlaubt mehrere solche Blöcke. Die Felder einer Marke kommen in eine eigene Datei, wie es die Kamerakarte schon vormacht. Aufwand mittel, mehrere kleine PRs, ohne Änderung am Verhalten. Risiko mittel: Die Oberflächentests decken die Oberfläche ab, Tests der Verbindung selbst gibt es kaum.
-
-Beleg: `crates/app/src/bridge.rs:575`, `crates/app/src/bridge.rs:952`, `crates/app/src/bridge.rs:2386`, `crates/app/src/tools.rs:680`, `crates/app/src/tools.rs:849`, Vorbild `crates/app/src/camera.rs:1`.
-
-### 8. Die Projekt-Sitzung ist ein einziger Baustein mit 89 Funktionen
-Er regelt auf einmal Öffnen, Speichern und Sicherung, Szenen und Pläne, Wiedergabe, Ebenen und Sperren, Shots, Export, Bibliothek, Auswahl im Plan, Rückgängig sowie Zeitleiste und Drehbuchansicht. Die Datei wurde in 44 Commits geändert. Wer etwa nur am Export arbeitet, muss sich durch 1300 Zeilen bewegen, und Änderungen an verschiedenen Themen stoßen hier aufeinander.
-
-Vorschlag: Die Daten bleiben in einem Baustein, die Funktionen kommen aber nach Thema in eigene Dateien (Export, Wiedergabe, Ansichten). Aufwand mittel. Risiko gering, 20 Testdateien prüfen die Sitzung von außen.
-
-Beleg: `crates/services/src/session.rs:119`, `crates/services/src/session.rs:147`, `crates/services/src/session.rs:601`, `crates/services/src/session.rs:1166`.
-
-### 9. Zu Umwandlungen in Text fehlt die Rückrichtung an derselben Stelle, und die Dokumentation der Schichten stimmt an einer Stelle nicht
-Ein Element im Plan wird für die Oberfläche als kurzer Text geschrieben (etwa `mark:elisabeth:0` für Marke 0 von Elisabeth). Wieder gelesen wird dieser Text aber in einer anderen Datei, mit einer eigenen Liste der Arten. Eine neue Elementart muss darum an beiden Stellen gleich ergänzt werden. Ebenso stehen die Umwandlung von Dateipfad in Datei-Adresse, ihre Rückrichtung und eine dritte Fassung in der Oberfläche an drei verschiedenen Orten.
-
-Außerdem behaupten `agent.md` und `planung/KONZEPT.md`, die Ablage nutze den Drehbuchleser. Sie hängt aber nur am Modell, und ihr Kopfkommentar sagt das auch. Wer die Schichten aus der Doku lernt, lernt sie an dieser Stelle falsch.
-
-Vorschlag: Jede Umwandlung steht mit ihrer Rückrichtung in einer Datei, und die beiden Dokumente werden korrigiert. Aufwand klein. Risiko gering.
-
-Beleg: `crates/app/src/plan.rs:88`, `crates/app/src/bridge.rs:2460`, `crates/app/src/plan.rs:107`, `crates/app/src/tools.rs:849`, `crates/app/qml/StartPage.qml:197`, `agent.md:36`, `planung/KONZEPT.md:81`, `crates/store/src/lib.rs:11`, `crates/store/Cargo.toml:9`.
-
-### 10. Bestandsliste: was sich an einer natürlichen Naht trennt und was so bleiben kann
-Es gibt noch keine `structure.baseline`. Beim Anlegen sollten die Kopien aus Kante ausgenommen werden: Die 20 der 67 gemeldeten Einträge in `crates/app/qml/Kante` stammen von dort.
-
-**Trennen sich an einer Naht:**
-- `bridge.rs` und `session.rs`: siehe Funde 7 und 8.
-- `plan_edit.rs` (1972 Zeilen ohne Tests): Hier stehen Hinzufügen, Entfernen, Markenzeiten mit Tempo und Hintergrundbild nebeneinander. Die Datei `group.rs` zeigt, wie eine solche Abtrennung schon einmal gelungen ist. Die Berechnung von Gehtempo und Weggeschwindigkeit gehört außerdem eher zur Bewegungsrechnung in `stellprobe` als in die Sitzung.
+### 7. Bestandsliste: was sich trennen lässt und was so bleiben kann
+**Trennt sich an einer Naht:**
+- Das Auffrischen der Oberfläche (`refresh`, 122 Zeilen): siehe Fund 5.
 
 **In Ordnung, wie sie sind:**
-- Die Stilzuordnung des Exports, die Feldnamen und die Fehlertexte: lange, aber flache Zuordnungstabellen.
-- Die Liste der Aufrufe der Verbindung zur Oberfläche: keine Funktion.
-- Das Entpacken von JPEG, PNG und komprimierten Daten im Export: Es folgt dem jeweiligen Dateiformat Schritt für Schritt.
-- `display.rs`: Mehr als die Hälfte der Datei sind Tests.
-- Die großen Testdateien (`store/tests/store.rs`, `services/tests/plan_edit.rs`, `tst_planarea.qml`): Man kann sie bei Bedarf nach Thema teilen, nötig ist es nicht.
+- Die Verteiler der Planänderungen (`apply` in `plan_edit.rs`, `target` in `moving.rs`): Sie wählen nur je Art der Änderung oder des Elements eine Funktion aus.
+- Die Fehlertexte, die Feldnamen und die Stilzuordnung des Exports sind lange, aber flache Zuordnungstabellen. Für die Stilzuordnung gilt trotzdem Fund 3.
+- Die Liste der Aufrufe der Verbindung zur Oberfläche (`switched`) ist keine Funktion.
+- Das Entpacken und Schreiben von JPEG, PNG, komprimierten Daten und Schriften im Export folgt jeweils dem Dateiformat Schritt für Schritt.
+- `display.rs` besteht zu mehr als der Hälfte aus Tests.
+- Die großen Testdateien (`store/tests/store.rs`, `services/tests/plan_edit.rs`, `tst_planarea.qml`) lassen sich bei Bedarf nach Thema teilen, nötig ist es nicht.
 
-Aufwand für `plan_edit.rs`: mittel. Risiko gering, `services/tests/plan_edit.rs` und weitere Testdateien sind vorhanden.
+Aufwand: siehe Fund 5. Risiko: siehe dort.
 
-Beleg: `crates/services/src/plan_edit.rs:488`, `crates/services/src/plan_edit.rs:1594`, `crates/services/src/plan_edit.rs:1692`, `crates/services/src/plan_edit.rs:269`, `crates/services/src/plan_edit/group.rs:1`, `crates/stellprobe/src/motion.rs:198`, `crates/export/src/style.rs:39`, `crates/services/src/field.rs:80`, `crates/app/src/notice.rs:20`, `crates/app/src/bridge.rs:89`.
+Beleg: `crates/app/src/bridge/view.rs:245`, `crates/services/src/plan_edit.rs:409`, `crates/services/src/plan_edit/moving.rs:9`, `crates/app/src/notice.rs:20`, `crates/services/src/field.rs:80`, `crates/export/src/style.rs:27`, `crates/app/src/bridge.rs:16`, `crates/export/src/jpeg.rs:85`, `crates/stellprobe/src/display.rs:675`.
 
 ## Seit dem letzten Audit
-Dies ist das erste Audit, frühere Funde gibt es nicht.
+- **Fund 1 (Namen der Figurenfarben und Marken): weitgehend behoben.** Farbe, Haltung, Ankunft, Abgang und Tempo haben ihren Namen jetzt einmal im Modell beziehungsweise in der Sitzung, und Tests verknüpfen ihn mit der Projektdatei. Offen sind die Auswahllisten in der Karte einer Marke und dieselbe Art Tabelle für Ebenen, Licht, Strich und Füllung, siehe neuer Fund 1. Beleg: `crates/model/src/project.rs:102`, `crates/model/src/plan.rs:203`, `crates/app/qml/MarkCard.qml:19`.
+- **Fund 2 (eingetippte Zahlen): behoben.** Ein Leser in der Sitzung gilt für App und Kommandozeile, und Fehler gehen immer in die Statuszeile. Beleg: `crates/services/src/number.rs:55`, `crates/app/src/bridge/draw.rs:319`, `crates/cli/src/main.rs:223`.
+- **Fund 3 (Dateizugriffe an der Ablage vorbei): behoben.** Die Sitzung greift nicht mehr selbst auf Dateien zu. Ein kleiner Rest bleibt: Die Startseite weiß, dass die Ablage halbfertige Dateien mit einem Punkt am Anfang benennt. Ein Test in `services/tests/start.rs` bemerkt es, wenn sich das ändert. Beleg: `crates/store/src/tree.rs:1`, `crates/services/src/start.rs:123`, `crates/store/src/files.rs:12`.
+- **Fund 4 (JPEG-Kopf): für JPEG behoben** durch das neue Paket `imagehead`. Der PNG-Kopf ist weiter doppelt, siehe neuer Fund 4. Beleg: `crates/imagehead/src/lib.rs:32`.
+- **Fund 5 (Ansichten aus dem rohen Modell): behoben.** Projektliste, Hinweistexte und Drehort liefert die Sitzung fertig. Beleg: `crates/services/src/session/views.rs:36`, `crates/services/src/session/views.rs:84`.
+- **Fund 6 (Zeilennummern im Terminalprogramm): behoben.** Der Drehbuchleser gibt zu jedem Element seine Zeilen an, und das Terminalprogramm baut keine Regeln mehr nach. Beleg: `crates/script/src/lib.rs:52`, `crates/tui/src/fountain.rs:113`.
+- **Fund 7 (Verbindung zur Oberfläche): behoben.** Sie ist auf 17 Dateien nach Thema verteilt, und die Felder einer Marke haben eine eigene Datei. Es bleibt ein einziger Baustein mit rund 50 Zuständen, wie es die Technik der Verbindung nahelegt. Das doppelte Füllen dieser Zustände ist neuer Fund 5. Beleg: `crates/app/src/bridge.rs:570`, `crates/app/src/mark.rs:1`.
+- **Fund 8 (Projekt-Sitzung): behoben.** Sie ist auf 11 Dateien nach Thema verteilt, und `session.rs` hat noch 133 Zeilen. Beleg: `crates/services/src/session.rs:1`.
+- **Fund 9 (Umwandlung und Rückrichtung, Doku der Ablage): behoben.** Schlüssel und Datei-Adressen stehen je mit ihrer Rückrichtung an einer Stelle, und die Doku nennt die Abhängigkeiten der Ablage richtig. Für Ebenen fehlt das Muster noch, siehe neuer Fund 1. Beleg: `crates/app/src/plan.rs:126`, `crates/app/src/plan.rs:156`, `crates/app/src/fileurl.rs:9`, `agent.md:37`.
+- **Fund 10 (Bestandsliste): behoben.** `structure.baseline` gibt es jetzt, die Kopie von Kante ist ausgenommen, und die CI prüft die Grenzen. `plan_edit.rs` ist nach Thema auf 7 Dateien verteilt. Beleg: `structure.baseline:4`, `crates/services/src/plan_edit/add.rs:1`.
+- Abgelehnt hat der Eigentümer keinen Fund.
