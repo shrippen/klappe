@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use klappe_export::{Orientation, Page, Paper, Texts, Theme};
-use klappe_model::{CameraPresets, FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
+use klappe_model::{CameraPresets, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{
     axis_jumps, handles, lens_at, ordered_shots, render, DisplayList, Role, Shape, ShotOrder,
@@ -1177,7 +1177,7 @@ impl Session {
                 kind: TrackKind::Figure,
                 id: figure.character.clone(),
                 name: character.title(),
-                label: label_of(character.color).to_owned(),
+                label: character.color.name().to_owned(),
                 shown: self.track_shown(&figure.character, Layer::Figures),
                 segments: walks(figure.marks.iter().map(|m| (m.at_s, m.hold_s))),
                 markers: figure
@@ -1308,7 +1308,7 @@ impl Session {
                         kind: LinkKind::Mark,
                         text: format!("{} · M{}", c.short, index + 1),
                         target: character.clone(),
-                        label: label_of(c.color).to_owned(),
+                        label: c.color.name().to_owned(),
                         at_s: mark.at_s,
                     })
                 }
@@ -1356,19 +1356,6 @@ fn layer_of(role: Role) -> Layer {
         | Role::FigurePath(_)
         | Role::FigureHandle(_)
         | Role::Mark(_) => Layer::Figures,
-    }
-}
-
-/// Kante's label name for a figure colour.
-fn label_of(color: FigureColor) -> &'static str {
-    match color {
-        FigureColor::Purple => "purple",
-        FigureColor::Blue => "blue",
-        FigureColor::Green => "green",
-        FigureColor::Yellow => "yellow",
-        FigureColor::Orange => "orange",
-        FigureColor::Red => "red",
-        FigureColor::Cyan => "cyan",
     }
 }
 

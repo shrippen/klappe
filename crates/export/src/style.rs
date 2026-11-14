@@ -1,7 +1,7 @@
 //! Display-list roles mapped to Kante palette roles (planung/KONZEPT.md, section 4).
 //! Translucent areas use opacity, not extra colours.
 
-use klappe_model::{Dash as DrawDash, FigureColor, Fill as DrawFill};
+use klappe_model::{Dash as DrawDash, Fill as DrawFill};
 use klappe_stellprobe::Role;
 
 use crate::canvas::{Dash, Fill, Stroke};
@@ -22,18 +22,6 @@ pub(crate) struct RoleStyle {
     pub class: String,
     pub fill: Option<Fill>,
     pub stroke: Option<Stroke>,
-}
-
-pub(crate) fn colour_name(color: FigureColor) -> &'static str {
-    match color {
-        FigureColor::Purple => "purple",
-        FigureColor::Blue => "blue",
-        FigureColor::Green => "green",
-        FigureColor::Yellow => "yellow",
-        FigureColor::Orange => "orange",
-        FigureColor::Red => "red",
-        FigureColor::Cyan => "cyan",
-    }
 }
 
 pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportError> {
@@ -97,7 +85,7 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
             Some(line(fg, OUTLINE_PT, Dash::Solid)),
         ),
         Role::Drawing { color, dash, fill } => {
-            let c = pal.semantic(colour_name(color))?;
+            let c = pal.semantic(color.name())?;
             let tinted = (fill == DrawFill::Filled).then(|| tint(c, DRAWING_OPACITY));
             let dash = match dash {
                 DrawDash::Solid => Dash::Solid,
@@ -105,15 +93,15 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
                 DrawDash::Dotted => Dash::Dotted,
             };
             (
-                format!("drawing {}", colour_name(color)),
+                format!("drawing {}", color.name()),
                 tinted,
                 Some(line(c, DRAWING_PT, dash)),
             )
         }
         Role::ArrowHead(color) => {
-            let c = pal.semantic(colour_name(color))?;
+            let c = pal.semantic(color.name())?;
             (
-                format!("arrow-head {}", colour_name(color)),
+                format!("arrow-head {}", color.name()),
                 Some(solid(c)),
                 Some(line(c, DRAWING_PT, Dash::Solid)),
             )
@@ -124,25 +112,21 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
             Some(line(pal.semantic("orange")?, AXIS_PT, Dash::Dashed)),
         ),
         Role::FigurePath(color) => (
-            format!("figure-path {}", colour_name(color)),
+            format!("figure-path {}", color.name()),
             None,
-            Some(line(
-                pal.semantic(colour_name(color))?,
-                PATH_PT,
-                Dash::Dotted,
-            )),
+            Some(line(pal.semantic(color.name())?, PATH_PT, Dash::Dotted)),
         ),
         Role::Mark(color) => {
-            let c = pal.semantic(colour_name(color))?;
+            let c = pal.semantic(color.name())?;
             (
-                format!("mark {}", colour_name(color)),
+                format!("mark {}", color.name()),
                 Some(tint(c, MARK_OPACITY)),
                 Some(line(c, MARK_PT, Dash::Solid)),
             )
         }
         Role::Figure(color) => (
-            format!("figure {}", colour_name(color)),
-            Some(solid(pal.semantic(colour_name(color))?)),
+            format!("figure {}", color.name()),
+            Some(solid(pal.semantic(color.name())?)),
             Some(line(fg, OUTLINE_PT, Dash::Solid)),
         ),
         // Paper with an outline: stands out on every figure colour.

@@ -676,16 +676,6 @@ pub fn object_height_edit(selected: Option<&Source>, text: &str) -> Option<PlanE
     })
 }
 
-/// Poses the mark fields offer, with the name QML and the catalogue (`pose.<name>`) use.
-const POSES: [(&str, Pose); 3] = [
-    ("standing", Pose::Standing),
-    ("sitting", Pose::Sitting),
-    ("lying", Pose::Lying),
-];
-
-/// Paces the mark fields offer, with the name QML and the catalogue (`pace.<name>`) use.
-const PACES: [(&str, Pace); 2] = [("walk", Pace::Walk), ("run", Pace::Run)];
-
 /// The mark of a figure, as a selection names it: itself, or the figure for its mark at the
 /// playhead.
 fn is_figure_mark(selected: &Source) -> bool {
@@ -706,58 +696,27 @@ fn parse_number(text: &str) -> Option<f64> {
     number.is_finite().then_some(number)
 }
 
-/// The name QML and the catalogue use for `pose`.
-pub fn pose_name(pose: Pose) -> &'static str {
-    POSES
-        .iter()
-        .find(|(_, p)| *p == pose)
-        .map_or("standing", |(name, _)| name)
-}
-
 /// The pose `name` for the selected figure mark, as an edit. `None` for a selection that is
 /// no figure mark or a name that is no pose.
 pub fn pose_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
     let source = selected.filter(|s| is_figure_mark(s))?;
-    let (_, pose) = POSES.iter().find(|(n, _)| *n == name)?;
+    let pose = Pose::from_name(name)?;
 
     Some(PlanEdit::SetPose {
         source: source.clone(),
-        pose: *pose,
+        pose,
     })
-}
-
-/// How a figure comes to a mark, with the name QML and the catalogue (`arrival.<name>`) use.
-const ARRIVALS: [(&str, Arrival); 2] = [("walk", Arrival::Walk), ("appear", Arrival::Appear)];
-
-/// What a figure does after a mark, with the name QML and the catalogue (`departure.<name>`)
-/// use.
-const DEPARTURES: [(&str, Departure); 2] = [("stay", Departure::Stay), ("leave", Departure::Leave)];
-
-/// The name QML and the catalogue use for `arrival`.
-pub fn arrival_name(arrival: Arrival) -> &'static str {
-    ARRIVALS
-        .iter()
-        .find(|(_, a)| *a == arrival)
-        .map_or("walk", |(name, _)| name)
-}
-
-/// The name QML and the catalogue use for `departure`.
-pub fn departure_name(departure: Departure) -> &'static str {
-    DEPARTURES
-        .iter()
-        .find(|(_, d)| *d == departure)
-        .map_or("stay", |(name, _)| name)
 }
 
 /// The arrival `name` for the selected figure mark, as an edit. `None` for a selection that
 /// is no figure mark or a name that is no arrival.
 pub fn arrival_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
     let source = selected.filter(|s| is_figure_mark(s))?;
-    let (_, arrival) = ARRIVALS.iter().find(|(n, _)| *n == name)?;
+    let arrival = Arrival::from_name(name)?;
 
     Some(PlanEdit::SetArrival {
         source: source.clone(),
-        arrival: *arrival,
+        arrival,
     })
 }
 
@@ -765,11 +724,11 @@ pub fn arrival_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
 /// that is no figure mark or a name that is no departure.
 pub fn departure_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
     let source = selected.filter(|s| is_figure_mark(s))?;
-    let (_, departure) = DEPARTURES.iter().find(|(n, _)| *n == name)?;
+    let departure = Departure::from_name(name)?;
 
     Some(PlanEdit::SetDeparture {
         source: source.clone(),
-        departure: *departure,
+        departure,
     })
 }
 
@@ -800,11 +759,11 @@ pub fn aim_edit(selected: Option<&Source>, height: &str, tilt: &str) -> Option<P
 /// selection that is no figure mark or a name that is no pace.
 pub fn pace_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
     let source = selected.filter(|s| is_figure_mark(s))?;
-    let (_, pace) = PACES.iter().find(|(n, _)| *n == name)?;
+    let pace = Pace::from_name(name)?;
 
     Some(PlanEdit::SetPace {
         source: source.clone(),
-        pace: *pace,
+        pace,
     })
 }
 
@@ -1843,8 +1802,8 @@ mod tests {
             None
         );
         assert_eq!(departure_edit(None, "stay"), None);
-        assert_eq!(arrival_name(Arrival::Appear), "appear");
-        assert_eq!(departure_name(Departure::Leave), "leave");
+        assert_eq!(Arrival::Appear.name(), "appear");
+        assert_eq!(Departure::Leave.name(), "leave");
     }
 
     #[test]

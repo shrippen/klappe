@@ -196,6 +196,22 @@ pub enum Arrival {
 }
 
 impl Arrival {
+    /// Every arrival.
+    pub const ALL: [Arrival; 2] = [Arrival::Walk, Arrival::Appear];
+
+    /// The name the file format uses, e.g. `appear`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Arrival::Walk => "walk",
+            Arrival::Appear => "appear",
+        }
+    }
+
+    /// The arrival `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|a| a.name() == name)
+    }
+
     fn is_walk(&self) -> bool {
         *self == Arrival::Walk
     }
@@ -213,6 +229,22 @@ pub enum Departure {
 }
 
 impl Departure {
+    /// Every departure.
+    pub const ALL: [Departure; 2] = [Departure::Stay, Departure::Leave];
+
+    /// The name the file format uses, e.g. `leave`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Departure::Stay => "stay",
+            Departure::Leave => "leave",
+        }
+    }
+
+    /// The departure `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|d| d.name() == name)
+    }
+
     fn is_stay(&self) -> bool {
         *self == Departure::Stay
     }
@@ -226,6 +258,25 @@ pub enum Pose {
     Standing,
     Sitting,
     Lying,
+}
+
+impl Pose {
+    /// Every pose.
+    pub const ALL: [Pose; 3] = [Pose::Standing, Pose::Sitting, Pose::Lying];
+
+    /// The name the file format uses, e.g. `sitting`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Pose::Standing => "standing",
+            Pose::Sitting => "sitting",
+            Pose::Lying => "lying",
+        }
+    }
+
+    /// The pose `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|p| p.name() == name)
+    }
 }
 
 /// A camera body with its lens (LH-30 – LH-34).
@@ -344,6 +395,29 @@ pub enum LinkTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `name` is what the file holds and `from_name` reads it back.
+    #[test]
+    fn mark_names_are_the_file_names() {
+        for pose in Pose::ALL {
+            let json = serde_json::to_string(&pose).unwrap();
+            assert_eq!(json, format!("\"{}\"", pose.name()));
+            assert_eq!(Pose::from_name(pose.name()), Some(pose));
+        }
+        for arrival in Arrival::ALL {
+            let json = serde_json::to_string(&arrival).unwrap();
+            assert_eq!(json, format!("\"{}\"", arrival.name()));
+            assert_eq!(Arrival::from_name(arrival.name()), Some(arrival));
+        }
+        for departure in Departure::ALL {
+            let json = serde_json::to_string(&departure).unwrap();
+            assert_eq!(json, format!("\"{}\"", departure.name()));
+            assert_eq!(Departure::from_name(departure.name()), Some(departure));
+        }
+        assert_eq!(Pose::from_name("flying"), None);
+        assert_eq!(Arrival::from_name("fly"), None);
+        assert_eq!(Departure::from_name("vanish"), None);
+    }
 
     /// A plan without drawings writes no `drawings` key; a file without it has none.
     #[test]

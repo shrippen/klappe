@@ -3,9 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{
-    CardState, Field, FigureColor, Language, ProjectCard, ServiceError, Session,
-};
+use klappe_services::{CardState, Field, Language, ProjectCard, ServiceError, Session};
 use serde_json::{json, Value};
 
 /// Projects the start page remembers.
@@ -64,7 +62,7 @@ pub fn project_json(session: &Session) -> String {
                 "id": c.id,
                 "name": c.name,
                 "short": c.short,
-                "color": color_name(c.color),
+                "color": c.color.name(),
                 "group": c.group.unwrap_or(NO_GROUP),
             })
         })
@@ -99,19 +97,6 @@ pub(crate) fn group_of(count: u32) -> Option<u32> {
         NO_GROUP => None,
         n => Some(n),
     }
-}
-
-/// The role as the model writes it in `figuren.toml`.
-fn color_name(color: FigureColor) -> String {
-    match serde_json::to_value(color) {
-        Ok(Value::String(name)) => name,
-        _ => String::new(),
-    }
-}
-
-/// A colour by the name `project_json` gives it; `None` for any other text.
-pub fn color_of(name: &str) -> Option<FigureColor> {
-    serde_json::from_value(Value::String(name.to_owned())).ok()
 }
 
 /// A length typed by the user, `"8,5"` or `"8.5 m"`.
@@ -264,7 +249,7 @@ fn folder_name(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klappe_services::ProjectEdit;
+    use klappe_services::{FigureColor, ProjectEdit};
 
     fn list(paths: &[&str]) -> Vec<String> {
         paths.iter().map(|p| (*p).to_owned()).collect()
@@ -389,9 +374,9 @@ mod tests {
 
     #[test]
     fn colours_go_by_their_role_name() {
-        assert_eq!(color_of("purple"), Some(FigureColor::Purple));
-        assert_eq!(color_of("magenta"), None);
-        assert_eq!(color_name(FigureColor::Cyan), "cyan");
+        assert_eq!(FigureColor::from_name("purple"), Some(FigureColor::Purple));
+        assert_eq!(FigureColor::from_name("magenta"), None);
+        assert_eq!(FigureColor::Cyan.name(), "cyan");
     }
 
     #[test]
