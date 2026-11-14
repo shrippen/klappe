@@ -8,7 +8,7 @@ import io.github.shrippen.klappe
 // E-14 (planung/KONZEPT.md): header and tool bar on top, script left, plan in the middle,
 // shot right, timeline below. Script, shot and timeline fold away.
 //
-//  ┌ Klappe · Wartburg · Szene 12 …            Rückgängig  Speichern  PDF ┐
+//  ┌ Klappe · Wartburg · Szene 12 …            Rückgängig  Speichern  PDF  CSV ┐
 //  ├ Auswahl Wand Objekt Figur Kamera Licht │ Drehbuch Shot Zeitleiste    ┤
 //  │ Drehbuch │            Plan             │ Shot 12.3                   │
 //  ├──────────┴─────────────────────────────┴─────────────────────────────┤
@@ -92,6 +92,11 @@ Kirigami.ApplicationWindow {
                     text: texts.t("menu.pdf")
                     enabled: ctl.loaded
                     onClicked: ctl.exportPdf()
+                }
+                KanteButton {
+                    text: texts.t("menu.csv")
+                    enabled: ctl.loaded
+                    onClicked: ctl.exportCsv()
                 }
             }
 

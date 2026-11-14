@@ -187,11 +187,8 @@ fn save_writes_the_edit() {
     assert!(!s.is_dirty());
 }
 
-#[test]
-fn prints_the_plan_as_pdf() {
-    let s = open();
-    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan.pdf");
-    let texts = klappe_services::Texts {
+fn print_texts() -> klappe_services::Texts {
+    klappe_services::Texts {
         figure: "Figur".into(),
         camera: "Kamera".into(),
         light: "Licht".into(),
@@ -200,14 +197,46 @@ fn prints_the_plan_as_pdf() {
         mark: "Mark".into(),
         unit: "m".into(),
         decimal_separator: ',',
-    };
+        shots: klappe_services::ShotTexts::default(),
+    }
+}
+
+#[test]
+fn prints_the_plan_as_pdf() {
+    let s = open();
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan.pdf");
+    let texts = print_texts();
 
     s.export_pdf(&path, klappe_services::Paper::A4, texts)
         .unwrap();
 
     let bytes = std::fs::read(&path).unwrap();
     assert!(bytes.starts_with(b"%PDF-"));
+    // The plan and one sheet of shots.
+    assert_eq!(
+        String::from_utf8_lossy(&bytes)
+            .matches("/Type /Page /")
+            .count(),
+        2
+    );
     assert_eq!(s.plan_title(), "12 · INT. SÄNGERSAAL – TAG · Plan A");
+}
+
+#[test]
+fn writes_the_shot_list_as_csv() {
+    let s = open();
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-shots.csv");
+    let mut texts = print_texts();
+    texts.shots.columns.number = "Nummer".into();
+
+    s.export_csv(&path, &texts).unwrap();
+
+    let csv = std::fs::read_to_string(&path).unwrap();
+    let rows: Vec<&str> = csv.split("\r\n").collect();
+    assert!(rows[0].starts_with("Nummer,"));
+    // Head, one row per shot, and the empty rest after the last line end.
+    assert_eq!(rows.len(), s.shots().len() + 2);
+    assert!(rows[1].starts_with("12.1,"));
 }
 
 #[test]

@@ -1,7 +1,7 @@
 // Test helpers may unwrap; a failure should stop the test.
 #![allow(clippy::unwrap_used)]
 
-use klappe_export::{pdf, svg, ExportError, Orientation, Page, Paper, Texts, Theme};
+use klappe_export::{pdf, svg, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme};
 use klappe_model::{
     Camera, CameraMark, Character, FigureColor, FigureTrack, FloorPlan, Light, LightKind, Mark,
     Point, Pose, Project, Sensor, SetObject, SetPlan, Wall,
@@ -110,6 +110,7 @@ fn german() -> Texts {
         mark: "Mark".into(),
         unit: "m".into(),
         decimal_separator: ',',
+        shots: ShotTexts::default(),
     }
 }
 
