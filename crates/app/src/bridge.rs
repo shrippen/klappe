@@ -41,6 +41,13 @@ pub mod qobject {
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Last message for the status line, already translated.
         #[qproperty(QString, status)]
+        /// Backup found at open: `none`, `found` or `unreadable`; answer with `restoreBackup`
+        /// or `discardBackup`.
+        #[qproperty(QString, backup_state, cxx_name = "backupState")]
+        /// Why an `unreadable` backup cannot be read.
+        #[qproperty(QString, backup_message, cxx_name = "backupMessage")]
+        /// Milliseconds between two calls of `autosave`.
+        #[qproperty(i32, autosave_ms, cxx_name = "autosaveMs")]
         #[qproperty(QString, screenshot_path, cxx_name = "screenshotPath")]
         #[qproperty(i32, screenshot_after, cxx_name = "screenshotAfter")]
         type Controller = super::ControllerRust;
@@ -66,6 +73,21 @@ pub mod qobject {
 
         #[qinvokable]
         fn save(self: Pin<&mut Self>) -> bool;
+
+        /// Writes unsaved changes to the backup; QML calls it on a timer. An error goes to the
+        /// status line.
+        #[qinvokable]
+        fn autosave(self: Pin<&mut Self>);
+
+        /// Takes the project from the backup found at open.
+        #[qinvokable]
+        #[cxx_name = "restoreBackup"]
+        fn restore_backup(self: Pin<&mut Self>);
+
+        /// Removes the backup found at open.
+        #[qinvokable]
+        #[cxx_name = "discardBackup"]
+        fn discard_backup(self: Pin<&mut Self>);
 
         /// Shows or hides one figure, camera or light (`shown`: "shown" or "hidden").
         #[qinvokable]
@@ -137,14 +159,14 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, DisplayList, Layer, Movement, Paper, PlanEdit, Point, Session, ShotColumns,
-    ShotField, ShotSize, ShotTexts, Snapping, Source, Texts, Visibility,
+    horizontal_fov_deg, Autosave, DisplayList, Layer, Movement, Paper, PlanEdit, Point, Session,
+    ShotColumns, ShotField, ShotSize, ShotTexts, Snapping, Source, Texts, Visibility,
 };
 use serde_json::json;
 
 use crate::args::AppArgs;
 use crate::catalog::Language;
-use crate::notice::{error_text, Status};
+use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
 use crate::tools::{self, DragPhase, DragStep, Key, Preview, Tool};
 
@@ -176,6 +198,9 @@ pub struct ControllerRust {
     /// What the plan on screen shows: a drag preview or the project.
     preview: Preview,
     status: QString,
+    backup_state: QString,
+    backup_message: QString,
+    autosave_ms: i32,
     screenshot_path: QString,
     screenshot_after: i32,
 }
@@ -185,6 +210,10 @@ fn q(s: &str) -> QString {
 }
 
 const SHOWN: &str = "shown";
+
+/// Seconds between two backups of unsaved changes while a project is open.
+const AUTOSAVE_S: i32 = 30;
+const MS_PER_S: i32 = 1000;
 
 impl Default for ControllerRust {
     fn default() -> Self {
@@ -232,6 +261,9 @@ impl Default for ControllerRust {
             selected: None,
             tool: Tool::Select,
             preview: Preview::Hidden,
+            backup_state: QString::default(),
+            backup_message: QString::default(),
+            autosave_ms: AUTOSAVE_S * MS_PER_S,
             screenshot_path: args
                 .screenshot
                 .map(|p| q(&p.to_string_lossy()))
@@ -262,6 +294,10 @@ impl ControllerRust {
         self.selected_shot = q(s.selected_shot().unwrap_or_default());
         self.snapping_on = s.snapping() == Snapping::On;
         self.choices_json = q(&choices_json(s));
+
+        let (state, message) = backup_view(s.backup());
+        self.backup_state = q(state);
+        self.backup_message = q(&message);
     }
 }
 
@@ -467,6 +503,57 @@ impl qobject::Controller {
         self.as_mut().say(message);
         self.refresh();
         result.is_ok()
+    }
+
+    fn autosave(mut self: Pin<&mut Self>) {
+        let language = self.rust().language;
+        let Some(s) = self.as_mut().session() else {
+            return;
+        };
+
+        // Written: nothing to show. Clean and Held: nothing to write.
+        match s.autosave() {
+            Ok(Autosave::Written | Autosave::Clean | Autosave::Held) => {}
+            Err(e) => self.say(error_text(language, &e)),
+        }
+    }
+
+    fn restore_backup(mut self: Pin<&mut Self>) {
+        let language = self.rust().language;
+        let Some(s) = self.as_mut().session() else {
+            return;
+        };
+
+        if let Err(e) = s.restore_backup() {
+            self.say(error_text(language, &e));
+            return;
+        }
+        self.as_mut().changed();
+        self.as_mut().refresh();
+        self.show_backup();
+    }
+
+    fn discard_backup(mut self: Pin<&mut Self>) {
+        let language = self.rust().language;
+        let Some(s) = self.as_mut().session() else {
+            return;
+        };
+
+        if let Err(e) = s.discard_backup() {
+            self.say(error_text(language, &e));
+            return;
+        }
+        self.show_backup();
+    }
+
+    /// Pushes the session's backup state to QML.
+    fn show_backup(mut self: Pin<&mut Self>) {
+        let view = match self.as_mut().session() {
+            Some(s) => backup_view(s.backup()),
+            None => return,
+        };
+        self.as_mut().set_backup_state(q(view.0));
+        self.set_backup_message(q(&view.1));
     }
 
     fn set_tool(mut self: Pin<&mut Self>, tool: &QString, choice: &QString) -> bool {

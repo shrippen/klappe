@@ -17,4 +17,5 @@ Stand: 2026-11-13.
 | App in der CI (Arch, QML-Tests, offscreen-Screenshots) | fertig (#7) |
 | Flatpak und Windows-Build der App | offen |
 | Werkzeuge zum Zeichnen (Wand, Objekt, Figur, Kamera, Licht) | erste Fassung |
+| Automatisches Speichern (LH-05) | fertig |
 | Demo-Modus mit „Studio Weber“ für Screenshots | offen |

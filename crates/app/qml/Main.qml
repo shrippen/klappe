@@ -135,6 +135,13 @@ Kirigami.ApplicationWindow {
 
             Kirigami.Separator { Layout.fillWidth: true }
 
+            BackupNotice {
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.smallSpacing
+                texts: texts
+                controller: ctl
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -178,6 +185,14 @@ Kirigami.ApplicationWindow {
                 controller: ctl
             }
         }
+    }
+
+    // Backs up unsaved changes while a project is open; errors reach the status line.
+    Timer {
+        interval: ctl.autosaveMs
+        running: ctl.loaded
+        repeat: true
+        onTriggered: ctl.autosave()
     }
 
     // Tests and release screenshots: --screenshot PATH [--screenshot-after MS], then quit.
