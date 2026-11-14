@@ -88,6 +88,22 @@ pub mod qobject {
         #[cxx_name = "editShot"]
         fn edit_shot(self: Pin<&mut Self>, id: &QString, field: &QString, value: &QString) -> bool;
 
+        /// Adds a shot at the playhead for the camera selected in the plan, else the selected
+        /// shot's or the first one, and selects it; false if refused.
+        #[qinvokable]
+        #[cxx_name = "addShot"]
+        fn add_shot(self: Pin<&mut Self>) -> bool;
+
+        /// Copies a shot under a new number and selects the copy; false if refused.
+        #[qinvokable]
+        #[cxx_name = "copyShot"]
+        fn copy_shot(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Deletes a shot; false if refused.
+        #[qinvokable]
+        #[cxx_name = "deleteShot"]
+        fn delete_shot(self: Pin<&mut Self>, id: &QString) -> bool;
+
         /// Couples the camera to a figure (character id), or lets it go with an empty
         /// `figure`; false if refused.
         #[qinvokable]
@@ -907,6 +923,41 @@ impl qobject::Controller {
             return false;
         };
         if let Err(e) = s.edit_shot(&id.to_string(), field, &value.to_string()) {
+            self.say(error_text(language, &e));
+            return false;
+        }
+        self.as_mut().changed();
+        self.refresh();
+        true
+    }
+
+    fn add_shot(self: Pin<&mut Self>) -> bool {
+        let camera = match self.rust().selected.as_ref() {
+            Some(Source::Camera(id)) => Some(id.clone()),
+            _ => None,
+        };
+
+        self.edit_shots(|s| s.add_shot(camera.as_deref()).map(drop))
+    }
+
+    fn copy_shot(self: Pin<&mut Self>, id: &QString) -> bool {
+        self.edit_shots(|s| s.copy_shot(&id.to_string()).map(drop))
+    }
+
+    fn delete_shot(self: Pin<&mut Self>, id: &QString) -> bool {
+        self.edit_shots(|s| s.delete_shot(&id.to_string()))
+    }
+
+    /// Runs a change of the shot list; an error goes to the status line.
+    fn edit_shots(
+        mut self: Pin<&mut Self>,
+        change: impl FnOnce(&mut Session) -> Result<(), ServiceError>,
+    ) -> bool {
+        let language = self.rust().language;
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+        if let Err(e) = change(s) {
             self.say(error_text(language, &e));
             return false;
         }

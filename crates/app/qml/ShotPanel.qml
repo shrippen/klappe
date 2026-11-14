@@ -49,8 +49,69 @@ Item {
     readonly property var angles: ["eye-level", "high", "low", "birds-eye", "worms-eye", "dutch"]
     readonly property var movements: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"]
 
-    KanteEmptyState {
+    // New, copy and delete a shot (LH-70). "New" takes the camera selected in the plan, else
+    // the selected shot's. Key S is "new"; deleting asks first.
+    RowLayout {
+        id: bar
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: Kirigami.Units.smallSpacing
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteToolButton {
+            objectName: "newShotButton"
+            text: panel.texts.t("shot.new")
+            onClicked: panel.controller.addShot()
+        }
+        KanteToolButton {
+            objectName: "copyShotButton"
+            enabled: panel.shot !== null
+            text: panel.texts.t("shot.copy")
+            onClicked: panel.controller.copyShot(panel.shot.id)
+        }
+        KanteToolButton {
+            objectName: "deleteShotButton"
+            enabled: panel.shot !== null
+            text: panel.texts.t("shot.delete")
+            onClicked: confirmDelete.open()
+        }
+        Item { Layout.fillWidth: true }
+    }
+
+    Shortcut {
+        sequence: "S"
+        enabled: panel.visible && panel.enabled && !!panel.controller.loaded
+        onActivated: panel.controller.addShot()
+    }
+
+    KanteDialog {
+        id: confirmDelete
+        objectName: "confirmDelete"
+
+        parent: QQC2.Overlay.overlay
         anchors.centerIn: parent
+        modal: true
+        size: KanteDialog.Size.Small
+        destructive: true
+        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
+        acceptText: panel.texts.t("remove.confirm")
+        rejectText: panel.texts.t("form.cancel")
+        title: panel.texts.t("shot.delete")
+        onAccepted: panel.controller.deleteShot(panel.shot.id)
+
+        QQC2.Label {
+            width: parent ? parent.width : implicitWidth
+            wrapMode: Text.WordWrap
+            color: KanteStyle.textColor
+            text: panel.shot ? panel.texts.t("shot.deleteAsk", { number: panel.shot.number }) : ""
+        }
+    }
+
+    KanteEmptyState {
+        anchors.top: bar.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: Kirigami.Units.largeSpacing
         width: parent.width - 2 * Kirigami.Units.largeSpacing
         visible: panel.shot === null
         title: panel.texts.t("toggle.shot")
@@ -58,7 +119,10 @@ Item {
     }
 
     QQC2.ScrollView {
-        anchors.fill: parent
+        anchors.top: bar.bottom
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
         visible: panel.shot !== null
         contentWidth: availableWidth
 
