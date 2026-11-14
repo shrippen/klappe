@@ -64,11 +64,7 @@ pub(crate) fn outline(
     let dashed = !dash_px.is_empty() && dash_px.iter().all(|d| *d > 0.0 && d.is_finite());
 
     let mut out = Vec::new();
-    for mut part in finite_parts(path) {
-        // A ring with no point dropped has its last edge; a cut one has none.
-        if closure == Closure::Closed && part.len() == path.len() {
-            part.push(part[0]);
-        }
+    for part in ring_parts(path, closure) {
         if part.len() < 2 {
             continue;
         }
@@ -98,6 +94,30 @@ fn finite_parts(path: &[Pt]) -> Vec<Vec<Pt>> {
             continue;
         }
         parts.push(Vec::new());
+    }
+
+    parts
+}
+
+/// The finite parts of `path`; a closed ring gets its last edge back. A whole ring ends where
+/// it starts; in a cut one the part after the last cut runs on into the part before the first,
+/// since the closing edge between them is no gap: [a b ✕ c d] → [c d a b].
+fn ring_parts(path: &[Pt], closure: Closure) -> Vec<Vec<Pt>> {
+    let mut parts = finite_parts(path);
+    if closure == Closure::Open {
+        return parts;
+    }
+
+    if parts.len() == 1 {
+        if let Some(first) = parts[0].first().copied() {
+            parts[0].push(first);
+        }
+        return parts;
+    }
+
+    let head = parts.remove(0);
+    if let Some(last) = parts.last_mut() {
+        last.extend(head);
     }
 
     parts
@@ -457,6 +477,22 @@ mod tests {
         let closed = outline(&square, Closure::Closed, 1.0, &[], VIEW);
 
         assert!(closed.len() > open.len());
+    }
+
+    #[test]
+    fn a_cut_ring_keeps_its_closing_edge() {
+        // The gap lies between (4, 0) and (4, 4); the edge from (0, 4) back to (0, 0) stays.
+        let ring = [
+            (0.0, 0.0),
+            (4.0, 0.0),
+            (f64::NAN, 2.0),
+            (4.0, 4.0),
+            (0.0, 4.0),
+        ];
+        let polys = outline(&ring, Closure::Closed, 1.0, &[], VIEW);
+        let on_left = |p: &Vec<Pt>| p.iter().all(|q| q.0.abs() <= 0.5);
+
+        assert!(polys.iter().any(on_left));
     }
 
     #[test]
