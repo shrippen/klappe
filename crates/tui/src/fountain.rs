@@ -95,11 +95,19 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
         let was_inside = in_boneyard;
         in_boneyard = boneyard_after(was_inside, para);
 
-        // A paragraph that begins in a boneyard is not parsed: the parser would see
-        // it as text. It shows as plain action and lists no scene.
-        match was_inside {
-            true => out.kinds[start..start + len].fill(LineKind::Action),
-            false => paragraph(para, start, &mut out),
+        // The part of a paragraph inside a boneyard is not parsed: the parser would see
+        // it as text. It shows as plain action and lists no scene. What follows the
+        // line with the closing `*/` is parsed again, as `parse` does.
+        let dead = match was_inside {
+            true => para
+                .iter()
+                .position(|l| l.contains(BONEYARD_CLOSE))
+                .map_or(len, |i| i + 1),
+            false => 0,
+        };
+        out.kinds[start..start + dead].fill(LineKind::Action);
+        if dead < len {
+            paragraph(&para[dead..], start + dead, &mut out);
         }
         start += len;
     }
@@ -241,6 +249,28 @@ mod tests {
 
         let headings: Vec<_> = a.scenes.iter().map(|s| s.heading.as_str()).collect();
         assert_eq!(headings, ["INT. A"]);
+    }
+
+    #[test]
+    fn text_after_a_closed_boneyard_is_parsed() {
+        let text = "INT. A\n\nx\n\n/*\n\nINT. B\n\n*/\nINT. C\n\ny\n";
+
+        let tui: Vec<_> = analyse(&lines(text))
+            .scenes
+            .iter()
+            .map(|s| s.heading.clone())
+            .collect();
+        let parsed: Vec<_> = parse(text)
+            .elements
+            .iter()
+            .filter_map(|el| match el {
+                Element::SceneHeading { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(parsed, ["INT. A", "INT. C"]);
+        assert_eq!(tui, parsed);
     }
 
     #[test]
