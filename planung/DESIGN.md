@@ -60,16 +60,18 @@ jedem Modus; der Modus bestimmt nur, welche Werkzeuge die Leiste zeigt.
 
 Kante hat: `KanteIcon`, `KanteToolButton`, `KantePopover`, `KanteSplitHandle`,
 `KanteTransportBar`, `KanteTile`, `KanteTabBar`, `KanteGlassPanel`, `KanteSegmented`.
-Fehlt und kommt zuerst in Kante (GUI-Regel):
+Neu in Kante #178 (Kante 1.81, für dieses Zielbild):
 
 - `KanteShapeCanvas`: Farbe `ground` (Grund des Plans), damit Zeichen auf gefüllten Formen
   lesbar sind (Punkte einer Gruppe, PR #39).
-- `KantePopover`: öffnen an einem Punkt (Szenenkoordinaten) statt an einem Item, mit Zeiger.
-- Befehlspalette: Suchfeld mit Liste von Befehlen (Name, Gruppe, Taste), Tastatur, Strg+K.
-- Schwebende Palette: Karte mit Kopf zum Einklappen über einem Inhalt (für den randlosen Plan).
-- `KanteSplitHandle`: Einklappen per Doppelklick (heute setzt er auf `defaultValue` zurück; D-09).
-- `KanteTile`: Seitenverhältnis der Bühne einstellbar (heute fest 3:2; D-05 braucht 2,39:1 usw.).
-- `KanteTransportBar`: Sprung zum vorigen/nächsten Marker und Zeit mit Zehnteln (D-06).
+- `KantePopover.openAtPoint`: öffnen an einem Punkt statt an einem Item, mit Zeiger.
+- `KanteCommandPalette`: Suchfeld mit Liste von Befehlen (Name, Gruppe, Taste), Strg+K.
+- `KanteFloatingPanel`: Karte mit Kopf zum Einklappen über einem Inhalt (randloser Plan).
+- `KanteSplitHandle.collapsible`: Einklappen per Doppelklick oder Taste (D-09).
+- `KanteTile.stageAspect`: Seitenverhältnis der Bühne (D-05).
+- `KanteTransportBar`: Sprung zum vorigen/nächsten Marker, Zeit mit Zehnteln (D-06).
+
+Fehlt etwas Weiteres, kommt es zuerst in Kante (GUI-Regel).
 
 ## Reihenfolge
 
