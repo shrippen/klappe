@@ -145,6 +145,12 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
             Some(solid(pal.semantic(colour_name(color))?)),
             Some(line(fg, OUTLINE_PT, Dash::Solid)),
         ),
+        // Paper with an outline: stands out on every figure colour.
+        Role::GroupDot => (
+            "group-dot".to_string(),
+            Some(solid(pal.paper)),
+            Some(line(fg, OUTLINE_PT, Dash::Solid)),
+        ),
     };
 
     Ok(RoleStyle {

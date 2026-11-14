@@ -24,6 +24,7 @@ fn project() -> Project {
         name: "Elisabeth".into(),
         short: "E".into(),
         color: FigureColor::Purple,
+        group: None,
     }];
     p
 }
@@ -359,6 +360,61 @@ fn notes_are_printed_with_their_text() {
     assert!(out.contains(">Vorhang schließen<"));
     // ß = 0xDF = \337 in WinAnsi.
     assert!(String::from_utf8_lossy(&bytes).contains("(Vorhang schlie\\337en) Tj"));
+}
+
+/// LH-23: a group is printed larger, with its dots and the head count in its label.
+#[test]
+fn a_group_is_printed_with_its_count() {
+    let mut who = project();
+    who.characters[0].group = Some(12);
+    let grouped = render(&who, &set(), &plan(), 0.0, None);
+
+    let out = svg(&grouped, &page(), Theme::Light).unwrap();
+
+    assert!(out.contains(">Elisabeth (12)<"));
+    // Three dots in each body (start and end of the way), paper-coloured with an outline, so
+    // they stand out on every figure colour.
+    let dots = lines_with(&out, "item group-dot");
+    assert_eq!(dots.len(), 6);
+    let paper = lines_with(&out, "paper")[0];
+    let paper_fill = paper
+        .split("fill=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    assert!(
+        dots[0].contains(&format!(" fill=\"{paper_fill}\"")),
+        "{}",
+        dots[0]
+    );
+}
+
+/// A mark's number sits above the figure standing on it, also above a group's wider body.
+#[test]
+fn a_mark_number_clears_a_group() {
+    let mut who = project();
+    who.characters[0].group = Some(12);
+    let out = svg(
+        &render(&who, &set(), &plan(), 0.0, None),
+        &page(),
+        Theme::Light,
+    )
+    .unwrap();
+
+    let body = lines_with(&out, "item figure purple")
+        .into_iter()
+        .find(|l| l.starts_with("<circle"))
+        .unwrap();
+    let body_top = attr(body, "cy") - attr(body, "r");
+    let number = out
+        .lines()
+        .filter(|l| l.contains("class=\"label\"") && l.ends_with(">1</text>"))
+        .find(|l| (attr(l, "x") - attr(body, "cx")).abs() < 0.01)
+        .unwrap();
+
+    assert!(attr(number, "y") < body_top, "{number} {body}");
 }
 
 /// LH-19: drawings show in SVG, PDF and PNG; an arrow's head is a filled area, a dash tells

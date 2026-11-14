@@ -50,6 +50,8 @@ fn look(role: Role) -> Look {
         Role::FigureHandle(c) => l(color(c), SOLID, "solid"),
         Role::CameraHandle => l("yellow", SOLID, "solid"),
         Role::Figure(c) => l(color(c), SOLID, "solid"),
+        // The ground colour stands out from every figure colour (the text colour did not).
+        Role::GroupDot => l("ground", SOLID, "solid"),
     }
 }
 
@@ -310,6 +312,30 @@ mod tests {
         assert_eq!(v["shapes"][1]["points"], json!([2.0, 3.0]));
         assert_eq!(v["shapes"][1]["key"], "camera:a");
         assert_eq!(v["shapes"][1]["selected"], true);
+    }
+
+    /// The dots of a group take the text colour: in the body's colour they would vanish.
+    #[test]
+    fn group_dots_stand_out_from_the_body() {
+        let at = Point::new(1.0, 1.0);
+        let circle = |radius_m| Shape::Circle {
+            center: at,
+            radius_m,
+        };
+        let list = DisplayList {
+            items: vec![
+                item(Role::Figure(FigureColor::Purple), circle(0.6), None),
+                item(Role::GroupDot, circle(0.1), None),
+            ],
+            width_m: 20.0,
+            depth_m: 13.0,
+        };
+
+        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None, None);
+        let v: Value = serde_json::from_str(&json).unwrap_or_default();
+
+        assert_eq!(v["shapes"][1]["label"], "ground");
+        assert_eq!(v["shapes"][1]["fill"], "solid");
     }
 
     #[test]
