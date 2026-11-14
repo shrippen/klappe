@@ -101,7 +101,8 @@ RowLayout {
             required property int index
             required property string modelData
             sequence: tools._keys[index]
-            enabled: tools.controller.loaded
+            // Like the buttons: no tool change while the tool bar is locked.
+            enabled: tools.controller.loaded && tools.enabled
             onActivated: tools.tool = modelData
         }
     }

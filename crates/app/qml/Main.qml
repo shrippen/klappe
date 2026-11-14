@@ -125,14 +125,16 @@ Kirigami.ApplicationWindow {
 
             // Tool bar: the drawing tools, then what to show.
             RowLayout {
-                enabled: !backupNotice.blocking
                 Layout.fillWidth: true
                 Layout.leftMargin: Kirigami.Units.smallSpacing
                 Layout.rightMargin: Kirigami.Units.smallSpacing
                 spacing: Kirigami.Units.smallSpacing
 
+                // Locked while the backup question is open (its buttons dim themselves); the
+                // view toggles stay usable.
                 PlanTools {
                     id: planTools
+                    enabled: !backupNotice.blocking
                     texts: texts
                     controller: ctl
                 }
@@ -169,6 +171,7 @@ Kirigami.ApplicationWindow {
 
             RowLayout {
                 enabled: !backupNotice.blocking
+                opacity: enabled ? 1 : KanteStyle.dimOpacity
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 0
@@ -205,6 +208,7 @@ Kirigami.ApplicationWindow {
             Kirigami.Separator { Layout.fillWidth: true; visible: root.showTimeline && ctl.loaded }
             Timeline {
                 enabled: !backupNotice.blocking
+                opacity: enabled ? 1 : KanteStyle.dimOpacity
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 16
                 visible: root.showTimeline && ctl.loaded
