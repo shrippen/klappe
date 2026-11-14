@@ -356,6 +356,23 @@ TestCase {
         compare(box.matches.map(i => box.textAt(i)), ["Thron"])
     }
 
+    // A list in focus takes letters and digits to pick its entry: no tool or mode change.
+    function test_keys_in_a_list_do_not_pick_tool_or_mode() {
+        const bar = make()
+        const box = findChild(bar, "lightBox")
+        bar.mode = "resolve"
+        bar.tool = "light"
+        const tools = fake.tools.length
+
+        box.forceActiveFocus()
+        keyClick(Qt.Key_V)
+        keyClick(Qt.Key_2)
+
+        compare(bar.tool, "light")
+        compare(bar.mode, "resolve")
+        compare(fake.tools.length, tools)
+    }
+
     function test_the_library_files_are_asked_for_by_the_object_tool() {
         const bar = make()
         const importButton = findChild(bar, "libraryImport")

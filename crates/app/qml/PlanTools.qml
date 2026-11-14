@@ -305,6 +305,9 @@ RowLayout {
         QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
     }
 
+    // A list in focus takes letters and digits to pick its entry, like a text field does.
+    readonly property bool listFocused: Window.window !== null && Window.window.activeFocusItem instanceof QQC2.ComboBox
+
     Instantiator {
         model: tools.names
         delegate: Shortcut {
@@ -312,7 +315,7 @@ RowLayout {
             required property string modelData
             sequence: tools.keys[index]
             // Like the buttons: no tool change while the tool bar is locked.
-            enabled: tools.controller.loaded && tools.enabled
+            enabled: tools.controller.loaded && tools.enabled && !tools.listFocused
             onActivated: tools.tool = modelData
         }
     }
@@ -322,7 +325,7 @@ RowLayout {
             required property int index
             required property string modelData
             sequence: tools.modeKeys[index]
-            enabled: tools.controller.loaded && tools.enabled
+            enabled: tools.controller.loaded && tools.enabled && !tools.listFocused
             onActivated: tools.mode = modelData
         }
     }
