@@ -2,12 +2,13 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use klappe_export::{Orientation, Page, Paper, Texts, Theme};
-use klappe_model::{FigureColor, FloorPlan, LinkTarget, Project, Scene};
+use klappe_model::{FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{axis_jumps, lens_at, render, DisplayList, Role, Source};
 
 use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
+use crate::plan_edit::{self, PlanEdit, Snapping};
 use crate::views::{Chip, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind};
 
 /// Groups of the plan the timeline's layer switches show or hide.
@@ -54,6 +55,7 @@ pub struct Session {
     selected_shot: Option<String>,
     hidden_layers: HashSet<Layer>,
     hidden_tracks: HashSet<String>,
+    snapping: Snapping,
     undo: Vec<Project>,
     redo: Vec<Project>,
     dirty: bool,
@@ -86,6 +88,7 @@ impl Session {
             selected_shot: None,
             hidden_layers: HashSet::new(),
             hidden_tracks: HashSet::new(),
+            snapping: Snapping::On,
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: false,
@@ -336,6 +339,32 @@ impl Session {
 
         self.commit(next);
         Ok(())
+    }
+
+    /// Changes the current plan; undoable. Points are taken as given: surfaces call `snap`.
+    pub fn edit_plan(&mut self, edit: PlanEdit) -> Result<(), ServiceError> {
+        let mut next = self.project.clone();
+        plan_edit::apply(&mut next, self.scene, self.plan, self.time_s, &edit)?;
+        if next == self.project {
+            return Ok(());
+        }
+
+        self.commit(next);
+        Ok(())
+    }
+
+    /// Topmost shown item at `at` (front of the display list first), within the pick radius.
+    pub fn pick(&self, at: Point) -> Option<Source> {
+        plan_edit::pick(&self.display_list().items, at)
+    }
+
+    pub fn set_snapping(&mut self, snapping: Snapping) {
+        self.snapping = snapping;
+    }
+
+    /// `at` on the grid when snapping is on.
+    pub fn snap(&self, at: Point) -> Point {
+        plan_edit::snap(at, self.snapping)
     }
 
     fn commit(&mut self, next: Project) {

@@ -129,7 +129,8 @@ impl Movement {
 mod tests {
     use super::*;
 
-    /// `name` is what the file holds, and `ALL` lists every variant once.
+    /// `name` is what the file holds, and `ALL` has no variant twice. (That `ALL` has every
+    /// variant no test can show; `name`'s match lists them all for the compiler.)
     #[test]
     fn names_are_the_file_names() {
         for size in ShotSize::ALL {
