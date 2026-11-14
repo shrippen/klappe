@@ -935,6 +935,7 @@ version = "0.0.1"
 dependencies = [
  "klappe-services",
  "ratatui",
+ "serde_json",
  "unicode-width 0.2.3",
 ]
 

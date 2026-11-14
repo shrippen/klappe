@@ -8,8 +8,9 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, Mou
 use crate::buffer::Pos;
 use crate::editor::Editor;
 use crate::fountain::{analyse, Analysis};
-use crate::i18n::Language;
+use crate::i18n::{Language, Texts};
 use crate::layout::Layout;
+use crate::links::Links;
 
 /// Rows one mouse wheel notch scrolls.
 const WHEEL_ROWS: usize = 3;
@@ -18,6 +19,10 @@ const LIST_PAGE: usize = 10;
 /// Text width and height before the first frame says the real ones.
 const DEFAULT_WIDTH: usize = 80;
 const DEFAULT_HEIGHT: usize = 24;
+/// The scene list shows by itself from this terminal width on (`Ctrl+B` overrides).
+const LIST_AUTO_MIN_COLS: u16 = 100;
+/// Terminal width before the first frame says the real one.
+const DEFAULT_SCREEN_COLS: u16 = 80;
 
 /// Whether the program goes on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +43,8 @@ pub(crate) enum Mode {
     Normal,
     Help,
     ConfirmQuit,
+    /// `Ctrl+P`: search box over the scenes.
+    Goto,
 }
 
 /// A message for the status line, until the next key.
@@ -51,7 +58,8 @@ pub(crate) enum Notice {
 pub struct App {
     session: Session,
     file: String,
-    pub(crate) lang: Language,
+    pub(crate) texts: Texts,
+    pub(crate) links: Links,
     pub(crate) editor: Editor,
     pub(crate) analysis: Analysis,
     pub(crate) layout: Layout,
@@ -62,6 +70,12 @@ pub struct App {
     pub(crate) list_sel: usize,
     /// First visible screen row of the editor.
     pub(crate) scroll: usize,
+    /// What the search box has been typed, and its selected match.
+    pub(crate) goto_query: String,
+    pub(crate) goto_sel: usize,
+    /// `Ctrl+B`; `None` follows the terminal width.
+    list_override: Option<bool>,
+    screen_cols: u16,
     width: usize,
     height: usize,
     saved_revision: u64,
@@ -72,7 +86,8 @@ pub struct App {
 impl App {
     /// Opens the project folder through the session.
     pub fn open(dir: &Path, lang: Language) -> Result<Self, ServiceError> {
-        let session = Session::open(dir)?;
+        let mut session = Session::open(dir)?;
+        let links = Links::read(&mut session);
         let editor = Editor::new(session.script_text());
         let file = dir.file_name().map_or_else(
             || dir.display().to_string(),
@@ -82,7 +97,8 @@ impl App {
         let mut app = Self {
             session,
             file,
-            lang,
+            texts: Texts::new(lang),
+            links,
             saved_revision: editor.revision(),
             editor,
             analysis: Analysis::default(),
@@ -92,6 +108,10 @@ impl App {
             notice: None,
             list_sel: 0,
             scroll: 0,
+            goto_query: String::new(),
+            goto_sel: 0,
+            list_override: None,
+            screen_cols: DEFAULT_SCREEN_COLS,
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             built_for: None,
@@ -116,6 +136,21 @@ impl App {
 
     pub(crate) fn cursor(&self) -> Pos {
         self.editor.cursor()
+    }
+
+    /// The terminal width of the frame being drawn. A list that is no longer on screen
+    /// gives up the focus: keys would go to something the user cannot see.
+    pub(crate) fn set_screen(&mut self, cols: u16) {
+        self.screen_cols = cols;
+        if !self.list_shown() && self.focus == Focus::List {
+            self.focus = Focus::Editor;
+        }
+    }
+
+    /// Whether the scene list is on screen.
+    pub(crate) fn list_shown(&self) -> bool {
+        self.list_override
+            .unwrap_or(self.screen_cols >= LIST_AUTO_MIN_COLS)
     }
 
     /// The text size the next frame has; rebuilds the layout when it changed.
@@ -164,6 +199,7 @@ impl App {
                 return Flow::Continue;
             }
             Mode::ConfirmQuit => return self.answer_quit(key),
+            Mode::Goto => return self.goto_key(key),
             Mode::Normal => {}
         }
 
@@ -175,6 +211,8 @@ impl App {
             (true, KeyCode::Char('z')) => self.edit_with(Editor::undo),
             (true, KeyCode::Char('y')) => self.edit_with(Editor::redo),
             (true, KeyCode::Char('g')) => self.jump(),
+            (true, KeyCode::Char('p')) => self.open_goto(),
+            (true, KeyCode::Char('b')) => self.toggle_list(),
             (_, KeyCode::F(1)) => self.open_help(),
             (_, KeyCode::Tab) => self.switch_focus(),
             _ => self.pane_key(key),
@@ -214,6 +252,10 @@ impl App {
     }
 
     fn switch_focus(&mut self) -> Flow {
+        // Tab into a hidden list shows it.
+        if !self.list_shown() {
+            self.list_override = Some(true);
+        }
         self.focus = match self.focus {
             Focus::List => Focus::Editor,
             Focus::Editor => Focus::List,
@@ -224,6 +266,71 @@ impl App {
                 .analysis
                 .scene_at(self.editor.cursor().line)
                 .unwrap_or(0);
+        }
+
+        Flow::Continue
+    }
+
+    fn toggle_list(&mut self) -> Flow {
+        let shown = self.list_shown();
+        self.list_override = Some(!shown);
+        if shown && self.focus == Focus::List {
+            self.focus = Focus::Editor;
+        }
+
+        Flow::Continue
+    }
+
+    fn open_goto(&mut self) -> Flow {
+        self.mode = Mode::Goto;
+        self.goto_query.clear();
+        self.goto_sel = 0;
+
+        Flow::Continue
+    }
+
+    /// Indices of the scenes whose number or heading contain the query, any case.
+    pub(crate) fn goto_matches(&self) -> Vec<usize> {
+        let query = self.goto_query.to_lowercase();
+
+        self.analysis
+            .scenes
+            .iter()
+            .enumerate()
+            .filter(|(i, scene)| {
+                let label = format!("{} {}", scene.display_number(*i), scene.heading);
+                label.to_lowercase().contains(&query)
+            })
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    fn goto_key(&mut self, key: KeyEvent) -> Flow {
+        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        let matches = self.goto_matches();
+        let last = matches.len().saturating_sub(1);
+
+        match key.code {
+            KeyCode::Esc => self.mode = Mode::Normal,
+            KeyCode::Char('p') if ctrl => self.mode = Mode::Normal,
+            KeyCode::Up => self.goto_sel = self.goto_sel.saturating_sub(1),
+            KeyCode::Down => self.goto_sel = (self.goto_sel + 1).min(last),
+            KeyCode::Enter => {
+                let Some(&scene) = matches.get(self.goto_sel) else {
+                    return Flow::Continue;
+                };
+                self.mode = Mode::Normal;
+                self.jump_to(scene);
+            }
+            KeyCode::Backspace => {
+                self.goto_query.pop();
+                self.goto_sel = 0;
+            }
+            KeyCode::Char(c) if !ctrl => {
+                self.goto_query.push(c);
+                self.goto_sel = 0;
+            }
+            _ => {}
         }
 
         Flow::Continue
@@ -241,6 +348,7 @@ impl App {
         self.notice = Some(match self.session.save_script() {
             Ok(()) => {
                 self.saved_revision = self.editor.revision();
+                self.links = Links::read(&mut self.session);
                 Notice::Saved
             }
             Err(e) => Notice::SaveFailed(e.to_string()),
@@ -251,16 +359,21 @@ impl App {
 
     /// Moves the cursor to the heading of the scene selected in the list.
     fn jump(&mut self) -> Flow {
-        let Some(scene) = self.analysis.scenes.get(self.list_sel) else {
-            return Flow::Continue;
+        self.jump_to(self.list_sel);
+        Flow::Continue
+    }
+
+    /// Moves the cursor to the heading of scene `index`.
+    fn jump_to(&mut self, index: usize) {
+        let Some(scene) = self.analysis.scenes.get(index) else {
+            return;
         };
         self.editor.go_to_line(scene.line);
         self.focus = Focus::Editor;
+        self.list_sel = index;
 
         // The heading goes to the top of the view.
         self.scroll = self.layout.row_of(self.editor.cursor());
-
-        Flow::Continue
     }
 
     fn pane_key(&mut self, key: KeyEvent) -> Flow {

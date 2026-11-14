@@ -6,6 +6,8 @@ use std::process::ExitCode;
 use klappe_tui::{run, App, Language};
 
 const LANGUAGE_FLAG: &str = "--language";
+const CODE_GERMAN: &str = "de";
+const CODE_ENGLISH: &str = "en";
 
 /// What the command line asked for.
 struct Args {
@@ -13,9 +15,18 @@ struct Args {
     lang: Language,
 }
 
+/// `de` or `en`; the catalogue itself takes anything and falls back to English.
+fn language_of(code: &str) -> Option<Language> {
+    match code.to_ascii_lowercase().as_str() {
+        CODE_GERMAN => Some(Language::German),
+        CODE_ENGLISH => Some(Language::English),
+        _ => None,
+    }
+}
+
 /// `Err` carries the message to print.
 fn parse_args() -> Result<Args, String> {
-    let mut lang = Language::from_env();
+    let mut lang = Language::pick(None);
     let mut dir = None;
     let mut args = std::env::args().skip(1);
 
@@ -24,15 +35,15 @@ fn parse_args() -> Result<Args, String> {
             dir = Some(PathBuf::from(arg));
             continue;
         }
-        let Some(code) = args.next().and_then(|c| Language::from_code(&c)) else {
-            return Err(klappe_tui::unknown_language(lang).to_owned());
+        let Some(code) = args.next().and_then(|c| language_of(&c)) else {
+            return Err(klappe_tui::unknown_language(lang));
         };
         lang = code;
     }
 
     match dir {
         Some(dir) => Ok(Args { dir, lang }),
-        None => Err(klappe_tui::usage(lang).to_owned()),
+        None => Err(klappe_tui::usage(lang)),
     }
 }
 
