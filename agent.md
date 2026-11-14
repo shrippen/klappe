@@ -40,8 +40,9 @@ demo/       Werkzeug (crates/demo), nicht ausgeliefert: erzeugt die Beispielproj
   Fehler.
 - Jede Schicht ist ein eigenes Crate; Abhängigkeiten nur zur Ebene darunter (in `Cargo.toml`
   sichtbar). Einzige Ausnahme: `services/` hängt auch direkt an `model/`, dessen Typen es
-  weiterreicht. Oberflächen hängen nur an `services/`. `demo/` ist ein Werkzeug auf der Ebene von `services/`; App, TUI und
-  CLI hängen nie an ihm, ausgeliefert wird nur das erzeugte Beispiel (über `services/`).
+  weiterreicht. Oberflächen hängen nur an `services/`. `demo/` ist ein Werkzeug auf der Ebene
+  von `services/`; App, TUI und CLI hängen nie an ihm, ausgeliefert wird nur das erzeugte
+  Beispiel (über `services/`).
 - Alles privat; `pub` nur, wo das Design es braucht. Jede neue `pub`-Schnittstelle steht im PR.
 
 ## Konventionen
