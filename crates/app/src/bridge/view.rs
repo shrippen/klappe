@@ -412,6 +412,44 @@ mod tests {
         assert_eq!(objects.len(), s.library().len());
     }
 
+    /// The tool bar's lists, by the names the file and the catalogue use.
+    #[test]
+    fn the_tool_lists_are_the_file_names() {
+        let s = example();
+
+        let choices: serde_json::Value = serde_json::from_str(&choices_json(&s)).unwrap();
+
+        assert_eq!(
+            choices["light"],
+            json!(["fresnel", "led-panel", "tube", "balloon", "reflector", "flag"])
+        );
+        assert_eq!(choices["dash"], json!(["solid", "dashed", "dotted"]));
+        assert_eq!(choices["fill"], json!(["outline", "filled"]));
+        assert_eq!(
+            choices["color"],
+            json!(["red", "orange", "yellow", "green", "cyan", "blue", "purple"])
+        );
+    }
+
+    /// QML keeps one switch per layer: `layersJson` and `locksJson` map the layer name to it.
+    #[test]
+    fn layers_and_locks_are_listed_by_name() {
+        let mut s = example();
+        s.set_layer(Layer::Notes, Visibility::Hidden);
+        s.set_lock(Layer::Cameras, Lock::Locked);
+
+        let shown: serde_json::Value = serde_json::from_str(&layers_json(&s)).unwrap();
+        let locked: serde_json::Value = serde_json::from_str(&locks_json(&s)).unwrap();
+
+        let names = ["set", "figures", "cameras", "lights", "notes", "drawings"];
+        assert_eq!(shown.as_object().unwrap().len(), names.len());
+        assert_eq!(locked.as_object().unwrap().len(), names.len());
+        for name in names {
+            assert_eq!(shown[name], name != "notes", "{name}");
+            assert_eq!(locked[name], name == "cameras", "{name}");
+        }
+    }
+
     #[test]
     fn shift_makes_a_pick_extend_the_selection() {
         let mut c = ControllerRust::default();
