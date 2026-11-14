@@ -544,6 +544,7 @@ impl ControllerRust {
             return;
         };
         self.loaded = true;
+        self.shown = shown_view(s);
         self.title = q(&s.project().title);
         self.plan_title = q(&s.plan_title());
         self.plan_json = q(&plan_json(s, &s.display_list(), None, &[]));
@@ -1721,8 +1722,29 @@ mod tests {
         assert_eq!(c.note, NoteDraft::Idle);
         assert_eq!(c.selected, None);
     }
+
+    /// Review of PR 23, round 4: after a start with `--open` the view on screen was not
+    /// noted, so the first refresh dropped the selection or draft it was to show.
+    #[test]
+    fn the_first_refresh_keeps_its_draft() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+        let mut c = ControllerRust {
+            session: Some(Session::open(&dir).unwrap()),
+            ..ControllerRust::default()
+        };
+        c.fill();
+        c.area = AreaDraft::default().click(Point::new(1.0, 1.0));
+
+        let shown = shown_view(c.session.as_ref().unwrap());
+        c.follow_view(shown);
+
+        assert!(!c.area.is_empty());
+    }
+
     /// Review of PR 23, round 3: undo, redo or deleting the scene on view changed the scene
-    /// without a click; the drafts stayed and Enter drew in the other scene.
+    /// without a click; the drafts stayed and Enter drew in the other scene. Here only the
+    /// comparison; `refresh` calls it with `shown_view`.
     #[test]
     fn drafts_go_when_the_view_changes() {
         let mut c = ControllerRust {
