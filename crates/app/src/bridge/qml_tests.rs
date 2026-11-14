@@ -26,7 +26,7 @@ fn controller_scenarios_hold() {
 
     for file in scenarios() {
         let mut engine = QQmlApplicationEngine::new();
-        let url = QUrl::from(&QString::from(format!("file://{}", file.display())));
+        let url = QUrl::from_local_file(&QString::from(file.to_string_lossy().as_ref()));
         if let Some(mut engine) = engine.as_mut() {
             // A scenario that does not load would leave `exec` waiting for ever.
             engine
