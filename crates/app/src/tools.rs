@@ -978,7 +978,7 @@ mod tests {
     }
 
     /// Two points make no area: a click on the first point adds a point. With three, a click
-    /// within 0.3 m of the first closes; further away it adds.
+    /// within 0.4 m of the first (a grid neighbour) closes; further away it adds.
     #[test]
     fn a_click_on_the_first_point_closes_from_three_points_on() {
         let (a, b, c) = (p(0.0, 0.0), p(4.0, 0.0), p(4.0, 3.0));
