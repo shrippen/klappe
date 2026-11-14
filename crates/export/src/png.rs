@@ -17,8 +17,9 @@ pub(crate) const SIGNATURE: [u8; 8] = *b"\x89PNG\r\n\x1a\n";
 const IHDR_LEN: usize = 13;
 const CHUNK_HEAD_LEN: usize = 8;
 const CHUNK_TAIL_LEN: usize = 4;
-/// Most bytes the decoding path may hold at once (scanlines, and the RGB output of 3 bytes per
-/// pixel), so that a small file cannot ask for gigabytes.
+/// Most bytes each buffer of the decoding path may hold (inflated scanlines, unfiltered rows,
+/// RGB output of 3 bytes per pixel). All three exist together, so the peak is about three
+/// times this; it keeps a small file from asking for gigabytes.
 const MAX_DECODED_BYTES: usize = 1 << 28;
 const BYTE_BITS: usize = 8;
 const FILTER_SUB: u8 = 1;
@@ -137,11 +138,30 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Png> {
     if color == Color::Indexed && (png.palette.is_empty() || !png.palette.len().is_multiple_of(3)) {
         return Err("PNG palette is missing or broken".to_owned());
     }
+    if !png.trns_fits() {
+        return Err("PNG tRNS chunk does not fit the image".to_owned());
+    }
 
     Ok(png)
 }
 
 impl Png {
+    /// Whether `tRNS` is valid: a palette has at most one alpha per entry, a colour key stays
+    /// within the sample range.
+    fn trns_fits(&self) -> bool {
+        if self.color == Color::Indexed {
+            return self.transparency.len() <= self.palette.len() / 3;
+        }
+
+        let max = (1_u32 << self.depth) - 1;
+
+        self.transparency
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .all(|b| u32::from(u16::from_be_bytes(*b)) <= max)
+    }
+
     /// The image XObject of the PDF: dictionary entries and stream data.
     pub(crate) fn xobject(&self, paper: Rgb) -> Result<(String, Vec<u8>)> {
         if self.interlaced {
@@ -483,8 +503,6 @@ mod tests {
         assert!(dict.contains("/Colors 1"));
     }
 
-    /// Palette PNG, 1 bit, two pixels: index 0 (black, `tRNS` alpha 0) and index 1 (red).
-    /// The see-through pixel prints as the paper, not as black.
     /// A PNG of the given type, depth and size whose `tRNS` chunk is `trns`; the pixel data
     /// is `raw` (scanlines with filter bytes), or just a few bytes for the huge sizes that the
     /// tests only parse.
@@ -585,6 +603,22 @@ mod tests {
 
             assert!(error.contains("too large"), "{error}");
             assert!(started.elapsed().as_secs() < 1);
+        }
+    }
+
+    /// The standard allows no colour key above the sample range and no more alphas than
+    /// palette entries; such a `tRNS` is an error, like the other broken chunks.
+    #[test]
+    fn an_invalid_trns_is_an_error() {
+        let palette = [0, 0, 0, 255, 0, 0];
+        let long = png_trns(2, 1, 1, 3, &[0, 0b0100_0000], &palette, &[0, 255, 255]);
+        let gray = png_trns(1, 1, 2, 0, &[0, 0b1100_0000], &[], &[0, 4]);
+        let rgb = png_trns(1, 1, 8, 2, &[0, 1, 2, 3], &[], &[0, 1, 0, 2, 1, 0]);
+
+        for bytes in [long, gray, rgb] {
+            let error = parse(&bytes).unwrap_err();
+
+            assert!(error.contains("tRNS"), "{error}");
         }
     }
 
