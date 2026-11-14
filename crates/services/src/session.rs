@@ -511,6 +511,15 @@ impl Session {
         write_file(path, bytes)
     }
 
+    /// Writes the current plan as a PNG without the sheet title, for the start page's tile.
+    pub fn export_preview(&self, path: &Path, texts: Texts) -> Result<(), ServiceError> {
+        let (list, mut page) = self.printout(Paper::A4, texts)?;
+        page.title.clear();
+        let bytes = klappe_export::png(&list, &page, Theme::Light)?;
+
+        write_file(path, bytes)
+    }
+
     /// Writes the current plan at the playhead as SVG (LH-81), without the shot list.
     pub fn export_svg(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
         let (list, page) = self.printout(paper, texts)?;

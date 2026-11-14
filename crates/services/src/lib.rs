@@ -19,6 +19,7 @@ mod plan_edit;
 mod project_edit;
 mod session;
 mod shot_edit;
+mod start;
 mod views;
 
 pub use catalog::Language;
@@ -28,6 +29,7 @@ pub use field::Field;
 pub use plan_edit::{MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{ProjectEdit, ShotsGo};
 pub use session::{Autosave, BackupState, Layer, Lock, Session, Visibility};
+pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
     Chip, LibraryEntry, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind,
 };
