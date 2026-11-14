@@ -4,7 +4,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Autosave, BackupState, Layer, LinkKind, ServiceError, Session, ShotField, TrackKind, Visibility,
+    Autosave, BackupState, Layer, LinkKind, ServiceError, Session, ShotField, ShotOrder, TrackKind,
+    Visibility,
 };
 use klappe_stellprobe::Role;
 
@@ -75,6 +76,45 @@ fn shot_rows_take_the_camera_lens_unless_set() {
     assert_eq!(rows[0].lens_mm, 35.0);
     assert_eq!(rows[1].lens_mm, 40.0);
     assert_eq!(rows[2].camera_label, "B");
+}
+
+/// Camera a stands at (8; 11) for 12.1 and at (9; 8) from 6 s: 12.2 (40 mm) and 12.5
+/// (40 mm, from 14 s) share a setup; camera b stands at (18; 4) for 12.3 and 12.4.
+#[test]
+fn shot_rows_know_their_setup() {
+    let rows = open().shots();
+
+    let setups: Vec<usize> = rows.iter().map(|r| r.setup).collect();
+    assert_eq!(setups, [1, 2, 3, 3, 2]);
+}
+
+#[test]
+fn shots_in_shooting_order_group_the_setups() {
+    let s = open();
+
+    let rows = s.shots_in(ShotOrder::Shooting);
+
+    let numbers: Vec<&str> = rows.iter().map(|r| r.number.as_str()).collect();
+    assert_eq!(numbers, ["12.1", "12.2", "12.5", "12.3", "12.4"]);
+    let setups: Vec<usize> = rows.iter().map(|r| r.setup).collect();
+    assert_eq!(setups, [1, 2, 2, 3, 3]);
+    assert_eq!(s.shots_in(ShotOrder::Cut), s.shots());
+}
+
+#[test]
+fn writes_the_shot_list_in_shooting_order() {
+    let s = open();
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-shooting.csv");
+    let mut texts = print_texts();
+    texts.shots.columns.setup = "Setup".into();
+    texts.shots.columns.number = "Nummer".into();
+
+    s.export_csv(&path, &texts, ShotOrder::Shooting).unwrap();
+
+    let csv = std::fs::read_to_string(&path).unwrap();
+    let rows: Vec<&str> = csv.split("\r\n").collect();
+    assert!(rows[0].starts_with("Setup,Nummer,"));
+    assert!(rows[3].starts_with("2,12.5,"), "{}", rows[3]);
 }
 
 #[test]
@@ -232,7 +272,7 @@ fn prints_the_plan_as_pdf() {
     let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan.pdf");
     let texts = print_texts();
 
-    s.export_pdf(&path, klappe_services::Paper::A4, texts)
+    s.export_pdf(&path, klappe_services::Paper::A4, texts, ShotOrder::Cut)
         .unwrap();
 
     let bytes = std::fs::read(&path).unwrap();
@@ -254,7 +294,7 @@ fn writes_the_shot_list_as_csv() {
     let mut texts = print_texts();
     texts.shots.columns.number = "Nummer".into();
 
-    s.export_csv(&path, &texts).unwrap();
+    s.export_csv(&path, &texts, ShotOrder::Cut).unwrap();
 
     let csv = std::fs::read_to_string(&path).unwrap();
     let rows: Vec<&str> = csv.split("\r\n").collect();

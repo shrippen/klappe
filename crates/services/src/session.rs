@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::{FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
-use klappe_stellprobe::{axis_jumps, lens_at, render, DisplayList, Role, Source};
+use klappe_stellprobe::{
+    axis_jumps, lens_at, ordered_shots, render, DisplayList, Role, ShotOrder, Source,
+};
 use klappe_store::Loaded;
 
 use crate::edit::{self, ShotField};
@@ -342,11 +344,17 @@ impl Session {
 
     /// Prints the current plan at the playhead as PDF (LH-80), followed by its shot list;
     /// `title` names scene and plan.
-    pub fn export_pdf(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
+    pub fn export_pdf(
+        &self,
+        path: &Path,
+        paper: Paper,
+        texts: Texts,
+        order: ShotOrder,
+    ) -> Result<(), ServiceError> {
         let page = Page::new(paper, Orientation::Landscape, self.plan_title(), texts);
         let list = self.display_list();
         let bytes = match self.plan() {
-            Some(plan) => klappe_export::pdf_with_shots(&list, &page, Theme::Light, plan)?,
+            Some(plan) => klappe_export::pdf_with_shots(&list, &page, Theme::Light, plan, order)?,
             None => klappe_export::pdf(&list, &page, Theme::Light)?,
         };
 
@@ -355,9 +363,14 @@ impl Session {
 
     /// Writes the plan's shot list as CSV (LH-82); `texts` carries the column heads and the
     /// names of sizes and movements.
-    pub fn export_csv(&self, path: &Path, texts: &Texts) -> Result<(), ServiceError> {
+    pub fn export_csv(
+        &self,
+        path: &Path,
+        texts: &Texts,
+        order: ShotOrder,
+    ) -> Result<(), ServiceError> {
         let empty = FloorPlan::new("", "");
-        let csv = klappe_export::shots_csv(self.plan().unwrap_or(&empty), &texts.shots);
+        let csv = klappe_export::shots_csv(self.plan().unwrap_or(&empty), &texts.shots, order);
 
         write_file(path, csv.into_bytes())
     }
@@ -387,14 +400,19 @@ impl Session {
 
     /// The shot list of the current plan, in cut order.
     pub fn shots(&self) -> Vec<ShotRow> {
+        self.shots_in(ShotOrder::Cut)
+    }
+
+    /// The shot list of the current plan in `order`; `setup` counts the same in both.
+    pub fn shots_in(&self, order: ShotOrder) -> Vec<ShotRow> {
         let Some(plan) = self.plan() else {
             return Vec::new();
         };
         let jumps = axis_jumps(plan);
 
-        plan.shots
-            .iter()
-            .map(|shot| {
+        ordered_shots(plan, order)
+            .into_iter()
+            .map(|(setup, shot)| {
                 let camera = plan.camera(&shot.camera);
                 ShotRow {
                     id: shot.id.clone(),
@@ -414,6 +432,7 @@ impl Session {
                     crew: shot.crew.clone(),
                     note: shot.note.clone(),
                     axis_jump: jumps.contains(&shot.id),
+                    setup,
                 }
             })
             .collect()

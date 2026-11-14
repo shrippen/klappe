@@ -55,6 +55,8 @@ pub struct ShotTexts {
 /// Column heads, in the order of the table.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ShotColumns {
+    /// Head of the setup column in shooting order, and the word before a setup's number.
+    pub setup: String,
     pub number: String,
     pub camera: String,
     pub lens_mm: String,

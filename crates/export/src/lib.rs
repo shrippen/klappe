@@ -23,7 +23,7 @@ mod table;
 use klappe_model::FloorPlan;
 
 pub use error::ExportError;
-pub use klappe_stellprobe::DisplayList;
+pub use klappe_stellprobe::{DisplayList, ShotOrder};
 pub use page::{Orientation, Page, Paper, ShotColumns, ShotTexts, Texts};
 pub use palette::Theme;
 
@@ -37,20 +37,22 @@ pub fn pdf(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, Exp
     Ok(pdf::write(&layout::compose(list, page, theme)?))
 }
 
-/// The plan as PDF 1.4, followed by the plan's shot list on landscape sheets (LH-80).
+/// The plan as PDF 1.4, followed by the plan's shot list on landscape sheets (LH-80), in
+/// `order`; in shooting order each setup starts under its own heading.
 pub fn pdf_with_shots(
     list: &DisplayList,
     page: &Page,
     theme: Theme,
     plan: &FloorPlan,
+    order: ShotOrder,
 ) -> Result<Vec<u8>, ExportError> {
     let mut doc = layout::compose(list, page, theme)?;
-    doc.sheets = table::sheets(plan, page, palette::palette(theme)?)?;
+    doc.sheets = table::sheets(plan, page, palette::palette(theme)?, order)?;
 
     Ok(pdf::write(&doc))
 }
 
-/// The plan's shots in cut order as CSV (LH-82): RFC 4180, UTF-8, `\r\n`, numbers with a point.
-pub fn shots_csv(plan: &FloorPlan, texts: &ShotTexts) -> String {
-    shots::csv(plan, texts)
+/// The plan's shots in `order` as CSV (LH-82): RFC 4180, UTF-8, `\r\n`, numbers with a point.
+pub fn shots_csv(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> String {
+    shots::csv(plan, texts, order)
 }

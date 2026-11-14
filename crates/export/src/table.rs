@@ -14,7 +14,8 @@
 //! the free text columns share the rest and wrap. Sheets are always landscape, whatever the
 //! plan page: fourteen columns need the width.
 
-use klappe_model::{FloorPlan, Shot};
+use klappe_model::FloorPlan;
+use klappe_stellprobe::{ordered_shots, ShotOrder};
 
 use crate::canvas::{Anchor, Dash, Geom, Prim, Sheet, Stroke, Weight};
 use crate::error::ExportError;
@@ -43,12 +44,15 @@ const SHORT_COLUMN_MAX: f64 = 0.2;
 /// The description gets twice the room of the other free text columns.
 const DESCRIPTION_WEIGHT: f64 = 2.0;
 const TEXT_WEIGHT: f64 = 1.0;
+/// A setup's heading row in shooting order.
+const BAND_PT: f64 = LINE_PT + 2.0 * ROW_PAD_PT;
 const TITLE_SEPARATOR: &str = " · ";
 
 pub(crate) fn sheets(
     plan: &FloorPlan,
     page: &Page,
     pal: &Palette,
+    order: ShotOrder,
 ) -> Result<Vec<Sheet>, ExportError> {
     if plan.shots.is_empty() {
         return Ok(Vec::new());
@@ -66,10 +70,10 @@ pub(crate) fn sheets(
     }
 
     let texts = &page.texts.shots;
-    let rows: Vec<[String; COLUMNS]> = plan
-        .shots
+    let ordered = ordered_shots(plan, order);
+    let rows: Vec<[String; COLUMNS]> = ordered
         .iter()
-        .map(|s: &Shot| cells(s, plan, texts, page.texts.decimal_separator))
+        .map(|(_, s)| cells(s, plan, texts, page.texts.decimal_separator))
         .collect();
     let head = heads(&texts.columns).map(str::to_owned);
     let widths = column_widths(&head, &rows, content_w);
@@ -89,12 +93,21 @@ pub(crate) fn sheets(
     };
 
     ctx.begin();
-    for row in &rows {
+    let mut setup = 0;
+    for (row, (shot_setup, _)) in rows.iter().zip(&ordered) {
         let lines = wrapped(row, &widths, Weight::Regular);
         let height = row_height(&lines);
-        if ctx.y + height > bottom && ctx.rows > 0 {
+
+        // A setup's heading never stands alone at the foot of a sheet.
+        let starts_setup = order == ShotOrder::Shooting && *shot_setup != setup;
+        let band_h = if starts_setup { BAND_PT } else { 0.0 };
+        if ctx.y + band_h + height > bottom && ctx.rows > 0 {
             ctx.finish(width_pt, height_pt);
             ctx.begin();
+        }
+        if starts_setup {
+            setup = *shot_setup;
+            ctx.band(&format!("{} {setup}", texts.columns.setup));
         }
         ctx.row(&lines, height, Weight::Regular, ROW_RULE_PT, pal.muted);
     }
@@ -189,6 +202,32 @@ impl Ctx<'_> {
             stroke: Some(Stroke {
                 rgb: rule,
                 width_pt: rule_pt,
+                dash: Dash::Solid,
+            }),
+        });
+    }
+
+    /// A heading over the rows that follow, e.g. "Setup 2".
+    fn band(&mut self, text: &str) {
+        self.prims.push(Prim::Text {
+            class: "setup".into(),
+            anchor: Anchor::Start,
+            at: (self.margin + PAD_PT, self.y + ROW_PAD_PT + CELL_PT),
+            size_pt: CELL_PT,
+            weight: Weight::Bold,
+            rgb: self.pal.foreground,
+            text: text.to_owned(),
+        });
+
+        self.y += BAND_PT;
+        let table_w: f64 = self.widths.iter().sum();
+        self.prims.push(Prim::Shape {
+            class: "rule".into(),
+            geom: Geom::Open(vec![(self.margin, self.y), (self.margin + table_w, self.y)]),
+            fill: None,
+            stroke: Some(Stroke {
+                rgb: self.pal.muted,
+                width_pt: ROW_RULE_PT,
                 dash: Dash::Solid,
             }),
         });

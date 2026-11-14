@@ -2,7 +2,8 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    pdf, pdf_with_shots, shots_csv, Orientation, Page, Paper, ShotColumns, ShotTexts, Texts, Theme,
+    pdf, pdf_with_shots, shots_csv, Orientation, Page, Paper, ShotColumns, ShotOrder, ShotTexts,
+    Texts, Theme,
 };
 use klappe_model::{
     Angle, Camera, CameraMark, FloorPlan, Movement, Point, Project, Sensor, SetPlan, Shot, ShotSize,
@@ -15,6 +16,7 @@ fn texts() -> ShotTexts {
     ShotTexts {
         title: "Shotliste".into(),
         columns: ShotColumns {
+            setup: "Setup".into(),
             number: "Nummer".into(),
             camera: "Kamera".into(),
             lens_mm: "Objektiv (mm)".into(),
@@ -122,7 +124,7 @@ fn pages(bytes: &[u8]) -> usize {
 fn pdf_of(shots: usize) -> Vec<u8> {
     let plan = plan(shots);
 
-    pdf_with_shots(&list(&plan), &page(), Theme::Light, &plan).unwrap()
+    pdf_with_shots(&list(&plan), &page(), Theme::Light, &plan, ShotOrder::Cut).unwrap()
 }
 
 #[test]
@@ -134,7 +136,7 @@ fn csv_quotes_what_rfc_4180_says() {
     plan.shots[0].gear = "ohne Sonderzeichen".into();
     plan.shots[0].angle = Angle::Low;
 
-    let csv = shots_csv(&plan, &texts());
+    let csv = shots_csv(&plan, &texts(), ShotOrder::Cut);
 
     let expected = "Nummer,Kamera,Objektiv (mm),Größe,Perspektive,Bewegung,Von (s),Bis (s),Dauer (s),Inhalt,Requisiten,Technik,Team,Notiz\r\n\
         12.1,A,35,Totale,Untersicht,Schwenk,1,3.5,2.5,\"Sie sagt: \"\"Hallo, Welt\"\"\",\"Käfig, Löffel\",ohne Sonderzeichen,\"Kamera, Ton\",\"Zeile 1\nZeile 2\"\r\n";
@@ -147,7 +149,7 @@ fn csv_lens_falls_back_to_the_camera() {
     plan.shots[1].lens_mm = Some(85.0);
     plan.shots[2].camera = "gone".into();
 
-    let csv = shots_csv(&plan, &texts());
+    let csv = shots_csv(&plan, &texts(), ShotOrder::Cut);
     let rows: Vec<Vec<&str>> = csv
         .lines()
         .skip(1)
@@ -162,7 +164,7 @@ fn csv_lens_falls_back_to_the_camera() {
 
 #[test]
 fn csv_without_shots_is_the_head_row() {
-    let csv = shots_csv(&plan(0), &texts());
+    let csv = shots_csv(&plan(0), &texts(), ShotOrder::Cut);
 
     assert_eq!(csv.matches("\r\n").count(), 1);
     assert!(csv.starts_with("Nummer,Kamera,Objektiv (mm),"));
@@ -174,7 +176,7 @@ fn csv_numbers_use_a_point_in_every_language() {
     let mut plan = plan(1);
     plan.shots[0].lens_mm = Some(27.5);
 
-    let csv = shots_csv(&plan, &texts());
+    let csv = shots_csv(&plan, &texts(), ShotOrder::Cut);
 
     assert!(csv.contains(",27.5,"), "{csv}");
     assert!(!csv.contains("27,5"));
@@ -185,7 +187,7 @@ fn csv_keeps_cut_order() {
     let mut plan = plan(3);
     plan.shots.swap(0, 2);
 
-    let csv = shots_csv(&plan, &texts());
+    let csv = shots_csv(&plan, &texts(), ShotOrder::Cut);
     let numbers: Vec<&str> = csv
         .lines()
         .skip(1)
@@ -198,7 +200,7 @@ fn csv_keeps_cut_order() {
 #[test]
 fn no_shots_leave_the_plan_alone() {
     let plan = plan(0);
-    let with = pdf_with_shots(&list(&plan), &page(), Theme::Light, &plan).unwrap();
+    let with = pdf_with_shots(&list(&plan), &page(), Theme::Light, &plan, ShotOrder::Cut).unwrap();
     let without = pdf(&list(&plan), &page(), Theme::Light).unwrap();
 
     assert_eq!(pages(&with), 1);
@@ -238,7 +240,69 @@ fn a_huge_cell_is_cut_and_still_fits() {
     plan.shots[0].note = "wort ".repeat(5000);
     plan.shots[0].description = "Donaudampfschifffahrtsgesellschaftskapitän".repeat(20);
 
-    let bytes = pdf_with_shots(&list(&plan), &page(), Theme::Light, &plan).unwrap();
+    let bytes = pdf_with_shots(&list(&plan), &page(), Theme::Light, &plan, ShotOrder::Cut).unwrap();
 
     assert_eq!(pages(&bytes), 2);
+}
+
+/// Shots 12.1 and 12.3 are camera a at (8; 12) with 35 mm, 12.2 is camera b elsewhere:
+/// setups 1, 2, 1; shooting order 12.1, 12.3, 12.2.
+fn two_setups() -> FloorPlan {
+    let mut plan = plan(3);
+    let mut b = camera("b", "B", 35.0);
+    b.marks[0].at = Point::new(2.0, 2.0);
+    plan.cameras.push(b);
+    plan.shots[1].camera = "b".into();
+
+    plan
+}
+
+#[test]
+fn csv_in_shooting_order_groups_setups() {
+    let csv = shots_csv(&two_setups(), &texts(), ShotOrder::Shooting);
+    let rows: Vec<Vec<&str>> = csv
+        .lines()
+        .map(|l| l.split(',').take(3).collect())
+        .collect();
+
+    assert_eq!(rows[0], ["Setup", "Nummer", "Kamera"]);
+    assert_eq!(rows[1], ["1", "12.1", "A"]);
+    assert_eq!(rows[2], ["1", "12.3", "A"]);
+    assert_eq!(rows[3], ["2", "12.2", "B"]);
+}
+
+#[test]
+fn csv_in_cut_order_has_no_setup_column() {
+    let csv = shots_csv(&two_setups(), &texts(), ShotOrder::Cut);
+
+    assert!(csv.starts_with("Nummer,Kamera,"), "{csv}");
+}
+
+#[test]
+fn pdf_in_shooting_order_has_setup_headings() {
+    let plan = two_setups();
+    let bytes = pdf_with_shots(
+        &list(&plan),
+        &page(),
+        Theme::Light,
+        &plan,
+        ShotOrder::Shooting,
+    )
+    .unwrap();
+    let text = String::from_utf8_lossy(&bytes);
+    let at = |needle: &str| text.find(needle).unwrap();
+
+    assert!(at("(Setup 1)") < at("(12.1)"));
+    assert!(at("(12.1)") < at("(12.3)"));
+    assert!(at("(12.3)") < at("(Setup 2)"));
+    assert!(at("(Setup 2)") < at("(12.2)"));
+    assert_eq!(text.matches("(Setup ").count(), 2);
+}
+
+#[test]
+fn pdf_in_cut_order_has_no_setup_headings() {
+    let plan = two_setups();
+    let bytes = pdf_with_shots(&list(&plan), &page(), Theme::Light, &plan, ShotOrder::Cut).unwrap();
+
+    assert!(!String::from_utf8_lossy(&bytes).contains("(Setup "));
 }

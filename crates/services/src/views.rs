@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-/// One row of the shot list (LH-71, LH-72), in cut order.
+/// One row of the shot list (LH-71, LH-72).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ShotRow {
     pub id: String,
@@ -27,6 +27,8 @@ pub struct ShotRow {
     pub note: String,
     /// The camera crosses the axis against the shot before (LH-41).
     pub axis_jump: bool,
+    /// The camera setup (1-based): same camera, place and lens (LH-72).
+    pub setup: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
