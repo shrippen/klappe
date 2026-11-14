@@ -452,6 +452,130 @@ mod tests {
         assert_eq!(a.kind(3), LineKind::Action);
     }
 
+    /// Kinds of every line, written as one letter each for a compact table.
+    fn letters(text: &str) -> String {
+        analyse(&lines(text))
+            .kinds
+            .iter()
+            .map(|k| match k {
+                LineKind::Blank => '.',
+                LineKind::Heading => 'H',
+                LineKind::Action => 'A',
+                LineKind::Character => 'C',
+                LineKind::Parenthetical => 'P',
+                LineKind::Dialogue => 'D',
+                LineKind::Transition => 'T',
+                LineKind::Centered => 'Z',
+                LineKind::Section => 'S',
+                LineKind::Synopsis => 'Y',
+                LineKind::Note => 'N',
+                LineKind::PageBreak => 'B',
+                LineKind::Lyrics => 'L',
+            })
+            .collect()
+    }
+
+    #[test]
+    fn kinds_with_blank_runs_and_trailing_space() {
+        assert_eq!(letters("\n\nINT. A\n\n\n  \nx\ny\n\n"), "..H...AA..");
+    }
+
+    #[test]
+    fn kinds_of_forced_elements() {
+        let text = "!INT. A\nzwei\n\n.hof\n\n@bob\nhi\n\n>RAUS\n\n> mitte <\n\n~la la\n\n[[note]]\n\n===\n\n= kurz\n\n## Akt";
+        assert_eq!(letters(text), "AA.H.CD.T.Z.L.N.B.Y.S");
+    }
+
+    #[test]
+    fn kinds_of_dual_dialogue() {
+        let text = "INT. A\n\nANNA\nhallo\n\nBOB ^\n(laut)\nhi\nnoch\n(leise)\nja";
+        assert_eq!(letters(text), "H.CD.CPDDPD");
+    }
+
+    #[test]
+    fn kinds_of_unforced_look_alikes() {
+        // A lowercase name is action; a heading line under a cue is dialogue, and an
+        // uppercase line `CUT TO:` with a line below is a cue, not a transition.
+        let text = "INT. A\n\nanna\nhallo\n\nBOB\nINT. B\n\nCUT TO:\nx";
+        assert_eq!(letters(text), "H.AA.CD.CD");
+    }
+
+    #[test]
+    fn kinds_with_a_multiline_boneyard() {
+        // Non-blank lines wholly inside the boneyard show as action, blank ones stay blank.
+        let text = "INT. A\n\nx\n\n/*\nINT. B\n\nweg\n*/\n\nINT. C\n\ny";
+        assert_eq!(letters(text), "H.A.AA.AA.H.A");
+    }
+
+    #[test]
+    fn kinds_with_a_boneyard_inside_a_line() {
+        assert_eq!(
+            letters("INT. A\n\nfoo /* weg */ bar\n\nINT. B /* x */\n"),
+            "H.A.H."
+        );
+    }
+
+    #[test]
+    fn kinds_with_a_boneyard_swallowing_breaks() {
+        // `foo /*⏎⏎*/ bar` is one line for the parser, on the typed line 2; the
+        // typed line 4 is no line of its own and shows as action.
+        assert_eq!(letters("INT. A\n\nfoo /*\n\n*/ bar\n\nINT. B"), "H.A.A.H");
+    }
+
+    #[test]
+    fn kinds_with_an_unclosed_boneyard() {
+        assert_eq!(letters("INT. A\n\nx\n/*\nINT. B\n\ny"), "H.AAA.A");
+    }
+
+    #[test]
+    fn kinds_with_an_opener_inside_dialogue() {
+        let text = "INT. A\n\nBOB\nso /* nicht\nmehr */ doch\nende\n\nINT. B";
+        assert_eq!(letters(text), "H.CDAD.H");
+    }
+
+    #[test]
+    fn kinds_with_an_escaped_opener() {
+        // `/\*` is the text `/*`, no boneyard: the next heading stays.
+        assert_eq!(letters("INT. A\n\nx /\\* y\n\nINT. B"), "H.A.H");
+    }
+
+    #[test]
+    fn kinds_of_a_title_page_block() {
+        // The reader takes the first block as title page; the editor shows plain lines.
+        assert_eq!(letters("Title: Foo\nAuthor: Bar\n\nINT. A\n\nx"), "AA.H.A");
+    }
+
+    #[test]
+    fn elements_with_a_boneyard_count_on_typed_lines() {
+        let a = analyse(&lines(
+            "INT. A #1#\n\n/*\nweg\n*/\n\nBOB\n(leise)\nhi\n\n!INT. X\n\nINT. B\n\nz",
+        ));
+        let at = |n: usize| a.elements.iter().map(|e| e.line).nth(n);
+
+        let found: Vec<_> = a
+            .elements
+            .iter()
+            .map(|e| (e.line, e.scene.clone(), e.index))
+            .collect();
+        assert_eq!(
+            found,
+            [
+                (6, Some("1".into()), 0),
+                (7, Some("1".into()), 1),
+                (8, Some("1".into()), 2),
+                (10, Some("1".into()), 3),
+                (14, None, 0),
+            ]
+        );
+        assert_eq!(at(0), Some(6));
+        let scenes: Vec<_> = a
+            .scenes
+            .iter()
+            .map(|s| (s.line, s.number.clone()))
+            .collect();
+        assert_eq!(scenes, [(0, Some("1".into())), (12, None)]);
+    }
+
     #[test]
     fn indents_are_display_only_roles() {
         assert_eq!(LineKind::Character.indent(), 20);
