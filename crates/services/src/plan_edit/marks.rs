@@ -1,4 +1,4 @@
-//! Times of a figure's marks: pose, arrival, departure, hold and the pace between marks.
+//! A figure's marks: pose, arrival, departure, hold and pace, and the mark info shown for them.
 
 use klappe_model::{Arrival, Departure, FigureTrack, FloorPlan, Mark, Point, Pose};
 use klappe_stellprobe::{walked_ways, way_length_m, Source};
