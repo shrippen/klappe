@@ -17,7 +17,7 @@ matters is one a director plans wrongly with, sees wrongly or loses work to:
   (0° = right, clockwise on screen, y down).
 - **Loses work:** a project that does not load again as it was saved, a format change
   without `FORMAT_VERSION` and migration once a release exists.
-- **Breaks the layers:** a crate calling past its neighbour below (`agent.md`), geometry
+- **Breaks the layers:** a crate calling past its neighbour below (`ARCHITECTURE.md`), geometry
   computed in QML instead of the display list, `unsafe` outside the cxx-qt bridge,
   `unwrap`/`expect` outside tests, a new `pub` not named in the PR.
 - **Looks broken:** own colours or sizes instead of Kante roles, an edit in the copied
@@ -26,7 +26,7 @@ matters is one a director plans wrongly with, sees wrongly or loses work to:
 - **Brings in what it must not:** a dependency without a reason in the PR or under a licence
   `agent.md` forbids (GPL, MPL, LGPL crates); anything taken from Shot Designer (clean room,
   `planung/stellprobe/LASTENHEFT.md`, Anhang A).
-- **Lies:** `planung/`, README, `agent.md` or comments that the change made wrong.
+- **Lies:** `planung/`, README, `agent.md`, `ARCHITECTURE.md` or comments that the change made wrong.
 
 ## What to check in particular
 
