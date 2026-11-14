@@ -7,9 +7,6 @@ use klappe_services::{
     Point, Range, ServiceError, Source, Unit,
 };
 
-/// Still reachable here for `bridge.rs` and `bridge/view.rs`, which import them from `tools`.
-pub use crate::selection::{Pick, Selection};
-
 /// A new camera looks to the right (0°); the user turns it afterwards.
 const NEW_CAMERA_FACING_DEG: f64 = 0.0;
 
