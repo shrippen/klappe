@@ -16,6 +16,7 @@ import "."
  *   moved(value)  every change by drag, key or double click, already within the limits
  *   collapsible   (Kante 1.81, for Klappe: a column that folds away) a double click asks to fold
  *                 the pane, or to open it again, instead of going back to `defaultValue`;
+ *                 so do Enter, Space and the screen reader's press action;
  *                 default false: a double click resets as before
  *   collapsed     whether the pane is folded; the app owns it, like `value`
  *   collapseToggled(collapsed)   the double click's request: the state it asks for. The app
@@ -61,6 +62,11 @@ Item {
     Accessible.focusable: true
     Accessible.onIncreaseAction: setValue(value + step)
     Accessible.onDecreaseAction: setValue(value - step)
+    Accessible.onPressAction: {
+        if (collapsible) {
+            collapseToggled(!collapsed)
+        }
+    }
 
     Keys.onPressed: (event) => {
         // Up and Left move the bar towards the start; the pane before it shrinks unless inverted.
@@ -86,6 +92,15 @@ Item {
             return
         case Qt.Key_End:
             handle.setValue(handle.inverted ? handle.from : handle.to)
+            event.accepted = true
+            return
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+        case Qt.Key_Space:
+            if (!handle.collapsible) {
+                return
+            }
+            handle.collapseToggled(!handle.collapsed)
             event.accepted = true
             return
         case Qt.Key_Delete:
