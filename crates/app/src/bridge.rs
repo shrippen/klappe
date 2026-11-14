@@ -260,6 +260,31 @@ pub mod qobject {
         #[cxx_name = "resizeSelected"]
         fn resize_selected(self: Pin<&mut Self>, width: &QString, depth: &QString) -> bool;
 
+        /// The fields of the selected mark (a figure's, or a camera's) as JSON: `kind`
+        /// (`figure` or `camera`), `pose` (empty for a camera), `hold` in seconds, `hasWay`,
+        /// `pace` in m/s (null without time on the way). `{}` for any other selection.
+        #[qinvokable]
+        #[cxx_name = "markInfo"]
+        fn mark_info(self: &Self) -> QString;
+
+        /// Sets the pose (`standing`, `sitting`, `lying`) of the selected figure mark. False for
+        /// another selection or name; a refusal by the session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setMarkPose"]
+        fn set_mark_pose(self: Pin<&mut Self>, pose: &QString) -> bool;
+
+        /// Sets the pause in seconds (comma or point as decimal separator, zero or more) at the
+        /// selected mark. False for another selection or a text that is no time.
+        #[qinvokable]
+        #[cxx_name = "setMarkHold"]
+        fn set_mark_hold(self: Pin<&mut Self>, seconds: &QString) -> bool;
+
+        /// Times the way to the selected figure mark for `walk` or `run`. False for another
+        /// selection or name; the first mark is refused by the session.
+        #[qinvokable]
+        #[cxx_name = "setMarkPace"]
+        fn set_mark_pace(self: Pin<&mut Self>, pace: &QString) -> bool;
+
         /// Files the selected object, with its size and shape, in the project's library under
         /// `name`. False for no object or a blank name.
         #[qinvokable]
@@ -1413,6 +1438,41 @@ impl qobject::Controller {
         self.commit_edit(edit)
     }
 
+    fn mark_info(&self) -> QString {
+        let Some(s) = self.rust().session.as_ref() else {
+            return q("{}");
+        };
+
+        q(&mark_json(s, self.rust().selected.only()).to_string())
+    }
+
+    fn set_mark_pose(self: Pin<&mut Self>, pose: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = tools::pose_edit(selected, &pose.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
+    fn set_mark_hold(self: Pin<&mut Self>, seconds: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = tools::hold_edit(selected, &seconds.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
+    fn set_mark_pace(self: Pin<&mut Self>, pace: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = tools::pace_edit(selected, &pace.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
     fn save_to_library(mut self: Pin<&mut Self>, name: &QString) -> bool {
         let language = self.rust().language;
         let name = name.to_string();
@@ -1964,6 +2024,28 @@ fn note_text(s: &Session, id: &str) -> Option<String> {
     Some(location.set.notes.iter().find(|n| n.id == id)?.text.clone())
 }
 
+/// The fields of the selected mark for QML; `{}` when the selection is no mark.
+fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
+    let Some(selected) = selected else {
+        return json!({});
+    };
+    let Some(info) = s.mark_info(selected) else {
+        return json!({});
+    };
+    let kind = match selected {
+        Source::Camera(_) => "camera",
+        _ => "figure",
+    };
+
+    json!({
+        "kind": kind,
+        "pose": info.pose.map(tools::pose_name).unwrap_or_default(),
+        "hold": info.hold_s,
+        "hasWay": info.has_way,
+        "pace": info.pace_m_s,
+    })
+}
+
 /// Data for a tooltip; QML puts it into words with the catalogue.
 fn describe(s: &Session, key: &str) -> serde_json::Value {
     let mut parts = key.split(':');
@@ -2053,6 +2135,34 @@ mod tests {
         let dir =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
         Session::open(&dir).unwrap()
+    }
+
+    /// The mark fields read the selection: a figure's mark has a pose and a pace, a camera
+    /// has neither a pose nor a first way; anything else has no fields.
+    #[test]
+    fn the_mark_fields_follow_the_selection() {
+        let s = example();
+        let mark = |index| Source::Mark {
+            character: "elisabeth".into(),
+            index,
+        };
+
+        let second = mark_json(&s, Some(&mark(1)));
+        assert_eq!(second["kind"], "figure");
+        assert_eq!(second["pose"], "standing");
+        assert_eq!(second["hold"], 4.0);
+        assert_eq!(second["hasWay"], true);
+        assert_eq!(second["pace"], 1.75);
+
+        assert_eq!(mark_json(&s, Some(&mark(0)))["hasWay"], false);
+
+        let camera = mark_json(&s, Some(&Source::Camera("a".into())));
+        assert_eq!(camera["kind"], "camera");
+        assert_eq!(camera["pose"], "");
+        assert_eq!(camera["hold"], 6.0);
+
+        assert_eq!(mark_json(&s, Some(&Source::Wall(0))), json!({}));
+        assert_eq!(mark_json(&s, None), json!({}));
     }
 
     /// The object tool lists the library: sizes in metres, built in first.

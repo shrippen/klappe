@@ -15,7 +15,7 @@ use klappe_store::Loaded;
 use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
 use crate::library;
-use crate::plan_edit::{self, PlanEdit, Snapping};
+use crate::plan_edit::{self, MarkInfo, PlanEdit, Snapping};
 use crate::project_edit::{self, ProjectEdit};
 use crate::shot_edit;
 use crate::views::{
@@ -462,6 +462,12 @@ impl Session {
         let plan = self.plan()?;
         let camera = plan.camera(camera)?;
         Some(lens_at(camera, &plan.shots, self.time_s))
+    }
+
+    /// What the plan says about the mark `source` names; `None` for anything but a figure's
+    /// mark, a figure or a camera (those at the playhead).
+    pub fn mark_info(&self, source: &Source) -> Option<MarkInfo> {
+        plan_edit::mark_info(self.plan()?, self.time_s, source)
     }
 
     fn shows(&self, role: Role, source: Option<&Source>) -> bool {

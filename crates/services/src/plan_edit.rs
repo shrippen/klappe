@@ -6,7 +6,7 @@ use klappe_model::{
     FigureTrack, Fill, FloorPlan, LibraryItem, Light, LightKind, LinkTarget, Mark, Note,
     ObjectShape, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
 };
-use klappe_stellprobe::{bend_point, hit, via_through, within, Item, Role, Source};
+use klappe_stellprobe::{bend_point, hit, via_through, way_length_m, within, Item, Role, Source};
 
 use crate::error::ServiceError;
 use crate::library;
@@ -140,12 +140,60 @@ pub enum PlanEdit {
     },
     /// Takes the background off the set; its file stays in `bilder/`.
     RemoveBackground,
+    /// Sets the pose of a figure's mark (LH-22): `Source::Mark`, or `Source::Figure` for the
+    /// mark at the playhead.
+    SetPose {
+        source: Source,
+        pose: Pose,
+    },
+    /// Sets the pause at a mark of a figure or a camera (LH-63): `Source::Mark`, or
+    /// `Source::Figure` and `Source::Camera` for the mark at the playhead. The later marks
+    /// of the track move in time by the change, so their ways keep their duration.
+    SetHold {
+        source: Source,
+        hold_s: f64,
+    },
+    /// Times the way to a figure's mark for `pace` (LH-63): the mark arrives after the pause
+    /// at the mark before and the walk along the way (a curve counts by its length). The
+    /// later marks move in time by the change. The first mark has no way to it.
+    SetPace {
+        source: Source,
+        pace: Pace,
+    },
     /// Couples the camera `camera` to the figure `figure` (LH-37), or lets it go with `None`.
     /// A coupled camera moves and turns with the figure's marks.
     Follow {
         camera: String,
         figure: Option<String>,
     },
+}
+
+/// How fast a figure goes along a way (LH-63).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Pace {
+    Walk,
+    Run,
+}
+
+impl Pace {
+    fn speed_m_s(self) -> f64 {
+        match self {
+            Pace::Walk => WALK_SPEED_M_S,
+            Pace::Run => RUN_SPEED_M_S,
+        }
+    }
+}
+
+/// What the plan says about a mark, for the fields that change it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MarkInfo {
+    /// `None` for a camera's mark.
+    pub pose: Option<Pose>,
+    pub hold_s: f64,
+    /// A way leads to the mark: it is not the first of its track.
+    pub has_way: bool,
+    /// Speed along that way; `None` when it takes no time.
+    pub pace_m_s: Option<f64>,
 }
 
 /// Whether points snap to the grid (LH-14).
@@ -163,6 +211,9 @@ const PICK_RADIUS_M: f64 = 0.15;
 
 /// Walking speed that sets the time of a new mark: an easy pace on set, 5 km/h.
 const WALK_SPEED_M_S: f64 = 1.4;
+
+/// Running speed for `Pace::Run`: 14.4 km/h, a jog to a sprint's lower end.
+const RUN_SPEED_M_S: f64 = 4.0;
 
 const DEFAULT_CAMERA_HEIGHT_M: f64 = 1.6;
 const DEFAULT_SENSOR: Sensor = Sensor::Super35;
@@ -286,6 +337,9 @@ impl PlanEdit {
             | PlanEdit::Spin { source, .. }
             | PlanEdit::Turn { source, .. }
             | PlanEdit::Resize { source, .. }
+            | PlanEdit::SetPose { source, .. }
+            | PlanEdit::SetHold { source, .. }
+            | PlanEdit::SetPace { source, .. }
             | PlanEdit::Remove { source }
             | PlanEdit::Straighten { source } => layer_of_source(source),
             PlanEdit::ShiftGroup { sources, .. }
@@ -455,6 +509,9 @@ pub(crate) fn apply(
         PlanEdit::MoveBackground { dx_m, dy_m } => move_background(&mut scope, (*dx_m, *dy_m)),
         PlanEdit::RemoveBackground => remove_background(&mut scope),
         PlanEdit::Follow { camera, figure } => follow(&mut scope, camera, figure.as_deref()),
+        PlanEdit::SetPose { source, pose } => set_pose(&mut scope, source, *pose),
+        PlanEdit::SetHold { source, hold_s } => set_hold(&mut scope, source, *hold_s),
+        PlanEdit::SetPace { source, pace } => set_pace(&mut scope, source, *pace),
     }
 }
 
@@ -498,13 +555,16 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             width_m, depth_m, ..
         } => check_object_size(*width_m, *depth_m),
         PlanEdit::AddDrawing { shape, .. } => check_shape(shape),
+        PlanEdit::SetHold { hold_s, .. } => check_hold(*hold_s),
         PlanEdit::Remove { .. }
         | PlanEdit::RemoveGroup { .. }
         | PlanEdit::Straighten { .. }
         | PlanEdit::EditNote { .. }
         | PlanEdit::SetBackground { .. }
         | PlanEdit::RemoveBackground
-        | PlanEdit::Follow { .. } => Ok(()),
+        | PlanEdit::Follow { .. }
+        | PlanEdit::SetPose { .. }
+        | PlanEdit::SetPace { .. } => Ok(()),
     }
 }
 
@@ -519,6 +579,18 @@ fn check_shape(shape: &DrawingShape) -> Result<(), ServiceError> {
         }
         DrawingShape::Area { points } => points.iter().try_for_each(|p| check_point(*p)),
     }
+}
+
+/// A pause is a finite time, not negative.
+fn check_hold(hold_s: f64) -> Result<(), ServiceError> {
+    if hold_s.is_finite() && hold_s >= 0.0 {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: "hold_s",
+        value: hold_s.to_string(),
+    })
 }
 
 /// A length in truth: more than nothing, and a number.
@@ -1181,6 +1253,198 @@ fn rotate(point: Point, centre: Point, deg: f64) -> Point {
         centre.x_m + x_m * cos - y_m * sin,
         centre.y_m + x_m * sin + y_m * cos,
     )
+}
+
+fn bad_mark(field: &'static str, value: &str) -> ServiceError {
+    ServiceError::BadValue {
+        field,
+        value: value.to_owned(),
+    }
+}
+
+fn set_pose(scope: &mut Scope<'_>, source: &Source, pose: Pose) -> Result<(), ServiceError> {
+    let (character, index) = figure_mark(scope, source).ok_or_else(|| bad_mark("source", ""))?;
+    let mark = scope
+        .plan
+        .figures
+        .iter_mut()
+        .find(|f| f.character == character)
+        .and_then(|f| f.marks.get_mut(index))
+        .ok_or(ServiceError::Gone)?;
+
+    mark.pose = pose;
+
+    Ok(())
+}
+
+/// The arrival and the pause of the mark `source` names, with those of the marks after it in
+/// the same track.
+struct Timing<'a> {
+    /// Per mark of the track: `(at_s, hold_s)`.
+    marks: Vec<(&'a mut f64, &'a mut f64)>,
+    index: usize,
+}
+
+impl Timing<'_> {
+    /// Moves the marks from `first` on by `delta_s`.
+    fn shift_from(&mut self, first: usize, delta_s: f64) {
+        for (at_s, _) in self.marks.iter_mut().skip(first) {
+            **at_s += delta_s;
+        }
+    }
+}
+
+fn timing<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Timing<'a>, ServiceError> {
+    let time_s = scope.time_s;
+    let (index, marks) = match source {
+        Source::Mark { character, index } => {
+            let track = scope
+                .plan
+                .figures
+                .iter_mut()
+                .find(|f| f.character == *character)
+                .ok_or(ServiceError::Gone)?;
+            let marks = track.marks.iter_mut();
+
+            (
+                Some(*index),
+                marks
+                    .map(|m| (&mut m.at_s, &mut m.hold_s))
+                    .collect::<Vec<_>>(),
+            )
+        }
+        Source::Figure(character) => {
+            let track = scope
+                .plan
+                .figures
+                .iter_mut()
+                .find(|f| f.character == *character)
+                .ok_or(ServiceError::Gone)?;
+            let index = current_index(track.marks.iter().map(|m| m.at_s), time_s);
+            let marks = track.marks.iter_mut();
+
+            (index, marks.map(|m| (&mut m.at_s, &mut m.hold_s)).collect())
+        }
+        Source::Camera(id) => {
+            let camera = scope
+                .plan
+                .cameras
+                .iter_mut()
+                .find(|c| c.id == *id)
+                .ok_or(ServiceError::Gone)?;
+            let index = current_index(camera.marks.iter().map(|m| m.at_s), time_s);
+            let marks = camera.marks.iter_mut();
+
+            (index, marks.map(|m| (&mut m.at_s, &mut m.hold_s)).collect())
+        }
+        _ => return Err(bad_mark("source", "")),
+    };
+    let index = index
+        .filter(|i| *i < marks.len())
+        .ok_or(ServiceError::Gone)?;
+
+    Ok(Timing { marks, index })
+}
+
+fn set_hold(scope: &mut Scope<'_>, source: &Source, hold_s: f64) -> Result<(), ServiceError> {
+    let mut timing = timing(scope, source)?;
+    let index = timing.index;
+    let delta_s = hold_s - *timing.marks[index].1;
+
+    *timing.marks[index].1 = hold_s;
+    timing.shift_from(index + 1, delta_s);
+
+    Ok(())
+}
+
+fn set_pace(scope: &mut Scope<'_>, source: &Source, pace: Pace) -> Result<(), ServiceError> {
+    let (character, index) = figure_mark(scope, source).ok_or_else(|| bad_mark("source", ""))?;
+    let before = index
+        .checked_sub(1)
+        .ok_or_else(|| bad_mark("pace", "first mark"))?;
+    let marks = &scope
+        .plan
+        .figure(&character)
+        .ok_or(ServiceError::Gone)?
+        .marks;
+    let (Some(prev), Some(mark)) = (marks.get(before), marks.get(index)) else {
+        return Err(ServiceError::Gone);
+    };
+
+    // Arrive after the pause at the mark before and the walk along the way.
+    let walk_s = way_length_m(prev.at, mark.via, mark.at) / pace.speed_m_s();
+    let delta_s = prev.at_s + prev.hold_s + walk_s - mark.at_s;
+
+    timing(scope, source)?.shift_from(index, delta_s);
+
+    Ok(())
+}
+
+/// What the fields of a mark show: `source` is a figure's mark, or a figure or camera for
+/// its mark at the playhead. `None` for anything else.
+pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Option<MarkInfo> {
+    match source {
+        Source::Mark { character, index } => figure_info(plan.figure(character)?, *index),
+        Source::Figure(character) => {
+            let track = plan.figure(character)?;
+            let index = current_index(track.marks.iter().map(|m| m.at_s), time_s)?;
+
+            figure_info(track, index)
+        }
+        Source::Camera(id) => {
+            let marks = &plan.camera(id)?.marks;
+            let index = current_index(marks.iter().map(|m| m.at_s), time_s)?;
+            let mark = marks.get(index)?;
+            let pace_m_s = index
+                .checked_sub(1)
+                .and_then(|before| marks.get(before))
+                .and_then(|prev| {
+                    pace_to(
+                        (prev.at, prev.at_s + prev.hold_s),
+                        (mark.at, mark.via, mark.at_s),
+                    )
+                });
+
+            Some(MarkInfo {
+                pose: None,
+                hold_s: mark.hold_s,
+                has_way: index > 0,
+                pace_m_s,
+            })
+        }
+        _ => None,
+    }
+}
+
+fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
+    let mark = track.marks.get(index)?;
+    let pace_m_s = index
+        .checked_sub(1)
+        .and_then(|before| track.marks.get(before))
+        .and_then(|prev| {
+            pace_to(
+                (prev.at, prev.at_s + prev.hold_s),
+                (mark.at, mark.via, mark.at_s),
+            )
+        });
+
+    Some(MarkInfo {
+        pose: Some(mark.pose),
+        hold_s: mark.hold_s,
+        has_way: index > 0,
+        pace_m_s,
+    })
+}
+
+/// Speed of the way from where and when a mark is left to the next mark's place, bend and
+/// arrival; `None` when the way takes no time.
+fn pace_to(leave: (Point, f64), arrive: (Point, Option<Point>, f64)) -> Option<f64> {
+    let walk_s = arrive.2 - leave.1;
+    if walk_s <= 0.0 {
+        return None;
+    }
+
+    Some(way_length_m(leave.0, arrive.1, arrive.0) / walk_s)
 }
 
 /// Couples `camera` to `figure`, a figure of this plan, or lets it go.

@@ -5,8 +5,8 @@
 use std::path::PathBuf;
 
 use klappe_services::{
-    Dash, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, PlanEdit, Point, ProjectEdit,
-    ServiceError, Source,
+    Dash, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, Pace, PlanEdit, Point, Pose,
+    ProjectEdit, ServiceError, Source,
 };
 
 const FILE_URL: &str = "file://";
@@ -580,6 +580,72 @@ pub fn resize_edit(selected: Option<&Source>, width: &str, depth: &str) -> Optio
         source: Source::Object(id.clone()),
         width_m: parse_metres(width)?,
         depth_m: parse_metres(depth)?,
+    })
+}
+
+/// Poses the mark fields offer, with the name QML and the catalogue (`pose.<name>`) use.
+const POSES: [(&str, Pose); 3] = [
+    ("standing", Pose::Standing),
+    ("sitting", Pose::Sitting),
+    ("lying", Pose::Lying),
+];
+
+/// Paces the mark fields offer, with the name QML and the catalogue (`pace.<name>`) use.
+const PACES: [(&str, Pace); 2] = [("walk", Pace::Walk), ("run", Pace::Run)];
+
+/// The mark of a figure, as a selection names it: itself, or the figure for its mark at the
+/// playhead.
+fn is_figure_mark(selected: &Source) -> bool {
+    matches!(selected, Source::Mark { .. } | Source::Figure(_))
+}
+
+/// A time in seconds as typed: a comma or a point as decimal separator, zero or more.
+fn parse_seconds(text: &str) -> Option<f64> {
+    let seconds: f64 = text.trim().replace(',', ".").parse().ok()?;
+
+    (seconds.is_finite() && seconds >= 0.0).then_some(seconds)
+}
+
+/// The name QML and the catalogue use for `pose`.
+pub fn pose_name(pose: Pose) -> &'static str {
+    POSES
+        .iter()
+        .find(|(_, p)| *p == pose)
+        .map_or("standing", |(name, _)| name)
+}
+
+/// The pose `name` for the selected figure mark, as an edit. `None` for a selection that is
+/// no figure mark or a name that is no pose.
+pub fn pose_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
+    let source = selected.filter(|s| is_figure_mark(s))?;
+    let (_, pose) = POSES.iter().find(|(n, _)| *n == name)?;
+
+    Some(PlanEdit::SetPose {
+        source: source.clone(),
+        pose: *pose,
+    })
+}
+
+/// The pause typed for the selected mark (figure or camera), as an edit. `None` for another
+/// selection or a text that is no time.
+pub fn hold_edit(selected: Option<&Source>, text: &str) -> Option<PlanEdit> {
+    let source = selected.filter(|s| is_figure_mark(s) || matches!(s, Source::Camera(_)))?;
+
+    Some(PlanEdit::SetHold {
+        source: source.clone(),
+        hold_s: parse_seconds(text)?,
+    })
+}
+
+/// The pace `name` for the way to the selected figure mark, as an edit. `None` for a
+/// selection that is no figure mark or a name that is no pace.
+pub fn pace_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
+    let source = selected.filter(|s| is_figure_mark(s))?;
+    let (_, pace) = PACES.iter().find(|(n, _)| *n == name)?;
+
+    Some(PlanEdit::SetPace {
+        source: source.clone(),
+        pace: *pace,
     })
 }
 
@@ -1485,5 +1551,64 @@ mod tests {
             PathBuf::from("C:/x/p.png")
         );
         assert_eq!(local_path("file:///a%zz"), PathBuf::from("/a%zz"));
+    }
+
+    #[test]
+    fn a_pose_name_for_a_figure_mark_is_a_set_pose() {
+        let mark = Source::Mark {
+            character: "elisabeth".into(),
+            index: 1,
+        };
+
+        assert_eq!(
+            pose_edit(Some(&mark), "sitting"),
+            Some(PlanEdit::SetPose {
+                source: mark.clone(),
+                pose: Pose::Sitting
+            })
+        );
+        assert!(pose_edit(Some(&Source::Figure("elisabeth".into())), "lying").is_some());
+        assert_eq!(pose_edit(Some(&mark), "flying"), None);
+        assert_eq!(pose_edit(Some(&Source::Camera("a".into())), "lying"), None);
+        assert_eq!(pose_edit(None, "lying"), None);
+    }
+
+    #[test]
+    fn a_pause_typed_for_a_mark_is_a_set_hold() {
+        let camera = Source::Camera("a".into());
+
+        assert_eq!(
+            hold_edit(Some(&camera), " 2,5 "),
+            Some(PlanEdit::SetHold {
+                source: camera.clone(),
+                hold_s: 2.5
+            })
+        );
+        assert!(hold_edit(Some(&camera), "0").is_some());
+        assert_eq!(hold_edit(Some(&camera), "-1"), None);
+        assert_eq!(hold_edit(Some(&camera), "lang"), None);
+        assert_eq!(hold_edit(Some(&camera), ""), None);
+        assert_eq!(hold_edit(Some(&Source::Wall(0)), "1"), None);
+        assert_eq!(hold_edit(None, "1"), None);
+    }
+
+    #[test]
+    fn a_pace_name_for_a_figure_mark_is_a_set_pace() {
+        let mark = Source::Mark {
+            character: "elisabeth".into(),
+            index: 1,
+        };
+
+        assert_eq!(
+            pace_edit(Some(&mark), "run"),
+            Some(PlanEdit::SetPace {
+                source: mark.clone(),
+                pace: Pace::Run
+            })
+        );
+        assert!(pace_edit(Some(&mark), "walk").is_some());
+        assert_eq!(pace_edit(Some(&mark), "crawl"), None);
+        assert_eq!(pace_edit(Some(&Source::Camera("a".into())), "run"), None);
+        assert_eq!(pace_edit(None, "run"), None);
     }
 }

@@ -255,6 +255,16 @@ Item {
         }
     }
 
+    // A mark is selected (LH-22, LH-63): pose, pause and pace.
+    MarkCard {
+        objectName: "markCard"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+        texts: area.texts
+        controller: area.controller
+    }
+
     Connections {
         target: area.controller
         function onAsksNoteChanged() {
