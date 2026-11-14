@@ -42,19 +42,24 @@ struct Edge {
     winding: i32,
 }
 
-/// Every polygon is closed implicitly; horizontal and non-finite edges add nothing.
+/// Every polygon is closed implicitly; horizontal edges add nothing. Points that are not
+/// finite are dropped, so their neighbours meet and the polygon stays closed.
 fn edges(polys: &[Vec<Pt>]) -> Vec<Edge> {
     let mut out = Vec::new();
 
     for poly in polys {
+        let poly: Vec<Pt> = poly
+            .iter()
+            .copied()
+            .filter(|p| p.0.is_finite() && p.1.is_finite())
+            .collect();
         if poly.len() < 3 {
             continue;
         }
 
         for (i, &a) in poly.iter().enumerate() {
             let b = poly[(i + 1) % poly.len()];
-            let finite = [a.0, a.1, b.0, b.1].iter().all(|v| v.is_finite());
-            if a.1 == b.1 || !finite {
+            if a.1 == b.1 {
                 continue;
             }
 
