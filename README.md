@@ -10,7 +10,7 @@ Starten mit dem Beispielprojekt: `make run`.
 Drehbuch schreiben im Terminal: `cargo run -p klappe-tui -- testdata/beispiel.klappe` (F1 zeigt die Tasten,
 `--language de|en` wählt die Sprache).
 
-Konzept: [`planung/KONZEPT.md`](planung/KONZEPT.md),
+Konzept: [`planung/KONZEPT.md`](planung/KONZEPT.md), Oberfläche: [`planung/DESIGN.md`](planung/DESIGN.md),
 Lastenheft Stellprobe: [`planung/stellprobe/LASTENHEFT.md`](planung/stellprobe/LASTENHEFT.md).
 
 Lizenz: MIT.
