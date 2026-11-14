@@ -30,6 +30,10 @@ pub enum StoreError {
     #[error("id {id:?} is not usable as a file name")]
     BadId { id: String },
 
+    /// Not a PNG or JPEG, or one whose header cannot be read.
+    #[error("{}: {message}", path.display())]
+    BadImage { path: PathBuf, message: String },
+
     #[error("id {id:?} is used twice")]
     DuplicateId { id: String },
 }

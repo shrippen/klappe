@@ -89,13 +89,16 @@ wartburg.klappe/
 ├── figuren.toml            Figuren: Id, Name, Kürzel, Farbe
 ├── drehbuch.fountain       Drehbuch; Szenen tragen feste Nummern (#12#)
 ├── drehorte/
-│   └── saengersaal.toml    Drehort mit Set: Maße, Wände, Objekte
+│   └── saengersaal.toml    Drehort mit Set: Maße, Wände, Objekte, Hintergrundbild
+├── bilder/
+│   └── saengersaal.png     Bilder für Hintergründe (PNG, JPEG), Dateien des Nutzers
 └── szenen/
     └── szene-012.json      Szene mit ihren Floorplans: Marks, Kameras, Licht, Shots, Verweise
 ```
 
-Genaue Beschreibung: [`../FORMAT.md`](../FORMAT.md). Hintergrundbilder (LH-13) und eigene
-Bibliotheken (LH-12) kommen später dazu.
+Genaue Beschreibung: [`../FORMAT.md`](../FORMAT.md). Hintergrundbilder (LH-13) sind da, als
+PNG oder JPEG im Ordner `bilder/`; ein PDF als Hintergrund bleibt offen. Eigene Bibliotheken
+(LH-12) kommen später dazu.
 
 - Feste Ids als Dateinamen; JSON eingerückt mit fester Schlüsselreihenfolge, damit Diffs
   lesbar bleiben.

@@ -23,6 +23,8 @@ fn look(role: Role) -> Look {
     };
 
     match role {
+        // The image is not drawn yet: the controls for it come in a later change.
+        Role::Background => l("muted", SOLID, "none"),
         Role::Wall => l("text", SOLID, "none"),
         Role::Object => l("muted", SOLID, "tint"),
         Role::LightBeam => l("orange", SOLID, "tint"),
@@ -66,16 +68,18 @@ fn flat(points: &[Point]) -> Vec<f64> {
     points.iter().flat_map(|p| [p.x_m, p.y_m]).collect()
 }
 
-fn shape(item: &Item, selected: &dyn Fn(&Source) -> bool) -> Value {
+fn shape(item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<Value> {
     let look = look(item.role);
     let (kind, points, radius, width) = match &item.shape {
         Shape::Line { from, to, width_m } => ("line", flat(&[*from, *to]), 0.0, *width_m),
         Shape::Polyline { points } => ("polyline", flat(points), 0.0, 0.0),
         Shape::Polygon { points } => ("polygon", flat(points), 0.0, 0.0),
         Shape::Circle { center, radius_m } => ("circle", flat(&[*center]), *radius_m, 0.0),
+        // The canvas has no image shape yet; it gets one with the controls.
+        Shape::Image { .. } => return None,
     };
 
-    json!({
+    Some(json!({
         "kind": kind,
         "points": points,
         "radius": radius,
@@ -86,12 +90,16 @@ fn shape(item: &Item, selected: &dyn Fn(&Source) -> bool) -> Value {
         "text": item.label.clone().unwrap_or_default(),
         "key": item.source.as_ref().map(key).unwrap_or_default(),
         "selected": item.source.as_ref().is_some_and(selected),
-    })
+    }))
 }
 
 /// `{ width, depth, shapes: [...] }` for the canvas; `selected` marks the shot's camera.
 pub fn shapes_json(list: &DisplayList, selected: &dyn Fn(&Source) -> bool) -> String {
-    let shapes: Vec<Value> = list.items.iter().map(|i| shape(i, selected)).collect();
+    let shapes: Vec<Value> = list
+        .items
+        .iter()
+        .filter_map(|i| shape(i, selected))
+        .collect();
 
     json!({ "width": list.width_m, "depth": list.depth_m, "shapes": shapes }).to_string()
 }

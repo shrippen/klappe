@@ -45,6 +45,7 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
 
     let fg = pal.foreground;
     let style = match role {
+        Role::Background => ("background".to_string(), None, None),
         Role::Wall => (
             "wall".to_string(),
             None,

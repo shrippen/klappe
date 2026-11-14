@@ -1,6 +1,9 @@
 //! What both writers draw: shapes and text in page points, origin top left, y down.
 //! One list, two serialisers, so SVG and PDF cannot drift apart.
 
+use std::sync::Arc;
+
+use crate::image::Picture;
 use crate::palette::Rgb;
 
 pub(crate) type Pt = (f64, f64);
@@ -71,6 +74,17 @@ pub(crate) enum Prim {
         weight: Weight,
         rgb: Rgb,
         text: String,
+    },
+    /// A picture of `width_pt` by `height_pt`, its top left corner at `at`, turned clockwise
+    /// about that corner.
+    Image {
+        class: String,
+        at: Pt,
+        width_pt: f64,
+        height_pt: f64,
+        rotation_deg: f64,
+        opacity: f64,
+        picture: Arc<Picture>,
     },
 }
 

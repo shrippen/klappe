@@ -243,6 +243,7 @@ fn example() -> Project {
                     0.8,
                 ),
             ],
+            background: None,
         },
     }];
 
@@ -586,6 +587,32 @@ fn save_script_writes_nothing_else() {
         fs::read_to_string(dir.join("drehbuch.fountain")).unwrap(),
         "Neu.\n"
     );
+}
+
+#[test]
+fn background_round_trips_and_images_stay() {
+    let dir = test_dir("background");
+    let mut project = example();
+    project.locations[0].set.background = Some(Background {
+        file: "bilder/saal.png".into(),
+        at: Point::new(-1.5, 0.25),
+        width_m: 21.5,
+        rotation_deg: 12.5,
+        opacity: 0.4,
+    });
+    save(&dir, &project, None).unwrap();
+    fs::create_dir_all(dir.join("bilder")).unwrap();
+    fs::write(dir.join("bilder/saal.png"), b"x").unwrap();
+
+    // Nothing in the project uses the image any more: it stays, it is the user's file.
+    save(&dir, &example(), None).unwrap();
+    let loaded = load(&dir).unwrap();
+
+    assert!(dir.join("bilder/saal.png").exists());
+    assert_eq!(loaded.project.locations[0].set.background, None);
+
+    save(&dir, &project, None).unwrap();
+    assert_eq!(load(&dir).unwrap().project, project);
 }
 
 #[test]

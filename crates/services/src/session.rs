@@ -1,12 +1,14 @@
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::{FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{
-    axis_jumps, lens_at, ordered_shots, render, DisplayList, Role, ShotOrder, Source,
+    axis_jumps, lens_at, ordered_shots, render, DisplayList, Role, Shape, ShotOrder, Source,
 };
+use klappe_store::ImageStamp;
 use klappe_store::Loaded;
 
 use crate::edit::{self, ShotField};
@@ -68,6 +70,9 @@ pub enum BackupState {
     Unreadable(String),
 }
 
+/// The pixel size of an image file and the stamp it was read at.
+type StampedSize = (ImageStamp, (u32, u32));
+
 /// One open project and what the user looks at.
 #[derive(Debug)]
 pub struct Session {
@@ -85,6 +90,11 @@ pub struct Session {
     undo: Vec<Project>,
     redo: Vec<Project>,
     dirty: bool,
+    /// Pixel size of the image files read so far: every redraw asks, the file header is read
+    /// once. `bilder/` is the user's, so a file may change under its name: an entry counts
+    /// only while the file's stamp (length, modification time) is the one it was read at.
+    /// Unreadable files are not kept and are tried again.
+    image_px: RefCell<HashMap<String, StampedSize>>,
     /// Changed since the last save or autosave: what `autosave` writes.
     unbacked: bool,
     /// The project (not only the screenplay) changed since the last save.
@@ -124,6 +134,7 @@ impl Session {
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: false,
+            image_px: RefCell::new(HashMap::new()),
             unbacked: false,
             project_changed: false,
             backup,
@@ -316,10 +327,29 @@ impl Session {
             return DisplayList::default();
         };
 
-        let mut list = render(project, &location.set, plan, self.time_s);
+        let background_px = location
+            .set
+            .background
+            .as_ref()
+            .and_then(|b| self.image_size(&b.file));
+        let mut list = render(project, &location.set, plan, self.time_s, background_px);
         list.items
             .retain(|item| self.shows(item.role, item.source.as_ref()));
         list
+    }
+
+    /// Pixel size of an image of the project folder; remembered per file.
+    fn image_size(&self, file: &str) -> Option<(u32, u32)> {
+        let stamp = klappe_store::image_stamp(&self.dir, file).ok()?;
+        let mut known = self.image_px.borrow_mut();
+        if let Some((_, px)) = known.get(file).filter(|(seen, _)| *seen == stamp) {
+            return Some(*px);
+        }
+
+        let px = klappe_store::image_size(&self.dir, file).ok()?;
+        known.insert(file.to_owned(), (stamp, px));
+
+        Some(px)
     }
 
     /// The lens a camera has at the playhead: its shot's own, else its own.
@@ -351,8 +381,15 @@ impl Session {
         texts: Texts,
         order: ShotOrder,
     ) -> Result<(), ServiceError> {
-        let page = Page::new(paper, Orientation::Landscape, self.plan_title(), texts);
+        let mut page = Page::new(paper, Orientation::Landscape, self.plan_title(), texts);
         let list = self.display_list();
+        for item in &list.items {
+            let Shape::Image { file, .. } = &item.shape else {
+                continue;
+            };
+            page.images
+                .insert(file.clone(), klappe_store::read_image(&self.dir, file)?);
+        }
         let bytes = match self.plan() {
             Some(plan) => klappe_export::pdf_with_shots(&list, &page, Theme::Light, plan, order)?,
             None => klappe_export::pdf(&list, &page, Theme::Light)?,
@@ -470,7 +507,15 @@ impl Session {
     pub fn edit_plan(&mut self, edit: PlanEdit) -> Result<(), ServiceError> {
         let mut next = self.project.clone();
         let at = (self.scene, self.plan);
-        plan_edit::apply(&mut next, at.0, at.1, self.time_s, self.snapping, &edit)?;
+        plan_edit::apply(
+            &self.dir,
+            &mut next,
+            at.0,
+            at.1,
+            self.time_s,
+            self.snapping,
+            &edit,
+        )?;
         if next == self.project {
             return Ok(());
         }
@@ -484,7 +529,19 @@ impl Session {
     pub fn preview(&self, edit: &PlanEdit) -> Result<DisplayList, ServiceError> {
         let mut next = self.project.clone();
         let at = (self.scene, self.plan);
-        plan_edit::apply(&mut next, at.0, at.1, self.time_s, self.snapping, edit)?;
+        // Copying a file is no preview: the list stays as it is until the edit is made.
+        if matches!(edit, PlanEdit::SetBackground { .. }) {
+            return Ok(self.display_list());
+        }
+        plan_edit::apply(
+            &self.dir,
+            &mut next,
+            at.0,
+            at.1,
+            self.time_s,
+            self.snapping,
+            edit,
+        )?;
 
         Ok(self.list_of(&next))
     }
@@ -743,7 +800,7 @@ fn check_backup(dir: &Path, loaded: &Loaded) -> BackupState {
 /// Which layer switch an item of the display list belongs to.
 fn layer_of(role: Role) -> Layer {
     match role {
-        Role::Wall | Role::Object => Layer::Set,
+        Role::Background | Role::Wall | Role::Object => Layer::Set,
         Role::Light | Role::LightBeam => Layer::Lights,
         Role::Camera | Role::Frustum | Role::CameraPath => Layer::Cameras,
         Role::Axis | Role::Figure(_) | Role::FigurePath(_) | Role::Mark(_) => Layer::Figures,

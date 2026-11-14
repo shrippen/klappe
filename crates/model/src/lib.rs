@@ -3,7 +3,7 @@
 //! ```text
 //! Project
 //! ├── characters   Character        (project-wide: Elisabeth, Burgvogt …)
-//! ├── locations    Location → Set   (walls, objects, background)
+//! ├── locations    Location → Set   (walls, objects, background image)
 //! └── scenes       Scene → FloorPlan
 //!                           ├── figures  FigureTrack → Mark (time, place, facing)
 //!                           ├── cameras  Camera      → CameraMark
@@ -26,7 +26,9 @@ pub use plan::{
     AxisPair, Camera, CameraMark, FigureTrack, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose,
     ScriptLink, Sensor,
 };
-pub use project::{Character, FigureColor, Location, Project, Scene, SetObject, SetPlan, Wall};
+pub use project::{
+    Background, Character, FigureColor, Location, Project, Scene, SetObject, SetPlan, Wall,
+};
 pub use shot::{Angle, Movement, Shot, ShotSize};
 
 /// The version of the project format this model reads and writes (FORMAT.md).

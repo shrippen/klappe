@@ -3,7 +3,8 @@ use klappe_model::Point;
 use crate::display::{Item, Shape};
 
 /// Whether `at` is on `item`, give or take `tolerance_m` (selection by click or touch).
-/// Circles and polygons count with their area, lines with their width, paths by their stroke.
+/// Circles and polygons count with their area, lines with their width, paths by their stroke;
+/// images are never hit.
 pub fn hit(item: &Item, at: Point, tolerance_m: f64) -> bool {
     match &item.shape {
         Shape::Circle { center, radius_m } => center.distance_m(at) <= radius_m + tolerance_m,
@@ -14,6 +15,8 @@ pub fn hit(item: &Item, at: Point, tolerance_m: f64) -> bool {
         Shape::Polygon { points } => {
             inside(points, at) || path_distance_m(points, at, Path::Closed) <= tolerance_m
         }
+        // A background is only looked at: clicking on it must not take it.
+        Shape::Image { .. } => false,
     }
 }
 
@@ -147,6 +150,20 @@ mod tests {
         assert!(hit(&p, Point::new(2.05, 1.0), 0.1));
         assert!(!hit(&p, Point::new(1.0, 1.0), 0.1));
         assert!(!hit(&p, Point::new(1.0, 2.0), 0.1));
+    }
+
+    #[test]
+    fn images_are_never_hit() {
+        let image = item(Shape::Image {
+            file: "bilder/saal.png".into(),
+            at: Point::new(0.0, 0.0),
+            width_m: 4.0,
+            depth_m: 4.0,
+            rotation_deg: 0.0,
+            opacity: 1.0,
+        });
+
+        assert!(!hit(&image, Point::new(2.0, 2.0), 1.0));
     }
 
     #[test]
