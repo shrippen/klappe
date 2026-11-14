@@ -97,6 +97,7 @@
  "error.gone": "Das Element gibt es nicht mehr",
  "error.noLocation": "Drehort nicht gefunden: {detail}",
  "error.noFreeCamera": "Alle Kamerabuchstaben A–Z sind vergeben",
+ "error.noBackup": "Keine Sicherung vorhanden",
  "error.cameraInUse": "Kamera {camera} wird von Shot {shot} genutzt",
  "unit.m": "m",
  "unit.s": "s",
