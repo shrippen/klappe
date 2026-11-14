@@ -214,7 +214,7 @@ impl Selection {
                     None => self.0.push(source),
                 }
 
-                self
+                self.no_grips()
             }
         }
     }
@@ -229,6 +229,17 @@ impl Selection {
             if !self.contains(&source) {
                 self.0.push(source);
             }
+        }
+
+        self.no_grips()
+    }
+
+    /// A grip shows only while its way alone is selected, so several hold none: it would be
+    /// picked unseen and bend or straighten its way with the rest.
+    fn no_grips(mut self) -> Selection {
+        if self.0.len() > 1 {
+            self.0
+                .retain(|s| !matches!(s, Source::FigureVia { .. } | Source::CameraVia { .. }));
         }
 
         self
@@ -1097,6 +1108,21 @@ mod tests {
             added.sources(),
             [Source::Wall(0), Source::Wall(1), Source::Wall(2)]
         );
+    }
+
+    /// Review of PR 31: a grip shows only while its way is the one selected, so in a
+    /// selection of several it would be picked unseen and bend or straighten its way.
+    #[test]
+    fn a_selection_of_several_holds_no_grip() {
+        let grip = Source::FigureVia {
+            character: "elisabeth".into(),
+            index: 1,
+        };
+        let clicked = Selection::of(Some(grip.clone())).click(Some(Source::Wall(0)), Pick::Extend);
+        let boxed = Selection::of(Some(grip)).boxed(vec![Source::Wall(0)], Pick::Extend);
+
+        assert_eq!(clicked.sources(), [Source::Wall(0)]);
+        assert_eq!(boxed.sources(), [Source::Wall(0)]);
     }
 
     #[test]
