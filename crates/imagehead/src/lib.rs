@@ -23,9 +23,11 @@ pub const JPEG_SAMPLE_BITS: u8 = 8;
 pub const PNG_SIGNATURE: [u8; 8] = *b"\x89PNG\r\n\x1a\n";
 const IHDR: &[u8; 4] = b"IHDR";
 /// After the signature: IHDR length (4), type (4).
+const IHDR_LEN_AT: usize = 8;
 const IHDR_DATA_AT: usize = 16;
 /// Data of IHDR: width (4), height (4), bit depth, colour type, compression, filter, interlace.
 const IHDR_LEN: usize = 13;
+const IHDR_LEN_FIELD: [u8; 4] = (IHDR_LEN as u32).to_be_bytes();
 const PNG_HEIGHT_AT: usize = 4;
 const PNG_DEPTH_AT: usize = 8;
 const PNG_COLOR_AT: usize = 9;
@@ -166,6 +168,7 @@ pub fn png_head(bytes: &[u8]) -> Result<PngHead, String> {
     let data = bytes
         .get(IHDR_DATA_AT - IHDR.len()..IHDR_DATA_AT)
         .filter(|kind| *kind == IHDR)
+        .filter(|_| bytes.get(IHDR_LEN_AT..IHDR_DATA_AT - IHDR.len()) == Some(&IHDR_LEN_FIELD))
         .and_then(|_| bytes.get(IHDR_DATA_AT..IHDR_DATA_AT + IHDR_LEN))
         .filter(|_| bytes.starts_with(&PNG_SIGNATURE))
         .ok_or("no PNG header")?;
@@ -280,6 +283,11 @@ mod tests {
         assert!(png_head(&png(1, 1, 8, 1)).is_err());
         assert!(png_head(&png(1, 1, 3, 2)).is_err());
         assert!(png_head(&png(1, 1, 16, 3)).is_err());
+
+        // IHDR length field must be 13.
+        let mut short = png(1, 1, 8, 2);
+        short[8..12].copy_from_slice(&12_u32.to_be_bytes());
+        assert!(png_head(&short).is_err());
 
         let mut late = png(1, 1, 8, 2);
         late[12..16].copy_from_slice(b"IDAT");
