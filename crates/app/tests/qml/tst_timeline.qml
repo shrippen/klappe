@@ -19,7 +19,7 @@ TestCase {
         property var steps: []
         property var advances: []
         property bool running: true
-        property string title: "A"
+        signal switched()
         property string sceneId: "s12"
 
         function seek(at) { seeks.push(at) }
@@ -47,8 +47,6 @@ TestCase {
     function init() {
         fake.time = 6
         fake.running = true
-        fake.title = "A"
-        fake.sceneId = "s12"
     }
 
     // Play stops when the timeline is locked (backup question) and when another scene or project
@@ -61,17 +59,19 @@ TestCase {
         verify(!line.playing)
     }
 
-    function test_another_scene_stops_playing() {
+    // The controller says `switched` for another project, scene or plan (also one with the
+    // same title or scene id).
+    function test_a_scene_gone_by_an_edit_stops_playing() {
         const line = make(de)
         line.togglePlay()
-        fake.sceneId = "s13"
+        fake.sceneId = fake.sceneId === "s12" ? "s13" : "s12"
         verify(!line.playing)
     }
 
-    function test_another_project_stops_playing() {
+    function test_a_switch_stops_playing() {
         const line = make(de)
         line.togglePlay()
-        fake.title = "B"
+        fake.switched()
         verify(!line.playing)
     }
 

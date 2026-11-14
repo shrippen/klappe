@@ -48,7 +48,7 @@ Item {
         playing = true
     }
 
-    // Locked (backup question), another scene or another project: stop, nobody pressed play there.
+    // Locked (backup question), another project, scene or plan: stop, nobody pressed play there.
     onEnabledChanged: {
         if (!enabled) {
             playing = false
@@ -56,8 +56,9 @@ Item {
     }
     Connections {
         target: line.controller
+        function onSwitched() { line.playing = false }
+        // Also a scene gone by an edit (removed, undone) is a switch.
         function onSceneIdChanged() { line.playing = false }
-        function onTitleChanged() { line.playing = false }
     }
 
     Timer {

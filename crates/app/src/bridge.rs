@@ -81,6 +81,11 @@ pub mod qobject {
         #[qproperty(i32, screenshot_after, cxx_name = "screenshotAfter")]
         type Controller = super::ControllerRust;
 
+        /// Another project, scene or plan is shown (also one with the same title or scene id):
+        /// play stops, nobody pressed it there.
+        #[qsignal]
+        fn switched(self: Pin<&mut Self>);
+
         /// Moves the playhead (seconds).
         #[qinvokable]
         fn seek(self: Pin<&mut Self>, time: f64);
@@ -2055,7 +2060,8 @@ impl qobject::Controller {
         }
 
         self.as_mut().rust_mut().get_mut().drop_drafts();
-        self.refresh();
+        self.as_mut().refresh();
+        self.switched();
         true
     }
 
@@ -2173,7 +2179,8 @@ impl qobject::Controller {
         }
 
         self.as_mut().rust_mut().get_mut().drop_drafts();
-        self.refresh();
+        self.as_mut().refresh();
+        self.switched();
         true
     }
 
@@ -2271,6 +2278,7 @@ impl qobject::Controller {
             this.session = Some(session);
             this.drop_drafts();
         }
+        self.as_mut().switched();
         self.as_mut().set_loaded(true);
         self.as_mut().changed();
         self.as_mut().refresh();
