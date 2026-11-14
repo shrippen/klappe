@@ -5,7 +5,7 @@ Floorplans mit Blocking, Kameras, Licht und Shotliste.
 
 Stand: Phase 0 (Gerüst). Arbeitsstand: [`planung/STAND.md`](planung/STAND.md).
 Bauen und prüfen: `make check` (Rust stable, `cargo-deny`, `pipx`, Qt 6 mit Kirigami).
-Starten mit dem Beispielprojekt: `make run`.
+Starten: `./start.sh` (App), `./start.sh tui` oder `./start.sh cli`; mit dem Beispielprojekt: `make run`.
 
 Drehbuch schreiben im Terminal: `cargo run -p klappe-tui -- testdata/beispiel.klappe` (F1 zeigt die Tasten,
 `--language de|en` wählt die Sprache).
