@@ -2,11 +2,11 @@ import QtQuick
 import QtTest
 import "../../qml"
 
-// PlanChooser (LH-04): what the box lists and shows, and what the buttons and their forms
+// PlanMenu (LH-04, D-03): what the menu lists and shows, and what its entries and their forms
 // send to the controller.
 TestCase {
     id: tc
-    name: "PlanChooser"
+    name: "PlanMenu"
     width: 1000
     height: 600
     when: windowShown
@@ -47,10 +47,9 @@ TestCase {
 
     Component {
         id: chooserComponent
-        PlanChooser {
+        PlanMenu {
             controller: fake
             texts: de
-            width: tc.width
         }
     }
 
@@ -73,40 +72,78 @@ TestCase {
         return chooser
     }
 
-    function test_the_box_lists_the_plans_and_shows_the_one_on_view() {
-        const box = findChild(make(), "planBox")
+    // The entry of the menu, found by its object name; `open` makes the menu show it.
+    function entry(chooser, name) {
+        chooser.menu.open()
+        const found = findChild(chooser.menu.contentItem, name) || findChild(chooser.menu, name)
+        verify(found, name)
+        return found
+    }
 
-        compare(box.count, 3)
-        compare(box.currentIndex, 0)
-        compare(box.textAt(1), "Plan A (2)")
+    function pick(chooser, name) {
+        const item = entry(chooser, name)
+        verify(item.enabled, name)
+        // Not a click: a theme with native menus takes none from a test.
+        verify(item.action || item.onView !== undefined, name)
+        if (item.action) {
+            item.action.trigger()
+            return
+        }
+        // A click toggles the tick, then triggers.
+        item.toggle()
+        item.triggered()
+    }
+
+    function test_the_button_shows_the_plan_on_view() {
+        const chooser = make()
+        compare(chooser.text, "Plan A")
 
         fake.plan = "plan-b"
         fake.reshow()
-        compare(box.currentIndex, 2)
-        compare(box.currentText, "Plan B")
+        compare(chooser.text, "Plan B")
+    }
+
+    function test_the_menu_lists_the_plans_with_a_tick_on_the_one_on_view() {
+        const chooser = make()
+        fake.plan = "plan-a-2"
+        fake.reshow()
+
+        compare(entry(chooser, "plan.plan-a").text, "Plan A")
+        compare(entry(chooser, "plan.plan-a-2").text, "Plan A (2)")
+        compare(entry(chooser, "plan.plan-b").text, "Plan B")
+        verify(!entry(chooser, "plan.plan-a").checked)
+        verify(entry(chooser, "plan.plan-a-2").checked)
+        verify(!entry(chooser, "plan.plan-b").checked)
     }
 
     function test_choosing_a_plan_sends_its_id() {
-        const box = findChild(make(), "planBox")
+        const chooser = make()
 
-        box.currentIndex = 1
-        box.activated(1)
+        pick(chooser, "plan.plan-a-2")
 
         compare(fake.calls, [["selectPlan", "plan-a-2"]])
     }
 
-    function test_a_refused_choice_shows_the_plan_on_view_again() {
-        const box = findChild(make(), "planBox")
+    function test_a_refused_choice_keeps_the_tick_on_the_plan_on_view() {
+        const chooser = make()
         fake.accept = false
 
-        box.currentIndex = 2
-        box.activated(2)
+        pick(chooser, "plan.plan-b")
 
-        compare(box.currentIndex, 0)
+        verify(entry(chooser, "plan.plan-a").checked)
+        verify(!entry(chooser, "plan.plan-b").checked)
     }
 
-    function test_the_box_keeps_the_plan_on_view_when_a_name_changes() {
-        const box = findChild(make(), "planBox")
+    function test_choosing_the_plan_on_view_keeps_its_tick() {
+        const chooser = make()
+
+        pick(chooser, "plan.plan-a")
+
+        verify(entry(chooser, "plan.plan-a").checked)
+    }
+
+    function test_the_menu_follows_a_rename() {
+        const chooser = make()
         fake.plan = "plan-b"
         fake.reshow()
 
@@ -117,15 +154,16 @@ TestCase {
         ]
         fake.reshow()
 
-        compare(box.currentIndex, 2)
-        compare(box.currentText, "Fassung 3")
+        compare(chooser.text, "Fassung 3")
+        compare(entry(chooser, "plan.plan-b").text, "Fassung 3")
+        verify(entry(chooser, "plan.plan-b").checked)
     }
 
     function test_a_new_plan_may_leave_its_name_empty() {
         const chooser = make()
         const form = findChild(chooser, "planForm")
 
-        findChild(chooser, "newPlan").clicked()
+        pick(chooser, "newPlan")
         tryCompare(form, "opened", true)
         compare(form.title, "Neuer Plan")
         verify(form.acceptEnabled)
@@ -138,7 +176,7 @@ TestCase {
         const chooser = make()
         const form = findChild(chooser, "planForm")
 
-        findChild(chooser, "newPlan").clicked()
+        pick(chooser, "newPlan")
         tryCompare(form, "opened", true)
         findChild(form, "nameField").text = "Mit Pferd"
         form.accept()
@@ -150,7 +188,7 @@ TestCase {
         const chooser = make()
         const form = findChild(chooser, "planForm")
 
-        findChild(chooser, "snapshotPlan").clicked()
+        pick(chooser, "snapshotPlan")
         tryCompare(form, "opened", true)
         compare(form.title, "Schnappschuss")
         findChild(form, "nameField").text = "Vor dem Umbau"
@@ -165,7 +203,7 @@ TestCase {
         fake.plan = "plan-a-2"
         fake.reshow()
 
-        findChild(chooser, "renamePlan").clicked()
+        pick(chooser, "renamePlan")
         tryCompare(form, "opened", true)
         compare(findChild(form, "nameField").text, "Plan A (2)")
         findChild(form, "nameField").text = "  "
@@ -182,7 +220,7 @@ TestCase {
         const form = findChild(chooser, "planForm")
         fake.accept = false
 
-        findChild(chooser, "newPlan").clicked()
+        pick(chooser, "newPlan")
         tryCompare(form, "opened", true)
         findChild(form, "nameField").text = "Plan A"
         form.accept()
@@ -198,14 +236,14 @@ TestCase {
         fake.plan = "plan-b"
         fake.reshow()
 
-        findChild(chooser, "removePlan").clicked()
+        pick(chooser, "removePlan")
         tryCompare(confirm, "opened", true)
         compare(findChild(confirm, "question").text,
                 "Plan Plan B löschen? Rückgängig stellt ihn wieder her.")
         confirm.reject()
         compare(fake.calls, [])
 
-        findChild(chooser, "removePlan").clicked()
+        pick(chooser, "removePlan")
         tryCompare(confirm, "opened", true)
         confirm.accept()
         compare(fake.calls, [["removePlan", "plan-b"]])
@@ -215,14 +253,14 @@ TestCase {
         const chooser = make()
         const confirm = findChild(chooser, "confirm")
 
-        findChild(chooser, "removePlan").clicked()
+        pick(chooser, "removePlan")
         tryCompare(confirm, "opened", true)
         compare(findChild(confirm, "question").text,
                 "Plan Plan A und seine 5 Shots löschen? Rückgängig stellt alles wieder her.")
         confirm.reject()
         compare(fake.calls, [])
 
-        findChild(chooser, "removePlan").clicked()
+        pick(chooser, "removePlan")
         tryCompare(confirm, "opened", true)
         confirm.accept()
         compare(fake.calls, [["removePlanWithShots", "plan-a"]])
@@ -238,7 +276,7 @@ TestCase {
         ]
         fake.reshow()
 
-        findChild(chooser, "removePlan").clicked()
+        pick(chooser, "removePlan")
         tryCompare(confirm, "opened", true)
         compare(findChild(confirm, "question").text,
                 "Delete plan Plan A and its 1 shot? Undo brings both back.")
@@ -246,10 +284,17 @@ TestCase {
 
         fake.plan = "plan-b"
         fake.reshow()
-        findChild(chooser, "removePlan").clicked()
+        pick(chooser, "removePlan")
         tryCompare(confirm, "opened", true)
         compare(findChild(confirm, "question").text,
                 "Delete plan Plan B and its 3 shots? Undo brings them all back.")
+    }
+
+    function test_deleting_stands_apart_and_is_destructive() {
+        const chooser = make()
+
+        verify(entry(chooser, "removePlan").destructive)
+        verify(!entry(chooser, "newPlan").destructive)
     }
 
     function test_the_last_plan_cannot_be_deleted() {
@@ -257,8 +302,8 @@ TestCase {
         fake.plans = [{ id: "plan-a", name: "Plan A", shots: 5 }]
         fake.reshow()
 
-        verify(!findChild(chooser, "removePlan").enabled)
-        verify(findChild(chooser, "snapshotPlan").enabled)
+        verify(!entry(chooser, "removePlan").enabled)
+        verify(entry(chooser, "snapshotPlan").enabled)
     }
 
     function test_without_a_scene_nothing_can_be_done() {
@@ -267,9 +312,9 @@ TestCase {
         fake.plan = ""
         fake.reshow()
 
-        verify(!findChild(chooser, "planBox").enabled)
+        verify(!chooser.enabled)
         for (const name of ["newPlan", "snapshotPlan", "renamePlan", "removePlan"]) {
-            verify(!findChild(chooser, name).enabled, name)
+            verify(!entry(chooser, name).enabled, name)
         }
     }
 
