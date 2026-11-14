@@ -592,7 +592,7 @@ pub(crate) fn rename_plan(
     let name = name.trim();
     if name.is_empty() {
         return Err(ServiceError::BadValue {
-            field: "name",
+            field: Field::Name,
             value: String::new(),
         });
     }

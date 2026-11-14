@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{PlanEdit, Point, ServiceError, Session, Source};
+use klappe_services::{Field, PlanEdit, Point, ServiceError, Session, Source};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -244,7 +244,10 @@ fn renaming_is_refused_for_bad_names_and_unknown_plans() {
 
     assert!(matches!(
         s.rename_plan("plan-b", "  "),
-        Err(ServiceError::BadValue { field: "name", .. })
+        Err(ServiceError::BadValue {
+            field: Field::Name,
+            ..
+        })
     ));
     assert!(matches!(
         s.rename_plan("plan-b", "plan a"),
