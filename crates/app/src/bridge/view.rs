@@ -488,6 +488,49 @@ mod tests {
         assert!(c.selected.is_empty());
     }
 
+    /// The start with a project shows what the first refresh would: every value from the
+    /// session, none of the tool or draft state.
+    #[test]
+    fn the_start_fills_every_value() {
+        let mut c = ControllerRust {
+            session: Some(example()),
+            ..ControllerRust::default()
+        };
+        c.fill();
+
+        assert!(c.loaded);
+        assert_eq!(c.title.to_string(), "Die Wartburg-Szene");
+        assert_eq!(
+            c.plan_title.to_string(),
+            "12 · INT. SÄNGERSAAL – TAG · Plan A"
+        );
+        assert_eq!(c.scene_id.to_string(), "szene-012");
+        assert_eq!(c.duration, 20.0);
+        assert_eq!(c.time, 0.0);
+        assert_eq!(c.selected_shot.to_string(), "");
+        assert!(c.snapping_on);
+        assert!(!c.has_background);
+        assert_eq!(c.backup_state.to_string(), "none");
+        assert_eq!(c.backup_message.to_string(), "");
+        assert!(!c.can_undo && !c.can_redo && !c.dirty);
+        assert_eq!(c.selected_key.to_string(), "");
+        assert_eq!(c.selected_count, 0);
+        assert_eq!((c.scale_points, c.area_points), (0, 0));
+        assert!(!c.asks_note && !c.measuring);
+        for json in [
+            &c.plan_json,
+            &c.tracks_json,
+            &c.shots_json,
+            &c.script_json,
+            &c.layers_json,
+            &c.locks_json,
+            &c.choices_json,
+            &c.project_json,
+        ] {
+            assert!(!json.to_string().is_empty());
+        }
+    }
+
     /// Review of PR 23, round 4: after a start with `--open` the view on screen was not
     /// noted, so the first refresh dropped the selection or draft it was to show.
     #[test]
