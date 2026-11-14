@@ -39,6 +39,7 @@ TestCase {
         function copyPlan(name) { return call("copyPlan", [name]) }
         function renamePlan(id, name) { return call("renamePlan", [id, name]) }
         function removePlan(id) { return call("removePlan", [id]) }
+        function removePlanWithShots(id) { return call("removePlanWithShots", [id]) }
     }
 
     TestTexts { id: de; language: "de" }
@@ -210,6 +211,47 @@ TestCase {
         compare(fake.calls, [["removePlan", "plan-b"]])
     }
 
+    function test_deleting_a_plan_with_shots_names_their_number_and_takes_them() {
+        const chooser = make()
+        const confirm = findChild(chooser, "confirm")
+
+        findChild(chooser, "removePlan").clicked()
+        tryCompare(confirm, "opened", true)
+        compare(findChild(confirm, "question").text,
+                "Plan Plan A und seine 5 Shots löschen? Rückgängig stellt alles wieder her.")
+        confirm.reject()
+        compare(fake.calls, [])
+
+        findChild(chooser, "removePlan").clicked()
+        tryCompare(confirm, "opened", true)
+        confirm.accept()
+        compare(fake.calls, [["removePlanWithShots", "plan-a"]])
+    }
+
+    function test_the_question_is_in_english_and_counts_one_shot() {
+        const chooser = make()
+        chooser.texts = en
+        const confirm = findChild(chooser, "confirm")
+        fake.plans = [
+            { id: "plan-a", name: "Plan A", shots: 1 },
+            { id: "plan-b", name: "Plan B", shots: 3 }
+        ]
+        fake.reshow()
+
+        findChild(chooser, "removePlan").clicked()
+        tryCompare(confirm, "opened", true)
+        compare(findChild(confirm, "question").text,
+                "Delete plan Plan A and its 1 shot? Undo brings both back.")
+        confirm.reject()
+
+        fake.plan = "plan-b"
+        fake.reshow()
+        findChild(chooser, "removePlan").clicked()
+        tryCompare(confirm, "opened", true)
+        compare(findChild(confirm, "question").text,
+                "Delete plan Plan B and its 3 shots? Undo brings them all back.")
+    }
+
     function test_the_last_plan_cannot_be_deleted() {
         const chooser = make()
         fake.plans = [{ id: "plan-a", name: "Plan A", shots: 5 }]
@@ -235,7 +277,8 @@ TestCase {
         for (const key of ["plan.choose", "plan.new", "plan.snapshot", "plan.rename",
                            "plan.remove", "plan.newTitle", "plan.snapshotTitle",
                            "plan.renameTitle", "plan.name", "plan.nameAuto",
-                           "plan.snapshotHint", "plan.removeTitle", "remove.plan"]) {
+                           "plan.snapshotHint", "plan.removeTitle", "remove.plan",
+                           "remove.planShot", "remove.planShots"]) {
             verify(de.t(key) !== key, "de " + key)
             verify(en.t(key) !== key, "en " + key)
         }
