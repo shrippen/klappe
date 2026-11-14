@@ -8,6 +8,7 @@ mod bridge;
 mod catalog;
 mod notice;
 mod plan;
+mod tools;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};
 use std::path::PathBuf;

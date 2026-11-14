@@ -33,6 +33,12 @@ pub mod qobject {
         #[qproperty(bool, can_undo, cxx_name = "canUndo")]
         #[qproperty(bool, can_redo, cxx_name = "canRedo")]
         #[qproperty(bool, dirty)]
+        /// Key of the selected plan element (`camera:a` …), empty for none.
+        #[qproperty(QString, selected_key, cxx_name = "selectedKey")]
+        /// Whether points snap to the grid; change it with `setSnapping`.
+        #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
+        /// `{ figure: [{ id, name }], object: [kind], light: [kind] }`: what the tool lists offer.
+        #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Last message for the status line, already translated.
         #[qproperty(QString, status)]
         #[qproperty(QString, screenshot_path, cxx_name = "screenshotPath")]
@@ -71,6 +77,46 @@ pub mod qobject {
         #[cxx_name = "setLayer"]
         fn set_layer(self: Pin<&mut Self>, layer: &QString, shown: &QString);
 
+        /// The tool in use: `select`, `wall`, `object` …; `choice` is the value picked in the
+        /// tool's list (object kind, character id, lamp kind). False for an unknown tool.
+        #[qinvokable]
+        #[cxx_name = "setTool"]
+        fn set_tool(self: Pin<&mut Self>, tool: &QString, choice: &QString) -> bool;
+
+        /// A left drag with the tool, in metres. While `done` is false the plan shows the
+        /// result only; on release it is committed. False when the drag does nothing or the
+        /// edit is refused.
+        #[qinvokable]
+        fn drag(self: Pin<&mut Self>, from_x: f64, from_y: f64, x: f64, y: f64, done: bool)
+            -> bool;
+
+        /// A click: selects with the select tool, else sets what the tool stands for.
+        #[qinvokable]
+        fn place(self: Pin<&mut Self>, x: f64, y: f64) -> bool;
+
+        /// Whether a click at (x, y) would take something: the pointer is over a thing to move.
+        #[qinvokable]
+        fn grabbable(self: &Self, x: f64, y: f64) -> bool;
+
+        /// Removes the selected element.
+        #[qinvokable]
+        #[cxx_name = "removeSelected"]
+        fn remove_selected(self: Pin<&mut Self>) -> bool;
+
+        /// Turns the selected element by `step_deg`, clockwise when positive.
+        #[qinvokable]
+        #[cxx_name = "turnSelected"]
+        fn turn_selected(self: Pin<&mut Self>, step_deg: f64) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "setSnapping"]
+        fn set_snapping(self: Pin<&mut Self>, on: bool);
+
+        /// A drag was aborted: shows the committed plan again.
+        #[qinvokable]
+        #[cxx_name = "cancelDrag"]
+        fn cancel_drag(self: Pin<&mut Self>);
+
         /// Writes the plan as PDF next to the project folder; the path goes to `status`.
         #[qinvokable]
         #[cxx_name = "exportPdf"]
@@ -86,7 +132,8 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Layer, Paper, Session, ShotField, Source, Texts, Visibility,
+    horizontal_fov_deg, DisplayList, Layer, Paper, PlanEdit, Point, Session, ShotField, Snapping,
+    Source, Texts, Visibility,
 };
 use serde_json::json;
 
@@ -94,6 +141,7 @@ use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{error_text, Status};
 use crate::plan;
+use crate::tools::{self, Key, Tool};
 
 pub struct ControllerRust {
     session: Option<Session>,
@@ -114,6 +162,12 @@ pub struct ControllerRust {
     can_undo: bool,
     can_redo: bool,
     dirty: bool,
+    selected_key: QString,
+    snapping_on: bool,
+    choices_json: QString,
+    /// What the select tool has picked; the canvas frames it.
+    selected: Option<Source>,
+    tool: Tool,
     status: QString,
     screenshot_path: QString,
     screenshot_after: i32,
@@ -165,6 +219,11 @@ impl Default for ControllerRust {
             can_undo: false,
             can_redo: false,
             dirty: false,
+            selected_key: QString::default(),
+            snapping_on: true,
+            choices_json: QString::default(),
+            selected: None,
+            tool: Tool::Select,
             screenshot_path: args
                 .screenshot
                 .map(|p| q(&p.to_string_lossy()))
@@ -185,7 +244,7 @@ impl ControllerRust {
         self.loaded = true;
         self.title = q(&s.project().title);
         self.plan_title = q(&s.plan_title());
-        self.plan_json = q(&plan_json(s));
+        self.plan_json = q(&plan_json(s, &s.display_list(), None));
         self.tracks_json = q(&to_json(&s.tracks()));
         self.shots_json = q(&to_json(&s.shots()));
         self.script_json = q(&to_json(&s.script_lines()));
@@ -193,6 +252,8 @@ impl ControllerRust {
         self.time = s.time_s();
         self.duration = s.duration_s();
         self.selected_shot = q(s.selected_shot().unwrap_or_default());
+        self.snapping_on = s.snapping() == Snapping::On;
+        self.choices_json = q(&choices_json(s));
     }
 }
 
@@ -200,16 +261,32 @@ fn to_json<T: serde::Serialize>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_default()
 }
 
-/// The plan with the selected shot's camera marked.
-fn plan_json(s: &Session) -> String {
+/// `list` (the session's, or a preview of an edit) with the selected shot's camera and the
+/// selected element marked.
+fn plan_json(s: &Session, list: &DisplayList, selected: Option<&Source>) -> String {
     let camera = s
         .selected_shot()
         .and_then(|id| s.plan()?.shots.iter().find(|shot| shot.id == id))
         .map(|shot| shot.camera.clone());
-    let selected =
-        |source: &Source| matches!(source, Source::Camera(id) if Some(id) == camera.as_ref());
+    let marked = |source: &Source| {
+        Some(source) == selected
+            || matches!(source, Source::Camera(id) if Some(id) == camera.as_ref())
+    };
 
-    plan::shapes_json(&s.display_list(), &selected)
+    plan::shapes_json(list, &marked)
+}
+
+/// What the tool lists of the tool bar offer: the project's characters, object and lamp kinds.
+fn choices_json(s: &Session) -> String {
+    let figures: Vec<_> = s
+        .project()
+        .characters
+        .iter()
+        .map(|c| json!({ "id": c.id, "name": c.name }))
+        .collect();
+    let lights: Vec<_> = tools::LIGHT_KINDS.iter().map(|(name, _)| name).collect();
+
+    json!({ "figure": figures, "object": tools::OBJECT_KINDS, "light": lights }).to_string()
 }
 
 fn layers_json(s: &Session) -> String {
@@ -246,15 +323,34 @@ impl qobject::Controller {
         self.rust_mut().get_mut().session.as_mut()
     }
 
+    /// Forgets the selection when its element is gone (undo, a layer switched off).
+    fn drop_stale(mut self: Pin<&mut Self>) {
+        let stale = {
+            let this = self.as_ref();
+            match (&this.rust().session, &this.rust().selected) {
+                (Some(s), Some(selected)) => !s
+                    .display_list()
+                    .items
+                    .iter()
+                    .any(|i| i.source.as_ref() == Some(selected)),
+                _ => false,
+            }
+        };
+        if stale {
+            self.as_mut().rust_mut().get_mut().selected = None;
+        }
+    }
+
     /// Pushes what may have changed after a call to the properties (and their signals).
     fn refresh(mut self: Pin<&mut Self>) {
+        self.as_mut().drop_stale();
         let values = {
             let this = self.as_ref();
             let Some(s) = this.rust().session.as_ref() else {
                 return;
             };
             (
-                plan_json(s),
+                plan_json(s, &s.display_list(), this.rust().selected.as_ref()),
                 to_json(&s.tracks()),
                 to_json(&s.shots()),
                 to_json(&s.script_lines()),
@@ -264,9 +360,10 @@ impl qobject::Controller {
                 s.can_undo(),
                 s.can_redo(),
                 s.is_dirty(),
+                this.rust().selected.as_ref().map(plan::key),
             )
         };
-        let (plan, tracks, shots, script, layers, time, selected, undo, redo, dirty) = values;
+        let (plan, tracks, shots, script, layers, time, shot, undo, redo, dirty, selected) = values;
 
         self.as_mut().set_plan_json(q(&plan));
         self.as_mut().set_tracks_json(q(&tracks));
@@ -274,7 +371,9 @@ impl qobject::Controller {
         self.as_mut().set_script_json(q(&script));
         self.as_mut().set_layers_json(q(&layers));
         self.as_mut().set_time(time);
-        self.as_mut().set_selected_shot(q(&selected));
+        self.as_mut().set_selected_shot(q(&shot));
+        self.as_mut()
+            .set_selected_key(q(&selected.unwrap_or_default()));
         self.as_mut().set_can_undo(undo);
         self.as_mut().set_can_redo(redo);
         self.as_mut().set_dirty(dirty);
@@ -358,6 +457,149 @@ impl qobject::Controller {
         self.as_mut().say(message);
         self.refresh();
         result.is_ok()
+    }
+
+    fn set_tool(mut self: Pin<&mut Self>, tool: &QString, choice: &QString) -> bool {
+        let Some(tool) = Tool::parse(&tool.to_string(), &choice.to_string()) else {
+            return false;
+        };
+
+        self.as_mut().rust_mut().get_mut().tool = tool;
+        true
+    }
+
+    fn drag(
+        mut self: Pin<&mut Self>,
+        from_x: f64,
+        from_y: f64,
+        x: f64,
+        y: f64,
+        done: bool,
+    ) -> bool {
+        let tool = self.rust().tool.clone();
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        // The canvas' key can name a view cone or a path that lies over the thing meant;
+        // the session picks what a user can grab.
+        let from = Point::new(from_x, from_y);
+        let to = Point::new(x, y);
+        let grabbed = s.pick(from);
+
+        // Select moves by a distance and the session snaps where the element lands; the
+        // other tools draw between two points, which snap here.
+        let (from, to) = match tool {
+            Tool::Select => (from, to),
+            _ => (s.snap(from), s.snap(to)),
+        };
+        let edit = tools::drag_edit(&tool, grabbed.as_ref(), from, to);
+        let Some(edit) = edit else {
+            return false;
+        };
+
+        if tool == Tool::Select {
+            self.as_mut().rust_mut().get_mut().selected = grabbed;
+        }
+        if !done {
+            return self.preview_edit(&edit);
+        }
+
+        self.commit_edit(edit)
+    }
+
+    fn place(mut self: Pin<&mut Self>, x: f64, y: f64) -> bool {
+        let tool = self.rust().tool.clone();
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        if tool == Tool::Select {
+            let picked = s.pick(Point::new(x, y));
+            let found = picked.is_some();
+            self.as_mut().rust_mut().get_mut().selected = picked;
+            self.refresh();
+            return found;
+        }
+
+        let Some(edit) = tools::click_edit(&tool, s.snap(Point::new(x, y))) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
+    fn grabbable(&self, x: f64, y: f64) -> bool {
+        let Some(s) = self.rust().session.as_ref() else {
+            return false;
+        };
+        s.pick(Point::new(x, y)).is_some()
+    }
+
+    fn remove_selected(mut self: Pin<&mut Self>) -> bool {
+        let edit = tools::key_edit(Key::Remove, self.rust().selected.as_ref());
+        let Some(edit) = edit else {
+            return false;
+        };
+
+        // The indices of what is left may shift, so the selection goes either way.
+        self.as_mut().rust_mut().get_mut().selected = None;
+        self.commit_edit(edit)
+    }
+
+    fn turn_selected(self: Pin<&mut Self>, step_deg: f64) -> bool {
+        let key = Key::Turn { by_deg: step_deg };
+        let Some(edit) = tools::key_edit(key, self.rust().selected.as_ref()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
+    fn set_snapping(mut self: Pin<&mut Self>, on: bool) {
+        let snapping = if on { Snapping::On } else { Snapping::Off };
+        if let Some(s) = self.as_mut().session() {
+            s.set_snapping(snapping);
+        }
+        self.set_snapping_on(on);
+    }
+
+    fn cancel_drag(self: Pin<&mut Self>) {
+        self.refresh();
+    }
+
+    /// Shows what `edit` would do, as the plan; the project stays as it is.
+    fn preview_edit(self: Pin<&mut Self>, edit: &PlanEdit) -> bool {
+        let json = {
+            let this = self.as_ref();
+            let Some(s) = this.rust().session.as_ref() else {
+                return false;
+            };
+            let Ok(list) = s.preview(edit) else {
+                return false;
+            };
+            plan_json(s, &list, this.rust().selected.as_ref())
+        };
+
+        self.set_plan_json(q(&json));
+        true
+    }
+
+    /// Applies `edit`; an error goes to the status line.
+    fn commit_edit(mut self: Pin<&mut Self>, edit: PlanEdit) -> bool {
+        let language = self.rust().language;
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        let result = s.edit_plan(edit);
+        let ok = result.is_ok();
+        match result {
+            Ok(()) => self.as_mut().changed(),
+            Err(e) => self.as_mut().say(error_text(language, &e)),
+        }
+        self.refresh();
+        ok
     }
 
     fn set_track(mut self: Pin<&mut Self>, id: &QString, shown: &QString) {

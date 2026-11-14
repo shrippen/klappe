@@ -13,8 +13,8 @@ Stand: 2026-11-13.
 | Export SVG und PDF aus der Darstellungsliste | fertig (#4) |
 | Sitzung (`services`): Szene, Zeit, Shot bearbeiten, Rückgängig, Ansichten | fertig (#5) |
 | TUI-Editor (`klappe-tui`), schreibt nur das Drehbuch | fertig (#6, #8) |
-| GUI-Gerüst (cxx-qt, Kirigami, Kante), Layout E-14: Drehbuch, Plan, Shot, Zeitleiste, ausklappbar | erste Fassung (#7, Kante #170); offen: Sichtkegel nach dem Objektiv des Shots, Zeichenwerkzeuge |
+| GUI-Gerüst (cxx-qt, Kirigami, Kante), Layout E-14: Drehbuch, Plan, Shot, Zeitleiste, ausklappbar | erste Fassung (#7, Kante #170); offen: Sichtkegel nach dem Objektiv des Shots |
 | App in der CI (Arch, QML-Tests, offscreen-Screenshots) | fertig (#7) |
 | Flatpak und Windows-Build der App | offen |
-| Werkzeuge zum Zeichnen (Wand, Objekt, Figur, Kamera, Licht) | offen |
+| Werkzeuge zum Zeichnen (Wand, Objekt, Figur, Kamera, Licht) | erste Fassung |
 | Demo-Modus mit „Studio Weber“ für Screenshots | offen |
