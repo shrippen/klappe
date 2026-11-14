@@ -2,7 +2,11 @@
 //! choice made in the tool bar become one plan edit. No geometry beyond the two points a
 //! gesture hands over (agent.md); the session snaps them and does the work.
 
+use std::path::PathBuf;
+
 use klappe_services::{LightKind, PlanEdit, Point, Source};
+
+const FILE_URL: &str = "file://";
 
 /// A new camera looks to the right (0°); the user turns it afterwards.
 const NEW_CAMERA_FACING_DEG: f64 = 0.0;
@@ -39,6 +43,8 @@ pub enum Tool {
     Figure(String),
     Camera,
     Light(LightKind),
+    /// Two clicks on a stretch of known length scale the background; a drag moves it.
+    Scale,
 }
 
 impl Tool {
@@ -52,6 +58,7 @@ impl Tool {
             "object" => Some(Tool::Object(choice.to_owned())),
             "figure" => Some(Tool::Figure(choice.to_owned())),
             "camera" => Some(Tool::Camera),
+            "scale" => Some(Tool::Scale),
             "light" => LIGHT_KINDS
                 .iter()
                 .find(|(n, _)| *n == choice)
@@ -74,7 +81,7 @@ pub enum Key {
 /// A click at `at`: the tools that put something there. Select only selects, which is no edit.
 pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
     match tool {
-        Tool::Select | Tool::Wall => None,
+        Tool::Select | Tool::Wall | Tool::Scale => None,
         Tool::Object(kind) if kind.is_empty() => None,
         Tool::Object(kind) => Some(PlanEdit::AddObject {
             kind: kind.clone(),
@@ -95,7 +102,8 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
 
 /// A drag from `from` to `to` that began on `grabbed` (`None`: empty ground). Select moves what
 /// it grabbed by the distance dragged, so the grab point stays under the pointer; Wall draws
-/// from start to end wherever it began. The points of a wall are expected snapped already.
+/// from start to end wherever it began; Scale moves the background by the distance dragged.
+/// The points of a wall are expected snapped already.
 pub fn drag_edit(
     tool: &Tool,
     grabbed: Option<&Source>,
@@ -110,7 +118,123 @@ pub fn drag_edit(
         }),
         Tool::Wall if from == to => None,
         Tool::Wall => Some(PlanEdit::AddWall { from, to }),
+        Tool::Scale if from == to => None,
+        Tool::Scale => Some(PlanEdit::MoveBackground {
+            dx_m: to.x_m - from.x_m,
+            dy_m: to.y_m - from.y_m,
+        }),
         _ => None,
+    }
+}
+
+/// Where a click lands on the plan: `snap` puts it on the grid. The scale tool keeps the
+/// exact point: a stretch measured on the grid gives a wrong scale.
+pub fn lands_at(tool: &Tool, at: Point, snap: impl Fn(Point) -> Point) -> Point {
+    if *tool == Tool::Scale {
+        return at;
+    }
+
+    snap(at)
+}
+
+/// Whether the plan on screen has a background image to scale.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backdrop {
+    Missing,
+    Present,
+}
+
+/// How far the scale gesture has come: the points picked so far.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum ScaleStep {
+    #[default]
+    Idle,
+    First(Point),
+    Both(Point, Point),
+}
+
+impl ScaleStep {
+    /// A click at `at`: the first or the second point. A second click on the first point
+    /// changes nothing (no stretch); a click after both points starts over.
+    pub fn click(self, at: Point) -> ScaleStep {
+        match self {
+            ScaleStep::First(first) if first == at => self,
+            ScaleStep::First(first) => ScaleStep::Both(first, at),
+            ScaleStep::Idle | ScaleStep::Both(..) => ScaleStep::First(at),
+        }
+    }
+
+    /// The points still valid once the plan shows `backdrop` (undo can take the image away).
+    pub fn under(self, backdrop: Backdrop) -> ScaleStep {
+        match backdrop {
+            Backdrop::Missing => ScaleStep::Idle,
+            Backdrop::Present => self,
+        }
+    }
+
+    /// The points picked, for the preview on the plan.
+    pub fn points(self) -> Vec<Point> {
+        match self {
+            ScaleStep::Idle => Vec::new(),
+            ScaleStep::First(a) => vec![a],
+            ScaleStep::Both(a, b) => vec![a, b],
+        }
+    }
+}
+
+/// A length in metres as typed: a comma or a point as decimal separator, more than zero.
+pub fn parse_metres(text: &str) -> Option<f64> {
+    let metres: f64 = text.trim().replace(',', ".").parse().ok()?;
+
+    (metres.is_finite() && metres > 0.0).then_some(metres)
+}
+
+/// Both points picked and a length typed: the scale edit. `None` until then.
+pub fn scale_edit(step: ScaleStep, distance: &str) -> Option<PlanEdit> {
+    let ScaleStep::Both(from, to) = step else {
+        return None;
+    };
+
+    Some(PlanEdit::Calibrate {
+        from,
+        to,
+        distance_m: parse_metres(distance)?,
+    })
+}
+
+/// `file://` URL or plain path as the file dialog hands it over, as a path. Percent-escapes
+/// in a URL are decoded.
+pub fn local_path(url: &str) -> PathBuf {
+    let Some(rest) = url.strip_prefix(FILE_URL) else {
+        return PathBuf::from(url);
+    };
+
+    let mut bytes = Vec::with_capacity(rest.len());
+    let raw = rest.as_bytes();
+    let mut i = 0;
+    while i < raw.len() {
+        let escaped = (raw[i] == b'%')
+            .then(|| raw.get(i + 1..i + 3))
+            .flatten()
+            .and_then(|hex| std::str::from_utf8(hex).ok())
+            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        match escaped {
+            Some(byte) => {
+                bytes.push(byte);
+                i += 3;
+            }
+            None => {
+                bytes.push(raw[i]);
+                i += 1;
+            }
+        }
+    }
+
+    let path = String::from_utf8_lossy(&bytes).into_owned();
+    // `file:///C:/x`: no slash before a drive letter.
+    match path.as_bytes() {
+        [b'/', drive, b':', ..] if drive.is_ascii_alphabetic() => PathBuf::from(&path[1..]),
+        _ => PathBuf::from(path),
     }
 }
 
@@ -164,6 +288,27 @@ pub fn key_edit(key: Key, selected: Option<&Source>) -> Option<PlanEdit> {
 
 #[cfg(test)]
 mod tests {
+
+    /// Review of PR 19: scale points snapped to the 25 cm grid gave a wrong scale
+    /// (2.8 m picked, 3.0 m used). Tools that place things still snap.
+    #[test]
+    fn scale_points_do_not_snap() {
+        let snap = |p: Point| Point::new(p.x_m.round(), p.y_m.round());
+        let at = Point::new(1.1, 1.0);
+
+        assert_eq!(lands_at(&Tool::Scale, at, snap), at);
+        assert_eq!(lands_at(&Tool::Camera, at, snap), Point::new(1.0, 1.0));
+    }
+
+    /// Review of PR 19: undoing the background left the picked points and the length
+    /// field; a valid length then failed as if it were invalid.
+    #[test]
+    fn scale_points_go_with_the_background() {
+        let both = ScaleStep::Both(Point::new(0.0, 0.0), Point::new(1.0, 0.0));
+
+        assert_eq!(both.under(Backdrop::Missing), ScaleStep::Idle);
+        assert_eq!(both.under(Backdrop::Present), both);
+    }
 
     /// Review of PR 13: a drag that ends in no edit (a wall snapped to length 0) or whose
     /// preview fails must show the project again, not the last preview.
@@ -361,5 +506,93 @@ mod tests {
             })
         );
         assert_eq!(key_edit(Key::Remove, None), None);
+    }
+
+    #[test]
+    fn scale_is_a_tool_and_a_click_edits_nothing() {
+        assert_eq!(Tool::parse("scale", ""), Some(Tool::Scale));
+        assert_eq!(click_edit(&Tool::Scale, p(1.0, 1.0)), None);
+    }
+
+    #[test]
+    fn scale_drags_the_background() {
+        let edit = drag_edit(&Tool::Scale, None, p(1.0, 1.0), p(3.0, 0.5));
+
+        assert_eq!(
+            edit,
+            Some(PlanEdit::MoveBackground {
+                dx_m: 2.0,
+                dy_m: -0.5
+            })
+        );
+        assert_eq!(
+            drag_edit(&Tool::Scale, None, p(1.0, 1.0), p(1.0, 1.0)),
+            None
+        );
+    }
+
+    #[test]
+    fn two_clicks_pick_two_points_and_a_third_starts_over() {
+        let (a, b, c) = (p(1.0, 1.0), p(4.0, 1.0), p(0.0, 2.0));
+
+        let first = ScaleStep::Idle.click(a);
+        let both = first.click(b);
+
+        assert_eq!(first, ScaleStep::First(a));
+        assert_eq!(both, ScaleStep::Both(a, b));
+        assert_eq!(both.points(), vec![a, b]);
+        assert_eq!(both.click(c), ScaleStep::First(c));
+        assert!(ScaleStep::Idle.points().is_empty());
+    }
+
+    #[test]
+    fn a_second_click_on_the_first_point_is_no_stretch() {
+        let a = p(1.0, 1.0);
+
+        assert_eq!(ScaleStep::First(a).click(a), ScaleStep::First(a));
+    }
+
+    #[test]
+    fn metres_take_comma_or_point() {
+        assert_eq!(parse_metres("4,5"), Some(4.5));
+        assert_eq!(parse_metres(" 4.5 "), Some(4.5));
+        assert_eq!(parse_metres("12"), Some(12.0));
+        assert_eq!(parse_metres("0"), None);
+        assert_eq!(parse_metres("-3"), None);
+        assert_eq!(parse_metres("1,234.5"), None);
+        assert_eq!(parse_metres("abc"), None);
+        assert_eq!(parse_metres(""), None);
+        assert_eq!(parse_metres("inf"), None);
+    }
+
+    #[test]
+    fn the_scale_edit_needs_both_points_and_a_length() {
+        let (a, b) = (p(1.0, 1.0), p(4.0, 1.0));
+
+        assert_eq!(
+            scale_edit(ScaleStep::Both(a, b), "3,5"),
+            Some(PlanEdit::Calibrate {
+                from: a,
+                to: b,
+                distance_m: 3.5
+            })
+        );
+        assert_eq!(scale_edit(ScaleStep::Both(a, b), "x"), None);
+        assert_eq!(scale_edit(ScaleStep::First(a), "3"), None);
+        assert_eq!(scale_edit(ScaleStep::Idle, "3"), None);
+    }
+
+    #[test]
+    fn the_dialog_url_becomes_a_path() {
+        assert_eq!(
+            local_path("file:///home/a%20b/Plan%C3%A4.png"),
+            PathBuf::from("/home/a b/Planä.png")
+        );
+        assert_eq!(local_path("/home/x/p.png"), PathBuf::from("/home/x/p.png"));
+        assert_eq!(
+            local_path("file:///C:/x/p.png"),
+            PathBuf::from("C:/x/p.png")
+        );
+        assert_eq!(local_path("file:///a%zz"), PathBuf::from("/a%zz"));
     }
 }

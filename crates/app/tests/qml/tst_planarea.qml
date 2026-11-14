@@ -22,6 +22,10 @@ TestCase {
         property var turns: []
         property int removes: 0
         property int cancels: 0
+        property int scalePoints: 0
+        property var calibrations: []
+        property int scaleCancels: 0
+        property bool calibrateOk: true
 
         function describe(key) {
             return JSON.stringify({ kind: "camera", label: "A", lens: 35, fov: 39.6, height: 1.6, shots: "12.1" })
@@ -32,7 +36,18 @@ TestCase {
         }
         function place(x, y) {
             places.push([x, y])
+            if (scalePoints < 2) {
+                scalePoints++
+            }
             return true
+        }
+        function calibrate(text) {
+            calibrations.push(text)
+            return calibrateOk
+        }
+        function cancelScale() {
+            scaleCancels++
+            scalePoints = 0
         }
         function grabbable(x, y) { return grab }
         function removeSelected() { removes++ }
@@ -74,6 +89,10 @@ TestCase {
         fake.turns = []
         fake.removes = 0
         fake.cancels = 0
+        fake.scalePoints = 0
+        fake.calibrations = []
+        fake.scaleCancels = 0
+        fake.calibrateOk = true
     }
 
     function drawn(tool) {
@@ -167,5 +186,75 @@ TestCase {
 
         compare(fake.turns, [15, -15])
         compare(fake.removes, 1)
+    }
+
+    function test_scale_asks_for_the_length_after_two_clicks() {
+        const area = drawn("scale")
+        const card = findChild(area, "lengthCard")
+
+        verify(!card.visible)
+        mouseClick(area, 120, 150)
+        verify(!card.visible)
+        mouseClick(area, 300, 150)
+
+        compare(fake.places.length, 2)
+        verify(card.visible)
+        verify(findChild(area, "lengthField").activeFocus)
+    }
+
+    function test_enter_gives_the_length_to_the_controller() {
+        const area = drawn("scale")
+        mouseClick(area, 120, 150)
+        mouseClick(area, 300, 150)
+
+        const field = findChild(area, "lengthField")
+        field.text = "4,5"
+        keyClick(Qt.Key_Return)
+
+        compare(fake.calibrations, ["4,5"])
+        verify(!field.invalid)
+    }
+
+    function test_a_refused_length_marks_the_field() {
+        const area = drawn("scale")
+        mouseClick(area, 120, 150)
+        mouseClick(area, 300, 150)
+        fake.calibrateOk = false
+
+        const field = findChild(area, "lengthField")
+        field.text = "abc"
+        keyClick(Qt.Key_Return)
+
+        verify(field.invalid)
+        field.text = "4"
+        verify(!field.invalid)
+    }
+
+    function test_escape_drops_the_scale_points() {
+        const area = drawn("scale")
+        mouseClick(area, 120, 150)
+        mouseClick(area, 300, 150)
+
+        keyClick(Qt.Key_Escape)
+
+        compare(fake.scaleCancels, 1)
+        verify(!findChild(area, "lengthCard").visible)
+    }
+
+    function test_the_length_card_is_for_the_scale_tool_only() {
+        const area = drawn("camera")
+        mouseClick(area, 120, 150)
+        mouseClick(area, 300, 150)
+
+        verify(!findChild(area, "lengthCard").visible)
+    }
+
+    function test_scale_drags_go_to_the_controller() {
+        const area = drawn("scale")
+
+        drag(area, 3)
+
+        verify(fake.drags.length >= 2)
+        verify(fake.drags[fake.drags.length - 1].done)
     }
 }

@@ -39,6 +39,10 @@ pub mod qobject {
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
         /// `{ figure: [{ id, name }], object: [kind], light: [kind] }`: what the tool lists offer.
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
+        /// Whether the set has a background image.
+        #[qproperty(bool, has_background, cxx_name = "hasBackground")]
+        /// Points picked so far by the scale tool: 0, 1 or 2 (then the length is asked).
+        #[qproperty(i32, scale_points, cxx_name = "scalePoints")]
         /// Last message for the status line, already translated.
         #[qproperty(QString, status)]
         /// Backup found at open: `none`, `found` or `unreadable`; answer with `restoreBackup`
@@ -120,6 +124,27 @@ pub mod qobject {
         #[qinvokable]
         fn grabbable(self: &Self, x: f64, y: f64) -> bool;
 
+        /// Takes the image file at `path` (a path or a `file://` URL) as the set's background
+        /// and points to the scale tool in the status line.
+        #[qinvokable]
+        #[cxx_name = "setBackground"]
+        fn set_background(self: Pin<&mut Self>, path: &QString) -> bool;
+
+        /// Takes the background off the set.
+        #[qinvokable]
+        #[cxx_name = "removeBackground"]
+        fn remove_background(self: Pin<&mut Self>) -> bool;
+
+        /// Scales the background so that the two picked points are `distance` metres apart
+        /// (comma or point as decimal separator). False for no two points or a bad number.
+        #[qinvokable]
+        fn calibrate(self: Pin<&mut Self>, distance: &QString) -> bool;
+
+        /// Drops the points picked for a scale.
+        #[qinvokable]
+        #[cxx_name = "cancelScale"]
+        fn cancel_scale(self: Pin<&mut Self>);
+
         /// Removes the selected element.
         #[qinvokable]
         #[cxx_name = "removeSelected"]
@@ -171,7 +196,7 @@ use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
-use crate::tools::{self, DragPhase, DragStep, Key, Preview, Tool};
+use crate::tools::{self, Backdrop, DragPhase, DragStep, Key, Preview, ScaleStep, Tool};
 
 pub struct ControllerRust {
     session: Option<Session>,
@@ -198,6 +223,9 @@ pub struct ControllerRust {
     /// What the select tool has picked; the canvas frames it.
     selected: Option<Source>,
     tool: Tool,
+    scale: ScaleStep,
+    has_background: bool,
+    scale_points: i32,
     /// What the plan on screen shows: a drag preview or the project.
     preview: Preview,
     status: QString,
@@ -263,6 +291,9 @@ impl Default for ControllerRust {
             choices_json: QString::default(),
             selected: None,
             tool: Tool::Select,
+            scale: ScaleStep::Idle,
+            has_background: false,
+            scale_points: 0,
             preview: Preview::Hidden,
             backup_state: QString::default(),
             backup_message: QString::default(),
@@ -287,7 +318,8 @@ impl ControllerRust {
         self.loaded = true;
         self.title = q(&s.project().title);
         self.plan_title = q(&s.plan_title());
-        self.plan_json = q(&plan_json(s, &s.display_list(), None));
+        self.plan_json = q(&plan_json(s, &s.display_list(), None, &[]));
+        self.has_background = has_background(s);
         self.tracks_json = q(&to_json(&s.tracks()));
         self.shots_json = q(&to_json(&s.shots()));
         self.script_json = q(&to_json(&s.script_lines()));
@@ -308,9 +340,21 @@ fn to_json<T: serde::Serialize>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_default()
 }
 
+/// Whether the current scene's set has a background image.
+fn has_background(s: &Session) -> bool {
+    s.scene()
+        .and_then(|sc| s.project().location(&sc.location))
+        .is_some_and(|l| l.set.background.is_some())
+}
+
 /// `list` (the session's, or a preview of an edit) with the selected shot's camera and the
-/// selected element marked.
-fn plan_json(s: &Session, list: &DisplayList, selected: Option<&Source>) -> String {
+/// selected element marked; `picked` are the points of a scale in progress.
+fn plan_json(
+    s: &Session,
+    list: &DisplayList,
+    selected: Option<&Source>,
+    picked: &[Point],
+) -> String {
     let camera = s
         .selected_shot()
         .and_then(|id| s.plan()?.shots.iter().find(|shot| shot.id == id))
@@ -320,7 +364,7 @@ fn plan_json(s: &Session, list: &DisplayList, selected: Option<&Source>) -> Stri
             || matches!(source, Source::Camera(id) if Some(id) == camera.as_ref())
     };
 
-    plan::shapes_json(list, &marked)
+    plan::shapes_json(list, s.dir(), &marked, picked)
 }
 
 /// What the tool lists of the tool bar offer: the project's characters, object and lamp kinds.
@@ -399,13 +443,29 @@ impl qobject::Controller {
     /// Pushes what may have changed after a call to the properties (and their signals).
     fn refresh(mut self: Pin<&mut Self>) {
         self.as_mut().drop_stale();
+
+        // Undo and redo can take the image away; its scale points go with it.
+        let background = self.rust().session.as_ref().is_some_and(has_background);
+        let backdrop = if background {
+            Backdrop::Present
+        } else {
+            Backdrop::Missing
+        };
+        let scale = self.rust().scale.under(backdrop);
+        self.as_mut().rust_mut().get_mut().scale = scale;
+
         let values = {
             let this = self.as_ref();
             let Some(s) = this.rust().session.as_ref() else {
                 return;
             };
             (
-                plan_json(s, &s.display_list(), this.rust().selected.as_ref()),
+                plan_json(
+                    s,
+                    &s.display_list(),
+                    this.rust().selected.as_ref(),
+                    &this.rust().scale.points(),
+                ),
                 to_json(&s.tracks()),
                 to_json(&s.shots()),
                 to_json(&s.script_lines()),
@@ -419,6 +479,7 @@ impl qobject::Controller {
             )
         };
         let (plan, tracks, shots, script, layers, time, shot, undo, redo, dirty, selected) = values;
+        let scale_points = self.rust().scale.points().len();
 
         // Restoring a backup or undoing it can change what only the start used to set.
         let header = {
@@ -453,6 +514,9 @@ impl qobject::Controller {
         self.as_mut().set_can_undo(undo);
         self.as_mut().set_can_redo(redo);
         self.as_mut().set_dirty(dirty);
+        self.as_mut().set_has_background(background);
+        self.as_mut()
+            .set_scale_points(i32::try_from(scale_points).unwrap_or_default());
     }
 
     /// Shows `text` in the header until the project changes.
@@ -591,7 +655,12 @@ impl qobject::Controller {
             return false;
         };
 
+        // Points picked for a scale do not outlast the tool.
+        let leaves_scale = tool != Tool::Scale && self.rust().scale != ScaleStep::Idle;
         self.as_mut().rust_mut().get_mut().tool = tool;
+        if leaves_scale {
+            self.cancel_scale();
+        }
         true
     }
 
@@ -614,13 +683,16 @@ impl qobject::Controller {
         let to = Point::new(x, y);
         let grabbed = s.pick(from);
 
-        // Select moves by a distance and the session snaps where the element lands; the
-        // other tools draw between two points, which snap here.
+        // Select and Scale move by a distance (the session snaps where an element lands, a
+        // background moves freely); the other tools draw between two points, which snap here.
         let (from, to) = match tool {
-            Tool::Select => (from, to),
+            Tool::Select | Tool::Scale => (from, to),
             _ => (s.snap(from), s.snap(to)),
         };
-        let edit = tools::drag_edit(&tool, grabbed.as_ref(), from, to);
+        let mut edit = tools::drag_edit(&tool, grabbed.as_ref(), from, to);
+        if tool == Tool::Scale && !has_background(s) {
+            edit = None;
+        }
         let preview = self.rust().preview;
         let phase = if done {
             DragPhase::Done
@@ -656,11 +728,51 @@ impl qobject::Controller {
             return found;
         }
 
-        let Some(edit) = tools::click_edit(&tool, s.snap(Point::new(x, y))) else {
+        let at = tools::lands_at(&tool, Point::new(x, y), |p| s.snap(p));
+        if tool == Tool::Scale {
+            return self.pick_scale_point(at);
+        }
+
+        let Some(edit) = tools::click_edit(&tool, at) else {
             return false;
         };
 
         self.commit_edit(edit)
+    }
+
+    fn set_background(mut self: Pin<&mut Self>, path: &QString) -> bool {
+        let source = tools::local_path(&path.to_string());
+        if !self
+            .as_mut()
+            .commit_edit(PlanEdit::SetBackground { source })
+        {
+            return false;
+        }
+
+        // The edit cleared the status line; the next step goes there.
+        let hint = self.rust().language.text("background.hint");
+        self.as_mut().say(hint);
+        true
+    }
+
+    fn remove_background(mut self: Pin<&mut Self>) -> bool {
+        self.as_mut().rust_mut().get_mut().scale = ScaleStep::Idle;
+        self.commit_edit(PlanEdit::RemoveBackground)
+    }
+
+    fn calibrate(mut self: Pin<&mut Self>, distance: &QString) -> bool {
+        let step = self.rust().scale;
+        let Some(edit) = tools::scale_edit(step, &distance.to_string()) else {
+            return false;
+        };
+
+        self.as_mut().rust_mut().get_mut().scale = ScaleStep::Idle;
+        self.commit_edit(edit)
+    }
+
+    fn cancel_scale(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().get_mut().scale = ScaleStep::Idle;
+        self.refresh();
     }
 
     fn grabbable(&self, x: f64, y: f64) -> bool {
@@ -702,6 +814,19 @@ impl qobject::Controller {
         self.refresh();
     }
 
+    /// A click of the scale tool: the next point of the stretch. Without a background there
+    /// is nothing to scale.
+    fn pick_scale_point(mut self: Pin<&mut Self>, at: Point) -> bool {
+        if !self.rust().session.as_ref().is_some_and(has_background) {
+            return false;
+        }
+
+        let step = self.rust().scale.click(at);
+        self.as_mut().rust_mut().get_mut().scale = step;
+        self.refresh();
+        true
+    }
+
     /// Shows what `edit` would do, as the plan; the project stays as it is. A failed preview
     /// shows the project, not the last preview.
     fn preview_edit(mut self: Pin<&mut Self>, edit: &PlanEdit) -> bool {
@@ -709,7 +834,8 @@ impl qobject::Controller {
             let this = self.as_ref();
             this.rust().session.as_ref().and_then(|s| {
                 let list = s.preview(edit).ok()?;
-                Some(plan_json(s, &list, this.rust().selected.as_ref()))
+                let picked = this.rust().scale.points();
+                Some(plan_json(s, &list, this.rust().selected.as_ref(), &picked))
             })
         };
 

@@ -14,7 +14,7 @@ Item {
     required property var controller
 
     readonly property var plan: controller.planJson ? JSON.parse(controller.planJson) : null
-    /// The tool of PlanTools: select, wall, object, figure, camera or light.
+    /// The tool of PlanTools: select, wall, object, figure, camera, light or scale.
     property string tool: "select"
     property string tipKey: ""
     /// The pointer is over something the select tool can move: a left drag then moves it,
@@ -61,6 +61,60 @@ Item {
         }
     }
 
+    // Scale tool, two points picked: the length between them. Enter sets the scale, Escape
+    // drops the points (it drops them while the field has the focus, too).
+    readonly property bool asksLength: area.tool === "scale" && controller.scalePoints === 2
+    KanteCard {
+        id: lengthCard
+        objectName: "lengthCard"
+        visible: area.asksLength
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Kirigami.Units.largeSpacing
+        implicitWidth: lengthRow.implicitWidth + Kirigami.Units.largeSpacing * 2
+        implicitHeight: lengthRow.implicitHeight + Kirigami.Units.largeSpacing * 2
+
+        RowLayout {
+            id: lengthRow
+            anchors.centerIn: parent
+            spacing: Kirigami.Units.smallSpacing
+
+            KanteSectionLabel { text: area.texts.t("scale.distance") }
+            KanteTextField {
+                id: lengthField
+                objectName: "lengthField"
+                Accessible.name: area.texts.t("scale.distance")
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                onTextChanged: invalid = false
+                onAccepted: area.setScale()
+                Keys.onEscapePressed: area.controller.cancelScale()
+            }
+            KanteButton {
+                text: area.texts.t("scale.apply")
+                onClicked: area.setScale()
+            }
+        }
+    }
+
+    onAsksLengthChanged: {
+        lengthField.text = ""
+        if (asksLength) {
+            lengthField.forceActiveFocus()
+        }
+    }
+
+    function setScale() {
+        if (!controller.calibrate(lengthField.text)) {
+            lengthField.invalid = true
+        }
+    }
+
+    Shortcut {
+        sequence: "Escape"
+        enabled: area.tool === "scale" && area.controller.scalePoints > 0 && !area.dragging
+        onActivated: area.controller.cancelScale()
+    }
+
     // Escape drops the drag in progress; only then, so it stays free for dialogs.
     Shortcut {
         sequence: "Escape"
@@ -74,7 +128,8 @@ Item {
 
     // Keys for the selection: Delete removes it, R and Shift+R turn it by 15 degrees.
     readonly property real turnStepDeg: 15
-    readonly property bool hasSelection: !!controller.selectedKey
+    // Not while a length is typed: Delete there edits the text.
+    readonly property bool hasSelection: !!controller.selectedKey && !lengthField.activeFocus
     Shortcut {
         sequence: "Delete"
         enabled: area.hasSelection

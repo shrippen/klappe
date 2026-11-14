@@ -18,5 +18,6 @@ Stand: 2026-11-13.
 | Flatpak und Windows-Build der App | offen |
 | Werkzeuge zum Zeichnen (Wand, Objekt, Figur, Kamera, Licht) | erste Fassung |
 | Automatisches Speichern (LH-05) | fertig |
+| Hintergrundbild mit Maßstab (LH-13) | erste Fassung; offen: PDF als Hintergrund |
 | Perspektive und Drehreihenfolge der Shotliste (LH-71, LH-72) | fertig |
 | Demo-Modus mit „Studio Weber“ für Screenshots | offen |
