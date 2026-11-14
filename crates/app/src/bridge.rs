@@ -171,10 +171,6 @@ pub mod qobject {
         #[qinvokable]
         fn place(self: Pin<&mut Self>, x: f64, y: f64) -> bool;
 
-        /// Whether a click at (x, y) would take something: the pointer is over a thing to move.
-        #[qinvokable]
-        fn grabbable(self: &Self, x: f64, y: f64) -> bool;
-
         /// Takes the image file at `path` (a path or a `file://` URL) as the set's background
         /// and points to the scale tool in the status line.
         #[qinvokable]
@@ -1370,14 +1366,6 @@ impl qobject::Controller {
         };
 
         self.ask_note(NoteDraft::Edit(id))
-    }
-
-    fn grabbable(&self, x: f64, y: f64) -> bool {
-        let Some(s) = self.rust().session.as_ref() else {
-            return false;
-        };
-        s.pick_for(Point::new(x, y), self.rust().selected.only())
-            .is_some()
     }
 
     fn remove_selected(mut self: Pin<&mut Self>) -> bool {
