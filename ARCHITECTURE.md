@@ -86,8 +86,6 @@ A change that needs more places than listed is a finding for the audit.
 
 ## Known deviations
 
-- `imagehead/` reads only JPEG headers; the PNG header is read in `store/` and in
-  `export/` with different rules. `AUDIT.md`, finding 4.
 - A value shown in the window is filled in two places of the bridge (start and refresh),
   so a new one needs five places. `AUDIT.md`, findings 5 and 7.
 - The window has no screenplay editor yet (`ScriptPanel.qml` only lists the script); the

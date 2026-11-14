@@ -10,11 +10,12 @@
 
 use std::fmt::Write;
 
+use klappe_imagehead::{png_head, PngColor as Color};
+
 use crate::inflate;
 use crate::palette::Rgb;
 
-pub(crate) const SIGNATURE: [u8; 8] = *b"\x89PNG\r\n\x1a\n";
-const IHDR_LEN: usize = 13;
+pub(crate) use klappe_imagehead::PNG_SIGNATURE as SIGNATURE;
 const CHUNK_HEAD_LEN: usize = 8;
 const CHUNK_TAIL_LEN: usize = 4;
 /// Most bytes each buffer of the decoding path may hold (inflated scanlines, unfiltered rows,
@@ -32,50 +33,6 @@ const MAX_CHANNELS: usize = 4;
 
 type Result<T> = std::result::Result<T, String>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Color {
-    Gray,
-    Rgb,
-    Indexed,
-    GrayAlpha,
-    Rgba,
-}
-
-impl Color {
-    fn from_code(code: u8) -> Result<Self> {
-        match code {
-            0 => Ok(Color::Gray),
-            2 => Ok(Color::Rgb),
-            3 => Ok(Color::Indexed),
-            4 => Ok(Color::GrayAlpha),
-            6 => Ok(Color::Rgba),
-            _ => Err(format!("unknown PNG colour type {code}")),
-        }
-    }
-
-    fn channels(self) -> usize {
-        match self {
-            Color::Gray | Color::Indexed => 1,
-            Color::GrayAlpha => 2,
-            Color::Rgb => 3,
-            Color::Rgba => 4,
-        }
-    }
-
-    fn has_alpha(self) -> bool {
-        matches!(self, Color::GrayAlpha | Color::Rgba)
-    }
-
-    /// The bit depths the PNG standard allows for this colour type.
-    fn allows(self, depth: u8) -> bool {
-        match self {
-            Color::Gray => matches!(depth, 1 | 2 | 4 | 8 | 16),
-            Color::Indexed => matches!(depth, 1 | 2 | 4 | 8),
-            _ => matches!(depth, 8 | 16),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct Png {
     pub width: u32,
@@ -92,7 +49,7 @@ pub(crate) struct Png {
 
 pub(crate) fn parse(bytes: &[u8]) -> Result<Png> {
     let mut at = SIGNATURE.len();
-    let mut header: Option<&[u8]> = None;
+    let ihdr = png_head(bytes)?;
     let mut palette = Vec::new();
     let mut transparency = Vec::new();
     let mut idat = Vec::new();
@@ -103,7 +60,6 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Png> {
         let data = bytes.get(start..start + len).ok_or("PNG ends early")?;
 
         match &head[4..] {
-            b"IHDR" => header = Some(data),
             b"PLTE" => palette = data.to_vec(),
             b"tRNS" => transparency = data.to_vec(),
             b"IDAT" => idat.extend_from_slice(data),
@@ -113,26 +69,19 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Png> {
         at = start + len + CHUNK_TAIL_LEN;
     }
 
-    let h = header
-        .filter(|h| h.len() == IHDR_LEN)
-        .ok_or("no PNG header")?;
-    let be = |i: usize| u32::from_be_bytes([h[i], h[i + 1], h[i + 2], h[i + 3]]);
-    let color = Color::from_code(h[9])?;
+    let color = ihdr.color;
     let png = Png {
-        width: be(0),
-        height: be(4),
-        depth: h[8],
+        width: ihdr.width,
+        height: ihdr.height,
+        depth: ihdr.depth,
         color,
-        interlaced: h[12] == 1,
+        interlaced: ihdr.interlaced,
         palette,
         transparency,
         idat,
     };
 
-    if !color.allows(png.depth) {
-        return Err("bit depth does not fit the colour type".to_owned());
-    }
-    if png.width == 0 || png.height == 0 || png.idat.is_empty() {
+    if png.idat.is_empty() {
         return Err("PNG without pixels".to_owned());
     }
     if color == Color::Indexed && (png.palette.is_empty() || !png.palette.len().is_multiple_of(3)) {
