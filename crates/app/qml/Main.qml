@@ -7,15 +7,15 @@ import QtQuick.Dialogs
 import QtCore
 import io.github.shrippen.klappe
 
-// E-14 (planung/KONZEPT.md): header and tool bar on top, script left, plan in the middle,
-// shot right, timeline below. Script, shot and timeline fold away.
+// E-14 and D-02, D-03 (planung/DESIGN.md): header on top, tool bar below, script left, plan in
+// the middle, shot right, timeline below. Script, shot and timeline fold away (View menu).
 //
-//  ┌ Klappe · Wartburg · Szene 12 …            Rückgängig  Speichern  PDF  CSV ┐
-//  ├ Auswahl Wand Objekt Figur Kamera Licht │ Drehbuch Shot Zeitleiste    ┤
-//  │ Drehbuch │            Plan             │ Shot 12.3                   │
-//  ├──────────┴─────────────────────────────┴─────────────────────────────┤
-//  │ Zeitleiste: Schnittfolge, Figuren, Kameras, Licht                    │
-//  └──────────────────────────────────────────────────────────────────────┘
+//  ┌ KLAPPE  Projekt › Szene 12 › Plan A ▾    Datei  Ausgeben  Ansicht  ↶ ↷ ⌕ ┐
+//  ├ Auswahl Wand Objekt Figur Kamera Licht …                 Einrasten        ┤
+//  │ Drehbuch │            Plan             │ Shot 12.3                        │
+//  ├──────────┴─────────────────────────────┴──────────────────────────────────┤
+//  │ Zeitleiste: Schnittfolge, Figuren, Kameras, Licht                         │
+//  └───────────────────────────────────────────────────────────────────────────┘
 Kirigami.ApplicationWindow {
     id: root
 
@@ -52,86 +52,29 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             spacing: 0
 
-            // Header: where we are, and what applies to the whole project.
-            RowLayout {
+            AppHeader {
                 Layout.fillWidth: true
                 Layout.margins: Kirigami.Units.smallSpacing
-                spacing: Kirigami.Units.largeSpacing
-
-                KanteHeading {
-                    text: texts.t("app.name")
-                    level: 2
+                texts: texts
+                controller: ctl
+                tools: planTools
+                locked: backupNotice.blocking
+                showScript: root.showScript
+                showShot: root.showShot
+                showTimeline: root.showTimeline
+                shotOrder: root.shotOrder
+                onNewRequested: root.switchProject(() => newFolderDialog.open())
+                onOpenRequested: root.switchProject(() => openFolderDialog.open())
+                onProjectRequested: projectDialog.open()
+                onBackgroundRequested: backgroundDialog.open()
+                onViewToggled: (area, shown) => {
+                    switch (area) {
+                    case "script": root.showScript = shown; break
+                    case "shot": root.showShot = shown; break
+                    case "timeline": root.showTimeline = shown; break
+                    }
                 }
-                KanteSectionLabel {
-                    text: texts.t("app.module")
-                }
-                Kirigami.Heading {
-                    Layout.fillWidth: true
-                    level: 4
-                    elide: Text.ElideRight
-                    color: KanteStyle.mutedTextColor
-                    text: ctl.loaded ? ctl.title + " · " + texts.t("app.scene", { number: ctl.planTitle }) : ""
-                }
-                Kirigami.Heading {
-                    level: 5
-                    color: KanteStyle.mutedTextColor
-                    text: ctl.status !== "" ? ctl.status : (ctl.dirty ? texts.t("menu.unsaved") : "")
-                    visible: text !== ""
-                }
-                KanteButton {
-                    text: texts.t("menu.undo")
-                    enabled: ctl.canUndo
-                    onClicked: ctl.undo()
-                }
-                KanteButton {
-                    text: texts.t("menu.redo")
-                    enabled: ctl.canRedo
-                    onClicked: ctl.redo()
-                }
-                KanteButton {
-                    text: texts.t("menu.save")
-                    enabled: ctl.loaded
-                    onClicked: ctl.save()
-                }
-                KanteSegmented {
-                    objectName: "shotOrderChooser"
-                    enabled: ctl.loaded
-                    model: root.shotOrders.map(o => texts.t("export.order." + o))
-                    currentIndex: root.shotOrders.indexOf(root.shotOrder)
-                    onActivated: index => root.shotOrder = root.shotOrders[index]
-                }
-                KanteButton {
-                    objectName: "backgroundButton"
-                    text: texts.t("menu.background")
-                    enabled: ctl.loaded
-                    onClicked: backgroundDialog.open()
-                }
-                KanteButton {
-                    objectName: "removeBackgroundButton"
-                    text: texts.t("menu.backgroundRemove")
-                    visible: ctl.hasBackground
-                    onClicked: ctl.removeBackground()
-                }
-                KanteButton {
-                    text: texts.t("menu.pdf")
-                    enabled: ctl.loaded
-                    onClicked: ctl.exportPdf(root.shotOrder)
-                }
-                KanteButton {
-                    text: texts.t("menu.png")
-                    enabled: ctl.loaded
-                    onClicked: ctl.exportPng()
-                }
-                KanteButton {
-                    text: texts.t("menu.svg")
-                    enabled: ctl.loaded
-                    onClicked: ctl.exportSvg()
-                }
-                KanteButton {
-                    text: texts.t("menu.csv")
-                    enabled: ctl.loaded
-                    onClicked: ctl.exportCsv(root.shotOrder)
-                }
+                onShotOrderPicked: order => root.shotOrder = order
             }
 
             StartPage {
@@ -145,10 +88,12 @@ Kirigami.ApplicationWindow {
                 onRecentRequested: path => ctl.openProject(path)
             }
 
-            // Tool bar: the drawing tools, then what to show.
+            // Tool bar: the drawing tools.
             RowLayout {
                 visible: ctl.loaded
                 Layout.fillWidth: true
+                // Its overflow is for the narrow-window step (D-09); it must not widen the header.
+                Layout.minimumWidth: 0
                 Layout.leftMargin: Kirigami.Units.smallSpacing
                 Layout.rightMargin: Kirigami.Units.smallSpacing
                 spacing: Kirigami.Units.smallSpacing
@@ -164,31 +109,6 @@ Kirigami.ApplicationWindow {
                     onExportRequested: libraryExportDialog.open()
                 }
                 Item { Layout.fillWidth: true }
-                ProjectButtons {
-                    texts: texts
-                    locked: backupNotice.blocking
-                    onNewRequested: root.switchProject(() => newFolderDialog.open())
-                    onOpenRequested: root.switchProject(() => openFolderDialog.open())
-                    onProjectRequested: projectDialog.open()
-                }
-                KanteToolButton {
-                    text: texts.t("toggle.script")
-                    checkable: true
-                    checked: root.showScript
-                    onToggled: root.showScript = checked
-                }
-                KanteToolButton {
-                    text: texts.t("toggle.shot")
-                    checkable: true
-                    checked: root.showShot
-                    onToggled: root.showShot = checked
-                }
-                KanteToolButton {
-                    text: texts.t("toggle.timeline")
-                    checkable: true
-                    checked: root.showTimeline
-                    onToggled: root.showTimeline = checked
-                }
             }
 
             Kirigami.Separator { Layout.fillWidth: true; visible: ctl.loaded }
@@ -224,13 +144,6 @@ Kirigami.ApplicationWindow {
                     Layout.fillHeight: true
                     spacing: 0
 
-                    PlanChooser {
-                        Layout.fillWidth: true
-                        Layout.margins: Kirigami.Units.smallSpacing
-                        visible: ctl.loaded
-                        texts: texts
-                        controller: ctl
-                    }
                     PlanArea {
                         tool: planTools.tool
                         Layout.fillWidth: true
