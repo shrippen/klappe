@@ -86,6 +86,37 @@ pub enum FigureColor {
     Cyan,
 }
 
+impl FigureColor {
+    /// Every colour, in Kante's order of labels (the order the tool bar and forms offer).
+    pub const ALL: [FigureColor; 7] = [
+        FigureColor::Red,
+        FigureColor::Orange,
+        FigureColor::Yellow,
+        FigureColor::Green,
+        FigureColor::Cyan,
+        FigureColor::Blue,
+        FigureColor::Purple,
+    ];
+
+    /// The name the file format uses, e.g. `purple`; also Kante's label name.
+    pub fn name(self) -> &'static str {
+        match self {
+            FigureColor::Purple => "purple",
+            FigureColor::Blue => "blue",
+            FigureColor::Green => "green",
+            FigureColor::Yellow => "yellow",
+            FigureColor::Orange => "orange",
+            FigureColor::Red => "red",
+            FigureColor::Cyan => "cyan",
+        }
+    }
+
+    /// The colour `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|c| c.name() == name)
+    }
+}
+
 /// A place with a set: the Sängersaal, the castle yard (LH-02).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Location {
@@ -181,4 +212,25 @@ pub struct Scene {
     pub location: String,
     #[serde(default)]
     pub plans: Vec<FloorPlan>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `name` is what the file holds, `from_name` reads it back, and `ALL` has no colour twice.
+    #[test]
+    fn names_are_the_file_names() {
+        for color in FigureColor::ALL {
+            let json = serde_json::to_string(&color).unwrap();
+            assert_eq!(json, format!("\"{}\"", color.name()));
+            assert_eq!(FigureColor::from_name(color.name()), Some(color));
+        }
+        assert_eq!(FigureColor::from_name("magenta"), None);
+
+        let mut names: Vec<_> = FigureColor::ALL.iter().map(|c| c.name()).collect();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), FigureColor::ALL.len());
+    }
 }

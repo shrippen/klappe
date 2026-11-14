@@ -547,9 +547,9 @@ use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Autosave, DisplayList, Field, FigureColor, Layer, Lock, Looping, Paper,
-    PlanEdit, Playing, Point, ProjectEdit, ServiceError, Session, ShotField, ShotOrder, ShotsGo,
-    Snapping, Source, Step, Texts, Visibility,
+    horizontal_fov_deg, Arrival, Autosave, Departure, DisplayList, Field, FigureColor, Layer, Lock,
+    Looping, Paper, PlanEdit, Playing, Point, Pose, ProjectEdit, ServiceError, Session, ShotField,
+    ShotOrder, ShotsGo, Snapping, Source, Step, Texts, Visibility,
 };
 use serde_json::json;
 use std::path::Path;
@@ -878,7 +878,7 @@ fn choices_json(s: &Session) -> String {
         .collect();
     let lights: Vec<_> = tools::LIGHT_KINDS.iter().map(|(name, _)| name).collect();
 
-    let colors: Vec<_> = tools::DRAW_COLORS.iter().map(|(n, _)| n).collect();
+    let colors: Vec<_> = FigureColor::ALL.iter().map(|c| c.name()).collect();
     let dashes: Vec<_> = tools::DRAW_DASHES.iter().map(|(n, _)| n).collect();
     let fills: Vec<_> = tools::DRAW_FILLS.iter().map(|(n, _)| n).collect();
 
@@ -2395,7 +2395,7 @@ fn sizes(width: &QString, depth: &QString) -> Result<(f64, f64), ServiceError> {
 fn color_edit(name: &QString) -> Result<FigureColor, ServiceError> {
     let name = name.to_string();
 
-    manage::color_of(&name).ok_or(ServiceError::BadValue {
+    FigureColor::from_name(&name).ok_or(ServiceError::BadValue {
         field: Field::Color,
         value: name,
     })
@@ -2444,9 +2444,9 @@ fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
 
     json!({
         "kind": kind,
-        "pose": info.pose.map(tools::pose_name).unwrap_or_default(),
-        "arrival": info.arrival.map(tools::arrival_name).unwrap_or_default(),
-        "departure": info.departure.map(tools::departure_name).unwrap_or_default(),
+        "pose": info.pose.map(Pose::name).unwrap_or_default(),
+        "arrival": info.arrival.map(Arrival::name).unwrap_or_default(),
+        "departure": info.departure.map(Departure::name).unwrap_or_default(),
         "hold": info.hold_s,
         "hasWay": info.has_way,
         "pace": info.pace_m_s,

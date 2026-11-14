@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use klappe_services::{Dash, DisplayList, FigureColor, Fill, Item, Point, Role, Shape, Source};
+use klappe_services::{Dash, DisplayList, Fill, Item, Point, Role, Shape, Source};
 use serde_json::{json, Value};
 
 /// Radius of the points of the scale gesture on the plan.
@@ -39,17 +39,17 @@ fn look(role: Role) -> Look {
             color: c,
             dash,
             fill,
-        } => l(color(c), stroke_of(dash), fill_of(fill)),
-        Role::ArrowHead(c) => l(color(c), SOLID, "solid"),
+        } => l(c.name(), stroke_of(dash), fill_of(fill)),
+        Role::ArrowHead(c) => l(c.name(), SOLID, "solid"),
         Role::Axis => l("orange", DASHED, "none"),
         Role::CameraPath => l("yellow", DOTTED, "none"),
         Role::Frustum => l("yellow", SOLID, "tint"),
         Role::Camera => l("yellow", SOLID, "solid"),
-        Role::FigurePath(c) => l(color(c), DOTTED, "none"),
-        Role::Mark(c) => l(color(c), SOLID, "none"),
-        Role::FigureHandle(c) => l(color(c), SOLID, "solid"),
+        Role::FigurePath(c) => l(c.name(), DOTTED, "none"),
+        Role::Mark(c) => l(c.name(), SOLID, "none"),
+        Role::FigureHandle(c) => l(c.name(), SOLID, "solid"),
         Role::CameraHandle => l("yellow", SOLID, "solid"),
-        Role::Figure(c) => l(color(c), SOLID, "solid"),
+        Role::Figure(c) => l(c.name(), SOLID, "solid"),
         // The ground colour stands out from every figure colour (the text colour did not).
         Role::GroupDot => l("ground", SOLID, "solid"),
     }
@@ -68,19 +68,6 @@ fn fill_of(fill: Fill) -> &'static str {
     match fill {
         Fill::Outline => "none",
         Fill::Filled => "tint",
-    }
-}
-
-/// Kante's label names (`KanteStyle.labels`).
-pub fn color(c: FigureColor) -> &'static str {
-    match c {
-        FigureColor::Purple => "purple",
-        FigureColor::Blue => "blue",
-        FigureColor::Green => "green",
-        FigureColor::Yellow => "yellow",
-        FigureColor::Orange => "orange",
-        FigureColor::Red => "red",
-        FigureColor::Cyan => "cyan",
     }
 }
 
@@ -265,6 +252,7 @@ pub fn shapes_json(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use klappe_services::FigureColor;
 
     fn item(role: Role, shape: Shape, source: Option<Source>) -> Item {
         Item {

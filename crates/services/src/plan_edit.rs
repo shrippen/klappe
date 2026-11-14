@@ -223,6 +223,22 @@ pub enum Pace {
 }
 
 impl Pace {
+    /// Every pace.
+    pub const ALL: [Pace; 2] = [Pace::Walk, Pace::Run];
+
+    /// The name QML and the catalogue (`pace.<name>`) use, e.g. `run`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Pace::Walk => "walk",
+            Pace::Run => "run",
+        }
+    }
+
+    /// The pace `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|p| p.name() == name)
+    }
+
     fn speed_m_s(self) -> f64 {
         match self {
             Pace::Walk => WALK_SPEED_M_S,
@@ -1972,7 +1988,27 @@ fn remove_background(scope: &mut Scope<'_>) -> Result<(), ServiceError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::catalog::Language;
     use klappe_model::Location;
+
+    #[test]
+    fn pace_names_read_back() {
+        for pace in Pace::ALL {
+            assert_eq!(Pace::from_name(pace.name()), Some(pace));
+        }
+        assert_eq!(Pace::from_name("crawl"), None);
+    }
+
+    /// The mark card shows `pace.<name>` and sends the name back.
+    #[test]
+    fn every_pace_has_a_text_in_both_languages() {
+        for pace in Pace::ALL {
+            let key = format!("pace.{}", pace.name());
+            for language in [Language::German, Language::English] {
+                assert_ne!(language.text(&key), key);
+            }
+        }
+    }
 
     /// One scene with an empty plan and no cameras, on an empty set.
     fn empty() -> Project {
