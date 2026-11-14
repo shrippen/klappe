@@ -304,7 +304,7 @@ fn grabbable(role: Role) -> bool {
         Role::Background
             | Role::Frustum
             | Role::Axis
-            | Role::CameraPath
+            | Role::CameraPath { .. }
             | Role::FigurePath(_)
             | Role::LightBeam
     )

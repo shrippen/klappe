@@ -53,6 +53,8 @@ fn camera(id: &str, label: &str, lens_mm: f64) -> Camera {
             tilt_deg: 0.0,
             hold_s: 0.0,
             via: None,
+            rig: Default::default(),
+            lens_mm: None,
         }],
         follows: None,
     }

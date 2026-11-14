@@ -44,7 +44,7 @@ fn look(role: Role) -> Look {
         } => l(c.name(), stroke_of(dash), fill_of(fill)),
         Role::ArrowHead(c) => l(c.name(), SOLID, "solid"),
         Role::Axis => l("orange", DASHED, "none"),
-        Role::CameraPath => l("yellow", DOTTED, "none"),
+        Role::CameraPath { dash } => l("yellow", stroke_of(dash), "none"),
         Role::Frustum => l("yellow", SOLID, "tint"),
         Role::Camera => l("yellow", SOLID, "solid"),
         Role::FigurePath(c) => l(c.name(), DOTTED, "none"),

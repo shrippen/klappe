@@ -1,6 +1,6 @@
 use klappe_model::{
-    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Note,
-    ObjectShape, Point, Project, SetObject, SetPlan,
+    Arrival, Background, CameraMark, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan,
+    Mark, Note, ObjectShape, Point, Project, Rig, SetObject, SetPlan,
 };
 
 use crate::axis::axis_at;
@@ -64,7 +64,10 @@ pub enum Role {
     LightBeam,
     Light,
     Axis,
-    CameraPath,
+    /// One run of a camera's way, in the line its rig has (LH-33).
+    CameraPath {
+        dash: Dash,
+    },
     Frustum,
     Camera,
     /// A text pinned to the plan (LH-16): a small marker, the text as its label.
@@ -433,11 +436,13 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
     for camera in &plan.cameras {
         let source = Some(Source::Camera(camera.id.clone()));
 
-        if camera.marks.len() > 1 {
+        for run in rig_runs(&camera.marks) {
             items.push(Item {
-                role: Role::CameraPath,
+                role: Role::CameraPath {
+                    dash: rig_dash(run[1].rig),
+                },
                 shape: Shape::Polyline {
-                    points: path(camera.marks.iter().map(|m| (m.at, m.via))),
+                    points: path(run.iter().map(|m| (m.at, m.via))),
                 },
                 label: None,
                 source: source.clone(),
@@ -467,6 +472,41 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
             source,
         });
     }
+}
+
+/// How a rig's way is drawn: a rail solid, a dolly dashed, everything freer dotted (LH-33).
+/// Decided here once; screen and printout only translate the dash.
+fn rig_dash(rig: Rig) -> Dash {
+    match rig {
+        Rig::Tripod | Rig::Track => Dash::Solid,
+        Rig::Dolly => Dash::Dashed,
+        Rig::Crane | Rig::Handheld | Rig::Gimbal => Dash::Dotted,
+    }
+}
+
+/// The ways of a camera, split where the rig changes: each run starts at the mark before its
+/// first way, so the runs join. The rig of a way is that of the mark it leads to.
+///
+/// ```text
+///  marks   1     2     3     4
+///  rig        dolly dolly crane
+///  runs    [1 2 3]    [3 4]
+/// ```
+fn rig_runs(marks: &[CameraMark]) -> Vec<&[CameraMark]> {
+    let mut runs = Vec::new();
+    let mut start = 0;
+
+    for i in 1..marks.len() {
+        let ends = marks.get(i + 1).is_none_or(|next| next.rig != marks[i].rig);
+        if !ends {
+            continue;
+        }
+
+        runs.push(&marks[start..=i]);
+        start = i;
+    }
+
+    runs
 }
 
 fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<Item>) {
@@ -754,6 +794,8 @@ mod tests {
                 tilt_deg: 0.0,
                 hold_s: 0.0,
                 via: None,
+                rig: Default::default(),
+                lens_mm: None,
             }],
             follows: None,
         }];
@@ -1327,6 +1369,24 @@ mod tests {
         );
     }
 
+    /// The lens a mark states reaches the frustum; the shot's lens does not count then.
+    #[test]
+    fn frustum_follows_the_lens_of_the_marks() {
+        let mut p = plan();
+        p.cameras[0].marks[0].lens_mm = Some(70.0);
+        p.shots = vec![shot(Some(40.0), 0.0, 4.0)];
+        let expect = frustum(
+            Point::new(8.0, 12.0),
+            -90.0,
+            horizontal_fov_deg(Sensor::Super35, 70.0),
+            20.0_f64.hypot(13.0),
+        );
+
+        let view = frustum_of(&p, 2.0);
+
+        assert!((view[1].x_m - expect[1].x_m).abs() < 1e-6, "{view:?}");
+    }
+
     #[test]
     fn unknown_character_is_skipped() {
         let mut p = plan();
@@ -1366,6 +1426,56 @@ mod tests {
         assert_eq!(points.last(), Some(&Point::new(7.0, 6.0)));
     }
 
+    fn camera_runs(rigs: &[Rig]) -> Vec<(Dash, usize)> {
+        let mut p = plan();
+        let first = p.cameras[0].marks[0].clone();
+        p.cameras[0].marks = rigs
+            .iter()
+            .enumerate()
+            .map(|(i, rig)| CameraMark {
+                at_s: i as f64,
+                at: Point::new(i as f64, 0.0),
+                rig: *rig,
+                ..first.clone()
+            })
+            .collect();
+
+        render(&project(), &set(), &p, 0.0, None)
+            .items
+            .into_iter()
+            .filter_map(|i| match (i.role, i.shape) {
+                (Role::CameraPath { dash }, Shape::Polyline { points }) => {
+                    Some((dash, points.len()))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// A way is drawn in the line of the rig it leads to; neighbours with one rig join, and
+    /// the first mark's rig counts for nothing (LH-33).
+    #[test]
+    fn a_camera_path_changes_its_line_with_the_rig() {
+        let runs = camera_runs(&[
+            Rig::Crane,
+            Rig::Dolly,
+            Rig::Dolly,
+            Rig::Track,
+            Rig::Handheld,
+        ]);
+
+        assert_eq!(
+            runs,
+            [(Dash::Dashed, 3), (Dash::Solid, 2), (Dash::Dotted, 2)]
+        );
+    }
+
+    #[test]
+    fn one_mark_has_no_way() {
+        assert!(camera_runs(&[Rig::Dolly]).is_empty());
+        assert!(camera_runs(&[]).is_empty());
+    }
+
     /// The camera's path bends the same way.
     #[test]
     fn a_curved_camera_path_is_a_polyline_too() {
@@ -1377,7 +1487,7 @@ mod tests {
 
         let list = render(&project(), &set(), &p, 0.0, None);
 
-        assert!(path_of(&list, Role::CameraPath).len() > 2);
+        assert!(path_of(&list, Role::CameraPath { dash: Dash::Dashed }).len() > 2);
     }
 
     /// Grips: one per leg of the selected way, halfway along it, none in `render`.

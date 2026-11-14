@@ -1,4 +1,4 @@
-use klappe_model::{Camera, Point, Sensor, Shot};
+use klappe_model::{Camera, CameraMark, Point, Sensor, Shot};
 
 /// Horizontal angle of view in degrees (LH-31): `2·atan(w / 2f)` with the sensor's active width.
 ///
@@ -11,12 +11,17 @@ pub fn horizontal_fov_deg(sensor: Sensor, lens_mm: f64) -> f64 {
     (sensor.width_mm() / (2.0 * lens_mm)).atan().to_degrees() * 2.0
 }
 
-/// The lens in use at `t_s`: that of the first shot of this camera covering `t_s`, if it has
-/// its own; else the camera's. At the end of a shot nothing else of this camera starts at,
-/// that shot still holds (the scene's end is `to_s`).
+/// The lens in use at `t_s`: that of the camera's marks when any states one (LH-33), else that
+/// of the first shot of this camera covering `t_s`, if it has its own, else the camera's. At
+/// the end of a shot nothing else of this camera starts at, that shot still holds (the scene's
+/// end is `to_s`).
 ///
 /// Example: camera 35 mm, shot 12.2 from 0 s to 4 s with 40 mm: at 2 s this gives 40.
 pub fn lens_at(camera: &Camera, shots: &[Shot], t_s: f64) -> f64 {
+    if let Some(lens_mm) = mark_lens_at(camera, t_s) {
+        return lens_mm;
+    }
+
     let of_camera = || shots.iter().filter(|s| s.camera == camera.id);
     let covering = of_camera().find(|s| s.from_s <= t_s && t_s < s.to_s);
 
@@ -25,6 +30,45 @@ pub fn lens_at(camera: &Camera, shots: &[Shot], t_s: f64) -> f64 {
         .or_else(|| of_camera().find(|s| s.to_s == t_s))
         .and_then(|s| s.lens_mm)
         .unwrap_or(camera.lens_mm)
+}
+
+/// The lens the camera's marks give at `t_s`; `None` when no mark states one. Between two
+/// marks with a lens it waits out the pause of the first, then runs linearly to the second,
+/// like the place does; before the first and after the last it holds.
+///
+/// ```text
+///  lens   35 ───────┐            ┌────── 85
+///                    ╲          ╱
+///                     ╲________╱   (linear between the marks)
+///  marks  A (35)    hold  ...   B (85)
+/// ```
+pub(crate) fn mark_lens_at(camera: &Camera, t_s: f64) -> Option<f64> {
+    let stated: Vec<(&CameraMark, f64)> = camera
+        .marks
+        .iter()
+        .filter_map(|m| m.lens_mm.map(|lens_mm| (m, lens_mm)))
+        .collect();
+    let (first, first_mm) = *stated.first()?;
+    if t_s < first.at_s {
+        return Some(first_mm);
+    }
+
+    for pair in stated.windows(2) {
+        let ((from, from_mm), (to, to_mm)) = (pair[0], pair[1]);
+        if t_s >= to.at_s {
+            continue;
+        }
+
+        let leave_s = (from.at_s + from.hold_s).min(to.at_s);
+        if t_s <= leave_s {
+            return Some(from_mm);
+        }
+
+        let t = (t_s - leave_s) / (to.at_s - leave_s);
+        return Some(from_mm + (to_mm - from_mm) * t);
+    }
+
+    stated.last().map(|(_, lens_mm)| *lens_mm)
 }
 
 /// The camera's view on the plan as a triangle: the camera and the two edges of the frame
@@ -132,6 +176,62 @@ mod tests {
         assert_eq!(lens_at(&cam, &shots[..1], 20.0), 85.0);
         // Past the end.
         assert_eq!(lens_at(&cam, &shots[..1], 21.0), 35.0);
+    }
+
+    fn lens_mark(at_s: f64, hold_s: f64, lens_mm: Option<f64>) -> CameraMark {
+        CameraMark {
+            at_s,
+            at: Point::default(),
+            facing_deg: 0.0,
+            height_m: 1.6,
+            tilt_deg: 0.0,
+            hold_s,
+            via: None,
+            rig: Default::default(),
+            lens_mm,
+        }
+    }
+
+    fn zoom_camera() -> Camera {
+        let mut cam = camera(35.0);
+        cam.marks = vec![
+            lens_mark(0.0, 0.0, None),
+            lens_mark(2.0, 2.0, Some(30.0)),
+            lens_mark(6.0, 0.0, None),
+            lens_mark(10.0, 0.0, Some(70.0)),
+            lens_mark(12.0, 0.0, None),
+        ];
+
+        cam
+    }
+
+    /// The lens runs between two marks that state one, through marks that do not; it holds
+    /// before the first and after the last, and during the pause of the first.
+    #[test]
+    fn lens_runs_linearly_between_marks_with_a_lens() {
+        let cam = zoom_camera();
+
+        assert_eq!(lens_at(&cam, &[], 0.0), 30.0);
+        assert_eq!(lens_at(&cam, &[], 3.0), 30.0);
+        assert_eq!(lens_at(&cam, &[], 4.0), 30.0);
+        assert_eq!(lens_at(&cam, &[], 7.0), 50.0);
+        assert_eq!(lens_at(&cam, &[], 10.0), 70.0);
+        assert_eq!(lens_at(&cam, &[], 20.0), 70.0);
+    }
+
+    /// With a lens on a mark, shots and the camera's own lens no longer count.
+    #[test]
+    fn marks_come_before_shots_and_the_camera() {
+        let cam = zoom_camera();
+        let shots = [shot("a", Some(85.0), 0.0, 20.0)];
+
+        assert_eq!(lens_at(&cam, &shots, 0.0), 30.0);
+
+        let mut plain = camera(35.0);
+        plain.marks = vec![lens_mark(0.0, 0.0, None)];
+
+        assert_eq!(lens_at(&plain, &shots, 1.0), 85.0);
+        assert_eq!(lens_at(&plain, &[], 1.0), 35.0);
     }
 
     #[test]

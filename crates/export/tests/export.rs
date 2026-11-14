@@ -93,6 +93,8 @@ fn plan() -> FloorPlan {
             tilt_deg: 0.0,
             hold_s: 0.0,
             via: None,
+            rig: Default::default(),
+            lens_mm: None,
         }],
         follows: None,
     }];

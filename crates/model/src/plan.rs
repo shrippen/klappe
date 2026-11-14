@@ -349,6 +349,62 @@ pub struct CameraMark {
     /// walks straight. Ignored on the first mark (LH-21).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub via: Option<Point>,
+    /// How the camera comes here from the previous mark (LH-33). Ignored on the first mark.
+    #[serde(default, skip_serializing_if = "Rig::is_dolly")]
+    pub rig: Rig,
+    /// The lens at this mark; between two marks with a lens it runs linearly with time (a
+    /// zoom). `None` states nothing (LH-33).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lens_mm: Option<f64>,
+}
+
+/// The gear that carries a camera from one mark to the next (LH-33).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Rig {
+    /// Stands still: pans and tilts, its place stays.
+    Tripod,
+    #[default]
+    Dolly,
+    /// A dolly on a rail.
+    Track,
+    Crane,
+    Handheld,
+    /// Steadicam or gimbal.
+    Gimbal,
+}
+
+impl Rig {
+    /// Every rig.
+    pub const ALL: [Rig; 6] = [
+        Rig::Tripod,
+        Rig::Dolly,
+        Rig::Track,
+        Rig::Crane,
+        Rig::Handheld,
+        Rig::Gimbal,
+    ];
+
+    /// The name the file format uses, e.g. `track`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Rig::Tripod => "tripod",
+            Rig::Dolly => "dolly",
+            Rig::Track => "track",
+            Rig::Crane => "crane",
+            Rig::Handheld => "handheld",
+            Rig::Gimbal => "gimbal",
+        }
+    }
+
+    /// The rig `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|r| r.name() == name)
+    }
+
+    fn is_dolly(&self) -> bool {
+        *self == Rig::Dolly
+    }
 }
 
 /// Sensor formats with their active width; the frame's aspect crops the height (LH-32).
@@ -602,6 +658,39 @@ mod tests {
         assert!(json.contains(r#""arrival":"appear""#), "{json}");
         assert!(json.contains(r#""departure":"leave""#), "{json}");
         assert_eq!(back, mark);
+    }
+
+    /// A camera mark with the default rig and no lens writes neither key; an old file has the
+    /// defaults; the other values round-trip (LH-33).
+    #[test]
+    fn rig_and_lens_are_optional_in_json() {
+        let mut mark: CameraMark = serde_json::from_str(
+            r#"{"at_s":0.0,"at":{"x_m":1.0,"y_m":2.0},"facing_deg":0.0,"height_m":1.6}"#,
+        )
+        .unwrap();
+
+        assert_eq!((mark.rig, mark.lens_mm), (Rig::Dolly, None));
+        let json = serde_json::to_string(&mark).unwrap();
+        assert!(!json.contains("rig") && !json.contains("lens_mm"), "{json}");
+
+        mark.rig = Rig::Crane;
+        mark.lens_mm = Some(50.0);
+        let json = serde_json::to_string(&mark).unwrap();
+        let back: CameraMark = serde_json::from_str(&json).unwrap();
+
+        assert!(json.contains(r#""rig":"crane""#), "{json}");
+        assert_eq!(back, mark);
+    }
+
+    /// `name` is what the file holds and `from_name` reads it back.
+    #[test]
+    fn rig_names_are_the_file_names() {
+        for rig in Rig::ALL {
+            let json = serde_json::to_string(&rig).unwrap();
+            assert_eq!(json, format!("\"{}\"", rig.name()));
+            assert_eq!(Rig::from_name(rig.name()), Some(rig));
+        }
+        assert_eq!(Rig::from_name("drone"), None);
     }
 
     /// A known width gets its named format, any other stays as typed.

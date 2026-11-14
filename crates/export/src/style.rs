@@ -24,6 +24,14 @@ pub(crate) struct RoleStyle {
     pub stroke: Option<Stroke>,
 }
 
+fn canvas_dash(dash: DrawDash) -> Dash {
+    match dash {
+        DrawDash::Solid => Dash::Solid,
+        DrawDash::Dashed => Dash::Dashed,
+        DrawDash::Dotted => Dash::Dotted,
+    }
+}
+
 pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportError> {
     let solid = |rgb| Fill { rgb, opacity: 1.0 };
     let tint = |rgb, opacity| Fill { rgb, opacity };
@@ -61,10 +69,10 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
                 Some(line(c, OUTLINE_PT, Dash::Solid)),
             )
         }
-        Role::CameraPath => (
+        Role::CameraPath { dash } => (
             "camera-path".to_string(),
             None,
-            Some(line(pal.semantic("yellow")?, PATH_PT, Dash::Dotted)),
+            Some(line(pal.semantic("yellow")?, PATH_PT, canvas_dash(dash))),
         ),
         Role::Light => (
             "light".to_string(),
@@ -87,15 +95,10 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
         Role::Drawing { color, dash, fill } => {
             let c = pal.semantic(color.name())?;
             let tinted = (fill == DrawFill::Filled).then(|| tint(c, DRAWING_OPACITY));
-            let dash = match dash {
-                DrawDash::Solid => Dash::Solid,
-                DrawDash::Dashed => Dash::Dashed,
-                DrawDash::Dotted => Dash::Dotted,
-            };
             (
                 format!("drawing {}", color.name()),
                 tinted,
-                Some(line(c, DRAWING_PT, dash)),
+                Some(line(c, DRAWING_PT, canvas_dash(dash))),
             )
         }
         Role::ArrowHead(color) => {
