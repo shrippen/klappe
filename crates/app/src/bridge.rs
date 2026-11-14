@@ -85,6 +85,17 @@ pub mod qobject {
         #[qinvokable]
         fn seek(self: Pin<&mut Self>, time: f64);
 
+        /// Moves the playhead to the previous (`direction` < 0) or next mark: a mark of a
+        /// figure or camera or the edge of a shot.
+        #[qinvokable]
+        #[cxx_name = "stepMark"]
+        fn step_mark(self: Pin<&mut Self>, direction: i32);
+
+        /// Plays `dt` seconds of real time at `speed` from the playhead; `looping` is "shot" to
+        /// repeat the selected shot, else "off". False once the end is reached.
+        #[qinvokable]
+        fn advance(self: Pin<&mut Self>, dt: f64, speed: f64, looping: &QString) -> bool;
+
         #[qinvokable]
         #[cxx_name = "selectShot"]
         fn select_shot(self: Pin<&mut Self>, id: &QString);
@@ -512,9 +523,9 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Autosave, DisplayList, Field, FigureColor, Layer, Lock, Paper, PlanEdit,
-    Point, ProjectEdit, ServiceError, Session, ShotField, ShotOrder, ShotsGo, Snapping, Source,
-    Texts, Visibility,
+    horizontal_fov_deg, Autosave, DisplayList, Field, FigureColor, Layer, Lock, Looping, Paper,
+    PlanEdit, Playing, Point, ProjectEdit, ServiceError, Session, ShotField, ShotOrder, ShotsGo,
+    Snapping, Source, Step, Texts, Visibility,
 };
 use serde_json::json;
 
@@ -598,6 +609,7 @@ fn q(s: &str) -> QString {
 
 const SHOWN: &str = "shown";
 const LOCKED: &str = "locked";
+const LOOP_SHOT: &str = "shot";
 
 /// Seconds between two backups of unsaved changes while a project is open.
 const AUTOSAVE_S: i32 = 30;
@@ -1093,6 +1105,31 @@ impl qobject::Controller {
         };
         s.set_time(time);
         self.refresh();
+    }
+
+    fn step_mark(mut self: Pin<&mut Self>, direction: i32) {
+        let Some(s) = self.as_mut().session() else {
+            return;
+        };
+        let step = match direction < 0 {
+            true => Step::Back,
+            false => Step::On,
+        };
+        s.step_mark(step);
+        self.refresh();
+    }
+
+    fn advance(mut self: Pin<&mut Self>, dt: f64, speed: f64, looping: &QString) -> bool {
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+        let looping = match looping.to_string() == LOOP_SHOT {
+            true => Looping::Shot,
+            false => Looping::Off,
+        };
+        let playing = s.advance(dt, speed, looping);
+        self.refresh();
+        playing == Playing::Running
     }
 
     fn select_shot(mut self: Pin<&mut Self>, id: &QString) {

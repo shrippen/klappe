@@ -13,16 +13,19 @@ TestCase {
     QtObject {
         id: fake
         property string tracksJson: "[]"
-        property string layersJson: "{}"
-        property string locksJson: "{}"
-        property var locks: []
         property real time: 6
         property real duration: 20
         property var seeks: []
+        property var steps: []
+        property var advances: []
+        property bool running: true
 
         function seek(at) { seeks.push(at) }
-        function setLayer() {}
-        function setLock(layer, state) { locks.push([layer, state]) }
+        function stepMark(direction) { steps.push(direction) }
+        function advance(dt, speed, looping) {
+            advances.push([speed, looping])
+            return running
+        }
         function setTrack() {}
         function selectShot() {}
     }
@@ -40,70 +43,104 @@ TestCase {
     }
 
     function init() {
-        fake.locks = []
-        fake.locksJson = "{}"
-        fake.layersJson = "{}"
+        fake.time = 6
+        fake.running = true
     }
 
     function make(texts) {
         fake.seeks = []
+        fake.steps = []
+        fake.advances = []
         const line = createTemporaryObject(timelineComponent, tc, { texts: texts })
         verify(line)
         return line
     }
 
-    function test_the_clock_uses_the_german_comma() {
-        compare(findChild(make(de), "clock").text, "6,0 / 20,0 s")
+    function bar(line) {
+        return findChild(line, "transport")
+    }
+
+    function test_the_bar_shows_markers_and_tenths_without_metronome() {
+        const b = bar(make(de))
+
+        verify(b.markersVisible)
+        verify(!b.metronomeVisible)
+        verify(!b.countInVisible)
+        compare(b.timeFormat, "mm:ss,d")
+        compare(b.positionText, "00:06,0 / 00:20,0")
+        compare(b.speedSteps, [0.25, 0.5, 1])
     }
 
     function test_the_clock_uses_the_english_point() {
-        compare(findChild(make(en), "clock").text, "6.0 / 20.0 s")
+        compare(bar(make(en)).positionText, "00:06.0 / 00:20.0")
     }
 
-    function test_the_start_button_has_a_readable_name() {
+    function test_the_clock_cuts_off_like_a_timecode() {
+        fake.time = 59.96
+        compare(bar(make(de)).positionText, "00:59,9 / 00:20,0")
+    }
+
+    function test_the_texts_come_from_the_catalogue() {
+        const b = bar(make(en))
+
+        compare(b.rewindText, "To start")
+        compare(b.loopText, "Loop shot")
+        compare(b.markerOnText, "Next marker")
+    }
+
+    function test_rewind_goes_to_the_start() {
         const line = make(de)
-        const start = findChild(line, "startButton")
 
-        compare(start.text, de.t("timeline.start"))
-        compare(start.Accessible.name, de.t("timeline.start"))
-
-        start.clicked()
+        bar(line).rewind()
         compare(fake.seeks, [0])
     }
 
-    function test_every_layer_has_a_lock_next_to_its_switch() {
+    function test_the_marker_buttons_ask_the_controller_to_jump() {
         const line = make(de)
 
-        for (const layer of ["set", "figures", "cameras", "lights", "notes", "drawings"]) {
-            const lock = findChild(line, "lockButton_" + layer)
-            verify(lock, layer)
-            verify(findChild(line, "layerButton_" + layer))
-            compare(lock.text, "gesperrt")
-            verify(!lock.checked)
-        }
+        bar(line).markerStepRequested(-1)
+        bar(line).markerStepRequested(1)
+        compare(fake.steps, [-1, 1])
     }
 
-    function test_the_lock_tells_the_controller_and_the_layer_name() {
+    function test_play_ticks_the_controller_with_the_speed() {
         const line = make(de)
-        const lock = findChild(line, "lockButton_notes")
 
-        lock.toggle()
-        lock.toggled()
-        lock.toggle()
-        lock.toggled()
+        bar(line).speedChangeRequested(0.5)
+        compare(line.speed, 0.5)
+        bar(line).playToggled()
+        verify(line.playing)
+        tryVerify(() => fake.advances.length > 0)
+        compare(fake.advances[0], [0.5, "off"])
 
-        compare(fake.locks, [["notes", "locked"], ["notes", "unlocked"]])
-        compare(lock.Accessible.name, "„Notizen“ sperren: nichts darauf kann gewählt oder geändert werden")
+        bar(line).playToggled()
+        verify(!line.playing)
     }
 
-    function test_a_locked_layer_shows_its_lock_checked_and_stays_visible() {
-        fake.locksJson = JSON.stringify({ set: true, notes: false })
-        fake.layersJson = JSON.stringify({ set: true })
-        const line = make(en)
+    function test_the_loop_plays_the_shot_in_a_loop() {
+        const line = make(de)
 
-        verify(findChild(line, "lockButton_set").checked)
-        verify(!findChild(line, "lockButton_notes").checked)
-        verify(findChild(line, "layerButton_set").checked)
-        compare(findChild(line, "lockButton_set").text, "locked")
+        bar(line).loopToggled()
+        verify(line.looping)
+        bar(line).playToggled()
+        tryVerify(() => fake.advances.length > 0)
+        compare(fake.advances[0][1], "shot")
+    }
+
+    function test_play_stops_when_the_controller_reaches_the_end() {
+        const line = make(de)
+        fake.running = false
+
+        bar(line).playToggled()
+        tryVerify(() => !line.playing)
+    }
+
+    function test_play_at_the_end_starts_from_the_beginning() {
+        const line = make(de)
+        fake.time = 20
+
+        bar(line).playToggled()
+        compare(fake.seeks, [0])
+        verify(line.playing)
     }
 }

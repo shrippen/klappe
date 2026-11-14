@@ -60,6 +60,15 @@ Item {
         }
     }
 
+    LayerPopover {
+        objectName: "layerPopover"
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: Kirigami.Units.largeSpacing
+        texts: area.texts
+        controller: area.controller
+    }
+
     // Shift at the press extends the selection (a click or a box adds to it, a click on a
     // member takes it out). The canvas reports no modifiers; this handler lies above it, only
     // looks, and leaves the press to it.
