@@ -103,7 +103,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 
 | Nr | Anforderung | Prio |
 |---|---|---|
-| DB-30 | Paginierung nach Industriestandard (A4 als Standard, US Letter wählbar (F-01); Courier 12 pt, Ränder nach Standard): Seitenumbrüche im Editor sichtbar (DN-07). | M |
+| DB-30 | Paginierung nach Industriestandard (A4 als Standard, US Letter wählbar (F-01); Courier 12 pt, Ränder nach Standard): Seitenumbrüche im Editor sichtbar, Stand der letzten Rechnung (DN-02, DN-07). | M |
 | DB-31 | Umbruchregeln: Szenenkopf nie allein am Seitenende; Dialog nur zwischen Sätzen oder an einer Klammer teilen, mit (MORE) unten und Figur (CONT'D) oben; mindestens zwei Zeilen auf jeder Seite; Handlung nur zwischen Sätzen teilen. | M |
 | DB-32 | Länge je Szene in Achteln und Gesamtlänge in Seiten und geschätzten Minuten. | M |
 | DB-33 | Szenennummern: automatisch oder gesperrt; Startnummer frei; eingefügte Szenen bekommen A-Nummern (12A), gestrichene bleiben als „ENTFÄLLT“ stehen. Die Nummer steht im Fountain-Text (`#12#`). Ändert sich das Buch (in Klappe oder extern, z. B. in einem anderen Programm oder per Git), passt Klappe die automatischen Nummern nach diesen Regeln an, schreibt sie beim Speichern in den Fountain-Text und führt Floorplan, Marks und Shots jeder Szene mit (DB-65); gesperrte Nummern bleiben, bis die Sperre aufgehoben wird. | M |
@@ -155,12 +155,12 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DN-01 | Läuft im Terminal unter Linux, Windows und macOS (ratatui, E-06); 80 Spalten reichen. | M |
-| DN-02 | Tippen wird nie durch Rechnen gebremst: Seitenumbrüche, Längen und Auswertung rechnet Klappe neu, wenn 5 s lang keine Taste gedrückt wurde, und vor Export, Druck und Speichern (DN-07); dazwischen dürfen sie veraltet sein. | M |
+| DN-02 | Tippen wird nie durch Rechnen gebremst. Seitenumbrüche, Längen in Achteln und Seiten und die geschätzte Dauer (DB-30, DB-32) rechnet Klappe im Hintergrund neu, wenn 5 s lang keine Taste gedrückt wurde, und vor Export und Druck; ein Tastendruck wartet nie darauf. Bis dahin zeigt der Editor den Stand der letzten Rechnung und kennzeichnet ihn als veraltet. Figuren-Vervollständigung (DB-03) und Szenen-Zuordnung (DB-65) gehören nicht dazu. Prüfbar: 120 Seiten sind in höchstens 1 s neu berechnet. | M |
 | DN-03 | Offline, ohne Konto, ohne Cloud (NF-02). Zusammenarbeit über Git: der Fountain-Text lässt sich in Git zusammenführen. | M |
 | DN-04 | Tastatur zuerst; jede Funktion ohne Maus erreichbar, Kürzel in der Hilfe (F1). | M |
 | DN-05 | Deutsch und Englisch; Fachbegriffe nach Filmpraxis im Buch und im PDF nach der Sprache des Projekts (wie F-04): ein englisches Projekt nutzt die internationalen Begriffe, ein deutsches die deutschen oder auf Wunsch die internationalen (je Projekt wählbar); die Oberfläche folgt NF-09; Szenenkopf-Präfixe beider Sprachen erkennen (INT./INNEN, EXT./AUSSEN, TAG/NACHT). | M |
 | DN-06 | Kein Datenverlust bei Absturz: automatisches Sichern wie LH-05. | M |
-| DN-07 | Das PDF stimmt Seite für Seite mit der Paginierung im Editor überein. | M |
+| DN-07 | Das PDF stimmt Seite für Seite mit der Paginierung im Editor nach dem Neurechnen (DN-02) überein. | M |
 
 ## 8. Abgrenzung
 
@@ -196,7 +196,7 @@ Entschieden vom Eigentümer am 2026-11-14:
 | DB-64 | Verknüpfungen überstehen das Umschreiben | Einverstanden. |
 | Begriffe | Deutsch nach Filmpraxis | Einverstanden, mit Mehrsprachigkeit: ein englisches Buch hat internationale Begriffe, ein deutsches kann sie auf Wunsch auch haben; maßgeblich ist die Sprache des Projekts (DN-05). |
 | DB-63 | Springen nur in der GUI? | Ja; die TUI ist vorerst nur zum Drehbuchschreiben. |
-| DN-02 | Neu berechnen nach jedem Tastendruck (50 ms)? | Nein: erst wenn 5 s keine Taste gedrückt wurde (und vor Export, Druck, Speichern). |
+| DN-02 | Wann rechnen Umbrüche, Längen und Dauer neu? | Erst wenn 5 s keine Taste gedrückt wurde (und vor Export und Druck), nicht nach jedem Tastendruck. |
 
 ## Anhang A: Analyse Fade In und Beat
 
