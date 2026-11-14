@@ -2,6 +2,7 @@ use klappe_model::{Angle, Camera, Movement, Shot, ShotSize};
 
 use crate::error::ServiceError;
 use crate::field::Field;
+use crate::number::{read_number, Range, Unit};
 
 /// The fields of a shot the user edits directly (LH-71).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,7 +81,7 @@ pub(crate) fn apply(
         ShotField::Size => shot.size = size_of(value).ok_or_else(bad)?,
         ShotField::Angle => shot.angle = angle_of(value).ok_or_else(bad)?,
         ShotField::Movement => shot.movement = movement_of(value).ok_or_else(bad)?,
-        ShotField::Lens => shot.lens_mm = lens_of(value).ok_or_else(bad)?,
+        ShotField::Lens => shot.lens_mm = lens_of(value)?,
         ShotField::Description => shot.description = value.to_owned(),
         ShotField::Props => shot.props = value.to_owned(),
         ShotField::Gear => shot.gear = value.to_owned(),
@@ -103,16 +104,14 @@ fn camera_of(cameras: &[Camera], value: &str) -> Option<String> {
 }
 
 /// `"85"`, `"85 mm"` or `"85,5"`; empty means "use the camera's lens".
-fn lens_of(value: &str) -> Option<Option<f64>> {
-    let digits = value.trim().trim_end_matches("mm").trim().replace(',', ".");
-    if digits.is_empty() {
-        return Some(None);
+fn lens_of(value: &str) -> Result<Option<f64>, ServiceError> {
+    if value.trim().is_empty() {
+        return Ok(None);
     }
 
-    let mm: f64 = digits.parse().ok()?;
-    (MIN_LENS_MM..=MAX_LENS_MM)
-        .contains(&mm)
-        .then_some(Some(mm))
+    let range = Range::Within(MIN_LENS_MM, MAX_LENS_MM);
+
+    read_number(Field::Lens, value, Unit::Millimetre, range).map(Some)
 }
 
 fn size_of(name: &str) -> Option<ShotSize> {
@@ -133,12 +132,21 @@ mod tests {
 
     #[test]
     fn lens_accepts_units_and_commas() {
-        assert_eq!(lens_of("85"), Some(Some(85.0)));
-        assert_eq!(lens_of(" 85 mm "), Some(Some(85.0)));
-        assert_eq!(lens_of("85,5"), Some(Some(85.5)));
-        assert_eq!(lens_of(""), Some(None));
-        assert_eq!(lens_of("-1"), None);
-        assert_eq!(lens_of("weit"), None);
+        assert_eq!(lens_of("85").ok(), Some(Some(85.0)));
+        assert_eq!(lens_of(" 85 mm ").ok(), Some(Some(85.0)));
+        assert_eq!(lens_of("85,5").ok(), Some(Some(85.5)));
+        assert_eq!(lens_of("").ok(), Some(None));
+        assert_eq!(lens_of("-1").ok(), None);
+        assert_eq!(lens_of("weit").ok(), None);
+    }
+
+    #[test]
+    fn lens_has_a_range() {
+        assert_eq!(lens_of("0,5").ok(), None);
+        assert_eq!(lens_of("2001").ok(), None);
+        assert_eq!(lens_of("inf").ok(), None);
+        assert_eq!(lens_of("NaN").ok(), None);
+        assert_eq!(lens_of("85 m").ok(), None);
     }
 
     #[test]
