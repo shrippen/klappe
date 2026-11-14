@@ -186,7 +186,7 @@ pub(super) fn choices_json(s: &Session) -> String {
     .to_string()
 }
 
-pub(super) fn layers_json(s: &Session) -> String {
+fn layers_json(s: &Session) -> String {
     let shown = |l| s.layer(l) == Visibility::Shown;
 
     json!({
@@ -200,7 +200,7 @@ pub(super) fn layers_json(s: &Session) -> String {
     .to_string()
 }
 
-pub(super) fn locks_json(s: &Session) -> String {
+fn locks_json(s: &Session) -> String {
     let locked = |l| s.lock(l) == Lock::Locked;
 
     json!({
