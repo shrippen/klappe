@@ -9,19 +9,19 @@ cd "$(dirname "$0")/.."
 
 lang=${1:-${DEMO_LANG:-de}}
 case $lang in
-    de) folder=nachtwache.klappe ;;
-    en) folder=nightwatch.klappe ;;
+    de|en) ;;
     *) echo "usage: demo/start.sh [de|en]" >&2; exit 64 ;;
 esac
+folder=beispiel-$lang.klappe
 
 cargo build -q -p klappe-app
 bin=${KLAPPE_BIN:-${CARGO_TARGET_DIR:-target}/debug/klappe}
 
 # Settings, cache and projects live in one folder; each start begins with a fresh copy of
 # the example, so what a shot changes never stays. The start page shows the project's path,
-# so the folder is neutral (not under your home) and a shot never shows a real path.
-tmp=${TMPDIR:-/tmp}
-home=${KLAPPE_DEMO_HOME:-${tmp%/}/klappe-demo}
+# so the folder is fixed and neutral (not under your home, not TMPDIR) and a shot never
+# shows a real path.
+home=/tmp/klappe-demo
 rm -rf "$home/config" "$home/cache" "$home/data" "$home/projects"
 mkdir -p "$home/config/shrippen" "$home/cache" "$home/data" "$home/projects"
 cp -r "demo/beispiel-$lang.klappe" "$home/projects/$folder"
