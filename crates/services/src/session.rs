@@ -17,6 +17,7 @@ use crate::error::ServiceError;
 use crate::library;
 use crate::plan_edit::{self, PlanEdit, Snapping};
 use crate::project_edit::{self, ProjectEdit};
+use crate::shot_edit;
 use crate::views::{
     Chip, LibraryEntry, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind,
 };
@@ -633,6 +634,105 @@ impl Session {
         Ok(())
     }
 
+    /// Adds a shot at the playhead and selects it; undoable. Its camera is `camera`, else the
+    /// selected shot's, else the first (LH-70). Refused while the camera layer is locked: a
+    /// shot belongs to its camera.
+    pub fn add_shot(&mut self, camera: Option<&str>) -> Result<String, ServiceError> {
+        self.check_shot_lock()?;
+
+        let camera = self.camera_for_shot(camera)?;
+        let scene = self.scene_number();
+        let at_s = self.time_s;
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+
+        let id = shot_edit::add(plan, &scene, &camera, at_s);
+        self.commit(next);
+        self.selected_shot = Some(id.clone());
+        Ok(id)
+    }
+
+    /// Copies a shot with a new number and selects the copy; undoable. A copy is how one
+    /// setup yields several shots (LH-70).
+    pub fn copy_shot(&mut self, id: &str) -> Result<String, ServiceError> {
+        self.check_shot_lock()?;
+
+        let scene = self.scene_number();
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+
+        let copy = shot_edit::copy(plan, &scene, id)?;
+        self.commit(next);
+        self.selected_shot = Some(copy.clone());
+        Ok(copy)
+    }
+
+    /// Deletes a shot and the script links to it; undoable. If it was selected, the next
+    /// shot in the list is, else the previous.
+    pub fn delete_shot(&mut self, id: &str) -> Result<(), ServiceError> {
+        self.check_shot_lock()?;
+
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+
+        let neighbour = shot_edit::remove(plan, id)?;
+        self.commit(next);
+        if self.selected_shot.as_deref() == Some(id) {
+            self.selected_shot = neighbour;
+        }
+        Ok(())
+    }
+
+    /// Shots belong to cameras: no new, copied or deleted shot while they are locked.
+    fn check_shot_lock(&self) -> Result<(), ServiceError> {
+        if self.lock(Layer::Cameras) == Lock::Locked {
+            return Err(ServiceError::Locked(Layer::Cameras));
+        }
+
+        Ok(())
+    }
+
+    /// The camera id a new shot gets: `camera` if asked for, else the selected shot's, else
+    /// the first of the plan.
+    fn camera_for_shot(&self, camera: Option<&str>) -> Result<String, ServiceError> {
+        let plan = self.plan().ok_or(ServiceError::NoCamera)?;
+        let wanted = camera.map(str::to_owned).or_else(|| {
+            let id = self.selected_shot.as_deref()?;
+            plan.shots
+                .iter()
+                .find(|s| s.id == id)
+                .map(|s| s.camera.clone())
+        });
+        let Some(wanted) = wanted else {
+            return plan
+                .cameras
+                .first()
+                .map(|c| c.id.clone())
+                .ok_or(ServiceError::NoCamera);
+        };
+
+        match plan.camera(&wanted) {
+            Some(c) => Ok(c.id.clone()),
+            None => Err(ServiceError::BadValue {
+                field: "camera",
+                value: wanted,
+            }),
+        }
+    }
+
+    fn scene_number(&self) -> String {
+        self.scene().map(|s| s.number.clone()).unwrap_or_default()
+    }
+
+    /// The plan on view in `project`, a changed copy of this session's.
+    fn plan_in<'a>(&self, project: &'a mut Project) -> Result<&'a mut FloorPlan, ServiceError> {
+        project
+            .scenes
+            .get_mut(self.scene)
+            .and_then(|s| s.plans.get_mut(self.plan))
+            .ok_or(ServiceError::Gone)
+    }
+
     /// Changes the current plan; undoable. Points are taken as given: surfaces call `snap`.
     pub fn edit_plan(&mut self, edit: PlanEdit) -> Result<(), ServiceError> {
         self.check_lock(&edit)?;
@@ -810,6 +910,15 @@ impl Session {
         }
         if self.scene().is_none_or(|s| self.plan >= s.plans.len()) {
             self.plan = 0;
+        }
+
+        // Undo and redo can take the selected shot away.
+        let selected_is_gone = self.selected_shot.as_deref().is_some_and(|id| {
+            self.plan()
+                .is_none_or(|p| !p.shots.iter().any(|s| s.id == id))
+        });
+        if selected_is_gone {
+            self.selected_shot = None;
         }
     }
 
