@@ -69,11 +69,11 @@ pub enum Playing {
     Ended,
 }
 
-/// Undo keeps this many steps (LH-06 asks for no fixed limit within a session; this only
-/// guards memory on very long sessions).
 /// Two times closer than this (s) are the same mark.
 const MARK_EPS_S: f64 = 1e-3;
 
+/// Undo keeps this many steps (LH-06 asks for no fixed limit within a session; this only
+/// guards memory on very long sessions).
 const UNDO_LIMIT: usize = 500;
 
 /// Id of the cut-order track.
