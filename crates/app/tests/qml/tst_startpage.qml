@@ -215,11 +215,11 @@ TestCase {
         const page = make()
         const before = tiles(page)[0]
         const loading = JSON.parse(fake.recentJson)
-        loading[0].preview = "/cache/a.png"
+        loading[0].preview = "file:///cache/a.png"
 
         fake.recentJson = JSON.stringify(loading)
 
-        tryVerify(() => before.preview === "/cache/a.png")
+        tryVerify(() => before.preview === "file:///cache/a.png")
         compare(findChild(page, "tiles").currentItem, before)
     }
 

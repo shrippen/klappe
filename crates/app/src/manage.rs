@@ -8,6 +8,8 @@ use klappe_services::{
 };
 use serde_json::{json, Value};
 
+use crate::fileurl;
+
 /// Projects the start page remembers.
 pub const RECENT_MAX: usize = 8;
 
@@ -154,7 +156,7 @@ pub fn recent_view(list: &[String]) -> String {
 
 /// The same rows with what the cards found: `{ path, shortPath, name, state, scenes, modifiedS,
 /// preview }`,
-/// `state` being `ready`, `missing` or `unreadable`, `preview` a file path or empty. `cards`
+/// `state` being `ready`, `missing` or `unreadable`, `preview` a `file://` URL or empty. `cards`
 /// are the first of `list` that are read; the others stay as `recent_view` shows them.
 pub fn cards_view(list: &[String], cards: &[ProjectCard]) -> String {
     let Ok(Value::Array(mut rows)) = serde_json::from_str::<Value>(&recent_view(list)) else {
@@ -169,7 +171,7 @@ pub fn cards_view(list: &[String], cards: &[ProjectCard]) -> String {
             "state": card_state(card.state),
             "scenes": card.scenes,
             "modifiedS": card.modified_s,
-            "preview": card.preview.as_ref().map(|p| p.to_string_lossy()).unwrap_or_default(),
+            "preview": card.preview.as_deref().map(fileurl::from_path).unwrap_or_default(),
         });
     }
 
@@ -317,7 +319,7 @@ mod tests {
         assert_eq!(view[0]["state"], "ready");
         assert_eq!(view[0]["scenes"], 3);
         assert_eq!(view[0]["modifiedS"], 7);
-        assert_eq!(view[0]["preview"], "/cache/a.png");
+        assert_eq!(view[0]["preview"], "file:///cache/a.png");
         assert_eq!(view[1]["state"], STATE_MISSING);
     }
 
