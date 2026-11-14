@@ -118,7 +118,7 @@ TestCase {
         page.recentRequested.connect(path => { opened = path })
         page.forgetRequested.connect(path => { forgotten = path })
 
-        verify(tile.opacity < 1)
+        verify(tile.stale, "dimmed by the tile itself")
         tile.clicked()
         compare(opened, "")
         const button = findChild(gone, "forgetButton")

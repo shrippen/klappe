@@ -25,6 +25,9 @@ Item {
     readonly property string stateUnreadable: "unreadable"
     readonly property real stageAspect: 1.414 // an A4 sheet, what the preview is drawn on
     readonly property real tileWidth: KanteStyle.unit(240)
+    // Under the stage: the tile's own caption, then the subtitle and the remove button.
+    readonly property real captionHeight: KanteStyle.unit(34)
+    readonly property real belowTile: KanteStyle.unit(56) + Kirigami.Units.largeSpacing
 
     // Rows are updated in place while the previews arrive, so the tiles and the focus stay.
     ListModel { id: rows }
@@ -119,7 +122,7 @@ Item {
             clip: true
             model: rows
             cellWidth: start.tileWidth + Kirigami.Units.largeSpacing
-            cellHeight: start.tileWidth / start.stageAspect + KanteStyle.unit(34) + KanteStyle.unit(56)
+            cellHeight: start.tileWidth / start.stageAspect + start.captionHeight + start.belowTile
             keyNavigationEnabled: true
             keyNavigationWraps: false
 
@@ -170,7 +173,6 @@ Item {
                         name: cell.name
                         tier: cell.broken ? KanteTile.Tier.Check : KanteTile.Tier.Good
                         stale: cell.missing
-                        opacity: cell.missing ? 0.6 : 1
                         source: cell.preview !== "" ? "file://" + encodeURI(cell.preview) : ""
                         sourceSize: Qt.size(start.tileWidth * 2, start.tileWidth * 2 / start.stageAspect)
                         onClicked: {
