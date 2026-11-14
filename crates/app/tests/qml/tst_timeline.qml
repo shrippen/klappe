@@ -71,6 +71,15 @@ TestCase {
         compare(b.speedSteps, [0.25, 0.5, 1])
     }
 
+    function test_the_clock_uses_the_english_point() {
+        compare(bar(make(en)).positionText, "00:06.0 / 00:20.0")
+    }
+
+    function test_the_clock_cuts_off_like_a_timecode() {
+        fake.time = 59.96
+        compare(bar(make(de)).positionText, "00:59,9 / 00:20,0")
+    }
+
     function test_the_texts_come_from_the_catalogue() {
         const b = bar(make(en))
 

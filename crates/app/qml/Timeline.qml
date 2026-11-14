@@ -27,6 +27,16 @@ Item {
     property bool looping: false
     property real speed: 1
 
+    // "mm:ss,d" with the language's decimal separator, cut off like a timecode (59.96 → 00:59,9).
+    readonly property int tenthsPerS: 10
+    readonly property int tenthsPerMin: 600
+    function clock(s) {
+        const tenths = Math.floor(Math.max(0, s) * tenthsPerS + 1e-6)
+        const sec = (tenths % tenthsPerMin) / tenthsPerS
+        const min = Math.floor(tenths / tenthsPerMin)
+        return (min < 10 ? "0" : "") + min + ":" + (sec < 10 ? "0" : "") + texts.fixed(sec, 1)
+    }
+
     function togglePlay() {
         if (playing) {
             playing = false
@@ -77,6 +87,7 @@ Item {
             countInVisible: false
             markersVisible: true
             timeFormat: "mm:ss,d"
+            positionText: line.clock(line.controller.time) + " / " + line.clock(line.controller.duration)
             speedSteps: line.speedSteps
             playing: line.playing
             looping: line.looping
