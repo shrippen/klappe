@@ -23,7 +23,7 @@ mod views;
 pub use catalog::Language;
 pub use edit::ShotField;
 pub use error::ServiceError;
-pub use plan_edit::{PlanEdit, Snapping};
+pub use plan_edit::{MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::ProjectEdit;
 pub use session::{Autosave, BackupState, Layer, Lock, Session, Visibility};
 pub use views::{
@@ -34,7 +34,7 @@ pub use views::{
 pub use klappe_export::{Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme};
 pub use klappe_model::{
     Angle, CameraBody, CameraPresets, Dash, DrawingShape, FigureColor, Fill, FloorPlan, LensSet,
-    LightKind, Movement, ObjectShape, Point, Sensor, ShotSize,
+    LightKind, Movement, ObjectShape, Point, Pose, Sensor, ShotSize,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, DisplayList, Item, Role, Shape, ShotOrder, Source,

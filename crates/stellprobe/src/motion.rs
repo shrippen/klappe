@@ -124,6 +124,28 @@ pub fn via_through(a: Point, bend: Point, b: Point) -> Point {
     Point::new(2.0 * bend.x_m - middle.x_m, 2.0 * bend.y_m - middle.y_m)
 }
 
+/// Length of the curve from `a` to `b` bent towards `via`, up to parameter i / `ARC_STEPS`.
+fn arc_lengths(a: Point, via: Point, b: Point) -> [f64; ARC_STEPS + 1] {
+    let mut lengths = [0.0; ARC_STEPS + 1];
+    let mut last = a;
+    for i in 1..=ARC_STEPS {
+        let next = bezier(a, via, b, i as f64 / ARC_STEPS as f64);
+        lengths[i] = lengths[i - 1] + last.distance_m(next);
+        last = next;
+    }
+
+    lengths
+}
+
+/// How long the way from `a` to `b` is (straight, or the curve through its `via`), in metres:
+/// what a figure walks, and so what its pace is measured on.
+pub fn way_length_m(a: Point, via: Option<Point>, b: Point) -> f64 {
+    match via {
+        Some(via) => arc_lengths(a, via, b)[ARC_STEPS],
+        None => a.distance_m(b),
+    }
+}
+
 /// The point `t` (0 to 1) of the way from `a` to `b` by length, not by curve parameter: a
 /// curve's parameter runs fast where it is straight and slow where it bends, which would
 /// speed a figure up and down. Measures the curve in `ARC_STEPS` pieces and walks that table.
@@ -132,14 +154,7 @@ fn along(a: Point, via: Option<Point>, b: Point, t: f64) -> Point {
         return a.lerp(b, t);
     };
 
-    // lengths[i]: length of the curve up to parameter i / ARC_STEPS.
-    let mut lengths = [0.0; ARC_STEPS + 1];
-    let mut last = a;
-    for i in 1..=ARC_STEPS {
-        let next = bezier(a, via, b, i as f64 / ARC_STEPS as f64);
-        lengths[i] = lengths[i - 1] + last.distance_m(next);
-        last = next;
-    }
+    let lengths = arc_lengths(a, via, b);
 
     let total_m = lengths[ARC_STEPS];
     if total_m <= 0.0 {
@@ -338,5 +353,17 @@ mod tests {
         assert_eq!(bend_point(a, None, b), Point::new(5.0, 0.0));
         assert_eq!(bend_point(a, Some(via), b), Point::new(5.0, 4.0));
         assert_eq!(via_through(a, Point::new(5.0, 4.0), b), via);
+    }
+
+    /// The parabola y = 16 t (1 - t), x = 10 t: length 16 * integral of sqrt(u^2 + 0.390625)
+    /// over 0 to 1, about 13.337 m.
+    #[test]
+    fn a_way_is_as_long_as_its_curve() {
+        let a = Point::new(0.0, 0.0);
+        let b = Point::new(10.0, 0.0);
+
+        assert_eq!(way_length_m(a, None, b), 10.0);
+        let curved_m = way_length_m(a, Some(Point::new(5.0, 8.0)), b);
+        assert!((curved_m - 13.337).abs() < 0.01, "{curved_m}");
     }
 }
