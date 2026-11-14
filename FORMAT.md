@@ -43,6 +43,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Ort `at` in Metern und `text`. Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
+- **Zeichnungen (LH-19):** `drawings` im Floorplan der Szene (`szenen/<id>.json`), je Eintrag
+  `id` (`d1`, `d2` …, innerhalb des Floorplans), `shape`, `color`, `dash` und `fill`. `shape` hat
+  `kind`: `line` und `arrow` (Spitze bei `to`) mit `from` und `to`; `rect` und `ellipse` mit zwei
+  gegenüberliegenden Ecken `from` und `to` (achsenparallel); `area` mit `points` (geschlossenes
+  Polygon, mindestens drei). Punkte in Metern. `color` ist eine Rolle wie bei Figuren (`purple`,
+  `blue`, `green`, `yellow`, `orange`, `red`, `cyan`), `dash` `solid`, `dashed` oder `dotted`
+  (Standard `solid`), `fill` `outline` oder `filled` (Standard `outline`; nur Rechteck, Ellipse und
+  Fläche haben ein Inneres). Ohne Zeichnungen fehlt der Schlüssel; ältere Projekte laden und
+  speichern unverändert. Keine neue Formatversion, wie bei den Notizen.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.

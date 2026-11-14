@@ -5,8 +5,9 @@ use klappe_export::{
     pdf, png, svg, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme,
 };
 use klappe_model::{
-    Camera, CameraMark, Character, FigureColor, FigureTrack, FloorPlan, Light, LightKind, Mark,
-    Note, Point, Pose, Project, Sensor, SetObject, SetPlan, Wall,
+    Camera, CameraMark, Character, Dash, Drawing, DrawingShape, FigureColor, FigureTrack, Fill,
+    FloorPlan, Light, LightKind, Mark, Note, Point, Pose, Project, Sensor, SetObject, SetPlan,
+    Wall,
 };
 use klappe_stellprobe::{render, DisplayList};
 use serde_json::Value;
@@ -331,6 +332,55 @@ fn notes_are_printed_with_their_text() {
     assert!(out.contains(">Vorhang schließen<"));
     // ß = 0xDF = \337 in WinAnsi.
     assert!(String::from_utf8_lossy(&bytes).contains("(Vorhang schlie\\337en) Tj"));
+}
+
+/// LH-19: drawings show in SVG, PDF and PNG; an arrow's head is a filled area, a dash tells
+/// a dashed line from a solid one, a fill tints the inside.
+#[test]
+fn drawings_are_printed() {
+    let drawing = |id: &str, shape, dash, fill| Drawing {
+        id: id.into(),
+        shape,
+        color: FigureColor::Red,
+        dash,
+        fill,
+    };
+    let (a, b) = (Point::new(2.0, 10.0), Point::new(8.0, 10.0));
+    let mut with = plan();
+    with.drawings = vec![
+        drawing(
+            "d1",
+            DrawingShape::Arrow { from: a, to: b },
+            Dash::Dashed,
+            Fill::Outline,
+        ),
+        drawing(
+            "d2",
+            DrawingShape::Rect { from: a, to: b },
+            Dash::Solid,
+            Fill::Filled,
+        ),
+    ];
+    let bare = render(&project(), &set(), &plan(), 0.0, None);
+    let list = render(&project(), &set(), &with, 0.0, None);
+
+    let out = svg(&list, &page(), Theme::Light).unwrap();
+    let pdf_bytes = pdf(&list, &page(), Theme::Light).unwrap();
+    let png_with = png(&list, &page(), Theme::Light).unwrap();
+    let png_bare = png(&bare, &page(), Theme::Light).unwrap();
+
+    let shaft = lines_with(&out, "item drawing red");
+    assert_eq!(shaft.len(), 2);
+    assert!(shaft[0].contains("stroke-dasharray"));
+    assert!(!shaft[1].contains("stroke-dasharray"));
+    assert!(!shaft[0].contains("fill-opacity"));
+    assert!(shaft[1].contains("fill-opacity"));
+    let head = lines_with(&out, "item arrow-head red");
+    assert_eq!(head.len(), 1);
+    assert!(!head[0].contains("fill=\"none\""));
+    assert!(!head[0].contains("fill-opacity"));
+    assert!(pdf_bytes.starts_with(b"%PDF"));
+    assert_ne!(png_with, png_bare);
 }
 
 #[test]

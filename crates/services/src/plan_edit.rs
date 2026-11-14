@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    Background, Camera, CameraMark, Character, FigureTrack, FloorPlan, Light, LightKind,
-    LinkTarget, Mark, Note, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
+    Background, Camera, CameraMark, Character, Dash, Drawing, DrawingShape, FigureColor,
+    FigureTrack, Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Note, Point, Pose, Project,
+    Scene, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{hit, Item, Role, Source};
 
@@ -69,6 +70,14 @@ pub enum PlanEdit {
         id: String,
         text: String,
     },
+    /// Draws a line, arrow, shape or area on the plan of the scene. `fill` only matters for
+    /// shapes with an inside.
+    AddDrawing {
+        shape: DrawingShape,
+        color: FigureColor,
+        dash: Dash,
+        fill: Fill,
+    },
     /// Takes the image file `source` (PNG or JPEG) as the set's background, copied into the
     /// project's `bilder/`, as wide as the set from its top left corner. Undo takes the
     /// background back out of the model; the copy stays in `bilder/`, it is the user's file.
@@ -115,6 +124,9 @@ const DEFAULT_ASPECT: f64 = 2.39;
 
 /// A new background lets the plan underneath show through.
 const BACKGROUND_OPACITY: f64 = 0.5;
+
+/// An area has an inside from three points on.
+const MIN_AREA_POINTS: usize = 3;
 
 const DEFAULT_OBJECT_M: f64 = 1.0;
 const DEFAULT_WALL_M: f64 = 0.2;
@@ -197,6 +209,7 @@ impl PlanEdit {
             PlanEdit::AddCamera { .. } => Layer::Cameras,
             PlanEdit::AddLight { .. } => Layer::Lights,
             PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } => Layer::Notes,
+            PlanEdit::AddDrawing { .. } => Layer::Drawings,
             PlanEdit::AddObject { .. }
             | PlanEdit::AddWall { .. }
             | PlanEdit::SetBackground { .. }
@@ -215,6 +228,7 @@ fn layer_of_source(source: &Source) -> Layer {
         Source::Camera(_) => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } => Layer::Figures,
         Source::Note(_) => Layer::Notes,
+        Source::Drawing(_) => Layer::Drawings,
     }
 }
 
@@ -240,6 +254,8 @@ enum Target<'a> {
     Pin {
         at: &'a mut Point,
     },
+    /// Points but no facing: a drawing keeps its shape and is not turned.
+    Drawing(&'a mut Drawing),
 }
 
 /// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snapping` is for
@@ -298,6 +314,12 @@ pub(crate) fn apply(
         PlanEdit::AddObject { kind, at } => add_object(&mut scope, kind, *at),
         PlanEdit::AddWall { from, to } => add_wall(&mut scope, *from, *to),
         PlanEdit::AddNote { at, text } => add_note(&mut scope, *at, text),
+        PlanEdit::AddDrawing {
+            shape,
+            color,
+            dash,
+            fill,
+        } => add_drawing(&mut scope, shape, (*color, *dash, *fill)),
         PlanEdit::EditNote { id, text } => edit_note(&mut scope, id, text),
         PlanEdit::SetBackground { source } => set_background(&mut scope, dir, source),
         PlanEdit::Calibrate {
@@ -341,10 +363,24 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             check_distance(*distance_m)
         }
         PlanEdit::MoveBackground { dx_m, dy_m } => check_point(Point::new(*dx_m, *dy_m)),
+        PlanEdit::AddDrawing { shape, .. } => check_shape(shape),
         PlanEdit::Remove { .. }
         | PlanEdit::EditNote { .. }
         | PlanEdit::SetBackground { .. }
         | PlanEdit::RemoveBackground => Ok(()),
+    }
+}
+
+fn check_shape(shape: &DrawingShape) -> Result<(), ServiceError> {
+    match shape {
+        DrawingShape::Line { from, to }
+        | DrawingShape::Arrow { from, to }
+        | DrawingShape::Rect { from, to }
+        | DrawingShape::Ellipse { from, to } => {
+            check_point(*from)?;
+            check_point(*to)
+        }
+        DrawingShape::Area { points } => points.iter().try_for_each(|p| check_point(*p)),
     }
 }
 
@@ -489,6 +525,13 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
                 .ok_or(ServiceError::Gone)?;
             Ok(Target::Pin { at: &mut note.at })
         }
+        Source::Drawing(id) => scope
+            .plan
+            .drawings
+            .iter_mut()
+            .find(|d| d.id == *id)
+            .map(Target::Drawing)
+            .ok_or(ServiceError::Gone),
     }
 }
 
@@ -496,9 +539,46 @@ fn middle(wall: &Wall) -> Point {
     wall.from.lerp(wall.to, 0.5)
 }
 
+/// Every point of a drawing, to read or to move.
+fn points_mut(shape: &mut DrawingShape) -> Vec<&mut Point> {
+    match shape {
+        DrawingShape::Line { from, to }
+        | DrawingShape::Arrow { from, to }
+        | DrawingShape::Rect { from, to }
+        | DrawingShape::Ellipse { from, to } => vec![from, to],
+        DrawingShape::Area { points } => points.iter_mut().collect(),
+    }
+}
+
+/// The first point of a drawing and the middle of its bounding box (the middle of a line,
+/// the centre of a rectangle or ellipse); `None` for a shape without points.
+fn anchors(drawing: &mut Drawing) -> Option<(Point, Point)> {
+    let points = points_mut(&mut drawing.shape);
+    let first = **points.first()?;
+    let (mut min, mut max) = (first, first);
+
+    for p in &points {
+        min = Point::new(min.x_m.min(p.x_m), min.y_m.min(p.y_m));
+        max = Point::new(max.x_m.max(p.x_m), max.y_m.max(p.y_m));
+    }
+
+    Some((first, min.lerp(max, 0.5)))
+}
+
 fn move_to(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => *at = to,
+        Target::Drawing(drawing) => {
+            // The whole drawing keeps its shape; the middle of its box lands on `to`.
+            let Some((_, mid)) = anchors(drawing) else {
+                return Ok(());
+            };
+            let (dx, dy) = (to.x_m - mid.x_m, to.y_m - mid.y_m);
+
+            for p in points_mut(&mut drawing.shape) {
+                *p = Point::new(p.x_m + dx, p.y_m + dy);
+            }
+        }
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
             let mid = middle(wall);
@@ -513,6 +593,7 @@ fn move_to(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Serv
 
 /// Moves by `by_m` (dx, dy) from where the element is now; the new place is snapped. A wall
 /// snaps its start, not its middle: a wall 3.25 m long keeps both ends where they meet others.
+/// A drawing does the same with its first point.
 fn shift(
     scope: &mut Scope<'_>,
     source: &Source,
@@ -522,6 +603,7 @@ fn shift(
     let (anchor, middle_now) = match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => (*at, *at),
         Target::Wall(wall) => (wall.from, middle(wall)),
+        Target::Drawing(drawing) => anchors(drawing).ok_or(ServiceError::Gone)?,
     };
     let landed = snap(
         Point::new(anchor.x_m + by_m.0, anchor.y_m + by_m.1),
@@ -541,7 +623,7 @@ fn spin(scope: &mut Scope<'_>, source: &Source, by_deg: f64) -> Result<(), Servi
         Target::Place { facing_deg, .. } => *facing_deg,
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
         // Nothing to turn.
-        Target::Pin { .. } => return Ok(()),
+        Target::Pin { .. } | Target::Drawing(_) => return Ok(()),
     };
 
     turn(scope, source, now_deg + by_deg)
@@ -553,7 +635,7 @@ fn turn(scope: &mut Scope<'_>, source: &Source, facing_deg: f64) -> Result<(), S
     match target(scope, source)? {
         Target::Place { facing_deg: f, .. } => *f = facing_deg,
         // Nothing to turn.
-        Target::Pin { .. } => {}
+        Target::Pin { .. } | Target::Drawing(_) => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.
             let mid = middle(wall);
@@ -607,6 +689,12 @@ fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
             let index = set.notes.iter().position(|n| n.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;
             set.notes.remove(index);
+            Ok(())
+        }
+        Source::Drawing(id) => {
+            let index = scope.plan.drawings.iter().position(|d| d.id == *id);
+            let index = index.ok_or(ServiceError::Gone)?;
+            scope.plan.drawings.remove(index);
             Ok(())
         }
     }
@@ -876,6 +964,43 @@ fn edit_note(scope: &mut Scope<'_>, id: &str, text: &str) -> Result<(), ServiceE
         .and_then(|s| s.notes.iter_mut().find(|n| n.id == id))
         .ok_or(ServiceError::Gone)?;
     note.text = text;
+
+    Ok(())
+}
+
+/// A drawing needs something to draw: a stretch, a box with a width and a height, three
+/// points for an area.
+fn add_drawing(
+    scope: &mut Scope<'_>,
+    shape: &DrawingShape,
+    (color, dash, fill): (FigureColor, Dash, Fill),
+) -> Result<(), ServiceError> {
+    let drawable = match shape {
+        DrawingShape::Line { from, to } | DrawingShape::Arrow { from, to } => from != to,
+        DrawingShape::Rect { from, to } | DrawingShape::Ellipse { from, to } => {
+            from.x_m != to.x_m && from.y_m != to.y_m
+        }
+        DrawingShape::Area { points } => points.len() >= MIN_AREA_POINTS,
+    };
+    if !drawable {
+        return Err(ServiceError::BadValue {
+            field: "drawing",
+            value: "empty".to_owned(),
+        });
+    }
+
+    let drawings = &scope.plan.drawings;
+    let n = (1..)
+        .find(|n| !drawings.iter().any(|d| d.id == format!("d{n}")))
+        .unwrap_or(1);
+
+    scope.plan.drawings.push(Drawing {
+        id: format!("d{n}"),
+        shape: shape.clone(),
+        color,
+        dash,
+        fill,
+    });
 
     Ok(())
 }

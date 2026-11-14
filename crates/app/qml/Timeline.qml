@@ -50,7 +50,7 @@ Item {
             Item { Layout.fillWidth: true }
             KanteSectionLabel { text: line.texts.t("layer.title") }
             Repeater {
-                model: ["set", "figures", "cameras", "lights", "notes"]
+                model: ["set", "figures", "cameras", "lights", "notes", "drawings"]
                 delegate: RowLayout {
                     required property string modelData
                     spacing: 0

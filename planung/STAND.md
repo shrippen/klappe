@@ -22,6 +22,7 @@ Stand: 2026-11-14.
 | Projekte, Szenen, Drehorte, Figuren verwalten (LH-01 bis LH-03): Startseite mit zuletzt geöffneten Projekten, Projektdialog mit Listen, Rückgängig | erste Fassung; offen: Szenen und Figuren umsortieren, Szenennummern automatisch vergeben und beim Drehbuch-Umbau nachführen (DB-33) |
 | Hintergrundbild mit Maßstab (LH-13) | erste Fassung; offen: PDF als Hintergrund |
 | Notizen im Plan (LH-16): Werkzeug, Ebene, Export | erste Fassung; offen: Doppelklick zum Bearbeiten (F2 oder Klick mit dem Notiz-Werkzeug), Textform statt Marker mit Beschriftung |
+| Freies Zeichnen (LH-19): Linie, Pfeil, Rechteck, Ellipse, Fläche je Szenenplan, Farbe, Strichart, Füllung, Ebene, Export | erste Fassung; offen: Stil einer vorhandenen Zeichnung ändern, Punkte und Ecken ziehen, Drehen |
 | Ebenen sperren (LH-15): Schalter „gesperrt“ je Ebene, nichts wählbar oder änderbar | erste Fassung; die Sperre gilt für die Sitzung und steht nicht im Projekt |
 | Perspektive und Drehreihenfolge der Shotliste (LH-71, LH-72) | fertig |
 | Demo-Modus mit „Studio Weber“ für Screenshots | offen |
