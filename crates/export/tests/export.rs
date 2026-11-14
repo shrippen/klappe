@@ -372,10 +372,8 @@ fn a_group_is_printed_with_its_count() {
     let out = svg(&grouped, &page(), Theme::Light).unwrap();
 
     assert!(out.contains(">Elisabeth (12)<"));
-    // The same figures, each with three dots more.
-    let single = svg(&list(), &page(), Theme::Light).unwrap();
-    let figures = |out: &str| lines_with(out, "item figure purple").len();
-    assert!(figures(&out) > figures(&single));
+    // Three dots in each body (start and end of the way), in the outline colour.
+    assert_eq!(lines_with(&out, "item group-dot").len(), 6);
 }
 
 /// LH-19: drawings show in SVG, PDF and PNG; an arrow's head is a filled area, a dash tells

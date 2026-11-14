@@ -1155,6 +1155,7 @@ fn layer_of(role: Role) -> Layer {
         Role::Drawing { .. } | Role::ArrowHead(_) => Layer::Drawings,
         Role::Axis
         | Role::Figure(_)
+        | Role::GroupDot
         | Role::FigurePath(_)
         | Role::FigureHandle(_)
         | Role::Mark(_) => Layer::Figures,

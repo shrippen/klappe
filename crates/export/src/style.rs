@@ -145,6 +145,11 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
             Some(solid(pal.semantic(colour_name(color))?)),
             Some(line(fg, OUTLINE_PT, Dash::Solid)),
         ),
+        Role::GroupDot => (
+            "group-dot".to_string(),
+            Some(solid(fg)),
+            Some(line(fg, OUTLINE_PT, Dash::Solid)),
+        ),
     };
 
     Ok(RoleStyle {

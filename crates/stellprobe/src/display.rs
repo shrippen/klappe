@@ -83,6 +83,8 @@ pub enum Role {
     CameraHandle,
     Mark(FigureColor),
     Figure(FigureColor),
+    /// A dot inside a group's body; in the body's colour it would vanish.
+    GroupDot,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -541,7 +543,7 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
         }
         for center in group_dots(place.at) {
             items.push(Item {
-                role: Role::Figure(color),
+                role: Role::GroupDot,
                 shape: Shape::Circle {
                     center,
                     radius_m: GROUP_DOT_RADIUS_M,
@@ -811,9 +813,25 @@ mod tests {
             .filter(purple)
             .find_map(|i| i.label.clone());
 
-        assert_eq!(radii.len(), 1 + GROUP_DOTS);
+        assert_eq!(radii.len(), 1);
         assert!(radii[0] > FIGURE_RADIUS_M);
         assert_eq!(label.as_deref(), Some("Elisabeth (12)"));
+    }
+
+    /// The dots in a group's body are a role of their own: in the body's colour they vanish.
+    #[test]
+    fn group_dots_differ_from_the_body() {
+        let list = group_list();
+        let dots: Vec<&Item> = list
+            .items
+            .iter()
+            .filter(|i| matches!(i.shape, Shape::Circle { radius_m, .. } if radius_m == GROUP_DOT_RADIUS_M))
+            .collect();
+
+        assert_eq!(dots.len(), GROUP_DOTS);
+        assert!(dots
+            .iter()
+            .all(|i| i.role != Role::Figure(FigureColor::Purple)));
     }
 
     /// A single person keeps the one small circle and the plain name.
