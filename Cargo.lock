@@ -891,11 +891,16 @@ dependencies = [
 name = "klappe-export"
 version = "0.0.1"
 dependencies = [
+ "klappe-imagehead",
  "klappe-model",
  "klappe-stellprobe",
  "serde_json",
  "thiserror 2.0.21",
 ]
+
+[[package]]
+name = "klappe-imagehead"
+version = "0.0.1"
 
 [[package]]
 name = "klappe-model"
@@ -934,6 +939,7 @@ dependencies = [
 name = "klappe-store"
 version = "0.0.1"
 dependencies = [
+ "klappe-imagehead",
  "klappe-model",
  "serde",
  "serde_json",

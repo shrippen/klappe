@@ -1,0 +1,10 @@
+[package]
+name = "klappe-imagehead"
+description = "Reads the frame header of a JPEG file: size, sample precision, colour components."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
