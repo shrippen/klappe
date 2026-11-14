@@ -7,7 +7,9 @@
 //! ```
 
 use clap::{Parser, Subcommand, ValueEnum};
-use klappe_services::{Language, Paper, Sensor, Session, ShotOrder};
+use klappe_services::{
+    read_number, Field, Language, Paper, Range, Sensor, Session, ShotOrder, Unit,
+};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -218,10 +220,8 @@ fn parse_sensor(name: &str) -> Option<Sensor> {
         "super35" | "s35" => Some(Sensor::Super35),
         "full-frame" | "ff" => Some(Sensor::FullFrame),
         "mft" => Some(Sensor::MicroFourThirds),
-        _ => name
-            .parse()
+        _ => read_number(Field::Sensor, name, Unit::Millimetre, Range::Positive)
             .ok()
-            .filter(|w: &f64| is_length(*w))
             .map(|width_mm| Sensor::Custom { width_mm }),
     }
 }
@@ -241,6 +241,14 @@ mod tests {
         assert_eq!(
             parse_sensor("23.5"),
             Some(Sensor::Custom { width_mm: 23.5 })
+        );
+        assert_eq!(
+            parse_sensor("23,76"),
+            Some(Sensor::Custom { width_mm: 23.76 })
+        );
+        assert_eq!(
+            parse_sensor("36 mm"),
+            Some(Sensor::Custom { width_mm: 36.0 })
         );
         assert_eq!(parse_sensor("-1"), None);
         assert_eq!(parse_sensor("imax"), None);
