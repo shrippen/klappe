@@ -65,6 +65,24 @@ pub fn figure_at(track: &FigureTrack, t_s: f64) -> Option<Placement> {
     place_at(&keys, t_s)
 }
 
+/// For each mark of `track`, whether the figure walks the way to it (LH-26): not to the
+/// first mark, nor to one it appears at, nor to one it is gone at after leaving earlier.
+///
+/// ```text
+///  marks     1      2 (leave)   3 (walk)   4 (appear)   5
+///  walked    no     yes         no         no           yes
+/// ```
+pub fn walked_ways(track: &FigureTrack) -> Vec<bool> {
+    let keys: Vec<Key> = track.marks.iter().map(Key::from).collect();
+    let gone = gone_on_arrival(&keys);
+
+    keys.iter()
+        .zip(gone)
+        .enumerate()
+        .map(|(i, (k, gone))| i > 0 && k.arrival == Arrival::Walk && !gone)
+        .collect()
+}
+
 /// A camera at time `t_s`; `None` without marks.
 pub fn camera_at(camera: &Camera, t_s: f64) -> Option<Placement> {
     let keys: Vec<Key> = camera.marks.iter().map(Key::from).collect();

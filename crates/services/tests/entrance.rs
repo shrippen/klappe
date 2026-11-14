@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Arrival, Departure, Layer, Lock, PlanEdit, Role, ServiceError, Session, Snapping, Source,
+    Arrival, Departure, Layer, Lock, Pace, PlanEdit, Role, ServiceError, Session, Snapping, Source,
 };
 
 fn example() -> PathBuf {
@@ -152,4 +152,26 @@ fn an_unknown_mark_is_gone() {
     });
 
     assert!(matches!(result, Err(ServiceError::Gone)));
+}
+
+/// Review of PR 35: the figure does not walk to a mark it appears at, so that mark has no way
+/// and no pace, and setting one is refused instead of moving the appearance in time.
+#[test]
+fn an_appearing_mark_has_no_way_to_pace() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::SetArrival {
+        source: mark(1),
+        arrival: Arrival::Appear,
+    })
+    .unwrap();
+    let info = s.mark_info(&mark(1)).unwrap();
+
+    assert!(!info.has_way);
+    assert_eq!(info.pace_m_s, None);
+    assert!(s
+        .edit_plan(PlanEdit::SetPace {
+            source: mark(1),
+            pace: Pace::Run,
+        })
+        .is_err());
 }

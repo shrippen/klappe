@@ -4,7 +4,7 @@ use klappe_model::{
 };
 
 use crate::axis::axis_at;
-use crate::motion::{bend_point, camera_at, figure_at, path};
+use crate::motion::{bend_point, camera_at, figure_at, path, walked_ways};
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
 
 /// What the GUI draws and the export writes, back to front, in metres (planung/KONZEPT.md,
@@ -468,9 +468,11 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
         };
         let color = character.color;
 
-        // A way to a mark the figure appears at is not walked, so it is not drawn: the way
-        // breaks there (LH-26).
-        for way in track.marks.chunk_by(|_, m| m.arrival == Arrival::Walk) {
+        // A way the figure does not walk (to a mark it appears at, or after it left) is not
+        // drawn: the path breaks there (LH-26).
+        let walked = walked_ways(track);
+        let marks: Vec<_> = track.marks.iter().zip(&walked).collect();
+        for way in marks.chunk_by(|_, (_, walked)| **walked) {
             if way.len() < 2 {
                 continue;
             }
@@ -478,7 +480,7 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
             items.push(Item {
                 role: Role::FigurePath(color),
                 shape: Shape::Polyline {
-                    points: path(way.iter().map(|m| (m.at, m.via))),
+                    points: path(way.iter().map(|(m, _)| (m.at, m.via))),
                 },
                 label: None,
                 source: Some(Source::Figure(track.character.clone())),
@@ -560,10 +562,11 @@ fn figure_handles(project: &Project, plan: &FloorPlan, character: &str) -> Vec<I
     };
     let stops: Vec<_> = track.marks.iter().map(|m| (m.at, m.via)).collect();
 
-    // No way leads to a mark the figure appears at, so there is nothing to bend (LH-26).
+    // A way the figure does not walk has nothing to bend (LH-26).
+    let walked = walked_ways(track);
     handle_places(&stops)
         .into_iter()
-        .filter(|(index, _)| track.marks[*index].arrival == Arrival::Walk)
+        .filter(|(index, _)| walked.get(*index).copied().unwrap_or(false))
         .map(|(index, center)| Item {
             role: Role::FigureHandle(who.color),
             shape: handle_shape(center),
@@ -1350,8 +1353,23 @@ mod tests {
 
         assert_eq!(way(&p), [2]);
 
+        // Review of PR 35: after a leave the figure is gone at a walked-to mark as well, so
+        // no way leads there either.
         p.figures[0].marks[2].arrival = Arrival::Walk;
+        assert_eq!(way(&p), [2]);
+
+        p.figures[0].marks[1].departure = Departure::Stay;
         assert_eq!(way(&p), [3]);
+    }
+
+    /// Review of PR 35: no grip on a way after a leave, which the figure does not walk.
+    #[test]
+    fn a_way_after_a_leave_has_no_grip() {
+        let mut p = coming_and_going();
+        p.figures[0].marks[2].arrival = Arrival::Walk;
+        let grips = handles(&project(), &p, &Source::Figure("e".into()));
+
+        assert_eq!(grips.len(), 1);
     }
 
     /// An appearing mark has no way, so no grip to bend it (LH-26).

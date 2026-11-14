@@ -6,7 +6,9 @@ use klappe_model::{
     FigureColor, FigureTrack, Fill, FloorPlan, LibraryItem, Light, LightKind, LinkTarget, Mark,
     Note, ObjectShape, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
 };
-use klappe_stellprobe::{bend_point, hit, via_through, way_length_m, within, Item, Role, Source};
+use klappe_stellprobe::{
+    bend_point, hit, via_through, walked_ways, way_length_m, within, Item, Role, Source,
+};
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -225,7 +227,8 @@ pub struct MarkInfo {
     /// `None` for a camera's mark.
     pub departure: Option<Departure>,
     pub hold_s: f64,
-    /// A way leads to the mark: it is not the first of its track.
+    /// The figure walks a way to the mark: not the first of its track, not one it appears at or
+    /// is gone at after leaving (LH-26).
     pub has_way: bool,
     /// Speed along that way; `None` when it takes no time.
     pub pace_m_s: Option<f64>,
@@ -1481,6 +1484,12 @@ fn set_pace(scope: &mut Scope<'_>, source: &Source, pace: Pace) -> Result<(), Se
         return Err(ServiceError::Gone);
     };
 
+    // A way the figure does not walk (it appears there, or left before) has no pace (LH-26).
+    let track = scope.plan.figure(&character).ok_or(ServiceError::Gone)?;
+    if !walked_ways(track).get(index).copied().unwrap_or(false) {
+        return Err(bad_mark("pace", "no way"));
+    }
+
     // Arrive after the pause at the mark before and the walk along the way.
     let walk_s = way_length_m(prev.at, mark.via, mark.at) / pace.speed_m_s();
     let delta_s = prev.at_s + prev.hold_s + walk_s - mark.at_s;
@@ -1530,8 +1539,10 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
 
 fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
     let mark = track.marks.get(index)?;
+    let has_way = walked_ways(track).get(index).copied().unwrap_or(false);
     let pace_m_s = index
         .checked_sub(1)
+        .filter(|_| has_way)
         .and_then(|before| track.marks.get(before))
         .and_then(|prev| {
             pace_to(
@@ -1545,7 +1556,7 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
         arrival: Some(mark.arrival),
         departure: Some(mark.departure),
         hold_s: mark.hold_s,
-        has_way: index > 0,
+        has_way,
         pace_m_s,
     })
 }
