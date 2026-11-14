@@ -27,18 +27,6 @@ pub const LIGHT_KINDS: [(&str, LightKind); 6] = [
     ("flag", LightKind::Flag),
 ];
 
-/// Colours the drawing tools offer, in Kante's order of labels: the name QML and the
-/// catalogue (`color.<name>`) use.
-pub const DRAW_COLORS: [(&str, FigureColor); 7] = [
-    ("red", FigureColor::Red),
-    ("orange", FigureColor::Orange),
-    ("yellow", FigureColor::Yellow),
-    ("green", FigureColor::Green),
-    ("cyan", FigureColor::Cyan),
-    ("blue", FigureColor::Blue),
-    ("purple", FigureColor::Purple),
-];
-
 /// Line styles of the drawing tools (`dash.<name>` in the catalogue).
 pub const DRAW_DASHES: [(&str, Dash); 3] = [
     ("solid", Dash::Solid),
@@ -79,7 +67,7 @@ impl DrawStyle {
     /// The names the tool bar spells; `None` when one of them is unknown.
     pub fn parse(color: &str, dash: &str, fill: &str) -> Option<DrawStyle> {
         Some(DrawStyle {
-            color: named(&DRAW_COLORS, color)?,
+            color: FigureColor::from_name(color)?,
             dash: named(&DRAW_DASHES, dash)?,
             fill: named(&DRAW_FILLS, fill)?,
         })
@@ -1657,9 +1645,9 @@ mod tests {
     /// The tool bar translates each name with `color.<name>`, `dash.<name>`, `fill.<name>`.
     #[test]
     fn every_style_name_has_a_text_in_both_languages() {
-        let keys = DRAW_COLORS
+        let keys = FigureColor::ALL
             .iter()
-            .map(|(n, _)| format!("color.{n}"))
+            .map(|c| format!("color.{}", c.name()))
             .chain(DRAW_DASHES.iter().map(|(n, _)| format!("dash.{n}")))
             .chain(DRAW_FILLS.iter().map(|(n, _)| format!("fill.{n}")));
 

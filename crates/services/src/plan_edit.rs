@@ -1988,6 +1988,7 @@ fn remove_background(scope: &mut Scope<'_>) -> Result<(), ServiceError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::catalog::Language;
     use klappe_model::Location;
 
     #[test]
@@ -1996,6 +1997,17 @@ mod tests {
             assert_eq!(Pace::from_name(pace.name()), Some(pace));
         }
         assert_eq!(Pace::from_name("crawl"), None);
+    }
+
+    /// The mark card shows `pace.<name>` and sends the name back.
+    #[test]
+    fn every_pace_has_a_text_in_both_languages() {
+        for pace in Pace::ALL {
+            let key = format!("pace.{}", pace.name());
+            for language in [Language::German, Language::English] {
+                assert_ne!(language.text(&key), key);
+            }
+        }
     }
 
     /// One scene with an empty plan and no cameras, on an empty set.

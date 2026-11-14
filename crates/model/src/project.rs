@@ -87,15 +87,15 @@ pub enum FigureColor {
 }
 
 impl FigureColor {
-    /// Every colour, in the order the form offers them.
+    /// Every colour, in Kante's order of labels (the order the tool bar and forms offer).
     pub const ALL: [FigureColor; 7] = [
-        FigureColor::Purple,
-        FigureColor::Blue,
-        FigureColor::Green,
-        FigureColor::Yellow,
-        FigureColor::Orange,
         FigureColor::Red,
+        FigureColor::Orange,
+        FigureColor::Yellow,
+        FigureColor::Green,
         FigureColor::Cyan,
+        FigureColor::Blue,
+        FigureColor::Purple,
     ];
 
     /// The name the file format uses, e.g. `purple`; also Kante's label name.

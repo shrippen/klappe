@@ -878,7 +878,7 @@ fn choices_json(s: &Session) -> String {
         .collect();
     let lights: Vec<_> = tools::LIGHT_KINDS.iter().map(|(name, _)| name).collect();
 
-    let colors: Vec<_> = tools::DRAW_COLORS.iter().map(|(n, _)| n).collect();
+    let colors: Vec<_> = FigureColor::ALL.iter().map(|c| c.name()).collect();
     let dashes: Vec<_> = tools::DRAW_DASHES.iter().map(|(n, _)| n).collect();
     let fills: Vec<_> = tools::DRAW_FILLS.iter().map(|(n, _)| n).collect();
 
