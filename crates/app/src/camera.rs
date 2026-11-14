@@ -2,7 +2,11 @@
 //! means as a plan edit, and what the card lists to choose from (LH-32, LH-38). No optics here
 //! (agent.md): the session sets the values, Stellprobe works out the angle of view.
 
-use klappe_services::{CameraPresets, PlanEdit, Source};
+use klappe_services::{
+    read_number, CameraPresets, Field, PlanEdit, Range, ServiceError, Source, Unit,
+};
+
+use crate::tools::Typed;
 use serde_json::{json, Value};
 
 /// A field of the camera card, as QML names it to `setCameraField`.
@@ -30,33 +34,36 @@ impl CameraField {
     }
 }
 
-/// A number as typed: a comma or a point as decimal separator, more than zero. Absurd sizes
-/// are left to the session.
-fn parse_positive(text: &str) -> Option<f64> {
-    let number: f64 = text.trim().replace(',', ".").parse().ok()?;
-
-    (number.is_finite() && number > 0.0).then_some(number)
+/// A size as typed, more than zero. Absurd sizes are left to the session.
+fn positive(field: Field, text: &str, unit: Unit) -> Result<f64, ServiceError> {
+    read_number(field, text, unit, Range::Positive)
 }
 
 /// A frame as typed: a number (`2,39`) or a ratio (`16:9`).
-fn parse_aspect(text: &str) -> Option<f64> {
+fn parse_aspect(text: &str) -> Result<f64, ServiceError> {
+    let part = |text| positive(Field::Aspect, text, Unit::None);
     let Some((width, height)) = text.split_once(':') else {
-        return parse_positive(text);
+        return part(text);
     };
-    let aspect = parse_positive(width)? / parse_positive(height)?;
+    let aspect = part(width).and_then(|width| Ok(width / part(height)?));
 
-    aspect.is_finite().then_some(aspect)
+    aspect
+        .ok()
+        .filter(|aspect| aspect.is_finite())
+        .ok_or_else(|| ServiceError::BadValue {
+            field: Field::Aspect,
+            value: text.trim().to_owned(),
+        })
 }
 
 /// The value typed or chosen for `field` of the selected camera, as an edit. `None` when
-/// something other than a camera is selected, the body is not in the presets, or the text is
-/// no number.
+/// something other than a camera is selected or the body is not in the presets.
 pub fn camera_edit(
     selected: Option<&Source>,
     presets: &CameraPresets,
     field: CameraField,
     value: &str,
-) -> Option<PlanEdit> {
+) -> Typed {
     let Some(Source::Camera(id)) = selected else {
         return None;
     };
@@ -66,25 +73,29 @@ pub fn camera_edit(
         CameraField::Body => {
             let body = presets.bodies.iter().find(|b| b.id == value)?;
 
-            Some(PlanEdit::SetSensor {
+            Some(Ok(PlanEdit::SetSensor {
                 camera,
                 width_mm: body.width_mm,
                 aspect: Some(body.aspect),
-            })
+            }))
         }
-        CameraField::Sensor => Some(PlanEdit::SetSensor {
-            camera,
-            width_mm: parse_positive(value)?,
-            aspect: None,
-        }),
-        CameraField::Lens => Some(PlanEdit::SetLens {
-            camera,
-            lens_mm: parse_positive(value)?,
-        }),
-        CameraField::Aspect => Some(PlanEdit::SetAspect {
-            camera,
-            aspect: parse_aspect(value)?,
-        }),
+        CameraField::Sensor => {
+            let width = positive(Field::Sensor, value, Unit::Millimetre);
+
+            Some(width.map(|width_mm| PlanEdit::SetSensor {
+                camera,
+                width_mm,
+                aspect: None,
+            }))
+        }
+        CameraField::Lens => {
+            let lens = positive(Field::Lens, value, Unit::Millimetre);
+
+            Some(lens.map(|lens_mm| PlanEdit::SetLens { camera, lens_mm }))
+        }
+        CameraField::Aspect => {
+            Some(parse_aspect(value).map(|aspect| PlanEdit::SetAspect { camera, aspect }))
+        }
     }
 }
 
@@ -120,13 +131,23 @@ mod tests {
         Session::open(&dir).unwrap().camera_presets()
     }
 
+    /// The edit a typed field made, if it made one.
+    fn edit_of(typed: Typed) -> Option<PlanEdit> {
+        typed?.ok()
+    }
+
     fn camera() -> Source {
         Source::Camera("a".into())
     }
 
     #[test]
     fn a_body_sets_sensor_and_frame() {
-        let edit = camera_edit(Some(&camera()), presets(), CameraField::Body, "full-frame");
+        let edit = edit_of(camera_edit(
+            Some(&camera()),
+            presets(),
+            CameraField::Body,
+            "full-frame",
+        ));
 
         assert_eq!(
             edit,
@@ -137,14 +158,19 @@ mod tests {
             })
         );
         assert_eq!(
-            camera_edit(Some(&camera()), presets(), CameraField::Body, "kodak"),
+            edit_of(camera_edit(
+                Some(&camera()),
+                presets(),
+                CameraField::Body,
+                "kodak"
+            )),
             None
         );
     }
 
     #[test]
     fn typed_numbers_take_comma_or_point() {
-        let pick = |field, text| camera_edit(Some(&camera()), presets(), field, text);
+        let pick = |field, text| edit_of(camera_edit(Some(&camera()), presets(), field, text));
 
         assert_eq!(
             pick(CameraField::Sensor, " 23,5 "),
@@ -170,18 +196,26 @@ mod tests {
         );
     }
 
-    /// Characterisation: the camera card refuses the unit the shot list takes.
+    /// Audit, Fund 2: the camera card takes the unit the shot list takes.
     #[test]
-    fn typed_units_are_refused_by_the_camera_card() {
-        let pick = |field, text| camera_edit(Some(&camera()), presets(), field, text);
+    fn typed_units_are_taken_by_the_camera_card() {
+        let pick = |field, text| edit_of(camera_edit(Some(&camera()), presets(), field, text));
 
-        assert_eq!(pick(CameraField::Lens, "85 mm"), None);
-        assert_eq!(pick(CameraField::Sensor, "36 mm"), None);
+        assert!(pick(CameraField::Lens, "85 mm").is_some());
+        assert!(pick(CameraField::Sensor, "36 mm").is_some());
+        assert!(pick(CameraField::Lens, "85 m").is_none());
     }
 
     #[test]
     fn a_ratio_is_a_frame() {
-        let pick = |text| camera_edit(Some(&camera()), presets(), CameraField::Aspect, text);
+        let pick = |text| {
+            edit_of(camera_edit(
+                Some(&camera()),
+                presets(),
+                CameraField::Aspect,
+                text,
+            ))
+        };
 
         assert_eq!(
             pick("16:9"),
@@ -199,7 +233,7 @@ mod tests {
     fn what_is_no_length_is_no_edit() {
         for field in [CameraField::Sensor, CameraField::Lens, CameraField::Aspect] {
             for text in ["", "0", "-5", "breit", "NaN", "inf", "1e999"] {
-                let edit = camera_edit(Some(&camera()), presets(), field, text);
+                let edit = edit_of(camera_edit(Some(&camera()), presets(), field, text));
 
                 assert_eq!(edit, None, "{field:?} {text:?}");
             }
@@ -209,7 +243,12 @@ mod tests {
     #[test]
     fn only_a_camera_has_a_card() {
         for selected in [None, Some(Source::Object("o1".into()))] {
-            let edit = camera_edit(selected.as_ref(), presets(), CameraField::Lens, "50");
+            let edit = edit_of(camera_edit(
+                selected.as_ref(),
+                presets(),
+                CameraField::Lens,
+                "50",
+            ));
 
             assert_eq!(edit, None);
         }

@@ -16,6 +16,7 @@ mod error;
 mod example;
 mod field;
 mod library;
+mod number;
 mod plan_edit;
 mod project_edit;
 mod session;
@@ -28,6 +29,7 @@ pub use edit::ShotField;
 pub use error::ServiceError;
 pub use example::{copy_example, ensure_example};
 pub use field::Field;
+pub use number::{read_number, Range, Unit};
 pub use plan_edit::{MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{ProjectEdit, ShotsGo};
 pub use session::{
