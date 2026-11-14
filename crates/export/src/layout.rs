@@ -183,6 +183,8 @@ fn item_prims(
     } = role_style(item.role, pal)?;
 
     let (geom, bounds) = match &item.shape {
+        // Drawn by `image_prim`.
+        Shape::Image { .. } => return Ok(()),
         Shape::Line { from, to, width_m } => {
             let thick = width_m * map.scale;
             if item.role == Role::Wall {

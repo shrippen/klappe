@@ -215,7 +215,7 @@ impl Session {
             return DisplayList::default();
         };
 
-        let mut list = render(project, &location.set, plan, self.time_s);
+        let mut list = render(project, &location.set, plan, self.time_s, None);
         list.items
             .retain(|item| self.shows(item.role, item.source.as_ref()));
         list
@@ -591,7 +591,7 @@ impl Session {
 /// Which layer switch an item of the display list belongs to.
 fn layer_of(role: Role) -> Layer {
     match role {
-        Role::Wall | Role::Object => Layer::Set,
+        Role::Background | Role::Wall | Role::Object => Layer::Set,
         Role::Light | Role::LightBeam => Layer::Lights,
         Role::Camera | Role::Frustum | Role::CameraPath => Layer::Cameras,
         Role::Axis | Role::Figure(_) | Role::FigurePath(_) | Role::Mark(_) => Layer::Figures,

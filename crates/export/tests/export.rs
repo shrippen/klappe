@@ -99,7 +99,7 @@ fn plan() -> FloorPlan {
 }
 
 fn list() -> DisplayList {
-    render(&project(), &set(), &plan(), 0.0)
+    render(&project(), &set(), &plan(), 0.0, None)
 }
 
 fn german() -> Texts {
@@ -540,7 +540,7 @@ fn mark_number_clears_the_figure() {
             let mut plan = plan();
             plan.figures.truncate(1);
             plan.figures[0].marks = vec![mark(0.0, width_m / 2.0, depth_m / 2.0)];
-            let list = render(&project(), &room, &plan, 0.0);
+            let list = render(&project(), &room, &plan, 0.0, None);
             let page = Page::new(paper, Orientation::Landscape, TITLE, german());
             let out = svg(&list, &page, Theme::Light).unwrap();
 

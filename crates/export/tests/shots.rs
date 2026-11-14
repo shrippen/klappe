@@ -87,7 +87,7 @@ fn list(plan: &FloorPlan) -> DisplayList {
         background: None,
     };
 
-    render(&Project::new("Test"), &set, plan, 0.0)
+    render(&Project::new("Test"), &set, plan, 0.0, None)
 }
 
 fn page() -> Page {

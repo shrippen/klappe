@@ -137,7 +137,12 @@ pub(crate) fn pick(items: &[Item], at: Point) -> Option<Source> {
 fn grabbable(role: Role) -> bool {
     !matches!(
         role,
-        Role::Frustum | Role::Axis | Role::CameraPath | Role::FigurePath(_) | Role::LightBeam
+        Role::Background
+            | Role::Frustum
+            | Role::Axis
+            | Role::CameraPath
+            | Role::FigurePath(_)
+            | Role::LightBeam
     )
 }
 
