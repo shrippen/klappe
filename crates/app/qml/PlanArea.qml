@@ -18,9 +18,6 @@ Item {
     /// arrow, rect, ellipse or area.
     property string tool: "select"
     property string tipKey: ""
-    /// The pointer is over something the select tool can move: a left drag then moves it,
-    /// else it pans (middle button and space always pan).
-    property bool overGrab: false
     property bool dragging: false
     /// Escape aborted the drag in progress; the canvas goes on reporting until release.
     property bool dragAborted: false
@@ -43,12 +40,13 @@ Item {
         gridStep: 1
         shapes: area.plan ? area.plan.shapes : []
         accessibleName: area.texts.t("app.module")
-        editing: area.tool !== "select" || area.overGrab
+        // A left drag always edits: the select tool moves what it grabbed, or on empty ground
+        // pulls up a box to select in. The view pans with the middle button and with space.
+        editing: true
 
         onShapeHovered: (key, x, y) => {
             area.tipKey = key
             area.tipAt = canvas.mapFromModel(x, y)
-            area.overGrab = key !== "" && area.controller.grabbable(x, y)
         }
         onShapeClicked: (key, x, y) => area.controller.place(x, y)
         onShapeDragged: (key, fromX, fromY, x, y, done) => {
@@ -59,6 +57,21 @@ Item {
             }
             area.dragging = !done
             area.controller.drag(fromX, fromY, x, y, done)
+        }
+    }
+
+    // Shift at the press extends the selection (a click or a box adds to it, a click on a
+    // member takes it out). The canvas reports no modifiers; this handler lies above it, only
+    // looks, and leaves the press to it.
+    Item {
+        anchors.fill: parent
+        PointHandler {
+            acceptedButtons: Qt.LeftButton
+            onActiveChanged: {
+                if (active) {
+                    area.controller.extendSelection = (point.modifiers & Qt.ShiftModifier) !== 0
+                }
+            }
         }
     }
 
@@ -303,16 +316,21 @@ Item {
         }
     }
 
-    // Keys for the selection: Delete removes it, R and Shift+R turn it by 15 degrees, G makes
-    // its way straight.
+    // Keys for the selection: Delete removes it, R and Shift+R turn it by 15 degrees (several
+    // turn about their middle), Ctrl+D copies it, G makes its way straight.
     readonly property real turnStepDeg: 15
     // Not while a length is typed: Delete there edits the text.
-    readonly property bool hasSelection: !!controller.selectedKey && !lengthField.activeFocus && !noteField.activeFocus
+    readonly property bool hasSelection: (!!controller.selectedKey || controller.selectedCount > 0) && !lengthField.activeFocus && !noteField.activeFocus
         && !widthField.activeFocus && !depthField.activeFocus && !libraryName.activeFocus
     Shortcut {
         sequence: "Delete"
         enabled: area.hasSelection
         onActivated: area.controller.removeSelected()
+    }
+    Shortcut {
+        sequence: "Ctrl+D"
+        enabled: area.hasSelection
+        onActivated: area.controller.duplicateSelected()
     }
     Shortcut {
         sequence: "F2"

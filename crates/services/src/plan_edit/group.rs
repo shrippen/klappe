@@ -103,7 +103,7 @@ pub(super) fn duplicate(
     }
 
     Err(ServiceError::BadValue {
-        field: "copy",
+        field: "source",
         value: String::new(),
     })
 }

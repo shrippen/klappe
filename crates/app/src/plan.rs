@@ -207,14 +207,26 @@ fn guide(points: &[Point]) -> Vec<Value> {
     shapes
 }
 
+/// The box a drag on empty ground pulls up to take what lies in it (LH-08): outlined and
+/// tinted, as the other previews are.
+fn marquee_shape((a, b): (Point, Point)) -> Value {
+    json!({
+        "kind": "polygon",
+        "points": flat(&[a, Point::new(b.x_m, a.y_m), b, Point::new(a.x_m, b.y_m)]),
+        "radius": 0.0, "width": 0.0, "label": "focus", "stroke": DASHED, "fill": "tint",
+        "text": "", "key": "",
+    })
+}
+
 /// `{ width, depth, shapes: [...] }` for the canvas; `selected` marks the shot's camera.
 /// `dir` is the project folder the image files lie in; `picked` the points of a scale in
-/// progress.
+/// progress, `marquee` the box being pulled up.
 pub fn shapes_json(
     list: &DisplayList,
     dir: &Path,
     selected: &dyn Fn(&Source) -> bool,
     picked: &[Point],
+    marquee: Option<(Point, Point)>,
 ) -> String {
     let mut shapes: Vec<Value> = list
         .items
@@ -222,6 +234,7 @@ pub fn shapes_json(
         .filter_map(|i| shape(dir, i, selected))
         .collect();
     shapes.extend(guide(picked));
+    shapes.extend(marquee.map(marquee_shape));
 
     json!({ "width": list.width_m, "depth": list.depth_m, "shapes": shapes }).to_string()
 }
@@ -266,7 +279,7 @@ mod tests {
         };
         let is_a = |s: &Source| matches!(s, Source::Camera(id) if id == "a");
 
-        let json = shapes_json(&list, Path::new("/p"), &is_a, &[]);
+        let json = shapes_json(&list, Path::new("/p"), &is_a, &[], None);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["width"], 20.0);
@@ -294,7 +307,7 @@ mod tests {
             depth_m: 13.0,
         };
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[]);
+        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][0]["text"], "Vorhang schließen");
@@ -340,7 +353,7 @@ mod tests {
             depth_m: 13.0,
         };
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[]);
+        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][0]["label"], "cyan");
@@ -402,6 +415,7 @@ mod tests {
             Path::new("/home/a b/p#1"),
             &|_| false,
             &[],
+            None,
         );
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
         let image = &v["shapes"][0];
@@ -431,13 +445,30 @@ mod tests {
     }
 
     #[test]
+    fn a_box_being_pulled_is_a_tinted_outline() {
+        let list = DisplayList::default();
+        let corners = Some((Point::new(1.0, 2.0), Point::new(4.0, 3.0)));
+
+        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], corners);
+        let v: Value = serde_json::from_str(&json).unwrap_or_default();
+
+        assert_eq!(v["shapes"][0]["kind"], "polygon");
+        assert_eq!(
+            v["shapes"][0]["points"],
+            json!([1.0, 2.0, 4.0, 2.0, 4.0, 3.0, 1.0, 3.0])
+        );
+        assert_eq!(v["shapes"][0]["fill"], "tint");
+        assert_eq!(v["shapes"][0]["key"], "");
+    }
+
+    #[test]
     fn a_scale_in_progress_shows_its_points_and_line() {
         let list = DisplayList::default();
         let one = [Point::new(1.0, 1.0)];
         let two = [Point::new(1.0, 1.0), Point::new(4.0, 5.0)];
 
         let shapes = |picked: &[Point]| -> Vec<Value> {
-            let json = shapes_json(&list, Path::new("/p"), &|_| false, picked);
+            let json = shapes_json(&list, Path::new("/p"), &|_| false, picked, None);
             serde_json::from_str::<Value>(&json).unwrap_or_default()["shapes"]
                 .as_array()
                 .cloned()
