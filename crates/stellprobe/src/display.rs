@@ -63,7 +63,12 @@ pub enum Source {
     Light(String),
     Camera(String),
     Figure(String),
-    Mark { character: String, index: usize },
+    Mark {
+        character: String,
+        index: usize,
+    },
+    /// Index into the set's walls.
+    Wall(usize),
 }
 
 /// Figure body radius on the plan.
@@ -104,7 +109,7 @@ fn set_diagonal_m(set: &SetPlan) -> Option<f64> {
 }
 
 fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
-    for wall in &set.walls {
+    for (index, wall) in set.walls.iter().enumerate() {
         items.push(Item {
             role: Role::Wall,
             shape: Shape::Line {
@@ -113,7 +118,7 @@ fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
                 width_m: wall.thickness_m,
             },
             label: None,
-            source: None,
+            source: Some(Source::Wall(index)),
         });
     }
 
@@ -406,6 +411,13 @@ mod tests {
         assert_eq!(count(&list, Role::Frustum), 1);
         assert_eq!(count(&list, Role::Mark(FigureColor::Purple)), 2);
         assert_eq!(count(&list, Role::Figure(FigureColor::Blue)), 2);
+    }
+
+    #[test]
+    fn walls_are_selectable_by_index() {
+        let list = render(&project(), &set(), &plan(), 0.0);
+
+        assert_eq!(list.items[0].source, Some(Source::Wall(0)));
     }
 
     #[test]
