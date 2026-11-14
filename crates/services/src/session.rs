@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use klappe_export::{Orientation, Page, Paper, Texts, Theme};
-use klappe_model::{FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
+use klappe_model::{CameraPresets, FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{
     axis_jumps, handles, lens_at, ordered_shots, render, DisplayList, Role, Shape, ShotOrder,
@@ -781,6 +781,11 @@ impl Session {
     /// What the object tool offers: the built-in library, then the project's own objects.
     pub fn library(&self) -> Vec<LibraryEntry> {
         library::entries(&self.project.library)
+    }
+
+    /// What the camera card offers: sensor formats and lens sets (LH-32).
+    pub fn camera_presets(&self) -> &'static CameraPresets {
+        klappe_store::builtin_camera_presets()
     }
 
     /// Takes the entries of the library file `path` into the project; undoable. Returns how

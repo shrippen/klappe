@@ -9,6 +9,7 @@
 //!        └─► views: ShotRow, Track, ScriptLine  (plain data, ready to show)
 //! ```
 
+mod camera_edit;
 mod catalog;
 mod edit;
 mod error;
@@ -32,8 +33,8 @@ pub use views::{
 // What surfaces draw and print, handed through so they need no lower crate.
 pub use klappe_export::{Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme};
 pub use klappe_model::{
-    Angle, Arrival, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, LightKind,
-    Movement, ObjectShape, Point, Pose, Sensor, ShotSize,
+    Angle, Arrival, CameraBody, CameraPresets, Dash, Departure, DrawingShape, FigureColor, Fill,
+    FloorPlan, LensSet, LightKind, Movement, ObjectShape, Point, Pose, Sensor, ShotSize,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, DisplayList, Item, Role, Shape, ShotOrder, Source,

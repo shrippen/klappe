@@ -276,6 +276,14 @@ pub enum Sensor {
 }
 
 impl Sensor {
+    /// The sensor of this width: a named format when the width is its own, else `Custom`.
+    pub fn of_width_mm(width_mm: f64) -> Sensor {
+        [Sensor::Super35, Sensor::FullFrame, Sensor::MicroFourThirds]
+            .into_iter()
+            .find(|sensor| sensor.width_mm() == width_mm)
+            .unwrap_or(Sensor::Custom { width_mm })
+    }
+
     pub fn width_mm(self) -> f64 {
         match self {
             Sensor::Super35 => 24.89,
@@ -429,5 +437,14 @@ mod tests {
         assert!(json.contains(r#""arrival":"appear""#), "{json}");
         assert!(json.contains(r#""departure":"leave""#), "{json}");
         assert_eq!(back, mark);
+    }
+
+    /// A known width gets its named format, any other stays as typed.
+    #[test]
+    fn a_width_finds_its_sensor() {
+        assert_eq!(Sensor::of_width_mm(24.89), Sensor::Super35);
+        assert_eq!(Sensor::of_width_mm(36.0), Sensor::FullFrame);
+        assert_eq!(Sensor::of_width_mm(17.3), Sensor::MicroFourThirds);
+        assert_eq!(Sensor::of_width_mm(23.5), Sensor::Custom { width_mm: 23.5 });
     }
 }

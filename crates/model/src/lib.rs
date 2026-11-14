@@ -18,12 +18,14 @@
 //! (`_mm`), kelvin (`_k`), watts (`_w`). The plan's origin is its top left corner, x to the right,
 //! y downwards (as drawn); 0° faces right (+x), angles grow clockwise on screen.
 
+mod camera_preset;
 mod geometry;
 mod library;
 mod plan;
 mod project;
 mod shot;
 
+pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use geometry::Point;
 pub use library::{is_object_size_m, LibraryItem, ObjectShape, MAX_OBJECT_M};
 pub use plan::{
