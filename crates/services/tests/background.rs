@@ -270,9 +270,9 @@ fn the_image_is_the_hindmost_item_of_the_set_layer_and_cannot_be_picked() {
     assert!(hidden.items.iter().all(|i| i.role != Role::Background));
 }
 
-/// A missing file draws nothing (the plan still opens); the size of a read one is remembered.
+/// A missing file draws nothing; the plan still opens.
 #[test]
-fn a_missing_image_is_left_out_and_a_known_size_is_remembered() {
+fn a_missing_image_is_left_out() {
     let (s, dir) = with_background("bg-missing");
     let has_image = |s: &Session| {
         s.display_list()
@@ -283,7 +283,7 @@ fn a_missing_image_is_left_out_and_a_known_size_is_remembered() {
 
     assert!(has_image(&s));
     std::fs::remove_file(dir.join(IMAGE)).unwrap();
-    assert!(has_image(&s));
+    assert!(!has_image(&s));
 
     let fresh = Session::open(&dir).unwrap();
     assert!(!has_image(&fresh));
@@ -320,4 +320,26 @@ fn the_pdf_carries_the_background_image() {
     let text = String::from_utf8_lossy(&bytes);
     assert!(text.contains("/Width 1000 /Height 500 /ColorSpace /DeviceRGB"));
     assert!(text.contains("/Filter /DCTDecode"));
+}
+
+/// `bilder/` is the user's: a file replaced during the session, with another aspect ratio
+/// under the same name, shows with its new depth (10 m wide: 1000 x 500 px is 5 m deep,
+/// 1000 x 1000 px is 10 m).
+#[test]
+fn a_replaced_image_is_measured_again() {
+    let (s, dir) = with_background("bg-replaced");
+    let depth_m = |s: &Session| {
+        s.display_list().items.iter().find_map(|i| match i.shape {
+            Shape::Image { depth_m, .. } => Some(depth_m),
+            _ => None,
+        })
+    };
+    assert_eq!(depth_m(&s), Some(5.0));
+
+    // One byte more, so that the length differs whatever the clock's resolution.
+    let mut square = png(1000, 1000);
+    square.push(0);
+    std::fs::write(dir.join(IMAGE), square).unwrap();
+
+    assert_eq!(depth_m(&s), Some(10.0));
 }

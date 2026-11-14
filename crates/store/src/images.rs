@@ -87,6 +87,33 @@ pub fn read_image(dir: &Path, file: &str) -> Result<Vec<u8>, StoreError> {
     fs::read(&path).map_err(|e| io_err(&path, e))
 }
 
+/// What tells whether an image file changed: its length and modification time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImageStamp {
+    len: u64,
+    modified: Option<std::time::SystemTime>,
+}
+
+/// The stamp of `file` (relative to `dir`, inside it), without reading it.
+pub fn image_stamp(dir: &Path, file: &str) -> Result<ImageStamp, StoreError> {
+    let inside = Path::new(file)
+        .components()
+        .all(|c| matches!(c, Component::Normal(_)));
+    if !inside {
+        return Err(StoreError::BadId {
+            id: file.to_owned(),
+        });
+    }
+
+    let path = dir.join(file);
+    let meta = fs::metadata(&path).map_err(|e| io_err(&path, e))?;
+
+    Ok(ImageStamp {
+        len: meta.len(),
+        modified: meta.modified().ok(),
+    })
+}
+
 /// Width and height in pixels of `file` (relative to `dir`), read from the file header.
 pub fn image_size(dir: &Path, file: &str) -> Result<(u32, u32), StoreError> {
     let bytes = read_image(dir, file)?;

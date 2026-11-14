@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 pub use error::StoreError;
 use files::{Dir, Kind};
-pub use images::{add_image, image_size, read_image};
+pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
 
 const PROJECT_FILE: &str = "projekt.toml";
 const CHARACTERS_FILE: &str = "figuren.toml";

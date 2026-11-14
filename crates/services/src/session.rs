@@ -6,6 +6,7 @@ use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::{FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{axis_jumps, lens_at, render, DisplayList, Role, Shape, Source};
+use klappe_store::ImageStamp;
 use klappe_store::Loaded;
 
 use crate::edit::{self, ShotField};
@@ -67,6 +68,9 @@ pub enum BackupState {
     Unreadable(String),
 }
 
+/// The pixel size of an image file and the stamp it was read at.
+type StampedSize = (ImageStamp, (u32, u32));
+
 /// One open project and what the user looks at.
 #[derive(Debug)]
 pub struct Session {
@@ -85,9 +89,10 @@ pub struct Session {
     redo: Vec<Project>,
     dirty: bool,
     /// Pixel size of the image files read so far: every redraw asks, the file header is read
-    /// once. A file keeps its name for good (`add_image` numbers clashing names), so the
-    /// entry stays right; unreadable files are not kept and are tried again.
-    image_px: RefCell<HashMap<String, (u32, u32)>>,
+    /// once. `bilder/` is the user's, so a file may change under its name: an entry counts
+    /// only while the file's stamp (length, modification time) is the one it was read at.
+    /// Unreadable files are not kept and are tried again.
+    image_px: RefCell<HashMap<String, StampedSize>>,
     /// Changed since the last save or autosave: what `autosave` writes.
     unbacked: bool,
     /// The project (not only the screenplay) changed since the last save.
@@ -333,13 +338,14 @@ impl Session {
 
     /// Pixel size of an image of the project folder; remembered per file.
     fn image_size(&self, file: &str) -> Option<(u32, u32)> {
+        let stamp = klappe_store::image_stamp(&self.dir, file).ok()?;
         let mut known = self.image_px.borrow_mut();
-        if let Some(px) = known.get(file) {
+        if let Some((_, px)) = known.get(file).filter(|(seen, _)| *seen == stamp) {
             return Some(*px);
         }
 
         let px = klappe_store::image_size(&self.dir, file).ok()?;
-        known.insert(file.to_owned(), px);
+        known.insert(file.to_owned(), (stamp, px));
 
         Some(px)
     }
