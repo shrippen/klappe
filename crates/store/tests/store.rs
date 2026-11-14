@@ -170,6 +170,17 @@ fn plan() -> FloorPlan {
         b: "burgvogt".into(),
     });
 
+    plan.drawings = vec![Drawing {
+        id: "d1".into(),
+        shape: DrawingShape::Arrow {
+            from: Point::new(6.0, 10.0),
+            to: Point::new(6.0, 7.5),
+        },
+        color: FigureColor::Red,
+        dash: Dash::Solid,
+        fill: Fill::Outline,
+    }];
+
     plan.links = vec![
         ScriptLink {
             element: 0,
@@ -336,6 +347,47 @@ fn a_set_without_notes_loads_and_writes_none() {
     assert!(!text.contains("notes"), "{text}");
     assert!(loaded.project.locations[0].set.notes.is_empty());
     assert_eq!(loaded.project, project);
+}
+
+/// A plan without drawings writes no `drawings` key, and a file without it loads as before
+/// (LH-19).
+#[test]
+fn a_plan_without_drawings_loads_and_writes_none() {
+    let dir = test_dir("no-drawings");
+    let mut project = example();
+    project.scenes[0].plans[0].drawings.clear();
+
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let loaded = load(&dir).unwrap();
+
+    assert!(!text.contains("drawings"), "{text}");
+    assert!(loaded.project.scenes[0].plans[0].drawings.is_empty());
+    assert_eq!(loaded.project, project);
+}
+
+/// Shape, colour, dash and fill of a drawing survive saving and loading.
+#[test]
+fn drawings_round_trip() {
+    let dir = test_dir("drawings");
+    let mut project = example();
+    project.scenes[0].plans[0].drawings.push(Drawing {
+        id: "d2".into(),
+        shape: DrawingShape::Area {
+            points: vec![
+                Point::new(1.0, 1.0),
+                Point::new(4.0, 1.0),
+                Point::new(2.5, 3.0),
+            ],
+        },
+        color: FigureColor::Cyan,
+        dash: Dash::Dashed,
+        fill: Fill::Filled,
+    });
+
+    save(&dir, &project, None).unwrap();
+
+    assert_eq!(load(&dir).unwrap().project, project);
 }
 
 #[test]

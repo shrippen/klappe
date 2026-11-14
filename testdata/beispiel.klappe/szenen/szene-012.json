@@ -249,7 +249,26 @@
       "axis": {
         "a": "elisabeth",
         "b": "burgvogt"
-      }
+      },
+      "drawings": [
+        {
+          "id": "d1",
+          "shape": {
+            "kind": "arrow",
+            "from": {
+              "x_m": 6.0,
+              "y_m": 10.0
+            },
+            "to": {
+              "x_m": 6.0,
+              "y_m": 7.5
+            }
+          },
+          "color": "red",
+          "dash": "solid",
+          "fill": "outline"
+        }
+      ]
     }
   ]
 }
