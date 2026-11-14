@@ -506,6 +506,15 @@ impl Default for ControllerRust {
 }
 
 impl ControllerRust {
+    /// Forgets what was picked and half drawn: it belongs to the plan on screen, not to the
+    /// next scene or project.
+    fn drop_drafts(&mut self) {
+        self.selected = None;
+        self.scale = ScaleStep::Idle;
+        self.note = NoteDraft::Idle;
+        self.area = AreaDraft::default();
+    }
+
     /// The points picked for a scale or an area: a preview on top of the plan.
     fn picked(&self) -> Vec<Point> {
         let mut points = self.scale.points();
@@ -1383,6 +1392,7 @@ impl qobject::Controller {
             return false;
         }
 
+        self.as_mut().rust_mut().get_mut().drop_drafts();
         self.refresh();
         true
     }
@@ -1534,9 +1544,7 @@ impl qobject::Controller {
         {
             let this = self.as_mut().rust_mut().get_mut();
             this.session = Some(session);
-            this.selected = None;
-            this.scale = ScaleStep::Idle;
-            this.note = NoteDraft::Idle;
+            this.drop_drafts();
         }
         self.as_mut().set_loaded(true);
         self.as_mut().changed();
@@ -1657,5 +1665,30 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
         }
         "note" => json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() }),
         _ => json!({}),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Review of PR 23: area, scale and note drafts outlived a change of scene or project;
+    /// Enter then made an area from the old plan's points in the new one.
+    #[test]
+    fn drafts_go_with_the_plan() {
+        let mut c = ControllerRust {
+            area: AreaDraft::default().click(Point::new(1.0, 1.0)),
+            scale: ScaleStep::Idle.click(Point::new(2.0, 2.0)),
+            note: NoteDraft::New(Point::new(3.0, 3.0)),
+            selected: Some(Source::Wall(0)),
+            ..ControllerRust::default()
+        };
+
+        c.drop_drafts();
+
+        assert!(c.area.is_empty());
+        assert_eq!(c.scale, ScaleStep::Idle);
+        assert_eq!(c.note, NoteDraft::Idle);
+        assert_eq!(c.selected, None);
     }
 }
