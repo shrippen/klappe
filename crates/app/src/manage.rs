@@ -3,8 +3,9 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{CardState, Field, Language, ProjectCard, ServiceError, Session};
-
+use klappe_services::{
+    read_number, CardState, Field, Language, ProjectCard, Range, ServiceError, Session, Unit,
+};
 use serde_json::{json, Value};
 
 use crate::fileurl;
@@ -102,14 +103,13 @@ pub(crate) fn group_of(count: u32) -> Option<u32> {
     }
 }
 
-/// A length typed by the user, `"8,5"` or `"8.5 m"`.
-pub fn metres(field: Field, text: &str) -> Result<f64, ServiceError> {
-    let digits = text.trim().trim_end_matches('m').trim().replace(',', ".");
+/// Width and depth typed in the location form, `"8,5"` or `"8.5 m"`; the session sets the
+/// range.
+pub fn sizes(width: &str, depth: &str) -> Result<(f64, f64), ServiceError> {
+    let width_m = read_number(Field::Width, width, Unit::Metre, Range::Any)?;
+    let depth_m = read_number(Field::Depth, depth, Unit::Metre, Range::Any)?;
 
-    digits.parse().map_err(|_| ServiceError::BadValue {
-        field,
-        value: text.trim().to_owned(),
-    })
+    Ok((width_m, depth_m))
 }
 
 /// The stored list (a JSON array of folders); anything else reads as empty.
@@ -364,15 +364,23 @@ mod tests {
 
     #[test]
     fn lengths_take_commas_and_units() {
-        assert_eq!(metres(Field::Width, "8,5").ok(), Some(8.5));
-        assert_eq!(metres(Field::Width, " 12 m ").ok(), Some(12.0));
+        assert_eq!(sizes("8,5", " 12 m ").ok(), Some((8.5, 12.0)));
         assert!(matches!(
-            metres(Field::Depth, "breit"),
+            sizes("8", "breit"),
             Err(ServiceError::BadValue {
                 field: Field::Depth,
                 ..
             })
         ));
+    }
+
+    /// Audit, Fund 2: no range here (the session sets it), but never NaN or infinity.
+    #[test]
+    fn lengths_have_no_range_here() {
+        assert_eq!(sizes("0", "-3").ok(), Some((0.0, -3.0)));
+        assert!(sizes("", "1").is_err());
+        assert!(sizes("inf", "1").is_err());
+        assert!(sizes("8 s", "1").is_err());
     }
 
     #[test]

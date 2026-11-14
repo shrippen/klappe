@@ -563,7 +563,7 @@ use crate::notice::{backup_view, error_text, Status};
 use crate::plan::{self, ElementKind, Measure};
 use crate::tools::{
     self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Grip, Key, MeasureStep, NoteDraft,
-    Pick, Preview, ScaleStep, Selection, Tool,
+    Pick, Preview, ScaleStep, Selection, Tool, Typed,
 };
 
 /// Whether `refresh` found another scene or plan on view than before.
@@ -1475,8 +1475,9 @@ impl qobject::Controller {
 
     fn calibrate(mut self: Pin<&mut Self>, distance: &QString) -> bool {
         let step = self.rust().scale;
-        let Some(edit) = tools::scale_edit(step, &distance.to_string()) else {
-            return false;
+        let edit = match tools::scale_edit(step, &distance.to_string()) {
+            Some(Ok(edit)) => edit,
+            typed => return self.commit_typed(typed),
         };
 
         self.as_mut().rust_mut().get_mut().scale = ScaleStep::Idle;
@@ -1625,30 +1626,23 @@ impl qobject::Controller {
 
     fn resize_selected(self: Pin<&mut Self>, width: &QString, depth: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::resize_edit(selected, &width.to_string(), &depth.to_string())
-        else {
-            return false;
-        };
+        let typed = tools::resize_edit(selected, &width.to_string(), &depth.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::object_height_edit(selected, &height.to_string()) else {
-            return false;
-        };
+        let typed = tools::object_height_edit(selected, &height.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn set_camera_aim(self: Pin<&mut Self>, height: &QString, tilt: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::aim_edit(selected, &height.to_string(), &tilt.to_string()) else {
-            return false;
-        };
+        let typed = tools::aim_edit(selected, &height.to_string(), &tilt.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn set_camera_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool {
@@ -1659,12 +1653,9 @@ impl qobject::Controller {
             return false;
         };
         let selected = self.rust().selected.only();
-        let edit = camera::camera_edit(selected, s.camera_presets(), field, &value.to_string());
-        let Some(edit) = edit else {
-            return false;
-        };
+        let typed = camera::camera_edit(selected, s.camera_presets(), field, &value.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn mark_info(&self) -> QString {
@@ -1704,11 +1695,9 @@ impl qobject::Controller {
 
     fn set_mark_hold(self: Pin<&mut Self>, seconds: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::hold_edit(selected, &seconds.to_string()) else {
-            return false;
-        };
+        let typed = tools::hold_edit(selected, &seconds.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 
     fn set_mark_pace(self: Pin<&mut Self>, pace: &QString) -> bool {
@@ -1961,6 +1950,16 @@ impl qobject::Controller {
         self.as_mut().rust_mut().get_mut().preview = Preview::Shown;
         self.set_plan_json(q(&json));
         true
+    }
+
+    /// Applies what a typed field made of the selection; a refused text goes to the status
+    /// line.
+    fn commit_typed(self: Pin<&mut Self>, typed: Typed) -> bool {
+        match typed {
+            None => false,
+            Some(Ok(edit)) => self.commit_edit(edit),
+            Some(Err(e)) => self.report(Some(Err(e))),
+        }
     }
 
     /// Applies `edit`; an error goes to the status line.
@@ -2386,10 +2385,7 @@ impl qobject::Controller {
 
 /// Width and depth typed in the location form.
 fn sizes(width: &QString, depth: &QString) -> Result<(f64, f64), ServiceError> {
-    let width_m = manage::metres(Field::Width, &width.to_string())?;
-    let depth_m = manage::metres(Field::Depth, &depth.to_string())?;
-
-    Ok((width_m, depth_m))
+    manage::sizes(&width.to_string(), &depth.to_string())
 }
 
 /// The colour a form sends by its role name.
