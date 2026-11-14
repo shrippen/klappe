@@ -21,6 +21,12 @@ pub enum PlanEdit {
         dx_m: f64,
         dy_m: f64,
     },
+    /// Turns it by an angle from where it faces now (walls: from their direction), clockwise
+    /// for a positive `by_deg`.
+    Spin {
+        source: Source,
+        by_deg: f64,
+    },
     /// Turns it to face `facing_deg` (objects: rotation; walls: their direction).
     Turn {
         source: Source,
@@ -200,6 +206,7 @@ pub(crate) fn apply(
         PlanEdit::Shift { source, dx_m, dy_m } => {
             shift(&mut scope, source, (*dx_m, *dy_m), snapping)
         }
+        PlanEdit::Spin { source, by_deg } => spin(&mut scope, source, *by_deg),
         PlanEdit::Turn { source, facing_deg } => turn(&mut scope, source, *facing_deg),
         PlanEdit::Remove { source } => remove(&mut scope, source),
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
@@ -218,7 +225,10 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::AddLight { at, .. }
         | PlanEdit::AddObject { at, .. } => check_point(*at),
         PlanEdit::Shift { dx_m, dy_m, .. } => check_point(Point::new(*dx_m, *dy_m)),
-        PlanEdit::Turn { facing_deg, .. } => check_angle(*facing_deg),
+        PlanEdit::Spin {
+            by_deg: facing_deg, ..
+        }
+        | PlanEdit::Turn { facing_deg, .. } => check_angle(*facing_deg),
         PlanEdit::AddCamera { at, facing_deg } => {
             check_point(*at)?;
             check_angle(*facing_deg)
@@ -388,6 +398,15 @@ fn shift(
     let to = snap(Point::new(now.x_m + by_m.0, now.y_m + by_m.1), snapping);
 
     move_to(scope, source, to)
+}
+
+fn spin(scope: &mut Scope<'_>, source: &Source, by_deg: f64) -> Result<(), ServiceError> {
+    let now_deg = match target(scope, source)? {
+        Target::Place { facing_deg, .. } => *facing_deg,
+        Target::Wall(wall) => wall.from.bearing_deg(wall.to),
+    };
+
+    turn(scope, source, now_deg + by_deg)
 }
 
 fn turn(scope: &mut Scope<'_>, source: &Source, facing_deg: f64) -> Result<(), ServiceError> {

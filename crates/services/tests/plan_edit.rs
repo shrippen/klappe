@@ -662,6 +662,46 @@ fn a_shift_snaps_the_middle_of_a_wall() {
     assert!(near(wall.to, p(20.25, 0.5)), "{:?}", wall.to);
 }
 
+/// Camera A faces 330 at the start: 15 more is 345; Elisabeth's first mark faces 0: 15 less
+/// is -15, kept as 345.
+#[test]
+fn a_spin_adds_to_the_facing() {
+    let mut s = open();
+
+    s.edit_plan(PlanEdit::Spin {
+        source: Source::Camera("a".into()),
+        by_deg: 15.0,
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Spin {
+        source: mark("elisabeth", 0),
+        by_deg: -15.0,
+    })
+    .unwrap();
+
+    let plan = s.plan().unwrap();
+    assert_eq!(plan.cameras[0].marks[0].facing_deg, 345.0);
+    assert_eq!(plan.figures[0].marks[0].facing_deg, 345.0);
+}
+
+/// Wall 0 runs (0, 0) to (20, 0): direction 0, middle (10, 0), half length 10. Spun by 15 it
+/// ends at (10 - 10 cos 15, -10 sin 15) = (0.340742, -2.588190) and the mirror image.
+#[test]
+fn a_spin_turns_a_wall_about_its_middle() {
+    let mut s = open();
+
+    s.edit_plan(PlanEdit::Spin {
+        source: Source::Wall(0),
+        by_deg: 15.0,
+    })
+    .unwrap();
+
+    let wall = &location_set(&s).walls[0];
+    let close = |a: Point, b: Point| a.distance_m(b) < 1e-5;
+    assert!(close(wall.from, p(0.340742, -2.588190)), "{:?}", wall.from);
+    assert!(close(wall.to, p(19.659258, 2.588190)), "{:?}", wall.to);
+}
+
 #[test]
 fn a_shift_by_nothing_is_no_step_and_nan_is_refused() {
     let mut s = open();
