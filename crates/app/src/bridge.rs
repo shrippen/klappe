@@ -565,6 +565,8 @@ mod notes;
 mod plans;
 mod playback;
 mod project;
+#[cfg(test)]
+mod qml_tests;
 mod script;
 mod selection;
 mod shots;
