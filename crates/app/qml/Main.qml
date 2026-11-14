@@ -115,6 +115,7 @@ Kirigami.ApplicationWindow {
 
             // Tool bar: the drawing tools, then what to show.
             RowLayout {
+                enabled: !backupNotice.blocking
                 Layout.fillWidth: true
                 Layout.leftMargin: Kirigami.Units.smallSpacing
                 Layout.rightMargin: Kirigami.Units.smallSpacing
@@ -148,7 +149,16 @@ Kirigami.ApplicationWindow {
 
             Kirigami.Separator { Layout.fillWidth: true }
 
+            BackupNotice {
+                id: backupNotice
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.smallSpacing
+                texts: texts
+                controller: ctl
+            }
+
             RowLayout {
+                enabled: !backupNotice.blocking
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 0
@@ -184,6 +194,7 @@ Kirigami.ApplicationWindow {
 
             Kirigami.Separator { Layout.fillWidth: true; visible: root.showTimeline && ctl.loaded }
             Timeline {
+                enabled: !backupNotice.blocking
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 16
                 visible: root.showTimeline && ctl.loaded
@@ -198,6 +209,17 @@ Kirigami.ApplicationWindow {
         title: texts.t("background.pick")
         nameFilters: [texts.t("background.filter")]
         onAccepted: ctl.setBackground(selectedFile.toString())
+    }
+
+    // Closing keeps the last seconds too: they go to the backup, offered at the next open.
+    onClosing: ctl.autosave()
+
+    // Backs up unsaved changes while a project is open; errors reach the status line.
+    Timer {
+        interval: ctl.autosaveMs
+        running: ctl.loaded
+        repeat: true
+        onTriggered: ctl.autosave()
     }
 
     // Tests and release screenshots: --screenshot PATH [--screenshot-after MS], then quit.

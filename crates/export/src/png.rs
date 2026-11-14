@@ -2,8 +2,11 @@
 //!
 //! PDF's Flate filter with predictor 15 reads PNG's own scanline format, so a PNG without an
 //! alpha channel (up to 8 bits per sample) goes in as it is: the compressed data is copied,
-//! never decoded. The rest (alpha, 16 bits) is inflated, unfiltered and laid over the paper
-//! colour as plain RGB.
+//! never decoded. `tRNS` stays that way where the PDF can say it with a colour key mask
+//! (`/Mask`): one colour of a gray or RGB image, or a run of palette entries that are fully
+//! see-through. The rest is inflated, unfiltered and laid over the paper colour as plain RGB:
+//! an alpha channel, partial alpha in a palette, scattered see-through entries, 16 bits. That
+//! costs memory, so it is refused above `MAX_DECODED_BYTES`.
 
 use std::fmt::Write;
 
@@ -14,8 +17,9 @@ pub(crate) const SIGNATURE: [u8; 8] = *b"\x89PNG\r\n\x1a\n";
 const IHDR_LEN: usize = 13;
 const CHUNK_HEAD_LEN: usize = 8;
 const CHUNK_TAIL_LEN: usize = 4;
-/// Longest decoded image accepted, so a small file cannot ask for gigabytes.
-const MAX_DECODED_BYTES: usize = 1 << 29;
+/// Most bytes the decoding path may hold at once (scanlines, and the RGB output of 3 bytes per
+/// pixel), so that a small file cannot ask for gigabytes.
+const MAX_DECODED_BYTES: usize = 1 << 28;
 const BYTE_BITS: usize = 8;
 const FILTER_SUB: u8 = 1;
 const FILTER_UP: u8 = 2;
@@ -23,6 +27,7 @@ const FILTER_AVERAGE: u8 = 3;
 const FILTER_PAETH: u8 = 4;
 const OPAQUE: u32 = 255;
 const RGB_CHANNELS: usize = 3;
+const MAX_CHANNELS: usize = 4;
 
 type Result<T> = std::result::Result<T, String>;
 
@@ -145,13 +150,17 @@ impl Png {
 
         let (w, h) = (self.width, self.height);
         let size = format!("/Width {w} /Height {h}");
-        if self.color.has_alpha() || self.depth > 8 || !self.transparency.is_empty() {
+        let mask = match self.color.has_alpha() || self.depth > 8 {
+            true => None,
+            false => self.mask(),
+        };
+        let Some(mask) = mask else {
             let rgb = self.rgb_over(paper)?;
             return Ok((
                 format!("{size} /ColorSpace /DeviceRGB /BitsPerComponent 8"),
                 rgb,
             ));
-        }
+        };
 
         let space = match self.color {
             Color::Gray => "/DeviceGray".to_owned(),
@@ -161,10 +170,49 @@ impl Png {
         let (colors, bits) = (self.color.channels(), self.depth);
         let dict = format!(
             "{size} /ColorSpace {space} /BitsPerComponent {bits} /Filter /FlateDecode \
-             /DecodeParms << /Predictor 15 /Colors {colors} /BitsPerComponent {bits} /Columns {w} >>"
+             /DecodeParms << /Predictor 15 /Colors {colors} /BitsPerComponent {bits} /Columns {w} >>{mask}"
         );
 
         Ok((dict, self.idat.clone()))
+    }
+
+    /// The `/Mask` entry that says what `tRNS` says, `""` without see-through pixels; `None`
+    /// when a mask cannot say it. A mask is one range per colour component, and a pixel is
+    /// not painted when all its components are in range: so a palette can only hide a run of
+    /// entries, and only entirely.
+    fn mask(&self) -> Option<String> {
+        let key: Vec<u16> = self
+            .transparency
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| u16::from_be_bytes(*b))
+            .collect();
+        let range = |values: &[u16]| {
+            let pairs: Vec<String> = values.iter().map(|v| format!("{v} {v}")).collect();
+            format!(" /Mask [{}]", pairs.join(" "))
+        };
+
+        match self.color {
+            Color::Gray => Some(key.get(..1).map(range).unwrap_or_default()),
+            Color::Rgb => Some(key.get(..3).map(range).unwrap_or_default()),
+            Color::Indexed => {
+                let hidden: Vec<usize> = (0..self.transparency.len())
+                    .filter(|i| self.transparency[*i] == 0)
+                    .collect();
+                let partial = self
+                    .transparency
+                    .iter()
+                    .any(|a| *a != 0 && *a != OPAQUE as u8);
+                let (Some(first), Some(last)) = (hidden.first(), hidden.last()) else {
+                    return (!partial).then(String::new);
+                };
+                let one_run = last - first + 1 == hidden.len();
+
+                (one_run && !partial).then(|| format!(" /Mask [{first} {last}]"))
+            }
+            _ => Some(String::new()),
+        }
     }
 
     /// 8-bit RGB, alpha (channel or `tRNS`) laid over `paper`; 16-bit samples keep their high
@@ -181,6 +229,12 @@ impl Png {
             .filter(|n| *n <= MAX_DECODED_BYTES)
             .ok_or("PNG too large")?;
 
+        let out_bytes = w
+            .checked_mul(h)
+            .and_then(|n| n.checked_mul(RGB_CHANNELS))
+            .filter(|n| *n <= MAX_DECODED_BYTES)
+            .ok_or("PNG too large to print: its decoded RGB data would exceed the limit")?;
+
         let raw = inflate::zlib(&self.idat, expected)?;
         if raw.len() != expected {
             return Err("PNG data is shorter than its size says".to_owned());
@@ -189,22 +243,31 @@ impl Png {
         let rows = unfilter(&raw, row_bytes, pixel_bytes, h)?;
 
         let max = (1_u32 << depth) - 1;
-        let mut out = Vec::with_capacity(w * h * RGB_CHANNELS);
+        let key: Vec<u32> = self
+            .transparency
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| u32::from(u16::from_be_bytes(*b)))
+            .collect();
+        let mut out = Vec::with_capacity(out_bytes);
         for row in rows.chunks_exact(row_bytes) {
             for x in 0..w {
                 // Raw samples at their own depth.
-                let s: Vec<u32> = (0..channels)
-                    .map(|c| sample(row, x * channels + c, depth))
-                    .collect();
+                let mut s = [0_u32; MAX_CHANNELS];
+                for (c, value) in s.iter_mut().enumerate().take(channels) {
+                    *value = sample(row, x * channels + c, depth);
+                }
+                let keyed = key_alpha(&key, &s[..channels]);
                 let to8 = |v: u32| match depth {
                     16 => v >> 8,
                     8 => v,
                     _ => v * OPAQUE / max,
                 };
                 let (rgb, alpha) = match self.color {
-                    Color::Gray => ([to8(s[0]); 3], self.key_alpha(&s)),
+                    Color::Gray => ([to8(s[0]); 3], keyed),
                     Color::GrayAlpha => ([to8(s[0]); 3], to8(s[1])),
-                    Color::Rgb => ([to8(s[0]), to8(s[1]), to8(s[2])], self.key_alpha(&s)),
+                    Color::Rgb => ([to8(s[0]), to8(s[1]), to8(s[2])], keyed),
                     Color::Rgba => ([to8(s[0]), to8(s[1]), to8(s[2])], to8(s[3])),
                     Color::Indexed => {
                         let i = s[0] as usize;
@@ -223,22 +286,14 @@ impl Png {
 
         Ok(out)
     }
+}
 
-    /// Gray and RGB: the pixel is see-through when it equals the colour `tRNS` names (one
-    /// big-endian 16-bit value per channel).
-    fn key_alpha(&self, samples: &[u32]) -> u32 {
-        let key: Vec<u32> = self
-            .transparency
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|b| u32::from(u16::from_be_bytes(*b)))
-            .collect();
-
-        match !key.is_empty() && key == samples {
-            true => 0,
-            false => OPAQUE,
-        }
+/// Gray and RGB: the pixel is see-through when it equals the colour `tRNS` names (one 16-bit
+/// value per channel, `key`).
+fn key_alpha(key: &[u32], samples: &[u32]) -> u32 {
+    match !key.is_empty() && key == samples {
+        true => 0,
+        false => OPAQUE,
     }
 }
 
@@ -430,24 +485,118 @@ mod tests {
 
     /// Palette PNG, 1 bit, two pixels: index 0 (black, `tRNS` alpha 0) and index 1 (red).
     /// The see-through pixel prints as the paper, not as black.
-    #[test]
-    fn trns_makes_palette_pixels_see_through() {
-        let mut bytes = png(2, 1, 1, 3, &[0, 0b0100_0000], &[0, 0, 0, 255, 0, 0]);
-        // Right after PLTE: the chunk list is IHDR, PLTE, IDAT, IDAT, IEND.
+    /// A PNG of the given type, depth and size whose `tRNS` chunk is `trns`; the pixel data
+    /// is `raw` (scanlines with filter bytes), or just a few bytes for the huge sizes that the
+    /// tests only parse.
+    fn png_trns(
+        w: u32,
+        h: u32,
+        depth: u8,
+        color: u8,
+        raw: &[u8],
+        palette: &[u8],
+        trns: &[u8],
+    ) -> Vec<u8> {
+        let mut bytes = png(w, h, depth, color, raw, palette);
+        // The chunk list is IHDR, [PLTE], IDAT, IDAT, IEND: tRNS goes in before the first IDAT.
         let at = bytes.windows(4).position(|w| w == b"IDAT").unwrap() - 4;
-        let mut trns = Vec::new();
-        chunk(&mut trns, b"tRNS", &[0]);
-        bytes.splice(at..at, trns);
-        let paper = Rgb {
-            r: 250,
-            g: 240,
-            b: 230,
-        };
+        let mut chunk_bytes = Vec::new();
+        chunk(&mut chunk_bytes, b"tRNS", trns);
+        bytes.splice(at..at, chunk_bytes);
+        bytes
+    }
 
-        let (dict, data) = parse(&bytes).unwrap().xobject(paper).unwrap();
+    const PAPER: Rgb = Rgb {
+        r: 250,
+        g: 240,
+        b: 230,
+    };
 
-        assert!(dict.contains("/ColorSpace /DeviceRGB /BitsPerComponent 8"));
-        assert_eq!(data, [250, 240, 230, 255, 0, 0]);
+    /// A palette PNG whose see-through entries are a run of indices, and gray and RGB PNGs
+    /// with a colour key, keep their compressed data: the PDF masks the colour (`/Mask`).
+    #[test]
+    fn trns_becomes_a_colour_key_mask() {
+        let palette = [0, 0, 0, 255, 0, 0];
+        let indexed = png_trns(2, 1, 1, 3, &[0, 0b0100_0000], &palette, &[0]);
+        let gray = png_trns(1, 1, 2, 0, &[0, 0b1100_0000], &[], &[0, 3]);
+        let rgb = png_trns(1, 1, 8, 2, &[0, 1, 2, 3], &[], &[0, 1, 0, 2, 0, 3]);
+
+        for (bytes, mask) in [
+            (indexed, "/Mask [0 0]"),
+            (gray, "/Mask [3 3]"),
+            (rgb, "/Mask [1 1 2 2 3 3]"),
+        ] {
+            let (dict, data) = parse(&bytes).unwrap().xobject(PAPER).unwrap();
+
+            assert!(dict.contains(mask), "{dict}");
+            assert!(dict.contains("/Filter /FlateDecode"), "{dict}");
+            assert_eq!(data, parse(&bytes).unwrap().idat);
+        }
+    }
+
+    /// The mask also lets 1-bit drawings with a see-through ground through without decoding:
+    /// 16000 x 16000 px would be 768 MB as RGB.
+    #[test]
+    fn a_huge_masked_drawing_is_not_decoded() {
+        let bytes = png_trns(16000, 16000, 1, 3, &[0, 0], &[0, 0, 0, 255, 255, 255], &[0]);
+
+        let (dict, data) = parse(&bytes).unwrap().xobject(PAPER).unwrap();
+
+        assert!(dict.contains("/Mask [0 0]"), "{dict}");
+        assert!(dict.contains("/Columns 16000"), "{dict}");
+        assert!(data.len() < 100);
+    }
+
+    /// Real partial alpha has to be decoded: entry 1 is half see-through: black over the
+    /// paper (250, 240, 230) is (0 * 128 + p * 127 + 127) / 255 = 125, 120, 115 (rounded).
+    #[test]
+    fn partial_palette_alpha_is_laid_over_the_paper() {
+        let palette = [0, 0, 0, 0, 0, 0, 255, 0, 0];
+        let raw = [0, 0b0001_1011];
+        let bytes = png_trns(3, 1, 2, 3, &raw, &palette, &[0, 128]);
+
+        let (dict, data) = parse(&bytes).unwrap().xobject(PAPER).unwrap();
+
+        assert!(dict.contains("/DeviceRGB /BitsPerComponent 8"), "{dict}");
+        assert_eq!(data, [250, 240, 230, 125, 120, 115, 255, 0, 0]);
+    }
+
+    /// Two see-through entries that are not next to each other cannot be one mask range.
+    #[test]
+    fn scattered_see_through_entries_are_decoded() {
+        let palette = [10, 10, 10, 20, 20, 20, 30, 30, 30];
+        let bytes = png_trns(3, 1, 2, 3, &[0, 0b0001_1011], &palette, &[0, 255, 0]);
+
+        let (_, data) = parse(&bytes).unwrap().xobject(PAPER).unwrap();
+
+        assert_eq!(data, [250, 240, 230, 20, 20, 20, 250, 240, 230]);
+    }
+
+    /// What has to be decoded is refused when its RGB output would not fit the limit, before
+    /// anything is allocated; a few bytes of file claim 65536 x 65000 px.
+    #[test]
+    fn a_huge_image_that_needs_decoding_is_refused() {
+        let scattered = png_trns(65536, 65000, 1, 3, &[0, 0], &[0; 9], &[0, 255, 0]);
+        let rgba = png(100_000, 100_000, 8, 6, &[0, 0], &[]);
+
+        for bytes in [scattered, rgba] {
+            let started = std::time::Instant::now();
+            let error = parse(&bytes).unwrap().xobject(PAPER).unwrap_err();
+
+            assert!(error.contains("too large"), "{error}");
+            assert!(started.elapsed().as_secs() < 1);
+        }
+    }
+
+    /// 16 bits are decoded; the colour key compares the full 16-bit value.
+    #[test]
+    fn a_sixteen_bit_colour_key_is_see_through() {
+        let raw = [0, 0xAB, 0x12, 0xAB, 0x13];
+        let bytes = png_trns(2, 1, 16, 0, &raw, &[], &[0xAB, 0x12]);
+
+        let (_, data) = parse(&bytes).unwrap().xobject(PAPER).unwrap();
+
+        assert_eq!(data, [250, 240, 230, 0xAB, 0xAB, 0xAB]);
     }
 
     #[test]

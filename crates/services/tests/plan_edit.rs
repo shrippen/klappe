@@ -644,8 +644,8 @@ fn a_shift_lands_on_the_grid() {
     assert!(near(at(&s), p(10.3, 6.6)), "{:?}", at(&s));
 }
 
-/// Wall 0 runs (0, 0) to (20, 0), middle (10, 0). By (0.3, 0.4) the middle would reach
-/// (10.3, 0.4) -> (10.25, 0.5): the wall shifts by (0.25, 0.5) and keeps its length.
+/// Wall 0 runs (0, 0) to (20, 0). By (0.3, 0.4) its start would reach (0.3, 0.4) ->
+/// (0.25, 0.5): the wall shifts by (0.25, 0.5) and keeps its length.
 #[test]
 fn a_shift_snaps_the_start_of_a_wall() {
     let mut s = open();

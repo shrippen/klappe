@@ -130,6 +130,11 @@
  "unit.m": "m",
  "unit.s": "s",
  "unit.decimal": ".",
+ "backup.found": "Unsaved changes from an earlier session found. Restoring also replaces the screenplay on disk.",
+ "backup.unreadable": "A backup is unreadable: {message}",
+ "backup.restore": "Restore",
+ "backup.discard": "Discard",
+ "backup.discardSure": "Really discard?",
  "empty.title": "No project open",
  "empty.text": "Start Klappe with --open <folder>.klappe."
 }
