@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use klappe_services::{Dash, DisplayList, Fill, Item, Point, Role, Shape, Source};
+use klappe_services::{look, Area, Dash, DisplayList, Hue, Item, Point, Role, Shape, Source};
 use serde_json::{json, Value};
 
 use crate::fileurl;
@@ -12,7 +12,7 @@ use crate::fileurl;
 const GUIDE_POINT_RADIUS_M: f64 = 0.15;
 
 /// How a role is drawn: Kante colour name, line style, fill.
-struct Look {
+struct Style {
     label: &'static str,
     stroke: &'static str,
     fill: &'static str,
@@ -22,38 +22,24 @@ const SOLID: &str = "solid";
 const DASHED: &str = "dashed";
 const DOTTED: &str = "dotted";
 
-fn look(role: Role) -> Look {
-    let l = |label, stroke, fill| Look {
-        label,
-        stroke,
-        fill,
-    };
+/// Stellprobe says what a role looks like; this says it in Kante's words.
+fn style(role: Role) -> Style {
+    let look = look(role);
 
-    match role {
-        // The image takes no colour; the canvas draws it as it is.
-        Role::Background => l("muted", SOLID, "none"),
-        Role::Wall => l("text", SOLID, "none"),
-        Role::Object => l("muted", SOLID, "tint"),
-        Role::LightBeam => l("orange", SOLID, "tint"),
-        Role::Light => l("orange", SOLID, "solid"),
-        Role::Note => l("accent", SOLID, "solid"),
-        Role::Drawing {
-            color: c,
-            dash,
-            fill,
-        } => l(c.name(), stroke_of(dash), fill_of(fill)),
-        Role::ArrowHead(c) => l(c.name(), SOLID, "solid"),
-        Role::Axis => l("orange", DASHED, "none"),
-        Role::CameraPath => l("yellow", DOTTED, "none"),
-        Role::Frustum => l("yellow", SOLID, "tint"),
-        Role::Camera => l("yellow", SOLID, "solid"),
-        Role::FigurePath(c) => l(c.name(), DOTTED, "none"),
-        Role::Mark(c) => l(c.name(), SOLID, "none"),
-        Role::FigureHandle(c) => l(c.name(), SOLID, "solid"),
-        Role::CameraHandle => l("yellow", SOLID, "solid"),
-        Role::Figure(c) => l(c.name(), SOLID, "solid"),
-        // The ground colour stands out from every figure colour (the text colour did not).
-        Role::GroupDot => l("ground", SOLID, "solid"),
+    Style {
+        label: hue_name(look.hue),
+        stroke: stroke_of(look.line),
+        fill: fill_of(look.area),
+    }
+}
+
+fn hue_name(hue: Hue) -> &'static str {
+    match hue {
+        Hue::Ground => "ground",
+        Hue::Text => "text",
+        Hue::Muted => "muted",
+        Hue::Accent => "accent",
+        Hue::Color(c) => c.name(),
     }
 }
 
@@ -65,11 +51,11 @@ fn stroke_of(dash: Dash) -> &'static str {
     }
 }
 
-/// A filled drawing is tinted, like the view cone: the plan below stays readable.
-fn fill_of(fill: Fill) -> &'static str {
-    match fill {
-        Fill::Outline => "none",
-        Fill::Filled => "tint",
+fn fill_of(area: Area) -> &'static str {
+    match area {
+        Area::None => "none",
+        Area::Tint => "tint",
+        Area::Solid => SOLID,
     }
 }
 
@@ -205,7 +191,7 @@ fn shape(dir: &Path, item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<
         return Some(image);
     }
 
-    let look = look(item.role);
+    let look = style(item.role);
     let (kind, points, radius, width) = match &item.shape {
         Shape::Line { from, to, width_m } => ("line", flat(&[*from, *to]), 0.0, *width_m),
         Shape::Polyline { points } => ("polyline", flat(points), 0.0, 0.0),
@@ -312,7 +298,7 @@ pub fn shapes_json(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klappe_services::FigureColor;
+    use klappe_services::{FigureColor, Fill};
 
     fn item(role: Role, shape: Shape, source: Option<Source>) -> Item {
         Item {
