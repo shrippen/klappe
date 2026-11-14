@@ -735,10 +735,10 @@ impl Idct {
         }
 
         // Down each column.
-        for y in 0..BLOCK {
+        for (y, cos) in self.cos.iter().enumerate() {
             let at = (y0 + y) * plane.stride + x0;
             for (x, out) in plane.samples[at..at + BLOCK].iter_mut().enumerate() {
-                let sum: f32 = (0..BLOCK).map(|v| self.cos[y][v] * rows[v][x]).sum();
+                let sum: f32 = (0..BLOCK).map(|v| cos[v] * rows[v][x]).sum();
                 *out = to_byte(sum + LEVEL_SHIFT);
             }
         }
