@@ -99,9 +99,28 @@ RowLayout {
             width: parent ? parent.width : implicitWidth
             wrapMode: Text.WordWrap
             color: KanteStyle.textColor
-            text: chooser.current ? chooser.texts.t("remove.plan", { name: chooser.current.name }) : ""
+            text: confirm.question()
         }
 
-        onAccepted: chooser.controller.removePlan(chooser.current.id)
+        // With shots, the plan goes with them: the question names how many.
+        function question() {
+            const plan = chooser.current
+            if (!plan) {
+                return ""
+            }
+            if (plan.shots === 0) {
+                return chooser.texts.t("remove.plan", { name: plan.name })
+            }
+            const key = plan.shots === 1 ? "remove.planShot" : "remove.planShots"
+            return chooser.texts.t(key, { name: plan.name, count: plan.shots })
+        }
+
+        onAccepted: {
+            if (chooser.current.shots === 0) {
+                chooser.controller.removePlan(chooser.current.id)
+                return
+            }
+            chooser.controller.removePlanWithShots(chooser.current.id)
+        }
     }
 }

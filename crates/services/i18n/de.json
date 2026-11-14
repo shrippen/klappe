@@ -342,6 +342,8 @@
  "plan.snapshotHint": "Kopiert den gezeigten Plan mit allem, auch den Shots. Zurück geht es, indem du den früheren Plan wieder wählst.",
  "plan.removeTitle": "Plan löschen",
  "remove.plan": "Plan {name} löschen? Rückgängig stellt ihn wieder her.",
+ "remove.planShot": "Plan {name} und seinen {count} Shot löschen? Rückgängig stellt beides wieder her.",
+ "remove.planShots": "Plan {name} und seine {count} Shots löschen? Rückgängig stellt alles wieder her.",
  "form.cancel": "Abbrechen",
  "project.close": "Schließen"
 }
