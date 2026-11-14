@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import QtQml
 import QtCore
-import QtQuick.Controls.impl
 import org.kde.kirigami as Kirigami
 import Kante
 
@@ -182,8 +181,8 @@ RowLayout {
                 objectName: "tool." + slot.name
                 text: tools.texts.t("tool." + slot.name)
                 icon.name: slot.modelData.tool.icon
-                // No icon in the theme (offscreen, a bare system): the name instead.
-                display: probe.status === Image.Ready ? QQC2.AbstractButton.IconOnly : QQC2.AbstractButton.TextOnly
+                // Kante shows the name when the theme lacks the icon.
+                display: QQC2.AbstractButton.IconOnly
                 checkable: true
                 checked: tools.tool === slot.name
                 QQC2.ButtonGroup.group: group
@@ -194,14 +193,6 @@ RowLayout {
                     : tools.texts.t("tool.tip", { name: text, key: slot.key })
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-
-                // Asks the theme whether it has the icon.
-                IconImage {
-                    id: probe
-                    visible: false
-                    name: parent.icon.name
-                    sourceSize: Qt.size(Kirigami.Units.iconSizes.smallMedium, Kirigami.Units.iconSizes.smallMedium)
-                }
             }
         }
     }
