@@ -276,7 +276,8 @@ pub mod qobject {
         #[cxx_name = "setCameraField"]
         fn set_camera_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool;
         /// The fields of the selected mark (a figure's, or a camera's) as JSON: `kind`
-        /// (`figure` or `camera`), `pose` (empty for a camera), `hold` in seconds, `hasWay`,
+        /// (`figure` or `camera`), `pose`, `arrival` (`walk`, `appear`) and `departure` (`stay`,
+        /// `leave`), each empty for a camera, `hold` in seconds, `hasWay`,
         /// `pace` in m/s (null without time on the way). `{}` for any other selection.
         #[qinvokable]
         #[cxx_name = "markInfo"]
@@ -293,6 +294,18 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setMarkHold"]
         fn set_mark_hold(self: Pin<&mut Self>, seconds: &QString) -> bool;
+
+        /// Sets how the figure comes to the selected mark: `walk` or `appear` (LH-26). False for
+        /// another selection or name; a refusal by the session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setMarkArrival"]
+        fn set_mark_arrival(self: Pin<&mut Self>, arrival: &QString) -> bool;
+
+        /// Sets what the figure does after the selected mark: `stay` or `leave` (LH-26). False
+        /// for another selection or name; a refusal by the session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setMarkDeparture"]
+        fn set_mark_departure(self: Pin<&mut Self>, departure: &QString) -> bool;
 
         /// Times the way to the selected figure mark for `walk` or `run`. False for another
         /// selection or name; the first mark is refused by the session.
@@ -1536,6 +1549,24 @@ impl qobject::Controller {
         self.commit_edit(edit)
     }
 
+    fn set_mark_arrival(self: Pin<&mut Self>, arrival: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = tools::arrival_edit(selected, &arrival.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
+    fn set_mark_departure(self: Pin<&mut Self>, departure: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = tools::departure_edit(selected, &departure.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
     fn set_mark_hold(self: Pin<&mut Self>, seconds: &QString) -> bool {
         let selected = self.rust().selected.only();
         let Some(edit) = tools::hold_edit(selected, &seconds.to_string()) else {
@@ -2160,6 +2191,8 @@ fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
     json!({
         "kind": kind,
         "pose": info.pose.map(tools::pose_name).unwrap_or_default(),
+        "arrival": info.arrival.map(tools::arrival_name).unwrap_or_default(),
+        "departure": info.departure.map(tools::departure_name).unwrap_or_default(),
         "hold": info.hold_s,
         "hasWay": info.has_way,
         "pace": info.pace_m_s,
@@ -2274,6 +2307,8 @@ mod tests {
         let second = mark_json(&s, Some(&mark(1)));
         assert_eq!(second["kind"], "figure");
         assert_eq!(second["pose"], "standing");
+        assert_eq!(second["arrival"], "walk");
+        assert_eq!(second["departure"], "stay");
         assert_eq!(second["hold"], 4.0);
         assert_eq!(second["hasWay"], true);
         assert_eq!(second["pace"], 1.75);
@@ -2283,6 +2318,8 @@ mod tests {
         let camera = mark_json(&s, Some(&Source::Camera("a".into())));
         assert_eq!(camera["kind"], "camera");
         assert_eq!(camera["pose"], "");
+        assert_eq!(camera["arrival"], "");
+        assert_eq!(camera["departure"], "");
         assert_eq!(camera["hold"], 6.0);
 
         assert_eq!(mark_json(&s, Some(&Source::Wall(0))), json!({}));

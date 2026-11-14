@@ -176,6 +176,46 @@ pub struct Mark {
     /// walks straight. Ignored on the first mark (LH-21).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub via: Option<Point>,
+    /// How the figure comes to this mark (LH-26).
+    #[serde(default, skip_serializing_if = "Arrival::is_walk")]
+    pub arrival: Arrival,
+    /// Whether the figure is still there after the pause at this mark (LH-26).
+    #[serde(default, skip_serializing_if = "Departure::is_stay")]
+    pub departure: Departure,
+}
+
+/// How a figure comes to a mark (LH-26).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Arrival {
+    /// Walks from the mark before; on the first mark it is there from the start.
+    #[default]
+    Walk,
+    /// Not there before `at_s`; shows up at the mark instead of walking to it.
+    Appear,
+}
+
+impl Arrival {
+    fn is_walk(&self) -> bool {
+        *self == Arrival::Walk
+    }
+}
+
+/// What a figure does after the pause at a mark (LH-26).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Departure {
+    /// Stays in the scene.
+    #[default]
+    Stay,
+    /// Gone after `at_s + hold_s`, until a later mark appears.
+    Leave,
+}
+
+impl Departure {
+    fn is_stay(&self) -> bool {
+        *self == Departure::Stay
+    }
 }
 
 /// LH-22.
@@ -342,6 +382,8 @@ mod tests {
                 pose: Pose::Standing,
                 hold_s: 5.0,
                 via: None,
+                arrival: Arrival::Walk,
+                departure: Departure::Stay,
             }],
         }];
 
@@ -360,6 +402,8 @@ mod tests {
             pose: Pose::Standing,
             hold_s,
             via: None,
+            arrival: Arrival::Walk,
+            departure: Departure::Stay,
         };
         plan.figures = vec![FigureTrack {
             character: "e".into(),
@@ -367,6 +411,32 @@ mod tests {
         }];
 
         assert_eq!(plan.duration_s(), 5.0);
+    }
+
+    /// A mark with the default arrival and departure writes neither key; an old file has
+    /// the defaults; the other values round-trip (LH-26).
+    #[test]
+    fn arrival_and_departure_are_optional_in_json() {
+        let mut mark: Mark =
+            serde_json::from_str(r#"{"at_s":0.0,"at":{"x_m":1.0,"y_m":2.0},"facing_deg":0.0}"#)
+                .unwrap();
+
+        assert_eq!(mark.arrival, Arrival::Walk);
+        assert_eq!(mark.departure, Departure::Stay);
+        let json = serde_json::to_string(&mark).unwrap();
+        assert!(
+            !json.contains("arrival") && !json.contains("departure"),
+            "{json}"
+        );
+
+        mark.arrival = Arrival::Appear;
+        mark.departure = Departure::Leave;
+        let json = serde_json::to_string(&mark).unwrap();
+        let back: Mark = serde_json::from_str(&json).unwrap();
+
+        assert!(json.contains(r#""arrival":"appear""#), "{json}");
+        assert!(json.contains(r#""departure":"leave""#), "{json}");
+        assert_eq!(back, mark);
     }
 
     /// A known width gets its named format, any other stays as typed.

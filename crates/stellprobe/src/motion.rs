@@ -1,4 +1,4 @@
-use klappe_model::{Camera, CameraMark, FigureTrack, Mark, Point};
+use klappe_model::{Arrival, Camera, CameraMark, Departure, FigureTrack, Mark, Point};
 
 /// Where something is and where it faces at one moment.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -20,6 +20,9 @@ struct Key {
     hold_s: f64,
     /// Bend of the way to this mark, see `Mark::via`.
     via: Option<Point>,
+    /// Always `Walk` and `Stay` for a camera.
+    arrival: Arrival,
+    departure: Departure,
     place: Placement,
 }
 
@@ -29,6 +32,8 @@ impl From<&Mark> for Key {
             at_s: m.at_s,
             hold_s: m.hold_s,
             via: m.via,
+            arrival: m.arrival,
+            departure: m.departure,
             place: Placement {
                 at: m.at,
                 facing_deg: m.facing_deg,
@@ -43,6 +48,8 @@ impl From<&CameraMark> for Key {
             at_s: m.at_s,
             hold_s: m.hold_s,
             via: m.via,
+            arrival: Arrival::Walk,
+            departure: Departure::Stay,
             place: Placement {
                 at: m.at,
                 facing_deg: m.facing_deg,
@@ -51,10 +58,29 @@ impl From<&CameraMark> for Key {
     }
 }
 
-/// A figure at time `t_s` (LH-60); `None` without marks.
+/// A figure at time `t_s` (LH-60); `None` without marks, and while it is not in the scene
+/// (LH-26).
 pub fn figure_at(track: &FigureTrack, t_s: f64) -> Option<Placement> {
     let keys: Vec<Key> = track.marks.iter().map(Key::from).collect();
     place_at(&keys, t_s)
+}
+
+/// For each mark of `track`, whether the figure walks the way to it (LH-26): not to the
+/// first mark, nor to one it appears at, nor to one it is gone at after leaving earlier.
+///
+/// ```text
+///  marks     1      2 (leave)   3 (walk)   4 (appear)   5
+///  walked    no     yes         no         no           yes
+/// ```
+pub fn walked_ways(track: &FigureTrack) -> Vec<bool> {
+    let keys: Vec<Key> = track.marks.iter().map(Key::from).collect();
+    let gone = gone_on_arrival(&keys);
+
+    keys.iter()
+        .zip(gone)
+        .enumerate()
+        .map(|(i, (k, gone))| i > 0 && k.arrival == Arrival::Walk && !gone)
+        .collect()
 }
 
 /// A camera at time `t_s`; `None` without marks.
@@ -72,13 +98,19 @@ pub fn camera_at(camera: &Camera, t_s: f64) -> Option<Placement> {
 ///  |──────────|░░░░░░░░░|─────────────|
 ///  at_s(1)    +hold_s(1)              at_s(2)
 /// ```
+///
+/// A figure that is not in the scene (LH-26) has no place: before the first mark if it
+/// appears there, after the pause at a mark it leaves, and from the pause at the mark
+/// before one it appears at, until that mark's time (it shows up instead of walking).
 fn place_at(keys: &[Key], t_s: f64) -> Option<Placement> {
     let first = keys.first()?;
-    if t_s <= first.at_s {
-        return Some(first.place);
+    if t_s < first.at_s {
+        return (first.arrival == Arrival::Walk).then_some(first.place);
     }
 
-    for pair in keys.windows(2) {
+    let gone = gone_on_arrival(keys);
+
+    for (i, pair) in keys.windows(2).enumerate() {
         let (from, to) = (pair[0], pair[1]);
         if t_s >= to.at_s {
             continue;
@@ -86,7 +118,12 @@ fn place_at(keys: &[Key], t_s: f64) -> Option<Placement> {
 
         let leave_s = (from.at_s + from.hold_s).min(to.at_s);
         if t_s <= leave_s {
-            return Some(from.place);
+            return (!gone[i]).then_some(from.place);
+        }
+
+        let stays = from.departure == Departure::Stay && !gone[i];
+        if !stays || to.arrival == Arrival::Appear {
+            return None;
         }
 
         let t = (t_s - leave_s) / (to.at_s - leave_s);
@@ -96,7 +133,26 @@ fn place_at(keys: &[Key], t_s: f64) -> Option<Placement> {
         });
     }
 
-    keys.last().map(|k| k.place)
+    let last = keys.last()?;
+    let left = last.departure == Departure::Leave && t_s > last.at_s + last.hold_s;
+    let absent = left || gone.last().copied().unwrap_or(false);
+
+    (!absent).then_some(last.place)
+}
+
+/// Per mark: the figure is not in the scene when it gets there, because it left at an earlier
+/// mark and no mark between appeared again.
+fn gone_on_arrival(keys: &[Key]) -> Vec<bool> {
+    let mut gone_after = false;
+
+    keys.iter()
+        .map(|k| {
+            let gone = gone_after && k.arrival == Arrival::Walk;
+            gone_after = gone || k.departure == Departure::Leave;
+
+            gone
+        })
+        .collect()
 }
 
 /// The point at `t` (0 to 1) of the quadratic Bézier curve from `a` to `b` bent towards `via`.
@@ -217,6 +273,8 @@ mod tests {
             pose: Pose::Standing,
             hold_s,
             via: None,
+            arrival: Arrival::Walk,
+            departure: Departure::Stay,
         }
     }
 
@@ -365,5 +423,91 @@ mod tests {
         assert_eq!(way_length_m(a, None, b), 10.0);
         let curved_m = way_length_m(a, Some(Point::new(5.0, 8.0)), b);
         assert!((curved_m - 13.337).abs() < 0.01, "{curved_m}");
+    }
+
+    fn appearing(at_s: f64, x: f64) -> Mark {
+        Mark {
+            arrival: Arrival::Appear,
+            ..mark(at_s, x, 0.0)
+        }
+    }
+
+    fn leaving(at_s: f64, x: f64, hold_s: f64) -> Mark {
+        Mark {
+            departure: Departure::Leave,
+            ..mark(at_s, x, hold_s)
+        }
+    }
+
+    fn x_at(t: &FigureTrack, t_s: f64) -> Option<f64> {
+        figure_at(t, t_s).map(|p| p.at.x_m)
+    }
+
+    /// A first mark that appears: nobody there before it, there from its time on.
+    #[test]
+    fn a_first_mark_that_appears_is_not_there_before() {
+        let t = track(vec![appearing(4.0, 2.0), mark(10.0, 8.0, 0.0)]);
+
+        assert_eq!(x_at(&t, 0.0), None);
+        assert_eq!(x_at(&t, 3.9), None);
+        assert_eq!(x_at(&t, 4.0), Some(2.0));
+        assert_eq!(x_at(&t, 7.0), Some(5.0));
+    }
+
+    /// Leaving at a mark: there during the pause, gone after it, also after the last mark.
+    #[test]
+    fn a_figure_that_leaves_is_gone_after_the_pause() {
+        let t = track(vec![mark(0.0, 0.0, 0.0), leaving(10.0, 10.0, 2.0)]);
+
+        assert_eq!(x_at(&t, 5.0), Some(5.0));
+        assert_eq!(x_at(&t, 11.0), Some(10.0));
+        assert_eq!(x_at(&t, 12.0), Some(10.0));
+        assert_eq!(x_at(&t, 12.1), None);
+        assert_eq!(x_at(&t, 99.0), None);
+    }
+
+    /// Leave at mark 2, appear at mark 3: nothing between the pause and mark 3, instead of
+    /// a walk across.
+    #[test]
+    fn a_figure_comes_back_where_it_appears() {
+        let t = track(vec![
+            mark(0.0, 0.0, 0.0),
+            leaving(4.0, 4.0, 1.0),
+            appearing(10.0, 9.0),
+            mark(14.0, 11.0, 0.0),
+        ]);
+
+        assert_eq!(x_at(&t, 5.0), Some(4.0));
+        assert_eq!(x_at(&t, 7.0), None);
+        assert_eq!(x_at(&t, 9.9), None);
+        assert_eq!(x_at(&t, 10.0), Some(9.0));
+        assert_eq!(x_at(&t, 12.0), Some(10.0));
+    }
+
+    /// An appearing mark after a staying one: the figure waits out its pause, then is gone
+    /// until the new mark, which it does not walk to.
+    #[test]
+    fn an_appearing_mark_is_not_walked_to() {
+        let t = track(vec![mark(0.0, 0.0, 1.0), appearing(10.0, 9.0)]);
+
+        assert_eq!(x_at(&t, 1.0), Some(0.0));
+        assert_eq!(x_at(&t, 5.0), None);
+        assert_eq!(x_at(&t, 10.0), Some(9.0));
+        assert_eq!(x_at(&t, 50.0), Some(9.0));
+    }
+
+    /// Gone stays gone over marks that only walk, until one appears.
+    #[test]
+    fn gone_lasts_until_a_mark_appears() {
+        let t = track(vec![
+            leaving(0.0, 0.0, 0.0),
+            mark(5.0, 5.0, 0.0),
+            appearing(10.0, 9.0),
+        ]);
+
+        assert_eq!(x_at(&t, 0.0), Some(0.0));
+        assert_eq!(x_at(&t, 5.0), None);
+        assert_eq!(x_at(&t, 7.0), None);
+        assert_eq!(x_at(&t, 10.0), Some(9.0));
     }
 }

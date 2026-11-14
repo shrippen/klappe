@@ -5,8 +5,8 @@
 use std::path::PathBuf;
 
 use klappe_services::{
-    Dash, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, Pace, PlanEdit, Point, Pose,
-    ProjectEdit, ServiceError, Source,
+    Arrival, Dash, Departure, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, Pace,
+    PlanEdit, Point, Pose, ProjectEdit, ServiceError, Source,
 };
 
 const FILE_URL: &str = "file://";
@@ -698,6 +698,53 @@ pub fn pose_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
     Some(PlanEdit::SetPose {
         source: source.clone(),
         pose: *pose,
+    })
+}
+
+/// How a figure comes to a mark, with the name QML and the catalogue (`arrival.<name>`) use.
+const ARRIVALS: [(&str, Arrival); 2] = [("walk", Arrival::Walk), ("appear", Arrival::Appear)];
+
+/// What a figure does after a mark, with the name QML and the catalogue (`departure.<name>`)
+/// use.
+const DEPARTURES: [(&str, Departure); 2] = [("stay", Departure::Stay), ("leave", Departure::Leave)];
+
+/// The name QML and the catalogue use for `arrival`.
+pub fn arrival_name(arrival: Arrival) -> &'static str {
+    ARRIVALS
+        .iter()
+        .find(|(_, a)| *a == arrival)
+        .map_or("walk", |(name, _)| name)
+}
+
+/// The name QML and the catalogue use for `departure`.
+pub fn departure_name(departure: Departure) -> &'static str {
+    DEPARTURES
+        .iter()
+        .find(|(_, d)| *d == departure)
+        .map_or("stay", |(name, _)| name)
+}
+
+/// The arrival `name` for the selected figure mark, as an edit. `None` for a selection that
+/// is no figure mark or a name that is no arrival.
+pub fn arrival_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
+    let source = selected.filter(|s| is_figure_mark(s))?;
+    let (_, arrival) = ARRIVALS.iter().find(|(n, _)| *n == name)?;
+
+    Some(PlanEdit::SetArrival {
+        source: source.clone(),
+        arrival: *arrival,
+    })
+}
+
+/// The departure `name` for the selected figure mark, as an edit. `None` for a selection
+/// that is no figure mark or a name that is no departure.
+pub fn departure_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
+    let source = selected.filter(|s| is_figure_mark(s))?;
+    let (_, departure) = DEPARTURES.iter().find(|(n, _)| *n == name)?;
+
+    Some(PlanEdit::SetDeparture {
+        source: source.clone(),
+        departure: *departure,
     })
 }
 
@@ -1728,6 +1775,39 @@ mod tests {
         assert_eq!(pose_edit(Some(&mark), "flying"), None);
         assert_eq!(pose_edit(Some(&Source::Camera("a".into())), "lying"), None);
         assert_eq!(pose_edit(None, "lying"), None);
+    }
+
+    #[test]
+    fn arrival_and_departure_names_for_a_figure_mark_are_edits() {
+        let mark = Source::Mark {
+            character: "elisabeth".into(),
+            index: 1,
+        };
+
+        assert_eq!(
+            arrival_edit(Some(&mark), "appear"),
+            Some(PlanEdit::SetArrival {
+                source: mark.clone(),
+                arrival: Arrival::Appear
+            })
+        );
+        assert_eq!(
+            departure_edit(Some(&mark), "leave"),
+            Some(PlanEdit::SetDeparture {
+                source: mark.clone(),
+                departure: Departure::Leave
+            })
+        );
+        assert!(arrival_edit(Some(&Source::Figure("elisabeth".into())), "walk").is_some());
+        assert_eq!(arrival_edit(Some(&mark), "fly"), None);
+        assert_eq!(departure_edit(Some(&mark), "fly"), None);
+        assert_eq!(
+            arrival_edit(Some(&Source::Camera("a".into())), "walk"),
+            None
+        );
+        assert_eq!(departure_edit(None, "stay"), None);
+        assert_eq!(arrival_name(Arrival::Appear), "appear");
+        assert_eq!(departure_name(Departure::Leave), "leave");
     }
 
     #[test]

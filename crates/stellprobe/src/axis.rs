@@ -90,7 +90,8 @@ pub fn axis_jumps(plan: &FloorPlan) -> Vec<String> {
 mod tests {
     use super::*;
     use klappe_model::{
-        Camera, CameraMark, FigureTrack, Mark, Movement, Pose, Sensor, Shot, ShotSize,
+        Arrival, Camera, CameraMark, Departure, FigureTrack, Mark, Movement, Pose, Sensor, Shot,
+        ShotSize,
     };
 
     fn figure(id: &str, x: f64) -> FigureTrack {
@@ -104,6 +105,8 @@ mod tests {
                 pose: Pose::Standing,
                 hold_s: 0.0,
                 via: None,
+                arrival: Arrival::Walk,
+                departure: Departure::Stay,
             }],
         }
     }

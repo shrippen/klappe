@@ -2,11 +2,13 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::is_object_size_m;
 use klappe_model::{
-    Background, Camera, CameraMark, Character, Dash, Drawing, DrawingShape, FigureColor,
-    FigureTrack, Fill, FloorPlan, LibraryItem, Light, LightKind, LinkTarget, Mark, Note,
-    ObjectShape, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
+    Arrival, Background, Camera, CameraMark, Character, Dash, Departure, Drawing, DrawingShape,
+    FigureColor, FigureTrack, Fill, FloorPlan, LibraryItem, Light, LightKind, LinkTarget, Mark,
+    Note, ObjectShape, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
 };
-use klappe_stellprobe::{bend_point, hit, via_through, way_length_m, within, Item, Role, Source};
+use klappe_stellprobe::{
+    bend_point, hit, via_through, walked_ways, way_length_m, within, Item, Role, Source,
+};
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -147,6 +149,18 @@ pub enum PlanEdit {
         source: Source,
         pose: Pose,
     },
+    /// Sets how the figure comes to a mark (LH-26): `Source::Mark`, or `Source::Figure` for
+    /// the mark at the playhead.
+    SetArrival {
+        source: Source,
+        arrival: Arrival,
+    },
+    /// Sets whether the figure leaves after the pause at a mark (LH-26): `Source::Mark`, or
+    /// `Source::Figure` for the mark at the playhead.
+    SetDeparture {
+        source: Source,
+        departure: Departure,
+    },
     /// Sets the pause at a mark of a figure or a camera (LH-63): `Source::Mark`, or
     /// `Source::Figure` and `Source::Camera` for the mark at the playhead. The later marks
     /// of the track move in time by the change, so their ways keep their duration.
@@ -208,8 +222,13 @@ impl Pace {
 pub struct MarkInfo {
     /// `None` for a camera's mark.
     pub pose: Option<Pose>,
+    /// `None` for a camera's mark.
+    pub arrival: Option<Arrival>,
+    /// `None` for a camera's mark.
+    pub departure: Option<Departure>,
     pub hold_s: f64,
-    /// A way leads to the mark: it is not the first of its track.
+    /// The figure walks a way to the mark: not the first of its track, not one it appears at or
+    /// is gone at after leaving (LH-26).
     pub has_way: bool,
     /// Speed along that way; `None` when it takes no time.
     pub pace_m_s: Option<f64>,
@@ -357,6 +376,8 @@ impl PlanEdit {
             | PlanEdit::Turn { source, .. }
             | PlanEdit::Resize { source, .. }
             | PlanEdit::SetPose { source, .. }
+            | PlanEdit::SetArrival { source, .. }
+            | PlanEdit::SetDeparture { source, .. }
             | PlanEdit::SetHold { source, .. }
             | PlanEdit::SetPace { source, .. }
             | PlanEdit::Remove { source }
@@ -544,6 +565,10 @@ pub(crate) fn apply(
             camera_edit::set_aspect(scope.plan, camera, *aspect)
         }
         PlanEdit::SetPose { source, pose } => set_pose(&mut scope, source, *pose),
+        PlanEdit::SetArrival { source, arrival } => set_arrival(&mut scope, source, *arrival),
+        PlanEdit::SetDeparture { source, departure } => {
+            set_departure(&mut scope, source, *departure)
+        }
         PlanEdit::SetHold { source, hold_s } => set_hold(&mut scope, source, *hold_s),
         PlanEdit::SetPace { source, pace } => set_pace(&mut scope, source, *pace),
     }
@@ -603,6 +628,8 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::RemoveBackground
         | PlanEdit::Follow { .. }
         | PlanEdit::SetPose { .. }
+        | PlanEdit::SetArrival { .. }
+        | PlanEdit::SetDeparture { .. }
         | PlanEdit::SetPace { .. } => Ok(()),
     }
 }
@@ -1164,6 +1191,8 @@ fn add_mark(scope: &mut Scope<'_>, character: &str, at: Point) -> Result<(), Ser
         pose: Pose::Standing,
         hold_s: 0.0,
         via: None,
+        arrival: Arrival::Walk,
+        departure: Departure::Stay,
     });
 
     Ok(())
@@ -1325,6 +1354,42 @@ fn set_pose(scope: &mut Scope<'_>, source: &Source, pose: Pose) -> Result<(), Se
     Ok(())
 }
 
+fn set_arrival(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    arrival: Arrival,
+) -> Result<(), ServiceError> {
+    figure_mark_mut(scope, source)?.arrival = arrival;
+
+    Ok(())
+}
+
+fn set_departure(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    departure: Departure,
+) -> Result<(), ServiceError> {
+    figure_mark_mut(scope, source)?.departure = departure;
+
+    Ok(())
+}
+
+/// The figure mark `source` names.
+fn figure_mark_mut<'a>(
+    scope: &'a mut Scope<'_>,
+    source: &Source,
+) -> Result<&'a mut Mark, ServiceError> {
+    let (character, index) = figure_mark(scope, source).ok_or_else(|| bad_mark("source", ""))?;
+
+    scope
+        .plan
+        .figures
+        .iter_mut()
+        .find(|f| f.character == character)
+        .and_then(|f| f.marks.get_mut(index))
+        .ok_or(ServiceError::Gone)
+}
+
 /// The arrival and the pause of the mark `source` names, with those of the marks after it in
 /// the same track.
 struct Timing<'a> {
@@ -1419,6 +1484,12 @@ fn set_pace(scope: &mut Scope<'_>, source: &Source, pace: Pace) -> Result<(), Se
         return Err(ServiceError::Gone);
     };
 
+    // A way the figure does not walk (it appears there, or left before) has no pace (LH-26).
+    let track = scope.plan.figure(&character).ok_or(ServiceError::Gone)?;
+    if !walked_ways(track).get(index).copied().unwrap_or(false) {
+        return Err(bad_mark("pace", "no way"));
+    }
+
     // Arrive after the pause at the mark before and the walk along the way.
     let walk_s = way_length_m(prev.at, mark.via, mark.at) / pace.speed_m_s();
     let delta_s = prev.at_s + prev.hold_s + walk_s - mark.at_s;
@@ -1455,6 +1526,8 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
 
             Some(MarkInfo {
                 pose: None,
+                arrival: None,
+                departure: None,
                 hold_s: mark.hold_s,
                 has_way: index > 0,
                 pace_m_s,
@@ -1466,8 +1539,10 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
 
 fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
     let mark = track.marks.get(index)?;
+    let has_way = walked_ways(track).get(index).copied().unwrap_or(false);
     let pace_m_s = index
         .checked_sub(1)
+        .filter(|_| has_way)
         .and_then(|before| track.marks.get(before))
         .and_then(|prev| {
             pace_to(
@@ -1478,8 +1553,10 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
 
     Some(MarkInfo {
         pose: Some(mark.pose),
+        arrival: Some(mark.arrival),
+        departure: Some(mark.departure),
         hold_s: mark.hold_s,
-        has_way: index > 0,
+        has_way,
         pace_m_s,
     })
 }
