@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_object_size_m, Character, FigureColor, FloorPlan, LibraryItem, Location, Project, Scene,
-    SetPlan,
+    is_object_height_m, is_object_size_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
+    Project, Scene, SetPlan,
 };
 
 use crate::error::ServiceError;
@@ -334,6 +334,7 @@ fn library_from_object(
         .find(|o| o.id == object)
         .ok_or(ServiceError::Gone)?;
     let (width_m, depth_m, shape) = (object.width_m, object.depth_m, object.shape);
+    let height_m = object.height_m;
 
     // A hand-edited set can hold sizes no library takes; checked here, or every later save
     // fails on `bibliothek.toml`.
@@ -344,6 +345,7 @@ fn library_from_object(
         width_m,
         depth_m,
         shape,
+        height_m,
     };
     check_item(&item)?;
 
@@ -380,7 +382,9 @@ fn same_entry(a: &LibraryItem, b: &LibraryItem) -> bool {
         false => item.label.clone(),
     };
 
-    named(a) == named(b) && (a.width_m, a.depth_m, a.shape) == (b.width_m, b.depth_m, b.shape)
+    let content = |item: &LibraryItem| (item.width_m, item.depth_m, item.shape, item.height_m);
+
+    named(a) == named(b) && content(a) == content(b)
 }
 
 fn check_item(item: &LibraryItem) -> Result<(), ServiceError> {
@@ -394,6 +398,12 @@ fn check_item(item: &LibraryItem) -> Result<(), ServiceError> {
         return Err(ServiceError::BadValue {
             field: "size",
             value: format!("{} x {}", item.width_m, item.depth_m),
+        });
+    }
+    if item.height_m.is_some_and(|h| !is_object_height_m(h)) {
+        return Err(ServiceError::BadValue {
+            field: "height",
+            value: format!("{:?}", item.height_m),
         });
     }
     Ok(())

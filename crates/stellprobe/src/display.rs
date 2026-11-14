@@ -1060,6 +1060,7 @@ mod tests {
             depth_m: 0.0,
             rotation_deg: 90.0,
             shape: ObjectShape::Rect,
+            height_m: None,
         };
         let corners = object_corners(&o);
 
@@ -1077,6 +1078,7 @@ mod tests {
             depth_m: 2.0,
             rotation_deg,
             shape,
+            height_m: None,
         }
     }
 

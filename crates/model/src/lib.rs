@@ -27,7 +27,10 @@ mod shot;
 
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use geometry::Point;
-pub use library::{is_object_size_m, LibraryItem, ObjectShape, MAX_OBJECT_M};
+pub use library::{
+    is_object_height_m, is_object_size_m, LibraryItem, ObjectShape, MAX_OBJECT_HEIGHT_M,
+    MAX_OBJECT_M,
+};
 pub use plan::{
     Arrival, AxisPair, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureTrack,
     Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, ScriptLink, Sensor,

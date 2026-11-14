@@ -93,6 +93,7 @@ fn throne() -> LibraryItem {
         width_m: 0.9,
         depth_m: 0.8,
         shape: ObjectShape::Rect,
+        height_m: None,
     }
 }
 
@@ -103,6 +104,7 @@ fn pond() -> LibraryItem {
         width_m: 6.0,
         depth_m: 4.0,
         shape: ObjectShape::Ellipse,
+        height_m: None,
     }
 }
 
@@ -226,6 +228,7 @@ fn a_placed_object_can_be_filed_in_the_library() {
             width_m: 6.0,
             depth_m: 1.2,
             shape: ObjectShape::Rect,
+            height_m: None,
         }]
     );
     assert!(s.is_dirty());
@@ -328,6 +331,7 @@ fn an_import_does_not_overwrite_what_has_the_kind() {
         width_m: 3.0,
         depth_m: 1.0,
         shape: ObjectShape::Rect,
+        height_m: None,
     };
 
     import(&mut s, vec![bigger, table]).unwrap();

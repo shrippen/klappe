@@ -43,19 +43,21 @@ TestCase {
         property int areaCancels: 0
         property var sizes: []
         property bool sizeOk: true
+        property var heights: []
+        property bool heightOk: true
         property var filed: []
         property bool fileOk: true
 
         function markInfo() { return "{}" }
         function describe(key) {
             if (key === "object:o1") {
-                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9 })
+                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null })
             }
             if (key === "object:o2") {
-                return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8 })
+                return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8 })
             }
             if (key === "object:o3") {
-                return JSON.stringify({ kind: "object", label: "", library: "zeppelin", width: 12, depth: 3 })
+                return JSON.stringify({ kind: "object", label: "", library: "zeppelin", width: 12, depth: 3, height: null })
             }
             if (key === "note:n1") {
                 return JSON.stringify({ kind: "note", text: "Vorhang schließen" })
@@ -117,6 +119,10 @@ TestCase {
         function resizeSelected(width, depth) {
             sizes.push([width, depth])
             return sizeOk
+        }
+        function setObjectHeight(text) {
+            heights.push(text)
+            return heightOk
         }
         function saveToLibrary(name) {
             filed.push(name)
@@ -186,6 +192,8 @@ TestCase {
         fake.areaCancels = 0
         fake.sizes = []
         fake.sizeOk = true
+        fake.heights = []
+        fake.heightOk = true
         fake.filed = []
         fake.fileOk = true
     }
@@ -607,6 +615,74 @@ TestCase {
         verify(!card.visible)
     }
 
+    // LH-17: the height is its own field; an object without one leaves it empty.
+    function test_the_object_card_shows_the_height_or_none() {
+        const area = drawn("select")
+        const field = findChild(area, "heightField")
+
+        fake.selectedKey = "object:o2"
+        compare(field.text, "0,8")
+
+        fake.selectedKey = "object:o1"
+        compare(field.text, "")
+    }
+
+    function test_enter_gives_the_height_to_the_controller() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+        const field = findChild(area, "heightField")
+
+        field.forceActiveFocus()
+        field.text = "1,2"
+        keyClick(Qt.Key_Return)
+
+        compare(fake.heights, ["1,2"])
+        compare(fake.sizes, [])
+        verify(!field.invalid)
+    }
+
+    // The button sets the size and, when it was changed, the height; the typed height
+    // survives the refill the size edit causes.
+    function test_the_apply_button_gives_a_changed_height_too() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+
+        findChild(area, "objectApply").clicked()
+        compare(fake.heights, [])
+
+        findChild(area, "heightField").text = "2"
+        findChild(area, "objectApply").clicked()
+        compare(fake.heights, ["2"])
+        compare(fake.sizes.length, 2)
+
+        // Emptying the field of an object that has a height takes the height off.
+        fake.selectedKey = "object:o2"
+        findChild(area, "heightField").text = ""
+        findChild(area, "objectApply").clicked()
+        compare(fake.heights, ["2", ""])
+    }
+
+    function test_a_refused_height_marks_the_field() {
+        const area = drawn("select")
+        fake.selectedKey = "object:o1"
+        fake.heightOk = false
+        const field = findChild(area, "heightField")
+
+        field.text = "-1"
+        findChild(area, "objectApply").clicked()
+
+        verify(field.invalid)
+        field.text = "1"
+        verify(!field.invalid)
+    }
+
+    function test_an_object_tooltip_names_the_height() {
+        const area = drawn("select")
+
+        compare(area.tipLines("object:o2"), ["Thron", "Höhe 0,8 m"])
+        compare(area.tipLines("object:o1").filter(l => l.indexOf("Höhe") >= 0), [])
+    }
+
     // LH-32: a selected camera shows the camera card, and only the camera card.
     function test_the_camera_card_belongs_to_a_selected_camera() {
         const area = drawn("select")
@@ -666,7 +742,7 @@ TestCase {
         const area = drawn("select")
         fake.selectedKey = "object:o1"
 
-        for (const name of ["widthField", "depthField", "libraryName"]) {
+        for (const name of ["widthField", "depthField", "heightField", "libraryName"]) {
             findChild(area, name).forceActiveFocus()
             keyClick(Qt.Key_R)
             keyClick(Qt.Key_Delete)

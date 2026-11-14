@@ -658,6 +658,24 @@ pub fn resize_edit(selected: Option<&Source>, width: &str, depth: &str) -> Optio
     })
 }
 
+/// The height typed for the selected object, as an edit (LH-17): an empty text takes the
+/// height off. `None` when something other than an object is selected or the text is no
+/// length.
+pub fn object_height_edit(selected: Option<&Source>, text: &str) -> Option<PlanEdit> {
+    let Some(Source::Object(id)) = selected else {
+        return None;
+    };
+    let height_m = match text.trim().is_empty() {
+        true => None,
+        false => Some(parse_metres(text)?),
+    };
+
+    Some(PlanEdit::SetObjectHeight {
+        source: Source::Object(id.clone()),
+        height_m,
+    })
+}
+
 /// Poses the mark fields offer, with the name QML and the catalogue (`pose.<name>`) use.
 const POSES: [(&str, Pose); 3] = [
     ("standing", Pose::Standing),
@@ -679,6 +697,13 @@ fn parse_seconds(text: &str) -> Option<f64> {
     let seconds: f64 = text.trim().replace(',', ".").parse().ok()?;
 
     (seconds.is_finite() && seconds >= 0.0).then_some(seconds)
+}
+
+/// A number as typed, of either sign: a comma or a point as decimal separator.
+fn parse_number(text: &str) -> Option<f64> {
+    let number: f64 = text.trim().replace(',', ".").parse().ok()?;
+
+    number.is_finite().then_some(number)
 }
 
 /// The name QML and the catalogue use for `pose`.
@@ -756,6 +781,18 @@ pub fn hold_edit(selected: Option<&Source>, text: &str) -> Option<PlanEdit> {
     Some(PlanEdit::SetHold {
         source: source.clone(),
         hold_s: parse_seconds(text)?,
+    })
+}
+
+/// The lens height and the tilt typed for the selected camera mark, as an edit (LH-34). The
+/// session checks the limits. `None` for another selection or a text that is no number.
+pub fn aim_edit(selected: Option<&Source>, height: &str, tilt: &str) -> Option<PlanEdit> {
+    let source = selected.filter(|s| matches!(s, Source::Camera(_)))?;
+
+    Some(PlanEdit::SetCameraAim {
+        source: source.clone(),
+        height_m: parse_number(height)?,
+        tilt_deg: parse_number(tilt)?,
     })
 }
 
@@ -1827,6 +1864,49 @@ mod tests {
         assert_eq!(hold_edit(Some(&camera), ""), None);
         assert_eq!(hold_edit(Some(&Source::Wall(0)), "1"), None);
         assert_eq!(hold_edit(None, "1"), None);
+    }
+
+    #[test]
+    fn a_height_and_tilt_typed_for_a_camera_mark_are_a_set_camera_aim() {
+        let camera = Source::Camera("a".into());
+
+        assert_eq!(
+            aim_edit(Some(&camera), " 2,4 ", "-15.5"),
+            Some(PlanEdit::SetCameraAim {
+                source: camera.clone(),
+                height_m: 2.4,
+                tilt_deg: -15.5
+            })
+        );
+        assert!(aim_edit(Some(&camera), "0", "0").is_some());
+        assert_eq!(aim_edit(Some(&camera), "", "0"), None);
+        assert_eq!(aim_edit(Some(&camera), "1", ""), None);
+        assert_eq!(aim_edit(Some(&camera), "hoch", "0"), None);
+        assert_eq!(aim_edit(Some(&camera), "1", "NaN"), None);
+        assert_eq!(aim_edit(Some(&camera), "inf", "0"), None);
+        let figure = Source::Figure("elisabeth".into());
+        assert_eq!(aim_edit(Some(&figure), "1", "0"), None);
+        assert_eq!(aim_edit(None, "1", "0"), None);
+    }
+
+    #[test]
+    fn a_height_typed_for_an_object_is_a_set_object_height() {
+        let object = Source::Object("o1".into());
+        let edit = |height_m| {
+            Some(PlanEdit::SetObjectHeight {
+                source: object.clone(),
+                height_m,
+            })
+        };
+
+        assert_eq!(object_height_edit(Some(&object), " 1,2 "), edit(Some(1.2)));
+        // Empty takes the height off.
+        assert_eq!(object_height_edit(Some(&object), "  "), edit(None));
+        assert_eq!(object_height_edit(Some(&object), "0"), None);
+        assert_eq!(object_height_edit(Some(&object), "-1"), None);
+        assert_eq!(object_height_edit(Some(&object), "hoch"), None);
+        assert_eq!(object_height_edit(Some(&Source::Wall(0)), "1"), None);
+        assert_eq!(object_height_edit(None, "1"), None);
     }
 
     #[test]

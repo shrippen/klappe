@@ -250,7 +250,9 @@ pub struct CameraMark {
     pub at_s: f64,
     pub at: Point,
     pub facing_deg: f64,
+    /// Lens height above the floor (LH-34).
     pub height_m: f64,
+    /// Up from the horizon: positive looks up, negative down, 0 is level (LH-34).
     #[serde(default)]
     pub tilt_deg: f64,
     #[serde(default)]

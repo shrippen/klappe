@@ -6,7 +6,8 @@ import Kante
 
 // A mark is selected (LH-22, LH-63): the pose of a figure's mark, the pause at it, and the
 // pace of the way that leads to it. A figure's mark also says how the figure comes to it and
-// whether it leaves after it (LH-26). The pace is shown as the plan has it; the two buttons
+// whether it leaves after it (LH-26); a camera's mark says its lens height and tilt (LH-34,
+// positive tilt looks up). The pace is shown as the plan has it; the two buttons
 // time the way for walking or running and move the later marks along. No geometry here: the
 // controller has the numbers from the session.
 KanteCard {
@@ -26,13 +27,15 @@ KanteCard {
         return d.kind ? d : null
     }
     readonly property bool isFigure: info !== null && info.kind === "figure"
+    readonly property bool isCamera: info !== null && info.kind === "camera"
 
     visible: info !== null
     implicitWidth: Math.min(parent ? parent.width - Kirigami.Units.largeSpacing * 2 : Infinity,
-                            Math.max(row.implicitWidth, cueRow.implicitWidth)
+                            Math.max(row.implicitWidth, cueRow.implicitWidth, aimRow.implicitWidth)
                             + Kirigami.Units.largeSpacing * 2)
     implicitHeight: row.implicitHeight + Kirigami.Units.largeSpacing * 2
                     + (cueRow.visible ? cueRow.implicitHeight + Kirigami.Units.smallSpacing : 0)
+                    + (aimRow.visible ? aimRow.implicitHeight + Kirigami.Units.smallSpacing : 0)
 
     onInfoChanged: card.fill()
 
@@ -47,6 +50,21 @@ KanteCard {
         if (!holdField.activeFocus) {
             holdField.text = texts.num(info.hold, 2)
         }
+        if (!card.isCamera) {
+            return
+        }
+        if (!heightField.activeFocus) {
+            heightField.text = texts.num(info.height, 2)
+        }
+        if (!tiltField.activeFocus) {
+            tiltField.text = texts.num(info.tilt, 1)
+        }
+    }
+
+    function setAim() {
+        const ok = controller.setCameraAim(heightField.text, tiltField.text)
+        heightField.invalid = !ok
+        tiltField.invalid = !ok
     }
 
     function setHold() {
@@ -159,6 +177,45 @@ KanteCard {
                     card.fill()
                 }
             }
+        }
+    }
+
+    RowLayout {
+        id: aimRow
+        objectName: "aimRow"
+        visible: card.isCamera
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: row.bottom
+        anchors.topMargin: Kirigami.Units.smallSpacing
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteTextField {
+            id: heightField
+            objectName: "heightField"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+            Accessible.name: card.texts.t("mark.height")
+            placeholderText: card.texts.t("mark.height")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.setAim()
+        }
+        KanteTextField {
+            id: tiltField
+            objectName: "tiltField"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+            Accessible.name: card.texts.t("mark.tilt")
+            placeholderText: card.texts.t("mark.tilt")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.setAim()
+            QQC2.ToolTip.text: card.texts.t("mark.tiltTip")
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
+        KanteButton {
+            objectName: "aimApply"
+            text: card.texts.t("form.apply")
+            onClicked: card.setAim()
         }
     }
 }
