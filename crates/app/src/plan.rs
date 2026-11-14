@@ -58,6 +58,7 @@ pub fn key(source: &Source) -> String {
         Source::Camera(id) => format!("camera:{id}"),
         Source::Figure(id) => format!("figure:{id}"),
         Source::Mark { character, index } => format!("mark:{character}:{index}"),
+        Source::Wall(index) => format!("wall:{index}"),
     }
 }
 
