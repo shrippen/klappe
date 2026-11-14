@@ -78,6 +78,8 @@ pub(crate) struct Png {
     color: Color,
     interlaced: bool,
     palette: Vec<u8>,
+    /// The `tRNS` chunk: alpha per palette entry, or one colour that is see-through.
+    transparency: Vec<u8>,
     /// All IDAT chunks joined: one zlib stream.
     idat: Vec<u8>,
 }
@@ -86,6 +88,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Png> {
     let mut at = SIGNATURE.len();
     let mut header: Option<&[u8]> = None;
     let mut palette = Vec::new();
+    let mut transparency = Vec::new();
     let mut idat = Vec::new();
 
     while let Some(head) = bytes.get(at..at + CHUNK_HEAD_LEN) {
@@ -96,6 +99,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Png> {
         match &head[4..] {
             b"IHDR" => header = Some(data),
             b"PLTE" => palette = data.to_vec(),
+            b"tRNS" => transparency = data.to_vec(),
             b"IDAT" => idat.extend_from_slice(data),
             b"IEND" => break,
             _ => {}
@@ -115,6 +119,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Png> {
         color,
         interlaced: h[12] == 1,
         palette,
+        transparency,
         idat,
     };
 
@@ -140,7 +145,7 @@ impl Png {
 
         let (w, h) = (self.width, self.height);
         let size = format!("/Width {w} /Height {h}");
-        if self.color.has_alpha() || self.depth > 8 {
+        if self.color.has_alpha() || self.depth > 8 || !self.transparency.is_empty() {
             let rgb = self.rgb_over(paper)?;
             return Ok((
                 format!("{size} /ColorSpace /DeviceRGB /BitsPerComponent 8"),
@@ -162,12 +167,14 @@ impl Png {
         Ok((dict, self.idat.clone()))
     }
 
-    /// 8-bit RGB, alpha laid over `paper`; 16-bit samples keep their high byte.
+    /// 8-bit RGB, alpha (channel or `tRNS`) laid over `paper`; 16-bit samples keep their high
+    /// byte, samples under 8 bits are stretched to 0..255.
     fn rgb_over(&self, paper: Rgb) -> Result<Vec<u8>> {
         let (w, h) = (self.width as usize, self.height as usize);
-        let sample_bytes = usize::from(self.depth) / BYTE_BITS;
-        let pixel_bytes = self.color.channels() * sample_bytes;
-        let row_bytes = w.checked_mul(pixel_bytes).ok_or("PNG too large")?;
+        let depth = usize::from(self.depth);
+        let channels = self.color.channels();
+        let row_bits = w.checked_mul(channels * depth).ok_or("PNG too large")?;
+        let row_bytes = row_bits.div_ceil(BYTE_BITS);
         let expected = row_bytes
             .checked_add(1)
             .and_then(|r| r.checked_mul(h))
@@ -178,25 +185,74 @@ impl Png {
         if raw.len() != expected {
             return Err("PNG data is shorter than its size says".to_owned());
         }
+        let pixel_bytes = (channels * depth / BYTE_BITS).max(1);
         let rows = unfilter(&raw, row_bytes, pixel_bytes, h)?;
 
+        let max = (1_u32 << depth) - 1;
         let mut out = Vec::with_capacity(w * h * RGB_CHANNELS);
-        for pixel in rows.chunks_exact(pixel_bytes) {
-            // The high byte of each sample: the first byte of 8 and of 16 bits.
-            let s = |i: usize| u32::from(pixel[i * sample_bytes]);
-            let (rgb, alpha) = match self.color {
-                Color::Gray => ([s(0); 3], OPAQUE),
-                Color::GrayAlpha => ([s(0); 3], s(1)),
-                Color::Rgb => ([s(0), s(1), s(2)], OPAQUE),
-                _ => ([s(0), s(1), s(2)], s(3)),
-            };
-            for (c, p) in rgb.into_iter().zip([paper.r, paper.g, paper.b]) {
-                let mixed = (c * alpha + u32::from(p) * (OPAQUE - alpha) + OPAQUE / 2) / OPAQUE;
-                out.push(mixed as u8);
+        for row in rows.chunks_exact(row_bytes) {
+            for x in 0..w {
+                // Raw samples at their own depth.
+                let s: Vec<u32> = (0..channels)
+                    .map(|c| sample(row, x * channels + c, depth))
+                    .collect();
+                let to8 = |v: u32| match depth {
+                    16 => v >> 8,
+                    8 => v,
+                    _ => v * OPAQUE / max,
+                };
+                let (rgb, alpha) = match self.color {
+                    Color::Gray => ([to8(s[0]); 3], self.key_alpha(&s)),
+                    Color::GrayAlpha => ([to8(s[0]); 3], to8(s[1])),
+                    Color::Rgb => ([to8(s[0]), to8(s[1]), to8(s[2])], self.key_alpha(&s)),
+                    Color::Rgba => ([to8(s[0]), to8(s[1]), to8(s[2])], to8(s[3])),
+                    Color::Indexed => {
+                        let i = s[0] as usize;
+                        let c =
+                            |k: usize| u32::from(self.palette.get(i * 3 + k).copied().unwrap_or(0));
+                        let a = self.transparency.get(i).map_or(OPAQUE, |a| u32::from(*a));
+                        ([c(0), c(1), c(2)], a)
+                    }
+                };
+                for (c, p) in rgb.into_iter().zip([paper.r, paper.g, paper.b]) {
+                    let mixed = (c * alpha + u32::from(p) * (OPAQUE - alpha) + OPAQUE / 2) / OPAQUE;
+                    out.push(mixed as u8);
+                }
             }
         }
 
         Ok(out)
+    }
+
+    /// Gray and RGB: the pixel is see-through when it equals the colour `tRNS` names (one
+    /// big-endian 16-bit value per channel).
+    fn key_alpha(&self, samples: &[u32]) -> u32 {
+        let key: Vec<u32> = self
+            .transparency
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| u32::from(u16::from_be_bytes(*b)))
+            .collect();
+
+        match !key.is_empty() && key == samples {
+            true => 0,
+            false => OPAQUE,
+        }
+    }
+}
+
+/// Sample number `index` of a row at `depth` bits (1, 2, 4, 8 or 16), most significant first.
+fn sample(row: &[u8], index: usize, depth: usize) -> u32 {
+    let at = |i: usize| u32::from(row.get(i).copied().unwrap_or(0));
+    match depth {
+        16 => at(index * 2) << 8 | at(index * 2 + 1),
+        8 => at(index),
+        _ => {
+            let bit = index * depth;
+            let shift = BYTE_BITS - depth - bit % BYTE_BITS;
+            (at(bit / BYTE_BITS) >> shift) & ((1 << depth) - 1)
+        }
     }
 }
 
@@ -370,6 +426,28 @@ mod tests {
         assert!(dict.contains("/ColorSpace [/Indexed /DeviceRGB 1 <ff00000000ff>]"));
         assert!(dict.contains("/BitsPerComponent 1"));
         assert!(dict.contains("/Colors 1"));
+    }
+
+    /// Palette PNG, 1 bit, two pixels: index 0 (black, `tRNS` alpha 0) and index 1 (red).
+    /// The see-through pixel prints as the paper, not as black.
+    #[test]
+    fn trns_makes_palette_pixels_see_through() {
+        let mut bytes = png(2, 1, 1, 3, &[0, 0b0100_0000], &[0, 0, 0, 255, 0, 0]);
+        // Right after PLTE: the chunk list is IHDR, PLTE, IDAT, IDAT, IEND.
+        let at = bytes.windows(4).position(|w| w == b"IDAT").unwrap() - 4;
+        let mut trns = Vec::new();
+        chunk(&mut trns, b"tRNS", &[0]);
+        bytes.splice(at..at, trns);
+        let paper = Rgb {
+            r: 250,
+            g: 240,
+            b: 230,
+        };
+
+        let (dict, data) = parse(&bytes).unwrap().xobject(paper).unwrap();
+
+        assert!(dict.contains("/ColorSpace /DeviceRGB /BitsPerComponent 8"));
+        assert_eq!(data, [250, 240, 230, 255, 0, 0]);
     }
 
     #[test]
