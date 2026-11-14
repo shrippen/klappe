@@ -13,6 +13,7 @@ mod catalog;
 mod edit;
 mod error;
 mod plan_edit;
+mod project_edit;
 mod session;
 mod views;
 
@@ -20,6 +21,7 @@ pub use catalog::Language;
 pub use edit::ShotField;
 pub use error::ServiceError;
 pub use plan_edit::{PlanEdit, Snapping};
+pub use project_edit::ProjectEdit;
 pub use session::{Autosave, BackupState, Layer, Lock, Session, Visibility};
 pub use views::{Chip, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind};
 

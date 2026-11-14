@@ -6,6 +6,7 @@
 mod args;
 mod bridge;
 mod catalog;
+mod manage;
 mod notice;
 mod plan;
 mod tools;
@@ -35,6 +36,8 @@ fn main() {
     let mut app = QGuiApplication::new();
     if let Some(mut app) = app.as_mut() {
         app.as_mut().set_application_name(&QString::from("Klappe"));
+        app.as_mut()
+            .set_organization_name(&QString::from("shrippen"));
         app.as_mut()
             .set_organization_domain(&QString::from("shrippen.github.io"));
     }

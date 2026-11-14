@@ -4,6 +4,7 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 import QtQuick.Dialogs
+import QtCore
 import io.github.shrippen.klappe
 
 // E-14 (planung/KONZEPT.md): header and tool bar on top, script left, plan in the middle,
@@ -133,8 +134,20 @@ Kirigami.ApplicationWindow {
                 }
             }
 
+            StartPage {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: !ctl.loaded
+                texts: texts
+                controller: ctl
+                onNewRequested: root.switchProject(() => newFolderDialog.open())
+                onOpenRequested: root.switchProject(() => openFolderDialog.open())
+                onRecentRequested: path => ctl.openProject(path)
+            }
+
             // Tool bar: the drawing tools, then what to show.
             RowLayout {
+                visible: ctl.loaded
                 Layout.fillWidth: true
                 Layout.leftMargin: Kirigami.Units.smallSpacing
                 Layout.rightMargin: Kirigami.Units.smallSpacing
@@ -149,6 +162,13 @@ Kirigami.ApplicationWindow {
                     controller: ctl
                 }
                 Item { Layout.fillWidth: true }
+                ProjectButtons {
+                    texts: texts
+                    locked: backupNotice.blocking
+                    onNewRequested: root.switchProject(() => newFolderDialog.open())
+                    onOpenRequested: root.switchProject(() => openFolderDialog.open())
+                    onProjectRequested: projectDialog.open()
+                }
                 KanteToolButton {
                     text: texts.t("toggle.script")
                     checkable: true
@@ -169,7 +189,7 @@ Kirigami.ApplicationWindow {
                 }
             }
 
-            Kirigami.Separator { Layout.fillWidth: true }
+            Kirigami.Separator { Layout.fillWidth: true; visible: ctl.loaded }
 
             BackupNotice {
                 id: backupNotice
@@ -180,6 +200,7 @@ Kirigami.ApplicationWindow {
             }
 
             RowLayout {
+                visible: ctl.loaded
                 enabled: !backupNotice.blocking
                 opacity: enabled ? 1 : KanteStyle.dimOpacity
                 Layout.fillWidth: true
@@ -234,6 +255,76 @@ Kirigami.ApplicationWindow {
         nameFilters: [texts.t("background.filter")]
         onAccepted: ctl.setBackground(selectedFile.toString())
     }
+
+    // A project in the way of the next one: save it first or stay (the open one is backed
+    // up either way when the next opens; saving spares the question at the next start).
+    property var pendingSwitch: null
+
+    function switchProject(action) {
+        if (!ctl.loaded || !ctl.dirty) {
+            action()
+            return
+        }
+        pendingSwitch = action
+        switchDialog.open()
+    }
+
+    FolderDialog {
+        id: newFolderDialog
+        title: texts.t("project.pickNew")
+        onAccepted: newProjectDialog.show(selectedFolder.toString())
+    }
+    FolderDialog {
+        id: openFolderDialog
+        title: texts.t("project.pickOpen")
+        onAccepted: ctl.openProject(selectedFolder.toString())
+    }
+    NewProjectDialog {
+        id: newProjectDialog
+        texts: texts
+        controller: ctl
+    }
+    ProjectDialog {
+        id: projectDialog
+        texts: texts
+        controller: ctl
+    }
+    KanteDialog {
+        id: switchDialog
+        parent: QQC2.Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        size: KanteDialog.Size.Small
+        title: texts.t("menu.save")
+        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
+        acceptText: texts.t("project.switchSave")
+        rejectText: texts.t("form.cancel")
+        onAccepted: {
+            if (ctl.save()) {
+                root.pendingSwitch()
+            }
+        }
+        QQC2.Label {
+            width: parent ? parent.width : implicitWidth
+            wrapMode: Text.WordWrap
+            color: KanteStyle.textColor
+            text: texts.t("project.switchAsk")
+        }
+    }
+
+    // The projects opened last: the app's settings keep them, the controller orders them.
+    Settings {
+        id: recent
+        category: "recent"
+        property string projects: "[]"
+    }
+    Connections {
+        target: ctl
+        function onRecentStoreChanged() {
+            recent.projects = ctl.recentStore
+        }
+    }
+    Component.onCompleted: ctl.loadRecent(recent.projects)
 
     // Closing keeps the last seconds too: they go to the backup, offered at the next open.
     onClosing: ctl.autosave()

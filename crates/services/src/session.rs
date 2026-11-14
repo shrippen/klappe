@@ -14,6 +14,7 @@ use klappe_store::Loaded;
 use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit, Snapping};
+use crate::project_edit::{self, ProjectEdit};
 use crate::views::{Chip, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind};
 
 /// Groups of the plan the timeline's layer switches show or hide.
@@ -150,6 +151,21 @@ impl Session {
             project_changed: false,
             backup,
         })
+    }
+
+    /// Creates an empty project titled `title` in `dir` (missing or empty) and opens it.
+    pub fn create(dir: &Path, title: &str) -> Result<Self, ServiceError> {
+        let title = title.trim();
+        if title.is_empty() {
+            return Err(ServiceError::BadValue {
+                field: "title",
+                value: String::new(),
+            });
+        }
+        check_empty(dir)?;
+
+        klappe_store::save(dir, &Project::new(title), None)?;
+        Self::open(dir)
     }
 
     pub fn dir(&self) -> &Path {
@@ -601,6 +617,21 @@ impl Session {
         Ok(())
     }
 
+    /// Changes scenes, locations or characters; undoable. The scene on view stays, also when
+    /// others come or go before it.
+    pub fn edit_project(&mut self, edit: ProjectEdit) -> Result<(), ServiceError> {
+        let mut next = self.project.clone();
+        project_edit::apply(&mut next, &edit)?;
+        if next == self.project {
+            return Ok(());
+        }
+
+        let on_view = self.scene().map(|s| s.id.clone());
+        self.commit(next);
+        self.follow_scene(on_view);
+        Ok(())
+    }
+
     /// The display list as it would be after `edit`, without committing it or taking an undo
     /// step: what a drag shows while the button is down.
     pub fn preview(&self, edit: &PlanEdit) -> Result<DisplayList, ServiceError> {
@@ -662,6 +693,24 @@ impl Session {
         self.unbacked = true;
     }
 
+    /// The view stays with the scene `id` if the (new) project has it, else it starts over.
+    fn follow_scene(&mut self, id: Option<String>) {
+        let index = id.and_then(|id| self.project.scenes.iter().position(|s| s.id == id));
+        let Some(index) = index else {
+            self.scene = self.scene.min(self.project.scenes.len().saturating_sub(1));
+            self.plan = 0;
+            self.time_s = 0.0;
+            self.selected_shot = None;
+            return;
+        };
+
+        if index != self.scene {
+            self.scene = index;
+            self.plan = 0;
+        }
+        self.keep_view_valid();
+    }
+
     /// Scene and plan indices of the view fit the (new) project again.
     fn keep_view_valid(&mut self) {
         if self.scene >= self.project.scenes.len() {
@@ -684,19 +733,23 @@ impl Session {
         let Some(previous) = self.undo.pop() else {
             return;
         };
+        let on_view = self.scene().map(|s| s.id.clone());
         self.redo
             .push(std::mem::replace(&mut self.project, previous));
         self.project_changed = true;
         self.touch();
+        self.follow_scene(on_view);
     }
 
     pub fn redo(&mut self) {
         let Some(next) = self.redo.pop() else {
             return;
         };
+        let on_view = self.scene().map(|s| s.id.clone());
         self.undo.push(std::mem::replace(&mut self.project, next));
         self.project_changed = true;
         self.touch();
+        self.follow_scene(on_view);
     }
 
     /// The timeline: cut order first, then figures, cameras and lights.
@@ -960,6 +1013,25 @@ fn mark_current(lines: &mut [ScriptLine], t_s: f64) {
     if let Some(i) = current {
         lines[i].current = true;
     }
+}
+
+/// `dir` may be missing or an empty folder; anything else would mix the project with it.
+fn check_empty(dir: &Path) -> Result<(), ServiceError> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(mut entries) => entries.next().is_some(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
+        Err(source) => {
+            return Err(ServiceError::Write {
+                path: dir.to_owned(),
+                source,
+            })
+        }
+    };
+
+    if entries {
+        return Err(ServiceError::NotEmpty(dir.to_owned()));
+    }
+    Ok(())
 }
 
 fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {

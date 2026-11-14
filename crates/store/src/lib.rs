@@ -23,6 +23,11 @@ pub use error::StoreError;
 use files::{Dir, Kind};
 pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
 
+/// Whether `id` may name a location or scene file on every system (FORMAT.md, Ids).
+pub fn is_safe_id(id: &str) -> bool {
+    files::safe_name(id)
+}
+
 const PROJECT_FILE: &str = "projekt.toml";
 const CHARACTERS_FILE: &str = "figuren.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
