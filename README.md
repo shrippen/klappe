@@ -10,7 +10,7 @@ Starten: `./start.sh` (App), `./start.sh tui` oder `./start.sh cli`; mit dem Bei
 Drehbuch schreiben im Terminal: `cargo run -p klappe-tui -- testdata/beispiel.klappe` (F1 zeigt die Tasten,
 `--language de|en` wählt die Sprache).
 
-Konzept: [`planung/KONZEPT.md`](planung/KONZEPT.md), Oberfläche: [`planung/DESIGN.md`](planung/DESIGN.md),
+Aufbau: [`ARCHITECTURE.md`](ARCHITECTURE.md), Konzept: [`planung/KONZEPT.md`](planung/KONZEPT.md), Oberfläche: [`planung/DESIGN.md`](planung/DESIGN.md),
 Lastenheft Stellprobe: [`planung/stellprobe/LASTENHEFT.md`](planung/stellprobe/LASTENHEFT.md).
 
 Lizenz: MIT.
