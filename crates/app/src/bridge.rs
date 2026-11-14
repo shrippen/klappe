@@ -2607,6 +2607,41 @@ mod tests {
         assert_eq!(camera["follows"], "Burgvogt (12)");
     }
 
+    /// A tooltip reads back the key the plan wrote: the kind, the id and the index.
+    #[test]
+    fn describe_reads_the_keys_the_plan_writes() {
+        let s = example();
+        let described = |source: Source| describe(&s, &plan::key(&source));
+        let mark = |index| Source::Mark {
+            character: "elisabeth".into(),
+            index,
+        };
+
+        assert_eq!(described(Source::Camera("a".into()))["kind"], "camera");
+        assert_eq!(
+            described(Source::Figure("elisabeth".into()))["kind"],
+            "figure"
+        );
+        assert_eq!(described(mark(0))["kind"], "mark");
+        assert_eq!(described(mark(0))["index"], 1);
+        assert_eq!(described(mark(2))["index"], 3);
+
+        let via = described(Source::FigureVia {
+            character: "elisabeth".into(),
+            index: 1,
+        });
+        assert_eq!(via, json!({ "kind": "bend", "index": 2 }));
+        let via = described(Source::CameraVia {
+            camera: "a".into(),
+            index: 0,
+        });
+        assert_eq!(via, json!({ "kind": "bend", "index": 1 }));
+
+        assert_eq!(described(Source::Wall(0)), json!({}));
+        assert_eq!(described(Source::Drawing("d".into())), json!({}));
+        assert_eq!(describe(&s, "nonsense:x"), json!({}));
+    }
+
     /// The object tool lists the library: sizes in metres, built in first.
     #[test]
     fn the_object_list_is_the_library() {

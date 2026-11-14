@@ -480,6 +480,17 @@ mod tests {
         assert!(url.ends_with("/projekt/bilder/a.png"), "{url}");
     }
 
+    /// A project folder with a space, a `#` and an umlaut: the URL gives the same path back.
+    #[test]
+    fn a_file_url_reads_back_as_the_path() {
+        let dir = Path::new("/home/a b/p#1");
+        let file = "bilder/Grundriss Nr 1 \u{e4}\u{f6}.png";
+
+        let url = file_url(dir, file);
+
+        assert_eq!(crate::tools::local_path(&url), dir.join(file));
+    }
+
     #[test]
     fn a_box_being_pulled_is_a_tinted_outline() {
         let list = DisplayList::default();
