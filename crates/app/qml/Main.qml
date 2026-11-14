@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import QtQuick.Dialogs
 import io.github.shrippen.klappe
 
 // E-14 (planung/KONZEPT.md): header and tool bar on top, script left, plan in the middle,
@@ -87,6 +88,18 @@ Kirigami.ApplicationWindow {
                     text: texts.t("menu.save")
                     enabled: ctl.loaded
                     onClicked: ctl.save()
+                }
+                KanteButton {
+                    objectName: "backgroundButton"
+                    text: texts.t("menu.background")
+                    enabled: ctl.loaded
+                    onClicked: backgroundDialog.open()
+                }
+                KanteButton {
+                    objectName: "removeBackgroundButton"
+                    text: texts.t("menu.backgroundRemove")
+                    visible: ctl.hasBackground
+                    onClicked: ctl.removeBackground()
                 }
                 KanteButton {
                     text: texts.t("menu.pdf")
@@ -178,6 +191,13 @@ Kirigami.ApplicationWindow {
                 controller: ctl
             }
         }
+    }
+
+    FileDialog {
+        id: backgroundDialog
+        title: texts.t("background.pick")
+        nameFilters: [texts.t("background.filter")]
+        onAccepted: ctl.setBackground(selectedFile.toString())
     }
 
     // Tests and release screenshots: --screenshot PATH [--screenshot-after MS], then quit.

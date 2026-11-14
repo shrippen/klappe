@@ -17,4 +17,5 @@ Stand: 2026-11-13.
 | App in der CI (Arch, QML-Tests, offscreen-Screenshots) | fertig (#7) |
 | Flatpak und Windows-Build der App | offen |
 | Werkzeuge zum Zeichnen (Wand, Objekt, Figur, Kamera, Licht) | erste Fassung |
+| Hintergrundbild mit Maßstab (LH-13) | erste Fassung; offen: PDF als Hintergrund |
 | Demo-Modus mit „Studio Weber“ für Screenshots | offen |

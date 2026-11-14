@@ -66,7 +66,8 @@ TestCase {
     function test_keys_pick_the_tool() {
         const bar = make()
         const keys = [[Qt.Key_W, "wall"], [Qt.Key_O, "object"], [Qt.Key_F, "figure"],
-                      [Qt.Key_C, "camera"], [Qt.Key_L, "light"], [Qt.Key_V, "select"]]
+                      [Qt.Key_C, "camera"], [Qt.Key_L, "light"], [Qt.Key_M, "scale"],
+                      [Qt.Key_V, "select"]]
 
         for (const [key, tool] of keys) {
             keyClick(key)

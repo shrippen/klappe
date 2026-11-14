@@ -1,8 +1,13 @@
 //! The display list as `KanteShapeCanvas` shapes: Stellprobe's roles become Kante colour names
 //! and line styles. No geometry here (agent.md): positions come as they are.
 
+use std::path::Path;
+
 use klappe_services::{DisplayList, FigureColor, Item, Point, Role, Shape, Source};
 use serde_json::{json, Value};
+
+/// Radius of the points of the scale gesture on the plan.
+const GUIDE_POINT_RADIUS_M: f64 = 0.15;
 
 /// How a role is drawn: Kante colour name, line style, fill.
 struct Look {
@@ -23,7 +28,7 @@ fn look(role: Role) -> Look {
     };
 
     match role {
-        // The image is not drawn yet: the controls for it come in a later change.
+        // The image takes no colour; the canvas draws it as it is.
         Role::Background => l("muted", SOLID, "none"),
         Role::Wall => l("text", SOLID, "none"),
         Role::Object => l("muted", SOLID, "tint"),
@@ -68,14 +73,66 @@ fn flat(points: &[Point]) -> Vec<f64> {
     points.iter().flat_map(|p| [p.x_m, p.y_m]).collect()
 }
 
-fn shape(item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<Value> {
+/// A `file://` URL for `file` (relative to the project folder `dir`): the canvas wants an
+/// absolute URL. Anything but unreserved characters and `/` is percent-encoded.
+fn file_url(dir: &Path, file: &str) -> String {
+    let joined = dir.join(file);
+    let absolute = std::path::absolute(&joined).unwrap_or(joined);
+    let path = absolute.to_string_lossy().replace('\\', "/");
+
+    // A Windows path (`C:/…`) needs the slash after `file://`.
+    let mut url = String::from("file://");
+    if !path.starts_with('/') {
+        url.push('/');
+    }
+    for byte in path.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' | b':' => {
+                url.push(char::from(byte));
+            }
+            _ => url.push_str(&format!("%{byte:02X}")),
+        }
+    }
+
+    url
+}
+
+fn image(dir: &Path, shape: &Shape) -> Option<Value> {
+    let Shape::Image {
+        file,
+        at,
+        width_m,
+        depth_m,
+        rotation_deg,
+        opacity,
+    } = shape
+    else {
+        return None;
+    };
+
+    Some(json!({
+        "kind": "image",
+        "source": file_url(dir, file),
+        "points": flat(&[*at]),
+        "width": width_m,
+        "height": depth_m,
+        "rotation": rotation_deg,
+        "opacity": opacity,
+        "key": "",
+    }))
+}
+
+fn shape(dir: &Path, item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<Value> {
+    if let Some(image) = image(dir, &item.shape) {
+        return Some(image);
+    }
+
     let look = look(item.role);
     let (kind, points, radius, width) = match &item.shape {
         Shape::Line { from, to, width_m } => ("line", flat(&[*from, *to]), 0.0, *width_m),
         Shape::Polyline { points } => ("polyline", flat(points), 0.0, 0.0),
         Shape::Polygon { points } => ("polygon", flat(points), 0.0, 0.0),
         Shape::Circle { center, radius_m } => ("circle", flat(&[*center]), *radius_m, 0.0),
-        // The canvas has no image shape yet; it gets one with the controls.
         Shape::Image { .. } => return None,
     };
 
@@ -93,13 +150,43 @@ fn shape(item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<Value> {
     }))
 }
 
+/// The points picked so far for a scale, and the line between two: a preview on top of the
+/// plan. Not part of the project.
+fn guide(points: &[Point]) -> Vec<Value> {
+    let mut shapes = Vec::new();
+
+    if let [from, to] = points {
+        shapes.push(json!({
+            "kind": "line", "points": flat(&[*from, *to]), "radius": 0.0, "width": 0.0,
+            "label": "focus", "stroke": DASHED, "fill": "none", "text": "", "key": "",
+        }));
+    }
+    for point in points {
+        shapes.push(json!({
+            "kind": "circle", "points": flat(&[*point]), "radius": GUIDE_POINT_RADIUS_M,
+            "width": 0.0, "label": "focus", "stroke": SOLID, "fill": "solid", "text": "",
+            "key": "",
+        }));
+    }
+
+    shapes
+}
+
 /// `{ width, depth, shapes: [...] }` for the canvas; `selected` marks the shot's camera.
-pub fn shapes_json(list: &DisplayList, selected: &dyn Fn(&Source) -> bool) -> String {
-    let shapes: Vec<Value> = list
+/// `dir` is the project folder the image files lie in; `picked` the points of a scale in
+/// progress.
+pub fn shapes_json(
+    list: &DisplayList,
+    dir: &Path,
+    selected: &dyn Fn(&Source) -> bool,
+    picked: &[Point],
+) -> String {
+    let mut shapes: Vec<Value> = list
         .items
         .iter()
-        .filter_map(|i| shape(i, selected))
+        .filter_map(|i| shape(dir, i, selected))
         .collect();
+    shapes.extend(guide(picked));
 
     json!({ "width": list.width_m, "depth": list.depth_m, "shapes": shapes }).to_string()
 }
@@ -144,7 +231,8 @@ mod tests {
         };
         let is_a = |s: &Source| matches!(s, Source::Camera(id) if id == "a");
 
-        let v: Value = serde_json::from_str(&shapes_json(&list, &is_a)).unwrap_or_default();
+        let json = shapes_json(&list, Path::new("/p"), &is_a, &[]);
+        let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["width"], 20.0);
         assert_eq!(v["shapes"][0]["stroke"], "dashed");
@@ -163,5 +251,82 @@ mod tests {
         });
 
         assert_eq!(k, "mark:e:2");
+    }
+
+    fn background_list() -> DisplayList {
+        DisplayList {
+            items: vec![item(
+                Role::Background,
+                Shape::Image {
+                    file: "bilder/Grundriss Nr 1 äö.png".into(),
+                    at: Point::new(1.0, 2.0),
+                    width_m: 10.0,
+                    depth_m: 5.0,
+                    rotation_deg: 15.0,
+                    opacity: 0.5,
+                },
+                None,
+            )],
+            width_m: 20.0,
+            depth_m: 13.0,
+        }
+    }
+
+    #[test]
+    fn the_background_is_an_image_with_an_absolute_url() {
+        let json = shapes_json(
+            &background_list(),
+            Path::new("/home/a b/p#1"),
+            &|_| false,
+            &[],
+        );
+        let v: Value = serde_json::from_str(&json).unwrap_or_default();
+        let image = &v["shapes"][0];
+
+        assert_eq!(image["kind"], "image");
+        assert_eq!(
+            image["source"],
+            "file:///home/a%20b/p%231/bilder/Grundriss%20Nr%201%20%C3%A4%C3%B6.png"
+        );
+        assert_eq!(image["points"], json!([1.0, 2.0]));
+        assert_eq!(image["width"], 10.0);
+        assert_eq!(image["height"], 5.0);
+        assert_eq!(image["rotation"], 15.0);
+        assert_eq!(image["opacity"], 0.5);
+        assert_eq!(image["key"], "");
+        assert_eq!(v["shapes"].as_array().map(Vec::len), Some(1));
+    }
+
+    /// A relative project folder becomes an absolute URL: the canvas would resolve it
+    /// against Kante.
+    #[test]
+    fn a_relative_project_folder_gives_an_absolute_url() {
+        let url = file_url(Path::new("projekt"), "bilder/a.png");
+
+        assert!(url.starts_with("file:///"), "{url}");
+        assert!(url.ends_with("/projekt/bilder/a.png"), "{url}");
+    }
+
+    #[test]
+    fn a_scale_in_progress_shows_its_points_and_line() {
+        let list = DisplayList::default();
+        let one = [Point::new(1.0, 1.0)];
+        let two = [Point::new(1.0, 1.0), Point::new(4.0, 5.0)];
+
+        let shapes = |picked: &[Point]| -> Vec<Value> {
+            let json = shapes_json(&list, Path::new("/p"), &|_| false, picked);
+            serde_json::from_str::<Value>(&json).unwrap_or_default()["shapes"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+        };
+
+        assert!(shapes(&[]).is_empty());
+        assert_eq!(shapes(&one).len(), 1);
+        assert_eq!(shapes(&one)[0]["kind"], "circle");
+        let both = shapes(&two);
+        assert_eq!(both.len(), 3);
+        assert_eq!(both[0]["kind"], "line");
+        assert_eq!(both[0]["points"], json!([1.0, 1.0, 4.0, 5.0]));
     }
 }
