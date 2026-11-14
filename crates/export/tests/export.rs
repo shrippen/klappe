@@ -372,8 +372,23 @@ fn a_group_is_printed_with_its_count() {
     let out = svg(&grouped, &page(), Theme::Light).unwrap();
 
     assert!(out.contains(">Elisabeth (12)<"));
-    // Three dots in each body (start and end of the way), in the outline colour.
-    assert_eq!(lines_with(&out, "item group-dot").len(), 6);
+    // Three dots in each body (start and end of the way), paper-coloured with an outline, so
+    // they stand out on every figure colour.
+    let dots = lines_with(&out, "item group-dot");
+    assert_eq!(dots.len(), 6);
+    let paper = lines_with(&out, "paper")[0];
+    let paper_fill = paper
+        .split("fill=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    assert!(
+        dots[0].contains(&format!(" fill=\"{paper_fill}\"")),
+        "{}",
+        dots[0]
+    );
 }
 
 /// A mark's number sits above the figure standing on it, also above a group's wider body.

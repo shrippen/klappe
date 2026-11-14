@@ -50,8 +50,8 @@ fn look(role: Role) -> Look {
         Role::FigureHandle(c) => l(color(c), SOLID, "solid"),
         Role::CameraHandle => l("yellow", SOLID, "solid"),
         Role::Figure(c) => l(color(c), SOLID, "solid"),
-        // The text colour stands out from every figure colour.
-        Role::GroupDot => l("text", SOLID, "solid"),
+        // The ground colour stands out from every figure colour (the text colour did not).
+        Role::GroupDot => l("ground", SOLID, "solid"),
     }
 }
 
@@ -334,7 +334,7 @@ mod tests {
         let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None, None);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
-        assert_ne!(v["shapes"][0]["label"], v["shapes"][1]["label"]);
+        assert_eq!(v["shapes"][1]["label"], "ground");
         assert_eq!(v["shapes"][1]["fill"], "solid");
     }
 
