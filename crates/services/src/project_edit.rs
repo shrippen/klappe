@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use klappe_model::{
     is_object_height_m, is_object_size_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
-    Project, Scene, SetPlan,
+    Project, Scene, SetPlan, MAX_GROUP, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -48,16 +48,19 @@ pub enum ProjectEdit {
     RemoveLocation {
         id: String,
     },
+    /// `group` is the head count of a group of extras (LH-23); `None` is a single person.
     AddCharacter {
         name: String,
         short: String,
         color: FigureColor,
+        group: Option<u32>,
     },
     EditCharacter {
         id: String,
         name: String,
         short: String,
         color: FigureColor,
+        group: Option<u32>,
     },
     /// Refused while a plan uses the character.
     RemoveCharacter {
@@ -125,15 +128,19 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             depth_m,
         } => edit_location(project, id, name, *width_m, *depth_m),
         ProjectEdit::RemoveLocation { id } => remove_location(project, id),
-        ProjectEdit::AddCharacter { name, short, color } => {
-            add_character(project, name, short, *color)
-        }
+        ProjectEdit::AddCharacter {
+            name,
+            short,
+            color,
+            group,
+        } => add_character(project, name, short, *color, *group),
         ProjectEdit::EditCharacter {
             id,
             name,
             short,
             color,
-        } => edit_character(project, id, name, short, *color),
+            group,
+        } => edit_character(project, id, name, short, *color, *group),
         ProjectEdit::RemoveCharacter { id } => remove_character(project, id),
         ProjectEdit::LibraryFromObject {
             location,
@@ -267,9 +274,11 @@ fn add_character(
     name: &str,
     short: &str,
     color: FigureColor,
+    group: Option<u32>,
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     let short = short_of(short)?;
+    check_group(group)?;
 
     let base = slug(&name, CHARACTER_ID_FALLBACK);
     let id = unique_id(&base, project.characters.iter().map(|c| c.id.as_str()));
@@ -278,6 +287,7 @@ fn add_character(
         name,
         short,
         color,
+        group,
     });
     Ok(())
 }
@@ -288,9 +298,11 @@ fn edit_character(
     name: &str,
     short: &str,
     color: FigureColor,
+    group: Option<u32>,
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     let short = short_of(short)?;
+    check_group(group)?;
 
     let Some(character) = project.characters.iter_mut().find(|c| c.id == id) else {
         return Err(ServiceError::NoCharacter(id.to_owned()));
@@ -298,6 +310,7 @@ fn edit_character(
     character.name = name;
     character.short = short;
     character.color = color;
+    character.group = group;
     Ok(())
 }
 
@@ -484,6 +497,19 @@ fn short_of(short: &str) -> Result<String, ServiceError> {
         });
     }
     Ok(short.to_owned())
+}
+
+fn check_group(group: Option<u32>) -> Result<(), ServiceError> {
+    let Some(count) = group else {
+        return Ok(());
+    };
+    if !(MIN_GROUP..=MAX_GROUP).contains(&count) {
+        return Err(ServiceError::BadValue {
+            field: Field::Group,
+            value: count.to_string(),
+        });
+    }
+    Ok(())
 }
 
 /// Both sides in `(0, MAX_SET_M]`; also excludes NaN.

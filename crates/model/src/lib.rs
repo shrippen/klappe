@@ -37,6 +37,7 @@ pub use plan::{
 };
 pub use project::{
     Background, Character, FigureColor, Location, Note, Project, Scene, SetObject, SetPlan, Wall,
+    MAX_GROUP, MIN_GROUP,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
 

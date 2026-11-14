@@ -92,6 +92,11 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   unsichtbar. Bei `leave` ist sie nach `at_s + hold_s` nicht mehr zu sehen, bis ein späterer Mark
   `appear` hat. Ein Wert mit Standard wird nicht geschrieben; ältere Projekte laden und speichern
   unverändert. Keine neue Formatversion, wie bei den Notizen.
+- **Gruppen (LH-23):** eine Figur in `figuren.toml` hat optional `group`, die Zahl der Personen
+  (2 bis 999). Mit `group` ist die Figur eine Gruppe (Gäste, Wachen): sie hat eine Spur, Marks
+  und Wege wie jede Figur und wird größer gezeichnet, mit drei Punkten im Umriss, ihr Name trägt
+  die Zahl (`Gäste (12)`). Ohne Gruppe fehlt der Schlüssel; ältere Projekte laden und speichern
+  unverändert. Keine neue Formatversion, wie bei den Notizen.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.
