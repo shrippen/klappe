@@ -133,6 +133,8 @@ struct Scope<'a> {
     plan: &'a mut FloorPlan,
     /// `None` when the scene's location is missing.
     set: Option<&'a mut SetPlan>,
+    /// Id of the scene's location, for the error when it is missing.
+    location: &'a str,
     characters: &'a [Character],
     time_s: f64,
 }
@@ -179,6 +181,7 @@ pub(crate) fn apply(
     let mut scope = Scope {
         plan,
         set,
+        location,
         characters,
         time_s,
     };
@@ -247,10 +250,6 @@ fn normalize_deg(deg: f64) -> f64 {
     n
 }
 
-fn no_target(source: &Source) -> ServiceError {
-    ServiceError::NoTarget(format!("{source:?}"))
-}
-
 /// The mark a figure or camera stands at, or is leaving, at `time_s`: the last one that has
 /// begun, else the first.
 fn current_index(times_s: impl Iterator<Item = f64>, time_s: f64) -> Option<usize> {
@@ -264,7 +263,6 @@ fn current_index(times_s: impl Iterator<Item = f64>, time_s: f64) -> Option<usiz
 
 fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, ServiceError> {
     let time_s = scope.time_s;
-    let missing = || no_target(source);
 
     match source {
         Source::Mark { character, index } => {
@@ -274,7 +272,7 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
                 .iter_mut()
                 .find(|f| f.character == *character)
                 .and_then(|f| f.marks.get_mut(*index))
-                .ok_or_else(missing)?;
+                .ok_or(ServiceError::Gone)?;
             Ok(Target::Place {
                 at: &mut mark.at,
                 facing_deg: &mut mark.facing_deg,
@@ -286,10 +284,10 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
                 .figures
                 .iter_mut()
                 .find(|f| f.character == *character)
-                .ok_or_else(missing)?;
-            let index =
-                current_index(track.marks.iter().map(|m| m.at_s), time_s).ok_or_else(missing)?;
-            let mark = track.marks.get_mut(index).ok_or_else(missing)?;
+                .ok_or(ServiceError::Gone)?;
+            let index = current_index(track.marks.iter().map(|m| m.at_s), time_s)
+                .ok_or(ServiceError::Gone)?;
+            let mark = track.marks.get_mut(index).ok_or(ServiceError::Gone)?;
             Ok(Target::Place {
                 at: &mut mark.at,
                 facing_deg: &mut mark.facing_deg,
@@ -301,10 +299,10 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
                 .cameras
                 .iter_mut()
                 .find(|c| c.id == *id)
-                .ok_or_else(missing)?;
-            let index =
-                current_index(camera.marks.iter().map(|m| m.at_s), time_s).ok_or_else(missing)?;
-            let mark = camera.marks.get_mut(index).ok_or_else(missing)?;
+                .ok_or(ServiceError::Gone)?;
+            let index = current_index(camera.marks.iter().map(|m| m.at_s), time_s)
+                .ok_or(ServiceError::Gone)?;
+            let mark = camera.marks.get_mut(index).ok_or(ServiceError::Gone)?;
             Ok(Target::Place {
                 at: &mut mark.at,
                 facing_deg: &mut mark.facing_deg,
@@ -316,7 +314,7 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
                 .lights
                 .iter_mut()
                 .find(|l| l.id == *id)
-                .ok_or_else(missing)?;
+                .ok_or(ServiceError::Gone)?;
             Ok(Target::Place {
                 at: &mut light.at,
                 facing_deg: &mut light.facing_deg,
@@ -327,7 +325,7 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
                 .set
                 .as_deref_mut()
                 .and_then(|s| s.objects.iter_mut().find(|o| o.id == *id))
-                .ok_or_else(missing)?;
+                .ok_or(ServiceError::Gone)?;
             Ok(Target::Place {
                 at: &mut object.at,
                 facing_deg: &mut object.rotation_deg,
@@ -338,7 +336,7 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
                 .set
                 .as_deref_mut()
                 .and_then(|s| s.walls.get_mut(*index))
-                .ok_or_else(missing)?;
+                .ok_or(ServiceError::Gone)?;
             Ok(Target::Wall(wall))
         }
     }
@@ -383,34 +381,34 @@ fn turn(scope: &mut Scope<'_>, source: &Source, facing_deg: f64) -> Result<(), S
 
 fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
     match source {
-        Source::Mark { character, index } => remove_mark(scope.plan, character, *index, source),
+        Source::Mark { character, index } => remove_mark(scope.plan, character, *index),
         Source::Figure(character) => {
             let known = scope.plan.figure(character).is_some();
             if !known {
-                return Err(no_target(source));
+                return Err(ServiceError::Gone);
             }
 
             remove_figure(scope.plan, character);
             Ok(())
         }
-        Source::Camera(id) => remove_camera(scope.plan, id, source),
+        Source::Camera(id) => remove_camera(scope.plan, id),
         Source::Light(id) => {
             let index = scope.plan.lights.iter().position(|l| l.id == *id);
-            let index = index.ok_or_else(|| no_target(source))?;
+            let index = index.ok_or(ServiceError::Gone)?;
             scope.plan.lights.remove(index);
             Ok(())
         }
         Source::Object(id) => {
-            let set = scope.set.as_deref_mut().ok_or_else(|| no_target(source))?;
+            let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
             let index = set.objects.iter().position(|o| o.id == *id);
-            let index = index.ok_or_else(|| no_target(source))?;
+            let index = index.ok_or(ServiceError::Gone)?;
             set.objects.remove(index);
             Ok(())
         }
         Source::Wall(index) => {
-            let set = scope.set.as_deref_mut().ok_or_else(|| no_target(source))?;
+            let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
             if *index >= set.walls.len() {
-                return Err(no_target(source));
+                return Err(ServiceError::Gone);
             }
 
             set.walls.remove(*index);
@@ -419,19 +417,14 @@ fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
     }
 }
 
-fn remove_mark(
-    plan: &mut FloorPlan,
-    character: &str,
-    index: usize,
-    source: &Source,
-) -> Result<(), ServiceError> {
+fn remove_mark(plan: &mut FloorPlan, character: &str, index: usize) -> Result<(), ServiceError> {
     let track = plan
         .figures
         .iter_mut()
         .find(|f| f.character == character)
-        .ok_or_else(|| no_target(source))?;
+        .ok_or(ServiceError::Gone)?;
     if index >= track.marks.len() {
-        return Err(no_target(source));
+        return Err(ServiceError::Gone);
     }
 
     track.marks.remove(index);
@@ -478,14 +471,17 @@ fn remove_figure(plan: &mut FloorPlan, character: &str) {
     }
 }
 
-fn remove_camera(plan: &mut FloorPlan, id: &str, source: &Source) -> Result<(), ServiceError> {
+fn remove_camera(plan: &mut FloorPlan, id: &str) -> Result<(), ServiceError> {
     let index = plan
         .cameras
         .iter()
         .position(|c| c.id == id)
-        .ok_or_else(|| no_target(source))?;
-    if plan.shots.iter().any(|s| s.camera == id) {
-        return Err(ServiceError::CameraInUse(id.to_owned()));
+        .ok_or(ServiceError::Gone)?;
+    if let Some(shot) = plan.shots.iter().find(|s| s.camera == id) {
+        return Err(ServiceError::CameraInUse {
+            camera: plan.cameras[index].label.clone(),
+            shot: shot.number.clone(),
+        });
     }
 
     plan.cameras.remove(index);
@@ -546,10 +542,7 @@ fn add_camera(scope: &mut Scope<'_>, at: Point, facing_deg: f64) -> Result<(), S
                 .iter()
                 .any(|c| c.label == label || c.id == label.to_lowercase())
         })
-        .ok_or_else(|| ServiceError::BadValue {
-            field: "camera",
-            value: "no free letter".to_owned(),
-        })?;
+        .ok_or(ServiceError::NoFreeCamera)?;
     let (sensor, lens_mm, aspect) = match cameras.first() {
         Some(first) => (first.sensor, first.lens_mm, first.aspect),
         None => (DEFAULT_SENSOR, DEFAULT_LENS_MM, DEFAULT_ASPECT),
@@ -609,7 +602,7 @@ fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result<(), Servic
     let set = scope
         .set
         .as_deref_mut()
-        .ok_or_else(|| ServiceError::NoTarget("location".to_owned()))?;
+        .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
     let n = (1..)
         .find(|n| !set.objects.iter().any(|o| o.id == format!("o{n}")))
         .unwrap_or(1);
@@ -631,14 +624,14 @@ fn add_wall(scope: &mut Scope<'_>, from: Point, to: Point) -> Result<(), Service
     if from == to {
         return Err(ServiceError::BadValue {
             field: "wall",
-            value: "length 0".to_owned(),
+            value: "0".to_owned(),
         });
     }
 
     let set = scope
         .set
         .as_deref_mut()
-        .ok_or_else(|| ServiceError::NoTarget("location".to_owned()))?;
+        .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
     set.walls.push(Wall {
         from,
         to,
@@ -745,7 +738,7 @@ mod tests {
 
         assert!(matches!(
             apply(&mut project, 0, 0, 0.0, &edit),
-            Err(ServiceError::NoTarget(_))
+            Err(ServiceError::NoLocation(ref id)) if id == "l"
         ));
     }
 }

@@ -8,10 +8,17 @@ pub enum ServiceError {
     NoScene(String),
     #[error("no shot {0}")]
     NoShot(String),
-    #[error("nothing to edit: {0}")]
-    NoTarget(String),
-    #[error("camera {0} is used by a shot")]
-    CameraInUse(String),
+    /// What an edit names is no longer in the plan.
+    #[error("the element is gone")]
+    Gone,
+    /// The scene's location is missing, so its set cannot change.
+    #[error("no location {0}")]
+    NoLocation(String),
+    #[error("every camera letter is taken")]
+    NoFreeCamera,
+    /// By label and shot number, as the user knows them.
+    #[error("camera {camera} is used by shot {shot}")]
+    CameraInUse { camera: String, shot: String },
     #[error("bad value for {field}: {value}")]
     BadValue { field: &'static str, value: String },
     #[error(transparent)]

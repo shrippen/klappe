@@ -271,7 +271,11 @@ fn a_camera_in_use_stays() {
         })
         .unwrap_err();
 
-    assert!(matches!(err, ServiceError::CameraInUse(id) if id == "b"));
+    // Review of PR 10: what the user reads is the camera's label and the shot's number.
+    assert!(matches!(
+        err,
+        ServiceError::CameraInUse { ref camera, ref shot } if camera == "B" && shot == "12.3"
+    ));
     assert_eq!(s.plan().unwrap().cameras.len(), 2);
     assert!(!s.can_undo());
 }
@@ -518,7 +522,26 @@ fn an_unknown_source_is_refused() {
         })
         .unwrap_err();
 
-    assert!(matches!(err, ServiceError::NoTarget(_)));
+    assert!(matches!(err, ServiceError::Gone));
+}
+
+/// Review of PR 10: a 27th camera has no letter left, said without code text.
+#[test]
+fn cameras_run_out_of_letters() {
+    let mut s = open();
+    let add = || PlanEdit::AddCamera {
+        at: p(1.0, 1.0),
+        facing_deg: 0.0,
+    };
+
+    while s.plan().unwrap().cameras.len() < 26 {
+        s.edit_plan(add()).unwrap();
+    }
+
+    assert!(matches!(
+        s.edit_plan(add()).unwrap_err(),
+        ServiceError::NoFreeCamera
+    ));
 }
 
 #[test]
