@@ -327,6 +327,56 @@ fn the_pdf_carries_the_background_image() {
     assert!(text.contains("/Filter /DCTDecode"));
 }
 
+/// A PNG of 4 x 2 red pixels, decodable (unlike the bare headers above).
+const RED_PNG: [u8; 73] = [
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x08, 0x02, 0x00, 0x00, 0x00, 0xF0, 0xCA, 0xEA,
+    0x34, 0x00, 0x00, 0x00, 0x10, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0xF8, 0xAF, 0xA0, 0x00,
+    0x47, 0x0C, 0xC8, 0x1C, 0x00, 0x88, 0xAA, 0x09, 0xF9, 0x2D, 0x71, 0xAE, 0x17, 0x00, 0x00, 0x00,
+    0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+];
+
+fn texts() -> klappe_services::Texts {
+    klappe_services::Texts {
+        figure: "Figur".into(),
+        camera: "Kamera".into(),
+        light: "Licht".into(),
+        axis: "Achse".into(),
+        path: "Weg".into(),
+        mark: "Mark".into(),
+        unit: "m".into(),
+        decimal_separator: ',',
+        shots: klappe_services::ShotTexts::default(),
+    }
+}
+
+#[test]
+fn the_png_and_svg_carry_the_background_image() {
+    let (_, dir) = with_background("bg-raster");
+    std::fs::write(dir.join(IMAGE), RED_PNG).unwrap();
+    let s = Session::open(&dir).unwrap();
+    let png = dir.join("plan.png");
+    let svg = dir.join("plan.svg");
+
+    s.export_png(&png, klappe_services::Paper::A4, texts())
+        .unwrap();
+    s.export_svg(&svg, klappe_services::Paper::A4, texts())
+        .unwrap();
+
+    // The same plan without the image is a different picture.
+    let (plain_dir, _) = project_dir("bg-raster-plain");
+    let plain_png = plain_dir.join("plain.png");
+    Session::open(&plain_dir)
+        .unwrap()
+        .export_png(&plain_png, klappe_services::Paper::A4, texts())
+        .unwrap();
+    assert_ne!(
+        std::fs::read(&png).unwrap(),
+        std::fs::read(&plain_png).unwrap()
+    );
+    assert!(std::fs::read_to_string(&svg).unwrap().contains("<image "));
+}
+
 /// `bilder/` is the user's: a file replaced during the session, with another aspect ratio
 /// under the same name, shows with its new depth (10 m wide: 1000 x 500 px is 5 m deep,
 /// 1000 x 1000 px is 10 m).

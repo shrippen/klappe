@@ -6,6 +6,8 @@ pub enum ServiceError {
     Store(#[from] klappe_store::StoreError),
     #[error("no scene {0}")]
     NoScene(String),
+    #[error("no plan {0}")]
+    NoPlan(String),
     #[error("there is no backup")]
     NoBackup,
     #[error("no shot {0}")]

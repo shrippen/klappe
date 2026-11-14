@@ -1,6 +1,6 @@
 [package]
 name = "klappe-export"
-description = "Writes Stellprobe's display list as SVG and PDF."
+description = "Writes Stellprobe's display list as SVG, PDF and PNG."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -266,6 +266,46 @@ fn print_texts() -> klappe_services::Texts {
     }
 }
 
+const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+
+#[test]
+fn prints_the_plan_as_png() {
+    let s = open();
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan.png");
+
+    s.export_png(&path, klappe_services::Paper::A4, print_texts())
+        .unwrap();
+
+    assert!(std::fs::read(&path).unwrap().starts_with(PNG_SIGNATURE));
+}
+
+#[test]
+fn prints_the_plan_as_svg() {
+    let s = open();
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan.svg");
+
+    s.export_svg(&path, klappe_services::Paper::A3, print_texts())
+        .unwrap();
+
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("<svg"));
+    assert!(text.contains("INT. SÄNGERSAAL"));
+    assert!(text.contains("Achse"));
+}
+
+#[test]
+fn selects_a_plan_by_id() {
+    let mut s = open();
+
+    assert!(matches!(
+        s.select_plan("nope"),
+        Err(ServiceError::NoPlan(_))
+    ));
+    let id = s.plan().unwrap().id.clone();
+    s.select_plan(&id).unwrap();
+    assert_eq!(s.plan().unwrap().id, id);
+}
+
 #[test]
 fn prints_the_plan_as_pdf() {
     let s = open();

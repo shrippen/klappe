@@ -117,6 +117,16 @@ Kirigami.ApplicationWindow {
                     onClicked: ctl.exportPdf(root.shotOrder)
                 }
                 KanteButton {
+                    text: texts.t("menu.png")
+                    enabled: ctl.loaded
+                    onClicked: ctl.exportPng()
+                }
+                KanteButton {
+                    text: texts.t("menu.svg")
+                    enabled: ctl.loaded
+                    onClicked: ctl.exportSvg()
+                }
+                KanteButton {
                     text: texts.t("menu.csv")
                     enabled: ctl.loaded
                     onClicked: ctl.exportCsv(root.shotOrder)
