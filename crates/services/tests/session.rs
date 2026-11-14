@@ -513,3 +513,34 @@ fn save_script_rewrites_the_backup_when_the_project_changed() {
     assert_eq!(s.shots()[0].lens_mm, 85.0);
     assert_eq!(s.script_text(), "Neu.\n");
 }
+
+#[test]
+fn save_keeps_an_unanswered_backup() {
+    let dir = copy("session-save-held");
+    let mut s = Session::open(&dir).unwrap();
+    change_lens(&mut s);
+    s.autosave().unwrap();
+    let mut s = Session::open(&dir).unwrap();
+    assert_eq!(s.backup(), &BackupState::Found);
+
+    s.edit_shot("s12-1", ShotField::Lens, "50 mm").unwrap();
+    s.save().unwrap();
+
+    assert!(dir.join(".sicherung").exists());
+    assert_eq!(s.backup(), &BackupState::Found);
+    assert!(!s.is_dirty());
+    s.restore_backup().unwrap();
+    assert_eq!(s.shots()[0].lens_mm, 85.0);
+}
+
+#[test]
+fn a_half_deleted_backup_is_not_found() {
+    let dir = copy("session-backup-half-deleted");
+    let mut s = Session::open(&dir).unwrap();
+    change_lens(&mut s);
+    s.autosave().unwrap();
+    std::fs::remove_file(dir.join(".sicherung/fertig")).unwrap();
+    std::fs::remove_dir_all(dir.join(".sicherung/szenen")).unwrap();
+
+    assert_eq!(Session::open(&dir).unwrap().backup(), &BackupState::None);
+}

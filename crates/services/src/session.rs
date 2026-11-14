@@ -140,13 +140,17 @@ impl Session {
         self.dirty
     }
 
-    /// Writes the project back to its folder and removes the backup.
+    /// Writes the project back to its folder and removes the backup. An unanswered backup
+    /// (`Found`, `Unreadable`) stays, as with `autosave`: the user decides on it.
     pub fn save(&mut self) -> Result<(), ServiceError> {
         klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
         self.dirty = false;
         self.unbacked = false;
         self.project_changed = false;
-        self.backup = BackupState::None;
+        if self.backup != BackupState::None {
+            return Ok(());
+        }
+
         klappe_store::drop_backup(&self.dir)?;
         Ok(())
     }
@@ -172,7 +176,8 @@ impl Session {
     }
 
     /// Takes project and screenplay from the backup. The project change can be undone; the
-    /// screenplay text cannot (undo covers the project only).
+    /// screenplay text cannot (undo covers the project only). The backup's screenplay replaces
+    /// the one on disk at the next save, also a newer one saved after the crash.
     pub fn restore_backup(&mut self) -> Result<(), ServiceError> {
         let loaded = klappe_store::load_backup(&self.dir)?.ok_or(ServiceError::NoBackup)?;
 
