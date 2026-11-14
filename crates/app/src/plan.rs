@@ -323,6 +323,61 @@ mod tests {
         }
     }
 
+    /// Every role as (role, label, stroke, fill) as the canvas gets it; pins `look`.
+    #[test]
+    fn every_role_has_its_look() {
+        let red = FigureColor::Red;
+        let rows = [
+            (Role::Background, "muted", "solid", "none"),
+            (Role::Wall, "text", "solid", "none"),
+            (Role::Object, "muted", "solid", "tint"),
+            (Role::LightBeam, "orange", "solid", "tint"),
+            (Role::Light, "orange", "solid", "solid"),
+            (Role::Note, "accent", "solid", "solid"),
+            (Role::ArrowHead(red), "red", "solid", "solid"),
+            (Role::Axis, "orange", "dashed", "none"),
+            (Role::CameraPath, "yellow", "dotted", "none"),
+            (Role::Frustum, "yellow", "solid", "tint"),
+            (Role::Camera, "yellow", "solid", "solid"),
+            (Role::FigurePath(red), "red", "dotted", "none"),
+            (Role::Mark(red), "red", "solid", "none"),
+            (Role::FigureHandle(red), "red", "solid", "solid"),
+            (Role::CameraHandle, "yellow", "solid", "solid"),
+            (Role::Figure(red), "red", "solid", "solid"),
+            (Role::GroupDot, "ground", "solid", "solid"),
+        ];
+        let drawings = [
+            (Dash::Solid, Fill::Outline, "solid", "none"),
+            (Dash::Solid, Fill::Filled, "solid", "tint"),
+            (Dash::Dashed, Fill::Outline, "dashed", "none"),
+            (Dash::Dashed, Fill::Filled, "dashed", "tint"),
+            (Dash::Dotted, Fill::Outline, "dotted", "none"),
+            (Dash::Dotted, Fill::Filled, "dotted", "tint"),
+        ];
+        let mut cases: Vec<(Role, &str, &str, &str)> = rows.to_vec();
+        for (dash, fill, stroke, area) in drawings {
+            let role = Role::Drawing {
+                color: FigureColor::Blue,
+                dash,
+                fill,
+            };
+            cases.push((role, "blue", stroke, area));
+        }
+
+        for (role, label, stroke, fill) in cases {
+            let circle = Shape::Circle {
+                center: Point::new(0.0, 0.0),
+                radius_m: 1.0,
+            };
+            let v =
+                shape(Path::new("/p"), &item(role, circle, None), &|_| false).unwrap_or_default();
+
+            assert_eq!(v["label"], label, "{role:?}");
+            assert_eq!(v["stroke"], stroke, "{role:?}");
+            assert_eq!(v["fill"], fill, "{role:?}");
+        }
+    }
+
     #[test]
     fn roles_become_kante_names_and_styles() {
         let list = DisplayList {

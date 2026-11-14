@@ -143,3 +143,145 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
         stroke: style.2,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::palette::{palette, Rgb, Theme};
+    use klappe_model::FigureColor;
+
+    type Expected = (Option<(Rgb, f64)>, Option<(Rgb, f64, Dash)>);
+
+    /// Class, fill (colour, opacity) and stroke (colour, width, dash) of every role, per theme.
+    #[test]
+    fn every_role_has_its_style() -> Result<(), ExportError> {
+        for theme in [Theme::Light, Theme::Dark] {
+            let pal = palette(theme)?;
+            let fg = pal.foreground;
+            let c = |name: &str| pal.semantic(name);
+            let red = c("red")?;
+            let blue = c("blue")?;
+            let yellow = c("yellow")?;
+            let orange = c("orange")?;
+            let line = |rgb, w, d| Some((rgb, w, d));
+            let fill = |rgb, o| Some((rgb, o));
+
+            let cases: Vec<(Role, String, Expected)> = vec![
+                (Role::Background, "background".into(), (None, None)),
+                (
+                    Role::FigureHandle(FigureColor::Red),
+                    "handle".into(),
+                    (None, None),
+                ),
+                (Role::CameraHandle, "handle".into(), (None, None)),
+                (
+                    Role::Wall,
+                    "wall".into(),
+                    (None, line(fg, 0.75, Dash::Solid)),
+                ),
+                (
+                    Role::Object,
+                    "object".into(),
+                    (fill(pal.surface, 1.0), line(pal.muted, 0.75, Dash::Solid)),
+                ),
+                (
+                    Role::Camera,
+                    "camera".into(),
+                    (fill(yellow, 1.0), line(fg, 0.75, Dash::Solid)),
+                ),
+                (
+                    Role::Frustum,
+                    "frustum".into(),
+                    (fill(yellow, 0.15), line(yellow, 0.75, Dash::Solid)),
+                ),
+                (
+                    Role::CameraPath,
+                    "camera-path".into(),
+                    (None, line(yellow, 1.25, Dash::Dotted)),
+                ),
+                (
+                    Role::Light,
+                    "light".into(),
+                    (fill(orange, 1.0), line(fg, 0.75, Dash::Solid)),
+                ),
+                (
+                    Role::LightBeam,
+                    "beam".into(),
+                    (fill(orange, 0.15), line(orange, 0.75, Dash::Solid)),
+                ),
+                (
+                    Role::Note,
+                    "note".into(),
+                    (fill(pal.surface, 1.0), line(fg, 0.75, Dash::Solid)),
+                ),
+                (
+                    Role::ArrowHead(FigureColor::Red),
+                    "arrow-head red".into(),
+                    (fill(red, 1.0), line(red, 1.5, Dash::Solid)),
+                ),
+                (
+                    Role::Axis,
+                    "axis".into(),
+                    (None, line(orange, 1.5, Dash::Dashed)),
+                ),
+                (
+                    Role::FigurePath(FigureColor::Red),
+                    "figure-path red".into(),
+                    (None, line(red, 1.25, Dash::Dotted)),
+                ),
+                (
+                    Role::Mark(FigureColor::Red),
+                    "mark red".into(),
+                    (fill(red, 0.3), line(red, 1.25, Dash::Solid)),
+                ),
+                (
+                    Role::Figure(FigureColor::Red),
+                    "figure red".into(),
+                    (fill(red, 1.0), line(fg, 0.75, Dash::Solid)),
+                ),
+                (
+                    Role::GroupDot,
+                    "group-dot".into(),
+                    (fill(pal.paper, 1.0), line(fg, 0.75, Dash::Solid)),
+                ),
+            ];
+            let mut cases = cases;
+            let drawings = [
+                (DrawDash::Solid, Dash::Solid),
+                (DrawDash::Dashed, Dash::Dashed),
+                (DrawDash::Dotted, Dash::Dotted),
+            ];
+            for (draw_dash, dash) in drawings {
+                for (draw_fill, tint) in [
+                    (DrawFill::Outline, None),
+                    (DrawFill::Filled, fill(blue, 0.25)),
+                ] {
+                    let role = Role::Drawing {
+                        color: FigureColor::Blue,
+                        dash: draw_dash,
+                        fill: draw_fill,
+                    };
+                    cases.push((role, "drawing blue".into(), (tint, line(blue, 1.5, dash))));
+                }
+            }
+
+            for (role, class, (want_fill, want_stroke)) in cases {
+                let got = role_style(role, pal)?;
+
+                assert_eq!(got.class, class, "{role:?}");
+                assert_eq!(
+                    got.fill.map(|f| (f.rgb, f.opacity)),
+                    want_fill,
+                    "{role:?} fill"
+                );
+                assert_eq!(
+                    got.stroke.map(|s| (s.rgb, s.width_pt, s.dash)),
+                    want_stroke,
+                    "{role:?} stroke"
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
