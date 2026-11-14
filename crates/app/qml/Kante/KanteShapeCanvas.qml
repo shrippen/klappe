@@ -25,6 +25,11 @@ import "."
  *   keyAt(px, py)             key of the topmost shape under a pixel, "" for none
  *   shapeClicked(key, x, y)   click without drag; key "" on empty ground; x, y in model units
  *   shapeHovered(key, x, y)   the pointer moved; key "" when it is over nothing
+ *   editing    the left button edits instead of panning: a drag on a shape or on empty ground
+ *              reports shapeDragged; pan stays on the middle button and with space held
+ *   shapeDragged(key, fromX, fromY, x, y, done)   in editing, a left drag: key of the shape
+ *              it began on ("" on empty ground), where it began and where it is now (model
+ *              units); done on release. The app moves or draws; the canvas changes nothing.
  *
  * Hit test: inside a polygon or circle that has a fill, or within a few pixels of an outline,
  * line or polyline (an unfilled polygon is only hit at its edge, so a room does not hide what
@@ -47,6 +52,9 @@ FocusScope {
 
     signal shapeClicked(string key, real x, real y)
     signal shapeHovered(string key, real x, real y)
+    signal shapeDragged(string key, real fromX, real fromY, real x, real y, bool done)
+
+    property bool editing: false
 
     // Where the model origin lies in the view.
     property real panX: 0
@@ -490,6 +498,14 @@ FocusScope {
 
         property bool panning: false
         property bool moved: false
+        // In editing: a left drag the app gets, and the shape it began on.
+        property bool dragging: false
+        property string dragKey: ""
+        // Where the drag began, in model units: fixed at the press, whatever the view does.
+        property real dragFromX: 0
+        property real dragFromY: 0
+        property real lastModelX: 0
+        property real lastModelY: 0
         property real lastX: 0
         property real lastY: 0
         property real startX: 0
@@ -504,8 +520,21 @@ FocusScope {
             lastX = startX = mouse.x
             lastY = startY = mouse.y
             moved = false
-            // Middle button and space always pan; the left button pans from empty ground.
-            panning = mouse.button === Qt.MiddleButton || root._spaceDown || root.shapeAt(mouse.x, mouse.y) < 0
+            // Middle button and space always pan; the left button pans from empty ground,
+            // unless the app edits: then it gets the drag.
+            const forced = mouse.button === Qt.MiddleButton || root._spaceDown
+            panning = forced || (!root.editing && root.shapeAt(mouse.x, mouse.y) < 0)
+            dragging = root.editing && !forced
+            dragKey = dragging ? root.keyAt(mouse.x, mouse.y) : ""
+            const from = _model(startX, startY)
+            dragFromX = lastModelX = from.x
+            dragFromY = lastModelY = from.y
+        }
+        function _drag(mx, my, done) {
+            const m = _model(mx, my)
+            lastModelX = m.x
+            lastModelY = m.y
+            root.shapeDragged(dragKey, dragFromX, dragFromY, m.x, m.y, done)
         }
         onPositionChanged: function (mouse) {
             if (!pressed) {
@@ -521,6 +550,10 @@ FocusScope {
             if (Math.hypot(mouse.x - startX, mouse.y - startY) > root._dragSlop) {
                 moved = true
             }
+            if (dragging && moved) {
+                _drag(mouse.x, mouse.y, false)
+                return
+            }
             if (!panning || !moved) {
                 return
             }
@@ -529,7 +562,21 @@ FocusScope {
             lastX = mouse.x
             lastY = mouse.y
         }
-        onReleased: panning = false
+        onReleased: function (mouse) {
+            if (dragging && moved) {
+                _drag(mouse.x, mouse.y, true)
+            }
+            panning = false
+            dragging = false
+        }
+        // A pinch or the window took the press over: end the drag where it was last seen.
+        onCanceled: {
+            if (dragging && moved) {
+                root.shapeDragged(dragKey, dragFromX, dragFromY, lastModelX, lastModelY, true)
+            }
+            panning = false
+            dragging = false
+        }
         onExited: {
             if (root._hoverKey !== "") {
                 root.shapeHovered("", 0, 0)

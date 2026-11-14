@@ -100,25 +100,17 @@ Kirigami.ApplicationWindow {
                 }
             }
 
-            // Tool bar: drawing tools (later), then what to show.
+            // Tool bar: the drawing tools, then what to show.
             RowLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: Kirigami.Units.smallSpacing
                 Layout.rightMargin: Kirigami.Units.smallSpacing
                 spacing: Kirigami.Units.smallSpacing
 
-                Repeater {
-                    model: ["select", "wall", "object", "figure", "camera", "light"]
-                    delegate: KanteToolButton {
-                        required property string modelData
-                        text: texts.t("tool." + modelData)
-                        checkable: true
-                        checked: modelData === "select"
-                        // Drawing tools come with editing (LH-10 ff.); for now only selection.
-                        enabled: modelData === "select"
-                        QQC2.ToolTip.text: texts.t("tool.soon")
-                        QQC2.ToolTip.visible: !enabled && hovered
-                    }
+                PlanTools {
+                    id: planTools
+                    texts: texts
+                    controller: ctl
                 }
                 Item { Layout.fillWidth: true }
                 KanteToolButton {
@@ -159,6 +151,7 @@ Kirigami.ApplicationWindow {
                 Kirigami.Separator { Layout.fillHeight: true; visible: root.showScript && ctl.loaded }
 
                 PlanArea {
+                    tool: planTools.tool
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     texts: texts

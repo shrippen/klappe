@@ -5,7 +5,8 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The floor plan: Stellprobe's display list drawn by KanteShapeCanvas (no geometry here,
-// agent.md), with a tooltip for what the pointer is over (round 2, design 4).
+// agent.md), with a tooltip for what the pointer is over (round 2, design 4). The drawing
+// tools (PlanTools) pass clicks and drags on as they come, in metres; the controller edits.
 Item {
     id: area
 
@@ -13,7 +14,15 @@ Item {
     required property var controller
 
     readonly property var plan: controller.planJson ? JSON.parse(controller.planJson) : null
+    /// The tool of PlanTools: select, wall, object, figure, camera or light.
+    property string tool: "select"
     property string tipKey: ""
+    /// The pointer is over something the select tool can move: a left drag then moves it,
+    /// else it pans (middle button and space always pan).
+    property bool overGrab: false
+    property bool dragging: false
+    /// Escape aborted the drag in progress; the canvas goes on reporting until release.
+    property bool dragAborted: false
     property point tipAt: Qt.point(0, 0)
 
     KanteEmptyState {
@@ -33,11 +42,53 @@ Item {
         gridStep: 1
         shapes: area.plan ? area.plan.shapes : []
         accessibleName: area.texts.t("app.module")
+        editing: area.tool !== "select" || area.overGrab
 
         onShapeHovered: (key, x, y) => {
             area.tipKey = key
             area.tipAt = canvas.mapFromModel(x, y)
+            area.overGrab = key !== "" && area.controller.grabbable(x, y)
         }
+        onShapeClicked: (key, x, y) => area.controller.place(x, y)
+        onShapeDragged: (key, fromX, fromY, x, y, done) => {
+            if (area.dragAborted) {
+                area.dragAborted = done ? false : true
+                area.dragging = false
+                return
+            }
+            area.dragging = !done
+            area.controller.drag(fromX, fromY, x, y, done)
+        }
+    }
+
+    // Escape drops the drag in progress; only then, so it stays free for dialogs.
+    Shortcut {
+        sequence: "Escape"
+        enabled: area.dragging
+        onActivated: {
+            area.dragAborted = true
+            area.dragging = false
+            area.controller.cancelDrag()
+        }
+    }
+
+    // Keys for the selection: Delete removes it, R and Shift+R turn it by 15 degrees.
+    readonly property real turnStepDeg: 15
+    readonly property bool hasSelection: !!controller.selectedKey
+    Shortcut {
+        sequence: "Delete"
+        enabled: area.hasSelection
+        onActivated: area.controller.removeSelected()
+    }
+    Shortcut {
+        sequence: "R"
+        enabled: area.hasSelection
+        onActivated: area.controller.turnSelected(area.turnStepDeg)
+    }
+    Shortcut {
+        sequence: "Shift+R"
+        enabled: area.hasSelection
+        onActivated: area.controller.turnSelected(-area.turnStepDeg)
     }
 
     // Tooltip text from the controller's data and the catalogue.

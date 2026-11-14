@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Layer, LightKind, PlanEdit, Point, ServiceError, Session, Snapping, Source, Visibility,
+    Layer, LightKind, PlanEdit, Point, ServiceError, Session, Shape, Snapping, Source, Visibility,
 };
 
 fn example() -> PathBuf {
@@ -621,6 +621,177 @@ fn snapping_is_on_by_default() {
 
     s.set_snapping(Snapping::Off);
     assert_eq!(s.snap(p(0.1, 0.13)), p(0.1, 0.13));
+}
+
+/// Mark 2 of Elisabeth stands at (10, 6.5). By (0.3, 0.1) it would reach (10.3, 6.6); on the
+/// 0.25 m grid 10.3 / 0.25 = 41.2 -> 41 -> 10.25 and 6.6 / 0.25 = 26.4 -> 26 -> 6.5.
+#[test]
+fn a_shift_lands_on_the_grid() {
+    let mut s = open();
+    let shift = PlanEdit::Shift {
+        source: mark("elisabeth", 1),
+        dx_m: 0.3,
+        dy_m: 0.1,
+    };
+    let at = |s: &Session| s.plan().unwrap().figures[0].marks[1].at;
+
+    s.edit_plan(shift.clone()).unwrap();
+    assert!(near(at(&s), p(10.25, 6.5)), "{:?}", at(&s));
+
+    s.undo();
+    s.set_snapping(Snapping::Off);
+    s.edit_plan(shift).unwrap();
+    assert!(near(at(&s), p(10.3, 6.6)), "{:?}", at(&s));
+}
+
+/// Wall 0 runs (0, 0) to (20, 0), middle (10, 0). By (0.3, 0.4) the middle would reach
+/// (10.3, 0.4) -> (10.25, 0.5): the wall shifts by (0.25, 0.5) and keeps its length.
+#[test]
+fn a_shift_snaps_the_start_of_a_wall() {
+    let mut s = open();
+
+    s.edit_plan(PlanEdit::Shift {
+        source: Source::Wall(0),
+        dx_m: 0.3,
+        dy_m: 0.4,
+    })
+    .unwrap();
+
+    let wall = &location_set(&s).walls[0];
+    assert!(near(wall.from, p(0.25, 0.5)), "{:?}", wall.from);
+    assert!(near(wall.to, p(20.25, 0.5)), "{:?}", wall.to);
+}
+
+/// Review of PR 13: a wall 3.25 m long moved straight down kept its middle on the grid and
+/// slid 12.5 cm aside; its start stays on the grid instead, so it still meets its neighbours.
+#[test]
+fn a_shift_keeps_a_wall_start_on_the_grid() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::AddWall {
+        from: p(2.0, 2.0),
+        to: p(5.25, 2.0),
+    })
+    .unwrap();
+    let index = location_set(&s).walls.len() - 1;
+
+    s.edit_plan(PlanEdit::Shift {
+        source: Source::Wall(index),
+        dx_m: 0.0,
+        dy_m: 1.0,
+    })
+    .unwrap();
+
+    let wall = &location_set(&s).walls[index];
+    assert!(near(wall.from, p(2.0, 3.0)), "{:?}", wall.from);
+    assert!(near(wall.to, p(5.25, 3.0)), "{:?}", wall.to);
+}
+
+/// Camera A faces 330 at the start: 15 more is 345; Elisabeth's first mark faces 0: 15 less
+/// is -15, kept as 345.
+#[test]
+fn a_spin_adds_to_the_facing() {
+    let mut s = open();
+
+    s.edit_plan(PlanEdit::Spin {
+        source: Source::Camera("a".into()),
+        by_deg: 15.0,
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Spin {
+        source: mark("elisabeth", 0),
+        by_deg: -15.0,
+    })
+    .unwrap();
+
+    let plan = s.plan().unwrap();
+    assert_eq!(plan.cameras[0].marks[0].facing_deg, 345.0);
+    assert_eq!(plan.figures[0].marks[0].facing_deg, 345.0);
+}
+
+/// Wall 0 runs (0, 0) to (20, 0): direction 0, middle (10, 0), half length 10. Spun by 15 it
+/// ends at (10 - 10 cos 15, -10 sin 15) = (0.340742, -2.588190) and the mirror image.
+#[test]
+fn a_spin_turns_a_wall_about_its_middle() {
+    let mut s = open();
+
+    s.edit_plan(PlanEdit::Spin {
+        source: Source::Wall(0),
+        by_deg: 15.0,
+    })
+    .unwrap();
+
+    let wall = &location_set(&s).walls[0];
+    let close = |a: Point, b: Point| a.distance_m(b) < 1e-5;
+    assert!(close(wall.from, p(0.340742, -2.588190)), "{:?}", wall.from);
+    assert!(close(wall.to, p(19.659258, 2.588190)), "{:?}", wall.to);
+}
+
+#[test]
+fn a_shift_by_nothing_is_no_step_and_nan_is_refused() {
+    let mut s = open();
+    let shift = |dx_m| PlanEdit::Shift {
+        source: mark("elisabeth", 1),
+        dx_m,
+        dy_m: 0.0,
+    };
+
+    // The mark is on the grid already; 0.05 m snaps back to where it was.
+    s.edit_plan(shift(0.05)).unwrap();
+    assert!(!s.can_undo());
+
+    assert!(matches!(
+        s.edit_plan(shift(f64::NAN)),
+        Err(ServiceError::BadValue { .. })
+    ));
+}
+
+#[test]
+fn a_preview_shows_the_edit_and_changes_nothing() {
+    let s = open();
+    let center_of_mark = |list: &klappe_services::DisplayList| {
+        list.items
+            .iter()
+            .find(|i| i.source == Some(mark("elisabeth", 1)))
+            .and_then(|i| match &i.shape {
+                Shape::Circle { center, .. } => Some(*center),
+                _ => None,
+            })
+    };
+    let before = s.display_list();
+
+    let list = s
+        .preview(&PlanEdit::Shift {
+            source: mark("elisabeth", 1),
+            dx_m: 1.0,
+            dy_m: 0.0,
+        })
+        .unwrap();
+
+    assert_eq!(center_of_mark(&before), Some(p(10.0, 6.5)));
+    assert_eq!(center_of_mark(&list), Some(p(11.0, 6.5)));
+    assert_eq!(center_of_mark(&s.display_list()), Some(p(10.0, 6.5)));
+    assert!(!s.can_undo());
+    assert!(!s.is_dirty());
+}
+
+#[test]
+fn a_preview_of_a_bad_edit_is_an_error() {
+    let s = open();
+
+    let result = s.preview(&PlanEdit::Remove {
+        source: Source::Light("none".into()),
+    });
+
+    assert!(matches!(result, Err(ServiceError::Gone)));
+}
+
+#[test]
+fn snapping_can_be_read_back() {
+    let mut s = open();
+    assert_eq!(s.snapping(), Snapping::On);
+
+    s.set_snapping(Snapping::Off);
+    assert_eq!(s.snapping(), Snapping::Off);
 }
 
 #[test]
