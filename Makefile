@@ -1,10 +1,14 @@
-.PHONY: check fmt lint test qml deny advisories commits run kante
+.PHONY: check fmt structure lint test qml deny advisories commits run kante
 
 # Everything the CI's core job runs; run before every commit (agent.md).
-check: fmt lint test qml deny commits
+check: fmt structure lint test qml deny commits
 
 fmt:
 	cargo fmt --all --check
+
+# Function and file sizes within the limits or structure.baseline (RULES.md); needs pipx.
+structure:
+	pipx run tools/structure-check.py
 
 lint:
 	cargo clippy --workspace --all-targets -- -D warnings
