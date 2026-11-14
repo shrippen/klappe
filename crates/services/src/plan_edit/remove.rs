@@ -1,3 +1,5 @@
+//! Removing elements: a figure takes what points at it along; a camera a shot uses stays.
+
 use klappe_model::{FloorPlan, LinkTarget};
 use klappe_stellprobe::Source;
 

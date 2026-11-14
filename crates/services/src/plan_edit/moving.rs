@@ -1,3 +1,5 @@
+//! Moving, turning and bending elements: which points an edit targets and how they move.
+
 use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Wall};
 use klappe_stellprobe::{bend_point, via_through, Source};
 
@@ -123,7 +125,7 @@ pub(super) fn target<'a>(
 
 /// The bend of the way to mark `index` of `marks`; `place` gives a mark's place and its `via`.
 /// The first mark has no way to it.
-pub(super) fn curve<'a, M>(
+fn curve<'a, M>(
     marks: &'a mut [M],
     index: usize,
     place: impl Fn(&'a mut M) -> (Point, &'a mut Option<Point>),
@@ -139,7 +141,7 @@ pub(super) fn curve<'a, M>(
     Ok(Target::Curve { via, a, b })
 }
 
-pub(super) fn middle(wall: &Wall) -> Point {
+fn middle(wall: &Wall) -> Point {
     wall.from.lerp(wall.to, 0.5)
 }
 

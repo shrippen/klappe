@@ -1,3 +1,5 @@
+//! Checks of the values an edit brings before it applies: heights, tilts, holds, sizes, points.
+
 use klappe_model::{is_object_height_m, is_object_size_m, DrawingShape, Point};
 
 use super::PlanEdit;

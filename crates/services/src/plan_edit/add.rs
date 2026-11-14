@@ -1,3 +1,6 @@
+//! New elements on the plan: marks, cameras, lights, objects, walls, notes, drawings; also
+//! changing a note's text, which shares the note rules.
+
 use klappe_model::{
     Arrival, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureColor, FigureTrack,
     Fill, Light, LightKind, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject, Wall,

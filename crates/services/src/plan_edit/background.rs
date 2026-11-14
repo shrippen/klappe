@@ -1,3 +1,5 @@
+//! The plan's background image: set, calibrate to scale, move, remove.
+
 use klappe_model::{Background, Point};
 use std::path::Path;
 
@@ -36,7 +38,7 @@ pub(super) fn set_background(
 }
 
 /// The set's background, or `Gone` when it has none (or no set).
-pub(super) fn background<'a>(scope: &'a mut Scope<'_>) -> Result<&'a mut Background, ServiceError> {
+fn background<'a>(scope: &'a mut Scope<'_>) -> Result<&'a mut Background, ServiceError> {
     scope
         .set
         .as_deref_mut()
