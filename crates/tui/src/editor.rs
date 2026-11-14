@@ -24,7 +24,7 @@ struct Snapshot {
 pub(crate) struct Editor {
     buffer: Buffer,
     cursor: Pos,
-    /// Column within the row that up/down keep; `None` until a vertical move.
+    /// Display column within the row that up/down keep; `None` until a vertical move.
     goal: Option<usize>,
     undo: Vec<Snapshot>,
     redo: Vec<Snapshot>,
@@ -239,25 +239,30 @@ impl Editor {
 
     /// End of the screen row.
     pub(crate) fn end(&mut self, layout: &Layout) {
-        let Some(row) = layout.row(layout.row_of(self.cursor)) else {
+        let at = layout.row_of(self.cursor);
+        if layout.row(at).is_none() {
             return;
-        };
-        self.horizontal(layout.pos_at(layout.row_of(self.cursor), row.end - row.start));
+        }
+
+        self.horizontal(layout.pos_at(at, layout.row_cols(at)));
     }
 
-    /// Moves by screen rows, keeping the column; stops at the first and last row.
+    /// Moves by screen rows, keeping the display column; stops at the first and last row.
     pub(crate) fn rows(&mut self, delta: isize, layout: &Layout) {
-        let Some(row) = layout.row(layout.row_of(self.cursor)) else {
-            return;
-        };
         let from = layout.row_of(self.cursor);
+        if layout.row(from).is_none() {
+            return;
+        }
+
         let last = layout.len().saturating_sub(1);
         let to = from.saturating_add_signed(delta).min(last);
         if to == from {
             return;
         }
 
-        let x = self.goal.unwrap_or(self.cursor.col - row.start);
+        let x = self
+            .goal
+            .unwrap_or(layout.col_in_row(from, self.cursor.col));
         self.cursor = layout.pos_at(to, x);
         self.goal = Some(x);
         self.last_edit = None;
@@ -414,6 +419,45 @@ mod tests {
 
         ed.rows(-1, &l);
         assert_eq!(ed.cursor(), at(0, 3));
+    }
+
+    #[test]
+    fn vertical_moves_keep_the_display_column_of_wide_chars() {
+        let mut ed = Editor::new("日本語\nabcdefgh");
+        let l = layout_of(&ed, 20);
+
+        ed.end(&l);
+        ed.rows(1, &l);
+        assert_eq!(ed.cursor(), at(1, 6));
+
+        ed.rows(-1, &l);
+        assert_eq!(ed.cursor(), at(0, 3));
+    }
+
+    #[test]
+    fn wide_char_covering_the_column_is_stepped_before() {
+        let mut ed = Editor::new("abcde\na日本");
+        let l = layout_of(&ed, 20);
+        for _ in 0..2 {
+            ed.right();
+        }
+
+        // Display column 2 is the middle of 日 (columns 1..3).
+        ed.rows(1, &l);
+        assert_eq!(ed.cursor(), at(1, 1));
+    }
+
+    #[test]
+    fn vertical_moves_keep_the_display_column_of_tabs() {
+        let mut ed = Editor::new("\tx\nabcdefgh");
+        let l = layout_of(&ed, 20);
+        ed.right();
+
+        ed.rows(1, &l);
+        assert_eq!(ed.cursor(), at(1, 4));
+
+        ed.rows(-1, &l);
+        assert_eq!(ed.cursor(), at(0, 1));
     }
 
     #[test]
