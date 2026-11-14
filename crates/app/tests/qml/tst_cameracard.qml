@@ -40,6 +40,8 @@ TestCase {
         }
         function setCameraField(field, value) {
             sets.push([field, value])
+            // Like the bridge: every edit gives a new plan, so the card reads the camera again.
+            planJson = JSON.stringify({ edits: sets.length })
             return fieldOk
         }
     }
@@ -193,6 +195,18 @@ TestCase {
         findChild(card, "cameraApply").clicked()
 
         compare(fake.sets, [["lens", "40"], ["aspect", "16:9"]])
+    }
+
+    // Review of PR 33: the first edit refreshed the plan and wrote the camera's old values
+    // back into the other fields before they were applied.
+    function test_apply_keeps_every_typed_field() {
+        const card = shown("camera:a")
+
+        findChild(card, "cameraSensorField").text = "30"
+        findChild(card, "cameraLensField").text = "40"
+        findChild(card, "cameraApply").clicked()
+
+        compare(fake.sets, [["sensor", "30"], ["lens", "40"]])
     }
 
     function test_a_refused_value_marks_the_field_until_typing() {

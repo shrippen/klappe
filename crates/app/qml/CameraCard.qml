@@ -76,22 +76,34 @@ KanteCard {
         card.syncBoxes()
     }
 
-    // Sets one field when it was typed in; marks it when the value is refused.
-    function applyField(name, field) {
-        if (field.text === field.shown) {
+    // Sets one field to `text` when it was typed in; marks it when the value is refused.
+    function applyField(name, field, text) {
+        if (text === field.shown) {
             return
         }
-        const ok = card.controller.setCameraField(name, field.text)
-        field.invalid = !ok
+        const ok = card.controller.setCameraField(name, text)
         if (ok) {
-            field.shown = field.text
+            field.shown = text
+            field.invalid = false
+            return
         }
+
+        // A refused value stays to be fixed, though the refresh wrote the old one back.
+        field.text = text
+        field.invalid = true
     }
 
+    // Reads every field first: each edit refreshes the plan, and `fill()` then writes the
+    // camera's values into the fields not yet applied.
     function applyAll() {
-        card.applyField("sensor", sensorField)
-        card.applyField("lens", lensField)
-        card.applyField("aspect", aspectField)
+        const typed = [
+            ["sensor", sensorField, sensorField.text],
+            ["lens", lensField, lensField.text],
+            ["aspect", aspectField, aspectField.text],
+        ]
+        for (const [name, field, text] of typed) {
+            card.applyField(name, field, text)
+        }
     }
 
     function choose(name, value) {
@@ -135,7 +147,7 @@ KanteCard {
                 placeholderText: card.texts.t("camera.sensor")
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
                 onTextChanged: invalid = false
-                onAccepted: card.applyField("sensor", sensorField)
+                onAccepted: card.applyField("sensor", sensorField, sensorField.text)
             }
             KanteTextField {
                 id: aspectField
@@ -148,7 +160,7 @@ KanteCard {
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                 onTextChanged: invalid = false
-                onAccepted: card.applyField("aspect", aspectField)
+                onAccepted: card.applyField("aspect", aspectField, aspectField.text)
             }
         }
 
@@ -173,7 +185,7 @@ KanteCard {
                 textRole: "text"
                 valueRole: "value"
                 displayText: currentIndex >= 0 ? currentText : card.texts.t("camera.lensPick")
-                model: card.lensSet ? card.lensSet.stops_mm.map(v => ({ value: v, text: card.texts.num(v, 1) + " mm" })) : []
+                model: card.lensSet ? card.lensSet.stops_mm.map(v => ({ value: v, text: card.texts.t("camera.lensValue", { lens: card.texts.num(v, 1) }) })) : []
                 onActivated: card.choose("lens", currentValue)
             }
             KanteTextField {
@@ -185,7 +197,7 @@ KanteCard {
                 placeholderText: card.texts.t("camera.lens")
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
                 onTextChanged: invalid = false
-                onAccepted: card.applyField("lens", lensField)
+                onAccepted: card.applyField("lens", lensField, lensField.text)
             }
             KanteButton {
                 objectName: "cameraApply"
