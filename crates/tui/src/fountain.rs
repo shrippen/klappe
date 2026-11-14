@@ -97,22 +97,42 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
 
         // The part of a paragraph inside a boneyard is not parsed: the parser would see
         // it as text. It shows as plain action and lists no scene. What follows the
-        // line with the closing `*/` is parsed again, as `parse` does.
-        let dead = match was_inside {
-            true => para
-                .iter()
-                .position(|l| l.contains(BONEYARD_CLOSE))
-                .map_or(len, |i| i + 1),
-            false => 0,
+        // closing `*/` is parsed again, as `parse` does: text behind it on its line
+        // stays the first line of that paragraph ("x */ more" → "more").
+        let Some(close) = was_inside.then(|| close_line(para)) else {
+            paragraph(para, start, &mut out);
+            start += len;
+            continue;
         };
-        out.kinds[start..start + dead].fill(LineKind::Action);
-        if dead < len {
-            paragraph(&para[dead..], start + dead, &mut out);
+        let dead = close.map_or(len, |i| i + 1);
+        let rest = close.and_then(|i| after_close(&para[i]));
+        let first = start + dead - usize::from(rest.is_some());
+
+        let mut live: Vec<String> = rest.into_iter().collect();
+        live.extend_from_slice(&para[dead..]);
+        if !live.is_empty() {
+            paragraph(&live, first, &mut out);
         }
+
+        // The closing line keeps its action look; only its rest was parsed.
+        out.kinds[start..start + dead].fill(LineKind::Action);
         start += len;
     }
 
     out
+}
+
+/// Index of the line that closes the boneyard a paragraph begins in.
+fn close_line(para: &[String]) -> Option<usize> {
+    para.iter().position(|l| l.contains(BONEYARD_CLOSE))
+}
+
+/// Text behind the first `*/` of a line, if any is left.
+fn after_close(line: &str) -> Option<String> {
+    let (_, rest) = line.split_once(BONEYARD_CLOSE)?;
+    let rest = rest.trim();
+
+    (!rest.is_empty()).then(|| rest.to_owned())
 }
 
 /// Whether a boneyard `/* ... */` is still open after `lines`, given if one was open before.
@@ -271,6 +291,36 @@ mod tests {
 
         assert_eq!(parsed, ["INT. A", "INT. C"]);
         assert_eq!(tui, parsed);
+    }
+
+    /// Review of PR 8: text behind `*/` joins the next line's paragraph, as in `parse`.
+    #[test]
+    fn text_behind_the_close_stays_in_its_paragraph() {
+        for text in [
+            "INT. A\n\n/*\n\nINT. B\n\nx */ more\nINT. C\n\ny\n",
+            "INT. A\n\n/*\n\nINT. B\n\n*/ more\nINT. C\n\ny\n",
+        ] {
+            assert_eq!(headings(text), scene_headings(text), "{text:?}");
+        }
+    }
+
+    fn headings(text: &str) -> Vec<String> {
+        analyse(&lines(text))
+            .scenes
+            .iter()
+            .map(|s| s.heading.clone())
+            .collect()
+    }
+
+    fn scene_headings(text: &str) -> Vec<String> {
+        parse(text)
+            .elements
+            .iter()
+            .filter_map(|el| match el {
+                Element::SceneHeading { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect()
     }
 
     #[test]
