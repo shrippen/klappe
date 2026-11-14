@@ -50,5 +50,6 @@ pub use klappe_stellprobe::{
     horizontal_fov_deg, DisplayList, Item, Role, Shape, ShotOrder, Source,
 };
 
-// Fountain, so the TUI editor can style and list what it types without the script crate.
-pub use klappe_script::{parse, Element};
+// Fountain, so the TUI editor can style and list what it types without the script crate;
+// `parse` for its tests.
+pub use klappe_script::{parse, parse_located, Element, Located};

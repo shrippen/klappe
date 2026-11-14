@@ -279,6 +279,45 @@ fn prints_the_plan_as_png() {
     assert!(std::fs::read(&path).unwrap().starts_with(PNG_SIGNATURE));
 }
 
+/// Exports are written aside and renamed: no half file, no temp file left, an old file replaced.
+#[test]
+fn an_export_replaces_the_file_whole() {
+    let s = open();
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-atomic");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("plan.png");
+    std::fs::write(&path, "old").unwrap();
+
+    s.export_png(&path, klappe_services::Paper::A4, print_texts())
+        .unwrap();
+
+    assert!(std::fs::read(&path).unwrap().starts_with(PNG_SIGNATURE));
+    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+}
+
+/// Review of PR 58: a failed export names the file the user chose, not the temp file beside it.
+#[cfg(unix)]
+#[test]
+fn a_failed_export_names_the_file() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let s = open();
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-read-only");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let path = dir.join("plan.png");
+
+    let err = s.export_png(&path, klappe_services::Paper::A4, print_texts());
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    match err {
+        Err(ServiceError::Write { path: named, .. }) => assert_eq!(named, path),
+        other => panic!("{other:?}"),
+    }
+}
+
 #[test]
 fn prints_the_plan_as_svg() {
     let s = open();

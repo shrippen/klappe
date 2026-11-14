@@ -13,7 +13,7 @@ use klappe_store::ImageStamp;
 use klappe_store::Loaded;
 
 use crate::edit::{self, ShotField};
-use crate::error::ServiceError;
+use crate::error::{write_failed, ServiceError};
 use crate::field::Field;
 use crate::library;
 use crate::plan_edit::{self, MarkInfo, PlanEdit, Snapping};
@@ -1420,26 +1420,19 @@ fn mark_current(lines: &mut [ScriptLine], t_s: f64) {
 /// `dir` may be missing or an empty folder; anything else would mix the project with it.
 /// Also for the example (`copy_example`).
 pub(crate) fn check_empty(dir: &Path) -> Result<(), ServiceError> {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(mut entries) => entries.next().is_some(),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
-        Err(source) => {
-            return Err(ServiceError::Write {
-                path: dir.to_owned(),
-                source,
-            })
-        }
-    };
-
-    if entries {
+    if !klappe_store::is_empty_dir(dir).map_err(write_failed)? {
         return Err(ServiceError::NotEmpty(dir.to_owned()));
     }
     Ok(())
 }
 
+/// A failed write names `path`, the file the user chose, not the temp file beside it.
 fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
-    std::fs::write(path, bytes).map_err(|source| ServiceError::Write {
-        path: path.to_owned(),
-        source,
+    klappe_store::write_atomic(path, &bytes).map_err(|e| match e {
+        klappe_store::StoreError::Io { source, .. } => ServiceError::Write {
+            path: path.to_owned(),
+            source,
+        },
+        other => write_failed(other),
     })
 }

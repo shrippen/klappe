@@ -19,8 +19,9 @@ fn byte_at(line: &str, col: usize) -> usize {
 
 impl Buffer {
     /// Splits at `\n`; a text ending in `\n` ends in an empty line, so `text()` gives it back.
+    /// CRLF and a lone CR break the line as in the Fountain reader, so its line numbers fit.
     pub(crate) fn from_text(text: &str) -> Self {
-        let text = text.replace("\r\n", "\n");
+        let text = text.replace("\r\n", "\n").replace('\r', "\n");
         Self {
             lines: text.split('\n').map(str::to_owned).collect(),
         }

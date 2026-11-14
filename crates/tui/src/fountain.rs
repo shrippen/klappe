@@ -1,12 +1,6 @@
 //! What each line of the text is, from the Fountain parser, for styling and the scene list.
 
-use klappe_services::{parse, Element};
-
-/// Rows of text before the first paragraph, so a `Key: value` paragraph is no title page.
-const PARAGRAPH_PREFIX: &str = "x\n\n";
-
-const BONEYARD_OPEN: &str = "/*";
-const BONEYARD_CLOSE: &str = "*/";
+use klappe_services::{parse_located, Element, Located};
 
 /// Display-only indents in columns (the stored text stays plain Fountain).
 const INDENT_CHARACTER: usize = 20;
@@ -101,190 +95,109 @@ impl Analysis {
 
 /// Classifies every line.
 ///
-/// The text is first cut as the parser cuts it (boneyards out, see [`strip`]); each
-/// paragraph of what is left goes through the real parser alone, so the rules stay the
-/// parser's. Lines that lie wholly in a boneyard show as plain action.
+/// The reader in `klappe_script` says which lines each element stands on, so the rules
+/// stay its own. Typed text that is no element (a boneyard, a title page) shows as plain
+/// action.
 pub(crate) fn analyse(lines: &[String]) -> Analysis {
-    let cut = strip(lines);
     let mut seen = Analysis {
-        kinds: vec![LineKind::Blank; cut.lines.len()],
-        ..Analysis::default()
-    };
-    let mut start = 0;
-
-    while start < cut.lines.len() {
-        if cut.lines[start].trim().is_empty() {
-            start += 1;
-            continue;
-        }
-
-        let len = cut.lines[start..]
+        kinds: lines
             .iter()
-            .take_while(|l| !l.trim().is_empty())
-            .count();
-        paragraph(&cut.lines[start..start + len], start, &mut seen);
-        start += len;
-    }
-
-    back_to_lines(lines, &cut, seen)
-}
-
-/// The text as the parser sees it: line `i` of `lines` starts at line `origin[i]` of the
-/// typed text. A boneyard swallows its line breaks, so `foo /*⏎⏎*/ bar` is one line.
-struct Cut {
-    lines: Vec<String>,
-    origin: Vec<usize>,
-}
-
-/// Cuts `/* … */` out like `klappe_script`'s `strip_boneyard`; an unclosed one runs to the end.
-fn strip(lines: &[String]) -> Cut {
-    let mut cut = Cut {
-        lines: Vec::new(),
-        origin: Vec::new(),
-    };
-    let mut inside = false;
-
-    for (i, line) in lines.iter().enumerate() {
-        // Outside a boneyard the line break survives: a new line of the cut text.
-        if !inside || cut.lines.is_empty() {
-            cut.lines.push(String::new());
-            cut.origin.push(i);
-        }
-
-        let mut rest = line.as_str();
-        loop {
-            let marker = if inside {
-                BONEYARD_CLOSE
-            } else {
-                BONEYARD_OPEN
-            };
-            let Some(at) = rest.find(marker) else {
-                if !inside {
-                    push_last(&mut cut, rest);
-                }
-                break;
-            };
-            if !inside {
-                push_last(&mut cut, &rest[..at]);
-            }
-            rest = &rest[at + marker.len()..];
-            inside = !inside;
-        }
-    }
-
-    cut
-}
-
-fn push_last(cut: &mut Cut, text: &str) {
-    if let Some(last) = cut.lines.last_mut() {
-        last.push_str(text);
-    }
-}
-
-/// Kinds and scenes of the cut text, put back on the typed lines.
-fn back_to_lines(lines: &[String], cut: &Cut, seen: Analysis) -> Analysis {
-    // Typed text that is no line of its own for the parser lies in a boneyard.
-    let mut kinds: Vec<LineKind> = lines
-        .iter()
-        .map(|l| match l.trim().is_empty() {
-            true => LineKind::Blank,
-            false => LineKind::Action,
-        })
-        .collect();
-
-    for (kind, &at) in seen.kinds.iter().zip(&cut.origin) {
-        if *kind != LineKind::Blank {
-            kinds[at] = *kind;
-        }
-    }
-
-    let scenes = seen
-        .scenes
-        .into_iter()
-        .map(|s| Scene {
-            line: cut.origin[s.line],
-            ..s
-        })
-        .collect();
-
-    let elements = seen
-        .elements
-        .into_iter()
-        .map(|e| ElementPos {
-            line: cut.origin[e.line],
-            ..e
-        })
-        .collect();
-
-    Analysis {
-        kinds,
-        scenes,
-        elements,
+            .map(|l| match l.trim().is_empty() {
+                true => LineKind::Blank,
+                false => LineKind::Action,
+            })
+            .collect(),
         ..Analysis::default()
+    };
+
+    for located in parse_located(&lines.join("\n")) {
+        place(&located, &mut seen);
     }
+
+    seen
 }
 
-/// Number of text lines an element took, and its kind.
-fn kind_and_lines(el: &Element) -> (LineKind, usize) {
+fn kind_of(el: &Element) -> LineKind {
     match el {
-        Element::SceneHeading { .. } => (LineKind::Heading, 1),
-        Element::Action(t) => (LineKind::Action, t.matches('\n').count() + 1),
-        Element::Character { .. } => (LineKind::Character, 1),
-        Element::Parenthetical(_) => (LineKind::Parenthetical, 1),
-        Element::Dialogue(t) => (LineKind::Dialogue, t.matches('\n').count() + 1),
-        Element::Transition(_) => (LineKind::Transition, 1),
-        Element::Centered(_) => (LineKind::Centered, 1),
-        Element::Section { .. } => (LineKind::Section, 1),
-        Element::Synopsis(_) => (LineKind::Synopsis, 1),
-        Element::Note(_) => (LineKind::Note, 1),
-        Element::PageBreak => (LineKind::PageBreak, 1),
-        Element::Lyrics(_) => (LineKind::Lyrics, 1),
+        Element::SceneHeading { .. } => LineKind::Heading,
+        Element::Action(_) => LineKind::Action,
+        Element::Character { .. } => LineKind::Character,
+        Element::Parenthetical(_) => LineKind::Parenthetical,
+        Element::Dialogue(_) => LineKind::Dialogue,
+        Element::Transition(_) => LineKind::Transition,
+        Element::Centered(_) => LineKind::Centered,
+        Element::Section { .. } => LineKind::Section,
+        Element::Synopsis(_) => LineKind::Synopsis,
+        Element::Note(_) => LineKind::Note,
+        Element::PageBreak => LineKind::PageBreak,
+        Element::Lyrics(_) => LineKind::Lyrics,
     }
 }
 
-fn paragraph(lines: &[String], first: usize, out: &mut Analysis) {
-    let text = format!("{PARAGRAPH_PREFIX}{}", lines.join("\n"));
-    let script = parse(&text);
-    let mut at = first;
-    let end = first + lines.len();
+fn place(located: &Located, out: &mut Analysis) {
+    let Some(&line) = located.lines.first() else {
+        return;
+    };
 
-    for el in script.elements.iter().skip(1) {
-        let (kind, count) = kind_and_lines(el);
-        if let Element::SceneHeading { text, number } = el {
-            out.scenes.push(Scene {
-                line: at,
-                number: number.clone(),
-                heading: text.clone(),
-            });
-            out.current = (number.clone(), 0);
-        } else {
-            out.elements.push(ElementPos {
-                line: at,
-                scene: out.current.0.clone(),
-                index: out.current.1,
-            });
-            out.current.1 += 1;
-        }
+    if let Element::SceneHeading { text, number } = &located.element {
+        out.scenes.push(Scene {
+            line,
+            number: number.clone(),
+            heading: text.clone(),
+        });
+        out.current = (number.clone(), 0);
+    } else {
+        out.elements.push(ElementPos {
+            line,
+            scene: out.current.0.clone(),
+            index: out.current.1,
+        });
+        out.current.1 += 1;
+    }
 
-        let stop = (at + count).min(end);
-        for slot in out.kinds.iter_mut().take(stop).skip(at) {
+    let kind = kind_of(&located.element);
+    for &at in &located.lines {
+        if let Some(slot) = out.kinds.get_mut(at) {
             *slot = kind;
         }
-        at = stop;
-    }
-
-    // Anything the parser did not account for (a boneyard) shows as plain action.
-    for slot in out.kinds.iter_mut().take(end).skip(at) {
-        *slot = LineKind::Action;
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use klappe_services::parse;
+
     use super::*;
 
     fn lines(text: &str) -> Vec<String> {
         text.split('\n').map(str::to_owned).collect()
+    }
+
+    fn scene_lines(a: &Analysis) -> Vec<usize> {
+        a.scenes.iter().map(|s| s.line).collect()
+    }
+
+    /// Review of PR 57: a lone CR from another program breaks the line in the editor too,
+    /// so the reader's line numbers match the editor's.
+    #[test]
+    fn a_lone_cr_breaks_the_line() {
+        let buf = crate::buffer::Buffer::from_text("INT. A\n\na\rb\n\nINT. B\n\nc\n\nINT. C");
+        let a = analyse(buf.lines());
+
+        let headings: Vec<_> = a.scenes.iter().map(|s| buf.line(s.line)).collect();
+        assert_eq!(headings, ["INT. A", "INT. B", "INT. C"]);
+    }
+
+    /// The editor reads a title page as the reader does (PR 57): its lines are no
+    /// element, and a first block of `key: value` lines is one.
+    #[test]
+    fn a_title_page_is_no_element() {
+        let a = analyse(&lines("Title: Foo\nAuthor: Bar\n\nINT. A\n\nx"));
+        assert!(a.element_at(0).is_none());
+        assert_eq!(scene_lines(&a), [3]);
+
+        let a = analyse(&lines("EXT HOF: NACHT\n\nx\n\nINT. B"));
+        assert_eq!(scene_lines(&a), [4]);
     }
 
     #[test]
@@ -450,6 +363,130 @@ mod tests {
 
         assert_eq!(a.kind(2), LineKind::Action);
         assert_eq!(a.kind(3), LineKind::Action);
+    }
+
+    /// Kinds of every line, written as one letter each for a compact table.
+    fn letters(text: &str) -> String {
+        analyse(&lines(text))
+            .kinds
+            .iter()
+            .map(|k| match k {
+                LineKind::Blank => '.',
+                LineKind::Heading => 'H',
+                LineKind::Action => 'A',
+                LineKind::Character => 'C',
+                LineKind::Parenthetical => 'P',
+                LineKind::Dialogue => 'D',
+                LineKind::Transition => 'T',
+                LineKind::Centered => 'Z',
+                LineKind::Section => 'S',
+                LineKind::Synopsis => 'Y',
+                LineKind::Note => 'N',
+                LineKind::PageBreak => 'B',
+                LineKind::Lyrics => 'L',
+            })
+            .collect()
+    }
+
+    #[test]
+    fn kinds_with_blank_runs_and_trailing_space() {
+        assert_eq!(letters("\n\nINT. A\n\n\n  \nx\ny\n\n"), "..H...AA..");
+    }
+
+    #[test]
+    fn kinds_of_forced_elements() {
+        let text = "!INT. A\nzwei\n\n.hof\n\n@bob\nhi\n\n>RAUS\n\n> mitte <\n\n~la la\n\n[[note]]\n\n===\n\n= kurz\n\n## Akt";
+        assert_eq!(letters(text), "AA.H.CD.T.Z.L.N.B.Y.S");
+    }
+
+    #[test]
+    fn kinds_of_dual_dialogue() {
+        let text = "INT. A\n\nANNA\nhallo\n\nBOB ^\n(laut)\nhi\nnoch\n(leise)\nja";
+        assert_eq!(letters(text), "H.CD.CPDDPD");
+    }
+
+    #[test]
+    fn kinds_of_unforced_look_alikes() {
+        // A lowercase name is action; a heading line under a cue is dialogue, and an
+        // uppercase line `CUT TO:` with a line below is a cue, not a transition.
+        let text = "INT. A\n\nanna\nhallo\n\nBOB\nINT. B\n\nCUT TO:\nx";
+        assert_eq!(letters(text), "H.AA.CD.CD");
+    }
+
+    #[test]
+    fn kinds_with_a_multiline_boneyard() {
+        // Non-blank lines wholly inside the boneyard show as action, blank ones stay blank.
+        let text = "INT. A\n\nx\n\n/*\nINT. B\n\nweg\n*/\n\nINT. C\n\ny";
+        assert_eq!(letters(text), "H.A.AA.AA.H.A");
+    }
+
+    #[test]
+    fn kinds_with_a_boneyard_inside_a_line() {
+        assert_eq!(
+            letters("INT. A\n\nfoo /* weg */ bar\n\nINT. B /* x */\n"),
+            "H.A.H."
+        );
+    }
+
+    #[test]
+    fn kinds_with_a_boneyard_swallowing_breaks() {
+        // `foo /*⏎⏎*/ bar` is one line for the parser, on the typed line 2; the
+        // typed line 4 is no line of its own and shows as action.
+        assert_eq!(letters("INT. A\n\nfoo /*\n\n*/ bar\n\nINT. B"), "H.A.A.H");
+    }
+
+    #[test]
+    fn kinds_with_an_unclosed_boneyard() {
+        assert_eq!(letters("INT. A\n\nx\n/*\nINT. B\n\ny"), "H.AAA.A");
+    }
+
+    #[test]
+    fn kinds_with_an_opener_inside_dialogue() {
+        let text = "INT. A\n\nBOB\nso /* nicht\nmehr */ doch\nende\n\nINT. B";
+        assert_eq!(letters(text), "H.CDAD.H");
+    }
+
+    #[test]
+    fn kinds_with_an_escaped_opener() {
+        // `/\*` is the text `/*`, no boneyard: the next heading stays.
+        assert_eq!(letters("INT. A\n\nx /\\* y\n\nINT. B"), "H.A.H");
+    }
+
+    #[test]
+    fn kinds_of_a_title_page_block() {
+        // The reader takes the first block as title page; the editor shows plain lines.
+        assert_eq!(letters("Title: Foo\nAuthor: Bar\n\nINT. A\n\nx"), "AA.H.A");
+    }
+
+    #[test]
+    fn elements_with_a_boneyard_count_on_typed_lines() {
+        let a = analyse(&lines(
+            "INT. A #1#\n\n/*\nweg\n*/\n\nBOB\n(leise)\nhi\n\n!INT. X\n\nINT. B\n\nz",
+        ));
+        let at = |n: usize| a.elements.iter().map(|e| e.line).nth(n);
+
+        let found: Vec<_> = a
+            .elements
+            .iter()
+            .map(|e| (e.line, e.scene.clone(), e.index))
+            .collect();
+        assert_eq!(
+            found,
+            [
+                (6, Some("1".into()), 0),
+                (7, Some("1".into()), 1),
+                (8, Some("1".into()), 2),
+                (10, Some("1".into()), 3),
+                (14, None, 0),
+            ]
+        );
+        assert_eq!(at(0), Some(6));
+        let scenes: Vec<_> = a
+            .scenes
+            .iter()
+            .map(|s| (s.line, s.number.clone()))
+            .collect();
+        assert_eq!(scenes, [(0, Some("1".into())), (12, None)]);
     }
 
     #[test]
