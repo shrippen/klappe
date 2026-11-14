@@ -99,14 +99,6 @@ pub fn camera_edit(
     }
 }
 
-/// The id of the body whose sensor is `width_mm` wide, else empty: a sensor of another width
-/// is a custom one.
-pub fn body_id(presets: &CameraPresets, width_mm: f64) -> &str {
-    let body = presets.bodies.iter().find(|b| b.width_mm == width_mm);
-
-    body.map(|b| b.id.as_str()).unwrap_or_default()
-}
-
 /// What the card lists: bodies, and lens sets with the focal lengths each offers.
 pub fn presets_json(presets: &CameraPresets) -> Value {
     let sets: Vec<Value> = presets
@@ -252,13 +244,6 @@ mod tests {
 
             assert_eq!(edit, None);
         }
-    }
-
-    #[test]
-    fn a_width_finds_its_body() {
-        assert_eq!(body_id(presets(), 24.89), "super35");
-        assert_eq!(body_id(presets(), 36.0), "full-frame");
-        assert_eq!(body_id(presets(), 23.4), "");
     }
 
     #[test]

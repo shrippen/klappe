@@ -135,3 +135,128 @@ impl LibraryEntry {
         }
     }
 }
+
+/// One scene in the project lists.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SceneRow {
+    pub id: String,
+    pub number: String,
+    pub heading: String,
+    pub location: String,
+    pub location_name: String,
+}
+
+/// One location in the project lists.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LocationRow {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "width")]
+    pub width_m: f64,
+    #[serde(rename = "depth")]
+    pub depth_m: f64,
+    /// How many scenes play here.
+    pub scenes: usize,
+}
+
+/// One character in the project lists.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CharacterRow {
+    pub id: String,
+    pub name: String,
+    pub short: String,
+    /// The colour's role name, e.g. `purple`.
+    pub color: &'static str,
+    /// Head count; 0 for a single person.
+    pub group: u32,
+}
+
+/// One plan variant of the scene on view (LH-04).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PlanRow {
+    pub id: String,
+    pub name: String,
+    pub shots: usize,
+}
+
+/// The lists of the project view: scenes, locations, characters and the plans of the scene on
+/// view.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Overview {
+    pub scenes: Vec<SceneRow>,
+    pub locations: Vec<LocationRow>,
+    pub characters: Vec<CharacterRow>,
+    pub plans: Vec<PlanRow>,
+    /// Id of the plan shown; empty without one.
+    pub plan: String,
+}
+
+/// What a tooltip over an element of the plan says; the surface puts it into words.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum Hint {
+    Camera {
+        label: String,
+        /// The lens at the playhead.
+        #[serde(rename = "lens")]
+        lens_mm: f64,
+        /// The camera's own lens.
+        #[serde(rename = "ownLens")]
+        own_lens_mm: f64,
+        #[serde(rename = "sensor")]
+        sensor_mm: f64,
+        aspect: f64,
+        /// Id of the body with this sensor; empty for a custom sensor.
+        body: String,
+        /// Horizontal angle of view, to a tenth of a degree.
+        #[serde(rename = "fov")]
+        fov_deg: f64,
+        /// Lens height at the first mark.
+        #[serde(rename = "height")]
+        height_m: f64,
+        /// Numbers of the shots from this camera, comma separated.
+        shots: String,
+        /// Name of the character the camera follows, else empty.
+        follows: String,
+    },
+    Figure {
+        name: String,
+        index: Option<usize>,
+        #[serde(rename = "time")]
+        at_s: Option<f64>,
+    },
+    Mark {
+        name: String,
+        /// 1-based.
+        index: Option<usize>,
+        #[serde(rename = "time")]
+        at_s: Option<f64>,
+    },
+    /// A bend of a way.
+    Bend {
+        /// 1-based.
+        index: Option<usize>,
+    },
+    Light {
+        label: String,
+        #[serde(rename = "temp")]
+        temp_k: f64,
+        #[serde(rename = "power")]
+        power_w: f64,
+    },
+    Object {
+        label: String,
+        /// What the object's `kind` is, e.g. `table`.
+        library: String,
+        #[serde(rename = "width")]
+        width_m: f64,
+        #[serde(rename = "depth")]
+        depth_m: f64,
+        #[serde(rename = "height")]
+        height_m: Option<f64>,
+    },
+    Note {
+        text: String,
+    },
+}

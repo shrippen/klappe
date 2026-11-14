@@ -20,6 +20,7 @@ mod number;
 mod plan_edit;
 mod project_edit;
 mod session;
+mod session_views;
 mod shot_edit;
 mod start;
 mod views;
@@ -37,7 +38,8 @@ pub use session::{
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
-    Chip, LibraryEntry, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind,
+    CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow, Marker, Overview, PlanRow,
+    SceneRow, ScriptLine, Segment, ShotRow, Track, TrackKind,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.

@@ -547,8 +547,8 @@ use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Arrival, Autosave, Departure, DisplayList, Field, FigureColor, Layer, Lock,
-    Looping, Paper, PlanEdit, Playing, Point, Pose, ProjectEdit, ServiceError, Session, ShotField,
+    Arrival, Autosave, Departure, DisplayList, Field, FigureColor, Hint, Layer, Lock, Looping,
+    Paper, PlanEdit, Playing, Point, Pose, ProjectEdit, ServiceError, Session, ShotField,
     ShotOrder, ShotsGo, Snapping, Source, Step, Texts, Visibility,
 };
 use serde_json::json;
@@ -816,7 +816,7 @@ impl ControllerRust {
             &Selection::default(),
             (&[], None, None),
         ));
-        self.has_background = has_background(s);
+        self.has_background = s.has_background();
         self.tracks_json = q(&to_json(&s.tracks()));
         self.shots_json = q(&to_json(&s.shots()));
         self.script_json = q(&to_json(&s.script_lines()));
@@ -838,13 +838,6 @@ impl ControllerRust {
 
 fn to_json<T: serde::Serialize>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_default()
-}
-
-/// Whether the current scene's set has a background image.
-fn has_background(s: &Session) -> bool {
-    s.scene()
-        .and_then(|sc| s.project().location(&sc.location))
-        .is_some_and(|l| l.set.background.is_some())
 }
 
 /// `list` (the session's, or a preview of an edit) with the selected shot's camera and the
@@ -1018,7 +1011,11 @@ impl qobject::Controller {
         self.as_mut().drop_stale();
 
         // Undo and redo can take the image away; its scale points go with it.
-        let background = self.rust().session.as_ref().is_some_and(has_background);
+        let background = self
+            .rust()
+            .session
+            .as_ref()
+            .is_some_and(Session::has_background);
         let backdrop = if background {
             Backdrop::Present
         } else {
@@ -1385,7 +1382,7 @@ impl qobject::Controller {
         let mut edit = group
             .or_else(|| tools::drag_edit(&tool, grabbed.as_ref(), from, to))
             .or_else(|| tools::draw_edit(&tool, style, from, to));
-        if tool == Tool::Scale && !has_background(s) {
+        if tool == Tool::Scale && !s.has_background() {
             edit = None;
         }
         let preview = self.rust().preview;
@@ -1846,7 +1843,7 @@ impl qobject::Controller {
 
         let text = match &draft {
             NoteDraft::Edit(id) => {
-                let text = self.rust().session.as_ref().and_then(|s| note_text(s, id));
+                let text = self.rust().session.as_ref().and_then(|s| s.note_text(id));
                 let Some(text) = text else {
                     return false;
                 };
@@ -1916,7 +1913,12 @@ impl qobject::Controller {
     /// A click of the scale tool: the next point of the stretch. Without a background there
     /// is nothing to scale.
     fn pick_scale_point(mut self: Pin<&mut Self>, at: Point) -> bool {
-        if !self.rust().session.as_ref().is_some_and(has_background) {
+        if !self
+            .rust()
+            .session
+            .as_ref()
+            .is_some_and(Session::has_background)
+        {
             return false;
         }
 
@@ -2419,13 +2421,6 @@ fn shown_view(s: &Session) -> String {
     format!("{scene}/{plan}")
 }
 
-/// The text of the current set's note `id`.
-fn note_text(s: &Session, id: &str) -> Option<String> {
-    let location = s.project().location(&s.scene()?.location)?;
-
-    Some(location.set.notes.iter().find(|n| n.id == id)?.text.clone())
-}
-
 /// The fields of the selected mark for QML; `{}` when the selection is no mark.
 fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
     let Some(selected) = selected else {
@@ -2457,83 +2452,23 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
     let Some(plan::ParsedKey { kind, id, index }) = plan::parse_key(key) else {
         return json!({});
     };
-    let Some(plan) = s.plan() else {
-        return json!({});
+    let hint = match kind {
+        ElementKind::Camera => s.camera_hint(id),
+        ElementKind::Figure => Some(s.figure_hint(id, index)),
+        ElementKind::Mark => Some(s.mark_hint(id, index)),
+        ElementKind::FigureVia | ElementKind::CameraVia => Some(Hint::Bend {
+            index: index.map(|i| i + 1),
+        }),
+        ElementKind::Light => s.light_hint(id),
+        ElementKind::Object => s.object_hint(id),
+        ElementKind::Note => Some(s.note_hint(id)),
+        ElementKind::Wall | ElementKind::Drawing => None,
     };
 
-    match kind {
-        ElementKind::Camera => {
-            let Some(c) = plan.camera(id) else {
-                return json!({});
-            };
-            let shots: Vec<&str> = plan
-                .shots
-                .iter()
-                .filter(|shot| shot.camera == id)
-                .map(|shot| shot.number.as_str())
-                .collect();
-            let follows = c
-                .follows
-                .as_deref()
-                .and_then(|character| s.project().character(character))
-                .map(|character| character.title())
-                .unwrap_or_default();
-            let lens_mm = s.lens_now_mm(id).unwrap_or(c.lens_mm);
-            json!({
-                "kind": "camera",
-                "label": c.label,
-                "lens": lens_mm,
-                "ownLens": c.lens_mm,
-                "sensor": c.sensor.width_mm(),
-                "aspect": c.aspect,
-                "body": camera::body_id(s.camera_presets(), c.sensor.width_mm()),
-                "fov": (horizontal_fov_deg(c.sensor, lens_mm) * 10.0).round() / 10.0,
-                "height": c.marks.first().map(|m| m.height_m).unwrap_or(0.0),
-                "shots": shots.join(", "),
-                "follows": follows,
-            })
-        }
-        ElementKind::Figure | ElementKind::Mark => {
-            let name = s
-                .project()
-                .character(id)
-                .map(|c| c.title())
-                .unwrap_or_default();
-            let at = index
-                .and_then(|i| plan.figure(id)?.marks.get(i))
-                .map(|m| m.at_s);
-            json!({ "kind": kind.name(), "name": name, "index": index.map(|i| i + 1), "time": at })
-        }
-        ElementKind::FigureVia | ElementKind::CameraVia => {
-            json!({ "kind": "bend", "index": index.map(|i| i + 1) })
-        }
-        ElementKind::Light => {
-            let Some(l) = plan.lights.iter().find(|l| l.id == id) else {
-                return json!({});
-            };
-            json!({ "kind": "light", "label": l.label, "temp": l.color_temp_k, "power": l.power_w })
-        }
-        ElementKind::Object => {
-            let set = s
-                .scene()
-                .and_then(|sc| s.project().location(&sc.location))
-                .map(|l| &l.set);
-            let Some(o) = set.and_then(|set| set.objects.iter().find(|o| o.id == id)) else {
-                return json!({});
-            };
-            json!({
-                "kind": "object",
-                "label": o.label,
-                "library": o.kind,
-                "width": o.width_m,
-                "depth": o.depth_m,
-                "height": o.height_m,
-            })
-        }
-        ElementKind::Note => {
-            json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() })
-        }
-        ElementKind::Wall | ElementKind::Drawing => json!({}),
+    // Without a plan nothing is described, a note included.
+    match s.plan().and(hint) {
+        Some(hint) => serde_json::to_value(hint).unwrap_or_default(),
+        None => json!({}),
     }
 }
 
@@ -2746,9 +2681,9 @@ mod tests {
     fn the_set_of_the_scene_gives_background_and_notes() {
         let s = example();
 
-        assert!(!has_background(&s));
-        assert_eq!(note_text(&s, "n1").as_deref(), Some("Vorhang schließen"));
-        assert_eq!(note_text(&s, "x"), None);
+        assert!(!s.has_background());
+        assert_eq!(s.note_text("n1").as_deref(), Some("Vorhang schließen"));
+        assert_eq!(s.note_text("x"), None);
     }
 
     #[test]
