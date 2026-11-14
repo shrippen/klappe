@@ -221,7 +221,7 @@ FocusScope {
         }
     }
 
-    // A marker button, drawn: a bar and two triangles, |◀◀ back and ▶▶| on.
+    // A marker button, drawn: a bar and two triangles, |◀◀ as drawn (back), mirrored ▶▶| (on).
     component MarkerButton: KanteToolButton {
         id: markerButton
         property int direction: 1
@@ -242,7 +242,7 @@ FocusScope {
             width: markerButton.glyphSize
             height: width
             antialiasing: true
-            transform: Scale { origin.x: markerButton.glyphSize / 2; xScale: markerButton.direction }
+            transform: Scale { origin.x: markerButton.glyphSize / 2; xScale: -markerButton.direction }
             ShapePath {
                 strokeWidth: -1
                 fillColor: KanteStyle.themed ? markerButton.kanteInk : KanteStyle.textColor

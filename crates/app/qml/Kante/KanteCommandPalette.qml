@@ -42,6 +42,15 @@ QQC2.Popup {
     /** Headings and entries as one list: { header, text } or { header: false, entry, command }. */
     readonly property var rows: _rowsOf(entries)
     property int current: -1
+    /** What a screen reader hears for the chosen entry: its text and shortcut, else `emptyText`. */
+    readonly property string spoken: {
+        const c = entries[current]
+        if (!c) {
+            return entries.length > 0 ? "" : emptyText
+        }
+        const keys = !c.keys ? "" : (typeof c.keys === "string" ? c.keys : Array.from(c.keys).join(" "))
+        return keys ? c.text + ", " + keys : c.text
+    }
 
     signal triggered(string id)
 
@@ -148,6 +157,8 @@ QQC2.Popup {
             Layout.fillWidth: true
             placeholderText: cmd.placeholderText
             Accessible.name: cmd.accessibleName
+            // Focus stays in the field: the chosen entry is read out through its description.
+            Accessible.description: cmd.spoken
 
             Keys.onPressed: function (event) {
                 switch (event.key) {

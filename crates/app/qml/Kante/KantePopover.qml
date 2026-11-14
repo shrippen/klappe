@@ -55,12 +55,16 @@ QQC2.Popup {
         const w = implicitWidth
         const h = implicitHeight
         const right = p.x + reach + w + margin <= sceneW
-        const sx = right ? p.x + reach : p.x - reach - w
+        const left = !right && p.x - reach - w >= margin
+        const sx = right ? p.x + reach : (left ? p.x - reach - w : margin)
         // The pointer sits this far under the card's top, so the card starts a bit above the point.
         const inset = KanteStyle.unit(18)
         const sy = Math.max(margin, Math.min(p.y - inset, sceneH - margin - h))
-        pointerSide = right ? "left" : "right"
-        pointerY = Math.max(inset / 2, Math.min(h - inset / 2, p.y - sy))
+        // No room on either side: the card covers the point and shows no pointer.
+        pointerSide = right ? "left" : (left ? "right" : "")
+        // The pointer stays clear of the chamfered top right corner.
+        const top = Math.max(inset / 2, KanteStyle.chamferSmall + pointerWidth / 2)
+        pointerY = Math.max(top, Math.min(h - inset / 2, p.y - sy))
         parent = item
         const local = item.mapFromItem(null, sx, sy)
         // The parameters x and y hide the popover's own.
