@@ -156,6 +156,8 @@ impl Tool {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Key {
     Remove,
+    /// Takes the bend out of the selected way (LH-21).
+    Straighten,
     /// Clockwise for a positive angle.
     Turn {
         by_deg: f64,
@@ -259,6 +261,27 @@ pub fn lands_at(tool: &Tool, at: Point, snap: impl Fn(Point) -> Point) -> Point 
 pub enum Backdrop {
     Missing,
     Present,
+}
+
+/// What a drag holds: picked once when it starts, kept until it ends. Picking again on every
+/// step found other things as the selection changed (a figure's path handle on the figure).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum Grip {
+    #[default]
+    Free,
+    Held(Option<Source>),
+}
+
+impl Grip {
+    /// The element this drag moves: `pick`'s answer on the first step, the same after.
+    pub fn take(self, pick: impl FnOnce() -> Option<Source>) -> (Grip, Option<Source>) {
+        let grabbed = match self {
+            Grip::Held(held) => held,
+            Grip::Free => pick(),
+        };
+
+        (Grip::Held(grabbed.clone()), grabbed)
+    }
 }
 
 /// How far the scale gesture has come: the points picked so far.
@@ -506,12 +529,30 @@ pub fn key_edit(key: Key, selected: Option<&Source>) -> Option<PlanEdit> {
 
     match key {
         Key::Remove => Some(PlanEdit::Remove { source }),
+        Key::Straighten => Some(PlanEdit::Straighten { source }),
         Key::Turn { by_deg } => Some(PlanEdit::Spin { source, by_deg }),
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    /// Review of PR 27: a figure on its own path handle was grabbed on the first step and
+    /// the handle on the next, so the drag bent the path instead of moving the figure.
+    #[test]
+    fn a_drag_keeps_what_it_grabbed() {
+        let figure = Source::Figure("burgvogt".into());
+        let handle = Source::FigureVia {
+            character: "burgvogt".into(),
+            index: 1,
+        };
+
+        let (grip, first) = Grip::Free.take(|| Some(figure.clone()));
+        let (_, next) = grip.take(|| Some(handle.clone()));
+
+        assert_eq!(first, Some(figure.clone()));
+        assert_eq!(next, Some(figure));
+    }
 
     /// Review of PR 21: with the notes layer locked the tool still asked for a text and
     /// dropped it on Enter.
@@ -741,6 +782,12 @@ mod tests {
             })
         );
         assert_eq!(key_edit(Key::Remove, None), None);
+        assert_eq!(
+            key_edit(Key::Straighten, Some(&Source::Camera("a".into()))),
+            Some(PlanEdit::Straighten {
+                source: Source::Camera("a".into())
+            })
+        );
     }
 
     #[test]

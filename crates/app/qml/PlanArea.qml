@@ -193,7 +193,8 @@ Item {
         }
     }
 
-    // Keys for the selection: Delete removes it, R and Shift+R turn it by 15 degrees.
+    // Keys for the selection: Delete removes it, R and Shift+R turn it by 15 degrees, G makes
+    // its way straight.
     readonly property real turnStepDeg: 15
     // Not while a length is typed: Delete there edits the text.
     readonly property bool hasSelection: !!controller.selectedKey && !lengthField.activeFocus && !noteField.activeFocus
@@ -206,6 +207,11 @@ Item {
         sequence: "F2"
         enabled: area.hasSelection && area.controller.selectedKey.indexOf("note:") === 0
         onActivated: area.controller.editSelectedNote()
+    }
+    Shortcut {
+        sequence: "G"
+        enabled: area.hasSelection
+        onActivated: area.controller.straightenSelected()
     }
     Shortcut {
         sequence: "R"
@@ -234,6 +240,8 @@ Item {
             return [t.t("tip.figure", { name: d.name })]
         case "mark":
             return [t.t("tip.mark", { name: d.name, index: d.index }), t.t("tip.at", { time: t.num(d.time, 1) })]
+        case "bend":
+            return [t.t("tip.bend", { index: d.index })]
         case "light":
             return [t.t("tip.light", { label: d.label, temp: d.temp, power: d.power })]
         case "object":

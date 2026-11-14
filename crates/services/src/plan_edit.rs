@@ -5,7 +5,7 @@ use klappe_model::{
     FigureTrack, Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Note, Point, Pose, Project,
     Scene, Sensor, SetObject, SetPlan, Wall,
 };
-use klappe_stellprobe::{hit, Item, Role, Source};
+use klappe_stellprobe::{bend_point, hit, via_through, Item, Role, Source};
 
 use crate::error::ServiceError;
 use crate::session::Layer;
@@ -37,6 +37,10 @@ pub enum PlanEdit {
         facing_deg: f64,
     },
     Remove {
+        source: Source,
+    },
+    /// Makes the way straight again (LH-21): to a mark, or all of a figure's or camera's ways.
+    Straighten {
         source: Source,
     },
     /// Appends a mark to a character's track; adds the track if the plan has none.
@@ -210,7 +214,8 @@ impl PlanEdit {
             | PlanEdit::Shift { source, .. }
             | PlanEdit::Spin { source, .. }
             | PlanEdit::Turn { source, .. }
-            | PlanEdit::Remove { source } => layer_of_source(source),
+            | PlanEdit::Remove { source }
+            | PlanEdit::Straighten { source } => layer_of_source(source),
             PlanEdit::AddMark { .. } => Layer::Figures,
             PlanEdit::AddCamera { .. } | PlanEdit::Follow { .. } => Layer::Cameras,
             PlanEdit::AddLight { .. } => Layer::Lights,
@@ -231,8 +236,8 @@ fn layer_of_source(source: &Source) -> Layer {
     match source {
         Source::Object(_) | Source::Wall(_) => Layer::Set,
         Source::Light(_) => Layer::Lights,
-        Source::Camera(_) => Layer::Cameras,
-        Source::Figure(_) | Source::Mark { .. } => Layer::Figures,
+        Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
+        Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
         Source::Note(_) => Layer::Notes,
         Source::Drawing(_) => Layer::Drawings,
     }
@@ -262,6 +267,12 @@ enum Target<'a> {
     },
     /// Points but no facing: a drawing keeps its shape and is not turned.
     Drawing(&'a mut Drawing),
+    /// The bend of the way from mark `a` to mark `b`.
+    Curve {
+        via: &'a mut Option<Point>,
+        a: Point,
+        b: Point,
+    },
 }
 
 /// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snapping` is for
@@ -320,6 +331,7 @@ pub(crate) fn apply(
             carry_cameras(&mut scope, source, |s| turn(s, source, *facing_deg))
         }
         PlanEdit::Remove { source } => remove(&mut scope, source),
+        PlanEdit::Straighten { source } => straighten(&mut scope, source),
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
         PlanEdit::AddLight { kind, at } => add_light(&mut scope, *kind, *at),
@@ -378,6 +390,7 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         PlanEdit::MoveBackground { dx_m, dy_m } => check_point(Point::new(*dx_m, *dy_m)),
         PlanEdit::AddDrawing { shape, .. } => check_shape(shape),
         PlanEdit::Remove { .. }
+        | PlanEdit::Straighten { .. }
         | PlanEdit::EditNote { .. }
         | PlanEdit::SetBackground { .. }
         | PlanEdit::RemoveBackground
@@ -470,6 +483,24 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
                 facing_deg: &mut mark.facing_deg,
             })
         }
+        Source::FigureVia { character, index } => {
+            let track = scope
+                .plan
+                .figures
+                .iter_mut()
+                .find(|f| f.character == *character)
+                .ok_or(ServiceError::Gone)?;
+            curve(&mut track.marks, *index, |m| (m.at, &mut m.via))
+        }
+        Source::CameraVia { camera, index } => {
+            let camera = scope
+                .plan
+                .cameras
+                .iter_mut()
+                .find(|c| c.id == *camera)
+                .ok_or(ServiceError::Gone)?;
+            curve(&mut camera.marks, *index, |m| (m.at, &mut m.via))
+        }
         Source::Figure(character) => {
             let track = scope
                 .plan
@@ -549,6 +580,24 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
     }
 }
 
+/// The bend of the way to mark `index` of `marks`; `place` gives a mark's place and its `via`.
+/// The first mark has no way to it.
+fn curve<'a, M>(
+    marks: &'a mut [M],
+    index: usize,
+    place: impl Fn(&'a mut M) -> (Point, &'a mut Option<Point>),
+) -> Result<Target<'a>, ServiceError> {
+    let before = index.checked_sub(1).ok_or(ServiceError::Gone)?;
+    let (head, tail) = marks.split_at_mut(index);
+    let a = head.get_mut(before).ok_or(ServiceError::Gone)?;
+    let this = tail.first_mut().ok_or(ServiceError::Gone)?;
+
+    let (a, _) = place(a);
+    let (b, via) = place(this);
+
+    Ok(Target::Curve { via, a, b })
+}
+
 fn middle(wall: &Wall) -> Point {
     wall.from.lerp(wall.to, 0.5)
 }
@@ -582,6 +631,8 @@ fn anchors(drawing: &mut Drawing) -> Option<(Point, Point)> {
 fn move_to(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => *at = to,
+        // `to` is where the way passes halfway, which is what the grip sits on.
+        Target::Curve { via, a, b } => *via = Some(via_through(a, to, b)),
         Target::Drawing(drawing) => {
             // The whole drawing keeps its shape; the middle of its box lands on `to`.
             let Some((_, mid)) = anchors(drawing) else {
@@ -616,6 +667,10 @@ fn shift(
 ) -> Result<(), ServiceError> {
     let (anchor, middle_now) = match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => (*at, *at),
+        Target::Curve { via, a, b } => {
+            let grip = bend_point(a, *via, b);
+            (grip, grip)
+        }
         Target::Wall(wall) => (wall.from, middle(wall)),
         Target::Drawing(drawing) => anchors(drawing).ok_or(ServiceError::Gone)?,
     };
@@ -637,7 +692,7 @@ fn spin(scope: &mut Scope<'_>, source: &Source, by_deg: f64) -> Result<(), Servi
         Target::Place { facing_deg, .. } => *facing_deg,
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
         // Nothing to turn.
-        Target::Pin { .. } | Target::Drawing(_) => return Ok(()),
+        Target::Pin { .. } | Target::Drawing(_) | Target::Curve { .. } => return Ok(()),
     };
 
     turn(scope, source, now_deg + by_deg)
@@ -649,7 +704,7 @@ fn turn(scope: &mut Scope<'_>, source: &Source, facing_deg: f64) -> Result<(), S
     match target(scope, source)? {
         Target::Place { facing_deg: f, .. } => *f = facing_deg,
         // Nothing to turn.
-        Target::Pin { .. } | Target::Drawing(_) => {}
+        Target::Pin { .. } | Target::Drawing(_) | Target::Curve { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.
             let mid = middle(wall);
@@ -676,6 +731,8 @@ fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
             Ok(())
         }
         Source::Camera(id) => remove_camera(scope.plan, id),
+        // A grip is no element of its own: removing it takes the bend out.
+        Source::FigureVia { .. } | Source::CameraVia { .. } => straighten(scope, source),
         Source::Light(id) => {
             let index = scope.plan.lights.iter().position(|l| l.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;
@@ -714,6 +771,44 @@ fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
     }
 }
 
+/// Takes the bend out of the way the source names: to one mark (a mark or its grip), or all
+/// ways of a figure or camera. Anything else has no way.
+fn straighten(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
+    let plan = &mut *scope.plan;
+    let find = |id: &str| plan.figures.iter().position(|f| f.character == id);
+
+    match source {
+        Source::Mark { character, index } | Source::FigureVia { character, index } => {
+            let track = find(character).ok_or(ServiceError::Gone)?;
+            let mark = plan.figures[track].marks.get_mut(*index);
+            mark.ok_or(ServiceError::Gone)?.via = None;
+        }
+        Source::Figure(character) => {
+            let track = find(character).ok_or(ServiceError::Gone)?;
+            plan.figures[track]
+                .marks
+                .iter_mut()
+                .for_each(|m| m.via = None);
+        }
+        Source::CameraVia { camera, index } => {
+            let camera = plan.cameras.iter_mut().find(|c| c.id == *camera);
+            let mark = camera.ok_or(ServiceError::Gone)?.marks.get_mut(*index);
+            mark.ok_or(ServiceError::Gone)?.via = None;
+        }
+        Source::Camera(id) => {
+            let camera = plan.cameras.iter_mut().find(|c| c.id == *id);
+            camera
+                .ok_or(ServiceError::Gone)?
+                .marks
+                .iter_mut()
+                .for_each(|m| m.via = None);
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
 fn remove_mark(plan: &mut FloorPlan, character: &str, index: usize) -> Result<(), ServiceError> {
     let track = plan
         .figures
@@ -728,6 +823,11 @@ fn remove_mark(plan: &mut FloorPlan, character: &str, index: usize) -> Result<()
     if track.marks.is_empty() {
         remove_figure(plan, character);
         return Ok(());
+    }
+
+    // The new first mark has no way to it: its bend would reappear on a later first mark.
+    if index == 0 {
+        track.marks[0].via = None;
     }
 
     // Links to the removed mark go; links to later marks move up by one.
@@ -825,6 +925,7 @@ fn add_mark(scope: &mut Scope<'_>, character: &str, at: Point) -> Result<(), Ser
         facing_deg,
         pose: Pose::Standing,
         hold_s: 0.0,
+        via: None,
     });
 
     Ok(())
@@ -858,6 +959,7 @@ fn add_camera(scope: &mut Scope<'_>, at: Point, facing_deg: f64) -> Result<(), S
             height_m: DEFAULT_CAMERA_HEIGHT_M,
             tilt_deg: 0.0,
             hold_s: 0.0,
+            via: None,
         }],
         follows: None,
     };
@@ -914,13 +1016,24 @@ fn carry_cameras(
             .iter_mut()
             .filter(|m| window_s.contains(&m.at_s))
         {
-            let moved = Point::new(camera_mark.at.x_m + dx_m, camera_mark.at.y_m + dy_m);
-            camera_mark.at = rotate(moved, after.at, turn_deg);
+            // The bend of the move goes along, or the move turns into a loop (LH-21).
+            camera_mark.at = carry(camera_mark.at, (dx_m, dy_m), after.at, turn_deg);
+            camera_mark.via = camera_mark
+                .via
+                .map(|via| carry(via, (dx_m, dy_m), after.at, turn_deg));
             camera_mark.facing_deg = normalize_deg(camera_mark.facing_deg + turn_deg);
         }
     }
 
     Ok(())
+}
+
+/// `point` shifted by `delta_m`, then turned by `deg` about `centre`: where a following
+/// camera's point goes when its figure moves and turns.
+fn carry(point: Point, delta_m: (f64, f64), centre: Point, deg: f64) -> Point {
+    let moved = Point::new(point.x_m + delta_m.0, point.y_m + delta_m.1);
+
+    rotate(moved, centre, deg)
 }
 
 /// `point` turned clockwise on the plan by `deg` about `centre`.

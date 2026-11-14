@@ -6,7 +6,8 @@ use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::{FigureColor, FloorPlan, LinkTarget, Point, Project, Scene};
 use klappe_script::{Element, Script};
 use klappe_stellprobe::{
-    axis_jumps, lens_at, ordered_shots, render, DisplayList, Role, Shape, ShotOrder, Source,
+    axis_jumps, handles, lens_at, ordered_shots, render, DisplayList, Role, Shape, ShotOrder,
+    Source,
 };
 use klappe_store::ImageStamp;
 use klappe_store::Loaded;
@@ -404,11 +405,16 @@ impl Session {
 
     /// The plan at the playhead, without hidden layers and tracks.
     pub fn display_list(&self) -> DisplayList {
-        self.list_of(&self.project)
+        self.list_of(&self.project, None)
+    }
+
+    /// `display_list` with the grips on the bends of the way `selected` belongs to (LH-21).
+    pub fn display_list_for(&self, selected: Option<&Source>) -> DisplayList {
+        self.list_of(&self.project, selected)
     }
 
     /// `display_list` of `project`, a changed copy of this session's.
-    fn list_of(&self, project: &Project) -> DisplayList {
+    fn list_of(&self, project: &Project, selected: Option<&Source>) -> DisplayList {
         let scene = project.scenes.get(self.scene);
         let Some((scene, plan)) = scene.and_then(|s| Some((s, s.plans.get(self.plan)?))) else {
             return DisplayList::default();
@@ -423,6 +429,9 @@ impl Session {
             .as_ref()
             .and_then(|b| self.image_size(&b.file));
         let mut list = render(project, &location.set, plan, self.time_s, background_px);
+        if let Some(selected) = selected {
+            list.items.extend(handles(project, plan, selected));
+        }
         list.items
             .retain(|item| self.shows(item.role, item.source.as_ref()));
         list
@@ -456,7 +465,8 @@ impl Session {
 
         let id = match source {
             Some(Source::Camera(id) | Source::Light(id) | Source::Figure(id)) => id,
-            Some(Source::Mark { character, .. }) => character,
+            Some(Source::Mark { character, .. } | Source::FigureVia { character, .. }) => character,
+            Some(Source::CameraVia { camera, .. }) => camera,
             _ => return true,
         };
         !self.hidden_tracks.contains(id)
@@ -660,13 +670,22 @@ impl Session {
     /// The display list as it would be after `edit`, without committing it or taking an undo
     /// step: what a drag shows while the button is down.
     pub fn preview(&self, edit: &PlanEdit) -> Result<DisplayList, ServiceError> {
+        self.preview_for(edit, None)
+    }
+
+    /// `preview` with the grips of the way `selected` belongs to, as after the edit.
+    pub fn preview_for(
+        &self,
+        edit: &PlanEdit,
+        selected: Option<&Source>,
+    ) -> Result<DisplayList, ServiceError> {
         self.check_lock(edit)?;
 
         let mut next = self.project.clone();
         let at = (self.scene, self.plan);
         // Copying a file is no preview: the list stays as it is until the edit is made.
         if matches!(edit, PlanEdit::SetBackground { .. }) {
-            return Ok(self.display_list());
+            return Ok(self.display_list_for(selected));
         }
         plan_edit::apply(
             &self.dir,
@@ -679,15 +698,20 @@ impl Session {
         )?;
         self.check_cameras(&next)?;
 
-        Ok(self.list_of(&next))
+        Ok(self.list_of(&next, selected))
     }
 
     /// Topmost shown item at `at` (front of the display list first), within the pick radius.
     /// Items of locked layers are not taken.
     pub fn pick(&self, at: Point) -> Option<Source> {
+        self.pick_for(at, None)
+    }
+
+    /// `pick` with the grips of the way `selected` belongs to in reach: they lie in front.
+    pub fn pick_for(&self, at: Point, selected: Option<&Source>) -> Option<Source> {
         let locked = |role| self.lock(layer_of(role)) == Lock::Locked;
 
-        plan_edit::pick(&self.display_list().items, at, locked)
+        plan_edit::pick(&self.display_list_for(selected).items, at, locked)
     }
 
     pub fn set_snapping(&mut self, snapping: Snapping) {
@@ -963,10 +987,14 @@ fn layer_of(role: Role) -> Layer {
     match role {
         Role::Background | Role::Wall | Role::Object => Layer::Set,
         Role::Light | Role::LightBeam => Layer::Lights,
-        Role::Camera | Role::Frustum | Role::CameraPath => Layer::Cameras,
+        Role::Camera | Role::Frustum | Role::CameraPath | Role::CameraHandle => Layer::Cameras,
         Role::Note => Layer::Notes,
         Role::Drawing { .. } | Role::ArrowHead(_) => Layer::Drawings,
-        Role::Axis | Role::Figure(_) | Role::FigurePath(_) | Role::Mark(_) => Layer::Figures,
+        Role::Axis
+        | Role::Figure(_)
+        | Role::FigurePath(_)
+        | Role::FigureHandle(_)
+        | Role::Mark(_) => Layer::Figures,
     }
 }
 
