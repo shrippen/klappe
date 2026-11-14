@@ -26,6 +26,8 @@ use crate::shots::{cells, heads, COLUMNS};
 const CELL_PT: f64 = MIN_TEXT_PT;
 const LINE_PT: f64 = 10.5;
 const PAD_PT: f64 = 2.5;
+/// Rounding slack when a width comes back from `+ 2 * PAD_PT - 2 * PAD_PT`.
+const FIT_SLACK_PT: f64 = 1e-6;
 const ROW_PAD_PT: f64 = 3.0;
 const HEAD_RULE_PT: f64 = 0.75;
 const ROW_RULE_PT: f64 = 0.5;
@@ -51,9 +53,9 @@ pub(crate) fn sheets(
         return Ok(Vec::new());
     }
 
-    // Upright: the plan is landscape, the list reads like a letter.
+    // Landscape like the plan: thirteen columns need the width; upright A4 broke words.
     let (short_mm, long_mm) = paper_mm(page.paper);
-    let (width_pt, height_pt) = (short_mm * PT_PER_MM, long_mm * PT_PER_MM);
+    let (width_pt, height_pt) = (long_mm * PT_PER_MM, short_mm * PT_PER_MM);
     let margin = page.margin_mm.max(0.0) * PT_PER_MM;
     let content_w = width_pt - 2.0 * margin;
     let top = margin + TITLE_BAND_PT + GAP_PT;
@@ -274,7 +276,7 @@ fn wrapped(
 /// Greedy word wrap to `max_w`; words wider than the column break by letter. Cut at
 /// `MAX_CELL_LINES` with an ellipsis.
 fn cell_lines(text: &str, max_w: f64, weight: Weight) -> Vec<String> {
-    let fits = |t: &str| text_width_pt(t, CELL_PT, weight) <= max_w;
+    let fits = |t: &str| text_width_pt(t, CELL_PT, weight) <= max_w + FIT_SLACK_PT;
     let mut lines = Vec::new();
 
     if text.trim().is_empty() {
@@ -312,7 +314,7 @@ fn cell_lines(text: &str, max_w: f64, weight: Weight) -> Vec<String> {
 
 /// The word, or chunks of it that each fit `max_w` (at least one letter each).
 fn pieces(word: &str, max_w: f64, weight: Weight) -> Vec<String> {
-    if text_width_pt(word, CELL_PT, weight) <= max_w {
+    if text_width_pt(word, CELL_PT, weight) <= max_w + FIT_SLACK_PT {
         return vec![word.to_owned()];
     }
 
@@ -346,6 +348,23 @@ mod tests {
     use super::*;
 
     const NARROW_PT: f64 = 60.0;
+
+    /// A short column is as wide as its widest cell: "12.1" stays on one line.
+    #[test]
+    fn short_cells_fit_their_column() {
+        let head: [String; COLUMNS] = std::array::from_fn(|_| String::new());
+        let numbers = ["12.1", "12.2", "12.3"];
+        let rows: Vec<[String; COLUMNS]> = numbers
+            .iter()
+            .map(|n| std::array::from_fn(|i| if i == 0 { n.to_string() } else { String::new() }))
+            .collect();
+
+        let widths = column_widths(&head, &rows, 700.0);
+        for row in &rows {
+            let lines = wrapped(row, &widths, Weight::Regular);
+            assert_eq!(lines[0], [row[0].clone()]);
+        }
+    }
 
     #[test]
     fn words_wrap_at_the_width() {

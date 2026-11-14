@@ -9,7 +9,7 @@ use klappe_model::{
 };
 use klappe_stellprobe::{render, DisplayList};
 
-const A4_UPRIGHT_PT: &str = "[0 0 595.28 841.89]";
+const A4_LANDSCAPE_PT: &str = "[0 0 841.89 595.28]";
 
 fn texts() -> ShotTexts {
     ShotTexts {
@@ -202,12 +202,16 @@ fn no_shots_leave_the_plan_alone() {
 }
 
 #[test]
-fn a_few_shots_make_one_upright_sheet() {
+fn a_few_shots_make_one_landscape_sheet() {
     let bytes = pdf_of(3);
     let text = String::from_utf8_lossy(&bytes);
 
     assert_eq!(pages(&bytes), 2);
-    assert!(text.contains(A4_UPRIGHT_PT), "sheet is A4 upright");
+    assert_eq!(
+        text.matches(A4_LANDSCAPE_PT).count(),
+        2,
+        "plan and sheet are A4 landscape"
+    );
     assert!(text.contains("Shotliste"));
     assert!(text.contains("(12.3)"));
 }
