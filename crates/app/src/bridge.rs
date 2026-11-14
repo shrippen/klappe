@@ -146,7 +146,7 @@ use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{error_text, Status};
 use crate::plan;
-use crate::tools::{self, Key, Tool};
+use crate::tools::{self, DragPhase, DragStep, Key, Tool};
 
 pub struct ControllerRust {
     session: Option<Session>,
@@ -499,18 +499,23 @@ impl qobject::Controller {
             _ => (s.snap(from), s.snap(to)),
         };
         let edit = tools::drag_edit(&tool, grabbed.as_ref(), from, to);
-        let Some(edit) = edit else {
-            return false;
+        let phase = if done {
+            DragPhase::Done
+        } else {
+            DragPhase::Moving
         };
 
-        if tool == Tool::Select {
+        if tool == Tool::Select && edit.is_some() {
             self.as_mut().rust_mut().get_mut().selected = grabbed;
         }
-        if !done {
-            return self.preview_edit(&edit);
+        match tools::drag_step(edit, phase) {
+            DragStep::Preview(edit) => self.preview_edit(&edit),
+            DragStep::Commit(edit) => self.commit_edit(edit),
+            DragStep::Restore => {
+                self.refresh();
+                false
+            }
         }
-
-        self.commit_edit(edit)
     }
 
     fn place(mut self: Pin<&mut Self>, x: f64, y: f64) -> bool {
@@ -573,19 +578,21 @@ impl qobject::Controller {
         self.refresh();
     }
 
-    /// Shows what `edit` would do, as the plan; the project stays as it is.
+    /// Shows what `edit` would do, as the plan; the project stays as it is. A failed preview
+    /// shows the project, not the last preview.
     fn preview_edit(self: Pin<&mut Self>, edit: &PlanEdit) -> bool {
         let json = {
             let this = self.as_ref();
-            let Some(s) = this.rust().session.as_ref() else {
-                return false;
-            };
-            let Ok(list) = s.preview(edit) else {
-                return false;
-            };
-            plan_json(s, &list, this.rust().selected.as_ref())
+            this.rust().session.as_ref().and_then(|s| {
+                let list = s.preview(edit).ok()?;
+                Some(plan_json(s, &list, this.rust().selected.as_ref()))
+            })
         };
 
+        let Some(json) = json else {
+            self.refresh();
+            return false;
+        };
         self.set_plan_json(q(&json));
         true
     }

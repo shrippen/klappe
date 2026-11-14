@@ -114,6 +114,32 @@ pub fn drag_edit(
     }
 }
 
+/// Where a drag stands: still moving, or let go.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DragPhase {
+    Moving,
+    Done,
+}
+
+/// What one step of a drag shows.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DragStep {
+    /// The plan as the edit would leave it; the project stays.
+    Preview(PlanEdit),
+    /// The edit applied to the project.
+    Commit(PlanEdit),
+    /// The project as it is: no edit, so no earlier preview may stay on screen.
+    Restore,
+}
+
+pub fn drag_step(edit: Option<PlanEdit>, phase: DragPhase) -> DragStep {
+    match (edit, phase) {
+        (None, _) => DragStep::Restore,
+        (Some(edit), DragPhase::Moving) => DragStep::Preview(edit),
+        (Some(edit), DragPhase::Done) => DragStep::Commit(edit),
+    }
+}
+
 /// A key on the selection; `None` when nothing is selected.
 pub fn key_edit(key: Key, selected: Option<&Source>) -> Option<PlanEdit> {
     let source = selected?.clone();
@@ -126,6 +152,27 @@ pub fn key_edit(key: Key, selected: Option<&Source>) -> Option<PlanEdit> {
 
 #[cfg(test)]
 mod tests {
+
+    /// Review of PR 13: a drag that ends in no edit (a wall snapped to length 0) or whose
+    /// preview fails must show the project again, not the last preview.
+    #[test]
+    fn a_drag_without_edit_restores_the_plan() {
+        assert_eq!(drag_step(None, DragPhase::Moving), DragStep::Restore);
+        assert_eq!(drag_step(None, DragPhase::Done), DragStep::Restore);
+
+        let edit = PlanEdit::Remove {
+            source: Source::Wall(0),
+        };
+        assert_eq!(
+            drag_step(Some(edit.clone()), DragPhase::Moving),
+            DragStep::Preview(edit.clone())
+        );
+        assert_eq!(
+            drag_step(Some(edit.clone()), DragPhase::Done),
+            DragStep::Commit(edit)
+        );
+    }
+
     use super::*;
     use crate::catalog::Language;
 

@@ -396,10 +396,17 @@ fn shift(
         Target::Place { at, .. } => (*at, *at),
         Target::Wall(wall) => (wall.from, middle(wall)),
     };
-    let landed = snap(Point::new(anchor.x_m + by_m.0, anchor.y_m + by_m.1), snapping);
+    let landed = snap(
+        Point::new(anchor.x_m + by_m.0, anchor.y_m + by_m.1),
+        snapping,
+    );
     let (dx, dy) = (landed.x_m - anchor.x_m, landed.y_m - anchor.y_m);
 
-    move_to(scope, source, Point::new(middle_now.x_m + dx, middle_now.y_m + dy))
+    move_to(
+        scope,
+        source,
+        Point::new(middle_now.x_m + dx, middle_now.y_m + dy),
+    )
 }
 
 fn spin(scope: &mut Scope<'_>, source: &Source, by_deg: f64) -> Result<(), ServiceError> {
