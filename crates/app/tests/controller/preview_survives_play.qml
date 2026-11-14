@@ -1,8 +1,10 @@
 import QtQuick
 import io.github.shrippen.klappe
+import "lib"
 
 // Play ticks (advance) must not take a drag preview off the plan.
 Item {
+    Watchdog {}
     Controller { id: ctl }
 
     Timer {

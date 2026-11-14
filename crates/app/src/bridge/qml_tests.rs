@@ -1,6 +1,7 @@
 //! Runs the QML scenarios in `tests/controller` against the real controller, offscreen: the
 //! controller cannot be built from Rust, QML makes it. A scenario ends with `Qt.exit(0)` when
-//! it holds and `Qt.exit(1)` (after `console.error`) when it does not.
+//! it holds and `Qt.exit(1)` (after `console.error`) when it does not; `lib/Watchdog.qml`
+//! ends one that hangs.
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};
 use std::path::{Path, PathBuf};
@@ -27,6 +28,14 @@ fn controller_scenarios_hold() {
         let mut engine = QQmlApplicationEngine::new();
         let url = QUrl::from(&QString::from(format!("file://{}", file.display())));
         if let Some(mut engine) = engine.as_mut() {
+            // A scenario that does not load would leave `exec` waiting for ever.
+            engine
+                .as_mut()
+                .on_object_creation_failed(|_, url| {
+                    eprintln!("could not load {}", url.to_qstring());
+                    std::process::exit(1);
+                })
+                .release();
             engine.as_mut().load(&url);
         }
 

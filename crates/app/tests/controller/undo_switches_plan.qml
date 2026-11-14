@@ -1,11 +1,13 @@
 import QtQuick
 import io.github.shrippen.klappe
+import "lib"
 
 // `switched` stops play: undo across a plan sends it, a refresh on the same plan does not.
 Item {
     id: root
     property int switches: 0
 
+    Watchdog {}
     Controller {
         id: ctl
         onSwitched: root.switches += 1
