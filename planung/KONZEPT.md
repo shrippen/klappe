@@ -57,7 +57,7 @@ Kontra und lmix, weniger Sicherheit, TUI und Export hängen an Qt oder doppeltem
 - Rust mit egui, iced oder Slint: Kante gibt es nur für QML.
 - Electron/Web: kein natives Programm, schwer, widerspricht dem Ziel.
 
-## 4. Schichten (nur zum direkten Nachbarn darunter)
+## 4. Schichten (nur zur Ebene direkt darunter; `model/` nutzen alle)
 
 ```
 app/   QML, Kirigami, Kante      tui/  ratatui        cli/  Kommandozeile
