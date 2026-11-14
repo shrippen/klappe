@@ -102,7 +102,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 
 | Nr | Anforderung | Prio |
 |---|---|---|
-| DB-30 | Paginierung nach Industriestandard (US Letter und A4, Courier 12 pt, Ränder nach Standard): Seitenumbrüche im Editor sichtbar (DN-07). | M |
+| DB-30 | Paginierung nach Industriestandard (A4 als Standard, US Letter wählbar (F-01); Courier 12 pt, Ränder nach Standard): Seitenumbrüche im Editor sichtbar (DN-07). | M |
 | DB-31 | Umbruchregeln: Szenenkopf nie allein am Seitenende; Dialog nur zwischen Sätzen oder an einer Klammer teilen, mit (MORE) unten und Figur (CONT'D) oben; mindestens zwei Zeilen auf jeder Seite; Handlung nur zwischen Sätzen teilen. | M |
 | DB-32 | Länge je Szene in Achteln und Gesamtlänge in Seiten und geschätzten Minuten. | M |
 | DB-33 | Szenennummern: automatisch oder gesperrt; Startnummer frei; eingefügte Szenen bekommen A-Nummern (12A), gestrichene bleiben als „ENTFÄLLT“ stehen. Eine Nummer, mit der ein Floorplan verbunden ist, ändert sich nie automatisch und steht im Fountain-Text (`#12#`). | M |
@@ -172,21 +172,28 @@ Die erste Version ist abgenommen, wenn
 
 1. das Drehbuch des Wartburgfilms in der TUI geschrieben und überarbeitet werden kann,
 2. das PDF Seite für Seite mit einer Referenz aus einem Standardprogramm übereinstimmt
-   (Seitenumbrüche an denselben Stellen; Referenz und Papierformat nach F-01) und
+   (Seitenumbrüche an denselben Stellen; Referenz in A4 nach F-01) und
    (MORE)/(CONT'D) richtig setzt,
 3. sich jede Szene mit einem Floorplan verbinden lässt und die Verbindung Umschreiben
    übersteht (DB-63, DB-64),
 4. alle Muss-Anforderungen erfüllt sind.
 
-## 10. Offene Fragen an den Eigentümer
+## 10. Fragen an den Eigentümer
+
+Entschieden vom Eigentümer am 2026-11-14:
+
+| Nr | Frage | Entscheidung |
+|---|---|---|
+| F-01 | Papierformat | A4 ist Standard, US Letter wählbar; Minutenschätzung je Format. |
+| F-02 | Wo stehen Revisionen, Tags, gesperrte Seitennummern? (Beat: JSON-Block am Ende der Fountain-Datei) | Eigene Dateien im Projektordner (`drehbuch/fassungen/`, `drehbuch/tags.toml`); der Fountain-Text bleibt sauber. Szenennummern bleiben im Text (DB-33), Szenen werden per Nummer referenziert. |
+| F-04 | (MORE)/(CONT'D) oder (WEITER)/(FORTS.) im PDF | Je Projekt wählbar, Standard nach Sprache des Projekts. |
+| F-05 | Nach der ersten Version: GUI-Editor (DB-23) oder Produktion (DB-60, DB-61)? | Erst Produktion, weil Planung darauf aufbaut. |
+
+Offen:
 
 | Nr | Frage | Vorschlag |
 |---|---|---|
-| F-01 | Papierformat: US Letter (Industriestandard, ~1 Seite/Minute) oder A4 als Standard? | A4 für deutsche Produktionen, Letter wählbar; Minutenschätzung je Format. |
-| F-02 | Wo stehen Revisionen, Tags, gesperrte Seitennummern? Beat schreibt sie als JSON-Block ans Ende der Fountain-Datei (in einem Kommentar). | Eigene Dateien im Projektordner (`drehbuch/fassungen/`, `drehbuch/tags.toml`), Fountain bleibt sauber; Szenen per Szenennummer referenziert. Szenennummern bleiben im Text (DB-33). |
-| F-03 | Revisionen: eigene Markierung wie Fade In/Beat, oder aus Git abgeleitet (Diff gegen die gesperrte Fassung)? | Gegen eine gespeicherte gesperrte Fassung im Projektordner diffen; Git optional. |
-| F-04 | Englische oder deutsche Elemente im PDF ((MORE)/(CONT'D) vs. (WEITER)/(FORTS.))? | Je Projekt wählbar, Standard nach Sprache des Projekts. |
-| F-05 | Reihenfolge nach der ersten Version: GUI-Editor (DB-23 Karteikarten) oder Produktion (DB-60, DB-61)? | Erst Produktion, weil Planung darauf aufbaut. |
+| F-03 | Revisionen: eigene Markierung beim Tippen wie Fade In/Beat, aus Git oder Vergleich mit einer gespeicherten gesperrten Fassung? | Vergleich mit einer gespeicherten gesperrten Fassung im Projektordner; Git optional. |
 
 ## Anhang A: Analyse Fade In und Beat
 
@@ -197,7 +204,7 @@ Dateiformate werden nicht übernommen. Klappe steht unter MIT.
 
 - **Fade In** (proprietär, GCC Productions): nur öffentliche Seiten.
 - **Beat** (GPL v3, Lauri-Matti Parppei): öffentliche Seiten. Auf Wunsch des Eigentümers
-  (2026-11-14) wurden auch einzelne Quelldateien gelesen, um Verhalten zu verstehen
+  (2026-11-14, bestätigt im Review von #17) wurden auch einzelne Quelldateien gelesen, um Verhalten zu verstehen
   (Paginierung, Revisionen, Dokumenteinstellungen, Tagging, Autovervollständigung). Daraus
   steht hier nur Verhalten in eigenen Worten. Wer Klappe programmiert, schreibt nach diesem
   Lastenheft, nicht mit Beat-Code daneben.
