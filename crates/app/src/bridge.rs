@@ -420,6 +420,12 @@ pub mod qobject {
         #[cxx_name = "openProject"]
         fn open_project(self: Pin<&mut Self>, path: &QString) -> bool;
 
+        /// Opens the user's copy of the example in the language of the window, made first if it
+        /// is not there; an error goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "openExample"]
+        fn open_example(self: Pin<&mut Self>) -> bool;
+
         /// Shows the scene `id`.
         #[qinvokable]
         #[cxx_name = "selectScene"]
@@ -2077,6 +2083,14 @@ impl qobject::Controller {
     fn open_project(self: Pin<&mut Self>, path: &QString) -> bool {
         let dir = tools::local_path(&path.to_string());
         let opened = Session::open(&dir);
+
+        self.switch_to(opened)
+    }
+
+    fn open_example(self: Pin<&mut Self>) -> bool {
+        let language = self.rust().language;
+        let data = manage::data_dir().unwrap_or_else(std::env::temp_dir);
+        let opened = manage::ensure_example(language, &data).and_then(|dir| Session::open(&dir));
 
         self.switch_to(opened)
     }

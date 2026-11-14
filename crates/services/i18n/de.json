@@ -300,6 +300,7 @@
  "start.scenes": "{count} Szenen",
  "start.forget": "Aus der Liste entfernen",
  "start.noRecent": "Noch keine Projekte geöffnet.",
+ "start.example": "Beispiel ansehen",
  "project.pickNew": "Ordner für das neue Projekt wählen (leer oder neu)",
  "project.pickOpen": "Projektordner wählen",
  "project.newTitle": "Neues Projekt",

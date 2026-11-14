@@ -3,7 +3,9 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{CardState, Field, FigureColor, ProjectCard, ServiceError, Session};
+use klappe_services::{
+    copy_example, CardState, Field, FigureColor, Language, ProjectCard, ServiceError, Session,
+};
 use serde_json::{json, Value};
 
 /// Projects the start page remembers.
@@ -14,6 +16,10 @@ const STATE_MISSING: &str = "missing";
 const CACHE_VAR: &str = "XDG_CACHE_HOME";
 const HOME_VAR: &str = "HOME";
 const CACHE_APP_DIR: &str = "klappe";
+const DATA_VAR: &str = "XDG_DATA_HOME";
+const DATA_APP_DIR: &str = "klappe";
+const EXAMPLES_DIR: &str = "beispiel";
+const HOME_SHORT: &str = "~";
 
 /// `{ scenes, locations, characters, plans, plan }`: lists of plain objects for QML, `plans`
 /// those of the scene on view and `plan` the id of the one shown. The colour is the model's
@@ -136,8 +142,9 @@ pub fn recent_store(list: &[String]) -> String {
     serde_json::to_string(list).unwrap_or_default()
 }
 
-/// `[{ path, name, state }]` for the start page before the cards are read: the folder's name,
-/// `loading` while the folder is there and `missing` while it is not.
+/// `[{ path, shortPath, name, state }]` for the start page before the cards are read: the
+/// folder's name, `loading` while the folder is there and `missing` while it is not.
+/// `shortPath` is the path with the home folder as `~` (the tile's tooltip).
 pub fn recent_view(list: &[String]) -> String {
     let rows: Vec<_> = list
         .iter()
@@ -147,14 +154,20 @@ pub fn recent_view(list: &[String]) -> String {
             } else {
                 STATE_MISSING
             };
-            json!({ "path": p, "name": folder_name(p), "state": state })
+            json!({
+                "path": p,
+                "shortPath": short_path(p),
+                "name": folder_name(p),
+                "state": state,
+            })
         })
         .collect();
 
     Value::Array(rows).to_string()
 }
 
-/// The same rows with what the cards found: `{ path, name, state, scenes, modifiedS, preview }`,
+/// The same rows with what the cards found: `{ path, shortPath, name, state, scenes, modifiedS,
+/// preview }`,
 /// `state` being `ready`, `missing` or `unreadable`, `preview` a file path or empty. `cards`
 /// are the first of `list` that are read; the others stay as `recent_view` shows them.
 pub fn cards_view(list: &[String], cards: &[ProjectCard]) -> String {
@@ -165,6 +178,7 @@ pub fn cards_view(list: &[String], cards: &[ProjectCard]) -> String {
     for (row, card) in rows.iter_mut().zip(cards) {
         *row = json!({
             "path": card.path.to_string_lossy(),
+            "shortPath": short_path(&card.path.to_string_lossy()),
             "name": card.name,
             "state": card_state(card.state),
             "scenes": card.scenes,
@@ -193,6 +207,56 @@ pub fn cache_dir() -> Option<PathBuf> {
     };
 
     Some(base.join(CACHE_APP_DIR))
+}
+
+/// Where the app keeps what the user may change (the example copies): `$XDG_DATA_HOME/klappe`,
+/// else `~/.local/share/klappe`.
+pub fn data_dir() -> Option<PathBuf> {
+    let base = match std::env::var_os(DATA_VAR) {
+        Some(dir) if !dir.is_empty() => PathBuf::from(dir),
+        _ => PathBuf::from(std::env::var_os(HOME_VAR)?).join(".local/share"),
+    };
+
+    Some(base.join(DATA_APP_DIR))
+}
+
+/// The user's copy of the example in `language`, below `data`: `beispiel/beispiel-de.klappe`.
+pub fn example_dir(language: Language, data: &Path) -> PathBuf {
+    let name = match language {
+        Language::German => "beispiel-de.klappe",
+        Language::English => "beispiel-en.klappe",
+    };
+
+    data.join(EXAMPLES_DIR).join(name)
+}
+
+/// The folder of the user's example copy, made first if it is not there. An existing copy is
+/// left as it is, so what the user changed in it is not lost by another click.
+pub fn ensure_example(language: Language, data: &Path) -> Result<PathBuf, ServiceError> {
+    let dir = example_dir(language, data);
+    let there = std::fs::read_dir(&dir).is_ok_and(|mut entries| entries.next().is_some());
+    if there {
+        return Ok(dir);
+    }
+
+    copy_example(language, &dir)?;
+    Ok(dir)
+}
+
+/// `path` with `home` at its start as `~`; unchanged elsewhere.
+fn tilde(path: &str, home: &Path) -> String {
+    match Path::new(path).strip_prefix(home) {
+        Ok(rest) if rest.as_os_str().is_empty() => HOME_SHORT.to_owned(),
+        Ok(rest) => format!("{HOME_SHORT}/{}", rest.to_string_lossy()),
+        Err(_) => path.to_owned(),
+    }
+}
+
+fn short_path(path: &str) -> String {
+    match std::env::var_os(HOME_VAR) {
+        Some(home) if !home.is_empty() => tilde(path, Path::new(&home)),
+        _ => path.to_owned(),
+    }
 }
 
 fn card_state(state: CardState) -> &'static str {
@@ -282,6 +346,76 @@ mod tests {
         assert_eq!(view[0]["modifiedS"], 7);
         assert_eq!(view[0]["preview"], "/cache/a.png");
         assert_eq!(view[1]["state"], STATE_MISSING);
+    }
+
+    #[test]
+    fn the_home_folder_is_a_tilde() {
+        let home = Path::new("/home/anna");
+
+        assert_eq!(tilde("/home/anna/film/a.klappe", home), "~/film/a.klappe");
+        assert_eq!(tilde("/home/anna", home), "~");
+        assert_eq!(tilde("/home/annabel/a", home), "/home/annabel/a");
+        assert_eq!(tilde("/srv/film", home), "/srv/film");
+    }
+
+    #[test]
+    fn the_rows_carry_the_short_path() {
+        let view: Value =
+            serde_json::from_str(&recent_view(&list(&["/gibt/es/nicht"]))).unwrap_or_default();
+
+        assert_eq!(view[0]["shortPath"], "/gibt/es/nicht");
+    }
+
+    /// A scratch folder next to the test binary, empty.
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::current_exe()
+            .map(|e| e.with_file_name(name))
+            .unwrap_or_default();
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn the_example_copy_lives_in_the_data_folder_by_language() {
+        let data = Path::new("/data/klappe");
+
+        assert_eq!(
+            example_dir(Language::German, data),
+            Path::new("/data/klappe/beispiel/beispiel-de.klappe")
+        );
+        assert_eq!(
+            example_dir(Language::English, data),
+            Path::new("/data/klappe/beispiel/beispiel-en.klappe")
+        );
+    }
+
+    #[test]
+    fn the_example_is_copied_once_and_then_opened_as_it_is() {
+        let data = scratch("manage-example");
+
+        let first = ensure_example(Language::German, &data).unwrap();
+        assert!(Session::open(&first).is_ok());
+
+        // The user's work stays: a marker file survives the second call.
+        let marker = first.join("meins.txt");
+        std::fs::write(&marker, "x").unwrap();
+        let second = ensure_example(Language::German, &data).unwrap();
+
+        assert_eq!(first, second);
+        assert!(marker.exists());
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn an_empty_example_folder_is_filled_again() {
+        let data = scratch("manage-example-empty");
+        let dir = example_dir(Language::English, &data);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        ensure_example(Language::English, &data).unwrap();
+
+        assert!(Session::open(&dir).is_ok());
+        let _ = std::fs::remove_dir_all(&data);
     }
 
     #[test]
