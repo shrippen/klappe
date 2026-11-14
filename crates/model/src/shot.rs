@@ -1,4 +1,13 @@
-use serde::{Deserialize, Serialize};
+use serde::ser::Error;
+use serde::{Deserialize, Serialize, Serializer};
+
+/// Refuses NaN and infinity: JSON would write them as `null`, which reads back as `None`.
+fn finite_or_none<S: Serializer>(value: &Option<f64>, serializer: S) -> Result<S::Ok, S::Error> {
+    match value {
+        Some(v) if !v.is_finite() => Err(S::Error::custom(format!("non-finite number: {v}"))),
+        _ => value.serialize(serializer),
+    }
+}
 
 /// One shot: a camera's take of a stretch of the scene (LH-70, LH-71).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10,7 +19,7 @@ pub struct Shot {
     pub size: ShotSize,
     pub movement: Movement,
     /// Lens for this shot; `None` uses the camera's.
-    #[serde(default)]
+    #[serde(default, serialize_with = "finite_or_none")]
     pub lens_mm: Option<f64>,
     /// The stretch of the blocking this shot covers.
     pub from_s: f64,

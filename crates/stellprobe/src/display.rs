@@ -2,7 +2,7 @@ use klappe_model::{FigureColor, FloorPlan, Point, Project, SetObject, SetPlan};
 
 use crate::axis::axis_at;
 use crate::motion::{camera_at, figure_at};
-use crate::optics::{frustum, horizontal_fov_deg};
+use crate::optics::{frustum, horizontal_fov_deg, lens_at};
 
 /// What the GUI draws and the export writes, back to front, in metres (planung/KONZEPT.md,
 /// section 4). Colours are roles; the GUI maps them to Kante.
@@ -208,7 +208,7 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
         let Some(place) = camera_at(camera, t_s) else {
             continue;
         };
-        let fov = horizontal_fov_deg(camera.sensor, camera.lens_mm);
+        let fov = horizontal_fov_deg(camera.sensor, lens_at(camera, &plan.shots, t_s));
         let view = frustum(place.at, place.facing_deg, fov, reach_m);
 
         items.push(Item {
@@ -306,7 +306,8 @@ fn nose(at: Point, facing_deg: f64, radius_m: f64) -> Vec<Point> {
 mod tests {
     use super::*;
     use klappe_model::{
-        Camera, CameraMark, Character, FigureTrack, Light, LightKind, Mark, Pose, Sensor, Wall,
+        Camera, CameraMark, Character, FigureTrack, Light, LightKind, Mark, Movement, Pose, Sensor,
+        Shot, ShotSize, Wall,
     };
 
     fn project() -> Project {
@@ -477,6 +478,63 @@ mod tests {
         let (from, to) = axis.unwrap();
         assert!((from.x_m - (2.0 - diagonal)).abs() < 1e-9 && (from.y_m - 6.0).abs() < 1e-9);
         assert!((to.x_m - (12.0 + diagonal)).abs() < 1e-9);
+    }
+
+    fn shot(lens_mm: Option<f64>, from_s: f64, to_s: f64) -> Shot {
+        Shot {
+            id: "s".into(),
+            number: "1.1".into(),
+            camera: "a".into(),
+            size: ShotSize::Wide,
+            movement: Movement::Static,
+            lens_mm,
+            from_s,
+            to_s,
+            description: String::new(),
+            props: String::new(),
+            gear: String::new(),
+            crew: String::new(),
+            note: String::new(),
+        }
+    }
+
+    fn frustum_of(plan: &FloorPlan, t_s: f64) -> Vec<Point> {
+        render(&project(), &set(), plan, t_s)
+            .items
+            .into_iter()
+            .find_map(|i| match (i.role, i.shape) {
+                (Role::Frustum, Shape::Polygon { points }) => Some(points),
+                _ => None,
+            })
+            .unwrap_or_default()
+    }
+
+    /// The shot's own lens wins while it runs; outside it the camera's lens applies.
+    #[test]
+    fn frustum_follows_the_shots_lens() {
+        let mut p = plan();
+        p.shots = vec![shot(Some(40.0), 0.0, 4.0)];
+        let fov = |lens_mm: f64| horizontal_fov_deg(Sensor::Super35, lens_mm);
+        let expect = |lens_mm: f64| {
+            frustum(
+                Point::new(8.0, 12.0),
+                -90.0,
+                fov(lens_mm),
+                20.0_f64.hypot(13.0),
+            )
+        };
+
+        let during = frustum_of(&p, 2.0);
+        let after = frustum_of(&p, 4.0);
+
+        assert!(
+            (during[1].x_m - expect(40.0)[1].x_m).abs() < 1e-6,
+            "{during:?}"
+        );
+        assert!(
+            (after[1].x_m - expect(35.0)[1].x_m).abs() < 1e-6,
+            "{after:?}"
+        );
     }
 
     #[test]

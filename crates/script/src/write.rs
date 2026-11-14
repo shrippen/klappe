@@ -1,7 +1,8 @@
 //! Elements to Fountain text.
 
 use crate::parse::{
-    parse, parse_elements, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING, FORCE_TRANSITION,
+    parse, parse_elements, BONEYARD_OPEN, BONEYARD_OPEN_ESCAPED, FORCE_ACTION, FORCE_CHARACTER,
+    FORCE_HEADING, FORCE_TRANSITION,
 };
 use crate::{Element, Script};
 
@@ -15,7 +16,7 @@ pub fn write(script: &Script) -> String {
     let mut out = String::new();
 
     for (key, value) in &script.title_page {
-        out.push_str(&title_entry(key, value));
+        out.push_str(&protect(&title_entry(key, value)));
     }
     if !script.title_page.is_empty() {
         out.push('\n');
@@ -26,7 +27,7 @@ pub fn write(script: &Script) -> String {
         if i > 0 && !same_block(&script.elements[i - 1], el) {
             out.push('\n');
         }
-        out.push_str(&render(el, script.elements.get(i + 1)));
+        out.push_str(&protect(&render(el, script.elements.get(i + 1))));
         out.push('\n');
     }
 
@@ -39,6 +40,11 @@ pub fn write(script: &Script) -> String {
     }
 
     out
+}
+
+/// Escapes each `/*`, which the parser would read as a boneyard.
+fn protect(text: &str) -> String {
+    text.replace(BONEYARD_OPEN, BONEYARD_OPEN_ESCAPED)
 }
 
 /// The marker that forces an element's plain form to stay what it is.

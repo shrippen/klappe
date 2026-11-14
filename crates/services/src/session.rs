@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::{FigureColor, FloorPlan, LinkTarget, Project, Scene};
 use klappe_script::{Element, Script};
-use klappe_stellprobe::{axis_jumps, render, DisplayList, Role, Source};
+use klappe_stellprobe::{axis_jumps, lens_at, render, DisplayList, Role, Source};
 
 use crate::edit::{self, movement_name, size_name, ShotField};
 use crate::error::ServiceError;
@@ -210,6 +210,13 @@ impl Session {
         list.items
             .retain(|item| self.shows(item.role, item.source.as_ref()));
         list
+    }
+
+    /// The lens a camera has at the playhead: its shot's own, else its own.
+    pub fn lens_now_mm(&self, camera: &str) -> Option<f64> {
+        let plan = self.plan()?;
+        let camera = plan.camera(camera)?;
+        Some(lens_at(camera, &plan.shots, self.time_s))
     }
 
     fn shows(&self, role: Role, source: Option<&Source>) -> bool {

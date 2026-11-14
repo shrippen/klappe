@@ -446,11 +446,12 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 .filter(|shot| shot.camera == id)
                 .map(|shot| shot.number.as_str())
                 .collect();
+            let lens_mm = s.lens_now_mm(id).unwrap_or(c.lens_mm);
             json!({
                 "kind": "camera",
                 "label": c.label,
-                "lens": c.lens_mm,
-                "fov": (horizontal_fov_deg(c.sensor, c.lens_mm) * 10.0).round() / 10.0,
+                "lens": lens_mm,
+                "fov": (horizontal_fov_deg(c.sensor, lens_mm) * 10.0).round() / 10.0,
                 "height": c.marks.first().map(|m| m.height_m).unwrap_or(0.0),
                 "shots": shots.join(", "),
             })
