@@ -40,7 +40,8 @@ Vorbilder, ihre Schwächen und die Clean-Room-Regel: Anhang A.
   links neben dem Plan).
 - E-08: Das Format ist Fountain. Was Fountain nicht kennt (Revisionen, Tags, Figurendaten),
   steht in eigenen Dateien des Projektordners, nicht im Drehbuchtext (siehe DB-60, Frage F-02).
-- Szenennummern verbinden Drehbuch und Plan (`#12#`, `#12A#`, KONZEPT Abschnitt 5).
+- Szenen verbinden Drehbuch und Plan; Klappe führt die Zuordnung (DB-65), die Nummer (`#12#`, `#12A#`,
+  KONZEPT Abschnitt 5) ist Anzeige und Bezeichner.
 
 ## 4. Nutzer
 
@@ -105,7 +106,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | DB-30 | Paginierung nach Industriestandard (A4 als Standard, US Letter wählbar (F-01); Courier 12 pt, Ränder nach Standard): Seitenumbrüche im Editor sichtbar (DN-07). | M |
 | DB-31 | Umbruchregeln: Szenenkopf nie allein am Seitenende; Dialog nur zwischen Sätzen oder an einer Klammer teilen, mit (MORE) unten und Figur (CONT'D) oben; mindestens zwei Zeilen auf jeder Seite; Handlung nur zwischen Sätzen teilen. | M |
 | DB-32 | Länge je Szene in Achteln und Gesamtlänge in Seiten und geschätzten Minuten. | M |
-| DB-33 | Szenennummern: automatisch oder gesperrt; Startnummer frei; eingefügte Szenen bekommen A-Nummern (12A), gestrichene bleiben als „ENTFÄLLT“ stehen. Eine Nummer, mit der ein Floorplan verbunden ist, ändert sich nie automatisch und steht im Fountain-Text (`#12#`). | M |
+| DB-33 | Szenennummern: automatisch oder gesperrt; Startnummer frei; eingefügte Szenen bekommen A-Nummern (12A), gestrichene bleiben als „ENTFÄLLT“ stehen. Die Nummer steht im Fountain-Text (`#12#`). Ändert sich das Buch (in Klappe oder extern, z. B. in einem anderen Programm oder per Git), passt Klappe die automatischen Nummern nach diesen Regeln an, schreibt sie beim Speichern in den Fountain-Text und führt Floorplan, Marks und Shots jeder Szene mit (DB-65); gesperrte Nummern bleiben, bis die Sperre aufgehoben wird. | M |
 | DB-34 | Gesperrte Seiten mit A-Seiten (12A) nach dem Sperren einer Fassung. | S |
 
 ### 6.4 Fassungen und Revisionen
@@ -137,6 +138,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | DB-62 | Rollen-Auszüge (Sides): nur die Szenen einer Figur als PDF. | K |
 | DB-63 | In der GUI von der Szene im Drehbuch zu Floorplan, Marks und Shots in Stellprobe springen und zurück. | M, GUI |
 | DB-64 | Verknüpfungen aus Stellprobe (Szene, Szenenkopf, verknüpfte Drehbuchzeilen von Marks und Shots) bleiben beim Bearbeiten, Verschieben und Streichen gültig; was sich nicht eindeutig zuordnen lässt, legt das Programm dem Nutzer zur Zuordnung vor, statt still auf eine andere Zeile zu zeigen. | M |
+| DB-65 | Szenen behalten ihre Identität über Änderungen am Buch: Klappe merkt sich beim Speichern jede Szene (Nummer, Kopf, Inhalt) im Projektordner und ordnet beim nächsten Öffnen die Szenen des Buchs diesen zu, auch nach einer Änderung außerhalb von Klappe. Eine umnummerierte, verschobene oder umgeschriebene Szene behält ihren Floorplan; was sich nicht eindeutig zuordnen lässt, legt das Programm dem Nutzer vor (wie DB-64). Der Fountain-Text bleibt dabei sauber (F-02). | M |
 
 ### 6.7 Ausgabe und Austausch
 
@@ -156,7 +158,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | DN-02 | Ein Buch von 120 Seiten bleibt beim Tippen flüssig: neu paginieren und auswerten in höchstens 50 ms je Tastendruck. | M |
 | DN-03 | Offline, ohne Konto, ohne Cloud (NF-02). Zusammenarbeit über Git: der Fountain-Text lässt sich in Git zusammenführen. | M |
 | DN-04 | Tastatur zuerst; jede Funktion ohne Maus erreichbar, Kürzel in der Hilfe (F1). | M |
-| DN-05 | Deutsch und Englisch; Fachbegriffe nach Filmpraxis (NF-09); Szenenkopf-Präfixe beider Sprachen erkennen (INT./INNEN, EXT./AUSSEN, TAG/NACHT). | M |
+| DN-05 | Deutsch und Englisch; Fachbegriffe nach Filmpraxis im Buch und im PDF nach der Sprache des Projekts (wie F-04): ein englisches Projekt nutzt die internationalen Begriffe, ein deutsches die deutschen oder auf Wunsch die internationalen (je Projekt wählbar); die Oberfläche folgt NF-09; Szenenkopf-Präfixe beider Sprachen erkennen (INT./INNEN, EXT./AUSSEN, TAG/NACHT). | M |
 | DN-06 | Kein Datenverlust bei Absturz: automatisches Sichern wie LH-05. | M |
 | DN-07 | Das PDF stimmt Seite für Seite mit der Paginierung im Editor überein. | M |
 
@@ -176,7 +178,7 @@ Die erste Version ist abgenommen, wenn
    (Seitenumbrüche an denselben Stellen; Referenz in A4 nach F-01) und
    (MORE)/(CONT'D) richtig setzt,
 3. sich jede Szene mit einem Floorplan verbinden lässt und die Verbindung Umschreiben
-   übersteht (DB-63, DB-64),
+   übersteht (DB-63 bis DB-65),
 4. alle Muss-Anforderungen erfüllt sind.
 
 ## 10. Fragen an den Eigentümer
@@ -186,10 +188,13 @@ Entschieden vom Eigentümer am 2026-11-14:
 | Nr | Frage | Entscheidung |
 |---|---|---|
 | F-01 | Papierformat | A4 ist Standard, US Letter wählbar; Minutenschätzung je Format. |
-| F-02 | Wo stehen Revisionen, Tags, gesperrte Seitennummern? (Beat: JSON-Block am Ende der Fountain-Datei) | Eigene Dateien im Projektordner (`drehbuch/fassungen/`, `drehbuch/tags.toml`); der Fountain-Text bleibt sauber. Szenennummern bleiben im Text (DB-33), Szenen werden per Nummer referenziert. |
+| F-02 | Wo stehen Revisionen, Tags, gesperrte Seitennummern? (Beat: JSON-Block am Ende der Fountain-Datei) | Eigene Dateien im Projektordner (`drehbuch/fassungen/`, `drehbuch/tags.toml`); der Fountain-Text bleibt sauber. Szenennummern bleiben im Text (DB-33); die Zuordnung zu Floorplan, Marks und Shots führt Klappe getrennt von der Nummer (DB-65). |
 | F-03 | Woher kommen Revisionen: Markierung beim Tippen (Fade In, Beat), Git oder Vergleich? | Vergleich mit einer beim Sperren gespeicherten Fassung im Projektordner; Git optional. Verschobene Szenen werden eigens erkannt (DB-44). |
 | F-04 | (MORE)/(CONT'D) oder (WEITER)/(FORTS.) im PDF | Je Projekt wählbar, Standard nach Sprache des Projekts. |
 | F-05 | Nach der ersten Version: GUI-Editor (DB-23) oder Produktion (DB-60, DB-61)? | Erst Produktion, weil Planung darauf aufbaut. |
+| DB-33 | Ändern sich Szenennummern mit Floorplan nie automatisch? | Nein: sie passen sich an, wenn sich das Buch ändert, auch extern; Klappe verfolgt die Szenen (DB-65). |
+| DB-64 | Verknüpfungen überstehen das Umschreiben | Einverstanden. |
+| Begriffe | Deutsch nach Filmpraxis | Einverstanden, mit Mehrsprachigkeit: ein englisches Buch hat internationale Begriffe, ein deutsches kann sie auf Wunsch auch haben; maßgeblich ist die Sprache des Projekts (DN-05). |
 
 ## Anhang A: Analyse Fade In und Beat
 
