@@ -501,6 +501,11 @@ FocusScope {
         // In editing: a left drag the app gets, and the shape it began on.
         property bool dragging: false
         property string dragKey: ""
+        // Where the drag began, in model units: fixed at the press, whatever the view does.
+        property real dragFromX: 0
+        property real dragFromY: 0
+        property real lastModelX: 0
+        property real lastModelY: 0
         property real lastX: 0
         property real lastY: 0
         property real startX: 0
@@ -521,11 +526,15 @@ FocusScope {
             panning = forced || (!root.editing && root.shapeAt(mouse.x, mouse.y) < 0)
             dragging = root.editing && !forced
             dragKey = dragging ? root.keyAt(mouse.x, mouse.y) : ""
+            const from = _model(startX, startY)
+            dragFromX = lastModelX = from.x
+            dragFromY = lastModelY = from.y
         }
         function _drag(mx, my, done) {
-            const from = _model(startX, startY)
             const m = _model(mx, my)
-            root.shapeDragged(dragKey, from.x, from.y, m.x, m.y, done)
+            lastModelX = m.x
+            lastModelY = m.y
+            root.shapeDragged(dragKey, dragFromX, dragFromY, m.x, m.y, done)
         }
         onPositionChanged: function (mouse) {
             if (!pressed) {
@@ -556,6 +565,14 @@ FocusScope {
         onReleased: function (mouse) {
             if (dragging && moved) {
                 _drag(mouse.x, mouse.y, true)
+            }
+            panning = false
+            dragging = false
+        }
+        // A pinch or the window took the press over: end the drag where it was last seen.
+        onCanceled: {
+            if (dragging && moved) {
+                root.shapeDragged(dragKey, dragFromX, dragFromY, lastModelX, lastModelY, true)
             }
             panning = false
             dragging = false
