@@ -847,8 +847,14 @@ impl qobject::Controller {
             return false;
         };
 
+        // The draft stays open when the edit is refused, so the typed text is not lost.
+        if !self.as_mut().commit_edit(edit) {
+            return false;
+        }
+
         self.as_mut().rust_mut().get_mut().note = NoteDraft::Idle;
-        self.commit_edit(edit)
+        self.refresh();
+        true
     }
 
     fn cancel_note(mut self: Pin<&mut Self>) {
@@ -906,6 +912,13 @@ impl qobject::Controller {
     /// Starts asking for a note's text: empty for a new note, the note's own for an edit.
     /// False when the note to edit is gone.
     fn ask_note(mut self: Pin<&mut Self>, draft: NoteDraft) -> bool {
+        let language = self.rust().language;
+        let lock = self.rust().session.as_ref().map(|s| s.lock(Layer::Notes));
+        if let Some(Err(e)) = lock.map(tools::note_open) {
+            self.as_mut().say(error_text(language, &e));
+            return false;
+        }
+
         let text = match &draft {
             NoteDraft::Edit(id) => {
                 let text = self.rust().session.as_ref().and_then(|s| note_text(s, id));

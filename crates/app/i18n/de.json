@@ -62,7 +62,7 @@
  "layer.lights": "Licht",
  "layer.notes": "Notizen",
  "layer.locked": "gesperrt",
- "layer.lockTip": "{layer}: gesperrt, nichts kann gewählt oder geändert werden",
+ "layer.lockTip": "„{layer}“ sperren: nichts darauf kann gewählt oder geändert werden",
  "script.title": "Drehbuch",
  "script.page": "folgt der Wiedergabe",
  "script.empty": "Zu dieser Szene gibt es keinen Drehbuchtext.",

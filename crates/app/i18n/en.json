@@ -62,7 +62,7 @@
  "layer.lights": "Lights",
  "layer.notes": "Notes",
  "layer.locked": "locked",
- "layer.lockTip": "{layer}: locked, nothing can be picked or changed",
+ "layer.lockTip": "Lock {layer}: nothing on it can be picked or changed",
  "script.title": "Script",
  "script.page": "follows playback",
  "script.empty": "This scene has no script text.",

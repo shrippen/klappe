@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use klappe_services::{LightKind, PlanEdit, Point, Source};
+use klappe_services::{Layer, LightKind, Lock, PlanEdit, Point, ServiceError, Source};
 
 const FILE_URL: &str = "file://";
 
@@ -206,6 +206,15 @@ impl NoteDraft {
     }
 }
 
+/// Whether the note tool may ask for a text: not while the notes layer is locked, or the
+/// typed text would be lost on the refused edit.
+pub fn note_open(lock: Lock) -> Result<(), ServiceError> {
+    match lock {
+        Lock::Locked => Err(ServiceError::Locked(Layer::Notes)),
+        Lock::Unlocked => Ok(()),
+    }
+}
+
 /// The text typed for the draft as an edit; `None` without a draft or for a text of only
 /// blanks.
 pub fn note_edit(draft: &NoteDraft, text: &str) -> Option<PlanEdit> {
@@ -333,6 +342,17 @@ pub fn key_edit(key: Key, selected: Option<&Source>) -> Option<PlanEdit> {
 
 #[cfg(test)]
 mod tests {
+
+    /// Review of PR 21: with the notes layer locked the tool still asked for a text and
+    /// dropped it on Enter.
+    #[test]
+    fn a_locked_notes_layer_asks_nothing() {
+        assert!(matches!(
+            note_open(Lock::Locked),
+            Err(ServiceError::Locked(Layer::Notes))
+        ));
+        assert!(note_open(Lock::Unlocked).is_ok());
+    }
 
     /// Review of PR 19: scale points snapped to the 25 cm grid gave a wrong scale
     /// (2.8 m picked, 3.0 m used). Tools that place things still snap.

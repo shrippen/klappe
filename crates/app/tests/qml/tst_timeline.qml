@@ -93,7 +93,7 @@ TestCase {
         lock.toggled()
 
         compare(fake.locks, [["notes", "locked"], ["notes", "unlocked"]])
-        compare(lock.Accessible.name, "Notizen: gesperrt, nichts kann gewählt oder geändert werden")
+        compare(lock.Accessible.name, "„Notizen“ sperren: nichts darauf kann gewählt oder geändert werden")
     }
 
     function test_a_locked_layer_shows_its_lock_checked_and_stays_visible() {
