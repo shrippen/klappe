@@ -21,6 +21,7 @@ Stand: 2026-11-14.
 | Automatisches Speichern (LH-05) | fertig |
 | Projekte, Szenen, Drehorte, Figuren verwalten (LH-01 bis LH-03): Startseite mit zuletzt geöffneten Projekten, Projektdialog mit Listen, Rückgängig | erste Fassung; offen: Szenen und Figuren umsortieren, Szenennummern automatisch vergeben und beim Drehbuch-Umbau nachführen (DB-33) |
 | Hintergrundbild mit Maßstab (LH-13) | erste Fassung; offen: PDF als Hintergrund |
+| Messwerkzeug (LH-14): Taste D, zwei Klicks setzen die Strecke, gestrichelte Linie mit Endpunkten und Länge (m) folgt dem Zeiger, ein dritter Klick beginnt neu, Esc und Wechsel von Werkzeug, Szene oder Plan verwerfen; Einrasten wie bei den anderen Werkzeugen; Werkzeugzustand der Sitzung, nicht im Plan, nicht im Export, kein Rückgängig | erste Fassung; offen: Winkel in der Statuszeile |
 | Notizen im Plan (LH-16): Werkzeug, Ebene, Export | erste Fassung; offen: Doppelklick zum Bearbeiten (F2 oder Klick mit dem Notiz-Werkzeug), Textform statt Marker mit Beschriftung |
 | Freies Zeichnen (LH-19): Linie, Pfeil, Rechteck, Ellipse, Fläche je Szenenplan, Farbe, Strichart, Füllung, Ebene, Export | erste Fassung; offen: Stil einer vorhandenen Zeichnung ändern, Punkte und Ecken ziehen, Drehen, Zeichnungen in der Legende, Werkzeugleiste bei schmalen Fenstern |
 | Ebenen sperren (LH-15): Schalter „gesperrt“ je Ebene, nichts wählbar oder änderbar | erste Fassung; die Sperre gilt für die Sitzung und steht nicht im Projekt |

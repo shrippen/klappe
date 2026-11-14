@@ -35,6 +35,9 @@ TestCase {
         property int noteCancels: 0
         property int noteEdits: 0
         property bool noteOk: true
+        property bool measuring: false
+        property var hovers: []
+        property int measureCancels: 0
         property int areaPoints: 0
         property int areaFinishes: 0
         property int areaCancels: 0
@@ -93,6 +96,14 @@ TestCase {
         function cancelArea() {
             areaCancels++
             areaPoints = 0
+        }
+        function hover(x, y) {
+            hovers.push([x, y])
+            return true
+        }
+        function cancelMeasure() {
+            measureCancels++
+            measuring = false
         }
         function cancelScale() {
             scaleCancels++
@@ -167,6 +178,9 @@ TestCase {
         fake.noteCancels = 0
         fake.noteEdits = 0
         fake.noteOk = true
+        fake.measuring = false
+        fake.hovers = []
+        fake.measureCancels = 0
         fake.areaPoints = 0
         fake.areaFinishes = 0
         fake.areaCancels = 0
@@ -433,6 +447,45 @@ TestCase {
 
         compare(fake.scaleCancels, 1)
         verify(!findChild(area, "lengthCard").visible)
+    }
+
+    function test_the_pointer_goes_to_the_controller_while_measuring() {
+        const area = drawn("measure")
+        mouseMove(area, 100, 100)
+        compare(fake.hovers.length, 0)
+
+        fake.measuring = true
+        mouseMove(area, 150, 120)
+        mouseMove(area, 200, 140)
+
+        verify(fake.hovers.length > 0, fake.hovers.length)
+    }
+
+    function test_the_pointer_is_not_sent_for_other_tools() {
+        const area = drawn("wall")
+        fake.measuring = true
+
+        mouseMove(area, 150, 120)
+        mouseMove(area, 200, 140)
+
+        compare(fake.hovers.length, 0)
+    }
+
+    function test_escape_drops_the_measurement() {
+        const area = drawn("measure")
+        fake.measuring = true
+
+        keyClick(Qt.Key_Escape)
+
+        compare(fake.measureCancels, 1)
+    }
+
+    function test_escape_leaves_an_idle_measure_tool_alone() {
+        const area = drawn("measure")
+
+        keyClick(Qt.Key_Escape)
+
+        compare(fake.measureCancels, 0)
     }
 
     function test_the_length_card_is_for_the_scale_tool_only() {

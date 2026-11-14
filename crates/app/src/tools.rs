@@ -14,6 +14,9 @@ const FILE_URL: &str = "file://";
 /// A new camera looks to the right (0°); the user turns it afterwards.
 const NEW_CAMERA_FACING_DEG: f64 = 0.0;
 
+/// Decimals a measured length shows.
+const MEASURE_DECIMALS: usize = 2;
+
 /// Lamp kinds the tool bar offers, with the name QML and the catalogue (`lightKind.<name>`) use.
 pub const LIGHT_KINDS: [(&str, LightKind); 6] = [
     ("fresnel", LightKind::Fresnel),
@@ -102,6 +105,9 @@ pub enum Tool {
     Light(LightKind),
     /// Two clicks on a stretch of known length scale the background; a drag moves it.
     Scale,
+    /// Two clicks measure the distance between two points; the pointer shows it live. The
+    /// measurement is no part of the plan.
+    Measure,
     /// A click on empty ground pins a note (the text is asked next); a click on a note asks
     /// for its text again.
     Note,
@@ -126,6 +132,7 @@ impl Tool {
             "figure" => Some(Tool::Figure(choice.to_owned())),
             "camera" => Some(Tool::Camera),
             "scale" => Some(Tool::Scale),
+            "measure" => Some(Tool::Measure),
             "note" => Some(Tool::Note),
             "line" => Some(Tool::Line),
             "arrow" => Some(Tool::Arrow),
@@ -303,6 +310,7 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
         Tool::Select
         | Tool::Wall
         | Tool::Scale
+        | Tool::Measure
         | Tool::Note
         | Tool::Line
         | Tool::Arrow
@@ -461,6 +469,65 @@ impl ScaleStep {
             ScaleStep::Both(a, b) => vec![a, b],
         }
     }
+}
+
+/// How far the measuring gesture has come. `Start` has the first point, `Live` follows the
+/// pointer to a second one, `Held` is the finished measurement.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum MeasureStep {
+    #[default]
+    Idle,
+    Start(Point),
+    Live(Point, Point),
+    Held(Point, Point),
+}
+
+impl MeasureStep {
+    /// A click at `at`: the first point, or the second. A second click on the first point
+    /// changes nothing; a click on a held measurement starts a new one.
+    pub fn click(self, at: Point) -> MeasureStep {
+        match self {
+            MeasureStep::Start(first) | MeasureStep::Live(first, _) if first == at => {
+                MeasureStep::Start(first)
+            }
+            MeasureStep::Start(first) | MeasureStep::Live(first, _) => MeasureStep::Held(first, at),
+            MeasureStep::Idle | MeasureStep::Held(..) => MeasureStep::Start(at),
+        }
+    }
+
+    /// The pointer at `at`: it moves the open end of a measurement not yet held.
+    pub fn hover(self, at: Point) -> MeasureStep {
+        match self {
+            MeasureStep::Start(first) | MeasureStep::Live(first, _) => MeasureStep::Live(first, at),
+            MeasureStep::Idle | MeasureStep::Held(..) => self,
+        }
+    }
+
+    /// The points to show: the first alone, or both with the line between them.
+    pub fn points(self) -> Vec<Point> {
+        match self {
+            MeasureStep::Idle => Vec::new(),
+            MeasureStep::Start(a) => vec![a],
+            MeasureStep::Live(a, b) | MeasureStep::Held(a, b) => vec![a, b],
+        }
+    }
+
+    /// The distance between the two points, once there are two.
+    pub fn length_m(self) -> Option<f64> {
+        match self {
+            MeasureStep::Idle | MeasureStep::Start(_) => None,
+            MeasureStep::Live(a, b) | MeasureStep::Held(a, b) => Some(a.distance_m(b)),
+        }
+    }
+}
+
+/// `length_m` as the caption of a measurement: two decimals at most, the catalogue's decimal
+/// separator and unit ("4,25 m").
+pub fn length_text(length_m: f64, decimal: &str, unit: &str) -> String {
+    let fixed = format!("{length_m:.MEASURE_DECIMALS$}");
+    let number = fixed.trim_end_matches('0').trim_end_matches('.');
+
+    format!("{} {unit}", number.replace('.', decimal))
 }
 
 /// The points of an area picked so far; the area is made on closing.
@@ -1311,6 +1378,79 @@ mod tests {
         assert_eq!(both.points(), vec![a, b]);
         assert_eq!(both.click(c), ScaleStep::First(c));
         assert!(ScaleStep::Idle.points().is_empty());
+    }
+
+    #[test]
+    fn measure_is_a_tool_and_a_click_edits_nothing() {
+        assert_eq!(Tool::parse("measure", ""), Some(Tool::Measure));
+        assert_eq!(click_edit(&Tool::Measure, p(1.0, 1.0)), None);
+        assert_eq!(
+            drag_edit(&Tool::Measure, None, p(0.0, 0.0), p(2.0, 2.0)),
+            None
+        );
+    }
+
+    #[test]
+    fn measure_clicks_set_two_points_and_a_third_starts_over() {
+        let (a, b, c) = (p(1.0, 1.0), p(4.0, 5.0), p(0.0, 2.0));
+
+        let first = MeasureStep::Idle.click(a);
+        let held = first.click(b);
+
+        assert_eq!(first, MeasureStep::Start(a));
+        assert_eq!(held, MeasureStep::Held(a, b));
+        assert_eq!(held.click(c), MeasureStep::Start(c));
+    }
+
+    #[test]
+    fn measure_follows_the_pointer_until_held() {
+        let (a, b, c) = (p(0.0, 0.0), p(3.0, 4.0), p(6.0, 8.0));
+
+        let live = MeasureStep::Start(a).hover(b);
+
+        assert_eq!(live, MeasureStep::Live(a, b));
+        assert_eq!(live.hover(c), MeasureStep::Live(a, c));
+        assert_eq!(live.click(c), MeasureStep::Held(a, c));
+        assert_eq!(MeasureStep::Held(a, b).hover(c), MeasureStep::Held(a, b));
+        assert_eq!(MeasureStep::Idle.hover(c), MeasureStep::Idle);
+    }
+
+    #[test]
+    fn a_second_measure_click_on_the_first_point_is_no_line() {
+        let a = p(1.0, 1.0);
+
+        assert_eq!(MeasureStep::Start(a).click(a), MeasureStep::Start(a));
+        assert_eq!(
+            MeasureStep::Live(a, p(2.0, 2.0)).click(a),
+            MeasureStep::Start(a)
+        );
+    }
+
+    #[test]
+    fn measure_clicks_land_on_the_grid_when_snapping() {
+        let snap = |at: Point| p(at.x_m.round(), at.y_m.round());
+
+        assert_eq!(lands_at(&Tool::Measure, p(1.2, 2.7), snap), p(1.0, 3.0));
+    }
+
+    #[test]
+    fn measure_length_is_the_distance_of_its_points() {
+        let (a, b) = (p(0.0, 0.0), p(3.0, 4.0));
+
+        assert_eq!(MeasureStep::Idle.length_m(), None);
+        assert_eq!(MeasureStep::Start(a).length_m(), None);
+        assert_eq!(MeasureStep::Live(a, b).length_m(), Some(5.0));
+        assert_eq!(MeasureStep::Held(a, b).length_m(), Some(5.0));
+        assert!(MeasureStep::Idle.points().is_empty());
+        assert_eq!(MeasureStep::Held(a, b).points(), vec![a, b]);
+    }
+
+    #[test]
+    fn lengths_read_with_catalogue_separator_and_unit() {
+        assert_eq!(length_text(4.25, ",", "m"), "4,25 m");
+        assert_eq!(length_text(4.0, ",", "m"), "4 m");
+        assert_eq!(length_text(1.5, ".", "m"), "1.5 m");
+        assert_eq!(length_text(0.004, ".", "m"), "0 m");
     }
 
     #[test]

@@ -86,7 +86,7 @@ TestCase {
     function test_keys_pick_the_tool() {
         const bar = make()
         const keys = [[Qt.Key_W, "wall"], [Qt.Key_O, "object"], [Qt.Key_F, "figure"],
-                      [Qt.Key_C, "camera"], [Qt.Key_L, "light"], [Qt.Key_M, "scale"],
+                      [Qt.Key_C, "camera"], [Qt.Key_L, "light"], [Qt.Key_M, "scale"], [Qt.Key_D, "measure"],
                       [Qt.Key_N, "note"], [Qt.Key_I, "line"], [Qt.Key_A, "arrow"],
                       [Qt.Key_B, "rect"], [Qt.Key_E, "ellipse"], [Qt.Key_P, "area"],
                       [Qt.Key_V, "select"]]
@@ -95,6 +95,19 @@ TestCase {
             keyClick(key)
             compare(bar.tool, tool)
         }
+    }
+
+    function test_the_measure_button_picks_the_tool() {
+        const bar = make()
+        const button = findChild(bar, "tool.measure")
+
+        verify(button)
+        compare(button.text, "Messen")
+        mouseClick(button)
+
+        compare(bar.tool, "measure")
+        verify(button.checked)
+        compare(fake.tools[fake.tools.length - 1], ["measure", ""])
     }
 
     // Review of PR 20: while the backup question locks the bar, keys changed the tool.
