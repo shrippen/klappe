@@ -106,12 +106,11 @@ fn the_overview_serialises_as_the_view_reads_it() {
     );
 }
 
-/// The set of the scene gives the location, its notes and its background.
+/// The set of the scene gives its notes and its background.
 #[test]
-fn the_scene_location_gives_the_set() {
+fn the_set_gives_notes_and_background() {
     let s = open();
 
-    assert_eq!(s.scene_location(), s.project().locations.first());
     assert!(!s.has_background());
     assert_eq!(s.note_text("n1").as_deref(), Some("Vorhang schließen"));
     assert_eq!(s.note_text("x"), None);

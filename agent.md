@@ -17,7 +17,7 @@ Technik und Entscheidungen: `planung/KONZEPT.md`; Arbeitsstand: `planung/STAND.m
 Implementierung: Rust (Cargo-Workspace), GUI in QML (Kirigami + Kante) über cxx-qt, TUI mit
 ratatui, Lizenz MIT.
 
-## Schichten (nur zum direkten Nachbarn darunter)
+## Schichten (nur zur Ebene direkt darunter; Ausnahme: `services/` auch an `model/`)
 ```
 app/ (QML, cxx-qt)    tui/ (ratatui)    cli/
         └──────────────┬─────────────────┘
@@ -38,9 +38,11 @@ demo/       Werkzeug (crates/demo), nicht ausgeliefert: erzeugt die Beispielproj
   `imagehead/`; sonst rufen sie sich nicht.
 - Oberflächen zeichnen die Darstellungsliste aus `stellprobe/`; eigene Geometrie in QML ist ein
   Fehler.
-- Jede Schicht ist ein eigenes Crate; Abhängigkeiten nur zum Nachbarn darunter (in
-  `Cargo.toml` sichtbar). `demo/` ist ein Werkzeug auf der Ebene von `services/`; App, TUI und
-  CLI hängen nie an ihm, ausgeliefert wird nur das erzeugte Beispiel (über `services/`).
+- Jede Schicht ist ein eigenes Crate; Abhängigkeiten nur zur Ebene darunter (in `Cargo.toml`
+  sichtbar). Einzige Ausnahme: `services/` hängt auch direkt an `model/`, dessen Typen es
+  weiterreicht. Oberflächen hängen nur an `services/`. `demo/` ist ein Werkzeug auf der Ebene
+  von `services/`; App, TUI und CLI hängen nie an ihm, ausgeliefert wird nur das erzeugte
+  Beispiel (über `services/`).
 - Alles privat; `pub` nur, wo das Design es braucht. Jede neue `pub`-Schnittstelle steht im PR.
 
 ## Konventionen

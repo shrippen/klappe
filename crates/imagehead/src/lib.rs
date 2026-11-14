@@ -1,7 +1,8 @@
 //! The one reader of a JPEG file's head. `store` checks an image with it when it is added,
 //! `export` reads the colour model from it; both must agree on what a JPEG is.
 
-const SOI: [u8; 2] = [0xFF, 0xD8];
+/// Start of a JPEG file.
+pub const JPEG_SOI: [u8; 2] = [0xFF, 0xD8];
 const MARKER: u8 = 0xFF;
 /// Markers in the SOFn range that are no frame header: DHT, JPG, DAC.
 const NOT_SOF: [u8; 3] = [0xC4, 0xC8, 0xCC];
@@ -29,11 +30,11 @@ pub struct JpegFrame {
 /// The first frame header of `bytes`; `None` if it is no JPEG, the header is cut off or a
 /// side has zero pixels.
 pub fn jpeg_frame(bytes: &[u8]) -> Option<JpegFrame> {
-    if !bytes.starts_with(&SOI) {
+    if !bytes.starts_with(&JPEG_SOI) {
         return None;
     }
 
-    let mut at = SOI.len();
+    let mut at = JPEG_SOI.len();
 
     loop {
         // Fill bytes may pad before a marker.

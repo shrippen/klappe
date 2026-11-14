@@ -2,7 +2,7 @@
 //! SVG embeds the bytes as they are; the PDF gets a JPEG as it is (DCTDecode) and a PNG
 //! through `png`.
 
-use klappe_imagehead::{jpeg_frame, JpegFrame};
+use klappe_imagehead::{jpeg_frame, JpegFrame, JPEG_SOI};
 
 use crate::error::ExportError;
 use crate::jpeg;
@@ -10,7 +10,6 @@ use crate::palette::Rgb;
 use crate::png;
 use crate::rgb8::Rgb8;
 
-const JPEG_SOI: [u8; 2] = [0xFF, 0xD8];
 const JPEG_SAMPLE_BITS: u8 = 8;
 const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BASE64_PAD: char = '=';
