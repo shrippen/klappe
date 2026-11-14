@@ -28,13 +28,14 @@ stellprobe/ Optik, Bewegung, Achse, Darstellungsliste    script/ Fountain
 store/      Projektordner                                export/ PDF, SVG, CSV
                        ↓
 model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
+imagehead/  JPEG-Kopf lesen (ohne Abhängigkeit; store/ und export/ rufen es)
 
 demo/       Werkzeug (crates/demo), nicht ausgeliefert: erzeugt die Beispielprojekte im
             Ordner demo/ des Repos über model/, script/, store/ (neben services/)
 ```
 - Wie `planung/KONZEPT.md`, Abschnitt 4. Die mittlere Ebene steht nebeneinander: `export/`
-  liest die Darstellungsliste aus `stellprobe/`, `store/` nutzt `script/`; sonst rufen sie sich
-  nicht.
+  liest die Darstellungsliste aus `stellprobe/`, `store/` nutzt `script/`; beide lesen JPEG-Köpfe über
+  `imagehead/`; sonst rufen sie sich nicht.
 - Oberflächen zeichnen die Darstellungsliste aus `stellprobe/`; eigene Geometrie in QML ist ein
   Fehler.
 - Jede Schicht ist ein eigenes Crate; Abhängigkeiten nur zum Nachbarn darunter (in

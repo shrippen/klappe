@@ -120,3 +120,16 @@ fn size_of_a_missing_or_outside_file_is_an_error() {
         Err(StoreError::BadId { .. })
     ));
 }
+
+#[test]
+fn a_jpeg_cut_off_in_its_frame_header_is_refused() {
+    let (project, source) = test_dirs("img-cut-jpeg");
+    // Ends after the width: the export could not read its colour model.
+    let head = jpeg(800, 600);
+    let cut = file(&source, "saal.jpg", &head[..head.len() - 4]);
+
+    assert!(matches!(
+        add_image(&project, &cut),
+        Err(StoreError::BadImage { .. })
+    ));
+}
