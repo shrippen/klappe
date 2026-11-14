@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use klappe_services::{copy_example, Language, ServiceError, Session};
+use klappe_services::{copy_example, ensure_example, Language, ServiceError, Session};
 
 const DEMO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../demo");
 
@@ -72,4 +72,46 @@ fn a_folder_with_files_is_left_alone() {
 
     assert!(matches!(err, ServiceError::NotEmpty(_)), "{err}");
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+}
+
+/// A second click opens the user's copy as it is: what they changed in it stays.
+#[test]
+fn the_example_is_copied_once_and_then_left_as_it_is() {
+    let dir = target("example-once");
+
+    ensure_example(Language::German, &dir).unwrap();
+    assert!(Session::open(&dir).is_ok());
+    let marker = dir.join("meins.txt");
+    std::fs::write(&marker, "x").unwrap();
+    ensure_example(Language::German, &dir).unwrap();
+
+    assert!(marker.exists());
+}
+
+#[test]
+fn an_empty_example_folder_is_filled_again() {
+    let dir = target("example-empty");
+    std::fs::create_dir_all(&dir).unwrap();
+
+    ensure_example(Language::English, &dir).unwrap();
+
+    assert!(Session::open(&dir).is_ok());
+}
+
+/// Review of PR 52: a copy cut off midway (disk full) left a half folder that later counted as
+/// the user's copy and never opened. The copy is written beside the folder and moved in whole;
+/// what an earlier cut-off copy left beside it is no obstacle.
+#[test]
+fn a_cut_off_copy_leaves_no_half_folder() {
+    let dir = target("example-cut");
+    let beside = dir.with_file_name("example-cut.part");
+    let _ = std::fs::remove_dir_all(&beside);
+    std::fs::create_dir_all(beside.join("szenen")).unwrap();
+    std::fs::write(beside.join("projekt.toml"), "halb").unwrap();
+
+    ensure_example(Language::German, &dir).unwrap();
+
+    let shipped = Path::new(DEMO).join("beispiel-de.klappe");
+    assert_eq!(tree(&dir), tree(&shipped));
+    assert!(!beside.exists());
 }

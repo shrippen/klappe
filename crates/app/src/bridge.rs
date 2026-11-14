@@ -420,6 +420,12 @@ pub mod qobject {
         #[cxx_name = "openProject"]
         fn open_project(self: Pin<&mut Self>, path: &QString) -> bool;
 
+        /// Opens the user's copy of the example in the language of the window, made first if it
+        /// is not there; an error goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "openExample"]
+        fn open_example(self: Pin<&mut Self>) -> bool;
+
         /// Shows the scene `id`.
         #[qinvokable]
         #[cxx_name = "selectScene"]
@@ -2078,6 +2084,21 @@ impl qobject::Controller {
         let dir = tools::local_path(&path.to_string());
         let opened = Session::open(&dir);
 
+        self.switch_to(opened)
+    }
+
+    fn open_example(self: Pin<&mut Self>) -> bool {
+        let language = self.rust().language;
+
+        // Without a data folder the copy would land in a temporary one and vanish unnoticed.
+        let Some(data) = manage::data_dir() else {
+            self.say(language.text("start.noDataDir"));
+            return false;
+        };
+
+        let dir = manage::example_dir(language, &data);
+        let opened =
+            klappe_services::ensure_example(language, &dir).and_then(|()| Session::open(&dir));
         self.switch_to(opened)
     }
 

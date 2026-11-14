@@ -86,6 +86,7 @@ Kirigami.ApplicationWindow {
                 onNewRequested: root.switchProject(() => newFolderDialog.open())
                 onOpenRequested: root.switchProject(() => openFolderDialog.open())
                 onRecentRequested: path => ctl.openProject(path)
+                onExampleRequested: ctl.openExample()
                 onForgetRequested: path => ctl.forgetRecent(path)
             }
 
