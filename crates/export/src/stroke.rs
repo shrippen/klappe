@@ -39,8 +39,8 @@ pub(crate) fn arc_steps(radius_px: f64) -> usize {
 
 /// The polygons that paint `path` with a line of `width_px`; `dash_px` is the on/off pattern
 /// (empty or with a non-positive entry: solid). Only what can reach `clip` is made, so the work
-/// follows the size of the image, not the length of the path; points that are not finite are
-/// dropped.
+/// follows the size of the image, not the length of the path; the path is cut at points that
+/// are not finite.
 pub(crate) fn outline(
     path: &[Pt],
     closure: Closure,
@@ -49,17 +49,8 @@ pub(crate) fn outline(
     clip: Bounds,
 ) -> Vec<Vec<Pt>> {
     let half = width_px / 2.0;
-    let mut path: Vec<Pt> = path
-        .iter()
-        .copied()
-        .filter(|p| p.0.is_finite() && p.1.is_finite())
-        .collect();
-    if half <= 0.0 || !half.is_finite() || path.len() < 2 {
+    if half <= 0.0 || !half.is_finite() {
         return Vec::new();
-    }
-
-    if closure == Closure::Closed {
-        path.push(path[0]);
     }
 
     // What lies further than the half width from the clip cannot colour a pixel of it.
@@ -71,17 +62,65 @@ pub(crate) fn outline(
         bottom: clip.bottom + reach,
     };
     let dashed = !dash_px.is_empty() && dash_px.iter().all(|d| *d > 0.0 && d.is_finite());
-    let pieces = match dashed {
-        true => dashes(&path, dash_px, area),
-        false => runs(&path, area),
-    };
 
     let mut out = Vec::new();
-    for piece in &pieces {
-        piece_polygons(piece, half, &mut out);
+    for part in ring_parts(path, closure) {
+        if part.len() < 2 {
+            continue;
+        }
+
+        let pieces = match dashed {
+            true => dashes(&part, dash_px, area),
+            false => runs(&part, area),
+        };
+        for piece in &pieces {
+            piece_polygons(piece, half, &mut out);
+        }
     }
 
     out
+}
+
+/// The runs of points between those that are not finite. The path is cut there, not joined
+/// across the gap.
+fn finite_parts(path: &[Pt]) -> Vec<Vec<Pt>> {
+    let mut parts = vec![Vec::new()];
+
+    for p in path {
+        if p.0.is_finite() && p.1.is_finite() {
+            if let Some(last) = parts.last_mut() {
+                last.push(*p);
+            }
+            continue;
+        }
+        parts.push(Vec::new());
+    }
+
+    parts
+}
+
+/// The finite parts of `path`; a closed ring gets its last edge back. A whole ring ends where
+/// it starts; in a cut one the part after the last cut runs on into the part before the first,
+/// since the closing edge between them is no gap: [a b ✕ c d] → [c d a b].
+fn ring_parts(path: &[Pt], closure: Closure) -> Vec<Vec<Pt>> {
+    let mut parts = finite_parts(path);
+    if closure == Closure::Open {
+        return parts;
+    }
+
+    if parts.len() == 1 {
+        if let Some(first) = parts[0].first().copied() {
+            parts[0].push(first);
+        }
+        return parts;
+    }
+
+    let head = parts.remove(0);
+    if let Some(last) = parts.last_mut() {
+        last.extend(head);
+    }
+
+    parts
 }
 
 fn dist(a: Pt, b: Pt) -> f64 {
@@ -441,6 +480,22 @@ mod tests {
     }
 
     #[test]
+    fn a_cut_ring_keeps_its_closing_edge() {
+        // The gap lies between (4, 0) and (4, 4); the edge from (0, 4) back to (0, 0) stays.
+        let ring = [
+            (0.0, 0.0),
+            (4.0, 0.0),
+            (f64::NAN, 2.0),
+            (4.0, 4.0),
+            (0.0, 4.0),
+        ];
+        let polys = outline(&ring, Closure::Closed, 1.0, &[], VIEW);
+        let on_left = |p: &Vec<Pt>| p.iter().all(|q| q.0.abs() <= 0.5);
+
+        assert!(polys.iter().any(on_left));
+    }
+
+    #[test]
     fn a_degenerate_line_draws_nothing() {
         assert!(outline(&[(1.0, 1.0)], Closure::Open, 2.0, &[], VIEW).is_empty());
         assert!(outline(&[(0.0, 0.0), (1.0, 0.0)], Closure::Open, 0.0, &[], VIEW).is_empty());
@@ -493,15 +548,19 @@ mod tests {
     }
 
     #[test]
-    fn points_that_are_not_finite_are_dropped() {
+    fn the_path_is_cut_at_points_that_are_not_finite() {
         let path = [
             (0.0, 0.0),
-            (f64::NAN, 5.0),
             (10.0, 0.0),
+            (f64::NAN, 5.0),
+            (20.0, 0.0),
+            (30.0, 0.0),
             (f64::INFINITY, 0.0),
+            (40.0, 0.0),
         ];
         let polys = outline(&path, Closure::Open, 2.0, &[], VIEW);
 
-        assert_eq!(polys.len(), 1);
+        // Two quads; nothing across 10..20 and no piece from a lone point.
+        assert_eq!(polys.len(), 2);
     }
 }

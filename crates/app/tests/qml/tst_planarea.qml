@@ -16,7 +16,9 @@ TestCase {
         property bool loaded: true
         property string planJson: ""
         property string selectedKey: ""
-        property bool grab: false
+        property int selectedCount: 0
+        property bool extendSelection: false
+        property int duplicates: 0
         property var drags: []
         property var places: []
         property var turns: []
@@ -96,7 +98,7 @@ TestCase {
             scaleCancels++
             scalePoints = 0
         }
-        function grabbable(x, y) { return grab }
+        function duplicateSelected() { duplicates++ }
         function removeSelected() { removes++ }
         function straightenSelected() { straightens++ }
         function turnSelected(step) { turns.push(step) }
@@ -146,6 +148,9 @@ TestCase {
     function init() {
         fake.planJson = JSON.stringify({ width: 20, depth: 13, shapes: [] })
         fake.selectedKey = ""
+        fake.selectedCount = 0
+        fake.extendSelection = false
+        fake.duplicates = 0
         fake.drags = []
         fake.places = []
         fake.turns = []
@@ -240,27 +245,84 @@ TestCase {
         compare(fake.areaCancels, 0)
     }
 
-    function test_select_pans_on_empty_ground() {
+    // LH-08: with the select tool a drag on empty ground is reported (the controller pulls up
+    // a box), not taken for a pan; the middle button still pans.
+    function test_select_drags_on_empty_ground() {
         const area = drawn("select")
 
         drag(area, 3)
 
-        compare(fake.drags.length, 0)
+        verify(fake.drags.length >= 2, fake.drags.length)
+        verify(fake.drags[fake.drags.length - 1].done)
     }
 
-    function test_select_moves_what_the_pointer_is_over() {
+    function test_select_drags_what_the_pointer_is_over() {
         const area = drawn("select")
         fake.planJson = JSON.stringify({ width: 20, depth: 13, shapes: [
             { kind: "polygon", points: [0, 0, 20, 0, 20, 13, 0, 13], radius: 0, width: 0, label: "muted",
               stroke: "solid", fill: "solid", text: "", key: "object:t", selected: false }] })
-        fake.grab = true
         mouseMove(area, 90, 90)
         mouseMove(area, 100, 100)
 
-        verify(area.overGrab)
         drag(area, 2)
 
         verify(fake.drags.length >= 1)
+    }
+
+    function test_the_middle_button_pans_in_the_select_tool() {
+        const area = drawn("select")
+
+        mousePress(area, 100, 100, Qt.MiddleButton)
+        mouseMove(area, 160, 140, 0, Qt.MiddleButton)
+        mouseRelease(area, 160, 140, Qt.MiddleButton)
+
+        compare(fake.drags.length, 0)
+    }
+
+    // Shift at the press extends the selection; the canvas still gets the click and the drag.
+    function test_shift_at_the_press_extends_the_selection() {
+        const area = drawn("select")
+
+        mouseClick(area, 120, 150, Qt.LeftButton, Qt.ShiftModifier)
+        verify(fake.extendSelection)
+        compare(fake.places.length, 1)
+
+        mouseClick(area, 120, 150, Qt.LeftButton, Qt.NoModifier)
+        verify(!fake.extendSelection)
+        compare(fake.places.length, 2)
+
+        mousePress(area, 100, 100, Qt.LeftButton, Qt.ShiftModifier)
+        mouseMove(area, 160, 120, 0, Qt.LeftButton)
+        mouseMove(area, 200, 140, 0, Qt.LeftButton)
+        mouseRelease(area, 200, 140, Qt.LeftButton, Qt.ShiftModifier)
+        verify(fake.extendSelection)
+        verify(fake.drags.length >= 1)
+    }
+
+    // LH-08: several selected elements take the keys, though no single key names them.
+    function test_the_keys_act_on_several_elements() {
+        const area = drawn("select")
+        fake.selectedKey = ""
+        fake.selectedCount = 2
+
+        keyClick(Qt.Key_R)
+        keyClick(Qt.Key_Delete)
+        keyClick(Qt.Key_D, Qt.ControlModifier)
+
+        compare(fake.turns, [15])
+        compare(fake.removes, 1)
+        compare(fake.duplicates, 1)
+    }
+
+    function test_copying_needs_a_selection() {
+        const area = drawn("select")
+
+        keyClick(Qt.Key_D, Qt.ControlModifier)
+        compare(fake.duplicates, 0)
+
+        fake.selectedKey = "object:o1"
+        keyClick(Qt.Key_D, Qt.ControlModifier)
+        compare(fake.duplicates, 1)
     }
 
     function test_a_click_is_passed_on() {

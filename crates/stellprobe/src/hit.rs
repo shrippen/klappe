@@ -20,6 +20,26 @@ pub fn hit(item: &Item, at: Point, tolerance_m: f64) -> bool {
     }
 }
 
+/// Whether `item` lies wholly in the box with corners `a` and `b` (selection by rectangle,
+/// LH-08). The corners come in any order. Shapes without points and images are never in.
+pub fn within(item: &Item, a: Point, b: Point) -> bool {
+    let (min_x, max_x) = (a.x_m.min(b.x_m), a.x_m.max(b.x_m));
+    let (min_y, max_y) = (a.y_m.min(b.y_m), a.y_m.max(b.y_m));
+    let inside = |p: &Point| (min_x..=max_x).contains(&p.x_m) && (min_y..=max_y).contains(&p.y_m);
+
+    match &item.shape {
+        Shape::Circle { center, radius_m } => {
+            inside(&Point::new(center.x_m - radius_m, center.y_m - radius_m))
+                && inside(&Point::new(center.x_m + radius_m, center.y_m + radius_m))
+        }
+        Shape::Line { from, to, .. } => inside(from) && inside(to),
+        Shape::Polyline { points } | Shape::Polygon { points } => {
+            !points.is_empty() && points.iter().all(inside)
+        }
+        Shape::Image { .. } => false,
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Path {
     Open,
@@ -164,6 +184,39 @@ mod tests {
         });
 
         assert!(!hit(&image, Point::new(2.0, 2.0), 1.0));
+    }
+
+    #[test]
+    fn a_box_takes_what_lies_wholly_in_it() {
+        let circle = item(Shape::Circle {
+            center: Point::new(1.0, 1.0),
+            radius_m: 0.5,
+        });
+        let square = square();
+
+        // Corners in any order.
+        assert!(within(&circle, Point::new(2.0, 2.0), Point::new(0.0, 0.0)));
+        // A circle that pokes out by its radius is not in.
+        assert!(!within(&circle, Point::new(0.8, 0.0), Point::new(2.0, 2.0)));
+        assert!(within(&square, Point::new(0.0, 0.0), Point::new(2.0, 2.0)));
+        assert!(!within(&square, Point::new(0.0, 0.0), Point::new(1.9, 2.0)));
+    }
+
+    #[test]
+    fn a_box_takes_no_image_and_no_empty_shape() {
+        let image = item(Shape::Image {
+            file: "bilder/saal.png".into(),
+            at: Point::new(1.0, 1.0),
+            width_m: 1.0,
+            depth_m: 1.0,
+            rotation_deg: 0.0,
+            opacity: 1.0,
+        });
+        let empty = item(Shape::Polygon { points: vec![] });
+        let (a, b) = (Point::new(0.0, 0.0), Point::new(9.0, 9.0));
+
+        assert!(!within(&image, a, b));
+        assert!(!within(&empty, a, b));
     }
 
     #[test]

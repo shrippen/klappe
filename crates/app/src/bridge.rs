@@ -37,6 +37,10 @@ pub mod qobject {
         #[qproperty(bool, dirty)]
         /// Key of the selected plan element (`camera:a` …), empty for none.
         #[qproperty(QString, selected_key, cxx_name = "selectedKey")]
+        /// How many plan elements are selected.
+        #[qproperty(i32, selected_count, cxx_name = "selectedCount")]
+        /// Shift is held: a click or a box adds to the selection instead of replacing it.
+        #[qproperty(bool, extend_selection, cxx_name = "extendSelection")]
         /// Whether points snap to the grid; change it with `setSnapping`.
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
         /// `{ figure: [{ id, name }], object: [{ kind, label, width_m, depth_m, shape, custom }],
@@ -228,17 +232,23 @@ pub mod qobject {
         #[cxx_name = "editSelectedNote"]
         fn edit_selected_note(self: Pin<&mut Self>) -> bool;
 
-        /// Removes the selected element.
+        /// Removes the selected elements.
         #[qinvokable]
         #[cxx_name = "removeSelected"]
         fn remove_selected(self: Pin<&mut Self>) -> bool;
+
+        /// Copies the selected elements, set apart from the originals, and selects the copies.
+        #[qinvokable]
+        #[cxx_name = "duplicateSelected"]
+        fn duplicate_selected(self: Pin<&mut Self>) -> bool;
 
         /// Makes the selected way straight again; false when nothing is selected.
         #[qinvokable]
         #[cxx_name = "straightenSelected"]
         fn straighten_selected(self: Pin<&mut Self>) -> bool;
 
-        /// Turns the selected element by `step_deg`, clockwise when positive.
+        /// Turns the selected elements by `step_deg`, clockwise when positive; several turn
+        /// about the middle of them all.
         #[qinvokable]
         #[cxx_name = "turnSelected"]
         fn turn_selected(self: Pin<&mut Self>, step_deg: f64) -> bool;
@@ -443,8 +453,8 @@ use crate::manage;
 use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
 use crate::tools::{
-    self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Grip, Key, NoteDraft, Preview,
-    ScaleStep, Tool,
+    self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Grip, Key, NoteDraft, Pick, Preview,
+    ScaleStep, Selection, Tool,
 };
 
 pub struct ControllerRust {
@@ -468,10 +478,14 @@ pub struct ControllerRust {
     can_redo: bool,
     dirty: bool,
     selected_key: QString,
+    selected_count: i32,
+    extend_selection: bool,
     snapping_on: bool,
     choices_json: QString,
     /// What the select tool has picked; the canvas frames it.
-    selected: Option<Source>,
+    selected: Selection,
+    /// The box a drag on empty ground is pulling up, in metres.
+    marquee: Option<(Point, Point)>,
     tool: Tool,
     scale: ScaleStep,
     /// What the drawing tools draw with, and the area they are drawing.
@@ -556,9 +570,12 @@ impl Default for ControllerRust {
             can_redo: false,
             dirty: false,
             selected_key: QString::default(),
+            selected_count: 0,
+            extend_selection: false,
             snapping_on: true,
             choices_json: QString::default(),
-            selected: None,
+            selected: Selection::default(),
+            marquee: None,
             tool: Tool::Select,
             scale: ScaleStep::Idle,
             draw: DrawStyle::default(),
@@ -594,7 +611,8 @@ impl ControllerRust {
     /// Forgets what was picked and half drawn: it belongs to the plan on screen, not to the
     /// next scene or project.
     fn drop_drafts(&mut self) {
-        self.selected = None;
+        self.selected = Selection::default();
+        self.marquee = None;
         self.scale = ScaleStep::Idle;
         self.note = NoteDraft::Idle;
         self.area = AreaDraft::default();
@@ -609,6 +627,28 @@ impl ControllerRust {
 
         self.drop_drafts();
         self.shown = shown;
+    }
+
+    /// What a pick does to the selection: Shift held adds to it.
+    fn pick_mode(&self) -> Pick {
+        if self.extend_selection {
+            return Pick::Extend;
+        }
+
+        Pick::Replace
+    }
+
+    /// What the plan on screen is made of, to tell what an edit added.
+    fn shown_sources(&self) -> Vec<Source> {
+        let Some(s) = &self.session else {
+            return Vec::new();
+        };
+
+        s.display_list()
+            .items
+            .into_iter()
+            .filter_map(|item| item.source)
+            .collect()
     }
 
     /// The points picked for a scale or an area: a preview on top of the plan.
@@ -628,7 +668,12 @@ impl ControllerRust {
         self.shown = shown_view(s);
         self.title = q(&s.project().title);
         self.plan_title = q(&s.plan_title());
-        self.plan_json = q(&plan_json(s, &s.display_list(), None, &[]));
+        self.plan_json = q(&plan_json(
+            s,
+            &s.display_list(),
+            &Selection::default(),
+            (&[], None),
+        ));
         self.has_background = has_background(s);
         self.tracks_json = q(&to_json(&s.tracks()));
         self.shots_json = q(&to_json(&s.shots()));
@@ -661,23 +706,24 @@ fn has_background(s: &Session) -> bool {
 }
 
 /// `list` (the session's, or a preview of an edit) with the selected shot's camera and the
-/// selected element marked; `picked` are the points of a scale in progress.
+/// selected elements marked; `picked` are the points of a scale in progress, the box the
+/// one a drag pulls up.
 fn plan_json(
     s: &Session,
     list: &DisplayList,
-    selected: Option<&Source>,
-    picked: &[Point],
+    selected: &Selection,
+    (picked, marquee): (&[Point], Option<(Point, Point)>),
 ) -> String {
     let camera = s
         .selected_shot()
         .and_then(|id| s.plan()?.shots.iter().find(|shot| shot.id == id))
         .map(|shot| shot.camera.clone());
     let marked = |source: &Source| {
-        Some(source) == selected
+        selected.contains(source)
             || matches!(source, Source::Camera(id) if Some(id) == camera.as_ref())
     };
 
-    plan::shapes_json(list, s.dir(), &marked, picked)
+    plan::shapes_json(list, s.dir(), &marked, picked, marquee)
 }
 
 /// What the tool lists of the tool bar offer: the project's characters, the object library
@@ -792,22 +838,26 @@ impl qobject::Controller {
         ok
     }
 
-    /// Forgets the selection when its element is gone (undo, a layer switched off).
+    /// Forgets the selected elements that are gone (undo, a layer switched off).
     fn drop_stale(mut self: Pin<&mut Self>) {
-        let stale = {
+        let kept = {
             let this = self.as_ref();
-            match (&this.rust().session, &this.rust().selected) {
-                (Some(s), Some(selected)) => !s
-                    .display_list_for(Some(selected))
-                    .items
-                    .iter()
-                    .any(|i| i.source.as_ref() == Some(selected)),
-                _ => false,
-            }
+            let Some(s) = &this.rust().session else {
+                return;
+            };
+
+            // A grip shows only with its own way selected.
+            let plain = s.display_list();
+            let shown = |list: &DisplayList, source: &Source| {
+                list.items.iter().any(|i| i.source.as_ref() == Some(source))
+            };
+            this.rust().selected.clone().keep(|source| {
+                let grip = matches!(source, Source::FigureVia { .. } | Source::CameraVia { .. });
+
+                shown(&plain, source) || (grip && shown(&s.display_list_for(Some(source)), source))
+            })
         };
-        if stale {
-            self.as_mut().rust_mut().get_mut().selected = None;
-        }
+        self.as_mut().rust_mut().get_mut().selected = kept;
     }
 
     /// Pushes what may have changed after a call to the properties (and their signals).
@@ -839,9 +889,9 @@ impl qobject::Controller {
             (
                 plan_json(
                     s,
-                    &s.display_list_for(this.rust().selected.as_ref()),
-                    this.rust().selected.as_ref(),
-                    &this.rust().picked(),
+                    &s.display_list_for(this.rust().selected.only()),
+                    &this.rust().selected,
+                    (&this.rust().picked(), this.rust().marquee),
                 ),
                 to_json(&s.tracks()),
                 to_json(&s.shots()),
@@ -853,11 +903,25 @@ impl qobject::Controller {
                 s.can_undo(),
                 s.can_redo(),
                 s.is_dirty(),
-                this.rust().selected.as_ref().map(plan::key),
+                this.rust().selected.only().map(plan::key),
+                this.rust().selected.len(),
             )
         };
-        let (plan, tracks, shots, script, layers, locks, time, shot, undo, redo, dirty, selected) =
-            values;
+        let (
+            plan,
+            tracks,
+            shots,
+            script,
+            layers,
+            locks,
+            time,
+            shot,
+            undo,
+            redo,
+            dirty,
+            selected,
+            count,
+        ) = values;
         let scale_points = self.rust().scale.points().len();
         let area_points = self.rust().area.points().len();
         let asks_note = self.rust().note != NoteDraft::Idle;
@@ -897,6 +961,8 @@ impl qobject::Controller {
         self.as_mut().set_selected_shot(q(&shot));
         self.as_mut()
             .set_selected_key(q(&selected.unwrap_or_default()));
+        self.as_mut()
+            .set_selected_count(i32::try_from(count).unwrap_or_default());
         self.as_mut().set_can_undo(undo);
         self.as_mut().set_can_redo(redo);
         self.as_mut().set_dirty(dirty);
@@ -957,7 +1023,7 @@ impl qobject::Controller {
     }
 
     fn add_shot(self: Pin<&mut Self>) -> bool {
-        let camera = match self.rust().selected.as_ref() {
+        let camera = match self.rust().selected.only() {
             Some(Source::Camera(id)) => Some(id.clone()),
             _ => None,
         };
@@ -1116,6 +1182,7 @@ impl qobject::Controller {
         let tool = self.rust().tool.clone();
         let style = self.rust().draw;
         let selected = self.rust().selected.clone();
+        let how = self.rust().pick_mode();
 
         // The canvas' key can name a view cone or a path that lies over the thing meant;
         // the session picks what a user can grab, once per drag.
@@ -1125,7 +1192,7 @@ impl qobject::Controller {
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-        let (grip, grabbed) = grip.take(|| s.pick_for(from, selected.as_ref()));
+        let (grip, grabbed) = grip.take(|| s.pick_for(from, selected.only()));
 
         // Select and Scale move by a distance (the session snaps where an element lands, a
         // background moves freely); the other tools draw between two points, which snap here.
@@ -1133,7 +1200,12 @@ impl qobject::Controller {
             Tool::Select | Tool::Scale => (from, to),
             _ => (s.snap(from), s.snap(to)),
         };
-        let mut edit = tools::drag_edit(&tool, grabbed.as_ref(), from, to)
+        let group = grabbed
+            .as_ref()
+            .filter(|_| tool == Tool::Select)
+            .and_then(|g| tools::group_drag_edit(&selected, g, from, to));
+        let mut edit = group
+            .or_else(|| tools::drag_edit(&tool, grabbed.as_ref(), from, to))
             .or_else(|| tools::draw_edit(&tool, style, from, to));
         if tool == Tool::Scale && !has_background(s) {
             edit = None;
@@ -1149,8 +1221,13 @@ impl qobject::Controller {
             DragPhase::Moving => grip,
         };
 
+        // Empty ground with the select tool pulls up a box to take what lies in it.
+        if tool == Tool::Select && grabbed.is_none() {
+            return self.drag_box((from, to), phase, how);
+        }
+
         if tool == Tool::Select && edit.is_some() {
-            self.as_mut().rust_mut().get_mut().selected = grabbed;
+            self.as_mut().rust_mut().get_mut().selected = selected.grab(grabbed);
         }
         match tools::drag_step(edit, phase, preview) {
             DragStep::Preview(edit) => self.preview_edit(&edit),
@@ -1166,14 +1243,15 @@ impl qobject::Controller {
     fn place(mut self: Pin<&mut Self>, x: f64, y: f64) -> bool {
         let tool = self.rust().tool.clone();
         let selected = self.rust().selected.clone();
+        let how = self.rust().pick_mode();
         let Some(s) = self.as_mut().session() else {
             return false;
         };
 
         if tool == Tool::Select {
-            let picked = s.pick_for(Point::new(x, y), selected.as_ref());
+            let picked = s.pick_for(Point::new(x, y), selected.only());
             let found = picked.is_some();
-            self.as_mut().rust_mut().get_mut().selected = picked;
+            self.as_mut().rust_mut().get_mut().selected = selected.click(picked, how);
             self.refresh();
             return found;
         }
@@ -1290,7 +1368,7 @@ impl qobject::Controller {
     }
 
     fn edit_selected_note(self: Pin<&mut Self>) -> bool {
-        let Some(Source::Note(id)) = self.rust().selected.clone() else {
+        let Some(Source::Note(id)) = self.rust().selected.only().cloned() else {
             return false;
         };
 
@@ -1301,23 +1379,40 @@ impl qobject::Controller {
         let Some(s) = self.rust().session.as_ref() else {
             return false;
         };
-        s.pick_for(Point::new(x, y), self.rust().selected.as_ref())
+        s.pick_for(Point::new(x, y), self.rust().selected.only())
             .is_some()
     }
 
     fn remove_selected(mut self: Pin<&mut Self>) -> bool {
-        let edit = tools::key_edit(Key::Remove, self.rust().selected.as_ref());
+        let edit = tools::key_edit(Key::Remove, &self.rust().selected);
         let Some(edit) = edit else {
             return false;
         };
 
         // The indices of what is left may shift, so the selection goes either way.
-        self.as_mut().rust_mut().get_mut().selected = None;
+        self.as_mut().rust_mut().get_mut().selected = Selection::default();
         self.commit_edit(edit)
     }
 
+    fn duplicate_selected(mut self: Pin<&mut Self>) -> bool {
+        let Some(edit) = tools::key_edit(Key::Duplicate, &self.rust().selected) else {
+            return false;
+        };
+        let before = self.rust().shown_sources();
+
+        if !self.as_mut().commit_edit(edit) {
+            return false;
+        }
+
+        // The copies are what the plan shows anew; they are selected.
+        let copies = tools::added(&before, &self.rust().shown_sources());
+        self.as_mut().rust_mut().get_mut().selected = copies;
+        self.refresh();
+        true
+    }
+
     fn straighten_selected(self: Pin<&mut Self>) -> bool {
-        let Some(edit) = tools::key_edit(Key::Straighten, self.rust().selected.as_ref()) else {
+        let Some(edit) = tools::key_edit(Key::Straighten, &self.rust().selected) else {
             return false;
         };
 
@@ -1326,7 +1421,7 @@ impl qobject::Controller {
 
     fn turn_selected(self: Pin<&mut Self>, step_deg: f64) -> bool {
         let key = Key::Turn { by_deg: step_deg };
-        let Some(edit) = tools::key_edit(key, self.rust().selected.as_ref()) else {
+        let Some(edit) = tools::key_edit(key, &self.rust().selected) else {
             return false;
         };
 
@@ -1334,7 +1429,7 @@ impl qobject::Controller {
     }
 
     fn resize_selected(self: Pin<&mut Self>, width: &QString, depth: &QString) -> bool {
-        let selected = self.rust().selected.as_ref();
+        let selected = self.rust().selected.only();
         let Some(edit) = tools::resize_edit(selected, &width.to_string(), &depth.to_string())
         else {
             return false;
@@ -1348,11 +1443,11 @@ impl qobject::Controller {
             return q("{}");
         };
 
-        q(&mark_json(s, self.rust().selected.as_ref()).to_string())
+        q(&mark_json(s, self.rust().selected.only()).to_string())
     }
 
     fn set_mark_pose(self: Pin<&mut Self>, pose: &QString) -> bool {
-        let selected = self.rust().selected.as_ref();
+        let selected = self.rust().selected.only();
         let Some(edit) = tools::pose_edit(selected, &pose.to_string()) else {
             return false;
         };
@@ -1361,7 +1456,7 @@ impl qobject::Controller {
     }
 
     fn set_mark_hold(self: Pin<&mut Self>, seconds: &QString) -> bool {
-        let selected = self.rust().selected.as_ref();
+        let selected = self.rust().selected.only();
         let Some(edit) = tools::hold_edit(selected, &seconds.to_string()) else {
             return false;
         };
@@ -1370,7 +1465,7 @@ impl qobject::Controller {
     }
 
     fn set_mark_pace(self: Pin<&mut Self>, pace: &QString) -> bool {
-        let selected = self.rust().selected.as_ref();
+        let selected = self.rust().selected.only();
         let Some(edit) = tools::pace_edit(selected, &pace.to_string()) else {
             return false;
         };
@@ -1386,7 +1481,7 @@ impl qobject::Controller {
             let scene = this.rust().session.as_ref().and_then(|s| s.scene());
             scene.map(|scene| scene.location.clone())
         };
-        let selected = self.rust().selected.as_ref();
+        let selected = self.rust().selected.only();
         let Some(edit) = tools::library_edit(selected, location.as_deref(), &name) else {
             return false;
         };
@@ -1451,8 +1546,50 @@ impl qobject::Controller {
         self.set_snapping_on(on);
     }
 
+    /// A drag on empty ground: the box on screen while the button is down, the elements wholly
+    /// in it selected on release.
+    fn drag_box(
+        mut self: Pin<&mut Self>,
+        corners: (Point, Point),
+        phase: DragPhase,
+        how: Pick,
+    ) -> bool {
+        if phase == DragPhase::Moving {
+            self.as_mut().rust_mut().get_mut().marquee = Some(corners);
+            let json = {
+                let this = self.as_ref();
+                this.rust().session.as_ref().map(|s| {
+                    let selected = &this.rust().selected;
+                    let list = s.display_list_for(selected.only());
+
+                    plan_json(s, &list, selected, (&this.rust().picked(), Some(corners)))
+                })
+            };
+            if let Some(json) = json {
+                self.set_plan_json(q(&json));
+            }
+            return false;
+        }
+
+        let found = {
+            let this = self.as_ref();
+            this.rust()
+                .session
+                .as_ref()
+                .map(|s| s.pick_in(corners.0, corners.1))
+                .unwrap_or_default()
+        };
+        let any = !found.is_empty();
+        let selected = self.rust().selected.clone().boxed(found, how);
+        self.as_mut().rust_mut().get_mut().marquee = None;
+        self.as_mut().rust_mut().get_mut().selected = selected;
+        self.refresh();
+        any
+    }
+
     fn cancel_drag(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().get_mut().grip = Grip::Free;
+        self.as_mut().rust_mut().get_mut().marquee = None;
         self.refresh();
     }
 
@@ -1525,9 +1662,9 @@ impl qobject::Controller {
         let json = {
             let this = self.as_ref();
             this.rust().session.as_ref().and_then(|s| {
-                let list = s.preview_for(edit, this.rust().selected.as_ref()).ok()?;
+                let list = s.preview_for(edit, this.rust().selected.only()).ok()?;
                 let picked = this.rust().picked();
-                Some(plan_json(s, &list, this.rust().selected.as_ref(), &picked))
+                Some(plan_json(s, &list, &this.rust().selected, (&picked, None)))
             })
         };
 
@@ -2063,6 +2200,16 @@ mod tests {
         assert_eq!(describe(&s, "object:o99"), json!({}));
     }
 
+    #[test]
+    fn shift_makes_a_pick_extend_the_selection() {
+        let mut c = ControllerRust::default();
+        assert_eq!(c.pick_mode(), Pick::Replace);
+
+        c.extend_selection = true;
+
+        assert_eq!(c.pick_mode(), Pick::Extend);
+    }
+
     /// Review of PR 23: area, scale and note drafts outlived a change of scene or project;
     /// Enter then made an area from the old plan's points in the new one.
     #[test]
@@ -2071,7 +2218,7 @@ mod tests {
             area: AreaDraft::default().click(Point::new(1.0, 1.0)),
             scale: ScaleStep::Idle.click(Point::new(2.0, 2.0)),
             note: NoteDraft::New(Point::new(3.0, 3.0)),
-            selected: Some(Source::Wall(0)),
+            selected: Selection::of(Some(Source::Wall(0))),
             ..ControllerRust::default()
         };
 
@@ -2080,7 +2227,7 @@ mod tests {
         assert!(c.area.is_empty());
         assert_eq!(c.scale, ScaleStep::Idle);
         assert_eq!(c.note, NoteDraft::Idle);
-        assert_eq!(c.selected, None);
+        assert!(c.selected.is_empty());
     }
 
     /// Review of PR 23, round 4: after a start with `--open` the view on screen was not

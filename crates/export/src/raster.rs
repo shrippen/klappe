@@ -630,6 +630,44 @@ mod tests {
     }
 
     #[test]
+    fn a_path_is_cut_at_a_point_that_is_not_finite() {
+        for far in [1e308, f64::NAN, f64::INFINITY] {
+            let geom = Geom::Open(vec![
+                (4.0, 12.0),
+                (20.0, 12.0),
+                (far, 12.0),
+                (70.0, 12.0),
+                (90.0, 12.0),
+            ]);
+            let s = timed(vec![shape(geom, None, Some(line(Dash::Solid)))]);
+
+            // 20 pt = 41.7 px and 70 pt = 145.8 px; 50 pt (104 px) lies in the gap.
+            assert_eq!(at(&s, 20, 25), ink(), "{far}");
+            assert_eq!(at(&s, 104, 25), [250, 250, 245], "{far}");
+            assert_eq!(at(&s, 160, 25), ink(), "{far}");
+        }
+    }
+
+    #[test]
+    fn a_fill_is_made_of_the_finite_points() {
+        let fill = Fill {
+            rgb: INK,
+            opacity: 1.0,
+        };
+        let geom = Geom::Closed(vec![
+            (4.0, 4.0),
+            (90.0, 4.0),
+            (90.0, 44.0),
+            (f64::NAN, 44.0),
+            (4.0, 24.0),
+        ]);
+        let s = timed(vec![shape(geom, Some(fill), None)]);
+
+        // 85 pt, 40 pt lies inside once the closing edge (4, 24) to (90, 44) is there.
+        assert_eq!(at(&s, 177, 83), ink());
+    }
+
+    #[test]
     fn a_dashed_path_across_the_page_from_far_away_shows() {
         for far in FAR_FINITE_PT {
             let geom = Geom::Open(vec![(-far, 12.0), (far, 12.0)]);
