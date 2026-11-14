@@ -10,6 +10,7 @@
 
 mod canvas;
 mod error;
+mod font;
 mod image;
 mod inflate;
 mod layout;
