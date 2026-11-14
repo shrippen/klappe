@@ -17,6 +17,9 @@ pub struct Shot {
     pub number: String,
     pub camera: String,
     pub size: ShotSize,
+    /// Camera angle: from above, below, tilted (LH-71).
+    #[serde(default)]
+    pub angle: Angle,
     pub movement: Movement,
     /// Lens for this shot; `None` uses the camera's.
     #[serde(default, serialize_with = "finite_or_none")]
@@ -84,6 +87,48 @@ impl ShotSize {
     }
 }
 
+/// Camera perspective as German film practice names it (NF-09), eye level first (LH-71).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Angle {
+    /// Normalsicht.
+    #[default]
+    EyeLevel,
+    /// Aufsicht.
+    High,
+    /// Untersicht.
+    Low,
+    /// Vogelperspektive.
+    BirdsEye,
+    /// Froschperspektive.
+    WormsEye,
+    /// Gekippte Kamera (Dutch Angle).
+    Dutch,
+}
+
+impl Angle {
+    pub const ALL: [Angle; 6] = [
+        Angle::EyeLevel,
+        Angle::High,
+        Angle::Low,
+        Angle::BirdsEye,
+        Angle::WormsEye,
+        Angle::Dutch,
+    ];
+
+    /// The name the file format uses, e.g. `birds-eye`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Angle::EyeLevel => "eye-level",
+            Angle::High => "high",
+            Angle::Low => "low",
+            Angle::BirdsEye => "birds-eye",
+            Angle::WormsEye => "worms-eye",
+            Angle::Dutch => "dutch",
+        }
+    }
+}
+
 /// LH-33.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -141,6 +186,10 @@ mod tests {
             let json = serde_json::to_string(&movement).unwrap();
             assert_eq!(json, format!("\"{}\"", movement.name()));
         }
+        for angle in Angle::ALL {
+            let json = serde_json::to_string(&angle).unwrap();
+            assert_eq!(json, format!("\"{}\"", angle.name()));
+        }
 
         let mut sizes: Vec<_> = ShotSize::ALL.iter().map(|s| s.name()).collect();
         let mut movements: Vec<_> = Movement::ALL.iter().map(|m| m.name()).collect();
@@ -150,5 +199,20 @@ mod tests {
         movements.dedup();
         assert_eq!(sizes.len(), ShotSize::ALL.len());
         assert_eq!(movements.len(), Movement::ALL.len());
+
+        let mut angles: Vec<_> = Angle::ALL.iter().map(|a| a.name()).collect();
+        angles.sort_unstable();
+        angles.dedup();
+        assert_eq!(angles.len(), Angle::ALL.len());
+    }
+
+    /// Files from before the field have no `angle`: eye level.
+    #[test]
+    fn a_shot_without_angle_is_eye_level() {
+        let json = r#"{"id":"s","number":"1","camera":"a","size":"wide","movement":"static",
+            "from_s":0.0,"to_s":1.0}"#;
+        let shot: Shot = serde_json::from_str(json).unwrap();
+
+        assert_eq!(shot.angle, Angle::EyeLevel);
     }
 }

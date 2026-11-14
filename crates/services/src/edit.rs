@@ -1,4 +1,4 @@
-use klappe_model::{Camera, Movement, Shot, ShotSize};
+use klappe_model::{Angle, Camera, Movement, Shot, ShotSize};
 
 use crate::error::ServiceError;
 
@@ -8,6 +8,7 @@ pub enum ShotField {
     Number,
     Camera,
     Size,
+    Angle,
     Movement,
     Lens,
     Description,
@@ -24,6 +25,7 @@ impl ShotField {
             "number" => Self::Number,
             "camera" => Self::Camera,
             "size" => Self::Size,
+            "angle" => Self::Angle,
             "movement" => Self::Movement,
             "lens" => Self::Lens,
             "description" => Self::Description,
@@ -41,6 +43,7 @@ impl ShotField {
             Self::Number => "number",
             Self::Camera => "camera",
             Self::Size => "size",
+            Self::Angle => "angle",
             Self::Movement => "movement",
             Self::Lens => "lens",
             Self::Description => "description",
@@ -74,6 +77,7 @@ pub(crate) fn apply(
         ShotField::Number => shot.number = number_of(value).ok_or_else(bad)?,
         ShotField::Camera => shot.camera = camera_of(cameras, value).ok_or_else(bad)?,
         ShotField::Size => shot.size = size_of(value).ok_or_else(bad)?,
+        ShotField::Angle => shot.angle = angle_of(value).ok_or_else(bad)?,
         ShotField::Movement => shot.movement = movement_of(value).ok_or_else(bad)?,
         ShotField::Lens => shot.lens_mm = lens_of(value).ok_or_else(bad)?,
         ShotField::Description => shot.description = value.to_owned(),
@@ -114,6 +118,10 @@ fn size_of(name: &str) -> Option<ShotSize> {
     ShotSize::ALL.into_iter().find(|s| s.name() == name)
 }
 
+fn angle_of(name: &str) -> Option<Angle> {
+    Angle::ALL.into_iter().find(|a| a.name() == name)
+}
+
 fn movement_of(name: &str) -> Option<Movement> {
     Movement::ALL.into_iter().find(|m| m.name() == name)
 }
@@ -137,6 +145,9 @@ mod tests {
         for s in ShotSize::ALL {
             assert_eq!(size_of(s.name()), Some(s));
         }
+        for a in Angle::ALL {
+            assert_eq!(angle_of(a.name()), Some(a));
+        }
         for m in Movement::ALL {
             assert_eq!(movement_of(m.name()), Some(m));
         }
@@ -148,6 +159,7 @@ mod tests {
             ShotField::Number,
             ShotField::Camera,
             ShotField::Size,
+            ShotField::Angle,
             ShotField::Movement,
             ShotField::Lens,
             ShotField::Description,

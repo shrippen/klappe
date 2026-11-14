@@ -23,8 +23,12 @@ pub use views::{Chip, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, Tra
 
 // What surfaces draw and print, handed through so they need no lower crate.
 pub use klappe_export::{Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme};
-pub use klappe_model::{FigureColor, FloorPlan, LightKind, Movement, Point, Sensor, ShotSize};
-pub use klappe_stellprobe::{horizontal_fov_deg, DisplayList, Item, Role, Shape, Source};
+pub use klappe_model::{
+    Angle, FigureColor, FloorPlan, LightKind, Movement, Point, Sensor, ShotSize,
+};
+pub use klappe_stellprobe::{
+    horizontal_fov_deg, DisplayList, Item, Role, Shape, ShotOrder, Source,
+};
 
 // Fountain, so the TUI editor can style and list what it types without the script crate.
 pub use klappe_script::{parse, Element};

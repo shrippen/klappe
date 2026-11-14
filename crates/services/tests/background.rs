@@ -313,8 +313,13 @@ fn the_pdf_carries_the_background_image() {
         shots: klappe_services::ShotTexts::default(),
     };
 
-    s.export_pdf(&path, klappe_services::Paper::A4, texts)
-        .unwrap();
+    s.export_pdf(
+        &path,
+        klappe_services::Paper::A4,
+        texts,
+        klappe_services::ShotOrder::Cut,
+    )
+    .unwrap();
 
     let bytes = std::fs::read(&path).unwrap();
     let text = String::from_utf8_lossy(&bytes);

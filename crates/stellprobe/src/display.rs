@@ -596,6 +596,7 @@ mod tests {
             number: "1.1".into(),
             camera: "a".into(),
             size: ShotSize::Wide,
+            angle: Default::default(),
             movement: Movement::Static,
             lens_mm,
             from_s,
