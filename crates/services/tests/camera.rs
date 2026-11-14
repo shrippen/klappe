@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{Camera, Sensor};
-use klappe_services::{Layer, Lock, PlanEdit, ServiceError, Session};
+use klappe_services::{Field, Layer, Lock, PlanEdit, ServiceError, Session};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -27,7 +27,7 @@ fn set_sensor(camera: &str, width_mm: f64, aspect: Option<f64>) -> PlanEdit {
     }
 }
 
-fn bad(result: Result<(), ServiceError>, field: &str) -> bool {
+fn bad(result: Result<(), ServiceError>, field: Field) -> bool {
     matches!(result, Err(ServiceError::BadValue { field: f, .. }) if f == field)
 }
 
@@ -168,21 +168,24 @@ fn broken_values_are_refused() {
     let before = camera(&s, "a");
 
     for value in [f64::NAN, f64::INFINITY, 0.0, -1.0, 1e300] {
-        assert!(bad(s.edit_plan(set_sensor("a", value, None)), "sensor"));
+        assert!(bad(
+            s.edit_plan(set_sensor("a", value, None)),
+            Field::Sensor
+        ));
         assert!(bad(
             s.edit_plan(set_sensor("a", 36.0, Some(value))),
-            "aspect"
+            Field::Aspect
         ));
         let lens = PlanEdit::SetLens {
             camera: "a".into(),
             lens_mm: value,
         };
-        assert!(bad(s.edit_plan(lens), "lens"));
+        assert!(bad(s.edit_plan(lens), Field::Lens));
         let aspect = PlanEdit::SetAspect {
             camera: "a".into(),
             aspect: value,
         };
-        assert!(bad(s.edit_plan(aspect), "aspect"));
+        assert!(bad(s.edit_plan(aspect), Field::Aspect));
     }
 
     assert_eq!(camera(&s, "a"), before);

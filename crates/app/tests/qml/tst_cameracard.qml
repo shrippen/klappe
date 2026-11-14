@@ -251,7 +251,7 @@ TestCase {
 
     // Review of PR 33: Enter in one field wrote the camera's values over the others, even
     // with nothing sent.
-    function test_enter_leaves_the_other_fields() {
+    function test_enter_without_change_leaves_the_other_fields() {
         const card = shown("camera:a")
         const lens = findChild(card, "cameraLensField")
         const sensor = findChild(card, "cameraSensorField")

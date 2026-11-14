@@ -3,6 +3,7 @@
 use klappe_model::{Camera, FloorPlan, Sensor};
 
 use crate::error::ServiceError;
+use crate::field::Field;
 
 /// Widest sensor and longest lens that make sense; beyond, a number is a typing error.
 const MAX_SENSOR_WIDTH_MM: f64 = 500.0;
@@ -11,7 +12,7 @@ const MAX_LENS_MM: f64 = 5000.0;
 const MAX_ASPECT: f64 = 20.0;
 
 pub(crate) fn check_sensor(width_mm: f64, aspect: Option<f64>) -> Result<(), ServiceError> {
-    check_value("sensor", width_mm, MAX_SENSOR_WIDTH_MM)?;
+    check_value(Field::Sensor, width_mm, MAX_SENSOR_WIDTH_MM)?;
     match aspect {
         Some(aspect) => check_aspect(aspect),
         None => Ok(()),
@@ -19,15 +20,15 @@ pub(crate) fn check_sensor(width_mm: f64, aspect: Option<f64>) -> Result<(), Ser
 }
 
 pub(crate) fn check_lens(lens_mm: f64) -> Result<(), ServiceError> {
-    check_value("lens", lens_mm, MAX_LENS_MM)
+    check_value(Field::Lens, lens_mm, MAX_LENS_MM)
 }
 
 pub(crate) fn check_aspect(aspect: f64) -> Result<(), ServiceError> {
-    check_value("aspect", aspect, MAX_ASPECT)
+    check_value(Field::Aspect, aspect, MAX_ASPECT)
 }
 
 /// A number more than nothing and not above `max`.
-fn check_value(field: &'static str, value: f64, max: f64) -> Result<(), ServiceError> {
+fn check_value(field: Field, value: f64, max: f64) -> Result<(), ServiceError> {
     if value.is_finite() && value > 0.0 && value <= max {
         return Ok(());
     }

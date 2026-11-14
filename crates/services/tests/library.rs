@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{LibraryItem, SetObject};
 use klappe_services::{
-    Language, Layer, Lock, ObjectShape, PlanEdit, Point, ProjectEdit, Role, ServiceError, Session,
-    Shape, Source,
+    Field, Language, Layer, Lock, ObjectShape, PlanEdit, Point, ProjectEdit, Role, ServiceError,
+    Session, Shape, Source,
 };
 
 fn example() -> PathBuf {
@@ -289,7 +289,10 @@ fn filing_needs_a_name_and_an_object() {
 
     assert!(matches!(
         file("saengersaal", "tisch", "   "),
-        Err(ServiceError::BadValue { field: "name", .. })
+        Err(ServiceError::BadValue {
+            field: Field::Name,
+            ..
+        })
     ));
     assert!(matches!(
         file("saengersaal", "o99", "X"),
@@ -509,7 +512,13 @@ fn a_size_must_be_a_usable_number() {
         (5000.0, 1.0),
     ] {
         let err = resize(&mut s, "tisch", w, d).unwrap_err();
-        assert!(matches!(err, ServiceError::BadValue { field: "size", .. }));
+        assert!(matches!(
+            err,
+            ServiceError::BadValue {
+                field: Field::Size,
+                ..
+            }
+        ));
     }
     assert_eq!((objects(&s)[0].width_m, objects(&s)[0].depth_m), (6.0, 1.2));
     assert!(!s.is_dirty());
@@ -534,7 +543,7 @@ fn only_objects_have_a_size_to_change() {
         assert!(matches!(
             err,
             ServiceError::BadValue {
-                field: "source",
+                field: Field::Source,
                 ..
             }
         ));

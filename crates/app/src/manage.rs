@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use klappe_services::{FigureColor, ServiceError, Session};
+use klappe_services::{Field, FigureColor, ServiceError, Session};
 use serde_json::{json, Value};
 
 /// Projects the start page remembers.
@@ -73,7 +73,7 @@ pub fn color_of(name: &str) -> Option<FigureColor> {
 }
 
 /// A length typed by the user, `"8,5"` or `"8.5 m"`.
-pub fn metres(field: &'static str, text: &str) -> Result<f64, ServiceError> {
+pub fn metres(field: Field, text: &str) -> Result<f64, ServiceError> {
     let digits = text.trim().trim_end_matches('m').trim().replace(',', ".");
 
     digits.parse().map_err(|_| ServiceError::BadValue {
@@ -169,11 +169,14 @@ mod tests {
 
     #[test]
     fn lengths_take_commas_and_units() {
-        assert_eq!(metres("width", "8,5").ok(), Some(8.5));
-        assert_eq!(metres("width", " 12 m ").ok(), Some(12.0));
+        assert_eq!(metres(Field::Width, "8,5").ok(), Some(8.5));
+        assert_eq!(metres(Field::Width, " 12 m ").ok(), Some(12.0));
         assert!(matches!(
-            metres("depth", "breit"),
-            Err(ServiceError::BadValue { field: "depth", .. })
+            metres(Field::Depth, "breit"),
+            Err(ServiceError::BadValue {
+                field: Field::Depth,
+                ..
+            })
         ));
     }
 

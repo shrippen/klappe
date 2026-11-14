@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+use crate::field::Field;
 use crate::session::Layer;
 
 #[derive(Debug, Error)]
@@ -48,8 +49,8 @@ pub enum ServiceError {
     /// There is nothing to pass on: the project has no own objects.
     #[error("the project has no own objects")]
     EmptyLibrary,
-    #[error("bad value for {field}: {value}")]
-    BadValue { field: &'static str, value: String },
+    #[error("bad value for {}: {value}", field.name())]
+    BadValue { field: Field, value: String },
     #[error(transparent)]
     Export(#[from] klappe_export::ExportError),
     #[error("cannot write {path}: {source}")]
