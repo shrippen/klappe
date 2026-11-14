@@ -12,7 +12,10 @@ const PAGES: &[&str] = &[
     "qml/CameraCard.qml",
     "qml/MarkCard.qml",
     "qml/PlanTools.qml",
-    "qml/PlanChooser.qml",
+    "qml/PlanMenu.qml",
+    "qml/HeaderMenu.qml",
+    "qml/CommandAction.qml",
+    "qml/AppHeader.qml",
     "qml/LayerPopover.qml",
     "qml/PlanForm.qml",
     "qml/Timeline.qml",
@@ -23,7 +26,6 @@ const PAGES: &[&str] = &[
     "qml/NewProjectDialog.qml",
     "qml/ManageList.qml",
     "qml/ProjectDialog.qml",
-    "qml/ProjectButtons.qml",
     "qml/StartPage.qml",
 ];
 
