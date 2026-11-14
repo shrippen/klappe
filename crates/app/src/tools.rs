@@ -2,14 +2,10 @@
 //! choice made in the tool bar become one plan edit. No geometry beyond the two points a
 //! gesture hands over (agent.md); the session snaps them and does the work.
 
-use std::path::PathBuf;
-
 use klappe_services::{
     Arrival, Dash, Departure, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, Pace,
     PlanEdit, Point, Pose, ProjectEdit, ServiceError, Source,
 };
-
-const FILE_URL: &str = "file://";
 
 /// A new camera looks to the right (0°); the user turns it afterwards.
 const NEW_CAMERA_FACING_DEG: f64 = 0.0;
@@ -789,42 +785,6 @@ pub fn scale_edit(step: ScaleStep, distance: &str) -> Option<PlanEdit> {
         to,
         distance_m: parse_metres(distance)?,
     })
-}
-
-/// `file://` URL or plain path as the file dialog hands it over, as a path. Percent-escapes
-/// in a URL are decoded.
-pub fn local_path(url: &str) -> PathBuf {
-    let Some(rest) = url.strip_prefix(FILE_URL) else {
-        return PathBuf::from(url);
-    };
-
-    let mut bytes = Vec::with_capacity(rest.len());
-    let raw = rest.as_bytes();
-    let mut i = 0;
-    while i < raw.len() {
-        let escaped = (raw[i] == b'%')
-            .then(|| raw.get(i + 1..i + 3))
-            .flatten()
-            .and_then(|hex| std::str::from_utf8(hex).ok())
-            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
-        match escaped {
-            Some(byte) => {
-                bytes.push(byte);
-                i += 3;
-            }
-            None => {
-                bytes.push(raw[i]);
-                i += 1;
-            }
-        }
-    }
-
-    let path = String::from_utf8_lossy(&bytes).into_owned();
-    // `file:///C:/x`: no slash before a drive letter.
-    match path.as_bytes() {
-        [b'/', drive, b':', ..] if drive.is_ascii_alphabetic() => PathBuf::from(&path[1..]),
-        _ => PathBuf::from(path),
-    }
 }
 
 /// Where a drag stands: still moving, or let go.
@@ -1725,20 +1685,6 @@ mod tests {
             Err(ServiceError::Locked(Layer::Drawings))
         ));
         assert!(drawing_open(Lock::Unlocked).is_ok());
-    }
-
-    #[test]
-    fn the_dialog_url_becomes_a_path() {
-        assert_eq!(
-            local_path("file:///home/a%20b/Plan%C3%A4.png"),
-            PathBuf::from("/home/a b/Planä.png")
-        );
-        assert_eq!(local_path("/home/x/p.png"), PathBuf::from("/home/x/p.png"));
-        assert_eq!(
-            local_path("file:///C:/x/p.png"),
-            PathBuf::from("C:/x/p.png")
-        );
-        assert_eq!(local_path("file:///a%zz"), PathBuf::from("/a%zz"));
     }
 
     #[test]

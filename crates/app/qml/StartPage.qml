@@ -22,6 +22,7 @@ Item {
 
     /// `[{ path, shortPath, name, state, scenes, modifiedS, preview }]`, state: loading, ready,
     /// missing, unreadable. `shortPath` is the path with `~` for the home folder (the tooltip).
+    /// `preview` is a `file://` URL, or empty.
     readonly property var recent: controller.recentJson ? JSON.parse(controller.recentJson) : []
 
     readonly property string stateMissing: "missing"
@@ -194,7 +195,7 @@ Item {
                         name: cell.isExample ? start.texts.t("start.example") : cell.name
                         tier: cell.broken ? KanteTile.Tier.Check : KanteTile.Tier.Good
                         stale: cell.missing
-                        source: cell.preview !== "" ? "file://" + encodeURI(cell.preview) : ""
+                        source: cell.preview
                         sourceSize: Qt.size(start.tileWidth * 2, start.tileWidth * 2 / start.stageAspect)
                         QQC2.ToolTip.text: cell.shortPath
                         QQC2.ToolTip.visible: tipHover.hovered && cell.shortPath !== ""

@@ -557,9 +557,10 @@ use std::path::Path;
 use crate::args::AppArgs;
 use crate::camera::{self, CameraField};
 use crate::catalog::Language;
+use crate::fileurl;
 use crate::manage;
 use crate::notice::{backup_view, error_text, Status};
-use crate::plan::{self, Measure};
+use crate::plan::{self, ElementKind, Measure};
 use crate::tools::{
     self, AreaDraft, Backdrop, DragPhase, DragStep, DrawStyle, Grip, Key, MeasureStep, NoteDraft,
     Pick, Preview, ScaleStep, Selection, Tool,
@@ -1453,7 +1454,7 @@ impl qobject::Controller {
     }
 
     fn set_background(mut self: Pin<&mut Self>, path: &QString) -> bool {
-        let source = tools::local_path(&path.to_string());
+        let source = fileurl::to_path(&path.to_string());
         if !self
             .as_mut()
             .commit_edit(PlanEdit::SetBackground { source })
@@ -1746,7 +1747,7 @@ impl qobject::Controller {
 
     fn import_library(mut self: Pin<&mut Self>, path: &QString) -> bool {
         let language = self.rust().language;
-        let path = tools::local_path(&path.to_string());
+        let path = fileurl::to_path(&path.to_string());
         let Some(s) = self.as_mut().session() else {
             return false;
         };
@@ -1767,7 +1768,7 @@ impl qobject::Controller {
 
     fn export_library(mut self: Pin<&mut Self>, path: &QString) -> bool {
         let language = self.rust().language;
-        let path = tools::local_path(&path.to_string());
+        let path = fileurl::to_path(&path.to_string());
         let Some(s) = self.as_mut().session() else {
             return false;
         };
@@ -2074,14 +2075,14 @@ impl qobject::Controller {
     }
 
     fn create_project(self: Pin<&mut Self>, path: &QString, title: &QString) -> bool {
-        let dir = tools::local_path(&path.to_string());
+        let dir = fileurl::to_path(&path.to_string());
         let created = Session::create(&dir, &title.to_string());
 
         self.switch_to(created)
     }
 
     fn open_project(self: Pin<&mut Self>, path: &QString) -> bool {
-        let dir = tools::local_path(&path.to_string());
+        let dir = fileurl::to_path(&path.to_string());
         let opened = Session::open(&dir);
 
         self.switch_to(opened)
@@ -2457,8 +2458,7 @@ fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
 
 /// Data for a tooltip; QML puts it into words with the catalogue.
 fn describe(s: &Session, key: &str) -> serde_json::Value {
-    let mut parts = key.split(':');
-    let (Some(kind), Some(id)) = (parts.next(), parts.next()) else {
+    let Some(plan::ParsedKey { kind, id, index }) = plan::parse_key(key) else {
         return json!({});
     };
     let Some(plan) = s.plan() else {
@@ -2466,7 +2466,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
     };
 
     match kind {
-        "camera" => {
+        ElementKind::Camera => {
             let Some(c) = plan.camera(id) else {
                 return json!({});
             };
@@ -2497,29 +2497,27 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 "follows": follows,
             })
         }
-        "figure" | "mark" => {
+        ElementKind::Figure | ElementKind::Mark => {
             let name = s
                 .project()
                 .character(id)
                 .map(|c| c.title())
                 .unwrap_or_default();
-            let index: Option<usize> = parts.next().and_then(|i| i.parse().ok());
             let at = index
                 .and_then(|i| plan.figure(id)?.marks.get(i))
                 .map(|m| m.at_s);
-            json!({ "kind": kind, "name": name, "index": index.map(|i| i + 1), "time": at })
+            json!({ "kind": kind.name(), "name": name, "index": index.map(|i| i + 1), "time": at })
         }
-        "figurevia" | "cameravia" => {
-            let index: Option<usize> = parts.next().and_then(|i| i.parse().ok());
+        ElementKind::FigureVia | ElementKind::CameraVia => {
             json!({ "kind": "bend", "index": index.map(|i| i + 1) })
         }
-        "light" => {
+        ElementKind::Light => {
             let Some(l) = plan.lights.iter().find(|l| l.id == id) else {
                 return json!({});
             };
             json!({ "kind": "light", "label": l.label, "temp": l.color_temp_k, "power": l.power_w })
         }
-        "object" => {
+        ElementKind::Object => {
             let set = s
                 .scene()
                 .and_then(|sc| s.project().location(&sc.location))
@@ -2536,8 +2534,10 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 "height": o.height_m,
             })
         }
-        "note" => json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() }),
-        _ => json!({}),
+        ElementKind::Note => {
+            json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() })
+        }
+        ElementKind::Wall | ElementKind::Drawing => json!({}),
     }
 }
 
