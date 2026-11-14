@@ -249,6 +249,21 @@ TestCase {
         verify(sensor.invalid)
     }
 
+    // Review of PR 33: Enter in one field wrote the camera's values over the others, even
+    // with nothing sent.
+    function test_enter_leaves_the_other_fields() {
+        const card = shown("camera:a")
+        const lens = findChild(card, "cameraLensField")
+        const sensor = findChild(card, "cameraSensorField")
+
+        lens.text = "40"
+        sensor.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+
+        compare(fake.sets, [])
+        compare(lens.text, "40")
+    }
+
     function test_a_refused_value_marks_the_field_until_typing() {
         const card = shown("camera:a")
         const field = findChild(card, "cameraAspectField")

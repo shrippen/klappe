@@ -44,9 +44,9 @@ KanteCard {
     implicitWidth: cardRows.implicitWidth + Kirigami.Units.largeSpacing * 2
     implicitHeight: cardRows.implicitHeight + Kirigami.Units.largeSpacing * 2
 
-    onInfoChanged: card.fill(CameraCard.Fill.Unfocused)
+    onInfoChanged: card.fill()
     onLensSetChanged: card.syncBoxes()
-    Component.onCompleted: card.fill(CameraCard.Fill.Unfocused)
+    Component.onCompleted: card.fill()
 
     // A combo box drops its binding once the user picks; the boxes follow the camera again.
     function syncBoxes() {
@@ -58,10 +58,7 @@ KanteCard {
         lensBox.currentIndex = lensBox.indexOfValue(card.info.ownLens)
     }
 
-    // Which fields `fill()` writes: those without focus, or all of them after an apply.
-    enum Fill { Unfocused, All }
-
-    function fill(which) {
+    function fill() {
         if (!card.info || card.applying) {
             return
         }
@@ -72,7 +69,7 @@ KanteCard {
         ]
         for (const [field, value] of values) {
             field.shown = card.texts.num(value, 2)
-            if (which === CameraCard.Fill.All || !field.activeFocus) {
+            if (!field.activeFocus) {
                 field.text = field.shown
             }
         }
@@ -83,12 +80,13 @@ KanteCard {
     property bool applying: false
 
     // Sets each typed field of `fields` ([name, field] pairs). The texts are read first and
-    // the fields filled once at the end: each edit refreshes the plan, and a fill in between
-    // would write the camera's values over fields not yet applied. An accepted field then
-    // shows the camera's value, so a second apply sends nothing; a refused one keeps its text
-    // and is marked.
+    // the card filled once at the end: each edit refreshes the plan, and a fill in between
+    // would write the camera's values over fields not yet applied. A sent field then shows
+    // the camera's value, so a second apply sends nothing; a refused one keeps its text and is
+    // marked.
     function apply(fields) {
         const typed = fields.map(([name, field]) => [name, field, field.text])
+        const sent = []
         const refused = []
 
         card.applying = true
@@ -96,13 +94,22 @@ KanteCard {
             if (text === field.shown) {
                 continue
             }
-            if (!card.controller.setCameraField(name, text)) {
+            const ok = card.controller.setCameraField(name, text)
+            if (ok) {
+                sent.push(field)
+            } else {
                 refused.push([field, text])
             }
         }
         card.applying = false
 
-        card.fill(CameraCard.Fill.All)
+        // Only an edit refreshes the plan; without one the fields stay as typed.
+        if (sent.length > 0) {
+            card.fill()
+        }
+        for (const field of sent) {
+            field.text = field.shown
+        }
         for (const [field, text] of refused) {
             field.text = text
             field.invalid = true
