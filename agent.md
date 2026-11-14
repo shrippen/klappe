@@ -17,36 +17,14 @@ Technik und Entscheidungen: `planung/KONZEPT.md`; Arbeitsstand: `planung/STAND.m
 Implementierung: Rust (Cargo-Workspace), GUI in QML (Kirigami + Kante) über cxx-qt, TUI mit
 ratatui, Lizenz MIT.
 
-## Schichten (nur zur Ebene direkt darunter; Ausnahme: `services/` auch an `model/`)
-```
-app/ (QML, cxx-qt)    tui/ (ratatui)    cli/
-        └──────────────┬─────────────────┘
-                       ↓
-services/   Projekt-Sitzung: öffnen, speichern, Rückgängig, Wiedergabeuhr
-                       ↓
-stellprobe/ Optik, Bewegung, Achse, Darstellungsliste    script/ Fountain
-store/      Projektordner                                export/ PDF, SVG, CSV
-                       ↓
-model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
-imagehead/  JPEG-Kopf lesen (ohne Abhängigkeit; store/ und export/ rufen es)
-
-demo/       Werkzeug (crates/demo), nicht ausgeliefert: erzeugt die Beispielprojekte im
-            Ordner demo/ des Repos über model/, script/, store/ (neben services/)
-```
-- Wie `planung/KONZEPT.md`, Abschnitt 4. Die mittlere Ebene steht nebeneinander: `export/`
-  liest die Darstellungsliste aus `stellprobe/`, `store/` hängt an `model/` (nicht an `script/`); beide lesen JPEG-Köpfe über
-  `imagehead/`; sonst rufen sie sich nicht.
-- Oberflächen zeichnen die Darstellungsliste aus `stellprobe/`; eigene Geometrie in QML ist ein
-  Fehler.
-- Jede Schicht ist ein eigenes Crate; Abhängigkeiten nur zur Ebene darunter (in `Cargo.toml`
-  sichtbar). Einzige Ausnahme: `services/` hängt auch direkt an `model/`, dessen Typen es
-  weiterreicht. Oberflächen hängen nur an `services/`. `demo/` ist ein Werkzeug auf der Ebene
-  von `services/`; App, TUI und CLI hängen nie an ihm, ausgeliefert wird nur das erzeugte
-  Beispiel (über `services/`).
-- Alles privat; `pub` nur, wo das Design es braucht. Jede neue `pub`-Schnittstelle steht im PR.
+## Aufbau
+Bausteine, Schichten (wer wen rufen darf), wohin Neues gehört und bekannte Abweichungen
+stehen in `ARCHITECTURE.md`, nur dort. Vor neuem Code lesen; wer den Aufbau ändert, ändert
+die Datei im selben PR.
 
 ## Konventionen
 - Rust (stable), cargo fmt, clippy ohne Warnungen. `make check` vor jedem Commit.
+- Alles privat; `pub` nur, wo das Design es braucht. Jede neue `pub`-Schnittstelle steht im PR.
 - Kein `unsafe` außerhalb der cxx-qt-Brücke; jedes `unsafe` mit Kommentar, warum es sicher ist.
 - Kein `unwrap()`/`expect()` außerhalb von Tests; Fehler als eigene Fehlertypen je Crate.
 - Abhängigkeiten nur unter MIT, Apache-2.0, BSD, ISC, Zlib, Unlicense, CC0 (Schriften:
