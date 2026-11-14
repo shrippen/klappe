@@ -6,6 +6,7 @@
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
 //! load_library, save_library ◄──►          bibliothek.toml, or any library file to pass on
+//! write_atomic, write_tree, project_mtime, ..  whole-folder file operations (tree.rs)
 //! ```
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
