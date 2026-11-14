@@ -24,6 +24,7 @@ fn project() -> Project {
         name: "Elisabeth".into(),
         short: "E".into(),
         color: FigureColor::Purple,
+        group: None,
     }];
     p
 }
@@ -359,6 +360,22 @@ fn notes_are_printed_with_their_text() {
     assert!(out.contains(">Vorhang schließen<"));
     // ß = 0xDF = \337 in WinAnsi.
     assert!(String::from_utf8_lossy(&bytes).contains("(Vorhang schlie\\337en) Tj"));
+}
+
+/// LH-23: a group is printed larger, with its dots and the head count in its label.
+#[test]
+fn a_group_is_printed_with_its_count() {
+    let mut who = project();
+    who.characters[0].group = Some(12);
+    let grouped = render(&who, &set(), &plan(), 0.0, None);
+
+    let out = svg(&grouped, &page(), Theme::Light).unwrap();
+
+    assert!(out.contains(">Elisabeth (12)<"));
+    // The same figures, each with three dots more.
+    let single = svg(&list(), &page(), Theme::Light).unwrap();
+    let figures = |out: &str| lines_with(out, "item figure purple").len();
+    assert!(figures(&out) > figures(&single));
 }
 
 /// LH-19: drawings show in SVG, PDF and PNG; an arrow's head is a filled area, a dash tells

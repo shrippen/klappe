@@ -48,16 +48,19 @@ pub enum ProjectEdit {
     RemoveLocation {
         id: String,
     },
+    /// `group` is the head count of a group of extras (LH-23); `None` is a single person.
     AddCharacter {
         name: String,
         short: String,
         color: FigureColor,
+        group: Option<u32>,
     },
     EditCharacter {
         id: String,
         name: String,
         short: String,
         color: FigureColor,
+        group: Option<u32>,
     },
     /// Refused while a plan uses the character.
     RemoveCharacter {
@@ -83,6 +86,10 @@ const MAX_SET_M: f64 = 1000.0;
 
 /// The label in a figure's circle has room for this many letters.
 const MAX_SHORT_CHARS: usize = 3;
+
+/// A group has two to 999 people; one person is a figure, more would not fit the label.
+const MIN_GROUP: u32 = 2;
+const MAX_GROUP: u32 = 999;
 
 /// Scene ids pad the number's digits so that file order is scene order (`szene-012`).
 const SCENE_ID_DIGITS: usize = 3;
@@ -119,15 +126,19 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             depth_m,
         } => edit_location(project, id, name, *width_m, *depth_m),
         ProjectEdit::RemoveLocation { id } => remove_location(project, id),
-        ProjectEdit::AddCharacter { name, short, color } => {
-            add_character(project, name, short, *color)
-        }
+        ProjectEdit::AddCharacter {
+            name,
+            short,
+            color,
+            group,
+        } => add_character(project, name, short, *color, *group),
         ProjectEdit::EditCharacter {
             id,
             name,
             short,
             color,
-        } => edit_character(project, id, name, short, *color),
+            group,
+        } => edit_character(project, id, name, short, *color, *group),
         ProjectEdit::RemoveCharacter { id } => remove_character(project, id),
         ProjectEdit::LibraryFromObject {
             location,
@@ -261,9 +272,11 @@ fn add_character(
     name: &str,
     short: &str,
     color: FigureColor,
+    group: Option<u32>,
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     let short = short_of(short)?;
+    check_group(group)?;
 
     let base = slug(&name, CHARACTER_ID_FALLBACK);
     let id = unique_id(&base, project.characters.iter().map(|c| c.id.as_str()));
@@ -272,6 +285,7 @@ fn add_character(
         name,
         short,
         color,
+        group,
     });
     Ok(())
 }
@@ -282,9 +296,11 @@ fn edit_character(
     name: &str,
     short: &str,
     color: FigureColor,
+    group: Option<u32>,
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     let short = short_of(short)?;
+    check_group(group)?;
 
     let Some(character) = project.characters.iter_mut().find(|c| c.id == id) else {
         return Err(ServiceError::NoCharacter(id.to_owned()));
@@ -292,6 +308,7 @@ fn edit_character(
     character.name = name;
     character.short = short;
     character.color = color;
+    character.group = group;
     Ok(())
 }
 
@@ -478,6 +495,19 @@ fn short_of(short: &str) -> Result<String, ServiceError> {
         });
     }
     Ok(short.to_owned())
+}
+
+fn check_group(group: Option<u32>) -> Result<(), ServiceError> {
+    let Some(count) = group else {
+        return Ok(());
+    };
+    if !(MIN_GROUP..=MAX_GROUP).contains(&count) {
+        return Err(ServiceError::BadValue {
+            field: Field::Group,
+            value: count.to_string(),
+        });
+    }
+    Ok(())
 }
 
 /// Both sides in `(0, MAX_SET_M]`; also excludes NaN.

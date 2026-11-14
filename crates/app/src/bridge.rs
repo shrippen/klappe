@@ -455,7 +455,8 @@ pub mod qobject {
         #[cxx_name = "removeLocation"]
         fn remove_location(self: Pin<&mut Self>, id: &QString) -> bool;
 
-        /// `color` is a role name (`purple`, `blue` …).
+        /// `color` is a role name (`purple`, `blue` …); `group` is the head count of a group
+        /// of extras, 0 for a single person.
         #[qinvokable]
         #[cxx_name = "addCharacter"]
         fn add_character(
@@ -463,6 +464,7 @@ pub mod qobject {
             name: &QString,
             label: &QString,
             color: &QString,
+            group: u32,
         ) -> bool;
 
         #[qinvokable]
@@ -473,6 +475,7 @@ pub mod qobject {
             name: &QString,
             label: &QString,
             color: &QString,
+            group: u32,
         ) -> bool;
 
         #[qinvokable]
@@ -2071,11 +2074,13 @@ impl qobject::Controller {
         name: &QString,
         label: &QString,
         color: &QString,
+        group: u32,
     ) -> bool {
         let edit = color_edit(color).map(|color| ProjectEdit::AddCharacter {
             name: name.to_string(),
             short: label.to_string(),
             color,
+            group: manage::group_of(group),
         });
         self.commit_project(edit)
     }
@@ -2086,12 +2091,14 @@ impl qobject::Controller {
         name: &QString,
         label: &QString,
         color: &QString,
+        group: u32,
     ) -> bool {
         let edit = color_edit(color).map(|color| ProjectEdit::EditCharacter {
             id: id.to_string(),
             name: name.to_string(),
             short: label.to_string(),
             color,
+            group: manage::group_of(group),
         });
         self.commit_project(edit)
     }

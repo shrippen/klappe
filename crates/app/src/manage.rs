@@ -52,11 +52,23 @@ pub fn project_json(session: &Session) -> String {
                 "name": c.name,
                 "short": c.short,
                 "color": color_name(c.color),
+                "group": c.group.unwrap_or(NO_GROUP),
             })
         })
         .collect();
 
     json!({ "scenes": scenes, "locations": locations, "characters": characters }).to_string()
+}
+
+/// What the bridge and the form use for "a single person".
+const NO_GROUP: u32 = 0;
+
+/// The head count as the model has it: `None` for a single person.
+pub(crate) fn group_of(count: u32) -> Option<u32> {
+    match count {
+        NO_GROUP => None,
+        n => Some(n),
+    }
 }
 
 /// The role as the model writes it in `figuren.toml`.
@@ -214,6 +226,7 @@ mod tests {
                 name: "Anna".to_owned(),
                 short: "A".to_owned(),
                 color: FigureColor::Red,
+                group: Some(12),
             })
             .unwrap();
 
@@ -224,6 +237,7 @@ mod tests {
         assert_eq!(value["locations"][0]["scenes"], 1);
         assert_eq!(value["locations"][0]["width"], 8.0);
         assert_eq!(value["characters"][0]["color"], "red");
+        assert_eq!(value["characters"][0]["group"], 12);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

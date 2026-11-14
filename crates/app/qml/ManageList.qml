@@ -62,6 +62,7 @@ ColumnLayout {
             width: ListView.view.width
             text: modelData.name
             meta: modelData.short
+            subtitle: modelData.group > 0 ? list.texts.t("character.groupOf", { count: modelData.group }) : ""
             selected: modelData.id === list.currentId
             onClicked: list.currentId = modelData.id
 

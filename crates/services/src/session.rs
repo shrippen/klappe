@@ -979,7 +979,7 @@ impl Session {
             tracks.push(Track {
                 kind: TrackKind::Figure,
                 id: figure.character.clone(),
-                name: character.name.clone(),
+                name: character.title(),
                 label: label_of(character.color).to_owned(),
                 shown: self.track_shown(&figure.character, Layer::Figures),
                 segments: walks(figure.marks.iter().map(|m| (m.at_s, m.hold_s))),

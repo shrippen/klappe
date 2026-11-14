@@ -3,8 +3,8 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import Kante
 
-// Adds a character or changes one (LH-03): name, the short label drawn in the figure, and
-// one of Kante's label colours.
+// Adds a character or changes one (LH-03): name, the short label drawn in the figure, one of
+// Kante's label colours, and whether it is a group of extras with a head count (LH-23).
 FormDialog {
     id: form
 
@@ -15,6 +15,10 @@ FormDialog {
 
     // The letters that fit into a figure.
     readonly property int shortLength: 3
+    // A group has two to 999 people; the controller takes 0 for a single person.
+    readonly property int minGroup: 2
+    readonly property int maxGroup: 999
+    readonly property int noGroup: 0
     readonly property var colors: KanteStyle.labels
 
     title: texts.t(character ? "character.edit" : "character.new")
@@ -32,15 +36,19 @@ FormDialog {
         nameField.text = character ? character.name : ""
         shortField.text = character ? character.short : ""
         picker.currentIndex = character ? colors.indexOf(character.color) : firstFree()
+        const group = character ? character.group : noGroup
+        groupSwitch.checked = group >= minGroup
+        groupSize.value = group >= minGroup ? group : minGroup
         open()
     }
 
     submit: function () {
         const color = colors[picker.currentIndex]
+        const group = groupSwitch.checked ? groupSize.value : noGroup
         if (!character) {
-            return controller.addCharacter(nameField.text, shortField.text, color)
+            return controller.addCharacter(nameField.text, shortField.text, color, group)
         }
-        return controller.editCharacter(character.id, nameField.text, shortField.text, color)
+        return controller.editCharacter(character.id, nameField.text, shortField.text, color, group)
     }
 
     KanteSectionLabel { text: form.texts.t("character.name") }
@@ -69,5 +77,20 @@ FormDialog {
         colors: form.colors.map(c => KanteStyle.labelColor(c))
         names: form.colors.map(c => form.texts.t("color." + c))
         onPicked: index => currentIndex = index
+    }
+    KanteSwitch {
+        id: groupSwitch
+        objectName: "groupSwitch"
+        text: form.texts.t("character.group")
+    }
+    KanteSpinBox {
+        id: groupSize
+        objectName: "groupSize"
+        visible: groupSwitch.checked
+        from: form.minGroup
+        to: form.maxGroup
+        value: form.minGroup
+        editable: true
+        Accessible.name: form.texts.t("character.groupSize")
     }
 }

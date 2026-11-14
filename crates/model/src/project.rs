@@ -52,6 +52,20 @@ pub struct Character {
     /// Short label drawn in the figure, e.g. `E`.
     pub short: String,
     pub color: FigureColor,
+    /// How many people the character stands for (LH-23): a group such as the guests moves
+    /// as one figure. `None` is a single person.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<u32>,
+}
+
+impl Character {
+    /// The name with the head count of a group: `Gäste (12)`.
+    pub fn title(&self) -> String {
+        match self.group {
+            Some(count) => format!("{} ({count})", self.name),
+            None => self.name.clone(),
+        }
+    }
 }
 
 /// The colour a figure is drawn in. A role, not a hex value: one of Kante's label colours
