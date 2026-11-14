@@ -6,7 +6,6 @@
 //!                                         else Session::export_preview ──► cache
 //! ```
 
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -14,7 +13,6 @@ use crate::{Language, Session};
 
 const PREVIEW_DIR: &str = "previews";
 const PREVIEW_EXT: &str = "png";
-const PART_EXT: &str = "png.part";
 
 // FNV-1a, 64 bit: names the preview after the project's path.
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
@@ -57,7 +55,7 @@ pub fn project_card(dir: &Path, cache: &Path, language: Language) -> ProjectCard
         return card;
     }
 
-    let newest = newest_file_time(dir);
+    let newest = klappe_store::project_mtime(dir);
     card.modified_s = newest.and_then(seconds).unwrap_or(0);
     let Ok(session) = Session::open(dir) else {
         card.state = CardState::Unreadable;
@@ -89,16 +87,9 @@ fn preview_for(
         return Some(path);
     }
 
-    let folder = path.parent()?;
-    fs::create_dir_all(folder).ok()?;
-    remove_old_previews(folder, &path);
-    // Written aside and renamed, so a cut-off write never passes for a preview.
-    let part = path.with_extension(PART_EXT);
-    let written = session.export_preview(&part, language.print_texts());
-    if written.is_err() || fs::rename(&part, &path).is_err() {
-        let _ = fs::remove_file(&part);
-        return None;
-    }
+    remove_old_previews(&path);
+    // The export writes aside and renames, so a cut-off write never passes for a preview.
+    session.export_preview(&path, language.print_texts()).ok()?;
 
     Some(path)
 }
@@ -116,48 +107,18 @@ fn preview_path(cache: &Path, dir: &Path, modified_s: u64) -> PathBuf {
 }
 
 /// Removes the earlier previews of the same project (same hash before the dash).
-fn remove_old_previews(folder: &Path, keep: &Path) {
+fn remove_old_previews(keep: &Path) {
+    let Some(folder) = keep.parent() else {
+        return;
+    };
     let Some(name) = keep.file_name().map(|n| n.to_string_lossy().into_owned()) else {
         return;
     };
     let Some((hash, _)) = name.split_once('-') else {
         return;
     };
-    let Ok(entries) = fs::read_dir(folder) else {
-        return;
-    };
 
-    for entry in entries.flatten() {
-        let other = entry.file_name().to_string_lossy().into_owned();
-        if other.starts_with(&format!("{hash}-")) {
-            let _ = fs::remove_file(entry.path());
-        }
-    }
-}
-
-/// Newest modification time below `dir`, hidden entries (backups) left out.
-fn newest_file_time(dir: &Path) -> Option<SystemTime> {
-    let mut newest = None;
-    let Ok(entries) = fs::read_dir(dir) else {
-        return None;
-    };
-
-    for entry in entries.flatten() {
-        if entry.file_name().to_string_lossy().starts_with('.') {
-            continue;
-        }
-        let Ok(meta) = entry.metadata() else {
-            continue;
-        };
-        let time = if meta.is_dir() {
-            newest_file_time(&entry.path())
-        } else {
-            meta.modified().ok()
-        };
-        newest = newest.max(time);
-    }
-
-    newest
+    klappe_store::remove_prefixed(folder, &format!("{hash}-"));
 }
 
 fn seconds(time: SystemTime) -> Option<u64> {
