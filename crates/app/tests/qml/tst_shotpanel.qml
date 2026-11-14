@@ -20,6 +20,7 @@ TestCase {
             { kind: "figure", id: "elisabeth", name: "Elisabeth" },
             { kind: "figure", id: "burgvogt", name: "Burgvogt" }
         ])
+        property string choicesJson: JSON.stringify({ movement: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"] })
         property var calls: []
         property var follows: []
         property bool accept: true
@@ -183,6 +184,18 @@ TestCase {
         compare(field(panel, "movementHint").text, "Aus den Kamera-Marks: Kran")
 
         field(panel, "movementTake").clicked()
+
+        compare(fake.calls, [["s12-3", "movement", "crane"]])
+    }
+
+    // The movements come from the controller's lists, not from the panel.
+    function test_the_movement_chooser_lists_what_the_controller_offers() {
+        const box = field(make(null), "movementBox")
+
+        compare(box.count, 8)
+        compare(box.currentText, "Statisch")
+
+        box.activated(4)
 
         compare(fake.calls, [["s12-3", "movement", "crane"]])
     }

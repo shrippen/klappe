@@ -47,7 +47,7 @@ Item {
 
     readonly property var sizes: ["extreme-wide", "wide", "medium-wide", "cowboy", "medium", "medium-close", "close-up", "extreme-close-up"]
     readonly property var angles: ["eye-level", "high", "low", "birds-eye", "worms-eye", "dutch"]
-    readonly property var movements: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"]
+    readonly property var movements: controller.choicesJson ? (JSON.parse(controller.choicesJson).movement || []) : []
 
     // New, copy and delete a shot (LH-70). "New" takes the camera selected in the plan, else
     // the selected shot's. Key S is "new"; deleting asks first.
@@ -187,6 +187,7 @@ Item {
                     onActivated: index => panel.commit("size", panel.sizes[index], panel.shot.size)
                 }
                 KanteComboBox {
+                    objectName: "movementBox"
                     Layout.fillWidth: true
                     model: panel.movements.map(m => panel.texts.t("movement." + m))
                     currentIndex: panel.shot ? panel.movements.indexOf(panel.shot.movement) : -1

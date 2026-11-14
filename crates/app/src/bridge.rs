@@ -44,7 +44,7 @@ pub mod qobject {
         /// Whether points snap to the grid; change it with `setSnapping`.
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
         /// `{ figure: [{ id, name }], object: [{ kind, label, width_m, depth_m, shape, custom }],
-        /// light: [kind], color: [name], dash: [name], fill: [name], rig: [name] }`: what the tool lists
+        /// light: [kind], color: [name], dash: [name], fill: [name], rig: [name], movement: [name] }`: what the tool lists
         /// offer. The objects are the library: built in, then the project's own.
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Whether the set has a background image.
