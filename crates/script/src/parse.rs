@@ -19,9 +19,18 @@ const NOTE_OPEN: &str = "[[";
 const NOTE_CLOSE: &str = "]]";
 pub(crate) const BONEYARD_OPEN: &str = "/*";
 const BONEYARD_CLOSE: &str = "*/";
-/// `/*` written with Fountain's backslash escape on the star: text, never a boneyard
-/// (`/\*` reads as `/*`, and other Fountain programs show it the same).
-pub(crate) const BONEYARD_OPEN_ESCAPED: &str = "/\\*";
+/// Fountain's escape: `/\*` is the text `/*`, never a boneyard, and other Fountain
+/// programs show it the same. A literal `/\*` is written `/\\*`, and so on: each `/`,
+/// backslashes, `*` run carries one backslash more on paper than in the text.
+const ESCAPE: char = '\\';
+const STAR: char = '*';
+const SLASH: char = '/';
+
+/// Which way `escape_openers` moves a backslash run.
+pub(crate) enum Escape {
+    Add,
+    Remove,
+}
 
 /// Prefixes of scene headings, longest first; each must be followed by `.` or a space.
 const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext", "est"];
@@ -39,7 +48,7 @@ pub fn parse(text: &str) -> Script {
 }
 
 /// Cuts `/* ... */` out of the text; an unclosed one runs to the end. An escaped opener
-/// (`BONEYARD_OPEN_ESCAPED`) is no opener and reads as `/*`.
+/// (`/\*`) is no opener and reads as `/*`.
 fn strip_boneyard(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
@@ -48,13 +57,40 @@ fn strip_boneyard(text: &str) -> String {
         out.push_str(&rest[..start]);
         let after = &rest[start + BONEYARD_OPEN.len()..];
         let Some(end) = after.find(BONEYARD_CLOSE) else {
-            return out.replace(BONEYARD_OPEN_ESCAPED, BONEYARD_OPEN);
+            return escape_openers(&out, Escape::Remove);
         };
         rest = &after[end + BONEYARD_CLOSE.len()..];
     }
 
     out.push_str(rest);
-    out.replace(BONEYARD_OPEN_ESCAPED, BONEYARD_OPEN)
+    escape_openers(&out, Escape::Remove)
+}
+
+/// Adds or removes one backslash in every `/`, backslashes, `*` run (`/*` has none), so
+/// `/*` and `/\*` in the text survive a write and read apart from a real opener.
+///
+/// Example: `Add` turns `a /\* b` into `a /\\* b`; `Remove` turns it back.
+pub(crate) fn escape_openers(text: &str, way: Escape) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+
+    while let Some(slash) = rest.find(SLASH) {
+        let after = &rest[slash + 1..];
+        let run = after.len() - after.trim_start_matches(ESCAPE).len();
+        let is_opener = after[run..].starts_with(STAR);
+        let keep = match (is_opener, run, &way) {
+            (false, _, _) | (_, 0, Escape::Remove) => run,
+            (_, _, Escape::Add) => run + 1,
+            (_, _, Escape::Remove) => run - 1,
+        };
+
+        out.push_str(&rest[..=slash]);
+        out.extend(std::iter::repeat_n(ESCAPE, keep));
+        rest = &after[run..];
+    }
+
+    out.push_str(rest);
+    out
 }
 
 /// Splits `Key: value` lines at the top of the text from the body.
