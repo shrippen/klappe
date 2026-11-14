@@ -13,7 +13,7 @@
 //! ```
 
 use klappe_model::Point;
-use klappe_stellprobe::{DisplayList, Item, Role, Shape};
+use klappe_stellprobe::{DisplayList, Item, Role, Shape, FIGURE_RADIUS_M};
 
 use crate::canvas::{Anchor, Dash, Doc, Geom, Prim, Pt, Rect, Stroke, Weight};
 use crate::error::ExportError;
@@ -234,10 +234,14 @@ fn item_prims(
     let bottom = bounds.iter().map(|p| p.1).fold(f64::MIN, f64::max);
 
     // Circles carry the facing wedge on their right: label below, others right of the shape.
-    // A mark's number goes above instead, so a figure standing on it keeps its name below.
+    // A mark's number goes above instead, so a figure standing on it keeps its name below;
+    // it sits above the figure's rim, which is wider than the mark's.
     let (at, anchor) = match (item.role, &item.shape) {
         (Role::Mark(_), Shape::Circle { .. }) => (
-            ((bounds[0].0 + right) / 2.0, top - LABEL_GAP_PT),
+            (
+                (bounds[0].0 + right) / 2.0,
+                (top + bottom) / 2.0 - FIGURE_RADIUS_M * map.scale - LABEL_GAP_PT,
+            ),
             Anchor::Middle,
         ),
         (_, Shape::Circle { .. }) => (

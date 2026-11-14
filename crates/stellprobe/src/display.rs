@@ -67,7 +67,7 @@ pub enum Source {
 }
 
 /// Figure body radius on the plan.
-const FIGURE_RADIUS_M: f64 = 0.35;
+pub const FIGURE_RADIUS_M: f64 = 0.35;
 /// Mark circles are smaller than the figure.
 const MARK_RADIUS_M: f64 = 0.22;
 /// Camera and lamp bodies.
