@@ -104,34 +104,111 @@ impl ControllerRust {
         let Some(s) = &self.session else {
             return;
         };
-        self.loaded = true;
-        self.shown = shown_view(s);
-        self.title = q(&s.project().title);
-        self.plan_title = q(&s.plan_title());
-        self.plan_json = q(&plan_json(
-            s,
-            &s.display_list(),
-            &Selection::default(),
-            (&[], None, None),
-        ));
-        self.has_background = s.has_background();
-        self.tracks_json = q(&to_json(&s.tracks()));
-        self.shots_json = q(&to_json(&s.shots()));
-        self.script_json = q(&to_json(&s.script_lines()));
-        self.layers_json = q(&layers_json(s));
-        self.locks_json = q(&locks_json(s));
-        self.time = s.time_s();
-        self.duration = s.duration_s();
-        self.selected_shot = q(s.selected_shot().unwrap_or_default());
-        self.snapping_on = s.snapping() == Snapping::On;
-        self.choices_json = q(&choices_json(s));
-        self.project_json = q(&manage::project_json(s));
-        self.scene_id = q(s.scene().map(|sc| sc.id.as_str()).unwrap_or_default());
+        let view = shown_view(s);
+        let snapping_on = s.snapping() == Snapping::On;
+        let (backup_state, backup_message) = backup_view(s.backup());
+        let Some(v) = self.collect() else {
+            return;
+        };
 
-        let (state, message) = backup_view(s.backup());
-        self.backup_state = q(state);
-        self.backup_message = q(&message);
+        self.loaded = true;
+        self.shown = view;
+        self.snapping_on = snapping_on;
+        self.backup_state = q(backup_state);
+        self.backup_message = q(&backup_message);
+        self.title = v.title;
+        self.plan_title = v.plan_title;
+        self.plan_json = v.plan_json;
+        self.tracks_json = v.tracks_json;
+        self.shots_json = v.shots_json;
+        self.script_json = v.script_json;
+        self.layers_json = v.layers_json;
+        self.locks_json = v.locks_json;
+        self.time = v.time;
+        self.duration = v.duration;
+        self.selected_shot = v.selected_shot;
+        self.can_undo = v.can_undo;
+        self.can_redo = v.can_redo;
+        self.dirty = v.dirty;
+        self.selected_key = v.selected_key;
+        self.selected_count = v.selected_count;
+        self.has_background = v.has_background;
+        self.scale_points = v.scale_points;
+        self.area_points = v.area_points;
+        self.asks_note = v.asks_note;
+        self.measuring = v.measuring;
+        self.choices_json = v.choices_json;
+        self.project_json = v.project_json;
+        self.scene_id = v.scene_id;
     }
+
+    /// Every value the window shows, from the session and the tool state; `None` without a
+    /// session. Start and refresh both set the properties from it.
+    fn collect(&self) -> Option<Shown> {
+        let s = self.session.as_ref()?;
+        let measure = self.measure_view();
+
+        Some(Shown {
+            title: q(&s.project().title),
+            plan_title: q(&s.plan_title()),
+            plan_json: q(&plan_json(
+                s,
+                &s.display_list_for(self.selected.only()),
+                &self.selected,
+                (&self.picked(), self.marquee, measure.as_ref()),
+            )),
+            tracks_json: q(&to_json(&s.tracks())),
+            shots_json: q(&to_json(&s.shots())),
+            script_json: q(&to_json(&s.script_lines())),
+            layers_json: q(&layers_json(s)),
+            locks_json: q(&locks_json(s)),
+            time: s.time_s(),
+            duration: s.duration_s(),
+            selected_shot: q(s.selected_shot().unwrap_or_default()),
+            can_undo: s.can_undo(),
+            can_redo: s.can_redo(),
+            dirty: s.is_dirty(),
+            selected_key: q(&self.selected.only().map(plan::key).unwrap_or_default()),
+            selected_count: i32::try_from(self.selected.len()).unwrap_or_default(),
+            has_background: s.has_background(),
+            scale_points: i32::try_from(self.scale.points().len()).unwrap_or_default(),
+            area_points: i32::try_from(self.area.points().len()).unwrap_or_default(),
+            asks_note: self.note != NoteDraft::Idle,
+            measuring: self.measure != MeasureStep::Idle,
+            choices_json: q(&choices_json(s)),
+            project_json: q(&manage::project_json(s)),
+            scene_id: q(s.scene().map(|sc| sc.id.as_str()).unwrap_or_default()),
+        })
+    }
+}
+
+/// What the window shows, one field per property that follows the session; a new one needs
+/// its property in `bridge.rs`, a field here and a line in `collect`, `fill` and `show`.
+struct Shown {
+    title: QString,
+    plan_title: QString,
+    plan_json: QString,
+    tracks_json: QString,
+    shots_json: QString,
+    script_json: QString,
+    layers_json: QString,
+    locks_json: QString,
+    time: f64,
+    duration: f64,
+    selected_shot: QString,
+    can_undo: bool,
+    can_redo: bool,
+    dirty: bool,
+    selected_key: QString,
+    selected_count: i32,
+    has_background: bool,
+    scale_points: i32,
+    area_points: i32,
+    asks_note: bool,
+    measuring: bool,
+    choices_json: QString,
+    project_json: QString,
+    scene_id: QString,
 }
 
 fn to_json<T: serde::Serialize>(value: &T) -> String {
@@ -267,100 +344,43 @@ impl qobject::Controller {
         let scale = self.rust().scale.under(backdrop);
         self.as_mut().rust_mut().get_mut().scale = scale;
 
-        let values = {
-            let this = self.as_ref();
-            let Some(s) = this.rust().session.as_ref() else {
-                return;
-            };
-            let measure = this.rust().measure_view();
-            (
-                plan_json(
-                    s,
-                    &s.display_list_for(this.rust().selected.only()),
-                    &this.rust().selected,
-                    (&this.rust().picked(), this.rust().marquee, measure.as_ref()),
-                ),
-                to_json(&s.tracks()),
-                to_json(&s.shots()),
-                to_json(&s.script_lines()),
-                layers_json(s),
-                locks_json(s),
-                s.time_s(),
-                s.selected_shot().unwrap_or_default().to_owned(),
-                s.can_undo(),
-                s.can_redo(),
-                s.is_dirty(),
-                this.rust().selected.only().map(plan::key),
-                this.rust().selected.len(),
-            )
+        let Some(values) = self.rust().collect() else {
+            return;
         };
-        let (
-            plan,
-            tracks,
-            shots,
-            script,
-            layers,
-            locks,
-            time,
-            shot,
-            undo,
-            redo,
-            dirty,
-            selected,
-            count,
-        ) = values;
-        let scale_points = self.rust().scale.points().len();
-        let area_points = self.rust().area.points().len();
-        let asks_note = self.rust().note != NoteDraft::Idle;
-        let measuring = self.rust().measure != MeasureStep::Idle;
-
-        // Restoring a backup or undoing it can change what only the start used to set.
-        let header = {
-            let this = self.as_ref();
-            this.rust().session.as_ref().map(|s| {
-                (
-                    s.project().title.clone(),
-                    s.plan_title(),
-                    s.duration_s(),
-                    choices_json(s),
-                    manage::project_json(s),
-                    s.scene().map(|sc| sc.id.clone()).unwrap_or_default(),
-                )
-            })
-        };
-        if let Some((title, plan_title, duration, choices, project, scene)) = header {
-            self.as_mut().set_project_json(q(&project));
-            self.as_mut().set_scene_id(q(&scene));
-            self.as_mut().set_title(q(&title));
-            self.as_mut().set_plan_title(q(&plan_title));
-            self.as_mut().set_duration(duration);
-            self.as_mut().set_choices_json(q(&choices));
-        }
 
         // The plan set here is the project's: a preview is gone.
         self.as_mut().rust_mut().get_mut().preview = Preview::Hidden;
-        self.as_mut().set_plan_json(q(&plan));
-        self.as_mut().set_tracks_json(q(&tracks));
-        self.as_mut().set_shots_json(q(&shots));
-        self.as_mut().set_script_json(q(&script));
-        self.as_mut().set_layers_json(q(&layers));
-        self.as_mut().set_locks_json(q(&locks));
-        self.as_mut().set_time(time);
-        self.as_mut().set_selected_shot(q(&shot));
-        self.as_mut()
-            .set_selected_key(q(&selected.unwrap_or_default()));
-        self.as_mut()
-            .set_selected_count(i32::try_from(count).unwrap_or_default());
-        self.as_mut().set_can_undo(undo);
-        self.as_mut().set_can_redo(redo);
-        self.as_mut().set_dirty(dirty);
-        self.as_mut().set_has_background(background);
-        self.as_mut()
-            .set_scale_points(i32::try_from(scale_points).unwrap_or_default());
-        self.as_mut()
-            .set_area_points(i32::try_from(area_points).unwrap_or_default());
-        self.as_mut().set_asks_note(asks_note);
-        self.as_mut().set_measuring(measuring);
+        self.show(values);
+    }
+
+    /// Sets the properties from `v`; each signals only when its value changed.
+    fn show(mut self: Pin<&mut Self>, v: Shown) {
+        // Restoring a backup or undoing it can change what only the start used to set.
+        self.as_mut().set_project_json(v.project_json);
+        self.as_mut().set_scene_id(v.scene_id);
+        self.as_mut().set_title(v.title);
+        self.as_mut().set_plan_title(v.plan_title);
+        self.as_mut().set_duration(v.duration);
+        self.as_mut().set_choices_json(v.choices_json);
+
+        self.as_mut().set_plan_json(v.plan_json);
+        self.as_mut().set_tracks_json(v.tracks_json);
+        self.as_mut().set_shots_json(v.shots_json);
+        self.as_mut().set_script_json(v.script_json);
+        self.as_mut().set_layers_json(v.layers_json);
+        self.as_mut().set_locks_json(v.locks_json);
+        self.as_mut().set_time(v.time);
+        self.as_mut().set_selected_shot(v.selected_shot);
+        self.as_mut().set_selected_key(v.selected_key);
+        self.as_mut().set_selected_count(v.selected_count);
+        self.as_mut().set_can_undo(v.can_undo);
+        self.as_mut().set_can_redo(v.can_redo);
+        self.as_mut().set_dirty(v.dirty);
+        self.as_mut().set_has_background(v.has_background);
+        self.as_mut().set_scale_points(v.scale_points);
+        self.as_mut().set_area_points(v.area_points);
+        self.as_mut().set_asks_note(v.asks_note);
+        self.as_mut().set_measuring(v.measuring);
     }
 
     /// Shows `text` in the header until the project changes.
@@ -485,6 +505,49 @@ mod tests {
         assert_eq!(c.scale, ScaleStep::Idle);
         assert_eq!(c.note, NoteDraft::Idle);
         assert!(c.selected.is_empty());
+    }
+
+    /// The start with a project shows what the first refresh would: every value from the
+    /// session, none of the tool or draft state.
+    #[test]
+    fn the_start_fills_every_value() {
+        let mut c = ControllerRust {
+            session: Some(example()),
+            ..ControllerRust::default()
+        };
+        c.fill();
+
+        assert!(c.loaded);
+        assert_eq!(c.title.to_string(), "Die Wartburg-Szene");
+        assert_eq!(
+            c.plan_title.to_string(),
+            "12 · INT. SÄNGERSAAL – TAG · Plan A"
+        );
+        assert_eq!(c.scene_id.to_string(), "szene-012");
+        assert_eq!(c.duration, 20.0);
+        assert_eq!(c.time, 0.0);
+        assert_eq!(c.selected_shot.to_string(), "");
+        assert!(c.snapping_on);
+        assert!(!c.has_background);
+        assert_eq!(c.backup_state.to_string(), "none");
+        assert_eq!(c.backup_message.to_string(), "");
+        assert!(!c.can_undo && !c.can_redo && !c.dirty);
+        assert_eq!(c.selected_key.to_string(), "");
+        assert_eq!(c.selected_count, 0);
+        assert_eq!((c.scale_points, c.area_points), (0, 0));
+        assert!(!c.asks_note && !c.measuring);
+        for json in [
+            &c.plan_json,
+            &c.tracks_json,
+            &c.shots_json,
+            &c.script_json,
+            &c.layers_json,
+            &c.locks_json,
+            &c.choices_json,
+            &c.project_json,
+        ] {
+            assert!(!json.to_string().is_empty());
+        }
     }
 
     /// Review of PR 23, round 4: after a start with `--open` the view on screen was not
