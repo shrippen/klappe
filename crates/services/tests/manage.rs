@@ -535,3 +535,50 @@ fn a_new_project_fills_up_and_reloads() {
     assert_eq!(again.project(), s.project());
     assert_eq!(again.scene().unwrap().number, "1");
 }
+
+/// The example project plus a location `Hof` and a scene `Szene-099` (ids that differ from
+/// the generated ones only in case).
+fn open_with_capitals(name: &str) -> Session {
+    let dir = scratch(name);
+    copy_dir(&example(), &dir);
+
+    let location = std::fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
+    let location = location.replace("id = \"saengersaal\"", "id = \"Hof\"");
+    std::fs::write(dir.join("drehorte/Hof.toml"), location).unwrap();
+
+    let scene = std::fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let scene = scene
+        .replace("\"id\": \"szene-012\"", "\"id\": \"Szene-099\"")
+        .replace("\"number\": \"12\"", "\"number\": \"x\"");
+    std::fs::write(dir.join("szenen/Szene-099.json"), scene).unwrap();
+
+    Session::open(&dir).unwrap()
+}
+
+#[test]
+fn a_new_location_id_differs_from_others_in_more_than_case() {
+    let mut s = open_with_capitals("manage-case-location");
+
+    s.edit_project(add_location("Hof")).unwrap();
+
+    let ids: Vec<_> = s
+        .project()
+        .locations
+        .iter()
+        .map(|l| l.id.to_lowercase())
+        .collect();
+    assert_eq!(ids, ["hof", "hof-2", "saengersaal"]);
+    s.save().unwrap();
+    assert_eq!(s.autosave().unwrap(), klappe_services::Autosave::Clean);
+}
+
+#[test]
+fn a_new_scene_id_differs_from_others_in_more_than_case() {
+    let mut s = open_with_capitals("manage-case-scene");
+
+    s.edit_project(add_scene("99", "saengersaal")).unwrap();
+
+    let ids: Vec<_> = scene_ids(&s).iter().map(|i| i.to_lowercase()).collect();
+    assert_eq!(ids, ["szene-099", "szene-012", "szene-099-2"]);
+    s.save().unwrap();
+}

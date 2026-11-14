@@ -1,5 +1,7 @@
 //! Changes to the project itself: scenes, locations, characters (LH-01 to LH-03).
 
+use std::collections::HashSet;
+
 use klappe_model::{Character, FigureColor, FloorPlan, Location, Project, Scene, SetPlan};
 
 use crate::error::ServiceError;
@@ -125,7 +127,10 @@ fn add_scene(
     let number = free_number(project, number, None)?;
     check_location(project, location)?;
 
-    let id = unique_id(&scene_base(&number), |id| project.scene(id).is_some());
+    let id = unique_id(
+        &scene_base(&number),
+        project.scenes.iter().map(|s| s.id.as_str()),
+    );
     project.scenes.push(Scene {
         id,
         number,
@@ -188,7 +193,7 @@ fn add_location(
     check_size(width_m, depth_m)?;
 
     let base = slug(&name, LOCATION_ID_FALLBACK);
-    let id = unique_id(&base, |id| project.location(id).is_some());
+    let id = unique_id(&base, project.locations.iter().map(|l| l.id.as_str()));
     project.locations.push(Location {
         id,
         name,
@@ -248,7 +253,7 @@ fn add_character(
     let short = short_of(short)?;
 
     let base = slug(&name, CHARACTER_ID_FALLBACK);
-    let id = unique_id(&base, |id| project.character(id).is_some());
+    let id = unique_id(&base, project.characters.iter().map(|c| c.id.as_str()));
     project.characters.push(Character {
         id,
         name,
@@ -415,12 +420,14 @@ fn slug(name: &str, fallback: &str) -> String {
     }
 }
 
-/// `base`, or `base-2`, `base-3` … until `taken` says no and the id can name a file.
-fn unique_id(base: &str, taken: impl Fn(&str) -> bool) -> String {
+/// `base`, or `base-2`, `base-3` … until no id of `existing` is the same and the id can name
+/// a file. `Hof` and `hof` are the same: the store refuses both in one project.
+fn unique_id<'a>(base: &str, existing: impl Iterator<Item = &'a str>) -> String {
+    let taken: HashSet<String> = existing.map(str::to_lowercase).collect();
     let mut id = base.to_owned();
     let mut n = 1;
 
-    while taken(&id) || !klappe_store::is_safe_id(&id) {
+    while taken.contains(&id.to_lowercase()) || !klappe_store::is_safe_id(&id) {
         n += 1;
         id = format!("{base}-{n}");
     }
@@ -449,6 +456,6 @@ mod tests {
 
     #[test]
     fn a_device_name_gets_a_suffix() {
-        assert_eq!(unique_id("con", |_| false), "con-2");
+        assert_eq!(unique_id("con", [].into_iter()), "con-2");
     }
 }
