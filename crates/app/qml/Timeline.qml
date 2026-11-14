@@ -47,7 +47,7 @@ Item {
             Item { Layout.fillWidth: true }
             KanteSectionLabel { text: line.texts.t("layer.title") }
             Repeater {
-                model: ["set", "figures", "cameras", "lights"]
+                model: ["set", "figures", "cameras", "lights", "notes"]
                 delegate: KanteToolButton {
                     required property string modelData
                     text: line.texts.t("layer." + modelData)

@@ -25,7 +25,7 @@ pub mod qobject {
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
         #[qproperty(QString, script_json, cxx_name = "scriptJson")]
-        /// `{ set, figures, cameras, lights }`: true when shown.
+        /// `{ set, figures, cameras, lights, notes }`: true when shown.
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
         #[qproperty(f64, time)]
         #[qproperty(f64, duration)]
@@ -43,6 +43,10 @@ pub mod qobject {
         #[qproperty(bool, has_background, cxx_name = "hasBackground")]
         /// Points picked so far by the scale tool: 0, 1 or 2 (then the length is asked).
         #[qproperty(i32, scale_points, cxx_name = "scalePoints")]
+        /// Whether the text of a note is being asked (`commitNote` or `cancelNote` answers).
+        #[qproperty(bool, asks_note, cxx_name = "asksNote")]
+        /// The text the question starts with: the note's own when it is edited.
+        #[qproperty(QString, note_text, cxx_name = "noteText")]
         /// Last message for the status line, already translated.
         #[qproperty(QString, status)]
         /// Backup found at open: `none`, `found` or `unreadable`; answer with `restoreBackup`
@@ -145,6 +149,21 @@ pub mod qobject {
         #[cxx_name = "cancelScale"]
         fn cancel_scale(self: Pin<&mut Self>);
 
+        /// Gives the asked note its text; false for a blank text or no question.
+        #[qinvokable]
+        #[cxx_name = "commitNote"]
+        fn commit_note(self: Pin<&mut Self>, text: &QString) -> bool;
+
+        /// Drops the question for a note's text.
+        #[qinvokable]
+        #[cxx_name = "cancelNote"]
+        fn cancel_note(self: Pin<&mut Self>);
+
+        /// Asks for the text of the selected note; false when no note is selected.
+        #[qinvokable]
+        #[cxx_name = "editSelectedNote"]
+        fn edit_selected_note(self: Pin<&mut Self>) -> bool;
+
         /// Removes the selected element.
         #[qinvokable]
         #[cxx_name = "removeSelected"]
@@ -196,7 +215,7 @@ use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{backup_view, error_text, Status};
 use crate::plan;
-use crate::tools::{self, Backdrop, DragPhase, DragStep, Key, Preview, ScaleStep, Tool};
+use crate::tools::{self, Backdrop, DragPhase, DragStep, Key, NoteDraft, Preview, ScaleStep, Tool};
 
 pub struct ControllerRust {
     session: Option<Session>,
@@ -226,6 +245,10 @@ pub struct ControllerRust {
     scale: ScaleStep,
     has_background: bool,
     scale_points: i32,
+    /// The note whose text is asked, if any.
+    note: NoteDraft,
+    asks_note: bool,
+    note_text: QString,
     /// What the plan on screen shows: a drag preview or the project.
     preview: Preview,
     status: QString,
@@ -294,6 +317,9 @@ impl Default for ControllerRust {
             scale: ScaleStep::Idle,
             has_background: false,
             scale_points: 0,
+            note: NoteDraft::Idle,
+            asks_note: false,
+            note_text: QString::default(),
             preview: Preview::Hidden,
             backup_state: QString::default(),
             backup_message: QString::default(),
@@ -388,6 +414,7 @@ fn layers_json(s: &Session) -> String {
         "figures": shown(Layer::Figures),
         "cameras": shown(Layer::Cameras),
         "lights": shown(Layer::Lights),
+        "notes": shown(Layer::Notes),
     })
     .to_string()
 }
@@ -413,6 +440,7 @@ fn layer_of(name: &str) -> Option<Layer> {
         "figures" => Some(Layer::Figures),
         "cameras" => Some(Layer::Cameras),
         "lights" => Some(Layer::Lights),
+        "notes" => Some(Layer::Notes),
         _ => None,
     }
 }
@@ -480,6 +508,7 @@ impl qobject::Controller {
         };
         let (plan, tracks, shots, script, layers, time, shot, undo, redo, dirty, selected) = values;
         let scale_points = self.rust().scale.points().len();
+        let asks_note = self.rust().note != NoteDraft::Idle;
 
         // Restoring a backup or undoing it can change what only the start used to set.
         let header = {
@@ -517,6 +546,7 @@ impl qobject::Controller {
         self.as_mut().set_has_background(background);
         self.as_mut()
             .set_scale_points(i32::try_from(scale_points).unwrap_or_default());
+        self.as_mut().set_asks_note(asks_note);
     }
 
     /// Shows `text` in the header until the project changes.
@@ -657,9 +687,13 @@ impl qobject::Controller {
 
         // Points picked for a scale do not outlast the tool.
         let leaves_scale = tool != Tool::Scale && self.rust().scale != ScaleStep::Idle;
+        let leaves_note = tool != Tool::Note && self.rust().note != NoteDraft::Idle;
         self.as_mut().rust_mut().get_mut().tool = tool;
         if leaves_scale {
-            self.cancel_scale();
+            self.as_mut().cancel_scale();
+        }
+        if leaves_note {
+            self.cancel_note();
         }
         true
     }
@@ -732,6 +766,10 @@ impl qobject::Controller {
         if tool == Tool::Scale {
             return self.pick_scale_point(at);
         }
+        if tool == Tool::Note {
+            let picked = s.pick(Point::new(x, y));
+            return self.ask_note(NoteDraft::click(at, picked.as_ref()));
+        }
 
         let Some(edit) = tools::click_edit(&tool, at) else {
             return false;
@@ -775,6 +813,29 @@ impl qobject::Controller {
         self.refresh();
     }
 
+    fn commit_note(mut self: Pin<&mut Self>, text: &QString) -> bool {
+        let draft = self.rust().note.clone();
+        let Some(edit) = tools::note_edit(&draft, &text.to_string()) else {
+            return false;
+        };
+
+        self.as_mut().rust_mut().get_mut().note = NoteDraft::Idle;
+        self.commit_edit(edit)
+    }
+
+    fn cancel_note(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().get_mut().note = NoteDraft::Idle;
+        self.refresh();
+    }
+
+    fn edit_selected_note(self: Pin<&mut Self>) -> bool {
+        let Some(Source::Note(id)) = self.rust().selected.clone() else {
+            return false;
+        };
+
+        self.ask_note(NoteDraft::Edit(id))
+    }
+
     fn grabbable(&self, x: f64, y: f64) -> bool {
         let Some(s) = self.rust().session.as_ref() else {
             return false;
@@ -812,6 +873,26 @@ impl qobject::Controller {
 
     fn cancel_drag(self: Pin<&mut Self>) {
         self.refresh();
+    }
+
+    /// Starts asking for a note's text: empty for a new note, the note's own for an edit.
+    /// False when the note to edit is gone.
+    fn ask_note(mut self: Pin<&mut Self>, draft: NoteDraft) -> bool {
+        let text = match &draft {
+            NoteDraft::Edit(id) => {
+                let text = self.rust().session.as_ref().and_then(|s| note_text(s, id));
+                let Some(text) = text else {
+                    return false;
+                };
+                text
+            }
+            _ => String::new(),
+        };
+
+        self.as_mut().rust_mut().get_mut().note = draft;
+        self.as_mut().set_note_text(q(&text));
+        self.refresh();
+        true
     }
 
     /// A click of the scale tool: the next point of the stretch. Without a background there
@@ -996,6 +1077,13 @@ fn print_texts(language: Language) -> Texts {
     }
 }
 
+/// The text of the current set's note `id`.
+fn note_text(s: &Session, id: &str) -> Option<String> {
+    let location = s.project().location(&s.scene()?.location)?;
+
+    Some(location.set.notes.iter().find(|n| n.id == id)?.text.clone())
+}
+
 /// Data for a tooltip; QML puts it into words with the catalogue.
 fn describe(s: &Session, key: &str) -> serde_json::Value {
     let mut parts = key.split(':');
@@ -1056,6 +1144,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
                 .unwrap_or_default();
             json!({ "kind": "object", "label": label })
         }
+        "note" => json!({ "kind": "note", "text": note_text(s, id).unwrap_or_default() }),
         _ => json!({}),
     }
 }

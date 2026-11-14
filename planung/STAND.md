@@ -1,6 +1,6 @@
 # Arbeitsstand
 
-Stand: 2026-11-13.
+Stand: 2026-11-14.
 
 ## Phase 0 (KONZEPT.md, Abschnitt 6)
 
@@ -19,5 +19,6 @@ Stand: 2026-11-13.
 | Werkzeuge zum Zeichnen (Wand, Objekt, Figur, Kamera, Licht) | erste Fassung |
 | Automatisches Speichern (LH-05) | fertig |
 | Hintergrundbild mit Maßstab (LH-13) | erste Fassung; offen: PDF als Hintergrund |
+| Notizen im Plan (LH-16): Werkzeug, Ebene, Export | erste Fassung; offen: Doppelklick zum Bearbeiten (F2 oder Klick mit dem Notiz-Werkzeug), Textform statt Marker mit Beschriftung |
 | Perspektive und Drehreihenfolge der Shotliste (LH-71, LH-72) | fertig |
 | Demo-Modus mit „Studio Weber“ für Screenshots | offen |

@@ -34,6 +34,7 @@ fn look(role: Role) -> Look {
         Role::Object => l("muted", SOLID, "tint"),
         Role::LightBeam => l("orange", SOLID, "tint"),
         Role::Light => l("orange", SOLID, "solid"),
+        Role::Note => l("accent", SOLID, "solid"),
         Role::Axis => l("orange", DASHED, "none"),
         Role::CameraPath => l("yellow", DOTTED, "none"),
         Role::Frustum => l("yellow", SOLID, "tint"),
@@ -66,6 +67,7 @@ pub fn key(source: &Source) -> String {
         Source::Figure(id) => format!("figure:{id}"),
         Source::Mark { character, index } => format!("mark:{character}:{index}"),
         Source::Wall(index) => format!("wall:{index}"),
+        Source::Note(id) => format!("note:{id}"),
     }
 }
 
@@ -241,6 +243,30 @@ mod tests {
         assert_eq!(v["shapes"][1]["points"], json!([2.0, 3.0]));
         assert_eq!(v["shapes"][1]["key"], "camera:a");
         assert_eq!(v["shapes"][1]["selected"], true);
+    }
+
+    #[test]
+    fn a_note_is_a_marker_with_its_text() {
+        let list = DisplayList {
+            items: vec![Item {
+                role: Role::Note,
+                shape: Shape::Circle {
+                    center: Point::new(3.0, 4.0),
+                    radius_m: 0.15,
+                },
+                label: Some("Vorhang schließen".into()),
+                source: Some(Source::Note("n1".into())),
+            }],
+            width_m: 20.0,
+            depth_m: 13.0,
+        };
+
+        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[]);
+        let v: Value = serde_json::from_str(&json).unwrap_or_default();
+
+        assert_eq!(v["shapes"][0]["text"], "Vorhang schließen");
+        assert_eq!(v["shapes"][0]["key"], "note:n1");
+        assert_eq!(v["shapes"][0]["label"], "accent");
     }
 
     #[test]

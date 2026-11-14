@@ -85,6 +85,18 @@ pub struct SetPlan {
     /// An image under the set, e.g. a floor plan or an aerial photo (LH-13).
     #[serde(default)]
     pub background: Option<Background>,
+    /// Free text on the plan, e.g. `Vorhang schließen` (LH-16).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<Note>,
+}
+
+/// A text pinned to a place on the set.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Note {
+    /// Stable id within the set, e.g. `n1`.
+    pub id: String,
+    pub at: Point,
+    pub text: String,
 }
 
 /// An image behind the plan, scaled so that its pixels measure what they do on site. The

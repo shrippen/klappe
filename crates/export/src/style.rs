@@ -87,6 +87,11 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
                 Some(line(c, OUTLINE_PT, Dash::Solid)),
             )
         }
+        Role::Note => (
+            "note".to_string(),
+            Some(solid(pal.surface)),
+            Some(line(fg, OUTLINE_PT, Dash::Solid)),
+        ),
         Role::Axis => (
             "axis".to_string(),
             None,

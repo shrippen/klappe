@@ -244,6 +244,11 @@ fn example() -> Project {
                 ),
             ],
             background: None,
+            notes: vec![Note {
+                id: "n1".into(),
+                at: Point::new(3.0, 11.5),
+                text: "Vorhang schließen".into(),
+            }],
         },
     }];
 
@@ -315,6 +320,22 @@ fn example_matches_generator() {
     let loaded = load(Path::new(EXAMPLE)).unwrap();
 
     assert_eq!(loaded.project, example());
+}
+
+/// A set without notes writes no `notes` key, and a file without it loads as before (LH-16).
+#[test]
+fn a_set_without_notes_loads_and_writes_none() {
+    let dir = test_dir("no-notes");
+    let mut project = example();
+    project.locations[0].set.notes.clear();
+
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
+    let loaded = load(&dir).unwrap();
+
+    assert!(!text.contains("notes"), "{text}");
+    assert!(loaded.project.locations[0].set.notes.is_empty());
+    assert_eq!(loaded.project, project);
 }
 
 #[test]

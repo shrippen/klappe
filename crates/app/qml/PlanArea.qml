@@ -14,7 +14,7 @@ Item {
     required property var controller
 
     readonly property var plan: controller.planJson ? JSON.parse(controller.planJson) : null
-    /// The tool of PlanTools: select, wall, object, figure, camera, light or scale.
+    /// The tool of PlanTools: select, wall, object, figure, camera, light, scale or note.
     property string tool: "select"
     property string tipKey: ""
     /// The pointer is over something the select tool can move: a left drag then moves it,
@@ -96,6 +96,59 @@ Item {
         }
     }
 
+    // Note tool, or F2 on a selected note: the text of the note. Enter sets it, Escape drops
+    // the question; a blank text is refused.
+    KanteCard {
+        id: noteCard
+        objectName: "noteCard"
+        visible: area.controller.asksNote
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Kirigami.Units.largeSpacing
+        implicitWidth: noteRow.implicitWidth + Kirigami.Units.largeSpacing * 2
+        implicitHeight: noteRow.implicitHeight + Kirigami.Units.largeSpacing * 2
+
+        RowLayout {
+            id: noteRow
+            anchors.centerIn: parent
+            spacing: Kirigami.Units.smallSpacing
+
+            KanteSectionLabel { text: area.texts.t("note.text") }
+            KanteTextField {
+                id: noteField
+                objectName: "noteField"
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 18
+                Accessible.name: area.texts.t("note.text")
+                onTextChanged: invalid = false
+                onAccepted: area.setNote()
+                Keys.onEscapePressed: area.controller.cancelNote()
+            }
+            KanteButton {
+                objectName: "noteApply"
+                text: area.texts.t("note.apply")
+                onClicked: area.setNote()
+            }
+        }
+    }
+
+    Connections {
+        target: area.controller
+        function onAsksNoteChanged() {
+            if (!area.controller.asksNote) {
+                return
+            }
+            noteField.text = area.controller.noteText
+            noteField.forceActiveFocus()
+            noteField.selectAll()
+        }
+    }
+
+    function setNote() {
+        if (!controller.commitNote(noteField.text)) {
+            noteField.invalid = true
+        }
+    }
+
     onAsksLengthChanged: {
         lengthField.text = ""
         if (asksLength) {
@@ -129,11 +182,16 @@ Item {
     // Keys for the selection: Delete removes it, R and Shift+R turn it by 15 degrees.
     readonly property real turnStepDeg: 15
     // Not while a length is typed: Delete there edits the text.
-    readonly property bool hasSelection: !!controller.selectedKey && !lengthField.activeFocus
+    readonly property bool hasSelection: !!controller.selectedKey && !lengthField.activeFocus && !noteField.activeFocus
     Shortcut {
         sequence: "Delete"
         enabled: area.hasSelection
         onActivated: area.controller.removeSelected()
+    }
+    Shortcut {
+        sequence: "F2"
+        enabled: area.hasSelection && area.controller.selectedKey.indexOf("note:") === 0
+        onActivated: area.controller.editSelectedNote()
     }
     Shortcut {
         sequence: "R"
@@ -165,6 +223,8 @@ Item {
             return [t.t("tip.light", { label: d.label, temp: d.temp, power: d.power })]
         case "object":
             return [t.t("tip.object", { label: d.label })]
+        case "note":
+            return [t.t("tip.note", { text: d.text })]
         }
         return []
     }
