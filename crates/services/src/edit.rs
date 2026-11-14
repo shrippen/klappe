@@ -142,6 +142,15 @@ mod tests {
     }
 
     #[test]
+    fn lens_has_a_range() {
+        assert_eq!(lens_of("0,5"), None);
+        assert_eq!(lens_of("2001"), None);
+        assert_eq!(lens_of("inf"), None);
+        assert_eq!(lens_of("NaN"), None);
+        assert_eq!(lens_of("85 m"), None);
+    }
+
+    #[test]
     fn names_round_trip() {
         for s in ShotSize::ALL {
             assert_eq!(size_of(s.name()), Some(s));

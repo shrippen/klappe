@@ -1504,6 +1504,22 @@ mod tests {
         assert_eq!(parse_metres("inf"), None);
     }
 
+    /// Characterisation: today only the lens in the shot list and the location form take a
+    /// unit; these readers do not.
+    #[test]
+    fn typed_units_are_refused_by_the_plan_tools() {
+        let object = Source::Object("o".into());
+        let camera = Source::Camera("a".into());
+        let (a, b) = (p(1.0, 1.0), p(4.0, 1.0));
+
+        assert_eq!(resize_edit(Some(&object), "2 m", "1"), None);
+        assert_eq!(object_height_edit(Some(&object), "1 m"), None);
+        assert_eq!(scale_edit(ScaleStep::Both(a, b), "3 m"), None);
+        assert_eq!(hold_edit(Some(&camera), "2 s"), None);
+        assert_eq!(aim_edit(Some(&camera), "1 m", "0"), None);
+        assert_eq!(aim_edit(Some(&camera), "1", "10°"), None);
+    }
+
     #[test]
     fn the_scale_edit_needs_both_points_and_a_length() {
         let (a, b) = (p(1.0, 1.0), p(4.0, 1.0));

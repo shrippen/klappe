@@ -372,6 +372,14 @@ mod tests {
         ));
     }
 
+    /// Characterisation: the form reads any finite-or-not number; the session sets the range.
+    #[test]
+    fn lengths_have_no_range_here() {
+        assert_eq!(metres(Field::Width, "0").ok(), Some(0.0));
+        assert_eq!(metres(Field::Width, "-3").ok(), Some(-3.0));
+        assert!(metres(Field::Width, "").is_err());
+    }
+
     #[test]
     fn colours_go_by_their_role_name() {
         assert_eq!(FigureColor::from_name("purple"), Some(FigureColor::Purple));

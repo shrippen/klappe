@@ -170,6 +170,15 @@ mod tests {
         );
     }
 
+    /// Characterisation: the camera card refuses the unit the shot list takes.
+    #[test]
+    fn typed_units_are_refused_by_the_camera_card() {
+        let pick = |field, text| camera_edit(Some(&camera()), presets(), field, text);
+
+        assert_eq!(pick(CameraField::Lens, "85 mm"), None);
+        assert_eq!(pick(CameraField::Sensor, "36 mm"), None);
+    }
+
     #[test]
     fn a_ratio_is_a_frame() {
         let pick = |text| camera_edit(Some(&camera()), presets(), CameraField::Aspect, text);
