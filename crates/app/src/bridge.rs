@@ -1216,10 +1216,7 @@ impl qobject::Controller {
         } else {
             DragPhase::Moving
         };
-        self.as_mut().rust_mut().get_mut().grip = match phase {
-            DragPhase::Done => Grip::Free,
-            DragPhase::Moving => grip,
-        };
+        self.as_mut().rust_mut().get_mut().grip = grip.after(phase);
 
         // Empty ground with the select tool pulls up a box to take what lies in it.
         if tool == Tool::Select && grabbed.is_none() {
@@ -1588,7 +1585,8 @@ impl qobject::Controller {
     }
 
     fn cancel_drag(mut self: Pin<&mut Self>) {
-        self.as_mut().rust_mut().get_mut().grip = Grip::Free;
+        let grip = std::mem::take(&mut self.as_mut().rust_mut().get_mut().grip);
+        self.as_mut().rust_mut().get_mut().grip = grip.cancelled();
         self.as_mut().rust_mut().get_mut().marquee = None;
         self.refresh();
     }
