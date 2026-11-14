@@ -8,6 +8,7 @@ use klappe_model::{
 };
 
 use crate::error::ServiceError;
+use crate::field::Field;
 use crate::library;
 
 /// What the project view does. Ids are made from the name when something is added and never
@@ -396,19 +397,19 @@ fn same_entry(a: &LibraryItem, b: &LibraryItem) -> bool {
 fn check_item(item: &LibraryItem) -> Result<(), ServiceError> {
     if item.kind.trim().is_empty() {
         return Err(ServiceError::BadValue {
-            field: "kind",
+            field: Field::Kind,
             value: String::new(),
         });
     }
     if !is_object_size_m(item.width_m) || !is_object_size_m(item.depth_m) {
         return Err(ServiceError::BadValue {
-            field: "size",
+            field: Field::Size,
             value: format!("{} x {}", item.width_m, item.depth_m),
         });
     }
     if item.height_m.is_some_and(|h| !is_object_height_m(h)) {
         return Err(ServiceError::BadValue {
-            field: "height",
+            field: Field::Height,
             value: format!("{:?}", item.height_m),
         });
     }
@@ -437,7 +438,7 @@ fn uses(plan: &FloorPlan, character: &str) -> bool {
 fn free_number(project: &Project, number: &str, own: Option<&str>) -> Result<String, ServiceError> {
     let number = number.trim();
     let bad = || ServiceError::BadValue {
-        field: "number",
+        field: Field::Number,
         value: number.to_owned(),
     };
     if number.is_empty() {
@@ -467,7 +468,7 @@ fn name_of(name: &str) -> Result<String, ServiceError> {
     let name = name.trim();
     if name.is_empty() {
         return Err(ServiceError::BadValue {
-            field: "name",
+            field: Field::Name,
             value: String::new(),
         });
     }
@@ -478,7 +479,7 @@ fn short_of(short: &str) -> Result<String, ServiceError> {
     let short = short.trim();
     if short.is_empty() || short.chars().count() > MAX_SHORT_CHARS {
         return Err(ServiceError::BadValue {
-            field: "short",
+            field: Field::Short,
             value: short.to_owned(),
         });
     }
@@ -489,7 +490,7 @@ fn short_of(short: &str) -> Result<String, ServiceError> {
 fn check_size(width_m: f64, depth_m: f64) -> Result<(), ServiceError> {
     let fits = |side: f64| side > 0.0 && side <= MAX_SET_M;
 
-    for (field, side) in [("width", width_m), ("depth", depth_m)] {
+    for (field, side) in [(Field::Width, width_m), (Field::Depth, depth_m)] {
         if !fits(side) {
             return Err(ServiceError::BadValue {
                 field,

@@ -508,8 +508,9 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Autosave, DisplayList, FigureColor, Layer, Lock, Paper, PlanEdit, Point,
-    ProjectEdit, ServiceError, Session, ShotField, ShotOrder, Snapping, Source, Texts, Visibility,
+    horizontal_fov_deg, Autosave, DisplayList, Field, FigureColor, Layer, Lock, Paper, PlanEdit,
+    Point, ProjectEdit, ServiceError, Session, ShotField, ShotOrder, Snapping, Source, Texts,
+    Visibility,
 };
 use serde_json::json;
 
@@ -2242,8 +2243,8 @@ impl qobject::Controller {
 
 /// Width and depth typed in the location form.
 fn sizes(width: &QString, depth: &QString) -> Result<(f64, f64), ServiceError> {
-    let width_m = manage::metres("width", &width.to_string())?;
-    let depth_m = manage::metres("depth", &depth.to_string())?;
+    let width_m = manage::metres(Field::Width, &width.to_string())?;
+    let depth_m = manage::metres(Field::Depth, &depth.to_string())?;
 
     Ok((width_m, depth_m))
 }
@@ -2253,7 +2254,7 @@ fn color_edit(name: &QString) -> Result<FigureColor, ServiceError> {
     let name = name.to_string();
 
     manage::color_of(&name).ok_or(ServiceError::BadValue {
-        field: "color",
+        field: Field::Color,
         value: name,
     })
 }

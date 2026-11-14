@@ -12,6 +12,7 @@ use klappe_stellprobe::{
 
 use crate::camera_edit;
 use crate::error::ServiceError;
+use crate::field::Field;
 use crate::library;
 use crate::session::Layer;
 
@@ -691,7 +692,7 @@ fn check_hold(hold_s: f64) -> Result<(), ServiceError> {
     }
 
     Err(ServiceError::BadValue {
-        field: "hold_s",
+        field: Field::HoldS,
         value: hold_s.to_string(),
     })
 }
@@ -700,13 +701,13 @@ fn check_hold(hold_s: f64) -> Result<(), ServiceError> {
 fn check_camera_aim(height_m: f64, tilt_deg: f64) -> Result<(), ServiceError> {
     if !height_m.is_finite() || !(0.0..=MAX_CAMERA_HEIGHT_M).contains(&height_m) {
         return Err(ServiceError::BadValue {
-            field: "height",
+            field: Field::Height,
             value: height_m.to_string(),
         });
     }
     if !tilt_deg.is_finite() || !(-MAX_TILT_DEG..=MAX_TILT_DEG).contains(&tilt_deg) {
         return Err(ServiceError::BadValue {
-            field: "tilt",
+            field: Field::Tilt,
             value: tilt_deg.to_string(),
         });
     }
@@ -724,7 +725,7 @@ fn check_object_height(height_m: Option<f64>) -> Result<(), ServiceError> {
     }
 
     Err(ServiceError::BadValue {
-        field: "height",
+        field: Field::Height,
         value: height_m.to_string(),
     })
 }
@@ -736,7 +737,7 @@ fn check_distance(distance_m: f64) -> Result<(), ServiceError> {
     }
 
     Err(ServiceError::BadValue {
-        field: "distance",
+        field: Field::Distance,
         value: distance_m.to_string(),
     })
 }
@@ -748,7 +749,7 @@ fn check_object_size(width_m: f64, depth_m: f64) -> Result<(), ServiceError> {
     }
 
     Err(ServiceError::BadValue {
-        field: "size",
+        field: Field::Size,
         value: format!("{width_m} x {depth_m}"),
     })
 }
@@ -759,7 +760,7 @@ fn check_point(p: Point) -> Result<(), ServiceError> {
     }
 
     Err(ServiceError::BadValue {
-        field: "point",
+        field: Field::Point,
         value: format!("{}, {}", p.x_m, p.y_m),
     })
 }
@@ -770,7 +771,7 @@ fn check_angle(deg: f64) -> Result<(), ServiceError> {
     }
 
     Err(ServiceError::BadValue {
-        field: "angle",
+        field: Field::Angle,
         value: deg.to_string(),
     })
 }
@@ -1223,7 +1224,7 @@ fn remove_camera(plan: &mut FloorPlan, id: &str) -> Result<(), ServiceError> {
 fn add_mark(scope: &mut Scope<'_>, character: &str, at: Point) -> Result<(), ServiceError> {
     if !scope.characters.iter().any(|c| c.id == character) {
         return Err(ServiceError::BadValue {
-            field: "character",
+            field: Field::Character,
             value: character.to_owned(),
         });
     }
@@ -1402,7 +1403,7 @@ fn rotate(point: Point, centre: Point, deg: f64) -> Point {
     )
 }
 
-fn bad_mark(field: &'static str, value: &str) -> ServiceError {
+fn bad_mark(field: Field, value: &str) -> ServiceError {
     ServiceError::BadValue {
         field,
         value: value.to_owned(),
@@ -1410,7 +1411,8 @@ fn bad_mark(field: &'static str, value: &str) -> ServiceError {
 }
 
 fn set_pose(scope: &mut Scope<'_>, source: &Source, pose: Pose) -> Result<(), ServiceError> {
-    let (character, index) = figure_mark(scope, source).ok_or_else(|| bad_mark("source", ""))?;
+    let (character, index) =
+        figure_mark(scope, source).ok_or_else(|| bad_mark(Field::Source, ""))?;
     let mark = scope
         .plan
         .figures
@@ -1449,7 +1451,8 @@ fn figure_mark_mut<'a>(
     scope: &'a mut Scope<'_>,
     source: &Source,
 ) -> Result<&'a mut Mark, ServiceError> {
-    let (character, index) = figure_mark(scope, source).ok_or_else(|| bad_mark("source", ""))?;
+    let (character, index) =
+        figure_mark(scope, source).ok_or_else(|| bad_mark(Field::Source, ""))?;
 
     scope
         .plan
@@ -1520,7 +1523,7 @@ fn timing<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Timing<'a>, S
 
             (index, marks.map(|m| (&mut m.at_s, &mut m.hold_s)).collect())
         }
-        _ => return Err(bad_mark("source", "")),
+        _ => return Err(bad_mark(Field::Source, "")),
     };
     let index = index
         .filter(|i| *i < marks.len())
@@ -1546,7 +1549,7 @@ fn set_camera_aim(
     (height_m, tilt_deg): (f64, f64),
 ) -> Result<(), ServiceError> {
     let Source::Camera(id) = source else {
-        return Err(bad_mark("source", ""));
+        return Err(bad_mark(Field::Source, ""));
     };
     let time_s = scope.time_s;
     let camera = scope
@@ -1573,7 +1576,7 @@ fn set_object_height(
 ) -> Result<(), ServiceError> {
     let Source::Object(id) = source else {
         return Err(ServiceError::BadValue {
-            field: "source",
+            field: Field::Source,
             value: String::new(),
         });
     };
@@ -1589,10 +1592,11 @@ fn set_object_height(
 }
 
 fn set_pace(scope: &mut Scope<'_>, source: &Source, pace: Pace) -> Result<(), ServiceError> {
-    let (character, index) = figure_mark(scope, source).ok_or_else(|| bad_mark("source", ""))?;
+    let (character, index) =
+        figure_mark(scope, source).ok_or_else(|| bad_mark(Field::Source, ""))?;
     let before = index
         .checked_sub(1)
-        .ok_or_else(|| bad_mark("pace", "first mark"))?;
+        .ok_or_else(|| bad_mark(Field::Pace, "first mark"))?;
     let marks = &scope
         .plan
         .figure(&character)
@@ -1605,7 +1609,7 @@ fn set_pace(scope: &mut Scope<'_>, source: &Source, pace: Pace) -> Result<(), Se
     // A way the figure does not walk (it appears there, or left before) has no pace (LH-26).
     let track = scope.plan.figure(&character).ok_or(ServiceError::Gone)?;
     if !walked_ways(track).get(index).copied().unwrap_or(false) {
-        return Err(bad_mark("pace", "no way"));
+        return Err(bad_mark(Field::Pace, "no way"));
     }
 
     // Arrive after the pause at the mark before and the walk along the way.
@@ -1699,7 +1703,7 @@ fn follow(scope: &mut Scope<'_>, camera: &str, figure: Option<&str>) -> Result<(
     if let Some(character) = figure {
         if scope.plan.figure(character).is_none() {
             return Err(ServiceError::BadValue {
-                field: "follows",
+                field: Field::Follows,
                 value: character.to_owned(),
             });
         }
@@ -1738,7 +1742,7 @@ fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result<(), Servic
     let kind = kind.trim();
     if kind.is_empty() {
         return Err(ServiceError::BadValue {
-            field: "kind",
+            field: Field::Kind,
             value: String::new(),
         });
     }
@@ -1785,7 +1789,7 @@ fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result<(), Servic
 fn resize(scope: &mut Scope<'_>, source: &Source, size_m: (f64, f64)) -> Result<(), ServiceError> {
     let Source::Object(id) = source else {
         return Err(ServiceError::BadValue {
-            field: "source",
+            field: Field::Source,
             value: String::new(),
         });
     };
@@ -1803,7 +1807,7 @@ fn resize(scope: &mut Scope<'_>, source: &Source, size_m: (f64, f64)) -> Result<
 fn add_wall(scope: &mut Scope<'_>, from: Point, to: Point) -> Result<(), ServiceError> {
     if from == to {
         return Err(ServiceError::BadValue {
-            field: "wall",
+            field: Field::Wall,
             value: "0".to_owned(),
         });
     }
@@ -1826,7 +1830,7 @@ fn note_text(text: &str) -> Result<String, ServiceError> {
     let text = text.trim();
     if text.is_empty() {
         return Err(ServiceError::BadValue {
-            field: "note",
+            field: Field::Note,
             value: String::new(),
         });
     }
@@ -1875,7 +1879,7 @@ fn add_drawing(
     };
     if !drawable {
         return Err(ServiceError::BadValue {
-            field: "drawing",
+            field: Field::Drawing,
             value: "empty".to_owned(),
         });
     }
@@ -1900,7 +1904,7 @@ fn set_background(scope: &mut Scope<'_>, dir: &Path, source: &Path) -> Result<()
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
     if !(set.width_m.is_finite() && set.width_m > 0.0) {
         return Err(ServiceError::BadValue {
-            field: "set width",
+            field: Field::SetWidth,
             value: set.width_m.to_string(),
         });
     }
@@ -1936,7 +1940,7 @@ fn calibrate(
     let shown_m = from.distance_m(to);
     if shown_m == 0.0 {
         return Err(ServiceError::BadValue {
-            field: "points",
+            field: Field::Points,
             value: "same".to_owned(),
         });
     }

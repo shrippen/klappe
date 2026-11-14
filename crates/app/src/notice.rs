@@ -65,7 +65,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
             return language.text("error.locked").replace("{layer}", &name);
         }
         ServiceError::BadValue { field, value } => {
-            let name = language.text(&format!("field.{field}"));
+            let name = language.text(&format!("field.{}", field.name()));
             return language
                 .text("error.badValue")
                 .replace("{field}", &name)
@@ -121,43 +121,17 @@ impl Status {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use klappe_services::Field;
     use std::path::PathBuf;
-
-    /// The `field` names the services give `BadValue`, read from their sources: `field: "x"`.
-    fn bad_value_fields() -> Vec<String> {
-        let mut fields = Vec::new();
-        let mut dirs = vec![PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../services/src")];
-
-        while let Some(dir) = dirs.pop() {
-            for entry in std::fs::read_dir(&dir).unwrap() {
-                let path = entry.unwrap().path();
-                if path.is_dir() {
-                    dirs.push(path);
-                    continue;
-                }
-                let text = std::fs::read_to_string(&path).unwrap();
-                for part in text.split("field: \"").skip(1) {
-                    let name = part.split('"').next().unwrap_or_default();
-                    fields.push(name.to_owned());
-                }
-            }
-        }
-        fields.sort();
-        fields.dedup();
-
-        fields
-    }
 
     /// Review of PR 37: a refused tilt said "field.tilt", the catalogue had no such key.
     #[test]
     fn every_refused_field_has_a_name() {
-        let fields = bad_value_fields();
-        assert!(fields.contains(&"tilt".to_owned()), "{fields:?}");
-
         for language in [Language::German, Language::English] {
-            let raw: Vec<_> = fields
+            let raw: Vec<_> = Field::ALL
                 .iter()
-                .filter(|f| language.text(&format!("field.{f}")) == format!("field.{f}"))
+                .map(|f| f.name())
+                .filter(|name| language.text(&format!("field.{name}")) == format!("field.{name}"))
                 .collect();
 
             assert!(raw.is_empty(), "{language:?}: {raw:?}");
@@ -198,7 +172,7 @@ mod tests {
             source: std::io::Error::other("kaputt"),
         };
         let bad = ServiceError::BadValue {
-            field: "lens",
+            field: Field::Lens,
             value: "5000".to_owned(),
         };
 

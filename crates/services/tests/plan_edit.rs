@@ -5,7 +5,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Layer, LightKind, PlanEdit, Point, ServiceError, Session, Shape, Snapping, Source, Visibility,
+    Field, Layer, LightKind, PlanEdit, Point, ServiceError, Session, Shape, Snapping, Source,
+    Visibility,
 };
 
 fn example() -> PathBuf {
@@ -388,7 +389,7 @@ fn a_mark_needs_a_known_character() {
     assert!(matches!(
         err,
         ServiceError::BadValue {
-            field: "character",
+            field: Field::Character,
             ..
         }
     ));
@@ -470,7 +471,13 @@ fn a_wall_of_no_length_is_refused() {
         })
         .unwrap_err();
 
-    assert!(matches!(err, ServiceError::BadValue { field: "wall", .. }));
+    assert!(matches!(
+        err,
+        ServiceError::BadValue {
+            field: Field::Wall,
+            ..
+        }
+    ));
     assert!(!s.can_undo());
 }
 
