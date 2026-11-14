@@ -4,8 +4,8 @@
 use klappe_model::{CameraPresets, Location};
 use klappe_stellprobe::horizontal_fov_deg;
 
+use super::Session;
 use crate::views::{CharacterRow, Hint, LocationRow, Overview, PlanRow, SceneRow};
-use crate::Session;
 
 /// Tenths of a degree: the angle of view in a tooltip is shown to one decimal.
 const FOV_STEPS_PER_DEG: f64 = 10.0;

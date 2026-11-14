@@ -20,7 +20,6 @@ mod number;
 mod plan_edit;
 mod project_edit;
 mod session;
-mod session_views;
 mod shot_edit;
 mod start;
 mod views;
