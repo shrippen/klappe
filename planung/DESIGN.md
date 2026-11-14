@@ -49,7 +49,7 @@ beiden sich unterscheiden (Werkzeugleiste, Shot-Bereich, Ebenen, Plan-Auswahl).
 | Set bauen (1) | Auswahl, Wand, Objekt, Maßstab, Messen |
 | Inszenieren (2) | Auswahl, Figur (Marks, Wege), Messen |
 | Auflösen (3) | Auswahl, Kamera, Licht, Messen |
-| Zeichnen (4) | Auswahl, Notiz, Linie, Pfeil, Rechteck, Ellipse, Fläche |
+| Zeichnen (4) | Auswahl, Notiz, Linie, Pfeil, Rechteck, Ellipse, Fläche, Messen |
 
 Die Buchstabentasten der Werkzeuge (V, W, O, F, C, L, M, D, N, I, A, B, E, P) gelten in jedem
 Modus; eine Taste eines anderen Modus wechselt in dessen Modus. Auswahl und Messen gibt es in

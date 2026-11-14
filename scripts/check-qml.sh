@@ -25,4 +25,8 @@ fi
 export QML_XHR_ALLOW_FILE_READ=1
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
 export QT_FORCE_STDERR_LOGGING=1
-exec "$RUNNER" -import crates/app/qml -import crates/app/qml/Kante -input crates/app/tests/qml
+# Tests that keep settings (the working mode) write to a folder of their own, not the user's.
+CONFIG=$(mktemp -d)
+trap 'rm -rf "$CONFIG"' EXIT
+export XDG_CONFIG_HOME="$CONFIG"
+"$RUNNER" -import crates/app/qml -import crates/app/qml/Kante -input crates/app/tests/qml
