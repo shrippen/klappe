@@ -28,6 +28,20 @@ pub enum ServiceError {
     /// The edit touches a layer the user has locked.
     #[error("the layer {0:?} is locked")]
     Locked(Layer),
+    #[error("no character {0}")]
+    NoCharacter(String),
+    /// Scene numbers are unique within a project.
+    #[error("scene number {0} is taken")]
+    NumberTaken(String),
+    /// A location cannot go while scenes are set there.
+    #[error("location {id} is used by {scenes} scene(s)")]
+    LocationInUse { id: String, scenes: usize },
+    /// A character cannot go while a plan uses it.
+    #[error("character {id} appears in {plans} plan(s)")]
+    CharacterInUse { id: String, plans: usize },
+    /// A new project needs an empty (or missing) folder.
+    #[error("{} is not empty", .0.display())]
+    NotEmpty(std::path::PathBuf),
     #[error("bad value for {field}: {value}")]
     BadValue { field: &'static str, value: String },
     #[error(transparent)]

@@ -24,12 +24,29 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         ServiceError::Gone => ("error.gone", String::new()),
         ServiceError::NoLocation(id) => ("error.noLocation", id.clone()),
         ServiceError::NoFreeCamera => ("error.noFreeCamera", String::new()),
+        ServiceError::NoCharacter(id) => ("error.noCharacter", id.clone()),
+        ServiceError::NotEmpty(path) => ("error.notEmpty", path.to_string_lossy().into_owned()),
         ServiceError::NoBackup => ("error.noBackup", String::new()),
         ServiceError::CameraInUse { camera, shot } => {
             return language
                 .text("error.cameraInUse")
                 .replace("{camera}", camera)
                 .replace("{shot}", shot);
+        }
+        ServiceError::NumberTaken(number) => {
+            return language
+                .text("error.numberTaken")
+                .replace("{number}", number);
+        }
+        ServiceError::LocationInUse { scenes, .. } => {
+            return language
+                .text("error.locationInUse")
+                .replace("{count}", &scenes.to_string());
+        }
+        ServiceError::CharacterInUse { plans, .. } => {
+            return language
+                .text("error.characterInUse")
+                .replace("{count}", &plans.to_string());
         }
         ServiceError::Locked(layer) => {
             let name = language.text(&format!("layer.{}", layer_name(*layer)));
@@ -183,6 +200,23 @@ mod tests {
     }
 
     #[test]
+    fn an_object_in_use_names_the_count() {
+        let error = ServiceError::LocationInUse {
+            id: "l".to_owned(),
+            scenes: 3,
+        };
+
+        assert_eq!(
+            error_text(Language::German, &error),
+            "Der Drehort wird von 3 Szene(n) genutzt"
+        );
+        assert_eq!(
+            error_text(Language::English, &error),
+            "The location is used by 3 scene(s)"
+        );
+    }
+
+    #[test]
     fn every_layer_has_a_name_in_both_languages() {
         let layers = [
             Layer::Set,
@@ -210,6 +244,17 @@ mod tests {
             ServiceError::NoFreeCamera,
             ServiceError::NoBackup,
             ServiceError::Locked(Layer::Set),
+            ServiceError::NoCharacter("c".to_owned()),
+            ServiceError::NumberTaken("12".to_owned()),
+            ServiceError::LocationInUse {
+                id: "l".to_owned(),
+                scenes: 2,
+            },
+            ServiceError::CharacterInUse {
+                id: "c".to_owned(),
+                plans: 1,
+            },
+            ServiceError::NotEmpty(PathBuf::from("/a")),
         ];
 
         for error in &errors {
