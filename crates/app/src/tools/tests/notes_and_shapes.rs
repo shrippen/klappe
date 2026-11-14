@@ -129,8 +129,8 @@ fn every_style_name_has_a_text_in_both_languages() {
     let keys = FigureColor::ALL
         .iter()
         .map(|c| format!("color.{}", c.name()))
-        .chain(DRAW_DASHES.iter().map(|(n, _)| format!("dash.{n}")))
-        .chain(DRAW_FILLS.iter().map(|(n, _)| format!("fill.{n}")));
+        .chain(Dash::ALL.iter().map(|d| format!("dash.{}", d.name())))
+        .chain(Fill::ALL.iter().map(|f| format!("fill.{}", f.name())));
 
     for key in keys {
         for language in [Language::German, Language::English] {

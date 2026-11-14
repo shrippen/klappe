@@ -86,9 +86,6 @@ A change that needs more places than listed is a finding for the audit.
 
 ## Known deviations
 
-- `app/` keeps its own name lists for layers, light kinds, line style and fill, and
-  `MarkCard.qml` its own lists for pose, arrival and departure; a new layer needs five
-  places. `AUDIT.md`, finding 1.
 - Colour and line style of an element are decided twice, in `app/src/plan.rs` and
   `export/src/style.rs`, and already differ. `AUDIT.md`, finding 3.
 - `imagehead/` reads only JPEG headers; the PNG header is read in `store/` and in

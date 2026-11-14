@@ -1,20 +1,8 @@
 //! What the header's status line says: translated messages, and when they go stale.
 
-use klappe_services::{BackupState, Layer, ServiceError};
+use klappe_services::{BackupState, ServiceError};
 
 use crate::catalog::Language;
-
-/// How QML and the catalogue (`layer.<name>`) call a layer.
-pub fn layer_name(layer: Layer) -> &'static str {
-    match layer {
-        Layer::Set => "set",
-        Layer::Figures => "figures",
-        Layer::Cameras => "cameras",
-        Layer::Lights => "lights",
-        Layer::Notes => "notes",
-        Layer::Drawings => "drawings",
-    }
-}
 
 /// The service's error in the app's language; details (path, value) appended where they help.
 pub fn error_text(language: Language, error: &ServiceError) -> String {
@@ -61,7 +49,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
             return language.text("error.planNameTaken").replace("{name}", name);
         }
         ServiceError::Locked(layer) => {
-            let name = language.text(&format!("layer.{}", layer_name(*layer)));
+            let name = language.text(&format!("layer.{}", layer.name()));
             return language.text("error.locked").replace("{layer}", &name);
         }
         ServiceError::BadValue { field, value } => {
@@ -121,7 +109,7 @@ impl Status {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klappe_services::Field;
+    use klappe_services::{Field, Layer};
     use std::path::PathBuf;
 
     /// Review of PR 37: a refused tilt said "field.tilt", the catalogue had no such key.
@@ -268,17 +256,8 @@ mod tests {
 
     #[test]
     fn every_layer_has_a_name_in_both_languages() {
-        let layers = [
-            Layer::Set,
-            Layer::Figures,
-            Layer::Cameras,
-            Layer::Lights,
-            Layer::Notes,
-            Layer::Drawings,
-        ];
-
-        for layer in layers {
-            let key = format!("layer.{}", layer_name(layer));
+        for layer in Layer::ALL {
+            let key = format!("layer.{}", layer.name());
             for language in [Language::German, Language::English] {
                 assert_ne!(language.text(&key), key);
             }

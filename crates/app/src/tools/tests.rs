@@ -122,8 +122,8 @@ fn tools_are_named_as_the_tool_bar_spells_them() {
 
 #[test]
 fn every_lamp_kind_of_the_list_parses() {
-    for (name, kind) in LIGHT_KINDS {
-        assert_eq!(Tool::parse("light", name), Some(Tool::Light(kind)));
+    for kind in LightKind::ALL {
+        assert_eq!(Tool::parse("light", kind.name()), Some(Tool::Light(kind)));
     }
     assert_eq!(Tool::parse("light", "laser"), None);
     assert_eq!(Tool::parse("light", ""), None);
@@ -133,7 +133,9 @@ fn every_lamp_kind_of_the_list_parses() {
 /// library (services tests).
 #[test]
 fn every_lamp_kind_has_a_name_in_both_languages() {
-    let keys = LIGHT_KINDS.iter().map(|(k, _)| format!("lightKind.{k}"));
+    let keys = LightKind::ALL
+        .iter()
+        .map(|k| format!("lightKind.{}", k.name()));
 
     for key in keys {
         for language in [Language::German, Language::English] {

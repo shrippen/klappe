@@ -16,6 +16,9 @@ TestCase {
         id: fake
         property string layersJson: "{}"
         property string locksJson: "{}"
+        property string choicesJson: JSON.stringify({
+            layer: ["set", "figures", "cameras", "lights", "notes", "drawings"]
+        })
         property var layerCalls: []
         property var lockCalls: []
 
