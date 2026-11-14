@@ -399,6 +399,9 @@ pub struct ControllerRust {
     /// What the drawing tools draw with, and the area they are drawing.
     draw: DrawStyle,
     area: AreaDraft,
+    /// The scene and plan on screen (`scene/plan`), to tell when undo, redo or a project
+    /// edit changes them.
+    shown: String,
     area_points: i32,
     has_background: bool,
     scale_points: i32,
@@ -480,6 +483,7 @@ impl Default for ControllerRust {
             scale: ScaleStep::Idle,
             draw: DrawStyle::default(),
             area: AreaDraft::default(),
+            shown: String::new(),
             area_points: 0,
             has_background: false,
             scale_points: 0,
@@ -513,6 +517,17 @@ impl ControllerRust {
         self.scale = ScaleStep::Idle;
         self.note = NoteDraft::Idle;
         self.area = AreaDraft::default();
+    }
+
+    /// Notes the scene and plan on screen; when they changed, the drafts made on the old
+    /// one go (undo, redo and project edits can change the view, not only a click).
+    fn follow_view(&mut self, shown: String) {
+        if shown == self.shown {
+            return;
+        }
+
+        self.drop_drafts();
+        self.shown = shown;
     }
 
     /// The points picked for a scale or an area: a preview on top of the plan.
@@ -714,6 +729,13 @@ impl qobject::Controller {
 
     /// Pushes what may have changed after a call to the properties (and their signals).
     fn refresh(mut self: Pin<&mut Self>) {
+        let shown = self
+            .rust()
+            .session
+            .as_ref()
+            .map(shown_view)
+            .unwrap_or_default();
+        self.as_mut().rust_mut().get_mut().follow_view(shown);
         self.as_mut().drop_stale();
 
         // Undo and redo can take the image away; its scale points go with it.
@@ -1596,6 +1618,14 @@ fn plan_file(s: &Session, extension: &str) -> std::path::PathBuf {
         .unwrap_or_else(|| name.into())
 }
 
+/// The scene and plan on screen as `scene/plan`, empty parts when there is none.
+fn shown_view(s: &Session) -> String {
+    let scene = s.scene().map(|sc| sc.id.as_str()).unwrap_or_default();
+    let plan = s.plan().map(|p| p.id.as_str()).unwrap_or_default();
+
+    format!("{scene}/{plan}")
+}
+
 /// The text of the current set's note `id`.
 fn note_text(s: &Session, id: &str) -> Option<String> {
     let location = s.project().location(&s.scene()?.location)?;
@@ -1690,5 +1720,22 @@ mod tests {
         assert_eq!(c.scale, ScaleStep::Idle);
         assert_eq!(c.note, NoteDraft::Idle);
         assert_eq!(c.selected, None);
+    }
+    /// Review of PR 23, round 3: undo, redo or deleting the scene on view changed the scene
+    /// without a click; the drafts stayed and Enter drew in the other scene.
+    #[test]
+    fn drafts_go_when_the_view_changes() {
+        let mut c = ControllerRust {
+            shown: "szene-012/a".into(),
+            area: AreaDraft::default().click(Point::new(1.0, 1.0)),
+            ..ControllerRust::default()
+        };
+
+        c.follow_view("szene-012/a".into());
+        assert!(!c.area.is_empty());
+
+        c.follow_view("szene-013/a".into());
+        assert!(c.area.is_empty());
+        assert_eq!(c.shown, "szene-013/a");
     }
 }
