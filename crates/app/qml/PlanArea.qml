@@ -263,11 +263,24 @@ Item {
         }
     }
 
+    // A camera is selected (LH-32): body, sensor, lens and frame.
+    CameraCard {
+        id: cameraCard
+        objectName: "cameraCard"
+        texts: area.texts
+        controller: area.controller
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+        width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
+    }
+
     // A mark is selected (LH-22, LH-63): pose, pause and pace.
     MarkCard {
         objectName: "markCard"
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
+        // Below the camera card: a camera shows both.
+        anchors.top: cameraCard.visible ? cameraCard.bottom : parent.top
         anchors.topMargin: Kirigami.Units.largeSpacing
         texts: area.texts
         controller: area.controller

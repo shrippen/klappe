@@ -607,6 +607,20 @@ TestCase {
         verify(!card.visible)
     }
 
+    // LH-32: a selected camera shows the camera card, and only the camera card.
+    function test_the_camera_card_belongs_to_a_selected_camera() {
+        const area = drawn("select")
+        const card = findChild(area, "cameraCard")
+        verify(!card.visible)
+
+        fake.selectedKey = "camera:a"
+        verify(card.visible)
+        verify(!findChild(area, "objectCard").visible)
+
+        fake.selectedKey = "object:o1"
+        verify(!card.visible)
+    }
+
     function test_enter_gives_the_size_to_the_controller() {
         const area = drawn("select")
         fake.selectedKey = "object:o1"
