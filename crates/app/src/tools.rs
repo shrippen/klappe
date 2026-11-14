@@ -58,8 +58,9 @@ pub const DRAW_DASHES: [(&str, Dash); 3] = [
 pub const DRAW_FILLS: [(&str, Fill); 2] = [("outline", Fill::Outline), ("filled", Fill::Filled)];
 
 /// How far from its first point a click still closes an area, in metres: the grid is 0.25 m,
-/// so a click that snaps to a neighbour of the first point closes it too.
-const AREA_CLOSE_M: f64 = 0.3;
+/// so a click that snaps to a neighbour of the first point, diagonal ones (0.354 m) too,
+/// closes it; the next ring (0.5 m) does not.
+const AREA_CLOSE_M: f64 = 0.4;
 
 /// An area has an inside from three points on.
 const MIN_AREA_POINTS: usize = 3;
@@ -953,6 +954,19 @@ mod tests {
         }
     }
 
+    /// Review of PR 24: with the 0.25 m grid the diagonal neighbour of the first point is
+    /// 0.354 m away and added a corner instead of closing the area.
+    #[test]
+    fn a_click_on_a_diagonal_grid_neighbour_closes() {
+        let draft = AreaDraft::default()
+            .click(Point::new(0.0, 0.0))
+            .click(Point::new(2.0, 0.0))
+            .click(Point::new(2.0, 2.0));
+
+        assert!(draft.closes(Point::new(0.25, 0.25)));
+        assert!(!draft.closes(Point::new(0.5, 0.5)));
+    }
+
     #[test]
     fn clicks_collect_the_points_of_an_area() {
         let (a, b, c) = (p(0.0, 0.0), p(4.0, 0.0), p(4.0, 3.0));
@@ -964,7 +978,7 @@ mod tests {
     }
 
     /// Two points make no area: a click on the first point adds a point. With three, a click
-    /// within 0.3 m of the first closes; further away it adds.
+    /// within 0.4 m of the first (a grid neighbour) closes; further away it adds.
     #[test]
     fn a_click_on_the_first_point_closes_from_three_points_on() {
         let (a, b, c) = (p(0.0, 0.0), p(4.0, 0.0), p(4.0, 3.0));

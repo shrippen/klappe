@@ -345,7 +345,7 @@ fn drawings_are_printed() {
         dash,
         fill,
     };
-    let (a, b) = (Point::new(2.0, 10.0), Point::new(8.0, 10.0));
+    let (a, b) = (Point::new(2.0, 10.0), Point::new(8.0, 12.0));
     let mut with = plan();
     with.drawings = vec![
         drawing(
