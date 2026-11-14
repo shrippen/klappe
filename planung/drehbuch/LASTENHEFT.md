@@ -47,7 +47,7 @@ Vorbilder, ihre Schwächen und die Clean-Room-Regel: Anhang A.
 | Rolle | Nutzt das Modul für |
 |---|---|
 | Autor:in / Regie | Schreiben, Umschreiben, Fassungen |
-| Regieassistenz | Szenenliste, Auszüge, Länge in Achteln, Breakdown |
+| Regieassistenz | Szenenliste, Auszüge, Länge in Achteln, Drehbuchauszug |
 | Produktion | Berichte: Drehorte, Figuren, Requisiten je Szene |
 | Schauspiel | eigene Rollen-Auszüge (Sides), Vorlesefassung |
 
@@ -59,13 +59,13 @@ Hauptnutzer ist eine Person am Laptop, oft im Terminal.
 |---|---|
 | Element | Szenenkopf, Handlung, Figur, Klammer, Dialog, Übergang, Zentriert, Liedtext, Seitenumbruch. |
 | Szenenkopf | `INT. SÄNGERSAAL – TAG`: Innen/Außen, Ort, Tageszeit. |
-| Section | Gliederungsebene über Szenen (Akt, Sequenz); in Fountain `#`. |
-| Synopse | Kurzinhalt unter einer Section oder Szene; in Fountain `=`. |
+| Abschnitt | Gliederungsebene über Szenen (Akt, Sequenz); in Fountain `#` (engl. Section). |
+| Synopse | Kurzinhalt unter einem Abschnitt oder einer Szene; in Fountain `=`. |
 | Fassung | Ein gespeicherter Stand des Drehbuchs mit Namen und Datum. |
 | Revision | Änderungen einer Fassung gegenüber der gesperrten Vorfassung, mit Farbe und Randmarke. |
 | A-Szene | Eingefügte Szene mit gesperrter Nummer, z. B. 12A zwischen 12 und 13. |
 | Achtel | Seitenmaß der Produktion: eine Seite = 8/8. |
-| Breakdown | Auszug der Produktionselemente je Szene (Besetzung, Requisite, Kostüm …). |
+| Drehbuchauszug | (engl. Breakdown) Auszug der Produktionselemente je Szene (Besetzung, Requisite, Kostüm …). |
 
 ## 6. Funktionale Anforderungen
 
@@ -76,15 +76,15 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 
 | Nr | Anforderung | Prio |
 |---|---|---|
-| DB-01 | Fountain tippen mit Formatierung beim Tippen: Elemente erkennen, einrücken, Großschreibung von Szenenköpfen und Figuren (TUI vorhanden). | M |
-| DB-02 | Elementwechsel per Tastatur: Enter und Tab wechseln sinnvoll zwischen Handlung, Figur, Klammer, Dialog, Übergang (wie Fade In); erzwungene Elemente per Fountain-Zeichen. | M |
-| DB-03 | Autovervollständigung für Figurennamen (häufigste zuerst), Orte, Szenenkopf-Präfixe und Tageszeiten; Figuren-Erweiterungen (V.O.), (O.S.), (CONT'D). | M |
-| DB-04 | Figur im ganzen Buch umbenennen (Figurenzeilen, Dual Dialogue, Verweise in Stellprobe). | S |
-| DB-05 | Dual Dialogue (`^`), Zentriert, Liedtext, Notizen `[[ ]]`, Boneyard `/* */`, Hervorhebungen. | M |
+| DB-01 | Fountain tippen mit Formatierung beim Tippen: Elemente erkennen, einrücken, Großschreibung von Szenenköpfen und Figuren (TUI: Erkennen und Einrücken vorhanden, Großschreibung fehlt). | M |
+| DB-02 | Elementwechsel per Tastatur: Enter und Tab wechseln zwischen Handlung, Figur, Klammer, Dialog, Übergang (wie Fade In; Tabelle im Pflichtenheft); erzwungene Elemente per Fountain-Zeichen. Tab schaltet in der TUI heute den Fokus um und wird dafür frei. | M |
+| DB-03 | Autovervollständigung für Figurennamen (häufigste zuerst), Orte, Szenenkopf-Präfixe und Tageszeiten; Figuren-Erweiterungen deutsch und englisch, z. B. (OFF), (V.O.), (O.S.), (CONT'D). | M |
+| DB-04 | Figur im ganzen Buch umbenennen (Figurenzeilen, Doppeldialog, Verweise in Stellprobe). | S |
+| DB-05 | Doppeldialog (`^`), Zentriert, Liedtext, Notizen `[[ ]]`, auskommentierter Text `/* */`, Hervorhebungen. | M |
 | DB-06 | Titelseite bearbeiten (Titel, Autor, Kontakt, Fassung, Datum). | M |
 | DB-07 | Suchen und Ersetzen, auch nur in Dialog einer Figur. | M |
 | DB-08 | Rechtschreibprüfung Deutsch und Englisch mit eigenem Wörterbuch (Figuren- und Ortsnamen gelten als bekannt). | S |
-| DB-09 | Rückgängig/Wiederholen ohne feste Grenze; automatisches Sichern wie LH-05. | M |
+| DB-09 | Rückgängig/Wiederholen ohne feste Grenze. | M |
 | DB-10 | Ablenkungsfreier Modus: nur der Text, wahlweise nur der aktuelle Absatz hervorgehoben. | K |
 
 ### 6.2 Gliederung und Navigation
@@ -92,7 +92,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DB-20 | Szenenliste mit Nummer, Kopf, Länge in Achteln; springen per Liste (TUI vorhanden, ohne Länge). | M |
-| DB-21 | Gliederung mit Sections und Synopsen, einklappbar; Szenen und Sections per Tastatur verschieben. | M |
+| DB-21 | Gliederung mit Abschnitten (Akt, Sequenz) und Synopsen, einklappbar; Szenen und Abschnitte per Tastatur verschieben. | M |
 | DB-22 | Szenen farbig markieren (Handlungsstrang, Figur, Thema); Farbe nie die einzige Kennzeichnung (Name dazu). | S |
 | DB-23 | Karteikarten-Ansicht der Szenen (Kopf, Synopse, Farbe), umsortierbar. | S, GUI |
 | DB-24 | Lesezeichen und Notizen im Text, gesammelt in einer Liste. | S |
@@ -102,10 +102,10 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 
 | Nr | Anforderung | Prio |
 |---|---|---|
-| DB-30 | Paginierung nach Industriestandard (US Letter und A4, Courier 12 pt, Ränder nach Standard): Seitenumbrüche wie gedruckt, auch beim Schreiben sichtbar. | M |
+| DB-30 | Paginierung nach Industriestandard (US Letter und A4, Courier 12 pt, Ränder nach Standard): Seitenumbrüche im Editor sichtbar (DN-07). | M |
 | DB-31 | Umbruchregeln: Szenenkopf nie allein am Seitenende; Dialog nur zwischen Sätzen oder an einer Klammer teilen, mit (MORE) unten und Figur (CONT'D) oben; mindestens zwei Zeilen auf jeder Seite; Handlung nur zwischen Sätzen teilen. | M |
 | DB-32 | Länge je Szene in Achteln und Gesamtlänge in Seiten und geschätzten Minuten. | M |
-| DB-33 | Szenennummern: automatisch oder gesperrt; Startnummer frei; eingefügte Szenen bekommen A-Nummern (12A), gestrichene bleiben als „ENTFÄLLT“ stehen. | M |
+| DB-33 | Szenennummern: automatisch oder gesperrt; Startnummer frei; eingefügte Szenen bekommen A-Nummern (12A), gestrichene bleiben als „ENTFÄLLT“ stehen. Eine Nummer, mit der ein Floorplan verbunden ist, ändert sich nie automatisch und steht im Fountain-Text (`#12#`). | M |
 | DB-34 | Gesperrte Seiten mit A-Seiten (12A) nach dem Sperren einer Fassung. | S |
 
 ### 6.4 Fassungen und Revisionen
@@ -113,7 +113,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DB-40 | Fassungen benennen und sperren (z. B. „Drehfassung“); eine gesperrte Fassung ist die Basis für Revisionen. | M |
-| DB-41 | Revisionen: Änderungen seit der gesperrten Fassung werden markiert. Revisionsfarben in der üblichen Reihenfolge (Blau, Rosa, Gelb, Grün, Goldenrod, …), Randmarke `*` im PDF, Fassungsname und Datum in der Kopfzeile. | S |
+| DB-41 | Revisionen: Änderungen seit der gesperrten Fassung werden markiert. Revisionsfarben in der üblichen Reihenfolge (Blau, Rosa, Gelb, Grün, Goldgelb, …), Randmarke `*` im PDF, Fassungsname und Datum in der Kopfzeile. | S |
 | DB-42 | Vergleich zweier Fassungen als Liste und im Text (hinzugefügt, gestrichen, geändert); über Git oder ohne. | S |
 | DB-43 | Nur geänderte Seiten drucken (Revisionsseiten). | K |
 
@@ -131,10 +131,11 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 
 | Nr | Anforderung | Prio |
 |---|---|---|
-| DB-60 | Breakdown-Tags je Szene: Besetzung, Statisterie, Requisite, Kostüm, Maske, Fahrzeug, Tier, Spezialeffekt, Stunt, Ton, Musik, Sonstiges. Der Fountain-Text bleibt sauber (Frage F-02). | S |
-| DB-61 | Berichte: Szenen (Nr., Kopf, Länge, Figuren), Drehorte, Figuren je Szene, Breakdown je Szene; als PDF und CSV. Grundlage für das Modul Planung. | S |
+| DB-60 | Drehbuchauszug (Tags) je Szene: Besetzung, Statisterie, Requisite, Kostüm, Maske, Fahrzeug, Tier, Spezialeffekt, Stunt, Ton, Musik, Sonstiges. Der Fountain-Text bleibt sauber (Frage F-02). | S |
+| DB-61 | Berichte: Szenen (Nr., Kopf, Länge, Figuren), Drehorte, Figuren je Szene, Drehbuchauszug je Szene; als PDF und CSV. Grundlage für das Modul Planung. | S |
 | DB-62 | Rollen-Auszüge (Sides): nur die Szenen einer Figur als PDF. | K |
-| DB-63 | Szene im Drehbuch ↔ Floorplan, Marks und Shots in Stellprobe springen (beide Richtungen). | M |
+| DB-63 | In der GUI von der Szene im Drehbuch zu Floorplan, Marks und Shots in Stellprobe springen und zurück. | M, GUI |
+| DB-64 | Verknüpfungen aus Stellprobe (Szene, Szenenkopf, verknüpfte Drehbuchzeilen von Marks und Shots) bleiben beim Bearbeiten, Verschieben und Streichen gültig; was sich nicht eindeutig zuordnen lässt, legt das Programm dem Nutzer zur Zuordnung vor, statt still auf eine andere Zeile zu zeigen. | M |
 
 ### 6.7 Ausgabe und Austausch
 
@@ -151,11 +152,11 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DN-01 | Läuft im Terminal unter Linux, Windows und macOS (ratatui, E-06); 80 Spalten reichen. | M |
-| DN-02 | Ein Buch von 120 Seiten bleibt beim Tippen flüssig: neu paginieren und auswerten ohne spürbare Verzögerung. | M |
+| DN-02 | Ein Buch von 120 Seiten bleibt beim Tippen flüssig: neu paginieren und auswerten in höchstens 50 ms je Tastendruck. | M |
 | DN-03 | Offline, ohne Konto, ohne Cloud (NF-02). Zusammenarbeit über Git: der Fountain-Text lässt sich in Git zusammenführen. | M |
 | DN-04 | Tastatur zuerst; jede Funktion ohne Maus erreichbar, Kürzel in der Hilfe (F1). | M |
 | DN-05 | Deutsch und Englisch; Fachbegriffe nach Filmpraxis (NF-09); Szenenkopf-Präfixe beider Sprachen erkennen (INT./INNEN, EXT./AUSSEN, TAG/NACHT). | M |
-| DN-06 | Kein Datenverlust bei Absturz (LH-05, Sicherung wie Stellprobe). | M |
+| DN-06 | Kein Datenverlust bei Absturz: automatisches Sichern wie LH-05. | M |
 | DN-07 | Das PDF stimmt Seite für Seite mit der Paginierung im Editor überein. | M |
 
 ## 8. Abgrenzung
@@ -171,8 +172,10 @@ Die erste Version ist abgenommen, wenn
 
 1. das Drehbuch des Wartburgfilms in der TUI geschrieben und überarbeitet werden kann,
 2. das PDF Seite für Seite mit einer Referenz aus einem Standardprogramm übereinstimmt
-   (± eine Zeile je Seite) und (MORE)/(CONT'D) richtig setzt,
-3. jede Szene des Buchs mit ihrem Floorplan in Stellprobe verbunden ist (DB-63),
+   (Seitenumbrüche an denselben Stellen; Referenz und Papierformat nach F-01) und
+   (MORE)/(CONT'D) richtig setzt,
+3. sich jede Szene mit einem Floorplan verbinden lässt und die Verbindung Umschreiben
+   übersteht (DB-63, DB-64),
 4. alle Muss-Anforderungen erfüllt sind.
 
 ## 10. Offene Fragen an den Eigentümer
@@ -180,7 +183,7 @@ Die erste Version ist abgenommen, wenn
 | Nr | Frage | Vorschlag |
 |---|---|---|
 | F-01 | Papierformat: US Letter (Industriestandard, ~1 Seite/Minute) oder A4 als Standard? | A4 für deutsche Produktionen, Letter wählbar; Minutenschätzung je Format. |
-| F-02 | Wo stehen Revisionen, Tags, gesperrte Szenen-/Seitennummern? Beat schreibt sie als JSON-Block ans Ende der Fountain-Datei (in einem Kommentar). | Eigene Dateien im Projektordner (`drehbuch/fassungen/`, `drehbuch/tags.toml`), Fountain bleibt sauber; Szenen per Szenennummer referenziert. |
+| F-02 | Wo stehen Revisionen, Tags, gesperrte Seitennummern? Beat schreibt sie als JSON-Block ans Ende der Fountain-Datei (in einem Kommentar). | Eigene Dateien im Projektordner (`drehbuch/fassungen/`, `drehbuch/tags.toml`), Fountain bleibt sauber; Szenen per Szenennummer referenziert. Szenennummern bleiben im Text (DB-33). |
 | F-03 | Revisionen: eigene Markierung wie Fade In/Beat, oder aus Git abgeleitet (Diff gegen die gesperrte Fassung)? | Gegen eine gespeicherte gesperrte Fassung im Projektordner diffen; Git optional. |
 | F-04 | Englische oder deutsche Elemente im PDF ((MORE)/(CONT'D) vs. (WEITER)/(FORTS.))? | Je Projekt wählbar, Standard nach Sprache des Projekts. |
 | F-05 | Reihenfolge nach der ersten Version: GUI-Editor (DB-23 Karteikarten) oder Produktion (DB-60, DB-61)? | Erst Produktion, weil Planung darauf aufbaut. |
@@ -216,39 +219,33 @@ Gelesen (2026-11-14):
 | Plattformen | Mac, Windows, Linux; mobil über „Fade In Access“ | macOS, iOS | DN-01 |
 | Formatierung beim Tippen | Wechsel Szenenkopf/Handlung/Dialog automatisch, Stile anpassbar | ja, Fountain-Zeichen ausblendbar | DB-01, DB-02 |
 | Autovervollständigung | Figuren, Orte, Szenenkopf-Präfixe, Tageszeiten; Listen pflegbar; Figur im ganzen Buch umbenennen | Figuren (nach Häufigkeit, Erweiterungen wie (V.O.) abgetrennt, Erweiterungen als Vorschlag, wenn kein Name passt), Szenenköpfe (Präfix bekommt den Punkt) | DB-03, DB-04 |
-| Gliederung | Navigator: springen, umsortieren, verschachtelte Sequenzen, Farben, Synopsen, Lesezeichen | Gliederung mit Sections/Synopsen, Index Cards, Timeline, Farben | DB-20–DB-25 |
+| Gliederung | Navigator: springen, umsortieren, verschachtelte Sequenzen, Farben, Synopsen, Lesezeichen | Gliederung mit Abschnitten/Synopsen, Index Cards, Timeline, Farben | DB-20–DB-25 |
 | Ablenkungsfrei | Vollbild, nur aktueller Abschnitt | schlichte Oberfläche | DB-10 |
 | Paginierung | Industriestandard, (MORE)/(cont'd) änderbar, Zeilenlängen-Feinabgleich | siehe unten | DB-30, DB-31 |
 | Revisionen | Fassungen, Szenen- und Seitensperre, gestrichene Szenen, Revisionsfarben bis in die Vorproduktion, Versionsvergleich | Revisionsgenerationen mit Farbe und Marke, gesperrte Szenennummern | DB-33, DB-34, DB-40–DB-43 |
 | Dialog prüfen | Dialogue Tuner (alle Zeilen einer Figur), Häufigkeit von Wörtern | Statistik (Zeilen je Figur, Orte, Tageszeiten, Szenenlängen, Geschlechterverteilung) | DB-52–DB-54 |
-| Breakdown | Standard-Breakdowns, Berichte (Szenen, Besetzung, Drehorte) als Druck, HTML, CSV; anpassbare Tags | Tags mit Kategorien (siehe unten) | DB-60, DB-61 |
+| Drehbuchauszug | Standard-Breakdowns, Berichte (Szenen, Besetzung, Drehorte) als Druck, HTML, CSV; anpassbare Tags | Tags mit Kategorien (siehe unten) | DB-60, DB-61 |
 | Austausch | eigenes XML-Format (Open Screenplay Format), FDX, FDR (lesen), DOCX, RTF, Fountain, Celtx, Scrivener, Text, HTML, PDF, Wasserzeichen-Stapel | Fountain, FDX, PDF | DB-70–DB-73 |
 | Weiteres | Bilder im Dokument, Haftnotizen, Rechtschreibung mit eigenen Wörterbüchern, Formatprüfung, Vorlesen (Table Read) | Plugins in JavaScript, Notizen, Sicherungen | DB-08, DB-24, DB-74 |
 
-### Beat im Verhalten (aus dem Code, in eigenen Worten)
+### Beat im Verhalten (beobachtbar, in eigenen Worten)
 
-- **Paginierung:** Das Buch wird in Blöcke geteilt (ein Dialogblock = Figur mit Klammern und
-  Dialog; ein Szenenkopf zieht den folgenden Block mit sich). Passt ein Block nicht mehr auf
-  die Seite, wird er nur an sicheren Stellen geteilt: Dialog an einer Klammer oder zwischen
-  Sätzen (Satzgrenzen per Satzzeichen, notfalls Wörter, bei einem überlangen Wort Zeichen).
-  Am Seitenende steht dann (MORE), oben die Figur mit (CONT'D). Bleiben weniger als zwei Zeilen
-  auf der Seite, wandert der Block ganz nach vorn. Handlung wird ebenfalls zwischen Sätzen
-  geteilt. Erzwungene Seitenumbrüche gelten zuerst. Nach einer Änderung wird ab der ersten
-  betroffenen Seite neu paginiert, die Seiten davor bleiben.
-- **Revisionen:** Geänderte Textbereiche tragen eine Generation (0, 1, 2 …), jeder Generation
-  ist eine Farbe und eine Randmarke zugeordnet (Blau `*`, Rosa `**`, Gelb `+`, Grün `++`, …).
-  Gespeichert werden Bereiche (Anfang, Länge, Generation) getrennt nach hinzugefügt,
-  gestrichen, Streichvorschlag.
-- **Metadaten:** Beat hängt Einstellungen, Revisionsbereiche, Tags, Figurendaten, gesperrte
-  Nummern und Fensterzustand als JSON in einem Kommentarblock ans Ende der Fountain-Datei.
-  Andere Programme sehen das als Boneyard; ein Diff in Git zeigt bei jeder Änderung den Block.
-  Darum Frage F-02.
+- **Paginierung:** Ein Szenenkopf steht nie allein am Seitenende. Dialog wird nur an einer
+  Klammer oder zwischen Sätzen geteilt, mit (MORE) unten und der Figur mit (CONT'D) oben.
+  Bleiben weniger als zwei Zeilen auf der Seite, beginnt der Block auf der nächsten.
+  Handlung wird zwischen Sätzen geteilt. Erzwungene Seitenumbrüche gelten.
+- **Revisionen:** Jede Revisionsrunde hat eine Farbe und eine Randmarke (Blau `*`,
+  Rosa `**`, Gelb `+`, Grün `++`, …); markiert werden hinzugefügter, gestrichener und zum
+  Streichen vorgeschlagener Text.
+- **Metadaten:** Beim Speichern hängt Beat Einstellungen, Revisionen, Tags, Figurendaten und
+  gesperrte Nummern als JSON in einem Kommentarblock ans Ende der Fountain-Datei. Andere
+  Programme zeigen ihn als auskommentierten Text; ein Diff in Git zeigt bei jeder Änderung den
+  Block. Darum Frage F-02.
 - **Tagging:** Feste Kategorien (Besetzung, Requisite, Spezialeffekt, Toneffekt, Kamera, Tier,
-  Statisterie, Fahrzeug, Kostüm, Maske, Musik, Ton, Stunt, Sonstiges), je mit Farbe. Ein Tag
-  verweist auf eine Definition (Name, Kategorie) und auf einen Textbereich; daraus entsteht
-  ein Bericht je Kategorie.
+  Statisterie, Fahrzeug, Kostüm, Maske, Musik, Ton, Stunt, Sonstiges), je mit Farbe; daraus
+  entsteht ein Bericht je Kategorie.
 - **Statistik:** Zeilen und Wörter je Figur, Verteilung nach Geschlecht (vom Nutzer gesetzt),
-  Szenen je Ort und Tageszeit, als Plugin mit eigener Ansicht.
+  Szenen je Ort und Tageszeit.
 
 ### Schwächen laut Nutzern
 
@@ -268,5 +265,5 @@ Gelesen (2026-11-14):
 | 1 | Läuft unter Linux, Windows, macOS, im Terminal | DN-01 |
 | 2 | Drehbuch und Floorplan sind dieselben Szenen; Sprung in beide Richtungen | DB-63 |
 | 3 | Fountain bleibt sauber, Metadaten in eigenen Dateien; Git-Diffs zeigen nur Text | F-02, DN-03 |
-| 4 | Breakdown und Berichte fließen ohne Export in Planung | DB-60, DB-61 |
+| 4 | Drehbuchauszug und Berichte fließen ohne Export in Planung | DB-60, DB-61 |
 | 5 | Kein Datenverlust bei Absturz, Sicherung wie Stellprobe | DN-06 |
