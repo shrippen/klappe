@@ -36,10 +36,7 @@ pub fn add_image(dir: &Path, source: &Path) -> Result<String, StoreError> {
     }
 
     let bytes = fs::read(source).map_err(|e| io_err(source, e))?;
-    dimensions(&bytes).map_err(|message| bad(&message))?;
-    if let Some(frame) = jpeg_frame(&bytes) {
-        frame.check_printable().map_err(|message| bad(&message))?;
-    }
+    check_new(&bytes).map_err(|message| bad(&message))?;
 
     for number in 1_u32.. {
         let candidate = match number {
@@ -111,6 +108,16 @@ pub fn image_size(dir: &Path, file: &str) -> Result<(u32, u32), StoreError> {
         path: dir.join(file),
         message,
     })
+}
+
+/// What an image must be to be added: readable, and printable by the PDF export.
+fn check_new(bytes: &[u8]) -> Result<(), String> {
+    dimensions(bytes)?;
+
+    match jpeg_frame(bytes) {
+        Some(frame) => frame.check_printable(),
+        None => Ok(()),
+    }
 }
 
 /// `(width, height)` of a PNG or JPEG; `Err` says why not. Whether the export can print a
