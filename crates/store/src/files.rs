@@ -138,6 +138,10 @@ pub(crate) fn remove_dir(path: &Path) -> Result<(), StoreError> {
     }
 }
 
+pub(crate) fn rename(from: &Path, to: &Path) -> Result<(), StoreError> {
+    fs::rename(from, to).map_err(|e| io_err(to, e))
+}
+
 pub(crate) fn read_optional(path: &Path) -> Result<Option<String>, StoreError> {
     match fs::read_to_string(path) {
         Ok(text) => Ok(Some(text)),

@@ -634,3 +634,73 @@ fn load_ignores_the_backup_folder() {
     assert_eq!(loaded.project, example());
     assert_eq!(loaded.script.as_deref(), Some(SCRIPT));
 }
+
+fn changed(title: &str) -> Project {
+    let mut project = example();
+    project.title = title.into();
+    project
+}
+
+#[test]
+fn a_crashed_backup_write_is_ignored() {
+    let dir = test_dir("backup-crash-unfinished");
+    save(&dir, &example(), None).unwrap();
+    save_backup(&dir, &changed("Alt"), None).unwrap();
+    // A write that died before the marker.
+    save(&dir.join(".sicherung.neu"), &changed("Halb"), None).unwrap();
+
+    let backup = load_backup(&dir).unwrap().unwrap();
+
+    assert_eq!(backup.project.title, "Alt");
+}
+
+#[test]
+fn an_unfinished_write_alone_is_no_backup() {
+    let dir = test_dir("backup-crash-alone");
+    save(&dir, &example(), None).unwrap();
+    save(&dir.join(".sicherung.neu"), &changed("Halb"), None).unwrap();
+
+    assert_eq!(load_backup(&dir).unwrap(), None);
+}
+
+#[test]
+fn a_finished_write_without_old_backup_is_loaded() {
+    let dir = test_dir("backup-crash-finished");
+    save(&dir, &example(), None).unwrap();
+    // Crash after the old backup was removed, before the rename.
+    let new = dir.join(".sicherung.neu");
+    save(&new, &changed("Neu"), None).unwrap();
+    fs::write(new.join("fertig"), "").unwrap();
+
+    let backup = load_backup(&dir).unwrap().unwrap();
+
+    assert_eq!(backup.project.title, "Neu");
+}
+
+#[test]
+fn a_finished_write_beats_the_old_backup() {
+    let dir = test_dir("backup-crash-both");
+    save(&dir, &example(), None).unwrap();
+    save_backup(&dir, &changed("Alt"), None).unwrap();
+    let new = dir.join(".sicherung.neu");
+    save(&new, &changed("Neu"), None).unwrap();
+    fs::write(new.join("fertig"), "").unwrap();
+
+    assert_eq!(load_backup(&dir).unwrap().unwrap().project.title, "Neu");
+}
+
+#[test]
+fn save_backup_clears_leftovers_and_drop_removes_both() {
+    let dir = test_dir("backup-leftover");
+    save(&dir, &example(), None).unwrap();
+    let new = dir.join(".sicherung.neu");
+    save(&new, &changed("Halb"), None).unwrap();
+
+    save_backup(&dir, &changed("Ganz"), None).unwrap();
+
+    assert!(!new.exists());
+    assert_eq!(load_backup(&dir).unwrap().unwrap().project.title, "Ganz");
+    save(&new, &changed("Halb"), None).unwrap();
+    drop_backup(&dir).unwrap();
+    assert!(!new.exists() && !dir.join(".sicherung").exists());
+}

@@ -35,9 +35,14 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `.sicherung/`, ein vollständiger Projektordner im selben Format. Die Projektdateien bleiben
   dabei unberührt; erst der Nutzer speichert, und das Speichern löscht `.sicherung/`. Beim
   Öffnen bietet die Sitzung eine abweichende Sicherung zur Wiederherstellung an; eine
-  gleiche wird still gelöscht. `load` liest `.sicherung/` nie als Teil des Projekts. Git soll
-  den Ordner ignorieren; Vorschlag für `.gitignore` im Projekt:
+  gleiche wird still gelöscht. Die Sicherung wird als Ganzes ersetzt: erst entsteht
+  `.sicherung.neu/` (zuletzt die Datei `fertig`), dann wird `.sicherung/` entfernt und der
+  neue Ordner umbenannt. Ein vollständiger `.sicherung.neu/` (mit `fertig`) ist neuer und wird
+  zuerst gelesen, einer ohne `fertig` ist ein Absturzrest und wird ignoriert.
+  `load` liest `.sicherung/` nie
+  als Teil des Projekts. Git soll die Ordner ignorieren; Vorschlag für `.gitignore` im Projekt:
 
   ```
   .sicherung/
+  .sicherung.neu/
   ```

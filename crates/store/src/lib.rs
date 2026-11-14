@@ -27,6 +27,10 @@ const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
 /// Folder of the unsaved-changes backup inside a project folder (FORMAT.md).
 const BACKUP_DIR: &str = ".sicherung";
+/// Where a new backup is built; it replaces `BACKUP_DIR` as a whole.
+const BACKUP_NEW_DIR: &str = ".sicherung.neu";
+/// Written last into `BACKUP_NEW_DIR`: only then the folder is complete.
+const BACKUP_DONE_FILE: &str = "fertig";
 const TOML_EXT: &str = "toml";
 const JSON_EXT: &str = "json";
 
@@ -149,12 +153,35 @@ pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
 
 /// Writes `project` as a backup into `dir/.sicherung`, in the project format. The project
 /// files stay as they are, so the user alone decides what a save changes (LH-05).
+///
+/// The backup is replaced as a whole, so a crash never leaves a mix of old and new:
+///
+/// ```text
+/// 1. build .sicherung.neu/, last file `fertig`   (crash: old .sicherung stays valid)
+/// 2. remove .sicherung/                          (crash: .sicherung.neu is complete)
+/// 3. rename .sicherung.neu/ to .sicherung/
+/// ```
 pub fn save_backup(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), StoreError> {
-    save(&dir.join(BACKUP_DIR), project, script)
+    let new = dir.join(BACKUP_NEW_DIR);
+
+    // A leftover of a crashed run, complete or not, is older than what we write now.
+    files::remove_dir(&new)?;
+    save(&new, project, script)?;
+    files::write_atomic(&new.join(BACKUP_DONE_FILE), b"")?;
+
+    files::remove_dir(&dir.join(BACKUP_DIR))?;
+    files::rename(&new, &dir.join(BACKUP_DIR))
 }
 
-/// Reads the backup of `dir`; `None` if there is none.
+/// Reads the backup of `dir`; `None` if there is none. A complete `.sicherung.neu` (marker
+/// `fertig`) is newer than `.sicherung` and wins; one without the marker is a crashed write
+/// and ignored.
 pub fn load_backup(dir: &Path) -> Result<Option<Loaded>, StoreError> {
+    let new = dir.join(BACKUP_NEW_DIR);
+    if files::exists(&new.join(BACKUP_DONE_FILE))? {
+        return load(&new).map(Some);
+    }
+
     let backup = dir.join(BACKUP_DIR);
     if !files::exists(&backup)? {
         return Ok(None);
@@ -163,8 +190,9 @@ pub fn load_backup(dir: &Path) -> Result<Option<Loaded>, StoreError> {
     load(&backup).map(Some)
 }
 
-/// Removes the backup of `dir`; no backup is not an error.
+/// Removes the backup of `dir`, also a leftover `.sicherung.neu`; no backup is not an error.
 pub fn drop_backup(dir: &Path) -> Result<(), StoreError> {
+    files::remove_dir(&dir.join(BACKUP_NEW_DIR))?;
     files::remove_dir(&dir.join(BACKUP_DIR))
 }
 
