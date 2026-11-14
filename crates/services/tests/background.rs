@@ -17,13 +17,14 @@ fn p(x_m: f64, y_m: f64) -> Point {
     Point::new(x_m, y_m)
 }
 
-/// A PNG header of `w` x `h` pixels.
+/// A PNG header of `w` x `h` pixels, 8-bit RGB.
 fn png(w: u32, h: u32) -> Vec<u8> {
     let mut b = b"\x89PNG\r\n\x1a\n".to_vec();
     b.extend_from_slice(&13_u32.to_be_bytes());
     b.extend_from_slice(b"IHDR");
     b.extend_from_slice(&w.to_be_bytes());
     b.extend_from_slice(&h.to_be_bytes());
+    b.extend_from_slice(&[8, 2, 0, 0, 0]);
     b
 }
 
@@ -406,4 +407,22 @@ fn a_replaced_image_is_measured_again() {
     std::fs::write(dir.join(IMAGE), square).unwrap();
 
     assert_eq!(depth_m(&s), Some(10.0));
+}
+
+/// A CMYK JPEG already in the project (added by hand or by an older version) stays on the
+/// plan: the export prints no image for it, but the screen and SVG still show it.
+#[test]
+fn a_background_the_pdf_cannot_print_is_still_drawn() {
+    let (s, dir) = with_background("bg-cmyk");
+    let mut cmyk = JPEG;
+    cmyk[11] = 4;
+    std::fs::write(dir.join(IMAGE), cmyk).unwrap();
+
+    let drawn = s
+        .display_list()
+        .items
+        .iter()
+        .any(|i| i.role == Role::Background);
+
+    assert!(drawn);
 }

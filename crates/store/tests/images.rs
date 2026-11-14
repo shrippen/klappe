@@ -6,23 +6,34 @@ use std::path::{Path, PathBuf};
 
 use klappe_store::{add_image, image_size, StoreError};
 
-/// A PNG header of `w` x `h` pixels followed by `tag`, so that files differ in content.
-fn png(w: u32, h: u32, tag: &[u8]) -> Vec<u8> {
+/// A PNG header of `w` x `h` pixels, `depth` bits and colour type `color`, followed by `tag`,
+/// so that files differ in content.
+fn png_with(w: u32, h: u32, depth: u8, color: u8, tag: &[u8]) -> Vec<u8> {
     let mut b = b"\x89PNG\r\n\x1a\n".to_vec();
     b.extend_from_slice(&13_u32.to_be_bytes());
     b.extend_from_slice(b"IHDR");
     b.extend_from_slice(&w.to_be_bytes());
     b.extend_from_slice(&h.to_be_bytes());
+    b.extend_from_slice(&[depth, color, 0, 0, 0]);
     b.extend_from_slice(tag);
     b
 }
 
-fn jpeg(w: u16, h: u16) -> Vec<u8> {
+/// An 8-bit RGB PNG header.
+fn png(w: u32, h: u32, tag: &[u8]) -> Vec<u8> {
+    png_with(w, h, 8, 2, tag)
+}
+
+fn jpeg_with(w: u16, h: u16, components: u8) -> Vec<u8> {
     let mut b = vec![0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x0B, 0x08];
     b.extend_from_slice(&h.to_be_bytes());
     b.extend_from_slice(&w.to_be_bytes());
-    b.extend_from_slice(&[0x01, 0x01, 0x11, 0x00]);
+    b.extend_from_slice(&[components, 0x01, 0x11, 0x00]);
     b
+}
+
+fn jpeg(w: u16, h: u16) -> Vec<u8> {
+    jpeg_with(w, h, 1)
 }
 
 /// A fresh folder for one test: the project and a place to take images from.
@@ -130,6 +141,44 @@ fn a_jpeg_cut_off_in_its_frame_header_is_refused() {
 
     assert!(matches!(
         add_image(&project, &cut),
+        Err(StoreError::BadImage { .. })
+    ));
+}
+
+#[test]
+fn images_the_export_cannot_print_are_refused() {
+    let (project, source) = test_dirs("img-unprintable");
+    let cases = [
+        // Colour type 1 does not exist.
+        ("type.png", png_with(10, 10, 8, 1, b"")),
+        // 3 bits per sample fit no colour type.
+        ("depth.png", png_with(10, 10, 3, 2, b"")),
+        // RGB needs 8 or 16 bits.
+        ("rgb1.png", png_with(10, 10, 1, 2, b"")),
+        // 4 components: CMYK.
+        ("cmyk.jpg", jpeg_with(800, 600, 4)),
+    ];
+
+    for (name, bytes) in cases {
+        let path = file(&source, name, &bytes);
+
+        assert!(
+            matches!(add_image(&project, &path), Err(StoreError::BadImage { .. })),
+            "{name} was accepted"
+        );
+    }
+    assert!(!project.join("bilder").exists());
+}
+
+#[test]
+fn a_png_without_ihdr_first_is_refused() {
+    let (project, source) = test_dirs("img-no-ihdr");
+    let mut bytes = png(10, 10, b"");
+    bytes[12..16].copy_from_slice(b"IDAT");
+    let path = file(&source, "saal.png", &bytes);
+
+    assert!(matches!(
+        add_image(&project, &path),
         Err(StoreError::BadImage { .. })
     ));
 }

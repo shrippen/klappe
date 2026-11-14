@@ -88,8 +88,6 @@ A change that needs more places than listed is a finding for the audit.
 
 - Colour and line style of an element are decided twice, in `app/src/plan.rs` and
   `export/src/style.rs`, and already differ. `AUDIT.md`, finding 3.
-- `imagehead/` reads only JPEG headers; the PNG header is read in `store/` and in
-  `export/` with different rules. `AUDIT.md`, finding 4.
 - The window has no screenplay editor yet (`ScriptPanel.qml` only lists the script); the
   terminal writes it today. Planned in `planung/drehbuch/LASTENHEFT.md` (DB-23, after F-05).
 - `app/src/tools.rs` has several tasks (tool choice, selection, measuring, object fields,
