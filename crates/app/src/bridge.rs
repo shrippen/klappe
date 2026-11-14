@@ -478,6 +478,29 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "removeCharacter"]
         fn remove_character(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Variants of the scene's plan (LH-04). Shows the plan `id` of the current scene.
+        #[qinvokable]
+        #[cxx_name = "selectPlan"]
+        fn select_plan(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Adds an empty plan and shows it; an empty `name` is named by the session.
+        #[qinvokable]
+        #[cxx_name = "addPlan"]
+        fn add_plan(self: Pin<&mut Self>, name: &QString) -> bool;
+
+        /// A snapshot: copies the plan on view and shows the copy.
+        #[qinvokable]
+        #[cxx_name = "copyPlan"]
+        fn copy_plan(self: Pin<&mut Self>, name: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "renamePlan"]
+        fn rename_plan(self: Pin<&mut Self>, id: &QString, name: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removePlan"]
+        fn remove_plan(self: Pin<&mut Self>, id: &QString) -> bool;
     }
 }
 
@@ -2100,15 +2123,70 @@ impl qobject::Controller {
         self.commit_project(Ok(ProjectEdit::RemoveCharacter { id: id.to_string() }))
     }
 
+    fn select_plan(mut self: Pin<&mut Self>, id: &QString) -> bool {
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+        if s.select_plan(&id.to_string()).is_err() {
+            return false;
+        }
+
+        self.as_mut().rust_mut().get_mut().drop_drafts();
+        self.refresh();
+        true
+    }
+
+    fn add_plan(mut self: Pin<&mut Self>, name: &QString) -> bool {
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.add_plan(&name.to_string()).map(|_| ()));
+        self.report(result)
+    }
+
+    fn copy_plan(mut self: Pin<&mut Self>, name: &QString) -> bool {
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.copy_plan(&name.to_string()).map(|_| ()));
+        self.report(result)
+    }
+
+    fn rename_plan(mut self: Pin<&mut Self>, id: &QString, name: &QString) -> bool {
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.rename_plan(&id.to_string(), &name.to_string()));
+        self.report(result)
+    }
+
+    fn remove_plan(mut self: Pin<&mut Self>, id: &QString) -> bool {
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.remove_plan(&id.to_string()));
+        self.report(result)
+    }
+
     /// Applies `edit` (or says why its input was refused) to the project; an error goes to
     /// the status line.
     fn commit_project(mut self: Pin<&mut Self>, edit: Result<ProjectEdit, ServiceError>) -> bool {
-        let language = self.rust().language;
         let result = match (edit, self.as_mut().session()) {
             (Ok(edit), Some(s)) => s.edit_project(edit),
             (Err(e), _) => Err(e),
             (_, None) => return false,
         };
+
+        self.report(Some(result))
+    }
+
+    /// Tells what became of a change (`None`: no project open): an error goes to the status
+    /// line, a change makes an old message stale; the view is redrawn either way.
+    fn report(mut self: Pin<&mut Self>, result: Option<Result<(), ServiceError>>) -> bool {
+        let Some(result) = result else {
+            return false;
+        };
+        let language = self.rust().language;
 
         let ok = result.is_ok();
         match result {
@@ -2474,6 +2552,28 @@ mod tests {
         c.follow_view(shown);
 
         assert!(!c.area.is_empty());
+    }
+
+    /// LH-04: choosing, adding or copying a plan changes the plan on screen; a draft made on
+    /// the old plan must not be finished on the new one.
+    #[test]
+    fn drafts_go_when_another_plan_is_shown() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+        let mut session = Session::open(&dir).unwrap();
+        let mut c = ControllerRust {
+            shown: shown_view(&session),
+            area: AreaDraft::default().click(Point::new(1.0, 1.0)),
+            ..ControllerRust::default()
+        };
+        c.follow_view(shown_view(&session));
+        assert!(!c.area.is_empty());
+
+        session.copy_plan("Stand 1").unwrap();
+        c.follow_view(shown_view(&session));
+
+        assert!(c.area.is_empty());
+        assert_eq!(c.shown, "szene-012/stand-1");
     }
 
     /// Review of PR 23, round 3: undo, redo or deleting the scene on view changed the scene

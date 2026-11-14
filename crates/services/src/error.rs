@@ -43,6 +43,15 @@ pub enum ServiceError {
     /// A character cannot go while a plan uses it.
     #[error("character {id} appears in {plans} plan(s)")]
     CharacterInUse { id: String, plans: usize },
+    /// A scene keeps at least one plan.
+    #[error("{0} is the scene's last plan")]
+    LastPlan(String),
+    /// A plan cannot go while it holds shots: they would go with it.
+    #[error("plan {id} holds {shots} shot(s)")]
+    PlanHasShots { id: String, shots: usize },
+    /// Plan names are unique within a scene, so the variants can be told apart.
+    #[error("plan name {0} is taken")]
+    PlanNameTaken(String),
     /// A new project needs an empty (or missing) folder.
     #[error("{} is not empty", .0.display())]
     NotEmpty(std::path::PathBuf),
