@@ -6,11 +6,13 @@ use klappe_model::{
     FigureTrack, Fill, FloorPlan, LibraryItem, Light, LightKind, LinkTarget, Mark, Note,
     ObjectShape, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
 };
-use klappe_stellprobe::{bend_point, hit, via_through, Item, Role, Source};
+use klappe_stellprobe::{bend_point, hit, via_through, within, Item, Role, Source};
 
 use crate::error::ServiceError;
 use crate::library;
 use crate::session::Layer;
+
+mod group;
 
 /// What a tool or a drag does to the current plan.
 #[derive(Debug, Clone, PartialEq)]
@@ -40,6 +42,30 @@ pub enum PlanEdit {
     },
     Remove {
         source: Source,
+    },
+    /// `Shift` for a group (LH-08): all move by the same distance, the first one snapped. One
+    /// edit, so one undo step.
+    ShiftGroup {
+        sources: Vec<Source>,
+        dx_m: f64,
+        dy_m: f64,
+    },
+    /// `Spin` for a group: every element turns by `by_deg` and swings about the middle of the
+    /// group's bounding box, so the group turns as one piece.
+    SpinGroup {
+        sources: Vec<Source>,
+        by_deg: f64,
+    },
+    RemoveGroup {
+        sources: Vec<Source>,
+    },
+    /// Copies the group, set down by a distance. Objects, lamps, notes, drawings, walls and
+    /// cameras have copies; a figure, a mark or a grip has none and is left out. An error when
+    /// nothing is left to copy.
+    Duplicate {
+        sources: Vec<Source>,
+        dx_m: f64,
+        dy_m: f64,
     },
     /// Makes the way straight again (LH-21): to a mark, or all of a figure's or camera's ways.
     Straighten {
@@ -205,6 +231,38 @@ pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> 
         .and_then(|item| item.source.clone())
 }
 
+/// Every element the user can grab whose shown items all lie in the box with corners `a` and
+/// `b` (LH-08), in display order. Items for which `locked` is true are left out.
+pub(crate) fn pick_in(
+    items: &[Item],
+    (a, b): (Point, Point),
+    locked: impl Fn(Role) -> bool,
+) -> Vec<Source> {
+    let mut found: Vec<(Source, bool)> = Vec::new();
+
+    for item in items
+        .iter()
+        .filter(|i| grabbable(i.role) && !locked(i.role))
+    {
+        let Some(source) = &item.source else {
+            continue;
+        };
+        let inside = within(item, a, b);
+
+        // An element drawn from several items (a figure and its facing wedge) is in only
+        // when all of them are.
+        match found.iter_mut().find(|(s, _)| s == source) {
+            Some((_, all_in)) => *all_in &= inside,
+            None => found.push((source.clone(), inside)),
+        }
+    }
+
+    found
+        .into_iter()
+        .filter_map(|(source, all_in)| all_in.then_some(source))
+        .collect()
+}
+
 /// What a click means to take: not the view cone, the axis or a path, which only show.
 fn grabbable(role: Role) -> bool {
     !matches!(
@@ -219,9 +277,10 @@ fn grabbable(role: Role) -> bool {
 }
 
 impl PlanEdit {
-    /// The layer the edit changes something on; a locked layer refuses it.
-    pub(crate) fn layer(&self) -> Layer {
-        match self {
+    /// The layers the edit changes something on; a locked one refuses it. A group edit can
+    /// reach several.
+    pub(crate) fn layers(&self) -> Vec<Layer> {
+        let layer = match self {
             PlanEdit::Move { source, .. }
             | PlanEdit::Shift { source, .. }
             | PlanEdit::Spin { source, .. }
@@ -229,6 +288,12 @@ impl PlanEdit {
             | PlanEdit::Resize { source, .. }
             | PlanEdit::Remove { source }
             | PlanEdit::Straighten { source } => layer_of_source(source),
+            PlanEdit::ShiftGroup { sources, .. }
+            | PlanEdit::SpinGroup { sources, .. }
+            | PlanEdit::RemoveGroup { sources }
+            | PlanEdit::Duplicate { sources, .. } => {
+                return sources.iter().map(layer_of_source).collect();
+            }
             PlanEdit::AddMark { .. } => Layer::Figures,
             PlanEdit::AddCamera { .. } | PlanEdit::Follow { .. } => Layer::Cameras,
             PlanEdit::AddLight { .. } => Layer::Lights,
@@ -240,7 +305,9 @@ impl PlanEdit {
             | PlanEdit::Calibrate { .. }
             | PlanEdit::MoveBackground { .. }
             | PlanEdit::RemoveBackground => Layer::Set,
-        }
+        };
+
+        vec![layer]
     }
 }
 
@@ -348,6 +415,18 @@ pub(crate) fn apply(
             carry_cameras(&mut scope, source, |s| turn(s, source, *facing_deg))
         }
         PlanEdit::Remove { source } => remove(&mut scope, source),
+        PlanEdit::ShiftGroup {
+            sources,
+            dx_m,
+            dy_m,
+        } => group::shift(&mut scope, sources, (*dx_m, *dy_m), snapping),
+        PlanEdit::SpinGroup { sources, by_deg } => group::spin(&mut scope, sources, *by_deg),
+        PlanEdit::RemoveGroup { sources } => group::remove_all(&mut scope, sources),
+        PlanEdit::Duplicate {
+            sources,
+            dx_m,
+            dy_m,
+        } => group::duplicate(&mut scope, sources, (*dx_m, *dy_m)),
         PlanEdit::Straighten { source } => straighten(&mut scope, source),
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
@@ -387,8 +466,13 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::AddLight { at, .. }
         | PlanEdit::AddObject { at, .. }
         | PlanEdit::AddNote { at, .. } => check_point(*at),
-        PlanEdit::Shift { dx_m, dy_m, .. } => check_point(Point::new(*dx_m, *dy_m)),
+        PlanEdit::Shift { dx_m, dy_m, .. }
+        | PlanEdit::ShiftGroup { dx_m, dy_m, .. }
+        | PlanEdit::Duplicate { dx_m, dy_m, .. } => check_point(Point::new(*dx_m, *dy_m)),
         PlanEdit::Spin {
+            by_deg: facing_deg, ..
+        }
+        | PlanEdit::SpinGroup {
             by_deg: facing_deg, ..
         }
         | PlanEdit::Turn { facing_deg, .. } => check_angle(*facing_deg),
@@ -415,6 +499,7 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         } => check_object_size(*width_m, *depth_m),
         PlanEdit::AddDrawing { shape, .. } => check_shape(shape),
         PlanEdit::Remove { .. }
+        | PlanEdit::RemoveGroup { .. }
         | PlanEdit::Straighten { .. }
         | PlanEdit::EditNote { .. }
         | PlanEdit::SetBackground { .. }
@@ -693,6 +778,19 @@ fn move_to(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Serv
     Ok(())
 }
 
+/// What `shift` reads off an element: the point that snaps and the point that moves.
+fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceError> {
+    match target {
+        Target::Place { at, .. } | Target::Pin { at } => Ok((*at, *at)),
+        Target::Curve { via, a, b } => {
+            let grip = bend_point(a, *via, b);
+            Ok((grip, grip))
+        }
+        Target::Wall(wall) => Ok((wall.from, middle(wall))),
+        Target::Drawing(drawing) => anchors(drawing).ok_or(ServiceError::Gone),
+    }
+}
+
 /// Moves by `by_m` (dx, dy) from where the element is now; the new place is snapped. A wall
 /// snaps its start, not its middle: a wall 3.25 m long keeps both ends where they meet others.
 /// A drawing does the same with its first point.
@@ -702,15 +800,7 @@ fn shift(
     by_m: (f64, f64),
     snapping: Snapping,
 ) -> Result<(), ServiceError> {
-    let (anchor, middle_now) = match target(scope, source)? {
-        Target::Place { at, .. } | Target::Pin { at } => (*at, *at),
-        Target::Curve { via, a, b } => {
-            let grip = bend_point(a, *via, b);
-            (grip, grip)
-        }
-        Target::Wall(wall) => (wall.from, middle(wall)),
-        Target::Drawing(drawing) => anchors(drawing).ok_or(ServiceError::Gone)?,
-    };
+    let (anchor, middle_now) = anchor_pair(target(scope, source)?)?;
     let landed = snap(
         Point::new(anchor.x_m + by_m.0, anchor.y_m + by_m.1),
         snapping,
@@ -968,16 +1058,21 @@ fn add_mark(scope: &mut Scope<'_>, character: &str, at: Point) -> Result<(), Ser
     Ok(())
 }
 
-fn add_camera(scope: &mut Scope<'_>, at: Point, facing_deg: f64) -> Result<(), ServiceError> {
-    let cameras = &scope.plan.cameras;
-    let letter = ('A'..='Z')
+/// The first camera letter no camera of the plan has.
+fn free_letter(cameras: &[Camera]) -> Result<char, ServiceError> {
+    ('A'..='Z')
         .find(|l| {
             let label = l.to_string();
             !cameras
                 .iter()
                 .any(|c| c.label == label || c.id == label.to_lowercase())
         })
-        .ok_or(ServiceError::NoFreeCamera)?;
+        .ok_or(ServiceError::NoFreeCamera)
+}
+
+fn add_camera(scope: &mut Scope<'_>, at: Point, facing_deg: f64) -> Result<(), ServiceError> {
+    let cameras = &scope.plan.cameras;
+    let letter = free_letter(cameras)?;
     let (sensor, lens_mm, aspect) = match cameras.first() {
         Some(first) => (first.sensor, first.lens_mm, first.aspect),
         None => (DEFAULT_SENSOR, DEFAULT_LENS_MM, DEFAULT_ASPECT),
