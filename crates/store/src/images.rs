@@ -37,6 +37,9 @@ pub fn add_image(dir: &Path, source: &Path) -> Result<String, StoreError> {
 
     let bytes = fs::read(source).map_err(|e| io_err(source, e))?;
     dimensions(&bytes).map_err(|message| bad(&message))?;
+    if let Some(frame) = jpeg_frame(&bytes) {
+        frame.check_printable().map_err(|message| bad(&message))?;
+    }
 
     for number in 1_u32.. {
         let candidate = match number {
@@ -110,7 +113,8 @@ pub fn image_size(dir: &Path, file: &str) -> Result<(u32, u32), StoreError> {
     })
 }
 
-/// `(width, height)` of a PNG or JPEG the export can print; `Err` says why not.
+/// `(width, height)` of a PNG or JPEG; `Err` says why not. Whether the export can print a
+/// JPEG is checked when an image is added, not here: Qt and SVG show what the PDF cannot.
 fn dimensions(bytes: &[u8]) -> Result<(u32, u32), String> {
     if bytes.starts_with(&PNG_SIGNATURE) {
         let head = png_head(bytes)?;
@@ -119,7 +123,6 @@ fn dimensions(bytes: &[u8]) -> Result<(u32, u32), String> {
     }
 
     let frame = jpeg_frame(bytes).ok_or(NOT_AN_IMAGE)?;
-    frame.check_printable()?;
 
     Ok((frame.width, frame.height))
 }

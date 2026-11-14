@@ -408,3 +408,21 @@ fn a_replaced_image_is_measured_again() {
 
     assert_eq!(depth_m(&s), Some(10.0));
 }
+
+/// A CMYK JPEG already in the project (added by hand or by an older version) stays on the
+/// plan: the export prints no image for it, but the screen and SVG still show it.
+#[test]
+fn a_background_the_pdf_cannot_print_is_still_drawn() {
+    let (s, dir) = with_background("bg-cmyk");
+    let mut cmyk = JPEG;
+    cmyk[11] = 4;
+    std::fs::write(dir.join(IMAGE), cmyk).unwrap();
+
+    let drawn = s
+        .display_list()
+        .items
+        .iter()
+        .any(|i| i.role == Role::Background);
+
+    assert!(drawn);
+}
