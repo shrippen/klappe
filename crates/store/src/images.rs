@@ -11,17 +11,6 @@ const PNG_SIGNATURE: [u8; 8] = *b"\x89PNG\r\n\x1a\n";
 /// Signature, then the IHDR chunk: length (4), type (4), width (4), height (4).
 const PNG_HEADER_LEN: usize = 24;
 const PNG_WIDTH_AT: usize = 16;
-const JPEG_SOI: [u8; 2] = [0xFF, 0xD8];
-const JPEG_MARKER: u8 = 0xFF;
-/// Markers inside the SOFn range that are no frame header: DHT, JPG, DAC.
-const JPEG_NOT_SOF: [u8; 3] = [0xC4, 0xC8, 0xCC];
-const JPEG_SOF_FIRST: u8 = 0xC0;
-const JPEG_SOF_LAST: u8 = 0xCF;
-/// Markers without a length: padding, TEM, RSTn, SOI, EOI.
-const JPEG_STANDALONE: [u8; 4] = [0x00, 0x01, 0xD8, 0xD9];
-const JPEG_RST: std::ops::RangeInclusive<u8> = 0xD0..=0xD7;
-/// After the marker: length (2), precision (1), height (2), width (2).
-const JPEG_SOF_HEIGHT_AT: usize = 3;
 const EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
 
 /// Copies the image `source` into `bilder/` of `dir` and returns its path relative to `dir`,
@@ -128,8 +117,7 @@ pub fn image_size(dir: &Path, file: &str) -> Result<(u32, u32), StoreError> {
 fn dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     let size = match bytes {
         b if b.starts_with(&PNG_SIGNATURE) => png_size(b),
-        b if b.starts_with(&JPEG_SOI) => jpeg_size(b),
-        _ => None,
+        b => klappe_imagehead::jpeg_frame(b).map(|f| (f.width, f.height)),
     };
 
     size.filter(|(w, h)| *w > 0 && *h > 0)
@@ -140,43 +128,6 @@ fn png_size(bytes: &[u8]) -> Option<(u32, u32)> {
     let be = |at: usize| Some(u32::from_be_bytes(head.get(at..at + 4)?.try_into().ok()?));
 
     Some((be(PNG_WIDTH_AT)?, be(PNG_WIDTH_AT + 4)?))
-}
-
-/// Walks the segments to the first frame header (SOFn).
-fn jpeg_size(bytes: &[u8]) -> Option<(u32, u32)> {
-    let mut at = JPEG_SOI.len();
-
-    loop {
-        // Fill bytes may pad before a marker.
-        while *bytes.get(at)? == JPEG_MARKER && *bytes.get(at + 1)? == JPEG_MARKER {
-            at += 1;
-        }
-        if *bytes.get(at)? != JPEG_MARKER {
-            return None;
-        }
-
-        let marker = *bytes.get(at + 1)?;
-        at += 2;
-        if JPEG_STANDALONE.contains(&marker) || JPEG_RST.contains(&marker) {
-            continue;
-        }
-
-        let length = usize::from(u16::from_be_bytes([*bytes.get(at)?, *bytes.get(at + 1)?]));
-        let is_sof =
-            (JPEG_SOF_FIRST..=JPEG_SOF_LAST).contains(&marker) && !JPEG_NOT_SOF.contains(&marker);
-        if is_sof {
-            let at_height = at + JPEG_SOF_HEIGHT_AT;
-            let be = |i: usize| {
-                Some(u32::from(u16::from_be_bytes([
-                    *bytes.get(i)?,
-                    *bytes.get(i + 1)?,
-                ])))
-            };
-            return Some((be(at_height + 2)?, be(at_height)?));
-        }
-
-        at += length;
-    }
 }
 
 #[cfg(test)]
@@ -193,33 +144,9 @@ mod tests {
         b
     }
 
-    /// SOI, a comment segment, then SOF0 for `w` x `h`.
-    fn jpeg_head(w: u16, h: u16) -> Vec<u8> {
-        let mut b = vec![0xFF, 0xD8, 0xFF, 0xFE, 0x00, 0x04, b'h', b'i'];
-        b.extend_from_slice(&[0xFF, 0xC0, 0x00, 0x0B, 0x08]);
-        b.extend_from_slice(&h.to_be_bytes());
-        b.extend_from_slice(&w.to_be_bytes());
-        b.extend_from_slice(&[0x01, 0x01, 0x11, 0x00]);
-        b
-    }
-
     #[test]
     fn reads_png_size() {
         assert_eq!(dimensions(&png_head(1000, 640)), Some((1000, 640)));
-    }
-
-    #[test]
-    fn reads_jpeg_size_past_other_segments() {
-        assert_eq!(dimensions(&jpeg_head(800, 600)), Some((800, 600)));
-    }
-
-    #[test]
-    fn jpeg_tables_are_no_frame_header() {
-        // DHT (0xC4) of 2 bytes, then SOF2 (progressive) 30 x 20.
-        let mut b = vec![0xFF, 0xD8, 0xFF, 0xC4, 0x00, 0x02];
-        b.extend_from_slice(&[0xFF, 0xC2, 0x00, 0x0B, 0x08, 0x00, 0x14, 0x00, 0x1E]);
-
-        assert_eq!(dimensions(&b), Some((30, 20)));
     }
 
     #[test]

@@ -2,6 +2,8 @@
 //! SVG embeds the bytes as they are; the PDF gets a JPEG as it is (DCTDecode) and a PNG
 //! through `png`.
 
+use klappe_imagehead::{jpeg_frame, JpegFrame};
+
 use crate::error::ExportError;
 use crate::jpeg;
 use crate::palette::Rgb;
@@ -9,13 +11,6 @@ use crate::png;
 use crate::rgb8::Rgb8;
 
 const JPEG_SOI: [u8; 2] = [0xFF, 0xD8];
-const JPEG_MARKER: u8 = 0xFF;
-/// Markers in the SOFn range that are no frame header: DHT, JPG, DAC.
-const JPEG_NOT_SOF: [u8; 3] = [0xC4, 0xC8, 0xCC];
-const JPEG_SOF: std::ops::RangeInclusive<u8> = 0xC0..=0xCF;
-/// Markers without a length: padding, TEM, SOI, EOI and RSTn.
-const JPEG_STANDALONE: [u8; 4] = [0x00, 0x01, 0xD8, 0xD9];
-const JPEG_RST: std::ops::RangeInclusive<u8> = 0xD0..=0xD7;
 const JPEG_SAMPLE_BITS: u8 = 8;
 const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BASE64_PAD: char = '=';
@@ -34,15 +29,6 @@ pub(crate) struct Picture {
     format: Format,
     pub bytes: Vec<u8>,
     frame: Option<JpegFrame>,
-}
-
-/// What the PDF needs to know of a JPEG.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct JpegFrame {
-    width: u32,
-    height: u32,
-    precision: u8,
-    components: u8,
 }
 
 impl Picture {
@@ -152,46 +138,6 @@ fn jpeg_entries(frame: JpegFrame) -> Result<String, String> {
         "/Width {} /Height {} /ColorSpace {space} /BitsPerComponent {JPEG_SAMPLE_BITS} /Filter /DCTDecode",
         frame.width, frame.height
     ))
-}
-
-/// Walks the segments to the first frame header (SOFn).
-fn jpeg_frame(bytes: &[u8]) -> Option<JpegFrame> {
-    let mut at = JPEG_SOI.len();
-
-    loop {
-        // Fill bytes may pad before a marker.
-        while *bytes.get(at)? == JPEG_MARKER && *bytes.get(at + 1)? == JPEG_MARKER {
-            at += 1;
-        }
-        if *bytes.get(at)? != JPEG_MARKER {
-            return None;
-        }
-
-        let marker = *bytes.get(at + 1)?;
-        at += 2;
-        if JPEG_STANDALONE.contains(&marker) || JPEG_RST.contains(&marker) {
-            continue;
-        }
-
-        let be = |i: usize| {
-            Some(u32::from(u16::from_be_bytes([
-                *bytes.get(i)?,
-                *bytes.get(i + 1)?,
-            ])))
-        };
-        if JPEG_SOF.contains(&marker) && !JPEG_NOT_SOF.contains(&marker) {
-            // After the length (2): precision (1), height (2), width (2), components (1).
-            let frame = JpegFrame {
-                precision: *bytes.get(at + 2)?,
-                height: be(at + 3)?,
-                width: be(at + 5)?,
-                components: *bytes.get(at + 7)?,
-            };
-            return Some(frame).filter(|f| f.width > 0 && f.height > 0);
-        }
-
-        at += usize::try_from(be(at)?).ok()?;
-    }
 }
 
 /// Standard Base64 with padding, for `data:` URIs.
