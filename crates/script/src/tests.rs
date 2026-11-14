@@ -402,3 +402,28 @@ fn every_kind_in_every_position_round_trips() {
         }
     }
 }
+
+/// `/*` in an action starts a boneyard on reading; the writer must protect it.
+#[test]
+fn boneyard_opener_in_text_round_trips() {
+    let texts = ["*/*/", "a /* b", "/*", "\\/*", "/*/*", "x */ y"];
+
+    for text in texts {
+        let script = Script {
+            title_page: Vec::new(),
+            elements: vec![action(text)],
+        };
+
+        assert!(round_trips(&script), "{text:?} -> {:?}", write(&script));
+    }
+}
+
+#[test]
+fn boneyard_opener_in_title_round_trips() {
+    let script = Script {
+        title_page: vec![("Title".to_string(), "a /* b".to_string())],
+        elements: vec![action("Text.")],
+    };
+
+    assert!(round_trips(&script), "{:?}", write(&script));
+}
