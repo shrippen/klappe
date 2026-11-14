@@ -62,6 +62,7 @@ pub(crate) fn paper_mm(paper: Paper) -> (f64, f64) {
     match paper {
         Paper::A4 => (210.0, 297.0),
         Paper::A3 => (297.0, 420.0),
+        Paper::Letter => (215.9, 279.4),
     }
 }
 

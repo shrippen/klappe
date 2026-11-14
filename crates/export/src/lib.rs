@@ -1,24 +1,33 @@
-//! Writes Stellprobe's display list as SVG and PDF, and the shot list as PDF and CSV (planung/KONZEPT.md, section 4).
+//! Writes Stellprobe's display list as SVG, PDF and PNG, and the shot list as PDF and CSV (planung/KONZEPT.md, section 4).
 //! The GUI draws the same list, so the printout matches the screen (LH-80/81).
 //!
 //! ```text
 //! DisplayList ─► layout (page, scale, legend) ─► Doc ─┬─► svg
-//!                                                     └─► pdf
+//!                                                     ├─► pdf
+//!                                                     └─► raster ─► png
 //! ```
 //!
 //! Colours come from Kante's `palette.json` (`scripts/sync-kante.sh`), never from Rust.
 
 mod canvas;
+mod deflate;
 mod error;
+mod font;
 mod image;
 mod inflate;
+mod jpeg;
 mod layout;
 mod metrics;
 mod page;
 mod palette;
 mod pdf;
 mod png;
+mod png_write;
+mod raster;
+mod rgb8;
+mod scan;
 mod shots;
+mod stroke;
 mod style;
 mod svg;
 mod table;
@@ -40,6 +49,18 @@ pub fn pdf(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, Exp
     pdf::write(&layout::compose(list, page, theme)?)
 }
 
+/// The plan on one page as PNG: RGB, 150 dpi, drawn by this crate's own rasteriser.
+pub fn png(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, ExportError> {
+    let surface = raster::render(&layout::compose(list, page, theme)?)?;
+
+    Ok(png_write::encode(
+        surface.width,
+        surface.height,
+        &surface.pixels,
+        raster::RESOLUTION_DPI,
+    ))
+}
+
 /// The plan as PDF 1.4, followed by the plan's shot list on landscape sheets (LH-80), in
 /// `order`; in shooting order each setup starts under its own heading.
 pub fn pdf_with_shots(
@@ -59,3 +80,6 @@ pub fn pdf_with_shots(
 pub fn shots_csv(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> String {
     shots::csv(plan, texts, order)
 }
+
+#[cfg(test)]
+mod png_tests;

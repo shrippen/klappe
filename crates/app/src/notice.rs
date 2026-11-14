@@ -19,6 +19,7 @@ pub fn layer_name(layer: Layer) -> &'static str {
 pub fn error_text(language: Language, error: &ServiceError) -> String {
     let (key, detail) = match error {
         ServiceError::NoScene(id) => ("error.noScene", id.clone()),
+        ServiceError::NoPlan(id) => ("error.noPlan", id.clone()),
         ServiceError::NoShot(id) => ("error.noShot", id.clone()),
         ServiceError::Gone => ("error.gone", String::new()),
         ServiceError::NoLocation(id) => ("error.noLocation", id.clone()),

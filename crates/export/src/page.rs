@@ -6,6 +6,7 @@ use klappe_model::{Angle, Movement, ShotSize};
 pub enum Paper {
     A4,
     A3,
+    Letter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,7 +1,9 @@
 // Test helpers may unwrap; a failure should stop the test.
 #![allow(clippy::unwrap_used)]
 
-use klappe_export::{pdf, svg, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme};
+use klappe_export::{
+    pdf, png, svg, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme,
+};
 use klappe_model::{
     Camera, CameraMark, Character, FigureColor, FigureTrack, FloorPlan, Light, LightKind, Mark,
     Note, Point, Pose, Project, Sensor, SetObject, SetPlan, Wall,
@@ -583,4 +585,66 @@ fn mark_number_clears_the_figure() {
             );
         }
     }
+}
+
+const PNG_SIGNATURE: [u8; 8] = *b"\x89PNG\r\n\x1a\n";
+/// A4 landscape at 150 dpi: 297 mm and 210 mm over 25.4 mm per inch, times 150, rounded.
+const A4_LANDSCAPE_PX: (u32, u32) = (1754, 1240);
+const PNG_IHDR_AT: usize = 16;
+const PNG_RGB_8BIT: [u8; 2] = [8, 2];
+#[cfg(not(debug_assertions))]
+const PNG_BUDGET_S: f64 = 1.0;
+
+fn be32(bytes: &[u8], at: usize) -> u32 {
+    u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap())
+}
+
+#[test]
+fn png_is_a_150_dpi_rgb_image_of_the_sheet() {
+    let bytes = png(&list(), &page(), Theme::Light).unwrap();
+
+    assert!(bytes.starts_with(&PNG_SIGNATURE));
+    assert_eq!(&bytes[12..16], b"IHDR");
+    assert_eq!(
+        (be32(&bytes, PNG_IHDR_AT), be32(&bytes, PNG_IHDR_AT + 4)),
+        A4_LANDSCAPE_PX
+    );
+    assert_eq!(bytes[PNG_IHDR_AT + 8..PNG_IHDR_AT + 10], PNG_RGB_8BIT);
+    assert!(bytes.ends_with(b"IEND\xAE\x42\x60\x82"));
+}
+
+#[test]
+fn png_follows_the_paper_and_the_page_size() {
+    let a3 = Page::new(Paper::A3, Orientation::Portrait, TITLE, german());
+    let bytes = png(&list(), &a3, Theme::Dark).unwrap();
+
+    // 297 x 420 mm.
+    assert_eq!(
+        (be32(&bytes, PNG_IHDR_AT), be32(&bytes, PNG_IHDR_AT + 4)),
+        (1754, 2480)
+    );
+}
+
+#[test]
+fn png_of_a_plan_without_size_is_an_error() {
+    let mut empty = list();
+    empty.width_m = 0.0;
+
+    assert!(matches!(
+        png(&empty, &page(), Theme::Light),
+        Err(ExportError::EmptyPlan)
+    ));
+}
+
+/// The example plan must render in under a second (release build only; a debug build is
+/// many times slower).
+#[cfg(not(debug_assertions))]
+#[test]
+fn png_of_the_example_renders_within_the_budget() {
+    let start = std::time::Instant::now();
+    let bytes = png(&list(), &page(), Theme::Light).unwrap();
+    let took_s = start.elapsed().as_secs_f64();
+
+    eprintln!("png: {} bytes in {took_s:.3} s", bytes.len());
+    assert!(took_s < PNG_BUDGET_S, "{took_s} s");
 }

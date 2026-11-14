@@ -36,6 +36,7 @@ Alle Module arbeiten auf demselben Projekt und demselben Datenmodell.
 | Drehbuchformat | Fountain, eigener Parser | MIT | Offener Klartext-Standard; Git-tauglich; von anderen Programmen lesbar. |
 | PDF | eigener Schreiber (PDF 1.4, Vektor, Helvetica WinAnsi), keine Abhängigkeit | MIT | Headless, ohne Qt; Export auch über CLI. Der Plan braucht nur Pfade und Text; eine PDF-Bibliothek brächte viele Crates mit, und derselbe Code schreibt SVG und PDF. |
 | SVG, CSV | eigene Ausgabe | MIT | klein |
+| PNG | eigener Rasterer (`export/`: Flächenfüllung mit Kantenglättung, Liberation Sans als TrueType, PNG-Schreiber; liest PNG und JPEG für Hintergrundbilder) | MIT; Schrift SIL OFL | Die CLI soll PNG ohne Qt schreiben (LH-81); ein Rasterer aus Crates brächte viele Abhängigkeiten. Dieselbe Seite wie SVG und PDF, 150 dpi. |
 | XLSX | rust_xlsxwriter | MIT/Apache-2.0 | LH-85 |
 | Kamerablick (3D) | eigene einfache Perspektivprojektion im Kern (Wände, Kästen, Figuren als Silhouetten) | MIT | Qt Quick 3D ist nur unter GPLv3 frei; reicht für LH-36 ohne GPU-Stack. |
 | Pakete | Flatpak zuerst, dann Windows, dann macOS | – | Wie Kontra. |
@@ -76,7 +77,7 @@ model/      Projekt, Szene, Figur, Drehort, Shot (für alle Module)
 - Die mittlere Ebene steht nebeneinander: `export/` liest die Darstellungsliste aus
   `stellprobe/`, `store/` nutzt `script/` für das Drehbuch. Sonst rufen sie sich nicht.
 - `stellprobe` erzeugt eine **Darstellungsliste** (Linien, Flächen, Kreise, Beschriftungen in
-  Metern, Farben als Rollen). Die GUI zeichnet sie, `export/` schreibt sie als PDF oder SVG.
+  Metern, Farben als Rollen). Die GUI zeichnet sie, `export/` schreibt sie als PDF, SVG oder PNG.
   Was am Bildschirm steht, steht genauso im Ausdruck, und Tests prüfen die Liste ohne Fenster.
 
 ## 5. Projektformat
@@ -128,7 +129,7 @@ Eigentümer, 2026-11-13:
 | E-07 | Plattformen | Linux (Flatpak), dann Windows, dann macOS. |
 | E-08 | Drehbuchformat | Fountain. |
 | E-09 | Umfang der TUI | Nur Drehbuch schreiben. |
-| E-10 | Programme | GUI-App `klappe` mit Modulen, dazu `klappe-tui` und `klappe-cli`. |
+| E-10 | Programme | GUI-App `klappe` mit Modulen, dazu `klappe-tui` und `klappe-cli`. Die CLI exportiert Pläne (`klappe-cli export --project … --scene … --out plan.png`, PDF, SVG, PNG); ihre Texte kommen wie die der App aus dem Katalog in `services/i18n`. |
 | E-11 | Projektformat | Ordner aus Textdateien; zum Weitergeben als Zip (`.klappe`). |
 | E-12 | Technik des Kamerablicks | Eigene einfache Perspektivprojektion im Kern. |
 | E-13 | CI | Wie Kontra: Prüfungen und Flatpak auf dem GitHub-Mirror, Status an Gitea. |

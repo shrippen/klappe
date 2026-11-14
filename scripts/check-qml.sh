@@ -21,7 +21,7 @@ if [ -z "$RUNNER" ]; then
     exit 0
 fi
 
-# The tests read the catalogue (i18n/*.json) with XMLHttpRequest.
+# The tests read the catalogue (crates/services/i18n/*.json) with XMLHttpRequest.
 export QML_XHR_ALLOW_FILE_READ=1
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
 export QT_FORCE_STDERR_LOGGING=1

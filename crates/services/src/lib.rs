@@ -9,12 +9,14 @@
 //!        └─► views: ShotRow, Track, ScriptLine  (plain data, ready to show)
 //! ```
 
+mod catalog;
 mod edit;
 mod error;
 mod plan_edit;
 mod session;
 mod views;
 
+pub use catalog::Language;
 pub use edit::ShotField;
 pub use error::ServiceError;
 pub use plan_edit::{PlanEdit, Snapping};

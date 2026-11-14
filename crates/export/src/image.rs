@@ -3,8 +3,10 @@
 //! through `png`.
 
 use crate::error::ExportError;
+use crate::jpeg;
 use crate::palette::Rgb;
 use crate::png;
+use crate::rgb8::Rgb8;
 
 const JPEG_SOI: [u8; 2] = [0xFF, 0xD8];
 const JPEG_MARKER: u8 = 0xFF;
@@ -17,6 +19,7 @@ const JPEG_RST: std::ops::RangeInclusive<u8> = 0xD0..=0xD7;
 const JPEG_SAMPLE_BITS: u8 = 8;
 const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BASE64_PAD: char = '=';
+const RGB_CHANNELS: usize = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Format {
@@ -74,6 +77,34 @@ impl Picture {
             Format::Png => "image/png",
             Format::Jpeg => "image/jpeg",
         }
+    }
+
+    /// The decoded pixels as 8-bit RGB, a PNG's alpha laid over `paper`.
+    pub(crate) fn rgb(&self, paper: Rgb) -> Result<Rgb8, ExportError> {
+        let bad = |message: String| ExportError::Image {
+            file: self.file.clone(),
+            message,
+        };
+
+        let image = match self.format {
+            Format::Jpeg => jpeg::decode_jpeg(&self.bytes).map_err(bad)?,
+            Format::Png => {
+                let png = png::parse(&self.bytes).map_err(bad)?;
+                let pixels = png.rgb_over(paper).map_err(bad)?;
+                Rgb8 {
+                    width: png.width,
+                    height: png.height,
+                    pixels,
+                }
+            }
+        };
+
+        let expected = image.width as usize * image.height as usize * RGB_CHANNELS;
+        if image.width == 0 || image.height == 0 || image.pixels.len() != expected {
+            return Err(bad("decoded picture does not match its size".to_owned()));
+        }
+
+        Ok(image)
     }
 
     /// The body of the PDF's image object (dictionary and stream); a PNG with an alpha

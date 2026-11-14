@@ -1,6 +1,6 @@
 import QtQuick
 
-// German/English texts from the Rust catalogues (crates/app/i18n). t("key", {name: value}).
+// German/English texts from the Rust catalogues (crates/services/i18n). t("key", {name: value}).
 QtObject {
     property string source: "{}"
     readonly property var map: JSON.parse(source)

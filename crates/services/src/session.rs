@@ -267,6 +267,19 @@ impl Session {
         Ok(())
     }
 
+    /// Shows the plan with this id of the current scene.
+    pub fn select_plan(&mut self, id: &str) -> Result<(), ServiceError> {
+        let index = self
+            .scene()
+            .and_then(|s| s.plans.iter().position(|p| p.id == id))
+            .ok_or_else(|| ServiceError::NoPlan(id.to_owned()))?;
+
+        self.plan = index;
+        self.time_s = 0.0;
+        self.selected_shot = None;
+        Ok(())
+    }
+
     pub fn time_s(&self) -> f64 {
         self.time_s
     }
@@ -418,6 +431,34 @@ impl Session {
         texts: Texts,
         order: ShotOrder,
     ) -> Result<(), ServiceError> {
+        let (list, page) = self.printout(paper, texts)?;
+        let bytes = match self.plan() {
+            Some(plan) => klappe_export::pdf_with_shots(&list, &page, Theme::Light, plan, order)?,
+            None => klappe_export::pdf(&list, &page, Theme::Light)?,
+        };
+
+        write_file(path, bytes)
+    }
+
+    /// Writes the current plan at the playhead as PNG (LH-81): RGB, 150 dpi, no shot list.
+    pub fn export_png(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
+        let (list, page) = self.printout(paper, texts)?;
+        let bytes = klappe_export::png(&list, &page, Theme::Light)?;
+
+        write_file(path, bytes)
+    }
+
+    /// Writes the current plan at the playhead as SVG (LH-81), without the shot list.
+    pub fn export_svg(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
+        let (list, page) = self.printout(paper, texts)?;
+        let svg = klappe_export::svg(&list, &page, Theme::Light)?;
+
+        write_file(path, svg.into_bytes())
+    }
+
+    /// The display list at the playhead and the sheet around it, with the images the list
+    /// names read from the project; what every plan export starts from.
+    fn printout(&self, paper: Paper, texts: Texts) -> Result<(DisplayList, Page), ServiceError> {
         let mut page = Page::new(paper, Orientation::Landscape, self.plan_title(), texts);
         let list = self.display_list();
         for item in &list.items {
@@ -427,12 +468,8 @@ impl Session {
             page.images
                 .insert(file.clone(), klappe_store::read_image(&self.dir, file)?);
         }
-        let bytes = match self.plan() {
-            Some(plan) => klappe_export::pdf_with_shots(&list, &page, Theme::Light, plan, order)?,
-            None => klappe_export::pdf(&list, &page, Theme::Light)?,
-        };
 
-        write_file(path, bytes)
+        Ok((list, page))
     }
 
     /// Writes the plan's shot list as CSV (LH-82); `texts` carries the column heads and the

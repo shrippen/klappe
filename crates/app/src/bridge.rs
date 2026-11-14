@@ -197,6 +197,16 @@ pub mod qobject {
         #[cxx_name = "exportPdf"]
         fn export_pdf(self: Pin<&mut Self>, order: &QString) -> bool;
 
+        /// Writes the plan as PNG next to the project folder; the path goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "exportPng"]
+        fn export_png(self: Pin<&mut Self>) -> bool;
+
+        /// Writes the plan as SVG next to the project folder; the path goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "exportSvg"]
+        fn export_svg(self: Pin<&mut Self>) -> bool;
+
         /// Writes the shot list as CSV next to the project folder; the path goes to `status`.
         /// `order` is `cut` or `shooting`.
         #[qinvokable]
@@ -213,9 +223,8 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    horizontal_fov_deg, Angle, Autosave, DisplayList, Layer, Lock, Movement, Paper, PlanEdit,
-    Point, Session, ShotColumns, ShotField, ShotOrder, ShotSize, ShotTexts, Snapping, Source,
-    Texts, Visibility,
+    horizontal_fov_deg, Autosave, DisplayList, Layer, Lock, Paper, PlanEdit, Point, ServiceError,
+    Session, ShotField, ShotOrder, Snapping, Source, Texts, Visibility,
 };
 use serde_json::json;
 
@@ -473,6 +482,32 @@ fn layer_of(name: &str) -> Option<Layer> {
 impl qobject::Controller {
     fn session(self: Pin<&mut Self>) -> Option<&mut Session> {
         self.rust_mut().get_mut().session.as_mut()
+    }
+
+    /// Writes the plan next to the project folder with `write`; says where it went (`saved`
+    /// is the catalogue key of the message) or what failed.
+    fn export_plan(
+        mut self: Pin<&mut Self>,
+        extension: &str,
+        saved: &str,
+        write: impl FnOnce(&Session, &std::path::Path, Texts) -> Result<(), ServiceError>,
+    ) -> bool {
+        let language = self.rust().language;
+        let texts = language.print_texts();
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        let path = plan_file(s, extension);
+        let message = match write(s, &path, texts) {
+            Ok(()) => language
+                .text(saved)
+                .replace("{path}", &path.to_string_lossy()),
+            Err(e) => error_text(language, &e),
+        };
+        let ok = path.exists();
+        self.as_mut().say(message);
+        ok
     }
 
     /// Forgets the selection when its element is gone (undo, a layer switched off).
@@ -1018,28 +1053,29 @@ impl qobject::Controller {
         self.refresh();
     }
 
-    fn export_pdf(mut self: Pin<&mut Self>, order: &QString) -> bool {
-        let language = self.rust().language;
-        let texts = print_texts(language);
-        let Some(s) = self.as_mut().session() else {
-            return false;
-        };
+    fn export_pdf(self: Pin<&mut Self>, order: &QString) -> bool {
+        let order = shot_order(&order.to_string());
 
-        let path = plan_file(s, "pdf");
-        let message = match s.export_pdf(&path, Paper::A4, texts, shot_order(&order.to_string())) {
-            Ok(()) => language
-                .text("menu.pdfSaved")
-                .replace("{path}", &path.to_string_lossy()),
-            Err(e) => error_text(language, &e),
-        };
-        let ok = path.exists();
-        self.as_mut().say(message);
-        ok
+        self.export_plan("pdf", "menu.pdfSaved", |s, path, texts| {
+            s.export_pdf(path, Paper::A4, texts, order)
+        })
+    }
+
+    fn export_png(self: Pin<&mut Self>) -> bool {
+        self.export_plan("png", "menu.pngSaved", |s, path, texts| {
+            s.export_png(path, Paper::A4, texts)
+        })
+    }
+
+    fn export_svg(self: Pin<&mut Self>) -> bool {
+        self.export_plan("svg", "menu.svgSaved", |s, path, texts| {
+            s.export_svg(path, Paper::A4, texts)
+        })
     }
 
     fn export_csv(mut self: Pin<&mut Self>, order: &QString) -> bool {
         let language = self.rust().language;
-        let texts = print_texts(language);
+        let texts = language.print_texts();
         let Some(s) = self.as_mut().session() else {
             return false;
         };
@@ -1075,61 +1111,6 @@ fn plan_file(s: &Session, extension: &str) -> std::path::PathBuf {
         .parent()
         .map(|p| p.join(&name))
         .unwrap_or_else(|| name.into())
-}
-
-/// The shot list's words from the catalogue.
-fn shot_texts(language: Language) -> ShotTexts {
-    let t = |k: &str| language.text(k);
-
-    ShotTexts {
-        title: t("shots.title"),
-        columns: ShotColumns {
-            number: t("field.number"),
-            camera: t("field.camera"),
-            lens_mm: t("field.lens"),
-            setup: t("field.setup"),
-            size: t("field.size"),
-            angle: t("field.perspective"),
-            movement: t("field.movement"),
-            from_s: t("field.from"),
-            to_s: t("field.to"),
-            duration_s: t("field.duration"),
-            description: t("field.description"),
-            props: t("field.props"),
-            gear: t("field.gear"),
-            crew: t("field.crew"),
-            note: t("field.note"),
-        },
-        sizes: ShotSize::ALL
-            .iter()
-            .map(|s| (*s, t(&format!("size.{}", s.name()))))
-            .collect(),
-        angles: Angle::ALL
-            .iter()
-            .map(|a| (*a, t(&format!("angle.{}", a.name()))))
-            .collect(),
-        movements: Movement::ALL
-            .iter()
-            .map(|m| (*m, t(&format!("movement.{}", m.name()))))
-            .collect(),
-    }
-}
-
-/// The printed texts from the catalogue (E-05: no texts in code).
-fn print_texts(language: Language) -> Texts {
-    let t = |k: &str| language.text(k);
-
-    Texts {
-        figure: t("legend.figure"),
-        camera: t("legend.camera"),
-        light: t("legend.light"),
-        axis: t("legend.axis"),
-        path: t("legend.path"),
-        mark: t("legend.mark"),
-        unit: t("unit.m"),
-        decimal_separator: t("unit.decimal").chars().next().unwrap_or('.'),
-        shots: shot_texts(language),
-    }
 }
 
 /// The text of the current set's note `id`.
