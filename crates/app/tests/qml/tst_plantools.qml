@@ -74,6 +74,15 @@ TestCase {
         }
     }
 
+    // Review of PR 20: while the backup question locks the bar, keys changed the tool.
+    function test_a_locked_bar_ignores_keys() {
+        const bar = make()
+        bar.enabled = false
+
+        keyClick(Qt.Key_W)
+        compare(bar.tool, "select")
+    }
+
     function test_the_list_shows_for_its_tool_only() {
         const bar = make()
         const shown = () => ["objectBox", "figureBox", "lightBox"].filter(n => findChild(bar, n).visible)

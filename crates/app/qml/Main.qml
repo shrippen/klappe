@@ -117,12 +117,11 @@ Kirigami.ApplicationWindow {
                 Layout.rightMargin: Kirigami.Units.smallSpacing
                 spacing: Kirigami.Units.smallSpacing
 
-                // Locked and dimmed while the backup question is open; the view toggles stay
-                // usable.
+                // Locked while the backup question is open (its buttons dim themselves); the
+                // view toggles stay usable.
                 PlanTools {
                     id: planTools
                     enabled: !backupNotice.blocking
-                    opacity: enabled ? 1 : KanteStyle.dimOpacity
                     texts: texts
                     controller: ctl
                 }

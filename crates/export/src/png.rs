@@ -147,8 +147,11 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Png> {
 
 impl Png {
     /// Whether `tRNS` is valid: a palette has at most one alpha per entry, a colour key stays
-    /// within the sample range.
+    /// within the sample range. Images with an alpha channel ignore `tRNS`.
     fn trns_fits(&self) -> bool {
+        if self.color.has_alpha() {
+            return true;
+        }
         if self.color == Color::Indexed {
             return self.transparency.len() <= self.palette.len() / 3;
         }
@@ -620,6 +623,15 @@ mod tests {
 
             assert!(error.contains("tRNS"), "{error}");
         }
+    }
+
+    /// Review of PR 20: images with an alpha channel ignore `tRNS`, so its value must not
+    /// decide whether they load.
+    #[test]
+    fn an_alpha_image_ignores_trns() {
+        let rgba = png_trns(1, 1, 8, 6, &[0, 1, 2, 3, 255], &[], &[1, 0]);
+
+        assert!(parse(&rgba).is_ok());
     }
 
     /// 16 bits are decoded; the colour key compares the full 16-bit value.
