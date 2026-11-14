@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use klappe_services::{LightKind, PlanEdit, Point, Source};
+use klappe_services::{Layer, LightKind, Lock, PlanEdit, Point, ServiceError, Source};
 
 const FILE_URL: &str = "file://";
 
@@ -45,6 +45,9 @@ pub enum Tool {
     Light(LightKind),
     /// Two clicks on a stretch of known length scale the background; a drag moves it.
     Scale,
+    /// A click on empty ground pins a note (the text is asked next); a click on a note asks
+    /// for its text again.
+    Note,
 }
 
 impl Tool {
@@ -59,6 +62,7 @@ impl Tool {
             "figure" => Some(Tool::Figure(choice.to_owned())),
             "camera" => Some(Tool::Camera),
             "scale" => Some(Tool::Scale),
+            "note" => Some(Tool::Note),
             "light" => LIGHT_KINDS
                 .iter()
                 .find(|(n, _)| *n == choice)
@@ -81,7 +85,7 @@ pub enum Key {
 /// A click at `at`: the tools that put something there. Select only selects, which is no edit.
 pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
     match tool {
-        Tool::Select | Tool::Wall | Tool::Scale => None,
+        Tool::Select | Tool::Wall | Tool::Scale | Tool::Note => None,
         Tool::Object(kind) if kind.is_empty() => None,
         Tool::Object(kind) => Some(PlanEdit::AddObject {
             kind: kind.clone(),
@@ -179,6 +183,56 @@ impl ScaleStep {
             ScaleStep::First(a) => vec![a],
             ScaleStep::Both(a, b) => vec![a, b],
         }
+    }
+}
+
+/// A note whose text is being asked: a new one at a place, or an existing one by id.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum NoteDraft {
+    #[default]
+    Idle,
+    New(Point),
+    Edit(String),
+}
+
+impl NoteDraft {
+    /// A click of the note tool at `at`: on a note it edits that one, else a new one goes
+    /// there.
+    pub fn click(at: Point, picked: Option<&Source>) -> NoteDraft {
+        match picked {
+            Some(Source::Note(id)) => NoteDraft::Edit(id.clone()),
+            _ => NoteDraft::New(at),
+        }
+    }
+}
+
+/// Whether the note tool may ask for a text: not while the notes layer is locked, or the
+/// typed text would be lost on the refused edit.
+pub fn note_open(lock: Lock) -> Result<(), ServiceError> {
+    match lock {
+        Lock::Locked => Err(ServiceError::Locked(Layer::Notes)),
+        Lock::Unlocked => Ok(()),
+    }
+}
+
+/// The text typed for the draft as an edit; `None` without a draft or for a text of only
+/// blanks.
+pub fn note_edit(draft: &NoteDraft, text: &str) -> Option<PlanEdit> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+
+    match draft {
+        NoteDraft::Idle => None,
+        NoteDraft::New(at) => Some(PlanEdit::AddNote {
+            at: *at,
+            text: text.to_owned(),
+        }),
+        NoteDraft::Edit(id) => Some(PlanEdit::EditNote {
+            id: id.clone(),
+            text: text.to_owned(),
+        }),
     }
 }
 
@@ -288,6 +342,17 @@ pub fn key_edit(key: Key, selected: Option<&Source>) -> Option<PlanEdit> {
 
 #[cfg(test)]
 mod tests {
+
+    /// Review of PR 21: with the notes layer locked the tool still asked for a text and
+    /// dropped it on Enter.
+    #[test]
+    fn a_locked_notes_layer_asks_nothing() {
+        assert!(matches!(
+            note_open(Lock::Locked),
+            Err(ServiceError::Locked(Layer::Notes))
+        ));
+        assert!(note_open(Lock::Unlocked).is_ok());
+    }
 
     /// Review of PR 19: scale points snapped to the 25 cm grid gave a wrong scale
     /// (2.8 m picked, 3.0 m used). Tools that place things still snap.
@@ -580,6 +645,48 @@ mod tests {
         assert_eq!(scale_edit(ScaleStep::Both(a, b), "x"), None);
         assert_eq!(scale_edit(ScaleStep::First(a), "3"), None);
         assert_eq!(scale_edit(ScaleStep::Idle, "3"), None);
+    }
+
+    #[test]
+    fn note_is_a_tool_and_a_click_edits_nothing() {
+        assert_eq!(Tool::parse("note", ""), Some(Tool::Note));
+        assert_eq!(click_edit(&Tool::Note, p(1.0, 1.0)), None);
+    }
+
+    #[test]
+    fn a_click_on_a_note_edits_it_else_a_new_one_goes_there() {
+        let at = p(2.0, 3.0);
+        let note = Source::Note("n1".into());
+        let wall = Source::Wall(0);
+
+        assert_eq!(
+            NoteDraft::click(at, Some(&note)),
+            NoteDraft::Edit("n1".into())
+        );
+        assert_eq!(NoteDraft::click(at, Some(&wall)), NoteDraft::New(at));
+        assert_eq!(NoteDraft::click(at, None), NoteDraft::New(at));
+    }
+
+    #[test]
+    fn the_typed_text_makes_the_note_edit() {
+        let at = p(2.0, 3.0);
+
+        assert_eq!(
+            note_edit(&NoteDraft::New(at), " Licht an "),
+            Some(PlanEdit::AddNote {
+                at,
+                text: "Licht an".into()
+            })
+        );
+        assert_eq!(
+            note_edit(&NoteDraft::Edit("n1".into()), "Licht aus"),
+            Some(PlanEdit::EditNote {
+                id: "n1".into(),
+                text: "Licht aus".into()
+            })
+        );
+        assert_eq!(note_edit(&NoteDraft::New(at), "  "), None);
+        assert_eq!(note_edit(&NoteDraft::Idle, "x"), None);
     }
 
     #[test]

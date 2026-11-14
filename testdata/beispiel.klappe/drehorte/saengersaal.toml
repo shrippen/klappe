@@ -84,3 +84,11 @@ rotation_deg = 0.0
 [set.objects.at]
 x_m = 14.0
 y_m = 4.0
+
+[[set.notes]]
+id = "n1"
+text = "Vorhang schließen"
+
+[set.notes.at]
+x_m = 3.0
+y_m = 11.5

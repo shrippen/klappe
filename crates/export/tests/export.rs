@@ -6,7 +6,7 @@ use klappe_export::{
 };
 use klappe_model::{
     Camera, CameraMark, Character, FigureColor, FigureTrack, FloorPlan, Light, LightKind, Mark,
-    Point, Pose, Project, Sensor, SetObject, SetPlan, Wall,
+    Note, Point, Pose, Project, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{render, DisplayList};
 use serde_json::Value;
@@ -46,6 +46,7 @@ fn set() -> SetPlan {
             rotation_deg: 0.0,
         }],
         background: None,
+        notes: Vec::new(),
     }
 }
 
@@ -310,6 +311,26 @@ fn pdf_is_well_formed() {
             "{n}"
         );
     }
+}
+
+/// LH-16: a note shows in SVG and PDF with its text.
+#[test]
+fn notes_are_printed_with_their_text() {
+    let mut room = set();
+    room.notes = vec![Note {
+        id: "n1".into(),
+        at: Point::new(4.0, 3.0),
+        text: "Vorhang schließen".into(),
+    }];
+    let list = render(&project(), &room, &plan(), 0.0, None);
+
+    let out = svg(&list, &page(), Theme::Light).unwrap();
+    let bytes = pdf(&list, &page(), Theme::Light).unwrap();
+
+    assert_eq!(lines_with(&out, "item note").len(), 1);
+    assert!(out.contains(">Vorhang schließen<"));
+    // ß = 0xDF = \337 in WinAnsi.
+    assert!(String::from_utf8_lossy(&bytes).contains("(Vorhang schlie\\337en) Tj"));
 }
 
 #[test]

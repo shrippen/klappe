@@ -1,8 +1,19 @@
 //! What the header's status line says: translated messages, and when they go stale.
 
-use klappe_services::{BackupState, ServiceError};
+use klappe_services::{BackupState, Layer, ServiceError};
 
 use crate::catalog::Language;
+
+/// How QML and the catalogue (`layer.<name>`) call a layer.
+pub fn layer_name(layer: Layer) -> &'static str {
+    match layer {
+        Layer::Set => "set",
+        Layer::Figures => "figures",
+        Layer::Cameras => "cameras",
+        Layer::Lights => "lights",
+        Layer::Notes => "notes",
+    }
+}
 
 /// The service's error in the app's language; details (path, value) appended where they help.
 pub fn error_text(language: Language, error: &ServiceError) -> String {
@@ -19,6 +30,10 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
                 .text("error.cameraInUse")
                 .replace("{camera}", camera)
                 .replace("{shot}", shot);
+        }
+        ServiceError::Locked(layer) => {
+            let name = language.text(&format!("layer.{}", layer_name(*layer)));
+            return language.text("error.locked").replace("{layer}", &name);
         }
         ServiceError::BadValue { field, value } => {
             let name = language.text(&format!("field.{field}"));
@@ -154,6 +169,38 @@ mod tests {
     }
 
     #[test]
+    fn a_locked_layer_is_named_in_the_message() {
+        let error = ServiceError::Locked(Layer::Notes);
+
+        assert_eq!(
+            error_text(Language::German, &error),
+            "Die Ebene Notizen ist gesperrt"
+        );
+        assert_eq!(
+            error_text(Language::English, &error),
+            "The layer Notes is locked"
+        );
+    }
+
+    #[test]
+    fn every_layer_has_a_name_in_both_languages() {
+        let layers = [
+            Layer::Set,
+            Layer::Figures,
+            Layer::Cameras,
+            Layer::Lights,
+            Layer::Notes,
+        ];
+
+        for layer in layers {
+            let key = format!("layer.{}", layer_name(layer));
+            for language in [Language::German, Language::English] {
+                assert_ne!(language.text(&key), key);
+            }
+        }
+    }
+
+    #[test]
     fn every_error_kind_has_a_text_in_both_languages() {
         let errors = [
             ServiceError::NoScene("s".to_owned()),
@@ -162,6 +209,7 @@ mod tests {
             ServiceError::NoLocation("l".to_owned()),
             ServiceError::NoFreeCamera,
             ServiceError::NoBackup,
+            ServiceError::Locked(Layer::Set),
         ];
 
         for error in &errors {

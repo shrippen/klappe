@@ -27,7 +27,7 @@ pub use plan::{
     ScriptLink, Sensor,
 };
 pub use project::{
-    Background, Character, FigureColor, Location, Project, Scene, SetObject, SetPlan, Wall,
+    Background, Character, FigureColor, Location, Note, Project, Scene, SetObject, SetPlan, Wall,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
 

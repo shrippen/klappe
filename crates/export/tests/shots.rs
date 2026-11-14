@@ -90,6 +90,7 @@ fn list(plan: &FloorPlan) -> DisplayList {
         walls: Vec::new(),
         objects: Vec::new(),
         background: None,
+        notes: Vec::new(),
     };
 
     render(&Project::new("Test"), &set, plan, 0.0, None)

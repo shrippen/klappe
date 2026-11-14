@@ -6,7 +6,7 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The drawing tools of the tool bar (LH-08 ff.): one tool at a time, a list for the tools that
-// need a choice (object kind, figure, lamp kind), the snapping switch. Keys V W O F C L M pick
+// need a choice (object kind, figure, lamp kind), the snapping switch. Keys V W O F C L M N pick
 // the tool (NF-06). The controller does the work: this only says which tool and which choice.
 RowLayout {
     id: tools
@@ -21,8 +21,8 @@ RowLayout {
         return box && box.currentValue !== undefined ? String(box.currentValue) : ""
     }
 
-    readonly property var _names: ["select", "wall", "object", "figure", "camera", "light", "scale"]
-    readonly property var _keys: ["V", "W", "O", "F", "C", "L", "M"]
+    readonly property var _names: ["select", "wall", "object", "figure", "camera", "light", "scale", "note"]
+    readonly property var _keys: ["V", "W", "O", "F", "C", "L", "M", "N"]
     readonly property var _choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : { figure: [], object: [], light: [] }
 
     spacing: Kirigami.Units.smallSpacing
@@ -47,8 +47,8 @@ RowLayout {
             checked: tools.tool === modelData
             QQC2.ButtonGroup.group: group
             onClicked: tools.tool = modelData
-            QQC2.ToolTip.text: modelData === "scale"
-                ? tools.texts.t("tool.scaleTip", { key: tools._keys[index] })
+            QQC2.ToolTip.text: modelData === "scale" || modelData === "note"
+                ? tools.texts.t("tool." + modelData + "Tip", { key: tools._keys[index] })
                 : tools.texts.t("tool.tip", { name: text, key: tools._keys[index] })
             QQC2.ToolTip.visible: hovered
             QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay

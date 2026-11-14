@@ -2,11 +2,12 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     Background, Camera, CameraMark, Character, FigureTrack, FloorPlan, Light, LightKind,
-    LinkTarget, Mark, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
+    LinkTarget, Mark, Note, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{hit, Item, Role, Source};
 
 use crate::error::ServiceError;
+use crate::session::Layer;
 
 /// What a tool or a drag does to the current plan.
 #[derive(Debug, Clone, PartialEq)]
@@ -57,6 +58,16 @@ pub enum PlanEdit {
     AddWall {
         from: Point,
         to: Point,
+    },
+    /// Pins a note with `text` to the set.
+    AddNote {
+        at: Point,
+        text: String,
+    },
+    /// Changes the text of the note `id`.
+    EditNote {
+        id: String,
+        text: String,
     },
     /// Takes the image file `source` (PNG or JPEG) as the set's background, copied into the
     /// project's `bilder/`, as wide as the set from its top left corner. Undo takes the
@@ -149,12 +160,13 @@ pub(crate) fn snap(at: Point, snapping: Snapping) -> Point {
     Point::new(on_grid(at.x_m), on_grid(at.y_m))
 }
 
-/// The topmost item the user can grab at `at`: the display list is back to front.
-pub(crate) fn pick(items: &[Item], at: Point) -> Option<Source> {
+/// The topmost item the user can grab at `at`: the display list is back to front. Items for
+/// which `locked` is true are left out.
+pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> Option<Source> {
     items
         .iter()
         .rev()
-        .filter(|item| grabbable(item.role))
+        .filter(|item| grabbable(item.role) && !locked(item.role))
         .find(|item| hit(item, at, PICK_RADIUS_M))
         .and_then(|item| item.source.clone())
 }
@@ -170,6 +182,40 @@ fn grabbable(role: Role) -> bool {
             | Role::FigurePath(_)
             | Role::LightBeam
     )
+}
+
+impl PlanEdit {
+    /// The layer the edit changes something on; a locked layer refuses it.
+    pub(crate) fn layer(&self) -> Layer {
+        match self {
+            PlanEdit::Move { source, .. }
+            | PlanEdit::Shift { source, .. }
+            | PlanEdit::Spin { source, .. }
+            | PlanEdit::Turn { source, .. }
+            | PlanEdit::Remove { source } => layer_of_source(source),
+            PlanEdit::AddMark { .. } => Layer::Figures,
+            PlanEdit::AddCamera { .. } => Layer::Cameras,
+            PlanEdit::AddLight { .. } => Layer::Lights,
+            PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } => Layer::Notes,
+            PlanEdit::AddObject { .. }
+            | PlanEdit::AddWall { .. }
+            | PlanEdit::SetBackground { .. }
+            | PlanEdit::Calibrate { .. }
+            | PlanEdit::MoveBackground { .. }
+            | PlanEdit::RemoveBackground => Layer::Set,
+        }
+    }
+}
+
+/// The layer an element of the plan is on.
+fn layer_of_source(source: &Source) -> Layer {
+    match source {
+        Source::Object(_) | Source::Wall(_) => Layer::Set,
+        Source::Light(_) => Layer::Lights,
+        Source::Camera(_) => Layer::Cameras,
+        Source::Figure(_) | Source::Mark { .. } => Layer::Figures,
+        Source::Note(_) => Layer::Notes,
+    }
 }
 
 /// The parts of the project one edit works on, borrowed apart.
@@ -190,6 +236,10 @@ enum Target<'a> {
         facing_deg: &'a mut f64,
     },
     Wall(&'a mut Wall),
+    /// Has a place but no facing: a note.
+    Pin {
+        at: &'a mut Point,
+    },
 }
 
 /// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snapping` is for
@@ -247,6 +297,8 @@ pub(crate) fn apply(
         PlanEdit::AddLight { kind, at } => add_light(&mut scope, *kind, *at),
         PlanEdit::AddObject { kind, at } => add_object(&mut scope, kind, *at),
         PlanEdit::AddWall { from, to } => add_wall(&mut scope, *from, *to),
+        PlanEdit::AddNote { at, text } => add_note(&mut scope, *at, text),
+        PlanEdit::EditNote { id, text } => edit_note(&mut scope, id, text),
         PlanEdit::SetBackground { source } => set_background(&mut scope, dir, source),
         PlanEdit::Calibrate {
             from,
@@ -264,7 +316,8 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         PlanEdit::Move { to: at, .. }
         | PlanEdit::AddMark { at, .. }
         | PlanEdit::AddLight { at, .. }
-        | PlanEdit::AddObject { at, .. } => check_point(*at),
+        | PlanEdit::AddObject { at, .. }
+        | PlanEdit::AddNote { at, .. } => check_point(*at),
         PlanEdit::Shift { dx_m, dy_m, .. } => check_point(Point::new(*dx_m, *dy_m)),
         PlanEdit::Spin {
             by_deg: facing_deg, ..
@@ -288,9 +341,10 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             check_distance(*distance_m)
         }
         PlanEdit::MoveBackground { dx_m, dy_m } => check_point(Point::new(*dx_m, *dy_m)),
-        PlanEdit::Remove { .. } | PlanEdit::SetBackground { .. } | PlanEdit::RemoveBackground => {
-            Ok(())
-        }
+        PlanEdit::Remove { .. }
+        | PlanEdit::EditNote { .. }
+        | PlanEdit::SetBackground { .. }
+        | PlanEdit::RemoveBackground => Ok(()),
     }
 }
 
@@ -427,6 +481,14 @@ fn target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, S
                 .ok_or(ServiceError::Gone)?;
             Ok(Target::Wall(wall))
         }
+        Source::Note(id) => {
+            let note = scope
+                .set
+                .as_deref_mut()
+                .and_then(|s| s.notes.iter_mut().find(|n| n.id == *id))
+                .ok_or(ServiceError::Gone)?;
+            Ok(Target::Pin { at: &mut note.at })
+        }
     }
 }
 
@@ -436,7 +498,7 @@ fn middle(wall: &Wall) -> Point {
 
 fn move_to(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
-        Target::Place { at, .. } => *at = to,
+        Target::Place { at, .. } | Target::Pin { at } => *at = to,
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
             let mid = middle(wall);
@@ -458,7 +520,7 @@ fn shift(
     snapping: Snapping,
 ) -> Result<(), ServiceError> {
     let (anchor, middle_now) = match target(scope, source)? {
-        Target::Place { at, .. } => (*at, *at),
+        Target::Place { at, .. } | Target::Pin { at } => (*at, *at),
         Target::Wall(wall) => (wall.from, middle(wall)),
     };
     let landed = snap(
@@ -478,6 +540,8 @@ fn spin(scope: &mut Scope<'_>, source: &Source, by_deg: f64) -> Result<(), Servi
     let now_deg = match target(scope, source)? {
         Target::Place { facing_deg, .. } => *facing_deg,
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
+        // Nothing to turn.
+        Target::Pin { .. } => return Ok(()),
     };
 
     turn(scope, source, now_deg + by_deg)
@@ -488,6 +552,8 @@ fn turn(scope: &mut Scope<'_>, source: &Source, facing_deg: f64) -> Result<(), S
 
     match target(scope, source)? {
         Target::Place { facing_deg: f, .. } => *f = facing_deg,
+        // Nothing to turn.
+        Target::Pin { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.
             let mid = middle(wall);
@@ -534,6 +600,13 @@ fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
             }
 
             set.walls.remove(*index);
+            Ok(())
+        }
+        Source::Note(id) => {
+            let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
+            let index = set.notes.iter().position(|n| n.id == *id);
+            let index = index.ok_or(ServiceError::Gone)?;
+            set.notes.remove(index);
             Ok(())
         }
     }
@@ -759,6 +832,50 @@ fn add_wall(scope: &mut Scope<'_>, from: Point, to: Point) -> Result<(), Service
         to,
         thickness_m: DEFAULT_WALL_M,
     });
+
+    Ok(())
+}
+
+/// A note's text as kept: trimmed, and more than nothing.
+fn note_text(text: &str) -> Result<String, ServiceError> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(ServiceError::BadValue {
+            field: "note",
+            value: String::new(),
+        });
+    }
+
+    Ok(text.to_owned())
+}
+
+fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(), ServiceError> {
+    let text = note_text(text)?;
+    let set = scope
+        .set
+        .as_deref_mut()
+        .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
+    let n = (1..)
+        .find(|n| !set.notes.iter().any(|note| note.id == format!("n{n}")))
+        .unwrap_or(1);
+
+    set.notes.push(Note {
+        id: format!("n{n}"),
+        at,
+        text,
+    });
+
+    Ok(())
+}
+
+fn edit_note(scope: &mut Scope<'_>, id: &str, text: &str) -> Result<(), ServiceError> {
+    let text = note_text(text)?;
+    let note = scope
+        .set
+        .as_deref_mut()
+        .and_then(|s| s.notes.iter_mut().find(|n| n.id == id))
+        .ok_or(ServiceError::Gone)?;
+    note.text = text;
 
     Ok(())
 }

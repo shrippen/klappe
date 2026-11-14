@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::session::Layer;
+
 #[derive(Debug, Error)]
 pub enum ServiceError {
     #[error(transparent)]
@@ -23,6 +25,9 @@ pub enum ServiceError {
     /// By label and shot number, as the user knows them.
     #[error("camera {camera} is used by shot {shot}")]
     CameraInUse { camera: String, shot: String },
+    /// The edit touches a layer the user has locked.
+    #[error("the layer {0:?} is locked")]
+    Locked(Layer),
     #[error("bad value for {field}: {value}")]
     BadValue { field: &'static str, value: String },
     #[error(transparent)]
