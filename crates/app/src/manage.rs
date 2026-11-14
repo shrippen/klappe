@@ -9,8 +9,9 @@ use serde_json::{json, Value};
 /// Projects the start page remembers.
 pub const RECENT_MAX: usize = 8;
 
-/// `{ scenes, locations, characters }`, each a list of plain objects for QML. The colour is
-/// the model's role name (`purple`), which Kante's `labelColor` takes as it is.
+/// `{ scenes, locations, characters, plans, plan }`: lists of plain objects for QML, `plans`
+/// those of the scene on view and `plan` the id of the one shown. The colour is the model's
+/// role name (`purple`), which Kante's `labelColor` takes as it is.
 pub fn project_json(session: &Session) -> String {
     let project = session.project();
     let scenes: Vec<_> = project
@@ -56,7 +57,24 @@ pub fn project_json(session: &Session) -> String {
         })
         .collect();
 
-    json!({ "scenes": scenes, "locations": locations, "characters": characters }).to_string()
+    // The variants of the scene on view (LH-04): what the plan chooser lists.
+    let plans: Vec<_> = session
+        .scene()
+        .map(|s| s.plans.as_slice())
+        .unwrap_or_default()
+        .iter()
+        .map(|p| json!({ "id": p.id, "name": p.name, "shots": p.shots.len() }))
+        .collect();
+    let plan = session.plan().map(|p| p.id.as_str()).unwrap_or_default();
+
+    json!({
+        "scenes": scenes,
+        "locations": locations,
+        "characters": characters,
+        "plans": plans,
+        "plan": plan,
+    })
+    .to_string()
 }
 
 /// The role as the model writes it in `figuren.toml`.
@@ -185,6 +203,25 @@ mod tests {
     }
 
     #[test]
+    fn the_plans_are_those_of_the_scene_on_view() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+        let mut session = Session::open(&dir).unwrap();
+        session.copy_plan("Stand 1").unwrap();
+
+        let value: Value = serde_json::from_str(&project_json(&session)).unwrap();
+
+        assert_eq!(
+            value["plans"],
+            json!([
+                { "id": "plan-a", "name": "Plan A", "shots": 5 },
+                { "id": "stand-1", "name": "Stand 1", "shots": 5 },
+            ])
+        );
+        assert_eq!(value["plan"], "stand-1");
+    }
+
+    #[test]
     fn the_project_lists_carry_what_the_view_shows() {
         // Next to the test binary, in the target folder.
         let dir = std::env::current_exe()
@@ -216,6 +253,11 @@ mod tests {
 
         let value: Value = serde_json::from_str(&project_json(&session)).unwrap();
 
+        assert_eq!(
+            value["plans"][0],
+            json!({ "id": "plan-a", "name": "Plan A", "shots": 0 })
+        );
+        assert_eq!(value["plan"], "plan-a");
         assert_eq!(value["scenes"][0]["locationName"], "Halle");
         assert_eq!(value["scenes"][0]["number"], "1");
         assert_eq!(value["locations"][0]["scenes"], 1);
