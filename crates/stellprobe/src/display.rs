@@ -525,7 +525,7 @@ mod tests {
         };
 
         let during = frustum_of(&p, 2.0);
-        let after = frustum_of(&p, 4.0);
+        let after = frustum_of(&p, 5.0);
 
         assert!(
             (during[1].x_m - expect(40.0)[1].x_m).abs() < 1e-6,
