@@ -132,6 +132,116 @@ Item {
         }
     }
 
+    // An object is selected (LH-25, LH-12): its size as two fields, and filing it in the
+    // library under a name. Enter in a size field sets the size; a size that is no length
+    // marks the field and changes nothing.
+    readonly property var objectInfo: {
+        // The plan changes with every edit; the key alone would not tell the new size.
+        area.controller.planJson
+        const key = area.controller.selectedKey
+        if (!key || key.indexOf("object:") !== 0) {
+            return null
+        }
+        const d = JSON.parse(area.controller.describe(key))
+        return d.kind === "object" ? d : null
+    }
+    onObjectInfoChanged: area.fillObjectCard()
+
+    // The name a new library entry starts with: the object's own label, else its kind's name.
+    function fillObjectCard() {
+        const info = area.objectInfo
+        if (!info) {
+            return
+        }
+        if (!widthField.activeFocus) {
+            widthField.text = area.texts.num(info.width, 2)
+        }
+        if (!depthField.activeFocus) {
+            depthField.text = area.texts.num(info.depth, 2)
+        }
+        const kindName = area.texts.t("objectKind." + info.library)
+        if (!libraryName.activeFocus) {
+            libraryName.text = info.label !== "" ? info.label : (kindName !== "objectKind." + info.library ? kindName : "")
+        }
+    }
+
+    function setObjectSize() {
+        const ok = controller.resizeSelected(widthField.text, depthField.text)
+        widthField.invalid = !ok
+        depthField.invalid = !ok
+    }
+
+    function fileObject() {
+        if (!controller.saveToLibrary(libraryName.text)) {
+            libraryName.invalid = true
+        }
+    }
+
+    KanteCard {
+        id: objectCard
+        objectName: "objectCard"
+        visible: area.objectInfo !== null
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+        implicitWidth: Math.min(area.width - Kirigami.Units.largeSpacing * 2,
+                                objectRow.implicitWidth + Kirigami.Units.largeSpacing * 2)
+        implicitHeight: objectRow.implicitHeight + Kirigami.Units.largeSpacing * 2
+
+        RowLayout {
+            id: objectRow
+            anchors.centerIn: parent
+            spacing: Kirigami.Units.smallSpacing
+
+            KanteSectionLabel { text: area.texts.t("object.size") }
+            KanteTextField {
+                id: widthField
+                objectName: "widthField"
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                Accessible.name: area.texts.t("field.width")
+                placeholderText: area.texts.t("field.width")
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                onTextChanged: invalid = false
+                onAccepted: area.setObjectSize()
+            }
+            KanteTextField {
+                id: depthField
+                objectName: "depthField"
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                Accessible.name: area.texts.t("field.depth")
+                placeholderText: area.texts.t("field.depth")
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                onTextChanged: invalid = false
+                onAccepted: area.setObjectSize()
+            }
+            KanteButton {
+                objectName: "objectApply"
+                text: area.texts.t("form.apply")
+                onClicked: area.setObjectSize()
+            }
+
+            Kirigami.Separator { Layout.fillHeight: true }
+
+            KanteTextField {
+                id: libraryName
+                objectName: "libraryName"
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                Accessible.name: area.texts.t("library.name")
+                placeholderText: area.texts.t("library.name")
+                onTextChanged: invalid = false
+                onAccepted: area.fileObject()
+            }
+            KanteButton {
+                objectName: "libraryFile"
+                text: area.texts.t("library.save")
+                onClicked: area.fileObject()
+                QQC2.ToolTip.text: area.texts.t("library.saveTip")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+        }
+    }
+
     Connections {
         target: area.controller
         function onAsksNoteChanged() {
@@ -198,6 +308,7 @@ Item {
     readonly property real turnStepDeg: 15
     // Not while a length is typed: Delete there edits the text.
     readonly property bool hasSelection: !!controller.selectedKey && !lengthField.activeFocus && !noteField.activeFocus
+        && !widthField.activeFocus && !depthField.activeFocus && !libraryName.activeFocus
     Shortcut {
         sequence: "Delete"
         enabled: area.hasSelection

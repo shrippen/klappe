@@ -1,13 +1,15 @@
 use std::path::{Path, PathBuf};
 
+use klappe_model::is_object_size_m;
 use klappe_model::{
     Background, Camera, CameraMark, Character, Dash, Drawing, DrawingShape, FigureColor,
-    FigureTrack, Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Note, Point, Pose, Project,
-    Scene, Sensor, SetObject, SetPlan, Wall,
+    FigureTrack, Fill, FloorPlan, LibraryItem, Light, LightKind, LinkTarget, Mark, Note,
+    ObjectShape, Point, Pose, Project, Scene, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{bend_point, hit, via_through, Item, Role, Source};
 
 use crate::error::ServiceError;
+use crate::library;
 use crate::session::Layer;
 
 /// What a tool or a drag does to the current plan.
@@ -56,9 +58,18 @@ pub enum PlanEdit {
         kind: LightKind,
         at: Point,
     },
+    /// Sets a new object of library entry `kind` (LH-11), as big as the entry says; a kind
+    /// no library knows is a 1 m square.
     AddObject {
         kind: String,
         at: Point,
+    },
+    /// Gives the object `source` another width and depth (LH-25). Only objects have a size
+    /// to change.
+    Resize {
+        source: Source,
+        width_m: f64,
+        depth_m: f64,
     },
     AddWall {
         from: Point,
@@ -138,6 +149,7 @@ const BACKGROUND_OPACITY: f64 = 0.5;
 /// An area has an inside from three points on.
 const MIN_AREA_POINTS: usize = 3;
 
+/// Side of an object whose kind no library knows.
 const DEFAULT_OBJECT_M: f64 = 1.0;
 const DEFAULT_WALL_M: f64 = 0.2;
 
@@ -214,6 +226,7 @@ impl PlanEdit {
             | PlanEdit::Shift { source, .. }
             | PlanEdit::Spin { source, .. }
             | PlanEdit::Turn { source, .. }
+            | PlanEdit::Resize { source, .. }
             | PlanEdit::Remove { source }
             | PlanEdit::Straighten { source } => layer_of_source(source),
             PlanEdit::AddMark { .. } => Layer::Figures,
@@ -251,6 +264,8 @@ struct Scope<'a> {
     /// Id of the scene's location, for the error when it is missing.
     location: &'a str,
     characters: &'a [Character],
+    /// The project's own library entries, for what a new object looks like.
+    library: &'a [LibraryItem],
     time_s: f64,
 }
 
@@ -294,6 +309,7 @@ pub(crate) fn apply(
         characters,
         locations,
         scenes,
+        library,
         ..
     } = project;
     let Scene {
@@ -314,6 +330,7 @@ pub(crate) fn apply(
         set,
         location,
         characters,
+        library,
         time_s,
     };
 
@@ -336,6 +353,11 @@ pub(crate) fn apply(
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
         PlanEdit::AddLight { kind, at } => add_light(&mut scope, *kind, *at),
         PlanEdit::AddObject { kind, at } => add_object(&mut scope, kind, *at),
+        PlanEdit::Resize {
+            source,
+            width_m,
+            depth_m,
+        } => resize(&mut scope, source, (*width_m, *depth_m)),
         PlanEdit::AddWall { from, to } => add_wall(&mut scope, *from, *to),
         PlanEdit::AddNote { at, text } => add_note(&mut scope, *at, text),
         PlanEdit::AddDrawing {
@@ -388,6 +410,9 @@ fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             check_distance(*distance_m)
         }
         PlanEdit::MoveBackground { dx_m, dy_m } => check_point(Point::new(*dx_m, *dy_m)),
+        PlanEdit::Resize {
+            width_m, depth_m, ..
+        } => check_object_size(*width_m, *depth_m),
         PlanEdit::AddDrawing { shape, .. } => check_shape(shape),
         PlanEdit::Remove { .. }
         | PlanEdit::Straighten { .. }
@@ -420,6 +445,18 @@ fn check_distance(distance_m: f64) -> Result<(), ServiceError> {
     Err(ServiceError::BadValue {
         field: "distance",
         value: distance_m.to_string(),
+    })
+}
+
+/// An object's sides: numbers, more than nothing, not absurd.
+fn check_object_size(width_m: f64, depth_m: f64) -> Result<(), ServiceError> {
+    if is_object_size_m(width_m) && is_object_size_m(depth_m) {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: "size",
+        value: format!("{width_m} x {depth_m}"),
     })
 }
 
@@ -1111,15 +1148,45 @@ fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result<(), Servic
         .find(|n| !set.objects.iter().any(|o| o.id == format!("o{n}")))
         .unwrap_or(1);
 
+    // An old project may name a kind no library has: a square it is.
+    let (label, width_m, depth_m, shape) = match library::find(scope.library, kind) {
+        Some(item) => (item.label.clone(), item.width_m, item.depth_m, item.shape),
+        None => (
+            String::new(),
+            DEFAULT_OBJECT_M,
+            DEFAULT_OBJECT_M,
+            ObjectShape::Rect,
+        ),
+    };
+
     set.objects.push(SetObject {
         id: format!("o{n}"),
         kind: kind.to_owned(),
-        label: String::new(),
+        label,
         at,
-        width_m: DEFAULT_OBJECT_M,
-        depth_m: DEFAULT_OBJECT_M,
+        width_m,
+        depth_m,
         rotation_deg: 0.0,
+        shape,
     });
+
+    Ok(())
+}
+
+fn resize(scope: &mut Scope<'_>, source: &Source, size_m: (f64, f64)) -> Result<(), ServiceError> {
+    let Source::Object(id) = source else {
+        return Err(ServiceError::BadValue {
+            field: "source",
+            value: String::new(),
+        });
+    };
+    let object = scope
+        .set
+        .as_deref_mut()
+        .and_then(|s| s.objects.iter_mut().find(|o| o.id == *id))
+        .ok_or(ServiceError::Gone)?;
+
+    (object.width_m, object.depth_m) = size_m;
 
     Ok(())
 }

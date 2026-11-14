@@ -160,6 +160,8 @@ Kirigami.ApplicationWindow {
                     enabled: !backupNotice.blocking
                     texts: texts
                     controller: ctl
+                    onImportRequested: libraryImportDialog.open()
+                    onExportRequested: libraryExportDialog.open()
                 }
                 Item { Layout.fillWidth: true }
                 ProjectButtons {
@@ -254,6 +256,21 @@ Kirigami.ApplicationWindow {
         title: texts.t("background.pick")
         nameFilters: [texts.t("background.filter")]
         onAccepted: ctl.setBackground(selectedFile.toString())
+    }
+
+    FileDialog {
+        id: libraryImportDialog
+        title: texts.t("library.importPick")
+        nameFilters: [texts.t("library.filter")]
+        onAccepted: ctl.importLibrary(selectedFile.toString())
+    }
+    FileDialog {
+        id: libraryExportDialog
+        title: texts.t("library.exportPick")
+        nameFilters: [texts.t("library.filter")]
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "toml"
+        onAccepted: ctl.exportLibrary(selectedFile.toString())
     }
 
     // A project in the way of the next one: save it first or stay (the open one is backed

@@ -6,8 +6,8 @@ use klappe_export::{
 };
 use klappe_model::{
     Camera, CameraMark, Character, Dash, Drawing, DrawingShape, FigureColor, FigureTrack, Fill,
-    FloorPlan, Light, LightKind, Mark, Note, Point, Pose, Project, Sensor, SetObject, SetPlan,
-    Wall,
+    FloorPlan, Light, LightKind, Mark, Note, ObjectShape, Point, Pose, Project, Sensor, SetObject,
+    SetPlan, Wall,
 };
 use klappe_stellprobe::{render, DisplayList};
 use serde_json::Value;
@@ -45,6 +45,7 @@ fn set() -> SetPlan {
             width_m: 2.0,
             depth_m: 1.0,
             rotation_deg: 0.0,
+            shape: ObjectShape::Rect,
         }],
         background: None,
         notes: Vec::new(),

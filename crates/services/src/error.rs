@@ -42,6 +42,9 @@ pub enum ServiceError {
     /// A new project needs an empty (or missing) folder.
     #[error("{} is not empty", .0.display())]
     NotEmpty(std::path::PathBuf),
+    /// There is nothing to pass on: the project has no own objects.
+    #[error("the project has no own objects")]
+    EmptyLibrary,
     #[error("bad value for {field}: {value}")]
     BadValue { field: &'static str, value: String },
     #[error(transparent)]

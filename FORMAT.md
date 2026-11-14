@@ -7,6 +7,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 <name>.klappe/
 ├── projekt.toml         Formatversion, Titel
 ├── figuren.toml         Figuren, je ein [[figur]]
+├── bibliothek.toml      eigene Objekte der Bibliothek, je ein [[objekt]] (optional)
 ├── drehorte/<id>.toml   ein Drehort samt Set (Wände, Objekte)
 ├── szenen/<id>.json     eine Szene: Nummer, Überschrift, Drehort, Floorplans
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
@@ -39,6 +40,20 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 - **Hintergrund:** `[set.background]` im Drehort (Datei relativ zum Projektordner, linke obere
   Ecke `at`, `width_m`, `rotation_deg` im Uhrzeigersinn um `at`, `opacity`). Die Höhe folgt aus
   dem Seitenverhältnis des Bildes. Fehlt der Abschnitt, gibt es keinen Hintergrund.
+- **Objekte und Bibliothek (LH-11, LH-12, LH-25):** `[[set.objects]]` im Drehort haben `kind`,
+  `label`, Mitte `at`, `width_m`, `depth_m` und `rotation_deg`; dazu `shape`: `rect` oder
+  `ellipse` (in `width_m` mal `depth_m` einbeschrieben). Fehlt `shape`, gilt `rect`; ein Rechteck
+  schreibt den Schlüssel nicht, ältere Projekte laden und speichern unverändert. Ein `kind`,
+  den keine Bibliothek kennt, bleibt ladbar und wird als Rechteck in der eigenen Größe
+  gezeichnet. Die eingebaute Bibliothek ist Teil des Programms (`crates/store/library/standard.toml`,
+  Namen im Katalog unter `objectKind.<kind>`). `bibliothek.toml` hält die eigenen Objekte des
+  Projekts, je ein `[[objekt]]` mit `kind` (eindeutig, auch gegenüber den eingebauten), `label`
+  (Name), `width_m`, `depth_m` und `shape`. Dieselbe Struktur hat eine Bibliotheksdatei zum
+  Weitergeben (beliebiger Name, `*.toml`). Eine Datei mit einem unbrauchbaren Eintrag (leerer
+  `kind`, Maß nicht in (0, 1000] m, doppelter `kind`) wird als Ganzes abgelehnt; die
+  `bibliothek.toml` eines Projekts dann beim Öffnen mit Meldung. Ohne eigene Objekte gibt es die
+  Datei nicht: `save` löscht sie dann. Keine neue Formatversion: ältere Fassungen kennen `shape`
+  und `bibliothek.toml` nicht und verlieren sie beim Speichern.
 - **Notizen (LH-16):** `[[set.notes]]` im Drehort: `id` (`n1`, `n2` …, innerhalb des Drehorts),
   Ort `at` in Metern und `text`. Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue

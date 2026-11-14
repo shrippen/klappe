@@ -28,6 +28,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         ServiceError::NoCharacter(id) => ("error.noCharacter", id.clone()),
         ServiceError::NotEmpty(path) => ("error.notEmpty", path.to_string_lossy().into_owned()),
         ServiceError::NoBackup => ("error.noBackup", String::new()),
+        ServiceError::EmptyLibrary => ("error.emptyLibrary", String::new()),
         ServiceError::CameraInUse { camera, shot } => {
             return language
                 .text("error.cameraInUse")

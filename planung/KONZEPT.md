@@ -88,6 +88,7 @@ Ein Projekt ist ein Ordner aus Textdateien, damit Git es versionieren und vergle
 wartburg.klappe/
 ├── projekt.toml            Formatversion, Titel
 ├── figuren.toml            Figuren: Id, Name, Kürzel, Farbe
+├── bibliothek.toml         eigene Objekte der Bibliothek (optional)
 ├── drehbuch.fountain       Drehbuch; Szenen tragen feste Nummern (#12#)
 ├── drehorte/
 │   └── saengersaal.toml    Drehort mit Set: Maße, Wände, Objekte, Hintergrundbild
@@ -98,8 +99,8 @@ wartburg.klappe/
 ```
 
 Genaue Beschreibung: [`../FORMAT.md`](../FORMAT.md). Hintergrundbilder (LH-13) sind da, als
-PNG oder JPEG im Ordner `bilder/`; ein PDF als Hintergrund bleibt offen. Eigene Bibliotheken
-(LH-12) kommen später dazu.
+PNG oder JPEG im Ordner `bilder/`; ein PDF als Hintergrund bleibt offen. Die Objektbibliothek
+(LH-11) ist Daten, keine feste Liste im Code; eigene Objekte (LH-12) stehen in `bibliothek.toml`.
 
 - Feste Ids als Dateinamen; JSON eingerückt mit fester Schlüsselreihenfolge, damit Diffs
   lesbar bleiben.

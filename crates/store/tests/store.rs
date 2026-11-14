@@ -27,6 +27,7 @@ fn object(id: &str, kind: &str, label: &str, at: Point, w: f64, d: f64) -> SetOb
         width_m: w,
         depth_m: d,
         rotation_deg: 0.0,
+        shape: ObjectShape::Rect,
     }
 }
 

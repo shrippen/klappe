@@ -14,9 +14,12 @@ use klappe_store::Loaded;
 
 use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
+use crate::library;
 use crate::plan_edit::{self, PlanEdit, Snapping};
 use crate::project_edit::{self, ProjectEdit};
-use crate::views::{Chip, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind};
+use crate::views::{
+    Chip, LibraryEntry, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind,
+};
 
 /// Groups of the plan the timeline's layer switches show or hide.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -665,6 +668,35 @@ impl Session {
         self.commit(next);
         self.follow_scene(on_view);
         Ok(())
+    }
+
+    /// What the object tool offers: the built-in library, then the project's own objects.
+    pub fn library(&self) -> Vec<LibraryEntry> {
+        library::entries(&self.project.library)
+    }
+
+    /// Takes the entries of the library file `path` into the project; undoable. Returns how
+    /// many it added: entries the project has already are not added again. A file with an
+    /// unusable entry is refused as a whole and changes nothing.
+    pub fn import_library(&mut self, path: &Path) -> Result<usize, ServiceError> {
+        let items = klappe_store::load_library(path)?;
+        let before = self.project.library.len();
+
+        self.edit_project(ProjectEdit::ImportLibrary { items })?;
+
+        Ok(self.project.library.len() - before)
+    }
+
+    /// Writes the project's own objects to the library file `path`, to pass on. Returns how
+    /// many it wrote; none to write is an error.
+    pub fn export_library(&self, path: &Path) -> Result<usize, ServiceError> {
+        if self.project.library.is_empty() {
+            return Err(ServiceError::EmptyLibrary);
+        }
+
+        klappe_store::save_library(path, &self.project.library)?;
+
+        Ok(self.project.library.len())
     }
 
     /// The display list as it would be after `edit`, without committing it or taking an undo

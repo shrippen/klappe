@@ -1,5 +1,6 @@
 //! Plain data for the surfaces: what a row, a track or a script line shows.
 
+use klappe_model::{LibraryItem, ObjectShape};
 use serde::Serialize;
 
 /// One row of the shot list (LH-71, LH-72).
@@ -102,4 +103,32 @@ pub struct ScriptLine {
     pub chips: Vec<Chip>,
     /// The line the playback is at: the last linked line whose time has come.
     pub current: bool,
+}
+
+/// One entry of the object library, as the object tool lists it (LH-11, LH-12).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LibraryEntry {
+    /// What a placed object's `kind` is, e.g. `table`.
+    pub kind: String,
+    /// The name of an own entry; empty for a built-in one, which the surface translates
+    /// (`objectKind.<kind>`).
+    pub label: String,
+    pub width_m: f64,
+    pub depth_m: f64,
+    pub shape: ObjectShape,
+    /// An entry of the project (`bibliothek.toml`) rather than a built-in one.
+    pub custom: bool,
+}
+
+impl LibraryEntry {
+    pub(crate) fn of(item: &LibraryItem, custom: bool) -> Self {
+        Self {
+            kind: item.kind.clone(),
+            label: item.label.clone(),
+            width_m: item.width_m,
+            depth_m: item.depth_m,
+            shape: item.shape,
+            custom,
+        }
+    }
 }

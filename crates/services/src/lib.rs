@@ -12,6 +12,7 @@
 mod catalog;
 mod edit;
 mod error;
+mod library;
 mod plan_edit;
 mod project_edit;
 mod session;
@@ -23,13 +24,15 @@ pub use error::ServiceError;
 pub use plan_edit::{PlanEdit, Snapping};
 pub use project_edit::ProjectEdit;
 pub use session::{Autosave, BackupState, Layer, Lock, Session, Visibility};
-pub use views::{Chip, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind};
+pub use views::{
+    Chip, LibraryEntry, LinkKind, Marker, ScriptLine, Segment, ShotRow, Track, TrackKind,
+};
 
 // What surfaces draw and print, handed through so they need no lower crate.
 pub use klappe_export::{Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme};
 pub use klappe_model::{
-    Angle, Dash, DrawingShape, FigureColor, Fill, FloorPlan, LightKind, Movement, Point, Sensor,
-    ShotSize,
+    Angle, Dash, DrawingShape, FigureColor, Fill, FloorPlan, LightKind, Movement, ObjectShape,
+    Point, Sensor, ShotSize,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, DisplayList, Item, Role, Shape, ShotOrder, Source,

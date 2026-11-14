@@ -5,8 +5,8 @@
 use std::path::PathBuf;
 
 use klappe_services::{
-    Dash, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, PlanEdit, Point, ServiceError,
-    Source,
+    Dash, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, PlanEdit, Point, ProjectEdit,
+    ServiceError, Source,
 };
 
 const FILE_URL: &str = "file://";
@@ -22,17 +22,6 @@ pub const LIGHT_KINDS: [(&str, LightKind); 6] = [
     ("balloon", LightKind::Balloon),
     ("reflector", LightKind::Reflector),
     ("flag", LightKind::Flag),
-];
-
-/// Object kinds the tool bar offers (`objectKind.<name>` in the catalogue).
-pub const OBJECT_KINDS: [&str; 7] = [
-    "table",
-    "chair",
-    "bed",
-    "door",
-    "window",
-    "pillar",
-    "fireplace",
 ];
 
 /// Colours the drawing tools offer, in Kante's order of labels: the name QML and the
@@ -105,7 +94,7 @@ fn named<T: Copy>(list: &[(&str, T)], name: &str) -> Option<T> {
 pub enum Tool {
     Select,
     Wall,
-    /// Kind of the object a click sets.
+    /// Library kind of the object a click sets.
     Object(String),
     /// Id of the character whose next mark a click sets.
     Figure(String),
@@ -436,6 +425,43 @@ pub fn parse_metres(text: &str) -> Option<f64> {
     (metres.is_finite() && metres > 0.0).then_some(metres)
 }
 
+/// The size typed for the selected object, as an edit. `None` when something other than an
+/// object is selected or a side is not a length.
+pub fn resize_edit(selected: Option<&Source>, width: &str, depth: &str) -> Option<PlanEdit> {
+    let Some(Source::Object(id)) = selected else {
+        return None;
+    };
+
+    Some(PlanEdit::Resize {
+        source: Source::Object(id.clone()),
+        width_m: parse_metres(width)?,
+        depth_m: parse_metres(depth)?,
+    })
+}
+
+/// Files the selected object in the library of the project under `name`. `None` when
+/// something other than an object is selected, there is no scene to take the set from, or the
+/// name is blank.
+pub fn library_edit(
+    selected: Option<&Source>,
+    location: Option<&str>,
+    name: &str,
+) -> Option<ProjectEdit> {
+    let Some(Source::Object(id)) = selected else {
+        return None;
+    };
+    let name = name.trim();
+    if name.is_empty() {
+        return None;
+    }
+
+    Some(ProjectEdit::LibraryFromObject {
+        location: location?.to_owned(),
+        object: id.clone(),
+        name: name.to_owned(),
+    })
+}
+
 /// Both points picked and a length typed: the scale edit. `None` until then.
 pub fn scale_edit(step: ScaleStep, distance: &str) -> Option<PlanEdit> {
     let ScaleStep::Both(from, to) = step else {
@@ -656,13 +682,11 @@ mod tests {
         assert_eq!(Tool::parse("light", ""), None);
     }
 
-    /// The tool bar translates each kind with `objectKind.<name>` and `lightKind.<name>`.
+    /// The tool bar translates each kind with `lightKind.<name>`; the objects are named by the
+    /// library (services tests).
     #[test]
-    fn every_kind_has_a_name_in_both_languages() {
-        let keys = OBJECT_KINDS
-            .iter()
-            .map(|k| format!("objectKind.{k}"))
-            .chain(LIGHT_KINDS.iter().map(|(k, _)| format!("lightKind.{k}")));
+    fn every_lamp_kind_has_a_name_in_both_languages() {
+        let keys = LIGHT_KINDS.iter().map(|(k, _)| format!("lightKind.{k}"));
 
         for key in keys {
             for language in [Language::German, Language::English] {
@@ -713,6 +737,46 @@ mod tests {
         assert_eq!(click_edit(&Tool::Wall, at), None);
         assert_eq!(click_edit(&tool("figure", ""), at), None);
         assert_eq!(click_edit(&tool("object", ""), at), None);
+    }
+
+    #[test]
+    fn a_size_typed_for_the_selected_object_is_a_resize() {
+        let object = Source::Object("o1".into());
+
+        assert_eq!(
+            resize_edit(Some(&object), "2,5", " 0.8 "),
+            Some(PlanEdit::Resize {
+                source: object.clone(),
+                width_m: 2.5,
+                depth_m: 0.8
+            })
+        );
+        assert_eq!(resize_edit(Some(&object), "2,5", "0"), None);
+        assert_eq!(resize_edit(Some(&object), "", "1"), None);
+        assert_eq!(resize_edit(Some(&object), "1", "breit"), None);
+        assert_eq!(resize_edit(Some(&Source::Wall(0)), "1", "1"), None);
+        assert_eq!(resize_edit(None, "1", "1"), None);
+    }
+
+    #[test]
+    fn the_selected_object_is_filed_under_a_trimmed_name() {
+        let object = Source::Object("o1".into());
+
+        assert_eq!(
+            library_edit(Some(&object), Some("saal"), "  Thron "),
+            Some(ProjectEdit::LibraryFromObject {
+                location: "saal".into(),
+                object: "o1".into(),
+                name: "Thron".into()
+            })
+        );
+        assert_eq!(library_edit(Some(&object), Some("saal"), "  "), None);
+        assert_eq!(library_edit(Some(&object), None, "Thron"), None);
+        assert_eq!(
+            library_edit(Some(&Source::Wall(0)), Some("saal"), "T"),
+            None
+        );
+        assert_eq!(library_edit(None, Some("saal"), "T"), None);
     }
 
     /// From (4, 5) to (6.5, 4): the grabbed thing moves 2.5 right and 1 up (y is down).

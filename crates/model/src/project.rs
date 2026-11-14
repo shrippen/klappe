@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::geometry::Point;
+use crate::library::{LibraryItem, ObjectShape};
 use crate::plan::FloorPlan;
 
 /// One film: everything every module works on.
@@ -13,6 +14,9 @@ pub struct Project {
     pub locations: Vec<Location>,
     #[serde(default)]
     pub scenes: Vec<Scene>,
+    /// The project's own objects (LH-12), next to the built-in library.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub library: Vec<LibraryItem>,
 }
 
 impl Project {
@@ -22,6 +26,7 @@ impl Project {
             characters: Vec::new(),
             locations: Vec::new(),
             scenes: Vec::new(),
+            library: Vec::new(),
         }
     }
 
@@ -135,6 +140,13 @@ pub struct SetObject {
     pub width_m: f64,
     pub depth_m: f64,
     pub rotation_deg: f64,
+    /// Drawn as a rectangle unless it says otherwise.
+    #[serde(default, skip_serializing_if = "is_rect")]
+    pub shape: ObjectShape,
+}
+
+fn is_rect(shape: &ObjectShape) -> bool {
+    *shape == ObjectShape::Rect
 }
 
 /// A scene from the script, at one location (LH-01).

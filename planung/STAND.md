@@ -26,5 +26,7 @@ Stand: 2026-11-14.
 | Ebenen sperren (LH-15): Schalter „gesperrt“ je Ebene, nichts wählbar oder änderbar | erste Fassung; die Sperre gilt für die Sitzung und steht nicht im Projekt |
 | Wege als Kurven (LH-21): `via` je Mark (quadratische Bézierkurve vom vorigen Mark), gleichmäßiges Tempo, Griff in der Mitte des gewählten Wegs ziehen, Taste G macht ihn gerade | erste Fassung; offen: Kurve mit mehr als einem Knick (Spline), Griff beim Verschieben der Marks mitführen |
 | Kamera folgt Figur (LH-37): Verschieben und Drehen eines Marks nimmt die Kamera-Marks im Zeitfenster des Marks mit; Auswahl im Shot-Bereich, Hinweis im Tooltip | erste Fassung; die Kopplung gilt je Kamera für alle Marks im Fenster, bei gesperrter Kamera-Ebene wird die Figurenänderung abgelehnt |
+| Objektbibliothek (LH-11, LH-12): eingebaute Bibliothek als Datei (Tisch, Stuhl, Bett, Sofa, Tür, Fenster, Säule, Kamin, Treppe, Auto, Kutsche, Pferd, Baum, Podest), Form Rechteck oder Ellipse, eigene Objekte je Projekt in `bibliothek.toml`, Ablegen aus einem Objekt, Import und Export einer Bibliotheksdatei | erste Fassung; offen: eigene Objekte löschen oder umbenennen, Gruppen in der Bibliothek, Höhe (LH-17) |
+| Größe von Objekten ändern (LH-25): Breite und Tiefe als Felder, Rückgängig, Sperre der Set-Ebene | erste Fassung für Objekte; offen: Figuren, Griffe zum Ziehen |
 | Perspektive und Drehreihenfolge der Shotliste (LH-71, LH-72) | fertig |
 | Demo-Modus mit „Studio Weber“ für Screenshots | offen |

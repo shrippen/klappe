@@ -437,7 +437,7 @@ fn a_new_light_has_the_defaults_of_its_kind() {
 }
 
 #[test]
-fn a_new_object_and_wall_have_the_defaults() {
+fn a_new_object_takes_its_size_from_the_library_and_a_wall_has_the_default() {
     let mut s = open();
 
     s.edit_plan(PlanEdit::AddObject {
@@ -454,7 +454,7 @@ fn a_new_object_and_wall_have_the_defaults() {
     let object = location_set(&s).objects.last().unwrap();
     assert_eq!(object.id, "o1");
     assert_eq!(object.kind, "chair");
-    assert_eq!((object.width_m, object.depth_m), (1.0, 1.0));
+    assert_eq!((object.width_m, object.depth_m), (0.45, 0.45));
     assert!(object.label.is_empty());
     assert_eq!(location_set(&s).walls.last().unwrap().thickness_m, 0.2);
 }
