@@ -8,7 +8,6 @@
 //!
 //! Only what the raster needs: no kerning, no hinting, no shaping.
 
-
 use std::sync::OnceLock;
 
 use crate::canvas::{Pt, Weight};
