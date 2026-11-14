@@ -1,3 +1,4 @@
+use klappe_store::StoreError;
 use thiserror::Error;
 
 use crate::field::Field;
@@ -67,4 +68,13 @@ pub enum ServiceError {
         path: std::path::PathBuf,
         source: std::io::Error,
     },
+}
+
+/// A failed write of the store as the user knows it: "cannot write <path>". Other store
+/// errors stay what they are.
+pub(crate) fn write_failed(error: StoreError) -> ServiceError {
+    match error {
+        StoreError::Io { path, source } => ServiceError::Write { path, source },
+        other => ServiceError::Store(other),
+    }
 }
