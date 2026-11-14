@@ -130,10 +130,22 @@ pub enum DragStep {
     Commit(PlanEdit),
     /// The project as it is: no edit, so no earlier preview may stay on screen.
     Restore,
+    /// No edit and no preview on screen: nothing to redraw.
+    Nothing,
 }
 
-pub fn drag_step(edit: Option<PlanEdit>, phase: DragPhase) -> DragStep {
+/// Whether the plan on screen shows a preview instead of the project.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Preview {
+    Hidden,
+    Shown,
+}
+
+/// What a drag step does, given what the screen shows: a drag without edit (tools that do not
+/// drag) must not redraw the plan on every mouse move.
+pub fn drag_step(edit: Option<PlanEdit>, phase: DragPhase, shown: Preview) -> DragStep {
     match (edit, phase) {
+        (None, _) if shown == Preview::Hidden => DragStep::Nothing,
         (None, _) => DragStep::Restore,
         (Some(edit), DragPhase::Moving) => DragStep::Preview(edit),
         (Some(edit), DragPhase::Done) => DragStep::Commit(edit),
@@ -157,20 +169,34 @@ mod tests {
     /// preview fails must show the project again, not the last preview.
     #[test]
     fn a_drag_without_edit_restores_the_plan() {
-        assert_eq!(drag_step(None, DragPhase::Moving), DragStep::Restore);
-        assert_eq!(drag_step(None, DragPhase::Done), DragStep::Restore);
+        let shown = Preview::Shown;
+        assert_eq!(drag_step(None, DragPhase::Moving, shown), DragStep::Restore);
+        assert_eq!(drag_step(None, DragPhase::Done, shown), DragStep::Restore);
 
         let edit = PlanEdit::Remove {
             source: Source::Wall(0),
         };
         assert_eq!(
-            drag_step(Some(edit.clone()), DragPhase::Moving),
+            drag_step(Some(edit.clone()), DragPhase::Moving, shown),
             DragStep::Preview(edit.clone())
         );
         assert_eq!(
-            drag_step(Some(edit.clone()), DragPhase::Done),
+            drag_step(Some(edit.clone()), DragPhase::Done, shown),
             DragStep::Commit(edit)
         );
+    }
+
+    /// Review of PR 13: a drag with a tool that places (camera, light …) has no edit and
+    /// never showed a preview; every mouse move still refreshed the whole plan.
+    #[test]
+    fn a_drag_without_preview_on_screen_redraws_nothing() {
+        let hidden = Preview::Hidden;
+
+        assert_eq!(
+            drag_step(None, DragPhase::Moving, hidden),
+            DragStep::Nothing
+        );
+        assert_eq!(drag_step(None, DragPhase::Done, hidden), DragStep::Nothing);
     }
 
     use super::*;

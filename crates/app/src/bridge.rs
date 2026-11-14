@@ -146,7 +146,7 @@ use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{error_text, Status};
 use crate::plan;
-use crate::tools::{self, DragPhase, DragStep, Key, Tool};
+use crate::tools::{self, DragPhase, DragStep, Key, Preview, Tool};
 
 pub struct ControllerRust {
     session: Option<Session>,
@@ -173,6 +173,8 @@ pub struct ControllerRust {
     /// What the select tool has picked; the canvas frames it.
     selected: Option<Source>,
     tool: Tool,
+    /// What the plan on screen shows: a drag preview or the project.
+    preview: Preview,
     status: QString,
     screenshot_path: QString,
     screenshot_after: i32,
@@ -229,6 +231,7 @@ impl Default for ControllerRust {
             choices_json: QString::default(),
             selected: None,
             tool: Tool::Select,
+            preview: Preview::Hidden,
             screenshot_path: args
                 .screenshot
                 .map(|p| q(&p.to_string_lossy()))
@@ -370,6 +373,8 @@ impl qobject::Controller {
         };
         let (plan, tracks, shots, script, layers, time, shot, undo, redo, dirty, selected) = values;
 
+        // The plan set here is the project's: a preview is gone.
+        self.as_mut().rust_mut().get_mut().preview = Preview::Hidden;
         self.as_mut().set_plan_json(q(&plan));
         self.as_mut().set_tracks_json(q(&tracks));
         self.as_mut().set_shots_json(q(&shots));
@@ -499,6 +504,7 @@ impl qobject::Controller {
             _ => (s.snap(from), s.snap(to)),
         };
         let edit = tools::drag_edit(&tool, grabbed.as_ref(), from, to);
+        let preview = self.rust().preview;
         let phase = if done {
             DragPhase::Done
         } else {
@@ -508,13 +514,14 @@ impl qobject::Controller {
         if tool == Tool::Select && edit.is_some() {
             self.as_mut().rust_mut().get_mut().selected = grabbed;
         }
-        match tools::drag_step(edit, phase) {
+        match tools::drag_step(edit, phase, preview) {
             DragStep::Preview(edit) => self.preview_edit(&edit),
             DragStep::Commit(edit) => self.commit_edit(edit),
             DragStep::Restore => {
                 self.refresh();
                 false
             }
+            DragStep::Nothing => false,
         }
     }
 
@@ -580,7 +587,7 @@ impl qobject::Controller {
 
     /// Shows what `edit` would do, as the plan; the project stays as it is. A failed preview
     /// shows the project, not the last preview.
-    fn preview_edit(self: Pin<&mut Self>, edit: &PlanEdit) -> bool {
+    fn preview_edit(mut self: Pin<&mut Self>, edit: &PlanEdit) -> bool {
         let json = {
             let this = self.as_ref();
             this.rust().session.as_ref().and_then(|s| {
@@ -593,6 +600,7 @@ impl qobject::Controller {
             self.refresh();
             return false;
         };
+        self.as_mut().rust_mut().get_mut().preview = Preview::Shown;
         self.set_plan_json(q(&json));
         true
     }
