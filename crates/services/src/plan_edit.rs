@@ -581,7 +581,6 @@ fn check_shape(shape: &DrawingShape) -> Result<(), ServiceError> {
     }
 }
 
-/// A length in truth: more than nothing, and a number.
 /// A pause is a finite time, not negative.
 fn check_hold(hold_s: f64) -> Result<(), ServiceError> {
     if hold_s.is_finite() && hold_s >= 0.0 {
@@ -594,6 +593,7 @@ fn check_hold(hold_s: f64) -> Result<(), ServiceError> {
     })
 }
 
+/// A length in truth: more than nothing, and a number.
 fn check_distance(distance_m: f64) -> Result<(), ServiceError> {
     if distance_m.is_finite() && distance_m > 0.0 {
         return Ok(());
