@@ -360,7 +360,7 @@ fn legend(
         let style = role_style(role, pal)?;
 
         for geom in swatch.geoms(left, mid) {
-            // Rays and lines have no inside; an open mark shows the ring only.
+            // Lines have no inside; an open mark shows the ring only.
             let open = matches!(geom, Geom::Open(_)) || swatch == Swatch::Mark;
             out.push(Prim::Shape {
                 class: format!("legend {key}"),
@@ -387,7 +387,7 @@ fn legend(
 }
 
 /// Each symbol has its own shape, so the legend reads without colour: the figure is the plan's
-/// circle with its facing wedge, the lamp a circle with rays, the camera its wedge, the mark
+/// circle with its facing wedge, the lamp a circle with its cone, the camera its wedge, the mark
 /// a ring, path and axis a dotted and a dashed line.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Swatch {
@@ -420,18 +420,17 @@ impl Swatch {
             }
             Swatch::Light => {
                 let body = r * 0.75;
-                let (from, to) = (r * 1.2, r * 1.8);
-                let mut geoms = vec![Geom::Circle {
-                    center: (cx, mid),
-                    radius: body,
-                }];
-                for (dx, dy) in [(1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)] {
-                    geoms.push(Geom::Open(vec![
-                        (cx + dx * from, mid + dy * from),
-                        (cx + dx * to, mid + dy * to),
-                    ]));
-                }
-                geoms
+                vec![
+                    Geom::Circle {
+                        center: (cx - r / 2.0, mid),
+                        radius: body,
+                    },
+                    Geom::Closed(vec![
+                        (cx - r / 2.0, mid),
+                        (cx + r * 1.5, mid - r * 0.9),
+                        (cx + r * 1.5, mid + r * 0.9),
+                    ]),
+                ]
             }
             Swatch::Camera => vec![Geom::Closed(vec![
                 (cx - r, mid - r),

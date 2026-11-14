@@ -504,3 +504,18 @@ fn mark_number_and_name_do_not_overlap() {
 
     assert!(apart >= MIN_LABEL_PT, "{apart} pt apart\n{number}\n{name}");
 }
+
+/// The plan draws a lamp as a circle with a cone; the legend must show the same.
+#[test]
+fn legend_light_is_a_circle_with_a_cone() {
+    let out = svg(&list(), &page(), Theme::Light).unwrap();
+    let parts = lines_with(&out, "legend light");
+
+    let circles = parts.iter().filter(|l| l.starts_with("<circle")).count();
+    let cones = parts
+        .iter()
+        .filter(|l| l.starts_with("<polygon") && signature(l).contains("points=3"))
+        .count();
+
+    assert_eq!((circles, cones, parts.len()), (1, 1, 2), "{parts:#?}");
+}
