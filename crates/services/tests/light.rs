@@ -189,6 +189,11 @@ fn unusable_values_are_refused() {
         (LightChange::Beam(361.0), Field::Beam),
         (LightChange::Beam(f64::NAN), Field::Beam),
         (LightChange::Power(-1.0), Field::Power),
+        (LightChange::Power(100_001.0), Field::Power),
+        (LightChange::Power(f64::NAN), Field::Power),
+        (LightChange::Temp(999.0), Field::Temperature),
+        (LightChange::Temp(20_001.0), Field::Temperature),
+        (LightChange::Temp(f64::NAN), Field::Temperature),
         (LightChange::Power(f64::INFINITY), Field::Power),
         (LightChange::Temp(10.0), Field::Temperature),
         (LightChange::Temp(1e6), Field::Temperature),
@@ -201,6 +206,25 @@ fn unusable_values_are_refused() {
         assert!(bad(result, field), "{change:?}");
     }
     assert_eq!(light(&s, "led-1").beam_deg, 60.0);
+}
+
+/// The bounds themselves are allowed, except a beam of 0.
+#[test]
+fn the_bounds_are_allowed() {
+    let mut s = open();
+    let cases = [
+        LightChange::Beam(360.0),
+        LightChange::Power(0.0),
+        LightChange::Power(100_000.0),
+        LightChange::Temp(1000.0),
+        LightChange::Temp(20_000.0),
+    ];
+
+    for change in cases {
+        let result = s.edit_plan(set("led-1", change.clone()));
+
+        assert!(result.is_ok(), "{change:?}");
+    }
 }
 
 #[test]

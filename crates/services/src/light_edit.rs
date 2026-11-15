@@ -1,9 +1,7 @@
 //! Edits of a lamp: kind, beam, power, colour temperature (LH-50) and the library lamps it
 //! starts from (LH-51).
 
-use klappe_model::{
-    FloorPlan, Light, LightKind, LightPreset, MAX_BEAM_DEG, MAX_POWER_W, MAX_TEMP_K, MIN_TEMP_K,
-};
+use klappe_model::{is_beam_deg, is_power_w, is_temp_k, FloorPlan, Light, LightKind, LightPreset};
 
 use crate::error::ServiceError;
 use crate::field::Field;
@@ -51,11 +49,11 @@ fn bad(field: Field, value: f64) -> ServiceError {
 fn check(change: &LightChange) -> Result<(), ServiceError> {
     match change {
         LightChange::Kind(_) | LightChange::Preset(_) => Ok(()),
-        LightChange::Beam(v) if *v > 0.0 && *v <= MAX_BEAM_DEG => Ok(()),
+        LightChange::Beam(v) if is_beam_deg(*v) => Ok(()),
         LightChange::Beam(v) => Err(bad(Field::Beam, *v)),
-        LightChange::Power(v) if (0.0..=MAX_POWER_W).contains(v) => Ok(()),
+        LightChange::Power(v) if is_power_w(*v) => Ok(()),
         LightChange::Power(v) => Err(bad(Field::Power, *v)),
-        LightChange::Temp(v) if (MIN_TEMP_K..=MAX_TEMP_K).contains(v) => Ok(()),
+        LightChange::Temp(v) if is_temp_k(*v) => Ok(()),
         LightChange::Temp(v) => Err(bad(Field::Temperature, *v)),
     }
 }

@@ -2,7 +2,7 @@
 
 use std::sync::OnceLock;
 
-use klappe_model::{LightPreset, MAX_BEAM_DEG, MAX_POWER_W, MAX_TEMP_K, MIN_TEMP_K};
+use klappe_model::{is_beam_deg, is_power_w, is_temp_k, LightPreset};
 use serde::Deserialize;
 
 const BUILTIN: &str = include_str!("../light/standard.toml");
@@ -39,9 +39,9 @@ fn check(lights: &[LightPreset]) -> Result<(), String> {
             return Err(format!("lamp {:?} is there twice", light.id));
         }
 
-        let power = (0.0..=MAX_POWER_W).contains(&light.power_w);
-        let temp = (MIN_TEMP_K..=MAX_TEMP_K).contains(&light.color_temp_k);
-        let beam = light.beam_deg > 0.0 && light.beam_deg <= MAX_BEAM_DEG;
+        let power = is_power_w(light.power_w);
+        let temp = is_temp_k(light.color_temp_k);
+        let beam = is_beam_deg(light.beam_deg);
         if !power || !temp || !beam {
             return Err(format!("lamp {:?} has an unusable value", light.id));
         }
@@ -103,12 +103,20 @@ mod tests {
             lamp.replace("3200.0", "999.0"),
             lamp.replace("3200.0", "20001.0"),
             lamp.replace("power_w = 1.0", "power_w = 100001.0"),
+            lamp.replace("power_w = 1.0", "power_w = nan"),
+            lamp.replace("beam_deg = 30.0", "beam_deg = nan"),
+            lamp.replace("beam_deg = 30.0", "beam_deg = 361.0"),
+            lamp.replace("color_temp_k = 3200.0", "color_temp_k = inf"),
         ];
 
         for text in cases {
             assert!(parse(&text).is_err(), "{text}");
         }
         assert!(parse(&lamp.replace("3200.0", "1000.0")).is_ok());
+        assert!(parse(&lamp.replace("3200.0", "20000.0")).is_ok());
+        assert!(parse(&lamp.replace("power_w = 1.0", "power_w = 0.0")).is_ok());
+        assert!(parse(&lamp.replace("power_w = 1.0", "power_w = 100000.0")).is_ok());
+        assert!(parse(&lamp.replace("beam_deg = 30.0", "beam_deg = 360.0")).is_ok());
     }
 
     #[test]
