@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtCore
 import QtTest
+import Kante
 import "../../qml"
 
 // The shot area's list (D-05, LH-70, LH-72): tiles and table, the switches between them, the
@@ -204,6 +205,19 @@ TestCase {
         compare(table.cellText(tc.rows[1], "camera"), "B")
         compare(table.cellText(tc.rows[1], "size"), "Groß")
         compare(table.cellText(tc.rows[1], "duration"), "6")
+    }
+
+    // The selected row wears Kante's selection role and edge, as `KanteListRow`.
+    function test_the_selected_row_has_the_kante_selection() {
+        const panel = make("table", "cut", "s2")
+        const table = part(panel, "shotTable")
+        const fill = findChild(table, "rowFill-s2")
+        const edge = findChild(table, "rowEdge-s2")
+
+        verify(fill)
+        compare(fill.color, KanteStyle.selectionColor)
+        compare(edge.width, KanteStyle.edgeWidth)
+        verify(!findChild(table, "rowEdge-s1").visible)
     }
 
     function test_a_click_on_a_row_selects_the_shot() {

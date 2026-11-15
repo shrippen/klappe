@@ -224,19 +224,21 @@ FocusScope {
                 height: band ? table.rowHeight * 0.75 : table.rowHeight
 
                 Rectangle {
+                    objectName: line.band ? "" : "rowFill-" + line.shot.id
                     anchors.fill: parent
-                    color: line.selected ? KanteStyle.tint(KanteStyle.focusColor, 0.14) : "transparent"
+                    color: line.selected ? KanteStyle.selectionColor : "transparent"
                 }
                 Rectangle {
+                    objectName: line.band ? "" : "rowEdge-" + line.shot.id
                     visible: line.selected
-                    width: 3
+                    width: KanteStyle.edgeWidth
                     height: parent.height
                     color: KanteStyle.focusColor
                 }
                 Rectangle {
                     anchors.bottom: parent.bottom
                     width: parent.width
-                    height: 1
+                    height: KanteStyle.borderWidth
                     color: KanteStyle.ruleColor
                 }
 
@@ -274,10 +276,10 @@ FocusScope {
                         // The current cell of the selected row: a frame.
                         Rectangle {
                             anchors.fill: parent
-                            anchors.margins: 1
+                            anchors.margins: KanteStyle.borderWidth
                             visible: line.selected && table.currentColumn === cell.index && list.activeFocus
                             color: "transparent"
-                            border.width: 1
+                            border.width: KanteStyle.borderWidth
                             border.color: KanteStyle.focusColor
                         }
 
