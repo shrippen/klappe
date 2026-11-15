@@ -62,6 +62,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         PlanEdit::SetCameraAim {
             height_m, tilt_deg, ..
         } => check_camera_aim(*height_m, *tilt_deg),
+        PlanEdit::SetMarkLens { lens_mm, .. } => lens_mm.map_or(Ok(()), camera_edit::check_lens),
         PlanEdit::SetObjectHeight { height_m, .. } => check_object_height(*height_m),
         PlanEdit::Remove { .. }
         | PlanEdit::RemoveGroup { .. }
@@ -73,6 +74,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetPose { .. }
         | PlanEdit::SetArrival { .. }
         | PlanEdit::SetDeparture { .. }
+        | PlanEdit::SetRig { .. }
         | PlanEdit::SetPace { .. } => Ok(()),
     }
 }

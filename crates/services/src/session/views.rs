@@ -2,7 +2,7 @@
 //! the project lists, the tooltips and the set of the current scene.
 
 use klappe_model::{CameraPresets, Location};
-use klappe_stellprobe::horizontal_fov_deg;
+use klappe_stellprobe::{aim_at, horizontal_fov_deg, Source};
 
 use super::Session;
 use crate::views::{CharacterRow, Hint, LocationRow, Overview, PlanRow, SceneRow};
@@ -98,6 +98,20 @@ impl Session {
             .unwrap_or_default();
         let lens_mm = self.lens_now_mm(id).unwrap_or(c.lens_mm);
         let fov_deg = horizontal_fov_deg(c.sensor, lens_mm);
+        // On the way the rig of the mark the camera runs to, else that of the mark it is at.
+        let travelling = c
+            .marks
+            .windows(2)
+            .find(|pair| (pair[0].at_s + pair[0].hold_s..pair[1].at_s).contains(&self.time_s))
+            .map(|pair| pair[1].rig);
+        let rig = travelling
+            .or_else(|| {
+                self.mark_info(&Source::Camera(id.to_owned()))
+                    .filter(|info| info.has_way)
+                    .and_then(|info| info.rig)
+            })
+            .map(|rig| rig.name().to_owned())
+            .unwrap_or_default();
 
         Some(Hint::Camera {
             label: c.label.clone(),
@@ -107,7 +121,8 @@ impl Session {
             aspect: c.aspect,
             body: body_id(self.camera_presets(), c.sensor.width_mm()).to_owned(),
             fov_deg: (fov_deg * FOV_STEPS_PER_DEG).round() / FOV_STEPS_PER_DEG,
-            height_m: c.marks.first().map(|m| m.height_m).unwrap_or(0.0),
+            rig,
+            height_m: aim_at(c, self.time_s).map_or(0.0, |(height_m, _)| height_m),
             shots: shots.join(", "),
             follows,
         })

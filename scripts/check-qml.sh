@@ -2,6 +2,7 @@
 # Runs the app's QML tests (crates/app/tests/qml) offscreen. Needs qmltestrunner
 # (qt6-declarative) and Kirigami. Without qmltestrunner it skips with a note locally, but
 # fails in CI (CI set), so a missing package cannot turn the step green.
+# An argument names another folder of tests (`make perf`).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -29,4 +30,4 @@ export QT_FORCE_STDERR_LOGGING=1
 CONFIG=$(mktemp -d)
 trap 'rm -rf "$CONFIG"' EXIT
 export XDG_CONFIG_HOME="$CONFIG"
-"$RUNNER" -import crates/app/qml -import crates/app/qml/Kante -input crates/app/tests/qml
+"$RUNNER" -import crates/app/qml -import crates/app/qml/Kante -input "${1:-crates/app/tests/qml}"

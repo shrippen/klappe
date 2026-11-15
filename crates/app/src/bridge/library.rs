@@ -3,7 +3,7 @@
 use super::qobject;
 use crate::fileurl;
 use crate::notice::error_text;
-use crate::tools;
+use crate::object;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
@@ -18,7 +18,7 @@ impl qobject::Controller {
             scene.map(|scene| scene.location.clone())
         };
         let selected = self.rust().selected.only();
-        let Some(edit) = tools::library_edit(selected, location.as_deref(), &name) else {
+        let Some(edit) = object::library_edit(selected, location.as_deref(), &name) else {
             return false;
         };
 

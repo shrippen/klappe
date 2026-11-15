@@ -39,7 +39,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         | Role::Object
         | Role::Camera
         | Role::Frustum
-        | Role::CameraPath
+        | Role::CameraPath { .. }
         | Role::Light
         | Role::LightBeam
         | Role::Note
@@ -57,7 +57,7 @@ fn plain_class(role: Role) -> Option<&'static str> {
         Role::Object => Some("object"),
         Role::Camera => Some("camera"),
         Role::Frustum => Some("frustum"),
-        Role::CameraPath => Some("camera-path"),
+        Role::CameraPath { .. } => Some("camera-path"),
         Role::Light => Some("light"),
         Role::LightBeam => Some("beam"),
         Role::Note => Some("note"),
@@ -83,7 +83,7 @@ fn class_of(role: Role) -> String {
 fn width_pt(role: Role) -> Option<f64> {
     match role {
         Role::Background | Role::FigureHandle(_) | Role::CameraHandle => None,
-        Role::CameraPath | Role::FigurePath(_) => Some(PATH_PT),
+        Role::CameraPath { .. } | Role::FigurePath(_) => Some(PATH_PT),
         Role::Axis => Some(AXIS_PT),
         Role::Mark(_) => Some(MARK_PT),
         Role::Drawing { .. } | Role::ArrowHead(_) => Some(DRAWING_PT),
@@ -110,7 +110,7 @@ fn tint_opacity(role: Role) -> f64 {
         | Role::Light
         | Role::Note
         | Role::Axis
-        | Role::CameraPath
+        | Role::CameraPath { .. }
         | Role::Frustum
         | Role::Camera
         | Role::CameraHandle
@@ -230,7 +230,23 @@ mod tests {
                 (fill(yellow, 0.15), line(yellow, 0.75, Dash::Solid)),
             ),
             (
-                Role::CameraPath,
+                Role::CameraPath {
+                    dash: DrawDash::Solid,
+                },
+                "camera-path".into(),
+                (None, line(yellow, 1.25, Dash::Solid)),
+            ),
+            (
+                Role::CameraPath {
+                    dash: DrawDash::Dashed,
+                },
+                "camera-path".into(),
+                (None, line(yellow, 1.25, Dash::Dashed)),
+            ),
+            (
+                Role::CameraPath {
+                    dash: DrawDash::Dotted,
+                },
                 "camera-path".into(),
                 (None, line(yellow, 1.25, Dash::Dotted)),
             ),

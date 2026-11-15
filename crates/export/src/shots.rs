@@ -6,7 +6,7 @@
 //! ```
 
 use klappe_model::{Angle, FloorPlan, Movement, Shot, ShotSize};
-use klappe_stellprobe::{ordered_shots, ShotOrder};
+use klappe_stellprobe::{ordered_shots, shot_lens, ShotLens, ShotOrder};
 
 use crate::canvas::num;
 use crate::page::{ShotColumns, ShotTexts};
@@ -17,6 +17,7 @@ const SEPARATOR: char = ',';
 const QUOTE: char = '"';
 const LINE_END: &str = "\r\n";
 const POINT: char = '.';
+const SPAN: char = '\u{2013}';
 
 /// Column heads, in table order.
 pub(crate) fn heads(columns: &ShotColumns) -> [&str; COLUMNS] {
@@ -46,13 +47,13 @@ pub(crate) fn cells(
     decimal: char,
 ) -> [String; COLUMNS] {
     let camera = plan.camera(&shot.camera);
-    let lens_mm = shot.lens_mm.or(camera.map(|c| c.lens_mm));
     let number = |v: f64| num(v).replace(POINT, &decimal.to_string());
+    let lens = camera.map(|c| shot_lens(c, shot));
 
     [
         shot.number.clone(),
         camera.map_or_else(|| shot.camera.clone(), |c| c.label.clone()),
-        lens_mm.map(number).unwrap_or_default(),
+        lens_text(lens, shot, &number),
         size_name(shot.size, texts),
         angle_name(shot.angle, texts),
         movement_name(shot.movement, texts),
@@ -65,6 +66,19 @@ pub(crate) fn cells(
         shot.crew.clone(),
         shot.note.clone(),
     ]
+}
+
+/// The lens column: one value, or "35–85" for a zoom. A camera that is gone leaves the shot's
+/// own lens, if any.
+fn lens_text(lens: Option<ShotLens>, shot: &Shot, number: &dyn Fn(f64) -> String) -> String {
+    let Some(lens) = lens else {
+        return shot.lens_mm.map(number).unwrap_or_default();
+    };
+    let Some(to_mm) = lens.span_to_mm() else {
+        return number(lens.from_mm);
+    };
+
+    format!("{}{SPAN}{}", number(lens.from_mm), number(to_mm))
 }
 
 fn size_name(size: ShotSize, texts: &ShotTexts) -> String {

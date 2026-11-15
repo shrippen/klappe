@@ -6,6 +6,7 @@ use klappe_model::{
 use crate::axis::axis_at;
 use crate::motion::{bend_point, camera_at, figure_at, path, walked_ways};
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
+use crate::rig::{rig_dash, rig_runs};
 
 /// What the GUI draws and the export writes, back to front, in metres (planung/KONZEPT.md,
 /// section 4). Colours are roles; the GUI maps them to Kante.
@@ -64,7 +65,10 @@ pub enum Role {
     LightBeam,
     Light,
     Axis,
-    CameraPath,
+    /// One run of a camera's way, in the line its rig has (LH-33).
+    CameraPath {
+        dash: Dash,
+    },
     Frustum,
     Camera,
     /// A text pinned to the plan (LH-16): a small marker, the text as its label.
@@ -433,11 +437,13 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
     for camera in &plan.cameras {
         let source = Some(Source::Camera(camera.id.clone()));
 
-        if camera.marks.len() > 1 {
+        for run in rig_runs(&camera.marks) {
             items.push(Item {
-                role: Role::CameraPath,
+                role: Role::CameraPath {
+                    dash: rig_dash(run[1].rig),
+                },
                 shape: Shape::Polyline {
-                    points: path(camera.marks.iter().map(|m| (m.at, m.via))),
+                    points: path(run.iter().map(|m| (m.at, m.via))),
                 },
                 label: None,
                 source: source.clone(),
@@ -754,6 +760,8 @@ mod tests {
                 tilt_deg: 0.0,
                 hold_s: 0.0,
                 via: None,
+                rig: Default::default(),
+                lens_mm: None,
             }],
             follows: None,
         }];
@@ -1327,6 +1335,18 @@ mod tests {
         );
     }
 
+    /// A lens a mark states reaches the frustum; a shot's lens does not count then (LH-33).
+    #[test]
+    fn frustum_follows_the_lens_of_the_marks() {
+        let mut by_mark = plan();
+        by_mark.cameras[0].marks[0].lens_mm = Some(70.0);
+        by_mark.shots = vec![shot(Some(40.0), 0.0, 4.0)];
+        let mut by_shot = plan();
+        by_shot.shots = vec![shot(Some(70.0), 0.0, 4.0)];
+
+        assert_eq!(frustum_of(&by_mark, 2.0), frustum_of(&by_shot, 2.0));
+    }
+
     #[test]
     fn unknown_character_is_skipped() {
         let mut p = plan();
@@ -1377,7 +1397,7 @@ mod tests {
 
         let list = render(&project(), &set(), &p, 0.0, None);
 
-        assert!(path_of(&list, Role::CameraPath).len() > 2);
+        assert!(path_of(&list, Role::CameraPath { dash: Dash::Dashed }).len() > 2);
     }
 
     /// Grips: one per leg of the selected way, halfway along it, none in `render`.

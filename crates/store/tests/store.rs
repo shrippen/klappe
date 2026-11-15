@@ -54,6 +54,8 @@ fn cam_mark(at_s: f64, x: f64, y: f64, facing_deg: f64, hold_s: f64) -> CameraMa
         tilt_deg: 0.0,
         hold_s,
         via: None,
+        rig: Default::default(),
+        lens_mm: None,
     }
 }
 

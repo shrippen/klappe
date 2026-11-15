@@ -44,7 +44,7 @@ pub mod qobject {
         /// Whether points snap to the grid; change it with `setSnapping`.
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
         /// `{ figure: [{ id, name }], object: [{ kind, label, width_m, depth_m, shape, custom }],
-        /// light: [kind], color: [name], dash: [name], fill: [name] }`: what the tool lists
+        /// light: [kind], color: [name], dash: [name], fill: [name], rig: [name], movement: [name] }`: what the tool lists
         /// offer. The objects are the library: built in, then the project's own.
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Whether the set has a background image.
@@ -304,7 +304,8 @@ pub mod qobject {
         /// (`figure` or `camera`), `pose`, `arrival` (`walk`, `appear`) and `departure` (`stay`,
         /// `leave`), each empty for a camera, `hold` in seconds, `hasWay`,
         /// `pace` in m/s (null without time on the way), `height` in m and `tilt` in degrees
-        /// (null for a figure). `{}` for any other selection.
+        /// (null for a figure), `rig` (empty for a figure) and `lens` in mm (null for a figure
+        /// and a camera mark that states none). `{}` for any other selection.
         #[qinvokable]
         #[cxx_name = "markInfo"]
         fn mark_info(self: &Self) -> QString;
@@ -339,6 +340,20 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setMarkDeparture"]
         fn set_mark_departure(self: Pin<&mut Self>, departure: &QString) -> bool;
+
+        /// Sets the rig (`tripod`, `dolly`, `track`, `crane`, `handheld`, `gimbal`) of the
+        /// selected camera mark (LH-33). False for another selection or name; a refusal by the
+        /// session (a tripod that would have to move) goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setMarkRig"]
+        fn set_mark_rig(self: Pin<&mut Self>, rig: &QString) -> bool;
+
+        /// Sets the lens in mm (comma or point as decimal separator) at the selected camera
+        /// mark; an empty text states none (LH-33). False for another selection or a text that
+        /// is no number; a refusal by the session (limits) goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setMarkLens"]
+        fn set_mark_lens(self: Pin<&mut Self>, lens: &QString) -> bool;
 
         /// Times the way to the selected figure mark for `walk` or `run`. False for another
         /// selection or name; the first mark is refused by the session.
@@ -549,9 +564,8 @@ use klappe_services::{Point, Session};
 use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{error_text, Status};
-use crate::tools::{
-    AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Selection, Tool,
-};
+use crate::selection::Selection;
+use crate::tools::{AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Tool};
 
 mod draw;
 mod export;

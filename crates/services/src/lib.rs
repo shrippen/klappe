@@ -45,7 +45,7 @@ pub use views::{
 pub use klappe_export::{Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme};
 pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Dash, Departure, DrawingShape, FigureColor, Fill,
-    FloorPlan, LensSet, LightKind, Movement, ObjectShape, Point, Pose, Sensor, ShotSize,
+    FloorPlan, LensSet, LightKind, Movement, ObjectShape, Point, Pose, Rig, Sensor, ShotSize,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, Area, DisplayList, Hue, Item, Role, Shape, ShotOrder, Source,

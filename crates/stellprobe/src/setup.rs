@@ -1,6 +1,7 @@
 use klappe_model::{FloorPlan, Point, Shot};
 
 use crate::motion::camera_at;
+use crate::optics::shot_lens;
 
 /// Cameras this close (metres) at a shot's start stand at the same place (LH-72).
 pub const SETUP_TOLERANCE_M: f64 = 0.5;
@@ -22,9 +23,9 @@ struct Setup {
 }
 
 impl Setup {
-    /// Where the shot's camera stands at its start, and with which lens: the shot's own,
-    /// else the camera's (as the shot list prints it). A camera that is gone has no place
-    /// and only the shot's own lens.
+    /// Where the shot's camera stands at its start, and with which lens: `shot_lens` at the
+    /// start (as the shot list prints it). A camera that is gone has no place and only the
+    /// shot's own lens.
     fn of(shot: &Shot, plan: &FloorPlan) -> Self {
         let camera = plan.camera(&shot.camera);
 
@@ -32,7 +33,7 @@ impl Setup {
             camera: shot.camera.clone(),
             at: camera.and_then(|c| camera_at(c, shot.from_s)).map(|p| p.at),
             lens_mm: match camera {
-                Some(c) => shot.lens_mm.unwrap_or(c.lens_mm),
+                Some(c) => shot_lens(c, shot).from_mm,
                 None => shot.lens_mm.unwrap_or_default(),
             },
         }
@@ -106,6 +107,8 @@ mod tests {
                     tilt_deg: 0.0,
                     hold_s: 0.0,
                     via: None,
+                    rig: Default::default(),
+                    lens_mm: None,
                 })
                 .collect(),
             follows: None,
@@ -228,6 +231,24 @@ mod tests {
 
         // 3's own 35 mm is the camera's lens: same as 1.
         assert_eq!(shot_setups(&plan), [1, 2, 1]);
+    }
+
+    /// The marks' lens at the start of a shot counts, not the shot's own or the camera's.
+    #[test]
+    fn setups_group_by_the_lens_of_the_marks() {
+        let mut plan = FloorPlan::new("p", "Plan A");
+        let mut cam = camera("a", 35.0, &[(0.0, 0.0, 0.0), (10.0, 0.0, 0.0)]);
+        cam.marks[0].lens_mm = Some(35.0);
+        cam.marks[1].lens_mm = Some(85.0);
+        plan.cameras = vec![cam];
+        plan.shots = vec![
+            shot("1", "a", Some(50.0), 0.0, 5.0),
+            shot("2", "a", Some(50.0), 5.0, 10.0),
+            shot("3", "a", None, 10.0, 15.0),
+        ];
+
+        // 1 starts at 35 mm, 2 halfway at 60 mm, 3 at 85 mm; the own 50 mm count for nothing.
+        assert_eq!(shot_setups(&plan), [1, 2, 3]);
     }
 
     #[test]
