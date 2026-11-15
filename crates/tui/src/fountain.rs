@@ -117,6 +117,58 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
     seen
 }
 
+/// Characters that mark parts of a line the writer types as is.
+const FORCE_CHARACTER: char = '@';
+const NUMBER_MARK: char = '#';
+const EXTENSION_OPEN: char = '(';
+const SHARP_S: char = 'ß';
+
+/// Uppercase as the parser counts it: `ß` stays, and a letter whose capital is longer
+/// than one character stays, so the cursor column holds.
+fn upper(text: &str) -> String {
+    let one = |c: char| {
+        let mut up = c.to_uppercase();
+        match (up.next(), up.next()) {
+            (Some(u), None) if c != SHARP_S => u,
+            _ => c,
+        }
+    };
+
+    text.chars().map(one).collect()
+}
+
+/// Uppercases the part of `line` before the first `cut`, `rest` stays as typed.
+fn upper_before(line: &str, cut: usize) -> String {
+    let (head, rest) = line.split_at(cut);
+
+    upper(head) + rest
+}
+
+/// The cursor line in capitals, when it is a scene heading or a cue forced with `@` and
+/// has lowercase letters left. A heading keeps its `#12a#` number as typed, a cue its
+/// extension, also while it is still open: `@anna (cont'd)` becomes `@ANNA (cont'd)`, Fountain allows both cases.
+/// An unforced cue is no cue until it is in capitals, so it has nothing to fix.
+pub(crate) fn typed_caps(lines: &[String], at: usize) -> Option<String> {
+    let line = lines.get(at)?;
+    let kind = analyse(lines).kind(at);
+    let trimmed = line.trim_end();
+
+    let cut = match kind {
+        LineKind::Heading => match trimmed.strip_suffix(NUMBER_MARK) {
+            Some(body) => body.rfind(NUMBER_MARK).unwrap_or(trimmed.len()),
+            None => trimmed.len(),
+        },
+        LineKind::Character if line.trim_start().starts_with(FORCE_CHARACTER) => {
+            trimmed.find(EXTENSION_OPEN).unwrap_or(trimmed.len())
+        }
+        _ => return None,
+    };
+
+    let caps = upper_before(line, cut);
+
+    (caps != *line).then_some(caps)
+}
+
 fn kind_of(el: &Element) -> LineKind {
     match el {
         Element::SceneHeading { .. } => LineKind::Heading,
@@ -168,6 +220,52 @@ mod tests {
     use klappe_services::parse;
 
     use super::*;
+
+    fn caps(text: &str, at: usize) -> Option<String> {
+        typed_caps(&lines(text), at)
+    }
+
+    #[test]
+    fn caps_for_headings_by_prefix_or_force() {
+        for (typed, want) in [
+            ("int. küche - tag", "INT. KÜCHE - TAG"),
+            ("ext. straße", "EXT. STRAßE"),
+            ("int./ext. auto", "INT./EXT. AUTO"),
+            ("i/e auto", "I/E AUTO"),
+            (".innen küche", ".INNEN KÜCHE"),
+            ("int. küche #3a#", "INT. KÜCHE #3a#"),
+        ] {
+            assert_eq!(caps(typed, 0).as_deref(), Some(want), "{typed}");
+        }
+    }
+
+    #[test]
+    fn caps_for_forced_cues_keep_the_extension() {
+        assert_eq!(caps("@anna", 0).as_deref(), Some("@ANNA"));
+        assert_eq!(caps("@anna (cont'd)", 0).as_deref(), Some("@ANNA (cont'd)"));
+        assert_eq!(caps("@elisabeth ^", 0).as_deref(), Some("@ELISABETH ^"));
+    }
+
+    #[test]
+    fn no_caps_for_the_rest() {
+        for text in [
+            "Anna geht.",
+            "anna\nHallo",
+            "...und weiter",
+            "@ANNA",
+            "INT. KÜCHE",
+            "ste. etwas",
+        ] {
+            assert_eq!(caps(text, 0), None, "{text}");
+        }
+    }
+
+    #[test]
+    fn caps_need_the_blank_lines_of_a_heading() {
+        assert_eq!(caps("a\n\nint. x\n\nb", 2).as_deref(), Some("INT. X"));
+        assert_eq!(caps("a\nint. x\nb", 1), None);
+        assert_eq!(caps("a\n\nint. x\nund mehr", 2), None);
+    }
 
     fn lines(text: &str) -> Vec<String> {
         text.split('\n').map(str::to_owned).collect()

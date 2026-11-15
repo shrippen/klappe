@@ -17,6 +17,7 @@ Stand: 2026-11-14.
 | Sitzung (`services`): Szene, Zeit, Shot bearbeiten, Rückgängig, Ansichten | fertig (#5) |
 | TUI-Editor (`klappe-tui`), schreibt nur das Drehbuch | fertig (#6, #8) |
 | TUI nach D-10: Kante-Farben (aktive Szene gelber Balken, Szenenkopf ohne `#12#` mit Nummer rechts), Marken für Shots und Marks rechts an der Zeile, Texte aus dem Katalog (`tui.*`, `--language`), dichte Ansicht (Strg+B Szenenliste, unter 100 Spalten aus; Strg+P Szenenwechsel mit Suche; Kopfzeile mit Shots und Figuren, Statuszeile mit Modus, Szene x/y, Zeile:Spalte) | erste Fassung; offen: Marken zeigen den gespeicherten Stand (nach Strg+S neu gelesen), Marken nur, wenn die Zeile sie neben dem Text unterbringt |
+| Großschreibung beim Tippen (DB-01, TUI): Szenenköpfe (Präfix `INT.`/`EXT.`/`I/E`, erzwungen mit `.`) und mit `@` erzwungene Figuren werden beim Tippen groß, `ß` bleibt, Szenennummer `#3a#` und Erweiterung `(cont'd)` bleiben wie getippt; ein Rückgängig-Schritt mit dem Tippen | TUI fertig; offen: GUI-Editor; `innen`/`außen` erkennt der Parser nicht, ein Figurenname ohne `@` wird erst Figur, wenn er schon groß ist |
 | GUI-Gerüst (cxx-qt, Kirigami, Kante), Layout E-14: Drehbuch, Plan, Shot, Zeitleiste, ausklappbar | erste Fassung (#7, Kante #170) |
 | App in der CI (Arch, QML-Tests, offscreen-Screenshots) | fertig (#7) |
 | Flatpak und Windows-Build der App | offen |

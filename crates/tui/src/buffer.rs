@@ -52,6 +52,13 @@ impl Buffer {
         }
     }
 
+    /// Replaces the text of a line.
+    pub(crate) fn set_line(&mut self, index: usize, text: String) {
+        if let Some(line) = self.lines.get_mut(index) {
+            *line = text;
+        }
+    }
+
     /// Returns the position after the character.
     pub(crate) fn insert_char(&mut self, pos: Pos, c: char) -> Pos {
         let pos = self.clamp(pos);
