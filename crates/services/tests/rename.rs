@@ -158,6 +158,29 @@ fn a_character_cannot_take_the_name_of_another() {
     );
 }
 
+/// A new character cannot take a name another one carries either (case aside).
+#[test]
+fn a_new_character_cannot_take_a_taken_name() {
+    let mut s = open("manage-new-name-taken");
+
+    let err = s
+        .edit_project(ProjectEdit::AddCharacter {
+            name: "BURGVOGT".into(),
+            short: "B".into(),
+            color: FigureColor::Red,
+            group: None,
+        })
+        .unwrap_err();
+
+    assert!(matches!(
+        err,
+        ServiceError::BadValue {
+            field: Field::Name,
+            ..
+        }
+    ));
+}
+
 /// A number another heading of the script carries is refused, also when the project does not
 /// know that scene.
 #[test]

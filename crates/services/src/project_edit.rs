@@ -269,6 +269,24 @@ fn remove_location(project: &mut Project, id: &str) -> Result<(), ServiceError> 
     Ok(())
 }
 
+/// Two characters of one name (case aside) would merge their cues in the script; `own` is the
+/// character being renamed, which may keep its name.
+fn check_free_name(project: &Project, name: &str, own: Option<&str>) -> Result<(), ServiceError> {
+    let taken = project
+        .characters
+        .iter()
+        .filter(|c| Some(c.id.as_str()) != own)
+        .any(|c| c.name.to_lowercase() == name.to_lowercase());
+    if !taken {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Name,
+        value: name.to_owned(),
+    })
+}
+
 fn add_character(
     project: &mut Project,
     name: &str,
@@ -279,6 +297,7 @@ fn add_character(
     let name = name_of(name)?;
     let short = short_of(short)?;
     check_group(group)?;
+    check_free_name(project, &name, None)?;
 
     let base = slug(&name, CHARACTER_ID_FALLBACK);
     let id = unique_id(&base, project.characters.iter().map(|c| c.id.as_str()));
@@ -304,18 +323,7 @@ fn edit_character(
     let short = short_of(short)?;
     check_group(group)?;
 
-    // Two characters of one name would merge their cues in the script.
-    let taken = project
-        .characters
-        .iter()
-        .filter(|c| c.id != id)
-        .any(|c| c.name.to_lowercase() == name.to_lowercase());
-    if taken {
-        return Err(ServiceError::BadValue {
-            field: Field::Name,
-            value: name,
-        });
-    }
+    check_free_name(project, &name, Some(id))?;
 
     let Some(character) = project.characters.iter_mut().find(|c| c.id == id) else {
         return Err(ServiceError::NoCharacter(id.to_owned()));
