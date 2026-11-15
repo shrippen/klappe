@@ -76,6 +76,12 @@ ColumnLayout {
         return info.height === null ? "" : texts.num(info.height, 2)
     }
 
+    // The height field takes the keyboard, its text selected (LH-93).
+    function focusHeight() {
+        heightField.forceActiveFocus()
+        heightField.selectAll()
+    }
+
     function setHeight() {
         heightField.invalid = !controller.setObjectHeight(heightField.text)
     }

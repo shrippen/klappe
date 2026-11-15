@@ -24,6 +24,7 @@ TestCase {
         property bool canRedo: true
         property bool hasBackground: false
         property bool viewFree: false
+        property int missingHeights: 0
         property var calls: []
         property var scenes: [
             { id: "s12", number: "12", heading: "INT. SÄNGERSAAL – TAG" },
@@ -51,6 +52,7 @@ TestCase {
         function clearStatus() {}
         function stepMark(direction) { call("stepMark", [direction]) }
         function toggleView() { call("toggleView", []); viewFree = !viewFree }
+        function nextMissingHeight() { return call("nextMissingHeight", []) }
     }
 
     QtObject {
@@ -85,6 +87,7 @@ TestCase {
     SignalSpy { id: orderSpy; signalName: "shotOrderPicked" }
     SignalSpy { id: zoomSpy; signalName: "zoomRequested" }
     SignalSpy { id: playSpy; signalName: "playRequested" }
+    SignalSpy { id: heightSpy; signalName: "heightRequested" }
 
     // Stands for the plan's canvas, which takes Space itself (held, it pans).
     Item { id: fakeCanvas; objectName: "planCanvas"; width: 10; height: 10 }
@@ -99,6 +102,7 @@ TestCase {
         fake.canRedo = true
         fake.hasBackground = false
         fake.viewFree = false
+        fake.missingHeights = 0
         fake.calls = []
         fake.plan = "plan-a"
         fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan })
@@ -110,7 +114,7 @@ TestCase {
     function make() {
         const header = createTemporaryObject(headerComponent, tc)
         verify(header)
-        for (const spy of [newSpy, openSpy, projectSpy, backgroundSpy, viewSpy, orderSpy, zoomSpy, playSpy]) {
+        for (const spy of [newSpy, openSpy, projectSpy, backgroundSpy, viewSpy, orderSpy, zoomSpy, playSpy, heightSpy]) {
             spy.target = header
             spy.clear()
         }
@@ -583,6 +587,35 @@ TestCase {
         compare(header.commandPalette.commands.find(c => c.id === "view.free").text, "3D view")
     }
 
+    // LH-93: the header counts the objects without a height; Shift+H, the View menu, the palette
+    // and a click on the count all go to the next one.
+    function test_the_missing_heights_are_counted_and_stepped_through() {
+        const header = make()
+        const count = findChild(header, "missingHeights")
+        verify(!count.visible)
+        verify(!entry(header, "viewMenu", "heights").enabled)
+
+        fake.missingHeights = 2
+        verify(count.visible)
+        compare(count.text, "2 ohne Höhe · ergänzen (Umschalt+H)")
+        verify(entry(header, "viewMenu", "heights").enabled)
+
+        keyClick(Qt.Key_H, Qt.ShiftModifier)
+        compare(fake.calls, [["nextMissingHeight"]])
+        compare(heightSpy.count, 1)
+
+        count.clicked()
+        pick(header, "viewMenu", "heights")
+        header.run("view.heights")
+        compare(fake.calls.length, 4)
+        compare(heightSpy.count, 4)
+
+        const cmd = header.commandPalette.commands.find(c => c.id === "view.heights")
+        compare(cmd.keys, "Umschalt+H")
+        header.texts = en
+        compare(count.text, "2 without height · add (Shift+H)")
+    }
+
     function test_the_view_menu_zooms() {
         const header = make()
 
@@ -594,7 +627,7 @@ TestCase {
     }
 
     function test_the_texts_are_in_both_languages() {
-        for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewMode", "view.free", "menu.viewOrder",
+        for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewMode", "view.free", "height.next", "height.missingHeader", "menu.viewOrder",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
                            "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",

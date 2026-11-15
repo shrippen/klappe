@@ -47,6 +47,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         | Role::LightBeam
         | Role::Note
         | Role::Axis
+        | Role::Height { .. }
         | Role::GroupDot => None,
     }
 }
@@ -68,7 +69,8 @@ fn plain_class(role: Role) -> Option<&'static str> {
         Role::Note => Some("note"),
         Role::Axis => Some("axis"),
         Role::GroupDot => Some("group-dot"),
-        Role::Drawing { .. }
+        Role::Height { .. }
+        | Role::Drawing { .. }
         | Role::ArrowHead(_)
         | Role::FigurePath(_)
         | Role::Mark(_)
@@ -87,7 +89,11 @@ fn class_of(role: Role) -> String {
 /// `None` for what the export does not stroke.
 fn width_pt(role: Role) -> Option<f64> {
     match role {
-        Role::Background | Role::FigureHandle(_) | Role::CameraHandle | Role::DrawingHandle => None,
+        Role::Background
+        | Role::Height { .. }
+        | Role::FigureHandle(_)
+        | Role::CameraHandle
+        | Role::DrawingHandle => None,
         Role::CameraPath { .. } | Role::FigurePath(_) => Some(PATH_PT),
         Role::Axis => Some(AXIS_PT),
         Role::Mark(_) => Some(MARK_PT),
@@ -128,6 +134,7 @@ fn tint_opacity(role: Role) -> f64 {
         | Role::FigurePath(_)
         | Role::FigureHandle(_)
         | Role::Figure(_)
+        | Role::Height { .. }
         | Role::GroupDot => AREA_OPACITY,
     }
 }

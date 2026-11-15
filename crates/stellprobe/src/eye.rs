@@ -88,6 +88,12 @@ impl Orbit {
         }
     }
 
+    /// Looks at `target` from where it looked before: only the middle moves; turn and
+    /// distance stay.
+    pub fn aim(&mut self, target: [f64; 3]) {
+        self.target = target;
+    }
+
     /// Turns the view by a drag of `dx_px`, `dy_px`: sideways about the target, up and down
     /// between grazing and straight down.
     pub fn turn(&mut self, dx_px: f64, dy_px: f64) {
@@ -227,6 +233,32 @@ impl Pinhole {
         Some(Point::new(self.at[0] + t * ray[0], self.at[1] + t * ray[1]))
     }
 
+    /// How far above the level `held_m` the ray through `to` meets the vertical plane through
+    /// the point of that level shown at `from`; the plane stands across the view direction
+    /// (as seen from above), so a pointer that moves up lifts the point and sideways changes
+    /// nothing. Negative: lower. `None` when `from` shows nothing of that level, or the ray
+    /// runs away from the plane.
+    ///
+    /// ```text
+    ///   eye ·········· ray(to)         plane across the view
+    ///       ╲         ╲ ·             │
+    ///        ╲ ray(from)●── z ────────┤  lift = z - held
+    ///         ╲        │            │
+    ///          ●───────●  held_m   │
+    /// ```
+    pub(crate) fn lift(&self, from: [f64; 2], to: [f64; 2], held_m: f64) -> Option<f64> {
+        let grabbed = self.level_at(from, held_m)?;
+        let ahead = [grabbed.x_m - self.at[0], grabbed.y_m - self.at[1]];
+        let distance = ahead[0] * self.forward[0] + ahead[1] * self.forward[1];
+        let ray = self.ray(to);
+        let pace = ray[0] * self.forward[0] + ray[1] * self.forward[1];
+        if pace <= 0.0 {
+            return None;
+        }
+
+        Some(self.at[2] + distance / pace * ray[2] - held_m)
+    }
+
     /// The point of the set picture point `image` shows at `depth_m` ahead (as the frame stores
     /// depth).
     pub(crate) fn point_at(&self, image: [f64; 2], depth_m: f64) -> Vec3 {
@@ -314,6 +346,26 @@ mod tests {
     /// Far enough that a point at the camera's height lies on the horizon.
     const FAR_M: f64 = 1.0e7;
 
+    /// Aiming moves the target and nothing else.
+    #[test]
+    fn aim_keeps_turn_and_distance() {
+        let mut orbit = Orbit::fitting(10.0, 6.0);
+        orbit.turn(30.0, 10.0);
+        let kept = orbit;
+        orbit.aim([2.0, 3.0, 0.5]);
+
+        assert_eq!(orbit.target, [2.0, 3.0, 0.5]);
+        assert_eq!(
+            (
+                orbit.yaw_deg,
+                orbit.pitch_deg,
+                orbit.distance_m,
+                orbit.fov_deg
+            ),
+            (kept.yaw_deg, kept.pitch_deg, kept.distance_m, kept.fov_deg)
+        );
+    }
+
     fn plan_with(height_m: f64, tilt_deg: f64, aspect: f64) -> FloorPlan {
         let mut plan = FloorPlan::new("p", "Plan");
         plan.cameras = vec![Camera {
@@ -377,6 +429,38 @@ mod tests {
 
         assert!((horizon(&down, 1.6) - 0.25205).abs() < TOLERANCE);
         assert!((at(&down, [10.0, 5.0, 0.0])[1] - 0.69124).abs() < TOLERANCE);
+    }
+
+    /// Camera 1.6 m high, level, f = 1.40619. The floor point 5 m ahead shows at y 0.94998; the
+    /// point 1 m above it at 0.5 + 0.6 / 5 * f = 0.668742, 2 m above at 0.5 - 0.4 / 5 * f =
+    /// 0.387505, and the camera's own height on the horizon, 0.5.
+    #[test]
+    fn a_pointer_up_lifts_the_grabbed_point_by_what_the_plane_shows() {
+        let level = pinhole(1.6, 0.0, 1.0);
+        let from = [0.5, 0.949980];
+
+        let one = level.lift(from, [0.5, 0.668742], 0.0).expect("lift");
+        let two = level.lift(from, [0.5, 0.387505], 0.0).expect("lift");
+        let none = level.lift(from, from, 0.0).expect("lift");
+        let level_with_eye = level.lift(from, [0.5, 0.5], 0.0).expect("lift");
+
+        assert!((one - 1.0).abs() < TOLERANCE, "one {one}");
+        assert!((two - 2.0).abs() < TOLERANCE, "two {two}");
+        assert!(none.abs() < TOLERANCE, "none {none}");
+        assert!((level_with_eye - 1.6).abs() < TOLERANCE, "{level_with_eye}");
+    }
+
+    /// Held 1 m up, the pointer on the point itself lifts nothing; sideways changes nothing.
+    #[test]
+    fn a_pointer_sideways_lifts_nothing_and_none_above_the_horizon() {
+        let level = pinhole(1.6, 0.0, 1.0);
+        let held = [0.5, 0.668742];
+
+        let sideways = level.lift(held, [0.7, 0.668742], 1.0).expect("lift");
+
+        assert!(sideways.abs() < TOLERANCE, "sideways {sideways}");
+        // The grabbed level lies below the eye: a start above the horizon meets none.
+        assert!(level.lift([0.5, 0.3], [0.5, 0.2], 1.0).is_none());
     }
 
     #[test]

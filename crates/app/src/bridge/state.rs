@@ -65,6 +65,7 @@ pub struct ControllerRust {
     pub(super) shown: String,
     pub(super) area_points: i32,
     pub(super) has_background: bool,
+    pub(super) missing_heights: i32,
     pub(super) scale_points: i32,
     /// The note whose text is asked, if any.
     pub(super) note: NoteDraft,

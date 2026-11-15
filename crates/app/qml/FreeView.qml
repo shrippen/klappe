@@ -71,9 +71,14 @@ Item {
 
         controller.freeSize(width * dpr, height * dpr)
         const image = controller.freeImage(interacting ? handScale : 1, colors.json)
+        reframe()
+        surface.item.show(image)
+    }
+
+    // The names of the picture again, with the height drag's caption at the pointer.
+    function reframe() {
         const text = controller.freeFrame()
         frame = text ? JSON.parse(text) : null
-        surface.item.show(image)
     }
 
     onWidthChanged: refresh()
@@ -139,12 +144,14 @@ Item {
         onActivated: {
             view.gesture = ""
             view.controller.cancelDrag()
+            view.reframe()
         }
     }
 
     function press(mouse) {
         const shift = (mouse.modifiers & Qt.ShiftModifier) !== 0
         const alt = (mouse.modifiers & Qt.AltModifier) !== 0
+        view.forceActiveFocus()
         pressAt = Qt.point(mouse.x, mouse.y)
         lastAt = pressAt
         moved = false
@@ -177,6 +184,7 @@ Item {
             return
         }
         controller.freeDrag(pressAt.x * dpr, pressAt.y * dpr, mouse.x * dpr, mouse.y * dpr, done)
+        reframe()
     }
 
     function release(mouse) {
@@ -185,6 +193,16 @@ Item {
         if (edits) {
             clickAt = Qt.point(mouse.x, mouse.y)
             dragged ? dragTo(mouse, true) : controller.freePlace(mouse.x * dpr, mouse.y * dpr)
+        }
+        gesture = ""
+        moved = false
+    }
+
+    // The window took the press away (Alt+Tab, a popup): a running drag is dropped, as by Escape.
+    function canceled() {
+        if (dragging) {
+            controller.cancelDrag()
+            reframe()
         }
         gesture = ""
         moved = false
@@ -211,7 +229,7 @@ Item {
         onPressed: mouse => view.press(mouse)
         onPositionChanged: mouse => view.move(mouse)
         onReleased: mouse => view.release(mouse)
-        onCanceled: { view.gesture = ""; view.moved = false }
+        onCanceled: view.canceled()
         onWheel: wheel => view.wheeled(wheel)
 
         // A pinch on a touchpad or a touch screen zooms to the middle of the fingers.

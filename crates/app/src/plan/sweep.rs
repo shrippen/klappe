@@ -34,7 +34,7 @@ pub(super) fn sweep_shape(sweep: &Sweep) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plan::shapes_json;
+    use crate::plan::{shapes_json, HeightTexts};
     use klappe_services::DisplayList;
     use std::path::Path;
 
@@ -50,6 +50,7 @@ mod tests {
             &[],
             Some(&corners),
             None,
+            &HeightTexts::default(),
         );
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
@@ -69,7 +70,15 @@ mod tests {
         let two = [Point::new(1.0, 1.0), Point::new(4.0, 5.0)];
 
         let shapes = |picked: &[Point]| -> Vec<Value> {
-            let json = shapes_json(&list, Path::new("/p"), &|_| false, picked, None, None);
+            let json = shapes_json(
+                &list,
+                Path::new("/p"),
+                &|_| false,
+                picked,
+                None,
+                None,
+                &HeightTexts::default(),
+            );
             serde_json::from_str::<Value>(&json).unwrap_or_default()["shapes"]
                 .as_array()
                 .cloned()
@@ -94,7 +103,15 @@ mod tests {
             Point::new(3.0, 5.0),
         ]);
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], Some(&lasso), None);
+        let json = shapes_json(
+            &list,
+            Path::new("/p"),
+            &|_| false,
+            &[],
+            Some(&lasso),
+            None,
+            &HeightTexts::default(),
+        );
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][0]["kind"], "polyline");

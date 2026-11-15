@@ -10,7 +10,8 @@
 
 use klappe_model::Point;
 use klappe_stellprobe::{
-    floor_at, grab_at, level_at, picture, source_at, Eye, Orbit, Picture, Source,
+    floor_at, grab_at, level_at, lift_at, object_extent, picture, source_at, Eye, Orbit, Picture,
+    Source,
 };
 
 use super::Session;
@@ -53,6 +54,27 @@ impl Session {
     pub fn pan_view(&mut self, dx: f64, dy: f64, size: Size) {
         if let Some(orbit) = self.orbit.as_mut() {
             orbit.pan(dx, dy, size.0);
+        }
+    }
+
+    /// In 3D, turns the view's middle to object `id` at half its height, so the view follows
+    /// it (LH-93); distance and angle stay. The plan and an unknown id change nothing.
+    pub fn aim_at_object(&mut self, id: &str) {
+        if self.view != View::Free {
+            return;
+        }
+        let Some(set) = self.scene_location().map(|l| &l.set) else {
+            return;
+        };
+        let Some(index) = set.objects.iter().position(|o| o.id == id) else {
+            return;
+        };
+
+        let (base_m, top_m) = object_extent(set, index);
+        let at = set.objects[index].at;
+        let target = [at.x_m, at.y_m, (base_m + top_m) / 2.0];
+        if let Some(orbit) = self.orbit.as_mut() {
+            orbit.aim(target);
         }
     }
 
@@ -107,6 +129,20 @@ impl Session {
             size.0,
             pointer,
             height_m,
+        )
+    }
+
+    /// How far a drag from `from` to `to` lifts what it grabbed at `held_m` above the floor
+    /// (height drag in 3D, LH-95); negative: lowers. `None` when `from` shows no point of
+    /// that level.
+    pub fn free_lift(&self, from: Size, to: Size, size: Size, held_m: f64) -> Option<f64> {
+        lift_at(
+            self.plan()?,
+            &self.free_eye(size)?,
+            size.0,
+            from,
+            to,
+            held_m,
         )
     }
 

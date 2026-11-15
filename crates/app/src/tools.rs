@@ -19,6 +19,13 @@ const ANGLE_DECIMALS: usize = 1;
 /// Between the length and the angle of a measurement caption.
 pub const MEASURE_SEPARATOR: &str = " · ";
 
+/// A height is kept in whole centimetres.
+const CM_PER_M: f64 = 100.0;
+
+/// The least height a drag of the height tool leaves: the pointer far below makes a thin
+/// object, not a refused edit.
+const MIN_HEIGHT_M: f64 = 0.05;
+
 /// A full turn; angles are kept within [0, 360), as `facing_deg` is.
 const FULL_TURN_DEG: f64 = 360.0;
 
@@ -71,6 +78,8 @@ impl DrawStyle {
 pub enum Tool {
     Select,
     Wall,
+    /// A drag from an object or a wall changes its height: up is higher (LH-95).
+    Height,
     /// A click on a wall sets a door or window in it (LH-10).
     Opening(OpeningKind),
     /// Library kind of the object a click sets.
@@ -118,14 +127,15 @@ impl Tool {
             "ellipse" => Some(Tool::Ellipse),
             "area" => Some(Tool::Area),
             "light" => Some(Tool::Light(choice.to_owned())),
-            _ => opening_tool(name),
+            _ => plain_tool(name),
         }
     }
 }
 
-/// The door and window tools, which take no choice.
-fn opening_tool(name: &str) -> Option<Tool> {
+/// The tools of the height, door and window, which take no choice.
+fn plain_tool(name: &str) -> Option<Tool> {
     match name {
+        "height" => Some(Tool::Height),
         "door" => Some(Tool::Opening(OpeningKind::Door)),
         "window" => Some(Tool::Opening(OpeningKind::Window)),
         _ => None,
@@ -137,6 +147,7 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
     match tool {
         Tool::Select
         | Tool::Wall
+        | Tool::Height
         | Tool::Scale
         | Tool::Measure
         | Tool::Note
@@ -199,6 +210,46 @@ pub fn drag_edit(
     }
 }
 
+/// A wall typed by its length (LH-95): from `from` toward the pointer at `toward`, `text`
+/// metres long (comma or point). `None` while the pointer stands on the start: no direction.
+pub fn wall_of_length(from: Point, toward: Point, text: &str) -> Typed {
+    if from == toward {
+        return None;
+    }
+
+    let (dx_m, dy_m) = (toward.x_m - from.x_m, toward.y_m - from.y_m);
+    let reach_m = dx_m.hypot(dy_m);
+    let typed = length_m(Field::Distance, text);
+
+    Some(typed.map(|length_m| PlanEdit::AddWall {
+        from,
+        to: Point::new(
+            from.x_m + dx_m / reach_m * length_m,
+            from.y_m + dy_m / reach_m * length_m,
+        ),
+    }))
+}
+
+/// A drag of the height tool that began on `grabbed`, which stood `start_m` tall: it is
+/// `lift_m` taller (negative: lower), in whole centimetres and not under the least height.
+/// `None` for anything but an object or a wall.
+pub fn height_edit(grabbed: &Source, start_m: f64, lift_m: f64) -> Option<PlanEdit> {
+    let cm = ((start_m + lift_m) * CM_PER_M).round();
+    let height_m = Some((cm / CM_PER_M).max(MIN_HEIGHT_M));
+
+    match grabbed {
+        Source::Object(_) => Some(PlanEdit::SetObjectHeight {
+            source: grabbed.clone(),
+            height_m,
+        }),
+        Source::Wall(_) => Some(PlanEdit::SetWallHeight {
+            source: grabbed.clone(),
+            height_m,
+        }),
+        _ => None,
+    }
+}
+
 /// A drag with a drawing tool from `from` to `to` (both snapped already): the drawing it
 /// makes. `None` for the other tools, for a drag that goes nowhere, and for a rectangle or
 /// ellipse without width or height.
@@ -248,13 +299,20 @@ pub enum Grip {
     #[default]
     Free,
     Held(Option<Source>),
+    /// A typed measure ended the drag (`wall_of_length`): its steps do nothing until the release.
+    Spent,
 }
 
 impl Grip {
     /// The element this drag moves: `pick`'s answer on the first step, the same after.
     pub fn take(self, pick: impl FnOnce() -> Option<Source>) -> (Grip, Option<Source>) {
+        if self == Grip::Spent {
+            return (Grip::Spent, None);
+        }
+
         let grabbed = match self {
             Grip::Held(held) => held,
+            Grip::Spent => None,
             Grip::Free => pick(),
         };
 

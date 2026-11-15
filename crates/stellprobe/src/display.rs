@@ -8,11 +8,13 @@ use crate::card::note_card;
 use crate::figure::{body_radius_m, group_dots, GROUP_DOT_RADIUS_M, GROUP_RADIUS_M};
 use crate::light::{lamps, light_items, Lamp};
 use crate::motion::{camera_at, figure_at, path, walked_ways};
-use crate::opening::wall_items;
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
 use crate::rig::{rig_dash, rig_runs};
 
 mod handles;
+mod objects;
+
+use objects::set_items;
 
 pub use handles::{drawing_handle_places, handles};
 
@@ -107,6 +109,11 @@ pub enum Role {
     Figure(FigureColor),
     /// A dot inside a group's body; in the body's colour it would vanish.
     GroupDot,
+    /// The height of the set object beside it (LH-93), in whole centimetres; `None` while
+    /// the object has none. A caption at the item's point, no shape.
+    Height {
+        cm: Option<u32>,
+    },
 }
 
 /// A grip on a way (LH-21): a bend the way passes, or a spot to pull a new bend out of.
@@ -235,21 +242,6 @@ fn background_item(background: &Background, px: (u32, u32), items: &mut Vec<Item
         label: None,
         source: None,
     });
-}
-
-fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
-    wall_items(set, items);
-
-    for object in &set.objects {
-        items.push(Item {
-            role: Role::Object,
-            shape: Shape::Polygon {
-                points: object_corners(object),
-            },
-            label: Some(object.label.clone()).filter(|l| !l.is_empty()),
-            source: Some(Source::Object(object.id.clone())),
-        });
-    }
 }
 
 /// The outline of a set object, rotated about its centre: four corners for a rectangle, the

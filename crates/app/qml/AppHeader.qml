@@ -37,6 +37,8 @@ RowLayout {
     /// Zoom of the plan: "in", "out" or "fit".
     signal zoomRequested(string how)
     signal playRequested()
+    /// An object without a height is selected (LH-93): its card takes the height.
+    signal heightRequested()
 
     readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : { scenes: [], plans: [], plan: "" }
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
@@ -44,7 +46,7 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv,
-                                    actFree, actScript, actShot, actTimeline, actCut, actShooting,
+                                    actFree, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actUndo, actRedo]
@@ -99,6 +101,16 @@ RowLayout {
         visible: text !== ""
     }
 
+    // Objects without a height (LH-93): the count, and a click goes on to the next.
+    KanteButton {
+        objectName: "missingHeights"
+        visible: header.controller.loaded && header.controller.missingHeights > 0
+        emphasis: KanteButton.Emphasis.Quiet
+        size: KanteButton.Size.Small
+        text: header.texts.t("height.missingHeader", { n: header.controller.missingHeights })
+        onClicked: actHeights.trigger()
+    }
+
     HeaderMenu {
         objectName: "fileMenu"
         text: header.texts.t("menu.file")
@@ -131,6 +143,7 @@ RowLayout {
         text: header.texts.t("menu.view")
         KanteMenuSection { text: header.texts.t("menu.viewMode"); rule: false }
         KanteMenuItem { objectName: "free"; action: actFree }
+        KanteMenuItem { objectName: "heights"; action: actHeights }
         KanteMenuSection { text: header.texts.t("menu.viewAreas") }
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
@@ -280,6 +293,22 @@ RowLayout {
         checkable: true
         enabled: header.controller.loaded && !header.locked
         onToggled: header.controller.toggleView()
+    }
+    // Height missing (Shift+H, LH-93): selects the next object without one; its card takes the
+    // typed height.
+    CommandAction {
+        id: actHeights
+        cmd: "view.heights"
+        group: "view"
+        text: header.texts.t("height.next")
+        shortcut: "Shift+H"
+        keys: header.keyName("Shift+H")
+        enabled: header.controller.loaded && !header.locked && header.controller.missingHeights > 0
+        onTriggered: {
+            if (header.controller.nextMissingHeight()) {
+                header.heightRequested()
+            }
+        }
     }
     // The checkmark follows the controller, which also leaves 3D when another project opens.
     Binding {

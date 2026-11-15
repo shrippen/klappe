@@ -492,3 +492,102 @@ fn the_scale_edit_needs_both_points_and_a_length() {
 }
 
 mod notes_and_shapes;
+
+#[test]
+fn height_is_a_tool_and_a_click_edits_nothing() {
+    assert_eq!(Tool::parse("height", ""), Some(Tool::Height));
+    assert_eq!(click_edit(&Tool::Height, p(1.0, 1.0)), None);
+    assert_eq!(
+        drag_edit(&Tool::Height, None, p(0.0, 0.0), p(2.0, 2.0)),
+        None
+    );
+}
+
+/// An object 0.9 m tall dragged 0.5 m up is 1.4 m; a wall of 2.6 m dragged 0.6 m down is 2 m.
+#[test]
+fn a_height_drag_adds_the_lift_to_the_start() {
+    let table = Source::Object("tisch".into());
+    let wall = Source::Wall(0);
+
+    assert_eq!(
+        height_edit(&table, 0.9, 0.5),
+        Some(PlanEdit::SetObjectHeight {
+            source: table,
+            height_m: Some(1.4),
+        })
+    );
+    assert_eq!(
+        height_edit(&wall, 2.6, -0.6),
+        Some(PlanEdit::SetWallHeight {
+            source: wall,
+            height_m: Some(2.0),
+        })
+    );
+}
+
+/// 0.9 + 0.2137 is 1.11 m (whole centimetres); far down stops at 0.05 m.
+#[test]
+fn a_height_is_whole_centimetres_and_not_below_the_least() {
+    let table = Source::Object("tisch".into());
+    let height = |lift_m| match height_edit(&table, 0.9, lift_m) {
+        Some(PlanEdit::SetObjectHeight { height_m, .. }) => height_m,
+        _ => None,
+    };
+
+    assert_eq!(height(0.2137), Some(1.11));
+    assert_eq!(height(-5.0), Some(0.05));
+}
+
+#[test]
+fn a_height_drag_from_anything_else_edits_nothing() {
+    let note = Source::Note("n1".into());
+
+    assert_eq!(height_edit(&note, 0.9, 0.5), None);
+}
+
+/// LH-95: the typed length is measured along the line from the start to the pointer, not to it.
+#[test]
+fn a_typed_length_makes_a_wall_toward_the_pointer() {
+    let from = Point::new(2.0, 2.0);
+
+    let along = edit_of(wall_of_length(from, Point::new(6.0, 2.0), "3"));
+    assert_eq!(
+        along,
+        Some(PlanEdit::AddWall {
+            from,
+            to: Point::new(5.0, 2.0)
+        })
+    );
+
+    let Some(PlanEdit::AddWall { to, .. }) =
+        edit_of(wall_of_length(from, Point::new(5.0, 6.0), "2,5"))
+    else {
+        panic!("no wall");
+    };
+    assert!(
+        (to.x_m - 3.5).abs() < 1e-9 && (to.y_m - 4.0).abs() < 1e-9,
+        "{to:?}"
+    );
+}
+
+/// LH-95: the point works like the comma; zero, text and a pointer on the start make no wall.
+#[test]
+fn a_typed_length_is_a_length() {
+    let from = Point::new(0.0, 0.0);
+    let toward = Point::new(0.0, 1.0);
+
+    assert!(edit_of(wall_of_length(from, toward, "1.5")).is_some());
+    assert!(matches!(wall_of_length(from, toward, "0"), Some(Err(_))));
+    assert!(matches!(wall_of_length(from, toward, "x"), Some(Err(_))));
+    assert!(wall_of_length(from, from, "3").is_none());
+}
+
+/// LH-95: after a typed length the drag's later steps hold nothing, until the release.
+#[test]
+fn a_spent_grip_grabs_nothing_until_done() {
+    let (grip, grabbed) = Grip::Spent.take(|| Some(Source::Figure("burgvogt".into())));
+
+    assert_eq!((grip.clone(), grabbed), (Grip::Spent, None));
+    assert_eq!(grip.clone().after(DragPhase::Moving), Grip::Spent);
+    assert_eq!(grip.after(DragPhase::Done), Grip::Free);
+}

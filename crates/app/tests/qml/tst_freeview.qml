@@ -150,6 +150,21 @@ TestCase {
         compare(calls(), [["cancelDrag"]])
     }
 
+    // The window takes the press away (Alt+Tab, a popup): the controller drops the drag too.
+    function test_a_taken_press_drops_a_drag() {
+        const view = make()
+
+        mousePress(view, 100, 80)
+        mouseMove(view, 200, 80)
+        fake.calls = []
+
+        findChild(view, "freeInput").canceled()
+
+        compare(calls(), [["cancelDrag"]])
+        verify(!view.dragging)
+        mouseRelease(view, 200, 80)
+    }
+
     function test_the_right_button_turns_and_made_smaller_while_it_runs() {
         const view = make()
 

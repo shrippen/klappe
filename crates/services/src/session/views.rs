@@ -193,6 +193,53 @@ impl Session {
         })
     }
 
+    /// How many objects of the scene's set have no height yet (LH-93).
+    pub fn missing_heights(&self) -> usize {
+        let Some(location) = self.scene_location() else {
+            return 0;
+        };
+
+        location
+            .set
+            .objects
+            .iter()
+            .filter(|o| o.height_m.is_none())
+            .count()
+    }
+
+    /// The next object without a height after object `after`, in the set's order and
+    /// round again (LH-93); the first one without `after` or when it is gone. `None` when
+    /// all have a height. The object `after` itself comes last.
+    pub fn next_missing_height(&self, after: Option<&str>) -> Option<String> {
+        let objects = &self.scene_location()?.set.objects;
+        let count = objects.len();
+        let last = after
+            .and_then(|id| objects.iter().position(|o| o.id == id))
+            .unwrap_or(count.checked_sub(1)?);
+
+        (1..=count)
+            .map(|step| &objects[(last + step) % count])
+            .find(|o| o.height_m.is_none())
+            .map(|o| o.id.clone())
+    }
+
+    /// How tall `source` stands now, in metres: an object's extent (what it is shown as without
+    /// a height of its own), a wall's top (LH-95). `None` for any other source.
+    pub fn height_of(&self, source: &Source) -> Option<f64> {
+        let set = &self.scene_location()?.set;
+
+        match source {
+            Source::Object(id) => {
+                let index = set.objects.iter().position(|o| o.id == *id)?;
+                let (base_m, top_m) = object_extent(set, index);
+
+                Some(top_m - base_m)
+            }
+            Source::Wall(index) => Some(wall_top(set, set.walls.get(*index)?)),
+            _ => None,
+        }
+    }
+
     /// The tooltip of object `id` on the scene's set; `None` without such an object.
     pub fn object_hint(&self, id: &str) -> Option<Hint> {
         let set = &self.scene_location()?.set;

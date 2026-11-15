@@ -75,6 +75,11 @@ Item {
     property alias shotView: store.shotView
     property alias shotOrder: store.shotOrder
 
+    /// The selected object's card takes the height (LH-93).
+    function focusHeight() {
+        plan.focusHeight()
+    }
+
     /// Zooms the plan: "in", "out" or "fit".
     function zoomPlan(how) {
         plan.zoomBy(how)
