@@ -63,11 +63,16 @@ die Datei im selben PR.
   `drag`, `key`, `type`, `hover`, `tree`, `find`, `press`, `text`, `wait`, `focus`, `layout`,
   `stop`); `scripts/qactl.py` is the tool behind it. Pictures and `actions.log` stay in
   `WORKDIR`. Test: `scripts/qa-session.test.sh`.
-- Klappe, the buses and the AT-SPI registry run in `bwrap` (user namespace, no network): the root
-  is read-only, the owner's home, `/run`, `/tmp` and other mounts are empty, only the session's
-  sandbox folder, Klappe's binary and the session's X socket are bound in. They still run with
-  the owner's UID, with an environment of their own and without the desktop's buses or services.
-  `start` stops with a message if `bwrap` or user namespaces are missing.
+- Klappe, the buses and the AT-SPI registry run in `bwrap` (user, IPC, PID, UTS and network
+  namespaces) in a root built from nothing. Klappe sees: `/usr/{bin,lib,lib32,lib64,libexec,share}`
+  and a short list of `/etc` entries (linker cache, fonts, passwd, group, nsswitch.conf,
+  localtime, machine-id, os-release, dbus-1, xdg; all world-readable on the host anyway), the
+  `/bin` `/sbin` `/lib` `/lib64` links, `/dev` (no GPU) and `/proc`, empty `/tmp`, `/var/tmp` and
+  `/run`, and bound in: the session's sandbox folder (read-write), Klappe's binary and Kante's
+  QML folder (read-only) and the session's X socket. No home, `/opt`, `/var/lib`, `/mnt`, `/srv`,
+  `/sys`, `/usr/local`. They still run with the owner's UID, with an environment of their own and
+  without the desktop's buses or services. `start` stops with a message if `bwrap` or user
+  namespaces are missing.
 - A private Xvfb started by `scripts/qa-session.sh` counts as offscreen.
 - Neither script is part of a release.
 

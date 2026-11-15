@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # One separate session of Klappe in its own X server, for QA rounds. Klappe, the buses and the
-# AT-SPI registry run in bwrap: the root is read-only, /home, /run, /tmp, /mnt and /media are
-# empty, only the sandbox folder, Klappe's binary and QML and the session's X socket are bound in, and
-# there is no network. They still run with your UID, with an environment of their own (env -i and
-# a short list), a bus of their own and no desktop service (no portal). Needs bwrap and user
+# AT-SPI registry run in bwrap, in a root built up from nothing: /usr and a short list of /etc
+# entries read-only, empty /tmp, /var/tmp and /run, /dev without a GPU, /proc, and bound in only
+# the sandbox folder (read-write), Klappe's binary and Kante's QML (read-only) and the session's X
+# socket. No home, /opt, /var/lib, /mnt, /srv or /sys, no network, own IPC namespace (the exact
+# list: "The jail" below). They still run with your UID, with an environment of their own (env -i
+# and a short list), a bus of their own and no desktop service (no portal). Needs bwrap and user
 # namespaces; without them start stops with a message (no fallback):
 #
 #   Xvfb (free display) ─► [bwrap: D-Bus session + AT-SPI bus ─► klappe (xcb, no Wayland, own HOME
@@ -50,6 +52,7 @@ START_WAIT_DS=$((XVFB_WAIT_DS + 2 * BUS_WAIT_DS + WINDOW_WAIT_DS + PAINT_WAIT_DS
 START_WAIT_DS="${QA_START_WAIT_DS:-$START_WAIT_DS}"
 ENV_FILE=session.env
 PID_FILE=qa.pid
+SESSION_SCRIPT=qa-session.sh
 self="$repo/scripts/qa-session.sh"
 # Test hook: another bwrap (qa-session.test.sh).
 BWRAP="${QA_BWRAP:-bwrap}"
@@ -57,18 +60,25 @@ BWRAP="${QA_BWRAP:-bwrap}"
 # which the jail does not show, so the jail binds it in.
 qml_dir="${QA_QML_DIR:-$repo/crates/app/qml}"
 
-# Prints the pid in WORKDIR/qa.pid if it is a background session of this work folder, that is
-# /proc/PID/cmdline reads "... qa-session.sh start WORKDIR --serve ..." (or "... --run CMD");
-# otherwise discards the
+# The start time of process $1 (field 22 of /proc/PID/stat, in clock ticks since boot); with the
+# pid it names one process for good, however the paths were written on its command line.
+start_time() {
+    local stat rest
+    stat="$(cat "/proc/$1/stat" 2> /dev/null)" || return 1
+    rest=(${stat##*) })
+    echo "${rest[19]}"
+}
+
+# Prints the pid in WORKDIR/qa.pid ("PID STARTTIME", written by the session itself) if that
+# process still runs, was started at that time and is a qa-session.sh; otherwise discards the
 # file and prints nothing. A pid is never signalled on the file's word alone.
 session_pid() {
-    local dir="$1" pid args i
-    pid="$(cat "$dir/$PID_FILE" 2>/dev/null || true)"
-    if [[ "$pid" =~ ^[0-9]+$ ]] && mapfile -d '' args 2> /dev/null < "/proc/$pid/cmdline"; then
-        for i in "${!args[@]}"; do
-            if [ "${args[$i]}" = "$self" ] && [ "${args[$((i + 1))]:-}" = start ] \
-                && [ "${args[$((i + 2))]:-}" = "$dir" ] \
-                && { [ "${args[$((i + 3))]:-}" = --serve ] || [[ " ${args[*]:$((i + 3))} " == *" --run "* ]]; }; then
+    local dir="$1" pid="" started="" arg args
+    read -r pid started 2> /dev/null < "$dir/$PID_FILE" || true
+    if [[ "$pid" =~ ^[0-9]+$ ]] && [ "$(start_time "$pid")" = "$started" ] \
+        && mapfile -d '' args 2> /dev/null < "/proc/$pid/cmdline"; then
+        for arg in "${args[@]}"; do
+            if [ "${arg##*/}" = "$SESSION_SCRIPT" ]; then
                 echo "$pid"
                 return 0
             fi
@@ -204,13 +214,14 @@ if [ "$mode" = background ]; then
     exit 1
 fi
 
-echo $$ > "$dir/$PID_FILE"
+echo "$$ $(start_time $$)" > "$dir/$PID_FILE"
 # Klappe and the buses start in the session's home, not in the caller's folder (a file dialog
 # would show it).
 cd "$sandbox/home"
-xvfb_pid="" app_pid="" bus_pids=()
+xvfb_pid="" app_pid="" run_pid="" bus_pids=()
 cleanup() {
     # Klappe, each bus and the registry run in process groups of their own: stop all of it.
+    [ -n "$run_pid" ] && kill -- "-$run_pid" 2>/dev/null || true
     [ -n "$app_pid" ] && kill -- "-$app_pid" 2>/dev/null || true
     for pid in "${bus_pids[@]}"; do
         kill -- "-$pid" 2>/dev/null || true
@@ -251,16 +262,32 @@ clean=(env -i PATH="$PATH" LANG="$locale" LC_ALL="$locale"
     KLAPPE_QML_DIR="$qml_dir"
     QT_AUTO_SCREEN_SCALE_FACTOR=0 QT_SCALE_FACTOR="$scale" QT_FORCE_STDERR_LOGGING=1
     PULSE_SERVER=unix:/nonexistent)
-# The jail around Klappe, the buses and the registry. What is not bound is empty: the owner's
-# home, /run (the desktop's sockets), /tmp but the session's own X socket, other mounts. The
-# SysV IPC namespace stays shared: the X server's shared memory (MIT-SHM) needs it.
-hidden=()
-for folder in /home /mnt /media /srv; do
-    [ -d "$folder" ] && hidden+=(--tmpfs "$folder")
+# The jail around Klappe, the buses and the registry. It is built up from nothing, not from the
+# host's root. It shows: /usr/bin, /usr/lib, /usr/lib32, /usr/lib64, /usr/libexec and /usr/share
+# read-only (not /usr/local, /usr/src, ...), the merged-/usr links /bin /sbin /lib /lib64, these /etc entries read-only (the dynamic linker's
+# cache, fonts, user and group names, time zone, machine id, OS name, D-Bus policy, XDG and Mesa
+# defaults), /dev (no GPU) and /proc, empty /tmp, /var/tmp and /run, and what the session binds
+# in: the sandbox (read-write), Klappe's binary and Kante's QML (read-only), this session's X
+# socket. No /home, /opt, /var/lib, /mnt, /srv, /boot, /sys; the SysV IPC namespace is its own.
+ETC_ENTRIES=(ld.so.cache ld.so.conf ld.so.conf.d fonts passwd group nsswitch.conf localtime
+    machine-id os-release dbus-1 xdg drirc.d)
+root_args=()
+for folder in bin lib lib32 lib64 libexec share; do
+    [ -d "/usr/$folder" ] && root_args+=(--ro-bind "/usr/$folder" "/usr/$folder")
 done
-jail=("$BWRAP" --unshare-user --unshare-pid --unshare-net --unshare-uts --die-with-parent
-    --new-session --ro-bind / / "${hidden[@]}" --tmpfs "$HOME" --tmpfs /run --tmpfs /tmp
-    --dev /dev --proc /proc
+for link in bin sbin lib lib64; do
+    if [ -L "/$link" ]; then
+        root_args+=(--symlink "$(readlink "/$link")" "/$link")
+    elif [ -d "/$link" ]; then
+        root_args+=(--ro-bind "/$link" "/$link")
+    fi
+done
+for entry in "${ETC_ENTRIES[@]}"; do
+    [ -e "/etc/$entry" ] && root_args+=(--ro-bind "/etc/$entry" "/etc/$entry")
+done
+jail=("$BWRAP" --unshare-user --unshare-ipc --unshare-pid --unshare-net --unshare-uts
+    --die-with-parent --new-session "${root_args[@]}"
+    --tmpfs /tmp --tmpfs /var/tmp --tmpfs /run --dev /dev --proc /proc
     --bind "$sandbox" "$sandbox" --ro-bind "$app" "$app" --ro-bind "$qml_dir" "$qml_dir"
     --bind "/tmp/.X11-unix/X$display" "/tmp/.X11-unix/X$display")
 # Private buses for Klappe and the --run command (qactl talks to Klappe over AT-SPI): a
@@ -342,8 +369,12 @@ mv "$dir/$ENV_FILE.tmp" "$dir/$ENV_FILE"
 echo "qa-session: DISPLAY=:$display window $window dir $dir" >&2
 
 if [ -n "$run" ]; then
+    # In a process group of its own, so that stop ends the command with what it started.
+    (cd "$caller" && exec setsid "${clean[@]}" QA_WINDOW="$window" QA_SESSION="$dir" QA_WORK="$dir" \
+        bash -c "$run") &
+    run_pid=$!
     status=0
-    (cd "$caller" && "${clean[@]}" QA_WINDOW="$window" QA_SESSION="$dir" QA_WORK="$dir" bash -c "$run") || status=$?
+    wait "$run_pid" || status=$?
     exit "$status"
 fi
 wait "$app_pid" || true

@@ -24,6 +24,7 @@ cleanup() {
 trap cleanup EXIT
 
 DIALOG_WAIT_S=15
+ETC_ENTRIES_MAX=40
 PAINT_SIZE=1440x900
 
 fail() {
@@ -238,6 +239,14 @@ for s in "$a" "$b"; do
         [ ! -e "$seen$hidden" ] || fail "Klappe in $s sees $hidden"
     done
     [ -d "$seen$s/sandbox/config" ] || fail "Klappe in $s does not see its own sandbox"
+    [ "$(readlink "/proc/$pid/ns/ipc")" != "$(readlink "/proc/$$/ns/ipc")" ] \
+        || fail "Klappe in $s shares the SysV IPC namespace of the host"
+    for hidden in /opt /var/lib /mnt /srv /boot /root /media /usr/local /usr/src /sys; do
+        [ ! -e "$seen$hidden" ] || fail "Klappe in $s sees $hidden"
+    done
+    [ -z "$(ls -A "$seen/var/tmp" 2> /dev/null)" ] || fail "Klappe in $s sees /var/tmp: $(ls -A "$seen/var/tmp")"
+    [ "$(ls -A "$seen/home")" = "$(basename "$HOME")" ] || fail "Klappe in $s sees /home: $(ls -A "$seen/home")"
+    [ "$(ls -A "$seen/etc" | wc -l)" -le "$ETC_ENTRIES_MAX" ] || fail "Klappe in $s sees a whole /etc"
     [ -z "$(ls -A "$seen/run/user" 2> /dev/null)" ] || fail "Klappe in $s sees /run/user"
     [ -z "$(ls -A "$seen/tmp" 2> /dev/null | grep -v '^\.X11-unix$')" ] || fail "Klappe in $s sees /tmp"
     [ ! -e "$seen$s/qa" ] || fail "Klappe in $s sees the work folder outside its sandbox"
@@ -285,6 +294,24 @@ for kind in "--prepare-only" "--run true"; do
     "$a/qa" tree > /dev/null || fail "session A is gone after start $kind"
 done
 echo "ok: a second start is refused"
+
+# A session started with relative paths (--run) is found by stop and refuses a second start.
+r1="$work/r1"
+sessions+=("$r1")
+rel="$(realpath --relative-to="$work" "$session")"
+(cd "$work" && "$rel" start r1 --run 'sleep 987657' > /dev/null 2>&1) &
+for _ in $(seq $((DIALOG_WAIT_S * 5))); do
+    [ -s "$r1/session.env" ] && break
+    sleep 0.2
+done
+[ -s "$r1/session.env" ] || fail "the --run session did not come up"
+if (cd "$work" && "$rel" start r1 --prepare-only > /dev/null 2>&1); then
+    fail "a second start in the --run session's folder (relative paths) was accepted"
+fi
+(cd "$work" && "$rel" stop r1) || fail "stop r1 failed"
+left="$(ps -eo args | grep -e 'sleep 987657' -e "$r1" | grep -v grep || true)"
+[ -z "$left" ] || fail "stop left processes of the --run session: $left"
+echo "ok: relative --run session found by stop and start"
 
 # Stop: no process, no X server, pictures stay.
 pid_a="$(. "$a/session.env" && echo "$QA_APP_PID")"

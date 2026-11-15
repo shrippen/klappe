@@ -253,23 +253,22 @@ class Outcome(enum.Enum):
     FAILED = enum.auto()
 
 
+def start_time(pid):
+    """Field 22 of /proc/PID/stat (after the command name, which may hold spaces)."""
+    stat = Path(f"/proc/{pid}/stat").read_text()
+    return stat.rsplit(")", 1)[1].split()[19]
+
+
 def session_runs(folder):
-    """Whether WORKDIR/qa.pid is a running session of this folder: its command line reads
-    `qa-session.sh start WORKDIR --serve` (or `... --run CMD`), as scripts/qa-session.sh checks."""
+    """Whether WORKDIR/qa.pid ("PID STARTTIME", written by the session) is a running qa-session.sh
+    that was started at that time, as scripts/qa-session.sh checks."""
     try:
-        pid = int((folder / PID_FILE).read_text())
-        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
-    except (OSError, ValueError):
+        pid, started = (folder / PID_FILE).read_text().split()
+        words = Path(f"/proc/{pid}/cmdline").read_bytes().decode(errors="replace").split("\0")
+        return start_time(pid) == started and any(
+            Path(word).name == SESSION_SCRIPT for word in words)
+    except (OSError, ValueError, IndexError):
         return False
-    words = raw.decode(errors="replace").split("\0")
-    script = Path(__file__).resolve().with_name(SESSION_SCRIPT)
-    for i, word in enumerate(words[:-3]):
-        if not word.endswith(SESSION_SCRIPT) or Path(word).resolve() != script:
-            continue
-        if words[i + 1] != "start" or Path(words[i + 2]).resolve() != folder.resolve():
-            continue
-        return words[i + 3] == "--serve" or "--run" in words[i + 3:]
-    return False
 
 
 def load_session(folder):
