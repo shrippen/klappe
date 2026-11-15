@@ -2,7 +2,7 @@
 //! the project lists, the tooltips and the set of the current scene.
 
 use klappe_model::{CameraPresets, Location};
-use klappe_stellprobe::{aim_at, horizontal_fov_deg, Source};
+use klappe_stellprobe::{aim_at, camera_view, horizontal_fov_deg, CameraView, Source};
 
 use super::Session;
 use crate::views::{CharacterRow, Hint, LocationRow, Overview, PlanRow, SceneRow};
@@ -78,6 +78,25 @@ impl Session {
             plans: plans.collect(),
             plan: self.plan().map(|p| p.id.clone()).unwrap_or_default(),
         }
+    }
+
+    /// What a camera sees at the playhead (LH-36): that of the selected shot, else `fallback`
+    /// (the camera picked on the plan). `None` without a camera, or one without marks.
+    pub fn camera_view(&self, fallback: Option<&str>) -> Option<CameraView> {
+        let plan = self.plan()?;
+        let of_shot = self
+            .selected_shot()
+            .and_then(|id| plan.shots.iter().find(|shot| shot.id == id))
+            .map(|shot| shot.camera.as_str());
+        let location = self.project.location(&self.scene()?.location)?;
+
+        camera_view(
+            &self.project,
+            &location.set,
+            plan,
+            of_shot.or(fallback)?,
+            self.time_s,
+        )
     }
 
     /// The tooltip of camera `id`; `None` without such a camera.

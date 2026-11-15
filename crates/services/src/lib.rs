@@ -48,7 +48,8 @@ pub use klappe_model::{
     FloorPlan, LensSet, LightKind, Movement, ObjectShape, Point, Pose, Rig, Sensor, ShotSize,
 };
 pub use klappe_stellprobe::{
-    horizontal_fov_deg, look, Area, DisplayList, Hue, Item, Role, Shape, ShotOrder, Source,
+    horizontal_fov_deg, look, view_look, Area, CameraView, DisplayList, Hue, Item, Role, Shape,
+    ShotOrder, Source, ViewItem, ViewRole, FRAME_WIDTH,
 };
 
 // Fountain, so the TUI editor can style and list what it types without the script crate;
