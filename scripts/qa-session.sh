@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# One isolated session of Klappe in its own X server, for QA rounds. Klappe never sees the
-# desktop, real files, sound or accounts:
+# One separate session of Klappe in its own X server, for QA rounds. Not a jail: Klappe runs
+# with your UID and could open any path. The session starts it in a sandbox folder, with an
+# environment of its own (env -i and a short list), its own X server, D-Bus and AT-SPI bus and
+# no desktop service (no portal), so it meets no desktop window, file, sound or account by itself:
 #
 #   Xvfb (free display) ─► D-Bus session + AT-SPI bus ─► klappe (xcb, no Wayland, own HOME and
 #   XDG folders, a copy of the example project) ─► [--run CMD] ─► clean up
@@ -33,17 +35,43 @@ set -euo pipefail
 caller="$PWD"
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Waits in tenths of a second. The outer wait of `start` is longer than everything the
+# background session waits for in turn, so a failed start is the session's own failure.
 STOP_WAIT_DS=100
+XVFB_WAIT_DS=50
+BUS_WAIT_DS=50
 WINDOW_WAIT_DS=300
-START_WAIT_DS=300
 PAINT_WAIT_DS=100
+START_MARGIN_DS=100
+START_WAIT_DS=$((XVFB_WAIT_DS + 2 * BUS_WAIT_DS + WINDOW_WAIT_DS + PAINT_WAIT_DS + START_MARGIN_DS))
+# Test hook: a short wait for the session to come up (qa-session.test.sh).
+START_WAIT_DS="${QA_START_WAIT_DS:-$START_WAIT_DS}"
 ENV_FILE=session.env
 PID_FILE=qa.pid
+self="$repo/scripts/qa-session.sh"
+
+# Prints the pid in WORKDIR/qa.pid if it is a background session of this work folder, that is
+# /proc/PID/cmdline reads "... qa-session.sh start WORKDIR --serve ..."; otherwise discards the
+# file and prints nothing. A pid is never signalled on the file's word alone.
+session_pid() {
+    local dir="$1" pid args i
+    pid="$(cat "$dir/$PID_FILE" 2>/dev/null || true)"
+    if [[ "$pid" =~ ^[0-9]+$ ]] && mapfile -d '' args 2> /dev/null < "/proc/$pid/cmdline"; then
+        for i in "${!args[@]}"; do
+            if [ "${args[$i]}" = "$self" ] && [ "${args[$((i + 1))]:-}" = start ] \
+                && [ "${args[$((i + 2))]:-}" = "$dir" ] && [ "${args[$((i + 3))]:-}" = --serve ]; then
+                echo "$pid"
+                return 0
+            fi
+        done
+    fi
+    rm -f "$dir/$PID_FILE"
+}
 
 stop_session() {
     local dir="$1" pid
-    pid="$(cat "$dir/$PID_FILE" 2>/dev/null || true)"
-    if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
+    pid="$(session_pid "$dir")"
+    if [ -z "$pid" ]; then
         echo "qa-session: no running session in $dir" >&2
         return 0
     fi
@@ -99,7 +127,7 @@ if [ "$mode" != prepare ] && [ ! -x "$app" ]; then
     echo "qa-session: $app not found; cargo build -p klappe-app first" >&2
     exit 2
 fi
-if [ "$mode" = background ] && [ -e "$dir/$PID_FILE" ] && kill -0 "$(cat "$dir/$PID_FILE")" 2>/dev/null; then
+if [ "$mode" = background ] && [ -n "$(session_pid "$dir")" ]; then
     echo "qa-session: a session already runs in $dir (stop it first)" >&2
     exit 2
 fi
@@ -135,7 +163,8 @@ fi
 
 if [ "$mode" = background ]; then
     rm -f "$dir/$ENV_FILE"
-    setsid "$0" start "$dir" --serve "${orig_args[@]}" > "$dir/session.log" 2>&1 < /dev/null &
+    setsid "$self" start "$dir" --serve "${orig_args[@]}" > "$dir/session.log" 2>&1 < /dev/null &
+    serve_pid=$!
     for _ in $(seq "$START_WAIT_DS"); do
         if [ -s "$dir/$ENV_FILE" ]; then
             echo "$dir"
@@ -143,11 +172,21 @@ if [ "$mode" = background ]; then
         fi
         sleep 0.1
     done
-    echo "qa-session: no session after 30 s (see $dir/session.log)" >&2
+    # Too late: end the session we started, with everything it started.
+    echo "qa-session: no session in time (see $dir/session.log)" >&2
+    kill -TERM "$serve_pid" 2> /dev/null || true
+    for _ in $(seq "$STOP_WAIT_DS"); do
+        kill -0 "$serve_pid" 2> /dev/null || exit 1
+        sleep 0.1
+    done
+    kill -KILL "$serve_pid" 2> /dev/null || true
     exit 1
 fi
 
 echo $$ > "$dir/$PID_FILE"
+# Klappe and the buses start in the session's home, not in the caller's folder (a file dialog
+# would show it).
+cd "$sandbox/home"
 xvfb_pid="" app_pid="" bus_pids=()
 cleanup() {
     # Klappe, each bus and the registry run in process groups of their own: stop all of it.
@@ -166,7 +205,7 @@ trap 'exit 143' INT TERM
 Xvfb -displayfd 3 -screen 0 "${size}x24" -nolisten tcp 3> "$sandbox/display" \
     > "$sandbox/xvfb.log" 2>&1 &
 xvfb_pid=$!
-for _ in $(seq 50); do
+for _ in $(seq "$XVFB_WAIT_DS"); do
     [ -s "$sandbox/display" ] && break
     sleep 0.1
 done
@@ -176,10 +215,14 @@ if [ ! -s "$sandbox/display" ]; then
 fi
 display="$(head -1 "$sandbox/display")"
 
-# The environment is cleaned before anything starts, the buses too: a bus started with the
-# desktop's environment let a portal attach to the real Wayland session. HOME is inside the
-# work folder (file dialogs start there); PULSE_SERVER points nowhere (no sound).
-clean=(env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE -u DBUS_SESSION_BUS_ADDRESS
+# Nothing of the caller's environment is passed on (SSH agent, desktop, session and D-Bus
+# variables): only what is listed here. HOME is inside the work folder (file dialogs start
+# there); PULSE_SERVER points nowhere (no sound).
+case "$lang" in
+    de) locale=de_DE.UTF-8 ;;
+    *) locale=en_US.UTF-8 ;;
+esac
+clean=(env -i PATH="$PATH" LANG="$locale" LC_ALL="$locale"
     QT_QPA_PLATFORM=xcb DISPLAY=":$display" HOME="$sandbox/home" XDG_RUNTIME_DIR="$sandbox/runtime"
     XDG_CONFIG_HOME="$sandbox/config" XDG_CACHE_HOME="$sandbox/cache" XDG_DATA_HOME="$sandbox/data"
     QT_AUTO_SCREEN_SCALE_FACTOR=0 QT_SCALE_FACTOR="$scale" QT_FORCE_STDERR_LOGGING=1
@@ -196,7 +239,7 @@ bus() {
     setsid "${clean[@]}" dbus-daemon "$@" --nofork --print-address=3 3> "$sandbox/$name" \
         > "$sandbox/$name.log" 2>&1 &
     bus_pids+=("$!")
-    for _ in $(seq 50); do
+    for _ in $(seq "$BUS_WAIT_DS"); do
         [ -s "$sandbox/$name" ] && return
         sleep 0.1
     done

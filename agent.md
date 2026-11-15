@@ -58,12 +58,15 @@ die Datei im selben PR.
 
 ## QA tools (this project)
 
-- `scripts/qa-session.sh start WORKDIR [--open] [--language de|en] [--size WxH]` starts Klappe in
-  its own Xvfb with its own D-Bus and AT-SPI bus, XDG folders under `WORKDIR/sandbox` and no
-  access to your files or desktop; `WORKDIR/qa` drives it (`shot`, `click`, `drag`, `key`,
-  `type`, `hover`, `tree`, `find`, `press`, `text`, `layout`, `stop`), `scripts/qactl.py` is its
-  tool. Pictures and `actions.log` stay in `WORKDIR`. Test: `scripts/qa-session.test.sh`.
-- Ein eigener Xvfb über `scripts/qa-session.sh` zählt als offscreen.
+- `scripts/qa-session.sh start WORKDIR [--open] [--language de|en] [--size WxH]` starts Klappe
+  in its own Xvfb with its own D-Bus and AT-SPI bus. `WORKDIR/qa` drives it (`shot`, `click`,
+  `drag`, `key`, `type`, `hover`, `tree`, `find`, `press`, `text`, `wait`, `focus`, `layout`,
+  `stop`); `scripts/qactl.py` is the tool behind it. Pictures and `actions.log` stay in
+  `WORKDIR`. Test: `scripts/qa-session.test.sh`.
+- This is separation, not a jail: Klappe runs with the owner's UID and could reach any path.
+  The session starts it only in the sandbox folder, with an environment of its own and without
+  the desktop's buses, displays or services.
+- A private Xvfb started by `scripts/qa-session.sh` counts as offscreen.
 - Neither script is part of a release.
 
 ## Repository (this project)

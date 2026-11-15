@@ -7,6 +7,8 @@
 #   scripts/qa-session.test.sh
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
+# The checks must see a caller in the repository: Klappe inherits the folder it is started from.
+cd "$root"
 real_display="${DISPLAY:-}"
 base="${TMPDIR:-$HOME/.cache/claude}"
 mkdir -p "$base"
@@ -51,6 +53,51 @@ copy="$opened_dir/sandbox/projects/beispiel-en.klappe"
 [ -x "$prepared/qa" ] || fail "no executable qa wrapper"
 echo "ok: folders"
 
+# --- qactl.py without a session never touches the caller's display or accessibility bus.
+fakebin="$work/fakebin"
+mkdir "$fakebin"
+printf '#!/bin/sh\necho "$0 $*" >> "%s/calls"\n' "$work" > "$fakebin/xdotool"
+cp "$fakebin/xdotool" "$fakebin/import"
+chmod +x "$fakebin/xdotool" "$fakebin/import"
+for command in "click 1 1" "shot" "key a" "tree"; do
+    # shellcheck disable=SC2086
+    if env -u QA_SESSION PATH="$fakebin:$PATH" DISPLAY=:987 QA_WORK="$work/qactl-work" \
+        python3 "$root/scripts/qactl.py" $command > /dev/null 2>&1; then
+        fail "qactl.py $command ran without a session"
+    fi
+done
+[ ! -e "$work/calls" ] || fail "qactl.py without a session called: $(cat "$work/calls")"
+[ ! -e "$work/qactl-work" ] || fail "qactl.py without a session made its work folder"
+echo "ok: qactl.py needs a session"
+
+# --- A start that does not come up in time leaves nothing running, and stop and start never
+# end a process they did not start (a foreign pid in qa.pid).
+hang="$work/hang.sh"
+printf '#!/bin/sh\nexec sleep 987654\n' > "$hang"
+chmod +x "$hang"
+slow_start() {
+    QA_START_WAIT_DS=20 KLAPPE_BIN="$hang" "$session" start "$1" 2>&1
+}
+if slow_start "$work/slow" > "$work/slow.out"; then
+    fail "start succeeded although Klappe never showed a window"
+fi
+left="$(ps -eo args | grep -e "$work/slow" -e 'sleep 987654' | grep -v grep || true)"
+[ -z "$left" ] || fail "a failed start left processes: $left"
+
+mkdir "$work/foreign"
+sleep 987655 &
+foreign=$!
+echo "$foreign" > "$work/foreign/qa.pid"
+"$session" stop "$work/foreign" > /dev/null 2>&1 || true
+kill -0 "$foreign" 2> /dev/null || fail "stop ended a foreign process"
+[ ! -e "$work/foreign/qa.pid" ] || fail "stop kept the stale qa.pid"
+echo "$foreign" > "$work/foreign/qa.pid"
+slow_start "$work/foreign" > "$work/foreign.out" || true
+! grep -q 'already runs' "$work/foreign.out" || fail "start took a foreign pid for a session"
+kill -0 "$foreign" 2> /dev/null || fail "start ended a foreign process"
+kill "$foreign"
+echo "ok: failed start cleans up, foreign pids stay"
+
 # --- Live part.
 app="${KLAPPE_BIN:-${CARGO_TARGET_DIR:-$root/target}/debug/klappe}"
 if [ ! -x "$app" ]; then
@@ -62,6 +109,10 @@ export KLAPPE_BIN="$app"
 marker="$work/marker"
 touch "$marker"
 desktop_before="$(windows "$real_display")"
+
+# Variables of the desktop the session must not inherit.
+export SSH_AUTH_SOCK=/nonexistent/agent KDE_FULL_SESSION=true XDG_CURRENT_DESKTOP=KDE
+export XDG_SESSION_ID=1 XDG_CONFIG_DIRS=/etc/xdg
 
 a="$work/a"
 b="$work/b"
@@ -126,6 +177,10 @@ for s in "$a" "$b"; do
     grep -q "^XDG_CONFIG_HOME=$s/sandbox/config$" <<< "$env_of" || fail "Klappe in $s has the wrong XDG_CONFIG_HOME"
     grep -q "^HOME=$s/sandbox/home$" <<< "$env_of" || fail "Klappe in $s has the wrong HOME"
     grep -q '^QT_QPA_PLATFORM=xcb$' <<< "$env_of" || fail "Klappe in $s is not on xcb"
+    inherited="$(grep -E '^(SSH_AUTH_SOCK|XDG_CONFIG_DIRS|KDE_|XDG_CURRENT_DESKTOP|XDG_SESSION_)' <<< "$env_of" || true)"
+    [ -z "$inherited" ] || fail "Klappe in $s inherited: $inherited"
+    [[ "$(readlink "/proc/$pid/cwd")" == "$s/sandbox/"* ]] \
+        || fail "Klappe in $s runs in $(readlink "/proc/$pid/cwd"), not in its sandbox"
 done
 echo "NOT CHECKABLE: native Wayland windows of the desktop (no tool for the compositor); Klappe has no WAYLAND_DISPLAY and cannot open one"
 # Nothing of Klappe in the real settings or caches.
@@ -152,7 +207,11 @@ echo "ok: example copy $made"
 
 # actions.log: time, command, arguments, picture number.
 [ "$(grep -c "	shot	" "$a/actions.log")" -ge 2 ] || fail "actions.log lacks the shots"
-grep -q "	press	.*	shot=001$" "$a/actions.log" || fail "actions.log lacks the press line"
+grep -q "	press	--role button --contains 'Projekt öffnen'	shot=001$" "$a/actions.log" \
+    || fail "actions.log lacks the press line with its options"
+"$a/qa" press "No such widget" > /dev/null 2>&1 && fail "press of a missing widget succeeded"
+grep -q "	press	'No such widget'	shot=[0-9]*	FAILED$" "$a/actions.log" \
+    || fail "actions.log lacks the FAILED line"
 echo "ok: actions.log"
 
 # Stop: no process, no X server, pictures stay.

@@ -246,14 +246,24 @@ READ_ONLY = {"tree", "find", "text", "wait", "layout", "focus"}
 
 
 def load_session(folder):
-    """Sets DISPLAY and the bus addresses of the session in `folder` (its session.env)."""
+    """Sets DISPLAY and the bus addresses of the session in `folder` (its session.env). Without
+    a valid session nothing runs: the caller's own DISPLAY and buses are the desktop."""
+    if not folder:
+        sys.exit("qactl: no session; use WORKDIR/qa or --session WORKDIR "
+                 "(scripts/qa-session.sh start WORKDIR)")
     path = Path(folder) / ENV_FILE
     if not path.is_file():
         sys.exit(f"qactl: no {path}; start the session with scripts/qa-session.sh start")
+    found = {}
     for line in path.read_text().splitlines():
         key, _, value = shlex.split(line)[-1].partition("=")
         if key in ENV_KEYS:
-            os.environ[key] = value
+            found[key] = value
+    missing = [key for key in ENV_KEYS if key not in found]
+    if missing:
+        sys.exit(f"qactl: {path} lacks {', '.join(missing)}")
+    os.environ.update(found)
+    os.environ.pop("WAYLAND_DISPLAY", None)
 
 
 def last_shot(work):
@@ -262,13 +272,15 @@ def last_shot(work):
     return max(numbers, default=0)
 
 
-def log_action(work, args):
-    """One line in actions.log: time, command, arguments, last picture number."""
-    words = [str(v) for k, v in vars(args).items() if k not in ("command", "session", "work")
-             and v is not None and v is not False]
+def log_action(work, args, failed=False):
+    """One line in actions.log: time, command, its options as typed, last picture number, and
+    FAILED if the action did not work."""
+    command_at = sys.argv.index(args.command, 1)
+    typed = shlex.join(sys.argv[command_at + 1:])
     stamp = datetime.now().isoformat(timespec="seconds")
+    fields = [stamp, args.command, typed, f"shot={last_shot(work):03d}"]
     with open(work / ACTIONS_LOG, "a") as log:
-        log.write(f"{stamp}\t{args.command}\t{shlex.join(words)}\tshot={last_shot(work):03d}\n")
+        log.write("\t".join(fields + (["FAILED"] if failed else [])) + "\n")
 
 
 def xdotool(*words):
@@ -402,21 +414,29 @@ def parser():
     return p
 
 
+def act(args, work):
+    if args.command == "press":
+        atspi_command(args)
+    else:
+        input_command(args, work)
+
+
 def main():
     args = parser().parse_args()
-    if args.session:
-        load_session(args.session)
-    work = Path(args.work or args.session or ".")
+    load_session(args.session)
+    work = Path(args.work or args.session)
     work.mkdir(parents=True, exist_ok=True)
     if args.command in READ_ONLY or args.command == "press":
         Atspi.init()
     if args.command in READ_ONLY:
         atspi_command(args)
         return
-    if args.command == "press":
-        atspi_command(args)
-    else:
-        input_command(args, work)
+    try:
+        act(args, work)
+    except SystemExit as error:
+        if error.code not in (None, 0):
+            log_action(work, args, failed=True)
+        raise
     log_action(work, args)
 
 
