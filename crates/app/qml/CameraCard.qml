@@ -4,16 +4,21 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// A camera is selected (LH-32, LH-38): its body, sensor width, lens and frame. A body sets
-// sensor and frame together; a lens comes from the chosen set or is typed. Enter in a field
-// sets that field; "Apply" sets the fields that were typed in. A value that is not a number
-// marks its field and changes nothing. No optics here (agent.md): the controller sets, the
-// session checks, Stellprobe works out the angle of view.
-KanteCard {
+// A camera is selected (LH-32, LH-38), a section of the selection card (D-04): its lens from
+// the chosen set or typed; under "More" its body, sensor width and frame. A body sets sensor
+// and frame together. Enter in a field sets that field; "Apply" sets the fields that were typed
+// in. A value that is not a number marks its field and changes nothing. No optics here
+// (agent.md): the controller sets, the session checks, Stellprobe works out the angle of view.
+ColumnLayout {
     id: card
 
     required property var texts
     required property var controller
+
+    /// The rest of the fields: body, sensor and frame.
+    property bool expanded: false
+    /// The button for "More"; the selection card has one for all its sections.
+    property bool showMore: true
 
     // The plan changes with every edit; the key alone would not tell the new values.
     readonly property var info: {
@@ -40,9 +45,12 @@ KanteCard {
         return found || sets[0] || null
     }
 
-    visible: card.info !== null
-    implicitWidth: cardRows.implicitWidth + Kirigami.Units.largeSpacing * 2
-    implicitHeight: cardRows.implicitHeight + Kirigami.Units.largeSpacing * 2
+    readonly property bool shown: info !== null
+    /// A field has the focus: letters and Delete are text, not keys for the selection.
+    readonly property bool typing: sensorField.activeFocus || aspectField.activeFocus || lensField.activeFocus
+
+    visible: shown
+    spacing: Kirigami.Units.smallSpacing
 
     onInfoChanged: card.fill()
     onLensSetChanged: card.syncBoxes()
@@ -125,99 +133,111 @@ KanteCard {
         card.syncBoxes()
     }
 
-    ColumnLayout {
-        id: cardRows
-        anchors.centerIn: parent
+    KanteSectionLabel {
+        text: card.info ? card.texts.t("tip.camera", { label: card.info.label }) : ""
+    }
+
+    RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
-        RowLayout {
-            spacing: Kirigami.Units.smallSpacing
-
-            KanteSectionLabel {
-                text: card.info ? card.texts.t("tip.camera", { label: card.info.label }) : ""
-            }
-            KanteComboBox {
-                id: bodyBox
-                objectName: "cameraBodyBox"
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 10
-                Accessible.name: card.texts.t("camera.body")
-                textRole: "text"
-                valueRole: "value"
-                model: [{ value: "", text: card.texts.t("camera.bodyCustom") }].concat(
-                    card.presets.bodies.map(b => ({ value: b.id, text: b.name })))
-                onActivated: {
-                    if (currentValue !== "") {
-                        card.choose("body", currentValue)
-                    }
-                    card.syncBoxes()
-                }
-            }
-            KanteTextField {
-                id: sensorField
-                objectName: "cameraSensorField"
-                property string shown: ""
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 6
-                Accessible.name: card.texts.t("camera.sensor")
-                placeholderText: card.texts.t("camera.sensor")
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onTextChanged: invalid = false
-                onAccepted: card.apply([["sensor", sensorField]])
-            }
-            KanteTextField {
-                id: aspectField
-                objectName: "cameraAspectField"
-                property string shown: ""
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 8
-                Accessible.name: card.texts.t("camera.aspect")
-                placeholderText: card.texts.t("camera.aspect")
-                QQC2.ToolTip.text: card.texts.t("camera.aspectTip")
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-                onTextChanged: invalid = false
-                onAccepted: card.apply([["aspect", aspectField]])
-            }
+        KanteComboBox {
+            id: setBox
+            objectName: "cameraLensSetBox"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+            Accessible.name: card.texts.t("camera.lensSet")
+            textRole: "text"
+            valueRole: "value"
+            model: card.presets.lens_sets.map(s => ({ value: s.id, text: card.texts.t("lensSet." + s.id) }))
+            onActivated: card.pickedSet = String(currentValue)
         }
+        KanteComboBox {
+            id: lensBox
+            objectName: "cameraLensBox"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 7
+            Accessible.name: card.texts.t("camera.lensPick")
+            textRole: "text"
+            valueRole: "value"
+            displayText: currentIndex >= 0 ? currentText : card.texts.t("camera.lensPick")
+            model: card.lensSet ? card.lensSet.stops_mm.map(v => ({ value: v, text: card.texts.t("camera.lensValue", { lens: card.texts.num(v, 1) }) })) : []
+            onActivated: card.choose("lens", currentValue)
+        }
+    }
 
-        RowLayout {
-            spacing: Kirigami.Units.smallSpacing
+    RowLayout {
+        spacing: Kirigami.Units.smallSpacing
 
-            KanteComboBox {
-                id: setBox
-                objectName: "cameraLensSetBox"
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 10
-                Accessible.name: card.texts.t("camera.lensSet")
-                textRole: "text"
-                valueRole: "value"
-                model: card.presets.lens_sets.map(s => ({ value: s.id, text: card.texts.t("lensSet." + s.id) }))
-                onActivated: card.pickedSet = String(currentValue)
+        KanteTextField {
+            id: lensField
+            objectName: "cameraLensField"
+            property string shown: ""
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+            Accessible.name: card.texts.t("camera.lens")
+            placeholderText: card.texts.t("camera.lens")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.apply([["lens", lensField]])
+        }
+        KanteButton {
+            objectName: "cameraApply"
+            text: card.texts.t("form.apply")
+            onClicked: card.applyAll()
+        }
+    }
+
+    KanteButton {
+        objectName: "cameraMore"
+        visible: card.showMore
+        emphasis: KanteButton.Emphasis.Quiet
+        size: KanteButton.Size.Small
+        text: card.texts.t(card.expanded ? "card.less" : "card.more")
+        onClicked: card.expanded = !card.expanded
+    }
+
+    KanteComboBox {
+        id: bodyBox
+        objectName: "cameraBodyBox"
+        visible: card.expanded
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+        Accessible.name: card.texts.t("camera.body")
+        textRole: "text"
+        valueRole: "value"
+        model: [{ value: "", text: card.texts.t("camera.bodyCustom") }].concat(
+            card.presets.bodies.map(b => ({ value: b.id, text: b.name })))
+        onActivated: {
+            if (currentValue !== "") {
+                card.choose("body", currentValue)
             }
-            KanteComboBox {
-                id: lensBox
-                objectName: "cameraLensBox"
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 7
-                Accessible.name: card.texts.t("camera.lensPick")
-                textRole: "text"
-                valueRole: "value"
-                displayText: currentIndex >= 0 ? currentText : card.texts.t("camera.lensPick")
-                model: card.lensSet ? card.lensSet.stops_mm.map(v => ({ value: v, text: card.texts.t("camera.lensValue", { lens: card.texts.num(v, 1) }) })) : []
-                onActivated: card.choose("lens", currentValue)
-            }
-            KanteTextField {
-                id: lensField
-                objectName: "cameraLensField"
-                property string shown: ""
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 6
-                Accessible.name: card.texts.t("camera.lens")
-                placeholderText: card.texts.t("camera.lens")
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onTextChanged: invalid = false
-                onAccepted: card.apply([["lens", lensField]])
-            }
-            KanteButton {
-                objectName: "cameraApply"
-                text: card.texts.t("form.apply")
-                onClicked: card.applyAll()
-            }
+            card.syncBoxes()
+        }
+    }
+
+    RowLayout {
+        visible: card.expanded
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteTextField {
+            id: sensorField
+            objectName: "cameraSensorField"
+            property string shown: ""
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+            Accessible.name: card.texts.t("camera.sensor")
+            placeholderText: card.texts.t("camera.sensor")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.apply([["sensor", sensorField]])
+        }
+        KanteTextField {
+            id: aspectField
+            objectName: "cameraAspectField"
+            property string shown: ""
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 8
+            Accessible.name: card.texts.t("camera.aspect")
+            placeholderText: card.texts.t("camera.aspect")
+            QQC2.ToolTip.text: card.texts.t("camera.aspectTip")
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            onTextChanged: invalid = false
+            onAccepted: card.apply([["aspect", aspectField]])
         }
     }
 }
