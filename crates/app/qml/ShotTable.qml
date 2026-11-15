@@ -4,9 +4,10 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// The shot list as a table (D-05, LH-71): the columns of the exported list (15), a row per shot in
-// the order given, in shooting order a band per setup (LH-72). A click on a row selects the
-// shot; double click or Enter edits the cell, Enter or a click away sends it, Esc drops it.
+// The shot list as a table (D-05, LH-71): the columns of the exported list (15) and the setup, a
+// row per shot in the order given, in shooting order a band per setup (LH-72). A click on a row
+// selects the shot; double click or Enter edits the cell, Enter or a click away sends it, Esc
+// drops it.
 //
 //  Nr.  Kam. Obj.  Größe  …       Up/Down: row, Left/Right: column
 //  ── Setup 1 ───────────────     Enter or F2: edit the cell
@@ -62,7 +63,8 @@ FocusScope {
         { key: "props", kind: ShotTable.Kind.Text, title: "field.props", width: _unit * 10 },
         { key: "gear", kind: ShotTable.Kind.Text, title: "field.gear", width: _unit * 10 },
         { key: "crew", kind: ShotTable.Kind.Text, title: "field.crew", width: _unit * 10 },
-        { key: "note", kind: ShotTable.Kind.Text, title: "field.note", width: _unit * 12 }
+        { key: "note", kind: ShotTable.Kind.Text, title: "field.note", width: _unit * 12 },
+        { key: "axis_against", kind: ShotTable.Kind.Fixed, title: "field.axisAgainst", width: _unit * 8 }
     ]
 
     // The rows plus a band before each new setup in shooting order.
