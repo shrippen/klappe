@@ -198,6 +198,16 @@ Item {
         moved = false
     }
 
+    // The window took the press away (Alt+Tab, a popup): a running drag is dropped, as by Escape.
+    function canceled() {
+        if (dragging) {
+            controller.cancelDrag()
+            reframe()
+        }
+        gesture = ""
+        moved = false
+    }
+
     // Steps of a wheel, or of a touchpad's scroll with Ctrl held (a pinch on some systems).
     function wheeled(wheel) {
         const touchpad = wheel.pixelDelta.x !== 0 || wheel.pixelDelta.y !== 0
@@ -219,7 +229,7 @@ Item {
         onPressed: mouse => view.press(mouse)
         onPositionChanged: mouse => view.move(mouse)
         onReleased: mouse => view.release(mouse)
-        onCanceled: { view.gesture = ""; view.moved = false }
+        onCanceled: view.canceled()
         onWheel: wheel => view.wheeled(wheel)
 
         // A pinch on a touchpad or a touch screen zooms to the middle of the fingers.
