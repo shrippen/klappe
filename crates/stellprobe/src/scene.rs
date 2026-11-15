@@ -11,7 +11,7 @@
 //!   floor     the set's area
 //! ```
 
-use klappe_model::{FigureColor, FloorPlan, Point, Project, SetPlan, Wall};
+use klappe_model::{FigureColor, FloorPlan, ObjectShape, Point, Project, SetPlan, Wall};
 
 use crate::display::{object_corners, Source};
 use crate::eye::Vec3;
@@ -72,9 +72,24 @@ impl SceneRole {
 pub(crate) struct Solid {
     pub(crate) source: Option<Source>,
     pub(crate) role: SceneRole,
-    pub(crate) faces: Vec<Vec<Vec3>>,
+    pub(crate) faces: Vec<Face>,
     /// A name and the point it stands at, e.g. a figure's above its head.
     pub(crate) label: Option<(String, Vec3)>,
+}
+
+/// A flat face. Faces of one `surface` of a body show no edge between them, e.g. the sides
+/// of a round table, which only stand in for its curve.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Face {
+    pub(crate) corners: Vec<Vec3>,
+    pub(crate) surface: usize,
+}
+
+/// Whether the sides of a prism are faces of their own or one round surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Sides {
+    Flat,
+    Round,
 }
 
 /// The bodies of the set and of the figures at `t_s`.
@@ -93,12 +108,10 @@ fn floor(set: &SetPlan) -> Solid {
     Solid {
         source: None,
         role: SceneRole::Floor,
-        faces: vec![vec![
-            [0.0, 0.0, 0.0],
-            [w, 0.0, 0.0],
-            [w, d, 0.0],
-            [0.0, d, 0.0],
-        ]],
+        faces: vec![Face {
+            corners: vec![[0.0, 0.0, 0.0], [w, 0.0, 0.0], [w, d, 0.0], [0.0, d, 0.0]],
+            surface: 0,
+        }],
         label: None,
     }
 }
@@ -122,17 +135,24 @@ fn walls(set: &SetPlan, solids: &mut Vec<Solid>) {
             } else {
                 end_m
             };
-            faces.extend(prism(&wall_band(wall, start_m, end_m), 0.0, top_m));
+            let band = wall_band(wall, start_m, end_m);
+            add(&mut faces, prism(&band, (0.0, top_m), Sides::Flat));
         }
         for opening in &wall.openings {
             let (start_m, end_m) = opening.span_m();
             let band = wall_band(wall, start_m.max(0.0), end_m.min(length_m));
             let (sill_m, head_m) = opening_span(opening);
             if sill_m > 0.0 {
-                faces.extend(prism(&band, 0.0, sill_m.min(top_m)));
+                add(
+                    &mut faces,
+                    prism(&band, (0.0, sill_m.min(top_m)), Sides::Flat),
+                );
             }
             if head_m < top_m {
-                faces.extend(prism(&band, head_m.max(0.0), top_m));
+                add(
+                    &mut faces,
+                    prism(&band, (head_m.max(0.0), top_m), Sides::Flat),
+                );
             }
         }
 
@@ -167,6 +187,10 @@ fn wall_band(wall: &Wall, start_m: f64, end_m: f64) -> Vec<Point> {
 fn objects(set: &SetPlan, solids: &mut Vec<Solid>) {
     for (index, object) in set.objects.iter().enumerate() {
         let (base_m, top_m) = object_extent(set, index);
+        let sides = match object.shape {
+            ObjectShape::Rect => Sides::Flat,
+            ObjectShape::Ellipse => Sides::Round,
+        };
         let role = match object.height_m {
             Some(_) => SceneRole::Object,
             None => SceneRole::Missing,
@@ -175,7 +199,7 @@ fn objects(set: &SetPlan, solids: &mut Vec<Solid>) {
         solids.push(Solid {
             source: Some(Source::Object(object.id.clone())),
             role,
-            faces: prism(&object_corners(object), base_m, top_m),
+            faces: prism(&object_corners(object), (base_m, top_m), sides),
             label: None,
         });
     }
@@ -208,7 +232,7 @@ fn figures(project: &Project, plan: &FloorPlan, t_s: f64, solids: &mut Vec<Solid
         solids.push(Solid {
             source: Some(Source::Figure(track.character.clone())),
             role: SceneRole::Figure(character.color),
-            faces: prism(&outline, 0.0, top_m),
+            faces: prism(&outline, (0.0, top_m), Sides::Round),
             label: Some((
                 character.title(),
                 [place.at.x_m, place.at.y_m, top_m + LABEL_ABOVE_M],
@@ -218,28 +242,48 @@ fn figures(project: &Project, plan: &FloorPlan, t_s: f64, solids: &mut Vec<Solid
 }
 
 /// `outline` raised from `low_m` to `high_m`: its sides, its top, and its bottom when it
-/// does not lie on the floor.
-fn prism(outline: &[Point], low_m: f64, high_m: f64) -> Vec<Vec<Vec3>> {
-    let mut faces: Vec<Vec<Vec3>> = outline
+/// does not lie on the floor. Round sides are one surface, top and bottom one each.
+fn prism(outline: &[Point], (low_m, high_m): (f64, f64), sides: Sides) -> Vec<Face> {
+    let mut faces: Vec<Face> = outline
         .iter()
         .enumerate()
         .map(|(i, a)| {
             let b = outline[(i + 1) % outline.len()];
-            vec![
-                [a.x_m, a.y_m, low_m],
-                [b.x_m, b.y_m, low_m],
-                [b.x_m, b.y_m, high_m],
-                [a.x_m, a.y_m, high_m],
-            ]
+            Face {
+                corners: vec![
+                    [a.x_m, a.y_m, low_m],
+                    [b.x_m, b.y_m, low_m],
+                    [b.x_m, b.y_m, high_m],
+                    [a.x_m, a.y_m, high_m],
+                ],
+                surface: if sides == Sides::Round { 0 } else { i },
+            }
         })
         .collect();
 
-    faces.push(outline.iter().map(|p| [p.x_m, p.y_m, high_m]).collect());
+    let next = faces.iter().map(|f| f.surface + 1).max().unwrap_or(0);
+    let level = |z: f64| outline.iter().map(|p| [p.x_m, p.y_m, z]).collect();
+    faces.push(Face {
+        corners: level(high_m),
+        surface: next,
+    });
     if low_m > 0.0 {
-        faces.push(outline.iter().map(|p| [p.x_m, p.y_m, low_m]).collect());
+        faces.push(Face {
+            corners: level(low_m),
+            surface: next + 1,
+        });
     }
 
     faces
+}
+
+/// Appends `more` to `faces`, its surfaces after those already there.
+fn add(faces: &mut Vec<Face>, more: Vec<Face>) {
+    let first = faces.iter().map(|f| f.surface + 1).max().unwrap_or(0);
+    faces.extend(more.into_iter().map(|f| Face {
+        surface: first + f.surface,
+        ..f
+    }));
 }
 
 #[cfg(test)]
@@ -265,6 +309,25 @@ mod tests {
         assert_eq!(SceneRole::of_code(0), None);
     }
 
+    /// A round object's sides are one surface (no edges between them), its top another; a
+    /// box has a surface per side.
+    #[test]
+    fn round_sides_are_one_surface() {
+        let outline =
+            [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)].map(|(x, y)| Point::new(x, y));
+        let surfaces = |sides| {
+            let mut s: Vec<usize> = prism(&outline, (0.0, 1.0), sides)
+                .iter()
+                .map(|f| f.surface)
+                .collect();
+            s.dedup();
+            s
+        };
+
+        assert_eq!(surfaces(Sides::Round), vec![0, 1]);
+        assert_eq!(surfaces(Sides::Flat), vec![0, 1, 2, 3, 4]);
+    }
+
     /// A 4 m wall, 0.2 m thick, with a window from 1 to 2 m: two full boxes and one each
     /// under the sill and over the head; the first box starts 0.1 m before the wall.
     #[test]
@@ -279,7 +342,11 @@ mod tests {
 
         // Each box has four sides and a top; the one over the head also a bottom.
         assert_eq!(solids[0].faces.len(), 5 + 5 + 5 + 6);
-        let xs = solids[0].faces.iter().flatten().map(|p| p[0]);
+        let xs = solids[0]
+            .faces
+            .iter()
+            .flat_map(|f| &f.corners)
+            .map(|p| p[0]);
         assert!((xs.clone().fold(f64::MAX, f64::min) + 0.1).abs() < 1e-9);
         assert!((xs.fold(f64::MIN, f64::max) - 4.1).abs() < 1e-9);
     }

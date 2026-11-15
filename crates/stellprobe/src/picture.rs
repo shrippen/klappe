@@ -70,17 +70,22 @@ pub fn picture(
             }
             None => NO_SOURCE,
         };
-        for corners in &solid.faces {
+        for f in &solid.faces {
             let paint = Paint {
                 role: solid.role.code(),
-                shade: shade(corners),
+                shade: shade(&f.corners),
                 source,
-                face,
+                face: face + f.surface as u32,
                 sparse: solid.role == crate::scene::SceneRole::Missing,
             };
-            face += 1;
-            fan(&pinhole, scale, corners, paint, &mut triangles);
+            fan(&pinhole, scale, &f.corners, paint, &mut triangles);
         }
+        face += solid
+            .faces
+            .iter()
+            .map(|f| f.surface as u32 + 1)
+            .max()
+            .unwrap_or(0);
     }
 
     let frame = rasterize(width_px, height_px, &triangles);

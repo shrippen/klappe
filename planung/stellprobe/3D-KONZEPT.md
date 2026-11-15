@@ -1,7 +1,7 @@
 # Konzept: Plan und 3D auf einer Grundlage
 
 Stand: 2026-11-15, Entwurf. Grundlage: Prototyp [`prototyp-3d/`](prototyp-3d/) und der Code
-von heute (`stellprobe/src/sight.rs`, Plan-Zeichenfläche, `model/`).
+von heute (damals `stellprobe/src/sight.rs`, Plan-Zeichenfläche, `model/`).
 Entscheidungen des Eigentümers: Abschnitt 9 (getroffen).
 
 ## 1. Ziel
