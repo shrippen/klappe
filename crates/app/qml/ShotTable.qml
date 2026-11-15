@@ -65,7 +65,7 @@ FocusScope {
         { key: "note", kind: ShotTable.Kind.Text, title: "field.note", width: _unit * 12 }
     ]
 
-    readonly property var planKeys: [Qt.Key_F2, Qt.Key_Return, Qt.Key_Enter, Qt.Key_Delete, Qt.Key_R, Qt.Key_G, Qt.Key_D]
+    readonly property var planKeys: [Qt.Key_F2, Qt.Key_Return, Qt.Key_Enter, Qt.Key_Delete, Qt.Key_R, Qt.Key_G]
 
     // The rows plus a band before each new setup in shooting order.
     readonly property var items: {
@@ -210,7 +210,8 @@ FocusScope {
             Keys.onEnterPressed: table.edit(table.selectedId, table.currentColumn)
             // The plan's window shortcuts (F2, Enter, Delete, R, G, Ctrl+D) are not for a row.
             Keys.onShortcutOverride: event => {
-                event.accepted = table.planKeys.indexOf(event.key) >= 0
+                const duplicate = event.key === Qt.Key_D && (event.modifiers & Qt.ControlModifier)
+                event.accepted = table.planKeys.indexOf(event.key) >= 0 || duplicate
             }
             Keys.onPressed: event => {
                 if (event.key !== Qt.Key_F2) {

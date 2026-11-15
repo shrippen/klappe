@@ -11,6 +11,14 @@ TestCase {
     when: windowShown
     visible: true
 
+    // A plain tool key of the window, like D for measuring.
+    Shortcut {
+        id: toolKey
+        property int hits: 0
+        sequence: "D"
+        onActivated: hits++
+    }
+
     QtObject {
         id: fake
         property bool loaded: true
@@ -120,5 +128,15 @@ TestCase {
         keyClick(Qt.Key_D, Qt.ControlModifier)
         compare(fake.keyed, 0)
         fake.selectedKey = ""
+    }
+
+    // Only Ctrl+D is the plan's; a plain D still picks the measuring tool from the table.
+    function test_a_plain_tool_key_passes_the_shot_table() {
+        const table = createTemporaryObject(tableComponent, tc)
+        table.forceActiveFocus()
+        toolKey.hits = 0
+
+        keyClick(Qt.Key_D)
+        compare(toolKey.hits, 1)
     }
 }
