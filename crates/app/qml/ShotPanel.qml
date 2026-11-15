@@ -4,8 +4,7 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// The selected shot: preview (camera view comes with LH-36) and its fields, edited in place
-// (LH-71). Every change is one undo step; a field left unchanged edits nothing.
+// The selected shot: the camera view (LH-36) above its fields, edited in place (LH-71). Every change is one undo step; a field left unchanged edits nothing.
 Item {
     id: panel
 
@@ -120,8 +119,20 @@ Item {
         }
     }
 
-    KanteEmptyState {
+    // Of the selected shot's camera, else of the one picked on the plan.
+    CameraView {
+        id: cameraView
+        objectName: "cameraView"
         anchors.top: bar.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: Kirigami.Units.smallSpacing
+        texts: panel.texts
+        json: panel.controller.viewJson
+    }
+
+    KanteEmptyState {
+        anchors.top: cameraView.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.topMargin: Kirigami.Units.largeSpacing
         width: parent.width - 2 * Kirigami.Units.largeSpacing
@@ -131,7 +142,7 @@ Item {
     }
 
     QQC2.ScrollView {
-        anchors.top: bar.bottom
+        anchors.top: cameraView.bottom
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
@@ -157,13 +168,6 @@ Item {
                     iconName: "dialog-warning"
                     text: panel.texts.t("shot.axisJump")
                 }
-            }
-
-            KanteCallout {
-                Layout.fillWidth: true
-                Layout.leftMargin: Kirigami.Units.largeSpacing
-                Layout.rightMargin: Kirigami.Units.largeSpacing
-                text: panel.texts.t("shot.preview")
             }
 
             GridLayout {

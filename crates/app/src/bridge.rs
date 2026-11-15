@@ -22,6 +22,9 @@ pub mod qobject {
         #[qproperty(QString, plan_title, cxx_name = "planTitle")]
         /// `{ width, depth, shapes }` for KanteShapeCanvas.
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
+        /// What the selected shot's camera (else the one picked on the plan) sees, as
+        /// `{ width, depth, shapes }` for KanteShapeCanvas; empty without a camera.
+        #[qproperty(QString, view_json, cxx_name = "viewJson")]
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
         #[qproperty(QString, script_json, cxx_name = "scriptJson")]
@@ -599,6 +602,7 @@ pub struct ControllerRust {
     title: QString,
     plan_title: QString,
     plan_json: QString,
+    view_json: QString,
     tracks_json: QString,
     shots_json: QString,
     script_json: QString,
@@ -694,6 +698,7 @@ impl Default for ControllerRust {
             title: QString::default(),
             plan_title: QString::default(),
             plan_json: QString::default(),
+            view_json: QString::default(),
             tracks_json: QString::default(),
             shots_json: QString::default(),
             script_json: QString::default(),

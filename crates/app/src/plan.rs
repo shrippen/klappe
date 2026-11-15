@@ -8,6 +8,10 @@ use serde_json::{json, Value};
 
 use crate::fileurl;
 
+mod view;
+
+pub use view::view_json;
+
 /// Radius of the points of the scale gesture on the plan.
 const GUIDE_POINT_RADIUS_M: f64 = 0.15;
 

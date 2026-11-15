@@ -17,6 +17,8 @@ Item {
         "backupState", "backupMessage", "sceneId", "status"]
     readonly property var texts: ["planJson", "tracksJson", "shotsJson", "scriptJson",
         "layersJson", "locksJson", "choicesJson", "projectJson"]
+    // Empty until a shot or a camera is picked, so not checked for being filled.
+    readonly property var views: ["viewJson"]
     property var counts: ({})
 
     // What the start shows without a project: the first scenario step is relative to it.
@@ -69,7 +71,7 @@ Item {
     }
 
     Component.onCompleted: {
-        for (const name of plain.concat(texts)) {
+        for (const name of plain.concat(texts, views)) {
             ctl[name + "Changed"].connect(() => { counts[name] = (counts[name] || 0) + 1 })
         }
     }
@@ -140,8 +142,11 @@ Item {
             }
 
             ctl.selectShot(JSON.parse(ctl.shotsJson)[0].id)
-            if (!root.check("shot", root.shot, { planJson: 1, tracksJson: 1, selectedShot: 1 })) {
+            if (!root.check("shot", root.shot, { planJson: 1, viewJson: 1, tracksJson: 1, selectedShot: 1 })) {
                 return
+            }
+            if (JSON.parse(ctl.viewJson).shapes.length === 0) {
+                return root.fail("shot: the camera view is empty")
             }
 
             ctl.setLayer("notes", "hidden")
