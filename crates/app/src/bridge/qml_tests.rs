@@ -21,6 +21,7 @@ fn scenarios() -> Vec<PathBuf> {
 #[test]
 fn controller_scenarios_hold() {
     std::env::set_var("QT_QPA_PLATFORM", "offscreen");
+    std::env::set_var("QML_XHR_ALLOW_FILE_READ", "1");
     let mut app = QGuiApplication::new();
     let mut failed = Vec::new();
 
@@ -44,6 +45,9 @@ fn controller_scenarios_hold() {
             failed.push(file);
         }
     }
+
+    // `tests/controller/export_to.qml` writes here.
+    let _ = std::fs::remove_dir_all(std::env::temp_dir().join("klappe-export-test"));
 
     assert!(failed.is_empty(), "scenarios failed: {failed:?}");
 }
