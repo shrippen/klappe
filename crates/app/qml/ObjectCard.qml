@@ -1,0 +1,186 @@
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls as QQC2
+import org.kde.kirigami as Kirigami
+import Kante
+
+// An object is selected (LH-25, LH-12, LH-17), a section of the selection card (D-04): its
+// name or kind, its size as two fields; under "More" its height (empty is none) and filing
+// it in the library under a name. Enter in a size field sets the size, Enter in the height
+// field the height; a value that is no length marks the field and changes nothing.
+ColumnLayout {
+    id: card
+
+    required property var texts
+    required property var controller
+
+    /// The rest of the fields: the height and the library.
+    property bool expanded: false
+    /// The button for "More"; the selection card has one for all its sections.
+    property bool showMore: true
+
+    readonly property var info: {
+        // The plan changes with every edit; the key alone would not tell the new size.
+        card.controller.planJson
+        const key = card.controller.selectedKey
+        if (!key || key.indexOf("object:") !== 0) {
+            return null
+        }
+        const d = JSON.parse(card.controller.describe(key))
+        return d.kind === "object" ? d : null
+    }
+    readonly property bool shown: info !== null
+    /// A field has the focus: letters and Delete are text, not keys for the selection.
+    readonly property bool typing: widthField.activeFocus || depthField.activeFocus
+        || heightField.activeFocus || libraryName.activeFocus
+    readonly property string title: info ? (info.label !== "" ? info.label : card.kindOf(info)) : ""
+
+    visible: shown
+    spacing: Kirigami.Units.smallSpacing
+
+    onInfoChanged: card.fill()
+    Component.onCompleted: card.fill()
+
+    // The kind's name; empty for a kind the catalogue does not know (an old project).
+    function kindOf(info) {
+        const name = texts.t("objectKind." + info.library)
+        return name !== "objectKind." + info.library ? name : ""
+    }
+
+    function fill() {
+        if (!info) {
+            return
+        }
+        if (!widthField.activeFocus) {
+            widthField.text = texts.num(info.width, 2)
+        }
+        if (!depthField.activeFocus) {
+            depthField.text = texts.num(info.depth, 2)
+        }
+        if (!heightField.activeFocus) {
+            heightField.text = card.shownHeight(info)
+        }
+        // The name a new library entry starts with.
+        if (!libraryName.activeFocus) {
+            libraryName.text = info.label !== "" ? info.label : card.kindOf(info)
+        }
+    }
+
+    // The height as the field shows it: empty when the object has none.
+    function shownHeight(info) {
+        return info.height === null ? "" : texts.num(info.height, 2)
+    }
+
+    function setHeight() {
+        heightField.invalid = !controller.setObjectHeight(heightField.text)
+    }
+
+    // The button sets what was changed: the size always, the height when it differs. The
+    // size edit refills the fields, so the typed height is taken before and put back.
+    function apply() {
+        const typed = heightField.text
+        const changed = info !== null && typed.trim() !== card.shownHeight(info)
+        // A refused size stops the apply: the height alone would be half of what was asked.
+        if (!card.setSize() || !changed) {
+            return
+        }
+        heightField.text = typed
+        card.setHeight()
+    }
+
+    function setSize() {
+        const ok = controller.resizeSelected(widthField.text, depthField.text)
+        widthField.invalid = !ok
+        depthField.invalid = !ok
+        return ok
+    }
+
+    function file() {
+        if (!controller.saveToLibrary(libraryName.text)) {
+            libraryName.invalid = true
+        }
+    }
+
+    KanteSectionLabel {
+        objectName: "objectTitle"
+        text: card.title
+    }
+
+    RowLayout {
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteTextField {
+            id: widthField
+            objectName: "widthField"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+            Accessible.name: card.texts.t("field.width")
+            placeholderText: card.texts.t("field.width")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.setSize()
+        }
+        KanteTextField {
+            id: depthField
+            objectName: "depthField"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+            Accessible.name: card.texts.t("field.depth")
+            placeholderText: card.texts.t("field.depth")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.setSize()
+        }
+        KanteButton {
+            objectName: "objectApply"
+            text: card.texts.t("form.apply")
+            onClicked: card.apply()
+        }
+    }
+
+    KanteButton {
+        objectName: "objectMore"
+        visible: card.showMore
+        emphasis: KanteButton.Emphasis.Quiet
+        size: KanteButton.Size.Small
+        text: card.texts.t(card.expanded ? "card.less" : "card.more")
+        onClicked: card.expanded = !card.expanded
+    }
+
+    RowLayout {
+        visible: card.expanded
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteTextField {
+            id: heightField
+            objectName: "heightField"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+            Accessible.name: card.texts.t("field.height")
+            placeholderText: card.texts.t("field.height")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.setHeight()
+        }
+    }
+
+    RowLayout {
+        visible: card.expanded
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteTextField {
+            id: libraryName
+            objectName: "libraryName"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 8
+            Accessible.name: card.texts.t("library.name")
+            placeholderText: card.texts.t("library.name")
+            onTextChanged: invalid = false
+            onAccepted: card.file()
+        }
+        KanteButton {
+            objectName: "libraryFile"
+            text: card.texts.t("library.save")
+            onClicked: card.file()
+            QQC2.ToolTip.text: card.texts.t("library.saveTip")
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
+    }
+}
