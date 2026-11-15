@@ -3,7 +3,7 @@
 //! it holds and `Qt.exit(1)` (after `console.error`) when it does not; `lib/Watchdog.qml`
 //! ends one that hangs.
 
-use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};
+use cxx_qt_lib::{QQmlApplicationEngine, QString, QUrl};
 use std::path::{Path, PathBuf};
 
 fn scenarios() -> Vec<PathBuf> {
@@ -44,7 +44,9 @@ fn check_list_exports(base: &Path) {
 fn controller_scenarios_hold() {
     std::env::set_var("QT_QPA_PLATFORM", "offscreen");
     std::env::set_var("QML_XHR_ALLOW_FILE_READ", "1");
-    let mut app = QGuiApplication::new();
+    let mut app = crate::application::new();
+    // The desktop's native file dialogs need a QApplication (src/application.rs).
+    assert!(crate::application::is_widgets(), "not a QApplication");
     let mut failed = Vec::new();
 
     // `tests/controller/export_to.qml` writes here; a run that stopped early may have left it.

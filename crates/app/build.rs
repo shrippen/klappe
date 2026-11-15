@@ -50,6 +50,12 @@ const PAGES: &[&str] = &[
 fn main() {
     CxxQtBuilder::new_qml_module(QmlModule::new("io.github.shrippen.klappe").qml_files(PAGES))
         .qt_module("Quick")
-        .files(["src/bridge.rs", "src/camera_picture.rs"])
+        .qt_module("Widgets")
+        .files([
+            "src/application.rs",
+            "src/bridge.rs",
+            "src/camera_picture.rs",
+        ])
+        .cpp_file("src/application.cpp")
         .build();
 }
