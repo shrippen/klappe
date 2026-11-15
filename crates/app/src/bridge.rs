@@ -390,27 +390,24 @@ pub mod qobject {
         #[cxx_name = "cancelDrag"]
         fn cancel_drag(self: Pin<&mut Self>);
 
-        /// Writes the plan as PDF next to the project folder; the path goes to `status`.
-        /// `order` is `cut` or `shooting`: the order of the shot list.
+        /// Writes an export to `path` (a `file://` URL); the result goes to `status`. `kind` is
+        /// `pdf`, `png`, `svg` or `csv`; `order` (`cut` or `shooting`) orders the shot list of
+        /// PDF and CSV; `paper` (`a4` or `a3`) is the sheet of PDF, PNG and SVG.
         #[qinvokable]
-        #[cxx_name = "exportPdf"]
-        fn export_pdf(self: Pin<&mut Self>, order: &QString) -> bool;
+        #[cxx_name = "exportTo"]
+        fn export_to(
+            self: Pin<&mut Self>,
+            kind: &QString,
+            order: &QString,
+            paper: &QString,
+            path: &QString,
+        ) -> bool;
 
-        /// Writes the plan as PNG next to the project folder; the path goes to `status`.
+        /// The file URL an export with `extension` is offered under: next to the project
+        /// folder, named by the plan; empty without a project.
         #[qinvokable]
-        #[cxx_name = "exportPng"]
-        fn export_png(self: Pin<&mut Self>) -> bool;
-
-        /// Writes the plan as SVG next to the project folder; the path goes to `status`.
-        #[qinvokable]
-        #[cxx_name = "exportSvg"]
-        fn export_svg(self: Pin<&mut Self>) -> bool;
-
-        /// Writes the shot list as CSV next to the project folder; the path goes to `status`.
-        /// `order` is `cut` or `shooting`.
-        #[qinvokable]
-        #[cxx_name = "exportCsv"]
-        fn export_csv(self: Pin<&mut Self>, order: &QString) -> bool;
+        #[cxx_name = "exportFile"]
+        fn export_file(self: Pin<&mut Self>, extension: &QString) -> QString;
 
         /// What a tooltip says about a plan element (`camera:a` …), as JSON.
         #[qinvokable]

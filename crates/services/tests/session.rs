@@ -384,6 +384,33 @@ fn prints_the_plan_as_pdf() {
 }
 
 #[test]
+fn prints_the_pdf_on_a3() {
+    let s = open();
+    let a4 = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan-a4.pdf");
+    let a3 = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan-a3.pdf");
+
+    s.export_pdf(
+        &a4,
+        klappe_services::Paper::A4,
+        print_texts(),
+        ShotOrder::Cut,
+    )
+    .unwrap();
+    s.export_pdf(
+        &a3,
+        klappe_services::Paper::A3,
+        print_texts(),
+        ShotOrder::Cut,
+    )
+    .unwrap();
+
+    // Landscape, in points: A4 is 297 x 210 mm = 841.89 x 595.28, A3 is 420 x 297 mm = 1190.55 x 841.89.
+    let text = |path: &Path| String::from_utf8_lossy(&std::fs::read(path).unwrap()).into_owned();
+    assert!(text(&a4).contains("/MediaBox [0 0 841.89 595.28]"));
+    assert!(text(&a3).contains("/MediaBox [0 0 1190.55 841.89]"));
+}
+
+#[test]
 fn writes_the_shot_list_as_ods_and_xlsx() {
     let s = open();
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR"));

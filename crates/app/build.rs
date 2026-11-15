@@ -18,6 +18,7 @@ const PAGES: &[&str] = &[
     "qml/HeaderMenu.qml",
     "qml/CommandAction.qml",
     "qml/AppHeader.qml",
+    "qml/ExportDialog.qml",
     "qml/LayerPopover.qml",
     "qml/PlanForm.qml",
     "qml/Timeline.qml",
