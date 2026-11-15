@@ -4,7 +4,7 @@ use klappe_stellprobe::{handles, lens_at, render, DisplayList, Source};
 use super::layers::layer_of;
 use super::{Lock, Session};
 use crate::error::ServiceError;
-use crate::plan_edit::{self, MarkInfo, PlanEdit, Snapping};
+use crate::plan_edit::{self, Grid, MarkInfo, PlanEdit, Snapping};
 
 impl Session {
     /// The plan at the playhead, without hidden layers and tracks.
@@ -94,7 +94,7 @@ impl Session {
             at.0,
             at.1,
             self.time_s,
-            self.snapping,
+            (self.snapping, self.grid),
             edit,
         )?;
         self.check_cameras(&next)?;
@@ -131,8 +131,16 @@ impl Session {
         self.snapping
     }
 
+    pub fn set_grid(&mut self, grid: Grid) {
+        self.grid = grid;
+    }
+
+    pub fn grid(&self) -> Grid {
+        self.grid
+    }
+
     /// `at` on the grid when snapping is on.
     pub fn snap(&self, at: Point) -> Point {
-        plan_edit::snap(at, self.snapping)
+        plan_edit::snap(at, self.snapping, self.grid)
     }
 }

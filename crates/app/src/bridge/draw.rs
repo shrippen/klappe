@@ -14,7 +14,7 @@ use crate::tools::{
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
-use klappe_services::{Layer, PlanEdit, Point, Snapping};
+use klappe_services::{Grid, Layer, PlanEdit, Point, Snapping};
 
 impl qobject::Controller {
     pub(super) fn set_tool(mut self: Pin<&mut Self>, tool: &QString, choice: &QString) -> bool {
@@ -192,6 +192,16 @@ impl qobject::Controller {
             s.set_snapping(snapping);
         }
         self.set_snapping_on(on);
+    }
+
+    pub(super) fn set_grid(mut self: Pin<&mut Self>, name: &QString) {
+        let Some(grid) = Grid::from_name(&name.to_string()) else {
+            return;
+        };
+        if let Some(s) = self.as_mut().session() {
+            s.set_grid(grid);
+        }
+        self.set_grid_name(q(grid.name()));
     }
 
     /// A drag on empty ground: the box on screen while the button is down, the elements wholly

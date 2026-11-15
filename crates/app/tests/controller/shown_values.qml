@@ -13,7 +13,7 @@ Item {
 
     readonly property var plain: ["loaded", "title", "planTitle", "time", "duration",
         "selectedShot", "canUndo", "canRedo", "dirty", "selectedKey", "selectedCount",
-        "snappingOn", "hasBackground", "scalePoints", "measuring", "areaPoints", "asksNote",
+        "snappingOn", "gridName", "hasBackground", "scalePoints", "measuring", "areaPoints", "asksNote",
         "backupState", "backupMessage", "sceneId", "status"]
     readonly property var texts: ["planJson", "tracksJson", "shotsJson", "scriptJson",
         "layersJson", "locksJson", "choicesJson", "projectJson"]
@@ -23,7 +23,7 @@ Item {
     readonly property var started: ({
         loaded: false, title: "", planTitle: "", time: 0, duration: 0, selectedShot: "",
         canUndo: false, canRedo: false, dirty: false, selectedKey: "", selectedCount: 0,
-        snappingOn: true, hasBackground: false, scalePoints: 0, measuring: false,
+        snappingOn: true, gridName: "", hasBackground: false, scalePoints: 0, measuring: false,
         areaPoints: 0, asksNote: false, backupState: "", backupMessage: "", sceneId: "",
         status: ""
     })
@@ -31,7 +31,7 @@ Item {
     readonly property string stand1: "12 · INT. SÄNGERSAAL – TAG · Stand 1"
     readonly property var opened: Object.assign({}, started, {
         loaded: true, title: "Die Wartburg-Szene", planTitle: planA, duration: 20,
-        backupState: "none", sceneId: "szene-012"
+        backupState: "none", sceneId: "szene-012", gridName: "cm25"
     })
     readonly property var moved: Object.assign({}, opened, {
         time: 4, canUndo: true, dirty: true, selectedKey: "figure:elisabeth", selectedCount: 1
@@ -87,7 +87,7 @@ Item {
             }
             if (!root.check("open", root.opened, {
                 loaded: 1, projectJson: 1, sceneId: 1, title: 1, planTitle: 1, duration: 1,
-                choicesJson: 1, planJson: 1, tracksJson: 1, shotsJson: 1, scriptJson: 1,
+                choicesJson: 1, gridName: 1, planJson: 1, tracksJson: 1, shotsJson: 1, scriptJson: 1,
                 layersJson: 1, locksJson: 1, backupState: 1
             })) {
                 return
@@ -152,6 +152,12 @@ Item {
 
             ctl.setSnapping(false)
             if (!root.check("snapping", root.unsnapped, { snappingOn: 1 })) {
+                return
+            }
+
+            ctl.setGrid("cm50")
+            if (!root.check("grid", Object.assign({}, root.unsnapped, { gridName: "cm50" }),
+                    { gridName: 1 })) {
                 return
             }
             Qt.exit(0)

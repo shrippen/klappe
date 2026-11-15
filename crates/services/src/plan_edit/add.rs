@@ -330,14 +330,23 @@ mod tests {
     use klappe_model::{LightKind, Point, Project, Sensor};
 
     use super::super::tests::empty;
-    use super::super::{apply, PlanEdit, Snapping};
+    use super::super::{apply, Grid, PlanEdit, Snapping};
 
     fn add_camera(project: &mut Project) {
         let edit = PlanEdit::AddCamera {
             at: Point::new(1.0, 2.0),
             facing_deg: 0.0,
         };
-        apply(Path::new("."), project, 0, 0, 3.0, Snapping::On, &edit).unwrap();
+        apply(
+            Path::new("."),
+            project,
+            0,
+            0,
+            3.0,
+            (Snapping::On, Grid::default()),
+            &edit,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -381,7 +390,7 @@ mod tests {
                 0,
                 0,
                 0.0,
-                Snapping::On,
+                (Snapping::On, Grid::default()),
                 &light(LightKind::Flag),
             )
             .unwrap();
@@ -393,7 +402,7 @@ mod tests {
             0,
             0,
             0.0,
-            Snapping::On,
+            (Snapping::On, Grid::default()),
             &light(LightKind::Flag),
         )
         .unwrap();

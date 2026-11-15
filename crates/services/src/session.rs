@@ -7,7 +7,7 @@ use klappe_script::Script;
 use klappe_store::ImageStamp;
 
 use crate::error::{write_failed, ServiceError};
-use crate::plan_edit::Snapping;
+use crate::plan_edit::{Grid, Snapping};
 
 mod export;
 mod file;
@@ -137,6 +137,7 @@ pub struct Session {
     locked_layers: HashSet<Layer>,
     hidden_tracks: HashSet<String>,
     snapping: Snapping,
+    grid: Grid,
     undo: Vec<Project>,
     redo: Vec<Project>,
     dirty: bool,

@@ -17,6 +17,12 @@ Item {
     /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, measure, note, line,
     /// arrow, rect, ellipse or area.
     property string tool: "select"
+    /// The grid drawn and snapped to, in metres: the one `gridName` names in `choicesJson`.
+    readonly property real gridStepM: {
+        const grids = controller.choicesJson ? (JSON.parse(controller.choicesJson).grid || []) : []
+        const grid = grids.find(g => g.id === controller.gridName)
+        return grid ? grid.step_m : 1
+    }
     property string tipKey: ""
     property bool dragging: false
     /// Escape aborted the drag in progress; the canvas goes on reporting until release.
@@ -37,7 +43,7 @@ Item {
         visible: area.plan !== null
         contentWidth: area.plan ? area.plan.width : 1
         contentHeight: area.plan ? area.plan.depth : 1
-        gridStep: 1
+        gridStep: area.gridStepM
         shapes: area.plan ? area.plan.shapes : []
         accessibleName: area.texts.t("app.module")
         // A left drag always edits: the select tool moves what it grabbed, or on empty ground

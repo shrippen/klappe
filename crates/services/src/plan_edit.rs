@@ -235,8 +235,47 @@ pub enum Snapping {
     Off,
 }
 
-/// Grid spacing of the plan.
-const GRID_M: f64 = 0.25;
+/// Grid spacing of the plan, in the order the tool bar offers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Grid {
+    Cm5,
+    Cm10,
+    #[default]
+    Cm25,
+    Cm50,
+    M1,
+}
+
+impl Grid {
+    pub const ALL: [Grid; 5] = [Grid::Cm5, Grid::Cm10, Grid::Cm25, Grid::Cm50, Grid::M1];
+
+    /// The spacing in metres.
+    pub fn step_m(self) -> f64 {
+        match self {
+            Grid::Cm5 => 0.05,
+            Grid::Cm10 => 0.1,
+            Grid::Cm25 => 0.25,
+            Grid::Cm50 => 0.5,
+            Grid::M1 => 1.0,
+        }
+    }
+
+    /// The name the surface uses, e.g. `cm25`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Grid::Cm5 => "cm5",
+            Grid::Cm10 => "cm10",
+            Grid::Cm25 => "cm25",
+            Grid::Cm50 => "cm50",
+            Grid::M1 => "m1",
+        }
+    }
+
+    /// The grid `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|g| g.name() == name)
+    }
+}
 
 /// How far beside a shape a click still takes it: a finger or a mouse is not exact.
 const PICK_RADIUS_M: f64 = 0.15;
@@ -245,12 +284,12 @@ const PICK_RADIUS_M: f64 = 0.15;
 const FULL_TURN_DEG: f64 = 360.0;
 
 /// `at` on the grid when snapping is on.
-pub(crate) fn snap(at: Point, snapping: Snapping) -> Point {
+pub(crate) fn snap(at: Point, snapping: Snapping, grid: Grid) -> Point {
     if snapping == Snapping::Off || !at.x_m.is_finite() || !at.y_m.is_finite() {
         return at;
     }
 
-    let on_grid = |v: f64| (v / GRID_M).round() * GRID_M;
+    let on_grid = |v: f64| (v / grid.step_m()).round() * grid.step_m();
     Point::new(on_grid(at.x_m), on_grid(at.y_m))
 }
 
@@ -402,7 +441,7 @@ enum Target<'a> {
     },
 }
 
-/// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snapping` is for
+/// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snap_to` is for
 /// `Shift`, the other edits take their points as given. `dir` is the project folder, where
 /// `SetBackground` copies its image to. On an error the project may be half changed: the
 /// caller works on a copy.
@@ -412,7 +451,7 @@ pub(crate) fn apply(
     scene: usize,
     plan: usize,
     time_s: f64,
-    snapping: Snapping,
+    snap_to: (Snapping, Grid),
     edit: &PlanEdit,
 ) -> Result<(), ServiceError> {
     check(edit)?;
@@ -451,7 +490,7 @@ pub(crate) fn apply(
             carry_cameras(&mut scope, source, |s| move_to(s, source, *to))
         }
         PlanEdit::Shift { source, dx_m, dy_m } => carry_cameras(&mut scope, source, |s| {
-            shift(s, source, (*dx_m, *dy_m), snapping)
+            shift(s, source, (*dx_m, *dy_m), snap_to)
         }),
         PlanEdit::Spin { source, by_deg } => {
             carry_cameras(&mut scope, source, |s| spin(s, source, *by_deg))
@@ -464,7 +503,7 @@ pub(crate) fn apply(
             sources,
             dx_m,
             dy_m,
-        } => group::shift(&mut scope, sources, (*dx_m, *dy_m), snapping),
+        } => group::shift(&mut scope, sources, (*dx_m, *dy_m), snap_to),
         PlanEdit::SpinGroup { sources, by_deg } => group::spin(&mut scope, sources, *by_deg),
         PlanEdit::RemoveGroup { sources } => group::remove_all(&mut scope, sources),
         PlanEdit::Duplicate {
@@ -736,7 +775,7 @@ mod tests {
         };
 
         assert!(matches!(
-            apply(Path::new("."), &mut project, 0, 0, 0.0, Snapping::On, &edit),
+            apply(Path::new("."), &mut project, 0, 0, 0.0, (Snapping::On, Grid::default()), &edit),
             Err(ServiceError::NoLocation(ref id)) if id == "l"
         ));
     }

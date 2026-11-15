@@ -13,6 +13,15 @@ const NEW_CAMERA_FACING_DEG: f64 = 0.0;
 /// Decimals a measured length shows.
 const MEASURE_DECIMALS: usize = 2;
 
+/// Decimals a measured angle shows.
+const ANGLE_DECIMALS: usize = 1;
+
+/// Between the length and the angle of a measurement caption.
+pub const MEASURE_SEPARATOR: &str = " · ";
+
+/// A full turn; angles are kept within [0, 360), as `facing_deg` is.
+const FULL_TURN_DEG: f64 = 360.0;
+
 /// How far from its first point a click still closes an area, in metres: the grid is 0.25 m,
 /// so a click that snaps to a neighbour of the first point, diagonal ones (0.354 m) too,
 /// closes it; the next ring (0.5 m) does not.
@@ -318,15 +327,46 @@ impl MeasureStep {
             MeasureStep::Live(a, b) | MeasureStep::Held(a, b) => Some(a.distance_m(b)),
         }
     }
+
+    /// The direction from the first point to the second, counted as a figure's `facing_deg`:
+    /// 0 to the right, 90 down the plan (y grows downwards), within [0, 360). `None` while
+    /// there are not two points or they coincide.
+    pub fn angle_deg(self) -> Option<f64> {
+        let (MeasureStep::Live(a, b) | MeasureStep::Held(a, b)) = self else {
+            return None;
+        };
+        if a == b {
+            return None;
+        }
+
+        let deg = (b.y_m - a.y_m).atan2(b.x_m - a.x_m).to_degrees();
+        Some(deg.rem_euclid(FULL_TURN_DEG) % FULL_TURN_DEG)
+    }
+}
+
+/// `value` with at most `decimals` places, no trailing zeros, the catalogue's decimal
+/// separator.
+fn number_text(value: f64, decimals: usize, decimal: &str) -> String {
+    let fixed = format!("{value:.decimals$}");
+
+    fixed
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .replace('.', decimal)
 }
 
 /// `length_m` as the caption of a measurement: two decimals at most, the catalogue's decimal
 /// separator and unit ("4,25 m").
 pub fn length_text(length_m: f64, decimal: &str, unit: &str) -> String {
-    let fixed = format!("{length_m:.MEASURE_DECIMALS$}");
-    let number = fixed.trim_end_matches('0').trim_end_matches('.');
+    format!(
+        "{} {unit}",
+        number_text(length_m, MEASURE_DECIMALS, decimal)
+    )
+}
 
-    format!("{} {unit}", number.replace('.', decimal))
+/// `angle_deg` as the caption of a measurement: one decimal at most ("26,6°").
+pub fn angle_text(angle_deg: f64, decimal: &str, unit: &str) -> String {
+    format!("{}{unit}", number_text(angle_deg, ANGLE_DECIMALS, decimal))
 }
 
 /// The points of an area picked so far; the area is made on closing.

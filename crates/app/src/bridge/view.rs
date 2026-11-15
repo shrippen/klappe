@@ -10,13 +10,14 @@ use crate::plan;
 use crate::plan::Measure;
 use crate::selection::{Pick, Selection};
 use crate::tools;
+use crate::tools::MEASURE_SEPARATOR;
 use crate::tools::{AreaDraft, Backdrop, MeasureStep, NoteDraft, Preview, ScaleStep};
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Layer, LightKind, Lock, Point, Pose,
-    Session, Snapping, Source, Visibility,
+    Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Layer, LightKind, Lock, Point,
+    Pose, Session, Snapping, Source, Visibility,
 };
 use serde_json::json;
 
@@ -90,7 +91,13 @@ impl ControllerRust {
 
         let caption = self.measure.length_m().map(|length_m| {
             let decimal = self.language.text("unit.decimal");
-            tools::length_text(length_m, &decimal, &self.language.text("unit.m"))
+            let length = tools::length_text(length_m, &decimal, &self.language.text("unit.m"));
+            let Some(angle_deg) = self.measure.angle_deg() else {
+                return length;
+            };
+
+            let angle = tools::angle_text(angle_deg, &decimal, &self.language.text("unit.deg"));
+            format!("{length}{MEASURE_SEPARATOR}{angle}")
         });
 
         Some(Measure {
@@ -114,6 +121,7 @@ impl ControllerRust {
         self.loaded = true;
         self.shown = view;
         self.snapping_on = snapping_on;
+        self.grid_name = v.grid_name;
         self.backup_state = q(backup_state);
         self.backup_message = q(&backup_message);
         self.title = v.title;
@@ -176,6 +184,7 @@ impl ControllerRust {
             asks_note: self.note != NoteDraft::Idle,
             measuring: self.measure != MeasureStep::Idle,
             choices_json: q(&choices_json(s)),
+            grid_name: q(s.grid().name()),
             project_json: q(&manage::project_json(s)),
             scene_id: q(s.scene().map(|sc| sc.id.as_str()).unwrap_or_default()),
         })
@@ -207,6 +216,7 @@ struct Shown {
     asks_note: bool,
     measuring: bool,
     choices_json: QString,
+    grid_name: QString,
     project_json: QString,
     scene_id: QString,
 }
@@ -254,6 +264,10 @@ pub(super) fn choices_json(s: &Session) -> String {
     let arrivals: Vec<_> = Arrival::ALL.iter().map(|a| a.name()).collect();
     let departures: Vec<_> = Departure::ALL.iter().map(|d| d.name()).collect();
     let layers: Vec<_> = Layer::ALL.iter().map(|l| l.name()).collect();
+    let grids: Vec<_> = Grid::ALL
+        .iter()
+        .map(|g| json!({ "id": g.name(), "step_m": g.step_m() }))
+        .collect();
 
     json!({
         "figure": figures,
@@ -267,6 +281,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "arrival": arrivals,
         "departure": departures,
         "layer": layers,
+        "grid": grids,
     })
     .to_string()
 }
@@ -362,6 +377,7 @@ impl qobject::Controller {
         self.as_mut().set_plan_title(v.plan_title);
         self.as_mut().set_duration(v.duration);
         self.as_mut().set_choices_json(v.choices_json);
+        self.as_mut().set_grid_name(v.grid_name);
 
         self.as_mut().set_plan_json(v.plan_json);
         self.as_mut().set_tracks_json(v.tracks_json);
@@ -485,6 +501,19 @@ mod tests {
         assert_eq!(c.pick_mode(), Pick::Extend);
     }
 
+    /// A measurement shows length and direction; one point alone shows nothing to read.
+    #[test]
+    fn the_measurement_caption_has_length_and_angle() {
+        let mut c = ControllerRust::default();
+        let (a, b) = (Point::new(0.0, 0.0), Point::new(3.0, 3.0));
+
+        c.measure = MeasureStep::Start(a);
+        assert_eq!(c.measure_view().unwrap().caption, "");
+
+        c.measure = MeasureStep::Held(a, b);
+        assert_eq!(c.measure_view().unwrap().caption, "4,24 m · 45°");
+    }
+
     /// Review of PR 23: area, scale and note drafts outlived a change of scene or project;
     /// Enter then made an area from the old plan's points in the new one.
     #[test]
@@ -528,6 +557,7 @@ mod tests {
         assert_eq!(c.time, 0.0);
         assert_eq!(c.selected_shot.to_string(), "");
         assert!(c.snapping_on);
+        assert_eq!(c.grid_name.to_string(), "cm25");
         assert!(!c.has_background);
         assert_eq!(c.backup_state.to_string(), "none");
         assert_eq!(c.backup_message.to_string(), "");

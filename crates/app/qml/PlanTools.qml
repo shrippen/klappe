@@ -103,7 +103,7 @@ RowLayout {
         return entries
     }
 
-    readonly property var _choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : { figure: [], object: [], light: [], color: [], dash: [], fill: [] }
+    readonly property var _choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : { figure: [], object: [], light: [], color: [], dash: [], fill: [], grid: [] }
 
     spacing: Kirigami.Units.smallSpacing
 
@@ -343,6 +343,18 @@ RowLayout {
                 checked: tools.controller.snappingOn
                 onToggled: tools.controller.setSnapping(checked)
                 QQC2.ToolTip.text: tools.texts.t("tool.snappingTip")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+            KanteComboBox {
+                objectName: "gridBox"
+                Accessible.name: tools.texts.t("tool.grid")
+                textRole: "text"
+                valueRole: "value"
+                model: (tools._choices.grid || []).map(g => ({ value: g.id, text: tools.texts.t("grid." + g.id) }))
+                currentIndex: (tools._choices.grid || []).findIndex(g => g.id === tools.controller.gridName)
+                onActivated: tools.controller.setGrid(String(currentValue))
+                QQC2.ToolTip.text: tools.texts.t("tool.gridTip")
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
             }
