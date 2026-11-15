@@ -1,7 +1,7 @@
 use klappe_model::{Camera, FigureColor, FigureTrack, FloorPlan, Point, Pose, Project, SetPlan};
 
 use crate::display::object_corners;
-use crate::hit::inside;
+use crate::hit::in_lasso;
 use crate::motion::{aim_at, camera_at, figure_at};
 use crate::optics::{horizontal_fov_deg, lens_at};
 
@@ -196,7 +196,7 @@ fn object_faces(set: &SetPlan, eye: &Eye, faces: &mut Vec<Face>) {
     for object in &set.objects {
         let height_m = object.height_m.unwrap_or(OBJECT_HEIGHT_M);
         let outline = object_corners(object);
-        if inside(&outline, camera) {
+        if in_lasso(&outline, camera) {
             continue;
         }
 

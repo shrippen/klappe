@@ -40,6 +40,39 @@ pub fn within(item: &Item, a: Point, b: Point) -> bool {
     }
 }
 
+/// The point that stands for `item` when a lasso takes it (LH-08): a circle's centre, a
+/// line's middle, the middle of a polygon's or polyline's extent. Images and shapes without
+/// points have none.
+pub fn anchor(item: &Item) -> Option<Point> {
+    match &item.shape {
+        Shape::Circle { center, .. } => Some(*center),
+        Shape::Line { from, to, .. } => Some(from.lerp(*to, 0.5)),
+        Shape::Polyline { points } | Shape::Polygon { points } => extent_middle(points),
+        Shape::Image { .. } => None,
+    }
+}
+
+fn extent_middle(points: &[Point]) -> Option<Point> {
+    let first = points.first()?;
+    let (mut min, mut max) = (*first, *first);
+
+    for p in points {
+        min = Point::new(min.x_m.min(p.x_m), min.y_m.min(p.y_m));
+        max = Point::new(max.x_m.max(p.x_m), max.y_m.max(p.y_m));
+    }
+
+    Some(min.lerp(max, 0.5))
+}
+
+/// Whether `at` lies inside the freehand shape `lasso`, closed from its last point to its
+/// first (even-odd rule). Fewer than three points enclose nothing.
+pub fn in_lasso(lasso: &[Point], at: Point) -> bool {
+    lasso.len() >= LASSO_MIN_POINTS && inside(lasso, at)
+}
+
+/// A line has no inside: a lasso needs a triangle at least.
+const LASSO_MIN_POINTS: usize = 3;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Path {
     Open,
@@ -74,7 +107,7 @@ fn segment_distance_m(at: Point, from: Point, to: Point) -> f64 {
 }
 
 /// Even-odd rule: a ray to the right crosses the edges an odd number of times from inside.
-pub(crate) fn inside(points: &[Point], at: Point) -> bool {
+fn inside(points: &[Point], at: Point) -> bool {
     let mut inside = false;
 
     for (i, a) in points.iter().enumerate() {
@@ -184,6 +217,65 @@ mod tests {
         });
 
         assert!(!hit(&image, Point::new(2.0, 2.0), 1.0));
+    }
+
+    fn triangle() -> Vec<Point> {
+        vec![
+            Point::new(0.0, 0.0),
+            Point::new(4.0, 0.0),
+            Point::new(2.0, 4.0),
+        ]
+    }
+
+    #[test]
+    fn a_lasso_encloses_what_lies_in_it() {
+        assert!(in_lasso(&triangle(), Point::new(2.0, 1.0)));
+        assert!(!in_lasso(&triangle(), Point::new(0.2, 3.0)));
+        assert!(!in_lasso(&triangle(), Point::new(5.0, 1.0)));
+    }
+
+    #[test]
+    fn a_lasso_of_a_line_or_a_dot_encloses_nothing() {
+        let line = [Point::new(0.0, 0.0), Point::new(4.0, 0.0)];
+
+        assert!(!in_lasso(&line, Point::new(2.0, 0.0)));
+        assert!(!in_lasso(&[], Point::new(0.0, 0.0)));
+    }
+
+    #[test]
+    fn a_lasso_may_be_concave() {
+        // A "U": the notch between the arms is outside.
+        let u = [
+            Point::new(0.0, 0.0),
+            Point::new(6.0, 0.0),
+            Point::new(6.0, 6.0),
+            Point::new(4.0, 6.0),
+            Point::new(4.0, 2.0),
+            Point::new(2.0, 2.0),
+            Point::new(2.0, 6.0),
+            Point::new(0.0, 6.0),
+        ];
+
+        assert!(in_lasso(&u, Point::new(1.0, 5.0)));
+        assert!(!in_lasso(&u, Point::new(3.0, 5.0)));
+    }
+
+    #[test]
+    fn an_anchor_is_the_middle_of_the_shape() {
+        let circle = item(Shape::Circle {
+            center: Point::new(1.0, 2.0),
+            radius_m: 0.5,
+        });
+        let line = item(Shape::Line {
+            from: Point::new(0.0, 0.0),
+            to: Point::new(4.0, 2.0),
+            width_m: 0.1,
+        });
+
+        assert_eq!(anchor(&circle), Some(Point::new(1.0, 2.0)));
+        assert_eq!(anchor(&line), Some(Point::new(2.0, 1.0)));
+        assert_eq!(anchor(&square()), Some(Point::new(1.0, 1.0)));
+        assert_eq!(anchor(&item(Shape::Polyline { points: vec![] })), None);
     }
 
     #[test]

@@ -29,7 +29,7 @@ pub use card::NOTE_TEXT_M;
 pub use display::{
     drawing_handle_places, handles, render, DisplayList, Item, Role, Shape, Source, FIGURE_RADIUS_M,
 };
-pub use hit::{hit, within};
+pub use hit::{anchor, hit, in_lasso, within};
 pub use light::Lamp;
 pub use look::{look, view_look, Area, Hue, Look};
 pub use motion::{

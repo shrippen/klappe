@@ -1,17 +1,13 @@
 //! Checks of the values an edit brings before it applies: heights, tilts, holds, sizes, points.
 
-use klappe_model::{is_object_height_m, is_object_size_m, DrawingShape, Point};
+use klappe_model::{
+    is_object_height_m, is_object_size_m, DrawingShape, Point, MAX_CAMERA_HEIGHT_M, MAX_TILT_DEG,
+};
 
 use super::PlanEdit;
 use crate::camera_edit;
 use crate::error::ServiceError;
 use crate::field::Field;
-
-/// Highest a lens can be: a crane or a drone, not a satellite.
-const MAX_CAMERA_HEIGHT_M: f64 = 50.0;
-
-/// A camera looks straight down at -90° and straight up at 90°.
-const MAX_TILT_DEG: f64 = 90.0;
 
 /// Every point and angle is a finite number: NaN or infinity would be saved as `null`.
 pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {

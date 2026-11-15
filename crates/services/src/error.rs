@@ -59,6 +59,9 @@ pub enum ServiceError {
     /// There is nothing to pass on: the project has no own objects.
     #[error("the project has no own objects")]
     EmptyLibrary,
+    /// A plan with no figure and no camera has nothing to file as a template.
+    #[error("the plan has no figure and no camera")]
+    EmptyTemplate,
     #[error("bad value for {}: {value}", field.name())]
     BadValue { field: Field, value: String },
     #[error(transparent)]

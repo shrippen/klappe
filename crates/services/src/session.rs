@@ -19,6 +19,7 @@ mod playback;
 mod retime;
 mod scene;
 mod shots;
+mod templates;
 mod timeline;
 mod undo;
 mod uses;

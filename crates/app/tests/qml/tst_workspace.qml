@@ -26,6 +26,7 @@ TestCase {
         property string selectedKey: ""
         property int selectedCount: 0
         property bool extendSelection: false
+        property bool lassoSelection: false
         property bool asksNote: false
         property string noteText: ""
         property bool measuring: false

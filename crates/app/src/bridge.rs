@@ -46,14 +46,16 @@ pub mod qobject {
         #[qproperty(i32, selected_count, cxx_name = "selectedCount")]
         /// Shift is held: a click or a box adds to the selection instead of replacing it.
         #[qproperty(bool, extend_selection, cxx_name = "extendSelection")]
+        /// Ctrl is held: a drag on empty ground draws a lasso instead of a box.
+        #[qproperty(bool, lasso_selection, cxx_name = "lassoSelection")]
         /// Whether points snap to the grid; change it with `setSnapping`.
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
         /// The grid spacing, a name of `choicesJson.grid`; change it with `setGrid`.
         #[qproperty(QString, grid_name, cxx_name = "gridName")]
         /// `{ figure: [{ id, name }], object: [{ kind, label, width_m, depth_m, shape, custom }],
         /// light: [kind], color: [name], dash: [name], fill: [name], rig: [name], movement: [name],
-        /// grid: [{ id, step_m }] }`: what the tool lists
-        /// offer. The objects are the library: built in, then the project's own.
+        /// grid: [{ id, step_m }], template: [{ id, label, figures, cameras, custom }] }`: what the
+        /// tool lists offer. Objects and templates: built in first, then the project's own.
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Whether the set has a background image.
         #[qproperty(bool, has_background, cxx_name = "hasBackground")]
@@ -624,6 +626,16 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "removePlanWithShots"]
         fn remove_plan_with_shots(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Puts the template `id` in the middle of the plan on view; false when refused.
+        #[qinvokable]
+        #[cxx_name = "applyTemplate"]
+        fn apply_template(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Files the figures and cameras of the plan on view as the template `name`.
+        #[qinvokable]
+        #[cxx_name = "saveTemplate"]
+        fn save_template(self: Pin<&mut Self>, name: &QString) -> bool;
     }
 
     // The start page's cards are read on a thread of their own and handed back through it.
@@ -631,10 +643,11 @@ pub mod qobject {
 }
 
 use cxx_qt_lib::QString;
-use klappe_services::{Point, Session};
+use klappe_services::Session;
 
 use crate::catalog::Language;
 use crate::notice::Status;
+use crate::plan::Sweep;
 use crate::selection::Selection;
 use crate::tools::{AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Tool};
 
@@ -657,6 +670,7 @@ mod script;
 mod selection;
 mod shots;
 mod start;
+mod templates;
 mod view;
 
 pub struct ControllerRust {
@@ -684,13 +698,14 @@ pub struct ControllerRust {
     selected_key: QString,
     selected_count: i32,
     extend_selection: bool,
+    lasso_selection: bool,
     snapping_on: bool,
     grid_name: QString,
     choices_json: QString,
     /// What the select tool has picked; the canvas frames it.
     selected: Selection,
-    /// The box a drag on empty ground is pulling up, in metres.
-    marquee: Option<(Point, Point)>,
+    /// The box or lasso a drag on empty ground is pulling up, in metres.
+    marquee: Option<Sweep>,
     tool: Tool,
     scale: ScaleStep,
     /// The measurement of the measuring tool: a tool state of the session, not the plan's.
