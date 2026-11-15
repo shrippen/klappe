@@ -3,6 +3,7 @@
 //! Window size for checks: Qt's own `-qwindowgeometry 1440x900`; offscreen with
 //! `QT_QPA_PLATFORM=offscreen` (agent.md: never a visible window in tests).
 
+mod application;
 mod args;
 mod bridge;
 mod camera;
@@ -19,7 +20,7 @@ mod plan;
 mod selection;
 mod tools;
 
-use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};
+use cxx_qt_lib::{QQmlApplicationEngine, QString, QUrl};
 use std::path::PathBuf;
 
 const MAIN_QML: &str = "qrc:/qt/qml/io/github/shrippen/klappe/qml/Main.qml";
@@ -41,7 +42,8 @@ fn main() {
         std::process::exit(EXIT_USAGE);
     }
 
-    let mut app = QGuiApplication::new();
+    let mut app = application::new();
+    debug_assert!(application::is_widgets());
     if let Some(mut app) = app.as_mut() {
         app.as_mut().set_application_name(&QString::from("Klappe"));
         app.as_mut()
