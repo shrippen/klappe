@@ -4,7 +4,7 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// The shot list as a table (D-05, LH-71): the columns of the exported list, a row per shot in
+// The shot list as a table (D-05, LH-71): the columns of the exported list (15), a row per shot in
 // the order given, in shooting order a band per setup (LH-72). A click on a row selects the
 // shot; double click or Enter edits the cell, Enter or a click away sends it, Esc drops it.
 //
@@ -51,6 +51,7 @@ FocusScope {
         { key: "number", kind: ShotTable.Kind.Text, title: "field.number", width: _unit * 4 },
         { key: "camera", kind: ShotTable.Kind.Choice, title: "field.camera", width: _unit * 5 },
         { key: "lens", kind: ShotTable.Kind.Text, title: "field.lens", width: _unit * 5 },
+        { key: "setup", kind: ShotTable.Kind.Fixed, title: "field.setup", width: _unit * 4 },
         { key: "size", kind: ShotTable.Kind.Choice, title: "field.size", width: _unit * 8 },
         { key: "angle", kind: ShotTable.Kind.Choice, title: "field.perspective", width: _unit * 8 },
         { key: "movement", kind: ShotTable.Kind.Choice, title: "field.movement", width: _unit * 8 },
@@ -94,6 +95,7 @@ FocusScope {
         case "from_s": return texts.num(shot.from_s, 1)
         case "to_s": return texts.num(shot.to_s, 1)
         case "duration": return texts.num(shot.to_s - shot.from_s, 1)
+        case "setup": return String(shot.setup)
         default: return shot[key]
         }
     }

@@ -200,11 +200,12 @@ TestCase {
     function test_the_table_has_the_columns_of_the_export() {
         const table = part(make("table"), "shotTable")
 
-        compare(table.columns.map(c => de.t(c.title)), ["Nummer", "Kamera", "Objektiv (mm)", "Größe", "Perspektive",
+        compare(table.columns.map(c => de.t(c.title)), ["Nummer", "Kamera", "Objektiv (mm)", "Setup", "Größe", "Perspektive",
             "Bewegung", "Von (s)", "Bis (s)", "Dauer (s)", "Inhalt", "Requisiten", "Technik", "Team", "Notiz"])
         compare(table.cellText(tc.rows[1], "camera"), "B")
         compare(table.cellText(tc.rows[1], "size"), "Groß")
         compare(table.cellText(tc.rows[1], "duration"), "6")
+        compare(table.cellText(tc.rows[1], "setup"), "2")
     }
 
     // The selected row wears Kante's selection role and edge, as `KanteListRow`.
@@ -260,7 +261,7 @@ TestCase {
     function test_a_cell_left_unchanged_edits_nothing() {
         const panel = make("table", "cut", "s2")
 
-        part(panel, "shotTable").edit("s2", 9)
+        part(panel, "shotTable").edit("s2", 10)
         part(panel, "cellEditor").editingFinished()
 
         compare(fake.calls.length, 0)
@@ -280,7 +281,7 @@ TestCase {
     function test_the_movement_cell_offers_the_movements_of_the_controller() {
         const panel = make("table", "cut", "s2")
 
-        part(panel, "shotTable").edit("s2", 5)
+        part(panel, "shotTable").edit("s2", 6)
         const box = part(panel, "cellEditor")
         compare(box.model, ["Statisch", "Schwenk", "Fahrt"])
         box.activated(1)
@@ -292,7 +293,7 @@ TestCase {
         const panel = make("table", "cut", "s2")
         const table = part(panel, "shotTable")
 
-        table.edit("s2", 9)
+        table.edit("s2", 10)
         const editor = part(panel, "cellEditor")
         type(editor, "anderer Text")
         keyClick(Qt.Key_Escape)
@@ -306,13 +307,13 @@ TestCase {
         const table = part(panel, "shotTable")
         part(panel, "shotRows").forceActiveFocus()
 
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < 10; i++) {
             keyClick(Qt.Key_Right)
         }
         keyClick(Qt.Key_Return)
 
         compare(table.editId, "s2")
-        compare(table.editColumn, 9)
+        compare(table.editColumn, 10)
         verify(part(panel, "cellEditor").activeFocus)
     }
 
@@ -326,7 +327,7 @@ TestCase {
         findChild(list.itemAtIndex(1), "cell-description").parent.open()
 
         compare(part(panel, "shotTable").editId, "s2")
-        compare(part(panel, "shotTable").editColumn, 9)
+        compare(part(panel, "shotTable").editColumn, 10)
         compare(fake.selects, ["s2"])
     }
 
@@ -334,8 +335,8 @@ TestCase {
         const panel = make("table", "cut", "s1")
         const table = part(panel, "shotTable")
 
-        table.edit("s1", 6)
-        table.edit("s1", 8)
+        table.edit("s1", 7)
+        table.edit("s1", 9)
 
         compare(table.editId, "")
     }
@@ -356,7 +357,7 @@ TestCase {
         waitForRendering(list)
         fake.accept = false
 
-        table.edit("s2", 9)
+        table.edit("s2", 10)
         type(part(panel, "cellEditor"), "anderer Text")
         part(panel, "cellEditor").editingFinished()
 
