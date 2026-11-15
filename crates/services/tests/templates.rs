@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Field, Layer, Lock, Point, ProjectEdit, ServiceError, Session, TemplateEntry,
+    Field, Layer, Lock, PlanEdit, Point, ProjectEdit, ServiceError, Session, Source, TemplateEntry,
 };
 
 fn example() -> PathBuf {
@@ -347,6 +347,43 @@ fn nothing_to_file_and_no_name_are_refused() {
         })
     ));
     assert!(s.project().templates.is_empty());
+}
+
+/// Rounding to the centimetre must not turn a far place into `inf`: such a plan is not filed,
+/// and the project stays saveable.
+#[test]
+fn a_plan_beyond_the_set_is_not_filed() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("services-templates-far");
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&example(), &dir);
+
+    let mut s = Session::open(&dir).unwrap();
+    s.edit_plan(PlanEdit::Move {
+        source: Source::Mark {
+            character: "burgvogt".into(),
+            index: 1,
+        },
+        to: p(1e307, 0.0),
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Move {
+        source: Source::Mark {
+            character: "burgvogt".into(),
+            index: 0,
+        },
+        to: p(-1e307, 0.0),
+    })
+    .unwrap();
+
+    assert!(matches!(
+        s.save_template("Wieder"),
+        Err(ServiceError::BadValue {
+            field: Field::Point,
+            ..
+        })
+    ));
+    assert!(s.project().templates.is_empty());
+    s.save().unwrap();
 }
 
 fn copy_dir(from: &Path, to: &Path) {

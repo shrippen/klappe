@@ -22,6 +22,7 @@
 mod camera_preset;
 mod geometry;
 mod library;
+mod limits;
 mod plan;
 mod project;
 mod shot;
@@ -32,6 +33,10 @@ pub use geometry::Point;
 pub use library::{
     is_object_height_m, is_object_size_m, LibraryItem, ObjectShape, MAX_OBJECT_HEIGHT_M,
     MAX_OBJECT_M,
+};
+pub use limits::{
+    MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_LENS_MM, MAX_SENSOR_WIDTH_MM, MAX_SET_M, MAX_TILT_DEG,
+    MIN_LENS_MM,
 };
 pub use plan::{
     Arrival, AxisPair, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureTrack,

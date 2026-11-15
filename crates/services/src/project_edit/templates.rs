@@ -3,10 +3,11 @@
 use klappe_model::{
     Camera, CameraMark, FigureColor, FloorPlan, Mark, Point, Project, Template, TemplateFigure,
 };
-use klappe_store::builtin_templates;
+use klappe_store::{builtin_templates, check_template};
 
 use super::{add_character, name_of, slug, unique_id, ProjectEdit};
 use crate::error::ServiceError;
+use crate::field::Field;
 use crate::plan_edit::template::place;
 
 const TEMPLATE_ID_FALLBACK: &str = "vorlage";
@@ -94,12 +95,19 @@ fn save(project: &mut Project, scene: &str, plan: &str, name: &str) -> Result<()
         .map(|t| t.id.as_str());
     let id = unique_id(&slug(&name, TEMPLATE_ID_FALLBACK), taken);
 
-    project.templates.push(Template {
+    let template = Template {
         id,
         label: name,
         figures,
         cameras,
-    });
+    };
+
+    // The project file would refuse it: far places, a rounding that overflows.
+    check_template(&template).map_err(|value| ServiceError::BadValue {
+        field: Field::Point,
+        value,
+    })?;
+    project.templates.push(template);
 
     Ok(())
 }

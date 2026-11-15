@@ -3,7 +3,10 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use klappe_model::{CameraMark, Mark, Point, Template};
+use klappe_model::{
+    CameraMark, Mark, Point, Template, MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_LENS_MM,
+    MAX_SENSOR_WIDTH_MM, MAX_SET_M, MAX_TILT_DEG, MIN_LENS_MM,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::files;
@@ -39,7 +42,7 @@ pub(crate) fn load_templates(path: &Path) -> Result<Vec<Template>, StoreError> {
     }
 
     let file: TemplateFile = files::read_toml(path)?;
-    check_templates(&file.vorlage).map_err(|message| StoreError::Parse {
+    check_own(&file.vorlage).map_err(|message| StoreError::Parse {
         path: path.to_path_buf(),
         message,
     })?;
@@ -49,7 +52,7 @@ pub(crate) fn load_templates(path: &Path) -> Result<Vec<Template>, StoreError> {
 
 /// The file content of `templates`; refuses templates that could not be read back.
 pub(crate) fn encode(path: &Path, templates: &[Template]) -> Result<Vec<u8>, StoreError> {
-    check_templates(templates).map_err(|message| StoreError::Encode {
+    check_own(templates).map_err(|message| StoreError::Encode {
         path: path.to_path_buf(),
         message,
     })?;
@@ -60,34 +63,62 @@ pub(crate) fn encode(path: &Path, templates: &[Template]) -> Result<Vec<u8>, Sto
     files::encode_toml(path, &file)
 }
 
-fn is_length(value: f64) -> bool {
-    value.is_finite() && value > 0.0
+/// A number more than nothing and not above `max`; also excludes NaN.
+fn is_within(value: f64, max: f64) -> bool {
+    value > 0.0 && value <= max
 }
 
+/// A place within the set's bounds, as the editor takes them.
 fn is_point(point: &Point) -> bool {
-    point.x_m.is_finite() && point.y_m.is_finite()
+    point.x_m.abs() <= MAX_SET_M && point.y_m.abs() <= MAX_SET_M
 }
 
-/// Whether every number of a figure's mark is finite; `nan` and `inf` are valid TOML but
-/// cannot be saved again.
+/// Whether every number of a figure's mark is one the editor takes: `nan`, `inf` and `1e307`
+/// are valid TOML but cannot be saved again or drawn.
 fn is_mark(mark: &Mark) -> bool {
     mark.at_s.is_finite()
         && mark.facing_deg.is_finite()
-        && mark.hold_s.is_finite()
+        && is_hold(mark.hold_s)
         && is_point(&mark.at)
         && mark.via.as_ref().is_none_or(is_point)
 }
 
-/// Like `is_mark`; the lens height is positive, a lens set at the mark too.
+/// A focal length the editor takes; also excludes NaN.
+fn is_lens(lens_mm: f64) -> bool {
+    (MIN_LENS_MM..=MAX_LENS_MM).contains(&lens_mm)
+}
+
+/// A pause is not negative.
+fn is_hold(hold_s: f64) -> bool {
+    hold_s >= 0.0 && hold_s.is_finite()
+}
+
+/// Like `is_mark`; the lens height is positive up to a crane's, the tilt within straight down
+/// and up, a lens set at the mark within the lens bounds.
 fn is_camera_mark(mark: &CameraMark) -> bool {
     mark.at_s.is_finite()
         && mark.facing_deg.is_finite()
-        && mark.tilt_deg.is_finite()
-        && mark.hold_s.is_finite()
-        && is_length(mark.height_m)
+        && mark.tilt_deg.abs() <= MAX_TILT_DEG
+        && is_hold(mark.hold_s)
+        && is_within(mark.height_m, MAX_CAMERA_HEIGHT_M)
         && is_point(&mark.at)
         && mark.via.as_ref().is_none_or(is_point)
-        && mark.lens_mm.is_none_or(is_length)
+        && mark.lens_mm.is_none_or(is_lens)
+}
+
+/// The project's own templates: usable ones, each with a name to list it by.
+fn check_own(templates: &[Template]) -> Result<(), String> {
+    check_templates(templates)?;
+
+    match templates.iter().find(|t| t.label.trim().is_empty()) {
+        Some(template) => Err(format!("template {:?}: label is empty", template.id)),
+        None => Ok(()),
+    }
+}
+
+/// Whether `template` could be kept as an own one: what the project file takes.
+pub fn check_template(template: &Template) -> Result<(), String> {
+    check_own(std::slice::from_ref(template))
 }
 
 /// Every template has an id of its own and something to place; figures and cameras are usable.
@@ -128,9 +159,9 @@ fn check_parts(template: &Template) -> Result<(), String> {
         let slot_known = |slot: &String| template.figures.iter().any(|f| f.slot == *slot);
         let usable = !camera.marks.is_empty()
             && camera.marks.iter().all(is_camera_mark)
-            && is_length(camera.lens_mm)
-            && is_length(camera.aspect)
-            && is_length(camera.sensor.width_mm())
+            && is_lens(camera.lens_mm)
+            && is_within(camera.aspect, MAX_ASPECT)
+            && is_within(camera.sensor.width_mm(), MAX_SENSOR_WIDTH_MM)
             && camera.follows.as_ref().is_none_or(slot_known);
         if !usable {
             return Err(format!("camera {:?} is not usable", camera.label));

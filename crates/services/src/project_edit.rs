@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use klappe_model::{
     is_object_height_m, is_object_size_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
-    Point, Project, Scene, SetPlan, MAX_GROUP, MIN_GROUP,
+    Point, Project, Scene, SetPlan, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -96,9 +96,6 @@ pub enum ProjectEdit {
         name: String,
     },
 }
-
-/// Largest side of a set: a stadium fits; 1e300 m would not draw.
-const MAX_SET_M: f64 = 1000.0;
 
 /// The label in a figure's circle has room for this many letters.
 const MAX_SHORT_CHARS: usize = 3;

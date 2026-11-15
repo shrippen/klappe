@@ -30,7 +30,7 @@ fn own_templates_are_saved_and_loaded_with_the_project() {
     let mut project = Project::new("Eigene");
     project.templates = vec![
         own("mein-dialog", "Mein Dialog"),
-        builtin_templates()[2].clone(),
+        own("lange-fahrt", "Lange Fahrt"),
     ];
 
     save(&dir, &project, None).unwrap();
@@ -108,6 +108,14 @@ fn a_template_file_with_unusable_numbers_is_refused() {
         (camera_mark, "height_m = 1.6\ntilt_deg = inf"),
         (camera_mark, "height_m = 1.6\nlens_mm = nan"),
         (camera_mark, "height_m = 1.6\nlens_mm = 0.0"),
+        // Finite, but beyond what the editor takes.
+        ("x_m = -1.0", "x_m = 1e307"),
+        ("x_m = -1.0", "x_m = -1001.0"),
+        ("facing_deg = 0.0", "facing_deg = 0.0\nhold_s = -5.0"),
+        (camera_mark, "height_m = 1e6"),
+        (camera_mark, "height_m = 1.6\ntilt_deg = 1000.0"),
+        (camera_mark, "height_m = 1.6\nlens_mm = 1e-300"),
+        (camera_mark, "height_m = 1.6\nlens_mm = 1e9"),
     ] {
         assert!(base.contains(from), "{from}");
         fs::write(dir.join("vorlagen.toml"), base.replacen(from, to, 1)).unwrap();
@@ -123,4 +131,47 @@ fn an_unusable_template_is_not_saved() {
     project.templates = vec![own("a", "A"), own("a", "B")];
 
     assert!(save(&dir, &project, None).is_err());
+}
+
+/// An own template is listed by its label; an empty one would show a blank line.
+#[test]
+fn an_own_template_without_a_label_is_refused() {
+    let dir = test_dir("templates-label");
+    let mut project = Project::new("Eigene");
+    project.templates = vec![own("a", " ")];
+
+    assert!(save(&dir, &project, None).is_err());
+
+    project.templates = vec![own("a", "A")];
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("vorlagen.toml")).unwrap();
+    fs::write(
+        dir.join("vorlagen.toml"),
+        text.replace("label = \"A\"\n", ""),
+    )
+    .unwrap();
+
+    assert!(load(&dir).is_err());
+}
+
+/// The camera's lens, sensor and frame stay within the editor's bounds too.
+#[test]
+fn a_camera_beyond_the_editor_bounds_is_refused() {
+    let dir = test_dir("templates-camera");
+    let base = builtin_templates()[0].clone();
+    let sets: [fn(&mut Template); 3] = [
+        |t| t.cameras[0].lens_mm = 1e-300,
+        |t| t.cameras[0].aspect = 1e9,
+        |t| t.cameras[0].sensor = klappe_model::Sensor::of_width_mm(1e9),
+    ];
+
+    for set in sets {
+        let mut template = own("a", "A");
+        template.cameras = base.cameras.clone();
+        set(&mut template);
+        let mut project = Project::new("Eigene");
+        project.templates = vec![template];
+
+        assert!(save(&dir, &project, None).is_err());
+    }
 }
