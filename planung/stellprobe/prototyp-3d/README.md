@@ -26,15 +26,16 @@ Wegwerf-Prototyp (Browser, three.js), keine Vorlage für Code. Umsetzung: [`../3
 
 ## Übertragung auf Klappe
 
-- `model/`: `Wall.height_m: Option<f64>` und `Set.wall_height_m`; `Opening.sill_m`,
+Die Tasten des Prototyps sind nicht die von Klappe; dort gilt `../3D-KONZEPT.md`, Abschnitt 6.
+
+- `model/`: `Wall.height_m: Option<f64>` und `SetPlan.wall_height_m`; `Opening.sill_m`,
   `head_m`; `SetObject.base_m: Option<f64>`; `ObjectShape::Polygon { points }` für freie
   Formen. `SetObject.height_m` und die Bibliothekshöhen gibt es schon (LH-17).
 - `stellprobe/`: Höhenauflösung (Vorgabe, Sockel, Stapeln) an einer Stelle; `sight.rs` und
   der Kamerablick nehmen sie statt `WALL_HEIGHT_M`/`OBJECT_HEIGHT_M`. Eine 3D-Arbeitsansicht
   ist der Kamerablick mit frei geführter Kamera; Treffer per Strahl auf den Boden ergeben
   dieselben Plan-Punkte, die die Werkzeuge heute bekommen.
-- Darstellung: Qt Quick 3D ist GPLv3 (`KONZEPT.md`); die eigene Projektion reicht für
-  Quader, braucht für eine bedienbare 3D-Ansicht aber Tiefensortierung oder einen
-  Tiefenpuffer. Offene Entscheidung des Eigentümers.
+- Darstellung: Qt Quick 3D ist GPLv3 (`KONZEPT.md`); entschieden ist ein eigener Rasterer
+  mit Tiefenpuffer (`../3D-KONZEPT.md`, Abschnitt 9).
 - BenchUp (MIT, Rust) ist ein Möbel-CAD, kein Set-Werkzeug; übertragbar sind Push/Pull,
   Maßeingabe und „Draufsicht ist nur eine Kamera“, kein Code.

@@ -114,6 +114,6 @@ Eigentümer, 2026-11-13:
 | E-09 | Umfang der TUI | Nur Drehbuch schreiben. |
 | E-10 | Programme | GUI-App `klappe` mit Modulen, dazu `klappe-tui` und `klappe-cli`. Die CLI exportiert Pläne (`klappe-cli export --project … --scene … --out plan.png`, PDF, SVG, PNG); ihre Texte kommen wie die der App aus dem Katalog in `services/i18n`. |
 | E-11 | Projektformat | Ordner aus Textdateien; zum Weitergeben als Zip (`.klappe`). |
-| E-12 | Technik des Kamerablicks | Eigene einfache Perspektivprojektion im Kern. |
+| E-12 | Technik des Kamerablicks | Eigener Rasterer mit Tiefenpuffer (`raster/`), eine Szene für Plan, 3D und Kamerablick; abgelöst am 15.11.2026 die einfache Perspektivprojektion. Einzelheiten: [`stellprobe/3D-KONZEPT.md`](stellprobe/3D-KONZEPT.md). |
 | E-13 | CI | Wie Kontra: Prüfungen und Flatpak auf dem GitHub-Mirror, Status an Gitea. |
 | E-14 | Oberfläche | Entwurf B der Runde 2 („Drehbuch daneben“): Drehbuch links, Plan in der Mitte, Shot mit Vorschau und Daten rechts, Zeitleiste mit Ebenenschaltern unten. Seitenleisten und Zeitleiste ein- und ausklappbar; oben Kopfzeile und Werkzeugleiste wie Entwurf A. Entwürfe: https://claude.ai/artifact/9UDTh7hdqccSMz62NLZztN Abgelöst, wo sie sich unterscheiden, durch die Designrunde vom 14.11.2026: [DESIGN.md](DESIGN.md) D-01 bis D-10. |

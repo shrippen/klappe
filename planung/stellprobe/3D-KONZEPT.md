@@ -14,7 +14,8 @@ Rudimentäres visuelles Blocking in 3D, ohne zweites Programm im Programm:
 - Fertige Objekte aus der Bibliothek und freie Formen.
 - Eigener Renderer, keine Abhängigkeit, MIT (Qt Quick 3D ist GPLv3, `KONZEPT.md`).
 
-Nicht Ziel: Previsualisierung mit Licht, Schatten, Texturen, Animation von Gliedmaßen,
+Nicht Ziel (hier festgelegt; das Lastenheft, Abschnitt 8, schließt die vollständige
+3D-Previsualisierung aus): Previsualisierung mit Licht, Schatten, Texturen, Animation von Gliedmaßen,
 Import von 3D-Modellen (Lastenheft, Abschnitt 8).
 
 ## 2. Grundidee: jedes Element ist Grundriss plus Höhe
@@ -134,7 +135,7 @@ Dazu zwei Umkehrungen, die die Werkzeuge brauchen:
   Tiefenpuffer ohne Sortierung auskommt; dazu Kantenrolle „fehlt“ (orange, gestrichelt
   wirkt durch das Muster).
 - **Schnitt:** Wände in der Orbit-Ansicht auf 1,20 m gekappt (Schnittebene beim Schneiden
-  der Dreiecke), nur Ansicht, nicht Modell. Ein Druck auf C schaltet ihn.
+  der Dreiecke), nur Ansicht, nicht Modell. Taste K schaltet ihn (C ist die Kamera).
 - **Auswahl:** eigene Kantenrolle (Kante „hl“), Fläche unverändert.
 
 ### 5.2 Leistung
@@ -164,26 +165,34 @@ Frame. Kein Bild-Provider (URL-Neuladen, Cache), kein Canvas (zu langsam für Pi
 Der Export braucht Vektoren. Dieselbe Szene liefert Flächen, nach Tiefe sortiert
 (heutiges Verfahren aus `sight.rs`, verbessert: Flächen statt Körper sortieren, Wände an
 Öffnungen geteilt). Kleine Fehler bei sich durchdringenden Körpern sind auf Papier
-hinnehmbar. PNG-Export nimmt direkt den Rasterer.
+hinnehmbar. Der PNG-Export holt den Frame über `stellprobe/` (das `raster/` benutzt) und
+färbt ihn mit der Kante-Palette; `export/` hängt damit nicht von `raster/` ab. Der Rasterer
+in `export/` (`raster.rs`, glatte 2D-Flächen für Plan-PNG) bleibt; er füllt Pfade, der neue
+füllt Dreiecke mit Tiefe, die beiden teilen keinen Code.
 
 ## 6. Bedienung
 
 | Was | Plan | 3D (Orbit) |
 |---|---|---|
-| Ansicht wechseln | Tab | Tab |
+| Ansicht wechseln | Tab, solange die Zeichenfläche den Fokus hat (sonst wechselt Tab wie üblich den Fokus) | gleich |
 | Werkzeuge (Wand, Raum, Tür, Fenster, Objekt, Figur, Kamera, Licht) | Klick auf Plan-Punkt | Klick, Strahl auf den Boden → derselbe Plan-Punkt |
 | Auswählen, Verschieben | wie heute | Klick trifft `source[pixel]`, Ziehen auf dem Boden |
-| Höhe ziehen (P) | Maus nach oben, Wert am Mauszeiger | am Objekt nach oben ziehen |
+| Höhe ziehen (H) | Maus nach oben, Wert am Mauszeiger | am Objekt nach oben ziehen |
 | Maßfeld | Länge beim Zeichnen, `5;4` für einen Raum, Zahl = Höhe der Auswahl | gleich |
-| Höhen ergänzen (H) | springt zur nächsten freien Form ohne Höhe, Wert tippen, Enter | gleich, Ansicht folgt dem Objekt |
+| Höhen ergänzen (Umschalt+H) | springt zur nächsten freien Form ohne Höhe, Wert tippen, Enter | gleich, Ansicht folgt dem Objekt |
 | Navigation | rechte Taste schieben, Rad zoomen | rechte Taste oder Alt + linke drehen, mittlere / Umschalt+rechte schieben, Rad zoomt zum Mauszeiger |
 | Durch Kamera sehen | – | Shot-Kamera als `Eye::Shot` |
 
 - Im Plan zeigt jedes Objekt seine Höhe als kleine Zahl; eine fehlende als „Höhe ?“ in der
-  Warnrolle. Die Kopfleiste zeigt „n ohne Höhe · ergänzen (H)“.
+  Warnrolle. Die Kopfleiste zeigt „n ohne Höhe · ergänzen (Umschalt+H)“.
 - Die Werkzeuge in `app/tools.rs` bekommen weiter Plan-Meter. Neu ist nur, woher: im Plan
   rechnet QML die Pixel um wie heute, in 3D fragt die Brücke `floor_at` über `services/`.
-- Raum-Werkzeug (Rechteck → vier Wände) und freie Form sind neue Werkzeuge im Modus Bauen.
+- Raum-Werkzeug (Rechteck → vier Wände, Taste Q) und freie Form (Taste U) sind neue
+  Werkzeuge im Modus Bauen. Belegt sind heute V W T X O F C L M D N I A B E P (Werkzeuge),
+  1–4 (Modi), S, G, R, Umschalt+R (Shot, Ausrichten, Drehen); frei bleiben J, Y, Z.
+- Freie Form und Fläche (Modus Zeichnen, P) unterscheiden sich: die Fläche ist eine
+  Zeichnung ohne Höhe und erscheint nicht in 3D; die freie Form ist ein Objekt der Ebene Set
+  mit Höhe. Die Fläche bleibt, wie sie ist.
 
 ## 7. Bausteine und Schichten
 
