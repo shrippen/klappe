@@ -523,6 +523,23 @@ TestCase {
         compare(button.text, "Löschen")
     }
 
+    // A lamp or character id can equal the kind of an own object; only the object tool edits.
+    function test_another_tool_with_the_id_of_an_own_kind_changes_nothing() {
+        const bar = make()
+        const choices = JSON.parse(fake.choicesJson)
+        choices.light.push("thron")
+        fake.choicesJson = JSON.stringify(choices)
+        bar.tool = "light"
+        const box = findChild(bar, "lightBox")
+        box.currentIndex = box.model.findIndex(o => o.value === "thron")
+        box.activated(box.currentIndex)
+
+        compare(bar.choice, "thron")
+        for (const n of ["ownName", "ownGroup", "libraryRename", "libraryDelete"]) {
+            verify(!findChild(bar, n).visible, n)
+        }
+    }
+
     function test_another_pick_cancels_the_question() {
         const bar = make()
         bar.tool = "object"

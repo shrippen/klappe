@@ -55,6 +55,9 @@ RowLayout {
     }
     /// The own entry the list has picked: its kind ("" for none or a built-in one), and its data.
     readonly property string pickedOwnKind: {
+        if (tool !== "object") {
+            return ""
+        }
         const entry = (_choices.object || []).find(o => o.kind === choice)
         return entry && entry.custom ? entry.kind : ""
     }
