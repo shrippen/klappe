@@ -34,7 +34,7 @@ TestCase {
         property string choicesJson: JSON.stringify({
             figure: [{ id: "elisabeth", name: "Elisabeth" }],
             object: [{ kind: "table", label: "", width_m: 1.6, depth_m: 0.9, shape: "rect", custom: false }],
-            light: ["fresnel"],
+            light: ["fresnel-650"],
             color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
             dash: ["solid", "dashed", "dotted"],
             fill: ["outline", "filled"],

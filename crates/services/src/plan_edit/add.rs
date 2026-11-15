@@ -3,7 +3,7 @@
 
 use klappe_model::{
     Arrival, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureColor, FigureTrack,
-    Fill, Light, LightKind, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject, Wall,
+    Fill, Light, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject, Wall,
 };
 
 use super::marks::WALK_SPEED_M_S;
@@ -11,6 +11,7 @@ use super::{normalize_deg, Scope};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::library;
+use crate::light_edit;
 
 const DEFAULT_CAMERA_HEIGHT_M: f64 = 1.6;
 
@@ -27,34 +28,6 @@ const MIN_AREA_POINTS: usize = 3;
 /// Side of an object whose kind no library knows.
 const DEFAULT_OBJECT_M: f64 = 1.0;
 const DEFAULT_WALL_M: f64 = 0.2;
-
-const TUNGSTEN_K: f64 = 3200.0;
-const DAYLIGHT_K: f64 = 5600.0;
-
-/// Beam, colour and power a new lamp starts with; the user changes them afterwards.
-struct LightDefaults {
-    beam_deg: f64,
-    color_temp_k: f64,
-    power_w: f64,
-}
-
-fn light_defaults(kind: LightKind) -> LightDefaults {
-    let (beam_deg, color_temp_k, power_w) = match kind {
-        LightKind::Fresnel => (30.0, TUNGSTEN_K, 650.0),
-        LightKind::LedPanel => (90.0, DAYLIGHT_K, 200.0),
-        LightKind::Tube => (120.0, DAYLIGHT_K, 55.0),
-        LightKind::Balloon => (120.0, TUNGSTEN_K, 1200.0),
-        // Bounce and flag make no light of their own.
-        LightKind::Reflector => (40.0, DAYLIGHT_K, 0.0),
-        LightKind::Flag => (20.0, DAYLIGHT_K, 0.0),
-    };
-
-    LightDefaults {
-        beam_deg,
-        color_temp_k,
-        power_w,
-    }
-}
 
 pub(super) fn add_mark(
     scope: &mut Scope<'_>,
@@ -199,21 +172,21 @@ pub(super) fn add_camera_mark(
 
 pub(super) fn add_light(
     scope: &mut Scope<'_>,
-    kind: LightKind,
+    preset: &str,
     at: Point,
 ) -> Result<(), ServiceError> {
+    let preset = light_edit::preset(preset)?;
     let id = free_id("l", scope.plan.lights.iter().map(|l| l.id.as_str()));
-    let defaults = light_defaults(kind);
 
     scope.plan.lights.push(Light {
         label: id.to_uppercase(),
         id,
-        kind,
+        kind: preset.kind,
         at,
         facing_deg: 0.0,
-        beam_deg: defaults.beam_deg,
-        color_temp_k: defaults.color_temp_k,
-        power_w: defaults.power_w,
+        beam_deg: preset.beam_deg,
+        color_temp_k: preset.color_temp_k,
+        power_w: preset.power_w,
     });
 
     Ok(())
@@ -364,7 +337,7 @@ pub(super) fn add_drawing(
 mod tests {
     use std::path::Path;
 
-    use klappe_model::{LightKind, Point, Project, Sensor};
+    use klappe_model::{Point, Project, Sensor};
 
     use super::super::tests::empty;
     use super::super::{apply, Grid, PlanEdit, Snapping};
@@ -416,8 +389,8 @@ mod tests {
             .collect();
         assert_eq!(labels, ["A", "B", "C"]);
 
-        let light = |kind| PlanEdit::AddLight {
-            kind,
+        let light = |preset: &str| PlanEdit::AddLight {
+            preset: preset.into(),
             at: Point::new(0.0, 0.0),
         };
         for _ in 0..2 {
@@ -428,7 +401,7 @@ mod tests {
                 0,
                 0.0,
                 (Snapping::On, Grid::default()),
-                &light(LightKind::Flag),
+                &light("flag"),
             )
             .unwrap();
         }
@@ -440,7 +413,7 @@ mod tests {
             0,
             0.0,
             (Snapping::On, Grid::default()),
-            &light(LightKind::Flag),
+            &light("flag"),
         )
         .unwrap();
 

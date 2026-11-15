@@ -16,6 +16,7 @@ mod error;
 mod example;
 mod field;
 mod library;
+mod light_edit;
 mod number;
 mod plan_edit;
 mod project_edit;
@@ -29,6 +30,7 @@ pub use edit::ShotField;
 pub use error::ServiceError;
 pub use example::{copy_example, ensure_example};
 pub use field::Field;
+pub use light_edit::LightChange;
 pub use number::{read_number, Range, Unit};
 pub use plan_edit::{Grid, MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{ProjectEdit, ShotsGo};
@@ -45,7 +47,8 @@ pub use views::{
 pub use klappe_export::{Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme};
 pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Dash, Departure, DrawingShape, FigureColor, Fill,
-    FloorPlan, LensSet, LightKind, Movement, ObjectShape, Point, Pose, Rig, Sensor, ShotSize,
+    FloorPlan, LensSet, LightKind, LightPreset, Movement, ObjectShape, Point, Pose, Rig, Sensor,
+    ShotSize,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, Area, DisplayList, Hue, Item, Role, Shape, ShotOrder, Source,
