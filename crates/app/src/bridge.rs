@@ -667,25 +667,30 @@ fn q(s: &str) -> QString {
 const AUTOSAVE_S: i32 = 30;
 const MS_PER_S: i32 = 1000;
 
+/// The project named on the command line, at its shot and time; a failure goes to `notice`.
+fn open_at_start(args: &AppArgs, language: Language, notice: &mut Status) -> Option<Session> {
+    let dir = args.open.as_ref()?;
+    match Session::open(dir) {
+        Ok(mut s) => {
+            if let Some(shot) = &args.shot {
+                let _ = s.select_shot(shot);
+            }
+            s.set_time(args.time_s.max(s.time_s()));
+            Some(s)
+        }
+        Err(e) => {
+            notice.say(error_text(language, &e));
+            None
+        }
+    }
+}
+
 impl Default for ControllerRust {
     fn default() -> Self {
         let args = AppArgs::from_env();
         let language = Language::pick(args.language.as_deref());
         let mut notice = Status::default();
-
-        let session = args.open.as_ref().and_then(|dir| match Session::open(dir) {
-            Ok(mut s) => {
-                if let Some(shot) = &args.shot {
-                    let _ = s.select_shot(shot);
-                }
-                s.set_time(args.time_s.max(s.time_s()));
-                Some(s)
-            }
-            Err(e) => {
-                notice.say(error_text(language, &e));
-                None
-            }
-        });
+        let session = open_at_start(&args, language, &mut notice);
 
         let mut this = Self {
             session,
