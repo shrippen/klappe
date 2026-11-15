@@ -1,5 +1,5 @@
-use klappe_model::{Camera, Movement, Shot};
-use klappe_stellprobe::{axis_jumps, movement_in, ordered_shots, shot_lens, ShotOrder};
+use klappe_model::{AxisPair, Camera, FloorPlan, Movement, Shot};
+use klappe_stellprobe::{axis_jumps, movement_in, ordered_shots, shot_lens, AxisJump, ShotOrder};
 
 use super::{Layer, Lock, Session};
 use crate::edit::{self, ShotField};
@@ -7,6 +7,20 @@ use crate::error::ServiceError;
 use crate::field::Field;
 use crate::shot_edit;
 use crate::views::{ShotRow, FALLBACK_ASPECT};
+
+const AGAINST_SEPARATOR: &str = ", ";
+
+/// The numbers of the shots `jump` is against, as "12.1, 12.2".
+fn against_numbers(plan: &FloorPlan, jump: &AxisJump) -> String {
+    let numbers: Vec<&str> = jump
+        .against
+        .iter()
+        .filter_map(|id| plan.shots.iter().find(|s| s.id == *id))
+        .map(|s| s.number.as_str())
+        .collect();
+
+    numbers.join(AGAINST_SEPARATOR)
+}
 
 impl Session {
     pub fn selected_shot(&self) -> Option<&str> {
@@ -41,6 +55,7 @@ impl Session {
             .into_iter()
             .map(|(setup, shot)| {
                 let camera = plan.camera(&shot.camera);
+                let jump = jumps.iter().find(|j| j.shot == shot.id);
                 let lens = camera.map(|c| shot_lens(c, shot));
                 ShotRow {
                     id: shot.id.clone(),
@@ -66,7 +81,8 @@ impl Session {
                     gear: shot.gear.clone(),
                     crew: shot.crew.clone(),
                     note: shot.note.clone(),
-                    axis_jump: jumps.contains(&shot.id),
+                    axis_jump: jump.is_some(),
+                    axis_against: jump.map(|j| against_numbers(plan, j)).unwrap_or_default(),
                     setup,
                 }
             })
@@ -147,6 +163,41 @@ impl Session {
         if self.selected_shot.as_deref() == Some(id) {
             self.selected_shot = neighbour;
         }
+        Ok(())
+    }
+
+    /// Sets the characters the 180° axis of the plan runs between (LH-40), or takes the
+    /// choice away with `None`; undoable. Both need a track in the plan, and they differ.
+    /// Refused while the figure layer is locked, which holds the axis.
+    pub fn set_axis(&mut self, pair: Option<(&str, &str)>) -> Result<(), ServiceError> {
+        if self.lock(Layer::Figures) == Lock::Locked {
+            return Err(ServiceError::Locked(Layer::Figures));
+        }
+
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+        plan.axis = match pair {
+            None => None,
+            Some((a, b)) => {
+                let known = |id: &str| plan.figure(id).is_some();
+                if a == b || !known(a) || !known(b) {
+                    return Err(ServiceError::BadValue {
+                        field: Field::Character,
+                        value: format!("{a}, {b}"),
+                    });
+                }
+
+                Some(AxisPair {
+                    a: a.to_owned(),
+                    b: b.to_owned(),
+                })
+            }
+        };
+        if next == self.project {
+            return Ok(());
+        }
+
+        self.commit(next);
         Ok(())
     }
 

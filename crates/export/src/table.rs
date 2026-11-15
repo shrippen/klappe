@@ -12,10 +12,10 @@
 //!
 //! Short columns (number, camera, lens, size, angle, movement, times) take what their words need;
 //! the free text columns share the rest and wrap. Sheets are always landscape, whatever the
-//! plan page: fourteen columns need the width.
+//! plan page: fifteen columns need the width.
 
 use klappe_model::FloorPlan;
-use klappe_stellprobe::{ordered_shots, ShotOrder};
+use klappe_stellprobe::{axis_jumps, ordered_shots, ShotOrder};
 
 use crate::canvas::{Anchor, Dash, Geom, Prim, Sheet, Stroke, Weight};
 use crate::error::ExportError;
@@ -71,9 +71,10 @@ pub(crate) fn sheets(
 
     let texts = &page.texts.shots;
     let ordered = ordered_shots(plan, order);
+    let jumps = axis_jumps(plan);
     let rows: Vec<[String; COLUMNS]> = ordered
         .iter()
-        .map(|(_, s)| cells(s, plan, texts, page.texts.decimal_separator))
+        .map(|(_, s)| cells(s, plan, &jumps, texts, page.texts.decimal_separator))
         .collect();
     let head = heads(&texts.columns).map(str::to_owned);
     let widths = column_widths(&head, &rows, content_w);

@@ -6,18 +6,19 @@
 //! ```
 
 use klappe_model::{Angle, FloorPlan, Movement, Shot, ShotSize};
-use klappe_stellprobe::{ordered_shots, shot_lens, ShotLens, ShotOrder};
+use klappe_stellprobe::{axis_jumps, ordered_shots, shot_lens, AxisJump, ShotLens, ShotOrder};
 
 use crate::canvas::num;
 use crate::page::{ShotColumns, ShotTexts};
 
-pub(crate) const COLUMNS: usize = 14;
+pub(crate) const COLUMNS: usize = 15;
 
 const SEPARATOR: char = ',';
 const QUOTE: char = '"';
 const LINE_END: &str = "\r\n";
 const POINT: char = '.';
 const SPAN: char = '\u{2013}';
+const AXIS_SEPARATOR: &str = ", ";
 
 /// Column heads, in table order.
 pub(crate) fn heads(columns: &ShotColumns) -> [&str; COLUMNS] {
@@ -36,13 +37,16 @@ pub(crate) fn heads(columns: &ShotColumns) -> [&str; COLUMNS] {
         &columns.gear,
         &columns.crew,
         &columns.note,
+        &columns.axis,
     ]
 }
 
-/// One shot's cells; numbers use `decimal` between whole and fraction.
+/// One shot's cells; numbers use `decimal` between whole and fraction. `jumps` are the axis
+/// jumps of `plan`, found once for the whole table.
 pub(crate) fn cells(
     shot: &Shot,
     plan: &FloorPlan,
+    jumps: &[AxisJump],
     texts: &ShotTexts,
     decimal: char,
 ) -> [String; COLUMNS] {
@@ -65,7 +69,24 @@ pub(crate) fn cells(
         shot.gear.clone(),
         shot.crew.clone(),
         shot.note.clone(),
+        axis_text(shot, plan, jumps),
     ]
+}
+
+/// The numbers of the shots this shot crosses the axis against, empty when it does not.
+fn axis_text(shot: &Shot, plan: &FloorPlan, jumps: &[AxisJump]) -> String {
+    let Some(jump) = jumps.iter().find(|j| j.shot == shot.id) else {
+        return String::new();
+    };
+    let number_of = |id: &String| {
+        plan.shots
+            .iter()
+            .find(|s| s.id == *id)
+            .map_or_else(|| id.clone(), |s| s.number.clone())
+    };
+    let numbers: Vec<String> = jump.against.iter().map(number_of).collect();
+
+    numbers.join(AXIS_SEPARATOR)
 }
 
 /// The lens column: one value, or "35–85" for a zoom. A camera that is gone leaves the shot's
@@ -140,9 +161,10 @@ pub(crate) fn table(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Ta
         });
     }
 
+    let jumps = axis_jumps(plan);
     let mut rows = Vec::new();
     for (setup, shot) in ordered_shots(plan, order) {
-        let mut cells = cells(shot, plan, texts, POINT).to_vec();
+        let mut cells = cells(shot, plan, &jumps, texts, POINT).to_vec();
         if with_setup {
             cells.insert(0, setup.to_string());
         }

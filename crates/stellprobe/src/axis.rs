@@ -1,4 +1,4 @@
-use klappe_model::{FloorPlan, Point};
+use klappe_model::{FigureTrack, FloorPlan, Point, Shot};
 
 use crate::motion::{camera_at, figure_at};
 
@@ -41,12 +41,24 @@ impl Axis {
     }
 }
 
+/// The tracks the axis runs between: the plan's pair, else its first two figures.
+fn axis_figures(plan: &FloorPlan) -> Option<(&FigureTrack, &FigureTrack)> {
+    match &plan.axis {
+        Some(pair) => Some((plan.figure(&pair.a)?, plan.figure(&pair.b)?)),
+        None => Some((plan.figures.first()?, plan.figures.get(1)?)),
+    }
+}
+
+/// The characters the axis runs between: the plan's pair, else its first two figures.
+pub fn axis_pair(plan: &FloorPlan) -> Option<(&str, &str)> {
+    let (a, b) = axis_figures(plan)?;
+
+    Some((&a.character, &b.character))
+}
+
 /// The axis at `t_s`: between the plan's axis pair, else its first two figures.
 pub fn axis_at(plan: &FloorPlan, t_s: f64) -> Option<Axis> {
-    let (a, b) = match &plan.axis {
-        Some(pair) => (plan.figure(&pair.a)?, plan.figure(&pair.b)?),
-        None => (plan.figures.first()?, plan.figures.get(1)?),
-    };
+    let (a, b) = axis_figures(plan)?;
 
     Some(Axis {
         a: figure_at(a, t_s)?.at,
@@ -54,48 +66,71 @@ pub fn axis_at(plan: &FloorPlan, t_s: f64) -> Option<Axis> {
     })
 }
 
-/// Shots whose camera stands on the other side of the axis than in the shot before, in cut
-/// order (LH-41). A camera on the line breaks no rule and keeps the side of the shot before.
+/// A shot whose camera stands on the other side of the axis than the cameras of `against`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AxisJump {
+    pub shot: String,
+    /// Ids of the other shots of the plan on the other side, in cut order.
+    pub against: Vec<String>,
+}
+
+/// Shots whose camera stands on the other side of the axis than that of at least one other
+/// shot of the plan (LH-41), in cut order. Each shot's side is taken at its own start. A
+/// camera on the line has no side: it breaks no rule and is no reference.
 ///
-/// Example: 12.1 and 12.2 from the left, 12.3 from the right: 12.3 jumps.
-pub fn axis_jumps(plan: &FloorPlan) -> Vec<String> {
-    let mut jumps = Vec::new();
-    let mut last: Option<Side> = None;
+/// Example: 12.1 and 12.2 from the left, 12.3 from the right: 12.1 and 12.2 jump against
+/// 12.3, and 12.3 against 12.1 and 12.2.
+pub fn axis_jumps(plan: &FloorPlan) -> Vec<AxisJump> {
+    let sides: Vec<(&str, Side)> = plan
+        .shots
+        .iter()
+        .filter_map(|shot| Some((shot.id.as_str(), shot_side(plan, shot)?)))
+        .collect();
 
-    for shot in &plan.shots {
-        let Some(camera) = plan.camera(&shot.camera) else {
-            continue;
-        };
-        let Some(place) = camera_at(camera, shot.from_s) else {
-            continue;
-        };
-        let Some(axis) = axis_at(plan, shot.from_s) else {
-            continue;
-        };
+    sides
+        .iter()
+        .filter_map(|(id, side)| {
+            let against: Vec<String> = sides
+                .iter()
+                .filter(|(_, other)| other != side)
+                .map(|(other_id, _)| (*other_id).to_owned())
+                .collect();
+            if against.is_empty() {
+                return None;
+            }
 
-        let side = axis.side(place.at);
-        if side == Side::On {
-            continue;
-        }
-        if last.is_some_and(|l| l != side) {
-            jumps.push(shot.id.clone());
-        }
-        last = Some(side);
-    }
+            Some(AxisJump {
+                shot: (*id).to_owned(),
+                against,
+            })
+        })
+        .collect()
+}
 
-    jumps
+/// Which side of the axis the shot's camera stands on at the shot's start; `None` on the
+/// line or without camera or axis.
+fn shot_side(plan: &FloorPlan, shot: &Shot) -> Option<Side> {
+    let camera = plan.camera(&shot.camera)?;
+    let place = camera_at(camera, shot.from_s)?;
+    let side = axis_at(plan, shot.from_s)?.side(place.at);
+
+    (side != Side::On).then_some(side)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use klappe_model::{
-        Arrival, Camera, CameraMark, Departure, FigureTrack, Mark, Movement, Pose, Sensor, Shot,
-        ShotSize,
+        Arrival, AxisPair, Camera, CameraMark, Departure, FigureTrack, Mark, Movement, Pose,
+        Sensor, Shot, ShotSize,
     };
 
     fn figure(id: &str, x: f64) -> FigureTrack {
-        let at = Point::new(x, 5.0);
+        figure_at(id, x, 5.0)
+    }
+
+    fn figure_at(id: &str, x: f64, y: f64) -> FigureTrack {
+        let at = Point::new(x, y);
         FigureTrack {
             character: id.into(),
             marks: vec![Mark {
@@ -174,23 +209,67 @@ mod tests {
         assert_eq!(axis.side(Point::new(5.0, 0.0)), Side::On);
     }
 
+    fn jump(shot: &str, against: &[&str]) -> AxisJump {
+        AxisJump {
+            shot: shot.into(),
+            against: against.iter().map(|s| (*s).to_owned()).collect(),
+        }
+    }
+
     #[test]
     fn same_side_no_jump() {
         assert!(axis_jumps(&plan(&[("1", "a"), ("2", "b")])).is_empty());
     }
 
     #[test]
-    fn crossing_is_a_jump() {
+    fn crossing_flags_both_sides() {
         let jumps = axis_jumps(&plan(&[("1", "a"), ("2", "b"), ("3", "c")]));
 
-        assert_eq!(jumps, vec!["3".to_string()]);
+        assert_eq!(
+            jumps,
+            vec![jump("1", &["3"]), jump("2", &["3"]), jump("3", &["1", "2"])]
+        );
+    }
+
+    #[test]
+    fn a_shot_far_away_in_the_list_counts() {
+        let jumps = axis_jumps(&plan(&[("1", "a"), ("2", "b"), ("3", "b"), ("4", "c")]));
+
+        assert_eq!(jumps[0], jump("1", &["4"]));
     }
 
     #[test]
     fn crossing_back_is_a_jump_too() {
         let jumps = axis_jumps(&plan(&[("1", "a"), ("2", "c"), ("3", "b")]));
 
-        assert_eq!(jumps, vec!["2".to_string(), "3".to_string()]);
+        assert_eq!(
+            jumps,
+            vec![jump("1", &["2"]), jump("2", &["1", "3"]), jump("3", &["2"])]
+        );
+    }
+
+    #[test]
+    fn on_the_line_is_no_reference() {
+        let mut p = plan(&[("1", "a"), ("2", "line"), ("3", "b")]);
+        p.cameras.push(camera("line", 5.0));
+
+        assert!(axis_jumps(&p).is_empty());
+    }
+
+    #[test]
+    fn the_chosen_pair_sets_the_axis() {
+        let mut p = plan(&[("1", "a"), ("2", "c")]);
+        p.figures.push(figure_at("w", 8.0, 10.0));
+        assert_eq!(axis_jumps(&p).len(), 2);
+
+        // Vertical line x = 8: all cameras (x = 5) stand on its left.
+        p.axis = Some(AxisPair {
+            a: "v".into(),
+            b: "w".into(),
+        });
+
+        assert_eq!(axis_pair(&p), Some(("v", "w")));
+        assert!(axis_jumps(&p).is_empty());
     }
 
     #[test]

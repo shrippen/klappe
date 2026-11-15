@@ -141,6 +141,12 @@ pub mod qobject {
         #[cxx_name = "setFollow"]
         fn set_follow(self: Pin<&mut Self>, camera: &QString, figure: &QString) -> bool;
 
+        /// Sets the characters (ids) the 180° axis runs between, or lets the plan take the
+        /// first two figures with an empty `a`; false if refused.
+        #[qinvokable]
+        #[cxx_name = "setAxis"]
+        fn set_axis(self: Pin<&mut Self>, a: &QString, b: &QString) -> bool;
+
         #[qinvokable]
         fn undo(self: Pin<&mut Self>);
 
