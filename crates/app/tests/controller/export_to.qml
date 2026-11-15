@@ -65,6 +65,14 @@ Item {
                 return root.fail("frames into a folder that is not empty reported success")
             }
 
+            // A plan without marks has no frames: nothing is written, and it says so.
+            if (!ctl.addPlan("Leer")) {
+                return root.fail("no empty plan: " + ctl.status)
+            }
+            if (ctl.exportTo("frames", "cut", "a4", base + "/leer")) {
+                return root.fail("frames of a plan without marks reported success")
+            }
+
             if (ctl.exportTo("zip", "cut", "a4", base + "/x.zip")) {
                 return root.fail("an unknown kind reported success")
             }

@@ -47,6 +47,10 @@ fn controller_scenarios_hold() {
     let mut app = QGuiApplication::new();
     let mut failed = Vec::new();
 
+    // `tests/controller/export_to.qml` writes here; a run that stopped early may have left it.
+    let base = std::env::temp_dir().join("klappe-export-test");
+    let _ = std::fs::remove_dir_all(&base);
+
     for file in scenarios() {
         let mut engine = QQmlApplicationEngine::new();
         let url = QUrl::from_local_file(&QString::from(file.to_string_lossy().as_ref()));
@@ -74,12 +78,10 @@ fn controller_scenarios_hold() {
         }
     }
 
-    // `tests/controller/export_to.qml` writes here.
-    let base = std::env::temp_dir().join("klappe-export-test");
     if failed.is_empty() {
         check_list_exports(&base);
     }
-    let _ = std::fs::remove_dir_all(std::env::temp_dir().join("klappe-export-test"));
+    let _ = std::fs::remove_dir_all(&base);
 
     assert!(failed.is_empty(), "scenarios failed: {failed:?}");
 }
