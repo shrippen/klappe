@@ -472,6 +472,21 @@ TestCase {
         compare(next.shotFolded, true)
     }
 
+    function test_play_and_zoom_reach_the_timeline_and_the_plan() {
+        const work = make(1600)
+        const line = part(work, "timeline")
+        const canvas = part(work, "planCanvas")
+        const before = canvas.zoom
+
+        work.togglePlay()
+        verify(line.playing)
+        work.togglePlay()
+        verify(!line.playing)
+
+        work.zoomPlan("in")
+        verify(canvas.zoom > before)
+    }
+
     function test_a_script_chip_reaches_the_controller() {
         const work = make(1600)
 
