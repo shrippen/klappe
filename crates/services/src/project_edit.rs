@@ -440,7 +440,15 @@ fn same_entry(a: &LibraryItem, b: &LibraryItem) -> bool {
         false => item.label.clone(),
     };
 
-    let content = |item: &LibraryItem| (item.width_m, item.depth_m, item.shape, item.height_m);
+    let content = |item: &LibraryItem| {
+        (
+            item.width_m,
+            item.depth_m,
+            item.shape,
+            item.height_m,
+            item.group.clone(),
+        )
+    };
 
     named(a) == named(b) && content(a) == content(b)
 }
@@ -635,6 +643,26 @@ mod tests {
         assert_eq!(scene_base("12A"), "szene-012a");
         assert_eq!(scene_base("A"), "szene-a");
         assert_eq!(scene_base("1234"), "szene-1234");
+    }
+
+    #[test]
+    fn a_new_group_is_a_changed_entry() {
+        let item = LibraryItem {
+            kind: "thron".into(),
+            label: "Thron".into(),
+            group: String::new(),
+            width_m: 0.9,
+            depth_m: 0.8,
+            shape: klappe_model::ObjectShape::Rect,
+            height_m: None,
+        };
+        let regrouped = LibraryItem {
+            group: "Hof".into(),
+            ..item.clone()
+        };
+
+        assert!(same_entry(&item, &item.clone()));
+        assert!(!same_entry(&item, &regrouped));
     }
 
     #[test]
