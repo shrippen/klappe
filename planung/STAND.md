@@ -13,6 +13,7 @@ Stand: 2026-11-14.
 | Export SVG und PDF aus der Darstellungsliste | fertig (#4) |
 | Floorplan als PNG (eigener Rasterer, Liberation Sans) und SVG (LH-81): App-Knöpfe und `klappe-cli export` | fertig |
 | Ausgabe in der App (LH-80, LH-81): Menü „Ausgeben“ fragt bei PDF, PNG und SVG nach dem Papierformat (A4, A3) und bei allen vier nach Datei und Ort (Qt-Dateidialog, Vorschlag: Planname im Ordner der letzten Ausgabe); Format und Ordner gelten für die Sitzung; Abbruch schreibt nichts; Strg+P gibt PDF aus | erste Fassung; offen: Hoch- und Querformat wählen (immer quer), Letter, Papierformat im Projekt merken |
+| Shotliste als ODS und XLSX (LH-85, eigener ZIP-Schreiber, keine Abhängigkeit) und Plan je Mark als PNG-Ordner (LH-83): `Session::export_ods/xlsx/frames`, `klappe-cli export --format ods\|xlsx\|frames` | Kern und CLI fertig; offen: Menüeinträge in der App |
 | Sitzung (`services`): Szene, Zeit, Shot bearbeiten, Rückgängig, Ansichten | fertig (#5) |
 | TUI-Editor (`klappe-tui`), schreibt nur das Drehbuch | fertig (#6, #8) |
 | TUI nach D-10: Kante-Farben (aktive Szene gelber Balken, Szenenkopf ohne `#12#` mit Nummer rechts), Marken für Shots und Marks rechts an der Zeile, Texte aus dem Katalog (`tui.*`, `--language`), dichte Ansicht (Strg+B Szenenliste, unter 100 Spalten aus; Strg+P Szenenwechsel mit Suche; Kopfzeile mit Shots und Figuren, Statuszeile mit Modus, Szene x/y, Zeile:Spalte) | erste Fassung; offen: Marken zeigen den gespeicherten Stand (nach Strg+S neu gelesen), Marken nur, wenn die Zeile sie neben dem Text unterbringt |
