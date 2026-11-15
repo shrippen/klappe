@@ -429,6 +429,7 @@ fn shown_view(s: &Session) -> String {
 mod tests {
     use super::*;
     use crate::bridge::tests::example;
+    use crate::catalog::Language;
 
     /// The object tool lists the library: sizes in metres, built in first.
     #[test]
@@ -517,7 +518,10 @@ mod tests {
     /// A measurement shows length and direction; one point alone shows nothing to read.
     #[test]
     fn the_measurement_caption_has_length_and_angle() {
-        let mut c = ControllerRust::default();
+        let mut c = ControllerRust {
+            language: Language::German,
+            ..ControllerRust::default()
+        };
         let (a, b) = (Point::new(0.0, 0.0), Point::new(3.0, 3.0));
 
         c.measure = MeasureStep::Start(a);
