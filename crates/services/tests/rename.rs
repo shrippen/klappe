@@ -183,7 +183,9 @@ fn a_case_only_rename_leaves_the_text_and_the_undo_steps() {
     let mut s = open("manage-case-only");
     let before = s.script_text().to_owned();
 
-    assert!(s.character_script_changes("elisabeth", "ELISABETH").is_empty());
+    assert!(s
+        .character_script_changes("elisabeth", "ELISABETH")
+        .is_empty());
     s.edit_project(rename_character("ELISABETH")).unwrap();
     assert_eq!(s.script_text(), before);
 

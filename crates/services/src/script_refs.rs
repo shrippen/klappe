@@ -256,7 +256,10 @@ fn replace_heading(raw: &str, old: &str, heading: &str) -> Option<String> {
         return replace_once(raw, old, heading);
     }
 
-    Some(format!("{heading} {}", raw.trim_start_matches(FORCE_HEADING)))
+    Some(format!(
+        "{heading} {}",
+        raw.trim_start_matches(FORCE_HEADING)
+    ))
 }
 
 /// `raw` with the first `from` replaced; `None` if it is not there (a boneyard may hide it).
