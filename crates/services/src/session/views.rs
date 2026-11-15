@@ -98,10 +98,18 @@ impl Session {
             .unwrap_or_default();
         let lens_mm = self.lens_now_mm(id).unwrap_or(c.lens_mm);
         let fov_deg = horizontal_fov_deg(c.sensor, lens_mm);
-        let rig = self
-            .mark_info(&Source::Camera(id.to_owned()))
-            .filter(|info| info.has_way)
-            .and_then(|info| info.rig)
+        // On the way the rig of the mark the camera runs to, else that of the mark it is at.
+        let travelling = c
+            .marks
+            .windows(2)
+            .find(|pair| (pair[0].at_s + pair[0].hold_s..pair[1].at_s).contains(&self.time_s))
+            .map(|pair| pair[1].rig);
+        let rig = travelling
+            .or_else(|| {
+                self.mark_info(&Source::Camera(id.to_owned()))
+                    .filter(|info| info.has_way)
+                    .and_then(|info| info.rig)
+            })
             .map(|rig| rig.name().to_owned())
             .unwrap_or_default();
 
