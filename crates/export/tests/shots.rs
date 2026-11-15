@@ -391,8 +391,8 @@ fn csv_names_the_shots_the_axis_is_crossed_against() {
 
     let csv = shots_csv(&plan, &texts(), ShotOrder::Cut);
 
-    // 12.1 and 12.2 against 12.3 and the other way round; the lists hold commas, so quoted.
-    assert!(csv.lines().nth(1).unwrap().ends_with(",12.3"));
-    assert!(csv.lines().nth(2).unwrap().ends_with(",12.3"));
+    // Only the lone 12.3 is flagged, against 12.1 and 12.2; the list holds a comma, so quoted.
+    assert!(csv.lines().nth(1).unwrap().ends_with(","));
+    assert!(csv.lines().nth(2).unwrap().ends_with(","));
     assert!(csv.lines().nth(3).unwrap().ends_with(",\"12.1, 12.2\""));
 }

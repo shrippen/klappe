@@ -12,7 +12,7 @@ fn example() -> PathBuf {
 }
 
 #[test]
-fn a_jump_is_against_every_shot_on_the_other_side() {
+fn only_the_smaller_side_jumps_against_the_other() {
     let s = Session::open(&example()).unwrap();
 
     let rows: Vec<_> = s
@@ -21,18 +21,18 @@ fn a_jump_is_against_every_shot_on_the_other_side() {
         .map(|r| (r.number, r.axis_jump, r.axis_against))
         .collect();
 
-    // 12.1 is flagged too: the shot before it does not exist, 12.3 is not its neighbour.
+    // 3 shots from A, 2 from B: only B's shots are flagged.
     let expected = [
-        ("12.1", "12.3, 12.4"),
-        ("12.2", "12.3, 12.4"),
-        ("12.3", "12.1, 12.2, 12.5"),
-        ("12.4", "12.1, 12.2, 12.5"),
-        ("12.5", "12.3, 12.4"),
+        ("12.1", false, ""),
+        ("12.2", false, ""),
+        ("12.3", true, "12.1, 12.2, 12.5"),
+        ("12.4", true, "12.1, 12.2, 12.5"),
+        ("12.5", false, ""),
     ];
-    for (row, (number, against)) in rows.iter().zip(expected) {
+    for (row, (number, jump, against)) in rows.iter().zip(expected) {
         assert_eq!(
             (row.0.as_str(), row.1, row.2.as_str()),
-            (number, true, against)
+            (number, jump, against)
         );
     }
 }
@@ -63,8 +63,8 @@ fn swapping_the_pair_keeps_the_split() {
 
     s.set_axis(Some(("burgvogt", "elisabeth"))).unwrap();
 
-    // Both cameras swap sides, so the split stays: every shot still crosses another.
-    assert_eq!(sides(&s), vec![true; 5]);
+    // Both cameras swap sides, so the split and the minority stay.
+    assert_eq!(sides(&s), vec![false, false, true, true, false]);
 }
 
 #[test]
