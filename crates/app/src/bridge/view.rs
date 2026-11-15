@@ -16,8 +16,8 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Layer, LightKind, Lock,
-    Movement, Point, Pose, Rig, Session, ShotOrder, Snapping, Source, Visibility,
+    Angle, Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Layer, LightKind, Lock,
+    Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping, Source, Visibility,
 };
 use serde_json::json;
 
@@ -298,6 +298,8 @@ pub(super) fn choices_json(s: &Session) -> String {
     let arrivals: Vec<_> = Arrival::ALL.iter().map(|a| a.name()).collect();
     let departures: Vec<_> = Departure::ALL.iter().map(|d| d.name()).collect();
     let rigs: Vec<_> = Rig::ALL.iter().map(|r| r.name()).collect();
+    let sizes: Vec<_> = ShotSize::ALL.iter().map(|z| z.name()).collect();
+    let angles: Vec<_> = Angle::ALL.iter().map(|a| a.name()).collect();
     let movements: Vec<_> = Movement::ALL.iter().map(|m| m.name()).collect();
     let layers: Vec<_> = Layer::ALL.iter().map(|l| l.name()).collect();
     let grids: Vec<_> = Grid::ALL
@@ -319,6 +321,8 @@ pub(super) fn choices_json(s: &Session) -> String {
         "arrival": arrivals,
         "departure": departures,
         "rig": rigs,
+        "size": sizes,
+        "angle": angles,
         "movement": movements,
         "layer": layers,
         "grid": grids,
@@ -553,6 +557,13 @@ mod tests {
             choices["rig"],
             json!(["tripod", "dolly", "track", "crane", "handheld", "gimbal"])
         );
+        assert_eq!(choices["size"][0], "extreme-wide");
+        assert_eq!(
+            choices["size"].as_array().unwrap().len(),
+            ShotSize::ALL.len()
+        );
+        assert_eq!(choices["angle"][0], "eye-level");
+        assert_eq!(choices["angle"].as_array().unwrap().len(), Angle::ALL.len());
         assert_eq!(choices["movement"][0], "static");
         assert_eq!(
             choices["movement"].as_array().unwrap().len(),

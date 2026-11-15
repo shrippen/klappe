@@ -37,7 +37,7 @@ TestCase {
             { kind: "camera", id: "a", name: "A" },
             { kind: "camera", id: "b", name: "B" }
         ])
-        property string choicesJson: JSON.stringify({ movement: ["static", "pan", "dolly"] })
+        property string choicesJson: JSON.stringify({ size: ["extreme-wide", "wide", "medium-wide", "cowboy", "medium", "medium-close", "close-up", "extreme-close-up"], angle: ["eye-level", "high", "low", "birds-eye", "worms-eye", "dutch"], movement: ["static", "pan", "dolly"] })
         property string shotsJson: JSON.stringify(tc.rows)
         property string shotsShootingJson: JSON.stringify([tc.rows[0], tc.rows[2], tc.rows[1]])
         property bool loaded: true

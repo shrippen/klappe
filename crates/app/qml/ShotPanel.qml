@@ -96,8 +96,8 @@ Item {
         }
     }
 
-    readonly property var sizes: ["extreme-wide", "wide", "medium-wide", "cowboy", "medium", "medium-close", "close-up", "extreme-close-up"]
-    readonly property var angles: ["eye-level", "high", "low", "birds-eye", "worms-eye", "dutch"]
+    readonly property var sizes: controller.choicesJson ? (JSON.parse(controller.choicesJson).size || []) : []
+    readonly property var angles: controller.choicesJson ? (JSON.parse(controller.choicesJson).angle || []) : []
     readonly property var movements: controller.choicesJson ? (JSON.parse(controller.choicesJson).movement || []) : []
 
     // New, copy and delete a shot (LH-70). "New" takes the camera selected in the plan, else
