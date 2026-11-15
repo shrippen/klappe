@@ -10,8 +10,8 @@
 
 use klappe_model::Point;
 use klappe_stellprobe::{
-    floor_at, grab_at, level_at, lift_at, object_extent, picture, source_at, Eye, Orbit, Picture,
-    Source,
+    floor_at, grab_at, label_point, level_at, lift_at, object_extent, picture, source_at, Eye,
+    Orbit, Picture, Source,
 };
 
 use super::Session;
@@ -72,7 +72,7 @@ impl Session {
         };
 
         let (base_m, top_m) = object_extent(set, index);
-        let at = set.objects[index].at;
+        let at = label_point(&set.objects[index]);
         let target = [at.x_m, at.y_m, (base_m + top_m) / 2.0];
         if let Some(orbit) = self.orbit.as_mut() {
             orbit.aim(target);

@@ -1,6 +1,6 @@
 //! The project's library: taking objects and files in, and changing its own entries (LH-12).
 
-use klappe_model::{is_object_height_m, is_object_size_m, LibraryItem, Project};
+use klappe_model::{is_object_height_m, is_object_size_m, LibraryItem, Project, FREE_FORM_KIND};
 
 use super::{name_of, slug, unique_id, ProjectEdit};
 use crate::error::ServiceError;
@@ -75,7 +75,7 @@ fn import(project: &mut Project, items: &[LibraryItem]) -> Result<(), ServiceErr
             continue;
         }
 
-        if known.is_some() {
+        if known.is_some() || item.kind == FREE_FORM_KIND {
             item.kind = free_kind(project, &slug(&item.kind, LIBRARY_KIND_FALLBACK));
         }
         project.library.push(item);
@@ -126,11 +126,13 @@ fn check_item(item: &LibraryItem) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// `base`, or `base-2` … until no entry of the library, built in or own, has the kind.
+/// `base`, or `base-2` … until no entry of the library, built in or own, has the kind; the
+/// free forms' kind is never free.
 fn free_kind(project: &Project, base: &str) -> String {
     let taken = library::entries(&project.library);
+    let kinds = taken.iter().map(|e| e.kind.as_str());
 
-    unique_id(base, taken.iter().map(|e| e.kind.as_str()))
+    unique_id(base, kinds.chain([FREE_FORM_KIND]))
 }
 
 fn edit_item(

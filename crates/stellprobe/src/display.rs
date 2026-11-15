@@ -14,10 +14,10 @@ use crate::rig::{rig_dash, rig_runs};
 mod handles;
 mod objects;
 
+pub use handles::{drawing_handle_places, handles};
+pub use objects::label_point;
 pub(crate) use objects::object_corners;
 use objects::set_items;
-
-pub use handles::{drawing_handle_places, handles};
 
 /// What the GUI draws and the export writes, back to front, in metres (planung/KONZEPT.md,
 /// section 4). Colours are roles; the GUI maps them to Kante.
