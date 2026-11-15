@@ -48,15 +48,19 @@ QQC2.Popup {
     readonly property real pointerLength: KanteStyle.unit(8)
     readonly property real pointerWidth: KanteStyle.unit(14)
 
+    // How far under the card's top the pointer sits: the card starts this much above the middle.
+    readonly property real pointerInset: KanteStyle.unit(18)
+
     /** Which side of a rectangle the card stands on; Auto: right, else left (`openAtRect`). */
     enum Side { Auto, Right, Left }
 
     /**
      * Where the card would stand beside `rect` (in the coordinates of `item`), inside `bounds`
      * (an Item; null: the window). `side` forces a side; Auto takes the right, else the left.
-     * Returns {x, y, side, fits} with x and y in the coordinates of `item`; `side` is Auto when
-     * neither side has room (the card then covers `rect`); `fits` is false when the side does
-     * not have room. Used by `openAtRect`; an app asks it to choose between sides.
+     * Returns {x, y, side, fits, mid} with x and y in the coordinates of `item`; `side` is Auto
+     * when neither side has room (the card then covers `rect`); `fits` is false when the side
+     * does not have room; `mid` is the middle of `rect` below the card's top, where the pointer
+     * aims. Used by `openAtRect`; an app asks it to choose between sides.
      */
     function rectSlot(item, rect, bounds, side) {
         column.forceLayout()
@@ -75,8 +79,7 @@ QQC2.Popup {
         const left = leftX >= box.x + margin
         const auto = side === undefined || side === KantePopover.Side.Auto
         const chosen = auto ? (right ? KantePopover.Side.Right : (left ? KantePopover.Side.Left : KantePopover.Side.Auto)) : side
-        // The pointer sits this far under the card's top, so the card starts a bit above the middle.
-        const inset = KanteStyle.unit(18)
+        const inset = pointerInset
         const mid = p.y + rect.height / 2
         const sy = Math.max(box.y + margin, Math.min(mid - inset, box.y + boxH - margin - h))
         // No room on either side: the card covers the rectangle.
@@ -92,8 +95,8 @@ QQC2.Popup {
         const slot = rectSlot(item, rect, bounds, side)
         const none = slot.side === KantePopover.Side.Auto
         pointerSide = none ? "" : (slot.side === KantePopover.Side.Right ? "left" : "right")
+        const inset = pointerInset
         // The pointer stays clear of the chamfered top right corner.
-        const inset = KanteStyle.unit(18)
         const top = Math.max(inset / 2, KanteStyle.chamferSmall + pointerWidth / 2)
         pointerY = Math.max(top, Math.min(implicitHeight - inset / 2, slot.mid))
         parent = item
