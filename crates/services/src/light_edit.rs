@@ -14,10 +14,14 @@ const MAX_POWER_W: f64 = 100_000.0;
 const MIN_TEMP_K: f64 = 1000.0;
 const MAX_TEMP_K: f64 = 20_000.0;
 
+/// Colour of a tungsten kind and of a daylight kind, for a kind the library lacks.
+const TUNGSTEN_K: f64 = 3200.0;
+const DAYLIGHT_K: f64 = 5600.0;
+
 /// What a lamp's card can change.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LightChange {
-    /// Only the kind; beam, power and colour stay.
+    /// Only the kind; beam and power stay. A kind with a fixed colour brings it.
     Kind(LightKind),
     /// Kind, beam, power and colour of the library lamp with this id.
     Preset(String),
@@ -35,6 +39,19 @@ pub(crate) fn preset(id: &str) -> Result<&'static LightPreset, ServiceError> {
             field: Field::Kind,
             value: id.to_owned(),
         })
+}
+
+/// The colour a kind of fixed colour has: its first library lamp's, else the kind's own.
+fn fixed_temp_k(kind: LightKind) -> f64 {
+    let library = klappe_store::builtin_lights().iter().find(|l| l.kind == kind);
+    if let Some(preset) = library {
+        return preset.color_temp_k;
+    }
+
+    match kind {
+        LightKind::Fresnel | LightKind::Balloon => TUNGSTEN_K,
+        _ => DAYLIGHT_K,
+    }
 }
 
 fn bad(field: Field, value: f64) -> ServiceError {
@@ -77,7 +94,12 @@ pub(crate) fn set_light(
     let light = light(plan, id)?;
 
     match (change, preset) {
-        (LightChange::Kind(kind), _) => light.kind = *kind,
+        (LightChange::Kind(kind), _) => {
+            light.kind = *kind;
+            if !kind.tunable_color() {
+                light.color_temp_k = fixed_temp_k(*kind);
+            }
+        }
         (_, Some(preset)) => {
             light.kind = preset.kind;
             light.beam_deg = preset.beam_deg;

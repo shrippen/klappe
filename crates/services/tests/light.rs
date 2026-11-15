@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{Light, LightKind, Point};
 use klappe_services::{
-    Field, Language, Layer, LightChange, Lock, Paper, PlanEdit, ServiceError, Session, Source,
+    Field, Hint, Language, Layer, LightChange, Lock, Paper, PlanEdit, ServiceError, Session, Source,
     Visibility,
 };
 
@@ -126,6 +126,35 @@ fn only_an_led_takes_another_colour() {
 
     assert!(bad(result, Field::Temperature));
     assert_eq!(light(&s, "l1").color_temp_k, 3200.0);
+}
+
+/// A kind with a fixed colour brings it: LED to Fresnel shows 3200 K in hint and print, the
+/// power stays, and back to an LED the colour stays settable.
+#[test]
+fn a_fixed_colour_kind_sets_its_colour() {
+    let mut s = open();
+
+    s.edit_plan(set("led-1", LightChange::Kind(LightKind::Fresnel)))
+        .unwrap();
+
+    let l = light(&s, "led-1");
+    assert_eq!((l.color_temp_k, l.power_w), (3200.0, 200.0));
+    let Some(Hint::Light { temp_k, .. }) = s.light_hint("led-1") else {
+        panic!("no lamp hint");
+    };
+    assert_eq!(temp_k, 3200.0);
+    let printed = s.display_list().lamps;
+    assert_eq!(printed[0].color_temp_k, 3200.0);
+
+    // Fresnel to bounce: the library's bounce is daylight.
+    s.edit_plan(set("led-1", LightChange::Kind(LightKind::Reflector)))
+        .unwrap();
+    assert_eq!(light(&s, "led-1").color_temp_k, 5600.0);
+
+    s.edit_plan(set("led-1", LightChange::Kind(LightKind::LedPanel)))
+        .unwrap();
+    s.edit_plan(set("led-1", LightChange::Temp(4000.0))).unwrap();
+    assert_eq!(light(&s, "led-1").color_temp_k, 4000.0);
 }
 
 /// Another kind keeps the values; another library lamp replaces all of them.
