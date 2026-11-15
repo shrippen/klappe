@@ -44,7 +44,8 @@ Item {
                     objectName: "tile-" + modelData.id
 
                     width: tiles.tileWidth
-                    height: width / stageAspect + KanteStyle.unit(34)
+                    // The tile's own height, the stage grown from its default width to this one.
+                    height: implicitHeight + (width - implicitWidth) / stageAspect
                     stageAspect: modelData.aspect
                     selected: modelData.id === tiles.selectedId
                     tier: modelData.axis_jump ? KanteTile.Tier.Check : KanteTile.Tier.Good
