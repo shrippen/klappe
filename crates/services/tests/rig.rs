@@ -245,3 +245,26 @@ fn the_tooltip_height_is_the_one_at_the_playhead() {
     s.set_time(0.0);
     assert_eq!(height(&s), 1.6);
 }
+
+/// With a lens on the marks the list shows theirs: 12.1 runs 35 to 85 mm, 12.2 stays on
+/// 85 mm; its own 40 mm no longer counts.
+#[test]
+fn the_shot_list_shows_the_lens_of_the_marks() {
+    let mut s = open();
+    set_lens(&mut s, Some(35.0)).unwrap();
+    s.set_time(7.0);
+    set_lens(&mut s, Some(85.0)).unwrap();
+
+    let rows = s.shots();
+
+    assert_eq!(
+        (rows[0].lens_mm, rows[0].lens_to_mm, rows[0].lens_from_marks),
+        (35.0, Some(85.0), true)
+    );
+    assert_eq!(
+        (rows[1].lens_mm, rows[1].lens_to_mm, rows[1].lens_from_marks),
+        (85.0, None, true)
+    );
+    // The setup follows the lens at the start: 35, 85, 85 mm.
+    assert_ne!(rows[0].setup, rows[1].setup);
+}

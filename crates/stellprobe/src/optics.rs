@@ -34,6 +34,46 @@ pub fn lens_at(camera: &Camera, shots: &[Shot], t_s: f64) -> f64 {
         .unwrap_or(camera.lens_mm)
 }
 
+/// The lens of a shot (LH-33): what `lens_at` gives at its start and at its end.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ShotLens {
+    pub from_mm: f64,
+    pub to_mm: f64,
+    /// The camera's marks state the lens, so the shot's own and the camera's do not count.
+    pub from_marks: bool,
+}
+
+impl ShotLens {
+    /// The lens at the end of the shot when it differs from the start: a zoom.
+    pub fn span_to_mm(&self) -> Option<f64> {
+        (self.to_mm != self.from_mm).then_some(self.to_mm)
+    }
+}
+
+/// The lens of `shot` on `camera`: with marks that state a lens, what `lens_at` gives at the
+/// shot's start and end; else the shot's own, else the camera's. The one source for the shot
+/// list, the export and the setups.
+///
+/// Example: marks 35 mm at 0 s and 85 mm at 6 s, shot from 0 s to 6 s: 35 to 85 mm.
+pub fn shot_lens(camera: &Camera, shot: &Shot) -> ShotLens {
+    let marks = mark_lens_at(camera, shot.from_s).zip(mark_lens_at(camera, shot.to_s));
+    if let Some((from_mm, to_mm)) = marks {
+        return ShotLens {
+            from_mm,
+            to_mm,
+            from_marks: true,
+        };
+    }
+
+    let lens_mm = shot.lens_mm.unwrap_or(camera.lens_mm);
+
+    ShotLens {
+        from_mm: lens_mm,
+        to_mm: lens_mm,
+        from_marks: false,
+    }
+}
+
 /// The lens the camera's marks give at `t_s`; `None` when no mark states one. Between two
 /// marks with a lens it waits out the pause of the first, then runs linearly to the second,
 /// like the place does; before the first and after the last it holds.
@@ -228,6 +268,48 @@ mod tests {
 
         assert_eq!(lens_at(&plain, &shots, 1.0), 85.0);
         assert_eq!(lens_at(&plain, &[], 1.0), 35.0);
+    }
+
+    /// One value when start and end agree, else the span; the marks decide, else the shot's own
+    /// lens, else the camera's.
+    #[test]
+    fn a_shot_has_one_lens_or_a_span() {
+        let cam = zoom_camera();
+        let marked = |from_s, to_s| shot_lens(&cam, &shot("a", Some(85.0), from_s, to_s));
+
+        // 30 mm until 4 s, 70 mm from 10 s: the shot's own 85 mm does not count.
+        assert_eq!(
+            marked(0.0, 4.0),
+            ShotLens {
+                from_mm: 30.0,
+                to_mm: 30.0,
+                from_marks: true
+            }
+        );
+        assert_eq!(
+            marked(0.0, 10.0),
+            ShotLens {
+                from_mm: 30.0,
+                to_mm: 70.0,
+                from_marks: true
+            }
+        );
+
+        let plain = camera(35.0);
+        let shots = [
+            shot("a", Some(40.0), 0.0, 4.0),
+            shot("a", Some(50.0), 4.0, 8.0),
+        ];
+
+        assert_eq!(
+            shot_lens(&plain, &shots[0]),
+            ShotLens {
+                from_mm: 40.0,
+                to_mm: 40.0,
+                from_marks: false
+            }
+        );
+        assert_eq!(shot_lens(&plain, &shot("a", None, 8.0, 9.0)).from_mm, 35.0);
     }
 
     #[test]

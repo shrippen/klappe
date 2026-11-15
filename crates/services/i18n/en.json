@@ -226,6 +226,8 @@
  "movement.handheld": "Handheld",
  "movement.gimbal": "Gimbal",
  "movement.zoom": "Zoom",
+ "shot.lensSpan": "{from}–{to} mm",
+ "shot.lensFromMarks": "From the camera marks",
  "shot.movementHint": "From the camera marks: {movement}",
  "timeline.cut": "Cut order",
  "timeline.hide": "Hide",
