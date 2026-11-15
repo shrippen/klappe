@@ -28,8 +28,15 @@ pub(crate) fn note_card(at: Point, text: &str) -> (Vec<Point>, String) {
     (corners, lines.join("\n"))
 }
 
-/// Greedy wrap at `per_line` characters; a longer word is cut. Always at least one line.
+/// Wrap at `per_line` characters, keeping the text's own line breaks.
 fn wrap(text: &str, per_line: usize) -> Vec<String> {
+    text.split('\n')
+        .flat_map(|paragraph| wrap_paragraph(paragraph, per_line))
+        .collect()
+}
+
+/// Greedy wrap at `per_line` characters; a longer word is cut. Always at least one line.
+fn wrap_paragraph(text: &str, per_line: usize) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
     let mut current = String::new();
 
@@ -91,6 +98,13 @@ mod tests {
         let lengths: Vec<usize> = text.lines().map(|l| l.chars().count()).collect();
 
         assert_eq!(lengths, [22, 22, 6]);
+    }
+
+    #[test]
+    fn an_own_line_break_stays() {
+        let (_, text) = note_card(Point::new(0.0, 0.0), "Akt 1\nVorhang\n\nEnde");
+
+        assert_eq!(text, "Akt 1\nVorhang\n\nEnde");
     }
 
     #[test]
