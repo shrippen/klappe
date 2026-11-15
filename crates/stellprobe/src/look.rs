@@ -79,6 +79,7 @@ pub fn look(role: Role) -> Look {
         Role::Light => plain(ORANGE, Dash::Solid, Area::Solid),
         // A card: the text colour frames and tints it, on screen and on paper.
         Role::Note => plain(Hue::Text, Dash::Solid, Area::Tint),
+        Role::DrawingHandle => plain(Hue::Accent, Dash::Solid, Area::Solid),
         Role::Axis => plain(ORANGE, Dash::Dashed, Area::None),
         Role::CameraPath { dash } => plain(YELLOW, dash, Area::None),
         Role::Frustum => plain(YELLOW, Dash::Solid, Area::Tint),
@@ -120,6 +121,7 @@ mod tests {
             Role::FigurePath(red),
             Role::FigureHandle(red),
             Role::CameraHandle,
+            Role::DrawingHandle,
             Role::Figure(red),
             Role::GroupDot,
         ];

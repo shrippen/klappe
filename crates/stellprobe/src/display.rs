@@ -1,6 +1,6 @@
 use klappe_model::{
-    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Note,
-    ObjectShape, Point, Project, SetObject, SetPlan,
+    Arrival, Background, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
+    Mark, Note, ObjectShape, Point, Project, SetObject, SetPlan,
 };
 
 use crate::axis::axis_at;
@@ -87,6 +87,9 @@ pub enum Role {
     /// The filled head of an arrow, in the arrow's colour.
     ArrowHead(FigureColor),
     FigurePath(FigureColor),
+    /// A grip on a point or corner of the selected drawing (LH-19); only drawn while it is
+    /// selected.
+    DrawingHandle,
     /// The grip that bends the way to a mark (LH-21); only drawn for a selected way.
     FigureHandle(FigureColor),
     CameraHandle,
@@ -120,6 +123,12 @@ pub enum Source {
     Wall(usize),
     Note(String),
     Drawing(String),
+    /// Point or corner `index` of a drawing (LH-19): a grip. A rectangle or ellipse has its
+    /// four corners, clockwise from the top left before the turn.
+    DrawingPoint {
+        drawing: String,
+        index: usize,
+    },
 }
 
 /// Figure body radius on the plan.
@@ -267,6 +276,8 @@ fn drawing_items(plan: &FloorPlan, items: &mut Vec<Item>) {
             fill: drawing.fill,
         };
         let source = Some(Source::Drawing(drawing.id.clone()));
+        let at = |p: Point| drawing.placed(p);
+        let all = |points: Vec<Point>| points.into_iter().map(at).collect::<Vec<_>>();
         let mut push = |role, shape| {
             items.push(Item {
                 role,
@@ -277,20 +288,21 @@ fn drawing_items(plan: &FloorPlan, items: &mut Vec<Item>) {
         };
 
         match &drawing.shape {
-            DrawingShape::Line { from, to } => push(role, line(*from, *to)),
+            DrawingShape::Line { from, to } => push(role, line(at(*from), at(*to))),
             DrawingShape::Arrow { from, to } => {
-                push(role, line(*from, *to));
-                if let Some(head) = arrow_head(*from, *to) {
+                let (from, to) = (at(*from), at(*to));
+                push(role, line(from, to));
+                if let Some(head) = arrow_head(from, to) {
                     push(Role::ArrowHead(drawing.color), head);
                 }
             }
             DrawingShape::Rect { from, to } => {
-                push(role, closed(rect_corners(*from, *to), drawing.fill));
+                push(role, closed(all(rect_corners(*from, *to)), drawing.fill));
             }
             DrawingShape::Ellipse { from, to } => {
-                push(role, closed(ellipse_corners(*from, *to), drawing.fill));
+                push(role, closed(all(ellipse_corners(*from, *to)), drawing.fill));
             }
-            DrawingShape::Area { points } => push(role, closed(points.clone(), drawing.fill)),
+            DrawingShape::Area { points } => push(role, closed(all(points.clone()), drawing.fill)),
         }
     }
 }
@@ -567,6 +579,7 @@ fn mark_label(index: usize, mark: &Mark) -> String {
 
 /// The grips on the bends of the way `selected` belongs to: a figure, camera or mark of it,
 /// or one of its grips (LH-21). One per mark after the first, halfway along the way to it.
+/// A selected drawing has one on each of its points (LH-19).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -575,8 +588,42 @@ pub fn handles(project: &Project, plan: &FloorPlan, selected: &Source) -> Vec<It
         | Source::Mark { character: c, .. }
         | Source::FigureVia { character: c, .. } => figure_handles(project, plan, c),
         Source::Camera(id) | Source::CameraVia { camera: id, .. } => camera_handles(plan, id),
+        Source::Drawing(id) | Source::DrawingPoint { drawing: id, .. } => drawing_handles(plan, id),
         _ => Vec::new(),
     }
+}
+
+/// Where the grips of `drawing` sit on the plan, turned like the drawing: its points, or for
+/// a rectangle and an ellipse its four corners.
+pub fn drawing_handle_places(drawing: &Drawing) -> Vec<Point> {
+    let points = match &drawing.shape {
+        DrawingShape::Rect { from, to } | DrawingShape::Ellipse { from, to } => {
+            rect_corners(*from, *to)
+        }
+        _ => drawing.points(),
+    };
+
+    points.into_iter().map(|p| drawing.placed(p)).collect()
+}
+
+fn drawing_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
+    let Some(drawing) = plan.drawings.iter().find(|d| d.id == id) else {
+        return Vec::new();
+    };
+
+    drawing_handle_places(drawing)
+        .into_iter()
+        .enumerate()
+        .map(|(index, center)| Item {
+            role: Role::DrawingHandle,
+            shape: handle_shape(center),
+            label: None,
+            source: Some(Source::DrawingPoint {
+                drawing: id.to_owned(),
+                index,
+            }),
+        })
+        .collect()
 }
 
 fn figure_handles(project: &Project, plan: &FloorPlan, character: &str) -> Vec<Item> {
@@ -921,6 +968,7 @@ mod tests {
             color: FigureColor::Red,
             dash: Dash::Dashed,
             fill,
+            rotation_deg: 0.0,
         }
     }
 

@@ -75,10 +75,11 @@ pub enum ElementKind {
     Wall,
     Note,
     Drawing,
+    DrawingPoint,
 }
 
 impl ElementKind {
-    const ALL: [ElementKind; 10] = [
+    const ALL: [ElementKind; 11] = [
         Self::Object,
         Self::Light,
         Self::Camera,
@@ -89,6 +90,7 @@ impl ElementKind {
         Self::Wall,
         Self::Note,
         Self::Drawing,
+        Self::DrawingPoint,
     ];
 
     pub fn name(self) -> &'static str {
@@ -103,6 +105,7 @@ impl ElementKind {
             Self::Wall => "wall",
             Self::Note => "note",
             Self::Drawing => "drawing",
+            Self::DrawingPoint => "drawingpoint",
         }
     }
 
@@ -128,6 +131,9 @@ pub fn key(source: &Source) -> String {
         Source::Wall(index) => (ElementKind::Wall, index.to_string()),
         Source::Note(id) => (ElementKind::Note, id.clone()),
         Source::Drawing(id) => (ElementKind::Drawing, id.clone()),
+        Source::DrawingPoint { drawing, index } => {
+            (ElementKind::DrawingPoint, format!("{drawing}:{index}"))
+        }
     };
 
     format!("{}:{rest}", kind.name())
@@ -351,6 +357,7 @@ mod tests {
             (Role::Mark(red), "red", "solid", "none"),
             (Role::FigureHandle(red), "red", "solid", "solid"),
             (Role::CameraHandle, "yellow", "solid", "solid"),
+            (Role::DrawingHandle, "accent", "solid", "solid"),
             (Role::Figure(red), "red", "solid", "solid"),
             (Role::GroupDot, "ground", "solid", "solid"),
         ];
@@ -586,6 +593,15 @@ mod tests {
             (Source::Wall(4), ElementKind::Wall, "4", None),
             (Source::Note("n".into()), ElementKind::Note, "n", None),
             (Source::Drawing("d".into()), ElementKind::Drawing, "d", None),
+            (
+                Source::DrawingPoint {
+                    drawing: "d".into(),
+                    index: 2,
+                },
+                ElementKind::DrawingPoint,
+                "d",
+                Some(2),
+            ),
         ];
         assert_eq!(sources.len(), ElementKind::ALL.len());
 

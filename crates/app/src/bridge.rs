@@ -24,6 +24,8 @@ pub mod qobject {
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
+        /// The shot list in shooting order: setups grouped (LH-72); `shotsJson` is the cut order.
+        #[qproperty(QString, shots_shooting_json, cxx_name = "shotsShootingJson")]
         #[qproperty(QString, script_json, cxx_name = "scriptJson")]
         /// `{ set, figures, cameras, lights, notes, drawings }`: true when shown.
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
@@ -295,6 +297,17 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setObjectHeight"]
         fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool;
+
+        /// Gives the selected drawing a colour, line and fill (LH-19), named as `choicesJson`
+        /// lists them. False when no drawing is selected or a name is unknown.
+        #[qinvokable]
+        #[cxx_name = "setDrawingStyle"]
+        fn set_drawing_style(
+            self: Pin<&mut Self>,
+            color: &QString,
+            dash: &QString,
+            fill: &QString,
+        ) -> bool;
 
         /// Sets one field of the selected camera (LH-32): `field` is `body` (a body id of
         /// `choicesJson`), `sensor` (mm), `lens` (mm) or `aspect` (`2,39` or `16:9`). False
@@ -654,6 +667,7 @@ pub struct ControllerRust {
     plan_json: QString,
     tracks_json: QString,
     shots_json: QString,
+    shots_shooting_json: QString,
     script_json: QString,
     layers_json: QString,
     locks_json: QString,
