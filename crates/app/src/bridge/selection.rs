@@ -70,15 +70,21 @@ impl qobject::Controller {
         self.commit_typed(typed)
     }
 
-    pub(super) fn set_selected_height(
+    pub(super) fn set_selected_field(
         self: Pin<&mut Self>,
         field: &QString,
         text: &QString,
     ) -> bool {
+        let selected = self.rust().selected.only();
+
+        // A door's swing (`side`, `hinge`) first; the other fields are heights.
+        if let Some(edit) = object::swing_edit(selected, &field.to_string(), &text.to_string()) {
+            return self.commit_edit(edit);
+        }
+
         let Some(field) = object::HeightField::from_name(&field.to_string()) else {
             return false;
         };
-        let selected = self.rust().selected.only();
         let typed = object::set_height_edit(selected, field, &text.to_string());
 
         self.commit_typed(typed)

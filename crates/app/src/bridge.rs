@@ -379,10 +379,10 @@ pub mod qobject {
         #[cxx_name = "setOpeningWidth"]
         fn set_opening_width(self: Pin<&mut Self>, width: &QString) -> bool;
 
-        /// Sets `field` (`wall`, `sill`, `head`, `base`) of the selection (LH-90); empty: default.
+        /// Sets `field` of the selection: `wall`, `sill`, `head`, `base`; a door's `side`, `hinge`.
         #[qinvokable]
-        #[cxx_name = "setSelectedHeight"]
-        fn set_selected_height(self: Pin<&mut Self>, field: &QString, text: &QString) -> bool;
+        #[cxx_name = "setSelectedField"]
+        fn set_selected_field(self: Pin<&mut Self>, field: &QString, text: &QString) -> bool;
 
         /// Sets the height in metres of the selected object (LH-17); an empty text takes it
         /// off. False when no object is selected or the text is no length; a refusal by the

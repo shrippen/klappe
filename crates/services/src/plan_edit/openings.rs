@@ -1,6 +1,6 @@
 //! Doors and windows in walls (LH-10): set, slide along the wall, resize.
 
-use klappe_model::{Opening, OpeningKind, Point, Wall};
+use klappe_model::{DoorSide, Hinge, Opening, OpeningKind, Point, Wall};
 use klappe_stellprobe::Source;
 
 use super::{PlanEdit, Scope};
@@ -45,11 +45,16 @@ fn centre_m(
     Ok(centre_m)
 }
 
-/// Applies `AddOpening` or `SetOpeningWidth`; any other edit is none of its business.
+/// Applies `AddOpening`, `SetOpeningWidth` or `SetOpeningSwing`; any other edit is none of its business.
 pub(super) fn edit_opening(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
     match edit {
         PlanEdit::AddOpening { kind, at } => add_opening(scope, *kind, *at),
         PlanEdit::SetOpeningWidth { source, width_m } => set_width(scope, source, *width_m),
+        PlanEdit::SetOpeningSwing {
+            source,
+            side,
+            hinge,
+        } => set_swing(scope, source, *side, *hinge),
         _ => Ok(()),
     }
 }
@@ -76,13 +81,7 @@ fn add_opening(scope: &mut Scope<'_>, kind: OpeningKind, at: Point) -> Result<()
 
     let width_m = kind.default_width_m();
     let at_m = centre_m(wall, None, along_m, width_m)?;
-    wall.openings.push(Opening {
-        kind,
-        at_m,
-        width_m,
-        head_m: None,
-        sill_m: None,
-    });
+    wall.openings.push(Opening::new(kind, at_m, width_m));
 
     Ok(())
 }
@@ -124,6 +123,25 @@ fn set_width(scope: &mut Scope<'_>, source: &Source, width_m: f64) -> Result<(),
 
     wall.openings[index].at_m = centre_m(wall, Some(index), at_m, width_m)?;
     wall.openings[index].width_m = width_m;
+
+    Ok(())
+}
+
+/// Sets the side and hinge of a door; what is `None` stays.
+fn set_swing(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    side: Option<DoorSide>,
+    hinge: Option<Hinge>,
+) -> Result<(), ServiceError> {
+    let (wall, index) = opening_mut(scope, source)?;
+    let opening = &mut wall.openings[index];
+    if opening.kind != OpeningKind::Door {
+        return Err(refused(Field::Source, String::new()));
+    }
+
+    opening.side = side.unwrap_or(opening.side);
+    opening.hinge = hinge.unwrap_or(opening.hinge);
 
     Ok(())
 }

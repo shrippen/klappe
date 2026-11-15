@@ -1,7 +1,7 @@
 //! Walls with their doors and windows (LH-10): the wall in pieces between the gaps, and what
 //! stands in each gap.
 
-use klappe_model::{Opening, OpeningKind, Point, SetPlan, Wall};
+use klappe_model::{DoorSide, Hinge, Opening, OpeningKind, Point, SetPlan, Wall};
 
 use crate::display::{Item, Role, Shape, Source};
 
@@ -73,8 +73,8 @@ pub(crate) fn solid_spans(wall: &Wall) -> Vec<(f64, f64)> {
     pieces
 }
 
-/// A door: the hinge at the start of the gap, the leaf standing open at a right angle, and
-/// the swing back to the other side of the gap. A window: two lines across the gap.
+/// A door: the hinge at the start (or end) of the gap, the leaf standing open at a right angle
+/// to the right (or left) of the wall, and the swing back to the other end of the gap. A window: two lines across the gap.
 fn opening_items(wall: &Wall, opening: &Opening, source: Source, items: &mut Vec<Item>) {
     let (start_m, end_m) = opening.span_m();
     let (a, b) = (wall.point_at(start_m), wall.point_at(end_m));
@@ -88,17 +88,26 @@ fn opening_items(wall: &Wall, opening: &Opening, source: Source, items: &mut Vec
         (wall.to.x_m - wall.from.x_m) / length_m,
         (wall.to.y_m - wall.from.y_m) / length_m,
     );
-    let side = (-unit.1, unit.0);
+    let mut side = (-unit.1, unit.0);
+    if opening.side == DoorSide::Left {
+        side = (-side.0, -side.1);
+    }
 
     match opening.kind {
         OpeningKind::Door => {
-            let mut points = vec![a];
+            // The leaf closes towards the gap's other end, along `unit` or against it.
+            let (hinge, shut) = match opening.hinge {
+                Hinge::Start => (a, unit),
+                Hinge::End => (b, (-unit.0, -unit.1)),
+            };
+
+            let mut points = vec![hinge];
             for step in 0..=SWING_STEPS {
                 let turn = std::f64::consts::FRAC_PI_2 * step as f64 / SWING_STEPS as f64;
                 let (sin, cos) = turn.sin_cos();
                 points.push(Point::new(
-                    a.x_m + opening.width_m * (side.0 * cos + unit.0 * sin),
-                    a.y_m + opening.width_m * (side.1 * cos + unit.1 * sin),
+                    hinge.x_m + opening.width_m * (side.0 * cos + shut.0 * sin),
+                    hinge.y_m + opening.width_m * (side.1 * cos + shut.1 * sin),
                 ));
             }
 
@@ -151,6 +160,8 @@ mod tests {
             width_m,
             head_m: None,
             sill_m: None,
+            side: DoorSide::Right,
+            hinge: Hinge::Start,
         }
     }
 
@@ -237,6 +248,64 @@ mod tests {
         assert!(points[1..]
             .iter()
             .all(|p| (hinge.distance_m(*p) - 1.0).abs() < 1e-9));
+    }
+
+    /// A 1 m door in the gap 3.5..4.5 of the wall along x at y = 2 (y runs down, so right of
+    /// the wall is y = 3): the hinge, the leaf tip and the end of the swing of each swing.
+    #[test]
+    fn a_door_swings_by_its_side_and_hinge() {
+        let cases = [
+            (
+                DoorSide::Right,
+                Hinge::Start,
+                [(3.5, 2.0), (3.5, 3.0), (4.5, 2.0)],
+            ),
+            (
+                DoorSide::Left,
+                Hinge::Start,
+                [(3.5, 2.0), (3.5, 1.0), (4.5, 2.0)],
+            ),
+            (
+                DoorSide::Right,
+                Hinge::End,
+                [(4.5, 2.0), (4.5, 3.0), (3.5, 2.0)],
+            ),
+            (
+                DoorSide::Left,
+                Hinge::End,
+                [(4.5, 2.0), (4.5, 1.0), (3.5, 2.0)],
+            ),
+        ];
+
+        for (side, hinge, [want_hinge, want_tip, want_last]) in cases {
+            let mut door = opening(OpeningKind::Door, 4.0, 1.0);
+            door.side = side;
+            door.hinge = hinge;
+            let list = items(&wall_with(vec![door]));
+            let found = list.iter().find(|i| i.role == Role::Door).unwrap();
+            let Shape::Polygon { points } = &found.shape else {
+                panic!("a door is a polygon");
+            };
+            let at = |p: Point| (p.x_m, p.y_m);
+            let near = |p: Point, w: (f64, f64)| (p.x_m - w.0).abs() + (p.y_m - w.1).abs() < 1e-9;
+
+            assert!(
+                near(points[0], want_hinge),
+                "{side:?} {hinge:?} hinge {:?}",
+                at(points[0])
+            );
+            assert!(
+                near(points[1], want_tip),
+                "{side:?} {hinge:?} tip {:?}",
+                at(points[1])
+            );
+            let last = points[points.len() - 1];
+            assert!(
+                near(last, want_last),
+                "{side:?} {hinge:?} end {:?}",
+                at(last)
+            );
+        }
     }
 
     #[test]

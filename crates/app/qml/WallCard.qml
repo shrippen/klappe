@@ -56,7 +56,7 @@ ColumnLayout {
             heightField.invalid = false
             return
         }
-        const ok = controller.setSelectedHeight("wall", heightField.text)
+        const ok = controller.setSelectedField("wall", heightField.text)
         if (ok && info) {
             heightField.text = card.own()
         }

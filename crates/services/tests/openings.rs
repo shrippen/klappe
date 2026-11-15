@@ -5,8 +5,10 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_model::{Opening, OpeningKind};
-use klappe_services::{Field, Layer, Lock, PlanEdit, Point, Role, ServiceError, Session, Source};
+use klappe_model::{DoorSide, Hinge, Opening, OpeningKind};
+use klappe_services::{
+    Field, Hint, Layer, Lock, PlanEdit, Point, Role, ServiceError, Session, Source,
+};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -32,6 +34,14 @@ fn bad(result: Result<(), ServiceError>, wanted: Field) -> bool {
     matches!(result, Err(ServiceError::BadValue { field, .. }) if field == wanted)
 }
 
+fn swing(side: Option<DoorSide>, hinge: Option<Hinge>) -> PlanEdit {
+    PlanEdit::SetOpeningSwing {
+        source: opening(2, 0),
+        side,
+        hinge,
+    }
+}
+
 fn add(kind: OpeningKind, at: Point) -> PlanEdit {
     PlanEdit::AddOpening { kind, at }
 }
@@ -50,6 +60,8 @@ fn a_click_on_a_wall_sets_a_door_of_the_standard_width() {
             width_m: 0.9,
             head_m: None,
             sill_m: None,
+            side: DoorSide::Right,
+            hinge: Hinge::Start,
         }]
     );
 }
@@ -333,6 +345,7 @@ fn a_locked_set_layer_refuses_every_opening_edit() {
             source: opening(2, 0),
             width_m: 1.0,
         },
+        swing(Some(DoorSide::Left), None),
         PlanEdit::Remove {
             source: opening(2, 0),
         },
@@ -375,4 +388,48 @@ fn copy_dir(from: &Path, to: &Path) {
         }
         std::fs::copy(entry.path(), target).unwrap();
     }
+}
+
+/// The door of the south wall starts as right and start; a swing edit changes what it names and
+/// keeps the other, in one undo step each, and the card's hint says so.
+#[test]
+fn a_door_swing_is_set_in_one_undo_step() {
+    let mut s = open();
+
+    s.edit_plan(swing(Some(DoorSide::Left), None)).unwrap();
+    s.edit_plan(swing(None, Some(Hinge::End))).unwrap();
+
+    let door = &openings(&s, 2)[0];
+    assert_eq!((door.side, door.hinge), (DoorSide::Left, Hinge::End));
+    assert!(matches!(
+        s.opening_hint(2, 0),
+        Some(Hint::Opening {
+            side: DoorSide::Left,
+            hinge: Hinge::End,
+            ..
+        })
+    ));
+
+    s.undo();
+    let door = &openings(&s, 2)[0];
+    assert_eq!((door.side, door.hinge), (DoorSide::Left, Hinge::Start));
+    s.undo();
+    let door = &openings(&s, 2)[0];
+    assert_eq!((door.side, door.hinge), (DoorSide::Right, Hinge::Start));
+    assert!(!s.can_undo());
+}
+
+#[test]
+fn a_window_has_no_swing() {
+    let mut s = open();
+    s.edit_plan(add(OpeningKind::Window, p(8.0, 0.0))).unwrap();
+
+    let result = s.edit_plan(PlanEdit::SetOpeningSwing {
+        source: opening(0, 0),
+        side: Some(DoorSide::Left),
+        hinge: None,
+    });
+
+    assert!(bad(result, Field::Source));
+    assert_eq!(openings(&s, 0)[0].side, DoorSide::Right);
 }

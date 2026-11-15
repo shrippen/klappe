@@ -7,6 +7,7 @@ import Kante
 // width, and its sill and head (LH-90) as fields. Enter sets the field, the button the width and
 // what was changed of sill and head. Sill and head show the opening's own value; without one the
 // field is empty and shows its kind's greyed; an emptied one goes back to its kind's. A value that is no length marks the field and changes nothing.
+// A door also shows two choices: the side it opens to and the end its hinge is at.
 ColumnLayout {
     id: card
 
@@ -27,6 +28,10 @@ ColumnLayout {
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: widthField.activeFocus || sillField.typing || headField.typing
 
+    readonly property var sides: ["left", "right"]
+    readonly property var hinges: ["start", "end"]
+    readonly property bool isDoor: info !== null && info.type === "door"
+
     visible: shown
     spacing: Kirigami.Units.smallSpacing
 
@@ -37,6 +42,8 @@ ColumnLayout {
         if (!info) {
             return
         }
+        sideChoice.currentIndex = card.sides.indexOf(info.side)
+        hingeChoice.currentIndex = card.hinges.indexOf(info.hinge)
         if (!widthField.activeFocus) {
             widthField.text = texts.num(info.width, 2)
         }
@@ -60,6 +67,13 @@ ColumnLayout {
         return info[name + "Default"] ? "" : card.metres(info[name])
     }
 
+    // Sets a door's `side` or `hinge` to `value`; the plan change refills the choice.
+    function setSwing(name, value) {
+        if (!controller.setSelectedField(name, value)) {
+            card.fill()
+        }
+    }
+
     function setWidth() {
         widthField.invalid = !controller.setOpeningWidth(widthField.text)
         return !widthField.invalid
@@ -72,7 +86,7 @@ ColumnLayout {
             field.invalid = false
             return true
         }
-        const ok = controller.setSelectedHeight(name, field.text)
+        const ok = controller.setSelectedField(name, field.text)
         if (ok && info) {
             field.text = card.own(name)
         }
@@ -147,6 +161,29 @@ ColumnLayout {
             fieldName: "openingHeadField"
             label: card.texts.t("field.head")
             onAccepted: card.setHead()
+        }
+    }
+
+    // A door's swing: which side of the wall it opens to and which end its hinge is at.
+    ColumnLayout {
+        objectName: "swingRow"
+        visible: card.isDoor
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteSectionLabel { text: card.texts.t("opening.swing") }
+        KanteSegmented {
+            id: sideChoice
+            objectName: "sideChoice"
+            model: card.sides.map(s => card.texts.t("swing." + s))
+            onActivated: index => card.setSwing("side", card.sides[index])
+        }
+
+        KanteSectionLabel { text: card.texts.t("opening.hinge") }
+        KanteSegmented {
+            id: hingeChoice
+            objectName: "hingeChoice"
+            model: card.hinges.map(h => card.texts.t("hinge." + h))
+            onActivated: index => card.setSwing("hinge", card.hinges[index])
         }
     }
 }
