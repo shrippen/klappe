@@ -305,6 +305,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setCameraField"]
         fn set_camera_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool;
+        /// Sets one field of the selected lamp (LH-50, LH-51): `field` is `kind` (a kind's
+        /// file name), `preset` (a lamp id of `choicesJson.light`), `facing`, `beam` (degrees),
+        /// `power` (W) or `temp` (K). False when no lamp is selected or the value is not
+        /// usable; a refusal by the session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setLightField"]
+        fn set_light_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool;
         /// The fields of the selected mark (a figure's, or a camera's) as JSON: `kind`
         /// (`figure` or `camera`), `pose`, `arrival` (`walk`, `appear`) and `departure` (`stay`,
         /// `leave`), each empty for a camera, `hold` in seconds, `hasWay`,
