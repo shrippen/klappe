@@ -1,21 +1,15 @@
-use klappe_model::{Camera, FigureColor, FigureTrack, FloorPlan, Point, Project, SetPlan, Wall};
+use klappe_model::{FigureColor, FigureTrack, FloorPlan, Point, Project, SetPlan, Wall};
 
 use crate::display::{object_corners, FIGURE_RADIUS_M};
+use crate::eye::{clip, clip_near, Eye, Pinhole, FRAME_WIDTH};
 use crate::figure::body_radius_m;
 use crate::height::{figure_height_m, object_extent, opening_span, wall_top};
 use crate::hit::in_lasso;
-use crate::motion::{aim_at, camera_at, figure_at};
+use crate::motion::figure_at;
 use crate::opening::solid_spans;
-use crate::optics::{horizontal_fov_deg, lens_at};
 
-/// Image width; the height is `1 / aspect`.
-pub const FRAME_WIDTH: f64 = 1.0;
 /// Width of a standard figure's placeholder; a figure with its own size is wider in proportion.
 const FIGURE_WIDTH_M: f64 = 0.5;
-/// Nothing nearer than this is drawn.
-const NEAR_M: f64 = 0.1;
-/// Keeps `tan` finite when the camera looks straight up or down.
-const MAX_TILT_DEG: f64 = 89.0;
 
 /// What a camera sees at one moment (LH-36): a pinhole projection of the set, flat shapes
 /// back to front. Image units: x from 0 to `FRAME_WIDTH`, y from 0 (top) to `height`.
@@ -45,51 +39,13 @@ pub enum ViewRole {
     Figure(FigureColor),
 }
 
-type Vec3 = [f64; 3];
+use crate::eye::Vec3;
 
 /// A shape in the set, in metres: x and y as on the plan, z up.
 struct Face {
     role: ViewRole,
     corners: Vec<Vec3>,
     label: Option<String>,
-}
-
-/// The camera: where it stands, where it looks, how wide it sees.
-struct Eye {
-    at: [f64; 2],
-    height_m: f64,
-    forward: [f64; 2],
-    right: [f64; 2],
-    tilt: (f64, f64),
-    focal: f64,
-    frame_height: f64,
-}
-
-impl Eye {
-    /// `p` in the camera's frame: right, up, depth.
-    fn local(&self, p: Vec3) -> Vec3 {
-        let (dx, dy, up) = (p[0] - self.at[0], p[1] - self.at[1], p[2] - self.height_m);
-        let ahead = dx * self.forward[0] + dy * self.forward[1];
-        let (sin, cos) = self.tilt;
-
-        [
-            dx * self.right[0] + dy * self.right[1],
-            up * cos - ahead * sin,
-            ahead * cos + up * sin,
-        ]
-    }
-
-    /// The image point of a point in the camera's frame; the depth is above `NEAR_M`.
-    fn image(&self, p: Vec3) -> [f64; 2] {
-        [
-            FRAME_WIDTH / 2.0 + p[0] / p[2] * self.focal,
-            self.frame_height / 2.0 - p[1] / p[2] * self.focal,
-        ]
-    }
-
-    fn horizon_y(&self) -> f64 {
-        self.frame_height / 2.0 + self.tilt.0 / self.tilt.1 * self.focal
-    }
 }
 
 /// What `camera` sees at `t_s`; `None` for an unknown camera and one without marks.
@@ -108,8 +64,13 @@ pub fn camera_view(
     camera: &str,
     t_s: f64,
 ) -> Option<CameraView> {
-    let camera = plan.camera(camera)?;
-    let eye = eye_of(camera, plan, t_s)?;
+    let eye = Pinhole::of(
+        &Eye::Shot {
+            camera: camera.to_owned(),
+            t_s,
+        },
+        plan,
+    )?;
 
     let mut faces = Vec::new();
     wall_faces(set, &mut faces);
@@ -119,8 +80,8 @@ pub fn camera_view(
     // Farthest first, so a near shape covers what lies behind it.
     let far = |face: &Face| -> f64 {
         let n = face.corners.len() as f64;
-        let x = face.corners.iter().map(|c| c[0]).sum::<f64>() / n - eye.at[0];
-        let y = face.corners.iter().map(|c| c[1]).sum::<f64>() / n - eye.at[1];
+        let x = face.corners.iter().map(|c| c[0]).sum::<f64>() / n - eye.ground()[0];
+        let y = face.corners.iter().map(|c| c[1]).sum::<f64>() / n - eye.ground()[1];
         x.hypot(y)
     };
     faces.sort_by(|a, b| far(b).total_cmp(&far(a)));
@@ -142,29 +103,6 @@ pub fn camera_view(
         height: eye.frame_height,
         horizon_y: eye.horizon_y(),
         items,
-    })
-}
-
-fn eye_of(camera: &Camera, plan: &FloorPlan, t_s: f64) -> Option<Eye> {
-    let place = camera_at(camera, t_s)?;
-    let (height_m, tilt_deg) = aim_at(camera, t_s)?;
-    let fov = horizontal_fov_deg(camera.sensor, lens_at(camera, &plan.shots, t_s));
-    if fov <= 0.0 || camera.aspect <= 0.0 {
-        return None;
-    }
-
-    let (sin, cos) = place.facing_deg.to_radians().sin_cos();
-    let tilt = tilt_deg.clamp(-MAX_TILT_DEG, MAX_TILT_DEG).to_radians();
-
-    Some(Eye {
-        at: [place.at.x_m, place.at.y_m],
-        height_m,
-        forward: [cos, sin],
-        // On the plan y grows downwards, so the right hand of one facing +x is +y.
-        right: [-sin, cos],
-        tilt: tilt.sin_cos(),
-        focal: FRAME_WIDTH / 2.0 / (fov.to_radians() / 2.0).tan(),
-        frame_height: FRAME_WIDTH / camera.aspect,
     })
 }
 
@@ -210,8 +148,9 @@ fn wall_face(wall: &Wall, along: (f64, f64), (low_m, high_m): (f64, f64)) -> Fac
 /// An object is a box: its outline from its underside to its top; four sides, a lid and,
 /// when it floats (a shelf), a bottom.
 /// One that stands under the camera (tripod, dolly, crane) is left out: it would fill the picture.
-fn object_faces(set: &SetPlan, eye: &Eye, faces: &mut Vec<Face>) {
-    let camera = Point::new(eye.at[0], eye.at[1]);
+fn object_faces(set: &SetPlan, eye: &Pinhole, faces: &mut Vec<Face>) {
+    let [x, y] = eye.ground();
+    let camera = Point::new(x, y);
 
     for (index, object) in set.objects.iter().enumerate() {
         let (base_m, top_m) = object_extent(set, index);
@@ -249,7 +188,13 @@ fn object_faces(set: &SetPlan, eye: &Eye, faces: &mut Vec<Face>) {
 }
 
 /// A figure is an upright slab turned to the camera, as tall as its pose.
-fn figure_faces(project: &Project, plan: &FloorPlan, t_s: f64, eye: &Eye, faces: &mut Vec<Face>) {
+fn figure_faces(
+    project: &Project,
+    plan: &FloorPlan,
+    t_s: f64,
+    eye: &Pinhole,
+    faces: &mut Vec<Face>,
+) {
     for track in &plan.figures {
         let Some(character) = project.character(&track.character) else {
             continue;
@@ -285,7 +230,7 @@ fn pose_height_m(track: &FigureTrack, t_s: f64) -> f64 {
 }
 
 /// The ground: the frame below the horizon.
-fn floor_item(eye: &Eye, items: &mut Vec<ViewItem>) {
+fn floor_item(eye: &Pinhole, items: &mut Vec<ViewItem>) {
     let top = eye.horizon_y().max(0.0);
     if top >= eye.frame_height {
         return;
@@ -304,16 +249,9 @@ fn floor_item(eye: &Eye, items: &mut Vec<ViewItem>) {
 }
 
 /// The face in the image, cut at the near plane and the frame; `None` when nothing is left.
-fn flatten(eye: &Eye, corners: &[Vec3]) -> Option<Vec<[f64; 2]>> {
+fn flatten(eye: &Pinhole, corners: &[Vec3]) -> Option<Vec<[f64; 2]>> {
     let local: Vec<Vec3> = corners.iter().map(|c| eye.local(*c)).collect();
-    let near = clip(
-        &local,
-        |p| p[2] - NEAR_M,
-        |a, b| {
-            let t = (NEAR_M - a[2]) / (b[2] - a[2]);
-            [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, NEAR_M]
-        },
-    );
+    let near = clip_near(&local);
     let flat: Vec<[f64; 2]> = near.iter().map(|p| eye.image(*p)).collect();
 
     // Left, right, top and bottom edge of the frame.
@@ -338,33 +276,11 @@ fn flatten(eye: &Eye, corners: &[Vec3]) -> Option<Vec<[f64; 2]>> {
     (shape.len() >= 3).then_some(shape)
 }
 
-/// Sutherland-Hodgman: keeps the part of `polygon` where `side` is not negative; `cut` gives
-/// the point where an edge crosses the line.
-fn clip<const N: usize>(
-    polygon: &[[f64; N]],
-    side: impl Fn(&[f64; N]) -> f64,
-    cut: impl Fn(&[f64; N], &[f64; N]) -> [f64; N],
-) -> Vec<[f64; N]> {
-    let mut kept = Vec::new();
-    for (i, a) in polygon.iter().enumerate() {
-        let b = &polygon[(i + 1) % polygon.len()];
-        let (a_in, b_in) = (side(a) >= 0.0, side(b) >= 0.0);
-        if a_in {
-            kept.push(*a);
-        }
-        if a_in != b_in {
-            kept.push(cut(a, b));
-        }
-    }
-
-    kept
-}
-
 #[cfg(test)]
 mod tests {
     use klappe_model::{
-        Arrival, CameraMark, Character, Departure, Mark, Opening, OpeningKind, Point, Pose, Sensor,
-        SetObject, Wall,
+        Arrival, Camera, CameraMark, Character, Departure, Mark, Opening, OpeningKind, Point, Pose,
+        Sensor, SetObject, Wall,
     };
 
     use super::*;

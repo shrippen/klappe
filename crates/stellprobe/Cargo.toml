@@ -8,6 +8,7 @@ publish.workspace = true
 
 [dependencies]
 klappe-model.workspace = true
+klappe-raster.workspace = true
 
 [lints]
 workspace = true

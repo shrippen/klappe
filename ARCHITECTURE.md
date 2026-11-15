@@ -21,7 +21,8 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 | `tui/` | The terminal program for writing the screenplay, beside the window's editor. |
 | `cli/` | The command line: exports and checks without a window. |
 | `services/` | The project session, the one door for every surface: open, select, edit, undo, play, save, export. Hands out data ready to show and holds all texts (`i18n/`). |
-| `stellprobe/` | Stellprobe's calculations, without files or window: who stands where at a time, what a camera sees, the axis, and the display list (what a plan shows, in metres, colours as roles). |
+| `stellprobe/` | Stellprobe's calculations, without files or window: who stands where at a time, what a camera sees, the axis, the display list (what a plan shows, in metres, colours as roles), and the set as bodies (`scene`) with the picture a view of them gives (`picture`, through `raster/`). |
+| `raster/` | Fills triangles on the screen into a frame with depth: role, shade, source and edges per pixel, no colours; knows nothing of sets; depends on nothing. |
 | `script/` | Reads and writes Fountain. |
 | `store/` | The only block that reads or writes a project folder (`FORMAT.md`); also the built-in object library, camera presets and lamps (data files). |
 | `export/` | Turns the display list and the shot list into PDF, SVG, PNG, CSV, ODS and XLSX, as bytes; colours from Kante's `palette.json` (copied by the same script). |
@@ -41,6 +42,7 @@ Each block is one crate under `crates/`, unless the path says otherwise.
  stellprobe/ ◄─ export/     script/     store/
                             ▼
  model/                                 imagehead/  used by store/ and export/
+                                        raster/     used by stellprobe/
 ```
 
 - A block depends only on the layer directly below it; the dependencies are the ones in
@@ -48,6 +50,9 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 - Exception: `services/` also depends on `model/`, whose types it passes on.
 - Surfaces (`app/`, `tui/`, `cli/`) depend on `services/` only: never on files, export,
   `stellprobe/` or `model/` directly. What they need, `services/` re-exports.
+- `raster/` stands beside `imagehead/`: it depends on nothing, and only `stellprobe/` uses
+  it. It gets triangles in pixels and returns a frame; projection and the scene stay in
+  `stellprobe/`, colouring in the surfaces.
 - The middle layer stands side by side. `export/` reads the display list from
   `stellprobe/`; `store/` and `export/` read image headers through `imagehead/`; `store/`
   depends on `model/` only, not on `script/`. Otherwise they do not call each other.

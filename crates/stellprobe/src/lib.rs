@@ -5,6 +5,7 @@
 //!                  ──► height   how tall is everything? (defaults, stacking)
 //!                  ──► optics   what does a camera see?
 //!                  ──► sight    what is the camera's picture? (perspective, flat shapes)
+//!                  ──► scene    the set as bodies ──► picture  pixels through `raster`
 //!                  ──► movement what does a camera do during a shot?
 //!                  ──► axis     which shot jumps the line?
 //!                  ──► setup    which shots share camera, place and lens?
@@ -15,6 +16,7 @@
 mod axis;
 mod card;
 mod display;
+mod eye;
 mod figure;
 mod height;
 mod hit;
@@ -24,7 +26,9 @@ mod motion;
 mod movement;
 mod opening;
 mod optics;
+mod picture;
 mod rig;
+mod scene;
 mod setup;
 mod sight;
 
@@ -34,6 +38,7 @@ pub use display::{
     drawing_handle_places, handles, render, Bend, DisplayList, Item, Role, Shape, Source,
     FIGURE_RADIUS_M,
 };
+pub use eye::{Eye, FRAME_WIDTH};
 pub use height::{object_extent, opening_span, wall_top};
 pub use hit::{anchor, hit, in_lasso, within};
 pub use light::Lamp;
@@ -43,5 +48,7 @@ pub use motion::{
 };
 pub use movement::movement_in;
 pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};
+pub use picture::{picture, Picture, PictureLabel};
+pub use scene::SceneRole;
 pub use setup::{ordered_shots, shot_setups, ShotOrder, SETUP_TOLERANCE_M};
-pub use sight::{camera_view, CameraView, ViewItem, ViewRole, FRAME_WIDTH};
+pub use sight::{camera_view, CameraView, ViewItem, ViewRole};

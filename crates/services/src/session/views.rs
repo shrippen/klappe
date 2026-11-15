@@ -3,8 +3,8 @@
 
 use klappe_model::{CameraPresets, DrawingShape, Location};
 use klappe_stellprobe::{
-    aim_at, axis_pair, camera_view, horizontal_fov_deg, object_extent, opening_span, wall_top,
-    CameraView, Source,
+    aim_at, axis_pair, camera_view, horizontal_fov_deg, object_extent, opening_span, picture,
+    wall_top, CameraView, Eye, Picture, Source,
 };
 
 use super::Session;
@@ -114,6 +114,23 @@ impl Session {
             of_shot.or(fallback)?,
             self.time_s,
         )
+    }
+
+    /// The picture of that same camera as pixels, `width_px` wide (LH-36, LH-99): covering
+    /// right per pixel, roles instead of colours. `None` as for `camera_view`.
+    pub fn camera_picture(&self, fallback: Option<&str>, width_px: usize) -> Option<Picture> {
+        let plan = self.plan()?;
+        let of_shot = self
+            .selected_shot()
+            .and_then(|id| plan.shots.iter().find(|shot| shot.id == id))
+            .map(|shot| shot.camera.as_str());
+        let location = self.project.location(&self.scene()?.location)?;
+        let eye = Eye::Shot {
+            camera: of_shot.or(fallback)?.to_owned(),
+            t_s: self.time_s,
+        };
+
+        picture(&self.project, &location.set, plan, &eye, width_px)
     }
 
     /// The tooltip of camera `id`; `None` without such a camera.
