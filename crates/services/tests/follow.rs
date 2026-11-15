@@ -307,10 +307,9 @@ fn removing_the_figure_works_under_a_camera_lock() {
     assert_eq!(s.plan().unwrap().camera("b").unwrap().follows, None);
 }
 
-/// Review of PR 27: the bend of a following camera's move stayed where it was while its marks
-/// moved with the figure, so the move could turn into a loop.
-#[test]
-fn the_bend_of_a_following_camera_moves_too() {
+/// The bend of a following camera keeps its shape to the leg, as when the camera mark itself is
+/// moved. Camera A walks (8, 11) to (9, 8); its grip at (10, 6) makes `via` (11.5, 2.5).
+fn bent_camera() -> Session {
     let mut s = open();
     couple(&mut s, "a", "elisabeth");
     s.edit_plan(PlanEdit::Move {
@@ -321,11 +320,21 @@ fn the_bend_of_a_following_camera_moves_too() {
         to: p(10.0, 6.0),
     })
     .unwrap();
-    let via = |s: &Session| s.plan().unwrap().camera("a").unwrap().marks[1].via.unwrap();
-    let (before, at) = (
-        via(&s),
-        s.plan().unwrap().figure("elisabeth").unwrap().marks[1].at,
-    );
+
+    s
+}
+
+fn camera_via(s: &Session) -> Point {
+    s.plan().unwrap().camera("a").unwrap().marks[1].via.unwrap()
+}
+
+/// Review of PR 27 and 100. Elisabeth's mark 1 carries camera mark 1 by (1, 2) to (9, 8) +
+/// (1, 2) = (10, 10); the mark before stays at (8, 11). Leg (1, -3) becomes (2, -1), the bend's
+/// offset (3, -7) from the middle becomes (5, -2) about the new middle (9, 10.5): (14, 8.5).
+#[test]
+fn the_bend_to_a_carried_camera_mark_keeps_its_shape() {
+    let mut s = bent_camera();
+    let at = s.plan().unwrap().figure("elisabeth").unwrap().marks[1].at;
 
     s.edit_plan(PlanEdit::Move {
         source: mark("elisabeth", 1),
@@ -333,9 +342,22 @@ fn the_bend_of_a_following_camera_moves_too() {
     })
     .unwrap();
 
-    assert!(
-        near(via(&s), p(before.x_m + 1.0, before.y_m + 2.0)),
-        "{:?}",
-        via(&s)
-    );
+    assert!(near(camera_via(&s), p(14.0, 8.5)), "{:?}", camera_via(&s));
+}
+
+/// Elisabeth's mark 0 carries camera mark 0 by (1, 2) to (9, 13); camera mark 1 stays, and the
+/// way to it keeps its shape: leg (1, -3) becomes (0, -5), the offset (3, -7) becomes (1, -12)
+/// about the new middle (9, 10.5): (10, -1.5).
+#[test]
+fn the_bend_from_a_carried_camera_mark_keeps_its_shape() {
+    let mut s = bent_camera();
+    let at = s.plan().unwrap().figure("elisabeth").unwrap().marks[0].at;
+
+    s.edit_plan(PlanEdit::Move {
+        source: mark("elisabeth", 0),
+        to: p(at.x_m + 1.0, at.y_m + 2.0),
+    })
+    .unwrap();
+
+    assert!(near(camera_via(&s), p(10.0, -1.5)), "{:?}", camera_via(&s));
 }

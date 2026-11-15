@@ -404,17 +404,18 @@ pub(super) fn carry_cameras(
         .iter_mut()
         .filter(|c| c.follows.as_deref() == Some(character.as_str()));
     for camera in followers {
-        for camera_mark in camera
-            .marks
-            .iter_mut()
-            .filter(|m| window_s.contains(&m.at_s))
-        {
-            // The bend of the move goes along, or the move turns into a loop (LH-21).
-            camera_mark.at = carry(camera_mark.at, (dx_m, dy_m), after.at, turn_deg);
-            camera_mark.via = camera_mark
-                .via
-                .map(|via| carry(via, (dx_m, dy_m), after.at, turn_deg));
+        for i in 0..camera.marks.len() {
+            let camera_mark = &mut camera.marks[i];
+            if !window_s.contains(&camera_mark.at_s) {
+                continue;
+            }
+
+            // Moved like a mark moved by hand, so the ways to and from it keep their shape
+            // (LH-21), also to a mark outside the window.
+            let old = camera_mark.at;
+            camera_mark.at = carry(old, (dx_m, dy_m), after.at, turn_deg);
             camera_mark.facing_deg = normalize_deg(camera_mark.facing_deg + turn_deg);
+            keep_bends(&mut camera.marks, i, old, camera_parts);
         }
     }
 
