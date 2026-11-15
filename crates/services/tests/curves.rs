@@ -172,9 +172,11 @@ fn straighten_by_mark_or_by_figure() {
     assert_eq!(vias(&s), [false, false, false]);
 }
 
-/// The bend is where the user put it: moving a mark leaves `via` alone.
+/// Moving a mark carries the bend: it keeps its place relative to the leg. Hand-worked: leg
+/// (17, 9.5)-(12, 6.5) with `via` (14.5, 4) becomes (17, 9.5)-(11, 7), `via` (14 - 11/17,
+/// 8.25 - 75/17).
 #[test]
-fn moving_a_mark_leaves_the_bend() {
+fn moving_a_mark_carries_the_bend() {
     let mut s = open();
     s.edit_plan(PlanEdit::Shift {
         source: grip(1),
@@ -192,7 +194,112 @@ fn moving_a_mark_leaves_the_bend() {
     })
     .unwrap();
 
-    assert!(near(via(&s).unwrap(), p(14.5, 4.0)));
+    let expected = p(14.0 - 11.0 / 17.0, 8.25 - 75.0 / 17.0);
+    assert!(near(via(&s).unwrap(), expected), "{:?}", via(&s));
+}
+
+/// How far the bend of the way to mark `index` of Elisabeth lies from the leg's middle, in
+/// legs: what a move must not change.
+fn bulge(s: &Session, index: usize) -> f64 {
+    let marks = &s.plan().unwrap().figures[0].marks;
+    let (a, b) = (marks[index - 1].at, marks[index].at);
+
+    marks[index].via.unwrap().distance_m(a.lerp(b, 0.5)) / a.distance_m(b)
+}
+
+/// A mark has a way to it and a way from it: both bends go along.
+#[test]
+fn moving_a_mark_carries_both_ways() {
+    let mut s = open();
+    for index in [1, 2] {
+        s.edit_plan(PlanEdit::Shift {
+            source: Source::FigureVia {
+                character: "elisabeth".into(),
+                index,
+            },
+            dx_m: 0.0,
+            dy_m: 1.0,
+        })
+        .unwrap();
+    }
+    let before = (bulge(&s, 1), bulge(&s, 2));
+    let at = s.plan().unwrap().figures[0].marks[1].at;
+
+    s.edit_plan(PlanEdit::Shift {
+        source: Source::Mark {
+            character: "elisabeth".into(),
+            index: 1,
+        },
+        dx_m: 0.7,
+        dy_m: -0.4,
+    })
+    .unwrap();
+
+    let moved = s.plan().unwrap().figures[0].marks[1].at;
+    assert!(moved.distance_m(at) > 0.1);
+    assert!((bulge(&s, 1) - before.0).abs() < 1e-9);
+    assert!((bulge(&s, 2) - before.1).abs() < 1e-9);
+}
+
+/// Marks and grips moved together all land `d` away: bends included, whatever the order.
+#[test]
+fn a_group_moves_its_bends_along() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::Shift {
+        source: grip(1),
+        dx_m: 0.0,
+        dy_m: -2.0,
+    })
+    .unwrap();
+    let before = via(&s).unwrap();
+    let mark = |index| Source::Mark {
+        character: "burgvogt".into(),
+        index,
+    };
+
+    s.edit_plan(PlanEdit::ShiftGroup {
+        sources: vec![mark(0), mark(1)],
+        dx_m: 1.5,
+        dy_m: 0.5,
+    })
+    .unwrap();
+
+    assert!(near(
+        via(&s).unwrap(),
+        p(before.x_m + 1.5, before.y_m + 0.5)
+    ));
+}
+
+/// A group that turns turns the bends with it.
+#[test]
+fn a_group_turns_its_bends() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::Shift {
+        source: grip(1),
+        dx_m: 0.0,
+        dy_m: -2.0,
+    })
+    .unwrap();
+    let before = via(&s).unwrap();
+    let marks = s.plan().unwrap().figures[1].marks.clone();
+    let mid = marks[0].at.lerp(marks[1].at, 0.5);
+    let offset = p(before.x_m - mid.x_m, before.y_m - mid.y_m);
+    let mark = |index| Source::Mark {
+        character: "burgvogt".into(),
+        index,
+    };
+
+    s.edit_plan(PlanEdit::SpinGroup {
+        sources: vec![mark(0), mark(1)],
+        by_deg: 90.0,
+    })
+    .unwrap();
+
+    // A quarter turn clockwise on the plan sends (x, y) to (-y, x).
+    let marks = s.plan().unwrap().figures[1].marks.clone();
+    let mid = marks[0].at.lerp(marks[1].at, 0.5);
+    let expected = p(mid.x_m - offset.y_m, mid.y_m + offset.x_m);
+    assert!(near(via(&s).unwrap(), expected), "{:?}", via(&s));
 }
 
 /// Removing the first mark makes the second the first, which has no way to it.
