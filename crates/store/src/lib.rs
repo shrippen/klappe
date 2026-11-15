@@ -6,6 +6,7 @@
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
 //! load_library, save_library ◄──►          bibliothek.toml, or any library file to pass on
+//!                            builtin_templates, vorlagen.toml (the project's own templates)
 //! write_atomic, write_tree, project_mtime, ..  whole-folder file operations (tree.rs)
 //! ```
 //!
@@ -17,10 +18,11 @@ mod files;
 mod images;
 mod library;
 mod light;
+mod template;
 mod tree;
 
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use klappe_model::{
     is_figure_size_m, Character, Location, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
@@ -34,6 +36,7 @@ use files::{Dir, Kind};
 pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
 pub use library::{builtin_library, load_library, save_library};
 pub use light::builtin_lights;
+pub use template::{builtin_templates, check_template};
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
 
 /// Whether `id` may name a location or scene file on every system (FORMAT.md, Ids).
@@ -44,6 +47,7 @@ pub fn is_safe_id(id: &str) -> bool {
 const PROJECT_FILE: &str = "projekt.toml";
 const CHARACTERS_FILE: &str = "figuren.toml";
 const LIBRARY_FILE: &str = "bibliothek.toml";
+const TEMPLATES_FILE: &str = "vorlagen.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
@@ -116,6 +120,8 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         false => Vec::new(),
     };
 
+    let templates = template::load_templates(&dir.join(TEMPLATES_FILE))?;
+
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     let scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
@@ -127,14 +133,16 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             locations,
             scenes,
             library,
+            templates,
         },
         script,
     })
 }
 
 /// Writes `project` into `dir`, creating it if needed. Each file is replaced atomically;
-/// location and scene files of other ids are removed, and `bibliothek.toml` when the project
-/// has no own objects. `script: None` leaves an existing `drehbuch.fountain` untouched.
+/// location and scene files of other ids are removed, and `bibliothek.toml` and `vorlagen.toml`
+/// when the project has no own objects or templates. `script: None` leaves an existing
+/// `drehbuch.fountain` untouched.
 pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), StoreError> {
     // Ids become file names: check all before the first write.
     check_ids(project.locations.iter().map(|l| l.id.as_str()))?;
@@ -156,13 +164,11 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     let path = dir.join(CHARACTERS_FILE);
     writes.push((path.clone(), files::encode_toml(&path, &characters)?));
 
-    let library_path = dir.join(LIBRARY_FILE);
-    if !project.library.is_empty() {
-        writes.push((
-            library_path.clone(),
-            library::encode(&library_path, &project.library)?,
-        ));
-    }
+    let optional = optional_files(dir, project)?;
+    writes.extend(optional.iter().filter_map(|(path, bytes)| {
+        let bytes = bytes.clone()?;
+        Some((path.clone(), bytes))
+    }));
 
     let locations = Dir::new(dir.join(LOCATIONS_DIR), Kind::Toml);
     for location in &project.locations {
@@ -178,9 +184,9 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
         files::write_atomic(path, bytes)?;
     }
 
-    // No own objects left: the file goes, so the folder shows what the project holds.
-    if project.library.is_empty() {
-        files::remove_file(&library_path)?;
+    // None left: the file goes, so the folder shows what the project holds.
+    for (path, _) in optional.iter().filter(|(_, bytes)| bytes.is_none()) {
+        files::remove_file(path)?;
     }
 
     let keep: HashSet<&str> = project.locations.iter().map(|l| l.id.as_str()).collect();
@@ -193,6 +199,26 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     }
 
     Ok(())
+}
+
+/// A file's path with its content, or `None` when there is to be no file.
+type OptionalFile = (PathBuf, Option<Vec<u8>>);
+
+/// The files that exist only while there are entries: own objects and own templates, each
+/// with its content, or `None` when there are none.
+fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, StoreError> {
+    let library_path = dir.join(LIBRARY_FILE);
+    let templates_path = dir.join(TEMPLATES_FILE);
+    let library = match project.library.is_empty() {
+        true => None,
+        false => Some(library::encode(&library_path, &project.library)?),
+    };
+    let templates = match project.templates.is_empty() {
+        true => None,
+        false => Some(template::encode(&templates_path, &project.templates)?),
+    };
+
+    Ok(vec![(library_path, library), (templates_path, templates)])
 }
 
 /// Writes `drehbuch.fountain` in `dir` atomically and nothing else.

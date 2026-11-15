@@ -22,6 +22,7 @@ mod marks;
 mod moving;
 mod picking;
 mod remove;
+pub(crate) mod template;
 
 use add::{
     add_camera, add_camera_mark, add_drawing, add_mark, add_note, add_object, add_wall, edit_light,

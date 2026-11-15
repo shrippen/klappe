@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use klappe_model::{
     is_figure_size_m, is_object_height_m, is_object_size_m, Character, FigureColor, FloorPlan,
-    LibraryItem, Location, Project, Scene, SetPlan, MAX_GROUP, MIN_GROUP,
+    LibraryItem, Location, Point, Project, Scene, SetPlan, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -13,6 +13,7 @@ use crate::library;
 
 mod own;
 mod plans;
+pub(crate) mod templates;
 
 pub use plans::ShotsGo;
 pub(crate) use plans::{add_plan, copy_plan, remove_plan, rename_plan};
@@ -88,6 +89,20 @@ pub enum ProjectEdit {
     ImportLibrary {
         items: Vec<LibraryItem>,
     },
+    /// Puts the template `template` on the plan `plan` of the scene `scene`, its insertion
+    /// point at `at` (LH-07).
+    PlaceTemplate {
+        scene: String,
+        plan: String,
+        template: String,
+        at: Point,
+    },
+    /// Files the figures and cameras of the plan as a template of the project (LH-07).
+    SaveTemplate {
+        scene: String,
+        plan: String,
+        name: String,
+    },
     /// Renames and regroups the project's own entry `kind` (LH-12); no group takes it out of
     /// any. Placed objects keep their kind. A built-in entry is not the project's to change.
     EditLibraryItem {
@@ -101,9 +116,6 @@ pub enum ProjectEdit {
         kind: String,
     },
 }
-
-/// Largest side of a set: a stadium fits; 1e300 m would not draw.
-const MAX_SET_M: f64 = 1000.0;
 
 /// The label in a figure's circle has room for this many letters.
 const MAX_SHORT_CHARS: usize = 3;
@@ -165,6 +177,9 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             name,
         } => library_from_object(project, location, object, name),
         ProjectEdit::ImportLibrary { items } => import_library(project, items),
+        ProjectEdit::PlaceTemplate { .. } | ProjectEdit::SaveTemplate { .. } => {
+            templates::apply(project, edit)
+        }
         ProjectEdit::EditLibraryItem { kind, name, group } => {
             own::edit_item(project, kind, name, group)
         }

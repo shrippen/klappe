@@ -119,3 +119,26 @@ fn the_legend_names_the_colour_of_drawing() {
         "{listed:?}"
     );
 }
+
+/// Areas that differ in the dash of their edge are two entries that say so.
+#[test]
+fn the_legend_names_the_edge_of_an_area() {
+    let red = FigureColor::Red;
+    let items = vec![
+        drawing(red, Dash::Solid, Fill::Filled, boxed()),
+        drawing(red, Dash::Dashed, Fill::Filled, boxed()),
+        drawing(red, Dash::Dotted, Fill::Filled, boxed()),
+    ];
+
+    let listed = legend(items);
+
+    assert_eq!(
+        &listed[6..],
+        [
+            "Fläche rot",
+            "Fläche gestrichelt rot",
+            "Fläche gepunktet rot"
+        ],
+        "{listed:?}"
+    );
+}

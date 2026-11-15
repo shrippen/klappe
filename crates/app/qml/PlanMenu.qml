@@ -6,7 +6,7 @@ import Kante
 
 // The variants of the scene's plan (LH-04, D-03): the plan's name in the header's path is a
 // menu. It lists the variants (a tick on the one on view), then makes, copies, renames and
-// deletes one. A snapshot is a copy; going back to it is choosing it again. Switching drops
+// deletes one; it also places a template on the plan or files the plan as one (LH-07). A snapshot is a copy; going back to it is choosing it again. Switching drops
 // the drafts (the controller) like a change of scene.
 //
 //  Wartburg › Szene 12 › [ Plan A (2) ▾ ]
@@ -14,6 +14,8 @@ import Kante
 //                            Plan A (2)
 //                          ──────────────
 //                            Schnappschuss…  Neuer Plan…  Umbenennen…
+//                          ──────────────
+//                            Vorlage einfügen…  Als Vorlage speichern…
 //                          ──────────────
 //                            Löschen…
 HeaderMenu {
@@ -29,7 +31,7 @@ HeaderMenu {
     readonly property int index: plans.findIndex(p => p.id === project.plan)
     readonly property var current: index < 0 ? null : plans[index]
     /// The actions, for the command palette too.
-    readonly property var actions: [snapshotAction, newAction, renameAction, removeAction]
+    readonly property var actions: [snapshotAction, newAction, renameAction, templateAction, templateSaveAction, removeAction]
 
     text: current ? current.name : ""
     enabled: plans.length > 0
@@ -61,6 +63,9 @@ HeaderMenu {
     KanteMenuItem { objectName: "newPlan"; action: newAction; iconRoom: true }
     KanteMenuItem { objectName: "renamePlan"; action: renameAction; iconRoom: true }
     QQC2.MenuSeparator {}
+    KanteMenuItem { objectName: "applyTemplate"; action: templateAction; iconRoom: true }
+    KanteMenuItem { objectName: "saveTemplate"; action: templateSaveAction; iconRoom: true }
+    QQC2.MenuSeparator {}
     KanteMenuItem { objectName: "removePlan"; action: removeAction; iconRoom: true; destructive: true }
 
     CommandAction {
@@ -88,6 +93,22 @@ HeaderMenu {
         onTriggered: form.show("rename", chooser.current)
     }
     CommandAction {
+        id: templateAction
+        cmd: "plan.template"
+        group: "plans"
+        text: chooser.texts.t("plan.template")
+        enabled: !chooser.locked && chooser.current !== null
+        onTriggered: templates.show("apply")
+    }
+    CommandAction {
+        id: templateSaveAction
+        cmd: "plan.templateSave"
+        group: "plans"
+        text: chooser.texts.t("plan.templateSave")
+        enabled: !chooser.locked && chooser.current !== null
+        onTriggered: templates.show("save")
+    }
+    CommandAction {
         id: removeAction
         cmd: "plan.remove"
         group: "plans"
@@ -102,6 +123,13 @@ HeaderMenu {
     PlanForm {
         id: form
         objectName: "planForm"
+        texts: chooser.texts
+        controller: chooser.controller
+    }
+
+    TemplateForm {
+        id: templates
+        objectName: "templateForm"
         texts: chooser.texts
         controller: chooser.controller
     }
