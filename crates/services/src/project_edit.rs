@@ -11,6 +11,7 @@ use crate::error::ServiceError;
 use crate::field::Field;
 use crate::library;
 
+mod own;
 mod plans;
 
 pub use plans::ShotsGo;
@@ -84,6 +85,18 @@ pub enum ProjectEdit {
     ImportLibrary {
         items: Vec<LibraryItem>,
     },
+    /// Renames and regroups the project's own entry `kind` (LH-12); no group takes it out of
+    /// any. Placed objects keep their kind. A built-in entry is not the project's to change.
+    EditLibraryItem {
+        kind: String,
+        name: String,
+        group: String,
+    },
+    /// Takes the project's own entry `kind` out of the library (LH-12); objects placed from
+    /// it stay as they are.
+    RemoveLibraryItem {
+        kind: String,
+    },
 }
 
 /// Largest side of a set: a stadium fits; 1e300 m would not draw.
@@ -147,6 +160,10 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             name,
         } => library_from_object(project, location, object, name),
         ProjectEdit::ImportLibrary { items } => import_library(project, items),
+        ProjectEdit::EditLibraryItem { kind, name, group } => {
+            own::edit_item(project, kind, name, group)
+        }
+        ProjectEdit::RemoveLibraryItem { kind } => own::remove_item(project, kind),
     }
 }
 
@@ -382,6 +399,7 @@ fn library_from_object(
     let item = LibraryItem {
         kind,
         label: name,
+        group: String::new(),
         width_m,
         depth_m,
         shape,
@@ -422,7 +440,15 @@ fn same_entry(a: &LibraryItem, b: &LibraryItem) -> bool {
         false => item.label.clone(),
     };
 
-    let content = |item: &LibraryItem| (item.width_m, item.depth_m, item.shape, item.height_m);
+    let content = |item: &LibraryItem| {
+        (
+            item.width_m,
+            item.depth_m,
+            item.shape,
+            item.height_m,
+            item.group.clone(),
+        )
+    };
 
     named(a) == named(b) && content(a) == content(b)
 }
@@ -617,6 +643,26 @@ mod tests {
         assert_eq!(scene_base("12A"), "szene-012a");
         assert_eq!(scene_base("A"), "szene-a");
         assert_eq!(scene_base("1234"), "szene-1234");
+    }
+
+    #[test]
+    fn a_new_group_is_a_changed_entry() {
+        let item = LibraryItem {
+            kind: "thron".into(),
+            label: "Thron".into(),
+            group: String::new(),
+            width_m: 0.9,
+            depth_m: 0.8,
+            shape: klappe_model::ObjectShape::Rect,
+            height_m: None,
+        };
+        let regrouped = LibraryItem {
+            group: "Hof".into(),
+            ..item.clone()
+        };
+
+        assert!(same_entry(&item, &item.clone()));
+        assert!(!same_entry(&item, &regrouped));
     }
 
     #[test]

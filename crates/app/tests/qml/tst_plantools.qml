@@ -22,9 +22,12 @@ TestCase {
         readonly property var choices: ({
             figure: [{ id: "elisabeth", name: "Elisabeth" }, { id: "burgvogt", name: "Burgvogt" }],
             object: [
-                { kind: "table", label: "", width_m: 1.6, depth_m: 0.9, shape: "rect", custom: false },
-                { kind: "chair", label: "", width_m: 0.45, depth_m: 0.45, shape: "rect", custom: false },
-                { kind: "thron", label: "Thron", width_m: 0.9, depth_m: 0.8, shape: "rect", custom: true }
+                { kind: "table", label: "", group: "furniture", width_m: 1.6, depth_m: 0.9, shape: "rect", custom: false, uses: 1 },
+                { kind: "chair", label: "", group: "furniture", width_m: 0.45, depth_m: 0.45, shape: "rect", custom: false, uses: 0 },
+                { kind: "dolly", label: "", group: "camera", width_m: 1.2, depth_m: 0.8, shape: "rect", custom: false, uses: 0 },
+                { kind: "thron", label: "Thron", group: "", width_m: 0.9, depth_m: 0.8, shape: "rect", custom: true, uses: 3 },
+                { kind: "ruine", label: "Ruine", group: "Requisiten", width_m: 5, depth_m: 4, shape: "rect", custom: true, uses: 0 },
+                { kind: "kelch", label: "Kelch", group: "Möbel", width_m: 0.1, depth_m: 0.1, shape: "rect", custom: true, uses: 0 }
             ],
             cameras: [{ id: "a", label: "A" }, { id: "b", label: "B" }],
             light: ["fresnel-650", "led-panel"],
@@ -36,6 +39,9 @@ TestCase {
         property string choicesJson: JSON.stringify(choices)
         property var tools: []
         property var snaps: []
+        property var edits: []
+        property var removed: []
+        property bool accept: true
         property var styles: []
 
         function setTool(tool, choice) {
@@ -44,6 +50,14 @@ TestCase {
         }
         function setDrawStyle(color, dash, fill) {
             styles.push([color, dash, fill])
+            return true
+        }
+        function editLibraryItem(kind, name, group) {
+            edits.push([kind, name, group])
+            return accept
+        }
+        function removeLibraryItem(kind) {
+            removed.push(kind)
             return true
         }
         function setSnapping(on) {
@@ -79,6 +93,9 @@ TestCase {
         fake.choicesJson = JSON.stringify(fake.choices)
         fake.tools = []
         fake.snaps = []
+        fake.edits = []
+        fake.removed = []
+        fake.accept = true
         fake.grids = []
         fake.gridName = "cm25"
         fake.styles = []
@@ -333,9 +350,11 @@ TestCase {
         const bar = make()
         const box = findChild(bar, "objectBox")
 
-        compare(box.model.map(o => o.text), ["Tisch", "Stuhl", "Thron"])
-        compare(box.model.map(o => o.group), ["Eingebaut", "Eingebaut", "Eigene"])
-        compare(box.sectionAt(2), "Eigene")
+        // Built-in groups by name, then the own groups; "Möbel" of an own entry is the heading
+        // of the built-in group, so its entries sit together.
+        compare(box.model.map(o => o.text), ["Tisch", "Stuhl", "Kelch", "Dolly", "Thron", "Ruine"])
+        compare(box.model.map(o => o.group), ["Möbel", "Möbel", "Möbel", "Kamera-Technik", "Eigene", "Requisiten"])
+        compare(box.sectionAt(4), "Eigene")
     }
 
     function test_the_picked_object_goes_to_the_controller() {
@@ -346,8 +365,8 @@ TestCase {
         compare(bar.choice, "table")
         compare(fake.tools[fake.tools.length - 1], ["object", "table"])
 
-        box.currentIndex = 2
-        box.activated(2)
+        box.currentIndex = 4
+        box.activated(4)
         compare(bar.choice, "thron")
         compare(fake.tools[fake.tools.length - 1], ["object", "thron"])
     }
@@ -361,7 +380,7 @@ TestCase {
         box.activated(1)
 
         const objects = JSON.parse(fake.choicesJson).object
-        objects.unshift({ kind: "bed", label: "", width_m: 1.4, depth_m: 2, shape: "rect", custom: false })
+        objects.unshift({ kind: "bed", label: "", group: "furniture", width_m: 1.4, depth_m: 2, shape: "rect", custom: false })
         fake.choicesJson = JSON.stringify({ figure: [], object: objects, light: [], color: [], dash: [], fill: [] })
 
         compare(box.currentIndex, 2)
@@ -428,6 +447,137 @@ TestCase {
 
         verify(!findChild(bar, "libraryExport").enabled)
         verify(findChild(bar, "libraryImport").enabled)
+    }
+
+    // Picks the entry of `kind` in the object list.
+    function pick(bar, kind) {
+        const box = findChild(bar, "objectBox")
+        const index = box.model.findIndex(o => o.value === kind)
+        box.currentIndex = index
+        box.activated(index)
+    }
+
+    // LH-12: rename, regroup and delete are for the own entry the list has picked.
+    function test_only_an_own_object_can_be_changed_or_deleted() {
+        const bar = make()
+        bar.tool = "object"
+        const names = ["ownName", "ownGroup", "libraryRename", "libraryDelete"]
+
+        pick(bar, "table")
+        compare(names.map(n => findChild(bar, n).visible), [false, false, false, false])
+
+        pick(bar, "thron")
+        compare(names.map(n => findChild(bar, n).visible), [true, true, true, true])
+        compare(findChild(bar, "ownName").text, "Thron")
+        compare(findChild(bar, "ownGroup").text, "")
+
+        pick(bar, "ruine")
+        compare(findChild(bar, "ownName").text, "Ruine")
+        compare(findChild(bar, "ownGroup").text, "Requisiten")
+
+        bar.tool = "select"
+        compare(names.map(n => findChild(bar, n).visible), [false, false, false, false])
+    }
+
+    function test_the_typed_name_and_group_go_to_the_controller() {
+        const bar = make()
+        bar.tool = "object"
+        pick(bar, "thron")
+
+        findChild(bar, "ownName").text = "Königsthron"
+        findChild(bar, "ownGroup").text = "Hof"
+        findChild(bar, "libraryRename").clicked()
+
+        compare(fake.edits, [["thron", "Königsthron", "Hof"]])
+        verify(!findChild(bar, "ownName").invalid)
+    }
+
+    function test_a_refused_name_marks_the_field() {
+        const bar = make()
+        bar.tool = "object"
+        pick(bar, "thron")
+        fake.accept = false
+
+        findChild(bar, "ownName").text = ""
+        findChild(bar, "libraryRename").clicked()
+
+        verify(findChild(bar, "ownName").invalid)
+        findChild(bar, "ownName").text = "x"
+        verify(!findChild(bar, "ownName").invalid)
+    }
+
+    // The first click asks and names the objects of the plan; the second deletes.
+    function test_deleting_asks_first_and_names_the_objects_in_use() {
+        const bar = make()
+        bar.tool = "object"
+        pick(bar, "thron")
+        const button = findChild(bar, "libraryDelete")
+        compare(button.text, "Löschen")
+
+        button.clicked()
+        compare(button.text, "Wirklich löschen? 3 im Plan")
+        compare(fake.removed, [])
+
+        button.clicked()
+        compare(fake.removed, ["thron"])
+        compare(button.text, "Löschen")
+    }
+
+    // A lamp or character id can equal the kind of an own object; only the object tool edits.
+    function test_another_tool_with_the_id_of_an_own_kind_changes_nothing() {
+        const bar = make()
+        const choices = JSON.parse(fake.choicesJson)
+        choices.light.push("thron")
+        fake.choicesJson = JSON.stringify(choices)
+        bar.tool = "light"
+        const box = findChild(bar, "lightBox")
+        box.currentIndex = box.model.findIndex(o => o.value === "thron")
+        box.activated(box.currentIndex)
+
+        compare(bar.choice, "thron")
+        for (const n of ["ownName", "ownGroup", "libraryRename", "libraryDelete"]) {
+            verify(!findChild(bar, n).visible, n)
+        }
+    }
+
+    function test_deleting_an_unused_entry_does_not_count() {
+        const bar = make()
+        bar.tool = "object"
+        pick(bar, "ruine")
+        const button = findChild(bar, "libraryDelete")
+
+        button.clicked()
+        compare(button.text, "Wirklich löschen?")
+    }
+
+    // Undo of a rename changes the entry under the same kind; the fields follow.
+    function test_the_fields_follow_a_change_of_the_entry() {
+        const bar = make()
+        bar.tool = "object"
+        pick(bar, "thron")
+        const original = fake.choicesJson
+        const renamed = JSON.parse(original)
+        renamed.object.find(o => o.kind === "thron").label = "Sessel"
+
+        fake.choicesJson = JSON.stringify(renamed)
+        compare(findChild(bar, "ownName").text, "Sessel")
+
+        fake.choicesJson = original
+        compare(findChild(bar, "ownName").text, "Thron")
+    }
+
+    function test_another_pick_cancels_the_question() {
+        const bar = make()
+        bar.tool = "object"
+        pick(bar, "thron")
+        const button = findChild(bar, "libraryDelete")
+
+        button.clicked()
+        pick(bar, "ruine")
+
+        compare(button.text, "Löschen")
+        button.clicked()
+        compare(fake.removed, [])
     }
 
     function test_lists_have_translated_names() {

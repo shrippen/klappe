@@ -157,6 +157,9 @@ pub struct LibraryEntry {
     /// The name of an own entry; empty for a built-in one, which the surface translates
     /// (`objectKind.<kind>`).
     pub label: String,
+    /// The group of the list: a key of the catalogue (`objectGroup.<group>`) for a built-in
+    /// entry, free text for an own one; empty for none.
+    pub group: String,
     pub width_m: f64,
     pub depth_m: f64,
     pub shape: ObjectShape,
@@ -164,6 +167,8 @@ pub struct LibraryEntry {
     pub height_m: Option<f64>,
     /// An entry of the project (`bibliothek.toml`) rather than a built-in one.
     pub custom: bool,
+    /// How many objects of the project's sets have this kind (set by `Session::library`).
+    pub uses: usize,
 }
 
 impl LibraryEntry {
@@ -171,11 +176,13 @@ impl LibraryEntry {
         Self {
             kind: item.kind.clone(),
             label: item.label.clone(),
+            group: item.group.clone(),
             width_m: item.width_m,
             depth_m: item.depth_m,
             shape: item.shape,
             height_m: item.height_m,
             custom,
+            uses: 0,
         }
     }
 }
