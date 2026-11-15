@@ -1,7 +1,5 @@
 import QtQuick
 import QtQuick.Dialogs
-import QtQuick.Layouts
-import org.kde.kirigami as Kirigami
 import Kante
 
 // LH-80, LH-81: asks where an export goes. A plan export (PDF, PNG, SVG) asks for the paper
