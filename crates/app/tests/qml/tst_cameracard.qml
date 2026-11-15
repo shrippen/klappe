@@ -288,4 +288,20 @@ TestCase {
 
         compare(field.text, "50")
     }
+
+    // D-04: the lens is the common field; body, sensor and frame wait behind "More".
+    function test_more_shows_body_sensor_and_frame() {
+        const card = shown("camera:a")
+
+        verify(findChild(card, "cameraLensField").visible)
+        verify(!findChild(card, "cameraBodyBox").visible)
+        verify(!findChild(card, "cameraSensorField").visible)
+        verify(!findChild(card, "cameraAspectField").visible)
+
+        findChild(card, "cameraMore").clicked()
+
+        verify(findChild(card, "cameraBodyBox").visible)
+        verify(findChild(card, "cameraSensorField").visible)
+        verify(findChild(card, "cameraAspectField").visible)
+    }
 }

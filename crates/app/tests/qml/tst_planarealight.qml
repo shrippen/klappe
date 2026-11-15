@@ -66,8 +66,8 @@ TestCase {
         verify(card.visible)
         verify(!findChild(area, "cameraCard").visible)
 
+        // D-04: a camera's card opens at the element, in the selection card (its own tests).
         fake.selectedKey = "camera:a"
         verify(!card.visible)
-        verify(findChild(area, "cameraCard").visible)
     }
 }
