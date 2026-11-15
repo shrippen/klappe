@@ -307,6 +307,8 @@
  "legend.figure": "Figure",
  "legend.camera": "Camera",
  "legend.light": "Light",
+ "legend.lamp": "{label}: {kind}, {power} W, {temp} K, {beam}°",
+ "legend.lampPassive": "{label}: {kind}, {beam}°",
  "legend.axis": "Axis",
  "legend.path": "Path",
  "legend.mark": "Mark",

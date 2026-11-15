@@ -2,8 +2,8 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    pdf, pdf_with_shots, shots_csv, Orientation, Page, Paper, ShotColumns, ShotOrder, ShotTexts,
-    Texts, Theme,
+    pdf, pdf_with_shots, shots_csv, LampTexts, Orientation, Page, Paper, ShotColumns, ShotOrder,
+    ShotTexts, Texts, Theme,
 };
 use klappe_model::{
     Angle, Camera, CameraMark, FloorPlan, Movement, Point, Project, Sensor, SetPlan, Shot, ShotSize,
@@ -110,6 +110,7 @@ fn page() -> Page {
         unit: "m".into(),
         decimal_separator: ',',
         shots: texts(),
+        lamps: LampTexts::default(),
     };
 
     Page::new(

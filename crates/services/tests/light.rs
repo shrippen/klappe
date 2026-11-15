@@ -5,7 +5,10 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{Light, LightKind, Point};
-use klappe_services::{Field, Layer, LightChange, Lock, PlanEdit, ServiceError, Session, Source};
+use klappe_services::{
+    Field, Language, Layer, LightChange, Lock, Paper, PlanEdit, ServiceError, Session, Source,
+    Visibility,
+};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -203,4 +206,23 @@ fn a_locked_layer_refuses_lamp_edits() {
 
     assert!(matches!(result, Err(ServiceError::Locked(Layer::Lights))));
     assert_eq!(light(&s, "led-1").beam_deg, 60.0);
+}
+
+/// The printed plan lists the lamp with kind, power, colour and beam, in the catalogue's
+/// words; a hidden lights layer takes it out again.
+#[test]
+fn the_printout_names_the_lamps() {
+    let mut s = open();
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("lamps.svg");
+    let printed = |s: &Session| {
+        s.export_svg(&path, Paper::A4, Language::English.print_texts())
+            .unwrap();
+
+        std::fs::read_to_string(&path).unwrap()
+    };
+
+    assert!(printed(&s).contains("LED-Panel: LED panel, 200 W, 5600 K, 60°"));
+
+    s.set_layer(Layer::Lights, Visibility::Hidden);
+    assert!(!printed(&s).contains("lamp-label"));
 }

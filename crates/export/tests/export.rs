@@ -2,14 +2,14 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    pdf, png, svg, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme,
+    pdf, png, svg, ExportError, LampTexts, Orientation, Page, Paper, ShotTexts, Texts, Theme,
 };
 use klappe_model::{
     Arrival, Camera, CameraMark, Character, Dash, Departure, Drawing, DrawingShape, FigureColor,
     FigureTrack, Fill, FloorPlan, Light, LightKind, Mark, Note, ObjectShape, Point, Pose, Project,
     Sensor, SetObject, SetPlan, Wall,
 };
-use klappe_stellprobe::{render, DisplayList};
+use klappe_stellprobe::{render, DisplayList, Lamp};
 use serde_json::Value;
 
 const PALETTE_JSON: &str = include_str!("../kante/palette.json");
@@ -126,6 +126,7 @@ fn german() -> Texts {
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
+        lamps: LampTexts::default(),
     }
 }
 
@@ -678,6 +679,63 @@ fn legend_light_is_a_circle_with_a_cone() {
         .count();
 
     assert_eq!((circles, cones, parts.len()), (1, 1, 2), "{parts:#?}");
+}
+
+/// The lamp list under the legend names each lamp with kind, power, colour and beam (LH-51);
+/// a flag has neither power nor colour.
+#[test]
+fn the_lamp_list_names_each_lamp() {
+    let mut page = page();
+    page.texts.lamps = LampTexts {
+        line: "{label}: {kind}, {power} W, {temp} K, {beam}°".into(),
+        passive: "{label}: {kind}, {beam}°".into(),
+        kinds: vec![(LightKind::LedPanel, "LED-Panel".into())],
+    };
+    let mut list = list();
+    list.lamps.push(Lamp {
+        id: "l2".into(),
+        label: "L2".into(),
+        kind: LightKind::Flag,
+        power_w: 0.0,
+        color_temp_k: 5600.0,
+        beam_deg: 22.5,
+    });
+
+    let out = svg(&list, &page, Theme::Light).unwrap();
+    let lines = lines_with(&out, "lamp-label");
+
+    assert_eq!(lines.len(), 2, "{lines:#?}");
+    assert!(
+        lines[0].contains("L1: LED-Panel, 200 W, 5600 K, 60°"),
+        "{}",
+        lines[0]
+    );
+    assert!(lines[1].contains("L2: flag, 22,5°"), "{}", lines[1]);
+}
+
+/// Without words for it there is no lamp list, and the plan keeps its room.
+#[test]
+fn no_lamp_words_no_lamp_list() {
+    let out = svg(&list(), &page(), Theme::Light).unwrap();
+
+    assert!(lines_with(&out, "lamp-label").is_empty());
+}
+
+/// The list takes room from the plan: one row per lamp.
+#[test]
+fn the_lamp_list_takes_a_row_each() {
+    let mut with = page();
+    with.texts.lamps.line = "{label}".into();
+    let frame_h = |page: &Page| {
+        attr(
+            lines_with(&svg(&list(), page, Theme::Light).unwrap(), "frame")[0],
+            "height",
+        )
+    };
+
+    let shrink = frame_h(&page()) - frame_h(&with);
+
+    assert!((shrink - 16.0).abs() < 0.011, "{shrink}");
 }
 
 /// A circle's centre y and radius from its svg line.

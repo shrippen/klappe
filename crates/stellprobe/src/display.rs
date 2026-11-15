@@ -1,6 +1,6 @@
 use klappe_model::{
-    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Note,
-    ObjectShape, Point, Project, SetObject, SetPlan,
+    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, LightKind,
+    Mark, Note, ObjectShape, Point, Project, SetObject, SetPlan,
 };
 
 use crate::axis::axis_at;
@@ -13,8 +13,22 @@ use crate::rig::{rig_dash, rig_runs};
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DisplayList {
     pub items: Vec<Item>,
+    /// What each lamp of the plan is, for a printed legend (LH-51).
+    pub lamps: Vec<Lamp>,
     pub width_m: f64,
     pub depth_m: f64,
+}
+
+/// A lamp as a legend names it: the label the plan shows, and what it is.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Lamp {
+    /// Id of the lamp, to match it with its items.
+    pub id: String,
+    pub label: String,
+    pub kind: LightKind,
+    pub power_w: f64,
+    pub color_temp_k: f64,
+    pub beam_deg: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -175,6 +189,7 @@ pub fn render(
 
     DisplayList {
         items,
+        lamps: lamps(plan),
         width_m: set.width_m,
         depth_m: set.depth_m,
     }
@@ -381,6 +396,20 @@ fn note_items(set: &SetPlan, items: &mut Vec<Item>) {
             source: Some(Source::Note(id.clone())),
         });
     }
+}
+
+fn lamps(plan: &FloorPlan) -> Vec<Lamp> {
+    plan.lights
+        .iter()
+        .map(|l| Lamp {
+            id: l.id.clone(),
+            label: l.label.clone(),
+            kind: l.kind,
+            power_w: l.power_w,
+            color_temp_k: l.color_temp_k,
+            beam_deg: l.beam_deg,
+        })
+        .collect()
 }
 
 fn light_items(plan: &FloorPlan, items: &mut Vec<Item>) {

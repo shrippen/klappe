@@ -38,6 +38,14 @@ impl Session {
         }
         list.items
             .retain(|item| self.shows(item.role, item.source.as_ref()));
+        // A hidden lamp is no more in the legend than on the plan.
+        let on_plan = |id: &str| {
+            let source = Source::Light(id.to_owned());
+            list.items
+                .iter()
+                .any(|i| i.source.as_ref() == Some(&source))
+        };
+        list.lamps.retain(|l| on_plan(&l.id));
         list
     }
 

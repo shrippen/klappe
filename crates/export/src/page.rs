@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use klappe_model::{Angle, Movement, ShotSize};
+use klappe_model::{Angle, LightKind, Movement, ShotSize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Paper {
@@ -45,6 +45,18 @@ pub struct Texts {
     /// Between whole and fraction of a length: ',' or '.'.
     pub decimal_separator: char,
     pub shots: ShotTexts,
+    pub lamps: LampTexts,
+}
+
+/// The words of the lamp list under the legend (LH-51). Without a `line` the list is left out.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LampTexts {
+    /// One lamp: `{label}`, `{kind}`, `{power}` (W), `{temp}` (K) and `{beam}` (degrees) are
+    /// replaced, e.g. "{label}: {kind}, {power} W, {temp} K, {beam}°".
+    pub line: String,
+    /// A lamp that makes no light of its own (bounce, flag): `{label}`, `{kind}`, `{beam}`.
+    pub passive: String,
+    pub kinds: Vec<(LightKind, String)>,
 }
 
 /// The shot list's words: heading, column heads and the names of sizes, angles and movements.

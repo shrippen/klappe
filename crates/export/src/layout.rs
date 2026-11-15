@@ -9,6 +9,7 @@
 //! │ └─────────────────────────┘ │
 //! │ ├──────┤ 5 m                │
 //! │ ● Figur  ▲ Kamera  ● Licht …│
+//! │ L1: Stufenlinse, 650 W, …   │
 //! └─────────────────────────────┘
 //! ```
 
@@ -85,7 +86,8 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
     // Legend wraps into rows when the page is narrow.
     let columns = ((content_w / LEGEND_ENTRY_PT) as usize).max(1);
     let legend_rows = LEGEND_ENTRIES.div_ceil(columns);
-    let footer_h = SCALE_ROW_PT + legend_rows as f64 * LEGEND_ROW_PT;
+    let lamp_rows = lamp_lines(list, &page.texts).len();
+    let footer_h = SCALE_ROW_PT + (legend_rows + lamp_rows) as f64 * LEGEND_ROW_PT;
 
     let area = Rect {
         x: margin,
@@ -138,6 +140,14 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
         pal,
         &mut chrome,
     )?;
+    lamp_list(
+        list,
+        margin,
+        footer_y + SCALE_ROW_PT + legend_rows as f64 * LEGEND_ROW_PT,
+        &page.texts,
+        pal,
+        &mut chrome,
+    );
 
     Ok(Doc {
         width_pt,
@@ -460,6 +470,73 @@ fn legend(
     }
 
     Ok(())
+}
+
+/// A number as the legend writes it: no zero fraction, the caller's decimal separator.
+fn plain_number(value: f64, texts: &Texts) -> String {
+    let fixed = format!("{value:.1}");
+
+    fixed
+        .strip_suffix(".0")
+        .unwrap_or(&fixed)
+        .replace('.', &texts.decimal_separator.to_string())
+}
+
+/// One line per lamp of the plan: what it is, with power, colour and beam (LH-51). Empty
+/// without words for it.
+fn lamp_lines(list: &DisplayList, texts: &Texts) -> Vec<String> {
+    let words = &texts.lamps;
+    if words.line.is_empty() {
+        return Vec::new();
+    }
+
+    let mut lines = Vec::new();
+    for lamp in &list.lamps {
+        let kind = words
+            .kinds
+            .iter()
+            .find(|(k, _)| *k == lamp.kind)
+            .map_or(lamp.kind.name(), |(_, name)| name.as_str());
+        // Bounce and flag give no light of their own: power and colour would say nothing.
+        let template = match lamp.power_w > 0.0 {
+            true => &words.line,
+            false => &words.passive,
+        };
+
+        lines.push(
+            template
+                .replace("{label}", &lamp.label)
+                .replace("{kind}", kind)
+                .replace("{power}", &plain_number(lamp.power_w, texts))
+                .replace("{temp}", &plain_number(lamp.color_temp_k, texts))
+                .replace("{beam}", &plain_number(lamp.beam_deg, texts)),
+        );
+    }
+
+    lines
+}
+
+fn lamp_list(
+    list: &DisplayList,
+    x: f64,
+    y: f64,
+    texts: &Texts,
+    pal: &Palette,
+    out: &mut Vec<Prim>,
+) {
+    for (row, text) in lamp_lines(list, texts).into_iter().enumerate() {
+        let mid = y + row as f64 * LEGEND_ROW_PT + LEGEND_ROW_PT / 2.0;
+
+        out.push(Prim::Text {
+            class: "lamp-label".into(),
+            anchor: Anchor::Start,
+            at: (x, mid + LEGEND_PT * BASELINE_SHIFT),
+            size_pt: LEGEND_PT,
+            weight: Weight::Regular,
+            rgb: pal.foreground,
+            text,
+        });
+    }
 }
 
 /// Each symbol has its own shape, so the legend reads without colour: the figure is the plan's
