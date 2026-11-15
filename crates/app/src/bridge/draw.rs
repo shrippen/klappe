@@ -270,7 +270,12 @@ impl qobject::Controller {
         }
 
         let draft = self.rust().area.clone();
-        if draft.closes(at) {
+        let grid_m = self
+            .rust()
+            .session
+            .as_ref()
+            .map_or(1.0, |s| s.grid().step_m());
+        if draft.closes(at, grid_m) {
             return self.finish_area();
         }
 

@@ -22,10 +22,10 @@ pub const MEASURE_SEPARATOR: &str = " · ";
 /// A full turn; angles are kept within [0, 360), as `facing_deg` is.
 const FULL_TURN_DEG: f64 = 360.0;
 
-/// How far from its first point a click still closes an area, in metres: the grid is 0.25 m,
-/// so a click that snaps to a neighbour of the first point, diagonal ones (0.354 m) too,
-/// closes it; the next ring (0.5 m) does not.
-const AREA_CLOSE_M: f64 = 0.4;
+/// How far from its first point a click still closes an area, in grid steps: a click that
+/// snaps to a neighbour of the first point, diagonal ones (1.41 steps) too, closes it; the
+/// next ring (2 steps) does not. On the 0.25 m grid that is 0.4 m.
+const AREA_CLOSE_STEPS: f64 = 1.6;
 
 /// An area has an inside from three points on.
 const MIN_AREA_POINTS: usize = 3;
@@ -388,12 +388,12 @@ impl AreaDraft {
     }
 
     /// Whether a click at `at` closes the area: it has three points and `at` is on the first.
-    pub fn closes(&self, at: Point) -> bool {
+    pub fn closes(&self, at: Point, grid_m: f64) -> bool {
         let Some(first) = self.0.first() else {
             return false;
         };
 
-        self.0.len() >= MIN_AREA_POINTS && first.distance_m(at) <= AREA_CLOSE_M
+        self.0.len() >= MIN_AREA_POINTS && first.distance_m(at) <= AREA_CLOSE_STEPS * grid_m
     }
 
     /// The points picked, for the preview on the plan.

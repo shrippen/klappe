@@ -139,6 +139,9 @@ fn every_style_name_has_a_text_in_both_languages() {
     }
 }
 
+/// The 0.25 m grid.
+const GRID_M: f64 = 0.25;
+
 /// Review of PR 24: with the 0.25 m grid the diagonal neighbour of the first point is
 /// 0.354 m away and added a corner instead of closing the area.
 #[test]
@@ -148,8 +151,20 @@ fn a_click_on_a_diagonal_grid_neighbour_closes() {
         .click(Point::new(2.0, 0.0))
         .click(Point::new(2.0, 2.0));
 
-    assert!(draft.closes(Point::new(0.25, 0.25)));
-    assert!(!draft.closes(Point::new(0.5, 0.5)));
+    assert!(draft.closes(Point::new(0.25, 0.25), GRID_M));
+    assert!(!draft.closes(Point::new(0.5, 0.5), GRID_M));
+}
+
+/// Review of PR 86: the closing radius was fixed at 0.4 m; on a 5 cm grid a click 0.3 m from
+/// the first point closed a narrow area instead of adding its corner.
+#[test]
+fn a_fine_grid_draws_a_narrow_area() {
+    let draft = AreaDraft::default()
+        .click(Point::new(0.0, 0.0))
+        .click(Point::new(4.0, 0.0))
+        .click(Point::new(4.0, 0.3));
+
+    assert!(!draft.closes(Point::new(0.0, 0.3), 0.05));
 }
 
 #[test]
@@ -170,11 +185,11 @@ fn a_click_on_the_first_point_closes_from_three_points_on() {
     let two = AreaDraft::default().click(a).click(b);
     let three = two.clone().click(c);
 
-    assert!(!AreaDraft::default().closes(a));
-    assert!(!two.closes(a));
-    assert!(three.closes(a));
-    assert!(three.closes(p(0.25, 0.0)));
-    assert!(!three.closes(p(0.5, 0.0)));
+    assert!(!AreaDraft::default().closes(a, GRID_M));
+    assert!(!two.closes(a, GRID_M));
+    assert!(three.closes(a, GRID_M));
+    assert!(three.closes(p(0.25, 0.0), GRID_M));
+    assert!(!three.closes(p(0.5, 0.0), GRID_M));
 }
 
 #[test]
