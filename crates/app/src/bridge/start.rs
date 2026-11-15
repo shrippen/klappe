@@ -64,6 +64,7 @@ impl Default for ControllerRust {
             selected_key: QString::default(),
             selected_count: 0,
             extend_selection: false,
+            lasso_selection: false,
             snapping_on: true,
             grid_name: QString::default(),
             choices_json: QString::default(),

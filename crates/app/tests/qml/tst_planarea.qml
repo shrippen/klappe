@@ -20,6 +20,7 @@ TestCase {
         property string choicesJson: ""
         property int selectedCount: 0
         property bool extendSelection: false
+        property bool lassoSelection: false
         property int duplicates: 0
         property var drags: []
         property var places: []

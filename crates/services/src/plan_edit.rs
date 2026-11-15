@@ -4,7 +4,7 @@ use klappe_model::{
     Arrival, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
     LibraryItem, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
 };
-use klappe_stellprobe::{hit, within, Item, Role, Source};
+use klappe_stellprobe::Source;
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -20,6 +20,7 @@ mod grid;
 mod group;
 mod marks;
 mod moving;
+mod picking;
 mod remove;
 
 use add::{
@@ -36,6 +37,8 @@ use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_p
 pub use marks::{MarkInfo, Pace};
 use moving::{anchor_pair, carry_cameras, move_to, points_mut, rotate, shift, spin, target, turn};
 use remove::remove;
+
+pub(crate) use picking::{pick, pick_in, pick_lasso};
 
 /// What a tool or a drag does to the current plan.
 #[derive(Debug, Clone, PartialEq)]
@@ -273,67 +276,8 @@ pub enum Snapping {
     Off,
 }
 
-/// How far beside a shape a click still takes it: a finger or a mouse is not exact.
-const PICK_RADIUS_M: f64 = 0.15;
-
 /// A full turn; angles are kept within [0, 360).
 const FULL_TURN_DEG: f64 = 360.0;
-
-/// The topmost item the user can grab at `at`: the display list is back to front. Items for
-/// which `locked` is true are left out.
-pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> Option<Source> {
-    items
-        .iter()
-        .rev()
-        .filter(|item| grabbable(item.role) && !locked(item.role))
-        .find(|item| hit(item, at, PICK_RADIUS_M))
-        .and_then(|item| item.source.clone())
-}
-
-/// Every element the user can grab whose shown items all lie in the box with corners `a` and
-/// `b` (LH-08), in display order. Items for which `locked` is true are left out.
-pub(crate) fn pick_in(
-    items: &[Item],
-    (a, b): (Point, Point),
-    locked: impl Fn(Role) -> bool,
-) -> Vec<Source> {
-    let mut found: Vec<(Source, bool)> = Vec::new();
-
-    for item in items
-        .iter()
-        .filter(|i| grabbable(i.role) && !locked(i.role))
-    {
-        let Some(source) = &item.source else {
-            continue;
-        };
-        let inside = within(item, a, b);
-
-        // An element drawn from several items (a figure and its facing wedge) is in only
-        // when all of them are.
-        match found.iter_mut().find(|(s, _)| s == source) {
-            Some((_, all_in)) => *all_in &= inside,
-            None => found.push((source.clone(), inside)),
-        }
-    }
-
-    found
-        .into_iter()
-        .filter_map(|(source, all_in)| all_in.then_some(source))
-        .collect()
-}
-
-/// What a click means to take: not the view cone, the axis or a path, which only show.
-fn grabbable(role: Role) -> bool {
-    !matches!(
-        role,
-        Role::Background
-            | Role::Frustum
-            | Role::Axis
-            | Role::CameraPath { .. }
-            | Role::FigurePath(_)
-            | Role::LightBeam
-    )
-}
 
 impl PlanEdit {
     /// The layers the edit changes something on; a locked one refuses it. A group edit can

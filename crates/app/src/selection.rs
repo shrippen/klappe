@@ -32,6 +32,13 @@ pub enum Pick {
     Extend,
 }
 
+/// What a drag on empty ground pulls up: a box, or (Ctrl held) a freehand lasso (LH-08).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reach {
+    Box,
+    Lasso,
+}
+
 /// What a pick selects: a grip on a drawing's point stands for the drawing, which keeps its
 /// grips, its card and its keys; a grip on a way is selected itself (it is the bend to
 /// straighten).

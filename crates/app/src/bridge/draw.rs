@@ -4,8 +4,9 @@ use super::q;
 use super::qobject;
 use super::view::plan_json;
 use crate::notice::error_text;
+use crate::plan::Sweep;
 use crate::selection;
-use crate::selection::Pick;
+use crate::selection::{Pick, Reach};
 use crate::tools;
 use crate::tools::{
     AreaDraft, Closing, DragPhase, DragStep, DrawStyle, Grip, MeasureStep, NoteDraft, Preview,
@@ -204,16 +205,26 @@ impl qobject::Controller {
         self.set_grid_name(q(grid.name()));
     }
 
-    /// A drag on empty ground: the box on screen while the button is down, the elements wholly
-    /// in it selected on release.
+    /// A drag on empty ground: the box or the lasso line on screen while the button is down,
+    /// the elements it takes selected on release.
     fn drag_box(
         mut self: Pin<&mut Self>,
-        corners: (Point, Point),
+        (from, to): (Point, Point),
         phase: DragPhase,
         how: Pick,
     ) -> bool {
+        let reach = self.rust().reach();
+        let sweep = match (reach, self.rust().marquee.clone()) {
+            (Reach::Box, _) => Sweep::Box(from, to),
+            (Reach::Lasso, Some(Sweep::Lasso(mut path))) => {
+                path.push(to);
+                Sweep::Lasso(path)
+            }
+            (Reach::Lasso, _) => Sweep::Lasso(vec![from, to]),
+        };
+
         if phase == DragPhase::Moving {
-            self.as_mut().rust_mut().get_mut().marquee = Some(corners);
+            self.as_mut().rust_mut().get_mut().marquee = Some(sweep.clone());
             let json = {
                 let this = self.as_ref();
                 this.rust().session.as_ref().map(|s| {
@@ -224,7 +235,7 @@ impl qobject::Controller {
                         s,
                         &list,
                         selected,
-                        (&this.rust().picked(), Some(corners), None),
+                        (&this.rust().picked(), Some(&sweep), None),
                     )
                 })
             };
@@ -239,7 +250,10 @@ impl qobject::Controller {
             this.rust()
                 .session
                 .as_ref()
-                .map(|s| s.pick_in(corners.0, corners.1))
+                .map(|s| match &sweep {
+                    Sweep::Box(a, b) => s.pick_in(*a, *b),
+                    Sweep::Lasso(path) => s.pick_lasso(path),
+                })
                 .unwrap_or_default()
         };
         let any = !found.is_empty();
@@ -295,7 +309,11 @@ impl qobject::Controller {
                     s,
                     &s.display_list_for(this.rust().selected.only()),
                     &this.rust().selected,
-                    (&this.rust().picked(), this.rust().marquee, measure.as_ref()),
+                    (
+                        &this.rust().picked(),
+                        this.rust().marquee.as_ref(),
+                        measure.as_ref(),
+                    ),
                 )
             })
         };
