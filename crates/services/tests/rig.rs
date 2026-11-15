@@ -246,6 +246,82 @@ fn the_tooltip_height_is_the_one_at_the_playhead() {
     assert_eq!(height(&s), 1.6);
 }
 
+/// Camera A's last mark: (9, 8) at 6 s, no pause, aim and height as the file has them. A mark
+/// at (9, 5.2) is 2.8 m away: 2.8 / 1.4 = 2 s, so 8 s.
+#[test]
+fn a_new_camera_mark_arrives_by_dolly_and_keeps_the_aim() {
+    let mut s = open();
+    let before = s.plan().unwrap().camera("a").unwrap().marks[1].clone();
+
+    s.edit_plan(PlanEdit::AddCameraMark {
+        camera: "a".into(),
+        at: Point::new(9.0, 5.2),
+    })
+    .unwrap();
+
+    let marks = &s.plan().unwrap().camera("a").unwrap().marks;
+    let new = &marks[2];
+    assert_eq!(marks.len(), 3);
+    assert!((new.at_s - (before.at_s + before.hold_s + 2.0)).abs() < 1e-9);
+    assert_eq!(new.at, Point::new(9.0, 5.2));
+    assert_eq!(
+        (new.facing_deg, new.height_m, new.tilt_deg, new.lens_mm),
+        (
+            before.facing_deg,
+            before.height_m,
+            before.tilt_deg,
+            before.lens_mm
+        )
+    );
+    assert_eq!((new.rig, new.hold_s, new.via), (Rig::Dolly, 0.0, None));
+
+    s.undo();
+    assert_eq!(s.plan().unwrap().camera("a").unwrap().marks.len(), 2);
+}
+
+/// The pause of the mark before counts, and its lens carries over.
+#[test]
+fn a_new_camera_mark_waits_for_the_pause_and_takes_the_lens() {
+    let mut s = open();
+    let last = s.plan().unwrap().camera("a").unwrap().marks[1].clone();
+    s.set_time(last.at_s);
+    set_lens(&mut s, Some(85.0)).unwrap();
+    s.edit_plan(PlanEdit::SetHold {
+        source: camera(),
+        hold_s: 3.0,
+    })
+    .unwrap();
+
+    s.edit_plan(PlanEdit::AddCameraMark {
+        camera: "a".into(),
+        at: last.at,
+    })
+    .unwrap();
+
+    let marks = &s.plan().unwrap().camera("a").unwrap().marks;
+    assert_eq!(marks[2].lens_mm, Some(85.0));
+    assert!((marks[2].at_s - (last.at_s + 3.0)).abs() < 1e-9);
+}
+
+#[test]
+fn a_camera_mark_needs_a_known_camera_and_an_open_layer() {
+    let mut s = open();
+    let add = |camera: &str| PlanEdit::AddCameraMark {
+        camera: camera.into(),
+        at: Point::new(1.0, 1.0),
+    };
+
+    assert!(matches!(s.edit_plan(add("z")), Err(ServiceError::Gone)));
+    assert!(!s.can_undo());
+
+    s.set_lock(Layer::Cameras, Lock::Locked);
+    assert!(matches!(
+        s.edit_plan(add("a")),
+        Err(ServiceError::Locked(Layer::Cameras))
+    ));
+    assert_eq!(s.plan().unwrap().camera("a").unwrap().marks.len(), 2);
+}
+
 /// With a lens on the marks the list shows theirs: 12.1 runs 35 to 85 mm, 12.2 stays on
 /// 85 mm; its own 40 mm no longer counts.
 #[test]
@@ -315,4 +391,40 @@ fn the_tooltip_rig_is_the_one_of_the_way() {
     assert_eq!(rig(&s), "crane");
     s.set_time(7.0);
     assert_eq!(rig(&s), "crane");
+}
+
+/// The example with camera A turning on the spot: mark 2 at the place of mark 1, from 2 s.
+fn example_with_a_pan() -> PathBuf {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("rig-pan");
+    let _ = std::fs::remove_dir_all(&dir);
+    copy_dir(&example(), &dir);
+
+    let scene = dir.join("szenen/szene-012.json");
+    let mut json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&scene).unwrap()).unwrap();
+    let marks = &mut json["plans"][0]["cameras"][0]["marks"];
+    marks[0]["hold_s"] = 2.0.into();
+    marks[1]["at"] = marks[0]["at"].clone();
+    std::fs::write(&scene, json.to_string()).unwrap();
+
+    dir
+}
+
+/// Without a change of place the tooltip still names the rig of the section, then of the mark.
+#[test]
+fn the_tooltip_rig_holds_without_a_change_of_place() {
+    let mut s = Session::open(&example_with_a_pan()).unwrap();
+    s.set_time(7.0);
+    set_rig(&mut s, Rig::Tripod).unwrap();
+    let rig = |s: &mut Session, t_s: f64| {
+        s.set_time(t_s);
+        match s.camera_hint("a") {
+            Some(Hint::Camera { rig, .. }) => rig,
+            _ => panic!("no hint"),
+        }
+    };
+
+    // Turning from 2 to 6 s, standing at mark 2 afterwards.
+    assert_eq!(rig(&mut s, 4.0), "tripod");
+    assert_eq!(rig(&mut s, 7.0), "tripod");
 }

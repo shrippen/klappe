@@ -59,7 +59,8 @@ pub enum Tool {
     Object(String),
     /// Id of the character whose next mark a click sets.
     Figure(String),
-    Camera,
+    /// Id of the camera whose next mark a click sets; empty: a click sets a new camera.
+    Camera(String),
     Light(LightKind),
     /// Two clicks on a stretch of known length scale the background; a drag moves it.
     Scale,
@@ -80,7 +81,7 @@ pub enum Tool {
 
 impl Tool {
     /// `name` as the tool bar spells it (`select`, `wall` …); `choice` is the value picked in
-    /// the tool's list (object kind, character id, lamp kind). `None` for an unknown name or
+    /// the tool's list (object kind, character id, camera id, lamp kind). `None` for an unknown name or
     /// a choice the tool cannot use.
     pub fn parse(name: &str, choice: &str) -> Option<Tool> {
         match name {
@@ -88,7 +89,7 @@ impl Tool {
             "wall" => Some(Tool::Wall),
             "object" => Some(Tool::Object(choice.to_owned())),
             "figure" => Some(Tool::Figure(choice.to_owned())),
-            "camera" => Some(Tool::Camera),
+            "camera" => Some(Tool::Camera(choice.to_owned())),
             "scale" => Some(Tool::Scale),
             "measure" => Some(Tool::Measure),
             "note" => Some(Tool::Note),
@@ -126,9 +127,13 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
             character: character.clone(),
             at,
         }),
-        Tool::Camera => Some(PlanEdit::AddCamera {
+        Tool::Camera(camera) if camera.is_empty() => Some(PlanEdit::AddCamera {
             at,
             facing_deg: NEW_CAMERA_FACING_DEG,
+        }),
+        Tool::Camera(camera) => Some(PlanEdit::AddCameraMark {
+            camera: camera.clone(),
+            at,
         }),
         Tool::Light(kind) => Some(PlanEdit::AddLight { kind: *kind, at }),
     }
