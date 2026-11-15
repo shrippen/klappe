@@ -37,7 +37,7 @@ impl qobject::Controller {
     }
 
     pub(super) fn export_to(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         kind: &QString,
         order: &QString,
         paper: &QString,
@@ -56,9 +56,15 @@ impl qobject::Controller {
             "svg" => self.export_plan(path, "menu.svgSaved", |s, path, texts| {
                 s.export_svg(path, paper, texts)
             }),
-            _ => self.export_plan(path, "menu.csvSaved", |s, path, texts| {
+            "csv" => self.export_plan(path, "menu.csvSaved", |s, path, texts| {
                 s.export_csv(path, &texts, order)
             }),
+            other => {
+                let language = self.rust().language;
+                let message = language.text("error.export").replace("{detail}", other);
+                self.as_mut().say(message);
+                false
+            }
         }
     }
 

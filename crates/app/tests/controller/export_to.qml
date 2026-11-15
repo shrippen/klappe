@@ -51,6 +51,12 @@ Item {
                 return root.fail("export over something that cannot be replaced reported success")
             }
 
+            if (ctl.exportTo("zip", "cut", "a4", base + "/x.zip")) {
+                return root.fail("an unknown kind reported success")
+            }
+            if (ctl.status === "") {
+                return root.fail("an unknown kind said nothing")
+            }
             Qt.exit(0)
         }
     }
