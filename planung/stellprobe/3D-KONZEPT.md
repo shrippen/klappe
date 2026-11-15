@@ -16,7 +16,7 @@ Rudimentäres visuelles Blocking in 3D, ohne zweites Programm im Programm:
 
 Nicht Ziel (hier festgelegt; das Lastenheft, Abschnitt 8, schließt die vollständige
 3D-Previsualisierung aus): Previsualisierung mit Licht, Schatten, Texturen, Animation von Gliedmaßen,
-Import von 3D-Modellen (Lastenheft, Abschnitt 8).
+Import von 3D-Modellen.
 
 ## 2. Grundidee: jedes Element ist Grundriss plus Höhe
 
@@ -135,7 +135,7 @@ Dazu zwei Umkehrungen, die die Werkzeuge brauchen:
   Tiefenpuffer ohne Sortierung auskommt; dazu Kantenrolle „fehlt“ (orange, gestrichelt
   wirkt durch das Muster).
 - **Schnitt:** Wände in der Orbit-Ansicht auf 1,20 m gekappt (Schnittebene beim Schneiden
-  der Dreiecke), nur Ansicht, nicht Modell. Taste K schaltet ihn (C ist die Kamera).
+  der Dreiecke), nur Ansicht, nicht Modell. Taste Y schaltet ihn.
 - **Auswahl:** eigene Kantenrolle (Kante „hl“), Fläche unverändert.
 
 ### 5.2 Leistung
@@ -174,7 +174,7 @@ füllt Dreiecke mit Tiefe, die beiden teilen keinen Code.
 
 | Was | Plan | 3D (Orbit) |
 |---|---|---|
-| Ansicht wechseln | Tab, solange die Zeichenfläche den Fokus hat (sonst wechselt Tab wie üblich den Fokus) | gleich |
+| Ansicht wechseln | J (Tab bleibt der Fokuswechsel, sonst käme man per Tastatur nicht aus der Zeichenfläche) | J |
 | Werkzeuge (Wand, Raum, Tür, Fenster, Objekt, Figur, Kamera, Licht) | Klick auf Plan-Punkt | Klick, Strahl auf den Boden → derselbe Plan-Punkt |
 | Auswählen, Verschieben | wie heute | Klick trifft `source[pixel]`, Ziehen auf dem Boden |
 | Höhe ziehen (H) | Maus nach oben, Wert am Mauszeiger | am Objekt nach oben ziehen |
@@ -189,7 +189,8 @@ füllt Dreiecke mit Tiefe, die beiden teilen keinen Code.
   rechnet QML die Pixel um wie heute, in 3D fragt die Brücke `floor_at` über `services/`.
 - Raum-Werkzeug (Rechteck → vier Wände, Taste Q) und freie Form (Taste U) sind neue
   Werkzeuge im Modus Bauen. Belegt sind heute V W T X O F C L M D N I A B E P (Werkzeuge),
-  1–4 (Modi), S, G, R, Umschalt+R (Shot, Ausrichten, Drehen); frei bleiben J, Y, Z.
+  1–4 (Modi), S, G, R, Umschalt+R (Shot, Ausrichten, Drehen), K, Leertaste, `,` und `.`
+  (Wiedergabe, Marken). Das Konzept nimmt dazu H, Umschalt+H, J, Q, U, Y; frei bleibt Z.
 - Freie Form und Fläche (Modus Zeichnen, P) unterscheiden sich: die Fläche ist eine
   Zeichnung ohne Höhe und erscheint nicht in 3D; die freie Form ist ein Objekt der Ebene Set
   mit Höhe. Die Fläche bleibt, wie sie ist.
@@ -215,7 +216,7 @@ Eigentümers; erteilt am 15.11.2026 (Abschnitt 9).
 2. **Rasterer und Szene:** `raster/` mit Tests als ASCII-Bild (kleiner Frame, Rollen als
    Zeichen, im Test lesbar); Szene aus dem Set; Kamerablick in der Shot-Karte zeigt das
    Rasterbild über `QQuickPaintedItem`. Verdeckung ist ab hier richtig.
-3. **3D-Ansicht:** `Eye::Orbit`, Tab, Navigation, Klicks per `floor_at` und `source`,
+3. **3D-Ansicht:** `Eye::Orbit`, Taste J, Navigation, Klicks per `floor_at` und `source`,
    Auswählen, Verschieben, Setzen von Objekten, Figuren, Kameras in 3D; Beschriftungen.
 4. **Höhe ziehen, Maßfeld, Höhen ergänzen;** Höhen im Plan sichtbar.
 5. **Freie Form, Raum-Werkzeug, Bauformen der Bibliothek** (Daten in `store/library/`).
