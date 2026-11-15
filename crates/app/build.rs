@@ -11,6 +11,8 @@ const PAGES: &[&str] = &[
     "qml/PlanArea.qml",
     "qml/CameraCard.qml",
     "qml/MarkCard.qml",
+    "qml/ObjectCard.qml",
+    "qml/SelectionCard.qml",
     "qml/PlanTools.qml",
     "qml/PlanMenu.qml",
     "qml/HeaderMenu.qml",
