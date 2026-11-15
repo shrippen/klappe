@@ -33,6 +33,11 @@ TestCase {
         }
     }
 
+    function init() {
+        fake.choicesJson = ""
+        fake.gridName = ""
+    }
+
     // Without a choice, the old metre.
     function test_grid_follows_the_chosen_spacing() {
         const area = createTemporaryObject(areaComponent, tc)
@@ -44,5 +49,19 @@ TestCase {
 
         fake.gridName = "cm25"
         compare(area.gridStepM, 0.25)
+    }
+
+    // Review of PR 86: a grid too fine for the zoom is not drawn; the overview then shows 1 m.
+    function test_a_too_fine_grid_falls_back_to_the_metre() {
+        const area = createTemporaryObject(areaComponent, tc)
+        fake.choicesJson = JSON.stringify({ grid: [{ id: "cm5", step_m: 0.05 }] })
+        fake.gridName = "cm5"
+        const canvas = findChild(area, "planCanvas")
+
+        canvas.zoom = 1000
+        compare(area.drawnGridM, 0.05)
+
+        canvas.zoom = 20
+        compare(area.drawnGridM, 1)
     }
 }
