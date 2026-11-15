@@ -11,7 +11,9 @@ mod fileurl;
 mod manage;
 mod mark;
 mod notice;
+mod object;
 mod plan;
+mod selection;
 mod tools;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};

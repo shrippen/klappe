@@ -4,10 +4,12 @@ use super::q;
 use super::qobject;
 use super::view::plan_json;
 use crate::notice::error_text;
+use crate::selection;
+use crate::selection::Pick;
 use crate::tools;
 use crate::tools::{
-    AreaDraft, DragPhase, DragStep, DrawStyle, Grip, MeasureStep, NoteDraft, Pick, Preview,
-    ScaleStep, Tool, Typed,
+    AreaDraft, DragPhase, DragStep, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep,
+    Tool, Typed,
 };
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
@@ -76,7 +78,7 @@ impl qobject::Controller {
         let group = grabbed
             .as_ref()
             .filter(|_| tool == Tool::Select)
-            .and_then(|g| tools::group_drag_edit(&selected, g, from, to));
+            .and_then(|g| selection::group_drag_edit(&selected, g, from, to));
         let mut edit = group
             .or_else(|| tools::drag_edit(&tool, grabbed.as_ref(), from, to))
             .or_else(|| tools::draw_edit(&tool, style, from, to));

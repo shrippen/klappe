@@ -8,10 +8,9 @@ use crate::manage;
 use crate::notice::backup_view;
 use crate::plan;
 use crate::plan::Measure;
+use crate::selection::{Pick, Selection};
 use crate::tools;
-use crate::tools::{
-    AreaDraft, Backdrop, MeasureStep, NoteDraft, Pick, Preview, ScaleStep, Selection,
-};
+use crate::tools::{AreaDraft, Backdrop, MeasureStep, NoteDraft, Preview, ScaleStep};
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;

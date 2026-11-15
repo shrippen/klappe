@@ -564,9 +564,8 @@ use klappe_services::{Point, Session};
 use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{error_text, Status};
-use crate::tools::{
-    AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Selection, Tool,
-};
+use crate::selection::Selection;
+use crate::tools::{AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Tool};
 
 mod draw;
 mod export;
