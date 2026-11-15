@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{FigureColor, ProjectEdit, Session};
+use klappe_services::{Field, FigureColor, ProjectEdit, ServiceError, Session};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -133,4 +133,27 @@ fn uses_tell_where_a_character_and_a_scene_occur() {
     assert_eq!(card.cast.len(), 2);
     assert_eq!(card.cast[0].cues, 1);
     assert!(s.scene_card("nobody").is_none());
+}
+
+/// A name another character carries (whatever its case) is refused: the cues of both would
+/// merge in the script.
+#[test]
+fn a_character_cannot_take_the_name_of_another() {
+    let mut s = open("manage-name-taken");
+    let before = s.script_text().to_owned();
+
+    let err = s.edit_project(rename_character("burgvogt")).unwrap_err();
+
+    assert!(matches!(
+        err,
+        ServiceError::BadValue {
+            field: Field::Name,
+            ..
+        }
+    ));
+    assert_eq!(s.script_text(), before);
+    assert_eq!(
+        s.project().character("elisabeth").unwrap().name,
+        "Elisabeth"
+    );
 }

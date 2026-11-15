@@ -304,6 +304,19 @@ fn edit_character(
     let short = short_of(short)?;
     check_group(group)?;
 
+    // Two characters of one name would merge their cues in the script.
+    let taken = project
+        .characters
+        .iter()
+        .filter(|c| c.id != id)
+        .any(|c| c.name.to_lowercase() == name.to_lowercase());
+    if taken {
+        return Err(ServiceError::BadValue {
+            field: Field::Name,
+            value: name,
+        });
+    }
+
     let Some(character) = project.characters.iter_mut().find(|c| c.id == id) else {
         return Err(ServiceError::NoCharacter(id.to_owned()));
     };
