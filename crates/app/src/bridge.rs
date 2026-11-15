@@ -734,13 +734,8 @@ pub mod qobject {
 }
 
 use cxx_qt_lib::QString;
-use klappe_services::Session;
 
-use crate::catalog::Language;
-use crate::notice::Status;
-use crate::plan::Sweep;
-use crate::selection::Selection;
-use crate::tools::{AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Tool};
+pub use state::ControllerRust;
 
 mod draw;
 mod export;
@@ -763,85 +758,9 @@ mod script;
 mod selection;
 mod shots;
 mod start;
+mod state;
 mod templates;
 mod view;
-
-pub struct ControllerRust {
-    session: Option<Session>,
-    language: Language,
-    notice: Status,
-    texts: QString,
-    loaded: bool,
-    title: QString,
-    plan_title: QString,
-    plan_json: QString,
-    picture_revision: i32,
-    /// `cameraFrame`: the size and names of the last camera image.
-    camera_frame: String,
-    free_revision: i32,
-    view_free: bool,
-    /// `freeFrame`: the size and names of the last 3D image.
-    free_frame: String,
-    /// The 3D view's size and what a drag in it holds.
-    free: free::FreeState,
-    tracks_json: QString,
-    shots_json: QString,
-    shots_shooting_json: QString,
-    script_json: QString,
-    layers_json: QString,
-    locks_json: QString,
-    time: f64,
-    duration: f64,
-    selected_shot: QString,
-    can_undo: bool,
-    can_redo: bool,
-    dirty: bool,
-    selected_key: QString,
-    selected_count: i32,
-    extend_selection: bool,
-    lasso_selection: bool,
-    snapping_on: bool,
-    grid_name: QString,
-    choices_json: QString,
-    /// What the select tool has picked; the canvas frames it.
-    selected: Selection,
-    /// The box or lasso a drag on empty ground is pulling up, in metres.
-    marquee: Option<Sweep>,
-    tool: Tool,
-    scale: ScaleStep,
-    /// The measurement of the measuring tool: a tool state of the session, not the plan's.
-    measure: MeasureStep,
-    measuring: bool,
-    /// What the drawing tools draw with, and the area they are drawing.
-    draw: DrawStyle,
-    area: AreaDraft,
-    /// The scene and plan on screen (`scene/plan`), to tell when undo, redo or a project
-    /// edit changes them.
-    shown: String,
-    area_points: i32,
-    has_background: bool,
-    scale_points: i32,
-    /// The note whose text is asked, if any.
-    note: NoteDraft,
-    asks_note: bool,
-    note_text: QString,
-    /// What the plan on screen shows: a drag preview or the project.
-    preview: Preview,
-    /// The last step of the drag in progress (`from_x, from_y, x, y`), shown again as time moves.
-    drag_step: Option<[f64; 4]>,
-    /// What the drag in progress moves; `Free` between drags.
-    grip: Grip,
-    status: QString,
-    backup_state: QString,
-    backup_message: QString,
-    autosave_ms: i32,
-    project_json: QString,
-    scene_id: QString,
-    recent_json: QString,
-    recent_store: QString,
-    screenshot_path: QString,
-    screenshot_after: i32,
-}
 
 fn q(s: &str) -> QString {
     QString::from(s)
