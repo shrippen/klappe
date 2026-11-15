@@ -325,6 +325,7 @@ mod tests {
                 short: "X".into(),
                 color: FigureColor::Red,
                 group: None,
+                size_m: None,
             });
         }
         for (id, number, heading) in [

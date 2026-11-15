@@ -24,7 +24,10 @@ mod tree;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use klappe_model::{Character, Location, Project, Scene, FORMAT_VERSION, MAX_GROUP, MIN_GROUP};
+use klappe_model::{
+    is_figure_size_m, Character, Location, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
+    MIN_FIGURE_M, MIN_GROUP,
+};
 use serde::{Deserialize, Serialize};
 
 pub use camera::builtin_camera_presets;
@@ -106,7 +109,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         true => files::read_toml(&characters_path)?,
         false => Characters { figur: Vec::new() },
     };
-    check_groups(&characters.figur).map_err(|message| StoreError::Parse {
+    check_characters(&characters.figur).map_err(|message| StoreError::Parse {
         path: characters_path.clone(),
         message,
     })?;
@@ -322,17 +325,25 @@ where
     Ok(items)
 }
 
-/// A group has between `MIN_GROUP` and `MAX_GROUP` people.
-fn check_groups(characters: &[Character]) -> Result<(), String> {
+/// A group has between `MIN_GROUP` and `MAX_GROUP` people (LH-23); a size is between
+/// `MIN_FIGURE_M` and `MAX_FIGURE_M` (LH-25).
+fn check_characters(characters: &[Character]) -> Result<(), String> {
     for character in characters {
-        let Some(count) = character.group else {
-            continue;
-        };
-        if !(MIN_GROUP..=MAX_GROUP).contains(&count) {
-            return Err(format!(
-                "{}: group of {count} is not usable ({MIN_GROUP} to {MAX_GROUP})",
-                character.id
-            ));
+        if let Some(count) = character.group {
+            if !(MIN_GROUP..=MAX_GROUP).contains(&count) {
+                return Err(format!(
+                    "{}: group of {count} is not usable ({MIN_GROUP} to {MAX_GROUP})",
+                    character.id
+                ));
+            }
+        }
+        if let Some(size_m) = character.size_m {
+            if !is_figure_size_m(size_m) {
+                return Err(format!(
+                    "{}: size of {size_m} m is not usable ({MIN_FIGURE_M} to {MAX_FIGURE_M})",
+                    character.id
+                ));
+            }
         }
     }
 

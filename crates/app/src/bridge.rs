@@ -580,7 +580,7 @@ pub mod qobject {
         fn remove_location(self: Pin<&mut Self>, id: &QString) -> bool;
 
         /// `color` is a role name (`purple`, `blue` …); `group` is the head count of a group
-        /// of extras, 0 for a single person.
+        /// of extras, 0 for a single person; `size` the diameter as typed (LH-25), blank: standard.
         #[qinvokable]
         #[cxx_name = "addCharacter"]
         fn add_character(
@@ -589,6 +589,7 @@ pub mod qobject {
             label: &QString,
             color: &QString,
             group: u32,
+            size: &QString,
         ) -> bool;
 
         #[qinvokable]
@@ -600,6 +601,7 @@ pub mod qobject {
             label: &QString,
             color: &QString,
             group: u32,
+            size: &QString,
         ) -> bool;
 
         #[qinvokable]

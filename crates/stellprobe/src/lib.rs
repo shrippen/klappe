@@ -14,6 +14,7 @@
 mod axis;
 mod card;
 mod display;
+mod figure;
 mod hit;
 mod light;
 mod look;

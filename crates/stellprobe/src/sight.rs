@@ -1,6 +1,7 @@
 use klappe_model::{Camera, FigureColor, FigureTrack, FloorPlan, Point, Pose, Project, SetPlan};
 
-use crate::display::object_corners;
+use crate::display::{object_corners, FIGURE_RADIUS_M};
+use crate::figure::body_radius_m;
 use crate::hit::in_lasso;
 use crate::motion::{aim_at, camera_at, figure_at};
 use crate::optics::{horizontal_fov_deg, lens_at};
@@ -14,7 +15,7 @@ const OBJECT_HEIGHT_M: f64 = 0.9;
 const STANDING_M: f64 = 1.75;
 const SITTING_M: f64 = 1.25;
 const LYING_M: f64 = 0.4;
-/// Width of a figure's placeholder.
+/// Width of a standard figure's placeholder; a figure with its own size is wider in proportion.
 const FIGURE_WIDTH_M: f64 = 0.5;
 /// Nothing nearer than this is drawn.
 const NEAR_M: f64 = 0.1;
@@ -231,7 +232,8 @@ fn figure_faces(project: &Project, plan: &FloorPlan, t_s: f64, eye: &Eye, faces:
             continue;
         };
 
-        let half = FIGURE_WIDTH_M / 2.0;
+        // Shoulder width scaled like the plan's circle, e.g. a 2.4 m horse: 0.5 * 2.4 / 0.7.
+        let half = FIGURE_WIDTH_M / 2.0 * body_radius_m(character) / FIGURE_RADIUS_M;
         let (x, y) = (place.at.x_m, place.at.y_m);
         let (rx, ry) = (eye.right[0] * half, eye.right[1] * half);
         let top = pose_height_m(track, t_s);
@@ -352,6 +354,7 @@ mod tests {
             short: "E".into(),
             color: FigureColor::Purple,
             group: None,
+            size_m: None,
         }];
         p
     }
@@ -528,6 +531,20 @@ mod tests {
         };
 
         assert!(top(Pose::Sitting) > top(Pose::Standing));
+    }
+
+    #[test]
+    fn a_larger_figure_is_wider_by_its_size() {
+        let plan = plan_with(camera(35.0, 1.6, 0.0, 2.39), &[(10.0, 5.0, Pose::Standing)]);
+        let standard = width(figures(&view_of(&plan, &set()))[0]);
+
+        // A horse: 2.4 m across on the plan against 0.7 m for a person.
+        let mut horse = project();
+        horse.characters[0].size_m = Some(2.4);
+        let view = camera_view(&horse, &set(), &plan, "a", 0.0).expect("view");
+        let wide = width(figures(&view)[0]);
+
+        assert!((wide / standard - 2.4 / (2.0 * FIGURE_RADIUS_M)).abs() < 1e-9);
     }
 
     #[test]

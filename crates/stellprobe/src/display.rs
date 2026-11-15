@@ -5,6 +5,7 @@ use klappe_model::{
 
 use crate::axis::axis_at;
 use crate::card::note_card;
+use crate::figure::{body_radius_m, group_dots, GROUP_DOT_RADIUS_M, GROUP_RADIUS_M};
 use crate::light::{lamps, light_items, Lamp};
 use crate::motion::{bend_point, camera_at, figure_at, path, walked_ways};
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
@@ -133,12 +134,6 @@ pub enum Source {
 
 /// Figure body radius on the plan.
 pub const FIGURE_RADIUS_M: f64 = 0.35;
-/// A group's body is larger than a single figure (LH-23); inside it stand `GROUP_DOTS` small
-/// circles, however many people the group counts.
-const GROUP_RADIUS_M: f64 = 0.6;
-const GROUP_DOT_RADIUS_M: f64 = 0.17;
-const GROUP_DOT_RING_M: f64 = 0.3;
-const GROUP_DOTS: usize = 3;
 /// Mark circles are smaller than the figure.
 const MARK_RADIUS_M: f64 = 0.22;
 /// Camera and lamp bodies.
@@ -508,10 +503,7 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
             continue;
         };
         let source = Some(Source::Figure(track.character.clone()));
-        let radius_m = match character.group {
-            Some(_) => GROUP_RADIUS_M,
-            None => FIGURE_RADIUS_M,
-        };
+        let radius_m = body_radius_m(character);
         items.push(Item {
             role: Role::Figure(color),
             shape: Shape::Polygon {
@@ -534,32 +526,19 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
         if character.group.is_none() {
             continue;
         }
-        for center in group_dots(place.at) {
+        let scale = radius_m / GROUP_RADIUS_M;
+        for center in group_dots(place.at, scale) {
             items.push(Item {
                 role: Role::GroupDot,
                 shape: Shape::Circle {
                     center,
-                    radius_m: GROUP_DOT_RADIUS_M,
+                    radius_m: GROUP_DOT_RADIUS_M * scale,
                 },
                 label: None,
                 source: source.clone(),
             });
         }
     }
-}
-
-/// The centres of the dots in a group's body: evenly on a ring, one straight up.
-fn group_dots(at: Point) -> Vec<Point> {
-    (0..GROUP_DOTS)
-        .map(|i| {
-            let deg = -90.0 + 360.0 * i as f64 / GROUP_DOTS as f64;
-            let a = deg.to_radians();
-            Point::new(
-                at.x_m + GROUP_DOT_RING_M * a.cos(),
-                at.y_m + GROUP_DOT_RING_M * a.sin(),
-            )
-        })
-        .collect()
 }
 
 fn mark_label(index: usize, mark: &Mark) -> String {
@@ -702,6 +681,7 @@ fn nose(at: Point, facing_deg: f64, radius_m: f64) -> Vec<Point> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::figure::GROUP_DOTS;
     use klappe_model::{
         Arrival, Camera, CameraMark, Character, Departure, Drawing, FigureTrack, Light, LightKind,
         Mark, Movement, Pose, Sensor, Shot, ShotSize, Wall,
@@ -716,6 +696,7 @@ mod tests {
                 short: "E".into(),
                 color: FigureColor::Purple,
                 group: None,
+                size_m: None,
             },
             Character {
                 id: "v".into(),
@@ -723,6 +704,7 @@ mod tests {
                 short: "B".into(),
                 color: FigureColor::Blue,
                 group: None,
+                size_m: None,
             },
         ];
         p

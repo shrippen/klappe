@@ -2,7 +2,7 @@
 # never grow; a raised or new entry needs its reason in the PR. Rewrite with --update.
 # Lines: exclude<TAB>glob | path<TAB>function or - for the file<TAB>metric=value ...
 exclude	crates/app/qml/Kante/**
-crates/app/src/bridge.rs	switched	length=550
+crates/app/src/bridge.rs	switched	length=552
 crates/app/src/notice.rs	error_text	ccn=24
 crates/export/src/deflate.rs	block	length=86
 crates/export/src/font.rs	composite_glyph	ccn=23
@@ -26,10 +26,10 @@ crates/services/src/plan_edit/group.rs	copy	ccn=19 length=85
 crates/services/src/plan_edit/moving.rs	target	ccn=24 length=126
 crates/services/src/plan_edit/remove.rs	remove	ccn=19
 crates/services/tests/plan_edit.rs	-	lines=841
-crates/stellprobe/src/display.rs	-	lines=1582
-crates/stellprobe/src/display.rs	figure_items	length=85
+crates/stellprobe/src/display.rs	-	lines=1564
+crates/stellprobe/src/display.rs	figure_items	length=83
 crates/stellprobe/src/look.rs	look	ccn=16
 crates/store/src/lib.rs	save	ccn=19
-crates/store/tests/store.rs	-	lines=1001
+crates/store/tests/store.rs	-	lines=1003
 crates/store/tests/store.rs	plan	length=131
 crates/tui/src/app.rs	editor_key	ccn=19
