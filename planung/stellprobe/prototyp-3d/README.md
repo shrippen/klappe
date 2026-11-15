@@ -1,6 +1,6 @@
 # Prototyp: Plan und 3D auf einem Modell
 
-Wegwerf-Prototyp (Browser, three.js), keine Vorlage für Code. Öffnen: `raumskizze.html`
+Wegwerf-Prototyp (Browser, three.js), keine Vorlage für Code. Umsetzung: [`../3D-KONZEPT.md`](../3D-KONZEPT.md). Öffnen: `raumskizze.html`
 über einen lokalen Webserver (lädt three.js 0.160 von jsDelivr).
 
 ## Idee
