@@ -16,8 +16,9 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    Angle, Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Layer, LightKind, Lock,
-    Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping, Source, Visibility,
+    Angle, Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Language, Layer,
+    LightKind, Lock, Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping, Source,
+    Visibility,
 };
 use serde_json::json;
 
@@ -151,6 +152,7 @@ impl ControllerRust {
         self.selected_key = v.selected_key;
         self.selected_count = v.selected_count;
         self.has_background = v.has_background;
+        self.missing_heights = v.missing_heights;
         self.scale_points = v.scale_points;
         self.area_points = v.area_points;
         self.asks_note = v.asks_note;
@@ -174,6 +176,7 @@ impl ControllerRust {
                 s,
                 &s.display_list_for(self.selected.only()),
                 &self.selected,
+                self.language,
                 (&self.picked(), self.marquee.as_ref(), measure.as_ref()),
             )),
             tracks_json: q(&to_json(&s.tracks())),
@@ -191,6 +194,7 @@ impl ControllerRust {
             selected_key: q(&self.selected.only().map(plan::key).unwrap_or_default()),
             selected_count: i32::try_from(self.selected.len()).unwrap_or_default(),
             has_background: s.has_background(),
+            missing_heights: i32::try_from(s.missing_heights()).unwrap_or_default(),
             scale_points: i32::try_from(self.scale.points().len()).unwrap_or_default(),
             area_points: i32::try_from(self.area.points().len()).unwrap_or_default(),
             asks_note: self.note != NoteDraft::Idle,
@@ -225,6 +229,7 @@ struct Shown {
     selected_key: QString,
     selected_count: i32,
     has_background: bool,
+    missing_heights: i32,
     scale_points: i32,
     area_points: i32,
     asks_note: bool,
@@ -247,6 +252,7 @@ pub(super) fn plan_json(
     s: &Session,
     list: &DisplayList,
     selected: &Selection,
+    language: Language,
     (picked, marquee, measure): (&[Point], Option<&Sweep>, Option<&Measure>),
 ) -> String {
     let camera = s
@@ -258,7 +264,9 @@ pub(super) fn plan_json(
             || matches!(source, Source::Camera(id) if Some(id) == camera.as_ref())
     };
 
-    plan::shapes_json(list, s.dir(), &marked, picked, marquee, measure)
+    let heights = plan::HeightTexts::of(language);
+
+    plan::shapes_json(list, s.dir(), &marked, picked, marquee, measure, &heights)
 }
 
 /// What the tool lists of the tool bar offer: the project's characters, the object library,
@@ -427,6 +435,7 @@ impl qobject::Controller {
         self.as_mut().set_can_redo(v.can_redo);
         self.as_mut().set_dirty(v.dirty);
         self.as_mut().set_has_background(v.has_background);
+        self.as_mut().set_missing_heights(v.missing_heights);
         self.as_mut().set_scale_points(v.scale_points);
         self.as_mut().set_area_points(v.area_points);
         self.as_mut().set_asks_note(v.asks_note);

@@ -95,6 +95,21 @@ TestCase {
         verify(card.y <= element.y && element.y <= card.y + card.height)
     }
 
+    // LH-93: "add heights" opens the rest of the card and puts the keyboard in the height field.
+    function test_the_height_field_takes_the_keyboard_when_a_height_is_asked_for() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        const field = findChild(card, "heightField")
+        verify(!field.activeFocus)
+
+        area.focusHeight()
+
+        tryVerify(() => field.activeFocus)
+        verify(card.expanded)
+    }
+
     // The card goes to the other side of the element when the right has no room.
     function test_the_card_flips_left_at_the_plans_edge() {
         fake.planJson = planWith(17)

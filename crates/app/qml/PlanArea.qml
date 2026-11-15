@@ -265,6 +265,13 @@ Item {
         }
     }
 
+    /// The selected object's card takes the height (LH-93). In 3D the view turned to the object:
+    /// the card opens beside the middle.
+    function focusHeight() {
+        freeView.clickAt = Qt.point(freeView.width / 2, freeView.height / 2)
+        selection.focusHeight()
+    }
+
     function setNote() {
         if (!controller.commitNote(noteField.text)) {
             noteField.invalid = true

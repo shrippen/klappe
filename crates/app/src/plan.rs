@@ -10,9 +10,12 @@ use serde_json::{json, Value};
 
 use crate::fileurl;
 
+mod height;
 mod picture;
 mod sweep;
 
+use height::height_shape;
+pub use height::HeightTexts;
 pub use picture::{frame_json, ppm, Palette, IMAGE_FORMAT};
 use sweep::sweep_shape;
 pub use sweep::Sweep;
@@ -311,11 +314,15 @@ pub fn shapes_json(
     picked: &[Point],
     marquee: Option<&Sweep>,
     measure: Option<&Measure>,
+    heights: &HeightTexts,
 ) -> String {
     let mut shapes: Vec<Value> = list
         .items
         .iter()
-        .filter_map(|i| shape(dir, i, selected))
+        .filter_map(|i| match i.role {
+            Role::Height { cm } => height_shape(i, cm, heights),
+            _ => shape(dir, i, selected),
+        })
         .collect();
     shapes.extend(guide(picked));
     shapes.extend(marquee.map(sweep_shape));
@@ -336,6 +343,12 @@ mod tests {
             label: Some("A".into()),
             source,
         }
+    }
+
+    /// The plan's JSON with nothing picked, dragged or measured.
+    fn json_of(list: &DisplayList, selected: &dyn Fn(&Source) -> bool) -> String {
+        let texts = HeightTexts::default();
+        shapes_json(list, Path::new("/p"), selected, &[], None, None, &texts)
     }
 
     /// Every role as (role, label, stroke, fill) as the canvas gets it; pins `look`.
@@ -441,7 +454,7 @@ mod tests {
         };
         let is_a = |s: &Source| matches!(s, Source::Camera(id) if id == "a");
 
-        let json = shapes_json(&list, Path::new("/p"), &is_a, &[], None, None);
+        let json = json_of(&list, &is_a);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["width"], 20.0);
@@ -471,7 +484,7 @@ mod tests {
             depth_m: 13.0,
         };
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None, None);
+        let json = json_of(&list, &|_| false);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][1]["label"], "ground");
@@ -499,7 +512,7 @@ mod tests {
             depth_m: 13.0,
         };
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None, None);
+        let json = json_of(&list, &|_| false);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][0]["text"], "Vorhang schließen");
@@ -549,7 +562,7 @@ mod tests {
             depth_m: 13.0,
         };
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None, None);
+        let json = json_of(&list, &|_| false);
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][0]["label"], "cyan");
@@ -689,6 +702,7 @@ mod tests {
             &[],
             None,
             None,
+            &HeightTexts::default(),
         );
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
         let image = &v["shapes"][0];
@@ -743,6 +757,7 @@ mod tests {
             &[],
             None,
             Some(&measure),
+            &HeightTexts::default(),
         );
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
         let shapes = v["shapes"].as_array().cloned().unwrap_or_default();
@@ -771,6 +786,7 @@ mod tests {
             &[],
             None,
             Some(&measure),
+            &HeightTexts::default(),
         );
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 

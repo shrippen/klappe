@@ -86,6 +86,7 @@ impl Default for ControllerRust {
             shown: String::new(),
             area_points: 0,
             has_background: false,
+            missing_heights: 0,
             scale_points: 0,
             note: NoteDraft::Idle,
             asks_note: false,

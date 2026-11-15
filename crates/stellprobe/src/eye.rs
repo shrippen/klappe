@@ -88,6 +88,12 @@ impl Orbit {
         }
     }
 
+    /// Looks at `target` from where it looked before: only the middle moves; turn and
+    /// distance stay.
+    pub fn aim(&mut self, target: [f64; 3]) {
+        self.target = target;
+    }
+
     /// Turns the view by a drag of `dx_px`, `dy_px`: sideways about the target, up and down
     /// between grazing and straight down.
     pub fn turn(&mut self, dx_px: f64, dy_px: f64) {
@@ -313,6 +319,26 @@ mod tests {
     const TOLERANCE: f64 = 1e-5;
     /// Far enough that a point at the camera's height lies on the horizon.
     const FAR_M: f64 = 1.0e7;
+
+    /// Aiming moves the target and nothing else.
+    #[test]
+    fn aim_keeps_turn_and_distance() {
+        let mut orbit = Orbit::fitting(10.0, 6.0);
+        orbit.turn(30.0, 10.0);
+        let kept = orbit;
+        orbit.aim([2.0, 3.0, 0.5]);
+
+        assert_eq!(orbit.target, [2.0, 3.0, 0.5]);
+        assert_eq!(
+            (
+                orbit.yaw_deg,
+                orbit.pitch_deg,
+                orbit.distance_m,
+                orbit.fov_deg
+            ),
+            (kept.yaw_deg, kept.pitch_deg, kept.distance_m, kept.fov_deg)
+        );
+    }
 
     fn plan_with(height_m: f64, tilt_deg: f64, aspect: f64) -> FloorPlan {
         let mut plan = FloorPlan::new("p", "Plan");

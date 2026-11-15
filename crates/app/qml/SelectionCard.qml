@@ -56,6 +56,13 @@ KantePopover {
         function onVisibleChanged() { card.place() }
     }
 
+    // "Add heights" (LH-93): the card shows the object's height field and gives it the keyboard.
+    function focusHeight() {
+        card.expanded = true
+        // The card opens with the new selection; its fields are laid out a moment later.
+        Qt.callLater(objectSection.focusHeight)
+    }
+
     // The shape that stands for the element: the last of its key with a caption (the body of
     // a camera or a figure, not its path or view cone), else the last of its key.
     function shapeOf(shapes) {

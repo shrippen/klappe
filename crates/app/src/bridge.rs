@@ -64,6 +64,7 @@ pub mod qobject {
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Whether the set has a background image.
         #[qproperty(bool, has_background, cxx_name = "hasBackground")]
+        #[qproperty(i32, missing_heights, cxx_name = "missingHeights")]
         /// Points picked so far by the scale tool: 0, 1 or 2 (then the length is asked).
         #[qproperty(i32, scale_points, cxx_name = "scalePoints")]
         /// Whether the measuring tool has a point set (`cancelMeasure` drops it).
@@ -389,6 +390,11 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setObjectHeight"]
         fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool;
+
+        /// Selects the next object without a height (LH-93), in 3D the view follows; false if none.
+        #[qinvokable]
+        #[cxx_name = "nextMissingHeight"]
+        fn next_missing_height(self: Pin<&mut Self>) -> bool;
 
         /// Gives the selected drawing a colour, line and fill (LH-19), named as `choicesJson`
         /// lists them. False when no drawing is selected or a name is unknown.

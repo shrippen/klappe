@@ -5,11 +5,12 @@
 use super::picture::colored;
 use super::qobject;
 use crate::plan::Palette;
+use crate::selection::Selection;
 use crate::tools::{Grip, Tool};
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QImage, QString};
-use klappe_services::{Size, View};
+use klappe_services::{Size, Source, View};
 
 /// The 3D view's size in device pixels (`freeSize`), and the height above the floor at which a
 /// running drag holds what it grabbed: the drag runs on that level, so a wall top seen over
@@ -30,6 +31,28 @@ impl qobject::Controller {
         let free = s.view() == View::Free;
         self.as_mut().set_view_free(free);
         self.bump_free();
+    }
+
+    pub(super) fn next_missing_height(mut self: Pin<&mut Self>) -> bool {
+        // After the selected object; any other selection starts from the first.
+        let after = match self.rust().selected.only() {
+            Some(Source::Object(id)) => Some(id.clone()),
+            _ => None,
+        };
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+        let Some(id) = s.next_missing_height(after.as_deref()) else {
+            return false;
+        };
+
+        // The 3D view follows the object; the plan has nothing to follow.
+        s.aim_at_object(&id);
+        let found = Some(Source::Object(id));
+        self.as_mut().rust_mut().get_mut().selected = Selection::of(found);
+        self.as_mut().bump_free();
+        self.refresh();
+        true
     }
 
     pub(super) fn free_size(mut self: Pin<&mut Self>, width_px: f64, height_px: f64) {

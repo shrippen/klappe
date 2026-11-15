@@ -259,6 +259,7 @@ impl qobject::Controller {
                         s,
                         &list,
                         selected,
+                        this.rust().language,
                         (&this.rust().picked(), Some(&sweep), None),
                     )
                 })
@@ -333,6 +334,7 @@ impl qobject::Controller {
                     s,
                     &s.display_list_for(this.rust().selected.only()),
                     &this.rust().selected,
+                    this.rust().language,
                     (
                         &this.rust().picked(),
                         this.rust().marquee.as_ref(),
@@ -360,6 +362,7 @@ impl qobject::Controller {
                     s,
                     &list,
                     &this.rust().selected,
+                    this.rust().language,
                     (&picked, None, None),
                 ))
             })
