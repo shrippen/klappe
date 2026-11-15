@@ -3,6 +3,7 @@
 //! ```text
 //! model::FloorPlan ──► motion   where is everyone at t?
 //!                  ──► optics   what does a camera see?
+//!                  ──► sight    what is the camera's picture? (perspective, flat shapes)
 //!                  ──► movement what does a camera do during a shot?
 //!                  ──► axis     which shot jumps the line?
 //!                  ──► setup    which shots share camera, place and lens?
@@ -22,6 +23,7 @@ mod movement;
 mod optics;
 mod rig;
 mod setup;
+mod sight;
 
 pub use axis::{axis_at, axis_jumps, axis_pair, Axis, AxisJump, Side};
 pub use card::NOTE_TEXT_M;
@@ -30,7 +32,7 @@ pub use display::{
 };
 pub use hit::{anchor, hit, in_lasso, within};
 pub use light::Lamp;
-pub use look::{look, Area, Hue, Look};
+pub use look::{look, view_look, Area, Hue, Look};
 pub use motion::{
     aim_at, bend_follow, bend_point, camera_at, figure_at, via_through, walked_ways, way_length_m,
     Placement,
@@ -38,3 +40,4 @@ pub use motion::{
 pub use movement::movement_in;
 pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};
 pub use setup::{ordered_shots, shot_setups, ShotOrder, SETUP_TOLERANCE_M};
+pub use sight::{camera_view, CameraView, ViewItem, ViewRole, FRAME_WIDTH};

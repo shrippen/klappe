@@ -22,6 +22,9 @@ pub mod qobject {
         #[qproperty(QString, plan_title, cxx_name = "planTitle")]
         /// `{ width, depth, shapes }` for KanteShapeCanvas.
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
+        /// What the selected shot's camera sees, as `{ width, depth, shapes }` for
+        /// KanteShapeCanvas; empty without a shot or when its camera has no marks.
+        #[qproperty(QString, view_json, cxx_name = "viewJson")]
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
         /// The shot list in shooting order: setups grouped (LH-72); `shotsJson` is the cut order.
@@ -687,6 +690,7 @@ pub struct ControllerRust {
     title: QString,
     plan_title: QString,
     plan_json: QString,
+    view_json: QString,
     tracks_json: QString,
     shots_json: QString,
     shots_shooting_json: QString,

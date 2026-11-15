@@ -136,6 +136,7 @@ impl ControllerRust {
         self.title = v.title;
         self.plan_title = v.plan_title;
         self.plan_json = v.plan_json;
+        self.view_json = v.view_json;
         self.tracks_json = v.tracks_json;
         self.shots_json = v.shots_json;
         self.shots_shooting_json = v.shots_shooting_json;
@@ -175,6 +176,7 @@ impl ControllerRust {
                 &self.selected,
                 (&self.picked(), self.marquee.as_ref(), measure.as_ref()),
             )),
+            view_json: q(&view_json(s, self.selected.only())),
             tracks_json: q(&to_json(&s.tracks())),
             shots_json: q(&to_json(&s.shots())),
             shots_shooting_json: q(&to_json(&s.shots_in(ShotOrder::Shooting))),
@@ -208,6 +210,7 @@ struct Shown {
     title: QString,
     plan_title: QString,
     plan_json: QString,
+    view_json: QString,
     tracks_json: QString,
     shots_json: QString,
     shots_shooting_json: QString,
@@ -256,6 +259,19 @@ pub(super) fn plan_json(
     };
 
     plan::shapes_json(list, s.dir(), &marked, picked, marquee, measure)
+}
+
+/// What the selected shot's camera sees; empty without a shot or when its camera has no marks.
+/// The camera picked on the plan is only the fallback, the panel shows the view with a shot.
+fn view_json(s: &Session, selected: Option<&Source>) -> String {
+    let picked = match selected {
+        Some(Source::Camera(id)) => Some(id.as_str()),
+        _ => None,
+    };
+
+    s.camera_view(picked)
+        .map(|view| plan::view_json(&view))
+        .unwrap_or_default()
 }
 
 /// What the tool lists of the tool bar offer: the project's characters, the object library,
@@ -406,6 +422,7 @@ impl qobject::Controller {
         self.as_mut().set_grid_name(v.grid_name);
 
         self.as_mut().set_plan_json(v.plan_json);
+        self.as_mut().set_view_json(v.view_json);
         self.as_mut().set_tracks_json(v.tracks_json);
         self.as_mut().set_shots_json(v.shots_json);
         self.as_mut().set_shots_shooting_json(v.shots_shooting_json);
