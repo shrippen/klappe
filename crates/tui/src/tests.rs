@@ -517,3 +517,16 @@ fn a_typed_scene_number_stays_as_typed() {
         app.text()
     );
 }
+
+#[test]
+fn a_hash_without_a_number_is_heading_text() {
+    let mut app = app();
+    open_line(&mut app);
+    typed(&mut app, "int. büro #2 flur");
+
+    assert!(
+        app.text().starts_with("\n\n\nINT. BÜRO #2 FLUR\n"),
+        "{}",
+        app.text()
+    );
+}

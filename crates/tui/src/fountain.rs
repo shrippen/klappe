@@ -155,9 +155,13 @@ pub(crate) fn typed_caps(lines: &[String], at: usize) -> Option<String> {
 
     let cut = match kind {
         // The number from its opening `#` on, also while it is still open: `#3a` of `#3a#`.
+        // A `#` followed by a space starts no number (as in the parser): `#2 flur` is text.
         LineKind::Heading => {
             let body = trimmed.strip_suffix(NUMBER_MARK).unwrap_or(trimmed);
-            body.rfind(NUMBER_MARK).unwrap_or(body.len())
+            match body.rfind(NUMBER_MARK) {
+                Some(at) if !body[at..].contains(char::is_whitespace) => at,
+                _ => trimmed.len(),
+            }
         }
         LineKind::Character if line.trim_start().starts_with(FORCE_CHARACTER) => {
             trimmed.find(EXTENSION_OPEN).unwrap_or(trimmed.len())
