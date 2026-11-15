@@ -582,6 +582,65 @@ fn a_typed_length_is_a_length() {
     assert!(wall_of_length(from, from, "3").is_none());
 }
 
+/// LH-96: a drag pulls up a room; a click, a drag along a line and a drag of nothing do not.
+#[test]
+fn a_room_is_drawn_between_two_corners() {
+    let (from, to) = (p(2.0, 2.0), p(6.0, 5.0));
+
+    assert_eq!(
+        drag_edit(&Tool::Room, None, from, to),
+        Some(PlanEdit::AddRoom { from, to })
+    );
+    assert_eq!(drag_edit(&Tool::Room, None, from, p(6.0, 2.0)), None);
+    assert_eq!(drag_edit(&Tool::Room, None, from, p(2.0, 5.0)), None);
+    assert_eq!(click_edit(&Tool::Room, from), None);
+    assert_eq!(Tool::parse("room", ""), Some(Tool::Room));
+}
+
+/// LH-96: `5;4` is width along x and depth along y, each toward the side of the pointer.
+#[test]
+fn a_typed_size_makes_a_room_toward_the_pointer() {
+    let from = p(10.0, 10.0);
+    let room = |toward, text| edit_of(room_of_size(from, toward, text));
+
+    assert_eq!(
+        room(p(12.0, 11.0), "5;4"),
+        Some(PlanEdit::AddRoom {
+            from,
+            to: p(15.0, 14.0)
+        })
+    );
+    assert_eq!(
+        room(p(8.0, 7.0), "5;4"),
+        Some(PlanEdit::AddRoom {
+            from,
+            to: p(5.0, 6.0)
+        })
+    );
+    assert_eq!(
+        room(p(12.0, 7.0), "2,5;1.5"),
+        Some(PlanEdit::AddRoom {
+            from,
+            to: p(12.5, 8.5)
+        })
+    );
+}
+
+/// LH-96: both sizes must be numbers above zero, separated by `;`.
+#[test]
+fn a_typed_size_is_two_lengths() {
+    let from = p(0.0, 0.0);
+    let toward = p(1.0, 1.0);
+
+    for text in ["5", "5;", ";4", "0;4", "5;0", "5;x", "5;4;3", "5x4", "5,4"] {
+        assert!(
+            matches!(room_of_size(from, toward, text), Some(Err(_))),
+            "{text}"
+        );
+    }
+    assert!(room_of_size(from, from, "5;4").is_none());
+}
+
 /// LH-95: after a typed length the drag's later steps hold nothing, until the release.
 #[test]
 fn a_spent_grip_grabs_nothing_until_done() {

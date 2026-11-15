@@ -35,7 +35,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             check_angle(*facing_deg)
         }
         PlanEdit::SetOpeningWidth { width_m, .. } => check_opening_width(*width_m),
-        PlanEdit::AddWall { from, to } => {
+        PlanEdit::AddWall { from, to } | PlanEdit::AddRoom { from, to } => {
             check_point(*from)?;
             check_point(*to)
         }

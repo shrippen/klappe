@@ -207,10 +207,11 @@ impl qobject::Controller {
             return false;
         }
 
+        let tool = self.rust().tool.clone();
         let step = self
             .rust()
             .drag_step
-            .filter(|_| self.rust().tool == Tool::Wall);
+            .filter(|_| tool == Tool::Wall || tool == Tool::Room);
         if let Some(step) = step {
             return self.finish_wall(step, &text);
         }
@@ -231,17 +232,18 @@ impl qobject::Controller {
         false
     }
 
-    /// Ends the wall drag at `step` with a wall of the typed length.
+    /// Ends the wall or room drag at `step` with a wall of the typed length or a room of the
+    /// typed size.
     fn finish_wall(mut self: Pin<&mut Self>, step: [f64; 4], text: &str) -> bool {
         let [from_x, from_y, x, y] = step;
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-        let typed = tools::wall_of_length(
-            s.snap(Point::new(from_x, from_y)),
-            s.snap(Point::new(x, y)),
-            text,
-        );
+        let (from, toward) = (s.snap(Point::new(from_x, from_y)), s.snap(Point::new(x, y)));
+        let typed = match self.rust().tool {
+            Tool::Room => tools::room_of_size(from, toward, text),
+            _ => tools::wall_of_length(from, toward, text),
+        };
         if !self.as_mut().commit_typed(typed) {
             return false;
         }

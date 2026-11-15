@@ -27,8 +27,8 @@ mod remove;
 pub(crate) mod template;
 
 use add::{
-    add_camera, add_camera_mark, add_drawing, add_mark, add_note, add_object, add_wall, edit_light,
-    edit_note, free_id, free_letter,
+    add_camera, add_camera_mark, add_drawing, add_mark, add_note, add_object, add_walls,
+    edit_light, edit_note, free_id, free_letter,
 };
 use background::{calibrate, move_background, remove_background, set_background};
 use check::check;
@@ -158,6 +158,12 @@ pub enum PlanEdit {
         base_m: Option<f64>,
     },
     AddWall {
+        from: Point,
+        to: Point,
+    },
+    /// Four walls round the rectangle with the opposite corners `from` and `to` (LH-96).
+    /// Refused when the rectangle has no area.
+    AddRoom {
         from: Point,
         to: Point,
     },
@@ -364,6 +370,7 @@ impl PlanEdit {
             PlanEdit::AddDrawing { .. } => Layer::Drawings,
             PlanEdit::AddObject { .. }
             | PlanEdit::AddWall { .. }
+            | PlanEdit::AddRoom { .. }
             | PlanEdit::AddOpening { .. }
             | PlanEdit::SetBackground { .. }
             | PlanEdit::Calibrate { .. }
@@ -513,7 +520,7 @@ pub(crate) fn apply(
             width_m,
             depth_m,
         } => resize(&mut scope, source, (*width_m, *depth_m)),
-        PlanEdit::AddWall { from, to } => add_wall(&mut scope, *from, *to),
+        PlanEdit::AddWall { .. } | PlanEdit::AddRoom { .. } => add_walls(&mut scope, edit),
         PlanEdit::AddOpening { .. } | PlanEdit::SetOpeningWidth { .. } => {
             edit_opening(&mut scope, edit)
         }

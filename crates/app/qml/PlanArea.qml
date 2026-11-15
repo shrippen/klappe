@@ -279,12 +279,17 @@ Item {
     }
 
     // Maßfeld (LH-95): Enter on the plan or in 3D opens an empty field: the length of the wall
-    // being drawn, else the height of the selected object or wall. Enter applies, Escape
-    // closes. With nothing to apply it to, it does not open.
+    // being drawn, the width and depth of the room being drawn (`5;4`), else the height of the
+    // selected object or wall. Enter applies, Escape closes. With nothing to apply it to, it
+    // does not open.
     readonly property bool wallDrag: area.tool === "wall" && (area.dragging || freeView.dragging)
+    readonly property bool roomDrag: area.tool === "room" && (area.dragging || freeView.dragging)
     readonly property string measureKind: {
         if (wallDrag) {
             return "length"
+        }
+        if (roomDrag) {
+            return "room"
         }
         return /^(object|wall):/.test(controller.selectedKey) ? "height" : ""
     }
@@ -333,6 +338,12 @@ Item {
 
     onWallDragChanged: {
         if (!wallDrag && asksMeasure === "length") {
+            closeMeasure()
+        }
+    }
+
+    onRoomDragChanged: {
+        if (!roomDrag && asksMeasure === "room") {
             closeMeasure()
         }
     }

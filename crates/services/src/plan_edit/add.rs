@@ -246,8 +246,17 @@ pub(super) fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result
     Ok(())
 }
 
-pub(super) fn add_wall(scope: &mut Scope<'_>, from: Point, to: Point) -> Result<(), ServiceError> {
-    if from == to {
+/// A wall, or the four walls of a room (LH-96), pushed on the set. A room goes round from
+/// `from` to the corner across, so each wall ends exactly where the next begins.
+pub(super) fn add_walls(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
+    let (corners, ring) = match edit {
+        PlanEdit::AddRoom { from, to } => (room_corners(*from, *to), true),
+        PlanEdit::AddWall { from, to } => (vec![*from, *to], false),
+        _ => return Ok(()),
+    };
+
+    // A wall without length or a room without area has nothing to draw.
+    if corners[0] == corners[1] || (ring && corners[0].y_m == corners[2].y_m) {
         return Err(ServiceError::BadValue {
             field: Field::Wall,
             value: "0".to_owned(),
@@ -258,9 +267,24 @@ pub(super) fn add_wall(scope: &mut Scope<'_>, from: Point, to: Point) -> Result<
         .set
         .as_deref_mut()
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
-    set.walls.push(Wall::new(from, to, DEFAULT_WALL_M));
+    let count = if ring { corners.len() } else { 1 };
+
+    for i in 0..count {
+        let to = corners[(i + 1) % corners.len()];
+        set.walls.push(Wall::new(corners[i], to, DEFAULT_WALL_M));
+    }
 
     Ok(())
+}
+
+/// The corners of the rectangle between two opposite ones, in order round it.
+fn room_corners(from: Point, to: Point) -> Vec<Point> {
+    vec![
+        from,
+        Point::new(to.x_m, from.y_m),
+        to,
+        Point::new(from.x_m, to.y_m),
+    ]
 }
 
 /// A note's text as kept: trimmed, and more than nothing.
