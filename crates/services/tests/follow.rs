@@ -6,7 +6,9 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{Layer, Lock, PlanEdit, Point, ServiceError, Session, Snapping, Source};
+use klappe_services::{
+    Bend, Layer, Lock, PlanEdit, Point, ServiceError, Session, Snapping, Source,
+};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -308,7 +310,7 @@ fn removing_the_figure_works_under_a_camera_lock() {
 }
 
 /// The bend of a following camera keeps its shape to the leg, as when the camera mark itself is
-/// moved. Camera A walks (8, 11) to (9, 8); its grip at (10, 6) makes `via` (11.5, 2.5).
+/// moved. Camera A walks (8, 11) to (9, 8); its grip pulled to (10, 6) makes a bend there.
 fn bent_camera() -> Session {
     let mut s = open();
     couple(&mut s, "a", "elisabeth");
@@ -316,6 +318,7 @@ fn bent_camera() -> Session {
         source: Source::CameraVia {
             camera: "a".into(),
             index: 1,
+            bend: Bend::New(0),
         },
         to: p(10.0, 6.0),
     })
@@ -325,12 +328,13 @@ fn bent_camera() -> Session {
 }
 
 fn camera_via(s: &Session) -> Point {
-    s.plan().unwrap().camera("a").unwrap().marks[1].via.unwrap()
+    s.plan().unwrap().camera("a").unwrap().marks[1].via[0]
 }
 
 /// Review of PR 27 and 100. Elisabeth's mark 1 carries camera mark 1 by (1, 2) to (9, 8) +
 /// (1, 2) = (10, 10); the mark before stays at (8, 11). Leg (1, -3) becomes (2, -1), the bend's
-/// offset (3, -7) from the middle becomes (5, -2) about the new middle (9, 10.5): (14, 8.5).
+/// offset (1.5, -3.5) from the middle (8.5, 9.5) becomes (2.5, -1) about the new middle
+/// (9, 10.5): (11.5, 9.5).
 #[test]
 fn the_bend_to_a_carried_camera_mark_keeps_its_shape() {
     let mut s = bent_camera();
@@ -342,12 +346,12 @@ fn the_bend_to_a_carried_camera_mark_keeps_its_shape() {
     })
     .unwrap();
 
-    assert!(near(camera_via(&s), p(14.0, 8.5)), "{:?}", camera_via(&s));
+    assert!(near(camera_via(&s), p(11.5, 9.5)), "{:?}", camera_via(&s));
 }
 
 /// Elisabeth's mark 0 carries camera mark 0 by (1, 2) to (9, 13); camera mark 1 stays, and the
-/// way to it keeps its shape: leg (1, -3) becomes (0, -5), the offset (3, -7) becomes (1, -12)
-/// about the new middle (9, 10.5): (10, -1.5).
+/// way to it keeps its shape: leg (1, -3) becomes (0, -5), the offset (1.5, -3.5) becomes
+/// (0.5, -6) about the new middle (9, 10.5): (9.5, 4.5).
 #[test]
 fn the_bend_from_a_carried_camera_mark_keeps_its_shape() {
     let mut s = bent_camera();
@@ -359,5 +363,5 @@ fn the_bend_from_a_carried_camera_mark_keeps_its_shape() {
     })
     .unwrap();
 
-    assert!(near(camera_via(&s), p(10.0, -1.5)), "{:?}", camera_via(&s));
+    assert!(near(camera_via(&s), p(9.5, 4.5)), "{:?}", camera_via(&s));
 }

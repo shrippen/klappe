@@ -4,7 +4,7 @@ use klappe_model::{
     Arrival, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
     LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
 };
-use klappe_stellprobe::Source;
+use klappe_stellprobe::{Bend, Source};
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -394,11 +394,12 @@ enum Target<'a> {
         drawing: &'a mut Drawing,
         index: usize,
     },
-    /// The bend of the way from mark `a` to mark `b`.
+    /// A grip on the way from mark `a` to mark `b`.
     Curve {
-        via: &'a mut Option<Point>,
+        via: &'a mut Vec<Point>,
         a: Point,
         b: Point,
+        bend: Bend,
     },
 }
 
@@ -562,29 +563,32 @@ fn current_index(times_s: impl Iterator<Item = f64>, time_s: f64) -> Option<usiz
     Some(times.iter().rposition(|t| *t <= time_s).unwrap_or(0))
 }
 
-/// Takes the bend out of the way the source names: to one mark (a mark or its grip), or all
+/// Takes the bends out of the way the source names: to one mark (a mark or its grip), or all
 /// ways of a figure or camera. Anything else has no way.
 fn straighten(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
     let plan = &mut *scope.plan;
     let find = |id: &str| plan.figures.iter().position(|f| f.character == id);
 
     match source {
-        Source::Mark { character, index } | Source::FigureVia { character, index } => {
+        Source::Mark { character, index }
+        | Source::FigureVia {
+            character, index, ..
+        } => {
             let track = find(character).ok_or(ServiceError::Gone)?;
             let mark = plan.figures[track].marks.get_mut(*index);
-            mark.ok_or(ServiceError::Gone)?.via = None;
+            mark.ok_or(ServiceError::Gone)?.via.clear();
         }
         Source::Figure(character) => {
             let track = find(character).ok_or(ServiceError::Gone)?;
             plan.figures[track]
                 .marks
                 .iter_mut()
-                .for_each(|m| m.via = None);
+                .for_each(|m| m.via.clear());
         }
-        Source::CameraVia { camera, index } => {
+        Source::CameraVia { camera, index, .. } => {
             let camera = plan.cameras.iter_mut().find(|c| c.id == *camera);
             let mark = camera.ok_or(ServiceError::Gone)?.marks.get_mut(*index);
-            mark.ok_or(ServiceError::Gone)?.via = None;
+            mark.ok_or(ServiceError::Gone)?.via.clear();
         }
         Source::Camera(id) => {
             let camera = plan.cameras.iter_mut().find(|c| c.id == *id);
@@ -592,7 +596,7 @@ fn straighten(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError
                 .ok_or(ServiceError::Gone)?
                 .marks
                 .iter_mut()
-                .for_each(|m| m.via = None);
+                .for_each(|m| m.via.clear());
         }
         _ => {}
     }

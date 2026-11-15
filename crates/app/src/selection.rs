@@ -217,6 +217,7 @@ fn group_key_edit(key: Key, sources: Vec<Source>) -> Option<PlanEdit> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use klappe_services::Bend;
 
     fn p(x_m: f64, y_m: f64) -> Point {
         Point::new(x_m, y_m)
@@ -364,6 +365,7 @@ mod tests {
         let grip = Source::FigureVia {
             character: "elisabeth".into(),
             index: 1,
+            bend: Bend::New(0),
         };
         let clicked = Selection::of(Some(grip.clone())).click(Some(Source::Wall(0)), Pick::Extend);
         let boxed = Selection::of(Some(grip)).boxed(vec![Source::Wall(0)], Pick::Extend);

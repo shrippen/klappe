@@ -69,6 +69,9 @@ TestCase {
             if (key === "drawing:d1") {
                 return JSON.stringify({ kind: "drawing", color: "green", dash: "dashed", fill: "outline", closed: true })
             }
+            if (key.indexOf("figurevia:") === 0) {
+                return JSON.stringify({ kind: "bend", index: 2 })
+            }
             if (key === "camera:b") {
                 return JSON.stringify({ kind: "camera", label: "B", lens: 50, fov: 27.9, height: 1.6, shots: "", follows: "Elisabeth", rig: "crane" })
             }
@@ -309,6 +312,71 @@ TestCase {
         drag(area, 2)
 
         verify(fake.drags.length >= 1)
+    }
+
+    // LH-21: a grip over the whole plan under the pointer, as the canvas hands it over.
+    function gripPlan(key) {
+        return JSON.stringify({ width: 20, depth: 13, shapes: [
+            { kind: "polygon", points: [0, 0, 20, 0, 20, 13, 0, 13], radius: 0, width: 0, label: "muted",
+              stroke: "solid", fill: "solid", text: "", key: key, selected: false }] })
+    }
+
+    // A double click on a bend of the selected way takes it out: the controller removes the
+    // selection, which is that bend after the click before.
+    function test_a_double_click_on_a_bend_removes_it() {
+        const area = drawn("select")
+        fake.planJson = gripPlan("figurevia:e:1:at0")
+
+        mouseDoubleClickSequence(area, 100, 100)
+        compare(fake.removes, 1)
+
+        fake.planJson = gripPlan("cameravia:a:2:at1")
+        mouseDoubleClickSequence(area, 100, 100)
+        compare(fake.removes, 2)
+    }
+
+    // The grip that makes a new bend is dragged, not double clicked: that would remove nothing
+    // of its own, and with it selected the controller must not be asked to remove.
+    function test_a_double_click_on_a_new_bend_grip_removes_nothing() {
+        const area = drawn("select")
+        fake.planJson = gripPlan("figurevia:e:1:new0")
+
+        mouseDoubleClickSequence(area, 100, 100)
+
+        compare(fake.removes, 0)
+    }
+
+    function test_a_double_click_on_a_bend_needs_the_select_tool() {
+        const area = drawn("wall")
+        fake.planJson = gripPlan("figurevia:e:1:at0")
+
+        mouseDoubleClickSequence(area, 100, 100)
+
+        compare(fake.removes, 0)
+    }
+
+    // Pulling a new bend out of a way is a drag that starts on its grip.
+    function test_a_drag_from_a_new_bend_grip_goes_to_the_controller() {
+        const area = drawn("select")
+        fake.planJson = gripPlan("figurevia:e:1:new0")
+        mouseMove(area, 90, 90)
+        mouseMove(area, 100, 100)
+
+        drag(area, 3)
+
+        verify(fake.drags.length >= 2, fake.drags.length)
+        verify(!fake.drags[0].done)
+        verify(fake.drags[fake.drags.length - 1].done)
+        compare(fake.removes, 0)
+    }
+
+    function test_the_bend_tooltip_names_the_way_and_the_keys() {
+        const area = createTemporaryObject(areaComponent, tc, { texts: en })
+        const lines = area.tipLines("figurevia:e:1:at0")
+
+        compare(lines.length, 1)
+        verify(lines[0].indexOf("mark 2") >= 0, lines[0])
+        verify(lines[0].indexOf("double click") >= 0, lines[0])
     }
 
     function test_the_middle_button_pans_in_the_select_tool() {

@@ -45,10 +45,10 @@ fn near_cm(a: Point, b: Point) -> bool {
 }
 
 /// The middle of the box around every place and bend of the marks.
-fn middle_of(marks: &[(Point, Option<Point>)]) -> Point {
+fn middle_of(marks: &[(Point, Vec<Point>)]) -> Point {
     let points: Vec<Point> = marks
         .iter()
-        .flat_map(|(at, via)| std::iter::once(*at).chain(*via))
+        .flat_map(|(at, via)| std::iter::once(*at).chain(via.iter().copied()))
         .collect();
     let span = |value: fn(&Point) -> f64| {
         let values = points.iter().map(value);
@@ -273,11 +273,11 @@ fn a_plan_is_filed_as_a_template() {
     let figures = template
         .figures
         .iter()
-        .flat_map(|f| f.marks.iter().map(|m| (m.at, m.via)));
+        .flat_map(|f| f.marks.iter().map(|m| (m.at, m.via.clone())));
     let cameras = template
         .cameras
         .iter()
-        .flat_map(|c| c.marks.iter().map(|m| (m.at, m.via)));
+        .flat_map(|c| c.marks.iter().map(|m| (m.at, m.via.clone())));
     let middle = middle_of(&figures.chain(cameras).collect::<Vec<_>>());
     assert!(near_cm(middle, p(0.0, 0.0)), "{middle:?}");
 
@@ -322,11 +322,11 @@ fn an_own_template_survives_saving_and_can_be_placed() {
     let figures = plan
         .figures
         .iter()
-        .flat_map(|f| f.marks.iter().map(|m| (m.at, m.via)));
+        .flat_map(|f| f.marks.iter().map(|m| (m.at, m.via.clone())));
     let cameras = plan
         .cameras
         .iter()
-        .flat_map(|c| c.marks.iter().map(|m| (m.at, m.via)));
+        .flat_map(|c| c.marks.iter().map(|m| (m.at, m.via.clone())));
     let middle = middle_of(&figures.chain(cameras).collect::<Vec<_>>());
     assert!(near_cm(middle, p(10.0, 10.0)), "{middle:?}");
 }

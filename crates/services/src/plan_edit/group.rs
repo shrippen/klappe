@@ -302,7 +302,7 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
             camera.label = letter.to_string();
             for mark in &mut camera.marks {
                 mark.at = shifted(mark.at, by_m);
-                mark.via = mark.via.map(|via| shifted(via, by_m));
+                mark.via = mark.via.iter().map(|via| shifted(*via, by_m)).collect();
             }
             scope.plan.cameras.push(camera);
         }

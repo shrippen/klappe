@@ -1,12 +1,15 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
 use klappe_model::{CameraMark, Drawing, DrawingShape, FloorPlan, Mark, Point, Wall};
-use klappe_stellprobe::{bend_follow, bend_point, drawing_handle_places, via_through, Source};
+use klappe_stellprobe::{bend_follow, bend_grips, drawing_handle_places, Bend, Source};
 
 use super::drawings::drag_handle;
 use super::openings::{opening_mut, slide};
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
+
+/// How far a drag pulls a new bend off its grip before it is made.
+const NEW_BEND_MIN_M: f64 = 1e-6;
 
 pub(super) fn target<'a>(
     scope: &'a mut Scope<'_>,
@@ -28,24 +31,7 @@ pub(super) fn target<'a>(
                 facing_deg: &mut mark.facing_deg,
             })
         }
-        Source::FigureVia { character, index } => {
-            let track = scope
-                .plan
-                .figures
-                .iter_mut()
-                .find(|f| f.character == *character)
-                .ok_or(ServiceError::Gone)?;
-            curve(&mut track.marks, *index, |m| (m.at, &mut m.via))
-        }
-        Source::CameraVia { camera, index } => {
-            let camera = scope
-                .plan
-                .cameras
-                .iter_mut()
-                .find(|c| c.id == *camera)
-                .ok_or(ServiceError::Gone)?;
-            curve(&mut camera.marks, *index, |m| (m.at, &mut m.via))
-        }
+        Source::FigureVia { .. } | Source::CameraVia { .. } => grip_target(scope, source),
         Source::Figure(character) => {
             let track = scope
                 .plan
@@ -139,12 +125,45 @@ pub(super) fn target<'a>(
     }
 }
 
-/// The bend of the way to mark `index` of `marks`; `place` gives a mark's place and its `via`.
-/// The first mark has no way to it.
+/// The grip a `FigureVia` or `CameraVia` names, on its way.
+fn grip_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, ServiceError> {
+    match source {
+        Source::FigureVia {
+            character,
+            index,
+            bend,
+        } => {
+            let track = scope
+                .plan
+                .figures
+                .iter_mut()
+                .find(|f| f.character == *character)
+                .ok_or(ServiceError::Gone)?;
+            curve(&mut track.marks, (*index, *bend), |m| (m.at, &mut m.via))
+        }
+        Source::CameraVia {
+            camera,
+            index,
+            bend,
+        } => {
+            let camera = scope
+                .plan
+                .cameras
+                .iter_mut()
+                .find(|c| c.id == *camera)
+                .ok_or(ServiceError::Gone)?;
+            curve(&mut camera.marks, (*index, *bend), |m| (m.at, &mut m.via))
+        }
+        _ => Err(ServiceError::Gone),
+    }
+}
+
+/// The grip `bend` on the way to mark `index` of `marks`; `place` gives a mark's place and its
+/// `via`. The first mark has no way to it.
 fn curve<'a, M>(
     marks: &'a mut [M],
-    index: usize,
-    place: impl Fn(&'a mut M) -> (Point, &'a mut Option<Point>),
+    (index, bend): (usize, Bend),
+    place: impl Fn(&'a mut M) -> (Point, &'a mut Vec<Point>),
 ) -> Result<Target<'a>, ServiceError> {
     let before = index.checked_sub(1).ok_or(ServiceError::Gone)?;
     let (head, tail) = marks.split_at_mut(index);
@@ -154,7 +173,34 @@ fn curve<'a, M>(
     let (a, _) = place(a);
     let (b, via) = place(this);
 
-    Ok(Target::Curve { via, a, b })
+    Ok(Target::Curve { via, a, b, bend })
+}
+
+/// Where grip `bend` of the way from `a` to `b` through `via` sits.
+fn grip_at(via: &[Point], (a, b): (Point, Point), bend: Bend) -> Option<Point> {
+    match bend {
+        Bend::At(n) => via.get(n).copied(),
+        Bend::New(n) => bend_grips(a, via, b).get(n).copied(),
+    }
+}
+
+/// Moves a bend to `to`, or makes a new one there. A new bend that is not pulled off its
+/// grip would only add a point the way already passes.
+fn pull(
+    via: &mut Vec<Point>,
+    ends: (Point, Point),
+    bend: Bend,
+    to: Point,
+) -> Result<(), ServiceError> {
+    let grip = grip_at(via, ends, bend).ok_or(ServiceError::Gone)?;
+
+    match bend {
+        Bend::At(n) => via[n] = to,
+        Bend::New(_) if grip.distance_m(to) < NEW_BEND_MIN_M => {}
+        Bend::New(n) => via.insert(n, to),
+    }
+
+    Ok(())
 }
 
 fn middle(wall: &Wall) -> Point {
@@ -214,11 +260,11 @@ fn mark_held(scope: &Scope<'_>, source: &Source) -> Option<(Owner, usize, Point)
     }
 }
 
-fn figure_parts(m: &mut Mark) -> (&mut Point, &mut Option<Point>) {
+fn figure_parts(m: &mut Mark) -> (&mut Point, &mut Vec<Point>) {
     (&mut m.at, &mut m.via)
 }
 
-fn camera_parts(m: &mut CameraMark) -> (&mut Point, &mut Option<Point>) {
+fn camera_parts(m: &mut CameraMark) -> (&mut Point, &mut Vec<Point>) {
     (&mut m.at, &mut m.via)
 }
 
@@ -228,7 +274,7 @@ fn keep_bends<M>(
     marks: &mut [M],
     index: usize,
     old: Point,
-    parts: for<'a> fn(&'a mut M) -> (&'a mut Point, &'a mut Option<Point>),
+    parts: for<'a> fn(&'a mut M) -> (&'a mut Point, &'a mut Vec<Point>),
 ) {
     let Some(this) = marks.get_mut(index) else {
         return;
@@ -238,7 +284,8 @@ fn keep_bends<M>(
     if let Some(before) = index.checked_sub(1) {
         let a = *parts(&mut marks[before]).0;
         let (_, via) = parts(&mut marks[index]);
-        *via = via.map(|v| bend_follow(v, (a, old), (a, new)));
+        via.iter_mut()
+            .for_each(|v| *v = bend_follow(*v, (a, old), (a, new)));
     }
 
     let Some(next) = marks.get_mut(index + 1) else {
@@ -246,7 +293,8 @@ fn keep_bends<M>(
     };
     let (b, via) = parts(next);
     let b = *b;
-    *via = via.map(|v| bend_follow(v, (old, b), (new, b)));
+    via.iter_mut()
+        .for_each(|v| *v = bend_follow(*v, (old, b), (new, b)));
 }
 
 pub(super) fn move_to(
@@ -283,8 +331,8 @@ pub(super) fn move_to(
 fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => *at = to,
-        // `to` is where the way passes halfway, which is what the grip sits on.
-        Target::Curve { via, a, b } => *via = Some(via_through(a, to, b)),
+        // `to` is where the grip sits: a bend moves there, or a new one is made there.
+        Target::Curve { via, a, b, bend } => pull(via, (a, b), bend, to)?,
         Target::Drawing(drawing) => {
             // The whole drawing keeps its shape; the middle of its box lands on `to`.
             let Some((_, mid)) = anchors(drawing) else {
@@ -314,8 +362,8 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
 pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceError> {
     match target {
         Target::Place { at, .. } | Target::Pin { at } => Ok((*at, *at)),
-        Target::Curve { via, a, b } => {
-            let grip = bend_point(a, *via, b);
+        Target::Curve { via, a, b, bend } => {
+            let grip = grip_at(via, (a, b), bend).ok_or(ServiceError::Gone)?;
             Ok((grip, grip))
         }
         Target::Wall(wall) => Ok((wall.from, middle(wall))),

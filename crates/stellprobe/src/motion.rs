@@ -7,31 +7,32 @@ pub struct Placement {
     pub facing_deg: f64,
 }
 
-/// Steps a curve's length is measured in, to walk it at an even pace.
+/// Steps each piece of a curve (between two points it passes) is measured in, to walk it at an
+/// even pace.
 const ARC_STEPS: usize = 64;
 
-/// Straight pieces a curve is drawn with.
+/// Straight pieces each piece of a curve is drawn with.
 const CURVE_SEGMENTS: usize = 24;
 
 /// The common part of figure and camera marks: arrive at `at_s`, stay `hold_s`, then walk on.
 #[derive(Debug, Clone, Copy)]
-struct Key {
+struct Key<'a> {
     at_s: f64,
     hold_s: f64,
-    /// Bend of the way to this mark, see `Mark::via`.
-    via: Option<Point>,
+    /// Bends of the way to this mark, see `Mark::via`.
+    via: &'a [Point],
     /// Always `Walk` and `Stay` for a camera.
     arrival: Arrival,
     departure: Departure,
     place: Placement,
 }
 
-impl From<&Mark> for Key {
-    fn from(m: &Mark) -> Self {
+impl<'a> From<&'a Mark> for Key<'a> {
+    fn from(m: &'a Mark) -> Self {
         Key {
             at_s: m.at_s,
             hold_s: m.hold_s,
-            via: m.via,
+            via: &m.via,
             arrival: m.arrival,
             departure: m.departure,
             place: Placement {
@@ -42,12 +43,12 @@ impl From<&Mark> for Key {
     }
 }
 
-impl From<&CameraMark> for Key {
-    fn from(m: &CameraMark) -> Self {
+impl<'a> From<&'a CameraMark> for Key<'a> {
+    fn from(m: &'a CameraMark) -> Self {
         Key {
             at_s: m.at_s,
             hold_s: m.hold_s,
-            via: m.via,
+            via: &m.via,
             arrival: Arrival::Walk,
             departure: Departure::Stay,
             place: Placement {
@@ -61,7 +62,7 @@ impl From<&CameraMark> for Key {
 /// A figure at time `t_s` (LH-60); `None` without marks, and while it is not in the scene
 /// (LH-26).
 pub fn figure_at(track: &FigureTrack, t_s: f64) -> Option<Placement> {
-    let keys: Vec<Key> = track.marks.iter().map(Key::from).collect();
+    let keys: Vec<Key<'_>> = track.marks.iter().map(Key::from).collect();
     place_at(&keys, t_s)
 }
 
@@ -73,7 +74,7 @@ pub fn figure_at(track: &FigureTrack, t_s: f64) -> Option<Placement> {
 ///  walked    no     yes         no         no           yes
 /// ```
 pub fn walked_ways(track: &FigureTrack) -> Vec<bool> {
-    let keys: Vec<Key> = track.marks.iter().map(Key::from).collect();
+    let keys: Vec<Key<'_>> = track.marks.iter().map(Key::from).collect();
     let gone = gone_on_arrival(&keys);
 
     keys.iter()
@@ -85,7 +86,7 @@ pub fn walked_ways(track: &FigureTrack) -> Vec<bool> {
 
 /// A camera at time `t_s`; `None` without marks.
 pub fn camera_at(camera: &Camera, t_s: f64) -> Option<Placement> {
-    let keys: Vec<Key> = camera.marks.iter().map(Key::from).collect();
+    let keys: Vec<Key<'_>> = camera.marks.iter().map(Key::from).collect();
     place_at(&keys, t_s)
 }
 
@@ -125,7 +126,7 @@ pub(crate) fn progress(from: &CameraMark, to: &CameraMark, t_s: f64) -> f64 {
 }
 
 /// Before the first mark: there. Between marks: waits `hold_s`, then moves along the way to
-/// the next mark (straight, or the curve through its `via`) at an even pace and turns the
+/// the next mark (straight, or the curve through its `via` points) at an even pace and turns the
 /// short way round, arriving at the next mark's time. After the last: there.
 ///
 /// ```text
@@ -137,7 +138,7 @@ pub(crate) fn progress(from: &CameraMark, to: &CameraMark, t_s: f64) -> f64 {
 /// A figure that is not in the scene (LH-26) has no place: before the first mark if it
 /// appears there, after the pause at a mark it leaves, and from the pause at the mark
 /// before one it appears at, until that mark's time (it shows up instead of walking).
-fn place_at(keys: &[Key], t_s: f64) -> Option<Placement> {
+fn place_at(keys: &[Key<'_>], t_s: f64) -> Option<Placement> {
     let first = keys.first()?;
     if t_s < first.at_s {
         return (first.arrival == Arrival::Walk).then_some(first.place);
@@ -177,7 +178,7 @@ fn place_at(keys: &[Key], t_s: f64) -> Option<Placement> {
 
 /// Per mark: the figure is not in the scene when it gets there, because it left at an earlier
 /// mark and no mark between appeared again.
-fn gone_on_arrival(keys: &[Key]) -> Vec<bool> {
+fn gone_on_arrival(keys: &[Key<'_>]) -> Vec<bool> {
     let mut gone_after = false;
 
     keys.iter()
@@ -190,29 +191,47 @@ fn gone_on_arrival(keys: &[Key]) -> Vec<bool> {
         .collect()
 }
 
-/// The point at `t` (0 to 1) of the quadratic Bézier curve from `a` to `b` bent towards `via`.
-fn bezier(a: Point, via: Point, b: Point, t: f64) -> Point {
-    let u = 1.0 - t;
-    let (wa, wv, wb) = (u * u, 2.0 * u * t, t * t);
+/// The points a way passes: its start, the bends, its end.
+fn anchors(a: Point, via: &[Point], b: Point) -> Vec<Point> {
+    std::iter::once(a)
+        .chain(via.iter().copied())
+        .chain(std::iter::once(b))
+        .collect()
+}
+
+/// The point at `u` (0 to the number of pieces) of the Catmull-Rom curve through `anchors`:
+/// piece `i` runs from anchor `i` to `i + 1`, `u - i` into it. The curve is smooth where it
+/// passes an anchor; at the two ends the first and last anchor stand in for their missing
+/// neighbour.
+fn spline(anchors: &[Point], u: f64) -> Point {
+    let last = anchors.len() - 1;
+    let piece = (u.floor().max(0.0) as usize).min(last - 1);
+    let t = u - piece as f64;
+    let at = |i: usize| anchors[i.min(last)];
+    let (p0, p1) = (at(piece.saturating_sub(1)), at(piece));
+    let (p2, p3) = (at(piece + 1), at(piece + 2));
+
+    let weigh = |c0: f64, c1: f64, c2: f64, c3: f64| {
+        0.5 * (2.0 * c1
+            + (c2 - c0) * t
+            + (2.0 * c0 - 5.0 * c1 + 4.0 * c2 - c3) * t * t
+            + (3.0 * c1 - c0 - 3.0 * c2 + c3) * t * t * t)
+    };
 
     Point::new(
-        wa * a.x_m + wv * via.x_m + wb * b.x_m,
-        wa * a.y_m + wv * via.y_m + wb * b.y_m,
+        weigh(p0.x_m, p1.x_m, p2.x_m, p3.x_m),
+        weigh(p0.y_m, p1.y_m, p2.y_m, p3.y_m),
     )
 }
 
-/// Where the way from `a` to `b` bent towards `via` is halfway along the curve (straight: the
-/// middle of the leg): the point to grab to bend it (LH-21).
-pub fn bend_point(a: Point, via: Option<Point>, b: Point) -> Point {
-    bezier(a, via.unwrap_or_else(|| a.lerp(b, 0.5)), b, 0.5)
-}
+/// The grips of the way from `a` to `b` through `via`: one in the middle of each piece (a
+/// straight leg: its middle). Dragging one makes a new bend there (LH-21).
+pub fn bend_grips(a: Point, via: &[Point], b: Point) -> Vec<Point> {
+    let anchors = anchors(a, via, b);
 
-/// The `via` that makes the way from `a` to `b` pass through `bend`, halfway along: the
-/// inverse of `bend_point`.
-pub fn via_through(a: Point, bend: Point, b: Point) -> Point {
-    let middle = a.lerp(b, 0.5);
-
-    Point::new(2.0 * bend.x_m - middle.x_m, 2.0 * bend.y_m - middle.y_m)
+    (0..anchors.len() - 1)
+        .map(|piece| spline(&anchors, piece as f64 + 0.5))
+        .collect()
 }
 
 /// Where `via` goes when the way's ends move from `old` to `new` (start, end): it keeps its
@@ -238,12 +257,13 @@ pub fn bend_follow(via: Point, old: (Point, Point), new: (Point, Point)) -> Poin
     )
 }
 
-/// Length of the curve from `a` to `b` bent towards `via`, up to parameter i / `ARC_STEPS`.
-fn arc_lengths(a: Point, via: Point, b: Point) -> [f64; ARC_STEPS + 1] {
-    let mut lengths = [0.0; ARC_STEPS + 1];
-    let mut last = a;
-    for i in 1..=ARC_STEPS {
-        let next = bezier(a, via, b, i as f64 / ARC_STEPS as f64);
+/// Length of the curve through `anchors` up to parameter i / `ARC_STEPS`.
+fn arc_lengths(anchors: &[Point]) -> Vec<f64> {
+    let steps = (anchors.len() - 1) * ARC_STEPS;
+    let mut lengths = vec![0.0; steps + 1];
+    let mut last = anchors[0];
+    for i in 1..=steps {
+        let next = spline(anchors, i as f64 / ARC_STEPS as f64);
         lengths[i] = lengths[i - 1] + last.distance_m(next);
         last = next;
     }
@@ -251,26 +271,32 @@ fn arc_lengths(a: Point, via: Point, b: Point) -> [f64; ARC_STEPS + 1] {
     lengths
 }
 
-/// How long the way from `a` to `b` is (straight, or the curve through its `via`), in metres:
+/// How long the way from `a` to `b` is (straight, or the curve through `via`), in metres:
 /// what a figure walks, and so what its pace is measured on.
-pub fn way_length_m(a: Point, via: Option<Point>, b: Point) -> f64 {
-    match via {
-        Some(via) => arc_lengths(a, via, b)[ARC_STEPS],
-        None => a.distance_m(b),
+pub fn way_length_m(a: Point, via: &[Point], b: Point) -> f64 {
+    if via.is_empty() {
+        return a.distance_m(b);
     }
+
+    arc_lengths(&anchors(a, via, b))
+        .last()
+        .copied()
+        .unwrap_or(0.0)
 }
 
 /// The point `t` (0 to 1) of the way from `a` to `b` by length, not by curve parameter: a
 /// curve's parameter runs fast where it is straight and slow where it bends, which would
 /// speed a figure up and down. Measures the curve in `ARC_STEPS` pieces and walks that table.
-fn along(a: Point, via: Option<Point>, b: Point, t: f64) -> Point {
-    let Some(via) = via else {
+fn along(a: Point, via: &[Point], b: Point, t: f64) -> Point {
+    if via.is_empty() {
         return a.lerp(b, t);
-    };
+    }
 
-    let lengths = arc_lengths(a, via, b);
+    let anchors = anchors(a, via, b);
+    let lengths = arc_lengths(&anchors);
+    let steps = lengths.len() - 1;
 
-    let total_m = lengths[ARC_STEPS];
+    let total_m = lengths[steps];
     if total_m <= 0.0 {
         return a;
     }
@@ -278,9 +304,7 @@ fn along(a: Point, via: Option<Point>, b: Point, t: f64) -> Point {
     // The table step that holds the wanted length (binary search), then the share of it
     // within that step, linearly.
     let wanted_m = total_m * t;
-    let step = lengths
-        .partition_point(|l| *l < wanted_m)
-        .clamp(1, ARC_STEPS);
+    let step = lengths.partition_point(|l| *l < wanted_m).clamp(1, steps);
     let step_m = lengths[step] - lengths[step - 1];
     let share = if step_m > 0.0 {
         (wanted_m - lengths[step - 1]) / step_m
@@ -288,24 +312,26 @@ fn along(a: Point, via: Option<Point>, b: Point, t: f64) -> Point {
         0.0
     };
 
-    bezier(a, via, b, ((step - 1) as f64 + share) / ARC_STEPS as f64)
+    spline(&anchors, ((step - 1) as f64 + share) / ARC_STEPS as f64)
 }
 
 /// The way through `stops` (a mark's place and its `via`), as the points to draw: straight
-/// legs are their two ends, curved ones `CURVE_SEGMENTS` pieces.
-pub(crate) fn path(stops: impl IntoIterator<Item = (Point, Option<Point>)>) -> Vec<Point> {
+/// legs are their two ends, curved ones `CURVE_SEGMENTS` pieces for each piece of the curve.
+pub(crate) fn path<'a>(stops: impl IntoIterator<Item = (Point, &'a [Point])>) -> Vec<Point> {
     let stops: Vec<_> = stops.into_iter().collect();
     let mut points: Vec<Point> = stops.first().map(|(at, _)| *at).into_iter().collect();
 
     for pair in stops.windows(2) {
         let (from, (to, via)) = (pair[0].0, pair[1]);
-        let Some(via) = via else {
+        if via.is_empty() {
             points.push(to);
             continue;
-        };
+        }
 
-        for i in 1..=CURVE_SEGMENTS {
-            points.push(bezier(from, via, to, i as f64 / CURVE_SEGMENTS as f64));
+        let anchors = anchors(from, via, to);
+        let segments = (anchors.len() - 1) * CURVE_SEGMENTS;
+        for i in 1..=segments {
+            points.push(spline(&anchors, i as f64 / CURVE_SEGMENTS as f64));
         }
     }
 
@@ -330,7 +356,7 @@ mod tests {
             facing_deg: 0.0,
             pose: Pose::Standing,
             hold_s,
-            via: None,
+            via: Vec::new(),
             arrival: Arrival::Walk,
             departure: Departure::Stay,
         }
@@ -351,7 +377,7 @@ mod tests {
             height_m,
             tilt_deg,
             hold_s,
-            via: None,
+            via: Vec::new(),
             rig: Default::default(),
             lens_mm: None,
         }
@@ -443,27 +469,29 @@ mod tests {
         assert!((turn(0.0, 90.0, 0.5) - 45.0).abs() < 1e-9);
     }
 
-    fn curved(at_s: f64, at: Point, via: Point) -> Mark {
+    fn curved(at_s: f64, at: Point, via: &[Point]) -> Mark {
         Mark {
             at,
-            via: Some(via),
+            via: via.to_vec(),
             ..mark(at_s, 0.0, 0.0)
         }
     }
 
-    /// The middle of the time is the middle of the length (the top of this symmetric arch,
-    /// B(0.5) = (5, 4)), and equal times cover equal lengths: the steps between samples every
-    /// 0.1 s are as long as each other, which steps of the curve parameter would not be.
+    /// An arch from (0, 0) to (10, 0) over one bend at its top, (5, 4).
+    fn arch() -> Mark {
+        curved(8.0, Point::new(10.0, 0.0), &[Point::new(5.0, 4.0)])
+    }
+
+    /// The middle of the time is the middle of the length (the top of this symmetric arch),
+    /// and equal times cover equal lengths: the steps between samples every 0.1 s are as long
+    /// as each other, which steps of the curve parameter would not be.
     #[test]
     fn a_curve_is_walked_at_even_pace() {
-        let t = track(vec![
-            mark(0.0, 0.0, 0.0),
-            curved(8.0, Point::new(10.0, 0.0), Point::new(5.0, 8.0)),
-        ]);
+        let t = track(vec![mark(0.0, 0.0, 0.0), arch()]);
         let at = |t_s: f64| figure_at(&t, t_s).unwrap().at;
 
         assert!(
-            at(4.0).distance_m(Point::new(5.0, 4.0)) < 1e-6,
+            at(4.0).distance_m(Point::new(5.0, 4.0)) < 0.05,
             "{:?}",
             at(4.0)
         );
@@ -480,6 +508,23 @@ mod tests {
         }
     }
 
+    /// Bends on a line, the first twice as far from the start as from the end: the spline
+    /// runs fast and slow in its parameter, the figure is where the length says. Half the time
+    /// is half the 10 m, x = 5, whichever the parameter does.
+    #[test]
+    fn even_pace_holds_with_uneven_bends() {
+        let via = [Point::new(2.0, 0.0), Point::new(9.0, 0.0)];
+        let t = track(vec![
+            mark(0.0, 0.0, 0.0),
+            curved(10.0, Point::new(10.0, 0.0), &via),
+        ]);
+
+        for second in 0..=10 {
+            let x_m = figure_at(&t, f64::from(second)).unwrap().at.x_m;
+            assert!((x_m - f64::from(second)).abs() < 0.01, "{second}: {x_m}");
+        }
+    }
+
     /// No `via`: the leg stays straight, with the same numbers as before curves existed.
     #[test]
     fn without_via_the_leg_is_straight() {
@@ -491,10 +536,7 @@ mod tests {
     /// Ends of a curve are the marks, before and after it.
     #[test]
     fn a_curve_ends_at_its_marks() {
-        let t = track(vec![
-            mark(0.0, 0.0, 0.0),
-            curved(8.0, Point::new(10.0, 0.0), Point::new(5.0, 8.0)),
-        ]);
+        let t = track(vec![mark(0.0, 0.0, 0.0), arch()]);
 
         assert_eq!(figure_at(&t, 0.0).map(|p| p.at), Some(Point::new(0.0, 0.0)));
         assert_eq!(
@@ -507,51 +549,67 @@ mod tests {
     #[test]
     fn via_on_the_first_mark_is_ignored() {
         let mut first = mark(0.0, 0.0, 0.0);
-        first.via = Some(Point::new(0.0, 9.0));
+        first.via = vec![Point::new(0.0, 9.0)];
         let t = track(vec![first, mark(10.0, 10.0, 0.0)]);
 
         assert_eq!(figure_at(&t, 5.0).map(|p| p.at), Some(Point::new(5.0, 0.0)));
         assert_eq!(
-            path([(Point::new(0.0, 0.0), Some(Point::new(0.0, 9.0)))]).len(),
+            path([(Point::new(0.0, 0.0), &[Point::new(0.0, 9.0)][..])]).len(),
             1
         );
     }
 
+    /// The drawn way passes every bend, at the point where one piece ends and the next starts.
     #[test]
-    fn a_drawn_path_follows_the_curve() {
+    fn a_drawn_path_passes_its_bends() {
         let a = Point::new(0.0, 0.0);
         let b = Point::new(10.0, 0.0);
-        let straight = path([(a, None), (b, None)]);
-        let bent = path([(a, None), (b, Some(Point::new(5.0, 8.0)))]);
+        let bends = [Point::new(3.0, 4.0), Point::new(7.0, -4.0)];
+        let straight = path([(a, &[][..]), (b, &[][..])]);
+        let bent = path([(a, &[][..]), (b, &bends[..])]);
 
         assert_eq!(straight, vec![a, b]);
-        assert_eq!(bent.len(), CURVE_SEGMENTS + 1);
+        assert_eq!(bent.len(), 3 * CURVE_SEGMENTS + 1);
         assert_eq!(bent.first(), Some(&a));
         assert_eq!(bent.last(), Some(&b));
-        assert!(bent.iter().any(|p| (p.y_m - 4.0).abs() < 1e-9));
+        assert_eq!(bent[CURVE_SEGMENTS], bends[0]);
+        assert_eq!(bent[2 * CURVE_SEGMENTS], bends[1]);
     }
 
+    /// Hand-worked: over (0, 0), (5, 4), (10, 0) the first piece has the neighbours (0, 0) and
+    /// (10, 0); at its middle x is (2.5 + 2.5 - 0.625) / 2 = 2.1875 and y (2 + 4 - 1.5) / 2
+    /// = 2.25. The second piece mirrors it.
     #[test]
-    fn the_bend_point_is_on_the_curve() {
+    fn grips_sit_in_the_middle_of_each_piece() {
         let a = Point::new(0.0, 0.0);
         let b = Point::new(10.0, 0.0);
-        let via = Point::new(5.0, 8.0);
 
-        assert_eq!(bend_point(a, None, b), Point::new(5.0, 0.0));
-        assert_eq!(bend_point(a, Some(via), b), Point::new(5.0, 4.0));
-        assert_eq!(via_through(a, Point::new(5.0, 4.0), b), via);
+        assert_eq!(bend_grips(a, &[], b), vec![Point::new(5.0, 0.0)]);
+
+        let grips = bend_grips(a, &[Point::new(5.0, 4.0)], b);
+        assert_eq!(grips.len(), 2);
+        assert!((grips[0].x_m - 2.1875).abs() < 1e-9, "{grips:?}");
+        assert!((grips[0].y_m - 2.25).abs() < 1e-9, "{grips:?}");
+        assert!((grips[1].x_m - 7.8125).abs() < 1e-9, "{grips:?}");
+        assert!((grips[1].y_m - 2.25).abs() < 1e-9, "{grips:?}");
     }
 
-    /// The parabola y = 16 t (1 - t), x = 10 t: length 16 * integral of sqrt(u^2 + 0.390625)
-    /// over 0 to 1, about 13.337 m.
+    /// A way over a bend on its line is as long as the line; over one off it, a smooth curve
+    /// is longer than the two straight legs to the bend, but not by much.
     #[test]
     fn a_way_is_as_long_as_its_curve() {
         let a = Point::new(0.0, 0.0);
         let b = Point::new(10.0, 0.0);
 
-        assert_eq!(way_length_m(a, None, b), 10.0);
-        let curved_m = way_length_m(a, Some(Point::new(5.0, 8.0)), b);
-        assert!((curved_m - 13.337).abs() < 0.01, "{curved_m}");
+        assert_eq!(way_length_m(a, &[], b), 10.0);
+
+        let on_line_m = way_length_m(a, &[Point::new(5.0, 0.0)], b);
+        assert!((on_line_m - 10.0).abs() < 1e-6, "{on_line_m}");
+
+        let bend = Point::new(5.0, 4.0);
+        let legs_m = a.distance_m(bend) + bend.distance_m(b);
+        let curved_m = way_length_m(a, &[bend], b);
+        assert!(curved_m > legs_m && curved_m < 1.1 * legs_m, "{curved_m}");
     }
 
     fn appearing(at_s: f64, x: f64) -> Mark {

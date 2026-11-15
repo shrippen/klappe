@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use klappe_services::{
-    look, Area, Dash, DisplayList, Hue, Item, Point, Role, Shape, Source, NOTE_TEXT_M,
+    look, Area, Bend, Dash, DisplayList, Hue, Item, Point, Role, Shape, Source, NOTE_TEXT_M,
 };
 use serde_json::{json, Value};
 
@@ -132,12 +132,22 @@ pub fn key(source: &Source) -> String {
         Source::Camera(id) => (ElementKind::Camera, id.clone()),
         Source::Figure(id) => (ElementKind::Figure, id.clone()),
         Source::Mark { character, index } => (ElementKind::Mark, format!("{character}:{index}")),
-        Source::FigureVia { character, index } => {
-            (ElementKind::FigureVia, format!("{character}:{index}"))
-        }
-        Source::CameraVia { camera, index } => {
-            (ElementKind::CameraVia, format!("{camera}:{index}"))
-        }
+        Source::FigureVia {
+            character,
+            index,
+            bend,
+        } => (
+            ElementKind::FigureVia,
+            format!("{character}:{index}:{}", bend_part(*bend)),
+        ),
+        Source::CameraVia {
+            camera,
+            index,
+            bend,
+        } => (
+            ElementKind::CameraVia,
+            format!("{camera}:{index}:{}", bend_part(*bend)),
+        ),
         Source::Wall(index) => (ElementKind::Wall, index.to_string()),
         Source::Opening { wall, index } => (ElementKind::Opening, format!("{wall}:{index}")),
         Source::Note(id) => (ElementKind::Note, id.clone()),
@@ -148,6 +158,14 @@ pub fn key(source: &Source) -> String {
     };
 
     format!("{}:{rest}", kind.name())
+}
+
+/// The last part of a grip's key: `at2` for bend 2, `new0` for the grip of piece 0.
+fn bend_part(bend: Bend) -> String {
+    match bend {
+        Bend::At(n) => format!("at{n}"),
+        Bend::New(n) => format!("new{n}"),
+    }
 }
 
 /// A key taken apart: `mark:elisabeth:0` is `Mark`, `elisabeth` and index 0.
@@ -543,18 +561,20 @@ mod tests {
     }
 
     #[test]
-    fn grip_keys_name_track_and_index() {
+    fn grip_keys_name_track_index_and_grip() {
         let figure = Source::FigureVia {
             character: "e".into(),
             index: 1,
+            bend: Bend::At(0),
         };
         let camera = Source::CameraVia {
             camera: "a".into(),
             index: 1,
+            bend: Bend::New(2),
         };
 
-        assert_eq!(key(&figure), "figurevia:e:1");
-        assert_eq!(key(&camera), "cameravia:a:1");
+        assert_eq!(key(&figure), "figurevia:e:1:at0");
+        assert_eq!(key(&camera), "cameravia:a:1:new2");
     }
 
     /// Every kind of element reads back from the key it is written as.
@@ -578,6 +598,7 @@ mod tests {
                 Source::FigureVia {
                     character: "e".into(),
                     index: 1,
+                    bend: Bend::At(0),
                 },
                 ElementKind::FigureVia,
                 "e",
@@ -587,6 +608,7 @@ mod tests {
                 Source::CameraVia {
                     camera: "a".into(),
                     index: 3,
+                    bend: Bend::New(1),
                 },
                 ElementKind::CameraVia,
                 "a",

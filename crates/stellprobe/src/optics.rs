@@ -236,7 +236,7 @@ mod tests {
             height_m: 1.6,
             tilt_deg: 0.0,
             hold_s,
-            via: None,
+            via: Vec::new(),
             rig: Default::default(),
             lens_mm,
         }

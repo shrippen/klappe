@@ -119,7 +119,7 @@ fn moved(point: Point, by: Point) -> Point {
 fn moved_mark(mark: &Mark, by: Point) -> Mark {
     Mark {
         at: moved(mark.at, by),
-        via: mark.via.map(|via| moved(via, by)),
+        via: mark.via.iter().map(|via| moved(*via, by)).collect(),
         ..mark.clone()
     }
 }
@@ -127,7 +127,7 @@ fn moved_mark(mark: &Mark, by: Point) -> Mark {
 fn moved_camera(mark: &CameraMark, by: Point) -> CameraMark {
     CameraMark {
         at: moved(mark.at, by),
-        via: mark.via.map(|via| moved(via, by)),
+        via: mark.via.iter().map(|via| moved(*via, by)).collect(),
         ..mark.clone()
     }
 }

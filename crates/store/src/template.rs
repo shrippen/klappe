@@ -75,7 +75,7 @@ fn is_mark(mark: &Mark) -> bool {
         && mark.facing_deg.is_finite()
         && is_hold_s(mark.hold_s)
         && is_point(&mark.at)
-        && mark.via.as_ref().is_none_or(is_point)
+        && mark.via.iter().all(is_point)
 }
 
 /// Like `is_mark`; the lens height from the floor up to a crane's, the tilt within straight down
@@ -87,7 +87,7 @@ fn is_camera_mark(mark: &CameraMark) -> bool {
         && is_hold_s(mark.hold_s)
         && is_camera_height_m(mark.height_m)
         && is_point(&mark.at)
-        && mark.via.as_ref().is_none_or(is_point)
+        && mark.via.iter().all(is_point)
         && mark.lens_mm.is_none_or(is_camera_lens_mm)
 }
 
