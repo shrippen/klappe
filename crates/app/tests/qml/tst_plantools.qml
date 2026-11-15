@@ -26,6 +26,7 @@ TestCase {
                 { kind: "chair", label: "", width_m: 0.45, depth_m: 0.45, shape: "rect", custom: false },
                 { kind: "thron", label: "Thron", width_m: 0.9, depth_m: 0.8, shape: "rect", custom: true }
             ],
+            cameras: [{ id: "a", label: "A" }, { id: "b", label: "B" }],
             light: ["fresnel", "led-panel"],
             color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
             dash: ["solid", "dashed", "dotted"],
@@ -283,13 +284,15 @@ TestCase {
 
     function test_the_list_shows_for_its_tool_only() {
         const bar = make()
-        const shown = () => ["objectBox", "figureBox", "lightBox"].filter(n => findChild(bar, n).visible)
+        const shown = () => ["objectBox", "figureBox", "cameraBox", "lightBox"].filter(n => findChild(bar, n).visible)
 
         compare(shown(), [])
         bar.tool = "object"
         compare(shown(), ["objectBox"])
         bar.tool = "figure"
         compare(shown(), ["figureBox"])
+        bar.tool = "camera"
+        compare(shown(), ["cameraBox"])
         bar.tool = "light"
         compare(shown(), ["lightBox"])
         bar.tool = "wall"
@@ -309,6 +312,21 @@ TestCase {
 
         bar.tool = "light"
         compare(bar.choice, "fresnel")
+    }
+
+    /// No camera picked: a click sets a new camera; a picked one gets the next mark.
+    function test_the_camera_tool_picks_a_camera_or_a_new_one() {
+        const bar = make()
+        const box = findChild(bar, "cameraBox")
+
+        bar.tool = "camera"
+        compare(box.model.map(c => c.text), ["Neue Kamera", "A", "B"])
+        compare(bar.choice, "")
+        compare(fake.tools[fake.tools.length - 1], ["camera", ""])
+
+        box.currentIndex = 2
+        compare(bar.choice, "b")
+        compare(fake.tools[fake.tools.length - 1], ["camera", "b"])
     }
 
     function test_the_library_lists_built_in_then_own_objects_in_groups() {
