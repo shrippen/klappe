@@ -43,7 +43,9 @@ pub(crate) fn preset(id: &str) -> Result<&'static LightPreset, ServiceError> {
 
 /// The colour a kind of fixed colour has: its first library lamp's, else the kind's own.
 fn fixed_temp_k(kind: LightKind) -> f64 {
-    let library = klappe_store::builtin_lights().iter().find(|l| l.kind == kind);
+    let library = klappe_store::builtin_lights()
+        .iter()
+        .find(|l| l.kind == kind);
     if let Some(preset) = library {
         return preset.color_temp_k;
     }

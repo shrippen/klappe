@@ -309,6 +309,7 @@
  "legend.light": "Light",
  "legend.lamp": "{label}: {kind}, {power} W, {temp} K, {beam}°",
  "legend.lampPassive": "{label}: {kind}, {beam}°",
+ "legend.lampMore": "+ {n} more",
  "legend.axis": "Axis",
  "legend.path": "Path",
  "legend.mark": "Mark",

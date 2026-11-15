@@ -56,6 +56,9 @@ pub struct LampTexts {
     pub line: String,
     /// A lamp that makes no light of its own (bounce, flag): `{label}`, `{kind}`, `{beam}`.
     pub passive: String,
+    /// Closes a list that is cut short: `{n}` lamps are not shown, e.g. "+ {n} weitere".
+    /// Without it the list is cut without a note.
+    pub more: String,
     pub kinds: Vec<(LightKind, String)>,
 }
 

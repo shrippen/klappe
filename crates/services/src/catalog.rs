@@ -59,6 +59,7 @@ impl Language {
             lamps: LampTexts {
                 line: t("legend.lamp"),
                 passive: t("legend.lampPassive"),
+                more: t("legend.lampMore"),
                 kinds: LightKind::ALL
                     .iter()
                     .map(|k| (*k, t(&format!("lightKind.{}", k.name()))))

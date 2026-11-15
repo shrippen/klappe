@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{Light, LightKind, Point};
 use klappe_services::{
-    Field, Hint, Language, Layer, LightChange, Lock, Paper, PlanEdit, ServiceError, Session, Source,
-    Visibility,
+    Field, Hint, Language, Layer, LightChange, Lock, Paper, PlanEdit, ServiceError, Session,
+    Source, Visibility,
 };
 
 fn example() -> PathBuf {
@@ -153,7 +153,8 @@ fn a_fixed_colour_kind_sets_its_colour() {
 
     s.edit_plan(set("led-1", LightChange::Kind(LightKind::LedPanel)))
         .unwrap();
-    s.edit_plan(set("led-1", LightChange::Temp(4000.0))).unwrap();
+    s.edit_plan(set("led-1", LightChange::Temp(4000.0)))
+        .unwrap();
     assert_eq!(light(&s, "led-1").color_temp_k, 4000.0);
 }
 
@@ -254,4 +255,26 @@ fn the_printout_names_the_lamps() {
 
     s.set_layer(Layer::Lights, Visibility::Hidden);
     assert!(!printed(&s).contains("lamp-label"));
+}
+
+/// The shot pictures of a scene with 60 lamps still print: the lamp list is cut, not the plan.
+#[test]
+fn sixty_lamps_print_in_the_frames() {
+    let mut s = open();
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("lamps-frames");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    for i in 0..60 {
+        s.edit_plan(PlanEdit::AddLight {
+            preset: "led-panel".into(),
+            at: Point::new(1.0 + f64::from(i) * 0.1, 2.0),
+        })
+        .unwrap();
+    }
+
+    let files = s
+        .export_frames(&dir, Paper::A4, &Language::English.print_texts())
+        .unwrap();
+
+    assert!(!files.is_empty());
 }

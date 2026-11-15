@@ -1,6 +1,7 @@
 //! The lamp list under the legend (LH-51).
 #![allow(clippy::unwrap_used)]
 
+use klappe_export::{png, ExportError};
 use klappe_export::{svg, LampTexts, Orientation, Page, Paper, ShotTexts, Texts, Theme};
 use klappe_model::LightKind;
 use klappe_stellprobe::{DisplayList, Lamp};
@@ -49,6 +50,7 @@ fn words() -> LampTexts {
     LampTexts {
         line: "{label}: {kind}, {power} W, {temp} K, {beam}°".into(),
         passive: "{label}: {kind}, {beam}°".into(),
+        more: "+ {n} weitere".into(),
         kinds: vec![(LightKind::LedPanel, "LED-Panel".into())],
     }
 }
@@ -89,7 +91,7 @@ fn no_lamp_words_no_lamp_list() {
     assert!(lines_with(&out, "lamp-label").is_empty());
 }
 
-/// The list takes room from the plan: one row of 16 pt per lamp.
+/// The list takes room from the plan: one row of 16 pt, shared by the lamps side by side.
 #[test]
 fn the_lamp_list_takes_a_row_each() {
     let without = svg(&list(), &page(LampTexts::default()), Theme::Light).unwrap();
@@ -97,5 +99,53 @@ fn the_lamp_list_takes_a_row_each() {
 
     let shrink = frame_height(&without) - frame_height(&with);
 
-    assert!((shrink - 2.0 * 16.0).abs() < 0.011, "{shrink}");
+    assert!((shrink - 16.0).abs() < 0.011, "{shrink}");
+}
+
+/// The plan keeps at least this share of the room it has without lamps.
+const MIN_PLAN_SHARE: f64 = 0.7;
+
+fn many(count: usize) -> DisplayList {
+    let mut list = list();
+    list.lamps = (0..count)
+        .map(|i| lamp(&format!("l{i}"), LightKind::LedPanel, 200.0, 60.0))
+        .collect();
+
+    list
+}
+
+/// 30 and 60 lamps print on every page shape; the plan keeps most of its room and the lamps
+/// that do not fit are counted.
+#[test]
+fn many_lamps_leave_the_plan_its_room() {
+    for orientation in [Orientation::Landscape, Orientation::Portrait] {
+        for count in [30, 60] {
+            let mut bare = page(LampTexts::default());
+            let mut full = page(words());
+            bare.orientation = orientation;
+            full.orientation = orientation;
+
+            let without = svg(&many(count), &bare, Theme::Light).unwrap();
+            let with = svg(&many(count), &full, Theme::Light).unwrap();
+            let share = frame_height(&with) / frame_height(&without);
+            let lines = lines_with(&with, "lamp-label");
+
+            assert!(share >= MIN_PLAN_SHARE, "{orientation:?} {count}: {share}");
+            assert!(lines.len() < count, "{orientation:?} {count}");
+            let more = format!("+ {} weitere", count - (lines.len() - 1));
+            assert!(
+                lines[lines.len() - 1].contains(&more),
+                "{}",
+                lines[lines.len() - 1]
+            );
+        }
+    }
+}
+
+/// Every printed format copes with many lamps.
+#[test]
+fn many_lamps_print_as_png() {
+    let out: Result<Vec<u8>, ExportError> = png(&many(60), &page(words()), Theme::Light);
+
+    assert!(out.is_ok());
 }
