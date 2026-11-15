@@ -16,7 +16,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
-use klappe_services::{Grid, Layer, PlanEdit, Point, Session, Snapping, Source};
+use klappe_services::{Grid, PlanEdit, Point, Session, Snapping, Source};
 
 /// How many bends the way of the grip `grip` has.
 fn bends(s: &Session, grip: &Source) -> usize {
@@ -99,7 +99,7 @@ impl qobject::Controller {
         let leaves_scale = tool != Tool::Scale && self.rust().scale != ScaleStep::Idle;
         let leaves_measure = tool != Tool::Measure && self.rust().measure != MeasureStep::Idle;
         let leaves_note = tool != Tool::Note && self.rust().note != NoteDraft::Idle;
-        let leaves_area = tool != Tool::Area && !self.rust().area.is_empty();
+        let leaves_area = tool != self.rust().tool && !self.rust().area.is_empty();
         self.as_mut().rust_mut().get_mut().tool = tool;
         if leaves_scale {
             self.as_mut().cancel_scale();
@@ -207,10 +207,11 @@ impl qobject::Controller {
             return false;
         }
 
+        let tool = self.rust().tool.clone();
         let step = self
             .rust()
             .drag_step
-            .filter(|_| self.rust().tool == Tool::Wall);
+            .filter(|_| tool == Tool::Wall || tool == Tool::Room);
         if let Some(step) = step {
             return self.finish_wall(step, &text);
         }
@@ -231,17 +232,18 @@ impl qobject::Controller {
         false
     }
 
-    /// Ends the wall drag at `step` with a wall of the typed length.
+    /// Ends the wall or room drag at `step` with a wall of the typed length or a room of the
+    /// typed size.
     fn finish_wall(mut self: Pin<&mut Self>, step: [f64; 4], text: &str) -> bool {
         let [from_x, from_y, x, y] = step;
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-        let typed = tools::wall_of_length(
-            s.snap(Point::new(from_x, from_y)),
-            s.snap(Point::new(x, y)),
-            text,
-        );
+        let (from, toward) = (s.snap(Point::new(from_x, from_y)), s.snap(Point::new(x, y)));
+        let typed = match self.rust().tool {
+            Tool::Room => tools::room_of_size(from, toward, text),
+            _ => tools::wall_of_length(from, toward, text),
+        };
         if !self.as_mut().commit_typed(typed) {
             return false;
         }
@@ -279,7 +281,7 @@ impl qobject::Controller {
             let picked = s.pick(Point::new(x, y));
             return self.ask_note(NoteDraft::click(at, picked.as_ref()));
         }
-        if tool == Tool::Area {
+        if tool == Tool::Area || tool == Tool::FreeForm {
             return self.click_area(at);
         }
 
@@ -307,7 +309,11 @@ impl qobject::Controller {
 
     pub(super) fn finish_area(mut self: Pin<&mut Self>) -> bool {
         let style = self.rust().draw;
-        let Some(edit) = tools::area_edit(&self.rust().area, style) else {
+        let edit = match self.rust().tool {
+            Tool::FreeForm => tools::form_edit(&self.rust().area),
+            _ => tools::area_edit(&self.rust().area, style),
+        };
+        let Some(edit) = edit else {
             return false;
         };
 
@@ -413,15 +419,13 @@ impl qobject::Controller {
         self.refresh();
     }
 
-    /// A click of the area tool: the next point, or the closing click on the first one.
+    /// A click of the area or free form tool: the next point, or the closing click on the first
+    /// one.
     fn click_area(mut self: Pin<&mut Self>, at: Point) -> bool {
         let language = self.rust().language;
-        let lock = self
-            .rust()
-            .session
-            .as_ref()
-            .map(|s| s.lock(Layer::Drawings));
-        if let Some(Err(e)) = lock.map(tools::drawing_open) {
+        let layer = tools::draft_layer(&self.rust().tool);
+        let lock = self.rust().session.as_ref().map(|s| s.lock(layer));
+        if let Some(Err(e)) = lock.map(|lock| tools::layer_open(layer, lock)) {
             self.as_mut().say(error_text(language, &e));
             return false;
         }

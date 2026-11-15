@@ -65,6 +65,17 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `bibliothek.toml` eines Projekts dann beim Öffnen mit Meldung. Ohne eigene Objekte gibt es die
   Datei nicht: `save` löscht sie dann. Keine neue Formatversion: ältere Fassungen kennen `shape`,
   `group` und `bibliothek.toml` nicht und verlieren sie beim Speichern.
+- **Bauform (LH-97):** ein Eintrag der Bibliothek (eingebaut oder eigen) hat optional `form`, den
+  Namen einer eingebauten Bauform; fehlt der Schlüssel, bleibt das Objekt in 3D ein Prisma seines
+  Umrisses. Die Bauformen sind Daten (`crates/store/library/forms.toml`): je `[[form]]` ein `name`
+  und je `[[form.box]]` ein Quader `from = [x, y, z]`, `to = [x, y, z]` in Anteilen (0 bis 1) des
+  Objekts: x entlang der Breite, y entlang der Tiefe (von der Ecke oben links, vor dem Drehen),
+  z von der Unterkante bis zur Oberkante (die Höhe des Objekts). Je Achse `from` kleiner als `to`;
+  der Name ist eindeutig. Eine Bibliotheksdatei, deren Eintrag eine unbekannte `form` nennt, wird
+  als Ganzes abgelehnt. Welche Bauform ein Objekt im Plan bekommt, folgt aus seinem `kind`
+  (eigener Eintrag zuerst, dann eingebaut); `[[set.objects]]` haben kein Feld dafür. Nur
+  Rechtecke bekommen eine Bauform, keine Ellipse und keine freie Form. Keine neue
+  Formatversion: ältere Fassungen verlieren `form` beim Speichern.
 - **Höhe von Objekten (LH-17):** `[[set.objects]]` und `[[objekt]]` der Bibliothek haben optional
   `height_m`, die Höhe in Metern (größer als 0, höchstens 100). Fehlt der Schlüssel, ist keine
   Höhe angegeben (Fläche, Teppich); ein Objekt ohne Höhe schreibt ihn nicht, ältere Projekte
@@ -82,6 +93,17 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Brüstung unter dem Sturz; sonst wird der Drehort beim Öffnen abgelehnt.
   Formatversion 1 lädt unverändert (Raumhöhe 2,6, die feste Wandhöhe von früher) und wird als
   2 gespeichert; eine Fassung für Version 1 lehnt das Projekt danach ab.
+- **Freie Form (LH-92):** ein Objekt mit `shape` `polygon`: ein Umriss aus Punkten statt Rechteck
+  oder Ellipse. Im Drehort steht es als Tabelle `[set.objects.shape.polygon]` mit der Liste
+  `[[set.objects.shape.polygon.points]]`, je Punkt `x_m` und `y_m`. Die Punkte liegen in Metern
+  relativ zur Mitte `at` des Objekts, vor der Drehung `rotation_deg`, in der Reihenfolge um den
+  Umriss. `width_m` und `depth_m` sind die Größe des Kastens um die Punkte; die Mitte des Kastens
+  ist `at`. Ändert man die Größe, wird der Umriss auf sie gestreckt, die Punkte bleiben
+  unverändert gespeichert. Eine freie Form ist ein Objekt wie jedes andere (Ebene Set, `height_m`,
+  `base_m`; eine neue hat `kind = "form"` und keine Höhe). Eine Bibliotheksdatei und
+  `bibliothek.toml` nehmen dieselbe `shape` an. Laden lehnt einen Umriss mit weniger als drei
+  Punkten, einer Zahl, die keine ist, ohne Fläche oder größer als 1000 m ab (Drehort mit Meldung,
+  Bibliotheksdatei als Ganzes). Keine neue Formatversion (noch kein Release).
 - **Kamerahöhe und Neigung (LH-34):** jeder Kamera-Mark (`marks` in `szenen/<id>.json`) hat
   `height_m` (Höhe des Objektivs über dem Boden, 0 bis 50) und `tilt_deg` (Standard 0, −90 bis
   90). Die Neigung gilt vom Horizont aus: positiv blickt nach oben, negativ nach unten, 0 ist

@@ -189,6 +189,7 @@ fn an_own_entry_without_a_height_gives_none() {
             depth_m: 2.0,
             shape: ObjectShape::Rect,
             height_m: None,
+            form: None,
         }],
     })
     .unwrap();
@@ -288,6 +289,7 @@ fn an_import_with_an_unusable_height_changes_nothing() {
         depth_m: 0.8,
         shape: ObjectShape::Rect,
         height_m: Some(height_m),
+        form: None,
     };
 
     for bad in [0.0, -1.0, f64::NAN, 100.5] {

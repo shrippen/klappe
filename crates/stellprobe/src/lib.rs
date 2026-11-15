@@ -17,6 +17,7 @@ mod card;
 mod display;
 mod eye;
 mod figure;
+mod forms;
 mod height;
 mod hit;
 mod light;
@@ -29,6 +30,7 @@ mod picture;
 mod rig;
 mod scene;
 mod setup;
+mod triangulate;
 
 pub use axis::{axis_at, axis_jumps, axis_pair, Axis, AxisJump, Side};
 pub use card::NOTE_TEXT_M;
@@ -37,6 +39,7 @@ pub use display::{
     FIGURE_RADIUS_M,
 };
 pub use eye::{Eye, Orbit};
+pub use forms::Forms;
 pub use height::{object_extent, opening_span, wall_top};
 pub use hit::{anchor, hit, in_lasso, within};
 pub use klappe_raster::Frame;

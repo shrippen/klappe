@@ -1,6 +1,6 @@
 use klappe_model::{
     Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Note,
-    ObjectShape, Point, Project, SetObject, SetPlan,
+    Point, Project, SetPlan,
 };
 
 use crate::axis::axis_at;
@@ -14,6 +14,7 @@ use crate::rig::{rig_dash, rig_runs};
 mod handles;
 mod objects;
 
+pub(crate) use objects::object_corners;
 use objects::set_items;
 
 pub use handles::{drawing_handle_places, handles};
@@ -242,28 +243,6 @@ fn background_item(background: &Background, px: (u32, u32), items: &mut Vec<Item
         label: None,
         source: None,
     });
-}
-
-/// The outline of a set object, rotated about its centre: four corners for a rectangle, the
-/// ellipse inscribed in that rectangle otherwise.
-pub(crate) fn object_corners(o: &SetObject) -> Vec<Point> {
-    let (hw, hd) = (o.width_m / 2.0, o.depth_m / 2.0);
-    let (sin, cos) = o.rotation_deg.to_radians().sin_cos();
-
-    let local = match o.shape {
-        ObjectShape::Rect => vec![(-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd)],
-        ObjectShape::Ellipse => (0..ELLIPSE_CORNERS)
-            .map(|i| {
-                let turn = std::f64::consts::TAU * i as f64 / ELLIPSE_CORNERS as f64;
-                (hw * turn.cos(), hd * turn.sin())
-            })
-            .collect(),
-    };
-
-    local
-        .iter()
-        .map(|(x, y)| Point::new(o.at.x_m + x * cos - y * sin, o.at.y_m + x * sin + y * cos))
-        .collect()
 }
 
 /// Drawings lie on the set but under everything that moves, so a figure stays pickable on
@@ -581,7 +560,7 @@ mod tests {
     use crate::figure::GROUP_DOTS;
     use klappe_model::{
         Arrival, Camera, CameraMark, Character, Departure, Drawing, FigureTrack, Light, LightKind,
-        Mark, Movement, Pose, Sensor, Shot, ShotSize, Wall,
+        Mark, Movement, ObjectShape, Pose, Sensor, SetObject, Shot, ShotSize, Wall,
     };
 
     fn project() -> Project {

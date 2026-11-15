@@ -15,6 +15,7 @@ use klappe_stellprobe::{
 };
 
 use super::Session;
+use crate::library;
 
 /// Which view of the set the window shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -91,10 +92,13 @@ impl Session {
     pub fn free_picture(&self, size: Size) -> Option<Picture> {
         let (plan, set) = (self.plan()?, &self.scene_location()?.set);
 
+        let forms = library::forms_of(&self.project.library, set);
+
         picture(
             &self.project,
             set,
             plan,
+            &forms,
             &self.free_eye(size)?,
             size.0 as usize,
         )

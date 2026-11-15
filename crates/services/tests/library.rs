@@ -95,18 +95,18 @@ fn throne() -> LibraryItem {
         depth_m: 0.8,
         shape: ObjectShape::Rect,
         height_m: None,
+        form: None,
     }
 }
 
 fn pond() -> LibraryItem {
     LibraryItem {
         kind: "teich".into(),
-        group: String::new(),
         label: "Teich".into(),
         width_m: 6.0,
         depth_m: 4.0,
         shape: ObjectShape::Ellipse,
-        height_m: None,
+        ..throne()
     }
 }
 
@@ -257,6 +257,7 @@ fn a_placed_object_can_be_filed_in_the_library() {
             depth_m: 1.2,
             shape: ObjectShape::Rect,
             height_m: None,
+            form: None,
         }]
     );
     assert!(s.is_dirty());
@@ -358,12 +359,10 @@ fn an_import_does_not_overwrite_what_has_the_kind() {
     };
     let table = LibraryItem {
         kind: "table".into(),
-        group: String::new(),
         label: "Mein Tisch".into(),
         width_m: 3.0,
         depth_m: 1.0,
-        shape: ObjectShape::Rect,
-        height_m: None,
+        ..throne()
     };
 
     import(&mut s, vec![bigger, table]).unwrap();
@@ -479,7 +478,7 @@ fn own_objects_and_placed_shapes_survive_a_save() {
     assert_eq!(again.project().library, vec![pond()]);
     let placed = objects(&again).last().unwrap();
     assert_eq!(
-        (placed.label.as_str(), placed.shape),
+        (placed.label.as_str(), placed.shape.clone()),
         ("Teich", ObjectShape::Ellipse)
     );
     assert_eq!(entry(&again, "teich").width_m, 6.0);

@@ -39,7 +39,7 @@ fn from_object(
         .iter()
         .find(|o| o.id == object)
         .ok_or(ServiceError::Gone)?;
-    let (width_m, depth_m, shape) = (object.width_m, object.depth_m, object.shape);
+    let (width_m, depth_m, shape) = (object.width_m, object.depth_m, object.shape.clone());
     let height_m = object.height_m;
 
     // A hand-edited set can hold sizes no library takes; checked here, or every later save
@@ -53,6 +53,7 @@ fn from_object(
         depth_m,
         shape,
         height_m,
+        form: None,
     };
     check_item(&item)?;
 
@@ -93,9 +94,10 @@ fn same_entry(a: &LibraryItem, b: &LibraryItem) -> bool {
         (
             item.width_m,
             item.depth_m,
-            item.shape,
+            item.shape.clone(),
             item.height_m,
             item.group.clone(),
+            item.form.clone(),
         )
     };
 
@@ -173,6 +175,7 @@ mod tests {
             depth_m: 0.8,
             shape: klappe_model::ObjectShape::Rect,
             height_m: None,
+            form: None,
         };
         let regrouped = LibraryItem {
             group: "Hof".into(),

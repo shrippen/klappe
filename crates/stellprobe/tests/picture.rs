@@ -3,11 +3,11 @@
 #![allow(clippy::expect_used)]
 
 use klappe_model::{
-    Arrival, Camera, CameraMark, Character, Departure, FigureColor, FigureTrack, FloorPlan, Mark,
-    Point, Pose, Project, Sensor, SetPlan, Wall,
+    Arrival, Camera, CameraMark, Character, Departure, FigureColor, FigureTrack, FloorPlan,
+    FormBox, Mark, ObjectShape, Point, Pose, Project, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{
-    floor_at, grab_at, picture, source_at, Eye, Orbit, Picture, SceneRole, Source,
+    floor_at, grab_at, picture, source_at, Eye, Forms, Orbit, Picture, SceneRole, Source,
 };
 
 const WIDTH_PX: usize = 160;
@@ -86,7 +86,7 @@ fn shot() -> Eye {
 }
 
 fn take(set: &SetPlan, plan: &FloorPlan) -> Picture {
-    picture(&project(), set, plan, &shot(), WIDTH_PX).expect("picture")
+    picture(&project(), set, plan, &Forms::default(), &shot(), WIDTH_PX).expect("picture")
 }
 
 /// The columns where the figure of colour `color` shows, left and right.
@@ -290,6 +290,7 @@ fn a_camera_shows_in_the_free_view_but_not_in_its_own_picture() {
         &project(),
         &set,
         &plan,
+        &Forms::default(),
         &orbit_eye(Orbit::fitting(20.0, 20.0)),
         WIDTH_PX,
     );
@@ -325,7 +326,8 @@ fn a_grab_takes_the_height_of_the_point_seen() {
     let mut orbit = Orbit::fitting(set.width_m, set.depth_m);
     orbit.turn(0.0, -1000.0);
     let eye = orbit_eye(orbit);
-    let shot = picture(&project(), &set, &plan, &eye, WIDTH_PX).expect("picture");
+    let shot =
+        picture(&project(), &set, &plan, &Forms::default(), &eye, WIDTH_PX).expect("picture");
     let column = WIDTH_PX / 2;
     let wall_rows: Vec<usize> = (0..shot.frame.height)
         .filter(|y| source_at(&shot, (column, *y)) == Some(&Source::Wall(0)))
@@ -337,4 +339,108 @@ fn a_grab_takes_the_height_of_the_point_seen() {
     assert!(top < bottom, "{wall_rows:?}");
     assert!(height(top) > height(bottom));
     assert!(height(top) <= 3.0 + 1e-6 && height(bottom) >= -1e-6);
+}
+
+/// LH-92: a free form is a prism of its outline. An L seen from above covers its two arms and
+/// not the notch between them (a fan from one corner would fill it).
+#[test]
+fn a_free_form_leaves_its_notch_open() {
+    let points = [
+        (-2.0, -2.0),
+        (-1.0, -2.0),
+        (-1.0, 1.0),
+        (2.0, 1.0),
+        (2.0, 2.0),
+        (-2.0, 2.0),
+    ];
+    let mut set = set();
+    set.objects = vec![SetObject {
+        id: "l".into(),
+        kind: "form".into(),
+        label: String::new(),
+        at: Point::new(10.0, 10.0),
+        width_m: 4.0,
+        depth_m: 4.0,
+        rotation_deg: 0.0,
+        shape: ObjectShape::Polygon {
+            points: points.iter().map(|&(x, y)| Point::new(x, y)).collect(),
+        },
+        height_m: Some(0.05),
+        base_m: None,
+    }];
+    let plan = plan(35.0, &[]);
+    let eye = orbit_eye(Orbit::fitting(set.width_m, set.depth_m));
+    let picture =
+        picture(&project(), &set, &plan, &Forms::default(), &eye, WIDTH_PX).expect("picture");
+
+    // The floor point under every pixel that shows the object; its top is so low that the
+    // point is the outline's, give or take a few centimetres.
+    let mut floor = Vec::new();
+    for y in 0..picture.frame.height {
+        for x in 0..picture.frame.width {
+            if source_at(&picture, (x, y)) != Some(&Source::Object("l".into())) {
+                continue;
+            }
+            floor.extend(floor_at(
+                &plan,
+                &eye,
+                WIDTH_PX as f64,
+                (x as f64 + 0.5, y as f64 + 0.5),
+            ));
+        }
+    }
+
+    let in_notch = |p: &Point| (9.3..11.7).contains(&p.x_m) && (8.3..10.7).contains(&p.y_m);
+    let on_arm = |p: &Point| p.x_m < 8.7 && (8.0..12.0).contains(&p.y_m);
+    assert!(floor.iter().any(on_arm), "the arm is not seen");
+    assert!(!floor.iter().any(in_notch), "the notch is filled");
+}
+
+/// LH-97: a table with a body form is a top on four legs. The camera looks under a 3 m high
+/// one, between its legs; a pixel below the horizon there shows the floor behind it. The same
+/// table as a plain prism hides it.
+#[test]
+fn one_sees_under_a_table_between_its_legs() {
+    let mut set = set();
+    set.objects = vec![SetObject {
+        id: "t".into(),
+        kind: "table".into(),
+        label: String::new(),
+        at: Point::new(10.0, 7.0),
+        width_m: 1.6,
+        depth_m: 0.9,
+        rotation_deg: 0.0,
+        shape: ObjectShape::Rect,
+        height_m: Some(3.0),
+        base_m: None,
+    }];
+    let plan = plan(35.0, &[]);
+    let leg = |x: f64, y: f64| FormBox {
+        from: [x, y, 0.0],
+        to: [x + 0.04, y + 0.07, 0.92],
+    };
+    let mut forms = Forms::default();
+    forms.insert(
+        "table",
+        &[
+            FormBox {
+                from: [0.0, 0.0, 0.92],
+                to: [1.0, 1.0, 1.0],
+            },
+            leg(0.0, 0.0),
+            leg(0.96, 0.0),
+            leg(0.0, 0.93),
+            leg(0.96, 0.93),
+        ],
+    );
+    let (column, row) = (WIDTH_PX / 2, 85);
+    let role_at = |forms: &Forms| {
+        let picture = picture(&project(), &set, &plan, forms, &shot(), WIDTH_PX).expect("picture");
+        let i = picture.frame.index(column, row).expect("pixel");
+
+        SceneRole::of_code(picture.frame.role[i])
+    };
+
+    assert_eq!(role_at(&Forms::default()), Some(SceneRole::Object));
+    assert_eq!(role_at(&forms), Some(SceneRole::Floor));
 }

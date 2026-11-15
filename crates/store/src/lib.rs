@@ -25,8 +25,9 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    is_figure_size_m, is_floor_offset_m, is_object_height_m, Character, Location, Opening, Project,
-    Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
+    is_figure_size_m, is_floor_offset_m, is_object_height_m, is_outline, Character, Location,
+    ObjectShape, Opening, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M,
+    MIN_GROUP,
 };
 use serde::{Deserialize, Serialize};
 
@@ -34,7 +35,7 @@ pub use camera::builtin_camera_presets;
 pub use error::StoreError;
 use files::{Dir, Kind};
 pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
-pub use library::{builtin_library, load_library, save_library};
+pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
 pub use template::{builtin_templates, check_template};
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
@@ -366,8 +367,36 @@ fn check_characters(characters: &[Character]) -> Result<(), String> {
 /// The sets of `locations`: their openings and heights.
 fn check_sets(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     check_openings(path, locations)?;
+    check_outlines(path, locations)?;
 
     check_heights(path, locations)
+}
+
+/// A free form (LH-92) has an outline an edit would accept: three or more finite points
+/// round an area.
+fn check_outlines(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
+    for location in locations {
+        for object in &location.set.objects {
+            let ObjectShape::Polygon { points } = &object.shape else {
+                continue;
+            };
+            if is_outline(points) {
+                continue;
+            }
+
+            return Err(StoreError::Parse {
+                path: path.to_path_buf(),
+                message: format!(
+                    "{}: free form {} has {} points that enclose no usable area",
+                    location.id,
+                    object.id,
+                    points.len()
+                ),
+            });
+        }
+    }
+
+    Ok(())
 }
 
 /// An opening is a gap with a width, somewhere along its wall; `path` names the folder in the

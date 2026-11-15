@@ -27,8 +27,8 @@ mod remove;
 pub(crate) mod template;
 
 use add::{
-    add_camera, add_camera_mark, add_drawing, add_mark, add_note, add_object, add_wall, edit_light,
-    edit_note, free_id, free_letter,
+    add_camera, add_camera_mark, add_drawing, add_mark, add_note, add_objects, add_walls,
+    edit_light, edit_note, free_id, free_letter,
 };
 use background::{calibrate, move_background, remove_background, set_background};
 use check::check;
@@ -133,6 +133,11 @@ pub enum PlanEdit {
         kind: String,
         at: Point,
     },
+    /// Sets a free form (LH-92): kind `form`, outline `points` in plan metres, no height yet.
+    /// Refused with under three points or no area.
+    AddShape {
+        points: Vec<Point>,
+    },
     /// Gives the object `source` another width and depth (LH-25). Only objects have a size
     /// to change.
     Resize {
@@ -158,6 +163,12 @@ pub enum PlanEdit {
         base_m: Option<f64>,
     },
     AddWall {
+        from: Point,
+        to: Point,
+    },
+    /// Four walls round the rectangle with the opposite corners `from` and `to` (LH-96).
+    /// Refused when the rectangle has no area.
+    AddRoom {
         from: Point,
         to: Point,
     },
@@ -363,7 +374,9 @@ impl PlanEdit {
             PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } => Layer::Notes,
             PlanEdit::AddDrawing { .. } => Layer::Drawings,
             PlanEdit::AddObject { .. }
+            | PlanEdit::AddShape { .. }
             | PlanEdit::AddWall { .. }
+            | PlanEdit::AddRoom { .. }
             | PlanEdit::AddOpening { .. }
             | PlanEdit::SetBackground { .. }
             | PlanEdit::Calibrate { .. }
@@ -507,13 +520,13 @@ pub(crate) fn apply(
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
         PlanEdit::AddCameraMark { camera, at } => add_camera_mark(&mut scope, camera, *at),
         PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => edit_light(&mut scope, edit),
-        PlanEdit::AddObject { kind, at } => add_object(&mut scope, kind, *at),
+        PlanEdit::AddObject { .. } | PlanEdit::AddShape { .. } => add_objects(&mut scope, edit),
         PlanEdit::Resize {
             source,
             width_m,
             depth_m,
         } => resize(&mut scope, source, (*width_m, *depth_m)),
-        PlanEdit::AddWall { from, to } => add_wall(&mut scope, *from, *to),
+        PlanEdit::AddWall { .. } | PlanEdit::AddRoom { .. } => add_walls(&mut scope, edit),
         PlanEdit::AddOpening { .. } | PlanEdit::SetOpeningWidth { .. } => {
             edit_opening(&mut scope, edit)
         }
@@ -746,47 +759,4 @@ fn resize(scope: &mut Scope<'_>, source: &Source, size_m: (f64, f64)) -> Result<
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use klappe_model::Location;
-
-    /// One scene with an empty plan and no cameras, on an empty set.
-    pub(super) fn empty() -> Project {
-        let mut project = Project::new("Test");
-        project.locations = vec![Location {
-            id: "l".into(),
-            name: "L".into(),
-            set: SetPlan::default(),
-        }];
-        project.scenes = vec![Scene {
-            id: "s".into(),
-            number: "1".into(),
-            heading: String::new(),
-            location: "l".into(),
-            plans: vec![FloorPlan::new("p", "Plan A")],
-        }];
-        project
-    }
-
-    #[test]
-    fn angles_stay_below_a_full_turn() {
-        assert_eq!(normalize_deg(-1e-20), 0.0);
-        assert_eq!(normalize_deg(-90.0), 270.0);
-        assert_eq!(normalize_deg(720.0), 0.0);
-    }
-
-    #[test]
-    fn a_missing_location_refuses_set_edits() {
-        let mut project = empty();
-        project.locations.clear();
-        let edit = PlanEdit::AddWall {
-            from: Point::new(0.0, 0.0),
-            to: Point::new(1.0, 0.0),
-        };
-
-        assert!(matches!(
-            apply(Path::new("."), &mut project, 0, 0, 0.0, (Snapping::On, Grid::default()), &edit),
-            Err(ServiceError::NoLocation(ref id)) if id == "l"
-        ));
-    }
-}
+mod tests;

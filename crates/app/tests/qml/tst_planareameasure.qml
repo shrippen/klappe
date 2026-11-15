@@ -146,6 +146,27 @@ TestCase {
         mouseRelease(area, 200, 140, Qt.LeftButton)
     }
 
+    // LH-96: a room drag asks for width and depth, which go to the same call as a length.
+    function test_a_room_drag_asks_for_the_size() {
+        const area = drawn("room")
+        const card = findChild(area, "measureCard")
+
+        mousePress(area, 100, 100, Qt.LeftButton)
+        mouseMove(area, 160, 120, 0, Qt.LeftButton)
+        mouseMove(area, 200, 140, 0, Qt.LeftButton)
+        keyClick(Qt.Key_Return)
+        keyClick(Qt.Key_5)
+        keyClick(";")
+        keyClick(Qt.Key_4)
+
+        verify(card.visible)
+        compare(area.asksMeasure, "room")
+        keyClick(Qt.Key_Return)
+        compare(fake.typed, ["5;4"])
+        verify(!card.visible)
+        mouseRelease(area, 200, 140, Qt.LeftButton)
+    }
+
     // The field is text: Delete and letters do not reach the selection.
     function test_typing_a_measure_leaves_the_selection_alone() {
         const area = drawn("select")

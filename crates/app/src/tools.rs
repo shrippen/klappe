@@ -26,6 +26,9 @@ const CM_PER_M: f64 = 100.0;
 /// object, not a refused edit.
 const MIN_HEIGHT_M: f64 = 0.05;
 
+/// Between the width and the depth of a typed room.
+const ROOM_SIZE_SEPARATOR: char = ';';
+
 /// A full turn; angles are kept within [0, 360), as `facing_deg` is.
 const FULL_TURN_DEG: f64 = 360.0;
 
@@ -78,6 +81,11 @@ impl DrawStyle {
 pub enum Tool {
     Select,
     Wall,
+    /// A drag pulls up a rectangle of four walls (LH-96); a click does nothing.
+    Room,
+    /// Clicks set the points of a free form (LH-92), an object: a click on the first point
+    /// closes it.
+    FreeForm,
     /// A drag from an object or a wall changes its height: up is higher (LH-95).
     Height,
     /// A click on a wall sets a door or window in it (LH-10).
@@ -132,9 +140,11 @@ impl Tool {
     }
 }
 
-/// The tools of the height, door and window, which take no choice.
+/// The tools of the room, free form, height, door and window, which take no choice.
 fn plain_tool(name: &str) -> Option<Tool> {
     match name {
+        "room" => Some(Tool::Room),
+        "freeform" => Some(Tool::FreeForm),
         "height" => Some(Tool::Height),
         "door" => Some(Tool::Opening(OpeningKind::Door)),
         "window" => Some(Tool::Opening(OpeningKind::Window)),
@@ -147,6 +157,8 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
     match tool {
         Tool::Select
         | Tool::Wall
+        | Tool::Room
+        | Tool::FreeForm
         | Tool::Height
         | Tool::Scale
         | Tool::Measure
@@ -201,6 +213,8 @@ pub fn drag_edit(
         }),
         Tool::Wall if from == to => None,
         Tool::Wall => Some(PlanEdit::AddWall { from, to }),
+        Tool::Room if from.x_m == to.x_m || from.y_m == to.y_m => None,
+        Tool::Room => Some(PlanEdit::AddRoom { from, to }),
         Tool::Scale if from == to => None,
         Tool::Scale => Some(PlanEdit::MoveBackground {
             dx_m: to.x_m - from.x_m,
@@ -227,6 +241,34 @@ pub fn wall_of_length(from: Point, toward: Point, text: &str) -> Typed {
             from.x_m + dx_m / reach_m * length_m,
             from.y_m + dy_m / reach_m * length_m,
         ),
+    }))
+}
+
+/// A room typed by its size (LH-96): `text` is `width;depth` in metres (comma or point). The
+/// room spans from `from` toward the pointer at `toward`, the width along x and the depth
+/// along y, each to the side the pointer is on. `None` while the pointer stands on the start.
+pub fn room_of_size(from: Point, toward: Point, text: &str) -> Typed {
+    if from == toward {
+        return None;
+    }
+
+    let sides = text.split_once(ROOM_SIZE_SEPARATOR);
+    let Some((width, depth)) = sides else {
+        return Some(Err(ServiceError::BadValue {
+            field: Field::Distance,
+            value: text.to_owned(),
+        }));
+    };
+    let sizes =
+        length_m(Field::Distance, width).and_then(|w| Ok((w, length_m(Field::Distance, depth)?)));
+
+    // A pointer straight above or below the start still builds to the right, or down.
+    let side = |pointer_m: f64, start_m: f64| if pointer_m < start_m { -1.0 } else { 1.0 };
+    let (x_side, y_side) = (side(toward.x_m, from.x_m), side(toward.y_m, from.y_m));
+
+    Some(sizes.map(|(width_m, depth_m)| PlanEdit::AddRoom {
+        from,
+        to: Point::new(from.x_m + x_side * width_m, from.y_m + y_side * depth_m),
     }))
 }
 
@@ -299,7 +341,7 @@ pub enum Grip {
     #[default]
     Free,
     Held(Option<Source>),
-    /// A typed measure ended the drag (`wall_of_length`): its steps do nothing until the release.
+    /// A typed measure ended the drag (`wall_of_length`, `room_of_size`): its steps do nothing until the release.
     Spent,
 }
 
@@ -459,7 +501,7 @@ pub fn angle_text(angle_deg: f64, decimal: &str, unit: &str) -> String {
     format!("{}{unit}", number_text(angle_deg, ANGLE_DECIMALS, decimal))
 }
 
-/// The points of an area picked so far; the area is made on closing.
+/// The points of an area or a free form picked so far; it is made on closing.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AreaDraft(Vec<Point>);
 
@@ -513,11 +555,30 @@ pub fn area_edit(draft: &AreaDraft, style: DrawStyle) -> Option<PlanEdit> {
     ))
 }
 
-/// Whether the area tool may take points: not while the drawings layer is locked, or the
+/// The free form closed from its draft (LH-92); `None` below three points.
+pub fn form_edit(draft: &AreaDraft) -> Option<PlanEdit> {
+    if draft.0.len() < MIN_AREA_POINTS {
+        return None;
+    }
+
+    Some(PlanEdit::AddShape {
+        points: draft.0.clone(),
+    })
+}
+
+/// The layer the points of `tool`'s draft end up on: a free form is an object of the set.
+pub fn draft_layer(tool: &Tool) -> Layer {
+    match tool {
+        Tool::FreeForm => Layer::Set,
+        _ => Layer::Drawings,
+    }
+}
+
+/// Whether the area or free form tool may take points: not while its layer is locked, or the
 /// points would be lost on the refused edit.
-pub fn drawing_open(lock: Lock) -> Result<(), ServiceError> {
+pub fn layer_open(layer: Layer, lock: Lock) -> Result<(), ServiceError> {
     match lock {
-        Lock::Locked => Err(ServiceError::Locked(Layer::Drawings)),
+        Lock::Locked => Err(ServiceError::Locked(layer)),
         Lock::Unlocked => Ok(()),
     }
 }
