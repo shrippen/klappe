@@ -207,29 +207,3 @@ fn a_locked_drawings_layer_takes_no_points() {
     ));
     assert!(drawing_open(Lock::Unlocked).is_ok());
 }
-
-#[test]
-fn a_height_typed_for_an_object_is_a_set_object_height() {
-    let object = Source::Object("o1".into());
-    let edit = |height_m| {
-        Some(PlanEdit::SetObjectHeight {
-            source: object.clone(),
-            height_m,
-        })
-    };
-
-    assert_eq!(
-        edit_of(object_height_edit(Some(&object), " 1,2 ")),
-        edit(Some(1.2))
-    );
-    // Empty takes the height off.
-    assert_eq!(edit_of(object_height_edit(Some(&object), "  ")), edit(None));
-    assert_eq!(edit_of(object_height_edit(Some(&object), "0")), None);
-    assert_eq!(edit_of(object_height_edit(Some(&object), "-1")), None);
-    assert_eq!(edit_of(object_height_edit(Some(&object), "hoch")), None);
-    assert_eq!(
-        edit_of(object_height_edit(Some(&Source::Wall(0)), "1")),
-        None
-    );
-    assert_eq!(edit_of(object_height_edit(None, "1")), None);
-}

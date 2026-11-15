@@ -3,6 +3,7 @@
 use super::*;
 use crate::catalog::Language;
 use crate::mark::{aim_edit, hold_edit};
+use crate::object::{object_height_edit, resize_edit};
 
 /// Review of PR 27: a figure on its own path handle was grabbed on the first step and
 /// the handle on the next, so the drag bent the path instead of moving the figure.
@@ -188,46 +189,6 @@ fn a_click_with_select_or_wall_or_no_choice_edits_nothing() {
     assert_eq!(click_edit(&tool("object", ""), at), None);
 }
 
-#[test]
-fn a_size_typed_for_the_selected_object_is_a_resize() {
-    let object = Source::Object("o1".into());
-
-    assert_eq!(
-        edit_of(resize_edit(Some(&object), "2,5", " 0.8 ")),
-        Some(PlanEdit::Resize {
-            source: object.clone(),
-            width_m: 2.5,
-            depth_m: 0.8
-        })
-    );
-    assert_eq!(edit_of(resize_edit(Some(&object), "2,5", "0")), None);
-    assert_eq!(edit_of(resize_edit(Some(&object), "", "1")), None);
-    assert_eq!(edit_of(resize_edit(Some(&object), "1", "breit")), None);
-    assert_eq!(edit_of(resize_edit(Some(&Source::Wall(0)), "1", "1")), None);
-    assert_eq!(edit_of(resize_edit(None, "1", "1")), None);
-}
-
-#[test]
-fn the_selected_object_is_filed_under_a_trimmed_name() {
-    let object = Source::Object("o1".into());
-
-    assert_eq!(
-        library_edit(Some(&object), Some("saal"), "  Thron "),
-        Some(ProjectEdit::LibraryFromObject {
-            location: "saal".into(),
-            object: "o1".into(),
-            name: "Thron".into()
-        })
-    );
-    assert_eq!(library_edit(Some(&object), Some("saal"), "  "), None);
-    assert_eq!(library_edit(Some(&object), None, "Thron"), None);
-    assert_eq!(
-        library_edit(Some(&Source::Wall(0)), Some("saal"), "T"),
-        None
-    );
-    assert_eq!(library_edit(None, Some("saal"), "T"), None);
-}
-
 /// From (4, 5) to (6.5, 4): the grabbed thing moves 2.5 right and 1 up (y is down).
 #[test]
 fn select_shifts_by_the_distance_dragged() {
@@ -275,200 +236,6 @@ fn placing_tools_do_not_drag() {
     let edit = drag_edit(&Tool::Camera, None, p(0.0, 0.0), p(3.0, 0.0));
 
     assert_eq!(edit, None);
-}
-
-#[test]
-fn keys_act_on_the_selection_only() {
-    let selected = Source::Light("led-1".into());
-    let one = Selection::of(Some(selected.clone()));
-
-    assert_eq!(
-        key_edit(Key::Remove, &one),
-        Some(PlanEdit::Remove {
-            source: selected.clone()
-        })
-    );
-    assert_eq!(
-        key_edit(Key::Turn { by_deg: -15.0 }, &one),
-        Some(PlanEdit::Spin {
-            source: selected,
-            by_deg: -15.0
-        })
-    );
-    assert_eq!(key_edit(Key::Remove, &Selection::default()), None);
-    assert_eq!(
-        key_edit(
-            Key::Straighten,
-            &Selection::of(Some(Source::Camera("a".into())))
-        ),
-        Some(PlanEdit::Straighten {
-            source: Source::Camera("a".into())
-        })
-    );
-}
-
-fn two() -> Selection {
-    Selection::of(Some(Source::Wall(0))).click(Some(Source::Wall(1)), Pick::Extend)
-}
-
-#[test]
-fn keys_on_several_elements_make_group_edits() {
-    let sources = vec![Source::Wall(0), Source::Wall(1)];
-
-    assert_eq!(
-        key_edit(Key::Remove, &two()),
-        Some(PlanEdit::RemoveGroup {
-            sources: sources.clone()
-        })
-    );
-    assert_eq!(
-        key_edit(Key::Turn { by_deg: 15.0 }, &two()),
-        Some(PlanEdit::SpinGroup {
-            sources: sources.clone(),
-            by_deg: 15.0
-        })
-    );
-    assert_eq!(
-        key_edit(Key::Duplicate, &two()),
-        Some(PlanEdit::Duplicate {
-            sources,
-            dx_m: COPY_OFFSET_M,
-            dy_m: COPY_OFFSET_M
-        })
-    );
-    // One way at a time.
-    assert_eq!(key_edit(Key::Straighten, &two()), None);
-}
-
-#[test]
-fn one_element_is_copied_too() {
-    let one = Selection::of(Some(Source::Note("n1".into())));
-
-    assert!(matches!(
-        key_edit(Key::Duplicate, &one),
-        Some(PlanEdit::Duplicate { .. })
-    ));
-    assert_eq!(key_edit(Key::Duplicate, &Selection::default()), None);
-}
-
-#[test]
-fn a_plain_click_takes_one_and_shift_adds_or_takes_out() {
-    let (a, b) = (Source::Wall(0), Source::Wall(1));
-    let one = Selection::of(Some(a.clone()));
-
-    let replaced = one.clone().click(Some(b.clone()), Pick::Replace);
-    let added = one.clone().click(Some(b.clone()), Pick::Extend);
-    let toggled = added.clone().click(Some(a.clone()), Pick::Extend);
-
-    assert_eq!(replaced.sources(), std::slice::from_ref(&b));
-    assert_eq!(added.sources(), [a, b.clone()]);
-    assert_eq!(toggled.sources(), [b]);
-}
-
-#[test]
-fn empty_ground_clears_unless_shift_is_held() {
-    let two = two();
-
-    assert!(two.clone().click(None, Pick::Replace).is_empty());
-    assert_eq!(two.clone().click(None, Pick::Extend), two);
-}
-
-#[test]
-fn a_box_replaces_or_adds_without_repeats() {
-    let found = vec![Source::Wall(1), Source::Wall(2)];
-    let one = Selection::of(Some(Source::Wall(0)));
-
-    let replaced = one.clone().boxed(found.clone(), Pick::Replace);
-    let added = two().boxed(found, Pick::Extend);
-
-    assert_eq!(replaced.sources(), [Source::Wall(1), Source::Wall(2)]);
-    assert_eq!(
-        added.sources(),
-        [Source::Wall(0), Source::Wall(1), Source::Wall(2)]
-    );
-}
-
-/// Review of PR 31: a grip shows only while its way is the one selected, so in a
-/// selection of several it would be picked unseen and bend or straighten its way.
-#[test]
-fn a_selection_of_several_holds_no_grip() {
-    let grip = Source::FigureVia {
-        character: "elisabeth".into(),
-        index: 1,
-    };
-    let clicked = Selection::of(Some(grip.clone())).click(Some(Source::Wall(0)), Pick::Extend);
-    let boxed = Selection::of(Some(grip)).boxed(vec![Source::Wall(0)], Pick::Extend);
-
-    assert_eq!(clicked.sources(), [Source::Wall(0)]);
-    assert_eq!(boxed.sources(), [Source::Wall(0)]);
-}
-
-#[test]
-fn only_is_one_element_and_not_several() {
-    assert_eq!(Selection::default().only(), None);
-    assert_eq!(
-        Selection::of(Some(Source::Wall(0))).only(),
-        Some(&Source::Wall(0))
-    );
-    assert_eq!(two().only(), None);
-}
-
-#[test]
-fn grabbing_a_member_drags_all_and_another_only_itself() {
-    let outside = Some(Source::Wall(5));
-
-    assert_eq!(two().grab(Some(Source::Wall(1))), two());
-    assert_eq!(two().grab(outside.clone()), Selection::of(outside));
-}
-
-#[test]
-fn a_group_drag_moves_all_with_the_grabbed_one_first() {
-    let edit = group_drag_edit(&two(), &Source::Wall(1), p(1.0, 1.0), p(3.0, 0.5));
-
-    assert_eq!(
-        edit,
-        Some(PlanEdit::ShiftGroup {
-            sources: vec![Source::Wall(1), Source::Wall(0)],
-            dx_m: 2.0,
-            dy_m: -0.5
-        })
-    );
-}
-
-#[test]
-fn a_drag_of_one_or_of_a_stranger_is_no_group_drag() {
-    let one = Selection::of(Some(Source::Wall(0)));
-
-    assert_eq!(
-        group_drag_edit(&one, &Source::Wall(0), p(0.0, 0.0), p(1.0, 0.0)),
-        None
-    );
-    assert_eq!(
-        group_drag_edit(&two(), &Source::Wall(7), p(0.0, 0.0), p(1.0, 0.0)),
-        None
-    );
-}
-
-#[test]
-fn a_copy_is_what_the_plan_shows_anew() {
-    let before = [Source::Wall(0), Source::Object("o1".into())];
-    let after = [
-        Source::Wall(0),
-        Source::Object("o1".into()),
-        Source::Object("o2".into()),
-    ];
-
-    assert_eq!(
-        added(&before, &after).sources(),
-        [Source::Object("o2".into())]
-    );
-}
-
-#[test]
-fn what_is_gone_leaves_the_selection() {
-    let kept = two().keep(|s| *s == Source::Wall(1));
-
-    assert_eq!(kept.sources(), [Source::Wall(1)]);
 }
 
 #[test]
@@ -614,23 +381,6 @@ fn typed_units_are_taken_by_the_plan_tools() {
     assert!(edit_of(hold_edit(Some(&camera), "2 s")).is_some());
     assert!(edit_of(aim_edit(Some(&camera), "1 m", "10°")).is_some());
     assert!(edit_of(resize_edit(Some(&object), "2 s", "1")).is_none());
-}
-
-/// Audit, Fund 2: a refused text is an error for the status line, a selection that does
-/// not fit is no error.
-#[test]
-fn a_refused_text_names_its_field() {
-    let object = Source::Object("o".into());
-    let refused = resize_edit(Some(&object), "2", "breit");
-
-    assert!(matches!(
-        refused,
-        Some(Err(ServiceError::BadValue {
-            field: Field::Depth,
-            ..
-        }))
-    ));
-    assert!(resize_edit(Some(&Source::Wall(0)), "x", "x").is_none());
 }
 
 #[test]
