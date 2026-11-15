@@ -13,10 +13,26 @@ const NEW_CAMERA_FACING_DEG: f64 = 0.0;
 /// Decimals a measured length shows.
 const MEASURE_DECIMALS: usize = 2;
 
-/// How far from its first point a click still closes an area, in metres: the grid is 0.25 m,
-/// so a click that snaps to a neighbour of the first point, diagonal ones (0.354 m) too,
-/// closes it; the next ring (0.5 m) does not.
+/// Decimals a measured angle shows.
+const ANGLE_DECIMALS: usize = 1;
+
+/// Between the length and the angle of a measurement caption.
+pub const MEASURE_SEPARATOR: &str = " · ";
+
+/// A full turn; angles are kept within [0, 360), as `facing_deg` is.
+const FULL_TURN_DEG: f64 = 360.0;
+
+/// How far from its first point a click still closes an area when nothing snaps, in metres.
 const AREA_CLOSE_M: f64 = 0.4;
+
+/// How a click closes an area.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Closing {
+    /// Within `AREA_CLOSE_M` of the first point: the click is exact, not snapped.
+    Free,
+    /// The click is snapped to a grid of this step (m) and lands on the first point.
+    OnGrid(f64),
+}
 
 /// An area has an inside from three points on.
 const MIN_AREA_POINTS: usize = 3;
@@ -323,15 +339,49 @@ impl MeasureStep {
             MeasureStep::Live(a, b) | MeasureStep::Held(a, b) => Some(a.distance_m(b)),
         }
     }
+
+    /// The direction from the first point to the second, counted as a figure's `facing_deg`:
+    /// 0 to the right, 90 down the plan (y grows downwards), within [0, 360). `None` while
+    /// there are not two points or they coincide.
+    pub fn angle_deg(self) -> Option<f64> {
+        let (MeasureStep::Live(a, b) | MeasureStep::Held(a, b)) = self else {
+            return None;
+        };
+        if a == b {
+            return None;
+        }
+
+        // Round first: 359.97 shows as 360, and -0.02 as -0. `+ 0.0` turns -0 into 0.
+        let deg = (b.y_m - a.y_m).atan2(b.x_m - a.x_m).to_degrees();
+        let step = 10f64.powi(ANGLE_DECIMALS as i32);
+        let rounded = (deg * step).round() / step;
+        Some(rounded.rem_euclid(FULL_TURN_DEG) % FULL_TURN_DEG + 0.0)
+    }
+}
+
+/// `value` with at most `decimals` places, no trailing zeros, the catalogue's decimal
+/// separator.
+fn number_text(value: f64, decimals: usize, decimal: &str) -> String {
+    let fixed = format!("{value:.decimals$}");
+
+    fixed
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .replace('.', decimal)
 }
 
 /// `length_m` as the caption of a measurement: two decimals at most, the catalogue's decimal
 /// separator and unit ("4,25 m").
 pub fn length_text(length_m: f64, decimal: &str, unit: &str) -> String {
-    let fixed = format!("{length_m:.MEASURE_DECIMALS$}");
-    let number = fixed.trim_end_matches('0').trim_end_matches('.');
+    format!(
+        "{} {unit}",
+        number_text(length_m, MEASURE_DECIMALS, decimal)
+    )
+}
 
-    format!("{} {unit}", number.replace('.', decimal))
+/// `angle_deg` as the caption of a measurement: one decimal at most ("26,6°").
+pub fn angle_text(angle_deg: f64, decimal: &str, unit: &str) -> String {
+    format!("{}{unit}", number_text(angle_deg, ANGLE_DECIMALS, decimal))
 }
 
 /// The points of an area picked so far; the area is made on closing.
@@ -350,12 +400,18 @@ impl AreaDraft {
     }
 
     /// Whether a click at `at` closes the area: it has three points and `at` is on the first.
-    pub fn closes(&self, at: Point) -> bool {
+    pub fn closes(&self, at: Point, closing: Closing) -> bool {
         let Some(first) = self.0.first() else {
             return false;
         };
+        if self.0.len() < MIN_AREA_POINTS {
+            return false;
+        }
 
-        self.0.len() >= MIN_AREA_POINTS && first.distance_m(at) <= AREA_CLOSE_M
+        match closing {
+            Closing::Free => first.distance_m(at) <= AREA_CLOSE_M,
+            Closing::OnGrid(step_m) => first.distance_m(at) < step_m / 2.0,
+        }
     }
 
     /// The points picked, for the preview on the plan.

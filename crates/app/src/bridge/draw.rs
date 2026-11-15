@@ -8,13 +8,13 @@ use crate::selection;
 use crate::selection::Pick;
 use crate::tools;
 use crate::tools::{
-    AreaDraft, DragPhase, DragStep, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep,
-    Tool, Typed,
+    AreaDraft, Closing, DragPhase, DragStep, DrawStyle, Grip, MeasureStep, NoteDraft, Preview,
+    ScaleStep, Tool, Typed,
 };
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
-use klappe_services::{Layer, PlanEdit, Point, Snapping};
+use klappe_services::{Grid, Layer, PlanEdit, Point, Snapping};
 
 impl qobject::Controller {
     pub(super) fn set_tool(mut self: Pin<&mut Self>, tool: &QString, choice: &QString) -> bool {
@@ -194,6 +194,16 @@ impl qobject::Controller {
         self.set_snapping_on(on);
     }
 
+    pub(super) fn set_grid(mut self: Pin<&mut Self>, name: &QString) {
+        let Some(grid) = Grid::from_name(&name.to_string()) else {
+            return;
+        };
+        if let Some(s) = self.as_mut().session() {
+            s.set_grid(grid);
+        }
+        self.set_grid_name(q(grid.name()));
+    }
+
     /// A drag on empty ground: the box on screen while the button is down, the elements wholly
     /// in it selected on release.
     fn drag_box(
@@ -260,7 +270,13 @@ impl qobject::Controller {
         }
 
         let draft = self.rust().area.clone();
-        if draft.closes(at) {
+        let closing = self
+            .rust()
+            .session
+            .as_ref()
+            .filter(|s| s.snapping() == Snapping::On)
+            .map_or(Closing::Free, |s| Closing::OnGrid(s.grid().step_m()));
+        if draft.closes(at, closing) {
             return self.finish_area();
         }
 

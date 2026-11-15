@@ -14,6 +14,7 @@ use crate::session::Layer;
 mod add;
 mod background;
 mod check;
+mod grid;
 mod group;
 mod marks;
 mod moving;
@@ -25,6 +26,8 @@ use add::{
 };
 use background::{calibrate, move_background, remove_background, set_background};
 use check::check;
+pub(crate) use grid::snap;
+pub use grid::Grid;
 pub(crate) use marks::{check_tripods, mark_info};
 use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_pose, set_rig};
 pub use marks::{MarkInfo, Pace};
@@ -253,24 +256,11 @@ pub enum Snapping {
     Off,
 }
 
-/// Grid spacing of the plan.
-const GRID_M: f64 = 0.25;
-
 /// How far beside a shape a click still takes it: a finger or a mouse is not exact.
 const PICK_RADIUS_M: f64 = 0.15;
 
 /// A full turn; angles are kept within [0, 360).
 const FULL_TURN_DEG: f64 = 360.0;
-
-/// `at` on the grid when snapping is on.
-pub(crate) fn snap(at: Point, snapping: Snapping) -> Point {
-    if snapping == Snapping::Off || !at.x_m.is_finite() || !at.y_m.is_finite() {
-        return at;
-    }
-
-    let on_grid = |v: f64| (v / GRID_M).round() * GRID_M;
-    Point::new(on_grid(at.x_m), on_grid(at.y_m))
-}
 
 /// The topmost item the user can grab at `at`: the display list is back to front. Items for
 /// which `locked` is true are left out.
@@ -423,7 +413,7 @@ enum Target<'a> {
     },
 }
 
-/// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snapping` is for
+/// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snap_to` is for
 /// `Shift`, the other edits take their points as given. `dir` is the project folder, where
 /// `SetBackground` copies its image to. On an error the project may be half changed: the
 /// caller works on a copy.
@@ -433,7 +423,7 @@ pub(crate) fn apply(
     scene: usize,
     plan: usize,
     time_s: f64,
-    snapping: Snapping,
+    snap_to: (Snapping, Grid),
     edit: &PlanEdit,
 ) -> Result<(), ServiceError> {
     check(edit)?;
@@ -472,7 +462,7 @@ pub(crate) fn apply(
             carry_cameras(&mut scope, source, |s| move_to(s, source, *to))
         }
         PlanEdit::Shift { source, dx_m, dy_m } => carry_cameras(&mut scope, source, |s| {
-            shift(s, source, (*dx_m, *dy_m), snapping)
+            shift(s, source, (*dx_m, *dy_m), snap_to)
         }),
         PlanEdit::Spin { source, by_deg } => {
             carry_cameras(&mut scope, source, |s| spin(s, source, *by_deg))
@@ -485,7 +475,7 @@ pub(crate) fn apply(
             sources,
             dx_m,
             dy_m,
-        } => group::shift(&mut scope, sources, (*dx_m, *dy_m), snapping),
+        } => group::shift(&mut scope, sources, (*dx_m, *dy_m), snap_to),
         PlanEdit::SpinGroup { sources, by_deg } => group::spin(&mut scope, sources, *by_deg),
         PlanEdit::RemoveGroup { sources } => group::remove_all(&mut scope, sources),
         PlanEdit::Duplicate {
@@ -760,7 +750,7 @@ mod tests {
         };
 
         assert!(matches!(
-            apply(Path::new("."), &mut project, 0, 0, 0.0, Snapping::On, &edit),
+            apply(Path::new("."), &mut project, 0, 0, 0.0, (Snapping::On, Grid::default()), &edit),
             Err(ServiceError::NoLocation(ref id)) if id == "l"
         ));
     }
