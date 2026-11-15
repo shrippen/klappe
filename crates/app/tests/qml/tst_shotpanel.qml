@@ -20,6 +20,7 @@ TestCase {
             { kind: "figure", id: "elisabeth", name: "Elisabeth" },
             { kind: "figure", id: "burgvogt", name: "Burgvogt" }
         ])
+        property string choicesJson: JSON.stringify({ movement: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"] })
         property var calls: []
         property var follows: []
         property bool accept: true
@@ -54,7 +55,7 @@ TestCase {
         return {
             follows: follows === undefined ? "" : follows,
             id: "s12-3", number: "12.3", camera: "b", camera_label: "B", size: "medium", angle: "eye-level",
-            movement: "static", lens_mm: own === null ? 50 : own, own_lens_mm: own,
+            movement: "static", lens_mm: own === null ? 50 : own, own_lens_mm: own, lens_to_mm: null, lens_from_marks: false,
             description: "", props: "", gear: "", crew: "", note: "", axis_jump: false
         }
     }
@@ -69,12 +70,12 @@ TestCase {
         }
     }
 
-    function make(own, follows) {
+    function make(own, follows, hint) {
         fake.calls = []
         fake.follows = []
         fake.shotCalls = []
         fake.accept = true
-        const panel = createTemporaryObject(panelComponent, tc, { shot: row(own, follows) })
+        const panel = createTemporaryObject(panelComponent, tc, { shot: Object.assign(row(own, follows), { movement_hint: hint || "" }) })
         verify(panel)
         return panel
     }
@@ -106,6 +107,23 @@ TestCase {
 
         compare(lens.text, "")
         compare(lens.placeholderText, "50")
+    }
+
+    function test_marks_with_a_lens_make_the_field_read_only() {
+        const panel = make(40.5)
+        panel.shot = Object.assign({}, panel.shot, { lens_mm: 35, lens_to_mm: 85, lens_from_marks: true })
+        const lens = field(panel, "lensField")
+
+        verify(lens.readOnly)
+        compare(lens.text, "35–85 mm")
+        verify(panel.lensMarked)
+
+        panel.shot = Object.assign({}, panel.shot, { lens_to_mm: null })
+        compare(lens.text, "35 mm")
+
+        panel.shot = Object.assign({}, panel.shot, { lens_from_marks: false })
+        verify(!lens.readOnly)
+        compare(lens.text, "40,5")
     }
 
     function test_an_own_lens_is_the_text() {
@@ -173,6 +191,36 @@ TestCase {
         box.activated(0)
 
         compare(fake.follows.length, 0)
+    }
+
+    // LH-33: a shot without a movement shows what the camera marks do, and a button takes it.
+    function test_a_movement_hint_is_shown_and_taken() {
+        const panel = make(null, "", "crane")
+
+        verify(field(panel, "movementHintRow").visible)
+        compare(field(panel, "movementHint").text, "Aus den Kamera-Marks: Kran")
+
+        field(panel, "movementTake").clicked()
+
+        compare(fake.calls, [["s12-3", "movement", "crane"]])
+    }
+
+    // The movements come from the controller's lists, not from the panel.
+    function test_the_movement_chooser_lists_what_the_controller_offers() {
+        const box = field(make(null), "movementBox")
+
+        compare(box.count, 8)
+        compare(box.currentText, "Statisch")
+
+        box.activated(4)
+
+        compare(fake.calls, [["s12-3", "movement", "crane"]])
+    }
+
+    function test_no_hint_no_row() {
+        const panel = make(null)
+
+        verify(!field(panel, "movementHintRow").visible)
     }
 
     function test_the_perspective_chooser_lists_the_angles() {

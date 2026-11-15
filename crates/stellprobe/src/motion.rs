@@ -89,6 +89,41 @@ pub fn camera_at(camera: &Camera, t_s: f64) -> Option<Placement> {
     place_at(&keys, t_s)
 }
 
+/// Lens height and tilt of a camera at `t_s`, in that order (LH-34, LH-33); `None` without
+/// marks. They run linearly between two marks on the clock of the place: after the pause at
+/// the first mark until the arrival at the next; before the first and after the last they hold.
+pub fn aim_at(camera: &Camera, t_s: f64) -> Option<(f64, f64)> {
+    let first = camera.marks.first()?;
+    if t_s < first.at_s {
+        return Some((first.height_m, first.tilt_deg));
+    }
+
+    for pair in camera.marks.windows(2) {
+        let (from, to) = (&pair[0], &pair[1]);
+        if t_s >= to.at_s {
+            continue;
+        }
+
+        let t = progress(from, to, t_s);
+        return Some((
+            from.height_m + (to.height_m - from.height_m) * t,
+            from.tilt_deg + (to.tilt_deg - from.tilt_deg) * t,
+        ));
+    }
+
+    camera.marks.last().map(|m| (m.height_m, m.tilt_deg))
+}
+
+/// How far a camera is from mark `from` to mark `to` at `t_s`, 0 to 1: 0 during the pause.
+pub(crate) fn progress(from: &CameraMark, to: &CameraMark, t_s: f64) -> f64 {
+    let leave_s = (from.at_s + from.hold_s).min(to.at_s);
+    if t_s <= leave_s {
+        return 0.0;
+    }
+
+    (t_s - leave_s) / (to.at_s - leave_s)
+}
+
 /// Before the first mark: there. Between marks: waits `hold_s`, then moves along the way to
 /// the next mark (straight, or the curve through its `via`) at an even pace and turns the
 /// short way round, arriving at the next mark's time. After the last: there.
@@ -283,6 +318,50 @@ mod tests {
             character: "e".into(),
             marks,
         }
+    }
+
+    fn aimed(at_s: f64, hold_s: f64, height_m: f64, tilt_deg: f64) -> CameraMark {
+        CameraMark {
+            at_s,
+            at: Point::new(0.0, 0.0),
+            facing_deg: 0.0,
+            height_m,
+            tilt_deg,
+            hold_s,
+            via: None,
+            rig: Default::default(),
+            lens_mm: None,
+        }
+    }
+
+    /// Height and tilt wait out the pause, then run to the next mark; they hold outside.
+    #[test]
+    fn height_and_tilt_run_between_marks() {
+        let camera = Camera {
+            id: "a".into(),
+            label: "A".into(),
+            sensor: klappe_model::Sensor::Super35,
+            lens_mm: 35.0,
+            aspect: 2.39,
+            marks: vec![aimed(2.0, 2.0, 1.0, 0.0), aimed(10.0, 0.0, 3.0, -20.0)],
+            follows: None,
+        };
+
+        assert_eq!(aim_at(&camera, 0.0), Some((1.0, 0.0)));
+        assert_eq!(aim_at(&camera, 4.0), Some((1.0, 0.0)));
+        assert_eq!(aim_at(&camera, 7.0), Some((2.0, -10.0)));
+        assert_eq!(aim_at(&camera, 10.0), Some((3.0, -20.0)));
+        assert_eq!(aim_at(&camera, 99.0), Some((3.0, -20.0)));
+        assert_eq!(
+            aim_at(
+                &Camera {
+                    marks: vec![],
+                    ..camera
+                },
+                1.0
+            ),
+            None
+        );
     }
 
     #[test]

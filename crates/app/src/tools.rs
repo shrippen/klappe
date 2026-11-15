@@ -4,7 +4,7 @@
 
 use klappe_services::{
     read_number, Dash, DrawingShape, Field, FigureColor, Fill, Layer, LightKind, Lock, PlanEdit,
-    Point, ProjectEdit, Range, ServiceError, Source, Unit,
+    Point, Range, ServiceError, Source, Unit,
 };
 
 /// A new camera looks to the right (0°); the user turns it afterwards.
@@ -101,162 +101,6 @@ impl Tool {
             _ => None,
         }
     }
-}
-
-/// What the keys do to the selection.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Key {
-    Remove,
-    /// Takes the bend out of the selected way (LH-21).
-    Straighten,
-    /// Clockwise for a positive angle.
-    Turn {
-        by_deg: f64,
-    },
-    /// Sets a copy of the selection apart from it (LH-08).
-    Duplicate,
-}
-
-/// How far a copy sits from what it copies, in metres, to both sides: two grid cells, so it
-/// is seen and still on the grid.
-const COPY_OFFSET_M: f64 = 0.5;
-
-/// What the select tool has picked, in the order it was picked: the canvas frames each.
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct Selection(Vec<Source>);
-
-/// What a pick does to the selection: replaces it, or (Shift held) adds to it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Pick {
-    Replace,
-    Extend,
-}
-
-impl Selection {
-    pub fn of(source: Option<Source>) -> Selection {
-        Selection(source.into_iter().collect())
-    }
-
-    pub fn contains(&self, source: &Source) -> bool {
-        self.0.contains(source)
-    }
-
-    pub fn sources(&self) -> &[Source] {
-        &self.0
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// The one element picked; `None` for none or for several.
-    pub fn only(&self) -> Option<&Source> {
-        match self.0.as_slice() {
-            [source] => Some(source),
-            _ => None,
-        }
-    }
-
-    /// A click on `picked` (`None`: empty ground). A plain click takes just that; with
-    /// `Extend` it takes the element in, or out when it is in already, and a click on empty
-    /// ground changes nothing.
-    pub fn click(mut self, picked: Option<Source>, how: Pick) -> Selection {
-        match (how, picked) {
-            (Pick::Replace, picked) => Selection::of(picked),
-            (Pick::Extend, None) => self,
-            (Pick::Extend, Some(source)) => {
-                match self.0.iter().position(|s| *s == source) {
-                    Some(index) => {
-                        self.0.remove(index);
-                    }
-                    None => self.0.push(source),
-                }
-
-                self.no_grips()
-            }
-        }
-    }
-
-    /// A box that took `found`: replaces the selection, or with `Extend` adds to it.
-    pub fn boxed(mut self, found: Vec<Source>, how: Pick) -> Selection {
-        if how == Pick::Replace {
-            return Selection(found);
-        }
-
-        for source in found {
-            if !self.contains(&source) {
-                self.0.push(source);
-            }
-        }
-
-        self.no_grips()
-    }
-
-    /// A grip shows only while its way alone is selected, so several hold none: it would be
-    /// picked unseen and bend or straighten its way with the rest.
-    fn no_grips(mut self) -> Selection {
-        if self.0.len() > 1 {
-            self.0
-                .retain(|s| !matches!(s, Source::FigureVia { .. } | Source::CameraVia { .. }));
-        }
-
-        self
-    }
-
-    /// After a drag that grabbed `grabbed`: a member drags the whole selection along, else
-    /// the grabbed element is all that is selected.
-    pub fn grab(self, grabbed: Option<Source>) -> Selection {
-        match grabbed {
-            Some(source) if self.contains(&source) => self,
-            grabbed => Selection::of(grabbed),
-        }
-    }
-
-    /// The elements, `first` in front: the one the pointer holds snaps to the grid.
-    fn leading(&self, first: &Source) -> Vec<Source> {
-        let mut sources = vec![first.clone()];
-        sources.extend(self.0.iter().filter(|s| *s != first).cloned());
-
-        sources
-    }
-
-    /// Only the elements `shown` approves.
-    pub fn keep(mut self, shown: impl Fn(&Source) -> bool) -> Selection {
-        self.0.retain(shown);
-
-        self
-    }
-}
-
-/// What a drag that grabbed `grabbed` does when it holds a member of a selection of several:
-/// the whole selection moves by the distance. `None` for a lone element, which `drag_edit`
-/// handles, or for an element outside the selection.
-pub fn group_drag_edit(
-    selection: &Selection,
-    grabbed: &Source,
-    from: Point,
-    to: Point,
-) -> Option<PlanEdit> {
-    if selection.len() < 2 || !selection.contains(grabbed) {
-        return None;
-    }
-
-    Some(PlanEdit::ShiftGroup {
-        sources: selection.leading(grabbed),
-        dx_m: to.x_m - from.x_m,
-        dy_m: to.y_m - from.y_m,
-    })
-}
-
-/// The elements `after` shows that `before` did not: what a copy added.
-pub fn added(before: &[Source], after: &[Source]) -> Selection {
-    let new = after.iter().filter(|s| !before.contains(s)).cloned();
-
-    Selection(new.collect())
 }
 
 /// A click at `at`: the tools that put something there. Select only selects, which is no edit.
@@ -603,64 +447,8 @@ pub(crate) fn edit_of(typed: Typed) -> Option<PlanEdit> {
 }
 
 /// A length in metres as typed, more than zero.
-fn length_m(field: Field, text: &str) -> Result<f64, ServiceError> {
+pub(crate) fn length_m(field: Field, text: &str) -> Result<f64, ServiceError> {
     read_number(field, text, Unit::Metre, Range::Positive)
-}
-
-/// The size typed for the selected object, as an edit.
-pub fn resize_edit(selected: Option<&Source>, width: &str, depth: &str) -> Typed {
-    let Some(Source::Object(id)) = selected else {
-        return None;
-    };
-    let resized = length_m(Field::Width, width).and_then(|width_m| {
-        Ok(PlanEdit::Resize {
-            source: Source::Object(id.clone()),
-            width_m,
-            depth_m: length_m(Field::Depth, depth)?,
-        })
-    });
-
-    Some(resized)
-}
-
-/// The height typed for the selected object, as an edit (LH-17): an empty text takes the
-/// height off.
-pub fn object_height_edit(selected: Option<&Source>, text: &str) -> Typed {
-    let Some(Source::Object(id)) = selected else {
-        return None;
-    };
-    let height_m = match text.trim().is_empty() {
-        true => Ok(None),
-        false => length_m(Field::Height, text).map(Some),
-    };
-
-    Some(height_m.map(|height_m| PlanEdit::SetObjectHeight {
-        source: Source::Object(id.clone()),
-        height_m,
-    }))
-}
-
-/// Files the selected object in the library of the project under `name`. `None` when
-/// something other than an object is selected, there is no scene to take the set from, or the
-/// name is blank.
-pub fn library_edit(
-    selected: Option<&Source>,
-    location: Option<&str>,
-    name: &str,
-) -> Option<ProjectEdit> {
-    let Some(Source::Object(id)) = selected else {
-        return None;
-    };
-    let name = name.trim();
-    if name.is_empty() {
-        return None;
-    }
-
-    Some(ProjectEdit::LibraryFromObject {
-        location: location?.to_owned(),
-        object: id.clone(),
-        name: name.to_owned(),
-    })
 }
 
 /// Both points picked and a length typed: the scale edit. `None` until then.
@@ -712,44 +500,6 @@ pub fn drag_step(edit: Option<PlanEdit>, phase: DragPhase, shown: Preview) -> Dr
         (None, _) => DragStep::Restore,
         (Some(edit), DragPhase::Moving) => DragStep::Preview(edit),
         (Some(edit), DragPhase::Done) => DragStep::Commit(edit),
-    }
-}
-
-/// A key on the selection; `None` when nothing is selected. Several elements take one group
-/// edit; a way is made straight for one element only.
-pub fn key_edit(key: Key, selected: &Selection) -> Option<PlanEdit> {
-    let sources = selected.sources().to_vec();
-    if key == Key::Duplicate && !selected.is_empty() {
-        return Some(PlanEdit::Duplicate {
-            sources,
-            dx_m: COPY_OFFSET_M,
-            dy_m: COPY_OFFSET_M,
-        });
-    }
-
-    let [source] = sources.as_slice() else {
-        return group_key_edit(key, sources);
-    };
-    let source = source.clone();
-
-    match key {
-        Key::Remove => Some(PlanEdit::Remove { source }),
-        Key::Straighten => Some(PlanEdit::Straighten { source }),
-        Key::Turn { by_deg } => Some(PlanEdit::Spin { source, by_deg }),
-        Key::Duplicate => None,
-    }
-}
-
-/// `key_edit` for no element or several.
-fn group_key_edit(key: Key, sources: Vec<Source>) -> Option<PlanEdit> {
-    if sources.is_empty() {
-        return None;
-    }
-
-    match key {
-        Key::Remove => Some(PlanEdit::RemoveGroup { sources }),
-        Key::Turn { by_deg } => Some(PlanEdit::SpinGroup { sources, by_deg }),
-        Key::Straighten | Key::Duplicate => None,
     }
 }
 

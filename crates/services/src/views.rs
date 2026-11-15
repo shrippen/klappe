@@ -17,8 +17,15 @@ pub struct ShotRow {
     /// Model name, e.g. `birds-eye`; the surface translates it.
     pub angle: String,
     pub movement: String,
-    /// The shot's lens, else its camera's.
+    /// What the camera's marks do during a shot without a movement of its own (LH-33): a
+    /// model name like `crane`; empty when the shot has a movement or the camera is static.
+    pub movement_hint: String,
+    /// The shot's lens at its start (`shot_lens`).
     pub lens_mm: f64,
+    /// The lens at its end when it differs: a zoom; `None` for one lens.
+    pub lens_to_mm: Option<f64>,
+    /// The camera's marks give the lens: the shot's own field is not in use.
+    pub lens_from_marks: bool,
     /// Only the shot's own lens; `None` follows the camera.
     pub own_lens_mm: Option<f64>,
     pub from_s: f64,
@@ -212,7 +219,10 @@ pub enum Hint {
         /// Horizontal angle of view, to a tenth of a degree.
         #[serde(rename = "fov")]
         fov_deg: f64,
-        /// Lens height at the first mark.
+        /// How the camera came to its mark at the playhead, e.g. `crane`; empty at the first
+        /// mark (LH-33).
+        rig: String,
+        /// Lens height at the playhead (it runs between marks, LH-33).
         #[serde(rename = "height")]
         height_m: f64,
         /// Numbers of the shots from this camera, comma separated.

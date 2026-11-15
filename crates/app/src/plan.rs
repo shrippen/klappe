@@ -323,7 +323,24 @@ mod tests {
             (Role::Note, "accent", "solid", "solid"),
             (Role::ArrowHead(red), "red", "solid", "solid"),
             (Role::Axis, "orange", "dashed", "none"),
-            (Role::CameraPath, "yellow", "dotted", "none"),
+            (
+                Role::CameraPath { dash: Dash::Solid },
+                "yellow",
+                "solid",
+                "none",
+            ),
+            (
+                Role::CameraPath { dash: Dash::Dashed },
+                "yellow",
+                "dashed",
+                "none",
+            ),
+            (
+                Role::CameraPath { dash: Dash::Dotted },
+                "yellow",
+                "dotted",
+                "none",
+            ),
             (Role::Frustum, "yellow", "solid", "tint"),
             (Role::Camera, "yellow", "solid", "solid"),
             (Role::FigurePath(red), "red", "dotted", "none"),
@@ -740,3 +757,6 @@ mod tests {
         assert_eq!(v["shapes"][0]["text"], "");
     }
 }
+
+#[cfg(test)]
+mod perf;

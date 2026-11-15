@@ -27,6 +27,7 @@ pub enum Field {
     Point,
     Points,
     Props,
+    Rig,
     Sensor,
     SetWidth,
     Short,
@@ -39,7 +40,7 @@ pub enum Field {
 }
 
 impl Field {
-    pub const ALL: [Field; 34] = [
+    pub const ALL: [Field; 35] = [
         Self::Angle,
         Self::Aspect,
         Self::Camera,
@@ -65,6 +66,7 @@ impl Field {
         Self::Point,
         Self::Points,
         Self::Props,
+        Self::Rig,
         Self::Sensor,
         Self::SetWidth,
         Self::Short,
@@ -104,6 +106,7 @@ impl Field {
             Self::Point => "point",
             Self::Points => "points",
             Self::Props => "props",
+            Self::Rig => "rig",
             Self::Sensor => "sensor",
             Self::SetWidth => "set width",
             Self::Short => "short",
