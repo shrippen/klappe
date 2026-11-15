@@ -61,6 +61,12 @@ Item {
             area.tipAt = canvas.mapFromModel(x, y)
         }
         onShapeClicked: (key, x, y) => area.controller.place(x, y)
+        // The click before it selected the note; the double click edits its text.
+        onShapeDoubleClicked: (key, x, y) => {
+            if (area.tool === "select" && key.indexOf("note:") === 0) {
+                area.controller.editSelectedNote()
+            }
+        }
         onShapeDragged: (key, fromX, fromY, x, y, done) => {
             if (area.dragAborted) {
                 area.dragAborted = done ? false : true
