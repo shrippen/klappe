@@ -329,6 +329,8 @@ mod tests {
             (Role::LightBeam, "orange", "solid", "tint"),
             (Role::Light, "orange", "solid", "solid"),
             (Role::Note, "text", "solid", "tint"),
+            (Role::Door, "text", "solid", "none"),
+            (Role::Window, "text", "solid", "none"),
             (Role::ArrowHead(red), "red", "solid", "solid"),
             (Role::Axis, "orange", "dashed", "none"),
             (
