@@ -104,6 +104,11 @@ impl Editor {
         self.cursor = self.buffer.insert_char(self.cursor, c);
     }
 
+    /// Rewrites the cursor line as part of the edit just made, so undo takes both back.
+    pub(crate) fn replace_line(&mut self, text: String) {
+        self.buffer.set_line(self.cursor.line, text);
+    }
+
     pub(crate) fn newline(&mut self) {
         self.record(Edit::Break);
         self.cursor = self.buffer.insert_newline(self.cursor);
@@ -301,6 +306,19 @@ mod tests {
         ed.left();
         ed.backspace();
         assert_eq!(ed.text(), "ÄÖÜ  ß");
+    }
+
+    #[test]
+    fn replace_line_joins_the_typing_step() {
+        let mut ed = Editor::new("");
+        ed.type_char('a');
+        ed.replace_line("A".into());
+        ed.type_char('b');
+        ed.replace_line("AB".into());
+        assert_eq!(ed.text(), "AB");
+
+        ed.undo();
+        assert_eq!(ed.text(), "");
     }
 
     #[test]

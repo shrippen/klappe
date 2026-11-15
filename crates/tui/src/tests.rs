@@ -450,3 +450,83 @@ fn shrinking_the_terminal_moves_focus_from_the_hidden_list() {
     typed(&mut app, "zzz");
     assert!(app.text().contains("zzz"), "typing went to the hidden list");
 }
+
+/// Blank lines above and below the cursor, so a typed line can be a heading.
+fn open_line(app: &mut App) {
+    let _ = screen(app, 100, 20);
+    for _ in 0..5 {
+        press(app, KeyCode::Enter);
+    }
+    press(app, KeyCode::Up);
+    press(app, KeyCode::Up);
+}
+
+#[test]
+fn a_heading_turns_to_capitals_as_it_is_typed() {
+    let mut app = app();
+    open_line(&mut app);
+    typed(&mut app, "int. küche - tag");
+
+    assert!(
+        app.text().starts_with("\n\n\nINT. KÜCHE - TAG\n"),
+        "{}",
+        app.text()
+    );
+}
+
+#[test]
+fn a_forced_cue_turns_to_capitals_but_prose_does_not() {
+    let mut app = app();
+    open_line(&mut app);
+    typed(&mut app, "@anna (cont'd)");
+    assert!(
+        app.text().starts_with("\n\n\n@ANNA (cont'd)\n"),
+        "{}",
+        app.text()
+    );
+
+    let mut app = self::app();
+    open_line(&mut app);
+    typed(&mut app, "anna geht int. küche");
+    assert!(
+        app.text().starts_with("\n\n\nanna geht int. küche\n"),
+        "{}",
+        app.text()
+    );
+}
+
+#[test]
+fn undo_takes_typing_and_capitals_back_together() {
+    let mut app = app();
+    open_line(&mut app);
+    typed(&mut app, "int. küche");
+    ctrl(&mut app, 'z');
+
+    assert!(app.text().starts_with("\n\n\n\n"), "{}", app.text());
+}
+
+#[test]
+fn a_typed_scene_number_stays_as_typed() {
+    let mut app = app();
+    open_line(&mut app);
+    typed(&mut app, "int. küche #3a#");
+
+    assert!(
+        app.text().starts_with("\n\n\nINT. KÜCHE #3a#\n"),
+        "{}",
+        app.text()
+    );
+}
+
+#[test]
+fn a_hash_without_a_number_is_heading_text() {
+    let mut app = app();
+    open_line(&mut app);
+    typed(&mut app, "int. büro #2 flur");
+
+    assert!(
+        app.text().starts_with("\n\n\nINT. BÜRO #2 FLUR\n"),
+        "{}",
+        app.text()
+    );
+}

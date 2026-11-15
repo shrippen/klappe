@@ -7,7 +7,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, Mou
 
 use crate::buffer::Pos;
 use crate::editor::Editor;
-use crate::fountain::{analyse, Analysis};
+use crate::fountain::{analyse, typed_caps, Analysis};
 use crate::i18n::{Language, Texts};
 use crate::layout::Layout;
 use crate::links::Links;
@@ -400,13 +400,23 @@ impl App {
         }
     }
 
+    /// Types the character; scene headings and forced cues turn to capitals as they go.
+    fn type_char(&mut self, c: char) {
+        self.editor.type_char(c);
+
+        let Some(caps) = typed_caps(self.editor.lines(), self.editor.cursor().line) else {
+            return;
+        };
+        self.editor.replace_line(caps);
+    }
+
     fn editor_key(&mut self, key: KeyEvent) {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let alt = key.modifiers.contains(KeyModifiers::ALT);
         let page = isize::try_from(self.height).unwrap_or(isize::MAX);
 
         match key.code {
-            KeyCode::Char(c) if !ctrl && !alt => self.editor.type_char(c),
+            KeyCode::Char(c) if !ctrl && !alt => self.type_char(c),
             KeyCode::Enter => self.editor.newline(),
             KeyCode::Backspace => self.editor.backspace(),
             KeyCode::Delete => self.editor.delete(),
