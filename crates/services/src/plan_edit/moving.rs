@@ -390,6 +390,23 @@ pub(super) fn shift(
     by_m: (f64, f64),
     snap_to: (Snapping, Grid),
 ) -> Result<(), ServiceError> {
+    // A grip for a new bend not pulled at all makes none; snapping would move it off its
+    // spot and the bend would be made there.
+    let pulled = by_m != (0.0, 0.0);
+    if matches!(
+        source,
+        Source::FigureVia {
+            bend: Bend::New(_),
+            ..
+        } | Source::CameraVia {
+            bend: Bend::New(_),
+            ..
+        }
+    ) && !pulled
+    {
+        return Ok(());
+    }
+
     let (anchor, middle_now) = anchor_pair(target(scope, source)?)?;
     let landed = snap(
         Point::new(anchor.x_m + by_m.0, anchor.y_m + by_m.1),

@@ -516,3 +516,21 @@ fn the_preview_moves_the_grip_too() {
     assert_eq!(at.len(), 1);
     assert!(near(at[0], p(14.5, 6.0)), "{at:?}");
 }
+
+/// A drag that goes nowhere makes no bend, also with snapping on: the grip is off the grid,
+/// and the spot it would snap to is not where the pointer went.
+#[test]
+fn a_drag_without_movement_makes_no_bend_when_snapping() {
+    let mut s = open();
+    bent(&mut s);
+    s.set_snapping(Snapping::On);
+
+    s.edit_plan(PlanEdit::Shift {
+        source: grip(0),
+        dx_m: 0.0,
+        dy_m: 0.0,
+    })
+    .unwrap();
+
+    assert_eq!(via(&s).len(), 1, "{:?}", via(&s));
+}
