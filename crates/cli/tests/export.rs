@@ -108,3 +108,40 @@ fn a_negative_time_is_refused() {
     assert!(!output.status.success());
     assert!(stderr(&output).contains("time must be"));
 }
+
+#[test]
+fn exports_the_shot_list_as_ods_and_xlsx_by_extension() {
+    for name in ["cli-list.ods", "cli-list.xlsx"] {
+        let out = out_file(name);
+
+        let output = export(&out, &["--language", "de"]);
+
+        assert!(output.status.success(), "{}", stderr(&output));
+        let bytes = std::fs::read(&out).unwrap();
+        assert_eq!(&bytes[..2], b"PK", "{name}");
+        assert!(
+            String::from_utf8_lossy(&bytes).contains("Shotliste"),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn exports_one_picture_per_mark_into_a_folder() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-frames");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let output = export(&dir, &["--format", "frames"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(names.len(), 5, "{names:?}");
+    assert_eq!(names[0], "12-01-00-00.png");
+    assert_eq!(names[4], "12-05-00-20.png");
+    let first = std::fs::read(dir.join(&names[0])).unwrap();
+    assert!(first.starts_with(PNG_SIGNATURE));
+}

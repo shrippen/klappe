@@ -37,7 +37,7 @@ Alle Module arbeiten auf demselben Projekt und demselben Datenmodell.
 | PDF | eigener Schreiber (PDF 1.4, Vektor, Helvetica WinAnsi), keine Abhängigkeit | MIT | Headless, ohne Qt; Export auch über CLI. Der Plan braucht nur Pfade und Text; eine PDF-Bibliothek brächte viele Crates mit, und derselbe Code schreibt SVG und PDF. |
 | SVG, CSV | eigene Ausgabe | MIT | klein |
 | PNG | eigener Rasterer (`export/`: Flächenfüllung mit Kantenglättung, Liberation Sans als TrueType, PNG-Schreiber; liest PNG und JPEG für Hintergrundbilder) | MIT; Schrift SIL OFL | Die CLI soll PNG ohne Qt schreiben (LH-81); ein Rasterer aus Crates brächte viele Abhängigkeiten. Dieselbe Seite wie SVG und PDF, 150 dpi. |
-| XLSX | rust_xlsxwriter | MIT/Apache-2.0 | LH-85 |
+| ODS, XLSX | eigene Ausgabe (`export/`: ZIP ohne Kompression, XML) | MIT | LH-85; eine Tabelle braucht keine Bibliothek. |
 | Kamerablick (3D) | eigene einfache Perspektivprojektion im Kern (Wände, Kästen, Figuren als Silhouetten) | MIT | Qt Quick 3D ist nur unter GPLv3 frei; reicht für LH-36 ohne GPU-Stack. |
 | Pakete | Flatpak zuerst, dann Windows, dann macOS | – | Wie Kontra. |
 
