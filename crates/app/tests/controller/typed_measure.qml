@@ -79,6 +79,27 @@ Item {
                 return fail("a length without a drag made something")
             }
 
+            // A wall drag dropped with Escape leaves no drag: a typed measure with a wall selected
+            // is its height, not a wall, and the next drag draws again.
+            ctl.setTool("select", "")
+            ctl.place(4, 0)
+            ctl.setTool("wall", "")
+            ctl.drag(2, 10, 6, 10, false)
+            ctl.cancelDrag()
+            if (!ctl.typeMeasure("2,2") || walls().length !== before) {
+                return fail("after a dropped drag the measure made a wall")
+            }
+            if (Math.abs(described("wall:0").height - 2.2) > 1e-9) {
+                return fail("after a dropped drag the wall is not 2.2 m: " + ctl.describe("wall:0"))
+            }
+            ctl.drag(2, 12, 6, 12, true)
+            if (walls().length !== before + 1) {
+                return fail("the drag after a dropped one draws nothing")
+            }
+            ctl.undo()
+            ctl.undo()
+            ctl.setTool("select", "")
+
             // The height of the selection: an object, a wall; text with a comma.
             ctl.setTool("select", "")
             ctl.place(8.5, 6.5)

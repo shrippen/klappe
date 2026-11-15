@@ -278,9 +278,9 @@ Item {
         }
     }
 
-    // Maßfeld (LH-95): a digit typed on the plan or in 3D opens a field with it: the length of
-    // the wall being drawn, else the height of the selected object or wall. Enter applies,
-    // Escape closes. With nothing to apply it to, the digit goes on to the view.
+    // Maßfeld (LH-95): Enter on the plan or in 3D opens an empty field: the length of the wall
+    // being drawn, else the height of the selected object or wall. Enter applies, Escape
+    // closes. With nothing to apply it to, it does not open.
     readonly property bool wallDrag: area.tool === "wall" && (area.dragging || freeView.dragging)
     readonly property string measureKind: {
         if (wallDrag) {

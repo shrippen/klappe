@@ -406,6 +406,8 @@ impl qobject::Controller {
 
     pub(super) fn cancel_drag(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().get_mut().grip = Grip::Free;
+        // No drag runs any more: a typed measure must not end it as a wall.
+        self.as_mut().rust_mut().get_mut().drag_step = None;
         self.as_mut().rust_mut().get_mut().free.caption.clear();
         self.as_mut().rust_mut().get_mut().marquee = None;
         self.refresh();
