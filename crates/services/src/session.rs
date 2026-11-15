@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::Project;
 use klappe_script::Script;
+use klappe_stellprobe::Orbit;
 use klappe_store::ImageStamp;
 
 use crate::error::{write_failed, ServiceError};
@@ -12,6 +13,7 @@ use undo::Snapshot;
 
 mod export;
 mod file;
+mod free_view;
 mod layers;
 mod objects;
 mod pick;
@@ -25,6 +27,7 @@ mod undo;
 mod uses;
 mod views;
 
+pub use free_view::{Size, View};
 pub use retime::{Grab, TimeSnap};
 
 /// Groups of the plan the timeline's layer switches show or hide.
@@ -157,6 +160,9 @@ pub struct Session {
     /// The project (not only the screenplay) changed since the last save.
     project_changed: bool,
     backup: BackupState,
+    /// Which view of the set shows, and where the 3D view looks once it has been opened.
+    view: View,
+    orbit: Option<Orbit>,
 }
 
 /// `dir` may be missing or an empty folder; anything else would mix the project with it.

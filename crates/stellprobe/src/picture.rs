@@ -8,7 +8,7 @@
 //!   labels: anchor projected, kept where nothing nearer covers it    ◄── Frame
 //! ```
 
-use klappe_model::{FloorPlan, Project, SetPlan};
+use klappe_model::{FloorPlan, Point, Project, SetPlan};
 use klappe_raster::{rasterize, Corner, Frame, Paint, Triangle, NO_SOURCE};
 
 use crate::display::Source;
@@ -51,14 +51,17 @@ pub fn picture(
     width_px: usize,
 ) -> Option<Picture> {
     let pinhole = Pinhole::of(eye, plan)?;
-    let Eye::Shot { t_s, .. } = eye;
+    let looking = match eye {
+        Eye::Shot { camera, .. } => Some(camera.as_str()),
+        Eye::Orbit { .. } => None,
+    };
     let scale = width_px as f64;
     let height_px = (pinhole.frame_height * scale).round() as usize;
     if width_px == 0 || height_px == 0 {
         return None;
     }
 
-    let solids = scene(project, set, plan, *t_s);
+    let solids = scene(project, set, plan, eye.t_s(), looking);
     let mut sources = Vec::new();
     let mut triangles = Vec::new();
     let mut face = 0;
@@ -146,6 +149,60 @@ fn shade(corners: &[Vec3]) -> u8 {
     ((AMBIENT + (1.0 - AMBIENT) * facing) * FULL_SHADE).round() as u8
 }
 
+/// Where pixel (`x_px`, `y_px`) of a picture of `eye` `width_px` wide shows the floor, in plan
+/// metres (LH-94: the tools of the plan work in 3D on this point); `None` above the horizon
+/// or when the eye sees nothing.
+pub fn floor_at(
+    plan: &FloorPlan,
+    eye: &Eye,
+    width_px: f64,
+    (x_px, y_px): (f64, f64),
+) -> Option<Point> {
+    let pinhole = Pinhole::of(eye, plan)?;
+
+    pinhole.floor_at([x_px / width_px, y_px / width_px])
+}
+
+/// Where pixel (`x_px`, `y_px`) of a picture of `eye` `width_px` wide meets the level
+/// `height_m` above the floor, in plan metres: a drag of something grabbed at that height
+/// stays on its level, also where no floor lies under the pointer.
+pub fn level_at(
+    plan: &FloorPlan,
+    eye: &Eye,
+    width_px: f64,
+    (x_px, y_px): (f64, f64),
+    height_m: f64,
+) -> Option<Point> {
+    let pinhole = Pinhole::of(eye, plan)?;
+
+    pinhole.level_at([x_px / width_px, y_px / width_px], height_m)
+}
+
+/// What pixel (`x`, `y`) of `picture` (made of `eye`) shows and how high above the floor that
+/// point of it lies: where a drag grabs it. `None` for the floor, a gap or outside.
+pub fn grab_at(
+    plan: &FloorPlan,
+    eye: &Eye,
+    picture: &Picture,
+    (x, y): (usize, usize),
+) -> Option<(Source, f64)> {
+    let source = source_at(picture, (x, y))?.clone();
+    let i = picture.frame.index(x, y)?;
+    let width = picture.frame.width as f64;
+    let image = [(x as f64 + 0.5) / width, (y as f64 + 0.5) / width];
+    let point = Pinhole::of(eye, plan)?.point_at(image, f64::from(picture.frame.depth[i]));
+
+    Some((source, point[2]))
+}
+
+/// What pixel (`x`, `y`) of `picture` shows (LH-94: a click in 3D takes what one sees there);
+/// `None` for the floor, a gap or outside the picture.
+pub fn source_at(picture: &Picture, (x, y): (usize, usize)) -> Option<&Source> {
+    let i = picture.frame.index(x, y)?;
+
+    picture.sources.get(picture.frame.source[i] as usize)
+}
+
 /// The names whose anchor lies in the picture with nothing nearer in front of it.
 fn labels(eye: &Pinhole, scale: f64, solids: &[Solid], frame: &Frame) -> Vec<PictureLabel> {
     let mut labels = Vec::new();
@@ -157,13 +214,20 @@ fn labels(eye: &Pinhole, scale: f64, solids: &[Solid], frame: &Frame) -> Vec<Pic
         }
         let [x, y] = eye.image(local);
         let (x, y) = (x * scale, y * scale);
-        let Some(i) = (x >= 0.0 && y >= 0.0)
-            .then(|| frame.index(x as usize, y as usize))
-            .flatten()
-        else {
+        if x < 0.0 || y < 0.0 {
+            continue;
+        }
+        // Two pixels side by side: a see-through body fills only one of them, so a name
+        // behind it shows whichever pixel of the checkerboard its anchor hits.
+        let (px, py) = (x as usize, y as usize);
+        let Some(i) = frame.index(px, py) else {
             continue;
         };
-        if frame.depth[i] < local[2] as f32 - COVER_M {
+        let beside = frame
+            .index(px + 1, py)
+            .or(px.checked_sub(1).and_then(|l| frame.index(l, py)));
+        let nearest = beside.map_or(frame.depth[i], |j| frame.depth[i].max(frame.depth[j]));
+        if nearest < local[2] as f32 - COVER_M {
             continue;
         }
 

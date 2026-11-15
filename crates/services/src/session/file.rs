@@ -5,7 +5,7 @@ use std::path::Path;
 use klappe_model::Project;
 use klappe_store::Loaded;
 
-use super::{check_empty, Autosave, BackupState, Session};
+use super::{check_empty, Autosave, BackupState, Session, View};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::plan_edit::{Grid, Snapping};
@@ -48,6 +48,8 @@ impl Session {
             unbacked: false,
             project_changed: false,
             backup,
+            view: View::Plan,
+            orbit: None,
         })
     }
 

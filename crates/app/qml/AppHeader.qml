@@ -44,7 +44,7 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv,
-                                    actScript, actShot, actTimeline, actCut, actShooting,
+                                    actFree, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actUndo, actRedo]
@@ -129,7 +129,9 @@ RowLayout {
         objectName: "viewMenu"
         visible: header.controller.loaded
         text: header.texts.t("menu.view")
-        KanteMenuSection { text: header.texts.t("menu.viewAreas"); rule: false }
+        KanteMenuSection { text: header.texts.t("menu.viewMode"); rule: false }
+        KanteMenuItem { objectName: "free"; action: actFree }
+        KanteMenuSection { text: header.texts.t("menu.viewAreas") }
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
         KanteMenuItem { objectName: "timeline"; action: actTimeline }
@@ -267,6 +269,25 @@ RowLayout {
         onTriggered: exportDialog.request("csv")
     }
 
+    // Plan or 3D (J): the controller keeps which one shows.
+    CommandAction {
+        id: actFree
+        cmd: "view.free"
+        group: "view"
+        text: header.texts.t("view.free")
+        shortcut: "J"
+        keys: "J"
+        checkable: true
+        enabled: header.controller.loaded && !header.locked
+        onToggled: header.controller.toggleView()
+    }
+    // The checkmark follows the controller, which also leaves 3D when another project opens.
+    Binding {
+        target: actFree
+        property: "checked"
+        value: header.controller.viewFree === true
+    }
+
     // The areas toggle; the window keeps what is shown and hands it back.
     CommandAction {
         id: actScript
@@ -355,7 +376,8 @@ RowLayout {
         text: header.texts.t("menu.zoomFit")
         shortcut: "Ctrl+0"
         keys: header.keyName("Ctrl+0")
-        enabled: header.controller.loaded && !header.locked
+        // The whole plan: the 3D view has no plan to fit.
+        enabled: header.controller.loaded && !header.locked && !header.controller.viewFree
         onTriggered: header.zoomRequested("fit")
     }
 

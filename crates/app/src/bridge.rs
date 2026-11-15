@@ -26,6 +26,10 @@ pub mod qobject {
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
         /// Counts refreshes: the camera's picture is made again when it changes.
         #[qproperty(i32, picture_revision, cxx_name = "pictureRevision")]
+        /// Counts what turns, shifts or zooms the 3D view: the 3D picture is made again.
+        #[qproperty(i32, free_revision, cxx_name = "freeRevision")]
+        /// Whether the plan area shows the free 3D view (J) instead of the plan.
+        #[qproperty(bool, view_free, cxx_name = "viewFree")]
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
         /// The shot list in shooting order: setups grouped (LH-72); `shotsJson` is the cut order.
@@ -109,6 +113,60 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "cameraFrame"]
         fn camera_frame(self: &Self) -> QString;
+
+        /// Switches between plan and 3D (key J).
+        #[qinvokable]
+        #[cxx_name = "toggleView"]
+        fn toggle_view(self: Pin<&mut Self>);
+
+        /// The size of the 3D view in device pixels; the calls below take pointers in them.
+        #[qinvokable]
+        #[cxx_name = "freeSize"]
+        fn free_size(self: Pin<&mut Self>, width_px: f64, height_px: f64);
+
+        /// The 3D view at `scale` times its size (less than 1 while a drag runs), coloured as
+        /// `cameraImage`; a null image where there is nothing to see.
+        #[qinvokable]
+        #[cxx_name = "freeImage"]
+        fn free_image(self: Pin<&mut Self>, scale: f64, palette_json: &QString) -> QImage;
+
+        /// `{ width, height, labels: [{ text, x, y }] }` of the last 3D image; empty if null.
+        #[qinvokable]
+        #[cxx_name = "freeFrame"]
+        fn free_frame(self: &Self) -> QString;
+
+        /// Turns the 3D view by a drag of `dx`, `dy` pixels.
+        #[qinvokable]
+        #[cxx_name = "turnView"]
+        fn turn_view(self: Pin<&mut Self>, dx: f64, dy: f64);
+
+        /// Shifts the 3D view by a drag of `dx`, `dy` pixels.
+        #[qinvokable]
+        #[cxx_name = "panView"]
+        fn pan_view(self: Pin<&mut Self>, dx: f64, dy: f64);
+
+        /// Wheel `steps` (positive comes closer) towards the floor under the pointer.
+        #[qinvokable]
+        #[cxx_name = "zoomView"]
+        fn zoom_view(self: Pin<&mut Self>, steps: f64, x: f64, y: f64);
+
+        /// A click in 3D: the select tool takes what is seen there, the other tools get the
+        /// plan point of the floor there. False where nothing happened.
+        #[qinvokable]
+        #[cxx_name = "freePlace"]
+        fn free_place(self: Pin<&mut Self>, x: f64, y: f64) -> bool;
+
+        /// A drag in 3D from one pointer position to another, as `drag` on the floor points.
+        #[qinvokable]
+        #[cxx_name = "freeDrag"]
+        fn free_drag(
+            self: Pin<&mut Self>,
+            from_x: f64,
+            from_y: f64,
+            x: f64,
+            y: f64,
+            done: bool,
+        ) -> bool;
 
         /// Moves the playhead (seconds).
         #[qinvokable]
@@ -686,6 +744,7 @@ use crate::tools::{AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, 
 
 mod draw;
 mod export;
+mod free;
 mod hints;
 mod history;
 mod layers;
@@ -719,6 +778,12 @@ pub struct ControllerRust {
     picture_revision: i32,
     /// `cameraFrame`: the size and names of the last camera image.
     camera_frame: String,
+    free_revision: i32,
+    view_free: bool,
+    /// `freeFrame`: the size and names of the last 3D image.
+    free_frame: String,
+    /// The 3D view's size and what a drag in it holds.
+    free: free::FreeState,
     tracks_json: QString,
     shots_json: QString,
     shots_shooting_json: QString,

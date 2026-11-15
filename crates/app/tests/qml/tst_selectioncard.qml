@@ -20,6 +20,7 @@ TestCase {
         property string selectedKey: ""
         property int selectedCount: 0
         property bool extendSelection: false
+        property bool viewFree: false
         property bool asksNote: false
         property string markJson: "{}"
 
@@ -60,6 +61,7 @@ TestCase {
         fake.selectedKey = ""
         fake.selectedCount = 0
         fake.extendSelection = false
+        fake.viewFree = false
         fake.markJson = "{}"
     }
 
@@ -240,5 +242,27 @@ TestCase {
         area.visible = true
 
         settled(card)
+    }
+
+    // LH-94: in 3D the plan's shape is not on view; the card opens beside the click instead.
+    function test_in_3d_the_card_opens_beside_the_click() {
+        fake.viewFree = true
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        const view = findChild(area, "freeView")
+        view.clickAt = Qt.point(200, 150)
+
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        verify(card.visible)
+        verify(card.x > 200)
+        verify(card.y <= 150 && 150 <= card.y + card.height)
+
+        view.clickAt = Qt.point(300, 250)
+        settled(card)
+
+        verify(card.x > 300)
+        verify(card.y <= 250 && 250 <= card.y + card.height)
     }
 }

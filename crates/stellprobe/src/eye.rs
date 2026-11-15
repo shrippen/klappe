@@ -1,18 +1,19 @@
-//! Where a view looks from (3D-KONZEPT.md, section 4.3): today the camera of a shot, later the
-//! free 3D view. A pinhole turns points of the set into points of the picture.
+//! Where a view looks from (3D-KONZEPT.md, section 4.3): the camera of a shot or the free 3D
+//! view around a point of the set. A pinhole turns points of the set into points of the
+//! picture, and a pixel back into a point on the floor.
 //!
 //! ```text
 //!   set (x, y on the plan, z up) ──local──► camera (right, up, ahead) ──image──► picture
 //!                                                                    x 0..1, y 0..1/aspect
 //! ```
 
-use klappe_model::{Camera, FloorPlan};
+use klappe_model::{Camera, FloorPlan, Point};
 
 use crate::motion::{aim_at, camera_at};
 use crate::optics::{horizontal_fov_deg, lens_at};
 
 /// Picture width; the height is `1 / aspect`.
-pub const FRAME_WIDTH: f64 = 1.0;
+pub(crate) const FRAME_WIDTH: f64 = 1.0;
 /// Nothing nearer than this is drawn.
 pub(crate) const NEAR_M: f64 = 0.1;
 /// Keeps `tan` finite when the camera looks straight up or down.
@@ -25,6 +26,103 @@ pub(crate) type Vec3 = [f64; 3];
 pub enum Eye {
     /// Camera `camera` of the plan at `t_s` (LH-36).
     Shot { camera: String, t_s: f64 },
+    /// The free 3D view (LH-94) on the set at `t_s`, `aspect` wide to high.
+    Orbit { orbit: Orbit, t_s: f64, aspect: f64 },
+}
+
+impl Eye {
+    /// The moment the figures stand at.
+    pub(crate) fn t_s(&self) -> f64 {
+        match self {
+            Eye::Shot { t_s, .. } | Eye::Orbit { t_s, .. } => *t_s,
+        }
+    }
+}
+
+/// The free 3D view: it looks at `target` from `distance_m` away, turned `yaw_deg` about it
+/// (0 looks along +x of the plan, 90 along +y) and `pitch_deg` above the floor.
+///
+/// ```text
+///          eye
+///           ╲  pitch
+///   ─────────●─────── floor        seen from above:  eye ──yaw──► target
+///         target
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Orbit {
+    target: [f64; 3],
+    yaw_deg: f64,
+    pitch_deg: f64,
+    distance_m: f64,
+    /// How wide it sees, left to right.
+    fov_deg: f64,
+}
+
+/// Pitch of a new view: steep enough to see into a room over its walls.
+const START_PITCH_DEG: f64 = 55.0;
+/// Yaw of a new view: from the plan's bottom left (the audience) towards its top right.
+const START_YAW_DEG: f64 = -45.0;
+const START_FOV_DEG: f64 = 50.0;
+/// Pitch stays between grazing and straight down, so up stays up.
+const MIN_PITCH_DEG: f64 = 2.0;
+const MAX_PITCH_DEG: f64 = 89.0;
+/// Turn per pixel dragged.
+const TURN_DEG_PER_PX: f64 = 0.3;
+/// One wheel step brings the eye this much closer.
+const ZOOM_STEP: f64 = 0.85;
+const MIN_DISTANCE_M: f64 = 0.5;
+const MAX_DISTANCE_M: f64 = 2000.0;
+
+impl Orbit {
+    /// The view a set of `width_m` by `depth_m` opens with: its middle, all of it in sight.
+    pub fn fitting(width_m: f64, depth_m: f64) -> Self {
+        let size_m = width_m.hypot(depth_m).max(1.0);
+        let half_fov = (START_FOV_DEG / 2.0).to_radians();
+
+        Self {
+            target: [width_m / 2.0, depth_m / 2.0, 0.0],
+            yaw_deg: START_YAW_DEG,
+            pitch_deg: START_PITCH_DEG,
+            distance_m: size_m / 2.0 / half_fov.tan() * 1.1,
+            fov_deg: START_FOV_DEG,
+        }
+    }
+
+    /// Turns the view by a drag of `dx_px`, `dy_px`: sideways about the target, up and down
+    /// between grazing and straight down.
+    pub fn turn(&mut self, dx_px: f64, dy_px: f64) {
+        self.yaw_deg = (self.yaw_deg - dx_px * TURN_DEG_PER_PX).rem_euclid(360.0);
+        self.pitch_deg =
+            (self.pitch_deg + dy_px * TURN_DEG_PER_PX).clamp(MIN_PITCH_DEG, MAX_PITCH_DEG);
+    }
+
+    /// Shifts the view by a drag of `dx_px`, `dy_px` in a picture `width_px` wide: the floor
+    /// under the pointer goes along with it, roughly.
+    pub fn pan(&mut self, dx_px: f64, dy_px: f64, width_px: f64) {
+        let metres_per_px =
+            2.0 * self.distance_m * (self.fov_deg / 2.0).to_radians().tan() / width_px.max(1.0);
+        let (sin, cos) = self.yaw_deg.to_radians().sin_cos();
+        // Dragging right moves the set right: the target moves left.
+        let (right, ahead) = (-dx_px * metres_per_px, dy_px * metres_per_px);
+
+        self.target[0] += right * -sin + ahead * cos;
+        self.target[1] += right * cos + ahead * sin;
+    }
+
+    /// Wheel `steps` (positive comes closer) towards `towards`, the floor under the pointer,
+    /// which stays under it.
+    pub fn zoom(&mut self, steps: f64, towards: Option<Point>) {
+        let factor = ZOOM_STEP.powf(steps);
+        let distance_m = (self.distance_m * factor).clamp(MIN_DISTANCE_M, MAX_DISTANCE_M);
+        let moved = 1.0 - distance_m / self.distance_m;
+        self.distance_m = distance_m;
+
+        let Some(point) = towards else {
+            return;
+        };
+        self.target[0] += (point.x_m - self.target[0]) * moved;
+        self.target[1] += (point.y_m - self.target[1]) * moved;
+    }
 }
 
 /// A camera at one moment: where it stands, where it looks, how wide it sees.
@@ -45,7 +143,34 @@ impl Pinhole {
     pub(crate) fn of(eye: &Eye, plan: &FloorPlan) -> Option<Self> {
         match eye {
             Eye::Shot { camera, t_s } => Self::of_camera(plan.camera(camera)?, plan, *t_s),
+            Eye::Orbit { orbit, aspect, .. } => Self::of_orbit(orbit, *aspect),
         }
+    }
+
+    fn of_orbit(orbit: &Orbit, aspect: f64) -> Option<Self> {
+        if orbit.fov_deg <= 0.0 || aspect <= 0.0 {
+            return None;
+        }
+
+        let (sin, cos) = orbit.yaw_deg.to_radians().sin_cos();
+        let pitch = orbit
+            .pitch_deg
+            .clamp(MIN_PITCH_DEG, MAX_PITCH_DEG)
+            .to_radians();
+        let (back, up) = (
+            orbit.distance_m * pitch.cos(),
+            orbit.distance_m * pitch.sin(),
+        );
+        let [x, y, z] = orbit.target;
+
+        Some(Self {
+            at: [x - back * cos, y - back * sin, z + up],
+            forward: [cos, sin],
+            right: [-sin, cos],
+            tilt: (-pitch).sin_cos(),
+            focal: FRAME_WIDTH / 2.0 / (orbit.fov_deg.to_radians() / 2.0).tan(),
+            frame_height: FRAME_WIDTH / aspect,
+        })
     }
 
     fn of_camera(camera: &Camera, plan: &FloorPlan, t_s: f64) -> Option<Self> {
@@ -80,6 +205,51 @@ impl Pinhole {
             dx * self.right[0] + dy * self.right[1],
             up * cos - ahead * sin,
             ahead * cos + up * sin,
+        ]
+    }
+
+    /// Where the ray through picture point `image` meets the floor; `None` when it does not
+    /// (above the horizon).
+    pub(crate) fn floor_at(&self, image: [f64; 2]) -> Option<Point> {
+        self.level_at(image, 0.0)
+    }
+
+    /// Where the ray through picture point `image` meets the level `height_m` above the floor,
+    /// as a plan point; `None` when it runs away from that level.
+    pub(crate) fn level_at(&self, image: [f64; 2], height_m: f64) -> Option<Point> {
+        let ray = self.ray(image);
+        let rise_m = height_m - self.at[2];
+        if ray[2] == 0.0 || rise_m / ray[2] <= 0.0 {
+            return None;
+        }
+
+        let t = rise_m / ray[2];
+        Some(Point::new(self.at[0] + t * ray[0], self.at[1] + t * ray[1]))
+    }
+
+    /// The point of the set picture point `image` shows at `depth_m` ahead (as the frame stores
+    /// depth).
+    pub(crate) fn point_at(&self, image: [f64; 2], depth_m: f64) -> Vec3 {
+        let ray = self.ray(image);
+
+        [
+            self.at[0] + depth_m * ray[0],
+            self.at[1] + depth_m * ray[1],
+            self.at[2] + depth_m * ray[2],
+        ]
+    }
+
+    /// The ray through picture point `image` in the set's frame, 1 ahead of the camera.
+    fn ray(&self, image: [f64; 2]) -> Vec3 {
+        let right = (image[0] - FRAME_WIDTH / 2.0) / self.focal;
+        let rise = (self.frame_height / 2.0 - image[1]) / self.focal;
+        let (sin, cos) = self.tilt;
+        let ahead = cos - rise * sin;
+
+        [
+            right * self.right[0] + ahead * self.forward[0],
+            right * self.right[1] + ahead * self.forward[1],
+            rise * cos + sin,
         ]
     }
 
@@ -244,5 +414,51 @@ mod tests {
         };
 
         assert!(Pinhole::of(&eye, &plan_with(1.6, 0.0, 1.0)).is_none());
+    }
+
+    /// An orbit eye worked out by hand: target (0, 0, 0), yaw 0 (looks along +x), pitch 30,
+    /// 10 m away, 90 degrees wide, square. The eye stands at (-10 cos 30, 0, 10 sin 30) =
+    /// (-8.66025, 0, 5); f = 0.5 / tan 45 = 0.5.
+    fn orbit_pinhole() -> Pinhole {
+        let orbit = Orbit {
+            target: [0.0, 0.0, 0.0],
+            yaw_deg: 0.0,
+            pitch_deg: 30.0,
+            distance_m: 10.0,
+            fov_deg: 90.0,
+        };
+
+        Pinhole::of_orbit(&orbit, 1.0).expect("pinhole")
+    }
+
+    /// The centre ray runs down at 30 degrees: (cos 30, 0, -sin 30) per metre ahead. It meets
+    /// the level 2.5 m after t = (2.5 - 5) / -0.5 = 5: x = -8.66025 + 5 cos 30 = -4.33013;
+    /// and 5 m ahead it is that same point.
+    #[test]
+    fn the_centre_ray_meets_a_level_and_a_depth_where_worked_out() {
+        let eye = orbit_pinhole();
+
+        let level = eye.level_at([0.5, 0.5], 2.5).expect("level");
+        assert!((level.x_m + 4.33013).abs() < TOLERANCE && level.y_m.abs() < TOLERANCE);
+        let point = eye.point_at([0.5, 0.5], 5.0);
+        assert!((point[0] + 4.33013).abs() < TOLERANCE, "{point:?}");
+        assert!(point[1].abs() < TOLERANCE && (point[2] - 2.5).abs() < TOLERANCE);
+        assert_eq!(
+            eye.floor_at([0.5, 0.5]).map(|p| p.x_m.abs() < TOLERANCE),
+            Some(true)
+        );
+    }
+
+    /// The top edge of the picture: rise 1, so the ray is (cos 30 + sin 30, 0, cos 30 - sin 30)
+    /// = (1.36603, 0, 0.36603): it climbs, meets no floor, but the level 8 m (3 m over the eye)
+    /// after t = 3 / 0.36603 = 8.19615, at x = -8.66025 + 8.19615 * 1.36603 = 2.53590.
+    #[test]
+    fn a_ray_over_the_horizon_meets_a_higher_level() {
+        let eye = orbit_pinhole();
+
+        assert_eq!(eye.floor_at([0.5, 0.0]), None);
+        let level = eye.level_at([0.5, 0.0], 8.0).expect("level");
+        assert!((level.x_m - 2.53590).abs() < TOLERANCE, "{level:?}");
+        assert_eq!(eye.level_at([0.5, 0.0], 4.0), None);
     }
 }
