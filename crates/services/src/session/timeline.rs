@@ -68,6 +68,12 @@ impl Session {
         }
 
         for light in &plan.lights {
+            // Bounce and flag make no light: no colour to name.
+            let text = if light.kind.gives_light() {
+                format!("{:.0} K", light.color_temp_k)
+            } else {
+                String::new()
+            };
             tracks.push(Track {
                 kind: TrackKind::Light,
                 id: light.id.clone(),
@@ -77,7 +83,7 @@ impl Session {
                 segments: vec![Segment {
                     from_s: 0.0,
                     to_s: self.duration_s(),
-                    text: format!("{:.0} K", light.color_temp_k),
+                    text,
                     key: String::new(),
                     selected: false,
                 }],
