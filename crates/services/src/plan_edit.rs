@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    Arrival, Character, Dash, Departure, DoorSide, Drawing, DrawingShape, FigureColor, Fill,
-    FloorPlan, Hinge, LibraryItem, Light, Note, OpeningKind, Point, Pose, Project, Rig, Scene,
-    SetObject, SetPlan, Wall,
+    normalize_deg, Arrival, Character, Dash, Departure, DoorSide, Drawing, DrawingShape,
+    FigureColor, Fill, FloorPlan, Hinge, LibraryItem, Light, Note, OpeningKind, Point, Pose,
+    Project, Rig, Scene, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{Bend, LightGrip, ObjectGrip, OpeningEnd, Source};
 
@@ -624,16 +624,6 @@ pub(crate) fn apply(
         }
         PlanEdit::SetPace { source, pace } => set_pace(&mut scope, source, *pace),
     }
-}
-
-/// An angle within [0, 360): -90 becomes 270. `rem_euclid` can return 360 for a tiny negative
-/// number, so that case is folded back.
-fn normalize_deg(deg: f64) -> f64 {
-    let n = deg.rem_euclid(FULL_TURN_DEG);
-    if n >= FULL_TURN_DEG {
-        return 0.0;
-    }
-    n
 }
 
 /// The mark a figure or camera stands at, or is leaving, at `time_s`: the last one that has
