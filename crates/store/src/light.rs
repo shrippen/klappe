@@ -2,7 +2,7 @@
 
 use std::sync::OnceLock;
 
-use klappe_model::LightPreset;
+use klappe_model::{LightPreset, MAX_BEAM_DEG, MAX_POWER_W, MAX_TEMP_K, MIN_TEMP_K};
 use serde::Deserialize;
 
 const BUILTIN: &str = include_str!("../light/standard.toml");
@@ -29,8 +29,7 @@ fn parse(text: &str) -> Result<Vec<LightPreset>, String> {
     Ok(file.lampe)
 }
 
-/// Ids are there once; power is not negative, colour temperature and beam are more than
-/// nothing, the beam at most a full circle.
+/// Ids are there once; power, colour temperature and beam within the limits of the lamp card.
 fn check(lights: &[LightPreset]) -> Result<(), String> {
     for (index, light) in lights.iter().enumerate() {
         if light.id.trim().is_empty() {
@@ -40,9 +39,9 @@ fn check(lights: &[LightPreset]) -> Result<(), String> {
             return Err(format!("lamp {:?} is there twice", light.id));
         }
 
-        let power = light.power_w.is_finite() && light.power_w >= 0.0;
-        let temp = light.color_temp_k.is_finite() && light.color_temp_k > 0.0;
-        let beam = light.beam_deg > 0.0 && light.beam_deg <= 360.0;
+        let power = (0.0..=MAX_POWER_W).contains(&light.power_w);
+        let temp = (MIN_TEMP_K..=MAX_TEMP_K).contains(&light.color_temp_k);
+        let beam = light.beam_deg > 0.0 && light.beam_deg <= MAX_BEAM_DEG;
         if !power || !temp || !beam {
             return Err(format!("lamp {:?} has an unusable value", light.id));
         }
@@ -94,6 +93,22 @@ mod tests {
             .map(|l| l.power_w)
             .collect();
         assert_eq!(powers, [650.0, 1000.0, 2000.0]);
+    }
+
+    /// The card's limits hold for the library too: a lamp it would refuse is not loaded.
+    #[test]
+    fn the_cards_limits_hold_for_the_library() {
+        let lamp = "[[lampe]]\nid = \"a\"\nkind = \"tube\"\npower_w = 1.0\ncolor_temp_k = 3200.0\nbeam_deg = 30.0\n";
+        let cases = [
+            lamp.replace("3200.0", "999.0"),
+            lamp.replace("3200.0", "20001.0"),
+            lamp.replace("power_w = 1.0", "power_w = 100001.0"),
+        ];
+
+        for text in cases {
+            assert!(parse(&text).is_err(), "{text}");
+        }
+        assert!(parse(&lamp.replace("3200.0", "1000.0")).is_ok());
     }
 
     #[test]

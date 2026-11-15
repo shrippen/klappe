@@ -1,18 +1,12 @@
 //! Edits of a lamp: kind, beam, power, colour temperature (LH-50) and the library lamps it
 //! starts from (LH-51).
 
-use klappe_model::{FloorPlan, Light, LightKind, LightPreset};
+use klappe_model::{
+    FloorPlan, Light, LightKind, LightPreset, MAX_BEAM_DEG, MAX_POWER_W, MAX_TEMP_K, MIN_TEMP_K,
+};
 
 use crate::error::ServiceError;
 use crate::field::Field;
-
-/// Widest beam is the full circle.
-const MAX_BEAM_DEG: f64 = 360.0;
-/// Strongest lamp: more is a typing error.
-const MAX_POWER_W: f64 = 100_000.0;
-/// Colour temperatures of candle to blue sky.
-const MIN_TEMP_K: f64 = 1000.0;
-const MAX_TEMP_K: f64 = 20_000.0;
 
 /// Colour of a tungsten kind and of a daylight kind, for a kind the library lacks.
 const TUNGSTEN_K: f64 = 3200.0;
