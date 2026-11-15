@@ -1,14 +1,18 @@
 //! Edits of a camera's sensor, lens and frame (LH-32, LH-38).
 
-use klappe_model::{
-    Camera, FloorPlan, Sensor, MAX_ASPECT, MAX_LENS_MM, MAX_SENSOR_WIDTH_MM, MIN_LENS_MM,
-};
+use klappe_model::{is_aspect, is_camera_lens_mm, is_sensor_width_mm, Camera, FloorPlan, Sensor};
 
 use crate::error::ServiceError;
 use crate::field::Field;
 
 pub(crate) fn check_sensor(width_mm: f64, aspect: Option<f64>) -> Result<(), ServiceError> {
-    check_value(Field::Sensor, width_mm, MAX_SENSOR_WIDTH_MM)?;
+    if !is_sensor_width_mm(width_mm) {
+        return Err(ServiceError::BadValue {
+            field: Field::Sensor,
+            value: width_mm.to_string(),
+        });
+    }
+
     match aspect {
         Some(aspect) => check_aspect(aspect),
         None => Ok(()),
@@ -16,7 +20,7 @@ pub(crate) fn check_sensor(width_mm: f64, aspect: Option<f64>) -> Result<(), Ser
 }
 
 pub(crate) fn check_lens(lens_mm: f64) -> Result<(), ServiceError> {
-    if (MIN_LENS_MM..=MAX_LENS_MM).contains(&lens_mm) {
+    if is_camera_lens_mm(lens_mm) {
         return Ok(());
     }
 
@@ -27,18 +31,13 @@ pub(crate) fn check_lens(lens_mm: f64) -> Result<(), ServiceError> {
 }
 
 pub(crate) fn check_aspect(aspect: f64) -> Result<(), ServiceError> {
-    check_value(Field::Aspect, aspect, MAX_ASPECT)
-}
-
-/// A number more than nothing and not above `max`.
-fn check_value(field: Field, value: f64, max: f64) -> Result<(), ServiceError> {
-    if value.is_finite() && value > 0.0 && value <= max {
+    if is_aspect(aspect) {
         return Ok(());
     }
 
     Err(ServiceError::BadValue {
-        field,
-        value: value.to_string(),
+        field: Field::Aspect,
+        value: aspect.to_string(),
     })
 }
 

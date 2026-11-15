@@ -59,8 +59,8 @@ impl ShotField {
 
 /// Focal lengths accepted; outside, the angle of view is absurd (1e-300 mm is ~180 degrees)
 /// and `inf` would be saved as `null`. Also excludes NaN.
-const MIN_LENS_MM: f64 = 1.0;
-const MAX_LENS_MM: f64 = 2000.0;
+const MIN_SHOT_LENS_MM: f64 = 1.0;
+const MAX_SHOT_LENS_MM: f64 = 2000.0;
 
 /// Sets one field of `shot` from text. Camera: an id of `cameras`. Lens: millimetres,
 /// empty = the camera's lens.
@@ -109,7 +109,7 @@ fn lens_of(value: &str) -> Result<Option<f64>, ServiceError> {
         return Ok(None);
     }
 
-    let range = Range::Within(MIN_LENS_MM, MAX_LENS_MM);
+    let range = Range::Within(MIN_SHOT_LENS_MM, MAX_SHOT_LENS_MM);
 
     read_number(Field::Lens, value, Unit::Millimetre, range).map(Some)
 }

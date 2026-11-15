@@ -37,8 +37,9 @@ pub use library::{
 };
 pub use light_preset::{LightPreset, MAX_BEAM_DEG, MAX_POWER_W, MAX_TEMP_K, MIN_TEMP_K};
 pub use limits::{
-    MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_LENS_MM, MAX_SENSOR_WIDTH_MM, MAX_SET_M, MAX_TILT_DEG,
-    MIN_LENS_MM,
+    is_aspect, is_camera_height_m, is_camera_lens_mm, is_hold_s, is_sensor_width_mm, is_tilt_deg,
+    MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_CAMERA_LENS_MM, MAX_SENSOR_WIDTH_MM, MAX_SET_M,
+    MAX_TILT_DEG, MIN_CAMERA_LENS_MM,
 };
 pub use plan::{
     Arrival, AxisPair, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureTrack,

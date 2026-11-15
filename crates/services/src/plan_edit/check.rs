@@ -1,7 +1,8 @@
 //! Checks of the values an edit brings before it applies: heights, tilts, holds, sizes, points.
 
 use klappe_model::{
-    is_object_height_m, is_object_size_m, DrawingShape, Point, MAX_CAMERA_HEIGHT_M, MAX_TILT_DEG,
+    is_camera_height_m, is_hold_s, is_object_height_m, is_object_size_m, is_tilt_deg, DrawingShape,
+    Point,
 };
 
 use super::PlanEdit;
@@ -96,7 +97,7 @@ fn check_shape(shape: &DrawingShape) -> Result<(), ServiceError> {
 
 /// A pause is a finite time, not negative.
 fn check_hold(hold_s: f64) -> Result<(), ServiceError> {
-    if hold_s.is_finite() && hold_s >= 0.0 {
+    if is_hold_s(hold_s) {
         return Ok(());
     }
 
@@ -108,13 +109,13 @@ fn check_hold(hold_s: f64) -> Result<(), ServiceError> {
 
 /// A lens height from the floor up to a crane's, and a tilt within straight down and up.
 fn check_camera_aim(height_m: f64, tilt_deg: f64) -> Result<(), ServiceError> {
-    if !height_m.is_finite() || !(0.0..=MAX_CAMERA_HEIGHT_M).contains(&height_m) {
+    if !is_camera_height_m(height_m) {
         return Err(ServiceError::BadValue {
             field: Field::Height,
             value: height_m.to_string(),
         });
     }
-    if !tilt_deg.is_finite() || !(-MAX_TILT_DEG..=MAX_TILT_DEG).contains(&tilt_deg) {
+    if !is_tilt_deg(tilt_deg) {
         return Err(ServiceError::BadValue {
             field: Field::Tilt,
             value: tilt_deg.to_string(),
