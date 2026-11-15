@@ -13,6 +13,7 @@
 //! └─────────────────────────────┘
 //! ```
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -434,49 +435,50 @@ fn figure_color(list: &DisplayList) -> FigureColor {
 /// One line of the legend.
 struct Entry<'a> {
     key: &'static str,
-    name: &'a str,
+    name: Cow<'a, str>,
     role: Role,
     swatch: Swatch,
 }
 
 /// The fixed symbols, then one entry per look of drawing in the list (LH-19): colour and dash
-/// tell lines apart, a filled shape is an area. Nothing drawn, nothing listed.
+/// tell lines apart (the entry names both), a filled shape is an area. Nothing drawn, nothing
+/// listed.
 fn legend_entries<'a>(list: &DisplayList, texts: &'a Texts) -> Vec<Entry<'a>> {
     let color = figure_color(list);
     let mut entries = vec![
         Entry {
             key: "figure",
-            name: &texts.figure,
+            name: Cow::Borrowed(&texts.figure),
             role: Role::Figure(color),
             swatch: Swatch::Figure,
         },
         Entry {
             key: "camera",
-            name: &texts.camera,
+            name: Cow::Borrowed(&texts.camera),
             role: Role::Camera,
             swatch: Swatch::Camera,
         },
         Entry {
             key: "light",
-            name: &texts.light,
+            name: Cow::Borrowed(&texts.light),
             role: Role::Light,
             swatch: Swatch::Light,
         },
         Entry {
             key: "axis",
-            name: &texts.axis,
+            name: Cow::Borrowed(&texts.axis),
             role: Role::Axis,
             swatch: Swatch::Line,
         },
         Entry {
             key: "path",
-            name: &texts.path,
+            name: Cow::Borrowed(&texts.path),
             role: Role::FigurePath(color),
             swatch: Swatch::Line,
         },
         Entry {
             key: "mark",
-            name: &texts.mark,
+            name: Cow::Borrowed(&texts.mark),
             role: Role::Mark(color),
             swatch: Swatch::Mark,
         },
@@ -495,15 +497,20 @@ fn legend_entries<'a>(list: &DisplayList, texts: &'a Texts) -> Vec<Entry<'a>> {
         }
 
         seen.push((color, dash, area));
-        let (name, swatch) = match (area, dash) {
+        let (word, swatch) = match (area, dash) {
             (true, _) => (&words.area, Swatch::Area),
             (false, klappe_model::Dash::Solid) => (&words.line, Swatch::Line),
             (false, klappe_model::Dash::Dashed) => (&words.dashed, Swatch::Line),
             (false, klappe_model::Dash::Dotted) => (&words.dotted, Swatch::Line),
         };
+        let hue = words
+            .colors
+            .iter()
+            .find(|(c, _)| *c == color)
+            .map_or(color.name(), |(_, name)| name.as_str());
         entries.push(Entry {
             key: "drawing",
-            name,
+            name: Cow::Owned(format!("{word} {hue}")),
             role: item.role,
             swatch,
         });

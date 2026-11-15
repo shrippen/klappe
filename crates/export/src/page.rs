@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use klappe_model::{Angle, LightKind, Movement, ShotSize};
+use klappe_model::{Angle, FigureColor, LightKind, Movement, ShotSize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Paper {
@@ -71,6 +71,8 @@ pub struct DrawingTexts {
     pub dashed: String,
     pub dotted: String,
     pub area: String,
+    /// The colour names, appended to the word: "Zeichnung rot".
+    pub colors: Vec<(FigureColor, String)>,
 }
 
 /// The shot list's words: heading, column heads and the names of sizes, angles and movements.

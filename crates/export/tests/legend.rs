@@ -18,6 +18,11 @@ fn page() -> Page {
             dashed: "Gestrichelt".into(),
             dotted: "Gepunktet".into(),
             area: "Fläche".into(),
+            colors: vec![
+                (FigureColor::Red, "rot".into()),
+                (FigureColor::Blue, "blau".into()),
+                (FigureColor::Cyan, "türkis".into()),
+            ],
         },
         unit: "m".into(),
         decimal_separator: ',',
@@ -93,7 +98,24 @@ fn the_legend_lists_the_looks_of_drawing() {
     assert_eq!(&listed[..6], &bare[..]);
     assert_eq!(
         &listed[6..],
-        ["Gestrichelt", "Fläche", "Gepunktet"],
+        ["Gestrichelt rot", "Fläche türkis", "Gepunktet türkis"],
+        "{listed:?}"
+    );
+}
+
+/// Two lines that differ in colour only are two entries that say so in words.
+#[test]
+fn the_legend_names_the_colour_of_drawing() {
+    let items = vec![
+        drawing(FigureColor::Red, Dash::Solid, Fill::Outline, line()),
+        drawing(FigureColor::Blue, Dash::Solid, Fill::Outline, line()),
+    ];
+
+    let listed = legend(items);
+
+    assert_eq!(
+        &listed[6..],
+        ["Zeichnung rot", "Zeichnung blau"],
         "{listed:?}"
     );
 }

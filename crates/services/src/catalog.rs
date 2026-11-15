@@ -3,7 +3,7 @@
 //! for its exports.
 
 use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts};
-use klappe_model::{Angle, LightKind, Movement, ShotSize};
+use klappe_model::{Angle, FigureColor, LightKind, Movement, ShotSize};
 use serde_json::{Map, Value};
 
 const DE: &str = include_str!("../i18n/de.json");
@@ -58,6 +58,10 @@ impl Language {
                 dashed: t("legend.drawing.dashed"),
                 dotted: t("legend.drawing.dotted"),
                 area: t("legend.area"),
+                colors: FigureColor::ALL
+                    .iter()
+                    .map(|c| (*c, t(&format!("color.{}", c.name()))))
+                    .collect(),
             },
             unit: t("unit.m"),
             decimal_separator: t("unit.decimal").chars().next().unwrap_or('.'),
