@@ -6,7 +6,7 @@
 //! ```
 
 use klappe_model::{Angle, FloorPlan, Movement, Shot, ShotSize};
-use klappe_stellprobe::{axis_jumps, ordered_shots, shot_lens, ShotLens, ShotOrder};
+use klappe_stellprobe::{axis_jumps, ordered_shots, shot_lens, AxisJump, ShotLens, ShotOrder};
 
 use crate::canvas::num;
 use crate::page::{ShotColumns, ShotTexts};
@@ -41,10 +41,12 @@ pub(crate) fn heads(columns: &ShotColumns) -> [&str; COLUMNS] {
     ]
 }
 
-/// One shot's cells; numbers use `decimal` between whole and fraction.
+/// One shot's cells; numbers use `decimal` between whole and fraction. `jumps` are the axis
+/// jumps of `plan`, found once for the whole table.
 pub(crate) fn cells(
     shot: &Shot,
     plan: &FloorPlan,
+    jumps: &[AxisJump],
     texts: &ShotTexts,
     decimal: char,
 ) -> [String; COLUMNS] {
@@ -67,13 +69,13 @@ pub(crate) fn cells(
         shot.gear.clone(),
         shot.crew.clone(),
         shot.note.clone(),
-        axis_text(shot, plan),
+        axis_text(shot, plan, jumps),
     ]
 }
 
 /// The numbers of the shots this shot crosses the axis against, empty when it does not.
-fn axis_text(shot: &Shot, plan: &FloorPlan) -> String {
-    let Some(jump) = axis_jumps(plan).into_iter().find(|j| j.shot == shot.id) else {
+fn axis_text(shot: &Shot, plan: &FloorPlan, jumps: &[AxisJump]) -> String {
+    let Some(jump) = jumps.iter().find(|j| j.shot == shot.id) else {
         return String::new();
     };
     let number_of = |id: &String| {
@@ -159,9 +161,10 @@ pub(crate) fn table(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Ta
         });
     }
 
+    let jumps = axis_jumps(plan);
     let mut rows = Vec::new();
     for (setup, shot) in ordered_shots(plan, order) {
-        let mut cells = cells(shot, plan, texts, POINT).to_vec();
+        let mut cells = cells(shot, plan, &jumps, texts, POINT).to_vec();
         if with_setup {
             cells.insert(0, setup.to_string());
         }
