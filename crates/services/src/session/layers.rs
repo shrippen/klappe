@@ -104,7 +104,7 @@ pub(super) fn layer_of(role: Role) -> Layer {
             Layer::Cameras
         }
         Role::Note => Layer::Notes,
-        Role::Drawing { .. } | Role::ArrowHead(_) => Layer::Drawings,
+        Role::Drawing { .. } | Role::ArrowHead(_) | Role::DrawingHandle => Layer::Drawings,
         Role::Axis
         | Role::Figure(_)
         | Role::GroupDot

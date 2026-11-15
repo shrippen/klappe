@@ -4,7 +4,7 @@ use klappe_model::{
     Arrival, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
     LibraryItem, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
 };
-use klappe_stellprobe::{anchor, hit, in_lasso, within, Item, Role, Shape, Source};
+use klappe_stellprobe::Source;
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -15,10 +15,12 @@ use crate::session::Layer;
 mod add;
 mod background;
 mod check;
+mod drawings;
 mod grid;
 mod group;
 mod marks;
 mod moving;
+mod picking;
 mod remove;
 
 use add::{
@@ -27,6 +29,7 @@ use add::{
 };
 use background::{calibrate, move_background, remove_background, set_background};
 use check::check;
+use drawings::set_drawing_style;
 pub(crate) use grid::snap;
 pub use grid::Grid;
 pub(crate) use marks::{check_tripods, mark_info};
@@ -34,6 +37,8 @@ use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_p
 pub use marks::{MarkInfo, Pace};
 use moving::{anchor_pair, carry_cameras, move_to, points_mut, rotate, shift, spin, target, turn};
 use remove::remove;
+
+pub(crate) use picking::{pick, pick_in, pick_lasso};
 
 /// What a tool or a drag does to the current plan.
 #[derive(Debug, Clone, PartialEq)]
@@ -158,6 +163,14 @@ pub enum PlanEdit {
         dash: Dash,
         fill: Fill,
     },
+    /// Gives the drawing `source` another colour, line and fill (LH-19). `fill` only matters
+    /// for shapes with an inside.
+    SetDrawingStyle {
+        source: Source,
+        color: FigureColor,
+        dash: Dash,
+        fill: Fill,
+    },
     /// Takes the image file `source` (PNG or JPEG) as the set's background, copied into the
     /// project's `bilder/`, as wide as the set from its top left corner. Undo takes the
     /// background back out of the model; the copy stays in `bilder/`, it is the user's file.
@@ -263,103 +276,8 @@ pub enum Snapping {
     Off,
 }
 
-/// How far beside a shape a click still takes it: a finger or a mouse is not exact.
-const PICK_RADIUS_M: f64 = 0.15;
-
 /// A full turn; angles are kept within [0, 360).
 const FULL_TURN_DEG: f64 = 360.0;
-
-/// The topmost item the user can grab at `at`: the display list is back to front. Items for
-/// which `locked` is true are left out.
-pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> Option<Source> {
-    items
-        .iter()
-        .rev()
-        .filter(|item| grabbable(item.role) && !locked(item.role))
-        .find(|item| hit(item, at, PICK_RADIUS_M))
-        .and_then(|item| item.source.clone())
-}
-
-/// Every element the user can grab whose shown items all lie in the box with corners `a` and
-/// `b` (LH-08), in display order. Items for which `locked` is true are left out.
-pub(crate) fn pick_in(
-    items: &[Item],
-    (a, b): (Point, Point),
-    locked: impl Fn(Role) -> bool,
-) -> Vec<Source> {
-    let mut found: Vec<(Source, bool)> = Vec::new();
-
-    for item in items
-        .iter()
-        .filter(|i| grabbable(i.role) && !locked(i.role))
-    {
-        let Some(source) = &item.source else {
-            continue;
-        };
-        let inside = within(item, a, b);
-
-        // An element drawn from several items (a figure and its facing wedge) is in only
-        // when all of them are.
-        match found.iter_mut().find(|(s, _)| s == source) {
-            Some((_, all_in)) => *all_in &= inside,
-            None => found.push((source.clone(), inside)),
-        }
-    }
-
-    found
-        .into_iter()
-        .filter_map(|(source, all_in)| all_in.then_some(source))
-        .collect()
-}
-
-/// Every element the user can grab whose reference point lies in the freehand shape `lasso`
-/// (LH-08), in display order. The point is the centre of the element's circle (a figure's
-/// body), else of its first item. Items for which `locked` is true are left out.
-pub(crate) fn pick_lasso(
-    items: &[Item],
-    lasso: &[Point],
-    locked: impl Fn(Role) -> bool,
-) -> Vec<Source> {
-    let mut points: Vec<(Source, Option<Point>, bool)> = Vec::new();
-
-    for item in items
-        .iter()
-        .filter(|i| grabbable(i.role) && !locked(i.role))
-    {
-        let Some(source) = &item.source else {
-            continue;
-        };
-        let round = matches!(item.shape, Shape::Circle { .. });
-
-        match points.iter_mut().find(|(s, _, _)| s == source) {
-            Some((_, at, has_circle)) if round && !*has_circle => {
-                *at = anchor(item);
-                *has_circle = true;
-            }
-            Some(_) => {}
-            None => points.push((source.clone(), anchor(item), round)),
-        }
-    }
-
-    points
-        .into_iter()
-        .filter(|(_, at, _)| at.is_some_and(|at| in_lasso(lasso, at)))
-        .map(|(source, _, _)| source)
-        .collect()
-}
-
-/// What a click means to take: not the view cone, the axis or a path, which only show.
-fn grabbable(role: Role) -> bool {
-    !matches!(
-        role,
-        Role::Background
-            | Role::Frustum
-            | Role::Axis
-            | Role::CameraPath { .. }
-            | Role::FigurePath(_)
-            | Role::LightBeam
-    )
-}
 
 impl PlanEdit {
     /// The layers the edit changes something on; a locked one refuses it. A group edit can
@@ -380,6 +298,7 @@ impl PlanEdit {
             | PlanEdit::SetMarkLens { source, .. }
             | PlanEdit::SetObjectHeight { source, .. }
             | PlanEdit::SetPace { source, .. }
+            | PlanEdit::SetDrawingStyle { source, .. }
             | PlanEdit::Remove { source }
             | PlanEdit::Straighten { source } => layer_of_source(source),
             PlanEdit::ShiftGroup { sources, .. }
@@ -418,7 +337,7 @@ fn layer_of_source(source: &Source) -> Layer {
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
         Source::Note(_) => Layer::Notes,
-        Source::Drawing(_) => Layer::Drawings,
+        Source::Drawing(_) | Source::DrawingPoint { .. } => Layer::Drawings,
     }
 }
 
@@ -446,8 +365,13 @@ enum Target<'a> {
     Pin {
         at: &'a mut Point,
     },
-    /// Points but no facing: a drawing keeps its shape and is not turned.
+    /// Points and a turn about the middle of its box.
     Drawing(&'a mut Drawing),
+    /// A grip on a point or corner of a drawing: moving it reshapes the drawing.
+    Corner {
+        drawing: &'a mut Drawing,
+        index: usize,
+    },
     /// The bend of the way from mark `a` to mark `b`.
     Curve {
         via: &'a mut Option<Point>,
@@ -545,6 +469,12 @@ pub(crate) fn apply(
             dash,
             fill,
         } => add_drawing(&mut scope, shape, (*color, *dash, *fill)),
+        PlanEdit::SetDrawingStyle {
+            source,
+            color,
+            dash,
+            fill,
+        } => set_drawing_style(&mut scope, source, (*color, *dash, *fill)),
         PlanEdit::EditNote { id, text } => edit_note(&mut scope, id, text),
         PlanEdit::SetBackground { source } => set_background(&mut scope, dir, source),
         PlanEdit::Calibrate {

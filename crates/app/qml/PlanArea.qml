@@ -193,6 +193,17 @@ Item {
         }
     }
 
+    // A drawing is selected (LH-19): colour, line and fill.
+    DrawingCard {
+        objectName: "drawingCard"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+        texts: area.texts
+        controller: area.controller
+        width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
+    }
+
     // A lamp is selected (LH-50, LH-51): kind, library lamp, direction, beam, power and colour.
     LightCard {
         objectName: "lightCard"

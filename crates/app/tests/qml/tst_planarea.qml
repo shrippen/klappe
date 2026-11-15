@@ -17,6 +17,7 @@ TestCase {
         property bool loaded: true
         property string planJson: ""
         property string selectedKey: ""
+        property string choicesJson: ""
         property int selectedCount: 0
         property bool extendSelection: false; property bool lassoSelection: false
         property int duplicates: 0
@@ -63,6 +64,9 @@ TestCase {
             }
             if (key === "note:n1") {
                 return JSON.stringify({ kind: "note", text: "Vorhang schließen" })
+            }
+            if (key === "drawing:d1") {
+                return JSON.stringify({ kind: "drawing", color: "green", dash: "dashed", fill: "outline", closed: true })
             }
             if (key === "camera:b") {
                 return JSON.stringify({ kind: "camera", label: "B", lens: 50, fov: 27.9, height: 1.6, shots: "", follows: "Elisabeth", rig: "crane" })
@@ -631,6 +635,24 @@ TestCase {
 
         fake.selectedKey = "object:o1"
         verify(!card.visible)
+    }
+
+    // LH-19: a narrow plan holds the drawing card inside its edges.
+    function test_the_drawing_card_stays_inside_a_narrow_plan() {
+        fake.choicesJson = JSON.stringify({
+            color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
+            dash: ["solid", "dashed", "dotted"],
+            fill: ["outline", "filled"],
+        })
+        const area = createTemporaryObject(areaComponent, tc, { texts: de, width: 240 })
+        const card = findChild(area, "drawingCard")
+
+        fake.selectedKey = "drawing:d1"
+        verify(card.visible)
+        verify(card.implicitWidth > area.width)
+        verify(card.width <= area.width)
+        verify(card.x >= 0)
+        fake.choicesJson = ""
     }
 
     // Letters and Delete typed into a size or a name are text: no turn, no delete.

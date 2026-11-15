@@ -49,7 +49,7 @@ pub(super) fn shift(
 
 /// Turns the group about the middle of its bounding box: every element swings to where the
 /// turn puts it and turns by the same angle itself (what `spin` leaves unturned stays so: a
-/// note, a drawing, a grip only swing).
+/// note, a grip only swing).
 pub(super) fn spin(
     scope: &mut Scope<'_>,
     sources: &[Source],
@@ -166,6 +166,7 @@ fn placings(scope: &mut Scope<'_>, sources: &[Source]) -> Result<Vec<Placing>, S
             let facing_deg = match &held {
                 Target::Place { facing_deg, .. } => Some(**facing_deg),
                 Target::Wall(wall) => Some(wall.from.bearing_deg(wall.to)),
+                Target::Drawing(drawing) => Some(drawing.rotation_deg),
                 _ => None,
             };
             let (anchor, middle) = anchor_pair(held)?;
@@ -305,7 +306,8 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
         Source::Figure(_)
         | Source::Mark { .. }
         | Source::FigureVia { .. }
-        | Source::CameraVia { .. } => return Ok(Copied::Left),
+        | Source::CameraVia { .. }
+        | Source::DrawingPoint { .. } => return Ok(Copied::Left),
     }
 
     Ok(Copied::Made)

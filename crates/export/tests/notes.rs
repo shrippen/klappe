@@ -18,6 +18,7 @@ fn page() -> Page {
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
+        drawing: Default::default(),
         lamps: LampTexts::default(),
     };
 

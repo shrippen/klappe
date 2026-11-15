@@ -37,7 +37,7 @@ pub use plan_edit::{Grid, MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{ProjectEdit, ShotsGo};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
-    Autosave, BackupState, Layer, Lock, Looping, Playing, Session, Step, Visibility,
+    Autosave, BackupState, Grab, Layer, Lock, Looping, Playing, Session, Step, TimeSnap, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
@@ -46,7 +46,9 @@ pub use views::{
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.
-pub use klappe_export::{LampTexts, Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme};
+pub use klappe_export::{
+    DrawingTexts, LampTexts, Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme,
+};
 pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Dash, Departure, DrawingShape, FigureColor, Fill,
     FloorPlan, LensSet, LightKind, LightPreset, Movement, ObjectShape, Point, Pose, Rig, Sensor,

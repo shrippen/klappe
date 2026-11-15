@@ -13,6 +13,7 @@
 //! └─────────────────────────────┘
 //! ```
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -59,7 +60,6 @@ const SCALE_STEPS_M: [f64; 14] = [
     0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0,
 ];
 
-const LEGEND_ENTRIES: usize = 6;
 /// Width of one lamp line's column.
 const LAMP_ENTRY_PT: f64 = 240.0;
 /// The lamp list is at most this many rows high; more lamps are counted, not listed.
@@ -91,8 +91,9 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
 
     // Legend wraps into rows when the page is narrow.
     let columns = ((content_w / LEGEND_ENTRY_PT) as usize).max(1);
+    let entries = legend_entries(list, &page.texts);
     let (lamp_columns, lamps) = lamp_lines(list, &page.texts, content_w);
-    let legend_rows = LEGEND_ENTRIES.div_ceil(columns) + lamps.len().div_ceil(lamp_columns);
+    let legend_rows = entries.len().div_ceil(columns) + lamps.len().div_ceil(lamp_columns);
     let footer_h = SCALE_ROW_PT + legend_rows as f64 * LEGEND_ROW_PT;
 
     let area = Rect {
@@ -132,11 +133,10 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
     ];
     scale_bar(&map, margin, footer_y, &page.texts, pal, &mut chrome);
     let lamp_y = legend(
-        list,
+        &entries,
         margin,
         footer_y + SCALE_ROW_PT,
         columns,
-        &page.texts,
         pal,
         &mut chrome,
     )?;
@@ -432,36 +432,121 @@ fn figure_color(list: &DisplayList) -> FigureColor {
         .unwrap_or(FigureColor::Blue)
 }
 
+/// One line of the legend.
+struct Entry<'a> {
+    key: &'static str,
+    name: Cow<'a, str>,
+    role: Role,
+    swatch: Swatch,
+}
+
+/// The fixed symbols, then one entry per look of drawing in the list (LH-19): colour and dash
+/// tell lines apart (the entry names both), a filled shape is an area. Nothing drawn, nothing
+/// listed.
+fn legend_entries<'a>(list: &DisplayList, texts: &'a Texts) -> Vec<Entry<'a>> {
+    let color = figure_color(list);
+    let mut entries = vec![
+        Entry {
+            key: "figure",
+            name: Cow::Borrowed(&texts.figure),
+            role: Role::Figure(color),
+            swatch: Swatch::Figure,
+        },
+        Entry {
+            key: "camera",
+            name: Cow::Borrowed(&texts.camera),
+            role: Role::Camera,
+            swatch: Swatch::Camera,
+        },
+        Entry {
+            key: "light",
+            name: Cow::Borrowed(&texts.light),
+            role: Role::Light,
+            swatch: Swatch::Light,
+        },
+        Entry {
+            key: "axis",
+            name: Cow::Borrowed(&texts.axis),
+            role: Role::Axis,
+            swatch: Swatch::Line,
+        },
+        Entry {
+            key: "path",
+            name: Cow::Borrowed(&texts.path),
+            role: Role::FigurePath(color),
+            swatch: Swatch::Line,
+        },
+        Entry {
+            key: "mark",
+            name: Cow::Borrowed(&texts.mark),
+            role: Role::Mark(color),
+            swatch: Swatch::Mark,
+        },
+    ];
+    let words = &texts.drawing;
+    let mut seen: Vec<(FigureColor, klappe_model::Dash, bool)> = Vec::new();
+
+    for item in &list.items {
+        let Role::Drawing { color, dash, .. } = item.role else {
+            continue;
+        };
+        // The role's fill is only what was asked for; a line has no inside.
+        let area = matches!(item.shape, Shape::Polygon { .. });
+        if seen.contains(&(color, dash, area)) {
+            continue;
+        }
+
+        seen.push((color, dash, area));
+        let (word, swatch) = match (area, dash) {
+            (true, _) => (&words.area, Swatch::Area),
+            (false, klappe_model::Dash::Solid) => (&words.line, Swatch::Line),
+            (false, klappe_model::Dash::Dashed) => (&words.dashed, Swatch::Line),
+            (false, klappe_model::Dash::Dotted) => (&words.dotted, Swatch::Line),
+        };
+        let hue = words
+            .colors
+            .iter()
+            .find(|(c, _)| *c == color)
+            .map_or(color.name(), |(_, name)| name.as_str());
+        entries.push(Entry {
+            key: "drawing",
+            name: Cow::Owned(format!("{word} {hue}")),
+            role: item.role,
+            swatch,
+        });
+    }
+
+    entries
+}
+
 /// Draws the legend at `y`; returns where it ends.
 fn legend(
-    list: &DisplayList,
+    entries: &[Entry<'_>],
     x: f64,
     y: f64,
     columns: usize,
-    texts: &Texts,
     pal: &Palette,
     out: &mut Vec<Prim>,
 ) -> Result<f64, ExportError> {
-    let color = figure_color(list);
-    let entries = [
-        ("figure", &texts.figure, Role::Figure(color), Swatch::Figure),
-        ("camera", &texts.camera, Role::Camera, Swatch::Camera),
-        ("light", &texts.light, Role::Light, Swatch::Light),
-        ("axis", &texts.axis, Role::Axis, Swatch::Line),
-        ("path", &texts.path, Role::FigurePath(color), Swatch::Line),
-        ("mark", &texts.mark, Role::Mark(color), Swatch::Mark),
-    ];
-
-    for (i, (key, name, role, swatch)) in entries.into_iter().enumerate() {
+    for (
+        i,
+        Entry {
+            key,
+            name,
+            role,
+            swatch,
+        },
+    ) in entries.iter().enumerate()
+    {
         let col = (i % columns) as f64;
         let row = (i / columns) as f64;
         let left = x + col * LEGEND_ENTRY_PT;
         let mid = y + row * LEGEND_ROW_PT + LEGEND_ROW_PT / 2.0;
-        let style = role_style(role, pal)?;
+        let style = role_style(*role, pal)?;
 
         for geom in swatch.geoms(left, mid) {
             // Lines have no inside; an open mark shows the ring only.
-            let open = matches!(geom, Geom::Open(_)) || swatch == Swatch::Mark;
+            let open = matches!(geom, Geom::Open(_)) || *swatch == Swatch::Mark;
             out.push(Prim::Shape {
                 class: format!("legend {key}"),
                 geom,
@@ -483,7 +568,7 @@ fn legend(
         });
     }
 
-    Ok(y + LEGEND_ENTRIES.div_ceil(columns) as f64 * LEGEND_ROW_PT)
+    Ok(y + entries.len().div_ceil(columns) as f64 * LEGEND_ROW_PT)
 }
 
 /// A number as the legend writes it: no zero fraction, the caller's decimal separator.
@@ -576,6 +661,8 @@ enum Swatch {
     Camera,
     Mark,
     Line,
+    /// A filled drawing: a small box.
+    Area,
 }
 
 impl Swatch {
@@ -622,6 +709,12 @@ impl Swatch {
                 radius: r,
             }],
             Swatch::Line => vec![Geom::Open(vec![(left, mid), (left + SWATCH_PT, mid)])],
+            Swatch::Area => vec![Geom::Closed(vec![
+                (left, mid - r),
+                (left + SWATCH_PT, mid - r),
+                (left + SWATCH_PT, mid + r),
+                (left, mid + r),
+            ])],
         }
     }
 }
