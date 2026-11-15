@@ -8,8 +8,8 @@ use crate::selection;
 use crate::selection::Pick;
 use crate::tools;
 use crate::tools::{
-    AreaDraft, DragPhase, DragStep, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep,
-    Tool, Typed,
+    AreaDraft, Closing, DragPhase, DragStep, DrawStyle, Grip, MeasureStep, NoteDraft, Preview,
+    ScaleStep, Tool, Typed,
 };
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
@@ -270,12 +270,13 @@ impl qobject::Controller {
         }
 
         let draft = self.rust().area.clone();
-        let grid_m = self
+        let closing = self
             .rust()
             .session
             .as_ref()
-            .map_or(1.0, |s| s.grid().step_m());
-        if draft.closes(at, grid_m) {
+            .filter(|s| s.snapping() == Snapping::On)
+            .map_or(Closing::Free, |s| Closing::OnGrid(s.grid().step_m()));
+        if draft.closes(at, closing) {
             return self.finish_area();
         }
 

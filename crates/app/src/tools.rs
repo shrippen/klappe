@@ -22,10 +22,17 @@ pub const MEASURE_SEPARATOR: &str = " · ";
 /// A full turn; angles are kept within [0, 360), as `facing_deg` is.
 const FULL_TURN_DEG: f64 = 360.0;
 
-/// How far from its first point a click still closes an area, in grid steps: a click that
-/// snaps to a neighbour of the first point, diagonal ones (1.41 steps) too, closes it; the
-/// next ring (2 steps) does not. On the 0.25 m grid that is 0.4 m.
-const AREA_CLOSE_STEPS: f64 = 1.6;
+/// How far from its first point a click still closes an area when nothing snaps, in metres.
+const AREA_CLOSE_M: f64 = 0.4;
+
+/// How a click closes an area.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Closing {
+    /// Within `AREA_CLOSE_M` of the first point: the click is exact, not snapped.
+    Free,
+    /// The click is snapped to a grid of this step (m) and lands on the first point.
+    OnGrid(f64),
+}
 
 /// An area has an inside from three points on.
 const MIN_AREA_POINTS: usize = 3;
@@ -388,12 +395,18 @@ impl AreaDraft {
     }
 
     /// Whether a click at `at` closes the area: it has three points and `at` is on the first.
-    pub fn closes(&self, at: Point, grid_m: f64) -> bool {
+    pub fn closes(&self, at: Point, closing: Closing) -> bool {
         let Some(first) = self.0.first() else {
             return false;
         };
+        if self.0.len() < MIN_AREA_POINTS {
+            return false;
+        }
 
-        self.0.len() >= MIN_AREA_POINTS && first.distance_m(at) <= AREA_CLOSE_STEPS * grid_m
+        match closing {
+            Closing::Free => first.distance_m(at) <= AREA_CLOSE_M,
+            Closing::OnGrid(step_m) => first.distance_m(at) < step_m / 2.0,
+        }
     }
 
     /// The points picked, for the preview on the plan.

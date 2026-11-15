@@ -139,10 +139,7 @@ fn every_style_name_has_a_text_in_both_languages() {
     }
 }
 
-/// The 0.25 m grid.
-const GRID_M: f64 = 0.25;
-
-/// Review of PR 24: with the 0.25 m grid the diagonal neighbour of the first point is
+/// Review of PR 24 (clicks not snapped): the diagonal neighbour of the first point is
 /// 0.354 m away and added a corner instead of closing the area.
 #[test]
 fn a_click_on_a_diagonal_grid_neighbour_closes() {
@@ -151,8 +148,8 @@ fn a_click_on_a_diagonal_grid_neighbour_closes() {
         .click(Point::new(2.0, 0.0))
         .click(Point::new(2.0, 2.0));
 
-    assert!(draft.closes(Point::new(0.25, 0.25), GRID_M));
-    assert!(!draft.closes(Point::new(0.5, 0.5), GRID_M));
+    assert!(draft.closes(Point::new(0.25, 0.25), Closing::Free));
+    assert!(!draft.closes(Point::new(0.5, 0.5), Closing::Free));
 }
 
 /// Review of PR 86: the closing radius was fixed at 0.4 m; on a 5 cm grid a click 0.3 m from
@@ -164,7 +161,19 @@ fn a_fine_grid_draws_a_narrow_area() {
         .click(Point::new(4.0, 0.0))
         .click(Point::new(4.0, 0.3));
 
-    assert!(!draft.closes(Point::new(0.0, 0.3), 0.05));
+    assert!(!draft.closes(Point::new(0.0, 0.3), Closing::OnGrid(0.05)));
+}
+
+/// Review of PR 86: on a 1 m grid a strip 1 m wide closed as a triangle (1.6 steps radius).
+#[test]
+fn a_metre_wide_strip_does_not_close() {
+    let draft = AreaDraft::default()
+        .click(Point::new(0.0, 0.0))
+        .click(Point::new(4.0, 0.0))
+        .click(Point::new(4.0, 1.0));
+
+    assert!(!draft.closes(Point::new(0.0, 1.0), Closing::OnGrid(1.0)));
+    assert!(!draft.closes(Point::new(0.0, 1.0), Closing::Free));
 }
 
 #[test]
@@ -185,11 +194,15 @@ fn a_click_on_the_first_point_closes_from_three_points_on() {
     let two = AreaDraft::default().click(a).click(b);
     let three = two.clone().click(c);
 
-    assert!(!AreaDraft::default().closes(a, GRID_M));
-    assert!(!two.closes(a, GRID_M));
-    assert!(three.closes(a, GRID_M));
-    assert!(three.closes(p(0.25, 0.0), GRID_M));
-    assert!(!three.closes(p(0.5, 0.0), GRID_M));
+    assert!(!AreaDraft::default().closes(a, Closing::Free));
+    assert!(!two.closes(a, Closing::Free));
+    assert!(three.closes(a, Closing::Free));
+    assert!(three.closes(p(0.25, 0.0), Closing::Free));
+    assert!(!three.closes(p(0.5, 0.0), Closing::Free));
+
+    // Snapped, only a click on the first point closes; a grid neighbour adds a corner.
+    assert!(three.closes(a, Closing::OnGrid(0.25)));
+    assert!(!three.closes(p(0.25, 0.0), Closing::OnGrid(0.25)));
 }
 
 #[test]
