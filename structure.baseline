@@ -2,7 +2,7 @@
 # never grow; a raised or new entry needs its reason in the PR. Rewrite with --update.
 # Lines: exclude<TAB>glob | path<TAB>function or - for the file<TAB>metric=value ...
 exclude	crates/app/qml/Kante/**
-crates/app/src/bridge.rs	switched	length=488
+crates/app/src/bridge.rs	switched	length=489
 crates/app/src/notice.rs	error_text	ccn=23
 crates/app/tests/qml/tst_planarea.qml	-	lines=812
 crates/export/src/deflate.rs	block	length=86
@@ -22,7 +22,7 @@ crates/imagehead/src/lib.rs	jpeg_frame	ccn=22
 crates/script/src/write.rs	render	ccn=16
 crates/services/src/edit.rs	apply	ccn=17
 crates/services/src/field.rs	name	ccn=35
-crates/services/src/plan_edit.rs	apply	ccn=39 length=124
+crates/services/src/plan_edit.rs	apply	ccn=40 length=125
 crates/services/src/plan_edit/check.rs	check	ccn=21
 crates/services/src/plan_edit/group.rs	copy	ccn=19 length=84
 crates/services/src/plan_edit/moving.rs	target	ccn=23 length=116

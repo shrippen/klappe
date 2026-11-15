@@ -18,6 +18,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
     match edit {
         PlanEdit::Move { to: at, .. }
         | PlanEdit::AddMark { at, .. }
+        | PlanEdit::AddCameraMark { at, .. }
         | PlanEdit::AddLight { at, .. }
         | PlanEdit::AddObject { at, .. }
         | PlanEdit::AddNote { at, .. } => check_point(*at),

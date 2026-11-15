@@ -10,13 +10,14 @@ use crate::plan;
 use crate::plan::Measure;
 use crate::selection::{Pick, Selection};
 use crate::tools;
+use crate::tools::MEASURE_SEPARATOR;
 use crate::tools::{AreaDraft, Backdrop, MeasureStep, NoteDraft, Preview, ScaleStep};
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Layer, LightKind, Lock, Movement,
-    Point, Pose, Rig, Session, Snapping, Source, Visibility,
+    Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Layer, LightKind, Lock,
+    Movement, Point, Pose, Rig, Session, Snapping, Source, Visibility,
 };
 use serde_json::json;
 
@@ -90,7 +91,13 @@ impl ControllerRust {
 
         let caption = self.measure.length_m().map(|length_m| {
             let decimal = self.language.text("unit.decimal");
-            tools::length_text(length_m, &decimal, &self.language.text("unit.m"))
+            let length = tools::length_text(length_m, &decimal, &self.language.text("unit.m"));
+            let Some(angle_deg) = self.measure.angle_deg() else {
+                return length;
+            };
+
+            let angle = tools::angle_text(angle_deg, &decimal, &self.language.text("unit.deg"));
+            format!("{length}{MEASURE_SEPARATOR}{angle}")
         });
 
         Some(Measure {
@@ -114,6 +121,7 @@ impl ControllerRust {
         self.loaded = true;
         self.shown = view;
         self.snapping_on = snapping_on;
+        self.grid_name = v.grid_name;
         self.backup_state = q(backup_state);
         self.backup_message = q(&backup_message);
         self.title = v.title;
@@ -176,6 +184,7 @@ impl ControllerRust {
             asks_note: self.note != NoteDraft::Idle,
             measuring: self.measure != MeasureStep::Idle,
             choices_json: q(&choices_json(s)),
+            grid_name: q(s.grid().name()),
             project_json: q(&manage::project_json(s)),
             scene_id: q(s.scene().map(|sc| sc.id.as_str()).unwrap_or_default()),
         })
@@ -207,6 +216,7 @@ struct Shown {
     asks_note: bool,
     measuring: bool,
     choices_json: QString,
+    grid_name: QString,
     project_json: QString,
     scene_id: QString,
 }
@@ -236,14 +246,20 @@ pub(super) fn plan_json(
     plan::shapes_json(list, s.dir(), &marked, picked, marquee, measure)
 }
 
-/// What the tool lists of the tool bar offer: the project's characters, the object library
-/// and the lamp kinds.
+/// What the tool lists of the tool bar offer: the project's characters, the object library,
+/// the plan's cameras and the lamp kinds.
 pub(super) fn choices_json(s: &Session) -> String {
     let figures: Vec<_> = s
         .project()
         .characters
         .iter()
         .map(|c| json!({ "id": c.id, "name": c.name }))
+        .collect();
+    let cameras: Vec<_> = s
+        .plan()
+        .iter()
+        .flat_map(|p| p.cameras.iter())
+        .map(|c| json!({ "id": c.id, "label": c.label }))
         .collect();
     let lights: Vec<_> = LightKind::ALL.iter().map(|k| k.name()).collect();
 
@@ -256,11 +272,16 @@ pub(super) fn choices_json(s: &Session) -> String {
     let rigs: Vec<_> = Rig::ALL.iter().map(|r| r.name()).collect();
     let movements: Vec<_> = Movement::ALL.iter().map(|m| m.name()).collect();
     let layers: Vec<_> = Layer::ALL.iter().map(|l| l.name()).collect();
+    let grids: Vec<_> = Grid::ALL
+        .iter()
+        .map(|g| json!({ "id": g.name(), "step_m": g.step_m() }))
+        .collect();
 
     json!({
         "figure": figures,
         "object": s.library(),
         "camera": camera::presets_json(s.camera_presets()),
+        "cameras": cameras,
         "light": lights,
         "color": colors,
         "dash": dashes,
@@ -271,6 +292,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "rig": rigs,
         "movement": movements,
         "layer": layers,
+        "grid": grids,
     })
     .to_string()
 }
@@ -366,6 +388,7 @@ impl qobject::Controller {
         self.as_mut().set_plan_title(v.plan_title);
         self.as_mut().set_duration(v.duration);
         self.as_mut().set_choices_json(v.choices_json);
+        self.as_mut().set_grid_name(v.grid_name);
 
         self.as_mut().set_plan_json(v.plan_json);
         self.as_mut().set_tracks_json(v.tracks_json);
@@ -413,6 +436,7 @@ fn shown_view(s: &Session) -> String {
 mod tests {
     use super::*;
     use crate::bridge::tests::example;
+    use crate::catalog::Language;
 
     /// The object tool lists the library: sizes in metres, built in first.
     #[test]
@@ -432,6 +456,20 @@ mod tests {
             .iter()
             .any(|o| o["kind"] == "horse" && o["shape"] == "ellipse"));
         assert_eq!(objects.len(), s.library().len());
+    }
+
+    /// The camera tool lists the cameras of the plan, to add a mark to one of them.
+    #[test]
+    fn the_camera_list_is_the_plans_cameras() {
+        let s = example();
+
+        let choices: serde_json::Value = serde_json::from_str(&choices_json(&s)).unwrap();
+
+        assert_eq!(choices["cameras"][0], json!({ "id": "a", "label": "A" }));
+        assert_eq!(
+            choices["cameras"].as_array().unwrap().len(),
+            s.plan().unwrap().cameras.len()
+        );
     }
 
     /// The tool bar's lists, by the names the file and the catalogue use.
@@ -498,6 +536,22 @@ mod tests {
         assert_eq!(c.pick_mode(), Pick::Extend);
     }
 
+    /// A measurement shows length and direction; one point alone shows nothing to read.
+    #[test]
+    fn the_measurement_caption_has_length_and_angle() {
+        let mut c = ControllerRust {
+            language: Language::German,
+            ..ControllerRust::default()
+        };
+        let (a, b) = (Point::new(0.0, 0.0), Point::new(3.0, 3.0));
+
+        c.measure = MeasureStep::Start(a);
+        assert_eq!(c.measure_view().unwrap().caption, "");
+
+        c.measure = MeasureStep::Held(a, b);
+        assert_eq!(c.measure_view().unwrap().caption, "4,24 m · 45°");
+    }
+
     /// Review of PR 23: area, scale and note drafts outlived a change of scene or project;
     /// Enter then made an area from the old plan's points in the new one.
     #[test]
@@ -541,6 +595,7 @@ mod tests {
         assert_eq!(c.time, 0.0);
         assert_eq!(c.selected_shot.to_string(), "");
         assert!(c.snapping_on);
+        assert_eq!(c.grid_name.to_string(), "cm25");
         assert!(!c.has_background);
         assert_eq!(c.backup_state.to_string(), "none");
         assert_eq!(c.backup_message.to_string(), "");

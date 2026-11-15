@@ -17,6 +17,8 @@ TestCase {
         id: fake
         property bool loaded: true
         property bool snappingOn: true
+        property string gridName: "cm25"
+        property var grids: []
         readonly property var choices: ({
             figure: [{ id: "elisabeth", name: "Elisabeth" }, { id: "burgvogt", name: "Burgvogt" }],
             object: [
@@ -24,10 +26,12 @@ TestCase {
                 { kind: "chair", label: "", width_m: 0.45, depth_m: 0.45, shape: "rect", custom: false },
                 { kind: "thron", label: "Thron", width_m: 0.9, depth_m: 0.8, shape: "rect", custom: true }
             ],
+            cameras: [{ id: "a", label: "A" }, { id: "b", label: "B" }],
             light: ["fresnel", "led-panel"],
             color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
             dash: ["solid", "dashed", "dotted"],
-            fill: ["outline", "filled"]
+            fill: ["outline", "filled"],
+            grid: [{ id: "cm5", step_m: 0.05 }, { id: "cm25", step_m: 0.25 }, { id: "m1", step_m: 1 }]
         })
         property string choicesJson: JSON.stringify(choices)
         property var tools: []
@@ -44,6 +48,9 @@ TestCase {
         }
         function setSnapping(on) {
             snaps.push(on)
+        }
+        function setGrid(name) {
+            grids.push(name)
         }
     }
 
@@ -72,6 +79,8 @@ TestCase {
         fake.choicesJson = JSON.stringify(fake.choices)
         fake.tools = []
         fake.snaps = []
+        fake.grids = []
+        fake.gridName = "cm25"
         fake.styles = []
 
         // The settings keep the mode over the test cases: start each from the default.
@@ -275,13 +284,15 @@ TestCase {
 
     function test_the_list_shows_for_its_tool_only() {
         const bar = make()
-        const shown = () => ["objectBox", "figureBox", "lightBox"].filter(n => findChild(bar, n).visible)
+        const shown = () => ["objectBox", "figureBox", "cameraBox", "lightBox"].filter(n => findChild(bar, n).visible)
 
         compare(shown(), [])
         bar.tool = "object"
         compare(shown(), ["objectBox"])
         bar.tool = "figure"
         compare(shown(), ["figureBox"])
+        bar.tool = "camera"
+        compare(shown(), ["cameraBox"])
         bar.tool = "light"
         compare(shown(), ["lightBox"])
         bar.tool = "wall"
@@ -301,6 +312,21 @@ TestCase {
 
         bar.tool = "light"
         compare(bar.choice, "fresnel")
+    }
+
+    /// No camera picked: a click sets a new camera; a picked one gets the next mark.
+    function test_the_camera_tool_picks_a_camera_or_a_new_one() {
+        const bar = make()
+        const box = findChild(bar, "cameraBox")
+
+        bar.tool = "camera"
+        compare(box.model.map(c => c.text), ["Neue Kamera", "A", "B"])
+        compare(bar.choice, "")
+        compare(fake.tools[fake.tools.length - 1], ["camera", ""])
+
+        box.currentIndex = 2
+        compare(bar.choice, "b")
+        compare(fake.tools[fake.tools.length - 1], ["camera", "b"])
     }
 
     function test_the_library_lists_built_in_then_own_objects_in_groups() {
@@ -468,5 +494,21 @@ TestCase {
         button.toggled()
 
         compare(fake.snaps, [false])
+    }
+
+    // LH-14: the grid box lists the spacings, shows the current one and tells the controller.
+    function test_grid_box_lists_and_sets_the_spacing() {
+        const bar = make()
+        const box = findChild(bar, "gridBox")
+
+        compare(box.count, 3)
+        compare(box.currentIndex, 1)
+        compare(box.textAt(0), "5 cm")
+        compare(box.textAt(2), "1 m")
+
+        box.currentIndex = 2
+        box.activated(2)
+
+        compare(fake.grids, ["m1"])
     }
 }

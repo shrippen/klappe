@@ -74,11 +74,11 @@ fn lens_text(lens: Option<ShotLens>, shot: &Shot, number: &dyn Fn(f64) -> String
     let Some(lens) = lens else {
         return shot.lens_mm.map(number).unwrap_or_default();
     };
-    let Some(to_mm) = lens.span_to_mm() else {
+    let Some((min_mm, max_mm)) = lens.span_mm() else {
         return number(lens.from_mm);
     };
 
-    format!("{}{SPAN}{}", number(lens.from_mm), number(to_mm))
+    format!("{}{SPAN}{}", number(min_mm), number(max_mm))
 }
 
 fn size_name(size: ShotSize, texts: &ShotTexts) -> String {

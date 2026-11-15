@@ -17,6 +17,17 @@ Item {
     /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, measure, note, line,
     /// arrow, rect, ellipse or area.
     property string tool: "select"
+    /// The grid drawn and snapped to, in metres: the one `gridName` names in `choicesJson`.
+    readonly property real gridStepM: {
+        const grids = controller.choicesJson ? (JSON.parse(controller.choicesJson).grid || []) : []
+        const grid = grids.find(g => g.id === controller.gridName)
+        return grid ? grid.step_m : 1
+    }
+    /// What the canvas draws: the chosen grid, or 1 m while that is too fine for the zoom (it
+    /// would not show at all, and an overview of a large set would have no grid).
+    readonly property real drawnGridM: gridStepM * canvas.zoom >= KanteStyle.unit(minGridGapUnits) ? gridStepM : 1
+    /// Smallest gap between grid lines on screen, as `KanteShapeCanvas` hides closer ones.
+    readonly property int minGridGapUnits: 6
     property string tipKey: ""
     property bool dragging: false
     /// Escape aborted the drag in progress; the canvas goes on reporting until release.
@@ -33,11 +44,12 @@ Item {
 
     KanteShapeCanvas {
         id: canvas
+        objectName: "planCanvas"
         anchors.fill: parent
         visible: area.plan !== null
         contentWidth: area.plan ? area.plan.width : 1
         contentHeight: area.plan ? area.plan.depth : 1
-        gridStep: 1
+        gridStep: area.drawnGridM
         shapes: area.plan ? area.plan.shapes : []
         accessibleName: area.texts.t("app.module")
         // A left drag always edits: the select tool moves what it grabbed, or on empty ground

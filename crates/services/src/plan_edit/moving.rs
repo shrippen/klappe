@@ -3,7 +3,7 @@
 use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Wall};
 use klappe_stellprobe::{bend_point, via_through, Source};
 
-use super::{current_index, figure_mark, normalize_deg, snap, Scope, Snapping, Target};
+use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
 
 pub(super) fn target<'a>(
@@ -223,12 +223,13 @@ pub(super) fn shift(
     scope: &mut Scope<'_>,
     source: &Source,
     by_m: (f64, f64),
-    snapping: Snapping,
+    snap_to: (Snapping, Grid),
 ) -> Result<(), ServiceError> {
     let (anchor, middle_now) = anchor_pair(target(scope, source)?)?;
     let landed = snap(
         Point::new(anchor.x_m + by_m.0, anchor.y_m + by_m.1),
-        snapping,
+        snap_to.0,
+        snap_to.1,
     );
     let (dx, dy) = (landed.x_m - anchor.x_m, landed.y_m - anchor.y_m);
 

@@ -32,13 +32,13 @@ RowLayout {
     property int fitCount: shown.length
     /// The working mode: the id of an entry of `_modes`.
     property string mode: "build"
-    /// The value picked in the current tool's list: library kind, character id or lamp kind.
+    /// The value picked in the current tool's list: library kind, character id, camera id (empty: a new camera) or lamp kind.
     readonly property string choice: {
         if (tool === "object") {
             const entry = objectBox.model[objectBox.currentIndex]
             return entry ? entry.value : ""
         }
-        const box = tool === "figure" ? figureBox : tool === "light" ? lightBox : null
+        const box = tool === "figure" ? figureBox : tool === "camera" ? cameraBox : tool === "light" ? lightBox : null
         return box && box.currentValue !== undefined ? String(box.currentValue) : ""
     }
 
@@ -103,7 +103,7 @@ RowLayout {
         return entries
     }
 
-    readonly property var _choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : { figure: [], object: [], light: [], color: [], dash: [], fill: [] }
+    readonly property var _choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : { figure: [], object: [], light: [], color: [], dash: [], fill: [], grid: [] }
 
     spacing: Kirigami.Units.smallSpacing
 
@@ -266,6 +266,16 @@ RowLayout {
         model: tools._choices.figure.map(f => ({ value: f.id, text: f.name }))
     }
     KanteComboBox {
+        id: cameraBox
+        objectName: "cameraBox"
+        visible: tools.tool === "camera"
+        Accessible.name: tools.texts.t("tool.pick.camera")
+        textRole: "text"
+        valueRole: "value"
+        model: [{ value: "", text: tools.texts.t("tool.newCamera") }]
+            .concat((tools._choices.cameras || []).map(c => ({ value: c.id, text: c.label })))
+    }
+    KanteComboBox {
         id: lightBox
         objectName: "lightBox"
         onVisibleChanged: tools._fit()
@@ -343,6 +353,18 @@ RowLayout {
                 checked: tools.controller.snappingOn
                 onToggled: tools.controller.setSnapping(checked)
                 QQC2.ToolTip.text: tools.texts.t("tool.snappingTip")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+            KanteComboBox {
+                objectName: "gridBox"
+                Accessible.name: tools.texts.t("tool.grid")
+                textRole: "text"
+                valueRole: "value"
+                model: (tools._choices.grid || []).map(g => ({ value: g.id, text: tools.texts.t("grid." + g.id) }))
+                currentIndex: (tools._choices.grid || []).findIndex(g => g.id === tools.controller.gridName)
+                onActivated: tools.controller.setGrid(String(currentValue))
+                QQC2.ToolTip.text: tools.texts.t("tool.gridTip")
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
             }

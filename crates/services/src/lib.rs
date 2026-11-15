@@ -31,7 +31,7 @@ pub use error::ServiceError;
 pub use example::{copy_example, ensure_example};
 pub use field::Field;
 pub use number::{read_number, Range, Unit};
-pub use plan_edit::{MarkInfo, Pace, PlanEdit, Snapping};
+pub use plan_edit::{Grid, MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{ProjectEdit, ShotsGo};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{

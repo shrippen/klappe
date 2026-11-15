@@ -8,7 +8,7 @@ use klappe_store::Loaded;
 use super::{check_empty, Autosave, BackupState, Session};
 use crate::error::ServiceError;
 use crate::field::Field;
-use crate::plan_edit::Snapping;
+use crate::plan_edit::{Grid, Snapping};
 
 impl Session {
     /// Opens a project folder; the first scene with a plan is current.
@@ -40,6 +40,7 @@ impl Session {
             locked_layers: HashSet::new(),
             hidden_tracks: HashSet::new(),
             snapping: Snapping::On,
+            grid: Grid::default(),
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: false,
