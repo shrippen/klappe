@@ -1,9 +1,75 @@
 //! The fields of a placed object typed or picked on its card: size, height and the library
 //! it is filed in, each as an edit. Like the tools (`tools.rs`), no geometry here.
 
-use klappe_services::{Field, PlanEdit, ProjectEdit, Source};
+use klappe_services::{
+    read_number, Field, PlanEdit, ProjectEdit, Range, ServiceError, Source, Unit,
+};
 
 use crate::tools::{length_m, Typed};
+
+/// The heights of the set's elements a card can set (LH-90), each with an empty text for
+/// "the default again".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeightField {
+    /// Of the selected wall.
+    Wall,
+    /// Sill of the selected door or window.
+    Sill,
+    /// Head of the selected door or window.
+    Head,
+    /// Underside of the selected object.
+    Base,
+}
+
+impl HeightField {
+    /// The name QML sends: `wall`, `sill`, `head` or `base`.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "wall" => Some(Self::Wall),
+            "sill" => Some(Self::Sill),
+            "head" => Some(Self::Head),
+            "base" => Some(Self::Base),
+            _ => None,
+        }
+    }
+}
+
+/// The height typed for the selected wall, opening or object, as an edit (LH-90): an empty
+/// text takes the height off. A top (wall, head) is more than nothing, a start (sill,
+/// underside) may be the floor; the session sets the upper limit and the sill-head order.
+pub fn set_height_edit(selected: Option<&Source>, field: HeightField, text: &str) -> Typed {
+    let source = selected?.clone();
+    let (name, range) = match (field, &source) {
+        (HeightField::Wall, Source::Wall(_)) => (Field::Height, Range::Positive),
+        (HeightField::Head, Source::Opening { .. }) => (Field::Head, Range::Positive),
+        (HeightField::Sill, Source::Opening { .. }) => (Field::Sill, Range::NotNegative),
+        (HeightField::Base, Source::Object(_)) => (Field::Base, Range::NotNegative),
+        _ => return None,
+    };
+    let typed: Result<Option<f64>, ServiceError> = match text.trim().is_empty() {
+        true => Ok(None),
+        false => read_number(name, text, Unit::Metre, range).map(Some),
+    };
+
+    Some(typed.map(|value| match field {
+        HeightField::Wall => PlanEdit::SetWallHeight {
+            source,
+            height_m: value,
+        },
+        HeightField::Sill => PlanEdit::SetOpeningSill {
+            source,
+            sill_m: value,
+        },
+        HeightField::Head => PlanEdit::SetOpeningHead {
+            source,
+            head_m: value,
+        },
+        HeightField::Base => PlanEdit::SetObjectBase {
+            source,
+            base_m: value,
+        },
+    }))
+}
 
 /// The size typed for the selected object, as an edit.
 pub fn resize_edit(selected: Option<&Source>, width: &str, depth: &str) -> Typed {
@@ -203,6 +269,75 @@ mod tests {
             None
         );
         assert_eq!(edit_of(object_height_edit(None, "1")), None);
+    }
+
+    #[test]
+    fn a_height_typed_for_the_selection_is_a_height_edit() {
+        let wall = Source::Wall(1);
+        let door = Source::Opening { wall: 2, index: 0 };
+        let object = Source::Object("o1".into());
+
+        assert_eq!(
+            edit_of(set_height_edit(Some(&wall), HeightField::Wall, " 3,1 ")),
+            Some(PlanEdit::SetWallHeight {
+                source: wall.clone(),
+                height_m: Some(3.1)
+            })
+        );
+        assert_eq!(
+            edit_of(set_height_edit(Some(&wall), HeightField::Wall, "")),
+            Some(PlanEdit::SetWallHeight {
+                source: wall.clone(),
+                height_m: None
+            })
+        );
+        assert_eq!(
+            edit_of(set_height_edit(Some(&door), HeightField::Sill, "0")),
+            Some(PlanEdit::SetOpeningSill {
+                source: door.clone(),
+                sill_m: Some(0.0)
+            })
+        );
+        assert_eq!(
+            edit_of(set_height_edit(Some(&door), HeightField::Head, "2.2 m")),
+            Some(PlanEdit::SetOpeningHead {
+                source: door.clone(),
+                head_m: Some(2.2)
+            })
+        );
+        assert_eq!(
+            edit_of(set_height_edit(Some(&object), HeightField::Base, " ")),
+            Some(PlanEdit::SetObjectBase {
+                source: object.clone(),
+                base_m: None
+            })
+        );
+
+        // A top is more than nothing; a refused text is an error, a wrong selection is none.
+        assert_eq!(
+            edit_of(set_height_edit(Some(&wall), HeightField::Wall, "0")),
+            None
+        );
+        assert_eq!(
+            edit_of(set_height_edit(Some(&door), HeightField::Head, "-1")),
+            None
+        );
+        assert_eq!(
+            edit_of(set_height_edit(Some(&door), HeightField::Sill, "-1")),
+            None
+        );
+        assert!(matches!(
+            set_height_edit(Some(&object), HeightField::Base, "hoch"),
+            Some(Err(ServiceError::BadValue {
+                field: Field::Base,
+                ..
+            }))
+        ));
+        assert!(set_height_edit(Some(&wall), HeightField::Sill, "1").is_none());
+        assert!(set_height_edit(Some(&door), HeightField::Wall, "1").is_none());
+        assert!(set_height_edit(None, HeightField::Wall, "1").is_none());
+        assert_eq!(HeightField::from_name("head"), Some(HeightField::Head));
+        assert_eq!(HeightField::from_name("width"), None);
     }
 
     /// Audit, Fund 2: a refused text is an error for the status line, a selection that does

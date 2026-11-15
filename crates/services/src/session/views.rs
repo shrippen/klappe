@@ -2,7 +2,10 @@
 //! the project lists, the tooltips and the set of the current scene.
 
 use klappe_model::{CameraPresets, DrawingShape, Location};
-use klappe_stellprobe::{aim_at, axis_pair, camera_view, horizontal_fov_deg, CameraView, Source};
+use klappe_stellprobe::{
+    aim_at, axis_pair, camera_view, horizontal_fov_deg, object_extent, opening_span, wall_top,
+    CameraView, Source,
+};
 
 use super::Session;
 use crate::views::{AxisChoice, CharacterRow, Hint, LocationRow, Overview, PlanRow, SceneRow};
@@ -63,6 +66,7 @@ impl Session {
             name: l.name.clone(),
             width_m: l.set.width_m,
             depth_m: l.set.depth_m,
+            wall_height_m: l.set.wall_height_m,
             scenes: project.scenes.iter().filter(|s| s.location == l.id).count(),
         });
         let characters = project.characters.iter().map(|c| CharacterRow {
@@ -193,7 +197,8 @@ impl Session {
     /// The tooltip of object `id` on the scene's set; `None` without such an object.
     pub fn object_hint(&self, id: &str) -> Option<Hint> {
         let set = &self.scene_location()?.set;
-        let o = set.objects.iter().find(|o| o.id == id)?;
+        let index = set.objects.iter().position(|o| o.id == id)?;
+        let o = &set.objects[index];
 
         Some(Hint::Object {
             label: o.label.clone(),
@@ -201,6 +206,19 @@ impl Session {
             width_m: o.width_m,
             depth_m: o.depth_m,
             height_m: o.height_m,
+            base_m: object_extent(set, index).0,
+            base_default: o.base_m.is_none(),
+        })
+    }
+
+    /// The card of the set's wall `index` (LH-90); `None` without such a wall.
+    pub fn wall_hint(&self, index: usize) -> Option<Hint> {
+        let set = &self.scene_location()?.set;
+        let wall = set.walls.get(index)?;
+
+        Some(Hint::Wall {
+            height_m: wall_top(set, wall),
+            height_default: wall.height_m.is_none(),
         })
     }
 
@@ -210,9 +228,15 @@ impl Session {
         let set = &self.scene_location()?.set;
         let o = set.walls.get(wall)?.openings.get(index)?;
 
+        let (sill_m, head_m) = opening_span(o);
+
         Some(Hint::Opening {
             opening: o.kind,
             width_m: o.width_m,
+            sill_m,
+            head_m,
+            sill_default: o.sill_m.is_none(),
+            head_default: o.head_m.is_none(),
         })
     }
 

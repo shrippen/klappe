@@ -308,6 +308,11 @@ pub mod qobject {
         #[cxx_name = "setOpeningWidth"]
         fn set_opening_width(self: Pin<&mut Self>, width: &QString) -> bool;
 
+        /// Sets `field` (`wall`, `sill`, `head`, `base`) of the selection (LH-90); empty: default.
+        #[qinvokable]
+        #[cxx_name = "setSelectedHeight"]
+        fn set_selected_height(self: Pin<&mut Self>, field: &QString, text: &QString) -> bool;
+
         /// Sets the height in metres of the selected object (LH-17); an empty text takes it
         /// off. False when no object is selected or the text is no length; a refusal by the
         /// session goes to `status`.
@@ -561,7 +566,7 @@ pub mod qobject {
         #[cxx_name = "removeScene"]
         fn remove_scene(self: Pin<&mut Self>, id: &QString) -> bool;
 
-        /// Sizes are text in metres (`8,5`).
+        /// Sizes and the room height are text in metres (`8,5`).
         #[qinvokable]
         #[cxx_name = "addLocation"]
         fn add_location(
@@ -569,6 +574,7 @@ pub mod qobject {
             name: &QString,
             width: &QString,
             depth: &QString,
+            height: &QString,
         ) -> bool;
 
         #[qinvokable]
@@ -579,6 +585,7 @@ pub mod qobject {
             name: &QString,
             width: &QString,
             depth: &QString,
+            height: &QString,
         ) -> bool;
 
         #[qinvokable]

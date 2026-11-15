@@ -39,16 +39,8 @@ fn openings_are_written_only_when_there_are() {
 
     let wall = &mut project.locations[0].set.walls[0];
     wall.openings = vec![
-        Opening {
-            kind: OpeningKind::Window,
-            at_m: 12.5,
-            width_m: 1.2,
-        },
-        Opening {
-            kind: OpeningKind::Door,
-            at_m: 3.0,
-            width_m: 0.9,
-        },
+        Opening::new(OpeningKind::Window, 12.5, 1.2),
+        Opening::new(OpeningKind::Door, 3.0, 0.9),
     ];
     save(&dir, &project, None).unwrap();
     let text = fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
@@ -67,6 +59,8 @@ fn an_unusable_opening_is_refused() {
             kind: OpeningKind::Door,
             at_m: 5.0,
             width_m,
+            head_m: None,
+            sill_m: None,
         }];
         let saved = save(&dir, &project, None);
         if saved.is_err() {

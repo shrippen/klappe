@@ -46,16 +46,8 @@ fn set(openings: Vec<Opening>) -> SetPlan {
 #[test]
 fn openings_are_printed_in_the_gaps() {
     let with = set(vec![
-        Opening {
-            kind: OpeningKind::Door,
-            at_m: 5.0,
-            width_m: 0.9,
-        },
-        Opening {
-            kind: OpeningKind::Window,
-            at_m: 12.0,
-            width_m: 1.2,
-        },
+        Opening::new(OpeningKind::Door, 5.0, 0.9),
+        Opening::new(OpeningKind::Window, 12.0, 1.2),
     ]);
     let project = Project::new("Test");
     let plan = FloorPlan::new("a", "Plan A");

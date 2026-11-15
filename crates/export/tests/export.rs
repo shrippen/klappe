@@ -45,9 +45,11 @@ fn set() -> SetPlan {
             rotation_deg: 0.0,
             shape: ObjectShape::Rect,
             height_m: None,
+            base_m: None,
         }],
         background: None,
         notes: Vec::new(),
+        ..Default::default()
     }
 }
 

@@ -53,6 +53,7 @@ fn add_location(name: &str) -> ProjectEdit {
         name: name.into(),
         width_m: 8.0,
         depth_m: 5.5,
+        wall_height_m: 2.6,
     }
 }
 
@@ -350,6 +351,7 @@ fn a_location_gets_a_name_and_a_size() {
                 name: "Halle".into(),
                 width_m,
                 depth_m,
+                wall_height_m: 2.6,
             })
             .unwrap_err();
         assert!(matches!(err, ServiceError::BadValue { field: f, .. } if f == field));
@@ -368,12 +370,14 @@ fn renames_and_resizes_a_location_keeping_id_and_set() {
         name: "Rittersaal".into(),
         width_m: 22.0,
         depth_m: 14.0,
+        wall_height_m: 3.2,
     })
     .unwrap();
 
     let l = s.project().location("saengersaal").unwrap();
     assert_eq!(l.name, "Rittersaal");
     assert_eq!((l.set.width_m, l.set.depth_m), (22.0, 14.0));
+    assert_eq!(l.set.wall_height_m, 3.2);
     assert_eq!(l.set.walls.len(), walls);
 
     s.undo();

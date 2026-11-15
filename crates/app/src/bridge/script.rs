@@ -44,11 +44,15 @@ impl qobject::Controller {
         name: &QString,
         width: &QString,
         depth: &QString,
+        height: &QString,
     ) -> bool {
-        let edit = sizes(width, depth).map(|(width_m, depth_m)| ProjectEdit::AddLocation {
-            name: name.to_string(),
-            width_m,
-            depth_m,
+        let edit = sizes(width, depth, height).map(|(width_m, depth_m, wall_height_m)| {
+            ProjectEdit::AddLocation {
+                name: name.to_string(),
+                width_m,
+                depth_m,
+                wall_height_m,
+            }
         });
         self.commit_project(edit)
     }
@@ -59,12 +63,16 @@ impl qobject::Controller {
         name: &QString,
         width: &QString,
         depth: &QString,
+        height: &QString,
     ) -> bool {
-        let edit = sizes(width, depth).map(|(width_m, depth_m)| ProjectEdit::EditLocation {
-            id: id.to_string(),
-            name: name.to_string(),
-            width_m,
-            depth_m,
+        let edit = sizes(width, depth, height).map(|(width_m, depth_m, wall_height_m)| {
+            ProjectEdit::EditLocation {
+                id: id.to_string(),
+                name: name.to_string(),
+                width_m,
+                depth_m,
+                wall_height_m,
+            }
         });
         self.commit_project(edit)
     }
@@ -120,9 +128,13 @@ impl qobject::Controller {
     }
 }
 
-/// Width and depth typed in the location form.
-fn sizes(width: &QString, depth: &QString) -> Result<(f64, f64), ServiceError> {
-    manage::sizes(&width.to_string(), &depth.to_string())
+/// Width, depth and room height typed in the location form.
+fn sizes(
+    width: &QString,
+    depth: &QString,
+    height: &QString,
+) -> Result<(f64, f64, f64), ServiceError> {
+    manage::sizes(&width.to_string(), &depth.to_string(), &height.to_string())
 }
 
 /// The colour a form sends by its role name.

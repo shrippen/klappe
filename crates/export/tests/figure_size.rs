@@ -40,6 +40,7 @@ fn printed_radius(size_m: Option<f64>) -> f64 {
         objects: Vec::new(),
         background: None,
         notes: Vec::new(),
+        ..Default::default()
     };
     let texts = Texts {
         figure: "Figur".into(),

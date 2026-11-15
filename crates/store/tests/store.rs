@@ -16,11 +16,8 @@ fn wall(x1: f64, y1: f64, x2: f64, y2: f64) -> Wall {
 
 /// A door 0.9 m wide, 5 m from the wall's start.
 fn with_door(mut wall: Wall) -> Wall {
-    wall.openings.push(Opening {
-        kind: OpeningKind::Door,
-        at_m: 5.0,
-        width_m: 0.9,
-    });
+    wall.openings
+        .push(Opening::new(OpeningKind::Door, 5.0, 0.9));
 
     wall
 }
@@ -36,6 +33,7 @@ fn object(id: &str, kind: &str, label: &str, at: Point, w: f64, d: f64) -> SetOb
         rotation_deg: 0.0,
         shape: ObjectShape::Rect,
         height_m: None,
+        base_m: None,
     }
 }
 
@@ -283,6 +281,7 @@ fn example() -> Project {
                 at: Point::new(3.0, 11.5),
                 text: "Vorhang schließen".into(),
             }],
+            ..Default::default()
         },
     }];
 
@@ -418,7 +417,7 @@ fn an_object_height_is_written_only_when_given() {
     let mut project = example();
     save(&dir, &project, None).unwrap();
     let text = fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
-    assert!(!text.contains("height_m"), "{text}");
+    assert!(!text.contains("\nheight_m"), "{text}");
 
     project.locations[0].set.objects[0].height_m = Some(0.75);
     save(&dir, &project, None).unwrap();

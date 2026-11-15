@@ -32,8 +32,8 @@ mod template;
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use geometry::Point;
 pub use library::{
-    is_object_height_m, is_object_size_m, LibraryItem, ObjectShape, MAX_OBJECT_HEIGHT_M,
-    MAX_OBJECT_M,
+    is_floor_offset_m, is_object_height_m, is_object_size_m, LibraryItem, ObjectShape,
+    MAX_OBJECT_HEIGHT_M, MAX_OBJECT_M,
 };
 pub use light_preset::{is_beam_deg, is_power_w, is_temp_k, LightPreset};
 pub use limits::{
@@ -53,4 +53,4 @@ pub use shot::{Angle, Movement, Shot, ShotSize};
 pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;

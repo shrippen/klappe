@@ -70,6 +70,20 @@ impl qobject::Controller {
         self.commit_typed(typed)
     }
 
+    pub(super) fn set_selected_height(
+        self: Pin<&mut Self>,
+        field: &QString,
+        text: &QString,
+    ) -> bool {
+        let Some(field) = object::HeightField::from_name(&field.to_string()) else {
+            return false;
+        };
+        let selected = self.rust().selected.only();
+        let typed = object::set_height_edit(selected, field, &text.to_string());
+
+        self.commit_typed(typed)
+    }
+
     pub(super) fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool {
         let selected = self.rust().selected.only();
         let typed = object::object_height_edit(selected, &height.to_string());

@@ -1,7 +1,8 @@
-use klappe_model::{Camera, FigureColor, FigureTrack, FloorPlan, Point, Pose, Project, SetPlan};
+use klappe_model::{Camera, FigureColor, FigureTrack, FloorPlan, Point, Project, SetPlan, Wall};
 
 use crate::display::{object_corners, FIGURE_RADIUS_M};
 use crate::figure::body_radius_m;
+use crate::height::{figure_height_m, object_extent, opening_span, wall_top};
 use crate::hit::in_lasso;
 use crate::motion::{aim_at, camera_at, figure_at};
 use crate::opening::solid_spans;
@@ -9,13 +10,6 @@ use crate::optics::{horizontal_fov_deg, lens_at};
 
 /// Image width; the height is `1 / aspect`.
 pub const FRAME_WIDTH: f64 = 1.0;
-/// Walls have no height in the model.
-const WALL_HEIGHT_M: f64 = 2.6;
-/// An object without `height_m`.
-const OBJECT_HEIGHT_M: f64 = 0.9;
-const STANDING_M: f64 = 1.75;
-const SITTING_M: f64 = 1.25;
-const LYING_M: f64 = 0.4;
 /// Width of a standard figure's placeholder; a figure with its own size is wider in proportion.
 const FIGURE_WIDTH_M: f64 = 0.5;
 /// Nothing nearer than this is drawn.
@@ -174,32 +168,53 @@ fn eye_of(camera: &Camera, plan: &FloorPlan, t_s: f64) -> Option<Eye> {
     })
 }
 
-/// A wall stands between its openings; a door or window is a gap from floor to top.
+/// A wall stands between its openings to its own top; below a sill and above a head the
+/// wall goes on, e.g. a window from 0.90 to 2.10 m leaves wall below and above it.
 fn wall_faces(set: &SetPlan, faces: &mut Vec<Face>) {
     for wall in &set.walls {
+        let top_m = wall_top(set, wall);
         for (start_m, end_m) in solid_spans(wall) {
-            let (a, b) = (wall.point_at(start_m), wall.point_at(end_m));
-            faces.push(Face {
-                role: ViewRole::Wall,
-                corners: vec![
-                    [a.x_m, a.y_m, 0.0],
-                    [b.x_m, b.y_m, 0.0],
-                    [b.x_m, b.y_m, WALL_HEIGHT_M],
-                    [a.x_m, a.y_m, WALL_HEIGHT_M],
-                ],
-                label: None,
-            });
+            faces.push(wall_face(wall, (start_m, end_m), (0.0, top_m)));
+        }
+
+        for opening in &wall.openings {
+            let (start_m, end_m) = opening.span_m();
+            let span = (start_m.max(0.0), end_m.min(wall.length_m()));
+            let (sill_m, head_m) = opening_span(opening);
+            if sill_m > 0.0 {
+                faces.push(wall_face(wall, span, (0.0, sill_m.min(top_m))));
+            }
+            if head_m < top_m {
+                faces.push(wall_face(wall, span, (head_m.max(0.0), top_m)));
+            }
         }
     }
 }
 
-/// An object is a box: its outline raised to its height; four sides and a lid.
+/// The piece of `wall` from `along` start to end, between the heights `low` and `high`.
+fn wall_face(wall: &Wall, along: (f64, f64), (low_m, high_m): (f64, f64)) -> Face {
+    let (a, b) = (wall.point_at(along.0), wall.point_at(along.1));
+
+    Face {
+        role: ViewRole::Wall,
+        corners: vec![
+            [a.x_m, a.y_m, low_m],
+            [b.x_m, b.y_m, low_m],
+            [b.x_m, b.y_m, high_m],
+            [a.x_m, a.y_m, high_m],
+        ],
+        label: None,
+    }
+}
+
+/// An object is a box: its outline from its underside to its top; four sides, a lid and,
+/// when it floats (a shelf), a bottom.
 /// One that stands under the camera (tripod, dolly, crane) is left out: it would fill the picture.
 fn object_faces(set: &SetPlan, eye: &Eye, faces: &mut Vec<Face>) {
     let camera = Point::new(eye.at[0], eye.at[1]);
 
-    for object in &set.objects {
-        let height_m = object.height_m.unwrap_or(OBJECT_HEIGHT_M);
+    for (index, object) in set.objects.iter().enumerate() {
+        let (base_m, top_m) = object_extent(set, index);
         let outline = object_corners(object);
         if in_lasso(&outline, camera) {
             continue;
@@ -210,19 +225,26 @@ fn object_faces(set: &SetPlan, eye: &Eye, faces: &mut Vec<Face>) {
             faces.push(Face {
                 role: ViewRole::Object,
                 corners: vec![
-                    [a.x_m, a.y_m, 0.0],
-                    [b.x_m, b.y_m, 0.0],
-                    [b.x_m, b.y_m, height_m],
-                    [a.x_m, a.y_m, height_m],
+                    [a.x_m, a.y_m, base_m],
+                    [b.x_m, b.y_m, base_m],
+                    [b.x_m, b.y_m, top_m],
+                    [a.x_m, a.y_m, top_m],
                 ],
                 label: None,
             });
         }
-        faces.push(Face {
-            role: ViewRole::Object,
-            corners: outline.iter().map(|p| [p.x_m, p.y_m, height_m]).collect(),
-            label: None,
-        });
+
+        let mut levels = vec![top_m];
+        if base_m > 0.0 {
+            levels.push(base_m);
+        }
+        for level_m in levels {
+            faces.push(Face {
+                role: ViewRole::Object,
+                corners: outline.iter().map(|p| [p.x_m, p.y_m, level_m]).collect(),
+                label: None,
+            });
+        }
     }
 }
 
@@ -259,11 +281,7 @@ fn pose_height_m(track: &FigureTrack, t_s: f64) -> f64 {
     let reached = track.marks.iter().rev().find(|m| m.at_s <= t_s);
     let pose = reached.or(track.marks.first()).map(|m| m.pose);
 
-    match pose.unwrap_or_default() {
-        Pose::Standing => STANDING_M,
-        Pose::Sitting => SITTING_M,
-        Pose::Lying => LYING_M,
-    }
+    figure_height_m(pose.unwrap_or_default())
 }
 
 /// The ground: the frame below the horizon.
@@ -345,7 +363,7 @@ fn clip<const N: usize>(
 #[cfg(test)]
 mod tests {
     use klappe_model::{
-        Arrival, CameraMark, Character, Departure, Mark, Opening, OpeningKind, Point, Sensor,
+        Arrival, CameraMark, Character, Departure, Mark, Opening, OpeningKind, Point, Pose, Sensor,
         SetObject, Wall,
     };
 
@@ -560,6 +578,7 @@ mod tests {
             to: Point::new(15.0, 2.0),
             thickness_m: 0.2,
             openings: Vec::new(),
+            height_m: None,
         }];
         set.objects = vec![SetObject {
             id: "t".into(),
@@ -571,6 +590,7 @@ mod tests {
             rotation_deg: 0.0,
             shape: Default::default(),
             height_m: None,
+            base_m: None,
         }];
         let view = view_of(&plan_with(camera(35.0, 1.6, 0.0, 1.78), &[]), &set);
 
@@ -587,7 +607,37 @@ mod tests {
         assert!(wall < object);
     }
 
-    /// A door from 8 m to 12 m in a wall from 5 m to 15 m: the camera at x 10 looks through it.
+    /// A window from 0.90 to 2.10 m, the camera at 1.6 m: wall below the window and above it,
+    /// the lower piece under the horizon, the upper one over it.
+    #[test]
+    fn a_window_has_wall_below_and_above() {
+        let mut set = set();
+        let mut wall = Wall::new(Point::new(5.0, 2.0), Point::new(15.0, 2.0), 0.2);
+        wall.openings = vec![Opening::new(OpeningKind::Window, 5.0, 4.0)];
+        set.walls = vec![wall];
+        let view = view_of(&plan_with(camera(35.0, 1.6, 0.0, 1.78), &[]), &set);
+
+        let centre: Vec<_> = view
+            .items
+            .iter()
+            .filter(|i| i.role == ViewRole::Wall)
+            .filter(|i| {
+                let left = i.points.iter().any(|p| p[0] < FRAME_WIDTH / 2.0);
+                let right = i.points.iter().any(|p| p[0] > FRAME_WIDTH / 2.0);
+                left && right
+            })
+            .collect();
+        assert_eq!(centre.len(), 2);
+        assert!(centre
+            .iter()
+            .any(|i| i.points.iter().all(|p| p[1] >= view.horizon_y)));
+        assert!(centre
+            .iter()
+            .any(|i| i.points.iter().all(|p| p[1] <= view.horizon_y)));
+    }
+
+    /// A door from 8 m to 12 m in a wall from 5 m to 15 m: the camera at x 10 looks through it,
+    /// under the wall above the door (2.10 to 2.60 m), which lies above the horizon.
     #[test]
     fn a_door_leaves_a_gap_in_the_wall() {
         let mut set = set();
@@ -595,11 +645,8 @@ mod tests {
             from: Point::new(5.0, 2.0),
             to: Point::new(15.0, 2.0),
             thickness_m: 0.2,
-            openings: vec![Opening {
-                kind: OpeningKind::Door,
-                at_m: 5.0,
-                width_m: 4.0,
-            }],
+            openings: vec![Opening::new(OpeningKind::Door, 5.0, 4.0)],
+            height_m: None,
         }];
         let view = view_of(&plan_with(camera(35.0, 1.6, 0.0, 1.78), &[]), &set);
 
@@ -608,8 +655,11 @@ mod tests {
             .iter()
             .filter(|i| i.role == ViewRole::Wall)
             .collect();
-        assert_eq!(walls.len(), 2);
+        assert_eq!(walls.len(), 3);
         for wall in walls {
+            if wall.points.iter().all(|p| p[1] < view.horizon_y) {
+                continue;
+            }
             let xs = wall.points.iter().map(|p| p[0]);
             let (left, right) = (
                 xs.clone().fold(f64::MAX, f64::min),
@@ -636,6 +686,7 @@ mod tests {
             rotation_deg: 0.0,
             shape: Default::default(),
             height_m: Some(1.6),
+            base_m: None,
         }];
         let plan = plan_with(camera(35.0, 1.5, 0.0, 1.78), &[(10.0, 5.0, Pose::Standing)]);
         let view = view_of(&plan, &set);

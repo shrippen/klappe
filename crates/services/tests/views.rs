@@ -42,6 +42,7 @@ fn the_overview_lists_scenes_locations_and_plans() {
             name: s.project().locations[0].name.clone(),
             width_m: s.project().locations[0].set.width_m,
             depth_m: s.project().locations[0].set.depth_m,
+            wall_height_m: s.project().locations[0].set.wall_height_m,
             scenes: s.project().scenes.len(),
         }
     );
@@ -184,7 +185,7 @@ fn the_other_hints_carry_their_fields() {
         serde_json::to_value(s.object_hint("tisch")).unwrap(),
         json!({
             "kind": "object", "label": "Tafel", "library": "table", "width": 6.0,
-            "depth": 1.2, "height": null,
+            "depth": 1.2, "height": null, "base": 0.0, "baseDefault": true,
         })
     );
     assert_eq!(s.object_hint("x"), None);

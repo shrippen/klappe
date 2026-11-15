@@ -240,6 +240,7 @@ pub(super) fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result
         rotation_deg: 0.0,
         shape,
         height_m,
+        base_m: None,
     });
 
     Ok(())

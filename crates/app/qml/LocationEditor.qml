@@ -3,13 +3,15 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import Kante
 
-// Adds a location or changes its name and size (LH-02, D-08). The set drawn there stays.
+// Adds a location or changes its name, size and room height (LH-02, LH-90, D-08). The set drawn
+// there stays.
 EditorPane {
     id: form
 
     // What a new location starts with, in metres.
     readonly property real defaultWidth: 10
     readonly property real defaultDepth: 8
+    readonly property real defaultHeight: 2.6
 
     title: texts.t(item ? "location.edit" : "location.new")
     applyText: texts.t(item ? "form.apply" : "form.add")
@@ -20,15 +22,16 @@ EditorPane {
         nameField.text = item ? item.name : ""
         widthField.text = texts.num(item ? item.width : defaultWidth, 2)
         depthField.text = texts.num(item ? item.depth : defaultDepth, 2)
+        heightField.text = texts.num(item ? item.height : defaultHeight, 2)
     }
 
     onItemChanged: load()
 
     submit: function () {
         if (!item) {
-            return controller.addLocation(nameField.text, widthField.text, depthField.text)
+            return controller.addLocation(nameField.text, widthField.text, depthField.text, heightField.text)
         }
-        return controller.editLocation(item.id, nameField.text, widthField.text, depthField.text)
+        return controller.editLocation(item.id, nameField.text, widthField.text, depthField.text, heightField.text)
     }
     remove: function () { return controller.removeLocation(item.id) }
 
@@ -62,5 +65,12 @@ EditorPane {
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
             }
         }
+    }
+    KanteSectionLabel { text: form.texts.t("location.height") }
+    KanteTextField {
+        id: heightField
+        objectName: "roomHeightField"
+        Layout.fillWidth: true
+        inputMethodHints: Qt.ImhFormattedNumbersOnly
     }
 }

@@ -3,9 +3,10 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import Kante
 
-// A door or window is selected (LH-10), a section of the selection card (D-04): its kind and
-// its width as a field. Enter or the button sets the width; a value that is no length marks
-// the field and changes nothing.
+// A door or window is selected (LH-10), a section of the selection card (D-04): its kind, its
+// width, and its sill and head (LH-90) as fields. Enter sets the field, the button the width and
+// what was changed of sill and head. Sill and head show the opening's own value; without one the
+// field is empty and shows its kind's greyed; an emptied one goes back to its kind's. A value that is no length marks the field and changes nothing.
 ColumnLayout {
     id: card
 
@@ -24,7 +25,7 @@ ColumnLayout {
     }
     readonly property bool shown: info !== null
     /// A field has the focus: letters and Delete are text, not keys for the selection.
-    readonly property bool typing: widthField.activeFocus
+    readonly property bool typing: widthField.activeFocus || sillField.typing || headField.typing
 
     visible: shown
     spacing: Kirigami.Units.smallSpacing
@@ -33,13 +34,78 @@ ColumnLayout {
     Component.onCompleted: card.fill()
 
     function fill() {
-        if (info && !widthField.activeFocus) {
+        if (!info) {
+            return
+        }
+        if (!widthField.activeFocus) {
             widthField.text = texts.num(info.width, 2)
         }
+        sillField.placeholderText = card.metres(info.sill)
+        headField.placeholderText = card.metres(info.head)
+        if (!sillField.typing) {
+            sillField.text = card.own("sill")
+        }
+        if (!headField.typing) {
+            headField.text = card.own("head")
+        }
+    }
+
+    function metres(value) {
+        return texts.num(value, 2)
+    }
+
+    // The opening's own `name` ("sill" or "head") as its field shows it: empty for the kind's,
+    // which the placeholder shows.
+    function own(name) {
+        return info[name + "Default"] ? "" : card.metres(info[name])
     }
 
     function setWidth() {
         widthField.invalid = !controller.setOpeningWidth(widthField.text)
+        return !widthField.invalid
+    }
+
+    // Sets the `name` ("sill" or "head") typed in `field`; an untouched field sends nothing, so
+    // a default is never pinned as the opening's own. An emptied one goes back to the kind's.
+    function setHeight(field, name) {
+        if (info && field.text.trim() === card.own(name)) {
+            field.invalid = false
+            return true
+        }
+        const ok = controller.setSelectedHeight(name, field.text)
+        if (ok && info) {
+            field.text = card.own(name)
+        }
+        field.invalid = !ok
+        return ok
+    }
+
+    function setSill() {
+        return card.setHeight(sillField, "sill")
+    }
+
+    function setHead() {
+        return card.setHeight(headField, "head")
+    }
+
+    // The button sets the width always, sill and head when they differ from what is shown. A
+    // refused width stops it. The edits refill the fields, so what was typed is taken first.
+    function apply() {
+        const sill = sillField.text
+        const head = headField.text
+        const sillChanged = info !== null && sill.trim() !== card.own("sill")
+        const headChanged = info !== null && head.trim() !== card.own("head")
+        if (!card.setWidth()) {
+            return
+        }
+        if (sillChanged) {
+            sillField.text = sill
+            card.setSill()
+        }
+        if (headChanged) {
+            headField.text = head
+            card.setHead()
+        }
     }
 
     KanteSectionLabel {
@@ -63,7 +129,24 @@ ColumnLayout {
         KanteButton {
             objectName: "openingApply"
             text: card.texts.t("form.apply")
-            onClicked: card.setWidth()
+            onClicked: card.apply()
+        }
+    }
+
+    RowLayout {
+        spacing: Kirigami.Units.smallSpacing
+
+        LabeledField {
+            id: sillField
+            fieldName: "openingSillField"
+            label: card.texts.t("field.sill")
+            onAccepted: card.setSill()
+        }
+        LabeledField {
+            id: headField
+            fieldName: "openingHeadField"
+            label: card.texts.t("field.head")
+            onAccepted: card.setHead()
         }
     }
 }

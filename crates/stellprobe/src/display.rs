@@ -620,9 +620,7 @@ mod tests {
             width_m: 20.0,
             depth_m: 13.0,
             walls: vec![Wall::new(Point::new(0.0, 0.0), Point::new(20.0, 0.0), 0.2)],
-            objects: vec![],
-            background: None,
-            notes: Vec::new(),
+            ..Default::default()
         }
     }
 
@@ -1108,6 +1106,7 @@ mod tests {
             rotation_deg: 90.0,
             shape: ObjectShape::Rect,
             height_m: None,
+            base_m: None,
         };
         let corners = object_corners(&o);
 
@@ -1126,6 +1125,7 @@ mod tests {
             rotation_deg,
             shape,
             height_m: None,
+            base_m: None,
         }
     }
 

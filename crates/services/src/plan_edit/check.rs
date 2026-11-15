@@ -1,8 +1,8 @@
 //! Checks of the values an edit brings before it applies: heights, tilts, holds, sizes, points.
 
 use klappe_model::{
-    is_camera_height_m, is_hold_s, is_object_height_m, is_object_size_m, is_tilt_deg, DrawingShape,
-    Point,
+    is_camera_height_m, is_floor_offset_m, is_hold_s, is_object_height_m, is_object_size_m,
+    is_tilt_deg, DrawingShape, Point,
 };
 
 use super::PlanEdit;
@@ -64,6 +64,10 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         } => check_camera_aim(*height_m, *tilt_deg),
         PlanEdit::SetMarkLens { lens_mm, .. } => lens_mm.map_or(Ok(()), camera_edit::check_lens),
         PlanEdit::SetObjectHeight { height_m, .. } => check_object_height(*height_m),
+        PlanEdit::SetWallHeight { .. }
+        | PlanEdit::SetOpeningHead { .. }
+        | PlanEdit::SetOpeningSill { .. }
+        | PlanEdit::SetObjectBase { .. } => check_heights(edit),
         PlanEdit::Remove { .. }
         | PlanEdit::RemoveGroup { .. }
         | PlanEdit::Straighten { .. }
@@ -138,6 +142,42 @@ fn check_object_height(height_m: Option<f64>) -> Result<(), ServiceError> {
         field: Field::Height,
         value: height_m.to_string(),
     })
+}
+
+/// The heights of LH-90; any other edit is none of its business.
+fn check_heights(edit: &PlanEdit) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::SetWallHeight { height_m, .. } => check_top(Field::Height, *height_m),
+        PlanEdit::SetOpeningHead { head_m, .. } => check_top(Field::Head, *head_m),
+        PlanEdit::SetOpeningSill { sill_m, .. } => check_offset(Field::Sill, *sill_m),
+        PlanEdit::SetObjectBase { base_m, .. } => check_offset(Field::Base, *base_m),
+        _ => Ok(()),
+    }
+}
+
+/// A height above the floor that something ends at, when given: a number, more than nothing,
+/// not absurd.
+fn check_top(field: Field, height_m: Option<f64>) -> Result<(), ServiceError> {
+    match height_m {
+        Some(height_m) if !is_object_height_m(height_m) => Err(bad_height(field, height_m)),
+        _ => Ok(()),
+    }
+}
+
+/// A height above the floor that something begins at, when given: a number from the floor
+/// up, not absurd.
+fn check_offset(field: Field, height_m: Option<f64>) -> Result<(), ServiceError> {
+    match height_m {
+        Some(height_m) if !is_floor_offset_m(height_m) => Err(bad_height(field, height_m)),
+        _ => Ok(()),
+    }
+}
+
+fn bad_height(field: Field, height_m: f64) -> ServiceError {
+    ServiceError::BadValue {
+        field,
+        value: height_m.to_string(),
+    }
 }
 
 /// A length in truth: more than nothing, and a number.

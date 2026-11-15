@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, Character, FigureColor, FloorPlan, LibraryItem, Location, Point, Project,
-    Scene, SetPlan, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    is_figure_size_m, is_object_height_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
+    Point, Project, Scene, SetPlan, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -38,10 +38,12 @@ pub enum ProjectEdit {
     RemoveScene {
         id: String,
     },
+    /// `wall_height_m` is the set's room height (LH-90).
     AddLocation {
         name: String,
         width_m: f64,
         depth_m: f64,
+        wall_height_m: f64,
     },
     /// Renames and resizes; the set's walls and objects stay where they are.
     EditLocation {
@@ -49,6 +51,7 @@ pub enum ProjectEdit {
         name: String,
         width_m: f64,
         depth_m: f64,
+        wall_height_m: f64,
     },
     /// Refused while a scene is set there.
     RemoveLocation {
@@ -146,13 +149,15 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             name,
             width_m,
             depth_m,
-        } => add_location(project, name, *width_m, *depth_m),
+            wall_height_m,
+        } => add_location(project, name, (*width_m, *depth_m), *wall_height_m),
         ProjectEdit::EditLocation {
             id,
             name,
             width_m,
             depth_m,
-        } => edit_location(project, id, name, *width_m, *depth_m),
+            wall_height_m,
+        } => edit_location(project, id, name, (*width_m, *depth_m), *wall_height_m),
         ProjectEdit::RemoveLocation { id } => remove_location(project, id),
         ProjectEdit::AddCharacter {
             name,
@@ -243,11 +248,12 @@ fn remove_scene(project: &mut Project, id: &str) -> Result<(), ServiceError> {
 fn add_location(
     project: &mut Project,
     name: &str,
-    width_m: f64,
-    depth_m: f64,
+    (width_m, depth_m): (f64, f64),
+    wall_height_m: f64,
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     check_size(width_m, depth_m)?;
+    check_room_height(wall_height_m)?;
 
     let base = slug(&name, LOCATION_ID_FALLBACK);
     let id = unique_id(&base, project.locations.iter().map(|l| l.id.as_str()));
@@ -257,6 +263,7 @@ fn add_location(
         set: SetPlan {
             width_m,
             depth_m,
+            wall_height_m,
             ..SetPlan::default()
         },
     });
@@ -268,11 +275,12 @@ fn edit_location(
     project: &mut Project,
     id: &str,
     name: &str,
-    width_m: f64,
-    depth_m: f64,
+    (width_m, depth_m): (f64, f64),
+    wall_height_m: f64,
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     check_size(width_m, depth_m)?;
+    check_room_height(wall_height_m)?;
 
     let Some(location) = project.locations.iter_mut().find(|l| l.id == id) else {
         return Err(ServiceError::NoLocation(id.to_owned()));
@@ -280,6 +288,7 @@ fn edit_location(
     location.name = name;
     location.set.width_m = width_m;
     location.set.depth_m = depth_m;
+    location.set.wall_height_m = wall_height_m;
     Ok(())
 }
 
@@ -494,6 +503,18 @@ fn check_size(width_m: f64, depth_m: f64) -> Result<(), ServiceError> {
         }
     }
     Ok(())
+}
+
+/// The room height: a number, more than nothing, not absurd.
+fn check_room_height(wall_height_m: f64) -> Result<(), ServiceError> {
+    if is_object_height_m(wall_height_m) {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::RoomHeight,
+        value: wall_height_m.to_string(),
+    })
 }
 
 /// `szene-012` for `12`, `szene-012a` for `12A`: the digits are padded so that ids sort

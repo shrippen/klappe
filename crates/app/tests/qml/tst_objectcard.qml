@@ -19,18 +19,20 @@ TestCase {
         property bool sizeOk: true
         property var heights: []
         property bool heightOk: true
+        property var bases: []
+        property bool baseOk: true
         property var filed: []
         property bool fileOk: true
 
         function describe(key) {
             if (key === "object:o1") {
-                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null })
+                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null, base: 0, baseDefault: true })
             }
             if (key === "object:o2") {
-                return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8 })
+                return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8, base: 0.4, baseDefault: false })
             }
             if (key === "object:o3") {
-                return JSON.stringify({ kind: "object", label: "", library: "zeppelin", width: 12, depth: 3, height: null })
+                return JSON.stringify({ kind: "object", label: "", library: "zeppelin", width: 12, depth: 3, height: null, base: 0, baseDefault: true })
             }
             return JSON.stringify({ kind: "camera", label: "A", lens: 35, fov: 39.6, height: 1.6, shots: "12.1" })
         }
@@ -41,6 +43,10 @@ TestCase {
         function setObjectHeight(text) {
             heights.push(text)
             return heightOk
+        }
+        function setSelectedHeight(field, text) {
+            bases.push([field, text])
+            return baseOk
         }
         function saveToLibrary(name) {
             filed.push(name)
@@ -64,6 +70,8 @@ TestCase {
         fake.sizeOk = true
         fake.heights = []
         fake.heightOk = true
+        fake.bases = []
+        fake.baseOk = true
         fake.filed = []
         fake.fileOk = true
     }
@@ -267,5 +275,99 @@ TestCase {
 
         verify(findChild(card, "heightField").visible)
         verify(findChild(card, "libraryName").visible)
+    }
+
+    // LH-90: the underside shows the object's own value; without one the field is empty and
+    // shows where it stands greyed, so stacking stays in force.
+    function test_the_underside_shows_its_own_value_or_the_stacked_one_greyed() {
+        const card = make()
+        const field = findChild(card, "baseField")
+        card.expanded = true
+
+        fake.selectedKey = "object:o2"
+        compare(field.text, "0,4")
+        fake.selectedKey = "object:o1"
+        compare([field.text, field.placeholderText], ["", "0"])
+    }
+
+    function test_an_untouched_stacked_underside_is_not_pinned() {
+        const card = make()
+        card.expanded = true
+        fake.selectedKey = "object:o1"
+        const field = findChild(card, "baseField")
+
+        field.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+
+        compare(fake.bases, [])
+    }
+
+    function test_the_underside_has_a_visible_label() {
+        const card = make()
+        card.expanded = true
+        fake.selectedKey = "object:o1"
+
+        const labels = []
+        const walk = item => {
+            for (const child of item.children) {
+                if (child.visible && child.text !== undefined && child.text !== "") {
+                    labels.push(child.text)
+                }
+                walk(child)
+            }
+        }
+        walk(card)
+
+        verify(labels.indexOf("Unterkante (m)") >= 0, labels)
+        verify(findChild(card, "baseField").visible)
+    }
+
+    function test_enter_gives_the_underside_to_the_controller() {
+        const card = make()
+        card.expanded = true
+        fake.selectedKey = "object:o1"
+        const field = findChild(card, "baseField")
+
+        field.forceActiveFocus()
+        verify(card.typing)
+        field.text = "0,4"
+        keyClick(Qt.Key_Return)
+
+        compare(fake.bases, [["base", "0,4"]])
+        compare(fake.sizes, [])
+        verify(!field.invalid)
+    }
+
+    // The button sets the underside when it was changed; emptied it stands on what is below.
+    function test_the_apply_button_gives_a_changed_underside_too() {
+        const card = make()
+        fake.selectedKey = "object:o1"
+
+        findChild(card, "objectApply").clicked()
+        compare(fake.bases, [])
+
+        findChild(card, "baseField").text = "0.4"
+        findChild(card, "objectApply").clicked()
+        compare(fake.bases, [["base", "0.4"]])
+
+        fake.selectedKey = "object:o2"
+        findChild(card, "baseField").text = ""
+        findChild(card, "objectApply").clicked()
+        compare(fake.bases, [["base", "0.4"], ["base", ""]])
+    }
+
+    function test_a_refused_underside_marks_the_field() {
+        const card = make()
+        card.expanded = true
+        fake.selectedKey = "object:o1"
+        fake.baseOk = false
+        const field = findChild(card, "baseField")
+
+        field.text = "-1"
+        findChild(card, "objectApply").clicked()
+
+        verify(field.invalid)
+        field.text = "1"
+        verify(!field.invalid)
     }
 }
