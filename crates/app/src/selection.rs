@@ -1,7 +1,7 @@
 //! What the select tool has picked and what the keys and a group drag do to it. Like the
 //! tools (`tools.rs`), no geometry here.
 
-use klappe_services::{PlanEdit, Point, Source};
+use klappe_services::{Bend, PlanEdit, Point, Source};
 
 /// What the keys do to the selection.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -133,6 +133,42 @@ impl Selection {
         }
     }
 
+    /// After `edit` was applied: a grip for a new bend that was pulled out made the bend, so
+    /// the bend is selected, not the grip, which now sits elsewhere (LH-21).
+    pub fn pulled(self, edit: &PlanEdit) -> Selection {
+        let PlanEdit::Shift {
+            source, dx_m, dy_m, ..
+        } = edit
+        else {
+            return self;
+        };
+        if (*dx_m, *dy_m) == (0.0, 0.0) || !self.contains(source) || self.len() > 1 {
+            return self;
+        }
+
+        match source {
+            Source::FigureVia {
+                character,
+                index,
+                bend: Bend::New(n),
+            } => Selection::of(Some(Source::FigureVia {
+                character: character.clone(),
+                index: *index,
+                bend: Bend::At(*n),
+            })),
+            Source::CameraVia {
+                camera,
+                index,
+                bend: Bend::New(n),
+            } => Selection::of(Some(Source::CameraVia {
+                camera: camera.clone(),
+                index: *index,
+                bend: Bend::At(*n),
+            })),
+            _ => self,
+        }
+    }
+
     /// The elements, `first` in front: the one the pointer holds snaps to the grid.
     fn leading(&self, first: &Source) -> Vec<Source> {
         let mut sources = vec![first.clone()];
@@ -217,7 +253,6 @@ fn group_key_edit(key: Key, sources: Vec<Source>) -> Option<PlanEdit> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klappe_services::Bend;
 
     fn p(x_m: f64, y_m: f64) -> Point {
         Point::new(x_m, y_m)
@@ -372,6 +407,45 @@ mod tests {
 
         assert_eq!(clicked.sources(), [Source::Wall(0)]);
         assert_eq!(boxed.sources(), [Source::Wall(0)]);
+    }
+
+    /// A grip pulled out makes a bend, which is what stays selected; a grip that was not moved
+    /// makes none, and other edits leave the selection.
+    #[test]
+    fn a_pulled_grip_selects_its_bend() {
+        let grip = |bend| Source::FigureVia {
+            character: "elisabeth".into(),
+            index: 1,
+            bend,
+        };
+        let camera = Source::CameraVia {
+            camera: "a".into(),
+            index: 1,
+            bend: Bend::New(2),
+        };
+        let shift = |source: &Source, dx_m| PlanEdit::Shift {
+            source: source.clone(),
+            dx_m,
+            dy_m: 0.0,
+        };
+        let new = Selection::of(Some(grip(Bend::New(1))));
+
+        assert_eq!(
+            new.clone().pulled(&shift(&grip(Bend::New(1)), 1.0)),
+            Selection::of(Some(grip(Bend::At(1))))
+        );
+        assert_eq!(
+            Selection::of(Some(camera.clone())).pulled(&shift(&camera, 1.0)),
+            Selection::of(Some(Source::CameraVia {
+                camera: "a".into(),
+                index: 1,
+                bend: Bend::At(2),
+            }))
+        );
+        assert_eq!(new.clone().pulled(&shift(&grip(Bend::New(1)), 0.0)), new);
+
+        let bend = Selection::of(Some(grip(Bend::At(0))));
+        assert_eq!(bend.clone().pulled(&shift(&grip(Bend::At(0)), 1.0)), bend);
     }
 
     #[test]
