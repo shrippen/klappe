@@ -100,6 +100,7 @@ pub fn scene_look(role: SceneRole) -> Look {
         SceneRole::Object => plain(Hue::Muted, Dash::Solid, Area::Solid),
         SceneRole::Missing => plain(ORANGE, Dash::Solid, Area::Solid),
         SceneRole::Figure(c) => plain(Hue::Color(c), Dash::Solid, Area::Solid),
+        SceneRole::Camera => plain(YELLOW, Dash::Solid, Area::Solid),
     }
 }
 

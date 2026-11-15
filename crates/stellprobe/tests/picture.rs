@@ -6,7 +6,7 @@ use klappe_model::{
     Arrival, Camera, CameraMark, Character, Departure, FigureColor, FigureTrack, FloorPlan, Mark,
     Point, Pose, Project, Sensor, SetPlan, Wall,
 };
-use klappe_stellprobe::{picture, Eye, Picture, SceneRole, Source};
+use klappe_stellprobe::{floor_at, picture, source_at, Eye, Orbit, Picture, SceneRole, Source};
 
 const WIDTH_PX: usize = 160;
 
@@ -217,4 +217,92 @@ fn sitting_is_lower_than_standing() {
     };
 
     assert!(top(Pose::Sitting) > top(Pose::Standing));
+}
+
+/// The free view over the set's middle, 4:3.
+fn orbit_eye(orbit: Orbit) -> Eye {
+    Eye::Orbit {
+        orbit,
+        t_s: 0.0,
+        aspect: 4.0 / 3.0,
+    }
+}
+
+/// The free view opens on the middle of the set: the floor point in the picture's centre is
+/// the set's centre (LH-94).
+#[test]
+fn the_free_view_looks_at_the_middle_of_the_set() {
+    let set = set();
+    let eye = orbit_eye(Orbit::fitting(set.width_m, set.depth_m));
+    let width = WIDTH_PX as f64;
+
+    let middle = floor_at(
+        &plan(35.0, &[]),
+        &eye,
+        width,
+        (width / 2.0, width * 3.0 / 8.0),
+    );
+
+    let middle = middle.expect("floor");
+    assert!(
+        (middle.x_m - 10.0).abs() < 1e-6 && (middle.y_m - 10.0).abs() < 1e-6,
+        "{middle:?}"
+    );
+}
+
+/// Above the horizon there is no floor to click.
+#[test]
+fn the_sky_has_no_floor() {
+    let set = set();
+    let mut orbit = Orbit::fitting(set.width_m, set.depth_m);
+    orbit.pitch_deg = 5.0;
+
+    assert_eq!(
+        floor_at(&plan(35.0, &[]), &orbit_eye(orbit), 160.0, (80.0, 0.0)),
+        None
+    );
+}
+
+/// The wheel brings the floor under the pointer closer, and it stays under the pointer.
+#[test]
+fn zooming_keeps_the_point_under_the_pointer() {
+    let set = set();
+    let plan = plan(35.0, &[]);
+    let mut orbit = Orbit::fitting(set.width_m, set.depth_m);
+    let pointer = (40.0, 90.0);
+    let before = floor_at(&plan, &orbit_eye(orbit), 160.0, pointer).expect("floor");
+
+    orbit.zoom(2.0, Some(before));
+
+    let after = floor_at(&plan, &orbit_eye(orbit), 160.0, pointer).expect("floor");
+    assert!(before.distance_m(after) < 1e-6, "{before:?} {after:?}");
+}
+
+/// The free view shows the camera as a body you can click; its own picture does not.
+#[test]
+fn a_camera_shows_in_the_free_view_but_not_in_its_own_picture() {
+    let set = set();
+    let plan = plan(35.0, &[]);
+    let free = picture(
+        &project(),
+        &set,
+        &plan,
+        &orbit_eye(Orbit::fitting(20.0, 20.0)),
+        WIDTH_PX,
+    );
+    let own = take(&set, &plan);
+    let camera = SceneRole::Camera.code();
+
+    let free = free.expect("picture");
+    let i = free
+        .frame
+        .role
+        .iter()
+        .position(|r| *r == camera)
+        .expect("camera body");
+    assert_eq!(
+        source_at(&free, (i % free.frame.width, i / free.frame.width)),
+        Some(&Source::Camera("a".into()))
+    );
+    assert!(!own.frame.role.contains(&camera));
 }

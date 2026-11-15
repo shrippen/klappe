@@ -40,7 +40,8 @@ pub use plan_edit::{Grid, MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{ProjectEdit, ShotsGo};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
-    Autosave, BackupState, Grab, Layer, Lock, Looping, Playing, Session, Step, TimeSnap, Visibility,
+    Autosave, BackupState, Grab, Layer, Lock, Looping, Playing, Session, Size, Step, TimeSnap,
+    View, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
