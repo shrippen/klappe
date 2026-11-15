@@ -317,6 +317,10 @@ RowLayout {
                 ownName.text = tools.pickedOwn ? (tools.pickedOwn.label || tools.pickedOwn.kind) : ""
                 ownGroup.text = tools.pickedOwn ? tools.pickedOwn.group : ""
             }
+            function sureText() {
+                const uses = tools.pickedOwn ? tools.pickedOwn.uses : 0
+                return uses === 0 ? tools.texts.t("library.deleteSureNone") : tools.texts.t("library.deleteSure", { count: uses })
+            }
             function change() {
                 ownName.invalid = !tools.controller.editLibraryItem(tools.pickedOwnKind, ownName.text, ownGroup.text)
             }
@@ -378,9 +382,7 @@ RowLayout {
             KanteToolButton {
                 objectName: "libraryDelete"
                 visible: tools.pickedOwn !== null
-                text: ownItems.asking
-                    ? tools.texts.t("library.deleteSure", { count: tools.pickedOwn ? tools.pickedOwn.uses : 0 })
-                    : tools.texts.t("library.delete")
+                text: ownItems.asking ? ownItems.sureText() : tools.texts.t("library.delete")
                 onClicked: ownItems.remove()
                 QQC2.ToolTip.text: tools.texts.t("library.deleteTip")
                 QQC2.ToolTip.visible: hovered

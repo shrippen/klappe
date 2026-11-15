@@ -540,6 +540,16 @@ TestCase {
         }
     }
 
+    function test_deleting_an_unused_entry_does_not_count() {
+        const bar = make()
+        bar.tool = "object"
+        pick(bar, "ruine")
+        const button = findChild(bar, "libraryDelete")
+
+        button.clicked()
+        compare(button.text, "Wirklich löschen?")
+    }
+
     function test_another_pick_cancels_the_question() {
         const bar = make()
         bar.tool = "object"
