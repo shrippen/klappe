@@ -8,7 +8,8 @@ import QtCore
 import io.github.shrippen.klappe
 
 // E-14 and D-02, D-03 (planung/DESIGN.md): header on top, tool bar below, script left, plan in
-// the middle, shot right, timeline below. Script, shot and timeline fold away (View menu).
+// the middle, shot right, timeline below. Script, shot and timeline fold away (View menu). The
+// work area (Workspace.qml) changes with the window's width (D-09).
 //
 //  ┌ KLAPPE  Projekt › Szene 12 › Plan A ▾    Datei  Ausgeben  Ansicht  ↶ ↷ ⌕ ┐
 //  ├ Auswahl Wand Objekt Figur Kamera Licht …                 Einrasten        ┤
@@ -27,8 +28,6 @@ Kirigami.ApplicationWindow {
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
     color: KanteStyle.backgroundColor
 
-    property bool showScript: true
-    property bool showShot: true
     property bool showTimeline: true
     // The order of the exported shot list: the film's or the shoot's (LH-72).
     readonly property var shotOrders: ["cut", "shooting"]
@@ -59,8 +58,8 @@ Kirigami.ApplicationWindow {
                 controller: ctl
                 tools: planTools
                 locked: backupNotice.blocking
-                showScript: root.showScript
-                showShot: root.showShot
+                showScript: workspace.scriptShown
+                showShot: workspace.shotShown
                 showTimeline: root.showTimeline
                 shotOrder: root.shotOrder
                 onNewRequested: root.switchProject(() => newFolderDialog.open())
@@ -69,8 +68,8 @@ Kirigami.ApplicationWindow {
                 onBackgroundRequested: backgroundDialog.open()
                 onViewToggled: (area, shown) => {
                     switch (area) {
-                    case "script": root.showScript = shown; break
-                    case "shot": root.showShot = shown; break
+                    case "script":
+                    case "shot": workspace.setArea(area, shown); break
                     case "timeline": root.showTimeline = shown; break
                     }
                 }
@@ -105,12 +104,14 @@ Kirigami.ApplicationWindow {
                 PlanTools {
                     id: planTools
                     enabled: !backupNotice.blocking
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    compact: workspace.tier !== Workspace.Tier.Wide
                     texts: texts
                     controller: ctl
                     onImportRequested: libraryImportDialog.open()
                     onExportRequested: libraryExportDialog.open()
                 }
-                Item { Layout.fillWidth: true }
             }
 
             Kirigami.Separator { Layout.fillWidth: true; visible: ctl.loaded }
@@ -123,58 +124,17 @@ Kirigami.ApplicationWindow {
                 controller: ctl
             }
 
-            RowLayout {
+            Workspace {
+                id: workspace
                 visible: ctl.loaded
-                enabled: !backupNotice.blocking
-                opacity: enabled ? 1 : KanteStyle.dimOpacity
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 0
-
-                ScriptPanel {
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 20
-                    Layout.fillHeight: true
-                    visible: root.showScript && ctl.loaded
-                    texts: texts
-                    lines: ctl.scriptJson ? JSON.parse(ctl.scriptJson) : []
-                    onChipClicked: (kind, target, at) => kind === "shot" ? ctl.selectShot(target) : ctl.seek(at)
-                }
-                Kirigami.Separator { Layout.fillHeight: true; visible: root.showScript && ctl.loaded }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    spacing: 0
-
-                    PlanArea {
-                        tool: planTools.tool
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        texts: texts
-                        controller: ctl
-                    }
-                }
-
-                Kirigami.Separator { Layout.fillHeight: true; visible: root.showShot && ctl.loaded }
-                ShotPanel {
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 20
-                    Layout.fillHeight: true
-                    visible: root.showShot && ctl.loaded
-                    texts: texts
-                    controller: ctl
-                    shot: root.selected
-                }
-            }
-
-            Kirigami.Separator { Layout.fillWidth: true; visible: root.showTimeline && ctl.loaded }
-            Timeline {
-                enabled: !backupNotice.blocking
-                opacity: enabled ? 1 : KanteStyle.dimOpacity
-                Layout.fillWidth: true
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 16
-                visible: root.showTimeline && ctl.loaded
                 texts: texts
                 controller: ctl
+                tool: planTools.tool
+                shot: root.selected
+                showTimeline: root.showTimeline
+                locked: backupNotice.blocking
             }
         }
     }

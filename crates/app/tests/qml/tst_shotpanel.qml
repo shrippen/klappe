@@ -55,7 +55,7 @@ TestCase {
         return {
             follows: follows === undefined ? "" : follows,
             id: "s12-3", number: "12.3", camera: "b", camera_label: "B", size: "medium", angle: "eye-level",
-            movement: "static", lens_mm: own === null ? 50 : own, own_lens_mm: own,
+            movement: "static", lens_mm: own === null ? 50 : own, own_lens_mm: own, lens_to_mm: null, lens_from_marks: false,
             description: "", props: "", gear: "", crew: "", note: "", axis_jump: false
         }
     }
@@ -107,6 +107,23 @@ TestCase {
 
         compare(lens.text, "")
         compare(lens.placeholderText, "50")
+    }
+
+    function test_marks_with_a_lens_make_the_field_read_only() {
+        const panel = make(40.5)
+        panel.shot = Object.assign({}, panel.shot, { lens_mm: 35, lens_to_mm: 85, lens_from_marks: true })
+        const lens = field(panel, "lensField")
+
+        verify(lens.readOnly)
+        compare(lens.text, "35–85 mm")
+        verify(panel.lensMarked)
+
+        panel.shot = Object.assign({}, panel.shot, { lens_to_mm: null })
+        compare(lens.text, "35 mm")
+
+        panel.shot = Object.assign({}, panel.shot, { lens_from_marks: false })
+        verify(!lens.readOnly)
+        compare(lens.text, "40,5")
     }
 
     function test_an_own_lens_is_the_text() {

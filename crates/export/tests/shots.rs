@@ -168,6 +168,32 @@ fn csv_lens_falls_back_to_the_camera() {
 }
 
 #[test]
+fn csv_lens_comes_from_the_marks() {
+    let mut plan = plan(2);
+    let mark = |at_s, lens_mm| CameraMark {
+        at_s,
+        lens_mm: Some(lens_mm),
+        ..plan.cameras[0].marks[0].clone()
+    };
+    plan.cameras[0].marks = vec![mark(0.0, 35.0), mark(6.0, 85.0)];
+    plan.shots[0].lens_mm = Some(50.0);
+    plan.shots[0].from_s = 0.0;
+    plan.shots[0].to_s = 0.0;
+    plan.shots[1].from_s = 0.0;
+    plan.shots[1].to_s = 6.0;
+
+    let csv = shots_csv(&plan, &texts(), ShotOrder::Cut);
+    let lens: Vec<&str> = csv
+        .lines()
+        .skip(1)
+        .map(|l| l.split(',').nth(2).unwrap())
+        .collect();
+
+    // The shot's own 50 mm does not count; a span reads "35\u{2013}85".
+    assert_eq!(lens, ["35", "35\u{2013}85"]);
+}
+
+#[test]
 fn csv_without_shots_is_the_head_row() {
     let csv = shots_csv(&plan(0), &texts(), ShotOrder::Cut);
 

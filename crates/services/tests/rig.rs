@@ -321,3 +321,74 @@ fn a_camera_mark_needs_a_known_camera_and_an_open_layer() {
     ));
     assert_eq!(s.plan().unwrap().camera("a").unwrap().marks.len(), 2);
 }
+
+/// With a lens on the marks the list shows theirs: 12.1 runs 35 to 85 mm, 12.2 stays on
+/// 85 mm; its own 40 mm no longer counts.
+#[test]
+fn the_shot_list_shows_the_lens_of_the_marks() {
+    let mut s = open();
+    set_lens(&mut s, Some(35.0)).unwrap();
+    s.set_time(7.0);
+    set_lens(&mut s, Some(85.0)).unwrap();
+
+    let rows = s.shots();
+
+    assert_eq!(
+        (rows[0].lens_mm, rows[0].lens_to_mm, rows[0].lens_from_marks),
+        (35.0, Some(85.0), true)
+    );
+    assert_eq!(
+        (rows[1].lens_mm, rows[1].lens_to_mm, rows[1].lens_from_marks),
+        (85.0, None, true)
+    );
+    // The setup follows the lens at the start: 35, 85, 85 mm.
+    assert_ne!(rows[0].setup, rows[1].setup);
+}
+
+/// The example with camera A leaving mark 1 at 2 s: it runs to mark 2 from 2 to 6 s.
+fn example_with_a_way() -> PathBuf {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("rig-way");
+    let _ = std::fs::remove_dir_all(&dir);
+    copy_dir(&example(), &dir);
+
+    let scene = dir.join("szenen/szene-012.json");
+    let mut json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&scene).unwrap()).unwrap();
+    json["plans"][0]["cameras"][0]["marks"][0]["hold_s"] = 2.0.into();
+    std::fs::write(&scene, json.to_string()).unwrap();
+
+    dir
+}
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+            continue;
+        }
+        std::fs::copy(entry.path(), target).unwrap();
+    }
+}
+
+/// On the way the tooltip names the rig of the section: that of the mark the camera runs to.
+#[test]
+fn the_tooltip_rig_is_the_one_of_the_way() {
+    let mut s = Session::open(&example_with_a_way()).unwrap();
+    s.set_time(7.0);
+    set_rig(&mut s, Rig::Crane).unwrap();
+    let rig = |s: &Session| match s.camera_hint("a") {
+        Some(Hint::Camera { rig, .. }) => rig,
+        _ => panic!("no hint"),
+    };
+
+    // Pausing at mark 1 (0 to 2 s), running to mark 2 (2 to 6 s), standing there.
+    s.set_time(1.0);
+    assert_eq!(rig(&s), "");
+    s.set_time(4.0);
+    assert_eq!(rig(&s), "crane");
+    s.set_time(7.0);
+    assert_eq!(rig(&s), "crane");
+}

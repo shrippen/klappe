@@ -28,5 +28,5 @@ pub use motion::{
     aim_at, bend_point, camera_at, figure_at, via_through, walked_ways, way_length_m, Placement,
 };
 pub use movement::movement_in;
-pub use optics::{frustum, horizontal_fov_deg, lens_at};
+pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};
 pub use setup::{ordered_shots, shot_setups, ShotOrder, SETUP_TOLERANCE_M};

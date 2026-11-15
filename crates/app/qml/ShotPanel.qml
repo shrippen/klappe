@@ -25,6 +25,18 @@ Item {
     // The shot's own lens as text; empty if it follows its camera.
     readonly property string ownLens: shot && shot.own_lens_mm !== null ? texts.num(shot.own_lens_mm, 1) : ""
 
+    // The camera's marks state a lens: they give the shot's, a span for a zoom (LH-33).
+    readonly property bool lensMarked: !!shot && shot.lens_from_marks
+    readonly property string markedLens: {
+        if (!shot) {
+            return ""
+        }
+        if (shot.lens_to_mm === null) {
+            return texts.t("camera.lensValue", { lens: texts.num(shot.lens_mm, 1) })
+        }
+        return texts.t("shot.lensSpan", { from: texts.num(shot.lens_mm, 1), to: texts.num(shot.lens_to_mm, 1) })
+    }
+
     // Sends `value` unless it is what the field showed; a refusal resets the fields.
     function commit(field, value, shown) {
         if (value === shown) {
@@ -203,15 +215,32 @@ Item {
                     currentIndex: panel.shot ? panel.angles.indexOf(panel.shot.angle) : -1
                     onActivated: index => panel.commit("angle", panel.angles[index], panel.shot.angle)
                 }
-                // Empty: the shot follows its camera, whose lens is the hint.
+                // Empty: the shot follows its camera, whose lens is the hint. With lens marks the
+                // field only shows theirs.
                 KanteTextField {
                     objectName: "lensField"
                     Layout.fillWidth: true
-                    text: { panel.refused; return panel.ownLens }
+                    readOnly: panel.lensMarked
+                    text: { panel.refused; return panel.lensMarked ? panel.markedLens : panel.ownLens }
                     placeholderText: panel.shot ? panel.texts.num(panel.shot.lens_mm, 1) : ""
                     inputMethodHints: Qt.ImhFormattedNumbersOnly
-                    onEditingFinished: panel.commit("lens", text, panel.ownLens)
+                    onEditingFinished: {
+                        if (!readOnly) {
+                            panel.commit("lens", text, panel.ownLens)
+                        }
+                    }
                 }
+            }
+
+            QQC2.Label {
+                objectName: "lensHint"
+                Layout.fillWidth: true
+                Layout.leftMargin: Kirigami.Units.largeSpacing
+                Layout.rightMargin: Kirigami.Units.largeSpacing
+                visible: panel.lensMarked
+                wrapMode: Text.WordWrap
+                color: KanteStyle.mutedTextColor
+                text: panel.texts.t("shot.lensFromMarks")
             }
 
             // What the camera's marks do during a shot without a movement of its own (LH-33);
