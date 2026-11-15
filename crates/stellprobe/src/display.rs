@@ -1,9 +1,10 @@
 use klappe_model::{
-    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, LightKind,
-    Mark, Note, ObjectShape, Point, Project, SetObject, SetPlan,
+    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Note,
+    ObjectShape, Point, Project, SetObject, SetPlan,
 };
 
 use crate::axis::axis_at;
+use crate::light::{lamps, light_items, Lamp};
 use crate::motion::{bend_point, camera_at, figure_at, path, walked_ways};
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
 use crate::rig::{rig_dash, rig_runs};
@@ -17,18 +18,6 @@ pub struct DisplayList {
     pub lamps: Vec<Lamp>,
     pub width_m: f64,
     pub depth_m: f64,
-}
-
-/// A lamp as a legend names it: the label the plan shows, and what it is.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Lamp {
-    /// Id of the lamp, to match it with its items.
-    pub id: String,
-    pub label: String,
-    pub kind: LightKind,
-    pub power_w: f64,
-    pub color_temp_k: f64,
-    pub beam_deg: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -142,7 +131,7 @@ const GROUP_DOTS: usize = 3;
 /// Mark circles are smaller than the figure.
 const MARK_RADIUS_M: f64 = 0.22;
 /// Camera and lamp bodies.
-const BODY_RADIUS_M: f64 = 0.25;
+pub(crate) const BODY_RADIUS_M: f64 = 0.25;
 /// The grip on a way's bend.
 const HANDLE_RADIUS_M: f64 = 0.15;
 /// The marker a note is pinned with.
@@ -152,8 +141,6 @@ const ARROW_HEAD_M: f64 = 0.45;
 const ARROW_HEAD_HALF_DEG: f64 = 25.0;
 /// Corners of the polygon an ellipse is drawn with.
 const ELLIPSE_CORNERS: usize = 48;
-/// How far a lamp's beam is drawn.
-const BEAM_REACH_M: f64 = 4.0;
 /// How far a camera's view is drawn when the set gives no size.
 const VIEW_REACH_FALLBACK_M: f64 = 8.0;
 /// Shown before a mark's number where the figure appears, after it where it leaves (LH-26).
@@ -394,45 +381,6 @@ fn note_items(set: &SetPlan, items: &mut Vec<Item>) {
             },
             label: Some(text.clone()),
             source: Some(Source::Note(id.clone())),
-        });
-    }
-}
-
-fn lamps(plan: &FloorPlan) -> Vec<Lamp> {
-    plan.lights
-        .iter()
-        .map(|l| Lamp {
-            id: l.id.clone(),
-            label: l.label.clone(),
-            kind: l.kind,
-            power_w: l.power_w,
-            color_temp_k: l.color_temp_k,
-            beam_deg: l.beam_deg,
-        })
-        .collect()
-}
-
-fn light_items(plan: &FloorPlan, items: &mut Vec<Item>) {
-    for light in &plan.lights {
-        let source = Some(Source::Light(light.id.clone()));
-        let beam = frustum(light.at, light.facing_deg, light.beam_deg, BEAM_REACH_M);
-
-        items.push(Item {
-            role: Role::LightBeam,
-            shape: Shape::Polygon {
-                points: beam.to_vec(),
-            },
-            label: None,
-            source: source.clone(),
-        });
-        items.push(Item {
-            role: Role::Light,
-            shape: Shape::Circle {
-                center: light.at,
-                radius_m: BODY_RADIUS_M,
-            },
-            label: Some(light.label.clone()),
-            source,
         });
     }
 }

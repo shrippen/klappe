@@ -9,7 +9,7 @@ use klappe_stellprobe::{hit, within, Item, Role, Source};
 use crate::camera_edit;
 use crate::error::ServiceError;
 use crate::field::Field;
-use crate::light_edit::{self, LightChange};
+use crate::light_edit::LightChange;
 use crate::session::Layer;
 
 mod add;
@@ -22,7 +22,7 @@ mod moving;
 mod remove;
 
 use add::{
-    add_camera, add_camera_mark, add_drawing, add_light, add_mark, add_note, add_object, add_wall,
+    add_camera, add_camera_mark, add_drawing, add_mark, add_note, add_object, add_wall, edit_light,
     edit_note, free_id, free_letter,
 };
 use background::{calibrate, move_background, remove_background, set_background};
@@ -494,8 +494,7 @@ pub(crate) fn apply(
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
         PlanEdit::AddCameraMark { camera, at } => add_camera_mark(&mut scope, camera, *at),
-        PlanEdit::AddLight { preset, at } => add_light(&mut scope, preset, *at),
-        PlanEdit::SetLight { light, change } => light_edit::set_light(scope.plan, light, change),
+        PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => edit_light(&mut scope, edit),
         PlanEdit::AddObject { kind, at } => add_object(&mut scope, kind, *at),
         PlanEdit::Resize {
             source,

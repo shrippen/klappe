@@ -44,7 +44,7 @@ fn bad(field: Field, value: f64) -> ServiceError {
     }
 }
 
-pub(crate) fn check(change: &LightChange) -> Result<(), ServiceError> {
+fn check(change: &LightChange) -> Result<(), ServiceError> {
     match change {
         LightChange::Kind(_) | LightChange::Preset(_) => Ok(()),
         LightChange::Beam(v) if *v > 0.0 && *v <= MAX_BEAM_DEG => Ok(()),
@@ -68,6 +68,8 @@ pub(crate) fn set_light(
     id: &str,
     change: &LightChange,
 ) -> Result<(), ServiceError> {
+    check(change)?;
+
     let preset = match change {
         LightChange::Preset(preset_id) => Some(preset(preset_id)?),
         _ => None,

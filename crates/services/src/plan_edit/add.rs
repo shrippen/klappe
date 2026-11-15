@@ -7,7 +7,7 @@ use klappe_model::{
 };
 
 use super::marks::WALK_SPEED_M_S;
-use super::{normalize_deg, Scope};
+use super::{normalize_deg, PlanEdit, Scope};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::library;
@@ -170,11 +170,16 @@ pub(super) fn add_camera_mark(
     Ok(())
 }
 
-pub(super) fn add_light(
-    scope: &mut Scope<'_>,
-    preset: &str,
-    at: Point,
-) -> Result<(), ServiceError> {
+/// The lamp edits: a new lamp of a library entry, or a change of one.
+pub(super) fn edit_light(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::AddLight { preset, at } => add_light(scope, preset, *at),
+        PlanEdit::SetLight { light, change } => light_edit::set_light(scope.plan, light, change),
+        _ => Ok(()),
+    }
+}
+
+fn add_light(scope: &mut Scope<'_>, preset: &str, at: Point) -> Result<(), ServiceError> {
     let preset = light_edit::preset(preset)?;
     let id = free_id("l", scope.plan.lights.iter().map(|l| l.id.as_str()));
 

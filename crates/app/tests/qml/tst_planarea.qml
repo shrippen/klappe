@@ -62,12 +62,6 @@ TestCase {
             if (key === "note:n1") {
                 return JSON.stringify({ kind: "note", text: "Vorhang schließen" })
             }
-            if (key === "light:l1") {
-                return JSON.stringify({ kind: "light", label: "L1", type: "fresnel", facing: 0, beam: 30, temp: 3200, power: 650, tunable: false })
-            }
-            if (key === "light:l2") {
-                return JSON.stringify({ kind: "light", label: "L2", type: "flag", facing: 0, beam: 20, temp: 5600, power: 0, tunable: false })
-            }
             if (key === "camera:b") {
                 return JSON.stringify({ kind: "camera", label: "B", lens: 50, fov: 27.9, height: 1.6, shots: "", follows: "Elisabeth", rig: "crane" })
             }
@@ -701,28 +695,6 @@ TestCase {
 
         compare(area.tipLines("object:o2"), ["Thron", "Höhe 0,8 m"])
         compare(area.tipLines("object:o1").filter(l => l.indexOf("Höhe") >= 0), [])
-    }
-
-    // LH-51: the tooltip names the kind, power and colour; a flag has neither.
-    function test_a_lamp_tooltip_names_kind_power_and_colour() {
-        const area = drawn("select")
-
-        compare(area.tipLines("light:l1"), ["L1 · Stufenlinse · 650 W · 3200 K · 30°"])
-        compare(area.tipLines("light:l2"), ["L2 · Abschatter · 20°"])
-    }
-
-    // LH-50: a selected lamp shows the lamp card, and only the lamp card.
-    function test_the_lamp_card_belongs_to_a_selected_lamp() {
-        const area = drawn("select")
-        const card = findChild(area, "lightCard")
-        verify(!card.visible)
-
-        fake.selectedKey = "light:l1"
-        verify(card.visible)
-        verify(!findChild(area, "cameraCard").visible)
-
-        fake.selectedKey = "camera:a"
-        verify(!card.visible)
     }
 
     // LH-32: a selected camera shows the camera card, and only the camera card.

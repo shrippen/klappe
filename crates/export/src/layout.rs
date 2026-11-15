@@ -85,9 +85,8 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
 
     // Legend wraps into rows when the page is narrow.
     let columns = ((content_w / LEGEND_ENTRY_PT) as usize).max(1);
-    let legend_rows = LEGEND_ENTRIES.div_ceil(columns);
-    let lamp_rows = lamp_lines(list, &page.texts).len();
-    let footer_h = SCALE_ROW_PT + (legend_rows + lamp_rows) as f64 * LEGEND_ROW_PT;
+    let legend_rows = LEGEND_ENTRIES.div_ceil(columns) + lamp_lines(list, &page.texts).len();
+    let footer_h = SCALE_ROW_PT + legend_rows as f64 * LEGEND_ROW_PT;
 
     let area = Rect {
         x: margin,
@@ -140,14 +139,6 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
         pal,
         &mut chrome,
     )?;
-    lamp_list(
-        list,
-        margin,
-        footer_y + SCALE_ROW_PT + legend_rows as f64 * LEGEND_ROW_PT,
-        &page.texts,
-        pal,
-        &mut chrome,
-    );
 
     Ok(Doc {
         width_pt,
@@ -468,6 +459,16 @@ fn legend(
             text: name.to_string(),
         });
     }
+
+    let entry_rows = LEGEND_ENTRIES.div_ceil(columns);
+    lamp_list(
+        list,
+        x,
+        y + entry_rows as f64 * LEGEND_ROW_PT,
+        texts,
+        pal,
+        out,
+    );
 
     Ok(())
 }

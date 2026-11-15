@@ -6,7 +6,6 @@ use super::PlanEdit;
 use crate::camera_edit;
 use crate::error::ServiceError;
 use crate::field::Field;
-use crate::light_edit;
 
 /// Highest a lens can be: a crane or a drone, not a satellite.
 const MAX_CAMERA_HEIGHT_M: f64 = 50.0;
@@ -59,7 +58,6 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             width_mm, aspect, ..
         } => camera_edit::check_sensor(*width_mm, *aspect),
         PlanEdit::SetLens { lens_mm, .. } => camera_edit::check_lens(*lens_mm),
-        PlanEdit::SetLight { change, .. } => light_edit::check(change),
         PlanEdit::SetAspect { aspect, .. } => camera_edit::check_aspect(*aspect),
         PlanEdit::SetHold { hold_s, .. } => check_hold(*hold_s),
         PlanEdit::SetCameraAim {
@@ -78,7 +76,9 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetArrival { .. }
         | PlanEdit::SetDeparture { .. }
         | PlanEdit::SetRig { .. }
-        | PlanEdit::SetPace { .. } => Ok(()),
+        | PlanEdit::SetPace { .. }
+        // `set_light` checks its change itself.
+        | PlanEdit::SetLight { .. } => Ok(()),
     }
 }
 
