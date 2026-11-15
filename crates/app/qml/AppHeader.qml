@@ -49,7 +49,7 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames,
-                                    actFree, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
+                                    actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actUndo, actRedo]
@@ -151,6 +151,8 @@ RowLayout {
         text: header.texts.t("menu.view")
         KanteMenuSection { text: header.texts.t("menu.viewMode"); rule: false }
         KanteMenuItem { objectName: "free"; action: actFree }
+        KanteMenuItem { objectName: "wallCut"; action: actWallCut }
+        KanteMenuItem { objectName: "through"; action: actThrough }
         KanteMenuItem { objectName: "heights"; action: actHeights }
         KanteMenuSection { text: header.texts.t("menu.viewAreas") }
         KanteMenuItem { objectName: "script"; action: actScript }
@@ -328,6 +330,46 @@ RowLayout {
         checkable: true
         enabled: header.controller.loaded && !header.locked
         onToggled: header.controller.toggleView()
+    }
+    // What the 3D view has on, as words (`freeLook`): "cut", "camera". It asks again whenever the
+    // 3D picture is made again.
+    readonly property string look: {
+        header.controller.freeRevision
+        header.controller.viewFree
+        return typeof header.controller.freeLook === "function" ? header.controller.freeLook("") : ""
+    }
+    // Walls cut at the chest (Y, LH-98): only in 3D.
+    CommandAction {
+        id: actWallCut
+        cmd: "view.wallCut"
+        group: "view"
+        text: header.texts.t("view.wallCut")
+        shortcut: "Y"
+        keys: "Y"
+        checkable: true
+        enabled: header.controller.loaded && !header.locked && header.controller.viewFree === true
+        onToggled: header.controller.freeLook("cut")
+    }
+    // Look through the selected shot's camera (LH-99). No key: Z, the one letter left, means
+    // nothing here.
+    CommandAction {
+        id: actThrough
+        cmd: "view.through"
+        group: "view"
+        text: header.texts.t("view.through")
+        checkable: true
+        enabled: header.controller.loaded && !header.locked && header.controller.viewFree === true
+        onToggled: header.controller.freeLook("camera")
+    }
+    Binding {
+        target: actWallCut
+        property: "checked"
+        value: header.look.split(" ").includes("cut")
+    }
+    Binding {
+        target: actThrough
+        property: "checked"
+        value: header.look.split(" ").includes("camera")
     }
     // Height missing (Shift+H, LH-93): selects the next object without one; its card takes the
     // typed height.

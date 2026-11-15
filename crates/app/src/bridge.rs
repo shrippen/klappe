@@ -136,6 +136,11 @@ pub mod qobject {
         #[cxx_name = "freeFrame"]
         fn free_frame(self: &Self) -> QString;
 
+        /// Runs `"cut"` or `"camera"` in 3D (other words only ask); returns what is on.
+        #[qinvokable]
+        #[cxx_name = "freeLook"]
+        fn free_look(self: Pin<&mut Self>, command: &QString) -> QString;
+
         /// Turns the 3D view by a drag of `dx`, `dy` pixels.
         #[qinvokable]
         #[cxx_name = "turnView"]

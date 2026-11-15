@@ -24,6 +24,8 @@ TestCase {
         property bool canRedo: true
         property bool hasBackground: false
         property bool viewFree: false
+        property int freeRevision: 0
+        property string look: ""
         property int missingHeights: 0
         property var calls: []
         property var scenes: [
@@ -52,6 +54,15 @@ TestCase {
         function clearStatus() {}
         function stepMark(direction) { call("stepMark", [direction]) }
         function toggleView() { call("toggleView", []); viewFree = !viewFree }
+        function freeLook(command) {
+            if (command !== "") {
+                call("freeLook", [command])
+                const on = look.split(" ").filter(w => w !== "")
+                look = on.includes(command) ? on.filter(w => w !== command).join(" ") : on.concat([command]).join(" ")
+                freeRevision++
+            }
+            return look
+        }
         function nextMissingHeight() { return call("nextMissingHeight", []) }
     }
 
@@ -616,6 +627,47 @@ TestCase {
         verify(!entry(header, "viewMenu", "free").checked)
     }
 
+    // LH-98: Y cuts the walls in 3D only; the View menu and the palette do the same.
+    function test_y_cuts_the_walls_in_3d() {
+        const header = make()
+        verify(!entry(header, "viewMenu", "wallCut").enabled)
+        keyClick(Qt.Key_Y)
+        compare(fake.calls, [])
+
+        keyClick(Qt.Key_J)
+        verify(entry(header, "viewMenu", "wallCut").enabled)
+        keyClick(Qt.Key_Y)
+        compare(fake.calls, [["toggleView"], ["freeLook", "cut"]])
+        verify(entry(header, "viewMenu", "wallCut").checked)
+
+        pick(header, "viewMenu", "wallCut")
+        verify(!entry(header, "viewMenu", "wallCut").checked)
+        header.run("view.wallCut")
+        verify(entry(header, "viewMenu", "wallCut").checked)
+
+        const cmd = header.commandPalette.commands.find(c => c.id === "view.wallCut")
+        compare(cmd.keys, "Y")
+        compare(cmd.text, "Wände kappen")
+        header.texts = en
+        compare(header.commandPalette.commands.find(c => c.id === "view.wallCut").text, "Cut walls")
+    }
+
+    // LH-99: looking through the camera is a command of the View menu and the palette, in 3D only.
+    function test_the_view_looks_through_a_camera() {
+        const header = make()
+        verify(!entry(header, "viewMenu", "through").enabled)
+
+        keyClick(Qt.Key_J)
+        verify(entry(header, "viewMenu", "through").enabled)
+        pick(header, "viewMenu", "through")
+        compare(fake.calls, [["toggleView"], ["freeLook", "camera"]])
+        verify(entry(header, "viewMenu", "through").checked)
+
+        header.run("view.through")
+        verify(!entry(header, "viewMenu", "through").checked)
+        compare(header.commandPalette.commands.find(c => c.id === "view.through").text, "Durch Kamera sehen")
+    }
+
     function test_the_palette_lists_the_3d_view_with_its_key() {
         const header = make()
 
@@ -671,7 +723,7 @@ TestCase {
     }
 
     function test_the_texts_are_in_both_languages() {
-        for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewMode", "view.free", "height.next", "height.missingHeader", "menu.viewOrder",
+        for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewMode", "view.free", "view.wallCut", "view.through", "view.throughHint", "height.next", "height.missingHeader", "menu.viewOrder",
                            "menu.ods", "menu.xlsx", "menu.frames", "export.pick.frames",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
                            "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",

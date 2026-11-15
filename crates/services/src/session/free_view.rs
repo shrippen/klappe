@@ -5,12 +5,14 @@
 //! ```text
 //!   J ──► View::Plan ⇄ View::Free
 //!   drag (turn, pan), wheel (zoom to the pointer) ──► Orbit
+//!   Y ──► Cut (walls end at the chest, LH-98)
+//!   look through a camera (LH-99) ──► Eye::Shot at the playhead; a turn goes back to Orbit
 //!   pixel ──► floor_at (a plan point for the tools) │ source_at (what a click takes)
 //! ```
 
 use klappe_model::Point;
 use klappe_stellprobe::{
-    floor_at, grab_at, label_point, level_at, lift_at, object_extent, picture, source_at, Eye,
+    floor_at, grab_at, label_point, level_at, lift_at, object_extent, picture, source_at, Cut, Eye,
     Orbit, Picture, Source,
 };
 
@@ -44,8 +46,53 @@ impl Session {
         }
     }
 
+    /// The wall cut of the 3D view.
+    pub fn cut(&self) -> Cut {
+        self.cut
+    }
+
+    /// Cuts the walls of the 3D view down to the chest, or back (key Y).
+    pub fn toggle_cut(&mut self) {
+        self.cut = match self.cut {
+            Cut::Off => Cut::Chest,
+            Cut::Chest => Cut::Off,
+        };
+    }
+
+    /// Whether the 3D view looks through a camera of the plan.
+    pub fn looks_through(&self) -> bool {
+        self.through.is_some()
+    }
+
+    /// In 3D, looks through the camera of the selected shot, else through `fallback` (the
+    /// camera picked on the plan), or back to the orbit when it already does. The view follows
+    /// the playhead. Returns whether it looks through a camera now; a plan, no camera or one
+    /// without marks (it would see nothing) change nothing.
+    pub fn look_through(&mut self, fallback: Option<&str>) -> bool {
+        if self.view != View::Free {
+            return false;
+        }
+        if self.through.take().is_some() {
+            return false;
+        }
+
+        let camera = self.shot_camera(fallback);
+        let seen = camera
+            .as_deref()
+            .and_then(|id| self.plan()?.camera(id))
+            .is_some_and(|c| !c.marks.is_empty());
+        if !seen {
+            return false;
+        }
+
+        self.through = camera;
+
+        true
+    }
+
     /// Turns the 3D view by a drag of `dx`, `dy` pixels.
     pub fn turn_view(&mut self, dx: f64, dy: f64) {
+        self.through = None;
         if let Some(orbit) = self.orbit.as_mut() {
             orbit.turn(dx, dy);
         }
@@ -53,6 +100,7 @@ impl Session {
 
     /// Shifts the 3D view by a drag of `dx`, `dy` pixels in a picture of `size`.
     pub fn pan_view(&mut self, dx: f64, dy: f64, size: Size) {
+        self.through = None;
         if let Some(orbit) = self.orbit.as_mut() {
             orbit.pan(dx, dy, size.0);
         }
@@ -81,6 +129,8 @@ impl Session {
 
     /// Wheel `steps` (positive comes closer) towards the floor under `pointer`.
     pub fn zoom_view(&mut self, steps: f64, pointer: Size, size: Size) {
+        // Leaving the camera: the zoom goes on from the last orbit.
+        self.through = None;
         let towards = self.free_floor_at(pointer, size);
         if let Some(orbit) = self.orbit.as_mut() {
             orbit.zoom(steps, towards);
@@ -101,6 +151,7 @@ impl Session {
             &forms,
             &self.free_eye(size)?,
             size.0 as usize,
+            self.cut,
         )
     }
 
@@ -153,10 +204,19 @@ impl Session {
     fn free_eye(&self, (width, height): Size) -> Option<Eye> {
         (width > 0.0 && height > 0.0).then_some(())?;
 
+        let aspect = width / height;
+        if let Some(camera) = &self.through {
+            return Some(Eye::Shot {
+                camera: camera.clone(),
+                t_s: self.time_s,
+                aspect: Some(aspect),
+            });
+        }
+
         Some(Eye::Orbit {
             orbit: self.orbit?,
             t_s: self.time_s,
-            aspect: width / height,
+            aspect,
         })
     }
 

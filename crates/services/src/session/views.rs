@@ -3,8 +3,8 @@
 
 use klappe_model::{CameraPresets, DrawingShape, Location, Orientation, Paper};
 use klappe_stellprobe::{
-    aim_at, axis_pair, horizontal_fov_deg, object_extent, opening_span, picture, wall_top, Eye,
-    Picture, Source,
+    aim_at, axis_pair, horizontal_fov_deg, object_extent, opening_span, picture, wall_top, Cut,
+    Eye, Picture, Source,
 };
 
 use super::Session;
@@ -113,19 +113,35 @@ impl Session {
     /// per pixel, roles instead of colours. `None` without a camera, or one without marks.
     pub fn camera_picture(&self, fallback: Option<&str>, width_px: usize) -> Option<Picture> {
         let plan = self.plan()?;
-        let of_shot = self
-            .selected_shot()
-            .and_then(|id| plan.shots.iter().find(|shot| shot.id == id))
-            .map(|shot| shot.camera.as_str());
         let location = self.project.location(&self.scene()?.location)?;
         let eye = Eye::Shot {
-            camera: of_shot.or(fallback)?.to_owned(),
+            camera: self.shot_camera(fallback)?,
             t_s: self.time_s,
+            aspect: None,
         };
 
         let forms = library::forms_of(&self.project.library, &location.set);
 
-        picture(&self.project, &location.set, plan, &forms, &eye, width_px)
+        picture(
+            &self.project,
+            &location.set,
+            plan,
+            &forms,
+            &eye,
+            width_px,
+            Cut::Off,
+        )
+    }
+
+    /// The camera a view through a camera takes: that of the selected shot, else `fallback`.
+    pub(super) fn shot_camera(&self, fallback: Option<&str>) -> Option<String> {
+        let plan = self.plan()?;
+        let of_shot = self
+            .selected_shot()
+            .and_then(|id| plan.shots.iter().find(|shot| shot.id == id))
+            .map(|shot| shot.camera.as_str());
+
+        of_shot.or(fallback).map(str::to_owned)
     }
 
     /// The tooltip of camera `id`; `None` without such a camera.

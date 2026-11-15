@@ -92,6 +92,28 @@ pub(crate) struct Face {
     pub(crate) surface: usize,
 }
 
+/// How far the walls are cut down, a setting of the view, not of the model (LH-98).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Cut {
+    #[default]
+    Off,
+    /// Walls end at chest height, so one sees into the room.
+    Chest,
+}
+
+/// Where `Cut::Chest` cuts the walls.
+const CHEST_M: f64 = 1.20;
+
+impl Cut {
+    /// The height a wall of `top_m` ends at.
+    fn wall_top(self, top_m: f64) -> f64 {
+        match self {
+            Cut::Off => top_m,
+            Cut::Chest => top_m.min(CHEST_M),
+        }
+    }
+}
+
 /// Whether the sides of a prism are faces of their own or one round surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Sides {
@@ -108,9 +130,10 @@ pub(crate) fn scene(
     forms: &Forms,
     t_s: f64,
     looking: Option<&str>,
+    cut: Cut,
 ) -> Vec<Solid> {
     let mut solids = vec![floor(set)];
-    walls(set, &mut solids);
+    walls(set, cut, &mut solids);
     objects(set, forms, &mut solids);
     figures(project, plan, t_s, &mut solids);
     cameras(plan, t_s, looking, &mut solids);
@@ -174,14 +197,14 @@ fn floor(set: &SetPlan) -> Solid {
 /// Where two walls meet, their ends are mitred so the corner closes in one line; a free end
 /// stops at the wall's point. The long sides and the top are one surface each, so a wall
 /// shows no line where a window cuts it.
-fn walls(set: &SetPlan, solids: &mut Vec<Solid>) {
+fn walls(set: &SetPlan, cut: Cut, solids: &mut Vec<Solid>) {
     for (index, wall) in set.walls.iter().enumerate() {
         let length_m = wall.length_m();
         if length_m == 0.0 {
             continue;
         }
 
-        let top_m = wall_top(set, wall);
+        let top_m = cut.wall_top(wall_top(set, wall));
         let ends = [End::From, End::To].map(|end| mitre(set, index, end));
         let mut faces = Vec::new();
         let mut next = FIRST_OWN_SURFACE;
@@ -678,7 +701,7 @@ mod tests {
         set.walls = vec![wall];
         let mut solids = Vec::new();
 
-        walls(&set, &mut solids);
+        walls(&set, Cut::Off, &mut solids);
 
         // Each box has four sides and a top; the one over the head also a bottom.
         let faces = &solids[0].faces;
@@ -688,6 +711,49 @@ mod tests {
         assert_eq!(xs.fold(f64::MIN, f64::max), 4.0);
         let plus_sides = faces.iter().filter(|f| f.surface == PLUS_SIDE).count();
         assert_eq!(plus_sides, 4);
+    }
+
+    /// The highest z of any corner of the walls.
+    fn wall_peak(set: &SetPlan, cut: Cut) -> f64 {
+        let mut solids = Vec::new();
+        walls(set, cut, &mut solids);
+
+        solids
+            .iter()
+            .flat_map(|s| &s.faces)
+            .flat_map(|f| &f.corners)
+            .map(|p| p[2])
+            .fold(0.0, f64::max)
+    }
+
+    /// A wall of 2.6 m ends at 1.2 m with the chest cut; a lower wall stays as it is.
+    #[test]
+    fn the_cut_ends_a_wall_at_the_chest() {
+        let mut set = SetPlan::default();
+        let mut wall = Wall::new(Point::new(0.0, 0.0), Point::new(4.0, 0.0), 0.2);
+        set.walls = vec![wall.clone()];
+
+        assert_eq!(wall_peak(&set, Cut::Off), 2.6);
+        assert_eq!(wall_peak(&set, Cut::Chest), 1.2);
+
+        wall.height_m = Some(0.8);
+        set.walls = vec![wall];
+        assert_eq!(wall_peak(&set, Cut::Chest), 0.8);
+    }
+
+    /// The part over a window's head is gone with the cut; the sill part stays.
+    #[test]
+    fn the_cut_takes_the_lintel_away() {
+        let mut set = SetPlan::default();
+        let mut wall = Wall::new(Point::new(0.0, 0.0), Point::new(4.0, 0.0), 0.2);
+        wall.openings = vec![Opening::new(OpeningKind::Window, 1.5, 1.0)];
+        set.walls = vec![wall];
+        let mut solids = Vec::new();
+
+        walls(&set, Cut::Chest, &mut solids);
+
+        // Two boxes and the sill part, five faces each; no part over the head.
+        assert_eq!(solids[0].faces.len(), 5 + 5 + 5);
     }
 
     /// Two walls at a right angle, 0.2 m thick, meeting at (4, 0): their ends are mitred, so

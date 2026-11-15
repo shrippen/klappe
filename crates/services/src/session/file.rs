@@ -50,6 +50,8 @@ impl Session {
             backup,
             view: View::Plan,
             orbit: None,
+            cut: klappe_stellprobe::Cut::Off,
+            through: None,
         })
     }
 

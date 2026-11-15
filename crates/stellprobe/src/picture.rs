@@ -14,7 +14,7 @@ use klappe_raster::{rasterize, Corner, Frame, Paint, Triangle, NO_SOURCE};
 use crate::display::Source;
 use crate::eye::{clip_near, Eye, Pinhole, Vec3, NEAR_M};
 use crate::forms::Forms;
-use crate::scene::{scene, Solid};
+use crate::scene::{scene, Cut, Solid};
 use crate::triangulate::triangulate;
 
 /// Light falls from this direction (above, from the plan's top left), so tops are lighter
@@ -43,8 +43,9 @@ pub struct PictureLabel {
     pub y: f64,
 }
 
-/// What `eye` sees, `width_px` wide and as high as its aspect makes it; `None` when the eye
-/// sees nothing (an unknown camera, one without marks) or the width is 0.
+/// What `eye` sees, `width_px` wide and as high as its aspect makes it, the walls cut as `cut`
+/// says; `None` when the eye sees nothing (an unknown camera, one without marks) or the width
+/// is 0.
 pub fn picture(
     project: &Project,
     set: &SetPlan,
@@ -52,6 +53,7 @@ pub fn picture(
     forms: &Forms,
     eye: &Eye,
     width_px: usize,
+    cut: Cut,
 ) -> Option<Picture> {
     let pinhole = Pinhole::of(eye, plan)?;
     let looking = match eye {
@@ -64,7 +66,7 @@ pub fn picture(
         return None;
     }
 
-    let solids = scene(project, set, plan, forms, eye.t_s(), looking);
+    let solids = scene(project, set, plan, forms, eye.t_s(), looking, cut);
     let mut sources = Vec::new();
     let mut triangles = Vec::new();
     let mut face = 0;

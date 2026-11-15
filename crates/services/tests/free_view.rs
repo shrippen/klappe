@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use klappe_services::{Session, Source, View};
+use klappe_services::{Cut, Session, Source, View};
 
 const EXAMPLE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -106,4 +106,148 @@ fn a_pointer_up_in_3d_lifts_and_down_lowers() {
 
     s.turn_view(0.0, -1000.0);
     assert!(s.free_lift((160.0, 0.0), (160.0, 5.0), SIZE, 0.0).is_none());
+}
+
+/// Key Y (LH-98): the cut changes the picture and goes back to the same one; it is a setting
+/// of the view, no edit.
+#[test]
+fn the_cut_changes_the_picture_and_is_no_edit() {
+    let mut s = example();
+    s.toggle_view();
+    let high = s.free_picture(SIZE).unwrap();
+    assert_eq!(s.cut(), Cut::Off);
+
+    s.toggle_cut();
+    assert_eq!(s.cut(), Cut::Chest);
+    assert_ne!(s.free_picture(SIZE).unwrap(), high);
+    assert!(!s.can_undo());
+
+    s.toggle_cut();
+    assert_eq!(s.free_picture(SIZE).unwrap(), high);
+}
+
+/// The camera picture of the shot card is never cut.
+#[test]
+fn the_cut_leaves_the_shot_cards_picture_alone() {
+    let mut s = example();
+    s.select_shot("s12-1").unwrap();
+    let before = s.camera_picture(None, 120).unwrap();
+
+    s.toggle_cut();
+
+    assert_eq!(s.camera_picture(None, 120).unwrap(), before);
+}
+
+/// LH-99: looking through the selected shot's camera shows what `camera_picture` shows.
+#[test]
+fn the_view_can_look_through_the_selected_shots_camera() {
+    let mut s = example();
+    s.select_shot("s12-1").unwrap();
+    let shot = s.camera_picture(None, 320).unwrap();
+    // The view has the camera's shape, so the picture is the same pixel for pixel.
+    let plan = s.plan().unwrap();
+    let shot_camera = &plan.shots.iter().find(|x| x.id == "s12-1").unwrap().camera;
+    let size = (320.0, 320.0 / plan.camera(shot_camera).unwrap().aspect);
+    assert!(!s.look_through(None), "only in 3D");
+
+    s.toggle_view();
+    let orbit = s.free_picture(size).unwrap();
+    assert!(s.look_through(None));
+
+    assert!(s.looks_through());
+    assert_eq!(s.free_picture(size).unwrap(), shot);
+    assert_ne!(shot.frame.role, orbit.frame.role);
+
+    // The same command goes back.
+    assert!(!s.look_through(None));
+    assert_eq!(s.free_picture(size).unwrap(), orbit);
+}
+
+/// Without a shot the camera picked on the plan serves; no camera, no look.
+#[test]
+fn the_picked_camera_serves_without_a_shot() {
+    let mut s = example();
+    s.toggle_view();
+
+    assert!(!s.look_through(None));
+    assert!(!s.look_through(Some("none")));
+    assert!(s.look_through(Some("a")));
+}
+
+/// Time changes move the eye; the picture is the one of the playhead.
+#[test]
+fn the_view_through_a_camera_follows_the_playhead() {
+    let mut s = example();
+    s.toggle_view();
+    s.set_time(0.0);
+    assert!(s.look_through(Some("a")));
+    let before = s.free_picture(SIZE).unwrap();
+
+    s.set_time(14.0);
+
+    assert_ne!(s.free_picture(SIZE).unwrap(), before);
+}
+
+/// Turning, shifting and zooming leave the camera and go on from the last orbit: the picture
+/// is the one of a session that never looked through it.
+#[test]
+fn navigating_leaves_the_camera() {
+    let moves: [fn(&mut Session); 3] = [
+        |s| s.turn_view(30.0, 5.0),
+        |s| s.pan_view(20.0, 10.0, SIZE),
+        |s| s.zoom_view(1.0, (100.0, 90.0), SIZE),
+    ];
+
+    for navigate in moves {
+        let mut s = example();
+        s.toggle_view();
+        let mut control = example();
+        control.toggle_view();
+
+        assert!(s.look_through(Some("a")));
+        navigate(&mut s);
+        navigate(&mut control);
+
+        assert!(!s.looks_through());
+        assert_eq!(
+            s.free_picture(SIZE).unwrap(),
+            control.free_picture(SIZE).unwrap()
+        );
+    }
+}
+
+/// A click through the camera's picture picks what is seen there (the same functions).
+#[test]
+fn clicks_work_through_a_camera() {
+    let mut s = example();
+    s.toggle_view();
+    assert!(s.look_through(Some("a")));
+    let picture = s.free_picture(SIZE).unwrap();
+    let i = picture
+        .frame
+        .source
+        .iter()
+        .position(|n| picture.sources.get(*n as usize).is_some())
+        .unwrap();
+    let pointer = ((i % 320) as f64 + 0.5, (i / 320) as f64 + 0.5);
+
+    assert!(s.free_pick(pointer, SIZE).is_some());
+    assert!(s.free_floor_at((160.0, 230.0), SIZE).is_some());
+}
+
+/// The camera looked through is not drawn; the others are.
+#[test]
+fn the_camera_looked_through_is_not_drawn() {
+    let mut s = example();
+    s.toggle_view();
+    let drawn = |s: &Session| {
+        let p = s.free_picture(SIZE).unwrap();
+        p.sources
+            .iter()
+            .any(|source| matches!(source, Source::Camera(id) if id == "a"))
+    };
+
+    assert!(s.look_through(Some("a")));
+
+    assert!(!drawn(&s));
 }
