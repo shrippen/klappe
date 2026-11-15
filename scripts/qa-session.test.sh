@@ -31,6 +31,22 @@ fail() {
     exit 1
 }
 
+# The pid of the klappe process below `$1` (bwrap runs it a level deeper than the session's pid).
+klappe_pid() {
+    local todo="$1" pid
+    while [ -n "$todo" ]; do
+        pid="${todo%% *}"
+        todo="${todo#"$pid"}"
+        todo="${todo# }"
+        if [ "$(cat "/proc/$pid/comm" 2> /dev/null)" = klappe ]; then
+            echo "$pid"
+            return
+        fi
+        todo="$todo $(pgrep -P "$pid" | tr '\n' ' ')"
+        todo="${todo# }"
+    done
+}
+
 # Windows of an X server (ids, sorted).
 windows() {
     DISPLAY="$1" xdotool search --onlyvisible --name . 2> /dev/null | sort || true
@@ -98,6 +114,40 @@ kill -0 "$foreign" 2> /dev/null || fail "start ended a foreign process"
 kill "$foreign"
 echo "ok: failed start cleans up, foreign pids stay"
 
+# A start that is interrupted (TERM, Ctrl-C) ends the session it started.
+mkdir "$work/term"
+KLAPPE_BIN="$hang" timeout -s TERM 1 "$session" start "$work/term" > /dev/null 2>&1 || true
+left="$(ps -eo args | grep -e "$work/term" -e 'sleep 987654' | grep -v grep || true)"
+[ -z "$left" ] || fail "an interrupted start left processes: $left"
+echo "ok: interrupted start cleans up"
+
+# qactl.py with a session folder whose session does not run (no qa.pid, or a foreign pid in it)
+# stops before any X or AT-SPI call.
+dead="$work/dead"
+mkdir "$dead"
+printf 'export %s\n' DISPLAY=:987 DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent \
+    AT_SPI_BUS_ADDRESS=unix:path=/nonexistent XDG_RUNTIME_DIR=/nonexistent > "$dead/session.env"
+sleep 987656 &
+foreign=$!
+for pidfile in none "$foreign"; do
+    rm -f "$work/calls" "$dead/qa.pid"
+    [ "$pidfile" = none ] || echo "$pidfile" > "$dead/qa.pid"
+    if PATH="$fakebin:$PATH" python3 "$root/scripts/qactl.py" --session "$dead" click 1 1 > /dev/null 2>&1; then
+        fail "qactl.py acted on a session that does not run (qa.pid: $pidfile)"
+    fi
+    [ ! -e "$work/calls" ] || fail "qactl.py called $(cat "$work/calls") for a dead session"
+done
+kill "$foreign"
+echo "ok: qactl.py needs a running session"
+
+# --- Without bwrap, start says so and stops: no silent fallback.
+if QA_BWRAP=/nonexistent/bwrap KLAPPE_BIN="$hang" "$session" start "$work/nobwrap" > "$work/nobwrap.out" 2>&1; then
+    fail "start succeeded without bwrap"
+fi
+grep -q 'user namespaces' "$work/nobwrap.out" || fail "start without bwrap said: $(cat "$work/nobwrap.out")"
+[ ! -e "$work/nobwrap/session.env" ] || fail "start without bwrap made a session"
+echo "ok: no bwrap, no session"
+
 # --- Live part.
 app="${KLAPPE_BIN:-${CARGO_TARGET_DIR:-$root/target}/debug/klappe}"
 if [ ! -x "$app" ]; then
@@ -138,7 +188,7 @@ echo "ok: pictures $shot_a"
 "$b/qa" tree | grep -q '^  frame ' || fail "tree B has no window"
 # A: start page; B (--open): the project is open, the start page is not there.
 "$a/qa" find --role button --contains "Projekt öffnen" | grep -q . || fail "A is not on the start page"
-pid_b="$(. "$b/session.env" && echo "$QA_APP_PID")"
+pid_b="$(klappe_pid "$(. "$b/session.env" && echo "$QA_APP_PID")")"
 tr '\0' '\n' < "/proc/$pid_b/cmdline" | grep -qx "$b/sandbox/projects/beispiel-en.klappe" \
     || fail "B was not started with --open on its copy"
 [ -z "$("$b/qa" find --role button --contains "Open project")" ] || fail "B shows the start page"
@@ -171,7 +221,8 @@ else
     echo "NOT CHECKABLE: no real X display to compare"
 fi
 for s in "$a" "$b"; do
-    pid="$(. "$s/session.env" && echo "$QA_APP_PID")"
+    pid="$(klappe_pid "$(. "$s/session.env" && echo "$QA_APP_PID")")"
+    [ -n "$pid" ] || fail "no klappe process in $s"
     env_of="$(tr '\0' '\n' < "/proc/$pid/environ")"
     grep -q '^WAYLAND_DISPLAY=' <<< "$env_of" && fail "Klappe in $s sees WAYLAND_DISPLAY"
     grep -q "^XDG_CONFIG_HOME=$s/sandbox/config$" <<< "$env_of" || fail "Klappe in $s has the wrong XDG_CONFIG_HOME"
@@ -181,6 +232,15 @@ for s in "$a" "$b"; do
     [ -z "$inherited" ] || fail "Klappe in $s inherited: $inherited"
     [[ "$(readlink "/proc/$pid/cwd")" == "$s/sandbox/"* ]] \
         || fail "Klappe in $s runs in $(readlink "/proc/$pid/cwd"), not in its sandbox"
+    # What Klappe sees of the owner's files, through its own root (/proc/PID/root).
+    seen="/proc/$pid/root"
+    for hidden in "$HOME/Hacking" "$HOME/.config" "$HOME/.ssh" "$HOME/.local" "$root/scripts" "$root/agent.md"; do
+        [ ! -e "$seen$hidden" ] || fail "Klappe in $s sees $hidden"
+    done
+    [ -d "$seen$s/sandbox/config" ] || fail "Klappe in $s does not see its own sandbox"
+    [ -z "$(ls -A "$seen/run/user" 2> /dev/null)" ] || fail "Klappe in $s sees /run/user"
+    [ -z "$(ls -A "$seen/tmp" 2> /dev/null | grep -v '^\.X11-unix$')" ] || fail "Klappe in $s sees /tmp"
+    [ ! -e "$seen$s/qa" ] || fail "Klappe in $s sees the work folder outside its sandbox"
 done
 echo "NOT CHECKABLE: native Wayland windows of the desktop (no tool for the compositor); Klappe has no WAYLAND_DISPLAY and cannot open one"
 # Nothing of Klappe in the real settings or caches.
@@ -213,6 +273,18 @@ grep -q "	press	--role button --contains 'Projekt öffnen'	shot=001$" "$a/action
 grep -q "	press	'No such widget'	shot=[0-9]*	FAILED$" "$a/actions.log" \
     || fail "actions.log lacks the FAILED line"
 echo "ok: actions.log"
+
+# A second start in a running session's folder, of any kind, changes nothing.
+pidfile_before="$(cat "$a/qa.pid")"
+for kind in "--prepare-only" "--run true"; do
+    # shellcheck disable=SC2086
+    if "$session" start "$a" $kind > /dev/null 2>&1; then
+        fail "start $kind ran in the folder of a running session"
+    fi
+    [ "$(cat "$a/qa.pid" 2> /dev/null)" = "$pidfile_before" ] || fail "start $kind changed qa.pid"
+    "$a/qa" tree > /dev/null || fail "session A is gone after start $kind"
+done
+echo "ok: a second start is refused"
 
 # Stop: no process, no X server, pictures stay.
 pid_a="$(. "$a/session.env" && echo "$QA_APP_PID")"

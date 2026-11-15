@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# One separate session of Klappe in its own X server, for QA rounds. Not a jail: Klappe runs
-# with your UID and could open any path. The session starts it in a sandbox folder, with an
-# environment of its own (env -i and a short list), its own X server, D-Bus and AT-SPI bus and
-# no desktop service (no portal), so it meets no desktop window, file, sound or account by itself:
+# One separate session of Klappe in its own X server, for QA rounds. Klappe, the buses and the
+# AT-SPI registry run in bwrap: the root is read-only, /home, /run, /tmp, /mnt and /media are
+# empty, only the sandbox folder, Klappe's binary and QML and the session's X socket are bound in, and
+# there is no network. They still run with your UID, with an environment of their own (env -i and
+# a short list), a bus of their own and no desktop service (no portal). Needs bwrap and user
+# namespaces; without them start stops with a message (no fallback):
 #
-#   Xvfb (free display) ─► D-Bus session + AT-SPI bus ─► klappe (xcb, no Wayland, own HOME and
-#   XDG folders, a copy of the example project) ─► [--run CMD] ─► clean up
+#   Xvfb (free display) ─► [bwrap: D-Bus session + AT-SPI bus ─► klappe (xcb, no Wayland, own HOME
+#   and XDG folders, a copy of the example project)] ─► [--run CMD] ─► clean up
 #
 #   scripts/qa-session.sh start WORKDIR [--size 1440x900] [--language de|en] [--scale 1]
 #                         [--open] [--run CMD | --prepare-only] [-- <klappe args>]
@@ -49,9 +51,15 @@ START_WAIT_DS="${QA_START_WAIT_DS:-$START_WAIT_DS}"
 ENV_FILE=session.env
 PID_FILE=qa.pid
 self="$repo/scripts/qa-session.sh"
+# Test hook: another bwrap (qa-session.test.sh).
+BWRAP="${QA_BWRAP:-bwrap}"
+# Kante's QML module: the binary finds it through KLAPPE_QML_DIR; it lives in the repository,
+# which the jail does not show, so the jail binds it in.
+qml_dir="${QA_QML_DIR:-$repo/crates/app/qml}"
 
 # Prints the pid in WORKDIR/qa.pid if it is a background session of this work folder, that is
-# /proc/PID/cmdline reads "... qa-session.sh start WORKDIR --serve ..."; otherwise discards the
+# /proc/PID/cmdline reads "... qa-session.sh start WORKDIR --serve ..." (or "... --run CMD");
+# otherwise discards the
 # file and prints nothing. A pid is never signalled on the file's word alone.
 session_pid() {
     local dir="$1" pid args i
@@ -59,7 +67,8 @@ session_pid() {
     if [[ "$pid" =~ ^[0-9]+$ ]] && mapfile -d '' args 2> /dev/null < "/proc/$pid/cmdline"; then
         for i in "${!args[@]}"; do
             if [ "${args[$i]}" = "$self" ] && [ "${args[$((i + 1))]:-}" = start ] \
-                && [ "${args[$((i + 2))]:-}" = "$dir" ] && [ "${args[$((i + 3))]:-}" = --serve ]; then
+                && [ "${args[$((i + 2))]:-}" = "$dir" ] \
+                && { [ "${args[$((i + 3))]:-}" = --serve ] || [[ " ${args[*]:$((i + 3))} " == *" --run "* ]]; }; then
                 echo "$pid"
                 return 0
             fi
@@ -97,6 +106,12 @@ if [ "$command" = stop ]; then
 fi
 shift 2
 
+# A second start in the folder of a running session would make the first unreachable.
+if [ -n "$(session_pid "$dir")" ]; then
+    echo "qa-session: a session already runs in $dir (stop it first)" >&2
+    exit 2
+fi
+
 lang=de size="1440x900" scale=1 run="" mode=background open=0
 orig_args=("$@")
 while [ $# -gt 0 ]; do
@@ -127,8 +142,9 @@ if [ "$mode" != prepare ] && [ ! -x "$app" ]; then
     echo "qa-session: $app not found; cargo build -p klappe-app first" >&2
     exit 2
 fi
-if [ "$mode" = background ] && [ -n "$(session_pid "$dir")" ]; then
-    echo "qa-session: a session already runs in $dir (stop it first)" >&2
+
+if [ "$mode" != prepare ] && ! "$BWRAP" --unshare-user --unshare-pid --unshare-net --ro-bind / / true 2> /dev/null; then
+    echo "qa-session: bwrap with user namespaces is required (the session runs Klappe in it); not found or not allowed: $BWRAP" >&2
     exit 2
 fi
 
@@ -165,21 +181,26 @@ if [ "$mode" = background ]; then
     rm -f "$dir/$ENV_FILE"
     setsid "$self" start "$dir" --serve "${orig_args[@]}" > "$dir/session.log" 2>&1 < /dev/null &
     serve_pid=$!
+    # Ending this call (timeout, TERM, Ctrl-C) ends the session it started.
+    end_serve() {
+        kill -TERM "$serve_pid" 2> /dev/null || true
+        for _ in $(seq "$STOP_WAIT_DS"); do
+            kill -0 "$serve_pid" 2> /dev/null || return 0
+            sleep 0.1
+        done
+        kill -KILL "$serve_pid" 2> /dev/null || true
+    }
+    trap 'end_serve; exit 143' INT TERM
     for _ in $(seq "$START_WAIT_DS"); do
         if [ -s "$dir/$ENV_FILE" ]; then
+            trap - INT TERM
             echo "$dir"
             exit 0
         fi
         sleep 0.1
     done
-    # Too late: end the session we started, with everything it started.
     echo "qa-session: no session in time (see $dir/session.log)" >&2
-    kill -TERM "$serve_pid" 2> /dev/null || true
-    for _ in $(seq "$STOP_WAIT_DS"); do
-        kill -0 "$serve_pid" 2> /dev/null || exit 1
-        sleep 0.1
-    done
-    kill -KILL "$serve_pid" 2> /dev/null || true
+    end_serve
     exit 1
 fi
 
@@ -202,6 +223,8 @@ trap cleanup EXIT
 trap 'exit 143' INT TERM
 
 # Xvfb picks a free display itself and reports it (-displayfd): parallel sessions never clash.
+# The jail has no network namespace in common with the server: it reaches the path socket
+# /tmp/.X11-unix/X<N>, not the abstract one.
 Xvfb -displayfd 3 -screen 0 "${size}x24" -nolisten tcp 3> "$sandbox/display" \
     > "$sandbox/xvfb.log" 2>&1 &
 xvfb_pid=$!
@@ -225,8 +248,21 @@ esac
 clean=(env -i PATH="$PATH" LANG="$locale" LC_ALL="$locale"
     QT_QPA_PLATFORM=xcb DISPLAY=":$display" HOME="$sandbox/home" XDG_RUNTIME_DIR="$sandbox/runtime"
     XDG_CONFIG_HOME="$sandbox/config" XDG_CACHE_HOME="$sandbox/cache" XDG_DATA_HOME="$sandbox/data"
+    KLAPPE_QML_DIR="$qml_dir"
     QT_AUTO_SCREEN_SCALE_FACTOR=0 QT_SCALE_FACTOR="$scale" QT_FORCE_STDERR_LOGGING=1
     PULSE_SERVER=unix:/nonexistent)
+# The jail around Klappe, the buses and the registry. What is not bound is empty: the owner's
+# home, /run (the desktop's sockets), /tmp but the session's own X socket, other mounts. The
+# SysV IPC namespace stays shared: the X server's shared memory (MIT-SHM) needs it.
+hidden=()
+for folder in /home /mnt /media /srv; do
+    [ -d "$folder" ] && hidden+=(--tmpfs "$folder")
+done
+jail=("$BWRAP" --unshare-user --unshare-pid --unshare-net --unshare-uts --die-with-parent
+    --new-session --ro-bind / / "${hidden[@]}" --tmpfs "$HOME" --tmpfs /run --tmpfs /tmp
+    --dev /dev --proc /proc
+    --bind "$sandbox" "$sandbox" --ro-bind "$app" "$app" --ro-bind "$qml_dir" "$qml_dir"
+    --bind "/tmp/.X11-unix/X$display" "/tmp/.X11-unix/X$display")
 # Private buses for Klappe and the --run command (qactl talks to Klappe over AT-SPI): a
 # session bus, the accessibility bus beside it and the AT-SPI registry on it. Not by
 # activation: at-spi-bus-launcher starts the registry through systemd where dbus-broker is
@@ -236,7 +272,7 @@ REGISTRY=/usr/lib/at-spi2-registryd
 bus() {
     local name="$1"
     shift
-    setsid "${clean[@]}" dbus-daemon "$@" --nofork --print-address=3 3> "$sandbox/$name" \
+    setsid "${jail[@]}" "${clean[@]}" dbus-daemon "$@" --nofork --print-address=3 3> "$sandbox/$name" \
         > "$sandbox/$name.log" 2>&1 &
     bus_pids+=("$!")
     for _ in $(seq "$BUS_WAIT_DS"); do
@@ -264,10 +300,10 @@ bus session --config-file="$sandbox/session.conf"
 bus a11y --config-file="$A11Y_CONF" --address="unix:dir=$sandbox/runtime"
 clean+=(DBUS_SESSION_BUS_ADDRESS="$(head -1 "$sandbox/session")"
     AT_SPI_BUS_ADDRESS="$(head -1 "$sandbox/a11y")" QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1)
-setsid "${clean[@]}" "$REGISTRY" > "$sandbox/registry.log" 2>&1 &
+setsid "${jail[@]}" "${clean[@]}" "$REGISTRY" > "$sandbox/registry.log" 2>&1 &
 bus_pids+=("$!")
 
-setsid "${clean[@]}" "$app" --language "$lang" "${open_args[@]}" "$@" > "$sandbox/klappe.log" 2>&1 &
+setsid "${jail[@]}" "${clean[@]}" "$app" --language "$lang" "${open_args[@]}" "$@" > "$sandbox/klappe.log" 2>&1 &
 app_pid=$!
 
 # Wait for the window (xdotool). The X server is Klappe's alone: any window is its own.

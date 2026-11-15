@@ -29,6 +29,7 @@ inside --run they are set already). --work DIR (env QA_WORK, default the session
 the pictures (shot-001.png, ...) and actions.log: time, command, arguments, last picture number.
 """
 import argparse
+import enum
 import json
 import os
 import re
@@ -231,6 +232,8 @@ def layout_findings(root):
 # ---- Session, pictures and input (testers) ----
 
 ENV_FILE = "session.env"
+PID_FILE = "qa.pid"
+SESSION_SCRIPT = "qa-session.sh"
 ENV_KEYS = ("DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "AT_SPI_BUS_ADDRESS", "XDG_RUNTIME_DIR")
 ACTIONS_LOG = "actions.log"
 SHOT_PATTERN = re.compile(r"shot-(\d+)\.png$")
@@ -243,6 +246,30 @@ DOUBLE_CLICK_MS = 80
 TYPE_DELAY_MS = 20
 # What reads the screen only and is not an action: not logged.
 READ_ONLY = {"tree", "find", "text", "wait", "layout", "focus"}
+
+
+class Outcome(enum.Enum):
+    DONE = enum.auto()
+    FAILED = enum.auto()
+
+
+def session_runs(folder):
+    """Whether WORKDIR/qa.pid is a running session of this folder: its command line reads
+    `qa-session.sh start WORKDIR --serve` (or `... --run CMD`), as scripts/qa-session.sh checks."""
+    try:
+        pid = int((folder / PID_FILE).read_text())
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+    except (OSError, ValueError):
+        return False
+    words = raw.decode(errors="replace").split("\0")
+    script = Path(__file__).resolve().with_name(SESSION_SCRIPT)
+    for i, word in enumerate(words[:-3]):
+        if not word.endswith(SESSION_SCRIPT) or Path(word).resolve() != script:
+            continue
+        if words[i + 1] != "start" or Path(words[i + 2]).resolve() != folder.resolve():
+            continue
+        return words[i + 3] == "--serve" or "--run" in words[i + 3:]
+    return False
 
 
 def load_session(folder):
@@ -262,6 +289,8 @@ def load_session(folder):
     missing = [key for key in ENV_KEYS if key not in found]
     if missing:
         sys.exit(f"qactl: {path} lacks {', '.join(missing)}")
+    if not session_runs(Path(folder)):
+        sys.exit(f"qactl: no session runs in {folder} (stopped? scripts/qa-session.sh start)")
     os.environ.update(found)
     os.environ.pop("WAYLAND_DISPLAY", None)
 
@@ -272,7 +301,7 @@ def last_shot(work):
     return max(numbers, default=0)
 
 
-def log_action(work, args, failed=False):
+def log_action(work, args, outcome=Outcome.DONE):
     """One line in actions.log: time, command, its options as typed, last picture number, and
     FAILED if the action did not work."""
     command_at = sys.argv.index(args.command, 1)
@@ -280,7 +309,7 @@ def log_action(work, args, failed=False):
     stamp = datetime.now().isoformat(timespec="seconds")
     fields = [stamp, args.command, typed, f"shot={last_shot(work):03d}"]
     with open(work / ACTIONS_LOG, "a") as log:
-        log.write("\t".join(fields + (["FAILED"] if failed else [])) + "\n")
+        log.write("\t".join(fields + (["FAILED"] if outcome is Outcome.FAILED else [])) + "\n")
 
 
 def xdotool(*words):
@@ -435,7 +464,7 @@ def main():
         act(args, work)
     except SystemExit as error:
         if error.code not in (None, 0):
-            log_action(work, args, failed=True)
+            log_action(work, args, Outcome.FAILED)
         raise
     log_action(work, args)
 

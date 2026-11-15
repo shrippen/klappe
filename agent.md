@@ -63,9 +63,11 @@ die Datei im selben PR.
   `drag`, `key`, `type`, `hover`, `tree`, `find`, `press`, `text`, `wait`, `focus`, `layout`,
   `stop`); `scripts/qactl.py` is the tool behind it. Pictures and `actions.log` stay in
   `WORKDIR`. Test: `scripts/qa-session.test.sh`.
-- This is separation, not a jail: Klappe runs with the owner's UID and could reach any path.
-  The session starts it only in the sandbox folder, with an environment of its own and without
-  the desktop's buses, displays or services.
+- Klappe, the buses and the AT-SPI registry run in `bwrap` (user namespace, no network): the root
+  is read-only, the owner's home, `/run`, `/tmp` and other mounts are empty, only the session's
+  sandbox folder, Klappe's binary and the session's X socket are bound in. They still run with
+  the owner's UID, with an environment of their own and without the desktop's buses or services.
+  `start` stops with a message if `bwrap` or user namespaces are missing.
 - A private Xvfb started by `scripts/qa-session.sh` counts as offscreen.
 - Neither script is part of a release.
 
