@@ -34,7 +34,7 @@ TestCase {
         property string choicesJson: JSON.stringify({
             figure: [{ id: "elisabeth", name: "Elisabeth" }],
             object: [{ kind: "table", label: "", width_m: 1.6, depth_m: 0.9, shape: "rect", custom: false }],
-            light: ["fresnel"],
+            light: ["fresnel-650"],
             color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
             dash: ["solid", "dashed", "dotted"],
             fill: ["outline", "filled"],
@@ -470,6 +470,21 @@ TestCase {
 
         compare(next.scriptWidth, 444)
         compare(next.shotFolded, true)
+    }
+
+    function test_play_and_zoom_reach_the_timeline_and_the_plan() {
+        const work = make(1600)
+        const line = part(work, "timeline")
+        const canvas = part(work, "planCanvas")
+        const before = canvas.zoom
+
+        work.togglePlay()
+        verify(line.playing)
+        work.togglePlay()
+        verify(!line.playing)
+
+        work.zoomPlan("in")
+        verify(canvas.zoom > before)
     }
 
     function test_a_script_chip_reaches_the_controller() {

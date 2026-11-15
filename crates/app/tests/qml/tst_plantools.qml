@@ -27,7 +27,7 @@ TestCase {
                 { kind: "thron", label: "Thron", width_m: 0.9, depth_m: 0.8, shape: "rect", custom: true }
             ],
             cameras: [{ id: "a", label: "A" }, { id: "b", label: "B" }],
-            light: ["fresnel", "led-panel"],
+            light: ["fresnel-650", "led-panel"],
             color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
             dash: ["solid", "dashed", "dotted"],
             fill: ["outline", "filled"],
@@ -311,7 +311,7 @@ TestCase {
         compare(fake.tools[fake.tools.length - 1], ["figure", "burgvogt"])
 
         bar.tool = "light"
-        compare(bar.choice, "fresnel")
+        compare(bar.choice, "fresnel-650")
     }
 
     /// No camera picked: a click sets a new camera; a picked one gets the next mark.

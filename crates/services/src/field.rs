@@ -4,6 +4,7 @@
 pub enum Field {
     Angle,
     Aspect,
+    Beam,
     Camera,
     Character,
     Color,
@@ -26,6 +27,7 @@ pub enum Field {
     Pace,
     Point,
     Points,
+    Power,
     Props,
     Rig,
     Sensor,
@@ -33,6 +35,7 @@ pub enum Field {
     Short,
     Size,
     Source,
+    Temperature,
     Tilt,
     Title,
     Wall,
@@ -40,9 +43,10 @@ pub enum Field {
 }
 
 impl Field {
-    pub const ALL: [Field; 35] = [
+    pub const ALL: [Field; 38] = [
         Self::Angle,
         Self::Aspect,
+        Self::Beam,
         Self::Camera,
         Self::Character,
         Self::Color,
@@ -65,6 +69,7 @@ impl Field {
         Self::Pace,
         Self::Point,
         Self::Points,
+        Self::Power,
         Self::Props,
         Self::Rig,
         Self::Sensor,
@@ -72,6 +77,7 @@ impl Field {
         Self::Short,
         Self::Size,
         Self::Source,
+        Self::Temperature,
         Self::Tilt,
         Self::Title,
         Self::Wall,
@@ -83,6 +89,7 @@ impl Field {
         match self {
             Self::Angle => "angle",
             Self::Aspect => "aspect",
+            Self::Beam => "beam",
             Self::Camera => "camera",
             Self::Character => "character",
             Self::Color => "color",
@@ -105,6 +112,7 @@ impl Field {
             Self::Pace => "pace",
             Self::Point => "point",
             Self::Points => "points",
+            Self::Power => "power",
             Self::Props => "props",
             Self::Rig => "rig",
             Self::Sensor => "sensor",
@@ -112,6 +120,7 @@ impl Field {
             Self::Short => "short",
             Self::Size => "size",
             Self::Source => "source",
+            Self::Temperature => "temp",
             Self::Tilt => "tilt",
             Self::Title => "title",
             Self::Wall => "wall",

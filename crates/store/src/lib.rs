@@ -16,6 +16,7 @@ mod error;
 mod files;
 mod images;
 mod library;
+mod light;
 mod tree;
 
 use std::collections::HashSet;
@@ -29,6 +30,7 @@ pub use error::StoreError;
 use files::{Dir, Kind};
 pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
 pub use library::{builtin_library, load_library, save_library};
+pub use light::builtin_lights;
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
 
 /// Whether `id` may name a location or scene file on every system (FORMAT.md, Ids).

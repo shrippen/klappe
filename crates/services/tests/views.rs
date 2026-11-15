@@ -172,7 +172,10 @@ fn the_other_hints_carry_their_fields() {
     );
     assert_eq!(
         serde_json::to_value(s.light_hint("led-1")).unwrap(),
-        json!({ "kind": "light", "label": "LED-Panel", "temp": 5600.0, "power": 200.0 })
+        json!({
+            "kind": "light", "label": "LED-Panel", "type": "led-panel", "facing": 330.0,
+            "beam": 60.0, "tunable": true, "temp": 5600.0, "power": 200.0,
+        })
     );
     assert_eq!(s.light_hint("x"), None);
     assert_eq!(
