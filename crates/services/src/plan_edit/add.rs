@@ -165,7 +165,7 @@ pub(super) fn add_camera(
     Ok(())
 }
 
-/// A new camera or a new mark of one; `apply` has no more room for an arm of its own.
+/// Appends a mark to `camera`.
 /// The camera arrives, waits, then rolls at `DOLLY_SPEED_M_S`; it keeps its aim, height, tilt
 /// and lens, so it goes on looking at the scene.
 pub(super) fn add_camera_mark(
