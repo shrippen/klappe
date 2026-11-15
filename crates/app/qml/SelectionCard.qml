@@ -2,12 +2,12 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import Kante
 
-// The card of the selection (D-04): the object's, the door's or window's, the camera's and
-// the mark's fields in one card beside the selected element, with a pointer at it. A camera shows two sections
-// (camera, mark at the playhead). It follows the element when the plan is panned, zoomed
-// or played, stays inside the plan (on the left of the element when the right has no room)
-// and keeps clear of the mouse pointer: it does not open under it. Nothing is selected, or
-// several things: no card.
+// The card of the selection (D-04): the object's, the door's or window's, the camera's and the
+// mark's fields in one card beside the selected element, with a pointer at it. A camera shows two
+// sections (camera, mark at the playhead). It follows the element when the plan is panned, zoomed
+// or played, stays inside the plan (on the left of the element when the right has no room) and
+// keeps clear of the mouse pointer: it does not open under it. Nothing is selected, or several
+// things: no card.
 KantePopover {
     id: card
 

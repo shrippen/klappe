@@ -3,6 +3,7 @@ use klappe_model::{Camera, FigureColor, FigureTrack, FloorPlan, Point, Pose, Pro
 use crate::display::object_corners;
 use crate::hit::in_lasso;
 use crate::motion::{aim_at, camera_at, figure_at};
+use crate::opening::solid_spans;
 use crate::optics::{horizontal_fov_deg, lens_at};
 
 /// Image width; the height is `1 / aspect`.
@@ -172,19 +173,22 @@ fn eye_of(camera: &Camera, plan: &FloorPlan, t_s: f64) -> Option<Eye> {
     })
 }
 
+/// A wall stands between its openings; a door or window is a gap from floor to top.
 fn wall_faces(set: &SetPlan, faces: &mut Vec<Face>) {
     for wall in &set.walls {
-        let (a, b) = (wall.from, wall.to);
-        faces.push(Face {
-            role: ViewRole::Wall,
-            corners: vec![
-                [a.x_m, a.y_m, 0.0],
-                [b.x_m, b.y_m, 0.0],
-                [b.x_m, b.y_m, WALL_HEIGHT_M],
-                [a.x_m, a.y_m, WALL_HEIGHT_M],
-            ],
-            label: None,
-        });
+        for (start_m, end_m) in solid_spans(wall) {
+            let (a, b) = (wall.point_at(start_m), wall.point_at(end_m));
+            faces.push(Face {
+                role: ViewRole::Wall,
+                corners: vec![
+                    [a.x_m, a.y_m, 0.0],
+                    [b.x_m, b.y_m, 0.0],
+                    [b.x_m, b.y_m, WALL_HEIGHT_M],
+                    [a.x_m, a.y_m, WALL_HEIGHT_M],
+                ],
+                label: None,
+            });
+        }
     }
 }
 
@@ -339,7 +343,8 @@ fn clip<const N: usize>(
 #[cfg(test)]
 mod tests {
     use klappe_model::{
-        Arrival, CameraMark, Character, Departure, Mark, Point, Sensor, SetObject, Wall,
+        Arrival, CameraMark, Character, Departure, Mark, Opening, OpeningKind, Point, Sensor,
+        SetObject, Wall,
     };
 
     use super::*;
@@ -563,6 +568,41 @@ mod tests {
             .expect("object");
         assert_eq!(roles[0], ViewRole::Floor);
         assert!(wall < object);
+    }
+
+    /// A door from 8 m to 12 m in a wall from 5 m to 15 m: the camera at x 10 looks through it.
+    #[test]
+    fn a_door_leaves_a_gap_in_the_wall() {
+        let mut set = set();
+        set.walls = vec![Wall {
+            from: Point::new(5.0, 2.0),
+            to: Point::new(15.0, 2.0),
+            thickness_m: 0.2,
+            openings: vec![Opening {
+                kind: OpeningKind::Door,
+                at_m: 5.0,
+                width_m: 4.0,
+            }],
+        }];
+        let view = view_of(&plan_with(camera(35.0, 1.6, 0.0, 1.78), &[]), &set);
+
+        let walls: Vec<_> = view
+            .items
+            .iter()
+            .filter(|i| i.role == ViewRole::Wall)
+            .collect();
+        assert_eq!(walls.len(), 2);
+        for wall in walls {
+            let xs = wall.points.iter().map(|p| p[0]);
+            let (left, right) = (
+                xs.clone().fold(f64::MAX, f64::min),
+                xs.fold(f64::MIN, f64::max),
+            );
+            assert!(
+                right < FRAME_WIDTH / 2.0 || left > FRAME_WIDTH / 2.0,
+                "{left}..{right}"
+            );
+        }
     }
 
     /// Tripod, dolly or crane stand under the camera: the picture must stay free.

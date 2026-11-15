@@ -29,6 +29,23 @@ pub(crate) fn wall_items(set: &SetPlan, items: &mut Vec<Item>) {
 
 /// The wall as the pieces between its openings; one piece when it has none.
 fn wall_pieces(index: usize, wall: &Wall, items: &mut Vec<Item>) {
+    for (start_m, end_m) in solid_spans(wall) {
+        items.push(Item {
+            role: Role::Wall,
+            shape: Shape::Line {
+                from: wall.point_at(start_m),
+                to: wall.point_at(end_m),
+                width_m: wall.thickness_m,
+            },
+            label: None,
+            source: Some(Source::Wall(index)),
+        });
+    }
+}
+
+/// Where the wall stands, in metres from `from`: the stretches between its openings.
+/// Plan and camera view both draw these (e.g. 0..3 and 7..10 for a 4 m door at 5 m).
+pub(crate) fn solid_spans(wall: &Wall) -> Vec<(f64, f64)> {
     let length_m = wall.length_m();
     let mut spans = wall
         .openings
@@ -53,18 +70,7 @@ fn wall_pieces(index: usize, wall: &Wall, items: &mut Vec<Item>) {
         pieces.push((cursor_m, length_m));
     }
 
-    for (start_m, end_m) in pieces {
-        items.push(Item {
-            role: Role::Wall,
-            shape: Shape::Line {
-                from: wall.point_at(start_m),
-                to: wall.point_at(end_m),
-                width_m: wall.thickness_m,
-            },
-            label: None,
-            source: Some(Source::Wall(index)),
-        });
-    }
+    pieces
 }
 
 /// A door: the hinge at the start of the gap, the leaf standing open at a right angle, and
