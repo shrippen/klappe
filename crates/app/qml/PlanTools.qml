@@ -154,8 +154,9 @@ RowLayout {
         room -= figureBox.visible ? figureBox.implicitWidth + spacing : 0
         room -= lightBox.visible ? lightBox.implicitWidth + spacing : 0
         let count = 0
-        while (count < slots.count && slots.itemAt(count).implicitWidth + spacing <= room) {
-            room -= slots.itemAt(count).implicitWidth + spacing
+        // A tool the repeater has not made yet counts as no fit; the next `_fit` sees it.
+        for (let item = slots.itemAt(0); item && item.implicitWidth + spacing <= room; item = slots.itemAt(count)) {
+            room -= item.implicitWidth + spacing
             count++
         }
         fitCount = count
@@ -399,6 +400,10 @@ RowLayout {
             sourceComponent: optionsItems
         }
     }
+
+    // A layout has the width its parent gives it only with a filling child; without, it keeps
+    // its own width and `_fit` sees no room.
+    Item { Layout.fillWidth: true }
 
     // A list in focus takes letters and digits to pick its entry, like a text field does.
     readonly property bool listFocused: Window.window !== null && Window.window.activeFocusItem instanceof QQC2.ComboBox

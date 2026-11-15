@@ -269,6 +269,27 @@ TestCase {
         tryCompare(popover, "opened", false)
     }
 
+    // The bar takes the width of the window: below wide it must not stay at its own size.
+    function test_the_bar_has_the_width_of_the_window() {
+        make(1200)
+        win.bar.mode = "build"
+        win.bar.tool = "select"
+        waitForRendering(win)
+        wait(50)
+        compare(win.bar.width, 1200)
+        compare(win.bar.fitCount, win.bar.shown.length)
+
+        make(720)
+        win.bar.mode = "draw"
+        win.bar.tool = "select"
+        waitForRendering(win)
+        wait(50)
+        compare(win.bar.width, 720)
+        verify(win.bar.fitCount > 0 && win.bar.fitCount < win.bar.shown.length, "fit " + win.bar.fitCount)
+    }
+
+
+
     function test_wide_shows_everything_beside_the_plan() {
         const work = make(1600)
         const parts = ["scriptSlot", "scriptHandle", "plan", "shotHandle", "shotSlot", "timeline"]
