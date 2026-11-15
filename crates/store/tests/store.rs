@@ -417,7 +417,7 @@ fn an_object_height_is_written_only_when_given() {
     let mut project = example();
     save(&dir, &project, None).unwrap();
     let text = fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
-    assert!(!text.contains("height_m"), "{text}");
+    assert!(!text.contains("\nheight_m"), "{text}");
 
     project.locations[0].set.objects[0].height_m = Some(0.75);
     save(&dir, &project, None).unwrap();

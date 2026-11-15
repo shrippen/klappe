@@ -245,6 +245,9 @@ pub struct LocationRow {
     pub width_m: f64,
     #[serde(rename = "depth")]
     pub depth_m: f64,
+    /// The set's room height (LH-90).
+    #[serde(rename = "height")]
+    pub wall_height_m: f64,
     /// How many scenes play here.
     pub scenes: usize,
 }
@@ -361,6 +364,11 @@ pub enum Hint {
         depth_m: f64,
         #[serde(rename = "height")]
         height_m: Option<f64>,
+        /// Where it begins above the floor (LH-90): its own, else what it stands on.
+        #[serde(rename = "base")]
+        base_m: f64,
+        #[serde(rename = "baseDefault")]
+        base_default: bool,
     },
     /// A door or window in a wall (LH-10).
     Opening {
@@ -368,6 +376,23 @@ pub enum Hint {
         opening: OpeningKind,
         #[serde(rename = "width")]
         width_m: f64,
+        /// Sill and head above the floor (LH-90): its own, else its kind's.
+        #[serde(rename = "sill")]
+        sill_m: f64,
+        #[serde(rename = "head")]
+        head_m: f64,
+        #[serde(rename = "sillDefault")]
+        sill_default: bool,
+        #[serde(rename = "headDefault")]
+        head_default: bool,
+    },
+    /// A wall, for the card that sets its height (LH-90).
+    Wall {
+        /// Its own height, else the room's.
+        #[serde(rename = "height")]
+        height_m: f64,
+        #[serde(rename = "heightDefault")]
+        height_default: bool,
     },
     Note {
         text: String,

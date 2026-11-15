@@ -18,7 +18,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 
 ## Regeln
 
-- **Formatversion:** `format_version` in `projekt.toml` (aktuell 1). Eine neuere Version als die
+- **Formatversion:** `format_version` in `projekt.toml` (aktuell 2). Eine neuere Version als die
   des Programms wird nicht geladen, sondern gemeldet.
 - **Ids:** Drehort- und Szenen-Ids sind Dateinamen und müssen mit der `id` in der Datei
   übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`, Ende auf `.` oder Leerzeichen,
@@ -71,6 +71,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   laden und speichern unverändert. Ein neues Objekt übernimmt die Höhe seines
   Bibliothekseintrags, „Als Bibliotheksobjekt ablegen“ die des Objekts. Eine Bibliotheksdatei mit
   unbrauchbarer Höhe wird als Ganzes abgelehnt. Keine neue Formatversion, wie bei den Notizen.
+- **Höhen des Sets (LH-90, LH-91), seit Formatversion 2:** `[set]` hat `wall_height_m`, die
+  Raumhöhe (Standard 2,6); fehlt der Schlüssel, gilt 2,6. Jede `[[set.walls]]` hat optional
+  `height_m` (sonst Raumhöhe), jede Öffnung optional `sill_m` (Brüstung) und `head_m` (Sturz),
+  sonst die ihrer Art: Tür 0 und 2,1, Fenster 0,9 und 2,1. Jedes `[[set.objects]]` hat optional
+  `base_m`, die Unterkante; fehlt sie, steht das Objekt auf dem größten Objekt mit Höhe, das
+  größer ist und seine Mitte trägt, sonst auf dem Boden. Ein Objekt ohne `height_m` wird in
+  der Ansicht 0,9 m hoch gezeigt und trägt nichts. Leere Werte schreibt `save` nicht.
+  Formatversion 1 lädt unverändert (Raumhöhe 2,6, die feste Wandhöhe von früher) und wird als
+  2 gespeichert; eine Fassung für Version 1 lehnt das Projekt danach ab.
 - **Kamerahöhe und Neigung (LH-34):** jeder Kamera-Mark (`marks` in `szenen/<id>.json`) hat
   `height_m` (Höhe des Objektivs über dem Boden, 0 bis 50) und `tilt_deg` (Standard 0, −90 bis
   90). Die Neigung gilt vom Horizont aus: positiv blickt nach oben, negativ nach unten, 0 ist

@@ -2,7 +2,8 @@ import QtQuick
 import QtTest
 import "../../qml"
 
-// The door and window section of the selection card (LH-10, D-04): its width as a field.
+// The door and window section of the selection card (LH-10, LH-90, D-04): width, sill and head
+// as fields.
 TestCase {
     id: tc
     name: "OpeningCard"
@@ -17,19 +18,25 @@ TestCase {
         property string selectedKey: ""
         property var widths: []
         property bool widthOk: true
+        property var heights: []
+        property bool heightOk: true
 
         function describe(key) {
             if (key === "opening:2:0") {
-                return JSON.stringify({ kind: "opening", type: "door", width: 0.9 })
+                return JSON.stringify({ kind: "opening", type: "door", width: 0.9, sill: 0, head: 2.1, sillDefault: true, headDefault: true })
             }
             if (key === "opening:0:1") {
-                return JSON.stringify({ kind: "opening", type: "window", width: 1.2 })
+                return JSON.stringify({ kind: "opening", type: "window", width: 1.2, sill: 0.9, head: 2.4, sillDefault: true, headDefault: false })
             }
             return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null })
         }
         function setOpeningWidth(text) {
             widths.push(text)
             return widthOk
+        }
+        function setSelectedHeight(field, text) {
+            heights.push([field, text])
+            return heightOk
         }
     }
 
@@ -47,6 +54,8 @@ TestCase {
         fake.selectedKey = ""
         fake.widths = []
         fake.widthOk = true
+        fake.heights = []
+        fake.heightOk = true
     }
 
     function make() {
@@ -111,5 +120,104 @@ TestCase {
         verify(field.invalid)
         field.text = "1"
         verify(!field.invalid)
+    }
+
+    // LH-90: sill and head show the value in force, the kind's when the opening has none.
+    function test_sill_and_head_show_the_value_in_force() {
+        const card = make()
+
+        fake.selectedKey = "opening:2:0"
+        compare(findChild(card, "openingSillField").text, "0")
+        compare(findChild(card, "openingHeadField").text, "2,1")
+
+        fake.selectedKey = "opening:0:1"
+        compare(findChild(card, "openingSillField").text, "0,9")
+        compare(findChild(card, "openingHeadField").text, "2,4")
+    }
+
+    // Every field has a label of its own, not only a placeholder.
+    function test_sill_and_head_have_a_visible_label() {
+        const card = make()
+        fake.selectedKey = "opening:2:0"
+
+        const labels = []
+        const walk = item => {
+            for (const child of item.children) {
+                if (child.visible && child.text !== undefined && child.text !== "") {
+                    labels.push(child.text)
+                }
+                walk(child)
+            }
+        }
+        walk(card)
+
+        verify(labels.indexOf("Brüstung (m)") >= 0, labels)
+        verify(labels.indexOf("Sturz (m)") >= 0, labels)
+    }
+
+    function test_enter_gives_sill_and_head_to_the_controller() {
+        const card = make()
+        fake.selectedKey = "opening:2:0"
+        const sill = findChild(card, "openingSillField")
+        const head = findChild(card, "openingHeadField")
+
+        sill.forceActiveFocus()
+        verify(card.typing)
+        sill.text = "0,2"
+        keyClick(Qt.Key_Return)
+        head.forceActiveFocus()
+        head.text = "2,2"
+        keyClick(Qt.Key_Return)
+
+        compare(fake.heights, [["sill", "0,2"], ["head", "2,2"]])
+        compare(fake.widths, [])
+        verify(!sill.invalid)
+        verify(!head.invalid)
+    }
+
+    // The button sets the width and what was changed of sill and head; an emptied field sets
+    // the kind's value again.
+    function test_the_button_gives_a_changed_sill_and_head_too() {
+        const card = make()
+        fake.selectedKey = "opening:2:0"
+
+        findChild(card, "openingApply").clicked()
+        compare(fake.widths.length, 1)
+        compare(fake.heights, [])
+
+        findChild(card, "openingSillField").text = "0.3"
+        findChild(card, "openingHeadField").text = ""
+        findChild(card, "openingApply").clicked()
+
+        compare(fake.heights, [["sill", "0.3"], ["head", ""]])
+    }
+
+    function test_a_refused_sill_or_head_marks_the_field() {
+        const card = make()
+        fake.selectedKey = "opening:2:0"
+        fake.heightOk = false
+        const sill = findChild(card, "openingSillField")
+        const head = findChild(card, "openingHeadField")
+
+        sill.text = "-1"
+        head.text = "hoch"
+        findChild(card, "openingApply").clicked()
+
+        verify(sill.invalid)
+        verify(head.invalid)
+        sill.text = "1"
+        verify(!sill.invalid)
+    }
+
+    function test_a_refused_width_sets_no_sill_or_head() {
+        const card = make()
+        fake.selectedKey = "opening:2:0"
+        fake.widthOk = false
+
+        findChild(card, "openingWidthField").text = "breit"
+        findChild(card, "openingSillField").text = "0.3"
+        findChild(card, "openingApply").clicked()
+
+        compare(fake.heights, [])
     }
 }

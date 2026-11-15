@@ -4,10 +4,11 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// An object is selected (LH-25, LH-12, LH-17), a section of the selection card (D-04): its
-// name or kind, its size as two fields; under "More" its height (empty is none) and filing
-// it in the library under a name. Enter in a size field sets the size, Enter in the height
-// field the height; a value that is no length marks the field and changes nothing.
+// An object is selected (LH-25, LH-12, LH-17, LH-90), a section of the selection card (D-04):
+// its name or kind, its size as two fields; under "More" its height (empty is none), its
+// underside (the value in force; emptied it stands on what is below again) and filing it in the
+// library under a name. Enter in a size field sets the size, Enter in the height or underside
+// field that one; a value that is no length marks the field and changes nothing.
 ColumnLayout {
     id: card
 
@@ -32,7 +33,7 @@ ColumnLayout {
     readonly property bool shown: info !== null
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: widthField.activeFocus || depthField.activeFocus
-        || heightField.activeFocus || libraryName.activeFocus
+        || heightField.activeFocus || baseField.typing || libraryName.activeFocus
     readonly property string title: info ? (info.label !== "" ? info.label : card.kindOf(info)) : ""
 
     visible: shown
@@ -60,6 +61,9 @@ ColumnLayout {
         if (!heightField.activeFocus) {
             heightField.text = card.shownHeight(info)
         }
+        if (!baseField.typing) {
+            baseField.text = texts.num(info.base, 2)
+        }
         // The name a new library entry starts with.
         if (!libraryName.activeFocus) {
             libraryName.text = info.label !== "" ? info.label : card.kindOf(info)
@@ -75,17 +79,35 @@ ColumnLayout {
         heightField.invalid = !controller.setObjectHeight(heightField.text)
     }
 
-    // The button sets what was changed: the size always, the height when it differs. The
-    // size edit refills the fields, so the typed height is taken before and put back.
+    // Sets the underside; the field then shows the value in force, so an emptied one shows
+    // what the object stands on again.
+    function setBase() {
+        const ok = controller.setSelectedHeight("base", baseField.text)
+        if (ok && info) {
+            baseField.text = texts.num(info.base, 2)
+        }
+        baseField.invalid = !ok
+    }
+
+    // The button sets what was changed: the size always, height and underside when they
+    // differ. The size edit refills the fields, so what was typed is taken before and put back.
     function apply() {
         const typed = heightField.text
+        const typedBase = baseField.text
         const changed = info !== null && typed.trim() !== card.shownHeight(info)
+        const baseChanged = info !== null && typedBase.trim() !== texts.num(info.base, 2)
         // A refused size stops the apply: the height alone would be half of what was asked.
-        if (!card.setSize() || !changed) {
+        if (!card.setSize()) {
             return
         }
-        heightField.text = typed
-        card.setHeight()
+        if (changed) {
+            heightField.text = typed
+            card.setHeight()
+        }
+        if (baseChanged) {
+            baseField.text = typedBase
+            card.setBase()
+        }
     }
 
     function setSize() {
@@ -152,12 +174,20 @@ ColumnLayout {
         KanteTextField {
             id: heightField
             objectName: "heightField"
+            Layout.alignment: Qt.AlignBottom
             Layout.preferredWidth: Kirigami.Units.gridUnit * 5
             Accessible.name: card.texts.t("field.height")
             placeholderText: card.texts.t("field.height")
             inputMethodHints: Qt.ImhFormattedNumbersOnly
             onTextChanged: invalid = false
             onAccepted: card.setHeight()
+        }
+        LabeledField {
+            id: baseField
+            fieldName: "baseField"
+            label: card.texts.t("field.base")
+            Layout.alignment: Qt.AlignBottom
+            onAccepted: card.setBase()
         }
     }
 

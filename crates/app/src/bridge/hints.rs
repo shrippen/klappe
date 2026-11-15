@@ -39,7 +39,8 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
             .and_then(|(wall, index)| s.opening_hint(wall, index)),
         ElementKind::Note => Some(s.note_hint(id)),
         ElementKind::Drawing => s.drawing_hint(id),
-        ElementKind::Wall | ElementKind::DrawingPoint => None,
+        ElementKind::Wall => id.parse().ok().and_then(|wall| s.wall_hint(wall)),
+        ElementKind::DrawingPoint => None,
     };
 
     // Without a plan nothing is described, a note included.
@@ -109,7 +110,11 @@ mod tests {
         });
         assert_eq!(via, json!({ "kind": "bend", "index": 1 }));
 
-        assert_eq!(described(Source::Wall(0)), json!({}));
+        assert_eq!(
+            described(Source::Wall(0)),
+            json!({ "kind": "wall", "height": 2.6, "heightDefault": true })
+        );
+        assert_eq!(described(Source::Wall(99)), json!({}));
         assert_eq!(described(Source::Drawing("d".into())), json!({}));
         assert_eq!(describe(&s, "nonsense:x"), json!({}));
     }
@@ -123,7 +128,10 @@ mod tests {
         assert_eq!(key, "opening:2:0");
         assert_eq!(
             describe(&s, &key),
-            json!({ "kind": "opening", "type": "door", "width": 0.9 })
+            json!({
+                "kind": "opening", "type": "door", "width": 0.9, "sill": 0.0, "head": 2.1,
+                "sillDefault": true, "headDefault": true,
+            })
         );
         assert_eq!(describe(&s, "opening:2:5"), json!({}));
         assert_eq!(describe(&s, "opening:x:0"), json!({}));
@@ -157,6 +165,10 @@ mod tests {
         );
         // The example's table has no height: `null`, the field stays empty.
         assert_eq!(table["height"], serde_json::Value::Null);
+        assert_eq!(
+            (table["base"].as_f64(), table["baseDefault"].as_bool()),
+            (Some(0.0), Some(true))
+        );
         assert_eq!(describe(&s, "object:o99"), json!({}));
     }
 
@@ -223,7 +235,7 @@ mod tests {
             describe(&s, "object:tisch"),
             json!({
                 "kind": "object", "label": "Tafel", "library": "table", "width": 6.0,
-                "depth": 1.2, "height": null,
+                "depth": 1.2, "height": null, "base": 0.0, "baseDefault": true,
             })
         );
     }

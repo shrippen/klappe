@@ -18,6 +18,7 @@ mod check;
 mod drawings;
 mod grid;
 mod group;
+mod heights;
 mod marks;
 mod moving;
 mod openings;
@@ -34,6 +35,7 @@ use check::check;
 use drawings::set_drawing_style;
 pub(crate) use grid::snap;
 pub use grid::Grid;
+use heights::edit_height;
 pub(crate) use marks::{check_tripods, mark_info};
 use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_pose, set_rig};
 pub use marks::{MarkInfo, Pace};
@@ -144,6 +146,17 @@ pub enum PlanEdit {
         source: Source,
         height_m: Option<f64>,
     },
+    /// Sets how tall the wall `source` is (LH-90), or back to the room's height with `None`.
+    SetWallHeight {
+        source: Source,
+        height_m: Option<f64>,
+    },
+    /// Sets where the object `source` begins above the floor (LH-90), or back to standing on
+    /// what is below with `None`.
+    SetObjectBase {
+        source: Source,
+        base_m: Option<f64>,
+    },
     AddWall {
         from: Point,
         to: Point,
@@ -159,6 +172,18 @@ pub enum PlanEdit {
     SetOpeningWidth {
         source: Source,
         width_m: f64,
+    },
+    /// Sets the sill of the opening `source` (LH-90), or back to its kind's with `None`. Refused
+    /// at or above its head.
+    SetOpeningSill {
+        source: Source,
+        sill_m: Option<f64>,
+    },
+    /// Sets the head of the opening `source` (LH-90), or back to its kind's with `None`.
+    /// Refused at or below its sill.
+    SetOpeningHead {
+        source: Source,
+        head_m: Option<f64>,
     },
     /// Pins a note with `text` to the set.
     AddNote {
@@ -313,6 +338,10 @@ impl PlanEdit {
             | PlanEdit::SetMarkLens { source, .. }
             | PlanEdit::SetObjectHeight { source, .. }
             | PlanEdit::SetOpeningWidth { source, .. }
+            | PlanEdit::SetWallHeight { source, .. }
+            | PlanEdit::SetObjectBase { source, .. }
+            | PlanEdit::SetOpeningSill { source, .. }
+            | PlanEdit::SetOpeningHead { source, .. }
             | PlanEdit::SetPace { source, .. }
             | PlanEdit::SetDrawingStyle { source, .. }
             | PlanEdit::Remove { source }
@@ -488,6 +517,10 @@ pub(crate) fn apply(
         PlanEdit::AddOpening { .. } | PlanEdit::SetOpeningWidth { .. } => {
             edit_opening(&mut scope, edit)
         }
+        PlanEdit::SetWallHeight { .. }
+        | PlanEdit::SetObjectBase { .. }
+        | PlanEdit::SetOpeningSill { .. }
+        | PlanEdit::SetOpeningHead { .. } => edit_height(&mut scope, edit),
         PlanEdit::AddNote { at, text } => add_note(&mut scope, *at, text),
         PlanEdit::AddDrawing {
             shape,

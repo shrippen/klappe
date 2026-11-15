@@ -620,9 +620,6 @@ mod tests {
             width_m: 20.0,
             depth_m: 13.0,
             walls: vec![Wall::new(Point::new(0.0, 0.0), Point::new(20.0, 0.0), 0.2)],
-            objects: vec![],
-            background: None,
-            notes: Vec::new(),
             ..Default::default()
         }
     }

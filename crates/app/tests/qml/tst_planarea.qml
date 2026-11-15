@@ -55,13 +55,13 @@ TestCase {
         function markInfo() { return markJson }
         function describe(key) {
             if (key === "object:o1") {
-                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null })
+                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null, base: 0, baseDefault: true })
             }
             if (key === "object:o2") {
-                return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8 })
+                return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8, base: 0, baseDefault: true })
             }
             if (key === "object:o3") {
-                return JSON.stringify({ kind: "object", label: "", library: "zeppelin", width: 12, depth: 3, height: null })
+                return JSON.stringify({ kind: "object", label: "", library: "zeppelin", width: 12, depth: 3, height: null, base: 0, baseDefault: true })
             }
             if (key === "note:n1") {
                 return JSON.stringify({ kind: "note", text: "Vorhang schließen" })

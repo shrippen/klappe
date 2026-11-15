@@ -27,8 +27,8 @@ TestCase {
                 { id: "szene-013", number: "13", heading: "EXT. HOF", location: "hof", locationName: "Burghof" }
             ],
             locations: [
-                { id: "hof", name: "Burghof", width: 30, depth: 20.5, scenes: 1 },
-                { id: "saengersaal", name: "Sängersaal", width: 20, depth: 13, scenes: 1 }
+                { id: "hof", name: "Burghof", width: 30, depth: 20.5, height: 3.2, scenes: 1 },
+                { id: "saengersaal", name: "Sängersaal", width: 20, depth: 13, height: 2.6, scenes: 1 }
             ],
             characters: [
                 { id: "elisabeth", name: "Elisabeth", short: "E", color: "purple", group: 0, size: null },
@@ -52,8 +52,8 @@ TestCase {
         function addScene(n, h, l) { return call("addScene", [n, h, l]) }
         function editScene(id, n, h, l) { return call("editScene", [id, n, h, l]) }
         function removeScene(id) { return call("removeScene", [id]) }
-        function addLocation(n, w, d) { return call("addLocation", [n, w, d]) }
-        function editLocation(id, n, w, d) { return call("editLocation", [id, n, w, d]) }
+        function addLocation(n, w, d, h) { return call("addLocation", [n, w, d, h]) }
+        function editLocation(id, n, w, d, h) { return call("editLocation", [id, n, w, d, h]) }
         function removeLocation(id) { return call("removeLocation", [id]) }
         function addCharacter(n, s, c, g, z) { return call("addCharacter", [n, s, c, g, z]) }
         function editCharacter(id, n, s, c, g, z) { return call("editCharacter", [id, n, s, c, g, z]) }
@@ -264,11 +264,13 @@ TestCase {
         verify(form.visible)
         compare(findChild(form, "widthField").text, "10")
         compare(findChild(form, "depthField").text, "8")
+        compare(findChild(form, "roomHeightField").text, "2,6")
         findChild(form, "nameField").text = "Keller"
         findChild(form, "widthField").text = "6,5"
+        findChild(form, "roomHeightField").text = "3"
         press(form, "apply")
 
-        compare(fake.calls, [["addLocation", "Keller", "6,5", "8"]])
+        compare(fake.calls, [["addLocation", "Keller", "6,5", "8", "3"]])
     }
 
     function test_a_location_edit_starts_with_its_values() {
@@ -281,8 +283,9 @@ TestCase {
         compare(findChild(form, "nameField").text, "Burghof")
         compare(findChild(form, "widthField").text, "30")
         compare(findChild(form, "depthField").text, "20,5")
+        compare(findChild(form, "roomHeightField").text, "3,2")
         press(form, "apply")
-        compare(fake.calls, [["editLocation", "hof", "Burghof", "30", "20,5"]])
+        compare(fake.calls, [["editLocation", "hof", "Burghof", "30", "20,5", "3,2"]])
     }
 
     function test_a_new_character_gets_a_free_colour_and_a_label() {

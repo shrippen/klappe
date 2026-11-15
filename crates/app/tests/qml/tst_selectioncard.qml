@@ -26,7 +26,7 @@ TestCase {
         function markInfo() { return markJson }
         function describe(key) {
             if (key === "object:o1") {
-                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: 0.8 })
+                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: 0.8, base: 0, baseDefault: true })
             }
             return JSON.stringify({ kind: "camera", label: "A", lens: 35, fov: 39.6, height: 1.6, shots: "12.1" })
         }

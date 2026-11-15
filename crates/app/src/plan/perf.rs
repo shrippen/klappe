@@ -34,6 +34,7 @@ fn big_session(dir: &Path) -> Session {
         name: "Halle".to_owned(),
         width_m: SET_M,
         depth_m: SET_M,
+        wall_height_m: 2.6,
     });
     project(ProjectEdit::AddScene {
         number: "1".to_owned(),

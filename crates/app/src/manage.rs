@@ -65,13 +65,14 @@ pub fn figure_size(text: &str) -> Result<Option<f64>, ServiceError> {
     read_number(Field::Size, text, Unit::Metre, Range::Positive).map(Some)
 }
 
-/// Width and depth typed in the location form, `"8,5"` or `"8.5 m"`; the session sets the
-/// range.
-pub fn sizes(width: &str, depth: &str) -> Result<(f64, f64), ServiceError> {
+/// Width, depth and room height typed in the location form, `"8,5"` or `"8.5 m"`; the session
+/// sets the range.
+pub fn sizes(width: &str, depth: &str, height: &str) -> Result<(f64, f64, f64), ServiceError> {
     let width_m = read_number(Field::Width, width, Unit::Metre, Range::Any)?;
     let depth_m = read_number(Field::Depth, depth, Unit::Metre, Range::Any)?;
+    let height_m = read_number(Field::RoomHeight, height, Unit::Metre, Range::Any)?;
 
-    Ok((width_m, depth_m))
+    Ok((width_m, depth_m, height_m))
 }
 
 /// The stored list (a JSON array of folders); anything else reads as empty.
@@ -361,11 +362,18 @@ mod tests {
 
     #[test]
     fn lengths_take_commas_and_units() {
-        assert_eq!(sizes("8,5", " 12 m ").ok(), Some((8.5, 12.0)));
+        assert_eq!(sizes("8,5", " 12 m ", "2,6").ok(), Some((8.5, 12.0, 2.6)));
         assert!(matches!(
-            sizes("8", "breit"),
+            sizes("8", "breit", "2,6"),
             Err(ServiceError::BadValue {
                 field: Field::Depth,
+                ..
+            })
+        ));
+        assert!(matches!(
+            sizes("8", "5", "hoch"),
+            Err(ServiceError::BadValue {
+                field: Field::RoomHeight,
                 ..
             })
         ));
@@ -374,10 +382,11 @@ mod tests {
     /// Audit, Fund 2: no range here (the session sets it), but never NaN or infinity.
     #[test]
     fn lengths_have_no_range_here() {
-        assert_eq!(sizes("0", "-3").ok(), Some((0.0, -3.0)));
-        assert!(sizes("", "1").is_err());
-        assert!(sizes("inf", "1").is_err());
-        assert!(sizes("8 s", "1").is_err());
+        assert_eq!(sizes("0", "-3", "0").ok(), Some((0.0, -3.0, 0.0)));
+        assert!(sizes("", "1", "1").is_err());
+        assert!(sizes("inf", "1", "1").is_err());
+        assert!(sizes("8 s", "1", "1").is_err());
+        assert!(sizes("1", "1", "").is_err());
     }
 
     #[test]
@@ -449,6 +458,7 @@ mod tests {
                 name: "Halle".to_owned(),
                 width_m: 8.0,
                 depth_m: 5.0,
+                wall_height_m: 2.6,
             })
             .unwrap();
         session
@@ -479,6 +489,7 @@ mod tests {
         assert_eq!(value["scenes"][0]["number"], "1");
         assert_eq!(value["locations"][0]["scenes"], 1);
         assert_eq!(value["locations"][0]["width"], 8.0);
+        assert_eq!(value["locations"][0]["height"], 2.6);
         assert_eq!(value["characters"][0]["color"], "red");
         assert_eq!(value["characters"][0]["group"], 12);
         assert_eq!(value["characters"][0]["size"], Value::Null);
