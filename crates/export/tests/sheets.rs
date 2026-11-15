@@ -2,7 +2,7 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{shots_ods, shots_xlsx, ShotColumns, ShotOrder, ShotTexts};
-use klappe_model::{Camera, CameraMark, FloorPlan, Movement, Point, Sensor, Shot, ShotSize};
+use klappe_model::{Camera, CameraMark, FloorPlan, Movement, Point, Rig, Sensor, Shot, ShotSize};
 
 const LOCAL_SIGNATURE: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
 const END_SIGNATURE: [u8; 4] = [0x50, 0x4B, 0x05, 0x06];
@@ -49,6 +49,8 @@ fn plan(shots: usize) -> FloorPlan {
             tilt_deg: 0.0,
             hold_s: 0.0,
             via: None,
+            rig: Rig::default(),
+            lens_mm: None,
         }],
         follows: None,
     }];
