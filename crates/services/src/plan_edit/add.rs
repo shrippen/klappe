@@ -7,7 +7,7 @@ use klappe_model::{
 };
 
 use super::marks::WALK_SPEED_M_S;
-use super::{normalize_deg, PlanEdit, Scope};
+use super::{normalize_deg, Scope};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::library;
@@ -129,7 +129,11 @@ pub(super) fn free_letter(cameras: &[Camera]) -> Result<char, ServiceError> {
         .ok_or(ServiceError::NoFreeCamera)
 }
 
-fn add_camera(scope: &mut Scope<'_>, at: Point, facing_deg: f64) -> Result<(), ServiceError> {
+pub(super) fn add_camera(
+    scope: &mut Scope<'_>,
+    at: Point,
+    facing_deg: f64,
+) -> Result<(), ServiceError> {
     let cameras = &scope.plan.cameras;
     let letter = free_letter(cameras)?;
     let (sensor, lens_mm, aspect) = match cameras.first() {
@@ -162,17 +166,13 @@ fn add_camera(scope: &mut Scope<'_>, at: Point, facing_deg: f64) -> Result<(), S
 }
 
 /// A new camera or a new mark of one; `apply` has no more room for an arm of its own.
-pub(super) fn camera_add(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
-    match edit {
-        PlanEdit::AddCamera { at, facing_deg } => add_camera(scope, *at, *facing_deg),
-        PlanEdit::AddCameraMark { camera, at } => add_camera_mark(scope, camera, *at),
-        _ => Err(ServiceError::Gone),
-    }
-}
-
 /// The camera arrives, waits, then rolls at `DOLLY_SPEED_M_S`; it keeps its aim, height, tilt
 /// and lens, so it goes on looking at the scene.
-fn add_camera_mark(scope: &mut Scope<'_>, camera: &str, at: Point) -> Result<(), ServiceError> {
+pub(super) fn add_camera_mark(
+    scope: &mut Scope<'_>,
+    camera: &str,
+    at: Point,
+) -> Result<(), ServiceError> {
     let camera = scope
         .plan
         .cameras
