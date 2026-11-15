@@ -378,7 +378,7 @@ mod tests {
                 height_m,
                 tilt_deg,
                 hold_s: 0.0,
-                via: None,
+                via: Vec::new(),
                 rig: Default::default(),
                 lens_mm: None,
             }],
@@ -393,7 +393,7 @@ mod tests {
             facing_deg: 0.0,
             pose,
             hold_s: 0.0,
-            via: None,
+            via: Vec::new(),
             arrival: Arrival::Walk,
             departure: Departure::Stay,
         }

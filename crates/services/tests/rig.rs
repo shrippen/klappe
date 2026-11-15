@@ -273,7 +273,10 @@ fn a_new_camera_mark_arrives_by_dolly_and_keeps_the_aim() {
             before.lens_mm
         )
     );
-    assert_eq!((new.rig, new.hold_s, new.via), (Rig::Dolly, 0.0, None));
+    assert_eq!(
+        (new.rig, new.hold_s, new.via.clone()),
+        (Rig::Dolly, 0.0, vec![])
+    );
 
     s.undo();
     assert_eq!(s.plan().unwrap().camera("a").unwrap().marks.len(), 2);

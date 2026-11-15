@@ -254,10 +254,10 @@ pub struct Mark {
     /// Seconds the figure stays before it walks on (LH-63: pause at a mark).
     #[serde(default)]
     pub hold_s: f64,
-    /// Control point of the quadratic Bézier curve from the previous mark to this one; `None`
-    /// walks straight. Ignored on the first mark (LH-21).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub via: Option<Point>,
+    /// Bends of the way from the previous mark to this one: the smooth (Catmull-Rom) curve
+    /// passes them in order; empty walks straight. Ignored on the first mark (LH-21).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub via: Vec<Point>,
     /// How the figure comes to this mark (LH-26).
     #[serde(default, skip_serializing_if = "Arrival::is_walk")]
     pub arrival: Arrival,
@@ -390,10 +390,10 @@ pub struct CameraMark {
     pub tilt_deg: f64,
     #[serde(default)]
     pub hold_s: f64,
-    /// Control point of the quadratic Bézier curve from the previous mark to this one; `None`
-    /// walks straight. Ignored on the first mark (LH-21).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub via: Option<Point>,
+    /// Bends of the way from the previous mark to this one: the smooth (Catmull-Rom) curve
+    /// passes them in order; empty walks straight. Ignored on the first mark (LH-21).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub via: Vec<Point>,
     /// How the camera comes here from the previous mark (LH-33). Ignored on the first mark.
     #[serde(default, skip_serializing_if = "Rig::is_dolly")]
     pub rig: Rig,
@@ -685,7 +685,7 @@ mod tests {
                 facing_deg: 0.0,
                 pose: Pose::Standing,
                 hold_s: 5.0,
-                via: None,
+                via: Vec::new(),
                 arrival: Arrival::Walk,
                 departure: Departure::Stay,
             }],
@@ -705,7 +705,7 @@ mod tests {
             facing_deg: 0.0,
             pose: Pose::Standing,
             hold_s,
-            via: None,
+            via: Vec::new(),
             arrival: Arrival::Walk,
             departure: Departure::Stay,
         };

@@ -31,7 +31,7 @@ fn list(size_m: Option<f64>, group: Option<u32>) -> DisplayList {
             facing_deg: 0.0,
             pose: Pose::Standing,
             hold_s: 0.0,
-            via: None,
+            via: Vec::new(),
             arrival: Arrival::Walk,
             departure: Departure::Stay,
         }],

@@ -195,10 +195,10 @@ fn box_middle(points: &[Point]) -> Option<Point> {
     Some(min.lerp(max, 0.5))
 }
 
-/// What a removal takes, in the order it takes it. A grip goes first (it only straightens a
-/// way by an index the removals would shift, as an opening does by its wall's); marks and
-/// walls go from the back, so the indices of those still to go stay right. What a whole
-/// figure or camera takes with it is not removed a second time.
+/// What a removal takes, in the order it takes it. A grip goes first (it only takes a bend
+/// out of a way, by an index the removals would shift, as an opening does by its wall's);
+/// marks and walls go from the back, so the indices of those still to go stay right. What a
+/// whole figure or camera takes with it is not removed a second time.
 fn removable(sources: &[Source]) -> Vec<Source> {
     let members = distinct(sources);
     let gone_figure = |character: &str| members.contains(&Source::Figure(character.to_owned()));
@@ -302,7 +302,7 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
             camera.label = letter.to_string();
             for mark in &mut camera.marks {
                 mark.at = shifted(mark.at, by_m);
-                mark.via = mark.via.map(|via| shifted(via, by_m));
+                mark.via = mark.via.iter().map(|via| shifted(*via, by_m)).collect();
             }
             scope.plan.cameras.push(camera);
         }

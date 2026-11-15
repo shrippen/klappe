@@ -1,12 +1,32 @@
 //! Removing elements: a figure takes what points at it along; a camera a shot uses stays.
 
 use klappe_model::{FloorPlan, LinkTarget};
-use klappe_stellprobe::Source;
+use klappe_stellprobe::{Bend, Source};
 
+use super::moving::target;
 use super::openings::opening_mut;
-use super::{straighten, Scope};
+use super::{Scope, Target};
 use crate::error::ServiceError;
 use crate::field::Field;
+
+/// Takes the bend `source` names out of its way.
+fn remove_bend(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
+    let Target::Curve {
+        via,
+        bend: Bend::At(n),
+        ..
+    } = target(scope, source)?
+    else {
+        return Ok(());
+    };
+    if n >= via.len() {
+        return Err(ServiceError::Gone);
+    }
+
+    via.remove(n);
+
+    Ok(())
+}
 
 pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
     match source {
@@ -21,8 +41,9 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
             Ok(())
         }
         Source::Camera(id) => remove_camera(scope.plan, id),
-        // A grip is no element of its own: removing it takes the bend out.
-        Source::FigureVia { .. } | Source::CameraVia { .. } => straighten(scope, source),
+        // A grip is no element of its own: removing a bend takes it out; a grip for a new
+        // bend has nothing to remove.
+        Source::FigureVia { .. } | Source::CameraVia { .. } => remove_bend(scope, source),
         Source::Light(id) => {
             let index = scope.plan.lights.iter().position(|l| l.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;
@@ -89,7 +110,7 @@ fn remove_mark(plan: &mut FloorPlan, character: &str, index: usize) -> Result<()
 
     // The new first mark has no way to it: its bend would reappear on a later first mark.
     if index == 0 {
-        track.marks[0].via = None;
+        track.marks[0].via.clear();
     }
 
     // Links to the removed mark go; links to later marks move up by one.

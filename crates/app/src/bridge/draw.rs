@@ -104,7 +104,17 @@ impl qobject::Controller {
         }
         match tools::drag_step(edit, phase, preview) {
             DragStep::Preview(edit) => self.preview_edit(&edit),
-            DragStep::Commit(edit) => self.commit_edit(edit),
+            DragStep::Commit(edit) => {
+                let done = self.as_mut().commit_edit(edit.clone());
+                if done {
+                    // A bend pulled out of a way is the selection, not its old grip.
+                    let pulled = self.rust().selected.clone().pulled(&edit);
+                    self.as_mut().rust_mut().get_mut().selected = pulled;
+                    self.refresh();
+                }
+
+                done
+            }
             DragStep::Restore => {
                 self.refresh();
                 false

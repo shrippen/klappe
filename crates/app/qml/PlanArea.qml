@@ -61,10 +61,17 @@ Item {
             area.tipAt = canvas.mapFromModel(x, y)
         }
         onShapeClicked: (key, x, y) => area.controller.place(x, y)
-        // The click before it selected the note; the double click edits its text.
+        // The click before it selected the note or the bend; the double click edits the note's
+        // text, or takes the bend out of its way (LH-21).
         onShapeDoubleClicked: (key, x, y) => {
-            if (area.tool === "select" && key.indexOf("note:") === 0) {
+            if (area.tool !== "select") {
+                return
+            }
+            if (key.indexOf("note:") === 0) {
                 area.controller.editSelectedNote()
+            }
+            if (area.isBend(key)) {
+                area.controller.removeSelected()
             }
         }
         onShapeDragged: (key, fromX, fromY, x, y, done) => {
@@ -330,6 +337,12 @@ Item {
         sequence: "Shift+R"
         enabled: area.hasSelection
         onActivated: area.controller.turnSelected(-area.turnStepDeg)
+    }
+
+    /// A key of a bend of a way (`figurevia:e:1:at0`), not of the grip that makes a new one
+    /// (`...:new0`).
+    function isBend(key) {
+        return /^(figure|camera)via:.*:at\d+$/.test(key)
     }
 
     // Tooltip text from the controller's data and the catalogue.

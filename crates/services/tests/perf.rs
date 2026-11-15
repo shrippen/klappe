@@ -46,7 +46,7 @@ fn mark(n: usize, at_s: f64, via: Option<Point>) -> Mark {
         facing_deg: (n * 17 % 360) as f64,
         pose: Pose::Standing,
         hold_s: 1.0,
-        via,
+        via: via.into_iter().collect(),
         arrival: Arrival::Walk,
         departure: Departure::Stay,
     }
@@ -86,7 +86,7 @@ fn camera(i: usize) -> Camera {
             height_m: 1.6,
             tilt_deg: 0.0,
             hold_s: 0.0,
-            via: None,
+            via: Vec::new(),
             rig: Rig::default(),
             lens_mm: None,
         })

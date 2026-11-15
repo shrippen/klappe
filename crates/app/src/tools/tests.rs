@@ -13,6 +13,7 @@ fn a_drag_keeps_what_it_grabbed() {
     let handle = Source::FigureVia {
         character: "burgvogt".into(),
         index: 1,
+        bend: klappe_services::Bend::New(0),
     };
 
     let (grip, first) = Grip::Free.take(|| Some(figure.clone()));

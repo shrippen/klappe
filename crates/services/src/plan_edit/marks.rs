@@ -311,7 +311,7 @@ pub(super) fn set_pace(
     }
 
     // Arrive after the pause at the mark before and the walk along the way.
-    let walk_s = way_length_m(prev.at, mark.via, mark.at) / pace.speed_m_s();
+    let walk_s = way_length_m(prev.at, &mark.via, mark.at) / pace.speed_m_s();
     let delta_s = prev.at_s + prev.hold_s + walk_s - mark.at_s;
 
     timing(scope, source)?.shift_from(index, delta_s);
@@ -340,7 +340,7 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
                 .and_then(|prev| {
                     pace_to(
                         (prev.at, prev.at_s + prev.hold_s),
-                        (mark.at, mark.via, mark.at_s),
+                        (mark.at, &mark.via, mark.at_s),
                     )
                 });
 
@@ -371,7 +371,7 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
         .and_then(|prev| {
             pace_to(
                 (prev.at, prev.at_s + prev.hold_s),
-                (mark.at, mark.via, mark.at_s),
+                (mark.at, &mark.via, mark.at_s),
             )
         });
 
@@ -391,7 +391,7 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
 
 /// Speed of the way from where and when a mark is left to the next mark's place, bend and
 /// arrival; `None` when the way takes no time.
-fn pace_to(leave: (Point, f64), arrive: (Point, Option<Point>, f64)) -> Option<f64> {
+fn pace_to(leave: (Point, f64), arrive: (Point, &[Point], f64)) -> Option<f64> {
     let walk_s = arrive.2 - leave.1;
     if walk_s <= 0.0 {
         return None;

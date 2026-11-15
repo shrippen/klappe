@@ -130,11 +130,11 @@ fn plan_points(plan: &FloorPlan) -> Vec<Point> {
     let figures = plan.figures.iter().flat_map(|f| &f.marks);
     let cameras = plan.cameras.iter().flat_map(|c| &c.marks);
     let marks = figures
-        .map(|m| (m.at, m.via))
-        .chain(cameras.map(|m| (m.at, m.via)));
+        .map(|m| (m.at, &m.via))
+        .chain(cameras.map(|m| (m.at, &m.via)));
 
     marks
-        .flat_map(|(at, via)| std::iter::once(at).chain(via))
+        .flat_map(|(at, via)| std::iter::once(at).chain(via.iter().copied()))
         .collect()
 }
 
@@ -160,7 +160,7 @@ fn filed(point: Point, back: Point) -> Point {
 fn filed_mark(mark: &Mark, back: Point) -> Mark {
     Mark {
         at: filed(mark.at, back),
-        via: mark.via.map(|via| filed(via, back)),
+        via: mark.via.iter().map(|via| filed(*via, back)).collect(),
         ..mark.clone()
     }
 }
@@ -168,7 +168,7 @@ fn filed_mark(mark: &Mark, back: Point) -> Mark {
 fn filed_camera_mark(mark: &CameraMark, back: Point) -> CameraMark {
     CameraMark {
         at: filed(mark.at, back),
-        via: mark.via.map(|via| filed(via, back)),
+        via: mark.via.iter().map(|via| filed(*via, back)).collect(),
         ..mark.clone()
     }
 }

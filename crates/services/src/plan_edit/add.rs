@@ -73,7 +73,7 @@ pub(super) fn add_mark(
         facing_deg,
         pose: Pose::Standing,
         hold_s: 0.0,
-        via: None,
+        via: Vec::new(),
         arrival: Arrival::Walk,
         departure: Departure::Stay,
     });
@@ -127,7 +127,7 @@ pub(super) fn add_camera(
             height_m: DEFAULT_CAMERA_HEIGHT_M,
             tilt_deg: 0.0,
             hold_s: 0.0,
-            via: None,
+            via: Vec::new(),
             rig: Default::default(),
             lens_mm: None,
         }],
@@ -162,7 +162,7 @@ pub(super) fn add_camera_mark(
         height_m: prev.height_m,
         tilt_deg: prev.tilt_deg,
         hold_s: 0.0,
-        via: None,
+        via: Vec::new(),
         rig: Default::default(),
         lens_mm: prev.lens_mm,
     });

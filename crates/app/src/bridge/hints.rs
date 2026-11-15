@@ -54,7 +54,7 @@ mod tests {
     use super::*;
     use crate::bridge::tests::example;
     use crate::bridge::view::choices_json;
-    use klappe_services::{FigureColor, ProjectEdit, Source};
+    use klappe_services::{Bend, FigureColor, ProjectEdit, Source};
 
     /// A group's tooltip, and the camera that follows it, name it with its head count.
     #[test]
@@ -99,11 +99,13 @@ mod tests {
         let via = described(Source::FigureVia {
             character: "elisabeth".into(),
             index: 1,
+            bend: Bend::At(0),
         });
         assert_eq!(via, json!({ "kind": "bend", "index": 2 }));
         let via = described(Source::CameraVia {
             camera: "a".into(),
             index: 0,
+            bend: Bend::New(0),
         });
         assert_eq!(via, json!({ "kind": "bend", "index": 1 }));
 

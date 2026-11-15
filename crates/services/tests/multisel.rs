@@ -6,7 +6,9 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{Layer, Lock, PlanEdit, Point, ServiceError, Session, Snapping, Source};
+use klappe_services::{
+    Bend, Layer, Lock, PlanEdit, Point, ServiceError, Session, Snapping, Source,
+};
 
 /// The grid the example snaps to.
 const GRID_M: f64 = 0.25;
@@ -313,6 +315,7 @@ fn removing_a_figure_and_its_marks_works() {
             Source::FigureVia {
                 character: "elisabeth".into(),
                 index: 2,
+                bend: Bend::At(0),
             },
         ],
     })

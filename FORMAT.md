@@ -125,12 +125,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   aus ihr übernimmt Art, Winkel, Leistung und Farbtemperatur als gewöhnliche Werte, ohne Verweis
   auf den Eintrag. Keine neue Formatversion; die Felder gab es schon.
 - **Kurvenwege (LH-21):** jeder Mark einer Figur und einer Kamera (`marks` in `szenen/<id>.json`)
-  hat optional `via`, einen Punkt in Metern: der Weg vom vorigen Mark zu diesem ist die
-  quadratische Bézierkurve mit `via` als Kontrollpunkt (die Kurve zieht zu `via` hin, geht aber
-  nicht durch). Ohne `via` ist der Weg gerade; am ersten Mark zählt `via` nicht. Die Bewegung
-  läuft entlang der Kurve mit gleichmäßigem Tempo, die Ankunftszeiten bleiben die der Marks.
-  Ohne Kurven fehlt der Schlüssel; ältere Projekte laden und speichern unverändert. Keine
-  neue Formatversion, wie bei den Notizen.
+  hat optional `via`, eine Liste von Punkten in Metern (Knicke): der Weg vom vorigen Mark zu
+  diesem ist die glatte Kurve (Catmull-Rom-Spline) durch den vorigen Mark, die Punkte von `via`
+  in dieser Reihenfolge und diesen Mark; sie geht durch jeden Punkt. Ohne `via` ist der Weg
+  gerade; am ersten Mark zählt `via` nicht. Die Bewegung läuft entlang der Kurve mit
+  gleichmäßigem Tempo, die Ankunftszeiten bleiben die der Marks. Ohne Knicke fehlt der
+  Schlüssel; eine leere Liste wird nicht geschrieben. Bruch vor dem ersten Release, ohne
+  Übergang: `via` war ein einzelner Punkt (Kontrollpunkt einer quadratischen Bézierkurve);
+  Beispielprojekte, Demo und Testdaten sind umgestellt, der Punkt der Liste ist die Mitte der
+  alten Kurve, (a + 2 via + b) / 4 mit a, b als Orten des vorigen und dieses Marks.
 - **Auftritt und Abgang (LH-26):** jeder Mark einer Figur (`marks` in `szenen/<id>.json`) hat
   optional `arrival` (`walk` oder `appear`, Standard `walk`) und `departure` (`stay` oder
   `leave`, Standard `stay`). Bei `appear` ist die Figur vor `at_s` dieses Marks nicht zu sehen
