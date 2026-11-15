@@ -341,7 +341,7 @@ Item {
             return [t.t("tip.bend", { index: d.index })]
         case "light":
             // Bounce and flag make no light of their own: no power, no colour.
-            return d.power > 0
+            return d.gives_light
                 ? [t.t("tip.light", { label: d.label, type: t.t("lightKind." + d.type), temp: t.num(d.temp, 0), power: t.num(d.power, 0), beam: t.num(d.beam, 0) })]
                 : [t.t("tip.lightPassive", { label: d.label, type: t.t("lightKind." + d.type), beam: t.num(d.beam, 0) })]
         case "object":

@@ -23,8 +23,8 @@ TestCase {
         function markInfo() { return "{}" }
         function describe(key) {
             const lamps = {
-                "light:l1": { type: "fresnel", label: "L1", beam: 30, temp: 3200, power: 650 },
-                "light:l2": { type: "flag", label: "L2", beam: 20, temp: 5600, power: 0 },
+                "light:l1": { type: "fresnel", label: "L1", beam: 30, temp: 3200, power: 650, gives_light: true },
+                "light:l2": { type: "flag", label: "L2", beam: 20, temp: 5600, power: 0, gives_light: false },
             }
             const camera = { kind: "camera", label: "A", lens: 35, ownLens: 35, sensor: 24.89, aspect: 2.39, body: "", fov: 39.6, height: 1.6, shots: "" }
 

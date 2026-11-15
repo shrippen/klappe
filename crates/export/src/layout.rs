@@ -518,7 +518,7 @@ fn lamp_lines(list: &DisplayList, texts: &Texts, width_pt: f64) -> (usize, Vec<S
             .find(|(k, _)| *k == lamp.kind)
             .map_or(lamp.kind.name(), |(_, name)| name.as_str());
         // Bounce and flag give no light of their own: power and colour would say nothing.
-        let template = match lamp.power_w > 0.0 {
+        let template = match lamp.kind.gives_light() {
             true => &words.line,
             false => &words.passive,
         };

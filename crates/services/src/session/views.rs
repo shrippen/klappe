@@ -152,6 +152,7 @@ impl Session {
             facing_deg: l.facing_deg,
             beam_deg: l.beam_deg,
             tunable: l.kind.tunable_color(),
+            gives_light: l.kind.gives_light(),
             temp_k: l.color_temp_k,
             power_w: l.power_w,
         })
