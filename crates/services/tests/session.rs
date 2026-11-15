@@ -424,6 +424,20 @@ fn writes_one_picture_per_mark() {
 }
 
 #[test]
+fn pictures_never_land_among_old_files() {
+    let mut s = open();
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-frames-twice");
+    let _ = std::fs::remove_dir_all(&dir);
+    let paper = klappe_services::Paper::A4;
+
+    s.export_frames(&dir, paper, &print_texts()).unwrap();
+    let again = s.export_frames(&dir, paper, &print_texts());
+
+    assert!(matches!(again, Err(ServiceError::NotEmpty(_))), "{again:?}");
+    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 5);
+}
+
+#[test]
 fn writes_the_shot_list_as_csv() {
     let s = open();
     let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-shots.csv");

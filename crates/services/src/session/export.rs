@@ -110,14 +110,19 @@ impl Session {
     }
 
     /// Writes the plan at every mark of the scene (`marks_s`) as PNG into `dir` (LH-83),
-    /// named `<scene>-<nr>-<mm-ss>.png`, to read the blocking at the set. The playhead stays
-    /// where it was. Returns the files in mark order.
+    /// named `<scene>-<nr>-<mm-ss>.png`, to read the blocking at the set. `dir` must be empty or
+    /// missing. The playhead stays where it was. Returns the files in mark order.
     pub fn export_frames(
         &mut self,
         dir: &Path,
         paper: Paper,
         texts: &Texts,
     ) -> Result<Vec<PathBuf>, ServiceError> {
+        // Pictures of an earlier export would mix with these and show blocking that is gone.
+        if !klappe_store::is_empty_dir(dir).map_err(write_failed)? {
+            return Err(ServiceError::NotEmpty(dir.to_owned()));
+        }
+
         let playhead_s = self.time_s;
         let scene = self.scene_number();
         let mut files = Vec::new();
