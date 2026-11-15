@@ -390,3 +390,20 @@ fn new_shots_survive_saving_and_loading() {
     assert!(!ids(&back).contains(&"s12-5".to_owned()));
     assert_eq!(numbers(&back).len(), 6);
 }
+
+/// D-05: a tile takes the frame of its shot's camera.
+#[test]
+fn shot_rows_carry_the_aspect_of_their_camera() {
+    let mut s = open();
+    let id = s.shots()[0].id.clone();
+    let camera = s.shots()[0].camera.clone();
+    s.edit_plan(PlanEdit::SetAspect {
+        camera,
+        aspect: 2.39,
+    })
+    .unwrap();
+
+    let rows = s.shots();
+
+    assert_eq!(rows.iter().find(|r| r.id == id).unwrap().aspect, 2.39);
+}
