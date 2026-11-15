@@ -11,7 +11,8 @@ use crate::field::Field;
 /// What a lamp's card can change.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LightChange {
-    /// Only the kind; beam and power stay. A kind with a fixed colour brings it.
+    /// Only the kind; beam and power stay. A kind with a fixed colour brings it; bounce and
+    /// flag have no power.
     Kind(LightKind),
     /// Kind, beam, power and colour of the library lamp with this id.
     Preset(String),
@@ -66,6 +67,21 @@ fn light<'a>(plan: &'a mut FloorPlan, id: &str) -> Result<&'a mut Light, Service
         .ok_or(ServiceError::Gone)
 }
 
+/// The kind brings what is fixed by it: no power for bounce and flag, the colour of a kind
+/// with a fixed one.
+fn set_kind(light: &mut Light, kind: LightKind) {
+    light.kind = kind;
+    if !kind.gives_light() {
+        light.power_w = 0.0;
+    }
+    if kind.tunable_color() {
+        return;
+    }
+    if let Some(temp_k) = fixed_temp_k(kind) {
+        light.color_temp_k = temp_k;
+    }
+}
+
 pub(crate) fn set_light(
     plan: &mut FloorPlan,
     id: &str,
@@ -80,15 +96,7 @@ pub(crate) fn set_light(
     let light = light(plan, id)?;
 
     match (change, preset) {
-        (LightChange::Kind(kind), _) => {
-            light.kind = *kind;
-            if kind.tunable_color() {
-                return Ok(());
-            }
-            if let Some(temp_k) = fixed_temp_k(*kind) {
-                light.color_temp_k = temp_k;
-            }
-        }
+        (LightChange::Kind(kind), _) => set_kind(light, *kind),
         (_, Some(preset)) => {
             light.kind = preset.kind;
             light.beam_deg = preset.beam_deg;
@@ -96,6 +104,10 @@ pub(crate) fn set_light(
             light.color_temp_k = preset.color_temp_k;
         }
         (LightChange::Beam(deg), _) => light.beam_deg = *deg,
+        // Bounce and flag make no light: no power to set.
+        (LightChange::Power(watt), _) if !light.kind.gives_light() => {
+            return Err(bad(Field::Power, *watt));
+        }
         (LightChange::Power(watt), _) => light.power_w = *watt,
         // A tungsten lamp is what it is; only LEDs are set to another colour.
         (LightChange::Temp(kelvin), _) if light.kind.tunable_color() => {

@@ -25,9 +25,12 @@ TestCase {
 
         function describe(key) {
             const led = key === "light:led"
+            const bounce = key === "light:bounce"
             return JSON.stringify({
-                kind: "light", label: led ? "LED" : "L1", type: led ? "led-panel" : "fresnel",
-                facing: 330, beam: 22.5, temp: led ? 5600 : 3200, power: 200, tunable: led,
+                kind: "light", label: led ? "LED" : "L1",
+                type: led ? "led-panel" : (bounce ? "reflector" : "fresnel"),
+                facing: 330, beam: 22.5, temp: led ? 5600 : 3200, power: bounce ? 0 : 200,
+                tunable: led, gives_light: !bounce,
             })
         }
         function setLightField(field, value) {
@@ -94,6 +97,12 @@ TestCase {
     function test_only_an_led_has_a_colour_to_set() {
         verify(!findChild(shown("light:l1"), "lightTempField").enabled)
         verify(findChild(shown("light:led"), "lightTempField").enabled)
+    }
+
+    // A bounce or flag makes no light: no power to set.
+    function test_a_passive_lamp_has_no_power_to_set() {
+        verify(findChild(shown("light:l1"), "lightPowerField").enabled)
+        verify(!findChild(shown("light:bounce"), "lightPowerField").enabled)
     }
 
     function test_choosing_a_kind_gives_its_name_to_the_controller() {
