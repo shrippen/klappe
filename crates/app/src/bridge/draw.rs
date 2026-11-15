@@ -15,7 +15,44 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
-use klappe_services::{Grid, Layer, PlanEdit, Point, Snapping};
+use klappe_services::{Bend, Grid, Layer, PlanEdit, Point, Session, Snapping, Source};
+
+/// How many bends the way of the grip `grip` has.
+fn bends(s: &Session, grip: &Source) -> usize {
+    let of_way = |item: &Source| match (grip, item) {
+        (
+            Source::FigureVia {
+                character: a,
+                index: i,
+                ..
+            },
+            Source::FigureVia {
+                character: b,
+                index: j,
+                bend: Bend::At(_),
+            },
+        ) => a == b && i == j,
+        (
+            Source::CameraVia {
+                camera: a,
+                index: i,
+                ..
+            },
+            Source::CameraVia {
+                camera: b,
+                index: j,
+                bend: Bend::At(_),
+            },
+        ) => a == b && i == j,
+        _ => false,
+    };
+
+    s.display_list_for(Some(grip))
+        .items
+        .iter()
+        .filter(|i| i.source.as_ref().is_some_and(of_way))
+        .count()
+}
 
 impl qobject::Controller {
     pub(super) fn set_tool(mut self: Pin<&mut Self>, tool: &QString, choice: &QString) -> bool {
@@ -104,17 +141,7 @@ impl qobject::Controller {
         }
         match tools::drag_step(edit, phase, preview) {
             DragStep::Preview(edit) => self.preview_edit(&edit),
-            DragStep::Commit(edit) => {
-                let done = self.as_mut().commit_edit(edit.clone());
-                if done {
-                    // A bend pulled out of a way is the selection, not its old grip.
-                    let pulled = self.rust().selected.clone().pulled(&edit);
-                    self.as_mut().rust_mut().get_mut().selected = pulled;
-                    self.refresh();
-                }
-
-                done
-            }
+            DragStep::Commit(edit) => self.commit_pulled(edit),
             DragStep::Restore => {
                 self.refresh();
                 false
@@ -370,6 +397,25 @@ impl qobject::Controller {
         }
     }
 
+    /// Applies `edit`; a bend pulled out of a way is the selection, not its old grip.
+    fn commit_pulled(mut self: Pin<&mut Self>, edit: PlanEdit) -> bool {
+        let grip = self.rust().selected.only().cloned();
+        let count = |this: &Self| match (&this.rust().session, &grip) {
+            (Some(s), Some(grip)) => bends(s, grip),
+            _ => 0,
+        };
+        let before = count(&self);
+        let done = self.as_mut().commit_edit(edit.clone());
+        if done {
+            let counts = (before, count(&self));
+            let pulled = self.rust().selected.clone().pulled(&edit, counts);
+            self.as_mut().rust_mut().get_mut().selected = pulled;
+            self.refresh();
+        }
+
+        done
+    }
+
     /// Applies `edit`; an error goes to the status line.
     pub(super) fn commit_edit(mut self: Pin<&mut Self>, edit: PlanEdit) -> bool {
         let language = self.rust().language;
@@ -385,5 +431,36 @@ impl qobject::Controller {
         }
         self.refresh();
         ok
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::selection::Selection;
+
+    /// Burgvogt's way to mark 1 has a bend at (12, 14.5), off the grid. A pull of its grip by
+    /// 1 cm that snaps back onto the grip makes no bend; the bend there is not the selection.
+    #[test]
+    fn a_pull_that_makes_no_bend_keeps_the_selection() {
+        let mut s = crate::bridge::tests::example();
+        s.set_snapping(Snapping::On);
+        let grip = Source::FigureVia {
+            character: "burgvogt".into(),
+            index: 1,
+            bend: Bend::New(0),
+        };
+        let edit = PlanEdit::Shift {
+            source: grip.clone(),
+            dx_m: 0.01,
+            dy_m: 0.0,
+        };
+
+        let before = bends(&s, &grip);
+        s.edit_plan(edit.clone()).unwrap();
+        let after = bends(&s, &grip);
+        let selected = Selection::of(Some(grip));
+
+        assert_eq!(selected.clone().pulled(&edit, (before, after)), selected);
     }
 }
