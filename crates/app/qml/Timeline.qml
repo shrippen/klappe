@@ -11,10 +11,10 @@ import Kante
 // Playing: a timer asks the controller to advance by the real time since its last tick; the
 // controller (services) does the arithmetic and says when the end is reached.
 //
-// Dragging (LH-61): a mark of a figure or camera moves its arrival, an edge of a shot in the cut
-// row moves that edge. While the button is down a line and the time show where it lands; the
-// controller (services) snaps it to 0.1 s (Shift: free) and keeps it between its neighbours;
-// on release one undo step is made.
+// Dragging (LH-61, in KanteTrackTimeline): a mark of a figure or camera moves its arrival, an
+// edge of a shot in the cut row moves that edge. While the button is down a line and the time
+// show where it lands; the controller (services) snaps it to 0.1 s (Shift: free) and keeps it
+// between its neighbours; on release one undo step is made. A locked layer is not grabbed.
 Item {
     id: line
 
@@ -29,14 +29,9 @@ Item {
     /// Within this of the end (s), play starts again from the beginning.
     readonly property real endEpsS: 0.05
 
-    /// Reach (px) within which a shot edge is grabbed.
-    readonly property real edgeReach: KanteStyle.unit(5)
-
-    // The held mark or shot edge: { key, seconds }, the key as for controller.dragTime and the
-    // time it started at; null when nothing is dragged.
-    property var grab: null
-    property real dragSeconds: 0
-    readonly property bool dragging: grab !== null
+    readonly property var locks: controller.locksJson ? JSON.parse(controller.locksJson) : ({})
+    // The layer whose lock keeps a row from being dragged, by kind of row.
+    readonly property var layerOfKind: ({ cut: "cameras", figure: "figures", camera: "cameras" })
 
     property bool playing: false
     property bool looping: false
@@ -91,42 +86,14 @@ Item {
         }
     }
 
-    // What a press at (x, y) of the lanes (their own coordinates) would hold: a mark of a
-    // shown figure or camera row, or the nearest edge of a shot of the cut row within reach.
-    function grabAt(x, y) {
-        const tr = source[Math.floor((y - lanes.rulerHeight) / lanes.trackHeight)]
-        if (!tr || !tr.shown) {
-            return null
+    // Moves what a drag holds: the time it lands on while the button is down, the move itself on
+    // release (the controller says it again, snapped).
+    function drag(key, seconds, done, shift) {
+        if (done) {
+            controller.dropTime(key, lanes.dragSeconds, "free")
+            return
         }
-
-        if (tr.kind === "cut") {
-            return edgeAt(tr, x)
-        }
-        if (tr.kind !== "figure" && tr.kind !== "camera") {
-            return null
-        }
-
-        const hit = lanes.markerAt(x, y)
-        if (!hit) {
-            return null
-        }
-        return { key: tr.kind + ":" + hit.index + ":" + tr.id, seconds: tr.markers[hit.index].at_s }
-    }
-
-    function edgeAt(tr, x) {
-        let found = null
-        let nearest = edgeReach
-        for (const seg of tr.segments) {
-            const edges = [["shot-from", seg.from_s], ["shot-to", seg.to_s]]
-            for (const [kind, seconds] of edges) {
-                const distance = Math.abs(lanes.xAt(seconds) - x)
-                if (distance <= nearest) {
-                    nearest = distance
-                    found = { key: kind + ":0:" + seg.key, seconds: seconds }
-                }
-            }
-        }
-        return found
+        lanes.dragSeconds = controller.dragTime(key, seconds, shift ? "free" : "tenths")
     }
 
     // The services' tracks in KanteTrackTimeline's shape.
@@ -134,7 +101,10 @@ Item {
         name: tr.kind === "cut" ? line.texts.t("timeline.cut") : tr.name,
         label: tr.label,
         shown: tr.shown,
-        segments: tr.segments.map(s => ({ from: s.from_s, to: s.to_s, text: s.text, selected: s.selected })),
+        locked: line.locks[line.layerOfKind[tr.kind]] === true,
+        // Only the edges of a shot are dragged, not the walks between marks or a light's span.
+        segments: tr.segments.map(s => ({ from: s.from_s, to: s.to_s, text: s.text, selected: s.selected,
+                                          locked: tr.kind !== "cut" })),
         markers: tr.markers.map(m => ({ at: m.at_s, text: m.text }))
     }))
 
@@ -186,6 +156,8 @@ Item {
             hideText: line.texts.t("timeline.hide")
             showText: line.texts.t("timeline.show")
             accessibleName: line.texts.t("toggle.timeline")
+            draggable: true
+            formatTime: seconds => line.clock(seconds)
 
             onSeek: seconds => line.controller.seek(seconds)
             onToggleShown: index => {
@@ -199,70 +171,13 @@ Item {
                 }
             }
 
-            // Takes a press on a mark or a shot edge; any other press goes on to the lanes
-            // below (seek, select).
-            MouseArea {
-                id: retime
-                objectName: "retime"
-                x: lanes.labelWidth
-                width: lanes.laneWidth
-                height: lanes.height
-                cursorShape: line.dragging ? Qt.SizeHorCursor : Qt.ArrowCursor
-
-                function _held(mouse) {
-                    return line.grabAt(mouse.x + lanes.labelWidth, mouse.y)
-                }
-
-                onPressed: mouse => {
-                    const held = _held(mouse)
-                    if (!held) {
-                        mouse.accepted = false
-                        return
-                    }
-                    line.grab = held
-                    line.dragSeconds = held.seconds
-                }
-                onPositionChanged: mouse => {
-                    if (!line.dragging) {
-                        return
-                    }
-                    const snap = (mouse.modifiers & Qt.ShiftModifier) ? "free" : "tenths"
-                    const at = lanes.timeAt(mouse.x + lanes.labelWidth)
-                    const g = line.grab
-                    line.dragSeconds = line.controller.dragTime(g.key, at, snap)
-                }
-                onReleased: {
-                    const g = line.grab
-                    line.grab = null
-                    if (g && line.dragSeconds !== g.seconds) {
-                        // Already snapped while dragging.
-                        line.controller.dropTime(g.key, line.dragSeconds, "free")
-                    }
-                }
-                onCanceled: line.grab = null
-
-                HoverHandler {
-                    id: hover
-                    cursorShape: line.grabAt(hover.point.position.x + lanes.labelWidth,
-                                             hover.point.position.y) ? Qt.SizeHorCursor
-                                                                      : Qt.ArrowCursor
-                }
-
-                // Where the drag lands, with its time.
-                Rectangle {
-                    id: ghost
-                    objectName: "dragLine"
-                    visible: line.dragging
-                    x: lanes.xAt(line.dragSeconds) - lanes.labelWidth - width / 2
-                    width: KanteStyle.unit(2)
-                    height: parent.height
-                    color: KanteStyle.accentColor
-
-                    QQC2.ToolTip {
-                        visible: line.dragging
-                        text: line.clock(line.dragSeconds)
-                    }
-                }
+            onMarkDragged: (index, marker, seconds, done, shift) => {
+                const tr = line.source[index]
+                line.drag(tr.kind + ":" + marker + ":" + tr.id, seconds, done, shift)
+            }
+            onEdgeDragged: (index, segment, edge, seconds, done, shift) => {
+                const tr = line.source[index]
+                line.drag("shot-" + edge + ":0:" + tr.segments[segment].key, seconds, done, shift)
             }
         }
     }

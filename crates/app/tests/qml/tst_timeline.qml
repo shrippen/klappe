@@ -29,7 +29,9 @@ TestCase {
             return running
         }
         function setTrack() {}
-        function selectShot() {}
+        property var selected: []
+        function selectShot(key) { selected.push(key) }
+        property string locksJson: "{}"
 
         property var drags: []
         property var drops: []
@@ -70,6 +72,8 @@ TestCase {
         fake.tracksJson = "[]"
         fake.drags = []
         fake.drops = []
+        fake.selected = []
+        fake.locksJson = "{}"
     }
 
     // Play stops when the timeline is locked (backup question) and when another scene or project
@@ -219,18 +223,17 @@ TestCase {
 
     function test_the_drag_shows_the_time_it_lands_on() {
         fake.tracksJson = tracksOfTwo
-        const line = make(de)
-        const lanes = laneOf(line)
+        const lanes = laneOf(make(de))
         const y = rowY(lanes, 1)
 
         mousePress(lanes, lanes.xAt(4), y)
-        verify(line.dragging)
-        compare(line.dragSeconds, 4)
+        verify(!lanes.dragging)
         mouseMove(lanes, lanes.xAt(5), y)
-        fuzzyCompare(line.dragSeconds, 5, 0.1)
-        compare(line.clock(5), "00:05,0")
+        verify(lanes.dragging)
+        fuzzyCompare(lanes.dragSeconds, 5, 0.1)
+        compare(findChild(lanes, "dragText").text, "00:05,0")
         mouseRelease(lanes, lanes.xAt(5), y)
-        verify(!line.dragging)
+        verify(!lanes.dragging)
     }
 
     function test_the_shift_key_drags_free() {
@@ -274,11 +277,10 @@ TestCase {
 
     function test_a_press_beside_a_mark_still_seeks() {
         fake.tracksJson = tracksOfTwo
-        const line = make(de)
-        const lanes = laneOf(line)
+        const lanes = laneOf(make(de))
 
         mouseClick(lanes, lanes.xAt(12), rowY(lanes, 1))
-        verify(!line.dragging)
+        verify(!lanes.dragging)
         compare(fake.drops, [])
         compare(fake.seeks.length, 1)
         fuzzyCompare(fake.seeks[0], 12, 0.1)
@@ -286,30 +288,78 @@ TestCase {
 
     function test_the_middle_of_a_shot_is_no_edge() {
         fake.tracksJson = tracksOfTwo
-        const line = make(de)
-        const lanes = laneOf(line)
+        const lanes = laneOf(make(de))
 
         mousePress(lanes, lanes.xAt(4), rowY(lanes, 0))
-        verify(!line.dragging)
+        verify(!lanes.dragging)
         mouseRelease(lanes, lanes.xAt(4), rowY(lanes, 0))
+        compare(fake.selected, ["s1"])
     }
 
-    function test_a_mark_pressed_and_not_moved_is_not_dropped() {
+    // Review of PR 96: a click on a mark seeks, as before the dragging.
+    function test_a_mark_pressed_and_not_moved_seeks_and_is_not_dropped() {
         fake.tracksJson = tracksOfTwo
         const lanes = laneOf(make(de))
 
         mouseClick(lanes, lanes.xAt(8), rowY(lanes, 1))
         compare(fake.drops, [])
-        compare(fake.seeks, [])
+        compare(fake.seeks.length, 1)
+        fuzzyCompare(fake.seeks[0], 8, 0.1)
+    }
+
+    // Review of PR 96: the tooltip of a mark (hover) was taken by the drag layer.
+    function test_hovering_a_mark_names_it() {
+        fake.tracksJson = tracksOfTwo
+        const lanes = laneOf(make(de))
+
+        mouseMove(lanes, lanes.xAt(4), rowY(lanes, 1))
+        compare(lanes.hovered, { track: 1, index: 0 })
+    }
+
+    // Review of PR 96: a shot narrower than twice the reach of an edge could not be picked.
+    function test_a_narrow_shot_is_picked_by_a_click() {
+        fake.tracksJson = JSON.stringify([
+            { kind: "cut", id: "cut", name: "", label: "yellow", shown: true,
+              segments: [{ from_s: 6, to_s: 6.2, text: "2", key: "s2", selected: false }], markers: [] }
+        ])
+        const lanes = laneOf(make(de))
+
+        mouseClick(lanes, lanes.xAt(6.1), rowY(lanes, 0))
+        compare(fake.selected, ["s2"])
+        compare(fake.drops, [])
+    }
+
+    // Review of PR 96: with the layer locked the drag did not even start.
+    function test_a_locked_layer_is_not_grabbed() {
+        fake.tracksJson = tracksOfTwo
+        fake.locksJson = JSON.stringify({ figures: true })
+        const lanes = laneOf(make(de))
+
+        mousePress(lanes, lanes.xAt(8), rowY(lanes, 1))
+        mouseMove(lanes, lanes.xAt(9), rowY(lanes, 1))
+        verify(!lanes.dragging)
+        mouseRelease(lanes, lanes.xAt(9), rowY(lanes, 1))
+        compare(fake.drops, [])
+    }
+
+    function test_a_locked_camera_layer_keeps_the_shot_edges() {
+        fake.tracksJson = tracksOfTwo
+        fake.locksJson = JSON.stringify({ cameras: true })
+        const lanes = laneOf(make(de))
+
+        mousePress(lanes, lanes.xAt(6), rowY(lanes, 0))
+        mouseMove(lanes, lanes.xAt(7), rowY(lanes, 0))
+        verify(!lanes.dragging)
+        mouseRelease(lanes, lanes.xAt(7), rowY(lanes, 0))
+        compare(fake.drops, [])
     }
 
     function test_a_hidden_row_is_not_dragged() {
         fake.tracksJson = tracksOfTwo.replace('"shown":true,"segments":[],', '"shown":false,"segments":[],')
-        const line = make(de)
-        const lanes = laneOf(line)
+        const lanes = laneOf(make(de))
 
         mousePress(lanes, lanes.xAt(8), rowY(lanes, 1))
-        verify(!line.dragging)
+        verify(!lanes.dragging)
         mouseRelease(lanes, lanes.xAt(8), rowY(lanes, 1))
     }
 }
