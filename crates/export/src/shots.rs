@@ -96,8 +96,14 @@ fn movement_name(movement: Movement, texts: &ShotTexts) -> String {
 pub(crate) struct Table {
     pub(crate) head: Vec<String>,
     pub(crate) rows: Vec<Vec<String>>,
-    /// Per column: holds numbers, so a spreadsheet stores them as such.
-    pub(crate) numeric: Vec<bool>,
+    /// Per column, so a spreadsheet stores numbers as such.
+    pub(crate) kinds: Vec<Kind>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kind {
+    Numbers,
+    Text,
 }
 
 /// Columns of `COLUMNS` that hold numbers: lens, from, to, duration.
@@ -106,14 +112,18 @@ const NUMERIC_COLUMNS: [usize; 4] = [2, 6, 7, 8];
 pub(crate) fn table(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Table {
     let with_setup = order == ShotOrder::Shooting;
     let mut head: Vec<String> = Vec::new();
-    let mut numeric: Vec<bool> = Vec::new();
+    let mut kinds: Vec<Kind> = Vec::new();
     if with_setup {
         head.push(texts.columns.setup.clone());
-        numeric.push(true);
+        kinds.push(Kind::Numbers);
     }
     for (i, name) in heads(&texts.columns).iter().enumerate() {
         head.push((*name).to_owned());
-        numeric.push(NUMERIC_COLUMNS.contains(&i));
+        kinds.push(if NUMERIC_COLUMNS.contains(&i) {
+            Kind::Numbers
+        } else {
+            Kind::Text
+        });
     }
 
     let mut rows = Vec::new();
@@ -125,11 +135,7 @@ pub(crate) fn table(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Ta
         rows.push(cells);
     }
 
-    Table {
-        head,
-        rows,
-        numeric,
-    }
+    Table { head, rows, kinds }
 }
 
 /// The plan's shots as CSV: head row, then one row per shot in `order`.

@@ -1,6 +1,6 @@
 //! What ODS and XLSX share: telling numbers from text, and XML escaping.
 
-use crate::shots::Table;
+use crate::shots::{Kind, Table};
 
 /// A cell of the table; numbers keep their text, which is already a valid XML number.
 pub(crate) enum Cell<'a> {
@@ -17,7 +17,7 @@ pub(crate) fn grid(table: &Table) -> Vec<Vec<Option<Cell<'_>>>> {
         grid.push(
             row.iter()
                 .enumerate()
-                .map(|(col, text)| cell(text, table.numeric[col]))
+                .map(|(col, text)| cell(text, table.kinds[col]))
                 .collect(),
         );
     }
@@ -25,11 +25,11 @@ pub(crate) fn grid(table: &Table) -> Vec<Vec<Option<Cell<'_>>>> {
     grid
 }
 
-fn cell(text: &str, numeric: bool) -> Option<Cell<'_>> {
+fn cell(text: &str, kind: Kind) -> Option<Cell<'_>> {
     if text.is_empty() {
         return None;
     }
-    let is_number = numeric && text.parse::<f64>().is_ok_and(f64::is_finite);
+    let is_number = kind == Kind::Numbers && text.parse::<f64>().is_ok_and(f64::is_finite);
     if is_number {
         return Some(Cell::Number(text));
     }
