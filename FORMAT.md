@@ -132,7 +132,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Felder einer Kamera der Szene und `[[vorlage.cameras.marks]]`, `follows` nennt einen `slot`. Orte
   der Marks sind Meter vom Einfügepunkt, Zeiten Sekunden ab Szenenbeginn; `id` und `label` einer
   Kamera sind Platzhalter, eine eingefügte Kamera bekommt freie. Eine Datei mit unbrauchbarer
-  Vorlage (leere oder doppelte `id`, leeres `label`, nichts darin, doppelter `slot`, Figur oder
+  Vorlage (leere oder doppelte `id`, leeres `label`, nichts darin, leerer oder doppelter `slot`, Figur oder
   Kamera ohne Marks, `follows` ohne passenden `slot`, eine Zahl `nan` oder `inf`, ein Wert
   außerhalb der Grenzen des Editors) wird beim Öffnen mit Meldung abgelehnt. Die Grenzen
   (`crates/model/src/limits.rs`): Orte bis ±1000 m, Pause nicht negativ, Höhe eines Kamera-Marks

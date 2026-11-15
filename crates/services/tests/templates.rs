@@ -183,6 +183,27 @@ fn a_second_placing_adds_more_without_clashing() {
     );
 }
 
+/// With every character on the plan, a second placing names its new figures freely: the
+/// placeholder's name is taken by the first placing.
+#[test]
+fn a_full_plan_takes_the_template_twice() {
+    let mut s = open();
+
+    s.apply_template("shot-reverse", p(10.0, 5.0)).unwrap();
+    s.apply_template("shot-reverse", p(10.0, 5.0)).unwrap();
+
+    let names: Vec<_> = s
+        .project()
+        .characters
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert!(
+        names.contains(&"A 2") && names.contains(&"B 2"),
+        "{names:?}"
+    );
+}
+
 #[test]
 fn a_locked_layer_refuses_the_template() {
     for layer in [Layer::Figures, Layer::Cameras] {

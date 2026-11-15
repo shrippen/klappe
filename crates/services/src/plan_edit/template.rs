@@ -11,7 +11,7 @@ use crate::templates;
 /// Puts the figures and cameras of the template `id` on the plan `plan` of the scene `scene`,
 /// `at` being the template's insertion point. A placeholder takes the first character the
 /// plan has no figure of yet; when none is left, a character of the placeholder's name is
-/// made. Cameras get free letters and follow the figure of their placeholder.
+/// made (`A`, or `A 2` when a character has that name). Cameras get free letters and follow the figure of their placeholder.
 pub(crate) fn place(
     project: &mut Project,
     (scene, plan): (&str, &str),
@@ -43,7 +43,10 @@ pub(crate) fn place(
         let free = project.characters.iter().find(|c| !taken.contains(&c.id));
         let character = match free {
             Some(character) => character.id.clone(),
-            None => new_character(project, &figure.slot)?,
+            None => {
+                let name = free_name(project, &figure.slot);
+                new_character(project, &name)?
+            }
         };
 
         taken.push(character.clone());
@@ -127,4 +130,24 @@ fn moved_camera(mark: &CameraMark, by: Point) -> CameraMark {
         via: mark.via.map(|via| moved(via, by)),
         ..mark.clone()
     }
+}
+
+/// `base`, or `base 2`, `base 3` … when a character has that name; compared in capitals, as
+/// the cues are.
+fn free_name(project: &Project, base: &str) -> String {
+    let taken = |name: &str| {
+        project
+            .characters
+            .iter()
+            .any(|c| c.name.to_uppercase() == name.to_uppercase())
+    };
+
+    let mut name = base.to_owned();
+    let mut n = 1;
+    while taken(&name) {
+        n += 1;
+        name = format!("{base} {n}");
+    }
+
+    name
 }
