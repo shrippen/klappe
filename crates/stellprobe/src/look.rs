@@ -4,6 +4,7 @@
 use klappe_model::{Dash, FigureColor, Fill};
 
 use crate::display::Role;
+use crate::sight::ViewRole;
 
 /// The colour of a role, as a role of the palette, not a value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,6 +85,17 @@ pub fn look(role: Role) -> Look {
         Role::Camera | Role::CameraHandle => plain(YELLOW, Dash::Solid, Area::Solid),
         // The ground colour stands out from every figure colour (the text colour did not).
         Role::GroupDot => plain(Hue::Ground, Dash::Solid, Area::Solid),
+    }
+}
+
+/// What a shape of the camera's view looks like (LH-36): the ground and walls are tinted, so
+/// what stands before them stays readable; objects and figures are solid.
+pub fn view_look(role: ViewRole) -> Look {
+    match role {
+        ViewRole::Floor => plain(Hue::Muted, Dash::Solid, Area::Tint),
+        ViewRole::Wall => plain(Hue::Text, Dash::Solid, Area::Tint),
+        ViewRole::Object => plain(Hue::Muted, Dash::Solid, Area::Solid),
+        ViewRole::Figure(c) => plain(Hue::Color(c), Dash::Solid, Area::Solid),
     }
 }
 

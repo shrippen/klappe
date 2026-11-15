@@ -235,7 +235,7 @@ fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
 
 /// The outline of a set object, rotated about its centre: four corners for a rectangle, the
 /// ellipse inscribed in that rectangle otherwise.
-fn object_corners(o: &SetObject) -> Vec<Point> {
+pub(crate) fn object_corners(o: &SetObject) -> Vec<Point> {
     let (hw, hd) = (o.width_m / 2.0, o.depth_m / 2.0);
     let (sin, cos) = o.rotation_deg.to_radians().sin_cos();
 
