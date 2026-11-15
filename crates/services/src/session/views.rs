@@ -8,6 +8,7 @@ use klappe_stellprobe::{
 };
 
 use super::Session;
+use crate::library;
 use crate::views::{AxisChoice, CharacterRow, Hint, LocationRow, Overview, PlanRow, SceneRow};
 
 /// Tenths of a degree: the angle of view in a tooltip is shown to one decimal.
@@ -112,7 +113,9 @@ impl Session {
             t_s: self.time_s,
         };
 
-        picture(&self.project, &location.set, plan, &eye, width_px)
+        let forms = library::forms_of(&self.project.library, &location.set);
+
+        picture(&self.project, &location.set, plan, &forms, &eye, width_px)
     }
 
     /// The tooltip of camera `id`; `None` without such a camera.

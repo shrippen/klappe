@@ -116,6 +116,40 @@ pub struct LibraryItem {
     /// Height of a new object of this kind (LH-17); `None` for flat ones like a rug.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub height_m: Option<f64>,
+    /// The body form it has in 3D (LH-97): the `name` of a form of `forms.toml`; `None` for
+    /// the plain prism.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub form: Option<String>,
+}
+
+/// A box of a body form (LH-97), in fractions of the object: x along its width, y along its
+/// depth (both from the corner at the object's unrotated top left), z from its underside to
+/// its top.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct FormBox {
+    pub from: [f64; 3],
+    pub to: [f64; 3],
+}
+
+impl FormBox {
+    /// Whether the box lies within the object and has a size on every axis.
+    pub fn is_usable(&self) -> bool {
+        (0..3).all(|axis| {
+            let (from, to) = (self.from[axis], self.to[axis]);
+
+            (0.0..=1.0).contains(&from) && (0.0..=1.0).contains(&to) && from < to
+        })
+    }
+}
+
+/// How an object of a library entry looks in 3D (LH-97): boxes in the unit cube, scaled to
+/// the object's width, depth and height, e.g. a table is a top and four legs.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BodyForm {
+    /// What `LibraryItem::form` names.
+    pub name: String,
+    #[serde(rename = "box")]
+    pub boxes: Vec<FormBox>,
 }
 
 #[cfg(test)]
@@ -161,5 +195,22 @@ mod tests {
         assert!(!is_outline(&[p(0.0, 0.0), p(1.0, 1.0), p(2.0, 2.0)]));
         assert!(!is_outline(&[p(0.0, 0.0), p(1.0, 0.0), p(f64::NAN, 1.0)]));
         assert!(!is_outline(&[p(0.0, 0.0), p(1e6, 0.0), p(0.0, 1.0)]));
+    }
+}
+
+#[cfg(test)]
+mod form_tests {
+    use super::*;
+
+    /// A box lies within the unit cube and has a size on every axis.
+    #[test]
+    fn a_form_box_lies_within_the_object() {
+        let boxed = |from, to| FormBox { from, to }.is_usable();
+
+        assert!(boxed([0.0, 0.0, 0.0], [1.0, 1.0, 1.0]));
+        assert!(!boxed([0.0, 0.0, 0.0], [1.0, 1.0, 1.2]));
+        assert!(!boxed([-0.1, 0.0, 0.0], [1.0, 1.0, 1.0]));
+        assert!(!boxed([0.5, 0.0, 0.0], [0.5, 1.0, 1.0]));
+        assert!(!boxed([0.0, 0.0, 0.0], [f64::NAN, 1.0, 1.0]));
     }
 }

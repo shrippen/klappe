@@ -4,13 +4,16 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use klappe_model::{is_object_height_m, is_object_size_m, is_outline, LibraryItem, ObjectShape};
+use klappe_model::{
+    is_object_height_m, is_object_size_m, is_outline, BodyForm, LibraryItem, ObjectShape,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::files;
 use crate::StoreError;
 
 const BUILTIN: &str = include_str!("../library/standard.toml");
+const BUILTIN_FORMS: &str = include_str!("../library/forms.toml");
 
 /// A library file: one `[[objekt]]` per item. Other keys or no `objekt` at all mean the file
 /// is no library (an import of `projekt.toml` would read as an empty one otherwise).
@@ -30,6 +33,42 @@ pub fn builtin_library() -> &'static [LibraryItem] {
             .map(|file| file.objekt)
             .unwrap_or_default()
     })
+}
+
+/// The body forms the built-in library names (LH-97): one `[[form]]` per form, each with a
+/// `[[form.box]]` per box.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FormFile {
+    form: Vec<BodyForm>,
+}
+
+/// The body forms that ship with Klappe. Embedded and tested to load; an unreadable file would
+/// only leave the objects as plain prisms.
+pub fn builtin_forms() -> &'static [BodyForm] {
+    static FORMS: OnceLock<Vec<BodyForm>> = OnceLock::new();
+
+    FORMS.get_or_init(|| {
+        toml::from_str::<FormFile>(BUILTIN_FORMS)
+            .ok()
+            .map(|file| file.form)
+            .filter(|forms| check_forms(forms).is_ok())
+            .unwrap_or_default()
+    })
+}
+
+/// Every form has a name of its own and boxes that lie within the object.
+fn check_forms(forms: &[BodyForm]) -> Result<(), String> {
+    for (index, form) in forms.iter().enumerate() {
+        if form.boxes.is_empty() || !form.boxes.iter().all(|b| b.is_usable()) {
+            return Err(format!("form {:?}: boxes are not usable", form.name));
+        }
+        if forms[..index].iter().any(|other| other.name == form.name) {
+            return Err(format!("form {:?} is there twice", form.name));
+        }
+    }
+
+    Ok(())
 }
 
 /// Reads a library file (the project's `bibliothek.toml` or one passed on). A file with an
@@ -65,7 +104,7 @@ pub(crate) fn encode(path: &Path, items: &[LibraryItem]) -> Result<Vec<u8>, Stor
 }
 
 /// Every item has a kind, a size an object can have, an outline if it is a free form, a height
-/// if it has one, and a kind of its own.
+/// if it has one, a built-in form if it names one, and a kind of its own.
 fn check_items(items: &[LibraryItem]) -> Result<(), String> {
     for (index, item) in items.iter().enumerate() {
         if item.kind.trim().is_empty() {
@@ -86,10 +125,62 @@ fn check_items(items: &[LibraryItem]) -> Result<(), String> {
                 item.kind, item.height_m
             ));
         }
+        if item.form.as_ref().is_some_and(|name| !is_form(name)) {
+            return Err(format!("object {:?}: form is unknown", item.kind));
+        }
         if items[..index].iter().any(|other| other.kind == item.kind) {
             return Err(format!("object {:?} is there twice", item.kind));
         }
     }
 
     Ok(())
+}
+
+/// Whether `name` is a built-in body form.
+fn is_form(name: &str) -> bool {
+    builtin_forms().iter().any(|form| form.name == name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The embedded files load and pass their checks: an unreadable forms file would only
+    /// show as plain prisms.
+    #[test]
+    fn the_built_in_files_load_and_pass_their_checks() {
+        let library: LibraryFile = toml::from_str(BUILTIN).expect("library");
+        let forms: FormFile = toml::from_str(BUILTIN_FORMS).expect("forms");
+
+        assert!(check_items(&library.objekt).is_ok());
+        assert_eq!(check_forms(&forms.form), Ok(()));
+        assert!(!builtin_forms().is_empty());
+    }
+
+    /// Every form a built-in entry names exists; a form no entry names is dead data.
+    #[test]
+    fn built_in_entries_and_forms_belong_together() {
+        for item in builtin_library() {
+            assert!(item.form.as_deref().is_none_or(is_form), "{}", item.kind);
+        }
+        for form in builtin_forms() {
+            let used = builtin_library()
+                .iter()
+                .any(|i| i.form.as_deref() == Some(form.name.as_str()));
+
+            assert!(used, "{} is named by no entry", form.name);
+        }
+    }
+
+    #[test]
+    fn a_form_needs_usable_boxes_and_a_name_of_its_own() {
+        let parse = |text: &str| toml::from_str::<FormFile>(text).expect("parse").form;
+        let one = "[[form]]\nname = \"a\"\n[[form.box]]\nfrom = [0, 0, 0]\nto = [1, 1, 1]\n";
+
+        assert_eq!(check_forms(&parse(one)), Ok(()));
+        assert!(check_forms(&parse(&one.repeat(2))).is_err());
+        assert!(check_forms(&parse(&one.replace("[1, 1, 1]", "[1, 1, 2]"))).is_err());
+        assert!(check_forms(&parse(&one.replace("[1, 1, 1]", "[0, 1, 1]"))).is_err());
+        assert!(check_forms(&parse("[[form]]\nname = \"a\"\nbox = []\n")).is_err());
+    }
 }

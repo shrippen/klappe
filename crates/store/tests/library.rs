@@ -32,6 +32,7 @@ fn own(kind: &str, label: &str, width_m: f64, depth_m: f64, shape: ObjectShape) 
         depth_m,
         shape,
         height_m: None,
+        form: None,
     }
 }
 
@@ -353,4 +354,28 @@ fn the_group_of_an_own_object_survives_a_save() {
     // No group, no key: the file of an older project reads as before.
     let text = fs::read_to_string(dir.join("bibliothek.toml")).unwrap();
     assert_eq!(text.matches("group").count(), 1);
+}
+
+/// LH-97: an own object names a built-in body form and keeps it; a form nobody knows
+/// refuses the file.
+#[test]
+fn an_own_object_names_a_built_in_form() {
+    let dir = test_dir("library-form");
+    let path = dir.join("formen.toml");
+    let bench = LibraryItem {
+        form: Some("table".into()),
+        ..throne()
+    };
+
+    save_library(&path, std::slice::from_ref(&bench)).unwrap();
+    assert!(fs::read_to_string(&path)
+        .unwrap()
+        .contains("form = \"table\""));
+    assert_eq!(load_library(&path).unwrap(), vec![bench]);
+
+    let unknown = LibraryItem {
+        form: Some("nirgends".into()),
+        ..throne()
+    };
+    assert!(save_library(&path, &[unknown]).is_err());
 }

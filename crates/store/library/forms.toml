@@ -1,0 +1,140 @@
+# The built-in body forms (LH-97): how a library entry looks in 3D. Boxes in fractions of the
+# object: x along its width, y along its depth (from the unrotated top left corner), z from its
+# underside to its top. A library entry names a form by `form = "<name>"`; an entry without
+# one stays a plain prism. A new form is data: add it here and name it.
+
+# Top and four legs.
+[[form]]
+name = "table"
+
+[[form.box]]
+from = [0, 0, 0.92]
+to = [1, 1, 1]
+
+[[form.box]]
+from = [0, 0, 0]
+to = [0.04, 0.07, 0.92]
+
+[[form.box]]
+from = [0, 0.93, 0]
+to = [0.04, 1, 0.92]
+
+[[form.box]]
+from = [0.96, 0, 0]
+to = [1, 0.07, 0.92]
+
+[[form.box]]
+from = [0.96, 0.93, 0]
+to = [1, 1, 0.92]
+
+# Seat, back at the low y side and four legs.
+[[form]]
+name = "chair"
+
+[[form.box]]
+from = [0, 0, 0.47]
+to = [1, 1, 0.52]
+
+[[form.box]]
+from = [0, 0, 0.52]
+to = [1, 0.1, 1]
+
+[[form.box]]
+from = [0, 0, 0]
+to = [0.1, 0.1, 0.47]
+
+[[form.box]]
+from = [0, 0.9, 0]
+to = [0.1, 1, 0.47]
+
+[[form.box]]
+from = [0.9, 0, 0]
+to = [1, 0.1, 0.47]
+
+[[form.box]]
+from = [0.9, 0.9, 0]
+to = [1, 1, 0.47]
+
+# Frame and headboard at the low y side.
+[[form]]
+name = "bed"
+
+[[form.box]]
+from = [0, 0, 0]
+to = [1, 1, 0.5]
+
+[[form.box]]
+from = [0, 0, 0]
+to = [1, 0.04, 1]
+
+# Seat, back at the low y side and two arms.
+[[form]]
+name = "sofa"
+
+[[form.box]]
+from = [0, 0.2, 0]
+to = [1, 1, 0.5]
+
+[[form.box]]
+from = [0, 0, 0]
+to = [1, 0.2, 1]
+
+[[form.box]]
+from = [0, 0.2, 0]
+to = [0.1, 1, 0.7]
+
+[[form.box]]
+from = [0.9, 0.2, 0]
+to = [1, 1, 0.7]
+
+# Six steps rising along x.
+[[form]]
+name = "stairs"
+
+[[form.box]]
+from = [0, 0, 0]
+to = [0.1667, 1, 0.1667]
+
+[[form.box]]
+from = [0.1667, 0, 0]
+to = [0.3333, 1, 0.3333]
+
+[[form.box]]
+from = [0.3333, 0, 0]
+to = [0.5, 1, 0.5]
+
+[[form.box]]
+from = [0.5, 0, 0]
+to = [0.6667, 1, 0.6667]
+
+[[form.box]]
+from = [0.6667, 0, 0]
+to = [0.8333, 1, 0.8333]
+
+[[form.box]]
+from = [0.8333, 0, 0]
+to = [1, 1, 1]
+
+# Base, two side blocks, back wall and lintel; the opening faces +y.
+[[form]]
+name = "fireplace"
+
+[[form.box]]
+from = [0, 0, 0]
+to = [1, 1, 0.1]
+
+[[form.box]]
+from = [0, 0, 0.1]
+to = [0.2, 1, 0.75]
+
+[[form.box]]
+from = [0.8, 0, 0.1]
+to = [1, 1, 0.75]
+
+[[form.box]]
+from = [0.2, 0, 0.1]
+to = [0.8, 0.15, 0.75]
+
+[[form.box]]
+from = [0, 0, 0.75]
+to = [1, 1, 1]

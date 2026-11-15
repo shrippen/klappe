@@ -6,6 +6,7 @@
 
 [[objekt]]
 kind = "table"
+form = "table"
 group = "furniture"
 width_m = 1.6
 depth_m = 0.9
@@ -13,6 +14,7 @@ height_m = 0.75
 
 [[objekt]]
 kind = "chair"
+form = "chair"
 group = "furniture"
 width_m = 0.45
 depth_m = 0.45
@@ -20,6 +22,7 @@ height_m = 0.9
 
 [[objekt]]
 kind = "bed"
+form = "bed"
 group = "furniture"
 width_m = 1.4
 depth_m = 2.0
@@ -27,6 +30,7 @@ height_m = 0.6
 
 [[objekt]]
 kind = "sofa"
+form = "sofa"
 group = "furniture"
 width_m = 2.0
 depth_m = 0.9
@@ -56,6 +60,7 @@ height_m = 3.0
 
 [[objekt]]
 kind = "fireplace"
+form = "fireplace"
 group = "build"
 width_m = 1.2
 depth_m = 0.5
@@ -63,6 +68,7 @@ height_m = 1.2
 
 [[objekt]]
 kind = "stairs"
+form = "stairs"
 group = "build"
 width_m = 3.0
 depth_m = 1.0

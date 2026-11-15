@@ -13,6 +13,7 @@ use klappe_raster::{rasterize, Corner, Frame, Paint, Triangle, NO_SOURCE};
 
 use crate::display::Source;
 use crate::eye::{clip_near, Eye, Pinhole, Vec3, NEAR_M};
+use crate::forms::Forms;
 use crate::scene::{scene, Solid};
 use crate::triangulate::triangulate;
 
@@ -48,6 +49,7 @@ pub fn picture(
     project: &Project,
     set: &SetPlan,
     plan: &FloorPlan,
+    forms: &Forms,
     eye: &Eye,
     width_px: usize,
 ) -> Option<Picture> {
@@ -62,7 +64,7 @@ pub fn picture(
         return None;
     }
 
-    let solids = scene(project, set, plan, eye.t_s(), looking);
+    let solids = scene(project, set, plan, forms, eye.t_s(), looking);
     let mut sources = Vec::new();
     let mut triangles = Vec::new();
     let mut face = 0;

@@ -65,6 +65,17 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `bibliothek.toml` eines Projekts dann beim Öffnen mit Meldung. Ohne eigene Objekte gibt es die
   Datei nicht: `save` löscht sie dann. Keine neue Formatversion: ältere Fassungen kennen `shape`,
   `group` und `bibliothek.toml` nicht und verlieren sie beim Speichern.
+- **Bauform (LH-97):** ein Eintrag der Bibliothek (eingebaut oder eigen) hat optional `form`, den
+  Namen einer eingebauten Bauform; fehlt der Schlüssel, bleibt das Objekt in 3D ein Prisma seines
+  Umrisses. Die Bauformen sind Daten (`crates/store/library/forms.toml`): je `[[form]]` ein `name`
+  und je `[[form.box]]` ein Quader `from = [x, y, z]`, `to = [x, y, z]` in Anteilen (0 bis 1) des
+  Objekts: x entlang der Breite, y entlang der Tiefe (von der Ecke oben links, vor dem Drehen),
+  z von der Unterkante bis zur Oberkante (die Höhe des Objekts). Je Achse `from` kleiner als `to`;
+  der Name ist eindeutig. Eine Bibliotheksdatei, deren Eintrag eine unbekannte `form` nennt, wird
+  als Ganzes abgelehnt. Welche Bauform ein Objekt im Plan bekommt, folgt aus seinem `kind`
+  (eigener Eintrag zuerst, dann eingebaut); `[[set.objects]]` haben kein Feld dafür. Nur
+  Rechtecke bekommen eine Bauform, keine Ellipse und keine freie Form. Keine neue
+  Formatversion: ältere Fassungen verlieren `form` beim Speichern.
 - **Höhe von Objekten (LH-17):** `[[set.objects]]` und `[[objekt]]` der Bibliothek haben optional
   `height_m`, die Höhe in Metern (größer als 0, höchstens 100). Fehlt der Schlüssel, ist keine
   Höhe angegeben (Fläche, Teppich); ein Objekt ohne Höhe schreibt ihn nicht, ältere Projekte

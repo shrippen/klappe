@@ -6,17 +6,20 @@
 //!   wall      box between its openings, thickness included, ends closed;
 //!             below a sill and above a head the wall goes on
 //!   object    its outline raised from its underside to its top; without a height
-//!             see-through in the role Missing
+//!             see-through in the role Missing; with a body form one box per part
 //!   figure    an octagon as tall as its pose, its name above it
 //!   camera    a box at its lens height, turned where it looks (not the one looked through)
 //!   floor     the set's area
 //! ```
 
-use klappe_model::{FigureColor, FloorPlan, ObjectShape, Point, Project, SetPlan, Wall};
+use klappe_model::{
+    FigureColor, FloorPlan, FormBox, ObjectShape, Point, Project, SetObject, SetPlan, Wall,
+};
 
 use crate::display::{object_corners, Source};
 use crate::eye::Vec3;
 use crate::figure::body_radius_m;
+use crate::forms::Forms;
 use crate::height::{figure_height_m, object_extent, opening_span, wall_top};
 use crate::motion::{aim_at, camera_at, figure_at};
 use crate::opening::solid_spans;
@@ -102,12 +105,13 @@ pub(crate) fn scene(
     project: &Project,
     set: &SetPlan,
     plan: &FloorPlan,
+    forms: &Forms,
     t_s: f64,
     looking: Option<&str>,
 ) -> Vec<Solid> {
     let mut solids = vec![floor(set)];
     walls(set, &mut solids);
-    objects(set, &mut solids);
+    objects(set, forms, &mut solids);
     figures(project, plan, t_s, &mut solids);
     cameras(plan, t_s, looking, &mut solids);
 
@@ -376,7 +380,7 @@ fn wall_band(wall: &Wall, start_m: f64, end_m: f64) -> [Point; 4] {
     ]
 }
 
-fn objects(set: &SetPlan, solids: &mut Vec<Solid>) {
+fn objects(set: &SetPlan, forms: &Forms, solids: &mut Vec<Solid>) {
     for (index, object) in set.objects.iter().enumerate() {
         let (base_m, top_m) = object_extent(set, index);
         let sides = match object.shape {
@@ -387,14 +391,58 @@ fn objects(set: &SetPlan, solids: &mut Vec<Solid>) {
             Some(_) => SceneRole::Object,
             None => SceneRole::Missing,
         };
+        let source = Some(Source::Object(object.id.clone()));
+        let form = forms
+            .get(&object.kind)
+            .filter(|_| object.shape == ObjectShape::Rect);
+        let Some(boxes) = form else {
+            solids.push(Solid {
+                source,
+                role,
+                faces: prism(&object_corners(object), (base_m, top_m), sides),
+                label: None,
+            });
+            continue;
+        };
 
-        solids.push(Solid {
-            source: Some(Source::Object(object.id.clone())),
-            role,
-            faces: prism(&object_corners(object), (base_m, top_m), sides),
-            label: None,
-        });
+        for part in boxes {
+            let (outline, levels) = form_box(object, part, (base_m, top_m));
+            solids.push(Solid {
+                source: source.clone(),
+                role,
+                faces: prism(&outline, levels, Sides::Flat),
+                label: None,
+            });
+        }
     }
+}
+
+/// The floor outline and the underside and top of `part` of `object`'s body form: its
+/// fractions scaled to the object's size and turned about its centre like its outline.
+fn form_box(
+    object: &SetObject,
+    part: &FormBox,
+    (base_m, top_m): (f64, f64),
+) -> ([Point; 4], (f64, f64)) {
+    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
+    let corner = |fx: f64, fy: f64| {
+        let (x, y) = ((fx - 0.5) * object.width_m, (fy - 0.5) * object.depth_m);
+
+        Point::new(
+            object.at.x_m + x * cos - y * sin,
+            object.at.y_m + x * sin + y * cos,
+        )
+    };
+    let (from, to) = (part.from, part.to);
+    let outline = [
+        corner(from[0], from[1]),
+        corner(to[0], from[1]),
+        corner(to[0], to[1]),
+        corner(from[0], to[1]),
+    ];
+    let level = |f: f64| base_m + f * (top_m - base_m);
+
+    (outline, (level(from[2]), level(to[2])))
 }
 
 /// Each figure on the set at `t_s`: an octagon around its place, as tall as its pose.
@@ -510,6 +558,113 @@ mod tests {
 
         assert_eq!(surfaces(Sides::Round), vec![0, 1]);
         assert_eq!(surfaces(Sides::Flat), vec![0, 1, 2, 3, 4]);
+    }
+
+    fn forms_of(kind: &str, boxes: &[([f64; 3], [f64; 3])]) -> Forms {
+        let mut forms = Forms::default();
+        let boxes: Vec<FormBox> = boxes
+            .iter()
+            .map(|&(from, to)| FormBox { from, to })
+            .collect();
+        forms.insert(kind, &boxes);
+
+        forms
+    }
+
+    fn placed(kind: &str, rotation_deg: f64, height_m: f64) -> SetPlan {
+        SetPlan {
+            objects: vec![SetObject {
+                id: "o".into(),
+                kind: kind.into(),
+                label: String::new(),
+                at: Point::new(10.0, 10.0),
+                width_m: 1.6,
+                depth_m: 0.9,
+                rotation_deg,
+                shape: ObjectShape::Rect,
+                height_m: Some(height_m),
+                base_m: None,
+            }],
+            ..SetPlan::default()
+        }
+    }
+
+    /// The range of axis `axis` (0 x, 1 y, 2 z) over the corners of a solid.
+    fn range(solid: &Solid, axis: usize) -> (f64, f64) {
+        let values = solid.faces.iter().flat_map(|f| &f.corners).map(|c| c[axis]);
+
+        (
+            values.clone().fold(f64::MAX, f64::min),
+            values.fold(f64::MIN, f64::max),
+        )
+    }
+
+    fn close(a: (f64, f64), b: (f64, f64)) -> bool {
+        (a.0 - b.0).abs() < 1e-9 && (a.1 - b.1).abs() < 1e-9
+    }
+
+    /// A table of 1.6 x 0.9 x 0.75 m at (10, 10) turned by 90 degrees is a top 0.06 m thick and
+    /// four legs: a point (fx, fy) of the table lies at (10 - (fy - 0.5) 0.9, 10 + (fx - 0.5) 1.6).
+    /// The top covers x 9.55..10.45, y 9.2..10.8, z 0.69..0.75; the first leg (fractions
+    /// 0..0.04 by 0..0.07 by 0..0.92) x 10.387..10.45, y 9.2..9.264, z 0..0.69. Without a form
+    /// there is one solid; a free form never gets one.
+    #[test]
+    fn a_table_is_a_top_on_four_legs() {
+        let leg = |x: f64, y: f64| ([x, y, 0.0], [x + 0.04, y + 0.07, 0.92]);
+        let forms = forms_of(
+            "table",
+            &[
+                ([0.0, 0.0, 0.92], [1.0, 1.0, 1.0]),
+                leg(0.0, 0.0),
+                leg(0.96, 0.0),
+                leg(0.0, 0.93),
+                leg(0.96, 0.93),
+            ],
+        );
+        let set = placed("table", 90.0, 0.75);
+        let mut solids = Vec::new();
+
+        objects(&set, &forms, &mut solids);
+
+        assert_eq!(solids.len(), 5);
+        let top = &solids[0];
+        assert!(close(range(top, 0), (9.55, 10.45)), "{:?}", range(top, 0));
+        assert!(close(range(top, 1), (9.2, 10.8)));
+        assert!(close(range(top, 2), (0.69, 0.75)));
+        let leg = &solids[1];
+        assert!(close(range(leg, 0), (10.387, 10.45)), "{:?}", range(leg, 0));
+        assert!(close(range(leg, 1), (9.2, 9.264)));
+        assert!(close(range(leg, 2), (0.0, 0.69)));
+        let source = Some(Source::Object("o".into()));
+        assert!(solids
+            .iter()
+            .all(|s| s.source == source && s.role == SceneRole::Object));
+
+        let mut plain = Vec::new();
+        objects(&set, &Forms::default(), &mut plain);
+        assert_eq!(plain.len(), 1);
+
+        let mut free = placed("table", 90.0, 0.75);
+        free.objects[0].shape = ObjectShape::Ellipse;
+        let mut round = Vec::new();
+        objects(&free, &forms, &mut round);
+        assert_eq!(round.len(), 1);
+    }
+
+    /// Three steps of a 1.6 m long, 0.9 m wide flight 0.9 m high rise along x by 0.3 m each.
+    #[test]
+    fn stairs_rise_step_by_step() {
+        let step = |i: f64| ([i / 3.0, 0.0, 0.0], [(i + 1.0) / 3.0, 1.0, (i + 1.0) / 3.0]);
+        let forms = forms_of("stairs", &[step(0.0), step(1.0), step(2.0)]);
+        let mut solids = Vec::new();
+
+        objects(&placed("stairs", 0.0, 0.9), &forms, &mut solids);
+
+        let tops: Vec<f64> = solids.iter().map(|s| range(s, 2).1).collect();
+        assert_eq!(solids.len(), 3);
+        assert!(close((tops[0], tops[1]), (0.3, 0.6)) && (tops[2] - 0.9).abs() < 1e-9);
+        let from_x: Vec<f64> = solids.iter().map(|s| range(s, 0).0).collect();
+        assert!(from_x[0] < from_x[1] && from_x[1] < from_x[2]);
     }
 
     /// A 4 m wall, 0.2 m thick, with a window from 1 to 2 m: two full boxes and one each

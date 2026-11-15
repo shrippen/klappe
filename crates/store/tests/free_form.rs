@@ -112,6 +112,7 @@ fn the_library_keeps_a_free_form() {
         depth_m: 3.0,
         shape,
         height_m: Some(1.0),
+        form: None,
     };
 
     save_library(&path, &[item(l_shape())]).unwrap();

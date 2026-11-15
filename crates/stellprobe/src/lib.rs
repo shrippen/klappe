@@ -17,6 +17,7 @@ mod card;
 mod display;
 mod eye;
 mod figure;
+mod forms;
 mod height;
 mod hit;
 mod light;
@@ -38,6 +39,7 @@ pub use display::{
     FIGURE_RADIUS_M,
 };
 pub use eye::{Eye, Orbit};
+pub use forms::Forms;
 pub use height::{object_extent, opening_span, wall_top};
 pub use hit::{anchor, hit, in_lasso, within};
 pub use klappe_raster::Frame;

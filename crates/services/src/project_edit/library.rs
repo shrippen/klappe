@@ -53,6 +53,7 @@ fn from_object(
         depth_m,
         shape,
         height_m,
+        form: None,
     };
     check_item(&item)?;
 
@@ -96,6 +97,7 @@ fn same_entry(a: &LibraryItem, b: &LibraryItem) -> bool {
             item.shape.clone(),
             item.height_m,
             item.group.clone(),
+            item.form.clone(),
         )
     };
 
@@ -173,6 +175,7 @@ mod tests {
             depth_m: 0.8,
             shape: klappe_model::ObjectShape::Rect,
             height_m: None,
+            form: None,
         };
         let regrouped = LibraryItem {
             group: "Hof".into(),

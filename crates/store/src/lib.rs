@@ -35,7 +35,7 @@ pub use camera::builtin_camera_presets;
 pub use error::StoreError;
 use files::{Dir, Kind};
 pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
-pub use library::{builtin_library, load_library, save_library};
+pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
 pub use template::{builtin_templates, check_template};
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
