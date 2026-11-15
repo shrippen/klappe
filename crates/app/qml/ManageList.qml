@@ -4,8 +4,8 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// One list of the project view (scenes, locations or characters) with its buttons. It holds
-// the selection; what the buttons do is up to the dialog around it.
+// One list of the project dialog (scenes, locations or characters) with its button for a new
+// entry. It holds the selection; the form beside it (D-08) changes or deletes the entry.
 ColumnLayout {
     id: list
 
@@ -18,10 +18,6 @@ ColumnLayout {
     readonly property var current: items.find(i => i.id === currentId) || null
 
     signal addRequested()
-    signal editRequested(var item)
-    signal removeRequested(var item)
-    // Scenes only: go to the scene.
-    signal showRequested(var item)
 
     spacing: Kirigami.Units.smallSpacing
 
@@ -98,35 +94,9 @@ ColumnLayout {
         }
     }
 
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Kirigami.Units.smallSpacing
-
-        KanteButton {
-            objectName: "add"
-            text: list.texts.t("project.add")
-            onClicked: list.addRequested()
-        }
-        KanteButton {
-            objectName: "edit"
-            text: list.texts.t("project.edit")
-            enabled: list.current !== null
-            onClicked: list.editRequested(list.current)
-        }
-        KanteButton {
-            objectName: "remove"
-            text: list.texts.t("project.remove")
-            enabled: list.current !== null
-            onClicked: list.removeRequested(list.current)
-        }
-        Item { Layout.fillWidth: true }
-        KanteButton {
-            objectName: "show"
-            visible: list.kind === "scene"
-            emphasis: KanteButton.Emphasis.Primary
-            text: list.texts.t("project.show")
-            enabled: list.current !== null
-            onClicked: list.showRequested(list.current)
-        }
+    KanteButton {
+        objectName: "add"
+        text: list.texts.t("project.add")
+        onClicked: list.addRequested()
     }
 }

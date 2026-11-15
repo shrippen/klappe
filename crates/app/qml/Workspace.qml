@@ -28,6 +28,17 @@ Item {
 
     required property var texts
     required property var controller
+
+    // The scene on view as the script's head shows it: { id, number, heading } or null.
+    readonly property var sceneOnView: {
+        if (!controller.projectJson || !controller.sceneId) {
+            return null
+        }
+        return JSON.parse(controller.projectJson).scenes.find(s => s.id === controller.sceneId) || null
+    }
+
+    // The script's cards ask to change a scene (`kind` "scene") or a character in the project dialog.
+    signal projectEntryRequested(string kind, string id)
     /// The tool bar's tool.
     property string tool: "select"
     /// The shot on view in the shot panel.
@@ -104,6 +115,9 @@ Item {
         id: scriptPane
         ScriptPanel {
             texts: work.texts
+            controller: work.controller
+            scene: work.sceneOnView
+            onEditRequested: (kind, id) => work.projectEntryRequested(kind, id)
             lines: work.controller.scriptJson ? JSON.parse(work.controller.scriptJson) : []
             onChipClicked: (kind, target, at) => kind === "shot" ? work.controller.selectShot(target) : work.controller.seek(at)
         }
