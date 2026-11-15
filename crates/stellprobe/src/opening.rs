@@ -48,7 +48,8 @@ fn wall_pieces(index: usize, wall: &Wall, items: &mut Vec<Item>) {
         cursor_m = cursor_m.max(end_m);
     }
 
-    if cursor_m < length_m {
+    // A wall of length 0 keeps its (0, 0) piece, so it can still be clicked.
+    if cursor_m < length_m || length_m == 0.0 {
         pieces.push((cursor_m, length_m));
     }
 
@@ -159,6 +160,15 @@ mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    /// A wall of length 0 stays a piece, so it can still be clicked.
+    #[test]
+    fn a_zero_length_wall_keeps_its_piece() {
+        let mut set = wall_with(vec![]);
+        set.walls[0].to = set.walls[0].from;
+
+        assert_eq!(pieces(&items(&set)), [(0.0, 0.0)]);
     }
 
     #[test]
