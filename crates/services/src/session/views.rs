@@ -2,10 +2,10 @@
 //! the project lists, the tooltips and the set of the current scene.
 
 use klappe_model::{CameraPresets, DrawingShape, Location};
-use klappe_stellprobe::{aim_at, camera_view, horizontal_fov_deg, CameraView, Source};
+use klappe_stellprobe::{aim_at, axis_pair, camera_view, horizontal_fov_deg, CameraView, Source};
 
 use super::Session;
-use crate::views::{CharacterRow, Hint, LocationRow, Overview, PlanRow, SceneRow};
+use crate::views::{AxisChoice, CharacterRow, Hint, LocationRow, Overview, PlanRow, SceneRow};
 
 /// Tenths of a degree: the angle of view in a tooltip is shown to one decimal.
 const FOV_STEPS_PER_DEG: f64 = 10.0;
@@ -14,6 +14,18 @@ const FOV_STEPS_PER_DEG: f64 = 10.0;
 const NO_GROUP: u32 = 0;
 
 impl Session {
+    /// The axis pair of the plan on view; `None` with fewer than two figures and no choice.
+    pub fn axis_choice(&self) -> Option<AxisChoice> {
+        let plan = self.plan()?;
+        let (a, b) = axis_pair(plan)?;
+
+        Some(AxisChoice {
+            a: a.to_owned(),
+            b: b.to_owned(),
+            own: plan.axis.is_some(),
+        })
+    }
+
     /// The location of the scene on view.
     pub(crate) fn scene_location(&self) -> Option<&Location> {
         self.project().location(&self.scene()?.location)

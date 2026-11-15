@@ -4,9 +4,10 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// The shot list as a table (D-05, LH-71): the columns of the exported list (15), a row per shot in
-// the order given, in shooting order a band per setup (LH-72). A click on a row selects the
-// shot; double click or Enter edits the cell, Enter or a click away sends it, Esc drops it.
+// The shot list as a table (D-05, LH-71): the columns of the exported list (15) and the setup, a
+// row per shot in the order given, in shooting order a band per setup (LH-72). A click on a row
+// selects the shot; double click or Enter edits the cell, Enter or a click away sends it, Esc
+// drops it.
 //
 //  Nr.  Kam. Obj.  Größe  …       Up/Down: row, Left/Right: column
 //  ── Setup 1 ───────────────     Enter or F2: edit the cell
@@ -62,8 +63,11 @@ FocusScope {
         { key: "props", kind: ShotTable.Kind.Text, title: "field.props", width: _unit * 10 },
         { key: "gear", kind: ShotTable.Kind.Text, title: "field.gear", width: _unit * 10 },
         { key: "crew", kind: ShotTable.Kind.Text, title: "field.crew", width: _unit * 10 },
-        { key: "note", kind: ShotTable.Kind.Text, title: "field.note", width: _unit * 12 }
+        { key: "note", kind: ShotTable.Kind.Text, title: "field.note", width: _unit * 12 },
+        { key: "axis_against", kind: ShotTable.Kind.Fixed, title: "field.axisAgainst", width: _unit * 8 }
     ]
+
+    readonly property var planKeys: [Qt.Key_F2, Qt.Key_Return, Qt.Key_Enter, Qt.Key_Delete, Qt.Key_R, Qt.Key_G]
 
     // The rows plus a band before each new setup in shooting order.
     readonly property var items: {
@@ -206,6 +210,11 @@ FocusScope {
             Keys.onRightPressed: table.currentColumn = Math.min(table.columns.length - 1, table.currentColumn + 1)
             Keys.onReturnPressed: table.edit(table.selectedId, table.currentColumn)
             Keys.onEnterPressed: table.edit(table.selectedId, table.currentColumn)
+            // The plan's window shortcuts (F2, Enter, Delete, R, G, Ctrl+D) are not for a row.
+            Keys.onShortcutOverride: event => {
+                const duplicate = event.key === Qt.Key_D && (event.modifiers & Qt.ControlModifier)
+                event.accepted = table.planKeys.indexOf(event.key) >= 0 || duplicate
+            }
             Keys.onPressed: event => {
                 if (event.key !== Qt.Key_F2) {
                     return

@@ -75,6 +75,12 @@ impl qobject::Controller {
         true
     }
 
+    pub(super) fn set_axis(self: Pin<&mut Self>, a: &QString, b: &QString) -> bool {
+        let (a, b) = (a.to_string(), b.to_string());
+
+        self.edit_shots(|s| s.set_axis((!a.is_empty()).then_some((a.as_str(), b.as_str()))))
+    }
+
     pub(super) fn set_follow(self: Pin<&mut Self>, camera: &QString, figure: &QString) -> bool {
         let figure = figure.to_string();
 

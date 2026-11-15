@@ -41,6 +41,9 @@ Item {
     // Figures of the plan, for the follow chooser.
     readonly property var figures: controller.tracksJson ? JSON.parse(controller.tracksJson).filter(t => t.kind === "figure") : []
 
+    // The characters the 180° axis runs between: {a, b, own}, or null (LH-40).
+    readonly property var axis: controller.choicesJson ? (JSON.parse(controller.choicesJson).axis || null) : null
+
     // Counts refused values; the fields' text bindings read it, so they snap back to the model.
     property int refused: 0
 
@@ -65,6 +68,15 @@ Item {
             return
         }
         send(shot.id, field, value)
+    }
+
+    // Sets one end of the axis to the figure `id`; the other end stays.
+    function setAxisEnd(end, id) {
+        const pair = axis ? { a: axis.a, b: axis.b } : { a: "", b: "" }
+        pair[end] = id
+        if (!controller.setAxis(pair.a, pair.b)) {
+            refused++
+        }
     }
 
     // Sends one field of shot `id`; a refusal resets the fields.
@@ -244,11 +256,14 @@ Item {
                         text: panel.shot ? panel.texts.t("shot.title", { number: panel.shot.number }) : ""
                     }
                     KanteChip {
+                        objectName: "axisChip"
                         visible: panel.shot !== null && panel.shot.axis_jump
                         interactive: false
                         chipColor: KanteStyle.warningColor
                         iconName: "dialog-warning"
                         text: panel.texts.t("shot.axisJump")
+                        // Names the shots on the other side of the axis (LH-41).
+                        toolTip: panel.shot ? panel.texts.t("shot.axisAgainst", { shots: panel.shot.axis_against }) : ""
                     }
                 }
 
@@ -379,6 +394,36 @@ Item {
                         model: [panel.texts.t("follows.none")].concat(panel.figures.map(f => f.name))
                         currentIndex: { panel.refused; return panel.shot ? 1 + panel.figures.findIndex(f => f.id === panel.shot.follows) : -1 }
                         onActivated: index => panel.follow(index === 0 ? "" : panel.figures[index - 1].id)
+                    }
+                }
+
+                // The 180° axis between two figures; the warning above refers to it (LH-40).
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.smallSpacing
+                    KanteSectionLabel { text: panel.texts.t("field.axis") }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.smallSpacing
+                        Repeater {
+                            model: ["a", "b"]
+                            delegate: KanteComboBox {
+                                required property string modelData
+                                objectName: "axisBox_" + modelData
+                                Layout.fillWidth: true
+                                model: panel.figures.map(f => f.name)
+                                currentIndex: { panel.refused; return panel.axis ? panel.figures.findIndex(f => f.id === panel.axis[modelData]) : -1 }
+                                onActivated: index => panel.setAxisEnd(modelData, panel.figures[index].id)
+                            }
+                        }
+                    }
+                    KanteButton {
+                        objectName: "axisAuto"
+                        enabled: !!panel.axis && panel.axis.own
+                        text: panel.texts.t("axis.auto")
+                        onClicked: panel.controller.setAxis("", "")
                     }
                 }
 
