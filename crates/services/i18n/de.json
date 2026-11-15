@@ -130,6 +130,8 @@
  "library.importedNone": "Nichts Neues: das Projekt hat diese Objekte schon",
  "library.exported": "{count} Objekt(e) gespeichert: {path}",
  "object.size": "Größe des Objekts",
+ "card.more": "Mehr …",
+ "card.less": "Weniger",
  "camera.body": "Kamerakörper",
  "camera.bodyCustom": "Eigener Sensor",
  "camera.sensor": "Sensorbreite (mm)",
