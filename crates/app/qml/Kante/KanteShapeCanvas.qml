@@ -19,6 +19,8 @@ import "."
  *     fill     "none" (default), "solid", "tint" (the colour at a fifth of its strength)
  *     text     small caption beside the shape, always at the same size on screen. A "\n" starts
  *              a new line (spaced 1.25 font sizes); the canvas does not wrap, the app does.
+ *     captionSize  font size of the caption in model units: the caption then scales with the
+ *              zoom, like the shape, and is left out below 4 px. Default: the small font, fixed.
  *     textAnchor  "center" (default) or "topLeft": a polygon's caption starts at its top left
  *              corner, with a small margin, instead of at its centre
  *     key      id given back by the signals; selected: framed wider in the focus colour
@@ -87,6 +89,10 @@ FocusScope {
     readonly property real _margin: KanteStyle.unit(24)
     // Distance between caption lines, in font sizes.
     readonly property real _lineSpacing: 1.25
+    // A caption sized in model units is not drawn below this many pixels (unreadable).
+    readonly property real _minCaptionPx: 4
+    // The margin of a caption sized in model units, in its font sizes.
+    readonly property real _captionGapEm: 0.3
     readonly property real _minGridGap: KanteStyle.unit(6)
     readonly property real _tintAlpha: 0.2
     readonly property real _gridAlpha: 0.3
@@ -362,6 +368,8 @@ FocusScope {
         property string _fillKey: ""
         property string _align: ""
         property real _fontPx: 0
+        property string _fontFamily: ""
+        property real _ctxFontPx: 0
 
         // The colour of a label name, worked out once per paint.
         function _color(name) {
@@ -496,9 +504,16 @@ FocusScope {
                 return
             }
 
-            const gap = KanteStyle.unit(4)
+            // A caption sized in model units grows with the zoom, else it keeps the small font.
+            const metric = s.captionSize > 0
+            const fontPx = metric ? s.captionSize * root.zoom : _fontPx
+            if (metric && fontPx < root._minCaptionPx) {
+                return
+            }
+
+            const gap = metric ? fontPx * root._captionGapEm : KanteStyle.unit(4)
             const lines = String(s.text).split("\n")
-            const rows = (lines.length - 1) * _fontPx * root._lineSpacing
+            const rows = (lines.length - 1) * fontPx * root._lineSpacing
             let x = 0
             let y = 0
             let align = "left"
@@ -521,7 +536,7 @@ FocusScope {
                 align = "center"
                 if (s.textAnchor === "topLeft") {
                     x = root.panX + x0 * root.zoom + gap
-                    y = root.panY + y0 * root.zoom + gap + _fontPx / 2
+                    y = root.panY + y0 * root.zoom + gap + fontPx / 2
                     align = "left"
                     top = 0
                 }
@@ -535,12 +550,16 @@ FocusScope {
             // Outside the view (fillText is the dearest call). Wide glyphs (CJK) take up to about
             // 1.1 em; two em for each character leaves room for them.
             const emsPerChar = 2
-            const reach = String(s.text).length * emsPerChar * _fontPx
+            const reach = String(s.text).length * emsPerChar * fontPx
             const yFirst = y + top
-            if (x + reach < 0 || x - reach > width || yFirst + rows + _fontPx < 0 || yFirst - _fontPx > height) {
+            if (x + reach < 0 || x - reach > width || yFirst + rows + fontPx < 0 || yFirst - fontPx > height) {
                 return
             }
 
+            if (fontPx !== _ctxFontPx) {
+                _ctxFontPx = fontPx
+                ctx.font = fontPx + "px \"" + _fontFamily + "\", sans-serif"
+            }
             if (align !== _align) {
                 _align = align
                 ctx.textAlign = align
@@ -551,7 +570,7 @@ FocusScope {
                 ctx.fillStyle = _ink(s.label)
             }
             for (let i = 0; i < lines.length; i++) {
-                ctx.fillText(lines[i], x, yFirst + i * _fontPx * root._lineSpacing)
+                ctx.fillText(lines[i], x, yFirst + i * fontPx * root._lineSpacing)
             }
         }
 
@@ -596,7 +615,9 @@ FocusScope {
 
             const font = KanteStyle.smallFont
             _fontPx = KanteStyle.fontPixels(font)
-            ctx.font = _fontPx + "px \"" + font.family + "\""
+            _fontFamily = font.family
+            _ctxFontPx = _fontPx
+            ctx.font = _fontPx + "px \"" + font.family + "\", sans-serif"
             ctx.textBaseline = "middle"
             ctx.lineJoin = "round"
             ctx.lineCap = "round"
