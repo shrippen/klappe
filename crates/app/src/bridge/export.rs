@@ -1,6 +1,7 @@
 //! Exports of the plan: PDF, PNG, SVG and CSV.
 
 use super::qobject;
+use crate::fileurl;
 use crate::notice::error_text;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
@@ -8,69 +9,80 @@ use cxx_qt_lib::QString;
 use klappe_services::{Paper, ServiceError, Session, ShotOrder, Texts};
 
 impl qobject::Controller {
-    /// Writes the plan next to the project folder with `write`; says where it went (`saved`
-    /// is the catalogue key of the message) or what failed.
+    /// Writes the plan to `path` (a `file://` URL or a path) with `write`; says where it went
+    /// (`saved` is the catalogue key of the message) or what failed.
     fn export_plan(
         mut self: Pin<&mut Self>,
-        extension: &str,
+        path: &QString,
         saved: &str,
         write: impl FnOnce(&Session, &std::path::Path, Texts) -> Result<(), ServiceError>,
     ) -> bool {
         let language = self.rust().language;
         let texts = language.print_texts();
+        let path = fileurl::to_path(&path.to_string());
         let Some(s) = self.as_mut().session() else {
             return false;
         };
 
-        let path = plan_file(s, extension);
-        let message = match write(s, &path, texts) {
+        let result = write(s, &path, texts);
+        let ok = result.is_ok();
+        let message = match result {
             Ok(()) => language
                 .text(saved)
                 .replace("{path}", &path.to_string_lossy()),
             Err(e) => error_text(language, &e),
         };
-        let ok = path.exists();
         self.as_mut().say(message);
         ok
     }
 
-    pub(super) fn export_pdf(self: Pin<&mut Self>, order: &QString) -> bool {
+    pub(super) fn export_to(
+        mut self: Pin<&mut Self>,
+        kind: &QString,
+        order: &QString,
+        paper: &QString,
+        path: &QString,
+    ) -> bool {
         let order = shot_order(&order.to_string());
+        let paper = paper_of(&paper.to_string());
 
-        self.export_plan("pdf", "menu.pdfSaved", |s, path, texts| {
-            s.export_pdf(path, Paper::A4, texts, order)
-        })
+        match kind.to_string().as_str() {
+            "pdf" => self.export_plan(path, "menu.pdfSaved", |s, path, texts| {
+                s.export_pdf(path, paper, texts, order)
+            }),
+            "png" => self.export_plan(path, "menu.pngSaved", |s, path, texts| {
+                s.export_png(path, paper, texts)
+            }),
+            "svg" => self.export_plan(path, "menu.svgSaved", |s, path, texts| {
+                s.export_svg(path, paper, texts)
+            }),
+            "csv" => self.export_plan(path, "menu.csvSaved", |s, path, texts| {
+                s.export_csv(path, &texts, order)
+            }),
+            other => {
+                let language = self.rust().language;
+                let message = language.text("error.export").replace("{detail}", other);
+                self.as_mut().say(message);
+                false
+            }
+        }
     }
 
-    pub(super) fn export_png(self: Pin<&mut Self>) -> bool {
-        self.export_plan("png", "menu.pngSaved", |s, path, texts| {
-            s.export_png(path, Paper::A4, texts)
-        })
-    }
-
-    pub(super) fn export_svg(self: Pin<&mut Self>) -> bool {
-        self.export_plan("svg", "menu.svgSaved", |s, path, texts| {
-            s.export_svg(path, Paper::A4, texts)
-        })
-    }
-
-    pub(super) fn export_csv(mut self: Pin<&mut Self>, order: &QString) -> bool {
-        let language = self.rust().language;
-        let texts = language.print_texts();
+    /// The file the export dialog offers: next to the project folder, named by the plan.
+    pub(super) fn export_file(mut self: Pin<&mut Self>, extension: &QString) -> QString {
         let Some(s) = self.as_mut().session() else {
-            return false;
+            return QString::default();
         };
 
-        let path = plan_file(s, "csv");
-        let message = match s.export_csv(&path, &texts, shot_order(&order.to_string())) {
-            Ok(()) => language
-                .text("menu.csvSaved")
-                .replace("{path}", &path.to_string_lossy()),
-            Err(e) => error_text(language, &e),
-        };
-        let ok = path.exists();
-        self.as_mut().say(message);
-        ok
+        QString::from(fileurl::from_path(&plan_file(s, &extension.to_string())))
+    }
+}
+
+/// `a3` is A3; anything else is A4.
+fn paper_of(name: &str) -> Paper {
+    match name {
+        "a3" => Paper::A3,
+        _ => Paper::A4,
     }
 }
 
