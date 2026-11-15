@@ -4,8 +4,8 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use klappe_model::{
-    CameraMark, Mark, Point, Template, MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_LENS_MM,
-    MAX_SENSOR_WIDTH_MM, MAX_SET_M, MAX_TILT_DEG, MIN_LENS_MM,
+    is_aspect, is_camera_height_m, is_camera_lens_mm, is_hold_s, is_sensor_width_mm, is_tilt_deg,
+    CameraMark, Mark, Point, Template, MAX_SET_M,
 };
 use serde::{Deserialize, Serialize};
 
@@ -63,11 +63,6 @@ pub(crate) fn encode(path: &Path, templates: &[Template]) -> Result<Vec<u8>, Sto
     files::encode_toml(path, &file)
 }
 
-/// A number more than nothing and not above `max`; also excludes NaN.
-fn is_within(value: f64, max: f64) -> bool {
-    value > 0.0 && value <= max
-}
-
 /// A place within the set's bounds, as the editor takes them.
 fn is_point(point: &Point) -> bool {
     point.x_m.abs() <= MAX_SET_M && point.y_m.abs() <= MAX_SET_M
@@ -78,19 +73,9 @@ fn is_point(point: &Point) -> bool {
 fn is_mark(mark: &Mark) -> bool {
     mark.at_s.is_finite()
         && mark.facing_deg.is_finite()
-        && is_hold(mark.hold_s)
+        && is_hold_s(mark.hold_s)
         && is_point(&mark.at)
         && mark.via.as_ref().is_none_or(is_point)
-}
-
-/// A focal length the editor takes; also excludes NaN.
-fn is_lens(lens_mm: f64) -> bool {
-    (MIN_LENS_MM..=MAX_LENS_MM).contains(&lens_mm)
-}
-
-/// A pause is not negative.
-fn is_hold(hold_s: f64) -> bool {
-    hold_s >= 0.0 && hold_s.is_finite()
 }
 
 /// Like `is_mark`; the lens height from the floor up to a crane's, the tilt within straight down
@@ -98,12 +83,12 @@ fn is_hold(hold_s: f64) -> bool {
 fn is_camera_mark(mark: &CameraMark) -> bool {
     mark.at_s.is_finite()
         && mark.facing_deg.is_finite()
-        && mark.tilt_deg.abs() <= MAX_TILT_DEG
-        && is_hold(mark.hold_s)
-        && (0.0..=MAX_CAMERA_HEIGHT_M).contains(&mark.height_m)
+        && is_tilt_deg(mark.tilt_deg)
+        && is_hold_s(mark.hold_s)
+        && is_camera_height_m(mark.height_m)
         && is_point(&mark.at)
         && mark.via.as_ref().is_none_or(is_point)
-        && mark.lens_mm.is_none_or(is_lens)
+        && mark.lens_mm.is_none_or(is_camera_lens_mm)
 }
 
 /// The project's own templates: usable ones, each with a name to list it by.
@@ -159,9 +144,9 @@ fn check_parts(template: &Template) -> Result<(), String> {
         let slot_known = |slot: &String| template.figures.iter().any(|f| f.slot == *slot);
         let usable = !camera.marks.is_empty()
             && camera.marks.iter().all(is_camera_mark)
-            && is_lens(camera.lens_mm)
-            && is_within(camera.aspect, MAX_ASPECT)
-            && is_within(camera.sensor.width_mm(), MAX_SENSOR_WIDTH_MM)
+            && is_camera_lens_mm(camera.lens_mm)
+            && is_aspect(camera.aspect)
+            && is_sensor_width_mm(camera.sensor.width_mm())
             && camera.follows.as_ref().is_none_or(slot_known);
         if !usable {
             return Err(format!("camera {:?} is not usable", camera.label));
