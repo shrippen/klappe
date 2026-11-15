@@ -144,20 +144,21 @@ fn upper_before(line: &str, cut: usize) -> String {
     upper(head) + rest
 }
 
-/// The cursor line in capitals, when it is a scene heading or a cue forced with `@` and
-/// has lowercase letters left. A heading keeps its `#12a#` number as typed, a cue its
-/// extension, also while it is still open: `@anna (cont'd)` becomes `@ANNA (cont'd)`, Fountain allows both cases.
-/// An unforced cue is no cue until it is in capitals, so it has nothing to fix.
+/// The cursor line in capitals, when it is a scene heading or a cue forced with `@` and has
+/// lowercase letters left. A heading keeps its `#12a#` number as typed (also half typed), a cue its
+/// extension, also while it is still open: `@anna (cont'd)` becomes `@ANNA (cont'd)`, Fountain
+/// allows both cases. An unforced cue is no cue until it is in capitals, so it has nothing to fix.
 pub(crate) fn typed_caps(lines: &[String], at: usize) -> Option<String> {
     let line = lines.get(at)?;
     let kind = analyse(lines).kind(at);
     let trimmed = line.trim_end();
 
     let cut = match kind {
-        LineKind::Heading => match trimmed.strip_suffix(NUMBER_MARK) {
-            Some(body) => body.rfind(NUMBER_MARK).unwrap_or(trimmed.len()),
-            None => trimmed.len(),
-        },
+        // The number from its opening `#` on, also while it is still open: `#3a` of `#3a#`.
+        LineKind::Heading => {
+            let body = trimmed.strip_suffix(NUMBER_MARK).unwrap_or(trimmed);
+            body.rfind(NUMBER_MARK).unwrap_or(body.len())
+        }
         LineKind::Character if line.trim_start().starts_with(FORCE_CHARACTER) => {
             trimmed.find(EXTENSION_OPEN).unwrap_or(trimmed.len())
         }

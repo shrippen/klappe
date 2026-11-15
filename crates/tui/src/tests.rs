@@ -504,3 +504,16 @@ fn undo_takes_typing_and_capitals_back_together() {
 
     assert!(app.text().starts_with("\n\n\n\n"), "{}", app.text());
 }
+
+#[test]
+fn a_typed_scene_number_stays_as_typed() {
+    let mut app = app();
+    open_line(&mut app);
+    typed(&mut app, "int. küche #3a#");
+
+    assert!(
+        app.text().starts_with("\n\n\nINT. KÜCHE #3a#\n"),
+        "{}",
+        app.text()
+    );
+}
