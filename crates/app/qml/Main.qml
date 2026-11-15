@@ -74,6 +74,8 @@ Kirigami.ApplicationWindow {
                     }
                 }
                 onShotOrderPicked: order => root.shotOrder = order
+                onZoomRequested: how => workspace.zoomPlan(how)
+                onPlayRequested: workspace.togglePlay()
             }
 
             StartPage {
@@ -135,6 +137,7 @@ Kirigami.ApplicationWindow {
                 shot: root.selected
                 showTimeline: root.showTimeline
                 locked: backupNotice.blocking
+                onProjectEntryRequested: (kind, id) => projectDialog.openAt(kind, id)
             }
         }
     }

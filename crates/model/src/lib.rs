@@ -21,6 +21,7 @@
 mod camera_preset;
 mod geometry;
 mod library;
+mod light_preset;
 mod plan;
 mod project;
 mod shot;
@@ -31,6 +32,7 @@ pub use library::{
     is_object_height_m, is_object_size_m, LibraryItem, ObjectShape, MAX_OBJECT_HEIGHT_M,
     MAX_OBJECT_M,
 };
+pub use light_preset::{LightPreset, MAX_BEAM_DEG, MAX_POWER_W, MAX_TEMP_K, MIN_TEMP_K};
 pub use plan::{
     Arrival, AxisPair, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureTrack,
     Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,

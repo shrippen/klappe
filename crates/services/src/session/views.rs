@@ -1,7 +1,7 @@
 //! What the session tells the surfaces about the project and the plan on view, ready to show:
 //! the project lists, the tooltips and the set of the current scene.
 
-use klappe_model::{CameraPresets, Location};
+use klappe_model::{CameraPresets, DrawingShape, Location};
 use klappe_stellprobe::{aim_at, axis_pair, horizontal_fov_deg, Source};
 
 use super::Session;
@@ -160,6 +160,11 @@ impl Session {
 
         Some(Hint::Light {
             label: l.label.clone(),
+            light_kind: l.kind.name().to_owned(),
+            facing_deg: l.facing_deg,
+            beam_deg: l.beam_deg,
+            tunable: l.kind.tunable_color(),
+            gives_light: l.kind.gives_light(),
             temp_k: l.color_temp_k,
             power_w: l.power_w,
         })
@@ -176,6 +181,21 @@ impl Session {
             width_m: o.width_m,
             depth_m: o.depth_m,
             height_m: o.height_m,
+        })
+    }
+
+    /// What the style card of drawing `id` shows; `None` without such a drawing.
+    pub fn drawing_hint(&self, id: &str) -> Option<Hint> {
+        let d = self.plan()?.drawings.iter().find(|d| d.id == id)?;
+
+        Some(Hint::Drawing {
+            color: d.color,
+            dash: d.dash,
+            fill: d.fill,
+            closed: !matches!(
+                d.shape,
+                DrawingShape::Line { .. } | DrawingShape::Arrow { .. }
+            ),
         })
     }
 

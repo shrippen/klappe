@@ -3,7 +3,9 @@
 
 use std::path::Path;
 
-use klappe_services::{look, Area, Dash, DisplayList, Hue, Item, Point, Role, Shape, Source};
+use klappe_services::{
+    look, Area, Dash, DisplayList, Hue, Item, Point, Role, Shape, Source, NOTE_TEXT_M,
+};
 use serde_json::{json, Value};
 
 use crate::fileurl;
@@ -73,10 +75,11 @@ pub enum ElementKind {
     Wall,
     Note,
     Drawing,
+    DrawingPoint,
 }
 
 impl ElementKind {
-    const ALL: [ElementKind; 10] = [
+    const ALL: [ElementKind; 11] = [
         Self::Object,
         Self::Light,
         Self::Camera,
@@ -87,6 +90,7 @@ impl ElementKind {
         Self::Wall,
         Self::Note,
         Self::Drawing,
+        Self::DrawingPoint,
     ];
 
     pub fn name(self) -> &'static str {
@@ -101,6 +105,7 @@ impl ElementKind {
             Self::Wall => "wall",
             Self::Note => "note",
             Self::Drawing => "drawing",
+            Self::DrawingPoint => "drawingpoint",
         }
     }
 
@@ -126,6 +131,9 @@ pub fn key(source: &Source) -> String {
         Source::Wall(index) => (ElementKind::Wall, index.to_string()),
         Source::Note(id) => (ElementKind::Note, id.clone()),
         Source::Drawing(id) => (ElementKind::Drawing, id.clone()),
+        Source::DrawingPoint { drawing, index } => {
+            (ElementKind::DrawingPoint, format!("{drawing}:{index}"))
+        }
     };
 
     format!("{}:{rest}", kind.name())
@@ -210,6 +218,8 @@ fn shape(dir: &Path, item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<
         "stroke": look.stroke,
         "fill": look.fill,
         "text": item.label.clone().unwrap_or_default(),
+        "textAnchor": if item.role == Role::Note { "topLeft" } else { "center" },
+        "captionSize": if item.role == Role::Note { NOTE_TEXT_M } else { 0.0 },
         "key": item.source.as_ref().map(key).unwrap_or_default(),
         "selected": item.source.as_ref().is_some_and(selected),
     }))
@@ -320,7 +330,7 @@ mod tests {
             (Role::Object, "muted", "solid", "tint"),
             (Role::LightBeam, "orange", "solid", "tint"),
             (Role::Light, "orange", "solid", "solid"),
-            (Role::Note, "accent", "solid", "solid"),
+            (Role::Note, "text", "solid", "tint"),
             (Role::ArrowHead(red), "red", "solid", "solid"),
             (Role::Axis, "orange", "dashed", "none"),
             (
@@ -347,6 +357,7 @@ mod tests {
             (Role::Mark(red), "red", "solid", "none"),
             (Role::FigureHandle(red), "red", "solid", "solid"),
             (Role::CameraHandle, "yellow", "solid", "solid"),
+            (Role::DrawingHandle, "accent", "solid", "solid"),
             (Role::Figure(red), "red", "solid", "solid"),
             (Role::GroupDot, "ground", "solid", "solid"),
         ];
@@ -385,6 +396,7 @@ mod tests {
     #[test]
     fn roles_become_kante_names_and_styles() {
         let list = DisplayList {
+            lamps: Vec::new(),
             items: vec![
                 item(
                     Role::Axis,
@@ -430,6 +442,7 @@ mod tests {
             radius_m,
         };
         let list = DisplayList {
+            lamps: Vec::new(),
             items: vec![
                 item(Role::Figure(FigureColor::Purple), circle(0.6), None),
                 item(Role::GroupDot, circle(0.1), None),
@@ -446,13 +459,18 @@ mod tests {
     }
 
     #[test]
-    fn a_note_is_a_marker_with_its_text() {
+    fn a_note_is_a_card_with_its_text() {
         let list = DisplayList {
+            lamps: Vec::new(),
             items: vec![Item {
                 role: Role::Note,
-                shape: Shape::Circle {
-                    center: Point::new(3.0, 4.0),
-                    radius_m: 0.15,
+                shape: Shape::Polygon {
+                    points: vec![
+                        Point::new(3.0, 4.0),
+                        Point::new(5.0, 4.0),
+                        Point::new(5.0, 5.0),
+                        Point::new(3.0, 5.0),
+                    ],
                 },
                 label: Some("Vorhang schließen".into()),
                 source: Some(Source::Note("n1".into())),
@@ -466,7 +484,10 @@ mod tests {
 
         assert_eq!(v["shapes"][0]["text"], "Vorhang schließen");
         assert_eq!(v["shapes"][0]["key"], "note:n1");
-        assert_eq!(v["shapes"][0]["label"], "accent");
+        assert_eq!(v["shapes"][0]["kind"], "polygon");
+        assert_eq!(v["shapes"][0]["textAnchor"], "topLeft");
+        assert_eq!(v["shapes"][0]["captionSize"], NOTE_TEXT_M);
+        assert_eq!(v["shapes"][0]["fill"], "tint");
     }
 
     /// A dashed, filled drawing keeps its colour, dash and fill on the canvas; its arrow head
@@ -475,6 +496,7 @@ mod tests {
     fn a_drawing_keeps_colour_dash_and_fill() {
         let at = Some(Source::Drawing("d1".into()));
         let list = DisplayList {
+            lamps: Vec::new(),
             items: vec![
                 item(
                     Role::Drawing {
@@ -571,6 +593,15 @@ mod tests {
             (Source::Wall(4), ElementKind::Wall, "4", None),
             (Source::Note("n".into()), ElementKind::Note, "n", None),
             (Source::Drawing("d".into()), ElementKind::Drawing, "d", None),
+            (
+                Source::DrawingPoint {
+                    drawing: "d".into(),
+                    index: 2,
+                },
+                ElementKind::DrawingPoint,
+                "d",
+                Some(2),
+            ),
         ];
         assert_eq!(sources.len(), ElementKind::ALL.len());
 
@@ -601,6 +632,7 @@ mod tests {
 
     fn background_list() -> DisplayList {
         DisplayList {
+            lamps: Vec::new(),
             items: vec![item(
                 Role::Background,
                 Shape::Image {

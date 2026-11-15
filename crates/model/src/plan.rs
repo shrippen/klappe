@@ -103,6 +103,51 @@ pub struct Drawing {
     /// Only shapes with an inside (rectangle, ellipse, area) are filled.
     #[serde(default)]
     pub fill: Fill,
+    /// Clockwise about the middle of the box that holds the shape's points; a rectangle or
+    /// ellipse turns with it, so it is no longer axis-parallel.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub rotation_deg: f64,
+}
+
+fn is_zero(deg: &f64) -> bool {
+    *deg == 0.0
+}
+
+impl Drawing {
+    /// The points the shape is made of, before the turn: the two corners of a line, arrow,
+    /// rectangle or ellipse, or the corners of an area.
+    pub fn points(&self) -> Vec<Point> {
+        match &self.shape {
+            DrawingShape::Line { from, to }
+            | DrawingShape::Arrow { from, to }
+            | DrawingShape::Rect { from, to }
+            | DrawingShape::Ellipse { from, to } => vec![*from, *to],
+            DrawingShape::Area { points } => points.clone(),
+        }
+    }
+
+    /// The middle of the box that holds `points`, which the drawing turns about; `None`
+    /// for a shape without points.
+    pub fn middle(&self) -> Option<Point> {
+        let points = self.points();
+        let first = *points.first()?;
+        let (mut min, mut max) = (first, first);
+
+        for p in points {
+            min = Point::new(min.x_m.min(p.x_m), min.y_m.min(p.y_m));
+            max = Point::new(max.x_m.max(p.x_m), max.y_m.max(p.y_m));
+        }
+
+        Some(min.lerp(max, 0.5))
+    }
+
+    /// `point` of the shape where it lies on the plan: turned by `rotation_deg`.
+    pub fn placed(&self, point: Point) -> Point {
+        match self.middle() {
+            Some(middle) => point.turned(middle, self.rotation_deg),
+            None => point,
+        }
+    }
 }
 
 /// What a drawing is made of; points in metres.
@@ -487,6 +532,17 @@ impl LightKind {
         }
     }
 
+    /// Whether the colour temperature can be set: LEDs yes, a tungsten lamp is what it is,
+    /// bounce and flag make no light of their own.
+    pub fn tunable_color(self) -> bool {
+        matches!(self, LightKind::LedPanel | LightKind::Tube)
+    }
+
+    /// Whether the lamp makes light of its own: bounce and flag only shape it.
+    pub fn gives_light(self) -> bool {
+        !matches!(self, LightKind::Reflector | LightKind::Flag)
+    }
+
     /// The lamp kind `name` names; `None` for any other text.
     pub fn from_name(name: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|k| k.name() == name)
@@ -587,6 +643,33 @@ mod tests {
         assert_eq!(drawing.dash, Dash::Solid);
         assert_eq!(drawing.fill, Fill::Outline);
         assert!(matches!(drawing.shape, DrawingShape::Area { ref points } if points.len() == 3));
+    }
+
+    /// A drawing that is not turned writes no `rotation_deg`; one that is keeps it.
+    #[test]
+    fn a_drawings_turn_is_written_only_when_there_is_one() {
+        let mut drawing = Drawing {
+            id: "d1".into(),
+            shape: DrawingShape::Rect {
+                from: Point::new(0.0, 0.0),
+                to: Point::new(4.0, 2.0),
+            },
+            color: FigureColor::Red,
+            dash: Dash::Solid,
+            fill: Fill::Outline,
+            rotation_deg: 0.0,
+        };
+
+        assert!(!serde_json::to_string(&drawing)
+            .unwrap()
+            .contains("rotation"));
+
+        drawing.rotation_deg = 30.0;
+        let back: Drawing =
+            serde_json::from_str(&serde_json::to_string(&drawing).unwrap()).unwrap();
+
+        assert_eq!(back, drawing);
+        assert_eq!(drawing.middle(), Some(Point::new(2.0, 1.0)));
     }
 
     /// Review of PR 1: the pause at the last mark was cut off (LH-63).

@@ -4,6 +4,7 @@ use super::Session;
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit};
 use crate::project_edit::{self, ProjectEdit, ShotsGo};
+use crate::script_refs;
 
 impl Session {
     pub fn scene(&self) -> Option<&Scene> {
@@ -97,6 +98,7 @@ impl Session {
     /// Changes scenes, locations or characters; undoable. The scene on view stays, also when
     /// others come or go before it.
     pub fn edit_project(&mut self, edit: ProjectEdit) -> Result<(), ServiceError> {
+        self.check_script_number(&edit)?;
         let mut next = self.project.clone();
         project_edit::apply(&mut next, &edit)?;
         if next == self.project {
@@ -105,9 +107,48 @@ impl Session {
 
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());
-        self.commit(next);
+        match self.renamed_script(&edit) {
+            Some(text) => self.commit_script(next, &text),
+            None => self.commit(next),
+        }
         self.follow_scene(on_view, plan_on_view);
         Ok(())
+    }
+
+    /// A new scene number must not be one that another heading of the script carries: both
+    /// would read as one scene.
+    fn check_script_number(&self, edit: &ProjectEdit) -> Result<(), ServiceError> {
+        let ProjectEdit::EditScene { id, number, .. } = edit else {
+            return Ok(());
+        };
+        let Some(scene) = self.project.scene(id) else {
+            return Ok(());
+        };
+        let same = number.trim().to_lowercase() == scene.number.to_lowercase();
+        if same || !script_refs::has_number(self.script_text(), number) {
+            return Ok(());
+        }
+
+        Err(ServiceError::NumberTaken(number.trim().to_owned()))
+    }
+
+    /// The screenplay with the scene's heading, number or the character's name of `edit`
+    /// carried over (D-08); `None` when the text stays.
+    fn renamed_script(&self, edit: &ProjectEdit) -> Option<String> {
+        let text = self.script_text();
+
+        match edit {
+            ProjectEdit::EditScene {
+                id,
+                number,
+                heading,
+                ..
+            } => script_refs::scene_text(&self.project, text, id, number, heading),
+            ProjectEdit::EditCharacter { id, name, .. } => {
+                script_refs::character_text(&self.project, text, id, name)
+            }
+            _ => None,
+        }
     }
 
     /// Adds an empty plan to the current scene and shows it; `name` empty: `Plan B` …

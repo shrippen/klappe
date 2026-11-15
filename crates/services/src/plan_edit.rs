@@ -2,18 +2,20 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     Arrival, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
-    LibraryItem, LightKind, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
+    LibraryItem, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
 };
 use klappe_stellprobe::{hit, within, Item, Role, Source};
 
 use crate::camera_edit;
 use crate::error::ServiceError;
 use crate::field::Field;
+use crate::light_edit::LightChange;
 use crate::session::Layer;
 
 mod add;
 mod background;
 mod check;
+mod drawings;
 mod grid;
 mod group;
 mod marks;
@@ -21,11 +23,12 @@ mod moving;
 mod remove;
 
 use add::{
-    add_camera, add_camera_mark, add_drawing, add_light, add_mark, add_note, add_object, add_wall,
+    add_camera, add_camera_mark, add_drawing, add_mark, add_note, add_object, add_wall, edit_light,
     edit_note, free_id, free_letter,
 };
 use background::{calibrate, move_background, remove_background, set_background};
 use check::check;
+use drawings::set_drawing_style;
 pub(crate) use grid::snap;
 pub use grid::Grid;
 pub(crate) use marks::{check_tripods, mark_info};
@@ -106,9 +109,15 @@ pub enum PlanEdit {
         camera: String,
         at: Point,
     },
+    /// Sets a new lamp of the built-in library entry `preset` (LH-51).
     AddLight {
-        kind: LightKind,
+        preset: String,
         at: Point,
+    },
+    /// Changes one thing of the lamp `light` (LH-50); its facing is `Turn`.
+    SetLight {
+        light: String,
+        change: LightChange,
     },
     /// Sets a new object of library entry `kind` (LH-11), as big as the entry says; a kind
     /// no library knows is a 1 m square.
@@ -147,6 +156,14 @@ pub enum PlanEdit {
     /// shapes with an inside.
     AddDrawing {
         shape: DrawingShape,
+        color: FigureColor,
+        dash: Dash,
+        fill: Fill,
+    },
+    /// Gives the drawing `source` another colour, line and fill (LH-19). `fill` only matters
+    /// for shapes with an inside.
+    SetDrawingStyle {
+        source: Source,
         color: FigureColor,
         dash: Dash,
         fill: Fill,
@@ -337,6 +354,7 @@ impl PlanEdit {
             | PlanEdit::SetMarkLens { source, .. }
             | PlanEdit::SetObjectHeight { source, .. }
             | PlanEdit::SetPace { source, .. }
+            | PlanEdit::SetDrawingStyle { source, .. }
             | PlanEdit::Remove { source }
             | PlanEdit::Straighten { source } => layer_of_source(source),
             PlanEdit::ShiftGroup { sources, .. }
@@ -352,7 +370,7 @@ impl PlanEdit {
             | PlanEdit::SetSensor { .. }
             | PlanEdit::SetLens { .. }
             | PlanEdit::SetAspect { .. } => Layer::Cameras,
-            PlanEdit::AddLight { .. } => Layer::Lights,
+            PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => Layer::Lights,
             PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } => Layer::Notes,
             PlanEdit::AddDrawing { .. } => Layer::Drawings,
             PlanEdit::AddObject { .. }
@@ -375,7 +393,7 @@ fn layer_of_source(source: &Source) -> Layer {
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
         Source::Note(_) => Layer::Notes,
-        Source::Drawing(_) => Layer::Drawings,
+        Source::Drawing(_) | Source::DrawingPoint { .. } => Layer::Drawings,
     }
 }
 
@@ -403,8 +421,13 @@ enum Target<'a> {
     Pin {
         at: &'a mut Point,
     },
-    /// Points but no facing: a drawing keeps its shape and is not turned.
+    /// Points and a turn about the middle of its box.
     Drawing(&'a mut Drawing),
+    /// A grip on a point or corner of a drawing: moving it reshapes the drawing.
+    Corner {
+        drawing: &'a mut Drawing,
+        index: usize,
+    },
     /// The bend of the way from mark `a` to mark `b`.
     Curve {
         via: &'a mut Option<Point>,
@@ -487,7 +510,7 @@ pub(crate) fn apply(
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
         PlanEdit::AddCameraMark { camera, at } => add_camera_mark(&mut scope, camera, *at),
-        PlanEdit::AddLight { kind, at } => add_light(&mut scope, *kind, *at),
+        PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => edit_light(&mut scope, edit),
         PlanEdit::AddObject { kind, at } => add_object(&mut scope, kind, *at),
         PlanEdit::Resize {
             source,
@@ -502,6 +525,12 @@ pub(crate) fn apply(
             dash,
             fill,
         } => add_drawing(&mut scope, shape, (*color, *dash, *fill)),
+        PlanEdit::SetDrawingStyle {
+            source,
+            color,
+            dash,
+            fill,
+        } => set_drawing_style(&mut scope, source, (*color, *dash, *fill)),
         PlanEdit::EditNote { id, text } => edit_note(&mut scope, id, text),
         PlanEdit::SetBackground { source } => set_background(&mut scope, dir, source),
         PlanEdit::Calibrate {

@@ -126,21 +126,30 @@ fn tools_are_named_as_the_tool_bar_spells_them() {
 }
 
 #[test]
-fn every_lamp_kind_of_the_list_parses() {
-    for kind in LightKind::ALL {
-        assert_eq!(Tool::parse("light", kind.name()), Some(Tool::Light(kind)));
-    }
-    assert_eq!(Tool::parse("light", "laser"), None);
-    assert_eq!(Tool::parse("light", ""), None);
+fn the_lamp_tool_takes_the_choice_as_it_is() {
+    assert_eq!(
+        Tool::parse("light", "tube"),
+        Some(Tool::Light("tube".into()))
+    );
 }
 
-/// The tool bar translates each kind with `lightKind.<name>`; the objects are named by the
-/// library (services tests).
+/// The tool bar translates each lamp with `lightPreset.<id>`, the card each kind with
+/// `lightKind.<name>`; the objects are named by the library (services tests).
 #[test]
-fn every_lamp_kind_has_a_name_in_both_languages() {
-    let keys = LightKind::ALL
+fn every_lamp_has_a_name_in_both_languages() {
+    let presets = klappe_services::Session::open(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe"),
+    )
+    .unwrap()
+    .light_presets();
+    let keys = presets
         .iter()
-        .map(|k| format!("lightKind.{}", k.name()));
+        .map(|l| format!("lightPreset.{}", l.id))
+        .chain(
+            klappe_services::LightKind::ALL
+                .iter()
+                .map(|k| format!("lightKind.{}", k.name())),
+        );
 
     for key in keys {
         for language in [Language::German, Language::English] {
@@ -184,10 +193,11 @@ fn a_click_sets_what_the_tool_stands_for() {
     assert_eq!(
         click_edit(&tool("light", "tube"), at),
         Some(PlanEdit::AddLight {
-            kind: LightKind::Tube,
+            preset: "tube".into(),
             at
         })
     );
+    assert_eq!(click_edit(&tool("light", ""), at), None);
 }
 
 #[test]

@@ -183,6 +183,7 @@ fn an_own_entry_without_a_height_gives_none() {
     s.edit_project(ProjectEdit::ImportLibrary {
         items: vec![LibraryItem {
             kind: "teppich".into(),
+            group: String::new(),
             label: "Teppich".into(),
             width_m: 3.0,
             depth_m: 2.0,
@@ -281,6 +282,7 @@ fn an_import_with_an_unusable_height_changes_nothing() {
     let mut s = open();
     let item = |height_m| LibraryItem {
         kind: "thron".into(),
+        group: String::new(),
         label: "Thron".into(),
         width_m: 0.9,
         depth_m: 0.8,

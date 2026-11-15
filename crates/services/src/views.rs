@@ -1,7 +1,10 @@
 //! Plain data for the surfaces: what a row, a track or a script line shows.
 
-use klappe_model::{LibraryItem, ObjectShape};
+use klappe_model::{Dash, FigureColor, Fill, LibraryItem, ObjectShape};
 use serde::Serialize;
+
+/// The frame a shot shows when its camera is gone (16:9).
+pub const FALLBACK_ASPECT: f64 = 16.0 / 9.0;
 
 /// One row of the shot list (LH-71, LH-72).
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -10,6 +13,8 @@ pub struct ShotRow {
     pub number: String,
     pub camera: String,
     pub camera_label: String,
+    /// Width to height of the camera's frame (LH-38); `FALLBACK_ASPECT` if the camera is gone.
+    pub aspect: f64,
     /// Character id of the figure the shot's camera follows (LH-37), else empty.
     pub follows: String,
     /// Model name, e.g. `close-up`; the surface translates it.
@@ -122,6 +127,38 @@ pub struct ScriptLine {
     pub chips: Vec<Chip>,
     /// The line the playback is at: the last linked line whose time has come.
     pub current: bool,
+    /// Id of the character a cue names (D-08); empty for any other line.
+    pub character: String,
+}
+
+/// A scene a character plays in (D-08): how often it speaks there and in how many plans it
+/// has a figure.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SceneUse {
+    pub id: String,
+    pub number: String,
+    pub heading: String,
+    pub cues: usize,
+    pub figures: usize,
+}
+
+/// A character that plays in a scene (D-08).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CastUse {
+    pub id: String,
+    pub name: String,
+    pub color: &'static str,
+    pub cues: usize,
+}
+
+/// What a scene's card shows beyond its row (D-08).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SceneCard {
+    /// The time of day at the end of the heading (`TAG`); empty when it has none.
+    pub time: String,
+    pub plans: usize,
+    pub shots: usize,
+    pub cast: Vec<CastUse>,
 }
 
 /// One entry of the object library, as the object tool lists it (LH-11, LH-12).
@@ -132,6 +169,9 @@ pub struct LibraryEntry {
     /// The name of an own entry; empty for a built-in one, which the surface translates
     /// (`objectKind.<kind>`).
     pub label: String,
+    /// The group of the list: a key of the catalogue (`objectGroup.<group>`) for a built-in
+    /// entry, free text for an own one; empty for none.
+    pub group: String,
     pub width_m: f64,
     pub depth_m: f64,
     pub shape: ObjectShape,
@@ -139,6 +179,8 @@ pub struct LibraryEntry {
     pub height_m: Option<f64>,
     /// An entry of the project (`bibliothek.toml`) rather than a built-in one.
     pub custom: bool,
+    /// How many objects of the project's sets have this kind (set by `Session::library`).
+    pub uses: usize,
 }
 
 impl LibraryEntry {
@@ -146,11 +188,13 @@ impl LibraryEntry {
         Self {
             kind: item.kind.clone(),
             label: item.label.clone(),
+            group: item.group.clone(),
             width_m: item.width_m,
             depth_m: item.depth_m,
             shape: item.shape,
             height_m: item.height_m,
             custom,
+            uses: 0,
         }
     }
 }
@@ -262,6 +306,17 @@ pub enum Hint {
     },
     Light {
         label: String,
+        /// The lamp kind's file name, e.g. `led-panel`.
+        #[serde(rename = "type")]
+        light_kind: String,
+        #[serde(rename = "facing")]
+        facing_deg: f64,
+        #[serde(rename = "beam")]
+        beam_deg: f64,
+        /// Whether the colour temperature can be set (an LED).
+        tunable: bool,
+        /// Whether the lamp makes light of its own: not a bounce or a flag.
+        gives_light: bool,
         #[serde(rename = "temp")]
         temp_k: f64,
         #[serde(rename = "power")]
@@ -280,5 +335,13 @@ pub enum Hint {
     },
     Note {
         text: String,
+    },
+    /// A drawing, for the card that changes its style (LH-19).
+    Drawing {
+        color: FigureColor,
+        dash: Dash,
+        fill: Fill,
+        /// Whether the shape has an inside, so a fill means something.
+        closed: bool,
     },
 }

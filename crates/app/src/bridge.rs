@@ -24,6 +24,8 @@ pub mod qobject {
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
+        /// The shot list in shooting order: setups grouped (LH-72); `shotsJson` is the cut order.
+        #[qproperty(QString, shots_shooting_json, cxx_name = "shotsShootingJson")]
         #[qproperty(QString, script_json, cxx_name = "scriptJson")]
         /// `{ set, figures, cameras, lights, notes, drawings }`: true when shown.
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
@@ -302,6 +304,17 @@ pub mod qobject {
         #[cxx_name = "setObjectHeight"]
         fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool;
 
+        /// Gives the selected drawing a colour, line and fill (LH-19), named as `choicesJson`
+        /// lists them. False when no drawing is selected or a name is unknown.
+        #[qinvokable]
+        #[cxx_name = "setDrawingStyle"]
+        fn set_drawing_style(
+            self: Pin<&mut Self>,
+            color: &QString,
+            dash: &QString,
+            fill: &QString,
+        ) -> bool;
+
         /// Sets one field of the selected camera (LH-32): `field` is `body` (a body id of
         /// `choicesJson`), `sensor` (mm), `lens` (mm) or `aspect` (`2,39` or `16:9`). False
         /// when no camera is selected or the value is not usable; a refusal by the session
@@ -309,6 +322,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setCameraField"]
         fn set_camera_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool;
+        /// Sets one field of the selected lamp (LH-50, LH-51): `field` is `kind` (a kind's
+        /// file name), `preset` (a lamp id of `choicesJson.light`), `facing`, `beam` (degrees),
+        /// `power` (W) or `temp` (K). False when no lamp is selected or the value is not
+        /// usable; a refusal by the session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setLightField"]
+        fn set_light_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool;
         /// The fields of the selected mark (a figure's, or a camera's) as JSON: `kind`
         /// (`figure` or `camera`), `pose`, `arrival` (`walk`, `appear`) and `departure` (`stay`,
         /// `leave`), each empty for a camera, `hold` in seconds, `hasWay`,
@@ -376,6 +396,22 @@ pub mod qobject {
         #[cxx_name = "saveToLibrary"]
         fn save_to_library(self: Pin<&mut Self>, name: &QString) -> bool;
 
+        /// Renames and regroups the project's own library entry `kind`. False for a blank
+        /// name or an entry that is not the project's.
+        #[qinvokable]
+        #[cxx_name = "editLibraryItem"]
+        fn edit_library_item(
+            self: Pin<&mut Self>,
+            kind: &QString,
+            name: &QString,
+            group: &QString,
+        ) -> bool;
+
+        /// Deletes the project's own library entry `kind`; placed objects stay.
+        #[qinvokable]
+        #[cxx_name = "removeLibraryItem"]
+        fn remove_library_item(self: Pin<&mut Self>, kind: &QString) -> bool;
+
         /// Takes the objects of the library file `path` (a path or a `file://` URL) into the
         /// project; the result goes to `status`.
         #[qinvokable]
@@ -391,6 +427,17 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setSnapping"]
         fn set_snapping(self: Pin<&mut Self>, on: bool);
+
+        /// The time a timeline drag of `grab` (`kind:index:id`, see `retime.rs`) ends at, snapped
+        /// (`snap`: `tenths` or `free`) and kept between the neighbours.
+        #[qinvokable]
+        #[cxx_name = "dragTime"]
+        fn drag_time(self: &Self, grab: &QString, seconds: f64, snap: &QString) -> f64;
+
+        /// Ends such a drag: moves the mark or shot edge, one undo step; false if refused.
+        #[qinvokable]
+        #[cxx_name = "dropTime"]
+        fn drop_time(self: Pin<&mut Self>, grab: &QString, seconds: f64, snap: &QString) -> bool;
 
         #[qinvokable]
         #[cxx_name = "setGrid"]
@@ -460,6 +507,24 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "clearStatus"]
         fn clear_status(self: Pin<&mut Self>);
+
+        /// Where a scene (`kind` `scene`: time of day, plans, shots, cast) or a character
+        /// (`character`: the scenes it plays in) occurs, as JSON (`null` for an unknown scene).
+        #[qinvokable]
+        #[cxx_name = "usesOf"]
+        fn uses_of(self: &Self, kind: &QString, id: &QString) -> QString;
+
+        /// What the new number and heading of scene `id` would change in the script text,
+        /// as JSON `[{ kind, from, to, count }]`; empty when the text stays.
+        #[qinvokable]
+        #[cxx_name = "sceneChanges"]
+        fn scene_changes(self: &Self, id: &QString, number: &QString, heading: &QString)
+            -> QString;
+
+        /// The same for the new name of character `id`.
+        #[qinvokable]
+        #[cxx_name = "characterChanges"]
+        fn character_changes(self: &Self, id: &QString, name: &QString) -> QString;
 
         /// The project view's changes. False when refused; the reason goes to `status`.
         #[qinvokable]
@@ -571,9 +636,8 @@ pub mod qobject {
 use cxx_qt_lib::QString;
 use klappe_services::{Point, Session};
 
-use crate::args::AppArgs;
 use crate::catalog::Language;
-use crate::notice::{error_text, Status};
+use crate::notice::Status;
 use crate::selection::Selection;
 use crate::tools::{AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Tool};
 
@@ -591,9 +655,11 @@ mod playback;
 mod project;
 #[cfg(test)]
 mod qml_tests;
+mod retime;
 mod script;
 mod selection;
 mod shots;
+mod start;
 mod view;
 
 pub struct ControllerRust {
@@ -607,6 +673,7 @@ pub struct ControllerRust {
     plan_json: QString,
     tracks_json: QString,
     shots_json: QString,
+    shots_shooting_json: QString,
     script_json: QString,
     layers_json: QString,
     locks_json: QString,
@@ -666,100 +733,5 @@ fn q(s: &str) -> QString {
     QString::from(s)
 }
 
-/// Seconds between two backups of unsaved changes while a project is open.
-const AUTOSAVE_S: i32 = 30;
-const MS_PER_S: i32 = 1000;
-
-impl Default for ControllerRust {
-    fn default() -> Self {
-        let args = AppArgs::from_env();
-        let language = Language::pick(args.language.as_deref());
-        let mut notice = Status::default();
-
-        let session = args.open.as_ref().and_then(|dir| match Session::open(dir) {
-            Ok(mut s) => {
-                if let Some(shot) = &args.shot {
-                    let _ = s.select_shot(shot);
-                }
-                s.set_time(args.time_s.max(s.time_s()));
-                Some(s)
-            }
-            Err(e) => {
-                notice.say(error_text(language, &e));
-                None
-            }
-        });
-
-        let mut this = Self {
-            session,
-            language,
-            status: q(notice.text()),
-            notice,
-            texts: q(language.json()),
-            loaded: false,
-            title: QString::default(),
-            plan_title: QString::default(),
-            plan_json: QString::default(),
-            tracks_json: QString::default(),
-            shots_json: QString::default(),
-            script_json: QString::default(),
-            layers_json: QString::default(),
-            locks_json: QString::default(),
-            time: 0.0,
-            duration: 0.0,
-            selected_shot: QString::default(),
-            can_undo: false,
-            can_redo: false,
-            dirty: false,
-            selected_key: QString::default(),
-            selected_count: 0,
-            extend_selection: false,
-            snapping_on: true,
-            grid_name: QString::default(),
-            choices_json: QString::default(),
-            selected: Selection::default(),
-            marquee: None,
-            tool: Tool::Select,
-            scale: ScaleStep::Idle,
-            measure: MeasureStep::Idle,
-            measuring: false,
-            draw: DrawStyle::default(),
-            area: AreaDraft::default(),
-            shown: String::new(),
-            area_points: 0,
-            has_background: false,
-            scale_points: 0,
-            note: NoteDraft::Idle,
-            asks_note: false,
-            note_text: QString::default(),
-            preview: Preview::Hidden,
-            drag_step: None,
-            grip: Grip::Free,
-            backup_state: QString::default(),
-            backup_message: QString::default(),
-            autosave_ms: AUTOSAVE_S * MS_PER_S,
-            project_json: QString::default(),
-            scene_id: QString::default(),
-            recent_json: q("[]"),
-            recent_store: q("[]"),
-            screenshot_path: args
-                .screenshot
-                .map(|p| q(&p.to_string_lossy()))
-                .unwrap_or_default(),
-            screenshot_after: args.screenshot_after_ms,
-        };
-        this.fill();
-        this
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    pub(super) fn example() -> Session {
-        let dir =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
-        Session::open(&dir).unwrap()
-    }
-}
+mod tests;

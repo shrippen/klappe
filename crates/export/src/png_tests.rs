@@ -19,9 +19,11 @@ fn page() -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        drawing: Default::default(),
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
+        lamps: crate::page::LampTexts::default(),
     };
 
     Page::new(Paper::A4, Orientation::Landscape, "T", texts)
@@ -40,6 +42,7 @@ fn list() -> DisplayList {
     };
 
     DisplayList {
+        lamps: Vec::new(),
         items: vec![wall],
         width_m: WIDTH_M,
         depth_m: DEPTH_M,

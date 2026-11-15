@@ -40,7 +40,7 @@ use klappe_model::FloorPlan;
 
 pub use error::ExportError;
 pub use klappe_stellprobe::{DisplayList, ShotOrder};
-pub use page::{Orientation, Page, Paper, ShotColumns, ShotTexts, Texts};
+pub use page::{DrawingTexts, LampTexts, Orientation, Page, Paper, ShotColumns, ShotTexts, Texts};
 pub use palette::Theme;
 
 /// The plan on one page as SVG.

@@ -2,8 +2,8 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    pdf, pdf_with_shots, shots_csv, Orientation, Page, Paper, ShotColumns, ShotOrder, ShotTexts,
-    Texts, Theme,
+    pdf, pdf_with_shots, shots_csv, LampTexts, Orientation, Page, Paper, ShotColumns, ShotOrder,
+    ShotTexts, Texts, Theme,
 };
 use klappe_model::{
     Angle, Arrival, Camera, CameraMark, Departure, FigureTrack, FloorPlan, Mark, Movement, Point,
@@ -125,9 +125,11 @@ fn page() -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        drawing: Default::default(),
         unit: "m".into(),
         decimal_separator: ',',
         shots: texts(),
+        lamps: LampTexts::default(),
     };
 
     Page::new(

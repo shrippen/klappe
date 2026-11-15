@@ -7,7 +7,7 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The drawing tools of the tool bar (LH-08 ff.): one tool at a time, a list for the tools that
-// need a choice (object from the library, figure, lamp kind), the snapping switch. The object
+// need a choice (object from the library, figure, lamp), the snapping switch. The object
 // tool also offers to import and export library files (LH-12): the window asks for the file. Keys V W O F C L M D N I A B
 // E P pick the tool (NF-06) in every mode; a key of another mode's tool changes the mode. The
 // drawing tools (line, arrow, rect, ellipse, area; LH-19) also
@@ -42,13 +42,30 @@ RowLayout {
         return box && box.currentValue !== undefined ? String(box.currentValue) : ""
     }
 
-    /// The library as the list shows it: built in first, then the project's own, in groups.
-    readonly property var _objects: (_choices.object || []).map(o => ({
-        value: o.kind,
-        text: o.custom ? (o.label || o.kind) : texts.t("objectKind." + o.kind),
-        group: texts.t(o.custom ? "library.custom" : "library.builtin")
-    }))
+    /// The library as the list shows it: built in first, then the project's own, in groups. An
+    /// own entry without a group is in "Own". Entries of one heading are put together.
+    readonly property var _objects: {
+        const shown = (_choices.object || []).map(o => ({
+            value: o.kind,
+            text: o.custom ? (o.label || o.kind) : texts.t("objectKind." + o.kind),
+            group: !o.custom ? texts.t("objectGroup." + o.group) : (o.group || texts.t("library.custom"))
+        }))
+        const headings = shown.map(o => o.group).filter((g, i, all) => all.indexOf(g) === i)
+        return headings.reduce((list, g) => list.concat(shown.filter(o => o.group === g)), [])
+    }
+    /// The own entry the list has picked: its kind ("" for none or a built-in one), and its data.
+    readonly property string pickedOwnKind: {
+        if (tool !== "object") {
+            return ""
+        }
+        const entry = (_choices.object || []).find(o => o.kind === choice)
+        return entry && entry.custom ? entry.kind : ""
+    }
+    readonly property var pickedOwn: (_choices.object || []).find(o => o.kind === pickedOwnKind) || null
     readonly property bool hasOwnObjects: (_choices.object || []).some(o => o.custom)
+
+    /// How long the delete button waits for its second click.
+    readonly property int _askMs: 5000
 
     signal importRequested()
     signal exportRequested()
@@ -283,18 +300,94 @@ RowLayout {
         Accessible.name: tools.texts.t("tool.pick.light")
         textRole: "text"
         valueRole: "value"
-        model: tools._choices.light.map(k => ({ value: k, text: tools.texts.t("lightKind." + k) }))
+        model: tools._choices.light.map(k => ({ value: k, text: tools.texts.t("lightPreset." + k) }))
     }
 
     // D-09: the buttons of the options, inline while wide, in a popover below that.
     Component {
         id: optionsItems
         GridLayout {
+            id: ownItems
+            // Whether the delete button has asked and waits for the second click.
+            property bool asking: false
+
+            // The fields start with the name and group of the picked entry.
+            function fill() {
+                asking = false
+                ownName.text = tools.pickedOwn ? (tools.pickedOwn.label || tools.pickedOwn.kind) : ""
+                ownGroup.text = tools.pickedOwn ? tools.pickedOwn.group : ""
+            }
+            function sureText() {
+                const uses = tools.pickedOwn ? tools.pickedOwn.uses : 0
+                return uses === 0 ? tools.texts.t("library.deleteSureNone") : tools.texts.t("library.deleteSure", { count: uses })
+            }
+            function change() {
+                ownName.invalid = !tools.controller.editLibraryItem(tools.pickedOwnKind, ownName.text, ownGroup.text)
+            }
+            function remove() {
+                if (!asking) {
+                    asking = true
+                    askTimer.restart()
+                    return
+                }
+                asking = false
+                tools.controller.removeLibraryItem(tools.pickedOwnKind)
+            }
+            Component.onCompleted: fill()
+            Connections {
+                target: tools
+                function onPickedOwnChanged() { ownItems.fill() }
+            }
+            Timer {
+                id: askTimer
+                interval: tools._askMs
+                onTriggered: ownItems.asking = false
+            }
+
             rowSpacing: tools.spacing
             columnSpacing: tools.spacing
             // One column stacks them in the popover; many put them in a row.
             columns: tools.compact ? 1 : tools._tools.length
 
+            // Rename, regroup and delete the own entry the list has picked.
+            KanteTextField {
+                id: ownName
+                objectName: "ownName"
+                visible: tools.pickedOwn !== null
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 8
+                Accessible.name: tools.texts.t("library.name")
+                placeholderText: tools.texts.t("library.name")
+                onTextChanged: invalid = false
+                onAccepted: ownItems.change()
+            }
+            KanteTextField {
+                id: ownGroup
+                objectName: "ownGroup"
+                visible: tools.pickedOwn !== null
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+                Accessible.name: tools.texts.t("library.group")
+                placeholderText: tools.texts.t("library.group")
+                onAccepted: ownItems.change()
+            }
+            KanteToolButton {
+                objectName: "libraryRename"
+                visible: tools.pickedOwn !== null
+                text: tools.texts.t("library.rename")
+                onClicked: ownItems.change()
+                QQC2.ToolTip.text: tools.texts.t("library.renameTip")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+            // The first click asks, naming how many objects of the plan use the entry.
+            KanteToolButton {
+                objectName: "libraryDelete"
+                visible: tools.pickedOwn !== null
+                text: ownItems.asking ? ownItems.sureText() : tools.texts.t("library.delete")
+                onClicked: ownItems.remove()
+                QQC2.ToolTip.text: tools.texts.t("library.deleteTip")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
             KanteToolButton {
                 objectName: "libraryImport"
                 visible: tools.tool === "object"

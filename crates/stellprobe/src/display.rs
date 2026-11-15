@@ -1,9 +1,11 @@
 use klappe_model::{
-    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Note,
-    ObjectShape, Point, Project, SetObject, SetPlan,
+    Arrival, Background, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
+    Mark, Note, ObjectShape, Point, Project, SetObject, SetPlan,
 };
 
 use crate::axis::axis_at;
+use crate::card::note_card;
+use crate::light::{lamps, light_items, Lamp};
 use crate::motion::{bend_point, camera_at, figure_at, path, walked_ways};
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
 use crate::rig::{rig_dash, rig_runs};
@@ -13,6 +15,8 @@ use crate::rig::{rig_dash, rig_runs};
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DisplayList {
     pub items: Vec<Item>,
+    /// What each lamp of the plan is, for a printed legend (LH-51).
+    pub lamps: Vec<Lamp>,
     pub width_m: f64,
     pub depth_m: f64,
 }
@@ -71,7 +75,8 @@ pub enum Role {
     },
     Frustum,
     Camera,
-    /// A text pinned to the plan (LH-16): a small marker, the text as its label.
+    /// A text pinned to the plan (LH-16): a card, top left at the note's place, the wrapped text
+    /// as its label.
     Note,
     /// A line, outline or area drawn by hand (LH-19).
     Drawing {
@@ -82,6 +87,9 @@ pub enum Role {
     /// The filled head of an arrow, in the arrow's colour.
     ArrowHead(FigureColor),
     FigurePath(FigureColor),
+    /// A grip on a point or corner of the selected drawing (LH-19); only drawn while it is
+    /// selected.
+    DrawingHandle,
     /// The grip that bends the way to a mark (LH-21); only drawn for a selected way.
     FigureHandle(FigureColor),
     CameraHandle,
@@ -115,6 +123,12 @@ pub enum Source {
     Wall(usize),
     Note(String),
     Drawing(String),
+    /// Point or corner `index` of a drawing (LH-19): a grip. A rectangle or ellipse has its
+    /// four corners, clockwise from the top left before the turn.
+    DrawingPoint {
+        drawing: String,
+        index: usize,
+    },
 }
 
 /// Figure body radius on the plan.
@@ -128,18 +142,14 @@ const GROUP_DOTS: usize = 3;
 /// Mark circles are smaller than the figure.
 const MARK_RADIUS_M: f64 = 0.22;
 /// Camera and lamp bodies.
-const BODY_RADIUS_M: f64 = 0.25;
+pub(crate) const BODY_RADIUS_M: f64 = 0.25;
 /// The grip on a way's bend.
 const HANDLE_RADIUS_M: f64 = 0.15;
-/// The marker a note is pinned with.
-const NOTE_RADIUS_M: f64 = 0.15;
 /// How long an arrow's head is, and how far its wings stand off the shaft.
 const ARROW_HEAD_M: f64 = 0.45;
 const ARROW_HEAD_HALF_DEG: f64 = 25.0;
 /// Corners of the polygon an ellipse is drawn with.
 const ELLIPSE_CORNERS: usize = 48;
-/// How far a lamp's beam is drawn.
-const BEAM_REACH_M: f64 = 4.0;
 /// How far a camera's view is drawn when the set gives no size.
 const VIEW_REACH_FALLBACK_M: f64 = 8.0;
 /// Shown before a mark's number where the figure appears, after it where it leaves (LH-26).
@@ -175,6 +185,7 @@ pub fn render(
 
     DisplayList {
         items,
+        lamps: lamps(plan),
         width_m: set.width_m,
         depth_m: set.depth_m,
     }
@@ -265,6 +276,8 @@ fn drawing_items(plan: &FloorPlan, items: &mut Vec<Item>) {
             fill: drawing.fill,
         };
         let source = Some(Source::Drawing(drawing.id.clone()));
+        let at = |p: Point| drawing.placed(p);
+        let all = |points: Vec<Point>| points.into_iter().map(at).collect::<Vec<_>>();
         let mut push = |role, shape| {
             items.push(Item {
                 role,
@@ -275,20 +288,21 @@ fn drawing_items(plan: &FloorPlan, items: &mut Vec<Item>) {
         };
 
         match &drawing.shape {
-            DrawingShape::Line { from, to } => push(role, line(*from, *to)),
+            DrawingShape::Line { from, to } => push(role, line(at(*from), at(*to))),
             DrawingShape::Arrow { from, to } => {
-                push(role, line(*from, *to));
-                if let Some(head) = arrow_head(*from, *to) {
+                let (from, to) = (at(*from), at(*to));
+                push(role, line(from, to));
+                if let Some(head) = arrow_head(from, to) {
                     push(Role::ArrowHead(drawing.color), head);
                 }
             }
             DrawingShape::Rect { from, to } => {
-                push(role, closed(rect_corners(*from, *to), drawing.fill));
+                push(role, closed(all(rect_corners(*from, *to)), drawing.fill));
             }
             DrawingShape::Ellipse { from, to } => {
-                push(role, closed(ellipse_corners(*from, *to), drawing.fill));
+                push(role, closed(all(ellipse_corners(*from, *to)), drawing.fill));
             }
-            DrawingShape::Area { points } => push(role, closed(points.clone(), drawing.fill)),
+            DrawingShape::Area { points } => push(role, closed(all(points.clone()), drawing.fill)),
         }
     }
 }
@@ -371,39 +385,12 @@ fn ellipse_corners(a: Point, b: Point) -> Vec<Point> {
 /// Notes lie on top of everything, so a figure never hides one.
 fn note_items(set: &SetPlan, items: &mut Vec<Item>) {
     for Note { id, at, text } in &set.notes {
+        let (points, wrapped) = note_card(*at, text);
         items.push(Item {
             role: Role::Note,
-            shape: Shape::Circle {
-                center: *at,
-                radius_m: NOTE_RADIUS_M,
-            },
-            label: Some(text.clone()),
+            shape: Shape::Polygon { points },
+            label: Some(wrapped),
             source: Some(Source::Note(id.clone())),
-        });
-    }
-}
-
-fn light_items(plan: &FloorPlan, items: &mut Vec<Item>) {
-    for light in &plan.lights {
-        let source = Some(Source::Light(light.id.clone()));
-        let beam = frustum(light.at, light.facing_deg, light.beam_deg, BEAM_REACH_M);
-
-        items.push(Item {
-            role: Role::LightBeam,
-            shape: Shape::Polygon {
-                points: beam.to_vec(),
-            },
-            label: None,
-            source: source.clone(),
-        });
-        items.push(Item {
-            role: Role::Light,
-            shape: Shape::Circle {
-                center: light.at,
-                radius_m: BODY_RADIUS_M,
-            },
-            label: Some(light.label.clone()),
-            source,
         });
     }
 }
@@ -592,6 +579,7 @@ fn mark_label(index: usize, mark: &Mark) -> String {
 
 /// The grips on the bends of the way `selected` belongs to: a figure, camera or mark of it,
 /// or one of its grips (LH-21). One per mark after the first, halfway along the way to it.
+/// A selected drawing has one on each of its points (LH-19).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -600,8 +588,42 @@ pub fn handles(project: &Project, plan: &FloorPlan, selected: &Source) -> Vec<It
         | Source::Mark { character: c, .. }
         | Source::FigureVia { character: c, .. } => figure_handles(project, plan, c),
         Source::Camera(id) | Source::CameraVia { camera: id, .. } => camera_handles(plan, id),
+        Source::Drawing(id) | Source::DrawingPoint { drawing: id, .. } => drawing_handles(plan, id),
         _ => Vec::new(),
     }
+}
+
+/// Where the grips of `drawing` sit on the plan, turned like the drawing: its points, or for
+/// a rectangle and an ellipse its four corners.
+pub fn drawing_handle_places(drawing: &Drawing) -> Vec<Point> {
+    let points = match &drawing.shape {
+        DrawingShape::Rect { from, to } | DrawingShape::Ellipse { from, to } => {
+            rect_corners(*from, *to)
+        }
+        _ => drawing.points(),
+    };
+
+    points.into_iter().map(|p| drawing.placed(p)).collect()
+}
+
+fn drawing_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
+    let Some(drawing) = plan.drawings.iter().find(|d| d.id == id) else {
+        return Vec::new();
+    };
+
+    drawing_handle_places(drawing)
+        .into_iter()
+        .enumerate()
+        .map(|(index, center)| Item {
+            role: Role::DrawingHandle,
+            shape: handle_shape(center),
+            label: None,
+            source: Some(Source::DrawingPoint {
+                drawing: id.to_owned(),
+                index,
+            }),
+        })
+        .collect()
 }
 
 fn figure_handles(project: &Project, plan: &FloorPlan, character: &str) -> Vec<Item> {
@@ -909,7 +931,7 @@ mod tests {
         assert_eq!(at(4.0), Some(Point::new(4.5, 6.0)));
     }
 
-    /// A note is a marker with its text as label, on top of the figures.
+    /// A note is a card with its wrapped text as label, on top of the figures.
     #[test]
     fn notes_come_last_with_their_text() {
         let mut room = set();
@@ -931,13 +953,12 @@ mod tests {
             last.and_then(|i| i.source.clone()),
             Some(Source::Note("n1".into()))
         );
-        assert_eq!(
-            last.map(|i| i.shape.clone()),
-            Some(Shape::Circle {
-                center: Point::new(3.0, 4.0),
-                radius_m: NOTE_RADIUS_M,
-            })
-        );
+        let corners = match last.map(|i| i.shape.clone()) {
+            Some(Shape::Polygon { points }) => points,
+            other => panic!("not a card: {other:?}"),
+        };
+        assert_eq!(corners[0], Point::new(3.0, 4.0));
+        assert!(corners[2].x_m > 3.0 && corners[2].y_m > 4.0);
     }
 
     fn drawn(shape: DrawingShape, fill: Fill) -> Drawing {
@@ -947,6 +968,7 @@ mod tests {
             color: FigureColor::Red,
             dash: Dash::Dashed,
             fill,
+            rotation_deg: 0.0,
         }
     }
 

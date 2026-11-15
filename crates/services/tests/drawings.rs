@@ -1,12 +1,12 @@
 //! Free drawing on the plan (LH-19), on the example project's plan: one red arrow `d1` from
 //! (6, 10) to (6, 7.5).
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::panic)]
 
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
     Dash, DrawingShape, Field, FigureColor, Fill, Layer, Lock, PlanEdit, Point, Role, ServiceError,
-    Session, Source, Visibility,
+    Session, Shape, Source, Visibility,
 };
 
 fn example() -> PathBuf {
@@ -215,25 +215,239 @@ fn removes_a_drawing_once() {
     assert_eq!(shapes(&s).len(), 1);
 }
 
-/// Rectangles and ellipses stay axis-parallel: turning a drawing changes nothing.
+/// The shaft of drawing `id` as the plan shows it: its first item.
+fn shaft(s: &Session, id: &str) -> (Point, Point) {
+    let list = s.display_list();
+    let item = list
+        .items
+        .iter()
+        .find(|i| i.source == Some(drawing(id)) && matches!(i.role, Role::Drawing { .. }))
+        .unwrap();
+    let Shape::Line { from, to, .. } = item.shape else {
+        panic!("{:?}", item.shape);
+    };
+
+    (from, to)
+}
+
+fn near(a: Point, b: Point) -> bool {
+    a.distance_m(b) < 1e-9
+}
+
+/// The arrow (6, 10) to (6, 7.5) turns about its middle (6, 8.75), clockwise on screen; its
+/// points stay as they are, the turn is a field of the drawing.
 #[test]
-fn turning_a_drawing_does_nothing() {
+fn a_drawing_turns_about_its_middle_and_undoes() {
     let mut s = open();
 
-    for edit in [
-        PlanEdit::Spin {
-            source: drawing("d1"),
-            by_deg: 15.0,
-        },
-        PlanEdit::Turn {
-            source: drawing("d1"),
-            facing_deg: 90.0,
-        },
-    ] {
-        s.edit_plan(edit).unwrap();
-    }
+    s.edit_plan(PlanEdit::Spin {
+        source: drawing("d1"),
+        by_deg: 90.0,
+    })
+    .unwrap();
 
+    let (from, to) = shaft(&s, "d1");
+    assert!(near(from, p(4.75, 8.75)), "{from:?}");
+    assert!(near(to, p(7.25, 8.75)), "{to:?}");
+    let d = &s.plan().unwrap().drawings[0];
+    assert_eq!(d.rotation_deg, 90.0);
+    assert_eq!(
+        d.shape,
+        DrawingShape::Arrow {
+            from: p(6.0, 10.0),
+            to: p(6.0, 7.5)
+        }
+    );
+
+    s.edit_plan(PlanEdit::Turn {
+        source: drawing("d1"),
+        facing_deg: 450.0,
+    })
+    .unwrap();
+    assert_eq!(s.plan().unwrap().drawings[0].rotation_deg, 90.0);
+
+    s.undo();
+    s.undo();
+    assert_eq!(s.plan().unwrap().drawings[0].rotation_deg, 0.0);
+}
+
+/// A rectangle turned 90 degrees stands on its end: 4 wide and 2 deep become 2 and 4, about
+/// the same middle.
+#[test]
+fn a_rectangle_turns_with_its_corners() {
+    let mut s = open();
+    s.edit_plan(add(rect(p(0.0, 0.0), p(4.0, 2.0)), Fill::Outline))
+        .unwrap();
+
+    s.edit_plan(PlanEdit::Spin {
+        source: drawing("d2"),
+        by_deg: 90.0,
+    })
+    .unwrap();
+
+    let list = s.display_list();
+    let Shape::Polyline { points } = &list
+        .items
+        .iter()
+        .find(|i| i.source == Some(drawing("d2")))
+        .unwrap()
+        .shape
+    else {
+        panic!("not an outline");
+    };
+    let xs = points.iter().map(|q| q.x_m);
+    let ys = points.iter().map(|q| q.y_m);
+    let span = |v: Vec<f64>| {
+        v.iter().cloned().fold(f64::MIN, f64::max) - v.iter().cloned().fold(f64::MAX, f64::min)
+    };
+    assert!((span(xs.collect()) - 2.0).abs() < 1e-9);
+    assert!((span(ys.collect()) - 4.0).abs() < 1e-9);
+    assert_eq!(s.pick(p(2.0, 3.0)), Some(drawing("d2")));
+    assert_eq!(s.pick(p(4.0, 1.0)), None);
+}
+
+/// A group turns about the middle of its box, and a drawing in it turns as well as swings.
+#[test]
+fn a_drawing_in_a_group_turns_with_it() {
+    let mut s = open();
+    s.edit_plan(add(rect(p(0.0, 0.0), p(4.0, 2.0)), Fill::Outline))
+        .unwrap();
+
+    s.edit_plan(PlanEdit::SpinGroup {
+        sources: vec![drawing("d2")],
+        by_deg: 30.0,
+    })
+    .unwrap();
+
+    assert_eq!(s.plan().unwrap().drawings[1].rotation_deg, 30.0);
+}
+
+/// A turned drawing moves and snaps by where its first point lies on the plan.
+#[test]
+fn a_turned_drawing_shifts_by_its_shown_first_point() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::Spin {
+        source: drawing("d1"),
+        by_deg: 90.0,
+    })
+    .unwrap();
+
+    // The shown first point is (4.75, 8.75); +0.3 snaps to 5.0, so the arrow moves 0.25.
+    s.edit_plan(PlanEdit::Shift {
+        source: drawing("d1"),
+        dx_m: 0.3,
+        dy_m: 0.0,
+    })
+    .unwrap();
+
+    let (from, _) = shaft(&s, "d1");
+    assert!(near(from, p(5.0, 8.75)), "{from:?}");
+}
+
+#[test]
+fn a_locked_drawings_layer_keeps_the_turn() {
+    let mut s = open();
+    s.set_lock(Layer::Drawings, Lock::Locked);
+
+    let result = s.edit_plan(PlanEdit::Spin {
+        source: drawing("d1"),
+        by_deg: 15.0,
+    });
+
+    assert!(matches!(result, Err(ServiceError::Locked(Layer::Drawings))));
     assert!(!s.can_undo());
+}
+
+fn restyle(source: Source) -> PlanEdit {
+    PlanEdit::SetDrawingStyle {
+        source,
+        color: FigureColor::Green,
+        dash: Dash::Dashed,
+        fill: Fill::Filled,
+    }
+}
+
+#[test]
+fn a_drawing_changes_its_style_and_undoes() {
+    let mut s = open();
+
+    s.edit_plan(restyle(drawing("d1"))).unwrap();
+
+    let d = &s.plan().unwrap().drawings[0];
+    assert_eq!(
+        (d.color, d.dash, d.fill),
+        (FigureColor::Green, Dash::Dashed, Fill::Filled)
+    );
+    assert_eq!(
+        d.shape,
+        DrawingShape::Arrow {
+            from: p(6.0, 10.0),
+            to: p(6.0, 7.5)
+        }
+    );
+    assert!(s.is_dirty());
+    let role = Role::Drawing {
+        color: FigureColor::Green,
+        dash: Dash::Dashed,
+        fill: Fill::Filled,
+    };
+    assert!(s.display_list().items.iter().any(|i| i.role == role));
+
+    s.undo();
+
+    let d = &s.plan().unwrap().drawings[0];
+    assert_eq!(
+        (d.color, d.dash, d.fill),
+        (FigureColor::Red, Dash::Solid, Fill::Outline)
+    );
+}
+
+#[test]
+fn only_a_known_drawing_changes_its_style() {
+    let mut s = open();
+
+    assert!(matches!(
+        s.edit_plan(restyle(drawing("d9"))),
+        Err(ServiceError::Gone)
+    ));
+    assert!(matches!(
+        s.edit_plan(restyle(Source::Wall(0))),
+        Err(ServiceError::BadValue {
+            field: Field::Source,
+            ..
+        })
+    ));
+    assert!(!s.is_dirty());
+}
+
+#[test]
+fn a_locked_drawings_layer_keeps_the_style() {
+    let mut s = open();
+    s.set_lock(Layer::Drawings, Lock::Locked);
+
+    let result = s.edit_plan(restyle(drawing("d1")));
+
+    assert!(matches!(result, Err(ServiceError::Locked(Layer::Drawings))));
+    assert!(!s.is_dirty());
+}
+
+#[test]
+fn a_drawing_hint_tells_style_and_whether_it_has_an_inside() {
+    let mut s = open();
+    s.edit_plan(add(rect(p(1.0, 1.0), p(3.0, 2.0)), Fill::Filled))
+        .unwrap();
+
+    let line = serde_json::to_value(s.drawing_hint("d1").unwrap()).unwrap();
+    let boxed = serde_json::to_value(s.drawing_hint("d2").unwrap()).unwrap();
+
+    assert_eq!(line["kind"], "drawing");
+    assert_eq!(line["closed"], false);
+    assert_eq!(boxed["closed"], true);
+    assert_eq!(
+        (boxed["color"].as_str(), boxed["fill"].as_str()),
+        (Some("cyan"), Some("filled"))
+    );
+    assert!(s.drawing_hint("d9").is_none());
 }
 
 /// The shaft is hairline: 0.15 m beside it still hits, 0.4 m does not.

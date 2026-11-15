@@ -1,0 +1,67 @@
+# The built-in lamps (LH-51). Each entry is what a new lamp starts with: its kind, power in
+# watts, colour temperature in kelvin and beam angle in degrees. A lamp is named in the
+# catalogue (`lightPreset.<id>`). The colour temperature of an LED lamp can be changed on its
+# card; a tungsten lamp keeps its own. Bounce and flag make no light of their own: power 0.
+
+[[lampe]]
+id = "fresnel-650"
+kind = "fresnel"
+power_w = 650.0
+color_temp_k = 3200.0
+beam_deg = 30.0
+
+[[lampe]]
+id = "fresnel-1k"
+kind = "fresnel"
+power_w = 1000.0
+color_temp_k = 3200.0
+beam_deg = 30.0
+
+[[lampe]]
+id = "fresnel-2k"
+kind = "fresnel"
+power_w = 2000.0
+color_temp_k = 3200.0
+beam_deg = 30.0
+
+[[lampe]]
+id = "led-panel"
+kind = "led-panel"
+power_w = 200.0
+color_temp_k = 5600.0
+beam_deg = 90.0
+
+[[lampe]]
+id = "tube"
+kind = "tube"
+power_w = 55.0
+color_temp_k = 5600.0
+beam_deg = 120.0
+
+[[lampe]]
+id = "balloon"
+kind = "balloon"
+power_w = 1200.0
+color_temp_k = 3200.0
+beam_deg = 120.0
+
+[[lampe]]
+id = "reflector"
+kind = "reflector"
+power_w = 0.0
+color_temp_k = 5600.0
+beam_deg = 40.0
+
+[[lampe]]
+id = "floppy"
+kind = "flag"
+power_w = 0.0
+color_temp_k = 5600.0
+beam_deg = 40.0
+
+[[lampe]]
+id = "flag"
+kind = "flag"
+power_w = 0.0
+color_temp_k = 5600.0
+beam_deg = 20.0
