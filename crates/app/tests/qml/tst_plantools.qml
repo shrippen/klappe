@@ -17,6 +17,8 @@ TestCase {
         id: fake
         property bool loaded: true
         property bool snappingOn: true
+        property string gridName: "cm25"
+        property var grids: []
         readonly property var choices: ({
             figure: [{ id: "elisabeth", name: "Elisabeth" }, { id: "burgvogt", name: "Burgvogt" }],
             object: [
@@ -28,7 +30,8 @@ TestCase {
             light: ["fresnel", "led-panel"],
             color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
             dash: ["solid", "dashed", "dotted"],
-            fill: ["outline", "filled"]
+            fill: ["outline", "filled"],
+            grid: [{ id: "cm5", step_m: 0.05 }, { id: "cm25", step_m: 0.25 }, { id: "m1", step_m: 1 }]
         })
         property string choicesJson: JSON.stringify(choices)
         property var tools: []
@@ -45,6 +48,9 @@ TestCase {
         }
         function setSnapping(on) {
             snaps.push(on)
+        }
+        function setGrid(name) {
+            grids.push(name)
         }
     }
 
@@ -73,6 +79,8 @@ TestCase {
         fake.choicesJson = JSON.stringify(fake.choices)
         fake.tools = []
         fake.snaps = []
+        fake.grids = []
+        fake.gridName = "cm25"
         fake.styles = []
 
         // The settings keep the mode over the test cases: start each from the default.
@@ -486,5 +494,21 @@ TestCase {
         button.toggled()
 
         compare(fake.snaps, [false])
+    }
+
+    // LH-14: the grid box lists the spacings, shows the current one and tells the controller.
+    function test_grid_box_lists_and_sets_the_spacing() {
+        const bar = make()
+        const box = findChild(bar, "gridBox")
+
+        compare(box.count, 3)
+        compare(box.currentIndex, 1)
+        compare(box.textAt(0), "5 cm")
+        compare(box.textAt(2), "1 m")
+
+        box.currentIndex = 2
+        box.activated(2)
+
+        compare(fake.grids, ["m1"])
     }
 }
