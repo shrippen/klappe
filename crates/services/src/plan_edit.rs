@@ -25,11 +25,11 @@ mod moving;
 mod openings;
 mod picking;
 mod remove;
-pub(crate) mod template;
 
+pub(crate) use add::free_letter;
 use add::{
     add_camera, add_camera_mark, add_drawing, add_mark, add_note, add_objects, add_walls,
-    edit_light, edit_note, free_id, free_letter,
+    edit_light, edit_note, free_id,
 };
 use background::{calibrate, move_background, remove_background, set_background};
 use check::check;
