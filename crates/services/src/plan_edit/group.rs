@@ -196,9 +196,9 @@ fn box_middle(points: &[Point]) -> Option<Point> {
 }
 
 /// What a removal takes, in the order it takes it. A grip goes first (it only straightens a
-/// way by an index the removals would shift, as an opening does by its wall's); marks and walls go from the back, so the
-/// indices of those still to go stay right. What a whole figure or camera takes with it is
-/// not removed a second time.
+/// way by an index the removals would shift, as an opening does by its wall's); marks and
+/// walls go from the back, so the indices of those still to go stay right. What a whole
+/// figure or camera takes with it is not removed a second time.
 fn removable(sources: &[Source]) -> Vec<Source> {
     let members = distinct(sources);
     let gone_figure = |character: &str| members.contains(&Source::Figure(character.to_owned()));

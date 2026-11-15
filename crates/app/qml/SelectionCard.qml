@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import Kante
 
-// The card of the selection (D-04): the object's, the door's or window's, the camera's and the mark's fields in one
-// card beside the selected element, with a pointer at it. A camera shows two sections
+// The card of the selection (D-04): the object's, the door's or window's, the camera's and
+// the mark's fields in one card beside the selected element, with a pointer at it. A camera shows two sections
 // (camera, mark at the playhead). It follows the element when the plan is panned, zoomed
 // or played, stays inside the plan (on the left of the element when the right has no room)
 // and keeps clear of the mouse pointer: it does not open under it. Nothing is selected, or
@@ -20,11 +20,13 @@ KantePopover {
     property bool pointerOver: false
 
     readonly property string key: controller.selectedKey
-    readonly property bool wanted: objectSection.shown || openingSection.shown || cameraSection.shown || markSection.shown
+    readonly property bool wanted: objectSection.shown || openingSection.shown
+        || cameraSection.shown || markSection.shown
     /// The rest of the fields of every section.
     property bool expanded: false
     /// A field has the focus: letters and Delete are text, not keys for the selection.
-    readonly property bool typing: objectSection.typing || openingSection.typing || cameraSection.typing || markSection.typing
+    readonly property bool typing: objectSection.typing || openingSection.typing
+        || cameraSection.typing || markSection.typing
 
     // The plan keeps the keyboard (zoom keys, Escape for a drag); a field takes it on a click.
     // The card goes with the selection, not with a click or a key.
