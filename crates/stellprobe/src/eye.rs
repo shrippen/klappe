@@ -32,7 +32,7 @@ pub enum Eye {
 
 impl Eye {
     /// The moment the figures stand at.
-    pub fn t_s(&self) -> f64 {
+    pub(crate) fn t_s(&self) -> f64 {
         match self {
             Eye::Shot { t_s, .. } | Eye::Orbit { t_s, .. } => *t_s,
         }
@@ -50,12 +50,12 @@ impl Eye {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Orbit {
-    pub target: [f64; 3],
-    pub yaw_deg: f64,
-    pub pitch_deg: f64,
-    pub distance_m: f64,
+    target: [f64; 3],
+    yaw_deg: f64,
+    pitch_deg: f64,
+    distance_m: f64,
     /// How wide it sees, left to right.
-    pub fov_deg: f64,
+    fov_deg: f64,
 }
 
 /// Pitch of a new view: steep enough to see into a room over its walls.
@@ -211,21 +211,46 @@ impl Pinhole {
     /// Where the ray through picture point `image` meets the floor; `None` when it does not
     /// (above the horizon).
     pub(crate) fn floor_at(&self, image: [f64; 2]) -> Option<Point> {
-        // The ray in the camera's frame, ahead 1.
+        self.level_at(image, 0.0)
+    }
+
+    /// Where the ray through picture point `image` meets the level `height_m` above the floor,
+    /// as a plan point; `None` when it runs away from that level.
+    pub(crate) fn level_at(&self, image: [f64; 2], height_m: f64) -> Option<Point> {
+        let ray = self.ray(image);
+        let rise_m = height_m - self.at[2];
+        if ray[2] == 0.0 || rise_m / ray[2] <= 0.0 {
+            return None;
+        }
+
+        let t = rise_m / ray[2];
+        Some(Point::new(self.at[0] + t * ray[0], self.at[1] + t * ray[1]))
+    }
+
+    /// The point of the set picture point `image` shows at `depth_m` ahead (as the frame stores
+    /// depth).
+    pub(crate) fn point_at(&self, image: [f64; 2], depth_m: f64) -> Vec3 {
+        let ray = self.ray(image);
+
+        [
+            self.at[0] + depth_m * ray[0],
+            self.at[1] + depth_m * ray[1],
+            self.at[2] + depth_m * ray[2],
+        ]
+    }
+
+    /// The ray through picture point `image` in the set's frame, 1 ahead of the camera.
+    fn ray(&self, image: [f64; 2]) -> Vec3 {
         let right = (image[0] - FRAME_WIDTH / 2.0) / self.focal;
         let rise = (self.frame_height / 2.0 - image[1]) / self.focal;
         let (sin, cos) = self.tilt;
         let ahead = cos - rise * sin;
-        let up = rise * cos + sin;
-        if up >= 0.0 {
-            return None;
-        }
 
-        let t = -self.at[2] / up;
-        Some(Point::new(
-            self.at[0] + t * (right * self.right[0] + ahead * self.forward[0]),
-            self.at[1] + t * (right * self.right[1] + ahead * self.forward[1]),
-        ))
+        [
+            right * self.right[0] + ahead * self.forward[0],
+            right * self.right[1] + ahead * self.forward[1],
+            rise * cos + sin,
+        ]
     }
 
     /// The picture point of a point in the camera's frame; its depth is above `NEAR_M`.

@@ -3,8 +3,7 @@ import io.github.shrippen.klappe
 import "lib"
 
 // LH-94: J switches to the free 3D view and back; turning and zooming make another picture;
-// a click selects what is seen there; a drag moves it in one undo step; above the horizon
-// nothing happens.
+// a click selects what is seen there, over the horizon too; a drag moves it in one undo step.
 Item {
     Watchdog {}
     Controller { id: ctl }
@@ -80,11 +79,11 @@ Item {
                 return fail("no click selected a wall")
             }
 
-            // A click above the horizon does nothing: the selection stays.
+            // A click into the sky takes nothing: as a click on empty plan, it clears the
+            // selection.
             ctl.turnView(0, -1000)
-            const kept = ctl.selectedKey
-            if (ctl.freePlace(width3d / 2, 1) || ctl.selectedKey !== kept) {
-                return fail("a click above the horizon changed something")
+            if (ctl.freePlace(width3d / 2, 1) || ctl.selectedKey !== "") {
+                return fail("a click into the sky took something or kept the selection")
             }
 
             // A drag of a selected element moves it, in one undo step.
@@ -103,6 +102,24 @@ Item {
             if (ctl.planJson !== plan) {
                 return fail("one undo does not take back the drag")
             }
+
+            // Looking flat, walls stand over the horizon: a click there still takes the wall
+            // seen there, though no floor lies under the pointer.
+            ctl.turnView(0, -1000)
+            if (ctl.selectedKey.indexOf("wall") >= 0) {
+                return fail("the pillar should be selected here")
+            }
+            let walled = false
+            for (let y = height3d / 2 - 2 * step; y > 0 && !walled; y -= step) {
+                for (let x = step; x < width3d && !walled; x += step) {
+                    ctl.freePlace(x, y)
+                    walled = ctl.selectedKey.indexOf("wall") >= 0
+                }
+            }
+            if (!walled) {
+                return fail("no click above the horizon selected the wall seen there")
+            }
+            ctl.turnView(0, 1000)
 
             ctl.toggleView()
             if (ctl.viewFree) {

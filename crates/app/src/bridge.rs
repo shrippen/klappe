@@ -782,8 +782,8 @@ pub struct ControllerRust {
     view_free: bool,
     /// `freeFrame`: the size and names of the last 3D image.
     free_frame: String,
-    /// The 3D view's size in device pixels (`freeSize`).
-    free_size: (f64, f64),
+    /// The 3D view's size and what a drag in it holds.
+    free: free::FreeState,
     tracks_json: QString,
     shots_json: QString,
     shots_shooting_json: QString,

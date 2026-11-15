@@ -605,4 +605,14 @@ TestCase {
             verify(en.t(key) !== key, "en " + key)
         }
     }
+
+    // The 3D view has no plan to fit: "Fit" is off there (LH-94).
+    function test_fit_is_off_in_3d() {
+        const header = make()
+        const fit = findChild(header, "zoomFit")
+        verify(fit.enabled)
+
+        fake.viewFree = true
+        verify(!fit.enabled)
+    }
 }

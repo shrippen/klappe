@@ -9,7 +9,9 @@
 //! ```
 
 use klappe_model::Point;
-use klappe_stellprobe::{floor_at, picture, source_at, Eye, Orbit, Picture, Source};
+use klappe_stellprobe::{
+    floor_at, grab_at, level_at, picture, source_at, Eye, Orbit, Picture, Source,
+};
 
 use super::Session;
 
@@ -86,6 +88,26 @@ impl Session {
         let picture = self.free_picture(size)?;
 
         source_at(&picture, (pointer.0 as usize, pointer.1 as usize)).cloned()
+    }
+
+    /// What a drag starting at `pointer` takes in 3D, and at which height above the floor it
+    /// holds it: the drag then runs on that level (`free_level_at`).
+    pub fn free_grab(&self, pointer: Size, size: Size) -> Option<(Source, f64)> {
+        let picture = self.free_picture(size)?;
+        let pixel = (pointer.0 as usize, pointer.1 as usize);
+
+        grab_at(self.plan()?, &self.free_eye(size)?, &picture, pixel)
+    }
+
+    /// The plan point under `pointer` on the level `height_m` above the floor.
+    pub fn free_level_at(&self, pointer: Size, size: Size, height_m: f64) -> Option<Point> {
+        level_at(
+            self.plan()?,
+            &self.free_eye(size)?,
+            size.0,
+            pointer,
+            height_m,
+        )
     }
 
     fn free_eye(&self, (width, height): Size) -> Option<Eye> {

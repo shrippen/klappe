@@ -554,8 +554,9 @@ mod tests {
         // Plus lies left of the walk from `from` to `to`: y grows downwards, so left of +x is +y.
         assert!(close(plus, 3.9, 0.1), "{plus:?}");
         assert!(close(minus, 4.1, -0.1), "{minus:?}");
-        assert!(close(minus2, 3.9, 0.1) || close(plus2, 3.9, 0.1));
-        assert!(close(minus2, 4.1, -0.1) || close(plus2, 4.1, -0.1));
+        // The second wall walks +y: its plus side lies at -x, the inner one, like the first's.
+        assert!(close(plus2, 3.9, 0.1), "{plus2:?}");
+        assert!(close(minus2, 4.1, -0.1), "{minus2:?}");
         assert_eq!(mitre(&set, 0, End::From), None);
     }
 }

@@ -255,7 +255,8 @@ fn the_free_view_looks_at_the_middle_of_the_set() {
 fn the_sky_has_no_floor() {
     let set = set();
     let mut orbit = Orbit::fitting(set.width_m, set.depth_m);
-    orbit.pitch_deg = 5.0;
+    // Down to a few degrees above the floor.
+    orbit.turn(0.0, -1000.0);
 
     assert_eq!(
         floor_at(&plan(35.0, &[]), &orbit_eye(orbit), 160.0, (80.0, 0.0)),

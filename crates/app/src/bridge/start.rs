@@ -55,7 +55,7 @@ impl Default for ControllerRust {
             free_revision: 0,
             view_free: false,
             free_frame: String::new(),
-            free_size: (0.0, 0.0),
+            free: Default::default(),
             tracks_json: QString::default(),
             shots_json: QString::default(),
             shots_shooting_json: QString::default(),

@@ -11,6 +11,15 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QImage, QString};
 use klappe_services::{Size, View};
 
+/// The 3D view's size in device pixels (`freeSize`), and the height above the floor at which a
+/// running drag holds what it grabbed: the drag runs on that level, so a wall top seen over
+/// the horizon moves with the pointer as the floor under a chair does.
+#[derive(Debug, Default)]
+pub(super) struct FreeState {
+    size: Size,
+    held_m: f64,
+}
+
 impl qobject::Controller {
     pub(super) fn toggle_view(mut self: Pin<&mut Self>) {
         let Some(s) = self.as_mut().session() else {
@@ -24,7 +33,7 @@ impl qobject::Controller {
     }
 
     pub(super) fn free_size(mut self: Pin<&mut Self>, width_px: f64, height_px: f64) {
-        self.as_mut().rust_mut().get_mut().free_size = (width_px, height_px);
+        self.as_mut().rust_mut().get_mut().free.size = (width_px, height_px);
     }
 
     pub(super) fn free_image(
@@ -54,7 +63,7 @@ impl qobject::Controller {
     }
 
     pub(super) fn pan_view(mut self: Pin<&mut Self>, dx: f64, dy: f64) {
-        let size = self.rust().free_size;
+        let size = self.rust().free.size;
         if let Some(s) = self.as_mut().session() {
             s.pan_view(dx, dy, size);
         }
@@ -62,7 +71,7 @@ impl qobject::Controller {
     }
 
     pub(super) fn zoom_view(mut self: Pin<&mut Self>, steps: f64, x: f64, y: f64) {
-        let size = self.rust().free_size;
+        let size = self.rust().free.size;
         if let Some(s) = self.as_mut().session() {
             s.zoom_view(steps, (x, y), size);
         }
@@ -70,8 +79,28 @@ impl qobject::Controller {
     }
 
     pub(super) fn free_place(mut self: Pin<&mut Self>, x: f64, y: f64) -> bool {
-        let size = self.rust().free_size;
+        let size = self.rust().free.size;
         let tool = self.rust().tool.clone();
+
+        // The select tool takes what is seen there, also over the horizon (a wall's top).
+        if tool == Tool::Select {
+            let picked = {
+                let this = self.as_ref();
+                this.rust()
+                    .session
+                    .as_ref()
+                    .and_then(|s| s.free_pick((x, y), size))
+            };
+            // As on the plan: a click on nothing clears the selection (Shift keeps it).
+            let how = self.rust().pick_mode();
+            let found = picked.is_some();
+            let selected = self.rust().selected.clone().click(picked, how);
+            self.as_mut().rust_mut().get_mut().selected = selected;
+            self.refresh();
+            return found;
+        }
+
+        // Other tools set on the floor; above the horizon there is none.
         let floor = {
             let this = self.as_ref();
             this.rust()
@@ -79,29 +108,11 @@ impl qobject::Controller {
                 .as_ref()
                 .and_then(|s| s.free_floor_at((x, y), size))
         };
-
-        // Above the horizon there is no floor, and nothing to click.
         let Some(floor) = floor else {
             return false;
         };
-        if tool != Tool::Select {
-            return self.place(floor.x_m, floor.y_m);
-        }
 
-        // As on the plan: a click on nothing clears the selection (Shift keeps it).
-        let picked = {
-            let this = self.as_ref();
-            this.rust()
-                .session
-                .as_ref()
-                .and_then(|s| s.free_pick((x, y), size))
-        };
-        let how = self.rust().pick_mode();
-        let found = picked.is_some();
-        let selected = self.rust().selected.clone().click(picked, how);
-        self.as_mut().rust_mut().get_mut().selected = selected;
-        self.refresh();
-        found
+        self.place(floor.x_m, floor.y_m)
     }
 
     pub(super) fn free_drag(
@@ -112,35 +123,44 @@ impl qobject::Controller {
         y: f64,
         done: bool,
     ) -> bool {
-        let size = self.rust().free_size;
+        let size = self.rust().free.size;
         let tool = self.rust().tool.clone();
 
-        // The element a drag moves is the one seen where it starts, taken once.
-        if tool == Tool::Select && self.rust().grip == Grip::Free {
-            let grabbed = {
-                let this = self.as_ref();
-                this.rust()
-                    .session
-                    .as_ref()
-                    .and_then(|s| s.free_pick((from_x, from_y), size))
+        // The element a drag moves is the one seen where it starts, taken once with the height
+        // it is held at; other tools drag on the floor.
+        if self.rust().grip == Grip::Free {
+            let grabbed = match tool {
+                Tool::Select => {
+                    let this = self.as_ref();
+                    this.rust()
+                        .session
+                        .as_ref()
+                        .and_then(|s| s.free_grab((from_x, from_y), size))
+                }
+                _ => None,
             };
-            self.as_mut().rust_mut().get_mut().grip = Grip::Held(grabbed);
+            let state = self.as_mut().rust_mut().get_mut();
+            state.free.held_m = grabbed.as_ref().map_or(0.0, |(_, held_m)| *held_m);
+            if tool == Tool::Select {
+                state.grip = Grip::Held(grabbed.map(|(source, _)| source));
+            }
         }
         let nothing_held = self.rust().grip == Grip::Held(None);
+        let held_m = self.rust().free.held_m;
 
-        let floors = {
+        let points = {
             let this = self.as_ref();
             this.rust().session.as_ref().and_then(|s| {
                 Some((
-                    s.free_floor_at((from_x, from_y), size)?,
-                    s.free_floor_at((x, y), size)?,
+                    s.free_level_at((from_x, from_y), size, held_m)?,
+                    s.free_level_at((x, y), size, held_m)?,
                 ))
             })
         };
 
-        // Empty ground has no box to pull up in 3D, and a pointer above the horizon no floor:
-        // nothing moves, and a release lets go.
-        let Some((from, to)) = floors.filter(|_| !(tool == Tool::Select && nothing_held)) else {
+        // Empty ground has no box to pull up in 3D, and a pointer that leaves the level no
+        // point: nothing moves, and a release lets go.
+        let Some((from, to)) = points.filter(|_| !(tool == Tool::Select && nothing_held)) else {
             if done {
                 self.cancel_drag();
             }
@@ -158,13 +178,13 @@ impl qobject::Controller {
 }
 
 impl super::ControllerRust {
-    /// The 3D view at `scale` times `free_size`, in the palette's colours, and its frame JSON.
+    /// The 3D view at `scale` times its size, in the palette's colours, and its frame JSON.
     fn free_colored(&self, scale: f64, palette_json: &str) -> Option<(QImage, String)> {
         let s = self.session.as_ref()?;
         let palette = Palette::parse(palette_json)?;
         let size: Size = (
-            (self.free_size.0 * scale).round(),
-            (self.free_size.1 * scale).round(),
+            (self.free.size.0 * scale).round(),
+            (self.free.size.1 * scale).round(),
         );
 
         colored(&s.free_picture(size)?, &palette)

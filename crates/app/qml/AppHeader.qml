@@ -376,7 +376,8 @@ RowLayout {
         text: header.texts.t("menu.zoomFit")
         shortcut: "Ctrl+0"
         keys: header.keyName("Ctrl+0")
-        enabled: header.controller.loaded && !header.locked
+        // The whole plan: the 3D view has no plan to fit.
+        enabled: header.controller.loaded && !header.locked && !header.controller.viewFree
         onTriggered: header.zoomRequested("fit")
     }
 
