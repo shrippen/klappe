@@ -4,14 +4,16 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// A mark is selected (LH-22, LH-63), a section of the selection card (D-04): the pose of a figure's mark, the pause at it, and the
-// pace of the way that leads to it. A figure's mark also says how the figure comes to it and
-// whether it leaves after it (LH-26); a camera's mark says its lens height and tilt (LH-34,
-// positive tilt looks up), the rig that brings the camera to it and the lens it states
-// (LH-33; empty: none, between two marks with a lens the focal length runs with time). The pace is shown as the plan has it; the two buttons
+// A mark is selected (LH-22, LH-63), a section of the selection card (D-04): the pose of a
+// figure's mark, the pause at it, and the pace of the way that leads to it. A figure's mark
+// also says how the figure comes to it and whether it leaves after it (LH-26); a camera's
+// mark says its lens height and tilt (LH-34, positive tilt looks up), the rig that brings
+// the camera to it and the lens it states (LH-33; empty: none, between two marks with a lens
+// the focal length runs with time). The pace is shown as the plan has it; the two buttons
 // time the way for walking or running and move the later marks along. No geometry here: the
-// controller has the numbers from the session. Pose, pause and pace (a camera's mark: lens height,
-// rig and lens) are the common fields; arrival, departure and tilt wait behind "More".
+// controller has the numbers from the session. Pose, pause and pace (a camera's mark: lens
+// height, rig and lens) are the common fields; arrival, departure and tilt wait behind
+// "More".
 ColumnLayout {
     id: card
 

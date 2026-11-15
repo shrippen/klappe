@@ -649,7 +649,6 @@ TestCase {
         compare(fake.removes, 0)
     }
 
-
     // Room for a card on either side of an element.
     readonly property real wide: 900
 
@@ -714,6 +713,36 @@ TestCase {
         card.canvas.panX += 40
 
         compare(card.x, before + 40)
+    }
+
+    // Playing moves the element: the plan hands the canvas new shapes.
+    function test_the_card_follows_the_element_when_the_shapes_move() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        const before = card.x
+
+        fake.planJson = planWith(4)
+
+        const element = card.canvas.mapFromModel(4, 11.5)
+        tryVerify(() => card.x > before)
+        verify(card.x > element.x)
+        verify(card.y <= element.y && element.y <= card.y + card.height)
+    }
+
+    function test_the_card_stays_inside_when_the_plan_shrinks() {
+        fake.planJson = planWith(8)
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        area.width = 500
+        wait(100)
+
+        verify(card.x >= 0)
+        verify(card.x + card.width <= area.width)
     }
 
     // A card that would open under the mouse pointer goes to the other side.
