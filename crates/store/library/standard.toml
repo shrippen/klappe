@@ -89,3 +89,38 @@ kind = "platform"
 width_m = 2.0
 depth_m = 2.0
 height_m = 0.4
+
+# Camera support (LH-35). A track is 4 m long at the standard gauge (0.62 m); a jib and a crane
+# take the circle their arm sweeps (diameter = twice the arm: 3 m and 6 m).
+[[objekt]]
+kind = "track"
+width_m = 4.0
+depth_m = 0.62
+height_m = 0.15
+
+[[objekt]]
+kind = "dolly"
+width_m = 1.2
+depth_m = 0.8
+height_m = 0.9
+
+[[objekt]]
+kind = "jib"
+width_m = 6.0
+depth_m = 6.0
+shape = "ellipse"
+height_m = 2.5
+
+[[objekt]]
+kind = "crane"
+width_m = 12.0
+depth_m = 12.0
+shape = "ellipse"
+height_m = 4.0
+
+[[objekt]]
+kind = "tripod"
+width_m = 1.0
+depth_m = 1.0
+shape = "ellipse"
+height_m = 1.6
