@@ -245,3 +245,79 @@ fn the_tooltip_height_is_the_one_at_the_playhead() {
     s.set_time(0.0);
     assert_eq!(height(&s), 1.6);
 }
+
+/// Camera A's last mark: (9, 8) at 6 s, no pause, aim and height as the file has them. A mark
+/// at (9, 5.2) is 2.8 m away: 2.8 / 1.4 = 2 s, so 8 s.
+#[test]
+fn a_new_camera_mark_arrives_by_dolly_and_keeps_the_aim() {
+    let mut s = open();
+    let before = s.plan().unwrap().camera("a").unwrap().marks[1].clone();
+
+    s.edit_plan(PlanEdit::AddCameraMark {
+        camera: "a".into(),
+        at: Point::new(9.0, 5.2),
+    })
+    .unwrap();
+
+    let marks = &s.plan().unwrap().camera("a").unwrap().marks;
+    let new = &marks[2];
+    assert_eq!(marks.len(), 3);
+    assert!((new.at_s - (before.at_s + before.hold_s + 2.0)).abs() < 1e-9);
+    assert_eq!(new.at, Point::new(9.0, 5.2));
+    assert_eq!(
+        (new.facing_deg, new.height_m, new.tilt_deg, new.lens_mm),
+        (
+            before.facing_deg,
+            before.height_m,
+            before.tilt_deg,
+            before.lens_mm
+        )
+    );
+    assert_eq!((new.rig, new.hold_s, new.via), (Rig::Dolly, 0.0, None));
+
+    s.undo();
+    assert_eq!(s.plan().unwrap().camera("a").unwrap().marks.len(), 2);
+}
+
+/// The pause of the mark before counts, and its lens carries over.
+#[test]
+fn a_new_camera_mark_waits_for_the_pause_and_takes_the_lens() {
+    let mut s = open();
+    let last = s.plan().unwrap().camera("a").unwrap().marks[1].clone();
+    s.set_time(last.at_s);
+    set_lens(&mut s, Some(85.0)).unwrap();
+    s.edit_plan(PlanEdit::SetHold {
+        source: camera(),
+        hold_s: 3.0,
+    })
+    .unwrap();
+
+    s.edit_plan(PlanEdit::AddCameraMark {
+        camera: "a".into(),
+        at: last.at,
+    })
+    .unwrap();
+
+    let marks = &s.plan().unwrap().camera("a").unwrap().marks;
+    assert_eq!(marks[2].lens_mm, Some(85.0));
+    assert!((marks[2].at_s - (last.at_s + 3.0)).abs() < 1e-9);
+}
+
+#[test]
+fn a_camera_mark_needs_a_known_camera_and_an_open_layer() {
+    let mut s = open();
+    let add = |camera: &str| PlanEdit::AddCameraMark {
+        camera: camera.into(),
+        at: Point::new(1.0, 1.0),
+    };
+
+    assert!(matches!(s.edit_plan(add("z")), Err(ServiceError::Gone)));
+    assert!(!s.can_undo());
+
+    s.set_lock(Layer::Cameras, Lock::Locked);
+    assert!(matches!(
+        s.edit_plan(add("a")),
+        Err(ServiceError::Locked(Layer::Cameras))
+    ));
+    assert_eq!(s.plan().unwrap().camera("a").unwrap().marks.len(), 2);
+}

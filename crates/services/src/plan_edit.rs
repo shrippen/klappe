@@ -20,7 +20,7 @@ mod moving;
 mod remove;
 
 use add::{
-    add_camera, add_drawing, add_light, add_mark, add_note, add_object, add_wall, edit_note,
+    add_drawing, add_light, add_mark, add_note, add_object, add_wall, camera_add, edit_note,
     free_id, free_letter,
 };
 use background::{calibrate, move_background, remove_background, set_background};
@@ -96,6 +96,12 @@ pub enum PlanEdit {
     AddCamera {
         at: Point,
         facing_deg: f64,
+    },
+    /// Appends a mark to the camera `camera` (LH-33): it keeps the aim, height, tilt and lens
+    /// of the last mark and comes by dolly.
+    AddCameraMark {
+        camera: String,
+        at: Point,
     },
     AddLight {
         kind: LightKind,
@@ -351,6 +357,7 @@ impl PlanEdit {
             }
             PlanEdit::AddMark { .. } => Layer::Figures,
             PlanEdit::AddCamera { .. }
+            | PlanEdit::AddCameraMark { .. }
             | PlanEdit::Follow { .. }
             | PlanEdit::SetSensor { .. }
             | PlanEdit::SetLens { .. }
@@ -488,7 +495,7 @@ pub(crate) fn apply(
         } => group::duplicate(&mut scope, sources, (*dx_m, *dy_m)),
         PlanEdit::Straighten { source } => straighten(&mut scope, source),
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
-        PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
+        PlanEdit::AddCamera { .. } | PlanEdit::AddCameraMark { .. } => camera_add(&mut scope, edit),
         PlanEdit::AddLight { kind, at } => add_light(&mut scope, *kind, *at),
         PlanEdit::AddObject { kind, at } => add_object(&mut scope, kind, *at),
         PlanEdit::Resize {

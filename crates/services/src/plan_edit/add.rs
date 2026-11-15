@@ -7,12 +7,15 @@ use klappe_model::{
 };
 
 use super::marks::WALK_SPEED_M_S;
-use super::{normalize_deg, Scope};
+use super::{normalize_deg, PlanEdit, Scope};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::library;
 
 const DEFAULT_CAMERA_HEIGHT_M: f64 = 1.6;
+
+/// A dolly rolls at walking pace.
+const DOLLY_SPEED_M_S: f64 = WALK_SPEED_M_S;
 
 const DEFAULT_SENSOR: Sensor = Sensor::Super35;
 const DEFAULT_LENS_MM: f64 = 35.0;
@@ -126,11 +129,7 @@ pub(super) fn free_letter(cameras: &[Camera]) -> Result<char, ServiceError> {
         .ok_or(ServiceError::NoFreeCamera)
 }
 
-pub(super) fn add_camera(
-    scope: &mut Scope<'_>,
-    at: Point,
-    facing_deg: f64,
-) -> Result<(), ServiceError> {
+fn add_camera(scope: &mut Scope<'_>, at: Point, facing_deg: f64) -> Result<(), ServiceError> {
     let cameras = &scope.plan.cameras;
     let letter = free_letter(cameras)?;
     let (sensor, lens_mm, aspect) = match cameras.first() {
@@ -158,6 +157,42 @@ pub(super) fn add_camera(
         follows: None,
     };
     scope.plan.cameras.push(camera);
+
+    Ok(())
+}
+
+/// A new camera or a new mark of one; `apply` has no more room for an arm of its own.
+pub(super) fn camera_add(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::AddCamera { at, facing_deg } => add_camera(scope, *at, *facing_deg),
+        PlanEdit::AddCameraMark { camera, at } => add_camera_mark(scope, camera, *at),
+        _ => Err(ServiceError::Gone),
+    }
+}
+
+/// The camera arrives, waits, then rolls at `DOLLY_SPEED_M_S`; it keeps its aim, height, tilt
+/// and lens, so it goes on looking at the scene.
+fn add_camera_mark(scope: &mut Scope<'_>, camera: &str, at: Point) -> Result<(), ServiceError> {
+    let camera = scope
+        .plan
+        .cameras
+        .iter_mut()
+        .find(|c| c.id == camera)
+        .ok_or(ServiceError::Gone)?;
+    let prev = camera.marks.last().ok_or(ServiceError::Gone)?;
+    let at_s = prev.at_s + prev.hold_s + prev.at.distance_m(at) / DOLLY_SPEED_M_S;
+
+    camera.marks.push(CameraMark {
+        at_s,
+        at,
+        facing_deg: prev.facing_deg,
+        height_m: prev.height_m,
+        tilt_deg: prev.tilt_deg,
+        hold_s: 0.0,
+        via: None,
+        rig: Default::default(),
+        lens_mm: prev.lens_mm,
+    });
 
     Ok(())
 }
