@@ -389,6 +389,7 @@ mod tests {
     #[test]
     fn roles_become_kante_names_and_styles() {
         let list = DisplayList {
+            lamps: Vec::new(),
             items: vec![
                 item(
                     Role::Axis,
@@ -434,6 +435,7 @@ mod tests {
             radius_m,
         };
         let list = DisplayList {
+            lamps: Vec::new(),
             items: vec![
                 item(Role::Figure(FigureColor::Purple), circle(0.6), None),
                 item(Role::GroupDot, circle(0.1), None),
@@ -452,6 +454,7 @@ mod tests {
     #[test]
     fn a_note_is_a_card_with_its_text() {
         let list = DisplayList {
+            lamps: Vec::new(),
             items: vec![Item {
                 role: Role::Note,
                 shape: Shape::Polygon {
@@ -486,6 +489,7 @@ mod tests {
     fn a_drawing_keeps_colour_dash_and_fill() {
         let at = Some(Source::Drawing("d1".into()));
         let list = DisplayList {
+            lamps: Vec::new(),
             items: vec![
                 item(
                     Role::Drawing {
@@ -612,6 +616,7 @@ mod tests {
 
     fn background_list() -> DisplayList {
         DisplayList {
+            lamps: Vec::new(),
             items: vec![item(
                 Role::Background,
                 Shape::Image {

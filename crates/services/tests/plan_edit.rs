@@ -5,8 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Field, Layer, LightKind, PlanEdit, Point, ServiceError, Session, Shape, Snapping, Source,
-    Visibility,
+    Field, Layer, PlanEdit, Point, ServiceError, Session, Shape, Snapping, Source, Visibility,
 };
 
 fn example() -> PathBuf {
@@ -425,7 +424,7 @@ fn a_new_light_has_the_defaults_of_its_kind() {
     let mut s = open();
 
     s.edit_plan(PlanEdit::AddLight {
-        kind: LightKind::Fresnel,
+        preset: "fresnel-650".into(),
         at: p(2.0, 2.0),
     })
     .unwrap();
@@ -817,7 +816,7 @@ fn edits_survive_saving_and_loading() {
     })
     .unwrap();
     s.edit_plan(PlanEdit::AddLight {
-        kind: LightKind::Tube,
+        preset: "tube".into(),
         at: p(3.0, 3.0),
     })
     .unwrap();
