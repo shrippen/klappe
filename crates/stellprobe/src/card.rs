@@ -13,6 +13,10 @@ const CHAR_WIDTH_M: f64 = 0.1;
 const CHARS_PER_LINE: usize = ((CARD_WIDTH_M - 2.0 * CARD_PAD_M) / CHAR_WIDTH_M + 0.5) as usize;
 /// Height of one line of text.
 const LINE_HEIGHT_M: f64 = 0.2;
+/// Line pitch as a multiple of the font size: the canvas and the export both use it.
+const LINE_SPACING: f64 = 1.25;
+/// Font size of a note's text, in metres: the text scales with the plan, like its card.
+pub const NOTE_TEXT_M: f64 = LINE_HEIGHT_M / LINE_SPACING;
 
 /// The corners of the card with top left `at`, and its text, lines joined by `\n`.
 pub(crate) fn note_card(at: Point, text: &str) -> (Vec<Point>, String) {

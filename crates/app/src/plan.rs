@@ -3,7 +3,9 @@
 
 use std::path::Path;
 
-use klappe_services::{look, Area, Dash, DisplayList, Hue, Item, Point, Role, Shape, Source};
+use klappe_services::{
+    look, Area, Dash, DisplayList, Hue, Item, Point, Role, Shape, Source, NOTE_TEXT_M,
+};
 use serde_json::{json, Value};
 
 use crate::fileurl;
@@ -211,6 +213,7 @@ fn shape(dir: &Path, item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<
         "fill": look.fill,
         "text": item.label.clone().unwrap_or_default(),
         "textAnchor": if item.role == Role::Note { "topLeft" } else { "center" },
+        "captionSize": if item.role == Role::Note { NOTE_TEXT_M } else { 0.0 },
         "key": item.source.as_ref().map(key).unwrap_or_default(),
         "selected": item.source.as_ref().is_some_and(selected),
     }))
@@ -473,6 +476,7 @@ mod tests {
         assert_eq!(v["shapes"][0]["key"], "note:n1");
         assert_eq!(v["shapes"][0]["kind"], "polygon");
         assert_eq!(v["shapes"][0]["textAnchor"], "topLeft");
+        assert_eq!(v["shapes"][0]["captionSize"], NOTE_TEXT_M);
         assert_eq!(v["shapes"][0]["fill"], "tint");
     }
 

@@ -111,11 +111,7 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
 
     let mut plan = Vec::new();
     for item in &list.items {
-        match (&item.shape, item.role) {
-            (Shape::Image { .. }, _) => image_prim(item, &map, &page.images, &mut plan)?,
-            (_, Role::Note) => note::prims(item, &map, pal, body_radius_m(list, item), &mut plan)?,
-            _ => item_prims(item, &map, pal, body_radius_m(list, item), &mut plan)?,
-        }
+        plan_prims(item, list, &map, page, pal, &mut plan)?;
     }
 
     let footer_y = area.y + area.h + GAP_PT;
@@ -239,6 +235,24 @@ fn body_radius_m(list: &DisplayList, item: &Item) -> f64 {
             _ => None,
         })
         .unwrap_or(FIGURE_RADIUS_M)
+}
+
+/// The prims of one item of the plan: an image, a note with its text, or any other item.
+fn plan_prims(
+    item: &Item,
+    list: &DisplayList,
+    map: &Map,
+    page: &Page,
+    pal: &Palette,
+    out: &mut Vec<Prim>,
+) -> Result<(), ExportError> {
+    let body_m = body_radius_m(list, item);
+
+    match (&item.shape, item.role) {
+        (Shape::Image { .. }, _) => image_prim(item, map, &page.images, out),
+        (_, Role::Note) => note::prims(item, map, pal, body_m, out),
+        _ => item_prims(item, map, pal, body_m, out),
+    }
 }
 
 fn item_prims(

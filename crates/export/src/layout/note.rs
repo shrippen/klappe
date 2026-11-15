@@ -1,14 +1,16 @@
 //! A note on paper (LH-16): its card, then its lines of text from the card's top left corner.
 //! Stellprobe wrapped the text, one line per `\n`; the lines are the same on screen.
 
-use super::{item_prims, Map, LABEL_GAP_PT, LABEL_PT};
+use super::{item_prims, Map, BASELINE_SHIFT};
 use crate::canvas::{Anchor, Prim, Weight};
 use crate::error::ExportError;
 use crate::palette::Palette;
-use klappe_stellprobe::{Item, Shape};
+use klappe_stellprobe::{Item, Shape, NOTE_TEXT_M};
 
 /// Line pitch as a multiple of the font size, as on screen.
 const LINE_SPACING: f64 = 1.25;
+/// Margin between card and text, as a multiple of the font size, as on screen.
+const TEXT_GAP_EM: f64 = 0.3;
 
 /// The prims of the note `item`: its card, then its lines inside the card.
 pub(super) fn prims(
@@ -34,15 +36,18 @@ pub(super) fn prims(
     };
     let text = item.label.as_deref().unwrap_or_default();
 
+    // The text is sized in metres like the card, so it fits at every scale.
+    let size_pt = NOTE_TEXT_M * map.scale;
+    let gap_pt = TEXT_GAP_EM * size_pt;
+
     for (i, line) in text.lines().enumerate() {
+        // The middle of the line, as on screen, then down to its baseline.
+        let middle = corner.1 + gap_pt + size_pt * (0.5 + LINE_SPACING * i as f64);
         out.push(Prim::Text {
             class: "label".into(),
             anchor: Anchor::Start,
-            at: (
-                corner.0 + LABEL_GAP_PT,
-                corner.1 + LABEL_GAP_PT + LABEL_PT * (1.0 + LINE_SPACING * i as f64),
-            ),
-            size_pt: LABEL_PT,
+            at: (corner.0 + gap_pt, middle + size_pt * BASELINE_SHIFT),
+            size_pt,
             weight: Weight::Regular,
             rgb: pal.foreground,
             text: line.to_owned(),
