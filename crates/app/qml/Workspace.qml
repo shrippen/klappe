@@ -60,6 +60,9 @@ Item {
     property alias shotWidth: store.shotWidth
     property alias scriptFolded: store.scriptFolded
     property alias shotFolded: store.shotFolded
+    /// The shot list's view and order, remembered (D-05).
+    property alias shotView: store.shotView
+    property alias shotOrder: store.shotOrder
 
     /// The View menu's toggle for `name` ("script" or "shot"): what each step does with it.
     function setArea(name, shown) {
@@ -102,6 +105,10 @@ Item {
             texts: work.texts
             controller: work.controller
             shot: work.shot
+            view: work.shotView
+            order: work.shotOrder
+            onViewPicked: v => work.shotView = v
+            onOrderPicked: o => work.shotOrder = o
         }
     }
 
@@ -311,5 +318,8 @@ Item {
         property real shotWidth: Kirigami.Units.gridUnit * 20
         property bool scriptFolded: false
         property bool shotFolded: false
+        // The shot list's view ("tiles", "table") and order ("cut", "shooting"), D-05.
+        property string shotView: "tiles"
+        property string shotOrder: "cut"
     }
 }

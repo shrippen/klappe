@@ -130,6 +130,8 @@ TestCase {
         work.shotWidth = work.paneDefault
         work.scriptFolded = false
         work.shotFolded = false
+        work.shotView = "tiles"
+        work.shotOrder = "cut"
         waitForRendering(work)
         return work
     }
@@ -470,6 +472,26 @@ TestCase {
 
         compare(next.scriptWidth, 444)
         compare(next.shotFolded, true)
+    }
+
+    // D-05: the shot list's view and order are kept like the widths.
+    function test_the_shot_view_and_order_stay_for_the_next_window() {
+        const work = make(1600)
+        const panel = part(work, "shotSlot").item
+        compare(work.shotView, "tiles")
+
+        panel.viewPicked("table")
+        panel.orderPicked("shooting")
+        compare(panel.view, "table")
+        compare(panel.order, "shooting")
+        wait(50)
+        win.destroy()
+        wait(50)
+
+        const next = createTemporaryObject(windowComponent, tc, { width: 1600, height: 800 }).workspace
+
+        compare(next.shotView, "table")
+        compare(next.shotOrder, "shooting")
     }
 
     function test_a_script_chip_reaches_the_controller() {
