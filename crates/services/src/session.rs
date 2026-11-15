@@ -8,6 +8,7 @@ use klappe_store::ImageStamp;
 
 use crate::error::{write_failed, ServiceError};
 use crate::plan_edit::Snapping;
+use undo::Snapshot;
 
 mod export;
 mod file;
@@ -19,6 +20,7 @@ mod scene;
 mod shots;
 mod timeline;
 mod undo;
+mod uses;
 mod views;
 
 /// Groups of the plan the timeline's layer switches show or hide.
@@ -137,8 +139,8 @@ pub struct Session {
     locked_layers: HashSet<Layer>,
     hidden_tracks: HashSet<String>,
     snapping: Snapping,
-    undo: Vec<Project>,
-    redo: Vec<Project>,
+    undo: Vec<Snapshot>,
+    redo: Vec<Snapshot>,
     dirty: bool,
     /// Pixel size of the image files read so far: every redraw asks, the file header is read
     /// once. `bilder/` is the user's, so a file may change under its name: an entry counts
