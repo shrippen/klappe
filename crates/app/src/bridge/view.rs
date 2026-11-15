@@ -293,6 +293,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "movement": movements,
         "layer": layers,
         "grid": grids,
+        "axis": s.axis_choice(),
     })
     .to_string()
 }

@@ -213,6 +213,8 @@
  "shot.deleteAsk": "Shot {number} löschen? Verknüpfungen zum Drehbuch gehen mit.",
  "field.number": "Nummer",
  "field.follows": "Folgt",
+ "field.axis": "Achse",
+ "axis.auto": "Erste zwei Figuren",
  "follows.none": "keine",
  "field.camera": "Kamera",
  "field.size": "Größe",

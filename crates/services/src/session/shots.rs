@@ -1,4 +1,4 @@
-use klappe_model::{Camera, FloorPlan, Movement, Shot};
+use klappe_model::{AxisPair, Camera, FloorPlan, Movement, Shot};
 use klappe_stellprobe::{axis_jumps, movement_in, ordered_shots, shot_lens, AxisJump, ShotOrder};
 
 use super::{Layer, Lock, Session};
@@ -162,6 +162,41 @@ impl Session {
         if self.selected_shot.as_deref() == Some(id) {
             self.selected_shot = neighbour;
         }
+        Ok(())
+    }
+
+    /// Sets the characters the 180° axis of the plan runs between (LH-40), or takes the
+    /// choice away with `None`; undoable. Both need a track in the plan, and they differ.
+    /// Refused while the figure layer is locked, which holds the axis.
+    pub fn set_axis(&mut self, pair: Option<(&str, &str)>) -> Result<(), ServiceError> {
+        if self.lock(Layer::Figures) == Lock::Locked {
+            return Err(ServiceError::Locked(Layer::Figures));
+        }
+
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+        plan.axis = match pair {
+            None => None,
+            Some((a, b)) => {
+                let known = |id: &str| plan.figure(id).is_some();
+                if a == b || !known(a) || !known(b) {
+                    return Err(ServiceError::BadValue {
+                        field: Field::Character,
+                        value: format!("{a}, {b}"),
+                    });
+                }
+
+                Some(AxisPair {
+                    a: a.to_owned(),
+                    b: b.to_owned(),
+                })
+            }
+        };
+        if next == self.project {
+            return Ok(());
+        }
+
+        self.commit(next);
         Ok(())
     }
 

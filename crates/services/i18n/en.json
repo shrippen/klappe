@@ -213,6 +213,8 @@
  "shot.deleteAsk": "Delete shot {number}? Links to the script go with it.",
  "field.number": "Number",
  "field.follows": "Follows",
+ "field.axis": "Axis",
+ "axis.auto": "First two figures",
  "follows.none": "none",
  "field.camera": "Camera",
  "field.size": "Size",

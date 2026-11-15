@@ -20,9 +20,10 @@ TestCase {
             { kind: "figure", id: "elisabeth", name: "Elisabeth" },
             { kind: "figure", id: "burgvogt", name: "Burgvogt" }
         ])
-        property string choicesJson: JSON.stringify({ movement: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"] })
+        property string choicesJson: JSON.stringify({ movement: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"], axis: { a: "elisabeth", b: "burgvogt", own: false } })
         property var calls: []
         property var follows: []
+        property var axisCalls: []
         property bool accept: true
         property var shotCalls: []
         property bool loaded: true
@@ -37,6 +38,10 @@ TestCase {
         }
         function deleteShot(id) {
             shotCalls.push(["delete", id])
+            return accept
+        }
+        function setAxis(a, b) {
+            axisCalls.push([a, b])
             return accept
         }
         function setFollow(camera, figure) {
@@ -73,6 +78,7 @@ TestCase {
     function make(own, follows, hint) {
         fake.calls = []
         fake.follows = []
+        fake.axisCalls = []
         fake.shotCalls = []
         fake.accept = true
         const panel = createTemporaryObject(panelComponent, tc, { shot: Object.assign(row(own, follows), { movement_hint: hint || "" }) })
@@ -191,6 +197,50 @@ TestCase {
         box.activated(0)
 
         compare(fake.follows.length, 0)
+    }
+
+    // LH-40: the axis pair is chosen per end; the other end stays.
+    function test_the_axis_choosers_show_the_pair() {
+        const panel = make(null)
+
+        compare(field(panel, "axisBox_a").currentIndex, 0)
+        compare(field(panel, "axisBox_b").currentIndex, 1)
+    }
+
+    function test_choosing_an_axis_end_sends_the_pair() {
+        const panel = make(null)
+
+        field(panel, "axisBox_b").activated(0)
+
+        compare(fake.axisCalls, [["elisabeth", "elisabeth"]])
+    }
+
+    function test_the_axis_button_resets_only_a_chosen_pair() {
+        const panel = make(null)
+        const button = field(panel, "axisAuto")
+
+        verify(!button.enabled)
+
+        const choices = fake.choicesJson
+        fake.choicesJson = JSON.stringify({ axis: { a: "burgvogt", b: "elisabeth", own: true } })
+        verify(button.enabled)
+
+        button.clicked()
+
+        compare(fake.axisCalls, [["", ""]])
+
+        fake.choicesJson = choices
+    }
+
+    // LH-41: the warning chip names the shots on the other side.
+    function test_the_warning_names_the_other_shots() {
+        const panel = make(null)
+
+        panel.shot = Object.assign({}, panel.shot, { axis_jump: true, axis_against: "12.1, 12.2" })
+        const chip = findChild(panel, "axisChip")
+
+        verify(chip.visible)
+        compare(chip.toolTip, "Achsensprung gegen 12.1, 12.2")
     }
 
     // LH-33: a shot without a movement shows what the camera marks do, and a button takes it.

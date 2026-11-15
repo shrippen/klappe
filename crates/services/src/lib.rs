@@ -37,8 +37,8 @@ pub use session::{
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
-    CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow, Marker, Overview, PlanRow,
-    SceneRow, ScriptLine, Segment, ShotRow, Track, TrackKind,
+    AxisChoice, CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow, Marker, Overview,
+    PlanRow, SceneRow, ScriptLine, Segment, ShotRow, Track, TrackKind,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.

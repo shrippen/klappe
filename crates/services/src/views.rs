@@ -43,6 +43,16 @@ pub struct ShotRow {
     pub setup: usize,
 }
 
+/// The two characters the 180° axis runs between (LH-40).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AxisChoice {
+    /// Character ids.
+    pub a: String,
+    pub b: String,
+    /// Chosen for the plan; otherwise the first two figures.
+    pub own: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TrackKind {
