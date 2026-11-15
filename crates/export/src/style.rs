@@ -35,6 +35,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         Role::Background
         | Role::FigureHandle(_)
         | Role::CameraHandle
+        | Role::DrawingHandle
         | Role::Wall
         | Role::Object
         | Role::Camera
@@ -52,7 +53,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
 fn plain_class(role: Role) -> Option<&'static str> {
     match role {
         Role::Background => Some("background"),
-        Role::FigureHandle(_) | Role::CameraHandle => Some("handle"),
+        Role::FigureHandle(_) | Role::CameraHandle | Role::DrawingHandle => Some("handle"),
         Role::Wall => Some("wall"),
         Role::Object => Some("object"),
         Role::Camera => Some("camera"),
@@ -82,7 +83,7 @@ fn class_of(role: Role) -> String {
 /// `None` for what the export does not stroke.
 fn width_pt(role: Role) -> Option<f64> {
     match role {
-        Role::Background | Role::FigureHandle(_) | Role::CameraHandle => None,
+        Role::Background | Role::FigureHandle(_) | Role::CameraHandle | Role::DrawingHandle => None,
         Role::CameraPath { .. } | Role::FigurePath(_) => Some(PATH_PT),
         Role::Axis => Some(AXIS_PT),
         Role::Mark(_) => Some(MARK_PT),
@@ -114,6 +115,7 @@ fn tint_opacity(role: Role) -> f64 {
         | Role::Frustum
         | Role::Camera
         | Role::CameraHandle
+        | Role::DrawingHandle
         | Role::ArrowHead(_)
         | Role::FigurePath(_)
         | Role::FigureHandle(_)
@@ -214,6 +216,7 @@ mod tests {
             (Role::Background, "background".into(), (None, None)),
             (Role::FigureHandle(red), "handle".into(), (None, None)),
             (Role::CameraHandle, "handle".into(), (None, None)),
+            (Role::DrawingHandle, "handle".into(), (None, None)),
             (
                 Role::Wall,
                 "wall".into(),

@@ -328,11 +328,7 @@ pub(super) fn edit_note(scope: &mut Scope<'_>, id: &str, text: &str) -> Result<(
 
 /// A drawing needs something to draw: a stretch, a box with a width and a height, three
 /// points for an area.
-pub(super) fn add_drawing(
-    scope: &mut Scope<'_>,
-    shape: &DrawingShape,
-    (color, dash, fill): (FigureColor, Dash, Fill),
-) -> Result<(), ServiceError> {
+pub(super) fn check_drawable(shape: &DrawingShape) -> Result<(), ServiceError> {
     let drawable = match shape {
         DrawingShape::Line { from, to } | DrawingShape::Arrow { from, to } => from != to,
         DrawingShape::Rect { from, to } | DrawingShape::Ellipse { from, to } => {
@@ -340,12 +336,22 @@ pub(super) fn add_drawing(
         }
         DrawingShape::Area { points } => points.len() >= MIN_AREA_POINTS,
     };
-    if !drawable {
-        return Err(ServiceError::BadValue {
-            field: Field::Drawing,
-            value: "empty".to_owned(),
-        });
+    if drawable {
+        return Ok(());
     }
+
+    Err(ServiceError::BadValue {
+        field: Field::Drawing,
+        value: "empty".to_owned(),
+    })
+}
+
+pub(super) fn add_drawing(
+    scope: &mut Scope<'_>,
+    shape: &DrawingShape,
+    (color, dash, fill): (FigureColor, Dash, Fill),
+) -> Result<(), ServiceError> {
+    check_drawable(shape)?;
 
     let id = free_id("d", scope.plan.drawings.iter().map(|d| d.id.as_str()));
 

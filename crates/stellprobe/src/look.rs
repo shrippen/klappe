@@ -77,7 +77,7 @@ pub fn look(role: Role) -> Look {
         },
         Role::LightBeam => plain(ORANGE, Dash::Solid, Area::Tint),
         Role::Light => plain(ORANGE, Dash::Solid, Area::Solid),
-        Role::Note => plain(Hue::Accent, Dash::Solid, Area::Solid),
+        Role::Note | Role::DrawingHandle => plain(Hue::Accent, Dash::Solid, Area::Solid),
         Role::Axis => plain(ORANGE, Dash::Dashed, Area::None),
         Role::CameraPath { dash } => plain(YELLOW, dash, Area::None),
         Role::Frustum => plain(YELLOW, Dash::Solid, Area::Tint),
@@ -119,6 +119,7 @@ mod tests {
             Role::FigurePath(red),
             Role::FigureHandle(red),
             Role::CameraHandle,
+            Role::DrawingHandle,
             Role::Figure(red),
             Role::GroupDot,
         ];

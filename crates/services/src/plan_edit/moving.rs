@@ -1,8 +1,9 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
 use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Wall};
-use klappe_stellprobe::{bend_point, via_through, Source};
+use klappe_stellprobe::{bend_point, drawing_handle_places, via_through, Source};
 
+use super::drawings::drag_handle;
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
 
@@ -120,6 +121,16 @@ pub(super) fn target<'a>(
             .find(|d| d.id == *id)
             .map(Target::Drawing)
             .ok_or(ServiceError::Gone),
+        Source::DrawingPoint { drawing, index } => scope
+            .plan
+            .drawings
+            .iter_mut()
+            .find(|d| d.id == *drawing)
+            .map(|drawing| Target::Corner {
+                drawing,
+                index: *index,
+            })
+            .ok_or(ServiceError::Gone),
     }
 }
 
@@ -185,6 +196,7 @@ pub(super) fn move_to(
                 *p = Point::new(p.x_m + dx, p.y_m + dy);
             }
         }
+        Target::Corner { drawing, index } => drag_handle(drawing, index, to)?,
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
             let mid = middle(wall);
@@ -207,6 +219,12 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
         }
         Target::Wall(wall) => Ok((wall.from, middle(wall))),
         Target::Drawing(drawing) => anchors(drawing).ok_or(ServiceError::Gone),
+        Target::Corner { drawing, index } => {
+            let place = drawing_handle_places(drawing).get(index).copied();
+            let place = place.ok_or(ServiceError::Gone)?;
+
+            Ok((place, place))
+        }
     }
 }
 
@@ -244,7 +262,7 @@ pub(super) fn spin(
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
         Target::Drawing(drawing) => drawing.rotation_deg,
         // Nothing to turn.
-        Target::Pin { .. } | Target::Curve { .. } => return Ok(()),
+        Target::Pin { .. } | Target::Corner { .. } | Target::Curve { .. } => return Ok(()),
     };
 
     turn(scope, source, now_deg + by_deg)
@@ -261,7 +279,7 @@ pub(super) fn turn(
         Target::Place { facing_deg: f, .. } => *f = facing_deg,
         Target::Drawing(drawing) => drawing.rotation_deg = facing_deg,
         // Nothing to turn.
-        Target::Pin { .. } | Target::Curve { .. } => {}
+        Target::Pin { .. } | Target::Corner { .. } | Target::Curve { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.
             let mid = middle(wall);

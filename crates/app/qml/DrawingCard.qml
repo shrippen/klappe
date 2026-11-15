@@ -19,7 +19,7 @@ KanteCard {
         // The plan changes with every edit; the key alone would not tell the new style.
         card.controller.planJson
         const key = card.controller.selectedKey
-        if (!key || key.indexOf("drawing") !== 0) {
+        if (!key || key.indexOf("drawing:") !== 0) {
             return null
         }
         const d = JSON.parse(card.controller.describe(key))

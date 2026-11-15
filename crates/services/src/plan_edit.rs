@@ -386,7 +386,7 @@ fn layer_of_source(source: &Source) -> Layer {
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
         Source::Note(_) => Layer::Notes,
-        Source::Drawing(_) => Layer::Drawings,
+        Source::Drawing(_) | Source::DrawingPoint { .. } => Layer::Drawings,
     }
 }
 
@@ -416,6 +416,11 @@ enum Target<'a> {
     },
     /// Points and a turn about the middle of its box.
     Drawing(&'a mut Drawing),
+    /// A grip on a point or corner of a drawing: moving it reshapes the drawing.
+    Corner {
+        drawing: &'a mut Drawing,
+        index: usize,
+    },
     /// The bend of the way from mark `a` to mark `b`.
     Curve {
         via: &'a mut Option<Point>,

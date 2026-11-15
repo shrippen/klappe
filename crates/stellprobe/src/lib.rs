@@ -21,7 +21,9 @@ mod rig;
 mod setup;
 
 pub use axis::{axis_at, axis_jumps, Axis, Side};
-pub use display::{handles, render, DisplayList, Item, Role, Shape, Source, FIGURE_RADIUS_M};
+pub use display::{
+    drawing_handle_places, handles, render, DisplayList, Item, Role, Shape, Source, FIGURE_RADIUS_M,
+};
 pub use hit::{hit, within};
 pub use look::{look, Area, Hue, Look};
 pub use motion::{

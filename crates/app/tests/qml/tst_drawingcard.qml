@@ -65,7 +65,7 @@ TestCase {
         fake.selectedKey = "drawing:d1"
         verify(card.visible)
         fake.selectedKey = "drawingpoint:d1:0"
-        verify(card.visible)
+        verify(!card.visible)
     }
 
     function test_the_controls_show_the_style_of_the_drawing() {

@@ -306,7 +306,8 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
         Source::Figure(_)
         | Source::Mark { .. }
         | Source::FigureVia { .. }
-        | Source::CameraVia { .. } => return Ok(Copied::Left),
+        | Source::CameraVia { .. }
+        | Source::DrawingPoint { .. } => return Ok(Copied::Left),
     }
 
     Ok(Copied::Made)

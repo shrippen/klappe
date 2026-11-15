@@ -34,7 +34,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
         ElementKind::Object => s.object_hint(id),
         ElementKind::Note => Some(s.note_hint(id)),
         ElementKind::Drawing => s.drawing_hint(id),
-        ElementKind::Wall => None,
+        ElementKind::Wall | ElementKind::DrawingPoint => None,
     };
 
     // Without a plan nothing is described, a note included.
