@@ -134,7 +134,11 @@ fn the_legend_names_the_edge_of_an_area() {
 
     assert_eq!(
         &listed[6..],
-        ["Fläche rot", "Fläche gestrichelt rot", "Fläche gepunktet rot"],
+        [
+            "Fläche rot",
+            "Fläche gestrichelt rot",
+            "Fläche gepunktet rot"
+        ],
         "{listed:?}"
     );
 }
