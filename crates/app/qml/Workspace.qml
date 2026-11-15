@@ -64,6 +64,15 @@ Item {
     property alias shotView: store.shotView
     property alias shotOrder: store.shotOrder
 
+    /// Zooms the plan: "in", "out" or "fit".
+    function zoomPlan(how) {
+        plan.zoomBy(how)
+    }
+
+    function togglePlay() {
+        timeline.togglePlay()
+    }
+
     /// The View menu's toggle for `name` ("script" or "shot"): what each step does with it.
     function setArea(name, shown) {
         if (tier === Workspace.Tier.Wide) {
@@ -198,6 +207,7 @@ Item {
 
                     // The plan stays alive behind the other tabs: it keeps its view.
                     PlanArea {
+                        id: plan
                         objectName: "plan"
                         visible: work.tier !== Workspace.Tier.Narrow || work.area === "plan"
                         Layout.fillWidth: true
@@ -299,6 +309,7 @@ Item {
 
         Kirigami.Separator { Layout.fillWidth: true; visible: work.showTimeline }
         Timeline {
+            id: timeline
             objectName: "timeline"
             enabled: !work.locked
             opacity: enabled ? 1 : KanteStyle.dimOpacity

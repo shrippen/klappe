@@ -137,6 +137,31 @@ fn a_new_object_has_the_size_and_shape_of_its_library_entry() {
     assert!(car.label.is_empty());
 }
 
+/// LH-35: camera support is placed with its footprint: a track at gauge, a crane as the circle
+/// its arm sweeps.
+#[test]
+fn camera_support_is_placed_with_its_footprint() {
+    let mut s = open();
+
+    let track = place(&mut s, "track");
+    assert_eq!((track.width_m, track.depth_m), (4.0, 0.62));
+    assert_eq!(track.shape, ObjectShape::Rect);
+
+    let crane = place(&mut s, "crane");
+    assert_eq!((crane.width_m, crane.depth_m), (12.0, 12.0));
+    assert_eq!(crane.shape, ObjectShape::Ellipse);
+
+    let jib = place(&mut s, "jib");
+    assert_eq!((jib.width_m, jib.depth_m), (6.0, 6.0));
+
+    let dolly = place(&mut s, "dolly");
+    assert_eq!((dolly.width_m, dolly.depth_m), (1.2, 0.8));
+
+    let tripod = place(&mut s, "tripod");
+    assert_eq!((tripod.width_m, tripod.depth_m), (1.0, 1.0));
+    assert_eq!(tripod.shape, ObjectShape::Ellipse);
+}
+
 /// An old project may name a kind no library has; placing one still works.
 #[test]
 fn an_unknown_kind_is_a_one_metre_square() {
