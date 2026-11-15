@@ -97,8 +97,8 @@ Item {
         controller: area.controller
     }
 
-    // Shift at the press extends the selection (a click or a box adds to it, a click on a
-    // member takes it out). The canvas reports no modifiers; this handler lies above it, only
+    // Shift at the press extends the selection (a click, a box or a lasso adds to it, a click
+    // on a member takes it out); Ctrl makes the drag on empty ground a lasso. The canvas reports no modifiers; this handler lies above it, only
     // looks, and leaves the press to it.
     Item {
         anchors.fill: parent
@@ -107,6 +107,7 @@ Item {
             onActiveChanged: {
                 if (active) {
                     area.controller.extendSelection = (point.modifiers & Qt.ShiftModifier) !== 0
+                    area.controller.lassoSelection = (point.modifiers & Qt.ControlModifier) !== 0
                 }
             }
         }

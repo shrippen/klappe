@@ -7,8 +7,8 @@ use crate::camera;
 use crate::manage;
 use crate::notice::backup_view;
 use crate::plan;
-use crate::plan::Measure;
-use crate::selection::{Pick, Selection};
+use crate::plan::{Measure, Sweep};
+use crate::selection::{Pick, Reach, Selection};
 use crate::tools;
 use crate::tools::MEASURE_SEPARATOR;
 use crate::tools::{AreaDraft, Backdrop, MeasureStep, NoteDraft, Preview, ScaleStep};
@@ -59,6 +59,15 @@ impl ControllerRust {
         }
 
         Pick::Replace
+    }
+
+    /// What a drag on empty ground pulls up: Ctrl held draws a lasso.
+    pub(super) fn reach(&self) -> Reach {
+        if self.lasso_selection {
+            return Reach::Lasso;
+        }
+
+        Reach::Box
     }
 
     /// What the plan on screen is made of, to tell what an edit added.
@@ -163,7 +172,7 @@ impl ControllerRust {
                 s,
                 &s.display_list_for(self.selected.only()),
                 &self.selected,
-                (&self.picked(), self.marquee, measure.as_ref()),
+                (&self.picked(), self.marquee.as_ref(), measure.as_ref()),
             )),
             tracks_json: q(&to_json(&s.tracks())),
             shots_json: q(&to_json(&s.shots())),
@@ -232,7 +241,7 @@ pub(super) fn plan_json(
     s: &Session,
     list: &DisplayList,
     selected: &Selection,
-    (picked, marquee, measure): (&[Point], Option<(Point, Point)>, Option<&Measure>),
+    (picked, marquee, measure): (&[Point], Option<&Sweep>, Option<&Measure>),
 ) -> String {
     let camera = s
         .selected_shot()
@@ -538,6 +547,16 @@ mod tests {
         c.extend_selection = true;
 
         assert_eq!(c.pick_mode(), Pick::Extend);
+    }
+
+    #[test]
+    fn ctrl_makes_a_drag_on_empty_ground_a_lasso() {
+        let mut c = ControllerRust::default();
+        assert_eq!(c.reach(), Reach::Box);
+
+        c.lasso_selection = true;
+
+        assert_eq!(c.reach(), Reach::Lasso);
     }
 
     /// A measurement shows length and direction; one point alone shows nothing to read.

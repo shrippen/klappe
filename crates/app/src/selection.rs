@@ -32,6 +32,13 @@ pub enum Pick {
     Extend,
 }
 
+/// What a drag on empty ground pulls up: a box, or (Ctrl held) a freehand lasso (LH-08).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reach {
+    Box,
+    Lasso,
+}
+
 impl Selection {
     pub fn of(source: Option<Source>) -> Selection {
         Selection(source.into_iter().collect())

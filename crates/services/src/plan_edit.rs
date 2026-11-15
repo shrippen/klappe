@@ -4,7 +4,7 @@ use klappe_model::{
     Arrival, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
     LibraryItem, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
 };
-use klappe_stellprobe::{hit, within, Item, Role, Source};
+use klappe_stellprobe::{anchor, hit, in_lasso, within, Item, Role, Shape, Source};
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -309,6 +309,42 @@ pub(crate) fn pick_in(
     found
         .into_iter()
         .filter_map(|(source, all_in)| all_in.then_some(source))
+        .collect()
+}
+
+/// Every element the user can grab whose reference point lies in the freehand shape `lasso`
+/// (LH-08), in display order. The point is the centre of the element's circle (a figure's
+/// body), else of its first item. Items for which `locked` is true are left out.
+pub(crate) fn pick_lasso(
+    items: &[Item],
+    lasso: &[Point],
+    locked: impl Fn(Role) -> bool,
+) -> Vec<Source> {
+    let mut points: Vec<(Source, Option<Point>, bool)> = Vec::new();
+
+    for item in items
+        .iter()
+        .filter(|i| grabbable(i.role) && !locked(i.role))
+    {
+        let Some(source) = &item.source else {
+            continue;
+        };
+        let round = matches!(item.shape, Shape::Circle { .. });
+
+        match points.iter_mut().find(|(s, _, _)| s == source) {
+            Some((_, at, has_circle)) if round && !*has_circle => {
+                *at = anchor(item);
+                *has_circle = true;
+            }
+            Some(_) => {}
+            None => points.push((source.clone(), anchor(item), round)),
+        }
+    }
+
+    points
+        .into_iter()
+        .filter(|(_, at, _)| at.is_some_and(|at| in_lasso(lasso, at)))
+        .map(|(source, _, _)| source)
         .collect()
 }
 

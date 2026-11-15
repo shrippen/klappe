@@ -41,6 +41,8 @@ pub mod qobject {
         #[qproperty(i32, selected_count, cxx_name = "selectedCount")]
         /// Shift is held: a click or a box adds to the selection instead of replacing it.
         #[qproperty(bool, extend_selection, cxx_name = "extendSelection")]
+        /// Ctrl is held: a drag on empty ground draws a lasso instead of a box.
+        #[qproperty(bool, lasso_selection, cxx_name = "lassoSelection")]
         /// Whether points snap to the grid; change it with `setSnapping`.
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
         /// The grid spacing, a name of `choicesJson.grid`; change it with `setGrid`.
@@ -588,11 +590,12 @@ pub mod qobject {
 }
 
 use cxx_qt_lib::QString;
-use klappe_services::{Point, Session};
+use klappe_services::Session;
 
 use crate::args::AppArgs;
 use crate::catalog::Language;
 use crate::notice::{error_text, Status};
+use crate::plan::Sweep;
 use crate::selection::Selection;
 use crate::tools::{AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Tool};
 
@@ -638,13 +641,14 @@ pub struct ControllerRust {
     selected_key: QString,
     selected_count: i32,
     extend_selection: bool,
+    lasso_selection: bool,
     snapping_on: bool,
     grid_name: QString,
     choices_json: QString,
     /// What the select tool has picked; the canvas frames it.
     selected: Selection,
-    /// The box a drag on empty ground is pulling up, in metres.
-    marquee: Option<(Point, Point)>,
+    /// The box or lasso a drag on empty ground is pulling up, in metres.
+    marquee: Option<Sweep>,
     tool: Tool,
     scale: ScaleStep,
     /// The measurement of the measuring tool: a tool state of the session, not the plan's.
@@ -733,6 +737,7 @@ impl Default for ControllerRust {
             selected_key: QString::default(),
             selected_count: 0,
             extend_selection: false,
+            lasso_selection: false,
             snapping_on: true,
             grid_name: QString::default(),
             choices_json: QString::default(),
