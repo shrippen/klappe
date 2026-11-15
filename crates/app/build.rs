@@ -10,6 +10,8 @@ const PAGES: &[&str] = &[
     "qml/ShotPanel.qml",
     "qml/CameraView.qml",
     "qml/CameraSurface.qml",
+    "qml/ViewPalette.qml",
+    "qml/FreeView.qml",
     "qml/ShotTiles.qml",
     "qml/ShotTable.qml",
     "qml/PlanArea.qml",

@@ -33,6 +33,8 @@ Item {
     /// Escape aborted the drag in progress; the canvas goes on reporting until release.
     property bool dragAborted: false
     property point tipAt: Qt.point(0, 0)
+    /// The 3D view shows instead of the plan (J).
+    readonly property bool free: controller.viewFree === true
 
     KanteEmptyState {
         anchors.centerIn: parent
@@ -46,7 +48,7 @@ Item {
         id: canvas
         objectName: "planCanvas"
         anchors.fill: parent
-        visible: area.plan !== null
+        visible: area.plan !== null && !area.free
         contentWidth: area.plan ? area.plan.width : 1
         contentHeight: area.plan ? area.plan.depth : 1
         gridStep: area.drawnGridM
@@ -85,9 +87,24 @@ Item {
         }
     }
 
+    // The free 3D view (LH-94) fills the plan's place; its clicks and drags go through the same
+    // controller as the plan's.
+    FreeView {
+        id: freeView
+        objectName: "freeView"
+        anchors.fill: parent
+        visible: area.free && area.plan !== null
+        texts: area.texts
+        controller: area.controller
+    }
+
     /// Zooms about the middle of the view: "in", "out" or "fit" (the whole plan).
     readonly property real zoomStep: 1.25
     function zoomBy(how) {
+        if (area.free) {
+            freeView.zoomBy(how)
+            return
+        }
         switch (how) {
         case "in": canvas.zoom *= zoomStep; break
         case "out": canvas.zoom /= zoomStep; break
@@ -230,6 +247,8 @@ Item {
         texts: area.texts
         controller: area.controller
         canvas: canvas
+        free: freeView.visible
+        freeAt: freeView.clickAt
         pointer: pointerSpy.point.position
         pointerOver: pointerSpy.hovered
     }

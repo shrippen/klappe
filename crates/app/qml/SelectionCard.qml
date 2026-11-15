@@ -18,6 +18,10 @@ KantePopover {
     /// The mouse pointer in the canvas's pixels, when it is over it.
     property point pointer: Qt.point(0, 0)
     property bool pointerOver: false
+    /// The 3D view shows: the card opens beside `freeAt` (the click, in the canvas's pixels),
+    /// not beside the element's shape, which the plan alone has.
+    property bool free: false
+    property point freeAt: Qt.point(0, 0)
 
     readonly property string key: controller.selectedKey
     readonly property bool wanted: objectSection.shown || openingSection.shown
@@ -35,6 +39,8 @@ KantePopover {
     closePolicy: QQC2.Popup.NoAutoClose
 
     onKeyChanged: place()
+    onFreeChanged: place()
+    onFreeAtChanged: place()
     onWantedChanged: place()
     onImplicitWidthChanged: place()
     onImplicitHeightChanged: place()
@@ -144,8 +150,12 @@ KantePopover {
     function placeOnce() {
         // A hidden plan (another tab of the narrow step) takes the card with it: a popup would
         // stay in the overlay.
-        if (!card.wanted || card.canvas.width <= 0 || !card.canvas.visible) {
+        if (!card.wanted || card.canvas.width <= 0 || (!card.canvas.visible && !card.free)) {
             card.close()
+            return
+        }
+        if (card.free) {
+            card.openAtPoint(card.freeAt.x, card.freeAt.y, card.canvas)
             return
         }
         const shape = card.shapeOf(card.canvas.shapes)

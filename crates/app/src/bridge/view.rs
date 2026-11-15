@@ -155,6 +155,7 @@ impl ControllerRust {
         self.area_points = v.area_points;
         self.asks_note = v.asks_note;
         self.measuring = v.measuring;
+        self.view_free = v.view_free;
         self.choices_json = v.choices_json;
         self.project_json = v.project_json;
         self.scene_id = v.scene_id;
@@ -194,6 +195,7 @@ impl ControllerRust {
             area_points: i32::try_from(self.area.points().len()).unwrap_or_default(),
             asks_note: self.note != NoteDraft::Idle,
             measuring: self.measure != MeasureStep::Idle,
+            view_free: s.view() == klappe_services::View::Free,
             choices_json: q(&choices_json(s)),
             grid_name: q(s.grid().name()),
             project_json: q(&manage::project_json(s)),
@@ -227,6 +229,7 @@ struct Shown {
     area_points: i32,
     asks_note: bool,
     measuring: bool,
+    view_free: bool,
     choices_json: QString,
     grid_name: QString,
     project_json: QString,
@@ -428,6 +431,7 @@ impl qobject::Controller {
         self.as_mut().set_area_points(v.area_points);
         self.as_mut().set_asks_note(v.asks_note);
         self.as_mut().set_measuring(v.measuring);
+        self.as_mut().set_view_free(v.view_free);
 
         // The picture follows anything the session did.
         let revision = self.picture_revision().wrapping_add(1);

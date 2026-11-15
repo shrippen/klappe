@@ -23,6 +23,7 @@ TestCase {
         property bool canUndo: true
         property bool canRedo: true
         property bool hasBackground: false
+        property bool viewFree: false
         property var calls: []
         property var scenes: [
             { id: "s12", number: "12", heading: "INT. SÄNGERSAAL – TAG" },
@@ -49,6 +50,7 @@ TestCase {
         function selectPlan(id) { return call("selectPlan", [id]) }
         function clearStatus() {}
         function stepMark(direction) { call("stepMark", [direction]) }
+        function toggleView() { call("toggleView", []); viewFree = !viewFree }
     }
 
     QtObject {
@@ -96,6 +98,7 @@ TestCase {
         fake.canUndo = true
         fake.canRedo = true
         fake.hasBackground = false
+        fake.viewFree = false
         fake.calls = []
         fake.plan = "plan-a"
         fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan })
@@ -550,6 +553,36 @@ TestCase {
         compare(keys("playback.toggle"), "Space / K")
     }
 
+    // LH-94: J, the View menu's entry and the palette's all switch between plan and 3D.
+    function test_j_switches_to_3d_and_back() {
+        const header = make()
+        const free = findChild(header, "viewMenu")
+        verify(!entry(header, "viewMenu", "free").checked)
+
+        keyClick(Qt.Key_J)
+        compare(fake.calls, [["toggleView"]])
+        verify(entry(header, "viewMenu", "free").checked)
+
+        pick(header, "viewMenu", "free")
+        compare(fake.calls, [["toggleView"], ["toggleView"]])
+        verify(!entry(header, "viewMenu", "free").checked)
+    }
+
+    function test_the_palette_lists_the_3d_view_with_its_key() {
+        const header = make()
+
+        const free = header.commandPalette.commands.find(c => c.id === "view.free")
+        compare(free.text, "3D-Ansicht")
+        compare(free.keys, "J")
+        compare(free.group, "Ansicht")
+
+        header.run("view.free")
+        compare(fake.calls, [["toggleView"]])
+
+        header.texts = en
+        compare(header.commandPalette.commands.find(c => c.id === "view.free").text, "3D view")
+    }
+
     function test_the_view_menu_zooms() {
         const header = make()
 
@@ -561,7 +594,7 @@ TestCase {
     }
 
     function test_the_texts_are_in_both_languages() {
-        for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewOrder",
+        for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewMode", "view.free", "menu.viewOrder",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
                            "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",

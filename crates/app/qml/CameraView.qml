@@ -28,26 +28,13 @@ Item {
     // The frame never takes more than this share of the width as height.
     readonly property real maxHeightShare: 0.6
     // Kante's colours as the theme has them now, for the controller to colour the roles.
-    readonly property string paletteJson: JSON.stringify(palette())
+    readonly property string paletteJson: colors.json
 
     implicitHeight: frame
                     ? Math.min(width * aspect, width * maxHeightShare)
                     : hint.implicitHeight + 2 * Kirigami.Units.largeSpacing
 
-    function rgb(c) {
-        return [Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255)]
-    }
-
-    function palette() {
-        const colors = { ground: rgb(KanteStyle.backgroundColor),
-                         text: rgb(KanteStyle.textColor),
-                         muted: rgb(KanteStyle.mutedTextColor),
-                         accent: rgb(KanteStyle.accentColor) }
-        for (const name of KanteStyle.labels) {
-            colors[name] = rgb(KanteStyle.labelColor(name))
-        }
-        return colors
-    }
+    ViewPalette { id: colors }
 
     // Asks the controller for the picture at the device pixels of the item's width.
     function refresh() {

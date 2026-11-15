@@ -58,8 +58,8 @@ pub struct Orbit {
     pub fov_deg: f64,
 }
 
-/// Pitch of a new view: from above at an angle, as one looks onto a model.
-const START_PITCH_DEG: f64 = 35.0;
+/// Pitch of a new view: steep enough to see into a room over its walls.
+const START_PITCH_DEG: f64 = 55.0;
 /// Yaw of a new view: from the plan's bottom left (the audience) towards its top right.
 const START_YAW_DEG: f64 = -45.0;
 const START_FOV_DEG: f64 = 50.0;
