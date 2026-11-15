@@ -343,6 +343,16 @@ Item {
         width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
     }
 
+    // A drawing is selected (LH-19): colour, line and fill.
+    DrawingCard {
+        objectName: "drawingCard"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+        texts: area.texts
+        controller: area.controller
+    }
+
     // A mark is selected (LH-22, LH-63): pose, pause and pace.
     MarkCard {
         objectName: "markCard"

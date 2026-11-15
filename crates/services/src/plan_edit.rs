@@ -14,6 +14,7 @@ use crate::session::Layer;
 mod add;
 mod background;
 mod check;
+mod drawings;
 mod grid;
 mod group;
 mod marks;
@@ -26,6 +27,7 @@ use add::{
 };
 use background::{calibrate, move_background, remove_background, set_background};
 use check::check;
+use drawings::set_drawing_style;
 pub(crate) use grid::snap;
 pub use grid::Grid;
 pub(crate) use marks::{check_tripods, mark_info};
@@ -147,6 +149,14 @@ pub enum PlanEdit {
     /// shapes with an inside.
     AddDrawing {
         shape: DrawingShape,
+        color: FigureColor,
+        dash: Dash,
+        fill: Fill,
+    },
+    /// Gives the drawing `source` another colour, line and fill (LH-19). `fill` only matters
+    /// for shapes with an inside.
+    SetDrawingStyle {
+        source: Source,
         color: FigureColor,
         dash: Dash,
         fill: Fill,
@@ -337,6 +347,7 @@ impl PlanEdit {
             | PlanEdit::SetMarkLens { source, .. }
             | PlanEdit::SetObjectHeight { source, .. }
             | PlanEdit::SetPace { source, .. }
+            | PlanEdit::SetDrawingStyle { source, .. }
             | PlanEdit::Remove { source }
             | PlanEdit::Straighten { source } => layer_of_source(source),
             PlanEdit::ShiftGroup { sources, .. }
@@ -502,6 +513,12 @@ pub(crate) fn apply(
             dash,
             fill,
         } => add_drawing(&mut scope, shape, (*color, *dash, *fill)),
+        PlanEdit::SetDrawingStyle {
+            source,
+            color,
+            dash,
+            fill,
+        } => set_drawing_style(&mut scope, source, (*color, *dash, *fill)),
         PlanEdit::EditNote { id, text } => edit_note(&mut scope, id, text),
         PlanEdit::SetBackground { source } => set_background(&mut scope, dir, source),
         PlanEdit::Calibrate {

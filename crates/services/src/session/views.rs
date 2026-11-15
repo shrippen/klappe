@@ -1,7 +1,7 @@
 //! What the session tells the surfaces about the project and the plan on view, ready to show:
 //! the project lists, the tooltips and the set of the current scene.
 
-use klappe_model::{CameraPresets, Location};
+use klappe_model::{CameraPresets, DrawingShape, Location};
 use klappe_stellprobe::{aim_at, horizontal_fov_deg, Source};
 
 use super::Session;
@@ -164,6 +164,21 @@ impl Session {
             width_m: o.width_m,
             depth_m: o.depth_m,
             height_m: o.height_m,
+        })
+    }
+
+    /// What the style card of drawing `id` shows; `None` without such a drawing.
+    pub fn drawing_hint(&self, id: &str) -> Option<Hint> {
+        let d = self.plan()?.drawings.iter().find(|d| d.id == id)?;
+
+        Some(Hint::Drawing {
+            color: d.color,
+            dash: d.dash,
+            fill: d.fill,
+            closed: !matches!(
+                d.shape,
+                DrawingShape::Line { .. } | DrawingShape::Arrow { .. }
+            ),
         })
     }
 

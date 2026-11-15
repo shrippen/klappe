@@ -236,6 +236,98 @@ fn turning_a_drawing_does_nothing() {
     assert!(!s.can_undo());
 }
 
+fn restyle(source: Source) -> PlanEdit {
+    PlanEdit::SetDrawingStyle {
+        source,
+        color: FigureColor::Green,
+        dash: Dash::Dashed,
+        fill: Fill::Filled,
+    }
+}
+
+#[test]
+fn a_drawing_changes_its_style_and_undoes() {
+    let mut s = open();
+
+    s.edit_plan(restyle(drawing("d1"))).unwrap();
+
+    let d = &s.plan().unwrap().drawings[0];
+    assert_eq!(
+        (d.color, d.dash, d.fill),
+        (FigureColor::Green, Dash::Dashed, Fill::Filled)
+    );
+    assert_eq!(
+        d.shape,
+        DrawingShape::Arrow {
+            from: p(6.0, 10.0),
+            to: p(6.0, 7.5)
+        }
+    );
+    assert!(s.is_dirty());
+    let role = Role::Drawing {
+        color: FigureColor::Green,
+        dash: Dash::Dashed,
+        fill: Fill::Filled,
+    };
+    assert!(s.display_list().items.iter().any(|i| i.role == role));
+
+    s.undo();
+
+    let d = &s.plan().unwrap().drawings[0];
+    assert_eq!(
+        (d.color, d.dash, d.fill),
+        (FigureColor::Red, Dash::Solid, Fill::Outline)
+    );
+}
+
+#[test]
+fn only_a_known_drawing_changes_its_style() {
+    let mut s = open();
+
+    assert!(matches!(
+        s.edit_plan(restyle(drawing("d9"))),
+        Err(ServiceError::Gone)
+    ));
+    assert!(matches!(
+        s.edit_plan(restyle(Source::Wall(0))),
+        Err(ServiceError::BadValue {
+            field: Field::Source,
+            ..
+        })
+    ));
+    assert!(!s.is_dirty());
+}
+
+#[test]
+fn a_locked_drawings_layer_keeps_the_style() {
+    let mut s = open();
+    s.set_lock(Layer::Drawings, Lock::Locked);
+
+    let result = s.edit_plan(restyle(drawing("d1")));
+
+    assert!(matches!(result, Err(ServiceError::Locked(Layer::Drawings))));
+    assert!(!s.is_dirty());
+}
+
+#[test]
+fn a_drawing_hint_tells_style_and_whether_it_has_an_inside() {
+    let mut s = open();
+    s.edit_plan(add(rect(p(1.0, 1.0), p(3.0, 2.0)), Fill::Filled))
+        .unwrap();
+
+    let line = serde_json::to_value(s.drawing_hint("d1").unwrap()).unwrap();
+    let boxed = serde_json::to_value(s.drawing_hint("d2").unwrap()).unwrap();
+
+    assert_eq!(line["kind"], "drawing");
+    assert_eq!(line["closed"], false);
+    assert_eq!(boxed["closed"], true);
+    assert_eq!(
+        (boxed["color"].as_str(), boxed["fill"].as_str()),
+        (Some("cyan"), Some("filled"))
+    );
+    assert!(s.drawing_hint("d9").is_none());
+}
+
 /// The shaft is hairline: 0.15 m beside it still hits, 0.4 m does not.
 #[test]
 fn pick_finds_a_line_by_its_stroke() {

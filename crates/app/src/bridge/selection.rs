@@ -1,9 +1,11 @@
 //! Actions on the selected elements: remove, duplicate, turn, resize.
 
 use super::qobject;
+use crate::drawing;
 use crate::object;
 use crate::selection;
 use crate::selection::{Key, Selection};
+use crate::tools::DrawStyle;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
@@ -66,5 +68,24 @@ impl qobject::Controller {
         let typed = object::object_height_edit(selected, &height.to_string());
 
         self.commit_typed(typed)
+    }
+}
+
+impl qobject::Controller {
+    pub(super) fn set_drawing_style(
+        self: Pin<&mut Self>,
+        color: &QString,
+        dash: &QString,
+        fill: &QString,
+    ) -> bool {
+        let names = (color.to_string(), dash.to_string(), fill.to_string());
+        let Some(style) = DrawStyle::parse(&names.0, &names.1, &names.2) else {
+            return false;
+        };
+        let Some(edit) = drawing::style_edit(self.rust().selected.only(), style) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
     }
 }

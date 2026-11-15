@@ -33,7 +33,8 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
         ElementKind::Light => s.light_hint(id),
         ElementKind::Object => s.object_hint(id),
         ElementKind::Note => Some(s.note_hint(id)),
-        ElementKind::Wall | ElementKind::Drawing => None,
+        ElementKind::Drawing => s.drawing_hint(id),
+        ElementKind::Wall => None,
     };
 
     // Without a plan nothing is described, a note included.
@@ -103,6 +104,19 @@ mod tests {
         assert_eq!(described(Source::Wall(0)), json!({}));
         assert_eq!(described(Source::Drawing("d".into())), json!({}));
         assert_eq!(describe(&s, "nonsense:x"), json!({}));
+    }
+
+    /// The drawing card starts from the style the drawing has now (LH-19).
+    #[test]
+    fn describe_gives_the_style_of_a_drawing() {
+        let s = example();
+
+        let arrow = describe(&s, "drawing:d1");
+
+        assert_eq!(
+            arrow,
+            json!({ "kind": "drawing", "color": "red", "dash": "solid", "fill": "outline", "closed": false })
+        );
     }
 
     /// The size fields show what the selected object measures now.

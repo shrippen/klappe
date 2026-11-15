@@ -76,7 +76,8 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetArrival { .. }
         | PlanEdit::SetDeparture { .. }
         | PlanEdit::SetRig { .. }
-        | PlanEdit::SetPace { .. } => Ok(()),
+        | PlanEdit::SetPace { .. }
+        | PlanEdit::SetDrawingStyle { .. } => Ok(()),
     }
 }
 
