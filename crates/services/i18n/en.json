@@ -130,6 +130,8 @@
  "library.importedNone": "Nothing new: the project has these objects already",
  "library.exported": "{count} object(s) saved: {path}",
  "object.size": "Size of the object",
+ "card.more": "More …",
+ "card.less": "Less",
  "camera.body": "Camera body",
  "camera.bodyCustom": "Custom sensor",
  "camera.sensor": "Sensor width (mm)",
