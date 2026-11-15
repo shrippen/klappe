@@ -740,3 +740,6 @@ mod tests {
         assert_eq!(v["shapes"][0]["text"], "");
     }
 }
+
+#[cfg(test)]
+mod perf;
