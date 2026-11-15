@@ -17,6 +17,7 @@ mod pick;
 mod playback;
 mod scene;
 mod shots;
+mod templates;
 mod timeline;
 mod undo;
 mod views;

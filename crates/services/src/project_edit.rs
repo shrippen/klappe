@@ -4,12 +4,14 @@ use std::collections::HashSet;
 
 use klappe_model::{
     is_object_height_m, is_object_size_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
-    Project, Scene, SetPlan, MAX_GROUP, MIN_GROUP,
+    Point, Project, Scene, SetPlan, MAX_GROUP, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::library;
+
+pub(crate) mod templates;
 
 /// What the project view does. Ids are made from the name when something is added and never
 /// change after.
@@ -78,6 +80,20 @@ pub enum ProjectEdit {
     /// gets a kind of its own.
     ImportLibrary {
         items: Vec<LibraryItem>,
+    },
+    /// Puts the template `template` on the plan `plan` of the scene `scene`, its insertion
+    /// point at `at` (LH-07).
+    PlaceTemplate {
+        scene: String,
+        plan: String,
+        template: String,
+        at: Point,
+    },
+    /// Files the figures and cameras of the plan as a template of the project (LH-07).
+    SaveTemplate {
+        scene: String,
+        plan: String,
+        name: String,
     },
 }
 
@@ -148,6 +164,9 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             name,
         } => library_from_object(project, location, object, name),
         ProjectEdit::ImportLibrary { items } => import_library(project, items),
+        ProjectEdit::PlaceTemplate { .. } | ProjectEdit::SaveTemplate { .. } => {
+            templates::apply(project, edit)
+        }
     }
 }
 

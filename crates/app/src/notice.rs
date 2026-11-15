@@ -18,6 +18,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         ServiceError::NotEmpty(path) => ("error.notEmpty", path.to_string_lossy().into_owned()),
         ServiceError::NoBackup => ("error.noBackup", String::new()),
         ServiceError::EmptyLibrary => ("error.emptyLibrary", String::new()),
+        ServiceError::EmptyTemplate => ("error.emptyTemplate", String::new()),
         ServiceError::CameraInUse { camera, shot } => {
             return language
                 .text("error.cameraInUse")
@@ -274,6 +275,7 @@ mod tests {
             ServiceError::NoFreeCamera,
             ServiceError::NoCamera,
             ServiceError::NoBackup,
+            ServiceError::EmptyTemplate,
             ServiceError::Locked(Layer::Set),
             ServiceError::NoCharacter("c".to_owned()),
             ServiceError::NumberTaken("12".to_owned()),

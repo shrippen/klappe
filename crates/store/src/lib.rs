@@ -21,7 +21,7 @@ mod template;
 mod tree;
 
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use klappe_model::{Character, Location, Project, Scene, FORMAT_VERSION, MAX_GROUP, MIN_GROUP};
 use serde::{Deserialize, Serialize};
@@ -115,11 +115,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         false => Vec::new(),
     };
 
-    let templates_path = dir.join(TEMPLATES_FILE);
-    let templates = match files::exists(&templates_path)? {
-        true => template::load_templates(&templates_path)?,
-        false => Vec::new(),
-    };
+    let templates = template::load_templates(&dir.join(TEMPLATES_FILE))?;
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     let scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
@@ -163,21 +159,11 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     let path = dir.join(CHARACTERS_FILE);
     writes.push((path.clone(), files::encode_toml(&path, &characters)?));
 
-    let library_path = dir.join(LIBRARY_FILE);
-    if !project.library.is_empty() {
-        writes.push((
-            library_path.clone(),
-            library::encode(&library_path, &project.library)?,
-        ));
-    }
-
-    let templates_path = dir.join(TEMPLATES_FILE);
-    if !project.templates.is_empty() {
-        writes.push((
-            templates_path.clone(),
-            template::encode(&templates_path, &project.templates)?,
-        ));
-    }
+    let optional = optional_files(dir, project)?;
+    writes.extend(optional.iter().filter_map(|(path, bytes)| {
+        let bytes = bytes.clone()?;
+        Some((path.clone(), bytes))
+    }));
 
     let locations = Dir::new(dir.join(LOCATIONS_DIR), Kind::Toml);
     for location in &project.locations {
@@ -193,12 +179,9 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
         files::write_atomic(path, bytes)?;
     }
 
-    // No own objects left: the file goes, so the folder shows what the project holds.
-    if project.library.is_empty() {
-        files::remove_file(&library_path)?;
-    }
-    if project.templates.is_empty() {
-        files::remove_file(&templates_path)?;
+    // None left: the file goes, so the folder shows what the project holds.
+    for (path, _) in optional.iter().filter(|(_, bytes)| bytes.is_none()) {
+        files::remove_file(path)?;
     }
 
     let keep: HashSet<&str> = project.locations.iter().map(|l| l.id.as_str()).collect();
@@ -211,6 +194,26 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     }
 
     Ok(())
+}
+
+/// A file's path with its content, or `None` when there is to be no file.
+type OptionalFile = (PathBuf, Option<Vec<u8>>);
+
+/// The files that exist only while there are entries: own objects and own templates, each
+/// with its content, or `None` when there are none.
+fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, StoreError> {
+    let library_path = dir.join(LIBRARY_FILE);
+    let templates_path = dir.join(TEMPLATES_FILE);
+    let library = match project.library.is_empty() {
+        true => None,
+        false => Some(library::encode(&library_path, &project.library)?),
+    };
+    let templates = match project.templates.is_empty() {
+        true => None,
+        false => Some(template::encode(&templates_path, &project.templates)?),
+    };
+
+    Ok(vec![(library_path, library), (templates_path, templates)])
 }
 
 /// Writes `drehbuch.fountain` in `dir` atomically and nothing else.

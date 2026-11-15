@@ -1,6 +1,6 @@
 //! Plain data for the surfaces: what a row, a track or a script line shows.
 
-use klappe_model::{LibraryItem, ObjectShape};
+use klappe_model::{LibraryItem, ObjectShape, Template};
 use serde::Serialize;
 
 /// One row of the shot list (LH-71, LH-72).
@@ -138,6 +138,32 @@ impl LibraryEntry {
             depth_m: item.depth_m,
             shape: item.shape,
             height_m: item.height_m,
+            custom,
+        }
+    }
+}
+
+/// One template, as the template list offers it (LH-07).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TemplateEntry {
+    /// What `PlanEdit::ApplyTemplate` takes, e.g. `shot-reverse`.
+    pub id: String,
+    /// The name of an own template; empty for a built-in one, which the surface translates
+    /// (`template.<id>`).
+    pub label: String,
+    pub figures: usize,
+    pub cameras: usize,
+    /// A template of the project (`vorlagen.toml`) rather than a built-in one.
+    pub custom: bool,
+}
+
+impl TemplateEntry {
+    pub(crate) fn of(template: &Template, custom: bool) -> Self {
+        Self {
+            id: template.id.clone(),
+            label: template.label.clone(),
+            figures: template.figures.len(),
+            cameras: template.cameras.len(),
             custom,
         }
     }

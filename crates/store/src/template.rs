@@ -31,9 +31,13 @@ pub fn builtin_templates() -> &'static [Template] {
     })
 }
 
-/// Reads the project's `vorlagen.toml`. A file with a template that cannot be used is refused
-/// as a whole.
+/// Reads the project's `vorlagen.toml`; no file means no own templates. A file with a
+/// template that cannot be used is refused as a whole.
 pub(crate) fn load_templates(path: &Path) -> Result<Vec<Template>, StoreError> {
+    if !files::exists(path)? {
+        return Ok(Vec::new());
+    }
+
     let file: TemplateFile = files::read_toml(path)?;
     check_templates(&file.vorlage).map_err(|message| StoreError::Parse {
         path: path.to_path_buf(),
@@ -60,8 +64,7 @@ fn is_length(value: f64) -> bool {
     value.is_finite() && value > 0.0
 }
 
-/// Every template has an id of its own and something to place; figures have a slot of their
-/// own and marks; cameras have marks, a lens and a frame, and follow a slot of the template.
+/// Every template has an id of its own and something to place; figures and cameras are usable.
 fn check_templates(templates: &[Template]) -> Result<(), String> {
     for (index, template) in templates.iter().enumerate() {
         let id = &template.id;
@@ -75,26 +78,31 @@ fn check_templates(templates: &[Template]) -> Result<(), String> {
             return Err(format!("template {id:?} holds nothing"));
         }
 
-        for (at, figure) in template.figures.iter().enumerate() {
-            let twice = template.figures[..at].iter().any(|f| f.slot == figure.slot);
-            if figure.slot.trim().is_empty() || twice || figure.marks.is_empty() {
-                return Err(format!("template {id:?}: figure {} is not usable", at + 1));
-            }
-        }
+        check_parts(template).map_err(|part| format!("template {id:?}: {part}"))?;
+    }
 
-        for camera in &template.cameras {
-            let slot_known = |slot: &String| template.figures.iter().any(|f| f.slot == *slot);
-            let usable = !camera.marks.is_empty()
-                && is_length(camera.lens_mm)
-                && is_length(camera.aspect)
-                && is_length(camera.sensor.width_mm())
-                && camera.follows.as_ref().is_none_or(slot_known);
-            if !usable {
-                return Err(format!(
-                    "template {id:?}: camera {:?} is not usable",
-                    camera.label
-                ));
-            }
+    Ok(())
+}
+
+/// Figures have a slot of their own and marks; cameras have marks, a lens and a frame, and
+/// follow a slot of the template.
+fn check_parts(template: &Template) -> Result<(), String> {
+    for (at, figure) in template.figures.iter().enumerate() {
+        let twice = template.figures[..at].iter().any(|f| f.slot == figure.slot);
+        if figure.slot.trim().is_empty() || twice || figure.marks.is_empty() {
+            return Err(format!("figure {} is not usable", at + 1));
+        }
+    }
+
+    for camera in &template.cameras {
+        let slot_known = |slot: &String| template.figures.iter().any(|f| f.slot == *slot);
+        let usable = !camera.marks.is_empty()
+            && is_length(camera.lens_mm)
+            && is_length(camera.aspect)
+            && is_length(camera.sensor.width_mm())
+            && camera.follows.as_ref().is_none_or(slot_known);
+        if !usable {
+            return Err(format!("camera {:?} is not usable", camera.label));
         }
     }
 
