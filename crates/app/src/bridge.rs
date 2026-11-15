@@ -451,6 +451,24 @@ pub mod qobject {
         #[cxx_name = "clearStatus"]
         fn clear_status(self: Pin<&mut Self>);
 
+        /// Where a scene (`kind` `scene`: time of day, plans, shots, cast) or a character
+        /// (`character`: the scenes it plays in) occurs, as JSON (`null` for an unknown scene).
+        #[qinvokable]
+        #[cxx_name = "usesOf"]
+        fn uses_of(self: &Self, kind: &QString, id: &QString) -> QString;
+
+        /// What the new number and heading of scene `id` would change in the script text,
+        /// as JSON `[{ kind, from, to, count }]`; empty when the text stays.
+        #[qinvokable]
+        #[cxx_name = "sceneChanges"]
+        fn scene_changes(self: &Self, id: &QString, number: &QString, heading: &QString)
+            -> QString;
+
+        /// The same for the new name of character `id`.
+        #[qinvokable]
+        #[cxx_name = "characterChanges"]
+        fn character_changes(self: &Self, id: &QString, name: &QString) -> QString;
+
         /// The project view's changes. False when refused; the reason goes to `status`.
         #[qinvokable]
         #[cxx_name = "addScene"]

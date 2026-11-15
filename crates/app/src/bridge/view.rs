@@ -211,7 +211,7 @@ struct Shown {
     scene_id: QString,
 }
 
-fn to_json<T: serde::Serialize>(value: &T) -> String {
+pub(super) fn to_json<T: serde::Serialize>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_default()
 }
 
