@@ -17,7 +17,7 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Layer, LightKind, Lock,
-    Movement, Point, Pose, Rig, Session, Snapping, Source, Visibility,
+    Movement, Point, Pose, Rig, Session, ShotOrder, Snapping, Source, Visibility,
 };
 use serde_json::json;
 
@@ -129,6 +129,7 @@ impl ControllerRust {
         self.plan_json = v.plan_json;
         self.tracks_json = v.tracks_json;
         self.shots_json = v.shots_json;
+        self.shots_shooting_json = v.shots_shooting_json;
         self.script_json = v.script_json;
         self.layers_json = v.layers_json;
         self.locks_json = v.locks_json;
@@ -167,6 +168,7 @@ impl ControllerRust {
             )),
             tracks_json: q(&to_json(&s.tracks())),
             shots_json: q(&to_json(&s.shots())),
+            shots_shooting_json: q(&to_json(&s.shots_in(ShotOrder::Shooting))),
             script_json: q(&to_json(&s.script_lines())),
             layers_json: q(&layers_json(s)),
             locks_json: q(&locks_json(s)),
@@ -199,6 +201,7 @@ struct Shown {
     plan_json: QString,
     tracks_json: QString,
     shots_json: QString,
+    shots_shooting_json: QString,
     script_json: QString,
     layers_json: QString,
     locks_json: QString,
@@ -394,6 +397,7 @@ impl qobject::Controller {
         self.as_mut().set_plan_json(v.plan_json);
         self.as_mut().set_tracks_json(v.tracks_json);
         self.as_mut().set_shots_json(v.shots_json);
+        self.as_mut().set_shots_shooting_json(v.shots_shooting_json);
         self.as_mut().set_script_json(v.script_json);
         self.as_mut().set_layers_json(v.layers_json);
         self.as_mut().set_locks_json(v.locks_json);
@@ -612,6 +616,7 @@ mod tests {
             &c.plan_json,
             &c.tracks_json,
             &c.shots_json,
+            &c.shots_shooting_json,
             &c.script_json,
             &c.layers_json,
             &c.locks_json,

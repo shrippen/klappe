@@ -15,7 +15,7 @@ Item {
         "selectedShot", "canUndo", "canRedo", "dirty", "selectedKey", "selectedCount",
         "snappingOn", "gridName", "hasBackground", "scalePoints", "measuring", "areaPoints", "asksNote",
         "backupState", "backupMessage", "sceneId", "status"]
-    readonly property var texts: ["planJson", "tracksJson", "shotsJson", "scriptJson",
+    readonly property var texts: ["planJson", "tracksJson", "shotsJson", "shotsShootingJson", "scriptJson",
         "layersJson", "locksJson", "choicesJson", "projectJson"]
     property var counts: ({})
 
@@ -87,7 +87,7 @@ Item {
             }
             if (!root.check("open", root.opened, {
                 loaded: 1, projectJson: 1, sceneId: 1, title: 1, planTitle: 1, duration: 1,
-                choicesJson: 1, gridName: 1, planJson: 1, tracksJson: 1, shotsJson: 1, scriptJson: 1,
+                choicesJson: 1, gridName: 1, planJson: 1, tracksJson: 1, shotsJson: 1, shotsShootingJson: 1, scriptJson: 1,
                 layersJson: 1, locksJson: 1, backupState: 1
             })) {
                 return

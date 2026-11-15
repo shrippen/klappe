@@ -247,6 +247,8 @@
  "field.to": "To (s)",
  "field.duration": "Duration (s)",
  "shots.title": "Shot list",
+ "shots.view.tiles": "Tiles",
+ "shots.view.table": "Table",
  "field.point": "Point",
  "field.angle": "Angle",
  "field.setup": "Setup",

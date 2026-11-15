@@ -390,3 +390,38 @@ fn new_shots_survive_saving_and_loading() {
     assert!(!ids(&back).contains(&"s12-5".to_owned()));
     assert_eq!(numbers(&back).len(), 6);
 }
+
+/// D-05: a tile takes the frame of its shot's camera.
+#[test]
+fn shot_rows_carry_the_aspect_of_their_camera() {
+    let mut s = open();
+    let id = s.shots()[0].id.clone();
+    let camera = s.shots()[0].camera.clone();
+    s.edit_plan(PlanEdit::SetAspect {
+        camera,
+        aspect: 2.39,
+    })
+    .unwrap();
+
+    let rows = s.shots();
+
+    assert_eq!(rows.iter().find(|r| r.id == id).unwrap().aspect, 2.39);
+}
+
+/// A shot whose camera is gone (a hand-edited file) gets the fallback frame.
+#[test]
+fn a_shot_without_its_camera_gets_the_fallback_aspect() {
+    let dir = copy("shots-fallback");
+    let file = dir.join("szenen/szene-012.json");
+    let text = std::fs::read_to_string(&file).unwrap();
+    std::fs::write(
+        &file,
+        text.replacen("\"camera\": \"a\"", "\"camera\": \"gone\"", 1),
+    )
+    .unwrap();
+
+    let rows = Session::open(&dir).unwrap().shots();
+
+    assert_eq!(rows[0].camera, "gone");
+    assert_eq!(rows[0].aspect, 16.0 / 9.0);
+}
