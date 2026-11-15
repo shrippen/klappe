@@ -367,6 +367,35 @@ fn prints_the_plan_as_pdf() {
 }
 
 #[test]
+fn prints_the_pdf_on_a3() {
+    let s = open();
+    let a4 = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan-a4.pdf");
+    let a3 = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-plan-a3.pdf");
+
+    s.export_pdf(
+        &a4,
+        klappe_services::Paper::A4,
+        print_texts(),
+        ShotOrder::Cut,
+    )
+    .unwrap();
+    s.export_pdf(
+        &a3,
+        klappe_services::Paper::A3,
+        print_texts(),
+        ShotOrder::Cut,
+    )
+    .unwrap();
+
+    let sheet = |path: &Path| {
+        let text = String::from_utf8_lossy(&std::fs::read(path).unwrap()).into_owned();
+        let at = text.find("/MediaBox").unwrap();
+        text[at..text[at..].find(']').unwrap() + at].to_owned()
+    };
+    assert_ne!(sheet(&a4), sheet(&a3));
+}
+
+#[test]
 fn writes_the_shot_list_as_csv() {
     let s = open();
     let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-shots.csv");

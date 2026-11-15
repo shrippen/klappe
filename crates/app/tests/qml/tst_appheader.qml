@@ -43,10 +43,8 @@ TestCase {
         function redo() { call("redo", []) }
         function save() { return call("save", []) }
         function removeBackground() { call("removeBackground", []) }
-        function exportPdf(order) { call("exportPdf", [order]) }
-        function exportPng() { call("exportPng", []) }
-        function exportSvg() { call("exportSvg", []) }
-        function exportCsv(order) { call("exportCsv", [order]) }
+        function exportFile(extension) { return "file:///work/Wartburg." + extension }
+        function exportTo(kind, order, paper, path) { return call("exportTo", [kind, order, paper, path]) }
         function selectScene(id) { return call("selectScene", [id]) }
         function selectPlan(id) { return call("selectPlan", [id]) }
         function clearStatus() {}
@@ -216,19 +214,40 @@ TestCase {
         verify(entry(header, "fileMenu", "save").enabled)
     }
 
+    function test_the_exports_ask_for_paper_and_file() {
+        const header = make()
+        const dialog = findChild(header, "exportDialog")
+
+        // The plan exports ask for the paper first, the shot list for the file only.
+        for (const kind of ["pdf", "png", "svg"]) {
+            pick(header, "exportMenu", kind)
+            compare(dialog.kind, kind)
+            tryCompare(dialog, "opened", true)
+            dialog.close()
+            tryCompare(dialog, "opened", false)
+        }
+        pick(header, "exportMenu", "csv")
+        compare(dialog.kind, "csv")
+        verify(!dialog.opened)
+
+        // Nothing is written before a file is chosen.
+        compare(fake.calls, [])
+    }
+
     function test_the_exports_use_the_shot_order() {
         const header = make()
+        const dialog = findChild(header, "exportDialog")
 
-        pick(header, "exportMenu", "pdf")
-        pick(header, "exportMenu", "png")
-        pick(header, "exportMenu", "svg")
-        pick(header, "exportMenu", "csv")
+        dialog.kind = "pdf"
+        dialog.save("file:///work/a.pdf")
         header.shotOrder = "shooting"
-        pick(header, "exportMenu", "pdf")
-        pick(header, "exportMenu", "csv")
+        dialog.save("file:///work/b.pdf")
+        dialog.kind = "csv"
+        dialog.save("file:///work/b.csv")
 
-        compare(fake.calls, [["exportPdf", "cut"], ["exportPng"], ["exportSvg"], ["exportCsv", "cut"],
-                             ["exportPdf", "shooting"], ["exportCsv", "shooting"]])
+        compare(fake.calls, [["exportTo", "pdf", "cut", "a4", "file:///work/a.pdf"],
+                             ["exportTo", "pdf", "shooting", "a4", "file:///work/b.pdf"],
+                             ["exportTo", "csv", "shooting", "a4", "file:///work/b.csv"]])
     }
 
     function test_the_view_menu_toggles_the_areas() {
@@ -357,7 +376,9 @@ TestCase {
         compare(header.commandPalette.entries.map(c => c.id), ["export.svg"])
         keyClick(Qt.Key_Return)
 
-        compare(fake.calls, [["exportSvg"]])
+        const dialog = findChild(header, "exportDialog")
+        compare(dialog.kind, "svg")
+        tryCompare(dialog, "opened", true)
     }
 
     function test_the_palette_names_the_key_of_a_command() {

@@ -217,7 +217,14 @@ RowLayout {
         group: "export"
         text: header.texts.t("menu.pdf")
         enabled: header.controller.loaded
-        onTriggered: header.controller.exportPdf(header.shotOrder)
+        onTriggered: exportDialog.request("pdf")
+    }
+    ExportDialog {
+        id: exportDialog
+        objectName: "exportDialog"
+        texts: header.texts
+        controller: header.controller
+        order: header.shotOrder
     }
     CommandAction {
         id: actPng
@@ -225,7 +232,7 @@ RowLayout {
         group: "export"
         text: header.texts.t("menu.png")
         enabled: header.controller.loaded
-        onTriggered: header.controller.exportPng()
+        onTriggered: exportDialog.request("png")
     }
     CommandAction {
         id: actSvg
@@ -233,7 +240,7 @@ RowLayout {
         group: "export"
         text: header.texts.t("menu.svg")
         enabled: header.controller.loaded
-        onTriggered: header.controller.exportSvg()
+        onTriggered: exportDialog.request("svg")
     }
     CommandAction {
         id: actCsv
@@ -241,7 +248,7 @@ RowLayout {
         group: "export"
         text: header.texts.t("menu.csv")
         enabled: header.controller.loaded
-        onTriggered: header.controller.exportCsv(header.shotOrder)
+        onTriggered: exportDialog.request("csv")
     }
 
     // The areas toggle; the window keeps what is shown and hands it back.
