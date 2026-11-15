@@ -278,6 +278,91 @@ Item {
         }
     }
 
+    // Maßfeld (LH-95): a digit typed on the plan or in 3D opens a field with it: the length of
+    // the wall being drawn, else the height of the selected object or wall. Enter applies,
+    // Escape closes. With nothing to apply it to, the digit goes on to the view.
+    readonly property bool wallDrag: area.tool === "wall" && (area.dragging || freeView.dragging)
+    readonly property string measureKind: {
+        if (wallDrag) {
+            return "length"
+        }
+        return /^(object|wall):/.test(controller.selectedKey) ? "height" : ""
+    }
+    // What the open field applies, fixed when it opens: empty while closed.
+    property string asksMeasure: ""
+
+    KanteCard {
+        id: measureCard
+        objectName: "measureCard"
+        visible: area.asksMeasure !== ""
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Kirigami.Units.largeSpacing
+        implicitWidth: measureRow.implicitWidth + Kirigami.Units.largeSpacing * 2
+        implicitHeight: measureRow.implicitHeight + Kirigami.Units.largeSpacing * 2
+
+        RowLayout {
+            id: measureRow
+            anchors.centerIn: parent
+            spacing: Kirigami.Units.smallSpacing
+
+            KanteSectionLabel { text: area.asksMeasure === "" ? "" : area.texts.t("measure." + area.asksMeasure) }
+            KanteTextField {
+                id: measureField
+                objectName: "measureField"
+                Accessible.name: area.texts.t("measure." + (area.asksMeasure || "height"))
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                onTextChanged: invalid = false
+                onAccepted: area.applyMeasure()
+                onActiveFocusChanged: {
+                    if (!activeFocus) {
+                        area.closeMeasure()
+                    }
+                }
+                Keys.onEscapePressed: area.closeMeasure()
+            }
+        }
+    }
+
+    // Enter, not a digit, opens it: 1 to 4 pick the mode and 0 fits the plan.
+    Shortcut {
+        sequences: ["Return", "Enter"]
+        enabled: area.measureKind !== "" && area.asksMeasure === "" && !area.drawsArea && (canvas.activeFocus || freeView.activeFocus)
+        onActivated: area.openMeasure()
+    }
+
+    onWallDragChanged: {
+        if (!wallDrag && asksMeasure === "length") {
+            closeMeasure()
+        }
+    }
+
+    function openMeasure() {
+        asksMeasure = measureKind
+        measureField.text = ""
+        measureField.forceActiveFocus()
+    }
+
+    function closeMeasure() {
+        if (asksMeasure === "") {
+            return
+        }
+        const had = measureField.activeFocus
+        asksMeasure = ""
+        measureField.text = ""
+        if (had) {
+            (area.free ? freeView : canvas).forceActiveFocus()
+        }
+    }
+
+    function applyMeasure() {
+        if (!controller.typeMeasure(measureField.text)) {
+            measureField.invalid = true
+            return
+        }
+        closeMeasure()
+    }
+
     onAsksLengthChanged: {
         lengthField.text = ""
         if (asksLength) {
@@ -332,7 +417,7 @@ Item {
     // turn about their middle), Ctrl+D copies it, G makes its way straight.
     readonly property real turnStepDeg: 15
     // Not while a length is typed: Delete there edits the text.
-    readonly property bool hasSelection: (!!controller.selectedKey || controller.selectedCount > 0) && !lengthField.activeFocus && !noteField.activeFocus
+    readonly property bool hasSelection: (!!controller.selectedKey || controller.selectedCount > 0) && !lengthField.activeFocus && !noteField.activeFocus && !measureField.activeFocus
         && !selection.typing
     Shortcut {
         sequence: "Delete"

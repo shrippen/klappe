@@ -210,6 +210,26 @@ pub fn drag_edit(
     }
 }
 
+/// A wall typed by its length (LH-95): from `from` toward the pointer at `toward`, `text`
+/// metres long (comma or point). `None` while the pointer stands on the start: no direction.
+pub fn wall_of_length(from: Point, toward: Point, text: &str) -> Typed {
+    if from == toward {
+        return None;
+    }
+
+    let (dx_m, dy_m) = (toward.x_m - from.x_m, toward.y_m - from.y_m);
+    let reach_m = dx_m.hypot(dy_m);
+    let typed = length_m(Field::Distance, text);
+
+    Some(typed.map(|length_m| PlanEdit::AddWall {
+        from,
+        to: Point::new(
+            from.x_m + dx_m / reach_m * length_m,
+            from.y_m + dy_m / reach_m * length_m,
+        ),
+    }))
+}
+
 /// A drag of the height tool that began on `grabbed`, which stood `start_m` tall: it is
 /// `lift_m` taller (negative: lower), in whole centimetres and not under the least height.
 /// `None` for anything but an object or a wall.
@@ -279,13 +299,20 @@ pub enum Grip {
     #[default]
     Free,
     Held(Option<Source>),
+    /// A typed measure ended the drag (`wall_of_length`): its steps do nothing until the release.
+    Spent,
 }
 
 impl Grip {
     /// The element this drag moves: `pick`'s answer on the first step, the same after.
     pub fn take(self, pick: impl FnOnce() -> Option<Source>) -> (Grip, Option<Source>) {
+        if self == Grip::Spent {
+            return (Grip::Spent, None);
+        }
+
         let grabbed = match self {
             Grip::Held(held) => held,
+            Grip::Spent => None,
             Grip::Free => pick(),
         };
 

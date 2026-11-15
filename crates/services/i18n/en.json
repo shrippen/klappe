@@ -21,6 +21,8 @@
  "background.pick": "Choose background image",
  "background.filter": "Images (*.png *.jpg *.jpeg)",
  "scale.distance": "Length in metres",
+ "measure.length": "Wall length in metres",
+ "measure.height": "Height in metres",
  "scale.apply": "Set scale",
  "note.text": "Note text",
  "note.apply": "Apply",

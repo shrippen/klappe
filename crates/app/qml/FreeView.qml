@@ -151,6 +151,7 @@ Item {
     function press(mouse) {
         const shift = (mouse.modifiers & Qt.ShiftModifier) !== 0
         const alt = (mouse.modifiers & Qt.AltModifier) !== 0
+        view.forceActiveFocus()
         pressAt = Qt.point(mouse.x, mouse.y)
         lastAt = pressAt
         moved = false

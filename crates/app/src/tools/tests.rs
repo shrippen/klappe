@@ -544,3 +544,50 @@ fn a_height_drag_from_anything_else_edits_nothing() {
 
     assert_eq!(height_edit(&note, 0.9, 0.5), None);
 }
+
+/// LH-95: the typed length is measured along the line from the start to the pointer, not to it.
+#[test]
+fn a_typed_length_makes_a_wall_toward_the_pointer() {
+    let from = Point::new(2.0, 2.0);
+
+    let along = edit_of(wall_of_length(from, Point::new(6.0, 2.0), "3"));
+    assert_eq!(
+        along,
+        Some(PlanEdit::AddWall {
+            from,
+            to: Point::new(5.0, 2.0)
+        })
+    );
+
+    let Some(PlanEdit::AddWall { to, .. }) =
+        edit_of(wall_of_length(from, Point::new(5.0, 6.0), "2,5"))
+    else {
+        panic!("no wall");
+    };
+    assert!(
+        (to.x_m - 3.5).abs() < 1e-9 && (to.y_m - 4.0).abs() < 1e-9,
+        "{to:?}"
+    );
+}
+
+/// LH-95: the point works like the comma; zero, text and a pointer on the start make no wall.
+#[test]
+fn a_typed_length_is_a_length() {
+    let from = Point::new(0.0, 0.0);
+    let toward = Point::new(0.0, 1.0);
+
+    assert!(edit_of(wall_of_length(from, toward, "1.5")).is_some());
+    assert!(matches!(wall_of_length(from, toward, "0"), Some(Err(_))));
+    assert!(matches!(wall_of_length(from, toward, "x"), Some(Err(_))));
+    assert!(wall_of_length(from, from, "3").is_none());
+}
+
+/// LH-95: after a typed length the drag's later steps hold nothing, until the release.
+#[test]
+fn a_spent_grip_grabs_nothing_until_done() {
+    let (grip, grabbed) = Grip::Spent.take(|| Some(Source::Figure("burgvogt".into())));
+
+    assert_eq!((grip.clone(), grabbed), (Grip::Spent, None));
+    assert_eq!(grip.clone().after(DragPhase::Moving), Grip::Spent);
+    assert_eq!(grip.after(DragPhase::Done), Grip::Free);
+}

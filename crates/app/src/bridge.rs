@@ -391,6 +391,11 @@ pub mod qobject {
         #[cxx_name = "setObjectHeight"]
         fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool;
 
+        /// A typed measure (LH-95): the length of the wall being dragged, else the selection's height.
+        #[qinvokable]
+        #[cxx_name = "typeMeasure"]
+        fn type_measure(self: Pin<&mut Self>, text: &QString) -> bool;
+
         /// Selects the next object without a height (LH-93), in 3D the view follows; false if none.
         #[qinvokable]
         #[cxx_name = "nextMissingHeight"]

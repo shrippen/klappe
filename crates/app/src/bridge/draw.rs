@@ -3,6 +3,7 @@
 use super::q;
 use super::qobject;
 use super::view::plan_json;
+use crate::object;
 use crate::plan::{Measure, Sweep};
 use crate::selection;
 use crate::selection::{Pick, Reach};
@@ -123,6 +124,9 @@ impl qobject::Controller {
         y: f64,
         done: bool,
     ) -> bool {
+        if self.rust().grip == Grip::Spent {
+            return self.skip_spent(done);
+        }
         let step = (!done).then_some([from_x, from_y, x, y]);
         self.as_mut().rust_mut().get_mut().drag_step = step;
 
@@ -191,6 +195,61 @@ impl qobject::Controller {
             }
             DragStep::Nothing => false,
         }
+    }
+
+    /// A typed measure (LH-95): with a wall drag on, the wall's length from its start toward
+    /// the pointer; else the height of the one selected object or wall.
+    pub(super) fn type_measure(self: Pin<&mut Self>, text: &QString) -> bool {
+        let text = text.to_string();
+
+        // An empty text would take the height off, which is not a measure.
+        if text.trim().is_empty() {
+            return false;
+        }
+
+        let step = self
+            .rust()
+            .drag_step
+            .filter(|_| self.rust().tool == Tool::Wall);
+        if let Some(step) = step {
+            return self.finish_wall(step, &text);
+        }
+
+        let selected = self.rust().selected.only();
+        let typed = object::set_height_edit(selected, object::HeightField::Wall, &text)
+            .or_else(|| object::object_height_edit(selected, &text));
+
+        self.commit_typed(typed)
+    }
+
+    /// A typed length finished the wall: the rest of the drag adds nothing, the release frees it.
+    fn skip_spent(mut self: Pin<&mut Self>, done: bool) -> bool {
+        if done {
+            self.as_mut().rust_mut().get_mut().grip = Grip::Free;
+        }
+
+        false
+    }
+
+    /// Ends the wall drag at `step` with a wall of the typed length.
+    fn finish_wall(mut self: Pin<&mut Self>, step: [f64; 4], text: &str) -> bool {
+        let [from_x, from_y, x, y] = step;
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+        let typed = tools::wall_of_length(
+            s.snap(Point::new(from_x, from_y)),
+            s.snap(Point::new(x, y)),
+            text,
+        );
+        if !self.as_mut().commit_typed(typed) {
+            return false;
+        }
+
+        let state = self.rust_mut().get_mut();
+        state.grip = Grip::Spent;
+        state.drag_step = None;
+        true
     }
 
     pub(super) fn place(mut self: Pin<&mut Self>, x: f64, y: f64) -> bool {

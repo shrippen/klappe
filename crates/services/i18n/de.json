@@ -21,6 +21,8 @@
  "background.pick": "Hintergrundbild wählen",
  "background.filter": "Bilder (*.png *.jpg *.jpeg)",
  "scale.distance": "Strecke in Metern",
+ "measure.length": "Länge der Wand in Metern",
+ "measure.height": "Höhe in Metern",
  "scale.apply": "Maßstab setzen",
  "note.text": "Text der Notiz",
  "note.apply": "Übernehmen",
