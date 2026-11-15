@@ -7,7 +7,8 @@ import Kante
 // A mark is selected (LH-22, LH-63): the pose of a figure's mark, the pause at it, and the
 // pace of the way that leads to it. A figure's mark also says how the figure comes to it and
 // whether it leaves after it (LH-26); a camera's mark says its lens height and tilt (LH-34,
-// positive tilt looks up). The pace is shown as the plan has it; the two buttons
+// positive tilt looks up), the rig that brings the camera to it and the lens it states
+// (LH-33; empty: none, between two marks with a lens the focal length runs with time). The pace is shown as the plan has it; the two buttons
 // time the way for walking or running and move the later marks along. No geometry here: the
 // controller has the numbers from the session.
 KanteCard {
@@ -20,6 +21,7 @@ KanteCard {
     readonly property var poses: choices.pose || []
     readonly property var arrivals: choices.arrival || []
     readonly property var departures: choices.departure || []
+    readonly property var rigs: choices.rig || []
     readonly property var info: {
         // The plan changes with every edit; the key alone would not tell the new values.
         card.controller.planJson
@@ -32,11 +34,12 @@ KanteCard {
 
     visible: info !== null
     implicitWidth: Math.min(parent ? parent.width - Kirigami.Units.largeSpacing * 2 : Infinity,
-                            Math.max(row.implicitWidth, cueRow.implicitWidth, aimRow.implicitWidth)
+                            Math.max(row.implicitWidth, cueRow.implicitWidth, aimRow.implicitWidth, gearRow.implicitWidth)
                             + Kirigami.Units.largeSpacing * 2)
     implicitHeight: row.implicitHeight + Kirigami.Units.largeSpacing * 2
                     + (cueRow.visible ? cueRow.implicitHeight + Kirigami.Units.smallSpacing : 0)
                     + (aimRow.visible ? aimRow.implicitHeight + Kirigami.Units.smallSpacing : 0)
+                    + (gearRow.visible ? gearRow.implicitHeight + Kirigami.Units.smallSpacing : 0)
 
     onInfoChanged: card.fill()
 
@@ -60,12 +63,20 @@ KanteCard {
         if (!tiltField.activeFocus) {
             tiltField.text = texts.num(info.tilt, 1)
         }
+        rigChoice.currentIndex = Math.max(0, rigs.indexOf(info.rig))
+        if (!lensField.activeFocus) {
+            lensField.text = info.lens === null ? "" : texts.num(info.lens, 1)
+        }
     }
 
     function setAim() {
         const ok = controller.setCameraAim(heightField.text, tiltField.text)
         heightField.invalid = !ok
         tiltField.invalid = !ok
+    }
+
+    function setLens() {
+        lensField.invalid = !controller.setMarkLens(lensField.text)
     }
 
     function setHold() {
@@ -217,6 +228,50 @@ KanteCard {
             objectName: "aimApply"
             text: card.texts.t("form.apply")
             onClicked: card.setAim()
+        }
+    }
+
+    RowLayout {
+        id: gearRow
+        objectName: "gearRow"
+        visible: card.isCamera
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: aimRow.bottom
+        anchors.topMargin: Kirigami.Units.smallSpacing
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteSectionLabel { text: card.texts.t("mark.rig") }
+        KanteComboBox {
+            id: rigChoice
+            objectName: "rigChoice"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 9
+            model: card.rigs.map(r => card.texts.t("rig." + r))
+            onActivated: index => {
+                if (!card.controller.setMarkRig(card.rigs[index])) {
+                    card.fill()
+                }
+            }
+            QQC2.ToolTip.text: card.texts.t("mark.rigTip")
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
+        KanteTextField {
+            id: lensField
+            objectName: "lensField"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+            Accessible.name: card.texts.t("mark.lens")
+            placeholderText: card.texts.t("mark.lens")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.setLens()
+            QQC2.ToolTip.text: card.texts.t("mark.lensTip")
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
+        KanteButton {
+            objectName: "lensApply"
+            text: card.texts.t("form.apply")
+            onClicked: card.setLens()
         }
     }
 }

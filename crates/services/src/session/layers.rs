@@ -100,7 +100,9 @@ pub(super) fn layer_of(role: Role) -> Layer {
     match role {
         Role::Background | Role::Wall | Role::Object => Layer::Set,
         Role::Light | Role::LightBeam => Layer::Lights,
-        Role::Camera | Role::Frustum | Role::CameraPath | Role::CameraHandle => Layer::Cameras,
+        Role::Camera | Role::Frustum | Role::CameraPath { .. } | Role::CameraHandle => {
+            Layer::Cameras
+        }
         Role::Note => Layer::Notes,
         Role::Drawing { .. } | Role::ArrowHead(_) => Layer::Drawings,
         Role::Axis

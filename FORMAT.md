@@ -65,6 +65,19 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   90). Die Neigung gilt vom Horizont aus: positiv blickt nach oben, negativ nach unten, 0 ist
   waagerecht. Beides gab es schon im Format; neu sind die Grenzen und die Bedienung. Keine
   neue Formatversion.
+- **Gerät und Brennweite je Kamera-Mark (LH-33):** jeder Kamera-Mark (`marks` in
+  `szenen/<id>.json`) hat optional `rig`, das Gerät, mit dem die Kamera vom vorigen Mark hierher
+  kommt: `tripod` (Stativ: nur Schwenk und Neigung, der Ort bleibt der des vorigen Marks),
+  `dolly` (Standard), `track` (Schiene), `crane`, `handheld`, `gimbal` (Steadicam oder Gimbal),
+  und optional `lens_mm`, die Brennweite an diesem Mark (größer als 0, höchstens 5000). Am ersten
+  Mark zählt `rig` nicht. Zwischen zwei Marks mit `lens_mm` läuft die Brennweite linear mit der
+  Zeit (nach der Pause des ersten bis zur Ankunft am zweiten, wie der Ort); davor und danach
+  hält sie. Höhe und Neigung (`height_m`, `tilt_deg`) laufen ebenso linear zwischen den Marks.
+  Hat irgendein Mark der Kamera `lens_mm`, gilt allein das; sonst gelten wie bisher
+  das Objektiv des Shots, dann das der Kamera. Ein Wert mit Standard (`dolly`, keine Brennweite)
+  wird nicht geschrieben; ältere Projekte laden und speichern unverändert. Ein Mark mit
+  `tripod` an einem anderen Ort als der vorige lässt die Bearbeitung nicht zu; eine Datei mit
+  einem solchen Mark lädt, der Ort gilt. Keine neue Formatversion, wie bei den Notizen.
 - **Notizen (LH-16):** `[[set.notes]]` im Drehort: `id` (`n1`, `n2` …, innerhalb des Drehorts),
   Ort `at` in Metern und `text`. Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
