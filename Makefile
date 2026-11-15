@@ -1,4 +1,4 @@
-.PHONY: check fmt structure lint test qml deny advisories commits run kante
+.PHONY: check fmt structure lint test qml perf deny advisories commits run kante
 
 # Everything the CI's core job runs; run before every commit (agent.md).
 check: fmt structure lint test qml deny commits
@@ -20,6 +20,13 @@ test:
 # The app's QML tests, offscreen; skipped with a note without qmltestrunner (qt6-declarative).
 qml:
 	scripts/check-qml.sh
+
+# NF-05 timings on a large plan (50 figures, 10 cameras, 300 objects): release build, prints the
+# numbers, fails above four times the 16 ms budget. Not in `check`: timings need a quiet machine.
+perf:
+	cargo test --release -p klappe-services --test perf -- --ignored --nocapture
+	cargo test --release -p klappe-app a_large_plan -- --ignored --nocapture
+	scripts/check-qml.sh crates/app/tests/perf
 
 # Licence policy (deny.toml, E-05); `cargo install --locked cargo-deny` once.
 deny:
