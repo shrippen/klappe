@@ -3,13 +3,12 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import Kante
 
-// Adds a character or changes one (LH-03): name, the short label drawn in the figure, one of
-// Kante's label colours, and whether it is a group of extras with a head count (LH-23).
-FormDialog {
+// Adds a character or changes one (LH-03, D-08): name, the short label drawn in the figure,
+// one of Kante's label colours, and whether it is a group of extras with a head count
+// (LH-23). A new name is carried into the cues of the script text (the pane warns first).
+EditorPane {
     id: form
 
-    // The character being edited; null for a new one.
-    property var character: null
     // [{ color }]: the project's characters, so a new one starts with a colour not yet used.
     property var characters: []
 
@@ -21,9 +20,10 @@ FormDialog {
     readonly property int noGroup: 0
     readonly property var colors: KanteStyle.labels
 
-    title: texts.t(character ? "character.edit" : "character.new")
-    acceptText: texts.t(character ? "form.apply" : "form.add")
-    acceptEnabled: nameField.text.trim() !== "" && shortField.text.trim() !== ""
+    title: texts.t(item ? "character.edit" : "character.new")
+    applyText: texts.t(item ? "form.apply" : "form.add")
+    canApply: nameField.text.trim() !== "" && shortField.text.trim() !== ""
+    removeQuestion: item ? texts.t("remove.character", { name: item.name.trim() }) : ""
 
     function firstFree() {
         const used = characters.map(c => c.color)
@@ -31,25 +31,33 @@ FormDialog {
         return free < 0 ? 0 : free
     }
 
-    function show(character) {
-        form.character = character
-        nameField.text = character ? character.name : ""
-        shortField.text = character ? character.short : ""
-        picker.currentIndex = character ? colors.indexOf(character.color) : firstFree()
-        const group = character ? character.group : noGroup
+    function load() {
+        nameField.text = item ? item.name : ""
+        shortField.text = item ? item.short : ""
+        picker.currentIndex = item ? colors.indexOf(item.color) : firstFree()
+        const group = item ? item.group : noGroup
         groupSwitch.checked = group >= minGroup
         groupSize.value = group >= minGroup ? group : minGroup
-        open()
     }
 
+    onItemChanged: load()
+
+    preview: function () {
+        if (!item) {
+            return []
+        }
+        const raw = controller.characterChanges(item.id, nameField.text)
+        return raw ? JSON.parse(raw) : []
+    }
     submit: function () {
         const color = colors[picker.currentIndex]
         const group = groupSwitch.checked ? groupSize.value : noGroup
-        if (!character) {
+        if (!item) {
             return controller.addCharacter(nameField.text, shortField.text, color, group)
         }
-        return controller.editCharacter(character.id, nameField.text, shortField.text, color, group)
+        return controller.editCharacter(item.id, nameField.text, shortField.text, color, group)
     }
+    remove: function () { return controller.removeCharacter(item.id) }
 
     KanteSectionLabel { text: form.texts.t("character.name") }
     KanteTextField {
@@ -58,7 +66,7 @@ FormDialog {
         Layout.fillWidth: true
         // The short label follows the name until it is typed by hand.
         onTextEdited: {
-            if (!shortField.activeFocus && form.character === null) {
+            if (!shortField.activeFocus && form.item === null) {
                 shortField.text = text.trim().charAt(0).toUpperCase()
             }
         }

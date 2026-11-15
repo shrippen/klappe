@@ -137,6 +137,7 @@ Kirigami.ApplicationWindow {
                 shot: root.selected
                 showTimeline: root.showTimeline
                 locked: backupNotice.blocking
+                onProjectEntryRequested: (kind, id) => projectDialog.openAt(kind, id)
             }
         }
     }

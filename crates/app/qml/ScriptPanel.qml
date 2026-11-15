@@ -5,13 +5,27 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The scene's script with chips to the marks and shots its lines are linked to (E-14,
-// design B). The line the playback is at is marked with a bar, not by colour alone.
+// design B). The line the playback is at is marked with a bar, not by colour alone. The
+// scene's heading and the names above the dialogue open a card (D-08) with what the scene or
+// the character is and where it occurs.
 Item {
     id: panel
 
     required property var texts
+    required property var controller
     property var lines: []
+    // The scene on view: { id, number, heading } or null.
+    property var scene: null
     signal chipClicked(string kind, string target, real at)
+    // The card's button: change the scene or character in the project dialog.
+    signal editRequested(string kind, string id)
+
+    RefCard {
+        id: card
+        texts: panel.texts
+        controller: panel.controller
+        onEditRequested: (kind, id) => panel.editRequested(kind, id)
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -25,6 +39,22 @@ Item {
                 text: panel.texts.t("script.title")
             }
             KanteSectionLabel { text: panel.texts.t("script.page") }
+        }
+
+        QQC2.Label {
+            id: sceneHead
+            objectName: "sceneHead"
+            Layout.fillWidth: true
+            visible: panel.scene !== null
+            wrapMode: Text.Wrap
+            font.family: KanteStyle.monoFamily
+            font.underline: headHover.hovered
+            color: KanteStyle.strongTextColor
+            text: panel.scene ? (panel.scene.number + " " + panel.scene.heading).trim() : ""
+            Accessible.role: Accessible.Button
+            Accessible.name: text
+            HoverHandler { id: headHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: card.showAt("scene", panel.scene.id, sceneHead) }
         }
 
         QQC2.Label {
@@ -66,10 +96,25 @@ Item {
                     spacing: Kirigami.Units.smallSpacing
 
                     QQC2.Label {
+                        id: lineText
+                        objectName: row.modelData.kind === "character" ? "cue" : "line"
+                        // A cue of a character the project knows opens its card.
+                        readonly property bool linked: row.modelData.character !== undefined && row.modelData.character !== ""
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignTop
                         wrapMode: Text.Wrap
                         font.family: KanteStyle.monoFamily
+                        font.underline: linked && lineHover.hovered
+                        Accessible.role: linked ? Accessible.Button : Accessible.StaticText
+                        HoverHandler {
+                            id: lineHover
+                            enabled: lineText.linked
+                            cursorShape: Qt.PointingHandCursor
+                        }
+                        TapHandler {
+                            enabled: lineText.linked
+                            onTapped: card.showAt("character", row.modelData.character, lineText)
+                        }
                         // Screenplay layout: cues and dialogue indented, as on paper.
                         leftPadding: row.modelData.kind === "character" ? Kirigami.Units.gridUnit * 4
                             : row.modelData.kind === "parenthetical" ? Kirigami.Units.gridUnit * 3
