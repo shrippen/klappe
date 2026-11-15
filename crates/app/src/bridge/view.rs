@@ -306,6 +306,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "movement": movements,
         "layer": layers,
         "grid": grids,
+        "template": s.templates(),
     })
     .to_string()
 }
@@ -473,6 +474,24 @@ mod tests {
             .iter()
             .any(|o| o["kind"] == "horse" && o["shape"] == "ellipse"));
         assert_eq!(objects.len(), s.library().len());
+    }
+
+    /// The template list: built in first, with what each holds (LH-07).
+    #[test]
+    fn the_template_list_is_the_built_in_templates() {
+        let s = example();
+
+        let choices: serde_json::Value = serde_json::from_str(&choices_json(&s)).unwrap();
+        let templates = choices["template"].as_array().unwrap();
+        let ids: Vec<_> = templates
+            .iter()
+            .map(|t| t["id"].as_str().unwrap())
+            .collect();
+
+        assert_eq!(ids, ["shot-reverse", "triangle", "long-take"]);
+        assert_eq!(templates[0]["figures"], 2);
+        assert_eq!(templates[0]["cameras"], 3);
+        assert_eq!(templates[0]["custom"], false);
     }
 
     /// The camera tool lists the cameras of the plan, to add a mark to one of them.

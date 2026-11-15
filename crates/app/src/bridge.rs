@@ -51,8 +51,8 @@ pub mod qobject {
         #[qproperty(QString, grid_name, cxx_name = "gridName")]
         /// `{ figure: [{ id, name }], object: [{ kind, label, width_m, depth_m, shape, custom }],
         /// light: [kind], color: [name], dash: [name], fill: [name], rig: [name], movement: [name],
-        /// grid: [{ id, step_m }] }`: what the tool lists
-        /// offer. The objects are the library: built in, then the project's own.
+        /// grid: [{ id, step_m }], template: [{ id, label, figures, cameras, custom }] }`: what the
+        /// tool lists offer. Objects and templates: built in first, then the project's own.
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Whether the set has a background image.
         #[qproperty(bool, has_background, cxx_name = "hasBackground")]
@@ -623,6 +623,16 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "removePlanWithShots"]
         fn remove_plan_with_shots(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Puts the template `id` in the middle of the plan on view; false when refused.
+        #[qinvokable]
+        #[cxx_name = "applyTemplate"]
+        fn apply_template(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Files the figures and cameras of the plan on view as the template `name`.
+        #[qinvokable]
+        #[cxx_name = "saveTemplate"]
+        fn save_template(self: Pin<&mut Self>, name: &QString) -> bool;
     }
 
     // The start page's cards are read on a thread of their own and handed back through it.
@@ -657,6 +667,7 @@ mod script;
 mod selection;
 mod shots;
 mod start;
+mod templates;
 mod view;
 
 pub struct ControllerRust {

@@ -24,6 +24,12 @@ TestCase {
         ]
         property string plan: "plan-a"
         property string projectJson: JSON.stringify({ plans: plans, plan: plan })
+        property var templates: [
+            { id: "shot-reverse", label: "", figures: 2, cameras: 3, custom: false },
+            { id: "triangle", label: "", figures: 2, cameras: 3, custom: false },
+            { id: "mein-dialog", label: "Mein Dialog", figures: 1, cameras: 2, custom: true }
+        ]
+        property string choicesJson: JSON.stringify({ template: templates })
 
         function reshow() { projectJson = JSON.stringify({ plans: plans, plan: plan }) }
         function call(name, args) {
@@ -40,6 +46,8 @@ TestCase {
         function renamePlan(id, name) { return call("renamePlan", [id, name]) }
         function removePlan(id) { return call("removePlan", [id]) }
         function removePlanWithShots(id) { return call("removePlanWithShots", [id]) }
+        function applyTemplate(id) { return call("applyTemplate", [id]) }
+        function saveTemplate(name) { return call("saveTemplate", [name]) }
     }
 
     TestTexts { id: de; language: "de" }
@@ -318,7 +326,117 @@ TestCase {
         }
     }
 
-    function test_the_texts_are_in_both_languages() {
+    function test_the_template_entries_are_there_and_need_a_plan() {
+        const chooser = make()
+
+        verify(entry(chooser, "applyTemplate").enabled)
+        verify(entry(chooser, "saveTemplate").enabled)
+        verify(!entry(chooser, "applyTemplate").destructive)
+        compare(chooser.actions.map(a => a.cmd).filter(c => c.startsWith("plan.template")),
+                ["plan.template", "plan.templateSave"])
+
+        fake.plans = []
+        fake.plan = ""
+        fake.reshow()
+        verify(!entry(chooser, "applyTemplate").enabled)
+        verify(!entry(chooser, "saveTemplate").enabled)
+    }
+
+    function test_the_template_list_names_built_in_and_own_ones_in_groups() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+        compare(form.title, "Vorlage einfügen")
+        compare(form.entries.map(e => e.text), ["Schuss-Gegenschuss", "Dreieck", "Mein Dialog"])
+        compare(form.entries.map(e => e.group), ["Eingebaut", "Eingebaut", "Eigene"])
+        compare(findChild(form, "summary").text, "2 Figur(en), 3 Kamera(s)")
+        verify(form.acceptEnabled)
+    }
+
+    function test_inserting_sends_the_id_of_the_template_picked() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+        const box = findChild(form, "templateBox")
+        box.currentIndex = 2
+        compare(findChild(form, "summary").text, "1 Figur(en), 2 Kamera(s)")
+        form.accept()
+
+        compare(fake.calls, [["applyTemplate", "mein-dialog"]])
+    }
+
+    function test_inserting_starts_with_the_first_template() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+        form.accept()
+
+        compare(fake.calls, [["applyTemplate", "shot-reverse"]])
+    }
+
+    function test_a_refused_insert_keeps_the_form_open_with_the_message() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+        fake.accept = false
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+        form.accept()
+
+        tryCompare(form, "opened", true)
+        compare(findChild(form, "error").text, "Refused")
+    }
+
+    function test_saving_needs_a_name_and_sends_it() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+
+        pick(chooser, "saveTemplate")
+        tryCompare(form, "opened", true)
+        compare(form.title, "Als Vorlage speichern")
+        verify(!findChild(form, "templateBox").visible)
+        verify(!form.acceptEnabled)
+        findChild(form, "nameField").text = "  "
+        verify(!form.acceptEnabled)
+        findChild(form, "nameField").text = "Mein Dialog"
+        verify(form.acceptEnabled)
+        form.accept()
+
+        compare(fake.calls, [["saveTemplate", "Mein Dialog"]])
+    }
+
+    function test_the_form_is_english_in_english() {
+        const chooser = make()
+        chooser.texts = en
+        const form = findChild(chooser, "templateForm")
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+
+        compare(form.title, "Insert template")
+        compare(form.entries.map(e => e.text), ["Shot and reverse shot", "Triangle", "Mein Dialog"])
+        compare(findChild(form, "summary").text, "2 figure(s), 3 camera(s)")
+    }
+
+    function test_the_template_texts_are_in_both_languages() {
+        for (const key of ["plan.template", "plan.templateSave", "plan.templateTitle",
+                           "plan.templateSaveTitle", "template.pick", "template.search",
+                           "template.builtin", "template.custom", "template.summary",
+                           "template.hint", "template.name", "template.saveHint",
+                           "template.saved", "template.insert", "template.shot-reverse",
+                           "template.triangle", "template.long-take", "error.emptyTemplate"]) {
+            verify(de.t(key) !== key, "de " + key)
+            verify(en.t(key) !== key, "en " + key)
+        }
+    }
+
+    function test_the_plan_texts_are_in_both_languages() {
         for (const key of ["plan.choose", "plan.new", "plan.snapshot", "plan.rename",
                            "plan.remove", "plan.newTitle", "plan.snapshotTitle",
                            "plan.renameTitle", "plan.name", "plan.nameAuto",
