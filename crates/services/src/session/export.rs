@@ -8,6 +8,7 @@ use super::Session;
 use crate::error::{write_failed, ServiceError};
 
 const SECONDS_PER_MINUTE: u64 = 60;
+const MIN_NUMBER_WIDTH: usize = 2;
 
 impl Session {
     /// Prints the current plan at the playhead as PDF (LH-80), followed by its shot list;
@@ -127,9 +128,10 @@ impl Session {
         let scene = self.scene_number();
         let mut files = Vec::new();
 
-        for (i, at_s) in self.marks_s().into_iter().enumerate() {
+        let marks = self.marks_s();
+        for (i, at_s) in marks.iter().copied().enumerate() {
             self.set_time(at_s);
-            let path = dir.join(frame_name(&scene, i + 1, at_s));
+            let path = dir.join(frame_name(&scene, i + 1, marks.len(), at_s));
             let written = self.export_png(&path, paper, texts.clone());
             if let Err(e) = written {
                 self.set_time(playhead_s);
@@ -153,12 +155,13 @@ fn file_part(number: &str) -> String {
 }
 
 /// `<scene>-<nr>-<mm-ss>.png`; `nr` counts the marks from 1, so two marks within one second
-/// keep their own file.
-fn frame_name(scene: &str, nr: usize, at_s: f64) -> String {
+/// keep their own file. `nr` is as wide as `count` needs, so names sort like the marks.
+fn frame_name(scene: &str, nr: usize, count: usize, at_s: f64) -> String {
     let whole_s = at_s as u64;
+    let width = count.to_string().len().max(MIN_NUMBER_WIDTH);
 
     format!(
-        "{}-{nr:02}-{:02}-{:02}.png",
+        "{}-{nr:0width$}-{:02}-{:02}.png",
         file_part(scene),
         whole_s / SECONDS_PER_MINUTE,
         whole_s % SECONDS_PER_MINUTE
@@ -174,4 +177,24 @@ fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
         },
         other => write_failed(other),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Names sort like the marks: the number is as wide as the count needs.
+    #[test]
+    fn frame_names_sort_with_over_99_marks() {
+        let names: Vec<String> = [9, 10, 99, 100, 101]
+            .into_iter()
+            .map(|nr| frame_name("14", nr, 120, 0.0))
+            .collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+
+        assert_eq!(names, sorted);
+        assert_eq!(names[0], "14-009-00-00.png");
+        assert_eq!(frame_name("14", 9, 12, 0.0), "14-09-00-00.png");
+    }
 }
