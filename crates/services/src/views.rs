@@ -1,7 +1,10 @@
 //! Plain data for the surfaces: what a row, a track or a script line shows.
 
-use klappe_model::{LibraryItem, ObjectShape, Template};
+use klappe_model::{Dash, FigureColor, Fill, LibraryItem, ObjectShape, Template};
 use serde::Serialize;
+
+/// The frame a shot shows when its camera is gone (16:9).
+pub const FALLBACK_ASPECT: f64 = 16.0 / 9.0;
 
 /// One row of the shot list (LH-71, LH-72).
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -10,6 +13,8 @@ pub struct ShotRow {
     pub number: String,
     pub camera: String,
     pub camera_label: String,
+    /// Width to height of the camera's frame (LH-38); `FALLBACK_ASPECT` if the camera is gone.
+    pub aspect: f64,
     /// Character id of the figure the shot's camera follows (LH-37), else empty.
     pub follows: String,
     /// Model name, e.g. `close-up`; the surface translates it.
@@ -335,5 +340,13 @@ pub enum Hint {
     },
     Note {
         text: String,
+    },
+    /// A drawing, for the card that changes its style (LH-19).
+    Drawing {
+        color: FigureColor,
+        dash: Dash,
+        fill: Fill,
+        /// Whether the shape has an inside, so a fill means something.
+        closed: bool,
     },
 }

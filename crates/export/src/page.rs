@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use klappe_model::{Angle, LightKind, Movement, ShotSize};
+use klappe_model::{Angle, FigureColor, LightKind, Movement, ShotSize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Paper {
@@ -40,6 +40,8 @@ pub struct Texts {
     pub axis: String,
     pub path: String,
     pub mark: String,
+    /// The legend's words for drawings (LH-19).
+    pub drawing: DrawingTexts,
     /// Metre unit, e.g. "m".
     pub unit: String,
     /// Between whole and fraction of a length: ',' or '.'.
@@ -60,6 +62,17 @@ pub struct LampTexts {
     /// Without it the list is cut without a note.
     pub more: String,
     pub kinds: Vec<(LightKind, String)>,
+}
+
+/// What the legend calls a drawing: lines by their dash, a filled shape an area.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DrawingTexts {
+    pub line: String,
+    pub dashed: String,
+    pub dotted: String,
+    pub area: String,
+    /// The colour names, appended to the word: "Zeichnung rot".
+    pub colors: Vec<(FigureColor, String)>,
 }
 
 /// The shot list's words: heading, column heads and the names of sizes, angles and movements.
