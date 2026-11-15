@@ -61,7 +61,10 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         }
         ServiceError::Store(e) => ("error.store", e.to_string()),
         ServiceError::Export(e) => ("error.export", e.to_string()),
-        ServiceError::Write { path, .. } => ("error.write", path.to_string_lossy().into_owned()),
+        // The path and the system's reason, e.g. "/a/b.pdf: No such file or directory".
+        ServiceError::Write { path, source } => {
+            ("error.write", format!("{}: {source}", path.display()))
+        }
     };
 
     language.text(key).replace("{detail}", &detail)
@@ -100,11 +103,11 @@ mod tests {
 
         assert_eq!(
             error_text(Language::German, &write),
-            "Kann nicht schreiben: /a/b.pdf"
+            "Kann nicht schreiben: /a/b.pdf: kaputt"
         );
         assert_eq!(
             error_text(Language::English, &write),
-            "Cannot write: /a/b.pdf"
+            "Cannot write: /a/b.pdf: kaputt"
         );
         assert_eq!(
             error_text(Language::German, &bad),
