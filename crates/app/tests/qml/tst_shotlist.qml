@@ -365,6 +365,17 @@ TestCase {
     }
 
     // The details of the selected shot stay under the list.
+    // D-05: the details of the selected shot sit on a card.
+    function test_the_details_sit_on_a_card() {
+        const panel = make("table", "cut", "s2")
+        const card = part(panel, "shotDetailsCard")
+
+        verify(card.visible)
+        verify(card.width > 0 && card.height > 0)
+        compare(card.color, KanteStyle.cardColor)
+        verify(!part(make("table"), "shotDetailsCard").visible)
+    }
+
     function test_the_details_stay_under_the_list() {
         const panel = make("table", "cut", "s2")
 

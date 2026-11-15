@@ -220,8 +220,16 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredHeight: panel.height * 0.6
+            Layout.margins: Kirigami.Units.smallSpacing
             visible: panel.shot !== null
             contentWidth: availableWidth
+
+            // D-05: the details of the selected shot on a card.
+            background: KanteCard {
+                objectName: "shotDetailsCard"
+                color: KanteStyle.cardColor
+                chamfer: KanteStyle.chamferSmall
+            }
 
             ColumnLayout {
                 width: parent.width
