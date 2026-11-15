@@ -365,7 +365,6 @@ TestCase {
         compare(findChild(list.itemAtIndex(1), "cell-description").text, "Szene 12.2")
     }
 
-    // The details of the selected shot stay under the list.
     // D-05: the details of the selected shot sit on a card.
     function test_the_details_sit_on_a_card() {
         const panel = make("table", "cut", "s2")
@@ -377,6 +376,7 @@ TestCase {
         verify(!part(make("table"), "shotDetailsCard").visible)
     }
 
+    // The details of the selected shot stay under the list.
     function test_the_details_stay_under_the_list() {
         const panel = make("table", "cut", "s2")
 
