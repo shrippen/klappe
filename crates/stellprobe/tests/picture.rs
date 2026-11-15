@@ -196,3 +196,25 @@ fn the_floor_lies_below_the_horizon_only() {
     assert_ne!(frame.role[0], floor);
     assert_eq!(frame.role[frame.role.len() - 1], floor);
 }
+
+/// The first row of the figure of colour `color`.
+fn top_row(picture: &Picture, color: FigureColor) -> Option<usize> {
+    let code = SceneRole::Figure(color).code();
+    let frame = &picture.frame;
+
+    (0..frame.role.len())
+        .find(|i| frame.role[*i] == code)
+        .map(|i| i / frame.width)
+}
+
+#[test]
+fn sitting_is_lower_than_standing() {
+    let top = |pose| {
+        let mut plan = plan(35.0, &[("e", 10.0, 5.0)]);
+        plan.figures[0].marks[0].pose = pose;
+
+        top_row(&take(&set(), &plan), FigureColor::Purple).expect("figure")
+    };
+
+    assert!(top(Pose::Sitting) > top(Pose::Standing));
+}

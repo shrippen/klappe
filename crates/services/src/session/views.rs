@@ -3,8 +3,8 @@
 
 use klappe_model::{CameraPresets, DrawingShape, Location};
 use klappe_stellprobe::{
-    aim_at, axis_pair, camera_view, horizontal_fov_deg, object_extent, opening_span, picture,
-    wall_top, CameraView, Eye, Picture, Source,
+    aim_at, axis_pair, horizontal_fov_deg, object_extent, opening_span, picture, wall_top, Eye,
+    Picture, Source,
 };
 
 use super::Session;
@@ -97,27 +97,9 @@ impl Session {
         }
     }
 
-    /// What a camera sees at the playhead (LH-36): that of the selected shot, else `fallback`
-    /// (the camera picked on the plan). `None` without a camera, or one without marks.
-    pub fn camera_view(&self, fallback: Option<&str>) -> Option<CameraView> {
-        let plan = self.plan()?;
-        let of_shot = self
-            .selected_shot()
-            .and_then(|id| plan.shots.iter().find(|shot| shot.id == id))
-            .map(|shot| shot.camera.as_str());
-        let location = self.project.location(&self.scene()?.location)?;
-
-        camera_view(
-            &self.project,
-            &location.set,
-            plan,
-            of_shot.or(fallback)?,
-            self.time_s,
-        )
-    }
-
-    /// The picture of that same camera as pixels, `width_px` wide (LH-36, LH-99): covering
-    /// right per pixel, roles instead of colours. `None` as for `camera_view`.
+    /// What a camera sees at the playhead as pixels, `width_px` wide (LH-36, LH-99): that of
+    /// the selected shot, else `fallback` (the camera picked on the plan). Covering is right
+    /// per pixel, roles instead of colours. `None` without a camera, or one without marks.
     pub fn camera_picture(&self, fallback: Option<&str>, width_px: usize) -> Option<Picture> {
         let plan = self.plan()?;
         let of_shot = self

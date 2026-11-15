@@ -22,7 +22,6 @@ TestCase {
         id: fake
         property bool loaded: true
         property string planJson: ""
-        property string viewJson: ""
         property string selectedKey: ""
         property int selectedCount: 0
         property bool extendSelection: false

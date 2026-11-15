@@ -9,6 +9,7 @@ const PAGES: &[&str] = &[
     "qml/ScriptPanel.qml",
     "qml/ShotPanel.qml",
     "qml/CameraView.qml",
+    "qml/CameraSurface.qml",
     "qml/ShotTiles.qml",
     "qml/ShotTable.qml",
     "qml/PlanArea.qml",
@@ -46,6 +47,7 @@ const PAGES: &[&str] = &[
 
 fn main() {
     CxxQtBuilder::new_qml_module(QmlModule::new("io.github.shrippen.klappe").qml_files(PAGES))
-        .files(["src/bridge.rs"])
+        .qt_module("Quick")
+        .files(["src/bridge.rs", "src/camera_picture.rs"])
         .build();
 }

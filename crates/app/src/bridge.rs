@@ -10,6 +10,8 @@ pub mod qobject {
     unsafe extern "C++" {
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
+        include!("cxx-qt-lib/qimage.h");
+        type QImage = cxx_qt_lib::QImage;
     }
 
     extern "RustQt" {
@@ -22,9 +24,8 @@ pub mod qobject {
         #[qproperty(QString, plan_title, cxx_name = "planTitle")]
         /// `{ width, depth, shapes }` for KanteShapeCanvas.
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
-        /// What the selected shot's camera sees, as `{ width, depth, shapes }` for
-        /// KanteShapeCanvas; empty without a shot or when its camera has no marks.
-        #[qproperty(QString, view_json, cxx_name = "viewJson")]
+        /// Counts refreshes: the camera's picture is made again when it changes.
+        #[qproperty(i32, picture_revision, cxx_name = "pictureRevision")]
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
         /// The shot list in shooting order: setups grouped (LH-72); `shotsJson` is the cut order.
@@ -97,6 +98,17 @@ pub mod qobject {
         /// nobody pressed it there.
         #[qsignal]
         fn switched(self: Pin<&mut Self>);
+
+        /// What the selected shot's camera sees, `width_px` wide, coloured with `palette_json`
+        /// (`{ name: [r, g, b] }`); a null image without a camera or marks.
+        #[qinvokable]
+        #[cxx_name = "cameraImage"]
+        fn camera_image(self: Pin<&mut Self>, width_px: i32, palette_json: &QString) -> QImage;
+
+        /// `{ width, height, labels: [{ text, x, y }] }` of the last image; empty if null.
+        #[qinvokable]
+        #[cxx_name = "cameraFrame"]
+        fn camera_frame(self: &Self) -> QString;
 
         /// Moves the playhead (seconds).
         #[qinvokable]
@@ -681,6 +693,7 @@ mod library;
 mod marks;
 mod measure;
 mod notes;
+mod picture;
 mod plans;
 mod playback;
 mod project;
@@ -703,7 +716,9 @@ pub struct ControllerRust {
     title: QString,
     plan_title: QString,
     plan_json: QString,
-    view_json: QString,
+    picture_revision: i32,
+    /// `cameraFrame`: the size and names of the last camera image.
+    camera_frame: String,
     tracks_json: QString,
     shots_json: QString,
     shots_shooting_json: QString,

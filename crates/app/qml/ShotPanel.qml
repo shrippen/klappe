@@ -274,7 +274,7 @@ Item {
                     Layout.leftMargin: Kirigami.Units.largeSpacing
                     Layout.rightMargin: Kirigami.Units.largeSpacing
                     texts: panel.texts
-                    json: panel.controller.viewJson
+                    controller: panel.controller
                 }
 
                 GridLayout {

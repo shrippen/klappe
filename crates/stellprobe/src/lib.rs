@@ -4,7 +4,6 @@
 //! model::FloorPlan ──► motion   where is everyone at t?
 //!                  ──► height   how tall is everything? (defaults, stacking)
 //!                  ──► optics   what does a camera see?
-//!                  ──► sight    what is the camera's picture? (perspective, flat shapes)
 //!                  ──► scene    the set as bodies ──► picture  pixels through `raster`
 //!                  ──► movement what does a camera do during a shot?
 //!                  ──► axis     which shot jumps the line?
@@ -30,7 +29,6 @@ mod picture;
 mod rig;
 mod scene;
 mod setup;
-mod sight;
 
 pub use axis::{axis_at, axis_jumps, axis_pair, Axis, AxisJump, Side};
 pub use card::NOTE_TEXT_M;
@@ -41,8 +39,9 @@ pub use display::{
 pub use eye::{Eye, FRAME_WIDTH};
 pub use height::{object_extent, opening_span, wall_top};
 pub use hit::{anchor, hit, in_lasso, within};
+pub use klappe_raster::Frame;
 pub use light::Lamp;
-pub use look::{look, view_look, Area, Hue, Look};
+pub use look::{look, scene_look, Area, Hue, Look};
 pub use motion::{
     aim_at, bend_follow, bend_grips, camera_at, figure_at, walked_ways, way_length_m, Placement,
 };
@@ -51,4 +50,3 @@ pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};
 pub use picture::{picture, Picture, PictureLabel};
 pub use scene::SceneRole;
 pub use setup::{ordered_shots, shot_setups, ShotOrder, SETUP_TOLERANCE_M};
-pub use sight::{camera_view, CameraView, ViewItem, ViewRole};
