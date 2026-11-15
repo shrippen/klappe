@@ -80,7 +80,7 @@ fn chunk(out: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]) {
     out.extend_from_slice(&crc.to_be_bytes());
 }
 
-fn crc32(data: &[u8]) -> u32 {
+pub(crate) fn crc32(data: &[u8]) -> u32 {
     !data.iter().fold(!0_u32, |crc, &byte| {
         CRC_TABLE[usize::from(crc as u8 ^ byte)] ^ (crc >> 8)
     })

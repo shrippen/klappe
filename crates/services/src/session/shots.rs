@@ -53,8 +53,10 @@ impl Session {
                     angle: shot.angle.name().to_owned(),
                     movement: shot.movement.name().to_owned(),
                     movement_hint: movement_hint(camera, shot),
-                    lens_mm: lens.map_or(shot.lens_mm.unwrap_or(0.0), |l| l.from_mm),
-                    lens_to_mm: lens.and_then(|l| l.span_to_mm()),
+                    lens_mm: lens.map_or(shot.lens_mm.unwrap_or(0.0), |l| {
+                        l.span_mm().map_or(l.from_mm, |(min_mm, _)| min_mm)
+                    }),
+                    lens_to_mm: lens.and_then(|l| l.span_mm()).map(|(_, max_mm)| max_mm),
                     lens_from_marks: lens.is_some_and(|l| l.from_marks),
                     own_lens_mm: shot.lens_mm,
                     from_s: shot.from_s,

@@ -384,6 +384,77 @@ fn prints_the_plan_as_pdf() {
 }
 
 #[test]
+fn writes_the_shot_list_as_ods_and_xlsx() {
+    let s = open();
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR"));
+    let mut texts = print_texts();
+    texts.shots.columns.number = "Nummer".into();
+
+    s.export_ods(&dir.join("session-shots.ods"), &texts, ShotOrder::Cut)
+        .unwrap();
+    s.export_xlsx(&dir.join("session-shots.xlsx"), &texts, ShotOrder::Cut)
+        .unwrap();
+
+    for name in ["session-shots.ods", "session-shots.xlsx"] {
+        let bytes = std::fs::read(dir.join(name)).unwrap();
+        let text = String::from_utf8_lossy(&bytes);
+        assert_eq!(&bytes[..2], b"PK", "{name}");
+        assert!(text.contains("Nummer"), "{name}");
+        assert!(text.contains("12.1"), "{name}");
+    }
+}
+
+#[test]
+fn writes_one_picture_per_mark() {
+    let mut s = open();
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-frames");
+    let _ = std::fs::remove_dir_all(&dir);
+    s.set_time(7.5);
+
+    let files = s
+        .export_frames(&dir, klappe_services::Paper::A4, &print_texts())
+        .unwrap();
+
+    // Marks at 0, 6, 9, 14 and 20 s.
+    let names: Vec<String> = files
+        .iter()
+        .map(|f| f.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        names,
+        [
+            "12-01-00-00.png",
+            "12-02-00-06.png",
+            "12-03-00-09.png",
+            "12-04-00-14.png",
+            "12-05-00-20.png"
+        ]
+    );
+    let pictures: Vec<Vec<u8>> = files.iter().map(|f| std::fs::read(f).unwrap()).collect();
+    assert!(pictures.iter().all(|p| p.starts_with(b"\x89PNG")));
+    // The figures move between the marks: the pictures differ.
+    assert_ne!(pictures[0], pictures[1]);
+    assert_ne!(pictures[1], pictures[2]);
+    assert_ne!(pictures[2], pictures[3]);
+    // The playhead stays where it was.
+    assert_eq!(s.time_s(), 7.5);
+}
+
+#[test]
+fn pictures_never_land_among_old_files() {
+    let mut s = open();
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-frames-twice");
+    let _ = std::fs::remove_dir_all(&dir);
+    let paper = klappe_services::Paper::A4;
+
+    s.export_frames(&dir, paper, &print_texts()).unwrap();
+    let again = s.export_frames(&dir, paper, &print_texts());
+
+    assert!(matches!(again, Err(ServiceError::NotEmpty(_))), "{again:?}");
+    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 5);
+}
+
+#[test]
 fn writes_the_shot_list_as_csv() {
     let s = open();
     let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("session-shots.csv");

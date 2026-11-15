@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use klappe_export::{Orientation, Page, Paper, Texts, Theme};
 use klappe_model::FloorPlan;
@@ -6,6 +6,9 @@ use klappe_stellprobe::{DisplayList, Shape, ShotOrder};
 
 use super::Session;
 use crate::error::{write_failed, ServiceError};
+
+const SECONDS_PER_MINUTE: u64 = 60;
+const MIN_NUMBER_WIDTH: usize = 2;
 
 impl Session {
     /// Prints the current plan at the playhead as PDF (LH-80), followed by its shot list;
@@ -80,6 +83,89 @@ impl Session {
 
         write_file(path, csv.into_bytes())
     }
+
+    /// Writes the shot list as ODS (LH-85), the CSV's columns; numbers are numbers.
+    pub fn export_ods(
+        &self,
+        path: &Path,
+        texts: &Texts,
+        order: ShotOrder,
+    ) -> Result<(), ServiceError> {
+        let empty = FloorPlan::new("", "");
+        let bytes = klappe_export::shots_ods(self.plan().unwrap_or(&empty), &texts.shots, order);
+
+        write_file(path, bytes)
+    }
+
+    /// Writes the shot list as XLSX (LH-85), the same as `export_ods`.
+    pub fn export_xlsx(
+        &self,
+        path: &Path,
+        texts: &Texts,
+        order: ShotOrder,
+    ) -> Result<(), ServiceError> {
+        let empty = FloorPlan::new("", "");
+        let bytes = klappe_export::shots_xlsx(self.plan().unwrap_or(&empty), &texts.shots, order);
+
+        write_file(path, bytes)
+    }
+
+    /// Writes the plan at every mark of the scene (`marks_s`) as PNG into `dir` (LH-83),
+    /// named `<scene>-<nr>-<mm-ss>.png`, to read the blocking at the set. `dir` must be empty or
+    /// missing. The playhead stays where it was. Returns the files in mark order.
+    pub fn export_frames(
+        &mut self,
+        dir: &Path,
+        paper: Paper,
+        texts: &Texts,
+    ) -> Result<Vec<PathBuf>, ServiceError> {
+        // Pictures of an earlier export would mix with these and show blocking that is gone.
+        if !klappe_store::is_empty_dir(dir).map_err(write_failed)? {
+            return Err(ServiceError::NotEmpty(dir.to_owned()));
+        }
+
+        let playhead_s = self.time_s;
+        let scene = self.scene_number();
+        let mut files = Vec::new();
+
+        let marks = self.marks_s();
+        for (i, at_s) in marks.iter().copied().enumerate() {
+            self.set_time(at_s);
+            let path = dir.join(frame_name(&scene, i + 1, marks.len(), at_s));
+            let written = self.export_png(&path, paper, texts.clone());
+            if let Err(e) = written {
+                self.set_time(playhead_s);
+                return Err(e);
+            }
+            files.push(path);
+        }
+
+        self.set_time(playhead_s);
+
+        Ok(files)
+    }
+}
+
+/// The scene's number as part of a file name: letters and digits, the rest an underscore.
+fn file_part(number: &str) -> String {
+    number
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '_' })
+        .collect()
+}
+
+/// `<scene>-<nr>-<mm-ss>.png`; `nr` counts the marks from 1, so two marks within one second
+/// keep their own file. `nr` is as wide as `count` needs, so names sort like the marks.
+fn frame_name(scene: &str, nr: usize, count: usize, at_s: f64) -> String {
+    let whole_s = at_s as u64;
+    let width = count.to_string().len().max(MIN_NUMBER_WIDTH);
+
+    format!(
+        "{}-{nr:0width$}-{:02}-{:02}.png",
+        file_part(scene),
+        whole_s / SECONDS_PER_MINUTE,
+        whole_s % SECONDS_PER_MINUTE
+    )
 }
 
 /// A failed write names `path`, the file the user chose, not the temp file beside it.
@@ -91,4 +177,24 @@ fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
         },
         other => write_failed(other),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Names sort like the marks: the number is as wide as the count needs.
+    #[test]
+    fn frame_names_sort_with_over_99_marks() {
+        let names: Vec<String> = [9, 10, 99, 100, 101]
+            .into_iter()
+            .map(|nr| frame_name("14", nr, 120, 0.0))
+            .collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+
+        assert_eq!(names, sorted);
+        assert_eq!(names[0], "14-009-00-00.png");
+        assert_eq!(frame_name("14", 9, 12, 0.0), "14-09-00-00.png");
+    }
 }

@@ -239,14 +239,20 @@ pub(super) fn plan_json(
     plan::shapes_json(list, s.dir(), &marked, picked, marquee, measure)
 }
 
-/// What the tool lists of the tool bar offer: the project's characters, the object library
-/// and the lamp kinds.
+/// What the tool lists of the tool bar offer: the project's characters, the object library,
+/// the plan's cameras and the lamp kinds.
 pub(super) fn choices_json(s: &Session) -> String {
     let figures: Vec<_> = s
         .project()
         .characters
         .iter()
         .map(|c| json!({ "id": c.id, "name": c.name }))
+        .collect();
+    let cameras: Vec<_> = s
+        .plan()
+        .iter()
+        .flat_map(|p| p.cameras.iter())
+        .map(|c| json!({ "id": c.id, "label": c.label }))
         .collect();
     let lights: Vec<_> = LightKind::ALL.iter().map(|k| k.name()).collect();
 
@@ -264,6 +270,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "figure": figures,
         "object": s.library(),
         "camera": camera::presets_json(s.camera_presets()),
+        "cameras": cameras,
         "light": lights,
         "color": colors,
         "dash": dashes,
@@ -436,6 +443,20 @@ mod tests {
             .iter()
             .any(|o| o["kind"] == "horse" && o["shape"] == "ellipse"));
         assert_eq!(objects.len(), s.library().len());
+    }
+
+    /// The camera tool lists the cameras of the plan, to add a mark to one of them.
+    #[test]
+    fn the_camera_list_is_the_plans_cameras() {
+        let s = example();
+
+        let choices: serde_json::Value = serde_json::from_str(&choices_json(&s)).unwrap();
+
+        assert_eq!(choices["cameras"][0], json!({ "id": "a", "label": "A" }));
+        assert_eq!(
+            choices["cameras"].as_array().unwrap().len(),
+            s.plan().unwrap().cameras.len()
+        );
     }
 
     /// The tool bar's lists, by the names the file and the catalogue use.

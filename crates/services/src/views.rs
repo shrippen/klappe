@@ -25,9 +25,9 @@ pub struct ShotRow {
     /// What the camera's marks do during a shot without a movement of its own (LH-33): a
     /// model name like `crane`; empty when the shot has a movement or the camera is static.
     pub movement_hint: String,
-    /// The shot's lens at its start (`shot_lens`).
+    /// The shot's lens, the smallest of a zoom (`shot_lens`).
     pub lens_mm: f64,
-    /// The lens at its end when it differs: a zoom; `None` for one lens.
+    /// The largest lens when it differs: a zoom; `None` for one lens.
     pub lens_to_mm: Option<f64>,
     /// The camera's marks give the lens: the shot's own field is not in use.
     pub lens_from_marks: bool,
