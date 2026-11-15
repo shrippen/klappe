@@ -200,6 +200,8 @@ TestCase {
 
         figureMark({ arrival: "appear", departure: "leave" })
 
+        verify(!findChild(card, "cueRow").visible)
+        findChild(card, "markMore").clicked()
         verify(findChild(card, "cueRow").visible)
         compare(findChild(card, "arrivalChoice").currentIndex, 1)
         compare(findChild(card, "departureChoice").currentIndex, 1)
@@ -407,5 +409,18 @@ TestCase {
         fake.selectedKey = "wall:0"
 
         verify(!card.visible)
+    }
+
+    // D-04: pose, pause and pace are common; arrival and departure wait behind "More".
+    function test_more_shows_the_other_fields_of_a_camera_mark() {
+        const card = createTemporaryObject(cardComponent, tc)
+        cameraMark()
+
+        verify(findChild(card, "heightField").visible)
+        verify(!findChild(card, "tiltRow").visible)
+
+        findChild(card, "markMore").clicked()
+
+        verify(findChild(card, "tiltRow").visible)
     }
 }
