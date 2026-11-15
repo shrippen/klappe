@@ -50,11 +50,17 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Namen im Katalog unter `objectKind.<kind>`). `bibliothek.toml` hält die eigenen Objekte des
   Projekts, je ein `[[objekt]]` mit `kind` (eindeutig, auch gegenüber den eingebauten), `label`
   (Name), `width_m`, `depth_m` und `shape`. Dieselbe Struktur hat eine Bibliotheksdatei zum
-  Weitergeben (beliebiger Name, `*.toml`). Eine Datei mit einem unbrauchbaren Eintrag (leerer
+  Weitergeben (beliebiger Name, `*.toml`). Optional `group` (LH-12): die Gruppe, unter der die
+  Auswahlliste den Eintrag zeigt; in der eingebauten Bibliothek ein Schlüssel (`furniture`,
+  `build`, `vehicles`, `nature`, `camera`; Namen im Katalog unter `objectGroup.<group>`), bei
+  eigenen Objekten freier Text. Ohne Gruppe steht ein eigenes Objekt unter „Eigene“; der Schlüssel
+  fehlt dann in der Datei. Ein eigener Eintrag lässt sich umbenennen (`label`, `group`) und
+  löschen; Objekte im Plan behalten `kind`, Maße, Form und Namen, ihr `kind` ist dann wie ein
+  unbekanntes. Eine Datei mit einem unbrauchbaren Eintrag (leerer
   `kind`, Maß nicht in (0, 1000] m, doppelter `kind`) wird als Ganzes abgelehnt; die
   `bibliothek.toml` eines Projekts dann beim Öffnen mit Meldung. Ohne eigene Objekte gibt es die
-  Datei nicht: `save` löscht sie dann. Keine neue Formatversion: ältere Fassungen kennen `shape`
-  und `bibliothek.toml` nicht und verlieren sie beim Speichern.
+  Datei nicht: `save` löscht sie dann. Keine neue Formatversion: ältere Fassungen kennen `shape`,
+  `group` und `bibliothek.toml` nicht und verlieren sie beim Speichern.
 - **Höhe von Objekten (LH-17):** `[[set.objects]]` und `[[objekt]]` der Bibliothek haben optional
   `height_m`, die Höhe in Metern (größer als 0, höchstens 100). Fehlt der Schlüssel, ist keine
   Höhe angegeben (Fläche, Teppich); ein Objekt ohne Höhe schreibt ihn nicht, ältere Projekte

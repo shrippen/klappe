@@ -538,6 +538,11 @@ impl LightKind {
         matches!(self, LightKind::LedPanel | LightKind::Tube)
     }
 
+    /// Whether the lamp makes light of its own: bounce and flag only shape it.
+    pub fn gives_light(self) -> bool {
+        !matches!(self, LightKind::Reflector | LightKind::Flag)
+    }
+
     /// The lamp kind `name` names; `None` for any other text.
     pub fn from_name(name: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|k| k.name() == name)

@@ -215,6 +215,29 @@ pub fn via_through(a: Point, bend: Point, b: Point) -> Point {
     Point::new(2.0 * bend.x_m - middle.x_m, 2.0 * bend.y_m - middle.y_m)
 }
 
+/// Where `via` goes when the way's ends move from `old` to `new` (start, end): it keeps its
+/// place relative to the leg, so the curve keeps its shape through a move, a turn or a stretch
+/// (LH-21). A leg that has no length has no frame; `via` then only moves with its middle.
+pub fn bend_follow(via: Point, old: (Point, Point), new: (Point, Point)) -> Point {
+    let (old_mid, new_mid) = (old.0.lerp(old.1, 0.5), new.0.lerp(new.1, 0.5));
+    let (ex, ey) = (old.1.x_m - old.0.x_m, old.1.y_m - old.0.y_m);
+    let (fx, fy) = (new.1.x_m - new.0.x_m, new.1.y_m - new.0.y_m);
+    let len_sq = ex * ex + ey * ey;
+    let (zx, zy) = (via.x_m - old_mid.x_m, via.y_m - old_mid.y_m);
+
+    if len_sq <= f64::EPSILON {
+        return Point::new(new_mid.x_m + zx, new_mid.y_m + zy);
+    }
+
+    // z * (f / e) as complex numbers: the offset from the middle turns and scales with the leg.
+    let (rx, ry) = ((fx * ex + fy * ey) / len_sq, (fy * ex - fx * ey) / len_sq);
+
+    Point::new(
+        new_mid.x_m + zx * rx - zy * ry,
+        new_mid.y_m + zx * ry + zy * rx,
+    )
+}
+
 /// Length of the curve from `a` to `b` bent towards `via`, up to parameter i / `ARC_STEPS`.
 fn arc_lengths(a: Point, via: Point, b: Point) -> [f64; ARC_STEPS + 1] {
     let mut lengths = [0.0; ARC_STEPS + 1];
@@ -379,6 +402,33 @@ mod tests {
 
         assert_eq!(figure_at(&t, 4.0).map(|p| p.at.x_m), Some(0.0));
         assert_eq!(figure_at(&t, 7.0).map(|p| p.at.x_m), Some(3.0));
+    }
+
+    /// Hand-worked: leg (17, 9.5)-(12, 6.5) with `via` (14.5, 4) becomes (17, 9.5)-(11, 7).
+    #[test]
+    fn the_bend_follows_a_moved_end() {
+        let (a, b) = (Point::new(17.0, 9.5), Point::new(12.0, 6.5));
+        let moved = Point::new(11.0, 7.0);
+        let via = bend_follow(Point::new(14.5, 4.0), (a, b), (a, moved));
+
+        assert!((via.x_m - (14.0 - 11.0 / 17.0)).abs() < 1e-9, "{via:?}");
+        assert!((via.y_m - (8.25 - 75.0 / 17.0)).abs() < 1e-9, "{via:?}");
+    }
+
+    #[test]
+    fn the_bend_follows_a_turned_leg() {
+        let (a, b) = (Point::new(0.0, 0.0), Point::new(4.0, 0.0));
+        let via = bend_follow(Point::new(2.0, 3.0), (a, b), (a, Point::new(0.0, 4.0)));
+
+        assert!(via.distance_m(Point::new(-3.0, 2.0)) < 1e-9, "{via:?}");
+    }
+
+    #[test]
+    fn a_leg_without_length_moves_the_bend_with_its_middle() {
+        let a = Point::new(1.0, 1.0);
+        let via = bend_follow(Point::new(2.0, 1.0), (a, a), (a, Point::new(3.0, 1.0)));
+
+        assert!(via.distance_m(Point::new(3.0, 1.0)) < 1e-9, "{via:?}");
     }
 
     #[test]

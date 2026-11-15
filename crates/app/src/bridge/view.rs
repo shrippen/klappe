@@ -458,6 +458,9 @@ mod tests {
         assert_eq!(objects[0]["shape"], "rect");
         assert_eq!(objects[0]["custom"], false);
         assert_eq!(objects[0]["height_m"], 0.75);
+        // The group the list shows it under, and how many objects of the example use it.
+        assert_eq!(objects[0]["group"], "furniture");
+        assert_eq!(objects[0]["uses"], 1);
         assert!(objects
             .iter()
             .any(|o| o["kind"] == "horse" && o["shape"] == "ellipse"));

@@ -1,46 +1,54 @@
 # The built-in object library (LH-11). Sizes in metres at rotation 0; what has a front or a
 # long side (car, carriage, horse, stairs) lies along x and faces right (0 degrees). `height_m`
 # is optional (LH-17): a flat object has none. The names
-# are in the catalogue (`objectKind.<kind>`); an own object brings its `label` instead.
+# are in the catalogue (`objectKind.<kind>`), the groups in `objectGroup.<group>`; an own object
+# brings its `label` and a free `group` instead (LH-12).
 
 [[objekt]]
 kind = "table"
+group = "furniture"
 width_m = 1.6
 depth_m = 0.9
 height_m = 0.75
 
 [[objekt]]
 kind = "chair"
+group = "furniture"
 width_m = 0.45
 depth_m = 0.45
 height_m = 0.9
 
 [[objekt]]
 kind = "bed"
+group = "furniture"
 width_m = 1.4
 depth_m = 2.0
 height_m = 0.6
 
 [[objekt]]
 kind = "sofa"
+group = "furniture"
 width_m = 2.0
 depth_m = 0.9
 height_m = 0.85
 
 [[objekt]]
 kind = "door"
+group = "build"
 width_m = 0.9
 depth_m = 0.2
 height_m = 2.1
 
 [[objekt]]
 kind = "window"
+group = "build"
 width_m = 1.2
 depth_m = 0.2
 height_m = 1.2
 
 [[objekt]]
 kind = "pillar"
+group = "build"
 width_m = 0.4
 depth_m = 0.4
 shape = "ellipse"
@@ -48,30 +56,35 @@ height_m = 3.0
 
 [[objekt]]
 kind = "fireplace"
+group = "build"
 width_m = 1.2
 depth_m = 0.5
 height_m = 1.2
 
 [[objekt]]
 kind = "stairs"
+group = "build"
 width_m = 3.0
 depth_m = 1.0
 height_m = 2.5
 
 [[objekt]]
 kind = "car"
+group = "vehicles"
 width_m = 4.5
 depth_m = 1.8
 height_m = 1.5
 
 [[objekt]]
 kind = "carriage"
+group = "vehicles"
 width_m = 3.5
 depth_m = 1.6
 height_m = 2.4
 
 [[objekt]]
 kind = "horse"
+group = "nature"
 width_m = 2.4
 depth_m = 0.7
 shape = "ellipse"
@@ -79,6 +92,7 @@ height_m = 1.6
 
 [[objekt]]
 kind = "tree"
+group = "nature"
 width_m = 3.0
 depth_m = 3.0
 shape = "ellipse"
@@ -86,6 +100,7 @@ height_m = 6.0
 
 [[objekt]]
 kind = "platform"
+group = "build"
 width_m = 2.0
 depth_m = 2.0
 height_m = 0.4
@@ -94,18 +109,21 @@ height_m = 0.4
 # take the circle their arm sweeps (diameter = twice the arm: 3 m and 6 m).
 [[objekt]]
 kind = "track"
+group = "camera"
 width_m = 4.0
 depth_m = 0.62
 height_m = 0.15
 
 [[objekt]]
 kind = "dolly"
+group = "camera"
 width_m = 1.2
 depth_m = 0.8
 height_m = 0.9
 
 [[objekt]]
 kind = "jib"
+group = "camera"
 width_m = 6.0
 depth_m = 6.0
 shape = "ellipse"
@@ -113,6 +131,7 @@ height_m = 2.5
 
 [[objekt]]
 kind = "crane"
+group = "camera"
 width_m = 12.0
 depth_m = 12.0
 shape = "ellipse"
@@ -120,6 +139,7 @@ height_m = 4.0
 
 [[objekt]]
 kind = "tripod"
+group = "camera"
 width_m = 1.0
 depth_m = 1.0
 shape = "ellipse"
