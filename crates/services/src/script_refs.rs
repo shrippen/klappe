@@ -230,6 +230,10 @@ fn cue_lines(project: &Project, text: &str, id: &str, name: &str) -> Vec<LineCha
             true => name.to_uppercase(),
             false => name.to_owned(),
         };
+        // Only the case of the name changed: the cue stays.
+        if to == *cue {
+            continue;
+        }
         let Some(new_line) = lines.get(line).and_then(|raw| replace_once(raw, cue, &to)) else {
             continue;
         };
@@ -356,6 +360,15 @@ mod tests {
         assert!(text.contains("ELISE (V.O.)\n"));
         assert!(text.contains("Elisabeth tritt ein."));
         assert!(text.contains("BURGVOGT\n"));
+    }
+
+    /// Only the case of the name differs: the cues stay as they are.
+    #[test]
+    fn a_name_in_another_case_changes_nothing() {
+        let p = project();
+
+        assert!(character_changes(&p, SCRIPT, "elisabeth", "ELISABETH").is_empty());
+        assert_eq!(character_text(&p, SCRIPT, "elisabeth", "ELISABETH"), None);
     }
 
     /// An empty heading (`.#12#`) is replaced as a whole.

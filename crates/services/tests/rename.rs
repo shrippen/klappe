@@ -176,3 +176,18 @@ fn a_scene_cannot_take_a_number_the_script_has() {
     assert!(matches!(err, ServiceError::NumberTaken(n) if n == "13"));
     assert!(s.script_text().contains("#12#"));
 }
+
+/// A rename of the letters' case only is no change of the text.
+#[test]
+fn a_case_only_rename_leaves_the_text_and_the_undo_steps() {
+    let mut s = open("manage-case-only");
+    let before = s.script_text().to_owned();
+
+    assert!(s.character_script_changes("elisabeth", "ELISABETH").is_empty());
+    s.edit_project(rename_character("ELISABETH")).unwrap();
+    assert_eq!(s.script_text(), before);
+
+    s.set_script_text("Anders.\n");
+    s.undo();
+    assert_eq!(s.script_text(), "Anders.\n");
+}
