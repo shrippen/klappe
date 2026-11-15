@@ -94,7 +94,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | LH-10 | Wände, Türen, Fenster, Treppen zeichnen. | M |
 | LH-11 | Bibliothek von Objekten (Tisch, Stuhl, Bett, Fahrzeug, Pferd …), skalier- und drehbar. | M |
 | LH-12 | Eigene Objekte anlegen und in der Bibliothek ablegen; Bibliotheken als Dateien weitergeben. | M |
-| LH-13 | Bild oder PDF als Hintergrund (Grundriss, Luftbild, Foto); Maßstab über eine bekannte Strecke kalibrieren. | M |
+| LH-13 | Bild als Hintergrund (Grundriss, Luftbild, Foto; nur Bildformate, kein PDF und kein Video); Maßstab über eine bekannte Strecke kalibrieren. | M |
 | LH-14 | Maßstabsgetreues Arbeiten in Metern; Raster, Einrasten, Messwerkzeug. | M |
 | LH-15 | Ebenen (Set, Figuren, Kamera, Licht, Notizen) ein- und ausblenden, sperren. | M |
 | LH-16 | Beschriftungen und Notizen frei im Plan. | M |
