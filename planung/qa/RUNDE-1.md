@@ -54,7 +54,7 @@ sie bleiben offen und verdecken den Plan.
 
 ## Funde
 
-„Nachgeprüft: ja“ heißt: in frischer Sitzung nachgespielt (`check`, `check2`). Die übrigen
+„Nachgeprüft: ja“ heißt: in frischer Sitzung nachgespielt (`check`, `check2`, `check3`). Die übrigen
 sind an Stand, Code oder den Dateien der Testsitzung abgeglichen und vor einer Behebung
 nachzuspielen.
 
@@ -155,7 +155,7 @@ nachzuspielen.
   14.1 gewählt zeigt der Blick auch bei 23,5 s noch 14.1, obwohl dort 14.3 läuft. Erwartet: der
   Blick der laufenden Kamera (LH-62, LH-38).
 - **Beleg:** P1 `shot-007`, `shot-010` bis `shot-012`
-- **Nachgeprüft:** teilweise; abgeglichen an STAND (Rückfall auf die gewählte Kamera ist offen, Entscheidung des
+- **Nachgeprüft:** nein; abgeglichen an STAND (Rückfall auf die gewählte Kamera ist offen, Entscheidung des
   Eigentümers); `check/shot-001` zeigt „Kein Shot gewählt“.
 - **Status:** offen
 
@@ -228,7 +228,7 @@ nachzuspielen.
   Raum und Wege, im Plan wie im Bild. Erwartet: Bild ohne Papierfrage; wählbar, was ins Bild
   kommt.
 - **Beleg:** P5 `shot-032`, `plan.png`; P1 `shot-004`
-- **Nachgeprüft:** teilweise (Code: PNG gehört zu den Formaten mit Papierfrage; `check/shot-001`)
+- **Nachgeprüft:** nein; abgeglichen am Code (PNG gehört zu den Formaten mit Papierfrage; `check/shot-001`)
 - **Status:** offen
 
 ### Q1-17 „Neuer Plan“ übernimmt den Raum
@@ -250,6 +250,17 @@ nachzuspielen.
 - **Nachgeprüft:** nein; abgeglichen an `crates/store/camera/standard.toml`
 - **Status:** offen
 
+### Q1-19 Nach dem Speichern-Dialog wirken Tastenkürzel nicht
+- **Art:** Fehler · **Stufe:** mittel
+- **Wo:** P1 K-01
+- **Getan / Gesehen / Erwartet:** PDF gespeichert, danach Strg+S und Strg+O: nichts, kein
+  Dialog, oben weiter „PDF gespeichert“. Erwartet: Speichern und Öffnen-Dialog.
+- **Beleg:** P1 `shot-042` bis `shot-044`, `actions.log` Zeilen 113 und 115
+- **Nachgeprüft:** ja, frische Sitzung (`check3/shot-006`): nach dem PDF-Dialog öffnet Strg+O
+  nichts. Nach einem Klick in den Plan wirken Strg+O und Strg+S (`check2/shot-002`, `-004`).
+- **Einordnung:** Die Tastatur kommt nach dem Dialog nicht ins Fenster zurück.
+- **Status:** offen
+
 ## Nicht bestätigt
 
 - **Eigenes Objekt „Regal“ nicht in der Liste** (P5): steht am Ende der Liste unter „Eigene“,
@@ -262,9 +273,6 @@ nachzuspielen.
   sondern der Sitzung (Vorfälle).
 - **Objektiv von Kamera A nach Änderung an C verändert** (P2, Vermutung): die Daten von A sind
   unverändert (24 mm); ob die Karte den falschen Objektivsatz zeigt, nicht nachgespielt.
-- **Strg+S und Strg+O ohne Wirkung** (P1, `shot-042` bis `-044`): in frischer Sitzung nach
-  Klick in den Plan öffnet Strg+O den Dialog, Strg+S speichert und meldet „Gespeichert“
-  (`check2/shot-002`, `-004`). Bei P1 kam beides direkt nach dem PDF-Dialog.
 - **Neuer Shot verdeckt in der Zeitleiste 14.1 und steht in der Mitte; Setup-Nummer doppelt**
   (P2, P3): nicht nachgespielt.
 - **Taste N wechselt in den Zeichenmodus; Palette ohne „Neuer Shot“** (P2): nicht nachgespielt.
