@@ -38,7 +38,7 @@ Alle Module arbeiten auf demselben Projekt und demselben Datenmodell.
 | SVG, CSV | eigene Ausgabe | MIT | klein |
 | PNG | eigener Rasterer (`export/`: Flächenfüllung mit Kantenglättung, Liberation Sans als TrueType, PNG-Schreiber; liest PNG und JPEG für Hintergrundbilder) | MIT; Schrift SIL OFL | Die CLI soll PNG ohne Qt schreiben (LH-81); ein Rasterer aus Crates brächte viele Abhängigkeiten. Dieselbe Seite wie SVG und PDF, 150 dpi. |
 | ODS, XLSX | eigene Ausgabe (`export/`: ZIP ohne Kompression, XML) | MIT | LH-85; eine Tabelle braucht keine Bibliothek. |
-| Kamerablick (3D) | eigene einfache Perspektivprojektion im Kern (Wände, Kästen, Figuren als Silhouetten) | MIT | Qt Quick 3D ist nur unter GPLv3 frei; reicht für LH-36 ohne GPU-Stack. |
+| Kamerablick und 3D-Ansicht | eigener Rasterer mit Tiefenpuffer (Baustein `raster/`), eine Szene für Plan, 3D und Kamerablick; Druck als sortierte Vektorflächen ([`stellprobe/3D-KONZEPT.md`](stellprobe/3D-KONZEPT.md)) | MIT | Qt Quick 3D ist nur unter GPLv3 frei; fertige Rust-Renderer sind eingefroren oder Teil einer Spiel-Engine; einige hundert Dreiecke brauchen keinen GPU-Stack. |
 | Pakete | Flatpak zuerst, dann Windows, dann macOS | – | Wie Kontra. |
 
 Abhängigkeitsregel wie Kontra: nur MIT, Apache-2.0, BSD, ISC, Zlib, Unlicense, CC0, Schriften

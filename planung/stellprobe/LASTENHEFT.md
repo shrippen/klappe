@@ -1,6 +1,6 @@
 # Lastenheft: Stellprobe
 
-Modul der Film-Vorproduktionssuite **Klappe**. Stand: 2026-11-13, Entwurf.
+Modul der Film-Vorproduktionssuite **Klappe**. Stand: 2026-11-15, Entwurf.
 
 Das Lastenheft beschreibt, *was* Stellprobe leisten muss. *Wie* es umgesetzt wird,
 steht in [`../KONZEPT.md`](../KONZEPT.md) und später im Pflichtenheft.
@@ -177,6 +177,26 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | LH-83 | Plan je Mark als Bildfolge (Blocking zum Nachlesen am Set). | S |
 | LH-84 | Wiedergabe als Video exportieren. | K |
 | LH-85 | Shotliste als Tabelle (ODS, XLSX). | S |
+| LH-86 | 3D-Ansicht und Kamerablick als PNG; Kamerablick als Vektorgrafik im PDF. | S |
+
+### 6.10 Plan und 3D
+
+Plan und 3D sind zwei Ansichten desselben Sets, keine zwei Betriebsarten. Wer im Plan
+zeichnet, legt die Grundlagen für 3D schon mit an. Umsetzung:
+[`3D-KONZEPT.md`](3D-KONZEPT.md).
+
+| Nr | Anforderung | Prio |
+|---|---|---|
+| LH-90 | Raumhöhe je Set; Höhe je Wand (ohne Angabe: Raumhöhe); Brüstung und Sturz je Tür und Fenster. | S |
+| LH-91 | Jedes Element hat beim Zeichnen schon eine Höhe aus Vorgaben (Raumhöhe, Bibliothek, Haltung der Figur, Art der Öffnung). Ein Objekt steht auf dem Objekt darunter (Stuhl auf Podest) oder auf einer eigenen Unterkante. | S |
+| LH-92 | Freie Form: Umriss frei klicken; sie ist ein Objekt mit Höhe, die ergänzt werden kann. | S |
+| LH-93 | Höhen ergänzen: der Plan zeigt Höhen und markiert fehlende; ein Befehl führt nacheinander durch alle Objekte ohne Höhe, die Höhe wird getippt. | S |
+| LH-94 | 3D-Ansicht des Sets mit Figuren und Kameras, mit einer Taste zum Plan umschaltbar. Dieselben Werkzeuge, Auswahl und Rückgängig wie im Plan; Drehen, Schieben und Zoomen mit Maus und Touchpad. | S |
+| LH-95 | Höhe in Plan und 3D mit der Maus ziehen; Maße per Tastatur: Länge beim Zeichnen von Wänden, Breite und Tiefe eines Raums, Höhe der Auswahl. | S |
+| LH-96 | Raum-Werkzeug: ein aufgezogenes Rechteck ergibt vier Wände. | S |
+| LH-97 | Bibliotheksobjekte haben in 3D eine einfache Bauform (Tisch mit Beinen, Treppe mit Stufen); neue Bauformen sind Daten, keine Programmänderung. | S |
+| LH-98 | Schnitt: Wände in der 3D-Ansicht auf Brusthöhe kappen, damit man in den Raum sieht. | S |
+| LH-99 | Blick durch eine Kamera des Plans in der 3D-Ansicht; der Kamerablick (LH-36) zeigt Verdeckung richtig. | S |
 
 ## 7. Nicht-funktionale Anforderungen
 
@@ -219,6 +239,10 @@ Die erste Version ist abgenommen, wenn
 Die offenen Fragen sind beantwortet (2026-11-13): Kein Tablet in der ersten Version, keine
 Übernahme alter Shot-Designer-Pläne, Kamerablick bleibt Soll, PDF reicht zur Weitergabe,
 Lizenz MIT. Alle Entscheidungen: [`../KONZEPT.md`](../KONZEPT.md), Abschnitt 7.
+
+Plan und 3D (2026-11-15): eine Szene für Plan, 3D-Ansicht und Kamerablick; eigener
+Renderer statt Qt Quick 3D (GPLv3); freie Formen sind Objekte; Körpergröße je Figur später.
+Einzelheiten: [`3D-KONZEPT.md`](3D-KONZEPT.md), Abschnitt 9.
 
 ## Anhang A: Analyse Shot Designer
 
@@ -265,7 +289,7 @@ unten als *vermutet* gekennzeichnet.
 | Licht | Lichtsymbole, Lichtplan | LH-50, LH-51 |
 | Animation | Zeitleiste; Einblenden statt Bewegen; Tempo je Objekt | LH-60–LH-63, LH-26 |
 | Sucher | Blick aus der Kamera mit Kameraformaten und Seitenverhältnis | LH-36, LH-38 |
-| 3D | nicht vorhanden, angekündigt | LH-36 |
+| 3D | nicht vorhanden, angekündigt | LH-36, LH-90–LH-99 |
 | Shotliste | wechselseitig mit dem Plan verknüpft; Versionen; Drehreihenfolge; Felder Typ, Objektiv, Requisiten, Technik, Team; Shot lösen | LH-70–LH-77 |
 | Storyboard | Schlüsselbilder je Kamera, aus dem Sucher | LH-74, LH-75 |
 | Ausgabe | PDF, JPG, Excel, E-Mail (Pro) | LH-80–LH-85 |
@@ -290,7 +314,7 @@ unten als *vermutet* gekennzeichnet.
 
 | Schwäche | Stellprobe | Anforderung |
 |---|---|---|
-| 1 | Kamerablick in vereinfachtem 3D, läuft bei der Wiedergabe mit | LH-36, LH-62 |
+| 1 | Kamerablick in vereinfachtem 3D, läuft bei der Wiedergabe mit; 3D-Ansicht auf demselben Set wie der Plan, mit denselben Werkzeugen | LH-36, LH-62, LH-90–LH-99 |
 | 2 | Eigene Objekte als Muss; Bibliothek als offene Dateien teilbar | LH-12 |
 | 3 | Freies Zeichnen, Formen; Figuren und Objekte skalierbar | LH-19, LH-25 |
 | 4 | Lampenbibliothek mit Leistung und Farbtemperatur; Sonnenstand | LH-51, LH-52 |

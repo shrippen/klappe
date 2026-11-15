@@ -212,9 +212,7 @@ Eigentümers; erteilt am 15.11.2026 (Abschnitt 9).
 5. **Freie Form, Raum-Werkzeug, Bauformen der Bibliothek** (Daten in `store/library/`).
 6. **Schnitt, Blick durch die Kamera, Export** (PNG aus dem Rasterer, Vektor sortiert).
 
-Neue Anforderungen dafür (Vorschlag, Nummern vergibt der Eigentümer): 3D-Arbeitsansicht mit
-denselben Werkzeugen; Raumhöhe und Höhen von Wand und Öffnung; freie Formen mit Höhe;
-Höhen ergänzen; Bauformen der Bibliothek.
+Anforderungen: Lastenheft, Abschnitt 6.10 (LH-90 bis LH-99) und LH-86 (Export).
 
 ## 9. Entscheidungen des Eigentümers (15.11.2026)
 
