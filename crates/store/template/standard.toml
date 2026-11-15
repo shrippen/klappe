@@ -1,0 +1,168 @@
+# The built-in templates (LH-07): typical set-ups of figures and cameras. Places are in metres
+# from the insertion point; 0 degrees faces right, y grows downwards (FORMAT.md). A camera's
+# `id` and `label` are placeholders (a placed camera gets free ones), `follows` names a figure's
+# `slot`. The names are in the catalogue (`template.<id>`).
+
+# Shot and reverse shot: two figures face each other; one camera over each one's shoulder, a
+# wide one for the whole. All stand on one side of the 180 degree line between the figures.
+[[vorlage]]
+id = "shot-reverse"
+
+[[vorlage.figures]]
+slot = "A"
+[[vorlage.figures.marks]]
+at_s = 0.0
+at = { x_m = -1.0, y_m = 0.0 }
+facing_deg = 0.0
+
+[[vorlage.figures]]
+slot = "B"
+[[vorlage.figures.marks]]
+at_s = 0.0
+at = { x_m = 1.0, y_m = 0.0 }
+facing_deg = 180.0
+
+[[vorlage.cameras]]
+id = "a"
+label = "A"
+sensor = "super35"
+lens_mm = 50.0
+aspect = 2.39
+[[vorlage.cameras.marks]]
+at_s = 0.0
+at = { x_m = -2.4, y_m = 0.4 }
+facing_deg = 353.3
+height_m = 1.6
+
+[[vorlage.cameras]]
+id = "b"
+label = "B"
+sensor = "super35"
+lens_mm = 50.0
+aspect = 2.39
+[[vorlage.cameras.marks]]
+at_s = 0.0
+at = { x_m = 2.4, y_m = 0.4 }
+facing_deg = 186.7
+height_m = 1.6
+
+[[vorlage.cameras]]
+id = "c"
+label = "C"
+sensor = "super35"
+lens_mm = 24.0
+aspect = 2.39
+[[vorlage.cameras.marks]]
+at_s = 0.0
+at = { x_m = 0.0, y_m = 4.5 }
+facing_deg = 270.0
+height_m = 1.6
+
+# Triangle: a master on both figures and a single on each, the three cameras on one side of the
+# line between the figures.
+[[vorlage]]
+id = "triangle"
+
+[[vorlage.figures]]
+slot = "A"
+[[vorlage.figures.marks]]
+at_s = 0.0
+at = { x_m = -0.8, y_m = 0.0 }
+facing_deg = 0.0
+
+[[vorlage.figures]]
+slot = "B"
+[[vorlage.figures.marks]]
+at_s = 0.0
+at = { x_m = 0.8, y_m = 0.0 }
+facing_deg = 180.0
+
+[[vorlage.cameras]]
+id = "a"
+label = "A"
+sensor = "super35"
+lens_mm = 35.0
+aspect = 2.39
+[[vorlage.cameras.marks]]
+at_s = 0.0
+at = { x_m = 0.0, y_m = 4.0 }
+facing_deg = 270.0
+height_m = 1.6
+
+[[vorlage.cameras]]
+id = "b"
+label = "B"
+sensor = "super35"
+lens_mm = 85.0
+aspect = 2.39
+[[vorlage.cameras.marks]]
+at_s = 0.0
+at = { x_m = -2.2, y_m = 2.4 }
+facing_deg = 300.3
+height_m = 1.6
+
+[[vorlage.cameras]]
+id = "c"
+label = "C"
+sensor = "super35"
+lens_mm = 85.0
+aspect = 2.39
+[[vorlage.cameras.marks]]
+at_s = 0.0
+at = { x_m = 2.2, y_m = 2.4 }
+facing_deg = 239.7
+height_m = 1.6
+
+# Long take: one camera follows one figure through several marks.
+[[vorlage]]
+id = "long-take"
+
+[[vorlage.figures]]
+slot = "A"
+[[vorlage.figures.marks]]
+at_s = 0.0
+at = { x_m = 0.0, y_m = 0.0 }
+facing_deg = 0.0
+[[vorlage.figures.marks]]
+at_s = 2.9
+at = { x_m = 4.0, y_m = 0.0 }
+facing_deg = 0.0
+[[vorlage.figures.marks]]
+at_s = 5.0
+at = { x_m = 4.0, y_m = 3.0 }
+facing_deg = 90.0
+[[vorlage.figures.marks]]
+at_s = 7.1
+at = { x_m = 7.0, y_m = 3.0 }
+facing_deg = 0.0
+
+[[vorlage.cameras]]
+id = "a"
+label = "A"
+sensor = "super35"
+lens_mm = 35.0
+aspect = 2.39
+follows = "A"
+[[vorlage.cameras.marks]]
+at_s = 0.0
+at = { x_m = -2.5, y_m = 0.0 }
+facing_deg = 0.0
+height_m = 1.6
+[[vorlage.cameras.marks]]
+at_s = 2.9
+at = { x_m = 1.5, y_m = 0.0 }
+facing_deg = 0.0
+height_m = 1.6
+rig = "gimbal"
+[[vorlage.cameras.marks]]
+at_s = 5.0
+at = { x_m = 4.0, y_m = 0.5 }
+facing_deg = 90.0
+height_m = 1.6
+rig = "gimbal"
+[[vorlage.cameras.marks]]
+at_s = 7.1
+at = { x_m = 4.5, y_m = 3.0 }
+facing_deg = 0.0
+height_m = 1.6
+rig = "gimbal"

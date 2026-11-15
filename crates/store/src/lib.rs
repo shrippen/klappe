@@ -6,6 +6,7 @@
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
 //! load_library, save_library ◄──►          bibliothek.toml, or any library file to pass on
+//!                            builtin_templates, vorlagen.toml (the project's own templates)
 //! write_atomic, write_tree, project_mtime, ..  whole-folder file operations (tree.rs)
 //! ```
 //!
@@ -16,6 +17,7 @@ mod error;
 mod files;
 mod images;
 mod library;
+mod template;
 mod tree;
 
 use std::collections::HashSet;
@@ -29,6 +31,7 @@ pub use error::StoreError;
 use files::{Dir, Kind};
 pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
 pub use library::{builtin_library, load_library, save_library};
+pub use template::builtin_templates;
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
 
 /// Whether `id` may name a location or scene file on every system (FORMAT.md, Ids).
@@ -39,6 +42,7 @@ pub fn is_safe_id(id: &str) -> bool {
 const PROJECT_FILE: &str = "projekt.toml";
 const CHARACTERS_FILE: &str = "figuren.toml";
 const LIBRARY_FILE: &str = "bibliothek.toml";
+const TEMPLATES_FILE: &str = "vorlagen.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
@@ -111,6 +115,12 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         false => Vec::new(),
     };
 
+    let templates_path = dir.join(TEMPLATES_FILE);
+    let templates = match files::exists(&templates_path)? {
+        true => template::load_templates(&templates_path)?,
+        false => Vec::new(),
+    };
+
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     let scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
@@ -122,14 +132,16 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             locations,
             scenes,
             library,
+            templates,
         },
         script,
     })
 }
 
 /// Writes `project` into `dir`, creating it if needed. Each file is replaced atomically;
-/// location and scene files of other ids are removed, and `bibliothek.toml` when the project
-/// has no own objects. `script: None` leaves an existing `drehbuch.fountain` untouched.
+/// location and scene files of other ids are removed, and `bibliothek.toml` and `vorlagen.toml`
+/// when the project has no own objects or templates. `script: None` leaves an existing
+/// `drehbuch.fountain` untouched.
 pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), StoreError> {
     // Ids become file names: check all before the first write.
     check_ids(project.locations.iter().map(|l| l.id.as_str()))?;
@@ -159,6 +171,14 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
         ));
     }
 
+    let templates_path = dir.join(TEMPLATES_FILE);
+    if !project.templates.is_empty() {
+        writes.push((
+            templates_path.clone(),
+            template::encode(&templates_path, &project.templates)?,
+        ));
+    }
+
     let locations = Dir::new(dir.join(LOCATIONS_DIR), Kind::Toml);
     for location in &project.locations {
         writes.push(locations.encode(&location.id, location)?);
@@ -176,6 +196,9 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     // No own objects left: the file goes, so the folder shows what the project holds.
     if project.library.is_empty() {
         files::remove_file(&library_path)?;
+    }
+    if project.templates.is_empty() {
+        files::remove_file(&templates_path)?;
     }
 
     let keep: HashSet<&str> = project.locations.iter().map(|l| l.id.as_str()).collect();

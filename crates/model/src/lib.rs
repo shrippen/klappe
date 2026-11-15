@@ -5,6 +5,7 @@
 //! ├── characters   Character        (project-wide: Elisabeth, Burgvogt …)
 //! ├── locations    Location → Set   (walls, objects, background image)
 //! ├── library      LibraryItem      (the project's own objects, LH-12)
+//! ├── templates    Template         (the project's own set-ups, LH-07)
 //! └── scenes       Scene → FloorPlan
 //!                           ├── figures  FigureTrack → Mark (time, place, facing)
 //!                           ├── cameras  Camera      → CameraMark
@@ -24,6 +25,7 @@ mod library;
 mod plan;
 mod project;
 mod shot;
+mod template;
 
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use geometry::Point;
@@ -40,6 +42,7 @@ pub use project::{
     MAX_GROUP, MIN_GROUP,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
+pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).
 pub const FORMAT_VERSION: u32 = 1;
