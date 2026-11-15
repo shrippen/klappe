@@ -21,6 +21,7 @@ TestCase {
             { kind: "figure", id: "burgvogt", name: "Burgvogt" }
         ])
         property string choicesJson: JSON.stringify({ movement: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"], axis: { a: "elisabeth", b: "burgvogt", own: false } })
+        property string viewJson: ""
         property var calls: []
         property var follows: []
         property var axisCalls: []

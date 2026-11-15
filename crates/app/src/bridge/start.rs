@@ -49,6 +49,7 @@ impl Default for ControllerRust {
             title: QString::default(),
             plan_title: QString::default(),
             plan_json: QString::default(),
+            view_json: QString::default(),
             tracks_json: QString::default(),
             shots_json: QString::default(),
             shots_shooting_json: QString::default(),

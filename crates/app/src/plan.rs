@@ -11,9 +11,11 @@ use serde_json::{json, Value};
 use crate::fileurl;
 
 mod sweep;
+mod view;
 
 use sweep::sweep_shape;
 pub use sweep::Sweep;
+pub use view::view_json;
 
 /// Radius of the points of the scale gesture on the plan.
 const GUIDE_POINT_RADIUS_M: f64 = 0.15;

@@ -5,8 +5,8 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The shots of the plan, as storyboard tiles or as a table (D-05), and under them the selected
-// shot: preview (camera view comes with LH-36) and its fields, edited in place (LH-71). Every
-// change is one undo step; a field left unchanged edits nothing.
+// shot: the camera view (LH-36) and its fields, edited in place (LH-71). Every change is one
+// undo step; a field left unchanged edits nothing.
 //
 //  [Neuer Shot] [Kopieren] [Löschen]
 //  [Kacheln|Tabelle]        [Schnitt|Drehreihenfolge]
@@ -267,11 +267,14 @@ Item {
                     }
                 }
 
-                KanteCallout {
+                // Of the selected shot's camera.
+                CameraView {
+                    objectName: "cameraView"
                     Layout.fillWidth: true
                     Layout.leftMargin: Kirigami.Units.largeSpacing
                     Layout.rightMargin: Kirigami.Units.largeSpacing
-                    text: panel.texts.t("shot.preview")
+                    texts: panel.texts
+                    json: panel.controller.viewJson
                 }
 
                 GridLayout {
