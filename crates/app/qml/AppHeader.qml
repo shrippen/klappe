@@ -216,6 +216,8 @@ RowLayout {
         cmd: "export.pdf"
         group: "export"
         text: header.texts.t("menu.pdf")
+        shortcut: "Ctrl+P"
+        keys: header.keyName("Ctrl+P")
         enabled: header.controller.loaded
         onTriggered: exportDialog.request("pdf")
     }

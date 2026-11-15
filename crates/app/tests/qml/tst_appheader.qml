@@ -250,6 +250,13 @@ TestCase {
                              ["exportTo", "csv", "shooting", "a4", "file:///work/b.csv"]])
     }
 
+    function test_ctrl_p_is_the_key_of_the_pdf_export() {
+        const header = make()
+        const pdf = header.commandPalette.commands.find(c => c.id === "export.pdf")
+
+        compare(pdf.keys, "Strg+P")
+    }
+
     function test_the_view_menu_toggles_the_areas() {
         const header = make()
         verify(entry(header, "viewMenu", "script").checked)
