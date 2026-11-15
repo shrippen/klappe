@@ -414,7 +414,11 @@ fn a_shot_without_its_camera_gets_the_fallback_aspect() {
     let dir = copy("shots-fallback");
     let file = dir.join("szenen/szene-012.json");
     let text = std::fs::read_to_string(&file).unwrap();
-    std::fs::write(&file, text.replacen("\"camera\": \"a\"", "\"camera\": \"gone\"", 1)).unwrap();
+    std::fs::write(
+        &file,
+        text.replacen("\"camera\": \"a\"", "\"camera\": \"gone\"", 1),
+    )
+    .unwrap();
 
     let rows = Session::open(&dir).unwrap().shots();
 
