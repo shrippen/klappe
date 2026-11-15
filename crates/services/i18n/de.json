@@ -111,7 +111,7 @@
  "library.renameTip": "Name und Gruppe des gewählten eigenen Objekts ändern",
  "library.delete": "Löschen",
  "library.deleteTip": "Das gewählte eigene Objekt aus der Bibliothek löschen",
- "library.deleteSure": "{count} Objekt(e) im Plan behalten ihre Maße. Wirklich löschen?",
+ "library.deleteSure": "Wirklich löschen? {count} im Plan",
  "library.deleteSureNone": "Wirklich löschen?",
  "library.builtin": "Eingebaut",
  "library.custom": "Eigene",

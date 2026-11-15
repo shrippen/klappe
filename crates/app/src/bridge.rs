@@ -370,6 +370,22 @@ pub mod qobject {
         #[cxx_name = "saveToLibrary"]
         fn save_to_library(self: Pin<&mut Self>, name: &QString) -> bool;
 
+        /// Renames and regroups the project's own library entry `kind`. False for a blank
+        /// name or an entry that is not the project's.
+        #[qinvokable]
+        #[cxx_name = "editLibraryItem"]
+        fn edit_library_item(
+            self: Pin<&mut Self>,
+            kind: &QString,
+            name: &QString,
+            group: &QString,
+        ) -> bool;
+
+        /// Deletes the project's own library entry `kind`; placed objects stay.
+        #[qinvokable]
+        #[cxx_name = "removeLibraryItem"]
+        fn remove_library_item(self: Pin<&mut Self>, kind: &QString) -> bool;
+
         /// Takes the objects of the library file `path` (a path or a `file://` URL) into the
         /// project; the result goes to `status`.
         #[qinvokable]
