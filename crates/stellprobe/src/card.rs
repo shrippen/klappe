@@ -9,13 +9,14 @@ const CARD_WIDTH_M: f64 = 2.4;
 const CARD_PAD_M: f64 = 0.1;
 /// Width of one character, estimated: the same lines on screen and on paper.
 const CHAR_WIDTH_M: f64 = 0.1;
+/// Characters in one line of text, rounded: 21.999… must not give 21.
+const CHARS_PER_LINE: usize = ((CARD_WIDTH_M - 2.0 * CARD_PAD_M) / CHAR_WIDTH_M + 0.5) as usize;
 /// Height of one line of text.
 const LINE_HEIGHT_M: f64 = 0.2;
 
 /// The corners of the card with top left `at`, and its text, lines joined by `\n`.
 pub(crate) fn note_card(at: Point, text: &str) -> (Vec<Point>, String) {
-    let per_line = ((CARD_WIDTH_M - 2.0 * CARD_PAD_M) / CHAR_WIDTH_M) as usize;
-    let lines = wrap(text, per_line);
+    let lines = wrap(text, CHARS_PER_LINE);
     let height_m = lines.len() as f64 * LINE_HEIGHT_M + 2.0 * CARD_PAD_M;
     let corners = vec![
         at,
@@ -80,6 +81,16 @@ mod tests {
     #[test]
     fn a_long_word_is_cut() {
         assert_eq!(wrap("abcdefgh", 3), ["abc", "def", "gh"]);
+    }
+
+    /// 2.4 m wide, 0.1 m margins, 0.1 m a character: 22 characters, not the 21 that
+    /// truncating 21.999… gave.
+    #[test]
+    fn a_line_has_the_characters_the_card_holds() {
+        let (_, text) = note_card(Point::new(0.0, 0.0), &"x".repeat(50));
+        let lengths: Vec<usize> = text.lines().map(|l| l.chars().count()).collect();
+
+        assert_eq!(lengths, [22, 22, 6]);
     }
 
     #[test]
