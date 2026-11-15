@@ -497,12 +497,7 @@ fn legend_entries<'a>(list: &DisplayList, texts: &'a Texts) -> Vec<Entry<'a>> {
         }
 
         seen.push((color, dash, area));
-        let (word, swatch) = match (area, dash) {
-            (true, _) => (&words.area, Swatch::Area),
-            (false, klappe_model::Dash::Solid) => (&words.line, Swatch::Line),
-            (false, klappe_model::Dash::Dashed) => (&words.dashed, Swatch::Line),
-            (false, klappe_model::Dash::Dotted) => (&words.dotted, Swatch::Line),
-        };
+        let (word, swatch) = drawing_word(words, area, dash);
         let hue = words
             .colors
             .iter()
@@ -517,6 +512,30 @@ fn legend_entries<'a>(list: &DisplayList, texts: &'a Texts) -> Vec<Entry<'a>> {
     }
 
     entries
+}
+
+/// The words and swatch of a drawing; an area's edge follows "Area" in lower case: "Area dashed".
+fn drawing_word(
+    words: &crate::page::DrawingTexts,
+    area: bool,
+    dash: klappe_model::Dash,
+) -> (String, Swatch) {
+    let edge = match dash {
+        klappe_model::Dash::Solid => &words.line,
+        klappe_model::Dash::Dashed => &words.dashed,
+        klappe_model::Dash::Dotted => &words.dotted,
+    };
+    if !area {
+        return (edge.clone(), Swatch::Line);
+    }
+    if dash == klappe_model::Dash::Solid {
+        return (words.area.clone(), Swatch::Area);
+    }
+
+    (
+        format!("{} {}", words.area, edge.to_lowercase()),
+        Swatch::Area,
+    )
 }
 
 /// Draws the legend at `y`; returns where it ends.
