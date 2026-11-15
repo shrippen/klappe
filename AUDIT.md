@@ -1,97 +1,111 @@
-# Code-Audit Klappe, 15.11.2026, Stand 8e8dd78
+# Code-Audit Klappe, 15.11.2026, Stand e4100e9
 
 ## Urteil
-Das Repo ist weiter wartbar. Die Schichten halten: Jedes Paket hängt nur von den Paketen ab, die `ARCHITECTURE.md` erlaubt. Die neuen Teile (Kamera-Marks, Lampen, Notizkarten, Tabellen als ODS und XLSX) stehen dort, wo die Datei sie vorsieht, und haben eigene Tests. Gegenüber dem dritten Audit ist der Zustand etwas schlechter. Von den Funden damals ist nur einer teilweise behoben, weil der Eigentümer noch nicht entschieden hat. Dazu kommt Neues aus den zehn PRs: Die Lampenkarte ist eine Kopie der Kamerakarte. Die Auswahl beim Export (Format, Papier, Reihenfolge) steht in jeder Oberfläche als eigene Liste. Die Verbindungsdatei zwischen Fenster und Sitzung liegt 16 Zeilen unter der Größengrenze.
+Das Repo bleibt wartbar. Die Schichten halten: Jedes Paket hängt nur von den Paketen ab, die `ARCHITECTURE.md` erlaubt, und die neue Kopie von Kante stimmt mit dem Original überein. Gegenüber dem vierten Audit ist der Zustand etwas schlechter. Kein Fund wurde auf Entscheidung des Eigentümers behoben. Zwei Dateien haben Luft bekommen, weil Teile wegen der Größengrenze in eigene Dateien umgezogen sind. Gleichzeitig sind fünf Einträge der Bestandsliste gewachsen und einer ist neu dazugekommen. Die Vorlagen (LH-07) haben neue Doppelungen gebracht: Die Grenzwerte für Kameras werden in Ablage und Sitzung je eigens geprüft, und das Verschieben von Marks steht an drei Stellen. Eine Regel für Figurennamen steht dreimal im Code. Dass solche Kopien auseinanderlaufen, hat in diesem Zeitraum schon zwei Korrektur-Commits gekostet.
 
 ## Kennzahlen
 | | letztes Audit | jetzt |
 |---|---|---|
-| Quelldateien | 220 (ohne die Kopie von Kante, so gezählt wie die Strukturprüfung) | 260 |
-| Einträge in der Bestandsliste | 32 | 31 |
-| größte Datei (Zeilen) | 1540 (`crates/stellprobe/src/display.rs`) | 1534 (dieselbe Datei; der Eintrag in der Bestandsliste kann auf diesen Wert sinken) |
-| längste Funktion (Zeilen) | 130 (`plan` in einem Test der Ablage); ohne Tests 122 (`apply` in `plan_edit.rs`) | 130 (unverändert `plan` im Test); ohne Tests 125 (weiter `apply` in `plan_edit.rs`, gewachsen). `switched` ist von 455 auf 496 Zeilen gewachsen. Es ist weiter keine Funktion, sondern die Liste der Aufrufe der Verbindung zur Oberfläche. |
+| Quelldateien | 260 (ohne die Kopie von Kante, so gezählt wie die Strukturprüfung) | 297 |
+| Einträge in der Bestandsliste | 31 | 31 (einer weg: `tst_planarea.qml`; einer neu: `look` in Stellprobe) |
+| größte Datei (Zeilen) | 1534 (`crates/stellprobe/src/display.rs`) | 1582 (dieselbe Datei, davon 880 Zeilen Tests) |
+| längste Funktion (Zeilen) | 130 (`plan` in einem Test der Ablage); ohne Tests 125 (`apply` in `plan_edit.rs`) | 131 (`plan` im Test und `apply` in `plan_edit.rs` gleichauf). `switched` ist von 496 auf 544 Zeilen gewachsen. Es ist weiter keine Funktion, sondern die Liste der Aufrufe der Verbindung zur Oberfläche. |
 
 ## Funde
 
-### 1. Formate, Papiergrößen und Reihenfolge der Ausgabe stehen in jeder Oberfläche als eigene Liste
-Beim Export gibt es drei Auswahlen: das Dateiformat, die Papiergröße und die Reihenfolge der Shotliste (Schnitt oder Dreh). Für keine davon gibt es eine gemeinsame Liste mit Namen neben dem Typ. Jede Oberfläche führt ihre eigene:
-- Der Exportdialog der App kennt die Papiergrößen „a4“ und „a3“. Er weiß auch selbst, welche Formate nach dem Papier fragen.
-- Die Verbindung zur Sitzung übersetzt diese Wörter von Hand. Ein unbekanntes Wort wird dabei still zu A4 oder zur Schnittfolge.
-- Die Kommandozeile hat eigene Aufzählungen für Format und Papier und eine eigene Zuordnung von Dateiendung zu Format.
+### 1. Ob zwei Figurennamen gleich sind, steht an drei Stellen
+Zwei Figuren dürfen keinen Namen haben, der im Drehbuch dieselbe Sprecherzeile ergibt. „Strauss“ und „Strauß“ sind zum Beispiel beide „STRAUSS“. Diese Regel steht dreimal im Code:
+- beim Erkennen der Sprecherzeilen im Drehbuch,
+- bei der Prüfung, ob ein neuer Figurenname noch frei ist,
+- beim Einsetzen einer Vorlage, das für einen Platzhalter einen freien Namen sucht („A“, „A 2“ …).
 
-`ARCHITECTURE.md` verlangt, dass die Namen einer Auswahl einmal neben dem Typ stehen und die Oberflächen sie von dort bekommen. Dass die Listen schon auseinanderlaufen, ist sichtbar:
-- Die Sitzung kann ODS, XLSX und Bildfolgen schreiben, die App bietet sie nicht an. `planung/STAND.md` führt das als offen.
-- Die App kennt kein Letter-Papier, die Kommandozeile schon.
-- Die Kommandozeile kann kein CSV, die App schon.
+Die Stellen sind schon auseinandergelaufen. Die Namensprüfung hat in Kleinbuchstaben verglichen, das Drehbuch in Großbuchstaben. Dadurch flossen die Zeilen zweier Figuren im Drehbuch zusammen. Behoben wurde das im Commit `45db506`, eine Stelle von Hand an die andere angeglichen. Die dritte Stelle ist mit den Vorlagen neu dazugekommen. Sie muss zur Namensprüfung passen, sonst lehnt das Einsetzen einer Vorlage die eigene Figur ab. Schon heute unterscheiden sich die Stellen in einem Detail: Nur das Drehbuch entfernt vorher Leerzeichen am Rand.
 
-Wer die offenen Menüeinträge nachrüstet, muss heute vier Stellen in der App ändern. Diese Stellen nennt `ARCHITECTURE.md` nur zum Teil.
+Vorschlag: eine Funktion „gleicher Sprechername“ neben dem Drehbuch-Code, die alle drei Stellen aufrufen. Aufwand klein. Risiko gering: `services/tests/rename.rs` (`names_that_share_a_cue_are_taken`) und `services/tests/templates.rs` prüfen beide Seiten.
 
-Vorschlag: Format, Papier und Reihenfolge bekommen Namen und eine vollständige Liste neben ihrem Typ, so wie Ebenen und Lichtarten. Die Sitzung gibt die Liste samt der Angabe „braucht Papier“ an App und Kommandozeile. Aufwand klein bis mittel. Risiko gering: `tst_exportdialog.qml` und `crates/cli/tests/export.rs` sind vorhanden.
+Beleg: `crates/services/src/script_refs.rs:116`, `crates/services/src/project_edit.rs:310`, `crates/services/src/plan_edit/template.rs:142`, `crates/services/tests/rename.rs:186`, Commit `45db506`.
 
-Beleg: `crates/app/qml/ExportDialog.qml:22`, `crates/app/qml/ExportDialog.qml:23`, `crates/app/src/bridge/export.rs:49`, `crates/app/src/bridge/export.rs:82`, `crates/app/src/bridge/export.rs:90`, `crates/cli/src/main.rs:64`, `crates/cli/src/main.rs:77`, `crates/cli/src/main.rs:216`, `crates/export/src/page.rs:6`, `planung/STAND.md:16`, `ARCHITECTURE.md:63`.
+### 2. Einstellungsgröße und Perspektive stehen als eigene Liste in der App
+Jeder Shot hat drei Auswahlen: Einstellungsgröße (Totale bis Detail), Perspektive (Normalsicht, Aufsicht …) und Kamerabewegung. Für die Bewegung holt die App die Liste aus der Sitzung. Die beiden anderen Listen hat sie selbst abgeschrieben. Das widerspricht `ARCHITECTURE.md`: Die Namen einer Auswahl stehen einmal neben dem Typ, und die Oberflächen bekommen sie von dort. Mit der neuen Shot-Tabelle (D-05) nutzt jetzt auch eine zweite Ansicht die abgeschriebene Liste.
 
-### 2. Die Verbindungsdatei zwischen Fenster und Sitzung liegt knapp unter der Grenze; die Mark-Karte hat einen eigenen Aufruf je Feld
-`bridge.rs` deklariert alle Aufrufe, die das Fenster an die Sitzung stellen kann. Die Datei hat 784 Zeilen, die Grenze liegt bei 800. Seit dem letzten Audit wurde sie in 6 Commits geändert. Jede neue Funktion des Fensters fügt hier Zeilen hinzu.
+Kommt eine Einstellungsgröße dazu oder wird eine umbenannt, zeigt die App sie nicht an, oder sie schickt einen Namen, den die Sitzung ablehnt. Kein Test bemerkt das, weil die Listen nirgends verglichen werden. Die Tabelle in `ARCHITECTURE.md` sagt für eine neue Auswahl „nichts in einer Oberfläche“. Hier stimmt das nicht.
 
-Ein Teil des Wachstums ist selbst gemacht. Kamera- und Lampenkarte haben je einen einzigen Aufruf „setze Feld X auf Wert Y“. Die Mark-Karte hat dagegen einen eigenen Aufruf je Feld: Haltung, Pause, Ankunft, Abgang, Fahrweise, Objektiv, Tempo. Fahrweise und Objektiv sind mit den Kamera-Marks neu dazugekommen. Jedes Feld kostet so etwa sechs Zeilen hier und neun in `bridge/marks.rs`. Ein neues Kartenfeld wird damit je nach Karte auf eine von zwei Arten gebaut. Die nächste größere Funktion bringt die Datei über die Grenze.
+Vorschlag: Größe und Perspektive kommen wie die Bewegung in die Liste der Auswahlen, die die Verbindung an die Oberfläche gibt. Die App liest sie von dort. Aufwand klein. Risiko gering: `tst_shotlist.qml` und der Test der Auswahlliste in `bridge/view.rs` sind vorhanden.
 
-Vorschlag: Die Mark-Karte bekommt wie Kamera und Lampe einen einzigen Aufruf mit Feldnamen. Das spart rund 40 Zeilen und macht neue Mark-Felder zu einer Zeile in `mark.rs`. Danach ist zu prüfen, ob die Projektverwaltung (Szenen, Drehorte, Figuren, Pläne, zuletzt geöffnete Projekte) ein eigenes Objekt für die Oberfläche bekommt. Aufwand klein für den ersten Schritt, mittel für die Teilung. Risiko gering: `tst_markcard.qml` und die Tests in `mark.rs` sind vorhanden.
+Beleg: `crates/app/qml/ShotPanel.qml:87`, `crates/app/qml/ShotPanel.qml:88`, `crates/app/qml/ShotPanel.qml:89`, `crates/app/qml/ShotTable.qml:117`, `crates/app/qml/ShotTable.qml:118`, `crates/app/src/bridge/view.rs:285`, `crates/app/src/bridge/view.rs:306`, `crates/model/src/shot.rs:64`, `crates/model/src/shot.rs:110`, `ARCHITECTURE.md:63`, `ARCHITECTURE.md:77`.
 
-Beleg: `crates/app/src/bridge.rs:305`, `crates/app/src/bridge.rs:312`, `crates/app/src/bridge.rs:334`, `crates/app/src/bridge.rs:359`, `crates/app/src/bridge.rs:366`, `crates/app/src/bridge.rs:372`, `crates/app/src/bridge/marks.rs:24`, `crates/app/src/bridge/marks.rs:37`, `crates/app/src/bridge/marks.rs:55`, `crates/app/src/bridge/marks.rs:89`.
+### 3. Die Grenzwerte für Kamera und Marks werden in Ablage und Sitzung je eigens geprüft, beim Objektiv mit zwei verschiedenen Höchstwerten
+Mit den Vorlagen kamen die Grenzwerte für Objektiv, Sensor, Bildformat, Kamerahöhe, Neigung und Planfläche als Zahlen ins Modell. Das ist gut. Die Prüfung „liegt der Wert innerhalb?“ steht aber zweimal:
+- einmal in der Sitzung für die Karten,
+- einmal in der Ablage für die Vorlagen.
 
-### 3. Die Lampenkarte ist eine Kopie der Kamerakarte
-Mit LH-50 kam die Lampenkarte dazu. Drei Teile stehen in Kamera- und Lampenkarte fast wortgleich:
-- wie die Karte die Werte des gewählten Elements holt,
-- wie sie ihre Felder füllt,
-- wie sie getippte Werte übernimmt, also mehrere Felder nacheinander setzt, abgelehnte markiert und die Karte erst am Ende neu füllt.
+Das gilt auch für die Pause an einem Mark. Bei Möbeln liegen solche Prüfungen schon als Funktionen im Modell, die beide Seiten aufrufen. Wie teuer die Kopie ist, zeigt der Korrektur-Commit „Hold templates to the editor's bounds“ (`0c782f3`) in diesem Zeitraum. Dort wurde die Ablage nachträglich an die Karten angeglichen. Der offene Fund 4 des letzten Audits beschreibt denselben Mangel für Lampen.
 
-Die Übernahme sind je rund 30 Zeilen mit einer heiklen Reihenfolge, die ein langer Kommentar in beiden Dateien erklärt. Sie unterscheiden sich nur im Namen des Aufrufs. Ein Fehler in dieser Reihenfolge muss in beiden Karten gefunden und behoben werden. Jede weitere Karte, etwa für Objekte, würde die Kopie ein drittes Mal anlegen.
+Dazu kommt eine dritte Grenze für dieselbe Sache. Das Objektiv eines Shots darf höchstens 2000 mm haben, mit einer eigenen Konstante gleichen Namens. Die Kamera und ihre Marks erlauben bis 5000 mm. Eine Kamera mit 3000 mm ist erlaubt. Tippt man denselben Wert in die Objektivspalte eines Shots, wird er abgelehnt.
 
-Vorschlag: Die Übernahme der Felder wird ein gemeinsamer Baustein der Karten. Er bekommt den Aufruf, der ein Feld setzt. Aufwand klein. Risiko gering: `tst_cameracard.qml` und `tst_lightcard.qml` prüfen das Übernehmen.
+Vorschlag: Die Prüfungen kommen als kleine Funktionen neben die Grenzwerte ins Modell, wie bei Möbeln. Sitzung und Ablage rufen sie auf. Der Eigentümer entscheidet, ob ein Shot dieselbe Objektivgrenze hat wie die Kamera. Am besten zusammen mit dem offenen Fund 4 zu den Lampen beheben. Aufwand klein bis mittel. Risiko gering: `store/tests/templates.rs`, `services/tests/templates.rs`, `services/tests/camera.rs` und die Tests in `edit.rs` decken beide Seiten ab.
 
-Beleg: `crates/app/qml/CameraCard.qml:19`, `crates/app/qml/CameraCard.qml:61`, `crates/app/qml/CameraCard.qml:87`, `crates/app/qml/LightCard.qml:19`, `crates/app/qml/LightCard.qml:55`, `crates/app/qml/LightCard.qml:74`.
+Beleg: `crates/model/src/limits.rs:18`, `crates/store/src/template.rs:67`, `crates/store/src/template.rs:87`, `crates/store/src/template.rs:92`, `crates/store/src/template.rs:98`, `crates/services/src/camera_edit.rs:18`, `crates/services/src/camera_edit.rs:34`, `crates/services/src/plan_edit/check.rs:96`, `crates/services/src/plan_edit/check.rs:108`, `crates/services/src/edit.rs:62`, `crates/services/src/edit.rs:63`, `crates/model/src/library.rs:7`, Commit `0c782f3`.
 
-### 4. Die Grenzwerte einer Lampe werden an zwei Stellen geprüft
-Für Leistung, Farbtemperatur und Abstrahlwinkel einer Lampe gibt es einen Höchst- und einen Mindestwert. Die Grenzwerte selbst stehen einmal im Modell. Die Prüfung „liegt der Wert innerhalb?“ ist aber zweimal geschrieben: einmal in der Ablage für die mitgelieferte Lampenbibliothek, einmal in der Sitzung für die Lampenkarte. Bei Möbeln ist das schon gelöst, dort liegen die Prüfungen als Funktionen im Modell und beide Stellen rufen sie auf. Ändert sich eine Regel, zum Beispiel ob ein Winkel von 0 Grad erlaubt ist, muss das an beiden Stellen gleich geschehen. Sonst lädt die Bibliothek eine Lampe, die die Karte ablehnt, oder umgekehrt. Genau dieser Fall war Anlass für einen Korrektur-Commit in diesem PR („Check library lamps by the card's limits“).
+### 4. Marks verschieben und die Mitte einer Gruppe finden ist mehrfach geschrieben
+Drei Vorgänge versetzen eine Gruppe von Figuren und Kameras um ein Stück:
+- Kopieren mehrerer Elemente,
+- Einsetzen einer Vorlage,
+- Ablegen eines Plans als Vorlage.
 
-Vorschlag: Die Prüfungen kommen als kleine Funktionen neben die Grenzwerte ins Modell, wie bei den Möbeln. Ablage und Sitzung rufen sie auf. Aufwand klein. Risiko gering: `store/src/light.rs` und `services/tests/light.rs` testen beide Seiten.
+Jeder hat seine eigene Funktion, die einen Punkt verschiebt, und eigene Funktionen, die einen Mark samt Umweg verschieben. Die Funktionen gibt es jeweils für Figuren-Marks und für Kamera-Marks. Das sind sechs fast gleiche Funktionen in drei Dateien. Auch die Mitte des Rahmens um eine Gruppe von Punkten ist zweimal geschrieben, in zwei Dateien. Dazu kommt eine Funktion „Punkt drehen“, die nur die gleichnamige Funktion des Modells aufruft.
 
-Beleg: `crates/store/src/light.rs:42`, `crates/services/src/light_edit.rs:63`, `crates/model/src/light_preset.rs:6`, `crates/model/src/library.rs:7`, Commit `bb9c708`.
+Bekommt ein Mark einen weiteren Ort, etwa einen zweiten Umweg, muss das an allen drei Stellen ergänzt werden. Vergisst man eine, bleibt beim Kopieren oder beim Einsetzen einer Vorlage ein Teil des Wegs an der alten Stelle liegen.
 
-### 5. Der Winkel beim Messen wird in der App berechnet, mit eigener Kopie zweier vorhandener Rechnungen
-Seit LH-14 zeigt das Maßband auch den Winkel. Die App rechnet die Richtung zwischen den zwei Punkten selbst aus und bringt sie selbst in den Bereich 0 bis 360 Grad. Beides gibt es schon:
-- die Richtung als Funktion des Punkts im Modell, genutzt in Stellprobe und Sitzung,
-- das Einordnen in den Bereich in den Planänderungen der Sitzung, samt derselben Konstante für die volle Umdrehung.
+Vorschlag: Der Punkt bekommt im Modell ein „verschoben um“, Figuren- und Kamera-Mark je ein „verschoben um“, und die Mitte des Rahmens steht einmal neben der Geometrie des Modells. Die drei Stellen rufen diese Funktionen auf, die Drehfunktion ohne eigene Arbeit entfällt. Aufwand klein. Risiko gering: `services/tests/templates.rs` und `services/tests/multisel.rs` decken Einsetzen, Ablegen und Kopieren ab.
 
-`ARCHITECTURE.md` sagt, dass Geometrie und Berechnungen nicht in eine Oberfläche gehören. Ändert sich, wie Winkel gezählt werden, zeigt das Maßband etwas anderes als die Karten.
+Beleg: `crates/services/src/plan_edit/group.rs:184`, `crates/services/src/plan_edit/group.rs:226`, `crates/services/src/plan_edit/group.rs:293`, `crates/services/src/plan_edit/template.rs:115`, `crates/services/src/plan_edit/template.rs:119`, `crates/services/src/plan_edit/template.rs:127`, `crates/services/src/project_edit/templates.rs:141`, `crates/services/src/project_edit/templates.rs:155`, `crates/services/src/project_edit/templates.rs:160`, `crates/services/src/project_edit/templates.rs:168`, `crates/services/src/plan_edit/moving.rs:448`, `crates/model/src/geometry.rs:29`.
 
-Vorschlag: Die Messung nutzt die vorhandene Richtungsfunktion. Das Einordnen in den Bereich steht einmal im Modell neben ihr, und Sitzung und Maßband nutzen es beide. In der App bleibt nur das Runden für die Anzeige. Aufwand klein. Risiko gering: Die Winkelanzeige ist in `app/src/tools/tests.rs` getestet.
+### 5. Das Einsetzen einer Vorlage liegt bei den Planänderungen und ruft die Projektänderungen auf, die es selbst auslösen
+Eine Vorlage einsetzen ist in der Sitzung eine Änderung am Projekt, weil dabei neue Figuren entstehen können. Sie wird auch von den Projektänderungen ausgelöst. Der Code dafür liegt aber bei den Planänderungen. Für neue Figuren ruft er wieder zurück in die Projektänderungen. Damit verweisen die beiden Bereiche gegenseitig aufeinander, also im Kreis. Wer am Einsetzen etwas ändert, muss beide Bereiche kennen und vier Dateien zu Vorlagen in der Sitzung auseinanderhalten (`templates.rs`, `session/templates.rs`, `project_edit/templates.rs`, `plan_edit/template.rs`).
 
-Beleg: `crates/app/src/tools.rs:23`, `crates/app/src/tools.rs:360`, `crates/model/src/geometry.rs:29`, `crates/services/src/plan_edit.rs:270`, `crates/services/src/plan_edit.rs:555`, `ARCHITECTURE.md:59`.
+Vorschlag: Das Einsetzen zieht in die Datei der Vorlagen bei den Projektänderungen. Dort wird es schon ausgelöst und dort entstehen die neuen Figuren. Von den Planänderungen braucht es dann nur noch die Suche nach einem freien Kamerabuchstaben, in eine Richtung. Aufwand klein. Risiko gering: `services/tests/templates.rs` prüft Einsetzen und Ablegen.
 
-### 6. Bestandsliste: was seit dem letzten Audit gewachsen ist und was knapp unter der Grenze liegt
-Die Einschätzung aus dem letzten Audit gilt weiter, siehe unten. Neu ist Folgendes.
+Beleg: `crates/services/src/plan_edit/template.rs:8`, `crates/services/src/plan_edit/template.rs:15`, `crates/services/src/project_edit/templates.rs:11`, `crates/services/src/project_edit/templates.rs:20`, `crates/services/src/project_edit/templates.rs:184`, `crates/services/src/project_edit.rs:91`, `crates/services/src/project_edit.rs:175`.
+
+### 6. Bestandsliste: was gewachsen ist und was knapp unter der Grenze liegt
+Die Einschätzung der letzten beiden Audits gilt weiter, siehe unten. Neu ist Folgendes.
+
+**Gewachsen und an einer Naht trennbar:**
+- Der Verteiler der Planänderungen `apply` hat jetzt 131 statt 125 Zeilen. Er wächst mit jeder neuen Art der Planänderung, ebenso seine Prüfung `check`.
+- Das Ziel einer Verschiebung `target` hat jetzt 126 statt 116 Zeilen. Es wählt je Art des gegriffenen Elements aus, Figuren- und Kamera-Marks in fast gleichen Zweigen. Das teilt sich nach Element: Marks, Wände, Zeichnungen.
+- Fund 4 oben spart in `group.rs` einige Zeilen von `copy`.
 
 **Gewachsen, aber in Ordnung:**
-- Die Feldnamen (`field.rs`, 34 auf 38 Verzweigungen) und die Liste der Aufrufe (`switched`) bleiben flache Tabellen.
-- Die Prüfung der Planänderungen (`check`) ist von 20 auf 21 Verzweigungen gewachsen. Sie wählt weiter nur je Art der Änderung eine Prüfung.
+- `switched` (544 Zeilen) bleibt eine flache Liste.
+- `error_text` (24 Verzweigungen) bleibt eine flache Zuordnung. Ihr Ort ist Fund 1 des dritten Audits.
+- Neu in der Liste ist `look` in Stellprobe (16 Verzweigungen). Es ist eine flache Tabelle „Rolle → Aussehen“, wie `ARCHITECTURE.md` sie will.
+- `display.rs` ist auf 1582 Zeilen gewachsen, davon 880 Zeilen Tests.
 
-**Gewachsen und an einer Naht trennbar:** Die Datei der Planänderungen `plan_edit.rs` hat 764 Zeilen und wurde seit dem Audit in 9 Commits geändert. Ihr Verteiler `apply` ist von 122 auf 125 Zeilen gewachsen. Die Datei enthält auch das Anklicken von Elementen (was unter dem Zeiger liegt, was im Rahmen liegt, was greifbar ist). Das Anklicken ist keine Änderung. Es wird nur von `session/pick.rs` benutzt und kann dorthin umziehen. Das gibt der Datei Luft vor der Grenze.
+**Knapp unter der Grenze von 800 Zeilen:**
+- `services/tests/library.rs` hat genau 800 Zeilen. Der nächste Test gehört in eine neue Datei nach Thema, wie es die neuen `templates.rs`, `retime.rs` und `drawing_grips.rs` schon machen.
+- `export/tests/export.rs` hat 798 Zeilen, `services/tests/session.rs` 788. Für beide gilt dasselbe.
+- `model/src/plan.rs` hat 787 Zeilen, davon 214 Tests. Die Datei hat eine natürliche Naht: Zeichnungen samt Strichart und Füllung sowie Lampen samt Lichtart können je in eine eigene Datei, wie es Shots und Vorlagen schon sind.
+- `bridge/view.rs` hat 748 Zeilen, `bridge.rs` 746.
 
-**Knapp unter der Grenze, ohne natürliche Naht:** Zwei Testdateien sind fast voll, `export/tests/export.rs` mit 796 Zeilen und `services/tests/session.rs` mit 787 Zeilen. Der nächste Test gehört in eine neue Datei nach Thema, so wie es `services/tests/` mit `rig.rs`, `light.rs` und `grid.rs` schon macht.
+Aufwand klein je Datei. Risiko gering: `services/tests/plan_edit.rs`, `drawing_grips.rs`, `curves.rs` und die Tests im Modell decken die Stellen ab.
 
-**Geschrumpft:** `compose` im Export ist aus der Liste verschwunden.
-
-Aufwand klein. Risiko gering: `services/tests/plan_edit.rs` und die Tests des Auswählens in der Sitzung decken das Anklicken ab.
-
-Beleg: `crates/services/src/plan_edit.rs:267`, `crates/services/src/plan_edit.rs:274`, `crates/services/src/plan_edit.rs:285`, `crates/services/src/plan_edit.rs:316`, `crates/services/src/plan_edit.rs:427`, `crates/services/src/session/pick.rs:124`, `crates/services/src/session/pick.rs:132`, `crates/services/src/field.rs:80`, `structure.baseline`.
+Beleg: `crates/services/src/plan_edit.rs` (`apply`), `crates/services/src/plan_edit/moving.rs:10`, `crates/stellprobe/src/look.rs:55`, `crates/services/tests/library.rs`, `crates/export/tests/export.rs`, `crates/services/tests/session.rs`, `crates/model/src/plan.rs:95`, `crates/model/src/plan.rs:490`, `structure.baseline`.
 
 ## Seit dem letzten Audit
-Der Eigentümer hat über die Funde des dritten Audits noch nicht entschieden. Die offenen Funde stehen deshalb hier und werden nicht neu gemeldet.
+Der Eigentümer hat über die Funde des dritten und vierten Audits noch nicht entschieden. Die offenen Funde stehen deshalb hier und werden nicht neu gemeldet. Abgelehnt hat er keinen Fund.
 
-- **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): offen, nicht entschieden.** Die Zuordnung von Fehler zu Text steht weiter nur in der App. Terminalprogramm und Kommandozeile zeigen den inneren englischen Text. Beleg: `crates/app/src/notice.rs:8`, `crates/tui/src/app.rs:354`, `crates/cli/src/main.rs:167`, `crates/cli/src/main.rs:174`.
-- **Fund 2 (Drehbuch- und Shot-Spalte je zweimal gebaut): offen, nicht entschieden.** `Workspace.qml` ist bei den doppelten Teilen unverändert. Beleg: `crates/app/qml/Workspace.qml:146`, `crates/app/qml/Workspace.qml:242`, `crates/app/qml/Workspace.qml:265`.
-- **Fund 3 (Datei für Änderungen am Projekt mit drei Aufgaben): teilweise behoben.** Die Planvarianten liegen jetzt in einer eigenen Datei. Anlass war die Größengrenze, nicht eine Entscheidung zum Fund. `project_edit.rs` hat noch 626 Zeilen. Der Import in die Objektbibliothek steht weiter darin. Das ist nicht mehr dringend, der Vorschlag gilt für den Rest. Beleg: `crates/services/src/project_edit/plans.rs`, `crates/services/src/project_edit.rs:361`, Commit `281a9c9`.
-- **Fund 4 (angezeigte Werte in zwei Listen ohne gegenseitige Prüfung): offen, nicht entschieden.** Der neue Wert für die Rasterweite wurde richtig in beide Listen eingetragen. Die Listen werden weiter nur von Hand gleich gehalten. Beleg: `crates/app/src/bridge/view.rs:110`, `crates/app/src/bridge/view.rs:384`.
-- **Fund 5 (Bestandsliste): offen, nicht entschieden.** `item_prims` (106 Zeilen) und `scan` (98 Zeilen) sind unverändert und trennbar wie beschrieben. Was damals als „in Ordnung“ galt, gilt weiter. Ergänzungen stehen im neuen Fund 6.
-- Abgelehnt hat der Eigentümer keinen Fund.
+Drittes Audit:
+- **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): offen.** Die Zuordnung von Fehler zu Text steht weiter nur in der App und ist auf 24 Verzweigungen gewachsen. Die Kommandozeile gibt weiter eigene englische Sätze aus. Beleg: `crates/app/src/notice.rs:8`, `crates/cli/src/main.rs:166`, `crates/cli/src/main.rs:173`.
+- **Fund 2 (Drehbuch- und Shot-Spalte je zweimal gebaut): offen.** `Workspace.qml` ist bei den doppelten Teilen unverändert. Beleg: `crates/app/qml/Workspace.qml:114`, `crates/app/qml/Workspace.qml:125`.
+- **Fund 3 (Datei für Änderungen am Projekt mit mehreren Aufgaben): teilweise behoben, wieder gewachsen.** Der Import in die Objektbibliothek steht weiter in `project_edit.rs`. Die Datei ist von 626 auf 687 Zeilen gewachsen, weil die eigenen Objekte (LH-12) dazukamen. Beleg: `crates/services/src/project_edit.rs:393`, `crates/services/src/project_edit.rs:429`.
+- **Fund 4 (angezeigte Werte in zwei Listen ohne gegenseitige Prüfung): offen.** Beleg: `crates/app/src/bridge/view.rs`.
+- **Fund 5 (Bestandsliste): offen.** `item_prims` (106 Zeilen) und `scan` (98 Zeilen) sind unverändert.
+
+Viertes Audit:
+- **Fund 1 (Formate, Papier und Reihenfolge der Ausgabe je Oberfläche): offen.** Die Listen in Exportdialog, Verbindung und Kommandozeile sind unverändert. Beleg: `crates/app/qml/ExportDialog.qml:22`, `crates/app/src/bridge/export.rs:82`, `crates/cli/src/main.rs:64`.
+- **Fund 2 (Verbindungsdatei knapp unter der Grenze, ein Aufruf je Mark-Feld): teilweise entlastet, Kern offen.** Der Start des Fensters ist nach `bridge/start.rs` umgezogen. `bridge.rs` hat jetzt 746 statt 784 Zeilen. Anlass war die Größengrenze, nicht eine Entscheidung zum Fund. Die sieben Einzelaufrufe der Mark-Karte bestehen weiter. Beleg: `crates/app/src/bridge.rs:349`, `crates/app/src/bridge.rs:387`, Commit `7b37b55`.
+- **Fund 3 (Lampenkarte als Kopie der Kamerakarte): offen.** Die Übernahme der Felder steht weiter in beiden Karten. Beleg: `crates/app/qml/CameraCard.qml:92`, `crates/app/qml/LightCard.qml:74`.
+- **Fund 4 (Grenzwerte einer Lampe an zwei Stellen geprüft): offen.** Derselbe Mangel ist mit den Vorlagen für Kameras und Marks dazugekommen, siehe neuer Fund 3. Beleg: `crates/store/src/light.rs:42`, `crates/services/src/light_edit.rs:53`.
+- **Fund 5 (Winkel beim Messen in der App berechnet): offen.** Beleg: `crates/app/src/tools.rs:23`, `crates/app/src/tools.rs:360`, `crates/services/src/plan_edit.rs:281`.
+- **Fund 6 (Bestandsliste): teilweise behoben.** Das Anklicken von Elementen ist aus `plan_edit.rs` in eine eigene Datei `plan_edit/picking.rs` gezogen. Die Datei hat jetzt 731 statt 764 Zeilen. Der Rat, neue Tests in neue Dateien nach Thema zu legen, wurde befolgt. Der Verteiler `apply` ist trotzdem weiter gewachsen, siehe neuer Fund 6.

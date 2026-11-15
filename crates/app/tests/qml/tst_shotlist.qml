@@ -27,7 +27,7 @@ TestCase {
             id: id, number: number, camera: camera, camera_label: label, aspect: aspect, follows: "",
             size: size, angle: "eye-level", movement: movement, movement_hint: "", lens_mm: lens,
             lens_to_mm: null, lens_from_marks: false, own_lens_mm: null, from_s: from, to_s: to,
-            description: "Szene " + number, props: "", gear: "", crew: "", note: "", axis_jump: jump === true, setup: setup
+            description: "Szene " + number, props: "", gear: "", crew: "", note: "", axis_jump: jump === true, axis_against: jump === true ? "12.1, 12.3" : "", setup: setup
         }
     }
 
@@ -201,11 +201,22 @@ TestCase {
         const table = part(make("table"), "shotTable")
 
         compare(table.columns.map(c => de.t(c.title)), ["Nummer", "Kamera", "Objektiv (mm)", "Setup", "Größe", "Perspektive",
-            "Bewegung", "Von (s)", "Bis (s)", "Dauer (s)", "Inhalt", "Requisiten", "Technik", "Team", "Notiz"])
+            "Bewegung", "Von (s)", "Bis (s)", "Dauer (s)", "Inhalt", "Requisiten", "Technik", "Team", "Notiz",
+            "Achsensprung gegen"])
         compare(table.cellText(tc.rows[1], "camera"), "B")
         compare(table.cellText(tc.rows[1], "size"), "Groß")
         compare(table.cellText(tc.rows[1], "duration"), "6")
         compare(table.cellText(tc.rows[1], "setup"), "2")
+    }
+
+    // The jump column names the opposing shots, as the export does; it is computed, so read only.
+    function test_the_axis_column_names_the_opposing_shots() {
+        const table = part(make("table"), "shotTable")
+        const column = table.columns.findIndex(c => c.key === "axis_against")
+
+        compare(table.cellText(tc.rows[1], "axis_against"), "12.1, 12.3")
+        compare(table.cellText(tc.rows[0], "axis_against"), "")
+        verify(!table.editable(tc.rows[1], column))
     }
 
     // The selected row wears Kante's selection role and edge, as `KanteListRow`.

@@ -105,6 +105,8 @@ pub struct ShotColumns {
     pub gear: String,
     pub crew: String,
     pub note: String,
+    /// Head of the column naming the shots the axis is crossed against (LH-41).
+    pub axis: String,
 }
 
 impl Page {

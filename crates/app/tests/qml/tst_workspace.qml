@@ -83,7 +83,7 @@ TestCase {
     readonly property var shotRow: ({
         follows: "", id: "s12-3", number: "12.3", camera: "a", camera_label: "A", size: "medium",
         angle: "eye-level", movement: "static", lens_mm: 50, own_lens_mm: null,
-        description: "", props: "", gear: "", crew: "", note: "", axis_jump: false
+        description: "", props: "", gear: "", crew: "", note: "", axis_jump: false, axis_against: ""
     })
 
     TestTexts { id: de; language: "de" }

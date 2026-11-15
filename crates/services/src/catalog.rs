@@ -100,6 +100,7 @@ impl Language {
                 gear: t("field.gear"),
                 crew: t("field.crew"),
                 note: t("field.note"),
+                axis: t("field.axisAgainst"),
             },
             sizes: ShotSize::ALL
                 .iter()
