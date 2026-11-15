@@ -1,6 +1,7 @@
-use klappe_model::{Camera, FigureColor, FigureTrack, FloorPlan, Pose, Project, SetPlan};
+use klappe_model::{Camera, FigureColor, FigureTrack, FloorPlan, Point, Pose, Project, SetPlan};
 
 use crate::display::object_corners;
+use crate::hit::inside;
 use crate::motion::{aim_at, camera_at, figure_at};
 use crate::optics::{horizontal_fov_deg, lens_at};
 
@@ -116,7 +117,7 @@ pub fn camera_view(
 
     let mut faces = Vec::new();
     wall_faces(set, &mut faces);
-    object_faces(set, &mut faces);
+    object_faces(set, &eye, &mut faces);
     figure_faces(project, plan, t_s, &eye, &mut faces);
 
     // Farthest first, so a near shape covers what lies behind it.
@@ -188,10 +189,16 @@ fn wall_faces(set: &SetPlan, faces: &mut Vec<Face>) {
 }
 
 /// An object is a box: its outline raised to its height; four sides and a lid.
-fn object_faces(set: &SetPlan, faces: &mut Vec<Face>) {
+/// One that stands under the camera (tripod, dolly, crane) is left out: it would fill the picture.
+fn object_faces(set: &SetPlan, eye: &Eye, faces: &mut Vec<Face>) {
+    let camera = Point::new(eye.at[0], eye.at[1]);
+
     for object in &set.objects {
         let height_m = object.height_m.unwrap_or(OBJECT_HEIGHT_M);
         let outline = object_corners(object);
+        if inside(&outline, camera) {
+            continue;
+        }
 
         for (i, a) in outline.iter().enumerate() {
             let b = outline[(i + 1) % outline.len()];
@@ -555,6 +562,31 @@ mod tests {
             .expect("object");
         assert_eq!(roles[0], ViewRole::Floor);
         assert!(wall < object);
+    }
+
+    /// Tripod, dolly or crane stand under the camera: the picture must stay free.
+    #[test]
+    fn object_under_the_camera_does_not_cover_the_view() {
+        let mut set = set();
+        set.objects = vec![SetObject {
+            id: "tripod".into(),
+            kind: "tripod".into(),
+            label: String::new(),
+            at: Point::new(10.0, 10.0),
+            width_m: 1.0,
+            depth_m: 1.0,
+            rotation_deg: 0.0,
+            shape: Default::default(),
+            height_m: Some(1.6),
+        }];
+        let plan = plan_with(
+            camera(35.0, 1.5, 0.0, 1.78),
+            &[(10.0, 5.0, Pose::Standing)],
+        );
+        let view = view_of(&plan, &set);
+
+        assert!(!view.items.iter().any(|i| i.role == ViewRole::Object));
+        assert_eq!(figures(&view).len(), 1);
     }
 
     #[test]

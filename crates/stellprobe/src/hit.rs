@@ -74,7 +74,7 @@ fn segment_distance_m(at: Point, from: Point, to: Point) -> f64 {
 }
 
 /// Even-odd rule: a ray to the right crosses the edges an odd number of times from inside.
-fn inside(points: &[Point], at: Point) -> bool {
+pub(crate) fn inside(points: &[Point], at: Point) -> bool {
     let mut inside = false;
 
     for (i, a) in points.iter().enumerate() {
