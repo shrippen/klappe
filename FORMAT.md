@@ -129,10 +129,12 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Felder einer Kamera der Szene und `[[vorlage.cameras.marks]]`, `follows` nennt einen `slot`. Orte
   der Marks sind Meter vom Einfügepunkt, Zeiten Sekunden ab Szenenbeginn; `id` und `label` einer
   Kamera sind Platzhalter, eine eingefügte Kamera bekommt freie. Eine Datei mit unbrauchbarer
-  Vorlage (leere oder doppelte `id`, nichts darin, doppelter `slot`, Figur oder Kamera ohne Marks,
-  Brennweite oder Bildformat nicht größer als 0, `follows` ohne passenden `slot`, eine Zahl
-  eines Marks `nan` oder `inf`, Höhe oder Brennweite eines Kamera-Marks nicht größer als 0) wird beim Öffnen
-  mit Meldung abgelehnt. Ohne eigene Vorlagen gibt es die Datei nicht: `save` löscht sie dann.
+  Vorlage (leere oder doppelte `id`, leeres `label`, nichts darin, doppelter `slot`, Figur oder
+  Kamera ohne Marks, `follows` ohne passenden `slot`, eine Zahl `nan` oder `inf`, ein Wert
+  außerhalb der Grenzen des Editors) wird beim Öffnen mit Meldung abgelehnt. Die Grenzen
+  (`crates/model/src/limits.rs`): Orte bis ±1000 m, Pause nicht negativ, Höhe eines Kamera-Marks
+  0 bis 50 m, Neigung bis ±90°, Brennweite 1 bis 5000 mm, Sensorbreite über 0 bis 500 mm,
+  Seitenverhältnis über 0 bis 20. Ohne eigene Vorlagen gibt es die Datei nicht: `save` löscht sie dann.
   Keine neue Formatversion, wie bei der Bibliothek.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
