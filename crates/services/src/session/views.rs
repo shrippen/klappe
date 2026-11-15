@@ -148,6 +148,10 @@ impl Session {
 
         Some(Hint::Light {
             label: l.label.clone(),
+            light_kind: l.kind.name().to_owned(),
+            facing_deg: l.facing_deg,
+            beam_deg: l.beam_deg,
+            tunable: l.kind.tunable_color(),
             temp_k: l.color_temp_k,
             power_w: l.power_w,
         })

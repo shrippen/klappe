@@ -263,6 +263,7 @@ fn print_texts() -> klappe_services::Texts {
         unit: "m".into(),
         decimal_separator: ',',
         shots: klappe_services::ShotTexts::default(),
+        lamps: klappe_services::LampTexts::default(),
     }
 }
 

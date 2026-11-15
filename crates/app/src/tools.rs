@@ -3,8 +3,8 @@
 //! gesture hands over (agent.md); the session snaps them and does the work.
 
 use klappe_services::{
-    read_number, Dash, DrawingShape, Field, FigureColor, Fill, Layer, LightKind, Lock, PlanEdit,
-    Point, Range, ServiceError, Source, Unit,
+    read_number, Dash, DrawingShape, Field, FigureColor, Fill, Layer, Lock, PlanEdit, Point, Range,
+    ServiceError, Source, Unit,
 };
 
 /// A new camera looks to the right (0°); the user turns it afterwards.
@@ -77,7 +77,8 @@ pub enum Tool {
     Figure(String),
     /// Id of the camera whose next mark a click sets; empty: a click sets a new camera.
     Camera(String),
-    Light(LightKind),
+    /// Id of the built-in lamp a click sets.
+    Light(String),
     /// Two clicks on a stretch of known length scale the background; a drag moves it.
     Scale,
     /// Two clicks measure the distance between two points; the pointer shows it live. The
@@ -97,7 +98,7 @@ pub enum Tool {
 
 impl Tool {
     /// `name` as the tool bar spells it (`select`, `wall` …); `choice` is the value picked in
-    /// the tool's list (object kind, character id, camera id, lamp kind). `None` for an unknown name or
+    /// the tool's list (object kind, character id, camera id, lamp id). `None` for an unknown name or
     /// a choice the tool cannot use.
     pub fn parse(name: &str, choice: &str) -> Option<Tool> {
         match name {
@@ -114,7 +115,7 @@ impl Tool {
             "rect" => Some(Tool::Rect),
             "ellipse" => Some(Tool::Ellipse),
             "area" => Some(Tool::Area),
-            "light" => LightKind::from_name(choice).map(Tool::Light),
+            "light" => Some(Tool::Light(choice.to_owned())),
             _ => None,
         }
     }
@@ -151,7 +152,11 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
             camera: camera.clone(),
             at,
         }),
-        Tool::Light(kind) => Some(PlanEdit::AddLight { kind: *kind, at }),
+        Tool::Light(preset) if preset.is_empty() => None,
+        Tool::Light(preset) => Some(PlanEdit::AddLight {
+            preset: preset.clone(),
+            at,
+        }),
     }
 }
 

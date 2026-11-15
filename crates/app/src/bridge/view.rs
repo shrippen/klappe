@@ -247,7 +247,7 @@ pub(super) fn plan_json(
 }
 
 /// What the tool lists of the tool bar offer: the project's characters, the object library,
-/// the plan's cameras and the lamp kinds.
+/// the plan's cameras and the built-in lamps.
 pub(super) fn choices_json(s: &Session) -> String {
     let figures: Vec<_> = s
         .project()
@@ -261,7 +261,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         .flat_map(|p| p.cameras.iter())
         .map(|c| json!({ "id": c.id, "label": c.label }))
         .collect();
-    let lights: Vec<_> = LightKind::ALL.iter().map(|k| k.name()).collect();
+    let lights: Vec<_> = s.light_presets().iter().map(|l| l.id.as_str()).collect();
 
     let colors: Vec<_> = FigureColor::ALL.iter().map(|c| c.name()).collect();
     let dashes: Vec<_> = Dash::ALL.iter().map(|d| d.name()).collect();
@@ -283,6 +283,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "camera": camera::presets_json(s.camera_presets()),
         "cameras": cameras,
         "light": lights,
+        "lightKind": LightKind::ALL.iter().map(|k| k.name()).collect::<Vec<_>>(),
         "color": colors,
         "dash": dashes,
         "fill": fills,
@@ -485,11 +486,14 @@ mod tests {
         assert_eq!(
             choices["light"],
             json!([
-                "fresnel",
+                "fresnel-650",
+                "fresnel-1k",
+                "fresnel-2k",
                 "led-panel",
                 "tube",
                 "balloon",
                 "reflector",
+                "floppy",
                 "flag"
             ])
         );

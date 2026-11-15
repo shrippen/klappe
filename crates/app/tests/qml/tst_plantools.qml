@@ -30,7 +30,7 @@ TestCase {
                 { kind: "kelch", label: "Kelch", group: "Möbel", width_m: 0.1, depth_m: 0.1, shape: "rect", custom: true, uses: 0 }
             ],
             cameras: [{ id: "a", label: "A" }, { id: "b", label: "B" }],
-            light: ["fresnel", "led-panel"],
+            light: ["fresnel-650", "led-panel"],
             color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
             dash: ["solid", "dashed", "dotted"],
             fill: ["outline", "filled"],
@@ -328,7 +328,7 @@ TestCase {
         compare(fake.tools[fake.tools.length - 1], ["figure", "burgvogt"])
 
         bar.tool = "light"
-        compare(bar.choice, "fresnel")
+        compare(bar.choice, "fresnel-650")
     }
 
     /// No camera picked: a click sets a new camera; a picked one gets the next mark.

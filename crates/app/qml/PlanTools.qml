@@ -7,7 +7,7 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The drawing tools of the tool bar (LH-08 ff.): one tool at a time, a list for the tools that
-// need a choice (object from the library, figure, lamp kind), the snapping switch. The object
+// need a choice (object from the library, figure, lamp), the snapping switch. The object
 // tool also offers to import and export library files (LH-12): the window asks for the file. Keys V W O F C L M D N I A B
 // E P pick the tool (NF-06) in every mode; a key of another mode's tool changes the mode. The
 // drawing tools (line, arrow, rect, ellipse, area; LH-19) also
@@ -297,7 +297,7 @@ RowLayout {
         Accessible.name: tools.texts.t("tool.pick.light")
         textRole: "text"
         valueRole: "value"
-        model: tools._choices.light.map(k => ({ value: k, text: tools.texts.t("lightKind." + k) }))
+        model: tools._choices.light.map(k => ({ value: k, text: tools.texts.t("lightPreset." + k) }))
     }
 
     // D-09: the buttons of the options, inline while wide, in a popover below that.
