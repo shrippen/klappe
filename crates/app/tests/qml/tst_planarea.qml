@@ -1,12 +1,13 @@
 import QtQuick
 import QtTest
+import org.kde.kirigami as Kirigami
 import "../../qml"
 
 // PlanArea tooltip: numbers use the catalogue's decimal separator (review gui-r1).
 TestCase {
     id: tc
     name: "PlanArea"
-    width: 600
+    width: 900
     height: 400
     when: windowShown
     visible: true
@@ -42,13 +43,14 @@ TestCase {
         property int areaFinishes: 0
         property int areaCancels: 0
         property var sizes: []
+        property string markJson: "{}"
         property bool sizeOk: true
         property var heights: []
         property bool heightOk: true
         property var filed: []
         property bool fileOk: true
 
-        function markInfo() { return "{}" }
+        function markInfo() { return markJson }
         function describe(key) {
             if (key === "object:o1") {
                 return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null })
@@ -162,8 +164,20 @@ TestCase {
         verify(lines[2].indexOf("1.6") >= 0, lines[2])
     }
 
+    // One box per selectable element, along the bottom of the plan, away from the drags.
+    function box(key, x) {
+        const y = 11
+        return { kind: "polygon", points: [x, y, x + 1, y, x + 1, y + 1, x, y + 1], radius: 0, width: 0,
+                 label: "muted", stroke: "solid", fill: "tint", text: "", key: key, selected: false }
+    }
+
+    function planWith(x) {
+        const keys = ["object:o1", "object:o2", "object:o3", "camera:a", "camera:b", "note:n1"]
+        return JSON.stringify({ width: 20, depth: 13, shapes: keys.map((k, i) => box(k, x + i * 2)) })
+    }
+
     function init() {
-        fake.planJson = JSON.stringify({ width: 20, depth: 13, shapes: [] })
+        fake.planJson = planWith(1)
         fake.selectedKey = ""
         fake.selectedCount = 0
         fake.extendSelection = false
@@ -192,14 +206,15 @@ TestCase {
         fake.areaCancels = 0
         fake.sizes = []
         fake.sizeOk = true
+        fake.markJson = "{}"
         fake.heights = []
         fake.heightOk = true
         fake.filed = []
         fake.fileOk = true
     }
 
-    function drawn(tool) {
-        const area = createTemporaryObject(areaComponent, tc, { texts: de, tool: tool })
+    function drawn(tool, width) {
+        const area = createTemporaryObject(areaComponent, tc, { texts: de, tool: tool, width: width || 600 })
         waitForRendering(area)
         return area
     }
@@ -597,99 +612,6 @@ TestCase {
         compare(fake.noteEdits, 1)
     }
 
-    // LH-25: an object selected shows its size in two fields, with the catalogue's separator.
-    function test_the_object_card_shows_the_size_of_the_selected_object() {
-        const area = drawn("select")
-        const card = findChild(area, "objectCard")
-        verify(!card.visible)
-
-        fake.selectedKey = "camera:a"
-        verify(!card.visible)
-
-        fake.selectedKey = "object:o1"
-        verify(card.visible)
-        compare(findChild(area, "widthField").text, "1,6")
-        compare(findChild(area, "depthField").text, "0,9")
-
-        fake.selectedKey = ""
-        verify(!card.visible)
-    }
-
-    // LH-17: the height is its own field; an object without one leaves it empty.
-    function test_the_object_card_shows_the_height_or_none() {
-        const area = drawn("select")
-        const field = findChild(area, "heightField")
-
-        fake.selectedKey = "object:o2"
-        compare(field.text, "0,8")
-
-        fake.selectedKey = "object:o1"
-        compare(field.text, "")
-    }
-
-    function test_enter_gives_the_height_to_the_controller() {
-        const area = drawn("select")
-        fake.selectedKey = "object:o1"
-        const field = findChild(area, "heightField")
-
-        field.forceActiveFocus()
-        field.text = "1,2"
-        keyClick(Qt.Key_Return)
-
-        compare(fake.heights, ["1,2"])
-        compare(fake.sizes, [])
-        verify(!field.invalid)
-    }
-
-    // The button sets the size and, when it was changed, the height; the typed height
-    // survives the refill the size edit causes.
-    function test_the_apply_button_gives_a_changed_height_too() {
-        const area = drawn("select")
-        fake.selectedKey = "object:o1"
-
-        findChild(area, "objectApply").clicked()
-        compare(fake.heights, [])
-
-        findChild(area, "heightField").text = "2"
-        findChild(area, "objectApply").clicked()
-        compare(fake.heights, ["2"])
-        compare(fake.sizes.length, 2)
-
-        // Emptying the field of an object that has a height takes the height off.
-        fake.selectedKey = "object:o2"
-        findChild(area, "heightField").text = ""
-        findChild(area, "objectApply").clicked()
-        compare(fake.heights, ["2", ""])
-    }
-
-    // Review of PR 37: a refused size still let Apply set the height.
-    function test_a_refused_size_sets_no_height() {
-        const area = drawn("select")
-        fake.selectedKey = "object:o1"
-        fake.sizeOk = false
-
-        findChild(area, "widthField").text = "abc"
-        findChild(area, "heightField").text = "2"
-        findChild(area, "objectApply").clicked()
-
-        compare(fake.heights, [])
-        verify(findChild(area, "widthField").invalid)
-    }
-
-    function test_a_refused_height_marks_the_field() {
-        const area = drawn("select")
-        fake.selectedKey = "object:o1"
-        fake.heightOk = false
-        const field = findChild(area, "heightField")
-
-        field.text = "-1"
-        findChild(area, "objectApply").clicked()
-
-        verify(field.invalid)
-        field.text = "1"
-        verify(!field.invalid)
-    }
-
     function test_an_object_tooltip_names_the_height() {
         const area = drawn("select")
 
@@ -711,49 +633,10 @@ TestCase {
         verify(!card.visible)
     }
 
-    function test_enter_gives_the_size_to_the_controller() {
-        const area = drawn("select")
-        fake.selectedKey = "object:o1"
-        const width = findChild(area, "widthField")
-
-        width.forceActiveFocus()
-        width.text = "2,5"
-        keyClick(Qt.Key_Return)
-
-        compare(fake.sizes, [["2,5", "0,9"]])
-        verify(!width.invalid)
-        verify(!findChild(area, "depthField").invalid)
-    }
-
-    function test_the_apply_button_gives_the_size_to_the_controller() {
-        const area = drawn("select")
-        fake.selectedKey = "object:o1"
-
-        findChild(area, "depthField").text = "0.5"
-        findChild(area, "objectApply").clicked()
-
-        compare(fake.sizes, [["1,6", "0.5"]])
-    }
-
-    function test_a_refused_size_marks_both_fields() {
-        const area = drawn("select")
-        fake.selectedKey = "object:o1"
-        fake.sizeOk = false
-        const width = findChild(area, "widthField")
-        const depth = findChild(area, "depthField")
-
-        width.text = "0"
-        findChild(area, "objectApply").clicked()
-
-        verify(width.invalid)
-        verify(depth.invalid)
-        width.text = "1"
-        verify(!width.invalid)
-    }
-
     // Letters and Delete typed into a size or a name are text: no turn, no delete.
     function test_typing_a_size_leaves_the_selection_alone() {
         const area = drawn("select")
+        findChild(area, "selectionCard").expanded = true
         fake.selectedKey = "object:o1"
 
         for (const name of ["widthField", "depthField", "heightField", "libraryName"]) {
@@ -766,47 +649,113 @@ TestCase {
         compare(fake.removes, 0)
     }
 
-    // LH-12: the name of the entry starts with the object's own label, else its kind's name;
-    // a kind without a name (an old project) starts empty.
-    function test_the_library_name_starts_with_the_objects_name() {
-        const area = drawn("select")
-        const name = findChild(area, "libraryName")
 
-        fake.selectedKey = "object:o1"
-        compare(name.text, "Tisch")
-        fake.selectedKey = "object:o2"
-        compare(name.text, "Thron")
-        fake.selectedKey = "object:o3"
-        compare(name.text, "")
+    // Room for a card on either side of an element.
+    readonly property real wide: 900
+
+    // The card has its size once the layout ran; the place is set again then.
+    function settled(card) {
+        tryVerify(() => card.visible && card.implicitWidth > Kirigami.Units.gridUnit * 8)
+        wait(100)
     }
 
-    function test_filing_gives_the_name_to_the_controller() {
-        const area = drawn("select")
+    // D-04: the card of the selection opens beside the element, with a pointer at it.
+    function test_the_card_opens_beside_the_element() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        verify(!card.visible)
+
         fake.selectedKey = "object:o1"
-        const name = findChild(area, "libraryName")
+        settled(card)
 
-        name.text = "Lange Tafel"
-        findChild(area, "libraryFile").clicked()
-
-        compare(fake.filed, ["Lange Tafel"])
-        verify(!name.invalid)
-
-        name.forceActiveFocus()
-        keyClick(Qt.Key_Return)
-        compare(fake.filed, ["Lange Tafel", "Lange Tafel"])
+        compare(card.pointerSide, "left")
+        const element = card.canvas.mapFromModel(2, 11.5)
+        verify(card.x > element.x)
+        verify(card.y <= element.y && element.y <= card.y + card.height)
     }
 
-    function test_a_refused_name_marks_the_field() {
-        const area = drawn("select")
+    // The card goes to the other side of the element when the right has no room.
+    function test_the_card_flips_left_at_the_plans_edge() {
+        fake.planJson = planWith(17)
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+
         fake.selectedKey = "object:o1"
-        fake.fileOk = false
-        const name = findChild(area, "libraryName")
+        settled(card)
 
-        name.text = " "
-        findChild(area, "libraryFile").clicked()
+        compare(card.pointerSide, "right")
+        const element = card.canvas.mapFromModel(17, 11.5)
 
-        verify(name.invalid)
-        name.text = "x"
-        verify(!name.invalid)
+        verify(card.x + card.width < element.x)
+    }
+
+    function test_the_card_stays_in_the_picture() {
+        fake.planJson = planWith(17)
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+
+        for (const key of ["object:o1", "camera:a"]) {
+            fake.selectedKey = key
+            settled(card)
+            verify(card.x >= 0, key)
+            verify(card.y >= 0, key)
+            verify(card.x + card.width <= area.width, key)
+            verify(card.y + card.height <= area.height, key)
+        }
+    }
+
+    function test_the_card_follows_the_element_when_the_plan_is_panned() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        const before = card.x
+
+        card.canvas.panX += 40
+
+        compare(card.x, before + 40)
+    }
+
+    // A card that would open under the mouse pointer goes to the other side.
+    function test_the_card_keeps_clear_of_the_pointer() {
+        fake.planJson = planWith(8)
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        const element = card.canvas.mapFromModel(8, 11.5)
+        card.pointer = Qt.point(element.x + 100, element.y)
+        card.pointerOver = true
+
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        compare(card.pointerSide, "right")
+        verify(card.x + card.width < element.x)
+    }
+
+    function test_a_camera_has_one_card_with_two_sections() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.markJson = JSON.stringify({ kind: "camera", pose: "", arrival: "", departure: "", hold: 0, hasWay: false,
+                                         pace: null, height: 1.6, tilt: 0, rig: "tripod", lens: null })
+
+        fake.selectedKey = "camera:a"
+
+        verify(findChild(area, "cameraCard").visible)
+        verify(findChild(area, "markCard").visible)
+        compare(findChild(area, "cameraCard").parent, findChild(area, "markCard").parent)
+        verify(card.visible)
+    }
+
+    // Several selected, or none: no card.
+    function test_no_card_without_one_selected_element() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        verify(card.visible)
+
+        fake.selectedKey = ""
+        fake.selectedCount = 2
+
+        verify(!card.visible)
     }
 }
