@@ -74,11 +74,11 @@ fn lens_text(lens: Option<ShotLens>, shot: &Shot, number: &dyn Fn(f64) -> String
     let Some(lens) = lens else {
         return shot.lens_mm.map(number).unwrap_or_default();
     };
-    let Some(to_mm) = lens.span_to_mm() else {
+    let Some((min_mm, max_mm)) = lens.span_mm() else {
         return number(lens.from_mm);
     };
 
-    format!("{}{SPAN}{}", number(lens.from_mm), number(to_mm))
+    format!("{}{SPAN}{}", number(min_mm), number(max_mm))
 }
 
 fn size_name(size: ShotSize, texts: &ShotTexts) -> String {
@@ -105,23 +105,60 @@ fn movement_name(movement: Movement, texts: &ShotTexts) -> String {
         .map_or_else(|| movement.name().to_owned(), |(_, name)| name.clone())
 }
 
-/// The plan's shots as CSV: head row, then one row per shot in `order`. In shooting order a
-/// first column holds the setup number. Numbers use a point, whatever the language.
-pub(crate) fn csv(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> String {
-    let with_setup = order == ShotOrder::Shooting;
-    let mut head: Vec<&str> = Vec::new();
-    if with_setup {
-        head.push(&texts.columns.setup);
-    }
-    head.extend(heads(&texts.columns));
+/// The shot list as text: head row and one row per shot. In shooting order a first column
+/// holds the setup number. Numbers use a point, whatever the language.
+pub(crate) struct Table {
+    pub(crate) head: Vec<String>,
+    pub(crate) rows: Vec<Vec<String>>,
+    /// Per column, so a spreadsheet stores numbers as such.
+    pub(crate) kinds: Vec<Kind>,
+}
 
-    let mut out = row(&head);
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kind {
+    Numbers,
+    Text,
+}
+
+/// Columns of `COLUMNS` that hold numbers: lens, from, to, duration.
+const NUMERIC_COLUMNS: [usize; 4] = [2, 6, 7, 8];
+
+pub(crate) fn table(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Table {
+    let with_setup = order == ShotOrder::Shooting;
+    let mut head: Vec<String> = Vec::new();
+    let mut kinds: Vec<Kind> = Vec::new();
+    if with_setup {
+        head.push(texts.columns.setup.clone());
+        kinds.push(Kind::Numbers);
+    }
+    for (i, name) in heads(&texts.columns).iter().enumerate() {
+        head.push((*name).to_owned());
+        kinds.push(if NUMERIC_COLUMNS.contains(&i) {
+            Kind::Numbers
+        } else {
+            Kind::Text
+        });
+    }
+
+    let mut rows = Vec::new();
     for (setup, shot) in ordered_shots(plan, order) {
         let mut cells = cells(shot, plan, texts, POINT).to_vec();
         if with_setup {
             cells.insert(0, setup.to_string());
         }
-        out.push_str(&row(&cells));
+        rows.push(cells);
+    }
+
+    Table { head, rows, kinds }
+}
+
+/// The plan's shots as CSV: head row, then one row per shot in `order`.
+pub(crate) fn csv(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> String {
+    let table = table(plan, texts, order);
+
+    let mut out = row(&table.head);
+    for cells in &table.rows {
+        out.push_str(&row(cells));
     }
 
     out

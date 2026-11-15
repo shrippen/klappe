@@ -50,7 +50,10 @@ fn scale_points_do_not_snap() {
     let at = Point::new(1.1, 1.0);
 
     assert_eq!(lands_at(&Tool::Scale, at, snap), at);
-    assert_eq!(lands_at(&Tool::Camera, at, snap), Point::new(1.0, 1.0));
+    assert_eq!(
+        lands_at(&tool("camera", ""), at, snap),
+        Point::new(1.0, 1.0)
+    );
 }
 
 /// Review of PR 19: undoing the background left the picked points and the length
@@ -109,7 +112,8 @@ fn tool(name: &str, choice: &str) -> Tool {
 fn tools_are_named_as_the_tool_bar_spells_them() {
     assert_eq!(Tool::parse("select", ""), Some(Tool::Select));
     assert_eq!(Tool::parse("wall", ""), Some(Tool::Wall));
-    assert_eq!(Tool::parse("camera", ""), Some(Tool::Camera));
+    assert_eq!(Tool::parse("camera", ""), Some(Tool::Camera(String::new())));
+    assert_eq!(Tool::parse("camera", "a"), Some(Tool::Camera("a".into())));
     assert_eq!(
         Tool::parse("object", "table"),
         Some(Tool::Object("table".into()))
@@ -164,10 +168,17 @@ fn a_click_sets_what_the_tool_stands_for() {
         })
     );
     assert_eq!(
-        click_edit(&Tool::Camera, at),
+        click_edit(&tool("camera", ""), at),
         Some(PlanEdit::AddCamera {
             at,
             facing_deg: 0.0
+        })
+    );
+    assert_eq!(
+        click_edit(&tool("camera", "a"), at),
+        Some(PlanEdit::AddCameraMark {
+            camera: "a".into(),
+            at
         })
     );
     assert_eq!(
@@ -233,7 +244,7 @@ fn a_wall_of_no_length_is_not_drawn() {
 
 #[test]
 fn placing_tools_do_not_drag() {
-    let edit = drag_edit(&Tool::Camera, None, p(0.0, 0.0), p(3.0, 0.0));
+    let edit = drag_edit(&tool("camera", ""), None, p(0.0, 0.0), p(3.0, 0.0));
 
     assert_eq!(edit, None);
 }
