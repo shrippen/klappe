@@ -47,6 +47,8 @@ pub use motion::{
 };
 pub use movement::movement_in;
 pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};
-pub use picture::{floor_at, grab_at, level_at, picture, source_at, Picture, PictureLabel};
+pub use picture::{
+    floor_at, grab_at, level_at, lift_at, picture, source_at, Picture, PictureLabel,
+};
 pub use scene::SceneRole;
 pub use setup::{ordered_shots, shot_setups, ShotOrder, SETUP_TOLERANCE_M};

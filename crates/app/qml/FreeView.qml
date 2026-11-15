@@ -71,9 +71,14 @@ Item {
 
         controller.freeSize(width * dpr, height * dpr)
         const image = controller.freeImage(interacting ? handScale : 1, colors.json)
+        reframe()
+        surface.item.show(image)
+    }
+
+    // The names of the picture again, with the height drag's caption at the pointer.
+    function reframe() {
         const text = controller.freeFrame()
         frame = text ? JSON.parse(text) : null
-        surface.item.show(image)
     }
 
     onWidthChanged: refresh()
@@ -139,6 +144,7 @@ Item {
         onActivated: {
             view.gesture = ""
             view.controller.cancelDrag()
+            view.reframe()
         }
     }
 
@@ -177,6 +183,7 @@ Item {
             return
         }
         controller.freeDrag(pressAt.x * dpr, pressAt.y * dpr, mouse.x * dpr, mouse.y * dpr, done)
+        reframe()
     }
 
     function release(mouse) {

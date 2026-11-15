@@ -40,6 +40,8 @@
  "tool.scaleTip": "Maßstab ({key}): zwei Punkte einer bekannten Strecke anklicken; Ziehen verschiebt das Bild",
  "tool.measure": "Messen",
  "tool.measureTip": "Messen ({key}): zwei Punkte anklicken, Länge und Winkel stehen an der Linie; ein weiterer Klick beginnt neu, Esc verwirft",
+ "tool.height": "Höhe",
+ "tool.heightTip": "Höhe ({key}): von einem Objekt oder einer Wand nach oben ziehen macht es höher, nach unten niedriger; die Höhe steht am Zeiger",
  "tool.note": "Notiz",
  "tool.noteTip": "Notiz ({key}): auf den Plan klicken und den Text eingeben; Klick auf eine Notiz ändert ihren Text",
  "tool.line": "Linie",

@@ -178,6 +178,24 @@ pub fn level_at(
     pinhole.level_at([x_px / width_px, y_px / width_px], height_m)
 }
 
+/// How much higher than `held_m` the pointer `to_px` has pulled what was grabbed at `from_px`
+/// (both in a picture of `eye` `width_px` wide), in metres: the height drag in 3D. What was
+/// grabbed lies at `held_m` above the floor; the pointer slides on the vertical plane through
+/// it, across the view. `None` when `from_px` shows nothing at that height.
+pub fn lift_at(
+    plan: &FloorPlan,
+    eye: &Eye,
+    width_px: f64,
+    from_px: (f64, f64),
+    to_px: (f64, f64),
+    held_m: f64,
+) -> Option<f64> {
+    let pinhole = Pinhole::of(eye, plan)?;
+    let image = |(x_px, y_px): (f64, f64)| [x_px / width_px, y_px / width_px];
+
+    pinhole.lift(image(from_px), image(to_px), held_m)
+}
+
 /// What pixel (`x`, `y`) of `picture` (made of `eye`) shows and how high above the floor that
 /// point of it lies: where a drag grabs it. `None` for the floor, a gap or outside.
 pub fn grab_at(

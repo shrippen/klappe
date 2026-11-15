@@ -492,3 +492,55 @@ fn the_scale_edit_needs_both_points_and_a_length() {
 }
 
 mod notes_and_shapes;
+
+#[test]
+fn height_is_a_tool_and_a_click_edits_nothing() {
+    assert_eq!(Tool::parse("height", ""), Some(Tool::Height));
+    assert_eq!(click_edit(&Tool::Height, p(1.0, 1.0)), None);
+    assert_eq!(
+        drag_edit(&Tool::Height, None, p(0.0, 0.0), p(2.0, 2.0)),
+        None
+    );
+}
+
+/// An object 0.9 m tall dragged 0.5 m up is 1.4 m; a wall of 2.6 m dragged 0.6 m down is 2 m.
+#[test]
+fn a_height_drag_adds_the_lift_to_the_start() {
+    let table = Source::Object("tisch".into());
+    let wall = Source::Wall(0);
+
+    assert_eq!(
+        height_edit(&table, 0.9, 0.5),
+        Some(PlanEdit::SetObjectHeight {
+            source: table,
+            height_m: Some(1.4),
+        })
+    );
+    assert_eq!(
+        height_edit(&wall, 2.6, -0.6),
+        Some(PlanEdit::SetWallHeight {
+            source: wall,
+            height_m: Some(2.0),
+        })
+    );
+}
+
+/// 0.9 + 0.2137 is 1.11 m (whole centimetres); far down stops at 0.05 m.
+#[test]
+fn a_height_is_whole_centimetres_and_not_below_the_least() {
+    let table = Source::Object("tisch".into());
+    let height = |lift_m| match height_edit(&table, 0.9, lift_m) {
+        Some(PlanEdit::SetObjectHeight { height_m, .. }) => height_m,
+        _ => None,
+    };
+
+    assert_eq!(height(0.2137), Some(1.11));
+    assert_eq!(height(-5.0), Some(0.05));
+}
+
+#[test]
+fn a_height_drag_from_anything_else_edits_nothing() {
+    let note = Source::Note("n1".into());
+
+    assert_eq!(height_edit(&note, 0.9, 0.5), None);
+}

@@ -75,3 +75,35 @@ fn a_click_in_3d_takes_what_is_seen() {
 
     assert!(matches!(s.free_pick(pointer, SIZE), Some(Source::Wall(_))));
 }
+
+/// A drag up lifts what it grabbed, a drag down lowers it, the same point lifts nothing; a start
+/// in the sky has no level to slide on (LH-95).
+#[test]
+fn a_pointer_up_in_3d_lifts_and_down_lowers() {
+    let mut s = example();
+    s.toggle_view();
+    let picture = s.free_picture(SIZE).unwrap();
+    let i = picture
+        .frame
+        .source
+        .iter()
+        .position(|n| matches!(picture.sources.get(*n as usize), Some(Source::Object(_))))
+        .unwrap();
+    let from = ((i % 320) as f64 + 0.5, (i / 320) as f64 + 0.5);
+    let (_, held_m) = s.free_grab(from, SIZE).unwrap();
+
+    let up = s
+        .free_lift(from, (from.0, from.1 - 20.0), SIZE, held_m)
+        .unwrap();
+    let down = s
+        .free_lift(from, (from.0, from.1 + 20.0), SIZE, held_m)
+        .unwrap();
+    let same = s.free_lift(from, from, SIZE, held_m).unwrap();
+
+    assert!(up > 0.0, "up {up}");
+    assert!(down < 0.0, "down {down}");
+    assert!(same.abs() < 1e-9, "same {same}");
+
+    s.turn_view(0.0, -1000.0);
+    assert!(s.free_lift((160.0, 0.0), (160.0, 5.0), SIZE, 0.0).is_none());
+}

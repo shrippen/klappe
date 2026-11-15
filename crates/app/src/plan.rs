@@ -296,9 +296,9 @@ pub struct Measure {
 fn measure_shapes(measure: &Measure) -> Vec<Value> {
     let mut shapes = guide(&measure.points);
 
-    // `guide` puts the line first, when there is one.
-    if let Some(line) = shapes.first_mut().filter(|s| s["kind"] == "line") {
-        line["text"] = json!(measure.caption);
+    // `guide` puts the line first, when there is one; else the caption sits on the one dot.
+    if let Some(first) = shapes.first_mut() {
+        first["text"] = json!(measure.caption);
     }
 
     shapes

@@ -10,7 +10,8 @@
 
 use klappe_model::Point;
 use klappe_stellprobe::{
-    floor_at, grab_at, level_at, object_extent, picture, source_at, Eye, Orbit, Picture, Source,
+    floor_at, grab_at, level_at, lift_at, object_extent, picture, source_at, Eye, Orbit, Picture,
+    Source,
 };
 
 use super::Session;
@@ -128,6 +129,20 @@ impl Session {
             size.0,
             pointer,
             height_m,
+        )
+    }
+
+    /// How far a drag from `from` to `to` lifts what it grabbed at `held_m` above the floor
+    /// (height drag in 3D, LH-95); negative: lowers. `None` when `from` shows no point of
+    /// that level.
+    pub fn free_lift(&self, from: Size, to: Size, size: Size, held_m: f64) -> Option<f64> {
+        lift_at(
+            self.plan()?,
+            &self.free_eye(size)?,
+            size.0,
+            from,
+            to,
+            held_m,
         )
     }
 

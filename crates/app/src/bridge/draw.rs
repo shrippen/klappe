@@ -3,7 +3,7 @@
 use super::q;
 use super::qobject;
 use super::view::plan_json;
-use crate::plan::Sweep;
+use crate::plan::{Measure, Sweep};
 use crate::selection;
 use crate::selection::{Pick, Reach};
 use crate::tools;
@@ -39,6 +39,53 @@ fn bends(s: &Session, grip: &Source) -> usize {
     };
 
     via.map_or(0, Vec::len)
+}
+
+/// The edit of a drag of the height tool: `grabbed` made `lift_m` taller than it stands now.
+fn lift_edit(s: &Session, tool: &Tool, grabbed: Option<&Source>, lift_m: f64) -> Option<PlanEdit> {
+    let grabbed = grabbed.filter(|_| *tool == Tool::Height)?;
+
+    tools::height_edit(grabbed, s.height_of(grabbed)?, lift_m)
+}
+
+impl super::ControllerRust {
+    /// The height a height drag shows at `at` ("1,25 m"), also kept for the 3D view's caption;
+    /// empty once the drag is let go or edits nothing.
+    fn lift_caption(
+        &mut self,
+        edit: Option<&PlanEdit>,
+        phase: DragPhase,
+        at: Point,
+    ) -> Option<Measure> {
+        let height_m = match (edit, phase) {
+            (
+                Some(
+                    PlanEdit::SetObjectHeight {
+                        height_m: Some(height_m),
+                        ..
+                    }
+                    | PlanEdit::SetWallHeight {
+                        height_m: Some(height_m),
+                        ..
+                    },
+                ),
+                DragPhase::Moving,
+            ) => *height_m,
+            _ => {
+                self.free.caption.clear();
+                return None;
+            }
+        };
+
+        let decimal = self.language.text("unit.decimal");
+        let text = tools::length_text(height_m, &decimal, &self.language.text("unit.m"));
+        self.free.caption = text.clone();
+
+        Some(Measure {
+            points: vec![at],
+            caption: text,
+        })
+    }
 }
 
 impl qobject::Controller {
@@ -95,18 +142,22 @@ impl qobject::Controller {
         let (grip, grabbed) = grip.take(|| s.pick_for(from, selected.only()));
 
         // Select and Scale move by a distance (the session snaps where an element lands, a
-        // background moves freely); the other tools draw between two points, which snap here.
+        // background moves freely), Height by the pointer's rise; the other tools draw between
+        // two points, which snap here.
         let (from, to) = match tool {
-            Tool::Select | Tool::Scale => (from, to),
+            Tool::Select | Tool::Scale | Tool::Height => (from, to),
             _ => (s.snap(from), s.snap(to)),
         };
         let group = grabbed
             .as_ref()
             .filter(|_| tool == Tool::Select)
             .and_then(|g| selection::group_drag_edit(&selected, g, from, to));
+        // Plan y runs down: the pointer's rise is `from.y_m - to.y_m` (3D hands over its own).
+        let lifted = lift_edit(s, &tool, grabbed.as_ref(), from.y_m - to.y_m);
         let mut edit = group
             .or_else(|| tools::drag_edit(&tool, grabbed.as_ref(), from, to))
-            .or_else(|| tools::draw_edit(&tool, style, from, to));
+            .or_else(|| tools::draw_edit(&tool, style, from, to))
+            .or(lifted);
         if tool == Tool::Scale && !s.has_background() {
             edit = None;
         }
@@ -117,6 +168,11 @@ impl qobject::Controller {
             DragPhase::Moving
         };
         self.as_mut().rust_mut().get_mut().grip = grip.after(phase);
+        let caption = self
+            .as_mut()
+            .rust_mut()
+            .get_mut()
+            .lift_caption(edit.as_ref(), phase, to);
 
         // Empty ground with the select tool pulls up a box to take what lies in it.
         if tool == Tool::Select && grabbed.is_none() {
@@ -127,7 +183,7 @@ impl qobject::Controller {
             self.as_mut().rust_mut().get_mut().selected = selected.grab(grabbed);
         }
         match tools::drag_step(edit, phase, preview) {
-            DragStep::Preview(edit) => self.preview_edit(&edit),
+            DragStep::Preview(edit) => self.preview_edit(&edit, caption.as_ref()),
             DragStep::Commit(edit) => self.commit_pulled(edit),
             DragStep::Restore => {
                 self.refresh();
@@ -291,6 +347,7 @@ impl qobject::Controller {
 
     pub(super) fn cancel_drag(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().get_mut().grip = Grip::Free;
+        self.as_mut().rust_mut().get_mut().free.caption.clear();
         self.as_mut().rust_mut().get_mut().marquee = None;
         self.refresh();
     }
@@ -352,7 +409,7 @@ impl qobject::Controller {
 
     /// Shows what `edit` would do, as the plan; the project stays as it is. A failed preview
     /// shows the project, not the last preview.
-    fn preview_edit(mut self: Pin<&mut Self>, edit: &PlanEdit) -> bool {
+    fn preview_edit(mut self: Pin<&mut Self>, edit: &PlanEdit, caption: Option<&Measure>) -> bool {
         let json = {
             let this = self.as_ref();
             this.rust().session.as_ref().and_then(|s| {
@@ -363,7 +420,7 @@ impl qobject::Controller {
                     &list,
                     &this.rust().selected,
                     this.rust().language,
-                    (&picked, None, None),
+                    (&picked, None, caption),
                 ))
             })
         };

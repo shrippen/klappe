@@ -94,3 +94,19 @@ fn the_3d_view_follows_the_object() {
     assert!((middle.x_m - 14.0).abs() < 1e-6, "{middle:?}");
     assert!((middle.y_m - 4.0).abs() < 1e-6, "{middle:?}");
 }
+
+/// What a height drag starts from (LH-95): the stand-in for an object without a height, the
+/// own height once set, the wall's top (the room's 2.6 m without its own); nothing for the rest.
+#[test]
+fn a_height_drag_starts_from_what_stands() {
+    let mut s = example();
+    let table = Source::Object("tisch".into());
+    assert!((s.height_of(&table).unwrap() - 0.9).abs() < 1e-9);
+
+    set_height(&mut s, "tisch", Some(0.8));
+    assert!((s.height_of(&table).unwrap() - 0.8).abs() < 1e-9);
+    assert!((s.height_of(&Source::Wall(0)).unwrap() - 2.6).abs() < 1e-9);
+    assert!(s.height_of(&Source::Wall(99)).is_none());
+    assert!(s.height_of(&Source::Object("fort".into())).is_none());
+    assert!(s.height_of(&Source::Note("x".into())).is_none());
+}

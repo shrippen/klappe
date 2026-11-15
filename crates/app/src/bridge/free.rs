@@ -11,14 +11,18 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QImage, QString};
 use klappe_services::{Size, Source, View};
+use serde_json::{json, Value};
 
 /// The 3D view's size in device pixels (`freeSize`), and the height above the floor at which a
 /// running drag holds what it grabbed: the drag runs on that level, so a wall top seen over
-/// the horizon moves with the pointer as the floor under a chair does.
+/// the horizon moves with the pointer as the floor under a chair does. A height drag's
+/// caption ("1,25 m") and the pixel it is written at.
 #[derive(Debug, Default)]
 pub(super) struct FreeState {
     size: Size,
     held_m: f64,
+    pub(super) caption: String,
+    at: Size,
 }
 
 impl qobject::Controller {
@@ -75,7 +79,7 @@ impl qobject::Controller {
     }
 
     pub(super) fn free_frame(&self) -> QString {
-        QString::from(self.rust().free_frame.as_str())
+        QString::from(self.rust().captioned().as_str())
     }
 
     pub(super) fn turn_view(mut self: Pin<&mut Self>, dx: f64, dy: f64) {
@@ -153,7 +157,7 @@ impl qobject::Controller {
         // it is held at; other tools drag on the floor.
         if self.rust().grip == Grip::Free {
             let grabbed = match tool {
-                Tool::Select => {
+                Tool::Select | Tool::Height => {
                     let this = self.as_ref();
                     this.rust()
                         .session
@@ -164,12 +168,15 @@ impl qobject::Controller {
             };
             let state = self.as_mut().rust_mut().get_mut();
             state.free.held_m = grabbed.as_ref().map_or(0.0, |(_, held_m)| *held_m);
-            if tool == Tool::Select {
+            if matches!(tool, Tool::Select | Tool::Height) {
                 state.grip = Grip::Held(grabbed.map(|(source, _)| source));
             }
         }
         let nothing_held = self.rust().grip == Grip::Held(None);
         let held_m = self.rust().free.held_m;
+        if tool == Tool::Height {
+            return self.lift_drag(((from_x, from_y), (x, y)), nothing_held, done);
+        }
 
         let points = {
             let this = self.as_ref();
@@ -193,6 +200,36 @@ impl qobject::Controller {
         self.drag(from.x_m, from.y_m, to.x_m, to.y_m, done)
     }
 
+    /// A drag of the height tool: the pointer's rise on the plane through the grabbed point is
+    /// the lift; the plan's drag gets it as a rise of the pointer from `lift_m` to 0.
+    fn lift_drag(
+        mut self: Pin<&mut Self>,
+        (from, to): (Size, Size),
+        nothing_held: bool,
+        done: bool,
+    ) -> bool {
+        let size = self.rust().free.size;
+        let held_m = self.rust().free.held_m;
+        let lift_m = {
+            let this = self.as_ref();
+            this.rust()
+                .session
+                .as_ref()
+                .and_then(|s| s.free_lift(from, to, size, held_m))
+                .filter(|_| !nothing_held)
+        };
+        let Some(lift_m) = lift_m else {
+            if done {
+                self.cancel_drag();
+            }
+            return false;
+        };
+
+        self.as_mut().rust_mut().get_mut().free.at = to;
+
+        self.drag(0.0, lift_m, 0.0, 0.0, done)
+    }
+
     /// The 3D picture is made again.
     fn bump_free(mut self: Pin<&mut Self>) {
         let revision = self.free_revision().wrapping_add(1);
@@ -201,6 +238,30 @@ impl qobject::Controller {
 }
 
 impl super::ControllerRust {
+    /// `free_frame` with the height drag's caption as one more name at the pointer.
+    fn captioned(&self) -> String {
+        let plain = || self.free_frame.clone();
+        if self.free.caption.is_empty() {
+            return plain();
+        }
+        let Ok(mut frame) = serde_json::from_str::<Value>(&self.free_frame) else {
+            return plain();
+        };
+
+        let ratio = frame["width"].as_f64().unwrap_or_default() / self.free.size.0;
+        let name = json!({
+            "text": self.free.caption,
+            "x": self.free.at.0 * ratio,
+            "y": self.free.at.1 * ratio,
+        });
+        let Some(labels) = frame["labels"].as_array_mut() else {
+            return plain();
+        };
+        labels.push(name);
+
+        frame.to_string()
+    }
+
     /// The 3D view at `scale` times its size, in the palette's colours, and its frame JSON.
     fn free_colored(&self, scale: f64, palette_json: &str) -> Option<(QImage, String)> {
         let s = self.session.as_ref()?;

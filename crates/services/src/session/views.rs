@@ -223,6 +223,23 @@ impl Session {
             .map(|o| o.id.clone())
     }
 
+    /// How tall `source` stands now, in metres: an object's extent (what it is shown as without
+    /// a height of its own), a wall's top (LH-95). `None` for any other source.
+    pub fn height_of(&self, source: &Source) -> Option<f64> {
+        let set = &self.scene_location()?.set;
+
+        match source {
+            Source::Object(id) => {
+                let index = set.objects.iter().position(|o| o.id == *id)?;
+                let (base_m, top_m) = object_extent(set, index);
+
+                Some(top_m - base_m)
+            }
+            Source::Wall(index) => Some(wall_top(set, set.walls.get(*index)?)),
+            _ => None,
+        }
+    }
+
     /// The tooltip of object `id` on the scene's set; `None` without such an object.
     pub fn object_hint(&self, id: &str) -> Option<Hint> {
         let set = &self.scene_location()?.set;
