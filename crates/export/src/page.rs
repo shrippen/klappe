@@ -40,11 +40,22 @@ pub struct Texts {
     pub axis: String,
     pub path: String,
     pub mark: String,
+    /// The legend's words for drawings (LH-19).
+    pub drawing: DrawingTexts,
     /// Metre unit, e.g. "m".
     pub unit: String,
     /// Between whole and fraction of a length: ',' or '.'.
     pub decimal_separator: char,
     pub shots: ShotTexts,
+}
+
+/// What the legend calls a drawing: lines by their dash, a filled shape an area.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DrawingTexts {
+    pub line: String,
+    pub dashed: String,
+    pub dotted: String,
+    pub area: String,
 }
 
 /// The shot list's words: heading, column heads and the names of sizes, angles and movements.

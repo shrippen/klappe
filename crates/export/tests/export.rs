@@ -2,7 +2,7 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    pdf, png, svg, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme,
+    pdf, png, svg, DrawingTexts, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme,
 };
 use klappe_model::{
     Arrival, Camera, CameraMark, Character, Dash, Departure, Drawing, DrawingShape, FigureColor,
@@ -123,6 +123,12 @@ fn german() -> Texts {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        drawing: DrawingTexts {
+            line: "Zeichnung".into(),
+            dashed: "Gestrichelt".into(),
+            dotted: "Gepunktet".into(),
+            area: "Fläche".into(),
+        },
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
@@ -783,4 +789,63 @@ fn png_of_the_example_renders_within_the_budget() {
 
     eprintln!("png: {} bytes in {took_s:.3} s", bytes.len());
     assert!(took_s < PNG_BUDGET_S, "{took_s} s");
+}
+
+/// LH-19: the legend lists the looks of drawing in the plan: a line by its dash, a filled
+/// shape as an area, each look once; a plan without drawings has none.
+#[test]
+fn the_legend_lists_the_drawings() {
+    let drawing = |id: &str, shape, dash, fill, color| Drawing {
+        id: id.into(),
+        shape,
+        color,
+        dash,
+        fill,
+        rotation_deg: 0.0,
+    };
+    let (a, b) = (Point::new(2.0, 10.0), Point::new(8.0, 12.0));
+    let line = |id: &str, dash, fill| {
+        drawing(
+            id,
+            DrawingShape::Arrow { from: a, to: b },
+            dash,
+            fill,
+            FigureColor::Red,
+        )
+    };
+    let mut with = plan();
+    with.drawings = vec![
+        line("d1", Dash::Dashed, Fill::Outline),
+        // The same look again, and a line that asked for a fill it cannot have.
+        line("d2", Dash::Dashed, Fill::Filled),
+        drawing(
+            "d3",
+            DrawingShape::Rect { from: a, to: b },
+            Dash::Solid,
+            Fill::Filled,
+            FigureColor::Cyan,
+        ),
+    ];
+    let legend_texts = |plan: &klappe_model::FloorPlan| -> Vec<String> {
+        let list = render(&project(), &set(), plan, 0.0, None);
+        let out = svg(&list, &page(), Theme::Light).unwrap();
+
+        out.lines()
+            .filter(|l| l.contains("legend-label"))
+            .map(|l| {
+                l.rsplit_once("\">")
+                    .map(|t| t.1.trim_end_matches("</text>").to_owned())
+                    .unwrap_or_default()
+            })
+            .collect()
+    };
+
+    let bare = legend_texts(&plan());
+    let listed = legend_texts(&with);
+
+    assert_eq!(bare.len(), 6, "{bare:?}");
+    assert_eq!(&listed[6..], ["Gestrichelt", "Fläche"], "{listed:?}");
+    let list = render(&project(), &set(), &with, 0.0, None);
+    let out = svg(&list, &page(), Theme::Light).unwrap();
+    assert_eq!(lines_with(&out, "legend drawing").len(), 2);
 }

@@ -2,7 +2,7 @@
 //! to QML as JSON (`Texts.qml`); Rust reads single keys for what it prints, so does the CLI
 //! for its exports.
 
-use klappe_export::{ShotColumns, ShotTexts, Texts};
+use klappe_export::{DrawingTexts, ShotColumns, ShotTexts, Texts};
 use klappe_model::{Angle, Movement, ShotSize};
 use serde_json::{Map, Value};
 
@@ -53,6 +53,12 @@ impl Language {
             axis: t("legend.axis"),
             path: t("legend.path"),
             mark: t("legend.mark"),
+            drawing: DrawingTexts {
+                line: t("legend.drawing"),
+                dashed: t("legend.drawing.dashed"),
+                dotted: t("legend.drawing.dotted"),
+                area: t("legend.area"),
+            },
             unit: t("unit.m"),
             decimal_separator: t("unit.decimal").chars().next().unwrap_or('.'),
             shots: self.shot_texts(),
