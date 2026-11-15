@@ -25,6 +25,7 @@ fn project() -> Project {
         short: "E".into(),
         color: FigureColor::Purple,
         group: None,
+        size_m: None,
     }];
     p
 }
@@ -403,6 +404,31 @@ fn a_group_is_printed_with_its_count() {
         "{}",
         dots[0]
     );
+}
+
+/// LH-25: a figure is printed in its size, as wide as the plan shows it.
+#[test]
+fn a_sized_figure_is_printed_in_its_size() {
+    let radius = |size_m: Option<f64>| {
+        let mut who = project();
+        who.characters[0].size_m = size_m;
+        let out = svg(
+            &render(&who, &set(), &plan(), 0.0, None),
+            &page(),
+            Theme::Light,
+        )
+        .unwrap();
+        let body = lines_with(&out, "item figure purple")
+            .into_iter()
+            .find(|l| l.starts_with("<circle"))
+            .map(|l| attr(l, "r"))
+            .unwrap();
+        body
+    };
+    let standard = radius(None);
+
+    // 0.7 m across is the standard body: a 2.8 m horse is four times as wide.
+    assert!((radius(Some(2.8)) - 4.0 * standard).abs() < 0.01);
 }
 
 /// A mark's number sits above the figure standing on it, also above a group's wider body.

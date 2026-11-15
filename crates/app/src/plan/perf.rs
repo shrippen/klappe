@@ -46,6 +46,7 @@ fn big_session(dir: &Path) -> Session {
             short: format!("F{i}"),
             color: FigureColor::Red,
             group: None,
+            size_m: None,
         });
     }
 

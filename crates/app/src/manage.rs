@@ -444,6 +444,7 @@ mod tests {
                 short: "A".to_owned(),
                 color: FigureColor::Red,
                 group: Some(12),
+                size_m: None,
             })
             .unwrap();
 

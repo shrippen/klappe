@@ -73,6 +73,7 @@ fn the_overview_gives_groups_their_count() {
         short: "B".into(),
         color: FigureColor::Blue,
         group: Some(12),
+        size_m: None,
     })
     .unwrap();
 
