@@ -101,6 +101,7 @@ impl Session {
         self.check_script_number(&edit)?;
         let mut next = self.project.clone();
         project_edit::apply(&mut next, &edit)?;
+        self.check_figure_sizes(&next)?;
         if next == self.project {
             return Ok(());
         }

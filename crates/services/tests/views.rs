@@ -73,6 +73,7 @@ fn the_overview_gives_groups_their_count() {
         short: "B".into(),
         color: FigureColor::Blue,
         group: Some(12),
+        size_m: None,
     })
     .unwrap();
 
@@ -87,7 +88,8 @@ fn the_overview_gives_groups_their_count() {
             name: "Burgvogt".into(),
             short: "B".into(),
             color: "blue",
-            group: 12
+            group: 12,
+            size_m: None,
         }
     );
     assert_eq!(elisabeth.group, 0);

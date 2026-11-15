@@ -25,6 +25,7 @@ fn project() -> Project {
         short: "E".into(),
         color: FigureColor::Purple,
         group: None,
+        size_m: None,
     }];
     p
 }

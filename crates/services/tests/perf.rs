@@ -59,6 +59,7 @@ fn character(i: usize) -> Character {
         short: format!("F{i}"),
         color: FigureColor::ALL[i % FigureColor::ALL.len()],
         group: None,
+        size_m: None,
     }
 }
 

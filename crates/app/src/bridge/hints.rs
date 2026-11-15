@@ -66,6 +66,7 @@ mod tests {
             short: "B".into(),
             color: FigureColor::Blue,
             group: Some(12),
+            size_m: None,
         })
         .unwrap();
 

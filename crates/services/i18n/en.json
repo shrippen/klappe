@@ -453,6 +453,8 @@
  "character.short": "Short",
  "character.color": "Colour",
  "character.group": "Group",
+ "character.size": "Size (m)",
+ "character.sizeStandard": "Standard",
  "character.groupSize": "People",
  "character.groupOf": "Group of {count}",
  "remove.scene": "Delete scene {name}? Its plans go; Undo brings them back.",

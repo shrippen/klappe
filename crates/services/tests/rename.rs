@@ -37,6 +37,7 @@ fn rename_character(name: &str) -> ProjectEdit {
         short: "E".into(),
         color: FigureColor::Purple,
         group: None,
+        size_m: None,
     }
 }
 
@@ -84,6 +85,7 @@ fn a_colour_change_leaves_the_script_alone() {
         short: "E".into(),
         color: FigureColor::Red,
         group: None,
+        size_m: None,
     };
 
     s.edit_project(edit).unwrap();
@@ -169,6 +171,7 @@ fn a_new_character_cannot_take_a_taken_name() {
             short: "B".into(),
             color: FigureColor::Red,
             group: None,
+            size_m: None,
         })
         .unwrap_err();
 
@@ -190,6 +193,7 @@ fn names_that_share_a_cue_are_taken() {
         short: "S".into(),
         color: FigureColor::Red,
         group: None,
+        size_m: None,
     };
     s.edit_project(add("Strauss")).unwrap();
 

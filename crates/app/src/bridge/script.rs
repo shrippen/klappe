@@ -79,12 +79,16 @@ impl qobject::Controller {
         label: &QString,
         color: &QString,
         group: u32,
+        size: &QString,
     ) -> bool {
-        let edit = color_edit(color).map(|color| ProjectEdit::AddCharacter {
-            name: name.to_string(),
-            short: label.to_string(),
-            color,
-            group: manage::group_of(group),
+        let edit = color_edit(color).and_then(|color| {
+            Ok(ProjectEdit::AddCharacter {
+                name: name.to_string(),
+                short: label.to_string(),
+                color,
+                group: manage::group_of(group),
+                size_m: manage::figure_size(&size.to_string())?,
+            })
         });
         self.commit_project(edit)
     }
@@ -96,13 +100,17 @@ impl qobject::Controller {
         label: &QString,
         color: &QString,
         group: u32,
+        size: &QString,
     ) -> bool {
-        let edit = color_edit(color).map(|color| ProjectEdit::EditCharacter {
-            id: id.to_string(),
-            name: name.to_string(),
-            short: label.to_string(),
-            color,
-            group: manage::group_of(group),
+        let edit = color_edit(color).and_then(|color| {
+            Ok(ProjectEdit::EditCharacter {
+                id: id.to_string(),
+                name: name.to_string(),
+                short: label.to_string(),
+                color,
+                group: manage::group_of(group),
+                size_m: manage::figure_size(&size.to_string())?,
+            })
         });
         self.commit_project(edit)
     }

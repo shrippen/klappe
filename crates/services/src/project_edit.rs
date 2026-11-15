@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_object_height_m, is_object_size_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
-    Point, Project, Scene, SetPlan, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    is_figure_size_m, is_object_height_m, is_object_size_m, Character, FigureColor, FloorPlan,
+    LibraryItem, Location, Point, Project, Scene, SetPlan, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -56,11 +56,13 @@ pub enum ProjectEdit {
         id: String,
     },
     /// `group` is the head count of a group of extras (LH-23); `None` is a single person.
+    /// `size_m` is the diameter of the body (LH-25); `None` is the standard.
     AddCharacter {
         name: String,
         short: String,
         color: FigureColor,
         group: Option<u32>,
+        size_m: Option<f64>,
     },
     EditCharacter {
         id: String,
@@ -68,6 +70,7 @@ pub enum ProjectEdit {
         short: String,
         color: FigureColor,
         group: Option<u32>,
+        size_m: Option<f64>,
     },
     /// Refused while a plan uses the character.
     RemoveCharacter {
@@ -157,14 +160,16 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             short,
             color,
             group,
-        } => add_character(project, name, short, *color, *group),
+            size_m,
+        } => add_character(project, name, short, *color, (*group, *size_m)),
         ProjectEdit::EditCharacter {
             id,
             name,
             short,
             color,
             group,
-        } => edit_character(project, id, name, short, *color, *group),
+            size_m,
+        } => edit_character(project, id, name, short, *color, (*group, *size_m)),
         ProjectEdit::RemoveCharacter { id } => remove_character(project, id),
         ProjectEdit::LibraryFromObject {
             location,
@@ -323,11 +328,12 @@ fn add_character(
     name: &str,
     short: &str,
     color: FigureColor,
-    group: Option<u32>,
+    (group, size_m): (Option<u32>, Option<f64>),
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     let short = short_of(short)?;
     check_group(group)?;
+    check_figure_size(size_m)?;
     check_free_name(project, &name, None)?;
 
     let base = slug(&name, CHARACTER_ID_FALLBACK);
@@ -338,6 +344,7 @@ fn add_character(
         short,
         color,
         group,
+        size_m,
     });
     Ok(())
 }
@@ -348,11 +355,12 @@ fn edit_character(
     name: &str,
     short: &str,
     color: FigureColor,
-    group: Option<u32>,
+    (group, size_m): (Option<u32>, Option<f64>),
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     let short = short_of(short)?;
     check_group(group)?;
+    check_figure_size(size_m)?;
 
     check_free_name(project, &name, Some(id))?;
 
@@ -363,6 +371,7 @@ fn edit_character(
     character.short = short;
     character.color = color;
     character.group = group;
+    character.size_m = size_m;
     Ok(())
 }
 
@@ -568,6 +577,19 @@ fn check_group(group: Option<u32>) -> Result<(), ServiceError> {
         return Err(ServiceError::BadValue {
             field: Field::Group,
             value: count.to_string(),
+        });
+    }
+    Ok(())
+}
+
+fn check_figure_size(size_m: Option<f64>) -> Result<(), ServiceError> {
+    let Some(size_m) = size_m else {
+        return Ok(());
+    };
+    if !is_figure_size_m(size_m) {
+        return Err(ServiceError::BadValue {
+            field: Field::Size,
+            value: size_m.to_string(),
         });
     }
     Ok(())

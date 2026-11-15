@@ -49,6 +49,24 @@ impl Session {
         }
     }
 
+    /// Refuses a result `next` in which a figure has another size while the figure layer is
+    /// locked (LH-25): the size is part of how the figure stands on the plan.
+    pub(super) fn check_figure_sizes(&self, next: &Project) -> Result<(), ServiceError> {
+        if self.lock(Layer::Figures) == Lock::Unlocked {
+            return Ok(());
+        }
+
+        let changed = next.characters.iter().any(|c| {
+            self.project
+                .character(&c.id)
+                .is_some_and(|old| old.size_m != c.size_m)
+        });
+        match changed {
+            true => Err(ServiceError::Locked(Layer::Figures)),
+            false => Ok(()),
+        }
+    }
+
     /// Refuses a result `next` in which a locked camera layer has moved: a figure drags its
     /// coupled cameras along (LH-37), and a camera left behind would break distance and angle.
     pub(super) fn check_cameras(&self, next: &Project) -> Result<(), ServiceError> {

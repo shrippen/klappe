@@ -29,7 +29,7 @@ pub(crate) fn new_character(project: &mut Project, name: &str) -> Result<String,
         .find(|c| !project.characters.iter().any(|o| o.color == *c))
         .unwrap_or(FigureColor::ALL[0]);
 
-    add_character(project, name, &initial, color, None)?;
+    add_character(project, name, &initial, color, (None, None))?;
 
     project
         .characters

@@ -143,6 +143,12 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   und Wege wie jede Figur und wird größer gezeichnet, mit drei Punkten im Umriss, ihr Name trägt
   die Zahl (`Gäste (12)`). Ohne Gruppe fehlt der Schlüssel; ältere Projekte laden und speichern
   unverändert. Keine neue Formatversion, wie bei den Notizen.
+- **Größe von Figuren (LH-25):** eine Figur in `figuren.toml` hat optional `size_m`, den
+  Durchmesser des Körpers in Metern (0,1 bis 20), etwa Kind, Pferd oder Kutsche. Ohne `size_m`
+  gilt der Standard (0,7 m). Eine Gruppe bleibt um denselben Faktor größer als eine einzelne
+  Figur. Ohne Größe fehlt der Schlüssel; ältere Projekte laden und speichern unverändert.
+  Laden lehnt einen Wert außerhalb 0,1 bis 20 ab. Keine neue Formatversion, wie bei den
+  Gruppen.
 - **Vorlagen (LH-07):** eine Vorlage ist ein Satz Figuren-Platzhalter und Kameras mit Marks für
   eine typische Auflösung. Die eingebauten sind Teil des Programms
   (`crates/store/template/standard.toml`: `shot-reverse`, `triangle`, `long-take`; Namen im Katalog

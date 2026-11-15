@@ -234,6 +234,7 @@ fn example() -> Project {
             short: "E".into(),
             color: FigureColor::Purple,
             group: None,
+            size_m: None,
         },
         Character {
             id: "burgvogt".into(),
@@ -241,6 +242,7 @@ fn example() -> Project {
             short: "B".into(),
             color: FigureColor::Blue,
             group: None,
+            size_m: None,
         },
     ];
 

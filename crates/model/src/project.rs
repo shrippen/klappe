@@ -61,11 +61,24 @@ pub struct Character {
     /// as one figure. `None` is a single person.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<u32>,
+    /// Diameter of the body on the plan in metres (LH-25): a child, a horse, a carriage.
+    /// `None` is the standard figure.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size_m: Option<f64>,
 }
 
 /// A group has two to 999 people; one person is a figure, more would not fit the label.
 pub const MIN_GROUP: u32 = 2;
 pub const MAX_GROUP: u32 = 999;
+
+/// A figure is between 10 cm (a cat) and 20 m (a float) across.
+pub const MIN_FIGURE_M: f64 = 0.1;
+pub const MAX_FIGURE_M: f64 = 20.0;
+
+/// Whether `size_m` is a diameter a figure may have; also excludes NaN.
+pub fn is_figure_size_m(size_m: f64) -> bool {
+    (MIN_FIGURE_M..=MAX_FIGURE_M).contains(&size_m)
+}
 
 impl Character {
     /// The name with the head count of a group: `Gäste (12)`.

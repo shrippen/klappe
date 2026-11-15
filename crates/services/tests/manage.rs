@@ -5,7 +5,11 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{Field, FigureColor, ProjectEdit, ServiceError, Session};
+use klappe_services::{Field, FigureColor, Layer, Lock, ProjectEdit, ServiceError, Session};
+
+/// The limits of a figure's size, as `FORMAT.md` states them.
+const MIN_FIGURE_M: f64 = 0.1;
+const MAX_FIGURE_M: f64 = 20.0;
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -58,6 +62,7 @@ fn add_character(name: &str, short: &str) -> ProjectEdit {
         short: short.into(),
         color: FigureColor::Green,
         group: None,
+        size_m: None,
     }
 }
 
@@ -439,6 +444,7 @@ fn adds_and_changes_a_character() {
         short: "D".into(),
         color: FigureColor::Red,
         group: None,
+        size_m: None,
     })
     .unwrap();
 
@@ -478,6 +484,7 @@ fn a_character_needs_a_name_and_a_short_label() {
             short: "x".into(),
             color: FigureColor::Blue,
             group: None,
+            size_m: None,
         })
         .unwrap_err();
     assert!(matches!(err, ServiceError::NoCharacter(_)));
@@ -490,7 +497,92 @@ fn group_edit(id: &str, group: Option<u32>) -> ProjectEdit {
         short: "G".into(),
         color: FigureColor::Cyan,
         group,
+        size_m: None,
     }
+}
+
+fn size_edit(id: &str, size_m: Option<f64>) -> ProjectEdit {
+    ProjectEdit::EditCharacter {
+        id: id.into(),
+        name: "Schimmel".into(),
+        short: "S".into(),
+        color: FigureColor::Cyan,
+        group: None,
+        size_m,
+    }
+}
+
+fn size_of(s: &Session, id: &str) -> Option<f64> {
+    s.project().character(id).unwrap().size_m
+}
+
+/// LH-25: a size is set, changed and cleared, and undo takes it back.
+#[test]
+fn a_figure_size_is_set_changed_and_cleared_with_undo() {
+    let mut s = open("manage-size");
+
+    s.edit_project(ProjectEdit::AddCharacter {
+        name: "Schimmel".into(),
+        short: "S".into(),
+        color: FigureColor::Cyan,
+        group: None,
+        size_m: Some(2.4),
+    })
+    .unwrap();
+    assert_eq!(size_of(&s, "schimmel"), Some(2.4));
+
+    s.edit_project(size_edit("schimmel", Some(MAX_FIGURE_M)))
+        .unwrap();
+    assert_eq!(size_of(&s, "schimmel"), Some(MAX_FIGURE_M));
+
+    s.edit_project(size_edit("schimmel", None)).unwrap();
+    assert_eq!(size_of(&s, "schimmel"), None);
+
+    s.undo();
+    assert_eq!(size_of(&s, "schimmel"), Some(MAX_FIGURE_M));
+}
+
+#[test]
+fn a_figure_size_stays_within_its_limits() {
+    let mut s = open("manage-size-bounds");
+    s.edit_project(add_character("Schimmel", "S")).unwrap();
+
+    for size in [0.0, MIN_FIGURE_M / 2.0, MAX_FIGURE_M + 1.0, -1.0, f64::NAN] {
+        let err = s
+            .edit_project(size_edit("schimmel", Some(size)))
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            ServiceError::BadValue {
+                field: Field::Size,
+                ..
+            }
+        ));
+    }
+    assert_eq!(size_of(&s, "schimmel"), None);
+
+    s.edit_project(size_edit("schimmel", Some(MIN_FIGURE_M)))
+        .unwrap();
+    assert_eq!(size_of(&s, "schimmel"), Some(MIN_FIGURE_M));
+}
+
+/// LH-25: a locked figure layer keeps the sizes; other fields of the character still change.
+#[test]
+fn a_locked_figure_layer_keeps_the_size() {
+    let mut s = open("manage-size-lock");
+    s.edit_project(add_character("Schimmel", "S")).unwrap();
+    s.set_lock(Layer::Figures, Lock::Locked);
+
+    let err = s
+        .edit_project(size_edit("schimmel", Some(2.0)))
+        .unwrap_err();
+    assert!(matches!(err, ServiceError::Locked(Layer::Figures)));
+    assert_eq!(size_of(&s, "schimmel"), None);
+
+    s.edit_project(size_edit("schimmel", None)).unwrap();
+    s.set_lock(Layer::Figures, Lock::Unlocked);
+    s.edit_project(size_edit("schimmel", Some(2.0))).unwrap();
+    assert_eq!(size_of(&s, "schimmel"), Some(2.0));
 }
 
 #[test]
@@ -502,6 +594,7 @@ fn a_group_is_set_changed_and_cleared_with_undo() {
         short: "G".into(),
         color: FigureColor::Cyan,
         group: Some(12),
+        size_m: None,
     })
     .unwrap();
     assert_eq!(s.project().character("gaeste").unwrap().group, Some(12));
@@ -544,6 +637,7 @@ fn a_group_has_two_to_999_people() {
             short: "W".into(),
             color: FigureColor::Red,
             group: Some(1),
+            size_m: None,
         })
         .unwrap_err();
     assert!(matches!(

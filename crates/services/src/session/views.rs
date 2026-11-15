@@ -71,6 +71,7 @@ impl Session {
             short: c.short.clone(),
             color: c.color.name(),
             group: c.group.unwrap_or(NO_GROUP),
+            size_m: c.size_m,
         });
         let plans = self
             .scene()
