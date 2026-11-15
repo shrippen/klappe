@@ -2,6 +2,7 @@
 
 use super::q;
 use super::qobject;
+use super::view::to_json;
 use crate::fileurl;
 use crate::manage;
 use crate::notice::error_text;
@@ -70,6 +71,38 @@ impl qobject::Controller {
         self.as_mut().refresh();
         self.switched();
         true
+    }
+
+    pub(super) fn uses_of(&self, kind: &QString, id: &QString) -> QString {
+        let Some(s) = self.rust().session.as_ref() else {
+            return QString::default();
+        };
+
+        q(&manage::uses_json(s, &kind.to_string(), &id.to_string()))
+    }
+
+    pub(super) fn scene_changes(
+        &self,
+        id: &QString,
+        number: &QString,
+        heading: &QString,
+    ) -> QString {
+        let Some(s) = self.rust().session.as_ref() else {
+            return QString::default();
+        };
+        let changes =
+            s.scene_script_changes(&id.to_string(), &number.to_string(), &heading.to_string());
+
+        q(&to_json(&changes))
+    }
+
+    pub(super) fn character_changes(&self, id: &QString, name: &QString) -> QString {
+        let Some(s) = self.rust().session.as_ref() else {
+            return QString::default();
+        };
+        let changes = s.character_script_changes(&id.to_string(), &name.to_string());
+
+        q(&to_json(&changes))
     }
 
     pub(super) fn clear_status(mut self: Pin<&mut Self>) {
