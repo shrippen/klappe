@@ -15,11 +15,14 @@ mod layers;
 mod objects;
 mod pick;
 mod playback;
+mod retime;
 mod scene;
 mod shots;
 mod timeline;
 mod undo;
 mod views;
+
+pub use retime::{Grab, TimeSnap};
 
 /// Groups of the plan the timeline's layer switches show or hide.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
