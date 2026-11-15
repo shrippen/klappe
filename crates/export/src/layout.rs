@@ -111,9 +111,10 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
 
     let mut plan = Vec::new();
     for item in &list.items {
-        match &item.shape {
-            Shape::Image { .. } => image_prim(item, &map, &page.images, &mut plan)?,
-            _ => note::prims(item, &map, pal, body_radius_m(list, item), &mut plan)?,
+        match (&item.shape, item.role) {
+            (Shape::Image { .. }, _) => image_prim(item, &map, &page.images, &mut plan)?,
+            (_, Role::Note) => note::prims(item, &map, pal, body_radius_m(list, item), &mut plan)?,
+            _ => item_prims(item, &map, pal, body_radius_m(list, item), &mut plan)?,
         }
     }
 

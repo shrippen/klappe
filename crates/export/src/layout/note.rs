@@ -5,12 +5,12 @@ use super::{item_prims, Map, LABEL_GAP_PT, LABEL_PT};
 use crate::canvas::{Anchor, Prim, Weight};
 use crate::error::ExportError;
 use crate::palette::Palette;
-use klappe_stellprobe::{Item, Role, Shape};
+use klappe_stellprobe::{Item, Shape};
 
 /// Line pitch as a multiple of the font size, as on screen.
 const LINE_SPACING: f64 = 1.25;
 
-/// The prims of `item`; a note also gets its lines inside the card, others as `item_prims`.
+/// The prims of the note `item`: its card, then its lines inside the card.
 pub(super) fn prims(
     item: &Item,
     map: &Map,
@@ -18,7 +18,7 @@ pub(super) fn prims(
     body_m: f64,
     out: &mut Vec<Prim>,
 ) -> Result<(), ExportError> {
-    let (Role::Note, Shape::Polygon { points }) = (item.role, &item.shape) else {
+    let Shape::Polygon { points } = &item.shape else {
         return item_prims(item, map, pal, body_m, out);
     };
 
