@@ -32,9 +32,6 @@ KantePopover {
     closeOnOutside: false
     closePolicy: QQC2.Popup.NoAutoClose
 
-    // Distance of the card from the element's edge and from the plan's edge.
-    readonly property real gap: KanteStyle.unit(4)
-
     onKeyChanged: place()
     onWantedChanged: place()
     onImplicitWidthChanged: place()
@@ -85,39 +82,38 @@ KantePopover {
                  mid: keep((top + bottom) / 2, c.height) }
     }
 
-    // Where the card would stand on `side` of the box: its top left corner in canvas pixels.
+    // The element's box as the rectangle the card opens beside, its height only the middle.
+    function rectOf(box) {
+        return Qt.rect(box.left, box.mid, box.right - box.left, 0)
+    }
+
+    // Where the card would stand on `side` of the box, in canvas pixels, inside the canvas.
     function slot(box, side) {
-        const reach = card.pointerClear + card.pointerLength
-        const x = side === "right" ? box.right + reach : box.left - reach - card.implicitWidth
-        // Its top is a bit above the point, as in openAtPoint, and inside the plan.
-        const inset = KanteStyle.unit(18)
-        const y = Math.max(card.gap, Math.min(box.mid - inset, card.canvas.height - card.gap - card.implicitHeight))
-        return Qt.rect(x, y, card.implicitWidth, card.implicitHeight)
+        return card.rectSlot(card.canvas, card.rectOf(box), card.canvas, side)
     }
 
-    function fits(r) {
-        return r.x >= card.gap && r.x + r.width + card.gap <= card.canvas.width
-    }
-
-    function holds(r) {
+    function holds(s) {
         const p = card.pointer
-        return card.pointerOver && p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height
+        return card.pointerOver && p.x >= s.x && p.x <= s.x + card.implicitWidth
+            && p.y >= s.y && p.y <= s.y + card.implicitHeight
     }
 
-    // The mouse pointer is over `r`, which the card would cover; one the user is already
+    // The mouse pointer is over the slot, which the card would cover; one the user is already
     // over (the card itself) does not count, or the card would run from the hand.
-    function covers(r) {
-        return card.holds(r) && !over.hovered
+    function covers(s) {
+        return card.holds(s) && !over.hovered
     }
 
     // The side of the element for the card: the one it has, else right; then the other one;
     // a side where it fits and does not cover the pointer first.
     function sideFor(box) {
-        const kept = card.visible && card.pointerSide === "right" ? "left" : "right"
-        const other = kept === "right" ? "left" : "right"
-        const sides = [kept, other]
-        const free = sides.find(s => fits(slot(box, s)) && !covers(slot(box, s)))
-        return free || sides.find(s => fits(slot(box, s))) || kept
+        const right = KantePopover.Side.Right
+        const left = KantePopover.Side.Left
+        const kept = card.visible && card.pointerSide === "right" ? left : right
+        const sides = [kept, kept === right ? left : right]
+        const fits = side => card.slot(box, side).fits
+        const free = sides.find(side => fits(side) && !card.covers(card.slot(box, side)))
+        return free || sides.find(fits) || kept
     }
 
     // Placing lays the card out, which changes its size and asks to place it again: that
@@ -155,18 +151,7 @@ KantePopover {
             return
         }
         const box = card.boxOf(shape)
-        const side = card.sideFor(box)
-        const r = card.slot(box, side)
-
-        // openAtPoint opens on the right of the point, or on the left when the window has no
-        // room; the plan's edge, not the window's, decides here, so the place is set after.
-        card.openAtPoint(side === "right" ? box.right : box.left, box.mid, card.canvas)
-        card.pointerSide = side === "right" ? "left" : "right"
-        card.x = r.x
-        card.y = r.y
-        // The pointer's tip stays at the element's middle, clear of the cut corner.
-        const top = Math.max(KanteStyle.unit(9), KanteStyle.chamferSmall + card.pointerWidth / 2)
-        card.pointerY = Math.max(top, Math.min(r.height - KanteStyle.unit(9), box.mid - r.y))
+        card.openAtRect(card.canvas, card.rectOf(box), card.canvas, card.sideFor(box))
     }
 
     HoverHandler { id: over }
