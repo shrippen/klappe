@@ -419,7 +419,7 @@ fn adds_and_changes_a_character() {
 
     s.edit_project(add_character("Graf Dietrich", "GD"))
         .unwrap();
-    s.edit_project(add_character("Graf Dietrich", "G2"))
+    s.edit_project(add_character("Graf Dietrich!", "G2"))
         .unwrap();
 
     let ids: Vec<_> = s

@@ -110,6 +110,38 @@ pub struct ScriptLine {
     pub chips: Vec<Chip>,
     /// The line the playback is at: the last linked line whose time has come.
     pub current: bool,
+    /// Id of the character a cue names (D-08); empty for any other line.
+    pub character: String,
+}
+
+/// A scene a character plays in (D-08): how often it speaks there and in how many plans it
+/// has a figure.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SceneUse {
+    pub id: String,
+    pub number: String,
+    pub heading: String,
+    pub cues: usize,
+    pub figures: usize,
+}
+
+/// A character that plays in a scene (D-08).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CastUse {
+    pub id: String,
+    pub name: String,
+    pub color: &'static str,
+    pub cues: usize,
+}
+
+/// What a scene's card shows beyond its row (D-08).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SceneCard {
+    /// The time of day at the end of the heading (`TAG`); empty when it has none.
+    pub time: String,
+    pub plans: usize,
+    pub shots: usize,
+    pub cast: Vec<CastUse>,
 }
 
 /// One entry of the object library, as the object tool lists it (LH-11, LH-12).
