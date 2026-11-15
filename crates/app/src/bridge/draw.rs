@@ -15,7 +15,31 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
-use klappe_services::{Grid, Layer, PlanEdit, Point, Snapping};
+use klappe_services::{Grid, Layer, PlanEdit, Point, Session, Snapping, Source};
+
+/// How many bends the way of the grip `grip` has.
+fn bends(s: &Session, grip: &Source) -> usize {
+    let Some(plan) = s.plan() else {
+        return 0;
+    };
+    let via = match grip {
+        Source::FigureVia {
+            character, index, ..
+        } => plan
+            .figures
+            .iter()
+            .find(|f| f.character == *character)
+            .and_then(|f| f.marks.get(*index))
+            .map(|m| &m.via),
+        Source::CameraVia { camera, index, .. } => plan
+            .camera(camera)
+            .and_then(|c| c.marks.get(*index))
+            .map(|m| &m.via),
+        _ => None,
+    };
+
+    via.map_or(0, Vec::len)
+}
 
 impl qobject::Controller {
     pub(super) fn set_tool(mut self: Pin<&mut Self>, tool: &QString, choice: &QString) -> bool {
@@ -104,17 +128,7 @@ impl qobject::Controller {
         }
         match tools::drag_step(edit, phase, preview) {
             DragStep::Preview(edit) => self.preview_edit(&edit),
-            DragStep::Commit(edit) => {
-                let done = self.as_mut().commit_edit(edit.clone());
-                if done {
-                    // A bend pulled out of a way is the selection, not its old grip.
-                    let pulled = self.rust().selected.clone().pulled(&edit);
-                    self.as_mut().rust_mut().get_mut().selected = pulled;
-                    self.refresh();
-                }
-
-                done
-            }
+            DragStep::Commit(edit) => self.commit_pulled(edit),
             DragStep::Restore => {
                 self.refresh();
                 false
@@ -370,6 +384,25 @@ impl qobject::Controller {
         }
     }
 
+    /// Applies `edit`; a bend pulled out of a way is the selection, not its old grip.
+    fn commit_pulled(mut self: Pin<&mut Self>, edit: PlanEdit) -> bool {
+        let grip = self.rust().selected.only().cloned();
+        let count = |this: &Self| match (&this.rust().session, &grip) {
+            (Some(s), Some(grip)) => bends(s, grip),
+            _ => 0,
+        };
+        let before = count(&self);
+        let done = self.as_mut().commit_edit(edit.clone());
+        if done {
+            let counts = (before, count(&self));
+            let pulled = self.rust().selected.clone().pulled(&edit, counts);
+            self.as_mut().rust_mut().get_mut().selected = pulled;
+            self.refresh();
+        }
+
+        done
+    }
+
     /// Applies `edit`; an error goes to the status line.
     pub(super) fn commit_edit(mut self: Pin<&mut Self>, edit: PlanEdit) -> bool {
         let language = self.rust().language;
@@ -385,5 +418,60 @@ impl qobject::Controller {
         }
         self.refresh();
         ok
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::selection::Selection;
+    use klappe_services::Bend;
+
+    fn grip(bend: Bend) -> Source {
+        Source::FigureVia {
+            character: "burgvogt".into(),
+            index: 1,
+            bend,
+        }
+    }
+
+    /// The selection after a pull of `grip` by (0, `dy_m`), as `commit_pulled` makes it.
+    fn pulled(s: &mut Session, grip: Source, dy_m: f64) -> Selection {
+        let edit = PlanEdit::Shift {
+            source: grip.clone(),
+            dx_m: 0.0,
+            dy_m,
+        };
+        let before = bends(s, &grip);
+        s.edit_plan(edit.clone()).unwrap();
+        let after = bends(s, &grip);
+
+        Selection::of(Some(grip)).pulled(&edit, (before, after))
+    }
+
+    /// Burgvogt's way to mark 1 has a bend. A pull of 0.1 um makes no second one, so the
+    /// selection stays on the grip and does not jump to the old bend.
+    #[test]
+    fn a_pull_that_makes_no_bend_keeps_the_selection() {
+        let mut s = crate::bridge::tests::example();
+        s.set_snapping(Snapping::Off);
+        pulled(&mut s, grip(Bend::New(0)), -4.0);
+        assert_eq!(bends(&s, &grip(Bend::New(0))), 1);
+
+        let kept = pulled(&mut s, grip(Bend::New(0)), 1e-7);
+
+        assert_eq!(bends(&s, &grip(Bend::New(0))), 1);
+        assert_eq!(kept, Selection::of(Some(grip(Bend::New(0)))));
+    }
+
+    /// A pull that makes a bend selects it (LH-21).
+    #[test]
+    fn a_pull_that_makes_a_bend_selects_it() {
+        let mut s = crate::bridge::tests::example();
+        s.set_snapping(Snapping::Off);
+
+        let made = pulled(&mut s, grip(Bend::New(0)), -4.0);
+
+        assert_eq!(made, Selection::of(Some(grip(Bend::At(0)))));
     }
 }

@@ -134,15 +134,21 @@ impl Selection {
     }
 
     /// After `edit` was applied: a grip for a new bend that was pulled out made the bend, so
-    /// the bend is selected, not the grip, which now sits elsewhere (LH-21).
-    pub fn pulled(self, edit: &PlanEdit) -> Selection {
+    /// the bend is selected, not the grip, which now sits elsewhere (LH-21). `bends` counts the
+    /// bends of its way before and after: a pull that snapped back onto the grip made none.
+    pub fn pulled(self, edit: &PlanEdit, bends: (usize, usize)) -> Selection {
         let PlanEdit::Shift {
             source, dx_m, dy_m, ..
         } = edit
         else {
             return self;
         };
-        if (*dx_m, *dy_m) == (0.0, 0.0) || !self.contains(source) || self.len() > 1 {
+        let (before, after) = bends;
+        if (*dx_m, *dy_m) == (0.0, 0.0)
+            || after <= before
+            || !self.contains(source)
+            || self.len() > 1
+        {
             return self;
         }
 
@@ -431,21 +437,31 @@ mod tests {
         let new = Selection::of(Some(grip(Bend::New(1))));
 
         assert_eq!(
-            new.clone().pulled(&shift(&grip(Bend::New(1)), 1.0)),
+            new.clone().pulled(&shift(&grip(Bend::New(1)), 1.0), (0, 1)),
             Selection::of(Some(grip(Bend::At(1))))
         );
         assert_eq!(
-            Selection::of(Some(camera.clone())).pulled(&shift(&camera, 1.0)),
+            Selection::of(Some(camera.clone())).pulled(&shift(&camera, 1.0), (0, 1)),
             Selection::of(Some(Source::CameraVia {
                 camera: "a".into(),
                 index: 1,
                 bend: Bend::At(2),
             }))
         );
-        assert_eq!(new.clone().pulled(&shift(&grip(Bend::New(1)), 0.0)), new);
+        assert_eq!(
+            new.clone().pulled(&shift(&grip(Bend::New(1)), 0.0), (0, 0)),
+            new
+        );
+
+        // A pull that left the bends as they were (snapped back onto the grip) made none.
+        let kept = Selection::of(Some(camera.clone()));
+        assert_eq!(kept.clone().pulled(&shift(&camera, 0.01), (1, 1)), kept);
 
         let bend = Selection::of(Some(grip(Bend::At(0))));
-        assert_eq!(bend.clone().pulled(&shift(&grip(Bend::At(0)), 1.0)), bend);
+        assert_eq!(
+            bend.clone().pulled(&shift(&grip(Bend::At(0)), 1.0), (1, 1)),
+            bend
+        );
     }
 
     #[test]
