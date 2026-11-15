@@ -20,7 +20,7 @@ TestCase {
             { kind: "figure", id: "elisabeth", name: "Elisabeth" },
             { kind: "figure", id: "burgvogt", name: "Burgvogt" }
         ])
-        property string choicesJson: JSON.stringify({ movement: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"], axis: { a: "elisabeth", b: "burgvogt", own: false } })
+        property string choicesJson: JSON.stringify({ size: ["extreme-wide", "wide", "medium-wide", "cowboy", "medium", "medium-close", "close-up", "extreme-close-up"], angle: ["eye-level", "high", "low", "birds-eye", "worms-eye", "dutch"], movement: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"], axis: { a: "elisabeth", b: "burgvogt", own: false } })
         property string viewJson: ""
         property var calls: []
         property var follows: []
