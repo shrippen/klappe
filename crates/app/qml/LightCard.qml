@@ -57,7 +57,9 @@ KanteCard {
             return
         }
         for (const [, field, key, digits] of card.numberFields) {
-            field.shown = card.texts.num(card.info[key], digits)
+            // An old file may keep a power on a bounce or flag: leave the field empty.
+            const hidden = key === "power" && !card.info.gives_light
+            field.shown = hidden ? "" : card.texts.num(card.info[key], digits)
             if (!field.activeFocus) {
                 field.text = field.shown
             }
