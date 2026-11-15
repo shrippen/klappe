@@ -1,4 +1,4 @@
-//! Exports of the plan: PDF, PNG, SVG and CSV.
+//! Exports of the plan: PDF, PNG, SVG, the shot list (CSV, ODS, XLSX) and the frames.
 
 use super::qobject;
 use crate::fileurl;
@@ -15,7 +15,7 @@ impl qobject::Controller {
         mut self: Pin<&mut Self>,
         path: &QString,
         saved: &str,
-        write: impl FnOnce(&Session, &std::path::Path, Texts) -> Result<(), ServiceError>,
+        write: impl FnOnce(&mut Session, &std::path::Path, Texts) -> Result<(), ServiceError>,
     ) -> bool {
         let language = self.rust().language;
         let texts = language.print_texts();
@@ -59,6 +59,15 @@ impl qobject::Controller {
             "csv" => self.export_plan(path, "menu.csvSaved", |s, path, texts| {
                 s.export_csv(path, &texts, order)
             }),
+            "ods" => self.export_plan(path, "menu.odsSaved", |s, path, texts| {
+                s.export_ods(path, &texts, order)
+            }),
+            "xlsx" => self.export_plan(path, "menu.xlsxSaved", |s, path, texts| {
+                s.export_xlsx(path, &texts, order)
+            }),
+            FRAMES => self.export_plan(path, "menu.framesSaved", |s, dir, texts| {
+                s.export_frames(dir, paper, &texts).map(|_| ())
+            }),
             other => {
                 let language = self.rust().language;
                 let message = language.text("error.export").replace("{detail}", other);
@@ -78,6 +87,9 @@ impl qobject::Controller {
     }
 }
 
+/// The kind that writes a folder of PNGs, one per mark, not a file.
+const FRAMES: &str = "frames";
+
 /// `a3` is A3; anything else is A4.
 fn paper_of(name: &str) -> Paper {
     match name {
@@ -96,10 +108,13 @@ fn shot_order(name: &str) -> ShotOrder {
 
 /// Where an export of the current plan goes: next to the project folder, named by the plan.
 fn plan_file(s: &Session, extension: &str) -> std::path::PathBuf {
-    let name = format!(
-        "{}.{extension}",
-        s.plan_title().replace([' ', '·', '/', '–'], "-")
-    );
+    let title = s.plan_title().replace([' ', '·', '/', '–'], "-");
+
+    // A folder has no extension.
+    let name = match extension {
+        FRAMES => title,
+        _ => format!("{title}.{extension}"),
+    };
 
     s.dir()
         .parent()

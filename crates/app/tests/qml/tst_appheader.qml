@@ -247,6 +247,38 @@ TestCase {
         compare(fake.calls, [])
     }
 
+    function test_the_list_and_frame_exports_are_in_the_menu() {
+        const header = make()
+        const dialog = findChild(header, "exportDialog")
+
+        // The lists ask for the file only, the frames (a folder) for the paper first.
+        for (const kind of ["ods", "xlsx"]) {
+            pick(header, "exportMenu", kind)
+            compare(dialog.kind, kind)
+            verify(!dialog.opened)
+        }
+        pick(header, "exportMenu", "frames")
+        compare(dialog.kind, "frames")
+        tryCompare(dialog, "opened", true)
+        dialog.close()
+        tryCompare(dialog, "opened", false)
+
+        for (const id of ["export.ods", "export.xlsx", "export.frames"]) {
+            verify(header.commandPalette.commands.some(c => c.id === id), id)
+        }
+
+        dialog.kind = "ods"
+        dialog.save("file:///work/Liste.ods")
+        dialog.kind = "xlsx"
+        dialog.save("file:///work/Liste.xlsx")
+        dialog.kind = "frames"
+        dialog.save("file:///work/Wartburg")
+
+        compare(fake.calls, [["exportTo", "ods", "cut", "a4", "file:///work/Liste.ods"],
+                             ["exportTo", "xlsx", "cut", "a4", "file:///work/Liste.xlsx"],
+                             ["exportTo", "frames", "cut", "a4", "file:///work/Wartburg"]])
+    }
+
     function test_the_exports_use_the_shot_order() {
         const header = make()
         const dialog = findChild(header, "exportDialog")
@@ -628,6 +660,7 @@ TestCase {
 
     function test_the_texts_are_in_both_languages() {
         for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewMode", "view.free", "height.next", "height.missingHeader", "menu.viewOrder",
+                           "menu.ods", "menu.xlsx", "menu.frames", "export.pick.frames",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
                            "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",

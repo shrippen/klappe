@@ -51,6 +51,28 @@ Item {
                 return root.fail("export over something that cannot be replaced reported success")
             }
 
+            // The shot list as ODS and XLSX, the plan per mark as a folder of PNGs; the Rust
+            // side (qml_tests.rs) checks what was written.
+            for (const kind of ["ods", "xlsx"]) {
+                if (!ctl.exportTo(kind, "shooting", "a4", base + "/Liste." + kind)) {
+                    return root.fail(kind + " export failed: " + ctl.status)
+                }
+            }
+            if (!ctl.exportTo("frames", "cut", "a4", base + "/frames")) {
+                return root.fail("frames export failed: " + ctl.status)
+            }
+            if (ctl.exportTo("frames", "cut", "a4", base + "/frames")) {
+                return root.fail("frames into a folder that is not empty reported success")
+            }
+
+            // A plan without marks has no frames: nothing is written, and it says so.
+            if (!ctl.addPlan("Leer")) {
+                return root.fail("no empty plan: " + ctl.status)
+            }
+            if (ctl.exportTo("frames", "cut", "a4", base + "/leer")) {
+                return root.fail("frames of a plan without marks reported success")
+            }
+
             if (ctl.exportTo("zip", "cut", "a4", base + "/x.zip")) {
                 return root.fail("an unknown kind reported success")
             }

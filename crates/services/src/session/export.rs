@@ -119,6 +119,12 @@ impl Session {
         paper: Paper,
         texts: &Texts,
     ) -> Result<Vec<PathBuf>, ServiceError> {
+        // No marks, no frames: an empty success would name a folder that is not there.
+        let marks = self.marks_s();
+        if marks.is_empty() {
+            return Err(ServiceError::NoMarks);
+        }
+
         // Pictures of an earlier export would mix with these and show blocking that is gone.
         if !klappe_store::is_empty_dir(dir).map_err(write_failed)? {
             return Err(ServiceError::NotEmpty(dir.to_owned()));
@@ -128,7 +134,6 @@ impl Session {
         let scene = self.scene_number();
         let mut files = Vec::new();
 
-        let marks = self.marks_s();
         for (i, at_s) in marks.iter().copied().enumerate() {
             self.set_time(at_s);
             let path = dir.join(frame_name(&scene, i + 1, marks.len(), at_s));

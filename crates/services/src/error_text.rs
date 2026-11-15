@@ -18,6 +18,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         ServiceError::NoBackup => ("error.noBackup", String::new()),
         ServiceError::EmptyLibrary => ("error.emptyLibrary", String::new()),
         ServiceError::EmptyTemplate => ("error.emptyTemplate", String::new()),
+        ServiceError::NoMarks => ("error.noMarks", String::new()),
         ServiceError::CameraInUse { camera, shot } => {
             return language
                 .text("error.cameraInUse")
@@ -224,6 +225,7 @@ mod tests {
                 plans: 1,
             },
             ServiceError::NotEmpty(PathBuf::from("/a")),
+            ServiceError::NoMarks,
         ];
 
         for error in &errors {

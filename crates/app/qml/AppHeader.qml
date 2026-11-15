@@ -45,7 +45,7 @@ RowLayout {
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actBackground, actBackgroundRemove,
-                                    actPdf, actPng, actSvg, actCsv,
+                                    actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames,
                                     actFree, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
@@ -136,6 +136,9 @@ RowLayout {
         KanteMenuItem { objectName: "png"; action: actPng; iconRoom: true }
         KanteMenuItem { objectName: "svg"; action: actSvg; iconRoom: true }
         KanteMenuItem { objectName: "csv"; action: actCsv; iconRoom: true }
+        KanteMenuItem { objectName: "ods"; action: actOds; iconRoom: true }
+        KanteMenuItem { objectName: "xlsx"; action: actXlsx; iconRoom: true }
+        KanteMenuItem { objectName: "frames"; action: actFrames; iconRoom: true }
     }
     HeaderMenu {
         objectName: "viewMenu"
@@ -280,6 +283,30 @@ RowLayout {
         text: header.texts.t("menu.csv")
         enabled: header.controller.loaded
         onTriggered: exportDialog.request("csv")
+    }
+    CommandAction {
+        id: actOds
+        cmd: "export.ods"
+        group: "export"
+        text: header.texts.t("menu.ods")
+        enabled: header.controller.loaded
+        onTriggered: exportDialog.request("ods")
+    }
+    CommandAction {
+        id: actXlsx
+        cmd: "export.xlsx"
+        group: "export"
+        text: header.texts.t("menu.xlsx")
+        enabled: header.controller.loaded
+        onTriggered: exportDialog.request("xlsx")
+    }
+    CommandAction {
+        id: actFrames
+        cmd: "export.frames"
+        group: "export"
+        text: header.texts.t("menu.frames")
+        enabled: header.controller.loaded
+        onTriggered: exportDialog.request("frames")
     }
 
     // Plan or 3D (J): the controller keeps which one shows.
