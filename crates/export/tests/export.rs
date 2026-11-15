@@ -34,11 +34,7 @@ fn set() -> SetPlan {
     SetPlan {
         width_m: 20.0,
         depth_m: 13.0,
-        walls: vec![Wall {
-            from: Point::new(0.0, 0.0),
-            to: Point::new(20.0, 0.0),
-            thickness_m: 0.2,
-        }],
+        walls: vec![Wall::new(Point::new(0.0, 0.0), Point::new(20.0, 0.0), 0.2)],
         objects: vec![SetObject {
             id: "t".into(),
             kind: "table".into(),

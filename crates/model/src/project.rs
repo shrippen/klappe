@@ -187,12 +187,95 @@ pub struct Background {
     pub opacity: f64,
 }
 
-/// A wall segment (LH-10); doors and windows are set objects on it.
+/// A wall segment (LH-10) with the doors and windows cut into it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Wall {
     pub from: Point,
     pub to: Point,
     pub thickness_m: f64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub openings: Vec<Opening>,
+}
+
+impl Wall {
+    /// A wall without openings.
+    pub fn new(from: Point, to: Point, thickness_m: f64) -> Self {
+        Self {
+            from,
+            to,
+            thickness_m,
+            openings: Vec::new(),
+        }
+    }
+
+    pub fn length_m(&self) -> f64 {
+        self.from.distance_m(self.to)
+    }
+
+    /// The point `along_m` metres from `from` along the wall.
+    pub fn point_at(&self, along_m: f64) -> Point {
+        let length_m = self.length_m();
+        if length_m == 0.0 {
+            return self.from;
+        }
+
+        self.from.lerp(self.to, along_m / length_m)
+    }
+
+    /// Where `at` is nearest the wall: metres from `from` along it, kept within the wall, and
+    /// how far `at` lies from that point.
+    pub fn foot(&self, at: Point) -> (f64, f64) {
+        let length_m = self.length_m();
+        if length_m == 0.0 {
+            return (0.0, self.from.distance_m(at));
+        }
+
+        let (dx, dy) = (self.to.x_m - self.from.x_m, self.to.y_m - self.from.y_m);
+        let along_m = ((at.x_m - self.from.x_m) * dx + (at.y_m - self.from.y_m) * dy) / length_m;
+        let along_m = along_m.clamp(0.0, length_m);
+
+        (along_m, self.point_at(along_m).distance_m(at))
+    }
+}
+
+/// What an opening in a wall is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OpeningKind {
+    Door,
+    Window,
+}
+
+impl OpeningKind {
+    /// The width a new opening of this kind has.
+    pub fn default_width_m(self) -> f64 {
+        match self {
+            OpeningKind::Door => DOOR_WIDTH_M,
+            OpeningKind::Window => WINDOW_WIDTH_M,
+        }
+    }
+}
+
+const DOOR_WIDTH_M: f64 = 0.9;
+const WINDOW_WIDTH_M: f64 = 1.2;
+
+/// A door or window in a wall (LH-10): a gap `width_m` wide, centred `at_m` metres from the
+/// wall's `from` along the wall.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Opening {
+    pub kind: OpeningKind,
+    pub at_m: f64,
+    pub width_m: f64,
+}
+
+impl Opening {
+    /// Where the gap begins and ends along the wall, in metres from `from`.
+    pub fn span_m(&self) -> (f64, f64) {
+        (
+            self.at_m - self.width_m / 2.0,
+            self.at_m + self.width_m / 2.0,
+        )
+    }
 }
 
 /// Furniture, props, pillars: anything from the library (LH-11).
@@ -235,6 +318,39 @@ pub struct Scene {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A wall from (1, 1) to (5, 4) is 5 m long.
+    #[test]
+    fn a_wall_finds_the_nearest_place_on_it() {
+        let wall = Wall::new(Point::new(1.0, 1.0), Point::new(5.0, 4.0), 0.2);
+
+        assert_eq!(wall.length_m(), 5.0);
+        assert_eq!(wall.point_at(2.5), Point::new(3.0, 2.5));
+
+        // On the wall: its foot is the point itself.
+        let (along_m, off_m) = wall.foot(Point::new(3.0, 2.5));
+        assert!((along_m - 2.5).abs() < 1e-9 && off_m < 1e-9);
+
+        // Beside the middle by 1 m at a right angle (to the lower left of a wall that runs down
+        // to the right), and beyond the end: kept at the end.
+        let (along_m, off_m) = wall.foot(Point::new(3.0 + 0.6, 2.5 - 0.8));
+        assert!((along_m - 2.5).abs() < 1e-9 && (off_m - 1.0).abs() < 1e-9);
+        assert_eq!(wall.foot(Point::new(9.0, 4.0)).0, 5.0);
+        assert_eq!(wall.foot(Point::new(-9.0, 1.0)).0, 0.0);
+    }
+
+    #[test]
+    fn an_opening_spans_its_width_about_its_centre() {
+        let door = Opening {
+            kind: OpeningKind::Door,
+            at_m: 4.0,
+            width_m: 0.9,
+        };
+
+        assert_eq!(door.span_m(), (3.55, 4.45));
+        assert_eq!(OpeningKind::Door.default_width_m(), 0.9);
+        assert_eq!(OpeningKind::Window.default_width_m(), 1.2);
+    }
 
     /// `name` is what the file holds, `from_name` reads it back, and `ALL` has no colour twice.
     #[test]

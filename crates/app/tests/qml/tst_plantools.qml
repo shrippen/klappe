@@ -123,14 +123,14 @@ TestCase {
         const bar = make()
 
         compare(bar.mode, "build")
-        compare(shownNames(bar), ["select", "wall", "object", "scale", "measure"])
+        compare(shownNames(bar), ["select", "wall", "door", "window", "object", "scale", "measure"])
     }
 
     // D-01 (table "Werkzeuge je Modus"): each mode shows its tools; selecting and measuring are in all.
     function test_each_mode_shows_its_tools() {
         const bar = make()
         const wanted = {
-            build: ["select", "wall", "object", "scale", "measure"],
+            build: ["select", "wall", "door", "window", "object", "scale", "measure"],
             stage: ["select", "figure", "measure"],
             resolve: ["select", "camera", "light", "measure"],
             draw: ["select", "note", "line", "arrow", "rect", "ellipse", "area", "measure"]
@@ -265,7 +265,7 @@ TestCase {
 
     function test_keys_pick_the_tool() {
         const bar = make()
-        const keys = [[Qt.Key_W, "wall"], [Qt.Key_O, "object"], [Qt.Key_F, "figure"],
+        const keys = [[Qt.Key_W, "wall"], [Qt.Key_T, "door"], [Qt.Key_X, "window"], [Qt.Key_O, "object"], [Qt.Key_F, "figure"],
                       [Qt.Key_C, "camera"], [Qt.Key_L, "light"], [Qt.Key_M, "scale"], [Qt.Key_D, "measure"],
                       [Qt.Key_N, "note"], [Qt.Key_I, "line"], [Qt.Key_A, "arrow"],
                       [Qt.Key_B, "rect"], [Qt.Key_E, "ellipse"], [Qt.Key_P, "area"],

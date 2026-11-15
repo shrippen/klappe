@@ -4,6 +4,7 @@ use klappe_model::{CameraMark, Drawing, DrawingShape, FloorPlan, Mark, Point, Wa
 use klappe_stellprobe::{bend_follow, bend_point, drawing_handle_places, via_through, Source};
 
 use super::drawings::drag_handle;
+use super::openings::{opening_mut, slide};
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
 
@@ -105,6 +106,10 @@ pub(super) fn target<'a>(
                 .and_then(|s| s.walls.get_mut(*index))
                 .ok_or(ServiceError::Gone)?;
             Ok(Target::Wall(wall))
+        }
+        Source::Opening { .. } => {
+            let (wall, index) = opening_mut(scope, source)?;
+            Ok(Target::Slide { wall, index })
         }
         Source::Note(id) => {
             let note = scope
@@ -292,6 +297,7 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
             }
         }
         Target::Corner { drawing, index } => drag_handle(drawing, index, to)?,
+        Target::Slide { wall, index } => slide(wall, index, to)?,
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
             let mid = middle(wall);
@@ -313,6 +319,10 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
             Ok((grip, grip))
         }
         Target::Wall(wall) => Ok((wall.from, middle(wall))),
+        Target::Slide { wall, index } => {
+            let centre = wall.point_at(wall.openings[index].at_m);
+            Ok((centre, centre))
+        }
         Target::Drawing(drawing) => anchors(drawing).ok_or(ServiceError::Gone),
         Target::Corner { drawing, index } => {
             let place = drawing_handle_places(drawing).get(index).copied();
@@ -357,7 +367,10 @@ pub(super) fn spin(
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
         Target::Drawing(drawing) => drawing.rotation_deg,
         // Nothing to turn.
-        Target::Pin { .. } | Target::Corner { .. } | Target::Curve { .. } => return Ok(()),
+        Target::Pin { .. }
+        | Target::Corner { .. }
+        | Target::Curve { .. }
+        | Target::Slide { .. } => return Ok(()),
     };
 
     turn(scope, source, now_deg + by_deg)
@@ -374,7 +387,10 @@ pub(super) fn turn(
         Target::Place { facing_deg: f, .. } => *f = facing_deg,
         Target::Drawing(drawing) => drawing.rotation_deg = facing_deg,
         // Nothing to turn.
-        Target::Pin { .. } | Target::Corner { .. } | Target::Curve { .. } => {}
+        Target::Pin { .. }
+        | Target::Corner { .. }
+        | Target::Curve { .. }
+        | Target::Slide { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.
             let mid = middle(wall);

@@ -204,6 +204,18 @@ impl Session {
         })
     }
 
+    /// The tooltip and card of opening `index` of the set's wall `wall` (LH-10); `None`
+    /// without such an opening.
+    pub fn opening_hint(&self, wall: usize, index: usize) -> Option<Hint> {
+        let set = &self.scene_location()?.set;
+        let o = set.walls.get(wall)?.openings.get(index)?;
+
+        Some(Hint::Opening {
+            opening: o.kind,
+            width_m: o.width_m,
+        })
+    }
+
     /// What the style card of drawing `id` shows; `None` without such a drawing.
     pub fn drawing_hint(&self, id: &str) -> Option<Hint> {
         let d = self.plan()?.drawings.iter().find(|d| d.id == id)?;

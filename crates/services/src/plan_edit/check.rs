@@ -17,6 +17,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::AddCameraMark { at, .. }
         | PlanEdit::AddLight { at, .. }
         | PlanEdit::AddObject { at, .. }
+        | PlanEdit::AddOpening { at, .. }
         | PlanEdit::AddNote { at, .. } => check_point(*at),
         PlanEdit::Shift { dx_m, dy_m, .. }
         | PlanEdit::ShiftGroup { dx_m, dy_m, .. }
@@ -32,6 +33,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             check_point(*at)?;
             check_angle(*facing_deg)
         }
+        PlanEdit::SetOpeningWidth { width_m, .. } => check_opening_width(*width_m),
         PlanEdit::AddWall { from, to } => {
             check_point(*from)?;
             check_point(*to)
@@ -146,6 +148,18 @@ fn check_distance(distance_m: f64) -> Result<(), ServiceError> {
     Err(ServiceError::BadValue {
         field: Field::Distance,
         value: distance_m.to_string(),
+    })
+}
+
+/// An opening's width: a number, more than nothing, not absurd.
+fn check_opening_width(width_m: f64) -> Result<(), ServiceError> {
+    if is_object_size_m(width_m) {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Width,
+        value: width_m.to_string(),
     })
 }
 

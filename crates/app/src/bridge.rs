@@ -302,6 +302,12 @@ pub mod qobject {
         #[cxx_name = "resizeSelected"]
         fn resize_selected(self: Pin<&mut Self>, width: &QString, depth: &QString) -> bool;
 
+        /// Gives the selected door or window a new width in metres (LH-10). False when none is
+        /// selected or the text is no length; a refusal by the session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "setOpeningWidth"]
+        fn set_opening_width(self: Pin<&mut Self>, width: &QString) -> bool;
+
         /// Sets the height in metres of the selected object (LH-17); an empty text takes it
         /// off. False when no object is selected or the text is no length; a refusal by the
         /// session goes to `status`.

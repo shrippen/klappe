@@ -1,6 +1,6 @@
 //! Plain data for the surfaces: what a row, a track or a script line shows.
 
-use klappe_model::{Dash, FigureColor, Fill, LibraryItem, ObjectShape, Template};
+use klappe_model::{Dash, FigureColor, Fill, LibraryItem, ObjectShape, OpeningKind, Template};
 use serde::Serialize;
 
 /// The frame a shot shows when its camera is gone (16:9).
@@ -361,6 +361,13 @@ pub enum Hint {
         depth_m: f64,
         #[serde(rename = "height")]
         height_m: Option<f64>,
+    },
+    /// A door or window in a wall (LH-10).
+    Opening {
+        #[serde(rename = "type")]
+        opening: OpeningKind,
+        #[serde(rename = "width")]
+        width_m: f64,
     },
     Note {
         text: String,

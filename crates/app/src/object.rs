@@ -38,6 +38,20 @@ pub fn object_height_edit(selected: Option<&Source>, text: &str) -> Typed {
     }))
 }
 
+/// The width typed for the selected door or window, as an edit (LH-10).
+pub fn opening_width_edit(selected: Option<&Source>, width: &str) -> Typed {
+    let Some(source @ Source::Opening { .. }) = selected else {
+        return None;
+    };
+
+    Some(
+        length_m(Field::Width, width).map(|width_m| PlanEdit::SetOpeningWidth {
+            source: source.clone(),
+            width_m,
+        }),
+    )
+}
+
 /// Files the selected object in the library of the project under `name`. `None` when
 /// something other than an object is selected, there is no scene to take the set from, or the
 /// name is blank.
@@ -87,6 +101,24 @@ mod tests {
     use super::*;
     use crate::tools::edit_of;
     use klappe_services::{Field, ServiceError};
+
+    #[test]
+    fn a_width_typed_for_the_selected_opening_is_a_width_edit() {
+        let opening = Source::Opening { wall: 2, index: 0 };
+
+        assert_eq!(
+            edit_of(opening_width_edit(Some(&opening), " 1,1 ")),
+            Some(PlanEdit::SetOpeningWidth {
+                source: opening.clone(),
+                width_m: 1.1
+            })
+        );
+        assert_eq!(edit_of(opening_width_edit(Some(&opening), "0")), None);
+        assert_eq!(edit_of(opening_width_edit(Some(&opening), "breit")), None);
+        assert!(opening_width_edit(Some(&Source::Wall(0)), "1").is_none());
+        assert!(opening_width_edit(Some(&Source::Object("o1".into())), "1").is_none());
+        assert!(opening_width_edit(None, "1").is_none());
+    }
 
     #[test]
     fn a_size_typed_for_the_selected_object_is_a_resize() {

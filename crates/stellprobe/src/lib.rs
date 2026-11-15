@@ -20,6 +20,7 @@ mod light;
 mod look;
 mod motion;
 mod movement;
+mod opening;
 mod optics;
 mod rig;
 mod setup;

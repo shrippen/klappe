@@ -45,8 +45,8 @@ pub use plan::{
     Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,
 };
 pub use project::{
-    is_figure_size_m, Background, Character, FigureColor, Location, Note, Project, Scene,
-    SetObject, SetPlan, Wall, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
+    is_figure_size_m, Background, Character, FigureColor, Location, Note, Opening, OpeningKind,
+    Project, Scene, SetObject, SetPlan, Wall, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
 pub use template::{Template, TemplateFigure};

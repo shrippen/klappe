@@ -118,11 +118,7 @@ fn object(i: usize) -> SetObject {
 }
 
 fn wall(i: usize) -> Wall {
-    Wall {
-        from: spot(i + 3000),
-        to: spot(i + 3100),
-        thickness_m: 0.2,
-    }
+    Wall::new(spot(i + 3000), spot(i + 3100), 0.2)
 }
 
 fn drawing(i: usize) -> Drawing {

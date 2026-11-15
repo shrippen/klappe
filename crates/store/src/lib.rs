@@ -123,6 +123,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     let templates = template::load_templates(&dir.join(TEMPLATES_FILE))?;
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
+    check_openings(&dir.join(LOCATIONS_DIR), &locations)?;
     let scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
@@ -344,6 +345,30 @@ fn check_characters(characters: &[Character]) -> Result<(), String> {
                     character.id
                 ));
             }
+        }
+    }
+
+    Ok(())
+}
+
+/// An opening is a gap with a width, somewhere along its wall; `path` names the folder in the
+/// message.
+fn check_openings(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
+    for location in locations {
+        let openings = location.set.walls.iter().flat_map(|w| &w.openings);
+
+        for opening in openings {
+            if opening.width_m.is_finite() && opening.width_m > 0.0 && opening.at_m.is_finite() {
+                continue;
+            }
+
+            return Err(StoreError::Parse {
+                path: path.to_path_buf(),
+                message: format!(
+                    "{}: opening of {} m at {} m is not usable",
+                    location.id, opening.width_m, opening.at_m
+                ),
+            });
         }
     }
 

@@ -3,8 +3,8 @@
 //! gesture hands over (agent.md); the session snaps them and does the work.
 
 use klappe_services::{
-    read_number, Dash, DrawingShape, Field, FigureColor, Fill, Layer, Lock, PlanEdit, Point, Range,
-    ServiceError, Source, Unit,
+    read_number, Dash, DrawingShape, Field, FigureColor, Fill, Layer, Lock, OpeningKind, PlanEdit,
+    Point, Range, ServiceError, Source, Unit,
 };
 
 /// A new camera looks to the right (0°); the user turns it afterwards.
@@ -71,6 +71,8 @@ impl DrawStyle {
 pub enum Tool {
     Select,
     Wall,
+    /// A click on a wall sets a door or window in it (LH-10).
+    Opening(OpeningKind),
     /// Library kind of the object a click sets.
     Object(String),
     /// Id of the character whose next mark a click sets.
@@ -116,8 +118,17 @@ impl Tool {
             "ellipse" => Some(Tool::Ellipse),
             "area" => Some(Tool::Area),
             "light" => Some(Tool::Light(choice.to_owned())),
-            _ => None,
+            _ => opening_tool(name),
         }
+    }
+}
+
+/// The door and window tools, which take no choice.
+fn opening_tool(name: &str) -> Option<Tool> {
+    match name {
+        "door" => Some(Tool::Opening(OpeningKind::Door)),
+        "window" => Some(Tool::Opening(OpeningKind::Window)),
+        _ => None,
     }
 }
 
@@ -134,6 +145,7 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
         | Tool::Rect
         | Tool::Ellipse
         | Tool::Area => None,
+        Tool::Opening(kind) => Some(PlanEdit::AddOpening { kind: *kind, at }),
         Tool::Object(kind) if kind.is_empty() => None,
         Tool::Object(kind) => Some(PlanEdit::AddObject {
             kind: kind.clone(),

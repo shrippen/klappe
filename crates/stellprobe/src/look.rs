@@ -68,7 +68,7 @@ pub fn look(role: Role) -> Look {
         },
         // The image takes no colour; the canvas draws it as it is.
         Role::Background => plain(Hue::Muted, Dash::Solid, Area::None),
-        Role::Wall => plain(Hue::Text, Dash::Solid, Area::None),
+        Role::Wall | Role::Door | Role::Window => plain(Hue::Text, Dash::Solid, Area::None),
         // On screen the tint keeps the plan below readable; on paper a set object is filled
         // with its ground tone.
         Role::Object => Look {
@@ -119,6 +119,8 @@ mod tests {
         let roles = [
             Role::Background,
             Role::Wall,
+            Role::Door,
+            Role::Window,
             Role::Object,
             Role::LightBeam,
             Role::Light,

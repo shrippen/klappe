@@ -11,11 +11,18 @@ const EXAMPLE: &str = concat!(
 const SCRIPT: &str = "INT. SÄNGERSAAL – TAG #12#\n\nElisabeth tritt an den Tisch.\n\nELISABETH\nIhr kommt spät.\n\nBURGVOGT\nDer Weg war lang.\n\nElisabeth wendet sich ab.\n";
 
 fn wall(x1: f64, y1: f64, x2: f64, y2: f64) -> Wall {
-    Wall {
-        from: Point::new(x1, y1),
-        to: Point::new(x2, y2),
-        thickness_m: 0.4,
-    }
+    Wall::new(Point::new(x1, y1), Point::new(x2, y2), 0.4)
+}
+
+/// A door 0.9 m wide, 5 m from the wall's start.
+fn with_door(mut wall: Wall) -> Wall {
+    wall.openings.push(Opening {
+        kind: OpeningKind::Door,
+        at_m: 5.0,
+        width_m: 0.9,
+    });
+
+    wall
 }
 
 fn object(id: &str, kind: &str, label: &str, at: Point, w: f64, d: f64) -> SetObject {
@@ -248,7 +255,7 @@ fn example() -> Project {
             walls: vec![
                 wall(0.0, 0.0, 20.0, 0.0),
                 wall(20.0, 0.0, 20.0, 13.0),
-                wall(20.0, 13.0, 0.0, 13.0),
+                with_door(wall(20.0, 13.0, 0.0, 13.0)),
                 wall(0.0, 13.0, 0.0, 0.0),
             ],
             objects: vec![

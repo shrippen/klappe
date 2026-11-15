@@ -359,6 +359,8 @@ Item {
         case "object":
             return [t.t("tip.object", { label: d.label }),
                     d.height !== null ? t.t("tip.objectHeight", { height: t.num(d.height, 2) }) : ""]
+        case "opening":
+            return [t.t("tip.opening", { type: t.t("openingKind." + d.type), width: t.num(d.width, 2) })]
         case "note":
             return [t.t("tip.note", { text: d.text })]
         }

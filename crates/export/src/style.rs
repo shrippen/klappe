@@ -37,6 +37,8 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         | Role::CameraHandle
         | Role::DrawingHandle
         | Role::Wall
+        | Role::Door
+        | Role::Window
         | Role::Object
         | Role::Camera
         | Role::Frustum
@@ -55,6 +57,8 @@ fn plain_class(role: Role) -> Option<&'static str> {
         Role::Background => Some("background"),
         Role::FigureHandle(_) | Role::CameraHandle | Role::DrawingHandle => Some("handle"),
         Role::Wall => Some("wall"),
+        Role::Door => Some("door"),
+        Role::Window => Some("window"),
         Role::Object => Some("object"),
         Role::Camera => Some("camera"),
         Role::Frustum => Some("frustum"),
@@ -89,6 +93,8 @@ fn width_pt(role: Role) -> Option<f64> {
         Role::Mark(_) => Some(MARK_PT),
         Role::Drawing { .. } | Role::ArrowHead(_) => Some(DRAWING_PT),
         Role::Wall
+        | Role::Door
+        | Role::Window
         | Role::Object
         | Role::LightBeam
         | Role::Light
@@ -106,6 +112,8 @@ fn tint_opacity(role: Role) -> f64 {
         Role::Drawing { .. } => DRAWING_OPACITY,
         Role::Background
         | Role::Wall
+        | Role::Door
+        | Role::Window
         | Role::Object
         | Role::LightBeam
         | Role::Light
@@ -220,6 +228,16 @@ mod tests {
             (
                 Role::Wall,
                 "wall".into(),
+                (None, line(fg, 0.75, Dash::Solid)),
+            ),
+            (
+                Role::Door,
+                "door".into(),
+                (None, line(fg, 0.75, Dash::Solid)),
+            ),
+            (
+                Role::Window,
+                "window".into(),
                 (None, line(fg, 0.75, Dash::Solid)),
             ),
             (

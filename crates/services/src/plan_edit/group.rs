@@ -142,6 +142,8 @@ fn movers(scope: &Scope<'_>, sources: &[Source]) -> Vec<Source> {
     members.sort_by_key(|m| match m {
         Source::Camera(_) => 1,
         Source::FigureVia { .. } | Source::CameraVia { .. } => 2,
+        // After its wall, which carries it: the wall's move already took the opening along.
+        Source::Opening { .. } => 3,
         _ => 0,
     });
 
@@ -194,9 +196,9 @@ fn box_middle(points: &[Point]) -> Option<Point> {
 }
 
 /// What a removal takes, in the order it takes it. A grip goes first (it only straightens a
-/// way by an index the removals would shift); marks and walls go from the back, so the
-/// indices of those still to go stay right. What a whole figure or camera takes with it is
-/// not removed a second time.
+/// way by an index the removals would shift, as an opening does by its wall's); marks and
+/// walls go from the back, so the indices of those still to go stay right. What a whole
+/// figure or camera takes with it is not removed a second time.
 fn removable(sources: &[Source]) -> Vec<Source> {
     let members = distinct(sources);
     let gone_figure = |character: &str| members.contains(&Source::Figure(character.to_owned()));
@@ -215,7 +217,9 @@ fn removable(sources: &[Source]) -> Vec<Source> {
         .collect();
 
     kept.sort_by_key(|m| match m {
-        Source::FigureVia { index, .. } | Source::CameraVia { index, .. } => (0, Reverse(*index)),
+        Source::FigureVia { index, .. }
+        | Source::CameraVia { index, .. }
+        | Source::Opening { index, .. } => (0, Reverse(*index)),
         Source::Mark { index, .. } | Source::Wall(index) => (1, Reverse(*index)),
         _ => (1, Reverse(0)),
     });
@@ -307,6 +311,7 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
         | Source::Mark { .. }
         | Source::FigureVia { .. }
         | Source::CameraVia { .. }
+        | Source::Opening { .. }
         | Source::DrawingPoint { .. } => return Ok(Copied::Left),
     }
 
