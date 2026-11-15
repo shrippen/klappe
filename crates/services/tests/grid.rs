@@ -66,3 +66,16 @@ fn grids_are_found_by_name() {
     }
     assert_eq!(Grid::from_name("km"), None);
 }
+
+/// Review of PR 86: `(v / step).round() * step` wrote 0.30000000000000004 and
+/// 1.1500000000000001 into the project.
+#[test]
+fn snapped_points_are_exact_decimals() {
+    let mut s = open();
+
+    s.set_grid(Grid::Cm10);
+    assert_eq!(s.snap(p(0.29, 0.31)), p(0.3, 0.3));
+
+    s.set_grid(Grid::Cm5);
+    assert_eq!(s.snap(p(1.13, 2.62)), p(1.15, 2.6));
+}

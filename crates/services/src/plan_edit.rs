@@ -261,15 +261,20 @@ pub enum Grid {
 impl Grid {
     pub const ALL: [Grid; 5] = [Grid::Cm5, Grid::Cm10, Grid::Cm25, Grid::Cm50, Grid::M1];
 
+    /// The spacing in whole centimetres.
+    fn step_cm(self) -> f64 {
+        match self {
+            Grid::Cm5 => 5.0,
+            Grid::Cm10 => 10.0,
+            Grid::Cm25 => 25.0,
+            Grid::Cm50 => 50.0,
+            Grid::M1 => 100.0,
+        }
+    }
+
     /// The spacing in metres.
     pub fn step_m(self) -> f64 {
-        match self {
-            Grid::Cm5 => 0.05,
-            Grid::Cm10 => 0.1,
-            Grid::Cm25 => 0.25,
-            Grid::Cm50 => 0.5,
-            Grid::M1 => 1.0,
-        }
+        self.step_cm() / CM_PER_M
     }
 
     /// The name the surface uses, e.g. `cm25`; also the end of the text key.
@@ -292,6 +297,9 @@ impl Grid {
 /// How far beside a shape a click still takes it: a finger or a mouse is not exact.
 const PICK_RADIUS_M: f64 = 0.15;
 
+/// Centimetres in a metre.
+const CM_PER_M: f64 = 100.0;
+
 /// A full turn; angles are kept within [0, 360).
 const FULL_TURN_DEG: f64 = 360.0;
 
@@ -301,7 +309,8 @@ pub(crate) fn snap(at: Point, snapping: Snapping, grid: Grid) -> Point {
         return at;
     }
 
-    let on_grid = |v: f64| (v / grid.step_m()).round() * grid.step_m();
+    // Whole centimetres: 0.1 * 3 would store 0.30000000000000004, 30 / 100 stores 0.3.
+    let on_grid = |v: f64| ((v * CM_PER_M / grid.step_cm()).round() * grid.step_cm()) / CM_PER_M;
     Point::new(on_grid(at.x_m), on_grid(at.y_m))
 }
 
