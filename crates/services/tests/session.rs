@@ -387,12 +387,10 @@ fn prints_the_pdf_on_a3() {
     )
     .unwrap();
 
-    let sheet = |path: &Path| {
-        let text = String::from_utf8_lossy(&std::fs::read(path).unwrap()).into_owned();
-        let at = text.find("/MediaBox").unwrap();
-        text[at..text[at..].find(']').unwrap() + at].to_owned()
-    };
-    assert_ne!(sheet(&a4), sheet(&a3));
+    // Landscape, in points: A4 is 297 x 210 mm = 841.89 x 595.28, A3 is 420 x 297 mm = 1190.55 x 841.89.
+    let text = |path: &Path| String::from_utf8_lossy(&std::fs::read(path).unwrap()).into_owned();
+    assert!(text(&a4).contains("/MediaBox [0 0 841.89 595.28]"));
+    assert!(text(&a3).contains("/MediaBox [0 0 1190.55 841.89]"));
 }
 
 #[test]
