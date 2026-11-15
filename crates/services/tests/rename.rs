@@ -181,6 +181,29 @@ fn a_new_character_cannot_take_a_taken_name() {
     ));
 }
 
+/// A cue compares in capitals, where "ß" is "SS": "Strauß" and "Strauss" would merge their cues.
+#[test]
+fn names_that_share_a_cue_are_taken() {
+    let mut s = open("manage-name-sharp-s");
+    let add = |name: &str| ProjectEdit::AddCharacter {
+        name: name.into(),
+        short: "S".into(),
+        color: FigureColor::Red,
+        group: None,
+    };
+    s.edit_project(add("Strauss")).unwrap();
+
+    let err = s.edit_project(add("Strauß")).unwrap_err();
+
+    assert!(matches!(
+        err,
+        ServiceError::BadValue {
+            field: Field::Name,
+            ..
+        }
+    ));
+}
+
 /// A number another heading of the script carries is refused, also when the project does not
 /// know that scene.
 #[test]

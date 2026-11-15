@@ -26,6 +26,7 @@ fn test_dir(name: &str) -> PathBuf {
 fn own(kind: &str, label: &str, width_m: f64, depth_m: f64, shape: ObjectShape) -> LibraryItem {
     LibraryItem {
         kind: kind.into(),
+        group: String::new(),
         label: label.into(),
         width_m,
         depth_m,
@@ -321,4 +322,35 @@ fn a_file_that_is_no_library_is_an_error() {
 
         assert!(load_library(&path).is_err(), "{name}");
     }
+}
+
+/// LH-12: every built-in entry is in a group the catalogue names.
+#[test]
+fn every_built_in_item_has_a_group() {
+    for item in builtin_library() {
+        assert!(!item.group.is_empty(), "{} has no group", item.kind);
+    }
+    let find = |kind: &str| builtin_library().iter().find(|i| i.kind == kind).unwrap();
+
+    assert_eq!(find("table").group, "furniture");
+    assert_eq!(find("tripod").group, "camera");
+}
+
+#[test]
+fn the_group_of_an_own_object_survives_a_save() {
+    let dir = test_dir("library-group");
+    let mut project = Project::new("Gruppe");
+    let grouped = LibraryItem {
+        group: "Requisiten".into(),
+        ..throne()
+    };
+    project.library = vec![grouped.clone(), pond()];
+
+    save(&dir, &project, None).unwrap();
+
+    let library = load(&dir).unwrap().project.library;
+    assert_eq!(library, vec![grouped, pond()]);
+    // No group, no key: the file of an older project reads as before.
+    let text = fs::read_to_string(dir.join("bibliothek.toml")).unwrap();
+    assert_eq!(text.matches("group").count(), 1);
 }

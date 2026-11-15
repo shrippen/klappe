@@ -7,6 +7,7 @@ use crate::object;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
+use klappe_services::{Field, ServiceError};
 
 impl qobject::Controller {
     pub(super) fn save_to_library(mut self: Pin<&mut Self>, name: &QString) -> bool {
@@ -32,6 +33,29 @@ impl qobject::Controller {
             .replace("{name}", name.trim());
         self.as_mut().say(saved);
         true
+    }
+
+    pub(super) fn edit_library_item(
+        self: Pin<&mut Self>,
+        kind: &QString,
+        name: &QString,
+        group: &QString,
+    ) -> bool {
+        let edit =
+            object::library_rename_edit(&kind.to_string(), &name.to_string(), &group.to_string());
+
+        let blank = ServiceError::BadValue {
+            field: Field::Name,
+            value: String::new(),
+        };
+
+        self.commit_project(edit.ok_or(blank))
+    }
+
+    pub(super) fn remove_library_item(self: Pin<&mut Self>, kind: &QString) -> bool {
+        let edit = object::library_remove_edit(&kind.to_string());
+
+        self.commit_project(Ok(edit))
     }
 
     pub(super) fn import_library(mut self: Pin<&mut Self>, path: &QString) -> bool {

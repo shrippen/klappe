@@ -278,3 +278,19 @@ fn sixty_lamps_print_in_the_frames() {
 
     assert!(!files.is_empty());
 }
+
+/// A bounce or flag makes no light, whatever power it carries: the tooltip says so.
+#[test]
+fn a_hint_tells_whether_the_lamp_gives_light() {
+    let mut s = open();
+    s.edit_plan(set("led-1", LightChange::Kind(LightKind::Reflector)))
+        .unwrap();
+    s.edit_plan(set("led-1", LightChange::Power(650.0)))
+        .unwrap();
+
+    let Some(Hint::Light { gives_light, .. }) = s.light_hint("led-1") else {
+        panic!("no lamp hint");
+    };
+
+    assert!(!gives_light);
+}

@@ -84,6 +84,19 @@ fn the_lamp_list_names_each_lamp() {
     assert!(lines[1].contains("L2: flag, 22,5°"), "{}", lines[1]);
 }
 
+/// The short form follows the kind, not the power: a bounce with a power set still has no
+/// power or colour to name.
+#[test]
+fn a_reflector_with_power_is_still_passive() {
+    let mut list = list();
+    list.lamps = vec![lamp("r1", LightKind::Reflector, 650.0, 90.0)];
+
+    let out = svg(&list, &page(words()), Theme::Light).unwrap();
+    let lines = lines_with(&out, "lamp-label");
+
+    assert!(lines[0].contains("R1: reflector, 90°"), "{}", lines[0]);
+}
+
 /// Without words for it there is no lamp list, and the plan keeps its room.
 #[test]
 fn no_lamp_words_no_lamp_list() {

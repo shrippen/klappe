@@ -31,7 +31,8 @@ pub use hit::{anchor, hit, in_lasso, within};
 pub use light::Lamp;
 pub use look::{look, Area, Hue, Look};
 pub use motion::{
-    aim_at, bend_point, camera_at, figure_at, via_through, walked_ways, way_length_m, Placement,
+    aim_at, bend_follow, bend_point, camera_at, figure_at, via_through, walked_ways, way_length_m,
+    Placement,
 };
 pub use movement::movement_in;
 pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};
