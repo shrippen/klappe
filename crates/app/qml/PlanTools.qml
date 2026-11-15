@@ -336,7 +336,7 @@ RowLayout {
             Component.onCompleted: fill()
             Connections {
                 target: tools
-                function onPickedOwnKindChanged() { ownItems.fill() }
+                function onPickedOwnChanged() { ownItems.fill() }
             }
             Timer {
                 id: askTimer

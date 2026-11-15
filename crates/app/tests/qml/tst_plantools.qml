@@ -550,6 +550,22 @@ TestCase {
         compare(button.text, "Wirklich löschen?")
     }
 
+    // Undo of a rename changes the entry under the same kind; the fields follow.
+    function test_the_fields_follow_a_change_of_the_entry() {
+        const bar = make()
+        bar.tool = "object"
+        pick(bar, "thron")
+        const original = fake.choicesJson
+        const renamed = JSON.parse(original)
+        renamed.object.find(o => o.kind === "thron").label = "Sessel"
+
+        fake.choicesJson = JSON.stringify(renamed)
+        compare(findChild(bar, "ownName").text, "Sessel")
+
+        fake.choicesJson = original
+        compare(findChild(bar, "ownName").text, "Thron")
+    }
+
     function test_another_pick_cancels_the_question() {
         const bar = make()
         bar.tool = "object"
