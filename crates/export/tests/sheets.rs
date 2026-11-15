@@ -137,7 +137,7 @@ fn assert_well_formed(xml: &str) {
         assert_eq!(tag.matches('"').count() % 2, 0, "quotes in <{tag}>");
         let name = tag.split([' ', '/']).find(|s| !s.is_empty()).unwrap();
         match tag {
-            t if t.starts_with('/') => assert_eq!(stack.pop(), Some(&name[..]), "closing {t}"),
+            t if t.starts_with('/') => assert_eq!(stack.pop(), Some(name), "closing {t}"),
             t if t.ends_with('/') => {}
             _ => stack.push(name),
         }

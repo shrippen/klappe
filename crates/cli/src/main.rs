@@ -3,7 +3,7 @@
 //! ```text
 //! klappe-cli fov --lens 35 [--sensor super35|full-frame|mft|<width mm>]
 //! klappe-cli export --project <folder> --scene <nr> --out <file> [--plan <id>] [--at <s>]
-//!                   [--paper a4|a3|letter] [--language de|en] [--format pdf|svg|png]
+//!                   [--paper a4|a3|letter] [--language de|en] [--format pdf|svg|png|ods|xlsx|frames]
 //! ```
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -31,7 +31,8 @@ enum Command {
         #[arg(long, default_value = "super35")]
         sensor: String,
     },
-    /// The plan of a scene at a time as PDF (with shot list), SVG or PNG (LH-80, LH-81).
+    /// The plan of a scene at a time as PDF (with shot list), SVG or PNG (LH-80, LH-81); the shot
+    /// list as ODS or XLSX (LH-85); the plan at every mark as PNGs in a folder (LH-83).
     Export {
         /// The project folder.
         #[arg(long)]
@@ -50,10 +51,10 @@ enum Command {
         /// Language of the legend; the system's if left out.
         #[arg(long, value_enum)]
         language: Option<LanguageArg>,
-        /// Taken from the extension of --out if left out.
+        /// Taken from the extension of --out if left out; `frames` is never guessed.
         #[arg(long, value_enum)]
         format: Option<FormatArg>,
-        /// The file to write.
+        /// The file to write; the folder for `--format frames`.
         #[arg(long)]
         out: PathBuf,
     },
@@ -77,6 +78,10 @@ enum FormatArg {
     Pdf,
     Svg,
     Png,
+    Ods,
+    Xlsx,
+    /// One PNG per mark, into the folder --out; --at is ignored.
+    Frames,
 }
 
 /// What `export` was asked for.
@@ -182,6 +187,11 @@ fn write_export(job: &ExportJob) -> Result<(), String> {
         FormatArg::Pdf => session.export_pdf(&job.out, job.paper, texts, ShotOrder::Cut),
         FormatArg::Svg => session.export_svg(&job.out, job.paper, texts),
         FormatArg::Png => session.export_png(&job.out, job.paper, texts),
+        FormatArg::Ods => session.export_ods(&job.out, &texts, ShotOrder::Cut),
+        FormatArg::Xlsx => session.export_xlsx(&job.out, &texts, ShotOrder::Cut),
+        FormatArg::Frames => session
+            .export_frames(&job.out, job.paper, &texts)
+            .map(|_| ()),
     }
     .map_err(|e| e.to_string())
 }
@@ -210,6 +220,8 @@ fn format_of(out: &Path) -> Option<FormatArg> {
         "pdf" => Some(FormatArg::Pdf),
         "svg" => Some(FormatArg::Svg),
         "png" => Some(FormatArg::Png),
+        "ods" => Some(FormatArg::Ods),
+        "xlsx" => Some(FormatArg::Xlsx),
         _ => None,
     }
 }
@@ -259,6 +271,9 @@ mod tests {
         assert_eq!(format_of(Path::new("a/plan.png")), Some(FormatArg::Png));
         assert_eq!(format_of(Path::new("plan.SVG")), Some(FormatArg::Svg));
         assert_eq!(format_of(Path::new("plan.pdf")), Some(FormatArg::Pdf));
+        assert_eq!(format_of(Path::new("list.ods")), Some(FormatArg::Ods));
+        assert_eq!(format_of(Path::new("list.XLSX")), Some(FormatArg::Xlsx));
+        assert_eq!(format_of(Path::new("frames")), None);
         assert_eq!(format_of(Path::new("plan.jpg")), None);
         assert_eq!(format_of(Path::new("plan")), None);
     }
