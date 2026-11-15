@@ -98,6 +98,7 @@ impl Session {
     /// Changes scenes, locations or characters; undoable. The scene on view stays, also when
     /// others come or go before it.
     pub fn edit_project(&mut self, edit: ProjectEdit) -> Result<(), ServiceError> {
+        self.check_script_number(&edit)?;
         let mut next = self.project.clone();
         project_edit::apply(&mut next, &edit)?;
         if next == self.project {
@@ -112,6 +113,23 @@ impl Session {
         }
         self.follow_scene(on_view, plan_on_view);
         Ok(())
+    }
+
+    /// A new scene number must not be one that another heading of the script carries: both
+    /// would read as one scene.
+    fn check_script_number(&self, edit: &ProjectEdit) -> Result<(), ServiceError> {
+        let ProjectEdit::EditScene { id, number, .. } = edit else {
+            return Ok(());
+        };
+        let Some(scene) = self.project.scene(id) else {
+            return Ok(());
+        };
+        let same = number.trim().to_lowercase() == scene.number.to_lowercase();
+        if same || !script_refs::has_number(self.script_text(), number) {
+            return Ok(());
+        }
+
+        Err(ServiceError::NumberTaken(number.trim().to_owned()))
     }
 
     /// The screenplay with the scene's heading, number or the character's name of `edit`

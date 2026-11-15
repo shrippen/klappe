@@ -95,6 +95,18 @@ pub(crate) fn cue_count(text: &str, scene: &Scene, character: &Character) -> usi
         .count()
 }
 
+/// Whether a scene heading of the script carries `number` (the case of a number is style).
+pub(crate) fn has_number(text: &str, number: &str) -> bool {
+    let number = number.trim().to_lowercase();
+
+    parse_located(text).iter().any(|l| match &l.element {
+        Element::SceneHeading { number: n, .. } => {
+            n.as_deref().map(str::to_lowercase).as_deref() == Some(number.as_str())
+        }
+        _ => false,
+    })
+}
+
 /// Whether the element is a cue of `name` (the case of a cue is style).
 pub(crate) fn names(element: &Element, name: &str) -> bool {
     let Element::Character { name: cue, .. } = element else {

@@ -157,3 +157,22 @@ fn a_character_cannot_take_the_name_of_another() {
         "Elisabeth"
     );
 }
+
+/// A number another heading of the script carries is refused, also when the project does not
+/// know that scene.
+#[test]
+fn a_scene_cannot_take_a_number_the_script_has() {
+    let mut s = open("manage-number-in-script");
+    s.set_script_text("INT. A #12#\n\nA.\n\nEXT. HOF – NACHT #13#\n\nB.\n");
+    let edit = ProjectEdit::EditScene {
+        id: "szene-012".into(),
+        number: "13".into(),
+        heading: "INT. A".into(),
+        location: "saengersaal".into(),
+    };
+
+    let err = s.edit_project(edit).unwrap_err();
+
+    assert!(matches!(err, ServiceError::NumberTaken(n) if n == "13"));
+    assert!(s.script_text().contains("#12#"));
+}
