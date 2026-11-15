@@ -66,7 +66,7 @@ pub fn axis_at(plan: &FloorPlan, t_s: f64) -> Option<Axis> {
     })
 }
 
-/// A shot whose camera stands on the other side of the axis than the cameras of `against`.
+/// A shot on the smaller side of the axis (or on a tied side); `against` are the shots on the other side.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AxisJump {
     pub shot: String,
@@ -74,30 +74,38 @@ pub struct AxisJump {
     pub against: Vec<String>,
 }
 
-/// Shots whose camera stands on the other side of the axis than that of at least one other
-/// shot of the plan (LH-41), in cut order. Each shot's side is taken at its own start. A
-/// camera on the line has no side: it breaks no rule and is no reference.
+/// Shots on the side of the axis with fewer shots than the other (LH-41), in cut order. With
+/// as many shots on both sides, both sides are flagged. Each shot's side is taken at its own
+/// start. A camera on the line has no side: it is flagged never and counts for no side.
 ///
-/// Example: 12.1 and 12.2 from the left, 12.3 from the right: 12.1 and 12.2 jump against
-/// 12.3, and 12.3 against 12.1 and 12.2.
+/// Example: 12.1 and 12.2 from the left, 12.3 from the right: only 12.3 jumps, against
+/// 12.1 and 12.2.
 pub fn axis_jumps(plan: &FloorPlan) -> Vec<AxisJump> {
     let sides: Vec<(&str, Side)> = plan
         .shots
         .iter()
         .filter_map(|shot| Some((shot.id.as_str(), shot_side(plan, shot)?)))
         .collect();
+    let count = |wanted: Side| sides.iter().filter(|(_, side)| *side == wanted).count();
+    let (left, right) = (count(Side::Left), count(Side::Right));
 
     sides
         .iter()
         .filter_map(|(id, side)| {
-            let against: Vec<String> = sides
-                .iter()
-                .filter(|(_, other)| other != side)
-                .map(|(other_id, _)| (*other_id).to_owned())
-                .collect();
-            if against.is_empty() {
+            let (own, other) = match side {
+                Side::Left => (left, right),
+                _ => (right, left),
+            };
+            // Nothing on the other side, or this side is the majority.
+            if other == 0 || own > other {
                 return None;
             }
+
+            let against: Vec<String> = sides
+                .iter()
+                .filter(|(_, o)| o != side)
+                .map(|(other_id, _)| (*other_id).to_owned())
+                .collect();
 
             Some(AxisJump {
                 shot: (*id).to_owned(),
@@ -222,30 +230,55 @@ mod tests {
     }
 
     #[test]
-    fn crossing_flags_both_sides() {
+    fn crossing_flags_the_minority() {
         let jumps = axis_jumps(&plan(&[("1", "a"), ("2", "b"), ("3", "c")]));
+
+        assert_eq!(jumps, vec![jump("3", &["1", "2"])]);
+    }
+
+    #[test]
+    fn ten_against_one_flags_the_one() {
+        let mut shots: Vec<(String, &str)> = (1..=10).map(|n| (n.to_string(), "a")).collect();
+        shots.push(("11".into(), "c"));
+        let refs: Vec<(&str, &str)> = shots.iter().map(|(id, cam)| (id.as_str(), *cam)).collect();
+        let against: Vec<String> = (1..=10).map(|n| n.to_string()).collect();
+        let against: Vec<&str> = against.iter().map(String::as_str).collect();
+
+        assert_eq!(axis_jumps(&plan(&refs)), vec![jump("11", &against)]);
+    }
+
+    #[test]
+    fn a_tie_flags_both_sides() {
+        let jumps = axis_jumps(&plan(&[("1", "a"), ("2", "c"), ("3", "b"), ("4", "c")]));
 
         assert_eq!(
             jumps,
-            vec![jump("1", &["3"]), jump("2", &["3"]), jump("3", &["1", "2"])]
+            vec![
+                jump("1", &["2", "4"]),
+                jump("2", &["1", "3"]),
+                jump("3", &["2", "4"]),
+                jump("4", &["1", "3"]),
+            ]
         );
+    }
+
+    #[test]
+    fn nothing_on_one_side_no_jump() {
+        assert!(axis_jumps(&plan(&[("1", "c"), ("2", "c")])).is_empty());
     }
 
     #[test]
     fn a_shot_far_away_in_the_list_counts() {
         let jumps = axis_jumps(&plan(&[("1", "a"), ("2", "b"), ("3", "b"), ("4", "c")]));
 
-        assert_eq!(jumps[0], jump("1", &["4"]));
+        assert_eq!(jumps, vec![jump("4", &["1", "2", "3"])]);
     }
 
     #[test]
     fn crossing_back_is_a_jump_too() {
         let jumps = axis_jumps(&plan(&[("1", "a"), ("2", "c"), ("3", "b")]));
 
-        assert_eq!(
-            jumps,
-            vec![jump("1", &["2"]), jump("2", &["1", "3"]), jump("3", &["2"])]
-        );
+        assert_eq!(jumps, vec![jump("2", &["1", "3"])]);
     }
 
     #[test]
