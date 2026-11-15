@@ -109,15 +109,29 @@ Item {
             if (ctl.selectedKey.indexOf("wall") >= 0) {
                 return fail("the pillar should be selected here")
             }
-            let walled = false
-            for (let y = height3d / 2 - 2 * step; y > 0 && !walled; y -= step) {
-                for (let x = step; x < width3d && !walled; x += step) {
+            let wallAt = null
+            for (let y = height3d / 2 - 2 * step; y > 0 && wallAt === null; y -= step) {
+                for (let x = step; x < width3d && wallAt === null; x += step) {
                     ctl.freePlace(x, y)
-                    walled = ctl.selectedKey.indexOf("wall") >= 0
+                    if (ctl.selectedKey.indexOf("wall") >= 0) {
+                        wallAt = Qt.point(x, y)
+                    }
                 }
             }
-            if (!walled) {
+            if (wallAt === null) {
                 return fail("no click above the horizon selected the wall seen there")
+            }
+
+            // A drag grabs that wall over the horizon and moves it on its level, one undo step.
+            const flat = ctl.planJson
+            ctl.freeDrag(wallAt.x, wallAt.y, wallAt.x + 2 * step, wallAt.y, false)
+            ctl.freeDrag(wallAt.x, wallAt.y, wallAt.x + 2 * step, wallAt.y, true)
+            if (ctl.planJson === flat) {
+                return fail("a drag above the horizon did not move the wall")
+            }
+            ctl.undo()
+            if (ctl.planJson !== flat) {
+                return fail("one undo does not take back the drag above the horizon")
             }
             ctl.turnView(0, 1000)
 

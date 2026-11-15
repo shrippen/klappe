@@ -6,7 +6,9 @@ use klappe_model::{
     Arrival, Camera, CameraMark, Character, Departure, FigureColor, FigureTrack, FloorPlan, Mark,
     Point, Pose, Project, Sensor, SetPlan, Wall,
 };
-use klappe_stellprobe::{floor_at, picture, source_at, Eye, Orbit, Picture, SceneRole, Source};
+use klappe_stellprobe::{
+    floor_at, grab_at, picture, source_at, Eye, Orbit, Picture, SceneRole, Source,
+};
 
 const WIDTH_PX: usize = 160;
 
@@ -306,4 +308,33 @@ fn a_camera_shows_in_the_free_view_but_not_in_its_own_picture() {
         Some(&Source::Camera("a".into()))
     );
     assert!(!own.frame.role.contains(&camera));
+}
+
+/// A drag grabs a wall where it is seen, at the height of that point: on a wall 3 m high,
+/// between floor and top, and higher up the picture higher up the wall.
+#[test]
+fn a_grab_takes_the_height_of_the_point_seen() {
+    let mut set = set();
+    set.wall_height_m = 3.0;
+    set.walls = vec![Wall::new(
+        Point::new(0.0, 15.0),
+        Point::new(20.0, 15.0),
+        0.2,
+    )];
+    let plan = plan(35.0, &[]);
+    let mut orbit = Orbit::fitting(set.width_m, set.depth_m);
+    orbit.turn(0.0, -1000.0);
+    let eye = orbit_eye(orbit);
+    let shot = picture(&project(), &set, &plan, &eye, WIDTH_PX).expect("picture");
+    let column = WIDTH_PX / 2;
+    let wall_rows: Vec<usize> = (0..shot.frame.height)
+        .filter(|y| source_at(&shot, (column, *y)) == Some(&Source::Wall(0)))
+        .collect();
+
+    let (top, bottom) = (wall_rows[0], wall_rows[wall_rows.len() - 1]);
+    let height = |y| grab_at(&plan, &eye, &shot, (column, y)).expect("grab").1;
+
+    assert!(top < bottom, "{wall_rows:?}");
+    assert!(height(top) > height(bottom));
+    assert!(height(top) <= 3.0 + 1e-6 && height(bottom) >= -1e-6);
 }

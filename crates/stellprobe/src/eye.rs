@@ -415,4 +415,50 @@ mod tests {
 
         assert!(Pinhole::of(&eye, &plan_with(1.6, 0.0, 1.0)).is_none());
     }
+
+    /// An orbit eye worked out by hand: target (0, 0, 0), yaw 0 (looks along +x), pitch 30,
+    /// 10 m away, 90 degrees wide, square. The eye stands at (-10 cos 30, 0, 10 sin 30) =
+    /// (-8.66025, 0, 5); f = 0.5 / tan 45 = 0.5.
+    fn orbit_pinhole() -> Pinhole {
+        let orbit = Orbit {
+            target: [0.0, 0.0, 0.0],
+            yaw_deg: 0.0,
+            pitch_deg: 30.0,
+            distance_m: 10.0,
+            fov_deg: 90.0,
+        };
+
+        Pinhole::of_orbit(&orbit, 1.0).expect("pinhole")
+    }
+
+    /// The centre ray runs down at 30 degrees: (cos 30, 0, -sin 30) per metre ahead. It meets
+    /// the level 2.5 m after t = (2.5 - 5) / -0.5 = 5: x = -8.66025 + 5 cos 30 = -4.33013;
+    /// and 5 m ahead it is that same point.
+    #[test]
+    fn the_centre_ray_meets_a_level_and_a_depth_where_worked_out() {
+        let eye = orbit_pinhole();
+
+        let level = eye.level_at([0.5, 0.5], 2.5).expect("level");
+        assert!((level.x_m + 4.33013).abs() < TOLERANCE && level.y_m.abs() < TOLERANCE);
+        let point = eye.point_at([0.5, 0.5], 5.0);
+        assert!((point[0] + 4.33013).abs() < TOLERANCE, "{point:?}");
+        assert!(point[1].abs() < TOLERANCE && (point[2] - 2.5).abs() < TOLERANCE);
+        assert_eq!(
+            eye.floor_at([0.5, 0.5]).map(|p| p.x_m.abs() < TOLERANCE),
+            Some(true)
+        );
+    }
+
+    /// The top edge of the picture: rise 1, so the ray is (cos 30 + sin 30, 0, cos 30 - sin 30)
+    /// = (1.36603, 0, 0.36603): it climbs, meets no floor, but the level 8 m (3 m over the eye)
+    /// after t = 3 / 0.36603 = 8.19615, at x = -8.66025 + 8.19615 * 1.36603 = 2.53590.
+    #[test]
+    fn a_ray_over_the_horizon_meets_a_higher_level() {
+        let eye = orbit_pinhole();
+
+        assert_eq!(eye.floor_at([0.5, 0.0]), None);
+        let level = eye.level_at([0.5, 0.0], 8.0).expect("level");
+        assert!((level.x_m - 2.53590).abs() < TOLERANCE, "{level:?}");
+        assert_eq!(eye.level_at([0.5, 0.0], 4.0), None);
+    }
 }
