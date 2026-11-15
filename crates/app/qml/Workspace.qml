@@ -53,8 +53,8 @@ Item {
     readonly property var _tabs: ["plan", "script", "shot"]
 
     /// What the View menu shows as on: the pane beside the plan, the open drawer, the tab.
-    readonly property bool scriptShown: tier === Workspace.Tier.Wide ? showScript : area === "script"
-    readonly property bool shotShown: tier === Workspace.Tier.Wide ? showShot : area === "shot"
+    readonly property bool scriptShown: tier === Workspace.Tier.Wide ? showScript && !scriptFolded : area === "script"
+    readonly property bool shotShown: tier === Workspace.Tier.Wide ? showShot && !shotFolded : area === "shot"
     /// Widths in px, as the handles set them; `folded` panes show only their handle.
     property alias scriptWidth: store.scriptWidth
     property alias shotWidth: store.shotWidth
@@ -65,6 +65,10 @@ Item {
     function setArea(name, shown) {
         if (tier === Workspace.Tier.Wide) {
             work[name === "script" ? "showScript" : "showShot"] = shown
+            // Showing it from the menu also opens a pane folded by its handle.
+            if (shown) {
+                work[name === "script" ? "scriptFolded" : "shotFolded"] = false
+            }
             return
         }
         area = shown ? name : "plan"

@@ -301,6 +301,16 @@ TestCase {
         compare(work.scriptWidth, work.paneMax)
     }
 
+    function test_the_view_menu_unfolds_a_folded_pane() {
+        const work = make(1600)
+        work.scriptFolded = true
+        compare(work.scriptShown, false)
+
+        work.setArea("script", true)
+
+        compare(work.scriptFolded, false)
+        compare(work.scriptShown, true)
+    }
 
     function test_wide_shows_everything_beside_the_plan() {
         const work = make(1600)
