@@ -127,6 +127,12 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   und Wege wie jede Figur und wird größer gezeichnet, mit drei Punkten im Umriss, ihr Name trägt
   die Zahl (`Gäste (12)`). Ohne Gruppe fehlt der Schlüssel; ältere Projekte laden und speichern
   unverändert. Keine neue Formatversion, wie bei den Notizen.
+- **Größe von Figuren (LH-25):** eine Figur in `figuren.toml` hat optional `size_m`, den
+  Durchmesser des Körpers in Metern (0,1 bis 20), etwa Kind, Pferd oder Kutsche. Ohne `size_m`
+  gilt der Standard (0,7 m). Eine Gruppe bleibt um denselben Faktor größer als eine einzelne
+  Figur. Ohne Größe fehlt der Schlüssel; ältere Projekte laden und speichern unverändert.
+  Laden lehnt einen Wert außerhalb 0,1 bis 20 ab. Keine neue Formatversion, wie bei den
+  Gruppen.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.

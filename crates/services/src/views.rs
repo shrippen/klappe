@@ -221,6 +221,9 @@ pub struct CharacterRow {
     pub color: &'static str,
     /// Head count; 0 for a single person.
     pub group: u32,
+    /// Diameter of the body in metres (LH-25); `None` is the standard.
+    #[serde(rename = "size")]
+    pub size_m: Option<f64>,
 }
 
 /// One plan variant of the scene on view (LH-04).

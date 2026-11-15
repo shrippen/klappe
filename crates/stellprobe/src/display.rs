@@ -1,10 +1,11 @@
 use klappe_model::{
-    Arrival, Background, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill,
-    FloorPlan, Mark, Note, ObjectShape, Point, Project, SetObject, SetPlan,
+    Arrival, Background, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
+    Mark, Note, ObjectShape, Point, Project, SetObject, SetPlan,
 };
 
 use crate::axis::axis_at;
 use crate::card::note_card;
+use crate::figure::{body_radius_m, group_dots, GROUP_DOT_RADIUS_M, GROUP_RADIUS_M};
 use crate::light::{lamps, light_items, Lamp};
 use crate::motion::{bend_point, camera_at, figure_at, path, walked_ways};
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
@@ -133,12 +134,6 @@ pub enum Source {
 
 /// Figure body radius on the plan.
 pub const FIGURE_RADIUS_M: f64 = 0.35;
-/// A group's body is larger than a single figure (LH-23); inside it stand `GROUP_DOTS` small
-/// circles, however many people the group counts.
-const GROUP_RADIUS_M: f64 = 0.6;
-const GROUP_DOT_RADIUS_M: f64 = 0.17;
-const GROUP_DOT_RING_M: f64 = 0.3;
-const GROUP_DOTS: usize = 3;
 /// Mark circles are smaller than the figure.
 const MARK_RADIUS_M: f64 = 0.22;
 /// Camera and lamp bodies.
@@ -546,31 +541,6 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
     }
 }
 
-/// The radius of the body: the figure's own size or the standard, a group's wider by the
-/// same ratio as a standard group is to a standard figure.
-fn body_radius_m(character: &Character) -> f64 {
-    let single_m = character.size_m.map_or(FIGURE_RADIUS_M, |d| d / 2.0);
-    match character.group {
-        Some(_) => single_m * GROUP_RADIUS_M / FIGURE_RADIUS_M,
-        None => single_m,
-    }
-}
-
-/// The centres of the dots in a group's body: evenly on a ring, one straight up. `scale` is
-/// the body's size against a standard group's.
-fn group_dots(at: Point, scale: f64) -> Vec<Point> {
-    (0..GROUP_DOTS)
-        .map(|i| {
-            let deg = -90.0 + 360.0 * i as f64 / GROUP_DOTS as f64;
-            let a = deg.to_radians();
-            Point::new(
-                at.x_m + GROUP_DOT_RING_M * scale * a.cos(),
-                at.y_m + GROUP_DOT_RING_M * scale * a.sin(),
-            )
-        })
-        .collect()
-}
-
 fn mark_label(index: usize, mark: &Mark) -> String {
     let appears = if mark.arrival == Arrival::Appear {
         APPEAR_SIGN
@@ -711,6 +681,7 @@ fn nose(at: Point, facing_deg: f64, radius_m: f64) -> Vec<Point> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::figure::GROUP_DOTS;
     use klappe_model::{
         Arrival, Camera, CameraMark, Character, Departure, Drawing, FigureTrack, Light, LightKind,
         Mark, Movement, Pose, Sensor, Shot, ShotSize, Wall,
@@ -873,47 +844,6 @@ mod tests {
         assert!(dots
             .iter()
             .all(|i| i.role != Role::Figure(FigureColor::Purple)));
-    }
-
-    /// A figure's size is the diameter of its body (LH-25); a group stays wider by the same
-    /// ratio and its dots grow with it.
-    #[test]
-    fn a_figure_is_drawn_in_its_size() {
-        let radius_of = |list: &DisplayList| -> f64 {
-            list.items
-                .iter()
-                .filter(|i| i.role == Role::Figure(FigureColor::Purple))
-                .find_map(|i| match i.shape {
-                    Shape::Circle { radius_m, .. } => Some(radius_m),
-                    _ => None,
-                })
-                .unwrap()
-        };
-        let mut p = project();
-        p.characters[0].size_m = Some(4.0);
-        let horse = render(&p, &set(), &plan(), 0.0, None);
-        p.characters[0].group = Some(12);
-        let herd = render(&p, &set(), &plan(), 0.0, None);
-
-        assert_eq!(radius_of(&horse), 2.0);
-        assert_eq!(radius_of(&herd), 2.0 * GROUP_RADIUS_M / FIGURE_RADIUS_M);
-        assert!(herd.items.iter().any(|i| i.role == Role::GroupDot
-            && matches!(i.shape, Shape::Circle { radius_m, .. } if radius_m > GROUP_DOT_RADIUS_M)));
-    }
-
-    /// The hit test follows the drawn body.
-    #[test]
-    fn a_large_figure_is_hit_across_its_body() {
-        let mut p = project();
-        p.characters[0].size_m = Some(4.0);
-        let list = render(&p, &set(), &plan(), 0.0, None);
-        let inside = Point::new(2.0 + 1.5, 6.0);
-
-        assert!(list
-            .items
-            .iter()
-            .filter(|i| i.role == Role::Figure(FigureColor::Purple))
-            .any(|i| crate::hit::hit(i, inside, 0.0)));
     }
 
     /// A single person keeps the one small circle and the plain name.

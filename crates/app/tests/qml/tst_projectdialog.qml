@@ -31,9 +31,9 @@ TestCase {
                 { id: "saengersaal", name: "Sängersaal", width: 20, depth: 13, scenes: 1 }
             ],
             characters: [
-                { id: "elisabeth", name: "Elisabeth", short: "E", color: "purple", group: 0 },
-                { id: "burgvogt", name: "Burgvogt", short: "B", color: "blue", group: 0 },
-                { id: "gaeste", name: "Gäste", short: "G", color: "green", group: 12 }
+                { id: "elisabeth", name: "Elisabeth", short: "E", color: "purple", group: 0, size: null },
+                { id: "burgvogt", name: "Burgvogt", short: "B", color: "blue", group: 0, size: 2.4 },
+                { id: "gaeste", name: "Gäste", short: "G", color: "green", group: 12, size: null }
             ]
         })
 
@@ -55,8 +55,8 @@ TestCase {
         function addLocation(n, w, d) { return call("addLocation", [n, w, d]) }
         function editLocation(id, n, w, d) { return call("editLocation", [id, n, w, d]) }
         function removeLocation(id) { return call("removeLocation", [id]) }
-        function addCharacter(n, s, c, g) { return call("addCharacter", [n, s, c, g]) }
-        function editCharacter(id, n, s, c, g) { return call("editCharacter", [id, n, s, c, g]) }
+        function addCharacter(n, s, c, g, z) { return call("addCharacter", [n, s, c, g, z]) }
+        function editCharacter(id, n, s, c, g, z) { return call("editCharacter", [id, n, s, c, g, z]) }
         function removeCharacter(id) { return call("removeCharacter", [id]) }
     }
 
@@ -301,7 +301,7 @@ TestCase {
         compare(findChild(form, "shortField").text, "G")
         press(form, "apply")
 
-        compare(fake.calls, [["addCharacter", "graf", "G", "red", 0]])
+        compare(fake.calls, [["addCharacter", "graf", "G", "red", 0, ""]])
     }
 
     function test_a_character_edit_keeps_its_colour_and_picks_another() {
@@ -315,7 +315,7 @@ TestCase {
         findChild(form, "colorPicker").picked(3)
         press(form, "apply")
 
-        compare(fake.calls, [["editCharacter", "elisabeth", "Elisabeth", "E", "green", 0]])
+        compare(fake.calls, [["editCharacter", "elisabeth", "Elisabeth", "E", "green", 0, ""]])
     }
 
     function test_a_new_group_sends_its_head_count() {
@@ -349,7 +349,39 @@ TestCase {
         findChild(form, "groupSwitch").checked = false
         press(form, "apply")
 
-        compare(fake.calls, [["editCharacter", "gaeste", "Gäste", "G", "green", 0]])
+        compare(fake.calls, [["editCharacter", "gaeste", "Gäste", "G", "green", 0, ""]])
+    }
+
+    // LH-25: the size is typed in metres; empty is the standard.
+    function test_a_new_figure_sends_the_typed_size() {
+        const pd = make()
+        opened(pd)
+        const form = findChild(pd, "characterForm")
+        showTab(pd, 2)
+
+        press(listOf(pd, "characterList"), "add")
+        compare(findChild(form, "sizeField").text, "")
+
+        findChild(form, "nameField").text = "Kutsche"
+        findChild(form, "sizeField").text = "4,5"
+        press(form, "apply")
+
+        compare(fake.calls[0][5], "4,5")
+    }
+
+    function test_a_figure_edit_starts_from_its_size_and_can_return_to_standard() {
+        const pd = make()
+        opened(pd)
+        showTab(pd, 2)
+
+        const form = select(pd, "characterList", "characterForm", "burgvogt")
+        compare(findChild(form, "sizeField").text, de.num(2.4, 2))
+
+        findChild(form, "sizeField").text = ""
+        press(form, "apply")
+
+        compare(fake.calls[0].slice(0, 2), ["editCharacter", "burgvogt"])
+        compare(fake.calls[0][6], "")
     }
 
     function test_the_group_size_is_limited_to_two_to_999() {
@@ -399,7 +431,7 @@ TestCase {
 
         press(form, "apply")
         press(form, "confirmChange")
-        compare(fake.calls, [["editCharacter", "elisabeth", "Elise", "E", "purple", 0]])
+        compare(fake.calls, [["editCharacter", "elisabeth", "Elise", "E", "purple", 0, ""]])
         verify(!warning.visible)
     }
 

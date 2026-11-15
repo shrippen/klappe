@@ -55,6 +55,16 @@ pub(crate) fn group_of(count: u32) -> Option<u32> {
     }
 }
 
+/// The diameter typed in the character form (LH-25): blank is the standard size. The session
+/// sets the range.
+pub fn figure_size(text: &str) -> Result<Option<f64>, ServiceError> {
+    if text.trim().is_empty() {
+        return Ok(None);
+    }
+
+    read_number(Field::Size, text, Unit::Metre, Range::Positive).map(Some)
+}
+
 /// Width and depth typed in the location form, `"8,5"` or `"8.5 m"`; the session sets the
 /// range.
 pub fn sizes(width: &str, depth: &str) -> Result<(f64, f64), ServiceError> {
@@ -396,6 +406,16 @@ mod tests {
         assert_eq!(value["plan"], "stand-1");
     }
 
+    /// LH-25: a blank size field is the standard, a number is metres, anything else is refused.
+    #[test]
+    fn a_typed_figure_size_is_metres_or_standard() {
+        assert_eq!(figure_size("  ").unwrap(), None);
+        assert_eq!(figure_size("2,4 m").unwrap(), Some(2.4));
+        assert_eq!(figure_size("0.7").unwrap(), Some(0.7));
+        assert!(figure_size("gross").is_err());
+        assert!(figure_size("-1").is_err());
+    }
+
     /// The card of a scene and the scenes of a character reach QML as plain JSON (D-08).
     #[test]
     fn uses_carry_the_card_and_the_scenes() {
@@ -461,6 +481,7 @@ mod tests {
         assert_eq!(value["locations"][0]["width"], 8.0);
         assert_eq!(value["characters"][0]["color"], "red");
         assert_eq!(value["characters"][0]["group"], 12);
+        assert_eq!(value["characters"][0]["size"], Value::Null);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

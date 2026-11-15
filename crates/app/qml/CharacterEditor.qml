@@ -4,8 +4,8 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // Adds a character or changes one (LH-03, D-08): name, the short label drawn in the figure,
-// one of Kante's label colours, and whether it is a group of extras with a head count
-// (LH-23). A new name is carried into the cues of the script text (the pane warns first).
+// one of Kante's label colours, its size across in metres (LH-25; empty is the standard),
+// and whether it is a group of extras with a head count (LH-23). A new name is carried into the cues of the script text (the pane warns first).
 EditorPane {
     id: form
 
@@ -35,6 +35,7 @@ EditorPane {
         nameField.text = item ? item.name : ""
         shortField.text = item ? item.short : ""
         picker.currentIndex = item ? colors.indexOf(item.color) : firstFree()
+        sizeField.text = item && item.size ? texts.num(item.size, 2) : ""
         const group = item ? item.group : noGroup
         groupSwitch.checked = group >= minGroup
         groupSize.value = group >= minGroup ? group : minGroup
@@ -53,9 +54,11 @@ EditorPane {
         const color = colors[picker.currentIndex]
         const group = groupSwitch.checked ? groupSize.value : noGroup
         if (!item) {
-            return controller.addCharacter(nameField.text, shortField.text, color, group)
+            return controller.addCharacter(nameField.text, shortField.text, color, group,
+                sizeField.text)
         }
-        return controller.editCharacter(item.id, nameField.text, shortField.text, color, group)
+        return controller.editCharacter(item.id, nameField.text, shortField.text, color, group,
+            sizeField.text)
     }
     remove: function () { return controller.removeCharacter(item.id) }
 
@@ -85,6 +88,14 @@ EditorPane {
         colors: form.colors.map(c => KanteStyle.labelColor(c))
         names: form.colors.map(c => form.texts.t("color." + c))
         onPicked: index => currentIndex = index
+    }
+    KanteSectionLabel { text: form.texts.t("character.size") }
+    KanteTextField {
+        id: sizeField
+        objectName: "sizeField"
+        Layout.fillWidth: true
+        placeholderText: form.texts.t("character.sizeStandard")
+        inputMethodHints: Qt.ImhFormattedNumbersOnly
     }
     KanteSwitch {
         id: groupSwitch
