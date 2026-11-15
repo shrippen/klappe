@@ -46,15 +46,36 @@ pub(super) fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
     wall_items(set, items);
 
     for object in &set.objects {
+        let name = Some(object.label.clone()).filter(|l| !l.is_empty());
+        let free = matches!(object.shape, ObjectShape::Polygon { .. });
+
+        // The canvas writes a body's name in the middle of its box; a free form's may lie
+        // outside it (a U), so its name is a caption of its own at a point inside.
         items.push(Item {
             role: Role::Object,
             shape: Shape::Polygon {
                 points: object_corners(object),
             },
-            label: Some(object.label.clone()).filter(|l| !l.is_empty()),
+            label: name.clone().filter(|_| !free),
             source: Some(Source::Object(object.id.clone())),
         });
+        if free && name.is_some() {
+            items.push(name_item(object, name));
+        }
         items.push(height_item(object));
+    }
+}
+
+/// A free form's name at its inside point, with no shape to draw and nothing to pick.
+fn name_item(object: &SetObject, name: Option<String>) -> Item {
+    Item {
+        role: Role::Object,
+        shape: Shape::Circle {
+            center: label_point(object),
+            radius_m: 0.0,
+        },
+        label: name,
+        source: None,
     }
 }
 
@@ -67,7 +88,7 @@ pub fn label_point(object: &SetObject) -> Point {
     }
 }
 
-/// The caption of an object's height: at its centre, below the name when it has one.
+/// The caption of an object's height: at its label point, below the name when it has one.
 fn height_item(object: &SetObject) -> Item {
     let named = !object.label.is_empty();
     let drop_m = if named { HEIGHT_BELOW_NAME_M } else { 0.0 };
@@ -148,6 +169,43 @@ mod tests {
 
         let item = height_item(&form);
         assert!(matches!(item.shape, Shape::Circle { center, .. } if center == inside));
+    }
+
+    /// A named U: the canvas writes a body's name in the middle of its box, in the gap, so a
+    /// free form's name comes as a caption of its own at the inside point, the height below.
+    #[test]
+    fn a_named_free_form_has_its_name_inside() {
+        let points: Vec<Point> = [
+            (-1.5, -1.5),
+            (-0.5, -1.5),
+            (-0.5, 0.5),
+            (0.5, 0.5),
+            (0.5, -1.5),
+            (1.5, -1.5),
+            (1.5, 1.5),
+            (-1.5, 1.5),
+        ]
+        .iter()
+        .map(|&(x, y)| Point::new(x, y))
+        .collect();
+        let mut form = object("Tresen", Some(1.1));
+        form.shape = ObjectShape::Polygon { points };
+        form.width_m = 3.0;
+        form.depth_m = 3.0;
+        let set = SetPlan {
+            objects: vec![form],
+            ..Default::default()
+        };
+        let mut items = Vec::new();
+        set_items(&set, &mut items);
+
+        let inside = Point::new(9.0, 5.0);
+        assert_eq!(items[0].label, None);
+        assert_eq!(items[1].label.as_deref(), Some("Tresen"));
+        assert_eq!(items[1].source, None);
+        assert!(matches!(items[1].shape, Shape::Circle { center, .. } if center == inside));
+        let below = Point::new(9.0, 5.0 + HEIGHT_BELOW_NAME_M);
+        assert!(matches!(items[2].shape, Shape::Circle { center, .. } if center == below));
     }
 
     /// A rectangle keeps its centre.
