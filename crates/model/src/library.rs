@@ -35,6 +35,10 @@ pub struct LibraryItem {
     /// The name of an own entry; empty for a built-in one.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub label: String,
+    /// The group the list shows the entry under: a key for the catalogue
+    /// (`objectGroup.<group>`) in a built-in entry, free text in an own one; empty for none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub group: String,
     pub width_m: f64,
     pub depth_m: f64,
     #[serde(default)]

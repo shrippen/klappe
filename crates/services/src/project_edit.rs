@@ -11,6 +11,8 @@ use crate::error::ServiceError;
 use crate::field::Field;
 use crate::library;
 
+mod own;
+
 /// What the project view does. Ids are made from the name when something is added and never
 /// change after.
 #[derive(Debug, Clone, PartialEq)]
@@ -78,6 +80,18 @@ pub enum ProjectEdit {
     /// gets a kind of its own.
     ImportLibrary {
         items: Vec<LibraryItem>,
+    },
+    /// Renames and regroups the project's own entry `kind` (LH-12); no group takes it out of
+    /// any. Placed objects keep their kind. A built-in entry is not the project's to change.
+    EditLibraryItem {
+        kind: String,
+        name: String,
+        group: String,
+    },
+    /// Takes the project's own entry `kind` out of the library (LH-12); objects placed from
+    /// it stay as they are.
+    RemoveLibraryItem {
+        kind: String,
     },
 }
 
@@ -148,6 +162,10 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             name,
         } => library_from_object(project, location, object, name),
         ProjectEdit::ImportLibrary { items } => import_library(project, items),
+        ProjectEdit::EditLibraryItem { kind, name, group } => {
+            own::edit_item(project, kind, name, group)
+        }
+        ProjectEdit::RemoveLibraryItem { kind } => own::remove_item(project, kind),
     }
 }
 
@@ -362,6 +380,7 @@ fn library_from_object(
     let item = LibraryItem {
         kind,
         label: name,
+        group: String::new(),
         width_m,
         depth_m,
         shape,

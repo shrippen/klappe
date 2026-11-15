@@ -11,7 +11,22 @@ use crate::views::LibraryEntry;
 impl Session {
     /// What the object tool offers: the built-in library, then the project's own objects.
     pub fn library(&self) -> Vec<LibraryEntry> {
-        library::entries(&self.project.library)
+        let mut entries = library::entries(&self.project.library);
+
+        for entry in &mut entries {
+            entry.uses = self.objects_of_kind(&entry.kind);
+        }
+
+        entries
+    }
+
+    /// How many objects on the project's sets were placed from the entry `kind`.
+    fn objects_of_kind(&self, kind: &str) -> usize {
+        let sets = self.project.locations.iter().map(|l| &l.set);
+
+        sets.flat_map(|set| &set.objects)
+            .filter(|o| o.kind == kind)
+            .count()
     }
 
     /// What the camera card offers: sensor formats and lens sets (LH-32).
