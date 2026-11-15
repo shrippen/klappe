@@ -31,6 +31,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   (Untersicht), `birds-eye` (Vogelperspektive), `worms-eye` (Froschperspektive), `dutch`
   (gekippt). Fehlt `angle`, gilt `eye-level`. Die Drehreihenfolge (Setups gruppiert) steht nicht
   in der Datei; sie ergibt sich aus Kamera, Ort und Objektiv.
+- **Achse (LH-40):** `axis` im Floorplan (`szenen/<id>.json`) mit `a` und `b`, den Figur-Ids,
+  zwischen denen die 180°-Achse liegt; je Floorplan, weil die Spuren der Figuren dort liegen.
+  Fehlt `axis`, gilt die Achse zwischen den ersten zwei Figuren des Floorplans. Wird eine der
+  beiden Figuren entfernt, entfällt `axis`.
 - **JSON:** eingerückt, Schlüssel in der Feldreihenfolge des Modells, Zeilenumbruch am Ende.
 - **Einheiten:** im Feldnamen (`_m`, `_deg`, `_s`, `_mm`, `_k`, `_w`); Ursprung oben links, y nach
   unten.

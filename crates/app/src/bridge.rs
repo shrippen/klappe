@@ -22,6 +22,9 @@ pub mod qobject {
         #[qproperty(QString, plan_title, cxx_name = "planTitle")]
         /// `{ width, depth, shapes }` for KanteShapeCanvas.
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
+        /// What the selected shot's camera sees, as `{ width, depth, shapes }` for
+        /// KanteShapeCanvas; empty without a shot or when its camera has no marks.
+        #[qproperty(QString, view_json, cxx_name = "viewJson")]
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
         /// The shot list in shooting order: setups grouped (LH-72); `shotsJson` is the cut order.
@@ -140,6 +143,12 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setFollow"]
         fn set_follow(self: Pin<&mut Self>, camera: &QString, figure: &QString) -> bool;
+
+        /// Sets the characters (ids) the 180° axis runs between, or lets the plan take the
+        /// first two figures with an empty `a`; false if refused.
+        #[qinvokable]
+        #[cxx_name = "setAxis"]
+        fn set_axis(self: Pin<&mut Self>, a: &QString, b: &QString) -> bool;
 
         #[qinvokable]
         fn undo(self: Pin<&mut Self>);
@@ -685,6 +694,7 @@ pub struct ControllerRust {
     title: QString,
     plan_title: QString,
     plan_json: QString,
+    view_json: QString,
     tracks_json: QString,
     shots_json: QString,
     shots_shooting_json: QString,
