@@ -392,3 +392,39 @@ fn the_tooltip_rig_is_the_one_of_the_way() {
     s.set_time(7.0);
     assert_eq!(rig(&s), "crane");
 }
+
+/// The example with camera A turning on the spot: mark 2 at the place of mark 1, from 2 s.
+fn example_with_a_pan() -> PathBuf {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("rig-pan");
+    let _ = std::fs::remove_dir_all(&dir);
+    copy_dir(&example(), &dir);
+
+    let scene = dir.join("szenen/szene-012.json");
+    let mut json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&scene).unwrap()).unwrap();
+    let marks = &mut json["plans"][0]["cameras"][0]["marks"];
+    marks[0]["hold_s"] = 2.0.into();
+    marks[1]["at"] = marks[0]["at"].clone();
+    std::fs::write(&scene, json.to_string()).unwrap();
+
+    dir
+}
+
+/// Without a change of place the tooltip still names the rig of the section, then of the mark.
+#[test]
+fn the_tooltip_rig_holds_without_a_change_of_place() {
+    let mut s = Session::open(&example_with_a_pan()).unwrap();
+    s.set_time(7.0);
+    set_rig(&mut s, Rig::Tripod).unwrap();
+    let rig = |s: &mut Session, t_s: f64| {
+        s.set_time(t_s);
+        match s.camera_hint("a") {
+            Some(Hint::Camera { rig, .. }) => rig,
+            _ => panic!("no hint"),
+        }
+    };
+
+    // Turning from 2 to 6 s, standing at mark 2 afterwards.
+    assert_eq!(rig(&mut s, 4.0), "tripod");
+    assert_eq!(rig(&mut s, 7.0), "tripod");
+}
