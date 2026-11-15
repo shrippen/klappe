@@ -1,6 +1,6 @@
 # Klappe: Personas
 
-Vier feste, erfundene Personen für die QA-Runden ([`QA.md`](QA.md), Skill `qa-personas`).
+Fünf feste, erfundene Personen für die QA-Runden ([`QA.md`](QA.md), Skill `qa-personas`).
 Ähnlichkeiten mit echten Menschen sind nicht beabsichtigt. Abgeleitet aus den Rollen im
 [Lastenheft Stellprobe](stellprobe/LASTENHEFT.md), Abschnitt 4. Geändert nur auf Wunsch des
 Eigentümers.
@@ -11,6 +11,7 @@ Eigentümers.
 | P2 | Mehmet Aydın | Kamera (DoP) | 1440 × 900, Tastatur zuerst | Englisch |
 | P3 | Katrin Vogel | Regieassistenz | 1280 × 800 (Laptop) | Deutsch |
 | P4 | Ole Brandt | Licht (Oberbeleuchter) | 1440 × 900, Maus | Deutsch |
+| P5 | Sanne Krüger | Ausstattung (Szenenbild) | 1440 × 900, Maus und Tastatur | Deutsch |
 
 ## P1 Jana Reuter, Regie
 
@@ -54,3 +55,14 @@ Eigentümers.
   Liste der Lampen ausdrucken.
 - **Frust:** Angst, versehentlich etwas zu verschieben; Symbole ohne Text.
 - **Satz:** „Zeig mir, wo die Lampe hin soll, und lass den Rest in Ruhe.“
+
+## P5 Sanne Krüger, Ausstattung
+
+- **Lage:** 41, Szenenbildnerin, baut Sets im Studio und richtet Drehorte ein.
+- **Vorwissen:** Grundrisse, Maße, Möbel und Requisiten; arbeitet sonst mit einem
+  CAD-Programm und kennt dort Wände, Türen, Maßketten.
+- **Ziel:** Den Raum der Szene so aufbauen, wie er gebaut wird, mit echten Maßen, und dem Team
+  zeigen, wo Wege frei bleiben müssen.
+- **Frust:** Maße, die sich nicht genau eingeben lassen; Möbel, die es nicht gibt; Zeichnungen,
+  die beim Ausdruck fehlen.
+- **Satz:** „Wenn da 80 cm Durchgang stehen, müssen das 80 cm sein.“
