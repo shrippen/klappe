@@ -34,6 +34,9 @@ RowLayout {
     signal backgroundRequested()
     signal viewToggled(string area, bool shown)
     signal shotOrderPicked(string order)
+    /// Zoom of the plan: "in", "out" or "fit".
+    signal zoomRequested(string how)
+    signal playRequested()
 
     readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : { scenes: [], plans: [], plan: "" }
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
@@ -42,11 +45,14 @@ RowLayout {
     readonly property var entries: [actNew, actOpen, actProject, actSave, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv,
                                     actScript, actShot, actTimeline, actCut, actShooting,
+                                    actZoomIn, actZoomOut, actZoomFit,
+                                    actPlay, actMarkPrev, actMarkNext,
                                     actUndo, actRedo]
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
         return sequence.replace("Ctrl", texts.t("key.ctrl")).replace("Shift", texts.t("key.shift"))
+            .replace("Space", texts.t("key.space"))
     }
 
     spacing: Kirigami.Units.largeSpacing
@@ -127,6 +133,10 @@ RowLayout {
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
         KanteMenuItem { objectName: "timeline"; action: actTimeline }
+        KanteMenuSection { text: header.texts.t("menu.viewZoom") }
+        KanteMenuItem { objectName: "zoomIn"; action: actZoomIn }
+        KanteMenuItem { objectName: "zoomOut"; action: actZoomOut }
+        KanteMenuItem { objectName: "zoomFit"; action: actZoomFit }
         KanteMenuSection { text: header.texts.t("menu.viewOrder") }
         KanteMenuItem { objectName: "cut"; action: actCut }
         KanteMenuItem { objectName: "shooting"; action: actShooting }
@@ -165,6 +175,8 @@ RowLayout {
         cmd: "project.new"
         group: "file"
         text: header.texts.t("menu.new")
+        shortcut: "Ctrl+N"
+        keys: header.keyName("Ctrl+N")
         enabled: !header.locked
         onTriggered: header.newRequested()
     }
@@ -173,6 +185,8 @@ RowLayout {
         cmd: "project.open"
         group: "file"
         text: header.texts.t("menu.open")
+        shortcut: "Ctrl+O"
+        keys: header.keyName("Ctrl+O")
         enabled: !header.locked
         onTriggered: header.openRequested()
     }
@@ -306,6 +320,86 @@ RowLayout {
         checked: header.shotOrder === "shooting"
         enabled: header.controller.loaded
         onTriggered: header.shotOrderPicked("shooting")
+    }
+
+    // Zoom of the plan; the window hands it on. Ctrl+= is the same key as Ctrl++ without Shift.
+    CommandAction {
+        id: actZoomIn
+        cmd: "view.zoomIn"
+        group: "view"
+        text: header.texts.t("menu.zoomIn")
+        shortcut: "Ctrl++"
+        keys: header.keyName("Ctrl++")
+        enabled: header.controller.loaded && !header.locked
+        onTriggered: header.zoomRequested("in")
+    }
+    Shortcut {
+        sequence: "Ctrl+="
+        enabled: actZoomIn.enabled
+        onActivated: actZoomIn.trigger()
+    }
+    CommandAction {
+        id: actZoomOut
+        cmd: "view.zoomOut"
+        group: "view"
+        text: header.texts.t("menu.zoomOut")
+        shortcut: "Ctrl+-"
+        keys: header.keyName("Ctrl+-")
+        enabled: header.controller.loaded && !header.locked
+        onTriggered: header.zoomRequested("out")
+    }
+    CommandAction {
+        id: actZoomFit
+        cmd: "view.zoomFit"
+        group: "view"
+        text: header.texts.t("menu.zoomFit")
+        shortcut: "Ctrl+0"
+        keys: header.keyName("Ctrl+0")
+        enabled: header.controller.loaded && !header.locked
+        onTriggered: header.zoomRequested("fit")
+    }
+
+    // Play or pause: K works everywhere. Space does too, except where it already means
+    // something: the plan pans with Space held (Kante), a button presses with it, a text field
+    // types it. A text field keeps its keys anyway: it takes the key before a shortcut.
+    CommandAction {
+        id: actPlay
+        cmd: "playback.toggle"
+        group: "playback"
+        text: header.texts.t("menu.play")
+        shortcut: "K"
+        keys: header.keyName("Space") + " / K"
+        enabled: header.controller.loaded && !header.locked
+        onTriggered: header.playRequested()
+    }
+    readonly property Item focused: Window.window ? Window.window.activeFocusItem : null
+    Shortcut {
+        sequence: "Space"
+        enabled: actPlay.enabled && !(header.focused && header.focused.down !== undefined)
+            && !(header.focused && header.focused.objectName === "planCanvas")
+        onActivated: actPlay.trigger()
+    }
+
+    // Marks: the playhead jumps to the previous or next mark of the shot.
+    CommandAction {
+        id: actMarkPrev
+        cmd: "playback.markPrev"
+        group: "playback"
+        text: header.texts.t("menu.markPrev")
+        shortcut: ","
+        keys: ","
+        enabled: header.controller.loaded && !header.locked
+        onTriggered: header.controller.stepMark(-1)
+    }
+    CommandAction {
+        id: actMarkNext
+        cmd: "playback.markNext"
+        group: "playback"
+        text: header.texts.t("menu.markNext")
+        shortcut: "."
+        keys: "."
+        enabled: header.controller.loaded && !header.locked
+        onTriggered: header.controller.stepMark(1)
     }
 
     CommandAction {

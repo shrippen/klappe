@@ -22,6 +22,7 @@
 mod camera_preset;
 mod geometry;
 mod library;
+mod light_preset;
 mod limits;
 mod plan;
 mod project;
@@ -34,6 +35,7 @@ pub use library::{
     is_object_height_m, is_object_size_m, LibraryItem, ObjectShape, MAX_OBJECT_HEIGHT_M,
     MAX_OBJECT_M,
 };
+pub use light_preset::{LightPreset, MAX_BEAM_DEG, MAX_POWER_W, MAX_TEMP_K, MIN_TEMP_K};
 pub use limits::{
     MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_LENS_MM, MAX_SENSOR_WIDTH_MM, MAX_SET_M, MAX_TILT_DEG,
     MIN_LENS_MM,

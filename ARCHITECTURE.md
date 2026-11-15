@@ -23,7 +23,7 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 | `services/` | The project session, the one door for every surface: open, select, edit, undo, play, save, export. Hands out data ready to show and holds all texts (`i18n/`). |
 | `stellprobe/` | Stellprobe's calculations, without files or window: who stands where at a time, what a camera sees, the axis, and the display list (what a plan shows, in metres, colours as roles). |
 | `script/` | Reads and writes Fountain. |
-| `store/` | The only block that reads or writes a project folder (`FORMAT.md`); also the built-in object library and camera presets (data files). |
+| `store/` | The only block that reads or writes a project folder (`FORMAT.md`); also the built-in object library, camera presets and lamps (data files). |
 | `export/` | Turns the display list and the shot list into PDF, SVG, PNG, CSV, ODS and XLSX, as bytes; colours from Kante's `palette.json` (copied by the same script). |
 | `model/` | The project's data, shared by all: project, scene, character, location, floor plan, shot. |
 | `imagehead/` | Reads the header of an image file; depends on nothing. |
@@ -81,7 +81,7 @@ A change that needs more places than listed is a finding for the audit.
 | New screenplay element | `script/` (element, parse, write, tests); the script lines in `services/` (`session/timeline.rs`); its look in `tui/` (`fountain.rs`) and in `app/` (`ScriptPanel.qml`). |
 | New text in a surface | The same key in `services/i18n/de.json` and `en.json`; used through `texts.t("key")` in QML or `Language::text` in Rust. |
 | New file or changed layout of the project folder | `model/` (data, `FORMAT_VERSION`); `store/`; `FORMAT.md`; `testdata/`; regenerate the examples (`cargo run -p klappe-demo`). |
-| New library object or camera preset | Data only: `store/library/standard.toml`, `store/camera/standard.toml`. |
+| New library object, camera preset or lamp | Data only: `store/library/standard.toml`, `store/camera/standard.toml`, `store/light/standard.toml` (and its name `lightPreset.<id>` in the catalogue). |
 | New template (set-up of figures and cameras) | Data only: `store/template/standard.toml` and its name `template.<id>` in the catalogue. |
 | New component or colour for the window | Kante first (its own repository), then `scripts/sync-kante.sh`; never in `app/qml/Kante`. |
 

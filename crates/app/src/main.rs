@@ -8,6 +8,7 @@ mod bridge;
 mod camera;
 mod catalog;
 mod fileurl;
+mod light;
 mod manage;
 mod mark;
 mod notice;

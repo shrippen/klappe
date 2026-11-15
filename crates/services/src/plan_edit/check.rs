@@ -72,7 +72,9 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetArrival { .. }
         | PlanEdit::SetDeparture { .. }
         | PlanEdit::SetRig { .. }
-        | PlanEdit::SetPace { .. } => Ok(()),
+        | PlanEdit::SetPace { .. }
+        // `set_light` checks its change itself.
+        | PlanEdit::SetLight { .. } => Ok(()),
     }
 }
 

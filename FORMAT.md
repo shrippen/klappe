@@ -92,6 +92,14 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   (Standard `solid`), `fill` `outline` oder `filled` (Standard `outline`; nur Rechteck, Ellipse und
   Fläche haben ein Inneres). Ohne Zeichnungen fehlt der Schlüssel; ältere Projekte laden und
   speichern unverändert. Keine neue Formatversion, wie bei den Notizen.
+- **Lampen (LH-50, LH-51):** `lights` im Floorplan der Szene (`szenen/<id>.json`), je Eintrag
+  `id` (`l1`, `l2` …), `label`, `kind` (`fresnel`, `led-panel`, `tube`, `balloon`, `reflector`,
+  `flag`), `at` in Metern, `facing_deg` (Richtung, 0° nach rechts, im Uhrzeigersinn),
+  `beam_deg` (Abstrahlwinkel, Kegel im Plan und im Export), `color_temp_k` und `power_w`. Nur
+  LED-Lampen (`led-panel`, `tube`) stellen die Farbtemperatur ein. Die eingebaute
+  Lampenbibliothek (`crates/store/light/standard.toml`) steht nicht im Projektordner: eine Lampe
+  aus ihr übernimmt Art, Winkel, Leistung und Farbtemperatur als gewöhnliche Werte, ohne Verweis
+  auf den Eintrag. Keine neue Formatversion; die Felder gab es schon.
 - **Kurvenwege (LH-21):** jeder Mark einer Figur und einer Kamera (`marks` in `szenen/<id>.json`)
   hat optional `via`, einen Punkt in Metern: der Weg vom vorigen Mark zu diesem ist die
   quadratische Bézierkurve mit `via` als Kontrollpunkt (die Kurve zieht zu `via` hin, geht aber

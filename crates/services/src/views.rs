@@ -276,6 +276,15 @@ pub enum Hint {
     },
     Light {
         label: String,
+        /// The lamp kind's file name, e.g. `led-panel`.
+        #[serde(rename = "type")]
+        light_kind: String,
+        #[serde(rename = "facing")]
+        facing_deg: f64,
+        #[serde(rename = "beam")]
+        beam_deg: f64,
+        /// Whether the colour temperature can be set (an LED).
+        tunable: bool,
         #[serde(rename = "temp")]
         temp_k: f64,
         #[serde(rename = "power")]
