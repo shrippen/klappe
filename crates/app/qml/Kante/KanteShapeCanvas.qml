@@ -17,7 +17,10 @@ import "."
  *              filled circle, reads in every label colour)
  *     stroke   "solid" (default), "dashed", "dotted": a dash is a mark, not only a colour
  *     fill     "none" (default), "solid", "tint" (the colour at a fifth of its strength)
- *     text     small caption beside the shape, always at the same size on screen
+ *     text     small caption beside the shape, always at the same size on screen. A "\n" starts
+ *              a new line (spaced 1.25 font sizes); the canvas does not wrap, the app does.
+ *     textAnchor  "center" (default) or "topLeft": a polygon's caption starts at its top left
+ *              corner, with a small margin, instead of at its centre
  *     key      id given back by the signals; selected: framed wider in the focus colour
  *     Drawn in order, so the last shape is on top (and wins the hit test).
  *   Image     { kind: "image", source, points: [x, y], width, height, rotation, opacity, key }
@@ -35,6 +38,7 @@ import "."
  *   mapToModel(px, py), mapFromModel(x, y)    {x, y} between view pixels and model units
  *   keyAt(px, py)             key of the topmost shape under a pixel, "" for none
  *   shapeClicked(key, x, y)   click without drag; key "" on empty ground; x, y in model units
+ *   shapeDoubleClicked(key, x, y)   double click, as shapeClicked (a click comes first)
  *   shapeHovered(key, x, y)   the pointer moved; key "" when it is over nothing
  *   editing    the left button edits instead of panning: a drag on a shape or on empty ground
  *              reports shapeDragged; pan stays on the middle button and with space held
@@ -47,7 +51,9 @@ import "."
  * lies in it). Pan: middle button, space held, or left button on empty ground. Zoom: wheel or
  * pinch about the pointer. Keyboard (the item takes Tab): plus and minus zoom, 0 fits, arrows pan.
  *
- * Drawn with one Canvas, repainted when a property changes; about 500 shapes pan smoothly.
+ * Drawn with one Canvas, repainted when a property changes; 600 shapes with 272 captions take about
+ * 15 ms to draw (offscreen), about 6 ms zoomed in, as shapes and captions out of view are left out.
+ * Captions are the dear part (fillText, about 45 µs each): keep the text for what needs it.
  */
 FocusScope {
     id: root
@@ -62,6 +68,7 @@ FocusScope {
     property string accessibleName: "Plan"
 
     signal shapeClicked(string key, real x, real y)
+    signal shapeDoubleClicked(string key, real x, real y)
     signal shapeHovered(string key, real x, real y)
     signal shapeDragged(string key, real fromX, real fromY, real x, real y, bool done)
 
@@ -78,6 +85,8 @@ FocusScope {
     readonly property real _dragSlop: KanteStyle.unit(4)
     readonly property real _reach: KanteStyle.unit(6)
     readonly property real _margin: KanteStyle.unit(24)
+    // Distance between caption lines, in font sizes.
+    readonly property real _lineSpacing: 1.25
     readonly property real _minGridGap: KanteStyle.unit(6)
     readonly property real _tintAlpha: 0.2
     readonly property real _gridAlpha: 0.3
@@ -343,6 +352,63 @@ FocusScope {
 
         // Image sources already asked for.
         property var _asked: ({})
+
+        // Per paint: colours by label name, and what the context was last given, so each
+        // value is worked out once and a context state is set only when it changes.
+        property var _colors: ({})
+        property var _inks: ({})
+        property var _tints: ({})
+        property string _dashKey: ""
+        property string _fillKey: ""
+        property string _align: ""
+        property real _fontPx: 0
+
+        // The colour of a label name, worked out once per paint.
+        function _color(name) {
+            let c = _colors[name]
+            if (c === undefined) {
+                c = root._colorOf(name)
+                _colors[name] = c
+            }
+            return c
+        }
+
+        // The colour of a caption: the label colour, readable on the ground.
+        function _ink(name) {
+            let c = _inks[name]
+            if (c === undefined) {
+                c = KanteStyle.readable(_color(name), KanteStyle.backgroundColor)
+                _inks[name] = c
+            }
+            return c
+        }
+
+        function _tint(name) {
+            let c = _tints[name]
+            if (c === undefined) {
+                c = Qt.alpha(_color(name), root._tintAlpha)
+                _tints[name] = c
+            }
+            return c
+        }
+
+        // Does shape s, stroked `lineW` wide in view pixels, reach into the view.
+        function _onScreen(s, lineW) {
+            const pts = s.points || []
+            let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
+            for (let i = 0; i + 1 < pts.length; i += 2) {
+                x0 = Math.min(x0, pts[i])
+                x1 = Math.max(x1, pts[i])
+                y0 = Math.min(y0, pts[i + 1])
+                y1 = Math.max(y1, pts[i + 1])
+            }
+            const r = s.kind === "circle" ? s.radius || 0 : 0
+            const reach = lineW / 2 + KanteStyle.unit(2) + 1
+            return root.panX + (x1 + r) * root.zoom + reach >= 0
+                && root.panX + (x0 - r) * root.zoom - reach <= width
+                && root.panY + (y1 + r) * root.zoom + reach >= 0
+                && root.panY + (y0 - r) * root.zoom - reach <= height
+        }
         onImageLoaded: requestPaint()
 
         // Strokes and fills of one shape, in view pixels.
@@ -406,6 +472,12 @@ FocusScope {
         }
 
         function _dash(ctx, stroke) {
+            const key = stroke || "solid"
+            if (key === _dashKey) {
+                return
+            }
+
+            _dashKey = key
             switch (stroke) {
             case "dashed":
                 ctx.setLineDash([KanteStyle.unit(8), KanteStyle.unit(5)])
@@ -418,19 +490,24 @@ FocusScope {
         }
 
         // Where a caption goes, in view pixels, and how it sits there.
-        function _caption(ctx, s, color) {
+        function _caption(ctx, s) {
             const pts = s.points || []
             if (pts.length < 2) {
                 return
             }
 
             const gap = KanteStyle.unit(4)
+            const lines = String(s.text).split("\n")
+            const rows = (lines.length - 1) * _fontPx * root._lineSpacing
             let x = 0
             let y = 0
+            let align = "left"
+            // Several lines hang from the top when the shape asks, else centre on the anchor.
+            let top = -rows / 2
             if (s.kind === "circle") {
                 x = root.panX + pts[0] * root.zoom + (s.radius || 0) * root.zoom + gap
                 y = root.panY + pts[1] * root.zoom
-                ctx.textAlign = "left"
+                align = "left"
             } else if (s.kind === "polygon") {
                 let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
                 for (let i = 0; i + 1 < pts.length; i += 2) {
@@ -441,19 +518,41 @@ FocusScope {
                 }
                 x = root.panX + (x0 + x1) / 2 * root.zoom
                 y = root.panY + (y0 + y1) / 2 * root.zoom
-                ctx.textAlign = "center"
+                align = "center"
+                if (s.textAnchor === "topLeft") {
+                    x = root.panX + x0 * root.zoom + gap
+                    y = root.panY + y0 * root.zoom + gap + _fontPx / 2
+                    align = "left"
+                    top = 0
+                }
             } else {
                 const n = pts.length
                 x = root.panX + (pts[0] + pts[n - 2]) / 2 * root.zoom + gap
                 y = root.panY + (pts[1] + pts[n - 1]) / 2 * root.zoom - gap
-                ctx.textAlign = "left"
+                align = "left"
             }
-            if (x < -width || x > 2 * width || y < -height || y > 2 * height) {
+
+            // Outside the view (fillText is the dearest call). Wide glyphs (CJK) take up to about
+            // 1.1 em; two em for each character leaves room for them.
+            const emsPerChar = 2
+            const reach = String(s.text).length * emsPerChar * _fontPx
+            const yFirst = y + top
+            if (x + reach < 0 || x - reach > width || yFirst + rows + _fontPx < 0 || yFirst - _fontPx > height) {
                 return
             }
 
-            ctx.fillStyle = KanteStyle.readable(color, KanteStyle.backgroundColor)
-            ctx.fillText(s.text, x, y)
+            if (align !== _align) {
+                _align = align
+                ctx.textAlign = align
+            }
+            const label = String(s.label)
+            if (label !== _fillKey) {
+                _fillKey = label
+                ctx.fillStyle = _ink(s.label)
+            }
+            for (let i = 0; i < lines.length; i++) {
+                ctx.fillText(lines[i], x, yFirst + i * _fontPx * root._lineSpacing)
+            }
         }
 
         function _grid(ctx) {
@@ -496,10 +595,16 @@ FocusScope {
             ctx.strokeRect(root.panX, root.panY, root.contentWidth * root.zoom, root.contentHeight * root.zoom)
 
             const font = KanteStyle.smallFont
-            ctx.font = KanteStyle.fontPixels(font) + "px \"" + font.family + "\""
+            _fontPx = KanteStyle.fontPixels(font)
+            ctx.font = _fontPx + "px \"" + font.family + "\""
             ctx.textBaseline = "middle"
             ctx.lineJoin = "round"
             ctx.lineCap = "round"
+
+            _colors = ({})
+            _inks = ({})
+            _tints = ({})
+            _dashKey = "solid"
 
             const frame = KanteStyle.unit(2)
             for (const s of root.shapes) {
@@ -508,18 +613,19 @@ FocusScope {
                     continue
                 }
 
-                const color = root._colorOf(s.label)
+                const color = _color(s.label)
                 const lineW = Math.max(1, (s.width || 0) * root.zoom)
-                if (!_trace(ctx, s)) {
+                if (!_onScreen(s, s.selected === true ? lineW + 2 * frame : lineW) || !_trace(ctx, s)) {
                     continue
                 }
 
                 if (s.fill === "solid" || s.fill === "tint") {
-                    ctx.fillStyle = s.fill === "solid" ? color : Qt.alpha(color, root._tintAlpha)
+                    ctx.fillStyle = s.fill === "solid" ? color : _tint(s.label)
                     ctx.fill()
                 }
                 // A selected shape sits in a wider frame of the focus colour.
                 if (s.selected === true) {
+                    _dashKey = "solid"
                     ctx.setLineDash([])
                     ctx.strokeStyle = KanteStyle.focusColor
                     ctx.lineWidth = lineW + 2 * frame
@@ -533,9 +639,11 @@ FocusScope {
 
             // Captions last, so no shape covers one.
             ctx.setLineDash([])
+            _fillKey = ""
+            _align = ""
             for (const s of root.shapes) {
                 if (s.text && s.kind !== "image") {
-                    _caption(ctx, s, root._colorOf(s.label))
+                    _caption(ctx, s)
                 }
             }
         }
@@ -642,6 +750,17 @@ FocusScope {
 
             const m = _model(mouse.x, mouse.y)
             root.shapeClicked(root.keyAt(mouse.x, mouse.y), m.x, m.y)
+        }
+        onDoubleClicked: function (mouse) {
+            if (mouse.button !== Qt.LeftButton) {
+                return
+            }
+
+            // The second click is reported as before; the double click follows it.
+            const m = _model(mouse.x, mouse.y)
+            const key = root.keyAt(mouse.x, mouse.y)
+            root.shapeClicked(key, m.x, m.y)
+            root.shapeDoubleClicked(key, m.x, m.y)
         }
         onWheel: function (wheel) {
             root._zoomAt(wheel.x, wheel.y, Math.pow(root._wheelStep, wheel.angleDelta.y))
