@@ -63,6 +63,13 @@ impl qobject::Controller {
         self.commit_typed(typed)
     }
 
+    pub(super) fn set_opening_width(self: Pin<&mut Self>, width: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let typed = object::opening_width_edit(selected, &width.to_string());
+
+        self.commit_typed(typed)
+    }
+
     pub(super) fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool {
         let selected = self.rust().selected.only();
         let typed = object::object_height_edit(selected, &height.to_string());

@@ -32,6 +32,11 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
         }),
         ElementKind::Light => s.light_hint(id),
         ElementKind::Object => s.object_hint(id),
+        ElementKind::Opening => id
+            .parse()
+            .ok()
+            .zip(index)
+            .and_then(|(wall, index)| s.opening_hint(wall, index)),
         ElementKind::Note => Some(s.note_hint(id)),
         ElementKind::Drawing => s.drawing_hint(id),
         ElementKind::Wall | ElementKind::DrawingPoint => None,
@@ -104,6 +109,21 @@ mod tests {
         assert_eq!(described(Source::Wall(0)), json!({}));
         assert_eq!(described(Source::Drawing("d".into())), json!({}));
         assert_eq!(describe(&s, "nonsense:x"), json!({}));
+    }
+
+    /// A door or window tells what it is and how wide, under the key the plan wrote (LH-10).
+    #[test]
+    fn describe_gives_the_kind_and_width_of_an_opening() {
+        let s = example();
+        let key = plan::key(&Source::Opening { wall: 2, index: 0 });
+
+        assert_eq!(key, "opening:2:0");
+        assert_eq!(
+            describe(&s, &key),
+            json!({ "kind": "opening", "type": "door", "width": 0.9 })
+        );
+        assert_eq!(describe(&s, "opening:2:5"), json!({}));
+        assert_eq!(describe(&s, "opening:x:0"), json!({}));
     }
 
     /// The drawing card starts from the style the drawing has now (LH-19).

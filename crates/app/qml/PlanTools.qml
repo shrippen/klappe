@@ -82,6 +82,8 @@ RowLayout {
     readonly property var _tools: [
         { name: "select", key: "V", icon: "edit-select" },
         { name: "wall", key: "W", icon: "view-grid" },
+        { name: "door", key: "T", icon: "application-exit" },
+        { name: "window", key: "X", icon: "window-new" },
         { name: "object", key: "O", icon: "draw-cuboid" },
         { name: "figure", key: "F", icon: "user" },
         { name: "camera", key: "C", icon: "camera-video" },
@@ -98,7 +100,7 @@ RowLayout {
     /// The modes (D-01) with the tools of each in groups, separated in the bar. A tool in two modes
     /// (selecting, measuring) belongs to the first; the others show it too.
     readonly property var _modes: [
-        { id: "build", key: "1", groups: [["select"], ["wall", "object"], ["scale", "measure"]] },
+        { id: "build", key: "1", groups: [["select"], ["wall", "door", "window", "object"], ["scale", "measure"]] },
         { id: "stage", key: "2", groups: [["select"], ["figure"], ["measure"]] },
         { id: "resolve", key: "3", groups: [["select"], ["camera", "light"], ["measure"]] },
         { id: "draw", key: "4", groups: [["select"], ["note"], ["line", "arrow", "rect", "ellipse", "area"], ["measure"]] }
@@ -240,7 +242,7 @@ RowLayout {
                 QQC2.ButtonGroup.group: group
                 onClicked: tools.tool = slot.name
                 Accessible.name: text
-                QQC2.ToolTip.text: slot.name === "scale" || slot.name === "measure" || slot.name === "note" || slot.name === "area"
+                QQC2.ToolTip.text: ["scale", "measure", "note", "area", "door", "window"].indexOf(slot.name) >= 0
                     ? tools.texts.t("tool." + slot.name + "Tip", { key: slot.key })
                     : tools.texts.t("tool.tip", { name: text, key: slot.key })
                 QQC2.ToolTip.visible: hovered

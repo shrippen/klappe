@@ -16,6 +16,11 @@ y_m = 0.4
 x_m = 4.1
 y_m = 0.4
 
+[[set.walls.openings]]
+kind = "window"
+at_m = 1.1
+width_m = 1.2
+
 [[set.walls]]
 thickness_m = 0.5
 
@@ -38,99 +43,70 @@ y_m = 1.9
 x_m = 5.6
 y_m = 4.1
 
-[[set.walls]]
-thickness_m = 0.5
-
-[set.walls.from]
-x_m = 5.6
-y_m = 4.1
-
-[set.walls.to]
-x_m = 4.1
-y_m = 5.6
-
-[[set.walls]]
-thickness_m = 0.5
-
-[set.walls.from]
-x_m = 4.1
-y_m = 5.6
-
-[set.walls.to]
-x_m = 1.9
-y_m = 5.6
-
-[[set.walls]]
-thickness_m = 0.5
-
-[set.walls.from]
-x_m = 1.9
-y_m = 5.6
-
-[set.walls.to]
-x_m = 0.4
-y_m = 4.1
-
-[[set.walls]]
-thickness_m = 0.5
-
-[set.walls.from]
-x_m = 0.4
-y_m = 4.1
-
-[set.walls.to]
-x_m = 0.4
-y_m = 1.9
-
-[[set.walls]]
-thickness_m = 0.5
-
-[set.walls.from]
-x_m = 0.4
-y_m = 1.9
-
-[set.walls.to]
-x_m = 1.9
-y_m = 0.4
-
-[[set.objects]]
-id = "tuer"
+[[set.walls.openings]]
 kind = "door"
-label = "Door"
+at_m = 1.1
 width_m = 0.9
-depth_m = 0.5
-rotation_deg = 90.0
-height_m = 2.1
 
-[set.objects.at]
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
 x_m = 5.6
-y_m = 3.0
+y_m = 4.1
 
-[[set.objects]]
-id = "fenster-n"
-kind = "window"
-label = "Window"
-width_m = 1.2
-depth_m = 0.5
-rotation_deg = 0.0
-height_m = 1.2
+[set.walls.to]
+x_m = 4.1
+y_m = 5.6
 
-[set.objects.at]
-x_m = 3.0
-y_m = 0.4
+[[set.walls]]
+thickness_m = 0.5
 
-[[set.objects]]
-id = "fenster-w"
-kind = "window"
-label = "Window"
-width_m = 1.2
-depth_m = 0.5
-rotation_deg = 90.0
-height_m = 1.2
+[set.walls.from]
+x_m = 4.1
+y_m = 5.6
 
-[set.objects.at]
+[set.walls.to]
+x_m = 1.9
+y_m = 5.6
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 1.9
+y_m = 5.6
+
+[set.walls.to]
 x_m = 0.4
-y_m = 3.0
+y_m = 4.1
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 0.4
+y_m = 4.1
+
+[set.walls.to]
+x_m = 0.4
+y_m = 1.9
+
+[[set.walls.openings]]
+kind = "window"
+at_m = 1.1
+width_m = 1.2
+
+[[set.walls]]
+thickness_m = 0.5
+
+[set.walls.from]
+x_m = 0.4
+y_m = 1.9
+
+[set.walls.to]
+x_m = 1.9
+y_m = 0.4
 
 [[set.objects]]
 id = "tisch"

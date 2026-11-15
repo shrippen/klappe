@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     Arrival, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
-    LibraryItem, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
+    LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
 };
 use klappe_stellprobe::Source;
 
@@ -20,6 +20,7 @@ mod grid;
 mod group;
 mod marks;
 mod moving;
+mod openings;
 mod picking;
 mod remove;
 
@@ -36,6 +37,7 @@ pub(crate) use marks::{check_tripods, mark_info};
 use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_pose, set_rig};
 pub use marks::{MarkInfo, Pace};
 use moving::{anchor_pair, carry_cameras, move_to, points_mut, rotate, shift, spin, target, turn};
+use openings::edit_opening;
 use remove::remove;
 
 pub(crate) use picking::{pick, pick_in, pick_lasso};
@@ -144,6 +146,18 @@ pub enum PlanEdit {
     AddWall {
         from: Point,
         to: Point,
+    },
+    /// Sets a door or window, of the standard width of its kind, in the wall nearest `at`
+    /// (LH-10). Refused when no wall is near, the wall is too short or the opening would meet
+    /// another.
+    AddOpening {
+        kind: OpeningKind,
+        at: Point,
+    },
+    /// Gives the opening `source` another width, about its centre (LH-10).
+    SetOpeningWidth {
+        source: Source,
+        width_m: f64,
     },
     /// Pins a note with `text` to the set.
     AddNote {
@@ -297,6 +311,7 @@ impl PlanEdit {
             | PlanEdit::SetRig { source, .. }
             | PlanEdit::SetMarkLens { source, .. }
             | PlanEdit::SetObjectHeight { source, .. }
+            | PlanEdit::SetOpeningWidth { source, .. }
             | PlanEdit::SetPace { source, .. }
             | PlanEdit::SetDrawingStyle { source, .. }
             | PlanEdit::Remove { source }
@@ -319,6 +334,7 @@ impl PlanEdit {
             PlanEdit::AddDrawing { .. } => Layer::Drawings,
             PlanEdit::AddObject { .. }
             | PlanEdit::AddWall { .. }
+            | PlanEdit::AddOpening { .. }
             | PlanEdit::SetBackground { .. }
             | PlanEdit::Calibrate { .. }
             | PlanEdit::MoveBackground { .. }
@@ -332,7 +348,7 @@ impl PlanEdit {
 /// The layer an element of the plan is on.
 fn layer_of_source(source: &Source) -> Layer {
     match source {
-        Source::Object(_) | Source::Wall(_) => Layer::Set,
+        Source::Object(_) | Source::Wall(_) | Source::Opening { .. } => Layer::Set,
         Source::Light(_) => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
@@ -361,6 +377,11 @@ enum Target<'a> {
         facing_deg: &'a mut f64,
     },
     Wall(&'a mut Wall),
+    /// An opening, which only slides along its wall.
+    Slide {
+        wall: &'a mut Wall,
+        index: usize,
+    },
     /// Has a place but no facing: a note.
     Pin {
         at: &'a mut Point,
@@ -462,6 +483,9 @@ pub(crate) fn apply(
             depth_m,
         } => resize(&mut scope, source, (*width_m, *depth_m)),
         PlanEdit::AddWall { from, to } => add_wall(&mut scope, *from, *to),
+        PlanEdit::AddOpening { .. } | PlanEdit::SetOpeningWidth { .. } => {
+            edit_opening(&mut scope, edit)
+        }
         PlanEdit::AddNote { at, text } => add_note(&mut scope, *at, text),
         PlanEdit::AddDrawing {
             shape,

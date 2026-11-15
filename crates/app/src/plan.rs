@@ -78,13 +78,14 @@ pub enum ElementKind {
     FigureVia,
     CameraVia,
     Wall,
+    Opening,
     Note,
     Drawing,
     DrawingPoint,
 }
 
 impl ElementKind {
-    const ALL: [ElementKind; 11] = [
+    const ALL: [ElementKind; 12] = [
         Self::Object,
         Self::Light,
         Self::Camera,
@@ -93,6 +94,7 @@ impl ElementKind {
         Self::FigureVia,
         Self::CameraVia,
         Self::Wall,
+        Self::Opening,
         Self::Note,
         Self::Drawing,
         Self::DrawingPoint,
@@ -108,6 +110,7 @@ impl ElementKind {
             Self::FigureVia => "figurevia",
             Self::CameraVia => "cameravia",
             Self::Wall => "wall",
+            Self::Opening => "opening",
             Self::Note => "note",
             Self::Drawing => "drawing",
             Self::DrawingPoint => "drawingpoint",
@@ -134,6 +137,7 @@ pub fn key(source: &Source) -> String {
             (ElementKind::CameraVia, format!("{camera}:{index}"))
         }
         Source::Wall(index) => (ElementKind::Wall, index.to_string()),
+        Source::Opening { wall, index } => (ElementKind::Opening, format!("{wall}:{index}")),
         Source::Note(id) => (ElementKind::Note, id.clone()),
         Source::Drawing(id) => (ElementKind::Drawing, id.clone()),
         Source::DrawingPoint { drawing, index } => {
@@ -585,6 +589,12 @@ mod tests {
                 Some(3),
             ),
             (Source::Wall(4), ElementKind::Wall, "4", None),
+            (
+                Source::Opening { wall: 4, index: 1 },
+                ElementKind::Opening,
+                "4",
+                Some(1),
+            ),
             (Source::Note("n".into()), ElementKind::Note, "n", None),
             (Source::Drawing("d".into()), ElementKind::Drawing, "d", None),
             (

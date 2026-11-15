@@ -114,6 +114,10 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     };
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
+    check_openings(&locations).map_err(|message| StoreError::Parse {
+        path: dir.join(LOCATIONS_DIR),
+        message,
+    })?;
     let scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
@@ -306,6 +310,26 @@ fn check_groups(characters: &[Character]) -> Result<(), String> {
             return Err(format!(
                 "{}: group of {count} is not usable ({MIN_GROUP} to {MAX_GROUP})",
                 character.id
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// An opening is a gap with a width, somewhere along its wall.
+fn check_openings(locations: &[Location]) -> Result<(), String> {
+    for location in locations {
+        let openings = location.set.walls.iter().flat_map(|w| &w.openings);
+
+        for opening in openings {
+            if opening.width_m.is_finite() && opening.width_m > 0.0 && opening.at_m.is_finite() {
+                continue;
+            }
+
+            return Err(format!(
+                "{}: opening of {} m at {} m is not usable",
+                location.id, opening.width_m, opening.at_m
             ));
         }
     }

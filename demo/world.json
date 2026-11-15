@@ -13527,7 +13527,14 @@
         "x_m": 4.1,
         "y_m": 0.4
        },
-       "thickness_m": 0.5
+       "thickness_m": 0.5,
+       "openings": [
+        {
+         "kind": "window",
+         "at_m": 1.1,
+         "width_m": 1.2
+        }
+       ]
       },
       {
        "from": {
@@ -13549,7 +13556,14 @@
         "x_m": 5.6,
         "y_m": 4.1
        },
-       "thickness_m": 0.5
+       "thickness_m": 0.5,
+       "openings": [
+        {
+         "kind": "door",
+         "at_m": 1.1,
+         "width_m": 0.9
+        }
+       ]
       },
       {
        "from": {
@@ -13593,7 +13607,14 @@
         "x_m": 0.4,
         "y_m": 1.9
        },
-       "thickness_m": 0.5
+       "thickness_m": 0.5,
+       "openings": [
+        {
+         "kind": "window",
+         "at_m": 1.1,
+         "width_m": 1.2
+        }
+       ]
       },
       {
        "from": {
@@ -13608,54 +13629,6 @@
       }
      ],
      "objects": [
-      {
-       "id": "tuer",
-       "kind": "door",
-       "label": {
-        "de": "Tür",
-        "en": "Door"
-       },
-       "at": {
-        "x_m": 5.6,
-        "y_m": 3.0
-       },
-       "width_m": 0.9,
-       "depth_m": 0.5,
-       "rotation_deg": 90.0,
-       "height_m": 2.1
-      },
-      {
-       "id": "fenster-n",
-       "kind": "window",
-       "label": {
-        "de": "Fenster",
-        "en": "Window"
-       },
-       "at": {
-        "x_m": 3.0,
-        "y_m": 0.4
-       },
-       "width_m": 1.2,
-       "depth_m": 0.5,
-       "rotation_deg": 0.0,
-       "height_m": 1.2
-      },
-      {
-       "id": "fenster-w",
-       "kind": "window",
-       "label": {
-        "de": "Fenster",
-        "en": "Window"
-       },
-       "at": {
-        "x_m": 0.4,
-        "y_m": 3.0
-       },
-       "width_m": 1.2,
-       "depth_m": 0.5,
-       "rotation_deg": 90.0,
-       "height_m": 1.2
-      },
       {
        "id": "tisch",
        "kind": "table",

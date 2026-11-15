@@ -125,6 +125,34 @@ fn tools_are_named_as_the_tool_bar_spells_them() {
     assert_eq!(Tool::parse("pencil", ""), None);
 }
 
+/// LH-10: the door and window tools set an opening where the click is; the session finds the
+/// wall.
+#[test]
+fn a_click_with_the_door_or_window_tool_sets_an_opening() {
+    let at = p(2.0, 3.0);
+
+    assert_eq!(
+        Tool::parse("door", ""),
+        Some(Tool::Opening(OpeningKind::Door))
+    );
+    assert_eq!(
+        click_edit(&tool("door", ""), at),
+        Some(PlanEdit::AddOpening {
+            kind: OpeningKind::Door,
+            at
+        })
+    );
+    assert_eq!(
+        click_edit(&tool("window", ""), at),
+        Some(PlanEdit::AddOpening {
+            kind: OpeningKind::Window,
+            at
+        })
+    );
+    // A drag with them draws nothing.
+    assert_eq!(drag_edit(&tool("door", ""), None, at, p(5.0, 3.0)), None);
+}
+
 #[test]
 fn the_lamp_tool_takes_the_choice_as_it_is() {
     assert_eq!(

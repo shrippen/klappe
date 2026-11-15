@@ -98,7 +98,7 @@ impl Session {
 /// Which layer switch an item of the display list belongs to.
 pub(super) fn layer_of(role: Role) -> Layer {
     match role {
-        Role::Background | Role::Wall | Role::Object => Layer::Set,
+        Role::Background | Role::Wall | Role::Door | Role::Window | Role::Object => Layer::Set,
         Role::Light | Role::LightBeam => Layer::Lights,
         Role::Camera | Role::Frustum | Role::CameraPath { .. } | Role::CameraHandle => {
             Layer::Cameras

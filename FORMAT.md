@@ -88,6 +88,17 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Ort `at` in Metern und `text`. Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
+- **Türen und Fenster in Wänden (LH-10):** jede `[[set.walls]]` kann `[[set.walls.openings]]`
+  tragen: `kind` (`door` oder `window`), `at_m` (Meter von `from` der Wand bis zur Mitte der
+  Öffnung, entlang der Wand) und `width_m` (größer als 0). Die Wand hat dort eine Lücke; die Tür
+  schwingt auf dem Plan nach rechts, von `from` Richtung `to` gesehen, das Scharnier liegt am
+  Anfang der Lücke. Ohne Öffnungen steht der Schlüssel nicht in der Datei, ältere Projekte
+  laden und speichern unverändert. Laden lehnt eine Öffnung ab, deren Breite oder Lage keine
+  Zahl ist oder deren Breite nicht über 0 liegt. Eine Öffnung, die über das Wandende reicht
+  oder eine andere überdeckt, lädt; die Bearbeitung lässt so etwas nicht zu. Öffnungen werden
+  über Wand und Index angesprochen, nicht über eine Id. Treppen bleiben Objekte der Bibliothek
+  (`kind = "stairs"`); `door` und `window` gibt es dort weiter als Objekte ohne Wand. Keine
+  neue Formatversion, wie bei den Notizen.
 - **Zeichnungen (LH-19):** `drawings` im Floorplan der Szene (`szenen/<id>.json`), je Eintrag
   `id` (`d1`, `d2` …, innerhalb des Floorplans), `shape`, `color`, `dash` und `fill`. `shape` hat
   `kind`: `line` und `arrow` (Spitze bei `to`) mit `from` und `to`; `rect` und `ellipse` mit zwei

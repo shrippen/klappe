@@ -7,6 +7,7 @@ use crate::axis::axis_at;
 use crate::card::note_card;
 use crate::light::{lamps, light_items, Lamp};
 use crate::motion::{bend_point, camera_at, figure_at, path, walked_ways};
+use crate::opening::wall_items;
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
 use crate::rig::{rig_dash, rig_runs};
 
@@ -65,6 +66,10 @@ pub enum Role {
     /// The set's background image, behind everything else.
     Background,
     Wall,
+    /// A door in a wall (LH-10): the leaf and the quarter circle it swings through.
+    Door,
+    /// A window in a wall (LH-10): two thin lines in the gap.
+    Window,
     Object,
     LightBeam,
     Light,
@@ -121,6 +126,11 @@ pub enum Source {
     },
     /// Index into the set's walls.
     Wall(usize),
+    /// Opening `index` of the set's wall `wall` (LH-10).
+    Opening {
+        wall: usize,
+        index: usize,
+    },
     Note(String),
     Drawing(String),
     /// Point or corner `index` of a drawing (LH-19): a grip. A rectangle or ellipse has its
@@ -219,18 +229,7 @@ fn background_item(background: &Background, px: (u32, u32), items: &mut Vec<Item
 }
 
 fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
-    for (index, wall) in set.walls.iter().enumerate() {
-        items.push(Item {
-            role: Role::Wall,
-            shape: Shape::Line {
-                from: wall.from,
-                to: wall.to,
-                width_m: wall.thickness_m,
-            },
-            label: None,
-            source: Some(Source::Wall(index)),
-        });
-    }
+    wall_items(set, items);
 
     for object in &set.objects {
         items.push(Item {
@@ -732,11 +731,7 @@ mod tests {
         SetPlan {
             width_m: 20.0,
             depth_m: 13.0,
-            walls: vec![Wall {
-                from: Point::new(0.0, 0.0),
-                to: Point::new(20.0, 0.0),
-                thickness_m: 0.2,
-            }],
+            walls: vec![Wall::new(Point::new(0.0, 0.0), Point::new(20.0, 0.0), 0.2)],
             objects: vec![],
             background: None,
             notes: Vec::new(),

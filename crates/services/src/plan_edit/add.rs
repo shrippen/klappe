@@ -257,11 +257,7 @@ pub(super) fn add_wall(scope: &mut Scope<'_>, from: Point, to: Point) -> Result<
         .set
         .as_deref_mut()
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
-    set.walls.push(Wall {
-        from,
-        to,
-        thickness_m: DEFAULT_WALL_M,
-    });
+    set.walls.push(Wall::new(from, to, DEFAULT_WALL_M));
 
     Ok(())
 }

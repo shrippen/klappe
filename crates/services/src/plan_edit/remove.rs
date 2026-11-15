@@ -3,6 +3,7 @@
 use klappe_model::{FloorPlan, LinkTarget};
 use klappe_stellprobe::Source;
 
+use super::openings::opening_mut;
 use super::{straighten, Scope};
 use crate::error::ServiceError;
 use crate::field::Field;
@@ -42,6 +43,11 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
             }
 
             set.walls.remove(*index);
+            Ok(())
+        }
+        Source::Opening { .. } => {
+            let (wall, index) = opening_mut(scope, source)?;
+            wall.openings.remove(index);
             Ok(())
         }
         Source::Note(id) => {

@@ -38,8 +38,8 @@ pub use plan::{
     Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,
 };
 pub use project::{
-    Background, Character, FigureColor, Location, Note, Project, Scene, SetObject, SetPlan, Wall,
-    MAX_GROUP, MIN_GROUP,
+    Background, Character, FigureColor, Location, Note, Opening, OpeningKind, Project, Scene,
+    SetObject, SetPlan, Wall, MAX_GROUP, MIN_GROUP,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
 
