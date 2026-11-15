@@ -1,111 +1,85 @@
-# Code-Audit Klappe, 15.11.2026, Stand e4100e9
+# Code-Audit Klappe, 15.11.2026, Stand d295047
 
 ## Urteil
-Das Repo bleibt wartbar. Die Schichten halten: Jedes Paket hängt nur von den Paketen ab, die `ARCHITECTURE.md` erlaubt, und die neue Kopie von Kante stimmt mit dem Original überein. Gegenüber dem vierten Audit ist der Zustand etwas schlechter. Kein Fund wurde auf Entscheidung des Eigentümers behoben. Zwei Dateien haben Luft bekommen, weil Teile wegen der Größengrenze in eigene Dateien umgezogen sind. Gleichzeitig sind fünf Einträge der Bestandsliste gewachsen und einer ist neu dazugekommen. Die Vorlagen (LH-07) haben neue Doppelungen gebracht: Die Grenzwerte für Kameras werden in Ablage und Sitzung je eigens geprüft, und das Verschieben von Marks steht an drei Stellen. Eine Regel für Figurennamen steht dreimal im Code. Dass solche Kopien auseinanderlaufen, hat in diesem Zeitraum schon zwei Korrektur-Commits gekostet.
+Das Repo bleibt wartbar, und es steht etwas besser da als beim fünften Audit. Vier Funde wurden behoben: Die Grenzwerte für Kameras stehen jetzt einmal im Modell. Die App holt Einstellungsgröße und Perspektive aus der Sitzung. Fehlertexte kommen für Fenster und Kommandozeile aus demselben Katalog. Die Objektbibliothek hat einen eigenen Teil, und die Datei für Projektänderungen ist von 687 auf 575 Zeilen geschrumpft. Die Schichten halten: Jedes Paket hängt nur von den Paketen ab, die `ARCHITECTURE.md` erlaubt. Die neuen Funktionen nutzen zum großen Teil vorhandene Bausteine: Die Figurengröße wird in Ablage und Sitzung mit derselben Prüfung aus dem Modell geprüft, und Grundriss und Kamerablick schneiden Türen mit derselben Funktion aus der Wand. Auf der Gegenseite stehen drei neue kleine Doppelungen, siehe Funde 1 bis 3. Außerdem ist die Bestandsliste wieder gewachsen: Sieben Einträge sind größer geworden, einer ist neu.
 
 ## Kennzahlen
 | | letztes Audit | jetzt |
 |---|---|---|
-| Quelldateien | 260 (ohne die Kopie von Kante, so gezählt wie die Strukturprüfung) | 297 |
-| Einträge in der Bestandsliste | 31 | 31 (einer weg: `tst_planarea.qml`; einer neu: `look` in Stellprobe) |
-| größte Datei (Zeilen) | 1534 (`crates/stellprobe/src/display.rs`) | 1582 (dieselbe Datei, davon 880 Zeilen Tests) |
-| längste Funktion (Zeilen) | 130 (`plan` in einem Test der Ablage); ohne Tests 125 (`apply` in `plan_edit.rs`) | 131 (`plan` im Test und `apply` in `plan_edit.rs` gleichauf). `switched` ist von 496 auf 544 Zeilen gewachsen. Es ist weiter keine Funktion, sondern die Liste der Aufrufe der Verbindung zur Oberfläche. |
+| Quelldateien | 297 (ohne die Kopie von Kante, so gezählt wie die Strukturprüfung) | 316 |
+| Einträge in der Bestandsliste | 31 | 32 (neu: `load` in der Ablage; `error_text` ist mit gleicher Größe aus der App in die Sitzung umgezogen) |
+| größte Datei (Zeilen) | 1582 (`crates/stellprobe/src/display.rs`) | 1559 (dieselbe Datei) |
+| längste Funktion (Zeilen) | 131 (`plan` im Test der Ablage und `apply` in `plan_edit.rs` gleichauf) | 134 (`apply` in `plan_edit.rs`). `switched` ist von 544 auf 558 Zeilen gewachsen. Es ist weiter keine Funktion, sondern die Liste der Aufrufe der Verbindung zur Oberfläche. |
 
 ## Funde
 
-### 1. Ob zwei Figurennamen gleich sind, steht an drei Stellen
-Zwei Figuren dürfen keinen Namen haben, der im Drehbuch dieselbe Sprecherzeile ergibt. „Strauss“ und „Strauß“ sind zum Beispiel beide „STRAUSS“. Diese Regel steht dreimal im Code:
-- beim Erkennen der Sprecherzeilen im Drehbuch,
-- bei der Prüfung, ob ein neuer Figurenname noch frei ist,
-- beim Einsetzen einer Vorlage, das für einen Platzhalter einen freien Namen sucht („A“, „A 2“ …).
+### 1. Die Großschreibung beim Tippen (DB-01) kopiert Regeln des Drehbuchlesers in das Terminalprogramm
+Beim Tippen werden Szenenköpfe und mit `@` erzwungene Figurennamen großgeschrieben. Dafür muss das Programm wissen, wo im Szenenkopf die Szenennummer beginnt (`#12a#`). Es muss auch wissen, wo eine Erweiterung wie „(cont'd)“ beginnt und dass „ß“ klein bleibt. Diese Regeln stehen schon im Leser des Drehbuchs, also dem Teil, der aus dem Text die Elemente macht. Das Terminalprogramm hat sie mit eigenen Konstanten nachgeschrieben. Eine der Regeln lautet zum Beispiel: Ein `#` mit einem Leerzeichen dahinter beginnt keine Nummer.
 
-Die Stellen sind schon auseinandergelaufen. Die Namensprüfung hat in Kleinbuchstaben verglichen, das Drehbuch in Großbuchstaben. Dadurch flossen die Zeilen zweier Figuren im Drehbuch zusammen. Behoben wurde das im Commit `45db506`, eine Stelle von Hand an die andere angeglichen. Die dritte Stelle ist mit den Vorlagen neu dazugekommen. Sie muss zur Namensprüfung passen, sonst lehnt das Einsetzen einer Vorlage die eigene Figur ab. Schon heute unterscheiden sich die Stellen in einem Detail: Nur das Drehbuch entfernt vorher Leerzeichen am Rand.
+Was das kostet, war schon beim Entstehen zu sehen. Die Kopie musste zweimal an den Leser angeglichen werden. Einmal wurde „#3a#“ zu „#3A#“, und damit änderte sich die Nummer, auf die Shots verweisen. Einmal blieb bei „int. büro #2 flur“ das Wort „flur“ klein. Ändert sich eine Fountain-Regel im Leser, muss die Kopie von Hand mitgezogen werden. Das Fenster bekommt laut `ARCHITECTURE.md` noch einen eigenen Drehbuch-Editor (DB-23). Der braucht dieselbe Großschreibung, kommt aber an den Code im Terminalprogramm nicht heran. Es entstünde eine dritte Kopie.
 
-Vorschlag: eine Funktion „gleicher Sprechername“ neben dem Drehbuch-Code, die alle drei Stellen aufrufen. Aufwand klein. Risiko gering: `services/tests/rename.rs` (`names_that_share_a_cue_are_taken`) und `services/tests/templates.rs` prüfen beide Seiten.
+Vorschlag: Die Großschreibung einer Zeile kommt neben den Leser in das Drehbuch-Paket, nutzt dessen Konstanten und dessen Regel für Nummern und wird über die Sitzung angeboten. Das Terminalprogramm ruft sie nur auf, später auch das Fenster. Aufwand klein. Risiko gering: Die Tests in `tui/src/fountain.rs` und `tui/src/tests.rs` prüfen jeden bisher gefundenen Fall.
 
-Beleg: `crates/services/src/script_refs.rs:116`, `crates/services/src/project_edit.rs:310`, `crates/services/src/plan_edit/template.rs:142`, `crates/services/tests/rename.rs:186`, Commit `45db506`.
+Beleg: `crates/tui/src/fountain.rs:121`, `crates/tui/src/fountain.rs:122`, `crates/tui/src/fountain.rs:124`, `crates/tui/src/fountain.rs:128`, `crates/tui/src/fountain.rs:151`, `crates/tui/src/fountain.rs:162`, `crates/tui/src/fountain.rs:167`, `crates/script/src/parse.rs:9`, `crates/script/src/parse.rs:15`, `crates/script/src/parse.rs:17`, `crates/script/src/parse.rs:374`, `crates/script/src/parse.rs:393`, `crates/script/src/parse.rs:407`, `ARCHITECTURE.md` (Abschnitt „Known deviations“), Commits `80bf207`, `d037105`.
 
-### 2. Einstellungsgröße und Perspektive stehen als eigene Liste in der App
-Jeder Shot hat drei Auswahlen: Einstellungsgröße (Totale bis Detail), Perspektive (Normalsicht, Aufsicht …) und Kamerabewegung. Für die Bewegung holt die App die Liste aus der Sitzung. Die beiden anderen Listen hat sie selbst abgeschrieben. Das widerspricht `ARCHITECTURE.md`: Die Namen einer Auswahl stehen einmal neben dem Typ, und die Oberflächen bekommen sie von dort. Mit der neuen Shot-Tabelle (D-05) nutzt jetzt auch eine zweite Ansicht die abgeschriebene Liste.
+### 2. Die Breite von Türen und Fenstern prüfen Ablage und Sitzung je für sich, mit verschiedener Regel
+Mit Fund 3 des fünften Audits wurde für Kameras und Marks festgelegt: Die Prüfung „liegt der Wert innerhalb?“ steht einmal im Modell, und Ablage und Sitzung rufen sie auf. Bei Türen und Fenstern (LH-10) ist das nicht geschehen. Die Ablage prüft beim Öffnen eines Projekts selbst nur, ob die Breite eine Zahl über null ist. Die Sitzung prüft beim Eintippen dagegen mit der Regel für die Seitenlänge eines Möbelstücks, also höchstens 1000 m. Eine Tür von 2000 m Breite in der Datei wird deshalb ohne Fehler geöffnet und gezeichnet. Tippt man denselben Wert in die Karte der Tür, wird er abgelehnt. Dazu trägt die Prüfung in der Sitzung den Namen „Größe eines Möbelstücks“. Wer eine Grenze für Türen ändern will, sucht dort nicht danach.
 
-Kommt eine Einstellungsgröße dazu oder wird eine umbenannt, zeigt die App sie nicht an, oder sie schickt einen Namen, den die Sitzung ablehnt. Kein Test bemerkt das, weil die Listen nirgends verglichen werden. Die Tabelle in `ARCHITECTURE.md` sagt für eine neue Auswahl „nichts in einer Oberfläche“. Hier stimmt das nicht.
+Bei der Figurengröße (LH-25) aus demselben Zeitraum ist es richtig gelöst: Ablage und Sitzung rufen beide `is_figure_size_m` aus dem Modell auf.
 
-Vorschlag: Größe und Perspektive kommen wie die Bewegung in die Liste der Auswahlen, die die Verbindung an die Oberfläche gibt. Die App liest sie von dort. Aufwand klein. Risiko gering: `tst_shotlist.qml` und der Test der Auswahlliste in `bridge/view.rs` sind vorhanden.
+Vorschlag: Eine Prüfung „ist eine Türbreite“ kommt neben die Türen ins Modell, und Ablage und Sitzung rufen sie auf. Das lässt sich gut zusammen mit dem offenen Fund 4 des vierten Audits beheben, der denselben Mangel für Lampen beschreibt. Aufwand klein. Risiko gering: `store/tests/openings.rs` und `services/tests/openings.rs` decken beide Seiten ab.
 
-Beleg: `crates/app/qml/ShotPanel.qml:87`, `crates/app/qml/ShotPanel.qml:88`, `crates/app/qml/ShotPanel.qml:89`, `crates/app/qml/ShotTable.qml:117`, `crates/app/qml/ShotTable.qml:118`, `crates/app/src/bridge/view.rs:285`, `crates/app/src/bridge/view.rs:306`, `crates/model/src/shot.rs:64`, `crates/model/src/shot.rs:110`, `ARCHITECTURE.md:63`, `ARCHITECTURE.md:77`.
+Beleg: `crates/store/src/lib.rs:356`, `crates/store/src/lib.rs:361`, `crates/services/src/plan_edit/check.rs:156`, `crates/services/src/plan_edit/check.rs:157`, `crates/model/src/library.rs:7`, `crates/model/src/project.rs:271`, zum Vergleich `crates/store/src/lib.rs:341` und `crates/services/src/project_edit.rs:471`.
 
-### 3. Die Grenzwerte für Kamera und Marks werden in Ablage und Sitzung je eigens geprüft, beim Objektiv mit zwei verschiedenen Höchstwerten
-Mit den Vorlagen kamen die Grenzwerte für Objektiv, Sensor, Bildformat, Kamerahöhe, Neigung und Planfläche als Zahlen ins Modell. Das ist gut. Die Prüfung „liegt der Wert innerhalb?“ steht aber zweimal:
-- einmal in der Sitzung für die Karten,
-- einmal in der Ablage für die Vorlagen.
+### 3. Die Spalte „Achsensprung gegen“ wird in Sitzung und Ausgabe je für sich geschrieben
+Springt ein Shot über die 180°-Achse, nennen Shot-Tabelle und ausgegebene Shotliste die Nummern der Shots auf der anderen Seite, etwa „12.1, 12.2“. Diesen Text bauen zwei Funktionen in zwei Paketen, jede mit eigener Konstante für das Trennzeichen. In einem Detail unterscheiden sie sich schon: Findet die Ausgabe einen Shot nicht, schreibt sie dessen inneren Namen hin, die Sitzung lässt ihn weg. Soll die Spalte anders aussehen, etwa mit Semikolon oder „gegen 12.1“, muss man beide Stellen ändern. Sonst zeigen Fenster und Ausdruck Verschiedenes.
 
-Das gilt auch für die Pause an einem Mark. Bei Möbeln liegen solche Prüfungen schon als Funktionen im Modell, die beide Seiten aufrufen. Wie teuer die Kopie ist, zeigt der Korrektur-Commit „Hold templates to the editor's bounds“ (`0c782f3`) in diesem Zeitraum. Dort wurde die Ablage nachträglich an die Karten angeglichen. Der offene Fund 4 des letzten Audits beschreibt denselben Mangel für Lampen.
+Vorschlag: Der Text kommt einmal neben die Berechnung der Achsensprünge in Stellprobe (zum Beispiel als Nummernliste am Achsensprung), und beide Stellen verwenden ihn. Aufwand klein. Risiko gering: `services/tests/axis.rs` und `export/tests/shots.rs` prüfen den Text auf beiden Seiten.
 
-Dazu kommt eine dritte Grenze für dieselbe Sache. Das Objektiv eines Shots darf höchstens 2000 mm haben, mit einer eigenen Konstante gleichen Namens. Die Kamera und ihre Marks erlauben bis 5000 mm. Eine Kamera mit 3000 mm ist erlaubt. Tippt man denselben Wert in die Objektivspalte eines Shots, wird er abgelehnt.
+Beleg: `crates/services/src/session/shots.rs:11`, `crates/services/src/session/shots.rs:14`, `crates/export/src/shots.rs:21`, `crates/export/src/shots.rs:77`, `crates/stellprobe/src/axis.rs:71`, `crates/stellprobe/src/axis.rs:83`.
 
-Vorschlag: Die Prüfungen kommen als kleine Funktionen neben die Grenzwerte ins Modell, wie bei Möbeln. Sitzung und Ablage rufen sie auf. Der Eigentümer entscheidet, ob ein Shot dieselbe Objektivgrenze hat wie die Kamera. Am besten zusammen mit dem offenen Fund 4 zu den Lampen beheben. Aufwand klein bis mittel. Risiko gering: `store/tests/templates.rs`, `services/tests/templates.rs`, `services/tests/camera.rs` und die Tests in `edit.rs` decken beide Seiten ab.
+### 4. Bestandsliste: Die Verteiler der Planänderungen wachsen mit jeder neuen Art von Element
+Die Einschätzung der letzten Audits gilt weiter, siehe unten bei Fund 6 des fünften Audits. Neu ist Folgendes.
 
-Beleg: `crates/model/src/limits.rs:18`, `crates/store/src/template.rs:67`, `crates/store/src/template.rs:87`, `crates/store/src/template.rs:92`, `crates/store/src/template.rs:98`, `crates/services/src/camera_edit.rs:18`, `crates/services/src/camera_edit.rs:34`, `crates/services/src/plan_edit/check.rs:96`, `crates/services/src/plan_edit/check.rs:108`, `crates/services/src/edit.rs:62`, `crates/services/src/edit.rs:63`, `crates/model/src/library.rs:7`, Commit `0c782f3`.
+**Gewachsen, an einer Naht trennbar:** Mit Türen und Fenstern hat jede Funktion, die nach der Art des Elements verzweigt, einen Zweig mehr bekommen:
+- `apply`: 134 statt 131 Zeilen, 42 statt 41 Verzweigungen,
+- `check`: 22 statt 21,
+- das Ziel einer Verschiebung `target`: 130 statt 126 Zeilen,
+- `remove`: 21 statt 19,
+- `copy`: 86 statt 85 Zeilen.
 
-### 4. Marks verschieben und die Mitte einer Gruppe finden ist mehrfach geschrieben
-Drei Vorgänge versetzen eine Gruppe von Figuren und Kameras um ein Stück:
-- Kopieren mehrerer Elemente,
-- Einsetzen einer Vorlage,
-- Ablegen eines Plans als Vorlage.
+Die nächste Art von Element verlängert wieder alle fünf. Für `target` bleibt der Vorschlag des letzten Audits: nach Element trennen. Die Türen zeigen, dass das geht: Ihr Hinzufügen und ihre Breite stehen schon in einer eigenen Datei `plan_edit/openings.rs`, und `apply` gibt nur weiter.
 
-Jeder hat seine eigene Funktion, die einen Punkt verschiebt, und eigene Funktionen, die einen Mark samt Umweg verschieben. Die Funktionen gibt es jeweils für Figuren-Marks und für Kamera-Marks. Das sind sechs fast gleiche Funktionen in drei Dateien. Auch die Mitte des Rahmens um eine Gruppe von Punkten ist zweimal geschrieben, in zwei Dateien. Dazu kommt eine Funktion „Punkt drehen“, die nur die gleichnamige Funktion des Modells aufruft.
+**Neu in der Liste:** Das Laden eines Projekts in der Ablage (`load`, 16 Verzweigungen) kam mit den Prüfungen für Figurengröße und Türen dazu. Das ist noch eine flache Folge von Schritten. Kommt eine weitere Prüfung beim Laden dazu, gehören die Prüfungen in einen eigenen Schritt.
 
-Bekommt ein Mark einen weiteren Ort, etwa einen zweiten Umweg, muss das an allen drei Stellen ergänzt werden. Vergisst man eine, bleibt beim Kopieren oder beim Einsetzen einer Vorlage ein Teil des Wegs an der alten Stelle liegen.
+**Knapp unter der Grenze von 800 Zeilen:** Das sind jetzt neun Dateien. Gewachsen sind die Tests der Projektverwaltung `services/tests/manage.rs` (796 statt 702), `bridge/view.rs` (777 statt 748), `bridge.rs` (764 statt 746), `app/src/plan.rs` (762 statt 748) und `plan_edit.rs` (755 statt 731). Unverändert knapp sind `services/tests/library.rs` (800), `export/tests/export.rs` (795), `services/tests/session.rs` (788) und `model/src/plan.rs` (787). Der Rat, neue Tests in neue Dateien nach Thema zu legen, wurde meist befolgt: `openings.rs`, `axis.rs`, `camera_view.rs` und `figure_size.rs` sind neu. Nur die Tests der Projektverwaltung sind stattdessen um fast 100 Zeilen gewachsen.
 
-Vorschlag: Der Punkt bekommt im Modell ein „verschoben um“, Figuren- und Kamera-Mark je ein „verschoben um“, und die Mitte des Rahmens steht einmal neben der Geometrie des Modells. Die drei Stellen rufen diese Funktionen auf, die Drehfunktion ohne eigene Arbeit entfällt. Aufwand klein. Risiko gering: `services/tests/templates.rs` und `services/tests/multisel.rs` decken Einsetzen, Ablegen und Kopieren ab.
+Aufwand klein je Stelle. Risiko gering: `services/tests/plan_edit.rs`, `openings.rs`, `drawing_grips.rs` und `multisel.rs` decken die Verteiler ab.
 
-Beleg: `crates/services/src/plan_edit/group.rs:184`, `crates/services/src/plan_edit/group.rs:226`, `crates/services/src/plan_edit/group.rs:293`, `crates/services/src/plan_edit/template.rs:115`, `crates/services/src/plan_edit/template.rs:119`, `crates/services/src/plan_edit/template.rs:127`, `crates/services/src/project_edit/templates.rs:141`, `crates/services/src/project_edit/templates.rs:155`, `crates/services/src/project_edit/templates.rs:160`, `crates/services/src/project_edit/templates.rs:168`, `crates/services/src/plan_edit/moving.rs:448`, `crates/model/src/geometry.rs:29`.
-
-### 5. Das Einsetzen einer Vorlage liegt bei den Planänderungen und ruft die Projektänderungen auf, die es selbst auslösen
-Eine Vorlage einsetzen ist in der Sitzung eine Änderung am Projekt, weil dabei neue Figuren entstehen können. Sie wird auch von den Projektänderungen ausgelöst. Der Code dafür liegt aber bei den Planänderungen. Für neue Figuren ruft er wieder zurück in die Projektänderungen. Damit verweisen die beiden Bereiche gegenseitig aufeinander, also im Kreis. Wer am Einsetzen etwas ändert, muss beide Bereiche kennen und vier Dateien zu Vorlagen in der Sitzung auseinanderhalten (`templates.rs`, `session/templates.rs`, `project_edit/templates.rs`, `plan_edit/template.rs`).
-
-Vorschlag: Das Einsetzen zieht in die Datei der Vorlagen bei den Projektänderungen. Dort wird es schon ausgelöst und dort entstehen die neuen Figuren. Von den Planänderungen braucht es dann nur noch die Suche nach einem freien Kamerabuchstaben, in eine Richtung. Aufwand klein. Risiko gering: `services/tests/templates.rs` prüft Einsetzen und Ablegen.
-
-Beleg: `crates/services/src/plan_edit/template.rs:8`, `crates/services/src/plan_edit/template.rs:15`, `crates/services/src/project_edit/templates.rs:11`, `crates/services/src/project_edit/templates.rs:20`, `crates/services/src/project_edit/templates.rs:184`, `crates/services/src/project_edit.rs:91`, `crates/services/src/project_edit.rs:175`.
-
-### 6. Bestandsliste: was gewachsen ist und was knapp unter der Grenze liegt
-Die Einschätzung der letzten beiden Audits gilt weiter, siehe unten. Neu ist Folgendes.
-
-**Gewachsen und an einer Naht trennbar:**
-- Der Verteiler der Planänderungen `apply` hat jetzt 131 statt 125 Zeilen. Er wächst mit jeder neuen Art der Planänderung, ebenso seine Prüfung `check`.
-- Das Ziel einer Verschiebung `target` hat jetzt 126 statt 116 Zeilen. Es wählt je Art des gegriffenen Elements aus, Figuren- und Kamera-Marks in fast gleichen Zweigen. Das teilt sich nach Element: Marks, Wände, Zeichnungen.
-- Fund 4 oben spart in `group.rs` einige Zeilen von `copy`.
-
-**Gewachsen, aber in Ordnung:**
-- `switched` (544 Zeilen) bleibt eine flache Liste.
-- `error_text` (24 Verzweigungen) bleibt eine flache Zuordnung. Ihr Ort ist Fund 1 des dritten Audits.
-- Neu in der Liste ist `look` in Stellprobe (16 Verzweigungen). Es ist eine flache Tabelle „Rolle → Aussehen“, wie `ARCHITECTURE.md` sie will.
-- `display.rs` ist auf 1582 Zeilen gewachsen, davon 880 Zeilen Tests.
-
-**Knapp unter der Grenze von 800 Zeilen:**
-- `services/tests/library.rs` hat genau 800 Zeilen. Der nächste Test gehört in eine neue Datei nach Thema, wie es die neuen `templates.rs`, `retime.rs` und `drawing_grips.rs` schon machen.
-- `export/tests/export.rs` hat 798 Zeilen, `services/tests/session.rs` 788. Für beide gilt dasselbe.
-- `model/src/plan.rs` hat 787 Zeilen, davon 214 Tests. Die Datei hat eine natürliche Naht: Zeichnungen samt Strichart und Füllung sowie Lampen samt Lichtart können je in eine eigene Datei, wie es Shots und Vorlagen schon sind.
-- `bridge/view.rs` hat 748 Zeilen, `bridge.rs` 746.
-
-Aufwand klein je Datei. Risiko gering: `services/tests/plan_edit.rs`, `drawing_grips.rs`, `curves.rs` und die Tests im Modell decken die Stellen ab.
-
-Beleg: `crates/services/src/plan_edit.rs` (`apply`), `crates/services/src/plan_edit/moving.rs:10`, `crates/stellprobe/src/look.rs:55`, `crates/services/tests/library.rs`, `crates/export/tests/export.rs`, `crates/services/tests/session.rs`, `crates/model/src/plan.rs:95`, `crates/model/src/plan.rs:490`, `structure.baseline`.
+Beleg: `crates/services/src/plan_edit.rs:409`, `crates/services/src/plan_edit.rs:487`, `crates/services/src/plan_edit/check.rs:37`, `crates/services/src/plan_edit/moving.rs:11`, `crates/services/src/plan_edit/moving.rs:110`, `crates/services/src/plan_edit/remove.rs:48`, `crates/services/src/plan_edit/group.rs:314`, `crates/store/src/lib.rs:96`, `crates/services/tests/manage.rs`, `structure.baseline`.
 
 ## Seit dem letzten Audit
-Der Eigentümer hat über die Funde des dritten und vierten Audits noch nicht entschieden. Die offenen Funde stehen deshalb hier und werden nicht neu gemeldet. Abgelehnt hat er keinen Fund.
+Der Eigentümer hat am 15.11.2026 entschieden, dass alle Funde behoben werden. Abgelehnt hat er keinen.
+
+Fünftes Audit:
+- **Fund 1 (Gleichheit von Figurennamen an drei Stellen): offen, noch nicht begonnen.** Die drei Stellen sind unverändert. Weiter entfernt nur das Drehbuch vorher Leerzeichen am Rand. Beleg: `crates/services/src/script_refs.rs:116`, `crates/services/src/project_edit.rs:310`, `crates/services/src/plan_edit/template.rs:142`.
+- **Fund 2 (Einstellungsgröße und Perspektive als eigene Liste in der App): behoben (#114).** Shot-Karte und Shot-Tabelle lesen beide Listen aus der Auswahlliste der Verbindung. Ein Test vergleicht ihre Länge mit dem Modell. Beleg: `crates/app/qml/ShotPanel.qml:99`, `crates/app/qml/ShotPanel.qml:100`, `crates/app/src/bridge/view.rs:301`, `crates/app/src/bridge/view.rs:563`.
+- **Fund 3 (Grenzwerte für Kamera und Marks in Ablage und Sitzung je für sich geprüft): behoben (#113).** Die Prüfungen stehen als Funktionen im Modell. Das Objektiv eines Shots behält bewusst seine engere Grenze von 2000 mm. Sie hat jetzt einen eigenen Namen und eine Begründung, die beiden Grenzen werden also nicht mehr verwechselt. Beleg: `crates/model/src/limits.rs:31`, `crates/services/src/edit.rs:63`. Derselbe Mangel besteht noch bei Lampen (Fund 4 des vierten Audits) und ist bei Türen neu dazugekommen (neuer Fund 2).
+- **Fund 4 (Marks verschieben und Mitte einer Gruppe mehrfach geschrieben): offen, noch nicht begonnen.** Die Stellen sind unverändert, in `group.rs` nur verrutscht. Beleg: `crates/services/src/plan_edit/group.rs:186`, `crates/services/src/plan_edit/group.rs:230`, `crates/services/src/plan_edit/group.rs:302`, `crates/services/src/plan_edit/template.rs:115`, `crates/services/src/plan_edit/template.rs:119`, `crates/services/src/plan_edit/template.rs:127`, `crates/services/src/project_edit/templates.rs:141`, `crates/services/src/project_edit/templates.rs:155`, `crates/services/src/project_edit/templates.rs:160`, `crates/services/src/project_edit/templates.rs:168`, `crates/services/src/plan_edit/moving.rs:464`.
+- **Fund 5 (Einsetzen einer Vorlage ruft im Kreis): in Arbeit, PR #111 offen, nicht gemergt.** Auf dem Hauptstand verweisen beide Bereiche weiter gegenseitig aufeinander. Beleg: `crates/services/src/plan_edit/template.rs:8`, `crates/services/src/project_edit/templates.rs:11`, `crates/services/src/project_edit/templates.rs:184`.
+- **Fund 6 (Bestandsliste): offen, noch nicht begonnen.** Die genannten Verteiler sind weiter gewachsen, siehe neuer Fund 4.
 
 Drittes Audit:
-- **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): offen.** Die Zuordnung von Fehler zu Text steht weiter nur in der App und ist auf 24 Verzweigungen gewachsen. Die Kommandozeile gibt weiter eigene englische Sätze aus. Beleg: `crates/app/src/notice.rs:8`, `crates/cli/src/main.rs:166`, `crates/cli/src/main.rs:173`.
-- **Fund 2 (Drehbuch- und Shot-Spalte je zweimal gebaut): offen.** `Workspace.qml` ist bei den doppelten Teilen unverändert. Beleg: `crates/app/qml/Workspace.qml:114`, `crates/app/qml/Workspace.qml:125`.
-- **Fund 3 (Datei für Änderungen am Projekt mit mehreren Aufgaben): teilweise behoben, wieder gewachsen.** Der Import in die Objektbibliothek steht weiter in `project_edit.rs`. Die Datei ist von 626 auf 687 Zeilen gewachsen, weil die eigenen Objekte (LH-12) dazukamen. Beleg: `crates/services/src/project_edit.rs:393`, `crates/services/src/project_edit.rs:429`.
-- **Fund 4 (angezeigte Werte in zwei Listen ohne gegenseitige Prüfung): offen.** Beleg: `crates/app/src/bridge/view.rs`.
-- **Fund 5 (Bestandsliste): offen.** `item_prims` (106 Zeilen) und `scan` (98 Zeilen) sind unverändert.
+- **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): behoben (#112).** Die Zuordnung von Fehler zu Text steht jetzt in der Sitzung, und Fenster und Kommandozeile nutzen sie beide. Ein kleiner Rest bleibt: Für „keine solche Szene“ und „Szene ohne Plan“ schreibt die Kommandozeile weiter eigene englische Sätze, obwohl der Katalog beide Meldungen hat. Beleg: `crates/services/src/error_text.rs:9`, `crates/services/src/error_text.rs:10`, `crates/cli/src/main.rs:173`, `crates/cli/src/main.rs:184`.
+- **Fund 2 (Drehbuch- und Shot-Spalte je zweimal gebaut): offen, noch nicht begonnen.** Beleg: `crates/app/qml/Workspace.qml:114`, `crates/app/qml/Workspace.qml:125`.
+- **Fund 3 (Datei für Änderungen am Projekt mit mehreren Aufgaben): behoben (#117).** Import, Ablegen und eigene Objekte der Bibliothek stehen in einer eigenen Datei. `project_edit.rs` hat 575 statt 687 Zeilen. Beleg: `crates/services/src/project_edit/library.rs`.
+- **Fund 4 (angezeigte Werte in zwei Listen ohne gegenseitige Prüfung): offen, noch nicht begonnen.** Die Datei ist von 748 auf 777 Zeilen gewachsen. Beleg: `crates/app/src/bridge/view.rs`.
+- **Fund 5 (Bestandsliste): offen, noch nicht begonnen.** `item_prims` (106 Zeilen) und `scan` (98 Zeilen) sind unverändert.
 
 Viertes Audit:
-- **Fund 1 (Formate, Papier und Reihenfolge der Ausgabe je Oberfläche): offen.** Die Listen in Exportdialog, Verbindung und Kommandozeile sind unverändert. Beleg: `crates/app/qml/ExportDialog.qml:22`, `crates/app/src/bridge/export.rs:82`, `crates/cli/src/main.rs:64`.
-- **Fund 2 (Verbindungsdatei knapp unter der Grenze, ein Aufruf je Mark-Feld): teilweise entlastet, Kern offen.** Der Start des Fensters ist nach `bridge/start.rs` umgezogen. `bridge.rs` hat jetzt 746 statt 784 Zeilen. Anlass war die Größengrenze, nicht eine Entscheidung zum Fund. Die sieben Einzelaufrufe der Mark-Karte bestehen weiter. Beleg: `crates/app/src/bridge.rs:349`, `crates/app/src/bridge.rs:387`, Commit `7b37b55`.
-- **Fund 3 (Lampenkarte als Kopie der Kamerakarte): offen.** Die Übernahme der Felder steht weiter in beiden Karten. Beleg: `crates/app/qml/CameraCard.qml:92`, `crates/app/qml/LightCard.qml:74`.
-- **Fund 4 (Grenzwerte einer Lampe an zwei Stellen geprüft): offen.** Derselbe Mangel ist mit den Vorlagen für Kameras und Marks dazugekommen, siehe neuer Fund 3. Beleg: `crates/store/src/light.rs:42`, `crates/services/src/light_edit.rs:53`.
-- **Fund 5 (Winkel beim Messen in der App berechnet): offen.** Beleg: `crates/app/src/tools.rs:23`, `crates/app/src/tools.rs:360`, `crates/services/src/plan_edit.rs:281`.
-- **Fund 6 (Bestandsliste): teilweise behoben.** Das Anklicken von Elementen ist aus `plan_edit.rs` in eine eigene Datei `plan_edit/picking.rs` gezogen. Die Datei hat jetzt 731 statt 764 Zeilen. Der Rat, neue Tests in neue Dateien nach Thema zu legen, wurde befolgt. Der Verteiler `apply` ist trotzdem weiter gewachsen, siehe neuer Fund 6.
+- **Fund 1 (Formate, Papier und Reihenfolge der Ausgabe je Oberfläche): offen, noch nicht begonnen.** Beleg: `crates/app/qml/ExportDialog.qml:22`, `crates/app/src/bridge/export.rs:82`, `crates/cli/src/main.rs:64`.
+- **Fund 2 (Verbindungsdatei knapp unter der Grenze, ein Aufruf je Mark-Feld): offen, noch nicht begonnen.** `bridge.rs` ist von 746 auf 764 Zeilen gewachsen. Die sieben Einzelaufrufe der Mark-Karte bestehen weiter. Beleg: `crates/app/src/bridge.rs:364`, `crates/app/src/bridge.rs:402`.
+- **Fund 3 (Lampenkarte als Kopie der Kamerakarte): offen, noch nicht begonnen.** Beleg: `crates/app/qml/CameraCard.qml:95`, `crates/app/qml/LightCard.qml:74`.
+- **Fund 4 (Grenzwerte einer Lampe an zwei Stellen geprüft): offen, noch nicht begonnen.** Bei Türen ist derselbe Mangel neu dazugekommen, siehe neuer Fund 2. Beleg: `crates/store/src/light.rs:42`, `crates/services/src/light_edit.rs:53`.
+- **Fund 5 (Winkel beim Messen in der App berechnet): offen, noch nicht begonnen.** Das Modell hat eine Richtungsfunktion. Die App rechnet trotzdem selbst. Beleg: `crates/app/src/tools.rs:372`, `crates/model/src/geometry.rs:44`.
+- **Fund 6 (Bestandsliste): offen, noch nicht begonnen.** `plan_edit.rs` ist von 731 auf 755 Zeilen gewachsen, siehe neuer Fund 4.
