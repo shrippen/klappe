@@ -537,6 +537,7 @@ mod tests {
             from: Point::new(5.0, 2.0),
             to: Point::new(15.0, 2.0),
             thickness_m: 0.2,
+            openings: Vec::new(),
         }];
         set.objects = vec![SetObject {
             id: "t".into(),
