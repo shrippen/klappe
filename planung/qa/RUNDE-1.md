@@ -36,23 +36,27 @@ sie bleiben offen und verdecken den Plan.
 | Aufgabe | Persona | Ausgang |
 |---|---|---|
 | A-01 Szene ansehen, abspielen, Kamera A | P1 | mit Umweg (Kamerablick erst nach Wahl eines Shots) |
-| A-02 Neue Figur durch die Tür, Bogen, sitzen | P1 | teilweise: Figur über Datei › Projekt; Bogen nicht gefunden |
-| K-01 Wärter umbenennen, überall prüfen | P1 | teilweise: Drehbuch und Plan ja; PDF und Neuöffnen nicht prüfbar |
+| A-02 Neue Figur durch die Tür, Bogen, sitzen | P1 | nicht gefunden (Bogen); Figur mit Umweg über Datei › Projekt |
+| K-01 Wärter umbenennen, überall prüfen | P1 | nicht prüfbar (PDF, Neuöffnen); Drehbuch und Plan erreicht |
 | A-05 Dritte Kamera, Full Frame, 85 mm | P2 | mit Umweg (Kamera nur im Modus „Auflösen“); Blick auf den Wärter nicht erreicht |
-| A-06 Fahrt neben dem Wärter, Höhe, Neigung, Schiene | P2 | teilweise: Höhe, Neigung, Gerät ja; Schiene am Boden nein |
+| A-06 Fahrt neben dem Wärter, Höhe, Neigung, Schiene | P2 | nicht gefunden (Schiene am Boden); Höhe, Neigung, Gerät erreicht |
 | A-07 Achsensprung finden, Gegenschuss | P2 | nicht gefunden |
-| A-13 Kamera folgt dem Wärter | P2 | teilweise: „Folgt“ gesetzt; Mark um genau 0,5 m nicht gefunden |
+| A-13 Kamera folgt dem Wärter | P2 | nicht gefunden (Mark um genau 0,5 m); „Folgt“ erreicht |
 | A-14 Shot nur mit der Tastatur | P2 | mit Umweg (Tab bis „Neuer Shot“) |
 | K-04 Zoom im Shot, Bild, Liste, Druck | P2 | nicht prüfbar (keine Shotliste ausgebbar) |
 | A-08 Drehreihenfolge, gleiche Kameraposition | P3 | mit Umweg |
 | A-09 Shotliste für die Tabellenkalkulation | P3 | nicht gefunden (Menüpunkt tut nichts) |
-| A-10 Größe und Inhalt ändern, neu öffnen | P3 | teilweise: Größe ja; Inhalt nicht gefunden; Neuöffnen nicht möglich |
+| A-10 Größe und Inhalt ändern, neu öffnen | P3 | nicht gefunden (Inhalt); nicht prüfbar (Neuöffnen); Größe erreicht |
 | K-03 Neuer Shot überall gleich | P3 | mit Umweg; Abweichungen siehe „Nicht bestätigt“ |
 | A-15 Nische, Sofa, Regal, Tischhöhe, Messen | P5 | mit Umweg |
 | A-16 Pfeil, Notiz, als Bild | P5 | mit Umweg (Notiz fehlt im Bild) |
 | F-03 Set für neuen Drehort | P5 | mit Umweg („Neuer Plan“ übernimmt den Raum) |
 
 ## Funde
+
+„Nachgeprüft: ja“ heißt: in frischer Sitzung nachgespielt (`check`, `check2`). Die übrigen
+sind an Stand, Code oder den Dateien der Testsitzung abgeglichen und vor einer Behebung
+nachzuspielen.
 
 ### Q1-01 „Shotliste CSV“ tut nichts
 - **Art:** Fehler · **Stufe:** hoch
@@ -74,7 +78,7 @@ sie bleiben offen und verdecken den Plan.
   in einem leeren Ordner, ohne zuletzt geöffnete Projekte. Erwartet: zurück zur Startseite mit
   den Projektkacheln (D-07, LH-01).
 - **Beleg:** P1 `shot-046`; P3 `shot-014`, `shot-029` bis `shot-031`
-- **Nachgeprüft:** ja, am Menü und im Code (kein Eintrag zum Schließen).
+- **Nachgeprüft:** nein; abgeglichen am Menü und im Code (kein Eintrag zum Schließen).
 - **Einordnung:** fehlt in der Oberfläche
 - **Status:** offen
 
@@ -116,8 +120,7 @@ sie bleiben offen und verdecken den Plan.
 - **Getan / Gesehen / Erwartet:** PDF als „plan“ gespeichert: die Datei heißt `plan`, ohne
   `.pdf`. Return im Dateidialog speicherte nicht, erst der Knopf. Erwartet: Endung wird ergänzt.
 - **Beleg:** P1 `shot-041`, `shot-042`
-- **Nachgeprüft:** ja an der Datei (`plan`: PDF, 2 Seiten). Return im Dialog: nicht
-  nachgespielt.
+- **Nachgeprüft:** nein; abgeglichen an der Datei der Sitzung (`plan`: PDF, 2 Seiten).
 - **Status:** offen
 
 ### Q1-07 Plan-Ausgabe schneidet ab und kürzt Notizen
@@ -128,7 +131,7 @@ sie bleiben offen und verdecken den Plan.
   „Nebelmaschine a“ (auch im Plan). Erwartet: alles Eingezeichnete im Bild, Notizen ganz
   (LH-16, LH-81).
 - **Beleg:** P5 `shot-030`, `sandbox/data/klappe/beispiel/plan.png`
-- **Nachgeprüft:** ja: die Notiz steht im Projekt und in der Darstellungsliste (SVG über
+- **Nachgeprüft:** nein; abgeglichen: die Notiz steht im Projekt und in der Darstellungsliste (SVG über
   `klappe-cli`), liegt aber außerhalb des ausgegebenen Ausschnitts. Hängt mit der offenen
   Frage zum Notiztext zusammen.
 - **Status:** offen
@@ -137,11 +140,12 @@ sie bleiben offen und verdecken den Plan.
 - **Art:** vorhanden, aber nicht auffindbar · **Stufe:** mittel
 - **Wo:** P2 A-07
 - **Getan / Gesehen / Erwartet:** Befehlspalette „180“: „No matches“; „line“: nur Linie und
-  Zeitleiste. Shot-Tabelle ohne Achsenspalte, kein Warnzeichen. Erwartet: Achse auffindbar,
+  Zeitleiste. Achsenspalte und Warnzeichen nicht gesehen. Erwartet: Achse auffindbar,
   Sprung markiert (LH-40, LH-41).
 - **Beleg:** P2 `shot-044` bis `shot-046`
-- **Nachgeprüft:** ja an Palette und STAND: die Achse (Felder A und B) und der Warn-Chip stehen
-  im Shot-Bereich weiter unten; die Palette kennt sie nicht.
+- **Nachgeprüft:** nein; abgeglichen an STAND: die Achse (Felder A und B) und der Warn-Chip stehen
+  im Shot-Bereich weiter unten, die Spalte „Achsensprung gegen“ als letzte der Tabelle, außerhalb
+  des sichtbaren Bereichs (P2 `shot-046`); die Palette kennt sie nicht.
 - **Status:** offen
 
 ### Q1-09 Kamerablick nur mit gewähltem Shot, folgt nicht dem Schnitt
@@ -151,7 +155,7 @@ sie bleiben offen und verdecken den Plan.
   14.1 gewählt zeigt der Blick auch bei 23,5 s noch 14.1, obwohl dort 14.3 läuft. Erwartet: der
   Blick der laufenden Kamera (LH-62, LH-38).
 - **Beleg:** P1 `shot-007`, `shot-010` bis `shot-012`
-- **Nachgeprüft:** ja an STAND (Rückfall auf die gewählte Kamera ist offen, Entscheidung des
+- **Nachgeprüft:** teilweise; abgeglichen an STAND (Rückfall auf die gewählte Kamera ist offen, Entscheidung des
   Eigentümers); `check/shot-001` zeigt „Kein Shot gewählt“.
 - **Status:** offen
 
@@ -172,28 +176,29 @@ sie bleiben offen und verdecken den Plan.
 - **Getan / Gesehen / Erwartet:** Weg zwischen Marks gerade; Rechtsklick auf Mark und
   Zeitleiste ohne Wirkung. Erwartet: ein Griff am Weg (LH-21).
 - **Beleg:** P1 `shot-029`
-- **Nachgeprüft:** ja an STAND: der Griff erscheint erst am gewählten Weg; nichts weist darauf
+- **Nachgeprüft:** nein; abgeglichen an STAND: der Griff erscheint erst am gewählten Weg; nichts weist darauf
   hin.
 - **Status:** offen
 
-### Q1-12 Renommierte Figur: Aktionszeilen bleiben, ohne Hinweis
+### Q1-12 Umbenannte Figur: Aktionszeilen bleiben, ohne Hinweis
 - **Art:** unverständlich · **Stufe:** niedrig
 - **Wo:** P1 K-01
 - **Getan / Gesehen / Erwartet:** Wärter → Pförtner: die Repliken heißen PFÖRTNER, die
   Aktionszeile „Der Wärter tritt ein“ bleibt, das Kürzel „W“ auch. Erwartet: Name überall oder
   ein Hinweis.
 - **Beleg:** P1 `shot-034`, `shot-037`
-- **Nachgeprüft:** ja am Drehbuch der Sitzung (1 × „Wärter“, 3 × „PFÖRTNER“). So gebaut (STAND,
+- **Nachgeprüft:** nein; abgeglichen am Drehbuch der Sitzung (1 × „Wärter“, 3 × „PFÖRTNER“). So gebaut (STAND,
   D-08); es fehlt der Hinweis.
 - **Status:** offen
 
-### Q1-13 Kürzel „B“ wird zu „BB“
-- **Art:** Fehler · **Stufe:** niedrig
+### Q1-13 Kürzel ist vorbelegt, ohne dass man es merkt
+- **Art:** unverständlich · **Stufe:** niedrig
 - **Wo:** P1 A-02
-- **Getan / Gesehen / Erwartet:** Neue Figur: Name „Bote“, Kürzel „B“ getippt; gespeichert ist
-  „BB“. Erwartet: „B“.
-- **Beleg:** P1 `shot-022`, `actions.log` (type „Bote“, type „B“)
-- **Nachgeprüft:** ja an `figuren.toml` (`short = "BB"`)
+- **Getan / Gesehen / Erwartet:** Neue Figur: Name „Bote“, dann ins Kürzelfeld geklickt und
+  „B“ getippt; gespeichert ist „BB“. Erwartet: „B“.
+- **Beleg:** P1 `shot-022`, `actions.log` (type „Bote“, click, type „B“)
+- **Nachgeprüft:** nein; abgeglichen am Code: das Kürzel wird beim Tippen des Namens mit dem
+  ersten Buchstaben vorbelegt, die Testperson hat es nicht bemerkt und ergänzt.
 - **Status:** offen
 
 ### Q1-14 Reihenfolge der Shotliste an zwei Stellen
@@ -202,7 +207,7 @@ sie bleiben offen und verdecken den Plan.
 - **Getan / Gesehen / Erwartet:** Shot-Bereich auf „Drehreihenfolge“, Ansicht-Menü zeigt
   gleichzeitig „Schnittfolge“ angehakt. Erwartet: eine Stelle.
 - **Beleg:** P3 `shot-006`, `shot-008`
-- **Nachgeprüft:** ja an STAND: die Reihenfolge der Ausgabe ist eine eigene Wahl; das ist
+- **Nachgeprüft:** nein; abgeglichen an STAND: die Reihenfolge der Ausgabe ist eine eigene Wahl; das ist
   nirgends gesagt.
 - **Status:** offen
 
@@ -213,7 +218,7 @@ sie bleiben offen und verdecken den Plan.
   Rasterpunkte; „1,46 m · 59°“ statt Abstand Tischkante–Treppenrand. Erwartet: Fang an Kanten
   wie im CAD (LH-14).
 - **Beleg:** P5 `shot-022` bis `shot-025`
-- **Nachgeprüft:** ja an STAND (zwei Klicks, Einrasten wie die anderen Werkzeuge): so gebaut.
+- **Nachgeprüft:** nein; abgeglichen an STAND (zwei Klicks, Einrasten wie die anderen Werkzeuge): so gebaut.
 - **Status:** offen
 
 ### Q1-16 Bild-Ausgabe fragt nach Papierformat; Plan dicht überlagert
@@ -223,7 +228,7 @@ sie bleiben offen und verdecken den Plan.
   Raum und Wege, im Plan wie im Bild. Erwartet: Bild ohne Papierfrage; wählbar, was ins Bild
   kommt.
 - **Beleg:** P5 `shot-032`, `plan.png`; P1 `shot-004`
-- **Nachgeprüft:** ja (Code: PNG gehört zu den Formaten mit Papierfrage; `check/shot-001`)
+- **Nachgeprüft:** teilweise (Code: PNG gehört zu den Formaten mit Papierfrage; `check/shot-001`)
 - **Status:** offen
 
 ### Q1-17 „Neuer Plan“ übernimmt den Raum
@@ -232,7 +237,7 @@ sie bleiben offen und verdecken den Plan.
 - **Getan / Gesehen / Erwartet:** Plan › Neuer Plan „Drehort Hafen“: gleiche Wände, Möbel,
   Notizen; bleibt in Szene 14. Erwartet: ein Weg zu einem neuen Drehort.
 - **Beleg:** P5 `shot-037` bis `shot-039`
-- **Nachgeprüft:** ja an STAND: das Set gehört zum Drehort, Drehorte legt Datei › Projekt an;
+- **Nachgeprüft:** nein; abgeglichen an STAND: das Set gehört zum Drehort, Drehorte legt Datei › Projekt an;
   im Planmenü steht das nicht.
 - **Status:** offen
 
@@ -242,7 +247,7 @@ sie bleiben offen und verdecken den Plan.
 - **Getan / Gesehen / Erwartet:** Primes 18, 25, 32, 50, 75, 100, 135 mm; 85 mm nur frei
   eingetippt. Erwartet: 85 mm im Satz.
 - **Beleg:** P2 `shot-028`
-- **Nachgeprüft:** ja (`crates/store/camera/standard.toml`)
+- **Nachgeprüft:** nein; abgeglichen an `crates/store/camera/standard.toml`
 - **Status:** offen
 
 ## Nicht bestätigt
@@ -257,7 +262,9 @@ sie bleiben offen und verdecken den Plan.
   sondern der Sitzung (Vorfälle).
 - **Objektiv von Kamera A nach Änderung an C verändert** (P2, Vermutung): die Daten von A sind
   unverändert (24 mm); ob die Karte den falschen Objektivsatz zeigt, nicht nachgespielt.
-- **Strg+S und Strg+O ohne Wirkung** (P1): stehen nicht in `actions.log`, also nie gedrückt.
+- **Strg+S und Strg+O ohne Wirkung** (P1, `shot-042` bis `-044`): in frischer Sitzung nach
+  Klick in den Plan öffnet Strg+O den Dialog, Strg+S speichert und meldet „Gespeichert“
+  (`check2/shot-002`, `-004`). Bei P1 kam beides direkt nach dem PDF-Dialog.
 - **Neuer Shot verdeckt in der Zeitleiste 14.1 und steht in der Mitte; Setup-Nummer doppelt**
   (P2, P3): nicht nachgespielt.
 - **Taste N wechselt in den Zeichenmodus; Palette ohne „Neuer Shot“** (P2): nicht nachgespielt.
