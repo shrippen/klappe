@@ -14,7 +14,8 @@ const CAMERAS: usize = 10;
 const OBJECTS: usize = 300;
 const SET_M: f64 = 40.0;
 const RUNS: usize = 200;
-/// Half the 16 ms budget of NF-05, which the rest of the redraw shares.
+/// The JSON may take half the 16 ms budget of NF-05 (the canvas needs the rest); the test, like
+/// all of `make perf`, fails only above four times its share: 4 × 8 ms.
 const LIMIT: Duration = Duration::from_millis(32);
 
 /// A point on a fixed pseudo-random walk over the set, so runs repeat.

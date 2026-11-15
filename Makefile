@@ -22,7 +22,7 @@ qml:
 	scripts/check-qml.sh
 
 # NF-05 timings on a large plan (50 figures, 10 cameras, 300 objects): release build, prints the
-# numbers, fails above four times the 16 ms budget. Not in `check`: timings need a quiet machine.
+# numbers, fails above four times the 16 ms budget (the plan JSON: four times its half). Not in `check`: timings need a quiet machine.
 perf:
 	cargo test --release -p klappe-services --test perf -- --ignored --nocapture
 	cargo test --release -p klappe-app a_large_plan -- --ignored --nocapture
