@@ -72,6 +72,16 @@ Item {
         }
     }
 
+    /// Zooms about the middle of the view: "in", "out" or "fit" (the whole plan).
+    readonly property real zoomStep: 1.25
+    function zoomBy(how) {
+        switch (how) {
+        case "in": canvas.zoom *= zoomStep; break
+        case "out": canvas.zoom /= zoomStep; break
+        case "fit": canvas.fit(); break
+        }
+    }
+
     LayerPopover {
         objectName: "layerPopover"
         anchors.top: parent.top

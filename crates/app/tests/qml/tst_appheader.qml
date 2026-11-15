@@ -48,6 +48,7 @@ TestCase {
         function selectScene(id) { return call("selectScene", [id]) }
         function selectPlan(id) { return call("selectPlan", [id]) }
         function clearStatus() {}
+        function stepMark(direction) { call("stepMark", [direction]) }
     }
 
     QtObject {
@@ -80,6 +81,11 @@ TestCase {
     SignalSpy { id: backgroundSpy; signalName: "backgroundRequested" }
     SignalSpy { id: viewSpy; signalName: "viewToggled" }
     SignalSpy { id: orderSpy; signalName: "shotOrderPicked" }
+    SignalSpy { id: zoomSpy; signalName: "zoomRequested" }
+    SignalSpy { id: playSpy; signalName: "playRequested" }
+
+    // Stands for the plan's canvas, which takes Space itself (held, it pans).
+    Item { id: fakeCanvas; objectName: "planCanvas"; width: 10; height: 10 }
 
     function init() {
         fake.loaded = true
@@ -101,7 +107,7 @@ TestCase {
     function make() {
         const header = createTemporaryObject(headerComponent, tc)
         verify(header)
-        for (const spy of [newSpy, openSpy, projectSpy, backgroundSpy, viewSpy, orderSpy]) {
+        for (const spy of [newSpy, openSpy, projectSpy, backgroundSpy, viewSpy, orderSpy, zoomSpy, playSpy]) {
             spy.target = header
             spy.clear()
         }
@@ -438,12 +444,130 @@ TestCase {
         }
     }
 
+    function test_ctrl_n_and_ctrl_o_ask_for_a_project() {
+        make()
+
+        keyClick(Qt.Key_N, Qt.ControlModifier)
+        compare(newSpy.count, 1)
+        keyClick(Qt.Key_O, Qt.ControlModifier)
+        compare(openSpy.count, 1)
+    }
+
+    function test_ctrl_n_and_ctrl_o_work_without_a_project() {
+        fake.loaded = false
+        make()
+
+        keyClick(Qt.Key_N, Qt.ControlModifier)
+        keyClick(Qt.Key_O, Qt.ControlModifier)
+
+        compare(newSpy.count, 1)
+        compare(openSpy.count, 1)
+    }
+
+    function test_ctrl_plus_minus_and_zero_zoom_the_plan() {
+        make()
+
+        keyClick(Qt.Key_Plus, Qt.ControlModifier)
+        keyClick(Qt.Key_Equal, Qt.ControlModifier)
+        keyClick(Qt.Key_Minus, Qt.ControlModifier)
+        keyClick(Qt.Key_0, Qt.ControlModifier)
+
+        compare(zoomSpy.count, 4)
+        compare(zoomSpy.signalArguments.map(a => a[0]), ["in", "in", "out", "fit"])
+    }
+
+    function test_space_and_k_play_and_pause() {
+        make()
+
+        keyClick(Qt.Key_Space)
+        keyClick(Qt.Key_K)
+
+        compare(playSpy.count, 2)
+    }
+
+    function test_space_stays_with_the_plan_which_pans_with_it() {
+        make()
+        fakeCanvas.forceActiveFocus()
+        verify(fakeCanvas.activeFocus)
+
+        keyClick(Qt.Key_Space)
+        compare(playSpy.count, 0)
+
+        keyClick(Qt.Key_K)
+        compare(playSpy.count, 1)
+        fakeCanvas.focus = false
+    }
+
+    function test_space_presses_a_focused_button_instead_of_playing() {
+        const header = make()
+        const button = findChild(header, "undo")
+        button.forceActiveFocus()
+        verify(button.activeFocus)
+
+        keyClick(Qt.Key_Space)
+
+        compare(playSpy.count, 0)
+        button.focus = false
+    }
+
+    function test_comma_and_period_step_the_marks() {
+        make()
+
+        keyClick(Qt.Key_Comma)
+        keyClick(Qt.Key_Period)
+
+        compare(fake.calls, [["stepMark", -1], ["stepMark", 1]])
+    }
+
+    function test_an_open_backup_question_locks_zoom_play_and_marks() {
+        make().locked = true
+
+        keyClick(Qt.Key_Plus, Qt.ControlModifier)
+        keyClick(Qt.Key_Space)
+        keyClick(Qt.Key_Comma)
+        keyClick(Qt.Key_N, Qt.ControlModifier)
+
+        compare(zoomSpy.count, 0)
+        compare(playSpy.count, 0)
+        compare(fake.calls, [])
+        compare(newSpy.count, 0)
+    }
+
+    function test_the_palette_names_the_keys_of_the_new_commands() {
+        const header = make()
+        const keys = id => header.commandPalette.commands.find(c => c.id === id).keys
+
+        compare(keys("project.new"), "Strg+N")
+        compare(keys("project.open"), "Strg+O")
+        compare(keys("view.zoomIn"), "Strg++")
+        compare(keys("view.zoomOut"), "Strg+-")
+        compare(keys("view.zoomFit"), "Strg+0")
+        compare(keys("playback.toggle"), "Leertaste / K")
+        compare(keys("playback.markPrev"), ",")
+        compare(keys("playback.markNext"), ".")
+
+        header.texts = en
+        compare(keys("playback.toggle"), "Space / K")
+    }
+
+    function test_the_view_menu_zooms() {
+        const header = make()
+
+        pick(header, "viewMenu", "zoomIn")
+        pick(header, "viewMenu", "zoomOut")
+        pick(header, "viewMenu", "zoomFit")
+
+        compare(zoomSpy.signalArguments.map(a => a[0]), ["in", "out", "fit"])
+    }
+
     function test_the_texts_are_in_both_languages() {
         for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewOrder",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
                            "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",
-                           "palette.group.plans", "key.ctrl", "key.shift"]) {
+                           "palette.group.plans", "key.ctrl", "key.shift", "key.space", "menu.viewZoom", "menu.zoomIn",
+                           "menu.zoomOut", "menu.zoomFit", "menu.play", "menu.markPrev", "menu.markNext",
+                           "palette.group.playback"]) {
             verify(de.t(key) !== key, "de " + key)
             verify(en.t(key) !== key, "en " + key)
         }
