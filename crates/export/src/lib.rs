@@ -1,4 +1,4 @@
-//! Writes Stellprobe's display list as SVG, PDF and PNG, and the shot list as PDF and CSV (planung/KONZEPT.md, section 4).
+//! Writes Stellprobe's display list as SVG, PDF and PNG, and the shot list as PDF, CSV, ODS and XLSX (planung/KONZEPT.md, section 4).
 //! The GUI draws the same list, so the printout matches the screen (LH-80/81).
 //!
 //! ```text
@@ -18,6 +18,7 @@ mod inflate;
 mod jpeg;
 mod layout;
 mod metrics;
+mod ods;
 mod page;
 mod palette;
 mod pdf;
@@ -26,11 +27,14 @@ mod png_write;
 mod raster;
 mod rgb8;
 mod scan;
+mod sheet;
 mod shots;
 mod stroke;
 mod style;
 mod svg;
 mod table;
+mod xlsx;
+mod zip;
 
 use klappe_model::FloorPlan;
 
@@ -79,6 +83,17 @@ pub fn pdf_with_shots(
 /// The plan's shots in `order` as CSV (LH-82): RFC 4180, UTF-8, `\r\n`, numbers with a point.
 pub fn shots_csv(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> String {
     shots::csv(plan, texts, order)
+}
+
+/// The plan's shots in `order` as OpenDocument spreadsheet (LH-85): the CSV's columns, numbers as
+/// numbers; `texts.title` names the sheet.
+pub fn shots_ods(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Vec<u8> {
+    ods::write(&shots::table(plan, texts, order), &texts.title)
+}
+
+/// The plan's shots in `order` as Excel workbook (LH-85), the same as `shots_ods`.
+pub fn shots_xlsx(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Vec<u8> {
+    xlsx::write(&shots::table(plan, texts, order), &texts.title)
 }
 
 #[cfg(test)]
