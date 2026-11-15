@@ -48,6 +48,7 @@ KantePopover {
         function onShapesChanged() { card.place() }
         function onWidthChanged() { card.place() }
         function onHeightChanged() { card.place() }
+        function onVisibleChanged() { card.place() }
     }
 
     // The shape that stands for the element: the last of its key with a caption (the body of
@@ -142,7 +143,9 @@ KantePopover {
     }
 
     function placeOnce() {
-        if (!card.wanted || card.canvas.width <= 0) {
+        // A hidden plan (another tab of the narrow step) takes the card with it: a popup would
+        // stay in the overlay.
+        if (!card.wanted || card.canvas.width <= 0 || !card.canvas.visible) {
             card.close()
             return
         }

@@ -758,4 +758,21 @@ TestCase {
 
         verify(!card.visible)
     }
+
+    // The plan is hidden (a tab of the narrow step): the card is a popup in the overlay and
+    // must not stay over the other tab.
+    function test_the_card_goes_when_the_plan_is_hidden() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        area.visible = false
+
+        verify(!card.visible)
+
+        area.visible = true
+
+        settled(card)
+    }
 }
