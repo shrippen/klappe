@@ -579,14 +579,77 @@ mod tests {
             shape: Default::default(),
             height_m: Some(1.6),
         }];
-        let plan = plan_with(
-            camera(35.0, 1.5, 0.0, 1.78),
-            &[(10.0, 5.0, Pose::Standing)],
-        );
+        let plan = plan_with(camera(35.0, 1.5, 0.0, 1.78), &[(10.0, 5.0, Pose::Standing)]);
         let view = view_of(&plan, &set);
 
         assert!(!view.items.iter().any(|i| i.role == ViewRole::Object));
         assert_eq!(figures(&view).len(), 1);
+    }
+
+    /// Image numbers worked out by hand. Camera (10, 10) facing -90 degrees, 1.6 m high, Super 35,
+    /// 35 mm, aspect 1: f = 35 / 24.89 = 1.40619 of the frame width. A standing figure 5 m ahead
+    /// is 0.5 m wide and 1.75 m tall:
+    ///   x    = 0.5 +- 0.25 / 5 * f                = 0.42969 .. 0.57031
+    ///   feet = 0.5 + 1.6 / 5 * f                  = 0.94998
+    ///   head = 0.5 - (1.75 - 1.6) / 5 * f         = 0.45781
+    ///   horizon with tilt t: 0.5 + tan(t) * f      = 0.74795 (+10), 0.25205 (-10)
+    ///   feet with tilt -10: depth 5 cos10 - 1.6 sin10 = 5.20188, up -1.6 cos10 + 5 sin10 = -0.70746
+    ///                       y = 0.5 + 0.70746 / 5.20188 * f = 0.69124
+    const TOLERANCE: f64 = 1e-5;
+
+    /// Left, right, top and bottom of the one figure.
+    fn figure_box(tilt_deg: f64) -> (CameraView, [f64; 4]) {
+        let plan = plan_with(
+            camera(35.0, 1.6, tilt_deg, 1.0),
+            &[(10.0, 5.0, Pose::Standing)],
+        );
+        let view = view_of(&plan, &set());
+        let points = &figures(&view)[0].points;
+        let range = |axis: usize, pick: fn(f64, f64) -> f64, start: f64| {
+            points.iter().map(|p| p[axis]).fold(start, pick)
+        };
+        let bounds = [
+            range(0, f64::min, f64::MAX),
+            range(0, f64::max, f64::MIN),
+            range(1, f64::min, f64::MAX),
+            range(1, f64::max, f64::MIN),
+        ];
+
+        (view, bounds)
+    }
+
+    #[test]
+    fn standing_figure_has_the_hand_computed_image() {
+        let (view, [left, right, head, feet]) = figure_box(0.0);
+
+        assert!((left - 0.42969).abs() < TOLERANCE, "left {left}");
+        assert!((right - 0.57031).abs() < TOLERANCE, "right {right}");
+        assert!((head - 0.45781).abs() < TOLERANCE, "head {head}");
+        assert!((feet - 0.94998).abs() < TOLERANCE, "feet {feet}");
+        assert!((view.horizon_y - 0.5).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn tilting_up_puts_the_horizon_at_0_74795() {
+        let (view, _) = figure_box(10.0);
+
+        assert!(
+            (view.horizon_y - 0.74795).abs() < TOLERANCE,
+            "{}",
+            view.horizon_y
+        );
+    }
+
+    #[test]
+    fn tilting_down_puts_the_horizon_at_0_25205_and_the_feet_at_0_69124() {
+        let (view, [_, _, _, feet]) = figure_box(-10.0);
+
+        assert!(
+            (view.horizon_y - 0.25205).abs() < TOLERANCE,
+            "{}",
+            view.horizon_y
+        );
+        assert!((feet - 0.69124).abs() < TOLERANCE, "feet {feet}");
     }
 
     #[test]
