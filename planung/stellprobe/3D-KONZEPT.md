@@ -2,7 +2,7 @@
 
 Stand: 2026-11-15, Entwurf. Grundlage: Prototyp [`prototyp-3d/`](prototyp-3d/) und der Code
 von heute (`stellprobe/src/sight.rs`, Plan-Zeichenfläche, `model/`).
-Entscheidungen des Eigentümers: Abschnitt 9.
+Entscheidungen des Eigentümers: Abschnitt 9 (getroffen).
 
 ## 1. Ziel
 
@@ -176,7 +176,7 @@ hinnehmbar. PNG-Export nimmt direkt den Rasterer.
 | Höhe ziehen (P) | Maus nach oben, Wert am Mauszeiger | am Objekt nach oben ziehen |
 | Maßfeld | Länge beim Zeichnen, `5;4` für einen Raum, Zahl = Höhe der Auswahl | gleich |
 | Höhen ergänzen (H) | springt zur nächsten freien Form ohne Höhe, Wert tippen, Enter | gleich, Ansicht folgt dem Objekt |
-| Navigation | rechte Taste schieben, Rad zoomen | rechte Taste drehen, mittlere / Umschalt+rechte schieben, Rad zoomt zum Mauszeiger |
+| Navigation | rechte Taste schieben, Rad zoomen | rechte Taste oder Alt + linke drehen, mittlere / Umschalt+rechte schieben, Rad zoomt zum Mauszeiger |
 | Durch Kamera sehen | – | Shot-Kamera als `Eye::Shot` |
 
 - Im Plan zeigt jedes Objekt seine Höhe als kleine Zahl; eine fehlende als „Höhe ?“ in der
@@ -197,7 +197,7 @@ hinnehmbar. PNG-Export nimmt direkt den Rasterer.
 
 `raster/` liegt wie `imagehead/` neben den anderen und hängt von nichts ab; `stellprobe/`
 benutzt es. Das ändert „Layers“ in `ARCHITECTURE.md` und braucht die Bestätigung des
-Eigentümers (Abschnitt 9). Alternative ohne neuen Baustein: Modul `stellprobe::raster`.
+Eigentümers; erteilt am 15.11.2026 (Abschnitt 9).
 
 ## 8. Schritte (je ein PR, jeder für sich nützlich)
 
@@ -216,14 +216,11 @@ Neue Anforderungen dafür (Vorschlag, Nummern vergibt der Eigentümer): 3D-Arbei
 denselben Werkzeugen; Raumhöhe und Höhen von Wand und Öffnung; freie Formen mit Höhe;
 Höhen ergänzen; Bauformen der Bibliothek.
 
-## 9. Offene Entscheidungen des Eigentümers
+## 9. Entscheidungen des Eigentümers (15.11.2026)
 
-1. **Rasterer als eigener Baustein `raster/`** (ändert „Layers“) oder als Modul in
-   `stellprobe/`? Empfehlung: eigener Baustein.
-2. **Freie Form als `ObjectShape::Polygon`** eines Objekts oder als eigene Elementart?
-   Empfehlung: Objekt; sie hat Höhe, Ebene „Set“, Karte wie jedes Objekt.
-3. **Kamerablick in der Shot-Karte als Rasterbild** statt Vektor (Schritt 2)? Empfehlung: ja;
-   Vektor bleibt für den Druck.
-4. **Körpergröße je Figur** (Kind, große Person) jetzt oder später? Empfehlung: später.
-5. **Navigation in 3D:** rechte Taste dreht (wie Prototyp). Alternativ Alt + linke Taste für
-   Touchpads. Empfehlung: beides.
+1. Rasterer als eigener Baustein `raster/`, hängt von nichts ab, `stellprobe/` benutzt ihn.
+   „Layers“ in `ARCHITECTURE.md` ändert der PR, der ihn anlegt (Schritt 2).
+2. Freie Form ist ein Objekt: `ObjectShape::Polygon`, Ebene „Set“, Karte wie jedes Objekt.
+3. Der Kamerablick in der Shot-Karte wird ein Rasterbild; Vektor bleibt für den Druck.
+4. Körpergröße je Figur: später.
+5. Drehen in 3D mit rechter Taste und mit Alt + linker Taste.
