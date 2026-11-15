@@ -14,6 +14,9 @@ use crate::library;
 
 const DEFAULT_CAMERA_HEIGHT_M: f64 = 1.6;
 
+/// A dolly rolls at walking pace.
+const DOLLY_SPEED_M_S: f64 = WALK_SPEED_M_S;
+
 const DEFAULT_SENSOR: Sensor = Sensor::Super35;
 const DEFAULT_LENS_MM: f64 = 35.0;
 const DEFAULT_ASPECT: f64 = 2.39;
@@ -158,6 +161,38 @@ pub(super) fn add_camera(
         follows: None,
     };
     scope.plan.cameras.push(camera);
+
+    Ok(())
+}
+
+/// Appends a mark to `camera`.
+/// The camera arrives, waits, then rolls at `DOLLY_SPEED_M_S`; it keeps its aim, height, tilt
+/// and lens, so it goes on looking at the scene.
+pub(super) fn add_camera_mark(
+    scope: &mut Scope<'_>,
+    camera: &str,
+    at: Point,
+) -> Result<(), ServiceError> {
+    let camera = scope
+        .plan
+        .cameras
+        .iter_mut()
+        .find(|c| c.id == camera)
+        .ok_or(ServiceError::Gone)?;
+    let prev = camera.marks.last().ok_or(ServiceError::Gone)?;
+    let at_s = prev.at_s + prev.hold_s + prev.at.distance_m(at) / DOLLY_SPEED_M_S;
+
+    camera.marks.push(CameraMark {
+        at_s,
+        at,
+        facing_deg: prev.facing_deg,
+        height_m: prev.height_m,
+        tilt_deg: prev.tilt_deg,
+        hold_s: 0.0,
+        via: None,
+        rig: Default::default(),
+        lens_mm: prev.lens_mm,
+    });
 
     Ok(())
 }
@@ -332,14 +367,23 @@ mod tests {
     use klappe_model::{LightKind, Point, Project, Sensor};
 
     use super::super::tests::empty;
-    use super::super::{apply, PlanEdit, Snapping};
+    use super::super::{apply, Grid, PlanEdit, Snapping};
 
     fn add_camera(project: &mut Project) {
         let edit = PlanEdit::AddCamera {
             at: Point::new(1.0, 2.0),
             facing_deg: 0.0,
         };
-        apply(Path::new("."), project, 0, 0, 3.0, Snapping::On, &edit).unwrap();
+        apply(
+            Path::new("."),
+            project,
+            0,
+            0,
+            3.0,
+            (Snapping::On, Grid::default()),
+            &edit,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -383,7 +427,7 @@ mod tests {
                 0,
                 0,
                 0.0,
-                Snapping::On,
+                (Snapping::On, Grid::default()),
                 &light(LightKind::Flag),
             )
             .unwrap();
@@ -395,7 +439,7 @@ mod tests {
             0,
             0,
             0.0,
-            Snapping::On,
+            (Snapping::On, Grid::default()),
             &light(LightKind::Flag),
         )
         .unwrap();

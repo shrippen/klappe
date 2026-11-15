@@ -61,6 +61,11 @@ fn the_built_in_library_has_what_the_lastenheft_names() {
         "horse",
         "tree",
         "platform",
+        "track",
+        "dolly",
+        "jib",
+        "crane",
+        "tripod",
     ] {
         assert!(kinds.contains(&wanted), "{wanted} is missing");
     }

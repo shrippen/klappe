@@ -43,9 +43,12 @@ pub mod qobject {
         #[qproperty(bool, extend_selection, cxx_name = "extendSelection")]
         /// Whether points snap to the grid; change it with `setSnapping`.
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
+        /// The grid spacing, a name of `choicesJson.grid`; change it with `setGrid`.
+        #[qproperty(QString, grid_name, cxx_name = "gridName")]
         /// `{ figure: [{ id, name }], object: [{ kind, label, width_m, depth_m, shape, custom }],
-        /// light: [kind], color: [name], dash: [name], fill: [name], rig: [name], movement: [name], template: [{ id, label, figures, cameras, custom }] }`:
-        /// what the tool lists offer. Objects and templates: built in first, then the project's own.
+        /// light: [kind], color: [name], dash: [name], fill: [name], rig: [name], movement: [name],
+        /// grid: [{ id, step_m }], template: [{ id, label, figures, cameras, custom }] }`: what the
+        /// tool lists offer. Objects and templates: built in first, then the project's own.
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Whether the set has a background image.
         #[qproperty(bool, has_background, cxx_name = "hasBackground")]
@@ -383,32 +386,33 @@ pub mod qobject {
         #[cxx_name = "setSnapping"]
         fn set_snapping(self: Pin<&mut Self>, on: bool);
 
+        #[qinvokable]
+        #[cxx_name = "setGrid"]
+        fn set_grid(self: Pin<&mut Self>, name: &QString);
+
         /// A drag was aborted: shows the committed plan again.
         #[qinvokable]
         #[cxx_name = "cancelDrag"]
         fn cancel_drag(self: Pin<&mut Self>);
 
-        /// Writes the plan as PDF next to the project folder; the path goes to `status`.
-        /// `order` is `cut` or `shooting`: the order of the shot list.
+        /// Writes an export to `path` (a `file://` URL); the result goes to `status`. `kind` is
+        /// `pdf`, `png`, `svg` or `csv`; `order` (`cut` or `shooting`) orders the shot list of
+        /// PDF and CSV; `paper` (`a4` or `a3`) is the sheet of PDF, PNG and SVG.
         #[qinvokable]
-        #[cxx_name = "exportPdf"]
-        fn export_pdf(self: Pin<&mut Self>, order: &QString) -> bool;
+        #[cxx_name = "exportTo"]
+        fn export_to(
+            self: Pin<&mut Self>,
+            kind: &QString,
+            order: &QString,
+            paper: &QString,
+            path: &QString,
+        ) -> bool;
 
-        /// Writes the plan as PNG next to the project folder; the path goes to `status`.
+        /// The file URL an export with `extension` is offered under: next to the project
+        /// folder, named by the plan; empty without a project.
         #[qinvokable]
-        #[cxx_name = "exportPng"]
-        fn export_png(self: Pin<&mut Self>) -> bool;
-
-        /// Writes the plan as SVG next to the project folder; the path goes to `status`.
-        #[qinvokable]
-        #[cxx_name = "exportSvg"]
-        fn export_svg(self: Pin<&mut Self>) -> bool;
-
-        /// Writes the shot list as CSV next to the project folder; the path goes to `status`.
-        /// `order` is `cut` or `shooting`.
-        #[qinvokable]
-        #[cxx_name = "exportCsv"]
-        fn export_csv(self: Pin<&mut Self>, order: &QString) -> bool;
+        #[cxx_name = "exportFile"]
+        fn export_file(self: Pin<&mut Self>, extension: &QString) -> QString;
 
         /// What a tooltip says about a plan element (`camera:a` …), as JSON.
         #[qinvokable]
@@ -621,6 +625,7 @@ pub struct ControllerRust {
     selected_count: i32,
     extend_selection: bool,
     snapping_on: bool,
+    grid_name: QString,
     choices_json: QString,
     /// What the select tool has picked; the canvas frames it.
     selected: Selection,
@@ -715,6 +720,7 @@ impl Default for ControllerRust {
             selected_count: 0,
             extend_selection: false,
             snapping_on: true,
+            grid_name: QString::default(),
             choices_json: QString::default(),
             selected: Selection::default(),
             marquee: None,

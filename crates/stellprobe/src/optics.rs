@@ -34,33 +34,46 @@ pub fn lens_at(camera: &Camera, shots: &[Shot], t_s: f64) -> f64 {
         .unwrap_or(camera.lens_mm)
 }
 
-/// The lens of a shot (LH-33): what `lens_at` gives at its start and at its end.
+/// The lens of a shot (LH-33): what `lens_at` gives at its start, and the smallest and
+/// largest lens within it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ShotLens {
     pub from_mm: f64,
-    pub to_mm: f64,
+    pub min_mm: f64,
+    pub max_mm: f64,
     /// The camera's marks state the lens, so the shot's own and the camera's do not count.
     pub from_marks: bool,
 }
 
 impl ShotLens {
-    /// The lens at the end of the shot when it differs from the start: a zoom.
-    pub fn span_to_mm(&self) -> Option<f64> {
-        (self.to_mm != self.from_mm).then_some(self.to_mm)
+    /// Smallest and largest lens when they differ: a zoom, also one that ends where it began.
+    pub fn span_mm(&self) -> Option<(f64, f64)> {
+        (self.max_mm != self.min_mm).then_some((self.min_mm, self.max_mm))
     }
 }
 
 /// The lens of `shot` on `camera`: with marks that state a lens, what `lens_at` gives at the
-/// shot's start and end; else the shot's own, else the camera's. The one source for the shot
-/// list, the export and the setups.
+/// shot's start and end and at the marks within it; else the shot's own, else the camera's.
+/// The one source for the shot list, the export and the setups.
 ///
 /// Example: marks 35 mm at 0 s and 85 mm at 6 s, shot from 0 s to 6 s: 35 to 85 mm.
 pub fn shot_lens(camera: &Camera, shot: &Shot) -> ShotLens {
     let marks = mark_lens_at(camera, shot.from_s).zip(mark_lens_at(camera, shot.to_s));
     if let Some((from_mm, to_mm)) = marks {
+        let within = camera
+            .marks
+            .iter()
+            .filter(|m| m.at_s > shot.from_s && m.at_s < shot.to_s)
+            .filter_map(|m| m.lens_mm);
+        let (min_mm, max_mm) = within.fold(
+            (from_mm.min(to_mm), from_mm.max(to_mm)),
+            |(min, max), mm| (min.min(mm), max.max(mm)),
+        );
+
         return ShotLens {
             from_mm,
-            to_mm,
+            min_mm,
+            max_mm,
             from_marks: true,
         };
     }
@@ -69,7 +82,8 @@ pub fn shot_lens(camera: &Camera, shot: &Shot) -> ShotLens {
 
     ShotLens {
         from_mm: lens_mm,
-        to_mm: lens_mm,
+        min_mm: lens_mm,
+        max_mm: lens_mm,
         from_marks: false,
     }
 }
@@ -282,7 +296,8 @@ mod tests {
             marked(0.0, 4.0),
             ShotLens {
                 from_mm: 30.0,
-                to_mm: 30.0,
+                min_mm: 30.0,
+                max_mm: 30.0,
                 from_marks: true
             }
         );
@@ -290,7 +305,8 @@ mod tests {
             marked(0.0, 10.0),
             ShotLens {
                 from_mm: 30.0,
-                to_mm: 70.0,
+                min_mm: 30.0,
+                max_mm: 70.0,
                 from_marks: true
             }
         );
@@ -305,11 +321,28 @@ mod tests {
             shot_lens(&plain, &shots[0]),
             ShotLens {
                 from_mm: 40.0,
-                to_mm: 40.0,
+                min_mm: 40.0,
+                max_mm: 40.0,
                 from_marks: false
             }
         );
         assert_eq!(shot_lens(&plain, &shot("a", None, 8.0, 9.0)).from_mm, 35.0);
+    }
+
+    /// 35, 85, 35 mm at 0, 5, 10 s: the ends agree, the shot still spans 35 to 85 mm.
+    #[test]
+    fn a_zoom_in_and_out_spans_the_extremes() {
+        let mut cam = camera(50.0);
+        cam.marks = vec![
+            lens_mark(0.0, 0.0, Some(35.0)),
+            lens_mark(5.0, 0.0, Some(85.0)),
+            lens_mark(10.0, 0.0, Some(35.0)),
+        ];
+
+        let lens = shot_lens(&cam, &shot("a", None, 0.0, 10.0));
+
+        assert_eq!(lens.span_mm(), Some((35.0, 85.0)));
+        assert_eq!(lens.from_mm, 35.0);
     }
 
     #[test]
