@@ -407,3 +407,17 @@ fn shot_rows_carry_the_aspect_of_their_camera() {
 
     assert_eq!(rows.iter().find(|r| r.id == id).unwrap().aspect, 2.39);
 }
+
+/// A shot whose camera is gone (a hand-edited file) gets the fallback frame.
+#[test]
+fn a_shot_without_its_camera_gets_the_fallback_aspect() {
+    let dir = copy("shots-fallback");
+    let file = dir.join("szenen/szene-012.json");
+    let text = std::fs::read_to_string(&file).unwrap();
+    std::fs::write(&file, text.replacen("\"camera\": \"a\"", "\"camera\": \"gone\"", 1)).unwrap();
+
+    let rows = Session::open(&dir).unwrap().shots();
+
+    assert_eq!(rows[0].camera, "gone");
+    assert_eq!(rows[0].aspect, 16.0 / 9.0);
+}

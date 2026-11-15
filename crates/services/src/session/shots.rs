@@ -6,7 +6,7 @@ use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::shot_edit;
-use crate::views::{ShotRow, DEFAULT_ASPECT};
+use crate::views::{ShotRow, FALLBACK_ASPECT};
 
 impl Session {
     pub fn selected_shot(&self) -> Option<&str> {
@@ -47,7 +47,7 @@ impl Session {
                     number: shot.number.clone(),
                     camera: shot.camera.clone(),
                     camera_label: camera.map(|c| c.label.clone()).unwrap_or_default(),
-                    aspect: camera.map_or(DEFAULT_ASPECT, |c| c.aspect),
+                    aspect: camera.map_or(FALLBACK_ASPECT, |c| c.aspect),
                     follows: camera.and_then(|c| c.follows.clone()).unwrap_or_default(),
                     size: shot.size.name().to_owned(),
                     angle: shot.angle.name().to_owned(),
