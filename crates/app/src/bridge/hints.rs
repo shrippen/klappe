@@ -160,7 +160,10 @@ mod tests {
         assert_eq!(describe(&s, "camera:x"), json!({}));
         assert_eq!(
             describe(&s, "light:led-1"),
-            json!({ "kind": "light", "label": "LED-Panel", "temp": 5600.0, "power": 200.0 })
+            json!({
+                "kind": "light", "label": "LED-Panel", "type": "led-panel", "facing": 330.0,
+                "beam": 60.0, "tunable": true, "temp": 5600.0, "power": 200.0,
+            })
         );
         assert_eq!(describe(&s, "light:x"), json!({}));
         assert_eq!(

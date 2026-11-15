@@ -7,8 +7,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Dash, DrawingShape, FigureColor, Fill, Layer, LightKind, Lock, PlanEdit, Point, Role,
-    ServiceError, Session, Source, Visibility,
+    Dash, DrawingShape, FigureColor, Fill, Layer, Lock, PlanEdit, Point, Role, ServiceError,
+    Session, Source, Visibility,
 };
 
 const LAYERS: [Layer; 6] = [
@@ -224,7 +224,7 @@ fn adding_to_a_locked_layer_is_refused() {
         (
             Layer::Lights,
             PlanEdit::AddLight {
-                kind: LightKind::Tube,
+                preset: "tube".into(),
                 at,
             },
         ),

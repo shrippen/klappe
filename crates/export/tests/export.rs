@@ -2,7 +2,7 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    pdf, png, svg, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme,
+    pdf, png, svg, ExportError, LampTexts, Orientation, Page, Paper, ShotTexts, Texts, Theme,
 };
 use klappe_model::{
     Arrival, Camera, CameraMark, Character, Dash, Departure, Drawing, DrawingShape, FigureColor,
@@ -126,6 +126,7 @@ fn german() -> Texts {
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
+        lamps: LampTexts::default(),
     }
 }
 
