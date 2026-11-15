@@ -403,6 +403,25 @@ TestCase {
         verify(!warning.visible)
     }
 
+    // The warning describes the fields as they were: typing more would change what is applied.
+    function test_the_fields_wait_while_the_warning_stands() {
+        const pd = make()
+        opened(pd)
+        showTab(pd, 2)
+        const form = select(pd, "characterList", "characterForm", "elisabeth")
+        fake.changes = [{ kind: "cue", from: "ELISABETH", to: "ELISE", count: 3 }]
+        const field = findChild(form, "nameField")
+        verify(field.enabled)
+
+        field.text = "Elise"
+        press(form, "apply")
+        verify(findChild(form, "warning").visible)
+        verify(!field.enabled)
+
+        press(form, "cancelChange")
+        verify(field.enabled)
+    }
+
     function test_a_new_scene_head_names_heading_and_number() {
         const pd = make()
         opened(pd)

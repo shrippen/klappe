@@ -99,6 +99,8 @@ ColumnLayout {
     ColumnLayout {
         id: fieldsColumn
         Layout.fillWidth: true
+        // The warning or the question describes the fields as they are.
+        enabled: !pane.busy
         spacing: Kirigami.Units.smallSpacing
     }
 
