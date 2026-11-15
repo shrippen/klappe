@@ -395,6 +395,17 @@ pub mod qobject {
         #[cxx_name = "setSnapping"]
         fn set_snapping(self: Pin<&mut Self>, on: bool);
 
+        /// The time a timeline drag of `grab` (`kind:index:id`, see `retime.rs`) ends at, snapped
+        /// (`snap`: `tenths` or `free`) and kept between the neighbours.
+        #[qinvokable]
+        #[cxx_name = "dragTime"]
+        fn drag_time(self: &Self, grab: &QString, seconds: f64, snap: &QString) -> f64;
+
+        /// Ends such a drag: moves the mark or shot edge, one undo step; false if refused.
+        #[qinvokable]
+        #[cxx_name = "dropTime"]
+        fn drop_time(self: Pin<&mut Self>, grab: &QString, seconds: f64, snap: &QString) -> bool;
+
         #[qinvokable]
         #[cxx_name = "setGrid"]
         fn set_grid(self: Pin<&mut Self>, name: &QString);
@@ -612,6 +623,7 @@ mod playback;
 mod project;
 #[cfg(test)]
 mod qml_tests;
+mod retime;
 mod script;
 mod selection;
 mod shots;

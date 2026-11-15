@@ -9,6 +9,11 @@ import Kante
 //
 // Playing: a timer asks the controller to advance by the real time since its last tick; the
 // controller (services) does the arithmetic and says when the end is reached.
+//
+// Dragging (LH-61, in KanteTrackTimeline): a mark of a figure or camera moves its arrival, an
+// edge of a shot in the cut row moves that edge. While the button is down a line and the time
+// show where it lands; the controller (services) snaps it to 0.1 s (Shift: free) and keeps it
+// between its neighbours; on release one undo step is made. A locked layer is not grabbed.
 Item {
     id: line
 
@@ -22,6 +27,10 @@ Item {
     readonly property real msPerS: 1000
     /// Within this of the end (s), play starts again from the beginning.
     readonly property real endEpsS: 0.05
+
+    readonly property var locks: controller.locksJson ? JSON.parse(controller.locksJson) : ({})
+    // The layer whose lock keeps a row from being dragged, by kind of row.
+    readonly property var layerOfKind: ({ cut: "cameras", figure: "figures", camera: "cameras" })
 
     property bool playing: false
     property bool looping: false
@@ -76,12 +85,25 @@ Item {
         }
     }
 
+    // Moves what a drag holds: the time it lands on while the button is down, the move itself on
+    // release (the controller says it again, snapped).
+    function drag(key, seconds, done, shift) {
+        if (done) {
+            controller.dropTime(key, lanes.dragSeconds, "free")
+            return
+        }
+        lanes.dragSeconds = controller.dragTime(key, seconds, shift ? "free" : "tenths")
+    }
+
     // The services' tracks in KanteTrackTimeline's shape.
     readonly property var tracks: source.map(tr => ({
         name: tr.kind === "cut" ? line.texts.t("timeline.cut") : tr.name,
         label: tr.label,
         shown: tr.shown,
-        segments: tr.segments.map(s => ({ from: s.from_s, to: s.to_s, text: s.text, selected: s.selected })),
+        locked: line.locks[line.layerOfKind[tr.kind]] === true,
+        // Only the edges of a shot are dragged, not the walks between marks or a light's span.
+        segments: tr.segments.map(s => ({ from: s.from_s, to: s.to_s, text: s.text, selected: s.selected,
+                                          locked: tr.kind !== "cut" })),
         markers: tr.markers.map(m => ({ at: m.at_s, text: m.text }))
     }))
 
@@ -123,6 +145,8 @@ Item {
         }
 
         KanteTrackTimeline {
+            id: lanes
+            objectName: "tracks"
             Layout.fillWidth: true
             Layout.fillHeight: true
             duration: Math.max(1, line.controller.duration)
@@ -131,6 +155,8 @@ Item {
             hideText: line.texts.t("timeline.hide")
             showText: line.texts.t("timeline.show")
             accessibleName: line.texts.t("toggle.timeline")
+            draggable: true
+            formatTime: seconds => line.clock(seconds)
 
             onSeek: seconds => line.controller.seek(seconds)
             onToggleShown: index => {
@@ -142,6 +168,15 @@ Item {
                 if (tr.kind === "cut") {
                     line.controller.selectShot(tr.segments[segment].key)
                 }
+            }
+
+            onMarkDragged: (index, marker, seconds, done, shift) => {
+                const tr = line.source[index]
+                line.drag(tr.kind + ":" + marker + ":" + tr.id, seconds, done, shift)
+            }
+            onEdgeDragged: (index, segment, edge, seconds, done, shift) => {
+                const tr = line.source[index]
+                line.drag("shot-" + edge + ":0:" + tr.segments[segment].key, seconds, done, shift)
             }
         }
     }
