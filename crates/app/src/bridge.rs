@@ -22,8 +22,8 @@ pub mod qobject {
         #[qproperty(QString, plan_title, cxx_name = "planTitle")]
         /// `{ width, depth, shapes }` for KanteShapeCanvas.
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
-        /// What the selected shot's camera (else the one picked on the plan) sees, as
-        /// `{ width, depth, shapes }` for KanteShapeCanvas; empty without a camera.
+        /// What the selected shot's camera sees, as `{ width, depth, shapes }` for
+        /// KanteShapeCanvas; empty without a shot or when its camera has no marks.
         #[qproperty(QString, view_json, cxx_name = "viewJson")]
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]

@@ -236,7 +236,7 @@
  "script.empty": "This scene has no script text.",
  "shot.title": "Shot {number}",
  "shot.none": "No shot selected. Pick one in the timeline or the script, or make a new one.",
- "view.none": "No camera view: pick a shot or a camera.",
+ "view.none": "No camera view: the shot's camera has no marks.",
  "view.title": "Camera view",
  "shot.axisJump": "Crosses the line",
  "shot.new": "New shot",

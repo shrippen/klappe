@@ -236,7 +236,7 @@
  "script.empty": "Zu dieser Szene gibt es keinen Drehbuchtext.",
  "shot.title": "Shot {number}",
  "shot.none": "Kein Shot gewählt. Wähle einen in der Zeitleiste oder im Drehbuch, oder lege einen neuen an.",
- "view.none": "Kein Kamerablick: Wähle einen Shot oder eine Kamera.",
+ "view.none": "Kein Kamerablick: Die Kamera des Shots hat keine Marks.",
  "view.title": "Kamerablick",
  "shot.axisJump": "Achsensprung",
  "shot.new": "Neuer Shot",

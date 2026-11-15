@@ -5,7 +5,7 @@ import Kante
 
 // What the camera sees (LH-36, LH-62): Stellprobe's projection, drawn as it comes (no
 // geometry here). The frame has the camera's aspect ratio (LH-38). Empty with a hint while
-// no camera is selected.
+// the shot's camera has no marks.
 Item {
     id: view
 

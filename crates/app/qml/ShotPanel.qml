@@ -252,7 +252,7 @@ Item {
                     }
                 }
 
-                // Of the selected shot's camera, else of the one picked on the plan.
+                // Of the selected shot's camera.
                 CameraView {
                     objectName: "cameraView"
                     Layout.fillWidth: true

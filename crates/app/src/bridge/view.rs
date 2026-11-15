@@ -252,8 +252,8 @@ pub(super) fn plan_json(
     plan::shapes_json(list, s.dir(), &marked, picked, marquee, measure)
 }
 
-/// What the camera sees: the selected shot's camera, else the one picked on the plan; empty
-/// without one.
+/// What the selected shot's camera sees; empty without a shot or when its camera has no marks.
+/// The camera picked on the plan is only the fallback, the panel shows the view with a shot.
 fn view_json(s: &Session, selected: Option<&Source>) -> String {
     let picked = match selected {
         Some(Source::Camera(id)) => Some(id.as_str()),
