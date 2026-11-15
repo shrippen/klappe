@@ -3,6 +3,9 @@
 use klappe_model::{LibraryItem, ObjectShape};
 use serde::Serialize;
 
+/// The frame a shot shows when its camera is gone (16:9).
+pub const DEFAULT_ASPECT: f64 = 16.0 / 9.0;
+
 /// One row of the shot list (LH-71, LH-72).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ShotRow {
@@ -10,6 +13,8 @@ pub struct ShotRow {
     pub number: String,
     pub camera: String,
     pub camera_label: String,
+    /// Width to height of the camera's frame (LH-38); `DEFAULT_ASPECT` if the camera is gone.
+    pub aspect: f64,
     /// Character id of the figure the shot's camera follows (LH-37), else empty.
     pub follows: String,
     /// Model name, e.g. `close-up`; the surface translates it.

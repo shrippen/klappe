@@ -24,6 +24,8 @@ pub mod qobject {
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
         #[qproperty(QString, tracks_json, cxx_name = "tracksJson")]
         #[qproperty(QString, shots_json, cxx_name = "shotsJson")]
+        /// The shot list in shooting order: setups grouped (LH-72); `shotsJson` is the cut order.
+        #[qproperty(QString, shots_shooting_json, cxx_name = "shotsShootingJson")]
         #[qproperty(QString, script_json, cxx_name = "scriptJson")]
         /// `{ set, figures, cameras, lights, notes, drawings }`: true when shown.
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
@@ -597,6 +599,7 @@ pub struct ControllerRust {
     plan_json: QString,
     tracks_json: QString,
     shots_json: QString,
+    shots_shooting_json: QString,
     script_json: QString,
     layers_json: QString,
     locks_json: QString,
@@ -691,6 +694,7 @@ impl Default for ControllerRust {
             plan_json: QString::default(),
             tracks_json: QString::default(),
             shots_json: QString::default(),
+            shots_shooting_json: QString::default(),
             script_json: QString::default(),
             layers_json: QString::default(),
             locks_json: QString::default(),
