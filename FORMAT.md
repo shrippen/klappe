@@ -8,6 +8,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── projekt.toml         Formatversion, Titel
 ├── figuren.toml         Figuren, je ein [[figur]]
 ├── bibliothek.toml      eigene Objekte der Bibliothek, je ein [[objekt]] (optional)
+├── vorlagen.toml        eigene Vorlagen, je ein [[vorlage]] (optional)
 ├── drehorte/<id>.toml   ein Drehort samt Set (Wände, Objekte)
 ├── szenen/<id>.json     eine Szene: Nummer, Überschrift, Drehort, Floorplans
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
@@ -131,6 +132,23 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   und Wege wie jede Figur und wird größer gezeichnet, mit drei Punkten im Umriss, ihr Name trägt
   die Zahl (`Gäste (12)`). Ohne Gruppe fehlt der Schlüssel; ältere Projekte laden und speichern
   unverändert. Keine neue Formatversion, wie bei den Notizen.
+- **Vorlagen (LH-07):** eine Vorlage ist ein Satz Figuren-Platzhalter und Kameras mit Marks für
+  eine typische Auflösung. Die eingebauten sind Teil des Programms
+  (`crates/store/template/standard.toml`: `shot-reverse`, `triangle`, `long-take`; Namen im Katalog
+  unter `template.<id>`). `vorlagen.toml` hält die eigenen des Projekts, je ein `[[vorlage]]` mit
+  `id` (eindeutig im Projekt), `label` (Name) und beliebig vielen `[[vorlage.figures]]` und
+  `[[vorlage.cameras]]`. Eine Figur hat `slot` (eindeutig in der Vorlage, auch der Name einer dafür
+  angelegten Figur) und `[[vorlage.figures.marks]]` wie ein Mark einer Spur; eine Kamera hat die
+  Felder einer Kamera der Szene und `[[vorlage.cameras.marks]]`, `follows` nennt einen `slot`. Orte
+  der Marks sind Meter vom Einfügepunkt, Zeiten Sekunden ab Szenenbeginn; `id` und `label` einer
+  Kamera sind Platzhalter, eine eingefügte Kamera bekommt freie. Eine Datei mit unbrauchbarer
+  Vorlage (leere oder doppelte `id`, leeres `label`, nichts darin, leerer oder doppelter `slot`, Figur oder
+  Kamera ohne Marks, `follows` ohne passenden `slot`, eine Zahl `nan` oder `inf`, ein Wert
+  außerhalb der Grenzen des Editors) wird beim Öffnen mit Meldung abgelehnt. Die Grenzen
+  (`crates/model/src/limits.rs`): Orte bis ±1000 m, Pause nicht negativ, Höhe eines Kamera-Marks
+  0 bis 50 m, Neigung bis ±90°, Brennweite 1 bis 5000 mm, Sensorbreite über 0 bis 500 mm,
+  Seitenverhältnis über 0 bis 20. Ohne eigene Vorlagen gibt es die Datei nicht: `save` löscht sie dann.
+  Keine neue Formatversion, wie bei der Bibliothek.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.

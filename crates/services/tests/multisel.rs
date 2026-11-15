@@ -409,3 +409,61 @@ fn a_group_edit_refuses_numbers_that_are_not() {
     assert!(matches!(shift, Err(ServiceError::BadValue { .. })));
     assert!(matches!(spin, Err(ServiceError::BadValue { .. })));
 }
+
+/// A diamond around `centre`, `r_m` from it to each corner.
+fn diamond(centre: Point, r_m: f64) -> Vec<Point> {
+    vec![
+        p(centre.x_m - r_m, centre.y_m),
+        p(centre.x_m, centre.y_m - r_m),
+        p(centre.x_m + r_m, centre.y_m),
+        p(centre.x_m, centre.y_m + r_m),
+    ]
+}
+
+#[test]
+fn a_lasso_takes_what_has_its_reference_point_in_it() {
+    let s = open();
+
+    // Only the middle of the first pillar (6, 4) is in; the second (14, 4) is not.
+    let found = s.pick_lasso(&diamond(p(6.0, 4.0), 1.0));
+
+    assert_eq!(found, vec![object("saeule-1")]);
+}
+
+#[test]
+fn a_lasso_need_not_hold_the_whole_element() {
+    let s = open();
+
+    // The pillar reaches 0.4 m from its middle; the lasso reaches 0.1 m: still taken.
+    let found = s.pick_lasso(&diamond(p(6.0, 4.0), 0.1));
+
+    assert!(found.contains(&object("saeule-1")));
+}
+
+#[test]
+fn a_lasso_takes_a_figure_by_its_body() {
+    let s = open();
+    let at = mark_at(&s, "elisabeth", 0);
+
+    let found = s.pick_lasso(&diamond(at, 0.3));
+
+    assert!(found.contains(&Source::Figure("elisabeth".into())));
+}
+
+#[test]
+fn a_lasso_takes_nothing_from_a_locked_layer() {
+    let mut s = open();
+    let lasso = diamond(p(6.0, 4.0), 1.0);
+    assert!(s.pick_lasso(&lasso).contains(&object("saeule-1")));
+
+    s.set_lock(Layer::Set, Lock::Locked);
+
+    assert!(!s.pick_lasso(&lasso).contains(&object("saeule-1")));
+}
+
+#[test]
+fn a_lasso_of_two_points_takes_nothing() {
+    let s = open();
+
+    assert!(s.pick_lasso(&[p(0.0, 0.0), p(20.0, 13.0)]).is_empty());
+}

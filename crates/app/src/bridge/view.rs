@@ -7,8 +7,8 @@ use crate::camera;
 use crate::manage;
 use crate::notice::backup_view;
 use crate::plan;
-use crate::plan::Measure;
-use crate::selection::{Pick, Selection};
+use crate::plan::{Measure, Sweep};
+use crate::selection::{Pick, Reach, Selection};
 use crate::tools;
 use crate::tools::MEASURE_SEPARATOR;
 use crate::tools::{AreaDraft, Backdrop, MeasureStep, NoteDraft, Preview, ScaleStep};
@@ -59,6 +59,15 @@ impl ControllerRust {
         }
 
         Pick::Replace
+    }
+
+    /// What a drag on empty ground pulls up: Ctrl held draws a lasso.
+    pub(super) fn reach(&self) -> Reach {
+        if self.lasso_selection {
+            return Reach::Lasso;
+        }
+
+        Reach::Box
     }
 
     /// What the plan on screen is made of, to tell what an edit added.
@@ -164,7 +173,7 @@ impl ControllerRust {
                 s,
                 &s.display_list_for(self.selected.only()),
                 &self.selected,
-                (&self.picked(), self.marquee, measure.as_ref()),
+                (&self.picked(), self.marquee.as_ref(), measure.as_ref()),
             )),
             tracks_json: q(&to_json(&s.tracks())),
             shots_json: q(&to_json(&s.shots())),
@@ -235,7 +244,7 @@ pub(super) fn plan_json(
     s: &Session,
     list: &DisplayList,
     selected: &Selection,
-    (picked, marquee, measure): (&[Point], Option<(Point, Point)>, Option<&Measure>),
+    (picked, marquee, measure): (&[Point], Option<&Sweep>, Option<&Measure>),
 ) -> String {
     let camera = s
         .selected_shot()
@@ -298,6 +307,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "layer": layers,
         "grid": grids,
         "axis": s.axis_choice(),
+        "template": s.templates(),
     })
     .to_string()
 }
@@ -467,6 +477,24 @@ mod tests {
         assert_eq!(objects.len(), s.library().len());
     }
 
+    /// The template list: built in first, with what each holds (LH-07).
+    #[test]
+    fn the_template_list_is_the_built_in_templates() {
+        let s = example();
+
+        let choices: serde_json::Value = serde_json::from_str(&choices_json(&s)).unwrap();
+        let templates = choices["template"].as_array().unwrap();
+        let ids: Vec<_> = templates
+            .iter()
+            .map(|t| t["id"].as_str().unwrap())
+            .collect();
+
+        assert_eq!(ids, ["shot-reverse", "triangle", "long-take"]);
+        assert_eq!(templates[0]["figures"], 2);
+        assert_eq!(templates[0]["cameras"], 3);
+        assert_eq!(templates[0]["custom"], false);
+    }
+
     /// The camera tool lists the cameras of the plan, to add a mark to one of them.
     #[test]
     fn the_camera_list_is_the_plans_cameras() {
@@ -546,6 +574,16 @@ mod tests {
         c.extend_selection = true;
 
         assert_eq!(c.pick_mode(), Pick::Extend);
+    }
+
+    #[test]
+    fn ctrl_makes_a_drag_on_empty_ground_a_lasso() {
+        let mut c = ControllerRust::default();
+        assert_eq!(c.reach(), Reach::Box);
+
+        c.lasso_selection = true;
+
+        assert_eq!(c.reach(), Reach::Lasso);
     }
 
     /// A measurement shows length and direction; one point alone shows nothing to read.

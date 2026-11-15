@@ -132,6 +132,14 @@ impl Session {
         plan_edit::pick_in(&self.display_list().items, (a, b), locked)
     }
 
+    /// Every element whose reference point lies in the freehand shape `lasso` (LH-08). Items of
+    /// locked layers are not taken; no grips, as with `pick_in`.
+    pub fn pick_lasso(&self, lasso: &[Point]) -> Vec<Source> {
+        let locked = |role| self.lock(layer_of(role)) == Lock::Locked;
+
+        plan_edit::pick_lasso(&self.display_list().items, lasso, locked)
+    }
+
     pub fn set_snapping(&mut self, snapping: Snapping) {
         self.snapping = snapping;
     }
