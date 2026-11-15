@@ -428,7 +428,6 @@
  "template.name": "Name of the template",
  "template.saveHint": "Files the figures and cameras of the plan on view, with their marks, as a template of the project. Walls, objects and lamps are not part of it.",
  "template.saved": "Filed as template “{name}”",
- "template.none": "No templates",
  "template.insert": "Insert",
  "remove.plan": "Delete plan {name}? Undo brings it back.",
  "remove.planShot": "Delete plan {name} and its {count} shot? Undo brings both back.",

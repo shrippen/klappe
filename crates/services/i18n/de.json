@@ -428,7 +428,6 @@
  "template.name": "Name der Vorlage",
  "template.saveHint": "Legt die Figuren und Kameras des gezeigten Plans mit ihren Marks als Vorlage im Projekt ab. Wände, Objekte und Lampen gehören nicht dazu.",
  "template.saved": "Als Vorlage „{name}“ abgelegt",
- "template.none": "Keine Vorlagen",
  "template.insert": "Einfügen",
  "remove.plan": "Plan {name} löschen? Rückgängig stellt ihn wieder her.",
  "remove.planShot": "Plan {name} und seinen {count} Shot löschen? Rückgängig stellt beides wieder her.",

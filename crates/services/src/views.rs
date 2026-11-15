@@ -146,7 +146,7 @@ impl LibraryEntry {
 /// One template, as the template list offers it (LH-07).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TemplateEntry {
-    /// What `PlanEdit::ApplyTemplate` takes, e.g. `shot-reverse`.
+    /// What `Session::apply_template` takes, e.g. `shot-reverse`.
     pub id: String,
     /// The name of an own template; empty for a built-in one, which the surface translates
     /// (`template.<id>`).
