@@ -265,6 +265,8 @@ fn drawing_items(plan: &FloorPlan, items: &mut Vec<Item>) {
             fill: drawing.fill,
         };
         let source = Some(Source::Drawing(drawing.id.clone()));
+        let at = |p: Point| drawing.placed(p);
+        let all = |points: Vec<Point>| points.into_iter().map(at).collect::<Vec<_>>();
         let mut push = |role, shape| {
             items.push(Item {
                 role,
@@ -275,20 +277,21 @@ fn drawing_items(plan: &FloorPlan, items: &mut Vec<Item>) {
         };
 
         match &drawing.shape {
-            DrawingShape::Line { from, to } => push(role, line(*from, *to)),
+            DrawingShape::Line { from, to } => push(role, line(at(*from), at(*to))),
             DrawingShape::Arrow { from, to } => {
-                push(role, line(*from, *to));
-                if let Some(head) = arrow_head(*from, *to) {
+                let (from, to) = (at(*from), at(*to));
+                push(role, line(from, to));
+                if let Some(head) = arrow_head(from, to) {
                     push(Role::ArrowHead(drawing.color), head);
                 }
             }
             DrawingShape::Rect { from, to } => {
-                push(role, closed(rect_corners(*from, *to), drawing.fill));
+                push(role, closed(all(rect_corners(*from, *to)), drawing.fill));
             }
             DrawingShape::Ellipse { from, to } => {
-                push(role, closed(ellipse_corners(*from, *to), drawing.fill));
+                push(role, closed(all(ellipse_corners(*from, *to)), drawing.fill));
             }
-            DrawingShape::Area { points } => push(role, closed(points.clone(), drawing.fill)),
+            DrawingShape::Area { points } => push(role, closed(all(points.clone()), drawing.fill)),
         }
     }
 }
@@ -947,6 +950,7 @@ mod tests {
             color: FigureColor::Red,
             dash: Dash::Dashed,
             fill,
+            rotation_deg: 0.0,
         }
     }
 

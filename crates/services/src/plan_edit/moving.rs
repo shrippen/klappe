@@ -156,19 +156,13 @@ pub(super) fn points_mut(shape: &mut DrawingShape) -> Vec<&mut Point> {
     }
 }
 
-/// The first point of a drawing and the middle of its bounding box (the middle of a line,
-/// the centre of a rectangle or ellipse); `None` for a shape without points.
-fn anchors(drawing: &mut Drawing) -> Option<(Point, Point)> {
-    let points = points_mut(&mut drawing.shape);
-    let first = **points.first()?;
-    let (mut min, mut max) = (first, first);
+/// The first point of a drawing as it lies on the plan and the middle of its bounding box
+/// (the middle of a line, the centre of a rectangle or ellipse), which a turn keeps; `None`
+/// for a shape without points.
+fn anchors(drawing: &Drawing) -> Option<(Point, Point)> {
+    let first = *drawing.points().first()?;
 
-    for p in &points {
-        min = Point::new(min.x_m.min(p.x_m), min.y_m.min(p.y_m));
-        max = Point::new(max.x_m.max(p.x_m), max.y_m.max(p.y_m));
-    }
-
-    Some((first, min.lerp(max, 0.5)))
+    Some((drawing.placed(first), drawing.middle()?))
 }
 
 pub(super) fn move_to(
@@ -248,8 +242,9 @@ pub(super) fn spin(
     let now_deg = match target(scope, source)? {
         Target::Place { facing_deg, .. } => *facing_deg,
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
+        Target::Drawing(drawing) => drawing.rotation_deg,
         // Nothing to turn.
-        Target::Pin { .. } | Target::Drawing(_) | Target::Curve { .. } => return Ok(()),
+        Target::Pin { .. } | Target::Curve { .. } => return Ok(()),
     };
 
     turn(scope, source, now_deg + by_deg)
@@ -264,8 +259,9 @@ pub(super) fn turn(
 
     match target(scope, source)? {
         Target::Place { facing_deg: f, .. } => *f = facing_deg,
+        Target::Drawing(drawing) => drawing.rotation_deg = facing_deg,
         // Nothing to turn.
-        Target::Pin { .. } | Target::Drawing(_) | Target::Curve { .. } => {}
+        Target::Pin { .. } | Target::Curve { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.
             let mid = middle(wall);
@@ -336,15 +332,5 @@ fn carry(point: Point, delta_m: (f64, f64), centre: Point, deg: f64) -> Point {
 
 /// `point` turned clockwise on the plan by `deg` about `centre`.
 pub(super) fn rotate(point: Point, centre: Point, deg: f64) -> Point {
-    if deg == 0.0 {
-        return point;
-    }
-
-    let (sin, cos) = deg.to_radians().sin_cos();
-    let (x_m, y_m) = (point.x_m - centre.x_m, point.y_m - centre.y_m);
-
-    Point::new(
-        centre.x_m + x_m * cos - y_m * sin,
-        centre.y_m + x_m * sin + y_m * cos,
-    )
+    point.turned(centre, deg)
 }

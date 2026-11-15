@@ -355,6 +355,7 @@ pub(super) fn add_drawing(
         color,
         dash,
         fill,
+        rotation_deg: 0.0,
     });
 
     Ok(())

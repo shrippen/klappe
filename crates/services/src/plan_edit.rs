@@ -414,7 +414,7 @@ enum Target<'a> {
     Pin {
         at: &'a mut Point,
     },
-    /// Points but no facing: a drawing keeps its shape and is not turned.
+    /// Points and a turn about the middle of its box.
     Drawing(&'a mut Drawing),
     /// The bend of the way from mark `a` to mark `b`.
     Curve {

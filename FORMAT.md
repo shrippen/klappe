@@ -89,7 +89,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Polygon, mindestens drei). Punkte in Metern. `color` ist eine Rolle wie bei Figuren (`purple`,
   `blue`, `green`, `yellow`, `orange`, `red`, `cyan`), `dash` `solid`, `dashed` oder `dotted`
   (Standard `solid`), `fill` `outline` oder `filled` (Standard `outline`; nur Rechteck, Ellipse und
-  Fläche haben ein Inneres). Ohne Zeichnungen fehlt der Schlüssel; ältere Projekte laden und
+  Fläche haben ein Inneres). Optional `rotation_deg` (Grad, im Uhrzeigersinn, Standard 0, bei 0 nicht
+  geschrieben): die Zeichnung ist um die Mitte des Kastens ihrer Punkte gedreht, ein gedrehtes
+  Rechteck oder eine gedrehte Ellipse ist also nicht mehr achsenparallel; die Punkte bleiben ungedreht
+  gespeichert. Ohne Zeichnungen fehlt der Schlüssel; ältere Projekte laden und
   speichern unverändert. Keine neue Formatversion, wie bei den Notizen.
 - **Kurvenwege (LH-21):** jeder Mark einer Figur und einer Kamera (`marks` in `szenen/<id>.json`)
   hat optional `via`, einen Punkt in Metern: der Weg vom vorigen Mark zu diesem ist die
