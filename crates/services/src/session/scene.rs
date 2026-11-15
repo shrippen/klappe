@@ -81,7 +81,7 @@ impl Session {
             at.0,
             at.1,
             self.time_s,
-            self.snapping,
+            (self.snapping, self.grid),
             &edit,
         )?;
         self.check_cameras(&next)?;

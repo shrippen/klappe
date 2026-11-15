@@ -43,8 +43,11 @@ pub mod qobject {
         #[qproperty(bool, extend_selection, cxx_name = "extendSelection")]
         /// Whether points snap to the grid; change it with `setSnapping`.
         #[qproperty(bool, snapping_on, cxx_name = "snappingOn")]
+        /// The grid spacing, a name of `choicesJson.grid`; change it with `setGrid`.
+        #[qproperty(QString, grid_name, cxx_name = "gridName")]
         /// `{ figure: [{ id, name }], object: [{ kind, label, width_m, depth_m, shape, custom }],
-        /// light: [kind], color: [name], dash: [name], fill: [name], rig: [name], movement: [name] }`: what the tool lists
+        /// light: [kind], color: [name], dash: [name], fill: [name], rig: [name], movement: [name],
+        /// grid: [{ id, step_m }] }`: what the tool lists
         /// offer. The objects are the library: built in, then the project's own.
         #[qproperty(QString, choices_json, cxx_name = "choicesJson")]
         /// Whether the set has a background image.
@@ -383,6 +386,10 @@ pub mod qobject {
         #[cxx_name = "setSnapping"]
         fn set_snapping(self: Pin<&mut Self>, on: bool);
 
+        #[qinvokable]
+        #[cxx_name = "setGrid"]
+        fn set_grid(self: Pin<&mut Self>, name: &QString);
+
         /// A drag was aborted: shows the committed plan again.
         #[qinvokable]
         #[cxx_name = "cancelDrag"]
@@ -607,6 +614,7 @@ pub struct ControllerRust {
     selected_count: i32,
     extend_selection: bool,
     snapping_on: bool,
+    grid_name: QString,
     choices_json: QString,
     /// What the select tool has picked; the canvas frames it.
     selected: Selection,
@@ -701,6 +709,7 @@ impl Default for ControllerRust {
             selected_count: 0,
             extend_selection: false,
             snapping_on: true,
+            grid_name: QString::default(),
             choices_json: QString::default(),
             selected: Selection::default(),
             marquee: None,

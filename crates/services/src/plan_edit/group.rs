@@ -8,7 +8,7 @@ use klappe_stellprobe::Source;
 
 use super::{
     anchor_pair, carry_cameras, figure_mark, free_id, free_letter, move_to, points_mut, remove,
-    rotate, snap, target, turn, Scope, Snapping, Target,
+    rotate, snap, target, turn, Grid, Scope, Snapping, Target,
 };
 use crate::error::ServiceError;
 use crate::field::Field;
@@ -19,7 +19,7 @@ pub(super) fn shift(
     scope: &mut Scope<'_>,
     sources: &[Source],
     by_m: (f64, f64),
-    snapping: Snapping,
+    snap_to: (Snapping, Grid),
 ) -> Result<(), ServiceError> {
     let members = movers(scope, sources);
     let placings = placings(scope, &members)?;
@@ -34,7 +34,8 @@ pub(super) fn shift(
     let anchor = first.anchor;
     let landed = snap(
         Point::new(anchor.x_m + by_m.0, anchor.y_m + by_m.1),
-        snapping,
+        snap_to.0,
+        snap_to.1,
     );
     let (dx_m, dy_m) = (landed.x_m - anchor.x_m, landed.y_m - anchor.y_m);
 
