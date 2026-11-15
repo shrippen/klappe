@@ -26,6 +26,7 @@ fn texts() -> ShotTexts {
             gear: "Technik".into(),
             crew: "Team".into(),
             note: "Notiz".into(),
+            axis: "Achsensprung gegen".into(),
         },
         sizes: vec![(ShotSize::Wide, "Totale".into())],
         angles: Vec::new(),

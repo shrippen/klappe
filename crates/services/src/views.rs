@@ -35,8 +35,10 @@ pub struct ShotRow {
     pub gear: String,
     pub crew: String,
     pub note: String,
-    /// The camera crosses the axis against the shot before (LH-41).
+    /// The camera is on the other side of the axis than that of another shot (LH-41).
     pub axis_jump: bool,
+    /// Numbers of those shots, comma separated; empty without a jump.
+    pub axis_against: String,
     /// The camera setup (1-based): same camera, place and lens (LH-72).
     pub setup: usize,
 }

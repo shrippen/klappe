@@ -12,7 +12,7 @@
 //!
 //! Short columns (number, camera, lens, size, angle, movement, times) take what their words need;
 //! the free text columns share the rest and wrap. Sheets are always landscape, whatever the
-//! plan page: fourteen columns need the width.
+//! plan page: fifteen columns need the width.
 
 use klappe_model::FloorPlan;
 use klappe_stellprobe::{ordered_shots, ShotOrder};

@@ -1,5 +1,5 @@
-use klappe_model::{Camera, Movement, Shot};
-use klappe_stellprobe::{axis_jumps, movement_in, ordered_shots, shot_lens, ShotOrder};
+use klappe_model::{Camera, FloorPlan, Movement, Shot};
+use klappe_stellprobe::{axis_jumps, movement_in, ordered_shots, shot_lens, AxisJump, ShotOrder};
 
 use super::{Layer, Lock, Session};
 use crate::edit::{self, ShotField};
@@ -7,6 +7,20 @@ use crate::error::ServiceError;
 use crate::field::Field;
 use crate::shot_edit;
 use crate::views::ShotRow;
+
+const AGAINST_SEPARATOR: &str = ", ";
+
+/// The numbers of the shots `jump` is against, as "12.1, 12.2".
+fn against_numbers(plan: &FloorPlan, jump: &AxisJump) -> String {
+    let numbers: Vec<&str> = jump
+        .against
+        .iter()
+        .filter_map(|id| plan.shots.iter().find(|s| s.id == *id))
+        .map(|s| s.number.as_str())
+        .collect();
+
+    numbers.join(AGAINST_SEPARATOR)
+}
 
 impl Session {
     pub fn selected_shot(&self) -> Option<&str> {
@@ -41,6 +55,7 @@ impl Session {
             .into_iter()
             .map(|(setup, shot)| {
                 let camera = plan.camera(&shot.camera);
+                let jump = jumps.iter().find(|j| j.shot == shot.id);
                 let lens = camera.map(|c| shot_lens(c, shot));
                 ShotRow {
                     id: shot.id.clone(),
@@ -65,7 +80,8 @@ impl Session {
                     gear: shot.gear.clone(),
                     crew: shot.crew.clone(),
                     note: shot.note.clone(),
-                    axis_jump: jumps.contains(&shot.id),
+                    axis_jump: jump.is_some(),
+                    axis_against: jump.map(|j| against_numbers(plan, j)).unwrap_or_default(),
                     setup,
                 }
             })

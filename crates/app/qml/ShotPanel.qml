@@ -156,6 +156,8 @@ Item {
                     chipColor: KanteStyle.warningColor
                     iconName: "dialog-warning"
                     text: panel.texts.t("shot.axisJump")
+                    // Names the shots on the other side of the axis (LH-41).
+                    toolTip: panel.shot ? panel.texts.t("shot.axisAgainst", { shots: panel.shot.axis_against }) : ""
                 }
             }
 

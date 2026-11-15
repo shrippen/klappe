@@ -6,7 +6,8 @@ use klappe_export::{
     Texts, Theme,
 };
 use klappe_model::{
-    Angle, Camera, CameraMark, FloorPlan, Movement, Point, Project, Sensor, SetPlan, Shot, ShotSize,
+    Angle, Arrival, Camera, CameraMark, Departure, FigureTrack, FloorPlan, Mark, Movement, Point,
+    Pose, Project, Sensor, SetPlan, Shot, ShotSize,
 };
 use klappe_stellprobe::{render, DisplayList};
 
@@ -31,6 +32,7 @@ fn texts() -> ShotTexts {
             gear: "Technik".into(),
             crew: "Team".into(),
             note: "Notiz".into(),
+            axis: "Achsensprung gegen".into(),
         },
         sizes: vec![(ShotSize::Wide, "Totale".into())],
         angles: vec![(Angle::Low, "Untersicht".into())],
@@ -57,6 +59,22 @@ fn camera(id: &str, label: &str, lens_mm: f64) -> Camera {
             lens_mm: None,
         }],
         follows: None,
+    }
+}
+
+fn figure(id: &str, x: f64) -> FigureTrack {
+    FigureTrack {
+        character: id.into(),
+        marks: vec![Mark {
+            at_s: 0.0,
+            at: Point::new(x, 5.0),
+            facing_deg: 0.0,
+            pose: Pose::Standing,
+            hold_s: 0.0,
+            via: None,
+            arrival: Arrival::Walk,
+            departure: Departure::Stay,
+        }],
     }
 }
 
@@ -143,8 +161,8 @@ fn csv_quotes_what_rfc_4180_says() {
 
     let csv = shots_csv(&plan, &texts(), ShotOrder::Cut);
 
-    let expected = "Nummer,Kamera,Objektiv (mm),Größe,Perspektive,Bewegung,Von (s),Bis (s),Dauer (s),Inhalt,Requisiten,Technik,Team,Notiz\r\n\
-        12.1,A,35,Totale,Untersicht,Schwenk,1,3.5,2.5,\"Sie sagt: \"\"Hallo, Welt\"\"\",\"Käfig, Löffel\",ohne Sonderzeichen,\"Kamera, Ton\",\"Zeile 1\nZeile 2\"\r\n";
+    let expected = "Nummer,Kamera,Objektiv (mm),Größe,Perspektive,Bewegung,Von (s),Bis (s),Dauer (s),Inhalt,Requisiten,Technik,Team,Notiz,Achsensprung gegen\r\n\
+        12.1,A,35,Totale,Untersicht,Schwenk,1,3.5,2.5,\"Sie sagt: \"\"Hallo, Welt\"\"\",\"Käfig, Löffel\",ohne Sonderzeichen,\"Kamera, Ton\",\"Zeile 1\nZeile 2\",\r\n";
     assert_eq!(csv, expected);
 }
 
@@ -199,7 +217,7 @@ fn csv_without_shots_is_the_head_row() {
 
     assert_eq!(csv.matches("\r\n").count(), 1);
     assert!(csv.starts_with("Nummer,Kamera,Objektiv (mm),"));
-    assert!(csv.ends_with(",Notiz\r\n"));
+    assert!(csv.ends_with(",Notiz,Achsensprung gegen\r\n"));
 }
 
 #[test]
@@ -357,4 +375,22 @@ fn a_setup_heading_repeats_on_each_sheet() {
         String::from_utf8_lossy(&bytes).matches("(Setup 1)").count(),
         sheets
     );
+}
+
+/// Two figures on y = 5; camera `a` (y = 12) and `b` (y = 1) stand on different sides.
+#[test]
+fn csv_names_the_shots_the_axis_is_crossed_against() {
+    let mut plan = plan(3);
+    plan.figures = vec![figure("e", 2.0), figure("v", 8.0)];
+    let mut b = camera("b", "B", 50.0);
+    b.marks[0].at = Point::new(8.0, 1.0);
+    plan.cameras.push(b);
+    plan.shots[2].camera = "b".into();
+
+    let csv = shots_csv(&plan, &texts(), ShotOrder::Cut);
+
+    // 12.1 and 12.2 against 12.3 and the other way round; the lists hold commas, so quoted.
+    assert!(csv.lines().nth(1).unwrap().ends_with(",12.3"));
+    assert!(csv.lines().nth(2).unwrap().ends_with(",12.3"));
+    assert!(csv.lines().nth(3).unwrap().ends_with(",\"12.1, 12.2\""));
 }

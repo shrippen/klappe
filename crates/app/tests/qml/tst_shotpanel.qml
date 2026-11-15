@@ -56,7 +56,7 @@ TestCase {
             follows: follows === undefined ? "" : follows,
             id: "s12-3", number: "12.3", camera: "b", camera_label: "B", size: "medium", angle: "eye-level",
             movement: "static", lens_mm: own === null ? 50 : own, own_lens_mm: own, lens_to_mm: null, lens_from_marks: false,
-            description: "", props: "", gear: "", crew: "", note: "", axis_jump: false
+            description: "", props: "", gear: "", crew: "", note: "", axis_jump: false, axis_against: ""
         }
     }
 
