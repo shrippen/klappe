@@ -71,11 +71,16 @@ Item {
     }
 
     function _limit(other) {
-        return Math.max(paneMin, Math.min(paneMax, width - other - planMin - Kirigami.Units.largeSpacing * 2))
+        return Math.max(paneMin, Math.min(paneMax, width - other - planMin - scriptHandle.width - shotHandle.width))
     }
 
-    readonly property real _scriptTaken: showScript && !scriptFolded ? scriptWidth : 0
-    readonly property real _shotTaken: showShot && !shotFolded ? shotWidth : 0
+    // The remembered widths may not fit this window: the panes are cut to leave the plan its
+    // room (the script first, the shot takes what is left); the remembered values stay.
+    readonly property real _shotMin: showShot && !shotFolded ? paneMin : 0
+    readonly property real scriptApplied: Math.min(scriptWidth, _limit(_shotMin))
+    readonly property real shotApplied: Math.min(shotWidth, _limit(_scriptTaken))
+    readonly property real _scriptTaken: showScript && !scriptFolded ? scriptApplied : 0
+    readonly property real _shotTaken: showShot && !shotFolded ? shotApplied : 0
 
     onTierChanged: area = "plan"
 
@@ -117,11 +122,12 @@ Item {
                     objectName: "scriptSlot"
                     active: work.tier === Workspace.Tier.Wide
                     visible: active && work.showScript && !work.scriptFolded
-                    Layout.preferredWidth: work.scriptWidth
+                    Layout.preferredWidth: work.scriptApplied
                     Layout.fillHeight: true
                     sourceComponent: scriptPane
                 }
                 KanteSplitHandle {
+                    id: scriptHandle
                     objectName: "scriptHandle"
                     visible: work.tier === Workspace.Tier.Wide && work.showScript
                     Layout.fillHeight: true
@@ -129,7 +135,7 @@ Item {
                     accessibleName: work.texts.t("layout.splitScript")
                     from: work.paneMin
                     to: work._limit(work._shotTaken)
-                    value: work.scriptWidth
+                    value: work.scriptApplied
                     defaultValue: work.paneDefault
                     collapsible: true
                     collapsed: work.scriptFolded
@@ -209,6 +215,7 @@ Item {
                 }
 
                 KanteSplitHandle {
+                    id: shotHandle
                     objectName: "shotHandle"
                     visible: work.tier === Workspace.Tier.Wide && work.showShot
                     Layout.fillHeight: true
@@ -217,7 +224,7 @@ Item {
                     accessibleName: work.texts.t("layout.splitShot")
                     from: work.paneMin
                     to: work._limit(work._scriptTaken)
-                    value: work.shotWidth
+                    value: work.shotApplied
                     defaultValue: work.paneDefault
                     collapsible: true
                     collapsed: work.shotFolded
@@ -228,7 +235,7 @@ Item {
                     objectName: "shotSlot"
                     active: work.tier === Workspace.Tier.Wide
                     visible: active && work.showShot && !work.shotFolded
-                    Layout.preferredWidth: work.shotWidth
+                    Layout.preferredWidth: work.shotApplied
                     Layout.fillHeight: true
                     sourceComponent: shotPane
                 }

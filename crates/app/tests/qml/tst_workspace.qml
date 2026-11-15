@@ -288,6 +288,18 @@ TestCase {
         verify(win.bar.fitCount > 0 && win.bar.fitCount < win.bar.shown.length, "fit " + win.bar.fitCount)
     }
 
+    function test_remembered_widths_are_cut_to_the_window() {
+        const work = make(1400)
+        work.scriptWidth = work.paneMax
+        work.shotWidth = work.paneMax
+        waitForRendering(work)
+        wait(50)
+
+        whole(work, ["scriptSlot", "scriptHandle", "plan", "shotHandle", "shotSlot", "timeline"])
+        verify(part(work, "plan").width >= work.planMin - tolerance, "plan " + part(work, "plan").width)
+        // What was remembered stays for a wider window.
+        compare(work.scriptWidth, work.paneMax)
+    }
 
 
     function test_wide_shows_everything_beside_the_plan() {
