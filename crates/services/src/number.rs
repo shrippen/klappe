@@ -12,6 +12,8 @@ pub enum Unit {
     Millimetre,
     Second,
     Degree,
+    Watt,
+    Kelvin,
 }
 
 impl Unit {
@@ -22,6 +24,8 @@ impl Unit {
             Self::Millimetre => "mm",
             Self::Second => "s",
             Self::Degree => "°",
+            Self::Watt => "W",
+            Self::Kelvin => "K",
         }
     }
 }

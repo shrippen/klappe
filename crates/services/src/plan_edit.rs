@@ -2,13 +2,14 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     Arrival, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
-    LibraryItem, LightKind, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
+    LibraryItem, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
 };
 use klappe_stellprobe::{hit, within, Item, Role, Source};
 
 use crate::camera_edit;
 use crate::error::ServiceError;
 use crate::field::Field;
+use crate::light_edit::LightChange;
 use crate::session::Layer;
 
 mod add;
@@ -21,7 +22,7 @@ mod moving;
 mod remove;
 
 use add::{
-    add_camera, add_camera_mark, add_drawing, add_light, add_mark, add_note, add_object, add_wall,
+    add_camera, add_camera_mark, add_drawing, add_mark, add_note, add_object, add_wall, edit_light,
     edit_note, free_id, free_letter,
 };
 use background::{calibrate, move_background, remove_background, set_background};
@@ -106,9 +107,15 @@ pub enum PlanEdit {
         camera: String,
         at: Point,
     },
+    /// Sets a new lamp of the built-in library entry `preset` (LH-51).
     AddLight {
-        kind: LightKind,
+        preset: String,
         at: Point,
+    },
+    /// Changes one thing of the lamp `light` (LH-50); its facing is `Turn`.
+    SetLight {
+        light: String,
+        change: LightChange,
     },
     /// Sets a new object of library entry `kind` (LH-11), as big as the entry says; a kind
     /// no library knows is a 1 m square.
@@ -352,7 +359,7 @@ impl PlanEdit {
             | PlanEdit::SetSensor { .. }
             | PlanEdit::SetLens { .. }
             | PlanEdit::SetAspect { .. } => Layer::Cameras,
-            PlanEdit::AddLight { .. } => Layer::Lights,
+            PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => Layer::Lights,
             PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } => Layer::Notes,
             PlanEdit::AddDrawing { .. } => Layer::Drawings,
             PlanEdit::AddObject { .. }
@@ -487,7 +494,7 @@ pub(crate) fn apply(
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
         PlanEdit::AddCameraMark { camera, at } => add_camera_mark(&mut scope, camera, *at),
-        PlanEdit::AddLight { kind, at } => add_light(&mut scope, *kind, *at),
+        PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => edit_light(&mut scope, edit),
         PlanEdit::AddObject { kind, at } => add_object(&mut scope, kind, *at),
         PlanEdit::Resize {
             source,
