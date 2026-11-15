@@ -246,6 +246,7 @@
  "field.number": "Nummer",
  "field.follows": "Folgt",
  "field.axis": "Achse",
+ "field.axisAgainst": "Achsensprung gegen",
  "axis.auto": "Erste zwei Figuren",
  "follows.none": "keine",
  "field.camera": "Kamera",

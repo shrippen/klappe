@@ -246,6 +246,7 @@
  "field.number": "Number",
  "field.follows": "Follows",
  "field.axis": "Axis",
+ "field.axisAgainst": "Crosses the line against",
  "axis.auto": "First two figures",
  "follows.none": "none",
  "field.camera": "Camera",
