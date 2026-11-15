@@ -61,6 +61,12 @@ Item {
             area.tipAt = canvas.mapFromModel(x, y)
         }
         onShapeClicked: (key, x, y) => area.controller.place(x, y)
+        // The click before it selected the note; the double click edits its text.
+        onShapeDoubleClicked: (key, x, y) => {
+            if (area.tool === "select" && key.indexOf("note:") === 0) {
+                area.controller.editSelectedNote()
+            }
+        }
         onShapeDragged: (key, fromX, fromY, x, y, done) => {
             if (area.dragAborted) {
                 area.dragAborted = done ? false : true
@@ -69,6 +75,16 @@ Item {
             }
             area.dragging = !done
             area.controller.drag(fromX, fromY, x, y, done)
+        }
+    }
+
+    /// Zooms about the middle of the view: "in", "out" or "fit" (the whole plan).
+    readonly property real zoomStep: 1.25
+    function zoomBy(how) {
+        switch (how) {
+        case "in": canvas.zoom *= zoomStep; break
+        case "out": canvas.zoom /= zoomStep; break
+        case "fit": canvas.fit(); break
         }
     }
 
@@ -333,6 +349,17 @@ Item {
         width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
     }
 
+    // A lamp is selected (LH-50, LH-51): kind, library lamp, direction, beam, power and colour.
+    LightCard {
+        objectName: "lightCard"
+        texts: area.texts
+        controller: area.controller
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+        width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
+    }
+
     // A mark is selected (LH-22, LH-63): pose, pause and pace.
     MarkCard {
         objectName: "markCard"
@@ -469,7 +496,10 @@ Item {
         case "bend":
             return [t.t("tip.bend", { index: d.index })]
         case "light":
-            return [t.t("tip.light", { label: d.label, temp: d.temp, power: d.power })]
+            // Bounce and flag make no light of their own: no power, no colour.
+            return d.power > 0
+                ? [t.t("tip.light", { label: d.label, type: t.t("lightKind." + d.type), temp: t.num(d.temp, 0), power: t.num(d.power, 0), beam: t.num(d.beam, 0) })]
+                : [t.t("tip.lightPassive", { label: d.label, type: t.t("lightKind." + d.type), beam: t.num(d.beam, 0) })]
         case "object":
             return [t.t("tip.object", { label: d.label }),
                     d.height !== null ? t.t("tip.objectHeight", { height: t.num(d.height, 2) }) : ""]
