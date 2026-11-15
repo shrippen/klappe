@@ -2,12 +2,12 @@
 
 use super::q;
 use super::qobject;
-use crate::notice::error_text;
 use crate::tools;
 use crate::tools::NoteDraft;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
+use klappe_services::error_text;
 use klappe_services::{Layer, Source};
 
 impl qobject::Controller {

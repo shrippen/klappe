@@ -5,10 +5,10 @@ use super::qobject;
 use super::view::to_json;
 use crate::fileurl;
 use crate::manage;
-use crate::notice::error_text;
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
+use klappe_services::error_text;
 use klappe_services::{ProjectEdit, ServiceError, Session};
 use std::path::Path;
 

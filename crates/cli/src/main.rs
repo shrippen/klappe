@@ -8,7 +8,7 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
-    read_number, Field, Language, Paper, Range, Sensor, Session, ShotOrder, Unit,
+    error_text, read_number, Field, Language, Paper, Range, Sensor, Session, ShotOrder, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -163,8 +163,7 @@ fn export(job: &ExportJob) -> ExitCode {
 }
 
 fn write_export(job: &ExportJob) -> Result<(), String> {
-    let mut session = Session::open(&job.project)
-        .map_err(|e| format!("cannot open {}: {e}", job.project.display()))?;
+    let mut session = Session::open(&job.project).map_err(|e| error_text(job.language, &e))?;
     let scene_id = session
         .project()
         .scenes
@@ -173,9 +172,13 @@ fn write_export(job: &ExportJob) -> Result<(), String> {
         .map(|s| s.id.clone())
         .ok_or_else(|| format!("no scene {}", job.scene))?;
 
-    session.select_scene(&scene_id).map_err(|e| e.to_string())?;
+    session
+        .select_scene(&scene_id)
+        .map_err(|e| error_text(job.language, &e))?;
     if let Some(plan) = &job.plan {
-        session.select_plan(plan).map_err(|e| e.to_string())?;
+        session
+            .select_plan(plan)
+            .map_err(|e| error_text(job.language, &e))?;
     }
     if session.plan().is_none() {
         return Err(format!("scene {} has no plan", job.scene));
@@ -193,7 +196,7 @@ fn write_export(job: &ExportJob) -> Result<(), String> {
             .export_frames(&job.out, job.paper, &texts)
             .map(|_| ()),
     }
-    .map_err(|e| e.to_string())
+    .map_err(|e| error_text(job.language, &e))
 }
 
 fn paper_of(paper: PaperArg) -> Paper {

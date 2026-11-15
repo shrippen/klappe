@@ -3,7 +3,6 @@
 use super::q;
 use super::qobject;
 use super::view::plan_json;
-use crate::notice::error_text;
 use crate::plan::Sweep;
 use crate::selection;
 use crate::selection::{Pick, Reach};
@@ -15,6 +14,7 @@ use crate::tools::{
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
+use klappe_services::error_text;
 use klappe_services::{Grid, Layer, PlanEdit, Point, Snapping};
 
 impl qobject::Controller {
