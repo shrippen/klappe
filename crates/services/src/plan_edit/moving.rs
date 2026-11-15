@@ -1,7 +1,7 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
-use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Wall};
-use klappe_stellprobe::{bend_point, via_through, Source};
+use klappe_model::{CameraMark, Drawing, DrawingShape, FloorPlan, Mark, Point, Wall};
+use klappe_stellprobe::{bend_follow, bend_point, via_through, Source};
 
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
@@ -171,11 +171,106 @@ fn anchors(drawing: &mut Drawing) -> Option<(Point, Point)> {
     Some((first, min.lerp(max, 0.5)))
 }
 
+/// A mark of a figure or camera: whose, and which.
+enum Owner {
+    Figure(String),
+    Camera(String),
+}
+
+/// The mark `source` names or stands at, as its owner and index, with the place it is at.
+fn mark_held(scope: &Scope<'_>, source: &Source) -> Option<(Owner, usize, Point)> {
+    let time_s = scope.time_s;
+
+    match source {
+        Source::Mark { character, index } => {
+            let at = scope.plan.figure(character)?.marks.get(*index)?.at;
+            Some((Owner::Figure(character.clone()), *index, at))
+        }
+        Source::Figure(character) => {
+            let track = scope.plan.figure(character)?;
+            let index = current_index(track.marks.iter().map(|m| m.at_s), time_s)?;
+            Some((
+                Owner::Figure(character.clone()),
+                index,
+                track.marks[index].at,
+            ))
+        }
+        Source::Camera(id) => {
+            let camera = scope.plan.camera(id)?;
+            let index = current_index(camera.marks.iter().map(|m| m.at_s), time_s)?;
+            Some((Owner::Camera(id.clone()), index, camera.marks[index].at))
+        }
+        _ => None,
+    }
+}
+
+fn figure_parts(m: &mut Mark) -> (&mut Point, &mut Option<Point>) {
+    (&mut m.at, &mut m.via)
+}
+
+fn camera_parts<'a>(m: &'a mut CameraMark) -> (&'a mut Point, &'a mut Option<Point>) {
+    (&mut m.at, &mut m.via)
+}
+
+/// After mark `index` moved from `old`: the bends of the way to it and of the way from it keep
+/// their shape, so a move does not leave a bend behind that now cuts across the plan (LH-21).
+fn keep_bends<M>(
+    marks: &mut [M],
+    index: usize,
+    old: Point,
+    parts: for<'a> fn(&'a mut M) -> (&'a mut Point, &'a mut Option<Point>),
+) {
+    let Some(this) = marks.get_mut(index) else {
+        return;
+    };
+    let new = *parts(this).0;
+
+    if let Some(before) = index.checked_sub(1) {
+        let a = *parts(&mut marks[before]).0;
+        let (_, via) = parts(&mut marks[index]);
+        *via = via.map(|v| bend_follow(v, (a, old), (a, new)));
+    }
+
+    let Some(next) = marks.get_mut(index + 1) else {
+        return;
+    };
+    let (b, via) = parts(next);
+    let b = *b;
+    *via = via.map(|v| bend_follow(v, (old, b), (new, b)));
+}
+
 pub(super) fn move_to(
     scope: &mut Scope<'_>,
     source: &Source,
     to: Point,
 ) -> Result<(), ServiceError> {
+    let held = mark_held(scope, source);
+
+    place(scope, source, to)?;
+
+    match held {
+        Some((Owner::Figure(character), index, old)) => {
+            if let Some(track) = scope
+                .plan
+                .figures
+                .iter_mut()
+                .find(|f| f.character == character)
+            {
+                keep_bends(&mut track.marks, index, old, figure_parts);
+            }
+        }
+        Some((Owner::Camera(id), index, old)) => {
+            if let Some(camera) = scope.plan.cameras.iter_mut().find(|c| c.id == id) {
+                keep_bends(&mut camera.marks, index, old, camera_parts);
+            }
+        }
+        None => {}
+    }
+
+    Ok(())
+}
+
+fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => *at = to,
         // `to` is where the way passes halfway, which is what the grip sits on.
