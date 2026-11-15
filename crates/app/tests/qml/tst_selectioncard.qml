@@ -123,6 +123,23 @@ TestCase {
         }
     }
 
+    // Review of #90: with no room on either side the card left the plan; it covers the
+    // element inside the plan then.
+    function test_the_card_stays_in_the_plan_without_room_beside() {
+        const huge = { kind: "polygon", points: [0, 0, 20, 0, 20, 13, 0, 13], radius: 0, width: 0,
+                       label: "muted", stroke: "solid", fill: "tint", text: "", key: "object:o1",
+                       selected: false }
+        fake.planJson = JSON.stringify({ width: 20, depth: 13, shapes: [huge] })
+        const area = drawn("select")
+        const card = findChild(area, "selectionCard")
+
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        verify(card.x >= 0, "x " + card.x)
+        verify(card.x + card.width <= area.width, "right " + (card.x + card.width))
+    }
+
     function test_the_card_follows_the_element_when_the_plan_is_panned() {
         const area = drawn("select", wide)
         const card = findChild(area, "selectionCard")

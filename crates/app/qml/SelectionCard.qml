@@ -105,7 +105,8 @@ KantePopover {
     }
 
     // The side of the element for the card: the one it has, else right; then the other one;
-    // a side where it fits and does not cover the pointer first.
+    // a side where it fits and does not cover the pointer first. No room on either side: Auto,
+    // the card covers the element inside the plan.
     function sideFor(box) {
         const right = KantePopover.Side.Right
         const left = KantePopover.Side.Left
@@ -113,7 +114,7 @@ KantePopover {
         const sides = [kept, kept === right ? left : right]
         const fits = side => card.slot(box, side).fits
         const free = sides.find(side => fits(side) && !card.covers(card.slot(box, side)))
-        return free || sides.find(fits) || kept
+        return free || sides.find(fits) || KantePopover.Side.Auto
     }
 
     // Placing lays the card out, which changes its size and asks to place it again: that
