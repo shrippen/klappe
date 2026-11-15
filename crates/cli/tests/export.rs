@@ -83,10 +83,21 @@ fn an_unknown_scene_fails_without_a_file() {
 fn an_unknown_plan_fails() {
     let out = out_file("cli-noplan.png");
 
-    let output = export(&out, &["--plan", "nope"]);
+    let output = export(&out, &["--plan", "nope", "--language", "en"]);
 
     assert!(!output.status.success());
-    assert!(stderr(&output).contains("klappe-cli: no plan nope"));
+    assert!(stderr(&output).contains("klappe-cli: Plan not found: nope"));
+}
+
+/// Audit 3, finding 1: the CLI says what the app says, in its `--language`.
+#[test]
+fn a_service_error_uses_the_catalogue_text() {
+    let out = out_file("cli-noplan-de.png");
+
+    let output = export(&out, &["--plan", "nope", "--language", "de"]);
+
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("klappe-cli: Plan nicht gefunden: nope"));
 }
 
 #[test]

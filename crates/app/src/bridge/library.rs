@@ -2,11 +2,11 @@
 
 use super::qobject;
 use crate::fileurl;
-use crate::notice::error_text;
 use crate::object;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
+use klappe_services::error_text;
 use klappe_services::{Field, ServiceError};
 
 impl qobject::Controller {

@@ -6,9 +6,10 @@ use klappe_services::Session;
 use super::{q, ControllerRust};
 use crate::args::AppArgs;
 use crate::catalog::Language;
-use crate::notice::{error_text, Status};
+use crate::notice::Status;
 use crate::selection::Selection;
 use crate::tools::{AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Tool};
+use klappe_services::error_text;
 
 /// Seconds between two backups of unsaved changes while a project is open.
 const AUTOSAVE_S: i32 = 30;

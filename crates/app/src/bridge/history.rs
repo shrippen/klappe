@@ -3,9 +3,9 @@
 use super::q;
 use super::qobject;
 use crate::notice::backup_view;
-use crate::notice::error_text;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
+use klappe_services::error_text;
 use klappe_services::Autosave;
 
 impl qobject::Controller {
