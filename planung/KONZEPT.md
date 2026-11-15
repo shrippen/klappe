@@ -38,7 +38,7 @@ Alle Module arbeiten auf demselben Projekt und demselben Datenmodell.
 | SVG, CSV | eigene Ausgabe | MIT | klein |
 | PNG | eigener Rasterer (`export/`: Flächenfüllung mit Kantenglättung, Liberation Sans als TrueType, PNG-Schreiber; liest PNG und JPEG für Hintergrundbilder) | MIT; Schrift SIL OFL | Die CLI soll PNG ohne Qt schreiben (LH-81); ein Rasterer aus Crates brächte viele Abhängigkeiten. Dieselbe Seite wie SVG und PDF, 150 dpi. |
 | ODS, XLSX | eigene Ausgabe (`export/`: ZIP ohne Kompression, XML) | MIT | LH-85; eine Tabelle braucht keine Bibliothek. |
-| Kamerablick (3D) | eigene einfache Perspektivprojektion im Kern (Wände, Kästen, Figuren als Silhouetten) | MIT | Qt Quick 3D ist nur unter GPLv3 frei; reicht für LH-36 ohne GPU-Stack. |
+| Kamerablick und 3D-Ansicht | eigener Rasterer mit Tiefenpuffer (Baustein `raster/`), eine Szene für Plan, 3D und Kamerablick; Druck als sortierte Vektorflächen ([`stellprobe/3D-KONZEPT.md`](stellprobe/3D-KONZEPT.md)) | MIT | Qt Quick 3D ist nur unter GPLv3 frei; fertige Rust-Renderer sind eingefroren oder Teil einer Spiel-Engine; einige hundert Dreiecke brauchen keinen GPU-Stack. |
 | Pakete | Flatpak zuerst, dann Windows, dann macOS | – | Wie Kontra. |
 
 Abhängigkeitsregel wie Kontra: nur MIT, Apache-2.0, BSD, ISC, Zlib, Unlicense, CC0, Schriften
@@ -114,6 +114,6 @@ Eigentümer, 2026-11-13:
 | E-09 | Umfang der TUI | Nur Drehbuch schreiben. |
 | E-10 | Programme | GUI-App `klappe` mit Modulen, dazu `klappe-tui` und `klappe-cli`. Die CLI exportiert Pläne (`klappe-cli export --project … --scene … --out plan.png`, PDF, SVG, PNG); ihre Texte kommen wie die der App aus dem Katalog in `services/i18n`. |
 | E-11 | Projektformat | Ordner aus Textdateien; zum Weitergeben als Zip (`.klappe`). |
-| E-12 | Technik des Kamerablicks | Eigene einfache Perspektivprojektion im Kern. |
+| E-12 | Technik des Kamerablicks | Eigener Rasterer mit Tiefenpuffer (`raster/`), eine Szene für Plan, 3D und Kamerablick; abgelöst am 15.11.2026 die einfache Perspektivprojektion. Einzelheiten: [`stellprobe/3D-KONZEPT.md`](stellprobe/3D-KONZEPT.md). |
 | E-13 | CI | Wie Kontra: Prüfungen und Flatpak auf dem GitHub-Mirror, Status an Gitea. |
 | E-14 | Oberfläche | Entwurf B der Runde 2 („Drehbuch daneben“): Drehbuch links, Plan in der Mitte, Shot mit Vorschau und Daten rechts, Zeitleiste mit Ebenenschaltern unten. Seitenleisten und Zeitleiste ein- und ausklappbar; oben Kopfzeile und Werkzeugleiste wie Entwurf A. Entwürfe: https://claude.ai/artifact/9UDTh7hdqccSMz62NLZztN Abgelöst, wo sie sich unterscheiden, durch die Designrunde vom 14.11.2026: [DESIGN.md](DESIGN.md) D-01 bis D-10. |

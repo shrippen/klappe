@@ -1,0 +1,1105 @@
+<title>Stellprobe Raumskizze</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Werkzeuge links, eine Bühne für Plan und 3D in der Mitte, Auswahl/Daten rechts, Maßfeld unten.
+   Farben: Kante (dunkel = Standard, Leinen = hell). */
+:root {
+  --bg: #1d2021; --panel: #2a2826; --field: #141312; --line: #504945;
+  --fg: #ebdbb2; --fg-dim: #a89984; --accent: #e8dcc4;
+  --hl: #5ccfc4; --warn: #fe8019; --ok: #8ec07c;
+  --floor: #282828; --grid: #3c3836; --wall: #d5c4a1; --obj: #83a598; --free: #d3869b; --edge: #141312;
+  --fig1: #fabd2f; --fig2: #d3869b; --fig3: #8ec07c; --fig4: #83a598; --cam: #fe8019;
+  --head: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  --body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f0e9d6; --panel: #f7f2e4; --field: #fbf8ee; --line: #d3c8ac;
+  --fg: #3c3836; --fg-dim: #6a5f52; --accent: #3c3836;
+  --hl: #0f6b66; --warn: #af3a03; --ok: #3a6e4e;
+  --floor: #e6dec6; --grid: #d3c8ac; --wall: #504945; --obj: #076678; --free: #8f3f71; --edge: #282828;
+  --fig1: #8a5a00; --fig2: #8f3f71; --fig3: #3a6e4e; --fig4: #076678; --cam: #af3a03;
+  color-scheme: light; } }
+:root[data-theme="light"] {
+  --bg: #f0e9d6; --panel: #f7f2e4; --field: #fbf8ee; --line: #d3c8ac;
+  --fg: #3c3836; --fg-dim: #6a5f52; --accent: #3c3836;
+  --hl: #0f6b66; --warn: #af3a03; --ok: #3a6e4e;
+  --floor: #e6dec6; --grid: #d3c8ac; --wall: #504945; --obj: #076678; --free: #8f3f71; --edge: #282828;
+  --fig1: #8a5a00; --fig2: #8f3f71; --fig3: #3a6e4e; --fig4: #076678; --cam: #af3a03;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 13px; }
+* { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--hl); outline-offset: 1px; }
+
+.app { height: 100%; display: grid; grid-template-columns: 190px minmax(0, 1fr) 270px;
+  grid-template-rows: auto minmax(0, 1fr) auto; }
+.bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); background: var(--panel); }
+.brand { font-family: var(--head); font-weight: 700; font-size: 18px; letter-spacing: .08em; text-transform: uppercase; }
+.brand small { color: var(--fg-dim); font-weight: 600; letter-spacing: .08em; margin-left: 6px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { background: transparent; border: 0; padding: 4px 12px; cursor: pointer; font-family: var(--mono); font-size: 12px; }
+.seg button[aria-pressed="true"] { background: var(--hl); color: var(--bg); }
+.lbl { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--fg-dim); }
+.num { width: 64px; background: var(--field); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px;
+  font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line);
+  font-family: var(--mono); font-size: 12px; cursor: pointer; background: transparent; }
+.chip.warn { border-color: var(--warn); color: var(--warn); }
+.chip[aria-pressed="true"] { border-color: var(--hl); color: var(--hl); }
+.chip.ok { border-color: var(--ok); color: var(--ok); cursor: default; }
+.spacer { flex: 1; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 3px; padding: 3px 10px; cursor: pointer; }
+
+.tools { border-right: 1px solid var(--line); background: var(--panel); overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 14px; }
+.group { display: flex; flex-direction: column; gap: 2px; }
+.group h2 { font-family: var(--mono); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .14em; color: var(--fg-dim); margin: 0 0 4px; }
+.tool { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; background: transparent;
+  border: 1px solid transparent; border-radius: 3px; padding: 4px 8px; cursor: pointer; }
+.tool:hover { border-color: var(--line); }
+.tool[aria-pressed="true"] { border-color: var(--hl); color: var(--hl); }
+.tool kbd, .tool .meta { font-family: var(--mono); font-size: 11px; color: var(--fg-dim); }
+
+.stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--floor); }
+#cv { display: block; width: 100%; height: 100%; touch-action: none; }
+#labels { position: absolute; inset: 0; pointer-events: none; }
+.tag { position: absolute; transform: translate(-50%, -50%); font-family: var(--mono); font-size: 11px; white-space: nowrap;
+  padding: 0 4px; border-radius: 2px; background: color-mix(in srgb, var(--bg) 75%, transparent); color: var(--fg); }
+.tag.miss { color: var(--warn); border: 1px dashed var(--warn); }
+.tag.name { background: transparent; font-weight: 500; }
+.tag.draft { color: var(--hl); }
+#camtag { position: absolute; right: 12px; font-family: var(--mono); font-size: 11px; color: var(--fg); pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 75%, transparent); padding: 1px 6px; }
+.viewbadge { position: absolute; left: 12px; top: 10px; font-family: var(--head); font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--fg-dim); pointer-events: none; }
+
+.side { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; background: transparent; border: 0; padding: 8px; cursor: pointer; font-family: var(--mono);
+  font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--fg-dim); border-bottom: 2px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--hl); }
+.pane { overflow: auto; padding: 12px; min-height: 0; flex: 1; }
+.pane h3 { font-family: var(--head); font-weight: 700; font-size: 16px; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 2px; }
+.pane .sub { color: var(--fg-dim); margin: 0 0 12px; }
+.fields { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
+.fields .num, .fields select { width: 100%; }
+.fields select { background: var(--field); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px; }
+.hint { color: var(--fg-dim); line-height: 1.5; margin: 12px 0 0; }
+.hint b { color: var(--fg); font-weight: 600; }
+.src { font-family: var(--mono); font-size: 11px; color: var(--fg-dim); }
+.src.miss { color: var(--warn); }
+pre { font-family: var(--mono); font-size: 11px; line-height: 1.45; margin: 0; white-space: pre-wrap; word-break: break-word; }
+.danger { margin-top: 14px; background: transparent; border: 1px solid var(--line); border-radius: 3px; padding: 4px 10px; cursor: pointer; }
+
+.status { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-block: 6px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-top: 1px solid var(--line); background: var(--panel); }
+#hint { flex: 1; min-width: 0; color: var(--fg-dim); }
+#vcb { width: 140px; }
+
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 62vh auto auto; }
+  .tools { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; overflow-x: auto; }
+  .group { flex-shrink: 0; }
+  .stage { min-height: 360px; }
+  .side { border-left: 0; border-top: 1px solid var(--line); max-height: 60vh; }
+}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand">Stellprobe <small>Raumskizze · Prototyp</small></div>
+    <div class="seg" role="group" aria-label="Ansicht">
+      <button id="v-plan" aria-pressed="true">Plan</button>
+      <button id="v-3d" aria-pressed="false">3D</button>
+    </div>
+    <button id="cut" class="chip" aria-pressed="true" title="C: Wände in 3D auf 1,20 m schneiden">Schnitt 1,20 m</button>
+    <label class="lbl" for="roomH">Raumhöhe</label>
+    <input id="roomH" class="num" value="2,60" inputmode="decimal">
+    <span class="lbl">m</span>
+    <button id="missing" class="chip"></button>
+    <span class="spacer"></span>
+    <button id="undo" class="ghost" title="Strg+Z">Rückgängig</button>
+  </header>
+
+  <aside class="tools" id="tools"></aside>
+
+  <main class="stage" id="stage">
+    <canvas id="cv" aria-label="Plan und 3D-Ansicht des Sets"></canvas>
+    <div id="labels"></div>
+    <div class="viewbadge" id="viewbadge">Plan · Draufsicht</div>
+    <div id="camtag" hidden></div>
+  </main>
+
+  <aside class="side">
+    <div class="tabs" role="tablist">
+      <button id="t-sel" role="tab" aria-selected="true">Auswahl</button>
+      <button id="t-data" role="tab" aria-selected="false">Daten</button>
+    </div>
+    <div class="pane" id="p-sel"></div>
+    <div class="pane" id="p-data" hidden><pre id="json"></pre></div>
+  </aside>
+
+  <footer class="status">
+    <span id="hint"></span>
+    <label class="lbl" for="vcb">Maß</label>
+    <input id="vcb" class="num" placeholder="z. B. 3,5 oder 5;4" inputmode="decimal" autocomplete="off">
+  </footer>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+/* ───────────────────────── Modell ─────────────────────────
+   Ein Set, eine Wahrheit. Jedes Element ist Grundriss (2D) + Höhenangabe.
+   Plan und 3D sind nur zwei Kameras auf dasselbe Modell; Werkzeuge arbeiten
+   in Plan-Koordinaten (Strahl auf den Boden), darum in beiden Ansichten gleich.
+
+     Element ──► footprint (x, y)      ──► Plan: Umriss
+             └─► base_m + height_m     ──► 3D:   Extrusion
+                 (null = Vorgabe: Wand ← Raumhöhe, freie Form ← 0,90 m „fehlt“)
+*/
+const SNAP_M = 0.05, END_SNAP_M = 0.25, ORTHO_DEG = 6, WALL_T_M = 0.15, NEAR_WALL_M = 0.3;
+const FREE_H_M = 0.9, CLOSE_M = 0.25, MIN_ROOM_M = 0.5, ROTATE_STEP_DEG = 15, STACK_DEPTH = 4;
+const NAME_OFFSET_M = 0.4, PLAN_VIEW_M = 8, SENSOR_W_MM = 24.9, FRUSTUM_M = 3;
+const POSE_H = { steht: 1.75, sitzt: 1.25, liegt: 0.4 };
+const OPENING = { door: { name: "Tür", width_m: 0.9, sill_m: 0, head_m: 2.1 },
+                  window: { name: "Fenster", width_m: 1.2, sill_m: 0.9, head_m: 2.1 } };
+const NAMES = ["Anna", "Ben", "Clara", "David", "Emil", "Frida"];
+const FIG_COLORS = ["--fig1", "--fig2", "--fig3", "--fig4"];
+
+// Fertige Objekte: Grundriss und Höhe aus der Bibliothek, Form aus Teilquadern (Einheitswürfel).
+const LIB = [
+  { kind: "tisch", name: "Tisch", w: 1.6, d: 0.9, h: 0.75, build: "table" },
+  { kind: "stuhl", name: "Stuhl", w: 0.45, d: 0.45, h: 0.9, build: "chair" },
+  { kind: "sofa", name: "Sofa", w: 2.0, d: 0.9, h: 0.85, build: "sofa" },
+  { kind: "bett", name: "Bett", w: 1.4, d: 2.0, h: 0.6, build: "bed" },
+  { kind: "schrank", name: "Schrank", w: 1.2, d: 0.6, h: 2.0, build: "box" },
+  { kind: "podest", name: "Podest", w: 2.0, d: 1.0, h: 0.4, build: "box" },
+  { kind: "saeule", name: "Säule", w: 0.4, d: 0.4, h: 3.0, build: "cyl", shape: "ellipse" },
+  { kind: "treppe", name: "Treppe", w: 2.4, d: 1.0, h: 1.6, build: "stairs" },
+  { kind: "auto", name: "Auto", w: 4.5, d: 1.8, h: 1.5, build: "car" },
+  { kind: "teppich", name: "Teppich", w: 2.0, d: 1.4, h: 0.02, build: "box" },
+];
+const LIBK = Object.fromEntries(LIB.map(l => [l.kind, l]));
+
+// [x0, x1, y0, y1, z0, z1] im Einheitswürfel x,z ∈ −0,5…0,5, y ∈ 0…1; Vorderseite +x.
+const PARTS = {
+  box: [[-.5, .5, 0, 1, -.5, .5]],
+  table: [[-.5, .5, .93, 1, -.5, .5], ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) =>
+    [a * .44 - .03, a * .44 + .03, 0, .93, b * .42 - .04, b * .42 + .04])],
+  chair: [[-.5, .5, .46, .52, -.5, .5], [-.5, -.38, .52, 1, -.5, .5], ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) =>
+    [a * .42 - .06, a * .42 + .06, 0, .46, b * .42 - .06, b * .42 + .06])],
+  sofa: [[-.5, .5, 0, .5, -.5, .5], [-.5, -.25, .5, 1, -.5, .5], [-.25, .5, .5, .7, -.5, -.4], [-.25, .5, .5, .7, .4, .5]],
+  bed: [[-.5, .5, 0, .75, -.5, .5], [-.42, .42, .75, 1, -.47, -.32]],
+  stairs: Array.from({ length: 8 }, (_, i) => [-.5 + i / 8, -.5 + (i + 1) / 8, 0, (i + 1) / 8, -.5, .5]),
+  car: [[-.5, .5, .12, .55, -.5, .5], [-.22, .22, .55, 1, -.44, .44]],
+};
+
+let model = seed();
+const ui = { cut: true, view: "plan", tool: "select", sel: null, draft: null, lib: null, fill: false, tab: "sel" };
+const undoStack = [];
+let idSeq = 100;
+const nid = p => `${p}${++idSeq}`;
+
+function seed() {
+  const P = (x, y) => ({ x, y });
+  return {
+    set: {
+      name: "Küche, Altbau", wall_height_m: 2.6,
+      walls: [
+        { id: "w1", from: P(1, 1), to: P(6.5, 1), thickness_m: WALL_T_M, height_m: null,
+          openings: [{ id: "o1", kind: "window", at_m: 3.4, width_m: 1.2, sill_m: 0.9, head_m: 2.1 }] },
+        { id: "w2", from: P(6.5, 1), to: P(6.5, 5.2), thickness_m: WALL_T_M, height_m: null, openings: [] },
+        { id: "w3", from: P(6.5, 5.2), to: P(1, 5.2), thickness_m: WALL_T_M, height_m: null,
+          openings: [{ id: "o2", kind: "door", at_m: 1.2, width_m: 0.9, sill_m: 0, head_m: 2.1 }] },
+        { id: "w4", from: P(1, 5.2), to: P(1, 1), thickness_m: WALL_T_M, height_m: null, openings: [] },
+      ],
+      objects: [
+        { id: "b1", kind: "tisch", label: "Tisch", at: P(3.4, 3.1), w: 1.6, d: 0.9, rotation_deg: 0, height_m: 0.75, base_m: null },
+        { id: "b2", kind: "stuhl", label: "Stuhl", at: P(2.35, 3.1), w: 0.45, d: 0.45, rotation_deg: 0, height_m: 0.9, base_m: null },
+        { id: "b3", kind: "stuhl", label: "Stuhl", at: P(3.4, 2.4), w: 0.45, d: 0.45, rotation_deg: 90, height_m: 0.9, base_m: null },
+        { id: "b4", kind: "frei", label: "Küchenzeile", shape: "poly", at: P(5.9, 2.4), rotation_deg: 0, height_m: null, base_m: null,
+          points: [P(-.47, -1.25), P(.45, -1.25), P(.45, 1.55), P(-.15, 1.55), P(-.15, -.65), P(-.47, -.65)] },
+        { id: "b5", kind: "frei", label: "Regal", shape: "poly", at: P(1.35, 2.2), rotation_deg: 0, height_m: null, base_m: null,
+          points: [P(-.2, -.8), P(.2, -.8), P(.2, .8), P(-.2, .8)] },
+      ],
+    },
+    figures: [
+      { id: "f1", name: "Anna", at: P(4.9, 3.6), facing_deg: 200, pose: "steht" },
+      { id: "f2", name: "Ben", at: P(2.35, 3.1), facing_deg: 0, pose: "sitzt" },
+    ],
+    cameras: [{ id: "k1", label: "A", at: P(1.7, 4.6), facing_deg: -26, height_m: 1.55, lens_mm: 24 }],
+  };
+}
+
+/* ───────────────────────── Geometrie ───────────────────────── */
+const rad = d => d * Math.PI / 180;
+const snap = v => Math.round(v / SNAP_M) * SNAP_M;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const fm = (n, d = 2) => n.toFixed(d).replace(".", ",");
+const parseNum = s => { const t = String(s).trim().replace(",", "."); if (t === "") { return null; } const n = Number(t); return Number.isFinite(n) ? n : NaN; };
+
+function rot(p, deg) {
+  const a = rad(deg), c = Math.cos(a), s = Math.sin(a);
+  return { x: p.x * c - p.y * s, y: p.x * s + p.y * c };
+}
+
+function toLocal(p, o) { return rot({ x: p.x - o.at.x, y: p.y - o.at.y }, -o.rotation_deg); }
+
+function inPoly(p, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i], b = pts[j];
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) { inside = !inside; }
+  }
+  return inside;
+}
+
+// Liegt der Plan-Punkt p im Grundriss von o? (für Stapeln)
+function contains(o, p) {
+  const l = toLocal(p, o);
+  if (o.shape === "poly") { return inPoly(l, o.points); }
+  if (o.shape === "ellipse") { return (l.x / (o.w / 2)) ** 2 + (l.y / (o.d / 2)) ** 2 <= 1; }
+  return Math.abs(l.x) <= o.w / 2 && Math.abs(l.y) <= o.d / 2;
+}
+
+function wallFoot(w, p) {
+  const L = dist(w.from, w.to), dx = (w.to.x - w.from.x) / L, dy = (w.to.y - w.from.y) / L;
+  const along = Math.min(L, Math.max(0, (p.x - w.from.x) * dx + (p.y - w.from.y) * dy));
+  return { along, gap: dist(p, { x: w.from.x + dx * along, y: w.from.y + dy * along }), L };
+}
+
+/* ─────────────── Höhen: hier entsteht 3D aus dem 2D-Plan ─────────────── */
+const wallH = w => w.height_m ?? model.set.wall_height_m;
+const objH = o => o.height_m ?? FREE_H_M;
+const missingObjs = () => model.set.objects.filter(o => o.height_m == null);
+
+// Sockel: gesetzt, sonst Oberkante des höchsten Objekts unter der Mitte (Stuhl auf Podest).
+function baseAt(p, self, depth = 0) {
+  if (depth > STACK_DEPTH) { return 0; }
+  let top = 0;
+  for (const q of model.set.objects) {
+    if (q === self || !contains(q, p)) { continue; }
+    if (self && objArea(q) <= objArea(self)) { continue; } // nur auf Größeres stapeln
+    top = Math.max(top, objBase(q, depth + 1) + objH(q));
+  }
+  return top;
+}
+
+function objArea(o) {
+  if (o.shape !== "poly") { return o.w * o.d; }
+  let a = 0;
+  o.points.forEach((p, i) => { const q = o.points[(i + 1) % o.points.length]; a += p.x * q.y - q.x * p.y; });
+  return Math.abs(a / 2);
+}
+
+const objBase = (o, depth = 0) => o.base_m ?? baseAt(o.at, o, depth);
+const figBase = f => f.pose === "steht" ? baseAt(f.at, null) : 0; // Sitzhöhe steckt in der Haltung
+
+/* ───────────────────────── Szene ───────────────────────── */
+const canvas = document.getElementById("cv"), stage = document.getElementById("stage");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.localClippingEnabled = true;
+// Schnitt: Wände in 3D auf Brusthöhe kappen (nur Ansicht, nicht Modell), damit man hineinsieht.
+const CUT_M = 1.2, NO_CUT_M = 1e6;
+const CLIP = [new THREE.Plane(new THREE.Vector3(0, -1, 0), CUT_M)];
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const world = new THREE.Group(), overlay = new THREE.Group(), floorGroup = new THREE.Group();
+scene.add(floorGroup, world, overlay);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(-4, 10, 6); scene.add(sun);
+
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+const persp = new THREE.PerspectiveCamera(45, 1, 0.05, 200);
+const shotCam = new THREE.PerspectiveCamera(40, 16 / 9, 0.05, 100);
+let controls = null;
+const raycaster = new THREE.Raycaster(), ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+let pickables = [], tags = [];
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const col = n => new THREE.Color(css(n));
+
+function camera() { return ui.view === "plan" ? ortho : persp; }
+
+function setupControls(target) {
+  controls?.dispose();
+  // Oben-Vektor vor dem Anlegen setzen: OrbitControls merkt ihn sich beim Erzeugen.
+  if (ui.view === "plan") {
+    ortho.up.set(0, 0, -1);
+    ortho.position.set(target.x, 50, target.z);
+  } else {
+    persp.up.set(0, 1, 0);
+    persp.position.set(target.x - 2, 8.5, target.z + 6.5);
+  }
+  controls = new OrbitControls(camera(), canvas);
+  controls.target.copy(target);
+  controls.zoomToCursor = true;
+  if (ui.view === "plan") {
+    controls.enableRotate = false;
+    controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN };
+  } else {
+    controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+    controls.maxPolarAngle = Math.PI / 2 - 0.02;
+  }
+  controls.update();
+}
+
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  const asp = w / Math.max(1, h);
+  Object.assign(ortho, { left: -PLAN_VIEW_M * asp / 2, right: PLAN_VIEW_M * asp / 2, top: PLAN_VIEW_M / 2, bottom: -PLAN_VIEW_M / 2 });
+  ortho.updateProjectionMatrix();
+  persp.aspect = asp; persp.updateProjectionMatrix();
+}
+
+/* Baukasten für Meshes: jedes Teil bekommt Kanten; fehlende Höhe = halbdurchsichtig, gestrichelt. */
+function addMesh(parent, geo, colorVar, ref, missing, clip = []) {
+  const selected = isSel(ref);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    color: col(colorVar), transparent: missing, opacity: missing ? 0.42 : 1, clippingPlanes: clip }));
+  mesh.userData.ref = ref;
+  parent.add(mesh); pickables.push(mesh);
+
+  const eg = new THREE.EdgesGeometry(geo, 25);
+  const lineMat = missing
+    ? new THREE.LineDashedMaterial({ color: col(selected ? "--hl" : "--warn"), dashSize: 0.08, gapSize: 0.06 })
+    : new THREE.LineBasicMaterial({ color: col(selected ? "--hl" : "--edge"), clippingPlanes: clip });
+  const lines = new THREE.LineSegments(eg, lineMat);
+  if (missing) { lines.computeLineDistances(); }
+  mesh.add(lines);
+  return mesh;
+}
+
+function boxGeo(x0, x1, y0, y1, z0, z1) {
+  const g = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0);
+  g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+  return g;
+}
+
+function placeGroup(at, deg, y = 0) {
+  const g = new THREE.Group();
+  g.position.set(at.x, y, at.y);
+  g.rotation.y = -rad(deg);
+  world.add(g);
+  return g;
+}
+
+function buildWall(w) {
+  const L = dist(w.from, w.to), H = wallH(w), t = w.thickness_m;
+  const mid = { x: (w.from.x + w.to.x) / 2, y: (w.from.y + w.to.y) / 2 };
+  const g = placeGroup(mid, Math.atan2(w.to.y - w.from.y, w.to.x - w.from.x) * 180 / Math.PI);
+  const ref = { type: "wall", id: w.id };
+  const piece = (u0, u1, y0, y1, r = ref) => {
+    if (u1 - u0 < 0.005 || y1 - y0 < 0.005) { return; }
+    addMesh(g, boxGeo(u0 - L / 2, u1 - L / 2, y0, y1, -t / 2, t / 2), "--wall", r, false, CLIP);
+  };
+
+  // Wand in Stücke: voll bis zur Öffnung, dort Brüstung unten und Sturz oben.
+  // Enden um die halbe Dicke verlängert, damit Ecken geschlossen sind.
+  let u = -t / 2;
+  for (const o of [...w.openings].sort((a, b) => a.at_m - b.at_m)) {
+    const s0 = o.at_m - o.width_m / 2, s1 = o.at_m + o.width_m / 2, oref = { type: "opening", id: o.id, wall: w.id };
+    piece(u, s0, 0, H);
+    piece(s0, s1, 0, Math.min(o.sill_m, H), oref);
+    piece(s0, s1, Math.min(o.head_m, H), H, oref);
+    if (o.kind === "window" && o.head_m > o.sill_m) { glass(g, s0 - L / 2, s1 - L / 2, o.sill_m, Math.min(o.head_m, H), oref); }
+    if (o.kind === "door" && ui.view === "plan") { doorSwing(g, s0 - L / 2, o.width_m, t, isSel(oref)); }
+    u = s1;
+  }
+  piece(u, L + t / 2, 0, H);
+}
+
+function glass(g, x0, x1, y0, y1, ref) {
+  const m = new THREE.Mesh(boxGeo(x0, x1, y0, y1, -0.01, 0.01),
+    new THREE.MeshLambertMaterial({ color: col("--hl"), transparent: true, opacity: 0.25, clippingPlanes: CLIP }));
+  m.userData.ref = ref; g.add(m); pickables.push(m);
+}
+
+// Planzeichen der Tür: Türblatt und Viertelkreis, nur in der Draufsicht.
+function doorSwing(g, x0, width, t, selected) {
+  const pts = [new THREE.Vector3(x0, 0.03, t / 2), new THREE.Vector3(x0, 0.03, t / 2 + width)];
+  for (let i = 0; i <= 16; i++) {
+    const a = (Math.PI / 2) * (i / 16);
+    pts.push(new THREE.Vector3(x0 + Math.sin(a) * width, 0.03, t / 2 + Math.cos(a) * width));
+  }
+  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: col(selected ? "--hl" : "--wall") })));
+}
+
+function buildObject(o) {
+  const ref = { type: "object", id: o.id }, H = objH(o), miss = o.height_m == null;
+  const g = placeGroup(o.at, o.rotation_deg, objBase(o));
+
+  if (o.shape === "poly") {
+    const shape = new THREE.Shape(o.points.map(p => new THREE.Vector2(p.x, -p.y)));
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: H, bevelEnabled: false });
+    geo.rotateX(-Math.PI / 2);
+    addMesh(g, geo, "--free", ref, miss);
+  } else if (LIBK[o.kind]?.build === "cyl") {
+    const geo = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); geo.translate(0, 0.5, 0); geo.scale(o.w, H, o.d);
+    addMesh(g, geo, "--obj", ref, miss);
+  } else {
+    for (const p of PARTS[LIBK[o.kind]?.build ?? "box"]) {
+      addMesh(g, boxGeo(p[0] * o.w, p[1] * o.w, p[2] * H, p[3] * H, p[4] * o.d, p[5] * o.d), "--obj", ref, miss);
+    }
+  }
+
+  const top = objBase(o) + H;
+  const text = miss ? "Höhe ?" : `${fm(H)} m`;
+  if (ui.view === "plan" || miss) { tags.push({ at: new THREE.Vector3(o.at.x, top + 0.01, o.at.y), text, cls: miss ? "miss" : "" }); }
+}
+
+function buildFigure(f, i) {
+  const ref = { type: "figure", id: f.id }, H = POSE_H[f.pose], base = figBase(f);
+  const g = placeGroup(f.at, f.facing_deg, base);
+  const c = FIG_COLORS[i % FIG_COLORS.length];
+  if (f.pose === "liegt") {
+    addMesh(g, boxGeo(-0.9, 0.9, 0, H * 0.7, -0.22, 0.22), c, ref, false);
+  } else {
+    const body = new THREE.CylinderGeometry(0.2, 0.22, H - 0.26, 20); body.translate(0, (H - 0.26) / 2, 0);
+    addMesh(g, body, c, ref, false);
+    const head = new THREE.SphereGeometry(0.12, 16, 12); head.translate(0, H - 0.12, 0);
+    addMesh(g, head, c, ref, false);
+  }
+  addMesh(g, boxGeo(0.18, 0.36, H * 0.72, H * 0.78, -0.05, 0.05), c, ref, false); // Blickrichtung
+  tags.push({ at: nameAt(f.at, base + H), text: f.name, cls: "name" });
+}
+
+function buildCamera(k) {
+  const ref = { type: "camera", id: k.id };
+  const g = placeGroup(k.at, k.facing_deg, 0);
+  g.userData.camera = k.id;
+  addMesh(g, boxGeo(-0.18, 0.12, k.height_m - 0.1, k.height_m + 0.1, -0.09, 0.09), "--cam", ref, false);
+  const { hfov, vfov } = fov(k), fx = FRUSTUM_M, hw = Math.tan(hfov / 2) * fx, hh = Math.tan(vfov / 2) * fx, y = k.height_m;
+  const o = new THREE.Vector3(0.12, y, 0), corners = [[hh, hw], [hh, -hw], [-hh, -hw], [-hh, hw]].map(([a, b]) => new THREE.Vector3(fx, y + a, b));
+  const pts = [];
+  corners.forEach((c, i) => { pts.push(o, c, c, corners[(i + 1) % 4]); });
+  pts.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, y - 0.1, 0));
+  g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: col(isSel(ref) ? "--hl" : "--cam") })));
+  tags.push({ at: nameAt(k.at, y), text: `Kamera ${k.label}`, cls: "name" });
+}
+
+// Namen: in 3D über dem Kopf, im Plan oberhalb, damit sie keine Höhenangabe verdecken.
+function nameAt(at, top) {
+  return ui.view === "plan" ? new THREE.Vector3(at.x, top, at.y - NAME_OFFSET_M) : new THREE.Vector3(at.x, top + NAME_OFFSET_M, at.y);
+}
+
+function fov(k) {
+  const hfov = 2 * Math.atan(SENSOR_W_MM / 2 / k.lens_mm);
+  return { hfov, vfov: 2 * Math.atan(Math.tan(hfov / 2) / (16 / 9)) };
+}
+
+function buildFloor() {
+  floorGroup.clear();
+  const size = 40;
+  const grid = new THREE.GridHelper(size, size * 2, col("--grid"), col("--grid"));
+  grid.position.set(size / 2 - 4, -0.001, size / 2 - 4);
+  floorGroup.add(grid);
+  scene.background = col("--floor");
+}
+
+function rebuild() {
+  world.clear(); pickables = []; tags = [];
+  model.set.walls.forEach(buildWall);
+  model.set.objects.forEach(buildObject);
+  model.figures.forEach(buildFigure);
+  model.cameras.forEach(buildCamera);
+  drawDraft();
+  renderSide();
+  renderMissing();
+  document.getElementById("json").textContent = dataText();
+}
+
+/* ───────────────────────── Auswahl, Rückgängig ───────────────────────── */
+const isSel = r => ui.sel && r && ui.sel.type === r.type && ui.sel.id === r.id;
+
+function find(ref) {
+  if (!ref) { return null; }
+  if (ref.type === "wall") { return model.set.walls.find(w => w.id === ref.id); }
+  if (ref.type === "opening") { return model.set.walls.find(w => w.id === ref.wall)?.openings.find(o => o.id === ref.id); }
+  if (ref.type === "object") { return model.set.objects.find(o => o.id === ref.id); }
+  if (ref.type === "figure") { return model.figures.find(f => f.id === ref.id); }
+  return model.cameras.find(k => k.id === ref.id);
+}
+
+function begin() { undoStack.push(JSON.stringify(model)); if (undoStack.length > 100) { undoStack.shift(); } }
+
+function undo() {
+  const s = undoStack.pop();
+  if (!s) { return; }
+  model = JSON.parse(s);
+  if (!find(ui.sel)) { ui.sel = null; }
+  syncRoomH(); rebuild();
+}
+
+function remove(ref) {
+  if (!ref) { return; }
+  begin();
+  if (ref.type === "wall") { model.set.walls = model.set.walls.filter(w => w.id !== ref.id); }
+  if (ref.type === "opening") { const w = model.set.walls.find(x => x.id === ref.wall); w.openings = w.openings.filter(o => o.id !== ref.id); }
+  if (ref.type === "object") { model.set.objects = model.set.objects.filter(o => o.id !== ref.id); }
+  if (ref.type === "figure") { model.figures = model.figures.filter(f => f.id !== ref.id); }
+  if (ref.type === "camera") { model.cameras = model.cameras.filter(k => k.id !== ref.id); }
+  ui.sel = null; rebuild();
+}
+
+/* ───────────────────────── Werkzeuge ─────────────────────────
+   Alle arbeiten auf Plan-Punkten. Nur „Höhe ziehen“ braucht die dritte Achse
+   und nimmt in 3D den Strahl, im Plan die Mausbewegung nach oben. */
+const TOOLS = [
+  { id: "select", name: "Auswählen", key: "V", hint: "Klicken wählt, Ziehen verschiebt. E dreht um 15°, Entf löscht. Rechte Maustaste: Plan schieben, in 3D drehen." },
+  { id: "room", name: "Raum", key: "R", hint: "Rechteck aufziehen: vier Wände mit Raumhöhe. Oder Maß „5;4“ eingeben und Enter." },
+  { id: "wall", name: "Wand", key: "W", hint: "Punkte klicken, Länge tippen + Enter. Doppelklick oder Esc beendet, Klick auf den Anfang schließt." },
+  { id: "free", name: "Freie Form", key: "F", hint: "Umriss klicken, Klick auf den ersten Punkt schließt. Die Form hat noch keine Höhe." },
+  { id: "pull", name: "Höhe ziehen", key: "P", hint: "Objekt oder Wand anfassen und nach oben ziehen; oder wählen und Höhe ins Maßfeld tippen." },
+  { id: "door", name: "Tür", key: "T", hint: "Auf eine Wand klicken: Öffnung 0,90 m, Sturz 2,10 m." },
+  { id: "window", name: "Fenster", key: "X", hint: "Auf eine Wand klicken: Öffnung 1,20 m, Brüstung 0,90 m." },
+  { id: "figure", name: "Figur", key: "G", hint: "Klicken setzt eine Figur. Auf einem Podest steht sie automatisch höher." },
+  { id: "camera", name: "Kamera", key: "K", hint: "Klicken setzt eine Kamera mit Blick zur Raummitte; ihr Bild läuft unten rechts mit." },
+];
+const TOOLK = Object.fromEntries(TOOLS.map(t => [t.key.toLowerCase(), t.id]));
+let drag = null, hover = null;
+
+function setTool(id, lib = null) {
+  ui.tool = id; ui.lib = lib; ui.draft = null; ui.fill = false;
+  renderTools(); drawDraft(); setHint();
+}
+
+function setHint() {
+  const t = TOOLS.find(x => x.id === ui.tool);
+  document.getElementById("hint").textContent = ui.tool === "place"
+    ? `${LIBK[ui.lib].name} setzen: klicken. Größe und Höhe kommen aus der Bibliothek.`
+    : ui.fill ? "Höhen ergänzen: Höhe tippen, Enter springt zum nächsten Objekt. Esc beendet."
+    : t.hint;
+}
+
+function setRay(ev) {
+  const r = canvas.getBoundingClientRect();
+  raycaster.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), camera());
+}
+
+function planAt(ev) {
+  setRay(ev);
+  const v = new THREE.Vector3();
+  return raycaster.ray.intersectPlane(ground, v) ? { x: v.x, y: v.z } : null;
+}
+
+function pickAt(ev) {
+  setRay(ev);
+  const hit = raycaster.intersectObjects(pickables, false)[0];
+  return hit ? { ref: hit.object.userData.ref, point: hit.point } : null;
+}
+
+// Fangen: Rasterpunkt, Wandenden, Anfang des Entwurfs, waagrecht/senkrecht zum letzten Punkt.
+function snapPoint(p, last = null) {
+  const ends = model.set.walls.flatMap(w => [w.from, w.to]).concat(ui.draft?.pts?.slice(0, 1) ?? []);
+  const end = ends.find(e => dist(e, p) < END_SNAP_M);
+  if (end) { return { ...end }; }
+  let q = { x: snap(p.x), y: snap(p.y) };
+  if (!last) { return q; }
+  const ang = Math.abs(Math.atan2(p.y - last.y, p.x - last.x) * 180 / Math.PI) % 90;
+  if (ang < ORTHO_DEG || ang > 90 - ORTHO_DEG) {
+    if (Math.abs(p.x - last.x) > Math.abs(p.y - last.y)) { q.y = last.y; } else { q.x = last.x; }
+  }
+  return q;
+}
+
+function nearestWall(p) {
+  let best = null;
+  for (const w of model.set.walls) {
+    const f = wallFoot(w, p);
+    if (f.gap < NEAR_WALL_M + w.thickness_m / 2 && (!best || f.gap < best.f.gap)) { best = { w, f }; }
+  }
+  return best;
+}
+
+function onDown(ev) {
+  if (ev.button !== 0) { return; }
+  canvas.setPointerCapture(ev.pointerId);
+  const p = planAt(ev);
+  if (!p) { return; }
+  const handler = { select: downSelect, room: downRoom, wall: downWall, free: downFree, pull: downPull,
+    door: downOpening, window: downOpening, figure: downFigure, camera: downCamera, place: downPlace }[ui.tool];
+  handler(ev, p);
+}
+
+function downSelect(ev, p) {
+  const hit = pickAt(ev);
+  ui.sel = hit?.ref ?? null;
+  const el = find(ui.sel);
+  if (el) { drag = { kind: "move", start: p, orig: JSON.parse(JSON.stringify(el)), moved: false }; }
+  rebuild();
+}
+
+function moveSelect(p) {
+  const el = find(ui.sel), d = { x: p.x - drag.start.x, y: p.y - drag.start.y };
+  if (!drag.moved && Math.hypot(d.x, d.y) < SNAP_M) { return; }
+  if (!drag.moved) { begin(); drag.moved = true; }
+  const o = drag.orig;
+  if (ui.sel.type === "wall") {
+    el.from = { x: snap(o.from.x + d.x), y: snap(o.from.y + d.y) };
+    el.to = { x: el.from.x + o.to.x - o.from.x, y: el.from.y + o.to.y - o.from.y };
+  } else if (ui.sel.type === "opening") {
+    const w = model.set.walls.find(x => x.id === ui.sel.wall), f = wallFoot(w, p);
+    el.at_m = Math.min(f.L - el.width_m / 2, Math.max(el.width_m / 2, snap(f.along)));
+  } else {
+    el.at = { x: snap(o.at.x + d.x), y: snap(o.at.y + d.y) };
+  }
+  rebuild();
+}
+
+function downRoom(ev, p) { ui.draft = { kind: "room", a: snapPoint(p), b: snapPoint(p) }; drag = { kind: "room" }; }
+
+function addRoom(a, b) {
+  const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x), y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+  if (x1 - x0 < MIN_ROOM_M || y1 - y0 < MIN_ROOM_M) { return; }
+  begin();
+  const c = [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+  c.forEach((p, i) => model.set.walls.push({ id: nid("w"), from: p, to: c[(i + 1) % 4], thickness_m: WALL_T_M, height_m: null, openings: [] }));
+}
+
+function downWall(ev, p) {
+  const last = ui.draft?.pts.at(-1) ?? null, q = snapPoint(p, last);
+  if (!ui.draft) { ui.draft = { kind: "wall", pts: [q] }; drawDraft(); return; }
+  if (dist(q, last) < 0.01) { return; }
+  ui.draft.pts.push(q);
+  if (ui.draft.pts.length > 2 && dist(q, ui.draft.pts[0]) < 0.01) { finishWall(); return; }
+  drawDraft();
+}
+
+function finishWall() {
+  const pts = ui.draft?.pts ?? [];
+  if (pts.length >= 2) {
+    begin();
+    for (let i = 0; i + 1 < pts.length; i++) {
+      model.set.walls.push({ id: nid("w"), from: pts[i], to: pts[i + 1], thickness_m: WALL_T_M, height_m: null, openings: [] });
+    }
+  }
+  ui.draft = null; rebuild();
+}
+
+function downFree(ev, p) {
+  const q = snapPoint(p, ui.draft?.pts.at(-1) ?? null);
+  if (!ui.draft) { ui.draft = { kind: "free", pts: [q] }; drawDraft(); return; }
+  if (ui.draft.pts.length >= 3 && dist(q, ui.draft.pts[0]) < CLOSE_M) { finishFree(); return; }
+  ui.draft.pts.push(q); drawDraft();
+}
+
+function finishFree() {
+  const pts = ui.draft?.pts ?? [];
+  ui.draft = null;
+  if (pts.length < 3) { rebuild(); return; }
+  begin();
+  const c = { x: snap(pts.reduce((s, p) => s + p.x, 0) / pts.length), y: snap(pts.reduce((s, p) => s + p.y, 0) / pts.length) };
+  const o = { id: nid("b"), kind: "frei", label: `Freie Form ${missingObjs().length + 1}`, shape: "poly", at: c, rotation_deg: 0,
+    height_m: null, base_m: null, points: pts.map(p => ({ x: p.x - c.x, y: p.y - c.y })) };
+  model.set.objects.push(o);
+  ui.sel = { type: "object", id: o.id }; rebuild();
+}
+
+function downPull(ev, p) {
+  const hit = pickAt(ev);
+  if (!hit || !["object", "wall"].includes(hit.ref.type)) { return; }
+  const el = find(hit.ref);
+  ui.sel = hit.ref;
+  begin();
+  const h0 = hit.ref.type === "wall" ? wallH(el) : objH(el);
+  const base = hit.ref.type === "wall" ? 0 : objBase(el);
+  drag = { kind: "pull", el, ref: hit.ref, h0, base, y0: ev.clientY, point: hit.point.clone() };
+  rebuild();
+}
+
+function movePull(ev) {
+  let h;
+  if (ui.view === "plan") {
+    const mpp = (ortho.top - ortho.bottom) / ortho.zoom / canvas.clientHeight;
+    h = drag.h0 + (drag.y0 - ev.clientY) * mpp;
+  } else {
+    // senkrechte Ebene durch den Griffpunkt, zur Kamera gedreht
+    setRay(ev);
+    const n = new THREE.Vector3().subVectors(persp.position, drag.point).setY(0).normalize();
+    const v = new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(n, drag.point), v)) { return; }
+    h = drag.h0 + (v.y - drag.point.y);
+  }
+  drag.el.height_m = Math.max(SNAP_M, snap(h));
+  rebuild();
+  tags.push({ at: new THREE.Vector3(drag.point.x, drag.base + drag.el.height_m + 0.15, drag.point.z), text: `${fm(drag.el.height_m)} m`, cls: "draft" });
+}
+
+function downOpening(ev, p) {
+  const near = nearestWall(p);
+  if (!near) { return; }
+  const spec = OPENING[ui.tool], { w, f } = near;
+  const at = Math.min(f.L - spec.width_m / 2, Math.max(spec.width_m / 2, snap(f.along)));
+  const clash = w.openings.some(o => Math.abs(o.at_m - at) < (o.width_m + spec.width_m) / 2);
+  if (clash || f.L < spec.width_m) { return; }
+  begin();
+  const o = { id: nid("o"), kind: ui.tool, at_m: at, width_m: spec.width_m, sill_m: spec.sill_m, head_m: spec.head_m };
+  w.openings.push(o);
+  ui.sel = { type: "opening", id: o.id, wall: w.id }; rebuild();
+}
+
+function downFigure(ev, p) {
+  begin();
+  const name = NAMES.find(n => !model.figures.some(f => f.name === n)) ?? `Figur ${model.figures.length + 1}`;
+  const f = { id: nid("f"), name, at: snapPoint(p), facing_deg: 0, pose: "steht" };
+  model.figures.push(f); ui.sel = { type: "figure", id: f.id }; rebuild();
+}
+
+function downCamera(ev, p) {
+  begin();
+  const c = roomCentre(), at = snapPoint(p);
+  const k = { id: nid("k"), label: String.fromCharCode(65 + model.cameras.length), at,
+    facing_deg: Math.round(Math.atan2(c.y - at.y, c.x - at.x) * 180 / Math.PI), height_m: 1.55, lens_mm: 32 };
+  model.cameras.push(k); ui.sel = { type: "camera", id: k.id }; rebuild();
+}
+
+function roomCentre() {
+  const pts = model.set.walls.flatMap(w => [w.from, w.to]);
+  if (!pts.length) { return { x: 4, y: 3 }; }
+  return { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+}
+
+function downPlace(ev, p) {
+  const l = LIBK[ui.lib];
+  begin();
+  const o = { id: nid("b"), kind: l.kind, label: l.name, at: snapPoint(p), w: l.w, d: l.d, rotation_deg: 0, height_m: l.h, base_m: null };
+  if (l.shape) { o.shape = l.shape; }
+  model.set.objects.push(o); ui.sel = { type: "object", id: o.id }; rebuild();
+}
+
+function onMove(ev) {
+  const p = planAt(ev);
+  if (!p) { return; }
+  hover = p;
+  if (drag?.kind === "move") { moveSelect(p); return; }
+  if (drag?.kind === "pull") { movePull(ev); return; }
+  if (drag?.kind === "room") { ui.draft.b = snapPoint(p); drawDraft(); return; }
+  if (ui.draft) { drawDraft(); }
+}
+
+function onUp() {
+  if (drag?.kind === "room") { addRoom(ui.draft.a, ui.draft.b); ui.draft = null; rebuild(); }
+  if (drag?.kind === "pull") { rebuild(); }
+  drag = null;
+}
+
+// Vorschau des Entwurfs mit laufendem Maß
+function drawDraft() {
+  overlay.clear();
+  tags = tags.filter(t => t.cls !== "draft");
+  const d = ui.draft;
+  if (!d) { return; }
+  let pts = [];
+  if (d.kind === "room") {
+    pts = [d.a, { x: d.b.x, y: d.a.y }, d.b, { x: d.a.x, y: d.b.y }, d.a];
+    tags.push({ at: v3({ x: (d.a.x + d.b.x) / 2, y: (d.a.y + d.b.y) / 2 }), text: `${fm(Math.abs(d.b.x - d.a.x))} × ${fm(Math.abs(d.b.y - d.a.y))} m`, cls: "draft" });
+  } else {
+    const last = d.pts.at(-1), cur = hover ? snapPoint(hover, last) : last;
+    pts = [...d.pts, cur];
+    if (cur && last) { tags.push({ at: v3({ x: (cur.x + last.x) / 2, y: (cur.y + last.y) / 2 }), text: `${fm(dist(cur, last))} m`, cls: "draft" }); }
+  }
+  overlay.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(v3)), new THREE.LineBasicMaterial({ color: col("--hl") })));
+}
+
+const v3 = p => new THREE.Vector3(p.x, 0.04, p.y);
+
+/* ───────────────── Maßfeld: Zahl tippen statt zielen ───────────────── */
+function applyVcb(text) {
+  const d = ui.draft;
+  if (ui.tool === "room" && text.includes(";")) {
+    const [a, b] = text.split(";").map(parseNum);
+    if (!(a > 0 && b > 0)) { return false; }
+    const c = hover ? snapPoint(hover) : { x: 1, y: 1 };
+    addRoom(c, { x: c.x + a, y: c.y + b }); rebuild(); return true;
+  }
+  const n = parseNum(text);
+  if (!(n > 0)) { return false; }
+  if (d && (d.kind === "wall" || d.kind === "free")) {
+    const last = d.pts.at(-1), aim = hover ? snapPoint(hover, last) : { x: last.x + 1, y: last.y };
+    const L = dist(aim, last) || 1;
+    d.pts.push({ x: last.x + (aim.x - last.x) / L * n, y: last.y + (aim.y - last.y) / L * n });
+    drawDraft(); return true;
+  }
+  const el = find(ui.sel);
+  if (!el) { return false; }
+  if (!["camera", "object", "wall"].includes(ui.sel.type)) { return false; }
+  begin();
+  el.height_m = n;
+  if (ui.fill) { nextMissing(); }
+  rebuild(); return true;
+}
+
+// Höhen ergänzen: springt durch alle Objekte ohne Höhe.
+function nextMissing() {
+  const list = missingObjs();
+  if (!list.length) { ui.fill = false; setHint(); rebuild(); return; }
+  const i = list.findIndex(o => o.id === ui.sel?.id);
+  const o = list[(i + 1) % list.length] ?? list[0];
+  ui.sel = { type: "object", id: o.id }; ui.fill = true;
+  if (ui.view === "3d") { const t = new THREE.Vector3(o.at.x, 0, o.at.y), off = persp.position.clone().sub(controls.target); controls.target.copy(t); persp.position.copy(t.add(off)); controls.update(); }
+  setHint(); rebuild();
+  document.getElementById("vcb").focus();
+}
+
+/* ───────────────────────── Seitenleisten ───────────────────────── */
+function renderTools() {
+  const root = document.getElementById("tools");
+  root.innerHTML = "";
+  const group = (title, items) => {
+    const g = document.createElement("div"); g.className = "group";
+    g.innerHTML = `<h2>${title}</h2>`;
+    items.forEach(it => g.appendChild(it)); root.appendChild(g);
+  };
+  const btn = (label, meta, pressed, on) => {
+    const b = document.createElement("button"); b.className = "tool"; b.setAttribute("aria-pressed", pressed);
+    b.innerHTML = `<span>${label}</span><span class="meta">${meta}</span>`; b.onclick = on; return b;
+  };
+  const t = id => { const x = TOOLS.find(y => y.id === id); return btn(x.name, `<kbd>${x.key}</kbd>`, ui.tool === id, () => setTool(id)); };
+  group("Bauen", ["select", "room", "wall", "door", "window", "free", "pull"].map(t));
+  group("Spielen", ["figure", "camera"].map(t));
+  group("Bibliothek", LIB.map(l => btn(l.name, `${fm(l.h)} m`, ui.tool === "place" && ui.lib === l.kind, () => setTool("place", l.kind))));
+}
+
+function fieldRow(parent, label, value, placeholder, onSet, src = "") {
+  const id = `f-${label.replace(/\W/g, "")}`;
+  const lab = document.createElement("label"); lab.htmlFor = id; lab.className = "lbl"; lab.textContent = label;
+  const wrap = document.createElement("div");
+  const inp = document.createElement("input"); inp.id = id; inp.className = "num"; inp.inputMode = "decimal";
+  inp.value = value == null ? "" : fm(value); inp.placeholder = placeholder;
+  inp.onchange = () => { const n = parseNum(inp.value); if (Number.isNaN(n)) { inp.value = value == null ? "" : fm(value); return; } begin(); onSet(n); rebuild(); };
+  wrap.appendChild(inp);
+  if (src) { const s = document.createElement("div"); s.className = `src ${src.startsWith("fehlt") ? "miss" : ""}`; s.textContent = src; wrap.appendChild(s); }
+  parent.append(lab, wrap);
+}
+
+function selectRow(parent, label, value, options, onSet) {
+  const lab = document.createElement("label"); lab.className = "lbl"; lab.textContent = label; lab.htmlFor = "f-pose";
+  const s = document.createElement("select"); s.id = "f-pose";
+  options.forEach(o => { const op = document.createElement("option"); op.value = o; op.textContent = o; op.selected = o === value; s.appendChild(op); });
+  s.onchange = () => { begin(); onSet(s.value); rebuild(); };
+  parent.append(lab, s);
+}
+
+function renderSide() {
+  const p = document.getElementById("p-sel");
+  const el = find(ui.sel);
+  p.innerHTML = "";
+  if (!el) {
+    p.innerHTML = `<h3>${model.set.name}</h3><p class="sub">${model.set.walls.length} Wände · ${model.set.objects.length} Objekte · ${model.figures.length} Figuren</p>
+      <p class="hint">Ein Modell für Plan und 3D. Was im Plan entsteht, hat schon eine Höhe:
+      <b>Wände</b> erben die Raumhöhe, <b>Bibliotheksobjekte</b> bringen ihre mit, <b>Figuren</b> die ihrer Haltung.
+      Nur <b>freie Formen</b> starten ohne Höhe; der orange Knopf oben führt durch sie.</p>
+      <p class="hint">Tab wechselt Plan ↔ 3D. Die Werkzeuge bleiben dieselben.</p>`;
+    return;
+  }
+  const h3 = document.createElement("h3"), sub = document.createElement("p"), f = document.createElement("div");
+  sub.className = "sub"; f.className = "fields";
+  p.append(h3, sub, f);
+  const t = ui.sel.type;
+
+  if (t === "wall") {
+    h3.textContent = "Wand"; sub.textContent = `${fm(dist(el.from, el.to))} m lang · ${el.openings.length} Öffnungen`;
+    fieldRow(f, "Höhe", el.height_m, fm(model.set.wall_height_m), n => { el.height_m = n; }, el.height_m == null ? "aus Raumhöhe" : "eigene Höhe");
+    fieldRow(f, "Dicke", el.thickness_m, "", n => { el.thickness_m = n ?? WALL_T_M; });
+  }
+  if (t === "opening") {
+    h3.textContent = OPENING[el.kind].name; sub.textContent = "Öffnung in der Wand";
+    fieldRow(f, "Breite", el.width_m, "", n => { el.width_m = n ?? OPENING[el.kind].width_m; });
+    fieldRow(f, "Brüstung", el.sill_m, "", n => { el.sill_m = n ?? 0; });
+    fieldRow(f, "Sturz", el.head_m, "", n => { el.head_m = n ?? OPENING[el.kind].head_m; });
+  }
+  if (t === "object") {
+    h3.textContent = el.label;
+    sub.textContent = el.shape === "poly" ? "Freie Form" : `Bibliothek: ${LIBK[el.kind]?.name ?? el.kind}`;
+    if (el.shape !== "poly") {
+      fieldRow(f, "Breite", el.w, "", n => { el.w = n ?? el.w; });
+      fieldRow(f, "Tiefe", el.d, "", n => { el.d = n ?? el.d; });
+    }
+    const src = el.height_m == null ? `fehlt · Vorgabe ${fm(FREE_H_M)} m` : el.shape === "poly" ? "eigene Höhe" : "aus Bibliothek";
+    fieldRow(f, "Höhe", el.height_m, "fehlt", n => { el.height_m = n; }, src);
+    fieldRow(f, "Sockel", el.base_m, fm(objBase(el)), n => { el.base_m = n; }, el.base_m == null ? "steht auf dem, was darunter liegt" : "fest");
+    fieldRow(f, "Drehung", el.rotation_deg, "0", n => { el.rotation_deg = n ?? 0; });
+  }
+  if (t === "figure") {
+    h3.textContent = el.name; sub.textContent = `Figur · Kopfhöhe ${fm(figBase(el) + POSE_H[el.pose])} m`;
+    selectRow(f, "Haltung", el.pose, Object.keys(POSE_H), v => { el.pose = v; });
+    fieldRow(f, "Blick", el.facing_deg, "0", n => { el.facing_deg = n ?? 0; });
+  }
+  if (t === "camera") {
+    h3.textContent = `Kamera ${el.label}`; sub.textContent = "Bild unten rechts in der Bühne";
+    fieldRow(f, "Höhe", el.height_m, "", n => { el.height_m = n ?? 1.55; });
+    fieldRow(f, "Brennweite", el.lens_mm, "", n => { el.lens_mm = n ?? 32; });
+    fieldRow(f, "Blick", el.facing_deg, "0", n => { el.facing_deg = n ?? 0; });
+  }
+  const del = document.createElement("button"); del.className = "danger"; del.textContent = "Löschen (Entf)";
+  del.onclick = () => remove(ui.sel); p.appendChild(del);
+}
+
+function renderMissing() {
+  const b = document.getElementById("missing"), n = missingObjs().length;
+  b.className = `chip ${n ? "warn" : "ok"}`;
+  b.textContent = n ? `${n} ohne Höhe · ergänzen (H)` : "Alle Höhen gesetzt";
+}
+
+// Datenansicht: das eine Modell, wie es gespeichert würde (gekürzt).
+function dataText() {
+  const r = (k, v) => typeof v === "number" ? Math.round(v * 100) / 100 : v;
+  return JSON.stringify(model, r, 1).replace(/\n\s+([\]}])/g, " $1").replace(/\{\n\s+"x": ([-\d.]+),\n\s+"y": ([-\d.]+) \}/g, "{ x: $1, y: $2 }");
+}
+
+function syncRoomH() { document.getElementById("roomH").value = fm(model.set.wall_height_m); }
+
+/* ───────────────────────── Ansicht und Schleife ───────────────────────── */
+function setView(v) {
+  const target = controls ? controls.target.clone() : new THREE.Vector3(roomCentre().x, 0, roomCentre().y);
+  ui.view = v;
+  document.getElementById("v-plan").setAttribute("aria-pressed", v === "plan");
+  document.getElementById("v-3d").setAttribute("aria-pressed", v === "3d");
+  document.getElementById("viewbadge").textContent = v === "plan" ? "Plan · Draufsicht" : "3D · Perspektive";
+  setupControls(target.setY(0));
+  rebuild();
+}
+
+function frame() {
+  requestAnimationFrame(frame);
+  const w = canvas.clientWidth, h = canvas.clientHeight, cam = camera();
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, w, h);
+  CLIP[0].constant = ui.view === "3d" && ui.cut ? CUT_M : NO_CUT_M;
+  renderer.render(scene, cam);
+  drawTags(cam, w, h);
+  drawShot(w, h);
+}
+
+function drawTags(cam, w, h) {
+  const root = document.getElementById("labels");
+  while (root.children.length < tags.length) { root.appendChild(document.createElement("div")); }
+  [...root.children].forEach((el, i) => {
+    const t = tags[i];
+    if (!t) { el.hidden = true; return; }
+    const v = t.at.clone().project(cam);
+    el.hidden = v.z > 1;
+    el.className = `tag ${t.cls}`; el.textContent = t.text;
+    el.style.left = `${(v.x + 1) / 2 * w}px`; el.style.top = `${(1 - v.y) / 2 * h}px`;
+  });
+}
+
+// Kamerabild: dieselbe Szene aus der gewählten (sonst ersten) Kamera.
+function drawShot(w, h) {
+  const tag = document.getElementById("camtag");
+  const k = ui.sel?.type === "camera" ? find(ui.sel) : model.cameras[0];
+  if (!k) { tag.hidden = true; return; }
+  const iw = Math.round(Math.min(w * 0.34, 340)), ih = Math.round(iw * 9 / 16), m = 12;
+  const { vfov } = fov(k);
+  shotCam.fov = vfov * 180 / Math.PI; shotCam.updateProjectionMatrix();
+  shotCam.position.set(k.at.x, k.height_m, k.at.y);
+  const a = rad(k.facing_deg);
+  shotCam.lookAt(k.at.x + Math.cos(a), k.height_m, k.at.y + Math.sin(a));
+  // die Kamera selbst und Entwürfe gehören nicht ins Bild
+  const own = world.children.find(c => c.userData.camera === k.id);
+  overlay.visible = false;
+  if (own) { own.visible = false; }
+  CLIP[0].constant = NO_CUT_M;
+  renderer.setScissorTest(true);
+  renderer.setScissor(w - iw - m, m, iw, ih); renderer.setViewport(w - iw - m, m, iw, ih);
+  renderer.render(scene, shotCam);
+  overlay.visible = true;
+  if (own) { own.visible = true; }
+  tag.hidden = false;
+  tag.style.bottom = `${m + ih + 2}px`;
+  tag.textContent = `Kamera ${k.label} · ${k.lens_mm} mm · ${fm(k.height_m)} m`;
+}
+
+/* ───────────────────────── Eingaben ───────────────────────── */
+canvas.addEventListener("pointerdown", onDown);
+canvas.addEventListener("pointermove", onMove);
+canvas.addEventListener("pointerup", onUp);
+canvas.addEventListener("dblclick", () => { if (ui.draft?.kind === "wall") { finishWall(); } if (ui.draft?.kind === "free") { finishFree(); } });
+document.getElementById("v-plan").onclick = () => setView("plan");
+document.getElementById("v-3d").onclick = () => setView("3d");
+document.getElementById("undo").onclick = undo;
+document.getElementById("cut").onclick = toggleCut;
+
+function toggleCut() {
+  ui.cut = !ui.cut;
+  document.getElementById("cut").setAttribute("aria-pressed", ui.cut);
+}
+document.getElementById("missing").onclick = () => { if (missingObjs().length) { nextMissing(); } };
+document.getElementById("roomH").onchange = e => { const n = parseNum(e.target.value); if (n > 0) { begin(); model.set.wall_height_m = n; } syncRoomH(); rebuild(); };
+document.getElementById("t-sel").onclick = () => tab("sel");
+document.getElementById("t-data").onclick = () => tab("data");
+
+function tab(t) {
+  document.getElementById("t-sel").setAttribute("aria-selected", t === "sel");
+  document.getElementById("t-data").setAttribute("aria-selected", t === "data");
+  document.getElementById("p-sel").hidden = t !== "sel";
+  document.getElementById("p-data").hidden = t !== "data";
+}
+
+const vcb = document.getElementById("vcb");
+vcb.addEventListener("keydown", e => {
+  if (e.key === "Enter") { if (applyVcb(vcb.value)) { vcb.value = ""; } if (!ui.fill) { vcb.blur(); } e.preventDefault(); }
+  if (e.key === "Escape") { vcb.value = ""; ui.fill = false; setHint(); vcb.blur(); }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, select")) { return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === "z") { undo(); e.preventDefault(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) { return; }
+  if (/^[\d,.;]$/.test(e.key)) { vcb.focus(); return; }
+  if (e.key === "Tab") { setView(ui.view === "plan" ? "3d" : "plan"); e.preventDefault(); return; }
+  if (e.key === "Escape") {
+    if (ui.draft?.kind === "wall") { finishWall(); return; }
+    if (ui.draft?.kind === "free") { finishFree(); return; }
+    ui.sel = null; setTool("select"); rebuild(); return;
+  }
+  if (e.key === "Enter" && ui.draft?.kind === "free") { finishFree(); return; }
+  if (e.key === "Enter" && ui.draft?.kind === "wall") { finishWall(); return; }
+  if (e.key === "Delete" || e.key === "Backspace") { remove(ui.sel); return; }
+  if (e.key.toLowerCase() === "c") { toggleCut(); return; }
+  if (e.key.toLowerCase() === "h") { e.preventDefault(); nextMissing(); return; }
+  if (e.key.toLowerCase() === "e") {
+    const el = find(ui.sel);
+    if (!el || !("rotation_deg" in el || "facing_deg" in el)) { return; }
+    begin();
+    const step = e.shiftKey ? -ROTATE_STEP_DEG : ROTATE_STEP_DEG;
+    if ("rotation_deg" in el) { el.rotation_deg = (el.rotation_deg + step + 360) % 360; } else { el.facing_deg = (el.facing_deg + step + 360) % 360; }
+    rebuild(); return;
+  }
+  const t = TOOLK[e.key.toLowerCase()];
+  if (t) { setTool(t); }
+});
+
+// Themenwechsel: Farben der Szene neu aus den Tokens
+const themeChanged = () => { buildFloor(); rebuild(); };
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themeChanged);
+new MutationObserver(themeChanged).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+new ResizeObserver(resize).observe(stage);
+
+resize();
+buildFloor();
+renderTools();
+setHint();
+setView("plan");
+frame();
+</script>
