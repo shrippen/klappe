@@ -81,7 +81,7 @@ wartburg.klappe/
 ```
 
 Genaue Beschreibung: [`../FORMAT.md`](../FORMAT.md). Hintergrundbilder (LH-13) sind da, als
-PNG oder JPEG im Ordner `bilder/`; ein PDF als Hintergrund bleibt offen. Die Objektbibliothek
+PNG oder JPEG im Ordner `bilder/`; PDF und Video sind keine Hintergründe (LH-13). Die Objektbibliothek
 (LH-11) ist Daten, keine feste Liste im Code; eigene Objekte (LH-12) stehen in `bibliothek.toml`.
 
 - Feste Ids als Dateinamen; JSON eingerückt mit fester Schlüsselreihenfolge, damit Diffs
