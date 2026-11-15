@@ -29,6 +29,12 @@ fn controller_scenarios_hold() {
         let mut engine = QQmlApplicationEngine::new();
         let url = QUrl::from_local_file(&QString::from(file.to_string_lossy().as_ref()));
         if let Some(mut engine) = engine.as_mut() {
+            // Kante, as the app finds it in development (main.rs `qml_dirs`).
+            let kante = Path::new(env!("CARGO_MANIFEST_DIR")).join("qml");
+            engine
+                .as_mut()
+                .add_import_path(&QString::from(kante.to_string_lossy().as_ref()));
+
             // A scenario that does not load would leave `exec` waiting for ever.
             engine
                 .as_mut()
