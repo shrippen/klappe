@@ -11,6 +11,7 @@
 //! ```
 
 mod axis;
+mod card;
 mod display;
 mod hit;
 mod look;

@@ -348,18 +348,28 @@ fn a_figure_that_left_is_not_printed() {
 #[test]
 fn notes_are_printed_with_their_text() {
     let mut room = set();
-    room.notes = vec![Note {
-        id: "n1".into(),
-        at: Point::new(4.0, 3.0),
-        text: "Vorhang schließen".into(),
-    }];
+    let long = "Der Vorhang wird erst nach dem dritten Gong geschlossen";
+    room.notes = vec![
+        Note {
+            id: "n1".into(),
+            at: Point::new(4.0, 3.0),
+            text: "Vorhang schließen".into(),
+        },
+        Note {
+            id: "n2".into(),
+            at: Point::new(4.0, 8.0),
+            text: long.into(),
+        },
+    ];
     let list = render(&project(), &room, &plan(), 0.0, None);
 
     let out = svg(&list, &page(), Theme::Light).unwrap();
     let bytes = pdf(&list, &page(), Theme::Light).unwrap();
 
-    assert_eq!(lines_with(&out, "item note").len(), 1);
+    assert_eq!(lines_with(&out, "item note").len(), 2);
     assert!(out.contains(">Vorhang schließen<"));
+    // Wrapped by stellprobe: one text per line, none with the whole sentence.
+    assert!(out.contains(">Der Vorhang wird erst<") && !out.contains(">Der Vorhang wird erst n"));
     // ß = 0xDF = \337 in WinAnsi.
     assert!(String::from_utf8_lossy(&bytes).contains("(Vorhang schlie\\337en) Tj"));
 }

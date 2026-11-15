@@ -26,6 +26,8 @@ use crate::palette::{palette, Palette, Theme};
 use crate::style::{role_style, RoleStyle};
 use klappe_model::FigureColor;
 
+mod note;
+
 pub(crate) const PT_PER_MM: f64 = 72.0 / 25.4;
 /// Print text never goes below this.
 pub(crate) const MIN_TEXT_PT: f64 = 8.0;
@@ -111,7 +113,7 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
     for item in &list.items {
         match &item.shape {
             Shape::Image { .. } => image_prim(item, &map, &page.images, &mut plan)?,
-            _ => item_prims(item, &map, pal, body_radius_m(list, item), &mut plan)?,
+            _ => note::prims(item, &map, pal, body_radius_m(list, item), &mut plan)?,
         }
     }
 
