@@ -149,6 +149,8 @@ mod tests {
             kind,
             at_m,
             width_m,
+            head_m: None,
+            sill_m: None,
         }
     }
 

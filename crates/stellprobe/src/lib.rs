@@ -2,6 +2,7 @@
 //!
 //! ```text
 //! model::FloorPlan ──► motion   where is everyone at t?
+//!                  ──► height   how tall is everything? (defaults, stacking)
 //!                  ──► optics   what does a camera see?
 //!                  ──► sight    what is the camera's picture? (perspective, flat shapes)
 //!                  ──► movement what does a camera do during a shot?
@@ -15,6 +16,7 @@ mod axis;
 mod card;
 mod display;
 mod figure;
+mod height;
 mod hit;
 mod light;
 mod look;
@@ -32,6 +34,7 @@ pub use display::{
     drawing_handle_places, handles, render, Bend, DisplayList, Item, Role, Shape, Source,
     FIGURE_RADIUS_M,
 };
+pub use height::{figure_height_m, object_extent, opening_span, wall_top, MISSING_HEIGHT_M};
 pub use hit::{anchor, hit, in_lasso, within};
 pub use light::Lamp;
 pub use look::{look, view_look, Area, Hue, Look};

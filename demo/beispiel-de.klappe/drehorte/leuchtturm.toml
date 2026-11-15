@@ -4,6 +4,7 @@ name = "Leuchtturm Graufeld"
 [set]
 width_m = 6.0
 depth_m = 6.0
+wall_height_m = 2.6
 
 [[set.walls]]
 thickness_m = 0.5

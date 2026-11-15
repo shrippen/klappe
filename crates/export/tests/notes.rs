@@ -74,6 +74,7 @@ fn assert_note_text_inside_card(width_m: f64, depth_m: f64) {
             at: Point::new(4.0, 3.0),
             text: "Der Vorhang wird erst nach dem dritten Gong geschlossen".into(),
         }],
+        ..Default::default()
     };
     let list = render(
         &Project::new("Test"),

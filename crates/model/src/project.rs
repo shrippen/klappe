@@ -145,11 +145,14 @@ pub struct Location {
 }
 
 /// The built set of a location, shared by every scene there.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetPlan {
     /// Width and depth of the drawing area in metres.
     pub width_m: f64,
     pub depth_m: f64,
+    /// How tall the room is (LH-90): every wall without its own height.
+    #[serde(default = "default_room_height_m")]
+    pub wall_height_m: f64,
     #[serde(default)]
     pub walls: Vec<Wall>,
     #[serde(default)]
@@ -160,6 +163,27 @@ pub struct SetPlan {
     /// Free text on the plan, e.g. `Vorhang schließen` (LH-16).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<Note>,
+}
+
+impl Default for SetPlan {
+    fn default() -> Self {
+        Self {
+            width_m: 0.0,
+            depth_m: 0.0,
+            wall_height_m: ROOM_HEIGHT_M,
+            walls: Vec::new(),
+            objects: Vec::new(),
+            background: None,
+            notes: Vec::new(),
+        }
+    }
+}
+
+/// The room height of a new set: a usual flat or studio set.
+pub const ROOM_HEIGHT_M: f64 = 2.6;
+
+fn default_room_height_m() -> f64 {
+    ROOM_HEIGHT_M
 }
 
 /// A text pinned to a place on the set.
@@ -193,6 +217,9 @@ pub struct Wall {
     pub from: Point,
     pub to: Point,
     pub thickness_m: f64,
+    /// Its own height (LH-90); `None` takes the set's room height.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height_m: Option<f64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub openings: Vec<Opening>,
 }
@@ -204,6 +231,7 @@ impl Wall {
             from,
             to,
             thickness_m,
+            height_m: None,
             openings: Vec::new(),
         }
     }
@@ -254,10 +282,26 @@ impl OpeningKind {
             OpeningKind::Window => WINDOW_WIDTH_M,
         }
     }
+
+    /// Where an opening of this kind begins above the floor (its sill), unless it says.
+    pub fn default_sill_m(self) -> f64 {
+        match self {
+            OpeningKind::Door => 0.0,
+            OpeningKind::Window => WINDOW_SILL_M,
+        }
+    }
+
+    /// Where an opening of this kind ends above the floor (its head), unless it says.
+    pub fn default_head_m(self) -> f64 {
+        OPENING_HEAD_M
+    }
 }
 
 const DOOR_WIDTH_M: f64 = 0.9;
 const WINDOW_WIDTH_M: f64 = 1.2;
+const WINDOW_SILL_M: f64 = 0.9;
+/// Head of a door and of a window: the usual 2.10 m.
+const OPENING_HEAD_M: f64 = 2.1;
 
 /// A door or window in a wall (LH-10): a gap `width_m` wide, centred `at_m` metres from the
 /// wall's `from` along the wall.
@@ -266,9 +310,26 @@ pub struct Opening {
     pub kind: OpeningKind,
     pub at_m: f64,
     pub width_m: f64,
+    /// Height of its lower edge above the floor (LH-90); `None` takes its kind's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sill_m: Option<f64>,
+    /// Height of its upper edge above the floor (LH-90); `None` takes its kind's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub head_m: Option<f64>,
 }
 
 impl Opening {
+    /// An opening with its kind's sill and head.
+    pub fn new(kind: OpeningKind, at_m: f64, width_m: f64) -> Self {
+        Self {
+            kind,
+            at_m,
+            width_m,
+            sill_m: None,
+            head_m: None,
+        }
+    }
+
     /// Where the gap begins and ends along the wall, in metres from `from`.
     pub fn span_m(&self) -> (f64, f64) {
         (
@@ -296,6 +357,9 @@ pub struct SetObject {
     /// How tall the object is (LH-17); `None` when not given.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub height_m: Option<f64>,
+    /// Height of its underside above the floor (LH-91); `None` stands it on what is below.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_m: Option<f64>,
 }
 
 fn is_rect(shape: &ObjectShape) -> bool {
@@ -341,11 +405,7 @@ mod tests {
 
     #[test]
     fn an_opening_spans_its_width_about_its_centre() {
-        let door = Opening {
-            kind: OpeningKind::Door,
-            at_m: 4.0,
-            width_m: 0.9,
-        };
+        let door = Opening::new(OpeningKind::Door, 4.0, 0.9);
 
         assert_eq!(door.span_m(), (3.55, 4.45));
         assert_eq!(OpeningKind::Door.default_width_m(), 0.9);

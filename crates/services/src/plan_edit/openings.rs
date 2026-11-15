@@ -80,6 +80,8 @@ fn add_opening(scope: &mut Scope<'_>, kind: OpeningKind, at: Point) -> Result<()
         kind,
         at_m,
         width_m,
+        head_m: None,
+        sill_m: None,
     });
 
     Ok(())

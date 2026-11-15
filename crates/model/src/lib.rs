@@ -48,9 +48,10 @@ pub use plan::{
 pub use project::{
     is_figure_size_m, Background, Character, FigureColor, Location, Note, Opening, OpeningKind,
     Project, Scene, SetObject, SetPlan, Wall, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
+    ROOM_HEIGHT_M,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
 pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;

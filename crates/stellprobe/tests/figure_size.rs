@@ -43,6 +43,7 @@ fn list(size_m: Option<f64>, group: Option<u32>) -> DisplayList {
         objects: Vec::new(),
         background: None,
         notes: Vec::new(),
+        ..Default::default()
     };
 
     render(&project, &set, &plan, 0.0, None)

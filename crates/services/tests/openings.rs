@@ -47,7 +47,9 @@ fn a_click_on_a_wall_sets_a_door_of_the_standard_width() {
         [Opening {
             kind: OpeningKind::Door,
             at_m: 8.0,
-            width_m: 0.9
+            width_m: 0.9,
+            head_m: None,
+            sill_m: None,
         }]
     );
 }

@@ -112,6 +112,7 @@ fn list(plan: &FloorPlan) -> DisplayList {
         objects: Vec::new(),
         background: None,
         notes: Vec::new(),
+        ..Default::default()
     };
 
     render(&Project::new("Test"), &set, plan, 0.0, None)

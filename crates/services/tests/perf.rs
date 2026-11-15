@@ -114,6 +114,7 @@ fn object(i: usize) -> SetObject {
         rotation_deg: (i * 11 % 360) as f64,
         shape: Default::default(),
         height_m: None,
+        base_m: None,
     }
 }
 
@@ -183,6 +184,7 @@ fn big_session(name: &str) -> Session {
         objects: (0..OBJECTS).map(object).collect(),
         background: None,
         notes: Vec::new(),
+        ..Default::default()
     };
     let mut project = Project::new("Perf");
     project.characters = (0..FIGURES).map(character).collect();

@@ -623,6 +623,7 @@ mod tests {
             objects: vec![],
             background: None,
             notes: Vec::new(),
+            ..Default::default()
         }
     }
 
@@ -1108,6 +1109,7 @@ mod tests {
             rotation_deg: 90.0,
             shape: ObjectShape::Rect,
             height_m: None,
+            base_m: None,
         };
         let corners = object_corners(&o);
 
@@ -1126,6 +1128,7 @@ mod tests {
             rotation_deg,
             shape,
             height_m: None,
+            base_m: None,
         }
     }
 
