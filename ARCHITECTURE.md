@@ -24,7 +24,7 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 | `stellprobe/` | Stellprobe's calculations, without files or window: who stands where at a time, what a camera sees, the axis, and the display list (what a plan shows, in metres, colours as roles). |
 | `script/` | Reads and writes Fountain. |
 | `store/` | The only block that reads or writes a project folder (`FORMAT.md`); also the built-in object library and camera presets (data files). |
-| `export/` | Turns the display list and the shot list into PDF, SVG, PNG and CSV, as bytes; colours from Kante's `palette.json` (copied by the same script). |
+| `export/` | Turns the display list and the shot list into PDF, SVG, PNG, CSV, ODS and XLSX, as bytes; colours from Kante's `palette.json` (copied by the same script). |
 | `model/` | The project's data, shared by all: project, scene, character, location, floor plan, shot. |
 | `imagehead/` | Reads the header of an image file; depends on nothing. |
 | `demo/` (crate) | Tool, never shipped: writes the example projects into the root folder `demo/`. |
