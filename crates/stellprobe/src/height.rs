@@ -15,7 +15,7 @@ use crate::display::object_corners;
 use crate::hit::in_lasso;
 
 /// What an object without a height is shown as, e.g. a free form not yet measured.
-pub const MISSING_HEIGHT_M: f64 = 0.9;
+pub(crate) const MISSING_HEIGHT_M: f64 = 0.9;
 const STANDING_M: f64 = 1.75;
 const SITTING_M: f64 = 1.25;
 const LYING_M: f64 = 0.4;
@@ -27,10 +27,7 @@ pub fn wall_top(set: &SetPlan, wall: &Wall) -> f64 {
 
 /// Where the opening begins and ends above the floor: sill and head.
 pub fn opening_span(opening: &Opening) -> (f64, f64) {
-    let sill_m = opening.sill_m.unwrap_or(opening.kind.default_sill_m());
-    let head_m = opening.head_m.unwrap_or(opening.kind.default_head_m());
-
-    (sill_m, head_m)
+    opening.sill_head_m()
 }
 
 /// Underside and top of the object at `index` in `set.objects`, e.g. a chair on a podium:
@@ -44,7 +41,7 @@ pub fn object_extent(set: &SetPlan, index: usize) -> (f64, f64) {
 }
 
 /// How tall a figure is in a pose.
-pub fn figure_height_m(pose: Pose) -> f64 {
+pub(crate) fn figure_height_m(pose: Pose) -> f64 {
     match pose {
         Pose::Standing => STANDING_M,
         Pose::Sitting => SITTING_M,

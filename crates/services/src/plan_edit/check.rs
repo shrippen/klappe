@@ -1,8 +1,8 @@
 //! Checks of the values an edit brings before it applies: heights, tilts, holds, sizes, points.
 
 use klappe_model::{
-    is_camera_height_m, is_hold_s, is_object_height_m, is_object_size_m, is_tilt_deg, DrawingShape,
-    Point, MAX_OBJECT_HEIGHT_M,
+    is_camera_height_m, is_floor_offset_m, is_hold_s, is_object_height_m, is_object_size_m,
+    is_tilt_deg, DrawingShape, Point,
 };
 
 use super::PlanEdit;
@@ -168,9 +168,7 @@ fn check_top(field: Field, height_m: Option<f64>) -> Result<(), ServiceError> {
 /// up, not absurd.
 fn check_offset(field: Field, height_m: Option<f64>) -> Result<(), ServiceError> {
     match height_m {
-        Some(height_m) if !(0.0..=MAX_OBJECT_HEIGHT_M).contains(&height_m) => {
-            Err(bad_height(field, height_m))
-        }
+        Some(height_m) if !is_floor_offset_m(height_m) => Err(bad_height(field, height_m)),
         _ => Ok(()),
     }
 }

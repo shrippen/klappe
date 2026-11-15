@@ -277,8 +277,9 @@ TestCase {
         verify(findChild(card, "libraryName").visible)
     }
 
-    // LH-90: the underside shows the value in force, with a label of its own.
-    function test_the_underside_shows_the_value_in_force() {
+    // LH-90: the underside shows the object's own value; without one the field is empty and
+    // shows where it stands greyed, so stacking stays in force.
+    function test_the_underside_shows_its_own_value_or_the_stacked_one_greyed() {
         const card = make()
         const field = findChild(card, "baseField")
         card.expanded = true
@@ -286,7 +287,19 @@ TestCase {
         fake.selectedKey = "object:o2"
         compare(field.text, "0,4")
         fake.selectedKey = "object:o1"
-        compare(field.text, "0")
+        compare([field.text, field.placeholderText], ["", "0"])
+    }
+
+    function test_an_untouched_stacked_underside_is_not_pinned() {
+        const card = make()
+        card.expanded = true
+        fake.selectedKey = "object:o1"
+        const field = findChild(card, "baseField")
+
+        field.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+
+        compare(fake.bases, [])
     }
 
     function test_the_underside_has_a_visible_label() {

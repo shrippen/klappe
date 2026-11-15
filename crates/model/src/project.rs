@@ -180,7 +180,7 @@ impl Default for SetPlan {
 }
 
 /// The room height of a new set: a usual flat or studio set.
-pub const ROOM_HEIGHT_M: f64 = 2.6;
+const ROOM_HEIGHT_M: f64 = 2.6;
 
 fn default_room_height_m() -> f64 {
     ROOM_HEIGHT_M
@@ -328,6 +328,14 @@ impl Opening {
             sill_m: None,
             head_m: None,
         }
+    }
+
+    /// Where the gap begins and ends above the floor: its own sill and head, else its kind's.
+    pub fn sill_head_m(&self) -> (f64, f64) {
+        (
+            self.sill_m.unwrap_or(self.kind.default_sill_m()),
+            self.head_m.unwrap_or(self.kind.default_head_m()),
+        )
     }
 
     /// Where the gap begins and ends along the wall, in metres from `from`.

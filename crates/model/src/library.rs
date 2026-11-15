@@ -16,6 +16,12 @@ pub fn is_object_height_m(height_m: f64) -> bool {
     height_m.is_finite() && height_m > 0.0 && height_m <= MAX_OBJECT_HEIGHT_M
 }
 
+/// Whether `height_m` is a height above the floor something can begin at (a sill, an
+/// underside): a number from the floor up, not absurd.
+pub fn is_floor_offset_m(height_m: f64) -> bool {
+    (0.0..=MAX_OBJECT_HEIGHT_M).contains(&height_m)
+}
+
 /// How an object is drawn within its width and depth.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

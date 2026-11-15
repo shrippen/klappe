@@ -61,8 +61,9 @@ ColumnLayout {
         if (!heightField.activeFocus) {
             heightField.text = card.shownHeight(info)
         }
+        baseField.placeholderText = texts.num(info.base, 2)
         if (!baseField.typing) {
-            baseField.text = texts.num(info.base, 2)
+            baseField.text = card.ownBase()
         }
         // The name a new library entry starts with.
         if (!libraryName.activeFocus) {
@@ -79,12 +80,22 @@ ColumnLayout {
         heightField.invalid = !controller.setObjectHeight(heightField.text)
     }
 
-    // Sets the underside; the field then shows the value in force, so an emptied one shows
-    // what the object stands on again.
+    // The object's own underside as the field shows it: empty when it stands on what is below,
+    // which the placeholder shows.
+    function ownBase() {
+        return info.baseDefault ? "" : texts.num(info.base, 2)
+    }
+
+    // Sets the underside; an untouched field sends nothing, so stacking is never pinned. An
+    // emptied one stands it on what is below again.
     function setBase() {
+        if (info && baseField.text.trim() === card.ownBase()) {
+            baseField.invalid = false
+            return
+        }
         const ok = controller.setSelectedHeight("base", baseField.text)
         if (ok && info) {
-            baseField.text = texts.num(info.base, 2)
+            baseField.text = card.ownBase()
         }
         baseField.invalid = !ok
     }
@@ -95,7 +106,7 @@ ColumnLayout {
         const typed = heightField.text
         const typedBase = baseField.text
         const changed = info !== null && typed.trim() !== card.shownHeight(info)
-        const baseChanged = info !== null && typedBase.trim() !== texts.num(info.base, 2)
+        const baseChanged = info !== null && typedBase.trim() !== card.ownBase()
         // A refused size stops the apply: the height alone would be half of what was asked.
         if (!card.setSize()) {
             return

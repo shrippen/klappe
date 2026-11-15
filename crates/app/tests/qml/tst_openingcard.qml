@@ -122,17 +122,33 @@ TestCase {
         verify(!field.invalid)
     }
 
-    // LH-90: sill and head show the value in force, the kind's when the opening has none.
-    function test_sill_and_head_show_the_value_in_force() {
+    // LH-90: sill and head show the opening's own value; without one the field is empty and
+    // shows its kind's greyed.
+    function test_sill_and_head_show_own_values_and_defaults_greyed() {
         const card = make()
+        const sill = findChild(card, "openingSillField")
+        const head = findChild(card, "openingHeadField")
 
         fake.selectedKey = "opening:2:0"
-        compare(findChild(card, "openingSillField").text, "0")
-        compare(findChild(card, "openingHeadField").text, "2,1")
+        compare([sill.text, sill.placeholderText], ["", "0"])
+        compare([head.text, head.placeholderText], ["", "2,1"])
 
         fake.selectedKey = "opening:0:1"
-        compare(findChild(card, "openingSillField").text, "0,9")
-        compare(findChild(card, "openingHeadField").text, "2,4")
+        compare([sill.text, sill.placeholderText], ["", "0,9"])
+        compare(head.text, "2,4")
+    }
+
+    // Enter or the button on untouched fields keeps the kind's values as defaults.
+    function test_untouched_defaults_are_not_pinned() {
+        const card = make()
+        fake.selectedKey = "opening:2:0"
+        const sill = findChild(card, "openingSillField")
+
+        sill.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+        findChild(card, "openingApply").clicked()
+
+        compare(fake.heights, [])
     }
 
     // Every field has a label of its own, not only a placeholder.
@@ -179,7 +195,7 @@ TestCase {
     // the kind's value again.
     function test_the_button_gives_a_changed_sill_and_head_too() {
         const card = make()
-        fake.selectedKey = "opening:2:0"
+        fake.selectedKey = "opening:0:1"
 
         findChild(card, "openingApply").clicked()
         compare(fake.widths.length, 1)

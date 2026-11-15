@@ -25,8 +25,8 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    is_figure_size_m, Character, Location, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
-    MIN_FIGURE_M, MIN_GROUP,
+    is_figure_size_m, is_floor_offset_m, is_object_height_m, Character, Location, Opening, Project,
+    Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
 };
 use serde::{Deserialize, Serialize};
 
@@ -123,7 +123,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     let templates = template::load_templates(&dir.join(TEMPLATES_FILE))?;
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
-    check_openings(&dir.join(LOCATIONS_DIR), &locations)?;
+    check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
     let mut scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
     clear_passive_power(&mut scenes);
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
@@ -363,6 +363,13 @@ fn check_characters(characters: &[Character]) -> Result<(), String> {
     Ok(())
 }
 
+/// The sets of `locations`: their openings and heights.
+fn check_sets(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
+    check_openings(path, locations)?;
+
+    check_heights(path, locations)
+}
+
 /// An opening is a gap with a width, somewhere along its wall; `path` names the folder in the
 /// message.
 fn check_openings(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
@@ -385,6 +392,43 @@ fn check_openings(path: &Path, locations: &[Location]) -> Result<(), StoreError>
     }
 
     Ok(())
+}
+
+/// Heights an edit would refuse (LH-90, LH-91): a room, wall or head is more than nothing; a sill
+/// or underside starts at the floor or above; a sill lies below its head.
+fn check_heights(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
+    for location in locations {
+        let set = &location.set;
+        let walls = set.walls.iter().map(|w| w.height_m);
+        let tops = std::iter::once(Some(set.wall_height_m)).chain(walls);
+        let tops_ok = tops.flatten().all(is_object_height_m);
+        let bases_ok = set
+            .objects
+            .iter()
+            .filter_map(|o| o.base_m)
+            .all(is_floor_offset_m);
+        let openings_ok = set
+            .walls
+            .iter()
+            .flat_map(|w| &w.openings)
+            .all(opening_heights_ok);
+        if tops_ok && bases_ok && openings_ok {
+            continue;
+        }
+
+        return Err(StoreError::Parse {
+            path: path.to_path_buf(),
+            message: format!("{}: a height of the set is not usable", location.id),
+        });
+    }
+
+    Ok(())
+}
+
+fn opening_heights_ok(opening: &Opening) -> bool {
+    let (sill_m, head_m) = opening.sill_head_m();
+
+    is_floor_offset_m(sill_m) && is_object_height_m(head_m) && sill_m < head_m
 }
 
 /// Rejects ids that are unsafe as file names (path traversal) or used twice.

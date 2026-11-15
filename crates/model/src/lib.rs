@@ -32,8 +32,8 @@ mod template;
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use geometry::Point;
 pub use library::{
-    is_object_height_m, is_object_size_m, LibraryItem, ObjectShape, MAX_OBJECT_HEIGHT_M,
-    MAX_OBJECT_M,
+    is_floor_offset_m, is_object_height_m, is_object_size_m, LibraryItem, ObjectShape,
+    MAX_OBJECT_HEIGHT_M, MAX_OBJECT_M,
 };
 pub use light_preset::{is_beam_deg, is_power_w, is_temp_k, LightPreset};
 pub use limits::{
@@ -48,7 +48,6 @@ pub use plan::{
 pub use project::{
     is_figure_size_m, Background, Character, FigureColor, Location, Note, Opening, OpeningKind,
     Project, Scene, SetObject, SetPlan, Wall, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
-    ROOM_HEIGHT_M,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
 pub use template::{Template, TemplateFigure};

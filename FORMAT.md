@@ -78,6 +78,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `base_m`, die Unterkante; fehlt sie, steht das Objekt auf dem größten Objekt mit Höhe, das
   größer ist und seine Mitte trägt, sonst auf dem Boden. Ein Objekt ohne `height_m` wird in
   der Ansicht 0,9 m hoch gezeigt und trägt nichts. Leere Werte schreibt `save` nicht.
+  Raum-, Wand- und Sturzhöhe liegen in (0, 100] m, Brüstung und Unterkante in [0, 100] m, die
+  Brüstung unter dem Sturz; sonst wird der Drehort beim Öffnen abgelehnt.
   Formatversion 1 lädt unverändert (Raumhöhe 2,6, die feste Wandhöhe von früher) und wird als
   2 gespeichert; eine Fassung für Version 1 lehnt das Projekt danach ab.
 - **Kamerahöhe und Neigung (LH-34):** jeder Kamera-Mark (`marks` in `szenen/<id>.json`) hat

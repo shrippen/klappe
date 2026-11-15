@@ -308,14 +308,14 @@ pub mod qobject {
         #[cxx_name = "setOpeningWidth"]
         fn set_opening_width(self: Pin<&mut Self>, width: &QString) -> bool;
 
-        /// Sets the height in metres of the selected object (LH-17); an empty text takes it
-        /// off. False when no object is selected or the text is no length; a refusal by the
-        /// session goes to `status`.
-        /// `field` is `wall`, `sill`, `head` or `base` (LH-90); empty text takes the height off.
+        /// Sets `field` (`wall`, `sill`, `head`, `base`) of the selection (LH-90); empty: default.
         #[qinvokable]
         #[cxx_name = "setSelectedHeight"]
         fn set_selected_height(self: Pin<&mut Self>, field: &QString, text: &QString) -> bool;
 
+        /// Sets the height in metres of the selected object (LH-17); an empty text takes it
+        /// off. False when no object is selected or the text is no length; a refusal by the
+        /// session goes to `status`.
         #[qinvokable]
         #[cxx_name = "setObjectHeight"]
         fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool;

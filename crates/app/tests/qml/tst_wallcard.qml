@@ -55,7 +55,8 @@ TestCase {
         return card
     }
 
-    // The field shows the height in force: the room's when the wall has none of its own.
+    // The field shows the wall's own height; without one it is empty and shows the room's
+    // greyed, so the room's is not taken for the wall's own.
     function test_only_a_selected_wall_shows_the_card() {
         const card = make()
         verify(!card.visible)
@@ -66,7 +67,8 @@ TestCase {
         fake.selectedKey = "wall:0"
         verify(card.visible)
         compare(findChild(card, "wallTitle").text, "Wand")
-        compare(findChild(card, "wallHeightField").text, "2,6")
+        compare(findChild(card, "wallHeightField").text, "")
+        compare(findChild(card, "wallHeightField").placeholderText, "2,6")
 
         fake.selectedKey = "wall:1"
         compare(findChild(card, "wallHeightField").text, "1,1")
@@ -115,6 +117,20 @@ TestCase {
         findChild(card, "wallApply").clicked()
 
         compare(fake.heights, [["wall", "2.2"]])
+    }
+
+    // Applying an untouched field changes nothing: the room's height stays the wall's default
+    // and follows the room.
+    function test_an_untouched_default_is_not_pinned() {
+        const card = make()
+        fake.selectedKey = "wall:0"
+        const field = findChild(card, "wallHeightField")
+
+        findChild(card, "wallApply").clicked()
+        field.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+
+        compare(fake.heights, [])
     }
 
     // An emptied field takes the wall's own height off: the room's again.

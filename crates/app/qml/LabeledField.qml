@@ -12,6 +12,8 @@ ColumnLayout {
     /// The object name of the text field inside, for tests and for the card that reads it.
     property alias fieldName: input.objectName
     property alias text: input.text
+    /// Shown greyed while the field is empty, e.g. the default in force.
+    property alias placeholderText: input.placeholderText
     property alias invalid: input.invalid
     /// The field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: input.activeFocus
