@@ -5,6 +5,7 @@ use klappe_stellprobe::Source;
 
 use super::{straighten, Scope};
 use crate::error::ServiceError;
+use crate::field::Field;
 
 pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
     match source {
@@ -50,6 +51,11 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
             set.notes.remove(index);
             Ok(())
         }
+        // A grip is no element of its own, and its drawing stays.
+        Source::DrawingPoint { .. } => Err(ServiceError::BadValue {
+            field: Field::Source,
+            value: String::new(),
+        }),
         Source::Drawing(id) => {
             let index = scope.plan.drawings.iter().position(|d| d.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;

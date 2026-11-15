@@ -40,6 +40,7 @@ fn page(lamps: LampTexts) -> Page {
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
+        drawing: Default::default(),
         lamps,
     };
 

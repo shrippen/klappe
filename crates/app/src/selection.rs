@@ -32,9 +32,19 @@ pub enum Pick {
     Extend,
 }
 
+/// What a pick selects: a grip on a drawing's point stands for the drawing, which keeps its
+/// grips, its card and its keys; a grip on a way is selected itself (it is the bend to
+/// straighten).
+fn whole(source: Source) -> Source {
+    match source {
+        Source::DrawingPoint { drawing, .. } => Source::Drawing(drawing),
+        source => source,
+    }
+}
+
 impl Selection {
     pub fn of(source: Option<Source>) -> Selection {
-        Selection(source.into_iter().collect())
+        Selection(source.map(whole).into_iter().collect())
     }
 
     pub fn contains(&self, source: &Source) -> bool {
@@ -65,7 +75,7 @@ impl Selection {
     /// `Extend` it takes the element in, or out when it is in already, and a click on empty
     /// ground changes nothing.
     pub fn click(mut self, picked: Option<Source>, how: Pick) -> Selection {
-        match (how, picked) {
+        match (how, picked.map(whole)) {
             (Pick::Replace, picked) => Selection::of(picked),
             (Pick::Extend, None) => self,
             (Pick::Extend, Some(source)) => {
@@ -318,6 +328,30 @@ mod tests {
 
     /// Review of PR 31: a grip shows only while its way is the one selected, so in a
     /// selection of several it would be picked unseen and bend or straighten its way.
+    /// A grip on a drawing's point selects the drawing, so its card, its grips and its keys
+    /// stay; a grip on a way selects itself.
+    #[test]
+    fn a_grip_on_a_drawing_selects_the_drawing() {
+        let grip = Source::DrawingPoint {
+            drawing: "d1".into(),
+            index: 1,
+        };
+        let drawing = Source::Drawing("d1".into());
+
+        assert_eq!(
+            Selection::of(Some(grip.clone())),
+            Selection::of(Some(drawing.clone()))
+        );
+        assert_eq!(
+            Selection::of(None).click(Some(grip.clone()), Pick::Replace),
+            Selection::of(Some(drawing.clone()))
+        );
+        assert_eq!(
+            Selection::of(Some(drawing.clone())).grab(Some(grip)),
+            Selection::of(Some(drawing))
+        );
+    }
+
     #[test]
     fn a_selection_of_several_holds_no_grip() {
         let grip = Source::FigureVia {

@@ -134,6 +134,7 @@ fn drawing(i: usize) -> Drawing {
         color: FigureColor::Red,
         dash: Dash::Dashed,
         fill: Fill::Outline,
+        rotation_deg: 0.0,
     }
 }
 

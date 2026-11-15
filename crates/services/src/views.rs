@@ -1,6 +1,6 @@
 //! Plain data for the surfaces: what a row, a track or a script line shows.
 
-use klappe_model::{LibraryItem, ObjectShape};
+use klappe_model::{Dash, FigureColor, Fill, LibraryItem, ObjectShape};
 use serde::Serialize;
 
 /// One row of the shot list (LH-71, LH-72).
@@ -309,5 +309,13 @@ pub enum Hint {
     },
     Note {
         text: String,
+    },
+    /// A drawing, for the card that changes its style (LH-19).
+    Drawing {
+        color: FigureColor,
+        dash: Dash,
+        fill: Fill,
+        /// Whether the shape has an inside, so a fill means something.
+        closed: bool,
     },
 }
