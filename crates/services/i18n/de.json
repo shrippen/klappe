@@ -467,5 +467,14 @@
  "palette.group.scenes": "Szenen",
  "palette.group.plans": "Pläne",
  "key.ctrl": "Strg",
- "key.shift": "Umschalt"
+ "key.shift": "Umschalt",
+ "menu.viewZoom": "Zoom",
+ "menu.zoomIn": "Vergrößern",
+ "menu.zoomOut": "Verkleinern",
+ "menu.zoomFit": "Plan einpassen",
+ "menu.play": "Abspielen oder Pause",
+ "menu.markPrev": "Voriger Mark",
+ "menu.markNext": "Nächster Mark",
+ "palette.group.playback": "Wiedergabe",
+ "key.space": "Leertaste"
 }
