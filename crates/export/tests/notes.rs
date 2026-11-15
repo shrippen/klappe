@@ -3,7 +3,7 @@
 // Test helpers may unwrap; a failure should stop the test.
 #![allow(clippy::unwrap_used)]
 
-use klappe_export::{svg, Orientation, Page, Paper, ShotTexts, Texts, Theme};
+use klappe_export::{svg, LampTexts, Orientation, Page, Paper, ShotTexts, Texts, Theme};
 use klappe_model::{FloorPlan, Note, Point, Project, SetPlan};
 use klappe_stellprobe::render;
 
@@ -18,6 +18,7 @@ fn page() -> Page {
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
+        lamps: LampTexts::default(),
     };
 
     Page::new(Paper::A4, Orientation::Landscape, "Notizen", texts)
