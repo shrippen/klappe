@@ -21,6 +21,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 toml = "1"
 klappe-store = { path = "crates/store" }
+klappe-raster = { path = "crates/raster" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

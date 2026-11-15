@@ -6,6 +6,7 @@
 mod args;
 mod bridge;
 mod camera;
+mod camera_picture;
 mod catalog;
 mod drawing;
 mod fileurl;

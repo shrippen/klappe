@@ -911,6 +911,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "klappe-raster"
+version = "0.0.1"
+
+[[package]]
 name = "klappe-script"
 version = "0.0.1"
 
@@ -933,6 +937,7 @@ name = "klappe-stellprobe"
 version = "0.0.1"
 dependencies = [
  "klappe-model",
+ "klappe-raster",
 ]
 
 [[package]]

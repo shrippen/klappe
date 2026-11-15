@@ -1,0 +1,10 @@
+[package]
+name = "klappe-raster"
+description = "Fills screen triangles into a frame with depth: role, shade, source and edges per pixel, no colours."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

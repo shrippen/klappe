@@ -17,8 +17,6 @@ Item {
         "backupState", "backupMessage", "sceneId", "status"]
     readonly property var texts: ["planJson", "tracksJson", "shotsJson", "shotsShootingJson", "scriptJson",
         "layersJson", "locksJson", "choicesJson", "projectJson"]
-    // Empty until a shot or a camera is picked, so not checked for being filled.
-    readonly property var views: ["viewJson"]
     property var counts: ({})
 
     // What the start shows without a project: the first scenario step is relative to it.
@@ -49,6 +47,11 @@ Item {
     readonly property var shot: Object.assign({}, back, { selectedShot: "s12-1" })
     readonly property var unsnapped: Object.assign({}, shot, { snappingOn: false })
 
+    // Kante's colours as the view hands them over; only the names matter here.
+    readonly property string colors: JSON.stringify({
+        ground: [250, 250, 250], text: [10, 10, 10], muted: [100, 100, 100], red: [200, 0, 0]
+    })
+
     function fail(message) {
         console.error(message)
         Qt.exit(1)
@@ -71,7 +74,7 @@ Item {
     }
 
     Component.onCompleted: {
-        for (const name of plain.concat(texts, views)) {
+        for (const name of plain.concat(texts)) {
             ctl[name + "Changed"].connect(() => { counts[name] = (counts[name] || 0) + 1 })
         }
     }
@@ -104,7 +107,12 @@ Item {
                 return root.fail("open: layers or locks are not the project's")
             }
 
+            // A counter, not a value to check in each step: the camera's picture follows it.
+            const revision = ctl.pictureRevision
             ctl.seek(4)
+            if (ctl.pictureRevision === revision) {
+                return root.fail("seek: the picture revision did not change")
+            }
             if (!root.check("seek", Object.assign({}, root.opened, { time: 4 }),
                     { planJson: 1, time: 1 })) {
                 return
@@ -142,11 +150,13 @@ Item {
             }
 
             ctl.selectShot(JSON.parse(ctl.shotsJson)[0].id)
-            if (!root.check("shot", root.shot, { planJson: 1, viewJson: 1, tracksJson: 1, selectedShot: 1 })) {
+            if (!root.check("shot", root.shot, { planJson: 1, tracksJson: 1, selectedShot: 1 })) {
                 return
             }
-            if (JSON.parse(ctl.viewJson).shapes.length === 0) {
-                return root.fail("shot: the camera view is empty")
+            ctl.cameraImage(160, root.colors)
+            const frame = JSON.parse(ctl.cameraFrame() || "{}")
+            if (frame.width !== 160 || frame.height <= 0) {
+                return root.fail("shot: the camera picture is empty: " + JSON.stringify(frame))
             }
 
             ctl.setLayer("notes", "hidden")

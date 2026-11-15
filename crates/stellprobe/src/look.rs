@@ -4,7 +4,7 @@
 use klappe_model::{Dash, FigureColor, Fill};
 
 use crate::display::Role;
-use crate::sight::ViewRole;
+use crate::scene::SceneRole;
 
 /// The colour of a role, as a role of the palette, not a value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,14 +90,16 @@ pub fn look(role: Role) -> Look {
     }
 }
 
-/// What a shape of the camera's view looks like (LH-36): the ground and walls are tinted, so
-/// what stands before them stays readable; objects and figures are solid.
-pub fn view_look(role: ViewRole) -> Look {
+/// What a pixel of the camera's picture looks like (LH-36): the ground and walls are tinted, so
+/// what stands before them stays readable; objects and figures are solid; an object without a
+/// height is orange (see-through comes from its sparse pixels).
+pub fn scene_look(role: SceneRole) -> Look {
     match role {
-        ViewRole::Floor => plain(Hue::Muted, Dash::Solid, Area::Tint),
-        ViewRole::Wall => plain(Hue::Text, Dash::Solid, Area::Tint),
-        ViewRole::Object => plain(Hue::Muted, Dash::Solid, Area::Solid),
-        ViewRole::Figure(c) => plain(Hue::Color(c), Dash::Solid, Area::Solid),
+        SceneRole::Floor => plain(Hue::Muted, Dash::Solid, Area::Tint),
+        SceneRole::Wall => plain(Hue::Text, Dash::Solid, Area::Tint),
+        SceneRole::Object => plain(Hue::Muted, Dash::Solid, Area::Solid),
+        SceneRole::Missing => plain(ORANGE, Dash::Solid, Area::Solid),
+        SceneRole::Figure(c) => plain(Hue::Color(c), Dash::Solid, Area::Solid),
     }
 }
 
@@ -112,6 +114,12 @@ fn drawing_area(fill: Fill) -> Area {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_body_without_height_is_orange() {
+        assert_eq!(scene_look(SceneRole::Missing).hue, ORANGE);
+        assert_eq!(scene_look(SceneRole::Floor).area, Area::Tint);
+    }
 
     #[test]
     fn only_mark_and_object_differ_on_paper() {

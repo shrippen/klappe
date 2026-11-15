@@ -30,6 +30,10 @@ const TICK_S: f64 = 0.04;
 const BUDGET: Duration = Duration::from_millis(16);
 /// CI machines vary; only a real regression crosses this.
 const LIMIT_FACTOR: u32 = 4;
+/// The camera picture in the shot card: about 0.2 million pixels.
+const SHOT_PICTURE_PX: usize = 600;
+const SHOT_PICTURE_BUDGET: Duration = Duration::from_millis(5);
+const FULL_HD_PX: usize = 1920;
 const RUNS: usize = 200;
 
 /// A point on a fixed pseudo-random walk over the set, so runs repeat.
@@ -276,4 +280,31 @@ fn a_large_plan_stays_fluid() {
         both < BUDGET * LIMIT_FACTOR,
         "{both:?} over {LIMIT_FACTOR}x the {BUDGET:?} budget"
     );
+}
+
+/// The camera's picture as pixels (3D-KONZEPT.md, section 5.2): the shot card's size within
+/// `SHOT_PICTURE_BUDGET`, a full HD 3D view within the 16 ms of a frame; like the rest of
+/// `make perf`, it fails only above four times that.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn the_camera_picture_stays_fluid() {
+    let mut s = big_session("perf-picture");
+    s.set_time(7.0);
+    let camera = s
+        .plan()
+        .and_then(|p| p.cameras.first())
+        .map(|c| c.id.clone());
+    let camera = camera.as_deref();
+
+    for (width_px, budget) in [(SHOT_PICTURE_PX, SHOT_PICTURE_BUDGET), (FULL_HD_PX, BUDGET)] {
+        let took = median(|| {
+            std::hint::black_box(s.camera_picture(camera, width_px));
+        });
+        report(&format!("camera picture {width_px} px wide"), took);
+
+        assert!(
+            took < budget * LIMIT_FACTOR,
+            "{took:?} over {LIMIT_FACTOR}x the {budget:?} budget"
+        );
+    }
 }
