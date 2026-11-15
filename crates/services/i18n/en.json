@@ -96,6 +96,11 @@
  "objectKind.horse": "Horse",
  "objectKind.tree": "Tree",
  "objectKind.platform": "Platform",
+ "objectKind.track": "Track",
+ "objectKind.dolly": "Dolly",
+ "objectKind.jib": "Jib",
+ "objectKind.crane": "Crane",
+ "objectKind.tripod": "Tripod",
  "library.builtin": "Built in",
  "library.custom": "Own",
  "library.search": "Find an object",
@@ -462,5 +467,14 @@
  "palette.group.scenes": "Scenes",
  "palette.group.plans": "Plans",
  "key.ctrl": "Ctrl",
- "key.shift": "Shift"
+ "key.shift": "Shift",
+ "menu.viewZoom": "Zoom",
+ "menu.zoomIn": "Zoom in",
+ "menu.zoomOut": "Zoom out",
+ "menu.zoomFit": "Fit plan to view",
+ "menu.play": "Play or pause",
+ "menu.markPrev": "Previous mark",
+ "menu.markNext": "Next mark",
+ "palette.group.playback": "Playback",
+ "key.space": "Space"
 }

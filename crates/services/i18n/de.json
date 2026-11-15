@@ -96,6 +96,11 @@
  "objectKind.horse": "Pferd",
  "objectKind.tree": "Baum",
  "objectKind.platform": "Podest",
+ "objectKind.track": "Schiene",
+ "objectKind.dolly": "Dolly",
+ "objectKind.jib": "Kranarm",
+ "objectKind.crane": "Kran",
+ "objectKind.tripod": "Stativ",
  "library.builtin": "Eingebaut",
  "library.custom": "Eigene",
  "library.search": "Objekt suchen",
@@ -462,5 +467,14 @@
  "palette.group.scenes": "Szenen",
  "palette.group.plans": "Pläne",
  "key.ctrl": "Strg",
- "key.shift": "Umschalt"
+ "key.shift": "Umschalt",
+ "menu.viewZoom": "Zoom",
+ "menu.zoomIn": "Vergrößern",
+ "menu.zoomOut": "Verkleinern",
+ "menu.zoomFit": "Plan einpassen",
+ "menu.play": "Abspielen oder Pause",
+ "menu.markPrev": "Voriger Mark",
+ "menu.markNext": "Nächster Mark",
+ "palette.group.playback": "Wiedergabe",
+ "key.space": "Leertaste"
 }
