@@ -84,6 +84,37 @@ fn a_broken_template_file_is_refused() {
     }
 }
 
+/// TOML knows `nan` and `inf`; a number a mark cannot use would load but never save again.
+#[test]
+fn a_template_file_with_unusable_numbers_is_refused() {
+    let dir = test_dir("templates-numbers");
+    let mut project = Project::new("Eigene");
+    project.templates = vec![own("a", "A")];
+    save(&dir, &project, None).unwrap();
+    let base = include_str!("../template/standard.toml");
+    let camera_mark = "height_m = 1.6";
+
+    for (from, to) in [
+        ("at_s = 0.0", "at_s = nan"),
+        ("x_m = -1.0", "x_m = inf"),
+        ("facing_deg = 0.0", "facing_deg = nan"),
+        ("facing_deg = 0.0", "facing_deg = 0.0\nhold_s = nan"),
+        (
+            "facing_deg = 0.0",
+            "facing_deg = 0.0\nvia = { x_m = nan, y_m = 0.0 }",
+        ),
+        (camera_mark, "height_m = nan"),
+        (camera_mark, "height_m = 0.0"),
+        (camera_mark, "height_m = 1.6\ntilt_deg = inf"),
+        (camera_mark, "height_m = 1.6\nlens_mm = nan"),
+        (camera_mark, "height_m = 1.6\nlens_mm = 0.0"),
+    ] {
+        assert!(base.contains(from), "{from}");
+        fs::write(dir.join("vorlagen.toml"), base.replacen(from, to, 1)).unwrap();
+        assert!(load(&dir).is_err(), "{to}");
+    }
+}
+
 /// A template that cannot be read back is not written.
 #[test]
 fn an_unusable_template_is_not_saved() {

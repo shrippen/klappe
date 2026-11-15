@@ -122,7 +122,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   der Marks sind Meter vom Einfügepunkt, Zeiten Sekunden ab Szenenbeginn; `id` und `label` einer
   Kamera sind Platzhalter, eine eingefügte Kamera bekommt freie. Eine Datei mit unbrauchbarer
   Vorlage (leere oder doppelte `id`, nichts darin, doppelter `slot`, Figur oder Kamera ohne Marks,
-  Brennweite oder Bildformat nicht größer als 0, `follows` ohne passenden `slot`) wird beim Öffnen
+  Brennweite oder Bildformat nicht größer als 0, `follows` ohne passenden `slot`, eine Zahl
+  eines Marks `nan` oder `inf`, Höhe oder Brennweite eines Kamera-Marks nicht größer als 0) wird beim Öffnen
   mit Meldung abgelehnt. Ohne eigene Vorlagen gibt es die Datei nicht: `save` löscht sie dann.
   Keine neue Formatversion, wie bei der Bibliothek.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein

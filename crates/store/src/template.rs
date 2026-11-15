@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use klappe_model::Template;
+use klappe_model::{CameraMark, Mark, Point, Template};
 use serde::{Deserialize, Serialize};
 
 use crate::files;
@@ -64,6 +64,32 @@ fn is_length(value: f64) -> bool {
     value.is_finite() && value > 0.0
 }
 
+fn is_point(point: &Point) -> bool {
+    point.x_m.is_finite() && point.y_m.is_finite()
+}
+
+/// Whether every number of a figure's mark is finite; `nan` and `inf` are valid TOML but
+/// cannot be saved again.
+fn is_mark(mark: &Mark) -> bool {
+    mark.at_s.is_finite()
+        && mark.facing_deg.is_finite()
+        && mark.hold_s.is_finite()
+        && is_point(&mark.at)
+        && mark.via.as_ref().is_none_or(is_point)
+}
+
+/// Like `is_mark`; the lens height is positive, a lens set at the mark too.
+fn is_camera_mark(mark: &CameraMark) -> bool {
+    mark.at_s.is_finite()
+        && mark.facing_deg.is_finite()
+        && mark.tilt_deg.is_finite()
+        && mark.hold_s.is_finite()
+        && is_length(mark.height_m)
+        && is_point(&mark.at)
+        && mark.via.as_ref().is_none_or(is_point)
+        && mark.lens_mm.is_none_or(is_length)
+}
+
 /// Every template has an id of its own and something to place; figures and cameras are usable.
 fn check_templates(templates: &[Template]) -> Result<(), String> {
     for (index, template) in templates.iter().enumerate() {
@@ -84,12 +110,16 @@ fn check_templates(templates: &[Template]) -> Result<(), String> {
     Ok(())
 }
 
-/// Figures have a slot of their own and marks; cameras have marks, a lens and a frame, and
+/// Figures have a slot of their own and marks, all with finite numbers; cameras have marks, a lens and a frame, and
 /// follow a slot of the template.
 fn check_parts(template: &Template) -> Result<(), String> {
     for (at, figure) in template.figures.iter().enumerate() {
         let twice = template.figures[..at].iter().any(|f| f.slot == figure.slot);
-        if figure.slot.trim().is_empty() || twice || figure.marks.is_empty() {
+        if figure.slot.trim().is_empty()
+            || twice
+            || figure.marks.is_empty()
+            || !figure.marks.iter().all(is_mark)
+        {
             return Err(format!("figure {} is not usable", at + 1));
         }
     }
@@ -97,6 +127,7 @@ fn check_parts(template: &Template) -> Result<(), String> {
     for camera in &template.cameras {
         let slot_known = |slot: &String| template.figures.iter().any(|f| f.slot == *slot);
         let usable = !camera.marks.is_empty()
+            && camera.marks.iter().all(is_camera_mark)
             && is_length(camera.lens_mm)
             && is_length(camera.aspect)
             && is_length(camera.sensor.width_mm())
