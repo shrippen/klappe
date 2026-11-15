@@ -124,7 +124,8 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     check_openings(&dir.join(LOCATIONS_DIR), &locations)?;
-    let scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
+    let mut scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
+    clear_passive_power(&mut scenes);
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -251,6 +252,17 @@ pub fn save_backup(dir: &Path, project: &Project, script: Option<&str>) -> Resul
     files::write_atomic(&new.join(BACKUP_DONE_FILE), b"")?;
 
     promote(dir)
+}
+
+/// Older files may give a reflector or flag the power of the lamp it was switched from.
+fn clear_passive_power(scenes: &mut [Scene]) {
+    let lights = scenes
+        .iter_mut()
+        .flat_map(|s| &mut s.plans)
+        .flat_map(|p| &mut p.lights);
+    for light in lights.filter(|l| !l.kind.gives_light()) {
+        light.power_w = 0.0;
+    }
 }
 
 /// Reads the backup of `dir`; `None` if there is none. Only a folder with the marker `fertig`

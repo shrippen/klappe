@@ -57,7 +57,9 @@ KanteCard {
             return
         }
         for (const [, field, key, digits] of card.numberFields) {
-            field.shown = card.texts.num(card.info[key], digits)
+            // An old file may keep a power on a bounce or flag: leave the field empty.
+            const hidden = key === "power" && !card.info.gives_light
+            field.shown = hidden ? "" : card.texts.num(card.info[key], digits)
             if (!field.activeFocus) {
                 field.text = field.shown
             }
@@ -178,6 +180,8 @@ KanteCard {
                 objectName: "lightPowerField"
                 property string shown: ""
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+                // Bounce and flag make no light: no power.
+                enabled: card.info !== null && card.info.gives_light
                 Accessible.name: card.texts.t("light.power")
                 placeholderText: card.texts.t("light.power")
                 inputMethodHints: Qt.ImhFormattedNumbersOnly

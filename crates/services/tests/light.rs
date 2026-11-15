@@ -279,20 +279,70 @@ fn sixty_lamps_print_in_the_frames() {
     assert!(!files.is_empty());
 }
 
-/// A bounce or flag makes no light, whatever power it carries: the tooltip says so.
+/// A bounce or flag makes no light: no power, in the data, the tooltip and the print list.
 #[test]
-fn a_hint_tells_whether_the_lamp_gives_light() {
+fn a_passive_lamp_has_no_power() {
     let mut s = open();
+    s.edit_plan(set("led-1", LightChange::Preset("fresnel-650".into())))
+        .unwrap();
     s.edit_plan(set("led-1", LightChange::Kind(LightKind::Reflector)))
         .unwrap();
-    s.edit_plan(set("led-1", LightChange::Power(650.0)))
-        .unwrap();
 
-    let Some(Hint::Light { gives_light, .. }) = s.light_hint("led-1") else {
+    assert_eq!(light(&s, "led-1").power_w, 0.0);
+    let Some(Hint::Light {
+        gives_light,
+        power_w,
+        ..
+    }) = s.light_hint("led-1")
+    else {
         panic!("no lamp hint");
     };
-
     assert!(!gives_light);
+    assert_eq!(power_w, 0.0);
+    assert_eq!(s.display_list().lamps[0].power_w, 0.0);
+}
+
+/// A passive lamp takes no power: the edit is refused.
+#[test]
+fn a_passive_lamp_refuses_power() {
+    let mut s = open();
+    s.edit_plan(set("led-1", LightChange::Kind(LightKind::Flag)))
+        .unwrap();
+
+    let result = s.edit_plan(set("led-1", LightChange::Power(650.0)));
+
+    assert!(bad(result, Field::Power));
+    assert_eq!(light(&s, "led-1").power_w, 0.0);
+}
+
+/// The printed list names a passive lamp without power, however it became one.
+#[test]
+fn the_printout_gives_a_reflector_no_power() {
+    let mut s = open();
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("reflector.svg");
+    s.edit_plan(set("led-1", LightChange::Preset("fresnel-650".into())))
+        .unwrap();
+    s.edit_plan(set("led-1", LightChange::Kind(LightKind::Reflector)))
+        .unwrap();
+
+    s.export_svg(&path, Paper::A4, Language::English.print_texts())
+        .unwrap();
+    let printed = std::fs::read_to_string(&path).unwrap();
+
+    assert!(printed.contains("LED-Panel: Reflector, 30°"), "{printed}");
+    assert!(!printed.contains("650 W"));
+}
+
+/// Every passive lamp of the library has no power.
+#[test]
+fn library_passive_lamps_have_no_power() {
+    for lamp in klappe_store::builtin_lights() {
+        assert!(
+            lamp.kind.gives_light() || lamp.power_w == 0.0,
+            "{}",
+            lamp.id
+        );
+    }
 }
 
 /// The timeline's light track names a colour for a lamp that gives light, none for a bounce.
