@@ -11,6 +11,7 @@
 //! ```
 
 mod axis;
+mod card;
 mod display;
 mod hit;
 mod light;
@@ -22,6 +23,7 @@ mod rig;
 mod setup;
 
 pub use axis::{axis_at, axis_jumps, Axis, Side};
+pub use card::NOTE_TEXT_M;
 pub use display::{handles, render, DisplayList, Item, Role, Shape, Source, FIGURE_RADIUS_M};
 pub use hit::{hit, within};
 pub use light::Lamp;

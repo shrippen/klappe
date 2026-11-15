@@ -143,6 +143,7 @@ impl Session {
                     text,
                     chips: self.chips(plan, index),
                     current: false,
+                    character: self.cue_character(element),
                 }
             })
             .collect();

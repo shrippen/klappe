@@ -6,10 +6,30 @@ use super::Session;
 /// guards memory on very long sessions).
 const UNDO_LIMIT: usize = 500;
 
+/// A state an undo goes back to: the project, and the screenplay text when the step changed
+/// it too (a rename in the project also renames in the text, as one step).
+#[derive(Debug)]
+pub(super) struct Snapshot {
+    project: Project,
+    script: Option<String>,
+}
+
 impl Session {
     pub(super) fn commit(&mut self, next: Project) {
-        let previous = std::mem::replace(&mut self.project, next);
-        self.undo.push(previous);
+        self.commit_with(next, None);
+    }
+
+    /// Like `commit`, and the screenplay becomes `script`; undo restores both.
+    pub(super) fn commit_script(&mut self, next: Project, script: &str) {
+        let before = self.script_text().to_owned();
+
+        self.commit_with(next, Some(before));
+        self.set_script_text(script);
+    }
+
+    fn commit_with(&mut self, next: Project, script: Option<String>) {
+        let project = std::mem::replace(&mut self.project, next);
+        self.undo.push(Snapshot { project, script });
         if self.undo.len() > UNDO_LIMIT {
             self.undo.remove(0);
         }
@@ -88,8 +108,8 @@ impl Session {
         };
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());
-        self.redo
-            .push(std::mem::replace(&mut self.project, previous));
+        let current = self.swap(previous);
+        self.redo.push(current);
         self.project_changed = true;
         self.touch();
         self.follow_scene(on_view, plan_on_view);
@@ -101,9 +121,22 @@ impl Session {
         };
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());
-        self.undo.push(std::mem::replace(&mut self.project, next));
+        let current = self.swap(next);
+        self.undo.push(current);
         self.project_changed = true;
         self.touch();
         self.follow_scene(on_view, plan_on_view);
+    }
+
+    /// Makes `step` the state and returns the one it replaces, for the other stack.
+    fn swap(&mut self, step: Snapshot) -> Snapshot {
+        let project = std::mem::replace(&mut self.project, step.project);
+        let script = step.script.map(|text| {
+            let now = self.script_text().to_owned();
+            self.set_script_text(&text);
+            now
+        });
+
+        Snapshot { project, script }
     }
 }
