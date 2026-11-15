@@ -103,12 +103,20 @@ mod tests {
             lamp.replace("3200.0", "999.0"),
             lamp.replace("3200.0", "20001.0"),
             lamp.replace("power_w = 1.0", "power_w = 100001.0"),
+            lamp.replace("power_w = 1.0", "power_w = nan"),
+            lamp.replace("beam_deg = 30.0", "beam_deg = nan"),
+            lamp.replace("beam_deg = 30.0", "beam_deg = 361.0"),
+            lamp.replace("color_temp_k = 3200.0", "color_temp_k = inf"),
         ];
 
         for text in cases {
             assert!(parse(&text).is_err(), "{text}");
         }
         assert!(parse(&lamp.replace("3200.0", "1000.0")).is_ok());
+        assert!(parse(&lamp.replace("3200.0", "20000.0")).is_ok());
+        assert!(parse(&lamp.replace("power_w = 1.0", "power_w = 0.0")).is_ok());
+        assert!(parse(&lamp.replace("power_w = 1.0", "power_w = 100000.0")).is_ok());
+        assert!(parse(&lamp.replace("beam_deg = 30.0", "beam_deg = 360.0")).is_ok());
     }
 
     #[test]
