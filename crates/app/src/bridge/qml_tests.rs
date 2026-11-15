@@ -18,6 +18,28 @@ fn scenarios() -> Vec<PathBuf> {
     found
 }
 
+/// ODS and XLSX are ZIP files; the frames folder holds one PNG per mark of the example.
+fn check_list_exports(base: &Path) {
+    for name in ["Liste.ods", "Liste.xlsx"] {
+        let bytes = std::fs::read(base.join(name)).unwrap();
+        assert!(bytes.starts_with(b"PK"), "{name} is no ZIP");
+    }
+
+    let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+    let marks = klappe_services::Session::open(&example).unwrap().marks_s();
+    let mut frames: Vec<_> = std::fs::read_dir(base.join("frames"))
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .collect();
+    frames.sort();
+
+    assert!(!marks.is_empty());
+    assert_eq!(frames.len(), marks.len());
+    assert!(frames
+        .iter()
+        .all(|f| f.extension().is_some_and(|e| e == "png")));
+}
+
 #[test]
 fn controller_scenarios_hold() {
     std::env::set_var("QT_QPA_PLATFORM", "offscreen");
@@ -53,6 +75,10 @@ fn controller_scenarios_hold() {
     }
 
     // `tests/controller/export_to.qml` writes here.
+    let base = std::env::temp_dir().join("klappe-export-test");
+    if failed.is_empty() {
+        check_list_exports(&base);
+    }
     let _ = std::fs::remove_dir_all(std::env::temp_dir().join("klappe-export-test"));
 
     assert!(failed.is_empty(), "scenarios failed: {failed:?}");

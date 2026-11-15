@@ -2,9 +2,9 @@ import QtQuick
 import QtQuick.Dialogs
 import Kante
 
-// LH-80, LH-81: asks where an export goes. A plan export (PDF, PNG, SVG) asks for the paper
-// first, then for the file; the shot list asks for the file only. Cancelling either writes
-// nothing. Paper and folder are kept for the session.
+// LH-80, LH-81, LH-83: asks where an export goes. A plan export (PDF, PNG, SVG, frames) asks
+// for the paper first, then for the file or folder; the shot list asks for the file only.
+// Cancelling either writes nothing. Paper and folder are kept for the session.
 //
 //   request("pdf") → paper A4 | A3 → file dialog → controller.exportTo("pdf", order, paper, file)
 FormDialog {
@@ -16,11 +16,11 @@ FormDialog {
     property string paper: "a4"
     /// The folder of the last export, as a `file://` URL; empty before the first one.
     property string folder: ""
-    /// The format being asked for: "pdf", "png", "svg" or "csv".
+    /// The format being asked for: "pdf", "png", "svg", "csv", "ods", "xlsx" or "frames".
     property string kind: ""
 
     readonly property var papers: ["a4", "a3"]
-    readonly property var paperKinds: ["pdf", "png", "svg"]
+    readonly property var paperKinds: ["pdf", "png", "svg", "frames"]
 
     title: texts.t("export.paperTitle")
     acceptText: texts.t("export.next")
@@ -36,6 +36,12 @@ FormDialog {
 
     // The file dialog, offered the plan's name in the folder of the last export.
     function pick() {
+        if (kind === "frames") {
+            folders.title = texts.t("export.pick.frames")
+            folders.currentFolder = suggestion().replace(/\/[^/]*$/, "")
+            folders.open()
+            return
+        }
         files.title = texts.t("export.pick." + kind)
         files.nameFilters = [texts.t("export.filter." + kind)]
         files.defaultSuffix = kind
@@ -68,6 +74,13 @@ FormDialog {
         model: ["A4", "A3"]
         currentIndex: dialog.papers.indexOf(dialog.paper)
         onActivated: index => dialog.paper = dialog.papers[index]
+    }
+
+    // The frames go into a new folder in the chosen one, named as the suggestion.
+    FolderDialog {
+        id: folders
+        objectName: "folders"
+        onAccepted: dialog.save(selectedFolder.toString() + suggestion().substring(suggestion().lastIndexOf("/")))
     }
 
     FileDialog {
