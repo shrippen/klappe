@@ -354,6 +354,17 @@ fn measure_angle_counts_like_facing() {
     assert_eq!(MeasureStep::Live(o, p(3.0, 3.0)).angle_deg(), Some(45.0));
 }
 
+/// Review of PR 86: 359.97 showed as "360°"; a tiny negative angle as "-0°".
+#[test]
+fn measure_angle_rounds_before_it_wraps() {
+    let o = p(0.0, 0.0);
+    let angle = |b: Point| MeasureStep::Held(o, b).angle_deg().unwrap();
+
+    assert_eq!(angle(p(1.0, -0.000_523_6)), 0.0);
+    assert!(angle(p(4.0, -0.0001)).is_sign_positive());
+    assert_eq!(angle(p(1.0, -1.0)), 315.0);
+}
+
 #[test]
 fn measure_angle_needs_two_distinct_points() {
     let a = p(1.0, 1.0);

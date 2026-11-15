@@ -339,8 +339,11 @@ impl MeasureStep {
             return None;
         }
 
+        // Round first: 359.97 shows as 360, and -0.02 as -0. `+ 0.0` turns -0 into 0.
         let deg = (b.y_m - a.y_m).atan2(b.x_m - a.x_m).to_degrees();
-        Some(deg.rem_euclid(FULL_TURN_DEG) % FULL_TURN_DEG)
+        let step = 10f64.powi(ANGLE_DECIMALS as i32);
+        let rounded = (deg * step).round() / step;
+        Some(rounded.rem_euclid(FULL_TURN_DEG) % FULL_TURN_DEG + 0.0)
     }
 }
 
