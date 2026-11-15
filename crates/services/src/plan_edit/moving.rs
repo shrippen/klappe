@@ -208,7 +208,7 @@ fn figure_parts(m: &mut Mark) -> (&mut Point, &mut Option<Point>) {
     (&mut m.at, &mut m.via)
 }
 
-fn camera_parts<'a>(m: &'a mut CameraMark) -> (&'a mut Point, &'a mut Option<Point>) {
+fn camera_parts(m: &mut CameraMark) -> (&mut Point, &mut Option<Point>) {
     (&mut m.at, &mut m.via)
 }
 
