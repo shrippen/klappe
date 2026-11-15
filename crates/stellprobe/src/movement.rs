@@ -7,8 +7,9 @@ const SAME_M: f64 = 0.001;
 const SAME_DEG: f64 = 0.01;
 
 /// The movement the camera's marks make during `shot` (LH-33): a changed place gives the rig
-/// of that way, else a turn is a pan, else a changed tilt a tilt, else a changed lens a zoom;
-/// without any of these the camera is static. Only ways that run within the shot count: from
+/// of that way, else a turn is a pan, else a changed tilt a tilt, else a changed height a
+/// crane, else a changed lens (also within the shot) a zoom; without any of these the camera
+/// is static. Only ways that run within the shot count: from
 /// the end of the pause at a mark to the next mark's time.
 ///
 /// ```text
@@ -45,11 +46,37 @@ pub fn movement_in(camera: &Camera, shot: &Shot) -> Movement {
     {
         return Movement::Tilt;
     }
-    if mark_lens_at(camera, shot.from_s) != mark_lens_at(camera, shot.to_s) {
+    if ways
+        .iter()
+        .any(|(from, to)| (to.height_m - from.height_m).abs() > SAME_M)
+    {
+        return Movement::Crane;
+    }
+    if zooms_in(camera, shot) {
         return Movement::Zoom;
     }
 
     Movement::Static
+}
+
+/// Whether the lens changes anywhere in the shot: at its ends or at a mark within it, so a
+/// zoom in and out counts although the ends agree.
+fn zooms_in(camera: &Camera, shot: &Shot) -> bool {
+    let within = camera
+        .marks
+        .iter()
+        .filter(|m| m.at_s > shot.from_s && m.at_s < shot.to_s)
+        .filter_map(|m| m.lens_mm);
+    let lenses = [
+        mark_lens_at(camera, shot.from_s),
+        mark_lens_at(camera, shot.to_s),
+    ]
+    .into_iter()
+    .flatten()
+    .chain(within)
+    .collect::<Vec<f64>>();
+
+    lenses.windows(2).any(|pair| pair[0] != pair[1])
 }
 
 /// What a way is called in the shot list; a tripod moves nothing.
@@ -155,6 +182,32 @@ mod tests {
         assert_eq!(movement(vec![from.clone(), to.clone()]), Movement::Pan);
         to.at = Point::new(1.0, 0.0);
         assert_eq!(movement(vec![from, to]), Movement::Dolly);
+    }
+
+    /// A change of height alone is a crane; it wins over a zoom, loses to a tilt.
+    #[test]
+    fn a_change_of_height_is_a_crane() {
+        let mut to = mark(5.0, 0.0);
+        to.height_m = 4.0;
+        let mut from = mark(0.0, 0.0);
+        from.lens_mm = Some(35.0);
+        to.lens_mm = Some(50.0);
+
+        assert_eq!(movement(vec![from.clone(), to.clone()]), Movement::Crane);
+        to.tilt_deg = 10.0;
+        assert_eq!(movement(vec![from, to]), Movement::Tilt);
+    }
+
+    /// 35 to 85 and back is a zoom although the shot's ends agree.
+    #[test]
+    fn a_zoom_in_and_out_is_a_zoom() {
+        let marks = [(0.0, 35.0), (5.0, 85.0), (10.0, 35.0)].map(|(at_s, lens_mm)| {
+            let mut m = mark(at_s, 0.0);
+            m.lens_mm = Some(lens_mm);
+            m
+        });
+
+        assert_eq!(movement(marks.to_vec()), Movement::Zoom);
     }
 
     #[test]
