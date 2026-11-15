@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 
 use klappe_model::{
     Arrival, Camera, CameraMark, Character, Dash, Departure, Drawing, DrawingShape, FigureColor,
-    FigureTrack, Fill, FloorPlan, Light, LightKind, Location, Mark, Pose, Project, Scene, Sensor,
-    SetObject, SetPlan, Shot, ShotSize, Wall,
+    FigureTrack, Fill, FloorPlan, Light, LightKind, Location, Mark, Pose, Project, Rig, Scene,
+    Sensor, SetObject, SetPlan, Shot, ShotSize, Wall,
 };
 use klappe_services::{Angle, Looping, Movement, PlanEdit, Point, Session, Source};
 
@@ -86,6 +86,8 @@ fn camera(i: usize) -> Camera {
             tilt_deg: 0.0,
             hold_s: 0.0,
             via: None,
+            rig: Rig::default(),
+            lens_mm: None,
         })
         .collect();
 
