@@ -24,6 +24,7 @@ mod script_refs;
 mod session;
 mod shot_edit;
 mod start;
+mod templates;
 mod views;
 
 pub use catalog::Language;
@@ -42,7 +43,8 @@ pub use session::{
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
     CastUse, CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow, Marker, Overview,
-    PlanRow, SceneCard, SceneRow, SceneUse, ScriptLine, Segment, ShotRow, Track, TrackKind,
+    PlanRow, SceneCard, SceneRow, SceneUse, ScriptLine, Segment, ShotRow, TemplateEntry, Track,
+    TrackKind,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.

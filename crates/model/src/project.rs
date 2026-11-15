@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::geometry::Point;
 use crate::library::{LibraryItem, ObjectShape};
 use crate::plan::FloorPlan;
+use crate::template::Template;
 
 /// One film: everything every module works on.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -17,6 +18,9 @@ pub struct Project {
     /// The project's own objects (LH-12), next to the built-in library.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub library: Vec<LibraryItem>,
+    /// The project's own templates (LH-07), next to the built-in ones.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub templates: Vec<Template>,
 }
 
 impl Project {
@@ -27,6 +31,7 @@ impl Project {
             locations: Vec::new(),
             scenes: Vec::new(),
             library: Vec::new(),
+            templates: Vec::new(),
         }
     }
 

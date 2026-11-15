@@ -1,15 +1,11 @@
 //! Edits of a camera's sensor, lens and frame (LH-32, LH-38).
 
-use klappe_model::{Camera, FloorPlan, Sensor};
+use klappe_model::{
+    Camera, FloorPlan, Sensor, MAX_ASPECT, MAX_LENS_MM, MAX_SENSOR_WIDTH_MM, MIN_LENS_MM,
+};
 
 use crate::error::ServiceError;
 use crate::field::Field;
-
-/// Widest sensor and longest lens that make sense; beyond, a number is a typing error.
-const MAX_SENSOR_WIDTH_MM: f64 = 500.0;
-const MAX_LENS_MM: f64 = 5000.0;
-/// Widest frame, width to height; real ones stay below 4.
-const MAX_ASPECT: f64 = 20.0;
 
 pub(crate) fn check_sensor(width_mm: f64, aspect: Option<f64>) -> Result<(), ServiceError> {
     check_value(Field::Sensor, width_mm, MAX_SENSOR_WIDTH_MM)?;
@@ -20,7 +16,14 @@ pub(crate) fn check_sensor(width_mm: f64, aspect: Option<f64>) -> Result<(), Ser
 }
 
 pub(crate) fn check_lens(lens_mm: f64) -> Result<(), ServiceError> {
-    check_value(Field::Lens, lens_mm, MAX_LENS_MM)
+    if (MIN_LENS_MM..=MAX_LENS_MM).contains(&lens_mm) {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Lens,
+        value: lens_mm.to_string(),
+    })
 }
 
 pub(crate) fn check_aspect(aspect: f64) -> Result<(), ServiceError> {

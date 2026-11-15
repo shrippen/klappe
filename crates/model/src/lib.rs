@@ -5,6 +5,7 @@
 //! ├── characters   Character        (project-wide: Elisabeth, Burgvogt …)
 //! ├── locations    Location → Set   (walls, objects, background image)
 //! ├── library      LibraryItem      (the project's own objects, LH-12)
+//! ├── templates    Template         (the project's own set-ups, LH-07)
 //! └── scenes       Scene → FloorPlan
 //!                           ├── figures  FigureTrack → Mark (time, place, facing)
 //!                           ├── cameras  Camera      → CameraMark
@@ -22,9 +23,11 @@ mod camera_preset;
 mod geometry;
 mod library;
 mod light_preset;
+mod limits;
 mod plan;
 mod project;
 mod shot;
+mod template;
 
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use geometry::Point;
@@ -33,6 +36,10 @@ pub use library::{
     MAX_OBJECT_M,
 };
 pub use light_preset::{LightPreset, MAX_BEAM_DEG, MAX_POWER_W, MAX_TEMP_K, MIN_TEMP_K};
+pub use limits::{
+    MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_LENS_MM, MAX_SENSOR_WIDTH_MM, MAX_SET_M, MAX_TILT_DEG,
+    MIN_LENS_MM,
+};
 pub use plan::{
     Arrival, AxisPair, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureTrack,
     Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,
@@ -42,6 +49,7 @@ pub use project::{
     SetObject, SetPlan, Wall, MAX_GROUP, MIN_GROUP,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
+pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).
 pub const FORMAT_VERSION: u32 = 1;

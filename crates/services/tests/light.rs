@@ -294,3 +294,19 @@ fn a_hint_tells_whether_the_lamp_gives_light() {
 
     assert!(!gives_light);
 }
+
+/// The timeline's light track names a colour for a lamp that gives light, none for a bounce.
+#[test]
+fn a_passive_lamp_has_no_colour_on_the_timeline() {
+    let mut s = open();
+    let text = |s: &Session| {
+        let track = s.tracks().into_iter().find(|t| t.id == "led-1").unwrap();
+        track.segments[0].text.clone()
+    };
+    assert_eq!(text(&s), "5600 K");
+
+    s.edit_plan(set("led-1", LightChange::Kind(LightKind::Reflector)))
+        .unwrap();
+
+    assert_eq!(text(&s), "");
+}
