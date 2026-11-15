@@ -400,8 +400,10 @@ Item {
         onActivated: area.controller.cancelMeasure()
     }
 
-    // Area tool: Enter closes the area, Escape drops it (once its points are there).
-    readonly property bool drawsArea: area.tool === "area" && controller.areaPoints > 0 && !area.dragging
+    // Area and free form tools: Enter closes the outline, Escape drops it (once its points are
+    // there).
+    readonly property bool drawsArea: (area.tool === "area" || area.tool === "freeform")
+        && controller.areaPoints > 0 && !area.dragging
     Shortcut {
         sequence: "Escape"
         enabled: area.drawsArea

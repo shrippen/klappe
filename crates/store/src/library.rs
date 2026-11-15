@@ -4,7 +4,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use klappe_model::{is_object_height_m, is_object_size_m, LibraryItem};
+use klappe_model::{is_object_height_m, is_object_size_m, is_outline, LibraryItem, ObjectShape};
 use serde::{Deserialize, Serialize};
 
 use crate::files;
@@ -64,8 +64,8 @@ pub(crate) fn encode(path: &Path, items: &[LibraryItem]) -> Result<Vec<u8>, Stor
     files::encode_toml(path, &file)
 }
 
-/// Every item has a kind, a size an object can have, a height if it has one, and a kind of
-/// its own.
+/// Every item has a kind, a size an object can have, an outline if it is a free form, a height
+/// if it has one, and a kind of its own.
 fn check_items(items: &[LibraryItem]) -> Result<(), String> {
     for (index, item) in items.iter().enumerate() {
         if item.kind.trim().is_empty() {
@@ -76,6 +76,9 @@ fn check_items(items: &[LibraryItem]) -> Result<(), String> {
                 "object {:?}: size {} x {} m is not usable",
                 item.kind, item.width_m, item.depth_m
             ));
+        }
+        if matches!(&item.shape, ObjectShape::Polygon { points } if !is_outline(points)) {
+            return Err(format!("object {:?}: outline is not usable", item.kind));
         }
         if item.height_m.is_some_and(|h| !is_object_height_m(h)) {
             return Err(format!(

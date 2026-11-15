@@ -191,7 +191,7 @@ impl LibraryEntry {
             group: item.group.clone(),
             width_m: item.width_m,
             depth_m: item.depth_m,
-            shape: item.shape,
+            shape: item.shape.clone(),
             height_m: item.height_m,
             custom,
             uses: 0,

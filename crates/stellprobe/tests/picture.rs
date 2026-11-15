@@ -4,7 +4,7 @@
 
 use klappe_model::{
     Arrival, Camera, CameraMark, Character, Departure, FigureColor, FigureTrack, FloorPlan, Mark,
-    Point, Pose, Project, Sensor, SetPlan, Wall,
+    ObjectShape, Point, Pose, Project, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{
     floor_at, grab_at, picture, source_at, Eye, Orbit, Picture, SceneRole, Source,
@@ -337,4 +337,58 @@ fn a_grab_takes_the_height_of_the_point_seen() {
     assert!(top < bottom, "{wall_rows:?}");
     assert!(height(top) > height(bottom));
     assert!(height(top) <= 3.0 + 1e-6 && height(bottom) >= -1e-6);
+}
+
+/// LH-92: a free form is a prism of its outline. An L seen from above covers its two arms and
+/// not the notch between them (a fan from one corner would fill it).
+#[test]
+fn a_free_form_leaves_its_notch_open() {
+    let points = [
+        (-2.0, -2.0),
+        (-1.0, -2.0),
+        (-1.0, 1.0),
+        (2.0, 1.0),
+        (2.0, 2.0),
+        (-2.0, 2.0),
+    ];
+    let mut set = set();
+    set.objects = vec![SetObject {
+        id: "l".into(),
+        kind: "form".into(),
+        label: String::new(),
+        at: Point::new(10.0, 10.0),
+        width_m: 4.0,
+        depth_m: 4.0,
+        rotation_deg: 0.0,
+        shape: ObjectShape::Polygon {
+            points: points.iter().map(|&(x, y)| Point::new(x, y)).collect(),
+        },
+        height_m: Some(0.05),
+        base_m: None,
+    }];
+    let plan = plan(35.0, &[]);
+    let eye = orbit_eye(Orbit::fitting(set.width_m, set.depth_m));
+    let picture = picture(&project(), &set, &plan, &eye, WIDTH_PX).expect("picture");
+
+    // The floor point under every pixel that shows the object; its top is so low that the
+    // point is the outline's, give or take a few centimetres.
+    let mut floor = Vec::new();
+    for y in 0..picture.frame.height {
+        for x in 0..picture.frame.width {
+            if source_at(&picture, (x, y)) != Some(&Source::Object("l".into())) {
+                continue;
+            }
+            floor.extend(floor_at(
+                &plan,
+                &eye,
+                WIDTH_PX as f64,
+                (x as f64 + 0.5, y as f64 + 0.5),
+            ));
+        }
+    }
+
+    let in_notch = |p: &Point| (9.3..11.7).contains(&p.x_m) && (8.3..10.7).contains(&p.y_m);
+    let on_arm = |p: &Point| p.x_m < 8.7 && (8.0..12.0).contains(&p.y_m);
+    assert!(floor.iter().any(on_arm), "the arm is not seen");
+    assert!(!floor.iter().any(in_notch), "the notch is filled");
 }

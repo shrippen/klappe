@@ -380,7 +380,7 @@ fn objects(set: &SetPlan, solids: &mut Vec<Solid>) {
     for (index, object) in set.objects.iter().enumerate() {
         let (base_m, top_m) = object_extent(set, index);
         let sides = match object.shape {
-            ObjectShape::Rect => Sides::Flat,
+            ObjectShape::Rect | ObjectShape::Polygon { .. } => Sides::Flat,
             ObjectShape::Ellipse => Sides::Round,
         };
         let role = match object.height_m {

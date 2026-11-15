@@ -2,8 +2,9 @@
 //! changing a note's text, which shares the note rules.
 
 use klappe_model::{
-    Arrival, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureColor, FigureTrack,
-    Fill, Light, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject, Wall,
+    is_outline, outline_box, Arrival, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape,
+    FigureColor, FigureTrack, Fill, Light, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject,
+    Wall,
 };
 
 use super::marks::WALK_SPEED_M_S;
@@ -28,6 +29,9 @@ const MIN_AREA_POINTS: usize = 3;
 /// Side of an object whose kind no library knows.
 const DEFAULT_OBJECT_M: f64 = 1.0;
 const DEFAULT_WALL_M: f64 = 0.2;
+
+/// The kind of a free form (LH-92); no library entry has it, the catalogue names it.
+const FREE_FORM_KIND: &str = "form";
 
 pub(super) fn add_mark(
     scope: &mut Scope<'_>,
@@ -218,7 +222,7 @@ pub(super) fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result
             item.label.clone(),
             item.width_m,
             item.depth_m,
-            item.shape,
+            item.shape.clone(),
             item.height_m,
         ),
         None => (
@@ -240,6 +244,53 @@ pub(super) fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result
         rotation_deg: 0.0,
         shape,
         height_m,
+        base_m: None,
+    });
+
+    Ok(())
+}
+
+/// A library object or a free form pushed on the set.
+pub(super) fn add_objects(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::AddObject { kind, at } => add_object(scope, kind, *at),
+        PlanEdit::AddShape { points } => add_shape(scope, points),
+        _ => Ok(()),
+    }
+}
+
+/// A free form (LH-92) pushed on the set as an object of the kind `form`. The object sits at
+/// the centre of the outline's box and keeps the points relative to it. A shape with no area
+/// has nothing to draw.
+fn add_shape(scope: &mut Scope<'_>, points: &[Point]) -> Result<(), ServiceError> {
+    if !is_outline(points) {
+        return Err(ServiceError::BadValue {
+            field: Field::Points,
+            value: points.len().to_string(),
+        });
+    }
+
+    let set = scope
+        .set
+        .as_deref_mut()
+        .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
+    let id = free_id("o", set.objects.iter().map(|o| o.id.as_str()));
+    let (at, width_m, depth_m) = outline_box(points);
+    let points = points
+        .iter()
+        .map(|p| Point::new(p.x_m - at.x_m, p.y_m - at.y_m))
+        .collect();
+
+    set.objects.push(SetObject {
+        id,
+        kind: FREE_FORM_KIND.to_owned(),
+        label: String::new(),
+        at,
+        width_m,
+        depth_m,
+        rotation_deg: 0.0,
+        shape: ObjectShape::Polygon { points },
+        height_m: None,
         base_m: None,
     });
 

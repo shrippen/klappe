@@ -29,6 +29,7 @@ mod picture;
 mod rig;
 mod scene;
 mod setup;
+mod triangulate;
 
 pub use axis::{axis_at, axis_jumps, axis_pair, Axis, AxisJump, Side};
 pub use card::NOTE_TEXT_M;

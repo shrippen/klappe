@@ -82,6 +82,17 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Brüstung unter dem Sturz; sonst wird der Drehort beim Öffnen abgelehnt.
   Formatversion 1 lädt unverändert (Raumhöhe 2,6, die feste Wandhöhe von früher) und wird als
   2 gespeichert; eine Fassung für Version 1 lehnt das Projekt danach ab.
+- **Freie Form (LH-92):** ein Objekt mit `shape` `polygon`: ein Umriss aus Punkten statt Rechteck
+  oder Ellipse. Im Drehort steht es als Tabelle `[set.objects.shape.polygon]` mit der Liste
+  `[[set.objects.shape.polygon.points]]`, je Punkt `x_m` und `y_m`. Die Punkte liegen in Metern
+  relativ zur Mitte `at` des Objekts, vor der Drehung `rotation_deg`, in der Reihenfolge um den
+  Umriss. `width_m` und `depth_m` sind die Größe des Kastens um die Punkte; die Mitte des Kastens
+  ist `at`. Ändert man die Größe, wird der Umriss auf sie gestreckt, die Punkte bleiben
+  unverändert gespeichert. Eine freie Form ist ein Objekt wie jedes andere (Ebene Set, `height_m`,
+  `base_m`; eine neue hat `kind = "form"` und keine Höhe). Eine Bibliotheksdatei und
+  `bibliothek.toml` nehmen dieselbe `shape` an. Laden lehnt einen Umriss mit weniger als drei
+  Punkten, einer Zahl, die keine ist, ohne Fläche oder größer als 1000 m ab (Drehort mit Meldung,
+  Bibliotheksdatei als Ganzes). Keine neue Formatversion (noch kein Release).
 - **Kamerahöhe und Neigung (LH-34):** jeder Kamera-Mark (`marks` in `szenen/<id>.json`) hat
   `height_m` (Höhe des Objektivs über dem Boden, 0 bis 50) und `tilt_deg` (Standard 0, −90 bis
   90). Die Neigung gilt vom Horizont aus: positiv blickt nach oben, negativ nach unten, 0 ist

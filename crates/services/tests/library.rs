@@ -479,7 +479,7 @@ fn own_objects_and_placed_shapes_survive_a_save() {
     assert_eq!(again.project().library, vec![pond()]);
     let placed = objects(&again).last().unwrap();
     assert_eq!(
-        (placed.label.as_str(), placed.shape),
+        (placed.label.as_str(), placed.shape.clone()),
         ("Teich", ObjectShape::Ellipse)
     );
     assert_eq!(entry(&again, "teich").width_m, 6.0);

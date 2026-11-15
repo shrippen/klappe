@@ -3,7 +3,7 @@
 //! right per pixel; colours stay roles.
 //!
 //! ```text
-//!   scene ──► faces in the eye's frame ──► cut at NEAR_M ──► pixels ──► fan of triangles
+//!   scene ──► faces in the eye's frame ──► cut at NEAR_M ──► pixels ──► triangles
 //!                                                                         │ raster
 //!   labels: anchor projected, kept where nothing nearer covers it    ◄── Frame
 //! ```
@@ -14,6 +14,7 @@ use klappe_raster::{rasterize, Corner, Frame, Paint, Triangle, NO_SOURCE};
 use crate::display::Source;
 use crate::eye::{clip_near, Eye, Pinhole, Vec3, NEAR_M};
 use crate::scene::{scene, Solid};
+use crate::triangulate::triangulate;
 
 /// Light falls from this direction (above, from the plan's top left), so tops are lighter
 /// than sides and two sides differ.
@@ -81,7 +82,7 @@ pub fn picture(
                 face: face + f.surface as u32,
                 sparse: solid.role == crate::scene::SceneRole::Missing,
             };
-            fan(&pinhole, scale, &f.corners, paint, &mut triangles);
+            split(&pinhole, scale, &f.corners, paint, &mut triangles);
         }
         face += solid
             .faces
@@ -101,8 +102,8 @@ pub fn picture(
     })
 }
 
-/// The face in pixels, cut at the near plane, as a fan of triangles from its first corner.
-fn fan(eye: &Pinhole, scale: f64, corners: &[Vec3], paint: Paint, out: &mut Vec<Triangle>) {
+/// The face in pixels, cut at the near plane, as triangles (a fan if convex, else ears).
+fn split(eye: &Pinhole, scale: f64, corners: &[Vec3], paint: Paint, out: &mut Vec<Triangle>) {
     let local: Vec<Vec3> = corners.iter().map(|c| eye.local(*c)).collect();
     let near = clip_near(&local);
     if near.len() < 3 {
@@ -120,9 +121,13 @@ fn fan(eye: &Pinhole, scale: f64, corners: &[Vec3], paint: Paint, out: &mut Vec<
             }
         })
         .collect();
-    for i in 1..pixel.len() - 1 {
+    let spots: Vec<[f64; 2]> = pixel
+        .iter()
+        .map(|c| [f64::from(c.x), f64::from(c.y)])
+        .collect();
+    for [a, b, c] in triangulate(&spots) {
         out.push(Triangle {
-            corners: [pixel[0], pixel[i], pixel[i + 1]],
+            corners: [pixel[a], pixel[b], pixel[c]],
             paint,
         });
     }

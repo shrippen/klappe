@@ -83,6 +83,9 @@ pub enum Tool {
     Wall,
     /// A drag pulls up a rectangle of four walls (LH-96); a click does nothing.
     Room,
+    /// Clicks set the points of a free form (LH-92), an object: a click on the first point
+    /// closes it.
+    FreeForm,
     /// A drag from an object or a wall changes its height: up is higher (LH-95).
     Height,
     /// A click on a wall sets a door or window in it (LH-10).
@@ -137,10 +140,11 @@ impl Tool {
     }
 }
 
-/// The tools of the room, height, door and window, which take no choice.
+/// The tools of the room, free form, height, door and window, which take no choice.
 fn plain_tool(name: &str) -> Option<Tool> {
     match name {
         "room" => Some(Tool::Room),
+        "freeform" => Some(Tool::FreeForm),
         "height" => Some(Tool::Height),
         "door" => Some(Tool::Opening(OpeningKind::Door)),
         "window" => Some(Tool::Opening(OpeningKind::Window)),
@@ -154,6 +158,7 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
         Tool::Select
         | Tool::Wall
         | Tool::Room
+        | Tool::FreeForm
         | Tool::Height
         | Tool::Scale
         | Tool::Measure
@@ -496,7 +501,7 @@ pub fn angle_text(angle_deg: f64, decimal: &str, unit: &str) -> String {
     format!("{}{unit}", number_text(angle_deg, ANGLE_DECIMALS, decimal))
 }
 
-/// The points of an area picked so far; the area is made on closing.
+/// The points of an area or a free form picked so far; it is made on closing.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AreaDraft(Vec<Point>);
 
@@ -550,11 +555,30 @@ pub fn area_edit(draft: &AreaDraft, style: DrawStyle) -> Option<PlanEdit> {
     ))
 }
 
-/// Whether the area tool may take points: not while the drawings layer is locked, or the
+/// The free form closed from its draft (LH-92); `None` below three points.
+pub fn form_edit(draft: &AreaDraft) -> Option<PlanEdit> {
+    if draft.0.len() < MIN_AREA_POINTS {
+        return None;
+    }
+
+    Some(PlanEdit::AddShape {
+        points: draft.0.clone(),
+    })
+}
+
+/// The layer the points of `tool`'s draft end up on: a free form is an object of the set.
+pub fn draft_layer(tool: &Tool) -> Layer {
+    match tool {
+        Tool::FreeForm => Layer::Set,
+        _ => Layer::Drawings,
+    }
+}
+
+/// Whether the area or free form tool may take points: not while its layer is locked, or the
 /// points would be lost on the refused edit.
-pub fn drawing_open(lock: Lock) -> Result<(), ServiceError> {
+pub fn layer_open(layer: Layer, lock: Lock) -> Result<(), ServiceError> {
     match lock {
-        Lock::Locked => Err(ServiceError::Locked(Layer::Drawings)),
+        Lock::Locked => Err(ServiceError::Locked(layer)),
         Lock::Unlocked => Ok(()),
     }
 }

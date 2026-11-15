@@ -9,7 +9,7 @@
 //!   figure      its pose            standing, sitting, lying
 //! ```
 
-use klappe_model::{Opening, Pose, SetObject, SetPlan, Wall};
+use klappe_model::{outline_area_m2, ObjectShape, Opening, Pose, SetObject, SetPlan, Wall};
 
 use crate::display::object_corners;
 use crate::hit::in_lasso;
@@ -72,8 +72,12 @@ fn larger(a: &SetObject, a_index: usize, b: &SetObject, b_index: usize) -> bool 
     a_m2 > b_m2 || (a_m2 == b_m2 && a_index < b_index)
 }
 
+/// The footprint of `object`: its box, but a free form's real area.
 fn area_m2(object: &SetObject) -> f64 {
-    object.width_m * object.depth_m
+    match object.shape {
+        ObjectShape::Polygon { .. } => outline_area_m2(&object_corners(object)),
+        _ => object.width_m * object.depth_m,
+    }
 }
 
 #[cfg(test)]
@@ -186,5 +190,27 @@ mod tests {
         let set = set(vec![shelf, object((2.0, 2.0), 3.0, Some(0.4))]);
 
         assert_eq!(object_extent(&set, 0), (1.5, 1.8));
+    }
+
+    /// A thin L has a large box but a small area: a smaller square with more area carries.
+    #[test]
+    fn a_free_form_counts_with_its_real_area() {
+        let points = [
+            (-2.0, -2.0),
+            (-1.0, -2.0),
+            (-1.0, 1.0),
+            (2.0, 1.0),
+            (2.0, 2.0),
+            (-2.0, 2.0),
+        ];
+        let mut thin_l = object((0.0, 0.0), 4.0, Some(0.5));
+        thin_l.shape = ObjectShape::Polygon {
+            points: points.iter().map(|&(x, y)| Point::new(x, y)).collect(),
+        };
+        let square = object((0.0, 0.0), 3.0, Some(1.0));
+        let small = object((-1.2, 1.2), 0.5, Some(0.2));
+        let set = set(vec![thin_l, square, small]);
+
+        assert_eq!(object_extent(&set, 2), (1.0, 1.2));
     }
 }

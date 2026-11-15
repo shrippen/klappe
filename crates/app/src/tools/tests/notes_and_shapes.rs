@@ -230,8 +230,39 @@ fn an_area_needs_three_points_and_takes_the_style() {
 #[test]
 fn a_locked_drawings_layer_takes_no_points() {
     assert!(matches!(
-        drawing_open(Lock::Locked),
+        layer_open(Layer::Drawings, Lock::Locked),
         Err(ServiceError::Locked(Layer::Drawings))
     ));
-    assert!(drawing_open(Lock::Unlocked).is_ok());
+    assert!(layer_open(Layer::Drawings, Lock::Unlocked).is_ok());
+}
+
+/// LH-92: the free form is a tool; its clicks set points, and the closed draft is one new
+/// object, from three points on.
+#[test]
+fn a_free_form_is_made_from_three_points() {
+    let (a, b, c) = (p(0.0, 0.0), p(4.0, 0.0), p(0.0, 3.0));
+    let two = AreaDraft::default().click(a).click(b);
+    let three = two.clone().click(c);
+
+    assert_eq!(Tool::parse("freeform", ""), Some(Tool::FreeForm));
+    assert_eq!(click_edit(&Tool::FreeForm, a), None);
+    assert_eq!(form_edit(&two), None);
+    assert_eq!(
+        form_edit(&three),
+        Some(PlanEdit::AddShape {
+            points: vec![a, b, c]
+        })
+    );
+    assert!(three.closes(a, Closing::Free));
+}
+
+/// LH-92: the points of a free form are an object of the set, those of an area a drawing.
+#[test]
+fn a_free_form_is_held_by_the_set_layer() {
+    assert_eq!(draft_layer(&Tool::FreeForm), Layer::Set);
+    assert_eq!(draft_layer(&Tool::Area), Layer::Drawings);
+    assert!(matches!(
+        layer_open(Layer::Set, Lock::Locked),
+        Err(ServiceError::Locked(Layer::Set))
+    ));
 }
