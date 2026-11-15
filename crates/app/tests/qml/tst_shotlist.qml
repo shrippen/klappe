@@ -17,16 +17,16 @@ TestCase {
     // Cut order 12.1 (A, setup 1), 12.2 (B, setup 2), 12.3 (A, setup 1); shooting order groups the setups.
     readonly property var rows: [
         row("s1", "12.1", "a", "A", "wide", "static", 35, 2.39, 1, 0, 6),
-        row("s2", "12.2", "b", "B", "close-up", "dolly", 85, 1.78, 2, 6, 12),
+        row("s2", "12.2", "b", "B", "close-up", "dolly", 85, 1.78, 2, 6, 12, true),
         row("s3", "12.3", "a", "A", "medium", "pan", 35, 2.39, 1, 12, 20)
     ]
 
-    function row(id, number, camera, label, size, movement, lens, aspect, setup, from, to) {
+    function row(id, number, camera, label, size, movement, lens, aspect, setup, from, to, jump) {
         return {
             id: id, number: number, camera: camera, camera_label: label, aspect: aspect, follows: "",
             size: size, angle: "eye-level", movement: movement, movement_hint: "", lens_mm: lens,
             lens_to_mm: null, lens_from_marks: false, own_lens_mm: null, from_s: from, to_s: to,
-            description: "Szene " + number, props: "", gear: "", crew: "", note: "", axis_jump: false, setup: setup
+            description: "Szene " + number, props: "", gear: "", crew: "", note: "", axis_jump: jump === true, setup: setup
         }
     }
 
@@ -147,6 +147,17 @@ TestCase {
         compare(part(panel, "tile-s2").stageAspect, 1.78)
         compare(part(panel, "tile-s1").name, "12.1 · Totale")
         compare(part(panel, "tile-s2").figure, "85 mm")
+    }
+
+    // The jump is a sign and a word on the tile, not only the tier colour.
+    function test_a_tile_names_an_axis_jump() {
+        const panel = make("tiles")
+        const jump = part(panel, "axisJump-s2")
+
+        verify(jump.visible)
+        compare(jump.text, "Achsensprung")
+        compare(jump.iconName, "dialog-warning")
+        verify(!part(panel, "axisJump-s1").visible)
     }
 
     function test_a_tile_click_selects_the_shot() {

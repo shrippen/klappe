@@ -5,7 +5,8 @@ import Kante
 
 // The shots as storyboard tiles (D-05): the stage has the frame of the shot's camera, below
 // it the number and size on the left and the lens on the right. The stage stays empty until
-// the camera view (LH-36); the movement is written on it. A click selects the shot.
+// the camera view (LH-36); the movement is written on it, and a jump over the axis (LH-41) as a
+// warning chip, not only by the tier colour. A click selects the shot.
 Item {
     id: tiles
 
@@ -58,6 +59,18 @@ Item {
                         color: KanteStyle.mutedTextColor
                         font: KanteStyle.labelFont()
                         text: tiles.texts.t("movement." + tile.modelData.movement)
+                    }
+
+                    KanteChip {
+                        objectName: "axisJump-" + tile.modelData.id
+                        visible: tile.modelData.axis_jump
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.margins: Kirigami.Units.smallSpacing
+                        interactive: false
+                        chipColor: KanteStyle.warningColor
+                        iconName: "dialog-warning"
+                        text: tiles.texts.t("shot.axisJump")
                     }
                 }
             }
