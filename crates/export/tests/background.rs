@@ -1,7 +1,9 @@
 //! The background image in SVG and PDF.
 #![allow(clippy::unwrap_used)]
 
-use klappe_export::{pdf, svg, ExportError, Orientation, Page, Paper, ShotTexts, Texts, Theme};
+use klappe_export::{
+    pdf, svg, ExportError, LampTexts, Orientation, Page, Paper, ShotTexts, Texts, Theme,
+};
 use klappe_model::Point;
 use klappe_stellprobe::{DisplayList, Item, Role, Shape};
 
@@ -16,6 +18,7 @@ const JPEG: [u8; 23] = [
 
 fn list(rotation_deg: f64) -> DisplayList {
     DisplayList {
+        lamps: Vec::new(),
         items: vec![Item {
             role: Role::Background,
             shape: Shape::Image {
@@ -46,6 +49,7 @@ fn page(with_image: bool) -> Page {
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
+        lamps: LampTexts::default(),
     };
     let mut page = Page::new(Paper::A4, Orientation::Landscape, "T", texts);
     if with_image {

@@ -77,7 +77,9 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetDeparture { .. }
         | PlanEdit::SetRig { .. }
         | PlanEdit::SetPace { .. }
-        | PlanEdit::SetDrawingStyle { .. } => Ok(()),
+        | PlanEdit::SetDrawingStyle { .. }
+        // `set_light` checks its change itself.
+        | PlanEdit::SetLight { .. } => Ok(()),
     }
 }
 

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use klappe_model::CameraPresets;
+use klappe_model::{CameraPresets, LightPreset};
 
 use super::Session;
 use crate::error::ServiceError;
@@ -17,6 +17,11 @@ impl Session {
     /// What the camera card offers: sensor formats and lens sets (LH-32).
     pub fn camera_presets(&self) -> &'static CameraPresets {
         klappe_store::builtin_camera_presets()
+    }
+
+    /// What the lamp tool and the lamp card offer: the built-in lamps (LH-51).
+    pub fn light_presets(&self) -> &'static [LightPreset] {
+        klappe_store::builtin_lights()
     }
 
     /// Takes the entries of the library file `path` into the project; undoable. Returns how

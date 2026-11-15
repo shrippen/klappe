@@ -200,13 +200,15 @@ fn turning_a_note_does_nothing() {
     assert!(!s.can_undo());
 }
 
-/// The marker has radius 0.15 m, the pick radius adds 0.15: 0.25 m away hits, 0.5 m does not.
+/// The card of "Vorhang schließen" spans (3, 11.5) to (5.4, 11.9); the pick radius is 0.15 m.
 #[test]
 fn pick_finds_a_note() {
     let s = open();
 
-    assert_eq!(s.pick(p(3.0, 11.75)), Some(note("n1")));
-    assert_eq!(s.pick(p(3.0, 12.0)), None);
+    assert_eq!(s.pick(p(4.0, 11.7)), Some(note("n1")));
+    assert_eq!(s.pick(p(4.0, 12.0)), Some(note("n1")));
+    assert_eq!(s.pick(p(4.0, 12.2)), None);
+    assert_eq!(s.pick(p(5.7, 11.7)), None);
 }
 
 #[test]

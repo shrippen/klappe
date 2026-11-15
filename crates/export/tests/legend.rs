@@ -22,6 +22,7 @@ fn page() -> Page {
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
+        lamps: Default::default(),
     };
 
     Page::new(Paper::A4, Orientation::Landscape, "T", texts)
@@ -58,6 +59,7 @@ fn boxed() -> Shape {
 fn legend(items: Vec<Item>) -> Vec<String> {
     let list = DisplayList {
         items,
+        lamps: Vec::new(),
         width_m: 20.0,
         depth_m: 13.0,
     };

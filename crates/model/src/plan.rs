@@ -532,6 +532,12 @@ impl LightKind {
         }
     }
 
+    /// Whether the colour temperature can be set: LEDs yes, a tungsten lamp is what it is,
+    /// bounce and flag make no light of their own.
+    pub fn tunable_color(self) -> bool {
+        matches!(self, LightKind::LedPanel | LightKind::Tube)
+    }
+
     /// The lamp kind `name` names; `None` for any other text.
     pub fn from_name(name: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|k| k.name() == name)

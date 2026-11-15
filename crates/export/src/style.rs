@@ -129,7 +129,7 @@ fn hue_rgb(hue: Hue, pal: &Palette) -> Result<Rgb, ExportError> {
         Hue::Ground => Ok(pal.paper),
         Hue::Text => Ok(pal.foreground),
         Hue::Muted => Ok(pal.muted),
-        // Paper has no accent colour; a note takes the set-object ground.
+        // Paper has no accent colour.
         Hue::Accent | Hue::Surface => Ok(pal.surface),
         Hue::Color(c) => pal.semantic(c.name()),
     }
@@ -228,6 +228,11 @@ mod tests {
                 (fill(pal.surface, 1.0), line(pal.muted, 0.75, Dash::Solid)),
             ),
             (
+                Role::Note,
+                "note".into(),
+                (fill(fg, 0.15), line(fg, 0.75, Dash::Solid)),
+            ),
+            (
                 Role::Frustum,
                 "frustum".into(),
                 (fill(yellow, 0.15), line(yellow, 0.75, Dash::Solid)),
@@ -277,7 +282,6 @@ mod tests {
         Ok(vec![
             (Role::Camera, "camera".into(), (fill(yellow, 1.0), outline)),
             (Role::Light, "light".into(), (fill(orange, 1.0), outline)),
-            (Role::Note, "note".into(), (fill(pal.surface, 1.0), outline)),
             (
                 Role::GroupDot,
                 "group-dot".into(),
