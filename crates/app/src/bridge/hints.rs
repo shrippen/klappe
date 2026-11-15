@@ -33,7 +33,8 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
         ElementKind::Light => s.light_hint(id),
         ElementKind::Object => s.object_hint(id),
         ElementKind::Note => Some(s.note_hint(id)),
-        ElementKind::Wall | ElementKind::Drawing => None,
+        ElementKind::Drawing => s.drawing_hint(id),
+        ElementKind::Wall | ElementKind::DrawingPoint => None,
     };
 
     // Without a plan nothing is described, a note included.
@@ -105,6 +106,19 @@ mod tests {
         assert_eq!(describe(&s, "nonsense:x"), json!({}));
     }
 
+    /// The drawing card starts from the style the drawing has now (LH-19).
+    #[test]
+    fn describe_gives_the_style_of_a_drawing() {
+        let s = example();
+
+        let arrow = describe(&s, "drawing:d1");
+
+        assert_eq!(
+            arrow,
+            json!({ "kind": "drawing", "color": "red", "dash": "solid", "fill": "outline", "closed": false })
+        );
+    }
+
     /// The size fields show what the selected object measures now.
     #[test]
     fn describe_gives_the_size_of_an_object() {
@@ -160,7 +174,10 @@ mod tests {
         assert_eq!(describe(&s, "camera:x"), json!({}));
         assert_eq!(
             describe(&s, "light:led-1"),
-            json!({ "kind": "light", "label": "LED-Panel", "temp": 5600.0, "power": 200.0 })
+            json!({
+                "kind": "light", "label": "LED-Panel", "type": "led-panel", "facing": 330.0,
+                "beam": 60.0, "tunable": true, "gives_light": true, "temp": 5600.0, "power": 200.0,
+            })
         );
         assert_eq!(describe(&s, "light:x"), json!({}));
         assert_eq!(

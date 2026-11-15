@@ -4,11 +4,20 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// The project view (LH-01 to LH-03): scenes, locations and characters in three tabs, each
-// with add, edit and delete. A dialog and not a fourth column of the main window (E-14): the
-// work area keeps its room, and the lists are used in short visits. Deleting asks first;
-// what the service refuses (a location with scenes, a character in a plan) shows as its
-// message in the dialog.
+// The project (LH-01 to LH-03, D-08): scenes, locations and characters.
+//
+//   ┌ Szenen │ Drehorte │ Figuren ┬───────────────────────────┐
+//   │ 12 INT. SÄNGERSAAL – TAG    │ Szene bearbeiten          │
+//   │ 13 EXT. HOF                 │ Nummer [ 12             ] │
+//   │                             │ Szenenkopf [ INT. …     ] │
+//   │ [ Neu… ]                    │ [ Übernehmen ] [ Löschen… ]│
+//   └─────────────────────────────┴───────────────────────────┘
+//
+// The list on the left picks, the form on the right changes: no dialog opens over this one,
+// and a question (a change that alters the script, a delete) stands in the form. A dialog and
+// not a fourth column of the main window (E-14): the work area keeps its room, and the lists
+// are used in short visits. What the service refuses (a location with scenes, a character in
+// a plan) shows as its message in the form.
 Item {
     id: root
 
@@ -19,11 +28,26 @@ Item {
         ? JSON.parse(controller.projectJson)
         : { scenes: [], locations: [], characters: [] }
 
-    // What a delete asks about: { kind, item } or null.
-    property var pending: null
+    // The kinds, in the order of the tabs.
+    readonly property var kinds: ["scene", "location", "character"]
+
+    // The form is for a new entry, not for the selected one.
+    property bool adding: false
 
     function open() {
         dialog.open()
+    }
+
+    // Opens on the scene or the character `id` of `kind`, from a card in the script.
+    function openAt(kind, id) {
+        dialog.open()
+        tabs.currentIndex = kinds.indexOf(kind)
+        listOf(kind).currentId = id
+        adding = false
+    }
+
+    function listOf(kind) {
+        return kind === "scene" ? sceneList : kind === "location" ? locationList : characterList
     }
 
     implicitWidth: 0
@@ -43,146 +67,147 @@ Item {
 
         onAboutToShow: {
             root.controller.clearStatus()
+            root.adding = false
             sceneList.currentId = root.controller.sceneId
+            locationList.currentId = ""
+            characterList.currentId = ""
             tabs.currentIndex = 0
         }
 
-        ColumnLayout {
+        RowLayout {
             width: parent ? parent.width : implicitWidth
-            spacing: Kirigami.Units.smallSpacing
+            spacing: Kirigami.Units.largeSpacing
 
-            KanteTabBar {
-                id: tabs
-                objectName: "tabs"
-                Layout.fillWidth: true
-                model: [
-                    root.texts.t("project.scenes"),
-                    root.texts.t("project.locations"),
-                    root.texts.t("project.characters")
-                ]
-                counts: [
-                    String(root.project.scenes.length),
-                    String(root.project.locations.length),
-                    String(root.project.characters.length)
-                ]
-                onActivated: index => currentIndex = index
+            ColumnLayout {
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 18
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 18
+                Layout.alignment: Qt.AlignTop
+                spacing: Kirigami.Units.smallSpacing
+
+                KanteTabBar {
+                    id: tabs
+                    objectName: "tabs"
+                    Layout.fillWidth: true
+                    model: [
+                        root.texts.t("project.scenes"),
+                        root.texts.t("project.locations"),
+                        root.texts.t("project.characters")
+                    ]
+                    counts: [
+                        String(root.project.scenes.length),
+                        String(root.project.locations.length),
+                        String(root.project.characters.length)
+                    ]
+                    onActivated: index => {
+                        currentIndex = index
+                        root.adding = false
+                    }
+                }
+
+                StackLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 20
+                    currentIndex: tabs.currentIndex
+
+                    ManageList {
+                        id: sceneList
+                        objectName: "sceneList"
+                        texts: root.texts
+                        kind: "scene"
+                        items: root.project.scenes
+                        onAddRequested: root.add(sceneList, sceneForm)
+                        onCurrentIdChanged: root.adding = false
+                    }
+                    ManageList {
+                        id: locationList
+                        objectName: "locationList"
+                        texts: root.texts
+                        kind: "location"
+                        items: root.project.locations
+                        onAddRequested: root.add(locationList, locationForm)
+                        onCurrentIdChanged: root.adding = false
+                    }
+                    ManageList {
+                        id: characterList
+                        objectName: "characterList"
+                        texts: root.texts
+                        kind: "character"
+                        items: root.project.characters
+                        onAddRequested: root.add(characterList, characterForm)
+                        onCurrentIdChanged: root.adding = false
+                    }
+                }
             }
 
-            KanteCallout {
-                objectName: "error"
+            ColumnLayout {
                 Layout.fillWidth: true
-                visible: root.controller.status !== ""
-                kind: KanteCallout.Kind.Danger
-                text: root.controller.status
-            }
+                Layout.alignment: Qt.AlignTop
+                spacing: Kirigami.Units.smallSpacing
 
-            StackLayout {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 18
-                currentIndex: tabs.currentIndex
+                QQC2.Label {
+                    objectName: "pick"
+                    Layout.fillWidth: true
+                    visible: !root.adding && root.listOf(root.kinds[tabs.currentIndex]).current === null
+                    wrapMode: Text.Wrap
+                    color: KanteStyle.mutedTextColor
+                    text: root.texts.t("project.pick")
+                }
 
-                ManageList {
-                    id: sceneList
-                    objectName: "sceneList"
+                SceneEditor {
+                    id: sceneForm
+                    objectName: "sceneForm"
+                    Layout.fillWidth: true
+                    visible: tabs.currentIndex === 0 && (root.adding || sceneList.current !== null)
                     texts: root.texts
-                    kind: "scene"
-                    items: root.project.scenes
-                    onAddRequested: sceneForm.show(null)
-                    onEditRequested: item => sceneForm.show(item)
-                    onRemoveRequested: item => root.ask("scene", item)
-                    onShowRequested: item => {
-                        if (root.controller.selectScene(item.id)) {
+                    controller: root.controller
+                    locations: root.project.locations
+                    item: root.adding ? null : sceneList.current
+                    onDone: root.finished(sceneList)
+                    onShowRequested: id => {
+                        if (root.controller.selectScene(id)) {
                             dialog.close()
                         }
                     }
                 }
-                ManageList {
-                    id: locationList
-                    objectName: "locationList"
+                LocationEditor {
+                    id: locationForm
+                    objectName: "locationForm"
+                    Layout.fillWidth: true
+                    visible: tabs.currentIndex === 1 && (root.adding || locationList.current !== null)
                     texts: root.texts
-                    kind: "location"
-                    items: root.project.locations
-                    onAddRequested: locationForm.show(null)
-                    onEditRequested: item => locationForm.show(item)
-                    onRemoveRequested: item => root.ask("location", item)
+                    controller: root.controller
+                    item: root.adding ? null : locationList.current
+                    onDone: root.finished(locationList)
                 }
-                ManageList {
-                    id: characterList
-                    objectName: "characterList"
+                CharacterEditor {
+                    id: characterForm
+                    objectName: "characterForm"
+                    Layout.fillWidth: true
+                    visible: tabs.currentIndex === 2 && (root.adding || characterList.current !== null)
                     texts: root.texts
-                    kind: "character"
-                    items: root.project.characters
-                    onAddRequested: characterForm.show(null)
-                    onEditRequested: item => characterForm.show(item)
-                    onRemoveRequested: item => root.ask("character", item)
+                    controller: root.controller
+                    characters: root.project.characters
+                    item: root.adding ? null : characterList.current
+                    onDone: root.finished(characterList)
                 }
             }
         }
     }
 
-    function ask(kind, item) {
-        root.controller.clearStatus()
-        pending = { kind: kind, item: item }
-        confirm.open()
+    // A form for a new entry; the selection steps aside.
+    function add(list, form) {
+        list.currentId = ""
+        adding = true
+        form.load()
+        form.reset()
     }
 
-    SceneForm {
-        id: sceneForm
-        objectName: "sceneForm"
-        texts: root.texts
-        controller: root.controller
-        locations: root.project.locations
-    }
-    LocationForm {
-        id: locationForm
-        objectName: "locationForm"
-        texts: root.texts
-        controller: root.controller
-    }
-    CharacterForm {
-        id: characterForm
-        objectName: "characterForm"
-        texts: root.texts
-        controller: root.controller
-        characters: root.project.characters
-    }
-
-    KanteDialog {
-        id: confirm
-        objectName: "confirm"
-
-        parent: QQC2.Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        size: KanteDialog.Size.Small
-        destructive: true
-        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
-        acceptText: root.texts.t("remove.confirm")
-        rejectText: root.texts.t("form.cancel")
-        title: root.pending ? root.texts.t("project.remove") : ""
-
-        QQC2.Label {
-            objectName: "question"
-            width: parent ? parent.width : implicitWidth
-            wrapMode: Text.WordWrap
-            color: KanteStyle.textColor
-            text: {
-                if (!root.pending) {
-                    return ""
-                }
-                const item = root.pending.item
-                const name = root.pending.kind === "scene" ? item.number + " " + item.heading : item.name
-                return root.texts.t("remove." + root.pending.kind, { name: name.trim() })
-            }
-        }
-
-        onAccepted: {
-            const item = root.pending.item
-            switch (root.pending.kind) {
-            case "scene": root.controller.removeScene(item.id); break
-            case "location": root.controller.removeLocation(item.id); break
-            case "character": root.controller.removeCharacter(item.id); break
-            }
+    // A change or a delete went through: the selection that is gone ends, the form for a new
+    // entry closes. An edited entry stays selected, shown with what was saved.
+    function finished(list) {
+        adding = false
+        if (list.current === null) {
+            list.currentId = ""
         }
     }
 }

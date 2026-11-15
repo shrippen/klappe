@@ -61,6 +61,12 @@ Item {
             area.tipAt = canvas.mapFromModel(x, y)
         }
         onShapeClicked: (key, x, y) => area.controller.place(x, y)
+        // The click before it selected the note; the double click edits its text.
+        onShapeDoubleClicked: (key, x, y) => {
+            if (area.tool === "select" && key.indexOf("note:") === 0) {
+                area.controller.editSelectedNote()
+            }
+        }
         onShapeDragged: (key, fromX, fromY, x, y, done) => {
             if (area.dragAborted) {
                 area.dragAborted = done ? false : true
@@ -69,6 +75,16 @@ Item {
             }
             area.dragging = !done
             area.controller.drag(fromX, fromY, x, y, done)
+        }
+    }
+
+    /// Zooms about the middle of the view: "in", "out" or "fit" (the whole plan).
+    readonly property real zoomStep: 1.25
+    function zoomBy(how) {
+        switch (how) {
+        case "in": canvas.zoom *= zoomStep; break
+        case "out": canvas.zoom /= zoomStep; break
+        case "fit": canvas.fit(); break
         }
     }
 
@@ -86,6 +102,8 @@ Item {
     // looks, and leaves the press to it.
     Item {
         anchors.fill: parent
+        // Where the mouse pointer is: the card of the selection keeps clear of it.
+        HoverHandler { id: pointerSpy }
         PointHandler {
             acceptedButtons: Qt.LeftButton
             onActiveChanged: {
@@ -174,157 +192,20 @@ Item {
         }
     }
 
-    // An object is selected (LH-25, LH-12, LH-17): its size as two fields, its height (empty
-    // is none), and filing it in the library under a name. Enter in a size field sets the
-    // size, Enter in the height field the height; a value that is no length marks the field
-    // and changes nothing.
-    readonly property var objectInfo: {
-        // The plan changes with every edit; the key alone would not tell the new size.
-        area.controller.planJson
-        const key = area.controller.selectedKey
-        if (!key || key.indexOf("object:") !== 0) {
-            return null
-        }
-        const d = JSON.parse(area.controller.describe(key))
-        return d.kind === "object" ? d : null
-    }
-    onObjectInfoChanged: area.fillObjectCard()
-
-    // The name a new library entry starts with: the object's own label, else its kind's name.
-    function fillObjectCard() {
-        const info = area.objectInfo
-        if (!info) {
-            return
-        }
-        if (!widthField.activeFocus) {
-            widthField.text = area.texts.num(info.width, 2)
-        }
-        if (!depthField.activeFocus) {
-            depthField.text = area.texts.num(info.depth, 2)
-        }
-        if (!heightField.activeFocus) {
-            heightField.text = area.shownHeight(info)
-        }
-        const kindName = area.texts.t("objectKind." + info.library)
-        if (!libraryName.activeFocus) {
-            libraryName.text = info.label !== "" ? info.label : (kindName !== "objectKind." + info.library ? kindName : "")
-        }
-    }
-
-    // The height as the field shows it: empty when the object has none.
-    function shownHeight(info) {
-        return info.height === null ? "" : area.texts.num(info.height, 2)
-    }
-
-    function setObjectHeight() {
-        heightField.invalid = !controller.setObjectHeight(heightField.text)
-    }
-
-    // The button sets what was changed: the size always, the height when it differs. The
-    // size edit refills the fields, so the typed height is taken before and put back.
-    function applyObject() {
-        const typed = heightField.text
-        const changed = area.objectInfo !== null && typed.trim() !== area.shownHeight(area.objectInfo)
-        // A refused size stops the apply: the height alone would be half of what was asked.
-        if (!area.setObjectSize() || !changed) {
-            return
-        }
-        heightField.text = typed
-        area.setObjectHeight()
-    }
-
-    function setObjectSize() {
-        const ok = controller.resizeSelected(widthField.text, depthField.text)
-        widthField.invalid = !ok
-        depthField.invalid = !ok
-        return ok
-    }
-
-    function fileObject() {
-        if (!controller.saveToLibrary(libraryName.text)) {
-            libraryName.invalid = true
-        }
-    }
-
-    KanteCard {
-        id: objectCard
-        objectName: "objectCard"
-        visible: area.objectInfo !== null
+    // A drawing is selected (LH-19): colour, line and fill.
+    DrawingCard {
+        objectName: "drawingCard"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         anchors.topMargin: Kirigami.Units.largeSpacing
-        implicitWidth: Math.min(area.width - Kirigami.Units.largeSpacing * 2,
-                                objectRow.implicitWidth + Kirigami.Units.largeSpacing * 2)
-        implicitHeight: objectRow.implicitHeight + Kirigami.Units.largeSpacing * 2
-
-        RowLayout {
-            id: objectRow
-            anchors.centerIn: parent
-            spacing: Kirigami.Units.smallSpacing
-
-            KanteSectionLabel { text: area.texts.t("object.size") }
-            KanteTextField {
-                id: widthField
-                objectName: "widthField"
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-                Accessible.name: area.texts.t("field.width")
-                placeholderText: area.texts.t("field.width")
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onTextChanged: invalid = false
-                onAccepted: area.setObjectSize()
-            }
-            KanteTextField {
-                id: depthField
-                objectName: "depthField"
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-                Accessible.name: area.texts.t("field.depth")
-                placeholderText: area.texts.t("field.depth")
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onTextChanged: invalid = false
-                onAccepted: area.setObjectSize()
-            }
-            KanteTextField {
-                id: heightField
-                objectName: "heightField"
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-                Accessible.name: area.texts.t("field.height")
-                placeholderText: area.texts.t("field.height")
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onTextChanged: invalid = false
-                onAccepted: area.setObjectHeight()
-            }
-            KanteButton {
-                objectName: "objectApply"
-                text: area.texts.t("form.apply")
-                onClicked: area.applyObject()
-            }
-
-            Kirigami.Separator { Layout.fillHeight: true }
-
-            KanteTextField {
-                id: libraryName
-                objectName: "libraryName"
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 10
-                Accessible.name: area.texts.t("library.name")
-                placeholderText: area.texts.t("library.name")
-                onTextChanged: invalid = false
-                onAccepted: area.fileObject()
-            }
-            KanteButton {
-                objectName: "libraryFile"
-                text: area.texts.t("library.save")
-                onClicked: area.fileObject()
-                QQC2.ToolTip.text: area.texts.t("library.saveTip")
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-            }
-        }
+        texts: area.texts
+        controller: area.controller
+        width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
     }
 
-    // A camera is selected (LH-32): body, sensor, lens and frame.
-    CameraCard {
-        id: cameraCard
-        objectName: "cameraCard"
+    // A lamp is selected (LH-50, LH-51): kind, library lamp, direction, beam, power and colour.
+    LightCard {
+        objectName: "lightCard"
         texts: area.texts
         controller: area.controller
         anchors.horizontalCenter: parent.horizontalCenter
@@ -333,15 +214,16 @@ Item {
         width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
     }
 
-    // A mark is selected (LH-22, LH-63): pose, pause and pace.
-    MarkCard {
-        objectName: "markCard"
-        anchors.horizontalCenter: parent.horizontalCenter
-        // Below the camera card: a camera shows both.
-        anchors.top: cameraCard.visible ? cameraCard.bottom : parent.top
-        anchors.topMargin: Kirigami.Units.largeSpacing
+    // The card of the selection, beside the element (D-04): an object's size, a camera's lens,
+    // a mark's pose and pause; "More" opens the rest.
+    SelectionCard {
+        id: selection
+        objectName: "selectionCard"
         texts: area.texts
         controller: area.controller
+        canvas: canvas
+        pointer: pointerSpy.point.position
+        pointerOver: pointerSpy.hovered
     }
 
     Connections {
@@ -417,7 +299,7 @@ Item {
     readonly property real turnStepDeg: 15
     // Not while a length is typed: Delete there edits the text.
     readonly property bool hasSelection: (!!controller.selectedKey || controller.selectedCount > 0) && !lengthField.activeFocus && !noteField.activeFocus
-        && !widthField.activeFocus && !depthField.activeFocus && !libraryName.activeFocus
+        && !selection.typing
     Shortcut {
         sequence: "Delete"
         enabled: area.hasSelection
@@ -469,7 +351,10 @@ Item {
         case "bend":
             return [t.t("tip.bend", { index: d.index })]
         case "light":
-            return [t.t("tip.light", { label: d.label, temp: d.temp, power: d.power })]
+            // Bounce and flag make no light of their own: no power, no colour.
+            return d.gives_light
+                ? [t.t("tip.light", { label: d.label, type: t.t("lightKind." + d.type), temp: t.num(d.temp, 0), power: t.num(d.power, 0), beam: t.num(d.beam, 0) })]
+                : [t.t("tip.lightPassive", { label: d.label, type: t.t("lightKind." + d.type), beam: t.num(d.beam, 0) })]
         case "object":
             return [t.t("tip.object", { label: d.label }),
                     d.height !== null ? t.t("tip.objectHeight", { height: t.num(d.height, 2) }) : ""]

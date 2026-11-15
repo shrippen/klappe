@@ -28,6 +28,17 @@ Item {
 
     required property var texts
     required property var controller
+
+    // The scene on view as the script's head shows it: { id, number, heading } or null.
+    readonly property var sceneOnView: {
+        if (!controller.projectJson || !controller.sceneId) {
+            return null
+        }
+        return JSON.parse(controller.projectJson).scenes.find(s => s.id === controller.sceneId) || null
+    }
+
+    // The script's cards ask to change a scene (`kind` "scene") or a character in the project dialog.
+    signal projectEntryRequested(string kind, string id)
     /// The tool bar's tool.
     property string tool: "select"
     /// The shot on view in the shot panel.
@@ -60,6 +71,18 @@ Item {
     property alias shotWidth: store.shotWidth
     property alias scriptFolded: store.scriptFolded
     property alias shotFolded: store.shotFolded
+    /// The shot list's view and order, remembered (D-05).
+    property alias shotView: store.shotView
+    property alias shotOrder: store.shotOrder
+
+    /// Zooms the plan: "in", "out" or "fit".
+    function zoomPlan(how) {
+        plan.zoomBy(how)
+    }
+
+    function togglePlay() {
+        timeline.togglePlay()
+    }
 
     /// The View menu's toggle for `name` ("script" or "shot"): what each step does with it.
     function setArea(name, shown) {
@@ -92,6 +115,9 @@ Item {
         id: scriptPane
         ScriptPanel {
             texts: work.texts
+            controller: work.controller
+            scene: work.sceneOnView
+            onEditRequested: (kind, id) => work.projectEntryRequested(kind, id)
             lines: work.controller.scriptJson ? JSON.parse(work.controller.scriptJson) : []
             onChipClicked: (kind, target, at) => kind === "shot" ? work.controller.selectShot(target) : work.controller.seek(at)
         }
@@ -102,6 +128,10 @@ Item {
             texts: work.texts
             controller: work.controller
             shot: work.shot
+            view: work.shotView
+            order: work.shotOrder
+            onViewPicked: v => work.shotView = v
+            onOrderPicked: o => work.shotOrder = o
         }
     }
 
@@ -191,6 +221,7 @@ Item {
 
                     // The plan stays alive behind the other tabs: it keeps its view.
                     PlanArea {
+                        id: plan
                         objectName: "plan"
                         visible: work.tier !== Workspace.Tier.Narrow || work.area === "plan"
                         Layout.fillWidth: true
@@ -292,6 +323,7 @@ Item {
 
         Kirigami.Separator { Layout.fillWidth: true; visible: work.showTimeline }
         Timeline {
+            id: timeline
             objectName: "timeline"
             enabled: !work.locked
             opacity: enabled ? 1 : KanteStyle.dimOpacity
@@ -311,5 +343,8 @@ Item {
         property real shotWidth: Kirigami.Units.gridUnit * 20
         property bool scriptFolded: false
         property bool shotFolded: false
+        // The shot list's view ("tiles", "table") and order ("cut", "shooting"), D-05.
+        property string shotView: "tiles"
+        property string shotOrder: "cut"
     }
 }

@@ -1,8 +1,9 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
-use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Wall};
-use klappe_stellprobe::{bend_point, via_through, Source};
+use klappe_model::{CameraMark, Drawing, DrawingShape, FloorPlan, Mark, Point, Wall};
+use klappe_stellprobe::{bend_follow, bend_point, drawing_handle_places, via_through, Source};
 
+use super::drawings::drag_handle;
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
 
@@ -120,6 +121,16 @@ pub(super) fn target<'a>(
             .find(|d| d.id == *id)
             .map(Target::Drawing)
             .ok_or(ServiceError::Gone),
+        Source::DrawingPoint { drawing, index } => scope
+            .plan
+            .drawings
+            .iter_mut()
+            .find(|d| d.id == *drawing)
+            .map(|drawing| Target::Corner {
+                drawing,
+                index: *index,
+            })
+            .ok_or(ServiceError::Gone),
     }
 }
 
@@ -156,19 +167,81 @@ pub(super) fn points_mut(shape: &mut DrawingShape) -> Vec<&mut Point> {
     }
 }
 
-/// The first point of a drawing and the middle of its bounding box (the middle of a line,
-/// the centre of a rectangle or ellipse); `None` for a shape without points.
-fn anchors(drawing: &mut Drawing) -> Option<(Point, Point)> {
-    let points = points_mut(&mut drawing.shape);
-    let first = **points.first()?;
-    let (mut min, mut max) = (first, first);
+/// The first point of a drawing as it lies on the plan and the middle of its bounding box
+/// (the middle of a line, the centre of a rectangle or ellipse), which a turn keeps; `None`
+/// for a shape without points.
+fn anchors(drawing: &Drawing) -> Option<(Point, Point)> {
+    let first = *drawing.points().first()?;
 
-    for p in &points {
-        min = Point::new(min.x_m.min(p.x_m), min.y_m.min(p.y_m));
-        max = Point::new(max.x_m.max(p.x_m), max.y_m.max(p.y_m));
+    Some((drawing.placed(first), drawing.middle()?))
+}
+
+/// A mark of a figure or camera: whose, and which.
+enum Owner {
+    Figure(String),
+    Camera(String),
+}
+
+/// The mark `source` names or stands at, as its owner and index, with the place it is at.
+fn mark_held(scope: &Scope<'_>, source: &Source) -> Option<(Owner, usize, Point)> {
+    let time_s = scope.time_s;
+
+    match source {
+        Source::Mark { character, index } => {
+            let at = scope.plan.figure(character)?.marks.get(*index)?.at;
+            Some((Owner::Figure(character.clone()), *index, at))
+        }
+        Source::Figure(character) => {
+            let track = scope.plan.figure(character)?;
+            let index = current_index(track.marks.iter().map(|m| m.at_s), time_s)?;
+            Some((
+                Owner::Figure(character.clone()),
+                index,
+                track.marks[index].at,
+            ))
+        }
+        Source::Camera(id) => {
+            let camera = scope.plan.camera(id)?;
+            let index = current_index(camera.marks.iter().map(|m| m.at_s), time_s)?;
+            Some((Owner::Camera(id.clone()), index, camera.marks[index].at))
+        }
+        _ => None,
+    }
+}
+
+fn figure_parts(m: &mut Mark) -> (&mut Point, &mut Option<Point>) {
+    (&mut m.at, &mut m.via)
+}
+
+fn camera_parts(m: &mut CameraMark) -> (&mut Point, &mut Option<Point>) {
+    (&mut m.at, &mut m.via)
+}
+
+/// After mark `index` moved from `old`: the bends of the way to it and of the way from it keep
+/// their shape, so a move does not leave a bend behind that now cuts across the plan (LH-21).
+fn keep_bends<M>(
+    marks: &mut [M],
+    index: usize,
+    old: Point,
+    parts: for<'a> fn(&'a mut M) -> (&'a mut Point, &'a mut Option<Point>),
+) {
+    let Some(this) = marks.get_mut(index) else {
+        return;
+    };
+    let new = *parts(this).0;
+
+    if let Some(before) = index.checked_sub(1) {
+        let a = *parts(&mut marks[before]).0;
+        let (_, via) = parts(&mut marks[index]);
+        *via = via.map(|v| bend_follow(v, (a, old), (a, new)));
     }
 
-    Some((first, min.lerp(max, 0.5)))
+    let Some(next) = marks.get_mut(index + 1) else {
+        return;
+    };
+    let (b, via) = parts(next);
+    let b = *b;
+    *via = via.map(|v| bend_follow(v, (old, b), (new, b)));
 }
 
 pub(super) fn move_to(
@@ -176,6 +249,33 @@ pub(super) fn move_to(
     source: &Source,
     to: Point,
 ) -> Result<(), ServiceError> {
+    let held = mark_held(scope, source);
+
+    place(scope, source, to)?;
+
+    match held {
+        Some((Owner::Figure(character), index, old)) => {
+            if let Some(track) = scope
+                .plan
+                .figures
+                .iter_mut()
+                .find(|f| f.character == character)
+            {
+                keep_bends(&mut track.marks, index, old, figure_parts);
+            }
+        }
+        Some((Owner::Camera(id), index, old)) => {
+            if let Some(camera) = scope.plan.cameras.iter_mut().find(|c| c.id == id) {
+                keep_bends(&mut camera.marks, index, old, camera_parts);
+            }
+        }
+        None => {}
+    }
+
+    Ok(())
+}
+
+fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => *at = to,
         // `to` is where the way passes halfway, which is what the grip sits on.
@@ -191,6 +291,7 @@ pub(super) fn move_to(
                 *p = Point::new(p.x_m + dx, p.y_m + dy);
             }
         }
+        Target::Corner { drawing, index } => drag_handle(drawing, index, to)?,
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
             let mid = middle(wall);
@@ -213,6 +314,12 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
         }
         Target::Wall(wall) => Ok((wall.from, middle(wall))),
         Target::Drawing(drawing) => anchors(drawing).ok_or(ServiceError::Gone),
+        Target::Corner { drawing, index } => {
+            let place = drawing_handle_places(drawing).get(index).copied();
+            let place = place.ok_or(ServiceError::Gone)?;
+
+            Ok((place, place))
+        }
     }
 }
 
@@ -248,8 +355,9 @@ pub(super) fn spin(
     let now_deg = match target(scope, source)? {
         Target::Place { facing_deg, .. } => *facing_deg,
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
+        Target::Drawing(drawing) => drawing.rotation_deg,
         // Nothing to turn.
-        Target::Pin { .. } | Target::Drawing(_) | Target::Curve { .. } => return Ok(()),
+        Target::Pin { .. } | Target::Corner { .. } | Target::Curve { .. } => return Ok(()),
     };
 
     turn(scope, source, now_deg + by_deg)
@@ -264,8 +372,9 @@ pub(super) fn turn(
 
     match target(scope, source)? {
         Target::Place { facing_deg: f, .. } => *f = facing_deg,
+        Target::Drawing(drawing) => drawing.rotation_deg = facing_deg,
         // Nothing to turn.
-        Target::Pin { .. } | Target::Drawing(_) | Target::Curve { .. } => {}
+        Target::Pin { .. } | Target::Corner { .. } | Target::Curve { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.
             let mid = middle(wall);
@@ -309,17 +418,18 @@ pub(super) fn carry_cameras(
         .iter_mut()
         .filter(|c| c.follows.as_deref() == Some(character.as_str()));
     for camera in followers {
-        for camera_mark in camera
-            .marks
-            .iter_mut()
-            .filter(|m| window_s.contains(&m.at_s))
-        {
-            // The bend of the move goes along, or the move turns into a loop (LH-21).
-            camera_mark.at = carry(camera_mark.at, (dx_m, dy_m), after.at, turn_deg);
-            camera_mark.via = camera_mark
-                .via
-                .map(|via| carry(via, (dx_m, dy_m), after.at, turn_deg));
+        for i in 0..camera.marks.len() {
+            let camera_mark = &mut camera.marks[i];
+            if !window_s.contains(&camera_mark.at_s) {
+                continue;
+            }
+
+            // Moved like a mark moved by hand, so the ways to and from it keep their shape
+            // (LH-21), also to a mark outside the window.
+            let old = camera_mark.at;
+            camera_mark.at = carry(old, (dx_m, dy_m), after.at, turn_deg);
             camera_mark.facing_deg = normalize_deg(camera_mark.facing_deg + turn_deg);
+            keep_bends(&mut camera.marks, i, old, camera_parts);
         }
     }
 
@@ -336,15 +446,5 @@ fn carry(point: Point, delta_m: (f64, f64), centre: Point, deg: f64) -> Point {
 
 /// `point` turned clockwise on the plan by `deg` about `centre`.
 pub(super) fn rotate(point: Point, centre: Point, deg: f64) -> Point {
-    if deg == 0.0 {
-        return point;
-    }
-
-    let (sin, cos) = deg.to_radians().sin_cos();
-    let (x_m, y_m) = (point.x_m - centre.x_m, point.y_m - centre.y_m);
-
-    Point::new(
-        centre.x_m + x_m * cos - y_m * sin,
-        centre.y_m + x_m * sin + y_m * cos,
-    )
+    point.turned(centre, deg)
 }

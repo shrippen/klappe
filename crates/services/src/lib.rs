@@ -16,9 +16,11 @@ mod error;
 mod example;
 mod field;
 mod library;
+mod light_edit;
 mod number;
 mod plan_edit;
 mod project_edit;
+mod script_refs;
 mod session;
 mod shot_edit;
 mod start;
@@ -29,27 +31,32 @@ pub use edit::ShotField;
 pub use error::ServiceError;
 pub use example::{copy_example, ensure_example};
 pub use field::Field;
+pub use light_edit::LightChange;
 pub use number::{read_number, Range, Unit};
 pub use plan_edit::{Grid, MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{ProjectEdit, ShotsGo};
+pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
-    Autosave, BackupState, Layer, Lock, Looping, Playing, Session, Step, Visibility,
+    Autosave, BackupState, Grab, Layer, Lock, Looping, Playing, Session, Step, TimeSnap, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
-    CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow, Marker, Overview, PlanRow,
-    SceneRow, ScriptLine, Segment, ShotRow, Track, TrackKind,
+    CastUse, CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow, Marker, Overview,
+    PlanRow, SceneCard, SceneRow, SceneUse, ScriptLine, Segment, ShotRow, Track, TrackKind,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.
-pub use klappe_export::{Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme};
+pub use klappe_export::{
+    DrawingTexts, LampTexts, Orientation, Paper, ShotColumns, ShotTexts, Texts, Theme,
+};
 pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Dash, Departure, DrawingShape, FigureColor, Fill,
-    FloorPlan, LensSet, LightKind, Movement, ObjectShape, Point, Pose, Rig, Sensor, ShotSize,
+    FloorPlan, LensSet, LightKind, LightPreset, Movement, ObjectShape, Point, Pose, Rig, Sensor,
+    ShotSize,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, view_look, Area, CameraView, DisplayList, Hue, Item, Role, Shape,
-    ShotOrder, Source, ViewItem, ViewRole, FRAME_WIDTH,
+    ShotOrder, Source, ViewItem, ViewRole, FRAME_WIDTH, NOTE_TEXT_M,
 };
 
 // Fountain, so the TUI editor can style and list what it types without the script crate;

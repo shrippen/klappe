@@ -61,6 +61,27 @@ pub fn library_edit(
     })
 }
 
+/// Renames and regroups the own library entry `kind` (LH-12). `None` for a blank name.
+pub fn library_rename_edit(kind: &str, name: &str, group: &str) -> Option<ProjectEdit> {
+    let name = name.trim();
+    if name.is_empty() {
+        return None;
+    }
+
+    Some(ProjectEdit::EditLibraryItem {
+        kind: kind.to_owned(),
+        name: name.to_owned(),
+        group: group.trim().to_owned(),
+    })
+}
+
+/// Deletes the own library entry `kind` (LH-12).
+pub fn library_remove_edit(kind: &str) -> ProjectEdit {
+    ProjectEdit::RemoveLibraryItem {
+        kind: kind.to_owned(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,6 +126,25 @@ mod tests {
             None
         );
         assert_eq!(library_edit(None, Some("saal"), "T"), None);
+    }
+
+    #[test]
+    fn an_own_entry_is_renamed_under_a_trimmed_name_and_group() {
+        assert_eq!(
+            library_rename_edit("thron", "  Sessel ", " Hof "),
+            Some(ProjectEdit::EditLibraryItem {
+                kind: "thron".into(),
+                name: "Sessel".into(),
+                group: "Hof".into()
+            })
+        );
+        assert_eq!(library_rename_edit("thron", "  ", "Hof"), None);
+        assert_eq!(
+            library_remove_edit("thron"),
+            ProjectEdit::RemoveLibraryItem {
+                kind: "thron".into()
+            }
+        );
     }
 
     #[test]

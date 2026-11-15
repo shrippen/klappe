@@ -33,6 +33,17 @@ pub fn project_json(session: &Session) -> String {
     serde_json::to_string(&session.overview()).unwrap_or_default()
 }
 
+/// Where a scene or a character occurs (D-08): `kind` is `scene` or `character`.
+pub fn uses_json(session: &Session, kind: &str, id: &str) -> String {
+    let value = match kind {
+        "scene" => serde_json::to_value(session.scene_card(id)),
+        "character" => serde_json::to_value(session.character_uses(id)),
+        _ => return String::from("{}"),
+    };
+
+    value.map(|v| v.to_string()).unwrap_or_default()
+}
+
 /// What the bridge and the form use for "a single person".
 const NO_GROUP: u32 = 0;
 
@@ -383,6 +394,26 @@ mod tests {
             ])
         );
         assert_eq!(value["plan"], "stand-1");
+    }
+
+    /// The card of a scene and the scenes of a character reach QML as plain JSON (D-08).
+    #[test]
+    fn uses_carry_the_card_and_the_scenes() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+        let session = Session::open(&dir).unwrap();
+
+        let card: Value = serde_json::from_str(&uses_json(&session, "scene", "szene-012")).unwrap();
+        assert_eq!(card["time"], "TAG");
+        assert_eq!(card["cast"][0]["id"], "elisabeth");
+        assert_eq!(card["cast"][0]["cues"], 1);
+
+        let scenes: Value =
+            serde_json::from_str(&uses_json(&session, "character", "burgvogt")).unwrap();
+        assert_eq!(scenes[0]["number"], "12");
+        assert_eq!(scenes[0]["cues"], 1);
+
+        assert_eq!(uses_json(&session, "location", "x"), "{}");
     }
 
     #[test]

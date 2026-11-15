@@ -35,6 +35,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         Role::Background
         | Role::FigureHandle(_)
         | Role::CameraHandle
+        | Role::DrawingHandle
         | Role::Wall
         | Role::Object
         | Role::Camera
@@ -52,7 +53,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
 fn plain_class(role: Role) -> Option<&'static str> {
     match role {
         Role::Background => Some("background"),
-        Role::FigureHandle(_) | Role::CameraHandle => Some("handle"),
+        Role::FigureHandle(_) | Role::CameraHandle | Role::DrawingHandle => Some("handle"),
         Role::Wall => Some("wall"),
         Role::Object => Some("object"),
         Role::Camera => Some("camera"),
@@ -82,7 +83,7 @@ fn class_of(role: Role) -> String {
 /// `None` for what the export does not stroke.
 fn width_pt(role: Role) -> Option<f64> {
     match role {
-        Role::Background | Role::FigureHandle(_) | Role::CameraHandle => None,
+        Role::Background | Role::FigureHandle(_) | Role::CameraHandle | Role::DrawingHandle => None,
         Role::CameraPath { .. } | Role::FigurePath(_) => Some(PATH_PT),
         Role::Axis => Some(AXIS_PT),
         Role::Mark(_) => Some(MARK_PT),
@@ -114,6 +115,7 @@ fn tint_opacity(role: Role) -> f64 {
         | Role::Frustum
         | Role::Camera
         | Role::CameraHandle
+        | Role::DrawingHandle
         | Role::ArrowHead(_)
         | Role::FigurePath(_)
         | Role::FigureHandle(_)
@@ -127,7 +129,7 @@ fn hue_rgb(hue: Hue, pal: &Palette) -> Result<Rgb, ExportError> {
         Hue::Ground => Ok(pal.paper),
         Hue::Text => Ok(pal.foreground),
         Hue::Muted => Ok(pal.muted),
-        // Paper has no accent colour; a note takes the set-object ground.
+        // Paper has no accent colour.
         Hue::Accent | Hue::Surface => Ok(pal.surface),
         Hue::Color(c) => pal.semantic(c.name()),
     }
@@ -214,6 +216,7 @@ mod tests {
             (Role::Background, "background".into(), (None, None)),
             (Role::FigureHandle(red), "handle".into(), (None, None)),
             (Role::CameraHandle, "handle".into(), (None, None)),
+            (Role::DrawingHandle, "handle".into(), (None, None)),
             (
                 Role::Wall,
                 "wall".into(),
@@ -223,6 +226,11 @@ mod tests {
                 Role::Object,
                 "object".into(),
                 (fill(pal.surface, 1.0), line(pal.muted, 0.75, Dash::Solid)),
+            ),
+            (
+                Role::Note,
+                "note".into(),
+                (fill(fg, 0.15), line(fg, 0.75, Dash::Solid)),
             ),
             (
                 Role::Frustum,
@@ -274,7 +282,6 @@ mod tests {
         Ok(vec![
             (Role::Camera, "camera".into(), (fill(yellow, 1.0), outline)),
             (Role::Light, "light".into(), (fill(orange, 1.0), outline)),
-            (Role::Note, "note".into(), (fill(pal.surface, 1.0), outline)),
             (
                 Role::GroupDot,
                 "group-dot".into(),

@@ -1,9 +1,11 @@
-//! The fields of the selected camera or mark.
+//! The fields of the selected camera, lamp or mark.
 
 use super::q;
 use super::qobject;
 use crate::camera;
 use crate::camera::CameraField;
+use crate::light;
+use crate::light::LightField;
 use crate::mark;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
@@ -28,6 +30,16 @@ impl qobject::Controller {
         };
         let selected = self.rust().selected.only();
         let typed = camera::camera_edit(selected, s.camera_presets(), field, &value.to_string());
+
+        self.commit_typed(typed)
+    }
+
+    pub(super) fn set_light_field(self: Pin<&mut Self>, field: &QString, value: &QString) -> bool {
+        let Some(field) = LightField::named(&field.to_string()) else {
+            return false;
+        };
+        let selected = self.rust().selected.only();
+        let typed = light::light_edit(selected, field, &value.to_string());
 
         self.commit_typed(typed)
     }

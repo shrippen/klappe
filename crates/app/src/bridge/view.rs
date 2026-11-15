@@ -17,7 +17,7 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Layer, LightKind, Lock,
-    Movement, Point, Pose, Rig, Session, Snapping, Source, Visibility,
+    Movement, Point, Pose, Rig, Session, ShotOrder, Snapping, Source, Visibility,
 };
 use serde_json::json;
 
@@ -130,6 +130,7 @@ impl ControllerRust {
         self.view_json = v.view_json;
         self.tracks_json = v.tracks_json;
         self.shots_json = v.shots_json;
+        self.shots_shooting_json = v.shots_shooting_json;
         self.script_json = v.script_json;
         self.layers_json = v.layers_json;
         self.locks_json = v.locks_json;
@@ -169,6 +170,7 @@ impl ControllerRust {
             view_json: q(&view_json(s, self.selected.only())),
             tracks_json: q(&to_json(&s.tracks())),
             shots_json: q(&to_json(&s.shots())),
+            shots_shooting_json: q(&to_json(&s.shots_in(ShotOrder::Shooting))),
             script_json: q(&to_json(&s.script_lines())),
             layers_json: q(&layers_json(s)),
             locks_json: q(&locks_json(s)),
@@ -202,6 +204,7 @@ struct Shown {
     view_json: QString,
     tracks_json: QString,
     shots_json: QString,
+    shots_shooting_json: QString,
     script_json: QString,
     layers_json: QString,
     locks_json: QString,
@@ -224,7 +227,7 @@ struct Shown {
     scene_id: QString,
 }
 
-fn to_json<T: serde::Serialize>(value: &T) -> String {
+pub(super) fn to_json<T: serde::Serialize>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_default()
 }
 
@@ -263,7 +266,7 @@ fn view_json(s: &Session, selected: Option<&Source>) -> String {
 }
 
 /// What the tool lists of the tool bar offer: the project's characters, the object library,
-/// the plan's cameras and the lamp kinds.
+/// the plan's cameras and the built-in lamps.
 pub(super) fn choices_json(s: &Session) -> String {
     let figures: Vec<_> = s
         .project()
@@ -277,7 +280,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         .flat_map(|p| p.cameras.iter())
         .map(|c| json!({ "id": c.id, "label": c.label }))
         .collect();
-    let lights: Vec<_> = LightKind::ALL.iter().map(|k| k.name()).collect();
+    let lights: Vec<_> = s.light_presets().iter().map(|l| l.id.as_str()).collect();
 
     let colors: Vec<_> = FigureColor::ALL.iter().map(|c| c.name()).collect();
     let dashes: Vec<_> = Dash::ALL.iter().map(|d| d.name()).collect();
@@ -299,6 +302,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "camera": camera::presets_json(s.camera_presets()),
         "cameras": cameras,
         "light": lights,
+        "lightKind": LightKind::ALL.iter().map(|k| k.name()).collect::<Vec<_>>(),
         "color": colors,
         "dash": dashes,
         "fill": fills,
@@ -410,6 +414,7 @@ impl qobject::Controller {
         self.as_mut().set_view_json(v.view_json);
         self.as_mut().set_tracks_json(v.tracks_json);
         self.as_mut().set_shots_json(v.shots_json);
+        self.as_mut().set_shots_shooting_json(v.shots_shooting_json);
         self.as_mut().set_script_json(v.script_json);
         self.as_mut().set_layers_json(v.layers_json);
         self.as_mut().set_locks_json(v.locks_json);
@@ -469,6 +474,9 @@ mod tests {
         assert_eq!(objects[0]["shape"], "rect");
         assert_eq!(objects[0]["custom"], false);
         assert_eq!(objects[0]["height_m"], 0.75);
+        // The group the list shows it under, and how many objects of the example use it.
+        assert_eq!(objects[0]["group"], "furniture");
+        assert_eq!(objects[0]["uses"], 1);
         assert!(objects
             .iter()
             .any(|o| o["kind"] == "horse" && o["shape"] == "ellipse"));
@@ -499,11 +507,14 @@ mod tests {
         assert_eq!(
             choices["light"],
             json!([
-                "fresnel",
+                "fresnel-650",
+                "fresnel-1k",
+                "fresnel-2k",
                 "led-panel",
                 "tube",
                 "balloon",
                 "reflector",
+                "floppy",
                 "flag"
             ])
         );
@@ -625,6 +636,7 @@ mod tests {
             &c.plan_json,
             &c.tracks_json,
             &c.shots_json,
+            &c.shots_shooting_json,
             &c.script_json,
             &c.layers_json,
             &c.locks_json,
