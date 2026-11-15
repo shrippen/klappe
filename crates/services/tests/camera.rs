@@ -188,6 +188,13 @@ fn broken_values_are_refused() {
         assert!(bad(s.edit_plan(aspect), Field::Aspect));
     }
 
+    // Below the shortest lens (1 mm).
+    let lens = PlanEdit::SetLens {
+        camera: "a".into(),
+        lens_mm: 0.5,
+    };
+    assert!(bad(s.edit_plan(lens), Field::Lens));
+
     assert_eq!(camera(&s, "a"), before);
 }
 

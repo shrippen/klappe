@@ -93,14 +93,14 @@ fn is_hold(hold_s: f64) -> bool {
     hold_s >= 0.0 && hold_s.is_finite()
 }
 
-/// Like `is_mark`; the lens height is positive up to a crane's, the tilt within straight down
+/// Like `is_mark`; the lens height from the floor up to a crane's, the tilt within straight down
 /// and up, a lens set at the mark within the lens bounds.
 fn is_camera_mark(mark: &CameraMark) -> bool {
     mark.at_s.is_finite()
         && mark.facing_deg.is_finite()
         && mark.tilt_deg.abs() <= MAX_TILT_DEG
         && is_hold(mark.hold_s)
-        && is_within(mark.height_m, MAX_CAMERA_HEIGHT_M)
+        && (0.0..=MAX_CAMERA_HEIGHT_M).contains(&mark.height_m)
         && is_point(&mark.at)
         && mark.via.as_ref().is_none_or(is_point)
         && mark.lens_mm.is_none_or(is_lens)

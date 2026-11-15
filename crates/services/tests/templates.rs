@@ -386,6 +386,25 @@ fn a_plan_beyond_the_set_is_not_filed() {
     s.save().unwrap();
 }
 
+/// A camera on the floor (height 0), which the editor takes, is filed as a template.
+#[test]
+fn a_camera_on_the_floor_is_filed() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("services-templates-floor");
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&example(), &dir);
+
+    let mut s = Session::open(&dir).unwrap();
+    s.edit_plan(PlanEdit::SetCameraAim {
+        source: Source::Camera("a".into()),
+        height_m: 0.0,
+        tilt_deg: 0.0,
+    })
+    .unwrap();
+
+    s.save_template("Boden").unwrap();
+    assert_eq!(s.project().templates.len(), 1);
+}
+
 fn copy_dir(from: &Path, to: &Path) {
     fs::create_dir_all(to).unwrap();
     for entry in fs::read_dir(from).unwrap() {
