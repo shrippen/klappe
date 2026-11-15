@@ -7,6 +7,7 @@ mod args;
 mod bridge;
 mod camera;
 mod catalog;
+mod drawing;
 mod fileurl;
 mod light;
 mod manage;

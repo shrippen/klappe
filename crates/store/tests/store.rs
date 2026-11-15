@@ -190,6 +190,7 @@ fn plan() -> FloorPlan {
         color: FigureColor::Red,
         dash: Dash::Solid,
         fill: Fill::Outline,
+        rotation_deg: 0.0,
     }];
 
     plan.links = vec![
@@ -470,7 +471,7 @@ fn a_plan_without_drawings_loads_and_writes_none() {
     assert_eq!(loaded.project, project);
 }
 
-/// Shape, colour, dash and fill of a drawing survive saving and loading.
+/// Shape, colour, dash, fill and turn of a drawing survive saving and loading.
 #[test]
 fn drawings_round_trip() {
     let dir = test_dir("drawings");
@@ -487,6 +488,7 @@ fn drawings_round_trip() {
         color: FigureColor::Cyan,
         dash: Dash::Dashed,
         fill: Fill::Filled,
+        rotation_deg: 25.0,
     });
 
     save(&dir, &project, None).unwrap();
