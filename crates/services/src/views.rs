@@ -296,6 +296,8 @@ pub enum Hint {
         beam_deg: f64,
         /// Whether the colour temperature can be set (an LED).
         tunable: bool,
+        /// Whether the lamp makes light of its own: not a bounce or a flag.
+        gives_light: bool,
         #[serde(rename = "temp")]
         temp_k: f64,
         #[serde(rename = "power")]
