@@ -160,7 +160,7 @@ fn scene_lines(
     let mut changes = Vec::new();
     // A heading the user wrote on their own is left alone.
     if heading != scene.heading && old.trim() == scene.heading {
-        if let Some(next) = replace_once(&new_line, &old, heading) {
+        if let Some(next) = replace_heading(&new_line, &old, heading) {
             new_line = next;
             changes.push((ChangeKind::Heading, old.clone(), heading.to_owned()));
         }
@@ -243,6 +243,16 @@ fn cue_lines(project: &Project, text: &str, id: &str, name: &str) -> Vec<LineCha
     }
 
     changes
+}
+
+/// `raw` with the heading `old` replaced. An empty one (`.#12#`) has no text to replace: the
+/// new heading goes in front of the number, and the dot that forced the empty heading goes.
+fn replace_heading(raw: &str, old: &str, heading: &str) -> Option<String> {
+    if !old.trim().is_empty() {
+        return replace_once(raw, old, heading);
+    }
+
+    Some(format!("{heading} {}", raw.trim_start_matches(FORCE_HEADING)))
 }
 
 /// `raw` with the first `from` replaced; `None` if it is not there (a boneyard may hide it).
@@ -346,6 +356,17 @@ mod tests {
         assert!(text.contains("ELISE (V.O.)\n"));
         assert!(text.contains("Elisabeth tritt ein."));
         assert!(text.contains("BURGVOGT\n"));
+    }
+
+    /// An empty heading (`.#12#`) is replaced as a whole.
+    #[test]
+    fn an_empty_old_heading_is_replaced() {
+        let mut p = project();
+        p.scenes[0].heading = String::new();
+        let script = ".#12#\n\nA.\n";
+
+        let text = scene_text(&p, script, "szene-012", "12", "INT. NEU").unwrap();
+        assert!(text.starts_with("INT. NEU #12#\n"), "{text:?}");
     }
 
     #[test]
