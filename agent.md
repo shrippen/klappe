@@ -56,6 +56,16 @@ die Datei im selben PR.
 - Programs with a window run only offscreen in tests and screenshots
   (`QT_QPA_PLATFORM=offscreen`), never in a visible window.
 
+## QA tools (this project)
+
+- `scripts/qa-session.sh start WORKDIR [--open] [--language de|en] [--size WxH]` starts Klappe in
+  its own Xvfb with its own D-Bus and AT-SPI bus, XDG folders under `WORKDIR/sandbox` and no
+  access to your files or desktop; `WORKDIR/qa` drives it (`shot`, `click`, `drag`, `key`,
+  `type`, `hover`, `tree`, `find`, `press`, `text`, `layout`, `stop`), `scripts/qactl.py` is its
+  tool. Pictures and `actions.log` stay in `WORKDIR`. Test: `scripts/qa-session.test.sh`.
+- Ein eigener Xvfb über `scripts/qa-session.sh` zählt als offscreen.
+- Neither script is part of a release.
+
 ## Repository (this project)
 
 - The merge waits for: CI is green on the PR's latest commit: the newest status
