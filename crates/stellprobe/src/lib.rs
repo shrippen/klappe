@@ -3,6 +3,7 @@
 //! ```text
 //! model::FloorPlan ──► motion   where is everyone at t?
 //!                  ──► optics   what does a camera see?
+//!                  ──► movement what does a camera do during a shot?
 //!                  ──► axis     which shot jumps the line?
 //!                  ──► setup    which shots share camera, place and lens?
 //!                  └─► display  a display list in metres: the GUI draws it,
@@ -14,7 +15,9 @@ mod display;
 mod hit;
 mod look;
 mod motion;
+mod movement;
 mod optics;
+mod rig;
 mod setup;
 
 pub use axis::{axis_at, axis_jumps, Axis, Side};
@@ -22,7 +25,8 @@ pub use display::{handles, render, DisplayList, Item, Role, Shape, Source, FIGUR
 pub use hit::{hit, within};
 pub use look::{look, Area, Hue, Look};
 pub use motion::{
-    bend_point, camera_at, figure_at, via_through, walked_ways, way_length_m, Placement,
+    aim_at, bend_point, camera_at, figure_at, via_through, walked_ways, way_length_m, Placement,
 };
-pub use optics::{frustum, horizontal_fov_deg, lens_at};
+pub use movement::movement_in;
+pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};
 pub use setup::{ordered_shots, shot_setups, ShotOrder, SETUP_TOLERANCE_M};

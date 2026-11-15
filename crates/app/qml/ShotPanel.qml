@@ -25,6 +25,18 @@ Item {
     // The shot's own lens as text; empty if it follows its camera.
     readonly property string ownLens: shot && shot.own_lens_mm !== null ? texts.num(shot.own_lens_mm, 1) : ""
 
+    // The camera's marks state a lens: they give the shot's, a span for a zoom (LH-33).
+    readonly property bool lensMarked: !!shot && shot.lens_from_marks
+    readonly property string markedLens: {
+        if (!shot) {
+            return ""
+        }
+        if (shot.lens_to_mm === null) {
+            return texts.t("camera.lensValue", { lens: texts.num(shot.lens_mm, 1) })
+        }
+        return texts.t("shot.lensSpan", { from: texts.num(shot.lens_mm, 1), to: texts.num(shot.lens_to_mm, 1) })
+    }
+
     // Sends `value` unless it is what the field showed; a refusal resets the fields.
     function commit(field, value, shown) {
         if (value === shown) {
@@ -47,7 +59,7 @@ Item {
 
     readonly property var sizes: ["extreme-wide", "wide", "medium-wide", "cowboy", "medium", "medium-close", "close-up", "extreme-close-up"]
     readonly property var angles: ["eye-level", "high", "low", "birds-eye", "worms-eye", "dutch"]
-    readonly property var movements: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"]
+    readonly property var movements: controller.choicesJson ? (JSON.parse(controller.choicesJson).movement || []) : []
 
     // New, copy and delete a shot (LH-70). "New" takes the camera selected in the plan, else
     // the selected shot's. Key S is "new"; deleting asks first.
@@ -187,6 +199,7 @@ Item {
                     onActivated: index => panel.commit("size", panel.sizes[index], panel.shot.size)
                 }
                 KanteComboBox {
+                    objectName: "movementBox"
                     Layout.fillWidth: true
                     model: panel.movements.map(m => panel.texts.t("movement." + m))
                     currentIndex: panel.shot ? panel.movements.indexOf(panel.shot.movement) : -1
@@ -202,14 +215,57 @@ Item {
                     currentIndex: panel.shot ? panel.angles.indexOf(panel.shot.angle) : -1
                     onActivated: index => panel.commit("angle", panel.angles[index], panel.shot.angle)
                 }
-                // Empty: the shot follows its camera, whose lens is the hint.
+                // Empty: the shot follows its camera, whose lens is the hint. With lens marks the
+                // field only shows theirs.
                 KanteTextField {
                     objectName: "lensField"
                     Layout.fillWidth: true
-                    text: { panel.refused; return panel.ownLens }
+                    readOnly: panel.lensMarked
+                    text: { panel.refused; return panel.lensMarked ? panel.markedLens : panel.ownLens }
                     placeholderText: panel.shot ? panel.texts.num(panel.shot.lens_mm, 1) : ""
                     inputMethodHints: Qt.ImhFormattedNumbersOnly
-                    onEditingFinished: panel.commit("lens", text, panel.ownLens)
+                    onEditingFinished: {
+                        if (!readOnly) {
+                            panel.commit("lens", text, panel.ownLens)
+                        }
+                    }
+                }
+            }
+
+            QQC2.Label {
+                objectName: "lensHint"
+                Layout.fillWidth: true
+                Layout.leftMargin: Kirigami.Units.largeSpacing
+                Layout.rightMargin: Kirigami.Units.largeSpacing
+                visible: panel.lensMarked
+                wrapMode: Text.WordWrap
+                color: KanteStyle.mutedTextColor
+                text: panel.texts.t("shot.lensFromMarks")
+            }
+
+            // What the camera's marks do during a shot without a movement of its own (LH-33);
+            // the button takes it over.
+            RowLayout {
+                objectName: "movementHintRow"
+                Layout.fillWidth: true
+                Layout.leftMargin: Kirigami.Units.largeSpacing
+                Layout.rightMargin: Kirigami.Units.largeSpacing
+                visible: panel.shot !== null && !!panel.shot.movement_hint
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Label {
+                    objectName: "movementHint"
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: KanteStyle.mutedTextColor
+                    text: panel.shot && panel.shot.movement_hint
+                          ? panel.texts.t("shot.movementHint", { movement: panel.texts.t("movement." + panel.shot.movement_hint) })
+                          : ""
+                }
+                KanteButton {
+                    objectName: "movementTake"
+                    text: panel.texts.t("form.apply")
+                    onClicked: panel.commit("movement", panel.shot.movement_hint, panel.shot.movement)
                 }
             }
 

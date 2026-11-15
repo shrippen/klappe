@@ -1,4 +1,5 @@
-use klappe_stellprobe::{axis_jumps, ordered_shots, ShotOrder};
+use klappe_model::{Camera, Movement, Shot};
+use klappe_stellprobe::{axis_jumps, movement_in, ordered_shots, shot_lens, ShotOrder};
 
 use super::{Layer, Lock, Session};
 use crate::edit::{self, ShotField};
@@ -40,6 +41,7 @@ impl Session {
             .into_iter()
             .map(|(setup, shot)| {
                 let camera = plan.camera(&shot.camera);
+                let lens = camera.map(|c| shot_lens(c, shot));
                 ShotRow {
                     id: shot.id.clone(),
                     number: shot.number.clone(),
@@ -49,7 +51,10 @@ impl Session {
                     size: shot.size.name().to_owned(),
                     angle: shot.angle.name().to_owned(),
                     movement: shot.movement.name().to_owned(),
-                    lens_mm: shot.lens_mm.or(camera.map(|c| c.lens_mm)).unwrap_or(0.0),
+                    movement_hint: movement_hint(camera, shot),
+                    lens_mm: lens.map_or(shot.lens_mm.unwrap_or(0.0), |l| l.from_mm),
+                    lens_to_mm: lens.and_then(|l| l.span_to_mm()),
+                    lens_from_marks: lens.is_some_and(|l| l.from_marks),
                     own_lens_mm: shot.lens_mm,
                     from_s: shot.from_s,
                     to_s: shot.to_s,
@@ -177,5 +182,18 @@ impl Session {
                 value: wanted,
             }),
         }
+    }
+}
+
+/// The movement the camera's marks suggest for a shot that sets none; empty when there is
+/// nothing to suggest.
+fn movement_hint(camera: Option<&Camera>, shot: &Shot) -> String {
+    let Some(camera) = camera.filter(|_| shot.movement == Movement::Static) else {
+        return String::new();
+    };
+
+    match movement_in(camera, shot) {
+        Movement::Static => String::new(),
+        movement => movement.name().to_owned(),
     }
 }

@@ -19,18 +19,23 @@ TestCase {
         property string choicesJson: JSON.stringify({
             pose: ["standing", "sitting", "lying"],
             arrival: ["walk", "appear"],
-            departure: ["stay", "leave"]
+            departure: ["stay", "leave"],
+            rig: ["tripod", "dolly", "track", "crane", "handheld", "gimbal"]
         })
         property var info: ({})
         property var poses: []
         property var holds: []
         property var paces: []
         property var aims: []
+        property var rigs: []
+        property var lenses: []
         property var arrivals: []
         property var departures: []
         property bool poseOk: true
         property bool holdOk: true
         property bool aimOk: true
+        property bool rigOk: true
+        property bool lensOk: true
 
         function markInfo() { return JSON.stringify(info) }
         function setMarkPose(pose) {
@@ -44,6 +49,14 @@ TestCase {
         function setCameraAim(height, tilt) {
             aims.push([height, tilt])
             return aimOk
+        }
+        function setMarkRig(name) {
+            rigs.push(name)
+            return rigOk
+        }
+        function setMarkLens(text) {
+            lenses.push(text)
+            return lensOk
         }
         function setMarkArrival(name) {
             arrivals.push(name)
@@ -82,10 +95,14 @@ TestCase {
         fake.holdOk = true
         fake.aims = []
         fake.aimOk = true
+        fake.rigs = []
+        fake.lenses = []
+        fake.rigOk = true
+        fake.lensOk = true
     }
 
     function cameraMark(extra) {
-        fake.info = Object.assign({ kind: "camera", pose: "", arrival: "", departure: "", hold: 6, hasWay: true, pace: 0.5, height: 1.6, tilt: -12.5 }, extra || {})
+        fake.info = Object.assign({ kind: "camera", pose: "", arrival: "", departure: "", hold: 6, hasWay: true, pace: 0.5, height: 1.6, tilt: -12.5, rig: "crane", lens: 85 }, extra || {})
         fake.selectedKey = "camera:a"
     }
 
@@ -226,6 +243,78 @@ TestCase {
 
         compare(findChild(card, "heightField").text, "1.6")
         compare(findChild(card, "tiltField").text, "-12.5")
+    }
+
+    // LH-33: a camera's mark shows its rig and lens (empty: none), a figure's does not.
+    function test_a_camera_mark_shows_rig_and_lens() {
+        const card = createTemporaryObject(cardComponent, tc)
+
+        cameraMark()
+
+        verify(findChild(card, "gearRow").visible)
+        compare(findChild(card, "rigChoice").currentIndex, 3)
+        compare(findChild(card, "lensField").text, "85")
+
+        cameraMark({ rig: "dolly", lens: null })
+
+        compare(findChild(card, "rigChoice").currentIndex, 1)
+        compare(findChild(card, "lensField").text, "")
+    }
+
+    function test_a_figure_mark_has_no_rig_or_lens() {
+        const card = createTemporaryObject(cardComponent, tc)
+
+        figureMark()
+
+        verify(!findChild(card, "gearRow").visible)
+    }
+
+    function test_choosing_a_rig_goes_to_the_controller() {
+        const card = createTemporaryObject(cardComponent, tc)
+        cameraMark()
+
+        findChild(card, "rigChoice").activated(4)
+
+        compare(fake.rigs, ["handheld"])
+    }
+
+    // A refused rig (a tripod that would have to move) shows the plan's rig again.
+    function test_a_refused_rig_snaps_back() {
+        const card = createTemporaryObject(cardComponent, tc)
+        cameraMark()
+        fake.rigOk = false
+
+        findChild(card, "rigChoice").currentIndex = 0
+        findChild(card, "rigChoice").activated(0)
+
+        compare(findChild(card, "rigChoice").currentIndex, 3)
+    }
+
+    function test_a_lens_goes_to_the_controller_and_a_refusal_marks_the_field() {
+        const card = createTemporaryObject(cardComponent, tc)
+        cameraMark()
+        const lens = findChild(card, "lensField")
+
+        lens.text = "50"
+        findChild(card, "lensApply").clicked()
+        lens.text = ""
+        lens.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+
+        compare(fake.lenses, ["50", ""])
+        verify(!lens.invalid)
+
+        fake.lensOk = false
+        lens.text = "0"
+        findChild(card, "lensApply").clicked()
+
+        verify(lens.invalid)
+    }
+
+    function test_the_rig_and_lens_tips_are_in_both_languages() {
+        compare(de.t("rig.crane"), "Kran")
+        compare(en.t("rig.crane"), "Crane")
+        verify(de.t("mark.lensTip") !== en.t("mark.lensTip"))
     }
 
     function test_a_figure_mark_has_no_height_or_tilt() {

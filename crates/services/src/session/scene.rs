@@ -59,6 +59,16 @@ impl Session {
             .ok_or(ServiceError::Gone)
     }
 
+    /// Refuses a result `next` that moves a camera mark off its tripod (LH-33).
+    pub(super) fn check_tripods(&self, next: &Project) -> Result<(), ServiceError> {
+        let at = (self.scene, self.plan);
+        let (Some(before), Some(after)) = (plan_at(&self.project, at), plan_at(next, at)) else {
+            return Ok(());
+        };
+
+        plan_edit::check_tripods(before, after)
+    }
+
     /// Changes the current plan; undoable. Points are taken as given: surfaces call `snap`.
     pub fn edit_plan(&mut self, edit: PlanEdit) -> Result<(), ServiceError> {
         self.check_lock(&edit)?;
@@ -75,6 +85,7 @@ impl Session {
             &edit,
         )?;
         self.check_cameras(&next)?;
+        self.check_tripods(&next)?;
         if next == self.project {
             return Ok(());
         }
@@ -166,4 +177,8 @@ impl Session {
         };
         format!("{} · {} · {}", scene.number, scene.heading, plan.name)
     }
+}
+
+fn plan_at(project: &Project, (scene, plan): (usize, usize)) -> Option<&FloorPlan> {
+    project.scenes.get(scene)?.plans.get(plan)
 }

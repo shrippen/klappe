@@ -33,7 +33,7 @@ pub use library::{
 };
 pub use plan::{
     Arrival, AxisPair, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureTrack,
-    Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, ScriptLink, Sensor,
+    Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,
 };
 pub use project::{
     Background, Character, FigureColor, Location, Note, Project, Scene, SetObject, SetPlan, Wall,

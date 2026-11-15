@@ -1,8 +1,8 @@
 //! The fields of a mark typed or picked on the card: pose, arrival, departure, pause, pace and
-//! the camera's aim, each as a plan edit. Like the tools (`tools.rs`), no geometry here.
+//! the camera's aim, rig and lens, each as a plan edit. Like the tools (`tools.rs`), no geometry here.
 
 use klappe_services::{
-    read_number, Arrival, Departure, Field, Pace, PlanEdit, Pose, Range, Source, Unit,
+    read_number, Arrival, Departure, Field, Pace, PlanEdit, Pose, Range, Rig, Source, Unit,
 };
 
 use crate::tools::Typed;
@@ -74,6 +74,33 @@ pub fn aim_edit(selected: Option<&Source>, height: &str, tilt: &str) -> Typed {
     });
 
     Some(aimed)
+}
+
+/// The rig `name` for the selected camera mark, as an edit. `None` for a selection that is no
+/// camera or a name that is no rig. The session refuses a tripod that would have to move.
+pub fn rig_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
+    let source = selected.filter(|s| matches!(s, Source::Camera(_)))?;
+    let rig = Rig::from_name(name)?;
+
+    Some(PlanEdit::SetRig {
+        source: source.clone(),
+        rig,
+    })
+}
+
+/// The lens typed for the selected camera mark, as an edit (LH-33): an empty text states
+/// none. The session checks the limits.
+pub fn mark_lens_edit(selected: Option<&Source>, text: &str) -> Typed {
+    let source = selected.filter(|s| matches!(s, Source::Camera(_)))?;
+    let lens_mm = match text.trim().is_empty() {
+        true => Ok(None),
+        false => read_number(Field::Lens, text, Unit::Millimetre, Range::Positive).map(Some),
+    };
+
+    Some(lens_mm.map(|lens_mm| PlanEdit::SetMarkLens {
+        source: source.clone(),
+        lens_mm,
+    }))
 }
 
 /// The pace `name` for the way to the selected figure mark, as an edit. `None` for a
@@ -186,6 +213,43 @@ mod tests {
         let figure = Source::Figure("elisabeth".into());
         assert_eq!(edit_of(aim_edit(Some(&figure), "1", "0")), None);
         assert_eq!(edit_of(aim_edit(None, "1", "0")), None);
+    }
+
+    #[test]
+    fn a_rig_name_for_a_camera_is_a_set_rig() {
+        let camera = Source::Camera("a".into());
+
+        assert_eq!(
+            rig_edit(Some(&camera), "crane"),
+            Some(PlanEdit::SetRig {
+                source: camera.clone(),
+                rig: Rig::Crane
+            })
+        );
+        assert_eq!(rig_edit(Some(&camera), "drone"), None);
+        assert_eq!(rig_edit(Some(&Source::Figure("e".into())), "crane"), None);
+        assert_eq!(rig_edit(None, "crane"), None);
+    }
+
+    #[test]
+    fn a_lens_typed_for_a_camera_mark_is_a_set_mark_lens() {
+        let camera = Source::Camera("a".into());
+        let lens = |text| edit_of(mark_lens_edit(Some(&camera), text));
+        let set = |lens_mm| {
+            Some(PlanEdit::SetMarkLens {
+                source: camera.clone(),
+                lens_mm,
+            })
+        };
+
+        assert_eq!(lens(" 85 mm "), set(Some(85.0)));
+        assert_eq!(lens("35,5"), set(Some(35.5)));
+        assert_eq!(lens("  "), set(None));
+        assert_eq!(lens("0"), None);
+        assert_eq!(lens("-5"), None);
+        assert_eq!(lens("weit"), None);
+        assert_eq!(edit_of(mark_lens_edit(Some(&Source::Wall(0)), "50")), None);
+        assert_eq!(edit_of(mark_lens_edit(None, "50")), None);
     }
 
     #[test]
