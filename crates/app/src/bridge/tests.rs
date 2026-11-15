@@ -1,4 +1,4 @@
-use super::*;
+use klappe_services::Session;
 
 pub(super) fn example() -> Session {
     let dir =
