@@ -497,61 +497,60 @@ FocusScope {
             ctx.setLineDash([])
         }
 
-        // Where a caption goes, in view pixels, and how it sits there.
+        // The caption's font size in pixels: model units grow with the zoom, else the small font;
+        // 0 when too small to read.
+        function _captionPx(s) {
+            if (!(s.captionSize > 0)) {
+                return _fontPx
+            }
+            const px = s.captionSize * root.zoom
+            return px < root._minCaptionPx ? 0 : px
+        }
+
+        // Where a caption goes, in view pixels: {x, y, align, top}; `top` lifts the first line.
+        function _captionSpot(s, pts, fontPx, gap, rows) {
+            const zx = v => root.panX + v * root.zoom
+            const zy = v => root.panY + v * root.zoom
+            if (s.kind === "circle") {
+                return { x: zx(pts[0]) + (s.radius || 0) * root.zoom + gap, y: zy(pts[1]),
+                         align: "left", top: -rows / 2 }
+            }
+            if (s.kind !== "polygon") {
+                const n = pts.length
+                return { x: zx((pts[0] + pts[n - 2]) / 2) + gap, y: zy((pts[1] + pts[n - 1]) / 2) - gap,
+                         align: "left", top: -rows / 2 }
+            }
+            const xs = pts.filter((v, i) => i % 2 === 0)
+            const ys = pts.filter((v, i) => i % 2 === 1)
+            // Several lines hang from the top left when the shape asks, else centre on the box.
+            if (s.textAnchor === "topLeft") {
+                return { x: zx(Math.min(...xs)) + gap, y: zy(Math.min(...ys)) + gap + fontPx / 2,
+                         align: "left", top: 0 }
+            }
+            return { x: zx((Math.min(...xs) + Math.max(...xs)) / 2), y: zy((Math.min(...ys) + Math.max(...ys)) / 2),
+                     align: "center", top: -rows / 2 }
+        }
+
+        // Draws a shape's caption beside it.
         function _caption(ctx, s) {
             const pts = s.points || []
-            if (pts.length < 2) {
+            const fontPx = _captionPx(s)
+            if (pts.length < 2 || fontPx === 0) {
                 return
             }
 
-            // A caption sized in model units grows with the zoom, else it keeps the small font.
-            const metric = s.captionSize > 0
-            const fontPx = metric ? s.captionSize * root.zoom : _fontPx
-            if (metric && fontPx < root._minCaptionPx) {
-                return
-            }
-
-            const gap = metric ? fontPx * root._captionGapEm : KanteStyle.unit(4)
+            const gap = s.captionSize > 0 ? fontPx * root._captionGapEm : KanteStyle.unit(4)
             const lines = String(s.text).split("\n")
             const rows = (lines.length - 1) * fontPx * root._lineSpacing
-            let x = 0
-            let y = 0
-            let align = "left"
-            // Several lines hang from the top when the shape asks, else centre on the anchor.
-            let top = -rows / 2
-            if (s.kind === "circle") {
-                x = root.panX + pts[0] * root.zoom + (s.radius || 0) * root.zoom + gap
-                y = root.panY + pts[1] * root.zoom
-                align = "left"
-            } else if (s.kind === "polygon") {
-                let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
-                for (let i = 0; i + 1 < pts.length; i += 2) {
-                    x0 = Math.min(x0, pts[i])
-                    x1 = Math.max(x1, pts[i])
-                    y0 = Math.min(y0, pts[i + 1])
-                    y1 = Math.max(y1, pts[i + 1])
-                }
-                x = root.panX + (x0 + x1) / 2 * root.zoom
-                y = root.panY + (y0 + y1) / 2 * root.zoom
-                align = "center"
-                if (s.textAnchor === "topLeft") {
-                    x = root.panX + x0 * root.zoom + gap
-                    y = root.panY + y0 * root.zoom + gap + fontPx / 2
-                    align = "left"
-                    top = 0
-                }
-            } else {
-                const n = pts.length
-                x = root.panX + (pts[0] + pts[n - 2]) / 2 * root.zoom + gap
-                y = root.panY + (pts[1] + pts[n - 1]) / 2 * root.zoom - gap
-                align = "left"
-            }
+            const spot = _captionSpot(s, pts, fontPx, gap, rows)
+            const x = spot.x
+            const align = spot.align
 
             // Outside the view (fillText is the dearest call). Wide glyphs (CJK) take up to about
             // 1.1 em; two em for each character leaves room for them.
             const emsPerChar = 2
             const reach = String(s.text).length * emsPerChar * fontPx
-            const yFirst = y + top
+            const yFirst = spot.y + spot.top
             if (x + reach < 0 || x - reach > width || yFirst + rows + fontPx < 0 || yFirst - fontPx > height) {
                 return
             }
