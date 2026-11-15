@@ -43,7 +43,8 @@ import "."
  * the crossed eye.
  *
  * Functions for the app and its tests: timeAt(x), xAt(seconds) (in the item's coordinates),
- * segmentAt(x, y) and markerAt(x, y), each {track, index} or null.
+ * segmentAt(x, y) and markerAt(x, y), each {track, index} or null; grabAt(x, y), what a
+ * press there would drag, or null.
  */
 FocusScope {
     id: root
@@ -176,7 +177,8 @@ FocusScope {
         return _edgeAt(t, x)
     }
 
-    // The edge of an unlocked segment of row t nearest to x, within edgeReach.
+    // The edge of an unlocked segment of row t nearest to x, within edgeReach; on a tie (two
+    // segments touch) the edge of the segment x is in.
     function _edgeAt(t, x) {
         let found = null
         let nearest = edgeReach
@@ -186,10 +188,11 @@ FocusScope {
                 continue
             }
 
+            const inside = x >= xAt(segs[i].from) && x <= xAt(segs[i].to)
             const edges = [[edgeFrom, segs[i].from], [edgeTo, segs[i].to]]
             for (const [edge, seconds] of edges) {
                 const distance = Math.abs(xAt(seconds) - x)
-                if (distance <= nearest) {
+                if (distance < nearest || (distance === nearest && (found === null || inside))) {
                     nearest = distance
                     found = { track: t, index: i, edge: edge, seconds: seconds }
                 }
