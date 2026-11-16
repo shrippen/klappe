@@ -26,6 +26,24 @@ pub fn from_path(path: &Path) -> String {
     url
 }
 
+/// `path` with `extension` (no dot) appended when its name does not end in it, in any case:
+/// the dialog hands over what was typed, `plan` for a PDF (`plan` → `plan.pdf`, `Plan.PDF`
+/// stays).
+pub fn with_extension(path: PathBuf, extension: &str) -> PathBuf {
+    let has = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case(extension));
+    if has {
+        return path;
+    }
+
+    let mut name = path.into_os_string();
+    name.push(".");
+    name.push(extension);
+
+    PathBuf::from(name)
+}
+
 /// `file://` URL or plain path as the file dialog hands it over, as a path. Percent-escapes
 /// in a URL are decoded.
 pub fn to_path(url: &str) -> PathBuf {
@@ -65,6 +83,16 @@ pub fn to_path(url: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_name_gets_the_extension_it_lacks() {
+        let with = |name: &str| with_extension(PathBuf::from(name), "pdf");
+
+        assert_eq!(with("/w/plan"), PathBuf::from("/w/plan.pdf"));
+        assert_eq!(with("/w/plan.v2"), PathBuf::from("/w/plan.v2.pdf"));
+        assert_eq!(with("/w/plan.pdf"), PathBuf::from("/w/plan.pdf"));
+        assert_eq!(with("/w/Plan.PDF"), PathBuf::from("/w/Plan.PDF"));
+    }
 
     #[test]
     fn a_dialog_url_becomes_a_path() {

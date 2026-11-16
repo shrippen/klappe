@@ -10,16 +10,21 @@ use klappe_services::{PaperSetup, ServiceError, Session, ShotOrder, Source, Text
 
 impl qobject::Controller {
     /// Writes the plan to `path` (a `file://` URL or a path) with `write`; says where it went
-    /// (`saved` is the catalogue key of the message) or what failed.
+    /// (`saved` is the catalogue key of the message) or what failed. A file name without
+    /// `extension` gets it; a folder has none.
     fn export_plan(
         mut self: Pin<&mut Self>,
         path: &QString,
+        extension: Option<&str>,
         saved: &str,
         write: impl FnOnce(&mut Session, &std::path::Path, Texts) -> Result<(), ServiceError>,
     ) -> bool {
         let language = self.rust().language;
         let texts = language.print_texts();
-        let path = fileurl::to_path(&path.to_string());
+        let mut path = fileurl::to_path(&path.to_string());
+        if let Some(extension) = extension {
+            path = fileurl::with_extension(path, extension);
+        }
         let Some(s) = self.as_mut().session() else {
             return false;
         };
@@ -70,28 +75,28 @@ impl qobject::Controller {
         path: &QString,
     ) -> bool {
         match kind {
-            "pdf" => self.export_plan(path, "menu.pdfSaved", |s, path, texts| {
+            "pdf" => self.export_plan(path, Some("pdf"), "menu.pdfSaved", |s, path, texts| {
                 s.export_pdf(path, paper, texts, order)
             }),
-            "png" => self.export_plan(path, "menu.pngSaved", |s, path, texts| {
+            "png" => self.export_plan(path, Some("png"), "menu.pngSaved", |s, path, texts| {
                 s.export_png(path, paper, texts)
             }),
-            "svg" => self.export_plan(path, "menu.svgSaved", |s, path, texts| {
+            "svg" => self.export_plan(path, Some("svg"), "menu.svgSaved", |s, path, texts| {
                 s.export_svg(path, paper, texts)
             }),
-            "csv" => self.export_plan(path, "menu.csvSaved", |s, path, texts| {
+            "csv" => self.export_plan(path, Some("csv"), "menu.csvSaved", |s, path, texts| {
                 s.export_csv(path, &texts, order)
             }),
-            "ods" => self.export_plan(path, "menu.odsSaved", |s, path, texts| {
+            "ods" => self.export_plan(path, Some("ods"), "menu.odsSaved", |s, path, texts| {
                 s.export_ods(path, &texts, order)
             }),
-            "xlsx" => self.export_plan(path, "menu.xlsxSaved", |s, path, texts| {
+            "xlsx" => self.export_plan(path, Some("xlsx"), "menu.xlsxSaved", |s, path, texts| {
                 s.export_xlsx(path, &texts, order)
             }),
             VIEW3D => {
                 let shown = self.rust().free_shown();
 
-                self.export_plan(path, "menu.view3dSaved", move |s, path, _| {
+                self.export_plan(path, Some("png"), "menu.view3dSaved", move |s, path, _| {
                     s.export_view_png(path, shown)
                 })
             }
@@ -101,11 +106,11 @@ impl qobject::Controller {
                     _ => None,
                 };
 
-                self.export_plan(path, "menu.cameraSaved", move |s, path, _| {
+                self.export_plan(path, Some("png"), "menu.cameraSaved", move |s, path, _| {
                     s.export_camera_png(path, picked.as_deref())
                 })
             }
-            FRAMES => self.export_plan(path, "menu.framesSaved", |s, dir, texts| {
+            FRAMES => self.export_plan(path, None, "menu.framesSaved", |s, dir, texts| {
                 s.export_frames(dir, paper, &texts).map(|_| ())
             }),
             other => {

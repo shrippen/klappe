@@ -114,7 +114,7 @@ impl qobject::Controller {
     pub(super) fn export_library(mut self: Pin<&mut Self>, path: &QString, kind: &QString) -> bool {
         let language = self.rust().language;
         let kind = Passed::of(&kind.to_string());
-        let path = fileurl::to_path(&path.to_string());
+        let path = fileurl::with_extension(fileurl::to_path(&path.to_string()), "toml");
         let Some(s) = self.as_mut().session() else {
             return false;
         };
