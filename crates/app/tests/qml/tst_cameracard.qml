@@ -14,13 +14,15 @@ TestCase {
     QtObject {
         id: fake
         property string planJson: "{}"
+        property int pictureRevision: 0
         property string selectedKey: ""
         property bool fieldOk: true
         // A field the controller refuses without an edit, as it does a text that is no number.
         property string refused: ""
         property var sets: []
         // The sensor the camera has; a set sensor comes back from `describe` as a number.
-        property real sensor: 24.89
+        // Like the bridge's `describe`: reading it tells QML of no change.
+        property var cam: ({ sensor: 24.89 })
         property string choicesJson: JSON.stringify({
             camera: {
                 bodies: [
@@ -39,7 +41,7 @@ TestCase {
             const lens = { "camera:a": 35, "camera:b": 50, "camera:c": 200 }[key]
             return JSON.stringify({
                 kind: "camera", label: key.substring(7).toUpperCase(), lens: lens, ownLens: lens,
-                sensor: sensor, aspect: 2.39, body: "super35", fov: 39.6, height: 1.6, shots: "",
+                sensor: cam.sensor, aspect: 2.39, body: "super35", fov: 39.6, height: 1.6, shots: "",
             })
         }
         function setCameraField(field, value) {
@@ -49,10 +51,11 @@ TestCase {
             }
             const mm = Number(String(value).replace(",", "."))
             if (fieldOk && field === "sensor" && mm > 0) {
-                sensor = mm
+                cam.sensor = mm
             }
-            // Like the bridge: every edit gives a new plan, so the card reads the camera again.
-            planJson = JSON.stringify({ edits: sets.length })
+            // Like the bridge: every edit raises the picture revision, so the card reads the
+            // camera again; the plan may stay as it was previewed.
+            pictureRevision++
             return fieldOk
         }
     }
@@ -73,7 +76,8 @@ TestCase {
         fake.planJson = "{}"
         fake.sets = []
         fake.fieldOk = true
-        fake.sensor = 24.89
+        fake.cam = { sensor: 24.89 }
+        fake.pictureRevision = 0
         fake.refused = ""
     }
 
@@ -232,6 +236,20 @@ TestCase {
         findChild(card, "cameraApply").clicked()
 
         compare(fake.sets, [["sensor", "30.123"]])
+        compare(findChild(card, "cameraSensorField").text, "30,12")
+    }
+
+    // A drag shows its preview through the plan, and the edit at its end gives the same plan:
+    // the card reads the camera again on the picture revision, which every edit raises.
+    function test_the_card_follows_an_edit_that_leaves_the_plan_as_previewed() {
+        const card = shown("camera:a")
+        card.expanded = true
+        fake.planJson = JSON.stringify({ preview: 1 })
+
+        fake.cam.sensor = 36
+        fake.pictureRevision++
+
+        compare(findChild(card, "cameraSensorField").text, "36")
     }
 
     // Review of PR 33: a later field of the same Apply refreshed the plan and wiped the

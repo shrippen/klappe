@@ -15,7 +15,10 @@ TestCase {
     QtObject {
         id: fake
         property string planJson: "{}"
+        property int pictureRevision: 0
         property string selectedKey: ""
+        // Like the bridge's `describe`: reading it tells QML of no change.
+        property var door: ({ width: 0.9 })
         property var widths: []
         property bool widthOk: true
         property var heights: []
@@ -23,7 +26,7 @@ TestCase {
 
         function describe(key) {
             if (key === "opening:2:0") {
-                return JSON.stringify({ kind: "opening", type: "door", width: 0.9, sill: 0, head: 2.1, sillDefault: true, headDefault: true, side: "left", hinge: "end" })
+                return JSON.stringify({ kind: "opening", type: "door", width: door.width, sill: 0, head: 2.1, sillDefault: true, headDefault: true, side: "left", hinge: "end" })
             }
             if (key === "opening:0:1") {
                 return JSON.stringify({ kind: "opening", type: "window", width: 1.2, sill: 0.9, head: 2.4, sillDefault: true, headDefault: false, side: "right", hinge: "start" })
@@ -52,6 +55,8 @@ TestCase {
 
     function init() {
         fake.selectedKey = ""
+        fake.door = { width: 0.9 }
+        fake.pictureRevision = 0
         fake.widths = []
         fake.widthOk = true
         fake.heights = []
@@ -82,6 +87,19 @@ TestCase {
 
         fake.selectedKey = ""
         verify(!card.visible)
+    }
+
+    // A drag shows its preview through the plan, and the edit at its end gives the same plan:
+    // the card reads the opening again on the picture revision, which every edit raises.
+    function test_the_card_follows_an_edit_that_leaves_the_plan_as_previewed() {
+        const card = make()
+        fake.selectedKey = "opening:2:0"
+        fake.planJson = JSON.stringify({ preview: 1 })
+
+        fake.door.width = 1.25
+        fake.pictureRevision++
+
+        compare(findChild(card, "openingWidthField").text, "1,25")
     }
 
     function test_enter_gives_the_width_to_the_controller() {

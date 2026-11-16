@@ -14,7 +14,10 @@ TestCase {
     QtObject {
         id: fake
         property string planJson: "{}"
+        property int pictureRevision: 0
         property string selectedKey: ""
+        // Like the bridge's `describe`: reading it tells QML of no change.
+        property var look: ({ color: "green" })
         property var styles: []
         property string closed: "false"
         property string choicesJson: JSON.stringify({
@@ -25,7 +28,7 @@ TestCase {
 
         function describe(key) {
             const closedShape = key.indexOf("d2") >= 0
-            return JSON.stringify({ kind: "drawing", color: "green", dash: "dashed", fill: "outline", closed: closedShape })
+            return JSON.stringify({ kind: "drawing", color: look.color, dash: "dashed", fill: "outline", closed: closedShape })
         }
         function setDrawingStyle(color, dash, fill) {
             styles.push([color, dash, fill])
@@ -46,6 +49,8 @@ TestCase {
     function init() {
         fake.selectedKey = ""
         fake.styles = []
+        fake.look = { color: "green" }
+        fake.pictureRevision = 0
     }
 
     function shown(key) {
@@ -74,6 +79,18 @@ TestCase {
         compare(findChild(card, "drawingColor").currentIndex, 3)
         compare(findChild(card, "drawingDash").currentValue, "dashed")
         compare(findChild(card, "drawingFill").currentValue, "outline")
+    }
+
+    // A drag shows its preview through the plan, and the edit at its end gives the same plan:
+    // the card reads the drawing again on the picture revision, which every edit raises.
+    function test_the_card_follows_an_edit_that_leaves_the_plan_as_previewed() {
+        const card = shown("drawing:d1")
+        fake.planJson = JSON.stringify({ preview: 1 })
+
+        fake.look.color = "blue"
+        fake.pictureRevision++
+
+        compare(findChild(card, "drawingColor").currentIndex, 5)
     }
 
     function test_the_fill_shows_for_a_shape_with_an_inside() {

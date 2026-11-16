@@ -15,6 +15,7 @@ TestCase {
     QtObject {
         id: fake
         property string planJson: ""
+        property int pictureRevision: 0
         property string selectedKey: ""
         property string choicesJson: JSON.stringify({
             pose: ["standing", "sitting", "lying"],
@@ -85,6 +86,7 @@ TestCase {
 
     function init() {
         fake.info = {}
+        fake.pictureRevision = 0
         fake.selectedKey = ""
         fake.poses = []
         fake.holds = []
@@ -115,6 +117,19 @@ TestCase {
         const card = createTemporaryObject(cardComponent, tc)
 
         verify(!card.visible)
+    }
+
+    // A drag shows its preview through the plan, and the edit at its end gives the same plan:
+    // the card reads the mark again on the picture revision, which every edit raises. `info`
+    // is changed in place, which tells QML of no change, like the bridge's `markInfo`.
+    function test_the_card_follows_an_edit_that_leaves_the_mark_as_previewed() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+
+        fake.info.hold = 4
+        fake.pictureRevision++
+
+        compare(findChild(card, "holdField").text, "4")
     }
 
     function test_a_figure_mark_shows_pose_pause_and_pace() {
