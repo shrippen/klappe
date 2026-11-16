@@ -27,8 +27,8 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     is_figure_size_m, is_floor_offset_m, is_object_height_m, is_outline, Character, Location,
-    ObjectShape, Opening, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M,
-    MIN_GROUP,
+    ObjectShape, Opening, PaperSetup, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
+    MIN_FIGURE_M, MIN_GROUP,
 };
 use serde::{Deserialize, Serialize};
 
@@ -78,6 +78,13 @@ pub struct Loaded {
 struct Header {
     format_version: u32,
     title: String,
+    /// Left out while it is the default, so older projects save unchanged.
+    #[serde(default, skip_serializing_if = "is_default_paper")]
+    paper: PaperSetup,
+}
+
+fn is_default_paper(paper: &PaperSetup) -> bool {
+    *paper == PaperSetup::default()
 }
 
 /// Only the version of `projekt.toml`: read first, so a newer file reports its version even
@@ -133,6 +140,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     Ok(Loaded {
         project: Project {
             title: header.title,
+            paper: header.paper,
             characters: characters.figur,
             locations,
             scenes,
@@ -158,6 +166,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     let header = Header {
         format_version: FORMAT_VERSION,
         title: project.title.clone(),
+        paper: project.paper,
     };
     let path = dir.join(PROJECT_FILE);
     writes.push((path.clone(), files::encode_toml(&path, &header)?));

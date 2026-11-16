@@ -264,6 +264,9 @@ RowLayout {
         texts: header.texts
         controller: header.controller
         order: header.shotOrder
+        papers: header.project.papers || []
+        orientations: header.project.orientations || []
+        projectPaper: header.project.paper || ""
     }
     CommandAction {
         id: actPng

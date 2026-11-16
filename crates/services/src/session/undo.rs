@@ -130,7 +130,10 @@ impl Session {
 
     /// Makes `step` the state and returns the one it replaces, for the other stack.
     fn swap(&mut self, step: Snapshot) -> Snapshot {
+        // The export paper is a setting, not an edit: undo and redo keep the current one.
+        let paper = self.project.paper;
         let project = std::mem::replace(&mut self.project, step.project);
+        self.project.paper = paper;
         let script = step.script.map(|text| {
             let now = self.script_text().to_owned();
             self.set_script_text(&text);

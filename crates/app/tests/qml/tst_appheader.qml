@@ -274,9 +274,9 @@ TestCase {
         dialog.kind = "frames"
         dialog.save("file:///work/Wartburg")
 
-        compare(fake.calls, [["exportTo", "ods", "cut", "a4", "file:///work/Liste.ods"],
-                             ["exportTo", "xlsx", "cut", "a4", "file:///work/Liste.xlsx"],
-                             ["exportTo", "frames", "cut", "a4", "file:///work/Wartburg"]])
+        compare(fake.calls, [["exportTo", "ods", "cut", "a4-landscape", "file:///work/Liste.ods"],
+                             ["exportTo", "xlsx", "cut", "a4-landscape", "file:///work/Liste.xlsx"],
+                             ["exportTo", "frames", "cut", "a4-landscape", "file:///work/Wartburg"]])
     }
 
     function test_the_exports_use_the_shot_order() {
@@ -290,9 +290,9 @@ TestCase {
         dialog.kind = "csv"
         dialog.save("file:///work/b.csv")
 
-        compare(fake.calls, [["exportTo", "pdf", "cut", "a4", "file:///work/a.pdf"],
-                             ["exportTo", "pdf", "shooting", "a4", "file:///work/b.pdf"],
-                             ["exportTo", "csv", "shooting", "a4", "file:///work/b.csv"]])
+        compare(fake.calls, [["exportTo", "pdf", "cut", "a4-landscape", "file:///work/a.pdf"],
+                             ["exportTo", "pdf", "shooting", "a4-landscape", "file:///work/b.pdf"],
+                             ["exportTo", "csv", "shooting", "a4-landscape", "file:///work/b.csv"]])
     }
 
     function test_ctrl_p_is_the_key_of_the_pdf_export() {

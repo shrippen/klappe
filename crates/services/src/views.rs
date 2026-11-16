@@ -287,6 +287,19 @@ pub struct Overview {
     pub plans: Vec<PlanRow>,
     /// Id of the plan shown; empty without one.
     pub plan: String,
+    /// The project's export sheet as `a4-portrait`.
+    pub paper: String,
+    /// The sizes an export offers.
+    pub papers: Vec<PaperRow>,
+    /// The ways a sheet can lie, as `portrait` and `landscape`; the surface names them.
+    pub orientations: Vec<&'static str>,
+}
+
+/// One paper size of the export dialog: `id` is `a4`, `label` what the dialog shows.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PaperRow {
+    pub id: &'static str,
+    pub label: &'static str,
 }
 
 /// What a tooltip over an element of the plan says; the surface puts it into words.

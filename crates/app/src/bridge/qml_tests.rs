@@ -18,12 +18,22 @@ fn scenarios() -> Vec<PathBuf> {
     found
 }
 
+/// Letter portrait is 612 by 792 pt; the shot list's sheets stay landscape.
+const LETTER_PORTRAIT_MEDIA_BOX: &str = "/MediaBox [0 0 612 792]";
+
 /// ODS and XLSX are ZIP files; the frames folder holds one PNG per mark of the example.
 fn check_list_exports(base: &Path) {
     for name in ["Liste.ods", "Liste.xlsx"] {
         let bytes = std::fs::read(base.join(name)).unwrap();
         assert!(bytes.starts_with(b"PK"), "{name} is no ZIP");
     }
+
+    let upright =
+        String::from_utf8_lossy(&std::fs::read(base.join("Hoch.pdf")).unwrap()).into_owned();
+    assert!(
+        upright.contains(LETTER_PORTRAIT_MEDIA_BOX),
+        "no portrait page"
+    );
 
     let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
     let marks = klappe_services::Session::open(&example).unwrap().marks_s();

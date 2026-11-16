@@ -12,7 +12,7 @@ Stand: 2026-11-14.
 | Projektordner lesen und schreiben | fertig (#3) |
 | Export SVG und PDF aus der Darstellungsliste | fertig (#4) |
 | Floorplan als PNG (eigener Rasterer, Liberation Sans) und SVG (LH-81): App-Knöpfe und `klappe-cli export` | fertig |
-| Ausgabe in der App (LH-80, LH-81): Menü „Ausgeben“ fragt bei PDF, PNG und SVG nach dem Papierformat (A4, A3) und bei allen vier nach Datei und Ort (Qt-Dateidialog, Vorschlag: Planname im Ordner der letzten Ausgabe); Format und Ordner gelten für die Sitzung; Abbruch schreibt nichts; Strg+P gibt PDF aus | erste Fassung; offen: Hoch- und Querformat wählen (immer quer), Letter, Papierformat im Projekt merken |
+| Ausgabe in der App (LH-80, LH-81): Menü „Ausgeben“ fragt bei PDF, PNG und SVG nach Papierformat (A4, A3, Letter) und Hoch- oder Querformat und bei allen vier nach Datei und Ort (Qt-Dateidialog, Vorschlag: Planname im Ordner der letzten Ausgabe); das Papier steht im Projekt (`paper` in `projekt.toml`, kein Rückgängig-Schritt) und ist beim nächsten Ausgeben vorgewählt, der Ordner gilt für die Sitzung; Abbruch schreibt nichts; Strg+P gibt PDF aus; `klappe-cli export --paper --orientation`; die Shotliste im PDF bleibt quer | fertig |
 | Shotliste als ODS und XLSX (LH-85, eigener ZIP-Schreiber, keine Abhängigkeit) und Plan je Mark als PNG-Ordner (LH-83): `Session::export_ods/xlsx/frames`, `klappe-cli export --format ods\|xlsx\|frames` | fertig: Kern, CLI und Menü „Ausgeben“ (Paletteneinträge, Ordnerwahl für die Bildfolge) |
 | Sitzung (`services`): Szene, Zeit, Shot bearbeiten, Rückgängig, Ansichten | fertig (#5) |
 | TUI-Editor (`klappe-tui`), schreibt nur das Drehbuch | fertig (#6, #8) |
