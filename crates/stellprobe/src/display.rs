@@ -292,7 +292,7 @@ pub fn render(
     axis_items(plan, t_s, reach_m, &mut items);
     camera_items(plan, t_s, reach_m, &mut items);
     figure_items(project, plan, t_s, &mut items);
-    note_items(set, &mut items);
+    note_items(set, plan, &mut items);
 
     DisplayList {
         items,
@@ -445,9 +445,10 @@ fn ellipse_corners(a: Point, b: Point) -> Vec<Point> {
         .collect()
 }
 
-/// Notes lie on top of everything, so a figure never hides one.
-fn note_items(set: &SetPlan, items: &mut Vec<Item>) {
-    for note in &set.notes {
+/// Notes lie on top of everything, so a figure never hides one. The plan's labels of figures
+/// and marks (LH-118) are drawn as notes are.
+fn note_items(set: &SetPlan, plan: &FloorPlan, items: &mut Vec<Item>) {
+    for note in set.notes.iter().chain(&plan.labels) {
         let (points, wrapped) = note_card(note.at, note.width_m, &note.text);
         items.push(Item {
             role: Role::Note,

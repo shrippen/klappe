@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use klappe_model::Project;
+use klappe_model::{Note, Point, Project};
 use klappe_store::{load, save};
 
 const EXAMPLE: &str = concat!(
@@ -81,5 +81,28 @@ fn bound_is_written_only_for_a_bound_note() {
         1,
         "{text}"
     );
+    assert_eq!(load(&dir).unwrap().project, project);
+}
+
+/// A plan's `labels` are written only when it has some, and read back (LH-118).
+#[test]
+fn plan_labels_are_written_only_when_given() {
+    let dir = test_dir("labels");
+    let mut project = example();
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    assert!(!text.contains("labels"), "{text}");
+
+    project.scenes[0].plans[0].labels.push(Note {
+        id: "t1".into(),
+        at: Point::new(4.0, 5.0),
+        text: "Auftritt".into(),
+        width_m: 2.4,
+        bound: Some("figure:elisabeth".into()),
+    });
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+
+    assert_eq!(text.matches("\"labels\"").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }

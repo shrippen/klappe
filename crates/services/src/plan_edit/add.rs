@@ -7,6 +7,7 @@ use klappe_model::{
     Wall, FREE_FORM_KIND, NOTE_WIDTH_M,
 };
 
+use super::bound::note_mut;
 use super::marks::WALK_SPEED_M_S;
 use super::{normalize_deg, PlanEdit, Scope};
 use crate::error::ServiceError;
@@ -371,11 +372,7 @@ pub(super) fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(
 
 pub(super) fn edit_note(scope: &mut Scope<'_>, id: &str, text: &str) -> Result<(), ServiceError> {
     let text = note_text(text)?;
-    let note = scope
-        .set
-        .as_deref_mut()
-        .and_then(|s| s.notes.iter_mut().find(|n| n.id == id))
-        .ok_or(ServiceError::Gone)?;
+    let note = note_mut(scope, id).ok_or(ServiceError::Gone)?;
     note.text = text;
 
     Ok(())

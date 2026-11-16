@@ -35,7 +35,6 @@ use add::{
     edit_light, edit_note, free_id,
 };
 use background::{calibrate, move_background, remove_background, set_background};
-pub(crate) use bound::unbind_plan;
 use check::check;
 use drawings::set_drawing_style;
 pub(crate) use grid::snap;
@@ -448,8 +447,6 @@ pub(crate) fn layer_of_source(source: &Source) -> Layer {
 
 /// The parts of the project one edit works on, borrowed apart.
 struct Scope<'a> {
-    /// Id of the scene on view.
-    scene: &'a str,
     plan: &'a mut FloorPlan,
     /// `None` when the scene's location is missing.
     set: Option<&'a mut SetPlan>,
@@ -486,10 +483,7 @@ pub(crate) fn apply(
         ..
     } = project;
     let Scene {
-        id: scene_id,
-        location,
-        plans,
-        ..
+        location, plans, ..
     } = scenes
         .get_mut(scene)
         .ok_or_else(|| ServiceError::NoScene(scene.to_string()))?;
@@ -502,7 +496,6 @@ pub(crate) fn apply(
         .map(|l| &mut l.set);
 
     let mut scope = Scope {
-        scene: scene_id,
         plan,
         set,
         location,

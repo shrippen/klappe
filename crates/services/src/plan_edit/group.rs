@@ -6,6 +6,7 @@ use std::cmp::Reverse;
 use klappe_model::Point;
 use klappe_stellprobe::Source;
 
+use super::bound::note_mut;
 use super::images;
 use super::target::{target, Target};
 use super::{
@@ -303,13 +304,8 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
 /// A copy of the note `id`, set down by `by_m`. It is a free note: bound to the same element
 /// it would hang on the original.
 fn copy_note(scope: &mut Scope<'_>, id: &str, by_m: (f64, f64)) -> Result<(), ServiceError> {
+    let mut note = note_mut(scope, id).ok_or(ServiceError::Gone)?.clone();
     let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
-    let mut note = set
-        .notes
-        .iter()
-        .find(|n| n.id == id)
-        .cloned()
-        .ok_or(ServiceError::Gone)?;
 
     note.id = free_id("n", set.notes.iter().map(|n| n.id.as_str()));
     note.at = shifted(note.at, by_m);

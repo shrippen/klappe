@@ -6,9 +6,10 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_model::SetObject;
+use klappe_model::{Note, SetObject};
 use klappe_services::{
-    Field, Layer, Lock, ObjectChange, ObjectShape, PlanEdit, Point, ServiceError, Session, Source,
+    Field, Layer, Lock, ObjectChange, ObjectShape, PlanEdit, Point, ProjectEdit, ServiceError,
+    Session, ShotsGo, Source,
 };
 
 fn example() -> PathBuf {
@@ -29,16 +30,39 @@ fn object(s: &Session, id: &str) -> SetObject {
     objects.iter().find(|o| o.id == id).unwrap().clone()
 }
 
-fn note_at(s: &Session, id: &str) -> Point {
-    let notes = &s.project().locations[0].set.notes;
+/// The notes of the set and the labels of the plan on view.
+fn notes(s: &Session) -> Vec<Note> {
+    let set = &s.project().locations[0].set;
 
-    notes.iter().find(|n| n.id == id).unwrap().at
+    set.notes
+        .iter()
+        .chain(&s.plan().unwrap().labels)
+        .cloned()
+        .collect()
+}
+
+fn note_at(s: &Session, id: &str) -> Point {
+    notes(s).iter().find(|n| n.id == id).unwrap().at
 }
 
 fn bound(s: &Session, id: &str) -> Option<String> {
-    let notes = &s.project().locations[0].set.notes;
+    notes(s).iter().find(|n| n.id == id).unwrap().bound.clone()
+}
 
-    notes.iter().find(|n| n.id == id).unwrap().bound.clone()
+/// The id of the last note of the set.
+fn last_note(s: &Session) -> String {
+    s.project().locations[0]
+        .set
+        .notes
+        .last()
+        .unwrap()
+        .id
+        .clone()
+}
+
+/// The id of the last label of the plan on view.
+fn last_label(s: &Session) -> String {
+    s.plan().unwrap().labels.last().unwrap().id.clone()
 }
 
 fn obj(id: &str) -> Source {
@@ -263,13 +287,7 @@ fn a_label_follows_its_object() {
     let mut s = open();
 
     s.edit_plan(label(obj("tisch"), "  Gedeck  ")).unwrap();
-    let id = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let id = last_note(&s);
     let at = note_at(&s, &id);
 
     assert_eq!(bound(&s, &id).as_deref(), Some("object:tisch"));
@@ -291,13 +309,7 @@ fn a_label_follows_its_object() {
 fn the_note_and_its_object_in_one_group_move_once() {
     let mut s = open();
     s.edit_plan(label(obj("tisch"), "Gedeck")).unwrap();
-    let id = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let id = last_note(&s);
     let at = note_at(&s, &id);
 
     s.edit_plan(PlanEdit::Move {
@@ -324,13 +336,7 @@ fn the_note_and_its_object_in_one_group_move_once() {
 fn a_note_that_let_go_stays() {
     let mut s = open();
     s.edit_plan(label(obj("tisch"), "Gedeck")).unwrap();
-    let id = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let id = last_note(&s);
     let at = note_at(&s, &id);
 
     s.edit_plan(change(Source::Note(id.clone()), ObjectChange::Unbind))
@@ -361,25 +367,13 @@ fn labels_of_figures_and_marks_follow_them() {
 
     s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
         .unwrap();
-    let figure = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let figure = last_label(&s);
     let mark = Source::Mark {
         character: "elisabeth".into(),
         index: 2,
     };
     s.edit_plan(label(mark.clone(), "Abgang")).unwrap();
-    let last = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let last = last_label(&s);
     let (at_figure, at_mark) = (note_at(&s, &figure), note_at(&s, &last));
 
     s.edit_plan(PlanEdit::Move {
@@ -486,40 +480,32 @@ fn a_locked_notes_layer_keeps_a_bound_note_where_it_is() {
     assert_eq!(object(&s, "tisch").at, p(10.0, 6.5));
 }
 
-/// Review of PR 201: a note bound to a figure belongs to the plan it was set on; the same
-/// set in another plan neither moves it nor lets it go.
+/// A label of a figure belongs to its plan: a copy of the plan has a copy of the label, and
+/// moving the figure in the copy moves only the copy's.
 #[test]
-fn a_figure_label_ignores_edits_in_another_plan() {
+fn a_figure_label_goes_with_its_plan() {
     let mut s = open();
     s.set_time(6.0);
     s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
         .unwrap();
-    let id = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let id = last_label(&s);
     let at = note_at(&s, &id);
+    let first = s.plan().unwrap().id.clone();
     let copy = s.copy_plan("B").unwrap();
-    s.select_plan(&copy).unwrap();
 
+    assert_eq!(note_at(&s, &id), at);
     s.edit_plan(PlanEdit::Move {
         source: Source::Figure("elisabeth".into()),
         to: p(3.0, 3.0),
     })
     .unwrap();
-    s.edit_plan(PlanEdit::Remove {
-        source: Source::Mark {
-            character: "elisabeth".into(),
-            index: 0,
-        },
-    })
-    .unwrap();
+    assert_ne!(note_at(&s, &id), at);
+
+    s.select_plan(&first).unwrap();
 
     assert_eq!(note_at(&s, &id), at);
     assert!(bound(&s, &id).is_some());
+    assert_ne!(first, copy);
 }
 
 /// Review of PR 201: a copy of a bound note hangs on the original element.
@@ -527,13 +513,7 @@ fn a_figure_label_ignores_edits_in_another_plan() {
 fn a_copied_label_is_free() {
     let mut s = open();
     s.edit_plan(label(obj("tisch"), "Gedeck")).unwrap();
-    let id = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let id = last_note(&s);
 
     s.edit_plan(PlanEdit::Duplicate {
         sources: vec![Source::Note(id.clone())],
@@ -555,13 +535,7 @@ fn a_figure_label_survives_a_new_mark() {
     s.set_time(6.0);
     s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
         .unwrap();
-    let id = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let id = last_label(&s);
 
     s.edit_plan(PlanEdit::AddMark {
         character: "elisabeth".into(),
@@ -572,40 +546,32 @@ fn a_figure_label_survives_a_new_mark() {
     assert!(bound(&s, &id).is_some());
 }
 
-/// Review of PR 201: plan ids restart per scene and notes belong to the location, so a label
-/// of a figure in one scene must ignore the same figure in another scene of that location.
+/// Labels of a plan are the plan's: the same figure in another scene of the location neither
+/// moves them nor frees them, and a scene moved to another location, removed and made again
+/// under the same id leaves nothing to inherit.
 #[test]
 fn a_label_ignores_the_same_figure_in_another_scene() {
     let mut s = open();
     let first = s.scene().unwrap().id.clone();
+    let location = s.scene().unwrap().location.clone();
+    let kept = location.clone();
     s.set_time(6.0);
     s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
         .unwrap();
-    let figure = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let figure = last_label(&s);
     let mark = Source::Mark {
         character: "elisabeth".into(),
         index: 0,
     };
     s.edit_plan(label(mark, "Start")).unwrap();
-    let start = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
+    let start = last_label(&s);
     let (at_figure, at_start) = (note_at(&s, &figure), note_at(&s, &start));
+    let before = s.project().locations[0].set.notes.clone();
 
-    s.edit_project(klappe_services::ProjectEdit::AddScene {
+    s.edit_project(ProjectEdit::AddScene {
         number: "99".into(),
         heading: "INT. TEST".into(),
-        location: s.scene().unwrap().location.clone(),
+        location: location.clone(),
     })
     .unwrap();
     let second = s.project().scenes.last().unwrap().id.clone();
@@ -622,70 +588,70 @@ fn a_label_ignores_the_same_figure_in_another_scene() {
         to: p(9.0, 9.0),
     })
     .unwrap();
-    s.edit_plan(PlanEdit::Remove {
-        source: Source::Mark {
-            character: "elisabeth".into(),
-            index: 0,
-        },
-    })
-    .unwrap();
+    s.select_scene(&first).unwrap();
 
-    assert_eq!(first, "szene-012");
     assert_eq!(
         (note_at(&s, &figure), note_at(&s, &start)),
         (at_figure, at_start)
     );
     assert!(bound(&s, &figure).is_some() && bound(&s, &start).is_some());
-}
 
-/// Review of PR 201: deleting a plan frees the labels of its figures and marks.
-#[test]
-fn removing_a_plan_frees_its_labels() {
-    let mut s = open();
-    s.set_time(6.0);
-    s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
+    // The first scene moves to another location and goes; a scene of the same id comes back
+    // to the old location and its figure moves.
+    s.edit_project(ProjectEdit::AddLocation {
+        name: "Hof".into(),
+        width_m: 20.0,
+        depth_m: 10.0,
+        wall_height_m: 2.6,
+    })
+    .unwrap();
+    let hof = s.project().locations.last().unwrap().id.clone();
+    let heading = s.scene().unwrap().heading.clone();
+    let number = s.scene().unwrap().number.clone();
+    s.edit_project(ProjectEdit::EditScene {
+        id: first.clone(),
+        number: number.clone(),
+        heading: heading.clone(),
+        location: hof,
+    })
+    .unwrap();
+    s.edit_project(ProjectEdit::RemoveScene { id: first })
         .unwrap();
-    let id = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
-    let plan = s.plan().unwrap().id.clone();
-    s.add_plan("B").unwrap();
-
-    s.remove_plan(&plan, klappe_services::ShotsGo::Delete)
-        .unwrap();
-
-    assert_eq!(bound(&s, &id), None);
-}
-
-/// Deleting a scene frees the labels of its figures: a new scene with the same id must not
-/// inherit them.
-#[test]
-fn removing_a_scene_frees_its_labels() {
-    let mut s = open();
-    s.set_time(6.0);
-    s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
-        .unwrap();
-    let id = s.project().locations[0]
-        .set
-        .notes
-        .last()
-        .unwrap()
-        .id
-        .clone();
-    let scene = s.scene().unwrap().id.clone();
-    s.edit_project(klappe_services::ProjectEdit::AddScene {
-        number: "99".into(),
-        heading: "INT. TEST".into(),
-        location: s.scene().unwrap().location.clone(),
+    s.edit_project(ProjectEdit::AddScene {
+        number,
+        heading,
+        location,
+    })
+    .unwrap();
+    let again = s.project().scenes.last().unwrap().id.clone();
+    s.select_scene(&again).unwrap();
+    s.edit_plan(PlanEdit::AddMark {
+        character: "elisabeth".into(),
+        at: p(1.0, 1.0),
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Move {
+        source: Source::Figure("elisabeth".into()),
+        to: p(9.0, 9.0),
     })
     .unwrap();
 
-    s.edit_project(klappe_services::ProjectEdit::RemoveScene { id: scene })
-        .unwrap();
+    let old = s.project().locations.iter().find(|l| l.id == kept).unwrap();
+    assert_eq!(old.set.notes, before);
+}
 
-    assert_eq!(bound(&s, &id), None);
+/// Labels go with their plan: nothing is left to inherit.
+#[test]
+fn removing_a_plan_takes_its_labels() {
+    let mut s = open();
+    s.set_time(6.0);
+    s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
+        .unwrap();
+    let plan = s.plan().unwrap().id.clone();
+    s.add_plan("B").unwrap();
+
+    s.remove_plan(&plan, ShotsGo::Delete).unwrap();
+
+    let plans = s.project().scenes.iter().flat_map(|sc| &sc.plans);
+    assert_eq!(plans.map(|p| p.labels.len()).sum::<usize>(), 0);
 }

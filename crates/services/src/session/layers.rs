@@ -77,7 +77,11 @@ impl Session {
         let notes = |project: &Project| {
             let location = &project.scenes.get(self.scene)?.location;
             let set = &project.locations.iter().find(|l| l.id == *location)?.set;
-            Some(set.notes.clone())
+            let labels = project.scenes[self.scene]
+                .plans
+                .iter()
+                .map(|p| p.labels.clone());
+            Some((set.notes.clone(), labels.collect::<Vec<_>>()))
         };
         if notes(next) == notes(&self.project) {
             return Ok(());

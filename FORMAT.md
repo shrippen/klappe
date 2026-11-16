@@ -155,22 +155,24 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   schmaler lädt nicht; fehlt sie, gilt 2,4). Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
-- **Beschriftung an ein Element gebunden (LH-118):** eine Notiz (`[[set.notes]]`) hat optional
-  `bound`, den Schlüssel des Elements, dessen Beschriftung sie ist: `object:<id>` (Objekt des
-  Drehorts), `figure:<szene>:<plan>:<figur>` (die Figur am Abspielkopf im Plan `<plan>` der Szene
-  `<szene>`) oder `mark:<szene>:<plan>:<figur>:<index>` (der Mark mit diesem Index, von 0).
-  Figur und Mark gehören zu einem Plan einer Szene, weil die Notizen dem Drehort gehören, Plan-Ids
-  je Szene neu beginnen und jeder Plan eigene Spuren hat; Bearbeitungen in einem anderen Plan
-  oder einer anderen Szene lassen die Notiz stehen, das Löschen des Plans oder der Szene löst sie. Die Ids
-  sind Slugs ohne `:`. `at` bleibt der Ort des
+- **Beschriftung an ein Element gebunden (LH-118):** eine Notiz mit `bound`, dem Schlüssel
+  des Elements, dessen Beschriftung sie ist. Ein Objekt gehört dem Drehort: seine Beschriftung
+  ist eine gewöhnliche `[[set.notes]]` mit `bound = "object:<id>"`. Figur und Mark gehören dem
+  Plan: ihre Beschriftungen stehen in `labels` im Floorplan (`szenen/<id>.json`), je Eintrag
+  wie eine Notiz (`id` `t1`, `t2` …, innerhalb des Plans, `at`, `text`, `width_m`) mit `bound` =
+  `figure:<figur>` (die Figur am Abspielkopf) oder `mark:<figur>:<index>` (der Mark mit diesem
+  Index, von 0). Sie leben und sterben mit dem Plan: eine Kopie des Plans kopiert sie, das
+  Löschen des Plans oder der Szene nimmt sie mit; kein Schlüssel nennt Plan oder Szene. Sie
+  werden im Plan, in 3D und in den Ausgaben wie Notizen gezeichnet. `at` bleibt der Ort des
   Kärtchens. Die Bearbeitung verschiebt es um dieselbe Strecke wie das Element; zieht man die
   Notiz selbst, bleibt sie gebunden und das Abstandsmaß ändert sich. Fehlt das Element
-  (entfernt) oder ändert sich die Zahl der Marks der Figur (nur bei `mark:`, deren Index sonst
-  einen anderen Mark meint), wird die Bindung gelöst, die Notiz bleibt stehen. Eine Kopie der
-  Notiz (Strg+D) ist ungebunden. Bei gesperrter Ebene Notizen lehnt die Sitzung eine
-  Bearbeitung ab, die eine gebundene Notiz verschieben oder lösen würde. Ohne Bindung fehlt der
-  Schlüssel; ein unlesbarer Schlüssel bindet nichts. Ältere Projekte laden und speichern
-  unverändert, ältere Fassungen verlieren `bound` beim Speichern. Keine neue Formatversion.
+  (entfernt) oder ändert sich bei `mark:` die Zahl der Marks der Figur (der Index meint sonst
+  einen anderen Mark), wird die Bindung gelöst, die Notiz bleibt stehen. Eine Kopie (Strg+D)
+  ist ungebunden. Bei gesperrter Ebene Notizen lehnt die Sitzung eine Bearbeitung ab, die eine
+  Notiz oder Beschriftung verschieben oder lösen würde. Ohne Bindung fehlt der Schlüssel, ohne
+  Beschriftungen fehlt `labels`; ein unlesbarer Schlüssel bindet nichts. Ältere Projekte laden
+  und speichern unverändert, ältere Fassungen verlieren beides beim Speichern. Keine neue
+  Formatversion (noch kein Release).
 - **Bilder (LH-18):** `[[set.images]]` im Drehort: Fotos und Skizzen, frei auf dem Plan. Je Bild
   `id` (`i1`, `i2` …, innerhalb des Drehorts), `file` (relativ zum Projektordner, die Datei liegt
   in `bilder/`, PNG oder JPEG wie beim Hintergrund), die Mitte `at` in Metern, die Breite
