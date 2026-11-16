@@ -40,13 +40,14 @@ pub enum Reach {
 }
 
 /// What a pick selects: a grip on a drawing's point or edge stands for the drawing, which
-/// keeps its grips, its card and its keys; a grip on a way is selected itself (it is the bend
+/// keeps its grips, its card and its keys, and the width grip of a note for the note; a grip on a way is selected itself (it is the bend
 /// to straighten). A click on a point is the exception, see `click`.
 fn whole(source: Source) -> Source {
     match source {
         Source::DrawingPoint { drawing, .. } | Source::DrawingEdge { drawing, .. } => {
             Source::Drawing(drawing)
         }
+        Source::NoteWidth(note) => Source::Note(note),
         source => source,
     }
 }

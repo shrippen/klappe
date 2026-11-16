@@ -198,6 +198,18 @@ pub struct Note {
     pub id: String,
     pub at: Point,
     pub text: String,
+    /// Width of the card in metres (LH-16); the text wraps to it.
+    #[serde(default = "default_note_width_m")]
+    pub width_m: f64,
+}
+
+/// The card width of a new note, and of one a file gives none.
+pub const NOTE_WIDTH_M: f64 = 2.4;
+/// The narrowest a note's card gets.
+pub const NOTE_MIN_WIDTH_M: f64 = 0.6;
+
+fn default_note_width_m() -> f64 {
+    NOTE_WIDTH_M
 }
 
 /// An image behind the plan, scaled so that its pixels measure what they do on site. The

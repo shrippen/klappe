@@ -78,7 +78,10 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
             set.notes.remove(index);
             Ok(())
         }
-        Source::DrawingPoint { .. } | Source::DrawingEdge { .. } => remove_grip(scope, source),
+        // Like the grip that makes a point: no element of its own, nothing to remove.
+        Source::DrawingPoint { .. } | Source::DrawingEdge { .. } | Source::NoteWidth(_) => {
+            remove_grip(scope, source)
+        }
         Source::Drawing(id) => {
             let index = scope.plan.drawings.iter().position(|d| d.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;

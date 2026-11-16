@@ -126,7 +126,7 @@ pub(super) fn layer_of(role: Role) -> Layer {
         Role::Camera | Role::Frustum | Role::CameraPath { .. } | Role::CameraHandle => {
             Layer::Cameras
         }
-        Role::Note => Layer::Notes,
+        Role::Note | Role::NoteHandle => Layer::Notes,
         Role::Drawing { .. } | Role::ArrowHead(_) | Role::DrawingHandle => Layer::Drawings,
         Role::Axis
         | Role::Figure(_)

@@ -51,7 +51,7 @@ pub use plan::{
 pub use project::{
     is_figure_size_m, Background, Character, DoorSide, FigureColor, Hinge, Location, Note, Opening,
     OpeningKind, Project, Scene, SetObject, SetPlan, Wall, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M,
-    MIN_GROUP,
+    MIN_GROUP, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
 pub use template::{Template, TemplateFigure};

@@ -1,7 +1,9 @@
 //! The grips that make a point on an edge of an area (LH-19).
 #![allow(clippy::unwrap_used)]
 
-use klappe_model::{Dash, Drawing, DrawingShape, FigureColor, Fill, FloorPlan, Point, Project};
+use klappe_model::{
+    Dash, Drawing, DrawingShape, FigureColor, Fill, FloorPlan, Point, Project, SetPlan,
+};
 use klappe_stellprobe::{handles, Item, Role, Shape, Source};
 
 fn plan() -> FloorPlan {
@@ -35,7 +37,12 @@ fn plan() -> FloorPlan {
 }
 
 fn grips(selected: &Source) -> Vec<Item> {
-    handles(&Project::new("Test"), &plan(), selected)
+    handles(
+        &Project::new("Test"),
+        &SetPlan::default(),
+        &plan(),
+        selected,
+    )
 }
 
 fn edges(items: &[Item]) -> Vec<(Source, Point)> {

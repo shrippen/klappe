@@ -73,6 +73,7 @@ fn assert_note_text_inside_card(width_m: f64, depth_m: f64) {
             id: "n".into(),
             at: Point::new(4.0, 3.0),
             text: "Der Vorhang wird erst nach dem dritten Gong geschlossen".into(),
+            width_m: 2.4,
         }],
         ..Default::default()
     };

@@ -4,7 +4,7 @@
 use klappe_model::{
     is_outline, outline_box, Arrival, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape,
     FigureColor, FigureTrack, Fill, Light, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject,
-    Wall, FREE_FORM_KIND,
+    Wall, FREE_FORM_KIND, NOTE_WIDTH_M,
 };
 
 use super::marks::WALK_SPEED_M_S;
@@ -356,7 +356,12 @@ pub(super) fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
     let id = free_id("n", set.notes.iter().map(|n| n.id.as_str()));
 
-    set.notes.push(Note { id, at, text });
+    set.notes.push(Note {
+        id,
+        at,
+        text,
+        width_m: NOTE_WIDTH_M,
+    });
 
     Ok(())
 }

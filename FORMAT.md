@@ -127,7 +127,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `tripod` an einem anderen Ort als der vorige lässt die Bearbeitung nicht zu; eine Datei mit
   einem solchen Mark lädt, der Ort gilt. Keine neue Formatversion, wie bei den Notizen.
 - **Notizen (LH-16):** `[[set.notes]]` im Drehort: `id` (`n1`, `n2` …, innerhalb des Drehorts),
-  Ort `at` in Metern und `text`. Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
+  Ort `at` in Metern, `text` und die Breite `width_m` des Kärtchens in Metern (mindestens 0,6;
+  fehlt sie, gilt 2,4). Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
 - **Türen und Fenster in Wänden (LH-10):** jede `[[set.walls]]` kann `[[set.walls.openings]]`
