@@ -342,7 +342,7 @@ fn frame_name(scene: &str, nr: usize, count: usize, at_s: f64) -> String {
 }
 
 /// A failed write names `path`, the file the user chose, not the temp file beside it.
-fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
+pub(super) fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
     klappe_store::write_atomic(path, &bytes).map_err(|e| match e {
         klappe_store::StoreError::Io { source, .. } => ServiceError::Write {
             path: path.to_owned(),

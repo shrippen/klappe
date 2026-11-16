@@ -20,6 +20,7 @@ mod pick;
 mod playback;
 mod retime;
 mod scene;
+mod script_pages;
 mod shots;
 mod templates;
 mod timeline;
@@ -167,6 +168,8 @@ pub struct Session {
     /// The 3D view's wall cut (LH-98) and the camera it looks through (LH-99), if any.
     cut: Cut,
     through: Option<Through>,
+    /// The screenplay as last laid out on pages (DN-02); only `paginate` changes it.
+    layout: Option<crate::script_pages::Layout>,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends

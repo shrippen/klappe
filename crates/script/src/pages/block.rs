@@ -52,6 +52,8 @@ struct Part {
     base: usize,
     cut: Cut,
     number: Option<String>,
+    /// Not in the script: the name repeated with `(CONT'D)`.
+    added: bool,
 }
 
 impl Part {
@@ -66,6 +68,7 @@ impl Part {
             base: 0,
             cut: Cut::Whole,
             number: None,
+            added: false,
         }
     }
 
@@ -110,6 +113,7 @@ impl Part {
             element: self.element,
             offset: self.base + offset,
             number: None,
+            added: self.added,
         }
     }
 
@@ -309,6 +313,7 @@ fn continued(cue: &Part, words: Words) -> Part {
     Part {
         text,
         number: None,
+        added: true,
         ..cue.clone()
     }
 }

@@ -136,6 +136,7 @@ impl Flow<'_> {
                 element,
                 offset: 0,
                 number: None,
+                added: true,
             }]);
         }
 

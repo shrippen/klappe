@@ -122,6 +122,8 @@ pub struct Line {
     pub offset: usize,
     /// On the first line of a scene heading: its number, if the script has one.
     pub number: Option<String>,
+    /// Text that is not in the script: `(MORE)` and the name repeated on the next page.
+    pub added: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -680,6 +680,7 @@
  "export.filter.view3d": "PNG (*.png)",
  "export.filter.camera": "PNG (*.png)",
  "error.noPicture": "Es gibt kein Bild: Die 3D-Ansicht war noch nicht offen, oder die Kamera hat keine Marks.",
+ "error.noScript": "Das Projekt hat kein Drehbuch.",
  "arm.nextMark": "Nächsten Mark setzen",
  "arm.markBefore": "Mark davor setzen",
  "arm.axisTo": "Achse zu …",

@@ -297,3 +297,19 @@ fn a_block_taller_than_a_page_is_cut_at_rows() {
     let total: usize = p.pages.iter().map(|pg| pg.lines.len()).sum();
     assert_eq!(total, 1 + 1 + 1 + 12);
 }
+
+#[test]
+fn more_and_the_repeated_name_are_marked_as_added() {
+    let p = lay("a\nb\nc\nd\ne\n\nANNA\nD1.\nD2.\nD3.\nD4.\n", 10);
+    let added = |n: usize| -> Vec<String> {
+        p.pages[n]
+            .lines
+            .iter()
+            .filter(|l| l.added)
+            .map(|l| l.text.clone())
+            .collect()
+    };
+
+    assert_eq!(added(0), ["(MORE)"]);
+    assert_eq!(added(1), ["ANNA (CONT'D)"]);
+}

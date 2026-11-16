@@ -24,6 +24,7 @@ mod measure;
 mod number;
 mod plan_edit;
 mod project_edit;
+mod script_pages;
 mod script_refs;
 mod session;
 mod shot_edit;
@@ -44,6 +45,7 @@ pub use measure::measure_angle_deg;
 pub use number::{read_number, Range, Unit};
 pub use plan_edit::{Grid, MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
+pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
     Autosave, BackupState, ExportOptions, Grab, Layer, Lock, Looping, Playing, Session, Size, Step,
@@ -61,8 +63,8 @@ pub use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts, 
 pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Curve, Dash, Departure, DoorSide, DrawingShape,
     FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, ObjectShape,
-    OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, Sensor, ShotSize,
-    MIN_IMAGE_OPACITY, MIN_OBJECT_HEIGHT_M,
+    OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, ScriptLanguage, ScriptPaper,
+    ScriptSetup, Sensor, ShotSize, MIN_IMAGE_OPACITY, MIN_OBJECT_HEIGHT_M,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, scene_look, Area, Bend, Cut, DisplayList, Frame, Hue, Item,
