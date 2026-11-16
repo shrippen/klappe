@@ -12,9 +12,9 @@ use klappe_model::{FloorPlan, Point, Project, SetPlan};
 use klappe_raster::{rasterize, Corner, Frame, Paint, Triangle, NO_SOURCE};
 
 use crate::display::Source;
-use crate::eye::{clip_near, Eye, Pinhole, Vec3, NEAR_M};
+use crate::eye::{clip, clip_near, Eye, Pinhole, Vec3, FRAME_WIDTH, NEAR_M};
 use crate::forms::Forms;
-use crate::scene::{scene, Cut, Solid};
+use crate::scene::{scene, Cut, SceneRole, Solid};
 use crate::triangulate::triangulate;
 
 /// Light falls from this direction (above, from the plan's top left), so tops are lighter
@@ -56,10 +56,7 @@ pub fn picture(
     cut: Cut,
 ) -> Option<Picture> {
     let pinhole = Pinhole::of(eye, plan)?;
-    let looking = match eye {
-        Eye::Shot { camera, .. } => Some(camera.as_str()),
-        Eye::Orbit { .. } => None,
-    };
+    let looking = looking(eye);
     let scale = width_px as f64;
     let height_px = (pinhole.frame_height * scale).round() as usize;
     if width_px == 0 || height_px == 0 {
@@ -104,6 +101,104 @@ pub fn picture(
         sources,
         labels,
     })
+}
+
+/// The camera `eye` looks through, which its own picture leaves out.
+fn looking(eye: &Eye) -> Option<&str> {
+    match eye {
+        Eye::Shot { camera, .. } => Some(camera.as_str()),
+        Eye::Orbit { .. } => None,
+    }
+}
+
+/// A flat face of a vector view: a polygon of the picture plane with its role and shade.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VectorFace {
+    pub role: SceneRole,
+    /// How much light the face gets, 0 dark to 255 full (as the raster's shade).
+    pub shade: u8,
+    /// Corners in the picture plane: x from 0 to 1 (the width), y down from 0 to `height`.
+    pub corners: Vec<[f64; 2]>,
+}
+
+/// What a view shows as polygons for print (3D-KONZEPT.md, section 5.4).
+#[derive(Debug, Clone, PartialEq)]
+pub struct VectorView {
+    /// The picture's width is 1; this is its height.
+    pub height: f64,
+    /// Far to near: drawn in this order, a nearer face covers a farther one.
+    pub faces: Vec<VectorFace>,
+}
+
+/// What `eye` sees as faces sorted far to near, each cut at the near plane and at the
+/// picture's border, the walls never cut down. Faces are sorted, not bodies, so a wall split
+/// at an opening is placed piece by piece; where bodies pass through one another the order can
+/// be wrong in places. `None` when the eye sees nothing.
+pub fn vector_view(
+    project: &Project,
+    set: &SetPlan,
+    plan: &FloorPlan,
+    forms: &Forms,
+    eye: &Eye,
+) -> Option<VectorView> {
+    let pinhole = Pinhole::of(eye, plan)?;
+    let height = pinhole.frame_height;
+    let cut = Cut::Off;
+    let solids = scene(project, set, plan, forms, eye.t_s(), looking(eye), cut);
+
+    // Each face with its farthest depth, the key of the sort.
+    let mut faces: Vec<(f64, VectorFace)> = Vec::new();
+    for solid in &solids {
+        for f in &solid.faces {
+            let local: Vec<Vec3> = f.corners.iter().map(|c| pinhole.local(*c)).collect();
+            let near = clip_near(&local);
+            let far_m = near.iter().map(|p| p[2]).fold(f64::MIN, f64::max);
+            let corners = in_picture(near.iter().map(|p| pinhole.image(*p)), height);
+            if corners.len() < 3 {
+                continue;
+            }
+
+            let (role, shade) = (solid.role, shade(&f.corners));
+            faces.push((
+                far_m,
+                VectorFace {
+                    role,
+                    shade,
+                    corners,
+                },
+            ));
+        }
+    }
+
+    // The floor lies under everything, whatever its far edge says.
+    let not_floor = |face: &VectorFace| face.role != SceneRole::Floor;
+    faces.sort_by(|(a_m, a), (b_m, b)| not_floor(a).cmp(&not_floor(b)).then(b_m.total_cmp(a_m)));
+
+    Some(VectorView {
+        height,
+        faces: faces.into_iter().map(|(_, face)| face).collect(),
+    })
+}
+
+/// The part of `polygon` inside the picture, 1 wide and `height` high.
+fn in_picture(polygon: impl Iterator<Item = [f64; 2]>, height: f64) -> Vec<[f64; 2]> {
+    // Where the edge a-b crosses the line `axis` = `at`.
+    let cut = |axis: usize, at: f64| {
+        move |a: &[f64; 2], b: &[f64; 2]| {
+            let t = (at - a[axis]) / (b[axis] - a[axis]);
+            let mut p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+            p[axis] = at;
+
+            p
+        }
+    };
+
+    let polygon: Vec<[f64; 2]> = polygon.collect();
+    let polygon = clip(&polygon, |p| p[0], cut(0, 0.0));
+    let polygon = clip(&polygon, |p| FRAME_WIDTH - p[0], cut(0, FRAME_WIDTH));
+    let polygon = clip(&polygon, |p| p[1], cut(1, 0.0));
+
+    clip(&polygon, |p| height - p[1], cut(1, height))
 }
 
 /// The face in pixels, cut at the near plane, as triangles (a fan if convex, else ears).

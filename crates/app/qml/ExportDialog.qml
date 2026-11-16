@@ -27,7 +27,8 @@ FormDialog {
     readonly property string paper: size + "-" + orientation
     /// The folder of the last export, as a `file://` URL; empty before the first one.
     property string folder: ""
-    /// The format being asked for: "pdf", "png", "svg", "csv", "ods", "xlsx" or "frames".
+    /// The format being asked for: "pdf", "png", "svg", "csv", "ods", "xlsx", "frames", "view3d" or
+    /// "camera" (the last two are PNGs of a view, LH-86).
     property string kind: ""
 
     readonly property var paperKinds: ["pdf", "png", "svg", "frames"]
@@ -59,7 +60,7 @@ FormDialog {
         }
         files.title = texts.t("export.pick." + kind)
         files.nameFilters = [texts.t("export.filter." + kind)]
-        files.defaultSuffix = kind
+        files.defaultSuffix = kind === "view3d" || kind === "camera" ? "png" : kind
         files.currentFile = suggestion()
         files.open()
     }

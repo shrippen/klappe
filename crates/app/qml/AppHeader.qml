@@ -48,7 +48,7 @@ RowLayout {
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actBackground, actBackgroundRemove,
-                                    actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames,
+                                    actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
                                     actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
@@ -144,6 +144,8 @@ RowLayout {
         KanteMenuItem { objectName: "ods"; action: actOds; iconRoom: true }
         KanteMenuItem { objectName: "xlsx"; action: actXlsx; iconRoom: true }
         KanteMenuItem { objectName: "frames"; action: actFrames; iconRoom: true }
+        KanteMenuItem { objectName: "view3d"; action: actView3d; iconRoom: true }
+        KanteMenuItem { objectName: "camera"; action: actCameraPng; iconRoom: true }
     }
     HeaderMenu {
         objectName: "viewMenu"
@@ -317,6 +319,23 @@ RowLayout {
         text: header.texts.t("menu.frames")
         enabled: header.controller.loaded
         onTriggered: exportDialog.request("frames")
+    }
+    // LH-86: the 3D view as it is on screen (so only in 3D), and the shot card's camera view.
+    CommandAction {
+        id: actView3d
+        cmd: "export.view3d"
+        group: "export"
+        text: header.texts.t("menu.view3d")
+        enabled: header.controller.loaded && header.controller.viewFree === true
+        onTriggered: exportDialog.request("view3d")
+    }
+    CommandAction {
+        id: actCameraPng
+        cmd: "export.camera"
+        group: "export"
+        text: header.texts.t("menu.camera")
+        enabled: header.controller.loaded
+        onTriggered: exportDialog.request("camera")
     }
 
     // Plan or 3D (J): the controller keeps which one shows.

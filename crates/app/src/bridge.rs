@@ -551,8 +551,9 @@ pub mod qobject {
         fn cancel_drag(self: Pin<&mut Self>);
 
         /// Writes an export to `path` (a `file://` URL); the result goes to `status`. `kind` is
-        /// `pdf`, `png`, `svg` or `csv`; `order` (`cut` or `shooting`) orders the shot list of
-        /// PDF and CSV; `paper` (`a4-portrait` …) is the sheet of PDF, PNG, SVG, frames.
+        /// `pdf`, `png`, `svg`, `csv`, `view3d` or `camera` (PNG of that view); `order` (`cut` or
+        /// `shooting`) orders the shot list of PDF and CSV; `paper` (`a4-portrait` …) is the sheet
+        /// of PDF, PNG, SVG, frames.
         #[qinvokable]
         #[cxx_name = "exportTo"]
         fn export_to(

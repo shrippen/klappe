@@ -5,6 +5,7 @@
 //!                  ──► height   how tall is everything? (defaults, stacking)
 //!                  ──► optics   what does a camera see?
 //!                  ──► scene    the set as bodies ──► picture  pixels through `raster`
+//!                                   └─► vector_view  the faces far to near, for print
 //!                  ──► movement what does a camera do during a shot?
 //!                  ──► axis     which shot jumps the line?
 //!                  ──► setup    which shots share camera, place and lens?
@@ -52,7 +53,8 @@ pub use motion::{
 pub use movement::movement_in;
 pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};
 pub use picture::{
-    floor_at, grab_at, level_at, lift_at, picture, source_at, Picture, PictureLabel,
+    floor_at, grab_at, level_at, lift_at, picture, source_at, vector_view, Picture, PictureLabel,
+    VectorFace, VectorView,
 };
 pub use scene::{Cut, SceneRole};
 pub use setup::{ordered_shots, shot_setups, ShotOrder, SETUP_TOLERANCE_M};

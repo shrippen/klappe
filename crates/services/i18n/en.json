@@ -633,5 +633,15 @@
  "menu.markPrev": "Previous mark",
  "menu.markNext": "Next mark",
  "palette.group.playback": "Playback",
- "key.space": "Space"
+ "key.space": "Space",
+ "shots.views": "Camera views",
+ "menu.view3d": "3D view as PNG",
+ "menu.camera": "Camera view as PNG",
+ "menu.view3dSaved": "3D view saved: {path}",
+ "menu.cameraSaved": "Camera view saved: {path}",
+ "export.pick.view3d": "Save 3D view",
+ "export.pick.camera": "Save camera view",
+ "export.filter.view3d": "PNG (*.png)",
+ "export.filter.camera": "PNG (*.png)",
+ "error.noPicture": "There is no picture: the 3D view was not open yet, or the camera has no marks."
 }

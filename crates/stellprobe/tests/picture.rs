@@ -7,7 +7,8 @@ use klappe_model::{
     FormBox, Mark, ObjectShape, Point, Pose, Project, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{
-    floor_at, grab_at, picture, source_at, Cut, Eye, Forms, Orbit, Picture, SceneRole, Source,
+    floor_at, grab_at, picture, source_at, vector_view, Cut, Eye, Forms, Orbit, Picture, SceneRole,
+    Source, VectorView,
 };
 
 const WIDTH_PX: usize = 160;
@@ -502,4 +503,68 @@ fn one_sees_under_a_table_between_its_legs() {
 
     assert_eq!(role_at(&Forms::default()), Some(SceneRole::Object));
     assert_eq!(role_at(&forms), Some(SceneRole::Floor));
+}
+
+fn vector(set: &SetPlan, plan: &FloorPlan) -> VectorView {
+    vector_view(&project(), set, plan, &Forms::default(), &shot()).expect("vector view")
+}
+
+/// The position of the first and last face of `role` in the drawing order.
+fn span(view: &VectorView, role: SceneRole) -> Option<(usize, usize)> {
+    let at: Vec<usize> = (0..view.faces.len())
+        .filter(|i| view.faces[*i].role == role)
+        .collect();
+
+    Some((*at.first()?, *at.last()?))
+}
+
+/// Print (3D-KONZEPT.md, section 5.4): the floor first, then the far wall, then the near
+/// figure, so each covers what lies behind it.
+#[test]
+fn the_vector_faces_run_from_far_to_near() {
+    let mut set = set();
+    set.walls = vec![Wall::new(Point::new(5.0, 2.0), Point::new(15.0, 2.0), 0.2)];
+    set.wall_height_m = 3.0;
+
+    let view = vector(&set, &plan(35.0, &[("e", 10.0, 7.0)]));
+    let figure = SceneRole::Figure(FigureColor::Purple);
+
+    let floor = span(&view, SceneRole::Floor).expect("floor");
+    let wall = span(&view, SceneRole::Wall).expect("wall");
+    let near = span(&view, figure).expect("figure");
+    assert_eq!(floor, (0, 0));
+    assert!(wall.1 < near.0, "wall {wall:?}, figure {near:?}");
+    assert_eq!(view.height, 9.0 / 16.0);
+}
+
+/// A wall that stands across the camera has faces behind it and faces that reach through the
+/// near plane: those are cut, the rest drawn inside the picture.
+#[test]
+fn faces_at_the_camera_are_cut_at_the_near_plane() {
+    let mut set = set();
+    set.walls = vec![Wall::new(
+        Point::new(5.0, 9.95),
+        Point::new(15.0, 9.95),
+        0.2,
+    )];
+    set.wall_height_m = 3.0;
+    let walls = |view: &VectorView| {
+        view.faces
+            .iter()
+            .filter(|f| f.role == SceneRole::Wall)
+            .count()
+    };
+    let mut ahead = set.clone();
+    ahead.walls = vec![Wall::new(Point::new(5.0, 5.0), Point::new(15.0, 5.0), 0.2)];
+
+    let view = vector(&set, &plan(35.0, &[]));
+
+    let (cut, whole) = (walls(&view), walls(&vector(&ahead, &plan(35.0, &[]))));
+    assert!(cut > 0 && cut < whole, "{cut} of {whole}");
+    for corner in view.faces.iter().flat_map(|f| &f.corners) {
+        assert!(
+            (0.0..=1.0).contains(&corner[0]) && (0.0..=view.height).contains(&corner[1]),
+            "{corner:?}"
+        );
+    }
 }

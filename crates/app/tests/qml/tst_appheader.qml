@@ -290,6 +290,37 @@ TestCase {
                              ["exportTo", "frames", "cut", "a4-landscape", "file:///work/Wartburg"]])
     }
 
+    // LH-86: the 3D view as it is on screen (so only in 3D) and the camera view, as PNG: both ask
+    // for the file only and are in the palette.
+    function test_the_view_exports_are_in_the_menu() {
+        const header = make()
+        const dialog = findChild(header, "exportDialog")
+
+        verify(!entry(header, "exportMenu", "view3d").enabled)
+        verify(entry(header, "exportMenu", "camera").enabled)
+        pick(header, "exportMenu", "camera")
+        compare(dialog.kind, "camera")
+        verify(!dialog.opened)
+
+        fake.viewFree = true
+        verify(entry(header, "exportMenu", "view3d").enabled)
+        pick(header, "exportMenu", "view3d")
+        compare(dialog.kind, "view3d")
+        verify(!dialog.opened)
+
+        for (const id of ["export.view3d", "export.camera"]) {
+            verify(header.commandPalette.commands.some(c => c.id === id), id)
+        }
+
+        dialog.kind = "view3d"
+        dialog.save("file:///work/Wartburg-3d.png")
+        dialog.kind = "camera"
+        dialog.save("file:///work/Wartburg-camera.png")
+
+        compare(fake.calls, [["exportTo", "view3d", "cut", "a4", "file:///work/Wartburg-3d.png"],
+                             ["exportTo", "camera", "cut", "a4", "file:///work/Wartburg-camera.png"]])
+    }
+
     function test_the_exports_use_the_shot_order() {
         const header = make()
         const dialog = findChild(header, "exportDialog")
@@ -725,6 +756,8 @@ TestCase {
     function test_the_texts_are_in_both_languages() {
         for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewMode", "view.free", "view.wallCut", "view.through", "view.throughHint", "height.next", "height.missingHeader", "menu.viewOrder",
                            "menu.ods", "menu.xlsx", "menu.frames", "export.pick.frames",
+                           "menu.view3d", "menu.camera", "export.pick.view3d", "export.pick.camera",
+                           "export.filter.view3d", "export.filter.camera",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
                            "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",

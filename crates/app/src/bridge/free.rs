@@ -273,6 +273,11 @@ impl qobject::Controller {
 }
 
 impl super::ControllerRust {
+    /// The size the 3D view has on screen (`freeSize`), for the PNG of it.
+    pub(super) fn free_shown(&self) -> Size {
+        self.free.size
+    }
+
     /// `free_frame` with the height drag's caption as one more name at the pointer.
     fn captioned(&self) -> String {
         let plain = || self.free_frame.clone();

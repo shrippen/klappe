@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use klappe_model::{Angle, FigureColor, LightKind, Movement, Orientation, Paper, ShotSize};
+use klappe_stellprobe::VectorView;
 
 const DEFAULT_MARGIN_MM: f64 = 10.0;
 
@@ -94,6 +95,17 @@ pub struct ShotTexts {
     pub sizes: Vec<(ShotSize, String)>,
     pub angles: Vec<(Angle, String)>,
     pub movements: Vec<(Movement, String)>,
+    /// e.g. "Kamerablicke"; follows the page title on the pages of the camera views.
+    pub views: String,
+}
+
+/// A shot's camera view at the shot's start (`klappe_stellprobe::vector_view`), for the pages
+/// of camera views in the PDF.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShotView {
+    /// The id of the shot.
+    pub shot: String,
+    pub view: VectorView,
 }
 
 /// Column heads, in the order of the table.

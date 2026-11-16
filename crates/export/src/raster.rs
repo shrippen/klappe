@@ -70,6 +70,31 @@ pub(crate) fn render(doc: &Doc) -> Result<Surface, ExportError> {
     Ok(painter.surface)
 }
 
+/// Draws `prims` over `surface`, their coordinates in pixels: the labels of a picture.
+pub(crate) fn draw_over(
+    surface: Surface,
+    paper: Rgb,
+    prims: &[Prim],
+) -> Result<Surface, ExportError> {
+    let clip = Bounds {
+        left: 0.0,
+        top: 0.0,
+        right: f64::from(surface.width),
+        bottom: f64::from(surface.height),
+    };
+    let mut painter = Painter {
+        surface,
+        scale: 1.0,
+        paper,
+        clip,
+    };
+    for prim in prims {
+        painter.draw(prim)?;
+    }
+
+    Ok(painter.surface)
+}
+
 fn scaled(r: Rect, scale: f64) -> Bounds {
     Bounds {
         left: r.x * scale,
