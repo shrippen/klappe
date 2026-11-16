@@ -18,7 +18,7 @@ TestCase {
         property int pictureRevision: 0
         property string selectedKey: ""
         // Like the bridge's `describe`: reading it tells QML of no change.
-        property var lamp: ({ temp: 5600 })
+        property var lamp: ({ temp: 5600, power: 200 })
         property bool fieldOk: true
         property var sets: []
         property string choicesJson: JSON.stringify({
@@ -32,14 +32,14 @@ TestCase {
             return JSON.stringify({
                 kind: "light", label: led ? "LED" : "L1",
                 type: led ? "led-panel" : (bounce ? "reflector" : "fresnel"),
-                facing: 330, beam: 22.5, temp: led ? lamp.temp : 3200, power: bounce ? 650 : 200,
+                facing: 330, beam: 22.5, temp: led ? lamp.temp : 3200, power: bounce ? 650 : lamp.power,
                 tunable: led, gives_light: !bounce,
             })
         }
         function setLightField(field, value) {
             sets.push([field, value])
-            if (field === "temp") {
-                lamp.temp = Number(value)
+            if (field === "temp" || field === "power") {
+                lamp[field] = Number(value)
             }
             // Like the bridge: every edit gives a new picture revision. The plan changes only
             // with what it draws; the colour and the power it does not draw.
@@ -66,7 +66,7 @@ TestCase {
         fake.selectedKey = ""
         fake.planJson = "{}"
         fake.pictureRevision = 0
-        fake.lamp = { temp: 5600 }
+        fake.lamp = { temp: 5600, power: 200 }
         fake.sets = []
         fake.fieldOk = true
     }
@@ -221,5 +221,16 @@ TestCase {
 
         compare(fake.sets, [["temp", "4000"]])
         compare(field.text, "4000")
+    }
+
+    function test_a_new_power_stays_in_the_field() {
+        const card = shown("light:led")
+        const field = findChild(card, "lightPowerField")
+
+        field.text = "300"
+        findChild(card, "lightApply").clicked()
+
+        compare(fake.sets, [["power", "300"]])
+        compare(field.text, "300")
     }
 }
