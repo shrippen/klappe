@@ -7,6 +7,7 @@ use klappe_model::{
 };
 
 mod drawings;
+mod labels;
 
 fn project() -> Project {
     let mut p = Project::new("Test");

@@ -152,3 +152,35 @@ fn bad_plan_labels_do_not_load() {
         assert!(err.contains(want), "{name}: {err}");
     }
 }
+
+/// A note of the set is bound to an object only; a label of a plan and a note of its location
+/// do not share an id (`Source::Note` names either by id).
+#[test]
+fn bound_notes_and_ids_are_checked_across_set_and_plan() {
+    let label = |id: &str| Note {
+        id: id.into(),
+        at: Point::new(1.0, 1.0),
+        text: "x".into(),
+        width_m: 2.4,
+        bound: Some("figure:elisabeth".into()),
+    };
+    let cases = [
+        ("figure-note", "figure:elisabeth", None, "bound"),
+        ("garbled-note", "object:", None, "bound"),
+        ("same-id", "object:tisch", Some("n1"), "also a note"),
+    ];
+
+    for (name, bound, label_id, want) in cases {
+        let dir = test_dir(&format!("cross-{name}"));
+        let mut project = example();
+        match label_id {
+            Some(id) => project.scenes[0].plans[0].labels = vec![label(id)],
+            None => project.locations[0].set.notes[0].bound = Some(bound.into()),
+        }
+        save(&dir, &project, None).unwrap();
+
+        let err = load(&dir).unwrap_err().to_string();
+
+        assert!(err.contains(want), "{name}: {err}");
+    }
+}
