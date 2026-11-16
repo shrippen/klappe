@@ -67,7 +67,9 @@ impl qobject::Controller {
         let Some(s) = self.rust().session.as_ref() else {
             return QString::default();
         };
-        let joined = s.dir().join(file.to_string());
+        let Some(joined) = s.image_file(&file.to_string()) else {
+            return QString::default();
+        };
         let absolute = std::path::absolute(&joined).unwrap_or(joined);
 
         q(&fileurl::from_path(&absolute))

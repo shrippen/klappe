@@ -269,3 +269,15 @@ fn versions_survive_a_change_of_scheme() {
     assert!(all.contains(&"12.3".to_owned()), "{all:?}");
     assert!(all.contains(&"12.3A".to_owned()), "{all:?}");
 }
+
+#[test]
+fn only_a_file_of_bilder_has_a_path() {
+    let (s, dir) = open("numbering-path");
+
+    assert_eq!(
+        s.image_file("bilder/skizze.png"),
+        Some(dir.join("bilder/skizze.png"))
+    );
+    assert_eq!(s.image_file("../x.png"), None);
+    assert_eq!(s.image_file("/etc/passwd"), None);
+}

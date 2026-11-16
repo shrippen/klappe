@@ -36,7 +36,7 @@ use serde::{Deserialize, Serialize};
 pub use camera::builtin_camera_presets;
 pub use error::StoreError;
 use files::{Dir, Kind};
-pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
+pub use images::{add_image, image_size, image_stamp, is_image_path, read_image, ImageStamp};
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
 pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
@@ -143,6 +143,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
     let mut scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
     clear_passive_power(&mut scenes);
+    check_shot_images(&dir.join(SCENES_DIR), &scenes)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -411,6 +412,27 @@ fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
                 ),
             });
         }
+    }
+
+    Ok(())
+}
+
+/// A shot's picture (LH-74) is a file of `bilder/`, never one outside the project.
+fn check_shot_images(path: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
+    let shots = scenes.iter().flat_map(|s| &s.plans).flat_map(|p| &p.shots);
+
+    for shot in shots {
+        let Some(image) = shot.image.as_deref().filter(|f| !is_image_path(f)) else {
+            continue;
+        };
+
+        return Err(StoreError::Parse {
+            path: path.to_path_buf(),
+            message: format!(
+                "shot {}: image {image} is not a file of {IMAGES_DIR}/",
+                shot.id
+            ),
+        });
     }
 
     Ok(())

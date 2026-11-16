@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use klappe_model::{AxisPair, Camera, FloorPlan, Movement, Shot};
 use klappe_stellprobe::{
@@ -170,6 +170,12 @@ impl Session {
 
         self.commit(next);
         Ok(())
+    }
+
+    /// The path of a picture file of the project (`bilder/…`, as `ShotRow::image`); `None` for
+    /// a name that is not one, so nothing outside the project is shown.
+    pub fn image_file(&self, file: &str) -> Option<PathBuf> {
+        klappe_store::is_image_path(file).then(|| self.dir.join(file))
     }
 
     /// Adds a shot at the playhead and selects it; undoable. Its camera is `camera`, else the

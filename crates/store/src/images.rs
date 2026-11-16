@@ -58,6 +58,17 @@ pub fn add_image(dir: &Path, source: &Path) -> Result<String, StoreError> {
     Err(bad("no free file name"))
 }
 
+/// Whether `file` names a file of `bilder/`: a relative path without `..`, e.g.
+/// `bilder/saal.png`.
+pub fn is_image_path(file: &str) -> bool {
+    let mut parts = Path::new(file).components();
+    let first = parts.next();
+
+    first == Some(Component::Normal(IMAGES_DIR.as_ref()))
+        && parts.clone().next().is_some()
+        && parts.all(|c| matches!(c, Component::Normal(_)))
+}
+
 /// The bytes of `file` (relative to `dir`, inside it), e.g. for the export.
 pub fn read_image(dir: &Path, file: &str) -> Result<Vec<u8>, StoreError> {
     let inside = Path::new(file)
