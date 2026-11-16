@@ -266,8 +266,8 @@ TestCase {
         dialog.kind = "camera"
         dialog.save("file:///work/Wartburg-camera.png")
 
-        compare(fake.calls, [["exportTo", "view3d", "cut", "a4", "file:///work/Wartburg-3d.png"],
-                             ["exportTo", "camera", "cut", "a4", "file:///work/Wartburg-camera.png"]])
+        compare(fake.calls, [["exportTo", "view3d", "cut", "a4-landscape", "file:///work/Wartburg-3d.png"],
+                             ["exportTo", "camera", "cut", "a4-landscape", "file:///work/Wartburg-camera.png"]])
     }
 
     function test_the_exports_use_the_shot_order() {
