@@ -342,7 +342,7 @@ fn heading_is_on_page(p: &Pagination, n: usize) -> bool {
 
 #[test]
 fn a_heading_moves_on_when_one_long_sentence_cannot_follow_it() {
-    let sentence = vec!["word"; 5].join("\n");
+    let sentence = ["word"; 5].join("\n");
     let p = heading_before(&sentence);
 
     assert!(!heading_is_on_page(&p, 1));
