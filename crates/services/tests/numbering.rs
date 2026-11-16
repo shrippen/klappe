@@ -247,3 +247,25 @@ fn the_plan_shows_a_picture_spot_for_each_camera_in_view() {
     s.set_layer(Layer::Cameras, Visibility::Hidden);
     assert!(s.camera_spots().is_empty());
 }
+
+/// A version keeps its tail through a change of scheme and "Renumber", as the hint of the
+/// project dialog advises: `12.3A` becomes `12B.1-A`, and back.
+#[test]
+fn versions_survive_a_change_of_scheme() {
+    let (mut s, _) = open("numbering-switch");
+    s.version_shot("s12-3").unwrap();
+    assert!(numbers(&s).contains(&"12.3A".to_owned()));
+
+    scheme(&mut s, Numbering::Camera);
+    s.renumber_shots().unwrap();
+    let all = numbers(&s);
+    assert!(all.contains(&"12B.1".to_owned()), "{all:?}");
+    assert!(all.contains(&"12B.1-A".to_owned()), "{all:?}");
+    assert_eq!(all.len(), 6);
+
+    scheme(&mut s, Numbering::Scene);
+    s.renumber_shots().unwrap();
+    let all = numbers(&s);
+    assert!(all.contains(&"12.3".to_owned()), "{all:?}");
+    assert!(all.contains(&"12.3A".to_owned()), "{all:?}");
+}
