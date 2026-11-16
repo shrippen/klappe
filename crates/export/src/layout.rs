@@ -65,7 +65,7 @@ const LAMP_ENTRY_PT: f64 = 240.0;
 /// The lamp list is at most this many rows high; more lamps are counted, not listed.
 const MAX_LAMP_ROWS: usize = 6;
 
-pub(crate) fn paper_mm(paper: Paper) -> (f64, f64) {
+fn paper_mm(paper: Paper) -> (f64, f64) {
     match paper {
         Paper::A4 => (210.0, 297.0),
         Paper::A3 => (297.0, 420.0),
