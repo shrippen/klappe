@@ -58,6 +58,6 @@ pub use picture::{
 };
 pub use scene::{Cut, SceneRole};
 pub use setup::{
-    ordered_shots, setup_choices, setup_target, shot_setups, SetupChoice, ShotOrder,
-    SETUP_TOLERANCE_M,
+    is_setup_model, ordered_shots, setup_choices, setup_target, shot_setups, SetupChoice,
+    ShotOrder, SETUP_TOLERANCE_M,
 };
