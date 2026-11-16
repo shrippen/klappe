@@ -659,32 +659,23 @@ fn a_locked_camera_layer_refuses_versions_and_renumbering() {
 }
 
 #[test]
-fn a_number_without_a_digit_before_its_letters_is_its_own_base() {
+fn a_number_without_a_digit_before_its_letters_has_no_versions() {
     let mut s = open();
     s.edit_shot("s12-3", ShotField::Number, "INSERT").unwrap();
     s.edit_shot("s12-4", ShotField::Number, "TOTALEVONOBENS")
         .unwrap();
+    s.edit_shot("s12-5", ShotField::Number, "12.5ZZZ").unwrap();
 
-    s.version_shot("s12-3").unwrap();
-    s.version_shot("s12-4").unwrap();
-
+    // A version would have letters that count as no version: a second one would repeat it.
+    for id in ["s12-3", "s12-4", "s12-5"] {
+        assert!(s.version_shot(id).is_err(), "{id}");
+    }
     assert_eq!(
         numbers(&s),
-        [
-            "12.1",
-            "12.2",
-            "INSERT",
-            "INSERTA",
-            "TOTALEVONOBENS",
-            "TOTALEVONOBENSA",
-            "12.5"
-        ]
+        ["12.1", "12.2", "INSERT", "TOTALEVONOBENS", "12.5ZZZ"]
     );
 
     // Only letters after a digit are a version: each of these is a number of its own.
     s.renumber_shots().unwrap();
-    assert_eq!(
-        numbers(&s),
-        ["12.1", "12.2", "12.3", "12.4", "12.5", "12.6", "12.7"]
-    );
+    assert_eq!(numbers(&s), ["12.1", "12.2", "12.3", "12.4", "12.5ZZZ"]);
 }
