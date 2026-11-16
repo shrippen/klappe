@@ -313,3 +313,13 @@ fn more_and_the_repeated_name_are_marked_as_added() {
     assert_eq!(added(0), ["(MORE)"]);
     assert_eq!(added(1), ["ANNA (CONT'D)"]);
 }
+
+#[test]
+fn a_sentence_does_not_end_at_an_abbreviation() {
+    use super::block::sentence_starts;
+
+    let text = "Dr. Meyer sah Hr. Roth, z. B. Mrs. Lee. Dann ging er. Nr. 5 blieb.";
+    let starts: Vec<&str> = sentence_starts(text).iter().map(|&i| &text[i..]).collect();
+
+    assert_eq!(starts, ["Dann ging er. Nr. 5 blieb.", "Nr. 5 blieb."]);
+}

@@ -646,7 +646,7 @@ fn the_camera_picture_is_a_png_of_its_size() {
     )
     .unwrap();
 
-    let bytes = picture_png(&view, Theme::Light).unwrap();
+    let bytes = picture_png(&view, Theme::Light, &|_| 1.0).unwrap();
 
     assert!(bytes.starts_with(&PNG_SIGNATURE));
     let width = u32::from_be_bytes(bytes[PNG_WIDTH_AT..PNG_WIDTH_AT + 4].try_into().unwrap());

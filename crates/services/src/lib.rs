@@ -48,14 +48,14 @@ pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
-    Autosave, BackupState, ExportOptions, Grab, Layer, Lock, Looping, Playing, Session, Size, Step,
-    TimeSnap, View, Visibility,
+    Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages, Playing,
+    Session, Size, Step, TimeSnap, View, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
     AxisChoice, CastUse, CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow, Marker,
     Overview, PlanRow, SceneCard, SceneRow, SceneUse, ScriptLine, Segment, SetupOption, ShotRow,
-    TemplateEntry, Track, TrackKind,
+    TemplateEntry, Track, TrackKind, ViewRow,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.

@@ -131,3 +131,17 @@ fn a_file_that_is_no_image_is_an_error() {
         Err(ExportError::Image { .. })
     ));
 }
+
+/// Pages of one PDF that show the same file hold its bytes once.
+#[test]
+fn pages_share_one_copy_of_the_image() {
+    let pages = [
+        (list(0.0), page(true)),
+        (list(0.0), page(true)),
+        (list(0.0), page(true)),
+    ];
+
+    let pdf = klappe_export::pdf_pages(&pages, Theme::Light).unwrap();
+
+    assert_eq!(text(&pdf).matches("/Subtype /Image").count(), 1);
+}

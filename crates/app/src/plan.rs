@@ -112,8 +112,14 @@ fn image(dir: &Path, shape: &Shape) -> Option<Value> {
     }))
 }
 
-fn shape(dir: &Path, item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<Value> {
-    if let Some(image) = image(dir, &item.shape) {
+fn shape(
+    dir: &Path,
+    item: &Item,
+    strength: f64,
+    selected: &dyn Fn(&Source) -> bool,
+) -> Option<Value> {
+    if let Some(mut image) = image(dir, &item.shape) {
+        image["opacity"] = json!(image["opacity"].as_f64().unwrap_or(FULL_STRENGTH) * strength);
         return Some(image);
     }
 
@@ -139,6 +145,7 @@ fn shape(dir: &Path, item: &Item, selected: &dyn Fn(&Source) -> bool) -> Option<
         "captionSize": if item.role == Role::Note { NOTE_TEXT_M } else { 0.0 },
         "key": item.source.as_ref().map(key).unwrap_or_default(),
         "selected": item.source.as_ref().is_some_and(selected),
+        "opacity": strength,
     }))
 }
 
@@ -189,11 +196,38 @@ fn measure_shapes(measure: &Measure) -> Vec<Value> {
     shapes
 }
 
+/// An item drawn at its own colour.
+const FULL_STRENGTH: f64 = 1.0;
+
+/// The display list with how strongly each item is drawn (LH-15): 1 full, less paler.
+#[derive(Clone, Copy)]
+pub struct Faded<'a> {
+    list: &'a DisplayList,
+    /// One per item, in the list's order; an item without one is full.
+    fades: &'a [f64],
+}
+
+impl<'a> Faded<'a> {
+    pub fn new(list: &'a DisplayList, fades: &'a [f64]) -> Self {
+        Self { list, fades }
+    }
+
+    /// Every item at full strength.
+    #[cfg(test)]
+    pub fn full(list: &'a DisplayList) -> Self {
+        Self::new(list, &[])
+    }
+
+    fn strength(&self, index: usize) -> f64 {
+        self.fades.get(index).copied().unwrap_or(FULL_STRENGTH)
+    }
+}
+
 /// `{ width, depth, shapes: [...] }` for the canvas; `selected` marks the shot's camera.
 /// `dir` is the project folder the image files lie in; `picked` the points of a scale in
 /// progress, `marquee` the box or lasso being pulled up, `measure` the measurement on screen.
 pub fn shapes_json(
-    list: &DisplayList,
+    drawn: Faded<'_>,
     dir: &Path,
     selected: &dyn Fn(&Source) -> bool,
     picked: &[Point],
@@ -201,12 +235,17 @@ pub fn shapes_json(
     measure: Option<&Measure>,
     heights: &HeightTexts,
 ) -> String {
+    let list = drawn.list;
     let mut shapes: Vec<Value> = list
         .items
         .iter()
-        .filter_map(|i| match i.role {
-            Role::Height { cm } => height_shape(i, cm, heights),
-            _ => shape(dir, i, selected),
+        .enumerate()
+        .filter_map(|(n, i)| match i.role {
+            Role::Height { cm } => height_shape(i, cm, heights).map(|mut caption| {
+                caption["opacity"] = json!(drawn.strength(n));
+                caption
+            }),
+            _ => shape(dir, i, drawn.strength(n), selected),
         })
         .collect();
     shapes.extend(guide(picked));
@@ -233,7 +272,15 @@ mod tests {
     /// The plan's JSON with nothing picked, dragged or measured.
     fn json_of(list: &DisplayList, selected: &dyn Fn(&Source) -> bool) -> String {
         let texts = HeightTexts::default();
-        shapes_json(list, Path::new("/p"), selected, &[], None, None, &texts)
+        shapes_json(
+            Faded::full(list),
+            Path::new("/p"),
+            selected,
+            &[],
+            None,
+            None,
+            &texts,
+        )
     }
 
     /// Every role as (role, label, stroke, fill) as the canvas gets it; pins `look`.
@@ -303,8 +350,8 @@ mod tests {
                 center: Point::new(0.0, 0.0),
                 radius_m: 1.0,
             };
-            let v =
-                shape(Path::new("/p"), &item(role, circle, None), &|_| false).unwrap_or_default();
+            let v = shape(Path::new("/p"), &item(role, circle, None), 1.0, &|_| false)
+                .unwrap_or_default();
 
             assert_eq!(v["label"], label, "{role:?}");
             assert_eq!(v["stroke"], stroke, "{role:?}");
@@ -530,7 +577,7 @@ mod tests {
     #[test]
     fn the_background_is_an_image_with_an_absolute_url() {
         let json = shapes_json(
-            &background_list(),
+            Faded::full(&background_list()),
             Path::new("/home/a b/p#1"),
             &|_| false,
             &[],
@@ -585,7 +632,7 @@ mod tests {
         };
 
         let json = shapes_json(
-            &list,
+            Faded::full(&list),
             Path::new("/p"),
             &|_| false,
             &[],
@@ -614,7 +661,7 @@ mod tests {
         };
 
         let json = shapes_json(
-            &list,
+            Faded::full(&list),
             Path::new("/p"),
             &|_| false,
             &[],

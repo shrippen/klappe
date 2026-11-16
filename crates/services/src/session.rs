@@ -12,16 +12,20 @@ use crate::plan_edit::{Grid, Snapping};
 use undo::Snapshot;
 
 mod export;
+mod fade;
 mod file;
 mod free_view;
 mod layers;
 mod objects;
+mod pages;
 mod pick;
 mod playback;
 mod retime;
+mod saved;
 mod scene;
 mod script_pages;
 mod shots;
+mod sketch;
 mod templates;
 mod timeline;
 mod undo;
@@ -29,7 +33,9 @@ mod uses;
 mod views;
 
 pub use export::ExportOptions;
+pub use fade::Fade;
 pub use free_view::{Size, View};
+pub use pages::Pages;
 pub use retime::{Grab, TimeSnap};
 
 /// Groups of the plan the timeline's layer switches show or hide.
@@ -41,17 +47,19 @@ pub enum Layer {
     Lights,
     Notes,
     Drawings,
+    Sketches,
 }
 
 impl Layer {
     /// Every layer, in the order the layer list shows.
-    pub const ALL: [Layer; 6] = [
+    pub const ALL: [Layer; 7] = [
         Layer::Set,
         Layer::Figures,
         Layer::Cameras,
         Layer::Lights,
         Layer::Notes,
         Layer::Drawings,
+        Layer::Sketches,
     ];
 
     /// How QML and the catalogue (`layer.<name>`) call the layer.
@@ -63,6 +71,7 @@ impl Layer {
             Layer::Lights => "lights",
             Layer::Notes => "notes",
             Layer::Drawings => "drawings",
+            Layer::Sketches => "sketches",
         }
     }
 
@@ -146,6 +155,7 @@ pub struct Session {
     selected_shot: Option<String>,
     hidden_layers: HashSet<Layer>,
     locked_layers: HashSet<Layer>,
+    faded_layers: HashMap<Layer, Fade>,
     hidden_tracks: HashSet<String>,
     snapping: Snapping,
     grid: Grid,

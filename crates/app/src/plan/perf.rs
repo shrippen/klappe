@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use klappe_services::{FigureColor, PlanEdit, Point, ProjectEdit, Session};
 
-use super::{shapes_json, HeightTexts};
+use super::{shapes_json, Faded, HeightTexts};
 
 const FIGURES: usize = 50;
 const MARKS: usize = 4;
@@ -88,7 +88,7 @@ fn a_large_plan_becomes_json_fast() {
         .map(|_| {
             let start = Instant::now();
             std::hint::black_box(shapes_json(
-                &list,
+                Faded::full(&list),
                 &dir,
                 &|_| false,
                 &[],

@@ -4,6 +4,7 @@ use crate::geometry::{Point, TurnedRect};
 use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
 use crate::plan::FloorPlan;
+use crate::saved_view::SavedView;
 use crate::script_setup::ScriptSetup;
 use crate::template::Template;
 
@@ -23,6 +24,9 @@ pub struct Project {
     /// The project's own templates (LH-07), next to the built-in ones.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<Template>,
+    /// The saved views of the plan (LH-119).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub views: Vec<SavedView>,
     /// The sheet the plan was last exported on; the export dialog starts from it.
     #[serde(default)]
     pub paper: PaperSetup,
@@ -40,6 +44,7 @@ impl Project {
             scenes: Vec::new(),
             library: Vec::new(),
             templates: Vec::new(),
+            views: Vec::new(),
             paper: PaperSetup::default(),
             script: ScriptSetup::default(),
         }

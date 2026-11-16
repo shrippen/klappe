@@ -4,7 +4,8 @@
 //! klappe-cli fov --lens 35 [--sensor super35|full-frame|mft|<width mm>]
 //! klappe-cli export --project <folder> --scene <nr> --out <file> [--plan <id>] [--at <s>]
 //!                   [--paper a4|a3|letter] [--orientation landscape|portrait]
-//!                   [--language de|en] [--format pdf|svg|png|csv|ods|xlsx|frames|camera]
+//!                   [--language de|en] [--format pdf|svg|png|csv|ods|xlsx|frames|camera|
+//!                                                shotpages|camerapages|shotfiles|camerafiles]
 //!                   [--camera <id>]
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
 //!                       [--scene-numbers] [--header]

@@ -4,13 +4,13 @@ use klappe_export::{Page, ShotView, Texts, Theme};
 use klappe_model::{FloorPlan, PaperSetup};
 use klappe_stellprobe::{render, vector_view, DisplayList, Eye, Lamp, Shape, ShotOrder};
 
-use super::{Session, Size};
+use super::{Pages, Session, Size};
 use crate::error::{write_failed, ServiceError};
 use crate::library;
 use crate::ExportFormat;
 
 const SECONDS_PER_MINUTE: u64 = 60;
-const MIN_NUMBER_WIDTH: usize = 2;
+pub(super) const MIN_NUMBER_WIDTH: usize = 2;
 /// Width of the PNG of a view (LH-86).
 const VIEW_WIDTH_PX: f64 = 1920.0;
 
@@ -49,6 +49,14 @@ impl Session {
             ExportFormat::Frames => self.export_frames(path, paper, texts).map(|_| ()),
             ExportFormat::View3d => self.export_view_png(path, options.shown),
             ExportFormat::Camera => self.export_camera_png(path, options.camera.as_deref()),
+            ExportFormat::ShotPages => self.export_pages(path, paper, texts, Pages::PerShot),
+            ExportFormat::CameraPages => self.export_pages(path, paper, texts, Pages::PerCamera),
+            ExportFormat::ShotFiles => self
+                .export_page_files(path, paper, texts, Pages::PerShot)
+                .map(|_| ()),
+            ExportFormat::CameraFiles => self
+                .export_page_files(path, paper, texts, Pages::PerCamera)
+                .map(|_| ()),
         }?;
 
         if format.needs_paper() {
@@ -80,6 +88,17 @@ impl Session {
         write_file(path, bytes)
     }
 
+    /// `picture` as print PNG, each body as strong as its layer's fade says (LH-15).
+    fn picture_bytes(&self, picture: &klappe_stellprobe::Picture) -> Result<Vec<u8>, ServiceError> {
+        let strength = |role| self.scene_fade(role);
+
+        Ok(klappe_export::picture_png(
+            picture,
+            Theme::Light,
+            &strength,
+        )?)
+    }
+
     /// Writes the 3D view as PNG (LH-86), as it is on screen: orbit or through a camera, with
     /// the cut, `shown` the size it has there; the PNG is as wide as `VIEW_WIDTH_PX` and keeps
     /// its aspect.
@@ -91,7 +110,7 @@ impl Session {
         let size = (VIEW_WIDTH_PX, (VIEW_WIDTH_PX * shown.1 / shown.0).round());
         let picture = self.free_picture(size).ok_or(ServiceError::NoPicture)?;
 
-        write_file(path, klappe_export::picture_png(&picture, Theme::Light)?)
+        write_file(path, self.picture_bytes(&picture)?)
     }
 
     /// Writes the picture of the selected shot's camera at the playhead as PNG (LH-86), else
@@ -106,7 +125,7 @@ impl Session {
             .camera_picture(fallback, VIEW_WIDTH_PX as usize)
             .ok_or(ServiceError::NoPicture)?;
 
-        write_file(path, klappe_export::picture_png(&picture, Theme::Light)?)
+        write_file(path, self.picture_bytes(&picture)?)
     }
 
     /// What each shot's camera sees at the shot's start, as faces for print; a shot whose
@@ -179,13 +198,14 @@ impl Session {
 
     /// The display list at the playhead and the sheet around it, with the images the list
     /// names read from the project; what every plan export starts from.
-    fn printout(
+    pub(super) fn printout(
         &self,
         paper: PaperSetup,
         texts: Texts,
     ) -> Result<(DisplayList, Page), ServiceError> {
         let mut page = Page::new(paper.size, paper.orientation, self.plan_title(), texts);
         let list = self.display_list();
+        page.fade = self.item_fades(&list);
         for item in &list.items {
             let Shape::Image { file, .. } = &item.shape else {
                 continue;
@@ -320,7 +340,7 @@ impl Session {
 }
 
 /// The scene's number as part of a file name: letters and digits, the rest an underscore.
-fn file_part(number: &str) -> String {
+pub(super) fn file_part(number: &str) -> String {
     number
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '_' })

@@ -536,7 +536,7 @@ fn a_hash_without_a_number_is_heading_text() {
 /// A project whose screenplay is one scene of `rows` rows of action, one sentence each:
 /// text line 0 is the heading, line 2 the first row (A4 has 59 rows, so page 2 starts at
 /// "Line 57." on text line 59).
-fn long_project(name: &str, rows: usize) -> App {
+fn long_project(name: &str, rows: usize) -> (App, Scratch) {
     let dir = std::env::temp_dir().join(format!("klappe-tui-{name}"));
     let _ = std::fs::remove_dir_all(&dir);
     let mut session =
@@ -547,12 +547,23 @@ fn long_project(name: &str, rows: usize) -> App {
         .save_script()
         .unwrap_or_else(|e| unreachable!("{e}"));
 
-    App::open(&dir, Language::English).unwrap_or_else(|e| unreachable!("{e}"))
+    let app = App::open(&dir, Language::English).unwrap_or_else(|e| unreachable!("{e}"));
+
+    (app, Scratch(dir))
+}
+
+/// A folder that goes when the test ends.
+struct Scratch(PathBuf);
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }
 
 #[test]
 fn a_page_break_is_a_thin_line_with_the_page_number() {
-    let mut app = long_project("break", 90);
+    let (mut app, _scratch) = long_project("break", 90);
     let frame = screen(&mut app, 120, 80);
     let lines: Vec<&str> = frame.lines().collect();
     let at = lines.iter().position(|l| l.contains("Page 2")).unwrap_or(0);
@@ -572,7 +583,7 @@ fn a_page_break_is_a_thin_line_with_the_page_number() {
 
 #[test]
 fn the_cursor_passes_a_page_break_without_stopping_on_it() {
-    let mut app = long_project("cursor", 90);
+    let (mut app, _scratch) = long_project("cursor", 90);
     let _ = screen(&mut app, 120, 80);
     app.editor.go_to_line(58);
 
@@ -606,7 +617,7 @@ fn the_scene_list_shows_the_length_in_eighths() {
 
 #[test]
 fn pages_are_laid_out_again_five_seconds_after_the_last_key() {
-    let mut app = long_project("idle", 90);
+    let (mut app, _scratch) = long_project("idle", 90);
     assert_eq!(app.pages_wait(Instant::now()), None);
     let before = app.pages().map(|p| p.breaks.clone());
 

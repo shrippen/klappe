@@ -6,11 +6,13 @@
 //! ├── locations    Location → Set   (walls, objects, notes, images, background image)
 //! ├── library      LibraryItem      (the project's own objects, LH-12)
 //! ├── templates    Template         (the project's own set-ups, LH-07)
+//! ├── views        SavedView        (named choices of visible layers, cameras, figures, LH-119)
 //! └── scenes       Scene → FloorPlan
 //!                           ├── figures  FigureTrack → Mark (time, place, facing)
 //!                           ├── cameras  Camera      → CameraMark
 //!                           ├── lights   Light
 //!                           ├── drawings Drawing  (lines, arrows, shapes)
+//!                           ├── sketches Sketch   (freehand strokes of the pen, LH-120)
 //!                           ├── shots    Shot (cut order = list order)
 //!                           └── links    ScriptLink  (script element ↔ mark or shot)
 //! ```
@@ -21,6 +23,7 @@
 
 mod camera_preset;
 mod curve;
+mod drawing_style;
 mod geometry;
 mod library;
 mod light_preset;
@@ -28,12 +31,15 @@ mod limits;
 mod paper;
 mod plan;
 mod project;
+mod saved_view;
 mod script_setup;
 mod shot;
+mod sketch;
 mod template;
 
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use curve::Curve;
+pub use drawing_style::{Dash, Fill};
 pub use geometry::{normalize_deg, Extent, Point, TurnedRect, FULL_TURN_DEG};
 pub use library::{
     is_floor_offset_m, is_object_height_m, is_object_size_m, is_outline, outline_area_m2,
@@ -48,8 +54,8 @@ pub use limits::{
 };
 pub use paper::{Orientation, Paper, PaperSetup};
 pub use plan::{
-    Arrival, AxisPair, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureTrack,
-    Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,
+    Arrival, AxisPair, Camera, CameraMark, Departure, Drawing, DrawingShape, FigureTrack,
+    FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,
 };
 pub use project::{
     is_figure_size_m, is_image_opacity, is_opening_width_m, Background, Character, DoorSide,
@@ -57,8 +63,10 @@ pub use project::{
     SetPlan, Wall, IMAGE_WIDTH_M, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
     MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
+pub use saved_view::SavedView;
 pub use script_setup::{ScriptLanguage, ScriptPaper, ScriptSetup};
 pub use shot::{Angle, Movement, Shot, ShotSize};
+pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).

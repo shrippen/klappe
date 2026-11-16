@@ -66,7 +66,7 @@ mod tests {
 
     use klappe_services::{DisplayList, Point, Role};
 
-    use super::super::shapes_json;
+    use super::super::{shapes_json, Faded};
     use super::*;
 
     fn caption(cm: Option<u32>) -> Item {
@@ -97,7 +97,15 @@ mod tests {
             missing: "Höhe ?".into(),
         };
 
-        let json = shapes_json(&list, Path::new("/p"), &|_| false, &[], None, None, &texts);
+        let json = shapes_json(
+            Faded::full(&list),
+            Path::new("/p"),
+            &|_| false,
+            &[],
+            None,
+            None,
+            &texts,
+        );
         let v: Value = serde_json::from_str(&json).unwrap_or_default();
 
         assert_eq!(v["shapes"][0]["text"], "1,25 m");

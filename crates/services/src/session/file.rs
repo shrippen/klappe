@@ -38,6 +38,7 @@ impl Session {
             selected_shot: None,
             hidden_layers: HashSet::new(),
             locked_layers: HashSet::new(),
+            faded_layers: HashMap::new(),
             hidden_tracks: HashSet::new(),
             snapping: Snapping::On,
             grid: Grid::default(),

@@ -56,6 +56,8 @@ fn plain(hue: Hue, line: Dash, area: Area) -> Look {
 pub fn look(role: Role) -> Look {
     match role {
         Role::Drawing { color, dash, fill } => plain(Hue::Color(color), dash, drawing_area(fill)),
+        // Red, as a pen on paper: it stands out from the plan below.
+        Role::Sketch => plain(Hue::Color(FigureColor::Red), Dash::Solid, Area::None),
         Role::ArrowHead(c) | Role::FigureHandle(c) | Role::Figure(c) => {
             plain(Hue::Color(c), Dash::Solid, Area::Solid)
         }
@@ -79,18 +81,26 @@ pub fn look(role: Role) -> Look {
             paper_fill: Hue::Surface,
             ..plain(Hue::Muted, Dash::Solid, Area::Tint)
         },
-        Role::LightBeam => plain(ORANGE, Dash::Solid, Area::Tint),
         Role::Light => plain(ORANGE, Dash::Solid, Area::Solid),
         // A card: the text colour frames and tints it, on screen and on paper.
         Role::Note => plain(Hue::Text, Dash::Solid, Area::Tint),
         Role::Handle => plain(Hue::Accent, Dash::Solid, Area::Solid),
         Role::Axis => plain(ORANGE, Dash::Dashed, Area::None),
         Role::CameraPath { dash } => plain(YELLOW, dash, Area::None),
-        Role::Frustum => plain(YELLOW, Dash::Solid, Area::Tint),
+        Role::Frustum | Role::LightBeam => plain(beam_hue(role), Dash::Solid, Area::Tint),
         Role::Camera | Role::CameraHandle => plain(YELLOW, Dash::Solid, Area::Solid),
         // The ground colour stands out from every figure colour (the text colour did not).
         Role::GroupDot => plain(Hue::Ground, Dash::Solid, Area::Solid),
     }
+}
+
+/// A view cone is yellow like its camera, a lamp's beam orange like the lamp.
+fn beam_hue(role: Role) -> Hue {
+    if role == Role::Frustum {
+        return YELLOW;
+    }
+
+    ORANGE
 }
 
 /// What a pixel of the camera's picture looks like (LH-36): the ground and walls are tinted, so

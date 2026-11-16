@@ -54,7 +54,7 @@ fn shown(s: &Session) -> String {
 }
 
 #[test]
-fn a_new_plan_is_empty_named_and_shown() {
+fn a_new_plan_has_no_cameras_or_shots_is_named_and_shown() {
     let mut s = open("variants-add");
 
     let id = s.add_plan("").unwrap();
@@ -66,7 +66,9 @@ fn a_new_plan_is_empty_named_and_shown() {
     );
     assert_eq!(shown(&s), "plan-b");
     let plan = s.plan().unwrap();
-    assert!(plan.figures.is_empty() && plan.shots.is_empty() && plan.cameras.is_empty());
+    // It holds the scene's speakers and nothing else (LH-09).
+    assert_eq!(plan.figures.len(), 2);
+    assert!(plan.shots.is_empty() && plan.cameras.is_empty() && plan.lights.is_empty());
 }
 
 #[test]

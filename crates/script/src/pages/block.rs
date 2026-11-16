@@ -24,6 +24,12 @@ const DUAL_PAREN_WIDTH: usize = 21;
 const HEADING_SPACE: usize = 2;
 const BLOCK_SPACE: usize = 1;
 const TERMINATORS: [char; 4] = ['.', '!', '?', '…'];
+/// Words that end in a full stop without ending the sentence, lowercase; a single letter
+/// (`z. B.`, `St.` is listed) does the same.
+const ABBREVIATIONS: [&str; 16] = [
+    "dr.", "hr.", "fr.", "st.", "nr.", "mr.", "mrs.", "ms.", "mt.", "prof.", "bzw.", "usw.", "ca.",
+    "vgl.", "sr.", "jr.",
+];
 const CLOSERS: [char; 6] = ['"', '\'', ')', '”', '»', '’'];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,7 +144,7 @@ impl Part {
 
 /// Byte offsets where a sentence starts, but the first: after `. ! ? …` and closing quotes
 /// when a capital or a digit follows (not `z. B. etwas`), and after a line break.
-fn sentence_starts(text: &str) -> Vec<usize> {
+pub(super) fn sentence_starts(text: &str) -> Vec<usize> {
     let mut starts = Vec::new();
     let mut ended = false;
     let mut spaced = false;
@@ -154,7 +160,7 @@ fn sentence_starts(text: &str) -> Vec<usize> {
             continue;
         }
 
-        if ended && spaced && (hard || !c.is_lowercase()) {
+        if ended && spaced && (hard || (!c.is_lowercase() && !abbreviation(&text[..pos]))) {
             starts.push(pos);
         }
         if ended && !spaced && CLOSERS.contains(&c) {
@@ -167,6 +173,21 @@ fn sentence_starts(text: &str) -> Vec<usize> {
     }
 
     starts
+}
+
+/// Whether the last word of `before` is an abbreviation: `Dr.`, `Nr.`, `z.`.
+fn abbreviation(before: &str) -> bool {
+    let word = before
+        .trim_end()
+        .rsplit(char::is_whitespace)
+        .next()
+        .unwrap_or("");
+    let word = word.trim_end_matches(CLOSERS).to_lowercase();
+    let single = word
+        .strip_suffix('.')
+        .is_some_and(|w| w.chars().count() == 1);
+
+    single || ABBREVIATIONS.contains(&word.as_str())
 }
 
 #[derive(Debug, Clone)]
