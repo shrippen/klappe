@@ -92,6 +92,7 @@ A change that needs more places than listed is a finding for the audit.
 | New file or changed layout of the project folder | `model/` (data, `FORMAT_VERSION`); `store/`; `FORMAT.md`; `testdata/`; regenerate the examples (`cargo run -p klappe-demo`). |
 | New library object, camera preset or lamp | Data only: `store/library/standard.toml` (and its 3D form in `forms.toml`, its name `objectKind.<kind>` and group `objectGroup.<group>` in the catalogue), `store/camera/standard.toml`, `store/light/standard.toml` (and its name `lightPreset.<id>` in the catalogue). |
 | New template (set-up of figures and cameras) | Data only: `store/template/standard.toml` and its name `template.<id>` in the catalogue. |
+| New action on a start-page project tile (menu entry) | `services/` `folder.rs` (the folder work, through `store/` `folder.rs`; zip bytes from `export/`); `app/` one call in `bridge.rs` with its body in `bridge/project.rs`, the entry in `StartPage.qml` and its question in `TileDialog.qml`; texts `start.*`. |
 | New component or colour for the window | Kante first (its own repository), then `scripts/sync-kante.sh`; never in `app/qml/Kante`. |
 
 ## Known deviations

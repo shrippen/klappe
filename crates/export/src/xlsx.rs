@@ -4,6 +4,7 @@
 use crate::sheet::{escape, grid, Cell, Sheet};
 use crate::shots::Table;
 use crate::zip::Zip;
+use crate::ExportError;
 
 const CONTENT_TYPES: &str = concat!(
     r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>"#,
@@ -38,24 +39,24 @@ const FORBIDDEN_IN_NAME: [char; 7] = ['[', ']', ':', '*', '?', '/', '\\'];
 const FALLBACK_NAME: &str = "Sheet";
 const LETTERS: usize = 26;
 
-pub(crate) fn write(sheets: &[Sheet]) -> Vec<u8> {
+pub(crate) fn write(sheets: &[Sheet]) -> Result<Vec<u8>, ExportError> {
     let mut zip = Zip::default();
 
     zip.add(
         "[Content_Types].xml",
         content_types(sheets.len()).as_bytes(),
-    );
-    zip.add("_rels/.rels", ROOT_RELS.as_bytes());
-    zip.add("xl/workbook.xml", workbook(sheets).as_bytes());
+    )?;
+    zip.add("_rels/.rels", ROOT_RELS.as_bytes())?;
+    zip.add("xl/workbook.xml", workbook(sheets).as_bytes())?;
     zip.add(
         "xl/_rels/workbook.xml.rels",
         workbook_rels(sheets.len()).as_bytes(),
-    );
+    )?;
     for (i, sheet_data) in sheets.iter().enumerate() {
         zip.add(
             &format!("xl/worksheets/sheet{}.xml", i + 1),
             sheet(&sheet_data.table).as_bytes(),
-        );
+        )?;
     }
 
     zip.finish()
