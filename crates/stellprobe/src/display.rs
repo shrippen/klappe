@@ -15,7 +15,8 @@ mod handles;
 mod objects;
 
 pub use handles::{
-    drawing_edge_places, drawing_handle_places, handles, Bend, LightGrip, OpeningEnd,
+    drawing_edge_places, drawing_handle_places, handles, object_grip_place, Bend, LightGrip,
+    ObjectGrip, OpeningEnd,
 };
 pub use objects::label_point;
 pub(crate) use objects::object_corners;
@@ -112,6 +113,9 @@ pub enum Role {
     OpeningHandle,
     /// A grip on the beam of the selected lamp (LH-50); only drawn while it is selected.
     LightHandle,
+    /// A grip on the right or bottom edge of the selected object (LH-25); only drawn while
+    /// selected.
+    ObjectHandle,
     /// The grip that bends the way to a mark (LH-21); only drawn for a selected way.
     FigureHandle(FigureColor),
     CameraHandle,
@@ -166,6 +170,12 @@ pub enum Source {
     LightGrip {
         light: String,
         grip: LightGrip,
+    },
+    /// The grip in the middle of the right or bottom edge of a set object's box (LH-25): drag
+    /// to set its width or depth, the left or top edge stays.
+    ObjectGrip {
+        object: String,
+        grip: ObjectGrip,
     },
     Note(String),
     /// The grip in the middle of the right edge of a note's card (LH-16): drag to set its width.

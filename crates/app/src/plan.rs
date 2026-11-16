@@ -279,6 +279,7 @@ mod tests {
             (Role::NoteHandle, "accent", "solid", "solid"),
             (Role::OpeningHandle, "accent", "solid", "solid"),
             (Role::LightHandle, "accent", "solid", "solid"),
+            (Role::ObjectHandle, "accent", "solid", "solid"),
             (Role::Figure(red), "red", "solid", "solid"),
             (Role::GroupDot, "ground", "solid", "solid"),
         ];

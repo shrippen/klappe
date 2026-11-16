@@ -33,20 +33,22 @@ Item {
             ctl.setTool("select", "")
             ctl.lassoSelection = true
 
-            const before = JSON.parse(ctl.planJson).shapes.length
+            // Counted by kind: a selected pillar shows its size grips (LH-25), which are shapes too.
+            const lines = () => JSON.parse(ctl.planJson).shapes.filter(s => s.kind === "polyline").length
+            const before = lines()
 
             // Pillar 1 stands at (6, 4), pillar 2 at (14, 4).
             ctl.drag(5, 3, 7, 3, false)
             ctl.drag(5, 3, 7, 5, false)
             const shown = JSON.parse(ctl.planJson).shapes
-            if (shown.length !== before + 1 || shown[shown.length - 1].kind !== "polyline") {
+            if (lines() !== before + 1 || shown[shown.length - 1].kind !== "polyline") {
                 return fail("the lasso line was not shown")
             }
             ctl.drag(5, 3, 5, 5, true)
             if (ctl.selectedCount !== 1 || ctl.selectedKey.indexOf("saeule-1") < 0) {
                 return fail("the lasso did not take pillar 1: " + ctl.selectedKey)
             }
-            if (JSON.parse(ctl.planJson).shapes.length !== before) {
+            if (lines() !== before) {
                 return fail("the lasso line stayed after the release")
             }
 

@@ -1,10 +1,12 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
 use klappe_model::{
-    CameraMark, Drawing, DrawingShape, FloorPlan, Light, Mark, Point, Wall, NOTE_MIN_WIDTH_M,
+    CameraMark, Drawing, DrawingShape, FloorPlan, Light, Mark, Point, SetObject, Wall,
+    MAX_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use klappe_stellprobe::{
-    bend_follow, bend_grips, drawing_handle_places, light_grip_place, Bend, LightGrip, Source,
+    bend_follow, bend_grips, drawing_handle_places, light_grip_place, object_grip_place, Bend,
+    LightGrip, ObjectGrip, Source,
 };
 
 use super::drawings::{drag_handle, edge_place, insert_point};
@@ -12,6 +14,10 @@ use super::openings::{drag_edge, edge_m, opening_mut, slide};
 use super::FULL_TURN_DEG;
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
+
+/// The least a drag leaves of an object's width or depth; the model only asks for more than
+/// nothing.
+const OBJECT_MIN_M: f64 = 0.05;
 
 /// How far a drag pulls a new bend off its grip before it is made.
 const NEW_BEND_MIN_M: f64 = 1e-6;
@@ -39,7 +45,8 @@ pub(super) fn target<'a>(
         Source::FigureVia { .. }
         | Source::CameraVia { .. }
         | Source::DrawingPoint { .. }
-        | Source::DrawingEdge { .. } => grip_target(scope, source),
+        | Source::DrawingEdge { .. }
+        | Source::ObjectGrip { .. } => grip_target(scope, source),
         Source::Figure(character) => {
             let track = scope
                 .plan
@@ -200,6 +207,18 @@ fn grip_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'
             Ok(Target::Edge {
                 drawing,
                 index: *index,
+            })
+        }
+        Source::ObjectGrip { object, grip } => {
+            let object = scope
+                .set
+                .as_deref_mut()
+                .and_then(|s| s.objects.iter_mut().find(|o| o.id == *object))
+                .ok_or(ServiceError::Gone)?;
+
+            Ok(Target::ObjectEdge {
+                object,
+                grip: *grip,
             })
         }
         _ => Err(ServiceError::Gone),
@@ -429,10 +448,36 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
         Target::NoteEdge(note) => {
             note.width_m = (to.x_m - note.at.x_m).max(NOTE_MIN_WIDTH_M);
         }
+        Target::ObjectEdge { object, grip } => stretch(object, grip, to),
         _ => {}
     }
 
     Ok(())
+}
+
+/// Sets the width or depth so the grip lands on `to` as far as its axis goes, in the object's
+/// turned frame; the opposite edge (left or top) stays, so the centre moves half the change.
+fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
+    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
+    let (axis, size_m) = match grip {
+        ObjectGrip::Width => ((cos, sin), object.width_m),
+        ObjectGrip::Depth => ((-sin, cos), object.depth_m),
+    };
+
+    // Along the axis, from the fixed edge to the pointer.
+    let along_m =
+        (to.x_m - object.at.x_m) * axis.0 + (to.y_m - object.at.y_m) * axis.1 + size_m / 2.0;
+    let new_m = along_m.clamp(OBJECT_MIN_M, MAX_OBJECT_M);
+    let moved_m = (new_m - size_m) / 2.0;
+
+    object.at = Point::new(
+        object.at.x_m + moved_m * axis.0,
+        object.at.y_m + moved_m * axis.1,
+    );
+    match grip {
+        ObjectGrip::Width => object.width_m = new_m,
+        ObjectGrip::Depth => object.depth_m = new_m,
+    }
 }
 
 fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
@@ -444,9 +489,10 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
         Target::Corner { drawing, index } => drag_handle(drawing, index, to)?,
         Target::Edge { drawing, index } => insert_point(drawing, index, to)?,
         Target::Slide { wall, index } => slide(wall, index, to)?,
-        grip @ (Target::OpeningEdge { .. } | Target::LightEdge { .. } | Target::NoteEdge(_)) => {
-            place_grip(grip, to)?
-        }
+        grip @ (Target::OpeningEdge { .. }
+        | Target::LightEdge { .. }
+        | Target::NoteEdge(_)
+        | Target::ObjectEdge { .. }) => place_grip(grip, to)?,
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
             let mid = middle(wall);
@@ -472,6 +518,11 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
             let edge = Point::new(note.at.x_m + note.width_m, note.at.y_m);
 
             Ok((edge, edge))
+        }
+        Target::ObjectEdge { object, grip } => {
+            let place = object_grip_place(object, grip);
+
+            Ok((place, place))
         }
         Target::Wall(wall) => Ok((wall.from, middle(wall))),
         Target::LightEdge { light, grip } => {
@@ -558,6 +609,7 @@ pub(super) fn spin(
         | Target::Corner { .. }
         | Target::Edge { .. }
         | Target::NoteEdge(_)
+        | Target::ObjectEdge { .. }
         | Target::Curve { .. }
         | Target::OpeningEdge { .. }
         | Target::LightEdge { .. }
@@ -582,6 +634,7 @@ pub(super) fn turn(
         | Target::Corner { .. }
         | Target::Edge { .. }
         | Target::NoteEdge(_)
+        | Target::ObjectEdge { .. }
         | Target::Curve { .. }
         | Target::OpeningEdge { .. }
         | Target::LightEdge { .. }

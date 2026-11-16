@@ -59,7 +59,8 @@ pub use klappe_model::{
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, scene_look, Area, Bend, DisplayList, Frame, Hue, Item, LightGrip,
-    OpeningEnd, Picture, PictureLabel, Role, SceneRole, Shape, ShotOrder, Source, NOTE_TEXT_M,
+    ObjectGrip, OpeningEnd, Picture, PictureLabel, Role, SceneRole, Shape, ShotOrder, Source,
+    NOTE_TEXT_M,
 };
 
 // Fountain, so the TUI editor can style and list what it types without the script crate;

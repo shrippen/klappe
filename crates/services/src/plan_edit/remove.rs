@@ -83,7 +83,8 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
         | Source::DrawingEdge { .. }
         | Source::NoteWidth(_)
         | Source::OpeningEdge { .. }
-        | Source::LightGrip { .. } => remove_grip(scope, source),
+        | Source::LightGrip { .. }
+        | Source::ObjectGrip { .. } => remove_grip(scope, source),
         Source::Drawing(id) => {
             let index = scope.plan.drawings.iter().position(|d| d.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;
