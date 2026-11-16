@@ -82,3 +82,32 @@ fn the_3d_view_reads_the_layer_of_each_body() {
         1.0
     );
 }
+
+/// LH-15: what the screen shows faded, the printout and the 3D PNG show faded too.
+#[test]
+fn the_exports_honour_a_faded_layer() {
+    let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("fade-exports");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut s = example();
+    s.toggle_view();
+    let texts = klappe_services::Language::English.print_texts();
+    let paper = klappe_services::PaperSetup::default();
+    let size = (320.0, 240.0);
+    let write = |s: &Session, name: &str| {
+        s.export_svg(&dir.join(format!("{name}.svg")), paper, texts.clone())
+            .unwrap();
+        s.export_view_png(&dir.join(format!("{name}.png")), size).unwrap();
+    };
+    write(&s, "full");
+
+    s.set_fade(Layer::Figures, Fade::Faint);
+    s.set_fade(Layer::Set, Fade::Faint);
+    write(&s, "pale");
+
+    for ext in ["svg", "png"] {
+        let full = std::fs::read(dir.join(format!("full.{ext}"))).unwrap();
+        let pale = std::fs::read(dir.join(format!("pale.{ext}"))).unwrap();
+        assert_ne!(full, pale, "{ext} ignores the fade");
+    }
+}

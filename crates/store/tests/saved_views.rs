@@ -56,6 +56,7 @@ fn a_view_without_a_name_or_with_a_twin_id_is_refused() {
         ("views-no-name", vec![view("a", " ")]),
         ("views-no-id", vec![view("", "A")]),
         ("views-twin", vec![view("a", "A"), view("a", "B")]),
+        ("views-case-twin", vec![view("Weit", "A"), view("weit", "B")]),
     ] {
         let dir = test_dir(name);
         let mut project = Project::new("Film");
