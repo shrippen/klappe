@@ -31,8 +31,9 @@ ColumnLayout {
     readonly property var departures: choices.departure || []
     readonly property var rigs: choices.rig || []
     readonly property var info: {
-        // The plan changes with every edit; the key alone would not tell the new values.
-        card.controller.planJson
+        // Every edit raises the picture revision; the plan may not change (a drag ends as
+        // previewed), and the key alone would not tell the new values.
+        card.controller.pictureRevision
         card.controller.selectedKey
         const d = JSON.parse(card.controller.markInfo())
         return d.kind ? d : null

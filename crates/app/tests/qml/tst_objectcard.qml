@@ -14,7 +14,10 @@ TestCase {
     QtObject {
         id: fake
         property string planJson: "{}"
+        property int pictureRevision: 0
         property string selectedKey: ""
+        // Like the bridge's `describe`: reading it tells QML of no change.
+        property var table: ({ depth: 0.9 })
         property var sizes: []
         property bool sizeOk: true
         property var heights: []
@@ -26,7 +29,7 @@ TestCase {
 
         function describe(key) {
             if (key === "object:o1") {
-                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null, base: 0, baseDefault: true })
+                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: table.depth, height: null, base: 0, baseDefault: true })
             }
             if (key === "object:o2") {
                 return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8, base: 0.4, baseDefault: false })
@@ -66,6 +69,7 @@ TestCase {
 
     function init() {
         fake.selectedKey = ""
+        fake.table = { depth: 0.9 }
         fake.sizes = []
         fake.sizeOk = true
         fake.heights = []
@@ -80,6 +84,19 @@ TestCase {
         const card = createTemporaryObject(cardComponent, tc)
         waitForRendering(card)
         return card
+    }
+
+    // A drag shows its preview through the plan, and the edit at its end gives the same plan:
+    // the card reads the object again on the picture revision, which every edit raises.
+    function test_the_card_follows_an_edit_that_leaves_the_plan_as_previewed() {
+        const card = make()
+        fake.selectedKey = "object:o1"
+        fake.planJson = JSON.stringify({ preview: 1 })
+
+        fake.table.depth = 1.75
+        fake.pictureRevision++
+
+        compare(findChild(card, "depthField").text, "1,75")
     }
 
     // LH-25: an object selected shows its size in two fields, with the catalogue's separator.
