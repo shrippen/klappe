@@ -563,11 +563,11 @@ pub mod qobject {
             path: &QString,
         ) -> bool;
 
-        /// The file URL an export with `extension` is offered under: next to the project
+        /// The file URL an export of `kind` is offered under: next to the project
         /// folder, named by the plan; empty without a project.
         #[qinvokable]
         #[cxx_name = "exportFile"]
-        fn export_file(self: Pin<&mut Self>, extension: &QString) -> QString;
+        fn export_file(self: Pin<&mut Self>, kind: &QString) -> QString;
 
         /// What a tooltip says about a plan element (`camera:a` …), as JSON.
         #[qinvokable]

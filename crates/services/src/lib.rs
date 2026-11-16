@@ -15,6 +15,7 @@ mod edit;
 mod error;
 mod error_text;
 mod example;
+mod export_format;
 mod field;
 mod library;
 mod light_edit;
@@ -33,6 +34,7 @@ pub use edit::ShotField;
 pub use error::ServiceError;
 pub use error_text::error_text;
 pub use example::{copy_example, ensure_example};
+pub use export_format::ExportFormat;
 pub use field::Field;
 pub use light_edit::LightChange;
 pub use number::{read_number, Range, Unit};
@@ -40,8 +42,8 @@ pub use plan_edit::{Grid, MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
-    Autosave, BackupState, Grab, Layer, Lock, Looping, Playing, Session, Size, Step, TimeSnap,
-    View, Visibility,
+    Autosave, BackupState, ExportOptions, Grab, Layer, Lock, Looping, Playing, Session, Size, Step,
+    TimeSnap, View, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{

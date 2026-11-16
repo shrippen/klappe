@@ -282,7 +282,9 @@ RowLayout {
         order: header.shotOrder
         papers: header.project.papers || []
         orientations: header.project.orientations || []
-        projectPaper: header.project.paper || ""
+        formats: header.project.formats || []
+        projectSize: header.project.paper_size || ""
+        projectOrientation: header.project.paper_orientation || ""
     }
     CommandAction {
         id: actPng
