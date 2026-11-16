@@ -334,7 +334,7 @@ fn crossing_plan() -> FloorPlan {
 }
 
 /// Plan and shot list pages are all upright, every column is there, and nothing is cut that
-/// the landscape list shows: a 147 character description and 23 axis partners.
+/// the landscape list shows: a 160 character description and 23 axis partners.
 #[test]
 fn a_portrait_pdf_has_upright_shot_list_pages() {
     let plan = crossing_plan();
@@ -369,7 +369,8 @@ fn a_portrait_pdf_has_upright_shot_list_pages() {
     ] {
         assert!(words.contains(head), "{head}");
     }
-    assert!(!words.contains('\u{2026}'), "a cell is cut");
+    // A cut cell ends in "…", which the PDF writes as the WinAnsi escape \205.
+    assert!(!text.contains("\\205"), "a cell is cut");
 
     let flat = words.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(

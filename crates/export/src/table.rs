@@ -69,7 +69,8 @@ pub(crate) fn sheets(
         return Ok(Vec::new());
     }
 
-    let upright = page.orientation == Orientation::Portrait;
+    let orientation = page.orientation;
+    let upright = orientation == Orientation::Portrait;
     let (width_pt, height_pt) = sheet_size_pt(page);
     let margin = page.margin_mm.max(0.0) * PT_PER_MM;
     let content_w = width_pt - 2.0 * margin;
@@ -91,9 +92,9 @@ pub(crate) fn sheets(
     let head_cells = wrapped(&head, &widths, Weight::Bold);
     let indent = widths[0];
     let extra_w = content_w - indent - 2.0 * PAD_PT;
-    let head_extra = head_extra(&head, extra_w, upright);
+    let head_extra = head_extra(&head, extra_w, orientation);
 
-    let table_w = table_width(&widths, content_w, upright);
+    let table_w = table_width(&widths, content_w, orientation);
     let title = sheet_title(page, texts);
     let mut ctx = Ctx {
         pal,
@@ -114,7 +115,7 @@ pub(crate) fn sheets(
     let mut setup = 0;
     for (row, (shot_setup, _)) in rows.iter().zip(&ordered) {
         let lines = wrapped(row, &widths, Weight::Regular);
-        let extra = extra_lines(row, &head, extra_w, upright);
+        let extra = extra_lines(row, &head, extra_w, orientation);
         let height = row_height(&lines) + extra.len() as f64 * LINE_PT;
 
         // A setup's heading never stands alone at the foot of a sheet, and a setup that
@@ -139,10 +140,10 @@ pub(crate) fn sheets(
 }
 
 /// Upright, the free text lines run under the short columns: the table is as wide as the page.
-fn table_width(widths: &[f64; COLUMNS], content_w: f64, upright: bool) -> f64 {
-    match upright {
-        true => content_w,
-        false => widths.iter().sum(),
+fn table_width(widths: &[f64; COLUMNS], content_w: f64, orientation: Orientation) -> f64 {
+    match orientation {
+        Orientation::Portrait => content_w,
+        Orientation::Landscape => widths.iter().sum(),
     }
 }
 
@@ -357,10 +358,10 @@ fn extra_lines(
     row: &[String; COLUMNS],
     head: &[String; COLUMNS],
     max_w: f64,
-    upright: bool,
+    orientation: Orientation,
 ) -> Vec<String> {
     let mut lines = Vec::new();
-    if !upright {
+    if orientation == Orientation::Landscape {
         return lines;
     }
 
@@ -380,8 +381,8 @@ fn extra_lines(
 }
 
 /// Upright: the names of the free text columns on one line under the head row.
-fn head_extra(head: &[String; COLUMNS], max_w: f64, upright: bool) -> Vec<String> {
-    if !upright {
+fn head_extra(head: &[String; COLUMNS], max_w: f64, orientation: Orientation) -> Vec<String> {
+    if orientation == Orientation::Landscape {
         return Vec::new();
     }
 
