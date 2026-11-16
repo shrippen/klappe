@@ -33,7 +33,8 @@ pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use geometry::Point;
 pub use library::{
     is_floor_offset_m, is_object_height_m, is_object_size_m, is_outline, outline_area_m2,
-    outline_box, BodyForm, FormBox, LibraryItem, ObjectShape, MAX_OBJECT_HEIGHT_M, MAX_OBJECT_M,
+    outline_box, outline_label_point, BodyForm, FormBox, LibraryItem, ObjectShape, FREE_FORM_KIND,
+    MAX_OBJECT_HEIGHT_M, MAX_OBJECT_M,
 };
 pub use light_preset::{is_beam_deg, is_power_w, is_temp_k, LightPreset};
 pub use limits::{

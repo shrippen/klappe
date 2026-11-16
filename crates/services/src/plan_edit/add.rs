@@ -4,7 +4,7 @@
 use klappe_model::{
     is_outline, outline_box, Arrival, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape,
     FigureColor, FigureTrack, Fill, Light, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject,
-    Wall,
+    Wall, FREE_FORM_KIND,
 };
 
 use super::marks::WALK_SPEED_M_S;
@@ -29,9 +29,6 @@ const MIN_AREA_POINTS: usize = 3;
 /// Side of an object whose kind no library knows.
 const DEFAULT_OBJECT_M: f64 = 1.0;
 const DEFAULT_WALL_M: f64 = 0.2;
-
-/// The kind of a free form (LH-92); no library entry has it, the catalogue names it.
-const FREE_FORM_KIND: &str = "form";
 
 pub(super) fn add_mark(
     scope: &mut Scope<'_>,

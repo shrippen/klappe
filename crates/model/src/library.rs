@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::geometry::Point;
 
+/// The kind of a free form (LH-92); no library entry has it, the catalogue names it.
+pub const FREE_FORM_KIND: &str = "form";
+
 /// Largest side of an object: a stadium fits; 1e300 m would not draw.
 pub const MAX_OBJECT_M: f64 = 1000.0;
 
@@ -72,6 +75,75 @@ pub fn outline_area_m2(points: &[Point]) -> f64 {
         .sum();
 
     twice.abs() / 2.0
+}
+
+/// A point to put a label on, inside the outline `points`: the centroid, or for an outline that
+/// does not contain it (a U) the middle of the longest stretch inside along the box's middle
+/// height. Empty `points` give the origin.
+pub fn outline_label_point(points: &[Point]) -> Point {
+    let (middle, _, _) = outline_box(points);
+    let Some(centroid) = outline_centroid(points) else {
+        return middle;
+    };
+    if is_inside(points, centroid) {
+        return centroid;
+    }
+
+    let chord = chord_xs(points, middle.y_m).as_chunks::<2>().0.iter().fold(
+        None::<(f64, f64)>,
+        |best, pair| match best {
+            Some((from, to)) if to - from >= pair[1] - pair[0] => best,
+            _ => Some((pair[0], pair[1])),
+        },
+    );
+
+    match chord {
+        Some((from, to)) => Point::new((from + to) / 2.0, middle.y_m),
+        None => middle,
+    }
+}
+
+/// The area centroid of the closed outline `points`; `None` without an area.
+fn outline_centroid(points: &[Point]) -> Option<Point> {
+    let next = points.iter().cycle().skip(1);
+    let (mut twice, mut cx, mut cy) = (0.0, 0.0, 0.0);
+
+    for (a, b) in points.iter().zip(next) {
+        let cross = a.x_m * b.y_m - b.x_m * a.y_m;
+
+        twice += cross;
+        cx += (a.x_m + b.x_m) * cross;
+        cy += (a.y_m + b.y_m) * cross;
+    }
+    if twice == 0.0 {
+        return None;
+    }
+
+    Some(Point::new(cx / (3.0 * twice), cy / (3.0 * twice)))
+}
+
+/// The x of every edge of `points` that crosses the height `y_m`, from left to right: the
+/// stretches between the 1st and 2nd, 3rd and 4th ... are inside.
+fn chord_xs(points: &[Point], y_m: f64) -> Vec<f64> {
+    let next = points.iter().cycle().skip(1);
+    let mut xs: Vec<f64> = points
+        .iter()
+        .zip(next)
+        .filter(|(a, b)| (a.y_m <= y_m) != (b.y_m <= y_m))
+        .map(|(a, b)| a.x_m + (y_m - a.y_m) / (b.y_m - a.y_m) * (b.x_m - a.x_m))
+        .collect();
+
+    xs.sort_by(f64::total_cmp);
+    xs
+}
+
+/// Whether `at` lies inside the outline `points` (even-odd rule).
+fn is_inside(points: &[Point], at: Point) -> bool {
+    chord_xs(points, at.y_m)
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .any(|pair| pair[0] < at.x_m && at.x_m < pair[1])
 }
 
 /// Fewest points of a free form's outline.
@@ -183,6 +255,31 @@ mod tests {
         assert_eq!(outline_area_m2(&backwards), 4.0);
         assert_eq!(outline_box(&[]), (Point::default(), 0.0, 0.0));
         assert_eq!(outline_area_m2(&[]), 0.0);
+    }
+
+    /// The U's box middle (1.5, 1.5) lies in its gap and so does its centroid; the label goes
+    /// into an arm. A convex outline keeps its centroid.
+    #[test]
+    fn a_label_point_lies_inside_the_outline() {
+        let p = Point::new;
+        let u: Vec<Point> = [
+            (0.0, 0.0),
+            (1.0, 0.0),
+            (1.0, 2.0),
+            (2.0, 2.0),
+            (2.0, 0.0),
+            (3.0, 0.0),
+            (3.0, 3.0),
+            (0.0, 3.0),
+        ]
+        .iter()
+        .map(|&(x, y)| p(x, y))
+        .collect();
+
+        assert_eq!(outline_label_point(&u), p(0.5, 1.5));
+        let square = [p(0.0, 0.0), p(2.0, 0.0), p(2.0, 2.0), p(0.0, 2.0)];
+        assert_eq!(outline_label_point(&square), p(1.0, 1.0));
+        assert_eq!(outline_label_point(&[]), Point::default());
     }
 
     /// An outline has three finite points round an area that fits an object.

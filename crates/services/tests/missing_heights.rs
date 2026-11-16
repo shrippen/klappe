@@ -110,3 +110,14 @@ fn a_height_drag_starts_from_what_stands() {
     assert!(s.height_of(&Source::Object("fort".into())).is_none());
     assert!(s.height_of(&Source::Note("x".into())).is_none());
 }
+
+/// A click on an object's height caption takes the object: the caption lies on top of its body
+/// but belongs to nothing. The pillar `saeule-1` (0.8 m, middle (6, 4), named) has its caption
+/// 0.3 m below the middle.
+#[test]
+fn a_click_on_the_height_takes_the_object() {
+    let s = example();
+    let caption = klappe_model::Point::new(6.0, 4.3);
+
+    assert_eq!(s.pick(caption), Some(Source::Object("saeule-1".into())));
+}

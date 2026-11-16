@@ -13,7 +13,9 @@ pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> 
     items
         .iter()
         .rev()
-        .filter(|item| grabbable(item.role) && !locked(item.role))
+        // A caption that belongs to nothing (a height, a free form's name) does not hide
+        // the body under it.
+        .filter(|item| grabbable(item.role) && !locked(item.role) && item.source.is_some())
         .find(|item| hit(item, at, PICK_RADIUS_M))
         .and_then(|item| item.source.clone())
 }

@@ -3,6 +3,8 @@
 
 use std::path::Path;
 
+use klappe_model::LibraryItem;
+
 use klappe_services::{
     Field, Layer, Lock, ObjectShape, PlanEdit, Point, ProjectEdit, ServiceError, Session,
 };
@@ -147,4 +149,98 @@ fn a_filed_free_form_keeps_its_outline() {
         objects.last().unwrap().shape,
         ObjectShape::Polygon { .. }
     ));
+}
+
+const SIZE: (f64, f64) = (320.0, 240.0);
+/// Half of the stand-in height of an object without one (0.9 m).
+const HALF_STAND_IN_M: f64 = 0.45;
+
+/// A U, its box from (4, 5) to (7, 8); the middle (5.5, 6.5) lies in its gap.
+fn u_shape() -> Vec<Point> {
+    [
+        (4.0, 5.0),
+        (5.0, 5.0),
+        (5.0, 7.0),
+        (6.0, 7.0),
+        (6.0, 5.0),
+        (7.0, 5.0),
+        (7.0, 8.0),
+        (4.0, 8.0),
+    ]
+    .iter()
+    .map(|&(x, y)| p(x, y))
+    .collect()
+}
+
+/// The 3D aim at a notched free form lands inside it, not in the notch.
+#[test]
+fn the_3d_aim_at_a_notched_form_lies_inside_it() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::AddShape { points: u_shape() })
+        .unwrap();
+    let id = s.project().locations[0]
+        .set
+        .objects
+        .last()
+        .unwrap()
+        .id
+        .clone();
+
+    s.toggle_view();
+    s.aim_at_object(&id);
+    let middle = s
+        .free_level_at((SIZE.0 / 2.0, SIZE.1 / 2.0), SIZE, HALF_STAND_IN_M)
+        .unwrap();
+
+    assert!((middle.x_m - 4.5).abs() < 1e-6, "{middle:?}");
+    assert!((middle.y_m - 6.5).abs() < 1e-6, "{middle:?}");
+}
+
+/// The kind `form` is the free forms'; an entry filed under the name "Form" gets another, and
+/// the free forms do not count as its uses.
+#[test]
+fn a_library_entry_never_takes_the_free_form_kind() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::AddShape { points: l_shape() })
+        .unwrap();
+    let id = s.project().locations[0]
+        .set
+        .objects
+        .last()
+        .unwrap()
+        .id
+        .clone();
+
+    s.edit_project(ProjectEdit::LibraryFromObject {
+        location: "saengersaal".into(),
+        object: id,
+        name: "Form".into(),
+    })
+    .unwrap();
+
+    let own = s.project().library.last().unwrap().kind.clone();
+    assert_ne!(own, "form");
+    let entry = s.library().into_iter().find(|e| e.kind == own).unwrap();
+    assert_eq!(entry.uses, 0);
+}
+
+/// A library file with the kind `form` is taken in under another kind.
+#[test]
+fn an_imported_entry_never_takes_the_free_form_kind() {
+    let mut s = open();
+    let item = LibraryItem {
+        kind: "form".into(),
+        label: "Form".into(),
+        group: String::new(),
+        width_m: 1.0,
+        depth_m: 1.0,
+        shape: ObjectShape::Rect,
+        height_m: None,
+        form: None,
+    };
+
+    s.edit_project(ProjectEdit::ImportLibrary { items: vec![item] })
+        .unwrap();
+
+    assert_ne!(s.project().library.last().unwrap().kind, "form");
 }

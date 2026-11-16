@@ -1,6 +1,6 @@
 //! The set's objects on the plan: the body of each and the caption of its height (LH-93).
 
-use klappe_model::{outline_box, ObjectShape, Point, SetObject, SetPlan};
+use klappe_model::{outline_box, outline_label_point, ObjectShape, Point, SetObject, SetPlan};
 
 use super::{Item, Role, Shape, Source, ELLIPSE_CORNERS};
 use crate::opening::wall_items;
@@ -46,29 +46,60 @@ pub(super) fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
     wall_items(set, items);
 
     for object in &set.objects {
+        let name = Some(object.label.clone()).filter(|l| !l.is_empty());
+        let free = matches!(object.shape, ObjectShape::Polygon { .. });
+
+        // The canvas writes a body's name in the middle of its box; a free form's may lie
+        // outside it (a U), so its name is a caption of its own at a point inside.
         items.push(Item {
             role: Role::Object,
             shape: Shape::Polygon {
                 points: object_corners(object),
             },
-            label: Some(object.label.clone()).filter(|l| !l.is_empty()),
+            label: name.clone().filter(|_| !free),
             source: Some(Source::Object(object.id.clone())),
         });
+        if free && name.is_some() {
+            items.push(name_item(object, name));
+        }
         items.push(height_item(object));
     }
 }
 
-/// The caption of an object's height: at its centre, below the name when it has one.
+/// A free form's name at its inside point, with no shape to draw and nothing to pick.
+fn name_item(object: &SetObject, name: Option<String>) -> Item {
+    Item {
+        role: Role::Object,
+        shape: Shape::Circle {
+            center: label_point(object),
+            radius_m: 0.0,
+        },
+        label: name,
+        source: None,
+    }
+}
+
+/// Where an object's height caption and the 3D aim go: its centre, but for a free form a point
+/// inside the outline (the centre of a U lies in its gap).
+pub fn label_point(object: &SetObject) -> Point {
+    match object.shape {
+        ObjectShape::Polygon { .. } => outline_label_point(&object_corners(object)),
+        _ => object.at,
+    }
+}
+
+/// The caption of an object's height: at its label point, below the name when it has one.
 fn height_item(object: &SetObject) -> Item {
     let named = !object.label.is_empty();
     let drop_m = if named { HEIGHT_BELOW_NAME_M } else { 0.0 };
+    let at = label_point(object);
 
     Item {
         role: Role::Height {
             cm: object.height_m.map(|h| (h * CM_PER_M).round() as u32),
         },
         shape: Shape::Circle {
-            center: Point::new(object.at.x_m, object.at.y_m + drop_m),
+            center: Point::new(at.x_m, at.y_m + drop_m),
             radius_m: 0.0,
         },
         label: None,
@@ -110,6 +141,77 @@ mod tests {
             item.shape,
             Shape::Circle { center, .. } if center == Point::new(10.0, 5.0)
         ));
+    }
+
+    /// A notched free form (a U): the caption sits inside it, not in the gap at the box middle.
+    #[test]
+    fn a_free_form_caption_lies_inside_the_outline() {
+        let points: Vec<Point> = [
+            (-1.5, -1.5),
+            (-0.5, -1.5),
+            (-0.5, 0.5),
+            (0.5, 0.5),
+            (0.5, -1.5),
+            (1.5, -1.5),
+            (1.5, 1.5),
+            (-1.5, 1.5),
+        ]
+        .iter()
+        .map(|&(x, y)| Point::new(x, y))
+        .collect();
+        let mut form = object("", None);
+        form.shape = ObjectShape::Polygon { points };
+        form.width_m = 3.0;
+        form.depth_m = 3.0;
+
+        let inside = label_point(&form);
+        assert_eq!(inside, Point::new(9.0, 5.0));
+
+        let item = height_item(&form);
+        assert!(matches!(item.shape, Shape::Circle { center, .. } if center == inside));
+    }
+
+    /// A named U: the canvas writes a body's name in the middle of its box, in the gap, so a
+    /// free form's name comes as a caption of its own at the inside point, the height below.
+    #[test]
+    fn a_named_free_form_has_its_name_inside() {
+        let points: Vec<Point> = [
+            (-1.5, -1.5),
+            (-0.5, -1.5),
+            (-0.5, 0.5),
+            (0.5, 0.5),
+            (0.5, -1.5),
+            (1.5, -1.5),
+            (1.5, 1.5),
+            (-1.5, 1.5),
+        ]
+        .iter()
+        .map(|&(x, y)| Point::new(x, y))
+        .collect();
+        let mut form = object("Tresen", Some(1.1));
+        form.shape = ObjectShape::Polygon { points };
+        form.width_m = 3.0;
+        form.depth_m = 3.0;
+        let set = SetPlan {
+            objects: vec![form],
+            ..Default::default()
+        };
+        let mut items = Vec::new();
+        set_items(&set, &mut items);
+
+        let inside = Point::new(9.0, 5.0);
+        assert_eq!(items[0].label, None);
+        assert_eq!(items[1].label.as_deref(), Some("Tresen"));
+        assert_eq!(items[1].source, None);
+        assert!(matches!(items[1].shape, Shape::Circle { center, .. } if center == inside));
+        let below = Point::new(9.0, 5.0 + HEIGHT_BELOW_NAME_M);
+        assert!(matches!(items[2].shape, Shape::Circle { center, .. } if center == below));
+    }
+
+    /// A rectangle keeps its centre.
+    #[test]
+    fn a_rect_keeps_its_centre() {
+        assert_eq!(label_point(&object("", None)), Point::new(10.0, 5.0));
     }
 
     /// A named object's number sits below its name.
