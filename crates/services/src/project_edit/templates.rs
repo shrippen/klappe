@@ -133,11 +133,7 @@ fn indices(project: &Project, scene: &str, plan: &str) -> Result<(usize, usize),
     ))
 }
 
-fn on_plan(
-    project: &Project,
-    scene: usize,
-    plan: usize,
-) -> Result<&klappe_model::FloorPlan, ServiceError> {
+fn on_plan(project: &Project, scene: usize, plan: usize) -> Result<&FloorPlan, ServiceError> {
     project
         .scenes
         .get(scene)
