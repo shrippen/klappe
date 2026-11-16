@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    Arrival, Character, Dash, Departure, DoorSide, DrawingShape, FigureColor, Fill, FloorPlan,
-    Hinge, LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan,
+    normalize_deg, Arrival, Character, Dash, Departure, DoorSide, DrawingShape, FigureColor, Fill,
+    FloorPlan, Hinge, LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan,
 };
 use klappe_stellprobe::Source;
 
@@ -335,9 +335,6 @@ pub enum Snapping {
     Off,
 }
 
-/// A full turn; angles are kept within [0, 360).
-const FULL_TURN_DEG: f64 = 360.0;
-
 impl PlanEdit {
     /// The layers the edit changes something on; a locked one refuses it. A group edit can
     /// reach several.
@@ -565,16 +562,6 @@ pub(crate) fn apply(
         }
         PlanEdit::SetPace { source, pace } => set_pace(&mut scope, source, *pace),
     }
-}
-
-/// An angle within [0, 360): -90 becomes 270. `rem_euclid` can return 360 for a tiny negative
-/// number, so that case is folded back.
-fn normalize_deg(deg: f64) -> f64 {
-    let n = deg.rem_euclid(FULL_TURN_DEG);
-    if n >= FULL_TURN_DEG {
-        return 0.0;
-    }
-    n
 }
 
 /// The mark a figure or camera stands at, or is leaving, at `time_s`: the last one that has

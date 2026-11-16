@@ -20,13 +20,6 @@ pub(super) fn empty() -> Project {
 }
 
 #[test]
-fn angles_stay_below_a_full_turn() {
-    assert_eq!(normalize_deg(-1e-20), 0.0);
-    assert_eq!(normalize_deg(-90.0), 270.0);
-    assert_eq!(normalize_deg(720.0), 0.0);
-}
-
-#[test]
 fn a_missing_location_refuses_set_edits() {
     let mut project = empty();
     project.locations.clear();

@@ -3,8 +3,8 @@
 //! gesture hands over (agent.md); the session snaps them and does the work.
 
 use klappe_services::{
-    read_number, Dash, DrawingShape, Field, FigureColor, Fill, Layer, Lock, OpeningKind, PlanEdit,
-    Point, Range, ServiceError, Source, Unit, MIN_OBJECT_HEIGHT_M,
+    measure_angle_deg, read_number, Dash, DrawingShape, Field, FigureColor, Fill, Layer, Lock,
+    OpeningKind, PlanEdit, Point, Range, ServiceError, Source, Unit, MIN_OBJECT_HEIGHT_M,
 };
 
 /// A new camera looks to the right (0°); the user turns it afterwards.
@@ -24,9 +24,6 @@ const CM_PER_M: f64 = 100.0;
 
 /// Between the width and the depth of a typed room.
 const ROOM_SIZE_SEPARATOR: char = ';';
-
-/// A full turn; angles are kept within [0, 360), as `facing_deg` is.
-const FULL_TURN_DEG: f64 = 360.0;
 
 /// How far from its first point a click still closes an area when nothing snaps, in metres.
 const AREA_CLOSE_M: f64 = 0.4;
@@ -453,22 +450,14 @@ impl MeasureStep {
         }
     }
 
-    /// The direction from the first point to the second, counted as a figure's `facing_deg`:
-    /// 0 to the right, 90 down the plan (y grows downwards), within [0, 360). `None` while
-    /// there are not two points or they coincide.
+    /// The direction from the first point to the second, as the session counts it. `None`
+    /// while there are not two points or they coincide.
     pub fn angle_deg(self) -> Option<f64> {
         let (MeasureStep::Live(a, b) | MeasureStep::Held(a, b)) = self else {
             return None;
         };
-        if a == b {
-            return None;
-        }
 
-        // Round first: 359.97 shows as 360, and -0.02 as -0. `+ 0.0` turns -0 into 0.
-        let deg = (b.y_m - a.y_m).atan2(b.x_m - a.x_m).to_degrees();
-        let step = 10f64.powi(ANGLE_DECIMALS as i32);
-        let rounded = (deg * step).round() / step;
-        Some(rounded.rem_euclid(FULL_TURN_DEG) % FULL_TURN_DEG + 0.0)
+        measure_angle_deg(a, b, ANGLE_DECIMALS)
     }
 }
 

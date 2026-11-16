@@ -48,9 +48,29 @@ impl Point {
     }
 }
 
+/// A full turn; angles are kept within [0, 360).
+pub const FULL_TURN_DEG: f64 = 360.0;
+
+/// An angle within [0, 360): -90 becomes 270. `rem_euclid` can return 360 for a tiny negative
+/// number, so that case is folded back.
+pub fn normalize_deg(deg: f64) -> f64 {
+    let n = deg.rem_euclid(FULL_TURN_DEG);
+    if n >= FULL_TURN_DEG {
+        return 0.0;
+    }
+    n
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn angles_stay_below_a_full_turn() {
+        assert_eq!(normalize_deg(-1e-20), 0.0);
+        assert_eq!(normalize_deg(-90.0), 270.0);
+        assert_eq!(normalize_deg(720.0), 0.0);
+    }
 
     #[test]
     fn distance_and_lerp() {
