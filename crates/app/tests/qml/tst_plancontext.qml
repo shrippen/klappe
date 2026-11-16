@@ -35,6 +35,7 @@ TestCase {
         // What a right click selects: the key and count the fake then shows.
         property string pickKey: ""
         property string armed: ""
+        property bool viewFree: false
 
         function describe(key) { return "{}" }
         function markInfo() { return "{}" }
@@ -108,6 +109,7 @@ TestCase {
         fake.calls = []
         fake.pickKey = ""
         fake.armed = ""
+        fake.viewFree = false
     }
 
     function made(tool) {
@@ -338,6 +340,15 @@ TestCase {
         compare(findChild(area, "hintLabel").text, "Klick auf die zweite Figur setzt die Achse. Esc bricht ab.")
         fake.armed = ""
         compare(findChild(area, "hintLabel").text, "Ziehen zeichnet eine Wand.")
+    }
+
+    // The arm keys work in 3D too: the hint says what the click does there as well.
+    function test_the_hint_line_shows_in_the_free_view() {
+        const area = made("select")
+        fake.viewFree = true
+        fake.armed = "nextMark"
+
+        verify(findChild(area, "hintLine").visible)
     }
 
     function test_the_hint_line_shows_with_a_tool() {
