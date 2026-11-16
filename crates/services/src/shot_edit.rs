@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use klappe_model::{Angle, FloorPlan, LinkTarget, Movement, Numbering, Shot, ShotSize};
 use klappe_stellprobe::is_setup_model;
@@ -233,19 +233,22 @@ fn split_number(numbering: Numbering, number: &str) -> (&str, &str) {
 }
 
 /// Splits a number for "Renumber" into its base and version letters, whatever scheme wrote it,
-/// so a version survives a change of scheme: a hyphen tail (`12A.3-B`) is a version in every
-/// scheme, letters after a digit (`12.3A`) one only where the target scheme gives letters no
-/// other meaning (a number written by the group scheme keeps them as its camera).
-fn split_any(target: Numbering, number: &str) -> (&str, &str) {
+/// so a version survives a change of scheme. A hyphen tail (`12A.3-B`) is a version in every
+/// scheme. Letters after a digit (`12.3A`) are a version of the scene scheme or the camera of the
+/// group scheme: they are the camera when they are `label`, the camera of the shot, and no
+/// shot of the plan has the number without them (`existing`); else a version.
+fn split_any<'a>(existing: &HashSet<String>, number: &'a str, label: &str) -> (&'a str, &'a str) {
     let hyphen = split_number(Numbering::Camera, number);
     if !hyphen.1.is_empty() {
         return (hyphen.0, hyphen.1.trim_start_matches(VERSION_SEPARATOR));
     }
-    if target == Numbering::Group {
+
+    let (base, letters) = split_number(Numbering::Scene, number);
+    if letters == label && !existing.contains(base) {
         return (number, "");
     }
 
-    split_number(Numbering::Scene, number)
+    (base, letters)
 }
 
 /// Version letters for the n-th version (1-based): A to Z, then AA, AB, ...
@@ -325,10 +328,11 @@ pub(crate) fn renumber(plan: &mut FloorPlan, numbering: Numbering, scene: &str) 
     let mut new_base: HashMap<String, String> = HashMap::new();
     let mut counts: HashMap<String, usize> = HashMap::new();
     let mut groups: Vec<RunGroup> = Vec::new();
+    let existing: HashSet<String> = plan.shots.iter().map(|s| s.number.clone()).collect();
 
     for at in 0..plan.shots.len() {
         let shot = &plan.shots[at];
-        let (base, letters) = split_any(numbering, &shot.number);
+        let (base, letters) = split_any(&existing, &shot.number, &camera_name(plan, &shot.camera));
         let tail = match (letters.is_empty(), numbering) {
             (true, _) => String::new(),
             (false, Numbering::Scene) => letters.to_owned(),

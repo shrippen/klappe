@@ -66,9 +66,11 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
     der Kamerabuchstabe: `12.3A`, `12.3B`. Eine Gruppe sind Shots verschiedener Kameras, deren
     Zeitspannen sich überlappen. Version: Bindestrich und Buchstaben, `12.3A-B`.
   Eine Version behält beim Umnummerieren ihren Anhang am neuen Namen ihrer Basis, auch über
-  einen Wechsel des Schemas (`12.3A` wird `12B.1-A`). Eine Ausnahme ist `group`: Buchstaben
-  hinter einer Ziffer gelten dort als Kamera, eine Version aus `scene` muss vorher in
-  `camera` oder mit Bindestrich geschrieben sein.
+  einen Wechsel des Schemas (`12.3A` wird `12B.1-A` und zurück). Ein Bindestrich-Anhang ist in
+  jedem Schema eine Version. Buchstaben direkt hinter einer Ziffer (`12.3A`) gelten als Kamera,
+  wenn sie das `label` der Kamera des Shots sind und kein Shot die Nummer ohne sie hat;
+  sonst als Version. Verlustbehaftet ist nur der Fall, dass die Basis einer Version fehlt und
+  ihr Buchstabe zufällig der ihrer Kamera ist: sie gilt dann als eigener Shot.
 - **Achse (LH-40):** `axis` im Floorplan (`szenen/<id>.json`) mit `a` und `b`, den Figur-Ids,
   zwischen denen die 180°-Achse liegt; je Floorplan, weil die Spuren der Figuren dort liegen.
   Fehlt `axis`, gilt die Achse zwischen den ersten zwei Figuren des Floorplans. Wird eine der
