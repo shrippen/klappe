@@ -25,12 +25,12 @@ fn a_shot_setup_is_written_only_when_given() {
     save(&dir, &project, None).unwrap();
     let text = fs::read_to_string(dir.join(SCENE_FILE)).unwrap();
 
-    assert!(!text.contains("\"setup\""), "{text}");
+    assert!(!text.contains("setup_of"), "{text}");
 
-    project.scenes[0].plans[0].shots[0].setup = Some(2);
+    project.scenes[0].plans[0].shots[0].setup_of = Some("s12-3".into());
     save(&dir, &project, None).unwrap();
     let text = fs::read_to_string(dir.join(SCENE_FILE)).unwrap();
 
-    assert_eq!(text.matches("\"setup\": 2").count(), 1, "{text}");
+    assert_eq!(text.matches("\"setup_of\": \"s12-3\"").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }

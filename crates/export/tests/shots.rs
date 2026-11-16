@@ -95,7 +95,7 @@ fn shot(n: usize) -> Shot {
         gear: "Dolly".into(),
         crew: "Kamera, Ton".into(),
         note: "Nach dem ersten Take neu ausleuchten".into(),
-        setup: None,
+        setup_of: None,
     }
 }
 
@@ -630,7 +630,7 @@ fn the_camera_picture_is_a_png_of_its_size() {
 #[test]
 fn a_shot_assigned_by_hand_is_listed_in_its_setup() {
     let mut plan = two_setups();
-    plan.shots[1].setup = Some(1);
+    plan.shots[1].setup_of = Some(plan.shots[0].id.clone());
 
     let csv = shots_csv(&plan, &texts(), ShotOrder::Shooting);
     let rows: Vec<Vec<&str>> = csv

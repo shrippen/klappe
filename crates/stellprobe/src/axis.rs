@@ -193,7 +193,7 @@ mod tests {
             gear: String::new(),
             crew: String::new(),
             note: String::new(),
-            setup: None,
+            setup_of: None,
         }
     }
 

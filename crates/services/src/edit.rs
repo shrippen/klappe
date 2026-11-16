@@ -90,8 +90,13 @@ pub(crate) fn apply(
         ShotField::Angle => shot.angle = angle_of(value).ok_or_else(bad)?,
         ShotField::Movement => shot.movement = movement_of(value).ok_or_else(bad)?,
         ShotField::Lens => shot.lens_mm = lens_of(value)?,
-        ShotField::Setup => shot.setup = setup_of(value).ok_or_else(bad)?,
-        _ => {}
+        ShotField::Setup => shot.setup_of = setup_of(value),
+        // Written above.
+        ShotField::Description
+        | ShotField::Props
+        | ShotField::Gear
+        | ShotField::Crew
+        | ShotField::Note => {}
     }
 
     Ok(())
@@ -127,18 +132,21 @@ fn text_of(shot: &mut Shot, field: ShotField) -> Option<&mut String> {
         ShotField::Gear => Some(&mut shot.gear),
         ShotField::Crew => Some(&mut shot.crew),
         ShotField::Note => Some(&mut shot.note),
-        _ => None,
+        ShotField::Number
+        | ShotField::Camera
+        | ShotField::Size
+        | ShotField::Angle
+        | ShotField::Movement
+        | ShotField::Lens
+        | ShotField::Setup => None,
     }
 }
 
-/// A setup number from 1; empty = computed.
-fn setup_of(value: &str) -> Option<Option<usize>> {
-    let value = value.trim();
-    if value.is_empty() {
-        return Some(None);
-    }
-
-    value.parse::<usize>().ok().filter(|n| *n > 0).map(Some)
+/// The id of the shot to be shot together with; empty = computed. Whether it exists is
+/// checked by `shot_edit::check_setup`.
+fn setup_of(value: &str) -> Option<String> {
+    let id = value.trim();
+    (!id.is_empty()).then(|| id.to_owned())
 }
 
 fn size_of(name: &str) -> Option<ShotSize> {

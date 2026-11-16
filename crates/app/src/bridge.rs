@@ -198,6 +198,12 @@ pub mod qobject {
         #[cxx_name = "editShot"]
         fn edit_shot(self: Pin<&mut Self>, id: &QString, field: &QString, value: &QString) -> bool;
 
+        /// The setups shot `id` can be assigned to without itself (LH-77), as a JSON array of
+        /// `{setup, first_id, first_number, camera_label, lens_mm}`.
+        #[qinvokable]
+        #[cxx_name = "setupChoices"]
+        fn setup_choices(self: &Self, id: &QString) -> QString;
+
         /// Adds a shot at the playhead for the camera selected in the plan, else the selected
         /// shot's or the first one, and selects it; false if refused.
         #[qinvokable]

@@ -430,74 +430,102 @@ fn setups(s: &Session) -> Vec<usize> {
     s.shots().iter().map(|r| r.setup).collect()
 }
 
-/// The example's computed setups are 1, 2, 3, 3, 2 (LH-77).
+/// The example's computed setups are 1, 2, 3, 3, 2; camera B (shots 3 and 4) is setup 3
+/// (LH-77).
 #[test]
-fn a_shot_can_be_assigned_to_another_setup_and_back() {
+fn a_shot_follows_the_setup_of_another_shot_and_back() {
     let mut s = open();
     assert_eq!(setups(&s), [1, 2, 3, 3, 2]);
 
-    s.edit_shot("s12-3", ShotField::Setup, "1").unwrap();
+    // Shot 1 alone in its setup: the numbers must not shift under the choice.
+    s.edit_shot("s12-1", ShotField::Setup, "s12-3").unwrap();
 
-    assert_eq!(setups(&s), [1, 2, 1, 3, 2]);
-    assert_eq!(s.shots()[2].own_setup, Some(1));
+    let rows = s.shots();
+    assert_eq!(setups(&s), [2, 1, 2, 2, 1]);
+    assert_eq!(rows[0].setup_of, "s12-3");
+    assert!(!rows[0].setup_lost);
     let order: Vec<String> = s
         .shots_in(klappe_services::ShotOrder::Shooting)
         .iter()
         .map(|r| r.number.clone())
         .collect();
-    assert_eq!(order, ["12.1", "12.3", "12.2", "12.5", "12.4"]);
+    assert_eq!(order, ["12.2", "12.5", "12.1", "12.3", "12.4"]);
 
-    s.edit_shot("s12-3", ShotField::Setup, "").unwrap();
+    s.edit_shot("s12-1", ShotField::Setup, "").unwrap();
 
     assert_eq!(setups(&s), [1, 2, 3, 3, 2]);
-    assert_eq!(s.shots()[2].own_setup, None);
+    assert_eq!(s.shots()[0].setup_of, "");
+}
+
+#[test]
+fn a_shot_leaving_a_first_shot_still_lands_with_its_target() {
+    let mut s = open();
+
+    s.edit_shot("s12-2", ShotField::Setup, "s12-3").unwrap();
+
+    let rows = s.shots();
+    assert_eq!(rows[1].setup, rows[2].setup);
+    assert_eq!(rows[1].setup, rows[3].setup);
+}
+
+#[test]
+fn the_choices_describe_the_setups_without_the_selected_shot() {
+    let s = open();
+
+    let choices = s.setup_options("s12-1");
+    let firsts: Vec<(usize, &str)> = choices
+        .iter()
+        .map(|c| (c.setup, c.first_id.as_str()))
+        .collect();
+
+    // Without shot 1 the setups are: 2 (A, 40 mm), 3 and 4 (B).
+    assert_eq!(firsts, [(1, "s12-2"), (2, "s12-3")]);
 }
 
 #[test]
 fn assigning_a_setup_is_one_undo_step() {
     let mut s = open();
 
-    s.edit_shot("s12-3", ShotField::Setup, "1").unwrap();
+    s.edit_shot("s12-1", ShotField::Setup, "s12-3").unwrap();
     s.undo();
 
     assert_eq!(setups(&s), [1, 2, 3, 3, 2]);
 }
 
 #[test]
-fn a_setup_must_be_a_positive_whole_number() {
+fn a_target_must_be_another_shot_that_is_not_assigned_itself() {
     let mut s = open();
+    s.edit_shot("s12-2", ShotField::Setup, "s12-3").unwrap();
 
-    for value in ["0", "-1", "x", "1,5"] {
-        assert!(
-            matches!(
-                s.edit_shot("s12-3", ShotField::Setup, value),
-                Err(ServiceError::BadValue { .. })
-            ),
-            "{value}"
-        );
+    for target in ["s12-1", "nope", "s12-2"] {
+        let result = s.edit_shot("s12-1", ShotField::Setup, target);
+        let refused = matches!(result, Err(ServiceError::BadValue { .. }));
+
+        // Shot 1 itself and an unknown shot are refused; shot 2 is assigned by hand: a chain.
+        assert!(refused, "{target}");
     }
 }
 
-/// The setup is gone when the number names none: computed again.
 #[test]
-fn a_setup_that_does_not_exist_is_computed() {
+fn a_target_that_is_gone_is_computed_and_flagged() {
     let mut s = open();
+    s.edit_shot("s12-1", ShotField::Setup, "s12-3").unwrap();
 
-    s.edit_shot("s12-3", ShotField::Setup, "9").unwrap();
+    s.delete_shot("s12-3").unwrap();
 
-    let row = &s.shots()[2];
-    assert_eq!(row.own_setup, Some(9));
-    assert_ne!(row.setup, 9);
+    let row = &s.shots()[0];
+    assert!(row.setup_lost);
+    assert_eq!(row.setup_of, "s12-3");
 }
 
 #[test]
 fn an_assigned_setup_survives_saving_and_loading() {
     let dir = copy("shots-setup");
     let mut s = Session::open(&dir).unwrap();
-    s.edit_shot("s12-3", ShotField::Setup, "1").unwrap();
+    s.edit_shot("s12-1", ShotField::Setup, "s12-3").unwrap();
     s.save().unwrap();
 
     let s = Session::open(&dir).unwrap();
 
-    assert_eq!(setups(&s), [1, 2, 1, 3, 2]);
+    assert_eq!(setups(&s), [2, 1, 2, 2, 1]);
 }

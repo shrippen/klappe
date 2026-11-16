@@ -57,4 +57,7 @@ pub use picture::{
     VectorFace, VectorView,
 };
 pub use scene::{Cut, SceneRole};
-pub use setup::{ordered_shots, shot_setups, ShotOrder, SETUP_TOLERANCE_M};
+pub use setup::{
+    ordered_shots, setup_choices, setup_target, shot_setups, SetupChoice, ShotOrder,
+    SETUP_TOLERANCE_M,
+};

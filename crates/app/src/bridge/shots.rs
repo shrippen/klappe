@@ -1,6 +1,7 @@
 //! Shots: selecting, editing, adding and removing them, and who a camera follows.
 
-use super::qobject;
+use super::view::to_json;
+use super::{q, qobject};
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
@@ -16,6 +17,17 @@ impl qobject::Controller {
             return;
         }
         self.refresh();
+    }
+
+    pub(super) fn setup_choices(&self, id: &QString) -> QString {
+        let options = self
+            .rust()
+            .session
+            .as_ref()
+            .map(|s| s.setup_options(&id.to_string()))
+            .unwrap_or_default();
+
+        q(&to_json(&options))
     }
 
     pub(super) fn edit_shot(

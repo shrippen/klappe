@@ -169,7 +169,7 @@ fn shot(i: usize) -> Shot {
         gear: String::new(),
         crew: String::new(),
         note: String::new(),
-        setup: None,
+        setup_of: None,
     }
 }
 

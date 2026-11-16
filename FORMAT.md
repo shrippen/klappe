@@ -36,11 +36,13 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Kleinschreibung mit Bindestrich. `angle`: `eye-level` (Normalsicht), `high` (Aufsicht), `low`
   (Untersicht), `birds-eye` (Vogelperspektive), `worms-eye` (Froschperspektive), `dutch`
   (gekippt). Fehlt `angle`, gilt `eye-level`. Die Drehreihenfolge (Setups gruppiert) steht nicht
-  in der Datei; sie ergibt sich aus Kamera, Ort und Objektiv. Ausnahme `setup` (LH-77, optional,
-  ganze Zahl ab 1, nur geschrieben, wenn gesetzt): der Shot gehört von Hand zu dieser
-  Setup-Nummer. Die übrigen Shots werden zuerst nummeriert (nach erstem Shot, aus Kamera, Ort
-  und Objektiv); gibt es unter ihnen die Nummer nicht, wird der Shot wie ohne `setup` berechnet
-  und die Oberfläche weist darauf hin. Fehlt `setup`, gilt die Berechnung.
+  in der Datei; sie ergibt sich aus Kamera, Ort und Objektiv. Ausnahme `setup_of` (LH-77, optional, nur geschrieben,
+  wenn gesetzt): die `id` eines anderen Shots desselben Floorplans; der Shot wird im Setup dieses
+  Shots gedreht. Die Shots ohne `setup_of` bilden die Setups (nach erstem Shot nummeriert); ein
+  Shot mit `setup_of` zieht keinen anderen mit und ändert keine Nummer. Ziel darf kein Shot mit
+  `setup_of` sein (keine Ketten) und nicht der Shot selbst. Fehlt das Ziel oder ist es selbst
+  zugeordnet, wird der Shot wie ohne `setup_of` berechnet und die Oberfläche weist darauf hin.
+  Fehlt `setup_of`, gilt die Berechnung.
 - **Achse (LH-40):** `axis` im Floorplan (`szenen/<id>.json`) mit `a` und `b`, den Figur-Ids,
   zwischen denen die 180°-Achse liegt; je Floorplan, weil die Spuren der Figuren dort liegen.
   Fehlt `axis`, gilt die Achse zwischen den ersten zwei Figuren des Floorplans. Wird eine der
