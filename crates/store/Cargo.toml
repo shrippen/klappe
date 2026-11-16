@@ -4,6 +4,7 @@ description = "Reads and writes a Klappe project folder: text files that Git can
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 publish.workspace = true
 
 [dependencies]
