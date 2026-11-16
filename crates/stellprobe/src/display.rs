@@ -137,7 +137,18 @@ impl Source {
                 index: *index,
             }),
             Source::LightGrip { light, .. } => Some(Source::Light(light.clone())),
-            _ => None,
+            // Elements, and the bend grips of a way, which are selected themselves.
+            Source::Object(_)
+            | Source::Light(_)
+            | Source::Camera(_)
+            | Source::Figure(_)
+            | Source::Mark { .. }
+            | Source::FigureVia { .. }
+            | Source::CameraVia { .. }
+            | Source::Wall(_)
+            | Source::Opening { .. }
+            | Source::Note(_)
+            | Source::Drawing(_) => None,
         }
     }
 }
