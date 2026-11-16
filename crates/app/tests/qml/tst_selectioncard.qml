@@ -24,6 +24,8 @@ TestCase {
         property bool asksNote: false
         property string markJson: "{}"
 
+        function place() {}
+        function clearSelection() { selectedKey = ""; selectedCount = 0 }
         function markInfo() { return markJson }
         function describe(key) {
             if (key === "object:o1") {
@@ -279,5 +281,67 @@ TestCase {
 
         verify(card.x > 300)
         verify(card.y <= 250 && 250 <= card.y + card.height)
+    }
+
+    // Q1-04: Escape closes the card (it clears the selection, so a click on the element opens
+    // it again).
+    function test_escape_closes_the_card() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        area.forceActiveFocus()
+        keyClick(Qt.Key_Escape)
+
+        tryVerify(() => !card.visible)
+        compare(fake.selectedKey, "")
+    }
+
+    // In a field of the card Escape first leaves the field; a second one closes the card.
+    function test_escape_in_a_field_leaves_it_first() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        card.expanded = true
+        const field = findChild(card, "heightField")
+        field.forceActiveFocus()
+        verify(card.typing)
+
+        keyClick(Qt.Key_Escape)
+
+        verify(!card.typing)
+        verify(card.visible)
+
+        keyClick(Qt.Key_Escape)
+
+        tryVerify(() => !card.visible)
+    }
+
+    // Q1-04: a change of tool closes the card and keeps the selection; a click on the element
+    // or another selection opens it again.
+    function test_a_change_of_tool_closes_the_card() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        area.tool = "wall"
+
+        tryVerify(() => !card.visible)
+        compare(fake.selectedKey, "object:o1")
+
+        area.tool = "select"
+        verify(!card.visible)
+
+        card.canvas.shapeClicked("object:o1", 2, 11.5)
+        settled(card)
+
+        area.tool = "wall"
+        tryVerify(() => !card.visible)
+        fake.selectedKey = ""
+        fake.selectedKey = "object:o1"
+        settled(card)
     }
 }

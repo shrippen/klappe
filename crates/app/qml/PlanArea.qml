@@ -62,7 +62,10 @@ Item {
             area.tipKey = key
             area.tipAt = canvas.mapFromModel(x, y)
         }
-        onShapeClicked: (key, x, y) => area.controller.place(x, y)
+        onShapeClicked: (key, x, y) => {
+            selection.dismissed = false
+            area.controller.place(x, y)
+        }
         // The click before it selected the note or the bend; the double click edits the note's
         // text, or takes the bend out of its way (LH-21).
         onShapeDoubleClicked: (key, x, y) => {
@@ -253,6 +256,9 @@ Item {
         pointerOver: pointerSpy.hovered
     }
 
+    // The card goes with the tool (Q1-04).
+    onToolChanged: selection.dismissed = true
+
     Connections {
         target: area.controller
         function onAsksNoteChanged() {
@@ -424,6 +430,16 @@ Item {
             area.dragging = false
             area.controller.cancelDrag()
         }
+    }
+
+    // Escape clears the selection, which closes its card (Q1-04). Not while a drag, a measure,
+    // a scale or an outline has its own Escape, and not in a field (it leaves the field first).
+    Shortcut {
+        sequence: "Escape"
+        enabled: area.hasSelection && !area.dragging && !freeView.dragging && !area.drawsArea
+            && !(area.tool === "scale" && area.controller.scalePoints > 0)
+            && !(area.tool === "measure" && area.controller.measuring)
+        onActivated: area.controller.clearSelection()
     }
 
     // Keys for the selection: Delete removes it, R and Shift+R turn it by 15 degrees (several

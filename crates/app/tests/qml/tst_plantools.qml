@@ -43,7 +43,9 @@ TestCase {
         property var removed: []
         property bool accept: true
         property var styles: []
+        property int cleared: 0
 
+        function clearSelection() { cleared++ }
         function setTool(tool, choice) {
             tools.push([tool, choice])
             return true
@@ -99,6 +101,7 @@ TestCase {
         fake.grids = []
         fake.gridName = "cm25"
         fake.styles = []
+        fake.cleared = 0
 
         // The settings keep the mode over the test cases: start each from the default.
         const stale = createTemporaryObject(toolsComponent, tc)
@@ -106,6 +109,7 @@ TestCase {
         wait(50)
         stale.destroy()
         wait(50)
+        fake.cleared = 0
     }
 
     function make() {
@@ -169,6 +173,18 @@ TestCase {
         compare(box.currentIndex, 3)
         verify(findChild(bar, "tool.arrow").visible)
         verify(!findChild(bar, "tool.wall") || !findChild(bar, "tool.wall").visible)
+    }
+
+    // Q1-04: the card of the selection goes with a change of mode.
+    function test_a_change_of_mode_clears_the_selection() {
+        const bar = make()
+        fake.cleared = 0
+
+        bar.mode = "stage"
+        compare(fake.cleared, 1)
+
+        bar.mode = "stage"
+        compare(fake.cleared, 1)
     }
 
     function test_keys_1_to_4_pick_the_mode() {

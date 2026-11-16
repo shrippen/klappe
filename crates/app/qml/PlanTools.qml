@@ -144,6 +144,8 @@ RowLayout {
             tool = "select"
         }
         store.mode = mode
+        // The card of the selection goes with the mode (Q1-04).
+        controller.clearSelection()
     }
     onChoiceChanged: _tell()
     onDrawColorChanged: _tellStyle()

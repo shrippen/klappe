@@ -64,6 +64,7 @@ TestCase {
 
         function markInfo() { return "{}" }
         function setTool() { return true }
+        function clearSelection() {}
         function setDrawStyle() { return true }
         function setSnapping() {}
         function selectShot(id) { calls.push(["shot", id]) }
