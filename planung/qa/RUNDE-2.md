@@ -99,7 +99,7 @@ alten Maße (Q2-05).
 - **Beleg:** P1 `shot-024` bis `shot-026`, `actions.log` 05:23:59
 - **Nachgeprüft:** ja (`check/shot-015`)
 - **Einordnung:** Das Kopieren einer Figur ist nicht vorgesehen; die Absage nennt das nicht.
-- **Status:** offen
+- **Status:** gewählt
 
 ### Q1-01 (Runde 1) Die Tabellen-Ausgabe öffnet keinen Dialog
 - **Wo:** P4, A-20 (Shotliste ODS, dreimal)

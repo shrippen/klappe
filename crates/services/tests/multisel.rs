@@ -377,7 +377,7 @@ fn a_figure_has_no_copy() {
         dy_m: 0.5,
     });
 
-    assert!(matches!(result, Err(ServiceError::BadValue { .. })));
+    assert!(matches!(result, Err(ServiceError::NotCopyable)));
     assert!(!s.is_dirty());
 }
 

@@ -2,6 +2,7 @@
 
 use crate::catalog::Language;
 use crate::error::ServiceError;
+use crate::field::Field;
 
 /// The service's error in the given language; details (path, value) appended where they help.
 pub fn error_text(language: Language, error: &ServiceError) -> String {
@@ -45,13 +46,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
             let name = language.text(&format!("layer.{}", layer.name()));
             return language.text("error.locked").replace("{layer}", &name);
         }
-        ServiceError::BadValue { field, value } => {
-            let name = language.text(&format!("field.{}", field.name()));
-            return language
-                .text("error.badValue")
-                .replace("{field}", &name)
-                .replace("{value}", value);
-        }
+        ServiceError::BadValue { field, value } => return bad_value(language, field, value),
         ServiceError::Store(e) => ("error.store", e.to_string()),
         ServiceError::Export(e) => ("error.export", e.to_string()),
         // The path and the system's reason, e.g. "/a/b.pdf: No such file or directory".
@@ -62,6 +57,21 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
     };
 
     language.text(key).replace("{detail}", &detail)
+}
+
+/// The refused field and its value; without a value, no colon with nothing after it.
+fn bad_value(language: Language, field: &Field, value: &str) -> String {
+    let name = language.text(&format!("field.{}", field.name()));
+    let key = if value.is_empty() {
+        "error.badField"
+    } else {
+        "error.badValue"
+    };
+
+    language
+        .text(key)
+        .replace("{field}", &name)
+        .replace("{value}", value)
 }
 
 /// The catalogue key of an error that has no detail to add.
@@ -77,6 +87,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::NoPicture => Some("error.noPicture"),
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
         ServiceError::FewPoints => Some("error.fewPoints"),
+        ServiceError::NotCopyable => Some("error.notCopyable"),
         // Listed so a new variant must be placed: `error_text` words these itself.
         ServiceError::NoScene(_)
         | ServiceError::NoPlan(_)
@@ -101,7 +112,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Field, Layer};
+    use crate::Layer;
     use std::path::PathBuf;
 
     /// Review of PR 37: a refused tilt said "field.tilt", the catalogue had no such key.
@@ -116,6 +127,36 @@ mod tests {
 
             assert!(raw.is_empty(), "{language:?}: {raw:?}");
         }
+    }
+
+    /// Q2-04: a refusal with no value to show said "Ungültiger Wert für Element:".
+    #[test]
+    fn a_refusal_without_value_has_no_empty_tail() {
+        for language in [Language::German, Language::English] {
+            for field in Field::ALL {
+                let error = ServiceError::BadValue {
+                    field,
+                    value: String::new(),
+                };
+                let text = error_text(language, &error);
+
+                assert!(!text.trim_end().ends_with(':'), "{language:?}: {text}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_mark_has_no_copy_text() {
+        let error = ServiceError::NotCopyable;
+
+        assert_eq!(
+            error_text(Language::German, &error),
+            "Marks lassen sich nicht duplizieren"
+        );
+        assert_eq!(
+            error_text(Language::English, &error),
+            "Marks cannot be duplicated"
+        );
     }
 
     #[test]
@@ -263,6 +304,7 @@ mod tests {
             ServiceError::NotEmpty(PathBuf::from("/a")),
             ServiceError::NoMarks,
             ServiceError::NoPicture,
+            ServiceError::NotCopyable,
         ];
 
         for error in &errors {

@@ -394,6 +394,8 @@
  "error.noPlan": "Plan nicht gefunden: {detail}",
  "error.noShot": "Shot nicht gefunden: {detail}",
  "error.badValue": "Ungültiger Wert für {field}: {value}",
+ "error.badField": "Ungültiger Wert für {field}",
+ "error.notCopyable": "Marks lassen sich nicht duplizieren",
  "error.store": "Projekt konnte nicht gelesen oder gespeichert werden: {detail}",
  "error.export": "Export fehlgeschlagen: {detail}",
  "error.write": "Kann nicht schreiben: {detail}",
