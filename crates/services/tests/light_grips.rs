@@ -81,7 +81,8 @@ fn a_selected_lamp_has_a_grip_on_its_facing_and_one_on_its_beam_edge() {
     let beam = grip_at(&s, LightGrip::Beam).unwrap();
 
     assert!(direction.distance_m(Point::new(1.0 + 4.0 * 0.866_025_403_784_438_6, 8.0)) < 1e-6);
-    assert!(beam.distance_m(Point::new(5.0, 10.0)) < 1e-6);
+    // Halfway out on the beam's edge at 0°.
+    assert!(beam.distance_m(Point::new(3.0, 10.0)) < 1e-6);
     assert!(s
         .display_list()
         .items
@@ -187,4 +188,18 @@ fn removing_a_grip_removes_nothing() {
 
     assert!(result.is_err());
     assert_eq!(s.plan().unwrap().lights.len(), 1);
+}
+
+/// A beam closed to its narrowest: the beam grip is still the one a click on it takes, so the
+/// beam can be opened again.
+#[test]
+fn the_beam_grip_stays_apart_from_the_direction_grip() {
+    let mut s = open();
+    let edit = drag(&s, LightGrip::Beam, pointer(&s, 330.0));
+    s.edit_plan(edit).unwrap();
+    assert!((light(&s).beam_deg - 1.0).abs() < 1e-6);
+
+    let beam = grip_at(&s, LightGrip::Beam).unwrap();
+
+    assert_eq!(s.pick_for(beam, Some(&lamp())), Some(grip(LightGrip::Beam)));
 }

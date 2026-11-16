@@ -44,8 +44,8 @@ fn near(a: Point, b: Point) -> bool {
 
 #[test]
 fn the_grips_sit_on_the_facing_and_on_the_beam_edge() {
-    // 90° + 30° = 120° for the edge: (1 - 2, 2 + 4 * sin 120°).
-    let edge = Point::new(1.0 - 2.0, 2.0 + 4.0 * 120.0_f64.to_radians().sin());
+    // 90° + 30° = 120° for the edge, halfway out (2 m): (1 - 1, 2 + 2 * sin 120°).
+    let edge = Point::new(1.0 - 1.0, 2.0 + 2.0 * 120.0_f64.to_radians().sin());
 
     assert!(near(
         light_grip_place(&lamp(), LightGrip::Direction),

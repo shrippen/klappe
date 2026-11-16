@@ -9,6 +9,7 @@ use klappe_stellprobe::{
 
 use super::drawings::{drag_handle, edge_place, insert_point};
 use super::openings::{drag_edge, edge_m, opening_mut, slide};
+use super::FULL_TURN_DEG;
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
 
@@ -411,7 +412,8 @@ fn drag_light(light: &mut Light, grip: LightGrip, to: Point) {
         LightGrip::Direction => light.facing_deg = normalize_deg(to_deg),
         LightGrip::Beam => {
             // Half the beam is the angle between the facing and the pointer, 0 to 180°.
-            let off_deg = normalize_deg(to_deg - light.facing_deg + 180.0) - 180.0;
+            let half_turn_deg = FULL_TURN_DEG / 2.0;
+            let off_deg = normalize_deg(to_deg - light.facing_deg + half_turn_deg) - half_turn_deg;
 
             light.beam_deg = (2.0 * off_deg.abs()).max(LIGHT_MIN_BEAM_DEG);
         }

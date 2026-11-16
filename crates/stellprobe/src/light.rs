@@ -8,27 +8,31 @@ use crate::optics::frustum;
 
 /// How far a lamp's beam is drawn.
 const BEAM_REACH_M: f64 = 4.0;
+/// How far out along the beam's edge its grip sits, as a share of the reach: closer than the
+/// direction grip, so a narrow beam does not put one grip on the other (2 m apart at least).
+const BEAM_GRIP_SHARE: f64 = 0.5;
 
-/// Where grip `grip` of `light` sits: `BEAM_REACH_M` from the lamp, on its facing or on the
-/// beam's edge clockwise of it.
+/// Where grip `grip` of `light` sits: the direction grip `BEAM_REACH_M` out on its facing,
+/// the beam grip halfway out on the beam's edge clockwise of it.
 ///
 /// ```text
-///          beam grip
-///         /
-///   lamp ·------ direction grip
+///             /
+///      beam ·
+///          /
+///   lamp ·--------- direction grip
 ///         \
 /// ```
 pub fn light_grip_place(light: &Light, grip: LightGrip) -> Point {
-    let angle_deg = match grip {
-        LightGrip::Direction => light.facing_deg,
-        LightGrip::Beam => light.facing_deg + light.beam_deg / 2.0,
+    let (angle_deg, reach_m) = match grip {
+        LightGrip::Direction => (light.facing_deg, BEAM_REACH_M),
+        LightGrip::Beam => (
+            light.facing_deg + light.beam_deg / 2.0,
+            BEAM_REACH_M * BEAM_GRIP_SHARE,
+        ),
     };
     let (sin, cos) = angle_deg.to_radians().sin_cos();
 
-    Point::new(
-        light.at.x_m + BEAM_REACH_M * cos,
-        light.at.y_m + BEAM_REACH_M * sin,
-    )
+    Point::new(light.at.x_m + reach_m * cos, light.at.y_m + reach_m * sin)
 }
 
 /// A lamp as a legend names it: the label the plan shows, and what it is.
