@@ -374,3 +374,12 @@ fn a_hard_line_break_is_not_a_sentence_start() {
 
     assert_eq!(starts, ["A new one\nstarts here"]);
 }
+
+#[test]
+fn a_number_before_a_full_stop_still_ends_the_sentence() {
+    use super::block::sentence_starts;
+
+    let text = "It was number 7. Then it left.";
+
+    assert_eq!(sentence_starts(text), [17]);
+}

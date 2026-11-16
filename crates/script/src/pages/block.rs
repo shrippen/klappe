@@ -179,7 +179,7 @@ fn abbreviation(before: &str) -> bool {
     let word = word.trim_end_matches(CLOSERS).to_lowercase();
     let single = word
         .strip_suffix('.')
-        .is_some_and(|w| w.chars().count() == 1);
+        .is_some_and(|w| w.chars().count() == 1 && w.chars().all(char::is_alphabetic));
 
     single || ABBREVIATIONS.contains(&word.as_str())
 }

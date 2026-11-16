@@ -64,7 +64,7 @@ pub use project::{
     MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
 pub use saved_view::SavedView;
-pub use script_setup::{ScriptLanguage, ScriptPaper, ScriptSetup};
+pub use script_setup::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 pub use shot::{Angle, Movement, Shot, ShotSize};
 pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};

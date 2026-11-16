@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use klappe_model::{Project, ScriptLanguage, ScriptPaper, ScriptSetup};
+use klappe_model::{Project, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 use klappe_store::{load, save};
 
 const PROJECT_FILE: &str = "projekt.toml";
@@ -23,6 +23,7 @@ fn the_setup_is_written_and_read_back() {
     let mut project = Project::new("Film");
     project.script = ScriptSetup {
         language: Some(ScriptLanguage::De),
+        words: ScriptWords::International,
         paper: ScriptPaper::Letter,
         contd_after_action: true,
     };
@@ -32,6 +33,7 @@ fn the_setup_is_written_and_read_back() {
 
     assert!(text.contains("[script]"), "{text}");
     assert!(text.contains("language = \"de\""), "{text}");
+    assert!(text.contains("words = \"international\""), "{text}");
     assert!(text.contains("paper = \"letter\""), "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
@@ -47,4 +49,25 @@ fn a_file_without_the_table_is_the_default() {
     assert!(!text.contains("[script]"), "{text}");
     assert_eq!(load(&dir).unwrap().project.script, ScriptSetup::default());
     assert_eq!(ScriptSetup::default().paper, ScriptPaper::A4);
+}
+
+/// An unknown value falls back to the default, as the plan's `paper` does.
+#[test]
+fn unknown_values_are_the_default() {
+    let dir = test_dir("script-unknown");
+    save(&dir, &Project::new("Film"), None).unwrap();
+    let path = dir.join(PROJECT_FILE);
+    let mut text = fs::read_to_string(&path).unwrap();
+    text.push_str("\n[script]\nlanguage = \"fr\"\nwords = \"klingon\"\npaper = \"tabloid\"\ncontd_after_action = true\n");
+    fs::write(&path, text).unwrap();
+
+    let setup = load(&dir).unwrap().project.script;
+
+    assert_eq!(
+        setup,
+        ScriptSetup {
+            contd_after_action: true,
+            ..ScriptSetup::default()
+        }
+    );
 }

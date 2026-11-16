@@ -7,7 +7,7 @@
 //! ```
 
 use klappe_export::{Face, Paper, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
-use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup};
+use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 use klappe_script::{
     length_text, paginate, parse, parse_located, ContdAfterAction, Element, Located, PageKind,
     PageOptions, PageSize, Pagination, Words,
@@ -65,8 +65,7 @@ pub enum HeaderLine {
 pub struct ScriptPrint {
     pub scene_numbers: SceneNumbers,
     pub header: HeaderLine,
-    /// The words (MORE) and (CONT'D) follow the project's language; this is used when the
-    /// project has none (DN-05).
+    /// Used for the words (MORE) and (CONT'D) when the project has no language (DN-05).
     pub language: Language,
 }
 
@@ -78,11 +77,13 @@ pub(crate) struct Layout {
     pub(crate) view: ScriptPages,
 }
 
+/// International words, or those of the project's language; the surface's language stands in
+/// while the project has none.
 fn words(setup: &ScriptSetup, fallback: Language) -> Words {
-    let german = match (setup.language, fallback) {
-        (Some(ScriptLanguage::De), _) => true,
-        (Some(ScriptLanguage::En), _) => false,
-        (None, language) => language == Language::German,
+    let german = match (setup.words, setup.language) {
+        (ScriptWords::International, _) => false,
+        (ScriptWords::Local, Some(language)) => language == ScriptLanguage::De,
+        (ScriptWords::Local, None) => fallback == Language::German,
     };
 
     if german {

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_services::{
     HeaderLine, Language, SceneNumbers, ScriptLanguage, ScriptPaper, ScriptPrint, ScriptSetup,
-    ServiceError, Session,
+    ScriptWords, ServiceError, Session,
 };
 
 const PRINT: ScriptPrint = ScriptPrint {
@@ -176,4 +176,29 @@ fn paginating_a_text_leaves_the_session_text_alone() {
 
     assert_eq!(s.script_pages().map(|p| p.pages), Some(2));
     assert_eq!(s.script_text(), scene(1, 3));
+}
+
+#[test]
+fn a_german_project_can_keep_the_international_words() {
+    let dialogue: Vec<String> = (0..30).map(|i| format!("Sentence number {i}.")).collect();
+    let text = format!("{}\nANNA\n{}\n", scene(1, 45), dialogue.join("\n"));
+    let mut s = session("pages-international", &text);
+    s.set_script_setup(ScriptSetup {
+        language: Some(ScriptLanguage::De),
+        words: ScriptWords::International,
+        ..ScriptSetup::default()
+    });
+    let path = out("pages-international.pdf");
+    s.export_script_pdf(&path, &PRINT).unwrap();
+    let pdf = String::from_utf8_lossy(&std::fs::read(&path).unwrap()).into_owned();
+
+    assert!(pdf.contains("(\\(MORE\\)) Tj"), "{pdf}");
+
+    s.set_script_setup(ScriptSetup {
+        language: Some(ScriptLanguage::De),
+        ..ScriptSetup::default()
+    });
+    s.export_script_pdf(&path, &PRINT).unwrap();
+    let pdf = String::from_utf8_lossy(&std::fs::read(&path).unwrap()).into_owned();
+    assert!(pdf.contains("(\\(WEITER\\)) Tj"), "{pdf}");
 }

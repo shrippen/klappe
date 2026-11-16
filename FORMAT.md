@@ -5,7 +5,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 
 ```
 <name>.klappe/
-├── projekt.toml         Formatversion, Titel, Papier, gespeicherte Ansichten
+├── projekt.toml         Formatversion, Titel, Papier, Drehbuchseiten ([script]), Papier, gespeicherte Ansichten
 ├── figuren.toml         Figuren, je ein [[figur]]
 ├── bibliothek.toml      eigene Objekte der Bibliothek, je ein [[objekt]] (optional)
 ├── vorlagen.toml        eigene Vorlagen, je ein [[vorlage]] (optional)
@@ -27,13 +27,16 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `tabloid` A4 quer), ein Wert, der kein Text ist, lädt nicht. Keine neue Formatversion: ältere
   Fassungen verlieren ihn beim Speichern.
 - **Drehbuchseiten:** Tabelle `[script]` in `projekt.toml` (DB-30, DB-31, DN-05, F-01, F-04);
-  fehlt sie, gilt alles Folgende als Standard, und sie wird nicht geschrieben. `paper`: `a4`
-  (Standard) oder `letter`, das Papier der Seitenzählung und des Drehbuch-PDFs. `language`:
-  `de` oder `en`, die Sprache der Fachbegriffe im PDF ((WEITER), (FORTS.) oder (MORE),
-  (CONT'D)); fehlt das Feld, entscheidet die Sprache der Oberfläche. `contd_after_action`
-  (`true` oder `false`, Standard `false`): (CONT'D) auch, wenn dieselbe Figur nach Handlung
-  weiterspricht. Keine neue Formatversion: ältere Fassungen verlieren die Tabelle beim
-  Speichern.
+  fehlt sie, gilt alles Folgende als Standard, und sie wird nicht geschrieben. `language`: `de`
+  oder `en`, die Sprache des Projekts; fehlt das Feld, entscheidet die Sprache der Oberfläche.
+  `words`: `local` (Standard) oder `international`, die Wörter am Seitenumbruch: `local`
+  heißt die der Sprache ((WEITER), (FORTS.) im deutschen, (MORE), (CONT'D) im englischen
+  Projekt), `international` immer (MORE), (CONT'D). `paper`: `a4` (Standard) oder `letter`, das
+  Papier der Seitenzählung und des Drehbuch-PDFs. `contd_after_action` (`true` oder `false`,
+  Standard `false`): (CONT'D) auch, wenn dieselbe Figur nach Handlung weiterspricht. Ein
+  unbekannter Wert von `language`, `words` oder `paper` gilt als Standard (wie bei `paper` im
+  Plan), ein Wert, der kein Text ist, lädt nicht. Keine neue Formatversion: ältere Fassungen
+  verlieren die Tabelle beim Speichern.
 - **Ids:** Drehort- und Szenen-Ids sind Dateinamen und müssen mit der `id` in der Datei
   übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`, Ende auf `.` oder Leerzeichen,
   `<>:"|?*`, Steuerzeichen, Windows-Gerätenamen (`con`, `nul`, `com1` …). Ids, die sich nur
