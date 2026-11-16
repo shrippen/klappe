@@ -59,16 +59,12 @@ fn grip_tolerance_m(items: &[Item], grip: &Item, at: Point) -> f64 {
     }
 }
 
-/// The element whose grip `grip` is, where it has a body to click on.
+/// The element whose grip `grip` is, where it has a body to click on. Door and lamp grips have
+/// none that they must stay inside of: they catch everywhere.
 fn owner_of(grip: &Source) -> Option<Source> {
     match grip {
-        Source::ObjectGrip { object, .. } => Some(Source::Object(object.clone())),
-        Source::DrawingPoint { drawing, .. } | Source::DrawingEdge { drawing, .. } => {
-            Some(Source::Drawing(drawing.clone()))
-        }
-        Source::NoteWidth(id) => Some(Source::Note(id.clone())),
-        Source::ImageSize(id) => Some(Source::Image(id.clone())),
-        _ => None,
+        Source::OpeningEdge { .. } | Source::LightGrip { .. } => None,
+        _ => grip.owner(),
     }
 }
 
