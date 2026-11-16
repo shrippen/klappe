@@ -54,7 +54,7 @@ impl qobject::Controller {
     }
 
     /// A click of the image tool: true when the file dialog may open, false (with the reason in
-    /// the status line) while the notes layer is locked, or the picked file would be lost.
+    /// the status line) while the notes layer is locked.
     pub(super) fn ask_image(self: Pin<&mut Self>) -> bool {
         self.notes_open()
     }
