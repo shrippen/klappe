@@ -34,6 +34,7 @@ TestCase {
         property var departures: []
         property bool poseOk: true
         property bool holdOk: true
+        property bool paceOk: true
         property bool aimOk: true
         property bool rigOk: true
         property bool lensOk: true
@@ -69,7 +70,7 @@ TestCase {
         }
         function setMarkPace(name) {
             paces.push(name)
-            return true
+            return paceOk
         }
     }
 
@@ -95,6 +96,7 @@ TestCase {
         fake.departures = []
         fake.poseOk = true
         fake.holdOk = true
+        fake.paceOk = true
         fake.aims = []
         fake.aimOk = true
         fake.rigs = []
@@ -152,7 +154,10 @@ TestCase {
         verify(card.visible)
         compare(findChild(card, "poseChoice").currentIndex, 1)
         compare(findChild(card, "holdField").text, "2,5")
-        compare(findChild(card, "paceValue").text, "Tempo: 1,4 m/s")
+        compare(findChild(card, "paceField").text, "1,4")
+        verify(!findChild(card, "paceValue").visible)
+        verify(findChild(card, "paceLabel").visible)
+        compare(findChild(card, "paceLabel").text, "Tempo (m/s)")
         verify(findChild(card, "paceWalk").enabled)
     }
 
@@ -162,7 +167,7 @@ TestCase {
         figureMark()
 
         compare(findChild(card, "holdField").text, "2.5")
-        compare(findChild(card, "paceValue").text, "Pace: 1.4 m/s")
+        compare(findChild(card, "paceField").text, "1.4")
     }
 
     function test_choosing_a_pose_goes_to_the_controller() {
@@ -220,6 +225,61 @@ TestCase {
         findChild(card, "paceRun").clicked()
 
         compare(fake.paces, ["walk", "run"])
+    }
+
+    function test_the_typed_pace_goes_to_the_controller() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+        const field = findChild(card, "paceField")
+
+        field.text = "2,5"
+        findChild(card, "paceApply").clicked()
+        field.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+
+        compare(fake.paces, ["2,5", "2,5"])
+        verify(!field.invalid)
+    }
+
+    // The field shows the pace rounded: applying it unchanged would move the later marks.
+    function test_an_unchanged_pace_is_not_sent() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+
+        findChild(card, "paceApply").clicked()
+
+        compare(fake.paces, [])
+    }
+
+    // Enter keeps the focus, so the field is not filled again; typing the old pace back must
+    // still be sent once the plan has the new one.
+    function test_the_old_pace_typed_back_is_sent() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+        const field = findChild(card, "paceField")
+        field.forceActiveFocus()
+
+        field.text = "2,5"
+        keyClick(Qt.Key_Return)
+        figureMark({ pace: 2.5 })
+        field.text = "1,4"
+        keyClick(Qt.Key_Return)
+
+        compare(fake.paces, ["2,5", "1,4"])
+    }
+
+    function test_a_refused_pace_marks_the_field() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+        fake.paceOk = false
+        const field = findChild(card, "paceField")
+
+        field.text = "0"
+        findChild(card, "paceApply").clicked()
+
+        verify(field.invalid)
+        field.text = "1"
+        verify(!field.invalid)
     }
 
     function test_a_figure_mark_shows_arrival_and_departure() {
@@ -401,6 +461,8 @@ TestCase {
         figureMark({ hasWay: false, pace: null })
 
         verify(!findChild(card, "paceValue").visible)
+        verify(!findChild(card, "paceField").enabled)
+        verify(!findChild(card, "paceApply").enabled)
         verify(!findChild(card, "paceWalk").enabled)
         verify(!findChild(card, "paceRun").enabled)
     }
@@ -410,7 +472,7 @@ TestCase {
 
         figureMark({ pace: null })
 
-        compare(findChild(card, "paceValue").text, "Tempo: –")
+        compare(findChild(card, "paceField").text, "")
     }
 
     function test_a_camera_mark_has_a_pause_and_a_pace_to_read() {

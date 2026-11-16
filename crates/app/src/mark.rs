@@ -103,16 +103,22 @@ pub fn mark_lens_edit(selected: Option<&Source>, text: &str) -> Typed {
     }))
 }
 
-/// The pace `name` for the way to the selected figure mark, as an edit. `None` for a
-/// selection that is no figure mark or a name that is no pace.
-pub fn pace_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit> {
+/// The pace for the way to the selected figure mark, as an edit: `text` is a pace name
+/// (`walk`, `run`) or a speed in m/s typed in. `None` for a selection that is no figure
+/// mark. The session checks the limits of a speed.
+pub fn pace_edit(selected: Option<&Source>, text: &str) -> Typed {
     let source = selected.filter(|s| is_figure_mark(s))?;
-    let pace = Pace::from_name(name)?;
+    let pace = match Pace::from_name(text.trim()) {
+        Some(pace) => Ok(pace),
+        None => {
+            read_number(Field::Pace, text, Unit::MetrePerSecond, Range::Positive).map(Pace::Speed)
+        }
+    };
 
-    Some(PlanEdit::SetPace {
+    Some(pace.map(|pace| PlanEdit::SetPace {
         source: source.clone(),
         pace,
-    })
+    }))
 }
 
 #[cfg(test)]
@@ -253,22 +259,24 @@ mod tests {
     }
 
     #[test]
-    fn a_pace_name_for_a_figure_mark_is_a_set_pace() {
+    fn a_pace_name_or_speed_for_a_figure_mark_is_a_set_pace() {
         let mark = Source::Mark {
             character: "elisabeth".into(),
             index: 1,
         };
+        let pace_of = |text| match pace_edit(Some(&mark), text) {
+            Some(Ok(PlanEdit::SetPace { pace, .. })) => Some(pace),
+            _ => None,
+        };
 
-        assert_eq!(
-            pace_edit(Some(&mark), "run"),
-            Some(PlanEdit::SetPace {
-                source: mark.clone(),
-                pace: Pace::Run
-            })
-        );
-        assert!(pace_edit(Some(&mark), "walk").is_some());
-        assert_eq!(pace_edit(Some(&mark), "crawl"), None);
-        assert_eq!(pace_edit(Some(&Source::Camera("a".into())), "run"), None);
-        assert_eq!(pace_edit(None, "run"), None);
+        assert_eq!(pace_of("run"), Some(Pace::Run));
+        assert_eq!(pace_of("walk"), Some(Pace::Walk));
+        assert_eq!(pace_of("2,5"), Some(Pace::Speed(2.5)));
+        assert_eq!(pace_of("2.5 m/s"), Some(Pace::Speed(2.5)));
+        assert_eq!(pace_of("0"), None);
+        assert_eq!(pace_of("crawl"), None);
+        assert!(matches!(pace_edit(Some(&mark), "0"), Some(Err(_))));
+        assert!(pace_edit(Some(&Source::Camera("a".into())), "run").is_none());
+        assert!(pace_edit(None, "run").is_none());
     }
 }

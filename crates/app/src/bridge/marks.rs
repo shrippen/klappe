@@ -104,11 +104,9 @@ impl qobject::Controller {
 
     pub(super) fn set_mark_pace(self: Pin<&mut Self>, pace: &QString) -> bool {
         let selected = self.rust().selected.only();
-        let Some(edit) = mark::pace_edit(selected, &pace.to_string()) else {
-            return false;
-        };
+        let typed = mark::pace_edit(selected, &pace.to_string());
 
-        self.commit_edit(edit)
+        self.commit_typed(typed)
     }
 }
 

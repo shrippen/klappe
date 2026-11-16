@@ -486,8 +486,8 @@ pub mod qobject {
         #[cxx_name = "setMarkLens"]
         fn set_mark_lens(self: Pin<&mut Self>, lens: &QString) -> bool;
 
-        /// Times the way to the selected figure mark for `walk` or `run`. False for another
-        /// selection or name; the first mark is refused by the session.
+        /// Times the way to the selected figure mark for `walk`, `run` or a typed speed in m/s.
+        /// False for another selection or a refused text; the first mark is refused by the session.
         #[qinvokable]
         #[cxx_name = "setMarkPace"]
         fn set_mark_pace(self: Pin<&mut Self>, pace: &QString) -> bool;

@@ -11,21 +11,25 @@ use crate::error::ServiceError;
 use crate::field::Field;
 
 /// How fast a figure goes along a way (LH-63).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Pace {
     Walk,
     Run,
+    /// A speed in m/s typed in; refused outside 0.1 to 15 m/s.
+    Speed(f64),
 }
 
 impl Pace {
     /// Every pace.
     pub const ALL: [Pace; 2] = [Pace::Walk, Pace::Run];
 
-    /// The name QML and the catalogue (`pace.<name>`) use, e.g. `run`.
+    /// The name QML and the catalogue (`pace.<name>`) use, e.g. `run`; a typed speed has no
+    /// entry there (`speed`).
     pub fn name(self) -> &'static str {
         match self {
             Pace::Walk => "walk",
             Pace::Run => "run",
+            Pace::Speed(_) => "speed",
         }
     }
 
@@ -38,6 +42,7 @@ impl Pace {
         match self {
             Pace::Walk => WALK_SPEED_M_S,
             Pace::Run => RUN_SPEED_M_S,
+            Pace::Speed(speed_m_s) => speed_m_s,
         }
     }
 }
@@ -73,6 +78,10 @@ pub(super) const WALK_SPEED_M_S: f64 = 1.4;
 
 /// Running speed for `Pace::Run`: 14.4 km/h, a jog to a sprint's lower end.
 const RUN_SPEED_M_S: f64 = 4.0;
+
+/// Slowest and fastest speed a typed pace may have: a crawl to a sprint.
+const MIN_SPEED_M_S: f64 = 0.1;
+const MAX_SPEED_M_S: f64 = 15.0;
 
 pub(super) fn set_pose(
     scope: &mut Scope<'_>,
@@ -290,6 +299,11 @@ pub(super) fn set_pace(
     source: &Source,
     pace: Pace,
 ) -> Result<(), ServiceError> {
+    let speed_m_s = pace.speed_m_s();
+    if !(MIN_SPEED_M_S..=MAX_SPEED_M_S).contains(&speed_m_s) {
+        return Err(bad_mark(Field::Pace, &speed_m_s.to_string()));
+    }
+
     let (character, index) =
         figure_mark(scope, source).ok_or_else(|| bad_mark(Field::Source, ""))?;
     let before = index
@@ -311,7 +325,7 @@ pub(super) fn set_pace(
     }
 
     // Arrive after the pause at the mark before and the walk along the way.
-    let walk_s = way_length_m(prev.at, &mark.via, mark.at) / pace.speed_m_s();
+    let walk_s = way_length_m(prev.at, &mark.via, mark.at) / speed_m_s;
     let delta_s = prev.at_s + prev.hold_s + walk_s - mark.at_s;
 
     timing(scope, source)?.shift_from(index, delta_s);

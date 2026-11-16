@@ -9,9 +9,10 @@ import Kante
 // also says how the figure comes to it and whether it leaves after it (LH-26); a camera's
 // mark says its lens height and tilt (LH-34, positive tilt looks up), the rig that brings
 // the camera to it and the lens it states (LH-33; empty: none, between two marks with a lens
-// the focal length runs with time). The pace is shown as the plan has it; the two buttons
-// time the way for walking or running and move the later marks along. No geometry here: the
-// controller has the numbers from the session. Pose, pause and pace (a camera's mark: lens
+// the focal length runs with time). The pace is shown as the plan has it (a figure's mark:
+// in its field, where it can be typed in m/s); the two buttons time the way for walking or
+// running and move the later marks along. No geometry here: the controller has the numbers
+// from the session. Pose, pause and pace (a camera's mark: lens
 // height, rig and lens) are the common fields; arrival, departure and tilt wait behind
 // "More".
 ColumnLayout {
@@ -24,6 +25,8 @@ ColumnLayout {
     property bool expanded: false
     /// The button for "More"; the selection card has one for all its sections.
     property bool showMore: true
+    /// The plan's pace as the field shows it, so an unchanged field sends nothing.
+    property string shownPace: ""
 
     readonly property var choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : ({})
     readonly property var poses: choices.pose || []
@@ -45,7 +48,7 @@ ColumnLayout {
     readonly property bool shown: info !== null
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: holdField.activeFocus || heightField.activeFocus
-        || tiltField.activeFocus || lensField.activeFocus
+        || tiltField.activeFocus || lensField.activeFocus || paceField.activeFocus
 
     visible: shown
     spacing: Kirigami.Units.smallSpacing
@@ -62,6 +65,11 @@ ColumnLayout {
         departureChoice.currentIndex = Math.max(0, departures.indexOf(info.departure))
         if (!holdField.activeFocus) {
             holdField.text = texts.num(info.hold, 2)
+        }
+        // The plan's pace, also while the field has the focus: what it holds after Enter.
+        card.shownPace = info.pace === null ? "" : texts.num(info.pace, 1)
+        if (!paceField.activeFocus) {
+            paceField.text = card.shownPace
         }
         if (!card.isCamera) {
             return
@@ -94,6 +102,15 @@ ColumnLayout {
 
     function setPace(name) {
         controller.setMarkPace(name)
+    }
+
+    // The field shows the pace rounded (1,75 as "1,8"): sent unchanged, it would move the
+    // later marks.
+    function setSpeed() {
+        if (paceField.text === card.shownPace) {
+            return
+        }
+        paceField.invalid = !controller.setMarkPace(paceField.text)
     }
 
     KanteSectionLabel { text: card.texts.t("mark.title") }
@@ -134,12 +151,36 @@ ColumnLayout {
         spacing: Kirigami.Units.smallSpacing
         visible: card.isFigure || (card.info !== null && card.info.hasWay)
 
+        // The field's name and unit; the field has no placeholder.
+        QQC2.Label {
+            objectName: "paceLabel"
+            visible: card.isFigure
+            text: card.texts.t("mark.paceField")
+        }
         QQC2.Label {
             objectName: "paceValue"
-            visible: card.info !== null && card.info.hasWay
+            visible: card.isCamera && card.info.hasWay
             text: card.texts.t("mark.pace") + ": " + (card.info && card.info.pace !== null
                   ? card.texts.t("mark.paceValue", { value: card.texts.num(card.info.pace, 1) })
                   : card.texts.t("mark.paceNone"))
+        }
+        KanteTextField {
+            id: paceField
+            objectName: "paceField"
+            visible: card.isFigure
+            enabled: card.info !== null && card.info.hasWay
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+            Accessible.name: card.texts.t("mark.paceField")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.setSpeed()
+        }
+        KanteButton {
+            objectName: "paceApply"
+            visible: card.isFigure
+            enabled: card.info !== null && card.info.hasWay
+            text: card.texts.t("form.apply")
+            onClicked: card.setSpeed()
         }
         KanteButton {
             objectName: "paceWalk"
