@@ -117,6 +117,16 @@ fn controller_scenarios_hold() {
     let _ = std::fs::remove_dir_all(&base);
     copy_example(&base);
 
+    // `main_creates.qml` makes the whole window: its recent list, previews and settings go to the
+    // test folder, never to the user's.
+    for (var, dir) in [
+        ("XDG_DATA_HOME", "data"),
+        ("XDG_CACHE_HOME", "cache"),
+        ("XDG_CONFIG_HOME", "config"),
+    ] {
+        std::env::set_var(var, base.join(dir));
+    }
+
     for file in scenarios() {
         let mut engine = QQmlApplicationEngine::new();
         let url = QUrl::from_local_file(&QString::from(file.to_string_lossy().as_ref()));
