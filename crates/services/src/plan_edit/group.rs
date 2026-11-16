@@ -6,6 +6,7 @@ use std::cmp::Reverse;
 use klappe_model::Point;
 use klappe_stellprobe::Source;
 
+use super::images;
 use super::target::{target, Target};
 use super::{
     anchor_pair, carry_cameras, figure_mark, free_id, free_letter, move_to, points_mut, remove,
@@ -269,6 +270,7 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
             note.at = shifted(note.at, by_m);
             set.notes.push(note);
         }
+        Source::Image(id) => images::copy_image(scope, id, by_m)?,
         Source::Drawing(id) => {
             let drawings = &mut scope.plan.drawings;
             let mut drawing = drawings

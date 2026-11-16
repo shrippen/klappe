@@ -12,12 +12,14 @@ use crate::optics::{frustum, horizontal_fov_deg, lens_at};
 use crate::rig::{rig_dash, rig_runs};
 
 mod handles;
+mod images;
 mod objects;
 
 pub use handles::{
-    drawing_edge_places, drawing_handle_places, handles, object_grip_place, Bend, LightGrip,
-    ObjectGrip, OpeningEnd,
+    drawing_edge_places, drawing_handle_places, handles, image_grip_place, object_grip_place, Bend,
+    LightGrip, ObjectGrip, OpeningEnd,
 };
+use images::image_items;
 pub use objects::label_point;
 pub(crate) use objects::object_corners;
 use objects::set_items;
@@ -76,6 +78,9 @@ pub enum Shape {
 pub enum Role {
     /// The set's background image, behind everything else.
     Background,
+    /// A photo or sketch placed on the plan (LH-18): its picture, when the file can be read,
+    /// and the frame that is the element, with the file's name while there is no picture.
+    Picture,
     Wall,
     /// A door in a wall (LH-10): the leaf and the quarter circle it swings through.
     Door,
@@ -103,7 +108,7 @@ pub enum Role {
     /// The filled head of an arrow, in the arrow's colour.
     ArrowHead(FigureColor),
     FigurePath(FigureColor),
-    /// A grip on the selected element (drawing, note, door or window, lamp, object); only
+    /// A grip on the selected element (drawing, note, image, door or window, lamp, object); only
     /// drawn while it is selected. The element it belongs to is `Source::owner` of the
     /// item's source.
     Handle,
@@ -131,6 +136,7 @@ impl Source {
                 Some(Source::Drawing(drawing.clone()))
             }
             Source::NoteWidth(note) => Some(Source::Note(note.clone())),
+            Source::ImageSize(image) => Some(Source::Image(image.clone())),
             Source::ObjectGrip { object, .. } => Some(Source::Object(object.clone())),
             Source::OpeningEdge { wall, index, .. } => Some(Source::Opening {
                 wall: *wall,
@@ -148,6 +154,7 @@ impl Source {
             | Source::Wall(_)
             | Source::Opening { .. }
             | Source::Note(_)
+            | Source::Image(_)
             | Source::Drawing(_) => None,
         }
     }
@@ -203,6 +210,11 @@ pub enum Source {
     Note(String),
     /// The grip in the middle of the right edge of a note's card (LH-16): drag to set its width.
     NoteWidth(String),
+    /// A photo or sketch (LH-18).
+    Image(String),
+    /// The grip just outside the middle of the right edge of an image (LH-18): drag to set its
+    /// width, the left edge stays.
+    ImageSize(String),
     Drawing(String),
     /// Point or corner `index` of a drawing (LH-19): a grip. A rectangle or ellipse has its
     /// four corners, clockwise from the top left before the turn.
@@ -239,14 +251,16 @@ const NOSE_M: f64 = 0.25;
 const NOSE_HALF_DEG: f64 = 35.0;
 
 /// The display list of a floor plan on its location's set at time `t_s` (LH-60).
-/// `background_px` is the pixel size of the set's background image; Stellprobe reads no
-/// files, so the caller looks it up. Without it the background is left out.
+/// `background_px` is the pixel size of the set's background image, `image_px` that of an
+/// image file of the set; Stellprobe reads no files, so the caller looks them up. Without it
+/// the background is left out and an image is drawn as an empty frame with its file name.
 pub fn render(
     project: &Project,
     set: &SetPlan,
     plan: &FloorPlan,
     t_s: f64,
     background_px: Option<(u32, u32)>,
+    image_px: &dyn Fn(&str) -> Option<(u32, u32)>,
 ) -> DisplayList {
     let mut items = Vec::new();
     let reach_m = set_diagonal_m(set).unwrap_or(VIEW_REACH_FALLBACK_M);
@@ -254,6 +268,7 @@ pub fn render(
     if let (Some(background), Some(px)) = (&set.background, background_px) {
         background_item(background, px, &mut items);
     }
+    image_items(set, image_px, &mut items);
     set_items(set, &mut items);
     drawing_items(plan, &mut items);
     light_items(plan, &mut items);

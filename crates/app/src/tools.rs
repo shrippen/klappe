@@ -99,6 +99,9 @@ pub enum Tool {
     /// A click on empty ground pins a note (the text is asked next); a click on a note asks
     /// for its text again.
     Note,
+    /// A click on the plan asks for an image file (the file dialog) and places it there
+    /// (LH-18).
+    Image,
     /// Drawing tools: a drag draws a line, an arrow, a rectangle or an ellipse between its
     /// two corners; clicks set the points of an area.
     Line,
@@ -139,6 +142,7 @@ fn plain_tool(name: &str) -> Option<Tool> {
         "room" => Some(Tool::Room),
         "freeform" => Some(Tool::FreeForm),
         "height" => Some(Tool::Height),
+        "image" => Some(Tool::Image),
         "door" => Some(Tool::Opening(OpeningKind::Door)),
         "window" => Some(Tool::Opening(OpeningKind::Window)),
         _ => None,
@@ -156,6 +160,7 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
         | Tool::Scale
         | Tool::Measure
         | Tool::Note
+        | Tool::Image
         | Tool::Line
         | Tool::Arrow
         | Tool::Rect
@@ -594,6 +599,15 @@ pub fn note_open(lock: Lock) -> Result<(), ServiceError> {
     match lock {
         Lock::Locked => Err(ServiceError::Locked(Layer::Notes)),
         Lock::Unlocked => Ok(()),
+    }
+}
+
+/// The image file the dialog picked, placed centred at `at` (LH-18). `file` is a path or a
+/// `file://` URL.
+pub fn image_edit(file: &str, at: Point) -> PlanEdit {
+    PlanEdit::AddImage {
+        source: crate::fileurl::to_path(file),
+        at,
     }
 }
 

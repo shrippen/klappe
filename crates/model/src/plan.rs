@@ -109,7 +109,7 @@ pub struct Drawing {
     pub rotation_deg: f64,
 }
 
-fn is_zero(deg: &f64) -> bool {
+pub(crate) fn is_zero(deg: &f64) -> bool {
     *deg == 0.0
 }
 

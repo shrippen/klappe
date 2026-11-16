@@ -242,6 +242,7 @@ mod tests {
         let red = FigureColor::Red;
         let rows = [
             (Role::Background, "muted", "solid", "none"),
+            (Role::Picture, "muted", "solid", "none"),
             (Role::Wall, "text", "solid", "none"),
             (Role::Object, "muted", "solid", "tint"),
             (Role::LightBeam, "orange", "solid", "tint"),
@@ -406,6 +407,54 @@ mod tests {
         assert_eq!(v["shapes"][0]["textAnchor"], "topLeft");
         assert_eq!(v["shapes"][0]["captionSize"], NOTE_TEXT_M);
         assert_eq!(v["shapes"][0]["fill"], "tint");
+    }
+
+    /// A placed image is its picture, which has no key, and its frame, which has: the frame
+    /// of a missing file carries the file's name.
+    #[test]
+    fn an_image_is_a_picture_and_a_frame_with_the_key() {
+        let frame = |label: Option<&str>| Item {
+            role: Role::Picture,
+            shape: Shape::Polygon {
+                points: vec![
+                    Point::new(1.0, 1.0),
+                    Point::new(3.0, 1.0),
+                    Point::new(3.0, 2.0),
+                    Point::new(1.0, 2.0),
+                ],
+            },
+            label: label.map(str::to_owned),
+            source: Some(Source::Image("i1".into())),
+        };
+        let picture = Item {
+            role: Role::Picture,
+            shape: Shape::Image {
+                file: "bilder/a.png".into(),
+                at: Point::new(1.0, 1.0),
+                width_m: 2.0,
+                depth_m: 1.0,
+                rotation_deg: 0.0,
+                opacity: 1.0,
+            },
+            label: None,
+            source: None,
+        };
+        let list = DisplayList {
+            lamps: Vec::new(),
+            items: vec![picture, frame(None), frame(Some("bilder/b.png"))],
+            width_m: 20.0,
+            depth_m: 13.0,
+        };
+
+        let json = json_of(&list, &|_| false);
+        let v: Value = serde_json::from_str(&json).unwrap_or_default();
+
+        assert_eq!(v["shapes"][0]["kind"], "image");
+        assert_eq!(v["shapes"][0]["key"], "");
+        assert_eq!(v["shapes"][0]["opacity"], 1.0);
+        assert_eq!(v["shapes"][1]["key"], "image:i1");
+        assert_eq!(v["shapes"][1]["text"], "");
+        assert_eq!(v["shapes"][2]["text"], "bilder/b.png");
     }
 
     /// A dashed, filled drawing keeps its colour, dash and fill on the canvas; its arrow head

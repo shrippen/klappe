@@ -140,6 +140,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   schmaler lädt nicht; fehlt sie, gilt 2,4). Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
+- **Bilder (LH-18):** `[[set.images]]` im Drehort: Fotos und Skizzen, frei auf dem Plan. Je Bild
+  `id` (`i1`, `i2` …, innerhalb des Drehorts), `file` (relativ zum Projektordner, die Datei liegt
+  in `bilder/`, PNG oder JPEG wie beim Hintergrund), die Mitte `at` in Metern, die Breite
+  `width_m` in Metern (zwischen 0,05 und 1000, sonst lädt der Drehort nicht) und `rotation_deg`
+  im Uhrzeigersinn um die Mitte (0 wird nicht geschrieben). Die Höhe folgt aus dem
+  Seitenverhältnis des Bildes. Ein Bild liegt auf der Ebene der Notizen. Fehlt die Datei, zeigt
+  der Plan einen leeren Rahmen (4:3) mit dem Dateinamen; das Bild bleibt im Projekt. Fehlt der
+  Abschnitt, gibt es keine Bilder; ohne Bilder wird er nicht geschrieben. Keine neue
+  Formatversion (noch kein Release), ältere Fassungen verlieren die Bilder beim Speichern.
 - **Türen und Fenster in Wänden (LH-10):** jede `[[set.walls]]` kann `[[set.walls.openings]]`
   tragen: `kind` (`door` oder `window`), `at_m` (Meter von `from` der Wand bis zur Mitte der
   Öffnung, entlang der Wand) und `width_m` (mindestens 0,30 m, höchstens 1000). Die Wand hat dort eine Lücke; die Tür

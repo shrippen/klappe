@@ -1,12 +1,12 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
 use klappe_model::{
-    CameraMark, Drawing, DrawingShape, FloorPlan, Light, Mark, Point, SetObject, Wall,
+    CameraMark, Drawing, DrawingShape, FloorPlan, Light, Mark, PlanImage, Point, SetObject, Wall,
     MAX_OBJECT_M, MIN_BEAM_DEG, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use klappe_stellprobe::{
-    bend_follow, bend_grips, drawing_handle_places, light_grip_place, object_grip_place, Bend,
-    LightGrip, ObjectGrip, Source,
+    bend_follow, bend_grips, drawing_handle_places, image_grip_place, light_grip_place,
+    object_grip_place, Bend, LightGrip, ObjectGrip, Source,
 };
 
 use self::forms::{drag_form_point, insert_form_point};
@@ -215,6 +215,7 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
         Target::NoteEdge(note) => {
             note.width_m = (to.x_m - note.at.x_m).max(NOTE_MIN_WIDTH_M);
         }
+        Target::ImageEdge(image) => stretch_image(image, to),
         Target::ObjectEdge {
             object,
             grip: ObjectGrip::Point(n),
@@ -273,6 +274,25 @@ fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
     }
 }
 
+/// Sets the width so the grip lands on `to` as far as the image's turned x axis goes; the left
+/// edge stays, so the centre moves half the change.
+fn stretch_image(image: &mut PlanImage, to: Point) {
+    let tip = image.placed(1.0, 0.0);
+    let axis = (tip.x_m - image.at.x_m, tip.y_m - image.at.y_m);
+
+    // The grip sits a gap outside the edge: the width changes by how far `to` lies beyond it.
+    let grip_at = image_grip_place(image);
+    let beyond_m = (to.x_m - grip_at.x_m) * axis.0 + (to.y_m - grip_at.y_m) * axis.1;
+    let new_m = (image.width_m + beyond_m).clamp(MIN_OBJECT_M, MAX_OBJECT_M);
+    let moved_m = (new_m - image.width_m) / 2.0;
+
+    image.at = Point::new(
+        image.at.x_m + moved_m * axis.0,
+        image.at.y_m + moved_m * axis.1,
+    );
+    image.width_m = new_m;
+}
+
 fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => *at = to,
@@ -285,6 +305,7 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
         grip @ (Target::OpeningEdge { .. }
         | Target::LightEdge { .. }
         | Target::NoteEdge(_)
+        | Target::ImageEdge(_)
         | Target::ObjectEdge { .. }) => place_grip(grip, to)?,
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
@@ -312,6 +333,11 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
 
             Ok((edge, edge))
         }
+        // As an object's: the edge snaps, the grip outside it follows.
+        Target::ImageEdge(image) => Ok((
+            image.placed(image.width_m / 2.0, 0.0),
+            image_grip_place(image),
+        )),
         // The edge snaps, the grip outside it follows: an unturned object gets round sizes.
         Target::ObjectEdge { object, grip } => {
             Ok((edge_middle(object, grip), object_grip_place(object, grip)))

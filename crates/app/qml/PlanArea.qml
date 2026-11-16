@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
+import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import Kante
 
@@ -14,7 +15,7 @@ Item {
     required property var controller
 
     readonly property var plan: controller.planJson ? JSON.parse(controller.planJson) : null
-    /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, measure, note, line,
+    /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, measure, note, image, line,
     /// arrow, rect, ellipse or area.
     property string tool: "select"
     /// The grid drawn and snapped to, in metres: the one `gridName` names in `choicesJson`.
@@ -67,7 +68,10 @@ Item {
             if (area.tool === "select") {
                 selection.dismissed = false
             }
-            area.controller.place(x, y)
+            // The image tool asks for the file once its layer is open.
+            if (area.controller.place(x, y) && area.tool === "image") {
+                area.askImage(x, y)
+            }
         }
         // The click before it selected the note or the bend; the double click edits the note's
         // text, or takes the bend out of its way (LH-21).
@@ -116,6 +120,26 @@ Item {
         case "out": canvas.zoom /= zoomStep; break
         case "fit": canvas.fit(); break
         }
+    }
+
+    // Image tool (LH-18): the file the click is to place, in the formats the background takes.
+    // Made on the first click: a dialog that exists takes the keyboard focus of the plan's fields.
+    property point imageAt: Qt.point(0, 0)
+    Component {
+        id: imageDialogComponent
+        FileDialog {
+            title: area.texts.t("image.pick")
+            nameFilters: [area.texts.t("background.filter")]
+            onAccepted: area.controller.addImage(selectedFile.toString(), area.imageAt.x, area.imageAt.y)
+        }
+    }
+    property var imageDialog: null
+    function askImage(x, y) {
+        imageAt = Qt.point(x, y)
+        if (!imageDialog) {
+            imageDialog = imageDialogComponent.createObject(area, { objectName: "imageDialog" })
+        }
+        imageDialog.open()
     }
 
     LayerPopover {
@@ -508,6 +532,10 @@ Item {
         }
         const d = JSON.parse(controller.describe(key))
         const t = area.texts
+        // A note and an image have one line of text each.
+        if ({ note: 1, image: 1 }[d.kind]) {
+            return [t.t("tip." + d.kind, { text: d.text, file: d.file })]
+        }
         switch (d.kind) {
         case "camera":
             return [t.t("tip.camera", { label: d.label }), t.t("tip.lens", { lens: t.num(d.lens, 1), fov: t.num(d.fov, 1) }),
@@ -530,8 +558,6 @@ Item {
                     d.height !== null ? t.t("tip.objectHeight", { height: t.num(d.height, 2) }) : ""]
         case "opening":
             return [t.t("tip.opening", { type: t.t("openingKind." + d.type), width: t.num(d.width, 2) })]
-        case "note":
-            return [t.t("tip.note", { text: d.text })]
         }
         return []
     }

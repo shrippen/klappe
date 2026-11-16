@@ -68,7 +68,9 @@ pub fn look(role: Role) -> Look {
         },
         // The image takes no colour; the canvas draws it as it is. A height caption is muted
         // ink; the surface turns a missing one into a warning.
-        Role::Background | Role::Height { .. } => plain(Hue::Muted, Dash::Solid, Area::None),
+        Role::Background | Role::Picture | Role::Height { .. } => {
+            plain(Hue::Muted, Dash::Solid, Area::None)
+        }
         Role::Wall | Role::Door | Role::Window => plain(Hue::Text, Dash::Solid, Area::None),
         // On screen the tint keeps the plan below readable; on paper a set object is filled
         // with its ground tone.
@@ -128,6 +130,7 @@ mod tests {
         let red = FigureColor::Red;
         let roles = [
             Role::Background,
+            Role::Picture,
             Role::Wall,
             Role::Door,
             Role::Window,

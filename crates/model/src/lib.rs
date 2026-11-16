@@ -3,7 +3,7 @@
 //! ```text
 //! Project
 //! ├── characters   Character        (project-wide: Elisabeth, Burgvogt …)
-//! ├── locations    Location → Set   (walls, objects, background image)
+//! ├── locations    Location → Set   (walls, objects, notes, images, background image)
 //! ├── library      LibraryItem      (the project's own objects, LH-12)
 //! ├── templates    Template         (the project's own set-ups, LH-07)
 //! └── scenes       Scene → FloorPlan
@@ -50,8 +50,9 @@ pub use plan::{
 };
 pub use project::{
     is_figure_size_m, is_opening_width_m, Background, Character, DoorSide, FigureColor, Hinge,
-    Location, Note, Opening, OpeningKind, Project, Scene, SetObject, SetPlan, Wall, MAX_FIGURE_M,
-    MAX_GROUP, MIN_FIGURE_M, MIN_GROUP, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
+    Location, Note, Opening, OpeningKind, PlanImage, Project, Scene, SetObject, SetPlan, Wall,
+    IMAGE_WIDTH_M, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP, MIN_OPENING_WIDTH_M,
+    NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
 pub use template::{Template, TemplateFigure};

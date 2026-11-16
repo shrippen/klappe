@@ -35,6 +35,7 @@ TestCase {
         property bool asksNote: false
         property string noteText: ""
         property var notes: []
+        property var images: []
         property int noteCancels: 0
         property int noteEdits: 0
         property bool noteOk: true
@@ -66,6 +67,9 @@ TestCase {
             if (key === "note:n1") {
                 return JSON.stringify({ kind: "note", text: "Vorhang schließen" })
             }
+            if (key === "image:i1") {
+                return JSON.stringify({ kind: "image", file: "bilder/skizze.png" })
+            }
             if (key === "drawing:d1") {
                 return JSON.stringify({ kind: "drawing", color: "green", dash: "dashed", fill: "outline", closed: true })
             }
@@ -91,6 +95,10 @@ TestCase {
         function calibrate(text) {
             calibrations.push(text)
             return calibrateOk
+        }
+        function addImage(file, x, y) {
+            images.push([file, x, y])
+            return true
         }
         function commitNote(text) {
             notes.push(text)
@@ -607,6 +615,12 @@ TestCase {
         compare(area.tipLines("note:n1"), ["Vorhang schließen"])
     }
 
+    function test_an_image_tooltip_names_its_file() {
+        const area = createTemporaryObject(areaComponent, tc, { texts: de })
+
+        compare(area.tipLines("image:i1"), ["Bild: bilder/skizze.png"])
+    }
+
     function test_the_note_card_asks_for_the_text_with_its_start_value() {
         const area = drawn("note")
         const card = findChild(area, "noteCard")
@@ -738,5 +752,31 @@ TestCase {
 
         compare(fake.turns.length, 0)
         compare(fake.removes, 0)
+    }
+
+    // The image tool asks for a file where the click was, once the controller let the click
+    // through; the dialog's answer goes to the controller with that place. The name sorts it
+    // last: tests run alphabetically and an opened dialog takes the focus of those after it.
+    function test_with_the_image_tool_a_click_asks_for_a_file() {
+        const area = drawn("image")
+
+        mouseClick(area, 120, 150, Qt.LeftButton, Qt.NoModifier)
+
+        compare(fake.places.length, 1)
+        compare(area.imageAt.x, fake.places[0][0])
+        compare(area.imageAt.y, fake.places[0][1])
+        const dialog = findChild(area, "imageDialog")
+        verify(dialog)
+        compare(dialog.nameFilters, [de.t("background.filter")])
+        dialog.close()
+    }
+
+    function test_without_the_image_tool_no_file_is_asked() {
+        const area = drawn("note")
+
+        mouseClick(area, 120, 150, Qt.LeftButton, Qt.NoModifier)
+
+        compare(fake.places.length, 1)
+        compare(findChild(area, "imageDialog"), null)
     }
 }

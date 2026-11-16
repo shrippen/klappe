@@ -127,14 +127,14 @@ TestCase {
         const bar = make()
 
         compare(bar.mode, "build")
-        compare(shownNames(bar), ["select", "wall", "room", "door", "window", "object", "freeform", "height", "scale", "measure"])
+        compare(shownNames(bar), ["select", "wall", "room", "door", "window", "object", "freeform", "height", "scale", "image", "measure"])
     }
 
     // D-01 (table "Werkzeuge je Modus"): each mode shows its tools; selecting and measuring are in all.
     function test_each_mode_shows_its_tools() {
         const bar = make()
         const wanted = {
-            build: ["select", "wall", "room", "door", "window", "object", "freeform", "height", "scale", "measure"],
+            build: ["select", "wall", "room", "door", "window", "object", "freeform", "height", "scale", "image", "measure"],
             stage: ["select", "figure", "measure"],
             resolve: ["select", "camera", "light", "measure"],
             draw: ["select", "note", "line", "arrow", "rect", "ellipse", "area", "measure"]
@@ -303,6 +303,15 @@ TestCase {
             keyClick(key)
             compare(bar.tool, tool)
         }
+    }
+
+    function test_shift_b_picks_the_image_tool() {
+        const bar = make()
+
+        keyClick(Qt.Key_B, Qt.ShiftModifier)
+
+        compare(bar.tool, "image")
+        compare(bar.keys[bar.names.indexOf("image")], "Shift+B")
     }
 
     function test_the_measure_button_picks_the_tool() {

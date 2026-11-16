@@ -127,7 +127,7 @@ pub(super) fn layer_of(role: Role, source: Option<&Source>) -> Layer {
         Role::Camera | Role::Frustum | Role::CameraPath { .. } | Role::CameraHandle => {
             Layer::Cameras
         }
-        Role::Note => Layer::Notes,
+        Role::Note | Role::Picture => Layer::Notes,
         Role::Drawing { .. } | Role::ArrowHead(_) => Layer::Drawings,
         Role::Axis
         | Role::Figure(_)

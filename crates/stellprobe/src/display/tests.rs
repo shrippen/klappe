@@ -108,7 +108,7 @@ fn count(list: &DisplayList, role: Role) -> usize {
 
 #[test]
 fn draws_every_part_of_the_plan() {
-    let list = render(&project(), &set(), &plan(), 0.0, None);
+    let list = render(&project(), &set(), &plan(), 0.0, None, &|_| None);
 
     assert_eq!(count(&list, Role::Wall), 1);
     assert_eq!(count(&list, Role::Light), 1);
@@ -121,7 +121,7 @@ fn draws_every_part_of_the_plan() {
 fn group_list() -> DisplayList {
     let mut p = project();
     p.characters[0].group = Some(12);
-    render(&p, &set(), &plan(), 0.0, None)
+    render(&p, &set(), &plan(), 0.0, None, &|_| None)
 }
 
 /// A group is one larger body with three dots, however many people it counts, and its
@@ -171,7 +171,7 @@ fn group_dots_differ_from_the_body() {
 /// A single person keeps the one small circle and the plain name.
 #[test]
 fn a_single_figure_has_no_dots() {
-    let list = render(&project(), &set(), &plan(), 0.0, None);
+    let list = render(&project(), &set(), &plan(), 0.0, None, &|_| None);
     let circles = list
         .items
         .iter()
@@ -212,7 +212,7 @@ fn the_whole_group_is_hit() {
 
 #[test]
 fn walls_are_selectable_by_index() {
-    let list = render(&project(), &set(), &plan(), 0.0, None);
+    let list = render(&project(), &set(), &plan(), 0.0, None, &|_| None);
 
     assert_eq!(list.items[0].source, Some(Source::Wall(0)));
 }
@@ -220,7 +220,7 @@ fn walls_are_selectable_by_index() {
 #[test]
 fn figure_moves_with_time() {
     let at = |t: f64| {
-        render(&project(), &set(), &plan(), t, None)
+        render(&project(), &set(), &plan(), t, None, &|_| None)
             .items
             .into_iter()
             .find_map(|i| match (i.role, i.shape) {
@@ -244,7 +244,7 @@ fn notes_come_last_with_their_text() {
         width_m: 2.4,
     }];
 
-    let list = render(&project(), &room, &plan(), 0.0, None);
+    let list = render(&project(), &room, &plan(), 0.0, None, &|_| None);
 
     let last = list.items.last();
     assert_eq!(last.map(|i| i.role), Some(Role::Note));
@@ -266,7 +266,7 @@ fn notes_come_last_with_their_text() {
 
 #[test]
 fn walls_come_first_figures_last() {
-    let list = render(&project(), &set(), &plan(), 0.0, None);
+    let list = render(&project(), &set(), &plan(), 0.0, None, &|_| None);
 
     assert_eq!(list.items.first().map(|i| i.role), Some(Role::Wall));
     assert!(matches!(
@@ -287,7 +287,9 @@ fn background_is_first_and_keeps_its_aspect() {
         opacity: 0.5,
     });
 
-    let list = render(&project(), &room, &plan(), 0.0, Some((1000, 500)));
+    let list = render(&project(), &room, &plan(), 0.0, Some((1000, 500)), &|_| {
+        None
+    });
 
     assert_eq!(
         list.items.first(),
@@ -311,7 +313,7 @@ fn background_is_first_and_keeps_its_aspect() {
 #[test]
 fn background_needs_a_set_entry_and_a_size() {
     let mut room = set();
-    let none_set = render(&project(), &room, &plan(), 0.0, Some((10, 10)));
+    let none_set = render(&project(), &room, &plan(), 0.0, Some((10, 10)), &|_| None);
     room.background = Some(Background {
         file: "bilder/saal.png".into(),
         at: Point::default(),
@@ -319,8 +321,8 @@ fn background_needs_a_set_entry_and_a_size() {
         rotation_deg: 0.0,
         opacity: 1.0,
     });
-    let unknown_size = render(&project(), &room, &plan(), 0.0, None);
-    let zero_size = render(&project(), &room, &plan(), 0.0, Some((0, 10)));
+    let unknown_size = render(&project(), &room, &plan(), 0.0, None, &|_| None);
+    let zero_size = render(&project(), &room, &plan(), 0.0, Some((0, 10)), &|_| None);
 
     for list in [none_set, unknown_size, zero_size] {
         assert_eq!(count(&list, Role::Background), 0);
@@ -404,7 +406,7 @@ fn nose_points_where_it_faces() {
 /// The axis runs through both figures and on by the set's diagonal on each side.
 #[test]
 fn axis_reaches_across_the_set() {
-    let list = render(&project(), &set(), &plan(), 0.0, None);
+    let list = render(&project(), &set(), &plan(), 0.0, None, &|_| None);
     let axis = list.items.iter().find_map(|i| match (i.role, &i.shape) {
         (Role::Axis, Shape::Line { from, to, .. }) => Some((*from, *to)),
         _ => None,
@@ -437,7 +439,7 @@ fn shot(lens_mm: Option<f64>, from_s: f64, to_s: f64) -> Shot {
 }
 
 fn frustum_of(plan: &FloorPlan, t_s: f64) -> Vec<Point> {
-    render(&project(), &set(), plan, t_s, None)
+    render(&project(), &set(), plan, t_s, None, &|_| None)
         .items
         .into_iter()
         .find_map(|i| match (i.role, i.shape) {
@@ -492,7 +494,7 @@ fn unknown_character_is_skipped() {
     let mut p = plan();
     p.figures[0].character = "nobody".into();
 
-    let list = render(&project(), &set(), &p, 0.0, None);
+    let list = render(&project(), &set(), &p, 0.0, None, &|_| None);
 
     assert_eq!(count(&list, Role::Mark(FigureColor::Purple)), 0);
 }
@@ -509,9 +511,9 @@ fn path_of(list: &DisplayList, role: Role) -> Vec<Point> {
 #[test]
 fn a_curved_way_is_a_polyline_along_the_curve() {
     let mut p = plan();
-    let straight = render(&project(), &set(), &p, 0.0, None);
+    let straight = render(&project(), &set(), &p, 0.0, None, &|_| None);
     p.figures[0].marks[1].via = vec![Point::new(4.5, 3.0)];
-    let curved = render(&project(), &set(), &p, 0.0, None);
+    let curved = render(&project(), &set(), &p, 0.0, None, &|_| None);
 
     let role = Role::FigurePath(FigureColor::Purple);
     assert_eq!(path_of(&straight, role).len(), 2);
@@ -533,7 +535,7 @@ fn a_curved_camera_path_is_a_polyline_too() {
     second.via = vec![Point::new(10.0, 6.0)];
     p.cameras[0].marks.push(second);
 
-    let list = render(&project(), &set(), &p, 0.0, None);
+    let list = render(&project(), &set(), &p, 0.0, None, &|_| None);
 
     assert!(path_of(&list, Role::CameraPath { dash: Dash::Dashed }).len() > 2);
 }
@@ -545,7 +547,7 @@ fn only_the_selected_way_has_handles() {
     let mut p = plan();
     p.figures[0].marks[1].via = vec![Point::new(4.5, 3.0)];
 
-    assert!(render(&project(), &set(), &p, 0.0, None)
+    assert!(render(&project(), &set(), &p, 0.0, None, &|_| None)
         .items
         .iter()
         .all(|i| !matches!(i.source, Some(Source::FigureVia { .. }))));
@@ -633,7 +635,7 @@ fn bodies(list: &DisplayList) -> usize {
 #[test]
 fn a_figure_out_of_the_scene_is_not_drawn() {
     let p = coming_and_going();
-    let at = |t_s| render(&project(), &set(), &p, t_s, None);
+    let at = |t_s| render(&project(), &set(), &p, t_s, None, &|_| None);
 
     assert_eq!(bodies(&at(5.0)), 2);
     assert_eq!(bodies(&at(15.0)), 0);
@@ -647,7 +649,7 @@ fn a_figure_out_of_the_scene_is_not_drawn() {
 fn no_way_leads_to_an_appearing_mark() {
     let mut p = coming_and_going();
     let way = |p: &FloorPlan| {
-        let list = render(&project(), &set(), p, 0.0, None);
+        let list = render(&project(), &set(), p, 0.0, None, &|_| None);
         list.items
             .iter()
             .filter_map(|i| match (&i.role, &i.shape) {
@@ -698,7 +700,9 @@ fn an_appearing_mark_has_no_grip() {
 /// The mark's number says it: `+` where the figure appears, `-` where it leaves.
 #[test]
 fn marks_show_appearing_and_leaving() {
-    let list = render(&project(), &set(), &coming_and_going(), 0.0, None);
+    let list = render(&project(), &set(), &coming_and_going(), 0.0, None, &|_| {
+        None
+    });
     let labels: Vec<_> = list
         .items
         .iter()

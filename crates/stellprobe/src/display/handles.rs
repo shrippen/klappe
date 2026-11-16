@@ -1,7 +1,7 @@
 //! The grips of the selected element: on the bends of a way, on the points of a drawing.
 
 use klappe_model::{
-    Drawing, DrawingShape, FloorPlan, ObjectShape, Point, Project, SetObject, SetPlan,
+    Drawing, DrawingShape, FloorPlan, ObjectShape, PlanImage, Point, Project, SetObject, SetPlan,
 };
 
 use super::objects::object_corners;
@@ -74,6 +74,8 @@ fn side_has_grip(a: Point, b: Point) -> bool {
 /// A selected drawing has one on each of its points, an area also a smaller one halfway along
 /// each edge longer than `SIDE_GRIP_MIN_M` (LH-19).
 /// A selected note has one in the middle of its card's right edge, to set its width (LH-16).
+/// A selected image has one just outside the middle of its right edge, to set its width
+/// (LH-18).
 /// A selected door or window has one on each end, on the wall's middle line, to set its
 /// width (LH-10).
 /// A selected lamp has two at the beam's reach: one on its facing, one on the beam's edge
@@ -94,6 +96,7 @@ pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &So
         | Source::DrawingPoint { drawing: id, .. }
         | Source::DrawingEdge { drawing: id, .. } => drawing_handles(plan, id),
         Source::Note(id) | Source::NoteWidth(id) => note_handles(set, id),
+        Source::Image(id) | Source::ImageSize(id) => image_handles(set, id),
         Source::Opening { wall, index } | Source::OpeningEdge { wall, index, .. } => {
             opening_handles(set, *wall, *index)
         }
@@ -257,6 +260,29 @@ fn note_handles(set: &SetPlan, id: &str) -> Vec<Item> {
         },
         label: None,
         source: Some(Source::NoteWidth(id.to_owned())),
+    }]
+}
+
+/// Where the size grip of `image` sits: just outside the middle of its right edge, turned
+/// with the image, as far off as an object's grips.
+pub fn image_grip_place(image: &PlanImage) -> Point {
+    image.placed(image.width_m / 2.0 + OBJECT_GRIP_GAP_M, 0.0)
+}
+
+/// The size grip of image `id`.
+fn image_handles(set: &SetPlan, id: &str) -> Vec<Item> {
+    let Some(image) = set.images.iter().find(|i| i.id == id) else {
+        return Vec::new();
+    };
+
+    vec![Item {
+        role: Role::Handle,
+        shape: Shape::Circle {
+            center: image_grip_place(image),
+            radius_m: HANDLE_RADIUS_M,
+        },
+        label: None,
+        source: Some(Source::ImageSize(id.to_owned())),
     }]
 }
 

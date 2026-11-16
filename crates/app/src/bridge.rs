@@ -295,6 +295,12 @@ pub mod qobject {
         #[cxx_name = "setBackground"]
         fn set_background(self: Pin<&mut Self>, path: &QString) -> bool;
 
+        /// Places the image file at `path` (a path or a `file://` URL), centred at (`x`, `y`),
+        /// on the notes layer (LH-18).
+        #[qinvokable]
+        #[cxx_name = "addImage"]
+        fn add_image(self: Pin<&mut Self>, path: &QString, x: f64, y: f64) -> bool;
+
         /// Takes the background off the set.
         #[qinvokable]
         #[cxx_name = "removeBackground"]

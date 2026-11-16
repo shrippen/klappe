@@ -221,7 +221,15 @@ impl Session {
             return Vec::new();
         };
 
-        render(&self.project, &location.set, plan, self.time_s, None).lamps
+        render(
+            &self.project,
+            &location.set,
+            plan,
+            self.time_s,
+            None,
+            &|_| None,
+        )
+        .lamps
     }
 
     /// Writes the shot list as ODS (LH-85), the CSV's columns; numbers are numbers. A second sheet

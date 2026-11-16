@@ -38,11 +38,13 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
             .zip(index)
             .and_then(|(wall, index)| s.opening_hint(wall, index)),
         ElementKind::Note => Some(s.note_hint(id)),
+        ElementKind::Image => s.image_hint(id),
         ElementKind::Drawing => s.drawing_hint(id),
         ElementKind::Wall => id.parse().ok().and_then(|wall| s.wall_hint(wall)),
         ElementKind::DrawingPoint
         | ElementKind::DrawingEdge
         | ElementKind::NoteWidth
+        | ElementKind::ImageSize
         | ElementKind::OpeningEdge
         | ElementKind::LightGrip
         | ElementKind::ObjectGrip => None,
@@ -253,5 +255,14 @@ mod tests {
         assert!(!s.has_background());
         assert_eq!(s.note_text("n1").as_deref(), Some("Vorhang schließen"));
         assert_eq!(s.note_text("x"), None);
+    }
+
+    /// An image the set does not have, and its grip, have no tooltip.
+    #[test]
+    fn describe_knows_no_image_the_set_lacks() {
+        let s = example();
+
+        assert_eq!(describe(&s, "image:i1"), json!({}));
+        assert_eq!(describe(&s, "imagesize:i1"), json!({}));
     }
 }

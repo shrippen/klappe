@@ -9,6 +9,28 @@ fn note_is_a_tool_and_a_click_edits_nothing() {
 }
 
 #[test]
+fn image_is_a_tool_and_a_click_edits_nothing() {
+    assert_eq!(Tool::parse("image", ""), Some(Tool::Image));
+    assert_eq!(click_edit(&Tool::Image, p(1.0, 1.0)), None);
+    assert_eq!(
+        drag_edit(&Tool::Image, None, p(1.0, 1.0), p(3.0, 1.0)),
+        None
+    );
+}
+
+/// The dialog hands a `file://` URL over, percent-escapes and all.
+#[test]
+fn the_picked_file_is_placed_where_the_click_was() {
+    assert_eq!(
+        image_edit("file:///home/a/Bilder/Skizze%20eins.png", p(2.0, 3.0)),
+        PlanEdit::AddImage {
+            source: "/home/a/Bilder/Skizze eins.png".into(),
+            at: p(2.0, 3.0),
+        }
+    );
+}
+
+#[test]
 fn a_click_on_a_note_edits_it_else_a_new_one_goes_there() {
     let at = p(2.0, 3.0);
     let note = Source::Note("n1".into());
