@@ -6,7 +6,7 @@ import Kante
 
 // D-02, D-03 (planung/DESIGN.md): the window's header. The mark, where we are (project ›
 // scene › plan, the plan's name a menu), the menus, undo and redo, and the command palette.
-// Without a project (D-07) only the mark and the File menu with New and Open stay.
+// Without a project (D-07) only the mark stays: the start page has New and Open, and shows the status.
 //
 //  KLAPPE  Wartburg › Szene 12 › Plan A ▾    Datei ▾  Ausgeben ▾  Ansicht ▾   ↶ ↷ ⌕
 //
@@ -104,7 +104,7 @@ RowLayout {
         elide: Text.ElideRight
         color: KanteStyle.mutedTextColor
         text: header.controller.status !== "" ? header.controller.status : (header.controller.dirty ? header.texts.t("menu.unsaved") : "")
-        visible: text !== ""
+        visible: header.controller.loaded && text !== ""
     }
 
     // Objects without a height (LH-93): the count, and a click goes on to the next.
@@ -119,6 +119,7 @@ RowLayout {
 
     HeaderMenu {
         objectName: "fileMenu"
+        visible: header.controller.loaded
         text: header.texts.t("menu.file")
         KanteMenuItem { objectName: "new"; action: actNew; iconRoom: true }
         KanteMenuItem { objectName: "open"; action: actOpen; iconRoom: true }

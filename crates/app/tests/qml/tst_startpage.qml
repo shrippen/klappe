@@ -236,13 +236,15 @@ TestCase {
     function test_a_long_status_is_shown_whole() {
         fake.status = "Projekt konnte nicht gelesen werden: szenen/szene-014.json: invalid type: map, expected a sequence"
         const page = make()
+        page.anchors.fill = null
         page.width = 360
+        page.height = 500
 
         const status = findChild(page, "status")
         verify(status.visible)
         compare(status.text, fake.status)
         verify(!status.truncated)
-        verify(status.implicitHeight > status.font.pixelHeight * 1.5, "wraps onto more lines")
+        verify(status.lineCount > 1, "wraps onto more lines")
         verify(status.width <= page.width)
         fake.status = ""
     }

@@ -126,6 +126,15 @@ Item {
             }
         }
 
+        // What went wrong opening a project (or the example), whole: the header's line is short.
+        QQC2.Label {
+            objectName: "status"
+            Layout.fillWidth: true
+            visible: text !== ""
+            wrapMode: Text.Wrap
+            text: start.controller.status
+        }
+
         QQC2.Label {
             objectName: "noRecent"
             Layout.fillWidth: true
