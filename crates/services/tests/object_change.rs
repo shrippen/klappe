@@ -660,3 +660,32 @@ fn removing_a_plan_frees_its_labels() {
 
     assert_eq!(bound(&s, &id), None);
 }
+
+/// Deleting a scene frees the labels of its figures: a new scene with the same id must not
+/// inherit them.
+#[test]
+fn removing_a_scene_frees_its_labels() {
+    let mut s = open();
+    s.set_time(6.0);
+    s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
+        .unwrap();
+    let id = s.project().locations[0]
+        .set
+        .notes
+        .last()
+        .unwrap()
+        .id
+        .clone();
+    let scene = s.scene().unwrap().id.clone();
+    s.edit_project(klappe_services::ProjectEdit::AddScene {
+        number: "99".into(),
+        heading: "INT. TEST".into(),
+        location: s.scene().unwrap().location.clone(),
+    })
+    .unwrap();
+
+    s.edit_project(klappe_services::ProjectEdit::RemoveScene { id: scene })
+        .unwrap();
+
+    assert_eq!(bound(&s, &id), None);
+}
