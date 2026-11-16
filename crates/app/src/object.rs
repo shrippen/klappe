@@ -2,7 +2,7 @@
 //! it is filed in, each as an edit. Like the tools (`tools.rs`), no geometry here.
 
 use klappe_services::{
-    read_number, Field, PlanEdit, ProjectEdit, Range, ServiceError, Source, Unit,
+    read_number, DoorSide, Field, Hinge, PlanEdit, ProjectEdit, Range, ServiceError, Source, Unit,
 };
 
 use crate::tools::{length_m, Typed};
@@ -118,6 +118,32 @@ pub fn opening_width_edit(selected: Option<&Source>, width: &str) -> Typed {
     )
 }
 
+/// The side (`left`, `right`) or hinge (`start`, `end`) the selected door gets, as an edit
+/// (LH-10). `None` when no opening is selected, the field is none of `side` and `hinge`, or
+/// the value is not one of theirs.
+pub fn swing_edit(selected: Option<&Source>, field: &str, value: &str) -> Option<PlanEdit> {
+    let Some(source @ Source::Opening { .. }) = selected else {
+        return None;
+    };
+    let source = source.clone();
+
+    match (field, value) {
+        ("side", "left") => Some(swing(source, Some(DoorSide::Left), None)),
+        ("side", "right") => Some(swing(source, Some(DoorSide::Right), None)),
+        ("hinge", "start") => Some(swing(source, None, Some(Hinge::Start))),
+        ("hinge", "end") => Some(swing(source, None, Some(Hinge::End))),
+        _ => None,
+    }
+}
+
+fn swing(source: Source, side: Option<DoorSide>, hinge: Option<Hinge>) -> PlanEdit {
+    PlanEdit::SetOpeningSwing {
+        source,
+        side,
+        hinge,
+    }
+}
+
 /// Files the selected object in the library of the project under `name`. `None` when
 /// something other than an object is selected, there is no scene to take the set from, or the
 /// name is blank.
@@ -184,6 +210,32 @@ mod tests {
         assert!(opening_width_edit(Some(&Source::Wall(0)), "1").is_none());
         assert!(opening_width_edit(Some(&Source::Object("o1".into())), "1").is_none());
         assert!(opening_width_edit(None, "1").is_none());
+    }
+
+    #[test]
+    fn a_swing_picked_for_the_selected_opening_is_a_swing_edit() {
+        let opening = Source::Opening { wall: 2, index: 0 };
+
+        assert_eq!(
+            swing_edit(Some(&opening), "side", "left"),
+            Some(PlanEdit::SetOpeningSwing {
+                source: opening.clone(),
+                side: Some(DoorSide::Left),
+                hinge: None
+            })
+        );
+        assert_eq!(
+            swing_edit(Some(&opening), "hinge", "end"),
+            Some(PlanEdit::SetOpeningSwing {
+                source: opening.clone(),
+                side: None,
+                hinge: Some(Hinge::End)
+            })
+        );
+        assert_eq!(swing_edit(Some(&opening), "side", "end"), None);
+        assert_eq!(swing_edit(Some(&opening), "sill", "left"), None);
+        assert_eq!(swing_edit(Some(&Source::Wall(0)), "side", "left"), None);
+        assert_eq!(swing_edit(None, "side", "left"), None);
     }
 
     #[test]

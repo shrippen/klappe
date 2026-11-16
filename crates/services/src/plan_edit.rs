@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    Arrival, Character, Dash, Departure, Drawing, DrawingShape, FigureColor, Fill, FloorPlan,
-    LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
+    Arrival, Character, Dash, Departure, DoorSide, Drawing, DrawingShape, FigureColor, Fill,
+    FloorPlan, Hinge, LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
 };
 use klappe_stellprobe::{Bend, Source};
 
@@ -184,6 +184,13 @@ pub enum PlanEdit {
         source: Source,
         width_m: f64,
     },
+    /// Sets how the door `source` swings (LH-10): the side of the wall it opens to and the end
+    /// of the gap its hinge is at; `None` keeps what it has. Refused for a window.
+    SetOpeningSwing {
+        source: Source,
+        side: Option<DoorSide>,
+        hinge: Option<Hinge>,
+    },
     /// Sets the sill of the opening `source` (LH-90), or back to its kind's with `None`. Refused
     /// at or above its head.
     SetOpeningSill {
@@ -349,6 +356,7 @@ impl PlanEdit {
             | PlanEdit::SetMarkLens { source, .. }
             | PlanEdit::SetObjectHeight { source, .. }
             | PlanEdit::SetOpeningWidth { source, .. }
+            | PlanEdit::SetOpeningSwing { source, .. }
             | PlanEdit::SetWallHeight { source, .. }
             | PlanEdit::SetObjectBase { source, .. }
             | PlanEdit::SetOpeningSill { source, .. }
@@ -527,9 +535,9 @@ pub(crate) fn apply(
             depth_m,
         } => resize(&mut scope, source, (*width_m, *depth_m)),
         PlanEdit::AddWall { .. } | PlanEdit::AddRoom { .. } => add_walls(&mut scope, edit),
-        PlanEdit::AddOpening { .. } | PlanEdit::SetOpeningWidth { .. } => {
-            edit_opening(&mut scope, edit)
-        }
+        PlanEdit::AddOpening { .. }
+        | PlanEdit::SetOpeningWidth { .. }
+        | PlanEdit::SetOpeningSwing { .. } => edit_opening(&mut scope, edit),
         PlanEdit::SetWallHeight { .. }
         | PlanEdit::SetObjectBase { .. }
         | PlanEdit::SetOpeningSill { .. }

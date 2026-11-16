@@ -23,10 +23,10 @@ TestCase {
 
         function describe(key) {
             if (key === "opening:2:0") {
-                return JSON.stringify({ kind: "opening", type: "door", width: 0.9, sill: 0, head: 2.1, sillDefault: true, headDefault: true })
+                return JSON.stringify({ kind: "opening", type: "door", width: 0.9, sill: 0, head: 2.1, sillDefault: true, headDefault: true, side: "left", hinge: "end" })
             }
             if (key === "opening:0:1") {
-                return JSON.stringify({ kind: "opening", type: "window", width: 1.2, sill: 0.9, head: 2.4, sillDefault: true, headDefault: false })
+                return JSON.stringify({ kind: "opening", type: "window", width: 1.2, sill: 0.9, head: 2.4, sillDefault: true, headDefault: false, side: "right", hinge: "start" })
             }
             return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null })
         }
@@ -34,7 +34,7 @@ TestCase {
             widths.push(text)
             return widthOk
         }
-        function setSelectedHeight(field, text) {
+        function setSelectedField(field, text) {
             heights.push([field, text])
             return heightOk
         }
@@ -235,5 +235,24 @@ TestCase {
         findChild(card, "openingApply").clicked()
 
         compare(fake.heights, [])
+    }
+
+    // LH-10: a door shows its swing and sends a pick as `side` or `hinge`; a window has none.
+    function test_a_door_shows_and_sets_its_swing() {
+        const card = make()
+        const side = findChild(card, "sideChoice")
+        const hinge = findChild(card, "hingeChoice")
+
+        fake.selectedKey = "opening:2:0"
+        verify(findChild(card, "swingRow").visible)
+        compare([side.currentIndex, hinge.currentIndex], [0, 1])
+
+        side.select(1)
+        hinge.select(0)
+
+        compare(fake.heights, [["side", "right"], ["hinge", "start"]])
+
+        fake.selectedKey = "opening:0:1"
+        verify(!findChild(card, "swingRow").visible)
     }
 }

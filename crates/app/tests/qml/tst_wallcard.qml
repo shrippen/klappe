@@ -27,7 +27,7 @@ TestCase {
             }
             return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null })
         }
-        function setSelectedHeight(field, text) {
+        function setSelectedField(field, text) {
             heights.push([field, text])
             return heightOk
         }

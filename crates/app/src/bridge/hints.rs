@@ -130,7 +130,7 @@ mod tests {
             describe(&s, &key),
             json!({
                 "kind": "opening", "type": "door", "width": 0.9, "sill": 0.0, "head": 2.1,
-                "sillDefault": true, "headDefault": true,
+                "sillDefault": true, "headDefault": true, "side": "right", "hinge": "start",
             })
         );
         assert_eq!(describe(&s, "opening:2:5"), json!({}));

@@ -286,6 +286,8 @@ impl Session {
             head_m,
             sill_default: o.sill_m.is_none(),
             head_default: o.head_m.is_none(),
+            side: o.side,
+            hinge: o.hinge,
         })
     }
 

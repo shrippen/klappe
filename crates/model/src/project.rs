@@ -316,6 +316,43 @@ pub struct Opening {
     /// Height of its upper edge above the floor (LH-90); `None` takes its kind's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub head_m: Option<f64>,
+    /// Which side of the wall a door opens to; windows ignore it.
+    #[serde(default, skip_serializing_if = "DoorSide::is_right")]
+    pub side: DoorSide,
+    /// Which end of the gap a door's hinge is at; windows ignore it.
+    #[serde(default, skip_serializing_if = "Hinge::is_start")]
+    pub hinge: Hinge,
+}
+
+/// The side of a wall, seen from `from` towards `to`, a door swings to.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DoorSide {
+    #[default]
+    Right,
+    Left,
+}
+
+impl DoorSide {
+    fn is_right(&self) -> bool {
+        *self == DoorSide::Right
+    }
+}
+
+/// The end of a door's gap its hinge is at.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Hinge {
+    /// The end nearer the wall's `from`.
+    #[default]
+    Start,
+    End,
+}
+
+impl Hinge {
+    fn is_start(&self) -> bool {
+        *self == Hinge::Start
+    }
 }
 
 impl Opening {
@@ -327,6 +364,8 @@ impl Opening {
             width_m,
             sill_m: None,
             head_m: None,
+            side: DoorSide::default(),
+            hinge: Hinge::default(),
         }
     }
 

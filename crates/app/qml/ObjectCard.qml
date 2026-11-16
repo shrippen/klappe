@@ -99,7 +99,7 @@ ColumnLayout {
             baseField.invalid = false
             return
         }
-        const ok = controller.setSelectedHeight("base", baseField.text)
+        const ok = controller.setSelectedField("base", baseField.text)
         if (ok && info) {
             baseField.text = card.ownBase()
         }

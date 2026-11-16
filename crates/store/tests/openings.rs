@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use klappe_model::{Opening, OpeningKind, Project};
+use klappe_model::{DoorSide, Hinge, Opening, OpeningKind, Project};
 use klappe_store::{load, save, StoreError};
 
 const EXAMPLE: &str = concat!(
@@ -61,6 +61,8 @@ fn an_unusable_opening_is_refused() {
             width_m,
             head_m: None,
             sill_m: None,
+            side: DoorSide::Right,
+            hinge: Hinge::Start,
         }];
         let saved = save(&dir, &project, None);
         if saved.is_err() {
@@ -78,4 +80,29 @@ fn an_unusable_opening_is_refused() {
             );
         }
     }
+}
+
+/// A door's swing is written only when it is not the default, and comes back as written; a
+/// value that is no side or hinge refuses the file.
+#[test]
+fn a_door_swing_round_trips_and_a_bad_one_is_refused() {
+    let dir = test_dir("swing");
+    let mut project = example();
+    let mut door = Opening::new(OpeningKind::Door, 5.0, 0.9);
+    door.side = DoorSide::Left;
+    door.hinge = Hinge::End;
+    project.locations[0].set.walls[0].openings =
+        vec![door, Opening::new(OpeningKind::Door, 8.0, 0.9)];
+
+    save(&dir, &project, None).unwrap();
+    let path = dir.join("drehorte/saengersaal.toml");
+    let text = fs::read_to_string(&path).unwrap();
+
+    assert_eq!(text.matches("side = \"left\"").count(), 1, "{text}");
+    assert_eq!(text.matches("hinge = \"end\"").count(), 1, "{text}");
+    assert_eq!(load(&dir).unwrap().project, project);
+
+    fs::write(&path, text.replace("side = \"left\"", "side = \"up\"")).unwrap();
+
+    assert!(matches!(load(&dir), Err(StoreError::Parse { .. })));
 }

@@ -1,6 +1,8 @@
 //! Plain data for the surfaces: what a row, a track or a script line shows.
 
-use klappe_model::{Dash, FigureColor, Fill, LibraryItem, ObjectShape, OpeningKind, Template};
+use klappe_model::{
+    Dash, DoorSide, FigureColor, Fill, Hinge, LibraryItem, ObjectShape, OpeningKind, Template,
+};
 use serde::Serialize;
 
 /// The frame a shot shows when its camera is gone (16:9).
@@ -385,6 +387,9 @@ pub enum Hint {
         sill_default: bool,
         #[serde(rename = "headDefault")]
         head_default: bool,
+        /// How a door swings (LH-10); a window shows it too and ignores it.
+        side: DoorSide,
+        hinge: Hinge,
     },
     /// A wall, for the card that sets its height (LH-90).
     Wall {

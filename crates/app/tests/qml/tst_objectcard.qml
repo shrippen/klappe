@@ -44,7 +44,7 @@ TestCase {
             heights.push(text)
             return heightOk
         }
-        function setSelectedHeight(field, text) {
+        function setSelectedField(field, text) {
             bases.push([field, text])
             return baseOk
         }

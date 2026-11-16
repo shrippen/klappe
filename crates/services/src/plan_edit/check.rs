@@ -71,6 +71,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         PlanEdit::Remove { .. }
         | PlanEdit::RemoveGroup { .. }
         | PlanEdit::Straighten { .. }
+        | PlanEdit::SetOpeningSwing { .. }
         | PlanEdit::EditNote { .. }
         | PlanEdit::SetBackground { .. }
         | PlanEdit::RemoveBackground

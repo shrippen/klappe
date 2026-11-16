@@ -129,8 +129,11 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 - **Türen und Fenster in Wänden (LH-10):** jede `[[set.walls]]` kann `[[set.walls.openings]]`
   tragen: `kind` (`door` oder `window`), `at_m` (Meter von `from` der Wand bis zur Mitte der
   Öffnung, entlang der Wand) und `width_m` (größer als 0). Die Wand hat dort eine Lücke; die Tür
-  schwingt auf dem Plan nach rechts, von `from` Richtung `to` gesehen, das Scharnier liegt am
-  Anfang der Lücke. Ohne Öffnungen steht der Schlüssel nicht in der Datei, ältere Projekte
+  schwingt auf dem Plan standardmäßig nach rechts, von `from` Richtung `to` gesehen, das
+  Scharnier liegt am Anfang der Lücke (der Seite von `from`). Optional `side` (`right` oder
+  `left`, Standard `right`) und `hinge` (`start` oder `end`, Standard `start`) ändern das;
+  beide fehlen in der Datei, wenn sie dem Standard entsprechen, ein anderer Wert lässt das
+  Laden scheitern, ein Fenster ignoriert sie. Ohne Öffnungen steht der Schlüssel nicht in der Datei, ältere Projekte
   laden und speichern unverändert. Laden lehnt eine Öffnung ab, deren Breite oder Lage keine
   Zahl ist oder deren Breite nicht über 0 liegt. Eine Öffnung, die über das Wandende reicht
   oder eine andere überdeckt, lädt; die Bearbeitung lässt so etwas nicht zu. Öffnungen werden
