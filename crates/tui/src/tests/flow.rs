@@ -5,6 +5,7 @@ use klappe_services::{parse, Element, Slot};
 use super::support::*;
 use super::*;
 use crate::buffer::Pos;
+use crate::fountain::LineKind;
 
 fn names(app: &App) -> Vec<String> {
     app.suggest
@@ -370,4 +371,33 @@ fn no_suggestion_for_plain_action_text() {
     typed(&mut app, "Anton geht in die Küche");
 
     assert_eq!(app.suggest, None);
+}
+
+#[test]
+fn the_line_after_a_transition_is_no_heading_until_it_is_one() {
+    let (_s, mut app) = app_with("x\n\n");
+    typed(&mut app, "CUT TO:");
+    press(&mut app, KeyCode::Enter);
+    assert_eq!(
+        app.analysis.kind(app.cursor().line),
+        LineKind::Heading,
+        "empty: the heading to come"
+    );
+
+    // Prose typed there is an action, in its case, and shows as one.
+    typed(&mut app, "Anna geht.");
+    assert_eq!(app.text(), "x\n\nCUT TO:\n\nAnna geht.");
+    assert_eq!(app.analysis.kind(app.cursor().line), LineKind::Action);
+    assert_eq!(app.suggest, None);
+}
+
+#[test]
+fn a_typed_prefix_keeps_the_line_a_heading() {
+    let (_s, mut app) = app_with("x\n\n");
+    typed(&mut app, "CUT TO:");
+    press(&mut app, KeyCode::Enter);
+    typed(&mut app, "in");
+
+    assert_eq!(app.analysis.kind(app.cursor().line), LineKind::Heading);
+    assert_eq!(app.text(), "x\n\nCUT TO:\n\nIN");
 }

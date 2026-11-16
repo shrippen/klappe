@@ -4,7 +4,7 @@
 //! tells what it is, is `pending`: it shows as that element (indent, colour) until the
 //! cursor leaves it.
 
-use klappe_services::{suggest, Context, Gap, Slot, Suggestions};
+use klappe_services::{suggest, Context, Gap, Slot, Stage, Suggestions};
 
 use super::{App, Mode};
 use crate::buffer::Pos;
@@ -38,9 +38,20 @@ impl App {
         self.slot_of(line) == Some(Slot::Parenthetical)
     }
 
-    /// The kind of the pending line, if `line` is it.
+    /// Whether the pending heading line is still one: empty, or the start of a prefix. Prose
+    /// typed there is an action and shows and keeps its case as one.
+    fn heading_like(&self, line: usize) -> bool {
+        let text = self.editor.lines().get(line).map_or("", String::as_str);
+        let prefix = suggest(&self.analysis.vocab, text, line, Context::Heading)
+            .is_some_and(|s| s.stage == Stage::Prefix);
+
+        text.trim().is_empty() || prefix
+    }
+
+    /// The kind of the pending line, if `line` is it and still looks like its slot.
     pub(super) fn pending_kind(&self, line: usize) -> Option<LineKind> {
         match self.pending {
+            Some((at, Slot::Heading)) if at == line && !self.heading_like(line) => None,
             Some((at, slot)) if at == line => Some(LineKind::of_slot(slot)),
             _ => None,
         }
@@ -67,6 +78,9 @@ impl App {
         let Some((line, slot)) = self.pending else {
             return;
         };
+        if self.pending_kind(line).is_none() {
+            return;
+        }
         let Some(kind) = self.analysis.kinds.get_mut(line) else {
             return;
         };
@@ -261,9 +275,9 @@ impl App {
     }
 
     /// The element after a finished stage: a time ends a heading, a name or extension a cue.
-    fn after_stage(&self, stage: klappe_services::Stage) -> (Slot, Gap) {
+    fn after_stage(&self, stage: Stage) -> (Slot, Gap) {
         match stage {
-            klappe_services::Stage::Time => Slot::Heading.after_enter(),
+            Stage::Time => Slot::Heading.after_enter(),
             _ => Slot::Character.after_enter(),
         }
     }
