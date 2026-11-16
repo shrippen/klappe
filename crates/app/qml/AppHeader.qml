@@ -444,7 +444,7 @@ RowLayout {
         const info = header.controller.describe(header.selectedKey)
         return info !== "" && JSON.parse(info).bound === true
     }
-    // Mirror (Shift+M), reset size (Shift+S), label (Shift+L) and let a label go (Shift+U)
+    // Mirror (Shift+M), reset size (Shift+G), label (Shift+L) and let a label go (Shift+U)
     // (LH-115, LH-116, LH-118); the kind is changed from the palette ("kind:<kind>") or the card.
     CommandAction {
         id: actMirror
@@ -461,8 +461,8 @@ RowLayout {
         cmd: "object.resetSize"
         group: "edit"
         text: header.texts.t("object.resetSize")
-        shortcut: "Shift+S"
-        keys: header.keyName("Shift+S")
+        shortcut: "Shift+G"
+        keys: header.keyName("Shift+G")
         enabled: header.controller.loaded && !header.locked && header.objectSelected
         onTriggered: header.controller.changeSelected("resetSize", "")
     }

@@ -89,7 +89,7 @@ TestCase {
         fake.selectedKey = "object:o1"
 
         compare(command(header, "object.mirror").keys, "Umschalt+M")
-        compare(command(header, "object.resetSize").keys, "Umschalt+S")
+        compare(command(header, "object.resetSize").keys, "Umschalt+G")
         compare(command(header, "object.label").keys, "Umschalt+L")
         compare(command(header, "note.unbind").keys, "Umschalt+U")
 
