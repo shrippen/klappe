@@ -520,7 +520,12 @@ impl qobject::Controller {
         let done = self.as_mut().commit_edit(edit.clone());
         if done {
             let counts = (before, count(&self));
-            let pulled = self.rust().selected.clone().pulled(&edit, counts);
+            let pulled = self
+                .rust()
+                .selected
+                .clone()
+                .pulled(&edit, counts)
+                .released();
             self.as_mut().rust_mut().get_mut().selected = pulled;
             self.refresh();
         }
