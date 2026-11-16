@@ -6,7 +6,7 @@ use std::cmp::Reverse;
 use klappe_model::Point;
 use klappe_stellprobe::Source;
 
-use super::bound::note_mut;
+use super::bound;
 use super::images;
 use super::target::{target, Target};
 use super::{
@@ -258,7 +258,7 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
             light.at = shifted(light.at, by_m);
             lights.push(light);
         }
-        Source::Note(id) => copy_note(scope, id, by_m)?,
+        Source::Note(id) => bound::copy_note(scope, id, by_m)?,
         Source::Image(id) => images::copy_image(scope, id, by_m)?,
         Source::Drawing(id) => {
             let drawings = &mut scope.plan.drawings;
@@ -299,18 +299,4 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
     }
 
     Ok(Copied::Made)
-}
-
-/// A copy of the note `id`, set down by `by_m`. It is a free note: bound to the same element
-/// it would hang on the original.
-fn copy_note(scope: &mut Scope<'_>, id: &str, by_m: (f64, f64)) -> Result<(), ServiceError> {
-    let mut note = note_mut(scope, id).ok_or(ServiceError::Gone)?.clone();
-    let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
-
-    note.id = free_id("n", set.notes.iter().map(|n| n.id.as_str()));
-    note.at = shifted(note.at, by_m);
-    note.bound = None;
-    set.notes.push(note);
-
-    Ok(())
 }

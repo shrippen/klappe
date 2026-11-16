@@ -2,9 +2,9 @@
 //! changing a note's text, which shares the note rules.
 
 use klappe_model::{
-    is_outline, outline_box, Arrival, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape,
-    FigureColor, FigureTrack, Fill, Light, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject,
-    Wall, FREE_FORM_KIND, NOTE_WIDTH_M,
+    is_outline, outline_box, Arrival, Camera, CameraMark, Departure, Drawing, DrawingShape,
+    FigureTrack, Light, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject, Wall,
+    FREE_FORM_KIND, NOTE_WIDTH_M,
 };
 
 use super::bound::note_mut;
@@ -360,7 +360,8 @@ pub(super) fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(
         .set
         .as_deref_mut()
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
-    let id = free_id("n", set.notes.iter().map(|n| n.id.as_str()));
+    let taken = scope.label_ids.iter().map(String::as_str);
+    let id = free_id("n", set.notes.iter().map(|n| n.id.as_str()).chain(taken));
 
     set.notes.push(Note {
         id,
@@ -401,11 +402,17 @@ pub(super) fn check_drawable(shape: &DrawingShape) -> Result<(), ServiceError> {
     })
 }
 
-pub(super) fn add_drawing(
-    scope: &mut Scope<'_>,
-    shape: &DrawingShape,
-    (color, dash, fill): (FigureColor, Dash, Fill),
-) -> Result<(), ServiceError> {
+/// Applies `AddDrawing`; any other edit is none of its business.
+pub(super) fn add_drawing(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
+    let PlanEdit::AddDrawing {
+        shape,
+        color,
+        dash,
+        fill,
+    } = edit
+    else {
+        return Ok(());
+    };
     check_drawable(shape)?;
 
     let id = free_id("d", scope.plan.drawings.iter().map(|d| d.id.as_str()));
@@ -413,9 +420,9 @@ pub(super) fn add_drawing(
     scope.plan.drawings.push(Drawing {
         id,
         shape: shape.clone(),
-        color,
-        dash,
-        fill,
+        color: *color,
+        dash: *dash,
+        fill: *fill,
         rotation_deg: 0.0,
     });
 

@@ -193,6 +193,49 @@ pub(super) fn follow(project: &mut Project, at: (usize, usize), time_s: f64, hel
     }
 }
 
+/// Ids of the labels of every plan of every scene at the location of scene `scene`.
+pub(super) fn label_ids(project: &Project, scene: usize) -> Vec<String> {
+    let Some(location) = project.scenes.get(scene).map(|s| &s.location) else {
+        return Vec::new();
+    };
+    let at_location = project.scenes.iter().filter(|s| s.location == *location);
+
+    at_location
+        .flat_map(|s| &s.plans)
+        .flat_map(|p| &p.labels)
+        .map(|n| n.id.clone())
+        .collect()
+}
+
+/// A copy of the note `id` set down by `by_m`, free. A label's copy is a label of the plan, a
+/// note's a note of the set.
+pub(super) fn copy_note(
+    scope: &mut Scope<'_>,
+    id: &str,
+    by_m: (f64, f64),
+) -> Result<(), ServiceError> {
+    let mut note = note_mut(scope, id).ok_or(ServiceError::Gone)?.clone();
+    let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
+    let in_plan = scope.plan.labels.iter().any(|n| n.id == id);
+
+    note.at = Point::new(note.at.x_m + by_m.0, note.at.y_m + by_m.1);
+    note.bound = None;
+    match in_plan {
+        true => {
+            let labels = scope.plan.labels.iter().map(|n| n.id.as_str());
+            note.id = free_id("t", labels.chain(set.notes.iter().map(|n| n.id.as_str())));
+            scope.plan.labels.push(note);
+        }
+        false => {
+            let taken = scope.label_ids.iter().map(String::as_str);
+            note.id = free_id("n", set.notes.iter().map(|n| n.id.as_str()).chain(taken));
+            set.notes.push(note);
+        }
+    }
+
+    Ok(())
+}
+
 /// The note `id`: one of the set's, else one of the plan's labels.
 pub(super) fn note_mut<'a>(scope: &'a mut Scope<'_>, id: &str) -> Option<&'a mut Note> {
     let in_set = scope
@@ -272,11 +315,13 @@ pub(super) fn add_label(
 
     match source {
         Source::Object(_) => {
-            let id = free_id("n", set.notes.iter().map(|n| n.id.as_str()));
+            let taken = scope.label_ids.iter().map(String::as_str);
+            let id = free_id("n", set.notes.iter().map(|n| n.id.as_str()).chain(taken));
             set.notes.push(note(id));
         }
         _ => {
-            let id = free_id("t", scope.plan.labels.iter().map(|n| n.id.as_str()));
+            let labels = scope.plan.labels.iter().map(|n| n.id.as_str());
+            let id = free_id("t", labels.chain(set.notes.iter().map(|n| n.id.as_str())));
             scope.plan.labels.push(note(id));
         }
     }
