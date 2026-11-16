@@ -35,7 +35,7 @@ pub(crate) enum Escape {
 }
 
 /// Prefixes of scene headings, longest first; each must be followed by `.` or a space.
-const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext", "est"];
+pub(crate) const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext", "est"];
 
 /// Parses Fountain text. Never fails; unknown input becomes `Element::Action`.
 pub fn parse(text: &str) -> Script {
@@ -70,6 +70,23 @@ pub fn parse_located(text: &str) -> Vec<Located> {
                 .collect(),
         })
         .collect()
+}
+
+/// Lines of `text` the title page takes, leading blank lines included; 0 without one. A
+/// block that ends at the end of the text counts its last line break as a line.
+///
+/// A line count of the typed text, so an editor can style those lines as the title page.
+pub fn title_page_lines(text: &str) -> usize {
+    let (text, origin) = cut_boneyard(text);
+    let (title_page, body) = split_title_page(&text);
+    if title_page.is_empty() {
+        return 0;
+    }
+
+    let skipped = text[..text.len() - body.len()].matches('\n').count();
+    let total = origin.last().map_or(0, |last| last + 1);
+
+    origin.get(skipped).map_or(total, |line| line + 1)
 }
 
 /// The text without boneyards and, for each of its lines, the line of the typed text
@@ -146,7 +163,7 @@ pub(crate) fn escape_openers(text: &str, way: Escape) -> String {
 /// The block counts as a title page only if every line is a key line or an indented
 /// continuation and at least one key has a value; otherwise `CUT TO:` would be taken
 /// for a key.
-fn split_title_page(text: &str) -> (Vec<(String, String)>, &str) {
+pub(crate) fn split_title_page(text: &str) -> (Vec<(String, String)>, &str) {
     let text = text.trim_start_matches(['\n', '\r']);
     let block_end = text.find("\n\n").unwrap_or(text.len());
     let block = &text[..block_end];

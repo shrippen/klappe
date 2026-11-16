@@ -511,3 +511,45 @@ fn located_elements_are_those_of_parse() {
         assert_eq!(located, parse(text).elements, "{text:?}");
     }
 }
+
+/// DB-71: what the editor shows distinctly (DB-05) and the title page (DB-06) survive
+/// read and write.
+#[test]
+fn writing_aids_elements_round_trip() {
+    let text = "Title: Nachtwache\nCredit: von\nAuthor: Eva\nSource: Roman\nDraft date: 1.1.2027\nContact:\n   Eva\n   Weg 1\n\nINT. A - TAG #1#\n\nSie *flüstert*, **ruft** und ***schreit***, _leise_ [[prüfen]].\n\nANNA\nHallo.\n\nBEN^\nWas?\n\n> ENDE <\n\n~Sie singen\n\n[[Eine Notiz]]\n";
+    let script = parse(text);
+
+    assert_eq!(write(&script), text);
+    assert_eq!(parse(&write(&script)), script);
+    assert!(script.elements.contains(&cue("BEN", None, true)));
+    assert!(script.elements.contains(&Element::Centered("ENDE".into())));
+    assert!(script
+        .elements
+        .contains(&Element::Lyrics("Sie singen".into())));
+    assert!(script
+        .elements
+        .contains(&Element::Note("Eine Notiz".into())));
+}
+
+#[test]
+fn a_filled_title_page_survives_the_form() {
+    let fields: Vec<(String, String)> = TITLE_KEYS
+        .iter()
+        .map(|k| ((*k).to_owned(), format!("Wert {k}")))
+        .collect();
+    let text = set_title_fields("INT. A\n\nx\n", &fields);
+    let script = parse(&text);
+
+    assert_eq!(title_fields(&text), fields);
+    assert_eq!(write(&script), text);
+    assert_eq!(script.elements.len(), 2);
+}
+
+#[test]
+fn the_title_page_takes_its_lines() {
+    assert_eq!(title_page_lines("Title: T\nAuthor: A\n\nINT. A\n\nx"), 2);
+    assert_eq!(title_page_lines("\nTitle: T\n\nx"), 2);
+    assert_eq!(title_page_lines("INT. A\n\nx"), 0);
+    assert_eq!(title_page_lines("Title: T\n"), 2);
+    assert_eq!(title_page_lines(""), 0);
+}
