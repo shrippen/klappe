@@ -400,16 +400,8 @@ pub(super) fn spin(
         Target::Place { facing_deg, .. } => *facing_deg,
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
         Target::Drawing(drawing) => drawing.rotation_deg,
-        // Nothing to turn.
-        Target::Pin { .. }
-        | Target::Corner { .. }
-        | Target::Edge { .. }
-        | Target::NoteEdge(_)
-        | Target::ObjectEdge { .. }
-        | Target::Curve { .. }
-        | Target::OpeningEdge { .. }
-        | Target::LightEdge { .. }
-        | Target::Slide { .. } => return Ok(()),
+        // Nothing to turn: a note, an opening and every grip.
+        _ => return Ok(()),
     };
 
     turn(scope, source, now_deg + by_deg)
@@ -425,16 +417,6 @@ pub(super) fn turn(
     match target(scope, source)? {
         Target::Place { facing_deg: f, .. } => *f = facing_deg,
         Target::Drawing(drawing) => drawing.rotation_deg = facing_deg,
-        // Nothing to turn.
-        Target::Pin { .. }
-        | Target::Corner { .. }
-        | Target::Edge { .. }
-        | Target::NoteEdge(_)
-        | Target::ObjectEdge { .. }
-        | Target::Curve { .. }
-        | Target::OpeningEdge { .. }
-        | Target::LightEdge { .. }
-        | Target::Slide { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.
             let mid = middle(wall);
@@ -443,6 +425,8 @@ pub(super) fn turn(
             wall.from = Point::new(mid.x_m - half_m * cos, mid.y_m - half_m * sin);
             wall.to = Point::new(mid.x_m + half_m * cos, mid.y_m + half_m * sin);
         }
+        // Nothing to turn: a note, an opening and every grip.
+        _ => {}
     }
 
     Ok(())

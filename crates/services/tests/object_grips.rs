@@ -65,7 +65,7 @@ fn a_selected_object_shows_its_grips_and_picks_them() {
     let places: Vec<_> = list
         .items
         .iter()
-        .filter(|i| i.role == Role::ObjectHandle)
+        .filter(|i| i.role == Role::Handle)
         .filter_map(|i| match (&i.source, &i.shape) {
             (Some(source), Shape::Circle { center, .. }) => Some((source.clone(), *center)),
             _ => None,
@@ -81,7 +81,7 @@ fn a_selected_object_shows_its_grips_and_picks_them() {
         .display_list()
         .items
         .iter()
-        .all(|i| i.role != Role::ObjectHandle));
+        .all(|i| i.role != Role::Handle));
 }
 
 /// One edit, one undo step; the left edge (x = 7) stays, so the centre moves half the change.
@@ -172,7 +172,7 @@ fn grip_places(s: &Session) -> Vec<(Source, Point)> {
     s.display_list_for(Some(&table()))
         .items
         .iter()
-        .filter(|i| i.role == Role::ObjectHandle)
+        .filter(|i| i.role == Role::Handle)
         .filter_map(|i| match (&i.source, &i.shape) {
             (Some(source), Shape::Circle { center, .. }) => Some((source.clone(), *center)),
             _ => None,

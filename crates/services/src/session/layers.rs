@@ -3,7 +3,7 @@ use klappe_stellprobe::{Role, Source};
 
 use super::{Layer, Lock, Session, Visibility};
 use crate::error::ServiceError;
-use crate::plan_edit::PlanEdit;
+use crate::plan_edit::{layer_of_source, PlanEdit};
 
 impl Session {
     pub fn set_layer(&mut self, layer: Layer, visibility: Visibility) {
@@ -99,7 +99,7 @@ impl Session {
     }
 
     pub(super) fn shows(&self, role: Role, source: Option<&Source>) -> bool {
-        if self.hidden_layers.contains(&layer_of(role)) {
+        if self.hidden_layers.contains(&layer_of(role, source)) {
             return false;
         }
 
@@ -113,23 +113,22 @@ impl Session {
     }
 }
 
-/// Which layer switch an item of the display list belongs to.
-pub(super) fn layer_of(role: Role) -> Layer {
+/// Which layer switch an item of the display list belongs to. A grip is on its element's.
+pub(super) fn layer_of(role: Role, source: Option<&Source>) -> Layer {
     match role {
+        Role::Handle => source.map_or(Layer::Set, layer_of_source),
         Role::Background
         | Role::Wall
         | Role::Door
         | Role::Window
-        | Role::OpeningHandle
-        | Role::ObjectHandle
         | Role::Object
         | Role::Height { .. } => Layer::Set,
-        Role::Light | Role::LightBeam | Role::LightHandle => Layer::Lights,
+        Role::Light | Role::LightBeam => Layer::Lights,
         Role::Camera | Role::Frustum | Role::CameraPath { .. } | Role::CameraHandle => {
             Layer::Cameras
         }
-        Role::Note | Role::NoteHandle => Layer::Notes,
-        Role::Drawing { .. } | Role::ArrowHead(_) | Role::DrawingHandle => Layer::Drawings,
+        Role::Note => Layer::Notes,
+        Role::Drawing { .. } | Role::ArrowHead(_) => Layer::Drawings,
         Role::Axis
         | Role::Figure(_)
         | Role::GroupDot

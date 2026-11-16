@@ -48,7 +48,7 @@ fn grip_at(s: &Session, which: LightGrip) -> Option<Point> {
 
     list.items
         .iter()
-        .filter(|i| i.role == Role::LightHandle)
+        .filter(|i| i.role == Role::Handle)
         .find_map(|i| match (&i.source, &i.shape) {
             (Some(source), Shape::Circle { center, .. }) if *source == grip(which) => Some(*center),
             _ => None,
@@ -87,7 +87,7 @@ fn a_selected_lamp_has_a_grip_on_its_facing_and_one_on_its_beam_edge() {
         .display_list()
         .items
         .iter()
-        .all(|i| i.role != Role::LightHandle));
+        .all(|i| i.role != Role::Handle));
 }
 
 #[test]

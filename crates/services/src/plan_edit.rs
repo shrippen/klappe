@@ -398,20 +398,16 @@ impl PlanEdit {
 }
 
 /// The layer an element of the plan is on.
-fn layer_of_source(source: &Source) -> Layer {
+pub(crate) fn layer_of_source(source: &Source) -> Layer {
     match source {
-        Source::Object(_)
-        | Source::Wall(_)
-        | Source::Opening { .. }
-        | Source::OpeningEdge { .. }
-        | Source::ObjectGrip { .. } => Layer::Set,
-        Source::Light(_) | Source::LightGrip { .. } => Layer::Lights,
+        Source::Object(_) | Source::Wall(_) | Source::Opening { .. } => Layer::Set,
+        Source::Light(_) => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
-        Source::Note(_) | Source::NoteWidth(_) => Layer::Notes,
-        Source::Drawing(_) | Source::DrawingPoint { .. } | Source::DrawingEdge { .. } => {
-            Layer::Drawings
-        }
+        Source::Note(_) => Layer::Notes,
+        Source::Drawing(_) => Layer::Drawings,
+        // A grip is on the layer of the element it belongs to.
+        grip => grip.owner().as_ref().map_or(Layer::Set, layer_of_source),
     }
 }
 

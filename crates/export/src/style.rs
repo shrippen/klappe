@@ -37,11 +37,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         Role::Background
         | Role::FigureHandle(_)
         | Role::CameraHandle
-        | Role::DrawingHandle
-        | Role::NoteHandle
-        | Role::OpeningHandle
-        | Role::LightHandle
-        | Role::ObjectHandle
+        | Role::Handle
         | Role::Wall
         | Role::Door
         | Role::Window
@@ -62,13 +58,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
 fn plain_class(role: Role) -> Option<&'static str> {
     match role {
         Role::Background => Some("background"),
-        Role::FigureHandle(_)
-        | Role::CameraHandle
-        | Role::DrawingHandle
-        | Role::NoteHandle
-        | Role::OpeningHandle
-        | Role::LightHandle
-        | Role::ObjectHandle => Some("handle"),
+        Role::FigureHandle(_) | Role::CameraHandle | Role::Handle => Some("handle"),
         Role::Wall => Some("wall"),
         Role::Door => Some("door"),
         Role::Window => Some("window"),
@@ -105,11 +95,7 @@ fn width_pt(role: Role) -> Option<f64> {
         | Role::Height { .. }
         | Role::FigureHandle(_)
         | Role::CameraHandle
-        | Role::DrawingHandle
-        | Role::NoteHandle
-        | Role::OpeningHandle
-        | Role::LightHandle
-        | Role::ObjectHandle => None,
+        | Role::Handle => None,
         Role::CameraPath { .. } | Role::FigurePath(_) => Some(PATH_PT),
         Role::Axis => Some(AXIS_PT),
         Role::Mark(_) => Some(MARK_PT),
@@ -145,11 +131,7 @@ fn tint_opacity(role: Role) -> f64 {
         | Role::Frustum
         | Role::Camera
         | Role::CameraHandle
-        | Role::DrawingHandle
-        | Role::NoteHandle
-        | Role::OpeningHandle
-        | Role::LightHandle
-        | Role::ObjectHandle
+        | Role::Handle
         | Role::ArrowHead(_)
         | Role::FigurePath(_)
         | Role::FigureHandle(_)
@@ -288,11 +270,7 @@ mod tests {
             (Role::Background, "background".into(), (None, None)),
             (Role::FigureHandle(red), "handle".into(), (None, None)),
             (Role::CameraHandle, "handle".into(), (None, None)),
-            (Role::DrawingHandle, "handle".into(), (None, None)),
-            (Role::NoteHandle, "handle".into(), (None, None)),
-            (Role::OpeningHandle, "handle".into(), (None, None)),
-            (Role::LightHandle, "handle".into(), (None, None)),
-            (Role::ObjectHandle, "handle".into(), (None, None)),
+            (Role::Handle, "handle".into(), (None, None)),
             (
                 Role::Wall,
                 "wall".into(),

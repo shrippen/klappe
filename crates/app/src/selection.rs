@@ -45,16 +45,7 @@ pub enum Reach {
 /// itself (it is the bend to straighten). A click on a point is the exception, see `click`.
 /// A free form's point stands for the form.
 fn whole(source: Source) -> Source {
-    match source {
-        Source::DrawingPoint { drawing, .. } | Source::DrawingEdge { drawing, .. } => {
-            Source::Drawing(drawing)
-        }
-        Source::NoteWidth(note) => Source::Note(note),
-        Source::ObjectGrip { object, .. } => Source::Object(object),
-        Source::OpeningEdge { wall, index, .. } => Source::Opening { wall, index },
-        Source::LightGrip { light, .. } => Source::Light(light),
-        source => source,
-    }
+    source.owner().unwrap_or(source)
 }
 
 impl Selection {
@@ -290,6 +281,7 @@ fn group_key_edit(key: Key, sources: Vec<Source>) -> Option<PlanEdit> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use klappe_services::{LightGrip, OpeningEnd};
 
     fn p(x_m: f64, y_m: f64) -> Point {
         Point::new(x_m, y_m)
@@ -443,6 +435,57 @@ mod tests {
             Selection::of(Some(drawing.clone())).grab(Some(grip)),
             Selection::of(Some(drawing))
         );
+    }
+
+    /// A click on a grip takes the element it belongs to, whatever kind of grip it is; the
+    /// bend grips of a way are the exception, they are selected themselves.
+    #[test]
+    fn a_click_on_a_grip_takes_its_element() {
+        let cases = [
+            (Source::NoteWidth("n".into()), Source::Note("n".into())),
+            (
+                Source::OpeningEdge {
+                    wall: 2,
+                    index: 1,
+                    end: OpeningEnd::Start,
+                },
+                Source::Opening { wall: 2, index: 1 },
+            ),
+            (
+                Source::LightGrip {
+                    light: "l".into(),
+                    grip: LightGrip::Beam,
+                },
+                Source::Light("l".into()),
+            ),
+            (
+                Source::DrawingEdge {
+                    drawing: "d".into(),
+                    index: 0,
+                },
+                Source::Drawing("d".into()),
+            ),
+        ];
+
+        for (grip, element) in cases {
+            assert_eq!(
+                Selection::of(None).click(Some(grip.clone()), Pick::Replace),
+                Selection::of(Some(element.clone())),
+                "{grip:?}"
+            );
+            assert_eq!(
+                Selection::of(Some(grip.clone())),
+                Selection::of(Some(element)),
+                "{grip:?}"
+            );
+        }
+
+        let bend = Source::FigureVia {
+            character: "e".into(),
+            index: 1,
+            bend: Bend::At(0),
+        };
+        assert_eq!(Selection::of(Some(bend.clone())).sources(), [bend]);
     }
 
     /// A plain click on a free form's point selects the point, for Delete; any other pick of

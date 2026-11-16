@@ -116,7 +116,7 @@ fn a_note_is_clicked_inside_beside_its_grip() {
         .items
         .iter()
         .find_map(|i| match (&i.role, &i.shape) {
-            (Role::NoteHandle, Shape::Circle { center, .. }) => Some(*center),
+            (Role::Handle, Shape::Circle { center, .. }) => Some(*center),
             _ => None,
         })
         .unwrap();
