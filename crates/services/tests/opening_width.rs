@@ -150,3 +150,82 @@ fn removing_the_grip_removes_nothing() {
     assert!(result.is_err());
     assert_eq!(s.project().locations[0].set.walls[WALL].openings.len(), 1);
 }
+
+/// A door narrower than the minimum at the start of its wall: the minimum would push the start
+/// past the wall, so the drag is refused and the other end does not move.
+#[test]
+fn a_narrow_door_at_the_wall_start_keeps_its_end() {
+    let mut s = open();
+    let door = Source::Opening {
+        wall: WALL,
+        index: 0,
+    };
+    s.edit_plan(PlanEdit::SetOpeningWidth {
+        source: door.clone(),
+        width_m: 0.2,
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Shift {
+        source: door,
+        dx_m: 20.0,
+        dy_m: 0.0,
+    })
+    .unwrap();
+    let (start_m, end_m) = span_m(&s);
+    assert!(near(start_m, 0.0) && near(end_m, 0.2), "{start_m} {end_m}");
+
+    let _ = s.edit_plan(drag(OpeningEnd::Start, -0.05));
+
+    let (start_m, end_m) = span_m(&s);
+    assert!(near(start_m, 0.0) && near(end_m, 0.2), "{start_m} {end_m}");
+}
+
+/// Puts the door, `width_m` wide, flush at the far end of its wall.
+fn door_at_wall_end(s: &mut Session, width_m: f64) {
+    let door = Source::Opening {
+        wall: WALL,
+        index: 0,
+    };
+    s.edit_plan(PlanEdit::SetOpeningWidth {
+        source: door.clone(),
+        width_m,
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Shift {
+        source: door,
+        dx_m: -20.0,
+        dy_m: 0.0,
+    })
+    .unwrap();
+}
+
+/// A door flush at the wall's end, its start dragged outwards: its end lies a rounding error
+/// past the wall, which must not refuse the drag.
+#[test]
+fn a_door_at_the_wall_end_widens_from_its_start() {
+    for width_m in [0.45, 0.7, 1.7] {
+        let mut s = open();
+        door_at_wall_end(&mut s, width_m);
+
+        s.edit_plan(drag(OpeningEnd::Start, 0.1)).unwrap();
+
+        let (start_m, end_m) = span_m(&s);
+        assert!(
+            near(start_m, 20.0 - width_m - 0.1) && (end_m - 20.0).abs() < 1e-6,
+            "{width_m}: {start_m} {end_m}"
+        );
+    }
+}
+
+/// The mirror of the narrow door at the wall start: its end grip at the wall's end.
+#[test]
+fn a_narrow_door_at_the_wall_end_keeps_its_start() {
+    let mut s = open();
+    door_at_wall_end(&mut s, 0.2);
+    let (start_before, _) = span_m(&s);
+
+    let _ = s.edit_plan(drag(OpeningEnd::End, 0.05));
+
+    let (start_m, end_m) = span_m(&s);
+    assert!(near(start_m, start_before), "{start_m} {end_m}");
+}
