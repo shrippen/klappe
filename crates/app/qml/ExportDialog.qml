@@ -98,16 +98,22 @@ FormDialog {
         onActivated: index => dialog.orientation = dialog.orientations[index]
     }
 
+    // The file dialogs sit in this popup, which has no window while closed; the shot list
+    // opens one without the paper form, so they take the window from the popup's parent.
+    readonly property var hostWindow: dialog.parent ? dialog.parent.Window.window : null
+
     // The frames go into a new folder in the chosen one, named as the suggestion.
     FolderDialog {
         id: folders
         objectName: "folders"
+        parentWindow: dialog.hostWindow
         onAccepted: dialog.save(selectedFolder.toString() + suggestion().substring(suggestion().lastIndexOf("/")))
     }
 
     FileDialog {
         id: files
         objectName: "files"
+        parentWindow: dialog.hostWindow
         fileMode: FileDialog.SaveFile
         onAccepted: dialog.save(selectedFile.toString())
     }
