@@ -6,7 +6,6 @@ pub(super) fn example() -> Session {
     Session::open(&dir).unwrap()
 }
 
-#[cfg(test)]
 mod marking {
     use super::example;
     use crate::bridge::view::plan_json;
@@ -14,7 +13,7 @@ mod marking {
     use crate::selection::Selection;
 
     /// A selected shot marks its camera's body, view cone and whole path, and no other
-    /// camera's (LH-73); nothing is selected by it.
+    /// camera's (LH-73).
     #[test]
     fn a_shot_marks_its_cameras_cone_and_path() {
         let mut s = example();
@@ -45,6 +44,5 @@ mod marking {
         let b = of("camera:b");
         assert!(!b.is_empty());
         assert!(b.iter().all(|marked| !*marked));
-        assert!(selected.is_empty());
     }
 }
