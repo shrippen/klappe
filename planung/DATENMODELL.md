@@ -105,8 +105,8 @@ Lastenheft Drehbuch, angepasst: der Fountain-Text bleibt sauber wie entschieden)
 Statisterie aus DB-60 sind Figuren der Szene (Figurenzeilen und Szenenblatt), keine Elemente.
 
 **Elementkategorien** (industrieüblich, wie in Yamdu beobachtet): Kostüm, Maskenbild, Bauten,
-Ausstattung, Requisite, Grafik, Fahrzeug, Tier, visuelle Effekte, Spezialeffekte, Ton, Kamera
-und Licht, Stunt, Sonstiges. Rollen und Komparsen sind Figuren, keine Elemente. Kostüm und Maske
+Ausstattung, Requisite, Grafik, Fahrzeug, Tier, visuelle Effekte, Spezialeffekte, Ton, Musik,
+Kamera und Licht, Stunt, Sonstiges. Rollen und Komparsen sind Figuren, keine Elemente. Kostüm und Maske
 hängen je Szene an einer Figur („Look“).
 
 **Set-Objekte und Elemente:** Objekte stehen im Set des Drehorts, nicht in der Szene. Ein Objekt
@@ -180,7 +180,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ## 6. Schichten im Code
 
 - Die Typen der gemeinsamen Dinge stehen in `model/`; `store/` liest und schreibt alle Dateien
-  und lehnt nur Unlesbares ab.
+  und lehnt Unlesbares und unzulässige Werte ab, prüft aber keine Verweise zwischen Dateien.
 - Die Suche auf Text (Abgleich zweier Buchstände, Zeile zu einem Zitat finden) steht in
   `script/`, der Typ des Zitat-Ankers in `model/`; `services/` verbindet beides.
 - Ein neuer Baustein `planung/` neben `stellprobe/` rechnet Drehplan, Day out of Days und Dispo,
@@ -194,7 +194,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 
 1. Register der Drehinhalte (mit Feld Art), Zitat-Anker, Mark-Ids, Figurenabgleich (DB-50,
    DB-64, DB-65); Spielorte mit stabiler Id (`orte.toml`) und das Set am Floorplan; die
-   Zuordnung Spielort → Drehort (Rest von DB-51) folgt mit Breakdown oder Drehplan; vorher
+   Zuordnung Spielort → Drehort (Rest von DB-51, Muss der ersten Version) folgt in Schritt 2; vorher
    zufällige Ids.
    Zuerst Tests, die heute scheitern (Zeile vor verknüpfter Zeile einfügen, Szene davor
    einfügen, fremd neu nummerieren, Konfliktmarken im Buch).
