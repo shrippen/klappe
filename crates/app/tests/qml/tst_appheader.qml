@@ -66,6 +66,8 @@ TestCase {
         fake.viewFree = false
         fake.missingHeights = 0
         fake.calls = []
+        fake.selectedKey = ""
+        fake.curve = ""
         fake.plan = "plan-a"
         fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats })
         fakeTools.tool = "select"
@@ -751,5 +753,50 @@ TestCase {
             verify(de.t(key) !== key, "de " + key)
             verify(en.t(key) !== key, "en " + key)
         }
+    }
+
+    // LH-104, LH-105, LH-109: a key arms the next click for the selected figure or camera.
+    function test_the_palette_arms_the_next_click_for_the_selection() {
+        const header = make()
+        const command = id => header.commandPalette.commands.find(c => c.id === id)
+
+        verify(!command("plan.nextMark").enabled)
+
+        fake.selectedKey = "figure:elisabeth"
+        verify(command("plan.nextMark").enabled)
+        verify(command("plan.markBefore").enabled)
+        verify(command("plan.axisTo").enabled)
+        compare(command("plan.nextMark").keys, "Umschalt+F")
+        compare(command("plan.markBefore").keys, "Umschalt+Z")
+        compare(command("plan.axisTo").keys, "Umschalt+A")
+
+        header.run("plan.nextMark")
+        header.run("plan.markBefore")
+        header.run("plan.axisTo")
+        compare(fake.calls, [["arm", "nextMark"], ["arm", "markBefore"], ["arm", "axisTo"]])
+
+        // The axis runs between figures.
+        fake.selectedKey = "camera:a"
+        verify(command("plan.nextMark").enabled)
+        verify(!command("plan.axisTo").enabled)
+    }
+
+    // LH-108: the palette switches the selected way.
+    function test_the_palette_switches_the_way_shape() {
+        const header = make()
+        const command = id => header.commandPalette.commands.find(c => c.id === id)
+
+        fake.selectedKey = "figurevia:elisabeth:1:at0"
+        fake.curve = "smooth"
+        verify(!command("plan.waySmooth").enabled)
+        verify(command("plan.wayStraight").enabled)
+
+        header.run("plan.wayStraight")
+        compare(fake.calls, [["setWayCurve", "straight"]])
+        verify(command("plan.waySmooth").enabled)
+        verify(!command("plan.wayStraight").enabled)
+
+        fake.curve = ""
+        verify(!command("plan.waySmooth").enabled)
     }
 }

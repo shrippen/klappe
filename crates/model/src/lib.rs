@@ -20,6 +20,7 @@
 //! y downwards (as drawn); 0° faces right (+x), angles grow clockwise on screen.
 
 mod camera_preset;
+mod curve;
 mod geometry;
 mod library;
 mod light_preset;
@@ -31,6 +32,7 @@ mod shot;
 mod template;
 
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
+pub use curve::Curve;
 pub use geometry::{normalize_deg, Extent, Point, TurnedRect, FULL_TURN_DEG};
 pub use library::{
     is_floor_offset_m, is_object_height_m, is_object_size_m, is_outline, outline_area_m2,

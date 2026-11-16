@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    normalize_deg, Arrival, Character, Dash, Departure, DoorSide, DrawingShape, FigureColor, Fill,
-    FloorPlan, Hinge, LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan,
+    normalize_deg, Arrival, Character, Curve, Dash, Departure, DoorSide, DrawingShape, FigureColor,
+    Fill, FloorPlan, Hinge, LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan,
 };
 use klappe_stellprobe::Source;
 
@@ -39,10 +39,12 @@ pub(crate) use grid::snap;
 pub use grid::Grid;
 use heights::edit_height;
 use images::edit_image;
-pub(crate) use marks::{check_tripods, mark_info};
-use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_pose, set_rig};
+use marks::edit_field;
+pub(crate) use marks::{check_tripods, mark_info, way_curve};
 pub use marks::{MarkInfo, Pace};
-use moving::{anchor_pair, carry_cameras, move_to, points_mut, rotate, shift, spin, turn};
+use moving::{
+    anchor_pair, carry_cameras, edit_way, move_to, points_mut, rotate, shift, spin, turn,
+};
 use openings::edit_opening;
 use remove::remove;
 
@@ -119,6 +121,29 @@ pub enum PlanEdit {
     AddCameraMark {
         camera: String,
         at: Point,
+    },
+    /// Sets a mark before the first one of the figure or camera `source` names, at `at`
+    /// (LH-105): where it comes from. The old marks move later by the way from the new mark to
+    /// the old first one, so the old first mark keeps its pause and the later ways their
+    /// duration. A figure that appeared at the old first mark appears at the new one.
+    AddMarkBefore {
+        source: Source,
+        at: Point,
+    },
+    /// Moves a way at once (LH-107): both the marks it runs between, and its bends, by a
+    /// distance. `source` names the way: a mark (or a figure, a camera: its mark at the
+    /// playhead) or a grip on the way. With snapping on, the mark it leads to lands on the grid.
+    /// The first mark has no way.
+    ShiftWay {
+        source: Source,
+        dx_m: f64,
+        dy_m: f64,
+    },
+    /// Makes the way to a mark a smooth curve or straight pieces through its bends (LH-108);
+    /// `source` names it as `ShiftWay` does.
+    SetCurve {
+        source: Source,
+        curve: Curve,
     },
     /// Sets a new lamp of the built-in library entry `preset` (LH-51).
     AddLight {
@@ -387,6 +412,9 @@ impl PlanEdit {
             | PlanEdit::SetOpeningSill { source, .. }
             | PlanEdit::SetOpeningHead { source, .. }
             | PlanEdit::SetPace { source, .. }
+            | PlanEdit::AddMarkBefore { source, .. }
+            | PlanEdit::ShiftWay { source, .. }
+            | PlanEdit::SetCurve { source, .. }
             | PlanEdit::SetDrawingStyle { source, .. }
             | PlanEdit::SetImageOpacity { source, .. }
             | PlanEdit::ReplaceImage { source, .. }
@@ -524,6 +552,9 @@ pub(crate) fn apply(
             dy_m,
         } => group::duplicate(&mut scope, sources, (*dx_m, *dy_m)),
         PlanEdit::Straighten { source } => straighten(&mut scope, source),
+        PlanEdit::AddMarkBefore { .. } | PlanEdit::ShiftWay { .. } | PlanEdit::SetCurve { .. } => {
+            edit_way(&mut scope, edit, snap_to)
+        }
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
         PlanEdit::AddCameraMark { camera, at } => add_camera_mark(&mut scope, camera, *at),
@@ -572,23 +603,17 @@ pub(crate) fn apply(
         | PlanEdit::SetLens { .. }
         | PlanEdit::SetAspect { .. }
         | PlanEdit::SetCameraColor { .. } => camera_edit::apply(scope.plan, edit),
-        PlanEdit::SetPose { source, pose } => set_pose(&mut scope, source, *pose),
-        PlanEdit::SetArrival { source, arrival } => set_arrival(&mut scope, source, *arrival),
-        PlanEdit::SetDeparture { source, departure } => {
-            set_departure(&mut scope, source, *departure)
-        }
-        PlanEdit::SetHold { source, hold_s } => set_hold(&mut scope, source, *hold_s),
-        PlanEdit::SetCameraAim {
-            source,
-            height_m,
-            tilt_deg,
-        } => set_camera_aim(&mut scope, source, (*height_m, *tilt_deg)),
-        PlanEdit::SetRig { source, rig } => set_rig(&mut scope, source, *rig),
-        PlanEdit::SetMarkLens { source, lens_mm } => set_mark_lens(&mut scope, source, *lens_mm),
+        PlanEdit::SetPose { .. }
+        | PlanEdit::SetArrival { .. }
+        | PlanEdit::SetDeparture { .. }
+        | PlanEdit::SetHold { .. }
+        | PlanEdit::SetRig { .. }
+        | PlanEdit::SetMarkLens { .. }
+        | PlanEdit::SetPace { .. }
+        | PlanEdit::SetCameraAim { .. } => edit_field(&mut scope, edit),
         PlanEdit::SetObjectHeight { source, height_m } => {
             set_object_height(&mut scope, source, *height_m)
         }
-        PlanEdit::SetPace { source, pace } => set_pace(&mut scope, source, *pace),
     }
 }
 

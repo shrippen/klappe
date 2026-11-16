@@ -694,5 +694,17 @@
  "project.numberingHint": "Gilt für neue Shots; „Umnummerieren“ in der Shotliste ändert die vorhandenen.",
  "numbering.scene": "Szene und laufende Nummer (12.3, Version 12.3A)",
  "numbering.camera": "Kamerabuchstabe und deren laufende Nummer (12A.3, Version 12A.3-B)",
- "numbering.group": "Gruppe gleichzeitiger Shots, Kamerabuchstabe dahinter (12.3A, 12.3B, Version 12.3A-B)"
+ "numbering.group": "Gruppe gleichzeitiger Shots, Kamerabuchstabe dahinter (12.3A, 12.3B, Version 12.3A-B)",
+ "arm.nextMark": "Nächsten Mark setzen",
+ "arm.markBefore": "Mark davor setzen",
+ "arm.axisTo": "Achse zu …",
+ "arm.hint.nextMark": "Klick auf den Plan setzt den nächsten Mark. Esc bricht ab.",
+ "arm.hint.markBefore": "Klick auf den Plan setzt einen Mark vor den ersten. Esc bricht ab.",
+ "arm.hint.axisTo": "Klick auf die zweite Figur setzt die Achse. Esc bricht ab.",
+ "way.smooth": "Weg weich",
+ "way.straight": "Weg gerade",
+ "curve.smooth": "Weich",
+ "curve.straight": "Gerade",
+ "mark.curve": "Weg",
+ "mark.curveTip": "Weich: Kurve durch die Knicke. Gerade: Strecken von Knick zu Knick, mit Ecken"
 }

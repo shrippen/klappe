@@ -1,8 +1,8 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
 use klappe_model::{
-    CameraMark, Drawing, DrawingShape, Extent, FloorPlan, Light, Mark, PlanImage, Point, SetObject,
-    Wall, MAX_OBJECT_M, MIN_BEAM_DEG, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
+    CameraMark, Curve, Drawing, DrawingShape, Extent, FloorPlan, Light, Mark, PlanImage, Point,
+    SetObject, Wall, MAX_OBJECT_M, MIN_BEAM_DEG, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use klappe_stellprobe::{
     bend_follow, bend_grips, drawing_handle_places, image_grip_place, light_grip_place,
@@ -18,15 +18,18 @@ use crate::error::ServiceError;
 use klappe_model::FULL_TURN_DEG;
 
 pub(super) mod forms;
+mod ways;
+
+pub(super) use ways::edit_way;
 
 /// How far a drag pulls a new bend off its grip before it is made.
 const NEW_BEND_MIN_M: f64 = 1e-6;
 
 /// Where grip `bend` of the way from `a` to `b` through `via` sits.
-fn grip_at(via: &[Point], (a, b): (Point, Point), bend: Bend) -> Option<Point> {
+fn grip_at(shape: (&[Point], Curve), (a, b): (Point, Point), bend: Bend) -> Option<Point> {
     match bend {
-        Bend::At(n) => via.get(n).copied(),
-        Bend::New(n) => bend_grips(a, via, b).get(n).copied(),
+        Bend::At(n) => shape.0.get(n).copied(),
+        Bend::New(n) => bend_grips(a, shape, b).get(n).copied(),
     }
 }
 
@@ -34,11 +37,12 @@ fn grip_at(via: &[Point], (a, b): (Point, Point), bend: Bend) -> Option<Point> {
 /// grip would only add a point the way already passes.
 fn pull(
     via: &mut Vec<Point>,
+    curve: Curve,
     ends: (Point, Point),
     bend: Bend,
     to: Point,
 ) -> Result<(), ServiceError> {
-    let grip = grip_at(via, ends, bend).ok_or(ServiceError::Gone)?;
+    let grip = grip_at((via, curve), ends, bend).ok_or(ServiceError::Gone)?;
 
     match bend {
         Bend::At(n) => via[n] = to,
@@ -284,7 +288,13 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
     match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => *at = to,
         // `to` is where the grip sits: a bend moves there, or a new one is made there.
-        Target::Curve { via, a, b, bend } => pull(via, (a, b), bend, to)?,
+        Target::Curve {
+            via,
+            curve,
+            a,
+            b,
+            bend,
+        } => pull(via, curve, (a, b), bend, to)?,
         Target::Drawing(drawing) => place_drawing(drawing, to),
         Target::Corner { drawing, index } => drag_handle(drawing, index, to)?,
         Target::Edge { drawing, index } => insert_point(drawing, index, to)?,
@@ -310,8 +320,14 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
 pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceError> {
     match target {
         Target::Place { at, .. } | Target::Pin { at } => Ok((*at, *at)),
-        Target::Curve { via, a, b, bend } => {
-            let grip = grip_at(via, (a, b), bend).ok_or(ServiceError::Gone)?;
+        Target::Curve {
+            via,
+            curve,
+            a,
+            b,
+            bend,
+        } => {
+            let grip = grip_at((via, curve), (a, b), bend).ok_or(ServiceError::Gone)?;
             Ok((grip, grip))
         }
         // Only the x of the grip counts; the card's height is Stellprobe's to know.

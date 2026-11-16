@@ -29,6 +29,7 @@ fn printed_radius(size_m: Option<f64>) -> f64 {
             pose: Pose::Standing,
             hold_s: 0.0,
             via: Vec::new(),
+            curve: Default::default(),
             arrival: Arrival::Walk,
             departure: Departure::Stay,
         }],

@@ -58,6 +58,7 @@ RowLayout {
                                     actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
+                                    actNextMark, actMarkBefore, actAxisTo, actWaySmooth, actWayStraight,
                                     actUndo, actRedo]
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
@@ -606,6 +607,62 @@ RowLayout {
         keys: "."
         enabled: header.controller.loaded && !header.locked
         onTriggered: header.controller.stepMark(1)
+    }
+
+    // The selected figure or camera (LH-104, LH-105, LH-109): the key arms the next click on the
+    // plan, no tool is switched; the controller says what the click does and Escape cancels.
+    // The selected way (LH-108): its shape.
+    readonly property bool planSelected: controller.loaded && !locked && !!controller.selectedKey
+    readonly property string wayCurve: {
+        controller.pictureRevision
+        controller.selectedKey
+        return controller.wayCurve ? controller.wayCurve() : ""
+    }
+    CommandAction {
+        id: actNextMark
+        cmd: "plan.nextMark"
+        group: "edit"
+        text: header.texts.t("arm.nextMark")
+        shortcut: "Shift+F"
+        keys: header.keyName("Shift+F")
+        enabled: header.planSelected && header.controller.canArm("nextMark")
+        onTriggered: header.controller.arm("nextMark")
+    }
+    CommandAction {
+        id: actMarkBefore
+        cmd: "plan.markBefore"
+        group: "edit"
+        text: header.texts.t("arm.markBefore")
+        shortcut: "Shift+Z"
+        keys: header.keyName("Shift+Z")
+        enabled: header.planSelected && header.controller.canArm("markBefore")
+        onTriggered: header.controller.arm("markBefore")
+    }
+    CommandAction {
+        id: actAxisTo
+        cmd: "plan.axisTo"
+        group: "edit"
+        text: header.texts.t("arm.axisTo")
+        shortcut: "Shift+A"
+        keys: header.keyName("Shift+A")
+        enabled: header.planSelected && header.controller.canArm("axisTo")
+        onTriggered: header.controller.arm("axisTo")
+    }
+    CommandAction {
+        id: actWaySmooth
+        cmd: "plan.waySmooth"
+        group: "edit"
+        text: header.texts.t("way.smooth")
+        enabled: header.planSelected && header.wayCurve === "straight"
+        onTriggered: header.controller.setWayCurve("smooth")
+    }
+    CommandAction {
+        id: actWayStraight
+        cmd: "plan.wayStraight"
+        group: "edit"
+        text: header.texts.t("way.straight")
+        enabled: header.planSelected && header.wayCurve === "smooth"
+        onTriggered: header.controller.setWayCurve("straight")
     }
 
     CommandAction {
