@@ -170,6 +170,40 @@ fn exports_the_shot_list_as_ods_and_xlsx_by_extension() {
 }
 
 #[test]
+fn exports_the_shot_list_as_csv_by_extension() {
+    let out = out_file("cli-list.csv");
+
+    let output = export(&out, &["--language", "de"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.starts_with("Nummer,Kamera,"));
+}
+
+#[test]
+fn exports_the_shot_list_as_csv_by_format() {
+    let out = out_file("cli-list-format.dat");
+
+    let output = export(&out, &["--format", "csv", "--language", "de"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.starts_with("Nummer,Kamera,"));
+}
+
+#[test]
+fn the_3d_view_is_no_format() {
+    let out = out_file("cli-view.png");
+
+    let output = export(&out, &["--format", "view3d"]);
+
+    assert!(!output.status.success());
+    let said = String::from_utf8_lossy(&output.stderr);
+    assert!(said.contains("invalid value 'view3d'"), "{said}");
+    assert!(!out.exists());
+}
+
+#[test]
 fn exports_one_picture_per_mark_into_a_folder() {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-frames");
     let _ = std::fs::remove_dir_all(&dir);
