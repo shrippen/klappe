@@ -462,26 +462,25 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
 /// The point of grip `grip` that snaps: the middle of the edge it sizes (the right edge for the
 /// width, the bottom edge for the depth, turned with the object), or the outline point itself.
 fn edge_middle(object: &SetObject, grip: ObjectGrip) -> Point {
-    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
-    let (axis, half_m) = match grip {
-        ObjectGrip::Width => ((cos, sin), object.width_m / 2.0),
-        ObjectGrip::Depth => ((-sin, cos), object.depth_m / 2.0),
-        ObjectGrip::Point(_) | ObjectGrip::Side(_) => return object_grip_place(object, grip),
-    };
-
-    Point::new(
-        object.at.x_m + half_m * axis.0,
-        object.at.y_m + half_m * axis.1,
-    )
+    match grip {
+        ObjectGrip::Width => object.placed(object.width_m / 2.0, 0.0),
+        ObjectGrip::Depth => object.placed(0.0, object.depth_m / 2.0),
+        ObjectGrip::Point(_) | ObjectGrip::Side(_) => object_grip_place(object, grip),
+    }
 }
 
 /// Sets the width or depth so the grip lands on `to` as far as its axis goes, in the object's
 /// turned frame; the opposite edge (left or top) stays, so the centre moves half the change.
 fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
-    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
+    // The axis of the size on the plan: where one metre along it lies, from the centre.
+    let along = |x_m: f64, y_m: f64| {
+        let tip = object.placed(x_m, y_m);
+
+        (tip.x_m - object.at.x_m, tip.y_m - object.at.y_m)
+    };
     let (axis, size_m) = match grip {
-        ObjectGrip::Width => ((cos, sin), object.width_m),
-        ObjectGrip::Depth => ((-sin, cos), object.depth_m),
+        ObjectGrip::Width => (along(1.0, 0.0), object.width_m),
+        ObjectGrip::Depth => (along(0.0, 1.0), object.depth_m),
         // A point or side sets no size.
         ObjectGrip::Point(_) | ObjectGrip::Side(_) => return,
     };

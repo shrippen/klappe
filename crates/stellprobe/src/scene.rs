@@ -447,15 +447,8 @@ fn form_box(
     part: &FormBox,
     (base_m, top_m): (f64, f64),
 ) -> ([Point; 4], (f64, f64)) {
-    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
-    let corner = |fx: f64, fy: f64| {
-        let (x, y) = ((fx - 0.5) * object.width_m, (fy - 0.5) * object.depth_m);
-
-        Point::new(
-            object.at.x_m + x * cos - y * sin,
-            object.at.y_m + x * sin + y * cos,
-        )
-    };
+    let corner =
+        |fx: f64, fy: f64| object.placed((fx - 0.5) * object.width_m, (fy - 0.5) * object.depth_m);
     let (from, to) = (part.from, part.to);
     let outline = [
         corner(from[0], from[1]),

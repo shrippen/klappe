@@ -125,7 +125,6 @@ const OBJECT_GRIP_GAP_M: f64 = 0.45;
 /// bottom edge, turned with the object; a free form's point sits on the point, where it lies
 /// on the plan (the object's centre for a point the form does not have).
 pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
-    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
     let (x_m, y_m) = match grip {
         ObjectGrip::Width => (object.width_m / 2.0 + OBJECT_GRIP_GAP_M, 0.0),
         ObjectGrip::Depth => (0.0, object.depth_m / 2.0 + OBJECT_GRIP_GAP_M),
@@ -133,10 +132,7 @@ pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
         ObjectGrip::Side(n) => return form_side_place(object, n),
     };
 
-    Point::new(
-        object.at.x_m + x_m * cos - y_m * sin,
-        object.at.y_m + x_m * sin + y_m * cos,
-    )
+    object.placed(x_m, y_m)
 }
 
 /// Where point `index` of a free form lies on the plan, stretched to the object's size and
