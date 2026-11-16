@@ -121,9 +121,12 @@ TestCase {
         return names.filter(n => findChild(area, n).visible)
     }
 
-    function open(area, key) {
+    // Closes an open menu first: the menu asks what the selection takes as it opens.
+    function open(area, key, count) {
+        menuOf(area).close()
+        tryVerify(() => !menuOf(area).opened)
         fake.selectedKey = key
-        fake.selectedCount = key === "" ? 0 : 1
+        fake.selectedCount = count !== undefined ? count : (key === "" ? 0 : 1)
         area.openMenu(Qt.point(100, 100))
         tryVerify(() => menuOf(area).opened)
     }
@@ -175,19 +178,15 @@ TestCase {
             "opening:3:0": ["ctxDelete", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"]
         }
 
-        open(area, "object:o1")
         for (const key in kinds) {
-            fake.selectedKey = key
-            fake.selectedCount = 1
+            open(area, key)
             compare(shown(area), kinds[key], key)
         }
     }
 
     function test_several_elements_get_the_group_commands_and_no_layer() {
         const area = made()
-        open(area, "object:o1")
-        fake.selectedKey = ""
-        fake.selectedCount = 3
+        open(area, "", 3)
 
         compare(shown(area), ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxDeselect"])
     }

@@ -56,14 +56,35 @@ fn session_steps() -> Vec<String> {
 
 #[test]
 fn every_step_has_a_text_in_both_languages() {
+    // A scan that finds nothing, or misses a name known to be there, must not pass vacuously.
+    let scans = [
+        (
+            variants("src/plan_edit.rs", "PlanEdit"),
+            ["Remove", "AddObject", "SetLens"],
+        ),
+        (
+            variants("src/project_edit.rs", "ProjectEdit"),
+            ["AddScene", "EditCharacter", "RemoveTemplate"],
+        ),
+        (
+            session_steps()
+                .into_iter()
+                .filter(|n| !n.is_empty())
+                .collect(),
+            ["AddShot", "RenamePlan", "Retime"],
+        ),
+    ];
     let mut names: BTreeSet<String> = BTreeSet::new();
-    names.extend(variants("src/plan_edit.rs", "PlanEdit"));
-    names.extend(variants("src/project_edit.rs", "ProjectEdit"));
-    names.extend(session_steps().into_iter().filter(|n| !n.is_empty()));
-    assert!(
-        names.contains("Remove") && names.contains("AddShot"),
-        "{names:?}"
-    );
+    for (found, known) in scans {
+        assert!(!found.is_empty(), "a scan found no step name");
+        for name in known {
+            assert!(
+                found.iter().any(|f| f == name),
+                "the scan misses {name}: {found:?}"
+            );
+        }
+        names.extend(found);
+    }
 
     for language in ["de", "en"] {
         let catalogue: serde_json::Value =

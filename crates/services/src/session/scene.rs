@@ -73,9 +73,10 @@ impl Session {
         plan_edit::check_tripods(before, after)
     }
 
-    /// Changes the current plan; undoable. Points are taken as given: surfaces call `snap`.
-    pub fn edit_plan(&mut self, edit: PlanEdit) -> Result<(), ServiceError> {
-        self.check_lock(&edit)?;
+    /// The project after `edit`, with every check `edit_plan` makes; `None` when the edit
+    /// changes nothing.
+    fn plan_after(&self, edit: &PlanEdit) -> Result<Option<Project>, ServiceError> {
+        self.check_lock(edit)?;
 
         let mut next = self.project.clone();
         let at = (self.scene, self.plan);
@@ -86,13 +87,19 @@ impl Session {
             at.1,
             self.time_s,
             (self.snapping, self.grid),
-            &edit,
+            edit,
         )?;
         self.check_cameras(&next)?;
         self.check_tripods(&next)?;
-        if next == self.project {
+
+        Ok((next != self.project).then_some(next))
+    }
+
+    /// Changes the current plan; undoable. Points are taken as given: surfaces call `snap`.
+    pub fn edit_plan(&mut self, edit: PlanEdit) -> Result<(), ServiceError> {
+        let Some(next) = self.plan_after(&edit)? else {
             return Ok(());
-        }
+        };
 
         self.commit_step(next, &step_name(&edit));
         self.end_stale_look();
@@ -101,23 +108,7 @@ impl Session {
 
     /// Whether `edit_plan(edit)` would change the plan: the menu offers only such commands.
     pub fn changes(&self, edit: &PlanEdit) -> bool {
-        if self.check_lock(edit).is_err() {
-            return false;
-        }
-
-        let mut next = self.project.clone();
-        let at = (self.scene, self.plan);
-        let applied = plan_edit::apply(
-            &self.dir,
-            &mut next,
-            at.0,
-            at.1,
-            self.time_s,
-            (self.snapping, self.grid),
-            edit,
-        );
-
-        applied.is_ok() && next != self.project
+        matches!(self.plan_after(edit), Ok(Some(_)))
     }
 
     /// Changes scenes, locations or characters; undoable. The scene on view stays, also when

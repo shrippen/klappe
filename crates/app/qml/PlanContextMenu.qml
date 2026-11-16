@@ -30,13 +30,10 @@ QQC2.Menu {
 
     signal fitRequested()
 
-    /// What the controller says the selection takes (`menuInfo`): the layer and the commands.
-    readonly property var info: {
-        void controller.selectedKey
-        void controller.selectedCount
-        void controller.planJson
-        return JSON.parse(controller.menuInfo())
-    }
+    /// What the controller says the selection takes (`menuInfo`): the layer and the commands;
+    /// asked when the menu opens.
+    property var info: ({})
+    onAboutToShow: info = JSON.parse(controller.menuInfo())
     readonly property int picked: controller.selectedCount
     readonly property bool onElement: picked > 0
     readonly property string layer: info.layer || ""
