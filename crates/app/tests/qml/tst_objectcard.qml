@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml"
+import "FieldLabels.js" as FieldLabels
 
 // The object section of the selection card (LH-25, LH-17, LH-12, D-04): size, height, filing.
 TestCase {
@@ -386,5 +387,19 @@ TestCase {
         verify(field.invalid)
         field.text = "1"
         verify(!field.invalid)
+    }
+
+    // Q1-03: each number field is named by a label above it, not by a placeholder.
+    function test_every_number_field_has_a_visible_label() {
+        const card = make()
+        card.expanded = true
+        fake.selectedKey = "object:o1"
+        const labels = FieldLabels.of(card)
+        const names = { widthField: "Breite (m)", depthField: "Tiefe (m)", heightField: "Höhe (m)" }
+
+        for (const objectName in names) {
+            verify(labels.indexOf(names[objectName]) >= 0, names[objectName] + " in " + labels)
+            compare(findChild(card, objectName).Accessible.name, names[objectName])
+        }
     }
 }

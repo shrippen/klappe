@@ -6,12 +6,12 @@ use std::cmp::Reverse;
 use klappe_model::Point;
 use klappe_stellprobe::Source;
 
+use super::target::{target, Target};
 use super::{
     anchor_pair, carry_cameras, figure_mark, free_id, free_letter, move_to, points_mut, remove,
-    rotate, snap, target, turn, Grid, Scope, Snapping, Target,
+    rotate, snap, turn, Grid, Scope, Snapping,
 };
 use crate::error::ServiceError;
-use crate::field::Field;
 
 /// Moves every element by the distance, as `shift` does for one. The distance is snapped for
 /// the first element, so it lands on the grid and the others keep their place to it.
@@ -108,10 +108,7 @@ pub(super) fn duplicate(
         return Ok(());
     }
 
-    Err(ServiceError::BadValue {
-        field: Field::Source,
-        value: String::new(),
-    })
+    Err(ServiceError::NotCopyable)
 }
 
 /// `sources` without repeats, in their order.

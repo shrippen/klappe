@@ -115,6 +115,9 @@ impl qobject::Controller {
         let language = self.rust().language;
         let kind = Passed::of(&kind.to_string());
         let path = fileurl::to_path(&path.to_string());
+        let Some(path) = self.as_mut().named_file(path, "toml") else {
+            return false;
+        };
         let Some(s) = self.as_mut().session() else {
             return false;
         };

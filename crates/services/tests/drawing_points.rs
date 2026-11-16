@@ -64,7 +64,7 @@ fn grips(s: &Session, id: &str) -> Vec<(Source, Point)> {
     s.display_list_for(Some(&selected))
         .items
         .iter()
-        .filter(|i| i.role == Role::DrawingHandle)
+        .filter(|i| i.role == Role::Handle)
         .filter_map(|i| match (&i.source, &i.shape) {
             (Some(source), Shape::Circle { center, .. }) => Some((source.clone(), *center)),
             _ => None,

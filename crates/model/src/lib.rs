@@ -35,9 +35,9 @@ pub use geometry::Point;
 pub use library::{
     is_floor_offset_m, is_object_height_m, is_object_size_m, is_outline, outline_area_m2,
     outline_box, outline_label_point, BodyForm, FormBox, LibraryItem, ObjectShape, FREE_FORM_KIND,
-    MAX_OBJECT_HEIGHT_M, MAX_OBJECT_M,
+    MAX_OBJECT_HEIGHT_M, MAX_OBJECT_M, MIN_OBJECT_HEIGHT_M, MIN_OBJECT_M,
 };
-pub use light_preset::{is_beam_deg, is_power_w, is_temp_k, LightPreset};
+pub use light_preset::{is_beam_deg, is_power_w, is_temp_k, LightPreset, MIN_BEAM_DEG};
 pub use limits::{
     is_aspect, is_camera_height_m, is_camera_lens_mm, is_hold_s, is_sensor_width_mm, is_tilt_deg,
     MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_CAMERA_LENS_MM, MAX_SENSOR_WIDTH_MM, MAX_SET_M,
@@ -49,9 +49,9 @@ pub use plan::{
     Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,
 };
 pub use project::{
-    is_figure_size_m, Background, Character, DoorSide, FigureColor, Hinge, Location, Note, Opening,
-    OpeningKind, Project, Scene, SetObject, SetPlan, Wall, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M,
-    MIN_GROUP, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
+    is_figure_size_m, is_opening_width_m, Background, Character, DoorSide, FigureColor, Hinge,
+    Location, Note, Opening, OpeningKind, Project, Scene, SetObject, SetPlan, Wall, MAX_FIGURE_M,
+    MAX_GROUP, MIN_FIGURE_M, MIN_GROUP, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
 pub use shot::{Angle, Movement, Shot, ShotSize};
 pub use template::{Template, TemplateFigure};

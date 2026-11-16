@@ -218,7 +218,7 @@ fn an_object_gets_a_height_and_loses_it() {
 fn an_object_height_is_more_than_nothing_and_at_most_100_m() {
     let mut s = open();
 
-    for height_m in [0.0, -1.0, f64::NAN, f64::INFINITY, 100.1] {
+    for height_m in [0.0, -1.0, f64::NAN, f64::INFINITY, 100.1, 0.01, 0.04] {
         assert!(
             is_bad(s.edit_plan(height_edit("tisch", Some(height_m)))),
             "{height_m}"

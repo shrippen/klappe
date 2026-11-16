@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::geometry::Point;
-use crate::library::{LibraryItem, ObjectShape};
+use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
 use crate::plan::FloorPlan;
 use crate::template::Template;
@@ -207,6 +207,14 @@ pub struct Note {
 pub const NOTE_WIDTH_M: f64 = 2.4;
 /// The narrowest a note's card gets.
 pub const NOTE_MIN_WIDTH_M: f64 = 0.6;
+
+/// The narrowest an opening gets: typing and dragging an end leave at least this.
+pub const MIN_OPENING_WIDTH_M: f64 = 0.3;
+
+/// Whether `width_m` is an opening's width: a number, from the least up, not absurd.
+pub fn is_opening_width_m(width_m: f64) -> bool {
+    width_m.is_finite() && (MIN_OPENING_WIDTH_M..=MAX_OBJECT_M).contains(&width_m)
+}
 
 fn default_note_width_m() -> f64 {
     NOTE_WIDTH_M
@@ -426,6 +434,14 @@ pub struct SetObject {
     pub base_m: Option<f64>,
 }
 
+impl SetObject {
+    /// The point `(x_m, y_m)` of the object's own frame (origin at its centre, unturned)
+    /// where it lies on the plan: turned by `rotation_deg` about the centre.
+    pub fn placed(&self, x_m: f64, y_m: f64) -> Point {
+        Point::new(self.at.x_m + x_m, self.at.y_m + y_m).turned(self.at, self.rotation_deg)
+    }
+}
+
 fn is_rect(shape: &ObjectShape) -> bool {
     *shape == ObjectShape::Rect
 }
@@ -446,6 +462,32 @@ pub struct Scene {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A table of 2 x 1 m at (10, 5): unturned, the middle of its right edge (1, 0) lies to
+    /// the right of the centre; turned a quarter, below it.
+    #[test]
+    fn a_point_on_an_object_is_turned_with_it() {
+        let mut table = SetObject {
+            id: "t".into(),
+            kind: "table".into(),
+            label: String::new(),
+            at: Point::new(10.0, 5.0),
+            width_m: 2.0,
+            depth_m: 1.0,
+            rotation_deg: 0.0,
+            shape: ObjectShape::Rect,
+            height_m: None,
+            base_m: None,
+        };
+
+        assert_eq!(table.placed(1.0, 0.0), Point::new(11.0, 5.0));
+
+        table.rotation_deg = 90.0;
+        let turned = table.placed(1.0, 0.0);
+
+        assert!((turned.x_m - 10.0).abs() < 1e-9);
+        assert!((turned.y_m - 6.0).abs() < 1e-9);
+    }
 
     /// A wall from (1, 1) to (5, 4) is 5 m long.
     #[test]

@@ -1,145 +1,171 @@
-# Code-Audit Klappe, 16.11.2026, Stand 18eb4a1
+# Code-Audit Klappe, 16.11.2026, Stand 98783e4
 
 ## Urteil
-Das Repo bleibt wartbar, ist aber an einer Stelle teurer geworden. Seit dem achten Audit sind zehn PRs gemergt worden. Fünf davon fügen je eine neue Art Griff hinzu: Notizbreite, Türenden, Lampenstrahl und Lampenrichtung, Breite und Tiefe von Möbeln, Punkte einer Fläche. Ein Griff ist der kleine Punkt, an dem man im Plan zieht, um ein Maß zu ändern. Jede neue Art berührt rund 14 Dateien in vier Paketen, und das meiste davon sind wiederholte Aufzählungen. `ARCHITECTURE.md` hat für diesen Fall keine Zeile (Fund 1).
+Das Repo ist wartbar und etwas besser als beim zehnten Audit. Drei gewählte Funde des neunten Audits sind behoben:
+- Ein Punkt dreht sich jetzt an einer einzigen Stelle mit dem Möbel mit.
+- Welche Ausgaben es gibt, steht einmal in der Sitzung.
+- Die Planansicht und die Planänderungen sind geteilt und liegen jetzt unter der Grenze von 800 Zeilen.
 
-Besser geworden ist:
-- Die Schlüssel der Planformen haben eine eigene Datei bekommen. Der Plan der App ist dadurch von 800 auf 589 Zeilen geschrumpft.
-- Die Zielwahl beim Ziehen (`target`) ist von 113 auf 86 Zeilen geschrumpft.
-- Die Papiergrößen stehen jetzt einmal im Modell.
-- Die Mindestbreite der Notiz zeigt, wie eine Regel an einer Stelle aussieht: Laden, Ziehen und Zeichnen benutzen sie gemeinsam.
+Die Bestandsliste ist von 35 auf 33 Einträge geschrumpft. Einen Eintrag hat die Teilung der Planansicht beseitigt, einen #174.
 
-Von den offenen Funden des siebten und achten Audits ist keiner behoben.
+Schlechter geworden sind zwei Stellen:
+- Die Verbindungsdatei der App `bridge.rs` ist weiter über der Grenze gewachsen. Wie im letzten Audit vorhergesagt, kommen mit jeder neuen Funktion des Fensters ein paar Zeilen dazu.
+- Mit „Projekt schließen“ (#168) gibt es eine vierte Liste aller angezeigten Werte, die niemand gegen die anderen prüft (Fund 1).
+
+Keiner der sechs Funde des zehnten Audits ist behoben. Zwei davon sind gewachsen.
 
 ## Kennzahlen
 | | letztes Audit | jetzt |
 |---|---|---|
-| Quelldateien | 365 | 384 (ohne die Kopie von Kante, gezählt wie die Strukturprüfung) |
-| Einträge in der Bestandsliste | 32 | 34. Neu sind die beiden flachen Listen der Schlüssel in `plan/key.rs` (`key`, `name`, je 17 Zweige, einer je Elementart). Gewachsen sind die Liste der Aufrufe `switched` (650 auf 655 Zeilen), die Fehlerübersetzung `error_text` (25 auf 26 Zweige), die Datei der Planansicht `display.rs` und die Tests der Ablage um eine Zeile. Geschrumpft sind `target` (113 auf 86 Zeilen) und `copy` (86 auf 81). |
-| größte Datei (Zeilen) | 1447 (`crates/stellprobe/src/display.rs`) | 1483 (dieselbe Datei; gewachsen mit den Griffen) |
-| längste Funktion (Zeilen) | 138 (`apply` in `plan_edit.rs`) | 138 (dieselbe). `switched` mit 655 Zeilen ist weiter keine Funktion, sondern die Liste der Aufrufe. |
+| Quelldateien | 390 | 405 (ohne die Kopie von Kante, gezählt wie die Strukturprüfung) |
+| Einträge in der Bestandsliste | 35 | 33. Weg sind zwei Einträge: die Planansicht `display.rs` als Datei (geteilt in #176) und `apply` in `edit.rs` (in #174 unter die Grenze gebracht). Die Zielsuche `target` steht unverändert, aber jetzt in `target.rs` statt in `moving.rs`; ihr Eintrag ist nur umgezogen. Gewachsen sind `bridge.rs` (801 auf 817 Zeilen), die Liste der Aufrufe `switched` (660 auf 676), die Feldnamen `name` in `field.rs` (42 auf 43 Zweige) und die Ablagetests `store.rs` (1010 auf 1011). Jede Erhöhung ist im Commit begründet. |
+| größte Datei (Zeilen) | 1483 (`crates/stellprobe/src/display.rs`) | 1011 (die Ablagetests `crates/store/tests/store.rs`). Die größte Datei ohne Tests ist `crates/export/src/jpeg.rs` mit 883 Zeilen, unverändert. `display.rs` hat jetzt 587 Zeilen. |
+| längste Funktion (Zeilen) | 138 (`apply` in `plan_edit.rs`) | 138 (dieselbe). `switched` mit 676 Zeilen ist weiter keine Funktion, sondern die Liste der Aufrufe. |
 
 ## Funde
 
-### 1. Jede neue Art Griff muss an rund 14 Stellen in vier Paketen nachgetragen werden, und `ARCHITECTURE.md` sagt nicht, wo
-Der PR für die Griffe an Möbeln (#152) hat 14 Dateien des Programms geändert. Bei Lampe (#151) und Tür (#148) war es genauso. Neuer Inhalt steht davon nur in zwei Dateien: wo der Griff sitzt (`handles.rs`) und was das Ziehen ändert (`moving.rs`). Der Rest sind Aufzählungen, in die jede Griffart von Hand eingetragen wird.
+### 1. Beim Schließen eines Projekts leert die App alle angezeigten Werte nach einer vierten, von Hand geführten Liste
+Jeder Wert, den das Fenster aus dem Projekt zeigt, hat dafür schon drei Listen, die gleich gehalten werden müssen:
+- `collect` holt die Werte,
+- `fill` trägt sie beim Start ein,
+- `show` trägt sie bei jeder Änderung ein.
 
-**Fünf Rollen, die gleich aussehen.** Jede Griffart hat eine eigene Rolle für das Aussehen, sodass es fünf gibt: Zeichnung, Notiz, Öffnung, Lampe, Möbel. Alle sehen gleich aus (Akzentfarbe, gefüllt). Trotzdem wird jede einzeln aufgezählt:
-- im Aussehen (`look.rs`),
-- viermal in der Übersetzung für den Druck, obwohl Griffe nie gedruckt werden,
-- in der Zuordnung zu den Ebenen,
-- in drei Tests.
+Das ist Fund 4 des dritten Audits. Seit #168 („Projekt schließen“) gibt es eine vierte Liste, `show_closed`. Sie setzt rund dreißig Werte einzeln auf leer.
 
-**Die Frage „zu welchem Element gehört dieser Griff“ ist dreimal beantwortet:**
-- in der App, damit ein Klick auf den Griff das Möbel auswählt,
-- in der Sitzung, für die Ebene beim Sperren,
-- in der Zuordnung der Rollen zu Ebenen.
+Sie stimmt schon heute nicht mit den anderen überein: Den Namen des Rasters (`grid_name`) setzt `show`, beim Schließen bleibt er stehen. Weder die Beschreibung in `ARCHITECTURE.md` („New value shown in the window“) noch der Hinweis über der Liste `Shown` nennt die vierte Stelle.
 
-**Dazu die Leerstellen.** Entfernen, Tooltip und Drehen (an zwei Stellen) zählen jede Griffart noch einmal auf, nur um zu sagen, dass dort nichts passiert. Jede Griffart hat außerdem die flachen Listen der Schlüssel und die Datei `display.rs` vergrößert. Die Bestandsliste musste deshalb in #152 viermal angehoben werden.
+Was es kostet: Wer einen neuen Wert ins Fenster bringt, ändert nach der Anleitung drei Listen und vergisst die vierte. Nach dem Schließen zeigt eine Seite dann noch den Wert des alten Projekts. Kein Test vergleicht die Listen.
 
-Wer den nächsten Griff baut, etwa für die Länge einer Wand oder den Radius eines Bogens, findet keine Liste dieser Stellen. Die Zeile „neue Art Element“ in `ARCHITECTURE.md` passt nur halb: Die Schlüsseldatei `plan/key.rs` nennt sie gar nicht, das Ziehen in `moving.rs` nur ungefähr als „move“. Vergisst man eine Stelle, lässt sich das Programm meist nicht mehr bauen, und das fällt sofort auf; das gilt auch für die Ebene. Vergisst man die Auswahl, fällt es nicht auf: Ein Klick würde nur den Griff wählen statt des ganzen Elements. Nach der Regel der Datei selbst („mehr Stellen als aufgeführt ist ein Fund“) ist das ein Fund.
+Vorschlag: Das Schließen trägt einen leeren Satz Werte über dieselbe Funktion `show` ein, statt die Werte selbst aufzuzählen.
 
-Vorschlag: Stellprobe beschreibt einen Griff einmal, mit einer Rolle für alle gleich aussehenden Griffe und der Angabe, zu welchem Element er gehört. Ebene, Auswahl, Tooltip und Entfernen lesen diese Angabe, statt jede Griffart aufzuzählen. `ARCHITECTURE.md` bekommt eine Zeile „neuer Griff“ mit den Stellen, die dann noch bleiben. Aufwand mittel. Risiko gering: Jede Griffart hat Tests in Stellprobe und in der Sitzung (`object_grips`, `light_grips`, `opening_width`, `note_width`, `drawing_edges`, `drawing_points`; die vier ersten sind in diesem Audit grün gelaufen). Dazu kommen die Tests der Auswahl in `app/src/selection.rs`.
+Aufwand klein. Risiko gering: Der Szenariotest `close_project.qml` und `tst_projectguard.qml` prüfen das Schließen.
 
-Beleg: `ARCHITECTURE.md:75`, `ARCHITECTURE.md:81`, `crates/stellprobe/src/display.rs:108`, `crates/stellprobe/src/display.rs:118`, `crates/stellprobe/src/display.rs:176`, `crates/stellprobe/src/look.rs:84`, `crates/stellprobe/src/look.rs:156`, `crates/export/src/style.rs:36`, `crates/export/src/style.rs:63`, `crates/export/src/style.rs:104`, `crates/export/src/style.rs:145`, `crates/export/src/style.rs:256`, `crates/app/src/plan.rs:282`, `crates/services/src/session/layers.rs:121`, `crates/services/src/plan_edit.rs:401`, `crates/services/src/plan_edit.rs:432`, `crates/app/src/selection.rs:46`, `crates/services/src/plan_edit/remove.rs:82`, `crates/app/src/bridge/hints.rs:43`, `crates/services/src/plan_edit/moving.rs:49`, `crates/services/src/plan_edit/moving.rs:505`, `crates/services/src/plan_edit/moving.rs:626`, `crates/services/src/plan_edit/moving.rs:651`, `crates/app/src/plan/key.rs:7`, `crates/app/src/plan/key.rs:49`, `crates/app/src/plan/key.rs:76`, Commit `3b5336b`.
+Beleg: `crates/app/src/bridge/project.rs:206`, `crates/app/src/bridge/view.rs:120`, `crates/app/src/bridge/view.rs:168`, `crates/app/src/bridge/view.rs:211`, `crates/app/src/bridge/view.rs:430` (`set_grid_name`, das beim Schließen fehlt), `ARCHITECTURE.md:84`.
 
-### 2. Ziehen und Tippen desselben Maßes folgen verschiedenen Untergrenzen
-Beim Ziehen haben die neuen Griffe eigene Untergrenzen, die beim Tippen nicht gelten:
-- Eine Tür wird beim Ziehen nie schmaler als 30 cm. Getippt oder beim Laden gilt jede Breite über null.
-- Ein Möbel wird beim Ziehen nie schmaler als 5 cm, getippt ist jede Größe über null erlaubt.
-- Ein Lampenstrahl wird beim Ziehen nie enger als 1°, getippt ist jeder Wert über 0° erlaubt.
+### 2. Die Kommandozeile führt eine eigene Liste der Ausgabeformate und errät das Format aus der Dateiendung selbst
+Seit #175 steht in der Sitzung einmal, welche Ausgaben es gibt, wie sie heißen und welche Dateiendung sie haben (`ExportFormat`). Die App liest diese Liste. Die Kommandozeile hat dagegen weiter drei eigene Stellen:
+- eine eigene Liste der Formate,
+- eine Übersetzung dieser Liste in die der Sitzung,
+- eine eigene Tabelle „Endung → Format“.
 
-Die Untergrenze von 5 cm für Möbel steht außerdem ein zweites Mal als eigene Zahl in der App, für das Höhenwerkzeug (Fund 3 des achten Audits).
+Dass sie auseinanderlaufen, ist schon passiert: Die Shotliste als CSV gibt es im Fenster, in der Kommandozeile nicht. `--out liste.csv` endet mit „cannot tell the format“. `ARCHITECTURE.md` verlangt für jedes Format eine Option in der Kommandozeile, außer für eine Ansicht, die es dort nicht gibt.
 
-Die Folge: Eine Tür, die mit 10 cm eingetippt wurde, springt beim ersten Anfassen ihres Griffs auf 30 cm. Wer eine Grenze ändern will, muss sie an zwei oder drei Stellen suchen. Wie es richtig geht, zeigt die Notiz: Ihre Mindestbreite steht einmal im Modell, und Laden, Ziehen und Zeichnen benutzen sie (#146).
+Was es kostet: Ein neues Format muss in der Kommandozeile an drei Stellen nachgetragen werden. Fehlt eine, merkt es niemand.
 
-Vorschlag: Die Untergrenzen von Öffnung, Möbelmaß, Höhe und Strahl kommen als Konstanten ins Modell, neben die Prüfungen, die es dort schon gibt (`is_object_size_m`, `is_beam_deg`). Tippen, Ziehen und Laden prüfen dann gegen dieselbe Zahl. Aufwand klein. Risiko gering: `services/tests/opening_width.rs`, `object_grips.rs`, `light_grips.rs`, `note_width.rs` und `store/tests/note_width.rs` prüfen das Verhalten.
+Vorschlag: Die Kommandozeile nimmt die Namen und Endungen aus der Liste der Sitzung und lässt nur die 3D-Ansicht weg.
 
-Beleg: `crates/services/src/plan_edit/openings.rs:13`, `crates/services/src/plan_edit/check.rs:199`, `crates/store/src/lib.rs:442`, `crates/services/src/plan_edit/moving.rs:20`, `crates/services/src/plan_edit/check.rs:211`, `crates/model/src/library.rs:12`, `crates/services/src/plan_edit/moving.rs:420`, `crates/services/src/light_edit.rs:52`, `crates/model/src/light_preset.rs:9`, `crates/app/src/tools.rs:27`, `crates/model/src/project.rs:209`, `crates/store/src/lib.rs:391`.
+Aufwand klein. Risiko gering: `crates/cli/tests/export.rs` und die Tests in `export_format.rs` decken es ab (in diesem Audit grün gelaufen).
 
-### 3. Einen Punkt mit dem Möbel mitdrehen steht fünfmal da, obwohl das Modell es kann
-Wenn ein Möbel gedreht ist, muss man ausrechnen, wo eine Stelle auf ihm im Plan liegt, etwa eine Ecke oder ein Griff. Diese Rechnung steht an fünf Stellen jeweils von Hand:
-- für den Umriss im Plan,
-- für den Körper in 3D,
-- für den Platz der Griffe in Stellprobe,
-- zweimal in der Sitzung, für die Kantenmitte und das Strecken.
+Beleg: `crates/cli/src/main.rs:81`, `crates/cli/src/main.rs:94`, `crates/cli/src/main.rs:264`, `crates/services/src/export_format.rs:50`, `crates/services/src/export_format.rs:64`, `ARCHITECTURE.md:85`.
 
-Das Modell hat genau diese Rechnung schon (`Point::turned`), und die Zeichnungen benutzen sie. Soll sich die Drehrichtung oder der Drehpunkt eines Möbels ändern, muss man fünf Stellen gleich ändern. Vergisst man eine, sitzen Griff und Kante nicht mehr übereinander.
+### 3. Die Blattgröße in Hoch- oder Querformat rechnet die Ausgabe dreimal aus
+Plan, Shotliste und Kamerablicke im PDF rechnen je selbst aus, wie groß das Blatt ist: Papiergröße holen, für Hoch oder Quer Breite und Höhe tauschen, in Punkte umrechnen. #170 (Shotliste hochkant) hat dafür eine eigene kleine Funktion gebaut. Die beiden älteren Stellen benutzen sie aber nicht.
 
-Nebenbei: In `moving.rs` ist die Erklärung des Streckens über die neue Funktion der Kantenmitte gerutscht. Die eine Funktion hat jetzt zwei Erklärungen, die andere keine.
+Was es kostet: Ein neues Papierformat mit eigener Regel ändert man an drei Stellen. Ein Beispiel wäre ein Blatt, das immer quer liegt. Weicht eine Stelle ab, haben Plan und Shotliste im selben PDF verschiedene Blätter.
 
-Vorschlag: Ein Möbel bekommt im Modell eine Funktion „Punkt auf mir, in Plankoordinaten“ auf Grundlage von `turned`, wie die Zeichnung sie hat, und alle fünf Stellen rufen sie auf. Aufwand klein. Risiko gering: `stellprobe/tests/object_grips.rs`, `services/tests/object_grips.rs` (auch für gedrehte Möbel) und die Tests von `display/objects.rs` und `scene.rs` decken es ab.
+Vorschlag: Die Funktion aus der Shotliste wandert neben die Papiergrößen und wird von allen drei benutzt.
 
-Beleg: `crates/model/src/geometry.rs:29`, `crates/model/src/plan.rs:147`, `crates/stellprobe/src/display/objects.rs:16`, `crates/stellprobe/src/scene.rs:427`, `crates/stellprobe/src/display/handles.rs:120`, `crates/services/src/plan_edit/moving.rs:462`, `crates/services/src/plan_edit/moving.rs:476`, `crates/services/src/plan_edit/moving.rs:458`.
+Aufwand klein. Risiko mittel:
+- Für Plan und Shotliste prüfen Tests die Blattgröße: `crates/export/tests/export.rs:497` (`pdf_page_size_and_opacity`) und `crates/export/tests/shots.rs` (A4 quer, A4 hoch, Letter hoch). Beide sind grün.
+- Für die Kamerablicke prüft kein Test die Blattgröße, nur Seitenzahl und Beschriftungen. Dort sollte vor dem Umbau ein Test für Hoch- und Querformat dazukommen.
 
-### 4. Welche Ausgabe auf Papier druckt, steht zweimal in der App, und das Merken des Papiers ebenfalls nur dort
-Seit #144 merkt sich das Projekt das Papier, auf dem zuletzt gedruckt wurde. Welche Formate überhaupt auf Papier drucken (PDF, PNG, SVG, Einzelbilder), steht jetzt zweimal in der App, mit denselben vier Wörtern:
-- im Ausgabedialog, der danach entscheidet, ob er nach dem Papier fragt,
-- in der Verbindung zur Sitzung, die danach entscheidet, ob sie das Papier merkt.
+Beleg: `crates/export/src/table.rs:151`, `crates/export/src/layout.rs:83`, `crates/export/src/camera_pages.rs:63`, `crates/export/src/layout.rs:68`, `crates/export/tests/shots.rs:556`.
 
-Auch die Regel „nach einer gelungenen Ausgabe wird das Papier ins Projekt übernommen“ steht in der Verbindung, nicht in der Sitzung. Ein neues Format, das druckt, muss in beide Listen. Fehlt es in der zweiten, fragt der Dialog zwar nach dem Papier, vergisst es aber gleich wieder.
+### 4. Welcher Shot als Vorbild für ein Setup taugt, steht in Stellprobe und in der Sitzung je einmal
+Seit #174 kann man einen Shot von Hand dem Setup eines anderen zuordnen. Ein solches Vorbild muss drei Bedingungen erfüllen:
+- es muss den Shot geben,
+- es ist nicht der Shot selbst,
+- es ist nicht selbst von Hand zugeordnet.
 
-Außerdem zerlegt der Dialog den Papiernamen „a4-portrait“ selbst am Bindestrich, eine Regel, die im Modell schon steht (`PaperSetup::from_name`). Das ist der offene Rest von Fund 1 des vierten Audits.
+Diese Regel steht zweimal mit derselben Bedingung:
+- Stellprobe wendet sie beim Zählen der Setups an.
+- Die Sitzung prüft damit die Eingabe.
 
-Vorschlag: Die Sitzung sagt je Format, ob es Papier braucht, und gibt die Liste mit den anderen Listen heraus. Sie übernimmt das Papier beim Ausgeben selbst. Die Ansicht des Projekts gibt Größe und Ausrichtung getrennt heraus. Aufwand klein. Risiko gering: `tst_exportdialog.qml`, der Szenariotest `export_to.qml`, `services/tests/paper.rs` und `cli/tests/export.rs` prüfen das Verhalten.
+Der Kommentar der Sitzung sagt selbst, dass sie nachbaut, was Stellprobe nimmt.
 
-Beleg: `crates/app/qml/ExportDialog.qml:33`, `crates/app/qml/ExportDialog.qml:44`, `crates/app/src/bridge/export.rs:52`, `crates/app/src/bridge/export.rs:117`, `crates/services/src/session/export.rs:157`, `crates/cli/src/main.rs:191`, `crates/model/src/paper.rs:82`, `ARCHITECTURE.md:85`.
+Was es kostet: Ändert sich die Regel, gilt sie nach einer halben Änderung nur halb. Ein Beispiel wäre, dass Ketten doch erlaubt werden. Dann nimmt die Sitzung eine Eingabe an, die Stellprobe still durch die errechnete Zuordnung ersetzt, oder umgekehrt.
 
-### 5. Bestandsliste: Die Planansicht wächst mit jedem Griff, die Datei der Planänderungen steht genau an der Grenze
-Die Einschätzung der letzten Audits gilt weiter. Die Listen der Feldnamen (`name` in `field.rs`), der Aufrufe (`switched`) und jetzt der Schlüssel (`key`, `name` in `plan/key.rs`) sind flache Listen und in Ordnung, wie sie sind. Die Listen der Schlüssel wachsen aber mit jeder Griffart um einen Zweig (Fund 1).
+Vorschlag: Stellprobe bietet die Prüfung „taugt dieser Shot als Vorbild“ an, und die Sitzung ruft sie auf.
 
-**Besser geworden:**
-- Der Plan der App ist von 800 auf 589 Zeilen geschrumpft (#142).
-- Die Zielwahl beim Ziehen `target` ist von 113 auf 86 Zeilen geschrumpft.
-- Das Kopieren `copy` ist von 86 auf 81 Zeilen geschrumpft.
+Aufwand klein. Risiko gering: Die Tests in `crates/stellprobe/src/setup.rs` und `crates/services/tests/shots.rs` decken beide Seiten ab (grün).
 
-**An oder über der Grenze:**
-- Die Planansicht `display.rs` ist mit den Griffen von 1447 auf 1483 Zeilen gewachsen. Rund 900 Zeilen davon sind Tests in derselben Datei (ab Zeile 586). Das ist eine natürliche Naht.
-- Die Datei der Planänderungen `plan_edit.rs` ist von 770 auf genau 800 Zeilen gewachsen, vor allem durch die neuen Ziele des Ziehens (`Target`). Diese Ziele benutzen `moving.rs`, das Gruppieren (`group.rs`) und das Entfernen (`remove.rs`).
-- Knapp darunter liegen `bridge.rs` mit 796 Zeilen (statt 791), `bridge/view.rs` mit 782 (statt 777) und die Tests `services/tests/manage.rs` mit 800 und `library.rs` mit 799.
+Beleg: `crates/stellprobe/src/setup.rs:68`, `crates/services/src/shot_edit.rs:136`, `crates/services/src/shot_edit.rs:142`.
 
-Vorschlag: Die Tests der Planansicht kommen in eine eigene Datei, wie bei `tools/tests.rs`. Die Ziele des Ziehens kommen zusammen mit der Zielwahl `target` in eine eigene Datei neben `moving.rs`; Ziehen, Gruppieren und Entfernen holen sie von dort. Aufwand klein. Risiko gering: Es wird nur verschoben.
+### 5. Bestandsliste: Die Verbindungsdatei der App wächst mit jeder Funktion des Fensters
+Die Einschätzung des zehnten Audits gilt weiter. Die Listen der Feldnamen (`name` in `field.rs`), der Aufrufe (`switched`) und der Schlüssel (`key`, `name` in `plan/key.rs`) sind flache Listen. Sie sind in Ordnung, wie sie sind.
 
-Beleg: `crates/stellprobe/src/display.rs:586`, `crates/services/src/plan_edit.rs:432`, `crates/services/src/plan_edit.rs:800`, `crates/services/src/plan_edit/group.rs:169`, `crates/services/src/plan_edit/remove.rs:14`, `crates/app/src/plan/key.rs:49`, `crates/app/src/plan/key.rs:76`, `crates/app/src/bridge.rs`, `crates/app/src/bridge/view.rs`, `structure.baseline`.
+**Gewachsen:** Drei PRs haben `bridge.rs` je um eine Erklärung von fünf bis sechs Zeilen vergrößert, auf jetzt 817 Zeilen:
+- #168: Projekt schließen,
+- #173: Auswahl aufheben,
+- #174: Setups zur Wahl.
+
+Jeder hat den Grund genannt. Das ist genau, was das zehnte Audit vorhergesagt hat. Solange die Datei nicht geteilt ist, hebt jede neue Funktion des Fensters die Grenze weiter an.
+
+**Behoben:** Die Planansicht (`display.rs`, jetzt 587 Zeilen) und die Planänderungen (`plan_edit.rs`, jetzt 745 Zeilen) sind geteilt (#176).
+
+**An der Grenze:** `bridge/view.rs` mit 786 Zeilen, die Testdateien `crates/services/tests/manage.rs` und `library.rs` mit je 800 Zeilen und `crates/export/tests/export.rs` mit 799.
+
+Vorschlag: Die Verbindungsdatei wird nach Bereichen geteilt (Plan, Karten, Shots, 3D, Ausgabe, Projekt), wie es die Dateien unter `bridge/` schon sind. Das ist Fund 2 des vierten Audits. Fund 1 des zehnten Audits nimmt ihr zusätzlich eine Funktion ab.
+
+Aufwand mittel. Risiko gering: Es wird nur verschoben. Die Kopfzeilen-, Karten- und Szenariotests decken die Aufrufe ab.
+
+Beleg: `structure.baseline`, `crates/app/src/bridge.rs:28`, `crates/app/src/bridge.rs:141`, `crates/app/src/bridge.rs:611`, Commits `03f4b31`, `2c8560b`, `4fd5105`.
 
 ## Seit dem letzten Audit
-Seitdem wurden zehn PRs gemergt (#142, #144 bis #146, #148 bis #153). Aus dem siebten und achten Audit hat der Eigentümer noch keinen Fund zum Beheben gewählt und keinen abgelehnt. Behoben ist keiner. Zwei Funde älterer Audits sind teilweise behoben.
+Seit dem zehnten Audit wurden zehn PRs gemergt (#167 bis #176). Aus dem neunten Audit hatte der Eigentümer alle fünf Funde gewählt. Vier davon sind jetzt behoben. Der fünfte (Fund 1) ist in Arbeit, aber noch nicht als PR gestellt. Aus dem zehnten Audit wurde keiner gewählt oder abgelehnt.
+
+Zehntes Audit:
+- **Fund 1 (Schnitt und Kamerablick auf eigenem Weg, `freeLook` schaltet und fragt): offen.** Beleg: `crates/app/src/bridge.rs:141`, `crates/app/src/bridge/free.rs:89`, `crates/app/qml/AppHeader.qml:367`, `crates/app/qml/AppHeader.qml:398`, `crates/app/qml/AppHeader.qml:408`, `crates/app/qml/FreeView.qml:140`.
+- **Fund 2 (Karten hängen am Zähler des Kamerabilds): offen, gewachsen.** Auch das Schließen eines Projekts (#168) zählt jetzt diesen Zähler hoch. Beleg: `crates/app/src/bridge.rs:28`, `crates/app/src/bridge/view.rs:455`, `crates/app/src/bridge/project.rs:244`.
+- **Fund 3 (Farbe eines Bildpunkts in App und Ausgabe je einmal): offen.** Beleg: `crates/app/src/plan/picture.rs:16`, `crates/export/src/style.rs:227`.
+- **Fund 4 (Punkte von freier Form und gezeichneter Fläche zweimal gebaut): offen.** #171 behandelt beide beim Anzeigen der Seitengriffe gleich (eine gemeinsame Mindestlänge), der Rest ist unverändert. Beleg: `crates/services/src/plan_edit/drawings.rs:42`, `crates/services/src/plan_edit/moving/forms.rs:25`, `crates/services/src/plan_edit/moving.rs:220`, `crates/stellprobe/src/display/handles.rs:64`, `crates/stellprobe/src/display/handles.rs:67`.
+- **Fund 5 („was eine Kamera sieht“ dreimal, „gewählte Kamera“ viermal): offen.** #175 hat die Ausgabe der App umgebaut, den Block „gewählte Kamera“ aber behalten. Beleg: `crates/app/src/bridge/export.rs:84`, `crates/app/src/bridge/shots.rs:57`, `crates/app/src/bridge/free.rs:92`, `crates/app/src/bridge/picture.rs:41`, `crates/services/src/session/views.rs:36`.
+- **Fund 6 (Bestandsliste): siehe neuer Fund 5.**
+
+Neuntes Audit (alle gewählt):
+- **Fund 1 (neue Griffart an rund 14 Stellen): gewählt, in Arbeit (noch kein PR), gewachsen.** #171 („der nächste Griff gewinnt“) hat zwei weitere Stellen gebracht:
+  - eine eigene Liste aller Griffrollen in der Sitzung,
+  - eine eigene Zuordnung „Griff → sein Element“.
+
+  Diese Zuordnung steht in der App schon einmal (`whole`), dort mit zwei Griffarten mehr. Beleg: `crates/services/src/plan_edit/picking.rs:38`, `crates/services/src/plan_edit/picking.rs:69`, `crates/app/src/selection.rs:47`, `crates/stellprobe/src/look.rs:84`, `crates/services/src/session/layers.rs:123`, `crates/app/src/bridge/view.rs:371`.
+- **Fund 2 (Untergrenzen beim Ziehen und Tippen): behoben (#163).** Die Grenzen der Tempoeingabe stehen weiter in der Sitzung. Beleg: `crates/services/src/plan_edit/marks.rs:82`.
+- **Fund 3 (Punkt mit dem Möbel mitdrehen fünfmal): behoben (#169).** Alle fünf Stellen benutzen jetzt `SetObject::placed` im Modell. Beleg: `crates/model/src/project.rs:437`.
+- **Fund 4 (welche Ausgabe auf Papier druckt, Endungen, Kommandozeile): behoben (#175).** Die Liste steht in der Sitzung, Dialog und Verbindung lesen sie, und die Kommandozeile bietet den Kamerablick an. Die eigene Formatliste der Kommandozeile ist neuer Fund 2. Beleg: `crates/services/src/export_format.rs:4`, `crates/app/qml/ExportDialog.qml:22`.
+- **Fund 5 (Bestandsliste): behoben (#176)** für Planansicht und Planänderungen. Siehe neuer Fund 5.
 
 Achtes Audit:
-- **Fund 1 (Seite und Scharnier der Tür in eigenen Listen der Karte): offen.** Beleg: `crates/app/qml/OpeningCard.qml:31`, `crates/app/qml/OpeningCard.qml:32`, `crates/app/src/object.rs:131`.
-- **Fund 2 (Regeln der eigenen Bibliothek in Ablage und Sitzung, Art `form` beim Laden nicht geprüft): offen.** Beleg: `crates/services/src/project_edit/library.rs:78`, `crates/store/src/library.rs:106`.
-- **Fund 3 (Regeln des Höhenwerkzeugs in der App, Höhe als erfundener Planpunkt): offen.** Die Mindesthöhe ist jetzt Teil des neuen Funds 2. Beleg: `crates/app/src/tools.rs:27`, `crates/app/src/bridge/free.rs:230`.
-- **Fund 4 (Vorlagen weitergeben unter dem Namen der Bibliothek): offen.** Beleg: `crates/app/src/bridge/library.rs:19`.
-- **Fund 5 (Punkt in Fläche zweimal): offen.** Beleg: `crates/model/src/library.rs:141`, `crates/stellprobe/src/hit.rs:110`.
-- **Fund 6 (3D-Ansicht kopiert den Bildteil des Kamerabilds, Zoomschritt abgeschrieben): offen.** Beleg: `crates/app/qml/FreeView.qml:46`, `crates/stellprobe/src/eye.rs:72`.
-- **Fund 7 (Bestandsliste): teilweise.** Der Plan der App ist unter die Grenze gekommen, die Planänderungen sind an sie herangewachsen, siehe neuer Fund 5.
+- **Fund 1 (Seite und Scharnier der Tür in eigenen Listen der Karte): offen.** Beleg: `crates/app/qml/OpeningCard.qml:32`, `crates/app/src/object.rs:131`.
+- **Fund 2 (Regeln der eigenen Bibliothek in Ablage und Sitzung): offen.** Beleg: `crates/services/src/project_edit/library.rs:78`, `crates/store/src/library.rs:106`.
+- **Fund 3 (Regeln des Höhenwerkzeugs in der App): teilweise.** Die Untergrenze kommt seit #163 aus dem Modell, der Rest ist offen. Beleg: `crates/app/src/tools.rs:274`, `crates/app/src/bridge/free.rs:282`.
+- **Fund 4 (Vorlagen unter dem Namen der Bibliothek): offen.** Beleg: `crates/app/src/bridge/library.rs:19`.
+- **Fund 5 (Punkt in Fläche zweimal): offen.** Beleg: `crates/model/src/library.rs:146`, `crates/stellprobe/src/hit.rs:110`.
+- **Fund 6 (3D-Ansicht kopiert Bildteil des Kamerabilds): offen.** Beleg: `crates/app/qml/FreeView.qml:48`, `crates/stellprobe/src/eye.rs:78`.
 
 Siebtes Audit:
-- **Fund 1 (App errät, ob ein Ziehen am Weg einen Knick gemacht hat): offen.** Beleg: `crates/app/src/bridge/draw.rs:22`, `crates/services/src/plan_edit/moving.rs:168`.
+- **Fund 1 (App errät Knick beim Ziehen): offen.** Beleg: `crates/app/src/bridge/draw.rs:22`.
 - **Fund 2 (Feld „eigene Höhe oder Vorgabe“ dreimal): offen.** Beleg: `crates/app/qml/WallCard.qml:48`, `crates/app/qml/OpeningCard.qml:66`, `crates/app/qml/ObjectCard.qml:85`.
-- **Fund 3 (Regeln für Türen und Fenster in Ablage und Sitzung, zwei Namen für Brüstung und Sturz): offen.** Beleg: `crates/store/src/lib.rs:437`, `crates/store/src/lib.rs:490`, `crates/services/src/plan_edit/heights.rs:74`.
-- **Fund 4 (Kamerabild färbt mit einer Kopie der Farbregeln von Kante): teilweise**, unverändert seit dem achten Audit. Beleg: `crates/app/qml/ViewPalette.qml:13`, `crates/app/src/plan/picture.rs:16`.
+- **Fund 3 (Regeln für Türen und Fenster in Ablage und Sitzung): offen.** Beleg: `crates/store/src/lib.rs:437`, `crates/services/src/plan_edit/heights.rs:74`.
+- **Fund 4 (Kamerabild färbt mit Kopie der Farbregeln von Kante): teilweise, unverändert.** Siehe Fund 3 des zehnten Audits. Beleg: `crates/app/qml/ViewPalette.qml:13`.
 - **Fund 5 (Raumhöhe eines neuen Drehorts in Modell und Fenster): offen.** Beleg: `crates/model/src/project.rs:188`, `crates/app/qml/LocationEditor.qml:14`.
-- **Fund 6 (Dateinamen und `Hint` als Datenquelle der Karten): offen.** Jede neue Griffart trägt sich dort als „kein Tooltip“ ein. Beleg: `crates/app/src/bridge/hints.rs:43`, `crates/services/src/views.rs:390`.
+- **Fund 6 (Dateinamen und `Hint` als Datenquelle der Karten): offen.** Beleg: `crates/app/src/bridge/hints.rs:43`.
 
 Sechstes Audit:
 - **Fund 1 (Großschreibung beim Tippen kopiert Regeln des Drehbuchlesers): offen.** Beleg: `crates/tui/src/fountain.rs:130`, `crates/script/src/parse.rs:9`.
-- **Fund 2 (Breite von Türen und Fenstern in Ablage und Sitzung): offen und gewachsen.** Das Ziehen hat eine dritte, eigene Untergrenze dazugebracht, siehe neuer Fund 2. Beleg: `crates/store/src/lib.rs:442`, `crates/services/src/plan_edit/openings.rs:25`.
 - **Fund 3 (Spalte „Achsensprung gegen“ in Sitzung und Ausgabe): offen.** Beleg: `crates/services/src/session/shots.rs:14`, `crates/export/src/shots.rs:21`.
 
 Fünftes Audit:
 - **Fund 1 (Gleichheit von Figurennamen an drei Stellen): offen.** Beleg: `crates/services/src/script_refs.rs:116`, `crates/services/src/project_edit.rs:337`, `crates/services/src/plan_edit/template.rs:142`.
-- **Fund 4 (Marks verschieben und Mitte einer Gruppe mehrfach geschrieben): offen.** Beleg: `crates/services/src/plan_edit/group.rs:186`, `crates/services/src/project_edit/templates.rs:141`.
-- **Fund 5 (Einsetzen einer Vorlage ruft im Kreis): offen.** Beleg: `crates/services/src/plan_edit/template.rs:8`, `crates/services/src/project_edit/templates.rs:11`.
+- **Fund 4 (Marks verschieben und Mitte einer Gruppe mehrfach): offen.** Beleg: `crates/services/src/plan_edit/group.rs:182`, `crates/services/src/project_edit/templates.rs:141`.
+- **Fund 5 (Einsetzen einer Vorlage ruft im Kreis): in Arbeit (#111).** Beleg: `crates/services/src/plan_edit/template.rs:8`, `crates/services/src/project_edit/templates.rs:11`.
 
 Viertes Audit:
-- **Fund 1 (Formate, Papier und Reihenfolge der Ausgabe je Oberfläche): teilweise.** Die Papiergrößen stehen seit #144 einmal im Modell, und App und Kommandozeile bieten dieselben drei an. Offen ist, welche Formate drucken, siehe neuer Fund 4. Beleg: `crates/model/src/paper.rs:14`, `crates/app/qml/ExportDialog.qml:33`, `crates/app/src/bridge/export.rs:117`.
-- **Fund 2 (Verbindungsdatei knapp unter der Grenze, ein Aufruf je Mark-Feld): offen.** `bridge.rs` hat 796 Zeilen. Beleg: `crates/app/src/bridge.rs:105`.
+- **Fund 1 (Formate, Papier und Reihenfolge der Ausgabe je Oberfläche): behoben** mit Fund 4 des neunten Audits (#175), bis auf die Kommandozeile (neuer Fund 2).
+- **Fund 2 (Verbindungsdatei): offen, weiter gewachsen** (817 Zeilen), siehe neuer Fund 5.
 - **Fund 3 (Lampenkarte als Kopie der Kamerakarte): offen.** Beleg: `crates/app/qml/CameraCard.qml:95`, `crates/app/qml/LightCard.qml:74`.
-- **Fund 5 (Winkel beim Messen in der App berechnet): offen.** Beleg: `crates/app/src/tools.rs:472`, `crates/model/src/geometry.rs:44`.
+- **Fund 5 (Winkel beim Messen in der App berechnet): in Arbeit (#119).** Beleg: `crates/app/src/tools.rs:468`, `crates/model/src/geometry.rs:44`.
 
 Drittes Audit:
-- **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): Rest offen.** Die Kommandozeile schreibt für „keine solche Szene“ und „Szene ohne Plan“ weiter eigene englische Sätze. Beleg: `crates/cli/src/main.rs:175`, `crates/cli/src/main.rs:186`.
+- **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): Rest offen.** Die Kommandozeile schreibt für „keine solche Szene“ und „Szene ohne Plan“ weiter eigene englische Sätze. Beleg: `crates/cli/src/main.rs:210`, `crates/cli/src/main.rs:221`.
 - **Fund 2 (Drehbuch- und Shot-Spalte je zweimal gebaut): offen.** Beleg: `crates/app/qml/Workspace.qml`.
-- **Fund 4 (angezeigte Werte in zwei Listen ohne gegenseitige Prüfung): offen.** `bridge/view.rs` ist von 777 auf 782 Zeilen gewachsen. Beleg: `crates/app/src/bridge/view.rs`.
+- **Fund 4 (angezeigte Werte in mehreren Listen ohne gegenseitige Prüfung): offen, gewachsen.** Es gibt jetzt eine vierte Liste, siehe neuer Fund 1. Beleg: `crates/app/src/bridge/view.rs:211`.
 - **Fund 5 (Bestandsliste): offen.** `item_prims` (106 Zeilen) und `scan` (98 Zeilen) sind unverändert. Beleg: `crates/export/src/layout.rs:264`, `crates/export/src/scan.rs:85`.

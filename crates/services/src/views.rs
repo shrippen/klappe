@@ -3,6 +3,7 @@
 use klappe_model::{
     Dash, DoorSide, FigureColor, Fill, Hinge, LibraryItem, ObjectShape, OpeningKind, Template,
 };
+use klappe_stellprobe::SetupChoice;
 use serde::Serialize;
 
 /// The frame a shot shows when its camera is gone (16:9).
@@ -48,6 +49,33 @@ pub struct ShotRow {
     pub axis_against: String,
     /// The camera setup (1-based): same camera, place and lens (LH-72).
     pub setup: usize,
+    /// Id of the shot this one is shot together with, chosen by hand (LH-77); empty is computed.
+    pub setup_of: String,
+    /// `setup_of` names no usable shot (gone, or assigned by hand itself): computed instead.
+    pub setup_lost: bool,
+}
+
+/// A setup a shot can be assigned to (`Session::setup_options`, LH-77); `first_id` is what the
+/// shot then names.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SetupOption {
+    pub setup: usize,
+    pub first_id: String,
+    pub first_number: String,
+    pub camera_label: String,
+    pub lens_mm: f64,
+}
+
+impl From<SetupChoice> for SetupOption {
+    fn from(c: SetupChoice) -> Self {
+        SetupOption {
+            setup: c.setup,
+            first_id: c.first_id,
+            first_number: c.first_number,
+            camera_label: c.camera_label,
+            lens_mm: c.lens_mm,
+        }
+    }
 }
 
 /// The two characters the 180° axis runs between (LH-40).
@@ -287,12 +315,25 @@ pub struct Overview {
     pub plans: Vec<PlanRow>,
     /// Id of the plan shown; empty without one.
     pub plan: String,
-    /// The project's export sheet as `a4-portrait`.
-    pub paper: String,
+    /// The size of the project's export sheet, as `a4`.
+    pub paper_size: &'static str,
+    /// How the project's export sheet lies, as `portrait`.
+    pub paper_orientation: &'static str,
     /// The sizes an export offers.
     pub papers: Vec<PaperRow>,
     /// The ways a sheet can lie, as `portrait` and `landscape`; the surface names them.
     pub orientations: Vec<&'static str>,
+    /// The exports, in the order the menu offers them.
+    pub formats: Vec<ExportRow>,
+}
+
+/// One export format: `id` is `pdf`; `paper` says it asks for a sheet; `extension` is that of
+/// the file written, `None` for a folder.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ExportRow {
+    pub id: &'static str,
+    pub paper: bool,
+    pub extension: Option<&'static str>,
 }
 
 /// One paper size of the export dialog: `id` is `a4`, `label` what the dialog shows.

@@ -2,7 +2,7 @@
 
 use klappe_model::{
     CameraMark, Drawing, DrawingShape, FloorPlan, Light, Mark, Point, SetObject, Wall,
-    MAX_OBJECT_M, NOTE_MIN_WIDTH_M,
+    MAX_OBJECT_M, MIN_BEAM_DEG, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use klappe_stellprobe::{
     bend_follow, bend_grips, drawing_handle_places, light_grip_place, object_grip_place, Bend,
@@ -11,249 +11,16 @@ use klappe_stellprobe::{
 
 use self::forms::{drag_form_point, insert_form_point};
 use super::drawings::{drag_handle, edge_place, insert_point};
-use super::openings::{drag_edge, edge_m, opening_mut, slide};
+use super::openings::{drag_edge, edge_m, slide};
+use super::target::{target, Target};
 use super::FULL_TURN_DEG;
-use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
+use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping};
 use crate::error::ServiceError;
 
 pub(super) mod forms;
 
-/// The least a drag leaves of an object's width or depth; the model only asks for more than
-/// nothing.
-const OBJECT_MIN_M: f64 = 0.05;
-
 /// How far a drag pulls a new bend off its grip before it is made.
 const NEW_BEND_MIN_M: f64 = 1e-6;
-
-pub(super) fn target<'a>(
-    scope: &'a mut Scope<'_>,
-    source: &Source,
-) -> Result<Target<'a>, ServiceError> {
-    let time_s = scope.time_s;
-
-    match source {
-        Source::Mark { character, index } => {
-            let mark = scope
-                .plan
-                .figures
-                .iter_mut()
-                .find(|f| f.character == *character)
-                .and_then(|f| f.marks.get_mut(*index))
-                .ok_or(ServiceError::Gone)?;
-            Ok(Target::Place {
-                at: &mut mark.at,
-                facing_deg: &mut mark.facing_deg,
-            })
-        }
-        Source::FigureVia { .. }
-        | Source::CameraVia { .. }
-        | Source::DrawingPoint { .. }
-        | Source::DrawingEdge { .. }
-        | Source::ObjectGrip { .. } => grip_target(scope, source),
-        Source::Figure(character) => {
-            let track = scope
-                .plan
-                .figures
-                .iter_mut()
-                .find(|f| f.character == *character)
-                .ok_or(ServiceError::Gone)?;
-            let index = current_index(track.marks.iter().map(|m| m.at_s), time_s)
-                .ok_or(ServiceError::Gone)?;
-            let mark = track.marks.get_mut(index).ok_or(ServiceError::Gone)?;
-            Ok(Target::Place {
-                at: &mut mark.at,
-                facing_deg: &mut mark.facing_deg,
-            })
-        }
-        Source::Camera(id) => {
-            let camera = scope
-                .plan
-                .cameras
-                .iter_mut()
-                .find(|c| c.id == *id)
-                .ok_or(ServiceError::Gone)?;
-            let index = current_index(camera.marks.iter().map(|m| m.at_s), time_s)
-                .ok_or(ServiceError::Gone)?;
-            let mark = camera.marks.get_mut(index).ok_or(ServiceError::Gone)?;
-            Ok(Target::Place {
-                at: &mut mark.at,
-                facing_deg: &mut mark.facing_deg,
-            })
-        }
-        Source::Light(_) | Source::LightGrip { .. } => light_target(scope, source),
-        Source::Object(id) => {
-            let object = scope
-                .set
-                .as_deref_mut()
-                .and_then(|s| s.objects.iter_mut().find(|o| o.id == *id))
-                .ok_or(ServiceError::Gone)?;
-            Ok(Target::Place {
-                at: &mut object.at,
-                facing_deg: &mut object.rotation_deg,
-            })
-        }
-        Source::Wall(index) => {
-            let wall = scope
-                .set
-                .as_deref_mut()
-                .and_then(|s| s.walls.get_mut(*index))
-                .ok_or(ServiceError::Gone)?;
-            Ok(Target::Wall(wall))
-        }
-        Source::Opening { .. } | Source::OpeningEdge { .. } => opening_target(scope, source),
-        Source::Note(_) | Source::NoteWidth(_) => note_target(scope, source),
-        Source::Drawing(id) => scope
-            .plan
-            .drawings
-            .iter_mut()
-            .find(|d| d.id == *id)
-            .map(Target::Drawing)
-            .ok_or(ServiceError::Gone),
-    }
-}
-
-/// A lamp, or the grip on its beam.
-fn light_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, ServiceError> {
-    let (Source::Light(id) | Source::LightGrip { light: id, .. }) = source else {
-        return Err(ServiceError::Gone);
-    };
-    let light = scope
-        .plan
-        .lights
-        .iter_mut()
-        .find(|l| l.id == *id)
-        .ok_or(ServiceError::Gone)?;
-
-    match source {
-        Source::LightGrip { grip, .. } => Ok(Target::LightEdge { light, grip: *grip }),
-        _ => Ok(Target::Place {
-            at: &mut light.at,
-            facing_deg: &mut light.facing_deg,
-        }),
-    }
-}
-
-/// An opening, or the grip on one of its ends.
-fn opening_target<'a>(
-    scope: &'a mut Scope<'_>,
-    source: &Source,
-) -> Result<Target<'a>, ServiceError> {
-    let (wall, index) = opening_mut(scope, source)?;
-
-    match source {
-        Source::OpeningEdge { end, .. } => Ok(Target::OpeningEdge {
-            wall,
-            index,
-            end: *end,
-        }),
-        _ => Ok(Target::Slide { wall, index }),
-    }
-}
-
-/// A note, or the grip on its right edge.
-fn note_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, ServiceError> {
-    let (Source::Note(id) | Source::NoteWidth(id)) = source else {
-        return Err(ServiceError::Gone);
-    };
-    let note = scope
-        .set
-        .as_deref_mut()
-        .and_then(|s| s.notes.iter_mut().find(|n| n.id == *id))
-        .ok_or(ServiceError::Gone)?;
-
-    match source {
-        Source::NoteWidth(_) => Ok(Target::NoteEdge(note)),
-        _ => Ok(Target::Pin { at: &mut note.at }),
-    }
-}
-
-/// The grip a `FigureVia` or `CameraVia` names, on its way.
-fn grip_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, ServiceError> {
-    match source {
-        Source::FigureVia {
-            character,
-            index,
-            bend,
-        } => {
-            let track = scope
-                .plan
-                .figures
-                .iter_mut()
-                .find(|f| f.character == *character)
-                .ok_or(ServiceError::Gone)?;
-            curve(&mut track.marks, (*index, *bend), |m| (m.at, &mut m.via))
-        }
-        Source::CameraVia {
-            camera,
-            index,
-            bend,
-        } => {
-            let camera = scope
-                .plan
-                .cameras
-                .iter_mut()
-                .find(|c| c.id == *camera)
-                .ok_or(ServiceError::Gone)?;
-            curve(&mut camera.marks, (*index, *bend), |m| (m.at, &mut m.via))
-        }
-        Source::DrawingPoint { drawing, index } => {
-            let drawing = drawing_mut(scope, drawing)?;
-
-            Ok(Target::Corner {
-                drawing,
-                index: *index,
-            })
-        }
-        Source::DrawingEdge { drawing, index } => {
-            let drawing = drawing_mut(scope, drawing)?;
-
-            Ok(Target::Edge {
-                drawing,
-                index: *index,
-            })
-        }
-        Source::ObjectGrip { object, grip } => {
-            let object = scope
-                .set
-                .as_deref_mut()
-                .and_then(|s| s.objects.iter_mut().find(|o| o.id == *object))
-                .ok_or(ServiceError::Gone)?;
-
-            Ok(Target::ObjectEdge {
-                object,
-                grip: *grip,
-            })
-        }
-        _ => Err(ServiceError::Gone),
-    }
-}
-
-fn drawing_mut<'a>(scope: &'a mut Scope<'_>, id: &str) -> Result<&'a mut Drawing, ServiceError> {
-    scope
-        .plan
-        .drawings
-        .iter_mut()
-        .find(|d| d.id == id)
-        .ok_or(ServiceError::Gone)
-}
-
-/// The grip `bend` on the way to mark `index` of `marks`; `place` gives a mark's place and its
-/// `via`. The first mark has no way to it.
-fn curve<'a, M>(
-    marks: &'a mut [M],
-    (index, bend): (usize, Bend),
-    place: impl Fn(&'a mut M) -> (Point, &'a mut Vec<Point>),
-) -> Result<Target<'a>, ServiceError> {
-    let before = index.checked_sub(1).ok_or(ServiceError::Gone)?;
-    let (head, tail) = marks.split_at_mut(index);
-    let a = head.get_mut(before).ok_or(ServiceError::Gone)?;
-    let this = tail.first_mut().ok_or(ServiceError::Gone)?;
-
-    let (a, _) = place(a);
-    let (b, via) = place(this);
-
-    Ok(Target::Curve { via, a, b, bend })
-}
 
 /// Where grip `bend` of the way from `a` to `b` through `via` sits.
 fn grip_at(via: &[Point], (a, b): (Point, Point), bend: Bend) -> Option<Point> {
@@ -419,9 +186,6 @@ fn place_drawing(drawing: &mut Drawing, to: Point) {
     }
 }
 
-/// The narrowest beam a drag sets; `is_beam_deg` wants more than 0°. A drag gives 360° at most.
-const LIGHT_MIN_BEAM_DEG: f64 = 1.0;
-
 /// The pointer at `to` turns the lamp towards it (direction grip) or sets the beam so that
 /// its edge runs through it (beam grip). The lamp stays; a pointer on the lamp changes nothing.
 fn drag_light(light: &mut Light, grip: LightGrip, to: Point) {
@@ -437,7 +201,7 @@ fn drag_light(light: &mut Light, grip: LightGrip, to: Point) {
             let half_turn_deg = FULL_TURN_DEG / 2.0;
             let off_deg = normalize_deg(to_deg - light.facing_deg + half_turn_deg) - half_turn_deg;
 
-            light.beam_deg = (2.0 * off_deg.abs()).max(LIGHT_MIN_BEAM_DEG);
+            light.beam_deg = (2.0 * off_deg.abs()).max(MIN_BEAM_DEG);
         }
     }
 }
@@ -469,26 +233,25 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
 /// The point of grip `grip` that snaps: the middle of the edge it sizes (the right edge for the
 /// width, the bottom edge for the depth, turned with the object), or the outline point itself.
 fn edge_middle(object: &SetObject, grip: ObjectGrip) -> Point {
-    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
-    let (axis, half_m) = match grip {
-        ObjectGrip::Width => ((cos, sin), object.width_m / 2.0),
-        ObjectGrip::Depth => ((-sin, cos), object.depth_m / 2.0),
-        ObjectGrip::Point(_) | ObjectGrip::Side(_) => return object_grip_place(object, grip),
-    };
-
-    Point::new(
-        object.at.x_m + half_m * axis.0,
-        object.at.y_m + half_m * axis.1,
-    )
+    match grip {
+        ObjectGrip::Width => object.placed(object.width_m / 2.0, 0.0),
+        ObjectGrip::Depth => object.placed(0.0, object.depth_m / 2.0),
+        ObjectGrip::Point(_) | ObjectGrip::Side(_) => object_grip_place(object, grip),
+    }
 }
 
 /// Sets the width or depth so the grip lands on `to` as far as its axis goes, in the object's
 /// turned frame; the opposite edge (left or top) stays, so the centre moves half the change.
 fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
-    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
+    // The axis of the size on the plan: where one metre along it lies, from the centre.
+    let along = |x_m: f64, y_m: f64| {
+        let tip = object.placed(x_m, y_m);
+
+        (tip.x_m - object.at.x_m, tip.y_m - object.at.y_m)
+    };
     let (axis, size_m) = match grip {
-        ObjectGrip::Width => ((cos, sin), object.width_m),
-        ObjectGrip::Depth => ((-sin, cos), object.depth_m),
+        ObjectGrip::Width => (along(1.0, 0.0), object.width_m),
+        ObjectGrip::Depth => (along(0.0, 1.0), object.depth_m),
         // A point or side sets no size.
         ObjectGrip::Point(_) | ObjectGrip::Side(_) => return,
     };
@@ -496,7 +259,7 @@ fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
     // The grip sits a gap outside the edge: the size changes by how far `to` lies beyond it.
     let grip_at = object_grip_place(object, grip);
     let beyond_m = (to.x_m - grip_at.x_m) * axis.0 + (to.y_m - grip_at.y_m) * axis.1;
-    let new_m = (size_m + beyond_m).clamp(OBJECT_MIN_M, MAX_OBJECT_M);
+    let new_m = (size_m + beyond_m).clamp(MIN_OBJECT_M, MAX_OBJECT_M);
     let moved_m = (new_m - size_m) / 2.0;
 
     object.at = Point::new(
@@ -637,16 +400,8 @@ pub(super) fn spin(
         Target::Place { facing_deg, .. } => *facing_deg,
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
         Target::Drawing(drawing) => drawing.rotation_deg,
-        // Nothing to turn.
-        Target::Pin { .. }
-        | Target::Corner { .. }
-        | Target::Edge { .. }
-        | Target::NoteEdge(_)
-        | Target::ObjectEdge { .. }
-        | Target::Curve { .. }
-        | Target::OpeningEdge { .. }
-        | Target::LightEdge { .. }
-        | Target::Slide { .. } => return Ok(()),
+        // Nothing to turn: a note, an opening and every grip.
+        _ => return Ok(()),
     };
 
     turn(scope, source, now_deg + by_deg)
@@ -662,16 +417,6 @@ pub(super) fn turn(
     match target(scope, source)? {
         Target::Place { facing_deg: f, .. } => *f = facing_deg,
         Target::Drawing(drawing) => drawing.rotation_deg = facing_deg,
-        // Nothing to turn.
-        Target::Pin { .. }
-        | Target::Corner { .. }
-        | Target::Edge { .. }
-        | Target::NoteEdge(_)
-        | Target::ObjectEdge { .. }
-        | Target::Curve { .. }
-        | Target::OpeningEdge { .. }
-        | Target::LightEdge { .. }
-        | Target::Slide { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.
             let mid = middle(wall);
@@ -680,6 +425,8 @@ pub(super) fn turn(
             wall.from = Point::new(mid.x_m - half_m * cos, mid.y_m - half_m * sin);
             wall.to = Point::new(mid.x_m + half_m * cos, mid.y_m + half_m * sin);
         }
+        // Nothing to turn: a note, an opening and every grip.
+        _ => {}
     }
 
     Ok(())

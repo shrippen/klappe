@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml"
+import "FieldLabels.js" as FieldLabels
 
 // The mark fields (LH-22, LH-63): they follow the selection and pass what is typed or
 // chosen to the controller.
@@ -156,8 +157,6 @@ TestCase {
         compare(findChild(card, "holdField").text, "2,5")
         compare(findChild(card, "paceField").text, "1,4")
         verify(!findChild(card, "paceValue").visible)
-        verify(findChild(card, "paceLabel").visible)
-        compare(findChild(card, "paceLabel").text, "Tempo (m/s)")
         verify(findChild(card, "paceWalk").enabled)
     }
 
@@ -511,5 +510,35 @@ TestCase {
         findChild(card, "markMore").clicked()
 
         verify(findChild(card, "tiltRow").visible)
+    }
+
+    // Q1-03: each number field is named by a label above it, not by a placeholder.
+    function test_every_figure_field_has_a_visible_label() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+        const labels = FieldLabels.of(card)
+
+        verify(labels.indexOf("Pause (s)") >= 0, labels)
+        verify(labels.indexOf("Tempo (m/s)") >= 0, labels)
+        compare(findChild(card, "holdField").Accessible.name, "Pause (s)")
+        compare(findChild(card, "paceField").Accessible.name, "Tempo (m/s)")
+    }
+
+    function test_every_camera_field_has_a_visible_label() {
+        const card = createTemporaryObject(cardComponent, tc)
+        cameraMark()
+        card.expanded = true
+        const labels = FieldLabels.of(card)
+        const names = {
+            holdField: "Pause (s)",
+            heightField: "Höhe (m)",
+            lensField: "Brennweite (mm)",
+            tiltField: "Neigung (°)",
+        }
+
+        for (const objectName in names) {
+            verify(labels.indexOf(names[objectName]) >= 0, names[objectName] + " in " + labels)
+            compare(findChild(card, objectName).Accessible.name, names[objectName])
+        }
     }
 }

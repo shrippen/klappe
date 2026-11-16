@@ -27,6 +27,7 @@ mod undo;
 mod uses;
 mod views;
 
+pub use export::ExportOptions;
 pub use free_view::{Size, View};
 pub use retime::{Grab, TimeSnap};
 

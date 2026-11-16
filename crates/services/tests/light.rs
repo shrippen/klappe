@@ -186,6 +186,7 @@ fn unusable_values_are_refused() {
     let mut s = open();
     let cases = [
         (LightChange::Beam(0.0), Field::Beam),
+        (LightChange::Beam(0.5), Field::Beam),
         (LightChange::Beam(361.0), Field::Beam),
         (LightChange::Beam(f64::NAN), Field::Beam),
         (LightChange::Power(-1.0), Field::Power),

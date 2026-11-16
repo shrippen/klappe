@@ -15,6 +15,7 @@ mod edit;
 mod error;
 mod error_text;
 mod example;
+mod export_format;
 mod field;
 mod library;
 mod light_edit;
@@ -33,6 +34,7 @@ pub use edit::ShotField;
 pub use error::ServiceError;
 pub use error_text::error_text;
 pub use example::{copy_example, ensure_example};
+pub use export_format::ExportFormat;
 pub use field::Field;
 pub use light_edit::LightChange;
 pub use number::{read_number, Range, Unit};
@@ -40,14 +42,14 @@ pub use plan_edit::{Grid, MarkInfo, Pace, PlanEdit, Snapping};
 pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
-    Autosave, BackupState, Grab, Layer, Lock, Looping, Playing, Session, Size, Step, TimeSnap,
-    View, Visibility,
+    Autosave, BackupState, ExportOptions, Grab, Layer, Lock, Looping, Playing, Session, Size, Step,
+    TimeSnap, View, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
     AxisChoice, CastUse, CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow, Marker,
-    Overview, PlanRow, SceneCard, SceneRow, SceneUse, ScriptLine, Segment, ShotRow, TemplateEntry,
-    Track, TrackKind,
+    Overview, PlanRow, SceneCard, SceneRow, SceneUse, ScriptLine, Segment, SetupOption, ShotRow,
+    TemplateEntry, Track, TrackKind,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.
@@ -56,6 +58,7 @@ pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Dash, Departure, DoorSide, DrawingShape,
     FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, ObjectShape,
     OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, Sensor, ShotSize,
+    MIN_OBJECT_HEIGHT_M,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, scene_look, Area, Bend, Cut, DisplayList, Frame, Hue, Item,

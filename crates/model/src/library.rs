@@ -8,17 +8,23 @@ pub const FREE_FORM_KIND: &str = "form";
 /// Largest side of an object: a stadium fits; 1e300 m would not draw.
 pub const MAX_OBJECT_M: f64 = 1000.0;
 
-/// Whether `size_m` is a side an object can have: a number, more than nothing, not absurd.
+/// Smallest side of an object: typing and dragging leave at least this.
+pub const MIN_OBJECT_M: f64 = 0.05;
+
+/// Whether `size_m` is a side an object can have: a number, from the least up, not absurd.
 pub fn is_object_size_m(size_m: f64) -> bool {
-    size_m.is_finite() && size_m > 0.0 && size_m <= MAX_OBJECT_M
+    size_m.is_finite() && (MIN_OBJECT_M..=MAX_OBJECT_M).contains(&size_m)
 }
 
 /// Tallest an object can be: a church tower fits; 1e300 m would not make sense.
 pub const MAX_OBJECT_HEIGHT_M: f64 = 100.0;
 
-/// Whether `height_m` is a height an object can have: a number, more than nothing, not absurd.
+/// Least height of an object or wall: typing and dragging leave at least this.
+pub const MIN_OBJECT_HEIGHT_M: f64 = 0.05;
+
+/// Whether `height_m` is a height an object can have: a number, from the least up, not absurd.
 pub fn is_object_height_m(height_m: f64) -> bool {
-    height_m.is_finite() && height_m > 0.0 && height_m <= MAX_OBJECT_HEIGHT_M
+    height_m.is_finite() && (MIN_OBJECT_HEIGHT_M..=MAX_OBJECT_HEIGHT_M).contains(&height_m)
 }
 
 /// Whether `height_m` is a height above the floor something can begin at (a sill, an

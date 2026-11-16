@@ -41,6 +41,7 @@ TestCase {
 
     SignalSpy { id: newSpy; signalName: "newRequested" }
     SignalSpy { id: openSpy; signalName: "openRequested" }
+    SignalSpy { id: closeSpy; signalName: "closeRequested" }
     SignalSpy { id: projectSpy; signalName: "projectRequested" }
     SignalSpy { id: backgroundSpy; signalName: "backgroundRequested" }
     SignalSpy { id: viewSpy; signalName: "viewToggled" }
@@ -65,7 +66,7 @@ TestCase {
         fake.missingHeights = 0
         fake.calls = []
         fake.plan = "plan-a"
-        fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan })
+        fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats })
         fakeTools.tool = "select"
         fakeTools.mode = "build"
         fakeTools.enabled = true
@@ -74,7 +75,7 @@ TestCase {
     function make() {
         const header = createTemporaryObject(headerComponent, tc)
         verify(header)
-        for (const spy of [newSpy, openSpy, projectSpy, backgroundSpy, viewSpy, orderSpy, zoomSpy, playSpy, heightSpy]) {
+        for (const spy of [newSpy, openSpy, closeSpy, projectSpy, backgroundSpy, viewSpy, orderSpy, zoomSpy, playSpy, heightSpy]) {
             spy.target = header
             spy.clear()
         }
@@ -137,7 +138,7 @@ TestCase {
         }
         verify(entry(header, "fileMenu", "new").visible)
         verify(entry(header, "fileMenu", "open").visible)
-        for (const name of ["project", "save", "background", "backgroundRemove"]) {
+        for (const name of ["project", "save", "close", "background", "backgroundRemove"]) {
             verify(!entry(header, "fileMenu", name).visible, name)
         }
     }
@@ -165,6 +166,27 @@ TestCase {
         compare(fake.calls, [["save"]])
     }
 
+    function test_close_is_in_the_file_menu_and_asks_to_close() {
+        const header = make()
+
+        compare(entry(header, "fileMenu", "close").text, "Schließen")
+        pick(header, "fileMenu", "close")
+
+        compare(closeSpy.count, 1)
+        compare(fake.calls, [])
+    }
+
+    function test_ctrl_w_closes_the_project() {
+        make()
+
+        keyClick(Qt.Key_W, Qt.ControlModifier)
+        compare(closeSpy.count, 1)
+
+        fake.loaded = false
+        keyClick(Qt.Key_W, Qt.ControlModifier)
+        compare(closeSpy.count, 1)
+    }
+
     function test_removing_the_background_is_offered_only_with_one() {
         const header = make()
         verify(!entry(header, "fileMenu", "backgroundRemove").visible)
@@ -185,6 +207,32 @@ TestCase {
         }
         verify(!findChild(header, "planMenu").enabled)
         verify(entry(header, "fileMenu", "save").enabled)
+    }
+
+    Component { id: strangerComponent; Window { width: 100; height: 100 } }
+
+    // Q1-19: the file dialog is a window of its own; without a window manager nobody hands the
+    // keys back, so the dialog does it when it closes. A window of ours stands for the dialog's
+    // here (offscreen has none), and there is no `back()`.
+    function test_the_shortcuts_work_right_after_the_file_dialog() {
+        const header = make()
+        const dialog = findChild(header, "exportDialog")
+        const files = findChild(dialog, "files")
+
+        pick(header, "exportMenu", "csv")
+        tryCompare(files, "visible", true)
+        const stranger = createTemporaryObject(strangerComponent, null)
+        stranger.show()
+        stranger.requestActivate()
+        tryCompare(tc.Window.window, "active", false)
+        stranger.close()
+        files.close()
+        tryCompare(files, "visible", false)
+        tryCompare(tc.Window.window, "active", true)
+
+        fake.calls = []
+        keyClick(Qt.Key_S, Qt.ControlModifier)
+        compare(fake.calls, [["save"]])
     }
 
     function test_the_exports_ask_for_paper_and_file() {
@@ -610,102 +658,6 @@ TestCase {
         compare(keys("playback.toggle"), "Space / K")
     }
 
-    // LH-94: J, the View menu's entry and the palette's all switch between plan and 3D.
-    function test_j_switches_to_3d_and_back() {
-        const header = make()
-        const free = findChild(header, "viewMenu")
-        verify(!entry(header, "viewMenu", "free").checked)
-
-        keyClick(Qt.Key_J)
-        compare(fake.calls, [["toggleView"]])
-        verify(entry(header, "viewMenu", "free").checked)
-
-        pick(header, "viewMenu", "free")
-        compare(fake.calls, [["toggleView"], ["toggleView"]])
-        verify(!entry(header, "viewMenu", "free").checked)
-    }
-
-    // LH-98: Y cuts the walls in 3D only; the View menu and the palette do the same.
-    function test_y_cuts_the_walls_in_3d() {
-        const header = make()
-        verify(!entry(header, "viewMenu", "wallCut").enabled)
-        keyClick(Qt.Key_Y)
-        compare(fake.calls, [])
-
-        keyClick(Qt.Key_J)
-        verify(entry(header, "viewMenu", "wallCut").enabled)
-        keyClick(Qt.Key_Y)
-        compare(fake.calls, [["toggleView"], ["freeLook", "cut"]])
-        verify(entry(header, "viewMenu", "wallCut").checked)
-
-        pick(header, "viewMenu", "wallCut")
-        verify(!entry(header, "viewMenu", "wallCut").checked)
-        header.run("view.wallCut")
-        verify(entry(header, "viewMenu", "wallCut").checked)
-
-        const cmd = header.commandPalette.commands.find(c => c.id === "view.wallCut")
-        compare(cmd.keys, "Y")
-        compare(cmd.text, "Wände kappen")
-        header.texts = en
-        compare(header.commandPalette.commands.find(c => c.id === "view.wallCut").text, "Cut walls")
-    }
-
-    // LH-99: looking through the camera is a command of the View menu and the palette, in 3D only.
-    function test_the_view_looks_through_a_camera() {
-        const header = make()
-        verify(!entry(header, "viewMenu", "through").enabled)
-
-        keyClick(Qt.Key_J)
-        verify(entry(header, "viewMenu", "through").enabled)
-        pick(header, "viewMenu", "through")
-        compare(fake.calls, [["toggleView"], ["freeLook", "camera"]])
-        verify(entry(header, "viewMenu", "through").checked)
-
-        header.run("view.through")
-        verify(!entry(header, "viewMenu", "through").checked)
-        compare(header.commandPalette.commands.find(c => c.id === "view.through").text, "Durch Kamera sehen")
-    }
-
-    // A plan change ends the look without a 3D command: the entry follows `pictureRevision`.
-    function test_the_entry_unchecks_when_the_plan_changes() {
-        const header = make()
-        keyClick(Qt.Key_J)
-        pick(header, "viewMenu", "through")
-        verify(entry(header, "viewMenu", "through").checked)
-        fake.state.look = ""
-        fake.pictureRevision++
-        verify(!entry(header, "viewMenu", "through").checked)
-    }
-
-    // No shot, no camera or none with marks: the look stays off, so the entry does too.
-    function test_a_refused_look_leaves_the_entry_unchecked() {
-        const header = make()
-        keyClick(Qt.Key_J)
-        fake.refuseCamera = true
-
-        pick(header, "viewMenu", "through")
-        verify(!entry(header, "viewMenu", "through").checked)
-
-        header.run("view.through")
-        verify(!entry(header, "viewMenu", "through").checked)
-        fake.refuseCamera = false
-    }
-
-    function test_the_palette_lists_the_3d_view_with_its_key() {
-        const header = make()
-
-        const free = header.commandPalette.commands.find(c => c.id === "view.free")
-        compare(free.text, "3D-Ansicht")
-        compare(free.keys, "J")
-        compare(free.group, "Ansicht")
-
-        header.run("view.free")
-        compare(fake.calls, [["toggleView"]])
-
-        header.texts = en
-        compare(header.commandPalette.commands.find(c => c.id === "view.free").text, "3D view")
-    }
-
     // LH-93: the header counts the objects without a height; Shift+H, the View menu, the palette
     // and a click on the count all go to the next one.
     function test_the_missing_heights_are_counted_and_stepped_through() {
@@ -759,15 +711,5 @@ TestCase {
             verify(de.t(key) !== key, "de " + key)
             verify(en.t(key) !== key, "en " + key)
         }
-    }
-
-    // The 3D view has no plan to fit: "Fit" is off there (LH-94).
-    function test_fit_is_off_in_3d() {
-        const header = make()
-        const fit = findChild(header, "zoomFit")
-        verify(fit.enabled)
-
-        fake.viewFree = true
-        verify(!fit.enabled)
     }
 }

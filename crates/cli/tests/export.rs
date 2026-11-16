@@ -6,6 +6,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+/// Where the width sits in a PNG file; the height follows.
+const PNG_WIDTH_AT: usize = 16;
+/// The width of the PNG of a view (LH-86).
+const CAMERA_VIEW_WIDTH_PX: u32 = 1920;
 const EXAMPLE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/beispiel.klappe"
@@ -76,6 +80,10 @@ fn exports_a_portrait_pdf() {
     assert!(output.status.success(), "{}", stderr(&output));
     let text = String::from_utf8_lossy(&std::fs::read(&out).unwrap()).into_owned();
     assert!(text.contains("/MediaBox [0 0 595.28 841.89]"));
+    assert!(
+        !text.contains("/MediaBox [0 0 841.89 595.28]"),
+        "the shot list is upright too"
+    );
 }
 
 #[test]
@@ -179,4 +187,50 @@ fn exports_one_picture_per_mark_into_a_folder() {
     assert_eq!(names[4], "12-05-00-20.png");
     let first = std::fs::read(dir.join(&names[0])).unwrap();
     assert!(first.starts_with(PNG_SIGNATURE));
+}
+
+/// LH-86: what camera `a` sees at a time, as the PNG the window's "Kamerablick als PNG" writes.
+#[test]
+fn exports_the_view_of_a_camera() {
+    let out = out_file("cli-camera.png");
+
+    let output = export(&out, &["--format", "camera", "--camera", "a", "--at", "6"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let bytes = std::fs::read(&out).unwrap();
+    assert!(bytes.starts_with(PNG_SIGNATURE));
+    let width = u32::from_be_bytes(bytes[PNG_WIDTH_AT..PNG_WIDTH_AT + 4].try_into().unwrap());
+    assert_eq!(width, CAMERA_VIEW_WIDTH_PX);
+}
+
+#[test]
+fn the_view_of_a_camera_needs_the_camera() {
+    let out = out_file("cli-nocamera.png");
+
+    let output = export(&out, &["--format", "camera", "--language", "en"]);
+
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("--camera"), "{}", stderr(&output));
+    assert!(!out.exists());
+}
+
+#[test]
+fn an_unknown_camera_fails_without_a_file() {
+    let out = out_file("cli-badcamera.png");
+
+    let output = export(&out, &["--format", "camera", "--camera", "zz"]);
+
+    assert!(!output.status.success());
+    assert!(!out.exists());
+}
+
+#[test]
+fn a_camera_goes_with_the_camera_format_only() {
+    let out = out_file("cli-stray-camera.png");
+
+    let output = export(&out, &["--camera", "a"]);
+
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("--camera"), "{}", stderr(&output));
+    assert!(!out.exists());
 }

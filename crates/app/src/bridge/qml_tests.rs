@@ -22,7 +22,7 @@ fn scenarios() -> Vec<PathBuf> {
     found
 }
 
-/// Letter portrait is 612 by 792 pt; the shot list's sheets stay landscape.
+/// Letter portrait is 612 by 792 pt.
 const LETTER_PORTRAIT_MEDIA_BOX: &str = "/MediaBox [0 0 612 792]";
 
 /// ODS and XLSX are ZIP files; the frames folder holds one PNG per mark of the example; the

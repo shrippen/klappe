@@ -50,27 +50,103 @@ impl Setup {
     }
 }
 
+/// The number of the setup `setup` belongs to in `setups`: the first it matches, else a new
+/// one at the end. The place is compared with that setup's first shot, so a slow dolly cannot
+/// chain shots into one setup.
+fn join(setups: &mut Vec<Setup>, setup: Setup) -> usize {
+    if let Some(i) = setups.iter().position(|s| s.matches(&setup)) {
+        return i + 1;
+    }
+
+    setups.push(setup);
+    setups.len()
+}
+
+/// The index of the shot `shot` is shot together with by hand (LH-77), if its `setup_of`
+/// names one: a shot of the plan other than itself that is not assigned by hand itself, so
+/// chains do not exist.
+pub fn setup_target(plan: &FloorPlan, shot: &Shot) -> Option<usize> {
+    let id = shot.setup_of.as_deref()?;
+
+    plan.shots
+        .iter()
+        .position(|s| s.id == id && s.id != shot.id && s.setup_of.is_none())
+}
+
 /// The setup number (1-based) of every shot, in the plan's cut order. Setups are numbered
-/// by their first shot. A shot joins the first setup it matches; the place is compared with
-/// that setup's first shot, so a slow dolly cannot chain shots into one setup.
+/// by their first shot, from camera, place and lens (`join`).
+///
+/// A shot with `setup_of` is left out of that and takes the number of its target
+/// (`setup_target`): manual shots never pull others along, so the numbers do not depend on
+/// them. Without a target it is computed like the others, after them.
 ///
 /// Example: A at (8; 11) with 35 mm, A at (9; 8) with 40 mm, B at (18; 4) with 50 mm, B
 /// again, A at (9; 8) with 40 mm: `[1, 2, 3, 3, 2]`.
 pub fn shot_setups(plan: &FloorPlan) -> Vec<usize> {
     let mut setups: Vec<Setup> = Vec::new();
+    let mut numbers = vec![0; plan.shots.len()];
 
-    plan.shots
+    for (i, shot) in plan.shots.iter().enumerate() {
+        if shot.setup_of.is_none() {
+            numbers[i] = join(&mut setups, Setup::of(shot, plan));
+        }
+    }
+
+    for (i, shot) in plan.shots.iter().enumerate() {
+        if shot.setup_of.is_none() {
+            continue;
+        }
+
+        numbers[i] = match setup_target(plan, shot) {
+            Some(target) => numbers[target],
+            None => join(&mut setups, Setup::of(shot, plan)),
+        };
+    }
+
+    numbers
+}
+
+/// A setup a shot can be assigned to (LH-77).
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetupChoice {
+    pub setup: usize,
+    /// The setup's first shot: what a shot assigned to it names.
+    pub first_id: String,
+    pub first_number: String,
+    pub camera_label: String,
+    pub lens_mm: f64,
+}
+
+/// The setups of the plan as they are without the shot `skip` and without all shots assigned
+/// by hand: the numbers a shot assigned by hand gets, whatever `skip` does.
+pub fn setup_choices(plan: &FloorPlan, skip: &str) -> Vec<SetupChoice> {
+    let mut setups: Vec<Setup> = Vec::new();
+    let mut choices: Vec<SetupChoice> = Vec::new();
+
+    for shot in plan
+        .shots
         .iter()
-        .map(|shot| {
-            let setup = Setup::of(shot, plan);
-            if let Some(i) = setups.iter().position(|s| s.matches(&setup)) {
-                return i + 1;
-            }
+        .filter(|s| s.setup_of.is_none() && s.id != skip)
+    {
+        let setup = Setup::of(shot, plan);
+        let known = setups.len();
+        let number = join(&mut setups, setup);
+        if number <= known {
+            continue;
+        }
 
-            setups.push(setup);
-            setups.len()
-        })
-        .collect()
+        choices.push(SetupChoice {
+            setup: number,
+            first_id: shot.id.clone(),
+            first_number: shot.number.clone(),
+            camera_label: plan
+                .camera(&shot.camera)
+                .map_or_else(|| shot.camera.clone(), |c| c.label.clone()),
+            lens_mm: setups[number - 1].lens_mm,
+        });
+    }
+
+    choices
 }
 
 /// The shots with their setup number, in the order asked for. `Shooting` lists setup 1
@@ -131,6 +207,7 @@ mod tests {
             gear: String::new(),
             crew: String::new(),
             note: String::new(),
+            setup_of: None,
         }
     }
 
@@ -180,6 +257,75 @@ mod tests {
 
         assert_eq!(ids(&cut), ["1", "2", "3", "4", "5"]);
         assert_eq!(cut[4].0, 2);
+    }
+
+    /// Shot 1 alone in its setup, then shot 2 chosen: both stay with B's shots.
+    #[test]
+    fn a_shot_assigned_by_hand_joins_the_setup_of_its_target() {
+        let mut plan = example();
+        plan.shots[0].setup_of = Some("3".into());
+
+        // The others number first (2 and 5, then 3 and 4); 1 follows 3.
+        assert_eq!(shot_setups(&plan), [2, 1, 2, 2, 1]);
+
+        let order = ordered_shots(&plan, ShotOrder::Shooting);
+        assert_eq!(ids(&order), ["2", "5", "1", "3", "4"]);
+    }
+
+    #[test]
+    fn leaving_a_first_shot_keeps_the_target_setup() {
+        let mut plan = example();
+        plan.shots[1].setup_of = Some("3".into());
+
+        // 5 stays alone in its setup, B's shots are 2 now; 2 follows them.
+        assert_eq!(shot_setups(&plan), [1, 2, 2, 2, 3]);
+    }
+
+    #[test]
+    fn a_target_that_is_gone_or_manual_or_itself_is_ignored() {
+        for target in ["9", "2", "1"] {
+            let mut plan = example();
+            plan.shots[1].setup_of = Some("1".into());
+            plan.shots[0].setup_of = Some(target.into());
+            if target == "1" {
+                plan.shots[1].setup_of = None;
+            }
+
+            assert_eq!(setup_target(&plan, &plan.shots[0]), None, "{target}");
+        }
+    }
+
+    #[test]
+    fn a_shot_without_a_target_is_computed_after_the_others() {
+        let mut plan = example();
+        plan.shots[1].setup_of = Some("9".into());
+
+        // The others number first (1; 3 and 4; 5 is setup 3); 2 matches 5.
+        assert_eq!(shot_setups(&plan), [1, 3, 2, 2, 3]);
+    }
+
+    #[test]
+    fn the_choices_leave_out_the_shot_and_the_manual_ones() {
+        let mut plan = example();
+        let numbers = |plan: &FloorPlan, skip: &str| -> Vec<(usize, String)> {
+            setup_choices(plan, skip)
+                .into_iter()
+                .map(|c| (c.setup, c.first_number))
+                .collect()
+        };
+
+        assert_eq!(
+            numbers(&plan, "x"),
+            [(1, "1".into()), (2, "2".into()), (3, "3".into())]
+        );
+        // Without shot 1 the setups of 2 and 3 move up; they were 2 and 3 with it.
+        assert_eq!(numbers(&plan, "1"), [(1, "2".into()), (2, "3".into())]);
+
+        plan.shots[2].setup_of = Some("1".into());
+        assert_eq!(
+            numbers(&plan, "x"),
+            [(1, "1".into()), (2, "2".into()), (3, "4".into())]
+        );
     }
 
     /// 0.4 m away is the same place, 0.6 m is not (tolerance 0.5 m).

@@ -35,6 +35,17 @@ TestCase {
             controller: fake
             papers: [{ id: "a4", label: "A4" }, { id: "a3", label: "A3" }, { id: "letter", label: "Letter" }]
             orientations: ["portrait", "landscape"]
+            formats: [
+                { id: "pdf", paper: true, extension: "pdf" },
+                { id: "png", paper: true, extension: "png" },
+                { id: "svg", paper: true, extension: "svg" },
+                { id: "csv", paper: false, extension: "csv" },
+                { id: "ods", paper: false, extension: "ods" },
+                { id: "xlsx", paper: false, extension: "xlsx" },
+                { id: "frames", paper: true, extension: null },
+                { id: "view3d", paper: false, extension: "png" },
+                { id: "camera", paper: false, extension: "png" }
+            ]
         }
     }
 
@@ -58,9 +69,44 @@ TestCase {
         compare(fake.calls, [])
     }
 
+    // What prints on a sheet asks for it; the lists and the views of the plan do not.
+    function test_only_the_formats_that_print_on_paper_ask_for_it() {
+        const asks = { pdf: true, png: true, svg: true, frames: true,
+                       csv: false, ods: false, xlsx: false, view3d: false, camera: false }
+
+        for (const kind in asks) {
+            const dialog = make()
+            const files = findChild(dialog, "files")
+            const folders = findChild(dialog, "folders")
+
+            dialog.request(kind)
+
+            compare(dialog.opened || dialog.visible, asks[kind], kind)
+            compare(files.visible || folders.visible, !asks[kind], kind)
+            files.close()
+            folders.close()
+            dialog.close()
+        }
+    }
+
+    // A format without extension is a folder.
+    function test_the_frames_ask_for_a_folder() {
+        const dialog = make()
+        const folders = findChild(dialog, "folders")
+
+        dialog.request("frames")
+        tryCompare(dialog, "opened", true)
+        dialog.pick()
+
+        tryCompare(folders, "visible", true)
+        folders.close()
+        dialog.close()
+    }
+
     function test_it_starts_from_the_projects_paper() {
         const dialog = make()
-        dialog.projectPaper = "letter-portrait"
+        dialog.projectSize = "letter"
+        dialog.projectOrientation = "portrait"
 
         dialog.request("pdf")
         tryCompare(dialog, "opened", true)
@@ -99,6 +145,22 @@ TestCase {
         verify(files.parentWindow !== null)
         compare(files.parentWindow, tc.Window.window)
         files.close()
+    }
+
+    // The file dialog adds the suffix itself, before it asks about replacing a file.
+    function test_the_file_dialog_carries_the_suffix_of_the_format() {
+        const dialog = make()
+        const files = findChild(dialog, "files")
+        const suffixes = { pdf: "pdf", png: "png", svg: "svg", csv: "csv", ods: "ods", xlsx: "xlsx",
+                           view3d: "png", camera: "png" }
+
+        for (const kind in suffixes) {
+            dialog.request(kind)
+            dialog.pick()
+            compare(files.defaultSuffix, suffixes[kind], kind)
+            files.close()
+            dialog.close()
+        }
     }
 
     function test_the_paper_goes_to_the_plan_exports() {

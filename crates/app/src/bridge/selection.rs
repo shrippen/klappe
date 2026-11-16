@@ -11,6 +11,15 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 
 impl qobject::Controller {
+    pub(super) fn clear_selection(mut self: Pin<&mut Self>) {
+        if self.rust().selected.is_empty() {
+            return;
+        }
+
+        self.as_mut().rust_mut().get_mut().selected = Selection::default();
+        self.refresh();
+    }
+
     pub(super) fn remove_selected(mut self: Pin<&mut Self>) -> bool {
         let edit = selection::key_edit(Key::Remove, &self.rust().selected);
         let Some(edit) = edit else {

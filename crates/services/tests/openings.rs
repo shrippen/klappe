@@ -212,7 +212,7 @@ fn the_width_changes_about_the_centre() {
 fn a_width_that_does_not_fit_is_refused() {
     let mut s = open();
 
-    for width_m in [0.0, -1.0, f64::NAN, 25.0] {
+    for width_m in [0.0, -1.0, f64::NAN, 25.0, 0.1, 0.29] {
         let result = s.edit_plan(PlanEdit::SetOpeningWidth {
             source: opening(2, 0),
             width_m,

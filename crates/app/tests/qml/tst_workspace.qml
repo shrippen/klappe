@@ -64,6 +64,7 @@ TestCase {
 
         function markInfo() { return "{}" }
         function setTool() { return true }
+        function clearSelection() {}
         function setDrawStyle() { return true }
         function setSnapping() {}
         function selectShot(id) { calls.push(["shot", id]) }
@@ -74,6 +75,7 @@ TestCase {
         function setLayer() {}
         function setLock() {}
         function editShot() { return true }
+        function setupChoices() { return "[]" }
         function setFollow() { return true }
         function addShot() { return true }
         function copyShot() { return true }

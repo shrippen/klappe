@@ -539,6 +539,7 @@ fn a_size_must_be_a_usable_number() {
         (f64::NAN, 1.0),
         (1.0, f64::INFINITY),
         (5000.0, 1.0),
+        (0.04, 1.0),
     ] {
         let err = resize(&mut s, "tisch", w, d).unwrap_err();
         assert!(matches!(

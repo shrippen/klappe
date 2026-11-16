@@ -32,7 +32,7 @@ fn a_selected_note_has_its_width_grip_at_the_right_edge() {
         );
 
         assert_eq!(grips.len(), 1);
-        assert_eq!(grips[0].role, Role::NoteHandle);
+        assert_eq!(grips[0].role, Role::Handle);
         assert_eq!(grips[0].source, Some(Source::NoteWidth("n1".into())));
         assert!(matches!(
             grips[0].shape,

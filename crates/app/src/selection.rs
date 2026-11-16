@@ -45,16 +45,7 @@ pub enum Reach {
 /// itself (it is the bend to straighten). A click on a point is the exception, see `click`.
 /// A free form's point stands for the form.
 fn whole(source: Source) -> Source {
-    match source {
-        Source::DrawingPoint { drawing, .. } | Source::DrawingEdge { drawing, .. } => {
-            Source::Drawing(drawing)
-        }
-        Source::NoteWidth(note) => Source::Note(note),
-        Source::ObjectGrip { object, .. } => Source::Object(object),
-        Source::OpeningEdge { wall, index, .. } => Source::Opening { wall, index },
-        Source::LightGrip { light, .. } => Source::Light(light),
-        source => source,
-    }
+    source.owner().unwrap_or(source)
 }
 
 impl Selection {
@@ -194,6 +185,18 @@ impl Selection {
         }
     }
 
+    /// After a drag of a grip ended: a point a click took (a free form's, an area's) was taken
+    /// to be deleted, not dragged, so the element is selected again and its card shows the
+    /// new values. A way's bend stays: it is the bend to straighten.
+    pub fn released(self) -> Selection {
+        match self.only() {
+            Some(point @ (Source::DrawingPoint { .. } | Source::ObjectGrip { .. })) => {
+                Selection::of(Some(point.clone()))
+            }
+            _ => self,
+        }
+    }
+
     /// The elements, `first` in front: the one the pointer holds snaps to the grid.
     fn leading(&self, first: &Source) -> Vec<Source> {
         let mut sources = vec![first.clone()];
@@ -278,6 +281,7 @@ fn group_key_edit(key: Key, sources: Vec<Source>) -> Option<PlanEdit> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use klappe_services::{LightGrip, OpeningEnd};
 
     fn p(x_m: f64, y_m: f64) -> Point {
         Point::new(x_m, y_m)
@@ -433,6 +437,57 @@ mod tests {
         );
     }
 
+    /// A click on a grip takes the element it belongs to, whatever kind of grip it is; the
+    /// bend grips of a way are the exception, they are selected themselves.
+    #[test]
+    fn a_click_on_a_grip_takes_its_element() {
+        let cases = [
+            (Source::NoteWidth("n".into()), Source::Note("n".into())),
+            (
+                Source::OpeningEdge {
+                    wall: 2,
+                    index: 1,
+                    end: OpeningEnd::Start,
+                },
+                Source::Opening { wall: 2, index: 1 },
+            ),
+            (
+                Source::LightGrip {
+                    light: "l".into(),
+                    grip: LightGrip::Beam,
+                },
+                Source::Light("l".into()),
+            ),
+            (
+                Source::DrawingEdge {
+                    drawing: "d".into(),
+                    index: 0,
+                },
+                Source::Drawing("d".into()),
+            ),
+        ];
+
+        for (grip, element) in cases {
+            assert_eq!(
+                Selection::of(None).click(Some(grip.clone()), Pick::Replace),
+                Selection::of(Some(element.clone())),
+                "{grip:?}"
+            );
+            assert_eq!(
+                Selection::of(Some(grip.clone())),
+                Selection::of(Some(element)),
+                "{grip:?}"
+            );
+        }
+
+        let bend = Source::FigureVia {
+            character: "e".into(),
+            index: 1,
+            bend: Bend::At(0),
+        };
+        assert_eq!(Selection::of(Some(bend.clone())).sources(), [bend]);
+    }
+
     /// A plain click on a free form's point selects the point, for Delete; any other pick of
     /// it, and a width grip, stands for the object.
     #[test]
@@ -551,6 +606,37 @@ mod tests {
         assert_eq!(
             bend.clone().pulled(&shift(&grip(Bend::At(0)), 1.0), (1, 1)),
             bend
+        );
+    }
+
+    /// A drag of a point a click took ends with its element selected; a bend stays.
+    #[test]
+    fn a_released_point_selects_its_element() {
+        let point = Source::ObjectGrip {
+            object: "o".into(),
+            grip: ObjectGrip::Point(1),
+        };
+        let corner = Source::DrawingPoint {
+            drawing: "d".into(),
+            index: 2,
+        };
+        let bend = Source::CameraVia {
+            camera: "c".into(),
+            index: 0,
+            bend: Bend::At(0),
+        };
+
+        assert_eq!(
+            Selection(vec![point]).released(),
+            Selection::of(Some(Source::Object("o".into())))
+        );
+        assert_eq!(
+            Selection(vec![corner]).released(),
+            Selection::of(Some(Source::Drawing("d".into())))
+        );
+        assert_eq!(
+            Selection(vec![bend.clone()]).released(),
+            Selection(vec![bend])
         );
     }
 

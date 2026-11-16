@@ -1,12 +1,15 @@
 use klappe_model::{AxisPair, Camera, FloorPlan, Movement, Shot};
-use klappe_stellprobe::{axis_jumps, movement_in, ordered_shots, shot_lens, AxisJump, ShotOrder};
+use klappe_stellprobe::{
+    axis_jumps, movement_in, ordered_shots, setup_choices, setup_target, shot_lens, AxisJump,
+    ShotOrder,
+};
 
 use super::{Layer, Lock, Session};
 use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::shot_edit;
-use crate::views::{ShotRow, FALLBACK_ASPECT};
+use crate::views::{SetupOption, ShotRow, FALLBACK_ASPECT};
 
 const AGAINST_SEPARATOR: &str = ", ";
 
@@ -84,8 +87,22 @@ impl Session {
                     axis_jump: jump.is_some(),
                     axis_against: jump.map(|j| against_numbers(plan, j)).unwrap_or_default(),
                     setup,
+                    setup_of: shot.setup_of.clone().unwrap_or_default(),
+                    setup_lost: shot.setup_of.is_some() && setup_target(plan, shot).is_none(),
                 }
             })
+            .collect()
+    }
+
+    /// The setups shot `id` can be assigned to (LH-77), counted without that shot.
+    pub fn setup_options(&self, id: &str) -> Vec<SetupOption> {
+        let Some(plan) = self.plan() else {
+            return Vec::new();
+        };
+
+        setup_choices(plan, id)
+            .into_iter()
+            .map(Into::into)
             .collect()
     }
 
@@ -102,6 +119,9 @@ impl Session {
             .get_mut(self.scene)
             .and_then(|s| s.plans.get_mut(self.plan))
             .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
+        if field == ShotField::Setup {
+            shot_edit::check_setup(plan, id, value)?;
+        }
         let shot = plan
             .shots
             .iter_mut()

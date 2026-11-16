@@ -48,6 +48,7 @@ TestCase {
         function addShot() { return true }
         function copyShot() { return true }
         function deleteShot() { return true }
+        function setupChoices() { return "[]" }
         function setFollow() { return true }
         function selectShot(id) { selects.push(id) }
         function editShot(id, field, value) {

@@ -137,7 +137,7 @@ fn a_selected_form_shows_a_grip_on_each_point_and_picks_it() {
         .display_list()
         .items
         .iter()
-        .all(|i| i.role != Role::ObjectHandle));
+        .all(|i| i.role != Role::Handle));
 }
 
 /// The box grows to (4, 5)-(10, 9): its centre moves to (7, 7), width 6, depth 4.
