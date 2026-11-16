@@ -170,7 +170,9 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   einen anderen Mark), wird die Bindung gelöst, die Notiz bleibt stehen. Eine Kopie (Strg+D)
   ist ungebunden. Bei gesperrter Ebene Notizen lehnt die Sitzung eine Bearbeitung ab, die eine
   Notiz oder Beschriftung verschieben oder lösen würde. Ohne Bindung fehlt der Schlüssel, ohne
-  Beschriftungen fehlt `labels`; ein unlesbarer Schlüssel bindet nichts. Ältere Projekte laden
+  Beschriftungen fehlt `labels`; ein unlesbarer Schlüssel bindet nichts. Laden lehnt eine Beschriftung ab, deren Breite unter
+  0,6 m liegt oder keine Zahl ist, mit doppelter `id` im Plan oder mit `bound` ungleich
+  `figure:`/`mark:`. Ältere Projekte laden
   und speichern unverändert, ältere Fassungen verlieren beides beim Speichern. Keine neue
   Formatversion (noch kein Release).
 - **Bilder (LH-18):** `[[set.images]]` im Drehort: Fotos und Skizzen, frei auf dem Plan. Je Bild
