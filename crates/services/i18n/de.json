@@ -805,5 +805,9 @@
  "step.AddPlan": "Plan anlegen",
  "step.RenamePlan": "Plan umbenennen",
  "step.MovePlan": "Plan verschieben",
- "step.RemovePlan": "Plan löschen"
+ "step.RemovePlan": "Plan löschen",
+ "step.Follow": "Kamera folgt Figur",
+ "step.SetSensor": "Sensor ändern",
+ "step.SetLens": "Brennweite der Kamera ändern",
+ "step.SetAspect": "Seitenverhältnis ändern"
 }

@@ -99,6 +99,27 @@ impl Session {
         Ok(())
     }
 
+    /// Whether `edit_plan(edit)` would change the plan: the menu offers only such commands.
+    pub fn changes(&self, edit: &PlanEdit) -> bool {
+        if self.check_lock(edit).is_err() {
+            return false;
+        }
+
+        let mut next = self.project.clone();
+        let at = (self.scene, self.plan);
+        let applied = plan_edit::apply(
+            &self.dir,
+            &mut next,
+            at.0,
+            at.1,
+            self.time_s,
+            (self.snapping, self.grid),
+            edit,
+        );
+
+        applied.is_ok() && next != self.project
+    }
+
     /// Changes scenes, locations or characters; undoable. The scene on view stays, also when
     /// others come or go before it.
     pub fn edit_project(&mut self, edit: ProjectEdit) -> Result<(), ServiceError> {

@@ -29,6 +29,7 @@ TestCase {
         property int scalePoints: 0
         property bool measuring: false
         property bool asksNote: false
+        property string noteText: ""
         property int areaPoints: 0
         property var calls: []
         // What a right click selects: the key and count the fake then shows.
@@ -36,6 +37,22 @@ TestCase {
 
         function describe(key) { return "{}" }
         function markInfo() { return "{}" }
+        // What the controller says of the selection: the table stands for its rules.
+        readonly property var infos: ({
+            "object": { layer: "set", remove: true, duplicate: true, turn: true },
+            "camera": { layer: "cameras", remove: true, duplicate: true, turn: true, straighten: true, shot: true },
+            "figure": { layer: "figures", remove: true, turn: true, straighten: true },
+            "note": { layer: "notes", remove: true, duplicate: true, note: true },
+            "opening": { layer: "set", remove: true },
+            "many": { layer: "", remove: true, duplicate: true, turn: true }
+        })
+        function menuInfo() {
+            if (selectedCount === 0) {
+                return "{}"
+            }
+            const kind = selectedCount > 1 ? "many" : selectedKey.split(":")[0]
+            return JSON.stringify(infos[kind] || { layer: "set", remove: true })
+        }
         function selectAt(x, y) {
             calls.push(["selectAt"])
             selectedKey = pickKey
@@ -154,14 +171,8 @@ TestCase {
             "object:o1": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
             "camera:a": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxAddShot", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
             "figure:e": ["ctxDelete", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "mark:e:1": ["ctxDelete", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "light:l1": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
             "note:n1": ["ctxDelete", "ctxDuplicate", "ctxEditNote", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "drawing:d1": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "image:i1": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "wall:3": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "opening:3:0": ["ctxDelete", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "figurevia:e:1:at0": ["ctxDelete", "ctxStraighten", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"]
+            "opening:3:0": ["ctxDelete", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"]
         }
 
         open(area, "object:o1")
@@ -298,6 +309,29 @@ TestCase {
 
         area.tool = "select"
         verify(!line.visible)
+    }
+
+    // The hint line stands clear of the cards at the bottom, which belong to the same tools.
+    function test_the_hint_line_does_not_cover_the_cards_of_the_tool() {
+        const area = made("note")
+        area.toolHint = "Klick setzt eine Notiz. Das Werkzeug bleibt für weitere aktiv, Esc wählt die Auswahl."
+        fake.asksNote = true
+        waitForRendering(area)
+        const line = findChild(area, "hintLine")
+        const card = findChild(area, "noteCard")
+        verify(line.visible)
+        verify(card.visible)
+
+        const hint = line.mapToItem(area, 0, 0)
+        const note = card.mapToItem(area, 0, 0)
+        const apart = hint.y + line.height <= note.y || note.y + card.height <= hint.y
+            || hint.x + line.width <= note.x || note.x + card.width <= hint.x
+        verify(apart, "hint " + JSON.stringify(hint) + " " + line.width + "x" + line.height
+               + ", card " + JSON.stringify(note) + " " + card.width + "x" + card.height)
+
+        fake.asksNote = false
+        const bottom = line.mapToItem(area, 0, 0).y + line.height
+        verify(bottom > note.y, "the hint comes down again without a card")
     }
 
     // LH-102: the grips say what dragging them does.

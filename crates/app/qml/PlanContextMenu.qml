@@ -30,25 +30,17 @@ QQC2.Menu {
 
     signal fitRequested()
 
-    readonly property var _duplicable: ["object", "light", "note", "image", "drawing", "wall", "camera"]
-    readonly property var _turnable: ["object", "light", "camera", "figure", "mark", "wall", "drawing", "image"]
-    readonly property var _ways: ["figure", "camera", "mark", "figurevia", "cameravia"]
-    /// The layer each kind of key is on (plan_edit.rs `layer_of_source`).
-    readonly property var _layerOf: ({
-        object: "set", objectgrip: "set", wall: "set", opening: "set", openingedge: "set",
-        light: "lights", lightgrip: "lights", camera: "cameras", cameravia: "cameras",
-        figure: "figures", mark: "figures", figurevia: "figures",
-        note: "notes", notewidth: "notes", image: "notes", imagesize: "notes",
-        drawing: "drawings", drawingpoint: "drawings", drawingedge: "drawings"
-    })
-
+    /// What the controller says the selection takes (`menuInfo`): the layer and the commands.
+    readonly property var info: {
+        void controller.selectedKey
+        void controller.selectedCount
+        void controller.planJson
+        return JSON.parse(controller.menuInfo())
+    }
     readonly property int picked: controller.selectedCount
-    readonly property bool several: picked > 1
-    /// The kind of the one element selected; empty for none or several.
-    readonly property string kind: controller.selectedKey === "" ? "" : controller.selectedKey.split(":")[0]
-    readonly property string layer: _layerOf[kind] || ""
-    readonly property string layerName: layer === "" ? "" : texts.t("layer." + layer)
     readonly property bool onElement: picked > 0
+    readonly property string layer: info.layer || ""
+    readonly property string layerName: layer === "" ? "" : texts.t("layer." + layer)
 
     readonly property var _shown: controller.layersJson ? JSON.parse(controller.layersJson) : ({})
     readonly property var _locks: controller.locksJson ? JSON.parse(controller.locksJson) : ({})
@@ -73,7 +65,7 @@ QQC2.Menu {
 
     KanteMenuItem {
         objectName: "ctxDelete"
-        visible: menu.onElement
+        visible: menu.info.remove === true
         text: menu.texts.t("ctx.delete")
         shortcutText: menu.keyName("Delete")
         destructive: true
@@ -81,42 +73,42 @@ QQC2.Menu {
     }
     KanteMenuItem {
         objectName: "ctxDuplicate"
-        visible: menu.several || menu._duplicable.indexOf(menu.kind) >= 0
+        visible: menu.info.duplicate === true
         text: menu.texts.t("ctx.duplicate")
         shortcutText: menu.keyName("Ctrl+D")
         onTriggered: menu.controller.duplicateSelected()
     }
     KanteMenuItem {
         objectName: "ctxTurnRight"
-        visible: menu.several || menu._turnable.indexOf(menu.kind) >= 0
+        visible: menu.info.turn === true
         text: menu.texts.t("ctx.turnRight")
         shortcutText: "R"
         onTriggered: menu.controller.turnSelected(menu.turnStepDeg)
     }
     KanteMenuItem {
         objectName: "ctxTurnLeft"
-        visible: menu.several || menu._turnable.indexOf(menu.kind) >= 0
+        visible: menu.info.turn === true
         text: menu.texts.t("ctx.turnLeft")
         shortcutText: menu.keyName("Shift+R")
         onTriggered: menu.controller.turnSelected(-menu.turnStepDeg)
     }
     KanteMenuItem {
         objectName: "ctxStraighten"
-        visible: menu._ways.indexOf(menu.kind) >= 0
+        visible: menu.info.straighten === true
         text: menu.texts.t("ctx.straighten")
         shortcutText: "G"
         onTriggered: menu.controller.straightenSelected()
     }
     KanteMenuItem {
         objectName: "ctxEditNote"
-        visible: menu.kind === "note"
+        visible: menu.info.note === true
         text: menu.texts.t("ctx.editNote")
         shortcutText: "F2"
         onTriggered: menu.controller.editSelectedNote()
     }
     KanteMenuItem {
         objectName: "ctxAddShot"
-        visible: menu.kind === "camera"
+        visible: menu.info.shot === true
         text: menu.texts.t("ctx.addShot")
         onTriggered: menu.controller.addShot()
     }

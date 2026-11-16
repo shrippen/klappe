@@ -255,6 +255,11 @@ Item {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.margins: Kirigami.Units.largeSpacing
+        // The cards of the tools lie at the bottom, in the middle: the hint stands above them.
+        anchors.bottomMargin: Kirigami.Units.largeSpacing + (cardsHeight > 0 ? cardsHeight + Kirigami.Units.largeSpacing : 0)
+        readonly property real cardsHeight: Math.max(lengthCard.visible ? lengthCard.height : 0,
+                                                     noteCard.visible ? noteCard.height : 0,
+                                                     measureCard.visible ? measureCard.height : 0)
         implicitWidth: Math.min(hintLabel.implicitWidth, area.width / 2) + Kirigami.Units.largeSpacing * 2
         implicitHeight: hintLabel.implicitHeight + Kirigami.Units.largeSpacing * 2
 

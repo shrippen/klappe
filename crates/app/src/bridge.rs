@@ -493,6 +493,13 @@ pub mod qobject {
         #[cxx_name = "markInfo"]
         fn mark_info(self: &Self) -> QString;
 
+        /// What the context menu offers for the selection, as JSON: `layer` (name, empty for
+        /// none or several), and `remove`, `duplicate`, `turn`, `straighten` (the command
+        /// would change something), `note` and `shot` (one note or one camera is selected).
+        #[qinvokable]
+        #[cxx_name = "menuInfo"]
+        fn menu_info(self: &Self) -> QString;
+
         /// Sets lens height (m) and tilt (degrees, positive looks up) of the selected camera
         /// mark (LH-34), comma or point as decimal separator. False for another selection or
         /// a text that is no number; a refusal by the session (limits) goes to `status`.

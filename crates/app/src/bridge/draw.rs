@@ -303,7 +303,7 @@ impl qobject::Controller {
 
         let picked = s.pick_click(Point::new(x, y), selected.only());
         let found = picked.is_some();
-        self.as_mut().rust_mut().get_mut().selected = selected.grab(picked);
+        self.as_mut().rust_mut().get_mut().selected = selected.context(picked);
         self.refresh();
         found
     }

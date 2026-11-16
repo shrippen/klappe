@@ -102,7 +102,10 @@ impl Selection {
     /// A right click on `picked` (`None`: empty ground): a member keeps the selection, else
     /// the pick is made as a click makes it; empty ground clears it.
     pub fn context(self, picked: Option<Source>) -> Selection {
-        self.grab(picked)
+        match picked {
+            Some(source) if self.contains(&source) => self,
+            picked => self.click(picked, Pick::Replace),
+        }
     }
 
     /// A box that took `found`: replaces the selection, or with `Extend` adds to it.

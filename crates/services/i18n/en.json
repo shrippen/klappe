@@ -805,5 +805,9 @@
  "step.AddPlan": "Add plan",
  "step.RenamePlan": "Rename plan",
  "step.MovePlan": "Move plan",
- "step.RemovePlan": "Delete plan"
+ "step.RemovePlan": "Delete plan",
+ "step.Follow": "Camera follows figure",
+ "step.SetSensor": "Change sensor",
+ "step.SetLens": "Change camera lens",
+ "step.SetAspect": "Change aspect ratio"
 }
