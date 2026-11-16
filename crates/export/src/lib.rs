@@ -30,6 +30,7 @@ mod png_write;
 mod raster;
 mod rgb8;
 mod scan;
+mod script;
 mod sheet;
 mod shots;
 mod stroke;
@@ -48,6 +49,7 @@ pub use page::{
     DrawingTexts, LampColumns, LampTexts, Page, ShotColumns, ShotTexts, ShotView, Texts,
 };
 pub use palette::Theme;
+pub use script::{Face, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
 
 /// The plan on one page as SVG.
 pub fn svg(list: &DisplayList, page: &Page, theme: Theme) -> Result<String, ExportError> {
@@ -101,6 +103,12 @@ pub fn pdf_with_views(
         .extend(camera_pages::sheets(plan, page, pal, order, views)?);
 
     pdf::write(&doc)
+}
+
+/// A screenplay laid out by the caller, as PDF 1.4 in Courier (a standard font, nothing
+/// embedded): the title page when it has anything, then the pages.
+pub fn script_pdf(sheet: &ScriptSheet) -> Vec<u8> {
+    script::pdf(sheet)
 }
 
 /// `files` (name with `/`, bytes) as one ZIP archive, stored uncompressed: a folder handed on
