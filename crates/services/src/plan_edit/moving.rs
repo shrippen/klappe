@@ -1,8 +1,8 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
 use klappe_model::{
-    CameraMark, Drawing, DrawingShape, FloorPlan, Light, Mark, PlanImage, Point, SetObject, Wall,
-    MAX_OBJECT_M, MIN_BEAM_DEG, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
+    CameraMark, Drawing, DrawingShape, Extent, FloorPlan, Light, Mark, PlanImage, Point, SetObject,
+    Wall, MAX_OBJECT_M, MIN_BEAM_DEG, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use klappe_stellprobe::{
     bend_follow, bend_grips, drawing_handle_places, image_grip_place, light_grip_place,
@@ -231,66 +231,53 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
     Ok(())
 }
 
+/// The extent a grip sets; none for a free form's point or side.
+fn extent_of(grip: ObjectGrip) -> Option<Extent> {
+    match grip {
+        ObjectGrip::Width => Some(Extent::Width),
+        ObjectGrip::Depth => Some(Extent::Depth),
+        ObjectGrip::Point(_) | ObjectGrip::Side(_) => None,
+    }
+}
+
 /// The point of grip `grip` that snaps: the middle of the edge it sizes (the right edge for the
 /// width, the bottom edge for the depth, turned with the object), or the outline point itself.
 fn edge_middle(object: &SetObject, grip: ObjectGrip) -> Point {
-    match grip {
-        ObjectGrip::Width => object.placed(object.width_m / 2.0, 0.0),
-        ObjectGrip::Depth => object.placed(0.0, object.depth_m / 2.0),
-        ObjectGrip::Point(_) | ObjectGrip::Side(_) => object_grip_place(object, grip),
+    match extent_of(grip) {
+        Some(extent) => object.rect().edge_middle(extent),
+        None => object_grip_place(object, grip),
     }
 }
 
 /// Sets the width or depth so the grip lands on `to` as far as its axis goes, in the object's
-/// turned frame; the opposite edge (left or top) stays, so the centre moves half the change.
+/// turned frame.
 fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
-    // The axis of the size on the plan: where one metre along it lies, from the centre.
-    let along = |x_m: f64, y_m: f64| {
-        let tip = object.placed(x_m, y_m);
-
-        (tip.x_m - object.at.x_m, tip.y_m - object.at.y_m)
-    };
-    let (axis, size_m) = match grip {
-        ObjectGrip::Width => (along(1.0, 0.0), object.width_m),
-        ObjectGrip::Depth => (along(0.0, 1.0), object.depth_m),
-        // A point or side sets no size.
-        ObjectGrip::Point(_) | ObjectGrip::Side(_) => return,
+    // A point or side sets no size.
+    let Some(extent) = extent_of(grip) else {
+        return;
     };
 
-    // The grip sits a gap outside the edge: the size changes by how far `to` lies beyond it.
-    let grip_at = object_grip_place(object, grip);
-    let beyond_m = (to.x_m - grip_at.x_m) * axis.0 + (to.y_m - grip_at.y_m) * axis.1;
-    let new_m = (size_m + beyond_m).clamp(MIN_OBJECT_M, MAX_OBJECT_M);
-    let moved_m = (new_m - size_m) / 2.0;
-
-    object.at = Point::new(
-        object.at.x_m + moved_m * axis.0,
-        object.at.y_m + moved_m * axis.1,
+    let grown = object.rect().stretched(
+        extent,
+        object_grip_place(object, grip),
+        to,
+        (MIN_OBJECT_M, MAX_OBJECT_M),
     );
-    match grip {
-        ObjectGrip::Width => object.width_m = new_m,
-        ObjectGrip::Depth => object.depth_m = new_m,
-        ObjectGrip::Point(_) | ObjectGrip::Side(_) => {}
-    }
+    object.at = grown.at;
+    object.width_m = grown.width_m;
+    object.depth_m = grown.depth_m;
 }
 
-/// Sets the width so the grip lands on `to` as far as the image's turned x axis goes; the left
-/// edge stays, so the centre moves half the change.
+/// Sets the width so the grip lands on `to` as far as the image's turned x axis goes.
 fn stretch_image(image: &mut PlanImage, to: Point) {
-    let tip = image.placed(1.0, 0.0);
-    let axis = (tip.x_m - image.at.x_m, tip.y_m - image.at.y_m);
-
-    // The grip sits a gap outside the edge: the width changes by how far `to` lies beyond it.
-    let grip_at = image_grip_place(image);
-    let beyond_m = (to.x_m - grip_at.x_m) * axis.0 + (to.y_m - grip_at.y_m) * axis.1;
-    let new_m = (image.width_m + beyond_m).clamp(MIN_OBJECT_M, MAX_OBJECT_M);
-    let moved_m = (new_m - image.width_m) / 2.0;
-
-    image.at = Point::new(
-        image.at.x_m + moved_m * axis.0,
-        image.at.y_m + moved_m * axis.1,
+    let grown = image.rect().stretched(
+        Extent::Width,
+        image_grip_place(image),
+        to,
+        (MIN_OBJECT_M, MAX_OBJECT_M),
     );
-    image.width_m = new_m;
+    image.at = grown.at;
+    image.width_m = grown.width_m;
 }
 
 fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
@@ -335,7 +322,7 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
         }
         // As an object's: the edge snaps, the grip outside it follows.
         Target::ImageEdge(image) => Ok((
-            image.placed(image.width_m / 2.0, 0.0),
+            image.rect().edge_middle(Extent::Width),
             image_grip_place(image),
         )),
         // The edge snaps, the grip outside it follows: an unturned object gets round sizes.

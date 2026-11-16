@@ -48,6 +48,91 @@ impl Point {
     }
 }
 
+/// The size of a rectangle a grip sets: the right edge sets the width, the bottom edge the depth.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Extent {
+    Width,
+    Depth,
+}
+
+/// A rectangle on the plan around a centre, turned about it: what a furniture object and a
+/// placed image both are. Its own frame has the origin at the centre, x to the right and y
+/// down, unturned.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TurnedRect {
+    pub at: Point,
+    pub width_m: f64,
+    pub depth_m: f64,
+    /// Clockwise on screen about `at`.
+    pub rotation_deg: f64,
+}
+
+impl TurnedRect {
+    /// The point `(x_m, y_m)` of the rectangle's own frame where it lies on the plan: turned
+    /// by `rotation_deg` about the centre.
+    pub fn placed(&self, x_m: f64, y_m: f64) -> Point {
+        Point::new(self.at.x_m + x_m, self.at.y_m + y_m).turned(self.at, self.rotation_deg)
+    }
+
+    /// The point `along_m` from the centre along the axis of `extent`, on the plan.
+    fn on_axis(&self, extent: Extent, along_m: f64) -> Point {
+        match extent {
+            Extent::Width => self.placed(along_m, 0.0),
+            Extent::Depth => self.placed(0.0, along_m),
+        }
+    }
+
+    fn size_m(&self, extent: Extent) -> f64 {
+        match extent {
+            Extent::Width => self.width_m,
+            Extent::Depth => self.depth_m,
+        }
+    }
+
+    /// The middle of the edge that sets `extent` (right for the width, bottom for the depth).
+    pub fn edge_middle(&self, extent: Extent) -> Point {
+        self.on_axis(extent, self.size_m(extent) / 2.0)
+    }
+
+    /// The middle of that edge pushed `gap_m` outward: where its size grip sits.
+    pub fn grip_place(&self, extent: Extent, gap_m: f64) -> Point {
+        self.on_axis(extent, self.size_m(extent) / 2.0 + gap_m)
+    }
+
+    /// The rectangle with `extent` set so its grip, now at `grip_at`, lands on `to` as far as
+    /// the axis of `extent` goes, within `min_m` to `max_m`. The opposite edge (left or top)
+    /// stays, so the centre moves half the change.
+    pub fn stretched(
+        &self,
+        extent: Extent,
+        grip_at: Point,
+        to: Point,
+        (min_m, max_m): (f64, f64),
+    ) -> TurnedRect {
+        // The axis on the plan: where one metre along it lies, from the centre.
+        let tip = self.on_axis(extent, 1.0);
+        let axis = (tip.x_m - self.at.x_m, tip.y_m - self.at.y_m);
+        let size_m = self.size_m(extent);
+
+        // The grip sits a gap outside the edge: the size changes by how far `to` lies beyond it.
+        let beyond_m = (to.x_m - grip_at.x_m) * axis.0 + (to.y_m - grip_at.y_m) * axis.1;
+        let new_m = (size_m + beyond_m).clamp(min_m, max_m);
+        let moved_m = (new_m - size_m) / 2.0;
+
+        let mut rect = *self;
+        rect.at = Point::new(
+            self.at.x_m + moved_m * axis.0,
+            self.at.y_m + moved_m * axis.1,
+        );
+        match extent {
+            Extent::Width => rect.width_m = new_m,
+            Extent::Depth => rect.depth_m = new_m,
+        }
+
+        rect
+    }
+}
+
 /// A full turn; angles are kept within [0, 360).
 pub const FULL_TURN_DEG: f64 = 360.0;
 
