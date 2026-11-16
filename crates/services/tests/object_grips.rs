@@ -73,7 +73,7 @@ fn a_selected_object_shows_its_grips_and_picks_them() {
 
     assert_eq!(places.len(), 2);
     assert_eq!(
-        s.pick_for(Point::new(13.0, 6.5), Some(&table())),
+        s.pick_for(Point::new(13.45, 6.5), Some(&table())),
         Some(grip(ObjectGrip::Width))
     );
     assert!(s
@@ -164,4 +164,45 @@ fn removing_a_grip_removes_nothing() {
 
     assert!(result.is_err());
     assert_eq!(s.project().locations[0].set.objects.len(), 3);
+}
+
+/// Where the grips of the selected table are shown.
+fn grip_places(s: &Session) -> Vec<(Source, Point)> {
+    s.display_list_for(Some(&table()))
+        .items
+        .iter()
+        .filter(|i| i.role == Role::ObjectHandle)
+        .filter_map(|i| match (&i.source, &i.shape) {
+            (Some(source), Shape::Circle { center, .. }) => Some((source.clone(), *center)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// A small object (a chair, a door from the library, a 10 cm box): a click on its middle still
+/// takes the object, and each grip takes its own grip, so it can be moved and sized.
+#[test]
+fn the_grips_of_a_small_object_hide_neither_it_nor_each_other() {
+    for (width_m, depth_m) in [(0.45, 0.45), (0.9, 0.2), (0.1, 0.1)] {
+        let mut s = open();
+        s.edit_plan(drag(ObjectGrip::Width, width_m - 6.0, 0.0))
+            .unwrap();
+        s.edit_plan(drag(ObjectGrip::Depth, 0.0, depth_m - 1.2))
+            .unwrap();
+        let (x_m, y_m, w, d) = state(&s);
+        assert!(near(w, width_m) && near(d, depth_m), "{w} {d}");
+
+        assert_eq!(
+            s.pick_for(Point::new(x_m, y_m), Some(&table())),
+            Some(table()),
+            "{width_m} × {depth_m}: middle"
+        );
+        for (source, at) in grip_places(&s) {
+            assert_eq!(
+                s.pick_for(at, Some(&table())),
+                Some(source.clone()),
+                "{width_m} × {depth_m}: {source:?}"
+            );
+        }
+    }
 }

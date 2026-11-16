@@ -49,17 +49,17 @@ fn near(a: Point, b: Point) -> bool {
     (a.x_m - b.x_m).abs() < 1e-9 && (a.y_m - b.y_m).abs() < 1e-9
 }
 
-/// Unturned: the width grip in the middle of the right edge, the depth grip in the middle of
-/// the bottom edge.
+/// Unturned: the width grip 0.45 m outside the middle of the right edge, the depth grip as far
+/// below the middle of the bottom edge.
 #[test]
 fn an_object_has_a_grip_on_its_right_and_bottom_edge() {
     let found = grips(&set(0.0, ObjectShape::Rect), &Source::Object("o".into()));
 
     assert_eq!(found.len(), 2);
     assert_eq!(found[0].0, grip(ObjectGrip::Width));
-    assert!(near(found[0].1, Point::new(12.0, 6.0)));
+    assert!(near(found[0].1, Point::new(12.45, 6.0)));
     assert_eq!(found[1].0, grip(ObjectGrip::Depth));
-    assert!(near(found[1].1, Point::new(10.0, 7.0)));
+    assert!(near(found[1].1, Point::new(10.0, 7.45)));
 }
 
 /// Turned by 90 degrees clockwise, the right edge is below the centre and the bottom edge to
@@ -68,8 +68,8 @@ fn an_object_has_a_grip_on_its_right_and_bottom_edge() {
 fn the_grips_turn_with_the_object() {
     let found = grips(&set(90.0, ObjectShape::Rect), &Source::Object("o".into()));
 
-    assert!(near(found[0].1, Point::new(10.0, 8.0)));
-    assert!(near(found[1].1, Point::new(9.0, 6.0)));
+    assert!(near(found[0].1, Point::new(10.0, 8.45)));
+    assert!(near(found[1].1, Point::new(8.55, 6.0)));
 }
 
 /// An ellipse is sized by width and depth like a rectangle; the grips follow the grip itself

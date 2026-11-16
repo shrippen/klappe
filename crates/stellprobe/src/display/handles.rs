@@ -109,13 +109,18 @@ fn light_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
         .collect()
 }
 
-/// Where the grip `grip` of `object` sits on the plan: the middle of its right or bottom edge,
-/// turned with the object.
+/// How far outside its edge an object's grip sits: farther than a grip catches a click
+/// (radius and pick tolerance, 0.3 m), so a click on a small object takes the object, and so
+/// far that the two grips of a 10 cm box (at least 0.45 m · √2 apart) do not cover each other.
+const OBJECT_GRIP_GAP_M: f64 = 0.45;
+
+/// Where the grip `grip` of `object` sits on the plan: just outside the middle of its right or
+/// bottom edge, turned with the object.
 pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
     let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
     let (x_m, y_m) = match grip {
-        ObjectGrip::Width => (object.width_m / 2.0, 0.0),
-        ObjectGrip::Depth => (0.0, object.depth_m / 2.0),
+        ObjectGrip::Width => (object.width_m / 2.0 + OBJECT_GRIP_GAP_M, 0.0),
+        ObjectGrip::Depth => (0.0, object.depth_m / 2.0 + OBJECT_GRIP_GAP_M),
     };
 
     Point::new(

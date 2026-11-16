@@ -464,10 +464,10 @@ fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
         ObjectGrip::Depth => ((-sin, cos), object.depth_m),
     };
 
-    // Along the axis, from the fixed edge to the pointer.
-    let along_m =
-        (to.x_m - object.at.x_m) * axis.0 + (to.y_m - object.at.y_m) * axis.1 + size_m / 2.0;
-    let new_m = along_m.clamp(OBJECT_MIN_M, MAX_OBJECT_M);
+    // The grip sits a gap outside the edge: the size changes by how far `to` lies beyond it.
+    let grip_at = object_grip_place(object, grip);
+    let beyond_m = (to.x_m - grip_at.x_m) * axis.0 + (to.y_m - grip_at.y_m) * axis.1;
+    let new_m = (size_m + beyond_m).clamp(OBJECT_MIN_M, MAX_OBJECT_M);
     let moved_m = (new_m - size_m) / 2.0;
 
     object.at = Point::new(
