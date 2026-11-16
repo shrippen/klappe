@@ -118,45 +118,31 @@ fn a_new_shot_goes_into_the_cut_by_its_start() {
 }
 
 #[test]
-fn numbers_go_on_after_the_highest_and_keep_gaps() {
+fn a_new_number_is_the_count_of_base_shots_and_skips_a_taken_one() {
     let mut s = open();
     s.delete_shot("s12-2").unwrap();
+
+    let id = s.add_shot(None).unwrap();
+    // Four base shots: the fifth would be 12.5, which the last shot has.
+    assert_eq!(number_of(&s, &id), "12.6");
+
     s.edit_shot("s12-3", ShotField::Number, "12.7").unwrap();
-
     let id = s.add_shot(None).unwrap();
-
-    assert_eq!(
-        s.shots().into_iter().find(|r| r.id == id).unwrap().number,
-        "12.8"
-    );
+    assert_eq!(number_of(&s, &id), "12.8");
 }
 
 #[test]
-fn a_lettered_version_counts_as_its_number() {
+fn a_version_is_not_counted_for_the_next_number() {
     let mut s = open();
-    s.edit_shot("s12-5", ShotField::Number, "12.5A").unwrap();
+    s.version_shot("s12-5").unwrap();
 
     let id = s.add_shot(None).unwrap();
 
-    assert_eq!(
-        s.shots().into_iter().find(|r| r.id == id).unwrap().number,
-        "12.6"
-    );
+    assert_eq!(number_of(&s, &id), "12.6");
 }
 
-#[test]
-fn numbers_of_other_scenes_do_not_count() {
-    let mut s = open();
-    s.edit_shot("s12-5", ShotField::Number, "120.9").unwrap();
-    s.edit_shot("s12-4", ShotField::Number, "12").unwrap();
-
-    let id = s.add_shot(None).unwrap();
-
-    // Only 12.1 to 12.3 are left of this scene.
-    assert_eq!(
-        s.shots().into_iter().find(|r| r.id == id).unwrap().number,
-        "12.4"
-    );
+fn number_of(s: &Session, id: &str) -> String {
+    s.shots().into_iter().find(|r| r.id == id).unwrap().number
 }
 
 #[test]
@@ -592,18 +578,26 @@ fn a_version_of_an_unknown_shot_fails() {
 }
 
 #[test]
-fn renumbering_closes_gaps_and_keeps_version_letters() {
+fn renumbering_closes_gaps_and_keeps_versions_with_their_base() {
     let mut s = open();
-    s.edit_shot("s12-2", ShotField::Number, "12.3").unwrap();
-    s.edit_shot("s12-3", ShotField::Number, "12.3A").unwrap();
-    s.edit_shot("s12-4", ShotField::Number, "12.7").unwrap();
-    s.edit_shot("s12-5", ShotField::Number, "12.7A").unwrap();
-    s.edit_shot("s12-1", ShotField::Number, "12.1").unwrap();
+    s.version_shot("s12-2").unwrap();
+    s.version_shot("s12-4").unwrap();
+    for (id, number) in [
+        ("s12-2", "12.3"),
+        ("s12-4", "12.7"),
+        ("s12-1", "12.1"),
+        ("s12-5", "12.9"),
+    ] {
+        s.edit_shot(id, ShotField::Number, number).unwrap();
+    }
     let before_ids = ids(&s);
 
     s.renumber_shots().unwrap();
 
-    assert_eq!(numbers(&s), ["12.1", "12.2", "12.2A", "12.3", "12.3A"]);
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.2A", "12.3", "12.4", "12.4A", "12.5"]
+    );
     assert_eq!(ids(&s), before_ids);
 }
 
@@ -658,25 +652,24 @@ fn a_locked_camera_layer_refuses_versions_and_renumbering() {
     assert!(!s.can_undo());
 }
 
+/// A number is free text and never read back: any base can have versions, and renumbering
+/// replaces what was typed.
 #[test]
-fn a_number_without_a_digit_before_its_letters_has_no_versions() {
+fn a_typed_number_has_versions_and_is_replaced_by_renumbering() {
     let mut s = open();
     s.edit_shot("s12-3", ShotField::Number, "INSERT").unwrap();
-    s.edit_shot("s12-4", ShotField::Number, "TOTALEVONOBENS")
-        .unwrap();
     s.edit_shot("s12-5", ShotField::Number, "12.5ZZZ").unwrap();
 
-    // A version would have letters that count as no version: a second one would repeat it.
-    for id in ["s12-3", "s12-4", "s12-5"] {
-        let refused = s.version_shot(id);
-        assert!(matches!(refused, Err(ServiceError::NoVersion(_))), "{id}");
-    }
+    s.version_shot("s12-3").unwrap();
+    s.version_shot("s12-5").unwrap();
     assert_eq!(
         numbers(&s),
-        ["12.1", "12.2", "INSERT", "TOTALEVONOBENS", "12.5ZZZ"]
+        ["12.1", "12.2", "INSERT", "INSERTA", "12.4", "12.5ZZZ", "12.5ZZZA"]
     );
 
-    // Only letters after a digit are a version: each of these is a number of its own.
     s.renumber_shots().unwrap();
-    assert_eq!(numbers(&s), ["12.1", "12.2", "12.3", "12.4", "12.5ZZZ"]);
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.3", "12.3A", "12.4", "12.5", "12.5A"]
+    );
 }

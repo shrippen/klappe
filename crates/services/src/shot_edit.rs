@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use klappe_model::{Angle, FloorPlan, LinkTarget, Movement, Numbering, Shot, ShotSize};
+use klappe_model::{Angle, FloorPlan, LinkTarget, Movement, Numbering, Shot, ShotSize, VersionOf};
 use klappe_stellprobe::is_setup_model;
 
 use crate::error::ServiceError;
@@ -10,11 +10,7 @@ use crate::field::Field;
 const DEFAULT_SHOT_S: f64 = 5.0;
 
 /// Letters of the alphabet a version suffix counts in.
-const LETTERS: usize = 26;
-
-/// Longest version suffix (`ZZZ`, the 18278th version); longer letters are part of the
-/// number, so counting them cannot overflow.
-const MAX_VERSION_LETTERS: usize = 3;
+const LETTERS: u32 = 26;
 
 /// Sets a version off from the camera letter in the camera and group schemes.
 const VERSION_SEPARATOR: char = '-';
@@ -44,32 +40,24 @@ fn span_at(plan: &FloorPlan, at_s: f64) -> (f64, f64) {
     (at_s, at_s + DEFAULT_SHOT_S)
 }
 
-/// The highest running number among the numbers that start with `prefix`, 0 for none: the digits
-/// right behind it count, so `12.4A` and `12A.4-B` count as 4.
-fn highest_after(plan: &FloorPlan, prefix: &str) -> u32 {
-    plan.shots
-        .iter()
-        .filter_map(|s| s.number.strip_prefix(prefix))
-        .filter_map(|rest| {
-            let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
-            digits.parse::<u32>().ok()
-        })
-        .max()
-        .unwrap_or(0)
-}
-
 /// What a shot of `camera` is called in a number: its label, else its id.
 fn camera_name(plan: &FloorPlan, camera: &str) -> String {
     plan.camera(camera)
         .map_or_else(|| camera.to_owned(), |c| c.label.clone())
 }
 
-/// The group part of a group number: `12.3` of `12.3B` and `12.3B-A`.
-fn group_of<'a>(number: &'a str, scene: &str) -> Option<&'a str> {
-    let rest = number.strip_prefix(scene)?.strip_prefix('.')?;
-    let digits = rest.chars().take_while(char::is_ascii_digit).count();
+/// The base shot `shot` is a version of, if it names one that is a base itself.
+fn base_of<'a>(plan: &'a FloorPlan, shot: &Shot) -> Option<&'a Shot> {
+    let of = shot.version_of.as_ref()?;
 
-    (digits > 0).then(|| &number[..scene.len() + 1 + digits])
+    plan.shots
+        .iter()
+        .find(|s| s.id == of.shot && s.version_of.is_none())
+}
+
+/// A shot that is no version, or whose base is gone, counts as a base.
+fn is_base(plan: &FloorPlan, shot: &Shot) -> bool {
+    base_of(plan, shot).is_none()
 }
 
 /// Whether the stretches of two shots share time.
@@ -77,10 +65,22 @@ fn overlap(a: &Shot, from_s: f64, to_s: f64) -> bool {
     a.from_s < to_s && from_s < a.to_s
 }
 
-/// The number for a new shot of `camera` over `from_s` to `to_s` (LH-76), by the scheme.
-/// Scene: one more than the highest running number so far, so gaps stay. Camera: one more
-/// than the highest of that camera. Group: the number of a group the shot overlaps in time
-/// and whose cameras do not include this one, else a new group.
+fn taken(plan: &FloorPlan, number: &str) -> bool {
+    plan.shots.iter().any(|s| s.number == number)
+}
+
+/// The group of a base shot numbered by the group scheme: its number without the camera
+/// label, e.g. `12.3` of `12.3B`. `None` for a number that does not end in the label.
+fn group_key<'a>(plan: &FloorPlan, shot: &'a Shot) -> Option<&'a str> {
+    shot.number
+        .strip_suffix(camera_name(plan, &shot.camera).as_str())
+}
+
+/// The number for a new base shot of `camera` over `from_s` to `to_s` (LH-76), by the scheme,
+/// made from the shots' data and never from reading digits or letters out of other numbers.
+/// The count of base shots (of the camera, or of the groups) gives the running number, and
+/// goes on while that number is taken. Group: the group of a shot that overlaps in time and
+/// has no shot of this camera, else a new group.
 fn next_number(
     plan: &FloorPlan,
     numbering: Numbering,
@@ -89,41 +89,54 @@ fn next_number(
     (from_s, to_s): (f64, f64),
 ) -> String {
     let label = camera_name(plan, camera);
+    let bases: Vec<&Shot> = plan.shots.iter().filter(|s| is_base(plan, s)).collect();
 
     match numbering {
-        Numbering::Scene => format!("{scene}.{}", highest_after(plan, &format!("{scene}.")) + 1),
-        Numbering::Camera => {
-            let prefix = format!("{scene}{label}.");
+        Numbering::Scene => {
+            let first = bases.len() + 1;
 
-            format!("{prefix}{}", highest_after(plan, &prefix) + 1)
+            (first..)
+                .map(|n| format!("{scene}.{n}"))
+                .find(|number| !taken(plan, number))
+                .unwrap_or_default()
+        }
+        Numbering::Camera => {
+            let own = bases.iter().filter(|s| s.camera == camera).count();
+
+            (own + 1..)
+                .map(|n| format!("{scene}{label}.{n}"))
+                .find(|number| !taken(plan, number))
+                .unwrap_or_default()
         }
         Numbering::Group => {
-            let joined = plan
-                .shots
+            let groups: HashSet<&str> = bases.iter().filter_map(|s| group_key(plan, s)).collect();
+            let joined = bases
                 .iter()
                 .filter(|s| overlap(s, from_s, to_s))
-                .filter_map(|s| group_of(&s.number, scene))
-                .find(|group| {
-                    let taken = plan.shots.iter().any(|s| {
-                        group_of(&s.number, scene) == Some(group)
-                            && camera_name(plan, &s.camera) == label
-                    });
-                    !taken
+                .filter_map(|s| group_key(plan, s))
+                .find(|key| {
+                    !bases.iter().any(|s| {
+                        group_key(plan, s) == Some(*key) && camera_name(plan, &s.camera) == label
+                    })
                 });
-            let group = joined.map_or_else(
-                || format!("{scene}.{}", highest_after(plan, &format!("{scene}.")) + 1),
-                str::to_owned,
-            );
 
-            format!("{group}{label}")
+            match joined {
+                Some(key) => format!("{key}{label}"),
+                None => (groups.len() + 1..)
+                    .map(|n| format!("{scene}.{n}"))
+                    .find(|key| {
+                        !groups.contains(key.as_str()) && !taken(plan, &format!("{key}{label}"))
+                    })
+                    .map(|key| format!("{key}{label}"))
+                    .unwrap_or_default(),
+            }
         }
     }
 }
 
-/// The id for a new shot of the scene numbered `scene`. It is stable and independent of the
-/// number: a taken one (a shot renumbered since) moves on.
+/// The id for a new shot. It is stable and independent of the number: a taken one moves on.
 fn next_id(plan: &FloorPlan, scene: &str) -> String {
-    let mut n = highest_after(plan, &format!("{scene}.")) + 1;
+    let mut n = plan.shots.len() + 1;
     while plan.shots.iter().any(|s| s.id == format!("s{scene}-{n}")) {
         n += 1;
     }
@@ -173,13 +186,14 @@ pub(crate) fn add(
             note: String::new(),
             setup_of: None,
             image: None,
+            version_of: None,
         },
     );
     id
 }
 
-/// Adds a copy of shot `id` with a new number, right behind it; returns the copy's id.
-/// Several shots of one setup start as copies (LH-70).
+/// Adds a copy of shot `id` as a base shot with a new number, right behind it; returns the
+/// copy's id. Several shots of one setup start as copies (LH-70).
 pub(crate) fn copy(
     plan: &mut FloorPlan,
     numbering: Numbering,
@@ -199,60 +213,13 @@ pub(crate) fn copy(
     let mut shot = original.clone();
     shot.id = new_id.clone();
     shot.number = number;
+    shot.version_of = None;
     plan.shots.insert(at + 1, shot);
     Ok(new_id)
 }
 
-/// Splits a shot number into its base and version: in the scene scheme `12.3B` is (`12.3`,
-/// `B`), letters being a version only after a digit and at most `MAX_VERSION_LETTERS` long;
-/// `INSERT` is a base of its own (numbers are free text). The other schemes use letters for
-/// cameras, so their version is set off by a hyphen: `12A.3-B` is (`12A.3`, `-B`).
-fn split_number(numbering: Numbering, number: &str) -> (&str, &str) {
-    if numbering != Numbering::Scene {
-        let Some((base, letters)) = number.rsplit_once(VERSION_SEPARATOR) else {
-            return (number, "");
-        };
-        let valid = (1..=MAX_VERSION_LETTERS).contains(&letters.len())
-            && letters.bytes().all(|b| b.is_ascii_uppercase());
-
-        return if valid {
-            (base, &number[base.len()..])
-        } else {
-            (number, "")
-        };
-    }
-
-    let base = number.trim_end_matches(|c: char| c.is_ascii_uppercase());
-    let letters = number.len() - base.len();
-    let after_digit = base.ends_with(|c: char| c.is_ascii_digit());
-    if !after_digit || letters > MAX_VERSION_LETTERS {
-        return (number, "");
-    }
-
-    (base, &number[base.len()..])
-}
-
-/// Splits a number for "Renumber" into its base and version letters, whatever scheme wrote it,
-/// so a version survives a change of scheme. A hyphen tail (`12A.3-B`) is a version in every
-/// scheme. Letters after a digit (`12.3A`) are a version of the scene scheme or the camera of the
-/// group scheme: they are the camera when they are `label`, the camera of the shot, and no
-/// shot of the plan has the number without them (`existing`); else a version.
-fn split_any<'a>(existing: &HashSet<String>, number: &'a str, label: &str) -> (&'a str, &'a str) {
-    let hyphen = split_number(Numbering::Camera, number);
-    if !hyphen.1.is_empty() {
-        return (hyphen.0, hyphen.1.trim_start_matches(VERSION_SEPARATOR));
-    }
-
-    let (base, letters) = split_number(Numbering::Scene, number);
-    if letters == label && !existing.contains(base) {
-        return (number, "");
-    }
-
-    (base, letters)
-}
-
 /// Version letters for the n-th version (1-based): A to Z, then AA, AB, ...
-fn letters(mut n: usize) -> String {
+fn letters(mut n: u32) -> String {
     let mut out = Vec::new();
     while n > 0 {
         n -= 1;
@@ -263,18 +230,18 @@ fn letters(mut n: usize) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-/// The n of version letters (`A` is 1, `AA` is 27); 0 for none.
-fn version_index(letters: &str) -> usize {
-    letters
-        .trim_start_matches(VERSION_SEPARATOR)
-        .bytes()
-        .fold(0, |n, b| n * LETTERS + usize::from(b - b'A') + 1)
+/// What a version adds to the number of its base: letters in the scene scheme (`12.3A`), a
+/// hyphen and letters where letters name cameras (`12A.3-B`).
+fn suffix(numbering: Numbering, index: u32) -> String {
+    match numbering {
+        Numbering::Scene => letters(index),
+        Numbering::Camera | Numbering::Group => format!("{VERSION_SEPARATOR}{}", letters(index)),
+    }
 }
 
-/// Adds a copy of shot `id` as the next version of its number, behind the last version
-/// of that number: a copy of `12.3` is `12.3A`, then `12.3B`; a copy of `12.3A` is `12.3B`
-/// (`12A.3-A` in the camera and group schemes). A number that does not end in a digit
-/// (`INSERT`) has no versions in the scene scheme. Returns the copy's id.
+/// Adds a copy of shot `id` as the next version of its base, behind the last version: a copy of
+/// `12.3` is `12.3A`, then `12.3B`; a copy of `12.3A` is `12.3B` (`12A.3-A` in the camera and
+/// group schemes). The version refers to its base and keeps its camera. Returns the copy's id.
 pub(crate) fn version(
     plan: &mut FloorPlan,
     numbering: Numbering,
@@ -286,81 +253,89 @@ pub(crate) fn version(
         .iter()
         .find(|s| s.id == id)
         .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
-    let base = split_number(numbering, &original.number).0.to_owned();
+    let base = base_of(plan, original).unwrap_or(original);
+    let (base_id, base_number) = (base.id.clone(), base.number.clone());
 
-    let in_base = |s: &Shot| split_number(numbering, &s.number).0 == base;
-    let highest = plan
+    let of_base =
+        |s: &Shot| s.id == base_id || s.version_of.as_ref().is_some_and(|v| v.shot == base_id);
+    let index = plan
         .shots
         .iter()
-        .filter(|s| in_base(s))
-        .map(|s| version_index(split_number(numbering, &s.number).1))
+        .filter_map(|s| s.version_of.as_ref())
+        .filter(|v| v.shot == base_id)
+        .map(|v| v.index)
         .max()
-        .unwrap_or(0);
-    let at = plan.shots.iter().rposition(in_base).map_or(0, |i| i + 1);
+        .unwrap_or(0)
+        + 1;
+    let at = plan.shots.iter().rposition(of_base).map_or(0, |i| i + 1);
 
-    // Letters that would not count as a version again (`INSERTA`, `12.3AAAA`) are refused:
-    // the next version would repeat the number.
-    let suffix = letters(highest + 1);
-    let digit_base = base.ends_with(|c: char| c.is_ascii_digit());
-    let counts =
-        (numbering != Numbering::Scene || digit_base) && suffix.len() <= MAX_VERSION_LETTERS;
-    if !counts {
-        return Err(ServiceError::NoVersion(original.number.clone()));
-    }
-
-    let separator = match numbering {
-        Numbering::Scene => String::new(),
-        Numbering::Camera | Numbering::Group => VERSION_SEPARATOR.to_string(),
-    };
     let mut shot = original.clone();
     shot.id = next_id(plan, scene);
-    shot.number = format!("{base}{separator}{suffix}");
+    shot.number = format!("{base_number}{}", suffix(numbering, index));
+    shot.version_of = Some(VersionOf {
+        shot: base_id,
+        index,
+    });
     let new_id = shot.id.clone();
     plan.shots.insert(at, shot);
     Ok(new_id)
 }
 
-/// Numbers the shots again in cut order, versions keeping their tail at the new number of
-/// their base (LH-76). Scene: `12.1`, `12.2` ... (12.1, 12.3, 12.3A, 12.7 become 12.1, 12.2,
-/// 12.2A, 12.3). Camera: each camera counts its own, `12A.1`, `12B.1`, `12A.2`. Group: shots
-/// that overlap in time with other cameras share a number, `12.1A`, `12.1B`, `12.2A`.
+/// Numbers the shots again in cut order from their data and the scheme (LH-76), never from
+/// their old numbers: base shots first, then each version as its base plus its suffix. Scene:
+/// `12.1`, `12.2` ... Camera: each camera counts its own, `12A.1`, `12B.1`, `12A.2`. Group:
+/// base shots of different cameras that overlap in time share a number, `12.1A`, `12.1B`,
+/// `12.2A`. A version of a base that is gone counts as a base.
 pub(crate) fn renumber(plan: &mut FloorPlan, numbering: Numbering, scene: &str) {
-    let mut new_base: HashMap<String, String> = HashMap::new();
     let mut counts: HashMap<String, usize> = HashMap::new();
     let mut groups: Vec<RunGroup> = Vec::new();
-    let existing: HashSet<String> = plan.shots.iter().map(|s| s.number.clone()).collect();
+    let mut base_numbers: HashMap<String, String> = HashMap::new();
+    let mut count = 0;
 
     for at in 0..plan.shots.len() {
         let shot = &plan.shots[at];
-        let (base, letters) = split_any(&existing, &shot.number, &camera_name(plan, &shot.camera));
-        let tail = match (letters.is_empty(), numbering) {
-            (true, _) => String::new(),
-            (false, Numbering::Scene) => letters.to_owned(),
-            (false, _) => format!("{VERSION_SEPARATOR}{letters}"),
-        };
-        let base = base.to_owned();
-        let label = camera_name(plan, &shot.camera);
+        if !is_base(plan, shot) {
+            continue;
+        }
 
-        let number = match new_base.get(&base) {
-            Some(number) => number.clone(),
-            None => {
-                let number = match numbering {
-                    Numbering::Scene => format!("{scene}.{}", new_base.len() + 1),
-                    Numbering::Camera => {
-                        let n = counts.entry(label.clone()).or_insert(0);
-                        *n += 1;
-                        format!("{scene}{label}.{n}")
-                    }
-                    Numbering::Group => {
-                        let group = join_group(&mut groups, shot, &label);
-                        format!("{scene}.{}{label}", group + 1)
-                    }
-                };
-                new_base.insert(base, number.clone());
-                number
+        count += 1;
+        let label = camera_name(plan, &shot.camera);
+        let number = match numbering {
+            Numbering::Scene => format!("{scene}.{count}"),
+            Numbering::Camera => {
+                let n = counts.entry(label.clone()).or_insert(0);
+                *n += 1;
+                format!("{scene}{label}.{n}")
+            }
+            Numbering::Group => {
+                let group = join_group(&mut groups, shot, &label);
+                format!("{scene}.{}{label}", group + 1)
             }
         };
-        plan.shots[at].number = format!("{number}{tail}");
+        base_numbers.insert(shot.id.clone(), number);
+    }
+
+    let versions: Vec<(usize, String)> = plan
+        .shots
+        .iter()
+        .enumerate()
+        .filter_map(|(at, shot)| {
+            let of = shot.version_of.as_ref()?;
+            let base = base_numbers
+                .get(&of.shot)
+                .filter(|_| !is_base(plan, shot))?;
+
+            Some((at, format!("{base}{}", suffix(numbering, of.index))))
+        })
+        .collect();
+
+    for shot in &mut plan.shots {
+        if let Some(number) = base_numbers.remove(&shot.id) {
+            shot.number = number;
+        }
+    }
+    for (at, number) in versions {
+        plan.shots[at].number = number;
     }
 }
 

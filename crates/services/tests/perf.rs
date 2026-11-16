@@ -177,6 +177,7 @@ fn shot(i: usize) -> Shot {
         setup_of: None,
         short_name: String::new(),
         image: None,
+        version_of: None,
     }
 }
 

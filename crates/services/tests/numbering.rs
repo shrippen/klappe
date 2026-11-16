@@ -443,3 +443,24 @@ fn a_scene_number_with_a_letter_numbers_every_scheme() {
         ["12A.1", "12A.2", "12A.3", "12A.3A", "12A.4", "12A.5"]
     );
 }
+
+/// What a version is lives in the shot, not in its number: it survives saving, and a version
+/// whose base was deleted is numbered as a base.
+#[test]
+fn a_version_is_stored_as_a_reference_and_an_orphan_becomes_a_base() {
+    let (mut s, dir) = open("numbering-ref");
+    let id = s.version_shot("s12-3").unwrap();
+    s.save().unwrap();
+    let text = std::fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    assert!(text.contains("\"version_of\""), "{text}");
+
+    let mut s = Session::open(&dir).unwrap();
+    scheme(&mut s, Numbering::Camera);
+    s.renumber_shots().unwrap();
+    assert!(numbers(&s).contains(&"12B.1-A".to_owned()));
+
+    s.delete_shot("s12-3").unwrap();
+    s.renumber_shots().unwrap();
+    let all = numbers(&s);
+    assert_eq!(all, ["12A.1", "12A.2", "12B.1", "12B.2", "12A.3"], "{id}");
+}

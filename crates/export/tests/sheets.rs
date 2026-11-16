@@ -81,6 +81,7 @@ fn plan(shots: usize) -> FloorPlan {
             setup_of: None,
             short_name: String::new(),
             image: None,
+            version_of: None,
         })
         .collect();
 

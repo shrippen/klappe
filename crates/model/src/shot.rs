@@ -47,6 +47,19 @@ pub struct Shot {
     /// The storyboard picture (LH-74): a file of the project's `bilder/`, e.g. `bilder/s12-3.png`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
+    /// The shot this one is a version of (LH-76); `None` for a base shot. `number` is derived
+    /// from it (and the project's scheme) when the shot is made or numbered again, never read
+    /// back.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_of: Option<VersionOf>,
+}
+
+/// What a version refers to: the id of its base shot in the same plan and its own place among
+/// the versions of that base (1 is the first, written `A`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VersionOf {
+    pub shot: String,
+    pub index: u32,
 }
 
 impl Shot {

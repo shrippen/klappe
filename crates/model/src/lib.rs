@@ -56,7 +56,7 @@ pub use project::{
     SetPlan, Wall, IMAGE_WIDTH_M, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
     MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
-pub use shot::{Angle, Movement, Numbering, Shot, ShotSize};
+pub use shot::{Angle, Movement, Numbering, Shot, ShotSize, VersionOf};
 pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).

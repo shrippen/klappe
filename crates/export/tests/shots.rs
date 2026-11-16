@@ -101,6 +101,7 @@ fn shot(n: usize) -> Shot {
         setup_of: None,
         short_name: String::new(),
         image: None,
+        version_of: None,
     }
 }
 

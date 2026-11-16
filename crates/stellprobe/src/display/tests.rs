@@ -440,6 +440,7 @@ fn shot(lens_mm: Option<f64>, from_s: f64, to_s: f64) -> Shot {
         setup_of: None,
         short_name: String::new(),
         image: None,
+        version_of: None,
     }
 }
 
