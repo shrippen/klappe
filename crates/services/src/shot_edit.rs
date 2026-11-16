@@ -12,6 +12,10 @@ const DEFAULT_SHOT_S: f64 = 5.0;
 /// Letters of the alphabet a version suffix counts in.
 const LETTERS: usize = 26;
 
+/// Longest version suffix (`ZZZ`, the 18278th version); longer letters are part of the
+/// number, so counting them cannot overflow.
+const MAX_VERSION_LETTERS: usize = 3;
+
 /// A new shot ends at the next mark only if that is at least this far away.
 const MIN_SHOT_S: f64 = 0.5;
 
@@ -118,8 +122,16 @@ pub(crate) fn copy(plan: &mut FloorPlan, scene: &str, id: &str) -> Result<String
 }
 
 /// Splits a shot number into its base and version letters: `12.3B` is (`12.3`, `B`).
+/// Letters are a version only after a digit and at most `MAX_VERSION_LETTERS` long;
+/// `INSERT` is a base of its own (numbers are free text).
 fn split_number(number: &str) -> (&str, &str) {
     let base = number.trim_end_matches(|c: char| c.is_ascii_uppercase());
+    let letters = number.len() - base.len();
+    let after_digit = base.ends_with(|c: char| c.is_ascii_digit());
+    if !after_digit || letters > MAX_VERSION_LETTERS {
+        return (number, "");
+    }
+
     (base, &number[base.len()..])
 }
 
