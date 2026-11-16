@@ -11,8 +11,9 @@ import "."
  *   position    the playhead in seconds
  *   tracks      [{ name, label, shown, segments: [{ from, to, text, selected }],
  *               markers: [{ at, text }] }]; seconds. label: a colour name of
- *               KanteStyle.labels, or "text", "muted", "accent", "focus", "warning";
- *               "" or an unknown name gives the text colour. shown false: the row is dimmed
+ *               KanteStyle.labels, or "text", "muted", "accent", "focus", "warning",
+ *               "ground" (the app's background: a sign on a filled bar reads in every label
+ *               colour); "" or an unknown name gives the text colour. shown false: the row is dimmed
  *   trackHeight height of a row, labelWidth width of the name column (KanteStyle units)
  *   hideText, showText   the app's words for the toggle: "<hideText>: <name>" while shown,
  *               "<showText>: <name>" while hidden (tooltip and name for screen readers)
@@ -77,8 +78,8 @@ FocusScope {
     readonly property real edgeReach: KanteStyle.unit(5)
     readonly property string edgeFrom: "from"
     readonly property string edgeTo: "to"
-    readonly property int tenthsPerSecond: 10
-    readonly property int tenthsPerMinute: 600
+    readonly property int tenthsPerSecond: KanteStyle.tenthsPerSecond
+    readonly property int tenthsPerMinute: 60 * tenthsPerSecond
 
     readonly property real rulerHeight: KanteStyle.unit(24)
     readonly property real laneWidth: Math.max(1, width - labelWidth)
@@ -212,21 +213,9 @@ FocusScope {
 
     // "m:ss.d", cut off like a timecode (59.96 -> 0:59.9).
     function _stamp(s) {
-        const tenths = Math.floor(Math.max(0, s) * tenthsPerSecond + 1e-6)
+        const tenths = KanteStyle.wholeTenths(s)
         const sec = (tenths % tenthsPerMinute) / tenthsPerSecond
         return Math.floor(tenths / tenthsPerMinute) + ":" + (sec < 10 ? "0" : "") + sec.toFixed(1)
-    }
-
-    // Colour of a label name; the same names as KanteShapeCanvas.
-    function _labelColor(name) {
-        switch (name) {
-        case "muted": return KanteStyle.mutedTextColor
-        case "accent": return KanteStyle.accentColor
-        case "focus": return KanteStyle.focusColor
-        case "warning": return KanteStyle.warningColor
-        }
-        const c = KanteStyle.labelColor(name)
-        return c.a > 0 ? c : KanteStyle.textColor
     }
 
     function _clock(s) {
@@ -350,7 +339,7 @@ FocusScope {
                     delegate: Rectangle {
                         id: seg
                         required property var modelData
-                        readonly property color fill: root._labelColor(row.modelData.label)
+                        readonly property color fill: KanteStyle.namedColor(row.modelData.label)
                         readonly property bool picked: modelData.selected === true
 
                         x: modelData.from * root.pixelsPerSecond
@@ -391,7 +380,7 @@ FocusScope {
                         rotation: 45
                         color: KanteStyle.backgroundColor
                         border.width: KanteStyle.unit(2)
-                        border.color: root._labelColor(row.modelData.label)
+                        border.color: KanteStyle.namedColor(row.modelData.label)
                     }
                 }
             }

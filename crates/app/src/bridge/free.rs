@@ -328,6 +328,6 @@ impl super::ControllerRust {
             (self.free.size.1 * scale).round(),
         );
 
-        colored(&s.free_picture(size)?, &palette)
+        colored(&s.free_picture(size)?, &palette, &|role| s.scene_fade(role))
     }
 }

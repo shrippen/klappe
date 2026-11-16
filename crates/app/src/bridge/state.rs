@@ -2,7 +2,7 @@
 //! values the properties show. Its own file so the bridge's declarations have room.
 
 use cxx_qt_lib::QString;
-use klappe_services::Session;
+use klappe_services::{Point, Session};
 
 use super::free;
 use crate::arm::Armed;
@@ -36,6 +36,7 @@ pub struct ControllerRust {
     pub(super) script_json: QString,
     pub(super) layers_json: QString,
     pub(super) locks_json: QString,
+    pub(super) fades_json: QString,
     pub(super) time: f64,
     pub(super) duration: f64,
     pub(super) selected_shot: QString,
@@ -53,6 +54,8 @@ pub struct ControllerRust {
     pub(super) selected: Selection,
     /// The box or lasso a drag on empty ground is pulling up, in metres.
     pub(super) marquee: Option<Sweep>,
+    /// The points of the stroke the sketch pen is drawing, in metres (LH-120).
+    pub(super) sketch: Vec<Point>,
     pub(super) tool: Tool,
     pub(super) scale: ScaleStep,
     /// The measurement of the measuring tool: a tool state of the session, not the plan's.

@@ -17,6 +17,9 @@ pub struct Page {
     /// The files of the images the display list names (`Shape::Image`), by the name in the
     /// list. The export reads no files: the caller hands the bytes in.
     pub images: HashMap<String, Vec<u8>>,
+    /// How strong each item of the display list is drawn, 1 full and 0 not at all (LH-15,
+    /// LH-87), by the item's place in the list; an item beyond the end, or none given, is full.
+    pub fade: Vec<f64>,
 }
 
 /// Every other visible text. The caller fills it from its translation catalogue.
@@ -145,6 +148,7 @@ impl Page {
             title: title.into(),
             texts,
             images: HashMap::new(),
+            fade: Vec::new(),
         }
     }
 }
