@@ -198,6 +198,8 @@ fn the_3d_view_is_no_format() {
     let output = export(&out, &["--format", "view3d"]);
 
     assert!(!output.status.success());
+    let said = String::from_utf8_lossy(&output.stderr);
+    assert!(said.contains("invalid value 'view3d'"), "{said}");
     assert!(!out.exists());
 }
 

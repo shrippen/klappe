@@ -8,6 +8,7 @@
 //!                   [--camera <id>]
 //! ```
 
+use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
     error_text, read_number, ExportFormat, ExportOptions, Field, Language, Orientation, Paper,
@@ -62,7 +63,7 @@ enum Command {
         /// Taken from the extension of --out if left out; `frames` and `camera` are never guessed.
         /// `frames`: one PNG per mark into the folder --out, --at is ignored. `camera`: what
         /// --camera sees at --at, 1920 px wide.
-        #[arg(long, value_parser = format_arg)]
+        #[arg(long, value_parser = format_arg())]
         format: Option<ExportFormat>,
         /// The camera `--format camera` shows.
         #[arg(long)]
@@ -235,18 +236,16 @@ fn language_of(language: Option<LanguageArg>) -> Language {
     }
 }
 
-/// A format by its name; the 3D view is left out, the command line has no state for it.
-fn format_arg(name: &str) -> Result<ExportFormat, String> {
-    let offered = || {
-        ExportFormat::ALL
-            .into_iter()
-            .filter(|f| *f != ExportFormat::View3d)
-    };
-    let names: Vec<&str> = offered().map(|f| f.name()).collect();
+/// The formats by name, listed in --help; the 3D view is left out, the command line has no
+/// state for it.
+fn format_arg() -> impl TypedValueParser<Value = ExportFormat> {
+    let names = ExportFormat::ALL
+        .into_iter()
+        .filter(|f| *f != ExportFormat::View3d)
+        .map(ExportFormat::name);
 
-    offered()
-        .find(|f| f.name() == name)
-        .ok_or_else(|| format!("use one of {}", names.join(", ")))
+    PossibleValuesParser::new(names)
+        .try_map(|name| ExportFormat::from_name(&name).ok_or("unknown format"))
 }
 
 /// The format a file name asks for by its extension (`plan.PNG`). `png` is the plan's, the
