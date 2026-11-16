@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 
+use crate::assist::same_name;
 use crate::{Element, Located};
 
 /// Whether upper and lower case count as different.
@@ -45,7 +46,7 @@ fn dialogue_lines(located: &[Located], speaker: &str) -> HashSet<usize> {
 
     for item in located {
         match &item.element {
-            Element::Character { name, .. } => speaking = name.eq_ignore_ascii_case(speaker),
+            Element::Character { name, .. } => speaking = same_name(name, speaker),
             Element::Dialogue(_) if speaking => lines.extend(item.lines.iter().copied()),
             Element::Dialogue(_) | Element::Parenthetical(_) => {}
             _ => speaking = false,
@@ -206,5 +207,19 @@ mod tests {
 
         assert_eq!(h.len(), 2);
         assert_eq!(replace_line(&l[0], 0, &h, "b"), "bb");
+    }
+
+    #[test]
+    fn a_speaker_is_matched_with_unicode_case() {
+        let text = "ÄRZTIN\nGuten Tag.\n\nBEN\nTag.";
+        let l = lines(text);
+        let h = find_all(
+            &l,
+            &parse_located(text),
+            &query("tag", Case::Ignore, Some("ärztin")),
+        );
+
+        assert_eq!(h.len(), 1);
+        assert_eq!(h[0].line, 1);
     }
 }

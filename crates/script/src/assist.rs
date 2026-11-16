@@ -140,11 +140,20 @@ fn ranked(words: &[(usize, String)], skip: Option<usize>) -> Vec<String> {
     counted.into_iter().map(|(w, _)| w.to_owned()).collect()
 }
 
+/// Prefixes of forced German headings (`.INNEN KÜCHE`); the parser drops the dot only.
+const GERMAN_PREFIXES: [&str; 5] = ["innen/aussen", "aussen/innen", "innen", "aussen", "int/ext"];
+
+/// Whether two names are the same in any case, umlauts included.
+pub(crate) fn same_name(a: &str, b: &str) -> bool {
+    a.to_lowercase() == b.to_lowercase()
+}
+
 /// A heading's text cut into location and time of day, without its prefix.
 fn split_heading(text: &str) -> (&str, Option<&str>) {
     let lower = text.to_lowercase();
     let prefix = HEADING_PREFIXES
         .iter()
+        .chain(GERMAN_PREFIXES.iter())
         .find(|p| {
             lower
                 .strip_prefix(**p)
@@ -208,7 +217,7 @@ impl Vocabulary {
         let last = &above.next()?.1;
 
         above
-            .find(|(_, name)| !name.eq_ignore_ascii_case(last))
+            .find(|(_, name)| !same_name(name, last))
             .map(|(_, name)| name.as_str())
     }
 }
@@ -593,5 +602,23 @@ mod tests {
             ]
         );
         assert_eq!(Slot::of(&Element::PageBreak), None);
+    }
+
+    #[test]
+    fn the_other_speaker_is_found_with_unicode_case() {
+        let v = vocab("ÄRZTIN\nx\n\nBEN\ny\n\n@ärztin\nz\n");
+
+        assert_eq!(v.other_speaker(99), Some("BEN"));
+        let v = vocab("BEN\nx\n\nÄRZTIN\ny\n\n@ärztin\nz\n");
+        assert_eq!(v.other_speaker(99), Some("BEN"));
+    }
+
+    #[test]
+    fn forced_german_headings_give_their_place() {
+        let v = vocab(".INNEN KÜCHE - TAG\n\nx\n\n.AUSSEN/INNEN HOF - NACHT\n\ny\n\n.INNEN/AUSSEN BAD\n\nz\n\n.GARTEN - TAG\n\nw\n");
+
+        assert_eq!(v.locations(), ["KÜCHE", "HOF", "BAD", "GARTEN"]);
+        assert_eq!(options(&v, ".innen k", Context::Line), ["KÜCHE - "]);
+        assert_eq!(options(&v, ".innen ", Context::Heading).len(), 4);
     }
 }
