@@ -76,6 +76,10 @@ fn exports_a_portrait_pdf() {
     assert!(output.status.success(), "{}", stderr(&output));
     let text = String::from_utf8_lossy(&std::fs::read(&out).unwrap()).into_owned();
     assert!(text.contains("/MediaBox [0 0 595.28 841.89]"));
+    assert!(
+        !text.contains("/MediaBox [0 0 841.89 595.28]"),
+        "the shot list is upright too"
+    );
 }
 
 #[test]

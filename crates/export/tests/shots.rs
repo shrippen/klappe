@@ -299,19 +299,38 @@ fn portrait(paper: Paper, shots: usize) -> Vec<u8> {
     pdf_with_shots(&list(&plan), &page, Theme::Light, &plan, ShotOrder::Cut).unwrap()
 }
 
-/// The plan page is upright; the shot list stays on landscape sheets and breaks onto more.
+/// Plan and shot list pages are all upright; every column head is on each shot list page.
 #[test]
-fn a_portrait_pdf_has_the_upright_plan_and_the_shot_list_pages() {
+fn a_portrait_pdf_has_upright_shot_list_pages() {
     let text = String::from_utf8_lossy(&portrait(Paper::A4, 120)).into_owned();
+    let all = pages(text.as_bytes());
 
-    assert!(text.contains(&format!("/MediaBox {A4_PORTRAIT_PT}")));
-    assert!(text.contains(&format!("/MediaBox {A4_LANDSCAPE_PT}")));
-    assert!(
-        pages(text.as_bytes()) > 2,
-        "{} pages",
-        pages(text.as_bytes())
+    assert!(all > 2, "{all} pages");
+    assert_eq!(
+        text.matches(&format!("/MediaBox {A4_PORTRAIT_PT}")).count(),
+        all
     );
+    assert!(!text.contains(A4_LANDSCAPE_PT));
     assert!(text.contains("(12.120)"));
+    // Heads of more than one word wrap, so each column is found by its first word.
+    for head in [
+        "Nummer",
+        "Kamera",
+        "Objektiv",
+        "Perspektive",
+        "Bewegung",
+        "Von",
+        "Bis",
+        "Dauer",
+        "Inhalt",
+        "Requisiten",
+        "Technik",
+        "Team",
+        "Notiz",
+        "Achsensprung",
+    ] {
+        assert!(text.contains(&format!("({head})")), "{head}");
+    }
 }
 
 #[test]

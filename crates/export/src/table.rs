@@ -11,10 +11,10 @@
 //! ```
 //!
 //! Short columns (number, camera, lens, size, angle, movement, times) take what their words need;
-//! the free text columns share the rest and wrap. Sheets are always landscape, whatever the
-//! plan page: fifteen columns need the width.
+//! the free text columns share the rest and wrap. Sheets follow the plan page's paper and
+//! orientation; upright, the columns get narrower and words wrap or break more.
 
-use klappe_model::FloorPlan;
+use klappe_model::{FloorPlan, Orientation};
 use klappe_stellprobe::{axis_jumps, ordered_shots, ShotOrder};
 
 use crate::canvas::{Anchor, Dash, Geom, Prim, Sheet, Stroke, Weight};
@@ -39,11 +39,16 @@ const ELLIPSIS: char = '…';
 /// Columns before this index are short (number … duration); the rest are free text.
 const FIRST_TEXT_COLUMN: usize = 9;
 const DESCRIPTION_COLUMN: usize = 9;
+/// Shot numbers ("12.1, 12.2"): as wide as their widest number, the list wraps at the commas.
+const AXIS_COLUMN: usize = COLUMNS - 1;
 /// Share of the table a short column may take at most.
 const SHORT_COLUMN_MAX: f64 = 0.2;
 /// The description gets twice the room of the other free text columns.
 const DESCRIPTION_WEIGHT: f64 = 2.0;
 const TEXT_WEIGHT: f64 = 1.0;
+/// Upright, the table is laid out for a page this much wider and then drawn this much
+/// smaller (8 pt text becomes 6.8 pt): more room than wrapping alone gives, no broken words.
+const PORTRAIT_SCALE: f64 = 0.85;
 /// A setup's heading row in shooting order.
 const BAND_PT: f64 = LINE_PT + 2.0 * ROW_PAD_PT;
 const TITLE_SEPARATOR: &str = " · ";
@@ -58,10 +63,17 @@ pub(crate) fn sheets(
         return Ok(Vec::new());
     }
 
-    // Always landscape (see above); upright A4 broke words.
     let (short_mm, long_mm) = paper_mm(page.paper);
-    let (width_pt, height_pt) = (long_mm * PT_PER_MM, short_mm * PT_PER_MM);
-    let margin = page.margin_mm.max(0.0) * PT_PER_MM;
+    let (w_mm, h_mm) = match page.orientation {
+        Orientation::Landscape => (long_mm, short_mm),
+        Orientation::Portrait => (short_mm, long_mm),
+    };
+    let scale = match page.orientation {
+        Orientation::Landscape => 1.0,
+        Orientation::Portrait => PORTRAIT_SCALE,
+    };
+    let (width_pt, height_pt) = (w_mm * PT_PER_MM / scale, h_mm * PT_PER_MM / scale);
+    let margin = page.margin_mm.max(0.0) * PT_PER_MM / scale;
     let content_w = width_pt - 2.0 * margin;
     let top = margin + TITLE_BAND_PT + GAP_PT;
     let bottom = height_pt - margin;
@@ -91,6 +103,7 @@ pub(crate) fn sheets(
         prims: Vec::new(),
         y: top,
         rows: 0,
+        scale,
     };
 
     ctx.begin();
@@ -140,6 +153,8 @@ struct Ctx<'a> {
     y: f64,
     /// Shot rows on this sheet.
     rows: usize,
+    /// Drawn this much smaller than laid out.
+    scale: f64,
 }
 
 impl Ctx<'_> {
@@ -238,11 +253,55 @@ impl Ctx<'_> {
     }
 
     fn finish(&mut self, width_pt: f64, height_pt: f64) {
+        let scale = self.scale;
         self.sheets.push(Sheet {
-            width_pt,
-            height_pt,
-            prims: std::mem::take(&mut self.prims),
+            width_pt: width_pt * scale,
+            height_pt: height_pt * scale,
+            prims: std::mem::take(&mut self.prims)
+                .into_iter()
+                .map(|p| scaled(p, scale))
+                .collect(),
         });
+    }
+}
+
+/// Text and rules, the only things a sheet holds, drawn `scale` times the size.
+fn scaled(prim: Prim, scale: f64) -> Prim {
+    let point = |(x, y): (f64, f64)| (x * scale, y * scale);
+
+    match prim {
+        Prim::Text {
+            class,
+            anchor,
+            at,
+            size_pt,
+            weight,
+            rgb,
+            text,
+        } => Prim::Text {
+            class,
+            anchor,
+            at: point(at),
+            size_pt: size_pt * scale,
+            weight,
+            rgb,
+            text,
+        },
+        Prim::Shape {
+            class,
+            geom: Geom::Open(points),
+            fill,
+            stroke,
+        } => Prim::Shape {
+            class,
+            geom: Geom::Open(points.into_iter().map(point).collect()),
+            fill,
+            stroke: stroke.map(|s| Stroke {
+                width_pt: s.width_pt * scale,
+                ..s
+            }),
+        },
+        other => other,
     }
 }
 
@@ -267,10 +326,14 @@ fn column_widths(
             .split_whitespace()
             .map(|w| text_width_pt(w, CELL_PT, Weight::Bold))
             .fold(0.0, f64::max);
-        let widest_cell = rows.iter().map(|r| widest_line(&r[i])).fold(0.0, f64::max);
+        let widest_cell = if i == AXIS_COLUMN {
+            rows.iter().map(|r| widest_word(&r[i])).fold(0.0, f64::max)
+        } else {
+            rows.iter().map(|r| widest_line(&r[i])).fold(0.0, f64::max)
+        };
         used[i] = rows.iter().any(|r| !r[i].is_empty());
 
-        widths[i] = if i < FIRST_TEXT_COLUMN {
+        widths[i] = if i < FIRST_TEXT_COLUMN || i == AXIS_COLUMN {
             widest_head
                 .max(widest_cell)
                 .min(content_w * SHORT_COLUMN_MAX)
@@ -280,16 +343,16 @@ fn column_widths(
         };
     }
 
+    let weight = |i: usize| match (used[i], i) {
+        (false, _) | (_, AXIS_COLUMN) => 0.0,
+        (true, DESCRIPTION_COLUMN) => DESCRIPTION_WEIGHT,
+        (true, _) => TEXT_WEIGHT,
+    };
     let total: f64 = widths.iter().sum();
     if total >= content_w {
         return widths.map(|w| w * content_w / total);
     }
 
-    let weight = |i: usize| match (used[i], i) {
-        (false, _) => 0.0,
-        (true, DESCRIPTION_COLUMN) => DESCRIPTION_WEIGHT,
-        (true, _) => TEXT_WEIGHT,
-    };
     let weights: f64 = (FIRST_TEXT_COLUMN..COLUMNS).map(weight).sum();
     if weights == 0.0 {
         return widths;
@@ -301,6 +364,12 @@ fn column_widths(
     }
 
     widths
+}
+
+fn widest_word(text: &str) -> f64 {
+    text.split_whitespace()
+        .map(|w| text_width_pt(w, CELL_PT, Weight::Regular))
+        .fold(0.0, f64::max)
 }
 
 fn widest_line(text: &str) -> f64 {
