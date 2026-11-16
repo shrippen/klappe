@@ -23,28 +23,30 @@ Für jeden Wert, den das Fenster zeigt, sieht `ARCHITECTURE.md` einen Weg vor: D
 - Mit einem leeren Befehl fragt sie nur.
 - In beiden Fällen antwortet sie mit einer Wortliste wie „cut camera“.
 
-Die Kopfzeile und die 3D-Ansicht zerlegen diese Liste an drei Stellen selbst. Sie fragen bei jedem neuen Bild von sich aus neu.
+Die Kopfzeile und die 3D-Ansicht zerlegen diese Liste an vier Stellen selbst. Sie fragen bei jedem neuen Bild von sich aus neu.
 
 Was es kostet:
-- **Ein Fehler, der schon passiert ist.** Fragen und Schalten in einer Funktion hat in #140 eine Endlosschleife ausgelöst: Das Fragen meldete eine Änderung, die Ansicht fragte deshalb wieder, bis das Programm abstürzte (Commit `a0b922c`). Vier weitere Commits waren nötig, damit ein veralteter Kamerablick richtig endet.
-- **Teure Erweiterung.** Wer einen dritten Schalter dieser Art hinzufügt (etwa „Decke zeigen“), muss diesen Sonderweg verstehen und die Wortliste an drei Stellen in der Oberfläche auswerten.
+- **Ein Fehler, der schon passiert ist.** Fragen und Schalten in einer Funktion hat in #140 eine Endlosschleife ausgelöst: Das Fragen meldete eine Änderung, die Ansicht fragte deshalb wieder, bis das Programm abstürzte (Commit `a0b922c`). Vier weitere Commits waren nötig, damit der Kamerablick richtig angezeigt wird und richtig endet.
+- **Teure Erweiterung.** Wer einen dritten Schalter dieser Art hinzufügt (etwa „Decke zeigen“), muss diesen Sonderweg verstehen und die Wortliste an vier Stellen in der Oberfläche auswerten.
 
 Vorschlag: „Schnitt an“ und „Blick durch Kamera“ werden zwei gewöhnliche angezeigte Werte, wie „3D an“. Die Funktion `freeLook` schaltet nur noch.
 
 Aufwand klein. Risiko gering: Der Szenariotest `free_look.qml`, die Kopfzeilentests in `tst_appheader.qml` und `services/tests/free_view.rs` (in diesem Audit grün gelaufen) prüfen das Verhalten.
 
-Beleg: `ARCHITECTURE.md:84`, `crates/app/src/bridge.rs:139`, `crates/app/src/bridge/free.rs:89`, `crates/app/src/bridge/free.rs:100`, `crates/app/src/bridge/free.rs:117`, `crates/app/qml/AppHeader.qml:353`, `crates/app/qml/AppHeader.qml:384`, `crates/app/qml/AppHeader.qml:391`, `crates/app/qml/FreeView.qml:78`, `crates/app/qml/FreeView.qml:140`, `crates/app/src/bridge/view.rs:202` (so geht es für „3D an“), Commits `a0b922c`, `30b9b77`, `81f0cd3`, `6219148`, `a7f71fe`.
+Beleg: `ARCHITECTURE.md:84`, `crates/app/src/bridge.rs:139`, `crates/app/src/bridge/free.rs:89`, `crates/app/src/bridge/free.rs:100`, `crates/app/src/bridge/free.rs:117`, `crates/app/qml/AppHeader.qml:353`, `crates/app/qml/AppHeader.qml:384`, `crates/app/qml/AppHeader.qml:389`, `crates/app/qml/AppHeader.qml:394`, `crates/app/qml/FreeView.qml:78`, `crates/app/qml/FreeView.qml:140`, `crates/app/src/bridge/view.rs:202` (so geht es für „3D an“), Commits `a0b922c`, `30b9b77`, `81f0cd3`, `6219148`, `a7f71fe`.
 
-### 2. Acht Karten hängen an dem Zähler, der eigentlich nur das Kamerabild neu zeichnen soll
-Eine Karte ist das kleine Feld mit den Werten des gewählten Elements (Wand, Tür, Möbel, Lampe, Kamera, Mark, Zeichnung). Sie muss nach jeder Änderung ihre Werte neu lesen. Bisher hing sie dafür am Plan. Seit #157 hängen alle acht Karten an `pictureRevision`. Dieser Zähler heißt „Stand des Bildes“, und seine Beschreibung sagt, er sei dafür da, das Kamerabild neu zu machen. Tatsächlich zählt er jede Änderung der Sitzung.
+### 2. Sieben Karten und die Kopfzeile hängen an dem Zähler, der eigentlich nur das Kamerabild neu zeichnen soll
+Eine Karte ist das kleine Feld mit den Werten des gewählten Elements. Sie muss nach jeder Änderung ihre Werte neu lesen. Bisher hing sie dafür am Plan. Seit #157 hängen sieben Karten an `pictureRevision`: Wand, Tür, Möbel, Lampe, Kamera, Mark und Zeichnung. Seit #140 hängt auch der Eintrag „Durch Kamera sehen“ in der Kopfzeile daran (Commit `6219148`).
 
-Was es kostet: Wer den Zähler so umbaut, dass er nur noch steigt, wenn sich das Bild ändert, lässt alle Karten veraltete Werte zeigen. Genau dieser Umbau wurde in #140 für den Zähler der 3D-Ansicht gemacht. Kein Test würde es als Ursache benennen; der Name führt in die Irre.
+Dieser Zähler heißt „Stand des Bildes“, und seine Beschreibung sagt, er sei dafür da, das Kamerabild neu zu machen. Tatsächlich zählt er jede Änderung der Sitzung.
 
-Vorschlag: Der Zähler bekommt einen Namen, der sagt, was er ist („Stand der Sitzung“), und eine Beschreibung, die beide Nutzer nennt.
+Was es kostet: Wer den Zähler so umbaut, dass er nur noch steigt, wenn sich das Bild ändert, lässt alle sieben Karten und den Eintrag der Kopfzeile veraltete Werte zeigen. Genau dieser Umbau wurde in #140 für den Zähler der 3D-Ansicht gemacht. Kein Test würde es als Ursache benennen; der Name führt in die Irre.
+
+Vorschlag: Der Zähler bekommt einen Namen, der sagt, was er ist („Stand der Sitzung“), und eine Beschreibung, die alle Nutzer nennt.
 
 Aufwand klein. Risiko gering: Die Kartentests `tst_*card.qml` prüfen, dass jede Karte nach einer Änderung neu liest.
 
-Beleg: `crates/app/src/bridge.rs:27`, `crates/app/src/bridge/view.rs:454`, `crates/app/qml/CameraView.qml:13`, `crates/app/qml/WallCard.qml:19`, `crates/app/qml/OpeningCard.qml:20`, `crates/app/qml/ObjectCard.qml:26`, `crates/app/qml/LightCard.qml:21`, `crates/app/qml/CameraCard.qml:26`, `crates/app/qml/DrawingCard.qml:21`, `crates/app/qml/MarkCard.qml:40`, `crates/app/src/bridge/free.rs:287` (der Zähler der 3D-Ansicht, der nur noch bei echter Änderung steigt).
+Beleg: `crates/app/src/bridge.rs:27`, `crates/app/src/bridge/view.rs:454`, `crates/app/qml/CameraView.qml:13` (das Kamerabild, für das der Zähler gedacht ist), `crates/app/qml/AppHeader.qml:358`, `crates/app/qml/WallCard.qml:19`, `crates/app/qml/OpeningCard.qml:20`, `crates/app/qml/ObjectCard.qml:26`, `crates/app/qml/LightCard.qml:21`, `crates/app/qml/CameraCard.qml:26`, `crates/app/qml/DrawingCard.qml:21`, `crates/app/qml/MarkCard.qml:40`, `crates/app/src/bridge/free.rs:287` (der Zähler der 3D-Ansicht, der nur noch bei echter Änderung steigt).
 
 ### 3. Wie ein Bildpunkt einer Ansicht seine Farbe bekommt, steht in App und Ausgabe je einmal
 Ein Bild der 3D-Ansicht oder einer Kamera besteht aus Bildpunkten. Zu jedem Punkt weiß das Programm, was er zeigt (Wand, Boden, Figur), wie hell er beleuchtet ist und ob er auf einer Kante liegt. Seit #140 wird daraus an zwei Stellen eine Farbe gemacht, mit denselben Regeln:
@@ -109,7 +111,7 @@ Die Einschätzung des neunten Audits gilt weiter. Die Listen der Feldnamen (`nam
 **Unverändert an der Grenze:**
 - Die Planansicht `display.rs` hat 1483 Zeilen, davon rund 900 Tests in derselben Datei.
 - Die Datei der Planänderungen `plan_edit.rs` hat genau 800 Zeilen.
-- Knapp darunter liegen `bridge/view.rs` mit 786 (statt 782), `services/tests/manage.rs` mit 800 und `library.rs` mit 799.
+- Knapp darunter liegen `bridge/view.rs` mit 786 (statt 782), `crates/services/tests/manage.rs` mit 800 und `crates/services/tests/library.rs` mit 799.
 
 Die Teilung der Planansicht und der Planänderungen ist Fund 5 des neunten Audits und gewählt.
 
@@ -120,11 +122,15 @@ Aufwand mittel. Risiko gering: Es wird nur verschoben, die Kopfzeilen- und Karte
 Beleg: `structure.baseline`, `crates/app/src/bridge.rs:105`, `crates/app/src/bridge.rs:139`, `crates/stellprobe/src/display.rs:586`, `crates/services/src/plan_edit.rs:432`, `crates/app/src/bridge/view.rs`, Commit `133d2e6`.
 
 ## Seit dem letzten Audit
-Seitdem wurden zehn PRs gemergt (#140, #147, #156 bis #162, #164). Aus dem neunten Audit hat der Eigentümer heute alle fünf Funde zum Beheben gewählt. Fund 2 ist als PR #163 in Arbeit und nicht gemergt; behoben ist noch keiner. Aus dem achten und den älteren Audits wurde keiner gewählt oder abgelehnt, und keiner ist behoben.
+Bis zum Stand dieses Audits wurden seit dem neunten zehn PRs gemergt (#140, #147, #156 bis #162, #164). Seitdem sind zwei weitere gemergt:
+- #163 behebt Fund 2 des neunten Audits und damit auch Fund 2 des sechsten: Die Untergrenzen von Tippen und Ziehen stehen jetzt im Modell.
+- #165 hat die Zahlenfelder von fünf Karten (Tür, Möbel, Lampe, Kamera, Mark) auf ein gemeinsames beschriftetes Feld umgestellt. Zeilenangaben in diesen Karten können sich dadurch verschoben haben.
+
+Aus dem neunten Audit hat der Eigentümer heute alle fünf Funde zum Beheben gewählt. Aus dem achten wurde keiner gewählt oder abgelehnt, und keiner ist behoben. Aus den älteren Audits sind zwei Funde gewählt und in Arbeit: Fund 5 des vierten (#119) und Fund 5 des fünften (#111). Mehrere ältere Funde wurden schon vor diesem Audit behoben und stehen hier nicht mehr.
 
 Neuntes Audit (alle gewählt):
 - **Fund 1 (neue Griffart an rund 14 Stellen): offen, gewählt, etwas gewachsen.** #160 hat den Möbeln Griffe für Punkte und Seiten gegeben. Eine neue Rolle kam nicht dazu. Dafür kamen weitere Sonderfälle in Auswahl, Ziehen und Schlüsseln, siehe auch Fund 4. Beleg: `crates/stellprobe/src/look.rs:84`, `crates/services/src/session/layers.rs:123`, `crates/app/src/selection.rs:94`, `crates/app/src/bridge/view.rs:368`, `crates/services/src/plan_edit/moving.rs:604`, `crates/app/src/plan/key.rs:151`.
-- **Fund 2 (verschiedene Untergrenzen beim Ziehen und Tippen): in Arbeit (#163, nicht gemergt).** Die neue Tempoeingabe (#147) hat ihre Grenzen 0,1 bis 15 m/s wieder in der Sitzung statt im Modell. Beleg: `crates/services/src/plan_edit/openings.rs:13`, `crates/services/src/plan_edit/moving.rs:23`, `crates/services/src/plan_edit/marks.rs:83`.
+- **Fund 2 (verschiedene Untergrenzen beim Ziehen und Tippen): behoben (#163, nach dem Stand dieses Audits gemergt).** Die Grenzen der neuen Tempoeingabe (#147, 0,1 bis 15 m/s) stehen weiter in der Sitzung, nicht im Modell. Beleg: `crates/services/src/plan_edit/marks.rs:83`.
 - **Fund 3 (Punkt mit dem Möbel mitdrehen fünfmal): offen, gewählt.** Beleg: `crates/stellprobe/src/display/handles.rs:128`, `crates/services/src/plan_edit/moving.rs:472`, `crates/services/src/plan_edit/moving.rs:488`, `crates/stellprobe/src/display/objects.rs:16`, `crates/stellprobe/src/scene.rs:450`.
 - **Fund 4 (welche Ausgabe auf Papier druckt, zweimal in der App): offen, gewählt, gewachsen.** #140 hat zwei Ausgaben dazugebracht (3D-Ansicht und Kamerablick als PNG):
   - Ihre Dateiendung steht einmal im Dialog und einmal in der Verbindung.
@@ -134,7 +140,7 @@ Neuntes Audit (alle gewählt):
 - **Fund 5 (Bestandsliste): offen, gewählt.** Siehe neuer Fund 6.
 
 Achtes Audit:
-- **Fund 1 (Seite und Scharnier der Tür in eigenen Listen der Karte): offen.** Beleg: `crates/app/qml/OpeningCard.qml:31`, `crates/app/src/object.rs:131`.
+- **Fund 1 (Seite und Scharnier der Tür in eigenen Listen der Karte): offen.** Beleg: `crates/app/qml/OpeningCard.qml:32`, `crates/app/qml/OpeningCard.qml:33`, `crates/app/src/object.rs:131`.
 - **Fund 2 (Regeln der eigenen Bibliothek in Ablage und Sitzung): offen.** Beleg: `crates/services/src/project_edit/library.rs:78`, `crates/store/src/library.rs:106`.
 - **Fund 3 (Regeln des Höhenwerkzeugs in der App, Höhe als erfundener Planpunkt): offen.** Beleg: `crates/app/src/tools.rs:27`, `crates/app/src/bridge/free.rs:282`.
 - **Fund 4 (Vorlagen unter dem Namen der Bibliothek): offen.** Beleg: `crates/app/src/bridge/library.rs:19`.
@@ -152,19 +158,19 @@ Siebtes Audit:
 
 Sechstes Audit:
 - **Fund 1 (Großschreibung beim Tippen kopiert Regeln des Drehbuchlesers): offen.** Beleg: `crates/tui/src/fountain.rs:130`, `crates/script/src/parse.rs:9`.
-- **Fund 2 (Breite von Türen und Fenstern in Ablage und Sitzung): offen**, Teil von Fund 2 des neunten Audits (#163). Beleg: `crates/store/src/lib.rs:442`, `crates/services/src/plan_edit/openings.rs:25`.
+- **Fund 2 (Breite von Türen und Fenstern in Ablage und Sitzung): behoben** mit Fund 2 des neunten Audits (#163, nach dem Stand dieses Audits gemergt).
 - **Fund 3 (Spalte „Achsensprung gegen“ in Sitzung und Ausgabe): offen.** Beleg: `crates/services/src/session/shots.rs:14`, `crates/export/src/shots.rs:21`.
 
 Fünftes Audit:
 - **Fund 1 (Gleichheit von Figurennamen an drei Stellen): offen.** Beleg: `crates/services/src/script_refs.rs:116`, `crates/services/src/project_edit.rs:337`, `crates/services/src/plan_edit/template.rs:142`.
 - **Fund 4 (Marks verschieben und Mitte einer Gruppe mehrfach): offen.** Die Kastenmitte ist Teil des neuen Funds 4. Beleg: `crates/services/src/plan_edit/group.rs:182`, `crates/services/src/project_edit/templates.rs:141`.
-- **Fund 5 (Einsetzen einer Vorlage ruft im Kreis): offen.** Beleg: `crates/services/src/plan_edit/template.rs:8`, `crates/services/src/project_edit/templates.rs:11`.
+- **Fund 5 (Einsetzen einer Vorlage ruft im Kreis): in Arbeit (#111).** Beleg: `crates/services/src/plan_edit/template.rs:8`, `crates/services/src/project_edit/templates.rs:11`.
 
 Viertes Audit:
 - **Fund 1 (Formate, Papier und Reihenfolge der Ausgabe je Oberfläche): teilweise.** Der offene Rest ist Fund 4 des neunten Audits. Beleg: `crates/app/qml/ExportDialog.qml:34`, `crates/app/src/bridge/export.rs:137`.
 - **Fund 2 (Verbindungsdatei, ein Aufruf je Mark-Feld): offen, jetzt über der Grenze** (801 Zeilen), siehe neuer Fund 6. Beleg: `crates/app/src/bridge.rs:105`.
 - **Fund 3 (Lampenkarte als Kopie der Kamerakarte): offen.** Beleg: `crates/app/qml/CameraCard.qml:95`, `crates/app/qml/LightCard.qml:74`.
-- **Fund 5 (Winkel beim Messen in der App berechnet): offen.** Beleg: `crates/app/src/tools.rs:472`, `crates/model/src/geometry.rs:44`.
+- **Fund 5 (Winkel beim Messen in der App berechnet): in Arbeit (#119).** Beleg: `crates/app/src/tools.rs:472`, `crates/model/src/geometry.rs:44`.
 
 Drittes Audit:
 - **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): Rest offen.** Die Kommandozeile schreibt für „keine solche Szene“ und „Szene ohne Plan“ weiter eigene englische Sätze. Beleg: `crates/cli/src/main.rs:175`, `crates/cli/src/main.rs:186`.
