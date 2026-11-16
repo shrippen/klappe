@@ -5,7 +5,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    CharacterRow, FigureColor, Hint, LocationRow, PlanEdit, PlanRow, ProjectEdit, SceneRow, Session,
+    CharacterRow, FigureColor, Hint, LocationRow, PlanEdit, PlanRow, ProjectEdit, SceneRow,
+    Session, TrackKind,
 };
 use serde_json::json;
 
@@ -15,6 +16,31 @@ fn example() -> PathBuf {
 
 fn open() -> Session {
     Session::open(&example()).unwrap()
+}
+
+/// The follow chooser lists the figure tracks by name: a group carries its head count (LH-23).
+#[test]
+fn a_group_track_is_named_with_its_count() {
+    let mut s = open();
+    s.edit_project(ProjectEdit::EditCharacter {
+        id: "burgvogt".into(),
+        name: "Burgvogt".into(),
+        short: "B".into(),
+        color: FigureColor::Blue,
+        group: Some(12),
+        size_m: None,
+    })
+    .unwrap();
+
+    let names: Vec<String> = s
+        .tracks()
+        .into_iter()
+        .filter(|t| t.kind == TrackKind::Figure)
+        .map(|t| t.name)
+        .collect();
+
+    assert!(names.contains(&"Burgvogt (12)".to_owned()), "{names:?}");
+    assert!(names.contains(&"Elisabeth".to_owned()), "{names:?}");
 }
 
 /// The lists name the location of each scene and count its scenes.
