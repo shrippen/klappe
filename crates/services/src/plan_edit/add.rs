@@ -92,7 +92,7 @@ pub(super) fn free_id<'a>(prefix: &str, taken: impl Iterator<Item = &'a str> + C
 }
 
 /// The first camera letter no camera of the plan has.
-pub(super) fn free_letter(cameras: &[Camera]) -> Result<char, ServiceError> {
+pub(crate) fn free_letter(cameras: &[Camera]) -> Result<char, ServiceError> {
     ('A'..='Z')
         .find(|l| {
             let label = l.to_string();
