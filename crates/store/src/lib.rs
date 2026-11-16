@@ -383,18 +383,19 @@ fn check_sets(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     check_heights(path, locations)
 }
 
-/// A note's card is at least as wide as a drag of its grip allows (LH-16).
+/// A note's card is at least as wide as a drag of its grip allows (LH-16), and finite: an
+/// endless width could never be saved again.
 fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     for location in locations {
         for note in &location.set.notes {
-            if note.width_m >= NOTE_MIN_WIDTH_M {
+            if note.width_m.is_finite() && note.width_m >= NOTE_MIN_WIDTH_M {
                 continue;
             }
 
             return Err(StoreError::Parse {
                 path: path.to_path_buf(),
                 message: format!(
-                    "{}: note {} is {} m wide, less than {NOTE_MIN_WIDTH_M} m",
+                    "{}: note {} is {} m wide, not a finite width of at least {NOTE_MIN_WIDTH_M} m",
                     location.id, note.id, note.width_m
                 ),
             });
