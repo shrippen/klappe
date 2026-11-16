@@ -411,6 +411,7 @@
  "error.notCopyable": "Die Auswahl lässt sich nicht duplizieren",
  "error.store": "Projekt konnte nicht gelesen oder gespeichert werden: {detail}",
  "error.export": "Export fehlgeschlagen: {detail}",
+ "error.exampleAside": "{reason} Die alte Beispielkopie liegt jetzt unter {aside}.",
  "error.write": "Kann nicht schreiben: {detail}",
  "error.gone": "Das Element gibt es nicht mehr",
  "error.noLocation": "Drehort nicht gefunden: {detail}",

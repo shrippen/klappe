@@ -48,7 +48,7 @@ TestCase {
 
         verify(notice.visible)
         compare(notice.text, note)
-        verify(notice.implicitHeight > 60, "wraps onto more lines")
+        tryVerify(() => notice.implicitHeight > 60, 2000, "wraps onto more lines")
     }
 
     function test_closing_empties_the_note() {

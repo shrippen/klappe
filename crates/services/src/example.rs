@@ -47,7 +47,13 @@ pub fn ensure_example(language: Language, dir: &Path) -> Result<Option<PathBuf>,
         path: dir.to_owned(),
         source,
     })?;
-    copy_example(language, dir)?;
+    // From here the old copy is somewhere else; the error says where.
+    if let Err(source) = copy_example(language, dir) {
+        return Err(ServiceError::ExampleAside {
+            aside,
+            source: Box::new(source),
+        });
+    }
 
     Ok(Some(aside))
 }

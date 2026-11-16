@@ -127,11 +127,11 @@ Item {
         }
 
         // What went wrong opening a project (or the example), whole: the header's line is short.
-        QQC2.Label {
+        KanteCallout {
             objectName: "status"
             Layout.fillWidth: true
             visible: text !== ""
-            wrapMode: Text.Wrap
+            kind: KanteCallout.Kind.Danger
             text: start.controller.status
         }
 

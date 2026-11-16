@@ -44,6 +44,7 @@ impl Default for ControllerRust {
             session,
             language,
             status: q(notice.text()),
+            example_aside: QString::default(),
             notice,
             texts: q(language.json()),
             loaded: false,

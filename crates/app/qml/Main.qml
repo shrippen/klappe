@@ -122,6 +122,12 @@ Kirigami.ApplicationWindow {
 
             Kirigami.Separator { Layout.fillWidth: true; visible: ctl.loaded }
 
+            AsideNotice {
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.smallSpacing
+                controller: ctl
+            }
+
             BackupNotice {
                 id: backupNotice
                 Layout.fillWidth: true

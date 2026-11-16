@@ -5,9 +5,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use klappe_services::{
-    copy_example, ensure_example, error_text, Language, ServiceError, Session,
-};
+use klappe_services::{copy_example, ensure_example, error_text, Language, ServiceError, Session};
 
 const DEMO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../demo");
 

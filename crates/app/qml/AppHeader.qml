@@ -105,6 +105,12 @@ RowLayout {
         color: KanteStyle.mutedTextColor
         text: header.controller.status !== "" ? header.controller.status : (header.controller.dirty ? header.texts.t("menu.unsaved") : "")
         visible: header.controller.loaded && text !== ""
+
+        // What the width cuts off shows whole on hover.
+        HoverHandler { id: statusHover }
+        QQC2.ToolTip.text: text
+        QQC2.ToolTip.visible: statusHover.hovered && truncated
+        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
     }
 
     // Objects without a height (LH-93): the count, and a click goes on to the next.

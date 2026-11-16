@@ -67,6 +67,7 @@ impl qobject::Controller {
         self.as_mut().rust_mut().get_mut().preview = Preview::Hidden;
         self.as_mut().set_loaded(false);
         self.as_mut().set_status(QString::default());
+        self.as_mut().set_example_aside(QString::default());
         self.as_mut().rust_mut().get_mut().notice.say(String::new());
         self.as_mut().set_backup_state(QString::default());
         self.as_mut().set_backup_message(QString::default());
@@ -95,10 +96,12 @@ impl qobject::Controller {
             return false;
         }
 
-        // After the switch, which clears the status line.
+        // After the switch, which clears the note of an earlier one. Not the status line: the
+        // next edit would clear that.
         if let Some(aside) = aside {
             let path = aside.to_string_lossy();
-            self.say(language.text("start.exampleAside").replace("{path}", &path));
+            let note = language.text("start.exampleAside").replace("{path}", &path);
+            self.as_mut().set_example_aside(q(&note));
         }
         true
     }
@@ -215,6 +218,7 @@ impl qobject::Controller {
             this.drop_drafts();
         }
         self.as_mut().switched();
+        self.as_mut().set_example_aside(QString::default());
         self.as_mut().set_loaded(true);
         self.as_mut().changed();
         self.as_mut().refresh();
