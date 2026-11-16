@@ -148,7 +148,7 @@ ColumnLayout {
         spacing: Kirigami.Units.smallSpacing
         visible: card.isFigure || (card.info !== null && card.info.hasWay)
 
-        // The field's name and unit: its placeholder hides once a pace fills it.
+        // The field's name and unit; the field has no placeholder.
         QQC2.Label {
             objectName: "paceLabel"
             visible: card.isFigure
