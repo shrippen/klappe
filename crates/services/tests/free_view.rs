@@ -308,3 +308,78 @@ fn choosing_another_plan_ends_the_look() {
     assert!(!s.looks_through());
     assert!(s.free_picture(SIZE).is_some());
 }
+
+fn looking_at_new_camera() -> Session {
+    let mut s = example();
+    s.toggle_view();
+    s.edit_plan(PlanEdit::AddCamera {
+        at: Point::new(2.0, 2.0),
+        facing_deg: 0.0,
+    })
+    .unwrap();
+    assert!(s.look_through(Some("c")));
+    s
+}
+
+fn remove_camera_c(s: &mut Session) {
+    s.edit_plan(PlanEdit::Remove {
+        source: Source::Camera("c".into()),
+    })
+    .unwrap();
+}
+
+/// An ended look stays ended: coming back to the plan does not revive it.
+#[test]
+fn the_look_does_not_come_back_with_the_plan() {
+    let mut s = example();
+    let first = s.plan().unwrap().id.clone();
+    s.copy_plan("").unwrap();
+    s.toggle_view();
+    assert!(s.look_through(Some("a")));
+
+    s.select_plan(&first).unwrap();
+    let second = s.scene().unwrap().plans[1].id.clone();
+    s.select_plan(&second).unwrap();
+
+    assert!(!s.looks_through());
+}
+
+/// Undoing the removal brings the camera back, not the look.
+#[test]
+fn undoing_the_removal_of_the_camera_does_not_revive_the_look() {
+    let mut s = looking_at_new_camera();
+
+    remove_camera_c(&mut s);
+    s.undo();
+
+    assert!(!s.looks_through());
+}
+
+/// A new camera gets the freed id; the look is not for it.
+#[test]
+fn a_new_camera_with_the_same_id_is_not_looked_through() {
+    let mut s = looking_at_new_camera();
+
+    remove_camera_c(&mut s);
+    s.edit_plan(PlanEdit::AddCamera {
+        at: Point::new(4.0, 1.0),
+        facing_deg: 90.0,
+    })
+    .unwrap();
+
+    assert!(!s.looks_through());
+}
+
+/// Edits that leave the camera and plan alone do not end the look.
+#[test]
+fn unrelated_edits_keep_the_look() {
+    let mut s = looking_at_new_camera();
+
+    s.edit_plan(PlanEdit::AddCamera {
+        at: Point::new(5.0, 5.0),
+        facing_deg: 0.0,
+    })
+    .unwrap();
+
+    assert!(s.looks_through());
+}

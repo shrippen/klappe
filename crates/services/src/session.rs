@@ -169,7 +169,7 @@ pub struct Session {
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends
-/// when another plan shows or the camera is gone.
+/// for good (`end_stale_look`) when another plan shows or the camera is gone.
 #[derive(Debug)]
 struct Through {
     scene: String,

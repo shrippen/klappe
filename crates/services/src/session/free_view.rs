@@ -73,6 +73,14 @@ impl Session {
         (on_view && !camera.marks.is_empty()).then_some(through.camera.as_str())
     }
 
+    /// Ends a look that no longer holds (other plan, camera gone) for good, so it cannot
+    /// come back with the plan, an undo or a new camera of the same id.
+    pub(super) fn end_stale_look(&mut self) {
+        if self.through_camera().is_none() {
+            self.through = None;
+        }
+    }
+
     /// In 3D, looks through the camera of the selected shot, else through `fallback` (the
     /// camera picked on the plan), or back to the orbit when it already does. The view follows
     /// the playhead. Returns whether it looks through a camera now; a plan, no camera or one

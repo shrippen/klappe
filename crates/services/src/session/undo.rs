@@ -113,6 +113,7 @@ impl Session {
         self.project_changed = true;
         self.touch();
         self.follow_scene(on_view, plan_on_view);
+        self.end_stale_look();
     }
 
     pub fn redo(&mut self) {
@@ -126,6 +127,7 @@ impl Session {
         self.project_changed = true;
         self.touch();
         self.follow_scene(on_view, plan_on_view);
+        self.end_stale_look();
     }
 
     /// Makes `step` the state and returns the one it replaces, for the other stack.

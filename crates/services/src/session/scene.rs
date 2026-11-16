@@ -28,6 +28,7 @@ impl Session {
         self.plan = 0;
         self.time_s = 0.0;
         self.selected_shot = None;
+        self.end_stale_look();
         Ok(())
     }
 
@@ -41,6 +42,7 @@ impl Session {
         self.plan = index;
         self.time_s = 0.0;
         self.selected_shot = None;
+        self.end_stale_look();
         Ok(())
     }
 
@@ -92,6 +94,7 @@ impl Session {
         }
 
         self.commit(next);
+        self.end_stale_look();
         Ok(())
     }
 
@@ -113,6 +116,7 @@ impl Session {
             None => self.commit(next),
         }
         self.follow_scene(on_view, plan_on_view);
+        self.end_stale_look();
         Ok(())
     }
 
@@ -215,6 +219,7 @@ impl Session {
         if was_shown {
             self.plan = before;
         }
+        self.end_stale_look();
         Ok(())
     }
 
@@ -224,6 +229,7 @@ impl Session {
         self.plan = at;
         self.time_s = 0.0;
         self.selected_shot = None;
+        self.end_stale_look();
 
         self.plan().map(|p| p.id.clone()).unwrap_or_default()
     }
