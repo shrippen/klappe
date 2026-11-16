@@ -115,8 +115,8 @@ impl Session {
                     extension: f.extension(),
                 })
                 .into(),
-            views: project
-                .views
+            views: self
+                .saved_views()
                 .iter()
                 .map(|v| ViewRow {
                     id: v.id.clone(),

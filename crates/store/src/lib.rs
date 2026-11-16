@@ -395,7 +395,10 @@ fn check_views(views: &[SavedView]) -> Result<(), String> {
         if view.id.trim().is_empty() || view.name.trim().is_empty() {
             return Err("a saved view needs an id and a name".to_owned());
         }
-        if views[..index].iter().any(|other| other.id == view.id) {
+        if views[..index]
+            .iter()
+            .any(|other| other.id.to_lowercase() == view.id.to_lowercase())
+        {
             return Err(format!("{}: saved view twice", view.id));
         }
     }

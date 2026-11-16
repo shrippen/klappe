@@ -43,7 +43,7 @@ use klappe_model::FloorPlan;
 
 pub use error::ExportError;
 pub use klappe_model::{Orientation, Paper};
-pub use klappe_stellprobe::{DisplayList, Lamp, Picture, ShotOrder, VectorView};
+pub use klappe_stellprobe::{DisplayList, Lamp, Picture, SceneRole, ShotOrder, VectorView};
 pub use page::{
     DrawingTexts, LampColumns, LampTexts, Page, ShotColumns, ShotTexts, ShotView, Texts,
 };
@@ -60,7 +60,7 @@ pub fn pdf(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, Exp
 }
 
 /// Every plan of `pages` on a page of its own, as PDF 1.4 (LH-87): one page per shot or camera,
-/// each with its own list and sheet; `None` for an empty slice.
+/// each with its own list and sheet; an empty slice is `ExportError::EmptyPlan`.
 pub fn pdf_pages(pages: &[(DisplayList, Page)], theme: Theme) -> Result<Vec<u8>, ExportError> {
     let mut docs = pages
         .iter()
@@ -118,8 +118,12 @@ pub fn pdf_with_views(
 }
 
 /// A view of the set as PNG (LH-86), as wide as the picture: print colours, names written in.
-pub fn picture_png(picture: &Picture, theme: Theme) -> Result<Vec<u8>, ExportError> {
-    picture_png::write(picture, theme)
+pub fn picture_png(
+    picture: &Picture,
+    theme: Theme,
+    strength: &dyn Fn(SceneRole) -> f64,
+) -> Result<Vec<u8>, ExportError> {
+    picture_png::write(picture, theme, strength)
 }
 
 /// The plan's shots in `order` as CSV (LH-82): RFC 4180, UTF-8, `\r\n`, numbers with a point.

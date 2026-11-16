@@ -39,8 +39,14 @@ fn a_new_plan_holds_the_speakers_side_by_side_at_the_edge() {
     assert_eq!(names, ["elisabeth", "burgvogt"]);
     // In a row: the same distance from the edge, one metre apart, inside the set.
     assert_eq!(places[0].2, places[1].2);
-    assert!((places[1].1 - places[0].1 - 1.0).abs() < 1e-9, "{places:?}");
-    assert!(places.iter().all(|p| p.1 > 0.0 && p.1 < 20.0 && p.2 < 13.0));
+    // 0,8 m in from the top left corner of the 20 x 13 m set, 1 m apart.
+    assert_eq!(
+        places,
+        [
+            ("elisabeth".to_owned(), 0.8, 0.8),
+            ("burgvogt".to_owned(), 1.8, 0.8)
+        ]
+    );
     assert!(s.plan().unwrap().cameras.is_empty());
 }
 
@@ -99,4 +105,45 @@ fn a_scene_the_script_does_not_have_starts_empty() {
     s.select_scene("szene-014").unwrap();
 
     assert!(s.plan().unwrap().figures.is_empty());
+}
+
+/// A set 2.6 m wide leaves 1 m between the edge marks, so three
+/// speakers close up to 0,5 m: 0,8 / 1,3 / 1,8.
+#[test]
+fn a_narrow_set_closes_the_row_up() {
+    let mut s = example();
+    let script = format!(
+        "{}\n\nINT. FLUR – TAG #15#\n\nELISABETH\nA\n\nBURGVOGT\nB\n\nGraf\nC\n",
+        s.script_text()
+    );
+    s.set_script_text(&script);
+    s.edit_project(ProjectEdit::AddCharacter {
+        name: "Graf".into(),
+        short: "G".into(),
+        color: klappe_services::FigureColor::Green,
+        group: None,
+        size_m: None,
+    })
+    .unwrap();
+    s.edit_project(ProjectEdit::AddLocation {
+        name: "Flur".into(),
+        width_m: 2.6,
+        depth_m: 5.0,
+        wall_height_m: 2.6,
+    })
+    .unwrap();
+    s.edit_project(ProjectEdit::AddScene {
+        number: "15".into(),
+        heading: "INT. FLUR – TAG".into(),
+        location: "flur".into(),
+    })
+    .unwrap();
+    s.select_scene("szene-015").unwrap();
+
+    let xs: Vec<f64> = standing(&s).iter().map(|p| p.1).collect();
+
+    assert_eq!(xs.len(), 3);
+    for (x, want) in xs.iter().zip([0.8, 1.3, 1.8]) {
+        assert!((x - want).abs() < 1e-9, "{xs:?}");
+    }
 }

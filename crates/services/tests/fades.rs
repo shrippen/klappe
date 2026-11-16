@@ -21,9 +21,6 @@ fn the_steps_are_100_60_and_30_percent() {
 
     assert_eq!(strengths, [1.0, 0.6, 0.3]);
     assert_eq!(names, ["100", "60", "30"]);
-    for fade in Fade::ALL {
-        assert_eq!(Fade::from_name(fade.name()), Some(fade));
-    }
     assert_eq!(Fade::Full.next(), Fade::Medium);
     assert_eq!(Fade::Faint.next(), Fade::Full);
 }
@@ -97,7 +94,8 @@ fn the_exports_honour_a_faded_layer() {
     let write = |s: &Session, name: &str| {
         s.export_svg(&dir.join(format!("{name}.svg")), paper, texts.clone())
             .unwrap();
-        s.export_view_png(&dir.join(format!("{name}.png")), size).unwrap();
+        s.export_view_png(&dir.join(format!("{name}.png")), size)
+            .unwrap();
     };
     write(&s, "full");
 

@@ -142,14 +142,17 @@ fn key(opacity: f64) -> u32 {
 
 /// The pictures of the plan pages, in drawing order.
 fn pictures(plans: &[&Doc]) -> Vec<Arc<Picture>> {
-    plans
-        .iter()
-        .flat_map(|doc| &doc.plan)
-        .filter_map(|prim| match prim {
-            Prim::Image { picture, .. } => Some(Arc::clone(picture)),
-            _ => None,
-        })
-        .collect()
+    let mut found: Vec<Arc<Picture>> = Vec::new();
+    for prim in plans.iter().flat_map(|doc| &doc.plan) {
+        // The same file on several pages is one object, whatever Arc each page made.
+        if let Prim::Image { picture, .. } = prim {
+            if !found.iter().any(|p| **p == **picture) {
+                found.push(Arc::clone(picture));
+            }
+        }
+    }
+
+    found
 }
 
 /// The distinct translucent fills and pictures of the page, in first-use order.
@@ -281,7 +284,7 @@ fn image_ops(prim: &Prim, h: f64, states: &[u32], pictures: &[Arc<Picture>]) -> 
     else {
         return String::new();
     };
-    let Some(index) = pictures.iter().position(|p| Arc::ptr_eq(p, picture)) else {
+    let Some(index) = pictures.iter().position(|p| **p == **picture) else {
         return String::new();
     };
 

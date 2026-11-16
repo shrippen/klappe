@@ -34,11 +34,6 @@ impl Fade {
         }
     }
 
-    /// The step `name` names; `None` for any other text.
-    pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|f| f.name() == name)
-    }
-
     /// The share of the colour that is left, 1 for full.
     pub fn strength(self) -> f64 {
         match self {

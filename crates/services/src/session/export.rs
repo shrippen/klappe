@@ -88,6 +88,17 @@ impl Session {
         write_file(path, bytes)
     }
 
+    /// `picture` as print PNG, each body as strong as its layer's fade says (LH-15).
+    fn picture_bytes(&self, picture: &klappe_stellprobe::Picture) -> Result<Vec<u8>, ServiceError> {
+        let strength = |role| self.scene_fade(role);
+
+        Ok(klappe_export::picture_png(
+            picture,
+            Theme::Light,
+            &strength,
+        )?)
+    }
+
     /// Writes the 3D view as PNG (LH-86), as it is on screen: orbit or through a camera, with
     /// the cut, `shown` the size it has there; the PNG is as wide as `VIEW_WIDTH_PX` and keeps
     /// its aspect.
@@ -99,7 +110,7 @@ impl Session {
         let size = (VIEW_WIDTH_PX, (VIEW_WIDTH_PX * shown.1 / shown.0).round());
         let picture = self.free_picture(size).ok_or(ServiceError::NoPicture)?;
 
-        write_file(path, klappe_export::picture_png(&picture, Theme::Light)?)
+        write_file(path, self.picture_bytes(&picture)?)
     }
 
     /// Writes the picture of the selected shot's camera at the playhead as PNG (LH-86), else
@@ -114,7 +125,7 @@ impl Session {
             .camera_picture(fallback, VIEW_WIDTH_PX as usize)
             .ok_or(ServiceError::NoPicture)?;
 
-        write_file(path, klappe_export::picture_png(&picture, Theme::Light)?)
+        write_file(path, self.picture_bytes(&picture)?)
     }
 
     /// What each shot's camera sees at the shot's start, as faces for print; a shot whose
@@ -194,6 +205,7 @@ impl Session {
     ) -> Result<(DisplayList, Page), ServiceError> {
         let mut page = Page::new(paper.size, paper.orientation, self.plan_title(), texts);
         let list = self.display_list();
+        page.fade = self.item_fades(&list);
         for item in &list.items {
             let Shape::Image { file, .. } = &item.shape else {
                 continue;
