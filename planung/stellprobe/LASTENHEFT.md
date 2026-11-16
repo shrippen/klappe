@@ -160,7 +160,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | Nr | Anforderung | Prio |
 |---|---|---|
 | LH-70 | Shots im Plan oder in der Shotliste anlegen; beide Ansichten sind wechselseitig verknüpft. Ein Setup kann mehrere Shots liefern. | M |
-| LH-71 | Felder je Shot: Nummer, Kurzname, Kamera, Objektiv, Einstellungsgröße (Weit bis Detail), Perspektive, Bewegung, Beschreibung, Dauer, Requisiten, Technik, Team, Notiz. | M |
+| LH-71 | Felder je Shot: Nummer, Kamera, Objektiv, Einstellungsgröße (Weit bis Detail), Perspektive, Bewegung, Beschreibung, Dauer, Requisiten, Technik, Team, Notiz. | M |
 | LH-72 | Shotliste der Szene; Reihenfolge nach Schnitt und nach Drehreihenfolge (Setups gruppiert). | M |
 | LH-73 | Shot im Plan markieren hebt Kamera, Weg und Sichtkegel hervor. | M |
 | LH-74 | Storyboard-Bild je Shot (importiert oder skizziert). | K |
@@ -215,7 +215,7 @@ Eigene Entwürfe, angeregt durch die Beobachtung von Shot Designer (Anhang A); d
 | LH-107 | Wegstück verschieben: ein Stück Weg mit beiden Enden und Knicken auf einmal ziehen oder mit Pfeiltasten schieben. | S |
 | LH-108 | Weg gerade oder weich: je Weg umschalten zwischen Kurve durch die Knicke und geraden Strecken von Knick zu Knick (Schiene, Flur); anders als die Taste G behält er die Knicke. | S |
 | LH-109 | Achse von der Figur aus: Figur gewählt, „Achse zu …“, Klick auf die zweite Figur setzt das Achsenpaar (LH-40). | S |
-| LH-110 | Ein neuer Shot öffnet Kurzname (neues Feld, LH-71) und Beschreibung zum Tippen, Enter schließt ab. | S |
+| LH-110 | Jeder Shot bekommt einen Kurznamen (neues Feld neben denen aus LH-71); ein neuer Shot öffnet Kurzname und Beschreibung zum Tippen, Enter schließt ab. | S |
 | LH-111 | Jede Kamera hat eine Farbe (neues Feld, Vorgabe nach Reihenfolge aus der Kante-Palette, LH-30); die Nummer des Shots steht in Shotliste und Kacheln in der Farbe seiner Kamera, der Kamera-Name daneben (Farbe nie allein). | S |
 | LH-112 | Lange Beschreibung eines Shots aufklappbar als zweite Zeile am gewählten Shot. | S |
 | LH-113 | Kamerablick als kleines Bild neben dem Kamerakörper im Plan, abschaltbar (LH-36). | S |
