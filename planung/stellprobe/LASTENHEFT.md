@@ -160,7 +160,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | Nr | Anforderung | Prio |
 |---|---|---|
 | LH-70 | Shots im Plan oder in der Shotliste anlegen; beide Ansichten sind wechselseitig verknüpft. Ein Setup kann mehrere Shots liefern. | M |
-| LH-71 | Felder je Shot: Nummer, Kamera, Objektiv, Einstellungsgröße (Weit bis Detail), Perspektive, Bewegung, Beschreibung, Dauer, Requisiten, Technik, Team, Notiz. | M |
+| LH-71 | Felder je Shot: Nummer, Kurzname, Kamera, Objektiv, Einstellungsgröße (Weit bis Detail), Perspektive, Bewegung, Beschreibung, Dauer, Requisiten, Technik, Team, Notiz. | M |
 | LH-72 | Shotliste der Szene; Reihenfolge nach Schnitt und nach Drehreihenfolge (Setups gruppiert). | M |
 | LH-73 | Shot im Plan markieren hebt Kamera, Weg und Sichtkegel hervor. | M |
 | LH-74 | Storyboard-Bild je Shot (importiert oder skizziert). | K |
@@ -202,22 +202,21 @@ zeichnet, legt die Grundlagen für 3D schon mit an. Umsetzung:
 
 ### 6.11 Bedienung und Bearbeiten
 
-Aus der Beobachtung von Shot Designer (Anhang A), auf Wunsch des Eigentümers vollständig übernommen (2026-11-16). Jede Funktion hat einen Weg mit der Maus und einen mit der Tastatur (NF-06).
+Eigene Entwürfe, angeregt durch die Beobachtung von Shot Designer (Anhang A); der Eigentümer hat sie vollständig gewählt (2026-11-16). Was es schon gibt (nummerierte Marks LH-21, Schwenken mit mittlerer Taste und Leertaste, sichtbare Rückgängig-Knöpfe, Werkzeuge, die nach dem Klick aktiv bleiben), steht hier nicht. Jede Funktion hat einen Weg mit der Maus und einen mit der Tastatur (NF-06).
 
 | Nr | Anforderung | Prio |
 |---|---|---|
-| LH-100 | Kontextmenü an jedem Element im Plan (Figur, Mark, Weg, Kamera, Objekt, Wand) und auf leerer Fläche, mit denselben Befehlen wie Taste und Befehlspalette und der Taste daneben; öffnet auch mit Menütaste und Umschalt+F10. | S |
-| LH-101 | Hinweiszeile beim aktiven Werkzeug: was der nächste Klick tut; Esc bricht ab. | S |
+| LH-100 | Kontextmenü an jedem Element im Plan (z. B. Figur, Mark, Weg, Kamera, Objekt, Wand, Lampe, Notiz, Zeichnung, Bild, Öffnung) und auf leerer Fläche, mit denselben Befehlen wie Taste und Befehlspalette und der Taste daneben; öffnet auch mit Menütaste und Umschalt+F10. | S |
+| LH-101 | Hinweiszeile beim aktiven Werkzeug: was der nächste Klick tut. Esc wirkt in dieser Reihenfolge: erst den laufenden Vorgang abbrechen (z. B. eine halb gezeichnete Wand), dann zum Auswahl-Werkzeug wechseln, dann die Auswahl leeren. | S |
 | LH-102 | Tooltip mit Name und Taste an jedem Knopf und an den Griffen im Plan. | S |
-| LH-103 | Knöpfe Rückgängig und Wiederholen sichtbar; der Tooltip nennt den Schritt. | S |
-| LH-104 | Nächster Mark aus der Auswahl: Figur oder Kamera gewählt, Taste oder Kontextmenü, dann ein Klick setzt den nächsten Mark, ohne Werkzeugwechsel (Kamera: Rig Dolly). | S |
+| LH-103 | Der Tooltip der Knöpfe Rückgängig und Wiederholen nennt den Schritt, den sie zurücknehmen oder wiederholen (z. B. „Mark verschieben“). | S |
+| LH-104 | Nächster Mark aus der Auswahl: Figur oder Kamera gewählt, Taste oder Kontextmenü, dann ein Klick setzt den nächsten Mark, ohne Werkzeugwechsel (Kamera: Gerät Dolly). | S |
 | LH-105 | Mark davor setzen: ein Mark vor dem ersten, woher die Figur kommt; die Zeiten rücken nach. | S |
-| LH-106 | Nummer an jedem Mark (1, 2, 3 je Figur) im Plan. | S |
 | LH-107 | Wegstück verschieben: ein Stück Weg mit beiden Enden und Knicken auf einmal ziehen oder mit Pfeiltasten schieben. | S |
-| LH-108 | Weg gerade oder weich: je Weg umschalten zwischen Kurve durch die Knicke und geraden Strecken (Schiene, Flur). | S |
+| LH-108 | Weg gerade oder weich: je Weg umschalten zwischen Kurve durch die Knicke und geraden Strecken von Knick zu Knick (Schiene, Flur); anders als die Taste G behält er die Knicke. | S |
 | LH-109 | Achse von der Figur aus: Figur gewählt, „Achse zu …“, Klick auf die zweite Figur setzt das Achsenpaar (LH-40). | S |
-| LH-110 | Ein neuer Shot öffnet Name und Beschreibung zum Tippen, Enter schließt ab. | S |
-| LH-111 | Kennung des Shots in der Farbe seiner Kamera in Shotliste und Kacheln, Name dazu (Farbe nie allein). | S |
+| LH-110 | Ein neuer Shot öffnet Kurzname (neues Feld, LH-71) und Beschreibung zum Tippen, Enter schließt ab. | S |
+| LH-111 | Jede Kamera hat eine Farbe (neues Feld, Vorgabe nach Reihenfolge aus der Kante-Palette, LH-30); die Nummer des Shots steht in Shotliste und Kacheln in der Farbe seiner Kamera, der Kamera-Name daneben (Farbe nie allein). | S |
 | LH-112 | Lange Beschreibung eines Shots aufklappbar als zweite Zeile am gewählten Shot. | S |
 | LH-113 | Kamerablick als kleines Bild neben dem Kamerakörper im Plan, abschaltbar (LH-36). | S |
 | LH-114 | Art eines Objekts tauschen: Ort, Drehung und Ebene bleiben. | S |
@@ -227,9 +226,8 @@ Aus der Beobachtung von Shot Designer (Anhang A), auf Wunsch des Eigentümers vo
 | LH-118 | Beschriftung an Objekt, Figur oder Mark gebunden; sie folgt beim Verschieben. | S |
 | LH-119 | Gespeicherte Ansichten: benannte Auswahl sichtbarer Kameras, Figuren und Ebenen; Grundlage der Ausgabe je Shot oder Kamera (LH-87). | S |
 | LH-120 | Skizzenstift: Freihand über dem Plan auf eigener Ebene, ein Befehl löscht alle Skizzen. | S |
-| LH-121 | Schwenken auch mit gedrückter mittlerer Maustaste (Leertaste gibt es schon). | S |
-| LH-122 | Ein Werkzeug zum Setzen bleibt nach dem Klick aktiv für weitere Elemente; Esc wechselt zur Auswahl. | S |
-| LH-123 | Das Werkzeug merkt die zuletzt gewählte Figur, Kamera, Objektart und Lampe. | S |
+| LH-122 | Ein Werkzeug zum Setzen zeigt in der Hinweiszeile (LH-101), dass es für weitere Elemente aktiv bleibt. | S |
+| LH-123 | Das Werkzeug merkt die zuletzt gewählte Figur, Kamera, Objektart und Lampe über einen Neustart hinweg (in der Sitzung tut es das für die Objektart schon). | S |
 
 ## 7. Nicht-funktionale Anforderungen
 
@@ -291,9 +289,12 @@ für den Nutzer leistet, nie *wie* es das tut.
   Shot Designer daneben.
 - Namen, Symbole, Objektbibliothek und Dateiformat sind eigene Entwürfe.
 - Ausnahme auf Auftrag des Eigentümers (2026-11-16, Wortlaut im Kommentar zu #197): Seine Kopie
-  (freie Fassung) wurde in einer unsichtbaren Sitzung bedient, um Bedienung und Tempo beim Blocking zu
+  (freie Fassung) wurde in einer unsichtbaren Sitzung bedient, um Bedienung, Funktionen und Tempo beim Blocking zu
   beobachten. Daraus steht hier nur Verhalten in eigenen Worten (Abschnitt „Shot Designer
-  in der Bedienung“); nichts sonst aus der Liste oben wurde getan.
+  in der Bedienung“); nichts sonst aus der Liste oben wurde getan. Die Anforderungen in 6.11
+  sind eigene Entwürfe, die diese Beobachtung angeregt hat; der Eigentümer hat sie gewählt
+  („alles umsetzen“, 2026-11-16). Die Einträge der Objektbibliothek (LH-117) wählt Klappe
+  selbst, nach Bedarf am Set.
 
 Gelesene Seiten (2026-11-13):
 
