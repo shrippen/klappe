@@ -45,16 +45,7 @@ pub enum Reach {
 /// itself (it is the bend to straighten). A click on a point is the exception, see `click`.
 /// A free form's point stands for the form.
 fn whole(source: Source) -> Source {
-    match source {
-        Source::DrawingPoint { drawing, .. } | Source::DrawingEdge { drawing, .. } => {
-            Source::Drawing(drawing)
-        }
-        Source::NoteWidth(note) => Source::Note(note),
-        Source::ObjectGrip { object, .. } => Source::Object(object),
-        Source::OpeningEdge { wall, index, .. } => Source::Opening { wall, index },
-        Source::LightGrip { light, .. } => Source::Light(light),
-        source => source,
-    }
+    source.owner().unwrap_or(source)
 }
 
 impl Selection {

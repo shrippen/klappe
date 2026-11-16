@@ -103,19 +103,10 @@ pub enum Role {
     /// The filled head of an arrow, in the arrow's colour.
     ArrowHead(FigureColor),
     FigurePath(FigureColor),
-    /// A grip on a point or corner of the selected drawing (LH-19); only drawn while it is
-    /// selected.
-    DrawingHandle,
-    /// The grip that sets the width of the selected note's card (LH-16); only drawn while it
-    /// is selected.
-    NoteHandle,
-    /// A grip on an end of the selected door or window (LH-10); only drawn while selected.
-    OpeningHandle,
-    /// A grip on the beam of the selected lamp (LH-50); only drawn while it is selected.
-    LightHandle,
-    /// A grip just outside the right or bottom edge of the selected object (LH-25); only
-    /// drawn while selected.
-    ObjectHandle,
+    /// A grip on the selected element (drawing, note, door or window, lamp, object); only
+    /// drawn while it is selected. The element it belongs to is `Source::owner` of the
+    /// item's source.
+    Handle,
     /// The grip that bends the way to a mark (LH-21); only drawn for a selected way.
     FigureHandle(FigureColor),
     CameraHandle,
@@ -128,6 +119,27 @@ pub enum Role {
     Height {
         cm: Option<u32>,
     },
+}
+
+impl Source {
+    /// The element a grip of this source stands for: a click on the grip selects it, its layer
+    /// is the grip's. `None` for an element, and for a grip on a way's bend, which is selected
+    /// itself (it is the bend to straighten).
+    pub fn owner(&self) -> Option<Source> {
+        match self {
+            Source::DrawingPoint { drawing, .. } | Source::DrawingEdge { drawing, .. } => {
+                Some(Source::Drawing(drawing.clone()))
+            }
+            Source::NoteWidth(note) => Some(Source::Note(note.clone())),
+            Source::ObjectGrip { object, .. } => Some(Source::Object(object.clone())),
+            Source::OpeningEdge { wall, index, .. } => Some(Source::Opening {
+                wall: *wall,
+                index: *index,
+            }),
+            Source::LightGrip { light, .. } => Some(Source::Light(light.clone())),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -9,13 +9,13 @@ const PICK_RADIUS_M: f64 = 0.15;
 
 /// The topmost item the user can grab at `at`: the display list is back to front. Items for
 /// which `locked` is true are left out.
-pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> Option<Source> {
+pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(&Item) -> bool) -> Option<Source> {
     // Grips lie in front, but where their catch areas overlap the nearest one wins, not the
     // one drawn last. Inside its own element a grip catches only what it covers, so a small
     // element can still be clicked.
     let grip = items
         .iter()
-        .filter(|item| is_grip(item.role) && !locked(item.role) && item.source.is_some())
+        .filter(|item| is_grip(item.role) && !locked(item) && item.source.is_some())
         .filter(|item| hit(item, at, grip_tolerance_m(items, item, at)))
         .filter_map(|item| Some((grip_distance_m(item, at)?, item)))
         .min_by(|a, b| a.0.total_cmp(&b.0));
@@ -28,7 +28,7 @@ pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> 
         .rev()
         // A caption that belongs to nothing (a height, a free form's name) does not hide
         // the body under it.
-        .filter(|item| grabbable(item.role) && !is_grip(item.role) && !locked(item.role))
+        .filter(|item| grabbable(item.role) && !is_grip(item.role) && !locked(item))
         .filter(|item| item.source.is_some())
         .find(|item| hit(item, at, PICK_RADIUS_M))
         .and_then(|item| item.source.clone())
@@ -38,13 +38,7 @@ pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> 
 fn is_grip(role: Role) -> bool {
     matches!(
         role,
-        Role::DrawingHandle
-            | Role::NoteHandle
-            | Role::OpeningHandle
-            | Role::LightHandle
-            | Role::ObjectHandle
-            | Role::FigureHandle(_)
-            | Role::CameraHandle
+        Role::Handle | Role::FigureHandle(_) | Role::CameraHandle
     )
 }
 
@@ -90,14 +84,11 @@ fn grip_distance_m(item: &Item, at: Point) -> Option<f64> {
 pub(crate) fn pick_in(
     items: &[Item],
     (a, b): (Point, Point),
-    locked: impl Fn(Role) -> bool,
+    locked: impl Fn(&Item) -> bool,
 ) -> Vec<Source> {
     let mut found: Vec<(Source, bool)> = Vec::new();
 
-    for item in items
-        .iter()
-        .filter(|i| grabbable(i.role) && !locked(i.role))
-    {
+    for item in items.iter().filter(|i| grabbable(i.role) && !locked(i)) {
         let Some(source) = &item.source else {
             continue;
         };
@@ -123,14 +114,11 @@ pub(crate) fn pick_in(
 pub(crate) fn pick_lasso(
     items: &[Item],
     lasso: &[Point],
-    locked: impl Fn(Role) -> bool,
+    locked: impl Fn(&Item) -> bool,
 ) -> Vec<Source> {
     let mut points: Vec<(Source, Option<Point>, bool)> = Vec::new();
 
-    for item in items
-        .iter()
-        .filter(|i| grabbable(i.role) && !locked(i.role))
-    {
+    for item in items.iter().filter(|i| grabbable(i.role) && !locked(i)) {
         let Some(source) = &item.source else {
             continue;
         };

@@ -44,7 +44,7 @@ fn grips(set: &SetPlan, selected: &Source) -> Vec<(Source, Point)> {
     handles(&project, set, &FloorPlan::new("a", "Plan A"), selected)
         .into_iter()
         .filter_map(|item| {
-            assert_eq!(item.role, Role::ObjectHandle);
+            assert_eq!(item.role, Role::Handle);
 
             match item.shape {
                 Shape::Circle { center, .. } => Some((item.source.unwrap(), center)),

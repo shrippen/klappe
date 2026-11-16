@@ -112,7 +112,7 @@ fn light_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
     [LightGrip::Beam, LightGrip::Direction]
         .into_iter()
         .map(|grip| Item {
-            role: Role::LightHandle,
+            role: Role::Handle,
             shape: Shape::Circle {
                 center: light_grip_place(light, grip),
                 radius_m: HANDLE_RADIUS_M,
@@ -198,7 +198,7 @@ fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     grips
         .into_iter()
         .map(|grip| Item {
-            role: Role::ObjectHandle,
+            role: Role::Handle,
             shape: Shape::Circle {
                 center: object_grip_place(object, grip),
                 radius_m: match grip {
@@ -230,7 +230,7 @@ fn opening_handles(set: &SetPlan, wall: usize, index: usize) -> Vec<Item> {
     [(OpeningEnd::Start, start_m), (OpeningEnd::End, end_m)]
         .into_iter()
         .map(|(end, along_m)| Item {
-            role: Role::OpeningHandle,
+            role: Role::Handle,
             shape: Shape::Circle {
                 center: wall_ref.point_at(along_m),
                 radius_m: HANDLE_RADIUS_M,
@@ -250,7 +250,7 @@ fn note_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     let center = corners[1].lerp(corners[2], 0.5);
 
     vec![Item {
-        role: Role::NoteHandle,
+        role: Role::Handle,
         shape: Shape::Circle {
             center,
             radius_m: HANDLE_RADIUS_M,
@@ -293,7 +293,7 @@ fn drawing_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
         return Vec::new();
     };
     let grip = |source, center, radius_m| Item {
-        role: Role::DrawingHandle,
+        role: Role::Handle,
         shape: Shape::Circle { center, radius_m },
         label: None,
         source: Some(source),

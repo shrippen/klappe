@@ -62,7 +62,7 @@ fn grips(s: &Session, id: &str) -> Vec<Point> {
     let mut found: Vec<_> = list
         .items
         .iter()
-        .filter(|i| i.role == Role::DrawingHandle)
+        .filter(|i| i.role == Role::Handle)
         .filter_map(|i| match (&i.source, &i.shape) {
             (Some(Source::DrawingPoint { index, .. }), Shape::Circle { center, .. }) => {
                 Some((*index, *center))
@@ -104,9 +104,9 @@ fn a_selected_drawing_shows_a_grip_on_each_point() {
     assert_eq!(grips(&s, "d3").len(), 3);
     // Only the selected one, and never in the plain list (or the export).
     let plain = s.display_list();
-    assert!(plain.items.iter().all(|i| i.role != Role::DrawingHandle));
+    assert!(plain.items.iter().all(|i| i.role != Role::Handle));
     let other = s.display_list_for(Some(&Source::Wall(0)));
-    assert!(other.items.iter().all(|i| i.role != Role::DrawingHandle));
+    assert!(other.items.iter().all(|i| i.role != Role::Handle));
 }
 
 /// A grip lies in front of its drawing; without the drawing selected it is not there to take.
@@ -328,7 +328,7 @@ fn a_preview_shows_the_dragged_grip() {
     let ends: Vec<_> = list
         .items
         .iter()
-        .filter(|i| i.role == Role::DrawingHandle)
+        .filter(|i| i.role == Role::Handle)
         .collect();
     assert_eq!(ends.len(), 2);
     assert_eq!(

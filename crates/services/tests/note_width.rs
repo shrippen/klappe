@@ -46,7 +46,7 @@ fn grip_at(s: &Session) -> Option<Point> {
 
     list.items
         .iter()
-        .filter(|i| i.role == Role::NoteHandle)
+        .filter(|i| i.role == Role::Handle)
         .find_map(|i| match (&i.source, &i.shape) {
             (Some(source), Shape::Circle { center, .. }) if *source == grip() => Some(*center),
             _ => None,
@@ -62,7 +62,7 @@ fn a_selected_note_has_a_grip_in_the_middle_of_its_right_edge() {
         .display_list()
         .items
         .iter()
-        .all(|i| i.role != Role::NoteHandle));
+        .all(|i| i.role != Role::Handle));
 }
 
 #[test]
