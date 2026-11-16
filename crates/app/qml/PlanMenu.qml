@@ -79,89 +79,93 @@ HeaderMenu {
     QQC2.MenuSeparator {}
     KanteMenuItem { objectName: "removePlan"; action: removeAction; iconRoom: true; destructive: true }
 
-    CommandAction {
-        id: snapshotAction
-        cmd: "plan.snapshot"
-        group: "plans"
-        text: chooser.texts.t("plan.snapshot")
-        enabled: !chooser.locked && chooser.current !== null
-        onTriggered: form.show("snapshot", chooser.current)
-    }
-    CommandAction {
-        id: newAction
-        cmd: "plan.new"
-        group: "plans"
-        text: chooser.texts.t("plan.new")
-        enabled: !chooser.locked && chooser.current !== null
-        onTriggered: form.show("new", null)
-    }
-    CommandAction {
-        id: renameAction
-        cmd: "plan.rename"
-        group: "plans"
-        text: chooser.texts.t("plan.rename")
-        enabled: !chooser.locked && chooser.current !== null
-        onTriggered: form.show("rename", chooser.current)
-    }
-    CommandAction {
-        id: moveEarlierAction
-        cmd: "plan.moveEarlier"
-        group: "plans"
-        text: chooser.texts.t("plan.moveEarlier")
-        enabled: !chooser.locked && chooser.index > 0
-        onTriggered: chooser.controller.movePlan(chooser.current.id, "earlier")
-    }
-    CommandAction {
-        id: moveLaterAction
-        cmd: "plan.moveLater"
-        group: "plans"
-        text: chooser.texts.t("plan.moveLater")
-        enabled: !chooser.locked && chooser.index >= 0 && chooser.index < chooser.plans.length - 1
-        onTriggered: chooser.controller.movePlan(chooser.current.id, "later")
-    }
-    CommandAction {
-        id: templateAction
-        cmd: "plan.template"
-        group: "plans"
-        text: chooser.texts.t("plan.template")
-        enabled: !chooser.locked && chooser.current !== null
-        onTriggered: templates.show("apply")
-    }
-    CommandAction {
-        id: templateSaveAction
-        cmd: "plan.templateSave"
-        group: "plans"
-        text: chooser.texts.t("plan.templateSave")
-        enabled: !chooser.locked && chooser.current !== null
-        onTriggered: templates.show("save")
-    }
-    CommandAction {
-        id: templateImportAction
-        cmd: "plan.templateImport"
-        group: "plans"
-        text: chooser.texts.t("plan.templateImport")
-        enabled: !chooser.locked && chooser.current !== null
-        onTriggered: chooser.templateImportRequested()
-    }
-    CommandAction {
-        id: templateExportAction
-        cmd: "plan.templateExport"
-        group: "plans"
-        text: chooser.texts.t("plan.templateExport")
-        enabled: !chooser.locked && chooser.hasOwnTemplates
-        onTriggered: chooser.templateExportRequested()
-    }
-    CommandAction {
-        id: removeAction
-        cmd: "plan.remove"
-        group: "plans"
-        text: chooser.texts.t("plan.remove")
-        enabled: !chooser.locked && chooser.plans.length > 1
-        onTriggered: {
-            chooser.controller.clearStatus()
-            confirm.open()
+    // The commands, kept out of the menu's content: a QQC2.Action inside a Menu would add a
+    // second, unstyled entry for itself next to the KanteMenuItem that shows it.
+    readonly property list<QtObject> commands: [
+        CommandAction {
+            id: snapshotAction
+            cmd: "plan.snapshot"
+            group: "plans"
+            text: chooser.texts.t("plan.snapshot")
+            enabled: !chooser.locked && chooser.current !== null
+            onTriggered: form.show("snapshot", chooser.current)
+        },
+        CommandAction {
+            id: newAction
+            cmd: "plan.new"
+            group: "plans"
+            text: chooser.texts.t("plan.new")
+            enabled: !chooser.locked && chooser.current !== null
+            onTriggered: form.show("new", null)
+        },
+        CommandAction {
+            id: renameAction
+            cmd: "plan.rename"
+            group: "plans"
+            text: chooser.texts.t("plan.rename")
+            enabled: !chooser.locked && chooser.current !== null
+            onTriggered: form.show("rename", chooser.current)
+        },
+        CommandAction {
+            id: moveEarlierAction
+            cmd: "plan.moveEarlier"
+            group: "plans"
+            text: chooser.texts.t("plan.moveEarlier")
+            enabled: !chooser.locked && chooser.index > 0
+            onTriggered: chooser.controller.movePlan(chooser.current.id, "earlier")
+        },
+        CommandAction {
+            id: moveLaterAction
+            cmd: "plan.moveLater"
+            group: "plans"
+            text: chooser.texts.t("plan.moveLater")
+            enabled: !chooser.locked && chooser.index >= 0 && chooser.index < chooser.plans.length - 1
+            onTriggered: chooser.controller.movePlan(chooser.current.id, "later")
+        },
+        CommandAction {
+            id: templateAction
+            cmd: "plan.template"
+            group: "plans"
+            text: chooser.texts.t("plan.template")
+            enabled: !chooser.locked && chooser.current !== null
+            onTriggered: templates.show("apply")
+        },
+        CommandAction {
+            id: templateSaveAction
+            cmd: "plan.templateSave"
+            group: "plans"
+            text: chooser.texts.t("plan.templateSave")
+            enabled: !chooser.locked && chooser.current !== null
+            onTriggered: templates.show("save")
+        },
+        CommandAction {
+            id: templateImportAction
+            cmd: "plan.templateImport"
+            group: "plans"
+            text: chooser.texts.t("plan.templateImport")
+            enabled: !chooser.locked && chooser.current !== null
+            onTriggered: chooser.templateImportRequested()
+        },
+        CommandAction {
+            id: templateExportAction
+            cmd: "plan.templateExport"
+            group: "plans"
+            text: chooser.texts.t("plan.templateExport")
+            enabled: !chooser.locked && chooser.hasOwnTemplates
+            onTriggered: chooser.templateExportRequested()
+        },
+        CommandAction {
+            id: removeAction
+            cmd: "plan.remove"
+            group: "plans"
+            text: chooser.texts.t("plan.remove")
+            enabled: !chooser.locked && chooser.plans.length > 1
+            onTriggered: {
+                chooser.controller.clearStatus()
+                confirm.open()
+            }
         }
-    }
+    ]
 
     PlanForm {
         id: form
