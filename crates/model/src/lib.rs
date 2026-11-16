@@ -28,6 +28,7 @@ mod limits;
 mod paper;
 mod plan;
 mod project;
+mod script_setup;
 mod shot;
 mod template;
 
@@ -56,6 +57,7 @@ pub use project::{
     SetPlan, Wall, IMAGE_WIDTH_M, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
     MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
+pub use script_setup::{ScriptLanguage, ScriptPaper, ScriptSetup};
 pub use shot::{Angle, Movement, Shot, ShotSize};
 pub use template::{Template, TemplateFigure};
 

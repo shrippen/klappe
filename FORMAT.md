@@ -26,6 +26,14 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   geschrieben), gilt A4 quer; ein unbekannter Teil gilt als sein Standard (`a3` ist A3 quer,
   `tabloid` A4 quer), ein Wert, der kein Text ist, lädt nicht. Keine neue Formatversion: ältere
   Fassungen verlieren ihn beim Speichern.
+- **Drehbuchseiten:** Tabelle `[script]` in `projekt.toml` (DB-30, DB-31, DN-05, F-01, F-04);
+  fehlt sie, gilt alles Folgende als Standard, und sie wird nicht geschrieben. `paper`: `a4`
+  (Standard) oder `letter`, das Papier der Seitenzählung und des Drehbuch-PDFs. `language`:
+  `de` oder `en`, die Sprache der Fachbegriffe im PDF ((WEITER), (FORTS.) oder (MORE),
+  (CONT'D)); fehlt das Feld, entscheidet die Sprache der Oberfläche. `contd_after_action`
+  (`true` oder `false`, Standard `false`): (CONT'D) auch, wenn dieselbe Figur nach Handlung
+  weiterspricht. Keine neue Formatversion: ältere Fassungen verlieren die Tabelle beim
+  Speichern.
 - **Ids:** Drehort- und Szenen-Ids sind Dateinamen und müssen mit der `id` in der Datei
   übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`, Ende auf `.` oder Leerzeichen,
   `<>:"|?*`, Steuerzeichen, Windows-Gerätenamen (`con`, `nul`, `com1` …). Ids, die sich nur
