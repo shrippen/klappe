@@ -49,7 +49,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         }
         ServiceError::BadValue { field, value } => return bad_value(language, field, value),
         ServiceError::Store(e) => ("error.store", e.to_string()),
-        ServiceError::Export(e) => ("error.export", e.to_string()),
+        ServiceError::Export(e) => (export_key(e), e.to_string()),
         // The path and the system's reason, e.g. "/a/b.pdf: No such file or directory".
         ServiceError::Write { path, source } => {
             ("error.write", format!("{}: {source}", path.display()))
@@ -58,6 +58,14 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
     };
 
     language.text(key).replace("{detail}", &detail)
+}
+
+/// The key of an export error: the one a user can act on has its own text.
+fn export_key(error: &klappe_export::ExportError) -> &'static str {
+    match error {
+        klappe_export::ExportError::ZipTooBig => "error.zipTooBig",
+        _ => "error.export",
+    }
 }
 
 /// The refused field and its value; without a value, no colon with nothing after it.
@@ -308,6 +316,7 @@ mod tests {
             ServiceError::NoMarks,
             ServiceError::NoPicture,
             ServiceError::NotCopyable,
+            ServiceError::Export(klappe_export::ExportError::ZipTooBig),
         ];
 
         for error in &errors {

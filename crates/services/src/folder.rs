@@ -1,7 +1,8 @@
 //! What the start page does to a project's folder without opening it: rename, archive, trash.
 //!
 //! ```text
-//! archive: store::read_files ──► export::zip_files ──► store::write_atomic (<folder>.zip)
+//! archive: store::folder_size ──► export::zip_fits (refuses a folder too big)
+//!          store::read_files ──► export::zip_files ──► store::write_atomic (<folder>.zip)
 //!                                                  └──► store::move_to_trash (the folder)
 //! ```
 
@@ -30,8 +31,13 @@ pub fn rename_project(dir: &Path, title: &str) -> Result<(), ServiceError> {
 
 /// Packs the folder `dir` into `<dir>.zip` beside it (`<dir> (2).zip` if that is taken), then
 /// moves the folder to the trash. The archive holds the folder's name as its one top entry.
-/// Returns the archive; a folder that cannot go to the trash stays beside its archive.
+/// Returns the archive; a folder that cannot go to the trash stays beside its archive. A folder
+/// of 4 GiB or more, or of more than 65535 files, is refused (`ZipTooBig`) and left alone.
 pub fn archive_project(dir: &Path) -> Result<PathBuf, ServiceError> {
+    // Asked before anything is read: a huge folder must not fill the memory first.
+    let (count, bytes) = klappe_store::folder_size(dir)?;
+    klappe_export::zip_fits(count, bytes)?;
+
     let root = dir.file_name().unwrap_or_default().to_string_lossy();
     let files: Vec<(String, Vec<u8>)> = klappe_store::read_files(dir)?
         .into_iter()
