@@ -67,6 +67,7 @@ impl qobject::Controller {
         self.as_mut().rust_mut().get_mut().preview = Preview::Hidden;
         self.as_mut().set_loaded(false);
         self.as_mut().set_status(QString::default());
+        self.as_mut().set_example_aside(QString::default());
         self.as_mut().rust_mut().get_mut().notice.say(String::new());
         self.as_mut().set_backup_state(QString::default());
         self.as_mut().set_backup_message(QString::default());
@@ -75,7 +76,7 @@ impl qobject::Controller {
         true
     }
 
-    pub(super) fn open_example(self: Pin<&mut Self>) -> bool {
+    pub(super) fn open_example(mut self: Pin<&mut Self>) -> bool {
         let language = self.rust().language;
 
         // Without a data folder the copy would land in a temporary one and vanish unnoticed.
@@ -85,9 +86,24 @@ impl qobject::Controller {
         };
 
         let dir = manage::example_dir(language, &data);
-        let opened =
-            klappe_services::ensure_example(language, &dir).and_then(|()| Session::open(&dir));
-        self.switch_to(opened)
+        let aside = match klappe_services::ensure_example(language, &dir) {
+            Ok(aside) => aside,
+            Err(e) => {
+                return self.switch_to(Err(e));
+            }
+        };
+        if !self.as_mut().switch_to(Session::open(&dir)) {
+            return false;
+        }
+
+        // After the switch, which clears the note of an earlier one. Not the status line: the
+        // next edit would clear that.
+        if let Some(aside) = aside {
+            let path = aside.to_string_lossy();
+            let note = language.text("start.exampleAside").replace("{path}", &path);
+            self.as_mut().set_example_aside(q(&note));
+        }
+        true
     }
 
     pub(super) fn select_scene(mut self: Pin<&mut Self>, id: &QString) -> bool {
@@ -202,6 +218,7 @@ impl qobject::Controller {
             this.drop_drafts();
         }
         self.as_mut().switched();
+        self.as_mut().set_example_aside(QString::default());
         self.as_mut().set_loaded(true);
         self.as_mut().changed();
         self.as_mut().refresh();

@@ -78,6 +78,7 @@ pub struct ControllerRust {
     /// What the drag in progress moves; `Free` between drags.
     pub(super) grip: Grip,
     pub(super) status: QString,
+    pub(super) example_aside: QString,
     pub(super) backup_state: QString,
     pub(super) backup_message: QString,
     pub(super) autosave_ms: i32,

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls as QQC2
 import QtTest
 import "../../qml"
 
@@ -128,23 +129,45 @@ TestCase {
         verify(path.x + path.width <= findChild(header, "planMenu").x)
     }
 
-    function test_without_a_project_only_the_mark_and_the_file_menu_stay() {
+    // The status line is short; what it cuts off shows whole as a tooltip.
+    function test_a_cut_status_shows_whole_as_tooltip() {
+        const header = make()
+        fake.status = "Gespeichert: ein sehr langer Pfad zu einer Datei in einem tiefen Ordner"
+        const status = findChild(header, "status")
+        tryVerify(() => status.truncated)
+
+        verify(!status.QQC2.ToolTip.visible)
+        compare(status.QQC2.ToolTip.text, fake.status)
+        mouseMove(status, status.width / 2, status.height / 2)
+
+        tryVerify(() => status.QQC2.ToolTip.visible)
+    }
+
+    function test_a_short_status_has_no_tooltip() {
+        const header = make()
+        fake.status = "Gespeichert"
+        const status = findChild(header, "status")
+        verify(!status.truncated)
+
+        mouseMove(status, status.width / 2, status.height / 2)
+        wait(300)
+
+        verify(!status.QQC2.ToolTip.visible)
+    }
+
+    // The start page has the buttons for New and Open, so the File menu stays away (and the
+    // status line: the start page shows it whole).
+    function test_without_a_project_only_the_mark_stays() {
         fake.loaded = false
+        fake.status = "Projekt konnte nicht gelesen werden"
         const header = make()
 
-        verify(findChild(header, "fileMenu").visible)
-        for (const name of ["path", "planMenu", "exportMenu", "viewMenu", "undo", "redo", "paletteButton"]) {
+        for (const name of ["fileMenu", "status", "path", "planMenu", "exportMenu", "viewMenu", "undo", "redo", "paletteButton"]) {
             verify(!findChild(header, name).visible, name)
-        }
-        verify(entry(header, "fileMenu", "new").visible)
-        verify(entry(header, "fileMenu", "open").visible)
-        for (const name of ["project", "save", "close", "background", "backgroundRemove"]) {
-            verify(!entry(header, "fileMenu", name).visible, name)
         }
     }
 
     function test_new_and_open_say_what_was_asked() {
-        fake.loaded = false
         const header = make()
 
         pick(header, "fileMenu", "new")
