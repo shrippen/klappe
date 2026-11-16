@@ -1,4 +1,5 @@
 use klappe_model::{Angle, FloorPlan, LinkTarget, Movement, Shot, ShotSize};
+use klappe_stellprobe::is_setup_model;
 
 use crate::error::ServiceError;
 use crate::field::Field;
@@ -131,16 +132,11 @@ pub(crate) fn remove(plan: &mut FloorPlan, id: &str) -> Result<Option<String>, S
     Ok(neighbour.map(|s| s.id.clone()))
 }
 
-/// Refuses a setup target for shot `id` that `setup_target` would not take: no such shot,
-/// the shot itself, or one that is assigned by hand itself. Empty (computed) is fine.
+/// Refuses a setup target for shot `id` that is no model (`is_setup_model`). Empty
+/// (computed) is fine.
 pub(crate) fn check_setup(plan: &FloorPlan, id: &str, target: &str) -> Result<(), ServiceError> {
     let target = target.trim();
-    let taken = target.is_empty()
-        || plan
-            .shots
-            .iter()
-            .any(|s| s.id == target && s.id != id && s.setup_of.is_none());
-    if taken {
+    if target.is_empty() || is_setup_model(plan, id, target) {
         return Ok(());
     }
 

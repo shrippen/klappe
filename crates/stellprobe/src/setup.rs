@@ -62,15 +62,25 @@ fn join(setups: &mut Vec<Setup>, setup: Setup) -> usize {
     setups.len()
 }
 
+/// Whether shot `target` may serve as the model for shot `shot`'s manual setup (LH-77): a
+/// shot of the plan other than `shot` that is not assigned by hand itself, so chains do not
+/// exist.
+pub fn is_setup_model(plan: &FloorPlan, shot: &str, target: &str) -> bool {
+    plan.shots.iter().any(|s| models(s, shot, target))
+}
+
 /// The index of the shot `shot` is shot together with by hand (LH-77), if its `setup_of`
-/// names one: a shot of the plan other than itself that is not assigned by hand itself, so
-/// chains do not exist.
+/// names one that qualifies (`is_setup_model`).
 pub fn setup_target(plan: &FloorPlan, shot: &Shot) -> Option<usize> {
     let id = shot.setup_of.as_deref()?;
 
-    plan.shots
-        .iter()
-        .position(|s| s.id == id && s.id != shot.id && s.setup_of.is_none())
+    plan.shots.iter().position(|s| models(s, &shot.id, id))
+}
+
+/// Whether `candidate` is the shot `target` and may be the model of `shot`; one test for
+/// both, so a file with a doubled id picks the same shot in each.
+fn models(candidate: &Shot, shot: &str, target: &str) -> bool {
+    candidate.id == target && candidate.id != shot && candidate.setup_of.is_none()
 }
 
 /// The setup number (1-based) of every shot, in the plan's cut order. Setups are numbered
@@ -293,6 +303,17 @@ mod tests {
 
             assert_eq!(setup_target(&plan, &plan.shots[0]), None, "{target}");
         }
+    }
+
+    #[test]
+    fn a_doubled_id_takes_the_shot_that_may_be_the_model() {
+        // A hand-edited file: shot 2 also has the id "3", and it is assigned by hand itself.
+        let mut plan = example();
+        plan.shots[1].id = "3".into();
+        plan.shots[1].setup_of = Some("1".into());
+        plan.shots[0].setup_of = Some("3".into());
+
+        assert_eq!(setup_target(&plan, &plan.shots[0]), Some(2));
     }
 
     #[test]
