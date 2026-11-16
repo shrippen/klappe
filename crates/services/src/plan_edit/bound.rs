@@ -287,8 +287,8 @@ pub(super) fn unbind(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
 }
 
 /// Lets go of the labels of the figures and marks of plan `plan` of scene `scene` (it is
-/// deleted).
-pub(crate) fn unbind_plan(project: &mut Project, scene: usize, plan: &str) {
+/// deleted), or of all of the scene's with `None`.
+pub(crate) fn unbind_plan(project: &mut Project, scene: usize, plan: Option<&str>) {
     let Some(scene) = project.scenes.get(scene) else {
         return;
     };
@@ -304,7 +304,12 @@ pub(crate) fn unbind_plan(project: &mut Project, scene: usize, plan: &str) {
 
     for note in &mut set.notes {
         let gone = note.bound.as_deref().and_then(Target::parse);
-        if gone.is_some_and(|t| t.owner() == Some((scene.as_str(), plan))) {
+        let owned = |t: Target<'_>| match (t.owner(), plan) {
+            (Some((s, _)), None) => s == scene,
+            (Some((s, p)), Some(plan)) => s == scene && p == plan,
+            (None, _) => false,
+        };
+        if gone.is_some_and(owned) {
             note.bound = None;
         }
     }

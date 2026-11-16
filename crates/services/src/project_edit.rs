@@ -9,6 +9,7 @@ use klappe_model::{
 
 use crate::error::ServiceError;
 use crate::field::Field;
+use crate::plan_edit::unbind_plan;
 
 mod library;
 mod plans;
@@ -255,11 +256,11 @@ fn edit_scene(
 }
 
 fn remove_scene(project: &mut Project, id: &str) -> Result<(), ServiceError> {
-    let before = project.scenes.len();
-    project.scenes.retain(|s| s.id != id);
-    if project.scenes.len() == before {
-        return Err(ServiceError::NoScene(id.to_owned()));
-    }
+    let index = project.scenes.iter().position(|s| s.id == id);
+    let index = index.ok_or_else(|| ServiceError::NoScene(id.to_owned()))?;
+
+    unbind_plan(project, index, None);
+    project.scenes.remove(index);
     Ok(())
 }
 

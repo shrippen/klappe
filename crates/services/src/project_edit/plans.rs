@@ -137,7 +137,7 @@ pub(crate) fn remove_plan(
     }
 
     scene.plans.retain(|p| p.id != id);
-    unbind_plan(project, index, id);
+    unbind_plan(project, index, Some(id));
     Ok(())
 }
 

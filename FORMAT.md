@@ -161,7 +161,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `<szene>`) oder `mark:<szene>:<plan>:<figur>:<index>` (der Mark mit diesem Index, von 0).
   Figur und Mark gehören zu einem Plan einer Szene, weil die Notizen dem Drehort gehören, Plan-Ids
   je Szene neu beginnen und jeder Plan eigene Spuren hat; Bearbeitungen in einem anderen Plan
-  oder einer anderen Szene lassen die Notiz stehen, das Löschen des Plans löst sie. Die Ids
+  oder einer anderen Szene lassen die Notiz stehen, das Löschen des Plans oder der Szene löst sie. Die Ids
   sind Slugs ohne `:`. `at` bleibt der Ort des
   Kärtchens. Die Bearbeitung verschiebt es um dieselbe Strecke wie das Element; zieht man die
   Notiz selbst, bleibt sie gebunden und das Abstandsmaß ändert sich. Fehlt das Element
