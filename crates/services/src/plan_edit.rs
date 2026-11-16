@@ -560,12 +560,7 @@ pub(crate) fn apply(
             dash,
             fill,
         } => add_drawing(&mut scope, shape, (*color, *dash, *fill)),
-        PlanEdit::SetDrawingStyle {
-            source,
-            color,
-            dash,
-            fill,
-        } => set_drawing_style(&mut scope, source, (*color, *dash, *fill)),
+        PlanEdit::SetDrawingStyle { .. } => set_drawing_style(&mut scope, edit),
         PlanEdit::EditNote { id, text } => edit_note(&mut scope, id, text),
         PlanEdit::AddImage { .. }
         | PlanEdit::SetImageOpacity { .. }

@@ -183,7 +183,7 @@ pub(super) fn held(project: &Project, at: (usize, usize), time_s: f64) -> Vec<He
 
 /// Moves each held note by what its element moved; lets go of a note whose element is gone.
 pub(super) fn follow(project: &mut Project, at: (usize, usize), time_s: f64, held: &[Held]) {
-    let Some((set, plan, scene)) = parts(project, at) else {
+    let Some((set, plan, _)) = parts(project, at) else {
         return;
     };
     let after: Vec<Option<Anchor>> = held
