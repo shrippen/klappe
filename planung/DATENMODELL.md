@@ -1,6 +1,6 @@
 # Datenmodell: Teilbereiche und gemeinsame Daten
 
-Stand: 2026-11-17, **Entwurf**; F-01 bis F-06 entschieden, F-07 bis F-10 offen (Abschnitt 8).
+Stand: 2026-11-17, **Entwurf**; F-01 bis F-09 entschieden, F-10 offen (Abschnitt 8).
 Zweite Meinung (advisor) eingearbeitet.
 
 Klappe hat mehrere Teilbereiche, die auf einem Projekt arbeiten. Dieses Dokument legt fest,
@@ -70,7 +70,7 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 
 | Ding | Besitzer | Id | Felder (Auswahl) | gelesen von |
 |---|---|---|---|---|
-| Szene (Register) | Drehbuch; Klappe führt die Identität (DB-65) | zufällig, stabil | Nummer, Kopf, kurze Fingerabdrücke je Element | alle |
+| Szene (Register) | Projekt; mit Buch ist das Buch die Quelle von Nummer und Kopf (F-07); Klappe führt die Identität (DB-65) | zufällig, stabil | Nummer, Kopf, kurze Fingerabdrücke je Element | alle |
 | Szenenblatt | Breakdown | Szenen-Id | Spieltag, Vorstopp, geplante Drehdauer, Continuity, Hinweis für die Produktion, Figuren ohne Dialog (stumm, Komparsen), Element-Zuordnungen, Looks (Kostüm, Maske je Figur), Drehort abweichend | Drehplan, Dispo |
 | Figur (Rolle) | Drehbuch (Name), Projekt (Kürzel, Farbe, Cast-Nummer, Gruppe, Größe, Aliasnamen) | stabil | | alle |
 | Figur ↔ Szene | abgeleitet: Figurenzeilen + Spuren im Floorplan + Szenenblatt | – | | Drehplan, Day out of Days, Dispo |
@@ -177,14 +177,14 @@ Entschieden vom Eigentümer am 2026-11-17:
 | F-04 | Units | Standard eine Unit, mehrere möglich (höchstens 255); Feld am Drehtag. |
 | F-05 | Status je Element für die Departments | Ja, einfache Statusliste je Element. |
 | F-06 | Projektübergreifende Daten (Darsteller, Fundus) | Nützlich, ausgewählte Informationen global zu machen; vorbereiten für Version 2, nicht jetzt. |
+| F-07 | Ist das Drehbuch Pflicht? | Nein: auch Projekte ohne Drehbuch (Reportage, Doku, EB). Das Szenenregister gehört darum dem Projekt: Gibt es ein Buch, ist es die Quelle von Nummer und Kopf; sonst werden Szenen direkt in Klappe angelegt und bearbeitet. |
+| F-08 | Automatische Szenennummern vor der Sperre im Text? | Ja, von Anfang an (DB-33 bleibt). Kommt es beim Zusammenführen (Git) zum Konflikt, löst ihn ein Dialog in Klappe auf. |
+| F-09 | Neuer Baustein `planung/` in „Layers“ von `ARCHITECTURE.md` | Ja. |
 
 Offen:
 
 | Nr | Frage | Vorschlag |
 |---|---|---|
-| F-07 | Ist das Drehbuch Pflicht? Heute legt Stellprobe Szenen auch ohne Buch an. | Ja: eine in Stellprobe angelegte Szene schreibt ihren Kopf ins Buch; ein Projekt hat immer ein `drehbuch.fountain`. |
-| F-08 | Automatische Szenennummern schon vor der Sperre in den Text schreiben (DB-33, entschieden)? Fügen zwei Personen je eine Szene ein, ändern beide alle folgenden Köpfe: Git meldet überall Konflikte. | Abwägen: sichtbare Nummer von Anfang an (heute) gegen ruhige Git-Merges (Nummern erst ab der Sperre in den Text). |
-| F-09 | „Layers“ in `ARCHITECTURE.md`: neuer Baustein `planung/` neben `stellprobe/`. | Ja. |
 | F-10 | Verschlüsselung (F-03): ganze Dateien verschlüsseln verliert Lesbarkeit und Vergleich in Git (NF-03). Wie? | Klar lesbar lokal; verschlüsselt nur beim Ablegen in ein fremdes Git (z. B. Git-Filter mit Projektpasswort, wie git-crypt), sodass Diffs lokal lesbar bleiben. Eigenes Lastenheft-Kapitel. |
 
 ## Anhang A: Yamdu im Verhalten
