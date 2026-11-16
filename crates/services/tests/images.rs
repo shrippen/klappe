@@ -257,6 +257,18 @@ fn dragging_the_grip_sets_the_width_and_undoes_in_one_step() {
     assert!((images(&s)[0].width_m - 3.0).abs() < 1e-9);
 }
 
+/// With snapping on, the edge lands on the grid, not the grip that sits outside it: the right
+/// edge (x = 11) pulled by half a metre makes the image 2.5 m wide.
+#[test]
+fn a_snapped_drag_puts_the_edge_on_the_grid() {
+    let (mut s, _) = with_image("img-size-snap");
+    s.set_snapping(Snapping::On);
+
+    s.edit_plan(shift(grip(), 0.5, 0.0)).unwrap();
+
+    assert!((images(&s)[0].width_m - 2.5).abs() < 1e-9);
+}
+
 #[test]
 fn the_grip_follows_the_turn() {
     let (mut s, _) = with_image("img-size-turned");
