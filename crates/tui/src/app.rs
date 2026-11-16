@@ -316,6 +316,14 @@ impl App {
         Flow::Continue
     }
 
+    /// Keeps the help's scroll within what a screen of `rows` rows can show.
+    pub(crate) fn clamp_help(&mut self, rows: usize) {
+        let lines = self.texts.help.len();
+        let room = crate::ui::help_height(lines, rows).saturating_sub(2);
+
+        self.help_scroll = self.help_scroll.min(lines.saturating_sub(room));
+    }
+
     /// Up, Down and the page keys scroll the help; any other key closes it.
     fn help_key(&mut self, key: KeyEvent) -> Flow {
         match key.code {

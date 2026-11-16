@@ -1,8 +1,10 @@
 //! The backup of unsaved work (LH-05, DN-06): a timer writes it, a start asks about it.
+//! The question blocks editing until it is answered (restore or discard), as the window's
+//! does; Ctrl+Q leaves with the backup kept.
 //! The files are the session's; this only calls it.
 
 use klappe_services::BackupState;
-use ratatui::crossterm::event::{KeyCode, KeyEvent};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{App, Flow, Mode, Notice};
 use crate::links::Links;
@@ -38,8 +40,10 @@ impl App {
         match key.code {
             KeyCode::Char('r' | 'R') if open == Backup::Found => self.restore(),
             KeyCode::Char('d' | 'D') => self.discard(),
-            // Later: the backup stays, and nothing is written over it meanwhile.
-            KeyCode::Esc => self.mode = Mode::Normal,
+            // Leaving keeps the backup: no editing happens while it waits, so nothing is lost.
+            KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                return Flow::Quit;
+            }
             _ => {}
         }
 

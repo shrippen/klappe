@@ -148,6 +148,7 @@ fn row_spans(app: &App, row: Row, base: Style, end: usize) -> Vec<Span<'static>>
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     app.set_screen(area.width);
+    app.clamp_help(usize::from(area.height));
     frame.render_widget(
         Block::new().style(Style::new().fg(theme::TEXT).bg(theme::GROUND)),
         area,
@@ -508,10 +509,15 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(Paragraph::new(Line::from(spans)).style(bar), area);
 }
 
+/// Rows of the help box: every line, or as many as the screen has.
+pub(crate) fn help_height(lines: usize, rows: usize) -> usize {
+    (lines + 2).min(rows)
+}
+
 fn draw_help(frame: &mut Frame, app: &App) {
     let lines = &app.texts.help;
     let width = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0) + 4;
-    let height = (lines.len() + 2).min(usize::from(frame.area().height));
+    let height = help_height(lines.len(), usize::from(frame.area().height));
     let area = centered(frame.area(), width, height);
 
     // A screen too low for every line scrolls.

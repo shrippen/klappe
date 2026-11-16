@@ -35,16 +35,22 @@ fn discarding_or_deciding_later_and_saving_clear_the_backup() {
     typed(&mut app, "a");
     app.autosave();
 
+    // The question stays until it is answered: no editing meanwhile, so nothing can be lost.
     let mut later = scratch.app();
     press(&mut later, KeyCode::Esc);
-    assert_eq!(later.mode, Mode::Normal);
-    assert_eq!(later.text(), "x", "later changes nothing");
     typed(&mut later, "b");
-    later.autosave();
+    assert_eq!(later.mode, Mode::Backup);
+    assert_eq!(later.text(), "x", "no typing while the backup waits");
+    assert!(!later.is_modified());
+    assert_eq!(
+        press_ctrl(&mut later, 'q'),
+        Flow::Quit,
+        "Ctrl+Q leaves it for later"
+    );
     assert_eq!(
         scratch.app().mode,
         Mode::Backup,
-        "the unanswered backup is not overwritten"
+        "the backup is still there"
     );
 
     let mut discard = scratch.app();
@@ -62,6 +68,24 @@ fn discarding_or_deciding_later_and_saving_clear_the_backup() {
         "a save removes the backup"
     );
     assert_eq!(scratch.script(), "cx");
+}
+
+fn press_ctrl(app: &mut App, c: char) -> Flow {
+    ctrl(app, c)
+}
+
+#[test]
+fn the_backup_question_names_its_keys() {
+    let scratch = Scratch::new("x");
+    let mut app = scratch.app();
+    typed(&mut app, "a");
+    app.autosave();
+
+    let mut again = scratch.app();
+    let frame = screen(&mut again, 100, 24);
+    assert!(frame.contains("r Restore"), "{frame}");
+    assert!(frame.contains("d Discard"), "{frame}");
+    assert!(frame.contains("Ctrl+Q"), "{frame}");
 }
 
 #[test]
@@ -153,4 +177,19 @@ fn undo_has_no_limit_in_the_app() {
         ctrl(&mut app, 'y');
     }
     assert_eq!(app.text(), full);
+}
+
+#[test]
+fn the_help_scroll_stays_in_range() {
+    let mut app = app();
+    press(&mut app, KeyCode::F(1));
+    for _ in 0..30 {
+        press(&mut app, KeyCode::Down);
+    }
+    let _ = screen(&mut app, 100, 12);
+
+    // 21 lines, 10 rows of room: the last first line is 11, and one Up goes back one.
+    assert_eq!(app.help_scroll, 11);
+    press(&mut app, KeyCode::Up);
+    assert_eq!(app.help_scroll, 10);
 }
