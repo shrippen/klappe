@@ -119,7 +119,7 @@ Item {
     }
     readonly property var movements: controller.choicesJson ? (JSON.parse(controller.choicesJson).movement || []) : []
 
-    // New, copy and delete a shot (LH-70). "New" takes the camera selected in the plan, else
+    // New, copy, version, renumber and delete a shot (LH-70, LH-76). "New" takes the camera selected in the plan, else
     // the selected shot's. Key S is "new"; deleting asks first.
     RowLayout {
         id: bar
@@ -139,6 +139,17 @@ Item {
             enabled: panel.shot !== null
             text: panel.texts.t("shot.copy")
             onClicked: panel.controller.copyShot(panel.shot.id)
+        }
+        KanteToolButton {
+            objectName: "versionShotButton"
+            enabled: panel.shot !== null
+            text: panel.texts.t("shot.version")
+            onClicked: panel.controller.versionShot(panel.shot.id)
+        }
+        KanteToolButton {
+            objectName: "renumberShotsButton"
+            text: panel.texts.t("shot.renumber")
+            onClicked: panel.controller.renumberShots()
         }
         KanteToolButton {
             objectName: "deleteShotButton"

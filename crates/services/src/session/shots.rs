@@ -170,6 +170,39 @@ impl Session {
         Ok(copy)
     }
 
+    /// Copies a shot as the next version of its number (12.3 to 12.3A) and selects the copy;
+    /// undoable (LH-76).
+    pub fn version_shot(&mut self, id: &str) -> Result<String, ServiceError> {
+        self.check_shot_lock()?;
+
+        let scene = self.scene_number();
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+
+        let copy = shot_edit::version(plan, &scene, id)?;
+        self.commit(next);
+        self.selected_shot = Some(copy.clone());
+        Ok(copy)
+    }
+
+    /// Numbers the shots of the plan one after the other in cut order, versions keeping their
+    /// letters; one undo step (LH-76).
+    pub fn renumber_shots(&mut self) -> Result<(), ServiceError> {
+        self.check_shot_lock()?;
+
+        let scene = self.scene_number();
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+
+        shot_edit::renumber(plan, &scene);
+        if next == self.project {
+            return Ok(());
+        }
+
+        self.commit(next);
+        Ok(())
+    }
+
     /// Deletes a shot and the script links to it; undoable. If it was selected, the next
     /// shot in the list is, else the previous.
     pub fn delete_shot(&mut self, id: &str) -> Result<(), ServiceError> {

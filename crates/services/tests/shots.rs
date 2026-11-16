@@ -529,3 +529,154 @@ fn an_assigned_setup_survives_saving_and_loading() {
 
     assert_eq!(setups(&s), [2, 1, 2, 2, 1]);
 }
+
+#[test]
+fn versions_take_the_next_letter_and_stand_behind_the_last_version() {
+    let mut s = open();
+
+    let a = s.version_shot("s12-3").unwrap();
+    let b = s.version_shot("s12-3").unwrap();
+
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.3", "12.3A", "12.3B", "12.4", "12.5"]
+    );
+    assert_eq!(ids(&s)[3..5], [a.as_str(), b.as_str()]);
+    assert_eq!(s.selected_shot(), Some(b.as_str()));
+}
+
+#[test]
+fn a_version_of_a_version_is_a_version_of_the_base() {
+    let mut s = open();
+    let a = s.version_shot("s12-3").unwrap();
+
+    s.version_shot(&a).unwrap();
+
+    assert_eq!(numbers(&s)[2..5], ["12.3", "12.3A", "12.3B"]);
+}
+
+#[test]
+fn a_version_has_the_fields_of_the_original_and_its_own_id() {
+    let mut s = open();
+    s.edit_shot("s12-3", ShotField::Description, "Blick zur Tür")
+        .unwrap();
+
+    let id = s.version_shot("s12-3").unwrap();
+
+    let rows = s.shots();
+    assert_ne!(id, rows[2].id);
+    assert_eq!(rows[3].description, "Blick zur Tür");
+    assert_eq!(rows[3].setup, rows[2].setup);
+}
+
+#[test]
+fn letters_go_on_after_z() {
+    let mut s = open();
+
+    for _ in 0..27 {
+        s.version_shot("s12-3").unwrap();
+    }
+
+    assert_eq!(numbers(&s)[2..4], ["12.3", "12.3A"]);
+    assert_eq!(numbers(&s)[28..31], ["12.3Z", "12.3AA", "12.4"]);
+}
+
+#[test]
+fn a_version_of_an_unknown_shot_fails() {
+    let mut s = open();
+
+    assert!(matches!(
+        s.version_shot("nope"),
+        Err(ServiceError::NoShot(_))
+    ));
+}
+
+#[test]
+fn renumbering_closes_gaps_and_keeps_version_letters() {
+    let mut s = open();
+    s.edit_shot("s12-2", ShotField::Number, "12.3").unwrap();
+    s.edit_shot("s12-3", ShotField::Number, "12.3A").unwrap();
+    s.edit_shot("s12-4", ShotField::Number, "12.7").unwrap();
+    s.edit_shot("s12-5", ShotField::Number, "12.7A").unwrap();
+    s.edit_shot("s12-1", ShotField::Number, "12.1").unwrap();
+    let before_ids = ids(&s);
+
+    s.renumber_shots().unwrap();
+
+    assert_eq!(numbers(&s), ["12.1", "12.2", "12.2A", "12.3", "12.3A"]);
+    assert_eq!(ids(&s), before_ids);
+}
+
+#[test]
+fn renumbering_follows_the_cut_order() {
+    let mut s = open();
+    s.edit_shot("s12-1", ShotField::Number, "12.9").unwrap();
+
+    s.renumber_shots().unwrap();
+
+    assert_eq!(numbers(&s), ["12.1", "12.2", "12.3", "12.4", "12.5"]);
+}
+
+#[test]
+fn versions_and_renumbering_are_one_undo_step_each() {
+    let mut s = open();
+    s.edit_shot("s12-5", ShotField::Number, "12.9").unwrap();
+    let before = s.shots();
+
+    s.version_shot("s12-1").unwrap();
+    let versioned = s.shots();
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.1A", "12.2", "12.3", "12.4", "12.5"]
+    );
+
+    s.undo();
+    assert_eq!(s.shots(), versioned);
+    s.undo();
+    assert_eq!(s.shots(), before);
+}
+
+#[test]
+fn renumbering_nothing_new_adds_no_undo_step() {
+    let mut s = open();
+
+    s.renumber_shots().unwrap();
+
+    assert!(!s.can_undo());
+    assert!(!s.is_dirty());
+}
+
+#[test]
+fn a_locked_camera_layer_refuses_versions_and_renumbering() {
+    let mut s = open();
+    s.set_lock(Layer::Cameras, Lock::Locked);
+
+    for result in [s.version_shot("s12-1").map(drop), s.renumber_shots()] {
+        assert!(matches!(result, Err(ServiceError::Locked(Layer::Cameras))));
+    }
+    assert!(!s.can_undo());
+}
+
+#[test]
+fn a_number_without_a_digit_before_its_letters_has_no_versions() {
+    let mut s = open();
+    s.edit_shot("s12-3", ShotField::Number, "INSERT").unwrap();
+    s.edit_shot("s12-4", ShotField::Number, "TOTALEVONOBENS")
+        .unwrap();
+    s.edit_shot("s12-5", ShotField::Number, "12.5ZZZ").unwrap();
+
+    // A version would have letters that count as no version: a second one would repeat it.
+    for id in ["s12-3", "s12-4", "s12-5"] {
+        let refused = s.version_shot(id);
+        assert!(matches!(refused, Err(ServiceError::NoVersion(_))), "{id}");
+    }
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "INSERT", "TOTALEVONOBENS", "12.5ZZZ"]
+    );
+
+    // Only letters after a digit are a version: each of these is a number of its own.
+    s.renumber_shots().unwrap();
+    assert_eq!(numbers(&s), ["12.1", "12.2", "12.3", "12.4", "12.5ZZZ"]);
+}
