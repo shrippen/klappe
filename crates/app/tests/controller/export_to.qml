@@ -97,35 +97,65 @@ Item {
             }
 
             // The shot list as ODS and XLSX, the plan per mark as a folder of PNGs; the Rust
-            // side (qml_tests.rs) checks what was written.
+            // side (qml_tests.rs) checks what was written. Only what prints a plan on a sheet
+            // makes the sheet the project's.
+            const paperOf = () => JSON.parse(ctl.projectJson).paper
+            const kept = paperOf()
             for (const kind of ["ods", "xlsx"]) {
-                if (!ctl.exportTo(kind, "shooting", "a4", base + "/Liste." + kind)) {
+                if (!ctl.exportTo(kind, "shooting", "a3-portrait", base + "/Liste." + kind)) {
                     return root.fail(kind + " export failed: " + ctl.status)
                 }
+                if (paperOf() !== kept) {
+                    return root.fail(kind + " export changed the paper to " + paperOf())
+                }
             }
-            if (!ctl.exportTo("frames", "cut", "a4", base + "/frames")) {
-                return root.fail("frames export failed: " + ctl.status)
+            const printed = [["png", "a4-portrait", "/Blatt.png"], ["svg", "a3-landscape", "/Blatt.svg"],
+                             ["frames", "a4-landscape", "/frames"]]
+            for (const [kind, paper, name] of printed) {
+                if (!ctl.exportTo(kind, "cut", paper, base + name)) {
+                    return root.fail(kind + " export failed: " + ctl.status)
+                }
+                if (paperOf() !== paper) {
+                    return root.fail(kind + " export did not keep the paper " + paper + ": " + paperOf())
+                }
             }
             if (ctl.exportTo("frames", "cut", "a4", base + "/frames")) {
                 return root.fail("frames into a folder that is not empty reported success")
             }
 
+            // The offered file names: the PNGs of the views beside the plan's under their own
+            // name, the frames a folder without extension.
+            const offered = { pdf: ".pdf", view3d: "-3d.png", camera: "-camera.png" }
+            for (const kind in offered) {
+                if (!ctl.exportFile(kind).endsWith(offered[kind])) {
+                    return root.fail("the file offered for " + kind + " is " + ctl.exportFile(kind))
+                }
+            }
+            if (ctl.exportFile("frames") + ".pdf" !== ctl.exportFile("pdf")) {
+                return root.fail("the folder offered for frames is not the plan's name")
+            }
+
             // LH-86: the 3D view (as the view is shown, so after `freeSize`) and the camera view
-            // as PNG; the camera view needs a shot or a picked camera.
-            if (ctl.exportTo("view3d", "cut", "a4", base + "/3D.png")) {
+            // as PNG; the camera view needs a shot or a picked camera. They print nothing on a
+            // sheet, so the paper stays.
+            const sheet = paperOf()
+            if (ctl.exportTo("view3d", "cut", "a3-portrait", base + "/3D.png")) {
                 return root.fail("the 3D view of a project never shown in 3D reported success")
             }
             ctl.toggleView()
             ctl.freeSize(800, 450)
-            if (!ctl.exportTo("view3d", "cut", "a4", base + "/3D.png")) {
+            if (!ctl.exportTo("view3d", "cut", "a3-portrait", base + "/3D.png")) {
                 return root.fail("3D view export failed: " + ctl.status)
             }
-            if (ctl.exportTo("camera", "cut", "a4", base + "/Kamera.png")) {
+            if (ctl.exportTo("camera", "cut", "a3-portrait", base + "/Kamera.png")) {
                 return root.fail("the camera view without a shot or camera reported success")
             }
             ctl.selectShot(JSON.parse(ctl.shotsJson)[0].id)
-            if (!ctl.exportTo("camera", "cut", "a4", base + "/Kamera.png")) {
+            if (!ctl.exportTo("camera", "cut", "a3-portrait", base + "/Kamera.png")) {
                 return root.fail("camera view export failed: " + ctl.status)
+            }
+            if (paperOf() !== sheet) {
+                return root.fail("a view export changed the paper to " + paperOf())
             }
 
             // A plan without marks has no frames: nothing is written, and it says so.

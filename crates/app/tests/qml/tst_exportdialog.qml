@@ -58,6 +58,26 @@ TestCase {
         compare(fake.calls, [])
     }
 
+    // What prints on a sheet asks for it; the lists and the views of the plan do not.
+    function test_only_the_formats_that_print_on_paper_ask_for_it() {
+        const asks = { pdf: true, png: true, svg: true, frames: true,
+                       csv: false, ods: false, xlsx: false, view3d: false, camera: false }
+
+        for (const kind in asks) {
+            const dialog = make()
+            const files = findChild(dialog, "files")
+            const folders = findChild(dialog, "folders")
+
+            dialog.request(kind)
+
+            compare(dialog.opened || dialog.visible, asks[kind], kind)
+            compare(files.visible || folders.visible, !asks[kind], kind)
+            files.close()
+            folders.close()
+            dialog.close()
+        }
+    }
+
     function test_it_starts_from_the_projects_paper() {
         const dialog = make()
         dialog.projectPaper = "letter-portrait"
@@ -105,12 +125,15 @@ TestCase {
     function test_the_file_dialog_carries_the_suffix_of_the_format() {
         const dialog = make()
         const files = findChild(dialog, "files")
-        const suffixes = { csv: "csv", ods: "ods", xlsx: "xlsx", view3d: "png", camera: "png" }
+        const suffixes = { pdf: "pdf", png: "png", svg: "svg", csv: "csv", ods: "ods", xlsx: "xlsx",
+                           view3d: "png", camera: "png" }
 
         for (const kind in suffixes) {
             dialog.request(kind)
+            dialog.pick()
             compare(files.defaultSuffix, suffixes[kind], kind)
             files.close()
+            dialog.close()
         }
     }
 
