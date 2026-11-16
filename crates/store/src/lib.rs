@@ -9,6 +9,7 @@
 //!                            builtin_templates, vorlagen.toml (the project's own templates)
 //! load_template_file, save_template_file ◄──► vorlagen.toml, or any template file to pass on
 //! write_atomic, write_tree, project_mtime, ..  whole-folder file operations (tree.rs)
+//! read_files, folder_size, free_sibling, move_to_trash      a folder as bytes, its size, a free name beside it, the system trash (folder.rs)
 //! ```
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
@@ -16,6 +17,7 @@
 mod camera;
 mod error;
 mod files;
+mod folder;
 mod images;
 mod library;
 mod light;
@@ -36,6 +38,7 @@ use serde::{Deserialize, Serialize};
 pub use camera::builtin_camera_presets;
 pub use error::StoreError;
 use files::{Dir, Kind};
+pub use folder::{folder_size, free_sibling, move_to_trash, read_files};
 pub use images::{add_image, image_size, image_stamp, is_image_path, read_image, ImageStamp};
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
