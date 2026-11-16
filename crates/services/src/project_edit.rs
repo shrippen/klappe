@@ -14,8 +14,8 @@ mod library;
 mod plans;
 pub(crate) mod templates;
 
-pub use plans::ShotsGo;
-pub(crate) use plans::{add_plan, copy_plan, remove_plan, rename_plan};
+pub(crate) use plans::{add_plan, copy_plan, move_plan, remove_plan, rename_plan};
+pub use plans::{PlanShift, ShotsGo};
 
 /// What the project view does. Ids are made from the name when something is added and never
 /// change after.

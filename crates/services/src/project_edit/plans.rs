@@ -1,4 +1,4 @@
-//! A scene's floor plans as project edits (LH-04): add, copy, rename, remove.
+//! A scene's floor plans as project edits (LH-04): add, copy, rename, move, remove.
 
 use klappe_model::{FloorPlan, Project, Scene};
 
@@ -75,6 +75,36 @@ pub(crate) fn rename_plan(
     let plan = plan_of(scene, id)?;
     plan.name = name.to_owned();
     Ok(())
+}
+
+/// Moves the plan `id` one place; at the first or last place nothing changes.
+pub(crate) fn move_plan(
+    project: &mut Project,
+    scene: usize,
+    id: &str,
+    shift: PlanShift,
+) -> Result<(), ServiceError> {
+    let scene = scene_at(project, scene)?;
+    let from = scene
+        .plans
+        .iter()
+        .position(|p| p.id == id)
+        .ok_or_else(|| ServiceError::NoPlan(id.to_owned()))?;
+    let to = match shift {
+        PlanShift::Earlier => from.checked_sub(1),
+        PlanShift::Later => Some(from + 1).filter(|&to| to < scene.plans.len()),
+    };
+    if let Some(to) = to {
+        scene.plans.swap(from, to);
+    }
+    Ok(())
+}
+
+/// Which way a plan moves in its scene's list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlanShift {
+    Earlier,
+    Later,
 }
 
 /// What deleting a plan does with the shots it holds.

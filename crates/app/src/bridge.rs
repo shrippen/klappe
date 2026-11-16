@@ -721,6 +721,11 @@ pub mod qobject {
         #[cxx_name = "renamePlan"]
         fn rename_plan(self: Pin<&mut Self>, id: &QString, name: &QString) -> bool;
 
+        /// Moves the plan `id` one place; `shift` is "earlier" or "later".
+        #[qinvokable]
+        #[cxx_name = "movePlan"]
+        fn move_plan(self: Pin<&mut Self>, id: &QString, shift: &QString) -> bool;
+
         #[qinvokable]
         #[cxx_name = "removePlan"]
         fn remove_plan(self: Pin<&mut Self>, id: &QString) -> bool;

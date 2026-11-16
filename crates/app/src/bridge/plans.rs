@@ -1,10 +1,13 @@
-//! Plans of a scene: select, add, copy, rename, remove.
+//! Plans of a scene: select, add, copy, rename, move, remove.
 
 use super::qobject;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
-use klappe_services::ShotsGo;
+use klappe_services::{PlanShift, ShotsGo};
+
+const EARLIER: &str = "earlier";
+const LATER: &str = "later";
 
 impl qobject::Controller {
     pub(super) fn select_plan(mut self: Pin<&mut Self>, id: &QString) -> bool {
@@ -42,6 +45,19 @@ impl qobject::Controller {
             .as_mut()
             .session()
             .map(|s| s.rename_plan(&id.to_string(), &name.to_string()));
+        self.report(result)
+    }
+
+    pub(super) fn move_plan(mut self: Pin<&mut Self>, id: &QString, shift: &QString) -> bool {
+        let shift = match shift.to_string().as_str() {
+            EARLIER => PlanShift::Earlier,
+            LATER => PlanShift::Later,
+            _ => return false,
+        };
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.move_plan(&id.to_string(), shift));
         self.report(result)
     }
 

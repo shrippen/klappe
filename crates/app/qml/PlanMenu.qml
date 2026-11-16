@@ -14,6 +14,7 @@ import Kante
 //                            Plan A (2)
 //                          ──────────────
 //                            Schnappschuss…  Neuer Plan…  Umbenennen…
+//                            Nach vorn  Nach hinten
 //                          ──────────────
 //                            Vorlage einfügen…  Als Vorlage speichern…
 //                            Vorlagen importieren…  Vorlagen exportieren…
@@ -36,7 +37,7 @@ HeaderMenu {
     readonly property var current: index < 0 ? null : plans[index]
     readonly property bool hasOwnTemplates: controller.choicesJson ? (JSON.parse(controller.choicesJson).template || []).some(t => t.custom) : false
     /// The actions, for the command palette too.
-    readonly property var actions: [snapshotAction, newAction, renameAction, templateAction, templateSaveAction,
+    readonly property var actions: [snapshotAction, newAction, renameAction, moveEarlierAction, moveLaterAction, templateAction, templateSaveAction,
                                       templateImportAction, templateExportAction, removeAction]
 
     text: current ? current.name : ""
@@ -68,6 +69,8 @@ HeaderMenu {
     KanteMenuItem { objectName: "snapshotPlan"; action: snapshotAction; iconRoom: true }
     KanteMenuItem { objectName: "newPlan"; action: newAction; iconRoom: true }
     KanteMenuItem { objectName: "renamePlan"; action: renameAction; iconRoom: true }
+    KanteMenuItem { objectName: "moveEarlier"; action: moveEarlierAction; iconRoom: true }
+    KanteMenuItem { objectName: "moveLater"; action: moveLaterAction; iconRoom: true }
     QQC2.MenuSeparator {}
     KanteMenuItem { objectName: "applyTemplate"; action: templateAction; iconRoom: true }
     KanteMenuItem { objectName: "saveTemplate"; action: templateSaveAction; iconRoom: true }
@@ -99,6 +102,22 @@ HeaderMenu {
         text: chooser.texts.t("plan.rename")
         enabled: !chooser.locked && chooser.current !== null
         onTriggered: form.show("rename", chooser.current)
+    }
+    CommandAction {
+        id: moveEarlierAction
+        cmd: "plan.moveEarlier"
+        group: "plans"
+        text: chooser.texts.t("plan.moveEarlier")
+        enabled: !chooser.locked && chooser.index > 0
+        onTriggered: chooser.controller.movePlan(chooser.current.id, "earlier")
+    }
+    CommandAction {
+        id: moveLaterAction
+        cmd: "plan.moveLater"
+        group: "plans"
+        text: chooser.texts.t("plan.moveLater")
+        enabled: !chooser.locked && chooser.index >= 0 && chooser.index < chooser.plans.length - 1
+        onTriggered: chooser.controller.movePlan(chooser.current.id, "later")
     }
     CommandAction {
         id: templateAction

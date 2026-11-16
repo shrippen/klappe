@@ -3,7 +3,7 @@ use klappe_model::{FloorPlan, Project, Scene};
 use super::Session;
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit};
-use crate::project_edit::{self, ProjectEdit, ShotsGo};
+use crate::project_edit::{self, PlanShift, ProjectEdit, ShotsGo};
 use crate::script_refs;
 
 impl Session {
@@ -180,6 +180,22 @@ impl Session {
         }
 
         self.commit(next);
+        Ok(())
+    }
+
+    /// Moves the plan `id` of the current scene one place; one undo step. At the first or last
+    /// place nothing happens (no undo step, no error). The view stays on the plan it showed.
+    pub fn move_plan(&mut self, id: &str, shift: PlanShift) -> Result<(), ServiceError> {
+        let mut next = self.project.clone();
+        project_edit::move_plan(&mut next, self.scene, id, shift)?;
+        if next == self.project {
+            return Ok(());
+        }
+
+        let on_view = self.scene().map(|s| s.id.clone());
+        let plan_on_view = self.plan().map(|p| p.id.clone());
+        self.commit(next);
+        self.follow_scene(on_view, plan_on_view);
         Ok(())
     }
 

@@ -44,6 +44,7 @@ TestCase {
         function addPlan(name) { return call("addPlan", [name]) }
         function copyPlan(name) { return call("copyPlan", [name]) }
         function renamePlan(id, name) { return call("renamePlan", [id, name]) }
+        function movePlan(id, shift) { return call("movePlan", [id, shift]) }
         function removePlan(id) { return call("removePlan", [id]) }
         function removePlanWithShots(id) { return call("removePlanWithShots", [id]) }
         function applyTemplate(id) { return call("applyTemplate", [id]) }
@@ -336,6 +337,35 @@ TestCase {
         verify(entry(chooser, "snapshotPlan").enabled)
     }
 
+    function test_a_plan_moves_one_place_and_the_ends_are_disabled() {
+        const chooser = make()
+
+        verify(!entry(chooser, "moveEarlier").enabled)
+        verify(entry(chooser, "moveLater").enabled)
+        pick(chooser, "moveLater")
+        compare(fake.calls, [["movePlan", "plan-a", "later"]])
+
+        fake.plan = "plan-a-2"
+        fake.reshow()
+        verify(entry(chooser, "moveEarlier").enabled)
+        pick(chooser, "moveEarlier")
+        compare(fake.calls[1], ["movePlan", "plan-a-2", "earlier"])
+
+        fake.plan = "plan-b"
+        fake.reshow()
+        verify(entry(chooser, "moveEarlier").enabled)
+        verify(!entry(chooser, "moveLater").enabled)
+    }
+
+    function test_a_single_plan_cannot_move() {
+        const chooser = make()
+        fake.plans = [{ id: "plan-a", name: "Plan A", shots: 5 }]
+        fake.reshow()
+
+        verify(!entry(chooser, "moveEarlier").enabled)
+        verify(!entry(chooser, "moveLater").enabled)
+    }
+
     function test_without_a_scene_nothing_can_be_done() {
         const chooser = make()
         fake.plans = []
@@ -343,7 +373,7 @@ TestCase {
         fake.reshow()
 
         verify(!chooser.enabled)
-        for (const name of ["newPlan", "snapshotPlan", "renamePlan", "removePlan"]) {
+        for (const name of ["newPlan", "snapshotPlan", "renamePlan", "moveEarlier", "moveLater", "removePlan"]) {
             verify(!entry(chooser, name).enabled, name)
         }
     }
@@ -571,7 +601,7 @@ TestCase {
 
     function test_the_plan_texts_are_in_both_languages() {
         for (const key of ["plan.choose", "plan.new", "plan.snapshot", "plan.rename",
-                           "plan.remove", "plan.newTitle", "plan.snapshotTitle",
+                           "plan.remove", "plan.moveEarlier", "plan.moveLater", "plan.newTitle", "plan.snapshotTitle",
                            "plan.renameTitle", "plan.name", "plan.nameAuto",
                            "plan.snapshotHint", "plan.removeTitle", "remove.plan",
                            "remove.planShot", "remove.planShots"]) {
