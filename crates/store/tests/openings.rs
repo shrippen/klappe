@@ -106,3 +106,18 @@ fn a_door_swing_round_trips_and_a_bad_one_is_refused() {
 
     assert!(matches!(load(&dir), Err(StoreError::Parse { .. })));
 }
+
+/// An opening narrower than the least a drag leaves does not load, as the plan would not
+/// let it be that narrow by typing either.
+#[test]
+fn an_opening_narrower_than_the_minimum_does_not_load() {
+    let dir = test_dir("opening-narrow");
+    let mut project = example();
+    project.locations[0].set.walls[2].openings[0].width_m = 0.1;
+    // `save` does not check the openings, `load` does.
+    save(&dir, &project, None).unwrap();
+
+    let err = load(&dir).unwrap_err();
+
+    assert!(err.to_string().contains("opening of 0.1 m"), "{err}");
+}

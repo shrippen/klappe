@@ -1,6 +1,6 @@
 //! Doors and windows in walls (LH-10): set, slide along the wall, resize.
 
-use klappe_model::{DoorSide, Hinge, Opening, OpeningKind, Point, Wall};
+use klappe_model::{DoorSide, Hinge, Opening, OpeningKind, Point, Wall, MIN_OPENING_WIDTH_M};
 use klappe_stellprobe::{OpeningEnd, Source};
 
 use super::{PlanEdit, Scope};
@@ -9,8 +9,6 @@ use crate::field::Field;
 
 /// How far from a wall's edge a click still sets an opening in it.
 const OPENING_REACH_M: f64 = 0.3;
-/// The narrowest an opening gets when an end is dragged.
-const OPENING_MIN_WIDTH_M: f64 = 0.3;
 /// How far an end may lie past its wall by rounding: an opening flush at the wall's end has its
 /// end at e.g. 20.000000000000004 on a 20 m wall.
 const ROUNDING_M: f64 = 1e-9;
@@ -152,8 +150,8 @@ pub(super) fn drag_edge(
 
     let (start_m, end_m) = wall.openings[index].span_m();
     let (start_m, end_m) = match end {
-        OpeningEnd::Start => (along_m.min(end_m - OPENING_MIN_WIDTH_M), end_m),
-        OpeningEnd::End => (start_m, along_m.max(start_m + OPENING_MIN_WIDTH_M)),
+        OpeningEnd::Start => (along_m.min(end_m - MIN_OPENING_WIDTH_M), end_m),
+        OpeningEnd::End => (start_m, along_m.max(start_m + MIN_OPENING_WIDTH_M)),
     };
     // The minimum must not push an end past the wall: `centre_m` would move the other end.
     if start_m < -ROUNDING_M || end_m > length_m + ROUNDING_M {

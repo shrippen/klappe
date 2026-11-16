@@ -2,7 +2,7 @@
 
 use klappe_model::{
     CameraMark, Drawing, DrawingShape, FloorPlan, Light, Mark, Point, SetObject, Wall,
-    MAX_OBJECT_M, NOTE_MIN_WIDTH_M,
+    MAX_OBJECT_M, MIN_BEAM_DEG, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use klappe_stellprobe::{
     bend_follow, bend_grips, drawing_handle_places, light_grip_place, object_grip_place, Bend,
@@ -17,10 +17,6 @@ use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snappi
 use crate::error::ServiceError;
 
 pub(super) mod forms;
-
-/// The least a drag leaves of an object's width or depth; the model only asks for more than
-/// nothing.
-const OBJECT_MIN_M: f64 = 0.05;
 
 /// How far a drag pulls a new bend off its grip before it is made.
 const NEW_BEND_MIN_M: f64 = 1e-6;
@@ -419,9 +415,6 @@ fn place_drawing(drawing: &mut Drawing, to: Point) {
     }
 }
 
-/// The narrowest beam a drag sets; `is_beam_deg` wants more than 0°. A drag gives 360° at most.
-const LIGHT_MIN_BEAM_DEG: f64 = 1.0;
-
 /// The pointer at `to` turns the lamp towards it (direction grip) or sets the beam so that
 /// its edge runs through it (beam grip). The lamp stays; a pointer on the lamp changes nothing.
 fn drag_light(light: &mut Light, grip: LightGrip, to: Point) {
@@ -437,7 +430,7 @@ fn drag_light(light: &mut Light, grip: LightGrip, to: Point) {
             let half_turn_deg = FULL_TURN_DEG / 2.0;
             let off_deg = normalize_deg(to_deg - light.facing_deg + half_turn_deg) - half_turn_deg;
 
-            light.beam_deg = (2.0 * off_deg.abs()).max(LIGHT_MIN_BEAM_DEG);
+            light.beam_deg = (2.0 * off_deg.abs()).max(MIN_BEAM_DEG);
         }
     }
 }
@@ -496,7 +489,7 @@ fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
     // The grip sits a gap outside the edge: the size changes by how far `to` lies beyond it.
     let grip_at = object_grip_place(object, grip);
     let beyond_m = (to.x_m - grip_at.x_m) * axis.0 + (to.y_m - grip_at.y_m) * axis.1;
-    let new_m = (size_m + beyond_m).clamp(OBJECT_MIN_M, MAX_OBJECT_M);
+    let new_m = (size_m + beyond_m).clamp(MIN_OBJECT_M, MAX_OBJECT_M);
     let moved_m = (new_m - size_m) / 2.0;
 
     object.at = Point::new(
