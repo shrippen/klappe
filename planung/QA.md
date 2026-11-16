@@ -45,6 +45,14 @@ die Modi (D-01; jede Aufgabe benutzt sie nebenbei, eine eigene Aufgabe müsste i
 | A-16 | P5 | Zeichne mit einem Pfeil ein, wo die Requisite den Weg frei halten muss, schreib eine Notiz für das Team dazu und gib den Plan als Bild für eine Präsentation aus. | neuer Pfeil und neue Notiz im Plan, beide im PNG | LH-16, LH-19, LH-81 |
 | A-17 | P1 | An der Tür sollen zwölf Gäste stehen, ohne zwölf Figuren einzeln hinzustellen. | eine Gruppe mit Zahl 12 an der Tür | LH-23 |
 | A-18 | P1 | Setz für ein neues Gespräch eine übliche Schuss-Gegenschuss-Auflösung ein, ohne sie von Hand zu bauen. Mach danach drei Änderungen und nimm zwei davon zurück. | Vorlage eingefügt; eine Änderung bleibt | LH-07, LH-06 |
+| A-19 | P4 | Die Stufenlinse am Fenster leuchtet zu breit: mach ihren Lichtkegel enger und richte sie genau auf den Tisch. | Abstrahlwinkel der Lampe kleiner, Richtung auf den Tisch; Ort der Lampe unverändert | LH-50 |
+| A-20 | P4 | Die Produktion möchte deine Lampen in ihrer Tabellenkalkulation haben. | ODS oder XLSX mit einem Blatt der Lampen (Name, Art, W, K, Winkel) | LH-50, LH-85 |
+| A-21 | P5 | Die Tür rechts ist in Wirklichkeit 1,10 m breit, und das obere Fenster ist 20 cm schmaler als im Plan. | Tür 1,10 m, oberes Fenster 0,20 m schmaler; beide bleiben in ihrer Wand | LH-10 |
+| A-22 | P5 | Der Tisch wird 2,40 m lang und 1 m tief gebaut. Stell ihn so in den Plan. | Tisch 2,40 × 1,00 m, an seinem Platz | LH-25 |
+| A-23 | P5 | Zeichne ein Podest mit einer abgeschrägten Ecke ein. Danach ändert sich der Bau: eine Ecke liegt einen halben Meter weiter außen. | freie Form mit fünf Punkten; ein Punkt danach versetzt, die anderen unverändert | LH-92 |
+| A-24 | P5 | Die Notiz „Nebelmaschine außen“ ist breiter als ihr Text und ragt in den Raum. Mach sie so schmal, dass der Text gerade noch auf zwei Zeilen passt. | Notiz schmaler (unter 2,4 m), Text auf zwei Zeilen | LH-16 |
+| A-25 | P1 | Du hast zwei Fassungen der Auflösung. Die zweite gefällt dir besser: sie soll in der Liste als erste stehen. | zweiter Plan steht vorn, beide unverändert | LH-04 |
+| A-26 | P1 | Schick dem Team den Plan auf einem hochkant liegenden A4-Blatt. Beim nächsten Mal soll das Programm das schon so vorschlagen. | PDF hochkant A4; Projekt speichert `a4-portrait`, der Dialog schlägt es vor | LH-80 |
 
 ## Ketten
 
