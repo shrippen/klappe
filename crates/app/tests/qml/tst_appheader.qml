@@ -128,23 +128,19 @@ TestCase {
         verify(path.x + path.width <= findChild(header, "planMenu").x)
     }
 
-    function test_without_a_project_only_the_mark_and_the_file_menu_stay() {
+    // The start page has the buttons for New and Open, so the File menu stays away (and the
+    // status line: the start page shows it whole).
+    function test_without_a_project_only_the_mark_stays() {
         fake.loaded = false
+        fake.status = "Projekt konnte nicht gelesen werden"
         const header = make()
 
-        verify(findChild(header, "fileMenu").visible)
-        for (const name of ["path", "planMenu", "exportMenu", "viewMenu", "undo", "redo", "paletteButton"]) {
+        for (const name of ["fileMenu", "status", "path", "planMenu", "exportMenu", "viewMenu", "undo", "redo", "paletteButton"]) {
             verify(!findChild(header, name).visible, name)
-        }
-        verify(entry(header, "fileMenu", "new").visible)
-        verify(entry(header, "fileMenu", "open").visible)
-        for (const name of ["project", "save", "close", "background", "backgroundRemove"]) {
-            verify(!entry(header, "fileMenu", name).visible, name)
         }
     }
 
     function test_new_and_open_say_what_was_asked() {
-        fake.loaded = false
         const header = make()
 
         pick(header, "fileMenu", "new")

@@ -15,6 +15,7 @@ TestCase {
     QtObject {
         id: fake
         property string recentJson: "[]"
+        property string status: ""
     }
 
     TestTexts { id: de; language: "de" }
@@ -228,5 +229,28 @@ TestCase {
         page.texts = en
 
         compare(findChild(page, "openButton").text, "Open project…")
+    }
+
+    // A refused project says why in the status line; on this page there is no header line wide
+    // enough, so the page shows it whole.
+    function test_a_long_status_is_shown_whole() {
+        fake.status = "Projekt konnte nicht gelesen werden: szenen/szene-014.json: invalid type: map, expected a sequence"
+        const page = make()
+        page.width = 360
+
+        const status = findChild(page, "status")
+        verify(status.visible)
+        compare(status.text, fake.status)
+        verify(!status.truncated)
+        verify(status.implicitHeight > status.font.pixelHeight * 1.5, "wraps onto more lines")
+        verify(status.width <= page.width)
+        fake.status = ""
+    }
+
+    function test_without_a_status_the_line_is_hidden() {
+        fake.status = ""
+        const page = make()
+
+        verify(!findChild(page, "status").visible)
     }
 }
