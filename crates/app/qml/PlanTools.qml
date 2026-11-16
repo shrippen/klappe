@@ -123,13 +123,16 @@ RowLayout {
         { name: "arrow", key: "A", icon: "draw-arrow" },
         { name: "rect", key: "B", icon: "draw-rectangle" },
         { name: "ellipse", key: "E", icon: "draw-ellipse" },
-        { name: "area", key: "P", icon: "draw-polygon" }
+        { name: "area", key: "P", icon: "draw-polygon" },
+        // Shift+P: the pen next to the polygon (P); its mode is the stage's, where the bar has room
+        // (in the draw mode the colour, line and fill lists leave none at the wide step).
+        { name: "sketch", key: "Shift+P", icon: "draw-freehand" }
     ]
     /// The modes (D-01) with the tools of each in groups, separated in the bar. A tool in two modes
     /// (selecting, measuring) belongs to the first; the others show it too.
     readonly property var _modes: [
         { id: "build", key: "1", groups: [["select"], ["wall", "room", "door", "window", "object", "freeform", "height"], ["scale", "image", "measure"]] },
-        { id: "stage", key: "2", groups: [["select"], ["figure"], ["measure"]] },
+        { id: "stage", key: "2", groups: [["select"], ["figure"], ["sketch"], ["measure"]] },
         { id: "resolve", key: "3", groups: [["select"], ["camera", "light"], ["measure"]] },
         { id: "draw", key: "4", groups: [["select"], ["note"], ["line", "arrow", "rect", "ellipse", "area"], ["measure"]] }
     ]
@@ -231,7 +234,7 @@ RowLayout {
     onCompactChanged: _fit()
     /// Name and key of a tool; the tools with more to say have a text of their own.
     function toolTip(name, key) {
-        const own = ["scale", "measure", "note", "image", "area", "door", "window", "height", "room", "freeform"]
+        const own = ["scale", "measure", "note", "image", "area", "door", "window", "height", "room", "freeform", "sketch"]
         if (own.indexOf(name) >= 0) {
             return texts.t("tool." + name + "Tip", { key: key })
         }
@@ -481,6 +484,16 @@ RowLayout {
                 text: tools.texts.t("library.export")
                 onClicked: tools.exportRequested()
                 QQC2.ToolTip.text: tools.texts.t("library.exportTip")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+            // Sketch pen (LH-120): one command takes every stroke off the plan.
+            KanteToolButton {
+                objectName: "sketchClear"
+                visible: tools.tool === "sketch"
+                text: tools.texts.t("sketch.clear")
+                onClicked: tools.controller.clearSketches()
+                QQC2.ToolTip.text: tools.texts.t("sketch.clearTip")
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
             }

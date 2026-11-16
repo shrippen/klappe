@@ -153,6 +153,12 @@ QQC2.Menu {
         onTriggered: menu.controller.setLock(menu.layer, "locked")
     }
     KanteMenuItem {
+        objectName: "ctxFadeLayer"
+        visible: menu.layer !== ""
+        text: menu.texts.t("ctx.fadeLayer", { layer: menu.layerName })
+        onTriggered: menu.controller.cycleFade(menu.layer)
+    }
+    KanteMenuItem {
         objectName: "ctxHideLayer"
         visible: menu.layer !== ""
         text: menu.texts.t("ctx.hideLayer", { layer: menu.layerName })
@@ -184,6 +190,12 @@ QQC2.Menu {
         text: menu.texts.t("menu.redo")
         shortcutText: menu.keyName("Ctrl+Shift+Z")
         onTriggered: menu.controller.redo()
+    }
+    KanteMenuItem {
+        objectName: "ctxClearSketches"
+        visible: !menu.onElement
+        text: menu.texts.t("sketch.clear")
+        onTriggered: menu.controller.clearSketches()
     }
     KanteMenuItem {
         objectName: "ctxFit"

@@ -75,6 +75,8 @@ TestCase {
         function cancelScale() { calls.push(["cancelScale"]); scalePoints = 0 }
         function arm(what) { calls.push(["arm", what]); armed = what; return true }
         function cancelArm() { calls.push(["cancelArm"]); armed = "" }
+        function cycleFade(layer) { calls.push(["fade", layer]) }
+        function clearSketches() { calls.push(["clearSketches"]) }
         function setWayCurve(name) { calls.push(["curve", name]); return true }
         function cancelMeasure() { calls.push(["cancelMeasure"]); measuring = false }
     }
@@ -124,7 +126,7 @@ TestCase {
 
     function shown(area) {
         const names = ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxEditNote", "ctxAddShot",
-                       "ctxNextMark", "ctxMarkBefore", "ctxAxisTo", "ctxWaySmooth", "ctxWayStraight", "ctxLockLayer", "ctxHideLayer", "ctxDeselect", "ctxUndo", "ctxRedo", "ctxFit"]
+                       "ctxNextMark", "ctxMarkBefore", "ctxAxisTo", "ctxWaySmooth", "ctxWayStraight", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect", "ctxUndo", "ctxRedo", "ctxClearSketches", "ctxFit"]
         return names.filter(n => findChild(area, n).visible)
     }
 
@@ -178,11 +180,11 @@ TestCase {
     function test_each_kind_gets_the_commands_it_takes() {
         const area = made()
         const kinds = {
-            "object:o1": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "camera:a": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxAddShot", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "figure:e": ["ctxDelete", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxNextMark", "ctxMarkBefore", "ctxAxisTo", "ctxWayStraight", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "note:n1": ["ctxDelete", "ctxDuplicate", "ctxEditNote", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "opening:3:0": ["ctxDelete", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"]
+            "object:o1": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"],
+            "camera:a": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxAddShot", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"],
+            "figure:e": ["ctxDelete", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxNextMark", "ctxMarkBefore", "ctxAxisTo", "ctxWayStraight", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"],
+            "note:n1": ["ctxDelete", "ctxDuplicate", "ctxEditNote", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"],
+            "opening:3:0": ["ctxDelete", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"]
         }
 
         for (const key in kinds) {
@@ -202,7 +204,7 @@ TestCase {
         const area = made()
         open(area, "")
 
-        compare(shown(area), ["ctxUndo", "ctxRedo", "ctxFit"])
+        compare(shown(area), ["ctxUndo", "ctxRedo", "ctxClearSketches", "ctxFit"])
         verify(findChild(area, "ctxUndo").enabled)
         verify(!findChild(area, "ctxRedo").enabled)
     }
@@ -229,10 +231,11 @@ TestCase {
         findChild(area, "ctxAddShot").triggered()
         findChild(area, "ctxDelete").triggered()
         findChild(area, "ctxLockLayer").triggered()
+        findChild(area, "ctxFadeLayer").triggered()
         findChild(area, "ctxHideLayer").triggered()
 
         compare(fake.calls, [["duplicate"], ["turn", 15], ["turn", -15], ["straighten"], ["addShot"], ["remove"],
-                             ["lock", "cameras", "locked"], ["layer", "cameras", "hidden"]])
+                             ["lock", "cameras", "locked"], ["fade", "cameras"], ["layer", "cameras", "hidden"]])
     }
 
     function test_a_note_is_edited_from_its_menu() {

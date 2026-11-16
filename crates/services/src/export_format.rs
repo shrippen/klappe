@@ -15,11 +15,19 @@ pub enum ExportFormat {
     View3d,
     /// What a camera sees, as PNG (LH-86).
     Camera,
+    /// One PDF page per shot, its camera strong, the rest faded (LH-87).
+    ShotPages,
+    /// One PDF page per camera (LH-87).
+    CameraPages,
+    /// One PNG per shot in a folder (LH-87).
+    ShotFiles,
+    /// One PNG per camera in a folder (LH-87).
+    CameraFiles,
 }
 
 impl ExportFormat {
     /// Every format, in the order the menu offers them.
-    pub const ALL: [ExportFormat; 9] = [
+    pub const ALL: [ExportFormat; 13] = [
         ExportFormat::Pdf,
         ExportFormat::Png,
         ExportFormat::Svg,
@@ -29,6 +37,10 @@ impl ExportFormat {
         ExportFormat::Frames,
         ExportFormat::View3d,
         ExportFormat::Camera,
+        ExportFormat::ShotPages,
+        ExportFormat::CameraPages,
+        ExportFormat::ShotFiles,
+        ExportFormat::CameraFiles,
     ];
 
     /// How surfaces and the catalogue (`menu.<name>Saved`) call the format.
@@ -43,6 +55,10 @@ impl ExportFormat {
             ExportFormat::Frames => "frames",
             ExportFormat::View3d => "view3d",
             ExportFormat::Camera => "camera",
+            ExportFormat::ShotPages => "shotpages",
+            ExportFormat::CameraPages => "camerapages",
+            ExportFormat::ShotFiles => "shotfiles",
+            ExportFormat::CameraFiles => "camerafiles",
         }
     }
 
@@ -56,14 +72,22 @@ impl ExportFormat {
     pub fn needs_paper(self) -> bool {
         matches!(
             self,
-            ExportFormat::Pdf | ExportFormat::Png | ExportFormat::Svg | ExportFormat::Frames
+            ExportFormat::Pdf
+                | ExportFormat::Png
+                | ExportFormat::Svg
+                | ExportFormat::Frames
+                | ExportFormat::ShotPages
+                | ExportFormat::CameraPages
+                | ExportFormat::ShotFiles
+                | ExportFormat::CameraFiles
         )
     }
 
     /// The extension of the file written; `None` where it is a folder.
     pub fn extension(self) -> Option<&'static str> {
         match self {
-            ExportFormat::Frames => None,
+            ExportFormat::Frames | ExportFormat::ShotFiles | ExportFormat::CameraFiles => None,
+            ExportFormat::ShotPages | ExportFormat::CameraPages => Some("pdf"),
             ExportFormat::View3d | ExportFormat::Camera => Some("png"),
             other => Some(other.name()),
         }
@@ -75,12 +99,14 @@ impl ExportFormat {
         let part = match self {
             ExportFormat::View3d => "-3d",
             ExportFormat::Camera => "-camera",
+            ExportFormat::ShotPages | ExportFormat::ShotFiles => "-shots",
+            ExportFormat::CameraPages | ExportFormat::CameraFiles => "-cameras",
             _ => "",
         };
 
         match self.extension() {
             Some(extension) => format!("{title}{part}.{extension}"),
-            None => title.to_owned(),
+            None => format!("{title}{part}"),
         }
     }
 }
@@ -115,7 +141,11 @@ mod tests {
                 "Plan-A.xlsx",
                 "Plan-A",
                 "Plan-A-3d.png",
-                "Plan-A-camera.png"
+                "Plan-A-camera.png",
+                "Plan-A-shots.pdf",
+                "Plan-A-cameras.pdf",
+                "Plan-A-shots",
+                "Plan-A-cameras"
             ]
         );
     }

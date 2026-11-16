@@ -51,10 +51,9 @@ RowLayout {
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
                                     actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
-                                    actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actNextMark, actMarkBefore, actAxisTo, actWaySmooth, actWayStraight,
-                                    actUndo, actRedo]
+                                    actUndo, actRedo].concat(zoom.actions, pageExports.actions, viewCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -166,24 +165,47 @@ RowLayout {
         KanteMenuItem { objectName: "frames"; action: actFrames; iconRoom: true }
         KanteMenuItem { objectName: "view3d"; action: actView3d; iconRoom: true }
         KanteMenuItem { objectName: "camera"; action: actCameraPng; iconRoom: true }
+        QQC2.MenuSeparator {}
+        KanteMenuItem { objectName: "shotPages"; action: pageExports.shotPages; iconRoom: true }
+        KanteMenuItem { objectName: "cameraPages"; action: pageExports.cameraPages; iconRoom: true }
+        KanteMenuItem { objectName: "shotFiles"; action: pageExports.shotFiles; iconRoom: true }
+        KanteMenuItem { objectName: "cameraFiles"; action: pageExports.cameraFiles; iconRoom: true }
     }
     HeaderMenu {
+        id: viewMenu
         objectName: "viewMenu"
         visible: header.controller.loaded
         text: header.texts.t("menu.view")
-        KanteMenuSection { text: header.texts.t("menu.viewMode"); rule: false }
+        // The saved views (LH-119) come first: the section's label is item 0, the views follow it.
+        KanteMenuSection { text: header.texts.t("menu.viewSaved"); rule: false }
+        Instantiator {
+            model: viewCommands.savedViews
+            delegate: KanteMenuItem {
+                required property var modelData
+                objectName: "savedView." + modelData.id
+                text: modelData.name
+                enabled: !header.locked
+                onTriggered: header.controller.applyView(modelData.id)
+            }
+            onObjectAdded: (index, object) => viewMenu.menu.insertItem(index + 1, object)
+            onObjectRemoved: (index, object) => viewMenu.menu.removeItem(object)
+        }
+        KanteMenuItem { objectName: "saveView"; action: viewCommands.saveAction }
+        KanteMenuItem { objectName: "removeView"; action: viewCommands.removeAction }
+        KanteMenuSection { text: header.texts.t("menu.viewMode") }
         KanteMenuItem { objectName: "free"; action: actFree }
         KanteMenuItem { objectName: "wallCut"; action: actWallCut }
         KanteMenuItem { objectName: "through"; action: actThrough }
         KanteMenuItem { objectName: "heights"; action: actHeights }
+        KanteMenuItem { objectName: "sketchClear"; action: viewCommands.clearAction }
         KanteMenuSection { text: header.texts.t("menu.viewAreas") }
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
         KanteMenuItem { objectName: "timeline"; action: actTimeline }
         KanteMenuSection { text: header.texts.t("menu.viewZoom") }
-        KanteMenuItem { objectName: "zoomIn"; action: actZoomIn }
-        KanteMenuItem { objectName: "zoomOut"; action: actZoomOut }
-        KanteMenuItem { objectName: "zoomFit"; action: actZoomFit }
+        KanteMenuItem { objectName: "zoomIn"; action: zoom.inAction }
+        KanteMenuItem { objectName: "zoomOut"; action: zoom.outAction }
+        KanteMenuItem { objectName: "zoomFit"; action: zoom.fitAction }
         KanteMenuSection { text: header.texts.t("menu.viewOrder") }
         KanteMenuItem { objectName: "cut"; action: actCut }
         KanteMenuItem { objectName: "shooting"; action: actShooting }
@@ -370,6 +392,14 @@ RowLayout {
         onTriggered: exportDialog.request("camera")
     }
 
+    // LH-87: one page per shot or per camera, its camera strong and the rest faded.
+    PageExports {
+        id: pageExports
+        texts: header.texts
+        controller: header.controller
+        dialog: exportDialog
+    }
+
     // Plan or 3D (J): the controller keeps which one shows.
     CommandAction {
         id: actFree
@@ -441,6 +471,14 @@ RowLayout {
             }
         }
     }
+    // Saved views (LH-119) and the sketch pen's clear command (LH-120).
+    ViewCommands {
+        id: viewCommands
+        objectName: "viewCommands"
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+    }
     // The checkmark follows the controller, which also leaves 3D when another project opens.
     Binding {
         target: actFree
@@ -503,42 +541,14 @@ RowLayout {
         onTriggered: header.shotOrderPicked("shooting")
     }
 
-    // Zoom of the plan; the window hands it on. Ctrl+= is the same key as Ctrl++ without Shift.
-    CommandAction {
-        id: actZoomIn
-        cmd: "view.zoomIn"
-        group: "view"
-        text: header.texts.t("menu.zoomIn")
-        shortcut: "Ctrl++"
-        keys: header.keyName("Ctrl++")
-        enabled: header.controller.loaded && !header.locked
-        onTriggered: header.zoomRequested("in")
-    }
-    Shortcut {
-        sequence: "Ctrl+="
-        enabled: actZoomIn.enabled
-        onActivated: actZoomIn.trigger()
-    }
-    CommandAction {
-        id: actZoomOut
-        cmd: "view.zoomOut"
-        group: "view"
-        text: header.texts.t("menu.zoomOut")
-        shortcut: "Ctrl+-"
-        keys: header.keyName("Ctrl+-")
-        enabled: header.controller.loaded && !header.locked
-        onTriggered: header.zoomRequested("out")
-    }
-    CommandAction {
-        id: actZoomFit
-        cmd: "view.zoomFit"
-        group: "view"
-        text: header.texts.t("menu.zoomFit")
-        shortcut: "Ctrl+0"
-        keys: header.keyName("Ctrl+0")
-        // The whole plan: the 3D view has no plan to fit.
-        enabled: header.controller.loaded && !header.locked && !header.controller.viewFree
-        onTriggered: header.zoomRequested("fit")
+    // Zoom of the plan; the window hands it on.
+    ZoomCommands {
+        id: zoom
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        keyName: header.keyName
+        onRequested: how => header.zoomRequested(how)
     }
 
     // Play or pause: K works everywhere. Space does too, except where it already means
@@ -680,8 +690,8 @@ RowLayout {
 
     // What the palette lists: the modes, the tools, the actions, the scenes, the plans. Each is
     // listed with the key it has anywhere else.
-    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), sceneCommands(),
-                                              actionCommands(planMenu.actions), planCommands())
+    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), viewCommands.palette(),
+                                              sceneCommands(), actionCommands(planMenu.actions), planCommands())
 
     function actionCommands(actions) {
         return actions.map(a => ({
@@ -754,6 +764,15 @@ RowLayout {
             return
         case "plan":
             controller.selectPlan(target)
+            return
+        case "savedView":
+            controller.applyView(target)
+            return
+        case "removeView":
+            controller.removeView(target)
+            return
+        case "fade":
+            controller.cycleFade(target)
             return
         }
         const action = entries.concat(planMenu.actions).find(a => a.cmd === id)

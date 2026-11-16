@@ -98,6 +98,8 @@ pub(crate) struct Doc {
     pub plan: Vec<Prim>,
     /// Title, scale bar, legend.
     pub chrome: Vec<Prim>,
+    /// Further plan pages, each a document of its own (LH-87); only the PDF has them.
+    pub pages: Vec<Doc>,
     /// Further pages after the plan (the shot list); SVG has none.
     pub sheets: Vec<Sheet>,
 }

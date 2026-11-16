@@ -25,7 +25,8 @@
     "blue": {
       "bright": "#83a598",
       "neutral": "#458588",
-      "faded": "#076678"
+      "faded": "#076678",
+      "hover": "#6d9181"
     },
     "aqua": {
       "bright": "#8ec07c",
@@ -444,6 +445,83 @@
       "base": "280ms",
       "slow": "700ms",
       "easeSnap": "cubic-bezier(.2,.8,.2,1)"
+    }
+  },
+  "kanteLight": {
+    "name": "Kante Light",
+    "usage": "opt-in via data-kante=\"light\" (apps); Breeze colours, light and dark by prefers-color-scheme; web only, no QML or Knust counterpart",
+    "light": {
+      "backgrounds": {
+        "bg-void": "#eff0f1",
+        "bg-hard": "#e3e5e7",
+        "bg0": "#eff0f1",
+        "bg-panel": "#fcfcfc",
+        "bg1": "#fcfcfc",
+        "bg2": "#c9ced2"
+      },
+      "foregrounds": {
+        "fg0": "#232629",
+        "fg1": "#232629",
+        "fg2": "#4d545b",
+        "fg3": "#646e78"
+      },
+      "accent": "#232629",
+      "semantic": {
+        "blue": "#1d6fa5",
+        "blue-hover": "#155a87",
+        "aqua": "#1e8449",
+        "green": "#1e8449",
+        "yellow": "#a84f00",
+        "orange": "#a84f00",
+        "red": "#bf2e3e",
+        "purple": "#8e44ad",
+        "cyan": "#1d6fa5"
+      },
+      "extra": {
+        "cyan-n": "#1d6fa5",
+        "cyan-tint": "#e3eef6",
+        "hl": "#3daee9",
+        "primary": "#3daee9",
+        "on-primary": "#ffffff",
+        "yellow-hi": "#3daee9",
+        "yellow-lo": "#2e9bd4",
+        "on-state": "#ffffff"
+      }
+    },
+    "dark": {
+      "backgrounds": {
+        "bg-void": "#202326",
+        "bg-hard": "#1b1e20",
+        "bg0": "#202326",
+        "bg-panel": "#292c30",
+        "bg1": "#1b1e20",
+        "bg2": "#41464b"
+      },
+      "foregrounds": {
+        "fg0": "#ffffff",
+        "fg1": "#fcfcfc",
+        "fg2": "#d1d5d9",
+        "fg3": "#a1a9b1"
+      },
+      "accent": "#fcfcfc",
+      "semantic": {
+        "blue": "#3daee9",
+        "blue-hover": "#2e9bd4",
+        "aqua": "#3ec57a",
+        "green": "#3ec57a",
+        "yellow": "#f69a3d",
+        "orange": "#f69a3d",
+        "red": "#ed5a6a",
+        "purple": "#b56fd0",
+        "cyan": "#3daee9"
+      },
+      "extra": {
+        "cyan-n": "#3daee9",
+        "cyan-tint": "#1e3342",
+        "yellow-hi": "#3daee9",
+        "yellow-lo": "#2e9bd4",
+        "on-state": "#202326"
+      }
     }
   }
 }

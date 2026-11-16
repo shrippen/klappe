@@ -205,7 +205,7 @@ TestCase {
     }
 
     function test_the_tool_bar_fits_every_step() {
-        const setups = [["build", "object"], ["draw", "rect"], ["draw", "select"], ["resolve", "light"], ["stage", "figure"]]
+        const setups = [["build", "object"], ["draw", "rect"], ["draw", "select"], ["resolve", "light"], ["stage", "figure"], ["stage", "sketch"]]
         for (const w of [1700, 1400, 1200, 1000, 800, 720]) {
             for (const [mode, tool] of setups) {
                 make(w)

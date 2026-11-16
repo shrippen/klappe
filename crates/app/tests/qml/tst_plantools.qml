@@ -140,7 +140,7 @@ TestCase {
         const bar = make()
         const wanted = {
             build: ["select", "wall", "room", "door", "window", "object", "freeform", "height", "scale", "image", "measure"],
-            stage: ["select", "figure", "measure"],
+            stage: ["select", "figure", "sketch", "measure"],
             resolve: ["select", "camera", "light", "measure"],
             draw: ["select", "note", "line", "arrow", "rect", "ellipse", "area", "measure"]
         }
@@ -308,6 +308,22 @@ TestCase {
             keyClick(key)
             compare(bar.tool, tool)
         }
+    }
+
+    // LH-120: Shift+P is the sketch pen (P is the area); its clear button shows with the pen only.
+    function test_shift_p_picks_the_sketch_pen_and_its_clear_button_shows() {
+        const bar = make()
+        keyClick(Qt.Key_P)
+        compare(bar.tool, "area")
+
+        keyClick(Qt.Key_P, Qt.ShiftModifier)
+
+        compare(bar.tool, "sketch")
+        compare(bar.keys[bar.names.indexOf("sketch")], "Shift+P")
+        compare(bar.mode, "stage")
+        verify(findChild(bar, "sketchClear").visible)
+        bar.tool = "select"
+        verify(!findChild(bar, "sketchClear").visible)
     }
 
     function test_shift_b_picks_the_image_tool() {
@@ -707,7 +723,6 @@ TestCase {
     // LH-101, LH-122: the hint line says what the next click does and that the tool stays.
     function test_the_hint_names_the_click_and_that_the_tool_stays() {
         const bar = make()
-
         compare(bar.hint, "")
 
         bar.tool = "wall"
@@ -715,16 +730,13 @@ TestCase {
 
         bar.tool = "object"
         verify(bar.hint.indexOf("Klick setzt Tisch.") === 0, bar.hint)
-
         bar.tool = "figure"
         verify(bar.hint.indexOf("Klick setzt den nächsten Mark von Elisabeth.") === 0, bar.hint)
-
         bar.tool = "camera"
         verify(bar.hint.indexOf("Klick setzt eine neue Kamera.") === 0, bar.hint)
         findChild(bar, "cameraBox").currentIndex = 2
         verify(bar.hint.indexOf("Klick setzt den nächsten Mark von Kamera B.") === 0, bar.hint)
 
-        // A tool that sets nothing new only ends with Escape.
         bar.tool = "measure"
         verify(bar.hint.indexOf("Das Werkzeug bleibt") < 0, bar.hint)
         verify(bar.hint.indexOf("Esc wählt die Auswahl.") > 0, bar.hint)
@@ -753,7 +765,6 @@ TestCase {
             box.currentIndex = index
             box.activated(index)
         }
-        fake.choicesJson = JSON.stringify(Object.assign({}, fake.choices, { cameras: fake.choices.cameras.concat([{ id: "c", label: "C" }]) }))
         fake.choicesJson = JSON.stringify(Object.assign({}, fake.choices, { figure: fake.choices.figure.slice() }))
 
         for (const [name, tool, index, value] of picks) {

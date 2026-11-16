@@ -16,7 +16,8 @@ Item {
     readonly property var names: controller.choicesJson ? JSON.parse(controller.choicesJson).layer : []
     readonly property var shown: controller.layersJson ? JSON.parse(controller.layersJson) : ({})
     readonly property var locks: controller.locksJson ? JSON.parse(controller.locksJson) : ({})
-    readonly property bool unusual: names.some(n => shown[n] === false || locks[n] === true)
+    readonly property var fades: controller.fadesJson ? JSON.parse(controller.fadesJson) : ({})
+    readonly property bool unusual: names.some(n => shown[n] === false || locks[n] === true || (fades[n] || "100") !== "100")
 
     implicitWidth: card.implicitWidth
     implicitHeight: card.implicitHeight
@@ -78,6 +79,16 @@ Item {
                     QQC2.ToolTip.visible: hovered
                     QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                     onToggled: layers.controller.setLayer(modelData, checked ? "shown" : "hidden")
+                }
+                // Fade (LH-15): each click takes the layer one step paler, after the faintest back to full.
+                KanteToolButton {
+                    objectName: "fadeButton_" + modelData
+                    text: layers.texts.t("layer.fadeValue", { percent: layers.fades[modelData] || "100" })
+                    Accessible.name: layers.texts.t("layer.fadeTip", { layer: layerName, percent: layers.fades[modelData] || "100" })
+                    QQC2.ToolTip.text: Accessible.name
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    onClicked: layers.controller.cycleFade(modelData)
                 }
                 KanteToolButton {
                     objectName: "lockButton_" + modelData

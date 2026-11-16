@@ -95,6 +95,28 @@ pub(crate) fn cue_count(text: &str, scene: &Scene, character: &Character) -> usi
         .count()
 }
 
+/// The ids of the project's characters whose cue stands in the script of `scene`, in the order
+/// of their first cue. A cue that no character of the project has (by name) is left out.
+pub(crate) fn speakers(text: &str, scene: &Scene, project: &Project) -> Vec<String> {
+    let located = parse_located(text);
+    let Some(range) = scene_range(&located, &scene.number) else {
+        return Vec::new();
+    };
+
+    let mut ids: Vec<String> = Vec::new();
+    for located in &located[range] {
+        let named = project
+            .characters
+            .iter()
+            .find(|c| names(&located.element, &c.name));
+        if let Some(character) = named.filter(|c| !ids.contains(&c.id)) {
+            ids.push(character.id.clone());
+        }
+    }
+
+    ids
+}
+
 /// Whether a scene heading of the script carries `number` (the case of a number is style).
 pub(crate) fn has_number(text: &str, number: &str) -> bool {
     let number = number.trim().to_lowercase();
