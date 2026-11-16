@@ -224,6 +224,23 @@ TestCase {
         compare(fake.paces, [])
     }
 
+    // Enter keeps the focus, so the field is not filled again; typing the old pace back must
+    // still be sent once the plan has the new one.
+    function test_the_old_pace_typed_back_is_sent() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+        const field = findChild(card, "paceField")
+        field.forceActiveFocus()
+
+        field.text = "2,5"
+        keyClick(Qt.Key_Return)
+        figureMark({ pace: 2.5 })
+        field.text = "1,4"
+        keyClick(Qt.Key_Return)
+
+        compare(fake.paces, ["2,5", "1,4"])
+    }
+
     function test_a_refused_pace_marks_the_field() {
         const card = createTemporaryObject(cardComponent, tc)
         figureMark()

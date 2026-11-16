@@ -25,7 +25,7 @@ ColumnLayout {
     property bool expanded: false
     /// The button for "More"; the selection card has one for all its sections.
     property bool showMore: true
-    /// The pace as the field last showed it, so an unchanged field sends nothing.
+    /// The plan's pace as the field shows it, so an unchanged field sends nothing.
     property string shownPace: ""
 
     readonly property var choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : ({})
@@ -63,9 +63,10 @@ ColumnLayout {
         if (!holdField.activeFocus) {
             holdField.text = texts.num(info.hold, 2)
         }
+        // The plan's pace, also while the field has the focus: what it holds after Enter.
+        card.shownPace = info.pace === null ? "" : texts.num(info.pace, 1)
         if (!paceField.activeFocus) {
-            paceField.text = info.pace === null ? "" : texts.num(info.pace, 1)
-            card.shownPace = paceField.text
+            paceField.text = card.shownPace
         }
         if (!card.isCamera) {
             return
@@ -167,7 +168,6 @@ ColumnLayout {
             enabled: card.info !== null && card.info.hasWay
             Layout.preferredWidth: Kirigami.Units.gridUnit * 5
             Accessible.name: card.texts.t("mark.paceField")
-            placeholderText: card.texts.t("mark.paceField")
             inputMethodHints: Qt.ImhFormattedNumbersOnly
             onTextChanged: invalid = false
             onAccepted: card.setSpeed()
