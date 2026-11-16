@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml"
+import "FieldLabels.js" as FieldLabels
 
 // The camera card (LH-32, LH-38): body, sensor, lens set, lens and frame of the selected camera.
 TestCase {
@@ -321,5 +322,22 @@ TestCase {
         verify(findChild(card, "cameraBodyBox").visible)
         verify(findChild(card, "cameraSensorField").visible)
         verify(findChild(card, "cameraAspectField").visible)
+    }
+
+    // Q1-03: each number field is named by a label above it, not by a placeholder.
+    function test_every_number_field_has_a_visible_label() {
+        const card = shown("camera:a")
+        card.expanded = true
+        const labels = FieldLabels.of(card)
+        const names = {
+            cameraLensField: "Brennweite (mm)",
+            cameraSensorField: "Sensorbreite (mm)",
+            cameraAspectField: "Seitenverhältnis",
+        }
+
+        for (const objectName in names) {
+            verify(labels.indexOf(names[objectName]) >= 0, names[objectName] + " in " + labels)
+            compare(findChild(card, objectName).Accessible.name, names[objectName])
+        }
     }
 }

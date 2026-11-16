@@ -4,9 +4,9 @@ use klappe_model::{FloorPlan, LinkTarget};
 use klappe_stellprobe::{Bend, Source};
 
 use super::moving::forms::remove_grip;
-use super::moving::target;
 use super::openings::opening_mut;
-use super::{Scope, Target};
+use super::target::{target, Target};
+use super::Scope;
 use crate::error::ServiceError;
 
 /// Takes the bend `source` names out of its way.
@@ -78,19 +78,14 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
             set.notes.remove(index);
             Ok(())
         }
-        // Like the grip that makes a point: no element of its own, nothing to remove.
-        Source::DrawingPoint { .. }
-        | Source::DrawingEdge { .. }
-        | Source::NoteWidth(_)
-        | Source::OpeningEdge { .. }
-        | Source::LightGrip { .. }
-        | Source::ObjectGrip { .. } => remove_grip(scope, source),
         Source::Drawing(id) => {
             let index = scope.plan.drawings.iter().position(|d| d.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;
             scope.plan.drawings.remove(index);
             Ok(())
         }
+        // The other grips are no element of their own: nothing to remove, but a point.
+        grip => remove_grip(scope, grip),
     }
 }
 

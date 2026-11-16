@@ -1,5 +1,5 @@
 use klappe_model::{DrawingShape, Point, Project};
-use klappe_stellprobe::{handles, lens_at, render, DisplayList, Source};
+use klappe_stellprobe::{handles, lens_at, render, DisplayList, Item, Source};
 
 use super::layers::layer_of;
 use super::{Lock, Session};
@@ -120,7 +120,8 @@ impl Session {
 
     /// `pick` with the grips of the way `selected` belongs to in reach: they lie in front.
     pub fn pick_for(&self, at: Point, selected: Option<&Source>) -> Option<Source> {
-        let locked = |role| self.lock(layer_of(role)) == Lock::Locked;
+        let locked =
+            |item: &Item| self.lock(layer_of(item.role, item.source.as_ref())) == Lock::Locked;
 
         plan_edit::pick(&self.display_list_for(selected).items, at, locked)
     }
@@ -146,7 +147,8 @@ impl Session {
     /// Every element whose shown items lie wholly in the box with corners `a` and `b` (LH-08).
     /// Items of locked layers are not taken; no grips (they show for one selected way only).
     pub fn pick_in(&self, a: Point, b: Point) -> Vec<Source> {
-        let locked = |role| self.lock(layer_of(role)) == Lock::Locked;
+        let locked =
+            |item: &Item| self.lock(layer_of(item.role, item.source.as_ref())) == Lock::Locked;
 
         plan_edit::pick_in(&self.display_list().items, (a, b), locked)
     }
@@ -154,7 +156,8 @@ impl Session {
     /// Every element whose reference point lies in the freehand shape `lasso` (LH-08). Items of
     /// locked layers are not taken; no grips, as with `pick_in`.
     pub fn pick_lasso(&self, lasso: &[Point]) -> Vec<Source> {
-        let locked = |role| self.lock(layer_of(role)) == Lock::Locked;
+        let locked =
+            |item: &Item| self.lock(layer_of(item.role, item.source.as_ref())) == Lock::Locked;
 
         plan_edit::pick_lasso(&self.display_list().items, lasso, locked)
     }

@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml"
+import "FieldLabels.js" as FieldLabels
 
 // The lamp card (LH-50, LH-51): kind, library lamp, direction, beam, power and colour of the
 // selected lamp.
@@ -232,5 +233,23 @@ TestCase {
 
         compare(fake.sets, [["power", "300"]])
         compare(field.text, "300")
+    }
+
+    // Q2-03: each number field is named by a label above it, not by a placeholder that goes
+    // with the first value; the label is also the accessible name.
+    function test_every_number_field_has_a_visible_label() {
+        const card = shown("light:led", de)
+        const labels = FieldLabels.of(card)
+        const names = {
+            lightFacingField: "Richtung (°)",
+            lightBeamField: "Abstrahlwinkel (°)",
+            lightPowerField: "Leistung (W)",
+            lightTempField: "Farbtemperatur (K)",
+        }
+
+        for (const objectName in names) {
+            verify(labels.indexOf(names[objectName]) >= 0, names[objectName] + " in " + labels)
+            compare(findChild(card, objectName).Accessible.name, names[objectName])
+        }
     }
 }

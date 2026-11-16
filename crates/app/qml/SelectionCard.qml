@@ -24,8 +24,11 @@ KantePopover {
     property point freeAt: Qt.point(0, 0)
 
     readonly property string key: controller.selectedKey
-    readonly property bool wanted: objectSection.shown || openingSection.shown
-        || wallSection.shown || cameraSection.shown || markSection.shown
+    /// A change of tool closes the card, the selection stays (a typed measure uses it): a new
+    /// selection, or a click on the element, opens the card again.
+    property bool dismissed: false
+    readonly property bool wanted: !card.dismissed && (objectSection.shown || openingSection.shown
+        || wallSection.shown || cameraSection.shown || markSection.shown)
     /// The rest of the fields of every section.
     property bool expanded: false
     /// A field has the focus: letters and Delete are text, not keys for the selection.
@@ -38,7 +41,18 @@ KantePopover {
     closeOnOutside: false
     closePolicy: QQC2.Popup.NoAutoClose
 
-    onKeyChanged: place()
+    // Escape in a field of the card leaves the field, which gives the keyboard back to the plan;
+    // the next Escape clears the selection (PlanArea).
+    Shortcut {
+        sequence: "Escape"
+        enabled: card.typing
+        onActivated: card.canvas.forceActiveFocus()
+    }
+
+    onKeyChanged: {
+        card.dismissed = false
+        card.place()
+    }
     onFreeChanged: place()
     onFreeAtChanged: place()
     onWantedChanged: place()
@@ -59,6 +73,7 @@ KantePopover {
     // "Add heights" (LH-93): the card shows the object's height field and gives it the keyboard.
     function focusHeight() {
         card.expanded = true
+        card.dismissed = false
         // The card opens with the new selection; its fields are laid out a moment later.
         Qt.callLater(objectSection.focusHeight)
     }

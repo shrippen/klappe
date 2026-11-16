@@ -80,7 +80,7 @@ nachzuspielen.
 - **Beleg:** P1 `shot-046`; P3 `shot-014`, `shot-029` bis `shot-031`
 - **Nachgeprüft:** nein; abgeglichen am Menü und im Code (kein Eintrag zum Schließen).
 - **Einordnung:** fehlt in der Oberfläche
-- **Status:** offen
+- **Status:** offen (Behebung vorbereitet: #168)
 
 ### Q1-03 Felder in den Karten ohne Beschriftung
 - **Art:** unverständlich · **Stufe:** hoch
@@ -91,7 +91,7 @@ nachzuspielen.
   Erwartet: Name und Einheit an jedem Feld (D-04).
 - **Beleg:** P5 `shot-013`; P2 `shot-025`, `shot-038`; P1 `shot-030`
 - **Nachgeprüft:** ja (`check/shot-004`, `check/shot-007`)
-- **Status:** offen
+- **Status:** offen (Behebung vorbereitet: #165)
 
 ### Q1-04 Karte am Element bleibt offen und verdeckt den Plan
 - **Art:** Reibung · **Stufe:** mittel
@@ -101,7 +101,7 @@ nachzuspielen.
 - **Beleg:** P5 `shot-022` bis `shot-035`; P2 `shot-033`
 - **Nachgeprüft:** ja (`check/shot-005`, `-006`, `-013`: Karte „Tisch“ bleibt nach Escape,
   Werkzeug- und Moduswechsel)
-- **Status:** offen
+- **Status:** offen (Behebung vorbereitet: #173)
 
 ### Q1-05 Neue Figur nicht mit dem Figur-Werkzeug
 - **Art:** unverständlich · **Stufe:** mittel
@@ -121,7 +121,7 @@ nachzuspielen.
   `.pdf`. Return im Dateidialog speicherte nicht, erst der Knopf. Erwartet: Endung wird ergänzt.
 - **Beleg:** P1 `shot-041`, `shot-042`
 - **Nachgeprüft:** nein; abgeglichen an der Datei der Sitzung (`plan`: PDF, 2 Seiten).
-- **Status:** offen
+- **Status:** offen (Behebung vorbereitet: #167)
 
 ### Q1-07 Plan-Ausgabe schneidet ab und kürzt Notizen
 - **Art:** Fehler · **Stufe:** mittel
@@ -259,7 +259,7 @@ nachzuspielen.
 - **Nachgeprüft:** ja, frische Sitzung (`check3/shot-006`): nach dem PDF-Dialog öffnet Strg+O
   nichts. Nach einem Klick in den Plan wirken Strg+O und Strg+S (`check2/shot-002`, `-004`).
 - **Einordnung:** Die Tastatur kommt nach dem Dialog nicht ins Fenster zurück.
-- **Status:** offen
+- **Status:** offen (Behebung vorbereitet: #167)
 
 ## Nicht bestätigt
 

@@ -26,9 +26,9 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    is_figure_size_m, is_floor_offset_m, is_object_height_m, is_outline, Character, Location,
-    ObjectShape, Opening, PaperSetup, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
-    MIN_FIGURE_M, MIN_GROUP, NOTE_MIN_WIDTH_M,
+    is_figure_size_m, is_floor_offset_m, is_object_height_m, is_opening_width_m, is_outline,
+    Character, Location, ObjectShape, Opening, PaperSetup, Project, Scene, FORMAT_VERSION,
+    MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP, NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
@@ -439,7 +439,7 @@ fn check_openings(path: &Path, locations: &[Location]) -> Result<(), StoreError>
         let openings = location.set.walls.iter().flat_map(|w| &w.openings);
 
         for opening in openings {
-            if opening.width_m.is_finite() && opening.width_m > 0.0 && opening.at_m.is_finite() {
+            if is_opening_width_m(opening.width_m) && opening.at_m.is_finite() {
                 continue;
             }
 
@@ -456,7 +456,7 @@ fn check_openings(path: &Path, locations: &[Location]) -> Result<(), StoreError>
     Ok(())
 }
 
-/// Heights an edit would refuse (LH-90, LH-91): a room, wall or head is more than nothing; a sill
+/// Heights an edit would refuse (LH-90, LH-91): a room, wall or head is not under the least height; a sill
 /// or underside starts at the floor or above; a sill lies below its head.
 fn check_heights(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     for location in locations {

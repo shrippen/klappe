@@ -5,6 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
+use klappe_model::MIN_OPENING_WIDTH_M;
 use klappe_services::{
     Layer, Lock, OpeningEnd, OpeningKind, PlanEdit, Point, ServiceError, Session, Snapping, Source,
 };
@@ -93,7 +94,7 @@ fn an_end_dragged_over_the_other_leaves_the_minimum_width() {
 
     let (start_m, end_m) = span_m(&s);
     assert!(
-        near(start_m, 4.55) && near(end_m - start_m, 0.3),
+        near(start_m, 4.55) && near(end_m - start_m, MIN_OPENING_WIDTH_M),
         "{start_m} {end_m}"
     );
 }
@@ -151,10 +152,10 @@ fn removing_the_grip_removes_nothing() {
     assert_eq!(s.project().locations[0].set.walls[WALL].openings.len(), 1);
 }
 
-/// A door narrower than the minimum at the start of its wall: the minimum would push the start
-/// past the wall, so the drag is refused and the other end does not move.
+/// A door of the least width at the start of its wall: widening it would push the start past
+/// the wall, so the drag is refused and the other end does not move.
 #[test]
-fn a_narrow_door_at_the_wall_start_keeps_its_end() {
+fn a_least_door_at_the_wall_start_keeps_its_end() {
     let mut s = open();
     let door = Source::Opening {
         wall: WALL,
@@ -162,7 +163,7 @@ fn a_narrow_door_at_the_wall_start_keeps_its_end() {
     };
     s.edit_plan(PlanEdit::SetOpeningWidth {
         source: door.clone(),
-        width_m: 0.2,
+        width_m: MIN_OPENING_WIDTH_M,
     })
     .unwrap();
     s.edit_plan(PlanEdit::Shift {
@@ -172,12 +173,18 @@ fn a_narrow_door_at_the_wall_start_keeps_its_end() {
     })
     .unwrap();
     let (start_m, end_m) = span_m(&s);
-    assert!(near(start_m, 0.0) && near(end_m, 0.2), "{start_m} {end_m}");
+    assert!(
+        near(start_m, 0.0) && near(end_m, MIN_OPENING_WIDTH_M),
+        "{start_m} {end_m}"
+    );
 
     let _ = s.edit_plan(drag(OpeningEnd::Start, -0.05));
 
     let (start_m, end_m) = span_m(&s);
-    assert!(near(start_m, 0.0) && near(end_m, 0.2), "{start_m} {end_m}");
+    assert!(
+        near(start_m, 0.0) && near(end_m, MIN_OPENING_WIDTH_M),
+        "{start_m} {end_m}"
+    );
 }
 
 /// Puts the door, `width_m` wide, flush at the far end of its wall.
@@ -217,15 +224,70 @@ fn a_door_at_the_wall_end_widens_from_its_start() {
     }
 }
 
-/// The mirror of the narrow door at the wall start: its end grip at the wall's end.
+/// The mirror of the least door at the wall start: its end grip at the wall's end.
 #[test]
-fn a_narrow_door_at_the_wall_end_keeps_its_start() {
+fn a_least_door_at_the_wall_end_keeps_its_start() {
     let mut s = open();
-    door_at_wall_end(&mut s, 0.2);
+    door_at_wall_end(&mut s, MIN_OPENING_WIDTH_M);
     let (start_before, _) = span_m(&s);
 
     let _ = s.edit_plan(drag(OpeningEnd::End, 0.05));
 
     let (start_m, end_m) = span_m(&s);
     assert!(near(start_m, start_before), "{start_m} {end_m}");
+}
+
+/// Typing a width follows the same least as dragging an end: the least itself is taken, a
+/// hair under it is refused.
+#[test]
+fn a_typed_width_follows_the_least_a_drag_leaves() {
+    let mut s = open();
+    let typed = |width_m| PlanEdit::SetOpeningWidth {
+        source: Source::Opening {
+            wall: WALL,
+            index: 0,
+        },
+        width_m,
+    };
+
+    assert!(s.edit_plan(typed(MIN_OPENING_WIDTH_M - 0.001)).is_err());
+    s.edit_plan(typed(MIN_OPENING_WIDTH_M)).unwrap();
+
+    let (start_m, end_m) = span_m(&s);
+    assert!(near(end_m - start_m, MIN_OPENING_WIDTH_M));
+}
+
+/// A door dragged down to the least width is saved with a width that loads again: the width
+/// is the limit itself, not the difference of two rounded ends.
+#[test]
+fn a_door_dragged_to_the_least_width_reopens() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("opening-least-width");
+    let _ = std::fs::remove_dir_all(&dir);
+    copy_dir(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe"),
+        &dir,
+    );
+    let mut s = Session::open(&dir).unwrap();
+    s.set_snapping(Snapping::Off);
+    s.edit_plan(drag(OpeningEnd::End, 5.0)).unwrap();
+
+    s.save().unwrap();
+
+    let reopened = Session::open(&dir).unwrap();
+    let door = &reopened.project().locations[0].set.walls[WALL].openings[0];
+    assert!(door.width_m >= MIN_OPENING_WIDTH_M, "{}", door.width_m);
+}
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        match entry.file_type().unwrap().is_dir() {
+            true => copy_dir(&entry.path(), &target),
+            false => {
+                std::fs::copy(entry.path(), target).unwrap();
+            }
+        }
+    }
 }

@@ -56,8 +56,8 @@ fn the_grips_sit_on_the_facing_and_on_the_beam_edge() {
 
 #[test]
 fn a_selected_lamp_shows_both_grips_and_one_of_them_does_too() {
-    let direction = (Role::LightHandle, source(LightGrip::Direction));
-    let beam = (Role::LightHandle, source(LightGrip::Beam));
+    let direction = (Role::Handle, source(LightGrip::Direction));
+    let beam = (Role::Handle, source(LightGrip::Beam));
 
     for selected in [Source::Light("l".into()), source(LightGrip::Beam).unwrap()] {
         let shown: Vec<_> = grips(&selected).into_iter().map(|g| (g.0, g.1)).collect();

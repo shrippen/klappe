@@ -47,8 +47,8 @@ ColumnLayout {
     readonly property bool isCamera: info !== null && info.kind === "camera"
     readonly property bool shown: info !== null
     /// A field has the focus: letters and Delete are text, not keys for the selection.
-    readonly property bool typing: holdField.activeFocus || heightField.activeFocus
-        || tiltField.activeFocus || lensField.activeFocus || paceField.activeFocus
+    readonly property bool typing: holdField.typing || heightField.typing
+        || tiltField.typing || lensField.typing || paceField.typing
 
     visible: shown
     spacing: Kirigami.Units.smallSpacing
@@ -63,25 +63,25 @@ ColumnLayout {
         poseChoice.currentIndex = Math.max(0, poses.indexOf(info.pose))
         arrivalChoice.currentIndex = Math.max(0, arrivals.indexOf(info.arrival))
         departureChoice.currentIndex = Math.max(0, departures.indexOf(info.departure))
-        if (!holdField.activeFocus) {
+        if (!holdField.typing) {
             holdField.text = texts.num(info.hold, 2)
         }
         // The plan's pace, also while the field has the focus: what it holds after Enter.
         card.shownPace = info.pace === null ? "" : texts.num(info.pace, 1)
-        if (!paceField.activeFocus) {
+        if (!paceField.typing) {
             paceField.text = card.shownPace
         }
         if (!card.isCamera) {
             return
         }
-        if (!heightField.activeFocus) {
+        if (!heightField.typing) {
             heightField.text = texts.num(info.height, 2)
         }
-        if (!tiltField.activeFocus) {
+        if (!tiltField.typing) {
             tiltField.text = texts.num(info.tilt, 1)
         }
         rigChoice.currentIndex = Math.max(0, rigs.indexOf(info.rig))
-        if (!lensField.activeFocus) {
+        if (!lensField.typing) {
             lensField.text = info.lens === null ? "" : texts.num(info.lens, 1)
         }
     }
@@ -130,18 +130,15 @@ ColumnLayout {
     RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTextField {
+        LabeledField {
             id: holdField
-            objectName: "holdField"
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-            Accessible.name: card.texts.t("mark.hold")
-            placeholderText: card.texts.t("mark.hold")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
+            fieldName: "holdField"
+            label: card.texts.t("mark.hold")
             onAccepted: card.setHold()
         }
         KanteButton {
             objectName: "holdApply"
+            Layout.alignment: Qt.AlignBottom
             text: card.texts.t("form.apply")
             onClicked: card.setHold()
         }
@@ -151,12 +148,6 @@ ColumnLayout {
         spacing: Kirigami.Units.smallSpacing
         visible: card.isFigure || (card.info !== null && card.info.hasWay)
 
-        // The field's name and unit; the field has no placeholder.
-        QQC2.Label {
-            objectName: "paceLabel"
-            visible: card.isFigure
-            text: card.texts.t("mark.paceField")
-        }
         QQC2.Label {
             objectName: "paceValue"
             visible: card.isCamera && card.info.hasWay
@@ -164,19 +155,17 @@ ColumnLayout {
                   ? card.texts.t("mark.paceValue", { value: card.texts.num(card.info.pace, 1) })
                   : card.texts.t("mark.paceNone"))
         }
-        KanteTextField {
+        LabeledField {
             id: paceField
-            objectName: "paceField"
+            fieldName: "paceField"
+            label: card.texts.t("mark.paceField")
             visible: card.isFigure
             enabled: card.info !== null && card.info.hasWay
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-            Accessible.name: card.texts.t("mark.paceField")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
             onAccepted: card.setSpeed()
         }
         KanteButton {
             objectName: "paceApply"
+            Layout.alignment: Qt.AlignBottom
             visible: card.isFigure
             enabled: card.info !== null && card.info.hasWay
             text: card.texts.t("form.apply")
@@ -184,6 +173,7 @@ ColumnLayout {
         }
         KanteButton {
             objectName: "paceWalk"
+            Layout.alignment: Qt.AlignBottom
             visible: card.isFigure
             enabled: card.info !== null && card.info.hasWay
             text: card.texts.t("pace.walk")
@@ -194,6 +184,7 @@ ColumnLayout {
         }
         KanteButton {
             objectName: "paceRun"
+            Layout.alignment: Qt.AlignBottom
             visible: card.isFigure
             enabled: card.info !== null && card.info.hasWay
             text: card.texts.t("pace.run")
@@ -211,18 +202,15 @@ ColumnLayout {
         visible: card.isCamera
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTextField {
+        LabeledField {
             id: heightField
-            objectName: "heightField"
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-            Accessible.name: card.texts.t("mark.height")
-            placeholderText: card.texts.t("mark.height")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
+            fieldName: "heightField"
+            label: card.texts.t("mark.height")
             onAccepted: card.setAim()
         }
         KanteButton {
             objectName: "aimApply"
+            Layout.alignment: Qt.AlignBottom
             text: card.texts.t("form.apply")
             onClicked: card.setAim()
         }
@@ -256,14 +244,11 @@ ColumnLayout {
         visible: card.isCamera
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTextField {
+        LabeledField {
             id: lensField
-            objectName: "lensField"
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 6
-            Accessible.name: card.texts.t("mark.lens")
-            placeholderText: card.texts.t("mark.lens")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
+            fieldName: "lensField"
+            label: card.texts.t("mark.lens")
+            fieldWidth: Kirigami.Units.gridUnit * 6
             onAccepted: card.setLens()
             QQC2.ToolTip.text: card.texts.t("mark.lensTip")
             QQC2.ToolTip.visible: hovered
@@ -271,6 +256,7 @@ ColumnLayout {
         }
         KanteButton {
             objectName: "lensApply"
+            Layout.alignment: Qt.AlignBottom
             text: card.texts.t("form.apply")
             onClicked: card.setLens()
         }
@@ -322,14 +308,10 @@ ColumnLayout {
         visible: card.expanded && card.isCamera
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTextField {
+        LabeledField {
             id: tiltField
-            objectName: "tiltField"
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-            Accessible.name: card.texts.t("mark.tilt")
-            placeholderText: card.texts.t("mark.tilt")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
+            fieldName: "tiltField"
+            label: card.texts.t("mark.tilt")
             onAccepted: card.setAim()
             QQC2.ToolTip.text: card.texts.t("mark.tiltTip")
             QQC2.ToolTip.visible: hovered
@@ -337,6 +319,7 @@ ColumnLayout {
         }
         KanteButton {
             objectName: "tiltApply"
+            Layout.alignment: Qt.AlignBottom
             text: card.texts.t("form.apply")
             onClicked: card.setAim()
         }

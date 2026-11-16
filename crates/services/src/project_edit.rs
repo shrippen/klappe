@@ -523,7 +523,7 @@ fn check_size(width_m: f64, depth_m: f64) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// The room height: a number, more than nothing, not absurd.
+/// The room height: a number, not under the least height, not absurd.
 fn check_room_height(wall_height_m: f64) -> Result<(), ServiceError> {
     if is_object_height_m(wall_height_m) {
         return Ok(());

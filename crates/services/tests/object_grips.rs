@@ -5,6 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
+use klappe_model::MIN_OBJECT_M;
 use klappe_services::{
     Layer, Lock, ObjectGrip, PlanEdit, Point, Role, ServiceError, Session, Shape, Snapping, Source,
 };
@@ -64,7 +65,7 @@ fn a_selected_object_shows_its_grips_and_picks_them() {
     let places: Vec<_> = list
         .items
         .iter()
-        .filter(|i| i.role == Role::ObjectHandle)
+        .filter(|i| i.role == Role::Handle)
         .filter_map(|i| match (&i.source, &i.shape) {
             (Some(source), Shape::Circle { center, .. }) => Some((source.clone(), *center)),
             _ => None,
@@ -80,7 +81,7 @@ fn a_selected_object_shows_its_grips_and_picks_them() {
         .display_list()
         .items
         .iter()
-        .all(|i| i.role != Role::ObjectHandle));
+        .all(|i| i.role != Role::Handle));
 }
 
 /// One edit, one undo step; the left edge (x = 7) stays, so the centre moves half the change.
@@ -136,7 +137,7 @@ fn the_grips_stay_within_the_bounds() {
 
     s.edit_plan(drag(ObjectGrip::Width, -100.0, 0.0)).unwrap();
     let (x, _, width, _) = state(&s);
-    assert!(near(width, 0.05) && near(x, 7.025), "{x} {width}");
+    assert!(near(width, MIN_OBJECT_M) && near(x, 7.025), "{x} {width}");
 
     s.edit_plan(drag(ObjectGrip::Depth, 0.0, 5000.0)).unwrap();
     let (_, _, _, depth) = state(&s);
@@ -171,7 +172,7 @@ fn grip_places(s: &Session) -> Vec<(Source, Point)> {
     s.display_list_for(Some(&table()))
         .items
         .iter()
-        .filter(|i| i.role == Role::ObjectHandle)
+        .filter(|i| i.role == Role::Handle)
         .filter_map(|i| match (&i.source, &i.shape) {
             (Some(source), Shape::Circle { center, .. }) => Some((source.clone(), *center)),
             _ => None,

@@ -62,7 +62,7 @@ KanteCard {
             // An old file may keep a power on a bounce or flag: leave the field empty.
             const hidden = key === "power" && !card.info.gives_light
             field.shown = hidden ? "" : card.texts.num(card.info[key], digits)
-            if (!field.activeFocus) {
+            if (!field.typing) {
                 field.text = field.shown
             }
         }
@@ -155,59 +155,44 @@ KanteCard {
         RowLayout {
             spacing: Kirigami.Units.smallSpacing
 
-            KanteTextField {
+            LabeledField {
                 id: facingField
-                objectName: "lightFacingField"
-                property string shown: ""
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 6
-                Accessible.name: card.texts.t("light.facing")
-                placeholderText: card.texts.t("light.facing")
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onTextChanged: invalid = false
+                fieldName: "lightFacingField"
+                label: card.texts.t("light.facing")
+                fieldWidth: Kirigami.Units.gridUnit * 6
                 onAccepted: card.apply([["facing", facingField]])
             }
-            KanteTextField {
+            LabeledField {
                 id: beamField
-                objectName: "lightBeamField"
-                property string shown: ""
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 8
-                Accessible.name: card.texts.t("light.beam")
-                placeholderText: card.texts.t("light.beam")
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onTextChanged: invalid = false
+                fieldName: "lightBeamField"
+                label: card.texts.t("light.beam")
+                fieldWidth: Kirigami.Units.gridUnit * 8
                 onAccepted: card.apply([["beam", beamField]])
             }
-            KanteTextField {
+            LabeledField {
                 id: powerField
-                objectName: "lightPowerField"
-                property string shown: ""
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+                fieldName: "lightPowerField"
+                label: card.texts.t("light.power")
+                fieldWidth: Kirigami.Units.gridUnit * 6
                 // Bounce and flag make no light: no power.
                 enabled: card.info !== null && card.info.gives_light
-                Accessible.name: card.texts.t("light.power")
-                placeholderText: card.texts.t("light.power")
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onTextChanged: invalid = false
                 onAccepted: card.apply([["power", powerField]])
             }
-            KanteTextField {
+            LabeledField {
                 id: tempField
-                objectName: "lightTempField"
-                property string shown: ""
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 8
+                fieldName: "lightTempField"
+                label: card.texts.t("light.temp")
+                fieldWidth: Kirigami.Units.gridUnit * 8
                 // Tungsten keeps its colour; only an LED is set to another.
                 enabled: card.info !== null && card.info.tunable
-                Accessible.name: card.texts.t("light.temp")
-                placeholderText: card.texts.t("light.temp")
                 QQC2.ToolTip.text: card.texts.t("light.tempTip")
                 QQC2.ToolTip.visible: hovered && !enabled
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onTextChanged: invalid = false
                 onAccepted: card.apply([["temp", tempField]])
             }
             KanteButton {
                 objectName: "lightApply"
+                Layout.alignment: Qt.AlignBottom
                 text: card.texts.t("form.apply")
                 onClicked: card.applyAll()
             }

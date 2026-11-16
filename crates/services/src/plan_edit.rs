@@ -1,11 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    normalize_deg, Arrival, Character, Dash, Departure, DoorSide, Drawing, DrawingShape,
-    FigureColor, Fill, FloorPlan, Hinge, LibraryItem, Light, Note, OpeningKind, Point, Pose,
-    Project, Rig, Scene, SetObject, SetPlan, Wall,
+    normalize_deg, Arrival, Character, Dash, Departure, DoorSide, DrawingShape, FigureColor, Fill,
+    FloorPlan, Hinge, LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan,
 };
-use klappe_stellprobe::{Bend, LightGrip, ObjectGrip, OpeningEnd, Source};
+use klappe_stellprobe::Source;
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -25,6 +24,7 @@ mod moving;
 mod openings;
 mod picking;
 mod remove;
+mod target;
 pub(crate) mod template;
 
 use add::{
@@ -40,7 +40,7 @@ use heights::edit_height;
 pub(crate) use marks::{check_tripods, mark_info};
 use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_pose, set_rig};
 pub use marks::{MarkInfo, Pace};
-use moving::{anchor_pair, carry_cameras, move_to, points_mut, rotate, shift, spin, target, turn};
+use moving::{anchor_pair, carry_cameras, move_to, points_mut, rotate, shift, spin, turn};
 use openings::edit_opening;
 use remove::remove;
 
@@ -398,20 +398,16 @@ impl PlanEdit {
 }
 
 /// The layer an element of the plan is on.
-fn layer_of_source(source: &Source) -> Layer {
+pub(crate) fn layer_of_source(source: &Source) -> Layer {
     match source {
-        Source::Object(_)
-        | Source::Wall(_)
-        | Source::Opening { .. }
-        | Source::OpeningEdge { .. }
-        | Source::ObjectGrip { .. } => Layer::Set,
-        Source::Light(_) | Source::LightGrip { .. } => Layer::Lights,
+        Source::Object(_) | Source::Wall(_) | Source::Opening { .. } => Layer::Set,
+        Source::Light(_) => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
-        Source::Note(_) | Source::NoteWidth(_) => Layer::Notes,
-        Source::Drawing(_) | Source::DrawingPoint { .. } | Source::DrawingEdge { .. } => {
-            Layer::Drawings
-        }
+        Source::Note(_) => Layer::Notes,
+        Source::Drawing(_) => Layer::Drawings,
+        // A grip is on the layer of the element it belongs to.
+        grip => grip.owner().as_ref().map_or(Layer::Set, layer_of_source),
     }
 }
 
@@ -426,61 +422,6 @@ struct Scope<'a> {
     /// The project's own library entries, for what a new object looks like.
     library: &'a [LibraryItem],
     time_s: f64,
-}
-
-/// What `Move` and `Turn` change.
-enum Target<'a> {
-    Place {
-        at: &'a mut Point,
-        facing_deg: &'a mut f64,
-    },
-    Wall(&'a mut Wall),
-    /// An opening, which only slides along its wall.
-    Slide {
-        wall: &'a mut Wall,
-        index: usize,
-    },
-    /// Has a place but no facing: a note.
-    Pin {
-        at: &'a mut Point,
-    },
-    /// Points and a turn about the middle of its box.
-    Drawing(&'a mut Drawing),
-    /// A grip on an end of an opening: moving it sets that end, the other stays.
-    OpeningEdge {
-        wall: &'a mut Wall,
-        index: usize,
-        end: OpeningEnd,
-    },
-    /// A grip on a lamp's beam: moving it turns the lamp or sets its beam, never moves it.
-    LightEdge {
-        light: &'a mut Light,
-        grip: LightGrip,
-    },
-    /// A grip on the right edge of a note's card: moving it sets the card's width.
-    NoteEdge(&'a mut Note),
-    /// A grip outside the right or bottom edge of an object: moving it sets its width or depth.
-    ObjectEdge {
-        object: &'a mut SetObject,
-        grip: ObjectGrip,
-    },
-    /// A grip on a point or corner of a drawing: moving it reshapes the drawing.
-    Corner {
-        drawing: &'a mut Drawing,
-        index: usize,
-    },
-    /// A grip on the edge of an area after point `index`: moving it makes a point there.
-    Edge {
-        drawing: &'a mut Drawing,
-        index: usize,
-    },
-    /// A grip on the way from mark `a` to mark `b`.
-    Curve {
-        via: &'a mut Vec<Point>,
-        a: Point,
-        b: Point,
-        bend: Bend,
-    },
 }
 
 /// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snap_to` is for

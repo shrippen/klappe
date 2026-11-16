@@ -4,7 +4,7 @@
 
 use klappe_services::{
     measure_angle_deg, read_number, Dash, DrawingShape, Field, FigureColor, Fill, Layer, Lock,
-    OpeningKind, PlanEdit, Point, Range, ServiceError, Source, Unit,
+    OpeningKind, PlanEdit, Point, Range, ServiceError, Source, Unit, MIN_OBJECT_HEIGHT_M,
 };
 
 /// A new camera looks to the right (0°); the user turns it afterwards.
@@ -21,10 +21,6 @@ pub const MEASURE_SEPARATOR: &str = " · ";
 
 /// A height is kept in whole centimetres.
 const CM_PER_M: f64 = 100.0;
-
-/// The least height a drag of the height tool leaves: the pointer far below makes a thin
-/// object, not a refused edit.
-const MIN_HEIGHT_M: f64 = 0.05;
 
 /// Between the width and the depth of a typed room.
 const ROOM_SIZE_SEPARATOR: char = ';';
@@ -274,7 +270,7 @@ pub fn room_of_size(from: Point, toward: Point, text: &str) -> Typed {
 /// `None` for anything but an object or a wall.
 pub fn height_edit(grabbed: &Source, start_m: f64, lift_m: f64) -> Option<PlanEdit> {
     let cm = ((start_m + lift_m) * CM_PER_M).round();
-    let height_m = Some((cm / CM_PER_M).max(MIN_HEIGHT_M));
+    let height_m = Some((cm / CM_PER_M).max(MIN_OBJECT_HEIGHT_M));
 
     match grabbed {
         Source::Object(_) => Some(PlanEdit::SetObjectHeight {

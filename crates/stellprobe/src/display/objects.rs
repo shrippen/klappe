@@ -13,8 +13,6 @@ const CM_PER_M: f64 = 100.0;
 /// ellipse inscribed in that rectangle, a free form's points stretched to the size.
 pub(crate) fn object_corners(o: &SetObject) -> Vec<Point> {
     let (hw, hd) = (o.width_m / 2.0, o.depth_m / 2.0);
-    let (sin, cos) = o.rotation_deg.to_radians().sin_cos();
-
     let local = match &o.shape {
         ObjectShape::Rect => vec![(-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd)],
         ObjectShape::Ellipse => (0..ELLIPSE_CORNERS)
@@ -26,10 +24,7 @@ pub(crate) fn object_corners(o: &SetObject) -> Vec<Point> {
         ObjectShape::Polygon { points } => stretched(points, o.width_m, o.depth_m),
     };
 
-    local
-        .iter()
-        .map(|(x, y)| Point::new(o.at.x_m + x * cos - y * sin, o.at.y_m + x * sin + y * cos))
-        .collect()
+    local.iter().map(|(x, y)| o.placed(*x, *y)).collect()
 }
 
 /// A free form's `points` scaled from the size of their own box to `width_m` x `depth_m`, so a

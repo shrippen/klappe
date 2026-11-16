@@ -48,7 +48,7 @@ ColumnLayout {
 
     readonly property bool shown: info !== null
     /// A field has the focus: letters and Delete are text, not keys for the selection.
-    readonly property bool typing: sensorField.activeFocus || aspectField.activeFocus || lensField.activeFocus
+    readonly property bool typing: sensorField.typing || aspectField.typing || lensField.typing
 
     visible: shown
     spacing: Kirigami.Units.smallSpacing
@@ -78,7 +78,7 @@ ColumnLayout {
         ]
         for (const [field, value] of values) {
             field.shown = card.texts.num(value, 2)
-            if (!field.activeFocus) {
+            if (!field.typing) {
                 field.text = field.shown
             }
         }
@@ -167,19 +167,16 @@ ColumnLayout {
     RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTextField {
+        LabeledField {
             id: lensField
-            objectName: "cameraLensField"
-            property string shown: ""
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 6
-            Accessible.name: card.texts.t("camera.lens")
-            placeholderText: card.texts.t("camera.lens")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
+            fieldName: "cameraLensField"
+            label: card.texts.t("camera.lens")
+            fieldWidth: Kirigami.Units.gridUnit * 6
             onAccepted: card.apply([["lens", lensField]])
         }
         KanteButton {
             objectName: "cameraApply"
+            Layout.alignment: Qt.AlignBottom
             text: card.texts.t("form.apply")
             onClicked: card.applyAll()
         }
@@ -216,28 +213,22 @@ ColumnLayout {
         visible: card.expanded
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTextField {
+        LabeledField {
             id: sensorField
-            objectName: "cameraSensorField"
-            property string shown: ""
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 6
-            Accessible.name: card.texts.t("camera.sensor")
-            placeholderText: card.texts.t("camera.sensor")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
+            fieldName: "cameraSensorField"
+            label: card.texts.t("camera.sensor")
+            fieldWidth: Kirigami.Units.gridUnit * 6
             onAccepted: card.apply([["sensor", sensorField]])
         }
-        KanteTextField {
+        LabeledField {
             id: aspectField
-            objectName: "cameraAspectField"
-            property string shown: ""
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 8
-            Accessible.name: card.texts.t("camera.aspect")
-            placeholderText: card.texts.t("camera.aspect")
+            fieldName: "cameraAspectField"
+            label: card.texts.t("camera.aspect")
+            fieldWidth: Kirigami.Units.gridUnit * 8
+            inputHints: Qt.ImhNone
             QQC2.ToolTip.text: card.texts.t("camera.aspectTip")
             QQC2.ToolTip.visible: hovered
             QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-            onTextChanged: invalid = false
             onAccepted: card.apply([["aspect", aspectField]])
         }
     }

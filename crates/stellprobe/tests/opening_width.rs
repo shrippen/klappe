@@ -48,16 +48,8 @@ fn a_selected_opening_has_a_grip_on_each_end_of_the_wall_line() {
     assert_eq!(
         grips(&door),
         vec![
-            (
-                Role::OpeningHandle,
-                edge(OpeningEnd::Start),
-                Point::new(3.5, 2.0)
-            ),
-            (
-                Role::OpeningHandle,
-                edge(OpeningEnd::End),
-                Point::new(4.5, 2.0)
-            ),
+            (Role::Handle, edge(OpeningEnd::Start), Point::new(3.5, 2.0)),
+            (Role::Handle, edge(OpeningEnd::End), Point::new(4.5, 2.0)),
         ]
     );
 }

@@ -64,6 +64,7 @@ Kirigami.ApplicationWindow {
                 shotOrder: root.shotOrder
                 onNewRequested: root.switchProject(() => newFolderDialog.open())
                 onOpenRequested: root.switchProject(() => openFolderDialog.open())
+                onCloseRequested: guard.run(() => ctl.closeProject(), "project.closeSave")
                 onProjectRequested: projectDialog.open()
                 onTemplateImportRequested: templateImportDialog.open()
                 onTemplateExportRequested: templateExportDialog.open()
@@ -147,6 +148,7 @@ Kirigami.ApplicationWindow {
 
     FileDialog {
         id: backgroundDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("background.pick")
         nameFilters: [texts.t("background.filter")]
         onAccepted: ctl.setBackground(selectedFile.toString())
@@ -154,12 +156,14 @@ Kirigami.ApplicationWindow {
 
     FileDialog {
         id: libraryImportDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("library.importPick")
         nameFilters: [texts.t("library.filter")]
         onAccepted: ctl.importLibrary(selectedFile.toString(), "objects")
     }
     FileDialog {
         id: libraryExportDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("library.exportPick")
         nameFilters: [texts.t("library.filter")]
         fileMode: FileDialog.SaveFile
@@ -169,12 +173,14 @@ Kirigami.ApplicationWindow {
 
     FileDialog {
         id: templateImportDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("template.importPick")
         nameFilters: [texts.t("template.filter")]
         onAccepted: ctl.importLibrary(selectedFile.toString(), "templates")
     }
     FileDialog {
         id: templateExportDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("template.exportPick")
         nameFilters: [texts.t("template.filter")]
         fileMode: FileDialog.SaveFile
@@ -182,26 +188,25 @@ Kirigami.ApplicationWindow {
         onAccepted: ctl.exportLibrary(selectedFile.toString(), "templates")
     }
 
-    // A project in the way of the next one: save it first or stay (the open one is backed
-    // up either way when the next opens; saving spares the question at the next start).
-    property var pendingSwitch: null
+    ProjectGuard {
+        id: guard
+        texts: texts
+        controller: ctl
+    }
 
     function switchProject(action) {
-        if (!ctl.loaded || !ctl.dirty) {
-            action()
-            return
-        }
-        pendingSwitch = action
-        switchDialog.open()
+        guard.run(action, "project.switchSave")
     }
 
     FolderDialog {
         id: newFolderDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("project.pickNew")
         onAccepted: newProjectDialog.show(selectedFolder.toString())
     }
     FolderDialog {
         id: openFolderDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("project.pickOpen")
         onAccepted: ctl.openProject(selectedFolder.toString())
     }
@@ -214,28 +219,6 @@ Kirigami.ApplicationWindow {
         id: projectDialog
         texts: texts
         controller: ctl
-    }
-    KanteDialog {
-        id: switchDialog
-        parent: QQC2.Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        size: KanteDialog.Size.Small
-        title: texts.t("menu.save")
-        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
-        acceptText: texts.t("project.switchSave")
-        rejectText: texts.t("form.cancel")
-        onAccepted: {
-            if (ctl.save()) {
-                root.pendingSwitch()
-            }
-        }
-        QQC2.Label {
-            width: parent ? parent.width : implicitWidth
-            wrapMode: Text.WordWrap
-            color: KanteStyle.textColor
-            text: texts.t("project.switchAsk")
-        }
     }
 
     // The projects opened last: the app's settings keep them, the controller orders them.

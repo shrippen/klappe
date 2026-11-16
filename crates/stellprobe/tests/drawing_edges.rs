@@ -73,7 +73,7 @@ fn a_selected_area_has_a_grip_in_the_middle_of_each_edge() {
             (edge(2), Point::new(2.0, 1.0)),
         ]
     );
-    assert!(items.iter().all(|i| i.role == Role::DrawingHandle));
+    assert!(items.iter().all(|i| i.role == Role::Handle));
 }
 
 /// Smaller than the points', so that it never hides one.

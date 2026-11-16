@@ -14,12 +14,15 @@ FormDialog {
 
     /// The order of the exported shot list: "cut" or "shooting".
     property string order: "cut"
-    /// The sizes offered, `{ id, label }` each, and the orientations, as ids; from the project
-    /// view, so the lists stand once, in the services.
+    /// The sizes offered, `{ id, label }` each, the orientations, as ids, and the formats,
+    /// `{ id, paper, extension }` each (`paper`: asks for a sheet; `extension`: of the file,
+    /// null for a folder); from the project view, so the lists stand once, in the services.
     property var papers: []
     property var orientations: []
-    /// The project's sheet as "a4-portrait"; the dialog starts from it.
-    property string projectPaper: ""
+    property var formats: []
+    /// The project's sheet, as ids; the dialog starts from it.
+    property string projectSize: ""
+    property string projectOrientation: ""
     /// What is chosen: a size id and an orientation id.
     property string size: "a4"
     property string orientation: "landscape"
@@ -27,40 +30,37 @@ FormDialog {
     readonly property string paper: size + "-" + orientation
     /// The folder of the last export, as a `file://` URL; empty before the first one.
     property string folder: ""
-    /// The format being asked for: "pdf", "png", "svg", "csv", "ods", "xlsx", "frames", "view3d" or
-    /// "camera" (the last two are PNGs of a view, LH-86).
+    /// The id of the format being asked for, one of `formats`.
     property string kind: ""
-
-    readonly property var paperKinds: ["pdf", "png", "svg", "frames"]
+    readonly property var format: formats.find(f => f.id === kind)
 
     title: texts.t("export.paperTitle")
     acceptText: texts.t("export.next")
 
     function request(kind) {
         dialog.kind = kind
-        if (paperKinds.indexOf(kind) < 0) {
+        if (!format || !format.paper) {
             pick()
             return
         }
-        const kept = projectPaper.split("-")
-        if (kept.length === 2) {
-            size = kept[0]
-            orientation = kept[1]
+        if (projectSize !== "" && projectOrientation !== "") {
+            size = projectSize
+            orientation = projectOrientation
         }
         open()
     }
 
     // The file dialog, offered the plan's name in the folder of the last export.
     function pick() {
-        if (kind === "frames") {
-            folders.title = texts.t("export.pick.frames")
+        if (format && format.extension === null) {
+            folders.title = texts.t("export.pick." + kind)
             folders.currentFolder = suggestion().replace(/\/[^/]*$/, "")
             folders.open()
             return
         }
         files.title = texts.t("export.pick." + kind)
         files.nameFilters = [texts.t("export.filter." + kind)]
-        files.defaultSuffix = kind === "view3d" || kind === "camera" ? "png" : kind
+        files.defaultSuffix = format ? format.extension : ""
         files.currentFile = suggestion()
         files.open()
     }
@@ -103,11 +103,20 @@ FormDialog {
     // opens one without the paper form, so they take the window from the popup's parent.
     readonly property var hostWindow: dialog.parent ? dialog.parent.Window.window : null
 
+    // The file dialogs are windows of their own; without a window manager nobody hands the keys
+    // back when one closes, and the shortcuts stay dead (Q1-19).
+    function reactivate() {
+        if (hostWindow) {
+            hostWindow.requestActivate()
+        }
+    }
+
     // The frames go into a new folder in the chosen one, named as the suggestion.
     FolderDialog {
         id: folders
         objectName: "folders"
         parentWindow: dialog.hostWindow
+        onVisibleChanged: if (!visible) dialog.reactivate()
         onAccepted: dialog.save(selectedFolder.toString() + suggestion().substring(suggestion().lastIndexOf("/")))
     }
 
@@ -116,6 +125,7 @@ FormDialog {
         objectName: "files"
         parentWindow: dialog.hostWindow
         fileMode: FileDialog.SaveFile
+        onVisibleChanged: if (!visible) dialog.reactivate()
         onAccepted: dialog.save(selectedFile.toString())
     }
 }

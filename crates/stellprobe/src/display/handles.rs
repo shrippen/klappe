@@ -59,11 +59,20 @@ const NEW_BEND_RADIUS_M: f64 = 0.1;
 /// The grip that pulls a new point out of an area's edge.
 const NEW_POINT_RADIUS_M: f64 = 0.1;
 
+/// A side or edge shows a grip that makes a point only when it is longer than this: three
+/// widths of that grip. A shorter one would cover the shape.
+const SIDE_GRIP_MIN_M: f64 = 6.0 * NEW_POINT_RADIUS_M;
+
+/// Whether the side from `a` to `b` is long enough for a grip that makes a point.
+fn side_has_grip(a: Point, b: Point) -> bool {
+    a.distance_m(b) > SIDE_GRIP_MIN_M
+}
+
 /// The grips on the way `selected` belongs to: a figure, camera or mark of it, or one of its
 /// grips (LH-21). For each mark after the first, one on each bend of the way to it and a
 /// smaller one halfway along each piece between bends, to pull out a new bend.
 /// A selected drawing has one on each of its points, an area also a smaller one halfway along
-/// each edge (LH-19).
+/// each edge longer than `SIDE_GRIP_MIN_M` (LH-19).
 /// A selected note has one in the middle of its card's right edge, to set its width (LH-16).
 /// A selected door or window has one on each end, on the wall's middle line, to set its
 /// width (LH-10).
@@ -71,7 +80,8 @@ const NEW_POINT_RADIUS_M: f64 = 0.1;
 /// (LH-50).
 /// A selected object drawn by its width and depth has one just outside the middle of its right
 /// edge and one outside its bottom edge, to set them (LH-25); a free form has one on each point
-/// of its outline instead and a small one halfway along each side (LH-92).
+/// of its outline instead and a small one halfway along each side longer than
+/// `SIDE_GRIP_MIN_M` (LH-92).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -102,7 +112,7 @@ fn light_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
     [LightGrip::Beam, LightGrip::Direction]
         .into_iter()
         .map(|grip| Item {
-            role: Role::LightHandle,
+            role: Role::Handle,
             shape: Shape::Circle {
                 center: light_grip_place(light, grip),
                 radius_m: HANDLE_RADIUS_M,
@@ -125,7 +135,6 @@ const OBJECT_GRIP_GAP_M: f64 = 0.45;
 /// bottom edge, turned with the object; a free form's point sits on the point, where it lies
 /// on the plan (the object's centre for a point the form does not have).
 pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
-    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
     let (x_m, y_m) = match grip {
         ObjectGrip::Width => (object.width_m / 2.0 + OBJECT_GRIP_GAP_M, 0.0),
         ObjectGrip::Depth => (0.0, object.depth_m / 2.0 + OBJECT_GRIP_GAP_M),
@@ -133,10 +142,7 @@ pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
         ObjectGrip::Side(n) => return form_side_place(object, n),
     };
 
-    Point::new(
-        object.at.x_m + x_m * cos - y_m * sin,
-        object.at.y_m + x_m * sin + y_m * cos,
-    )
+    object.placed(x_m, y_m)
 }
 
 /// Where point `index` of a free form lies on the plan, stretched to the object's size and
@@ -171,13 +177,18 @@ fn form_side_place(object: &SetObject, index: usize) -> Point {
 }
 
 /// The grips of object `id`: width and depth, or for a free form one on each point and one
-/// halfway along each side; the sides come first, so the points lie on top of them.
+/// halfway along each side longer than `SIDE_GRIP_MIN_M`; the sides come first, so the points
+/// lie on top of them.
 fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     let Some(object) = set.objects.iter().find(|o| o.id == id) else {
         return Vec::new();
     };
     let grips = match &object.shape {
         ObjectShape::Polygon { points } => (0..points.len())
+            .filter(|n| {
+                let from = form_point_place(object, *n);
+                side_has_grip(from, form_point_place(object, (n + 1) % points.len()))
+            })
             .map(ObjectGrip::Side)
             .chain((0..points.len()).map(ObjectGrip::Point))
             .collect(),
@@ -187,7 +198,7 @@ fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     grips
         .into_iter()
         .map(|grip| Item {
-            role: Role::ObjectHandle,
+            role: Role::Handle,
             shape: Shape::Circle {
                 center: object_grip_place(object, grip),
                 radius_m: match grip {
@@ -219,7 +230,7 @@ fn opening_handles(set: &SetPlan, wall: usize, index: usize) -> Vec<Item> {
     [(OpeningEnd::Start, start_m), (OpeningEnd::End, end_m)]
         .into_iter()
         .map(|(end, along_m)| Item {
-            role: Role::OpeningHandle,
+            role: Role::Handle,
             shape: Shape::Circle {
                 center: wall_ref.point_at(along_m),
                 radius_m: HANDLE_RADIUS_M,
@@ -239,7 +250,7 @@ fn note_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     let center = corners[1].lerp(corners[2], 0.5);
 
     vec![Item {
-        role: Role::NoteHandle,
+        role: Role::Handle,
         shape: Shape::Circle {
             center,
             radius_m: HANDLE_RADIUS_M,
@@ -282,15 +293,19 @@ fn drawing_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
         return Vec::new();
     };
     let grip = |source, center, radius_m| Item {
-        role: Role::DrawingHandle,
+        role: Role::Handle,
         shape: Shape::Circle { center, radius_m },
         label: None,
         source: Some(source),
     };
 
     // The edges come first, so the points lie on top of them.
-    let edges = drawing_edge_places(drawing).into_iter().enumerate();
-    let points = drawing_handle_places(drawing).into_iter().enumerate();
+    let corners = drawing_handle_places(drawing);
+    let edges = drawing_edge_places(drawing)
+        .into_iter()
+        .enumerate()
+        .filter(|(n, _)| side_has_grip(corners[*n], corners[(n + 1) % corners.len()]));
+    let points = corners.iter().copied().enumerate();
     let mut grips: Vec<_> = edges
         .map(|(index, at)| {
             let source = Source::DrawingEdge {

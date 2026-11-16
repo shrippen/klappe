@@ -198,6 +198,12 @@ pub mod qobject {
         #[cxx_name = "editShot"]
         fn edit_shot(self: Pin<&mut Self>, id: &QString, field: &QString, value: &QString) -> bool;
 
+        /// The setups shot `id` can be assigned to without itself (LH-77), as a JSON array of
+        /// `{setup, first_id, first_number, camera_label, lens_mm}`.
+        #[qinvokable]
+        #[cxx_name = "setupChoices"]
+        fn setup_choices(self: &Self, id: &QString) -> QString;
+
         /// Adds a shot at the playhead for the camera selected in the plan, else the selected
         /// shot's or the first one, and selects it; false if refused.
         #[qinvokable]
@@ -349,6 +355,11 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "editSelectedNote"]
         fn edit_selected_note(self: Pin<&mut Self>) -> bool;
+
+        /// Selects nothing: Escape, a change of mode.
+        #[qinvokable]
+        #[cxx_name = "clearSelection"]
+        fn clear_selection(self: Pin<&mut Self>);
 
         /// Removes the selected elements.
         #[qinvokable]
@@ -563,11 +574,11 @@ pub mod qobject {
             path: &QString,
         ) -> bool;
 
-        /// The file URL an export with `extension` is offered under: next to the project
+        /// The file URL an export of `kind` is offered under: next to the project
         /// folder, named by the plan; empty without a project.
         #[qinvokable]
         #[cxx_name = "exportFile"]
-        fn export_file(self: Pin<&mut Self>, extension: &QString) -> QString;
+        fn export_file(self: Pin<&mut Self>, kind: &QString) -> QString;
 
         /// What a tooltip says about a plan element (`camera:a` …), as JSON.
         #[qinvokable]
@@ -593,6 +604,11 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "openProject"]
         fn open_project(self: Pin<&mut Self>, path: &QString) -> bool;
+
+        /// Closes the project (unsaved changes go to the backup); false if that fails.
+        #[qinvokable]
+        #[cxx_name = "closeProject"]
+        fn close_project(self: Pin<&mut Self>) -> bool;
 
         /// Opens the user's copy of the example in the language of the window, made first if it
         /// is not there; an error goes to `status`.

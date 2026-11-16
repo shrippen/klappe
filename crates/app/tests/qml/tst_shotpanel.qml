@@ -21,6 +21,7 @@ TestCase {
             { kind: "figure", id: "burgvogt", name: "Burgvogt" }
         ])
         property string choicesJson: JSON.stringify({ size: ["extreme-wide", "wide", "medium-wide", "cowboy", "medium", "medium-close", "close-up", "extreme-close-up"], angle: ["eye-level", "high", "low", "birds-eye", "worms-eye", "dutch"], movement: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"], axis: { a: "elisabeth", b: "burgvogt", own: false } })
+        property var choices: []
         property var calls: []
         property var follows: []
         property var axisCalls: []
@@ -47,6 +48,9 @@ TestCase {
         function setFollow(camera, figure) {
             follows.push([camera, figure])
             return accept
+        }
+        function setupChoices(id) {
+            return JSON.stringify(choices)
         }
         function editShot(id, field, value) {
             calls.push([id, field, value])
@@ -291,6 +295,53 @@ TestCase {
         box.activated(0)
 
         compare(fake.calls.length, 0)
+    }
+
+    readonly property var setupChoices: [
+        { setup: 1, first_id: "s12-1", first_number: "12.1", camera_label: "A", lens_mm: 35 },
+        { setup: 2, first_id: "s12-2", first_number: "12.2", camera_label: "B", lens_mm: 50 }
+    ]
+
+    function withSetup(panel, extra) {
+        fake.choices = setupChoices
+        panel.shot = Object.assign({}, panel.shot, { setup_of: "", setup_lost: false, setup: 1 }, extra)
+        return field(panel, "setupBox")
+    }
+
+    // LH-77: "automatisch" plus the plan's setups; choosing one names its first shot.
+    function test_the_setup_chooser_lists_auto_and_the_setups() {
+        const box = withSetup(make(null), {})
+
+        compare(box.count, 3)
+        compare(box.currentIndex, 0)
+        compare(box.currentText, "automatisch")
+        compare(box.textAt(2), "Setup 2 · B 50 mm (ab 12.2)")
+
+        box.activated(2)
+
+        compare(fake.calls, [["s12-3", "setup", "s12-2"]])
+    }
+
+    function test_choosing_automatic_clears_the_setup() {
+        const panel = make(null)
+        const box = withSetup(panel, { setup_of: "s12-2", setup: 2 })
+
+        compare(box.currentIndex, 2)
+        box.activated(0)
+
+        compare(fake.calls, [["s12-3", "setup", ""]])
+    }
+
+    function test_a_setup_whose_shot_is_gone_says_so() {
+        const panel = make(null)
+        const box = withSetup(panel, {})
+        const hint = field(panel, "setupHint")
+        verify(!hint.visible)
+
+        panel.shot = Object.assign({}, panel.shot, { setup_of: "s12-9", setup_lost: true })
+
+        verify(hint.visible)
+        compare(box.currentIndex, -1)
     }
 
     function test_the_current_camera_is_not_sent_again() {
