@@ -1,6 +1,7 @@
 //! The real terminal: raw mode, alternate screen, mouse; restored on every way out.
 
 use std::io;
+use std::time::Instant;
 
 use ratatui::crossterm::event::{
     self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind,
@@ -37,6 +38,15 @@ pub fn run(app: &mut App) -> io::Result<()> {
 
     loop {
         terminal.draw(|frame| draw(frame, app))?;
+
+        // With old pages, wait for an event only until they are due; then lay them out
+        // again and draw (DN-02). A key never waits for the layout.
+        if let Some(wait) = app.pages_wait(Instant::now()) {
+            if !event::poll(wait)? {
+                app.recompute_pages();
+                continue;
+            }
+        }
 
         match event::read()? {
             Event::Key(key) if key.kind != KeyEventKind::Release => {

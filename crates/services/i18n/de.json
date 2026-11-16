@@ -628,6 +628,8 @@
  "tui.figures": "Figuren: {count}",
  "tui.goto.title": "Szene wechseln",
  "tui.goto.none": "(keine Treffer)",
+ "tui.page": "Seite {number}",
+ "tui.stale": "veraltet",
  "tui.help.save": "Ctrl+S           Speichern",
  "tui.help.quit": "Ctrl+Q           Beenden (fragt bei Änderungen)",
  "tui.help.undo": "Ctrl+Z / Ctrl+Y  Rückgängig / Wiederholen",

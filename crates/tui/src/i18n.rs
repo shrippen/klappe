@@ -39,6 +39,8 @@ pub(crate) struct Texts {
     pub mode_help: String,
     pub goto_title: String,
     pub goto_none: String,
+    /// Marks the page breaks and lengths of an older text.
+    pub stale: String,
     pub help: Vec<String>,
 }
 
@@ -62,6 +64,7 @@ impl Texts {
             mode_help: t("tui.mode.help"),
             goto_title: t("tui.goto.title"),
             goto_none: t("tui.goto.none"),
+            stale: t("tui.stale"),
             help: HELP_KEYS.iter().map(|k| lang.text(k)).collect(),
         }
     }
@@ -72,6 +75,13 @@ impl Texts {
             .text("tui.sceneOf")
             .replace("{current}", &current.to_string())
             .replace("{total}", &total.to_string())
+    }
+
+    /// "Page 3".
+    pub(crate) fn page(&self, number: usize) -> String {
+        self.lang
+            .text("tui.page")
+            .replace("{number}", &number.to_string())
     }
 
     /// "Shots: 3".
@@ -112,6 +122,8 @@ mod tests {
                 &t.mode_help,
                 &t.goto_title,
                 &t.goto_none,
+                &t.stale,
+                &t.page(3),
                 &t.scene_of(1, 2),
                 &t.shots(1),
                 &t.figures(1),

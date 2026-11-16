@@ -28,7 +28,7 @@ fn wraps_at_spaces_and_cuts_long_words() {
     let text = "aaa bbb ccc";
 
     assert_eq!(wrap(text, 7), [0..7, 8..11]);
-    assert_eq!(wrap(text, 20), [0..11]);
+    assert_eq!(wrap(text, 20), vec![0..11]);
     assert_eq!(wrap("abcdefgh ij", 3), [0..3, 3..6, 6..8, 9..11]);
     assert!(wrap("", 10).is_empty());
 }

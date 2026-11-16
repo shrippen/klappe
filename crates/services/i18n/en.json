@@ -628,6 +628,8 @@
  "tui.figures": "Characters: {count}",
  "tui.goto.title": "Go to scene",
  "tui.goto.none": "(no match)",
+ "tui.page": "Page {number}",
+ "tui.stale": "out of date",
  "tui.help.save": "Ctrl+S           Save",
  "tui.help.quit": "Ctrl+Q           Quit (asks when modified)",
  "tui.help.undo": "Ctrl+Z / Ctrl+Y  Undo / redo",
