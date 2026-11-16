@@ -10,14 +10,79 @@ const PICK_RADIUS_M: f64 = 0.15;
 /// The topmost item the user can grab at `at`: the display list is back to front. Items for
 /// which `locked` is true are left out.
 pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> Option<Source> {
+    // Grips lie in front, but where their catch areas overlap the nearest one wins, not the
+    // one drawn last. Inside its own element a grip catches only what it covers, so a small
+    // element can still be clicked.
+    let grip = items
+        .iter()
+        .filter(|item| is_grip(item.role) && !locked(item.role) && item.source.is_some())
+        .filter(|item| hit(item, at, grip_tolerance_m(items, item, at)))
+        .filter_map(|item| Some((grip_distance_m(item, at)?, item)))
+        .min_by(|a, b| a.0.total_cmp(&b.0));
+    if let Some((_, item)) = grip {
+        return item.source.clone();
+    }
+
     items
         .iter()
         .rev()
         // A caption that belongs to nothing (a height, a free form's name) does not hide
         // the body under it.
-        .filter(|item| grabbable(item.role) && !locked(item.role) && item.source.is_some())
+        .filter(|item| grabbable(item.role) && !is_grip(item.role) && !locked(item.role))
+        .filter(|item| item.source.is_some())
         .find(|item| hit(item, at, PICK_RADIUS_M))
         .and_then(|item| item.source.clone())
+}
+
+/// Whether `role` is that of a grip.
+fn is_grip(role: Role) -> bool {
+    matches!(
+        role,
+        Role::DrawingHandle
+            | Role::NoteHandle
+            | Role::OpeningHandle
+            | Role::LightHandle
+            | Role::ObjectHandle
+            | Role::FigureHandle(_)
+            | Role::CameraHandle
+    )
+}
+
+/// How far beside a grip a click still takes it: not at all while `at` is inside the element
+/// the grip belongs to, else `PICK_RADIUS_M`.
+fn grip_tolerance_m(items: &[Item], grip: &Item, at: Point) -> f64 {
+    let Some(owner) = grip.source.as_ref().and_then(owner_of) else {
+        return PICK_RADIUS_M;
+    };
+    let inside = items.iter().any(|item| {
+        !is_grip(item.role) && item.source.as_ref() == Some(&owner) && hit(item, at, 0.0)
+    });
+
+    if inside {
+        0.0
+    } else {
+        PICK_RADIUS_M
+    }
+}
+
+/// The element whose grip `grip` is, where it has a body to click on.
+fn owner_of(grip: &Source) -> Option<Source> {
+    match grip {
+        Source::ObjectGrip { object, .. } => Some(Source::Object(object.clone())),
+        Source::DrawingPoint { drawing, .. } | Source::DrawingEdge { drawing, .. } => {
+            Some(Source::Drawing(drawing.clone()))
+        }
+        Source::NoteWidth(id) => Some(Source::Note(id.clone())),
+        _ => None,
+    }
+}
+
+/// How far `at` is from the centre of the grip `item`; `None` for anything but a circle.
+fn grip_distance_m(item: &Item, at: Point) -> Option<f64> {
+    match item.shape {
+        Shape::Circle { center, .. } => Some(center.distance_m(at)),
+        _ => None,
+    }
 }
 
 /// Every element the user can grab whose shown items all lie in the box with corners `a` and

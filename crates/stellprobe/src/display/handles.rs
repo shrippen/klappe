@@ -59,11 +59,20 @@ const NEW_BEND_RADIUS_M: f64 = 0.1;
 /// The grip that pulls a new point out of an area's edge.
 const NEW_POINT_RADIUS_M: f64 = 0.1;
 
+/// A side or edge shows a grip that makes a point only when it is longer than this: three
+/// widths of that grip. A shorter one would cover the shape.
+const SIDE_GRIP_MIN_M: f64 = 6.0 * NEW_POINT_RADIUS_M;
+
+/// Whether the side from `a` to `b` is long enough for a grip that makes a point.
+fn side_has_grip(a: Point, b: Point) -> bool {
+    a.distance_m(b) > SIDE_GRIP_MIN_M
+}
+
 /// The grips on the way `selected` belongs to: a figure, camera or mark of it, or one of its
 /// grips (LH-21). For each mark after the first, one on each bend of the way to it and a
 /// smaller one halfway along each piece between bends, to pull out a new bend.
 /// A selected drawing has one on each of its points, an area also a smaller one halfway along
-/// each edge (LH-19).
+/// each edge longer than `SIDE_GRIP_MIN_M` (LH-19).
 /// A selected note has one in the middle of its card's right edge, to set its width (LH-16).
 /// A selected door or window has one on each end, on the wall's middle line, to set its
 /// width (LH-10).
@@ -71,7 +80,8 @@ const NEW_POINT_RADIUS_M: f64 = 0.1;
 /// (LH-50).
 /// A selected object drawn by its width and depth has one just outside the middle of its right
 /// edge and one outside its bottom edge, to set them (LH-25); a free form has one on each point
-/// of its outline instead and a small one halfway along each side (LH-92).
+/// of its outline instead and a small one halfway along each side longer than
+/// `SIDE_GRIP_MIN_M` (LH-92).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -167,13 +177,18 @@ fn form_side_place(object: &SetObject, index: usize) -> Point {
 }
 
 /// The grips of object `id`: width and depth, or for a free form one on each point and one
-/// halfway along each side; the sides come first, so the points lie on top of them.
+/// halfway along each side longer than `SIDE_GRIP_MIN_M`; the sides come first, so the points
+/// lie on top of them.
 fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     let Some(object) = set.objects.iter().find(|o| o.id == id) else {
         return Vec::new();
     };
     let grips = match &object.shape {
         ObjectShape::Polygon { points } => (0..points.len())
+            .filter(|n| {
+                let from = form_point_place(object, *n);
+                side_has_grip(from, form_point_place(object, (n + 1) % points.len()))
+            })
             .map(ObjectGrip::Side)
             .chain((0..points.len()).map(ObjectGrip::Point))
             .collect(),
@@ -285,8 +300,12 @@ fn drawing_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
     };
 
     // The edges come first, so the points lie on top of them.
-    let edges = drawing_edge_places(drawing).into_iter().enumerate();
-    let points = drawing_handle_places(drawing).into_iter().enumerate();
+    let corners = drawing_handle_places(drawing);
+    let edges = drawing_edge_places(drawing)
+        .into_iter()
+        .enumerate()
+        .filter(|(n, _)| side_has_grip(corners[*n], corners[(n + 1) % corners.len()]));
+    let points = corners.iter().copied().enumerate();
     let mut grips: Vec<_> = edges
         .map(|(index, at)| {
             let source = Source::DrawingEdge {
