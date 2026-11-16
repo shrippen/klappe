@@ -52,7 +52,15 @@ fn places(s: &Session) -> Vec<Point> {
 
     list.items
         .iter()
-        .filter(|i| i.role == Role::ObjectHandle)
+        .filter(|i| {
+            matches!(
+                i.source,
+                Some(Source::ObjectGrip {
+                    grip: ObjectGrip::Point(_),
+                    ..
+                })
+            )
+        })
         .filter_map(|i| match &i.shape {
             Shape::Circle { center, .. } => Some(*center),
             _ => None,
@@ -79,6 +87,19 @@ fn turn(s: &mut Session, facing_deg: f64) {
 
 fn drag(s: &mut Session, n: usize, dx_m: f64, dy_m: f64) -> Result<(), ServiceError> {
     let source = point(s, n);
+
+    s.edit_plan(PlanEdit::Shift { source, dx_m, dy_m })
+}
+
+fn side(s: &Session, n: usize) -> Source {
+    Source::ObjectGrip {
+        object: form_id(s),
+        grip: ObjectGrip::Side(n),
+    }
+}
+
+fn pull(s: &mut Session, n: usize, dx_m: f64, dy_m: f64) -> Result<(), ServiceError> {
+    let source = side(s, n);
 
     s.edit_plan(PlanEdit::Shift { source, dx_m, dy_m })
 }
@@ -228,4 +249,119 @@ fn delete_takes_a_point_out_of_four() {
     assert!((width_m - 4.0).abs() < 1e-9 && (depth_m - 4.0).abs() < 1e-9);
     s.undo();
     assert_eq!(places(&s), before);
+}
+
+/// The side grips lie halfway along each edge; the last one on the closing edge.
+#[test]
+fn a_selected_form_shows_a_grip_halfway_along_each_side() {
+    let s = open();
+    let list = s.display_list_for(Some(&form(&s)));
+    let sides: Vec<_> = list
+        .items
+        .iter()
+        .filter(|i| {
+            matches!(
+                i.source,
+                Some(Source::ObjectGrip {
+                    grip: ObjectGrip::Side(_),
+                    ..
+                })
+            )
+        })
+        .map(|i| (i.source.clone().unwrap(), i.shape.clone()))
+        .collect();
+
+    assert_eq!(sides.len(), 3);
+    let centre = |n: usize| match &sides[n].1 {
+        Shape::Circle { center, .. } => *center,
+        _ => panic!("no circle"),
+    };
+    assert_eq!(sides[1].0, side(&s, 1));
+    assert!(near(centre(0), Point::new(6.0, 5.0)));
+    assert!(near(centre(1), Point::new(6.0, 7.0)));
+    assert!(near(centre(2), Point::new(4.0, 7.0)));
+    assert_eq!(s.pick_for(centre(0), Some(&form(&s))), Some(side(&s, 0)));
+}
+
+/// Pulling the middle of the first side down makes a point there, after point 0.
+#[test]
+fn pulling_a_side_makes_a_point_in_one_step() {
+    let mut s = open();
+    let before = (state(&s), places(&s));
+
+    pull(&mut s, 0, 0.0, -2.0).unwrap();
+
+    let after = places(&s);
+    assert_eq!(after.len(), 4);
+    assert!(near(after[0], before.1[0]) && near(after[2], before.1[1]));
+    assert!(near(after[3], before.1[2]));
+    assert!(near(after[1], Point::new(6.0, 3.0)));
+    assert_eq!(state(&s).3, 4);
+    s.undo();
+    assert_eq!(state(&s), before.0);
+}
+
+/// The closing side puts its point last; a turned form keeps the others in place.
+#[test]
+fn a_turned_form_keeps_the_points_when_a_side_is_pulled() {
+    let mut s = open();
+    turn(&mut s, 90.0);
+    let before = places(&s);
+
+    pull(&mut s, 2, 2.0, 1.0).unwrap();
+
+    let after = places(&s);
+    assert_eq!(after.len(), 4);
+    for n in 0..3 {
+        assert!(near(before[n], after[n]), "point {n}");
+    }
+}
+
+/// A side not pulled at all makes no point.
+#[test]
+fn a_side_not_pulled_makes_no_point() {
+    let mut s = open();
+    let before = state(&s);
+
+    pull(&mut s, 0, 0.0, 0.0).unwrap();
+
+    assert_eq!(state(&s), before);
+}
+
+/// A point far beyond the size of an object leaves no outline: refused, the form stays.
+#[test]
+fn a_pull_that_leaves_no_outline_is_refused() {
+    let mut s = open();
+    let before = state(&s);
+
+    let result = pull(&mut s, 0, 5000.0, 0.0);
+
+    assert!(matches!(result, Err(ServiceError::BadValue { .. })));
+    assert_eq!(state(&s), before);
+}
+
+#[test]
+fn a_locked_set_layer_refuses_a_side_pull() {
+    let mut s = open();
+    let before = state(&s);
+    s.set_lock(Layer::Set, Lock::Locked);
+
+    let result = pull(&mut s, 0, 0.0, -2.0);
+
+    assert!(matches!(result, Err(ServiceError::Locked(Layer::Set))));
+    assert_eq!(state(&s), before);
+}
+
+/// A side is no element: Delete refuses.
+#[test]
+fn delete_on_a_side_does_nothing() {
+    let mut s = open();
+    let before = state(&s);
+
+    let result = s.edit_plan(PlanEdit::Remove {
+        source: side(&s, 0),
+    });
+
+    assert!(result.is_err());
+    assert_eq!(state(&s), before);
 }

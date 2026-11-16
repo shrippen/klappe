@@ -454,6 +454,10 @@ mod tests {
         );
         assert_eq!(
             Selection::of(None).click(Some(grip(ObjectGrip::Width)), Pick::Replace),
+            Selection::of(Some(object.clone()))
+        );
+        assert_eq!(
+            Selection::of(None).click(Some(grip(ObjectGrip::Side(1))), Pick::Replace),
             Selection::of(Some(object))
         );
     }

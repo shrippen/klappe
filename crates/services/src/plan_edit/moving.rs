@@ -9,7 +9,7 @@ use klappe_stellprobe::{
     LightGrip, ObjectGrip, Source,
 };
 
-use self::forms::drag_form_point;
+use self::forms::{drag_form_point, insert_form_point};
 use super::drawings::{drag_handle, edge_place, insert_point};
 use super::openings::{drag_edge, edge_m, opening_mut, slide};
 use super::FULL_TURN_DEG;
@@ -455,6 +455,10 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
             object,
             grip: ObjectGrip::Point(n),
         } => drag_form_point(object, n, to)?,
+        Target::ObjectEdge {
+            object,
+            grip: ObjectGrip::Side(n),
+        } => insert_form_point(object, n, to)?,
         Target::ObjectEdge { object, grip } => stretch(object, grip, to),
         _ => {}
     }
@@ -469,7 +473,7 @@ fn edge_middle(object: &SetObject, grip: ObjectGrip) -> Point {
     let (axis, half_m) = match grip {
         ObjectGrip::Width => ((cos, sin), object.width_m / 2.0),
         ObjectGrip::Depth => ((-sin, cos), object.depth_m / 2.0),
-        ObjectGrip::Point(_) => return object_grip_place(object, grip),
+        ObjectGrip::Point(_) | ObjectGrip::Side(_) => return object_grip_place(object, grip),
     };
 
     Point::new(
@@ -485,8 +489,8 @@ fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
     let (axis, size_m) = match grip {
         ObjectGrip::Width => ((cos, sin), object.width_m),
         ObjectGrip::Depth => ((-sin, cos), object.depth_m),
-        // A point sets no size.
-        ObjectGrip::Point(_) => return,
+        // A point or side sets no size.
+        ObjectGrip::Point(_) | ObjectGrip::Side(_) => return,
     };
 
     // The grip sits a gap outside the edge: the size changes by how far `to` lies beyond it.
@@ -502,7 +506,7 @@ fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
     match grip {
         ObjectGrip::Width => object.width_m = new_m,
         ObjectGrip::Depth => object.depth_m = new_m,
-        ObjectGrip::Point(_) => {}
+        ObjectGrip::Point(_) | ObjectGrip::Side(_) => {}
     }
 }
 
@@ -600,6 +604,10 @@ pub(super) fn shift(
             bend: Bend::New(_),
             ..
         } | Source::DrawingEdge { .. }
+            | Source::ObjectGrip {
+                grip: ObjectGrip::Side(_),
+                ..
+            }
     ) && !pulled
     {
         return Ok(());

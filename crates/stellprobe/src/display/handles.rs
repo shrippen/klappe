@@ -47,6 +47,9 @@ pub enum ObjectGrip {
     Depth,
     /// Point `n` of a free form's outline (LH-92): drag to move it, remove it to take it out.
     Point(usize),
+    /// Halfway along side `n` of a free form, from point `n` to the next (the last one closes
+    /// to point 0): drag to make a point there (LH-92).
+    Side(usize),
 }
 
 /// The grip on a way's bend.
@@ -68,7 +71,7 @@ const NEW_POINT_RADIUS_M: f64 = 0.1;
 /// (LH-50).
 /// A selected object drawn by its width and depth has one just outside the middle of its right
 /// edge and one outside its bottom edge, to set them (LH-25); a free form has one on each point
-/// of its outline instead (LH-92).
+/// of its outline instead and a small one halfway along each side (LH-92).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -127,6 +130,7 @@ pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
         ObjectGrip::Width => (object.width_m / 2.0 + OBJECT_GRIP_GAP_M, 0.0),
         ObjectGrip::Depth => (0.0, object.depth_m / 2.0 + OBJECT_GRIP_GAP_M),
         ObjectGrip::Point(n) => return form_point_place(object, n),
+        ObjectGrip::Side(n) => return form_side_place(object, n),
     };
 
     Point::new(
@@ -148,13 +152,35 @@ fn form_point_place(object: &SetObject, index: usize) -> Point {
         .unwrap_or(object.at)
 }
 
-/// The grips of object `id`: width and depth, or for a free form one on each point.
+/// Where the middle of side `index` of a free form lies on the plan, from point `index` to the
+/// next; the object's centre when `object` has no such side.
+fn form_side_place(object: &SetObject, index: usize) -> Point {
+    if !matches!(object.shape, ObjectShape::Polygon { .. }) {
+        return object.at;
+    }
+
+    let corners = object_corners(object);
+    let (Some(from), Some(to)) = (
+        corners.get(index),
+        corners.get((index + 1) % corners.len().max(1)),
+    ) else {
+        return object.at;
+    };
+
+    from.lerp(*to, 0.5)
+}
+
+/// The grips of object `id`: width and depth, or for a free form one on each point and one
+/// halfway along each side; the sides come first, so the points lie on top of them.
 fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     let Some(object) = set.objects.iter().find(|o| o.id == id) else {
         return Vec::new();
     };
     let grips = match &object.shape {
-        ObjectShape::Polygon { points } => (0..points.len()).map(ObjectGrip::Point).collect(),
+        ObjectShape::Polygon { points } => (0..points.len())
+            .map(ObjectGrip::Side)
+            .chain((0..points.len()).map(ObjectGrip::Point))
+            .collect(),
         _ => vec![ObjectGrip::Width, ObjectGrip::Depth],
     };
 
@@ -164,7 +190,10 @@ fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
             role: Role::ObjectHandle,
             shape: Shape::Circle {
                 center: object_grip_place(object, grip),
-                radius_m: HANDLE_RADIUS_M,
+                radius_m: match grip {
+                    ObjectGrip::Side(_) => NEW_POINT_RADIUS_M,
+                    _ => HANDLE_RADIUS_M,
+                },
             },
             label: None,
             source: Some(Source::ObjectGrip {
