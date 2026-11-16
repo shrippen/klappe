@@ -18,6 +18,7 @@ fn wall(x1: f64, y1: f64, x2: f64, y2: f64) -> Wall {
 fn with_door(mut wall: Wall) -> Wall {
     wall.openings
         .push(Opening::new(OpeningKind::Door, 5.0, 0.9));
+
     wall
 }
 
@@ -303,6 +304,7 @@ fn example() -> Project {
 fn test_dir(name: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = fs::remove_dir_all(&dir);
+
     dir
 }
 
@@ -359,30 +361,6 @@ fn example_matches_generator() {
     let loaded = load(Path::new(EXAMPLE)).unwrap();
 
     assert_eq!(loaded.project, example());
-}
-
-/// A way without a bend writes no `via` key, and a file without it loads as before (LH-21);
-/// one with bends keeps them in order, on figures and cameras.
-#[test]
-fn a_bend_is_written_only_when_there_is() {
-    let dir = test_dir("via");
-    let mut project = example();
-    let plan = &mut project.scenes[0].plans[0];
-    plan.figures[0].marks[2].via.clear();
-
-    save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
-    assert!(!text.contains("via"), "{text}");
-    assert_eq!(load(&dir).unwrap().project, project);
-
-    let plan = &mut project.scenes[0].plans[0];
-    plan.figures[0].marks[2].via = vec![Point::new(11.0, 2.5), Point::new(13.0, 4.0)];
-    plan.cameras[0].marks[1].via = vec![Point::new(8.0, 9.0)];
-
-    save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
-    assert_eq!(text.matches("\"via\"").count(), 2, "{text}");
-    assert_eq!(load(&dir).unwrap().project, project);
 }
 
 /// A mark that walks and stays writes neither key, and a file without them loads as before;

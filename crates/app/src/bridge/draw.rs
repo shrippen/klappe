@@ -140,7 +140,12 @@ impl qobject::Controller {
         let leaves_measure = tool != Tool::Measure && self.rust().measure != MeasureStep::Idle;
         let leaves_note = tool != Tool::Note && self.rust().note != NoteDraft::Idle;
         let leaves_area = tool != self.rust().tool && !self.rust().area.is_empty();
+        let changes_tool = tool != self.rust().tool;
         self.as_mut().rust_mut().get_mut().tool = tool;
+        // What a key armed for the next click does not outlast the tool either.
+        if changes_tool {
+            self.as_mut().cancel_arm();
+        }
         if leaves_scale {
             self.as_mut().cancel_scale();
         }

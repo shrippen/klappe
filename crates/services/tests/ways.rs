@@ -29,6 +29,11 @@ fn near(a: Point, b: Point) -> bool {
     a.distance_m(b) < 1e-9
 }
 
+/// Equal as the worked numbers are, to a nanometre.
+fn near_to(a: Point, b: Point) -> bool {
+    a.distance_m(b) < 1e-6
+}
+
 fn elisabeth(index: usize) -> Source {
     Source::Mark {
         character: "elisabeth".into(),
@@ -185,7 +190,11 @@ fn a_way_is_named_by_its_mark_or_camera() {
 #[test]
 fn the_ways_beyond_keep_their_shape() {
     let mut s = open();
-    // A bend on the way from mark 1 to mark 2, beside the middle of the leg.
+    // The example's way to mark 2 has a bend; straight, then a bend beside the middle of the leg.
+    s.edit_plan(PlanEdit::Straighten {
+        source: elisabeth(2),
+    })
+    .unwrap();
     s.edit_plan(PlanEdit::Shift {
         source: Source::FigureVia {
             character: "elisabeth".into(),
@@ -197,6 +206,8 @@ fn the_ways_beyond_keep_their_shape() {
     })
     .unwrap();
     let bend = s.plan().unwrap().figures[0].marks[2].via[0];
+    // The grip sat in the middle of the leg, (13, 4.75), and was pulled by (0, 2).
+    assert!(near(bend, p(13.0, 6.75)), "{bend:?}");
 
     s.edit_plan(PlanEdit::ShiftWay {
         source: elisabeth(1),
@@ -205,9 +216,15 @@ fn the_ways_beyond_keep_their_shape() {
     })
     .unwrap();
 
-    // The leg's start moved by 1 m: the bend moved by half of it, kept its place in the leg.
+    // The leg (10, 6.5)-(16, 3) became (10, 7.5)-(16, 3). By hand, as complex numbers: the
+    // offset of the bend from the old middle (13, 4.75) is z = 2i; the legs are e = 6 - 3.5i
+    // and f = 6 - 4.5i, so z * f / e = 2i * (51.75 - 6i) / 48.25 = (12 + 103.5i) / 48.25, added
+    // to the new middle (13, 5.25): the bend lies at (13 + 12 / 48.25, 5.25 + 103.5 / 48.25).
     let moved = s.plan().unwrap().figures[0].marks[2].via[0];
-    assert!(moved.distance_m(bend) > 0.1, "{bend:?} {moved:?}");
+    assert!(
+        near_to(moved, p(13.0 + 12.0 / 48.25, 5.25 + 103.5 / 48.25)),
+        "{moved:?}"
+    );
 }
 
 #[test]

@@ -475,14 +475,14 @@ Item {
 
     Shortcut {
         sequence: "Escape"
-        enabled: area.tool === "scale" && area.controller.scalePoints > 0 && !area.dragging
+        enabled: area.tool === "scale" && area.controller.scalePoints > 0 && !area.dragging && !area.controller.armed
         onActivated: area.controller.cancelScale()
     }
 
     // Measure tool: Escape drops the measurement.
     Shortcut {
         sequence: "Escape"
-        enabled: area.tool === "measure" && area.controller.measuring && !area.dragging
+        enabled: area.tool === "measure" && area.controller.measuring && !area.dragging && !area.controller.armed
         onActivated: area.controller.cancelMeasure()
     }
 
@@ -492,7 +492,7 @@ Item {
         && controller.areaPoints > 0 && !area.dragging
     Shortcut {
         sequence: "Escape"
-        enabled: area.drawsArea
+        enabled: area.drawsArea && !area.controller.armed
         onActivated: area.controller.cancelArea()
     }
     Shortcut {
@@ -512,10 +512,12 @@ Item {
         }
     }
 
-    // Escape ends what a key armed for the next click (LH-104, LH-105, LH-109).
+    // Escape ends what a key armed for the next click (LH-104, LH-105, LH-109). It comes first:
+    // the Escapes of scale, measure and area wait until it has been pressed, so at most one is
+    // enabled at a time (the drag's and the fields' have `!dragging` or the field's focus).
     Shortcut {
         sequence: "Escape"
-        enabled: !!area.controller.armed && !area.dragging
+        enabled: !!area.controller.armed && !area.dragging && !area.textFocused && !selection.typing
         onActivated: area.controller.cancelArm()
     }
 
