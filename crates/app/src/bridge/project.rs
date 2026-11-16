@@ -64,9 +64,11 @@ impl qobject::Controller {
         true
     }
 
-    /// Says why a folder action failed; true when it did not.
+    /// Says why a folder action failed; true when it did not. A success takes an earlier
+    /// refusal's message away.
     fn finish_folder(mut self: Pin<&mut Self>, done: Result<(), ServiceError>) -> bool {
         let Err(e) = done else {
+            self.clear_status();
             return true;
         };
 
