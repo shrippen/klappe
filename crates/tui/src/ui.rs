@@ -324,7 +324,12 @@ fn draw_row(frame: &mut Frame, app: &App, row: Row, band: Rect, rect: Rect) {
 
     if kind != LineKind::Heading {
         let mut spans = vec![Span::raw(" ".repeat(row.indent))];
-        spans.extend(row_spans(app, row, dual_style(style, kind, text), row.end));
+        spans.extend(row_spans(
+            app,
+            row,
+            dual_style(style, app, row.line),
+            row.end,
+        ));
         frame.render_widget(Paragraph::new(Line::from(spans)), rect);
         draw_chips(frame, app, row, rect);
         return;
@@ -364,9 +369,9 @@ fn draw_row(frame: &mut Frame, app: &App, row: Row, band: Rect, rect: Rect) {
     frame.render_widget(Paragraph::new(number).style(quiet), at);
 }
 
-/// The cue of a dual dialogue (`ANNA ^`) in its own colour.
-fn dual_style(style: Style, kind: LineKind, text: &str) -> Style {
-    if kind == LineKind::Character && text.trim_end().ends_with('^') {
+/// The cue and the speech of a dual dialogue in their own colour.
+fn dual_style(style: Style, app: &App, line: usize) -> Style {
+    if app.analysis.is_dual(line) {
         return style.fg(theme::DUAL);
     }
 

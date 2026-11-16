@@ -71,6 +71,14 @@ fn a_dual_cue_has_its_own_colour_and_a_plain_one_has_not() {
 }
 
 #[test]
+fn the_dialogue_of_a_dual_cue_has_its_colour_too() {
+    let (_s, b) = shown();
+
+    assert_eq!(cell(&b, "Was?", 0).fg, theme::DUAL);
+    assert_ne!(cell(&b, "Hallo.", 0).fg, theme::DUAL);
+}
+
+#[test]
 fn lyrics_show_in_their_colour_and_italic() {
     let (_s, b) = shown();
     let c = cell(&b, "~Sie singen", 3);

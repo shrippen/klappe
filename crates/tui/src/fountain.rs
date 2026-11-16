@@ -102,6 +102,10 @@ pub(crate) struct Analysis {
     pub elements: Vec<ElementPos>,
     /// What the screenplay names, for completion.
     pub vocab: Vocabulary,
+    /// Per line: it belongs to a dual dialogue (its cue with `^`, parentheticals, dialogue).
+    pub dual: Vec<bool>,
+    /// Whether the element parsed last is part of a dual dialogue.
+    dual_now: bool,
     /// Per line: it starts inside a `/* … */` an earlier line opened.
     pub boneyard: Vec<bool>,
     /// Scene number and element count of the scene the parsing is in.
@@ -109,6 +113,10 @@ pub(crate) struct Analysis {
 }
 
 impl Analysis {
+    pub(crate) fn is_dual(&self, line: usize) -> bool {
+        self.dual.get(line).copied().unwrap_or(false)
+    }
+
     pub(crate) fn kind(&self, line: usize) -> LineKind {
         self.kinds.get(line).copied().unwrap_or(LineKind::Action)
     }
@@ -263,10 +271,22 @@ fn place(located: &Located, out: &mut Analysis) {
         out.current.1 += 1;
     }
 
+    out.dual_now = match &located.element {
+        Element::Character { dual, .. } => *dual,
+        Element::Parenthetical(_) | Element::Dialogue(_) => out.dual_now,
+        _ => false,
+    };
+    if out.dual.len() < out.kinds.len() {
+        out.dual.resize(out.kinds.len(), false);
+    }
+
     let kind = kind_of(&located.element);
     for &at in &located.lines {
         if let Some(slot) = out.kinds.get_mut(at) {
             *slot = kind;
+        }
+        if let Some(slot) = out.dual.get_mut(at) {
+            *slot = out.dual_now;
         }
     }
 }

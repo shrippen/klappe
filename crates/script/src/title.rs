@@ -1,7 +1,7 @@
 //! The title page of a Fountain text: reading the fields of the form and writing them back
 //! without touching the rest of the text.
 
-use crate::parse::{parse, split_title_page};
+use crate::parse::{parse, title_page_lines};
 use crate::{write, Script};
 
 /// The keys of the form, in the order Fountain lists them.
@@ -87,14 +87,21 @@ fn merged(old: Vec<(String, String)>, fields: &[(String, String)]) -> Vec<(Strin
 }
 
 /// The text with the form's keys of the title page set to `fields`. The rest of the text,
-/// body and other title keys, stays as it is; a text without title page gets one.
+/// body and other title keys, stays as it is (a boneyard inside the old title page goes); a text without title page gets one.
 pub fn set_title_fields(text: &str, fields: &[(String, String)]) -> String {
-    let (old, body) = split_title_page(text);
+    let old = parse(text).title_page;
     let had_page = !old.is_empty();
+
+    // The page ends where the reader says, boneyards before it counted.
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let taken = title_page_lines(&text);
     let pairs = merged(old, fields);
 
-    // `body` of a text without title page has lost its leading blank lines: use the text.
-    let rest = if had_page { body } else { text };
+    // A comment inside the old title page goes with it.
+    let rest = match had_page {
+        true => text.splitn(taken + 1, '\n').nth(taken).unwrap_or_default(),
+        false => text.as_str(),
+    };
     let rest = rest.trim_start_matches('\n');
     if pairs.is_empty() {
         return rest.to_owned();
@@ -200,5 +207,16 @@ mod tests {
 
         assert_eq!(new, "Title: T\n");
         assert_eq!(parse(&new).title_page, fields(&[("Title", "T")]));
+    }
+
+    #[test]
+    fn a_boneyard_before_the_title_page_does_not_make_a_second_one() {
+        let text = format!("/* weg */\nTitle: Alt\n\n{BODY}");
+        assert_eq!(title_fields(&text)[0].1, "Alt");
+
+        let new = set_title_fields(&text, &fields(&[("Title", "Neu")]));
+        assert_eq!(parse(&new).title_page, fields(&[("Title", "Neu")]));
+        assert_eq!(parse(&new).elements, parse(BODY).elements);
+        assert_eq!(new.matches("Title:").count(), 1, "{new}");
     }
 }

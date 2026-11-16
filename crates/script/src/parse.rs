@@ -163,7 +163,7 @@ pub(crate) fn escape_openers(text: &str, way: Escape) -> String {
 /// The block counts as a title page only if every line is a key line or an indented
 /// continuation and at least one key has a value; otherwise `CUT TO:` would be taken
 /// for a key.
-pub(crate) fn split_title_page(text: &str) -> (Vec<(String, String)>, &str) {
+fn split_title_page(text: &str) -> (Vec<(String, String)>, &str) {
     let text = text.trim_start_matches(['\n', '\r']);
     let block_end = text.find("\n\n").unwrap_or(text.len());
     let block = &text[..block_end];
