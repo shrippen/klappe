@@ -261,8 +261,8 @@ Gelesen (2026-11-14):
   | Dialog | Handlung | Klammer (Klammern stehen schon) |
   | Übergang | Szenenkopf | – |
 
-- **Wechselgespräch:** Nach Dialog führt Enter zur Handlung, Tab zur Figur; dort ist die andere
-  Figur des Gesprächs vorgeschlagen, und ein zweites Tab übernimmt sie (bei offenem Vorschlag gilt
+- **Wechselgespräch:** Nach Dialog führt Enter auf eine leere Handlungszeile, Tab dort zur Figur, mit der
+  anderen Figur des Gesprächs als Vorschlag; ein zweites Tab übernimmt sie (bei offenem Vorschlag gilt
   Tab als Übernahme, nicht als Wechsel). Eine Replik kostet Enter, Tab, Tab, Enter und den Text.
 - **Vorschläge:** Ein Enter auf dem Vorschlag übernimmt ihn und wechselt ins nächste Element.
   Vorbelegt sind nur englische Tageszeiten; deutsche Wörter markiert die Rechtschreibung rot.
