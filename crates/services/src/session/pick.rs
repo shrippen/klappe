@@ -27,19 +27,9 @@ impl Session {
             return DisplayList::default();
         };
 
-        let background_px = location
-            .set
-            .background
-            .as_ref()
-            .and_then(|b| self.image_size(&b.file));
-        let mut list = render(
-            project,
-            &location.set,
-            plan,
-            self.time_s,
-            background_px,
-            &|file| self.image_size(file),
-        );
+        let mut list = render(project, &location.set, plan, self.time_s, &|file| {
+            self.image_size(file)
+        });
         if let Some(selected) = selected {
             list.items
                 .extend(handles(project, &location.set, plan, selected));

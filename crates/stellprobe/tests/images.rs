@@ -28,7 +28,7 @@ fn set(rotation_deg: f64) -> SetPlan {
 fn list(set: &SetPlan, px: Option<(u32, u32)>) -> klappe_stellprobe::DisplayList {
     let plan = FloorPlan::new("a", "A");
 
-    render(&Project::new("T"), set, &plan, 0.0, None, &|_| px)
+    render(&Project::new("T"), set, &plan, 0.0, &|_| px)
 }
 
 #[test]

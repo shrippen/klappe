@@ -82,7 +82,6 @@ fn assert_note_text_inside_card(width_m: f64, depth_m: f64) {
         &room,
         &FloorPlan::new("a", "Plan A"),
         0.0,
-        None,
         &|_| None,
     );
     let out = svg(&list, &page(), Theme::Light).unwrap();

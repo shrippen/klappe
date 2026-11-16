@@ -57,7 +57,7 @@ fn printed_radius(size_m: Option<f64>) -> f64 {
     };
     let page = Page::new(Paper::A4, Orientation::Landscape, "Titel", texts);
     let out = svg(
-        &render(&project, &set, &plan, 0.0, None, &|_| None),
+        &render(&project, &set, &plan, 0.0, &|_| None),
         &page,
         Theme::Light,
     )

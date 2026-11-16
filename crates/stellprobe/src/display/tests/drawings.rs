@@ -16,7 +16,7 @@ fn items_of_drawing(drawing: Drawing) -> Vec<Item> {
     let mut p = plan();
     p.drawings = vec![drawing];
 
-    render(&project(), &set(), &p, 0.0, None, &|_| None)
+    render(&project(), &set(), &p, 0.0, &|_| None)
         .items
         .into_iter()
         .filter(|i| i.source == Some(Source::Drawing("d1".into())))
@@ -178,7 +178,7 @@ fn drawings_lie_between_set_and_figures() {
         Fill::Outline,
     )];
 
-    let list = render(&project(), &set(), &p, 0.0, None, &|_| None);
+    let list = render(&project(), &set(), &p, 0.0, &|_| None);
 
     let roles: Vec<_> = list.items.iter().map(|i| i.role).collect();
     let at = |f: &dyn Fn(&Role) -> bool| roles.iter().position(f);
