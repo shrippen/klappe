@@ -19,6 +19,7 @@
 //! (`_mm`), kelvin (`_k`), watts (`_w`). The plan's origin is its top left corner, x to the right,
 //! y downwards (as drawn); 0° faces right (+x), angles grow clockwise on screen.
 
+mod camera_color;
 mod camera_preset;
 mod curve;
 mod geometry;

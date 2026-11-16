@@ -389,16 +389,13 @@ TestCase {
         compare(Array.from(viewSpy.signalArguments[1]), ["timeline", false])
     }
 
-    // LH-112, LH-113: the camera pictures and the long description toggle in the View menu and the
-    // palette, with a key each.
+    // LH-112, LH-113: camera pictures and long description toggle in the View menu and palette.
     function test_the_view_menu_toggles_camera_views_and_description() {
         const header = make()
         verify(entry(header, "viewMenu", "cameraViews").checked)
         verify(!entry(header, "viewMenu", "shotDescription").checked)
-
         pick(header, "viewMenu", "cameraViews")
         pick(header, "viewMenu", "shotDescription")
-
         compare(Array.from(viewSpy.signalArguments[0]), ["cameraViews", false])
         compare(Array.from(viewSpy.signalArguments[1]), ["shotDescription", true])
         const commands = header.commandPalette.commands
