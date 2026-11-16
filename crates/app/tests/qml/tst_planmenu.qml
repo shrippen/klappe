@@ -147,6 +147,20 @@ TestCase {
         verify(!entry(chooser, "plan.plan-b").checked)
     }
 
+    // Each entry once: the plans and the commands (a QQC2.Action left inside a menu would add
+    // a second, unstyled entry for it). Separators and the skin have no text.
+    function test_each_entry_is_in_the_menu_once() {
+        const chooser = make()
+        let entries = 0
+        for (let i = 0; i < chooser.menu.count; i++) {
+            if (chooser.menu.itemAt(i).text) {
+                entries++
+            }
+        }
+
+        compare(entries, chooser.plans.length + chooser.actions.length)
+    }
+
     function test_choosing_a_plan_sends_its_id() {
         const chooser = make()
 
