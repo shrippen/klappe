@@ -768,6 +768,7 @@
  "step.AddShape": "Add free form",
  "step.Resize": "Resize",
  "step.SetObjectHeight": "Change object height",
+ "step.SetObject": "Change object",
  "step.SetWallHeight": "Change wall height",
  "step.SetObjectBase": "Change base height",
  "step.AddWall": "Draw wall",

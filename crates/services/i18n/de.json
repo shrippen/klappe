@@ -768,6 +768,7 @@
  "step.AddShape": "Freie Form setzen",
  "step.Resize": "Größe ändern",
  "step.SetObjectHeight": "Objekthöhe ändern",
+ "step.SetObject": "Objekt ändern",
  "step.SetWallHeight": "Wandhöhe ändern",
  "step.SetObjectBase": "Unterkante ändern",
  "step.AddWall": "Wand zeichnen",
