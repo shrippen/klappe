@@ -40,6 +40,8 @@ pub struct ControllerRust {
     pub(super) selected_shot: QString,
     pub(super) can_undo: bool,
     pub(super) can_redo: bool,
+    pub(super) undo_step: QString,
+    pub(super) redo_step: QString,
     pub(super) dirty: bool,
     pub(super) selected_key: QString,
     pub(super) selected_count: i32,

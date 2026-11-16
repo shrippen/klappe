@@ -61,6 +61,16 @@ RowLayout {
             .replace("Space", texts.t("key.space"))
     }
 
+    // "Undo: Move (Ctrl+Z)": the step the button takes back or does again (LH-103); the plain
+    // name while the step has no text of its own.
+    function stepTip(tipKey, step, action) {
+        const key = "step." + step
+        if (!step || texts.map[key] === undefined) {
+            return texts.t("tool.tip", { name: action.text, key: action.keys })
+        }
+        return texts.t(tipKey, { step: texts.t(key), key: action.keys })
+    }
+
     spacing: Kirigami.Units.largeSpacing
 
     KanteHeading {
@@ -183,7 +193,7 @@ RowLayout {
         visible: header.controller.loaded
         action: actUndo
         display: QQC2.AbstractButton.IconOnly
-        QQC2.ToolTip.text: header.texts.t("tool.tip", { name: actUndo.text, key: actUndo.keys })
+        QQC2.ToolTip.text: header.stepTip("undo.tip", header.controller.undoStep, actUndo)
         QQC2.ToolTip.visible: hovered
         QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
     }
@@ -192,7 +202,7 @@ RowLayout {
         visible: header.controller.loaded
         action: actRedo
         display: QQC2.AbstractButton.IconOnly
-        QQC2.ToolTip.text: header.texts.t("tool.tip", { name: actRedo.text, key: actRedo.keys })
+        QQC2.ToolTip.text: header.stepTip("redo.tip", header.controller.redoStep, actRedo)
         QQC2.ToolTip.visible: hovered
         QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
     }

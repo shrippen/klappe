@@ -10,6 +10,8 @@ QtObject {
     property bool dirty: false
     property bool canUndo: true
     property bool canRedo: true
+    property string undoStep: ""
+    property string redoStep: ""
     property bool hasBackground: false
     property bool viewFree: false
     property int freeRevision: 0

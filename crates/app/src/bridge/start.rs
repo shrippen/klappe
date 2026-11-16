@@ -68,6 +68,8 @@ impl Default for ControllerRust {
             selected_shot: QString::default(),
             can_undo: false,
             can_redo: false,
+            undo_step: QString::default(),
+            redo_step: QString::default(),
             dirty: false,
             selected_key: QString::default(),
             selected_count: 0,

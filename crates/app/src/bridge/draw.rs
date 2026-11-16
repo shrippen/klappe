@@ -295,6 +295,19 @@ impl qobject::Controller {
         self.commit_edit(edit)
     }
 
+    pub(super) fn select_at(mut self: Pin<&mut Self>, x: f64, y: f64) -> bool {
+        let selected = self.rust().selected.clone();
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        let picked = s.pick_click(Point::new(x, y), selected.only());
+        let found = picked.is_some();
+        self.as_mut().rust_mut().get_mut().selected = selected.grab(picked);
+        self.refresh();
+        found
+    }
+
     pub(super) fn set_draw_style(
         mut self: Pin<&mut Self>,
         color: &QString,

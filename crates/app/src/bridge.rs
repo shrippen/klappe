@@ -44,6 +44,10 @@ pub mod qobject {
         #[qproperty(QString, selected_shot, cxx_name = "selectedShot")]
         #[qproperty(bool, can_undo, cxx_name = "canUndo")]
         #[qproperty(bool, can_redo, cxx_name = "canRedo")]
+        /// What undo and redo do, as the name of the step (`AddObject`); empty for none or an
+        /// unnamed one.
+        #[qproperty(QString, undo_step, cxx_name = "undoStep")]
+        #[qproperty(QString, redo_step, cxx_name = "redoStep")]
         #[qproperty(bool, dirty)]
         /// Key of the selected plan element (`camera:a` …), empty for none.
         #[qproperty(QString, selected_key, cxx_name = "selectedKey")]
@@ -301,6 +305,13 @@ pub mod qobject {
         /// A click: selects with the select tool, else sets what the tool stands for.
         #[qinvokable]
         fn place(self: Pin<&mut Self>, x: f64, y: f64) -> bool;
+
+        /// A right click at (`x`, `y`) with any tool: selects what lies there as a click of the
+        /// select tool does, but a member of the selection keeps it and empty ground clears it.
+        /// False for empty ground.
+        #[qinvokable]
+        #[cxx_name = "selectAt"]
+        fn select_at(self: Pin<&mut Self>, x: f64, y: f64) -> bool;
 
         /// Takes the image file at `path` (a path or a `file://` URL) as the set's background
         /// and points to the scale tool in the status line.

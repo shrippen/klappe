@@ -18,6 +18,10 @@ Item {
     /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, measure, note, image, line,
     /// arrow, rect, ellipse or area.
     property string tool: "select"
+    /// What the next click of the tool does (LH-101, PlanTools `hint`); empty for none.
+    property string toolHint: ""
+    /// Escape, with nothing else to end, goes back to the select tool (LH-101).
+    signal selectToolRequested()
     /// The grid drawn and snapped to, in metres: the one `gridName` names in `choicesJson`.
     readonly property real gridStepM: {
         const grids = controller.choicesJson ? (JSON.parse(controller.choicesJson).grid || []) : []
@@ -198,6 +202,11 @@ Item {
                 }
             }
         }
+        // Right click: the context menu (LH-100).
+        TapHandler {
+            acceptedButtons: Qt.RightButton
+            onTapped: eventPoint => area.openMenuOn(eventPoint.position)
+        }
         // Measure tool, first point set: the pointer is the other end, the controller draws.
         HoverHandler {
             enabled: area.tool === "measure" && area.controller.measuring
@@ -205,6 +214,58 @@ Item {
                 const m = canvas.mapToModel(point.position.x, point.position.y)
                 area.controller.hover(m.x, m.y)
             }
+        }
+    }
+
+    // The context menu (LH-100). A click selects what is under the pointer first, as a left
+    // click does; the Menu key and Shift+F10 take the selection as it is and open at the pointer,
+    // or the middle of the view.
+    PlanContextMenu {
+        id: contextMenu
+        objectName: "contextMenu"
+        texts: area.texts
+        controller: area.controller
+        turnStepDeg: area.turnStepDeg
+        onFitRequested: area.zoomBy("fit")
+    }
+    function openMenu(at) {
+        if (!area.free && area.controller.loaded) {
+            contextMenu.popup(area, at.x, at.y)
+        }
+    }
+    function openMenuOn(at) {
+        if (area.free || !area.controller.loaded) {
+            return
+        }
+        const m = canvas.mapToModel(at.x, at.y)
+        area.controller.selectAt(m.x, m.y)
+        area.openMenu(at)
+    }
+    Shortcut {
+        sequences: ["Menu", "Shift+F10"]
+        enabled: !area.free && area.controller.loaded && canvas.activeFocus
+        onActivated: area.openMenu(pointerSpy.hovered ? pointerSpy.point.position : Qt.point(area.width / 2, area.height / 2))
+    }
+
+    // The hint line (LH-101, LH-122): what the next click of the tool does.
+    KanteCard {
+        id: hintLine
+        objectName: "hintLine"
+        visible: area.toolHint !== "" && area.tool !== "select" && !area.free
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.margins: Kirigami.Units.largeSpacing
+        implicitWidth: Math.min(hintLabel.implicitWidth, area.width / 2) + Kirigami.Units.largeSpacing * 2
+        implicitHeight: hintLabel.implicitHeight + Kirigami.Units.largeSpacing * 2
+
+        QQC2.Label {
+            id: hintLabel
+            objectName: "hintLabel"
+            anchors.fill: parent
+            anchors.margins: Kirigami.Units.largeSpacing
+            wrapMode: Text.WordWrap
+            color: KanteStyle.textColor
+            text: area.toolHint
         }
     }
 
@@ -517,12 +578,20 @@ Item {
     // (a cell of the shot table; the card's fields leave the field first).
     readonly property Item focused: Window.window ? Window.window.activeFocusItem : null
     readonly property bool textFocused: !!area.focused && area.focused.cursorPosition !== undefined
+    // Something has an Escape of its own: a drag, an outline, the points of a scale or a measure.
+    readonly property bool escBusy: area.dragging || freeView.dragging || area.drawsArea
+        || (area.tool === "scale" && area.controller.scalePoints > 0)
+        || (area.tool === "measure" && area.controller.measuring)
+    // LH-101: Escape ends the operation, then the tool goes back to select, then the selection goes.
     Shortcut {
         sequence: "Escape"
-        enabled: area.hasSelection && !area.textFocused && !area.dragging && !freeView.dragging && !area.drawsArea
-            && !(area.tool === "scale" && area.controller.scalePoints > 0)
-            && !(area.tool === "measure" && area.controller.measuring)
+        enabled: area.hasSelection && !area.textFocused && !area.escBusy && area.tool === "select"
         onActivated: area.controller.clearSelection()
+    }
+    Shortcut {
+        sequence: "Escape"
+        enabled: area.controller.loaded && area.tool !== "select" && !area.textFocused && !area.escBusy
+        onActivated: area.selectToolRequested()
     }
 
     // Keys for the selection: Delete removes it, R and Shift+R turn it by 15 degrees (several
@@ -568,6 +637,29 @@ Item {
         return /^(figure|camera)via:.*:at\d+$/.test(key)
     }
 
+    /// The text key of the tooltip of a grip (LH-102), `""` for a key that is none.
+    function gripTip(key) {
+        const parts = key.split(":")
+        const last = parts[parts.length - 1]
+        switch (parts[0]) {
+        case "objectgrip":
+            return { width: "tip.gripWidth", depth: "tip.gripDepth" }[last] || (last.indexOf("point") === 0 ? "tip.gripPoint" : "tip.gripSide")
+        case "lightgrip": return last === "beam" ? "tip.gripBeam" : "tip.gripDirection"
+        case "openingedge": return "tip.gripOpening"
+        case "notewidth": return "tip.gripNote"
+        case "imagesize": return "tip.gripImage"
+        case "drawingpoint": return "tip.gripDrawing"
+        case "drawingedge": return "tip.gripEdge"
+        }
+        return ""
+    }
+
+    /// The lines of the tooltip of a shape: a grip's one line, else what the element is.
+    function tipOf(key) {
+        const grip = area.gripTip(key)
+        return grip !== "" ? [area.texts.t(grip)] : area.tipLines(key)
+    }
+
     // Tooltip text from the controller's data and the catalogue.
     function tipLines(key) {
         if (key === "") {
@@ -606,7 +698,7 @@ Item {
     }
 
     QQC2.ToolTip {
-        readonly property var lines: area.tipLines(area.tipKey).filter(l => l !== "")
+        readonly property var lines: area.tipOf(area.tipKey).filter(l => l !== "")
         parent: area
         x: area.tipAt.x + Kirigami.Units.largeSpacing
         y: area.tipAt.y + Kirigami.Units.largeSpacing

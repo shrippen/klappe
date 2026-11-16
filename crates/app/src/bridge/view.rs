@@ -148,6 +148,8 @@ impl ControllerRust {
         self.selected_shot = v.selected_shot;
         self.can_undo = v.can_undo;
         self.can_redo = v.can_redo;
+        self.undo_step = v.undo_step;
+        self.redo_step = v.redo_step;
         self.dirty = v.dirty;
         self.selected_key = v.selected_key;
         self.selected_count = v.selected_count;
@@ -190,6 +192,8 @@ impl ControllerRust {
             selected_shot: q(s.selected_shot().unwrap_or_default()),
             can_undo: s.can_undo(),
             can_redo: s.can_redo(),
+            undo_step: q(s.undo_step().unwrap_or_default()),
+            redo_step: q(s.redo_step().unwrap_or_default()),
             dirty: s.is_dirty(),
             selected_key: q(&self.selected.only().map(plan::key).unwrap_or_default()),
             selected_count: i32::try_from(self.selected.len()).unwrap_or_default(),
@@ -227,6 +231,8 @@ pub(super) struct Shown {
     selected_shot: QString,
     can_undo: bool,
     can_redo: bool,
+    undo_step: QString,
+    redo_step: QString,
     dirty: bool,
     selected_key: QString,
     selected_count: i32,
@@ -435,6 +441,8 @@ impl qobject::Controller {
         self.as_mut().set_selected_count(v.selected_count);
         self.as_mut().set_can_undo(v.can_undo);
         self.as_mut().set_can_redo(v.can_redo);
+        self.as_mut().set_undo_step(v.undo_step);
+        self.as_mut().set_redo_step(v.redo_step);
         self.as_mut().set_dirty(v.dirty);
         self.as_mut().set_has_background(v.has_background);
         self.as_mut().set_missing_heights(v.missing_heights);

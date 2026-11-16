@@ -1,0 +1,182 @@
+import QtQuick
+import QtQuick.Controls as QQC2
+import QtQml
+import Kante
+
+// The context menu of the plan (LH-100): right click, the Menu key or Shift+F10 on an element
+// (it is selected first) or on empty ground. The entries are the commands the keys of
+// PlanArea already run, each with its key beside it; the menu only offers what the selection
+// can take. A locked or hidden layer cannot be picked, so empty ground offers to unlock or show
+// it again.
+//
+//  element                     empty ground
+//  ┌────────────────────┐      ┌────────────────────┐
+//  │ Delete         Del │      │ Undo        Ctrl+Z │
+//  │ Duplicate   Ctrl+D │      │ Redo  Ctrl+Shift+Z │
+//  │ Turn right       R │      │ Fit plan    Ctrl+0 │
+//  │ Straighten way   G │      │ Unlock layer Notes │
+//  ├────────────────────┤      └────────────────────┘
+//  │ Lock layer Figures │
+//  │ Hide layer Figures │
+//  │ Clear selection Esc│
+//  └────────────────────┘
+QQC2.Menu {
+    id: menu
+
+    required property var texts
+    required property var controller
+    /// The angle R and Shift+R turn by.
+    required property real turnStepDeg
+
+    signal fitRequested()
+
+    readonly property var _duplicable: ["object", "light", "note", "image", "drawing", "wall", "camera"]
+    readonly property var _turnable: ["object", "light", "camera", "figure", "mark", "wall", "drawing", "image"]
+    readonly property var _ways: ["figure", "camera", "mark", "figurevia", "cameravia"]
+    /// The layer each kind of key is on (plan_edit.rs `layer_of_source`).
+    readonly property var _layerOf: ({
+        object: "set", objectgrip: "set", wall: "set", opening: "set", openingedge: "set",
+        light: "lights", lightgrip: "lights", camera: "cameras", cameravia: "cameras",
+        figure: "figures", mark: "figures", figurevia: "figures",
+        note: "notes", notewidth: "notes", image: "notes", imagesize: "notes",
+        drawing: "drawings", drawingpoint: "drawings", drawingedge: "drawings"
+    })
+
+    readonly property int picked: controller.selectedCount
+    readonly property bool several: picked > 1
+    /// The kind of the one element selected; empty for none or several.
+    readonly property string kind: controller.selectedKey === "" ? "" : controller.selectedKey.split(":")[0]
+    readonly property string layer: _layerOf[kind] || ""
+    readonly property string layerName: layer === "" ? "" : texts.t("layer." + layer)
+    readonly property bool onElement: picked > 0
+
+    readonly property var _shown: controller.layersJson ? JSON.parse(controller.layersJson) : ({})
+    readonly property var _locks: controller.locksJson ? JSON.parse(controller.locksJson) : ({})
+    /// The layers empty ground offers to bring back: locked ones, then hidden ones.
+    readonly property var _lapsed: {
+        if (onElement) {
+            return []
+        }
+        const names = Object.keys(_locks).concat(Object.keys(_shown))
+            .filter((n, i, all) => all.indexOf(n) === i)
+        return names.filter(n => _locks[n] === true).map(n => ({ layer: n, unlock: true }))
+            .concat(names.filter(n => _shown[n] === false).map(n => ({ layer: n, unlock: false })))
+    }
+
+    /// "Ctrl+Shift+Z" as the keyboard of the language names it.
+    function keyName(sequence) {
+        return sequence.replace("Ctrl", texts.t("key.ctrl")).replace("Shift", texts.t("key.shift"))
+            .replace("Delete", texts.t("key.delete"))
+    }
+
+    KantePopupSkin { popup: menu }
+
+    KanteMenuItem {
+        objectName: "ctxDelete"
+        visible: menu.onElement
+        text: menu.texts.t("ctx.delete")
+        shortcutText: menu.keyName("Delete")
+        destructive: true
+        onTriggered: menu.controller.removeSelected()
+    }
+    KanteMenuItem {
+        objectName: "ctxDuplicate"
+        visible: menu.several || menu._duplicable.indexOf(menu.kind) >= 0
+        text: menu.texts.t("ctx.duplicate")
+        shortcutText: menu.keyName("Ctrl+D")
+        onTriggered: menu.controller.duplicateSelected()
+    }
+    KanteMenuItem {
+        objectName: "ctxTurnRight"
+        visible: menu.several || menu._turnable.indexOf(menu.kind) >= 0
+        text: menu.texts.t("ctx.turnRight")
+        shortcutText: "R"
+        onTriggered: menu.controller.turnSelected(menu.turnStepDeg)
+    }
+    KanteMenuItem {
+        objectName: "ctxTurnLeft"
+        visible: menu.several || menu._turnable.indexOf(menu.kind) >= 0
+        text: menu.texts.t("ctx.turnLeft")
+        shortcutText: menu.keyName("Shift+R")
+        onTriggered: menu.controller.turnSelected(-menu.turnStepDeg)
+    }
+    KanteMenuItem {
+        objectName: "ctxStraighten"
+        visible: menu._ways.indexOf(menu.kind) >= 0
+        text: menu.texts.t("ctx.straighten")
+        shortcutText: "G"
+        onTriggered: menu.controller.straightenSelected()
+    }
+    KanteMenuItem {
+        objectName: "ctxEditNote"
+        visible: menu.kind === "note"
+        text: menu.texts.t("ctx.editNote")
+        shortcutText: "F2"
+        onTriggered: menu.controller.editSelectedNote()
+    }
+    KanteMenuItem {
+        objectName: "ctxAddShot"
+        visible: menu.kind === "camera"
+        text: menu.texts.t("ctx.addShot")
+        onTriggered: menu.controller.addShot()
+    }
+
+    QQC2.MenuSeparator { visible: menu.layer !== "" }
+    KanteMenuItem {
+        objectName: "ctxLockLayer"
+        visible: menu.layer !== ""
+        text: menu.texts.t("ctx.lockLayer", { layer: menu.layerName })
+        onTriggered: menu.controller.setLock(menu.layer, "locked")
+    }
+    KanteMenuItem {
+        objectName: "ctxHideLayer"
+        visible: menu.layer !== ""
+        text: menu.texts.t("ctx.hideLayer", { layer: menu.layerName })
+        onTriggered: menu.controller.setLayer(menu.layer, "hidden")
+    }
+
+    QQC2.MenuSeparator { visible: menu.onElement }
+    KanteMenuItem {
+        objectName: "ctxDeselect"
+        visible: menu.onElement
+        text: menu.texts.t("ctx.deselect")
+        shortcutText: "Esc"
+        onTriggered: menu.controller.clearSelection()
+    }
+
+    // Empty ground.
+    KanteMenuItem {
+        objectName: "ctxUndo"
+        visible: !menu.onElement
+        enabled: menu.controller.canUndo
+        text: menu.texts.t("menu.undo")
+        shortcutText: menu.keyName("Ctrl+Z")
+        onTriggered: menu.controller.undo()
+    }
+    KanteMenuItem {
+        objectName: "ctxRedo"
+        visible: !menu.onElement
+        enabled: menu.controller.canRedo
+        text: menu.texts.t("menu.redo")
+        shortcutText: menu.keyName("Ctrl+Shift+Z")
+        onTriggered: menu.controller.redo()
+    }
+    KanteMenuItem {
+        objectName: "ctxFit"
+        visible: !menu.onElement
+        text: menu.texts.t("menu.zoomFit")
+        shortcutText: menu.keyName("Ctrl+0")
+        onTriggered: menu.fitRequested()
+    }
+    Instantiator {
+        model: menu._lapsed
+        delegate: KanteMenuItem {
+            required property var modelData
+            objectName: "ctxBack." + modelData.layer + (modelData.unlock ? ".unlock" : ".show")
+            text: menu.texts.t(modelData.unlock ? "ctx.unlockLayer" : "ctx.showLayer", { layer: menu.texts.t("layer." + modelData.layer) })
+            onTriggered: modelData.unlock ? menu.controller.setLock(modelData.layer, "unlocked") : menu.controller.setLayer(modelData.layer, "shown")
+        }
+        onObjectAdded: (index, object) => menu.addItem(object)
+        onObjectRemoved: (index, object) => menu.removeItem(object)
+    }
+}
