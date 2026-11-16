@@ -34,12 +34,17 @@ Item {
                 return root.fail("an edit must leave the project unsaved: " + ctl.status)
             }
 
+            if (ctl.gridName === "") {
+                return root.fail("an open project must show its grid")
+            }
+
             if (!ctl.closeProject()) {
                 return root.fail("close failed: " + ctl.status)
             }
             if (ctl.loaded || ctl.title !== "" || ctl.dirty || ctl.planJson !== "" || ctl.projectJson !== ""
-                    || ctl.canUndo || ctl.shotsJson !== "" || ctl.sceneId !== "" || ctl.selectedShot !== "") {
-                return root.fail("the closed project left state behind: " + ctl.title + " " + ctl.projectJson)
+                    || ctl.canUndo || ctl.shotsJson !== "" || ctl.sceneId !== "" || ctl.selectedShot !== ""
+                    || ctl.gridName !== "") {
+                return root.fail("the closed project left state behind: " + ctl.title + " " + ctl.projectJson + " grid " + ctl.gridName)
             }
             if (ctl.save() || ctl.addLocation("Hof", "5", "5", "3")) {
                 return root.fail("a closed project must refuse edits and saving")
