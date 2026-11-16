@@ -77,7 +77,24 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::NoPicture => Some("error.noPicture"),
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
         ServiceError::FewPoints => Some("error.fewPoints"),
-        _ => None,
+        // Listed so a new variant must be placed: `error_text` words these itself.
+        ServiceError::NoScene(_)
+        | ServiceError::NoPlan(_)
+        | ServiceError::NoShot(_)
+        | ServiceError::NoLocation(_)
+        | ServiceError::NoCharacter(_)
+        | ServiceError::NotEmpty(_)
+        | ServiceError::CameraInUse { .. }
+        | ServiceError::NumberTaken(_)
+        | ServiceError::LocationInUse { .. }
+        | ServiceError::CharacterInUse { .. }
+        | ServiceError::PlanHasShots { .. }
+        | ServiceError::PlanNameTaken(_)
+        | ServiceError::Locked(_)
+        | ServiceError::BadValue { .. }
+        | ServiceError::Store(_)
+        | ServiceError::Export(_)
+        | ServiceError::Write { .. } => None,
     }
 }
 
