@@ -332,7 +332,11 @@ fn a_turned_form_keeps_the_points_when_a_side_is_pulled() {
     for n in 0..3 {
         assert!(near(before[n], after[n]), "point {n}");
     }
-    assert!(near(after[3], Point::new(grip.x_m + 2.0, grip.y_m + 1.0)), "{:?}", after[3]);
+    assert!(
+        near(after[3], Point::new(grip.x_m + 2.0, grip.y_m + 1.0)),
+        "{:?}",
+        after[3]
+    );
 }
 
 /// A side not pulled at all makes no point.
