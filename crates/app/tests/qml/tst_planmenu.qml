@@ -48,6 +48,22 @@ TestCase {
         function removePlanWithShots(id) { return call("removePlanWithShots", [id]) }
         function applyTemplate(id) { return call("applyTemplate", [id]) }
         function saveTemplate(name) { return call("saveTemplate", [name]) }
+        function renameTemplate(id, name) {
+            const ok = call("renameTemplate", [id, name])
+            if (ok) {
+                templates = templates.map(t => t.id === id ? Object.assign({}, t, { label: name }) : t)
+                choicesJson = JSON.stringify({ template: templates })
+            }
+            return ok
+        }
+        function removeTemplate(id) {
+            const ok = call("removeTemplate", [id])
+            if (ok) {
+                templates = templates.filter(t => t.id !== id)
+                choicesJson = JSON.stringify({ template: templates })
+            }
+            return ok
+        }
     }
 
     TestTexts { id: de; language: "de" }
@@ -63,6 +79,12 @@ TestCase {
 
     function init() {
         fake.status = ""
+        fake.templates = [
+            { id: "shot-reverse", label: "", figures: 2, cameras: 3, custom: false },
+            { id: "triangle", label: "", figures: 2, cameras: 3, custom: false },
+            { id: "mein-dialog", label: "Mein Dialog", figures: 1, cameras: 2, custom: true }
+        ]
+        fake.choicesJson = JSON.stringify({ template: fake.templates })
         fake.accept = true
         fake.calls = []
         fake.plans = [
@@ -333,7 +355,7 @@ TestCase {
         verify(entry(chooser, "saveTemplate").enabled)
         verify(!entry(chooser, "applyTemplate").destructive)
         compare(chooser.actions.map(a => a.cmd).filter(c => c.startsWith("plan.template")),
-                ["plan.template", "plan.templateSave"])
+                ["plan.template", "plan.templateSave", "plan.templateImport", "plan.templateExport"])
 
         fake.plans = []
         fake.plan = ""
@@ -411,6 +433,113 @@ TestCase {
         compare(fake.calls, [["saveTemplate", "Mein Dialog"]])
     }
 
+    function test_only_an_own_template_can_be_renamed_or_deleted() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+        verify(!findChild(form, "templateRename").visible)
+        verify(!findChild(form, "templateDelete").visible)
+
+        findChild(form, "templateBox").currentIndex = 2
+        verify(findChild(form, "templateRename").visible)
+        verify(findChild(form, "templateDelete").visible)
+        compare(findChild(form, "ownName").text, "Mein Dialog")
+
+        findChild(form, "templateBox").currentIndex = 1
+        verify(!findChild(form, "templateRename").visible)
+    }
+
+    function test_renaming_sends_the_id_and_keeps_the_template_picked() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+        findChild(form, "templateBox").currentIndex = 2
+        findChild(form, "ownName").text = "Zwiegespräch"
+        findChild(form, "templateRename").clicked()
+
+        compare(fake.calls, [["renameTemplate", "mein-dialog", "Zwiegespräch"]])
+        compare(form.entries.map(e => e.text), ["Schuss-Gegenschuss", "Dreieck", "Zwiegespräch"])
+        compare(form.picked.id, "mein-dialog")
+        compare(findChild(form, "ownName").text, "Zwiegespräch")
+    }
+
+    function test_a_blank_name_cannot_be_renamed_to() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+        findChild(form, "templateBox").currentIndex = 2
+        findChild(form, "ownName").text = "  "
+
+        verify(!findChild(form, "templateRename").enabled)
+    }
+
+    function test_deleting_asks_first_and_goes_back_to_the_first_template() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+        findChild(form, "templateBox").currentIndex = 2
+        const button = findChild(form, "templateDelete")
+
+        button.clicked()
+        compare(fake.calls, [])
+        compare(button.text, "Wirklich löschen?")
+
+        button.clicked()
+        compare(fake.calls, [["removeTemplate", "mein-dialog"]])
+        compare(form.entries.map(e => e.text), ["Schuss-Gegenschuss", "Dreieck"])
+        compare(form.picked.id, "shot-reverse")
+        verify(!findChild(form, "templateDelete").visible)
+    }
+
+    function test_a_refused_delete_keeps_the_template() {
+        const chooser = make()
+        const form = findChild(chooser, "templateForm")
+        fake.accept = false
+
+        pick(chooser, "applyTemplate")
+        tryCompare(form, "opened", true)
+        findChild(form, "templateBox").currentIndex = 2
+        findChild(form, "templateDelete").clicked()
+        findChild(form, "templateDelete").clicked()
+
+        compare(form.entries.length, 3)
+        compare(form.picked.id, "mein-dialog")
+    }
+
+    SignalSpy { id: importSpy; signalName: "templateImportRequested" }
+    SignalSpy { id: exportSpy; signalName: "templateExportRequested" }
+
+    function test_the_template_files_are_asked_for_by_the_window() {
+        const chooser = make()
+        importSpy.target = chooser
+        exportSpy.target = chooser
+        importSpy.clear()
+        exportSpy.clear()
+
+        pick(chooser, "importTemplates")
+        compare(importSpy.count, 1)
+        pick(chooser, "exportTemplates")
+        compare(exportSpy.count, 1)
+        compare(fake.calls, [])
+    }
+
+    function test_there_is_nothing_to_export_without_own_templates() {
+        const chooser = make()
+        fake.templates = fake.templates.filter(t => !t.custom)
+        fake.choicesJson = JSON.stringify({ template: fake.templates })
+
+        verify(entry(chooser, "importTemplates").enabled)
+        verify(!entry(chooser, "exportTemplates").enabled)
+    }
+
     function test_the_form_is_english_in_english() {
         const chooser = make()
         chooser.texts = en
@@ -429,7 +558,11 @@ TestCase {
                            "plan.templateSaveTitle", "template.pick", "template.search",
                            "template.builtin", "template.custom", "template.summary",
                            "template.hint", "template.name", "template.saveHint",
-                           "template.saved", "template.insert", "template.shot-reverse",
+                           "template.saved", "template.insert", "plan.templateImport", "plan.templateExport",
+                           "template.rename", "template.renameTip", "template.delete",
+                           "template.deleteTip", "template.deleteSure", "template.importPick",
+                           "template.exportPick", "template.filter", "template.imported",
+                           "template.importedNone", "template.exported", "template.shot-reverse",
                            "template.triangle", "template.long-take", "error.emptyTemplate"]) {
             verify(de.t(key) !== key, "de " + key)
             verify(en.t(key) !== key, "en " + key)

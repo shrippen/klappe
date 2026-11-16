@@ -41,6 +41,12 @@ pub(crate) fn load_templates(path: &Path) -> Result<Vec<Template>, StoreError> {
         return Ok(Vec::new());
     }
 
+    load_template_file(path)
+}
+
+/// Reads a template file: the project's `vorlagen.toml` or one passed on, which has the same
+/// format. A missing file is an error.
+pub fn load_template_file(path: &Path) -> Result<Vec<Template>, StoreError> {
     let file: TemplateFile = files::read_toml(path)?;
     check_own(&file.vorlage).map_err(|message| StoreError::Parse {
         path: path.to_path_buf(),
@@ -48,6 +54,13 @@ pub(crate) fn load_templates(path: &Path) -> Result<Vec<Template>, StoreError> {
     })?;
 
     Ok(file.vorlage)
+}
+
+/// Writes `templates` as a template file, replacing the file atomically.
+pub fn save_template_file(path: &Path, templates: &[Template]) -> Result<(), StoreError> {
+    let bytes = encode(path, templates)?;
+
+    files::write_atomic(path, &bytes)
 }
 
 /// The file content of `templates`; refuses templates that could not be read back.

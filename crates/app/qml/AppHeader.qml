@@ -39,6 +39,9 @@ RowLayout {
     signal playRequested()
     /// An object without a height is selected (LH-93): its card takes the height.
     signal heightRequested()
+    /// The plan menu's template files (LH-07): the window asks for the file.
+    signal templateImportRequested()
+    signal templateExportRequested()
 
     readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : { scenes: [], plans: [], plan: "" }
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
@@ -87,6 +90,8 @@ RowLayout {
         texts: header.texts
         controller: header.controller
         locked: header.locked
+        onTemplateImportRequested: header.templateImportRequested()
+        onTemplateExportRequested: header.templateExportRequested()
     }
 
     Item { Layout.fillWidth: true }

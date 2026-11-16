@@ -173,7 +173,61 @@ fn filed_camera_mark(mark: &CameraMark, back: Point) -> CameraMark {
     }
 }
 
-/// What `ProjectEdit::PlaceTemplate` and `ProjectEdit::SaveTemplate` do.
+fn rename(project: &mut Project, id: &str, name: &str) -> Result<(), ServiceError> {
+    let name = name_of(name)?;
+    let template = project
+        .templates
+        .iter_mut()
+        .find(|t| t.id == id)
+        .ok_or(ServiceError::Gone)?;
+
+    template.label = name;
+    Ok(())
+}
+
+fn remove(project: &mut Project, id: &str) -> Result<(), ServiceError> {
+    let before = project.templates.len();
+
+    project.templates.retain(|t| t.id != id);
+    if project.templates.len() == before {
+        return Err(ServiceError::Gone);
+    }
+    Ok(())
+}
+
+/// Whether the templates are the same but for their ids.
+fn same_content(a: &Template, b: &Template) -> bool {
+    a.label == b.label && a.figures == b.figures && a.cameras == b.cameras
+}
+
+/// Takes the templates in; one that is there already is skipped, so a file passed on twice
+/// adds nothing. Checked as a whole first: one unusable template changes nothing.
+fn import(project: &mut Project, items: &[Template]) -> Result<(), ServiceError> {
+    for item in items {
+        check_template(item).map_err(|value| ServiceError::BadValue {
+            field: Field::Point,
+            value,
+        })?;
+    }
+
+    for item in items {
+        if project.templates.iter().any(|t| same_content(t, item)) {
+            continue;
+        }
+
+        let taken = project
+            .templates
+            .iter()
+            .chain(builtin_templates())
+            .map(|t| t.id.as_str());
+        let id = unique_id(&slug(&item.id, TEMPLATE_ID_FALLBACK), taken);
+
+        project.templates.push(Template { id, ..item.clone() });
+    }
+    Ok(())
+}
+
+/// What the template edits of `ProjectEdit` do.
 pub(super) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), ServiceError> {
     match edit {
         ProjectEdit::PlaceTemplate {
@@ -183,6 +237,9 @@ pub(super) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             at,
         } => place(project, (scene, plan), template, *at),
         ProjectEdit::SaveTemplate { scene, plan, name } => save(project, scene, plan, name),
+        ProjectEdit::EditTemplate { id, name } => rename(project, id, name),
+        ProjectEdit::RemoveTemplate { id } => remove(project, id),
+        ProjectEdit::ImportTemplates { items } => import(project, items),
         _ => Ok(()),
     }
 }
