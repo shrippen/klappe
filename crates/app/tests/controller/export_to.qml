@@ -60,8 +60,12 @@ Item {
             if (!ctl.exportTo("pdf", "cut", "a4", blocked + "/inner.pdf")) {
                 return root.fail("export into a new folder failed: " + ctl.status)
             }
-            if (ctl.exportTo("pdf", "cut", "a4", blocked)) {
+            if (ctl.exportTo("pdf", "cut", "a3-portrait", blocked)) {
                 return root.fail("export over something that cannot be replaced reported success")
+            }
+            // Nothing was printed on A3: the project keeps the sheet it had.
+            if (JSON.parse(ctl.projectJson).paper === "a3-portrait") {
+                return root.fail("a failed export changed the paper")
             }
 
             // The shot list as ODS and XLSX, the plan per mark as a folder of PNGs; the Rust
