@@ -1,9 +1,8 @@
 //! Which grip a click takes when several catch it, and the grips too small to show.
 #![allow(clippy::unwrap_used)]
 
+use klappe_services::{ObjectGrip, PlanEdit, Point, Role, Session, Shape, Snapping, Source};
 use std::path::{Path, PathBuf};
-
-use klappe_services::{ObjectGrip, PlanEdit, Point, Session, Snapping, Source};
 
 fn open(points: &[(f64, f64)]) -> Session {
     let dir: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
@@ -97,5 +96,57 @@ fn a_corner_grip_still_catches_beside_the_form() {
     assert_eq!(
         s.pick_for(Point::new(3.8, 4.85), Some(&selected)),
         Some(point(&s, 0))
+    );
+}
+
+fn example() -> Session {
+    let dir: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+
+    Session::open(&dir).unwrap()
+}
+
+/// The note `n1` of the example set, 2.4 m wide: just inside its card, 0.2 m from the width
+/// grip, a click takes the card; on the grip it takes the grip.
+#[test]
+fn a_note_is_clicked_inside_beside_its_grip() {
+    let s = example();
+    let note = Source::Note("n1".into());
+    let grip = s
+        .display_list_for(Some(&note))
+        .items
+        .iter()
+        .find_map(|i| match (&i.role, &i.shape) {
+            (Role::NoteHandle, Shape::Circle { center, .. }) => Some(*center),
+            _ => None,
+        })
+        .unwrap();
+
+    assert_eq!(
+        s.pick_for(Point::new(grip.x_m - 0.2, grip.y_m), Some(&note)),
+        Some(note)
+    );
+    assert_eq!(
+        s.pick_for(grip, Some(&Source::Note("n1".into()))),
+        Some(Source::NoteWidth("n1".into()))
+    );
+}
+
+/// The arrow `d1` from (6, 10) to (6, 7.5): a click on its stroke 0.15 m short of the end
+/// takes the drawing, one 0.3 m beyond the end still takes the end point.
+#[test]
+fn a_drawing_is_clicked_on_its_stroke_beside_its_grip() {
+    let s = example();
+    let arrow = Source::Drawing("d1".into());
+
+    assert_eq!(
+        s.pick_click(Point::new(6.0, 7.65), Some(&arrow)),
+        Some(arrow.clone())
+    );
+    assert_eq!(
+        s.pick_for(Point::new(6.0, 7.2), Some(&arrow)),
+        Some(Source::DrawingPoint {
+            drawing: "d1".into(),
+            index: 1
+        })
     );
 }
