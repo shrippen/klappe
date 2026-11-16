@@ -67,6 +67,7 @@ fn owner_of(grip: &Source) -> Option<Source> {
             Some(Source::Drawing(drawing.clone()))
         }
         Source::NoteWidth(id) => Some(Source::Note(id.clone())),
+        Source::ImageSize(id) => Some(Source::Image(id.clone())),
         _ => None,
     }
 }

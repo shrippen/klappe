@@ -19,6 +19,7 @@ mod drawings;
 mod grid;
 mod group;
 mod heights;
+mod images;
 mod marks;
 mod moving;
 mod openings;
@@ -37,6 +38,7 @@ use drawings::set_drawing_style;
 pub(crate) use grid::snap;
 pub use grid::Grid;
 use heights::edit_height;
+use images::add_image;
 pub(crate) use marks::{check_tripods, mark_info};
 use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_pose, set_rig};
 pub use marks::{MarkInfo, Pace};
@@ -91,7 +93,7 @@ pub enum PlanEdit {
     RemoveGroup {
         sources: Vec<Source>,
     },
-    /// Copies the group, set down by a distance. Objects, lamps, notes, drawings, walls and
+    /// Copies the group, set down by a distance. Objects, lamps, notes, images, drawings, walls and
     /// cameras have copies; a figure, a mark or a grip has none and is left out. An error when
     /// nothing is left to copy.
     Duplicate {
@@ -208,6 +210,13 @@ pub enum PlanEdit {
     AddNote {
         at: Point,
         text: String,
+    },
+    /// Takes the image file `source` (PNG or JPEG) into the project's `bilder/` and places it,
+    /// centred on `at`, as a photo or sketch (LH-18), `IMAGE_WIDTH_M` wide. Undo takes the
+    /// image back out of the model; the copy stays in `bilder/`, it is the user's file.
+    AddImage {
+        source: PathBuf,
+        at: Point,
     },
     /// Changes the text of the note `id`.
     EditNote {
@@ -377,7 +386,9 @@ impl PlanEdit {
             | PlanEdit::SetLens { .. }
             | PlanEdit::SetAspect { .. } => Layer::Cameras,
             PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => Layer::Lights,
-            PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } => Layer::Notes,
+            PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } | PlanEdit::AddImage { .. } => {
+                Layer::Notes
+            }
             PlanEdit::AddDrawing { .. } => Layer::Drawings,
             PlanEdit::AddObject { .. }
             | PlanEdit::AddShape { .. }
@@ -401,7 +412,7 @@ pub(crate) fn layer_of_source(source: &Source) -> Layer {
         Source::Light(_) => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
-        Source::Note(_) => Layer::Notes,
+        Source::Note(_) | Source::Image(_) => Layer::Notes,
         Source::Drawing(_) => Layer::Drawings,
         // A grip is on the layer of the element it belongs to.
         grip => grip.owner().as_ref().map_or(Layer::Set, layer_of_source),
@@ -524,6 +535,7 @@ pub(crate) fn apply(
             fill,
         } => set_drawing_style(&mut scope, source, (*color, *dash, *fill)),
         PlanEdit::EditNote { id, text } => edit_note(&mut scope, id, text),
+        PlanEdit::AddImage { source, at } => add_image(&mut scope, dir, source, *at),
         PlanEdit::SetBackground { source } => set_background(&mut scope, dir, source),
         PlanEdit::Calibrate {
             from,

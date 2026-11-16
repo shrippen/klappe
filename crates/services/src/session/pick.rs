@@ -32,7 +32,14 @@ impl Session {
             .background
             .as_ref()
             .and_then(|b| self.image_size(&b.file));
-        let mut list = render(project, &location.set, plan, self.time_s, background_px);
+        let mut list = render(
+            project,
+            &location.set,
+            plan,
+            self.time_s,
+            background_px,
+            &|file| self.image_size(file),
+        );
         if let Some(selected) = selected {
             list.items
                 .extend(handles(project, &location.set, plan, selected));
@@ -94,7 +101,10 @@ impl Session {
         let mut next = self.project.clone();
         let at = (self.scene, self.plan);
         // Copying a file is no preview: the list stays as it is until the edit is made.
-        if matches!(edit, PlanEdit::SetBackground { .. }) {
+        if matches!(
+            edit,
+            PlanEdit::SetBackground { .. } | PlanEdit::AddImage { .. }
+        ) {
             return Ok(self.display_list_for(selected));
         }
         plan_edit::apply(

@@ -456,6 +456,10 @@ pub enum Hint {
     Note {
         text: String,
     },
+    /// A photo or sketch (LH-18): the name of its file.
+    Image {
+        file: String,
+    },
     /// A drawing, for the card that changes its style (LH-19).
     Drawing {
         color: FigureColor,

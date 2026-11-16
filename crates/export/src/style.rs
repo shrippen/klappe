@@ -35,6 +35,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         Role::Mark(c) => Some(("mark", c)),
         Role::Figure(c) => Some(("figure", c)),
         Role::Background
+        | Role::Picture
         | Role::FigureHandle(_)
         | Role::CameraHandle
         | Role::Handle
@@ -71,7 +72,8 @@ fn plain_class(role: Role) -> Option<&'static str> {
         Role::Note => Some("note"),
         Role::Axis => Some("axis"),
         Role::GroupDot => Some("group-dot"),
-        Role::Height { .. }
+        Role::Picture
+        | Role::Height { .. }
         | Role::Drawing { .. }
         | Role::ArrowHead(_)
         | Role::FigurePath(_)
@@ -83,6 +85,9 @@ fn plain_class(role: Role) -> Option<&'static str> {
 fn class_of(role: Role) -> String {
     if let Some((name, c)) = coloured_class(role) {
         return format!("{name} {}", c.name());
+    }
+    if role == Role::Picture {
+        return "picture".into();
     }
 
     plain_class(role).unwrap_or_default().into()
@@ -107,6 +112,7 @@ fn width_pt(role: Role) -> Option<f64> {
         | Role::LightBeam
         | Role::Light
         | Role::Note
+        | Role::Picture
         | Role::Frustum
         | Role::Camera
         | Role::Figure(_)
@@ -119,6 +125,7 @@ fn tint_opacity(role: Role) -> f64 {
         Role::Mark(_) => MARK_OPACITY,
         Role::Drawing { .. } => DRAWING_OPACITY,
         Role::Background
+        | Role::Picture
         | Role::Wall
         | Role::Door
         | Role::Window
@@ -268,6 +275,11 @@ mod tests {
 
         Ok(vec![
             (Role::Background, "background".into(), (None, None)),
+            (
+                Role::Picture,
+                "picture".into(),
+                (None, line(pal.muted, 0.75, Dash::Solid)),
+            ),
             (Role::FigureHandle(red), "handle".into(), (None, None)),
             (Role::CameraHandle, "handle".into(), (None, None)),
             (Role::Handle, "handle".into(), (None, None)),

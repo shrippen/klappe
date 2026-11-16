@@ -207,7 +207,7 @@ fn frame_prim(frame: Rect, pal: &Palette) -> Prim {
     }
 }
 
-/// The background image, from the bytes the caller handed in for its file. An image that is
+/// The background image or a placed one, from the bytes the caller handed in for its file. An image that is
 /// not there is an error, not a gap in the printout: the caller read what the list names.
 fn image_prim(
     item: &Item,
@@ -237,8 +237,14 @@ fn image_prim(
         return Ok(());
     }
 
+    let class = if item.role == Role::Picture {
+        "picture"
+    } else {
+        "background"
+    };
+
     out.push(Prim::Image {
-        class: "background".into(),
+        class: class.into(),
         at: map.pt(*at),
         width_pt: width_m * map.scale,
         height_pt: depth_m * map.scale,

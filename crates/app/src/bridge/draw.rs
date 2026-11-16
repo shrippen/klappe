@@ -281,6 +281,9 @@ impl qobject::Controller {
             let picked = s.pick(Point::new(x, y));
             return self.ask_note(NoteDraft::click(at, picked.as_ref()));
         }
+        if tool == Tool::Image {
+            return self.ask_image();
+        }
         if tool == Tool::Area || tool == Tool::FreeForm {
             return self.click_area(at);
         }

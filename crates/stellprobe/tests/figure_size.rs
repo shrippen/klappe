@@ -46,7 +46,7 @@ fn list(size_m: Option<f64>, group: Option<u32>) -> DisplayList {
         ..Default::default()
     };
 
-    render(&project, &set, &plan, 0.0, None)
+    render(&project, &set, &plan, 0.0, None, &|_| None)
 }
 
 fn body(list: &DisplayList) -> Option<&Item> {

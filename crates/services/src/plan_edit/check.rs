@@ -19,7 +19,8 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::AddLight { at, .. }
         | PlanEdit::AddObject { at, .. }
         | PlanEdit::AddOpening { at, .. }
-        | PlanEdit::AddNote { at, .. } => check_point(*at),
+        | PlanEdit::AddNote { at, .. }
+        | PlanEdit::AddImage { at, .. } => check_point(*at),
         PlanEdit::Shift { dx_m, dy_m, .. }
         | PlanEdit::ShiftGroup { dx_m, dy_m, .. }
         | PlanEdit::Duplicate { dx_m, dy_m, .. } => check_point(Point::new(*dx_m, *dy_m)),

@@ -111,7 +111,7 @@ fn plan() -> FloorPlan {
 }
 
 fn list() -> DisplayList {
-    render(&project(), &set(), &plan(), 0.0, None)
+    render(&project(), &set(), &plan(), 0.0, None, &|_| None)
 }
 
 fn german() -> Texts {
@@ -330,7 +330,7 @@ fn a_figure_that_left_is_not_printed() {
     let mut p = plan();
     p.figures[0].marks[0].departure = Departure::Leave;
     let at = |t_s| {
-        let list = render(&project(), &set(), &p, t_s, None);
+        let list = render(&project(), &set(), &p, t_s, None, &|_| None);
         svg(&list, &page(), Theme::Light).unwrap()
     };
     let figures = |out: &str| lines_with(out, "item figure purple").len();
@@ -364,7 +364,7 @@ fn notes_are_printed_with_their_text() {
             width_m: 2.4,
         },
     ];
-    let list = render(&project(), &room, &plan(), 0.0, None);
+    let list = render(&project(), &room, &plan(), 0.0, None, &|_| None);
 
     let out = svg(&list, &page(), Theme::Light).unwrap();
     let bytes = pdf(&list, &page(), Theme::Light).unwrap();
@@ -382,7 +382,7 @@ fn notes_are_printed_with_their_text() {
 fn a_group_is_printed_with_its_count() {
     let mut who = project();
     who.characters[0].group = Some(12);
-    let grouped = render(&who, &set(), &plan(), 0.0, None);
+    let grouped = render(&who, &set(), &plan(), 0.0, None, &|_| None);
 
     let out = svg(&grouped, &page(), Theme::Light).unwrap();
 
@@ -412,7 +412,7 @@ fn a_mark_number_clears_a_group() {
     let mut who = project();
     who.characters[0].group = Some(12);
     let out = svg(
-        &render(&who, &set(), &plan(), 0.0, None),
+        &render(&who, &set(), &plan(), 0.0, None, &|_| None),
         &page(),
         Theme::Light,
     )
@@ -460,8 +460,8 @@ fn drawings_are_printed() {
             Fill::Filled,
         ),
     ];
-    let bare = render(&project(), &set(), &plan(), 0.0, None);
-    let list = render(&project(), &set(), &with, 0.0, None);
+    let bare = render(&project(), &set(), &plan(), 0.0, None, &|_| None);
+    let list = render(&project(), &set(), &with, 0.0, None, &|_| None);
 
     let out = svg(&list, &page(), Theme::Light).unwrap();
     let pdf_bytes = pdf(&list, &page(), Theme::Light).unwrap();
@@ -712,7 +712,7 @@ fn mark_number_clears_the_figure() {
             let mut plan = plan();
             plan.figures.truncate(1);
             plan.figures[0].marks = vec![mark(0.0, width_m / 2.0, depth_m / 2.0)];
-            let list = render(&project(), &room, &plan, 0.0, None);
+            let list = render(&project(), &room, &plan, 0.0, None, &|_| None);
             let page = Page::new(paper, Orientation::Landscape, TITLE, german());
             let out = svg(&list, &page, Theme::Light).unwrap();
 

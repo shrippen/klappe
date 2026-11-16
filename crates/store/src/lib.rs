@@ -26,9 +26,10 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    is_figure_size_m, is_floor_offset_m, is_object_height_m, is_opening_width_m, is_outline,
-    Character, Location, ObjectShape, Opening, PaperSetup, Project, Scene, FORMAT_VERSION,
-    MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP, NOTE_MIN_WIDTH_M,
+    is_figure_size_m, is_floor_offset_m, is_object_height_m, is_object_size_m, is_opening_width_m,
+    is_outline, Character, Location, ObjectShape, Opening, PaperSetup, Project, Scene,
+    FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MAX_OBJECT_M, MIN_FIGURE_M, MIN_GROUP, MIN_OBJECT_M,
+    NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
@@ -379,6 +380,7 @@ fn check_sets(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     check_openings(path, locations)?;
     check_outlines(path, locations)?;
     check_notes(path, locations)?;
+    check_images(path, locations)?;
 
     check_heights(path, locations)
 }
@@ -397,6 +399,28 @@ fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
                 message: format!(
                     "{}: note {} is {} m wide, not a finite width of at least {NOTE_MIN_WIDTH_M} m",
                     location.id, note.id, note.width_m
+                ),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+/// An image (LH-18) has a width a drag of its grip allows and the plan can draw: finite, within
+/// the object limits.
+fn check_images(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
+    for location in locations {
+        for image in &location.set.images {
+            if is_object_size_m(image.width_m) {
+                continue;
+            }
+
+            return Err(StoreError::Parse {
+                path: path.to_path_buf(),
+                message: format!(
+                    "{}: image {} is {} m wide, not a width between {MIN_OBJECT_M} m and {MAX_OBJECT_M} m",
+                    location.id, image.id, image.width_m
                 ),
             });
         }

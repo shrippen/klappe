@@ -168,6 +168,9 @@ pub struct SetPlan {
     /// Free text on the plan, e.g. `Vorhang schließen` (LH-16).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<Note>,
+    /// Photos and sketches placed freely on the plan (LH-18).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub images: Vec<PlanImage>,
 }
 
 impl Default for SetPlan {
@@ -180,6 +183,7 @@ impl Default for SetPlan {
             objects: Vec::new(),
             background: None,
             notes: Vec::new(),
+            images: Vec::new(),
         }
     }
 }
@@ -234,6 +238,33 @@ pub struct Background {
     pub rotation_deg: f64,
     /// 0 = invisible, 1 = opaque.
     pub opacity: f64,
+}
+
+/// A photo or sketch placed on the plan (LH-18). The height follows from the image's aspect
+/// ratio, which the model does not know: whoever needs it reads the pixel size of `file`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlanImage {
+    /// Stable id within the set, e.g. `i1`.
+    pub id: String,
+    /// Relative to the project folder, e.g. `bilder/skizze.png`.
+    pub file: String,
+    /// The image's centre on the plan.
+    pub at: Point,
+    pub width_m: f64,
+    /// Clockwise on screen about `at`.
+    #[serde(default, skip_serializing_if = "crate::plan::is_zero")]
+    pub rotation_deg: f64,
+}
+
+/// The width of a new image: a sketch the size of a small table.
+pub const IMAGE_WIDTH_M: f64 = 2.0;
+
+impl PlanImage {
+    /// The point `(x_m, y_m)` of the image's own frame (origin at its centre, unturned) where
+    /// it lies on the plan: turned by `rotation_deg` about the centre.
+    pub fn placed(&self, x_m: f64, y_m: f64) -> Point {
+        Point::new(self.at.x_m + x_m, self.at.y_m + y_m).turned(self.at, self.rotation_deg)
+    }
 }
 
 /// A wall segment (LH-10) with the doors and windows cut into it.

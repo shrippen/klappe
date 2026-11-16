@@ -1,4 +1,5 @@
-//! Notes: asking for a note's text and committing it.
+//! Notes and images, which share the notes layer: asking for a note's text and committing
+//! it; placing an image the dialog picked.
 
 use super::q;
 use super::qobject;
@@ -8,7 +9,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
-use klappe_services::{Layer, Source};
+use klappe_services::{Layer, Point, Source};
 
 impl qobject::Controller {
     pub(super) fn commit_note(mut self: Pin<&mut Self>, text: &QString) -> bool {
@@ -40,13 +41,43 @@ impl qobject::Controller {
         self.ask_note(NoteDraft::Edit(id))
     }
 
+    /// Whether the notes layer takes something new; when it is locked, the status line says so.
+    fn notes_open(mut self: Pin<&mut Self>) -> bool {
+        let language = self.rust().language;
+        let lock = self.rust().session.as_ref().map(|s| s.lock(Layer::Notes));
+        let Some(Err(e)) = lock.map(tools::note_open) else {
+            return true;
+        };
+
+        self.as_mut().say(error_text(language, &e));
+        false
+    }
+
+    /// A click of the image tool: true when the file dialog may open, false (with the reason in
+    /// the status line) while the notes layer is locked, or the picked file would be lost.
+    pub(super) fn ask_image(self: Pin<&mut Self>) -> bool {
+        self.notes_open()
+    }
+
+    /// Places the image file `file` (a path or a `file://` URL) centred at (`x`, `y`), snapped.
+    pub(super) fn add_image(mut self: Pin<&mut Self>, file: &QString, x: f64, y: f64) -> bool {
+        let Some(at) = self
+            .rust()
+            .session
+            .as_ref()
+            .map(|s| s.snap(Point::new(x, y)))
+        else {
+            return false;
+        };
+
+        self.as_mut()
+            .commit_edit(tools::image_edit(&file.to_string(), at))
+    }
+
     /// Starts asking for a note's text: empty for a new note, the note's own for an edit.
     /// False when the note to edit is gone.
     pub(super) fn ask_note(mut self: Pin<&mut Self>, draft: NoteDraft) -> bool {
-        let language = self.rust().language;
-        let lock = self.rust().session.as_ref().map(|s| s.lock(Layer::Notes));
-        if let Some(Err(e)) = lock.map(tools::note_open) {
-            self.as_mut().say(error_text(language, &e));
+        if !self.as_mut().notes_open() {
             return false;
         }
 

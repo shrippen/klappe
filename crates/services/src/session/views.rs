@@ -348,6 +348,16 @@ impl Session {
         }
     }
 
+    /// The tooltip of image `id`; `None` for an unknown image.
+    pub fn image_hint(&self, id: &str) -> Option<Hint> {
+        let set = &self.scene_location()?.set;
+        let image = set.images.iter().find(|i| i.id == id)?;
+
+        Some(Hint::Image {
+            file: image.file.clone(),
+        })
+    }
+
     /// Name, 1-based index and time of a figure's mark.
     fn figure_facts(&self, id: &str, index: Option<usize>) -> (String, Option<usize>, Option<f64>) {
         let name = self

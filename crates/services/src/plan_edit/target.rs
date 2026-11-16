@@ -1,6 +1,6 @@
 //! Drag targets: what a `Source` names, as the part of the plan a drag changes.
 
-use klappe_model::{Drawing, Light, Note, Point, SetObject, Wall};
+use klappe_model::{Drawing, Light, Note, PlanImage, Point, SetObject, Wall};
 use klappe_stellprobe::{Bend, LightGrip, ObjectGrip, OpeningEnd, Source};
 
 use super::openings::opening_mut;
@@ -38,6 +38,8 @@ pub(super) enum Target<'a> {
     },
     /// A grip on the right edge of a note's card: moving it sets the card's width.
     NoteEdge(&'a mut Note),
+    /// A grip outside the right edge of an image: moving it sets the image's width.
+    ImageEdge(&'a mut PlanImage),
     /// A grip outside the right or bottom edge of an object: moving it sets its width or depth.
     ObjectEdge {
         object: &'a mut SetObject,
@@ -139,6 +141,7 @@ pub(super) fn target<'a>(
         }
         Source::Opening { .. } | Source::OpeningEdge { .. } => opening_target(scope, source),
         Source::Note(_) | Source::NoteWidth(_) => note_target(scope, source),
+        Source::Image(_) | Source::ImageSize(_) => image_target(scope, source),
         Source::Drawing(id) => scope
             .plan
             .drawings
@@ -201,6 +204,26 @@ fn note_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'
     match source {
         Source::NoteWidth(_) => Ok(Target::NoteEdge(note)),
         _ => Ok(Target::Pin { at: &mut note.at }),
+    }
+}
+
+/// An image, or the grip outside its right edge.
+fn image_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, ServiceError> {
+    let (Source::Image(id) | Source::ImageSize(id)) = source else {
+        return Err(ServiceError::Gone);
+    };
+    let image = scope
+        .set
+        .as_deref_mut()
+        .and_then(|s| s.images.iter_mut().find(|i| i.id == *id))
+        .ok_or(ServiceError::Gone)?;
+
+    match source {
+        Source::ImageSize(_) => Ok(Target::ImageEdge(image)),
+        _ => Ok(Target::Place {
+            at: &mut image.at,
+            facing_deg: &mut image.rotation_deg,
+        }),
     }
 }
 

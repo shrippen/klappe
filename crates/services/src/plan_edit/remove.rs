@@ -3,6 +3,7 @@
 use klappe_model::{FloorPlan, LinkTarget};
 use klappe_stellprobe::{Bend, Source};
 
+use super::images;
 use super::moving::forms::remove_grip;
 use super::openings::opening_mut;
 use super::target::{target, Target};
@@ -78,6 +79,7 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
             set.notes.remove(index);
             Ok(())
         }
+        Source::Image(id) => images::remove_image(scope, id),
         Source::Drawing(id) => {
             let index = scope.plan.drawings.iter().position(|d| d.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;

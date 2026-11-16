@@ -19,13 +19,15 @@ pub enum ElementKind {
     OpeningEdge,
     Note,
     NoteWidth,
+    Image,
+    ImageSize,
     Drawing,
     DrawingPoint,
     DrawingEdge,
 }
 
 impl ElementKind {
-    const ALL: [ElementKind; 17] = [
+    const ALL: [ElementKind; 19] = [
         Self::Object,
         Self::ObjectGrip,
         Self::Light,
@@ -40,6 +42,8 @@ impl ElementKind {
         Self::OpeningEdge,
         Self::Note,
         Self::NoteWidth,
+        Self::Image,
+        Self::ImageSize,
         Self::Drawing,
         Self::DrawingPoint,
         Self::DrawingEdge,
@@ -61,6 +65,8 @@ impl ElementKind {
             Self::OpeningEdge => "openingedge",
             Self::Note => "note",
             Self::NoteWidth => "notewidth",
+            Self::Image => "image",
+            Self::ImageSize => "imagesize",
             Self::Drawing => "drawing",
             Self::DrawingPoint => "drawingpoint",
             Self::DrawingEdge => "drawingedge",
@@ -112,6 +118,8 @@ pub fn key(source: &Source) -> String {
         ),
         Source::Note(id) => (ElementKind::Note, id.clone()),
         Source::NoteWidth(id) => (ElementKind::NoteWidth, id.clone()),
+        Source::Image(id) => (ElementKind::Image, id.clone()),
+        Source::ImageSize(id) => (ElementKind::ImageSize, id.clone()),
         Source::Drawing(id) => (ElementKind::Drawing, id.clone()),
         Source::DrawingPoint { drawing, index } => {
             (ElementKind::DrawingPoint, format!("{drawing}:{index}"))
@@ -239,6 +247,19 @@ mod tests {
         Source::NoteWidth("n".into())
     }
 
+    #[test]
+    fn an_image_and_its_grip_read_back() {
+        for (source, kind) in [
+            (Source::Image("i".into()), ElementKind::Image),
+            (Source::ImageSize("i".into()), ElementKind::ImageSize),
+        ] {
+            let text = key(&source);
+            let parsed = parse_key(&text);
+
+            assert_eq!(parsed.map(|p| (p.kind, p.id)), Some((kind, "i")));
+        }
+    }
+
     /// Every kind of element reads back from the key it is written as.
     #[test]
     fn every_key_reads_back() {
@@ -303,7 +324,8 @@ mod tests {
                 Some(1),
             ),
         ];
-        assert_eq!(sources.len(), ElementKind::ALL.len());
+        // Image and its grip read back in their own test (this table is at its length limit).
+        assert_eq!(sources.len() + 2, ElementKind::ALL.len());
 
         for (source, kind, id, index) in sources {
             let text = key(&source);
