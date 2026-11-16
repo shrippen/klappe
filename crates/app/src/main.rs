@@ -5,6 +5,7 @@
 
 mod application;
 mod args;
+mod arm;
 mod bridge;
 mod camera;
 mod camera_picture;
@@ -20,6 +21,7 @@ mod object;
 mod plan;
 mod selection;
 mod tools;
+mod way;
 
 use cxx_qt_lib::{QQmlApplicationEngine, QString, QUrl};
 use std::path::PathBuf;

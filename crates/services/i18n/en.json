@@ -666,5 +666,17 @@
  "export.pick.camera": "Save camera view",
  "export.filter.view3d": "PNG (*.png)",
  "export.filter.camera": "PNG (*.png)",
- "error.noPicture": "There is no picture: the 3D view was not open yet, or the camera has no marks."
+ "error.noPicture": "There is no picture: the 3D view was not open yet, or the camera has no marks.",
+ "arm.nextMark": "Set next mark",
+ "arm.markBefore": "Set mark before",
+ "arm.axisTo": "Axis to …",
+ "arm.hint.nextMark": "Click the plan to set the next mark. Esc cancels.",
+ "arm.hint.markBefore": "Click the plan to set a mark before the first one. Esc cancels.",
+ "arm.hint.axisTo": "Click the second figure to set the axis. Esc cancels.",
+ "way.smooth": "Smooth way",
+ "way.straight": "Straight way",
+ "curve.smooth": "Smooth",
+ "curve.straight": "Straight",
+ "mark.curve": "Way",
+ "mark.curveTip": "Smooth: a curve through the bends. Straight: lines from bend to bend, with corners"
 }

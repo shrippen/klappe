@@ -6,7 +6,7 @@ use klappe_model::{
 };
 use klappe_stellprobe::{walked_ways, way_length_m, Source};
 
-use super::{bad_mark, current_index, figure_mark, Scope};
+use super::{bad_mark, current_index, figure_mark, set_camera_aim, PlanEdit, Scope};
 use crate::error::ServiceError;
 use crate::field::Field;
 
@@ -85,11 +85,26 @@ const RUN_SPEED_M_S: f64 = 4.0;
 const MIN_SPEED_M_S: f64 = 0.1;
 const MAX_SPEED_M_S: f64 = 15.0;
 
-pub(super) fn set_pose(
-    scope: &mut Scope<'_>,
-    source: &Source,
-    pose: Pose,
-) -> Result<(), ServiceError> {
+/// The edits of one field of a mark: pose, arrival, departure, pause, aim, rig, lens, pace.
+pub(super) fn edit_field(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::SetPose { source, pose } => set_pose(scope, source, *pose),
+        PlanEdit::SetArrival { source, arrival } => set_arrival(scope, source, *arrival),
+        PlanEdit::SetDeparture { source, departure } => set_departure(scope, source, *departure),
+        PlanEdit::SetHold { source, hold_s } => set_hold(scope, source, *hold_s),
+        PlanEdit::SetRig { source, rig } => set_rig(scope, source, *rig),
+        PlanEdit::SetMarkLens { source, lens_mm } => set_mark_lens(scope, source, *lens_mm),
+        PlanEdit::SetPace { source, pace } => set_pace(scope, source, *pace),
+        PlanEdit::SetCameraAim {
+            source,
+            height_m,
+            tilt_deg,
+        } => set_camera_aim(scope, source, (*height_m, *tilt_deg)),
+        _ => Ok(()),
+    }
+}
+
+fn set_pose(scope: &mut Scope<'_>, source: &Source, pose: Pose) -> Result<(), ServiceError> {
     let (character, index) =
         figure_mark(scope, source).ok_or_else(|| bad_mark(Field::Source, ""))?;
     let mark = scope
@@ -105,7 +120,7 @@ pub(super) fn set_pose(
     Ok(())
 }
 
-pub(super) fn set_arrival(
+fn set_arrival(
     scope: &mut Scope<'_>,
     source: &Source,
     arrival: Arrival,
@@ -115,7 +130,7 @@ pub(super) fn set_arrival(
     Ok(())
 }
 
-pub(super) fn set_departure(
+fn set_departure(
     scope: &mut Scope<'_>,
     source: &Source,
     departure: Departure,
@@ -211,11 +226,7 @@ fn timing<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Timing<'a>, S
     Ok(Timing { marks, index })
 }
 
-pub(super) fn set_hold(
-    scope: &mut Scope<'_>,
-    source: &Source,
-    hold_s: f64,
-) -> Result<(), ServiceError> {
+fn set_hold(scope: &mut Scope<'_>, source: &Source, hold_s: f64) -> Result<(), ServiceError> {
     let mut timing = timing(scope, source)?;
     let index = timing.index;
     let delta_s = hold_s - *timing.marks[index].1;
@@ -248,17 +259,13 @@ fn camera_mark_mut<'a>(
         .ok_or(ServiceError::Gone)
 }
 
-pub(super) fn set_rig(
-    scope: &mut Scope<'_>,
-    source: &Source,
-    rig: Rig,
-) -> Result<(), ServiceError> {
+fn set_rig(scope: &mut Scope<'_>, source: &Source, rig: Rig) -> Result<(), ServiceError> {
     camera_mark_mut(scope, source)?.rig = rig;
 
     Ok(())
 }
 
-pub(super) fn set_mark_lens(
+fn set_mark_lens(
     scope: &mut Scope<'_>,
     source: &Source,
     lens_mm: Option<f64>,
@@ -296,11 +303,7 @@ pub(crate) fn check_tripods(before: &FloorPlan, after: &FloorPlan) -> Result<(),
     }
 }
 
-pub(super) fn set_pace(
-    scope: &mut Scope<'_>,
-    source: &Source,
-    pace: Pace,
-) -> Result<(), ServiceError> {
+fn set_pace(scope: &mut Scope<'_>, source: &Source, pace: Pace) -> Result<(), ServiceError> {
     let speed_m_s = pace.speed_m_s();
     if !(MIN_SPEED_M_S..=MAX_SPEED_M_S).contains(&speed_m_s) {
         return Err(bad_mark(Field::Pace, &speed_m_s.to_string()));
@@ -375,6 +378,30 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
             })
         }
         _ => None,
+    }
+}
+
+/// The shape of the way `source` names: a mark, a figure or a camera (its mark at the
+/// playhead) or a grip on the way (LH-108); `None` for anything else and for a first mark.
+pub(crate) fn way_curve(plan: &FloorPlan, time_s: f64, source: &Source) -> Option<Curve> {
+    let at = |marks: Vec<Curve>, index: usize| marks.get(index).copied().filter(|_| index > 0);
+
+    match source {
+        Source::FigureVia {
+            character, index, ..
+        } => at(
+            plan.figure(character)?
+                .marks
+                .iter()
+                .map(|m| m.curve)
+                .collect(),
+            *index,
+        ),
+        Source::CameraVia { camera, index, .. } => at(
+            plan.camera(camera)?.marks.iter().map(|m| m.curve).collect(),
+            *index,
+        ),
+        _ => mark_info(plan, time_s, source)?.curve,
     }
 }
 

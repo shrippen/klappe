@@ -5,6 +5,7 @@ use cxx_qt_lib::QString;
 use klappe_services::Session;
 
 use super::free;
+use crate::arm::Armed;
 use crate::catalog::Language;
 use crate::notice::Status;
 use crate::plan::Sweep;
@@ -71,6 +72,9 @@ pub struct ControllerRust {
     pub(super) note: NoteDraft,
     pub(super) asks_note: bool,
     pub(super) note_text: QString,
+    /// What the next click on the plan does for the selection, and its name for QML.
+    pub(super) arm: Armed,
+    pub(super) armed: QString,
     /// What the plan on screen shows: a drag preview or the project.
     pub(super) preview: Preview,
     /// The last step of the drag in progress (`from_x, from_y, x, y`), shown again as time moves.

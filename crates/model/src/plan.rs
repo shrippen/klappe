@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::curve::Curve;
 use crate::geometry::Point;
 use crate::project::FigureColor;
 use crate::shot::Shot;
@@ -259,7 +260,7 @@ pub struct Mark {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub via: Vec<Point>,
     /// Whether the way through `via` is a smooth curve or straight pieces (LH-108).
-    #[serde(default, skip_serializing_if = "Curve::is_smooth")]
+    #[serde(default, skip_serializing_if = "crate::curve::is_smooth")]
     pub curve: Curve,
     /// How the figure comes to this mark (LH-26).
     #[serde(default, skip_serializing_if = "Arrival::is_walk")]
@@ -267,39 +268,6 @@ pub struct Mark {
     /// Whether the figure is still there after the pause at this mark (LH-26).
     #[serde(default, skip_serializing_if = "Departure::is_stay")]
     pub departure: Departure,
-}
-
-/// The shape of a way through its bends (LH-108).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum Curve {
-    /// A smooth (Catmull-Rom) curve through the bends.
-    #[default]
-    Smooth,
-    /// Straight pieces from bend to bend, with corners: a rail, a corridor.
-    Straight,
-}
-
-impl Curve {
-    /// Every curve.
-    pub const ALL: [Curve; 2] = [Curve::Smooth, Curve::Straight];
-
-    /// The name the file format uses, e.g. `straight`; also the end of the text key.
-    pub fn name(self) -> &'static str {
-        match self {
-            Curve::Smooth => "smooth",
-            Curve::Straight => "straight",
-        }
-    }
-
-    /// The curve `name` names; `None` for any other text.
-    pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|c| c.name() == name)
-    }
-
-    fn is_smooth(&self) -> bool {
-        *self == Curve::Smooth
-    }
 }
 
 /// How a figure comes to a mark (LH-26).
@@ -431,7 +399,7 @@ pub struct CameraMark {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub via: Vec<Point>,
     /// Whether the way through `via` is a smooth curve or straight pieces (LH-108).
-    #[serde(default, skip_serializing_if = "Curve::is_smooth")]
+    #[serde(default, skip_serializing_if = "crate::curve::is_smooth")]
     pub curve: Curve,
     /// How the camera comes here from the previous mark (LH-33). Ignored on the first mark.
     #[serde(default, skip_serializing_if = "Rig::is_dolly")]
@@ -631,12 +599,6 @@ mod tests {
             assert_eq!(json, format!("\"{}\"", departure.name()));
             assert_eq!(Departure::from_name(departure.name()), Some(departure));
         }
-        for curve in Curve::ALL {
-            let json = serde_json::to_string(&curve).unwrap();
-            assert_eq!(json, format!("\"{}\"", curve.name()));
-            assert_eq!(Curve::from_name(curve.name()), Some(curve));
-        }
-        assert_eq!(Curve::from_name("wavy"), None);
         assert_eq!(Pose::from_name("flying"), None);
         assert_eq!(Arrival::from_name("fly"), None);
         assert_eq!(Departure::from_name("vanish"), None);

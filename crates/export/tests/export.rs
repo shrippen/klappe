@@ -1,6 +1,5 @@
 // Test helpers may unwrap; a failure should stop the test.
 #![allow(clippy::unwrap_used)]
-
 use klappe_export::{
     pdf, png, svg, ExportError, LampTexts, Orientation, Page, Paper, ShotTexts, Texts, Theme,
 };

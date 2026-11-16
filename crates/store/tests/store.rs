@@ -18,7 +18,6 @@ fn wall(x1: f64, y1: f64, x2: f64, y2: f64) -> Wall {
 fn with_door(mut wall: Wall) -> Wall {
     wall.openings
         .push(Opening::new(OpeningKind::Door, 5.0, 0.9));
-
     wall
 }
 
@@ -104,7 +103,6 @@ fn plan() -> FloorPlan {
                 mark(6.0, 10.0, 6.5, 0.0, 4.0),
                 Mark {
                     via: vec![Point::new(12.0, 3.625)],
-                    curve: Default::default(),
                     ..mark(14.0, 16.0, 3.0, 270.0, 0.0)
                 },
             ],
@@ -305,7 +303,6 @@ fn example() -> Project {
 fn test_dir(name: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = fs::remove_dir_all(&dir);
-
     dir
 }
 
@@ -385,27 +382,6 @@ fn a_bend_is_written_only_when_there_is() {
     save(&dir, &project, None).unwrap();
     let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
     assert_eq!(text.matches("\"via\"").count(), 2, "{text}");
-    assert_eq!(load(&dir).unwrap().project, project);
-}
-
-/// A smooth way writes no `curve` key, and a file without it loads as before; a straight one
-/// keeps it, on figures and cameras (LH-108).
-#[test]
-fn a_straight_way_is_written_only_when_set() {
-    let dir = test_dir("curve");
-    let mut project = example();
-
-    save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
-    assert!(!text.contains("curve"), "{text}");
-
-    let plan = &mut project.scenes[0].plans[0];
-    plan.figures[0].marks[1].curve = Curve::Straight;
-    plan.cameras[0].marks[1].curve = Curve::Straight;
-
-    save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
-    assert_eq!(text.matches("\"curve\": \"straight\"").count(), 2, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
 

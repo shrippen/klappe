@@ -39,8 +39,8 @@ pub(crate) use grid::snap;
 pub use grid::Grid;
 use heights::edit_height;
 use images::edit_image;
-pub(crate) use marks::{check_tripods, mark_info};
-use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_pose, set_rig};
+use marks::edit_field;
+pub(crate) use marks::{check_tripods, mark_info, way_curve};
 pub use marks::{MarkInfo, Pace};
 use moving::{
     anchor_pair, carry_cameras, edit_way, move_to, points_mut, rotate, shift, spin, turn,
@@ -603,23 +603,17 @@ pub(crate) fn apply(
         PlanEdit::SetAspect { camera, aspect } => {
             camera_edit::set_aspect(scope.plan, camera, *aspect)
         }
-        PlanEdit::SetPose { source, pose } => set_pose(&mut scope, source, *pose),
-        PlanEdit::SetArrival { source, arrival } => set_arrival(&mut scope, source, *arrival),
-        PlanEdit::SetDeparture { source, departure } => {
-            set_departure(&mut scope, source, *departure)
-        }
-        PlanEdit::SetHold { source, hold_s } => set_hold(&mut scope, source, *hold_s),
-        PlanEdit::SetCameraAim {
-            source,
-            height_m,
-            tilt_deg,
-        } => set_camera_aim(&mut scope, source, (*height_m, *tilt_deg)),
-        PlanEdit::SetRig { source, rig } => set_rig(&mut scope, source, *rig),
-        PlanEdit::SetMarkLens { source, lens_mm } => set_mark_lens(&mut scope, source, *lens_mm),
+        PlanEdit::SetPose { .. }
+        | PlanEdit::SetArrival { .. }
+        | PlanEdit::SetDeparture { .. }
+        | PlanEdit::SetHold { .. }
+        | PlanEdit::SetRig { .. }
+        | PlanEdit::SetMarkLens { .. }
+        | PlanEdit::SetPace { .. }
+        | PlanEdit::SetCameraAim { .. } => edit_field(&mut scope, edit),
         PlanEdit::SetObjectHeight { source, height_m } => {
             set_object_height(&mut scope, source, *height_m)
         }
-        PlanEdit::SetPace { source, pace } => set_pace(&mut scope, source, *pace),
     }
 }
 
