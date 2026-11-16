@@ -21,9 +21,11 @@ TestCase {
         property bool accept: true
 
         function clearStatus() { status = "" }
-        function renameRecent(path, title) { calls.push(["rename", path, title]); return accept }
-        function archiveRecent(path) { calls.push(["archive", path]); return accept }
-        function trashRecent(path) { calls.push(["trash", path]); return accept }
+        // A refusal says why, as the controller does; a success takes the message away.
+        function answer() { status = accept ? "" : "Fehler"; return accept }
+        function renameRecent(path, title) { calls.push(["rename", path, title]); return answer() }
+        function archiveRecent(path) { calls.push(["archive", path]); return answer() }
+        function trashRecent(path) { calls.push(["trash", path]); return answer() }
     }
 
     TestTexts { id: de; language: "de" }
@@ -350,7 +352,7 @@ TestCase {
         fake.recentJson = JSON.stringify(projects)
         fake.calls = []
         fake.accept = false
-        fake.status = "Fehler"
+        fake.status = ""
         const page = make()
         const menu = openMenuOn(page, 0)
 
@@ -360,7 +362,14 @@ TestCase {
         dialog.accept()
 
         tryVerify(() => dialog.opened)
+        const error = findChild(dialog, "error")
+        verify(error.visible)
+        compare(error.text, "Fehler")
+
         fake.accept = true
+        dialog.accept()
+        tryVerify(() => !dialog.opened)
+        verify(!findChild(page, "status").visible)
     }
 
     function test_trash_asks_first_and_then_calls_the_controller() {
