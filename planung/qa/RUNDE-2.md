@@ -46,7 +46,7 @@ alten Maße (Q2-05).
 | A-21 Tür 1,10 m, Fenster 20 cm schmaler | P5 | erreicht |
 | A-22 Tisch 2,40 × 1 m | P5 | erreicht (Felder geraten, Q2-03) |
 | A-23 freie Form, Ecke versetzen | P5 | Form erreicht; Ecke nicht prüfbar: der Stand der Runde ist vor #154 (Punkte ziehen) |
-| A-23, wiederholt auf f0eeed7 | P5 | erreicht (Ecke 40 px = etwa 0,5 m auf dem Raster nach außen; kein Maß beim Ziehen) |
+| A-23, wiederholt auf f0eeed7 | P5 | erreicht (Ecke etwa 0,5 m nach außen, geschätzt am Raster; kein Maß beim Ziehen) |
 | A-27 Knick in einer Seite (f0eeed7) | P5 | erreicht |
 | A-24 Notiz schmaler, zwei Zeilen | P5 | erreicht |
 
@@ -152,7 +152,7 @@ gehört zum noch gewählten Tisch.
 
 - P1: Neustart (gemerktes Papier), Inhalt der PDF, Schnappschuss, Vorlagen, Rückgängig.
 - P4: Inhalt der Tabellen (Dialog kam nicht), PNG, SVG, Speichern.
-- P5: Ausgabe, 3D, Messen, Neuöffnen, Rechtsklick (das Werkzeug hat keinen).
+- P5: Ausgabe, 3D, Neuöffnen, Rechtsklick (das Werkzeug hat keinen). Messen nur in der Wiederholung.
 
 ## Vorfälle (Testumgebung)
 
