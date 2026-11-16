@@ -50,10 +50,11 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
-                                    actFree, actWallCut, actThrough, actHeights, actMirror, actResetSize, actLabel, actUnbind, actScript, actShot, actTimeline, actCut, actShooting,
+                                    actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
-                                    actUndo, actRedo]
+                                    actNextMark, actMarkBefore, actAxisTo, actWaySmooth, actWayStraight,
+                                    actUndo, actRedo].concat(objectCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -430,61 +431,13 @@ RowLayout {
             }
         }
     }
-    // What is selected, for the commands of an object, an element to label and a bound note.
-    readonly property string selectedKey: controller.selectedKey || ""
-    readonly property bool objectSelected: header.selectedKey.indexOf("object:") === 0
-    // An object, a figure or a mark: not the grip of one (`objectgrip:`, `figurevia:`).
-    readonly property bool labellable: /^(object|figure|mark):/.test(header.selectedKey)
-    // A note bound to an element; every edit raises the picture revision.
-    readonly property bool noteBound: {
-        header.controller.pictureRevision
-        if (header.selectedKey.indexOf("note:") !== 0 || typeof header.controller.describe !== "function") {
-            return false
-        }
-        const info = header.controller.describe(header.selectedKey)
-        return info !== "" && JSON.parse(info).bound === true
-    }
-    // Mirror (Shift+M), reset size (Shift+G), label (Shift+L) and let a label go (Shift+U)
-    // (LH-115, LH-116, LH-118); the kind is changed from the palette ("kind:<kind>") or the card.
-    CommandAction {
-        id: actMirror
-        cmd: "object.mirror"
-        group: "edit"
-        text: header.texts.t("object.mirror")
-        shortcut: "Shift+M"
-        keys: header.keyName("Shift+M")
-        enabled: header.controller.loaded && !header.locked && header.objectSelected
-        onTriggered: header.controller.changeSelected("mirror", "")
-    }
-    CommandAction {
-        id: actResetSize
-        cmd: "object.resetSize"
-        group: "edit"
-        text: header.texts.t("object.resetSize")
-        shortcut: "Shift+G"
-        keys: header.keyName("Shift+G")
-        enabled: header.controller.loaded && !header.locked && header.objectSelected
-        onTriggered: header.controller.changeSelected("resetSize", "")
-    }
-    CommandAction {
-        id: actLabel
-        cmd: "object.label"
-        group: "edit"
-        text: header.texts.t("object.label")
-        shortcut: "Shift+L"
-        keys: header.keyName("Shift+L")
-        enabled: header.controller.loaded && !header.locked && header.labellable
-        onTriggered: header.controller.labelSelected()
-    }
-    CommandAction {
-        id: actUnbind
-        cmd: "note.unbind"
-        group: "edit"
-        text: header.texts.t("note.unbind")
-        shortcut: "Shift+U"
-        keys: header.keyName("Shift+U")
-        enabled: header.controller.loaded && !header.locked && header.noteBound
-        onTriggered: header.controller.changeSelected("unbind", "")
+    // The commands of an object and of a bound label (LH-114 to LH-116, LH-118).
+    ObjectCommands {
+        id: objectCommands
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        keyName: header.keyName
     }
 
     // The checkmark follows the controller, which also leaves 3D when another project opens.
@@ -630,6 +583,62 @@ RowLayout {
         onTriggered: header.controller.stepMark(1)
     }
 
+    // The selected figure or camera (LH-104, LH-105, LH-109): the key arms the next click on the
+    // plan, no tool is switched; the controller says what the click does and Escape cancels.
+    // The selected way (LH-108): its shape.
+    readonly property bool planSelected: controller.loaded && !locked && !!controller.selectedKey
+    readonly property string wayCurve: {
+        controller.pictureRevision
+        controller.selectedKey
+        return controller.wayCurve ? controller.wayCurve() : ""
+    }
+    CommandAction {
+        id: actNextMark
+        cmd: "plan.nextMark"
+        group: "edit"
+        text: header.texts.t("arm.nextMark")
+        shortcut: "Shift+F"
+        keys: header.keyName("Shift+F")
+        enabled: header.planSelected && header.controller.canArm("nextMark")
+        onTriggered: header.controller.arm("nextMark")
+    }
+    CommandAction {
+        id: actMarkBefore
+        cmd: "plan.markBefore"
+        group: "edit"
+        text: header.texts.t("arm.markBefore")
+        shortcut: "Shift+Z"
+        keys: header.keyName("Shift+Z")
+        enabled: header.planSelected && header.controller.canArm("markBefore")
+        onTriggered: header.controller.arm("markBefore")
+    }
+    CommandAction {
+        id: actAxisTo
+        cmd: "plan.axisTo"
+        group: "edit"
+        text: header.texts.t("arm.axisTo")
+        shortcut: "Shift+A"
+        keys: header.keyName("Shift+A")
+        enabled: header.planSelected && header.controller.canArm("axisTo")
+        onTriggered: header.controller.arm("axisTo")
+    }
+    CommandAction {
+        id: actWaySmooth
+        cmd: "plan.waySmooth"
+        group: "edit"
+        text: header.texts.t("way.smooth")
+        enabled: header.planSelected && header.wayCurve === "straight"
+        onTriggered: header.controller.setWayCurve("smooth")
+    }
+    CommandAction {
+        id: actWayStraight
+        cmd: "plan.wayStraight"
+        group: "edit"
+        text: header.texts.t("way.straight")
+        enabled: header.planSelected && header.wayCurve === "smooth"
+        onTriggered: header.controller.setWayCurve("straight")
+    }
+
     CommandAction {
         id: actUndo
         cmd: "edit.undo"
@@ -670,7 +679,7 @@ RowLayout {
 
     // What the palette lists: the modes, the tools, the actions, the scenes, the plans. Each is
     // listed with the key it has anywhere else.
-    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), kindCommands(),
+    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), objectCommands.kindCommands(),
                                               sceneCommands(), actionCommands(planMenu.actions), planCommands())
 
     function actionCommands(actions) {
@@ -706,19 +715,6 @@ RowLayout {
             group: texts.t("palette.group.tools"),
             keys: tools.keys[i],
             enabled: tools.enabled
-        }))
-    }
-
-    // One entry per library kind while an object is selected: change its kind (LH-114).
-    function kindCommands() {
-        if (!objectSelected || !controller.choicesJson) {
-            return []
-        }
-        return (JSON.parse(controller.choicesJson).object || []).map(o => ({
-            id: "kind:" + o.kind,
-            text: texts.t("object.kindTo", { name: o.custom ? (o.label || o.kind) : texts.t("objectKind." + o.kind) }),
-            group: texts.t("palette.group.edit"),
-            enabled: controller.loaded && !locked
         }))
     }
 

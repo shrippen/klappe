@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::curve::Curve;
 use crate::geometry::Point;
 use crate::project::{FigureColor, Note};
 use crate::shot::Shot;
@@ -28,9 +29,7 @@ pub struct FloorPlan {
     /// Lines, arrows and shapes drawn on the plan by hand (LH-19).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub drawings: Vec<Drawing>,
-    /// Labels of this plan's figures and marks (LH-118): notes bound to a figure or a mark of
-    /// this plan. They belong to the plan, not to the set's notes, so a variant or another
-    /// scene at the same location never shares them.
+    /// Notes bound to a figure or mark of this plan (LH-118); they go with the plan.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub labels: Vec<Note>,
 }
@@ -264,6 +263,9 @@ pub struct Mark {
     /// passes them in order; empty walks straight. Ignored on the first mark (LH-21).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub via: Vec<Point>,
+    /// Whether the way through `via` is a smooth curve or straight pieces (LH-108).
+    #[serde(default, skip_serializing_if = "crate::curve::is_smooth")]
+    pub curve: Curve,
     /// How the figure comes to this mark (LH-26).
     #[serde(default, skip_serializing_if = "Arrival::is_walk")]
     pub arrival: Arrival,
@@ -400,6 +402,9 @@ pub struct CameraMark {
     /// passes them in order; empty walks straight. Ignored on the first mark (LH-21).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub via: Vec<Point>,
+    /// Whether the way through `via` is a smooth curve or straight pieces (LH-108).
+    #[serde(default, skip_serializing_if = "crate::curve::is_smooth")]
+    pub curve: Curve,
     /// How the camera comes here from the previous mark (LH-33). Ignored on the first mark.
     #[serde(default, skip_serializing_if = "Rig::is_dolly")]
     pub rig: Rig,
@@ -692,6 +697,7 @@ mod tests {
                 pose: Pose::Standing,
                 hold_s: 5.0,
                 via: Vec::new(),
+                curve: Default::default(),
                 arrival: Arrival::Walk,
                 departure: Departure::Stay,
             }],
@@ -712,6 +718,7 @@ mod tests {
             pose: Pose::Standing,
             hold_s,
             via: Vec::new(),
+            curve: Default::default(),
             arrival: Arrival::Walk,
             departure: Departure::Stay,
         };

@@ -62,6 +62,7 @@ fn mark(at_s: f64, x: f64, y: f64) -> Mark {
         pose: Pose::Standing,
         hold_s: 0.0,
         via: Vec::new(),
+        curve: Default::default(),
         arrival: Arrival::Walk,
         departure: Departure::Stay,
     }
@@ -93,6 +94,7 @@ fn plan() -> FloorPlan {
             tilt_deg: 0.0,
             hold_s: 0.0,
             via: Vec::new(),
+            curve: Default::default(),
             rig: Default::default(),
             lens_mm: None,
         }],
@@ -511,6 +513,10 @@ fn a_plan_without_size_is_an_error() {
         pdf(&empty, &page(), Theme::Light),
         Err(ExportError::EmptyPlan)
     ));
+    assert!(matches!(
+        png(&empty, &page(), Theme::Light),
+        Err(ExportError::EmptyPlan)
+    ));
 }
 
 #[test]
@@ -767,17 +773,6 @@ fn png_follows_the_paper_and_the_page_size() {
         (be32(&bytes, PNG_IHDR_AT), be32(&bytes, PNG_IHDR_AT + 4)),
         (1754, 2480)
     );
-}
-
-#[test]
-fn png_of_a_plan_without_size_is_an_error() {
-    let mut empty = list();
-    empty.width_m = 0.0;
-
-    assert!(matches!(
-        png(&empty, &page(), Theme::Light),
-        Err(ExportError::EmptyPlan)
-    ));
 }
 
 /// The example plan must render in under a second (release build only; a debug build is

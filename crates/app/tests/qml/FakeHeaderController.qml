@@ -62,6 +62,12 @@ QtObject {
     function selectPlan(id) { return call("selectPlan", [id]) }
     function clearStatus() {}
     function stepMark(direction) { call("stepMark", [direction]) }
+    property string selectedKey: ""
+    property string curve: ""
+    function canArm(what) { return what !== "axisTo" || selectedKey.indexOf("figure") === 0 }
+    function arm(what) { return call("arm", [what]) }
+    function wayCurve() { return curve }
+    function setWayCurve(name) { curve = name; return call("setWayCurve", [name]) }
     function toggleView() { call("toggleView", []); viewFree = !viewFree }
     property bool refuseCamera: false
     function freeLook(command) {

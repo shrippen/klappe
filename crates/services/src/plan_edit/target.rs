@@ -1,6 +1,6 @@
 //! Drag targets: what a `Source` names, as the part of the plan a drag changes.
 
-use klappe_model::{Drawing, Light, Note, PlanImage, Point, SetObject, Wall};
+use klappe_model::{Curve, Drawing, Light, Note, PlanImage, Point, SetObject, Wall};
 use klappe_stellprobe::{Bend, LightGrip, ObjectGrip, OpeningEnd, Source};
 
 use super::bound::note_mut;
@@ -59,6 +59,7 @@ pub(super) enum Target<'a> {
     /// A grip on the way from mark `a` to mark `b`.
     Curve {
         via: &'a mut Vec<Point>,
+        curve: Curve,
         a: Point,
         b: Point,
         bend: Bend,
@@ -238,7 +239,9 @@ fn grip_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'
                 .iter_mut()
                 .find(|f| f.character == *character)
                 .ok_or(ServiceError::Gone)?;
-            curve(&mut track.marks, (*index, *bend), |m| (m.at, &mut m.via))
+            curve(&mut track.marks, (*index, *bend), |m| {
+                (m.at, &mut m.via, m.curve)
+            })
         }
         Source::CameraVia {
             camera,
@@ -251,7 +254,9 @@ fn grip_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'
                 .iter_mut()
                 .find(|c| c.id == *camera)
                 .ok_or(ServiceError::Gone)?;
-            curve(&mut camera.marks, (*index, *bend), |m| (m.at, &mut m.via))
+            curve(&mut camera.marks, (*index, *bend), |m| {
+                (m.at, &mut m.via, m.curve)
+            })
         }
         Source::DrawingPoint { drawing, index } => {
             let drawing = drawing_mut(scope, drawing)?;
@@ -299,15 +304,21 @@ fn drawing_mut<'a>(scope: &'a mut Scope<'_>, id: &str) -> Result<&'a mut Drawing
 fn curve<'a, M>(
     marks: &'a mut [M],
     (index, bend): (usize, Bend),
-    place: impl Fn(&'a mut M) -> (Point, &'a mut Vec<Point>),
+    place: impl Fn(&'a mut M) -> (Point, &'a mut Vec<Point>, Curve),
 ) -> Result<Target<'a>, ServiceError> {
     let before = index.checked_sub(1).ok_or(ServiceError::Gone)?;
     let (head, tail) = marks.split_at_mut(index);
     let a = head.get_mut(before).ok_or(ServiceError::Gone)?;
     let this = tail.first_mut().ok_or(ServiceError::Gone)?;
 
-    let (a, _) = place(a);
-    let (b, via) = place(this);
+    let (a, ..) = place(a);
+    let (b, via, curve) = place(this);
 
-    Ok(Target::Curve { via, a, b, bend })
+    Ok(Target::Curve {
+        via,
+        curve,
+        a,
+        b,
+        bend,
+    })
 }

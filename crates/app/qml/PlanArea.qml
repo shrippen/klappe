@@ -475,14 +475,14 @@ Item {
 
     Shortcut {
         sequence: "Escape"
-        enabled: area.tool === "scale" && area.controller.scalePoints > 0 && !area.dragging
+        enabled: area.tool === "scale" && area.controller.scalePoints > 0 && !area.dragging && !area.controller.armed
         onActivated: area.controller.cancelScale()
     }
 
     // Measure tool: Escape drops the measurement.
     Shortcut {
         sequence: "Escape"
-        enabled: area.tool === "measure" && area.controller.measuring && !area.dragging
+        enabled: area.tool === "measure" && area.controller.measuring && !area.dragging && !area.controller.armed
         onActivated: area.controller.cancelMeasure()
     }
 
@@ -492,7 +492,7 @@ Item {
         && controller.areaPoints > 0 && !area.dragging
     Shortcut {
         sequence: "Escape"
-        enabled: area.drawsArea
+        enabled: area.drawsArea && !area.controller.armed
         onActivated: area.controller.cancelArea()
     }
     Shortcut {
@@ -512,6 +512,15 @@ Item {
         }
     }
 
+    // Escape ends what a key armed for the next click (LH-104, LH-105, LH-109). It comes first:
+    // the Escapes of scale, measure and area wait until it has been pressed, so at most one is
+    // enabled at a time (the drag's and the fields' have `!dragging` or the field's focus).
+    Shortcut {
+        sequence: "Escape"
+        enabled: !!area.controller.armed && !area.dragging && !area.textFocused && !selection.typing
+        onActivated: area.controller.cancelArm()
+    }
+
     // Escape clears the selection, which closes its card (Q1-04). Not while a drag, a measure,
     // a scale or an outline has its own Escape, and not in a text field anywhere in the window
     // (a cell of the shot table; the card's fields leave the field first).
@@ -520,6 +529,7 @@ Item {
     Shortcut {
         sequence: "Escape"
         enabled: area.hasSelection && !area.textFocused && !area.dragging && !freeView.dragging && !area.drawsArea
+            && !area.controller.armed
             && !(area.tool === "scale" && area.controller.scalePoints > 0)
             && !(area.tool === "measure" && area.controller.measuring)
         onActivated: area.controller.clearSelection()
@@ -560,6 +570,31 @@ Item {
         sequence: "Shift+R"
         enabled: area.hasSelection
         onActivated: area.controller.turnSelected(-area.turnStepDeg)
+    }
+
+    // The arrow keys move the selected way by a grid step (LH-107). Only with a grip of a way
+    // selected: else they pan the plan (Kante).
+    readonly property bool wayKeys: area.hasSelection && canvas.activeFocus && !area.dragging
+        && /^(figure|camera)via:/.test(controller.selectedKey)
+    Shortcut {
+        sequence: "Left"
+        enabled: area.wayKeys
+        onActivated: area.controller.nudgeWay(-1, 0)
+    }
+    Shortcut {
+        sequence: "Right"
+        enabled: area.wayKeys
+        onActivated: area.controller.nudgeWay(1, 0)
+    }
+    Shortcut {
+        sequence: "Up"
+        enabled: area.wayKeys
+        onActivated: area.controller.nudgeWay(0, -1)
+    }
+    Shortcut {
+        sequence: "Down"
+        enabled: area.wayKeys
+        onActivated: area.controller.nudgeWay(0, 1)
     }
 
     /// A key of a bend of a way (`figurevia:e:1:at0`), not of the grip that makes a new one

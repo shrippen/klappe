@@ -546,6 +546,48 @@ fn a_figure_label_survives_a_new_mark() {
     assert!(bound(&s, &id).is_some());
 }
 
+/// The scene `first` moves to another location, goes, and a scene of the same number comes
+/// back to `location`; its figure moves.
+fn scene_made_again(s: &mut Session, first: String, location: String) {
+    s.edit_project(ProjectEdit::AddLocation {
+        name: "Hof".into(),
+        width_m: 20.0,
+        depth_m: 10.0,
+        wall_height_m: 2.6,
+    })
+    .unwrap();
+    let hof = s.project().locations.last().unwrap().id.clone();
+    let heading = s.scene().unwrap().heading.clone();
+    let number = s.scene().unwrap().number.clone();
+    s.edit_project(ProjectEdit::EditScene {
+        id: first.clone(),
+        number: number.clone(),
+        heading: heading.clone(),
+        location: hof,
+    })
+    .unwrap();
+    s.edit_project(ProjectEdit::RemoveScene { id: first })
+        .unwrap();
+    s.edit_project(ProjectEdit::AddScene {
+        number,
+        heading,
+        location,
+    })
+    .unwrap();
+    let again = s.project().scenes.last().unwrap().id.clone();
+    s.select_scene(&again).unwrap();
+    s.edit_plan(PlanEdit::AddMark {
+        character: "elisabeth".into(),
+        at: p(1.0, 1.0),
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Move {
+        source: Source::Figure("elisabeth".into()),
+        to: p(9.0, 9.0),
+    })
+    .unwrap();
+}
+
 /// Labels of a plan are the plan's: the same figure in another scene of the location neither
 /// moves them nor frees them, and a scene moved to another location, removed and made again
 /// under the same id leaves nothing to inherit.
@@ -596,46 +638,7 @@ fn a_label_ignores_the_same_figure_in_another_scene() {
     );
     assert!(bound(&s, &figure).is_some() && bound(&s, &start).is_some());
 
-    // The first scene moves to another location and goes; a scene of the same id comes back
-    // to the old location and its figure moves.
-    s.edit_project(ProjectEdit::AddLocation {
-        name: "Hof".into(),
-        width_m: 20.0,
-        depth_m: 10.0,
-        wall_height_m: 2.6,
-    })
-    .unwrap();
-    let hof = s.project().locations.last().unwrap().id.clone();
-    let heading = s.scene().unwrap().heading.clone();
-    let number = s.scene().unwrap().number.clone();
-    s.edit_project(ProjectEdit::EditScene {
-        id: first.clone(),
-        number: number.clone(),
-        heading: heading.clone(),
-        location: hof,
-    })
-    .unwrap();
-    s.edit_project(ProjectEdit::RemoveScene { id: first })
-        .unwrap();
-    s.edit_project(ProjectEdit::AddScene {
-        number,
-        heading,
-        location,
-    })
-    .unwrap();
-    let again = s.project().scenes.last().unwrap().id.clone();
-    s.select_scene(&again).unwrap();
-    s.edit_plan(PlanEdit::AddMark {
-        character: "elisabeth".into(),
-        at: p(1.0, 1.0),
-    })
-    .unwrap();
-    s.edit_plan(PlanEdit::Move {
-        source: Source::Figure("elisabeth".into()),
-        to: p(9.0, 9.0),
-    })
-    .unwrap();
-
+    scene_made_again(&mut s, first, location);
     let old = s.project().locations.iter().find(|l| l.id == kept).unwrap();
     assert_eq!(old.set.notes, before);
 }
