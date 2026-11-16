@@ -502,6 +502,9 @@ fn undo_takes_typing_and_capitals_back_together() {
     typed(&mut app, "int. küche");
     ctrl(&mut app, 'z');
 
+    // A word is one step: "küche" goes with its capitals, "INT. " stays.
+    assert!(app.text().starts_with("\n\n\nINT. \n"), "{}", app.text());
+    ctrl(&mut app, 'z');
     assert!(app.text().starts_with("\n\n\n\n"), "{}", app.text());
 }
 

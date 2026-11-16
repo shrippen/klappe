@@ -52,6 +52,24 @@ impl Buffer {
         }
     }
 
+    /// The lines an edit at `line` can touch: that one and its neighbours.
+    pub(crate) fn window(&self, line: usize) -> std::ops::Range<usize> {
+        line.saturating_sub(1)..(line + 2).min(self.lines.len())
+    }
+
+    /// Replaces lines `from..to` by `lines` (an empty text keeps one empty line); returns the
+    /// lines that were there.
+    pub(crate) fn splice(&mut self, from: usize, to: usize, lines: Vec<String>) -> Vec<String> {
+        let to = to.min(self.lines.len());
+        let from = from.min(to);
+        let old: Vec<String> = self.lines.splice(from..to, lines).collect();
+        if self.lines.is_empty() {
+            self.lines.push(String::new());
+        }
+
+        old
+    }
+
     /// Replaces the text of a line.
     pub(crate) fn set_line(&mut self, index: usize, text: String) {
         if let Some(line) = self.lines.get_mut(index) {

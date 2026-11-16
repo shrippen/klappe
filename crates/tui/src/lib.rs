@@ -12,6 +12,7 @@ mod app;
 mod buffer;
 mod editor;
 mod fountain;
+mod history;
 mod i18n;
 mod layout;
 mod links;
