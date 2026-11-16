@@ -158,6 +158,22 @@ impl Source {
             | Source::Drawing(_) => None,
         }
     }
+
+    /// Whether a click on this grip selects the grip itself, not its element: a drawing's point,
+    /// a free form's point (both so Delete takes the point out) and the bend of a way (the bend to
+    /// straighten).
+    pub fn selected_itself(&self) -> bool {
+        matches!(
+            self,
+            Source::DrawingPoint { .. }
+                | Source::ObjectGrip {
+                    grip: ObjectGrip::Point(_),
+                    ..
+                }
+                | Source::FigureVia { .. }
+                | Source::CameraVia { .. }
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

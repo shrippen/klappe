@@ -1,7 +1,7 @@
 //! What the select tool has picked and what the keys and a group drag do to it. Like the
 //! tools (`tools.rs`), no geometry here.
 
-use klappe_services::{Bend, ObjectGrip, PlanEdit, Point, Source};
+use klappe_services::{Bend, PlanEdit, Point, Source};
 
 /// What the keys do to the selection.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -82,16 +82,7 @@ impl Selection {
     /// in, or out when it is in already, and a click on empty ground changes nothing.
     pub fn click(mut self, picked: Option<Source>, how: Pick) -> Selection {
         match (how, picked) {
-            (Pick::Replace, Some(point @ Source::DrawingPoint { .. })) => Selection(vec![point]),
-            (
-                Pick::Replace,
-                Some(
-                    point @ Source::ObjectGrip {
-                        grip: ObjectGrip::Point(_),
-                        ..
-                    },
-                ),
-            ) => Selection(vec![point]),
+            (Pick::Replace, Some(point)) if point.selected_itself() => Selection(vec![point]),
             (Pick::Replace, picked) => Selection::of(picked),
             (Pick::Extend, None) => self,
             (Pick::Extend, Some(source)) => {
@@ -281,7 +272,7 @@ fn group_key_edit(key: Key, sources: Vec<Source>) -> Option<PlanEdit> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klappe_services::{LightGrip, OpeningEnd};
+    use klappe_services::{LightGrip, ObjectGrip, OpeningEnd};
 
     fn p(x_m: f64, y_m: f64) -> Point {
         Point::new(x_m, y_m)
