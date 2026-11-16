@@ -106,3 +106,49 @@ fn plan_labels_are_written_only_when_given() {
     assert_eq!(text.matches("\"labels\"").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
+
+/// A plan's labels are checked on load like the set's notes: a usable width, ids of their own
+/// within the plan, and a `bound` that names a figure or a mark (an object is the set's).
+#[test]
+fn bad_plan_labels_do_not_load() {
+    let label = |id: &str, width_m: f64, bound: &str| Note {
+        id: id.into(),
+        at: Point::new(1.0, 1.0),
+        text: "x".into(),
+        width_m,
+        bound: Some(bound.into()),
+    };
+    let cases = [
+        (
+            "narrow",
+            vec![label("t1", 0.2, "figure:elisabeth")],
+            "m wide",
+        ),
+        (
+            "twin",
+            vec![
+                label("t1", 2.4, "figure:elisabeth"),
+                label("t1", 2.4, "mark:elisabeth:0"),
+            ],
+            "twice",
+        ),
+        ("object", vec![label("t1", 2.4, "object:tisch")], "bound"),
+        (
+            "garbled",
+            vec![label("t1", 2.4, "mark:elisabeth:x")],
+            "bound",
+        ),
+    ];
+
+    for (name, labels, want) in cases {
+        let dir = test_dir(&format!("bad-label-{name}"));
+        let mut project = example();
+        project.scenes[0].plans[0].labels = labels;
+        // `save` does not check the labels, `load` does.
+        save(&dir, &project, None).unwrap();
+
+        let err = load(&dir).unwrap_err().to_string();
+
+        assert!(err.contains(want), "{name}: {err}");
+    }
+}
