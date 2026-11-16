@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use klappe_model::{
     is_figure_size_m, is_floor_offset_m, is_object_height_m, is_outline, Character, Location,
     ObjectShape, Opening, PaperSetup, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
-    MIN_FIGURE_M, MIN_GROUP,
+    MIN_FIGURE_M, MIN_GROUP, NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
@@ -378,8 +378,30 @@ fn check_characters(characters: &[Character]) -> Result<(), String> {
 fn check_sets(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     check_openings(path, locations)?;
     check_outlines(path, locations)?;
+    check_notes(path, locations)?;
 
     check_heights(path, locations)
+}
+
+/// A note's card is at least as wide as a drag of its grip allows (LH-16).
+fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
+    for location in locations {
+        for note in &location.set.notes {
+            if note.width_m >= NOTE_MIN_WIDTH_M {
+                continue;
+            }
+
+            return Err(StoreError::Parse {
+                path: path.to_path_buf(),
+                message: format!(
+                    "{}: note {} is {} m wide, less than {NOTE_MIN_WIDTH_M} m",
+                    location.id, note.id, note.width_m
+                ),
+            });
+        }
+    }
+
+    Ok(())
 }
 
 /// A free form (LH-92) has an outline an edit would accept: three or more finite points

@@ -36,3 +36,21 @@ fn a_note_width_is_written_and_reads_back() {
     assert_eq!(text.matches("width_m = 3.5").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
+
+/// A card narrower than the smallest one a drag allows does not load: the plan
+/// would draw it at the minimum and the grip would not follow the pointer.
+#[test]
+fn a_note_narrower_than_the_minimum_does_not_load() {
+    for (i, width_m) in [0.2, -1.0].into_iter().enumerate() {
+        let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("note-width-bad-{i}"));
+        let _ = fs::remove_dir_all(&dir);
+        let mut project = load(Path::new(EXAMPLE)).unwrap().project;
+        project.locations[0].set.notes[0].width_m = width_m;
+        // `save` does not check the notes, `load` does.
+        save(&dir, &project, None).unwrap();
+
+        let err = load(&dir).unwrap_err();
+
+        assert!(err.to_string().contains("note"), "{i}: {err}");
+    }
+}
