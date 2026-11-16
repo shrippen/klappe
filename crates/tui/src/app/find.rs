@@ -168,15 +168,26 @@ impl App {
             KeyCode::BackTab => self.find.field = self.find.field.previous(),
             KeyCode::Down => return self.find_step_in(false),
             KeyCode::Up => return self.find_step_in(true),
-            KeyCode::Char('n') if ctrl => return self.find_step_in(false),
-            KeyCode::Char('p') if ctrl => return self.find_step_in(true),
-            KeyCode::Char('r') if ctrl => self.replace_one(),
-            KeyCode::Char('a') if ctrl => self.replace_every(),
-            KeyCode::Char('t') if ctrl => self.toggle_case(),
+            KeyCode::Char(c) if ctrl => return self.find_ctrl(c),
             KeyCode::Enter if self.find.field == FindField::Replace => self.replace_one(),
             KeyCode::Enter => return self.find_step_in(false),
             KeyCode::Backspace => self.edit_field(None),
-            KeyCode::Char(c) if !ctrl => self.edit_field(Some(c)),
+            KeyCode::Char(c) => self.edit_field(Some(c)),
+            _ => {}
+        }
+        self.show_cursor();
+
+        Flow::Continue
+    }
+
+    /// The Ctrl keys of the search box.
+    fn find_ctrl(&mut self, c: char) -> Flow {
+        match c {
+            'n' => return self.find_step_in(false),
+            'p' => return self.find_step_in(true),
+            'r' => self.replace_one(),
+            'a' => self.replace_every(),
+            't' => self.toggle_case(),
             _ => {}
         }
         self.show_cursor();
