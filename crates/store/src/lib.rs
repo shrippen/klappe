@@ -144,9 +144,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
-    let mut scenes = load_all::<Scene>(&dir.join(SCENES_DIR), Kind::Json, |s| &s.id)?;
-    clear_passive_power(&mut scenes);
-    check_shot_images(&dir.join(SCENES_DIR), &scenes)?;
+    let scenes = load_scenes(&dir.join(SCENES_DIR))?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -418,6 +416,15 @@ fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     }
 
     Ok(())
+}
+
+/// The scenes of `path`, sorted by id, with passive lamps cleared and their shots checked.
+fn load_scenes(path: &Path) -> Result<Vec<Scene>, StoreError> {
+    let mut scenes = load_all::<Scene>(path, Kind::Json, |s| &s.id)?;
+    clear_passive_power(&mut scenes);
+    check_shot_images(path, &scenes)?;
+
+    Ok(scenes)
 }
 
 /// A shot's picture (LH-74) is a file of `bilder/`, never one outside the project.
