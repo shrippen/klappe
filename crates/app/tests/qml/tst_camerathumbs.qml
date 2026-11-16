@@ -122,6 +122,20 @@ TestCase {
         verify(findChild(thumbs, "cameraThumb-c1") === first, "the item was made again")
     }
 
+    // Playback changes the picture every 40 ms: every camera still gets its turn.
+    function test_every_camera_is_painted_while_changes_keep_coming() {
+        fake.spots = [1, 2, 3, 4].map(n => ({ id: "c" + n, x_m: 50 * n, y_m: 100, aspect: 2 }))
+        const thumbs = make()
+
+        for (let i = 0; i < 40; i++) {
+            fake.pictureRevision++
+            wait(40)
+        }
+
+        const painted = new Set(fake.requests.map(r => r[0]))
+        compare(Array.from(painted).sort(), ["c1", "c2", "c3", "c4"])
+    }
+
     function cleanup() {
         fake.spots = [{ id: "a", x_m: 100, y_m: 100, aspect: 2 }, { id: "b", x_m: 5000, y_m: 100, aspect: 1.5 }]
     }
