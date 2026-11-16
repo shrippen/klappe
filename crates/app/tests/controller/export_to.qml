@@ -42,6 +42,34 @@ Item {
                 return root.fail("no file at " + named)
             }
 
+            // A name typed without the format's extension gets it (Q1-06); one that has it, in
+            // any case, stays as it is.
+            if (!ctl.exportTo("pdf", "cut", "a4", base + "/Ohne")) {
+                return root.fail("export to a name without extension failed: " + ctl.status)
+            }
+            if (size(base + "/Ohne.pdf") <= 0) {
+                return root.fail("no extension added: no file at " + base + "/Ohne.pdf")
+            }
+            if (size(base + "/Ohne") !== -1) {
+                return root.fail("a file without extension was written")
+            }
+            if (!ctl.exportTo("svg", "cut", "a4", base + "/Gross.SVG") || size(base + "/Gross.SVG") <= 0) {
+                return root.fail("a name with the extension in capitals was changed: " + ctl.status)
+            }
+
+            // The dialog asked about the typed name, not about the file written: where adding
+            // the extension would land on a file that exists, nothing is written.
+            const before = size(base + "/Ohne.pdf")
+            if (ctl.exportTo("pdf", "cut", "a3", base + "/Ohne")) {
+                return root.fail("export over Ohne.pdf by typing Ohne reported success")
+            }
+            if (size(base + "/Ohne.pdf") !== before) {
+                return root.fail("Ohne.pdf was overwritten by typing Ohne")
+            }
+            if (ctl.status.indexOf("Ohne.pdf") < 0) {
+                return root.fail("the refusal does not name the file: " + ctl.status)
+            }
+
             // A sheet chosen in the dialog becomes the project's; the Rust side checks the
             // portrait media box in the file.
             const upright = base + "/Hoch.pdf"

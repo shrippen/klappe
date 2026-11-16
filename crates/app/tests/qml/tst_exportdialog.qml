@@ -101,6 +101,19 @@ TestCase {
         files.close()
     }
 
+    // The file dialog adds the suffix itself, before it asks about replacing a file.
+    function test_the_file_dialog_carries_the_suffix_of_the_format() {
+        const dialog = make()
+        const files = findChild(dialog, "files")
+        const suffixes = { csv: "csv", ods: "ods", xlsx: "xlsx", view3d: "png", camera: "png" }
+
+        for (const kind in suffixes) {
+            dialog.request(kind)
+            compare(files.defaultSuffix, suffixes[kind], kind)
+            files.close()
+        }
+    }
+
     function test_the_paper_goes_to_the_plan_exports() {
         const dialog = make()
 

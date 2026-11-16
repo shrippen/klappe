@@ -434,6 +434,7 @@
  "error.numberTaken": "Die Szenennummer {number} gibt es schon",
  "error.locationInUse": "Der Drehort wird von {count} Szene(n) genutzt",
  "error.characterInUse": "Die Figur kommt in {count} Plan/Plänen vor",
+ "error.nameTaken": "Die Datei gibt es schon; bitte mit Endung wählen: {path}",
  "error.notEmpty": "Der Ordner ist nicht leer: {detail}",
  "error.noMarks": "Der Plan hat keine Marks, also keine Bildfolge.",
  "error.lastPlan": "Der letzte Plan einer Szene bleibt",

@@ -103,11 +103,20 @@ FormDialog {
     // opens one without the paper form, so they take the window from the popup's parent.
     readonly property var hostWindow: dialog.parent ? dialog.parent.Window.window : null
 
+    // The file dialogs are windows of their own; without a window manager nobody hands the keys
+    // back when one closes, and the shortcuts stay dead (Q1-19).
+    function reactivate() {
+        if (hostWindow) {
+            hostWindow.requestActivate()
+        }
+    }
+
     // The frames go into a new folder in the chosen one, named as the suggestion.
     FolderDialog {
         id: folders
         objectName: "folders"
         parentWindow: dialog.hostWindow
+        onVisibleChanged: if (!visible) dialog.reactivate()
         onAccepted: dialog.save(selectedFolder.toString() + suggestion().substring(suggestion().lastIndexOf("/")))
     }
 
@@ -116,6 +125,7 @@ FormDialog {
         objectName: "files"
         parentWindow: dialog.hostWindow
         fileMode: FileDialog.SaveFile
+        onVisibleChanged: if (!visible) dialog.reactivate()
         onAccepted: dialog.save(selectedFile.toString())
     }
 }

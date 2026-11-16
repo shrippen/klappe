@@ -121,7 +121,7 @@ nachzuspielen.
   `.pdf`. Return im Dateidialog speicherte nicht, erst der Knopf. Erwartet: Endung wird ergänzt.
 - **Beleg:** P1 `shot-041`, `shot-042`
 - **Nachgeprüft:** nein; abgeglichen an der Datei der Sitzung (`plan`: PDF, 2 Seiten).
-- **Status:** offen
+- **Status:** offen (Behebung vorbereitet: #167)
 
 ### Q1-07 Plan-Ausgabe schneidet ab und kürzt Notizen
 - **Art:** Fehler · **Stufe:** mittel
@@ -259,7 +259,7 @@ nachzuspielen.
 - **Nachgeprüft:** ja, frische Sitzung (`check3/shot-006`): nach dem PDF-Dialog öffnet Strg+O
   nichts. Nach einem Klick in den Plan wirken Strg+O und Strg+S (`check2/shot-002`, `-004`).
 - **Einordnung:** Die Tastatur kommt nach dem Dialog nicht ins Fenster zurück.
-- **Status:** offen
+- **Status:** offen (Behebung vorbereitet: #167)
 
 ## Nicht bestätigt
 
