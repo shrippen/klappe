@@ -19,7 +19,7 @@ Vorbild für den Umfang der Produktion war Yamdu (Beobachtung am Projekt des Eig
 | Stellprobe | Floorplans, Blocking, Kameras, Licht, Shots | Sets, Floorplans, Marks, Kameras, Shots |
 | Storyboard | Bilder der Shots ansehen, ordnen, ausgeben | nichts Eigenes: Bild und Notiz hängen am Shot, die Reihenfolge ist die Schnittfolge |
 | Breakdown | Elemente je Szene für die Departments erfassen und verfolgen | Elemente, Szenenblätter; übernimmt den Drehbuchauszug und die Berichte (DB-60, DB-61) |
-| Besetzung/Team | Rollen besetzen, Personen, Departments | Personen, Besetzung, Team, Kontakte |
+| Besetzung/Team | Rollen besetzen, Personen, Departments | Personen, Besetzung, Team, Kontakte (eigene Datei) |
 | Drehplan | Szenen auf Drehtage verteilen (Stripboard), Varianten | Drehplanversionen, Drehtage, Streifen |
 | Dispo | Tagesdisposition je Drehtag, als Druckvorlage | Dispositionen |
 
@@ -85,7 +85,8 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 | Floorplan | Stellprobe | je Szene stabil | **Set, auf dem er gezeichnet ist** (ersetzt `Scene.location`); Marks (mit Id), Kameras, Licht | Storyboard, Breakdown |
 | Shot | Stellprobe | stabil | wie heute; Storyboard-Bild und Notiz | Storyboard, Drehplan, Dispo |
 | Element | Breakdown | zufällig | Kategorie, Name, Beschreibung, verantwortliche Person, Status | Dispo, Stellprobe |
-| Person | Besetzung/Team | zufällig | Name, Department, Funktion, Agentur, Kontakt | Dispo |
+| Person | Besetzung/Team | zufällig | Name, Department, Funktion, Agentur | Dispo |
+| Kontakt | Besetzung/Team | Personen-Id | Telefon, Mail, Adresse; später weitere persönliche Daten | Dispo |
 | Besetzung | Besetzung/Team | – | Figur → Person (vorgeschlagen, fest) | Dispo, Drehplan |
 | Drehplanversion | Drehplan | zufällig | Name, aktiv | Dispo |
 | Drehtag | Drehplan | zufällig; Datum und Unit sind Felder | Streifen (Szenen in Reihenfolge, Umzug, Pause), Beginn/Ende | Dispo |
@@ -171,7 +172,8 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ├── szenen/<id>.json          Stellprobe: Floorplans, Shots je Drehinhalt
 ├── breakdown/elemente.toml   Elemente                                       (neu)
 ├── breakdown/<szenen-id>.toml Szenenblatt                                   (neu)
-├── personen.toml             Personen, Kontakte, Besetzung, Team           (neu)
+├── personen.toml             Personen, Besetzung, Team                     (neu)
+├── kontakte.toml             persönliche Daten: Kontakte, Adressen          (neu, Abschnitt 10)
 ├── drehplan/<id>.toml        eine Drehplanversion: Tage und Streifen       (neu)
 ├── dispo/<drehtag-id>.toml   Tagesdisposition                              (neu)
 └── bilder/                   Hintergründe, Storyboard-Bilder
@@ -200,7 +202,8 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
    einfügen, fremd neu nummerieren, Konfliktmarken im Buch).
    `testdata/` und Demo werden im neuen Format geschrieben, `format_version` 3. Vorhandene
    Projekte werden nicht migriert: es gibt kein Release (Eigentümer, 17.11.2026).
-2. Breakdown: Elemente, Szenenblatt, Figuren der Szene, Vorschläge aus dem Set.
+2. Breakdown: Elemente, Szenenblatt, Figuren der Szene, Vorschläge aus dem Set; Zuordnung
+   Spielort → Drehort (`orte.toml`, Rest von DB-51).
 3. Besetzung/Team.
 4. Drehplan (Stripboard, Versionen, Day out of Days).
 5. Dispo als Druckvorlage.
@@ -214,27 +217,31 @@ Entschieden vom Eigentümer am 2026-11-17:
 |---|---|---|
 | F-01 | Begriffe für den Ort im Buch und den realen Ort | „Spielort“ (im Buch) und „Drehort“ (real, Raum mit Set). |
 | F-02 | Plant der Drehplan Szenen oder auch Shots/Setups? | Szenen. |
-| F-03 | Personen und Kontakte im Projektordner, also in Git | Alle Inhalte eines Projekts sind vertraulich. Wird ein öffentliches Git zur Ablage benutzt, sind die Projektdaten verschlüsselt (Projektpasswort). Damit entfällt die getrennte `kontakte.toml`. |
+| F-03 | Personen und Kontakte im Projektordner, also in Git | Alle Inhalte eines Projekts sind vertraulich. Wird ein öffentliches Git zur Ablage benutzt, sind die Projektdaten verschlüsselt (Projektpasswort). Persönliche Daten stehen trotzdem in einer eigenen `kontakte.toml`, als Grenze für Rechte (Abschnitt 10). |
 | F-04 | Units | Standard eine Unit, mehrere möglich (höchstens 255); Feld am Drehtag. |
 | F-05 | Status je Element für die Departments | Ja, einfache Statusliste je Element. |
 | F-06 | Projektübergreifende Daten (Darsteller, Fundus) | Nützlich, ausgewählte Informationen global zu machen; vorbereiten für Version 2, nicht jetzt. |
 | F-07 | Ist das Drehbuch Pflicht? | Nein: auch Projekte ohne Drehbuch (Reportage, Doku, EB). Das Szenenregister gehört darum dem Projekt: Gibt es ein Buch, ist es die Quelle von Nummer und Kopf; sonst werden Szenen direkt in Klappe angelegt und bearbeitet. |
 | F-08 | Automatische Szenennummern vor der Sperre im Text? | Ja, von Anfang an (DB-33 bleibt). Kommt es beim Zusammenführen (Git) zum Konflikt, löst ihn ein Dialog in Klappe auf. |
 | F-09 | Neuer Baustein `planung/` in „Layers“ von `ARCHITECTURE.md` | Ja. |
-| F-10 | Wie wird verschlüsselt (F-03), ohne Lesbarkeit und Vergleich in Git (NF-03) zu verlieren? | Lokal klar lesbar; verschlüsselt nur beim Ablegen an einem Ziel, dem nicht vertraut wird (Projektpasswort; bei Git z. B. ein Filter wie git-crypt). Je Ziel wählbar: vertraut (privat, Klartext) oder nicht vertraut (öffentlich, verschlüsselt). Siehe Abschnitt 9. Zu klären im Lastenheft-Kapitel: Ein fremdes Git sieht nur verschlüsselte Dateien und kann nicht zeilenweise zusammenführen; Grundsatz 8 und der Dialog aus F-08 brauchen dann einen eigenen Merge-Treiber, der entschlüsselt. |
+| F-10 | Wie wird verschlüsselt (F-03), ohne Lesbarkeit und Vergleich in Git (NF-03) zu verlieren? | Lokal klar lesbar; verschlüsselt nur beim Ablegen an einem Ziel, dem nicht vertraut wird (Projektpasswort; bei Git z. B. ein Filter wie git-crypt). Je Ziel wählbar: vertraut (privat, Klartext) oder nicht vertraut (öffentlich, verschlüsselt). Siehe Abschnitt 9. Zu klären im Lastenheft-Kapitel: Ein fremdes Git sieht nur verschlüsselte Dateien und kann nicht zeilenweise zusammenführen; Grundsatz 8 und der Dialog aus F-08 brauchen dann einen eigenen Merge-Treiber, der entschlüsselt. Ein Filter wie git-crypt verschlüsselt im Repo selbst; damit bekäme auch ein vertrautes Ziel nur Verschlüsseltes. Vertrauen je Ziel braucht darum je Ziel eine eigene Ablage oder Verschlüsselung beim Übertragen. |
 | F-07a | Projekte ohne Szenen (Reportage, Doku, EB) | Content Items gleich als Konzept einplanen (Abschnitt 3). |
 | F-11 | Abgleich neben Git | Weitere Wege vorsehen: WebDAV, eventuell p2panda (Abschnitt 9); Vertrauen je Ziel wählbar. |
 | F-12 | Hinweise des Advisors (zweite Runde) | Übernehmen; keine Migration vorhandener Projekte, da kein Release. |
+| F-13 | Berechtigungen | Nur über einen eigenen, optionalen Klappe-Server; Git und WebDAV ohne Rechte; jetzt nur vorbereiten (Abschnitt 10). |
 
 ## 9. Abgleich (Sync)
 
 Ein Projekt lässt sich mit anderen Geräten und Personen abgleichen. Klappe sieht dafür mehrere
-Wege vor, hinter einer gemeinsamen Schicht, damit Teilbereiche nichts vom Weg wissen:
+Wege vor, hinter einer gemeinsamen Schicht, damit Teilbereiche nichts vom Weg wissen. Sie wird ein
+eigener Baustein neben `store/`, festgelegt mit dem Lastenheft-Kapitel Abgleich (ändert dann
+„Layers“ in `ARCHITECTURE.md`, mit Bestätigung des Eigentümers):
 
 | Weg | Wofür | Hinweise |
 |---|---|---|
 | Git | Versionen, Zusammenarbeit mit Verlauf | heute schon möglich (Textformat, NF-03) |
-| WebDAV | einfache Ablage auf eigenem Server oder Cloud-Speicher (z. B. Nextcloud) | kein Verlauf; Konflikte erkennt Klappe selbst |
+| WebDAV | einfache Ablage auf eigenem Server oder Cloud-Speicher (z. B. Nextcloud) | kein Verlauf und keine Konfliktmarken: Klappe merkt sich den Stand je Datei beim letzten Abgleich und erkennt Konflikte daran |
+| Klappe-Server | Zusammenarbeit mit Rechten (Abschnitt 10) | eigenes, selbst betriebenes Programm; gleicht je Änderung ab |
 | p2panda | Abgleich von Gerät zu Gerät ohne Server, local-first | zu prüfen: Eignung und Reife (Rust-Bibliothek), Abbildung der Projektdateien |
 
 - **Vertrauen je Ziel** (F-10): Für jedes Ziel wählt der Nutzer „vertraut (privat)“ oder „nicht
@@ -242,7 +249,25 @@ Wege vor, hinter einer gemeinsamen Schicht, damit Teilbereiche nichts vom Weg wi
 - **Konflikte** löst derselbe Dialog in Klappe, gleich über welchen Weg sie kommen (F-08).
 - **Grundsätze 3 und 8** (zufällige Ids, eine Datei je Szene) halten Konflikte bei allen Wegen klein.
 - Das Abgleichen selbst ist ein eigenes Vorhaben mit eigenem Lastenheft-Kapitel; Schritt 1 baut
-  nur, was es später braucht (Ids, Dateigrenzen, Erkennen von Konfliktmarken).
+  nur, was es später braucht (Ids, Dateigrenzen, Erkennen von Git-Konfliktmarken); der gemerkte
+  Stand je Datei für WebDAV gehört zum Vorhaben Abgleich.
+
+## 10. Berechtigungen (später)
+
+Wer was lesen und schreiben darf (zum Beispiel: alle schreiben im Buch, nur die Produktion sieht
+die Kontaktdaten der Darsteller), setzt Klappe nur über den **Klappe-Server** durch
+(Eigentümer, 17.11.2026). Git und WebDAV haben keine Rechte: wer das Projekt hat, sieht alles.
+
+- **Server:** liefert jedem nur die Bereiche, die seine Rolle lesen darf, und nimmt nur
+  Änderungen an, die sie schreiben darf. Rollen je Teilbereich (z. B. Regie, Produktion,
+  Aufnahmeleitung, Department-Leitung, Cast, Gast) mit Rechten lesen/schreiben; der Bereich
+  „Persönlich“ getrennt. Konten gibt es nur auf dem selbst betriebenen Server.
+- **Jetzt vorbereitet:** Dateigrenzen nach Vertraulichkeit (persönliche Daten in
+  `kontakte.toml`, getrennt von `personen.toml`), stabile Personen-Ids, alle Änderungen laufen
+  über `services/`.
+- **Später:** eigenes Lastenheft für den Server; NF-02 (offline, keine Cloud) und NF-10 (ohne
+  Konto) werden dafür neu gefasst und dem Eigentümer vorgelegt: Klappe bleibt offline und ohne
+  Konto nutzbar, der Server ist optional und selbst betrieben.
 
 ## Anhang A: Yamdu im Verhalten
 
