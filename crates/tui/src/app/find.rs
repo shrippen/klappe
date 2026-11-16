@@ -85,8 +85,8 @@ impl App {
         Flow::Continue
     }
 
-    /// Looks for the matches again, from the cursor on.
-    fn find_update(&mut self) {
+    /// Looks for the matches in the text as it is now.
+    fn find_hits(&mut self) {
         let text = self.editor.text();
         let speaker = self.find.speaker.trim();
         let query = Query {
@@ -96,6 +96,11 @@ impl App {
         };
         let located = parse_located(&text);
         self.find.hits = find_all(self.editor.lines(), &located, &query);
+    }
+
+    /// Looks for the matches again, from the cursor on.
+    fn find_update(&mut self) {
+        self.find_hits();
 
         let cursor = self.editor.cursor();
         let from = |h: &Hit| (h.line, h.start) >= (cursor.line, cursor.col);
@@ -115,10 +120,8 @@ impl App {
 
     /// Moves to the next or previous match, wrapping round; also `F3` and `Shift+F3`.
     pub(super) fn find_step(&mut self, back: bool) -> Flow {
-        let count = self.find.hits.len();
-        if count == 0 {
-            self.find_update();
-        }
+        // The text may have changed since the box was closed.
+        self.find_hits();
         let count = self.find.hits.len();
         if count == 0 {
             return Flow::Continue;

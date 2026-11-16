@@ -124,6 +124,20 @@ fn f3_repeats_the_search_outside_the_box() {
 }
 
 #[test]
+fn f3_finds_again_after_the_text_changed() {
+    let (_s, mut app) = find_app();
+    typed(&mut app, "anna");
+    press(&mut app, KeyCode::Esc);
+    assert_eq!(at(&app), (2, 0));
+
+    // Text typed before the match moves it; F3 must look at the text as it is now.
+    typed(&mut app, "ab ");
+    assert_eq!(at(&app), (2, 3));
+    press(&mut app, KeyCode::F(3));
+    assert_eq!(at(&app), (2, 14));
+}
+
+#[test]
 fn matches_are_marked_on_screen_and_the_box_shows_the_count() {
     let (_s, mut app) = find_app();
     typed(&mut app, "anna");
