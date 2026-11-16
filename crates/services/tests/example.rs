@@ -12,6 +12,10 @@ const DEMO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../demo");
 fn target(name: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
+    for suffix in ["", "-2", "-3"] {
+        let aside = dir.with_file_name(format!("{name}.alt{suffix}"));
+        let _ = std::fs::remove_dir_all(aside);
+    }
     dir
 }
 
@@ -139,7 +143,6 @@ fn an_unreadable_copy_is_set_aside_and_replaced() {
 fn a_second_old_copy_gets_a_free_name() {
     let dir = target("example-old2");
     let first = dir.with_file_name("example-old2.alt");
-    let _ = std::fs::remove_dir_all(&first);
     std::fs::create_dir_all(&first).unwrap();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("projekt.toml"), "kaputt").unwrap();
