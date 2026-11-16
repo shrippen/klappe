@@ -35,6 +35,17 @@ TestCase {
             controller: fake
             papers: [{ id: "a4", label: "A4" }, { id: "a3", label: "A3" }, { id: "letter", label: "Letter" }]
             orientations: ["portrait", "landscape"]
+            formats: [
+                { id: "pdf", paper: true, extension: "pdf" },
+                { id: "png", paper: true, extension: "png" },
+                { id: "svg", paper: true, extension: "svg" },
+                { id: "csv", paper: false, extension: "csv" },
+                { id: "ods", paper: false, extension: "ods" },
+                { id: "xlsx", paper: false, extension: "xlsx" },
+                { id: "frames", paper: true, extension: null },
+                { id: "view3d", paper: false, extension: "png" },
+                { id: "camera", paper: false, extension: "png" }
+            ]
         }
     }
 
@@ -78,9 +89,24 @@ TestCase {
         }
     }
 
+    // A format without extension is a folder.
+    function test_the_frames_ask_for_a_folder() {
+        const dialog = make()
+        const folders = findChild(dialog, "folders")
+
+        dialog.request("frames")
+        tryCompare(dialog, "opened", true)
+        dialog.pick()
+
+        tryCompare(folders, "visible", true)
+        folders.close()
+        dialog.close()
+    }
+
     function test_it_starts_from_the_projects_paper() {
         const dialog = make()
-        dialog.projectPaper = "letter-portrait"
+        dialog.projectSize = "letter"
+        dialog.projectOrientation = "portrait"
 
         dialog.request("pdf")
         tryCompare(dialog, "opened", true)

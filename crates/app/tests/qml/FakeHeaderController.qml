@@ -27,7 +27,19 @@ QtObject {
         { id: "plan-b", name: "Plan B", shots: 0 }
     ]
     property string plan: "plan-a"
-    property string projectJson: JSON.stringify({ scenes: scenes, plans: plans, plan: plan })
+    // What the project view lists of the exports (services/views.rs `ExportRow`).
+    readonly property var formats: [
+        { id: "pdf", paper: true, extension: "pdf" },
+        { id: "png", paper: true, extension: "png" },
+        { id: "svg", paper: true, extension: "svg" },
+        { id: "csv", paper: false, extension: "csv" },
+        { id: "ods", paper: false, extension: "ods" },
+        { id: "xlsx", paper: false, extension: "xlsx" },
+        { id: "frames", paper: true, extension: null },
+        { id: "view3d", paper: false, extension: "png" },
+        { id: "camera", paper: false, extension: "png" }
+    ]
+    property string projectJson: JSON.stringify({ scenes: scenes, plans: plans, plan: plan, formats: formats })
 
     function call(name, args) {
         calls.push([name].concat(args))

@@ -14,12 +14,15 @@ FormDialog {
 
     /// The order of the exported shot list: "cut" or "shooting".
     property string order: "cut"
-    /// The sizes offered, `{ id, label }` each, and the orientations, as ids; from the project
-    /// view, so the lists stand once, in the services.
+    /// The sizes offered, `{ id, label }` each, the orientations, as ids, and the formats,
+    /// `{ id, paper, extension }` each (`paper`: asks for a sheet; `extension`: of the file,
+    /// null for a folder); from the project view, so the lists stand once, in the services.
     property var papers: []
     property var orientations: []
-    /// The project's sheet as "a4-portrait"; the dialog starts from it.
-    property string projectPaper: ""
+    property var formats: []
+    /// The project's sheet, as ids; the dialog starts from it.
+    property string projectSize: ""
+    property string projectOrientation: ""
     /// What is chosen: a size id and an orientation id.
     property string size: "a4"
     property string orientation: "landscape"
@@ -27,32 +30,29 @@ FormDialog {
     readonly property string paper: size + "-" + orientation
     /// The folder of the last export, as a `file://` URL; empty before the first one.
     property string folder: ""
-    /// The format being asked for: "pdf", "png", "svg", "csv", "ods", "xlsx", "frames", "view3d" or
-    /// "camera" (the last two are PNGs of a view, LH-86).
+    /// The id of the format being asked for, one of `formats`.
     property string kind: ""
-
-    readonly property var paperKinds: ["pdf", "png", "svg", "frames"]
+    readonly property var format: formats.find(f => f.id === kind)
 
     title: texts.t("export.paperTitle")
     acceptText: texts.t("export.next")
 
     function request(kind) {
         dialog.kind = kind
-        if (paperKinds.indexOf(kind) < 0) {
+        if (!format || !format.paper) {
             pick()
             return
         }
-        const kept = projectPaper.split("-")
-        if (kept.length === 2) {
-            size = kept[0]
-            orientation = kept[1]
+        if (projectSize !== "" && projectOrientation !== "") {
+            size = projectSize
+            orientation = projectOrientation
         }
         open()
     }
 
     // The file dialog, offered the plan's name in the folder of the last export.
     function pick() {
-        if (kind === "frames") {
+        if (format && format.extension === null) {
             folders.title = texts.t("export.pick.frames")
             folders.currentFolder = suggestion().replace(/\/[^/]*$/, "")
             folders.open()
@@ -60,7 +60,7 @@ FormDialog {
         }
         files.title = texts.t("export.pick." + kind)
         files.nameFilters = [texts.t("export.filter." + kind)]
-        files.defaultSuffix = kind === "view3d" || kind === "camera" ? "png" : kind
+        files.defaultSuffix = format ? format.extension : ""
         files.currentFile = suggestion()
         files.open()
     }

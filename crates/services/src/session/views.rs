@@ -10,8 +10,9 @@ use klappe_stellprobe::{
 use super::Session;
 use crate::library;
 use crate::views::{
-    AxisChoice, CharacterRow, Hint, LocationRow, Overview, PaperRow, PlanRow, SceneRow,
+    AxisChoice, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow, PlanRow, SceneRow,
 };
+use crate::ExportFormat;
 
 /// Tenths of a degree: the angle of view in a tooltip is shown to one decimal.
 const FOV_STEPS_PER_DEG: f64 = 10.0;
@@ -97,7 +98,8 @@ impl Session {
             characters: characters.collect(),
             plans: plans.collect(),
             plan: self.plan().map(|p| p.id.clone()).unwrap_or_default(),
-            paper: project.paper.name(),
+            paper_size: project.paper.size.name(),
+            paper_orientation: project.paper.orientation.name(),
             papers: Paper::ALL
                 .map(|p| PaperRow {
                     id: p.name(),
@@ -105,6 +107,13 @@ impl Session {
                 })
                 .into(),
             orientations: Orientation::ALL.map(Orientation::name).into(),
+            formats: ExportFormat::ALL
+                .map(|f| ExportRow {
+                    id: f.name(),
+                    paper: f.needs_paper(),
+                    extension: f.extension(),
+                })
+                .into(),
         }
     }
 

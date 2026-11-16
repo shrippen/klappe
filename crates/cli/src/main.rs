@@ -10,8 +10,8 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
-    error_text, read_number, Field, Language, Orientation, Paper, PaperSetup, Range, Sensor,
-    Session, ShotOrder, Unit,
+    error_text, read_number, ExportFormat, ExportOptions, Field, Language, Orientation, Paper,
+    PaperSetup, Range, Sensor, Session, ShotOrder, Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -89,6 +89,23 @@ enum FormatArg {
     /// What the camera --camera sees at --at, 1920 px wide.
     Camera,
 }
+
+impl FormatArg {
+    fn format(self) -> ExportFormat {
+        match self {
+            FormatArg::Pdf => ExportFormat::Pdf,
+            FormatArg::Svg => ExportFormat::Svg,
+            FormatArg::Png => ExportFormat::Png,
+            FormatArg::Ods => ExportFormat::Ods,
+            FormatArg::Xlsx => ExportFormat::Xlsx,
+            FormatArg::Frames => ExportFormat::Frames,
+            FormatArg::Camera => ExportFormat::Camera,
+        }
+    }
+}
+
+/// The size of the 3D view on screen; the command line has none and offers no export of it.
+const NO_VIEW: Size = (0.0, 0.0);
 
 /// What `export` was asked for.
 struct ExportJob {
@@ -207,17 +224,16 @@ fn write_export(job: &ExportJob) -> Result<(), String> {
         size: job.paper.unwrap_or(kept.size),
         orientation: job.orientation.unwrap_or(kept.orientation),
     };
-    let texts = job.language.print_texts();
-    match job.format {
-        FormatArg::Pdf => session.export_pdf(&job.out, paper, texts, ShotOrder::Cut),
-        FormatArg::Svg => session.export_svg(&job.out, paper, texts),
-        FormatArg::Png => session.export_png(&job.out, paper, texts),
-        FormatArg::Ods => session.export_ods(&job.out, &texts, ShotOrder::Cut),
-        FormatArg::Xlsx => session.export_xlsx(&job.out, &texts, ShotOrder::Cut),
-        FormatArg::Frames => session.export_frames(&job.out, paper, &texts).map(|_| ()),
-        FormatArg::Camera => session.export_camera_png(&job.out, job.camera.as_deref()),
-    }
-    .map_err(|e| error_text(job.language, &e))
+    let options = ExportOptions {
+        paper,
+        order: ShotOrder::Cut,
+        texts: job.language.print_texts(),
+        shown: NO_VIEW,
+        camera: job.camera.clone(),
+    };
+    session
+        .export(job.format.format(), &job.out, &options)
+        .map_err(|e| error_text(job.language, &e))
 }
 
 fn paper_arg(name: &str) -> Result<Paper, String> {

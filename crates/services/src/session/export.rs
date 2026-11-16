@@ -7,13 +7,57 @@ use klappe_stellprobe::{render, vector_view, DisplayList, Eye, Lamp, Shape, Shot
 use super::{Session, Size};
 use crate::error::{write_failed, ServiceError};
 use crate::library;
+use crate::ExportFormat;
 
 const SECONDS_PER_MINUTE: u64 = 60;
 const MIN_NUMBER_WIDTH: usize = 2;
 /// Width of the PNG of a view (LH-86).
 const VIEW_WIDTH_PX: f64 = 1920.0;
 
+/// What an export needs besides its path; each format takes what it uses.
+#[derive(Debug, Clone)]
+pub struct ExportOptions {
+    /// The sheet of the formats that print on one (`ExportFormat::needs_paper`).
+    pub paper: PaperSetup,
+    /// The order of the shot list in PDF and the lists.
+    pub order: ShotOrder,
+    pub texts: Texts,
+    /// The size the 3D view has on screen, for its PNG.
+    pub shown: Size,
+    /// The camera of the camera view when no shot is selected.
+    pub camera: Option<String>,
+}
+
 impl Session {
+    /// Writes `format` to `path`. A plan printed on a sheet makes that sheet the project's, as
+    /// `set_paper` says; an export that fails printed nothing.
+    pub fn export(
+        &mut self,
+        format: ExportFormat,
+        path: &Path,
+        options: &ExportOptions,
+    ) -> Result<(), ServiceError> {
+        let (paper, order, texts) = (options.paper, options.order, &options.texts);
+
+        match format {
+            ExportFormat::Pdf => self.export_pdf(path, paper, texts.clone(), order),
+            ExportFormat::Png => self.export_png(path, paper, texts.clone()),
+            ExportFormat::Svg => self.export_svg(path, paper, texts.clone()),
+            ExportFormat::Csv => self.export_csv(path, texts, order),
+            ExportFormat::Ods => self.export_ods(path, texts, order),
+            ExportFormat::Xlsx => self.export_xlsx(path, texts, order),
+            ExportFormat::Frames => self.export_frames(path, paper, texts).map(|_| ()),
+            ExportFormat::View3d => self.export_view_png(path, options.shown),
+            ExportFormat::Camera => self.export_camera_png(path, options.camera.as_deref()),
+        }?;
+
+        if format.needs_paper() {
+            self.set_paper(paper);
+        }
+
+        Ok(())
+    }
+
     /// Prints the current plan at the playhead as PDF (LH-80), followed by its shot list;
     /// `title` names scene and plan.
     pub fn export_pdf(

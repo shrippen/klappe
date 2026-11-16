@@ -66,7 +66,7 @@ TestCase {
         fake.missingHeights = 0
         fake.calls = []
         fake.plan = "plan-a"
-        fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan })
+        fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats })
         fakeTools.tool = "select"
         fakeTools.mode = "build"
         fakeTools.enabled = true

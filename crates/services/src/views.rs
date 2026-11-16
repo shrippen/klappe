@@ -287,12 +287,25 @@ pub struct Overview {
     pub plans: Vec<PlanRow>,
     /// Id of the plan shown; empty without one.
     pub plan: String,
-    /// The project's export sheet as `a4-portrait`.
-    pub paper: String,
+    /// The size of the project's export sheet, as `a4`.
+    pub paper_size: &'static str,
+    /// How the project's export sheet lies, as `portrait`.
+    pub paper_orientation: &'static str,
     /// The sizes an export offers.
     pub papers: Vec<PaperRow>,
     /// The ways a sheet can lie, as `portrait` and `landscape`; the surface names them.
     pub orientations: Vec<&'static str>,
+    /// The exports, in the order the menu offers them.
+    pub formats: Vec<ExportRow>,
+}
+
+/// One export format: `id` is `pdf`; `paper` says it asks for a sheet; `extension` is that of
+/// the file written, `None` for a folder.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ExportRow {
+    pub id: &'static str,
+    pub paper: bool,
+    pub extension: Option<&'static str>,
 }
 
 /// One paper size of the export dialog: `id` is `a4`, `label` what the dialog shows.

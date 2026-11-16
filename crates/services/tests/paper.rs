@@ -3,7 +3,9 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{Language, Orientation, Paper, PaperSetup, Session, ShotOrder};
+use klappe_services::{
+    ExportFormat, ExportOptions, Language, Orientation, Paper, PaperSetup, Session, ShotOrder,
+};
 
 const A4_PORTRAIT_MEDIA_BOX: &str = "/MediaBox [0 0 595.28 841.89]";
 const LETTER_PORTRAIT: PaperSetup = PaperSetup {
@@ -100,7 +102,8 @@ fn the_overview_lists_the_sizes_and_the_sheet() {
 
     let overview = serde_json::to_value(s.overview()).unwrap();
 
-    assert_eq!(overview["paper"], "letter-portrait");
+    assert_eq!(overview["paper_size"], "letter");
+    assert_eq!(overview["paper_orientation"], "portrait");
     let ids: Vec<&str> = overview["papers"]
         .as_array()
         .unwrap()
@@ -112,4 +115,78 @@ fn the_overview_lists_the_sizes_and_the_sheet() {
         overview["orientations"],
         serde_json::json!(["portrait", "landscape"])
     );
+}
+
+fn options(paper: PaperSetup) -> ExportOptions {
+    ExportOptions {
+        paper,
+        order: ShotOrder::Cut,
+        texts: Language::German.print_texts(),
+        shown: (800.0, 450.0),
+        camera: Some("a".to_owned()),
+    }
+}
+
+#[test]
+fn the_overview_lists_what_each_export_needs() {
+    let s = Session::open(&copy("paper-formats")).unwrap();
+
+    let overview = serde_json::to_value(s.overview()).unwrap();
+
+    let formats = overview["formats"].as_array().unwrap();
+    let ids: Vec<&str> = formats.iter().map(|f| f["id"].as_str().unwrap()).collect();
+    assert_eq!(
+        ids,
+        ["pdf", "png", "svg", "csv", "ods", "xlsx", "frames", "view3d", "camera"]
+    );
+    let on_paper: Vec<&str> = formats
+        .iter()
+        .filter(|f| f["paper"] == true)
+        .map(|f| f["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(on_paper, ["pdf", "png", "svg", "frames"]);
+    let extensions: Vec<_> = formats.iter().map(|f| f["extension"].clone()).collect();
+    assert_eq!(extensions[6], serde_json::Value::Null);
+    assert_eq!(extensions[7], "png");
+    assert_eq!(extensions[8], "png");
+    assert_eq!(extensions[3], "csv");
+}
+
+/// The plan printed on a sheet makes it the project's; lists and views of it do not.
+#[test]
+fn an_export_keeps_the_paper_it_printed_on() {
+    let out = Path::new(env!("CARGO_TARGET_TMPDIR")).join("paper-export-out");
+    let _ = std::fs::remove_dir_all(&out);
+    std::fs::create_dir_all(&out).unwrap();
+    let mut s = Session::open(&copy("paper-export")).unwrap();
+    s.set_time(6.0);
+    s.toggle_view();
+
+    for format in ExportFormat::ALL {
+        let target = out.join(format.name());
+        s.set_paper(PaperSetup::default());
+
+        s.export(format, &target, &options(LETTER_PORTRAIT))
+            .unwrap();
+
+        let expected = if format.needs_paper() {
+            LETTER_PORTRAIT
+        } else {
+            PaperSetup::default()
+        };
+        assert_eq!(s.project().paper, expected, "{}", format.name());
+    }
+}
+
+#[test]
+fn a_failed_export_keeps_the_paper() {
+    let dir = copy("paper-failed");
+    let mut s = Session::open(&dir).unwrap();
+    // A file is no folder: nothing can be written below it.
+    let target = dir.join("projekt.toml").join("plan.pdf");
+
+    let result = s.export(ExportFormat::Pdf, &target, &options(LETTER_PORTRAIT));
+
+    assert!(result.is_err());
+    assert_eq!(s.project().paper, PaperSetup::default());
 }

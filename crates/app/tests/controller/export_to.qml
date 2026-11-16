@@ -34,6 +34,9 @@ Item {
                 return root.fail("project did not open")
             }
 
+            const project = () => JSON.parse(ctl.projectJson)
+            const paperOf = () => project().paper_size + "-" + project().paper_orientation
+
             const named = base + "/Plan Ärger.pdf"
             if (!ctl.exportTo("pdf", "cut", "a3", named)) {
                 return root.fail("export to a path with space and umlaut failed: " + ctl.status)
@@ -76,7 +79,7 @@ Item {
             if (!ctl.exportTo("pdf", "cut", "letter-portrait", upright)) {
                 return root.fail("portrait export failed: " + ctl.status)
             }
-            if (JSON.parse(ctl.projectJson).paper !== "letter-portrait") {
+            if (paperOf() !== "letter-portrait") {
                 return root.fail("the project did not keep the paper: " + ctl.projectJson)
             }
             if (!ctl.dirty) {
@@ -92,14 +95,13 @@ Item {
                 return root.fail("export over something that cannot be replaced reported success")
             }
             // Nothing was printed on A3: the project keeps the sheet it had.
-            if (JSON.parse(ctl.projectJson).paper === "a3-portrait") {
+            if (paperOf() === "a3-portrait") {
                 return root.fail("a failed export changed the paper")
             }
 
             // The shot list as ODS and XLSX, the plan per mark as a folder of PNGs; the Rust
             // side (qml_tests.rs) checks what was written. Only what prints a plan on a sheet
             // makes the sheet the project's.
-            const paperOf = () => JSON.parse(ctl.projectJson).paper
             const kept = paperOf()
             for (const kind of ["ods", "xlsx"]) {
                 if (!ctl.exportTo(kind, "shooting", "a3-portrait", base + "/Liste." + kind)) {
