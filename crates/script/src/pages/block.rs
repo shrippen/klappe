@@ -143,24 +143,19 @@ impl Part {
 }
 
 /// Byte offsets where a sentence starts, but the first: after `. ! ? …` and closing quotes
-/// when a capital or a digit follows (not `z. B. etwas`), and after a line break.
+/// when a capital or a digit follows (not `z. B. etwas`); a line break is none.
 pub(super) fn sentence_starts(text: &str) -> Vec<usize> {
     let mut starts = Vec::new();
     let mut ended = false;
     let mut spaced = false;
-    let mut hard = false;
 
     for (pos, c) in text.char_indices() {
         if c.is_whitespace() {
-            if c == '\n' {
-                ended = true;
-                hard = true;
-            }
             spaced |= ended;
             continue;
         }
 
-        if ended && spaced && (hard || (!c.is_lowercase() && !abbreviation(&text[..pos]))) {
+        if ended && spaced && (!c.is_lowercase() && !abbreviation(&text[..pos])) {
             starts.push(pos);
         }
         if ended && !spaced && CLOSERS.contains(&c) {
@@ -169,7 +164,6 @@ pub(super) fn sentence_starts(text: &str) -> Vec<usize> {
 
         ended = TERMINATORS.contains(&c);
         spaced = false;
-        hard = false;
     }
 
     starts
@@ -250,17 +244,6 @@ impl Block {
         rows.iter()
             .filter(|r| r.first().is_some_and(|l| l.kind != PageKind::Character))
             .count()
-    }
-
-    /// Rows that must stand on a page with the heading above: the name and two rows.
-    pub(super) fn lead(&self) -> usize {
-        let rows = self.rows();
-        let names = rows
-            .iter()
-            .take_while(|r| r.first().is_some_and(|l| l.kind == PageKind::Character))
-            .count();
-
-        (names + MIN_SPLIT_ROWS).min(rows.len())
     }
 
     /// Cuts the block in two at the last place where the first half, with `(MORE)` for a

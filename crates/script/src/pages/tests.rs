@@ -323,3 +323,54 @@ fn a_sentence_does_not_end_at_an_abbreviation() {
 
     assert_eq!(starts, ["Dann ging er. Nr. 5 blieb.", "Nr. 5 blieb."]);
 }
+
+/// A4 page, 52 rows of action, then a heading with `next` after it: the heading would
+/// stand at row 54 with the block unable to start below it.
+fn heading_before(next: &str) -> Pagination {
+    let filler: Vec<String> = (0..52).map(|i| format!("Filler {i}.")).collect();
+    let text = format!("{}\n\nINT. NEXT - DAY\n\n{next}\n", filler.join("\n"));
+
+    lay(&text, PageSize::A4.body_lines())
+}
+
+fn heading_is_on_page(p: &Pagination, n: usize) -> bool {
+    p.pages[n - 1]
+        .lines
+        .iter()
+        .any(|l| l.text == "INT. NEXT - DAY")
+}
+
+#[test]
+fn a_heading_moves_on_when_one_long_sentence_cannot_follow_it() {
+    let sentence = vec!["word"; 5].join("\n");
+    let p = heading_before(&sentence);
+
+    assert!(!heading_is_on_page(&p, 1));
+    assert!(heading_is_on_page(&p, 2));
+}
+
+#[test]
+fn a_heading_moves_on_when_a_one_sentence_dialogue_cannot_follow_it() {
+    let p = heading_before("ANNA\nOne\ntwo\nthree\nfour");
+
+    assert!(!heading_is_on_page(&p, 1));
+    assert!(heading_is_on_page(&p, 2));
+}
+
+#[test]
+fn a_heading_moves_on_when_a_dual_dialogue_cannot_follow_it() {
+    let p = heading_before("ANNA\nOne\ntwo\nthree\nfour\n\nBEN ^\nFive");
+
+    assert!(!heading_is_on_page(&p, 1));
+    assert!(heading_is_on_page(&p, 2));
+}
+
+#[test]
+fn a_hard_line_break_is_not_a_sentence_start() {
+    use super::block::sentence_starts;
+
+    let text = "no stop here\nstill the same one. A new one\nstarts here";
+    let starts: Vec<&str> = sentence_starts(text).iter().map(|&i| &text[i..]).collect();
+
+    assert_eq!(starts, ["A new one\nstarts here"]);
+}

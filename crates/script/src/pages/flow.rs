@@ -29,8 +29,7 @@ pub(super) fn run(elements: &[Element], options: &PageOptions) -> Pagination {
     };
 
     for (i, block) in blocks.iter().enumerate() {
-        let after = lead_after(&blocks, i);
-        flow.place(block.clone(), after);
+        flow.place(block.clone(), blocks.get(i + 1));
     }
     flow.end_page();
 
@@ -46,15 +45,6 @@ pub(super) fn run(elements: &[Element], options: &PageOptions) -> Pagination {
     }
 
     result
-}
-
-/// Rows the block after `blocks[i]` needs on the page, with its spacing: what a heading
-/// must keep company with. Nothing before a forced page break or at the end.
-fn lead_after(blocks: &[Block], i: usize) -> usize {
-    match blocks.get(i + 1) {
-        Some(next) if !next.page_break => next.before + next.lead(),
-        _ => 0,
-    }
 }
 
 impl Flow<'_> {
@@ -74,7 +64,7 @@ impl Flow<'_> {
         self.pages.push(Page { number, lines });
     }
 
-    fn place(&mut self, mut block: Block, lead_after: usize) {
+    fn place(&mut self, mut block: Block, next: Option<&Block>) {
         if block.page_break {
             self.end_page();
             return;
@@ -88,12 +78,10 @@ impl Flow<'_> {
                 return;
             }
 
-            let keep = if block.heading && !at_top {
-                lead_after
-            } else {
-                0
-            };
-            if before + rows.len() + keep <= self.space() {
+            let left = self.space().saturating_sub(before + rows.len());
+            // A heading stays only where the block after it can start on the page.
+            let company = !block.heading || at_top || self.can_start(next, left);
+            if before + rows.len() <= self.space() && company {
                 self.put(&block, before, rows);
                 return;
             }
@@ -118,6 +106,20 @@ impl Flow<'_> {
             self.end_page();
             block = Block::from_rows(rest);
         }
+    }
+
+    /// Whether `next` can start in `left` rows: whole, or cut where the rules allow.
+    fn can_start(&self, next: Option<&Block>, left: usize) -> bool {
+        let Some(next) = next.filter(|n| !n.page_break) else {
+            return true;
+        };
+        let rows = next.rows().len();
+        if rows == 0 || next.before + rows <= left {
+            return true;
+        }
+
+        let room = left.saturating_sub(next.before);
+        next.split(room, self.options.words).is_some()
     }
 
     /// The first half of a cut block; a dialogue ends in `(MORE)`.
