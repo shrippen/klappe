@@ -1,6 +1,7 @@
 use klappe_model::{Angle, FloorPlan, LinkTarget, Movement, Shot, ShotSize};
 
 use crate::error::ServiceError;
+use crate::field::Field;
 
 /// Length of a new shot when no mark follows the playhead soon.
 const DEFAULT_SHOT_S: f64 = 5.0;
@@ -87,6 +88,7 @@ pub(crate) fn add(plan: &mut FloorPlan, scene: &str, camera: &str, at_s: f64) ->
             gear: String::new(),
             crew: String::new(),
             note: String::new(),
+            setup_of: None,
         },
     );
     id
@@ -127,4 +129,23 @@ pub(crate) fn remove(plan: &mut FloorPlan, id: &str) -> Result<Option<String>, S
         .get(at)
         .or(at.checked_sub(1).and_then(|i| plan.shots.get(i)));
     Ok(neighbour.map(|s| s.id.clone()))
+}
+
+/// Refuses a setup target for shot `id` that `setup_target` would not take: no such shot,
+/// the shot itself, or one that is assigned by hand itself. Empty (computed) is fine.
+pub(crate) fn check_setup(plan: &FloorPlan, id: &str, target: &str) -> Result<(), ServiceError> {
+    let target = target.trim();
+    let taken = target.is_empty()
+        || plan
+            .shots
+            .iter()
+            .any(|s| s.id == target && s.id != id && s.setup_of.is_none());
+    if taken {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Setup,
+        value: target.to_owned(),
+    })
 }

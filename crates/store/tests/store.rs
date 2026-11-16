@@ -87,6 +87,7 @@ fn shot(
         gear: String::new(),
         crew: String::new(),
         note: String::new(),
+        setup_of: None,
     }
 }
 

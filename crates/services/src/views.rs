@@ -3,6 +3,7 @@
 use klappe_model::{
     Dash, DoorSide, FigureColor, Fill, Hinge, LibraryItem, ObjectShape, OpeningKind, Template,
 };
+use klappe_stellprobe::SetupChoice;
 use serde::Serialize;
 
 /// The frame a shot shows when its camera is gone (16:9).
@@ -48,6 +49,33 @@ pub struct ShotRow {
     pub axis_against: String,
     /// The camera setup (1-based): same camera, place and lens (LH-72).
     pub setup: usize,
+    /// Id of the shot this one is shot together with, chosen by hand (LH-77); empty is computed.
+    pub setup_of: String,
+    /// `setup_of` names no usable shot (gone, or assigned by hand itself): computed instead.
+    pub setup_lost: bool,
+}
+
+/// A setup a shot can be assigned to (`Session::setup_options`, LH-77); `first_id` is what the
+/// shot then names.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SetupOption {
+    pub setup: usize,
+    pub first_id: String,
+    pub first_number: String,
+    pub camera_label: String,
+    pub lens_mm: f64,
+}
+
+impl From<SetupChoice> for SetupOption {
+    fn from(c: SetupChoice) -> Self {
+        SetupOption {
+            setup: c.setup,
+            first_id: c.first_id,
+            first_number: c.first_number,
+            camera_label: c.camera_label,
+            lens_mm: c.lens_mm,
+        }
+    }
 }
 
 /// The two characters the 180° axis runs between (LH-40).

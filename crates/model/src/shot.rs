@@ -37,6 +37,10 @@ pub struct Shot {
     pub crew: String,
     #[serde(default)]
     pub note: String,
+    /// Id of another shot of the plan: this shot is shot in that shot's setup (LH-77). `None`
+    /// computes the setup from camera, place and lens.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setup_of: Option<String>,
 }
 
 impl Shot {

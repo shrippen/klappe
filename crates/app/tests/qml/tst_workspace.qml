@@ -75,6 +75,7 @@ TestCase {
         function setLayer() {}
         function setLock() {}
         function editShot() { return true }
+        function setupChoices() { return "[]" }
         function setFollow() { return true }
         function addShot() { return true }
         function copyShot() { return true }

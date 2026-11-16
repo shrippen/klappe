@@ -98,6 +98,25 @@ Item {
 
     readonly property var sizes: controller.choicesJson ? (JSON.parse(controller.choicesJson).size || []) : []
     readonly property var angles: controller.choicesJson ? (JSON.parse(controller.choicesJson).angle || []) : []
+    // The setups the shot can join (LH-77), counted without the shot itself.
+    readonly property var setupChoices: shot ? JSON.parse(controller.setupChoices(shot.id)) : []
+    readonly property string ownSetup: shot && shot.setup_of ? shot.setup_of : ""
+
+    function setupLabel(c) {
+        return texts.t("shot.setupChoice", { setup: c.setup, camera: c.camera_label, lens: texts.num(c.lens_mm, 1), first: c.first_number })
+    }
+
+    // The entry of the box: 0 is "automatisch", else the setup the shot follows; none when its
+    // target is gone.
+    function setupIndex() {
+        if (ownSetup === "") {
+            return 0
+        }
+        if (shot.setup_lost) {
+            return -1
+        }
+        return setupChoices.findIndex(c => c.setup === shot.setup) + 1 || -1
+    }
     readonly property var movements: controller.choicesJson ? (JSON.parse(controller.choicesJson).movement || []) : []
 
     // New, copy and delete a shot (LH-70). "New" takes the camera selected in the plan, else
@@ -341,6 +360,30 @@ Item {
                             }
                         }
                     }
+
+                    KanteSectionLabel { text: panel.texts.t("field.setup") }
+                    Item { }
+                    // "automatisch" computes the setup from camera, place and lens; a setup puts the
+                    // shot with the first shot of that setup by hand (LH-77).
+                    KanteComboBox {
+                        objectName: "setupBox"
+                        Layout.fillWidth: true
+                        model: [panel.texts.t("setup.auto")].concat(panel.setupChoices.map(c => panel.setupLabel(c)))
+                        currentIndex: panel.shot ? panel.setupIndex() : -1
+                        onActivated: index => panel.commit("setup", index === 0 ? "" : panel.setupChoices[index - 1].first_id, panel.ownSetup)
+                    }
+                    Item { }
+                }
+
+                QQC2.Label {
+                    objectName: "setupHint"
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    visible: !!panel.shot && !!panel.shot.setup_lost
+                    wrapMode: Text.WordWrap
+                    color: KanteStyle.mutedTextColor
+                    text: panel.shot ? panel.texts.t("shot.setupGone", { setup: panel.shot.setup }) : ""
                 }
 
                 QQC2.Label {
