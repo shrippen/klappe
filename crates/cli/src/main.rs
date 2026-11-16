@@ -4,7 +4,8 @@
 //! klappe-cli fov --lens 35 [--sensor super35|full-frame|mft|<width mm>]
 //! klappe-cli export --project <folder> --scene <nr> --out <file> [--plan <id>] [--at <s>]
 //!                   [--paper a4|a3|letter] [--orientation landscape|portrait]
-//!                   [--language de|en] [--format pdf|svg|png|ods|xlsx|frames]
+//!                   [--language de|en] [--format pdf|svg|png|ods|xlsx|frames|camera]
+//!                   [--camera <id>]
 //! ```
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -34,7 +35,8 @@ enum Command {
         sensor: String,
     },
     /// The plan of a scene at a time as PDF (with shot list), SVG or PNG (LH-80, LH-81); the shot
-    /// list as ODS or XLSX (LH-85); the plan at every mark as PNGs in a folder (LH-83).
+    /// list as ODS or XLSX (LH-85); the plan at every mark as PNGs in a folder (LH-83); what a
+    /// camera sees at a time as PNG (LH-86).
     Export {
         /// The project folder.
         #[arg(long)]
@@ -57,9 +59,12 @@ enum Command {
         /// Language of the legend; the system's if left out.
         #[arg(long, value_enum)]
         language: Option<LanguageArg>,
-        /// Taken from the extension of --out if left out; `frames` is never guessed.
+        /// Taken from the extension of --out if left out; `frames` and `camera` are never guessed.
         #[arg(long, value_enum)]
         format: Option<FormatArg>,
+        /// The camera `--format camera` shows.
+        #[arg(long)]
+        camera: Option<String>,
         /// The file to write; the folder for `--format frames`.
         #[arg(long)]
         out: PathBuf,
@@ -81,6 +86,8 @@ enum FormatArg {
     Xlsx,
     /// One PNG per mark, into the folder --out; --at is ignored.
     Frames,
+    /// What the camera --camera sees at --at, 1920 px wide.
+    Camera,
 }
 
 /// What `export` was asked for.
@@ -93,6 +100,7 @@ struct ExportJob {
     orientation: Option<Orientation>,
     language: Language,
     format: FormatArg,
+    camera: Option<String>,
     out: PathBuf,
 }
 
@@ -108,12 +116,17 @@ fn main() -> ExitCode {
             orientation,
             language,
             format,
+            camera,
             out,
         } => {
             let Some(format) = format.or_else(|| format_of(&out)) else {
                 eprintln!("klappe-cli: cannot tell the format of {out:?}, use --format");
                 return ExitCode::FAILURE;
             };
+            if format == FormatArg::Camera && camera.is_none() {
+                eprintln!("klappe-cli: --format camera needs --camera <id>");
+                return ExitCode::FAILURE;
+            }
             let job = ExportJob {
                 project,
                 scene,
@@ -123,6 +136,7 @@ fn main() -> ExitCode {
                 orientation,
                 language: language_of(language),
                 format,
+                camera,
                 out,
             };
 
@@ -201,6 +215,7 @@ fn write_export(job: &ExportJob) -> Result<(), String> {
         FormatArg::Ods => session.export_ods(&job.out, &texts, ShotOrder::Cut),
         FormatArg::Xlsx => session.export_xlsx(&job.out, &texts, ShotOrder::Cut),
         FormatArg::Frames => session.export_frames(&job.out, paper, &texts).map(|_| ()),
+        FormatArg::Camera => session.export_camera_png(&job.out, job.camera.as_deref()),
     }
     .map_err(|e| error_text(job.language, &e))
 }
