@@ -6,7 +6,7 @@ Das Repo ist wartbar und etwas besser als beim zehnten Audit. Drei gewählte Fun
 - Welche Ausgaben es gibt, steht einmal in der Sitzung.
 - Die Planansicht und die Planänderungen sind geteilt und liegen jetzt unter der Grenze von 800 Zeilen.
 
-Die Bestandsliste ist dadurch von 35 auf 33 Einträge geschrumpft.
+Die Bestandsliste ist von 35 auf 33 Einträge geschrumpft. Einen Eintrag hat die Teilung der Planansicht beseitigt, einen #174.
 
 Schlechter geworden sind zwei Stellen:
 - Die Verbindungsdatei der App `bridge.rs` ist weiter über der Grenze gewachsen. Wie im letzten Audit vorhergesagt, kommen mit jeder neuen Funktion des Fensters ein paar Zeilen dazu.
@@ -18,7 +18,7 @@ Keiner der sechs Funde des zehnten Audits ist behoben. Zwei davon sind gewachsen
 | | letztes Audit | jetzt |
 |---|---|---|
 | Quelldateien | 390 | 405 (ohne die Kopie von Kante, gezählt wie die Strukturprüfung) |
-| Einträge in der Bestandsliste | 35 | 33. Vier Einträge sind weg: die Planansicht `display.rs` als Datei, die Zielsuche `target` in `moving.rs` (sie steht jetzt unverändert in `target.rs`), `apply` in `edit.rs` und die Datei `display.rs`, die damit unter 800 Zeilen liegt. Gewachsen sind `bridge.rs` (801 auf 817 Zeilen), die Liste der Aufrufe `switched` (660 auf 676), die Feldnamen `name` in `field.rs` (42 auf 43 Zweige) und die Ablagetests `store.rs` (1010 auf 1011). Jede Erhöhung ist im Commit begründet. |
+| Einträge in der Bestandsliste | 35 | 33. Weg sind zwei Einträge: die Planansicht `display.rs` als Datei (geteilt in #176) und `apply` in `edit.rs` (in #174 unter die Grenze gebracht). Die Zielsuche `target` steht unverändert, aber jetzt in `target.rs` statt in `moving.rs`; ihr Eintrag ist nur umgezogen. Gewachsen sind `bridge.rs` (801 auf 817 Zeilen), die Liste der Aufrufe `switched` (660 auf 676), die Feldnamen `name` in `field.rs` (42 auf 43 Zweige) und die Ablagetests `store.rs` (1010 auf 1011). Jede Erhöhung ist im Commit begründet. |
 | größte Datei (Zeilen) | 1483 (`crates/stellprobe/src/display.rs`) | 1011 (die Ablagetests `crates/store/tests/store.rs`). Die größte Datei ohne Tests ist `crates/export/src/jpeg.rs` mit 883 Zeilen, unverändert. `display.rs` hat jetzt 587 Zeilen. |
 | längste Funktion (Zeilen) | 138 (`apply` in `plan_edit.rs`) | 138 (dieselbe). `switched` mit 676 Zeilen ist weiter keine Funktion, sondern die Liste der Aufrufe. |
 
@@ -65,9 +65,11 @@ Was es kostet: Ein neues Papierformat mit eigener Regel ändert man an drei Stel
 
 Vorschlag: Die Funktion aus der Shotliste wandert neben die Papiergrößen und wird von allen drei benutzt.
 
-Aufwand klein. Risiko gering: `crates/export/tests/sheets.rs`, `shots.rs` und `export.rs` prüfen die Blattgrößen (grün).
+Aufwand klein. Risiko mittel:
+- Für Plan und Shotliste prüfen Tests die Blattgröße: `crates/export/tests/export.rs:497` (`pdf_page_size_and_opacity`) und `crates/export/tests/shots.rs` (A4 quer, A4 hoch, Letter hoch). Beide sind grün.
+- Für die Kamerablicke prüft kein Test die Blattgröße, nur Seitenzahl und Beschriftungen. Dort sollte vor dem Umbau ein Test für Hoch- und Querformat dazukommen.
 
-Beleg: `crates/export/src/table.rs:151`, `crates/export/src/layout.rs:83`, `crates/export/src/camera_pages.rs:63`, `crates/export/src/layout.rs:68`.
+Beleg: `crates/export/src/table.rs:151`, `crates/export/src/layout.rs:83`, `crates/export/src/camera_pages.rs:63`, `crates/export/src/layout.rs:68`, `crates/export/tests/shots.rs:556`.
 
 ### 4. Welcher Shot als Vorbild für ein Setup taugt, steht in Stellprobe und in der Sitzung je einmal
 Seit #174 kann man einen Shot von Hand dem Setup eines anderen zuordnen. Ein solches Vorbild muss drei Bedingungen erfüllen:
@@ -110,18 +112,18 @@ Aufwand mittel. Risiko gering: Es wird nur verschoben. Die Kopfzeilen-, Karten- 
 Beleg: `structure.baseline`, `crates/app/src/bridge.rs:28`, `crates/app/src/bridge.rs:141`, `crates/app/src/bridge.rs:611`, Commits `03f4b31`, `2c8560b`, `4fd5105`.
 
 ## Seit dem letzten Audit
-Seit dem zehnten Audit wurden zehn PRs gemergt (#167 bis #176). Aus dem neunten Audit hatte der Eigentümer alle fünf Funde gewählt. Vier davon sind jetzt behoben, einer ist in Arbeit. Aus dem zehnten Audit wurde keiner gewählt oder abgelehnt.
+Seit dem zehnten Audit wurden zehn PRs gemergt (#167 bis #176). Aus dem neunten Audit hatte der Eigentümer alle fünf Funde gewählt. Vier davon sind jetzt behoben. Der fünfte (Fund 1) ist in Arbeit, aber noch nicht als PR gestellt. Aus dem zehnten Audit wurde keiner gewählt oder abgelehnt.
 
 Zehntes Audit:
 - **Fund 1 (Schnitt und Kamerablick auf eigenem Weg, `freeLook` schaltet und fragt): offen.** Beleg: `crates/app/src/bridge.rs:141`, `crates/app/src/bridge/free.rs:89`, `crates/app/qml/AppHeader.qml:367`, `crates/app/qml/AppHeader.qml:398`, `crates/app/qml/AppHeader.qml:408`, `crates/app/qml/FreeView.qml:140`.
 - **Fund 2 (Karten hängen am Zähler des Kamerabilds): offen, gewachsen.** Auch das Schließen eines Projekts (#168) zählt jetzt diesen Zähler hoch. Beleg: `crates/app/src/bridge.rs:28`, `crates/app/src/bridge/view.rs:455`, `crates/app/src/bridge/project.rs:244`.
 - **Fund 3 (Farbe eines Bildpunkts in App und Ausgabe je einmal): offen.** Beleg: `crates/app/src/plan/picture.rs:16`, `crates/export/src/style.rs:227`.
-- **Fund 4 (Punkte von freier Form und gezeichneter Fläche zweimal gebaut): offen.** #171 behandelt beide beim Anzeigen der Seitengriffe gleich (eine gemeinsame Mindestlänge), der Rest ist unverändert. Beleg: `crates/services/src/plan_edit/drawings.rs:42`, `crates/services/src/plan_edit/moving/forms.rs:25`, `crates/services/src/plan_edit/moving.rs:220`, `crates/stellprobe/src/display/handles.rs:69`.
+- **Fund 4 (Punkte von freier Form und gezeichneter Fläche zweimal gebaut): offen.** #171 behandelt beide beim Anzeigen der Seitengriffe gleich (eine gemeinsame Mindestlänge), der Rest ist unverändert. Beleg: `crates/services/src/plan_edit/drawings.rs:42`, `crates/services/src/plan_edit/moving/forms.rs:25`, `crates/services/src/plan_edit/moving.rs:220`, `crates/stellprobe/src/display/handles.rs:64`, `crates/stellprobe/src/display/handles.rs:67`.
 - **Fund 5 („was eine Kamera sieht“ dreimal, „gewählte Kamera“ viermal): offen.** #175 hat die Ausgabe der App umgebaut, den Block „gewählte Kamera“ aber behalten. Beleg: `crates/app/src/bridge/export.rs:84`, `crates/app/src/bridge/shots.rs:57`, `crates/app/src/bridge/free.rs:92`, `crates/app/src/bridge/picture.rs:41`, `crates/services/src/session/views.rs:36`.
 - **Fund 6 (Bestandsliste): siehe neuer Fund 5.**
 
 Neuntes Audit (alle gewählt):
-- **Fund 1 (neue Griffart an rund 14 Stellen): in Arbeit, gewachsen.** #171 („der nächste Griff gewinnt“) hat zwei weitere Stellen gebracht:
+- **Fund 1 (neue Griffart an rund 14 Stellen): gewählt, in Arbeit (noch kein PR), gewachsen.** #171 („der nächste Griff gewinnt“) hat zwei weitere Stellen gebracht:
   - eine eigene Liste aller Griffrollen in der Sitzung,
   - eine eigene Zuordnung „Griff → sein Element“.
 
@@ -136,7 +138,7 @@ Achtes Audit:
 - **Fund 2 (Regeln der eigenen Bibliothek in Ablage und Sitzung): offen.** Beleg: `crates/services/src/project_edit/library.rs:78`, `crates/store/src/library.rs:106`.
 - **Fund 3 (Regeln des Höhenwerkzeugs in der App): teilweise.** Die Untergrenze kommt seit #163 aus dem Modell, der Rest ist offen. Beleg: `crates/app/src/tools.rs:274`, `crates/app/src/bridge/free.rs:282`.
 - **Fund 4 (Vorlagen unter dem Namen der Bibliothek): offen.** Beleg: `crates/app/src/bridge/library.rs:19`.
-- **Fund 5 (Punkt in Fläche zweimal): offen.** Beleg: `crates/model/src/library.rs:141`, `crates/stellprobe/src/hit.rs:110`.
+- **Fund 5 (Punkt in Fläche zweimal): offen.** Beleg: `crates/model/src/library.rs:146`, `crates/stellprobe/src/hit.rs:110`.
 - **Fund 6 (3D-Ansicht kopiert Bildteil des Kamerabilds): offen.** Beleg: `crates/app/qml/FreeView.qml:48`, `crates/stellprobe/src/eye.rs:78`.
 
 Siebtes Audit:
@@ -160,7 +162,7 @@ Viertes Audit:
 - **Fund 1 (Formate, Papier und Reihenfolge der Ausgabe je Oberfläche): behoben** mit Fund 4 des neunten Audits (#175), bis auf die Kommandozeile (neuer Fund 2).
 - **Fund 2 (Verbindungsdatei): offen, weiter gewachsen** (817 Zeilen), siehe neuer Fund 5.
 - **Fund 3 (Lampenkarte als Kopie der Kamerakarte): offen.** Beleg: `crates/app/qml/CameraCard.qml:95`, `crates/app/qml/LightCard.qml:74`.
-- **Fund 5 (Winkel beim Messen in der App berechnet): in Arbeit (#119).** Beleg: `crates/app/src/tools.rs:472`, `crates/model/src/geometry.rs:44`.
+- **Fund 5 (Winkel beim Messen in der App berechnet): in Arbeit (#119).** Beleg: `crates/app/src/tools.rs:468`, `crates/model/src/geometry.rs:44`.
 
 Drittes Audit:
 - **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): Rest offen.** Die Kommandozeile schreibt für „keine solche Szene“ und „Szene ohne Plan“ weiter eigene englische Sätze. Beleg: `crates/cli/src/main.rs:210`, `crates/cli/src/main.rs:221`.
