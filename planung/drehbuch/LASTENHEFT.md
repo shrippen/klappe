@@ -124,7 +124,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DB-50 | Figurenliste aus dem Buch, abgeglichen mit den Figuren des Projekts (Name, Kürzel, Farbe aus Stellprobe, LH-03). | M |
-| DB-51 | Drehorte aus Szenenköpfen, abgeglichen mit den Drehorten des Projekts (LH-02); Ortsname im Kopf = Drehort, Varianten zuordenbar. | M |
+| DB-51 | Spielorte aus Szenenköpfen (Varianten zuordenbar), je Spielort einem Drehort des Projekts zugeordnet (LH-02); mehrere Spielorte an einem Drehort möglich (`../DATENMODELL.md`, F-01). | M |
 | DB-52 | Dialog einer Figur gesammelt ansehen (Stimme prüfen). | S |
 | DB-53 | Statistik: Szenen und Zeilen je Figur, Dialoganteile, Szenen je Ort und Tageszeit, Szenenlänge. | S |
 | DB-54 | Wortwiederholungen anzeigen. | K |

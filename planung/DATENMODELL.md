@@ -1,7 +1,7 @@
 # Datenmodell: Teilbereiche und gemeinsame Daten
 
-Stand: 2026-11-17, **Entwurf**; alle Fragen entschieden (Abschnitt 8) (Abschnitt 8).
-Zweite Meinung (advisor) eingearbeitet.
+Stand: 2026-11-17, **Entwurf**; alle Fragen entschieden (Abschnitt 8).
+Zwei Runden zweite Meinung (advisor) eingearbeitet.
 
 Klappe hat mehrere Teilbereiche, die auf einem Projekt arbeiten. Dieses Dokument legt fest,
 welche Daten es gibt, welcher Teilbereich sie besitzt (schreibt), wer sie nur liest und wie die
@@ -15,7 +15,7 @@ Vorbild für den Umfang der Produktion war Yamdu (Beobachtung am Projekt des Eig
 
 | Teilbereich | Zweck | besitzt |
 |---|---|---|
-| Drehbuch | Buch schreiben, Fassungen, Seiten und Längen | Buchtext, Fassungen, Szenenregister |
+| Drehbuch | Buch schreiben, Fassungen, Seiten und Längen | Buchtext, Fassungen; ist es da, die Quelle von Nummer, Kopf und Figurennamen |
 | Stellprobe | Floorplans, Blocking, Kameras, Licht, Shots | Sets, Floorplans, Marks, Kameras, Shots |
 | Storyboard | Bilder der Shots ansehen, ordnen, ausgeben | nichts Eigenes: Bild und Notiz hängen am Shot, die Reihenfolge ist die Schnittfolge |
 | Breakdown | Elemente je Szene für die Departments erfassen und verfolgen | Elemente, Szenenblätter |
@@ -36,8 +36,10 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
    Nummern sind Anzeige und ändern sich (Lehre aus #201 und #202: Text-Schlüssel und
    zurückgelesene Nummern gingen beim Umbenennen und Verschieben kaputt).
 3. **Neue Ids sind kurz und zufällig**, nicht aus Name oder Zähler gebildet: zwei Personen, die
-   in Git gleichzeitig etwas anlegen, erzeugen sonst dieselbe Id für Verschiedenes. Listen werden
-   nach Id sortiert geschrieben.
+   in Git gleichzeitig etwas anlegen, erzeugen sonst dieselbe Id für Verschiedenes (auch Marks;
+   heutige Zähler-Ids wie `l1`, `n1` werden bei neuen Dingen nicht fortgeführt). Vorhandene Ids
+   (`szene-012`, `saengersaal`) bleiben. Listen ohne fachliche Reihenfolge werden nach Id
+   sortiert geschrieben; das Register hält seine Folge (siehe Abschnitt 4).
 4. **Abgeleitetes wird nicht gespeichert**: Achtel, Seiten, Figuren einer Szene aus dem Buch,
    Drehtage eines Elements, erster Drehtag, Day out of Days.
 5. **Verwaistes lädt und wird gemeldet**, nie still entfernt oder umgebogen (DB-64). `store`
@@ -57,7 +59,7 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
                  Drehbuch (Fountain)
                         │ Szenenköpfe, Figurenzeilen
                         ▼
-  Spielort ◄──── Szene (Register) ────► Figur ◄── Besetzung ──► Person
+  Spielort ◄─ Drehinhalt (Register) ──► Figur ◄── Besetzung ──► Person
      │              │      │                                        ▲
      ▼              │      └──► Szenenblatt ──► Element ────────────┘ (verantwortlich)
   Drehort ◄─────────┤          (Breakdown)        ▲
@@ -70,14 +72,14 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 
 | Ding | Besitzer | Id | Felder (Auswahl) | gelesen von |
 |---|---|---|---|---|
-| Szene (Register) | Projekt; mit Buch ist das Buch die Quelle von Nummer und Kopf (F-07); Klappe führt die Identität (DB-65) | zufällig, stabil | Nummer, Kopf, kurze Fingerabdrücke je Element | alle |
+| Drehinhalt (Register: Szene oder Content Item) | Projekt; mit Buch ist das Buch die Quelle von Nummer und Kopf einer Szene (F-07); Klappe führt die Identität (DB-65) | zufällig, stabil | Art (Szene, Interview, …), Nummer, Kopf bzw. Titel, Beschreibung, Zustand (im Buch, nicht im Buch), kurze Fingerabdrücke je Element | alle |
 | Szenenblatt | Breakdown | Szenen-Id | Spieltag, Vorstopp, geplante Drehdauer, Continuity, Hinweis für die Produktion, Figuren ohne Dialog (stumm, Komparsen), Element-Zuordnungen, Looks (Kostüm, Maske je Figur), Drehort abweichend | Drehplan, Dispo |
-| Figur (Rolle) | Drehbuch (Name), Projekt (Kürzel, Farbe, Cast-Nummer, Gruppe, Größe, Aliasnamen) | stabil | | alle |
+| Figur (Rolle) | Projekt (`figuren.toml`: Name, Kürzel, Farbe, Cast-Nummer, Gruppe, Größe, Aliasnamen); mit Buch kommt der Name aus den Figurenzeilen | stabil | | alle |
 | Figur ↔ Szene | abgeleitet: Figurenzeilen + Spuren im Floorplan + Szenenblatt | – | | Drehplan, Day out of Days, Dispo |
-| Spielort | Drehbuch (Name im Szenenkopf, normalisiert, mit Varianten, DB-51) | normalisierter Name | | Breakdown, Drehplan |
+| Spielort | abgeleitet aus dem Kopf im Register, mit und ohne Buch (normalisiert, mit Varianten, DB-51) | normalisierter Name | | Breakdown, Drehplan |
 | Spielort → Drehort | Projekt (Ortsplanung) | – | Vorgabe je Spielort; Abweichung je Szene im Szenenblatt | Stellprobe, Drehplan, Dispo |
 | Drehort | Stellprobe (Raum mit Set), Produktion (Adresse, später eigenes Ding) | stabil | Name, Set | Drehplan, Dispo |
-| Floorplan | Stellprobe | je Szene stabil | **Set, auf dem er gezeichnet ist**; Marks (mit Id), Kameras, Licht | Storyboard, Breakdown |
+| Floorplan | Stellprobe | je Szene stabil | **Set, auf dem er gezeichnet ist** (ersetzt `Scene.location`; Migration: der heutige Wert geht an jeden Plan der Szene); Marks (mit Id), Kameras, Licht | Storyboard, Breakdown |
 | Shot | Stellprobe | stabil | wie heute; Storyboard-Bild und Notiz | Storyboard, Drehplan, Dispo |
 | Element | Breakdown | zufällig | Kategorie, Name, Beschreibung, verantwortliche Person, Status | Dispo, Stellprobe |
 | Person | Besetzung/Team | zufällig | Name, Department, Funktion, Agentur, Kontakt | Dispo |
@@ -87,13 +89,12 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 | Dispo | Dispo | Drehtag-Id | Zeiten, Ortsangaben, Zeiten je Darsteller, Fahrzeuge, Kontakte, Notizen | – |
 
 **Content Items** (F-07a): Eine Einheit des Drehs, die keine Szene eines Buchs ist: Interview,
-Statement, Schnittbilder, Vignette, Einführung, Vlog. Sie hat eine stabile Id, einen Titel, eine
-Art, eine Beschreibung und optional einen Drehort und Personen (Interviewte aus Besetzung/Team).
-Überall, wo eine Szene stehen kann, kann auch ein Content Item stehen: Szenenblatt (Elemente,
-Produktionsangaben), Floorplan und Shots, Streifen im Drehplan, Dispo. Besitzer ist das Projekt;
-es gibt keinen Buchtext und keine Anker. Ablage `inhalte/<id>.toml`, die Stellprobe dazu wie
-bei Szenen. Technisch: ein gemeinsamer Typ „Drehinhalt“ mit den Arten Szene und Content Item,
-damit Drehplan, Breakdown und Dispo nur einen Fall kennen.
+Statement, Schnittbilder, Vignette, Einführung, Vlog. Sie steht im selben Register wie die
+Szenen, mit der Art als Feld, Titel und Beschreibung statt Kopf, ohne Buchtext und Anker.
+Überall, wo eine Szene stehen kann, kann auch ein Content Item stehen: Szenenblatt, Floorplan
+und Shots (`szenen/<id>.json`), Streifen im Drehplan, Dispo; alle hängen nur an der Id. Ein
+gemeinsamer Typ „Drehinhalt“, damit Drehplan, Breakdown und Dispo nur einen Fall kennen.
+Schritt 1 sieht nur das Feld Art vor; die Oberfläche folgt später.
 
 **Elementkategorien** (industrieüblich, wie in Yamdu beobachtet): Kostüm, Maskenbild, Bauten,
 Ausstattung, Requisite, Grafik, Fahrzeug, Tier, visuelle Effekte, Spezialeffekte, Ton, Kamera
@@ -106,31 +107,45 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 
 ## 4. Verzahnung Drehbuch ↔ Stellprobe (zuerst zu bauen)
 
-- **Szenenidentität (DB-65):** Das Register (`drehbuch/szenen.toml`) hält je Szene Id, Nummer,
+- **Szenenidentität (DB-65):** Das Register (`szenen.toml`, Projektebene) hält je Szene Id, Nummer,
   Kopf und kurze Fingerabdrücke je Element. Nach einer Änderung des Buchs ordnet Klappe zu: die
   Nummer ist der Kandidat, Kopf oder Inhalt müssen ihn bestätigen; reicht das nicht, sucht Klappe
   nach Inhalt, und was dann nicht eindeutig ist, legt es vor. Floorplans und Shots hängen an der
   Id; Nummer und Kopf stehen nur noch im Register, nicht zusätzlich in `szenen/<id>.json`.
   Derselbe Abgleich zweier Buchstände dient später Revisionen, Vergleich und verschobenen
-  Szenen (DB-41, DB-42, DB-44) und steht einmal in `script/`.
+  Szenen (DB-41, DB-42, DB-44) und steht einmal in `script/` (nur die Suche auf Text;
+  `services/` verbindet sie mit dem Register).
+- **Reihenfolge:** Mit Buch gilt die Folge im Text; ohne Buch und für Content Items die Folge in
+  `szenen.toml` (Ausnahme von der Sortierung nach Id, wie bei `figuren.toml`).
+- **Lebenslauf eines Eintrags mit Buch:**
+  - „Neue Szene“ in Stellprobe schreibt einen Szenenkopf ins Buch (am Ende oder hinter der
+    gewählten Szene); es gibt keinen Szeneneintrag ohne Gegenstück im Buch.
+  - Wird eine Szene im Buch gestrichen, bleibt ihr Eintrag mit Floorplans im Zustand „nicht im
+    Buch“ und wird gemeldet (Grundsatz 5; DB-33 „ENTFÄLLT“), bis der Nutzer ihn zuordnet oder
+    löscht.
+  - Bekommt ein Projekt ohne Buch später eines, ordnet Klappe einmal nach Nummer und Kopf zu und
+    legt den Rest vor.
+- **Konfliktmarken:** Enthält `drehbuch.fountain` oder `szenen.toml` Git-Konfliktmarken
+  (`<<<<<<<`), lädt Klappe nicht und meldet es, statt die Marken als Handlung zu lesen und gegen
+  Müll abzugleichen. Der Dialog zum Auflösen (F-08) ist ein eigenes Vorhaben.
 - **Verweise ins Buch (DB-64):** Heute zeigt ein Mark oder Shot auf „Element Nr. n der Szene“
   (`ScriptLink.element`); das bricht beim Einfügen einer Zeile. Neu: Szenen-Id plus Zitat der
   Zeile (Art, Figur, Text, Vorkommen in der Szene). In der Sitzung folgt der Anker dem Editor;
   beim Laden nach fremder Änderung: exakter Treffer, sonst eindeutig ähnlichste Zeile, sonst
   vorlegen, mit dem Zitat als Hinweis, was gemeint war. Beim Speichern wird das Zitat erneuert.
   Keine unsichtbaren Ids im Fountain (Entscheidung F-02 im Lastenheft Drehbuch).
-- **Marks bekommen eine Id** (wie Lampen und Notizen); Verweise auf einen Mark nennen sie statt
+- **Marks bekommen eine Id** (kurz und zufällig); Verweise auf einen Mark nennen sie statt
   der Position in der Spur.
 - **Figuren (DB-50):** Die Figurenzeilen des Buchs sind die Quelle der Namen. Ein unbekannter
   Name wird nicht still zur Figur (Tippfehler, „ALLE“, „STIMME“), sondern zum Anlegen oder
   Zuordnen vorgelegt; Zuordnungen werden als Aliasnamen der Figur gemerkt. Umbenennen in Klappe
   (DB-04) behält die Id; fremdes Umbenennen ergibt einen Fall zum Vorlegen.
-- **Spielorte und Drehorte (DB-51):** Der Ort im Szenenkopf ist ein Spielort. Ein Floorplan
+- **Spielorte und Drehorte (DB-51):** Der Ort im Kopf (aus dem Buch oder in Klappe angelegt) ist ein Spielort. Ein Floorplan
   hält das Set fest, auf dem er gezeichnet ist; weicht es von der Ortsplanung ab, meldet Klappe
   das, statt die Marks still in einen anderen Raum zu legen. Drehorte werden nicht automatisch
   angelegt; ein Spielort ohne Zuordnung heißt „noch kein Drehort“.
 
-## 5. Ablage im Projektordner (Vorschlag)
+## 5. Ablage im Projektordner
 
 ```
 <name>.klappe/
@@ -138,11 +153,10 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ├── figuren.toml              Figuren (Rollen), Aliasnamen
 ├── orte.toml                 Spielorte, Varianten, Zuordnung zu Drehorten   (neu)
 ├── drehorte/<id>.toml        Drehort: Set
-├── drehbuch.fountain         Buchtext
-├── drehbuch/szenen.toml      Szenenregister (DB-65)                        (neu)
+├── szenen.toml               Register der Drehinhalte: Szenen, Content Items (neu)
+├── drehbuch.fountain         Buchtext (optional, F-07)
 ├── drehbuch/fassungen/       gesperrte Fassungen (DB-40, F-02)
-├── szenen/<id>.json          Stellprobe: Floorplans, Shots
-├── inhalte/<id>.toml         Content Items (F-07a)                         (neu)
+├── szenen/<id>.json          Stellprobe: Floorplans, Shots je Drehinhalt
 ├── breakdown/elemente.toml   Elemente                                       (neu)
 ├── breakdown/<szenen-id>.toml Szenenblatt                                   (neu)
 ├── personen.toml             Personen, Kontakte, Besetzung, Team           (neu)
@@ -155,7 +169,8 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 
 - Die Typen der gemeinsamen Dinge stehen in `model/`; `store/` liest und schreibt alle Dateien
   und lehnt nur Unlesbares ab.
-- Der Abgleich zweier Buchstände und die Anker stehen in `script/`.
+- Die Suche auf Text (Abgleich zweier Buchstände, Zeile zu einem Zitat finden) steht in
+  `script/`, der Typ des Zitat-Ankers in `model/`; `services/` verbindet beides.
 - Ein neuer Baustein `planung/` neben `stellprobe/` rechnet Drehplan, Day out of Days und Dispo,
   ohne Dateien und Oberfläche. Breakdown und Besetzung sind Listen ohne eigene Rechnung und
   brauchen keinen Baustein.
@@ -165,9 +180,11 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 
 ## 7. Reihenfolge
 
-1. Szenenregister, Zitat-Anker, Mark-Ids, Figuren- und Ortsabgleich (DB-50, DB-51, DB-64,
-   DB-65); vorher zufällige Ids und sortiertes Schreiben. Zuerst Tests, die heute scheitern
-   (Zeile vor verknüpfter Zeile einfügen, Szene davor einfügen, fremd neu nummerieren).
+1. Register der Drehinhalte (mit Feld Art), Zitat-Anker, Mark-Ids, Figurenabgleich (DB-50,
+   DB-64, DB-65); vom Ortsabgleich nur das Set am Floorplan und die abgeleitete Liste der
+   Spielorte (`orte.toml` mit Zuordnung erst mit Breakdown oder Drehplan); vorher zufällige Ids.
+   Zuerst Tests, die heute scheitern (Zeile vor verknüpfter Zeile einfügen, Szene davor
+   einfügen, fremd neu nummerieren, Konfliktmarken im Buch).
    Migration von `testdata/` und Demo, `format_version` 3.
 2. Breakdown: Elemente, Szenenblatt, Figuren der Szene, Vorschläge aus dem Set.
 3. Besetzung/Team.
@@ -190,7 +207,7 @@ Entschieden vom Eigentümer am 2026-11-17:
 | F-07 | Ist das Drehbuch Pflicht? | Nein: auch Projekte ohne Drehbuch (Reportage, Doku, EB). Das Szenenregister gehört darum dem Projekt: Gibt es ein Buch, ist es die Quelle von Nummer und Kopf; sonst werden Szenen direkt in Klappe angelegt und bearbeitet. |
 | F-08 | Automatische Szenennummern vor der Sperre im Text? | Ja, von Anfang an (DB-33 bleibt). Kommt es beim Zusammenführen (Git) zum Konflikt, löst ihn ein Dialog in Klappe auf. |
 | F-09 | Neuer Baustein `planung/` in „Layers“ von `ARCHITECTURE.md` | Ja. |
-| F-10 | Wie wird verschlüsselt (F-03), ohne Lesbarkeit und Vergleich in Git (NF-03) zu verlieren? | Lokal klar lesbar; verschlüsselt nur beim Ablegen in ein fremdes Git (Git-Filter mit Projektpasswort, wie git-crypt). Eigenes Lastenheft-Kapitel. |
+| F-10 | Wie wird verschlüsselt (F-03), ohne Lesbarkeit und Vergleich in Git (NF-03) zu verlieren? | Lokal klar lesbar; verschlüsselt nur beim Ablegen in ein fremdes Git (Git-Filter mit Projektpasswort, wie git-crypt). Eigenes Lastenheft-Kapitel. Zu klären dort: Ein fremdes Git sieht nur verschlüsselte Dateien und kann nicht zeilenweise zusammenführen; Grundsatz 8 und der Dialog aus F-08 brauchen dann einen eigenen Merge-Treiber, der entschlüsselt. |
 | F-07a | Projekte ohne Szenen (Reportage, Doku, EB) | Content Items gleich als Konzept einplanen (Abschnitt 3). |
 
 ## Anhang A: Yamdu im Verhalten
