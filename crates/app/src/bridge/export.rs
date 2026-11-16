@@ -23,7 +23,10 @@ impl qobject::Controller {
         let texts = language.print_texts();
         let mut path = fileurl::to_path(&path.to_string());
         if let Some(extension) = extension {
-            path = fileurl::with_extension(path, extension);
+            let Some(named) = self.as_mut().named_file(path, extension) else {
+                return false;
+            };
+            path = named;
         }
         let Some(s) = self.as_mut().session() else {
             return false;
@@ -39,6 +42,28 @@ impl qobject::Controller {
         };
         self.as_mut().say(message);
         ok
+    }
+
+    /// `path` with `extension` added. The dialog asked about the name as typed; where the
+    /// added extension lands on a file that exists, nothing is replaced unasked: says so and
+    /// returns `None`.
+    pub(super) fn named_file(
+        mut self: Pin<&mut Self>,
+        path: std::path::PathBuf,
+        extension: &str,
+    ) -> Option<std::path::PathBuf> {
+        let named = fileurl::with_extension(path.clone(), extension);
+        if named == path || !named.exists() {
+            return Some(named);
+        }
+
+        let language = self.rust().language;
+        let message = language
+            .text("error.nameTaken")
+            .replace("{path}", &named.to_string_lossy());
+        self.as_mut().say(message);
+
+        None
     }
 
     pub(super) fn export_to(

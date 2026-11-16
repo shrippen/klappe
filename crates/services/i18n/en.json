@@ -434,6 +434,7 @@
  "error.numberTaken": "Scene number {number} is taken",
  "error.locationInUse": "The location is used by {count} scene(s)",
  "error.characterInUse": "The character appears in {count} plan(s)",
+ "error.nameTaken": "The file exists already; choose it with its extension: {path}",
  "error.notEmpty": "The folder is not empty: {detail}",
  "error.noMarks": "The plan has no marks, so there are no frames.",
  "error.lastPlan": "A scene keeps its last plan",
