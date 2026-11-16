@@ -6,7 +6,7 @@ use klappe_model::{
 use klappe_stellprobe::{bend_follow, bend_grips, drawing_handle_places, Bend, Source};
 
 use super::drawings::{drag_handle, edge_place, insert_point};
-use super::openings::{opening_mut, slide};
+use super::openings::{drag_edge, edge_m, opening_mut, slide};
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
 
@@ -98,10 +98,7 @@ pub(super) fn target<'a>(
                 .ok_or(ServiceError::Gone)?;
             Ok(Target::Wall(wall))
         }
-        Source::Opening { .. } => {
-            let (wall, index) = opening_mut(scope, source)?;
-            Ok(Target::Slide { wall, index })
-        }
+        Source::Opening { .. } | Source::OpeningEdge { .. } => opening_target(scope, source),
         Source::Note(_) | Source::NoteWidth(_) => note_target(scope, source),
         Source::Drawing(id) => scope
             .plan
@@ -110,6 +107,23 @@ pub(super) fn target<'a>(
             .find(|d| d.id == *id)
             .map(Target::Drawing)
             .ok_or(ServiceError::Gone),
+    }
+}
+
+/// An opening, or the grip on one of its ends.
+fn opening_target<'a>(
+    scope: &'a mut Scope<'_>,
+    source: &Source,
+) -> Result<Target<'a>, ServiceError> {
+    let (wall, index) = opening_mut(scope, source)?;
+
+    match source {
+        Source::OpeningEdge { end, .. } => Ok(Target::OpeningEdge {
+            wall,
+            index,
+            end: *end,
+        }),
+        _ => Ok(Target::Slide { wall, index }),
     }
 }
 
@@ -358,25 +372,28 @@ pub(super) fn move_to(
     Ok(())
 }
 
+/// The whole drawing keeps its shape; the middle of its box lands on `to`.
+fn place_drawing(drawing: &mut Drawing, to: Point) {
+    let Some((_, mid)) = anchors(drawing) else {
+        return;
+    };
+    let (dx, dy) = (to.x_m - mid.x_m, to.y_m - mid.y_m);
+
+    for p in points_mut(&mut drawing.shape) {
+        *p = Point::new(p.x_m + dx, p.y_m + dy);
+    }
+}
+
 fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => *at = to,
         // `to` is where the grip sits: a bend moves there, or a new one is made there.
         Target::Curve { via, a, b, bend } => pull(via, (a, b), bend, to)?,
-        Target::Drawing(drawing) => {
-            // The whole drawing keeps its shape; the middle of its box lands on `to`.
-            let Some((_, mid)) = anchors(drawing) else {
-                return Ok(());
-            };
-            let (dx, dy) = (to.x_m - mid.x_m, to.y_m - mid.y_m);
-
-            for p in points_mut(&mut drawing.shape) {
-                *p = Point::new(p.x_m + dx, p.y_m + dy);
-            }
-        }
+        Target::Drawing(drawing) => place_drawing(drawing, to),
         Target::Corner { drawing, index } => drag_handle(drawing, index, to)?,
         Target::Edge { drawing, index } => insert_point(drawing, index, to)?,
         Target::Slide { wall, index } => slide(wall, index, to)?,
+        Target::OpeningEdge { wall, index, end } => drag_edge(wall, index, end, to)?,
         // The card keeps its top left; its right edge lands on `to`.
         Target::NoteEdge(note) => {
             note.width_m = (to.x_m - note.at.x_m).max(NOTE_MIN_WIDTH_M);
@@ -408,6 +425,11 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
             Ok((edge, edge))
         }
         Target::Wall(wall) => Ok((wall.from, middle(wall))),
+        Target::OpeningEdge { wall, index, end } => {
+            let grip = wall.point_at(edge_m(&wall.openings[index], end));
+
+            Ok((grip, grip))
+        }
         Target::Slide { wall, index } => {
             let centre = wall.point_at(wall.openings[index].at_m);
             Ok((centre, centre))
@@ -483,6 +505,7 @@ pub(super) fn spin(
         | Target::Edge { .. }
         | Target::NoteEdge(_)
         | Target::Curve { .. }
+        | Target::OpeningEdge { .. }
         | Target::Slide { .. } => return Ok(()),
     };
 
@@ -505,6 +528,7 @@ pub(super) fn turn(
         | Target::Edge { .. }
         | Target::NoteEdge(_)
         | Target::Curve { .. }
+        | Target::OpeningEdge { .. }
         | Target::Slide { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.

@@ -36,7 +36,7 @@ pub use axis::{axis_at, axis_jumps, axis_pair, Axis, AxisJump, Side};
 pub use card::NOTE_TEXT_M;
 pub use display::{
     drawing_edge_places, drawing_handle_places, handles, label_point, render, Bend, DisplayList,
-    Item, Role, Shape, Source, FIGURE_RADIUS_M,
+    Item, OpeningEnd, Role, Shape, Source, FIGURE_RADIUS_M,
 };
 pub use eye::{Eye, Orbit};
 pub use forms::Forms;

@@ -1,6 +1,6 @@
 //! The keys of the plan's shapes: which element a shape on the canvas stands for.
 
-use klappe_services::{Bend, Source};
+use klappe_services::{Bend, OpeningEnd, Source};
 
 /// The kinds of element a key names; `name` is the key's first part.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,6 +14,7 @@ pub enum ElementKind {
     CameraVia,
     Wall,
     Opening,
+    OpeningEdge,
     Note,
     NoteWidth,
     Drawing,
@@ -22,7 +23,7 @@ pub enum ElementKind {
 }
 
 impl ElementKind {
-    const ALL: [ElementKind; 14] = [
+    const ALL: [ElementKind; 15] = [
         Self::Object,
         Self::Light,
         Self::Camera,
@@ -32,6 +33,7 @@ impl ElementKind {
         Self::CameraVia,
         Self::Wall,
         Self::Opening,
+        Self::OpeningEdge,
         Self::Note,
         Self::NoteWidth,
         Self::Drawing,
@@ -50,6 +52,7 @@ impl ElementKind {
             Self::CameraVia => "cameravia",
             Self::Wall => "wall",
             Self::Opening => "opening",
+            Self::OpeningEdge => "openingedge",
             Self::Note => "note",
             Self::NoteWidth => "notewidth",
             Self::Drawing => "drawing",
@@ -89,6 +92,10 @@ pub fn key(source: &Source) -> String {
         ),
         Source::Wall(index) => (ElementKind::Wall, index.to_string()),
         Source::Opening { wall, index } => (ElementKind::Opening, format!("{wall}:{index}")),
+        Source::OpeningEdge { wall, index, end } => (
+            ElementKind::OpeningEdge,
+            format!("{wall}:{index}:{}", end_part(*end)),
+        ),
         Source::Note(id) => (ElementKind::Note, id.clone()),
         Source::NoteWidth(id) => (ElementKind::NoteWidth, id.clone()),
         Source::Drawing(id) => (ElementKind::Drawing, id.clone()),
@@ -108,6 +115,14 @@ fn bend_part(bend: Bend) -> String {
     match bend {
         Bend::At(n) => format!("at{n}"),
         Bend::New(n) => format!("new{n}"),
+    }
+}
+
+/// The last part of an opening grip's key: the end of the opening it sits at.
+fn end_part(end: OpeningEnd) -> &'static str {
+    match end {
+        OpeningEnd::Start => "start",
+        OpeningEnd::End => "end",
     }
 }
 
@@ -148,6 +163,18 @@ mod tests {
 
         assert_eq!(key(&figure), "figurevia:e:1:at0");
         assert_eq!(key(&camera), "cameravia:a:1:new2");
+    }
+
+    fn opening() -> Source {
+        Source::Opening { wall: 4, index: 1 }
+    }
+
+    fn opening_edge() -> Source {
+        Source::OpeningEdge {
+            wall: 4,
+            index: 1,
+            end: OpeningEnd::End,
+        }
     }
 
     /// Too long for one line of the table below.
@@ -193,12 +220,8 @@ mod tests {
                 Some(3),
             ),
             (Source::Wall(4), ElementKind::Wall, "4", None),
-            (
-                Source::Opening { wall: 4, index: 1 },
-                ElementKind::Opening,
-                "4",
-                Some(1),
-            ),
+            (opening(), ElementKind::Opening, "4", Some(1)),
+            (opening_edge(), ElementKind::OpeningEdge, "4", Some(1)),
             (Source::Note("n".into()), ElementKind::Note, "n", None),
             (note_width(), ElementKind::NoteWidth, "n", None),
             (Source::Drawing("d".into()), ElementKind::Drawing, "d", None),

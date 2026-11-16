@@ -1,7 +1,7 @@
 //! Doors and windows in walls (LH-10): set, slide along the wall, resize.
 
 use klappe_model::{DoorSide, Hinge, Opening, OpeningKind, Point, Wall};
-use klappe_stellprobe::Source;
+use klappe_stellprobe::{OpeningEnd, Source};
 
 use super::{PlanEdit, Scope};
 use crate::error::ServiceError;
@@ -9,6 +9,8 @@ use crate::field::Field;
 
 /// How far from a wall's edge a click still sets an opening in it.
 const OPENING_REACH_M: f64 = 0.3;
+/// The narrowest an opening gets when an end is dragged.
+const OPENING_MIN_WIDTH_M: f64 = 0.3;
 
 fn refused(field: Field, value: String) -> ServiceError {
     ServiceError::BadValue { field, value }
@@ -86,12 +88,12 @@ fn add_opening(scope: &mut Scope<'_>, kind: OpeningKind, at: Point) -> Result<()
     Ok(())
 }
 
-/// The opening `source` names, with its wall.
+/// The opening `source` names, or the one its grip is on, with its wall.
 pub(super) fn opening_mut<'a>(
     scope: &'a mut Scope<'_>,
     source: &Source,
 ) -> Result<(&'a mut Wall, usize), ServiceError> {
-    let Source::Opening { wall, index } = source else {
+    let (Source::Opening { wall, index } | Source::OpeningEdge { wall, index, .. }) = source else {
         return Err(refused(Field::Source, String::new()));
     };
     let wall = scope
@@ -112,6 +114,47 @@ pub(super) fn slide(wall: &mut Wall, index: usize, to: Point) -> Result<(), Serv
     let width_m = wall.openings[index].width_m;
 
     wall.openings[index].at_m = centre_m(wall, Some(index), along_m, width_m)?;
+
+    Ok(())
+}
+
+/// Where `end` of the opening is, in metres from the wall's `from`.
+pub(super) fn edge_m(opening: &Opening, end: OpeningEnd) -> f64 {
+    let (start_m, end_m) = opening.span_m();
+
+    match end {
+        OpeningEnd::Start => start_m,
+        OpeningEnd::End => end_m,
+    }
+}
+
+/// Moves one end of the opening to where `to` is along the wall; the other end stays. The
+/// opening keeps its minimum width, and `to` must not lie beyond the wall.
+pub(super) fn drag_edge(
+    wall: &mut Wall,
+    index: usize,
+    end: OpeningEnd,
+    to: Point,
+) -> Result<(), ServiceError> {
+    let length_m = wall.length_m();
+    let (dx, dy) = (wall.to.x_m - wall.from.x_m, wall.to.y_m - wall.from.y_m);
+    let along_m = match length_m == 0.0 {
+        true => 0.0,
+        false => ((to.x_m - wall.from.x_m) * dx + (to.y_m - wall.from.y_m) * dy) / length_m,
+    };
+    if !(0.0..=length_m).contains(&along_m) {
+        return Err(refused(Field::Wall, String::new()));
+    }
+
+    let (start_m, end_m) = wall.openings[index].span_m();
+    let (start_m, end_m) = match end {
+        OpeningEnd::Start => (along_m.min(end_m - OPENING_MIN_WIDTH_M), end_m),
+        OpeningEnd::End => (start_m, along_m.max(start_m + OPENING_MIN_WIDTH_M)),
+    };
+    let width_m = end_m - start_m;
+
+    wall.openings[index].at_m = centre_m(wall, Some(index), start_m + width_m / 2.0, width_m)?;
+    wall.openings[index].width_m = width_m;
 
     Ok(())
 }

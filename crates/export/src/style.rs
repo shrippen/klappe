@@ -37,6 +37,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         | Role::CameraHandle
         | Role::DrawingHandle
         | Role::NoteHandle
+        | Role::OpeningHandle
         | Role::Wall
         | Role::Door
         | Role::Window
@@ -57,9 +58,11 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
 fn plain_class(role: Role) -> Option<&'static str> {
     match role {
         Role::Background => Some("background"),
-        Role::FigureHandle(_) | Role::CameraHandle | Role::DrawingHandle | Role::NoteHandle => {
-            Some("handle")
-        }
+        Role::FigureHandle(_)
+        | Role::CameraHandle
+        | Role::DrawingHandle
+        | Role::NoteHandle
+        | Role::OpeningHandle => Some("handle"),
         Role::Wall => Some("wall"),
         Role::Door => Some("door"),
         Role::Window => Some("window"),
@@ -97,7 +100,8 @@ fn width_pt(role: Role) -> Option<f64> {
         | Role::FigureHandle(_)
         | Role::CameraHandle
         | Role::DrawingHandle
-        | Role::NoteHandle => None,
+        | Role::NoteHandle
+        | Role::OpeningHandle => None,
         Role::CameraPath { .. } | Role::FigurePath(_) => Some(PATH_PT),
         Role::Axis => Some(AXIS_PT),
         Role::Mark(_) => Some(MARK_PT),
@@ -135,6 +139,7 @@ fn tint_opacity(role: Role) -> f64 {
         | Role::CameraHandle
         | Role::DrawingHandle
         | Role::NoteHandle
+        | Role::OpeningHandle
         | Role::ArrowHead(_)
         | Role::FigurePath(_)
         | Role::FigureHandle(_)
@@ -238,6 +243,7 @@ mod tests {
             (Role::CameraHandle, "handle".into(), (None, None)),
             (Role::DrawingHandle, "handle".into(), (None, None)),
             (Role::NoteHandle, "handle".into(), (None, None)),
+            (Role::OpeningHandle, "handle".into(), (None, None)),
             (
                 Role::Wall,
                 "wall".into(),
