@@ -279,7 +279,8 @@ fn is_full_opacity(opacity: &f64) -> bool {
 }
 
 impl PlanImage {
-    /// The image as a rectangle; its depth is not known to the model, so 0.
+    /// The image as a rectangle; its depth is not known to the model, so 0: only the width
+    /// (its grip, its edge, stretching it) may be asked of it.
     pub fn rect(&self) -> TurnedRect {
         TurnedRect {
             at: self.at,
