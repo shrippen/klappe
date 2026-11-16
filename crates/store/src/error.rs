@@ -34,6 +34,10 @@ pub enum StoreError {
     #[error("{}: {message}", path.display())]
     BadImage { path: PathBuf, message: String },
 
+    /// The system trash refused the folder.
+    #[error("{}: cannot move to the trash: {message}", path.display())]
+    Trash { path: PathBuf, message: String },
+
     #[error("id {id:?} is used twice")]
     DuplicateId { id: String },
 }

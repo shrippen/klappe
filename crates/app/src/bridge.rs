@@ -624,6 +624,23 @@ pub mod qobject {
         #[cxx_name = "forgetRecent"]
         fn forget_recent(self: Pin<&mut Self>, path: &QString);
 
+        /// Gives the recent project in `path` a new title; an error goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "renameRecent"]
+        fn rename_recent(self: Pin<&mut Self>, path: &QString, title: &QString) -> bool;
+
+        /// Packs the recent project in `path` into a ZIP beside it, trashes the folder and
+        /// takes it off the list; an error goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "archiveRecent"]
+        fn archive_recent(self: Pin<&mut Self>, path: &QString) -> bool;
+
+        /// Moves the recent project in `path` to the trash and takes it off the list; an
+        /// error goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "trashRecent"]
+        fn trash_recent(self: Pin<&mut Self>, path: &QString) -> bool;
+
         /// Makes an empty project in the folder `path` (a path or a `file://` URL) and opens
         /// it; an error goes to `status`.
         #[qinvokable]
