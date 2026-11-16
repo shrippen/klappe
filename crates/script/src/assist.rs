@@ -116,35 +116,28 @@ impl Slot {
 /// What the screenplay already names, for completion.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Vocabulary {
-    /// Most frequent first.
-    characters: Vec<String>,
-    locations: Vec<String>,
-    times: Vec<String>,
     /// Line and name of every cue, in text order.
     cues: Vec<(usize, String)>,
+    places: Vec<(usize, String)>,
+    times: Vec<(usize, String)>,
 }
 
-/// Counts words, most frequent first, the earlier one first among equals.
-#[derive(Default)]
-struct Tally {
-    seen: HashMap<String, usize>,
-    words: Vec<(String, usize)>,
-}
+/// The words most frequent first, the earlier one first among equals; the words of line
+/// `skip` do not count (the line being typed would suggest itself).
+fn ranked(words: &[(usize, String)], skip: Option<usize>) -> Vec<String> {
+    let mut seen: HashMap<String, usize> = HashMap::new();
+    let mut counted: Vec<(&str, usize)> = Vec::new();
 
-impl Tally {
-    fn add(&mut self, word: &str) {
-        let key = word.to_lowercase();
-        let at = *self.seen.entry(key).or_insert_with(|| {
-            self.words.push((word.to_owned(), 0));
-            self.words.len() - 1
+    for (_, word) in words.iter().filter(|(line, _)| Some(*line) != skip) {
+        let at = *seen.entry(word.to_lowercase()).or_insert_with(|| {
+            counted.push((word, 0));
+            counted.len() - 1
         });
-        self.words[at].1 += 1;
+        counted[at].1 += 1;
     }
+    counted.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
 
-    fn ranked(mut self) -> Vec<String> {
-        self.words.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
-        self.words.into_iter().map(|(w, _)| w).collect()
-    }
+    counted.into_iter().map(|(w, _)| w.to_owned()).collect()
 }
 
 /// A heading's text cut into location and time of day, without its prefix.
@@ -177,45 +170,35 @@ fn split_heading(text: &str) -> (&str, Option<&str>) {
 impl Vocabulary {
     /// Reads the names from the elements of a located screenplay.
     pub fn from_located(located: &[Located]) -> Self {
-        let (mut names, mut places, mut times) =
-            (Tally::default(), Tally::default(), Tally::default());
-        let mut cues = Vec::new();
+        let mut vocab = Self::default();
 
         for item in located {
             let line = item.lines.first().copied().unwrap_or(0);
             match &item.element {
-                Element::Character { name, .. } => {
-                    names.add(name);
-                    cues.push((line, name.clone()));
-                }
+                Element::Character { name, .. } => vocab.cues.push((line, name.clone())),
                 Element::SceneHeading { text, .. } => {
                     let (place, time) = split_heading(text);
                     if !place.is_empty() {
-                        places.add(place);
+                        vocab.places.push((line, place.to_owned()));
                     }
                     if let Some(time) = time.filter(|t| !t.is_empty()) {
-                        times.add(time);
+                        vocab.times.push((line, time.to_owned()));
                     }
                 }
                 _ => {}
             }
         }
 
-        Self {
-            characters: names.ranked(),
-            locations: places.ranked(),
-            times: times.ranked(),
-            cues,
-        }
+        vocab
     }
 
     /// Cue names, most frequent first.
-    pub fn characters(&self) -> &[String] {
-        &self.characters
+    pub fn characters(&self) -> Vec<String> {
+        ranked(&self.cues, None)
     }
 
-    pub fn locations(&self) -> &[String] {
-        &self.locations
+    pub fn locations(&self) -> Vec<String> {
+        ranked(&self.places, None)
     }
 
     /// In a conversation the other one: the last speaker above `line` who is not the one
@@ -308,7 +291,7 @@ pub fn suggest(
     }
 
     let suggestions = match ctx {
-        Context::Heading => heading_stage(vocab, line),
+        Context::Heading => heading_stage(vocab, line, line_no),
         Context::Cue => cue_stage(vocab, line, skip, line_no),
         Context::Line => None,
     }?;
@@ -349,7 +332,7 @@ fn context_of(trimmed: &str, ctx: Context) -> Context {
     Context::Line
 }
 
-fn heading_stage(vocab: &Vocabulary, line: &str) -> Option<Suggestions> {
+fn heading_stage(vocab: &Vocabulary, line: &str, line_no: usize) -> Option<Suggestions> {
     // The forcing dot belongs to the German prefixes, so it is part of what is typed.
     let lead = line.len() - line.trim_start().len();
     let typed = &line[lead..];
@@ -375,7 +358,8 @@ fn heading_stage(vocab: &Vocabulary, line: &str) -> Option<Suggestions> {
 
     let Some((at, len)) = separated else {
         let place = rest.trim_start();
-        let options = matching(vocab.locations.iter().map(String::as_str), place.trim_end())
+        let places = ranked(&vocab.places, Some(line_no));
+        let options = matching(places.iter().map(String::as_str), place.trim_end())
             .into_iter()
             .map(|l| format!("{l}{LOCATION_END}"))
             .collect();
@@ -386,11 +370,8 @@ fn heading_stage(vocab: &Vocabulary, line: &str) -> Option<Suggestions> {
         });
     };
 
-    let pool = vocab
-        .times
-        .iter()
-        .map(String::as_str)
-        .chain(TIMES.iter().copied());
+    let used = ranked(&vocab.times, Some(line_no));
+    let pool = used.iter().map(String::as_str).chain(TIMES.iter().copied());
     Some(Suggestions {
         stage: Stage::Time,
         from: chars_before(line, after + at + len),
@@ -426,7 +407,8 @@ fn cue_stage(vocab: &Vocabulary, line: &str, skip: usize, line_no: usize) -> Opt
             .into_iter()
             .collect()
     } else {
-        matching(vocab.characters.iter().map(String::as_str), typed)
+        let names = ranked(&vocab.cues, Some(line_no));
+        matching(names.iter().map(String::as_str), typed)
     };
 
     Some(Suggestions {
@@ -479,6 +461,27 @@ mod tests {
         let v = vocab("ANNA\nx\n\nBEN\ny\n\nBEN\nz\n");
 
         assert_eq!(v.other_speaker(99), Some("ANNA"));
+    }
+
+    #[test]
+    fn the_line_being_typed_does_not_suggest_itself() {
+        // Line 4 is the cue being typed; it is a cue already, with its dialogue below.
+        let v = vocab("INT. KÜ\n\nx\n\nAN\nHi.\n\nANNA\nHo.\n");
+
+        assert_eq!(options_at(&v, "AN", 4, Context::Cue), ["ANNA"]);
+        assert_eq!(
+            options_at(&v, "INT. KÜ", 0, Context::Heading),
+            Vec::<String>::new()
+        );
+
+        let v = vocab("INT. KÜCHE\n\nx\n\nINT. KÜ\n\ny\n");
+        assert_eq!(options_at(&v, "INT. KÜ", 4, Context::Heading), ["KÜCHE - "]);
+    }
+
+    fn options_at(v: &Vocabulary, line: &str, at: usize, ctx: Context) -> Vec<String> {
+        suggest(v, line, at, ctx)
+            .map(|s| s.options)
+            .unwrap_or_default()
     }
 
     #[test]

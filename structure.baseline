@@ -33,4 +33,3 @@ crates/store/src/lib.rs	load	ccn=16
 crates/store/src/lib.rs	save	ccn=19
 crates/store/tests/store.rs	-	lines=989
 crates/store/tests/store.rs	plan	length=131
-crates/tui/src/app.rs	editor_key	ccn=19

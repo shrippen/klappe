@@ -63,6 +63,13 @@ impl Editor {
         self.revision
     }
 
+    /// Puts the cursor at a position.
+    pub(crate) fn go_to(&mut self, pos: Pos) {
+        self.cursor = self.buffer.clamp(pos);
+        self.goal = None;
+        self.last_edit = None;
+    }
+
     /// Puts the cursor at the start of a line.
     pub(crate) fn go_to_line(&mut self, line: usize) {
         self.cursor = self.buffer.clamp(Pos { line, col: 0 });
@@ -143,6 +150,11 @@ impl Editor {
     pub(crate) fn set_lines(&mut self, from: usize, to: usize, lines: Vec<String>, cursor: Pos) {
         let before = Before::of(&self.buffer, from, to);
         let start = self.cursor;
+        if before.is(&lines) {
+            // Nothing to take back: only the cursor moves.
+            self.go_to(cursor);
+            return;
+        }
 
         self.buffer.splice(from, to, lines);
         self.cursor = self.buffer.clamp(cursor);

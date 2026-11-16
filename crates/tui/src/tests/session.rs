@@ -1,0 +1,156 @@
+//! Backup and autosave (DN-06), the help (DN-04) and undo (DB-09).
+
+use super::support::*;
+use super::*;
+
+#[test]
+fn autosave_writes_the_backup_and_the_next_start_asks() {
+    let scratch = Scratch::new("INT. A - TAG\n\nx");
+    let mut app = scratch.app();
+    typed(&mut app, "neu ");
+    app.autosave();
+
+    assert_eq!(
+        scratch.script(),
+        "INT. A - TAG\n\nx",
+        "the project file is untouched"
+    );
+    let mut again = scratch.app();
+    assert_eq!(again.mode, Mode::Backup);
+    assert!(screen(&mut again, 100, 24).contains("Unsaved changes of an earlier session"));
+
+    press(&mut again, KeyCode::Char('r'));
+    assert_eq!(again.mode, Mode::Normal);
+    assert_eq!(again.text(), "neu INT. A - TAG\n\nx");
+    assert!(again.is_modified(), "restored text is not saved yet");
+
+    ctrl(&mut again, 'z');
+    assert_eq!(again.text(), "INT. A - TAG\n\nx", "a restore can be undone");
+}
+
+#[test]
+fn discarding_or_deciding_later_and_saving_clear_the_backup() {
+    let scratch = Scratch::new("x");
+    let mut app = scratch.app();
+    typed(&mut app, "a");
+    app.autosave();
+
+    let mut later = scratch.app();
+    press(&mut later, KeyCode::Esc);
+    assert_eq!(later.mode, Mode::Normal);
+    assert_eq!(later.text(), "x", "later changes nothing");
+    typed(&mut later, "b");
+    later.autosave();
+    assert_eq!(
+        scratch.app().mode,
+        Mode::Backup,
+        "the unanswered backup is not overwritten"
+    );
+
+    let mut discard = scratch.app();
+    press(&mut discard, KeyCode::Char('d'));
+    assert_eq!(discard.text(), "x");
+    assert_eq!(scratch.app().mode, Mode::Normal);
+
+    let mut saved = scratch.app();
+    typed(&mut saved, "c");
+    saved.autosave();
+    ctrl(&mut saved, 's');
+    assert_eq!(
+        scratch.app().mode,
+        Mode::Normal,
+        "a save removes the backup"
+    );
+    assert_eq!(scratch.script(), "cx");
+}
+
+#[test]
+fn autosave_writes_nothing_without_a_change() {
+    let scratch = Scratch::new("x");
+    let mut app = scratch.app();
+    app.autosave();
+    assert_eq!(scratch.app().mode, Mode::Normal);
+
+    typed(&mut app, "a");
+    press(&mut app, KeyCode::Backspace);
+    // Back to the saved text is still a change of the editor; the backup holds it harmlessly.
+    app.autosave();
+    ctrl(&mut app, 's');
+    assert_eq!(scratch.app().mode, Mode::Normal);
+}
+
+#[test]
+fn every_key_is_in_the_help() {
+    let mut app = app();
+    press(&mut app, KeyCode::F(1));
+    // The help scrolls on a low screen; a tall one shows it whole.
+    let frame = screen(&mut app, 100, 40);
+
+    for key in [
+        "Ctrl+S",
+        "Ctrl+Q",
+        "Ctrl+Z",
+        "Ctrl+Y",
+        "Enter",
+        "Tab",
+        "Ctrl+F",
+        "F3",
+        "Ctrl+T",
+        "F6",
+        "Ctrl+P",
+        "Ctrl+B",
+        "Ctrl+G",
+        "F1",
+        "Home",
+        "PageUp",
+        "Ctrl+Left",
+        "Mouse wheel",
+    ] {
+        assert!(frame.contains(key), "{key} missing:\n{frame}");
+    }
+}
+
+#[test]
+fn the_help_scrolls_on_a_low_screen() {
+    let mut app = app();
+    press(&mut app, KeyCode::F(1));
+    assert!(!screen(&mut app, 100, 12).contains("This help"));
+
+    for _ in 0..30 {
+        press(&mut app, KeyCode::Down);
+    }
+    assert_eq!(app.mode, Mode::Help);
+    assert!(screen(&mut app, 100, 12).contains("This help"));
+    press(&mut app, KeyCode::Char('x'));
+    assert_eq!(app.mode, Mode::Normal);
+}
+
+#[test]
+fn the_german_help_names_the_new_keys() {
+    let mut app = App::open(&example(), Language::German).unwrap_or_else(|e| unreachable!("{e}"));
+    press(&mut app, KeyCode::F(1));
+    let frame = screen(&mut app, 100, 40);
+
+    assert!(frame.contains("Suchen und Ersetzen"), "{frame}");
+    assert!(frame.contains("Titelseite"), "{frame}");
+    assert!(frame.contains("F6"), "{frame}");
+}
+
+#[test]
+fn undo_has_no_limit_in_the_app() {
+    let (_s, mut app) = app_with("x");
+    for _ in 0..300 {
+        press(&mut app, KeyCode::Enter);
+        typed(&mut app, "ab ");
+    }
+    let full = app.text();
+
+    for _ in 0..1000 {
+        ctrl(&mut app, 'z');
+    }
+    assert_eq!(app.text(), "x");
+    for _ in 0..1000 {
+        ctrl(&mut app, 'y');
+    }
+    assert_eq!(app.text(), full);
+}

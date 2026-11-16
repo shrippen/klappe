@@ -11,6 +11,12 @@ use ratatui::Terminal;
 use crate::app::{Focus, Mode};
 use crate::{draw, theme, App, Flow, Language};
 
+mod find;
+mod flow;
+mod marks;
+mod session;
+mod support;
+
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
 }
@@ -173,16 +179,16 @@ fn list_follows_the_text() {
 }
 
 #[test]
-fn tab_and_enter_jump_to_the_selected_scene() {
+fn f6_and_enter_jump_to_the_selected_scene() {
     let mut app = two_scenes();
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     assert_eq!(app.focus, Focus::List);
 
     press(&mut app, KeyCode::Up);
     press(&mut app, KeyCode::Enter);
     assert_eq!((app.focus, app.cursor().line), (Focus::Editor, 0));
 
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     press(&mut app, KeyCode::Down);
     press(&mut app, KeyCode::Enter);
     assert_eq!((app.focus, app.cursor().line), (Focus::Editor, 2));
@@ -191,7 +197,7 @@ fn tab_and_enter_jump_to_the_selected_scene() {
 #[test]
 fn ctrl_g_jumps_from_the_list_selection() {
     let mut app = two_scenes();
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     press(&mut app, KeyCode::Home);
     press(&mut app, KeyCode::End);
     ctrl(&mut app, 'g');
@@ -421,7 +427,7 @@ fn narrow_terminal_hides_the_list_until_asked() {
 }
 
 #[test]
-fn ctrl_b_shows_the_list_on_a_narrow_terminal_and_tab_too() {
+fn ctrl_b_shows_the_list_on_a_narrow_terminal_and_f6_too() {
     let mut app = app();
     let _ = screen(&mut app, 80, 20);
     ctrl(&mut app, 'b');
@@ -429,7 +435,7 @@ fn ctrl_b_shows_the_list_on_a_narrow_terminal_and_tab_too() {
 
     let mut app = self::app();
     let _ = screen(&mut app, 80, 20);
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     assert_eq!(app.focus, Focus::List);
     assert!(screen(&mut app, 80, 20).contains("Scenes"));
 
@@ -441,7 +447,7 @@ fn ctrl_b_shows_the_list_on_a_narrow_terminal_and_tab_too() {
 fn shrinking_the_terminal_moves_focus_from_the_hidden_list() {
     let mut app = app();
     let _ = screen(&mut app, 120, 20);
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     assert_eq!(app.focus, Focus::List);
 
     let narrow = screen(&mut app, 80, 20);

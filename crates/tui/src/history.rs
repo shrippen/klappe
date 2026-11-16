@@ -12,6 +12,11 @@ pub(crate) struct Before {
 }
 
 impl Before {
+    /// Whether `lines` are the lines as they are.
+    pub(crate) fn is(&self, lines: &[String]) -> bool {
+        self.lines == lines
+    }
+
     /// The lines `from..to` of the buffer, as they are now.
     pub(crate) fn of(buffer: &Buffer, from: usize, to: usize) -> Self {
         let count = buffer.lines().len();
