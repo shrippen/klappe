@@ -11,4 +11,7 @@ pub enum ExportError {
     /// A background image the export cannot use; `file` as the display list names it.
     #[error("image {file}: {message}")]
     Image { file: String, message: String },
+    /// A ZIP archive of 4 GiB or more, or of more than 65535 files: the format's plain limits.
+    #[error("too big for a ZIP archive")]
+    ZipTooBig,
 }
