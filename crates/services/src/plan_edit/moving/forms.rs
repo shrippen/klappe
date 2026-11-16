@@ -43,6 +43,18 @@ fn refit(object: &mut SetObject, places: &[Point]) -> bool {
     true
 }
 
+/// `refit`, or the refusal of a drag that leaves no outline.
+fn refit_or_refuse(object: &mut SetObject, places: &[Point]) -> Result<(), ServiceError> {
+    if refit(object, places) {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Points,
+        value: places.len().to_string(),
+    })
+}
+
 /// Moves point `index` of a free form to `to` on the plan; the others stay where they are on
 /// the plan. A move that leaves no outline is refused.
 pub(in super::super) fn drag_form_point(
@@ -53,14 +65,24 @@ pub(in super::super) fn drag_form_point(
     let mut places = form_places(object);
     *places.get_mut(index).ok_or(ServiceError::Gone)? = to;
 
-    if refit(object, &places) {
-        return Ok(());
+    refit_or_refuse(object, &places)
+}
+
+/// Makes a point on side `index` of a free form, after point `index`, where `to` lies on the
+/// plan; the others stay where they are on the plan. A point that leaves no outline is refused.
+pub(in super::super) fn insert_form_point(
+    object: &mut SetObject,
+    index: usize,
+    to: Point,
+) -> Result<(), ServiceError> {
+    let mut places = form_places(object);
+    if index >= places.len() {
+        return Err(ServiceError::Gone);
     }
 
-    Err(ServiceError::BadValue {
-        field: Field::Points,
-        value: places.len().to_string(),
-    })
+    places.insert(index + 1, to);
+
+    refit_or_refuse(object, &places)
 }
 
 /// Takes point `index` of a free form out; the others stay where they are on the plan. No

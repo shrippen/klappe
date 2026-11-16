@@ -22,6 +22,22 @@ fn set(rotation_deg: f64, shape: ObjectShape) -> SetPlan {
     }
 }
 
+/// The grips on the points of a free form, in order.
+fn points(set: &SetPlan, selected: &Source) -> Vec<(Source, Point)> {
+    grips(set, selected)
+        .into_iter()
+        .filter(|(source, _)| {
+            matches!(
+                source,
+                Source::ObjectGrip {
+                    grip: ObjectGrip::Point(_),
+                    ..
+                }
+            )
+        })
+        .collect()
+}
+
 fn grips(set: &SetPlan, selected: &Source) -> Vec<(Source, Point)> {
     let project = Project::new("Test");
 
@@ -97,7 +113,7 @@ fn triangle(rotation_deg: f64) -> SetPlan {
 /// 2 m x 2 m and the object 4 m x 2 m, so the points lie stretched twice as wide.
 #[test]
 fn a_free_form_has_a_grip_on_each_point() {
-    let found = grips(&triangle(0.0), &Source::Object("o".into()));
+    let found = points(&triangle(0.0), &Source::Object("o".into()));
 
     assert_eq!(found.len(), 3);
     assert_eq!(found[0].0, grip(ObjectGrip::Point(0)));
@@ -112,10 +128,49 @@ fn a_free_form_has_a_grip_on_each_point() {
 #[test]
 fn the_point_grips_turn_with_the_form() {
     let turned = triangle(90.0);
-    let found = grips(&turned, &grip(ObjectGrip::Point(1)));
+    let found = points(&turned, &grip(ObjectGrip::Point(1)));
 
     assert_eq!(found.len(), 3);
+    assert_eq!(grips(&turned, &grip(ObjectGrip::Point(1))).len(), 6);
     assert!(near(found[0].1, Point::new(11.0, 4.0)));
     assert!(near(found[1].1, Point::new(11.0, 8.0)));
     assert!(near(found[2].1, Point::new(9.0, 6.0)));
+}
+
+/// A free form has a grip halfway along each side as well, the last on the closing side
+/// (LH-92). The points are (8, 5), (12, 5) and (10, 7) on the plan.
+#[test]
+fn a_free_form_has_a_grip_halfway_along_each_side() {
+    let found = grips(&triangle(0.0), &Source::Object("o".into()));
+    let sides: Vec<_> = found
+        .iter()
+        .filter(|(source, _)| {
+            matches!(
+                source,
+                Source::ObjectGrip {
+                    grip: ObjectGrip::Side(_),
+                    ..
+                }
+            )
+        })
+        .collect();
+
+    assert_eq!(sides.len(), 3);
+    assert_eq!(sides[0].0, grip(ObjectGrip::Side(0)));
+    assert!(near(sides[0].1, Point::new(10.0, 5.0)));
+    assert!(near(sides[1].1, Point::new(11.0, 6.0)));
+    assert_eq!(sides[2].0, grip(ObjectGrip::Side(2)));
+    assert!(near(sides[2].1, Point::new(9.0, 6.0)));
+}
+
+/// A selected side grip keeps them all; a rectangle has no side grips.
+#[test]
+fn a_selected_side_grip_keeps_the_grips() {
+    let found = grips(&triangle(0.0), &grip(ObjectGrip::Side(1)));
+
+    assert_eq!(found.len(), 6);
+    assert_eq!(
+        grips(&set(0.0, ObjectShape::Rect), &Source::Object("o".into())).len(),
+        2
+    );
 }
