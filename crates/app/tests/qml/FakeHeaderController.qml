@@ -17,7 +17,6 @@ QtObject {
     // Not a property: reading one would bind the header to it, as the real call does not.
     readonly property var state: ({ look: "" })
     property int missingHeights: 0
-    property string selectedKey: ""
     property string choicesJson: JSON.stringify({ object: [{ kind: "table", custom: false, group: "furniture" }, { kind: "sofa", custom: false, group: "furniture" }] })
     // The bound note of the selection, for `describe`.
     property bool noteBound: false
