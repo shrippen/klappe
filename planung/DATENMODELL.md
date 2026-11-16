@@ -1,6 +1,6 @@
 # Datenmodell: Teilbereiche und gemeinsame Daten
 
-Stand: 2026-11-17, **Entwurf**; F-01 bis F-09 entschieden, F-10 offen (Abschnitt 8).
+Stand: 2026-11-17, **Entwurf**; alle Fragen entschieden (Abschnitt 8) (Abschnitt 8).
 Zweite Meinung (advisor) eingearbeitet.
 
 Klappe hat mehrere Teilbereiche, die auf einem Projekt arbeiten. Dieses Dokument legt fest,
@@ -86,6 +86,15 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 | Drehtag | Drehplan | zufällig; Datum und Unit sind Felder | Streifen (Szenen in Reihenfolge, Umzug, Pause), Beginn/Ende | Dispo |
 | Dispo | Dispo | Drehtag-Id | Zeiten, Ortsangaben, Zeiten je Darsteller, Fahrzeuge, Kontakte, Notizen | – |
 
+**Content Items** (F-07a): Eine Einheit des Drehs, die keine Szene eines Buchs ist: Interview,
+Statement, Schnittbilder, Vignette, Einführung, Vlog. Sie hat eine stabile Id, einen Titel, eine
+Art, eine Beschreibung und optional einen Drehort und Personen (Interviewte aus Besetzung/Team).
+Überall, wo eine Szene stehen kann, kann auch ein Content Item stehen: Szenenblatt (Elemente,
+Produktionsangaben), Floorplan und Shots, Streifen im Drehplan, Dispo. Besitzer ist das Projekt;
+es gibt keinen Buchtext und keine Anker. Ablage `inhalte/<id>.toml`, die Stellprobe dazu wie
+bei Szenen. Technisch: ein gemeinsamer Typ „Drehinhalt“ mit den Arten Szene und Content Item,
+damit Drehplan, Breakdown und Dispo nur einen Fall kennen.
+
 **Elementkategorien** (industrieüblich, wie in Yamdu beobachtet): Kostüm, Maskenbild, Bauten,
 Ausstattung, Requisite, Grafik, Fahrzeug, Tier, visuelle Effekte, Spezialeffekte, Ton, Kamera
 und Licht, Stunt, Sonstiges. Rollen und Komparsen sind Figuren, keine Elemente. Kostüm und Maske
@@ -133,6 +142,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ├── drehbuch/szenen.toml      Szenenregister (DB-65)                        (neu)
 ├── drehbuch/fassungen/       gesperrte Fassungen (DB-40, F-02)
 ├── szenen/<id>.json          Stellprobe: Floorplans, Shots
+├── inhalte/<id>.toml         Content Items (F-07a)                         (neu)
 ├── breakdown/elemente.toml   Elemente                                       (neu)
 ├── breakdown/<szenen-id>.toml Szenenblatt                                   (neu)
 ├── personen.toml             Personen, Kontakte, Besetzung, Team           (neu)
@@ -180,12 +190,8 @@ Entschieden vom Eigentümer am 2026-11-17:
 | F-07 | Ist das Drehbuch Pflicht? | Nein: auch Projekte ohne Drehbuch (Reportage, Doku, EB). Das Szenenregister gehört darum dem Projekt: Gibt es ein Buch, ist es die Quelle von Nummer und Kopf; sonst werden Szenen direkt in Klappe angelegt und bearbeitet. |
 | F-08 | Automatische Szenennummern vor der Sperre im Text? | Ja, von Anfang an (DB-33 bleibt). Kommt es beim Zusammenführen (Git) zum Konflikt, löst ihn ein Dialog in Klappe auf. |
 | F-09 | Neuer Baustein `planung/` in „Layers“ von `ARCHITECTURE.md` | Ja. |
-
-Offen:
-
-| Nr | Frage | Vorschlag |
-|---|---|---|
-| F-10 | Verschlüsselung (F-03): ganze Dateien verschlüsseln verliert Lesbarkeit und Vergleich in Git (NF-03). Wie? | Klar lesbar lokal; verschlüsselt nur beim Ablegen in ein fremdes Git (z. B. Git-Filter mit Projektpasswort, wie git-crypt), sodass Diffs lokal lesbar bleiben. Eigenes Lastenheft-Kapitel. |
+| F-10 | Wie wird verschlüsselt (F-03), ohne Lesbarkeit und Vergleich in Git (NF-03) zu verlieren? | Lokal klar lesbar; verschlüsselt nur beim Ablegen in ein fremdes Git (Git-Filter mit Projektpasswort, wie git-crypt). Eigenes Lastenheft-Kapitel. |
+| F-07a | Projekte ohne Szenen (Reportage, Doku, EB) | Content Items gleich als Konzept einplanen (Abschnitt 3). |
 
 ## Anhang A: Yamdu im Verhalten
 
