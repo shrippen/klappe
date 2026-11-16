@@ -117,7 +117,7 @@ fn list(plan: &FloorPlan) -> DisplayList {
         ..Default::default()
     };
 
-    render(&Project::new("Test"), &set, plan, 0.0, None, &|_| None)
+    render(&Project::new("Test"), &set, plan, 0.0, &|_| None)
 }
 
 fn page() -> Page {

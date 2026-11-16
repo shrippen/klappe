@@ -51,8 +51,8 @@ fn openings_are_printed_in_the_gaps() {
     ]);
     let project = Project::new("Test");
     let plan = FloorPlan::new("a", "Plan A");
-    let bare = render(&project, &set(vec![]), &plan, 0.0, None, &|_| None);
-    let list = render(&project, &with, &plan, 0.0, None, &|_| None);
+    let bare = render(&project, &set(vec![]), &plan, 0.0, &|_| None);
+    let list = render(&project, &with, &plan, 0.0, &|_| None);
 
     let out = svg(&list, &page(), Theme::Light).unwrap();
     let pdf_bytes = pdf(&list, &page(), Theme::Light).unwrap();

@@ -267,22 +267,23 @@ const NOSE_M: f64 = 0.25;
 const NOSE_HALF_DEG: f64 = 35.0;
 
 /// The display list of a floor plan on its location's set at time `t_s` (LH-60).
-/// `background_px` is the pixel size of the set's background image, `image_px` that of an
-/// image file of the set; Stellprobe reads no files, so the caller looks them up. Without it
-/// the background is left out and an image is drawn as an empty frame with its file name.
+/// `image_px` is the pixel size of an image file of the set, the background's included;
+/// Stellprobe reads no files, so the caller looks them up. Without a size the background is
+/// left out and an image is drawn as an empty frame with its file name.
 pub fn render(
     project: &Project,
     set: &SetPlan,
     plan: &FloorPlan,
     t_s: f64,
-    background_px: Option<(u32, u32)>,
     image_px: &dyn Fn(&str) -> Option<(u32, u32)>,
 ) -> DisplayList {
     let mut items = Vec::new();
     let reach_m = set_diagonal_m(set).unwrap_or(VIEW_REACH_FALLBACK_M);
 
-    if let (Some(background), Some(px)) = (&set.background, background_px) {
-        background_item(background, px, &mut items);
+    if let Some(background) = &set.background {
+        if let Some(px) = image_px(&background.file) {
+            background_item(background, px, &mut items);
+        }
     }
     image_items(set, image_px, &mut items);
     set_items(set, &mut items);
