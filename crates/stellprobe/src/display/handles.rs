@@ -72,7 +72,7 @@ fn side_has_grip(a: Point, b: Point) -> bool {
 /// grips (LH-21). For each mark after the first, one on each bend of the way to it and a
 /// smaller one halfway along each piece between bends, to pull out a new bend.
 /// A selected drawing has one on each of its points, an area also a smaller one halfway along
-/// each edge (LH-19).
+/// each edge longer than `SIDE_GRIP_MIN_M` (LH-19).
 /// A selected note has one in the middle of its card's right edge, to set its width (LH-16).
 /// A selected door or window has one on each end, on the wall's middle line, to set its
 /// width (LH-10).
@@ -80,7 +80,8 @@ fn side_has_grip(a: Point, b: Point) -> bool {
 /// (LH-50).
 /// A selected object drawn by its width and depth has one just outside the middle of its right
 /// edge and one outside its bottom edge, to set them (LH-25); a free form has one on each point
-/// of its outline instead and a small one halfway along each side (LH-92).
+/// of its outline instead and a small one halfway along each side longer than
+/// `SIDE_GRIP_MIN_M` (LH-92).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -176,7 +177,8 @@ fn form_side_place(object: &SetObject, index: usize) -> Point {
 }
 
 /// The grips of object `id`: width and depth, or for a free form one on each point and one
-/// halfway along each side; the sides come first, so the points lie on top of them.
+/// halfway along each side longer than `SIDE_GRIP_MIN_M`; the sides come first, so the points
+/// lie on top of them.
 fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     let Some(object) = set.objects.iter().find(|o| o.id == id) else {
         return Vec::new();

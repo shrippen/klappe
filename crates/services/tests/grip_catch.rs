@@ -61,3 +61,41 @@ fn a_small_form_can_be_clicked_in_its_middle() {
         Some(selected)
     );
 }
+
+/// A thin form, 0.4 m x 2 m: a click inside, 0.2 m from the middle of its long side, is out of
+/// reach of that grip (radius 0.1) and takes the form.
+#[test]
+fn a_thin_form_can_be_clicked_beside_a_side_grip() {
+    let s = open(&[(4.0, 5.0), (4.4, 5.0), (4.4, 7.0), (4.0, 7.0)]);
+    let selected = form(&s);
+
+    assert_eq!(
+        s.pick_for(Point::new(4.2, 6.0), Some(&selected)),
+        Some(selected)
+    );
+}
+
+/// A 0.35 m square: its middle is 0.247 m from each corner, in reach of the corner grip only
+/// by the pick tolerance, which does not count inside the form.
+#[test]
+fn a_tiny_form_can_be_clicked_in_its_middle() {
+    let s = open(&[(4.0, 5.0), (4.35, 5.0), (4.35, 5.35), (4.0, 5.35)]);
+    let selected = form(&s);
+
+    assert_eq!(
+        s.pick_for(Point::new(4.175, 5.175), Some(&selected)),
+        Some(selected)
+    );
+}
+
+/// Outside the form the tolerance stays: 0.25 m from the corner, beside the form.
+#[test]
+fn a_corner_grip_still_catches_beside_the_form() {
+    let s = open(&[(4.0, 5.0), (4.35, 5.0), (4.35, 5.35), (4.0, 5.35)]);
+    let selected = form(&s);
+
+    assert_eq!(
+        s.pick_for(Point::new(3.8, 4.85), Some(&selected)),
+        Some(point(&s, 0))
+    );
+}
