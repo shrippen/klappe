@@ -36,7 +36,11 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Kleinschreibung mit Bindestrich. `angle`: `eye-level` (Normalsicht), `high` (Aufsicht), `low`
   (Untersicht), `birds-eye` (Vogelperspektive), `worms-eye` (Froschperspektive), `dutch`
   (gekippt). Fehlt `angle`, gilt `eye-level`. Die Drehreihenfolge (Setups gruppiert) steht nicht
-  in der Datei; sie ergibt sich aus Kamera, Ort und Objektiv.
+  in der Datei; sie ergibt sich aus Kamera, Ort und Objektiv. Ausnahme `setup` (LH-77, optional,
+  ganze Zahl ab 1, nur geschrieben, wenn gesetzt): der Shot gehört von Hand zu dieser
+  Setup-Nummer. Die übrigen Shots werden zuerst nummeriert (nach erstem Shot, aus Kamera, Ort
+  und Objektiv); gibt es unter ihnen die Nummer nicht, wird der Shot wie ohne `setup` berechnet
+  und die Oberfläche weist darauf hin. Fehlt `setup`, gilt die Berechnung.
 - **Achse (LH-40):** `axis` im Floorplan (`szenen/<id>.json`) mit `a` und `b`, den Figur-Ids,
   zwischen denen die 180°-Achse liegt; je Floorplan, weil die Spuren der Figuren dort liegen.
   Fehlt `axis`, gilt die Achse zwischen den ersten zwei Figuren des Floorplans. Wird eine der

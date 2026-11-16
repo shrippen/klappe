@@ -98,6 +98,9 @@ Item {
 
     readonly property var sizes: controller.choicesJson ? (JSON.parse(controller.choicesJson).size || []) : []
     readonly property var angles: controller.choicesJson ? (JSON.parse(controller.choicesJson).angle || []) : []
+    // The setups the shot can join (LH-77): 1 up to the highest of the listed shots.
+    readonly property int setupCount: listed.reduce((top, s) => Math.max(top, s.setup), 0)
+    readonly property string ownSetup: shot && shot.own_setup ? String(shot.own_setup) : ""
     readonly property var movements: controller.choicesJson ? (JSON.parse(controller.choicesJson).movement || []) : []
 
     // New, copy and delete a shot (LH-70). "New" takes the camera selected in the plan, else
@@ -341,6 +344,30 @@ Item {
                             }
                         }
                     }
+
+                    KanteSectionLabel { text: panel.texts.t("field.setup") }
+                    Item { }
+                    // "automatisch" computes the setup from camera, place and lens; a number puts
+                    // the shot into that setup by hand (LH-77).
+                    KanteComboBox {
+                        objectName: "setupBox"
+                        Layout.fillWidth: true
+                        model: [panel.texts.t("setup.auto")].concat(Array.from({ length: panel.setupCount }, (_, i) => String(i + 1)))
+                        currentIndex: panel.ownSetup === "" ? 0 : (Number(panel.ownSetup) <= panel.setupCount ? Number(panel.ownSetup) : -1)
+                        onActivated: index => panel.commit("setup", index === 0 ? "" : String(index), panel.ownSetup)
+                    }
+                    Item { }
+                }
+
+                QQC2.Label {
+                    objectName: "setupHint"
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    visible: panel.ownSetup !== "" && panel.shot.setup !== Number(panel.ownSetup)
+                    wrapMode: Text.WordWrap
+                    color: KanteStyle.mutedTextColor
+                    text: panel.shot ? panel.texts.t("shot.setupGone", { own: panel.ownSetup, setup: panel.shot.setup }) : ""
                 }
 
                 QQC2.Label {

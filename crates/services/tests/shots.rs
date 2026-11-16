@@ -425,3 +425,79 @@ fn a_shot_without_its_camera_gets_the_fallback_aspect() {
     assert_eq!(rows[0].camera, "gone");
     assert_eq!(rows[0].aspect, 16.0 / 9.0);
 }
+
+fn setups(s: &Session) -> Vec<usize> {
+    s.shots().iter().map(|r| r.setup).collect()
+}
+
+/// The example's computed setups are 1, 2, 3, 3, 2 (LH-77).
+#[test]
+fn a_shot_can_be_assigned_to_another_setup_and_back() {
+    let mut s = open();
+    assert_eq!(setups(&s), [1, 2, 3, 3, 2]);
+
+    s.edit_shot("s12-3", ShotField::Setup, "1").unwrap();
+
+    assert_eq!(setups(&s), [1, 2, 1, 3, 2]);
+    assert_eq!(s.shots()[2].own_setup, Some(1));
+    let order: Vec<String> = s
+        .shots_in(klappe_services::ShotOrder::Shooting)
+        .iter()
+        .map(|r| r.number.clone())
+        .collect();
+    assert_eq!(order, ["12.1", "12.3", "12.2", "12.5", "12.4"]);
+
+    s.edit_shot("s12-3", ShotField::Setup, "").unwrap();
+
+    assert_eq!(setups(&s), [1, 2, 3, 3, 2]);
+    assert_eq!(s.shots()[2].own_setup, None);
+}
+
+#[test]
+fn assigning_a_setup_is_one_undo_step() {
+    let mut s = open();
+
+    s.edit_shot("s12-3", ShotField::Setup, "1").unwrap();
+    s.undo();
+
+    assert_eq!(setups(&s), [1, 2, 3, 3, 2]);
+}
+
+#[test]
+fn a_setup_must_be_a_positive_whole_number() {
+    let mut s = open();
+
+    for value in ["0", "-1", "x", "1,5"] {
+        assert!(
+            matches!(
+                s.edit_shot("s12-3", ShotField::Setup, value),
+                Err(ServiceError::BadValue { .. })
+            ),
+            "{value}"
+        );
+    }
+}
+
+/// The setup is gone when the number names none: computed again.
+#[test]
+fn a_setup_that_does_not_exist_is_computed() {
+    let mut s = open();
+
+    s.edit_shot("s12-3", ShotField::Setup, "9").unwrap();
+
+    let row = &s.shots()[2];
+    assert_eq!(row.own_setup, Some(9));
+    assert_ne!(row.setup, 9);
+}
+
+#[test]
+fn an_assigned_setup_survives_saving_and_loading() {
+    let dir = copy("shots-setup");
+    let mut s = Session::open(&dir).unwrap();
+    s.edit_shot("s12-3", ShotField::Setup, "1").unwrap();
+    s.save().unwrap();
+
+    let s = Session::open(&dir).unwrap();
+
+    assert_eq!(setups(&s), [1, 2, 1, 3, 2]);
+}

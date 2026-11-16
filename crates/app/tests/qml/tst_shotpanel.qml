@@ -21,6 +21,7 @@ TestCase {
             { kind: "figure", id: "burgvogt", name: "Burgvogt" }
         ])
         property string choicesJson: JSON.stringify({ size: ["extreme-wide", "wide", "medium-wide", "cowboy", "medium", "medium-close", "close-up", "extreme-close-up"], angle: ["eye-level", "high", "low", "birds-eye", "worms-eye", "dutch"], movement: ["static", "pan", "tilt", "dolly", "crane", "handheld", "gimbal", "zoom"], axis: { a: "elisabeth", b: "burgvogt", own: false } })
+        property string shotsJson: JSON.stringify([1, 2, 2].map((setup, i) => Object.assign(tc.row(null), { aspect: 2.39, id: "s12-" + (i + 1), number: "12." + (i + 1), setup: setup })))
         property var calls: []
         property var follows: []
         property var axisCalls: []
@@ -291,6 +292,43 @@ TestCase {
         box.activated(0)
 
         compare(fake.calls.length, 0)
+    }
+
+    // LH-77: "automatisch" plus the plan's setups; choosing one assigns the shot by hand.
+    function test_the_setup_chooser_lists_auto_and_the_setups() {
+        const box = field(make(null), "setupBox")
+
+        compare(box.count, 3)
+        compare(box.currentIndex, 0)
+        compare(box.currentText, "automatisch")
+
+        box.activated(1)
+        compare(fake.calls, [["s12-3", "setup", "1"]])
+
+        box.activated(2)
+        compare(fake.calls[1], ["s12-3", "setup", "2"])
+    }
+
+    function test_choosing_automatic_clears_the_own_setup() {
+        const panel = make(null)
+        panel.shot = Object.assign({}, panel.shot, { own_setup: 2, setup: 2 })
+        const box = field(panel, "setupBox")
+
+        compare(box.currentIndex, 2)
+        box.activated(0)
+
+        compare(fake.calls, [["s12-3", "setup", ""]])
+    }
+
+    function test_an_own_setup_that_is_gone_says_so() {
+        const panel = make(null)
+        const hint = field(panel, "setupHint")
+        verify(!hint.visible)
+
+        panel.shot = Object.assign({}, panel.shot, { own_setup: 9, setup: 1 })
+
+        verify(hint.visible)
+        compare(field(panel, "setupBox").currentIndex, -1)
     }
 
     function test_the_current_camera_is_not_sent_again() {

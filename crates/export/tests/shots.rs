@@ -95,6 +95,7 @@ fn shot(n: usize) -> Shot {
         gear: "Dolly".into(),
         crew: "Kamera, Ton".into(),
         note: "Nach dem ersten Take neu ausleuchten".into(),
+        setup: None,
     }
 }
 
@@ -623,4 +624,21 @@ fn the_camera_picture_is_a_png_of_its_size() {
     );
     assert_eq!(width, 640);
     assert_eq!(height, (640.0_f64 / 2.39).round() as u32);
+}
+
+/// A setup chosen by hand counts in the setup column and the shooting order (LH-77).
+#[test]
+fn a_shot_assigned_by_hand_is_listed_in_its_setup() {
+    let mut plan = two_setups();
+    plan.shots[1].setup = Some(1);
+
+    let csv = shots_csv(&plan, &texts(), ShotOrder::Shooting);
+    let rows: Vec<Vec<&str>> = csv
+        .lines()
+        .map(|l| l.split(',').take(3).collect())
+        .collect();
+
+    assert_eq!(rows[1], ["1", "12.1", "A"]);
+    assert_eq!(rows[2], ["1", "12.2", "B"]);
+    assert_eq!(rows[3], ["1", "12.3", "A"]);
 }

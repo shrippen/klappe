@@ -76,6 +76,7 @@ fn plan(shots: usize) -> FloorPlan {
             gear: "Dolly".into(),
             crew: "Kamera, Ton".into(),
             note: "Zeile 1\nZeile 2".into(),
+            setup: None,
         })
         .collect();
 

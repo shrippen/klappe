@@ -37,6 +37,10 @@ pub struct Shot {
     pub crew: String,
     #[serde(default)]
     pub note: String,
+    /// Setup number (1-based) the shot is assigned to by hand (LH-77); `None` computes it
+    /// from camera, place and lens.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setup: Option<usize>,
 }
 
 impl Shot {

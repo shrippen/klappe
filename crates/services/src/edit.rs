@@ -18,6 +18,7 @@ pub enum ShotField {
     Gear,
     Crew,
     Note,
+    Setup,
 }
 
 impl ShotField {
@@ -35,6 +36,7 @@ impl ShotField {
             "gear" => Self::Gear,
             "crew" => Self::Crew,
             "note" => Self::Note,
+            "setup" => Self::Setup,
             _ => return None,
         };
         Some(field)
@@ -53,6 +55,7 @@ impl ShotField {
             Self::Gear => Field::Gear,
             Self::Crew => Field::Crew,
             Self::Note => Field::Note,
+            Self::Setup => Field::Setup,
         }
     }
 }
@@ -75,6 +78,11 @@ pub(crate) fn apply(
         value: value.to_owned(),
     };
 
+    if let Some(text) = text_of(shot, field) {
+        *text = value.to_owned();
+        return Ok(());
+    }
+
     match field {
         ShotField::Number => shot.number = number_of(value).ok_or_else(bad)?,
         ShotField::Camera => shot.camera = camera_of(cameras, value).ok_or_else(bad)?,
@@ -82,11 +90,8 @@ pub(crate) fn apply(
         ShotField::Angle => shot.angle = angle_of(value).ok_or_else(bad)?,
         ShotField::Movement => shot.movement = movement_of(value).ok_or_else(bad)?,
         ShotField::Lens => shot.lens_mm = lens_of(value)?,
-        ShotField::Description => shot.description = value.to_owned(),
-        ShotField::Props => shot.props = value.to_owned(),
-        ShotField::Gear => shot.gear = value.to_owned(),
-        ShotField::Crew => shot.crew = value.to_owned(),
-        ShotField::Note => shot.note = value.to_owned(),
+        ShotField::Setup => shot.setup = setup_of(value).ok_or_else(bad)?,
+        _ => {}
     }
 
     Ok(())
@@ -112,6 +117,28 @@ fn lens_of(value: &str) -> Result<Option<f64>, ServiceError> {
     let range = Range::Within(MIN_SHOT_LENS_MM, MAX_SHOT_LENS_MM);
 
     read_number(Field::Lens, value, Unit::Millimetre, range).map(Some)
+}
+
+/// The free-text field `field` names, else `None`.
+fn text_of(shot: &mut Shot, field: ShotField) -> Option<&mut String> {
+    match field {
+        ShotField::Description => Some(&mut shot.description),
+        ShotField::Props => Some(&mut shot.props),
+        ShotField::Gear => Some(&mut shot.gear),
+        ShotField::Crew => Some(&mut shot.crew),
+        ShotField::Note => Some(&mut shot.note),
+        _ => None,
+    }
+}
+
+/// A setup number from 1; empty = computed.
+fn setup_of(value: &str) -> Option<Option<usize>> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Some(None);
+    }
+
+    value.parse::<usize>().ok().filter(|n| *n > 0).map(Some)
 }
 
 fn size_of(name: &str) -> Option<ShotSize> {
@@ -176,6 +203,7 @@ mod tests {
             ShotField::Gear,
             ShotField::Crew,
             ShotField::Note,
+            ShotField::Setup,
         ];
         for f in fields {
             assert_eq!(ShotField::from_name(f.field().name()), Some(f));

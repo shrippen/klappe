@@ -84,6 +84,7 @@ impl Session {
                     axis_jump: jump.is_some(),
                     axis_against: jump.map(|j| against_numbers(plan, j)).unwrap_or_default(),
                     setup,
+                    own_setup: shot.setup,
                 }
             })
             .collect()

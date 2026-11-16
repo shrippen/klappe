@@ -87,6 +87,7 @@ pub(crate) fn add(plan: &mut FloorPlan, scene: &str, camera: &str, at_s: f64) ->
             gear: String::new(),
             crew: String::new(),
             note: String::new(),
+            setup: None,
         },
     );
     id

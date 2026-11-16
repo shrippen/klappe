@@ -48,6 +48,9 @@ pub struct ShotRow {
     pub axis_against: String,
     /// The camera setup (1-based): same camera, place and lens (LH-72).
     pub setup: usize,
+    /// The setup chosen by hand (LH-77); `None` is computed. It differs from `setup` when
+    /// the number names no setup (any more).
+    pub own_setup: Option<usize>,
 }
 
 /// The two characters the 180° axis runs between (LH-40).

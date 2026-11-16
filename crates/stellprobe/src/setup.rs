@@ -50,27 +50,50 @@ impl Setup {
     }
 }
 
+/// The number of the setup `setup` belongs to in `setups`: the first it matches, else a new
+/// one at the end. The place is compared with that setup's first shot, so a slow dolly cannot
+/// chain shots into one setup.
+fn join(setups: &mut Vec<Setup>, setup: Setup) -> usize {
+    if let Some(i) = setups.iter().position(|s| s.matches(&setup)) {
+        return i + 1;
+    }
+
+    setups.push(setup);
+    setups.len()
+}
+
 /// The setup number (1-based) of every shot, in the plan's cut order. Setups are numbered
-/// by their first shot. A shot joins the first setup it matches; the place is compared with
-/// that setup's first shot, so a slow dolly cannot chain shots into one setup.
+/// by their first shot, from camera, place and lens (`join`).
+///
+/// A shot with its own `setup` (LH-77) is left out of that and takes the number it names,
+/// if such a setup exists among the others; else it is computed like the others, after them.
 ///
 /// Example: A at (8; 11) with 35 mm, A at (9; 8) with 40 mm, B at (18; 4) with 50 mm, B
 /// again, A at (9; 8) with 40 mm: `[1, 2, 3, 3, 2]`.
 pub fn shot_setups(plan: &FloorPlan) -> Vec<usize> {
     let mut setups: Vec<Setup> = Vec::new();
+    let mut numbers = vec![0; plan.shots.len()];
 
-    plan.shots
-        .iter()
-        .map(|shot| {
-            let setup = Setup::of(shot, plan);
-            if let Some(i) = setups.iter().position(|s| s.matches(&setup)) {
-                return i + 1;
-            }
+    for (i, shot) in plan.shots.iter().enumerate() {
+        if shot.setup.is_none() {
+            numbers[i] = join(&mut setups, Setup::of(shot, plan));
+        }
+    }
 
-            setups.push(setup);
-            setups.len()
-        })
-        .collect()
+    // Counted before the fallbacks below add setups of their own.
+    let assignable = setups.len();
+    for (i, shot) in plan.shots.iter().enumerate() {
+        let Some(own) = shot.setup else {
+            continue;
+        };
+
+        numbers[i] = match own {
+            1.. if own <= assignable => own,
+            _ => join(&mut setups, Setup::of(shot, plan)),
+        };
+    }
+
+    numbers
 }
 
 /// The shots with their setup number, in the order asked for. `Shooting` lists setup 1
@@ -131,6 +154,7 @@ mod tests {
             gear: String::new(),
             crew: String::new(),
             note: String::new(),
+            setup: None,
         }
     }
 
@@ -180,6 +204,36 @@ mod tests {
 
         assert_eq!(ids(&cut), ["1", "2", "3", "4", "5"]);
         assert_eq!(cut[4].0, 2);
+    }
+
+    #[test]
+    fn a_shot_assigned_by_hand_joins_that_setup() {
+        let mut plan = example();
+        plan.shots[2].setup = Some(1);
+
+        // 3 joins setup 1; 4 keeps B's setup 3.
+        assert_eq!(shot_setups(&plan), [1, 2, 1, 3, 2]);
+
+        let order = ordered_shots(&plan, ShotOrder::Shooting);
+        assert_eq!(ids(&order), ["1", "3", "2", "5", "4"]);
+    }
+
+    #[test]
+    fn setups_are_numbered_by_the_shots_not_assigned() {
+        let mut plan = example();
+        plan.shots[0].setup = Some(2);
+
+        // The others number first (2 and 5 are setup 1, 3 and 4 setup 2); 1 joins setup 2.
+        assert_eq!(shot_setups(&plan), [2, 1, 2, 2, 1]);
+    }
+
+    #[test]
+    fn an_assignment_to_a_missing_setup_is_computed() {
+        let mut plan = example();
+        plan.shots[1].setup = Some(9);
+
+        // The others number first (1; 3 and 4; 5 is setup 3); 2 matches 5.
+        assert_eq!(shot_setups(&plan), [1, 3, 2, 2, 3]);
     }
 
     /// 0.4 m away is the same place, 0.6 m is not (tolerance 0.5 m).
