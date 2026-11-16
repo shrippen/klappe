@@ -306,6 +306,17 @@ mod tests {
     }
 
     #[test]
+    fn a_doubled_id_takes_the_shot_that_may_be_the_model() {
+        // A hand-edited file: shot 2 also has the id "3", and it is assigned by hand itself.
+        let mut plan = example();
+        plan.shots[1].id = "3".into();
+        plan.shots[1].setup_of = Some("1".into());
+        plan.shots[0].setup_of = Some("3".into());
+
+        assert_eq!(setup_target(&plan, &plan.shots[0]), Some(2));
+    }
+
+    #[test]
     fn a_shot_without_a_target_is_computed_after_the_others() {
         let mut plan = example();
         plan.shots[1].setup_of = Some("9".into());
