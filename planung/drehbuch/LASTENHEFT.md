@@ -22,18 +22,19 @@ Vorbilder, ihre Schwächen und die Clean-Room-Regel: Anhang A.
   Drehbuch aus Final Draft oder Fade In aussieht (Seiten ≈ Minuten).
 - Die Fassung bleibt reiner Fountain-Text: lesbar, in Git vergleichbar, von anderen Programmen
   zu öffnen.
-- Szenen, Figuren und Drehorte des Drehbuchs sind dieselben wie in Stellprobe und Planung.
+- Szenen, Figuren und Spielorte des Drehbuchs sind dieselben wie in Stellprobe und den anderen
+  Teilbereichen (`../DATENMODELL.md`).
   Eine Szene im Drehbuch *ist* die Szene des Floorplans.
-- Was die Produktion aus dem Buch braucht (Szenen, Drehorte, Figuren je Szene, Requisiten,
+- Was die Produktion aus dem Buch braucht (Szenen, Spielorte, Figuren je Szene, Requisiten,
   Länge in Achteln), kommt aus dem Drehbuch, ohne Abtippen.
 
 ## 3. Einbettung in Klappe
 
 ```
- drehbuch.fountain ──► script (Parser) ──► Szenen, Figuren, Drehorte (model)
+ drehbuch.fountain ──► script (Parser) ──► Szenen, Figuren, Spielorte (model)
         ▲                                        │
    TUI / GUI schreiben                    Stellprobe: Floorplan, Shots
-                                          Planung: Drehplan, Dispo (später)
+                                          Breakdown, Drehplan, Dispo (später)
 ```
 
 - E-09: Die TUI ist der erste Schreibort; die GUI bekommt den Editor später (E-14: Drehbuch
@@ -49,7 +50,7 @@ Vorbilder, ihre Schwächen und die Clean-Room-Regel: Anhang A.
 |---|---|
 | Autor:in / Regie | Schreiben, Umschreiben, Fassungen |
 | Regieassistenz | Szenenliste, Auszüge, Länge in Achteln, Drehbuchauszug |
-| Produktion | Berichte: Drehorte, Figuren, Requisiten je Szene |
+| Produktion | Berichte: Spielorte und Drehorte, Figuren, Requisiten je Szene |
 | Schauspiel | eigene Rollen-Auszüge (Sides), Vorlesefassung |
 
 Hauptnutzer ist eine Person am Laptop, oft im Terminal.
@@ -124,7 +125,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DB-50 | Figurenliste aus dem Buch, abgeglichen mit den Figuren des Projekts (Name, Kürzel, Farbe aus Stellprobe, LH-03). | M |
-| DB-51 | Drehorte aus Szenenköpfen, abgeglichen mit den Drehorten des Projekts (LH-02); Ortsname im Kopf = Drehort, Varianten zuordenbar. | M |
+| DB-51 | Spielorte aus Szenenköpfen (Varianten zuordenbar), je Spielort einem Drehort des Projekts zugeordnet (LH-02); mehrere Spielorte an einem Drehort möglich (`../DATENMODELL.md`, F-01; die Zuordnung zum Drehort kommt mit Schritt 2 dort). | M |
 | DB-52 | Dialog einer Figur gesammelt ansehen (Stimme prüfen). | S |
 | DB-53 | Statistik: Szenen und Zeilen je Figur, Dialoganteile, Szenen je Ort und Tageszeit, Szenenlänge. | S |
 | DB-54 | Wortwiederholungen anzeigen. | K |
@@ -133,8 +134,8 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 
 | Nr | Anforderung | Prio |
 |---|---|---|
-| DB-60 | Drehbuchauszug (Tags) je Szene: Besetzung, Statisterie, Requisite, Kostüm, Maske, Fahrzeug, Tier, Spezialeffekt, Stunt, Ton, Musik, Sonstiges. Der Fountain-Text bleibt sauber (Frage F-02). | S |
-| DB-61 | Berichte: Szenen (Nr., Kopf, Länge, Figuren), Drehorte, Figuren je Szene, Drehbuchauszug je Szene; als PDF und CSV. Grundlage für das Modul Planung. | S |
+| DB-60 | Drehbuchauszug (Tags) je Szene: Besetzung, Statisterie, Requisite, Kostüm, Maske, Fahrzeug, Tier, Spezialeffekt, Stunt, Ton, Musik, Sonstiges. Der Fountain-Text bleibt sauber (Frage F-02). Umgesetzt im Teilbereich Breakdown (`../DATENMODELL.md`). | S |
+| DB-61 | Berichte: Szenen (Nr., Kopf, Länge, Figuren), Spielorte (mit ihrem Drehort), Figuren je Szene, Drehbuchauszug je Szene; als PDF und CSV. Grundlage für Drehplan und Dispo; umgesetzt im Teilbereich Breakdown. | S |
 | DB-62 | Rollen-Auszüge (Sides): nur die Szenen einer Figur als PDF. | K |
 | DB-63 | In der GUI von der Szene im Drehbuch zu Floorplan, Marks und Shots in Stellprobe springen und zurück. Die TUI ist vorerst nur zum Schreiben des Drehbuchs. | M, GUI |
 | DB-64 | Verknüpfungen aus Stellprobe (Szene, Szenenkopf, verknüpfte Drehbuchzeilen von Marks und Shots) bleiben beim Bearbeiten, Verschieben und Streichen gültig; was sich nicht eindeutig zuordnen lässt, legt das Programm dem Nutzer zur Zuordnung vor, statt still auf eine andere Zeile zu zeigen. | M |
@@ -165,7 +166,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 ## 8. Abgrenzung
 
 - Kein eigenes Binärformat, kein Cloud-Dienst, keine Echtzeit-Zusammenarbeit (Git statt dessen).
-- Keine Drehplanung und Dispo (Modul Planung); das Drehbuch liefert nur die Daten.
+- Keine Drehplanung und Dispo (Teilbereiche Drehplan und Dispo); das Drehbuch liefert nur die Daten.
 - Kein Romanformat und kein Bühnenformat in der ersten Version.
 - Kein Import geschlossener Formate außer FDX (offen dokumentiertes XML).
 
@@ -188,10 +189,10 @@ Entschieden vom Eigentümer am 2026-11-14:
 | Nr | Frage | Entscheidung |
 |---|---|---|
 | F-01 | Papierformat | A4 ist Standard, US Letter wählbar; Minutenschätzung je Format. |
-| F-02 | Wo stehen Revisionen, Tags, gesperrte Seitennummern? (Beat: JSON-Block am Ende der Fountain-Datei) | Eigene Dateien im Projektordner (`drehbuch/fassungen/`, `drehbuch/tags.toml`); der Fountain-Text bleibt sauber. Szenennummern bleiben im Text (DB-33); die Zuordnung zu Floorplan, Marks und Shots führt Klappe getrennt von der Nummer (DB-65). |
+| F-02 | Wo stehen Revisionen, Tags, gesperrte Seitennummern? (Beat: JSON-Block am Ende der Fountain-Datei) | Eigene Dateien im Projektordner (`drehbuch/fassungen/`, `drehbuch/tags.toml`, geändert am 2026-11-17 mit `../DATENMODELL.md`: `breakdown/`, Eigentümer: Hinweise übernehmen); der Fountain-Text bleibt sauber. Szenennummern bleiben im Text (DB-33); die Zuordnung zu Floorplan, Marks und Shots führt Klappe getrennt von der Nummer (DB-65). |
 | F-03 | Woher kommen Revisionen: Markierung beim Tippen (Fade In, Beat), Git oder Vergleich? | Vergleich mit einer beim Sperren gespeicherten Fassung im Projektordner; Git optional. Verschobene Szenen werden eigens erkannt (DB-44). |
 | F-04 | (MORE)/(CONT'D) oder (WEITER)/(FORTS.) im PDF | Je Projekt wählbar, Standard nach Sprache des Projekts. |
-| F-05 | Nach der ersten Version: GUI-Editor (DB-23) oder Produktion (DB-60, DB-61)? | Erst Produktion, weil Planung darauf aufbaut. |
+| F-05 | Nach der ersten Version: GUI-Editor (DB-23) oder Produktion (DB-60, DB-61)? | Erst Produktion, weil Drehplan und Dispo darauf aufbauen. |
 | DB-33 | Ändern sich Szenennummern mit Floorplan nie automatisch? | Nein: sie passen sich an, wenn sich das Buch ändert, auch extern; Klappe verfolgt die Szenen (DB-65). |
 | DB-64 | Verknüpfungen überstehen das Umschreiben | Einverstanden. |
 | Begriffe | Deutsch nach Filmpraxis | Einverstanden, mit Mehrsprachigkeit: ein englisches Buch hat internationale Begriffe, ein deutsches kann sie auf Wunsch auch haben; maßgeblich ist die Sprache des Projekts (DN-05). |
@@ -320,5 +321,5 @@ Gelesen (2026-11-14):
 | 1 | Läuft unter Linux, Windows, macOS, im Terminal | DN-01 |
 | 2 | Drehbuch und Floorplan sind dieselben Szenen; Sprung in beide Richtungen | DB-63 |
 | 3 | Fountain bleibt sauber, Metadaten in eigenen Dateien; Git-Diffs zeigen nur Text | F-02, DN-03 |
-| 4 | Drehbuchauszug und Berichte fließen ohne Export in Planung | DB-60, DB-61 |
+| 4 | Drehbuchauszug und Berichte fließen ohne Export in Drehplan und Dispo | DB-60, DB-61 |
 | 5 | Kein Datenverlust bei Absturz, Sicherung wie Stellprobe | DN-06 |

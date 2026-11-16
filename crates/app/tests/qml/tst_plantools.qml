@@ -106,6 +106,11 @@ TestCase {
         // The settings keep the mode over the test cases: start each from the default.
         const stale = createTemporaryObject(toolsComponent, tc)
         stale.mode = "build"
+        for (const name of ["objectBox", "figureBox", "cameraBox", "lightBox"]) {
+            const box = findChild(stale, name)
+            box.currentIndex = 0
+            box.activated(0)
+        }
         wait(50)
         stale.destroy()
         wait(50)
@@ -713,5 +718,83 @@ TestCase {
         box.activated(2)
 
         compare(fake.grids, ["m1"])
+    }
+
+    // LH-101, LH-122: the hint line says what the next click does and that the tool stays.
+    function test_the_hint_names_the_click_and_that_the_tool_stays() {
+        const bar = make()
+        compare(bar.hint, "")
+
+        bar.tool = "wall"
+        compare(bar.hint, "Ziehen zeichnet eine Wand. Das Werkzeug bleibt für weitere aktiv, Esc wählt die Auswahl.")
+
+        bar.tool = "object"
+        verify(bar.hint.indexOf("Klick setzt Tisch.") === 0, bar.hint)
+        bar.tool = "figure"
+        verify(bar.hint.indexOf("Klick setzt den nächsten Mark von Elisabeth.") === 0, bar.hint)
+        bar.tool = "camera"
+        verify(bar.hint.indexOf("Klick setzt eine neue Kamera.") === 0, bar.hint)
+        findChild(bar, "cameraBox").currentIndex = 2
+        verify(bar.hint.indexOf("Klick setzt den nächsten Mark von Kamera B.") === 0, bar.hint)
+
+        bar.tool = "measure"
+        verify(bar.hint.indexOf("Das Werkzeug bleibt") < 0, bar.hint)
+        verify(bar.hint.indexOf("Esc wählt die Auswahl.") > 0, bar.hint)
+
+        bar.tool = "select"
+        compare(bar.hint, "")
+    }
+
+    function test_a_tool_without_anything_to_set_says_so() {
+        fake.choicesJson = JSON.stringify(Object.assign({}, fake.choices, { figure: [] }))
+        const bar = make()
+
+        bar.tool = "figure"
+
+        compare(bar.hint, "Wähle in der Liste, was gesetzt wird.")
+    }
+
+    // LH-123: a new list keeps the pick of each tool.
+    function test_a_new_list_keeps_the_pick() {
+        const bar = make()
+        const picks = [["figureBox", "figure", 1, "burgvogt"], ["cameraBox", "camera", 2, "b"], ["lightBox", "light", 1, "led-panel"]]
+
+        for (const [name, tool, index, value] of picks) {
+            bar.tool = tool
+            const box = findChild(bar, name)
+            box.currentIndex = index
+            box.activated(index)
+        }
+        fake.choicesJson = JSON.stringify(Object.assign({}, fake.choices, { cameras: fake.choices.cameras.concat([{ id: "c", label: "C" }]) }))
+        fake.choicesJson = JSON.stringify(Object.assign({}, fake.choices, { figure: fake.choices.figure.slice() }))
+
+        for (const [name, tool, index, value] of picks) {
+            bar.tool = tool
+            compare(bar.choice, value, name)
+        }
+    }
+
+    // LH-123: and so does the next start: the settings keep the pick of each list.
+    function test_the_picks_outlive_the_bar() {
+        const bar = make()
+        const picks = [["objectBox", "object", 1, ""], ["figureBox", "figure", 1, "burgvogt"], ["cameraBox", "camera", 2, "b"], ["lightBox", "light", 1, "led-panel"]]
+
+        for (const pick of picks) {
+            bar.tool = pick[1]
+            const box = findChild(bar, pick[0])
+            box.currentIndex = pick[2]
+            box.activated(pick[2])
+            // The object list is sorted by group: its entry 1 is whatever it is.
+            pick[3] = bar.choice
+        }
+        compare(picks[0][3], findChild(bar, "objectBox").model[1].value)
+        bar.destroy()
+        wait(50)
+
+        const again = make()
+        for (const [name, tool, index, value] of picks) {
+            again.tool = tool
+            compare(again.choice, value, name)
+        }
     }
 }

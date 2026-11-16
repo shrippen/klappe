@@ -50,7 +50,7 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
-                                                                        actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
+                                    actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actNextMark, actMarkBefore, actAxisTo, actWaySmooth, actWayStraight,
                                     actUndo, actRedo].concat(zoom.actions, pageExports.actions, viewCommands.actions, objectCommands.actions)
@@ -59,6 +59,16 @@ RowLayout {
     function keyName(sequence) {
         return sequence.replace("Ctrl", texts.t("key.ctrl")).replace("Shift", texts.t("key.shift"))
             .replace("Space", texts.t("key.space"))
+    }
+
+    // "Undo: Move (Ctrl+Z)": the step the button takes back or does again (LH-103); the plain
+    // name while the step has no text of its own.
+    function stepTip(tipKey, step, action) {
+        const key = "step." + step
+        if (!step || texts.map[key] === undefined) {
+            return texts.t("tool.tip", { name: action.text, key: action.keys })
+        }
+        return texts.t(tipKey, { step: texts.t(key), key: action.keys })
     }
 
     spacing: Kirigami.Units.largeSpacing
@@ -206,7 +216,7 @@ RowLayout {
         visible: header.controller.loaded
         action: actUndo
         display: QQC2.AbstractButton.IconOnly
-        QQC2.ToolTip.text: header.texts.t("tool.tip", { name: actUndo.text, key: actUndo.keys })
+        QQC2.ToolTip.text: header.stepTip("undo.tip", header.controller.undoStep, actUndo)
         QQC2.ToolTip.visible: hovered
         QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
     }
@@ -215,7 +225,7 @@ RowLayout {
         visible: header.controller.loaded
         action: actRedo
         display: QQC2.AbstractButton.IconOnly
-        QQC2.ToolTip.text: header.texts.t("tool.tip", { name: actRedo.text, key: actRedo.keys })
+        QQC2.ToolTip.text: header.stepTip("redo.tip", header.controller.redoStep, actRedo)
         QQC2.ToolTip.visible: hovered
         QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
     }

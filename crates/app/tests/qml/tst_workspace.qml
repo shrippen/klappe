@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls as QQC2
 import QtTest
 import QtCore
 import "../../qml"
@@ -267,6 +268,9 @@ TestCase {
         const entry = part(popover.contentItem, "overflow." + hidden)
         verify(entry.visible)
         shoot(win.workspace, "narrow-options")
+
+        // LH-102: an icon alone says its name and key.
+        verify(entry.QQC2.ToolTip.text.indexOf("(") > 0, entry.QQC2.ToolTip.text)
 
         mouseClick(entry)
 

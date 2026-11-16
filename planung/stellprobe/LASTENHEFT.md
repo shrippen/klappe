@@ -31,17 +31,17 @@ und eine Shotliste, die an die Produktionsplanung der Suite übergeben wird.
 
 ```
              Klappe (Suite)
-  ┌────────────┬─────────────┬──────────────┐
-  │ Drehbuch   │ Stellprobe  │ Planung      │
-  │ (später)   │ (zuerst)    │ (später)     │
-  └─────┬──────┴──────┬──────┴──────┬───────┘
-        │   gemeinsames Datenmodell  │
-        └── Szenen, Figuren, Drehorte, Shots ──┘
+  ┌────────────┬─────────────┬──────────────────────────────────┐
+  │ Drehbuch   │ Stellprobe  │ Storyboard, Breakdown, Besetzung │
+  │            │ (zuerst)    │ Drehplan, Dispo (später)         │
+  └─────┬──────┴──────┬──────┴────────────────┬─────────────────┘
+        │   gemeinsames Datenmodell (../DATENMODELL.md)
+        └── Szenen, Figuren, Spielorte, Drehorte, Shots ──┘
 ```
 
 - Stellprobe ist allein nutzbar, ohne die anderen Module.
-- Szenen, Figuren und Drehorte sind von Anfang an so angelegt, dass Drehbuch und
-  Planung sie später übernehmen, statt eigene Kopien zu führen.
+- Szenen, Figuren und Drehorte sind von Anfang an so angelegt, dass die anderen Teilbereiche
+  sie übernehmen, statt eigene Kopien zu führen.
 - Shots aus Stellprobe sind die Grundlage für Drehplan und Dispo.
 
 ## 4. Nutzer
@@ -62,7 +62,7 @@ Hauptnutzer ist eine Person (Regie) am Desktop. Die anderen lesen meist nur (Aus
 |---|---|
 | Projekt | Ein Film. Enthält Drehorte, Figuren, Szenen. |
 | Drehort | Ort mit Grundriss, z. B. Rittersaal der Wartburg. |
-| Szene | Szene aus dem Drehbuch; spielt an einem Drehort. |
+| Szene | Szene aus dem Drehbuch (oder ohne Buch in Klappe angelegt); spielt an einem Spielort, gedreht an einem Drehort (`../DATENMODELL.md`, F-01). |
 | Floorplan | Draufsicht einer Szene: Set, Figuren, Kameras, Licht. |
 | Mark | Position einer Figur oder Kamera zu einem Zeitpunkt (1, 2, 3 …). |
 | Blocking | Abfolge der Marks und Wege der Figuren. |
@@ -79,7 +79,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | Nr | Anforderung | Prio |
 |---|---|---|
 | LH-01 | Projekte anlegen, öffnen, speichern; mehrere Szenen je Projekt. | M |
-| LH-02 | Drehorte anlegen und mehreren Szenen zuordnen; Set eines Drehorts wird wiederverwendet. | M |
+| LH-02 | Drehorte anlegen und mehreren Szenen zuordnen; Set eines Drehorts wird wiederverwendet. Der Floorplan hält fest, auf welchem Set er gezeichnet ist (`../DATENMODELL.md`). | M |
 | LH-03 | Figuren projektweit anlegen (Name, Farbe, Kürzel) und in Szenen verwenden. | M |
 | LH-04 | Varianten eines Floorplans (z. B. „Plan A / Plan B“) innerhalb einer Szene; Schnappschuss eines Stands, zu dem man zurückkehren kann. | S |
 | LH-05 | Automatisches Speichern; kein Datenverlust bei Absturz. | M |
