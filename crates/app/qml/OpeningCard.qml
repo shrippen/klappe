@@ -27,7 +27,7 @@ ColumnLayout {
     }
     readonly property bool shown: info !== null
     /// A field has the focus: letters and Delete are text, not keys for the selection.
-    readonly property bool typing: widthField.activeFocus || sillField.typing || headField.typing
+    readonly property bool typing: widthField.typing || sillField.typing || headField.typing
 
     readonly property var sides: ["left", "right"]
     readonly property var hinges: ["start", "end"]
@@ -45,7 +45,7 @@ ColumnLayout {
         }
         sideChoice.currentIndex = card.sides.indexOf(info.side)
         hingeChoice.currentIndex = card.hinges.indexOf(info.hinge)
-        if (!widthField.activeFocus) {
+        if (!widthField.typing) {
             widthField.text = texts.num(info.width, 2)
         }
         sillField.placeholderText = card.metres(info.sill)
@@ -131,18 +131,15 @@ ColumnLayout {
     RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTextField {
+        LabeledField {
             id: widthField
-            objectName: "openingWidthField"
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-            Accessible.name: card.texts.t("field.width")
-            placeholderText: card.texts.t("field.width")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
+            fieldName: "openingWidthField"
+            label: card.texts.t("field.width")
             onAccepted: card.setWidth()
         }
         KanteButton {
             objectName: "openingApply"
+            Layout.alignment: Qt.AlignBottom
             text: card.texts.t("form.apply")
             onClicked: card.apply()
         }

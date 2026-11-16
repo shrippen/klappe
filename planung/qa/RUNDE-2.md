@@ -88,7 +88,7 @@ alten Maße (Q2-05).
 - **Nachgeprüft:** ja (`check/shot-003`, Lampenkarte ohne Beschriftung)
 - **Einordnung:** Fortsetzung von Q1-03 (Objekt, Mark, Kamera); die Namen stehen nur als
   Platzhalter im leeren Feld.
-- **Status:** offen
+- **Status:** offen (Behebung vorbereitet: #165)
 
 ### Q2-04 Strg+D an einer Figur meldet nur „Ungültiger Wert für Element:“
 - **Art:** unverständlich · **Stufe:** niedrig

@@ -33,8 +33,8 @@ ColumnLayout {
     }
     readonly property bool shown: info !== null
     /// A field has the focus: letters and Delete are text, not keys for the selection.
-    readonly property bool typing: widthField.activeFocus || depthField.activeFocus
-        || heightField.activeFocus || baseField.typing || libraryName.activeFocus
+    readonly property bool typing: widthField.typing || depthField.typing
+        || heightField.typing || baseField.typing || libraryName.activeFocus
     readonly property string title: info ? (info.label !== "" ? info.label : card.kindOf(info)) : ""
 
     visible: shown
@@ -53,13 +53,13 @@ ColumnLayout {
         if (!info) {
             return
         }
-        if (!widthField.activeFocus) {
+        if (!widthField.typing) {
             widthField.text = texts.num(info.width, 2)
         }
-        if (!depthField.activeFocus) {
+        if (!depthField.typing) {
             depthField.text = texts.num(info.depth, 2)
         }
-        if (!heightField.activeFocus) {
+        if (!heightField.typing) {
             heightField.text = card.shownHeight(info)
         }
         baseField.placeholderText = texts.num(info.base, 2)
@@ -79,8 +79,7 @@ ColumnLayout {
 
     // The height field takes the keyboard, its text selected (LH-93).
     function focusHeight() {
-        heightField.forceActiveFocus()
-        heightField.selectAll()
+        heightField.focusAll()
     }
 
     function setHeight() {
@@ -149,28 +148,21 @@ ColumnLayout {
     RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTextField {
+        LabeledField {
             id: widthField
-            objectName: "widthField"
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-            Accessible.name: card.texts.t("field.width")
-            placeholderText: card.texts.t("field.width")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
+            fieldName: "widthField"
+            label: card.texts.t("field.width")
             onAccepted: card.setSize()
         }
-        KanteTextField {
+        LabeledField {
             id: depthField
-            objectName: "depthField"
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-            Accessible.name: card.texts.t("field.depth")
-            placeholderText: card.texts.t("field.depth")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
+            fieldName: "depthField"
+            label: card.texts.t("field.depth")
             onAccepted: card.setSize()
         }
         KanteButton {
             objectName: "objectApply"
+            Layout.alignment: Qt.AlignBottom
             text: card.texts.t("form.apply")
             onClicked: card.apply()
         }
@@ -189,15 +181,11 @@ ColumnLayout {
         visible: card.expanded
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTextField {
+        LabeledField {
             id: heightField
-            objectName: "heightField"
+            fieldName: "heightField"
+            label: card.texts.t("field.height")
             Layout.alignment: Qt.AlignBottom
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-            Accessible.name: card.texts.t("field.height")
-            placeholderText: card.texts.t("field.height")
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onTextChanged: invalid = false
             onAccepted: card.setHeight()
         }
         LabeledField {

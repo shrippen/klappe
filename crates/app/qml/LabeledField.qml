@@ -15,6 +15,14 @@ ColumnLayout {
     /// Shown greyed while the field is empty, e.g. the default in force.
     property alias placeholderText: input.placeholderText
     property alias invalid: input.invalid
+    /// The text the card put in last; a card compares what is typed against it.
+    property string shown: ""
+    /// The keyboard hints of the field; a field that takes more than a number (16:9) changes them.
+    property alias inputHints: input.inputMethodHints
+    /// The width of the field; the card sets it where the value is longer than a few digits.
+    property real fieldWidth: Kirigami.Units.gridUnit * 5
+    /// The pointer is over the field, for a tooltip on the box.
+    readonly property bool hovered: input.hovered
     /// The field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: input.activeFocus
 
@@ -23,10 +31,16 @@ ColumnLayout {
 
     spacing: 0
 
+    /// Puts the keyboard in the field with its text selected.
+    function focusAll() {
+        input.forceActiveFocus()
+        input.selectAll()
+    }
+
     KanteSectionLabel { text: box.label }
     KanteTextField {
         id: input
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+        Layout.preferredWidth: box.fieldWidth
         Accessible.name: box.label
         inputMethodHints: Qt.ImhFormattedNumbersOnly
         onTextChanged: invalid = false
