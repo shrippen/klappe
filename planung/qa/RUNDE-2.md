@@ -55,7 +55,7 @@ Zahlen der Lampe durch Ausprobieren deuten, Sanne raten, welches Feld des Tischs
 - **Einordnung:** In Runde 1 als „Plan-Menü doppelt gezeichnet“ nicht nachgespielt; es lag
   nicht an der Sitzung. Die Befehle standen im Inhalt des Menüs, und das Menü macht aus jedem
   einen zweiten Eintrag.
-- **Status:** Behebung vorbereitet (#156), wartet auf Wahl
+- **Status:** offen (Behebung vorbereitet: #156)
 
 ### Q2-02 Farbtemperatur und Leistung springen auf der Lampenkarte zurück
 - **Art:** Fehler · **Stufe:** hoch
@@ -68,7 +68,7 @@ Zahlen der Lampe durch Ausprobieren deuten, Sanne raten, welches Feld des Tischs
 - **Einordnung:** Der Wert wird gesetzt, die Karte zeigt ihn nur nicht, weil sie die Lampe
   nur neu liest, wenn sich das Bild des Plans ändert. Farbe und Leistung zeichnet der Plan
   nicht. Ole hielt den Wert deshalb für nicht übernommen.
-- **Status:** Behebung vorbereitet (#157), wartet auf Wahl
+- **Status:** offen (Behebung vorbereitet: #157)
 
 ### Q2-03 Die Zahlenfelder von Lampe, Tür und Möbel haben keine Beschriftung
 - **Art:** unverständlich · **Stufe:** mittel
@@ -95,14 +95,14 @@ Zahlen der Lampe durch Ausprobieren deuten, Sanne raten, welches Feld des Tischs
 - **Status:** offen
 
 ### Q1-01 (Runde 1) Die Tabellen-Ausgabe öffnet keinen Dialog
-- **Wo:** P4, A-20 (Shotliste ODS, zweimal)
-- **Beleg:** P4 `shot-036` bis `shot-038`
+- **Wo:** P4, A-20 (Shotliste ODS, dreimal)
+- **Beleg:** P4 `shot-034` bis `shot-038`
 - **Nachgeprüft:** ja, ODS und CSV aus dem Menü und ODS aus der Befehlspalette
   (`check/shot-010`, `shot-012`, `shot-014`)
 - **Einordnung:** Der Dateidialog hatte kein Fenster, solange die Papierfrage nicht offen war;
   bei PDF ist sie offen, darum ging es dort. Mit der Behebung erscheint der Dialog, und die
   ODS-Datei hat die Blätter „Shotliste“ und „Lampen“ (A-20).
-- **Status:** Behebung vorbereitet (#158), wartet auf Wahl
+- **Status:** offen (Behebung vorbereitet: #158)
 
 ## Nicht bestätigt
 
