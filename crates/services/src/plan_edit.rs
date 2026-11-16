@@ -448,7 +448,7 @@ impl PlanEdit {
 }
 
 /// The layer an element of the plan is on.
-pub(crate) fn layer_of_source(source: &Source) -> Layer {
+pub fn layer_of_source(source: &Source) -> Layer {
     match source {
         Source::Object(_) | Source::Wall(_) | Source::Opening { .. } => Layer::Set,
         Source::Light(_) => Layer::Lights,

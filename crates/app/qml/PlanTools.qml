@@ -42,6 +42,29 @@ RowLayout {
         return box && box.currentValue !== undefined ? String(box.currentValue) : ""
     }
 
+    /// What the picked entry is called, for the hint line.
+    readonly property string choiceName: {
+        if (tool === "object") {
+            const entry = objectBox.model[objectBox.currentIndex]
+            return entry ? entry.text : ""
+        }
+        const box = tool === "figure" ? figureBox : tool === "camera" ? cameraBox : tool === "light" ? lightBox : null
+        return box && box.currentIndex >= 0 ? box.currentText : ""
+    }
+    /// LH-101, LH-122: what the next click of the tool does, and that the tool stays.
+    readonly property string hint: {
+        if (tool === "select") {
+            return ""
+        }
+        const named = ["object", "figure", "light"].indexOf(tool) >= 0
+        const key = tool === "camera" && choice === "" ? "hint.cameraNew" : "hint." + tool
+        if (named && choice === "") {
+            return texts.t("hint.noChoice")
+        }
+        const stays = ["height", "scale", "measure"].indexOf(tool) < 0
+        return texts.t(key, { name: choiceName }) + " " + texts.t(stays ? "hint.stays" : "hint.esc")
+    }
+
     /// The library as the list shows it: built in first, then the project's own, in groups. An
     /// own entry without a group is in "Own". Entries of one heading are put together.
     readonly property var _objects: {
@@ -167,6 +190,16 @@ RowLayout {
         if (modes.indexOf(store.mode) >= 0) {
             mode = store.mode
         }
+        // The last picks of the lists (LH-123); a list that is not filled yet takes its pick
+        // when it is.
+        objectBox.pickedKind = store.object
+        figureBox.picked = store.figure
+        cameraBox.picked = store.camera
+        lightBox.picked = store.light
+        objectBox.currentIndex = Math.max(0, objectBox.model.findIndex(o => o.value === store.object))
+        figureBox.currentIndex = Math.max(0, figureBox.model.findIndex(m => m.value === store.figure))
+        cameraBox.currentIndex = Math.max(0, cameraBox.model.findIndex(m => m.value === store.camera))
+        lightBox.currentIndex = Math.max(0, lightBox.model.findIndex(m => m.value === store.light))
         _tell()
         _tellStyle()
     }
@@ -199,6 +232,14 @@ RowLayout {
     }
     onWidthChanged: _fit()
     onCompactChanged: _fit()
+    /// Name and key of a tool; the tools with more to say have a text of their own.
+    function toolTip(name, key) {
+        const own = ["scale", "measure", "note", "image", "area", "door", "window", "height", "room", "freeform", "sketch"]
+        if (own.indexOf(name) >= 0) {
+            return texts.t("tool." + name + "Tip", { key: key })
+        }
+        return texts.t("tool.tip", { name: texts.t("tool." + name), key: key })
+    }
     function _tell() {
         controller.setTool(tool, choice)
     }
@@ -259,9 +300,7 @@ RowLayout {
                 QQC2.ButtonGroup.group: group
                 onClicked: tools.tool = slot.name
                 Accessible.name: text
-                QQC2.ToolTip.text: ["scale", "measure", "note", "image", "area", "door", "window", "height", "room", "freeform", "sketch"].indexOf(slot.name) >= 0
-                    ? tools.texts.t("tool." + slot.name + "Tip", { key: slot.key })
-                    : tools.texts.t("tool.tip", { name: text, key: slot.key })
+                QQC2.ToolTip.text: tools.toolTip(slot.name, slot.key)
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
             }
@@ -287,7 +326,10 @@ RowLayout {
         model: tools._objects
         // A new list (an object was filed, a file imported) keeps the kind that was picked.
         property string pickedKind: ""
-        onActivated: index => pickedKind = model[index].value
+        onActivated: index => {
+            pickedKind = model[index].value
+            store.object = pickedKind
+        }
         onModelChanged: currentIndex = Math.max(0, model.findIndex(o => o.value === pickedKind))
     }
     KanteComboBox {
@@ -300,6 +342,13 @@ RowLayout {
         valueRole: "value"
         displayText: count > 0 ? currentText : tools.texts.t("tool.noFigures")
         model: tools._choices.figure.map(f => ({ value: f.id, text: f.name }))
+        // LH-123: the pick outlives a new list and a restart.
+        property string picked: ""
+        onActivated: {
+            picked = String(currentValue)
+            store.figure = picked
+        }
+        onModelChanged: currentIndex = Math.max(0, model.findIndex(m => m.value === picked))
     }
     KanteComboBox {
         id: cameraBox
@@ -310,6 +359,12 @@ RowLayout {
         valueRole: "value"
         model: [{ value: "", text: tools.texts.t("tool.newCamera") }]
             .concat((tools._choices.cameras || []).map(c => ({ value: c.id, text: c.label })))
+        property string picked: ""
+        onActivated: {
+            picked = String(currentValue)
+            store.camera = picked
+        }
+        onModelChanged: currentIndex = Math.max(0, model.findIndex(m => m.value === picked))
     }
     KanteComboBox {
         id: lightBox
@@ -320,6 +375,12 @@ RowLayout {
         textRole: "text"
         valueRole: "value"
         model: tools._choices.light.map(k => ({ value: k, text: tools.texts.t("lightPreset." + k) }))
+        property string picked: ""
+        onActivated: {
+            picked = String(currentValue)
+            store.light = picked
+        }
+        onModelChanged: currentIndex = Math.max(0, model.findIndex(m => m.value === picked))
     }
 
     // D-09: the buttons of the options, inline while wide, in a popover below that.
@@ -532,6 +593,9 @@ RowLayout {
                     checkable: true
                     checked: tools.tool === modelData.tool.name
                     Accessible.name: text
+                    QQC2.ToolTip.text: tools.toolTip(modelData.tool.name, modelData.tool.key)
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                     onClicked: {
                         tools.tool = modelData.tool.name
                         optionsPopover.close()
@@ -578,5 +642,11 @@ RowLayout {
         id: store
         category: "tools"
         property string mode: "build"
+        /// The last pick of each tool's list (LH-123): library kind, character id, camera id
+        /// (empty: a new camera) and lamp kind.
+        property string object: ""
+        property string figure: ""
+        property string camera: ""
+        property string light: ""
     }
 }

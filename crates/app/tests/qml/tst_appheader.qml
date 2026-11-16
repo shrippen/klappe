@@ -423,6 +423,21 @@ TestCase {
         compare(fake.calls, [["undo"], ["redo"]])
     }
 
+    // LH-103: the tooltips name the step; without a text for it the plain name and key stay.
+    function test_undo_and_redo_tooltips_name_the_step() {
+        const header = make()
+        const undo = findChild(header, "undo")
+        const redo = findChild(header, "redo")
+        compare(undo.QQC2.ToolTip.text, "Rückgängig (Strg+Z)")
+        fake.undoStep = "Shift"
+        fake.redoStep = "AddObject"
+        compare(undo.QQC2.ToolTip.text, "Rückgängig: Verschieben (Strg+Z)")
+        compare(redo.QQC2.ToolTip.text, "Wiederholen: Objekt setzen (Strg+Umschalt+Z)")
+        fake.undoStep = "NoSuchStep"
+        compare(undo.QQC2.ToolTip.text, "Rückgängig (Strg+Z)")
+        fake.undoStep = fake.redoStep = ""
+    }
+
     function test_undo_and_redo_wait_for_something_to_undo() {
         const header = make()
         fake.canUndo = false

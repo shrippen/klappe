@@ -78,7 +78,7 @@ pub(super) fn fades_json(s: &Session) -> String {
 }
 
 /// One switch per layer, by name: what `layersJson` and `locksJson` hand to QML.
-pub(super) fn layer_flags(flag: impl Fn(Layer) -> bool) -> String {
+fn layer_flags(flag: impl Fn(Layer) -> bool) -> String {
     let flags: serde_json::Map<_, _> = Layer::ALL
         .iter()
         .map(|l| (l.name().to_owned(), json!(flag(*l))))

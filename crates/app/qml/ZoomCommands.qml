@@ -3,7 +3,7 @@ import QtQuick
 // Zoom of the plan as commands: menu, palette and keys. Ctrl+= is the same key as Ctrl++
 // without Shift. The window does the zooming (`requested`: "in", "out" or "fit").
 Item {
-    id: exports
+    id: zoomCommands
 
     required property var texts
     required property var controller
@@ -27,11 +27,11 @@ Item {
         id: actZoomIn
         cmd: "view.zoomIn"
         group: "view"
-        text: exports.texts.t("menu.zoomIn")
+        text: zoomCommands.texts.t("menu.zoomIn")
         shortcut: "Ctrl++"
-        keys: exports.keyName("Ctrl++")
-        enabled: exports.controller.loaded && !exports.locked
-        onTriggered: exports.requested("in")
+        keys: zoomCommands.keyName("Ctrl++")
+        enabled: zoomCommands.controller.loaded && !zoomCommands.locked
+        onTriggered: zoomCommands.requested("in")
     }
     Shortcut {
         sequence: "Ctrl+="
@@ -42,21 +42,21 @@ Item {
         id: actZoomOut
         cmd: "view.zoomOut"
         group: "view"
-        text: exports.texts.t("menu.zoomOut")
+        text: zoomCommands.texts.t("menu.zoomOut")
         shortcut: "Ctrl+-"
-        keys: exports.keyName("Ctrl+-")
-        enabled: exports.controller.loaded && !exports.locked
-        onTriggered: exports.requested("out")
+        keys: zoomCommands.keyName("Ctrl+-")
+        enabled: zoomCommands.controller.loaded && !zoomCommands.locked
+        onTriggered: zoomCommands.requested("out")
     }
     CommandAction {
         id: actZoomFit
         cmd: "view.zoomFit"
         group: "view"
-        text: exports.texts.t("menu.zoomFit")
+        text: zoomCommands.texts.t("menu.zoomFit")
         shortcut: "Ctrl+0"
-        keys: exports.keyName("Ctrl+0")
+        keys: zoomCommands.keyName("Ctrl+0")
         // The whole plan: the 3D view has no plan to fit.
-        enabled: exports.controller.loaded && !exports.locked && !exports.controller.viewFree
-        onTriggered: exports.requested("fit")
+        enabled: zoomCommands.controller.loaded && !zoomCommands.locked && !zoomCommands.controller.viewFree
+        onTriggered: zoomCommands.requested("fit")
     }
 }
