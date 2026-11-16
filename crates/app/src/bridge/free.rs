@@ -97,13 +97,20 @@ impl qobject::Controller {
         };
 
         // Nothing to look through: the entry says so instead of switching on.
+        // Only a command that changes the view makes a new revision: FreeView and the header
+        // ask with "" on every revision, a revision from asking would loop.
         let mut refused = false;
+        let mut changed = false;
         match command.to_string().as_str() {
-            CUT => s.toggle_cut(),
+            CUT => {
+                s.toggle_cut();
+                changed = true;
+            }
             CAMERA => {
                 let was = s.looks_through();
                 s.look_through(picked.as_deref());
                 refused = !was && !s.looks_through();
+                changed = was != s.looks_through();
             }
             _ => {}
         }
@@ -120,7 +127,9 @@ impl qobject::Controller {
             let text = self.rust().language.text("view.throughRefused");
             self.as_mut().say(text);
         }
-        self.bump_free();
+        if changed {
+            self.bump_free();
+        }
 
         on
     }

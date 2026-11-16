@@ -31,8 +31,15 @@ Item {
                 return fail("a new 3D view has nothing on: " + ctl.freeLook(""))
             }
 
-            // The cut: another picture, on and off; asking changes nothing.
+            // Asking changes nothing: FreeView and the header ask on every revision, a new
+            // revision would make them ask again without end.
             let revision = ctl.freeRevision
+            ctl.freeLook("")
+            if (ctl.freeRevision !== revision) {
+                return fail("asking for the look made a new 3D revision")
+            }
+
+            // The cut: another picture, on and off.
             if (ctl.freeLook("cut") !== "cut" || ctl.freeRevision === revision) {
                 return fail("the cut did not switch on")
             }
