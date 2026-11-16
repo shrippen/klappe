@@ -65,6 +65,14 @@ impl qobject::Controller {
         self.edit_shots(|s| s.copy_shot(&id.to_string()).map(drop))
     }
 
+    pub(super) fn version_shot(self: Pin<&mut Self>, id: &QString) -> bool {
+        self.edit_shots(|s| s.version_shot(&id.to_string()).map(drop))
+    }
+
+    pub(super) fn renumber_shots(self: Pin<&mut Self>) -> bool {
+        self.edit_shots(Session::renumber_shots)
+    }
+
     pub(super) fn delete_shot(self: Pin<&mut Self>, id: &QString) -> bool {
         self.edit_shots(|s| s.delete_shot(&id.to_string()))
     }

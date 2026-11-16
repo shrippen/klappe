@@ -37,6 +37,14 @@ TestCase {
             shotCalls.push(["copy", id])
             return accept
         }
+        function versionShot(id) {
+            shotCalls.push(["version", id])
+            return accept
+        }
+        function renumberShots() {
+            shotCalls.push(["renumber"])
+            return accept
+        }
         function deleteShot(id) {
             shotCalls.push(["delete", id])
             return accept
@@ -371,6 +379,15 @@ TestCase {
         field(panel, "copyShotButton").clicked()
 
         compare(fake.shotCalls, [["copy", "s12-3"]])
+    }
+
+    function test_version_and_renumber_send_their_calls() {
+        const panel = make(null)
+
+        field(panel, "versionShotButton").clicked()
+        field(panel, "renumberShotsButton").clicked()
+
+        compare(fake.shotCalls, [["version", "s12-3"], ["renumber"]])
     }
 
     function test_delete_asks_first_and_sends_only_when_confirmed() {

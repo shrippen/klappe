@@ -292,6 +292,8 @@
  "shot.axisAgainst": "Achsensprung gegen {shots}",
  "shot.new": "Neuer Shot",
  "shot.copy": "Kopieren",
+ "shot.version": "Version anlegen",
+ "shot.renumber": "Umnummerieren",
  "shot.delete": "Löschen",
  "shot.deleteAsk": "Shot {number} löschen? Verknüpfungen zum Drehbuch gehen mit.",
  "field.number": "Nummer",

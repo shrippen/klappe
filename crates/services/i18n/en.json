@@ -292,6 +292,8 @@
  "shot.axisAgainst": "Crosses the line against {shots}",
  "shot.new": "New shot",
  "shot.copy": "Copy",
+ "shot.version": "Add version",
+ "shot.renumber": "Renumber",
  "shot.delete": "Delete",
  "shot.deleteAsk": "Delete shot {number}? Links to the script go with it.",
  "field.number": "Number",

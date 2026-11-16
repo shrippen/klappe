@@ -215,6 +215,16 @@ pub mod qobject {
         #[cxx_name = "copyShot"]
         fn copy_shot(self: Pin<&mut Self>, id: &QString) -> bool;
 
+        /// Copies a shot as its next version (12.3A) and selects it; false if refused.
+        #[qinvokable]
+        #[cxx_name = "versionShot"]
+        fn version_shot(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Renumbers the shots in cut order, keeping version letters; false if refused.
+        #[qinvokable]
+        #[cxx_name = "renumberShots"]
+        fn renumber_shots(self: Pin<&mut Self>) -> bool;
+
         /// Deletes a shot; false if refused.
         #[qinvokable]
         #[cxx_name = "deleteShot"]
