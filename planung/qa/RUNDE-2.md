@@ -24,6 +24,8 @@ Zahlen der Lampe durch Ausprobieren deuten, Sanne raten, welches Feld des Tischs
    (Fortsetzung von Q1-03).
 4. Q2-01 Das Planmenü zeigt jeden Befehl zweimal. Behebung vorbereitet: #156.
 5. Q2-04 Strg+D an einer Figur meldet nur „Ungültiger Wert für Element:“.
+6. Q2-05 (Wiederholung) Nach einem Zug zeigt die Karte die alten Maße; gleiche Ursache wie
+   Q2-02, Behebung in #157.
 
 ## Aufgaben
 
@@ -41,6 +43,8 @@ Zahlen der Lampe durch Ausprobieren deuten, Sanne raten, welches Feld des Tischs
 | A-21 Tür 1,10 m, Fenster 20 cm schmaler | P5 | erreicht |
 | A-22 Tisch 2,40 × 1 m | P5 | erreicht (Felder geraten, Q2-03) |
 | A-23 freie Form, Ecke versetzen | P5 | Form erreicht; Ecke nicht prüfbar: der Stand der Runde ist vor #154 (Punkte ziehen) |
+| A-23, wiederholt auf f0eeed7 | P5 | erreicht (Ecke 0,5 m nach außen, mit „Messen“ nachgeprüft; Umweg: kein Maß beim Ziehen) |
+| A-27 Knick in einer Seite (f0eeed7) | P5 | erreicht |
 | A-24 Notiz schmaler, zwei Zeilen | P5 | erreicht |
 
 ## Funde
@@ -103,6 +107,20 @@ Zahlen der Lampe durch Ausprobieren deuten, Sanne raten, welches Feld des Tischs
   bei PDF ist sie offen, darum ging es dort. Mit der Behebung erscheint der Dialog, und die
   ODS-Datei hat die Blätter „Shotliste“ und „Lampen“ (A-20).
 - **Status:** offen (Behebung vorbereitet: #158)
+
+### Q2-05 Nach dem Ziehen zeigt die Karte die alten Maße
+- **Art:** Fehler · **Stufe:** mittel
+- **Wo:** P5, Wiederholung auf f0eeed7, A-27
+- **Getan / Gesehen / Erwartet:** Eine Seite der freien Form nach außen gezogen; die Form
+  wächst, die Karte zeigt weiter 1,5 und 1,25. Erwartet: die neue Tiefe.
+- **Beleg:** P5b `shot-013`, `shot-014`
+- **Nachgeprüft:** ja, frische Sitzung (`check2/shot-001`, `shot-002`): Karte 1,25, gespeichert
+  `depth_m = 1.75`.
+- **Einordnung:** Gleiche Ursache wie Q2-02: Die Karten lesen ihr Element nur neu, wenn sich
+  das Bild des Plans ändert; nach einem Zug ist es dasselbe wie in der Vorschau. Betrifft jede
+  Karte, deren Element sich ziehen lässt (Objekt, Tür und Fenster, Wand, Zeichnung, Mark,
+  Kamera).
+- **Status:** offen (Behebung vorbereitet: #157, zusammen mit Q2-02)
 
 ## Nicht bestätigt
 
