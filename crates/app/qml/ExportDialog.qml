@@ -3,23 +3,33 @@ import QtQuick.Dialogs
 import Kante
 
 // LH-80, LH-81, LH-83: asks where an export goes. A plan export (PDF, PNG, SVG, frames) asks
-// for the paper first, then for the file or folder; the shot list asks for the file only.
-// Cancelling either writes nothing. Paper and folder are kept for the session.
+// for the paper (size and orientation) first, then for the file or folder; the shot list asks
+// for the file only. Cancelling either writes nothing. The paper starts from the project's and
+// is kept there by the export; the folder is kept for the session.
 //
-//   request("pdf") → paper A4 | A3 → file dialog → controller.exportTo("pdf", order, paper, file)
+//   request("pdf") → paper A4 | A3 | Letter, Hoch | Quer → file dialog
+//                  → controller.exportTo("pdf", order, "a4-portrait", file)
 FormDialog {
     id: dialog
 
     /// The order of the exported shot list: "cut" or "shooting".
     property string order: "cut"
-    /// What was chosen last: "a4" or "a3".
-    property string paper: "a4"
+    /// The sizes offered, `{ id, label }` each, and the orientations, as ids; from the project
+    /// view, so the lists stand once, in the services.
+    property var papers: []
+    property var orientations: []
+    /// The project's sheet as "a4-portrait"; the dialog starts from it.
+    property string projectPaper: ""
+    /// What is chosen: a size id and an orientation id.
+    property string size: "a4"
+    property string orientation: "landscape"
+    /// Size and orientation as the controller takes them: "a4-portrait".
+    readonly property string paper: size + "-" + orientation
     /// The folder of the last export, as a `file://` URL; empty before the first one.
     property string folder: ""
     /// The format being asked for: "pdf", "png", "svg", "csv", "ods", "xlsx" or "frames".
     property string kind: ""
 
-    readonly property var papers: ["a4", "a3"]
     readonly property var paperKinds: ["pdf", "png", "svg", "frames"]
 
     title: texts.t("export.paperTitle")
@@ -30,6 +40,11 @@ FormDialog {
         if (paperKinds.indexOf(kind) < 0) {
             pick()
             return
+        }
+        const kept = projectPaper.split("-")
+        if (kept.length === 2) {
+            size = kept[0]
+            orientation = kept[1]
         }
         open()
     }
@@ -71,9 +86,16 @@ FormDialog {
     KanteSectionLabel { text: dialog.texts.t("export.paper") }
     KanteSegmented {
         objectName: "paper"
-        model: ["A4", "A3"]
-        currentIndex: dialog.papers.indexOf(dialog.paper)
-        onActivated: index => dialog.paper = dialog.papers[index]
+        model: dialog.papers.map(p => p.label)
+        currentIndex: dialog.papers.findIndex(p => p.id === dialog.size)
+        onActivated: index => dialog.size = dialog.papers[index].id
+    }
+    KanteSectionLabel { text: dialog.texts.t("export.orientation") }
+    KanteSegmented {
+        objectName: "orientation"
+        model: dialog.orientations.map(o => dialog.texts.t("export." + o))
+        currentIndex: dialog.orientations.indexOf(dialog.orientation)
+        onActivated: index => dialog.orientation = dialog.orientations[index]
     }
 
     // The frames go into a new folder in the chosen one, named as the suggestion.

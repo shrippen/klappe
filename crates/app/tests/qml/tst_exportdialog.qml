@@ -2,8 +2,8 @@ import QtQuick
 import QtTest
 import "../../qml"
 
-// ExportDialog (LH-80, LH-81): what it sends the controller, and that paper and folder stay for
-// the session. The file dialog is the platform's; the tests hand it the chosen file with `save`.
+// ExportDialog (LH-80, LH-81): what it sends the controller, that it starts from the project's
+// paper and that the folder stays for the session. The file dialog is the platform's; the tests hand it the chosen file with `save`.
 TestCase {
     id: tc
     name: "ExportDialog"
@@ -33,6 +33,8 @@ TestCase {
         ExportDialog {
             texts: de
             controller: fake
+            papers: [{ id: "a4", label: "A4" }, { id: "a3", label: "A3" }, { id: "letter", label: "Letter" }]
+            orientations: ["portrait", "landscape"]
         }
     }
 
@@ -52,7 +54,29 @@ TestCase {
         dialog.request("pdf")
         tryCompare(dialog, "opened", true)
         compare(findChild(dialog.contentItem, "paper").currentIndex, 0)
+        compare(findChild(dialog.contentItem, "orientation").currentIndex, 1)
         compare(fake.calls, [])
+    }
+
+    function test_it_starts_from_the_projects_paper() {
+        const dialog = make()
+        dialog.projectPaper = "letter-portrait"
+
+        dialog.request("pdf")
+        tryCompare(dialog, "opened", true)
+
+        compare(findChild(dialog.contentItem, "paper").currentIndex, 2)
+        compare(findChild(dialog.contentItem, "orientation").currentIndex, 0)
+        compare(dialog.paper, "letter-portrait")
+    }
+
+    function test_the_choices_are_named_in_the_language() {
+        const dialog = make()
+        dialog.request("pdf")
+        tryCompare(dialog, "opened", true)
+
+        compare(findChild(dialog.contentItem, "paper").model, ["A4", "A3", "Letter"])
+        compare(findChild(dialog.contentItem, "orientation").model, ["Hoch", "Quer"])
     }
 
     function test_the_shot_list_asks_for_the_file_only() {
@@ -64,21 +88,22 @@ TestCase {
         compare(dialog.kind, "csv")
     }
 
-    function test_the_paper_goes_to_the_plan_exports_and_stays() {
+    function test_the_paper_goes_to_the_plan_exports() {
         const dialog = make()
 
         dialog.request("pdf")
         tryCompare(dialog, "opened", true)
         findChild(dialog.contentItem, "paper").select(1)
+        findChild(dialog.contentItem, "orientation").select(0)
         dialog.save("file:///work/a.pdf")
         dialog.kind = "png"
         dialog.save("file:///work/a.png")
         dialog.kind = "svg"
         dialog.save("file:///work/a.svg")
 
-        compare(fake.calls, [["exportTo", "pdf", "cut", "a3", "file:///work/a.pdf"],
-                             ["exportTo", "png", "cut", "a3", "file:///work/a.png"],
-                             ["exportTo", "svg", "cut", "a3", "file:///work/a.svg"]])
+        compare(fake.calls, [["exportTo", "pdf", "cut", "a3-portrait", "file:///work/a.pdf"],
+                             ["exportTo", "png", "cut", "a3-portrait", "file:///work/a.png"],
+                             ["exportTo", "svg", "cut", "a3-portrait", "file:///work/a.svg"]])
     }
 
     function test_the_shot_list_follows_the_order() {
@@ -88,7 +113,7 @@ TestCase {
 
         dialog.save("file:///work/shots.csv")
 
-        compare(fake.calls, [["exportTo", "csv", "shooting", "a4", "file:///work/shots.csv"]])
+        compare(fake.calls, [["exportTo", "csv", "shooting", "a4-landscape", "file:///work/shots.csv"]])
     }
 
     function test_the_next_suggestion_is_in_the_folder_of_the_last_export() {

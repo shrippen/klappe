@@ -6,7 +6,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
-use klappe_services::{Paper, ServiceError, Session, ShotOrder, Texts};
+use klappe_services::{PaperSetup, ServiceError, Session, ShotOrder, Texts};
 
 impl qobject::Controller {
     /// Writes the plan to `path` (a `file://` URL or a path) with `write`; says where it went
@@ -44,9 +44,19 @@ impl qobject::Controller {
         path: &QString,
     ) -> bool {
         let order = shot_order(&order.to_string());
-        let paper = paper_of(&paper.to_string());
+        let paper = PaperSetup::from_name(&paper.to_string());
+        let kind = kind.to_string();
 
-        match kind.to_string().as_str() {
+        // The sheet of a plan export is the project's from now on (no undo step, see
+        // `Session::set_paper`).
+        if PAPER_KINDS.contains(&kind.as_str()) {
+            if let Some(s) = self.as_mut().session() {
+                s.set_paper(paper);
+            }
+            self.as_mut().refresh();
+        }
+
+        match kind.as_str() {
             "pdf" => self.export_plan(path, "menu.pdfSaved", |s, path, texts| {
                 s.export_pdf(path, paper, texts, order)
             }),
@@ -90,13 +100,8 @@ impl qobject::Controller {
 /// The kind that writes a folder of PNGs, one per mark, not a file.
 const FRAMES: &str = "frames";
 
-/// `a3` is A3; anything else is A4.
-fn paper_of(name: &str) -> Paper {
-    match name {
-        "a3" => Paper::A3,
-        _ => Paper::A4,
-    }
-}
+/// The kinds that print on a sheet.
+const PAPER_KINDS: [&str; 4] = ["pdf", "png", "svg", FRAMES];
 
 /// `shooting` is the shooting order; anything else is the cut order.
 fn shot_order(name: &str) -> ShotOrder {

@@ -3,12 +3,14 @@
 //! ```text
 //! klappe-cli fov --lens 35 [--sensor super35|full-frame|mft|<width mm>]
 //! klappe-cli export --project <folder> --scene <nr> --out <file> [--plan <id>] [--at <s>]
-//!                   [--paper a4|a3|letter] [--language de|en] [--format pdf|svg|png|ods|xlsx|frames]
+//!                   [--paper a4|a3|letter] [--orientation landscape|portrait]
+//!                   [--language de|en] [--format pdf|svg|png|ods|xlsx|frames]
 //! ```
 
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
-    error_text, read_number, Field, Language, Paper, Range, Sensor, Session, ShotOrder, Unit,
+    error_text, read_number, Field, Language, Orientation, Paper, PaperSetup, Range, Sensor,
+    Session, ShotOrder, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -46,8 +48,12 @@ enum Command {
         /// Seconds into the scene.
         #[arg(long, default_value_t = 0.0)]
         at: f64,
-        #[arg(long, value_enum, default_value = "a4")]
-        paper: PaperArg,
+        /// Sheet size; the project's own (A4 if never chosen) if left out.
+        #[arg(long, value_parser = paper_arg)]
+        paper: Option<Paper>,
+        /// Sheet orientation; the project's own (landscape if never chosen) if left out.
+        #[arg(long, value_parser = orientation_arg)]
+        orientation: Option<Orientation>,
         /// Language of the legend; the system's if left out.
         #[arg(long, value_enum)]
         language: Option<LanguageArg>,
@@ -58,13 +64,6 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum PaperArg {
-    A4,
-    A3,
-    Letter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -90,7 +89,8 @@ struct ExportJob {
     scene: String,
     plan: Option<String>,
     at_s: f64,
-    paper: Paper,
+    paper: Option<Paper>,
+    orientation: Option<Orientation>,
     language: Language,
     format: FormatArg,
     out: PathBuf,
@@ -105,6 +105,7 @@ fn main() -> ExitCode {
             plan,
             at,
             paper,
+            orientation,
             language,
             format,
             out,
@@ -118,7 +119,8 @@ fn main() -> ExitCode {
                 scene,
                 plan,
                 at_s: at,
-                paper: paper_of(paper),
+                paper,
+                orientation,
                 language: language_of(language),
                 format,
                 out,
@@ -185,26 +187,34 @@ fn write_export(job: &ExportJob) -> Result<(), String> {
     }
     session.set_time(job.at_s);
 
+    // What the options leave out comes from the project.
+    let kept = session.project().paper;
+    let paper = PaperSetup {
+        size: job.paper.unwrap_or(kept.size),
+        orientation: job.orientation.unwrap_or(kept.orientation),
+    };
     let texts = job.language.print_texts();
     match job.format {
-        FormatArg::Pdf => session.export_pdf(&job.out, job.paper, texts, ShotOrder::Cut),
-        FormatArg::Svg => session.export_svg(&job.out, job.paper, texts),
-        FormatArg::Png => session.export_png(&job.out, job.paper, texts),
+        FormatArg::Pdf => session.export_pdf(&job.out, paper, texts, ShotOrder::Cut),
+        FormatArg::Svg => session.export_svg(&job.out, paper, texts),
+        FormatArg::Png => session.export_png(&job.out, paper, texts),
         FormatArg::Ods => session.export_ods(&job.out, &texts, ShotOrder::Cut),
         FormatArg::Xlsx => session.export_xlsx(&job.out, &texts, ShotOrder::Cut),
-        FormatArg::Frames => session
-            .export_frames(&job.out, job.paper, &texts)
-            .map(|_| ()),
+        FormatArg::Frames => session.export_frames(&job.out, paper, &texts).map(|_| ()),
     }
     .map_err(|e| error_text(job.language, &e))
 }
 
-fn paper_of(paper: PaperArg) -> Paper {
-    match paper {
-        PaperArg::A4 => Paper::A4,
-        PaperArg::A3 => Paper::A3,
-        PaperArg::Letter => Paper::Letter,
-    }
+fn paper_arg(name: &str) -> Result<Paper, String> {
+    let names: Vec<&str> = Paper::ALL.iter().map(|p| p.name()).collect();
+
+    Paper::from_name(name).ok_or_else(|| format!("use one of {}", names.join(", ")))
+}
+
+fn orientation_arg(name: &str) -> Result<Orientation, String> {
+    let names: Vec<&str> = Orientation::ALL.iter().map(|o| o.name()).collect();
+
+    Orientation::from_name(name).ok_or_else(|| format!("use one of {}", names.join(", ")))
 }
 
 fn language_of(language: Option<LanguageArg>) -> Language {

@@ -286,6 +286,40 @@ fn many_shots_break_onto_more_sheets() {
     assert!(text.contains("(12.120)"));
 }
 
+const A4_PORTRAIT_PT: &str = "[0 0 595.28 841.89]";
+const LETTER_PORTRAIT_PT: &str = "[0 0 612 792]";
+
+fn portrait(paper: Paper, shots: usize) -> Vec<u8> {
+    let plan = plan(shots);
+    let mut page = page();
+    page.paper = paper;
+    page.orientation = Orientation::Portrait;
+
+    pdf_with_shots(&list(&plan), &page, Theme::Light, &plan, ShotOrder::Cut).unwrap()
+}
+
+/// The plan page is upright; the shot list stays on landscape sheets and breaks onto more.
+#[test]
+fn a_portrait_pdf_has_the_upright_plan_and_the_shot_list_pages() {
+    let text = String::from_utf8_lossy(&portrait(Paper::A4, 120)).into_owned();
+
+    assert!(text.contains(&format!("/MediaBox {A4_PORTRAIT_PT}")));
+    assert!(text.contains(&format!("/MediaBox {A4_LANDSCAPE_PT}")));
+    assert!(
+        pages(text.as_bytes()) > 2,
+        "{} pages",
+        pages(text.as_bytes())
+    );
+    assert!(text.contains("(12.120)"));
+}
+
+#[test]
+fn letter_is_a_us_letter_sheet() {
+    let text = String::from_utf8_lossy(&portrait(Paper::Letter, 1)).into_owned();
+
+    assert!(text.contains(&format!("/MediaBox {LETTER_PORTRAIT_PT}")));
+}
+
 #[test]
 fn a_huge_cell_is_cut_and_still_fits() {
     let mut plan = plan(1);

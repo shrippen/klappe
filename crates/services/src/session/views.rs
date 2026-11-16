@@ -1,7 +1,7 @@
 //! What the session tells the surfaces about the project and the plan on view, ready to show:
 //! the project lists, the tooltips and the set of the current scene.
 
-use klappe_model::{CameraPresets, DrawingShape, Location};
+use klappe_model::{CameraPresets, DrawingShape, Location, Orientation, Paper};
 use klappe_stellprobe::{
     aim_at, axis_pair, horizontal_fov_deg, object_extent, opening_span, picture, wall_top, Eye,
     Picture, Source,
@@ -9,7 +9,9 @@ use klappe_stellprobe::{
 
 use super::Session;
 use crate::library;
-use crate::views::{AxisChoice, CharacterRow, Hint, LocationRow, Overview, PlanRow, SceneRow};
+use crate::views::{
+    AxisChoice, CharacterRow, Hint, LocationRow, Overview, PaperRow, PlanRow, SceneRow,
+};
 
 /// Tenths of a degree: the angle of view in a tooltip is shown to one decimal.
 const FOV_STEPS_PER_DEG: f64 = 10.0;
@@ -95,6 +97,14 @@ impl Session {
             characters: characters.collect(),
             plans: plans.collect(),
             plan: self.plan().map(|p| p.id.clone()).unwrap_or_default(),
+            paper: project.paper.name(),
+            papers: Paper::ALL
+                .map(|p| PaperRow {
+                    id: p.name(),
+                    label: p.label(),
+                })
+                .into(),
+            orientations: Orientation::ALL.map(Orientation::name).into(),
         }
     }
 

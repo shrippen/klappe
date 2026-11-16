@@ -547,7 +547,7 @@ pub mod qobject {
 
         /// Writes an export to `path` (a `file://` URL); the result goes to `status`. `kind` is
         /// `pdf`, `png`, `svg` or `csv`; `order` (`cut` or `shooting`) orders the shot list of
-        /// PDF and CSV; `paper` (`a4` or `a3`) is the sheet of PDF, PNG and SVG.
+        /// PDF and CSV; `paper` (`a4-portrait` …) is the sheet of PDF, PNG, SVG, frames.
         #[qinvokable]
         #[cxx_name = "exportTo"]
         fn export_to(

@@ -24,6 +24,7 @@ mod geometry;
 mod library;
 mod light_preset;
 mod limits;
+mod paper;
 mod plan;
 mod project;
 mod shot;
@@ -42,6 +43,7 @@ pub use limits::{
     MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_CAMERA_LENS_MM, MAX_SENSOR_WIDTH_MM, MAX_SET_M,
     MAX_TILT_DEG, MIN_CAMERA_LENS_MM,
 };
+pub use paper::{Orientation, Paper, PaperSetup};
 pub use plan::{
     Arrival, AxisPair, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureTrack,
     Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,

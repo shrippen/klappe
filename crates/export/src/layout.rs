@@ -17,13 +17,13 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use klappe_model::Point;
+use klappe_model::{Orientation, Paper, Point};
 use klappe_stellprobe::{DisplayList, Item, Role, Shape, Source, FIGURE_RADIUS_M};
 
 use crate::canvas::{Anchor, Dash, Doc, Geom, Prim, Pt, Rect, Stroke, Weight};
 use crate::error::ExportError;
 use crate::image::Picture;
-use crate::page::{Orientation, Page, Paper, Texts};
+use crate::page::{Page, Texts};
 use crate::palette::{palette, Palette, Theme};
 use crate::style::{role_style, RoleStyle};
 use klappe_model::FigureColor;

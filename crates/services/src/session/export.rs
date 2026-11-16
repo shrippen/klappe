@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use klappe_export::{Orientation, Page, Paper, Texts, Theme};
-use klappe_model::FloorPlan;
+use klappe_export::{Page, Texts, Theme};
+use klappe_model::{FloorPlan, PaperSetup};
 use klappe_stellprobe::{DisplayList, Shape, ShotOrder};
 
 use super::Session;
@@ -16,11 +16,11 @@ impl Session {
     pub fn export_pdf(
         &self,
         path: &Path,
-        paper: Paper,
+        paper: impl Into<PaperSetup>,
         texts: Texts,
         order: ShotOrder,
     ) -> Result<(), ServiceError> {
-        let (list, page) = self.printout(paper, texts)?;
+        let (list, page) = self.printout(paper.into(), texts)?;
         let bytes = match self.plan() {
             Some(plan) => klappe_export::pdf_with_shots(&list, &page, Theme::Light, plan, order)?,
             None => klappe_export::pdf(&list, &page, Theme::Light)?,
@@ -30,8 +30,13 @@ impl Session {
     }
 
     /// Writes the current plan at the playhead as PNG (LH-81): RGB, 150 dpi, no shot list.
-    pub fn export_png(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
-        let (list, page) = self.printout(paper, texts)?;
+    pub fn export_png(
+        &self,
+        path: &Path,
+        paper: impl Into<PaperSetup>,
+        texts: Texts,
+    ) -> Result<(), ServiceError> {
+        let (list, page) = self.printout(paper.into(), texts)?;
         let bytes = klappe_export::png(&list, &page, Theme::Light)?;
 
         write_file(path, bytes)
@@ -39,7 +44,7 @@ impl Session {
 
     /// Writes the current plan as a PNG without the sheet title, for the start page's tile.
     pub fn export_preview(&self, path: &Path, texts: Texts) -> Result<(), ServiceError> {
-        let (list, mut page) = self.printout(Paper::A4, texts)?;
+        let (list, mut page) = self.printout(PaperSetup::default(), texts)?;
         page.title.clear();
         let bytes = klappe_export::png(&list, &page, Theme::Light)?;
 
@@ -47,8 +52,13 @@ impl Session {
     }
 
     /// Writes the current plan at the playhead as SVG (LH-81), without the shot list.
-    pub fn export_svg(&self, path: &Path, paper: Paper, texts: Texts) -> Result<(), ServiceError> {
-        let (list, page) = self.printout(paper, texts)?;
+    pub fn export_svg(
+        &self,
+        path: &Path,
+        paper: impl Into<PaperSetup>,
+        texts: Texts,
+    ) -> Result<(), ServiceError> {
+        let (list, page) = self.printout(paper.into(), texts)?;
         let svg = klappe_export::svg(&list, &page, Theme::Light)?;
 
         write_file(path, svg.into_bytes())
@@ -56,8 +66,12 @@ impl Session {
 
     /// The display list at the playhead and the sheet around it, with the images the list
     /// names read from the project; what every plan export starts from.
-    fn printout(&self, paper: Paper, texts: Texts) -> Result<(DisplayList, Page), ServiceError> {
-        let mut page = Page::new(paper, Orientation::Landscape, self.plan_title(), texts);
+    fn printout(
+        &self,
+        paper: PaperSetup,
+        texts: Texts,
+    ) -> Result<(DisplayList, Page), ServiceError> {
+        let mut page = Page::new(paper.size, paper.orientation, self.plan_title(), texts);
         let list = self.display_list();
         for item in &list.items {
             let Shape::Image { file, .. } = &item.shape else {
@@ -110,13 +124,25 @@ impl Session {
         write_file(path, bytes)
     }
 
+    /// Remembers the sheet the plan is exported on in the project, written with the next save.
+    /// Not an undo step: it is a setting, and undo leaves it as it is.
+    pub fn set_paper(&mut self, paper: PaperSetup) {
+        if self.project.paper == paper {
+            return;
+        }
+
+        self.project.paper = paper;
+        self.project_changed = true;
+        self.touch();
+    }
+
     /// Writes the plan at every mark of the scene (`marks_s`) as PNG into `dir` (LH-83),
     /// named `<scene>-<nr>-<mm-ss>.png`, to read the blocking at the set. `dir` must be empty or
     /// missing. The playhead stays where it was. Returns the files in mark order.
     pub fn export_frames(
         &mut self,
         dir: &Path,
-        paper: Paper,
+        paper: impl Into<PaperSetup>,
         texts: &Texts,
     ) -> Result<Vec<PathBuf>, ServiceError> {
         // No marks, no frames: an empty success would name a folder that is not there.
@@ -130,6 +156,7 @@ impl Session {
             return Err(ServiceError::NotEmpty(dir.to_owned()));
         }
 
+        let paper = paper.into();
         let playhead_s = self.time_s;
         let scene = self.scene_number();
         let mut files = Vec::new();

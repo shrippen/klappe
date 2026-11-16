@@ -1,19 +1,6 @@
 use std::collections::HashMap;
 
-use klappe_model::{Angle, FigureColor, LightKind, Movement, ShotSize};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Paper {
-    A4,
-    A3,
-    Letter,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Orientation {
-    Landscape,
-    Portrait,
-}
+use klappe_model::{Angle, FigureColor, LightKind, Movement, Orientation, Paper, ShotSize};
 
 const DEFAULT_MARGIN_MM: f64 = 10.0;
 

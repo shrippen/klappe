@@ -42,6 +42,19 @@ Item {
                 return root.fail("no file at " + named)
             }
 
+            // A sheet chosen in the dialog becomes the project's; the Rust side checks the
+            // portrait media box in the file.
+            const upright = base + "/Hoch.pdf"
+            if (!ctl.exportTo("pdf", "cut", "letter-portrait", upright)) {
+                return root.fail("portrait export failed: " + ctl.status)
+            }
+            if (JSON.parse(ctl.projectJson).paper !== "letter-portrait") {
+                return root.fail("the project did not keep the paper: " + ctl.projectJson)
+            }
+            if (!ctl.dirty) {
+                return root.fail("a new paper left the project saved")
+            }
+
             // A folder lies where the file should go: the old file cannot be replaced.
             const blocked = base + "/Ziel.pdf"
             if (!ctl.exportTo("pdf", "cut", "a4", blocked + "/inner.pdf")) {

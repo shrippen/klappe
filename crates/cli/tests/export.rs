@@ -62,7 +62,31 @@ fn exports_a_pdf_on_letter_paper() {
     let output = export(&out, &["--paper", "letter"]);
 
     assert!(output.status.success(), "{}", stderr(&output));
-    assert!(std::fs::read(&out).unwrap().starts_with(b"%PDF-"));
+    let text = String::from_utf8_lossy(&std::fs::read(&out).unwrap()).into_owned();
+    assert!(text.starts_with("%PDF-"));
+    assert!(text.contains("/MediaBox [0 0 792 612]"));
+}
+
+#[test]
+fn exports_a_portrait_pdf() {
+    let out = out_file("cli-portrait.pdf");
+
+    let output = export(&out, &["--paper", "a4", "--orientation", "portrait"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = String::from_utf8_lossy(&std::fs::read(&out).unwrap()).into_owned();
+    assert!(text.contains("/MediaBox [0 0 595.28 841.89]"));
+}
+
+#[test]
+fn an_unknown_paper_is_refused() {
+    let out = out_file("cli-tabloid.pdf");
+
+    let output = export(&out, &["--paper", "tabloid"]);
+
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("use one of a4, a3, letter"));
+    assert!(!out.exists());
 }
 
 #[test]

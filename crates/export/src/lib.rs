@@ -39,8 +39,9 @@ mod zip;
 use klappe_model::FloorPlan;
 
 pub use error::ExportError;
+pub use klappe_model::{Orientation, Paper};
 pub use klappe_stellprobe::{DisplayList, ShotOrder};
-pub use page::{DrawingTexts, LampTexts, Orientation, Page, Paper, ShotColumns, ShotTexts, Texts};
+pub use page::{DrawingTexts, LampTexts, Page, ShotColumns, ShotTexts, Texts};
 pub use palette::Theme;
 
 /// The plan on one page as SVG.

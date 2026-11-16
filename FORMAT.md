@@ -20,6 +20,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 
 - **Formatversion:** `format_version` in `projekt.toml` (aktuell 2). Eine neuere Version als die
   des Programms wird nicht geladen, sondern gemeldet.
+- **Papier:** `paper` in `projekt.toml`, z. B. `"a4-portrait"`: Größe (`a4`, `a3`, `letter`),
+  Bindestrich, Ausrichtung (`portrait`, `landscape`). Das Blatt, auf dem zuletzt ausgegeben wurde;
+  der Ausgabedialog beginnt damit. Fehlt der Schlüssel (und er wird bei `a4-landscape` nicht
+  geschrieben), gilt A4 quer. Keine neue Formatversion: ältere Fassungen verlieren ihn beim Speichern.
 - **Ids:** Drehort- und Szenen-Ids sind Dateinamen und müssen mit der `id` in der Datei
   übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`, Ende auf `.` oder Leerzeichen,
   `<>:"|?*`, Steuerzeichen, Windows-Gerätenamen (`con`, `nul`, `com1` …). Ids, die sich nur
