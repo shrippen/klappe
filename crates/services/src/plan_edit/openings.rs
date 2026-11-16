@@ -11,6 +11,9 @@ use crate::field::Field;
 const OPENING_REACH_M: f64 = 0.3;
 /// The narrowest an opening gets when an end is dragged.
 const OPENING_MIN_WIDTH_M: f64 = 0.3;
+/// How far an end may lie past its wall by rounding: an opening flush at the wall's end has its
+/// end at e.g. 20.000000000000004 on a 20 m wall.
+const ROUNDING_M: f64 = 1e-9;
 
 fn refused(field: Field, value: String) -> ServiceError {
     ServiceError::BadValue { field, value }
@@ -129,7 +132,8 @@ pub(super) fn edge_m(opening: &Opening, end: OpeningEnd) -> f64 {
 }
 
 /// Moves one end of the opening to where `to` is along the wall; the other end stays. The
-/// opening keeps its minimum width, and `to` must not lie beyond the wall.
+/// opening keeps its minimum width; refused when `to` lies beyond the wall or the minimum
+/// would push an end past it.
 pub(super) fn drag_edge(
     wall: &mut Wall,
     index: usize,
@@ -152,7 +156,7 @@ pub(super) fn drag_edge(
         OpeningEnd::End => (start_m, along_m.max(start_m + OPENING_MIN_WIDTH_M)),
     };
     // The minimum must not push an end past the wall: `centre_m` would move the other end.
-    if start_m < 0.0 || end_m > length_m {
+    if start_m < -ROUNDING_M || end_m > length_m + ROUNDING_M {
         return Err(refused(Field::Wall, String::new()));
     }
     let width_m = end_m - start_m;
