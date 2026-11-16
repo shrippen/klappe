@@ -24,7 +24,7 @@ use crate::canvas::{Anchor, Dash, Doc, Geom, Prim, Pt, Rect, Stroke, Weight};
 use crate::error::ExportError;
 use crate::image::Picture;
 use crate::page::{Page, Texts};
-use crate::palette::{palette, Palette, Theme};
+use crate::palette::{palette, Palette, Rgb, Theme};
 use crate::style::{role_style, RoleStyle};
 use klappe_model::FigureColor;
 
@@ -34,6 +34,8 @@ pub(crate) const PT_PER_MM: f64 = 72.0 / 25.4;
 /// Print text never goes below this.
 pub(crate) const MIN_TEXT_PT: f64 = 8.0;
 const LABEL_PT: f64 = MIN_TEXT_PT;
+/// An item drawn at its own colour.
+const FULL_STRENGTH: f64 = 1.0;
 pub(crate) const TITLE_PT: f64 = 14.0;
 const LEGEND_PT: f64 = MIN_TEXT_PT;
 /// Gap between a shape and its label.
@@ -155,6 +157,7 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
         clip: frame,
         plan,
         chrome,
+        pages: Vec::new(),
         sheets: Vec::new(),
     })
 }
@@ -167,16 +170,43 @@ fn plan_prims(
     pal: &Palette,
 ) -> Result<Vec<Prim>, ExportError> {
     let mut plan = Vec::new();
-    for item in &list.items {
+    for (index, item) in list.items.iter().enumerate() {
         let body_m = body_radius_m(list, item);
+        let first = plan.len();
         match (&item.shape, item.role) {
             (Shape::Image { .. }, _) => image_prim(item, map, &page.images, &mut plan)?,
             (_, Role::Note) => note::prims(item, map, pal, body_m, &mut plan)?,
             _ => item_prims(item, map, pal, body_m, &mut plan)?,
         }
+
+        let strength = page.fade.get(index).copied().unwrap_or(FULL_STRENGTH);
+        fade_prims(&mut plan[first..], strength, pal.paper);
     }
 
     Ok(plan)
+}
+
+/// Draws `prims` at `strength` of their colour over the paper (LH-15): lines and text take
+/// the mix, a fill and a picture turn more transparent.
+fn fade_prims(prims: &mut [Prim], strength: f64, paper: Rgb) {
+    if strength >= FULL_STRENGTH {
+        return;
+    }
+
+    for prim in prims {
+        match prim {
+            Prim::Shape { fill, stroke, .. } => {
+                if let Some(fill) = fill {
+                    fill.opacity *= strength;
+                }
+                if let Some(stroke) = stroke {
+                    stroke.rgb = stroke.rgb.faded(paper, strength);
+                }
+            }
+            Prim::Text { rgb, .. } => *rgb = rgb.faded(paper, strength),
+            Prim::Image { opacity, .. } => *opacity *= strength,
+        }
+    }
 }
 
 /// Metres to page points.

@@ -160,8 +160,9 @@ Item {
                 return root.fail("a view export changed the paper to " + paperOf())
             }
 
-            // A plan without marks has no frames: nothing is written, and it says so.
-            if (!ctl.addPlan("Leer")) {
+            // A plan without marks has no frames: nothing is written, and it says so. A new plan of
+            // scene 12 holds its speakers (LH-09), so the empty one is in a scene the script lacks.
+            if (!ctl.addScene("99", "INT. LEER – TAG", "saengersaal") || !ctl.selectScene("szene-099")) {
                 return root.fail("no empty plan: " + ctl.status)
             }
             if (ctl.exportTo("frames", "cut", "a4", base + "/leer")) {

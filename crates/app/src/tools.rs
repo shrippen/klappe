@@ -110,6 +110,8 @@ pub enum Tool {
     Rect,
     Ellipse,
     Area,
+    /// The sketch pen (LH-120): a drag draws a freehand stroke on the sketch layer.
+    Sketch,
 }
 
 impl Tool {
@@ -137,13 +139,15 @@ impl Tool {
     }
 }
 
-/// The tools of the room, free form, height, door and window, which take no choice.
+/// The tools of the room, free form, height, image, sketch pen, door and window, which take no
+/// choice.
 fn plain_tool(name: &str) -> Option<Tool> {
     match name {
         "room" => Some(Tool::Room),
         "freeform" => Some(Tool::FreeForm),
         "height" => Some(Tool::Height),
         "image" => Some(Tool::Image),
+        "sketch" => Some(Tool::Sketch),
         "door" => Some(Tool::Opening(OpeningKind::Door)),
         "window" => Some(Tool::Opening(OpeningKind::Window)),
         _ => None,
@@ -166,7 +170,8 @@ pub fn click_edit(tool: &Tool, at: Point) -> Option<PlanEdit> {
         | Tool::Arrow
         | Tool::Rect
         | Tool::Ellipse
-        | Tool::Area => None,
+        | Tool::Area
+        | Tool::Sketch => None,
         Tool::Opening(kind) => Some(PlanEdit::AddOpening { kind: *kind, at }),
         Tool::Object(kind) if kind.is_empty() => None,
         Tool::Object(kind) => Some(PlanEdit::AddObject {

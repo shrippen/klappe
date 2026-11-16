@@ -105,6 +105,8 @@ pub enum Role {
         dash: Dash,
         fill: Fill,
     },
+    /// A stroke of the sketch pen (LH-120), a polyline over the whole plan.
+    Sketch,
     /// The filled head of an arrow, in the arrow's colour.
     ArrowHead(FigureColor),
     FigurePath(FigureColor),
@@ -293,6 +295,7 @@ pub fn render(
     camera_items(plan, t_s, reach_m, &mut items);
     figure_items(project, plan, t_s, &mut items);
     note_items(set, plan, &mut items);
+    sketch_items(plan, &mut items);
 
     DisplayList {
         items,
@@ -367,6 +370,21 @@ fn drawing_items(plan: &FloorPlan, items: &mut Vec<Item>) {
             }
             DrawingShape::Area { points } => push(role, closed(all(points.clone()), drawing.fill)),
         }
+    }
+}
+
+/// The pen's strokes lie over everything and belong to no element, so a click goes through
+/// them: only the clear command takes them away.
+fn sketch_items(plan: &FloorPlan, items: &mut Vec<Item>) {
+    for sketch in &plan.sketches {
+        items.push(Item {
+            role: Role::Sketch,
+            shape: Shape::Polyline {
+                points: sketch.points.clone(),
+            },
+            label: None,
+            source: None,
+        });
     }
 }
 

@@ -24,7 +24,11 @@ const LABEL_SHARE: f64 = 1.0 / 80.0;
 const HALO_PX: f64 = 1.5;
 const HALO_STEPS: [(f64, f64); 4] = [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)];
 
-pub(crate) fn write(picture: &Picture, theme: Theme) -> Result<Vec<u8>, ExportError> {
+pub(crate) fn write(
+    picture: &Picture,
+    theme: Theme,
+    strength: &dyn Fn(SceneRole) -> f64,
+) -> Result<Vec<u8>, ExportError> {
     let pal = palette(theme)?;
     let frame = &picture.frame;
 
@@ -37,6 +41,15 @@ pub(crate) fn write(picture: &Picture, theme: Theme) -> Result<Vec<u8>, ExportEr
         })
         .collect::<Result<Vec<_>, _>>()?;
 
+    let strengths: Vec<f64> = (0..CODES)
+        .map(|code| {
+            u8::try_from(code)
+                .ok()
+                .and_then(SceneRole::of_code)
+                .map_or(1.0, strength)
+        })
+        .collect();
+
     let mut pixels = Vec::with_capacity(frame.role.len() * 3);
     for i in 0..frame.role.len() {
         let rgb = match &styles[usize::from(frame.role[i])] {
@@ -44,6 +57,7 @@ pub(crate) fn write(picture: &Picture, theme: Theme) -> Result<Vec<u8>, ExportEr
             Some(style) if frame.edge[i] => style.line,
             Some(style) => shaded(style.face, frame.shade[i]),
         };
+        let rgb = rgb.faded(pal.paper, strengths[usize::from(frame.role[i])]);
         pixels.extend_from_slice(&[rgb.r, rgb.g, rgb.b]);
     }
 
@@ -121,7 +135,7 @@ mod tests {
         let pal = palette(Theme::Light).unwrap();
         let wall = scene_style(SceneRole::Wall, pal).unwrap();
 
-        let file = write(&row(), Theme::Light).unwrap();
+        let file = write(&row(), Theme::Light, &|_| 1.0).unwrap();
         let rgb = png::parse(&file).unwrap().rgb_over(pal.paper).unwrap();
 
         let pixel = |i: usize| Rgb {

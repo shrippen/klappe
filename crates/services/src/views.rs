@@ -325,6 +325,15 @@ pub struct Overview {
     pub orientations: Vec<&'static str>,
     /// The exports, in the order the menu offers them.
     pub formats: Vec<ExportRow>,
+    /// The saved views (LH-119), in the order they were made.
+    pub views: Vec<ViewRow>,
+}
+
+/// One saved view of the View menu and the palette (LH-119).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ViewRow {
+    pub id: String,
+    pub name: String,
 }
 
 /// One export format: `id` is `pdf`; `paper` says it asks for a sheet; `extension` is that of

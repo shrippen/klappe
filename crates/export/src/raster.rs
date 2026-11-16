@@ -356,6 +356,7 @@ mod tests {
             },
             plan,
             chrome: Vec::new(),
+            pages: Vec::new(),
             sheets: Vec::new(),
         }
     }

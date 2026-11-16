@@ -152,6 +152,7 @@ pub(super) fn layer_of(role: Role, source: Option<&Source>) -> Layer {
         }
         Role::Note | Role::Picture => Layer::Notes,
         Role::Drawing { .. } | Role::ArrowHead(_) => Layer::Drawings,
+        Role::Sketch => Layer::Sketches,
         Role::Axis
         | Role::Figure(_)
         | Role::GroupDot

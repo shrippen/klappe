@@ -105,6 +105,9 @@ impl Session {
         self.check_script_number(&edit)?;
         let mut next = self.project.clone();
         project_edit::apply(&mut next, &edit)?;
+        if let ProjectEdit::AddScene { .. } = edit {
+            self.seat_new_scene(&mut next);
+        }
         self.check_figure_sizes(&next)?;
         if next == self.project {
             return Ok(());
@@ -119,6 +122,18 @@ impl Session {
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
         Ok(())
+    }
+
+    /// The scene `edit` added is the one the session did not have: its first plan starts with
+    /// the speakers of the screenplay (LH-09).
+    fn seat_new_scene(&self, next: &mut Project) {
+        let new = next
+            .scenes
+            .iter()
+            .position(|s| self.project.scene(&s.id).is_none());
+        if let Some(scene) = new {
+            self.seat_speakers(next, scene, 0);
+        }
     }
 
     /// A new scene number must not be one that another heading of the script carries: both
@@ -162,6 +177,7 @@ impl Session {
     pub fn add_plan(&mut self, name: &str) -> Result<String, ServiceError> {
         let mut next = self.project.clone();
         let at = project_edit::add_plan(&mut next, self.scene, name)?;
+        self.seat_speakers(&mut next, self.scene, at);
 
         Ok(self.commit_new_plan(next, at))
     }
@@ -222,6 +238,21 @@ impl Session {
         }
         self.end_stale_look();
         Ok(())
+    }
+
+    /// Puts the characters who speak in the scene at `scene` of `next`, by the screenplay, on
+    /// its new plan at `plan` (LH-09). Without a screenplay, or for a cue no character
+    /// answers to, nobody is put.
+    fn seat_speakers(&self, next: &mut Project, scene: usize, plan: usize) {
+        let Some(speakers) = next
+            .scenes
+            .get(scene)
+            .map(|s| script_refs::speakers(self.script_text(), s, next))
+        else {
+            return;
+        };
+
+        project_edit::seat_speakers(next, scene, plan, &speakers);
     }
 
     /// Commits `next`, which has a new plan at `at` in the current scene, and shows it.

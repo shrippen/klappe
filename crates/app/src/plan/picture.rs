@@ -15,6 +15,7 @@ type Rgb = [u8; 3];
 /// `KanteShapeCanvas` tint.
 const TINT: f64 = 0.2;
 const FULL_SHADE: f64 = 255.0;
+const FULL_STRENGTH: f64 = 1.0;
 const MAX_CHANNEL: &str = "255";
 /// The Qt name of the format `ppm` writes.
 pub const IMAGE_FORMAT: &str = "PPM";
@@ -82,21 +83,32 @@ fn paints(palette: &Palette) -> Vec<Option<Paint>> {
 
 /// The picture as a PPM image (the format `QImage` reads): the face of a pixel is its role's
 /// colour times its shade, an outline is the role's colour as it is, empty is the ground.
-pub fn ppm(picture: &Picture, palette: &Palette) -> Vec<u8> {
+/// `strength` says how much of its colour a role keeps (LH-15): a faded layer is mixed with the
+/// ground.
+pub fn ppm(picture: &Picture, palette: &Palette, strength: &dyn Fn(SceneRole) -> f64) -> Vec<u8> {
     let frame = &picture.frame;
     let paints = paints(palette);
     let ground = palette.color(GROUND_HUE);
+    let strengths: Vec<f64> = (0..CODES)
+        .map(|code| {
+            u8::try_from(code)
+                .ok()
+                .and_then(SceneRole::of_code)
+                .map_or(FULL_STRENGTH, strength)
+        })
+        .collect();
 
     let mut bytes = format!("P6\n{} {}\n{MAX_CHANNEL}\n", frame.width, frame.height).into_bytes();
     bytes.reserve(frame.role.len() * 3);
 
     for i in 0..frame.role.len() {
-        let color = match paints[usize::from(frame.role[i])] {
+        let role = usize::from(frame.role[i]);
+        let color = match paints[role] {
             None => ground,
             Some(paint) if frame.edge[i] => paint.line,
             Some(paint) => shaded(paint.face, frame.shade[i]),
         };
-        bytes.extend_from_slice(&color);
+        bytes.extend_from_slice(&mix(ground, color, strengths[role]));
     }
 
     bytes
@@ -173,7 +185,7 @@ mod tests {
 
     #[test]
     fn it_is_a_ppm_of_the_frames_size() {
-        let bytes = ppm(&picture(), &palette());
+        let bytes = ppm(&picture(), &palette(), &|_| 1.0);
 
         assert!(bytes.starts_with(b"P6\n4 1\n255\n"));
         assert_eq!(bytes.len(), b"P6\n4 1\n255\n".len() + 12);
@@ -181,15 +193,18 @@ mod tests {
 
     #[test]
     fn qt_reads_it() {
-        let image = cxx_qt_lib::QImage::from_data(&ppm(&picture(), &palette()), Some(IMAGE_FORMAT))
-            .expect("image");
+        let image = cxx_qt_lib::QImage::from_data(
+            &ppm(&picture(), &palette(), &|_| 1.0),
+            Some(IMAGE_FORMAT),
+        )
+        .expect("image");
 
         assert_eq!((image.width(), image.height()), (4, 1));
     }
 
     #[test]
     fn empty_is_the_ground_and_the_floor_a_tint_of_muted() {
-        let pixels = pixels(&ppm(&picture(), &palette()));
+        let pixels = pixels(&ppm(&picture(), &palette(), &|_| 1.0));
 
         assert_eq!(pixels[0], GROUND);
         // 20 % of muted (100) over the ground (250), fully lit.
@@ -198,10 +213,26 @@ mod tests {
 
     #[test]
     fn shade_multiplies_a_figure_and_an_edge_keeps_its_colour() {
-        let pixels = pixels(&ppm(&picture(), &palette()));
+        let pixels = pixels(&ppm(&picture(), &palette(), &|_| 1.0));
 
         assert_eq!(pixels[2], [100, 0, 0]);
         assert_eq!(pixels[3], RED);
+    }
+
+    /// LH-15: a faded layer's pixels are mixed with the ground, the others stay.
+    #[test]
+    fn a_faded_role_is_mixed_with_the_ground() {
+        let figures_half = |role: SceneRole| match role {
+            SceneRole::Figure(_) => 0.5,
+            _ => 1.0,
+        };
+
+        let pixels = pixels(&ppm(&picture(), &palette(), &figures_half));
+
+        assert_eq!(pixels[0], GROUND);
+        assert_eq!(pixels[1], [220, 220, 220]);
+        assert_eq!(pixels[2], [175, 125, 125]);
+        assert_eq!(pixels[3], [225, 125, 125]);
     }
 
     #[test]
