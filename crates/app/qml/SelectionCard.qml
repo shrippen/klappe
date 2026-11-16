@@ -76,6 +76,7 @@ KantePopover {
     // "Add heights" (LH-93): the card shows the object's height field and gives it the keyboard.
     function focusHeight() {
         card.expanded = true
+        card.dismissed = false
         // The card opens with the new selection; its fields are laid out a moment later.
         Qt.callLater(objectSection.focusHeight)
     }

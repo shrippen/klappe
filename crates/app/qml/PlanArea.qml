@@ -63,7 +63,10 @@ Item {
             area.tipAt = canvas.mapFromModel(x, y)
         }
         onShapeClicked: (key, x, y) => {
-            selection.dismissed = false
+            // Only a click that selects opens the card again.
+            if (area.tool === "select") {
+                selection.dismissed = false
+            }
             area.controller.place(x, y)
         }
         // The click before it selected the note or the bend; the double click edits the note's
@@ -433,10 +436,13 @@ Item {
     }
 
     // Escape clears the selection, which closes its card (Q1-04). Not while a drag, a measure,
-    // a scale or an outline has its own Escape, and not in a field (it leaves the field first).
+    // a scale or an outline has its own Escape, and not in a text field anywhere in the window
+    // (a cell of the shot table; the card's fields leave the field first).
+    readonly property Item focused: Window.window ? Window.window.activeFocusItem : null
+    readonly property bool textFocused: !!area.focused && area.focused.cursorPosition !== undefined
     Shortcut {
         sequence: "Escape"
-        enabled: area.hasSelection && !area.dragging && !freeView.dragging && !area.drawsArea
+        enabled: area.hasSelection && !area.textFocused && !area.dragging && !freeView.dragging && !area.drawsArea
             && !(area.tool === "scale" && area.controller.scalePoints > 0)
             && !(area.tool === "measure" && area.controller.measuring)
         onActivated: area.controller.clearSelection()

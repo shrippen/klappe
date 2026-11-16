@@ -344,4 +344,62 @@ TestCase {
         fake.selectedKey = "object:o1"
         settled(card)
     }
+
+    // Review of #173: only a click that selects opens the card again; one of the measure tool on
+    // the element's shape (it selects nothing) does not.
+    function test_a_click_of_another_tool_does_not_reopen_the_card() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        area.tool = "measure"
+        tryVerify(() => !card.visible)
+
+        card.canvas.shapeClicked("object:o1", 2, 11.5)
+        wait(100)
+
+        verify(!card.visible)
+    }
+
+    // Escape in a text field elsewhere in the window (a cell of the shot table) belongs to
+    // that field, not to the plan's selection.
+    function test_escape_in_a_field_outside_the_plan_keeps_the_selection() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        const outside = createTemporaryObject(outsideComponent, tc)
+        fake.selectedKey = "object:o1"
+        settled(card)
+        outside.forceActiveFocus()
+        verify(outside.activeFocus)
+
+        keyClick(Qt.Key_Escape)
+
+        compare(outside.escapes, 1)
+        compare(fake.selectedKey, "object:o1")
+        verify(card.visible)
+    }
+
+    // "Add heights" after a change of tool opens the card again.
+    function test_adding_heights_reopens_a_dismissed_card() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        area.tool = "wall"
+        tryVerify(() => !card.visible)
+
+        area.focusHeight()
+
+        settled(card)
+    }
+
+    Component {
+        id: outsideComponent
+        TextInput {
+            property int escapes: 0
+            width: 100
+            height: 20
+            Keys.onEscapePressed: escapes++
+        }
+    }
 }

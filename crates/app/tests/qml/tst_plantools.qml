@@ -187,6 +187,18 @@ TestCase {
         compare(fake.cleared, 1)
     }
 
+    // A tool key that takes its mode along keeps the selection: W with a wall selected.
+    function test_a_tool_key_of_another_mode_keeps_the_selection() {
+        const bar = make()
+        bar.mode = "draw"
+        fake.cleared = 0
+
+        keyClick(Qt.Key_W)
+
+        compare(bar.mode, "build")
+        compare(fake.cleared, 0)
+    }
+
     function test_keys_1_to_4_pick_the_mode() {
         const bar = make()
         const keys = [[Qt.Key_2, "stage"], [Qt.Key_3, "resolve"], [Qt.Key_4, "draw"], [Qt.Key_1, "build"]]

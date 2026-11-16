@@ -188,7 +188,7 @@ impl qobject::Controller {
         }
         match tools::drag_step(edit, phase, preview) {
             DragStep::Preview(edit) => self.preview_edit(&edit, caption.as_ref()),
-            DragStep::Commit(edit) => self.commit_pulled(edit),
+            DragStep::Commit(edit) => self.commit_grabbed(edit, tool),
             DragStep::Restore => {
                 self.refresh();
                 false
@@ -509,6 +509,19 @@ impl qobject::Controller {
         }
     }
 
+    /// Commits a drag. With the select tool the selection was the grabbed part: a point
+    /// that was dragged ends with its element selected (Q1-04).
+    fn commit_grabbed(mut self: Pin<&mut Self>, edit: PlanEdit, tool: Tool) -> bool {
+        let done = self.as_mut().commit_pulled(edit);
+        if done && tool == Tool::Select {
+            let released = self.rust().selected.clone().released();
+            self.as_mut().rust_mut().get_mut().selected = released;
+            self.as_mut().refresh();
+        }
+
+        done
+    }
+
     /// Applies `edit`; a bend pulled out of a way is the selection, not its old grip.
     fn commit_pulled(mut self: Pin<&mut Self>, edit: PlanEdit) -> bool {
         let grip = self.rust().selected.only().cloned();
@@ -520,12 +533,7 @@ impl qobject::Controller {
         let done = self.as_mut().commit_edit(edit.clone());
         if done {
             let counts = (before, count(&self));
-            let pulled = self
-                .rust()
-                .selected
-                .clone()
-                .pulled(&edit, counts)
-                .released();
+            let pulled = self.rust().selected.clone().pulled(&edit, counts);
             self.as_mut().rust_mut().get_mut().selected = pulled;
             self.refresh();
         }
