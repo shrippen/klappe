@@ -270,6 +270,56 @@ fn a_curved_way_is_timed_by_its_length() {
     assert!(near(run_s * RUN_M_S / WALK_M_S, walk_s));
 }
 
+/// A typed speed does what the buttons do: 7 m at 2.5 m/s take 2.8 s after the pause at 2 s.
+#[test]
+fn a_typed_speed_times_the_way_in_one_undo_step() {
+    let mut s = open();
+
+    s.edit_plan(PlanEdit::SetPace {
+        source: mark("elisabeth", 1),
+        pace: Pace::Speed(2.5),
+    })
+    .unwrap();
+
+    assert!(near(arrivals(&s, "elisabeth")[1], 2.0 + 7.0 / 2.5));
+    assert!(near(
+        arrivals(&s, "elisabeth")[2],
+        14.0 + (2.0 + 7.0 / 2.5 - 6.0)
+    ));
+    assert!(near(pace_at(&s, 1), 2.5));
+
+    s.undo();
+    assert_eq!(arrivals(&s, "elisabeth"), [0.0, 6.0, 14.0]);
+}
+
+#[test]
+fn a_typed_speed_out_of_bounds_is_refused() {
+    let mut s = open();
+
+    for speed_m_s in [0.0, -1.0, 0.05, 16.0, f64::NAN, f64::INFINITY] {
+        let result = s.edit_plan(PlanEdit::SetPace {
+            source: mark("elisabeth", 1),
+            pace: Pace::Speed(speed_m_s),
+        });
+
+        assert!(is_bad(result), "{speed_m_s}");
+    }
+    assert_eq!(arrivals(&s, "elisabeth"), [0.0, 6.0, 14.0]);
+}
+
+#[test]
+fn a_locked_layer_refuses_a_typed_speed() {
+    let mut s = open();
+    s.set_lock(Layer::Figures, Lock::Locked);
+
+    let result = s.edit_plan(PlanEdit::SetPace {
+        source: mark("elisabeth", 1),
+        pace: Pace::Speed(2.0),
+    });
+
+    assert!(is_locked(result, Layer::Figures));
+}
+
 #[test]
 fn the_first_mark_has_no_way_to_set_a_pace_on() {
     let mut s = open();

@@ -211,6 +211,7 @@
  "mark.tilt": "Tilt (°)",
  "mark.tiltTip": "Tilt of the camera: positive looks up, negative down",
  "mark.pace": "Pace",
+ "mark.paceField": "Pace (m/s)",
  "mark.paceValue": "{value} m/s",
  "mark.paceNone": "–",
  "mark.paceTip": "Set the arrival at the mark from the length of the way; later marks move along",

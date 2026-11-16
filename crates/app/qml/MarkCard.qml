@@ -9,8 +9,9 @@ import Kante
 // also says how the figure comes to it and whether it leaves after it (LH-26); a camera's
 // mark says its lens height and tilt (LH-34, positive tilt looks up), the rig that brings
 // the camera to it and the lens it states (LH-33; empty: none, between two marks with a lens
-// the focal length runs with time). The pace is shown as the plan has it; the two buttons
-// time the way for walking or running and move the later marks along. No geometry here: the
+// the focal length runs with time). The pace is shown as the plan has it (a figure's mark: in its field); the two buttons
+// time the way for walking or running and move the later marks along, and the pace can be
+// typed in m/s (a figure's mark). No geometry here: the
 // controller has the numbers from the session. Pose, pause and pace (a camera's mark: lens
 // height, rig and lens) are the common fields; arrival, departure and tilt wait behind
 // "More".
@@ -42,7 +43,7 @@ ColumnLayout {
     readonly property bool shown: info !== null
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: holdField.activeFocus || heightField.activeFocus
-        || tiltField.activeFocus || lensField.activeFocus
+        || tiltField.activeFocus || lensField.activeFocus || paceField.activeFocus
 
     visible: shown
     spacing: Kirigami.Units.smallSpacing
@@ -59,6 +60,9 @@ ColumnLayout {
         departureChoice.currentIndex = Math.max(0, departures.indexOf(info.departure))
         if (!holdField.activeFocus) {
             holdField.text = texts.num(info.hold, 2)
+        }
+        if (!paceField.activeFocus) {
+            paceField.text = info.pace === null ? "" : texts.num(info.pace, 1)
         }
         if (!card.isCamera) {
             return
@@ -91,6 +95,10 @@ ColumnLayout {
 
     function setPace(name) {
         controller.setMarkPace(name)
+    }
+
+    function setSpeed() {
+        paceField.invalid = !controller.setMarkPace(paceField.text)
     }
 
     KanteSectionLabel { text: card.texts.t("mark.title") }
@@ -133,10 +141,29 @@ ColumnLayout {
 
         QQC2.Label {
             objectName: "paceValue"
-            visible: card.info !== null && card.info.hasWay
+            visible: card.isCamera && card.info.hasWay
             text: card.texts.t("mark.pace") + ": " + (card.info && card.info.pace !== null
                   ? card.texts.t("mark.paceValue", { value: card.texts.num(card.info.pace, 1) })
                   : card.texts.t("mark.paceNone"))
+        }
+        KanteTextField {
+            id: paceField
+            objectName: "paceField"
+            visible: card.isFigure
+            enabled: card.info !== null && card.info.hasWay
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+            Accessible.name: card.texts.t("mark.paceField")
+            placeholderText: card.texts.t("mark.paceField")
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onTextChanged: invalid = false
+            onAccepted: card.setSpeed()
+        }
+        KanteButton {
+            objectName: "paceApply"
+            visible: card.isFigure
+            enabled: card.info !== null && card.info.hasWay
+            text: card.texts.t("form.apply")
+            onClicked: card.setSpeed()
         }
         KanteButton {
             objectName: "paceWalk"
