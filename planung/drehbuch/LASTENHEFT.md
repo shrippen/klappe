@@ -78,8 +78,8 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DB-01 | Fountain tippen mit Formatierung beim Tippen: Elemente erkennen, einrücken, Großschreibung von Szenenköpfen und Figuren (TUI: Erkennen und Einrücken vorhanden, Großschreibung fehlt). | M |
-| DB-02 | Elementwechsel per Tastatur: Enter und Tab wechseln zwischen Handlung, Figur, Klammer, Dialog, Übergang (wie Fade In; Tabelle im Pflichtenheft); erzwungene Elemente per Fountain-Zeichen. Tab schaltet in der TUI heute den Fokus um und wird dafür frei. | M |
-| DB-03 | Autovervollständigung für Figurennamen (häufigste zuerst), Orte, Szenenkopf-Präfixe und Tageszeiten; Figuren-Erweiterungen deutsch und englisch, z. B. (OFF), (V.O.), (O.S.), (CONT'D). | M |
+| DB-02 | Elementwechsel per Tastatur: Enter und Tab wechseln zwischen Handlung, Figur, Klammer, Dialog, Übergang (wie Fade In, Tabelle in Anhang A; das Pflichtenheft legt sie fest); erzwungene Elemente per Fountain-Zeichen. Tab schaltet in der TUI heute den Fokus um und wird dafür frei. | M |
+| DB-03 | Autovervollständigung für Figurennamen (häufigste zuerst), Orte, Szenenkopf-Präfixe und Tageszeiten; Figuren-Erweiterungen deutsch und englisch, z. B. (OFF), (V.O.), (O.S.), (CONT'D). Im Wechselgespräch schlägt Klappe auf einer leeren Figurzeile die andere Figur vor (eine Taste übernimmt sie). Das Übernehmen eines Vorschlags schließt das Element ab und springt ins nächste (Tageszeit übernommen → Handlung), ohne zweites Enter. | M |
 | DB-04 | Figur im ganzen Buch umbenennen (Figurenzeilen, Doppeldialog, Verweise in Stellprobe). | S |
 | DB-05 | Doppeldialog (`^`), Zentriert, Liedtext, Notizen `[[ ]]`, auskommentierter Text `/* */`, Hervorhebungen. | M |
 | DB-06 | Titelseite bearbeiten (Titel, Autor, Kontakt, Fassung, Datum). | M |
@@ -104,7 +104,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DB-30 | Paginierung nach Industriestandard (A4 als Standard, US Letter wählbar (F-01); Courier 12 pt, Ränder nach Standard): Seitenumbrüche im Editor sichtbar, Stand der letzten Rechnung (DN-02, DN-07). | M |
-| DB-31 | Umbruchregeln: Szenenkopf nie allein am Seitenende; Dialog nur zwischen Sätzen oder an einer Klammer teilen, mit (MORE) unten und Figur (CONT'D) oben; mindestens zwei Zeilen auf jeder Seite; Handlung nur zwischen Sätzen teilen. | M |
+| DB-31 | Umbruchregeln: Szenenkopf nie allein am Seitenende; Dialog nur zwischen Sätzen oder an einer Klammer teilen, mit (MORE) unten und Figur (CONT'D) oben; mindestens zwei Zeilen auf jeder Seite; Handlung nur zwischen Sätzen teilen. Wahlweise (CONT'D) bzw. (FORTS.) auch, wenn dieselbe Figur nach einer Handlungszeile weiterspricht. | M |
 | DB-32 | Länge je Szene in Achteln und Gesamtlänge in Seiten und geschätzten Minuten. | M |
 | DB-33 | Szenennummern: automatisch oder gesperrt; Startnummer frei; eingefügte Szenen bekommen A-Nummern (12A), gestrichene bleiben als „ENTFÄLLT“ stehen. Die Nummer steht im Fountain-Text (`#12#`). Ändert sich das Buch (in Klappe oder extern, z. B. in einem anderen Programm oder per Git), passt Klappe die automatischen Nummern nach diesen Regeln an und führt Floorplan, Marks und Shots jeder Szene mit (DB-65). In den Fountain-Text schreibt Klappe sie erst beim Speichern in Klappe, nie schon beim Öffnen (sonst ergäbe bloßes Öffnen Änderungen und Merge-Konflikte in Git); gesperrte Nummern ändert Klappe nie, A-Nummern neuer Szenen schreibt sie beim Speichern wie die übrigen. Gesperrt wird je Fassung (DB-40), nicht je Szene. | M |
 | DB-34 | Gesperrte Seiten mit A-Seiten (12A) nach dem Sperren einer Fassung. Vor dem Sperren rechnet Klappe Seiten und Längen sofort neu (wie vor Export und Druck, DN-02), damit keine veralteten Seitenzahlen gesperrt werden. | S |
@@ -221,6 +221,9 @@ Gelesen (2026-11-14):
 
 - fadeinpro.com: Startseite, `page.pl?content=features`, Hilfe-Artikel „Track Changes“;
   Mac-App-Store-Text; Rezensionen nur als Suchauszug (G2, Capterra, StudioBinder, Reddit).
+- Fade In 5.0.15 (lizenzierte Kopie des Eigentümers, 2026-11-16): das Programm selbst bedient und
+  beobachtet, dazu die mitinstallierten Hilfeseiten. Nur Verhalten, in eigenen Worten; keine Texte,
+  Listen oder Vorlagen übernommen.
 - Beat: github.com/lmparppei/beat (README, Wiki), beat-app.fi, App-Store-Text; Quelldateien
   `Frameworks/BeatPagination2/…/Pagination/` (BeatPagination, BeatPaginationBlock,
   BeatPaginationBlockGroup, BeatPageBreak), `Frameworks/BeatCore/…/Revisions/BeatRevisions.m`,
@@ -242,6 +245,39 @@ Gelesen (2026-11-14):
 | Drehbuchauszug | Standard-Breakdowns, Berichte (Szenen, Besetzung, Drehorte) als Druck, HTML, CSV; anpassbare Tags | Tags mit Kategorien (siehe unten) | DB-60, DB-61 |
 | Austausch | eigenes XML-Format (Open Screenplay Format), FDX, FDR (lesen), DOCX, RTF, Fountain, Celtx, Scrivener, Text, HTML, PDF, Wasserzeichen-Stapel | Fountain, FDX, PDF | DB-70–DB-73 |
 | Weiteres | Bilder im Dokument, Haftnotizen, Rechtschreibung mit eigenen Wörterbüchern, Formatprüfung, Vorlesen (Table Read) | Plugins in JavaScript, Notizen, Sicherungen | DB-08, DB-24, DB-74 |
+
+### Fade In im Verhalten (beobachtet, in eigenen Worten)
+
+- **Elementwechsel:** Enter und Tab auf einer leeren Zeile führen so weiter:
+
+  | Element | Enter | Tab auf leerer Zeile |
+  |---|---|---|
+  | Szenenkopf | Handlung | – |
+  | Handlung | Handlung | Figur |
+  | Figur | Dialog | Handlung |
+  | Klammer | Dialog | Dialog |
+  | Dialog | Handlung | Klammer (Klammern stehen schon) |
+  | Übergang | Szenenkopf | – |
+
+- **Wechselgespräch:** Auf der leeren Figurzeile ist die andere Figur vorgeschlagen; eine Replik
+  kostet Enter, Tab, Tab, Enter und den Text.
+- **Vorschläge:** Ein Enter auf dem Vorschlag übernimmt ihn und wechselt ins nächste Element.
+  Vorbelegt sind nur englische Tageszeiten; deutsche Wörter markiert die Rechtschreibung rot.
+- **Großschreibung** ist nur Darstellung des Elements, nicht Text. Klappe schreibt Fountain und
+  muss Szenenköpfe und Figuren darum groß in die Datei schreiben (DB-01).
+- **(cont'd)** setzt Fade In auch, wenn dieselbe Figur nach Handlung weiterspricht, nicht nur am
+  Seitenumbruch.
+- **Revisionen** werden beim Tippen markiert, nur wenn der Revisionsmodus an ist; Klappe vergleicht
+  stattdessen mit der gesperrten Fassung (F-03), eine vergessene Einstellung kann nichts verlieren.
+- **Notizen** öffnen als schwebende Zettel über dem Text und schließen nur von Hand; Klappe hält
+  Notizen im Text (`[[ ]]`) mit Liste (DB-24).
+- **Suchen und Ersetzen** lässt sich auf einen Elementtyp begrenzen (DB-07 geht weiter: eine Figur).
+- **Navigator** zeigt je Szene Seite und Zeit; Szenen lassen sich dort und auf Karteikarten
+  ziehen. Szenennummern sperrt ein Schalter für das ganze Buch, eingefügte Szenen bekommen dann
+  A-Nummern.
+- Keine Verbindung zur Drehplanung außer Berichten und einem Export; keine Shotliste.
+- Nicht beobachtet: wie Fade In Notizen, Szenennummern und Revisionen ins Fountain schreibt (der
+  Export-Dialog ließ sich in der unsichtbaren Sitzung nicht öffnen).
 
 ### Beat im Verhalten (beobachtbar, in eigenen Worten)
 
