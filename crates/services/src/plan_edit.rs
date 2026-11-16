@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     Arrival, Character, Dash, Departure, DoorSide, Drawing, DrawingShape, FigureColor, Fill,
-    FloorPlan, Hinge, LibraryItem, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan, Wall,
+    FloorPlan, Hinge, LibraryItem, Note, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan,
+    Wall,
 };
 use klappe_stellprobe::{Bend, Source};
 
@@ -403,7 +404,7 @@ fn layer_of_source(source: &Source) -> Layer {
         Source::Light(_) => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
-        Source::Note(_) => Layer::Notes,
+        Source::Note(_) | Source::NoteWidth(_) => Layer::Notes,
         Source::Drawing(_) | Source::DrawingPoint { .. } | Source::DrawingEdge { .. } => {
             Layer::Drawings
         }
@@ -441,6 +442,8 @@ enum Target<'a> {
     },
     /// Points and a turn about the middle of its box.
     Drawing(&'a mut Drawing),
+    /// A grip on the right edge of a note's card: moving it sets the card's width.
+    NoteEdge(&'a mut Note),
     /// A grip on a point or corner of a drawing: moving it reshapes the drawing.
     Corner {
         drawing: &'a mut Drawing,

@@ -34,7 +34,8 @@ impl Session {
             .and_then(|b| self.image_size(&b.file));
         let mut list = render(project, &location.set, plan, self.time_s, background_px);
         if let Some(selected) = selected {
-            list.items.extend(handles(project, plan, selected));
+            list.items
+                .extend(handles(project, &location.set, plan, selected));
         }
         list.items
             .retain(|item| self.shows(item.role, item.source.as_ref()));

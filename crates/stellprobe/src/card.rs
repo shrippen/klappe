@@ -1,16 +1,12 @@
 //! The card a note is drawn as (LH-16): a rectangle with its text wrapped, decided once; the
 //! GUI and the export draw the lines as they are.
 
-use klappe_model::Point;
+use klappe_model::{Point, NOTE_MIN_WIDTH_M};
 
-/// The card's width.
-const CARD_WIDTH_M: f64 = 2.4;
 /// Inner margin on every side.
 const CARD_PAD_M: f64 = 0.1;
 /// Width of one character, estimated: the same lines on screen and on paper.
 const CHAR_WIDTH_M: f64 = 0.1;
-/// Characters in one line of text, rounded: 21.999… must not give 21.
-const CHARS_PER_LINE: usize = ((CARD_WIDTH_M - 2.0 * CARD_PAD_M) / CHAR_WIDTH_M + 0.5) as usize;
 /// Height of one line of text.
 const LINE_HEIGHT_M: f64 = 0.2;
 /// Line pitch as a multiple of the font size: the canvas and the export both use it.
@@ -18,14 +14,22 @@ const LINE_SPACING: f64 = 1.25;
 /// Font size of a note's text, in metres: the text scales with the plan, like its card.
 pub const NOTE_TEXT_M: f64 = LINE_HEIGHT_M / LINE_SPACING;
 
-/// The corners of the card with top left `at`, and its text, lines joined by `\n`.
-pub(crate) fn note_card(at: Point, text: &str) -> (Vec<Point>, String) {
-    let lines = wrap(text, CHARS_PER_LINE);
+/// Characters in one line of a card `width_m` wide, rounded: 21.999… must not give 21. At
+/// least one, so a narrow card still takes text.
+fn chars_per_line(width_m: f64) -> usize {
+    (((width_m - 2.0 * CARD_PAD_M) / CHAR_WIDTH_M + 0.5) as usize).max(1)
+}
+
+/// The corners of the card with top left `at` and width `width_m` (not below the minimum), and
+/// its text, lines joined by `\n`.
+pub(crate) fn note_card(at: Point, width_m: f64, text: &str) -> (Vec<Point>, String) {
+    let width_m = width_m.max(NOTE_MIN_WIDTH_M);
+    let lines = wrap(text, chars_per_line(width_m));
     let height_m = lines.len() as f64 * LINE_HEIGHT_M + 2.0 * CARD_PAD_M;
     let corners = vec![
         at,
-        Point::new(at.x_m + CARD_WIDTH_M, at.y_m),
-        Point::new(at.x_m + CARD_WIDTH_M, at.y_m + height_m),
+        Point::new(at.x_m + width_m, at.y_m),
+        Point::new(at.x_m + width_m, at.y_m + height_m),
         Point::new(at.x_m, at.y_m + height_m),
     ];
 
@@ -77,6 +81,7 @@ mod tests {
     use super::*;
     use crate::display::{Item, Role, Shape};
     use crate::hit::hit;
+    use klappe_model::NOTE_WIDTH_M;
 
     #[test]
     fn short_text_is_one_line() {
@@ -98,15 +103,34 @@ mod tests {
     /// truncating 21.999… gave.
     #[test]
     fn a_line_has_the_characters_the_card_holds() {
-        let (_, text) = note_card(Point::new(0.0, 0.0), &"x".repeat(50));
+        let (_, text) = note_card(Point::new(0.0, 0.0), NOTE_WIDTH_M, &"x".repeat(50));
         let lengths: Vec<usize> = text.lines().map(|l| l.chars().count()).collect();
 
         assert_eq!(lengths, [22, 22, 6]);
     }
 
     #[test]
+    fn a_wider_card_wraps_into_fewer_lines() {
+        let at = Point::new(0.0, 0.0);
+        let text = "wort ".repeat(20);
+        let lines = |width_m| note_card(at, width_m, &text).1.lines().count();
+
+        assert!(lines(4.8) < lines(NOTE_WIDTH_M));
+        assert!(lines(NOTE_WIDTH_M) < lines(1.2));
+    }
+
+    #[test]
+    fn a_card_is_not_narrower_than_the_minimum() {
+        let at = Point::new(1.0, 1.0);
+        let (corners, text) = note_card(at, 0.0, "abc def");
+
+        assert_eq!(corners[1].x_m, 1.0 + NOTE_MIN_WIDTH_M);
+        assert_eq!(text, note_card(at, NOTE_MIN_WIDTH_M, "abc def").1);
+    }
+
+    #[test]
     fn an_own_line_break_stays() {
-        let (_, text) = note_card(Point::new(0.0, 0.0), "Akt 1\nVorhang\n\nEnde");
+        let (_, text) = note_card(Point::new(0.0, 0.0), NOTE_WIDTH_M, "Akt 1\nVorhang\n\nEnde");
 
         assert_eq!(text, "Akt 1\nVorhang\n\nEnde");
     }
@@ -114,11 +138,11 @@ mod tests {
     #[test]
     fn the_card_grows_with_its_lines() {
         let at = Point::new(1.0, 2.0);
-        let (one, _) = note_card(at, "kurz");
-        let (two, text) = note_card(at, &"wort ".repeat(10));
+        let (one, _) = note_card(at, NOTE_WIDTH_M, "kurz");
+        let (two, text) = note_card(at, NOTE_WIDTH_M, &"wort ".repeat(10));
 
         assert_eq!(one[0], at);
-        assert_eq!(one[1].x_m, 1.0 + CARD_WIDTH_M);
+        assert_eq!(one[1].x_m, 1.0 + NOTE_WIDTH_M);
         assert!(two[2].y_m > one[2].y_m);
         assert!(text.contains('\n'));
     }
@@ -126,7 +150,11 @@ mod tests {
     #[test]
     fn a_click_anywhere_on_the_card_hits_it() {
         let at = Point::new(3.0, 4.0);
-        let (points, label) = note_card(at, "Der Vorhang wird erst nach dem dritten Gong zu");
+        let (points, label) = note_card(
+            at,
+            NOTE_WIDTH_M,
+            "Der Vorhang wird erst nach dem dritten Gong zu",
+        );
         let card = Item {
             role: Role::Note,
             shape: Shape::Polygon { points },

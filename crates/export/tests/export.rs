@@ -355,11 +355,13 @@ fn notes_are_printed_with_their_text() {
             id: "n1".into(),
             at: Point::new(4.0, 3.0),
             text: "Vorhang schließen".into(),
+            width_m: 2.4,
         },
         Note {
             id: "n2".into(),
             at: Point::new(4.0, 8.0),
             text: long.into(),
+            width_m: 2.4,
         },
     ];
     let list = render(&project(), &room, &plan(), 0.0, None);

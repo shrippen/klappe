@@ -15,13 +15,14 @@ pub enum ElementKind {
     Wall,
     Opening,
     Note,
+    NoteWidth,
     Drawing,
     DrawingPoint,
     DrawingEdge,
 }
 
 impl ElementKind {
-    const ALL: [ElementKind; 13] = [
+    const ALL: [ElementKind; 14] = [
         Self::Object,
         Self::Light,
         Self::Camera,
@@ -32,6 +33,7 @@ impl ElementKind {
         Self::Wall,
         Self::Opening,
         Self::Note,
+        Self::NoteWidth,
         Self::Drawing,
         Self::DrawingPoint,
         Self::DrawingEdge,
@@ -49,6 +51,7 @@ impl ElementKind {
             Self::Wall => "wall",
             Self::Opening => "opening",
             Self::Note => "note",
+            Self::NoteWidth => "notewidth",
             Self::Drawing => "drawing",
             Self::DrawingPoint => "drawingpoint",
             Self::DrawingEdge => "drawingedge",
@@ -87,6 +90,7 @@ pub fn key(source: &Source) -> String {
         Source::Wall(index) => (ElementKind::Wall, index.to_string()),
         Source::Opening { wall, index } => (ElementKind::Opening, format!("{wall}:{index}")),
         Source::Note(id) => (ElementKind::Note, id.clone()),
+        Source::NoteWidth(id) => (ElementKind::NoteWidth, id.clone()),
         Source::Drawing(id) => (ElementKind::Drawing, id.clone()),
         Source::DrawingPoint { drawing, index } => {
             (ElementKind::DrawingPoint, format!("{drawing}:{index}"))
@@ -146,6 +150,11 @@ mod tests {
         assert_eq!(key(&camera), "cameravia:a:1:new2");
     }
 
+    /// Too long for one line of the table below.
+    fn note_width() -> Source {
+        Source::NoteWidth("n".into())
+    }
+
     /// Every kind of element reads back from the key it is written as.
     #[test]
     fn every_key_reads_back() {
@@ -191,6 +200,7 @@ mod tests {
                 Some(1),
             ),
             (Source::Note("n".into()), ElementKind::Note, "n", None),
+            (note_width(), ElementKind::NoteWidth, "n", None),
             (Source::Drawing("d".into()), ElementKind::Drawing, "d", None),
             (
                 Source::DrawingPoint {

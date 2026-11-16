@@ -1,6 +1,8 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
-use klappe_model::{CameraMark, Drawing, DrawingShape, FloorPlan, Mark, Point, Wall};
+use klappe_model::{
+    CameraMark, Drawing, DrawingShape, FloorPlan, Mark, Point, Wall, NOTE_MIN_WIDTH_M,
+};
 use klappe_stellprobe::{bend_follow, bend_grips, drawing_handle_places, Bend, Source};
 
 use super::drawings::{drag_handle, edge_place, insert_point};
@@ -100,14 +102,7 @@ pub(super) fn target<'a>(
             let (wall, index) = opening_mut(scope, source)?;
             Ok(Target::Slide { wall, index })
         }
-        Source::Note(id) => {
-            let note = scope
-                .set
-                .as_deref_mut()
-                .and_then(|s| s.notes.iter_mut().find(|n| n.id == *id))
-                .ok_or(ServiceError::Gone)?;
-            Ok(Target::Pin { at: &mut note.at })
-        }
+        Source::Note(_) | Source::NoteWidth(_) => note_target(scope, source),
         Source::Drawing(id) => scope
             .plan
             .drawings
@@ -115,6 +110,23 @@ pub(super) fn target<'a>(
             .find(|d| d.id == *id)
             .map(Target::Drawing)
             .ok_or(ServiceError::Gone),
+    }
+}
+
+/// A note, or the grip on its right edge.
+fn note_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, ServiceError> {
+    let (Source::Note(id) | Source::NoteWidth(id)) = source else {
+        return Err(ServiceError::Gone);
+    };
+    let note = scope
+        .set
+        .as_deref_mut()
+        .and_then(|s| s.notes.iter_mut().find(|n| n.id == *id))
+        .ok_or(ServiceError::Gone)?;
+
+    match source {
+        Source::NoteWidth(_) => Ok(Target::NoteEdge(note)),
+        _ => Ok(Target::Pin { at: &mut note.at }),
     }
 }
 
@@ -365,6 +377,10 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
         Target::Corner { drawing, index } => drag_handle(drawing, index, to)?,
         Target::Edge { drawing, index } => insert_point(drawing, index, to)?,
         Target::Slide { wall, index } => slide(wall, index, to)?,
+        // The card keeps its top left; its right edge lands on `to`.
+        Target::NoteEdge(note) => {
+            note.width_m = (to.x_m - note.at.x_m).max(NOTE_MIN_WIDTH_M);
+        }
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
             let mid = middle(wall);
@@ -384,6 +400,12 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
         Target::Curve { via, a, b, bend } => {
             let grip = grip_at(via, (a, b), bend).ok_or(ServiceError::Gone)?;
             Ok((grip, grip))
+        }
+        // Only the x of the grip counts; the card's height is Stellprobe's to know.
+        Target::NoteEdge(note) => {
+            let edge = Point::new(note.at.x_m + note.width_m, note.at.y_m);
+
+            Ok((edge, edge))
         }
         Target::Wall(wall) => Ok((wall.from, middle(wall))),
         Target::Slide { wall, index } => {
@@ -459,6 +481,7 @@ pub(super) fn spin(
         Target::Pin { .. }
         | Target::Corner { .. }
         | Target::Edge { .. }
+        | Target::NoteEdge(_)
         | Target::Curve { .. }
         | Target::Slide { .. } => return Ok(()),
     };
@@ -480,6 +503,7 @@ pub(super) fn turn(
         Target::Pin { .. }
         | Target::Corner { .. }
         | Target::Edge { .. }
+        | Target::NoteEdge(_)
         | Target::Curve { .. }
         | Target::Slide { .. } => {}
         Target::Wall(wall) => {

@@ -1,8 +1,9 @@
 //! The grips of the selected element: on the bends of a way, on the points of a drawing.
 
-use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Project};
+use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Project, SetPlan};
 
 use super::{rect_corners, Item, Role, Shape, Source};
+use crate::card::note_card;
 use crate::motion::{bend_grips, walked_ways};
 
 /// A grip on a way (LH-21): a bend the way passes, or a spot to pull a new bend out of.
@@ -27,9 +28,10 @@ const NEW_POINT_RADIUS_M: f64 = 0.1;
 /// smaller one halfway along each piece between bends, to pull out a new bend.
 /// A selected drawing has one on each of its points, an area also a smaller one halfway along
 /// each edge (LH-19).
+/// A selected note has one in the middle of its card's right edge, to set its width (LH-16).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
-pub fn handles(project: &Project, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
+pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
     match selected {
         Source::Figure(c)
         | Source::Mark { character: c, .. }
@@ -38,8 +40,28 @@ pub fn handles(project: &Project, plan: &FloorPlan, selected: &Source) -> Vec<It
         Source::Drawing(id)
         | Source::DrawingPoint { drawing: id, .. }
         | Source::DrawingEdge { drawing: id, .. } => drawing_handles(plan, id),
+        Source::Note(id) | Source::NoteWidth(id) => note_handles(set, id),
         _ => Vec::new(),
     }
+}
+
+/// The grip on the card of note `id`: where its right edge is half as high as the card.
+fn note_handles(set: &SetPlan, id: &str) -> Vec<Item> {
+    let Some(note) = set.notes.iter().find(|n| n.id == id) else {
+        return Vec::new();
+    };
+    let (corners, _) = note_card(note.at, note.width_m, &note.text);
+    let center = corners[1].lerp(corners[2], 0.5);
+
+    vec![Item {
+        role: Role::NoteHandle,
+        shape: Shape::Circle {
+            center,
+            radius_m: HANDLE_RADIUS_M,
+        },
+        label: None,
+        source: Some(Source::NoteWidth(id.to_owned())),
+    }]
 }
 
 /// Where the grips of `drawing` sit on the plan, turned like the drawing: its points, or for

@@ -152,6 +152,7 @@ y_m = 4.2
 [[set.notes]]
 id = "n1"
 text = "Nebelmaschine außen"
+width_m = 2.4
 
 [set.notes.at]
 x_m = 3.0

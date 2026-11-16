@@ -1,6 +1,6 @@
 use klappe_model::{
-    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Note,
-    Point, Project, SetPlan,
+    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Point,
+    Project, SetPlan,
 };
 
 use crate::axis::axis_at;
@@ -103,6 +103,9 @@ pub enum Role {
     /// A grip on a point or corner of the selected drawing (LH-19); only drawn while it is
     /// selected.
     DrawingHandle,
+    /// The grip that sets the width of the selected note's card (LH-16); only drawn while it
+    /// is selected.
+    NoteHandle,
     /// The grip that bends the way to a mark (LH-21); only drawn for a selected way.
     FigureHandle(FigureColor),
     CameraHandle,
@@ -147,6 +150,8 @@ pub enum Source {
         index: usize,
     },
     Note(String),
+    /// The grip in the middle of the right edge of a note's card (LH-16): drag to set its width.
+    NoteWidth(String),
     Drawing(String),
     /// Point or corner `index` of a drawing (LH-19): a grip. A rectangle or ellipse has its
     /// four corners, clockwise from the top left before the turn.
@@ -359,13 +364,13 @@ fn ellipse_corners(a: Point, b: Point) -> Vec<Point> {
 
 /// Notes lie on top of everything, so a figure never hides one.
 fn note_items(set: &SetPlan, items: &mut Vec<Item>) {
-    for Note { id, at, text } in &set.notes {
-        let (points, wrapped) = note_card(*at, text);
+    for note in &set.notes {
+        let (points, wrapped) = note_card(note.at, note.width_m, &note.text);
         items.push(Item {
             role: Role::Note,
             shape: Shape::Polygon { points },
             label: Some(wrapped),
-            source: Some(Source::Note(id.clone())),
+            source: Some(Source::Note(note.id.clone())),
         });
     }
 }
@@ -554,6 +559,7 @@ fn nose(at: Point, facing_deg: f64, radius_m: f64) -> Vec<Point> {
 mod tests {
     use super::*;
     use crate::figure::GROUP_DOTS;
+    use klappe_model::Note;
     use klappe_model::{
         Arrival, Camera, CameraMark, Character, Departure, Drawing, FigureTrack, Light, LightKind,
         Mark, Movement, ObjectShape, Pose, Sensor, SetObject, Shot, ShotSize, Wall,
@@ -602,6 +608,11 @@ mod tests {
             arrival: Arrival::Walk,
             departure: Departure::Stay,
         }
+    }
+
+    /// The grips of `selected` on a plan whose set has no notes.
+    fn grips_of(plan: &FloorPlan, selected: &Source) -> Vec<Item> {
+        handles(&project(), &SetPlan::default(), plan, selected)
     }
 
     fn plan() -> FloorPlan {
@@ -787,6 +798,7 @@ mod tests {
             id: "n1".into(),
             at: Point::new(3.0, 4.0),
             text: "Vorhang schließen".into(),
+            width_m: 2.4,
         }];
 
         let list = render(&project(), &room, &plan(), 0.0, None);
@@ -1287,7 +1299,7 @@ mod tests {
             index: 1,
             bend,
         };
-        let grips = handles(&project(), &p, &Source::Figure("e".into()));
+        let grips = grips_of(&p, &Source::Figure("e".into()));
         let sources: Vec<_> = grips.iter().map(|g| g.source.clone()).collect();
         assert_eq!(
             sources,
@@ -1306,16 +1318,16 @@ mod tests {
         ));
 
         // The grip of a selected grip, and of a mark, belong to the same way.
-        assert_eq!(handles(&project(), &p, &via(Bend::At(0))), grips);
+        assert_eq!(grips_of(&p, &via(Bend::At(0))), grips);
         let mark = Source::Mark {
             character: "e".into(),
             index: 0,
         };
-        assert_eq!(handles(&project(), &p, &mark), grips);
+        assert_eq!(grips_of(&p, &mark), grips);
 
         // Another way's, a one-mark way's, and a wall's: none.
-        assert!(handles(&project(), &p, &Source::Figure("v".into())).is_empty());
-        assert!(handles(&project(), &p, &Source::Wall(0)).is_empty());
+        assert!(grips_of(&p, &Source::Figure("v".into())).is_empty());
+        assert!(grips_of(&p, &Source::Wall(0)).is_empty());
     }
 
     #[test]
@@ -1325,7 +1337,7 @@ mod tests {
         second.at = Point::new(12.0, 12.0);
         p.cameras[0].marks.push(second);
 
-        let grips = handles(&project(), &p, &Source::Camera("a".into()));
+        let grips = grips_of(&p, &Source::Camera("a".into()));
 
         assert_eq!(grips.len(), 1);
         assert_eq!(grips[0].role, Role::CameraHandle);
@@ -1405,7 +1417,7 @@ mod tests {
     fn a_way_after_a_leave_has_no_grip() {
         let mut p = coming_and_going();
         p.figures[0].marks[2].arrival = Arrival::Walk;
-        let grips = handles(&project(), &p, &Source::Figure("e".into()));
+        let grips = grips_of(&p, &Source::Figure("e".into()));
 
         assert_eq!(grips.len(), 1);
     }
@@ -1414,7 +1426,7 @@ mod tests {
     #[test]
     fn an_appearing_mark_has_no_grip() {
         let p = coming_and_going();
-        let grips = handles(&project(), &p, &Source::Figure("e".into()));
+        let grips = grips_of(&p, &Source::Figure("e".into()));
 
         assert_eq!(grips.len(), 1);
         assert_eq!(
