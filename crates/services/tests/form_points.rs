@@ -99,7 +99,7 @@ fn side(s: &Session, n: usize) -> Source {
 }
 
 /// Where the grip of side `n` sits on the plan.
-fn side_place(s: &Session, n: usize) -> Point {
+fn side_place(s: &Session, n: usize) -> Option<Point> {
     let list = s.display_list_for(Some(&form(s)));
 
     list.items
@@ -109,7 +109,6 @@ fn side_place(s: &Session, n: usize) -> Point {
             Shape::Circle { center, .. } => Some(*center),
             _ => None,
         })
-        .expect("side grip")
 }
 
 fn pull(s: &mut Session, n: usize, dx_m: f64, dy_m: f64) -> Result<(), ServiceError> {
@@ -322,7 +321,7 @@ fn a_turned_form_keeps_the_points_when_a_side_is_pulled() {
     turn(&mut s, 90.0);
     let before = places(&s);
 
-    let grip = side_place(&s, 2);
+    let grip = side_place(&s, 2).unwrap();
 
     pull(&mut s, 2, 2.0, 1.0).unwrap();
 
