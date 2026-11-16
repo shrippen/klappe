@@ -19,7 +19,7 @@ Den fünften Fund hat der Eigentümer nicht gewählt. Neu dazugekommen sind das 
 ## Funde
 
 ### 1. Die Beispielkopie wird an der Ablage vorbei beiseitegelegt, mit einer eigenen Regel für den freien Namen
-Lädt die Kopie des Beispiels nicht mehr, benennt die Sitzung den Ordner um und schreibt eine frische Kopie. Dieses Umbenennen macht die Sitzung selbst, direkt auf der Platte. `ARCHITECTURE.md` sagt aber: Nur die Ablage fasst die Dateien eines Projekts an. Die Ablage hat dafür eine eigene Funktion, die hier nicht benutzt wird.
+Lädt die Kopie des Beispiels nicht mehr, benennt die Sitzung den Ordner um und schreibt eine frische Kopie. Dieses Umbenennen macht die Sitzung selbst, direkt auf der Platte. `ARCHITECTURE.md` sagt aber: Nur die Ablage fasst die Dateien eines Projekts an. Die Ablage benennt intern selbst um, bietet dafür nach außen aber keine passende Funktion an.
 
 Dazu kommt: Für „Welcher Name neben dem Ordner ist noch frei?“ gibt es jetzt zwei Regeln. Die Sitzung hängt `.alt`, `.alt-2` … an und sucht ohne Obergrenze. Die Ablage (für das ZIP-Archiv, #195) hängt ` (2)`, ` (3)` … an und gibt nach 1000 Versuchen auf.
 
@@ -29,7 +29,7 @@ Vorschlag: Die Ablage bekommt eine Funktion „Ordner beiseitelegen“, die ihre
 
 Aufwand klein. Risiko gering: `crates/services/tests/example.rs` (auch für den zweiten freien Namen) und `crates/services/tests/folder.rs` laufen in diesem Audit grün. Ändert sich das Namensmuster, müssen diese Tests mitgeändert werden.
 
-Beleg: `crates/services/src/example.rs:46`, `crates/services/src/example.rs:62`, `crates/store/src/folder.rs:124`, `crates/store/src/files.rs:150`, `ARCHITECTURE.md:65`.
+Beleg: `crates/services/src/example.rs:46`, `crates/services/src/example.rs:62`, `crates/store/src/folder.rs:61`, `crates/store/src/files.rs:150`, `ARCHITECTURE.md:65`.
 
 ### 2. Die Regel für einen gültigen Projekttitel steht zweimal
 Ein Titel wird beim Anlegen eines Projekts und beim neuen Umbenennen auf der Startseite (#195) gleich geprüft: Leerzeichen am Rand weg, leer ist abgelehnt. Die Regel ist dafür zweimal Zeile für Zeile ausgeschrieben.
@@ -108,7 +108,7 @@ Vorschlag: Nichts umbauen. Beim nächsten Test für die Planfläche `tst_planare
 Beleg: `structure.baseline`, Commit `a8e2cb9`.
 
 ## Seit dem letzten Audit
-Seit dem zwölften Audit wurden zwölf PRs gemergt: #186 bis #197. Aus dem zwölften Audit hat der Eigentümer die Funde 1 bis 4 gewählt; alle vier sind behoben. Fund 5 hat er nicht gewählt.
+Seit dem zwölften Audit wurden elf PRs gemergt: #187 bis #197. Aus dem zwölften Audit hat der Eigentümer die Funde 1 bis 4 gewählt; alle vier sind behoben. Fund 5 hat er nicht gewählt.
 
 Zwölftes Audit:
 - **Fund 1 (Bild als gedrehtes Rechteck, Rechnungen abgeschrieben): behoben (#191).** Möbel und Bild beschreiben sich als `TurnedRect`. Lage der Griffe, Ziehen und Einrasten laufen für beide über dieselben Funktionen. Rest siehe neuer Fund 6. Beleg: `crates/model/src/geometry.rs:63`, `crates/model/src/project.rs:284`, `crates/model/src/project.rs:499`, `crates/services/src/plan_edit/moving.rs:254`, `crates/services/src/plan_edit/moving.rs:272`.
