@@ -51,6 +51,7 @@ fn mark(n: usize, at_s: f64, via: Option<Point>) -> Mark {
         pose: Pose::Standing,
         hold_s: 1.0,
         via: via.into_iter().collect(),
+        curve: Default::default(),
         arrival: Arrival::Walk,
         departure: Departure::Stay,
     }
@@ -91,6 +92,7 @@ fn camera(i: usize) -> Camera {
             tilt_deg: 0.0,
             hold_s: 0.0,
             via: Vec::new(),
+            curve: Default::default(),
             rig: Rig::default(),
             lens_mm: None,
         })

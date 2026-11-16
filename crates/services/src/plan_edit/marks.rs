@@ -2,11 +2,11 @@
 //! shown for them (hold and mark info apply to cameras too); a camera mark's rig and lens.
 
 use klappe_model::{
-    Arrival, CameraMark, Departure, FigureTrack, FloorPlan, Mark, Point, Pose, Rig,
+    Arrival, CameraMark, Curve, Departure, FigureTrack, FloorPlan, Mark, Point, Pose, Rig,
 };
 use klappe_stellprobe::{walked_ways, way_length_m, Source};
 
-use super::{bad_mark, current_index, figure_mark, Scope};
+use super::{bad_mark, current_index, figure_mark, set_camera_aim, PlanEdit, Scope};
 use crate::error::ServiceError;
 use crate::field::Field;
 
@@ -71,6 +71,8 @@ pub struct MarkInfo {
     pub has_way: bool,
     /// Speed along that way; `None` when it takes no time.
     pub pace_m_s: Option<f64>,
+    /// The way's shape (LH-108); `None` where the mark has no way.
+    pub curve: Option<Curve>,
 }
 
 /// Walking speed that sets the time of a new mark: an easy pace on set, 5 km/h.
@@ -83,11 +85,26 @@ const RUN_SPEED_M_S: f64 = 4.0;
 const MIN_SPEED_M_S: f64 = 0.1;
 const MAX_SPEED_M_S: f64 = 15.0;
 
-pub(super) fn set_pose(
-    scope: &mut Scope<'_>,
-    source: &Source,
-    pose: Pose,
-) -> Result<(), ServiceError> {
+/// The edits of one field of a mark: pose, arrival, departure, pause, aim, rig, lens, pace.
+pub(super) fn edit_field(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::SetPose { source, pose } => set_pose(scope, source, *pose),
+        PlanEdit::SetArrival { source, arrival } => set_arrival(scope, source, *arrival),
+        PlanEdit::SetDeparture { source, departure } => set_departure(scope, source, *departure),
+        PlanEdit::SetHold { source, hold_s } => set_hold(scope, source, *hold_s),
+        PlanEdit::SetRig { source, rig } => set_rig(scope, source, *rig),
+        PlanEdit::SetMarkLens { source, lens_mm } => set_mark_lens(scope, source, *lens_mm),
+        PlanEdit::SetPace { source, pace } => set_pace(scope, source, *pace),
+        PlanEdit::SetCameraAim {
+            source,
+            height_m,
+            tilt_deg,
+        } => set_camera_aim(scope, source, (*height_m, *tilt_deg)),
+        _ => Ok(()),
+    }
+}
+
+fn set_pose(scope: &mut Scope<'_>, source: &Source, pose: Pose) -> Result<(), ServiceError> {
     let (character, index) =
         figure_mark(scope, source).ok_or_else(|| bad_mark(Field::Source, ""))?;
     let mark = scope
@@ -103,7 +120,7 @@ pub(super) fn set_pose(
     Ok(())
 }
 
-pub(super) fn set_arrival(
+fn set_arrival(
     scope: &mut Scope<'_>,
     source: &Source,
     arrival: Arrival,
@@ -113,7 +130,7 @@ pub(super) fn set_arrival(
     Ok(())
 }
 
-pub(super) fn set_departure(
+fn set_departure(
     scope: &mut Scope<'_>,
     source: &Source,
     departure: Departure,
@@ -209,11 +226,7 @@ fn timing<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Timing<'a>, S
     Ok(Timing { marks, index })
 }
 
-pub(super) fn set_hold(
-    scope: &mut Scope<'_>,
-    source: &Source,
-    hold_s: f64,
-) -> Result<(), ServiceError> {
+fn set_hold(scope: &mut Scope<'_>, source: &Source, hold_s: f64) -> Result<(), ServiceError> {
     let mut timing = timing(scope, source)?;
     let index = timing.index;
     let delta_s = hold_s - *timing.marks[index].1;
@@ -246,17 +259,13 @@ fn camera_mark_mut<'a>(
         .ok_or(ServiceError::Gone)
 }
 
-pub(super) fn set_rig(
-    scope: &mut Scope<'_>,
-    source: &Source,
-    rig: Rig,
-) -> Result<(), ServiceError> {
+fn set_rig(scope: &mut Scope<'_>, source: &Source, rig: Rig) -> Result<(), ServiceError> {
     camera_mark_mut(scope, source)?.rig = rig;
 
     Ok(())
 }
 
-pub(super) fn set_mark_lens(
+fn set_mark_lens(
     scope: &mut Scope<'_>,
     source: &Source,
     lens_mm: Option<f64>,
@@ -294,11 +303,7 @@ pub(crate) fn check_tripods(before: &FloorPlan, after: &FloorPlan) -> Result<(),
     }
 }
 
-pub(super) fn set_pace(
-    scope: &mut Scope<'_>,
-    source: &Source,
-    pace: Pace,
-) -> Result<(), ServiceError> {
+fn set_pace(scope: &mut Scope<'_>, source: &Source, pace: Pace) -> Result<(), ServiceError> {
     let speed_m_s = pace.speed_m_s();
     if !(MIN_SPEED_M_S..=MAX_SPEED_M_S).contains(&speed_m_s) {
         return Err(bad_mark(Field::Pace, &speed_m_s.to_string()));
@@ -325,7 +330,7 @@ pub(super) fn set_pace(
     }
 
     // Arrive after the pause at the mark before and the walk along the way.
-    let walk_s = way_length_m(prev.at, &mark.via, mark.at) / speed_m_s;
+    let walk_s = way_length_m(prev.at, (&mark.via, mark.curve), mark.at) / speed_m_s;
     let delta_s = prev.at_s + prev.hold_s + walk_s - mark.at_s;
 
     timing(scope, source)?.shift_from(index, delta_s);
@@ -354,7 +359,7 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
                 .and_then(|prev| {
                     pace_to(
                         (prev.at, prev.at_s + prev.hold_s),
-                        (mark.at, &mark.via, mark.at_s),
+                        (mark.at, (&mark.via, mark.curve), mark.at_s),
                     )
                 });
 
@@ -369,9 +374,34 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
                 lens_mm: mark.lens_mm,
                 has_way: index > 0,
                 pace_m_s,
+                curve: (index > 0).then_some(mark.curve),
             })
         }
         _ => None,
+    }
+}
+
+/// The shape of the way `source` names: a mark, a figure or a camera (its mark at the
+/// playhead) or a grip on the way (LH-108); `None` for anything else and for a first mark.
+pub(crate) fn way_curve(plan: &FloorPlan, time_s: f64, source: &Source) -> Option<Curve> {
+    let at = |marks: Vec<Curve>, index: usize| marks.get(index).copied().filter(|_| index > 0);
+
+    match source {
+        Source::FigureVia {
+            character, index, ..
+        } => at(
+            plan.figure(character)?
+                .marks
+                .iter()
+                .map(|m| m.curve)
+                .collect(),
+            *index,
+        ),
+        Source::CameraVia { camera, index, .. } => at(
+            plan.camera(camera)?.marks.iter().map(|m| m.curve).collect(),
+            *index,
+        ),
+        _ => mark_info(plan, time_s, source)?.curve,
     }
 }
 
@@ -385,7 +415,7 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
         .and_then(|prev| {
             pace_to(
                 (prev.at, prev.at_s + prev.hold_s),
-                (mark.at, &mark.via, mark.at_s),
+                (mark.at, (&mark.via, mark.curve), mark.at_s),
             )
         });
 
@@ -400,12 +430,13 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
         lens_mm: None,
         has_way,
         pace_m_s,
+        curve: has_way.then_some(mark.curve),
     })
 }
 
 /// Speed of the way from where and when a mark is left to the next mark's place, bend and
 /// arrival; `None` when the way takes no time.
-fn pace_to(leave: (Point, f64), arrive: (Point, &[Point], f64)) -> Option<f64> {
+fn pace_to(leave: (Point, f64), arrive: (Point, (&[Point], Curve), f64)) -> Option<f64> {
     let walk_s = arrive.2 - leave.1;
     if walk_s <= 0.0 {
         return None;

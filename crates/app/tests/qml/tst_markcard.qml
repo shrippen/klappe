@@ -22,7 +22,8 @@ TestCase {
             pose: ["standing", "sitting", "lying"],
             arrival: ["walk", "appear"],
             departure: ["stay", "leave"],
-            rig: ["tripod", "dolly", "track", "crane", "handheld", "gimbal"]
+            rig: ["tripod", "dolly", "track", "crane", "handheld", "gimbal"],
+            curve: ["smooth", "straight"]
         })
         property var info: ({})
         property var poses: []
@@ -31,6 +32,7 @@ TestCase {
         property var aims: []
         property var rigs: []
         property var lenses: []
+        property var curves: []
         property var arrivals: []
         property var departures: []
         property bool poseOk: true
@@ -69,6 +71,10 @@ TestCase {
             departures.push(name)
             return true
         }
+        function setWayCurve(name) {
+            curves.push(name)
+            return true
+        }
         function setMarkPace(name) {
             paces.push(name)
             return paceOk
@@ -102,6 +108,7 @@ TestCase {
         fake.aimOk = true
         fake.rigs = []
         fake.lenses = []
+        fake.curves = []
         fake.rigOk = true
         fake.lensOk = true
     }
@@ -540,5 +547,27 @@ TestCase {
             verify(labels.indexOf(names[objectName]) >= 0, names[objectName] + " in " + labels)
             compare(findChild(card, objectName).Accessible.name, names[objectName])
         }
+    }
+
+    // LH-108: the shape of the way that leads to the mark.
+    function test_the_way_shape_shows_and_goes_to_the_controller() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark({ curve: "straight" })
+        const choice = findChild(card, "curveChoice")
+
+        verify(findChild(card, "curveRow").visible)
+        compare(choice.currentIndex, 1)
+
+        choice.select(0)
+
+        compare(fake.curves, ["smooth"])
+    }
+
+    function test_the_first_mark_has_no_way_shape() {
+        const card = createTemporaryObject(cardComponent, tc)
+
+        figureMark({ hasWay: false, curve: "" })
+
+        verify(!findChild(card, "curveRow").visible)
     }
 }

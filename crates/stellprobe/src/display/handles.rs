@@ -1,8 +1,8 @@
 //! The grips of the selected element: on the bends of a way, on the points of a drawing.
 
 use klappe_model::{
-    Drawing, DrawingShape, Extent, FloorPlan, ObjectShape, PlanImage, Point, Project, SetObject,
-    SetPlan,
+    Curve, Drawing, DrawingShape, Extent, FloorPlan, ObjectShape, PlanImage, Point, Project,
+    SetObject, SetPlan,
 };
 
 use super::objects::object_corners;
@@ -360,7 +360,7 @@ fn figure_handles(project: &Project, plan: &FloorPlan, character: &str) -> Vec<I
     let stops: Vec<_> = track
         .marks
         .iter()
-        .map(|m| (m.at, m.via.as_slice()))
+        .map(|m| (m.at, (m.via.as_slice(), m.curve)))
         .collect();
 
     // A way the figure does not walk has nothing to bend (LH-26).
@@ -388,7 +388,7 @@ fn camera_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
     let stops: Vec<_> = camera
         .marks
         .iter()
-        .map(|m| (m.at, m.via.as_slice()))
+        .map(|m| (m.at, (m.via.as_slice(), m.curve)))
         .collect();
 
     handle_places(&stops)
@@ -418,20 +418,22 @@ fn bend_shape(bend: Bend, center: Point) -> Shape {
 
 /// Mark index, kind and place of each grip of the ways: the bends, and halfway along each
 /// piece between them (a straight leg: its middle). The bends come last, so they are on top.
-fn handle_places(stops: &[(Point, &[Point])]) -> Vec<(usize, Bend, Point)> {
+fn handle_places(stops: &[(Point, (&[Point], Curve))]) -> Vec<(usize, Bend, Point)> {
     let mut grips = Vec::new();
 
     for (i, pair) in stops.windows(2).enumerate() {
-        let (a, (b, via)) = (pair[0].0, pair[1]);
+        let (a, (b, shape)) = (pair[0].0, pair[1]);
 
         grips.extend(
-            bend_grips(a, via, b)
+            bend_grips(a, shape, b)
                 .into_iter()
                 .enumerate()
                 .map(|(n, at)| (i + 1, Bend::New(n), at)),
         );
         grips.extend(
-            via.iter()
+            shape
+                .0
+                .iter()
                 .enumerate()
                 .map(|(n, at)| (i + 1, Bend::At(n), *at)),
         );

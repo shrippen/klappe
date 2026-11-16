@@ -679,5 +679,17 @@
  "export.pick.camera": "Kamerablick speichern",
  "export.filter.view3d": "PNG (*.png)",
  "export.filter.camera": "PNG (*.png)",
- "error.noPicture": "Es gibt kein Bild: Die 3D-Ansicht war noch nicht offen, oder die Kamera hat keine Marks."
+ "error.noPicture": "Es gibt kein Bild: Die 3D-Ansicht war noch nicht offen, oder die Kamera hat keine Marks.",
+ "arm.nextMark": "Nächsten Mark setzen",
+ "arm.markBefore": "Mark davor setzen",
+ "arm.axisTo": "Achse zu …",
+ "arm.hint.nextMark": "Klick auf den Plan setzt den nächsten Mark. Esc bricht ab.",
+ "arm.hint.markBefore": "Klick auf den Plan setzt einen Mark vor den ersten. Esc bricht ab.",
+ "arm.hint.axisTo": "Klick auf die zweite Figur setzt die Achse. Esc bricht ab.",
+ "way.smooth": "Weg weich",
+ "way.straight": "Weg gerade",
+ "curve.smooth": "Weich",
+ "curve.straight": "Gerade",
+ "mark.curve": "Weg",
+ "mark.curveTip": "Weich: Kurve durch die Knicke. Gerade: Strecken von Knick zu Knick, mit Ecken"
 }
