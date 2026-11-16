@@ -860,6 +860,6 @@
  "step.RemoveView": "Delete view",
  "step.AddSketch": "Draw sketch",
  "step.ClearSketches": "Clear sketches",
- "ctx.fadeLayer": "Fade layer {layer}",
+ "ctx.fadeLayer": "Fade layer {layer}: {now} % → {next} %",
  "hint.sketch": "Drag draws with the sketch pen."
 }

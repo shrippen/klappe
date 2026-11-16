@@ -860,6 +860,6 @@
  "step.RemoveView": "Ansicht löschen",
  "step.AddSketch": "Skizze zeichnen",
  "step.ClearSketches": "Skizzen löschen",
- "ctx.fadeLayer": "Ebene {layer} abblenden",
+ "ctx.fadeLayer": "Ebene {layer} abblenden: {now} % → {next} %",
  "hint.sketch": "Ziehen zeichnet mit dem Skizzenstift."
 }

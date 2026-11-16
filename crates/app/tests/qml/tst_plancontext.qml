@@ -19,8 +19,9 @@ TestCase {
         property string planJson: ""
         property string selectedKey: ""
         property int selectedCount: 0
-        property string choicesJson: ""
         property string layersJson: "{}"
+        property string fadesJson: "{}"
+        property string choicesJson: JSON.stringify({ fade: ["100", "60", "30"], layer: ["set", "figures", "cameras", "lights", "notes", "drawings"] })
         property string locksJson: "{}"
         property bool canUndo: true
         property bool canRedo: false
@@ -103,6 +104,7 @@ TestCase {
         fake.selectedKey = ""
         fake.selectedCount = 0
         fake.layersJson = "{}"
+        fake.fadesJson = "{}"
         fake.locksJson = "{}"
         fake.canUndo = true
         fake.canRedo = false
@@ -238,6 +240,21 @@ TestCase {
                              ["lock", "cameras", "locked"], ["fade", "cameras"], ["layer", "cameras", "hidden"]])
     }
 
+    // The entry says the level of the layer and the one a click brings.
+    function test_the_fade_entry_names_the_level_and_the_next() {
+        const area = made()
+        fake.fadesJson = JSON.stringify({ cameras: "60", set: "30" })
+        open(area, "camera:a")
+        compare(findChild(area, "ctxFadeLayer").text, "Ebene Kameras abblenden: 60 % → 30 %")
+
+        open(area, "object:o1")
+        compare(findChild(area, "ctxFadeLayer").text, "Ebene Set abblenden: 30 % → 100 %")
+
+        fake.fadesJson = "{}"
+        open(area, "object:o1")
+        compare(findChild(area, "ctxFadeLayer").text, "Ebene Set abblenden: 100 % → 60 %")
+    }
+
     function test_a_note_is_edited_from_its_menu() {
         const area = made()
         open(area, "note:n1")
@@ -346,6 +363,48 @@ TestCase {
     }
 
     // The arm keys work in 3D too: the hint says what the click does there as well.
+    function apart(area, a, b) {
+        const p = a.mapToItem(area, 0, 0)
+        const q = b.mapToItem(area, 0, 0)
+        return p.y + a.height <= q.y || q.y + b.height <= p.y || p.x + a.width <= q.x || q.x + b.width <= p.x
+    }
+
+    // The bottom of the plan as a whole, in 3D through a camera: the hint line, the label that
+    // says how to leave the camera, and the card of the tool do not lie over one another.
+    function test_the_hint_line_the_through_label_and_the_cards_keep_apart() {
+        const area = made("note")
+        area.toolHint = "Klick setzt eine Notiz. Das Werkzeug bleibt für weitere aktiv, Esc wählt die Auswahl."
+        fake.viewFree = true
+        fake.asksNote = true
+        const through = findChild(area, "freeThrough")
+        findChild(area, "freeView").look = "camera"
+        waitForRendering(area)
+        const line = findChild(area, "hintLine")
+        const card = findChild(area, "noteCard")
+        verify(line.visible && through.visible && card.visible)
+
+        verify(apart(area, line, through), "hint over the label")
+        verify(apart(area, line, card), "hint over the card")
+        verify(apart(area, through, card), "label under the card")
+    }
+
+    // The tool hints that do nothing in 3D stay away there; an armed click works in both.
+    function test_the_sketch_hint_is_not_shown_in_3d() {
+        const area = made("sketch")
+        area.toolHint = "Ziehen zeichnet mit dem Skizzenstift."
+        const line = findChild(area, "hintLine")
+        verify(line.visible)
+
+        fake.viewFree = true
+        verify(!line.visible)
+        area.tool = "wall"
+        area.toolHint = "Ziehen zeichnet eine Wand."
+        verify(line.visible)
+        area.tool = "sketch"
+        fake.armed = "nextMark"
+        verify(line.visible)
+    }
+
     function test_the_hint_line_shows_in_the_free_view() {
         const area = made("select")
         fake.viewFree = true

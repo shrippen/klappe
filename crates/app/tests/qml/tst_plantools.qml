@@ -765,6 +765,7 @@ TestCase {
             box.currentIndex = index
             box.activated(index)
         }
+        fake.choicesJson = JSON.stringify(Object.assign({}, fake.choices, { cameras: fake.choices.cameras.concat([{ id: "c", label: "C" }]) }))
         fake.choicesJson = JSON.stringify(Object.assign({}, fake.choices, { figure: fake.choices.figure.slice() }))
 
         for (const [name, tool, index, value] of picks) {

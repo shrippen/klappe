@@ -25,6 +25,10 @@ Item {
         if (controller.armed) {
             return texts.t("arm.hint." + controller.armed)
         }
+        // The sketch pen draws on the plan only: in 3D its drag does nothing.
+        if (free && tool === "sketch") {
+            return ""
+        }
         return tool === "select" ? "" : toolHint
     }
     /// Escape, with nothing else to end, goes back to the select tool (LH-101).
@@ -120,6 +124,7 @@ Item {
         objectName: "freeView"
         anchors.fill: parent
         visible: area.free && area.plan !== null
+        cardsLift: hintLine.cardsHeight > 0 ? hintLine.cardsHeight + Kirigami.Units.largeSpacing : 0
         texts: area.texts
         controller: area.controller
     }
@@ -267,8 +272,9 @@ Item {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.margins: Kirigami.Units.largeSpacing
-        // The cards of the tools lie at the bottom, in the middle: the hint stands above them.
-        anchors.bottomMargin: Kirigami.Units.largeSpacing + (cardsHeight > 0 ? cardsHeight + Kirigami.Units.largeSpacing : 0)
+        // The cards of the tools lie at the bottom, in the middle, and the 3D view's label at
+        // the left: the hint stands above them.
+        anchors.bottomMargin: Kirigami.Units.largeSpacing + freeView.cardsLift + (area.free ? freeView.throughHeight : 0)
         readonly property real cardsHeight: Math.max(lengthCard.visible ? lengthCard.height : 0,
                                                      noteCard.visible ? noteCard.height : 0,
                                                      measureCard.visible ? measureCard.height : 0)

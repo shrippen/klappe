@@ -39,6 +39,12 @@ QQC2.Menu {
     readonly property string layer: info.layer || ""
     readonly property string layerName: layer === "" ? "" : texts.t("layer." + layer)
 
+    // Fade (LH-15): the level of the layer, and the one a click brings.
+    readonly property var _fades: controller.fadesJson ? JSON.parse(controller.fadesJson) : ({})
+    readonly property var _fadeSteps: controller.choicesJson ? (JSON.parse(controller.choicesJson).fade || []) : []
+    readonly property string fade: _fades[layer] || "100"
+    readonly property string nextFade: _fadeSteps.length > 0 ? _fadeSteps[(_fadeSteps.indexOf(fade) + 1) % _fadeSteps.length] : fade
+
     readonly property var _shown: controller.layersJson ? JSON.parse(controller.layersJson) : ({})
     readonly property var _locks: controller.locksJson ? JSON.parse(controller.locksJson) : ({})
     /// The layers empty ground offers to bring back: locked ones, then hidden ones.
@@ -155,7 +161,7 @@ QQC2.Menu {
     KanteMenuItem {
         objectName: "ctxFadeLayer"
         visible: menu.layer !== ""
-        text: menu.texts.t("ctx.fadeLayer", { layer: menu.layerName })
+        text: menu.texts.t("ctx.fadeLayer", { layer: menu.layerName, now: menu.fade, next: menu.nextFade })
         onTriggered: menu.controller.cycleFade(menu.layer)
     }
     KanteMenuItem {
