@@ -351,9 +351,11 @@ RowLayout {
         onToggled: header.controller.toggleView()
     }
     // What the 3D view has on, as words (`freeLook`): "cut", "camera". It asks again whenever the
-    // 3D picture is made again.
+    // 3D picture is made again, and after any change of the session (another plan, undo): those
+    // can end the look through a camera without a 3D command.
     readonly property string look: {
         header.controller.freeRevision
+        header.controller.pictureRevision
         header.controller.viewFree
         return typeof header.controller.freeLook === "function" ? header.controller.freeLook("") : ""
     }

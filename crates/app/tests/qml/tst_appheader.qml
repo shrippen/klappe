@@ -25,7 +25,9 @@ TestCase {
         property bool hasBackground: false
         property bool viewFree: false
         property int freeRevision: 0
-        property string look: ""
+        property int pictureRevision: 0
+        // Not a property: reading one would bind the header to it, as the real call does not.
+        readonly property var state: ({ look: "" })
         property int missingHeights: 0
         property var calls: []
         property var scenes: [
@@ -59,13 +61,13 @@ TestCase {
             if (command !== "") {
                 call("freeLook", [command])
                 if (command === "camera" && refuseCamera) {
-                    return look
+                    return state.look
                 }
-                const on = look.split(" ").filter(w => w !== "")
-                look = on.includes(command) ? on.filter(w => w !== command).join(" ") : on.concat([command]).join(" ")
+                const on = state.look.split(" ").filter(w => w !== "")
+                state.look = on.includes(command) ? on.filter(w => w !== command).join(" ") : on.concat([command]).join(" ")
                 freeRevision++
             }
-            return look
+            return state.look
         }
         function nextMissingHeight() { return call("nextMissingHeight", []) }
     }
@@ -701,6 +703,17 @@ TestCase {
         header.run("view.through")
         verify(!entry(header, "viewMenu", "through").checked)
         compare(header.commandPalette.commands.find(c => c.id === "view.through").text, "Durch Kamera sehen")
+    }
+
+    // A plan change ends the look without a 3D command: the entry follows `pictureRevision`.
+    function test_the_entry_unchecks_when_the_plan_changes() {
+        const header = make()
+        keyClick(Qt.Key_J)
+        pick(header, "viewMenu", "through")
+        verify(entry(header, "viewMenu", "through").checked)
+        fake.state.look = ""
+        fake.pictureRevision++
+        verify(!entry(header, "viewMenu", "through").checked)
     }
 
     // No shot, no camera or none with marks: the look stays off, so the entry does too.

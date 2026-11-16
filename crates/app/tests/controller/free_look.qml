@@ -83,6 +83,22 @@ Item {
             if (ctl.freeLook("") !== "cut") {
                 return fail("a turn did not leave the camera: " + ctl.freeLook(""))
             }
+
+            // Another plan shows: the look ended with the old one, and stays ended.
+            ctl.freeLook("camera")
+            if (ctl.freeLook("") !== "cut camera") {
+                return fail("the camera look did not start again: " + ctl.freeLook(""))
+            }
+            revision = ctl.pictureRevision
+            if (!ctl.addPlan("Leer")) {
+                return fail("the plan was not added")
+            }
+            if (ctl.pictureRevision === revision) {
+                return fail("the header is not told that the plan changed")
+            }
+            if (ctl.freeLook("").split(" ").includes("camera")) {
+                return fail("a new plan kept the look: " + ctl.freeLook(""))
+            }
             Qt.exit(0)
         }
     }
