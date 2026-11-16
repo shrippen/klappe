@@ -3,7 +3,8 @@
 
 use std::path::Path;
 
-use klappe_services::{Cut, Session, Source, View};
+use klappe_model::Point;
+use klappe_services::{Cut, PlanEdit, Session, Source, View};
 
 const EXAMPLE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -250,4 +251,60 @@ fn the_camera_looked_through_is_not_drawn() {
     assert!(s.look_through(Some("a")));
 
     assert!(!drawn(&s));
+}
+
+type Leave = fn(&mut Session);
+
+/// The look through a camera belongs to the plan it began on: elsewhere, or without the
+/// camera, the view is the orbit again.
+#[test]
+fn the_look_ends_when_the_plan_or_the_camera_goes() {
+    let leaves: [(&str, Leave); 4] = [
+        ("add_plan", |s| {
+            s.add_plan("Leer").unwrap();
+        }),
+        ("copy_plan", |s| {
+            s.copy_plan("").unwrap();
+        }),
+        ("remove camera", |s| {
+            s.edit_plan(PlanEdit::Remove {
+                source: Source::Camera("c".into()),
+            })
+            .unwrap();
+        }),
+        ("undo creation", |s| {
+            s.undo();
+        }),
+    ];
+
+    for (name, leave) in leaves {
+        let mut s = example();
+        s.toggle_view();
+        s.edit_plan(PlanEdit::AddCamera {
+            at: Point::new(2.0, 2.0),
+            facing_deg: 0.0,
+        })
+        .unwrap();
+        assert!(s.look_through(Some("c")), "{name}");
+
+        leave(&mut s);
+
+        assert!(!s.looks_through(), "{name}");
+        assert!(s.free_picture(SIZE).is_some(), "{name}");
+    }
+}
+
+/// Another plan of the scene is not looked through, though it has a camera of that id.
+#[test]
+fn choosing_another_plan_ends_the_look() {
+    let mut s = example();
+    let first = s.plan().unwrap().id.clone();
+    s.copy_plan("").unwrap();
+    s.toggle_view();
+    assert!(s.look_through(Some("a")));
+
+    s.select_plan(&first).unwrap();
+
+    assert!(!s.looks_through());
+    assert!(s.free_picture(SIZE).is_some());
 }

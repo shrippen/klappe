@@ -16,7 +16,7 @@ use klappe_stellprobe::{
     Orbit, Picture, Source,
 };
 
-use super::Session;
+use super::{Session, Through};
 use crate::library;
 
 /// Which view of the set the window shows.
@@ -61,7 +61,16 @@ impl Session {
 
     /// Whether the 3D view looks through a camera of the plan.
     pub fn looks_through(&self) -> bool {
-        self.through.is_some()
+        self.through_camera().is_some()
+    }
+
+    /// The camera looked through, while its plan is on view and it still has marks.
+    fn through_camera(&self) -> Option<&str> {
+        let through = self.through.as_ref()?;
+        let on_view = self.scene()?.id == through.scene && self.plan()?.id == through.plan;
+        let camera = self.plan()?.camera(&through.camera)?;
+
+        (on_view && !camera.marks.is_empty()).then_some(through.camera.as_str())
     }
 
     /// In 3D, looks through the camera of the selected shot, else through `fallback` (the
@@ -72,7 +81,8 @@ impl Session {
         if self.view != View::Free {
             return false;
         }
-        if self.through.take().is_some() {
+        if self.through_camera().is_some() {
+            self.through = None;
             return false;
         }
 
@@ -85,7 +95,13 @@ impl Session {
             return false;
         }
 
-        self.through = camera;
+        self.through = camera
+            .zip(self.scene().zip(self.plan()))
+            .map(|(camera, (s, p))| Through {
+                scene: s.id.clone(),
+                plan: p.id.clone(),
+                camera,
+            });
 
         true
     }
@@ -205,9 +221,9 @@ impl Session {
         (width > 0.0 && height > 0.0).then_some(())?;
 
         let aspect = width / height;
-        if let Some(camera) = &self.through {
+        if let Some(camera) = self.through_camera() {
             return Some(Eye::Shot {
-                camera: camera.clone(),
+                camera: camera.to_owned(),
                 t_s: self.time_s,
                 aspect: Some(aspect),
             });
