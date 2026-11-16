@@ -349,3 +349,97 @@ fn a_scene_version_with_the_letter_of_its_camera_stays_a_version() {
     let all = numbers(&s);
     assert!(all.iter().any(|n| n.ends_with("-A")), "{all:?}");
 }
+
+/// A shot added in the group scheme and numbered again stays a shot of its own.
+#[test]
+fn a_shot_added_in_group_is_no_version_after_renumbering() {
+    let (mut s, _) = open("numbering-reviewer");
+    scheme(&mut s, Numbering::Group);
+    s.set_time(0.0);
+    s.add_shot(Some("b")).unwrap();
+
+    s.renumber_shots().unwrap();
+
+    let all = numbers(&s);
+    assert!(all.contains(&"12.1A".to_owned()), "{all:?}");
+    assert!(all.contains(&"12.1B".to_owned()), "{all:?}");
+    assert!(all.iter().all(|n| !n.contains('-')), "{all:?}");
+}
+
+/// Versions on both cameras go through every scheme and back without changing what they are.
+#[test]
+fn versions_on_several_cameras_survive_every_scheme_change() {
+    let (mut s, _) = open("numbering-all");
+    s.version_shot("s12-1").unwrap();
+    s.version_shot("s12-3").unwrap();
+    s.version_shot("s12-3").unwrap();
+    let was = |s: &Session| -> Vec<(String, String)> {
+        s.shots().into_iter().map(|r| (r.id, r.camera)).collect()
+    };
+    let before = was(&s);
+
+    let schemes = [Numbering::Camera, Numbering::Group, Numbering::Scene];
+    for round in schemes
+        .iter()
+        .chain(&[Numbering::Group, Numbering::Camera, Numbering::Scene])
+    {
+        scheme(&mut s, *round);
+        s.renumber_shots().unwrap();
+        let all = numbers(&s);
+        let versions = all
+            .iter()
+            .filter(|n| {
+                n.ends_with(char::is_uppercase) && *round == Numbering::Scene || n.contains('-')
+            })
+            .count();
+        assert_eq!(all.len(), 8, "{round:?} {all:?}");
+        assert_eq!(versions, 3, "{round:?} {all:?}");
+    }
+
+    assert_eq!(was(&s), before);
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.1A", "12.2", "12.3", "12.3A", "12.3B", "12.4", "12.5"]
+    );
+}
+
+/// A scene number with a letter does not confuse any scheme.
+#[test]
+fn a_scene_number_with_a_letter_numbers_every_scheme() {
+    let (mut s, _) = open("numbering-12a");
+    s.edit_project(ProjectEdit::EditScene {
+        id: "szene-012".into(),
+        number: "12A".into(),
+        heading: s.scene().unwrap().heading.clone(),
+        location: s.scene().unwrap().location.clone(),
+    })
+    .unwrap();
+    s.version_shot("s12-3").unwrap();
+
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12A.1", "12A.2", "12A.3", "12A.3A", "12A.4", "12A.5"]
+    );
+
+    scheme(&mut s, Numbering::Camera);
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12AA.1", "12AA.2", "12AB.1", "12AB.1-A", "12AB.2", "12AA.3"]
+    );
+
+    scheme(&mut s, Numbering::Group);
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12A.1A", "12A.2A", "12A.2B", "12A.2B-A", "12A.3B", "12A.4A"]
+    );
+
+    scheme(&mut s, Numbering::Scene);
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12A.1", "12A.2", "12A.3", "12A.3A", "12A.4", "12A.5"]
+    );
+}
