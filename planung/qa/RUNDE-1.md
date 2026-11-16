@@ -91,7 +91,7 @@ nachzuspielen.
   Erwartet: Name und Einheit an jedem Feld (D-04).
 - **Beleg:** P5 `shot-013`; P2 `shot-025`, `shot-038`; P1 `shot-030`
 - **Nachgeprüft:** ja (`check/shot-004`, `check/shot-007`)
-- **Status:** offen
+- **Status:** gewählt
 
 ### Q1-04 Karte am Element bleibt offen und verdeckt den Plan
 - **Art:** Reibung · **Stufe:** mittel

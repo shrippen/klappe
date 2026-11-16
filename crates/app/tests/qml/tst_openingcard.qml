@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml"
+import "FieldLabels.js" as FieldLabels
 
 // The door and window section of the selection card (LH-10, LH-90, D-04): width, sill and head
 // as fields.
@@ -272,5 +273,14 @@ TestCase {
 
         fake.selectedKey = "opening:0:1"
         verify(!findChild(card, "swingRow").visible)
+    }
+
+    // Q2-03: the width field is named by a label above it, not by a placeholder.
+    function test_the_width_has_a_visible_label() {
+        const card = make()
+        fake.selectedKey = "opening:2:0"
+
+        verify(FieldLabels.of(card).indexOf("Breite (m)") >= 0, FieldLabels.of(card))
+        compare(findChild(card, "openingWidthField").Accessible.name, "Breite (m)")
     }
 }
