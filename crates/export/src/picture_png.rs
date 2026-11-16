@@ -135,7 +135,7 @@ mod tests {
         let pal = palette(Theme::Light).unwrap();
         let wall = scene_style(SceneRole::Wall, pal).unwrap();
 
-        let file = write(&row(), Theme::Light).unwrap();
+        let file = write(&row(), Theme::Light, &|_| 1.0).unwrap();
         let rgb = png::parse(&file).unwrap().rgb_over(pal.paper).unwrap();
 
         let pixel = |i: usize| Rgb {
