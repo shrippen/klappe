@@ -1,7 +1,8 @@
 //! The grips of the selected element: on the bends of a way, on the points of a drawing.
 
 use klappe_model::{
-    Drawing, DrawingShape, FloorPlan, ObjectShape, PlanImage, Point, Project, SetObject, SetPlan,
+    Drawing, DrawingShape, Extent, FloorPlan, ObjectShape, PlanImage, Point, Project, SetObject,
+    SetPlan,
 };
 
 use super::objects::object_corners;
@@ -138,14 +139,12 @@ const OBJECT_GRIP_GAP_M: f64 = 0.45;
 /// bottom edge, turned with the object; a free form's point sits on the point, where it lies
 /// on the plan (the object's centre for a point the form does not have).
 pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
-    let (x_m, y_m) = match grip {
-        ObjectGrip::Width => (object.width_m / 2.0 + OBJECT_GRIP_GAP_M, 0.0),
-        ObjectGrip::Depth => (0.0, object.depth_m / 2.0 + OBJECT_GRIP_GAP_M),
-        ObjectGrip::Point(n) => return form_point_place(object, n),
-        ObjectGrip::Side(n) => return form_side_place(object, n),
-    };
-
-    object.placed(x_m, y_m)
+    match grip {
+        ObjectGrip::Width => object.rect().grip_place(Extent::Width, OBJECT_GRIP_GAP_M),
+        ObjectGrip::Depth => object.rect().grip_place(Extent::Depth, OBJECT_GRIP_GAP_M),
+        ObjectGrip::Point(n) => form_point_place(object, n),
+        ObjectGrip::Side(n) => form_side_place(object, n),
+    }
 }
 
 /// Where point `index` of a free form lies on the plan, stretched to the object's size and
@@ -266,7 +265,7 @@ fn note_handles(set: &SetPlan, id: &str) -> Vec<Item> {
 /// Where the size grip of `image` sits: just outside the middle of its right edge, turned
 /// with the image, as far off as an object's grips.
 pub fn image_grip_place(image: &PlanImage) -> Point {
-    image.placed(image.width_m / 2.0 + OBJECT_GRIP_GAP_M, 0.0)
+    image.rect().grip_place(Extent::Width, OBJECT_GRIP_GAP_M)
 }
 
 /// The size grip of image `id`.

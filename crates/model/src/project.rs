@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::geometry::Point;
+use crate::geometry::{Point, TurnedRect};
 use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
 use crate::plan::FloorPlan;
@@ -279,10 +279,20 @@ fn is_full_opacity(opacity: &f64) -> bool {
 }
 
 impl PlanImage {
-    /// The point `(x_m, y_m)` of the image's own frame (origin at its centre, unturned) where
-    /// it lies on the plan: turned by `rotation_deg` about the centre.
+    /// The image as a rectangle; its depth is not known to the model, so 0: only the width
+    /// (its grip, its edge, stretching it) may be asked of it.
+    pub fn rect(&self) -> TurnedRect {
+        TurnedRect {
+            at: self.at,
+            width_m: self.width_m,
+            depth_m: 0.0,
+            rotation_deg: self.rotation_deg,
+        }
+    }
+
+    /// The point `(x_m, y_m)` of the image's own frame where it lies on the plan.
     pub fn placed(&self, x_m: f64, y_m: f64) -> Point {
-        Point::new(self.at.x_m + x_m, self.at.y_m + y_m).turned(self.at, self.rotation_deg)
+        self.rect().placed(x_m, y_m)
     }
 }
 
@@ -485,10 +495,19 @@ pub struct SetObject {
 }
 
 impl SetObject {
-    /// The point `(x_m, y_m)` of the object's own frame (origin at its centre, unturned)
-    /// where it lies on the plan: turned by `rotation_deg` about the centre.
+    /// The object as a rectangle.
+    pub fn rect(&self) -> TurnedRect {
+        TurnedRect {
+            at: self.at,
+            width_m: self.width_m,
+            depth_m: self.depth_m,
+            rotation_deg: self.rotation_deg,
+        }
+    }
+
+    /// The point `(x_m, y_m)` of the object's own frame where it lies on the plan.
     pub fn placed(&self, x_m: f64, y_m: f64) -> Point {
-        Point::new(self.at.x_m + x_m, self.at.y_m + y_m).turned(self.at, self.rotation_deg)
+        self.rect().placed(x_m, y_m)
     }
 }
 
