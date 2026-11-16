@@ -569,6 +569,41 @@ fn the_pdf_has_camera_pages_with_captions() {
     assert!(text.contains(" f\n") || text.contains(" B\n"));
 }
 
+/// Camera pages take the paper in the page's orientation: all pages of the PDF share one size.
+#[test]
+fn camera_pages_follow_the_orientation() {
+    let plan = plan(1);
+    let views = shot_views(&plan);
+    for (orientation, size) in [
+        (Orientation::Portrait, A4_PORTRAIT_PT),
+        (Orientation::Landscape, A4_LANDSCAPE_PT),
+    ] {
+        let mut page = page();
+        page.orientation = orientation;
+
+        let bytes = pdf_with_views(
+            &list(&plan),
+            &page,
+            Theme::Light,
+            &plan,
+            ShotOrder::Cut,
+            &views,
+        )
+        .unwrap();
+
+        let text = String::from_utf8_lossy(&bytes);
+        let with_views = pages(&bytes);
+        let without = pages(
+            &pdf_with_shots(&list(&plan), &page, Theme::Light, &plan, ShotOrder::Cut).unwrap(),
+        );
+        assert!(with_views > without, "{with_views} pages");
+        assert_eq!(
+            text.matches(&format!("/MediaBox {size}")).count(),
+            with_views
+        );
+    }
+}
+
 /// No view, no page: a plan without camera views prints as before.
 #[test]
 fn without_views_the_pdf_has_no_camera_pages() {
