@@ -7,6 +7,8 @@ use cxx_qt_lib::{QQmlApplicationEngine, QString, QUrl};
 use std::path::{Path, PathBuf};
 
 const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+/// The copy of the example `image_pick.qml` opens, inside the scenarios' folder.
+const IMAGE_PROJECT: &str = "bild-projekt";
 /// Where the width sits in a PNG file; the height follows.
 const PNG_WIDTH_AT: usize = 16;
 
@@ -20,6 +22,42 @@ fn scenarios() -> Vec<PathBuf> {
     found.sort();
 
     found
+}
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+            continue;
+        }
+        std::fs::copy(entry.path(), target).unwrap();
+    }
+}
+
+/// The example, copied for `image_pick.qml`: placing an image writes into `bilder/`, which must
+/// not happen in `testdata`.
+fn copy_example(base: &Path) {
+    let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+
+    copy_dir(&example, &base.join(IMAGE_PROJECT));
+}
+
+/// What `image_pick.qml` picked lies in the copy's `bilder/`, byte for byte, both files.
+fn check_picked_images(base: &Path) {
+    let testdata = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
+
+    for name in ["skizze.png", "skizze2.png"] {
+        let copied = std::fs::read(base.join(IMAGE_PROJECT).join("bilder").join(name));
+
+        assert_eq!(
+            copied.unwrap_or_default(),
+            std::fs::read(testdata.join(name)).unwrap(),
+            "{name} is not in bilder/"
+        );
+    }
 }
 
 /// Letter portrait is 612 by 792 pt.
@@ -77,6 +115,7 @@ fn controller_scenarios_hold() {
     // `tests/controller/export_to.qml` writes here; a run that stopped early may have left it.
     let base = std::env::temp_dir().join("klappe-export-test");
     let _ = std::fs::remove_dir_all(&base);
+    copy_example(&base);
 
     for file in scenarios() {
         let mut engine = QQmlApplicationEngine::new();
@@ -107,6 +146,7 @@ fn controller_scenarios_hold() {
 
     if failed.is_empty() {
         check_list_exports(&base);
+        check_picked_images(&base);
     }
     let _ = std::fs::remove_dir_all(&base);
 

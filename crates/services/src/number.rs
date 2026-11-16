@@ -15,6 +15,7 @@ pub enum Unit {
     Degree,
     Watt,
     Kelvin,
+    Percent,
 }
 
 impl Unit {
@@ -28,6 +29,7 @@ impl Unit {
             Self::Degree => "°",
             Self::Watt => "W",
             Self::Kelvin => "K",
+            Self::Percent => "%",
         }
     }
 }

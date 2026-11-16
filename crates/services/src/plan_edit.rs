@@ -38,7 +38,7 @@ use drawings::set_drawing_style;
 pub(crate) use grid::snap;
 pub use grid::Grid;
 use heights::edit_height;
-use images::add_image;
+use images::edit_image;
 pub(crate) use marks::{check_tripods, mark_info};
 use marks::{set_arrival, set_departure, set_hold, set_mark_lens, set_pace, set_pose, set_rig};
 pub use marks::{MarkInfo, Pace};
@@ -218,6 +218,18 @@ pub enum PlanEdit {
         source: PathBuf,
         at: Point,
     },
+    /// Gives the image `source` names another opacity (`MIN_IMAGE_OPACITY` to 1).
+    SetImageOpacity {
+        source: Source,
+        opacity: f64,
+    },
+    /// Swaps the file of the image `source` names for the image file `with` (PNG or JPEG),
+    /// copied into `bilder/`; place, width, turn and opacity stay. Undo gives the old file
+    /// back; both copies stay in `bilder/`.
+    ReplaceImage {
+        source: Source,
+        with: PathBuf,
+    },
     /// Changes the text of the note `id`.
     EditNote {
         id: String,
@@ -370,6 +382,8 @@ impl PlanEdit {
             | PlanEdit::SetOpeningHead { source, .. }
             | PlanEdit::SetPace { source, .. }
             | PlanEdit::SetDrawingStyle { source, .. }
+            | PlanEdit::SetImageOpacity { source, .. }
+            | PlanEdit::ReplaceImage { source, .. }
             | PlanEdit::Remove { source }
             | PlanEdit::Straighten { source } => layer_of_source(source),
             PlanEdit::ShiftGroup { sources, .. }
@@ -535,7 +549,9 @@ pub(crate) fn apply(
             fill,
         } => set_drawing_style(&mut scope, source, (*color, *dash, *fill)),
         PlanEdit::EditNote { id, text } => edit_note(&mut scope, id, text),
-        PlanEdit::AddImage { source, at } => add_image(&mut scope, dir, source, *at),
+        PlanEdit::AddImage { .. }
+        | PlanEdit::SetImageOpacity { .. }
+        | PlanEdit::ReplaceImage { .. } => edit_image(&mut scope, dir, edit),
         PlanEdit::SetBackground { source } => set_background(&mut scope, dir, source),
         PlanEdit::Calibrate {
             from,

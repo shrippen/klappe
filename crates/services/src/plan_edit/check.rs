@@ -83,6 +83,8 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetRig { .. }
         | PlanEdit::SetPace { .. }
         | PlanEdit::SetDrawingStyle { .. }
+        | PlanEdit::SetImageOpacity { .. }
+        | PlanEdit::ReplaceImage { .. }
         // `set_light` checks its change itself.
         | PlanEdit::SetLight { .. }
         // `add_shape` checks its outline itself.

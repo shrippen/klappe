@@ -144,7 +144,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `id` (`i1`, `i2` …, innerhalb des Drehorts), `file` (relativ zum Projektordner, die Datei liegt
   in `bilder/`, PNG oder JPEG wie beim Hintergrund), die Mitte `at` in Metern, die Breite
   `width_m` in Metern (zwischen 0,05 und 1000, sonst lädt der Drehort nicht) und `rotation_deg`
-  im Uhrzeigersinn um die Mitte (0 wird nicht geschrieben). Die Höhe folgt aus dem
+  im Uhrzeigersinn um die Mitte (0 wird nicht geschrieben) und `opacity` (Deckkraft, 0,1 bis 1;
+  fehlt sie, gilt 1, und 1 wird nicht geschrieben; ein Wert außerhalb lädt nicht). Die Höhe folgt aus dem
   Seitenverhältnis des Bildes. Ein Bild liegt auf der Ebene der Notizen. Fehlt die Datei, zeigt
   der Plan einen leeren Rahmen (4:3) mit dem Dateinamen; das Bild bleibt im Projekt. Fehlt der
   Abschnitt, gibt es keine Bilder; ohne Bilder wird er nicht geschrieben. Keine neue

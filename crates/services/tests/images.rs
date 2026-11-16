@@ -119,6 +119,7 @@ fn adds_an_image_copies_its_file_and_undoes_in_one_step() {
             at: p(10.0, 3.0),
             width_m: 2.0,
             rotation_deg: 0.0,
+            opacity: 1.0,
         }]
     );
     assert!(dir.join(FILE).is_file());
@@ -191,7 +192,13 @@ fn a_click_takes_the_image_and_a_box_takes_it_whole() {
 fn the_tooltip_names_the_file() {
     let (s, _) = with_image("img-hint");
 
-    assert_eq!(s.image_hint("i1"), Some(Hint::Image { file: FILE.into() }));
+    assert_eq!(
+        s.image_hint("i1"),
+        Some(Hint::Image {
+            file: FILE.into(),
+            opacity: 1.0
+        })
+    );
     assert_eq!(s.image_hint("i9"), None);
 }
 

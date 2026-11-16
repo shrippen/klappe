@@ -19,6 +19,7 @@ fn set(rotation_deg: f64) -> SetPlan {
             at: p(10.0, 6.0),
             width_m: 4.0,
             rotation_deg,
+            opacity: 1.0,
         }],
         ..Default::default()
     }
@@ -112,4 +113,17 @@ fn the_grip_stands_for_its_image() {
         Some(Source::Image("i1".into()))
     );
     assert_eq!(Source::Image("i1".into()).owner(), None);
+}
+
+/// The image's own opacity reaches the picture; the frame, which only catches the click, has none.
+#[test]
+fn the_picture_takes_the_opacity_of_its_image() {
+    let mut set = set(0.0);
+    set.images[0].opacity = 0.4;
+    let list = list(&set, Some((400, 100)));
+
+    assert!(matches!(
+        list.items[0].shape,
+        Shape::Image { opacity, .. } if opacity == 0.4
+    ));
 }

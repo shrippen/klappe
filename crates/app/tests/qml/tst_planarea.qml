@@ -68,7 +68,7 @@ TestCase {
                 return JSON.stringify({ kind: "note", text: "Vorhang schließen" })
             }
             if (key === "image:i1") {
-                return JSON.stringify({ kind: "image", file: "bilder/skizze.png" })
+                return JSON.stringify({ kind: "image", file: "bilder/skizze.png", opacity: 1 })
             }
             if (key === "drawing:d1") {
                 return JSON.stringify({ kind: "drawing", color: "green", dash: "dashed", fill: "outline", closed: true })
@@ -200,6 +200,7 @@ TestCase {
         fake.duplicates = 0
         fake.drags = []
         fake.places = []
+        fake.images = []
         fake.turns = []
         fake.removes = 0
         fake.straightens = 0
@@ -778,5 +779,19 @@ TestCase {
 
         compare(fake.places.length, 1)
         compare(findChild(area, "imageDialog"), null)
+    }
+
+    // The dialog's answer goes to the controller with the place of the click.
+    function test_with_the_image_tool_the_answer_goes_with_the_click() {
+        const area = drawn("image")
+
+        mouseClick(area, 120, 150, Qt.LeftButton, Qt.NoModifier)
+        const dialog = findChild(area, "imageDialog")
+        dialog.accepted()
+
+        compare(fake.images.length, 1)
+        compare(fake.images[0][1], area.imageAt.x)
+        compare(fake.images[0][2], area.imageAt.y)
+        dialog.close()
     }
 }

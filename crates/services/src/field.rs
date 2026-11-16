@@ -26,6 +26,7 @@ pub enum Field {
     Name,
     Note,
     Number,
+    Opacity,
     Pace,
     Point,
     Points,
@@ -48,7 +49,7 @@ pub enum Field {
 }
 
 impl Field {
-    pub const ALL: [Field; 43] = [
+    pub const ALL: [Field; 44] = [
         Self::Angle,
         Self::Aspect,
         Self::Base,
@@ -73,6 +74,7 @@ impl Field {
         Self::Name,
         Self::Note,
         Self::Number,
+        Self::Opacity,
         Self::Pace,
         Self::Point,
         Self::Points,
@@ -121,6 +123,7 @@ impl Field {
             Self::Name => "name",
             Self::Note => "note",
             Self::Number => "number",
+            Self::Opacity => "opacity",
             Self::Pace => "pace",
             Self::Point => "point",
             Self::Points => "points",
