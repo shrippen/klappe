@@ -149,7 +149,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
-    let scenes = load_scenes(&dir.join(SCENES_DIR), &locations)?;
+    let scenes = load_scenes(&dir.join(SCENES_DIR))?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -423,6 +423,15 @@ fn check_sets(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
 fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     for location in locations {
         for note in &location.set.notes {
+            if !note.id.starts_with(NOTE_ID_PREFIX) {
+                return Err(StoreError::Parse {
+                    path: path.to_path_buf(),
+                    message: format!(
+                        "{}: note id {} does not start with {NOTE_ID_PREFIX}",
+                        location.id, note.id
+                    ),
+                });
+            }
             let bound = note.bound.as_deref();
             if !bound.is_none_or(|b| b.strip_prefix("object:").is_some_and(|id| !id.is_empty())) {
                 return Err(StoreError::Parse {
@@ -451,30 +460,30 @@ fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
 }
 
 /// The scenes of `path`, their labels checked.
-fn load_scenes(path: &Path, locations: &[Location]) -> Result<Vec<Scene>, StoreError> {
+fn load_scenes(path: &Path) -> Result<Vec<Scene>, StoreError> {
     let mut scenes = load_all::<Scene>(path, Kind::Json, |s| &s.id)?;
 
-    check_labels(path, &scenes, locations)?;
+    check_labels(path, &scenes)?;
     clear_passive_power(&mut scenes);
 
     Ok(scenes)
 }
 
+/// Notes of a location are `n<k>` and labels of a plan `t<k>`: `Source::Note` names either by id,
+/// and a scene may move to another location, so the two must never be equal.
+const NOTE_ID_PREFIX: char = 'n';
+const LABEL_ID_PREFIX: char = 't';
+
 /// A plan's labels (LH-118) are as wide as a note's card, have ids of their own in the plan, and
 /// are bound to a figure or a mark (`figure:<id>`, `mark:<id>:<index>`); an object's label is a
 /// note of the set.
-fn check_labels(path: &Path, scenes: &[Scene], locations: &[Location]) -> Result<(), StoreError> {
+fn check_labels(path: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
     let parse = |message: String| StoreError::Parse {
         path: path.to_path_buf(),
         message,
     };
 
     for scene in scenes {
-        let notes = locations
-            .iter()
-            .find(|l| l.id == scene.location)
-            .map_or(&[][..], |l| l.set.notes.as_slice());
-
         for plan in &scene.plans {
             let at = format!("{}/{}", scene.id, plan.id);
             let mut seen = HashSet::new();
@@ -489,10 +498,10 @@ fn check_labels(path: &Path, scenes: &[Scene], locations: &[Location]) -> Result
                 if !seen.insert(label.id.as_str()) {
                     return Err(parse(format!("{at}: label id {} is used twice", label.id)));
                 }
-                if notes.iter().any(|n| n.id == label.id) {
+                if !label.id.starts_with(LABEL_ID_PREFIX) {
                     return Err(parse(format!(
-                        "{at}: label id {} is also a note of {}",
-                        label.id, scene.location
+                        "{at}: label id {} does not start with {LABEL_ID_PREFIX}",
+                        label.id
                     )));
                 }
                 if !is_plan_binding(label.bound.as_deref()) {

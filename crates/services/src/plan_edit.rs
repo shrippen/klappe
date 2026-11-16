@@ -483,8 +483,6 @@ struct Scope<'a> {
     characters: &'a [Character],
     /// The project's own library entries, for what a new object looks like.
     library: &'a [LibraryItem],
-    /// Ids of the labels of every plan of every scene at this location: a new note avoids them.
-    label_ids: Vec<String>,
     time_s: f64,
 }
 
@@ -505,7 +503,6 @@ pub(crate) fn apply(
 
     let at = (scene, plan);
     let held = bound::held(project, at, time_s);
-    let label_ids = bound::label_ids(project, scene);
     let Project {
         characters,
         locations,
@@ -532,7 +529,6 @@ pub(crate) fn apply(
         location,
         characters,
         library,
-        label_ids,
         time_s,
     };
 

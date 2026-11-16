@@ -167,7 +167,6 @@ fn bound_notes_and_ids_are_checked_across_set_and_plan() {
     let cases = [
         ("figure-note", "figure:elisabeth", None, "bound"),
         ("garbled-note", "object:", None, "bound"),
-        ("same-id", "object:tisch", Some("n1"), "also a note"),
     ];
 
     for (name, bound, label_id, want) in cases {

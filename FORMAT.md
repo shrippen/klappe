@@ -171,10 +171,11 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   ist ungebunden. Bei gesperrter Ebene Notizen lehnt die Sitzung eine Bearbeitung ab, die eine
   Notiz oder Beschriftung verschieben oder lösen würde. Ohne Bindung fehlt der Schlüssel, ohne
   Beschriftungen fehlt `labels`; ein unlesbarer Schlüssel bindet nichts. Laden lehnt eine Beschriftung ab, deren Breite unter
-  0,6 m liegt oder keine Zahl ist, mit doppelter `id` im Plan, mit einer `id`, die auch eine Notiz des Drehorts hat, oder mit
-  `bound` ungleich `figure:`/`mark:`; eine Notiz des Drehorts mit `bound` ungleich
-  `object:<id>` lädt auch nicht. Neue Notizen und Beschriftungen nehmen Ids, die keine der anderen
-  Art am Drehort hat. Ältere Projekte laden
+  0,6 m liegt oder keine Zahl ist, mit doppelter `id` im Plan, mit einer `id`, die nicht mit `t` beginnt, oder mit
+  `bound` ungleich `figure:`/`mark:`. Eine Notiz des Drehorts lädt nicht, wenn ihre `id` nicht mit
+  `n` beginnt oder ihr `bound` nicht `object:<id>` ist. So sind die Ids beider Arten nie gleich,
+  auch wenn eine Szene an einen anderen Drehort zieht (`Source::Note` nennt beide nur mit der
+  `id`). Ältere Projekte laden
   und speichern unverändert, ältere Fassungen verlieren beides beim Speichern. Keine neue
   Formatversion (noch kein Release).
 - **Bilder (LH-18):** `[[set.images]]` im Drehort: Fotos und Skizzen, frei auf dem Plan. Je Bild

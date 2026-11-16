@@ -360,8 +360,7 @@ pub(super) fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(
         .set
         .as_deref_mut()
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
-    let taken = scope.label_ids.iter().map(String::as_str);
-    let id = free_id("n", set.notes.iter().map(|n| n.id.as_str()).chain(taken));
+    let id = free_id("n", set.notes.iter().map(|n| n.id.as_str()));
 
     set.notes.push(Note {
         id,
