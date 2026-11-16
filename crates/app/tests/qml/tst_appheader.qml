@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls as QQC2
 import QtTest
 import "../../qml"
 
@@ -126,6 +127,32 @@ TestCase {
             verify(item.x >= 0 && item.x + item.width <= header.width, name + " is cut")
         }
         verify(path.x + path.width <= findChild(header, "planMenu").x)
+    }
+
+    // The status line is short; what it cuts off shows whole as a tooltip.
+    function test_a_cut_status_shows_whole_as_tooltip() {
+        const header = make()
+        fake.status = "Gespeichert: ein sehr langer Pfad zu einer Datei in einem tiefen Ordner"
+        const status = findChild(header, "status")
+        tryVerify(() => status.truncated)
+
+        verify(!status.QQC2.ToolTip.visible)
+        compare(status.QQC2.ToolTip.text, fake.status)
+        mouseMove(status, status.width / 2, status.height / 2)
+
+        tryVerify(() => status.QQC2.ToolTip.visible)
+    }
+
+    function test_a_short_status_has_no_tooltip() {
+        const header = make()
+        fake.status = "Gespeichert"
+        const status = findChild(header, "status")
+        verify(!status.truncated)
+
+        mouseMove(status, status.width / 2, status.height / 2)
+        wait(300)
+
+        verify(!status.QQC2.ToolTip.visible)
     }
 
     // The start page has the buttons for New and Open, so the File menu stays away (and the
