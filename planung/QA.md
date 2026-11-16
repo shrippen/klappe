@@ -53,6 +53,7 @@ die Modi (D-01; jede Aufgabe benutzt sie nebenbei, eine eigene Aufgabe müsste i
 | A-24 | P5 | Die Notiz „Nebelmaschine außen“ ist breiter als ihr Text und ragt in den Raum. Mach sie so schmal, dass der Text gerade noch auf zwei Zeilen passt. | Notiz schmaler (unter 2,4 m), Text auf zwei Zeilen | LH-16 |
 | A-25 | P1 | Du hast zwei Fassungen der Auflösung. Die zweite gefällt dir besser: sie soll in der Liste als erste stehen. | nach A-04: zweiter Plan steht vorn, beide unverändert | LH-04 |
 | A-26 | P1 | Schick dem Team den Plan auf einem hochkant liegenden A4-Blatt. Beim nächsten Mal soll das Programm das schon so vorschlagen. | PDF hochkant A4; Projekt speichert `a4-portrait`, der Dialog schlägt es vor | LH-80 |
+| A-27 | P5 | Später kommt noch eine Stufe dazu: eine Seite des Podests bekommt in der Mitte einen Knick nach außen. | nach A-23: ein neuer Punkt auf einer Seite, nach außen versetzt; die anderen Punkte unverändert | LH-92 |
 
 ## Ketten
 
