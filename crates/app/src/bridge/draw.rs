@@ -263,7 +263,7 @@ impl qobject::Controller {
         };
 
         if tool == Tool::Select {
-            let picked = s.pick_for(Point::new(x, y), selected.only());
+            let picked = s.pick_click(Point::new(x, y), selected.only());
             let found = picked.is_some();
             self.as_mut().rust_mut().get_mut().selected = selected.click(picked, how);
             self.refresh();

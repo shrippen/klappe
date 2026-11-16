@@ -1,4 +1,4 @@
-use klappe_model::{Point, Project};
+use klappe_model::{DrawingShape, Point, Project};
 use klappe_stellprobe::{handles, lens_at, render, DisplayList, Source};
 
 use super::layers::layer_of;
@@ -122,6 +122,24 @@ impl Session {
         let locked = |role| self.lock(layer_of(role)) == Lock::Locked;
 
         plan_edit::pick(&self.display_list_for(selected).items, at, locked)
+    }
+
+    /// `pick_for` for a click: only an area's point is a point of its own (Delete takes it
+    /// out); on any other drawing a grip stands for the drawing.
+    pub fn pick_click(&self, at: Point, selected: Option<&Source>) -> Option<Source> {
+        let picked = self.pick_for(at, selected)?;
+        let Source::DrawingPoint { drawing, .. } = &picked else {
+            return Some(picked);
+        };
+        let area = self
+            .plan()
+            .and_then(|p| p.drawings.iter().find(|d| d.id == *drawing))
+            .is_some_and(|d| matches!(d.shape, DrawingShape::Area { .. }));
+        if area {
+            return Some(picked);
+        }
+
+        Some(Source::Drawing(drawing.clone()))
     }
 
     /// Every element whose shown items lie wholly in the box with corners `a` and `b` (LH-08).

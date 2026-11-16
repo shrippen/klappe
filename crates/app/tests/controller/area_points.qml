@@ -102,6 +102,25 @@ Item {
             if (ctl.removeSelected() || root.outline().length !== 3 || ctl.status === "") {
                 return root.fail("the third point went or no reason: " + ctl.status)
             }
+
+            // Only an area's point is selected as a point: on a rectangle a click on a corner
+            // keeps the drawing, and Delete takes the drawing.
+            ctl.setTool("rect", "")
+            ctl.drag(8, 0.5, 10, 2.5, false)
+            ctl.drag(8, 0.5, 10, 2.5, true)
+            ctl.setTool("select", "")
+            ctl.place(9, 0.5)
+            const rect = ctl.selectedKey
+            if (rect.indexOf("drawing:") !== 0 || rect === "drawing:d2") {
+                return root.fail("the rectangle was not selected: " + rect)
+            }
+            ctl.place(8, 0.5)
+            if (ctl.selectedKey !== rect) {
+                return root.fail("a corner click did not keep the rectangle: " + ctl.selectedKey)
+            }
+            if (!ctl.removeSelected() || ctl.selectedKey !== "") {
+                return root.fail("Delete did not remove the rectangle: " + ctl.status)
+            }
             Qt.exit(0)
         }
     }
