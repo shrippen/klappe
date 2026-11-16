@@ -406,3 +406,26 @@ fn the_tables_carry_the_lamps_of_the_plan() {
         assert!(text.contains("5600"), "{name}");
     }
 }
+
+/// A table lists what the plan holds: hiding the lights layer on the plan keeps the lamp sheet,
+/// as the shot sheet keeps every shot.
+#[test]
+fn hidden_lamps_stay_in_the_tables() {
+    let mut s = open();
+    s.set_layer(Layer::Lights, Visibility::Hidden);
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR"));
+    let texts = Language::German.print_texts();
+
+    s.export_ods(&dir.join("hidden-lamps.ods"), &texts, ShotOrder::Cut)
+        .unwrap();
+    s.export_xlsx(&dir.join("hidden-lamps.xlsx"), &texts, ShotOrder::Cut)
+        .unwrap();
+
+    for name in ["hidden-lamps.ods", "hidden-lamps.xlsx"] {
+        let bytes = std::fs::read(dir.join(name)).unwrap();
+        assert!(
+            String::from_utf8_lossy(&bytes).contains("LED-Panel"),
+            "{name}"
+        );
+    }
+}

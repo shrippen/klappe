@@ -394,6 +394,20 @@ fn xlsx_has_a_lamp_sheet_with_numbers() {
     assert!(sheet.contains(r#"<c r="E3"><v>45.5</v></c>"#));
 }
 
+/// A lamp sheet without a usable name is `Sheet2`, not a second `Sheet1` (Excel refuses two
+/// sheets of one name).
+#[test]
+fn a_nameless_lamp_sheet_is_the_second_sheet() {
+    let words = LampTexts {
+        title: String::new(),
+        ..lamp_texts()
+    };
+    let zip = shots_xlsx(&plan(1), &texts(), ShotOrder::Cut, &lamps(), &words);
+
+    assert!(text_of(&entries(&zip), "xl/workbook.xml")
+        .contains(r#"<sheet name="Sheet2" sheetId="2" r:id="rId2"/>"#));
+}
+
 #[test]
 fn without_lamps_there_is_no_lamp_sheet() {
     let ods = shots_ods(&plan(1), &texts(), ShotOrder::Cut, &[], &lamp_texts());

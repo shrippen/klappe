@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_export::{Page, Texts, Theme};
 use klappe_model::{FloorPlan, PaperSetup};
-use klappe_stellprobe::{DisplayList, Shape, ShotOrder};
+use klappe_stellprobe::{render, DisplayList, Lamp, Shape, ShotOrder};
 
 use super::Session;
 use crate::error::{write_failed, ServiceError};
@@ -98,6 +98,19 @@ impl Session {
         write_file(path, csv.into_bytes())
     }
 
+    /// Every lamp of the plan on view, hidden ones too: a table lists what the plan holds, as
+    /// its shot sheet lists every shot. The printout leaves hidden lamps out (`display_list`).
+    fn plan_lamps(&self) -> Vec<Lamp> {
+        let (Some(scene), Some(plan)) = (self.scene(), self.plan()) else {
+            return Vec::new();
+        };
+        let Some(location) = self.project.location(&scene.location) else {
+            return Vec::new();
+        };
+
+        render(&self.project, &location.set, plan, self.time_s, None).lamps
+    }
+
     /// Writes the shot list as ODS (LH-85), the CSV's columns; numbers are numbers. A second sheet
     /// lists the plan's lamps (LH-50); the CSV holds the shot list only.
     pub fn export_ods(
@@ -107,7 +120,7 @@ impl Session {
         order: ShotOrder,
     ) -> Result<(), ServiceError> {
         let empty = FloorPlan::new("", "");
-        let lamps = self.display_list().lamps;
+        let lamps = self.plan_lamps();
         let bytes = klappe_export::shots_ods(
             self.plan().unwrap_or(&empty),
             &texts.shots,
@@ -127,7 +140,7 @@ impl Session {
         order: ShotOrder,
     ) -> Result<(), ServiceError> {
         let empty = FloorPlan::new("", "");
-        let lamps = self.display_list().lamps;
+        let lamps = self.plan_lamps();
         let bytes = klappe_export::shots_xlsx(
             self.plan().unwrap_or(&empty),
             &texts.shots,
