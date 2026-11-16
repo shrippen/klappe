@@ -222,7 +222,7 @@ fn items_that_cannot_be_used_refuse_the_whole_file() {
     assert!(parse_error(&item("x", "5000.0", "1.0")).contains("not usable"));
     assert!(parse_error(&item("  ", "1.0", "1.0")).contains("kind is empty"));
 
-    // A height is more than nothing and at most 100 m (LH-17).
+    // A height is at least 5 cm and at most 100 m (LH-17).
     let tall = |h: &str| format!("{}height_m = {h}\n", item("x", "1.0", "1.0"));
     for bad in ["0.0", "-1.0", "nan", "inf", "100.5"] {
         assert!(parse_error(&tall(bad)).contains("height"), "{bad}");
