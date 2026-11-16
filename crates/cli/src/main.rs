@@ -144,6 +144,10 @@ fn main() -> ExitCode {
                 eprintln!("klappe-cli: --format camera needs --camera <id>");
                 return ExitCode::FAILURE;
             }
+            if format != FormatArg::Camera && camera.is_some() {
+                eprintln!("klappe-cli: --camera goes with --format camera only");
+                return ExitCode::FAILURE;
+            }
             let job = ExportJob {
                 project,
                 scene,

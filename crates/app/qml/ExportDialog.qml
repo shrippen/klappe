@@ -53,7 +53,7 @@ FormDialog {
     // The file dialog, offered the plan's name in the folder of the last export.
     function pick() {
         if (format && format.extension === null) {
-            folders.title = texts.t("export.pick.frames")
+            folders.title = texts.t("export.pick." + kind)
             folders.currentFolder = suggestion().replace(/\/[^/]*$/, "")
             folders.open()
             return

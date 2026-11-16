@@ -126,14 +126,7 @@ fn shot_order(name: &str) -> ShotOrder {
 /// Where an export of the current plan goes: next to the project folder, named by the plan.
 fn plan_file(s: &Session, format: ExportFormat) -> std::path::PathBuf {
     let title = s.plan_title().replace([' ', '·', '/', '–'], "-");
-
-    // A folder has no extension; the PNGs of a view sit beside the plan's under their own name.
-    let name = match format {
-        ExportFormat::Frames => title,
-        ExportFormat::View3d => format!("{title}-3d.png"),
-        ExportFormat::Camera => format!("{title}-camera.png"),
-        _ => format!("{title}.{}", format.name()),
-    };
+    let name = format.file_name(&title);
 
     s.dir()
         .parent()

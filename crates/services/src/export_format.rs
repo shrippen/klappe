@@ -68,6 +68,21 @@ impl ExportFormat {
             other => Some(other.name()),
         }
     }
+
+    /// The file or folder name offered for a plan called `title`: the PNGs of a view sit
+    /// beside the plan's under their own name (`<title>-3d.png`), a folder has no extension.
+    pub fn file_name(self, title: &str) -> String {
+        let part = match self {
+            ExportFormat::View3d => "-3d",
+            ExportFormat::Camera => "-camera",
+            _ => "",
+        };
+
+        match self.extension() {
+            Some(extension) => format!("{title}{part}.{extension}"),
+            None => title.to_owned(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -80,6 +95,29 @@ mod tests {
             assert_eq!(ExportFormat::from_name(format.name()), Some(format));
         }
         assert_eq!(ExportFormat::from_name("zip"), None);
+    }
+
+    #[test]
+    fn names_of_the_files_offered() {
+        let names: Vec<String> = ExportFormat::ALL
+            .iter()
+            .map(|f| f.file_name("Plan-A"))
+            .collect();
+
+        assert_eq!(
+            names,
+            [
+                "Plan-A.pdf",
+                "Plan-A.png",
+                "Plan-A.svg",
+                "Plan-A.csv",
+                "Plan-A.ods",
+                "Plan-A.xlsx",
+                "Plan-A",
+                "Plan-A-3d.png",
+                "Plan-A-camera.png"
+            ]
+        );
     }
 
     /// The window writes the message `menu.<name>Saved` after each export.

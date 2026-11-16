@@ -223,3 +223,14 @@ fn an_unknown_camera_fails_without_a_file() {
     assert!(!output.status.success());
     assert!(!out.exists());
 }
+
+#[test]
+fn a_camera_goes_with_the_camera_format_only() {
+    let out = out_file("cli-stray-camera.png");
+
+    let output = export(&out, &["--camera", "a"]);
+
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("--camera"), "{}", stderr(&output));
+    assert!(!out.exists());
+}
