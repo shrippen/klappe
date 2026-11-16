@@ -53,6 +53,7 @@ fn words() -> LampTexts {
         passive: "{label}: {kind}, {beam}°".into(),
         more: "+ {n} weitere".into(),
         kinds: vec![(LightKind::LedPanel, "LED-Panel".into())],
+        ..LampTexts::default()
     }
 }
 

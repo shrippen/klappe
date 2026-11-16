@@ -1,8 +1,12 @@
 //! The shot list as ODS and XLSX (LH-85): the container, the XML and the cells.
 #![allow(clippy::unwrap_used)]
 
-use klappe_export::{shots_ods, shots_xlsx, ShotColumns, ShotOrder, ShotTexts};
-use klappe_model::{Camera, CameraMark, FloorPlan, Movement, Point, Rig, Sensor, Shot, ShotSize};
+use klappe_export::{
+    shots_ods, shots_xlsx, Lamp, LampColumns, LampTexts, ShotColumns, ShotOrder, ShotTexts,
+};
+use klappe_model::{
+    Camera, CameraMark, FloorPlan, LightKind, Movement, Point, Rig, Sensor, Shot, ShotSize,
+};
 
 const LOCAL_SIGNATURE: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
 const END_SIGNATURE: [u8; 4] = [0x50, 0x4B, 0x05, 0x06];
@@ -152,7 +156,13 @@ fn assert_well_formed(xml: &str) {
 
 #[test]
 fn ods_holds_the_required_files_mimetype_first() {
-    let zip = shots_ods(&plan(2), &texts(), ShotOrder::Cut);
+    let zip = shots_ods(
+        &plan(2),
+        &texts(),
+        ShotOrder::Cut,
+        &[],
+        &LampTexts::default(),
+    );
     let entries = entries(&zip);
 
     let names: Vec<&str> = entries.iter().map(|(n, _)| n.as_str()).collect();
@@ -169,7 +179,13 @@ fn ods_holds_the_required_files_mimetype_first() {
 
 #[test]
 fn ods_cells_follow_the_csv() {
-    let zip = shots_ods(&plan(2), &texts(), ShotOrder::Cut);
+    let zip = shots_ods(
+        &plan(2),
+        &texts(),
+        ShotOrder::Cut,
+        &[],
+        &LampTexts::default(),
+    );
     let content = text_of(&entries(&zip), "content.xml");
 
     assert_eq!(content.matches("<table:table-row>").count(), 3);
@@ -192,7 +208,13 @@ fn ods_cells_follow_the_csv() {
 
 #[test]
 fn xlsx_holds_the_required_files() {
-    let zip = shots_xlsx(&plan(2), &texts(), ShotOrder::Cut);
+    let zip = shots_xlsx(
+        &plan(2),
+        &texts(),
+        ShotOrder::Cut,
+        &[],
+        &LampTexts::default(),
+    );
     let entries = entries(&zip);
 
     let names: Vec<&str> = entries.iter().map(|(n, _)| n.as_str()).collect();
@@ -214,7 +236,13 @@ fn xlsx_holds_the_required_files() {
 
 #[test]
 fn xlsx_cells_follow_the_csv() {
-    let zip = shots_xlsx(&plan(2), &texts(), ShotOrder::Cut);
+    let zip = shots_xlsx(
+        &plan(2),
+        &texts(),
+        ShotOrder::Cut,
+        &[],
+        &LampTexts::default(),
+    );
     let sheet = text_of(&entries(&zip), "xl/worksheets/sheet1.xml");
 
     assert_eq!(sheet.matches("<row ").count(), 3);
@@ -228,7 +256,13 @@ fn xlsx_cells_follow_the_csv() {
 
 #[test]
 fn shooting_order_adds_the_setup_column_as_number() {
-    let zip = shots_xlsx(&plan(2), &texts(), ShotOrder::Shooting);
+    let zip = shots_xlsx(
+        &plan(2),
+        &texts(),
+        ShotOrder::Shooting,
+        &[],
+        &LampTexts::default(),
+    );
     let sheet = text_of(&entries(&zip), "xl/worksheets/sheet1.xml");
 
     assert!(sheet.contains(r#"<c r="A1" t="inlineStr"><is><t xml:space="preserve">Setup</t>"#));
@@ -240,11 +274,23 @@ fn shooting_order_adds_the_setup_column_as_number() {
 #[test]
 fn without_shots_only_the_head_row_remains() {
     let ods = text_of(
-        &entries(&shots_ods(&plan(0), &texts(), ShotOrder::Cut)),
+        &entries(&shots_ods(
+            &plan(0),
+            &texts(),
+            ShotOrder::Cut,
+            &[],
+            &LampTexts::default(),
+        )),
         "content.xml",
     );
     let xlsx = text_of(
-        &entries(&shots_xlsx(&plan(0), &texts(), ShotOrder::Cut)),
+        &entries(&shots_xlsx(
+            &plan(0),
+            &texts(),
+            ShotOrder::Cut,
+            &[],
+            &LampTexts::default(),
+        )),
         "xl/worksheets/sheet1.xml",
     );
 
@@ -257,13 +303,106 @@ fn a_sheet_name_excel_would_refuse_is_cleaned() {
     let mut texts = texts();
     texts.title = "Szene 1/2: [Plan] mit einem sehr langen Namen".into();
 
-    let zip = shots_xlsx(&plan(0), &texts, ShotOrder::Cut);
+    let zip = shots_xlsx(&plan(0), &texts, ShotOrder::Cut, &[], &LampTexts::default());
     let workbook = text_of(&entries(&zip), "xl/workbook.xml");
 
     assert!(
         workbook.contains(r#"<sheet name="Szene 12 Plan mit einem sehr la""#),
         "{workbook}"
     );
+}
+
+fn lamp_texts() -> LampTexts {
+    LampTexts {
+        kinds: vec![(LightKind::LedPanel, "LED-Panel".into())],
+        title: "Lampen".into(),
+        columns: LampColumns {
+            label: "Name".into(),
+            kind: "Lampenart".into(),
+            power_w: "Leistung (W)".into(),
+            color_temp_k: "Farbtemperatur (K)".into(),
+            beam_deg: "Abstrahlwinkel (°)".into(),
+        },
+        ..LampTexts::default()
+    }
+}
+
+fn lamps() -> Vec<Lamp> {
+    let lamp = |label: &str, kind, power_w, color_temp_k, beam_deg| Lamp {
+        id: label.into(),
+        label: label.into(),
+        kind,
+        power_w,
+        color_temp_k,
+        beam_deg,
+    };
+
+    vec![
+        lamp("L1", LightKind::LedPanel, 200.0, 5600.0, 60.0),
+        lamp("F1", LightKind::Flag, 0.0, 0.0, 45.5),
+    ]
+}
+
+#[test]
+fn ods_has_a_lamp_sheet_with_numbers() {
+    let zip = shots_ods(&plan(1), &texts(), ShotOrder::Cut, &lamps(), &lamp_texts());
+    let content = text_of(&entries(&zip), "content.xml");
+
+    assert_well_formed(&content);
+    let (shots, lamp_sheet) = content.split_once(r#"table:name="Lampen""#).unwrap();
+    assert!(shots.contains(r#"table:name="Shotliste""#));
+    assert_eq!(lamp_sheet.matches("<table:table-row>").count(), 3);
+    for head in [
+        "Name",
+        "Lampenart",
+        "Leistung (W)",
+        "Farbtemperatur (K)",
+        "Abstrahlwinkel (°)",
+    ] {
+        assert!(
+            lamp_sheet.contains(&format!("<text:p>{head}</text:p>")),
+            "{head}"
+        );
+    }
+    assert!(lamp_sheet.contains(r#"office:value-type="string"><text:p>LED-Panel</text:p>"#));
+    assert!(lamp_sheet.contains(r#"office:value-type="float" office:value="200""#));
+    assert!(lamp_sheet.contains(r#"office:value-type="float" office:value="5600""#));
+    assert!(lamp_sheet.contains(r#"office:value-type="float" office:value="60""#));
+    // A flag gives no light: power and colour stay empty, the angle is there.
+    assert!(lamp_sheet.contains(r#"<text:p>flag</text:p></table:table-cell><table:table-cell/><table:table-cell/><table:table-cell office:value-type="float" office:value="45.5""#));
+}
+
+#[test]
+fn xlsx_has_a_lamp_sheet_with_numbers() {
+    let zip = shots_xlsx(&plan(1), &texts(), ShotOrder::Cut, &lamps(), &lamp_texts());
+    let entries = entries(&zip);
+    let sheet = text_of(&entries, "xl/worksheets/sheet2.xml");
+
+    assert_well_formed(&sheet);
+    assert!(text_of(&entries, "xl/workbook.xml")
+        .contains(r#"<sheet name="Lampen" sheetId="2" r:id="rId2"/>"#));
+    assert!(text_of(&entries, "[Content_Types].xml").contains("/xl/worksheets/sheet2.xml"));
+    assert!(text_of(&entries, "xl/_rels/workbook.xml.rels")
+        .contains(r#"Target="worksheets/sheet2.xml""#));
+    assert_eq!(sheet.matches("<row ").count(), 3);
+    assert!(sheet.contains(r#"<t xml:space="preserve">Lampenart</t>"#));
+    assert!(sheet.contains(r#"<t xml:space="preserve">LED-Panel</t>"#));
+    assert!(sheet.contains(r#"<c r="C2"><v>200</v></c>"#));
+    assert!(sheet.contains(r#"<c r="D2"><v>5600</v></c>"#));
+    assert!(sheet.contains(r#"<c r="E2"><v>60</v></c>"#));
+    assert!(!sheet.contains(r#"r="C3""#));
+    assert!(sheet.contains(r#"<c r="E3"><v>45.5</v></c>"#));
+}
+
+#[test]
+fn without_lamps_there_is_no_lamp_sheet() {
+    let ods = shots_ods(&plan(1), &texts(), ShotOrder::Cut, &[], &lamp_texts());
+    let xlsx = shots_xlsx(&plan(1), &texts(), ShotOrder::Cut, &[], &lamp_texts());
+
+    assert!(!text_of(&entries(&ods), "content.xml").contains("Lampen"));
+    let xlsx = entries(&xlsx);
+    assert!(!xlsx.iter().any(|(n, _)| n.ends_with("sheet2.xml")));
+    assert!(!text_of(&xlsx, "xl/workbook.xml").contains("Lampen"));
 }
 
 /// Needs LibreOffice: it reads both files and writes the same CSV rows.
@@ -276,12 +415,12 @@ fn libreoffice_reads_both_files() {
     let plan = plan(2);
     std::fs::write(
         dir.join("ods.ods"),
-        shots_ods(&plan, &texts(), ShotOrder::Cut),
+        shots_ods(&plan, &texts(), ShotOrder::Cut, &[], &LampTexts::default()),
     )
     .unwrap();
     std::fs::write(
         dir.join("xlsx.xlsx"),
-        shots_xlsx(&plan, &texts(), ShotOrder::Cut),
+        shots_xlsx(&plan, &texts(), ShotOrder::Cut, &[], &LampTexts::default()),
     )
     .unwrap();
 

@@ -98,7 +98,8 @@ impl Session {
         write_file(path, csv.into_bytes())
     }
 
-    /// Writes the shot list as ODS (LH-85), the CSV's columns; numbers are numbers.
+    /// Writes the shot list as ODS (LH-85), the CSV's columns; numbers are numbers. A second sheet
+    /// lists the plan's lamps (LH-50); the CSV holds the shot list only.
     pub fn export_ods(
         &self,
         path: &Path,
@@ -106,7 +107,14 @@ impl Session {
         order: ShotOrder,
     ) -> Result<(), ServiceError> {
         let empty = FloorPlan::new("", "");
-        let bytes = klappe_export::shots_ods(self.plan().unwrap_or(&empty), &texts.shots, order);
+        let lamps = self.display_list().lamps;
+        let bytes = klappe_export::shots_ods(
+            self.plan().unwrap_or(&empty),
+            &texts.shots,
+            order,
+            &lamps,
+            &texts.lamps,
+        );
 
         write_file(path, bytes)
     }
@@ -119,7 +127,14 @@ impl Session {
         order: ShotOrder,
     ) -> Result<(), ServiceError> {
         let empty = FloorPlan::new("", "");
-        let bytes = klappe_export::shots_xlsx(self.plan().unwrap_or(&empty), &texts.shots, order);
+        let lamps = self.display_list().lamps;
+        let bytes = klappe_export::shots_xlsx(
+            self.plan().unwrap_or(&empty),
+            &texts.shots,
+            order,
+            &lamps,
+            &texts.lamps,
+        );
 
         write_file(path, bytes)
     }

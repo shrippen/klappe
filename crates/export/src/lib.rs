@@ -16,6 +16,7 @@ mod font;
 mod image;
 mod inflate;
 mod jpeg;
+mod lamps;
 mod layout;
 mod metrics;
 mod ods;
@@ -40,8 +41,8 @@ use klappe_model::FloorPlan;
 
 pub use error::ExportError;
 pub use klappe_model::{Orientation, Paper};
-pub use klappe_stellprobe::{DisplayList, ShotOrder};
-pub use page::{DrawingTexts, LampTexts, Page, ShotColumns, ShotTexts, Texts};
+pub use klappe_stellprobe::{DisplayList, Lamp, ShotOrder};
+pub use page::{DrawingTexts, LampColumns, LampTexts, Page, ShotColumns, ShotTexts, Texts};
 pub use palette::Theme;
 
 /// The plan on one page as SVG.
@@ -87,14 +88,49 @@ pub fn shots_csv(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Strin
 }
 
 /// The plan's shots in `order` as OpenDocument spreadsheet (LH-85): the CSV's columns, numbers as
-/// numbers; `texts.title` names the sheet.
-pub fn shots_ods(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Vec<u8> {
-    ods::write(&shots::table(plan, texts, order), &texts.title)
+/// numbers; `texts.title` names the sheet. With `lamps` a second sheet lists them (LH-50), named
+/// `words.title`.
+pub fn shots_ods(
+    plan: &FloorPlan,
+    texts: &ShotTexts,
+    order: ShotOrder,
+    lamps: &[Lamp],
+    words: &LampTexts,
+) -> Vec<u8> {
+    ods::write(&sheets(plan, texts, order, lamps, words))
 }
 
 /// The plan's shots in `order` as Excel workbook (LH-85), the same as `shots_ods`.
-pub fn shots_xlsx(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Vec<u8> {
-    xlsx::write(&shots::table(plan, texts, order), &texts.title)
+pub fn shots_xlsx(
+    plan: &FloorPlan,
+    texts: &ShotTexts,
+    order: ShotOrder,
+    lamps: &[Lamp],
+    words: &LampTexts,
+) -> Vec<u8> {
+    xlsx::write(&sheets(plan, texts, order, lamps, words))
+}
+
+/// The sheets of a workbook: the shot list, and the lamp list when the plan has lamps.
+fn sheets<'a>(
+    plan: &FloorPlan,
+    texts: &'a ShotTexts,
+    order: ShotOrder,
+    lamps: &[Lamp],
+    words: &'a LampTexts,
+) -> Vec<sheet::Sheet<'a>> {
+    let mut sheets = vec![sheet::Sheet {
+        name: &texts.title,
+        table: shots::table(plan, texts, order),
+    }];
+    if !lamps.is_empty() {
+        sheets.push(sheet::Sheet {
+            name: &words.title,
+            table: lamps::table(lamps, words),
+        });
+    }
+
+    sheets
 }
 
 #[cfg(test)]

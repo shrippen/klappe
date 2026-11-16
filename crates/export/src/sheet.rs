@@ -2,6 +2,12 @@
 
 use crate::shots::{Kind, Table};
 
+/// One worksheet: its name and what it holds.
+pub(crate) struct Sheet<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) table: Table,
+}
+
 /// A cell of the table; numbers keep their text, which is already a valid XML number.
 pub(crate) enum Cell<'a> {
     Text(&'a str),
