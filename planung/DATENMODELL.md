@@ -1,6 +1,6 @@
 # Datenmodell: Teilbereiche und gemeinsame Daten
 
-Stand: 2026-11-17, **Entwurf zur Entscheidung des Eigentümers**. Offene Fragen: Abschnitt 8.
+Stand: 2026-11-17, **Entwurf**; F-01 bis F-06 entschieden, F-07 bis F-10 offen (Abschnitt 8).
 Zweite Meinung (advisor) eingearbeitet.
 
 Klappe hat mehrere Teilbereiche, die auf einem Projekt arbeiten. Dieses Dokument legt fest,
@@ -57,7 +57,7 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
                  Drehbuch (Fountain)
                         │ Szenenköpfe, Figurenzeilen
                         ▼
-  Spielort ◄──── Szene (Register) ────► Figur ◄── Besetzung ──► Person ─► Kontakt
+  Spielort ◄──── Szene (Register) ────► Figur ◄── Besetzung ──► Person
      │              │      │                                        ▲
      ▼              │      └──► Szenenblatt ──► Element ────────────┘ (verantwortlich)
   Drehort ◄─────────┤          (Breakdown)        ▲
@@ -80,8 +80,7 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 | Floorplan | Stellprobe | je Szene stabil | **Set, auf dem er gezeichnet ist**; Marks (mit Id), Kameras, Licht | Storyboard, Breakdown |
 | Shot | Stellprobe | stabil | wie heute; Storyboard-Bild und Notiz | Storyboard, Drehplan, Dispo |
 | Element | Breakdown | zufällig | Kategorie, Name, Beschreibung, verantwortliche Person, Status | Dispo, Stellprobe |
-| Person | Besetzung/Team | zufällig | Name, Department, Funktion, Agentur | Dispo |
-| Kontakt | Besetzung/Team | Personen-Id | Telefon, Mail, Adresse | Dispo |
+| Person | Besetzung/Team | zufällig | Name, Department, Funktion, Agentur, Kontakt | Dispo |
 | Besetzung | Besetzung/Team | – | Figur → Person (vorgeschlagen, fest) | Dispo, Drehplan |
 | Drehplanversion | Drehplan | zufällig | Name, aktiv | Dispo |
 | Drehtag | Drehplan | zufällig; Datum und Unit sind Felder | Streifen (Szenen in Reihenfolge, Umzug, Pause), Beginn/Ende | Dispo |
@@ -136,8 +135,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ├── szenen/<id>.json          Stellprobe: Floorplans, Shots
 ├── breakdown/elemente.toml   Elemente                                       (neu)
 ├── breakdown/<szenen-id>.toml Szenenblatt                                   (neu)
-├── personen.toml             Personen, Besetzung, Team (in Git)            (neu)
-├── kontakte.toml             Kontaktdaten (zum Ausschließen aus Git)       (neu, F-03)
+├── personen.toml             Personen, Kontakte, Besetzung, Team           (neu)
 ├── drehplan/<id>.toml        eine Drehplanversion: Tage und Streifen       (neu)
 ├── dispo/<drehtag-id>.toml   Tagesdisposition                              (neu)
 └── bilder/                   Hintergründe, Storyboard-Bilder
@@ -167,19 +165,27 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 5. Dispo als Druckvorlage.
 6. Storyboard-Ansicht über den Shots.
 
-## 8. Fragen an den Eigentümer
+## 8. Entscheidungen und offene Fragen
+
+Entschieden vom Eigentümer am 2026-11-17:
+
+| Nr | Frage | Entscheidung |
+|---|---|---|
+| F-01 | Begriffe für den Ort im Buch und den realen Ort | „Spielort“ (im Buch) und „Drehort“ (real, Raum mit Set). |
+| F-02 | Plant der Drehplan Szenen oder auch Shots/Setups? | Szenen. |
+| F-03 | Personen und Kontakte im Projektordner, also in Git | Alle Inhalte eines Projekts sind vertraulich. Wird ein öffentliches Git zur Ablage benutzt, sind die Projektdaten verschlüsselt (Projektpasswort). Damit entfällt die getrennte `kontakte.toml`. |
+| F-04 | Units | Standard eine Unit, mehrere möglich (höchstens 255); Feld am Drehtag. |
+| F-05 | Status je Element für die Departments | Ja, einfache Statusliste je Element. |
+| F-06 | Projektübergreifende Daten (Darsteller, Fundus) | Nützlich, ausgewählte Informationen global zu machen; vorbereiten für Version 2, nicht jetzt. |
+
+Offen:
 
 | Nr | Frage | Vorschlag |
 |---|---|---|
-| F-01 | Begriffe: Ort im Buch und realer Ort. Yamdu: „Motiv“ = Ort im Buch, „Drehort“ = realer Ort; in der Branche heißt der reale Ort oft „Motiv“. Ist der Drehort der Raum mit Set oder die Adresse? | „Spielort“ (im Buch) und „Drehort“ (Raum mit Set); die Adresse später als eigenes Ding, auf das mehrere Drehorte zeigen (Burg, Studio). „Motiv“ nicht verwenden. |
-| F-02 | Plant der Drehplan Szenen oder auch Shots/Setups? | Szenen (wie Yamdu); Setups aus der Stellprobe nur als Hilfe für die Dauer. |
-| F-03 | Personen und Kontakte liegen im Projektordner, also in Git. | Namen, Funktionen und Besetzung in Git (`personen.toml`); Telefon, Mail, Adresse in `kontakte.toml`, die Klappe zum Ausschließen aus Git vorschlägt. |
-| F-04 | Units (First/Second Unit)? | Ja, als Feld am Drehtag; Vorgabe eine Unit. |
-| F-05 | Status je Element (bestellt, vorhanden, am Set) für das Verfolgen der Departments? | Ja, einfache Statusliste je Element. |
-| F-06 | Projektübergreifende Datenbanken (Darsteller, Fundus) wie in Yamdu? | Nein, vorerst je Projekt. |
 | F-07 | Ist das Drehbuch Pflicht? Heute legt Stellprobe Szenen auch ohne Buch an. | Ja: eine in Stellprobe angelegte Szene schreibt ihren Kopf ins Buch; ein Projekt hat immer ein `drehbuch.fountain`. |
 | F-08 | Automatische Szenennummern schon vor der Sperre in den Text schreiben (DB-33, entschieden)? Fügen zwei Personen je eine Szene ein, ändern beide alle folgenden Köpfe: Git meldet überall Konflikte. | Abwägen: sichtbare Nummer von Anfang an (heute) gegen ruhige Git-Merges (Nummern erst ab der Sperre in den Text). |
 | F-09 | „Layers“ in `ARCHITECTURE.md`: neuer Baustein `planung/` neben `stellprobe/`. | Ja. |
+| F-10 | Verschlüsselung (F-03): ganze Dateien verschlüsseln verliert Lesbarkeit und Vergleich in Git (NF-03). Wie? | Klar lesbar lokal; verschlüsselt nur beim Ablegen in ein fremdes Git (z. B. Git-Filter mit Projektpasswort, wie git-crypt), sodass Diffs lokal lesbar bleiben. Eigenes Lastenheft-Kapitel. |
 
 ## Anhang A: Yamdu im Verhalten
 
