@@ -300,3 +300,52 @@ fn naming_a_shot_sets_both_fields_in_one_undo_step() {
     assert_ne!(row.description, "Sie kommt herein");
     assert!(s.name_shot("nope", "a", "b").is_err());
 }
+
+/// In the group scheme the trailing letter is the camera, a version has a hyphen: leaving the
+/// scheme must not read the camera as a version.
+#[test]
+fn leaving_the_group_scheme_keeps_cameras_and_versions_apart() {
+    let (mut s, _) = open("numbering-from-group");
+    scheme(&mut s, Numbering::Group);
+    s.renumber_shots().unwrap();
+    s.version_shot("s12-3").unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12.1A", "12.2A", "12.2B", "12.2B-A", "12.3B", "12.4A"]
+    );
+
+    scheme(&mut s, Numbering::Camera);
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12A.1", "12A.2", "12B.1", "12B.1-A", "12B.2", "12A.3"]
+    );
+
+    scheme(&mut s, Numbering::Group);
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12.1A", "12.2A", "12.2B", "12.2B-A", "12.3B", "12.4A"]
+    );
+
+    scheme(&mut s, Numbering::Scene);
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.3", "12.3A", "12.4", "12.5"]
+    );
+}
+
+/// The first version of a camera A shot is `12.1A` in the scene scheme: not a camera.
+#[test]
+fn a_scene_version_with_the_letter_of_its_camera_stays_a_version() {
+    let (mut s, _) = open("numbering-letter");
+    s.version_shot("s12-1").unwrap();
+    assert!(numbers(&s).contains(&"12.1A".to_owned()));
+
+    scheme(&mut s, Numbering::Group);
+    s.renumber_shots().unwrap();
+
+    let all = numbers(&s);
+    assert!(all.iter().any(|n| n.ends_with("-A")), "{all:?}");
+}
