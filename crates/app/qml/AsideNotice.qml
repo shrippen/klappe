@@ -12,6 +12,8 @@ KanteCallout {
     visible: controller.exampleAside !== ""
     kind: KanteCallout.Kind.Info
     dismissible: true
+    // The binding on `visible` decides; hiding by hand would cut it for a later note.
+    autoHide: false
     text: controller.exampleAside
     onDismissed: controller.exampleAside = ""
 }
