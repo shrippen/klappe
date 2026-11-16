@@ -210,7 +210,7 @@ zeichnet, legt die Grundlagen für 3D schon mit an. Umsetzung:
 | NF-04 | Oberfläche nach dem Design System Kante. | M |
 | NF-05 | Flüssige Bedienung bei mindestens 50 Figuren, 10 Kameras, 300 Set-Objekten je Floorplan. | M |
 | NF-06 | Bedienung mit Maus und Tastatur; Tastenkürzel für alle häufigen Werkzeuge. Jede Funktion hat beide Wege: mit der Maus (Klick, Ziehen, Kontextmenü) und mit der Tastatur (Taste oder Befehlspalette); kein Befehl nur über Hover, Rechtsklick oder eine Taste allein, damit Touch (NF-07) später ohne Umbau dazukommt. | M |
-| NF-07 | Stift- und Touch-Bedienung (Tablet am Set); später; die erste Version zielt nicht auf Touch (E-01). | K |
+| NF-07 | Stift- und Touch-Bedienung (Tablet am Set); später; die erste Version zielt nicht auf Touch (E-01 in `../KONZEPT.md`). | K |
 | NF-08 | Sprachen: Deutsch und Englisch. | M |
 | NF-09 | Fachbegriffe nach deutscher Filmpraxis, englische Begriffe in der englischen Fassung. | M |
 | NF-10 | Alle Funktionen ohne Konto und ohne Bezahlgrenze; Abgleich zwischen Geräten über Git oder beliebigen Dateiabgleich. | M |
@@ -259,8 +259,8 @@ für den Nutzer leistet, nie *wie* es das tut.
 - Wer Stellprobe programmiert, arbeitet nach Lastenheft und Pflichtenheft, nicht mit
   Shot Designer daneben.
 - Namen, Symbole, Objektbibliothek und Dateiformat sind eigene Entwürfe.
-- Ausnahme auf Auftrag des Eigentümers (2026-11-16, Wortlaut im Kommentar zu #197): Seine lizenzierte
-  Kopie wurde in einer unsichtbaren Sitzung bedient, um Bedienung und Tempo beim Blocking zu
+- Ausnahme auf Auftrag des Eigentümers (2026-11-16, Wortlaut im Kommentar zu #197): Seine Kopie
+  (freie Fassung) wurde in einer unsichtbaren Sitzung bedient, um Bedienung und Tempo beim Blocking zu
   beobachten. Daraus steht hier nur Verhalten in eigenen Worten (Abschnitt „Shot Designer
   in der Bedienung“); nichts sonst aus der Liste oben wurde getan.
 

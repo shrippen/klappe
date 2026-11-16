@@ -1,6 +1,6 @@
 # Arbeitsstand
 
-Stand: 2026-11-14.
+Stand: 2026-11-16.
 
 ## Phase 0 (KONZEPT.md, Abschnitt 6)
 
