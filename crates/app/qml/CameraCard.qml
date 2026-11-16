@@ -21,7 +21,7 @@ ColumnLayout {
     property bool showMore: true
 
     // Every edit raises the picture revision; the plan may not change (a drag ends as
-        // previewed), and the key alone would not tell the new values.
+    // previewed), and the key alone would not tell the new values.
     readonly property var info: {
         card.controller.pictureRevision
         const key = card.controller.selectedKey
