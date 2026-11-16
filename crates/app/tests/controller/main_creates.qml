@@ -2,7 +2,7 @@ import QtQuick
 import "lib"
 
 // The window the app opens is built, not only compiled: a page of the module that shadows a Qt
-// type of the same name (e.g. `FolderDialog` from QtQuick.Dialogs) fails only when the window
+// type of the same name (as `FolderDialog.qml` once shadowed QtQuick.Dialogs' `FolderDialog`) fails only when the window
 // is made, with required properties left empty.
 Item {
     Watchdog {}

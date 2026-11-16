@@ -125,7 +125,7 @@ Item {
             text: start.texts.t("start.rename")
             iconRoom: true
             enabled: menu.target.state === "ready"
-            onTriggered: folderDialog.show("rename", menu.target)
+            onTriggered: tileDialog.show("rename", menu.target)
         }
         KanteMenuItem {
             objectName: "forgetItem"
@@ -139,7 +139,7 @@ Item {
             text: start.texts.t("start.archive")
             iconRoom: true
             enabled: menu.target.state !== start.stateMissing
-            onTriggered: folderDialog.show("archive", menu.target)
+            onTriggered: tileDialog.show("archive", menu.target)
         }
         KanteMenuItem {
             objectName: "trashItem"
@@ -147,13 +147,13 @@ Item {
             iconRoom: true
             destructive: true
             enabled: menu.target.state !== start.stateMissing
-            onTriggered: folderDialog.show("trash", menu.target)
+            onTriggered: tileDialog.show("trash", menu.target)
         }
     }
 
-    FolderDialog {
-        id: folderDialog
-        objectName: "folderDialog"
+    TileDialog {
+        id: tileDialog
+        objectName: "tileDialog"
         texts: start.texts
         controller: start.controller
     }

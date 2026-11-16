@@ -335,7 +335,7 @@ TestCase {
 
         findChild(menu, "renameItem").triggered()
 
-        const dialog = findChild(page, "folderDialog")
+        const dialog = findChild(page, "tileDialog")
         tryVerify(() => dialog.opened)
         const field = findChild(dialog, "nameField")
         compare(field.text, "Wartburg")
@@ -354,7 +354,7 @@ TestCase {
         const menu = openMenuOn(page, 0)
 
         findChild(menu, "renameItem").triggered()
-        const dialog = findChild(page, "folderDialog")
+        const dialog = findChild(page, "tileDialog")
         tryVerify(() => dialog.opened)
         dialog.accept()
 
@@ -371,7 +371,7 @@ TestCase {
 
         findChild(menu, "trashItem").triggered()
 
-        const dialog = findChild(page, "folderDialog")
+        const dialog = findChild(page, "tileDialog")
         tryVerify(() => dialog.opened)
         compare(fake.calls.length, 0)
         verify(findChild(dialog, "question").text.indexOf("Zwei") >= 0)
@@ -394,7 +394,7 @@ TestCase {
 
         findChild(menu, "archiveItem").triggered()
 
-        const dialog = findChild(page, "folderDialog")
+        const dialog = findChild(page, "tileDialog")
         tryVerify(() => dialog.opened)
         compare(fake.calls.length, 0)
         dialog.accept()
