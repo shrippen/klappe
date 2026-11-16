@@ -3,7 +3,8 @@
 Drei Testpersonen (P1 Jana, Regie; P4 Ole, Licht; P5 Sanne, Ausstattung) haben 13 Aufgaben
 gespielt, vor allem die neuen Griffe, Pläne, Papier und Lampen. Jede spielte in einer eigenen,
 abgeschotteten Sitzung mit dem Beispielprojekt. Verfahren: Skill `qa-personas`, Aufgaben:
-[`../QA.md`](../QA.md) (neu: A-19 bis A-26).
+[`../QA.md`](../QA.md) (neu: A-19 bis A-27). Nachtrag: Nach #154 und #160 spielte P5 A-23 und A-27
+auf Stand f0eeed7.
 
 ## Kurz
 
@@ -13,6 +14,8 @@ engerem Kegel. Nicht erreicht haben sie eine Tabelle der Lampen, weil die Tabell
 weiter keinen Dialog öffnet (Q1-01), und eine Farbtemperatur am LED-Panel, weil die Karte den
 alten Wert zeigt (Q2-02). Am meisten stören die Felder ohne Beschriftung: Ole musste die vier
 Zahlen der Lampe durch Ausprobieren deuten, Sanne raten, welches Feld des Tischs die Länge ist.
+In der Wiederholung erreichte Sanne Ecke und Knick der freien Form; danach zeigte die Karte die
+alten Maße (Q2-05).
 
 ## Die wichtigsten Funde
 
@@ -43,7 +46,7 @@ Zahlen der Lampe durch Ausprobieren deuten, Sanne raten, welches Feld des Tischs
 | A-21 Tür 1,10 m, Fenster 20 cm schmaler | P5 | erreicht |
 | A-22 Tisch 2,40 × 1 m | P5 | erreicht (Felder geraten, Q2-03) |
 | A-23 freie Form, Ecke versetzen | P5 | Form erreicht; Ecke nicht prüfbar: der Stand der Runde ist vor #154 (Punkte ziehen) |
-| A-23, wiederholt auf f0eeed7 | P5 | erreicht (Ecke 0,5 m nach außen, mit „Messen“ nachgeprüft; Umweg: kein Maß beim Ziehen) |
+| A-23, wiederholt auf f0eeed7 | P5 | erreicht (Ecke 40 px = etwa 0,5 m auf dem Raster nach außen; kein Maß beim Ziehen) |
 | A-27 Knick in einer Seite (f0eeed7) | P5 | erreicht |
 | A-24 Notiz schmaler, zwei Zeilen | P5 | erreicht |
 
@@ -117,9 +120,9 @@ Zahlen der Lampe durch Ausprobieren deuten, Sanne raten, welches Feld des Tischs
 - **Nachgeprüft:** ja, frische Sitzung (`check2/shot-001`, `shot-002`): Karte 1,25, gespeichert
   `depth_m = 1.75`.
 - **Einordnung:** Gleiche Ursache wie Q2-02: Die Karten lesen ihr Element nur neu, wenn sich
-  das Bild des Plans ändert; nach einem Zug ist es dasselbe wie in der Vorschau. Betrifft jede
-  Karte, deren Element sich ziehen lässt (Objekt, Tür und Fenster, Wand, Zeichnung, Mark,
-  Kamera).
+  das Bild des Plans ändert; nach einem Zug ist es dasselbe wie in der Vorschau. Nach dem Code
+  betrifft das vermutlich jede Karte, deren Element sich ziehen lässt (Tür und Fenster, Wand,
+  Zeichnung, Mark, Kamera); nachgespielt ist nur die freie Form.
 - **Status:** offen (Behebung vorbereitet: #157, zusammen mit Q2-02)
 
 ## Nicht bestätigt
@@ -147,7 +150,6 @@ gehört zum noch gewählten Tisch.
 
 ## Nicht getestet
 
-- A-23, zweite Hälfte (Punkte ziehen): kam mit #154 nach dem Stand der Runde.
 - P1: Neustart (gemerktes Papier), Inhalt der PDF, Schnappschuss, Vorlagen, Rückgängig.
 - P4: Inhalt der Tabellen (Dialog kam nicht), PNG, SVG, Speichern.
 - P5: Ausgabe, 3D, Messen, Neuöffnen, Rechtsklick (das Werkzeug hat keinen).
