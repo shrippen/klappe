@@ -1,0 +1,240 @@
+//! The keys of the plan's shapes: which element a shape on the canvas stands for.
+
+use klappe_services::{Bend, Source};
+
+/// The kinds of element a key names; `name` is the key's first part.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ElementKind {
+    Object,
+    Light,
+    Camera,
+    Figure,
+    Mark,
+    FigureVia,
+    CameraVia,
+    Wall,
+    Opening,
+    Note,
+    Drawing,
+    DrawingPoint,
+    DrawingEdge,
+}
+
+impl ElementKind {
+    const ALL: [ElementKind; 13] = [
+        Self::Object,
+        Self::Light,
+        Self::Camera,
+        Self::Figure,
+        Self::Mark,
+        Self::FigureVia,
+        Self::CameraVia,
+        Self::Wall,
+        Self::Opening,
+        Self::Note,
+        Self::Drawing,
+        Self::DrawingPoint,
+        Self::DrawingEdge,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Object => "object",
+            Self::Light => "light",
+            Self::Camera => "camera",
+            Self::Figure => "figure",
+            Self::Mark => "mark",
+            Self::FigureVia => "figurevia",
+            Self::CameraVia => "cameravia",
+            Self::Wall => "wall",
+            Self::Opening => "opening",
+            Self::Note => "note",
+            Self::Drawing => "drawing",
+            Self::DrawingPoint => "drawingpoint",
+            Self::DrawingEdge => "drawingedge",
+        }
+    }
+
+    fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|kind| kind.name() == name)
+    }
+}
+
+/// `camera:a`, `figure:elisabeth`, `mark:elisabeth:0` …; the app's tooltips read it back.
+pub fn key(source: &Source) -> String {
+    let (kind, rest) = match source {
+        Source::Object(id) => (ElementKind::Object, id.clone()),
+        Source::Light(id) => (ElementKind::Light, id.clone()),
+        Source::Camera(id) => (ElementKind::Camera, id.clone()),
+        Source::Figure(id) => (ElementKind::Figure, id.clone()),
+        Source::Mark { character, index } => (ElementKind::Mark, format!("{character}:{index}")),
+        Source::FigureVia {
+            character,
+            index,
+            bend,
+        } => (
+            ElementKind::FigureVia,
+            format!("{character}:{index}:{}", bend_part(*bend)),
+        ),
+        Source::CameraVia {
+            camera,
+            index,
+            bend,
+        } => (
+            ElementKind::CameraVia,
+            format!("{camera}:{index}:{}", bend_part(*bend)),
+        ),
+        Source::Wall(index) => (ElementKind::Wall, index.to_string()),
+        Source::Opening { wall, index } => (ElementKind::Opening, format!("{wall}:{index}")),
+        Source::Note(id) => (ElementKind::Note, id.clone()),
+        Source::Drawing(id) => (ElementKind::Drawing, id.clone()),
+        Source::DrawingPoint { drawing, index } => {
+            (ElementKind::DrawingPoint, format!("{drawing}:{index}"))
+        }
+        Source::DrawingEdge { drawing, index } => {
+            (ElementKind::DrawingEdge, format!("{drawing}:{index}"))
+        }
+    };
+
+    format!("{}:{rest}", kind.name())
+}
+
+/// The last part of a grip's key: `at2` for bend 2, `new0` for the grip of piece 0.
+fn bend_part(bend: Bend) -> String {
+    match bend {
+        Bend::At(n) => format!("at{n}"),
+        Bend::New(n) => format!("new{n}"),
+    }
+}
+
+/// A key taken apart: `mark:elisabeth:0` is `Mark`, `elisabeth` and index 0.
+pub struct ParsedKey<'a> {
+    pub kind: ElementKind,
+    pub id: &'a str,
+    /// The third part, when it is a number.
+    pub index: Option<usize>,
+}
+
+/// What `key` wrote, read back; `None` for a key of no known kind or without an id.
+pub fn parse_key(key: &str) -> Option<ParsedKey<'_>> {
+    let mut parts = key.split(':');
+    let kind = ElementKind::from_name(parts.next()?)?;
+    let id = parts.next()?;
+    let index = parts.next().and_then(|i| i.parse().ok());
+
+    Some(ParsedKey { kind, id, index })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn grip_keys_name_track_index_and_grip() {
+        let figure = Source::FigureVia {
+            character: "e".into(),
+            index: 1,
+            bend: Bend::At(0),
+        };
+        let camera = Source::CameraVia {
+            camera: "a".into(),
+            index: 1,
+            bend: Bend::New(2),
+        };
+
+        assert_eq!(key(&figure), "figurevia:e:1:at0");
+        assert_eq!(key(&camera), "cameravia:a:1:new2");
+    }
+
+    /// Every kind of element reads back from the key it is written as.
+    #[test]
+    fn every_key_reads_back() {
+        let sources = [
+            (Source::Object("o".into()), ElementKind::Object, "o", None),
+            (Source::Light("l".into()), ElementKind::Light, "l", None),
+            (Source::Camera("a".into()), ElementKind::Camera, "a", None),
+            (Source::Figure("e".into()), ElementKind::Figure, "e", None),
+            (
+                Source::Mark {
+                    character: "e".into(),
+                    index: 2,
+                },
+                ElementKind::Mark,
+                "e",
+                Some(2),
+            ),
+            (
+                Source::FigureVia {
+                    character: "e".into(),
+                    index: 1,
+                    bend: Bend::At(0),
+                },
+                ElementKind::FigureVia,
+                "e",
+                Some(1),
+            ),
+            (
+                Source::CameraVia {
+                    camera: "a".into(),
+                    index: 3,
+                    bend: Bend::New(1),
+                },
+                ElementKind::CameraVia,
+                "a",
+                Some(3),
+            ),
+            (Source::Wall(4), ElementKind::Wall, "4", None),
+            (
+                Source::Opening { wall: 4, index: 1 },
+                ElementKind::Opening,
+                "4",
+                Some(1),
+            ),
+            (Source::Note("n".into()), ElementKind::Note, "n", None),
+            (Source::Drawing("d".into()), ElementKind::Drawing, "d", None),
+            (
+                Source::DrawingPoint {
+                    drawing: "d".into(),
+                    index: 2,
+                },
+                ElementKind::DrawingPoint,
+                "d",
+                Some(2),
+            ),
+            (
+                Source::DrawingEdge {
+                    drawing: "d".into(),
+                    index: 1,
+                },
+                ElementKind::DrawingEdge,
+                "d",
+                Some(1),
+            ),
+        ];
+        assert_eq!(sources.len(), ElementKind::ALL.len());
+
+        for (source, kind, id, index) in sources {
+            let text = key(&source);
+            let parsed = parse_key(&text);
+
+            let Some(parsed) = parsed else {
+                panic!("{text} does not read back");
+            };
+            assert_eq!(parsed.kind, kind, "{text}");
+            assert_eq!(parsed.id, id, "{text}");
+            assert_eq!(parsed.index, index, "{text}");
+        }
+        assert!(parse_key("nonsense:x").is_none());
+        assert!(parse_key("camera").is_none());
+    }
+
+    #[test]
+    fn mark_keys_name_character_and_index() {
+        let k = key(&Source::Mark {
+            character: "e".into(),
+            index: 2,
+        });
+
+        assert_eq!(k, "mark:e:2");
+    }
+}

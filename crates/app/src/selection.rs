@@ -39,12 +39,14 @@ pub enum Reach {
     Lasso,
 }
 
-/// What a pick selects: a grip on a drawing's point stands for the drawing, which keeps its
-/// grips, its card and its keys; a grip on a way is selected itself (it is the bend to
-/// straighten).
+/// What a pick selects: a grip on a drawing's point or edge stands for the drawing, which
+/// keeps its grips, its card and its keys; a grip on a way is selected itself (it is the bend
+/// to straighten). A click on a point is the exception, see `click`.
 fn whole(source: Source) -> Source {
     match source {
-        Source::DrawingPoint { drawing, .. } => Source::Drawing(drawing),
+        Source::DrawingPoint { drawing, .. } | Source::DrawingEdge { drawing, .. } => {
+            Source::Drawing(drawing)
+        }
         source => source,
     }
 }
@@ -78,14 +80,16 @@ impl Selection {
         }
     }
 
-    /// A click on `picked` (`None`: empty ground). A plain click takes just that; with
-    /// `Extend` it takes the element in, or out when it is in already, and a click on empty
-    /// ground changes nothing.
+    /// A click on `picked` (`None`: empty ground). A plain click takes just that, a click on a
+    /// drawing's point that point, so Delete takes it out; with `Extend` it takes the element
+    /// in, or out when it is in already, and a click on empty ground changes nothing.
     pub fn click(mut self, picked: Option<Source>, how: Pick) -> Selection {
-        match (how, picked.map(whole)) {
+        match (how, picked) {
+            (Pick::Replace, Some(point @ Source::DrawingPoint { .. })) => Selection(vec![point]),
             (Pick::Replace, picked) => Selection::of(picked),
             (Pick::Extend, None) => self,
             (Pick::Extend, Some(source)) => {
+                let source = whole(source);
                 match self.0.iter().position(|s| *s == source) {
                     Some(index) => {
                         self.0.remove(index);
@@ -377,11 +381,16 @@ mod tests {
 
     /// Review of PR 31: a grip shows only while its way is the one selected, so in a
     /// selection of several it would be picked unseen and bend or straighten its way.
-    /// A grip on a drawing's point selects the drawing, so its card, its grips and its keys
-    /// stay; a grip on a way selects itself.
+    /// A grip on a drawing's point or edge selects the drawing, so its card, its grips and its
+    /// keys stay, except a plain click on a point: it selects the point, for Delete; a grip on
+    /// a way selects itself.
     #[test]
     fn a_grip_on_a_drawing_selects_the_drawing() {
         let grip = Source::DrawingPoint {
+            drawing: "d1".into(),
+            index: 1,
+        };
+        let edge = Source::DrawingEdge {
             drawing: "d1".into(),
             index: 1,
         };
@@ -392,13 +401,50 @@ mod tests {
             Selection::of(Some(drawing.clone()))
         );
         assert_eq!(
-            Selection::of(None).click(Some(grip.clone()), Pick::Replace),
+            Selection::of(Some(edge.clone())),
+            Selection::of(Some(drawing.clone()))
+        );
+        assert_eq!(
+            Selection::of(None).click(Some(edge), Pick::Replace),
+            Selection::of(Some(drawing.clone()))
+        );
+        assert_eq!(
+            Selection::of(None).click(Some(grip.clone()), Pick::Extend),
             Selection::of(Some(drawing.clone()))
         );
         assert_eq!(
             Selection::of(Some(drawing.clone())).grab(Some(grip)),
             Selection::of(Some(drawing))
         );
+    }
+
+    /// Delete on a selected point takes the point out, not the drawing.
+    #[test]
+    fn delete_on_a_point_removes_the_point() {
+        let grip = Source::DrawingPoint {
+            drawing: "d1".into(),
+            index: 1,
+        };
+        let clicked = Selection::default().click(Some(grip.clone()), Pick::Replace);
+
+        assert_eq!(
+            key_edit(Key::Remove, &clicked),
+            Some(PlanEdit::Remove { source: grip })
+        );
+    }
+
+    #[test]
+    fn a_click_on_a_point_selects_the_point() {
+        let grip = Source::DrawingPoint {
+            drawing: "d1".into(),
+            index: 1,
+        };
+        let clicked = Selection::of(Some(Source::Drawing("d1".into())))
+            .click(Some(grip.clone()), Pick::Replace);
+
+        assert_eq!(clicked.sources(), std::slice::from_ref(&grip));
+        // Dragging that same point keeps it selected.
+        assert_eq!(clicked.clone().grab(Some(grip)), clicked);
     }
 
     #[test]

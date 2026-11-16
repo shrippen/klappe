@@ -41,6 +41,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
                 .replace("{count}", &plans.to_string());
         }
         ServiceError::LastPlan(_) => ("error.lastPlan", String::new()),
+        ServiceError::FewPoints => ("error.fewPoints", String::new()),
         ServiceError::PlanHasShots { shots, .. } => {
             return language
                 .text("error.planHasShots")
@@ -128,6 +129,7 @@ mod tests {
         };
         let taken = ServiceError::PlanNameTaken("Plan B".to_owned());
         let last = ServiceError::LastPlan("plan-a".to_owned());
+        let few = ServiceError::FewPoints;
 
         assert_eq!(
             error_text(Language::German, &shots),
@@ -140,6 +142,14 @@ mod tests {
         assert_eq!(
             error_text(Language::English, &last),
             "A scene keeps its last plan"
+        );
+        assert_eq!(
+            error_text(Language::German, &few),
+            "Eine Fläche braucht mindestens drei Punkte."
+        );
+        assert_eq!(
+            error_text(Language::English, &few),
+            "An area needs at least three points."
         );
     }
 

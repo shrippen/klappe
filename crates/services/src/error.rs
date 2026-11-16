@@ -47,6 +47,9 @@ pub enum ServiceError {
     /// A scene keeps at least one plan.
     #[error("{0} is the scene's last plan")]
     LastPlan(String),
+    /// An area keeps at least three points.
+    #[error("an area needs at least 3 points")]
+    FewPoints,
     /// A plan cannot go while it holds shots: they would go with it.
     #[error("plan {id} holds {shots} shot(s)")]
     PlanHasShots { id: String, shots: usize },

@@ -426,6 +426,7 @@
  "error.notEmpty": "The folder is not empty: {detail}",
  "error.noMarks": "The plan has no marks, so there are no frames.",
  "error.lastPlan": "A scene keeps its last plan",
+ "error.fewPoints": "An area needs at least three points.",
  "error.planHasShots": "The plan holds {count} shot(s): delete them first",
  "error.planNameTaken": "This scene already has a plan called {name}",
  "unit.m": "m",

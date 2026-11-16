@@ -2,18 +2,31 @@
 
 use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Project};
 
-use super::{rect_corners, Bend, Item, Role, Shape, Source};
+use super::{rect_corners, Item, Role, Shape, Source};
 use crate::motion::{bend_grips, walked_ways};
+
+/// A grip on a way (LH-21): a bend the way passes, or a spot to pull a new bend out of.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Bend {
+    /// Bend `n` of the way: drag to move it, remove it to take it out.
+    At(usize),
+    /// Halfway along piece `n` of the way, which has bends `n - 1` and `n` at its ends (the
+    /// way's start and end for the first and last): drag to make a bend there, as number `n`.
+    New(usize),
+}
 
 /// The grip on a way's bend.
 const HANDLE_RADIUS_M: f64 = 0.15;
 /// The grip that pulls a new bend out of a way.
 const NEW_BEND_RADIUS_M: f64 = 0.1;
+/// The grip that pulls a new point out of an area's edge.
+const NEW_POINT_RADIUS_M: f64 = 0.1;
 
 /// The grips on the way `selected` belongs to: a figure, camera or mark of it, or one of its
 /// grips (LH-21). For each mark after the first, one on each bend of the way to it and a
 /// smaller one halfway along each piece between bends, to pull out a new bend.
-/// A selected drawing has one on each of its points (LH-19).
+/// A selected drawing has one on each of its points, an area also a smaller one halfway along
+/// each edge (LH-19).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -22,7 +35,9 @@ pub fn handles(project: &Project, plan: &FloorPlan, selected: &Source) -> Vec<It
         | Source::Mark { character: c, .. }
         | Source::FigureVia { character: c, .. } => figure_handles(project, plan, c),
         Source::Camera(id) | Source::CameraVia { camera: id, .. } => camera_handles(plan, id),
-        Source::Drawing(id) | Source::DrawingPoint { drawing: id, .. } => drawing_handles(plan, id),
+        Source::Drawing(id)
+        | Source::DrawingPoint { drawing: id, .. }
+        | Source::DrawingEdge { drawing: id, .. } => drawing_handles(plan, id),
         _ => Vec::new(),
     }
 }
@@ -40,24 +55,55 @@ pub fn drawing_handle_places(drawing: &Drawing) -> Vec<Point> {
     points.into_iter().map(|p| drawing.placed(p)).collect()
 }
 
+/// Where the grips that make a point sit, turned like the drawing: halfway along each edge of
+/// an area, edge `n` running from point `n` to the next. None for the other shapes.
+pub fn drawing_edge_places(drawing: &Drawing) -> Vec<Point> {
+    if !matches!(drawing.shape, DrawingShape::Area { .. }) {
+        return Vec::new();
+    }
+    let places = drawing_handle_places(drawing);
+
+    places
+        .iter()
+        .enumerate()
+        .map(|(n, a)| a.lerp(places[(n + 1) % places.len()], 0.5))
+        .collect()
+}
+
 fn drawing_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
     let Some(drawing) = plan.drawings.iter().find(|d| d.id == id) else {
         return Vec::new();
     };
+    let grip = |source, center, radius_m| Item {
+        role: Role::DrawingHandle,
+        shape: Shape::Circle { center, radius_m },
+        label: None,
+        source: Some(source),
+    };
 
-    drawing_handle_places(drawing)
-        .into_iter()
-        .enumerate()
-        .map(|(index, center)| Item {
-            role: Role::DrawingHandle,
-            shape: handle_shape(center),
-            label: None,
-            source: Some(Source::DrawingPoint {
+    // The edges come first, so the points lie on top of them.
+    let edges = drawing_edge_places(drawing).into_iter().enumerate();
+    let points = drawing_handle_places(drawing).into_iter().enumerate();
+    let mut grips: Vec<_> = edges
+        .map(|(index, at)| {
+            let source = Source::DrawingEdge {
                 drawing: id.to_owned(),
                 index,
-            }),
+            };
+
+            grip(source, at, NEW_POINT_RADIUS_M)
         })
-        .collect()
+        .collect();
+    grips.extend(points.map(|(index, at)| {
+        let source = Source::DrawingPoint {
+            drawing: id.to_owned(),
+            index,
+        };
+
+        grip(source, at, HANDLE_RADIUS_M)
+    }));
+
+    grips
 }
 
 fn figure_handles(project: &Project, plan: &FloorPlan, character: &str) -> Vec<Item> {
@@ -111,13 +157,6 @@ fn camera_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
             }),
         })
         .collect()
-}
-
-fn handle_shape(center: Point) -> Shape {
-    Shape::Circle {
-        center,
-        radius_m: HANDLE_RADIUS_M,
-    }
 }
 
 /// A new bend's grip is smaller than a bend's, which it would hide.

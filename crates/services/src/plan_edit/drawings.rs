@@ -1,7 +1,7 @@
 //! Changes to a drawing that is on the plan already (LH-19): its style and its points.
 
 use klappe_model::{Dash, Drawing, DrawingShape, FigureColor, Fill, Point};
-use klappe_stellprobe::{drawing_handle_places, Source};
+use klappe_stellprobe::{drawing_edge_places, drawing_handle_places, Source};
 
 use super::add::check_drawable;
 use super::Scope;
@@ -68,6 +68,71 @@ pub(super) fn drag_handle(
         }
     }
     check_drawable(&shape)?;
+
+    drawing.shape = shape;
+
+    Ok(())
+}
+
+/// Where the grip on edge `index` of an area sits on the plan.
+pub(super) fn edge_place(drawing: &Drawing, index: usize) -> Option<Point> {
+    drawing_edge_places(drawing).get(index).copied()
+}
+
+/// Makes a point on edge `index` of an area, after point `index`, where `to` lies on the plan;
+/// the other points stay where they are, turn included.
+pub(super) fn insert_point(
+    drawing: &mut Drawing,
+    index: usize,
+    to: Point,
+) -> Result<(), ServiceError> {
+    let turn_deg = drawing.rotation_deg;
+    let middle = drawing.middle().ok_or(ServiceError::Gone)?;
+    let DrawingShape::Area { points } = &mut drawing.shape else {
+        return Err(ServiceError::Gone);
+    };
+    if index >= points.len() {
+        return Err(ServiceError::Gone);
+    }
+
+    points.insert(index + 1, to.turned(middle, -turn_deg));
+    keep_others(points, middle, turn_deg);
+
+    Ok(())
+}
+
+/// Takes out the point `source` names, if it is one of an area; an edge grip is no element.
+pub(super) fn remove_grip(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
+    let Source::DrawingPoint { drawing, index } = source else {
+        return Err(ServiceError::BadValue {
+            field: Field::Source,
+            value: String::new(),
+        });
+    };
+    let drawing = scope.plan.drawings.iter_mut().find(|d| d.id == *drawing);
+
+    remove_point(drawing.ok_or(ServiceError::Gone)?, *index)
+}
+
+/// Takes point `index` out of an area, which keeps at least three; the other points stay
+/// where they are, turn included. The reason of a refusal reaches the status line.
+fn remove_point(drawing: &mut Drawing, index: usize) -> Result<(), ServiceError> {
+    let turn_deg = drawing.rotation_deg;
+    let middle = drawing.middle().ok_or(ServiceError::Gone)?;
+    let mut shape = drawing.shape.clone();
+    let DrawingShape::Area { points } = &mut shape else {
+        return Err(ServiceError::BadValue {
+            field: Field::Source,
+            value: String::new(),
+        });
+    };
+    if index >= points.len() {
+        return Err(ServiceError::Gone);
+    }
+
+    points.remove(index);
+    keep_others(points, middle, turn_deg);
+    check_drawable(&shape).map_err(|_| ServiceError::FewPoints)?;
 
     drawing.shape = shape;
 
