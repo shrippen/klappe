@@ -45,8 +45,9 @@ pub use limits::{
 };
 pub use paper::{Orientation, Paper, PaperSetup};
 pub use plan::{
-    Arrival, AxisPair, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape, FigureTrack,
-    Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,
+    Arrival, AxisPair, Camera, CameraMark, Curve, Dash, Departure, Drawing, DrawingShape,
+    FigureTrack, Fill, FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink,
+    Sensor,
 };
 pub use project::{
     is_figure_size_m, is_image_opacity, is_opening_width_m, Background, Character, DoorSide,

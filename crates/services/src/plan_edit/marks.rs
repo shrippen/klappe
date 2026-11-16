@@ -2,7 +2,7 @@
 //! shown for them (hold and mark info apply to cameras too); a camera mark's rig and lens.
 
 use klappe_model::{
-    Arrival, CameraMark, Departure, FigureTrack, FloorPlan, Mark, Point, Pose, Rig,
+    Arrival, CameraMark, Curve, Departure, FigureTrack, FloorPlan, Mark, Point, Pose, Rig,
 };
 use klappe_stellprobe::{walked_ways, way_length_m, Source};
 
@@ -71,6 +71,8 @@ pub struct MarkInfo {
     pub has_way: bool,
     /// Speed along that way; `None` when it takes no time.
     pub pace_m_s: Option<f64>,
+    /// The way's shape (LH-108); `None` where the mark has no way.
+    pub curve: Option<Curve>,
 }
 
 /// Walking speed that sets the time of a new mark: an easy pace on set, 5 km/h.
@@ -325,7 +327,7 @@ pub(super) fn set_pace(
     }
 
     // Arrive after the pause at the mark before and the walk along the way.
-    let walk_s = way_length_m(prev.at, &mark.via, mark.at) / speed_m_s;
+    let walk_s = way_length_m(prev.at, (&mark.via, mark.curve), mark.at) / speed_m_s;
     let delta_s = prev.at_s + prev.hold_s + walk_s - mark.at_s;
 
     timing(scope, source)?.shift_from(index, delta_s);
@@ -354,7 +356,7 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
                 .and_then(|prev| {
                     pace_to(
                         (prev.at, prev.at_s + prev.hold_s),
-                        (mark.at, &mark.via, mark.at_s),
+                        (mark.at, (&mark.via, mark.curve), mark.at_s),
                     )
                 });
 
@@ -369,6 +371,7 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
                 lens_mm: mark.lens_mm,
                 has_way: index > 0,
                 pace_m_s,
+                curve: (index > 0).then_some(mark.curve),
             })
         }
         _ => None,
@@ -385,7 +388,7 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
         .and_then(|prev| {
             pace_to(
                 (prev.at, prev.at_s + prev.hold_s),
-                (mark.at, &mark.via, mark.at_s),
+                (mark.at, (&mark.via, mark.curve), mark.at_s),
             )
         });
 
@@ -400,12 +403,13 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
         lens_mm: None,
         has_way,
         pace_m_s,
+        curve: has_way.then_some(mark.curve),
     })
 }
 
 /// Speed of the way from where and when a mark is left to the next mark's place, bend and
 /// arrival; `None` when the way takes no time.
-fn pace_to(leave: (Point, f64), arrive: (Point, &[Point], f64)) -> Option<f64> {
+fn pace_to(leave: (Point, f64), arrive: (Point, (&[Point], Curve), f64)) -> Option<f64> {
     let walk_s = arrive.2 - leave.1;
     if walk_s <= 0.0 {
         return None;

@@ -57,7 +57,7 @@ pub use views::{
 // What surfaces draw and print, handed through so they need no lower crate.
 pub use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts, Theme};
 pub use klappe_model::{
-    Angle, Arrival, CameraBody, CameraPresets, Dash, Departure, DoorSide, DrawingShape,
+    Angle, Arrival, CameraBody, CameraPresets, Curve, Dash, Departure, DoorSide, DrawingShape,
     FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, ObjectShape,
     OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, Sensor, ShotSize,
     MIN_IMAGE_OPACITY, MIN_OBJECT_HEIGHT_M,

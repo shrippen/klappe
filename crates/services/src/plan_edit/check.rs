@@ -15,6 +15,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
     match edit {
         PlanEdit::Move { to: at, .. }
         | PlanEdit::AddMark { at, .. }
+        | PlanEdit::AddMarkBefore { at, .. }
         | PlanEdit::AddCameraMark { at, .. }
         | PlanEdit::AddLight { at, .. }
         | PlanEdit::AddObject { at, .. }
@@ -22,6 +23,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::AddNote { at, .. }
         | PlanEdit::AddImage { at, .. } => check_point(*at),
         PlanEdit::Shift { dx_m, dy_m, .. }
+        | PlanEdit::ShiftWay { dx_m, dy_m, .. }
         | PlanEdit::ShiftGroup { dx_m, dy_m, .. }
         | PlanEdit::Duplicate { dx_m, dy_m, .. } => check_point(Point::new(*dx_m, *dy_m)),
         PlanEdit::Spin {
@@ -82,6 +84,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetDeparture { .. }
         | PlanEdit::SetRig { .. }
         | PlanEdit::SetPace { .. }
+        | PlanEdit::SetCurve { .. }
         | PlanEdit::SetDrawingStyle { .. }
         | PlanEdit::SetImageOpacity { .. }
         | PlanEdit::ReplaceImage { .. }

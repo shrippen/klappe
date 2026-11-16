@@ -111,6 +111,7 @@ mod tests {
             tilt_deg: 0.0,
             hold_s: 0.0,
             via: Vec::new(),
+            curve: Default::default(),
             rig: Rig::Dolly,
             lens_mm: None,
         }
