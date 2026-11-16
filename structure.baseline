@@ -18,7 +18,7 @@ crates/export/src/stroke.rs	visible	ccn=17
 crates/imagehead/src/lib.rs	jpeg_frame	ccn=22
 crates/script/src/write.rs	render	ccn=16
 crates/services/src/edit.rs	apply	ccn=17
-crates/services/src/error_text.rs	error_text	ccn=25
+crates/services/src/error_text.rs	error_text	ccn=26
 crates/services/src/field.rs	name	ccn=42
 crates/services/src/plan_edit.rs	apply	ccn=43 length=138
 crates/services/src/plan_edit/check.rs	check	ccn=23
