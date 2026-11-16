@@ -18,7 +18,7 @@ Vorbild für den Umfang der Produktion war Yamdu (Beobachtung am Projekt des Eig
 | Drehbuch | Buch schreiben, Fassungen, Seiten und Längen | Buchtext, Fassungen; ist es da, die Quelle von Nummer, Kopf und Figurennamen |
 | Stellprobe | Floorplans, Blocking, Kameras, Licht, Shots | Sets, Floorplans, Marks, Kameras, Shots |
 | Storyboard | Bilder der Shots ansehen, ordnen, ausgeben | nichts Eigenes: Bild und Notiz hängen am Shot, die Reihenfolge ist die Schnittfolge |
-| Breakdown | Elemente je Szene für die Departments erfassen und verfolgen | Elemente, Szenenblätter |
+| Breakdown | Elemente je Szene für die Departments erfassen und verfolgen | Elemente, Szenenblätter; übernimmt den Drehbuchauszug und die Berichte (DB-60, DB-61) |
 | Besetzung/Team | Rollen besetzen, Personen, Departments | Personen, Besetzung, Team, Kontakte |
 | Drehplan | Szenen auf Drehtage verteilen (Stripboard), Varianten | Drehplanversionen, Drehtage, Streifen |
 | Dispo | Tagesdisposition je Drehtag, als Druckvorlage | Dispositionen |
@@ -41,9 +41,12 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
    (`szene-012`, `saengersaal`) bleiben. Listen ohne fachliche Reihenfolge werden nach Id
    sortiert geschrieben; das Register hält seine Folge (siehe Abschnitt 4).
 4. **Abgeleitetes wird nicht gespeichert**: Achtel, Seiten, Figuren einer Szene aus dem Buch,
-   Drehtage eines Elements, erster Drehtag, Day out of Days.
+   Drehtage eines Elements, erster Drehtag, Day out of Days. Ausnahme: Das Register merkt sich
+   Nummer, Kopf und Fingerabdrücke aus dem Buch beim Speichern, weil der Abgleich nach einer
+   fremden Änderung (DB-65) den alten Stand braucht.
 5. **Verwaistes lädt und wird gemeldet**, nie still entfernt oder umgebogen (DB-64). `store`
-   lehnt nur Unlesbares ab; die Prüfung der Verweise läuft in `services/` (oder als reine
+   lehnt Unlesbares und unzulässige Werte ab (wie heute), prüft aber keine Verweise zwischen
+   Dateien; diese Prüfung läuft in `services/` (oder als reine
    Funktion in `model/`), weil nur dort Buch und Projekt zusammen vorliegen.
 6. **Lieber fragen als falsch zuordnen.** Ein Abgleich, der nicht eindeutig ist, legt dem Nutzer
    vor; eine stille falsche Zuordnung (ein Floorplan unter fremdem Szenenkopf) ist der
@@ -76,7 +79,7 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 | Szenenblatt | Breakdown | Szenen-Id | Spieltag, Vorstopp, geplante Drehdauer, Continuity, Hinweis für die Produktion, Figuren ohne Dialog (stumm, Komparsen), Element-Zuordnungen, Looks (Kostüm, Maske je Figur), Drehort abweichend | Drehplan, Dispo |
 | Figur (Rolle) | Projekt (`figuren.toml`: Name, Kürzel, Farbe, Cast-Nummer, Gruppe, Größe, Aliasnamen); mit Buch kommt der Name aus den Figurenzeilen | stabil | | alle |
 | Figur ↔ Szene | abgeleitet: Figurenzeilen + Spuren im Floorplan + Szenenblatt | – | | Drehplan, Day out of Days, Dispo |
-| Spielort | abgeleitet aus dem Kopf im Register, mit und ohne Buch (normalisiert, mit Varianten, DB-51) | normalisierter Name | | Breakdown, Drehplan |
+| Spielort | Projekt (`orte.toml`); entsteht aus dem Ort im Kopf, mit und ohne Buch (DB-51) | zufällig, stabil | Name, Varianten (andere Schreibweisen im Kopf) | Breakdown, Drehplan |
 | Spielort → Drehort | Projekt (Ortsplanung) | – | Vorgabe je Spielort; Abweichung je Szene im Szenenblatt | Stellprobe, Drehplan, Dispo |
 | Drehort | Stellprobe (Raum mit Set), Produktion (Adresse, später eigenes Ding) | stabil | Name, Set | Drehplan, Dispo |
 | Floorplan | Stellprobe | je Szene stabil | **Set, auf dem er gezeichnet ist** (ersetzt `Scene.location`; Migration: der heutige Wert geht an jeden Plan der Szene); Marks (mit Id), Kameras, Licht | Storyboard, Breakdown |
@@ -95,6 +98,11 @@ Szenen, mit der Art als Feld, Titel und Beschreibung statt Kopf, ohne Buchtext u
 und Shots (`szenen/<id>.json`), Streifen im Drehplan, Dispo; alle hängen nur an der Id. Ein
 gemeinsamer Typ „Drehinhalt“, damit Drehplan, Breakdown und Dispo nur einen Fall kennen.
 Schritt 1 sieht nur das Feld Art vor; die Oberfläche folgt später.
+
+**Drehbuchauszug:** Der Auszug je Szene (DB-60) und die Berichte (DB-61) im Lastenheft Drehbuch
+sind der Breakdown. Seine Daten stehen in `breakdown/`, nicht in `drehbuch/tags.toml` (F-02 im
+Lastenheft Drehbuch, angepasst: der Fountain-Text bleibt sauber wie entschieden). Besetzung und
+Statisterie aus DB-60 sind Figuren der Szene (Figurenzeilen und Szenenblatt), keine Elemente.
 
 **Elementkategorien** (industrieüblich, wie in Yamdu beobachtet): Kostüm, Maskenbild, Bauten,
 Ausstattung, Requisite, Grafik, Fahrzeug, Tier, visuelle Effekte, Spezialeffekte, Ton, Kamera
@@ -140,7 +148,11 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
   Name wird nicht still zur Figur (Tippfehler, „ALLE“, „STIMME“), sondern zum Anlegen oder
   Zuordnen vorgelegt; Zuordnungen werden als Aliasnamen der Figur gemerkt. Umbenennen in Klappe
   (DB-04) behält die Id; fremdes Umbenennen ergibt einen Fall zum Vorlegen.
-- **Spielorte und Drehorte (DB-51):** Der Ort im Kopf (aus dem Buch oder in Klappe angelegt) ist ein Spielort. Ein Floorplan
+- **Spielorte und Drehorte (DB-51):** Der Ort im Kopf (aus dem Buch oder in Klappe angelegt) ist ein Spielort.
+  Ein Spielort hat eine stabile Id; der Ort im Kopf wird über Name und Varianten zugeordnet.
+  Ein unbekannter Ort (auch nach einer Umbenennung im Buch, etwa SÄNGERSAAL → FESTSAAL) wird
+  vorgelegt: neuer Spielort, Variante oder Umbenennung eines bekannten. So bleibt die Zuordnung
+  zum Drehort bei einer Umbenennung erhalten. Ein Floorplan
   hält das Set fest, auf dem er gezeichnet ist; weicht es von der Ortsplanung ab, meldet Klappe
   das, statt die Marks still in einen anderen Raum zu legen. Drehorte werden nicht automatisch
   angelegt; ein Spielort ohne Zuordnung heißt „noch kein Drehort“.
@@ -155,7 +167,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ├── drehorte/<id>.toml        Drehort: Set
 ├── szenen.toml               Register der Drehinhalte: Szenen, Content Items (neu)
 ├── drehbuch.fountain         Buchtext (optional, F-07)
-├── drehbuch/fassungen/       gesperrte Fassungen (DB-40, F-02)
+├── drehbuch/fassungen/       gesperrte Fassungen (DB-40, F-02 im Lastenheft Drehbuch)
 ├── szenen/<id>.json          Stellprobe: Floorplans, Shots je Drehinhalt
 ├── breakdown/elemente.toml   Elemente                                       (neu)
 ├── breakdown/<szenen-id>.toml Szenenblatt                                   (neu)
@@ -181,8 +193,9 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ## 7. Reihenfolge
 
 1. Register der Drehinhalte (mit Feld Art), Zitat-Anker, Mark-Ids, Figurenabgleich (DB-50,
-   DB-64, DB-65); vom Ortsabgleich nur das Set am Floorplan und die abgeleitete Liste der
-   Spielorte (`orte.toml` mit Zuordnung erst mit Breakdown oder Drehplan); vorher zufällige Ids.
+   DB-64, DB-65); Spielorte mit stabiler Id (`orte.toml`) und das Set am Floorplan; die
+   Zuordnung Spielort → Drehort (Rest von DB-51) folgt mit Breakdown oder Drehplan; vorher
+   zufällige Ids.
    Zuerst Tests, die heute scheitern (Zeile vor verknüpfter Zeile einfügen, Szene davor
    einfügen, fremd neu nummerieren, Konfliktmarken im Buch).
    Migration von `testdata/` und Demo, `format_version` 3.
