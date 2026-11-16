@@ -65,12 +65,23 @@ const LAMP_ENTRY_PT: f64 = 240.0;
 /// The lamp list is at most this many rows high; more lamps are counted, not listed.
 const MAX_LAMP_ROWS: usize = 6;
 
-pub(crate) fn paper_mm(paper: Paper) -> (f64, f64) {
+fn paper_mm(paper: Paper) -> (f64, f64) {
     match paper {
         Paper::A4 => (210.0, 297.0),
         Paper::A3 => (297.0, 420.0),
         Paper::Letter => (215.9, 279.4),
     }
+}
+
+/// The paper in the page's orientation, in points.
+pub(crate) fn sheet_size_pt(page: &Page) -> (f64, f64) {
+    let (short_mm, long_mm) = paper_mm(page.paper);
+    let (w_mm, h_mm) = match page.orientation {
+        Orientation::Portrait => (short_mm, long_mm),
+        Orientation::Landscape => (long_mm, short_mm),
+    };
+
+    (w_mm * PT_PER_MM, h_mm * PT_PER_MM)
 }
 
 pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<Doc, ExportError> {
@@ -80,12 +91,7 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
     }
 
     let pal = palette(theme)?;
-    let (short_mm, long_mm) = paper_mm(page.paper);
-    let (w_mm, h_mm) = match page.orientation {
-        Orientation::Landscape => (long_mm, short_mm),
-        Orientation::Portrait => (short_mm, long_mm),
-    };
-    let (width_pt, height_pt) = (w_mm * PT_PER_MM, h_mm * PT_PER_MM);
+    let (width_pt, height_pt) = sheet_size_pt(page);
     let margin = page.margin_mm.max(0.0) * PT_PER_MM;
     let content_w = width_pt - 2.0 * margin;
 

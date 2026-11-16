@@ -29,7 +29,7 @@ use klappe_stellprobe::{axis_jumps, ordered_shots, ShotOrder};
 
 use crate::canvas::{Anchor, Dash, Geom, Prim, Sheet, Stroke, Weight};
 use crate::error::ExportError;
-use crate::layout::{paper_mm, GAP_PT, MIN_TEXT_PT, PT_PER_MM, TITLE_BAND_PT, TITLE_PT};
+use crate::layout::{sheet_size_pt, GAP_PT, MIN_TEXT_PT, PT_PER_MM, TITLE_BAND_PT, TITLE_PT};
 use crate::metrics::text_width_pt;
 use crate::page::{Page, ShotTexts};
 use crate::palette::Palette;
@@ -145,17 +145,6 @@ fn table_width(widths: &[f64; COLUMNS], content_w: f64, orientation: Orientation
         Orientation::Portrait => content_w,
         Orientation::Landscape => widths.iter().sum(),
     }
-}
-
-/// The paper in the page's orientation.
-fn sheet_size_pt(page: &Page) -> (f64, f64) {
-    let (short_mm, long_mm) = paper_mm(page.paper);
-    let (w_mm, h_mm) = match page.orientation {
-        Orientation::Portrait => (short_mm, long_mm),
-        Orientation::Landscape => (long_mm, short_mm),
-    };
-
-    (w_mm * PT_PER_MM, h_mm * PT_PER_MM)
 }
 
 fn shot_cells(plan: &FloorPlan, page: &Page, ordered: &[(usize, &Shot)]) -> Vec<[String; COLUMNS]> {

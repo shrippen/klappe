@@ -16,7 +16,7 @@ use klappe_stellprobe::{axis_jumps, ordered_shots, ShotOrder, VectorView};
 
 use crate::canvas::{Anchor, Dash, Fill, Geom, Prim, Rect, Sheet, Stroke, Weight};
 use crate::error::ExportError;
-use crate::layout::{paper_mm, GAP_PT, MIN_TEXT_PT, PT_PER_MM, TITLE_BAND_PT, TITLE_PT};
+use crate::layout::{sheet_size_pt, GAP_PT, MIN_TEXT_PT, PT_PER_MM, TITLE_BAND_PT, TITLE_PT};
 use crate::metrics::text_width_pt;
 use crate::page::{Page, ShotView};
 use crate::palette::Palette;
@@ -60,12 +60,11 @@ pub(crate) fn sheets(
         return Ok(Vec::new());
     }
 
-    let (short_mm, long_mm) = paper_mm(page.paper);
-    let (w_mm, h_mm, columns, rows) = match page.orientation {
-        Orientation::Landscape => (long_mm, short_mm, LONG_SIDE, SHORT_SIDE),
-        Orientation::Portrait => (short_mm, long_mm, SHORT_SIDE, LONG_SIDE),
+    let (width_pt, height_pt) = sheet_size_pt(page);
+    let (columns, rows) = match page.orientation {
+        Orientation::Landscape => (LONG_SIDE, SHORT_SIDE),
+        Orientation::Portrait => (SHORT_SIDE, LONG_SIDE),
     };
-    let (width_pt, height_pt) = (w_mm * PT_PER_MM, h_mm * PT_PER_MM);
     let margin = page.margin_mm.max(0.0) * PT_PER_MM;
     let top = margin + TITLE_BAND_PT + GAP_PT;
     let cell_w = (width_pt - 2.0 * margin - (columns - 1) as f64 * GAP_PT) / columns as f64;
