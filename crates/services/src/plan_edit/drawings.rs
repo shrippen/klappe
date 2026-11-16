@@ -8,9 +8,6 @@ use super::Scope;
 use crate::error::ServiceError;
 use crate::field::Field;
 
-/// What an area says when removing a point would leave fewer than three.
-const TOO_FEW_POINTS: &str = "at least 3 points";
-
 /// Gives the drawing `source` names a new look; any other source is refused.
 pub(super) fn set_drawing_style(
     scope: &mut Scope<'_>,
@@ -135,10 +132,7 @@ fn remove_point(drawing: &mut Drawing, index: usize) -> Result<(), ServiceError>
 
     points.remove(index);
     keep_others(points, middle, turn_deg);
-    check_drawable(&shape).map_err(|_| ServiceError::BadValue {
-        field: Field::Drawing,
-        value: TOO_FEW_POINTS.to_owned(),
-    })?;
+    check_drawable(&shape).map_err(|_| ServiceError::FewPoints)?;
 
     drawing.shape = shape;
 

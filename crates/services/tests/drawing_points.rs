@@ -211,16 +211,7 @@ fn an_area_keeps_three_points() {
 
     let result = s.edit_plan(PlanEdit::Remove { source: point(0) });
 
-    assert!(
-        matches!(
-            result,
-            Err(ServiceError::BadValue {
-                field: Field::Drawing,
-                ..
-            })
-        ),
-        "{result:?}"
-    );
+    assert!(matches!(result, Err(ServiceError::FewPoints)), "{result:?}");
     assert_eq!(points(&s), before);
 }
 

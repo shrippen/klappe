@@ -426,6 +426,7 @@
  "error.notEmpty": "Der Ordner ist nicht leer: {detail}",
  "error.noMarks": "Der Plan hat keine Marks, also keine Bildfolge.",
  "error.lastPlan": "Der letzte Plan einer Szene bleibt",
+ "error.fewPoints": "Eine Fläche braucht mindestens drei Punkte.",
  "error.planHasShots": "Der Plan enthält {count} Shot(s): lösche sie zuerst",
  "error.planNameTaken": "Einen Plan „{name}“ gibt es in dieser Szene schon",
  "unit.m": "m",
