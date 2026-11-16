@@ -258,7 +258,7 @@ Item {
     KanteCard {
         id: hintLine
         objectName: "hintLine"
-        visible: area.shownHint !== "" && !area.free
+        visible: area.shownHint !== ""
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.margins: Kirigami.Units.largeSpacing

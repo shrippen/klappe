@@ -530,7 +530,9 @@ pub mod qobject {
 
         /// What the context menu offers for the selection, as JSON: `layer` (name, empty for
         /// none or several), and `remove`, `duplicate`, `turn`, `straighten` (the command
-        /// would change something), `note` and `shot` (one note or one camera is selected).
+        /// would change something), `note` and `shot` (one note or one camera is selected),
+        /// `nextMark`, `markBefore` and `axisTo` (what `arm` can arm for the selection) and
+        /// `way` (`smooth` or `straight` for a selected way, else empty).
         #[qinvokable]
         #[cxx_name = "menuInfo"]
         fn menu_info(self: &Self) -> QString;
