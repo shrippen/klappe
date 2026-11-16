@@ -571,3 +571,92 @@ fn a_figure_label_survives_a_new_mark() {
 
     assert!(bound(&s, &id).is_some());
 }
+
+/// Review of PR 201: plan ids restart per scene and notes belong to the location, so a label
+/// of a figure in one scene must ignore the same figure in another scene of that location.
+#[test]
+fn a_label_ignores_the_same_figure_in_another_scene() {
+    let mut s = open();
+    let first = s.scene().unwrap().id.clone();
+    s.set_time(6.0);
+    s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
+        .unwrap();
+    let figure = s.project().locations[0]
+        .set
+        .notes
+        .last()
+        .unwrap()
+        .id
+        .clone();
+    let mark = Source::Mark {
+        character: "elisabeth".into(),
+        index: 0,
+    };
+    s.edit_plan(label(mark, "Start")).unwrap();
+    let start = s.project().locations[0]
+        .set
+        .notes
+        .last()
+        .unwrap()
+        .id
+        .clone();
+    let (at_figure, at_start) = (note_at(&s, &figure), note_at(&s, &start));
+
+    s.edit_project(klappe_services::ProjectEdit::AddScene {
+        number: "99".into(),
+        heading: "INT. TEST".into(),
+        location: s.scene().unwrap().location.clone(),
+    })
+    .unwrap();
+    let second = s.project().scenes.last().unwrap().id.clone();
+    s.select_scene(&second).unwrap();
+    for at in [p(1.0, 1.0), p(2.0, 2.0)] {
+        s.edit_plan(PlanEdit::AddMark {
+            character: "elisabeth".into(),
+            at,
+        })
+        .unwrap();
+    }
+    s.edit_plan(PlanEdit::Move {
+        source: Source::Figure("elisabeth".into()),
+        to: p(9.0, 9.0),
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Remove {
+        source: Source::Mark {
+            character: "elisabeth".into(),
+            index: 0,
+        },
+    })
+    .unwrap();
+
+    assert_eq!(first, "szene-012");
+    assert_eq!(
+        (note_at(&s, &figure), note_at(&s, &start)),
+        (at_figure, at_start)
+    );
+    assert!(bound(&s, &figure).is_some() && bound(&s, &start).is_some());
+}
+
+/// Review of PR 201: deleting a plan frees the labels of its figures and marks.
+#[test]
+fn removing_a_plan_frees_its_labels() {
+    let mut s = open();
+    s.set_time(6.0);
+    s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
+        .unwrap();
+    let id = s.project().locations[0]
+        .set
+        .notes
+        .last()
+        .unwrap()
+        .id
+        .clone();
+    let plan = s.plan().unwrap().id.clone();
+    s.add_plan("B").unwrap();
+
+    s.remove_plan(&plan, klappe_services::ShotsGo::Delete)
+        .unwrap();
+
+    assert_eq!(bound(&s, &id), None);
+}
