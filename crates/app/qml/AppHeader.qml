@@ -50,10 +50,11 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
+                                    actShotPages, actCameraPages, actShotFiles, actCameraFiles,
                                     actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
-                                    actUndo, actRedo]
+                                    actUndo, actRedo].concat(viewCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -155,16 +156,39 @@ RowLayout {
         KanteMenuItem { objectName: "frames"; action: actFrames; iconRoom: true }
         KanteMenuItem { objectName: "view3d"; action: actView3d; iconRoom: true }
         KanteMenuItem { objectName: "camera"; action: actCameraPng; iconRoom: true }
+        QQC2.MenuSeparator {}
+        KanteMenuItem { objectName: "shotPages"; action: actShotPages; iconRoom: true }
+        KanteMenuItem { objectName: "cameraPages"; action: actCameraPages; iconRoom: true }
+        KanteMenuItem { objectName: "shotFiles"; action: actShotFiles; iconRoom: true }
+        KanteMenuItem { objectName: "cameraFiles"; action: actCameraFiles; iconRoom: true }
     }
     HeaderMenu {
+        id: viewMenu
         objectName: "viewMenu"
         visible: header.controller.loaded
         text: header.texts.t("menu.view")
-        KanteMenuSection { text: header.texts.t("menu.viewMode"); rule: false }
+        // The saved views (LH-119) come first: the section's label is item 0, the views follow it.
+        KanteMenuSection { text: header.texts.t("menu.viewSaved"); rule: false }
+        Instantiator {
+            model: viewCommands.savedViews
+            delegate: KanteMenuItem {
+                required property var modelData
+                objectName: "savedView." + modelData.id
+                text: modelData.name
+                enabled: !header.locked
+                onTriggered: header.controller.applyView(modelData.id)
+            }
+            onObjectAdded: (index, object) => viewMenu.menu.insertItem(index + 1, object)
+            onObjectRemoved: (index, object) => viewMenu.menu.removeItem(object)
+        }
+        KanteMenuItem { objectName: "saveView"; action: viewCommands.saveAction }
+        KanteMenuItem { objectName: "removeView"; action: viewCommands.removeAction }
+        KanteMenuSection { text: header.texts.t("menu.viewMode") }
         KanteMenuItem { objectName: "free"; action: actFree }
         KanteMenuItem { objectName: "wallCut"; action: actWallCut }
         KanteMenuItem { objectName: "through"; action: actThrough }
         KanteMenuItem { objectName: "heights"; action: actHeights }
+        KanteMenuItem { objectName: "sketchClear"; action: viewCommands.clearAction }
         KanteMenuSection { text: header.texts.t("menu.viewAreas") }
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
@@ -359,6 +383,40 @@ RowLayout {
         onTriggered: exportDialog.request("camera")
     }
 
+    // LH-87: one page per shot or per camera, its camera strong and the rest faded.
+    CommandAction {
+        id: actShotPages
+        cmd: "export.shotpages"
+        group: "export"
+        text: header.texts.t("menu.shotpages")
+        enabled: header.controller.loaded
+        onTriggered: exportDialog.request("shotpages")
+    }
+    CommandAction {
+        id: actCameraPages
+        cmd: "export.camerapages"
+        group: "export"
+        text: header.texts.t("menu.camerapages")
+        enabled: header.controller.loaded
+        onTriggered: exportDialog.request("camerapages")
+    }
+    CommandAction {
+        id: actShotFiles
+        cmd: "export.shotfiles"
+        group: "export"
+        text: header.texts.t("menu.shotfiles")
+        enabled: header.controller.loaded
+        onTriggered: exportDialog.request("shotfiles")
+    }
+    CommandAction {
+        id: actCameraFiles
+        cmd: "export.camerafiles"
+        group: "export"
+        text: header.texts.t("menu.camerafiles")
+        enabled: header.controller.loaded
+        onTriggered: exportDialog.request("camerafiles")
+    }
+
     // Plan or 3D (J): the controller keeps which one shows.
     CommandAction {
         id: actFree
@@ -429,6 +487,14 @@ RowLayout {
                 header.heightRequested()
             }
         }
+    }
+    // Saved views (LH-119) and the sketch pen's clear command (LH-120).
+    ViewCommands {
+        id: viewCommands
+        objectName: "viewCommands"
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
     }
     // The checkmark follows the controller, which also leaves 3D when another project opens.
     Binding {
@@ -613,8 +679,8 @@ RowLayout {
 
     // What the palette lists: the modes, the tools, the actions, the scenes, the plans. Each is
     // listed with the key it has anywhere else.
-    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), sceneCommands(),
-                                              actionCommands(planMenu.actions), planCommands())
+    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), viewCommands.palette(),
+                                              sceneCommands(), actionCommands(planMenu.actions), planCommands())
 
     function actionCommands(actions) {
         return actions.map(a => ({
@@ -687,6 +753,15 @@ RowLayout {
             return
         case "plan":
             controller.selectPlan(target)
+            return
+        case "savedView":
+            controller.applyView(target)
+            return
+        case "removeView":
+            controller.removeView(target)
+            return
+        case "fade":
+            controller.cycleFade(target)
             return
         }
         const action = entries.concat(planMenu.actions).find(a => a.cmd === id)

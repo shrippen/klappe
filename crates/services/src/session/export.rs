@@ -4,13 +4,13 @@ use klappe_export::{Page, ShotView, Texts, Theme};
 use klappe_model::{FloorPlan, PaperSetup};
 use klappe_stellprobe::{render, vector_view, DisplayList, Eye, Lamp, Shape, ShotOrder};
 
-use super::{Session, Size};
+use super::{Pages, Session, Size};
 use crate::error::{write_failed, ServiceError};
 use crate::library;
 use crate::ExportFormat;
 
 const SECONDS_PER_MINUTE: u64 = 60;
-const MIN_NUMBER_WIDTH: usize = 2;
+pub(super) const MIN_NUMBER_WIDTH: usize = 2;
 /// Width of the PNG of a view (LH-86).
 const VIEW_WIDTH_PX: f64 = 1920.0;
 
@@ -49,6 +49,14 @@ impl Session {
             ExportFormat::Frames => self.export_frames(path, paper, texts).map(|_| ()),
             ExportFormat::View3d => self.export_view_png(path, options.shown),
             ExportFormat::Camera => self.export_camera_png(path, options.camera.as_deref()),
+            ExportFormat::ShotPages => self.export_pages(path, paper, texts, Pages::PerShot),
+            ExportFormat::CameraPages => self.export_pages(path, paper, texts, Pages::PerCamera),
+            ExportFormat::ShotFiles => self
+                .export_page_files(path, paper, texts, Pages::PerShot)
+                .map(|_| ()),
+            ExportFormat::CameraFiles => self
+                .export_page_files(path, paper, texts, Pages::PerCamera)
+                .map(|_| ()),
         }?;
 
         if format.needs_paper() {
@@ -179,7 +187,7 @@ impl Session {
 
     /// The display list at the playhead and the sheet around it, with the images the list
     /// names read from the project; what every plan export starts from.
-    fn printout(
+    pub(super) fn printout(
         &self,
         paper: PaperSetup,
         texts: Texts,
@@ -320,7 +328,7 @@ impl Session {
 }
 
 /// The scene's number as part of a file name: letters and digits, the rest an underscore.
-fn file_part(number: &str) -> String {
+pub(super) fn file_part(number: &str) -> String {
     number
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '_' })
@@ -342,7 +350,7 @@ fn frame_name(scene: &str, nr: usize, count: usize, at_s: f64) -> String {
 }
 
 /// A failed write names `path`, the file the user chose, not the temp file beside it.
-fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
+pub(super) fn write_file(path: &Path, bytes: Vec<u8>) -> Result<(), ServiceError> {
     klappe_store::write_atomic(path, &bytes).map_err(|e| match e {
         klappe_store::StoreError::Io { source, .. } => ServiceError::Write {
             path: path.to_owned(),

@@ -1,6 +1,8 @@
 //! A scene's floor plans as project edits (LH-04): add, copy, rename, move, remove.
 
-use klappe_model::{FloorPlan, Project, Scene};
+use klappe_model::{
+    Arrival, Departure, FigureTrack, FloorPlan, Mark, Point, Pose, Project, Scene, SetPlan,
+};
 
 use super::{slug, unique_id};
 use crate::error::ServiceError;
@@ -9,6 +11,12 @@ use crate::field::Field;
 const PLAN_ID_FALLBACK: &str = "plan";
 const PLAN_NAME_PREFIX: &str = "Plan";
 const PLAN_LETTERS: std::ops::RangeInclusive<char> = 'A'..='Z';
+
+/// Where the speakers of a scene stand when a plan begins (LH-09): in a row along the top edge
+/// of the set, `SEAT_EDGE_M` in, facing into the set, at most `SEAT_STEP_M` apart.
+const SEAT_EDGE_M: f64 = 0.8;
+const SEAT_STEP_M: f64 = 1.0;
+const SEAT_FACING_DEG: f64 = 90.0;
 
 /// A copy of "Plan A" is named "Plan A (2)", the next "Plan A (3)".
 const COPY_FIRST_NUMBER: usize = 2;
@@ -53,6 +61,55 @@ pub(crate) fn copy_plan(
     copy.name = name;
     scene.plans.insert(plan + 1, copy);
     Ok(plan + 1)
+}
+
+/// Puts the characters `ids` side by side along the top edge of the plan at `plan` of the scene
+/// at `scene`, one mark each at the start and no way (LH-09). Without a set (no location)
+/// nothing is put.
+pub(crate) fn seat_speakers(project: &mut Project, scene: usize, plan: usize, ids: &[String]) {
+    let places = project
+        .scenes
+        .get(scene)
+        .and_then(|s| project.location(&s.location))
+        .map(|l| seats(&l.set, ids.len()));
+    let Some(places) = places else {
+        return;
+    };
+
+    let plan = project
+        .scenes
+        .get_mut(scene)
+        .and_then(|s| s.plans.get_mut(plan));
+    let Some(plan) = plan else {
+        return;
+    };
+    for (id, at) in ids.iter().zip(places) {
+        plan.figures.push(FigureTrack {
+            character: id.clone(),
+            marks: vec![Mark {
+                at_s: 0.0,
+                at,
+                facing_deg: SEAT_FACING_DEG,
+                pose: Pose::Standing,
+                hold_s: 0.0,
+                via: Vec::new(),
+                arrival: Arrival::Walk,
+                departure: Departure::Stay,
+            }],
+        });
+    }
+}
+
+/// The places of `count` figures in a row along the top edge: `SEAT_STEP_M` apart, closer
+/// when the set is too narrow for that, so all stand inside it.
+fn seats(set: &SetPlan, count: usize) -> Vec<Point> {
+    let room_m = (set.width_m - 2.0 * SEAT_EDGE_M).max(0.0);
+    let gaps = count.saturating_sub(1).max(1);
+    let step_m = SEAT_STEP_M.min(room_m / gaps as f64);
+
+    (0..count)
+        .map(|i| Point::new(SEAT_EDGE_M + step_m * i as f64, SEAT_EDGE_M))
+        .collect()
 }
 
 /// The id stays; only the name the user sees changes.

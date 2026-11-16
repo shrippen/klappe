@@ -11,13 +11,14 @@ use klappe_services::{
     Session, Source, Visibility,
 };
 
-const LAYERS: [Layer; 6] = [
+const LAYERS: [Layer; 7] = [
     Layer::Set,
     Layer::Figures,
     Layer::Cameras,
     Layer::Lights,
     Layer::Notes,
     Layer::Drawings,
+    Layer::Sketches,
 ];
 
 /// The names QML and the catalogue use; `from_name` reads each back.
@@ -28,7 +29,7 @@ fn layers_are_listed_by_name() {
     assert_eq!(Layer::ALL, LAYERS);
     assert_eq!(
         names,
-        ["set", "figures", "cameras", "lights", "notes", "drawings"]
+        ["set", "figures", "cameras", "lights", "notes", "drawings", "sketches"]
     );
     for layer in Layer::ALL {
         assert_eq!(Layer::from_name(layer.name()), Some(layer));

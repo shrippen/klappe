@@ -6,11 +6,13 @@
 //! ├── locations    Location → Set   (walls, objects, notes, images, background image)
 //! ├── library      LibraryItem      (the project's own objects, LH-12)
 //! ├── templates    Template         (the project's own set-ups, LH-07)
+//! ├── views        SavedView        (named choices of visible layers, cameras, figures, LH-119)
 //! └── scenes       Scene → FloorPlan
 //!                           ├── figures  FigureTrack → Mark (time, place, facing)
 //!                           ├── cameras  Camera      → CameraMark
 //!                           ├── lights   Light
 //!                           ├── drawings Drawing  (lines, arrows, shapes)
+//!                           ├── sketches Sketch   (freehand strokes of the pen, LH-120)
 //!                           ├── shots    Shot (cut order = list order)
 //!                           └── links    ScriptLink  (script element ↔ mark or shot)
 //! ```
@@ -27,7 +29,9 @@ mod limits;
 mod paper;
 mod plan;
 mod project;
+mod saved_view;
 mod shot;
+mod sketch;
 mod template;
 
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
@@ -54,7 +58,9 @@ pub use project::{
     SetPlan, Wall, IMAGE_WIDTH_M, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
     MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
+pub use saved_view::SavedView;
 pub use shot::{Angle, Movement, Shot, ShotSize};
+pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).

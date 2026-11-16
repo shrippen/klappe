@@ -98,6 +98,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::EmptyTemplate => Some("error.emptyTemplate"),
         ServiceError::NoMarks => Some("error.noMarks"),
         ServiceError::NoPicture => Some("error.noPicture"),
+        ServiceError::NoPages => Some("error.noPages"),
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
         ServiceError::FewPoints => Some("error.fewPoints"),
         ServiceError::NotCopyable => Some("error.notCopyable"),

@@ -26,6 +26,16 @@ impl qobject::Controller {
         self.refresh();
     }
 
+    pub(super) fn cycle_fade(mut self: Pin<&mut Self>, layer: &QString) {
+        let Some(layer) = Layer::from_name(&layer.to_string()) else {
+            return;
+        };
+        if let Some(s) = self.as_mut().session() {
+            s.set_fade(layer, s.fade(layer).next());
+        }
+        self.refresh();
+    }
+
     pub(super) fn set_lock(mut self: Pin<&mut Self>, layer: &QString, locked: &QString) {
         let Some(layer) = Layer::from_name(&layer.to_string()) else {
             return;

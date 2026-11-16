@@ -137,19 +137,50 @@ fn the_overview_lists_what_each_export_needs() {
     let ids: Vec<&str> = formats.iter().map(|f| f["id"].as_str().unwrap()).collect();
     assert_eq!(
         ids,
-        ["pdf", "png", "svg", "csv", "ods", "xlsx", "frames", "view3d", "camera"]
+        [
+            "pdf",
+            "png",
+            "svg",
+            "csv",
+            "ods",
+            "xlsx",
+            "frames",
+            "view3d",
+            "camera",
+            "shotpages",
+            "camerapages",
+            "shotfiles",
+            "camerafiles"
+        ]
     );
     let on_paper: Vec<&str> = formats
         .iter()
         .filter(|f| f["paper"] == true)
         .map(|f| f["id"].as_str().unwrap())
         .collect();
-    assert_eq!(on_paper, ["pdf", "png", "svg", "frames"]);
+    assert_eq!(
+        on_paper,
+        [
+            "pdf",
+            "png",
+            "svg",
+            "frames",
+            "shotpages",
+            "camerapages",
+            "shotfiles",
+            "camerafiles"
+        ]
+    );
     let extensions: Vec<_> = formats.iter().map(|f| f["extension"].clone()).collect();
     assert_eq!(extensions[6], serde_json::Value::Null);
     assert_eq!(extensions[7], "png");
     assert_eq!(extensions[8], "png");
     assert_eq!(extensions[3], "csv");
+    // One PDF per shot or camera is a file, one PNG per shot or camera a folder (LH-87).
+    assert_eq!(extensions[9], "pdf");
+    assert_eq!(extensions[10], "pdf");
+    assert_eq!(extensions[11], serde_json::Value::Null);
+    assert_eq!(extensions[12], serde_json::Value::Null);
 }
 
 /// The plan printed on a sheet makes it the project's; lists and views of it do not.

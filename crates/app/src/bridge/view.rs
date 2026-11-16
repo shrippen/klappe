@@ -16,7 +16,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    Angle, Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Language, Layer,
+    Angle, Arrival, Dash, Departure, DisplayList, Fade, FigureColor, Fill, Grid, Language, Layer,
     LightKind, Lock, Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping, Source,
     Visibility,
 };
@@ -143,6 +143,7 @@ impl ControllerRust {
         self.script_json = v.script_json;
         self.layers_json = v.layers_json;
         self.locks_json = v.locks_json;
+        self.fades_json = v.fades_json;
         self.time = v.time;
         self.duration = v.duration;
         self.selected_shot = v.selected_shot;
@@ -185,6 +186,7 @@ impl ControllerRust {
             script_json: q(&to_json(&s.script_lines())),
             layers_json: q(&layers_json(s)),
             locks_json: q(&locks_json(s)),
+            fades_json: q(&fades_json(s)),
             time: s.time_s(),
             duration: s.duration_s(),
             selected_shot: q(s.selected_shot().unwrap_or_default()),
@@ -222,6 +224,7 @@ pub(super) struct Shown {
     script_json: QString,
     layers_json: QString,
     locks_json: QString,
+    fades_json: QString,
     time: f64,
     duration: f64,
     selected_shot: QString,
@@ -268,7 +271,10 @@ pub(super) fn plan_json(
 
     let heights = plan::HeightTexts::of(language);
 
-    plan::shapes_json(list, s.dir(), &marked, picked, marquee, measure, &heights)
+    let fades = s.item_fades(list);
+    let drawn = plan::Faded::new(list, &fades);
+
+    plan::shapes_json(drawn, s.dir(), &marked, picked, marquee, measure, &heights)
 }
 
 /// What the tool lists of the tool bar offer: the project's characters, the object library,
@@ -322,6 +328,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "angle": angles,
         "movement": movements,
         "layer": layers,
+        "fade": Fade::ALL.iter().map(|f| f.name()).collect::<Vec<_>>(),
         "grid": grids,
         "axis": s.axis_choice(),
         "template": s.templates(),
@@ -335,6 +342,16 @@ fn layers_json(s: &Session) -> String {
 
 fn locks_json(s: &Session) -> String {
     layer_flags(|l| s.lock(l) == Lock::Locked)
+}
+
+/// The strength of each layer, by name, as the names of `Fade` (`100`, `60`, `30`).
+fn fades_json(s: &Session) -> String {
+    let fades: serde_json::Map<_, _> = Layer::ALL
+        .iter()
+        .map(|l| (l.name().to_owned(), json!(s.fade(*l).name())))
+        .collect();
+
+    serde_json::Value::Object(fades).to_string()
 }
 
 /// One switch per layer, by name: what `layersJson` and `locksJson` hand to QML.
@@ -429,6 +446,7 @@ impl qobject::Controller {
         self.as_mut().set_script_json(v.script_json);
         self.as_mut().set_layers_json(v.layers_json);
         self.as_mut().set_locks_json(v.locks_json);
+        self.as_mut().set_fades_json(v.fades_json);
         self.as_mut().set_time(v.time);
         self.as_mut().set_selected_shot(v.selected_shot);
         self.as_mut().set_selected_key(v.selected_key);
@@ -587,7 +605,9 @@ mod tests {
         let shown: serde_json::Value = serde_json::from_str(&layers_json(&s)).unwrap();
         let locked: serde_json::Value = serde_json::from_str(&locks_json(&s)).unwrap();
 
-        let names = ["set", "figures", "cameras", "lights", "notes", "drawings"];
+        let names = [
+            "set", "figures", "cameras", "lights", "notes", "drawings", "sketches",
+        ];
         assert_eq!(shown.as_object().unwrap().len(), names.len());
         assert_eq!(locked.as_object().unwrap().len(), names.len());
         for name in names {

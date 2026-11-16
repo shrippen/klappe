@@ -36,6 +36,8 @@ const PAGES: &[&str] = &[
     "qml/LayerPopover.qml",
     "qml/PlanForm.qml",
     "qml/TemplateForm.qml",
+    "qml/ViewForm.qml",
+    "qml/ViewCommands.qml",
     "qml/Timeline.qml",
     "qml/Workspace.qml",
     "qml/FormDialog.qml",

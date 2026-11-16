@@ -59,6 +59,20 @@ pub fn pdf(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, Exp
     pdf::write(&layout::compose(list, page, theme)?)
 }
 
+/// Every plan of `pages` on a page of its own, as PDF 1.4 (LH-87): one page per shot or camera,
+/// each with its own list and sheet; `None` for an empty slice.
+pub fn pdf_pages(pages: &[(DisplayList, Page)], theme: Theme) -> Result<Vec<u8>, ExportError> {
+    let mut docs = pages
+        .iter()
+        .map(|(list, page)| layout::compose(list, page, theme));
+    let mut first = docs.next().ok_or(ExportError::EmptyPlan)??;
+    for doc in docs {
+        first.pages.push(doc?);
+    }
+
+    pdf::write(&first)
+}
+
 /// The plan on one page as PNG: RGB, 150 dpi, drawn by this crate's own rasteriser.
 pub fn png(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, ExportError> {
     let surface = raster::render(&layout::compose(list, page, theme)?)?;

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::geometry::Point;
 use crate::project::FigureColor;
 use crate::shot::Shot;
+use crate::sketch::Sketch;
 
 /// The plan of one scene: who stands and moves where, cameras, lights, shots (LH-04: a scene
 /// may have variants, `Plan A` and `Plan B`).
@@ -28,6 +29,9 @@ pub struct FloorPlan {
     /// Lines, arrows and shapes drawn on the plan by hand (LH-19).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub drawings: Vec<Drawing>,
+    /// Freehand strokes of the sketch pen, over everything else (LH-120).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sketches: Vec<Sketch>,
 }
 
 /// Ids of the two characters that span the axis.
@@ -49,6 +53,7 @@ impl FloorPlan {
             links: Vec::new(),
             axis: None,
             drawings: Vec::new(),
+            sketches: Vec::new(),
         }
     }
 

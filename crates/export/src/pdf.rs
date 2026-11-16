@@ -29,15 +29,15 @@ const AVG_CHAR_EM: f64 = 0.5;
 const OPACITY_STEPS: f64 = 1000.0;
 
 pub(crate) fn write(doc: &Doc) -> Result<Vec<u8>, ExportError> {
-    let states = opacities(doc);
-    let pictures = pictures(doc);
+    let plans: Vec<&Doc> = std::iter::once(doc).chain(&doc.pages).collect();
+    let (states, pictures) = (opacities(&plans), pictures(&plans));
 
-    // Page 1 is the plan, then the sheets; each page is two objects, page and content.
-    let mut pages = vec![(
-        doc.width_pt,
-        doc.height_pt,
-        content(doc, &states, &pictures),
-    )];
+    // Page 1 is the plan, then the further plan pages and the sheets; each page is two
+    // objects, page and content.
+    let mut pages: Vec<(f64, f64, Vec<u8>)> = plans
+        .iter()
+        .map(|d| (d.width_pt, d.height_pt, content(d, &states, &pictures)))
+        .collect();
     for sheet in &doc.sheets {
         pages.push((sheet.width_pt, sheet.height_pt, sheet_content(doc, sheet)));
     }
@@ -140,10 +140,11 @@ fn key(opacity: f64) -> u32 {
     (opacity.clamp(0.0, 1.0) * OPACITY_STEPS).round() as u32
 }
 
-/// The pictures of the plan, in drawing order.
-fn pictures(doc: &Doc) -> Vec<Arc<Picture>> {
-    doc.plan
+/// The pictures of the plan pages, in drawing order.
+fn pictures(plans: &[&Doc]) -> Vec<Arc<Picture>> {
+    plans
         .iter()
+        .flat_map(|doc| &doc.plan)
         .filter_map(|prim| match prim {
             Prim::Image { picture, .. } => Some(Arc::clone(picture)),
             _ => None,
@@ -152,9 +153,9 @@ fn pictures(doc: &Doc) -> Vec<Arc<Picture>> {
 }
 
 /// The distinct translucent fills and pictures of the page, in first-use order.
-fn opacities(doc: &Doc) -> Vec<u32> {
+fn opacities(plans: &[&Doc]) -> Vec<u32> {
     let mut keys = Vec::new();
-    for prim in doc.plan.iter().chain(&doc.chrome) {
+    for prim in plans.iter().flat_map(|d| d.plan.iter().chain(&d.chrome)) {
         let opacity = match prim {
             Prim::Shape {
                 fill: Some(Fill { opacity, .. }),

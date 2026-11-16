@@ -50,6 +50,7 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         | Role::LightBeam
         | Role::Note
         | Role::Axis
+        | Role::Sketch
         | Role::Height { .. }
         | Role::GroupDot => None,
     }
@@ -73,6 +74,7 @@ fn plain_class(role: Role) -> Option<&'static str> {
         Role::Axis => Some("axis"),
         Role::GroupDot => Some("group-dot"),
         Role::Picture
+        | Role::Sketch
         | Role::Height { .. }
         | Role::Drawing { .. }
         | Role::ArrowHead(_)
@@ -89,6 +91,9 @@ fn class_of(role: Role) -> String {
     if role == Role::Picture {
         return "picture".into();
     }
+    if role == Role::Sketch {
+        return "sketch".into();
+    }
 
     plain_class(role).unwrap_or_default().into()
 }
@@ -104,7 +109,7 @@ fn width_pt(role: Role) -> Option<f64> {
         Role::CameraPath { .. } | Role::FigurePath(_) => Some(PATH_PT),
         Role::Axis => Some(AXIS_PT),
         Role::Mark(_) => Some(MARK_PT),
-        Role::Drawing { .. } | Role::ArrowHead(_) => Some(DRAWING_PT),
+        Role::Drawing { .. } | Role::ArrowHead(_) | Role::Sketch => Some(DRAWING_PT),
         Role::Wall
         | Role::Door
         | Role::Window
@@ -134,6 +139,7 @@ fn tint_opacity(role: Role) -> f64 {
         | Role::Light
         | Role::Note
         | Role::Axis
+        | Role::Sketch
         | Role::CameraPath { .. }
         | Role::Frustum
         | Role::Camera

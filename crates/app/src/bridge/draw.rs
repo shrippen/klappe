@@ -372,25 +372,7 @@ impl qobject::Controller {
         };
 
         if phase == DragPhase::Moving {
-            self.as_mut().rust_mut().get_mut().marquee = Some(sweep.clone());
-            let json = {
-                let this = self.as_ref();
-                this.rust().session.as_ref().map(|s| {
-                    let selected = &this.rust().selected;
-                    let list = s.display_list_for(selected.only());
-
-                    plan_json(
-                        s,
-                        &list,
-                        selected,
-                        this.rust().language,
-                        (&this.rust().picked(), Some(&sweep), None),
-                    )
-                })
-            };
-            if let Some(json) = json {
-                self.set_plan_json(q(&json));
-            }
+            self.show_sweep(&sweep);
             return false;
         }
 
@@ -413,12 +395,36 @@ impl qobject::Controller {
         any
     }
 
+    /// Shows `sweep` over the plan while the drag goes on, without the work of a refresh.
+    pub(super) fn show_sweep(mut self: Pin<&mut Self>, sweep: &Sweep) {
+        self.as_mut().rust_mut().get_mut().marquee = Some(sweep.clone());
+        let json = {
+            let this = self.as_ref();
+            this.rust().session.as_ref().map(|s| {
+                let selected = &this.rust().selected;
+                let list = s.display_list_for(selected.only());
+
+                plan_json(
+                    s,
+                    &list,
+                    selected,
+                    this.rust().language,
+                    (&this.rust().picked(), Some(sweep), None),
+                )
+            })
+        };
+        if let Some(json) = json {
+            self.set_plan_json(q(&json));
+        }
+    }
+
     pub(super) fn cancel_drag(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().get_mut().grip = Grip::Free;
         // No drag runs any more: a typed measure must not end it as a wall.
         self.as_mut().rust_mut().get_mut().drag_step = None;
         self.as_mut().rust_mut().get_mut().free.caption.clear();
         self.as_mut().rust_mut().get_mut().marquee = None;
+        self.as_mut().rust_mut().get_mut().sketch.clear();
         self.refresh();
     }
 
