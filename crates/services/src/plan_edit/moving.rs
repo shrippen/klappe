@@ -457,6 +457,21 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
 
 /// Sets the width or depth so the grip lands on `to` as far as its axis goes, in the object's
 /// turned frame; the opposite edge (left or top) stays, so the centre moves half the change.
+/// The middle of the edge grip `grip` sizes: the right edge for the width, the bottom edge for
+/// the depth, turned with the object.
+fn edge_middle(object: &SetObject, grip: ObjectGrip) -> Point {
+    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
+    let (axis, half_m) = match grip {
+        ObjectGrip::Width => ((cos, sin), object.width_m / 2.0),
+        ObjectGrip::Depth => ((-sin, cos), object.depth_m / 2.0),
+    };
+
+    Point::new(
+        object.at.x_m + half_m * axis.0,
+        object.at.y_m + half_m * axis.1,
+    )
+}
+
 fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
     let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
     let (axis, size_m) = match grip {
@@ -519,10 +534,9 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
 
             Ok((edge, edge))
         }
+        // The edge snaps, the grip outside it follows: a snapped drag gives round sizes.
         Target::ObjectEdge { object, grip } => {
-            let place = object_grip_place(object, grip);
-
-            Ok((place, place))
+            Ok((edge_middle(object, grip), object_grip_place(object, grip)))
         }
         Target::Wall(wall) => Ok((wall.from, middle(wall))),
         Target::LightEdge { light, grip } => {

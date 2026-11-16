@@ -113,8 +113,8 @@ pub enum Role {
     OpeningHandle,
     /// A grip on the beam of the selected lamp (LH-50); only drawn while it is selected.
     LightHandle,
-    /// A grip on the right or bottom edge of the selected object (LH-25); only drawn while
-    /// selected.
+    /// A grip just outside the right or bottom edge of the selected object (LH-25); only
+    /// drawn while selected.
     ObjectHandle,
     /// The grip that bends the way to a mark (LH-21); only drawn for a selected way.
     FigureHandle(FigureColor),
@@ -171,8 +171,8 @@ pub enum Source {
         light: String,
         grip: LightGrip,
     },
-    /// The grip in the middle of the right or bottom edge of a set object's box (LH-25): drag
-    /// to set its width or depth, the left or top edge stays.
+    /// The grip just outside the right or bottom edge of a set object's box (LH-25): drag to
+    /// set its width or depth, the left or top edge stays.
     ObjectGrip {
         object: String,
         grip: ObjectGrip,

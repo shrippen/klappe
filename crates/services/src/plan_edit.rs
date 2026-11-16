@@ -459,7 +459,7 @@ enum Target<'a> {
     },
     /// A grip on the right edge of a note's card: moving it sets the card's width.
     NoteEdge(&'a mut Note),
-    /// A grip on the right or bottom edge of an object: moving it sets its width or depth.
+    /// A grip outside the right or bottom edge of an object: moving it sets its width or depth.
     ObjectEdge {
         object: &'a mut SetObject,
         grip: ObjectGrip,

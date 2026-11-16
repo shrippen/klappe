@@ -52,7 +52,7 @@ fn near(a: Point, b: Point) -> bool {
 /// Unturned: the width grip 0.45 m outside the middle of the right edge, the depth grip as far
 /// below the middle of the bottom edge.
 #[test]
-fn an_object_has_a_grip_on_its_right_and_bottom_edge() {
+fn an_object_has_a_grip_outside_its_right_and_bottom_edge() {
     let found = grips(&set(0.0, ObjectShape::Rect), &Source::Object("o".into()));
 
     assert_eq!(found.len(), 2);

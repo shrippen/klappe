@@ -40,9 +40,9 @@ pub enum LightGrip {
 /// The edge of a set object a grip sits on, in the object's own turned frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectGrip {
-    /// The middle of the right edge: sets the width.
+    /// Just outside the middle of the right edge: sets the width.
     Width,
-    /// The middle of the bottom edge: sets the depth.
+    /// Just outside the middle of the bottom edge: sets the depth.
     Depth,
 }
 
@@ -63,8 +63,8 @@ const NEW_POINT_RADIUS_M: f64 = 0.1;
 /// width (LH-10).
 /// A selected lamp has two at the beam's reach: one on its facing, one on the beam's edge
 /// (LH-50).
-/// A selected object drawn by its width and depth has one in the middle of its right edge and
-/// one in the middle of its bottom edge, to set them (LH-25).
+/// A selected object drawn by its width and depth has one just outside the middle of its right
+/// edge and one outside its bottom edge, to set them (LH-25).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {

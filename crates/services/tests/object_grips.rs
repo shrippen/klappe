@@ -206,3 +206,16 @@ fn the_grips_of_a_small_object_hide_neither_it_nor_each_other() {
         }
     }
 }
+
+/// With snapping on, the edge lands on the grid, not the grip that sits outside it: the table
+/// (left edge x = 7, right edge 13) pulled by half a metre is 6.5 m wide.
+#[test]
+fn a_snapped_drag_puts_the_edge_on_the_grid() {
+    let mut s = open();
+    s.set_snapping(Snapping::On);
+
+    s.edit_plan(drag(ObjectGrip::Width, 0.5, 0.0)).unwrap();
+
+    let (_, _, w, _) = state(&s);
+    assert!(near(w, 6.5), "{w}");
+}
