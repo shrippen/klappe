@@ -1,5 +1,6 @@
 use klappe_model::{FloorPlan, Project, Scene};
 
+use super::undo::step_name;
 use super::Session;
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit};
@@ -93,7 +94,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit(next);
+        self.commit_step(next, &step_name(&edit));
         self.end_stale_look();
         Ok(())
     }
@@ -102,6 +103,7 @@ impl Session {
     /// others come or go before it.
     pub fn edit_project(&mut self, edit: ProjectEdit) -> Result<(), ServiceError> {
         self.check_script_number(&edit)?;
+        let step = step_name(&edit);
         let mut next = self.project.clone();
         project_edit::apply(&mut next, &edit)?;
         self.check_figure_sizes(&next)?;
@@ -112,8 +114,8 @@ impl Session {
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());
         match self.renamed_script(&edit) {
-            Some(text) => self.commit_script(next, &text),
-            None => self.commit(next),
+            Some(text) => self.commit_script(next, &text, &step),
+            None => self.commit_step(next, &step),
         }
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
@@ -183,7 +185,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit(next);
+        self.commit_step(next, "RenamePlan");
         Ok(())
     }
 
@@ -198,7 +200,7 @@ impl Session {
 
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());
-        self.commit(next);
+        self.commit_step(next, "MovePlan");
         self.follow_scene(on_view, plan_on_view);
         Ok(())
     }
@@ -214,7 +216,7 @@ impl Session {
         let plan_on_view = self.plan().map(|p| p.id.clone());
         let was_shown = plan_on_view.as_deref() == Some(id);
         let before = self.plan.saturating_sub(1);
-        self.commit(next);
+        self.commit_step(next, "RemovePlan");
         self.follow_scene(on_view, plan_on_view);
         if was_shown {
             self.plan = before;
@@ -225,7 +227,7 @@ impl Session {
 
     /// Commits `next`, which has a new plan at `at` in the current scene, and shows it.
     fn commit_new_plan(&mut self, next: Project, at: usize) -> String {
-        self.commit(next);
+        self.commit_step(next, "AddPlan");
         self.plan = at;
         self.time_s = 0.0;
         self.selected_shot = None;

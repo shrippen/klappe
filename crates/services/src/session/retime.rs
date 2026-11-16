@@ -82,7 +82,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit(next);
+        self.commit_step(next, "Retime");
         Ok(())
     }
 }
