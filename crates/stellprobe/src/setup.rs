@@ -66,9 +66,7 @@ fn join(setups: &mut Vec<Setup>, setup: Setup) -> usize {
 /// shot of the plan other than `shot` that is not assigned by hand itself, so chains do not
 /// exist.
 pub fn is_setup_model(plan: &FloorPlan, shot: &str, target: &str) -> bool {
-    plan.shots
-        .iter()
-        .any(|s| s.id == target && s.id != shot && s.setup_of.is_none())
+    plan.shots.iter().any(|s| models(s, shot, target))
 }
 
 /// The index of the shot `shot` is shot together with by hand (LH-77), if its `setup_of`
@@ -76,11 +74,13 @@ pub fn is_setup_model(plan: &FloorPlan, shot: &str, target: &str) -> bool {
 pub fn setup_target(plan: &FloorPlan, shot: &Shot) -> Option<usize> {
     let id = shot.setup_of.as_deref()?;
 
-    if !is_setup_model(plan, &shot.id, id) {
-        return None;
-    }
+    plan.shots.iter().position(|s| models(s, &shot.id, id))
+}
 
-    plan.shots.iter().position(|s| s.id == id)
+/// Whether `candidate` is the shot `target` and may be the model of `shot`; one test for
+/// both, so a file with a doubled id picks the same shot in each.
+fn models(candidate: &Shot, shot: &str, target: &str) -> bool {
+    candidate.id == target && candidate.id != shot && candidate.setup_of.is_none()
 }
 
 /// The setup number (1-based) of every shot, in the plan's cut order. Setups are numbered
