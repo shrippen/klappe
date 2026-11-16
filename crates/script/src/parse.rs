@@ -77,16 +77,26 @@ pub fn parse_located(text: &str) -> Vec<Located> {
 ///
 /// A line count of the typed text, so an editor can style those lines as the title page.
 pub fn title_page_lines(text: &str) -> usize {
+    title_page_span(text).map_or(0, |(_, end)| end)
+}
+
+/// The lines of `text` from the first key line of the title page to the end of its block
+/// (`start..end`), in typed lines, so what stands before it (a boneyard) is not in it.
+pub(crate) fn title_page_span(text: &str) -> Option<(usize, usize)> {
     let (text, origin) = cut_boneyard(text);
     let (title_page, body) = split_title_page(&text);
     if title_page.is_empty() {
-        return 0;
+        return None;
     }
 
     let skipped = text[..text.len() - body.len()].matches('\n').count();
+    let leading = text.len() - text.trim_start_matches(['\n', '\r']).len();
+    let first = text[..leading].matches('\n').count();
     let total = origin.last().map_or(0, |last| last + 1);
+    let start = origin.get(first).copied().unwrap_or(total);
+    let end = origin.get(skipped).map_or(total, |line| line + 1);
 
-    origin.get(skipped).map_or(total, |line| line + 1)
+    Some((start, end))
 }
 
 /// The text without boneyards and, for each of its lines, the line of the typed text

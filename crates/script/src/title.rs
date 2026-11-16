@@ -1,7 +1,7 @@
 //! The title page of a Fountain text: reading the fields of the form and writing them back
 //! without touching the rest of the text.
 
-use crate::parse::{parse, title_page_lines};
+use crate::parse::{parse, title_page_span};
 use crate::{write, Script};
 
 /// The keys of the form, in the order Fountain lists them.
@@ -87,24 +87,25 @@ fn merged(old: Vec<(String, String)>, fields: &[(String, String)]) -> Vec<(Strin
 }
 
 /// The text with the form's keys of the title page set to `fields`. The rest of the text,
-/// body and other title keys, stays as it is (a boneyard inside the old title page goes); a text without title page gets one.
+/// body and other title keys, stays as it is (a boneyard inside the old title page goes, one before it stays); a text without title page gets one.
 pub fn set_title_fields(text: &str, fields: &[(String, String)]) -> String {
     let old = parse(text).title_page;
-    let had_page = !old.is_empty();
-
-    // The page ends where the reader says, boneyards before it counted.
-    let text = text.replace("\r\n", "\n").replace('\r', "\n");
-    let taken = title_page_lines(&text);
     let pairs = merged(old, fields);
 
-    // A comment inside the old title page goes with it.
-    let rest = match had_page {
-        true => text.splitn(taken + 1, '\n').nth(taken).unwrap_or_default(),
-        false => text.as_str(),
-    };
+    // What stands before the title page (a boneyard) stays; the page ends where the reader
+    // says. A comment inside the old page goes with it.
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let lines: Vec<&str> = text.split('\n').collect();
+    let (start, end) = title_page_span(&text).unwrap_or((0, 0));
+    let head = lines[..start.min(lines.len())].join("\n");
+    let rest = lines[end.min(lines.len())..].join("\n");
     let rest = rest.trim_start_matches('\n');
+    let head = match head.is_empty() {
+        true => head,
+        false => head + "\n",
+    };
     if pairs.is_empty() {
-        return rest.to_owned();
+        return head + rest;
     }
 
     let page = write(&Script {
@@ -112,10 +113,10 @@ pub fn set_title_fields(text: &str, fields: &[(String, String)]) -> String {
         elements: Vec::new(),
     });
     if rest.is_empty() {
-        return page.trim_end().to_owned() + "\n";
+        return head + page.trim_end() + "\n";
     }
 
-    page + rest
+    head + &page + rest
 }
 
 #[cfg(test)]
@@ -218,5 +219,6 @@ mod tests {
         assert_eq!(parse(&new).title_page, fields(&[("Title", "Neu")]));
         assert_eq!(parse(&new).elements, parse(BODY).elements);
         assert_eq!(new.matches("Title:").count(), 1, "{new}");
+        assert!(new.starts_with("/* weg */\nTitle: Neu\n\n"), "{new}");
     }
 }
