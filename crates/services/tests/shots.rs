@@ -657,3 +657,34 @@ fn a_locked_camera_layer_refuses_versions_and_renumbering() {
     }
     assert!(!s.can_undo());
 }
+
+#[test]
+fn a_number_without_a_digit_before_its_letters_is_its_own_base() {
+    let mut s = open();
+    s.edit_shot("s12-3", ShotField::Number, "INSERT").unwrap();
+    s.edit_shot("s12-4", ShotField::Number, "TOTALEVONOBENS")
+        .unwrap();
+
+    s.version_shot("s12-3").unwrap();
+    s.version_shot("s12-4").unwrap();
+
+    assert_eq!(
+        numbers(&s),
+        [
+            "12.1",
+            "12.2",
+            "INSERT",
+            "INSERTA",
+            "TOTALEVONOBENS",
+            "TOTALEVONOBENSA",
+            "12.5"
+        ]
+    );
+
+    // Only letters after a digit are a version: each of these is a number of its own.
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.3", "12.4", "12.5", "12.6", "12.7"]
+    );
+}
