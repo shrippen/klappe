@@ -17,9 +17,9 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    Angle, Arrival, Curve, Dash, Departure, DisplayList, Fade, FigureColor, Fill, Grid, Language, Layer,
-    LightKind, Lock, Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping, Source,
-    Visibility,
+    Angle, Arrival, Curve, Dash, Departure, DisplayList, Fade, FigureColor, Fill, Grid, Language,
+    Layer, LightKind, Lock, Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping,
+    Source, Visibility,
 };
 use serde_json::json;
 
