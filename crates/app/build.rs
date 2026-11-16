@@ -5,6 +5,7 @@ use cxx_qt_build::{CxxQtBuilder, QmlModule};
 const PAGES: &[&str] = &[
     "qml/Main.qml",
     "qml/BackupNotice.qml",
+    "qml/ProjectGuard.qml",
     "qml/Texts.qml",
     "qml/ScriptPanel.qml",
     "qml/ShotPanel.qml",

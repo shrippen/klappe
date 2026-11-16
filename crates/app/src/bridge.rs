@@ -594,6 +594,11 @@ pub mod qobject {
         #[cxx_name = "openProject"]
         fn open_project(self: Pin<&mut Self>, path: &QString) -> bool;
 
+        /// Closes the project (unsaved changes go to the backup); false if that fails.
+        #[qinvokable]
+        #[cxx_name = "closeProject"]
+        fn close_project(self: Pin<&mut Self>) -> bool;
+
         /// Opens the user's copy of the example in the language of the window, made first if it
         /// is not there; an error goes to `status`.
         #[qinvokable]
