@@ -5,6 +5,7 @@ use klappe_services::Session;
 
 use super::{q, ControllerRust};
 use crate::args::AppArgs;
+use crate::arm::Armed;
 use crate::catalog::Language;
 use crate::notice::Status;
 use crate::selection::Selection;
@@ -39,6 +40,7 @@ impl Default for ControllerRust {
         let language = Language::pick(args.language.as_deref());
         let mut notice = Status::default();
         let session = open_at_start(&args, language, &mut notice);
+        let shot = args.screenshot.map(|p| q(&p.to_string_lossy()));
 
         let mut this = Self {
             session,
@@ -94,6 +96,8 @@ impl Default for ControllerRust {
             note: NoteDraft::Idle,
             asks_note: false,
             note_text: QString::default(),
+            arm: Armed::Idle,
+            armed: QString::default(),
             preview: Preview::Hidden,
             drag_step: None,
             grip: Grip::Free,
@@ -104,10 +108,7 @@ impl Default for ControllerRust {
             scene_id: QString::default(),
             recent_json: q("[]"),
             recent_store: q("[]"),
-            screenshot_path: args
-                .screenshot
-                .map(|p| q(&p.to_string_lossy()))
-                .unwrap_or_default(),
+            screenshot_path: shot.unwrap_or_default(),
             screenshot_after: args.screenshot_after_ms,
         };
         this.fill();

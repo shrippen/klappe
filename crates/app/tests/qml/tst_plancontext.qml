@@ -34,6 +34,7 @@ TestCase {
         property var calls: []
         // What a right click selects: the key and count the fake then shows.
         property string pickKey: ""
+        property string armed: ""
 
         function describe(key) { return "{}" }
         function markInfo() { return "{}" }
@@ -41,7 +42,7 @@ TestCase {
         readonly property var infos: ({
             "object": { layer: "set", remove: true, duplicate: true, turn: true },
             "camera": { layer: "cameras", remove: true, duplicate: true, turn: true, straighten: true, shot: true },
-            "figure": { layer: "figures", remove: true, turn: true, straighten: true },
+            "figure": { layer: "figures", remove: true, turn: true, straighten: true, nextMark: true, markBefore: true, axisTo: true, way: "smooth" },
             "note": { layer: "notes", remove: true, duplicate: true, note: true },
             "opening": { layer: "set", remove: true },
             "many": { layer: "", remove: true, duplicate: true, turn: true }
@@ -71,6 +72,9 @@ TestCase {
         function undo() { calls.push(["undo"]) }
         function redo() { calls.push(["redo"]) }
         function cancelScale() { calls.push(["cancelScale"]); scalePoints = 0 }
+        function arm(what) { calls.push(["arm", what]); armed = what; return true }
+        function cancelArm() { calls.push(["cancelArm"]); armed = "" }
+        function setWayCurve(name) { calls.push(["curve", name]); return true }
         function cancelMeasure() { calls.push(["cancelMeasure"]); measuring = false }
     }
 
@@ -103,6 +107,7 @@ TestCase {
         fake.measuring = false
         fake.calls = []
         fake.pickKey = ""
+        fake.armed = ""
     }
 
     function made(tool) {
@@ -117,7 +122,7 @@ TestCase {
 
     function shown(area) {
         const names = ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxEditNote", "ctxAddShot",
-                       "ctxLockLayer", "ctxHideLayer", "ctxDeselect", "ctxUndo", "ctxRedo", "ctxFit"]
+                       "ctxNextMark", "ctxMarkBefore", "ctxAxisTo", "ctxWaySmooth", "ctxWayStraight", "ctxLockLayer", "ctxHideLayer", "ctxDeselect", "ctxUndo", "ctxRedo", "ctxFit"]
         return names.filter(n => findChild(area, n).visible)
     }
 
@@ -173,7 +178,7 @@ TestCase {
         const kinds = {
             "object:o1": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
             "camera:a": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxAddShot", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
-            "figure:e": ["ctxDelete", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
+            "figure:e": ["ctxDelete", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxNextMark", "ctxMarkBefore", "ctxAxisTo", "ctxWayStraight", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
             "note:n1": ["ctxDelete", "ctxDuplicate", "ctxEditNote", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"],
             "opening:3:0": ["ctxDelete", "ctxLockLayer", "ctxHideLayer", "ctxDeselect"]
         }
@@ -295,6 +300,44 @@ TestCase {
         keyClick(Qt.Key_Escape)
         compare(spy.count, 1)
         compare(fake.calls, [["clear"]])
+    }
+
+    // One Escape order: an armed click, then the tool, then the selection.
+    function test_escape_ends_an_armed_click_before_the_tool_and_the_selection() {
+        const area = made("wall")
+        const spy = createTemporaryObject(spyComponent, tc, { target: area, signalName: "selectToolRequested" })
+        fake.selectedKey = "figure:e"
+        fake.selectedCount = 1
+        fake.armed = "nextMark"
+
+        keyClick(Qt.Key_Escape)
+        compare(fake.calls, [["cancelArm"]])
+        compare(spy.count, 0)
+
+        keyClick(Qt.Key_Escape)
+        compare(spy.count, 1)
+        compare(fake.calls, [["cancelArm"]])
+
+        area.tool = "select"
+        keyClick(Qt.Key_Escape)
+        compare(fake.calls, [["cancelArm"], ["clear"]])
+    }
+
+    function test_the_hint_line_shows_what_is_armed() {
+        const area = made("select")
+        const line = findChild(area, "hintLine")
+
+        verify(!line.visible)
+        fake.armed = "axisTo"
+        verify(line.visible)
+        compare(findChild(area, "hintLabel").text, "Klick auf die zweite Figur setzt die Achse. Esc bricht ab.")
+
+        // The armed click wins over the tool's hint.
+        area.tool = "wall"
+        area.toolHint = "Ziehen zeichnet eine Wand."
+        compare(findChild(area, "hintLabel").text, "Klick auf die zweite Figur setzt die Achse. Esc bricht ab.")
+        fake.armed = ""
+        compare(findChild(area, "hintLabel").text, "Ziehen zeichnet eine Wand.")
     }
 
     function test_the_hint_line_shows_with_a_tool() {

@@ -33,6 +33,7 @@ ColumnLayout {
     readonly property var arrivals: choices.arrival || []
     readonly property var departures: choices.departure || []
     readonly property var rigs: choices.rig || []
+    readonly property var curves: choices.curve || []
     readonly property var info: {
         // Every edit raises the picture revision; the plan may not change (a drag ends as
         // previewed), and the key alone would not tell the new values. The plan too: playing
@@ -61,6 +62,7 @@ ColumnLayout {
             return
         }
         poseChoice.currentIndex = Math.max(0, poses.indexOf(info.pose))
+        curveChoice.currentIndex = Math.max(0, curves.indexOf(info.curve))
         arrivalChoice.currentIndex = Math.max(0, arrivals.indexOf(info.arrival))
         departureChoice.currentIndex = Math.max(0, departures.indexOf(info.departure))
         if (!holdField.typing) {
@@ -192,6 +194,26 @@ ColumnLayout {
             QQC2.ToolTip.text: card.texts.t("mark.paceTip")
             QQC2.ToolTip.visible: hovered
             QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
+    }
+
+    // The shape of the way that leads here (LH-108).
+    RowLayout {
+        objectName: "curveRow"
+        visible: !!card.info && card.info.hasWay
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteSectionLabel { text: card.texts.t("mark.curve") }
+        KanteSegmented {
+            id: curveChoice
+            objectName: "curveChoice"
+            model: card.curves.map(c => card.texts.t("curve." + c))
+            tooltips: card.curves.map(c => card.texts.t("mark.curveTip"))
+            onActivated: index => {
+                if (!card.controller.setWayCurve(card.curves[index])) {
+                    card.fill()
+                }
+            }
         }
     }
 

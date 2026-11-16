@@ -66,6 +66,8 @@ TestCase {
         fake.viewFree = false
         fake.missingHeights = 0
         fake.calls = []
+        fake.selectedKey = ""
+        fake.curve = ""
         fake.plan = "plan-a"
         fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats })
         fakeTools.tool = "select"
@@ -421,24 +423,19 @@ TestCase {
         compare(fake.calls, [["undo"], ["redo"]])
     }
 
+    // LH-103: the tooltips name the step; without a text for it the plain name and key stay.
     function test_undo_and_redo_tooltips_name_the_step() {
         const header = make()
         const undo = findChild(header, "undo")
         const redo = findChild(header, "redo")
-
-        // No step known: the plain name and key.
         compare(undo.QQC2.ToolTip.text, "Rückgängig (Strg+Z)")
-
         fake.undoStep = "Shift"
         fake.redoStep = "AddObject"
         compare(undo.QQC2.ToolTip.text, "Rückgängig: Verschieben (Strg+Z)")
         compare(redo.QQC2.ToolTip.text, "Wiederholen: Objekt setzen (Strg+Umschalt+Z)")
-
-        // A step without a text of its own falls back.
         fake.undoStep = "NoSuchStep"
         compare(undo.QQC2.ToolTip.text, "Rückgängig (Strg+Z)")
-        fake.undoStep = ""
-        fake.redoStep = ""
+        fake.undoStep = fake.redoStep = ""
     }
 
     function test_undo_and_redo_wait_for_something_to_undo() {
@@ -754,5 +751,50 @@ TestCase {
             verify(de.t(key) !== key, "de " + key)
             verify(en.t(key) !== key, "en " + key)
         }
+    }
+
+    // LH-104, LH-105, LH-109: a key arms the next click for the selected figure or camera.
+    function test_the_palette_arms_the_next_click_for_the_selection() {
+        const header = make()
+        const command = id => header.commandPalette.commands.find(c => c.id === id)
+
+        verify(!command("plan.nextMark").enabled)
+
+        fake.selectedKey = "figure:elisabeth"
+        verify(command("plan.nextMark").enabled)
+        verify(command("plan.markBefore").enabled)
+        verify(command("plan.axisTo").enabled)
+        compare(command("plan.nextMark").keys, "Umschalt+F")
+        compare(command("plan.markBefore").keys, "Umschalt+Z")
+        compare(command("plan.axisTo").keys, "Umschalt+A")
+
+        header.run("plan.nextMark")
+        header.run("plan.markBefore")
+        header.run("plan.axisTo")
+        compare(fake.calls, [["arm", "nextMark"], ["arm", "markBefore"], ["arm", "axisTo"]])
+
+        // The axis runs between figures.
+        fake.selectedKey = "camera:a"
+        verify(command("plan.nextMark").enabled)
+        verify(!command("plan.axisTo").enabled)
+    }
+
+    // LH-108: the palette switches the selected way.
+    function test_the_palette_switches_the_way_shape() {
+        const header = make()
+        const command = id => header.commandPalette.commands.find(c => c.id === id)
+
+        fake.selectedKey = "figurevia:elisabeth:1:at0"
+        fake.curve = "smooth"
+        verify(!command("plan.waySmooth").enabled)
+        verify(command("plan.wayStraight").enabled)
+
+        header.run("plan.wayStraight")
+        compare(fake.calls, [["setWayCurve", "straight"]])
+        verify(command("plan.waySmooth").enabled)
+        verify(!command("plan.wayStraight").enabled)
+
+        fake.curve = ""
+        verify(!command("plan.waySmooth").enabled)
     }
 }

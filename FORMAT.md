@@ -194,6 +194,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Übergang: `via` war ein einzelner Punkt (Kontrollpunkt einer quadratischen Bézierkurve);
   Beispielprojekte, Demo und Testdaten sind umgestellt, der Punkt der Liste ist die Mitte der
   alten Kurve, (a + 2 via + b) / 4 mit a, b als Orten des vorigen und dieses Marks.
+- **Gerade oder weiche Wege (LH-108):** jeder Mark einer Figur und einer Kamera (`marks` in
+  `szenen/<id>.json`) hat optional `curve`, die Form des Wegs vom vorigen Mark hierher:
+  `smooth` (Standard, die Kurve aus „Kurvenwege“) oder `straight` (gerade Strecken vom vorigen
+  Mark über die Knicke von `via` zu diesem Mark, mit Ecken an den Knicken). Die Bewegung läuft
+  auch dann gleichmäßig entlang der Strecken. Ohne Knicke sind beide gleich; `smooth` wird nicht
+  geschrieben; am ersten Mark zählt `curve` nicht. Keine neue Formatversion, ältere Dateien
+  laden unverändert. Ein Mark, der vor den ersten gesetzt wird (LH-105), ist ein gewöhnlicher
+  Mark: der alte erste bekommt den Weg dorthin, seine Zeit und die aller späteren Marks
+  verschieben sich um die Laufzeit des neuen Wegs.
 - **Auftritt und Abgang (LH-26):** jeder Mark einer Figur (`marks` in `szenen/<id>.json`) hat
   optional `arrival` (`walk` oder `appear`, Standard `walk`) und `departure` (`stay` oder
   `leave`, Standard `stay`). Bei `appear` ist die Figur vor `at_s` dieses Marks nicht zu sehen

@@ -110,6 +110,41 @@ QQC2.Menu {
         onTriggered: menu.controller.addShot()
     }
 
+    // The commands that arm the next click (LH-104, LH-105, LH-109) and set a way's curve (LH-108).
+    KanteMenuItem {
+        objectName: "ctxNextMark"
+        visible: menu.info.nextMark === true
+        text: menu.texts.t("arm.nextMark")
+        shortcutText: menu.keyName("Shift+F")
+        onTriggered: menu.controller.arm("nextMark")
+    }
+    KanteMenuItem {
+        objectName: "ctxMarkBefore"
+        visible: menu.info.markBefore === true
+        text: menu.texts.t("arm.markBefore")
+        shortcutText: menu.keyName("Shift+Z")
+        onTriggered: menu.controller.arm("markBefore")
+    }
+    KanteMenuItem {
+        objectName: "ctxAxisTo"
+        visible: menu.info.axisTo === true
+        text: menu.texts.t("arm.axisTo")
+        shortcutText: menu.keyName("Shift+A")
+        onTriggered: menu.controller.arm("axisTo")
+    }
+    KanteMenuItem {
+        objectName: "ctxWaySmooth"
+        visible: menu.info.way === "straight"
+        text: menu.texts.t("way.smooth")
+        onTriggered: menu.controller.setWayCurve("smooth")
+    }
+    KanteMenuItem {
+        objectName: "ctxWayStraight"
+        visible: menu.info.way === "smooth"
+        text: menu.texts.t("way.straight")
+        onTriggered: menu.controller.setWayCurve("straight")
+    }
+
     QQC2.MenuSeparator { visible: menu.layer !== "" }
     KanteMenuItem {
         objectName: "ctxLockLayer"

@@ -2,6 +2,7 @@
 
 use super::q;
 use super::qobject;
+use crate::arm::{self, Armed};
 use crate::drawing;
 use crate::object;
 use crate::selection;
@@ -35,6 +36,13 @@ fn menu_json(s: &Session, selected: &Selection) -> serde_json::Value {
         _ => "",
     };
 
+    // "smooth" or "straight" for the selected way, else empty: the entry offers the other.
+    let way = selected
+        .only()
+        .and_then(|source| s.way_curve(source))
+        .map(|curve| curve.name())
+        .unwrap_or_default();
+
     json!({
         "layer": layer,
         "remove": offers(Key::Remove),
@@ -43,6 +51,10 @@ fn menu_json(s: &Session, selected: &Selection) -> serde_json::Value {
         "straighten": offers(Key::Straighten),
         "note": matches!(selected.only(), Some(Source::Note(_))),
         "shot": matches!(selected.only(), Some(Source::Camera(_))),
+        "nextMark": arm::can_arm(Armed::NextMark, selected.only()),
+        "markBefore": arm::can_arm(Armed::MarkBefore, selected.only()),
+        "axisTo": arm::can_arm(Armed::AxisTo, selected.only()),
+        "way": way,
     })
 }
 
@@ -202,6 +214,10 @@ mod tests {
         let figure = info(&[Source::Figure("elisabeth".into())]);
         assert_eq!(figure["layer"], "figures");
         assert_eq!(figure["duplicate"], false);
+        assert_eq!(figure["nextMark"], true);
+        assert_eq!(figure["axisTo"], true);
+        assert_eq!(camera["axisTo"], false);
+        assert_eq!(note["nextMark"], false);
     }
 
     #[test]

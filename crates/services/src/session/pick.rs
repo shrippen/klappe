@@ -1,4 +1,4 @@
-use klappe_model::{DrawingShape, Point, Project};
+use klappe_model::{Curve, DrawingShape, Point, Project};
 use klappe_stellprobe::{handles, lens_at, render, DisplayList, Item, Source};
 
 use super::layers::layer_of;
@@ -72,6 +72,12 @@ impl Session {
     /// mark, a figure or a camera (those at the playhead).
     pub fn mark_info(&self, source: &Source) -> Option<MarkInfo> {
         plan_edit::mark_info(self.plan()?, self.time_s, source)
+    }
+
+    /// The shape of the way `source` names (LH-108): a mark, figure or camera (its mark at the
+    /// playhead) or a grip on the way; `None` for anything else and for a first mark.
+    pub fn way_curve(&self, source: &Source) -> Option<Curve> {
+        plan_edit::way_curve(self.plan()?, self.time_s, source)
     }
 
     /// The display list as it would be after `edit`, without committing it or taking an undo

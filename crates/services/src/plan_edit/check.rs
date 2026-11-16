@@ -15,6 +15,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
     match edit {
         PlanEdit::Move { to: at, .. }
         | PlanEdit::AddMark { at, .. }
+        | PlanEdit::AddMarkBefore { at, .. }
         | PlanEdit::AddCameraMark { at, .. }
         | PlanEdit::AddLight { at, .. }
         | PlanEdit::AddObject { at, .. }
@@ -22,6 +23,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::AddNote { at, .. }
         | PlanEdit::AddImage { at, .. } => check_point(*at),
         PlanEdit::Shift { dx_m, dy_m, .. }
+        | PlanEdit::ShiftWay { dx_m, dy_m, .. }
         | PlanEdit::ShiftGroup { dx_m, dy_m, .. }
         | PlanEdit::Duplicate { dx_m, dy_m, .. } => check_point(Point::new(*dx_m, *dy_m)),
         PlanEdit::Spin {
@@ -44,11 +46,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             from,
             to,
             distance_m,
-        } => {
-            check_point(*from)?;
-            check_point(*to)?;
-            check_distance(*distance_m)
-        }
+        } => check_calibration((*from, *to), *distance_m),
         PlanEdit::MoveBackground { dx_m, dy_m } => check_point(Point::new(*dx_m, *dy_m)),
         PlanEdit::Resize {
             width_m, depth_m, ..
@@ -82,6 +80,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetDeparture { .. }
         | PlanEdit::SetRig { .. }
         | PlanEdit::SetPace { .. }
+        | PlanEdit::SetCurve { .. }
         | PlanEdit::SetDrawingStyle { .. }
         | PlanEdit::SetImageOpacity { .. }
         | PlanEdit::ReplaceImage { .. }
@@ -90,6 +89,12 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         // `add_shape` checks its outline itself.
         | PlanEdit::AddShape { .. } => Ok(()),
     }
+}
+
+fn check_calibration((from, to): (Point, Point), distance_m: f64) -> Result<(), ServiceError> {
+    check_point(from)?;
+    check_point(to)?;
+    check_distance(distance_m)
 }
 
 fn check_shape(shape: &DrawingShape) -> Result<(), ServiceError> {

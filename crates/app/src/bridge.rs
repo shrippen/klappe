@@ -78,6 +78,9 @@ pub mod qobject {
         #[qproperty(i32, area_points, cxx_name = "areaPoints")]
         /// Whether the text of a note is being asked (`commitNote` or `cancelNote` answers).
         #[qproperty(bool, asks_note, cxx_name = "asksNote")]
+        /// What the next click on the plan does for the selection: `nextMark`, `markBefore`,
+        /// `axisTo` (`arm`), empty for nothing; `cancelArm` ends it.
+        #[qproperty(QString, armed)]
         /// The text the question starts with: the note's own when it is edited.
         #[qproperty(QString, note_text, cxx_name = "noteText")]
         /// Last message for the status line, already translated.
@@ -411,6 +414,38 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "duplicateSelected"]
         fn duplicate_selected(self: Pin<&mut Self>) -> bool;
+
+        /// Arms the next click on the plan (`nextMark`, `markBefore`, `axisTo`) for the selected
+        /// figure or camera, the hint line shows what it does; false when `canArm` is not.
+        #[qinvokable]
+        fn arm(self: Pin<&mut Self>, what: &QString) -> bool;
+
+        /// Whether the selection has what `arm` needs (a figure or camera; the axis a figure).
+        #[qinvokable]
+        #[cxx_name = "canArm"]
+        fn can_arm(self: &Self, what: &QString) -> bool;
+
+        /// Drops what `arm` armed.
+        #[qinvokable]
+        #[cxx_name = "cancelArm"]
+        fn cancel_arm(self: Pin<&mut Self>);
+
+        /// Moves the selected way, when a grip of it is selected, by one grid step to the right
+        /// and down (each -1, 0 or 1; LH-107). False for another selection.
+        #[qinvokable]
+        #[cxx_name = "nudgeWay"]
+        fn nudge_way(self: Pin<&mut Self>, right: i32, down: i32) -> bool;
+
+        /// The shape of the selected way, `smooth` or `straight`; empty when the selection has
+        /// no way (LH-108).
+        #[qinvokable]
+        #[cxx_name = "wayCurve"]
+        fn way_curve(self: &Self) -> QString;
+
+        /// Makes the selected way `smooth` or `straight` (LH-108); false when it has none.
+        #[qinvokable]
+        #[cxx_name = "setWayCurve"]
+        fn set_way_curve(self: Pin<&mut Self>, name: &QString) -> bool;
 
         /// Makes the selected way straight again; false when nothing is selected.
         #[qinvokable]
@@ -849,6 +884,7 @@ use cxx_qt_lib::QString;
 
 pub use state::ControllerRust;
 
+mod arm;
 mod draw;
 mod export;
 mod free;

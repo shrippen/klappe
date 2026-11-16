@@ -48,6 +48,7 @@ fn mark(at_s: f64, x: f64, y: f64) -> Mark {
         pose: Pose::Standing,
         hold_s: 0.0,
         via: Vec::new(),
+        curve: Default::default(),
         arrival: Arrival::Walk,
         departure: Departure::Stay,
     }
@@ -84,6 +85,7 @@ fn plan() -> FloorPlan {
             tilt_deg: 0.0,
             hold_s: 0.0,
             via: Vec::new(),
+            curve: Default::default(),
             rig: Default::default(),
             lens_mm: None,
         }],

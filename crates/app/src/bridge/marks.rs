@@ -10,7 +10,7 @@ use crate::mark;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
-use klappe_services::{Arrival, Departure, Pose, Rig, Session, Source};
+use klappe_services::{Arrival, Curve, Departure, Pose, Rig, Session, Source};
 use serde_json::json;
 
 impl qobject::Controller {
@@ -135,6 +135,7 @@ fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
         "tilt": info.tilt_deg,
         "rig": info.rig.map(Rig::name).unwrap_or_default(),
         "lens": info.lens_mm,
+        "curve": info.curve.map(Curve::name).unwrap_or_default(),
     })
 }
 
@@ -163,6 +164,8 @@ mod tests {
         assert_eq!(second["pace"], 1.75);
 
         assert_eq!(mark_json(&s, Some(&mark(0)))["hasWay"], false);
+        assert_eq!(second["curve"], "smooth");
+        assert_eq!(mark_json(&s, Some(&mark(0)))["curve"], "");
 
         let camera = mark_json(&s, Some(&Source::Camera("a".into())));
         assert_eq!(camera["kind"], "camera");
