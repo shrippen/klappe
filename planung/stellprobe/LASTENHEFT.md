@@ -86,6 +86,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | LH-06 | Rückgängig / Wiederholen ohne feste Grenze innerhalb einer Sitzung. | M |
 | LH-07 | Vorlagen für typische Auflösungen (z. B. Schuss-Gegenschuss, Dreieck, Plansequenz); eigene Vorlagen aus einem Plan speichern. | S |
 | LH-08 | Auswahl per Klick, Rechteck und Lasso; Auswahl gemeinsam verschieben, drehen, kopieren. | M |
+| LH-09 | Ein neuer Floorplan enthält schon die Figuren, die in dieser Szene des Drehbuchs sprechen: nebeneinander am Rand, ohne Wege. | S |
 
 ### 6.2 Set und Grundriss
 
@@ -96,7 +97,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | LH-12 | Eigene Objekte anlegen und in der Bibliothek ablegen; Bibliotheken als Dateien weitergeben. | M |
 | LH-13 | Bild als Hintergrund (Grundriss, Luftbild, Foto; nur Bildformate, kein PDF und kein Video); Maßstab über eine bekannte Strecke kalibrieren. | M |
 | LH-14 | Maßstabsgetreues Arbeiten in Metern; Raster, Einrasten, Messwerkzeug. | M |
-| LH-15 | Ebenen (Set, Figuren, Kamera, Licht, Notizen) ein- und ausblenden, sperren. | M |
+| LH-15 | Ebenen (Set, Figuren, Kamera, Licht, Notizen) ein- und ausblenden, sperren und in Stufen abblenden (blasser, damit eine andere Ebene hervortritt). | M |
 | LH-16 | Beschriftungen und Notizen frei im Plan. | M |
 | LH-17 | Höhenangaben für Objekte (für Kamerahöhe und Sichtlinien). | S |
 | LH-18 | Bilder (Foto, Skizze) als frei platzierbare Objekte. | S |
@@ -164,7 +165,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | LH-73 | Shot im Plan markieren hebt Kamera, Weg und Sichtkegel hervor. | M |
 | LH-74 | Storyboard-Bild je Shot (importiert oder skizziert). | K |
 | LH-75 | Standbild aus dem Kamerablick als Storyboard-Bild übernehmen. | K |
-| LH-76 | Shot-Versionen (12, 12A, 12B) mit Umnummerieren. | S |
+| LH-76 | Shot-Versionen (12, 12A, 12B) mit Umnummerieren; Nummernschema je Projekt wählbar (Szene.n, Kamerabuchstabe, Mehrkamera wie A-1). | S |
 | LH-77 | Shot von seinem Setup lösen und einem anderen zuordnen. | S |
 
 ### 6.9 Ausgabe
@@ -178,6 +179,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | LH-84 | Wiedergabe als Video exportieren. | K |
 | LH-85 | Shotliste als Tabelle (ODS, XLSX). | S |
 | LH-86 | 3D-Ansicht und Kamerablick als PNG; Kamerablick als Vektorgrafik im PDF. | S |
+| LH-87 | Ausgabe mit einer Seite je Shot oder je Kamera: deren Körper, Sichtkegel und Weg kräftig, Set und Figuren blass. | S |
 
 ### 6.10 Plan und 3D
 
@@ -207,8 +209,8 @@ zeichnet, legt die Grundlagen für 3D schon mit an. Umsetzung:
 | NF-03 | Offenes, dokumentiertes Dateiformat; textbasiert, damit Projekte in Git versioniert und verglichen werden können. | M |
 | NF-04 | Oberfläche nach dem Design System Kante. | M |
 | NF-05 | Flüssige Bedienung bei mindestens 50 Figuren, 10 Kameras, 300 Set-Objekten je Floorplan. | M |
-| NF-06 | Bedienung mit Maus und Tastatur; Tastenkürzel für alle häufigen Werkzeuge. | M |
-| NF-07 | Stift- und Touch-Bedienung (Tablet am Set). | K |
+| NF-06 | Bedienung mit Maus und Tastatur; Tastenkürzel für alle häufigen Werkzeuge. Jede Funktion hat beide Wege: mit der Maus (Klick, Ziehen, Kontextmenü) und mit der Tastatur (Taste oder Befehlspalette); kein Befehl nur über Hover, Rechtsklick oder eine Taste allein, damit Touch (NF-07) später ohne Umbau dazukommt. | M |
+| NF-07 | Stift- und Touch-Bedienung (Tablet am Set); später, heute wird nicht auf Touch gezielt. | K |
 | NF-08 | Sprachen: Deutsch und Englisch. | M |
 | NF-09 | Fachbegriffe nach deutscher Filmpraxis, englische Begriffe in der englischen Fassung. | M |
 | NF-10 | Alle Funktionen ohne Konto und ohne Bezahlgrenze; Abgleich zwischen Geräten über Git oder beliebigen Dateiabgleich. | M |
@@ -257,6 +259,10 @@ für den Nutzer leistet, nie *wie* es das tut.
 - Wer Stellprobe programmiert, arbeitet nach Lastenheft und Pflichtenheft, nicht mit
   Shot Designer daneben.
 - Namen, Symbole, Objektbibliothek und Dateiformat sind eigene Entwürfe.
+- Ausnahme auf Auftrag des Eigentümers (2026-11-16, bestätigt in #197): Seine lizenzierte
+  Kopie wurde in einer unsichtbaren Sitzung bedient, um Bedienung und Tempo beim Blocking zu
+  beobachten. Daraus steht hier nur Verhalten in eigenen Worten (Abschnitt „Shot Designer
+  in der Bedienung“); nichts sonst aus der Liste oben wurde getan.
 
 Gelesene Seiten (2026-11-13):
 
@@ -310,6 +316,20 @@ unten als *vermutet* gekennzeichnet.
    Abgleich nur über Konto und Cloud.
 9. Geschlossenes Dateiformat.
 
+### Shot Designer in der Bedienung (beobachtet, in eigenen Worten)
+
+- Die Oberfläche ist für Berührung gebaut: keine Tooltips, kein Rechtsklick, kein Menü auf
+  leerer Fläche. Ein Element öffnet sein Menü erst beim zweiten Tippen, ohne Hinweis.
+- Eine neue Szene beginnt mit zwei Figuren; eine weitere Figur kostet vier Klicks.
+- Eine Position mehr kostet drei Klicks (Figur, „hin zu“, Ziel); die Blickrichtung folgt dem
+  Weg. Kurven entstehen über einen Kontrollpunkt. Dauer und Tempo fanden sich nicht.
+- Eine Kamera kommt erst in die Shotliste, wenn sie eine Beschreibung bekommt; das steht
+  nirgends. Brennweite, Bildwinkel und eine Kamera, die einer Figur folgt, fanden sich nicht.
+- Ebenen lassen sich je Art sperren und in Stufen blasser stellen. Seiten fassen Auswahlen
+  zusammen, auch automatisch: eine Seite je Kamera oder je Shot.
+- Ziehen auf leerer Fläche schwenkt; eine Mehrfachauswahl gibt es nicht.
+- Speichern und Ausgabe sind Teil der bezahlten Fassung.
+
 ### Verbesserungen in Stellprobe
 
 | Schwäche | Stellprobe | Anforderung |
@@ -326,3 +346,4 @@ unten als *vermutet* gekennzeichnet.
 | – | Achsenwarnung als eigenes Werkzeug statt Erfahrungswissen | LH-41 |
 | – | Sichtkegel aus Sensor und Brennweite, sichtbar im Plan | LH-31 |
 | – | Plan je Mark als Bildfolge für das Set | LH-83 |
+| – | Jeder Befehl mit Maus und Tastatur, mit Tooltip und Kontextmenü; kein verstecktes zweites Tippen | NF-06 |
