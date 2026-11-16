@@ -157,10 +157,12 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
 - **Beschriftung an ein Element gebunden (LH-118):** eine Notiz (`[[set.notes]]`) hat optional
   `bound`, den Schlüssel des Elements, dessen Beschriftung sie ist: `object:<id>` (Objekt des
-  Drehorts), `figure:<plan>:<figur>` (die Figur am Abspielkopf im Plan `<plan>`) oder
-  `mark:<plan>:<figur>:<index>` (der Mark mit diesem Index, von 0, im Plan `<plan>`). Figur und
-  Mark gehören zu einem Plan, weil die Notizen dem Drehort gehören und jeder Plan eigene Spuren
-  hat; Bearbeitungen in einem anderen Plan lassen die Notiz stehen. `at` bleibt der Ort des
+  Drehorts), `figure:<szene>:<plan>:<figur>` (die Figur am Abspielkopf im Plan `<plan>` der Szene
+  `<szene>`) oder `mark:<szene>:<plan>:<figur>:<index>` (der Mark mit diesem Index, von 0).
+  Figur und Mark gehören zu einem Plan einer Szene, weil die Notizen dem Drehort gehören, Plan-Ids
+  je Szene neu beginnen und jeder Plan eigene Spuren hat; Bearbeitungen in einem anderen Plan
+  oder einer anderen Szene lassen die Notiz stehen, das Löschen des Plans löst sie. Die Ids
+  sind Slugs ohne `:`. `at` bleibt der Ort des
   Kärtchens. Die Bearbeitung verschiebt es um dieselbe Strecke wie das Element; zieht man die
   Notiz selbst, bleibt sie gebunden und das Abstandsmaß ändert sich. Fehlt das Element
   (entfernt) oder ändert sich die Zahl der Marks der Figur (nur bei `mark:`, deren Index sonst

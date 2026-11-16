@@ -5,6 +5,7 @@ use klappe_model::{FloorPlan, Project, Scene};
 use super::{slug, unique_id};
 use crate::error::ServiceError;
 use crate::field::Field;
+use crate::plan_edit::unbind_plan;
 
 const PLAN_ID_FALLBACK: &str = "plan";
 const PLAN_NAME_PREFIX: &str = "Plan";
@@ -119,11 +120,11 @@ pub enum ShotsGo {
 /// Refused for the scene's last plan and, with `ShotsGo::Refuse`, for a plan with shots.
 pub(crate) fn remove_plan(
     project: &mut Project,
-    scene: usize,
+    index: usize,
     id: &str,
     shots_go: ShotsGo,
 ) -> Result<(), ServiceError> {
-    let scene = scene_at(project, scene)?;
+    let scene = scene_at(project, index)?;
     let shots = plan_of(scene, id)?.shots.len();
     if scene.plans.len() == 1 {
         return Err(ServiceError::LastPlan(id.to_owned()));
@@ -136,6 +137,7 @@ pub(crate) fn remove_plan(
     }
 
     scene.plans.retain(|p| p.id != id);
+    unbind_plan(project, index, id);
     Ok(())
 }
 

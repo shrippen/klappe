@@ -41,10 +41,12 @@ pub(super) struct Held {
 enum Target<'a> {
     Object(&'a str),
     Figure {
+        scene: &'a str,
         plan: &'a str,
         character: &'a str,
     },
     Mark {
+        scene: &'a str,
         plan: &'a str,
         character: &'a str,
         index: usize,
@@ -52,21 +54,29 @@ enum Target<'a> {
 }
 
 impl<'a> Target<'a> {
-    /// Reads `object:<id>`, `figure:<plan>:<character>` or `mark:<plan>:<character>:<index>`.
+    /// Reads `object:<id>`, `figure:<scene>:<plan>:<character>` or
+    /// `mark:<scene>:<plan>:<character>:<index>`; ids have no `:`.
     fn parse(key: &'a str) -> Option<Self> {
         let (kind, rest) = key.split_once(':')?;
 
         match kind {
             "object" => Some(Self::Object(rest)),
             "figure" => {
+                let (scene, rest) = rest.split_once(':')?;
                 let (plan, character) = rest.split_once(':')?;
-                Some(Self::Figure { plan, character })
+                Some(Self::Figure {
+                    scene,
+                    plan,
+                    character,
+                })
             }
             "mark" => {
+                let (scene, rest) = rest.split_once(':')?;
                 let (plan, rest) = rest.split_once(':')?;
                 let (character, index) = rest.rsplit_once(':')?;
                 let index = index.parse().ok()?;
                 Some(Self::Mark {
+                    scene,
                     plan,
                     character,
                     index,
@@ -76,21 +86,26 @@ impl<'a> Target<'a> {
         }
     }
 
-    /// The plan the target belongs to; `None` for an object, which is the set's.
-    fn plan(&self) -> Option<&str> {
+    /// The scene and plan the target belongs to; `None` for an object, which is the set's.
+    fn owner(&self) -> Option<(&str, &str)> {
         match self {
             Self::Object(_) => None,
-            Self::Figure { plan, .. } | Self::Mark { plan, .. } => Some(plan),
+            Self::Figure { scene, plan, .. } | Self::Mark { scene, plan, .. } => {
+                Some((scene, plan))
+            }
         }
     }
 }
 
-/// The key a note keeps for `source` on the plan `plan`; `None` for what cannot be labelled.
-fn key_of(source: &Source, plan: &str) -> Option<String> {
+/// The key a note keeps for `source` on the plan `plan` of the scene `scene`; `None` for what
+/// cannot be labelled.
+fn key_of(source: &Source, scene: &str, plan: &str) -> Option<String> {
     match source {
         Source::Object(id) => Some(format!("object:{id}")),
-        Source::Figure(character) => Some(format!("figure:{plan}:{character}")),
-        Source::Mark { character, index } => Some(format!("mark:{plan}:{character}:{index}")),
+        Source::Figure(character) => Some(format!("figure:{scene}:{plan}:{character}")),
+        Source::Mark { character, index } => {
+            Some(format!("mark:{scene}:{plan}:{character}:{index}"))
+        }
         _ => None,
     }
 }
@@ -124,8 +139,10 @@ fn anchor(set: &SetPlan, plan: &FloorPlan, time_s: f64, key: &str) -> Option<Anc
     }
 }
 
-/// The set and plan of the scene on view.
-fn parts(project: &Project, (scene, plan): (usize, usize)) -> Option<(&SetPlan, &FloorPlan)> {
+/// The set, plan and scene id of the scene on view.
+type Parts<'a> = (&'a SetPlan, &'a FloorPlan, &'a str);
+
+fn parts(project: &Project, (scene, plan): (usize, usize)) -> Option<Parts<'_>> {
     let scene = project.scenes.get(scene)?;
     let set = &project
         .locations
@@ -133,12 +150,12 @@ fn parts(project: &Project, (scene, plan): (usize, usize)) -> Option<(&SetPlan, 
         .find(|l| l.id == scene.location)?
         .set;
 
-    Some((set, scene.plans.get(plan)?))
+    Some((set, scene.plans.get(plan)?, &scene.id))
 }
 
 /// The bound notes of the scene's set, with where they and their elements are.
 pub(super) fn held(project: &Project, at: (usize, usize), time_s: f64) -> Vec<Held> {
-    let Some((set, plan)) = parts(project, at) else {
+    let Some((set, plan, scene)) = parts(project, at) else {
         return Vec::new();
     };
 
@@ -147,7 +164,10 @@ pub(super) fn held(project: &Project, at: (usize, usize), time_s: f64) -> Vec<He
         .filter_map(|n| {
             let key = n.bound.clone()?;
             // A figure or mark of another plan is none of this edit's business.
-            if Target::parse(&key)?.plan().is_some_and(|p| p != plan.id) {
+            if Target::parse(&key)?
+                .owner()
+                .is_some_and(|o| o != (scene, plan.id.as_str()))
+            {
                 return None;
             }
 
@@ -163,7 +183,7 @@ pub(super) fn held(project: &Project, at: (usize, usize), time_s: f64) -> Vec<He
 
 /// Moves each held note by what its element moved; lets go of a note whose element is gone.
 pub(super) fn follow(project: &mut Project, at: (usize, usize), time_s: f64, held: &[Held]) {
-    let Some((set, plan)) = parts(project, at) else {
+    let Some((set, plan, scene)) = parts(project, at) else {
         return;
     };
     let after: Vec<Option<Anchor>> = held
@@ -218,7 +238,7 @@ pub(super) fn add_label(
     text: &str,
 ) -> Result<(), ServiceError> {
     let text = note_text(text)?;
-    let key = key_of(source, &scope.plan.id).ok_or_else(bad_source)?;
+    let key = key_of(source, scope.scene, &scope.plan.id).ok_or_else(bad_source)?;
     let set = scope
         .set
         .as_deref_mut()
@@ -264,4 +284,28 @@ pub(super) fn unbind(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
     note.bound = None;
 
     Ok(())
+}
+
+/// Lets go of the labels of the figures and marks of plan `plan` of scene `scene` (it is
+/// deleted).
+pub(crate) fn unbind_plan(project: &mut Project, scene: usize, plan: &str) {
+    let Some(scene) = project.scenes.get(scene) else {
+        return;
+    };
+    let (scene, location) = (scene.id.clone(), scene.location.clone());
+    let Some(set) = project
+        .locations
+        .iter_mut()
+        .find(|l| l.id == location)
+        .map(|l| &mut l.set)
+    else {
+        return;
+    };
+
+    for note in &mut set.notes {
+        let gone = note.bound.as_deref().and_then(Target::parse);
+        if gone.is_some_and(|t| t.owner() == Some((scene.as_str(), plan))) {
+            note.bound = None;
+        }
+    }
 }
