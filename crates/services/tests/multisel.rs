@@ -381,6 +381,21 @@ fn a_figure_has_no_copy() {
     assert!(!s.is_dirty());
 }
 
+/// Q2-04: a door has no copy either; the refusal must not name marks.
+#[test]
+fn a_door_has_no_copy() {
+    let mut s = open();
+
+    let result = s.edit_plan(PlanEdit::Duplicate {
+        sources: vec![Source::Opening { wall: 2, index: 0 }],
+        dx_m: 0.5,
+        dy_m: 0.5,
+    });
+
+    assert!(matches!(result, Err(ServiceError::NotCopyable)));
+    assert!(!s.is_dirty());
+}
+
 #[test]
 fn an_element_that_is_gone_refuses_the_group() {
     let mut s = open();

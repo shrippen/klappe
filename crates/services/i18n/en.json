@@ -395,7 +395,7 @@
  "error.noShot": "Shot not found: {detail}",
  "error.badValue": "Invalid value for {field}: {value}",
  "error.badField": "Invalid value for {field}",
- "error.notCopyable": "Marks cannot be duplicated",
+ "error.notCopyable": "The selection cannot be duplicated",
  "error.store": "Project could not be read or saved: {detail}",
  "error.export": "Export failed: {detail}",
  "error.write": "Cannot write: {detail}",

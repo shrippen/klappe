@@ -72,7 +72,7 @@ pub enum ServiceError {
     /// A plan with no figure and no camera has nothing to file as a template.
     #[error("the plan has no figure and no camera")]
     EmptyTemplate,
-    /// Nothing selected can be copied (a mark or a figure has no copy).
+    /// Nothing selected can be copied (a mark, figure, door or path handle has no copy).
     #[error("the selection cannot be copied")]
     NotCopyable,
     #[error("bad value for {}: {value}", field.name())]

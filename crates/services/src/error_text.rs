@@ -146,16 +146,16 @@ mod tests {
     }
 
     #[test]
-    fn a_mark_has_no_copy_text() {
+    fn a_refused_copy_names_no_kind() {
         let error = ServiceError::NotCopyable;
 
         assert_eq!(
             error_text(Language::German, &error),
-            "Marks lassen sich nicht duplizieren"
+            "Die Auswahl lässt sich nicht duplizieren"
         );
         assert_eq!(
             error_text(Language::English, &error),
-            "Marks cannot be duplicated"
+            "The selection cannot be duplicated"
         );
     }
 
