@@ -200,6 +200,37 @@ zeichnet, legt die Grundlagen für 3D schon mit an. Umsetzung:
 | LH-98 | Schnitt: Wände in der 3D-Ansicht auf Brusthöhe kappen, damit man in den Raum sieht. | S |
 | LH-99 | Blick durch eine Kamera des Plans in der 3D-Ansicht; der Kamerablick (LH-36) zeigt Verdeckung richtig. | S |
 
+### 6.11 Bedienung und Bearbeiten
+
+Aus der Beobachtung von Shot Designer (Anhang A), auf Wunsch des Eigentümers vollständig übernommen (2026-11-16). Jede Funktion hat einen Weg mit der Maus und einen mit der Tastatur (NF-06).
+
+| Nr | Anforderung | Prio |
+|---|---|---|
+| LH-100 | Kontextmenü an jedem Element im Plan (Figur, Mark, Weg, Kamera, Objekt, Wand) und auf leerer Fläche, mit denselben Befehlen wie Taste und Befehlspalette und der Taste daneben; öffnet auch mit Menütaste und Umschalt+F10. | S |
+| LH-101 | Hinweiszeile beim aktiven Werkzeug: was der nächste Klick tut; Esc bricht ab. | S |
+| LH-102 | Tooltip mit Name und Taste an jedem Knopf und an den Griffen im Plan. | S |
+| LH-103 | Knöpfe Rückgängig und Wiederholen sichtbar; der Tooltip nennt den Schritt. | S |
+| LH-104 | Nächster Mark aus der Auswahl: Figur oder Kamera gewählt, Taste oder Kontextmenü, dann ein Klick setzt den nächsten Mark, ohne Werkzeugwechsel (Kamera: Rig Dolly). | S |
+| LH-105 | Mark davor setzen: ein Mark vor dem ersten, woher die Figur kommt; die Zeiten rücken nach. | S |
+| LH-106 | Nummer an jedem Mark (1, 2, 3 je Figur) im Plan. | S |
+| LH-107 | Wegstück verschieben: ein Stück Weg mit beiden Enden und Knicken auf einmal ziehen oder mit Pfeiltasten schieben. | S |
+| LH-108 | Weg gerade oder weich: je Weg umschalten zwischen Kurve durch die Knicke und geraden Strecken (Schiene, Flur). | S |
+| LH-109 | Achse von der Figur aus: Figur gewählt, „Achse zu …“, Klick auf die zweite Figur setzt das Achsenpaar (LH-40). | S |
+| LH-110 | Ein neuer Shot öffnet Name und Beschreibung zum Tippen, Enter schließt ab. | S |
+| LH-111 | Kennung des Shots in der Farbe seiner Kamera in Shotliste und Kacheln, Name dazu (Farbe nie allein). | S |
+| LH-112 | Lange Beschreibung eines Shots aufklappbar als zweite Zeile am gewählten Shot. | S |
+| LH-113 | Kamerablick als kleines Bild neben dem Kamerakörper im Plan, abschaltbar (LH-36). | S |
+| LH-114 | Art eines Objekts tauschen: Ort, Drehung und Ebene bleiben. | S |
+| LH-115 | Objekt spiegeln (links und rechts). | S |
+| LH-116 | Maße eines Objekts auf die Bibliothek zurücksetzen. | S |
+| LH-117 | Bibliothek um Crew-Plätze (Tonangel, Monitorplatz, Regie), Fahrzeuge (Bus, LKW, Motorrad), Tier (Hund) und kleine Requisiten (Telefon, Laptop) erweitern. | S |
+| LH-118 | Beschriftung an Objekt, Figur oder Mark gebunden; sie folgt beim Verschieben. | S |
+| LH-119 | Gespeicherte Ansichten: benannte Auswahl sichtbarer Kameras, Figuren und Ebenen; Grundlage der Ausgabe je Shot oder Kamera (LH-87). | S |
+| LH-120 | Skizzenstift: Freihand über dem Plan auf eigener Ebene, ein Befehl löscht alle Skizzen. | S |
+| LH-121 | Schwenken auch mit gedrückter mittlerer Maustaste (Leertaste gibt es schon). | S |
+| LH-122 | Ein Werkzeug zum Setzen bleibt nach dem Klick aktiv für weitere Elemente; Esc wechselt zur Auswahl. | S |
+| LH-123 | Das Werkzeug merkt die zuletzt gewählte Figur, Kamera, Objektart und Lampe. | S |
+
 ## 7. Nicht-funktionale Anforderungen
 
 | Nr | Anforderung | Prio |
