@@ -15,9 +15,10 @@ KanteCard {
     required property var texts
     required property var controller
 
-    // The plan changes with every edit; the key alone would not tell the new values.
+    // The picture revision rises with every edit; the plan does not draw colour and power,
+    // and the key alone would not tell the new values.
     readonly property var info: {
-        card.controller.planJson
+        card.controller.pictureRevision
         const key = card.controller.selectedKey
         if (!key || key.indexOf("light:") !== 0) {
             return null
