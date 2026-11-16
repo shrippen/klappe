@@ -3,6 +3,7 @@
 
 use super::qobject;
 use super::{q, ControllerRust};
+use crate::arm::Armed;
 use crate::camera;
 use crate::manage;
 use crate::notice::backup_view;
@@ -16,7 +17,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    Angle, Arrival, Dash, Departure, DisplayList, Fade, FigureColor, Fill, Grid, Language, Layer,
+    Angle, Arrival, Curve, Dash, Departure, DisplayList, Fade, FigureColor, Fill, Grid, Language, Layer,
     LightKind, Lock, Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping, Source,
     Visibility,
 };
@@ -38,6 +39,7 @@ impl ControllerRust {
         self.scale = ScaleStep::Idle;
         self.measure = MeasureStep::Idle;
         self.note = NoteDraft::Idle;
+        self.arm = Armed::Idle;
         self.area = AreaDraft::default();
     }
 
@@ -157,6 +159,7 @@ impl ControllerRust {
         self.scale_points = v.scale_points;
         self.area_points = v.area_points;
         self.asks_note = v.asks_note;
+        self.armed = v.armed;
         self.measuring = v.measuring;
         self.view_free = v.view_free;
         self.choices_json = v.choices_json;
@@ -200,6 +203,7 @@ impl ControllerRust {
             scale_points: i32::try_from(self.scale.points().len()).unwrap_or_default(),
             area_points: i32::try_from(self.area.points().len()).unwrap_or_default(),
             asks_note: self.note != NoteDraft::Idle,
+            armed: q(self.arm.name()),
             measuring: self.measure != MeasureStep::Idle,
             view_free: s.view() == klappe_services::View::Free,
             choices_json: q(&choices_json(s)),
@@ -238,6 +242,7 @@ pub(super) struct Shown {
     scale_points: i32,
     area_points: i32,
     asks_note: bool,
+    armed: QString,
     measuring: bool,
     view_free: bool,
     choices_json: QString,
@@ -301,6 +306,7 @@ pub(super) fn choices_json(s: &Session) -> String {
     let arrivals: Vec<_> = Arrival::ALL.iter().map(|a| a.name()).collect();
     let departures: Vec<_> = Departure::ALL.iter().map(|d| d.name()).collect();
     let rigs: Vec<_> = Rig::ALL.iter().map(|r| r.name()).collect();
+    let curves: Vec<_> = Curve::ALL.iter().map(|c| c.name()).collect();
     let sizes: Vec<_> = ShotSize::ALL.iter().map(|z| z.name()).collect();
     let angles: Vec<_> = Angle::ALL.iter().map(|a| a.name()).collect();
     let movements: Vec<_> = Movement::ALL.iter().map(|m| m.name()).collect();
@@ -324,6 +330,7 @@ pub(super) fn choices_json(s: &Session) -> String {
         "arrival": arrivals,
         "departure": departures,
         "rig": rigs,
+        "curve": curves,
         "size": sizes,
         "angle": angles,
         "movement": movements,
@@ -459,6 +466,7 @@ impl qobject::Controller {
         self.as_mut().set_scale_points(v.scale_points);
         self.as_mut().set_area_points(v.area_points);
         self.as_mut().set_asks_note(v.asks_note);
+        self.as_mut().set_armed(v.armed);
         self.as_mut().set_measuring(v.measuring);
         self.as_mut().set_view_free(v.view_free);
 

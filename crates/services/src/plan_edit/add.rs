@@ -75,6 +75,7 @@ pub(super) fn add_mark(
         pose: Pose::Standing,
         hold_s: 0.0,
         via: Vec::new(),
+        curve: Default::default(),
         arrival: Arrival::Walk,
         departure: Departure::Stay,
     });
@@ -129,6 +130,7 @@ pub(super) fn add_camera(
             tilt_deg: 0.0,
             hold_s: 0.0,
             via: Vec::new(),
+            curve: Default::default(),
             rig: Default::default(),
             lens_mm: None,
         }],
@@ -164,6 +166,7 @@ pub(super) fn add_camera_mark(
         tilt_deg: prev.tilt_deg,
         hold_s: 0.0,
         via: Vec::new(),
+        curve: Default::default(),
         rig: Default::default(),
         lens_mm: prev.lens_mm,
     });

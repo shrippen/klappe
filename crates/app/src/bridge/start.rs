@@ -5,6 +5,7 @@ use klappe_services::Session;
 
 use super::{q, ControllerRust};
 use crate::args::AppArgs;
+use crate::arm::Armed;
 use crate::catalog::Language;
 use crate::notice::Status;
 use crate::selection::Selection;
@@ -94,6 +95,8 @@ impl Default for ControllerRust {
             note: NoteDraft::Idle,
             asks_note: false,
             note_text: QString::default(),
+            arm: Armed::Idle,
+            armed: QString::default(),
             preview: Preview::Hidden,
             drag_step: None,
             grip: Grip::Free,

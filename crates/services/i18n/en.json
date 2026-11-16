@@ -710,5 +710,17 @@
  "tool.sketch": "Sketch pen",
  "tool.sketchTip": "Sketch pen ({key}): drag to draw freehand on the sketch layer; each stroke is one undo step",
  "sketch.clear": "Clear all sketches",
- "sketch.clearTip": "Takes every sketch off the plan; one undo step"
+ "sketch.clearTip": "Takes every sketch off the plan; one undo step",
+ "arm.nextMark": "Set next mark",
+ "arm.markBefore": "Set mark before",
+ "arm.axisTo": "Axis to …",
+ "arm.hint.nextMark": "Click the plan to set the next mark. Esc cancels.",
+ "arm.hint.markBefore": "Click the plan to set a mark before the first one. Esc cancels.",
+ "arm.hint.axisTo": "Click the second figure to set the axis. Esc cancels.",
+ "way.smooth": "Smooth way",
+ "way.straight": "Straight way",
+ "curve.smooth": "Smooth",
+ "curve.straight": "Straight",
+ "mark.curve": "Way",
+ "mark.curveTip": "Smooth: a curve through the bends. Straight: lines from bend to bend, with corners"
 }

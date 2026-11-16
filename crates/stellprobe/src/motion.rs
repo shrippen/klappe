@@ -1,4 +1,4 @@
-use klappe_model::{Arrival, Camera, CameraMark, Departure, FigureTrack, Mark, Point};
+use klappe_model::{Arrival, Camera, CameraMark, Curve, Departure, FigureTrack, Mark, Point};
 
 /// Where something is and where it faces at one moment.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -21,6 +21,8 @@ struct Key<'a> {
     hold_s: f64,
     /// Bends of the way to this mark, see `Mark::via`.
     via: &'a [Point],
+    /// Shape of the way, see `Mark::curve`.
+    curve: Curve,
     /// Always `Walk` and `Stay` for a camera.
     arrival: Arrival,
     departure: Departure,
@@ -33,6 +35,7 @@ impl<'a> From<&'a Mark> for Key<'a> {
             at_s: m.at_s,
             hold_s: m.hold_s,
             via: &m.via,
+            curve: m.curve,
             arrival: m.arrival,
             departure: m.departure,
             place: Placement {
@@ -49,6 +52,7 @@ impl<'a> From<&'a CameraMark> for Key<'a> {
             at_s: m.at_s,
             hold_s: m.hold_s,
             via: &m.via,
+            curve: m.curve,
             arrival: Arrival::Walk,
             departure: Departure::Stay,
             place: Placement {
@@ -164,7 +168,7 @@ fn place_at(keys: &[Key<'_>], t_s: f64) -> Option<Placement> {
 
         let t = (t_s - leave_s) / (to.at_s - leave_s);
         return Some(Placement {
-            at: along(from.place.at, to.via, to.place.at, t),
+            at: along(from.place.at, (to.via, to.curve), to.place.at, t),
             facing_deg: turn(from.place.facing_deg, to.place.facing_deg, t),
         });
     }
@@ -224,13 +228,25 @@ fn spline(anchors: &[Point], u: f64) -> Point {
     )
 }
 
+/// The point at `u` of the way through `anchors` in the shape `curve` gives it: the smooth
+/// curve, or straight pieces from anchor to anchor (LH-108).
+fn shaped(anchors: &[Point], curve: Curve, u: f64) -> Point {
+    if curve == Curve::Smooth {
+        return spline(anchors, u);
+    }
+
+    let piece = (u.floor().max(0.0) as usize).min(anchors.len() - 2);
+
+    anchors[piece].lerp(anchors[piece + 1], u - piece as f64)
+}
+
 /// The grips of the way from `a` to `b` through `via`: one in the middle of each piece (a
 /// straight leg: its middle). Dragging one makes a new bend there (LH-21).
-pub fn bend_grips(a: Point, via: &[Point], b: Point) -> Vec<Point> {
+pub fn bend_grips(a: Point, (via, curve): (&[Point], Curve), b: Point) -> Vec<Point> {
     let anchors = anchors(a, via, b);
 
     (0..anchors.len() - 1)
-        .map(|piece| spline(&anchors, piece as f64 + 0.5))
+        .map(|piece| shaped(&anchors, curve, piece as f64 + 0.5))
         .collect()
 }
 
@@ -258,12 +274,12 @@ pub fn bend_follow(via: Point, old: (Point, Point), new: (Point, Point)) -> Poin
 }
 
 /// Length of the curve through `anchors` up to parameter i / `ARC_STEPS`.
-fn arc_lengths(anchors: &[Point]) -> Vec<f64> {
+fn arc_lengths(anchors: &[Point], curve: Curve) -> Vec<f64> {
     let steps = (anchors.len() - 1) * ARC_STEPS;
     let mut lengths = vec![0.0; steps + 1];
     let mut last = anchors[0];
     for i in 1..=steps {
-        let next = spline(anchors, i as f64 / ARC_STEPS as f64);
+        let next = shaped(anchors, curve, i as f64 / ARC_STEPS as f64);
         lengths[i] = lengths[i - 1] + last.distance_m(next);
         last = next;
     }
@@ -273,12 +289,12 @@ fn arc_lengths(anchors: &[Point]) -> Vec<f64> {
 
 /// How long the way from `a` to `b` is (straight, or the curve through `via`), in metres:
 /// what a figure walks, and so what its pace is measured on.
-pub fn way_length_m(a: Point, via: &[Point], b: Point) -> f64 {
+pub fn way_length_m(a: Point, (via, curve): (&[Point], Curve), b: Point) -> f64 {
     if via.is_empty() {
         return a.distance_m(b);
     }
 
-    arc_lengths(&anchors(a, via, b))
+    arc_lengths(&anchors(a, via, b), curve)
         .last()
         .copied()
         .unwrap_or(0.0)
@@ -287,13 +303,13 @@ pub fn way_length_m(a: Point, via: &[Point], b: Point) -> f64 {
 /// The point `t` (0 to 1) of the way from `a` to `b` by length, not by curve parameter: a
 /// curve's parameter runs fast where it is straight and slow where it bends, which would
 /// speed a figure up and down. Measures the curve in `ARC_STEPS` pieces and walks that table.
-fn along(a: Point, via: &[Point], b: Point, t: f64) -> Point {
+fn along(a: Point, (via, curve): (&[Point], Curve), b: Point, t: f64) -> Point {
     if via.is_empty() {
         return a.lerp(b, t);
     }
 
     let anchors = anchors(a, via, b);
-    let lengths = arc_lengths(&anchors);
+    let lengths = arc_lengths(&anchors, curve);
     let steps = lengths.len() - 1;
 
     let total_m = lengths[steps];
@@ -312,18 +328,28 @@ fn along(a: Point, via: &[Point], b: Point, t: f64) -> Point {
         0.0
     };
 
-    spline(&anchors, ((step - 1) as f64 + share) / ARC_STEPS as f64)
+    shaped(
+        &anchors,
+        curve,
+        ((step - 1) as f64 + share) / ARC_STEPS as f64,
+    )
 }
 
-/// The way through `stops` (a mark's place and its `via`), as the points to draw: straight
-/// legs are their two ends, curved ones `CURVE_SEGMENTS` pieces for each piece of the curve.
-pub(crate) fn path<'a>(stops: impl IntoIterator<Item = (Point, &'a [Point])>) -> Vec<Point> {
+/// The way through `stops` (a mark's place, its `via` and curve), as the points to draw:
+/// straight legs and straight ways are their points, smooth ones `CURVE_SEGMENTS` pieces for
+/// each piece of the curve.
+pub(crate) fn path<'a>(stops: impl IntoIterator<Item = (Point, &'a [Point], Curve)>) -> Vec<Point> {
     let stops: Vec<_> = stops.into_iter().collect();
-    let mut points: Vec<Point> = stops.first().map(|(at, _)| *at).into_iter().collect();
+    let mut points: Vec<Point> = stops.first().map(|(at, ..)| *at).into_iter().collect();
 
     for pair in stops.windows(2) {
-        let (from, (to, via)) = (pair[0].0, pair[1]);
+        let (from, (to, via, curve)) = (pair[0].0, pair[1]);
         if via.is_empty() {
+            points.push(to);
+            continue;
+        }
+        if curve == Curve::Straight {
+            points.extend(via.iter().copied());
             points.push(to);
             continue;
         }
@@ -357,6 +383,7 @@ mod tests {
             pose: Pose::Standing,
             hold_s,
             via: Vec::new(),
+            curve: Default::default(),
             arrival: Arrival::Walk,
             departure: Departure::Stay,
         }
@@ -378,6 +405,7 @@ mod tests {
             tilt_deg,
             hold_s,
             via: Vec::new(),
+            curve: Default::default(),
             rig: Default::default(),
             lens_mm: None,
         }
@@ -554,7 +582,12 @@ mod tests {
 
         assert_eq!(figure_at(&t, 5.0).map(|p| p.at), Some(Point::new(5.0, 0.0)));
         assert_eq!(
-            path([(Point::new(0.0, 0.0), &[Point::new(0.0, 9.0)][..])]).len(),
+            path([(
+                Point::new(0.0, 0.0),
+                &[Point::new(0.0, 9.0)][..],
+                Curve::Smooth
+            )])
+            .len(),
             1
         );
     }
@@ -565,8 +598,8 @@ mod tests {
         let a = Point::new(0.0, 0.0);
         let b = Point::new(10.0, 0.0);
         let bends = [Point::new(3.0, 4.0), Point::new(7.0, -4.0)];
-        let straight = path([(a, &[][..]), (b, &[][..])]);
-        let bent = path([(a, &[][..]), (b, &bends[..])]);
+        let straight = path([(a, &[][..], Curve::Smooth), (b, &[][..], Curve::Smooth)]);
+        let bent = path([(a, &[][..], Curve::Smooth), (b, &bends[..], Curve::Smooth)]);
 
         assert_eq!(straight, vec![a, b]);
         assert_eq!(bent.len(), 3 * CURVE_SEGMENTS + 1);
@@ -584,9 +617,12 @@ mod tests {
         let a = Point::new(0.0, 0.0);
         let b = Point::new(10.0, 0.0);
 
-        assert_eq!(bend_grips(a, &[], b), vec![Point::new(5.0, 0.0)]);
+        assert_eq!(
+            bend_grips(a, (&[], Curve::Smooth), b),
+            vec![Point::new(5.0, 0.0)]
+        );
 
-        let grips = bend_grips(a, &[Point::new(5.0, 4.0)], b);
+        let grips = bend_grips(a, (&[Point::new(5.0, 4.0)], Curve::Smooth), b);
         assert_eq!(grips.len(), 2);
         assert!((grips[0].x_m - 2.1875).abs() < 1e-9, "{grips:?}");
         assert!((grips[0].y_m - 2.25).abs() < 1e-9, "{grips:?}");
@@ -601,14 +637,14 @@ mod tests {
         let a = Point::new(0.0, 0.0);
         let b = Point::new(10.0, 0.0);
 
-        assert_eq!(way_length_m(a, &[], b), 10.0);
+        assert_eq!(way_length_m(a, (&[], Curve::Smooth), b), 10.0);
 
-        let on_line_m = way_length_m(a, &[Point::new(5.0, 0.0)], b);
+        let on_line_m = way_length_m(a, (&[Point::new(5.0, 0.0)], Curve::Smooth), b);
         assert!((on_line_m - 10.0).abs() < 1e-6, "{on_line_m}");
 
         let bend = Point::new(5.0, 4.0);
         let legs_m = a.distance_m(bend) + bend.distance_m(b);
-        let curved_m = way_length_m(a, &[bend], b);
+        let curved_m = way_length_m(a, (&[bend], Curve::Smooth), b);
         assert!(curved_m > legs_m && curved_m < 1.1 * legs_m, "{curved_m}");
     }
 
@@ -696,5 +732,39 @@ mod tests {
         assert_eq!(x_at(&t, 5.0), None);
         assert_eq!(x_at(&t, 7.0), None);
         assert_eq!(x_at(&t, 10.0), Some(9.0));
+    }
+
+    /// LH-108: a straight way runs from bend to bend, with the corner at the bend, at an even
+    /// pace; its length is the legs', its drawing the points, its grips the leg middles.
+    #[test]
+    fn a_straight_way_has_corners() {
+        let (a, b, bend) = (
+            Point::new(0.0, 0.0),
+            Point::new(10.0, 0.0),
+            Point::new(5.0, 4.0),
+        );
+        let way = (&[bend][..], Curve::Straight);
+
+        let legs_m = a.distance_m(bend) + bend.distance_m(b);
+        assert!((way_length_m(a, way, b) - legs_m).abs() < 1e-6);
+        assert_eq!(
+            path([(a, &[][..], Curve::Smooth), (b, way.0, Curve::Straight)]),
+            vec![a, bend, b]
+        );
+        assert_eq!(
+            bend_grips(a, way, b),
+            vec![a.lerp(bend, 0.5), bend.lerp(b, 0.5)]
+        );
+
+        let mut arch = Mark {
+            curve: Curve::Straight,
+            ..arch()
+        };
+        arch.via = vec![bend];
+        let t = track(vec![mark(0.0, 0.0, 0.0), arch]);
+        let top = figure_at(&t, 4.0).unwrap().at;
+        assert!(top.distance_m(bend) < 0.01, "{top:?}");
+        let quarter = figure_at(&t, 2.0).unwrap().at;
+        assert!(quarter.distance_m(a.lerp(bend, 0.5)) < 0.01, "{quarter:?}");
     }
 }

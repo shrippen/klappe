@@ -3,6 +3,7 @@
 use super::q;
 use super::qobject;
 use super::view::plan_json;
+use crate::arm::Armed;
 use crate::object;
 use crate::plan::{Measure, Sweep};
 use crate::selection;
@@ -12,6 +13,7 @@ use crate::tools::{
     AreaDraft, Closing, DragPhase, DragStep, DrawStyle, Grip, MeasureStep, NoteDraft, Preview,
     ScaleStep, Tool, Typed,
 };
+use crate::way;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
@@ -40,6 +42,44 @@ fn bends(s: &Session, grip: &Source) -> usize {
     };
 
     via.map_or(0, Vec::len)
+}
+
+/// A key held at the press of a drag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Hold {
+    Ctrl,
+    Nothing,
+}
+
+/// The edit of a drag from `from` to `to` that grabbed `grabbed` (`None`: empty ground) with
+/// `selected` picked: Select moves the whole selection if the grab is one of several, or with
+/// Ctrl on a grip of a way the whole way (LH-107); the other tools draw, Height lifts.
+fn grabbed_edit(
+    s: &Session,
+    tool: &Tool,
+    (grabbed, selected): (Option<&Source>, &selection::Selection),
+    ctrl: Hold,
+    (from, to): (Point, Point),
+    style: DrawStyle,
+) -> Option<PlanEdit> {
+    let group = grabbed
+        .filter(|_| *tool == Tool::Select)
+        .and_then(|g| selection::group_drag_edit(selected, g, from, to));
+    let whole_way = grabbed
+        .filter(|_| *tool == Tool::Select && ctrl == Hold::Ctrl)
+        .and_then(|g| way::drag_edit(g, from, to));
+    // Plan y runs down: the pointer's rise is `from.y_m - to.y_m` (3D hands over its own).
+    let lifted = lift_edit(s, tool, grabbed, from.y_m - to.y_m);
+    let edit = whole_way
+        .or(group)
+        .or_else(|| tools::drag_edit(tool, grabbed, from, to))
+        .or_else(|| tools::draw_edit(tool, style, from, to))
+        .or(lifted);
+
+    match *tool == Tool::Scale && !s.has_background() {
+        true => None,
+        false => edit,
+    }
 }
 
 /// The edit of a drag of the height tool: `grabbed` made `lift_m` taller than it stands now.
@@ -100,7 +140,12 @@ impl qobject::Controller {
         let leaves_measure = tool != Tool::Measure && self.rust().measure != MeasureStep::Idle;
         let leaves_note = tool != Tool::Note && self.rust().note != NoteDraft::Idle;
         let leaves_area = tool != self.rust().tool && !self.rust().area.is_empty();
+        let changes_tool = tool != self.rust().tool;
         self.as_mut().rust_mut().get_mut().tool = tool;
+        // What a key armed for the next click does not outlast the tool either.
+        if changes_tool {
+            self.as_mut().cancel_arm();
+        }
         if leaves_scale {
             self.as_mut().cancel_scale();
         }
@@ -139,6 +184,10 @@ impl qobject::Controller {
         // the session picks what a user can grab, once per drag.
         let from = Point::new(from_x, from_y);
         let to = Point::new(x, y);
+        let ctrl = match self.rust().lasso_selection {
+            true => Hold::Ctrl,
+            false => Hold::Nothing,
+        };
         let grip = std::mem::take(&mut self.as_mut().rust_mut().get_mut().grip);
         let Some(s) = self.as_mut().session() else {
             return false;
@@ -152,19 +201,14 @@ impl qobject::Controller {
             Tool::Select | Tool::Scale | Tool::Height => (from, to),
             _ => (s.snap(from), s.snap(to)),
         };
-        let group = grabbed
-            .as_ref()
-            .filter(|_| tool == Tool::Select)
-            .and_then(|g| selection::group_drag_edit(&selected, g, from, to));
-        // Plan y runs down: the pointer's rise is `from.y_m - to.y_m` (3D hands over its own).
-        let lifted = lift_edit(s, &tool, grabbed.as_ref(), from.y_m - to.y_m);
-        let mut edit = group
-            .or_else(|| tools::drag_edit(&tool, grabbed.as_ref(), from, to))
-            .or_else(|| tools::draw_edit(&tool, style, from, to))
-            .or(lifted);
-        if tool == Tool::Scale && !s.has_background() {
-            edit = None;
-        }
+        let edit = grabbed_edit(
+            s,
+            &tool,
+            (grabbed.as_ref(), &selected),
+            ctrl,
+            (from, to),
+            style,
+        );
         let preview = self.rust().preview;
         let phase = if done {
             DragPhase::Done
@@ -255,6 +299,10 @@ impl qobject::Controller {
     }
 
     pub(super) fn place(mut self: Pin<&mut Self>, x: f64, y: f64) -> bool {
+        if self.rust().arm != Armed::Idle {
+            return self.place_armed(x, y);
+        }
+
         let tool = self.rust().tool.clone();
         let selected = self.rust().selected.clone();
         let how = self.rust().pick_mode();

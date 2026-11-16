@@ -511,7 +511,7 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
                     dash: rig_dash(run[1].rig),
                 },
                 shape: Shape::Polyline {
-                    points: path(run.iter().map(|m| (m.at, m.via.as_slice()))),
+                    points: path(run.iter().map(|m| (m.at, m.via.as_slice(), m.curve))),
                 },
                 label: None,
                 source: source.clone(),
@@ -562,7 +562,7 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
             items.push(Item {
                 role: Role::FigurePath(color),
                 shape: Shape::Polyline {
-                    points: path(way.iter().map(|(m, _)| (m.at, m.via.as_slice()))),
+                    points: path(way.iter().map(|(m, _)| (m.at, m.via.as_slice(), m.curve))),
                 },
                 label: None,
                 source: Some(Source::Figure(track.character.clone())),
