@@ -24,6 +24,8 @@ TestCase {
         property bool asksNote: false
         property string markJson: "{}"
 
+        function place() {}
+        function clearSelection() { selectedKey = ""; selectedCount = 0 }
         function markInfo() { return markJson }
         function describe(key) {
             if (key === "object:o1") {
@@ -279,5 +281,148 @@ TestCase {
 
         verify(card.x > 300)
         verify(card.y <= 250 && 250 <= card.y + card.height)
+    }
+
+    // Review of #173: in 3D a click with another tool selects nothing and does not reopen the
+    // card; one with the select tool does.
+    function test_in_3d_only_a_select_click_reopens_the_card() {
+        fake.viewFree = true
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        const view = findChild(area, "freeView")
+        view.clickAt = Qt.point(200, 150)
+        fake.selectedKey = "object:o1"
+        settled(card)
+        area.tool = "measure"
+        tryVerify(() => !card.visible)
+
+        view.clickAt = Qt.point(300, 250)
+        wait(100)
+
+        verify(!card.visible)
+
+        area.tool = "select"
+        view.clickAt = Qt.point(250, 200)
+        settled(card)
+    }
+
+    // Q1-04: Escape closes the card (it clears the selection, so a click on the element opens
+    // it again).
+    function test_escape_closes_the_card() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        area.forceActiveFocus()
+        keyClick(Qt.Key_Escape)
+
+        tryVerify(() => !card.visible)
+        compare(fake.selectedKey, "")
+    }
+
+    // In a field of the card Escape first leaves the field; a second one closes the card.
+    function test_escape_in_a_field_leaves_it_first() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        card.expanded = true
+        const field = findChild(card, "heightField")
+        field.forceActiveFocus()
+        verify(card.typing)
+
+        keyClick(Qt.Key_Escape)
+
+        verify(!card.typing)
+        verify(card.visible)
+
+        keyClick(Qt.Key_Escape)
+
+        tryVerify(() => !card.visible)
+    }
+
+    // Q1-04: a change of tool closes the card and keeps the selection; a click on the element
+    // or another selection opens it again.
+    function test_a_change_of_tool_closes_the_card() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        area.tool = "wall"
+
+        tryVerify(() => !card.visible)
+        compare(fake.selectedKey, "object:o1")
+
+        area.tool = "select"
+        verify(!card.visible)
+
+        card.canvas.shapeClicked("object:o1", 2, 11.5)
+        settled(card)
+
+        area.tool = "wall"
+        tryVerify(() => !card.visible)
+        fake.selectedKey = ""
+        fake.selectedKey = "object:o1"
+        settled(card)
+    }
+
+    // Review of #173: only a click that selects opens the card again; one of the measure tool on
+    // the element's shape (it selects nothing) does not.
+    function test_a_click_of_another_tool_does_not_reopen_the_card() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        area.tool = "measure"
+        tryVerify(() => !card.visible)
+
+        card.canvas.shapeClicked("object:o1", 2, 11.5)
+        wait(100)
+
+        verify(!card.visible)
+    }
+
+    // Escape in a text field elsewhere in the window (a cell of the shot table) belongs to
+    // that field, not to the plan's selection.
+    function test_escape_in_a_field_outside_the_plan_keeps_the_selection() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        const outside = createTemporaryObject(outsideComponent, tc)
+        fake.selectedKey = "object:o1"
+        settled(card)
+        outside.forceActiveFocus()
+        verify(outside.activeFocus)
+
+        keyClick(Qt.Key_Escape)
+
+        compare(outside.escapes, 1)
+        compare(fake.selectedKey, "object:o1")
+        verify(card.visible)
+    }
+
+    // "Add heights" after a change of tool opens the card again.
+    function test_adding_heights_reopens_a_dismissed_card() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        area.tool = "wall"
+        tryVerify(() => !card.visible)
+
+        area.focusHeight()
+
+        settled(card)
+    }
+
+    Component {
+        id: outsideComponent
+        TextInput {
+            property int escapes: 0
+            width: 100
+            height: 20
+            Keys.onEscapePressed: escapes++
+        }
     }
 }

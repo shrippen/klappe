@@ -101,7 +101,7 @@ nachzuspielen.
 - **Beleg:** P5 `shot-022` bis `shot-035`; P2 `shot-033`
 - **Nachgeprüft:** ja (`check/shot-005`, `-006`, `-013`: Karte „Tisch“ bleibt nach Escape,
   Werkzeug- und Moduswechsel)
-- **Status:** offen
+- **Status:** offen (Behebung vorbereitet: #173)
 
 ### Q1-05 Neue Figur nicht mit dem Figur-Werkzeug
 - **Art:** unverständlich · **Stufe:** mittel

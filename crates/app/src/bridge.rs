@@ -350,6 +350,11 @@ pub mod qobject {
         #[cxx_name = "editSelectedNote"]
         fn edit_selected_note(self: Pin<&mut Self>) -> bool;
 
+        /// Selects nothing: Escape, a change of mode.
+        #[qinvokable]
+        #[cxx_name = "clearSelection"]
+        fn clear_selection(self: Pin<&mut Self>);
+
         /// Removes the selected elements.
         #[qinvokable]
         #[cxx_name = "removeSelected"]

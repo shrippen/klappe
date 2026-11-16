@@ -129,12 +129,16 @@ RowLayout {
 
     spacing: Kirigami.Units.smallSpacing
 
+    property bool _tookMode: false
+
     // The controller keeps the tool: its drags and clicks do not repeat it.
     onToolChanged: {
         _fit()
         // A tool of another mode (its key, the palette) takes its mode along.
         if (!_inMode(tool, mode)) {
+            _tookMode = true
             mode = _ownerMode(tool)
+            _tookMode = false
         }
         _tell()
     }
@@ -144,6 +148,11 @@ RowLayout {
             tool = "select"
         }
         store.mode = mode
+        // The card of the selection goes with the mode (Q1-04); a tool key that took the mode
+        // along keeps the selection (W with a wall selected).
+        if (!_tookMode) {
+            controller.clearSelection()
+        }
     }
     onChoiceChanged: _tell()
     onDrawColorChanged: _tellStyle()

@@ -194,6 +194,18 @@ impl Selection {
         }
     }
 
+    /// After a drag of a grip ended: a point a click took (a free form's, an area's) was taken
+    /// to be deleted, not dragged, so the element is selected again and its card shows the
+    /// new values. A way's bend stays: it is the bend to straighten.
+    pub fn released(self) -> Selection {
+        match self.only() {
+            Some(point @ (Source::DrawingPoint { .. } | Source::ObjectGrip { .. })) => {
+                Selection::of(Some(point.clone()))
+            }
+            _ => self,
+        }
+    }
+
     /// The elements, `first` in front: the one the pointer holds snaps to the grid.
     fn leading(&self, first: &Source) -> Vec<Source> {
         let mut sources = vec![first.clone()];
@@ -551,6 +563,37 @@ mod tests {
         assert_eq!(
             bend.clone().pulled(&shift(&grip(Bend::At(0)), 1.0), (1, 1)),
             bend
+        );
+    }
+
+    /// A drag of a point a click took ends with its element selected; a bend stays.
+    #[test]
+    fn a_released_point_selects_its_element() {
+        let point = Source::ObjectGrip {
+            object: "o".into(),
+            grip: ObjectGrip::Point(1),
+        };
+        let corner = Source::DrawingPoint {
+            drawing: "d".into(),
+            index: 2,
+        };
+        let bend = Source::CameraVia {
+            camera: "c".into(),
+            index: 0,
+            bend: Bend::At(0),
+        };
+
+        assert_eq!(
+            Selection(vec![point]).released(),
+            Selection::of(Some(Source::Object("o".into())))
+        );
+        assert_eq!(
+            Selection(vec![corner]).released(),
+            Selection::of(Some(Source::Drawing("d".into())))
+        );
+        assert_eq!(
+            Selection(vec![bend.clone()]).released(),
+            Selection(vec![bend])
         );
     }
 
