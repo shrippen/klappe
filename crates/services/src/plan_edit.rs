@@ -5,7 +5,7 @@ use klappe_model::{
     FloorPlan, Hinge, LibraryItem, Note, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan,
     Wall,
 };
-use klappe_stellprobe::{Bend, Source};
+use klappe_stellprobe::{Bend, OpeningEnd, Source};
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -400,7 +400,10 @@ impl PlanEdit {
 /// The layer an element of the plan is on.
 fn layer_of_source(source: &Source) -> Layer {
     match source {
-        Source::Object(_) | Source::Wall(_) | Source::Opening { .. } => Layer::Set,
+        Source::Object(_)
+        | Source::Wall(_)
+        | Source::Opening { .. }
+        | Source::OpeningEdge { .. } => Layer::Set,
         Source::Light(_) => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
@@ -442,6 +445,12 @@ enum Target<'a> {
     },
     /// Points and a turn about the middle of its box.
     Drawing(&'a mut Drawing),
+    /// A grip on an end of an opening: moving it sets that end, the other stays.
+    OpeningEdge {
+        wall: &'a mut Wall,
+        index: usize,
+        end: OpeningEnd,
+    },
     /// A grip on the right edge of a note's card: moving it sets the card's width.
     NoteEdge(&'a mut Note),
     /// A grip on a point or corner of a drawing: moving it reshapes the drawing.

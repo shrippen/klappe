@@ -23,10 +23,10 @@ crates/services/src/field.rs	name	ccn=42
 crates/services/src/plan_edit.rs	apply	ccn=43 length=138
 crates/services/src/plan_edit/check.rs	check	ccn=23
 crates/services/src/plan_edit/group.rs	copy	ccn=19 length=81
-crates/services/src/plan_edit/moving.rs	target	ccn=21 length=99
+crates/services/src/plan_edit/moving.rs	target	ccn=20 length=96
 crates/services/src/plan_edit/remove.rs	remove	ccn=21
 crates/services/tests/plan_edit.rs	-	lines=841
-crates/stellprobe/src/display.rs	-	lines=1455
+crates/stellprobe/src/display.rs	-	lines=1464
 crates/stellprobe/src/display.rs	figure_items	length=83
 crates/stellprobe/src/look.rs	look	ccn=16
 crates/store/src/lib.rs	load	ccn=16

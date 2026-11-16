@@ -277,6 +277,7 @@ mod tests {
             (Role::CameraHandle, "yellow", "solid", "solid"),
             (Role::DrawingHandle, "accent", "solid", "solid"),
             (Role::NoteHandle, "accent", "solid", "solid"),
+            (Role::OpeningHandle, "accent", "solid", "solid"),
             (Role::Figure(red), "red", "solid", "solid"),
             (Role::GroupDot, "ground", "solid", "solid"),
         ];

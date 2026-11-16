@@ -16,6 +16,15 @@ pub enum Bend {
     New(usize),
 }
 
+/// The end of an opening a grip sits at, seen from its wall's `from` towards `to`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpeningEnd {
+    /// The end nearer `from`.
+    Start,
+    /// The end nearer `to`.
+    End,
+}
+
 /// The grip on a way's bend.
 const HANDLE_RADIUS_M: f64 = 0.15;
 /// The grip that pulls a new bend out of a way.
@@ -29,6 +38,8 @@ const NEW_POINT_RADIUS_M: f64 = 0.1;
 /// A selected drawing has one on each of its points, an area also a smaller one halfway along
 /// each edge (LH-19).
 /// A selected note has one in the middle of its card's right edge, to set its width (LH-16).
+/// A selected door or window has one on each end, on the wall's middle line, to set its
+/// width (LH-10).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -41,8 +52,37 @@ pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &So
         | Source::DrawingPoint { drawing: id, .. }
         | Source::DrawingEdge { drawing: id, .. } => drawing_handles(plan, id),
         Source::Note(id) | Source::NoteWidth(id) => note_handles(set, id),
+        Source::Opening { wall, index } | Source::OpeningEdge { wall, index, .. } => {
+            opening_handles(set, *wall, *index)
+        }
         _ => Vec::new(),
     }
+}
+
+/// The grips on the two ends of opening `index` of wall `wall`.
+fn opening_handles(set: &SetPlan, wall: usize, index: usize) -> Vec<Item> {
+    let Some(opening) = set
+        .walls
+        .get(wall)
+        .and_then(|w| w.openings.get(index).map(|o| (w, o)))
+    else {
+        return Vec::new();
+    };
+    let (wall_ref, opening) = opening;
+    let (start_m, end_m) = opening.span_m();
+
+    [(OpeningEnd::Start, start_m), (OpeningEnd::End, end_m)]
+        .into_iter()
+        .map(|(end, along_m)| Item {
+            role: Role::OpeningHandle,
+            shape: Shape::Circle {
+                center: wall_ref.point_at(along_m),
+                radius_m: HANDLE_RADIUS_M,
+            },
+            label: None,
+            source: Some(Source::OpeningEdge { wall, index, end }),
+        })
+        .collect()
 }
 
 /// The grip on the card of note `id`: where its right edge is half as high as the card.
