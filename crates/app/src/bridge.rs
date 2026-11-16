@@ -509,17 +509,17 @@ pub mod qobject {
         #[cxx_name = "removeLibraryItem"]
         fn remove_library_item(self: Pin<&mut Self>, kind: &QString) -> bool;
 
-        /// Takes the objects of the library file `path` (a path or a `file://` URL) into the
-        /// project; the result goes to `status`.
+        /// Takes the objects (`kind` "objects") or templates ("templates") of the file `path` (a
+        /// path or a `file://` URL) into the project; the result goes to `status`.
         #[qinvokable]
         #[cxx_name = "importLibrary"]
-        fn import_library(self: Pin<&mut Self>, path: &QString) -> bool;
+        fn import_library(self: Pin<&mut Self>, path: &QString, kind: &QString) -> bool;
 
-        /// Writes the project's own objects to the library file `path`; the result goes to
-        /// `status`.
+        /// Writes the project's own objects or templates (`kind` as for `importLibrary`) to the
+        /// file `path`; the result goes to `status`.
         #[qinvokable]
         #[cxx_name = "exportLibrary"]
-        fn export_library(self: Pin<&mut Self>, path: &QString) -> bool;
+        fn export_library(self: Pin<&mut Self>, path: &QString, kind: &QString) -> bool;
 
         #[qinvokable]
         #[cxx_name = "setSnapping"]
@@ -738,6 +738,16 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "saveTemplate"]
         fn save_template(self: Pin<&mut Self>, name: &QString) -> bool;
+
+        /// Renames the project's own template `id`; false for a blank name.
+        #[qinvokable]
+        #[cxx_name = "renameTemplate"]
+        fn rename_template(self: Pin<&mut Self>, id: &QString, name: &QString) -> bool;
+
+        /// Deletes the project's own template `id`.
+        #[qinvokable]
+        #[cxx_name = "removeTemplate"]
+        fn remove_template(self: Pin<&mut Self>, id: &QString) -> bool;
     }
 
     // The start page's cards are read on a thread of their own and handed back through it.

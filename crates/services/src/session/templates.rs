@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use klappe_model::Point;
 
 use super::{Layer, Lock, Session};
@@ -54,6 +56,30 @@ impl Session {
             plan,
             name: name.to_owned(),
         })
+    }
+
+    /// Takes the templates of the file `path` into the project; one undo step. Returns how many
+    /// it added: templates the project has already are not added again. A file with an unusable
+    /// template is refused as a whole and changes nothing.
+    pub fn import_templates(&mut self, path: &Path) -> Result<usize, ServiceError> {
+        let items = klappe_store::load_template_file(path)?;
+        let before = self.project.templates.len();
+
+        self.edit_project(ProjectEdit::ImportTemplates { items })?;
+
+        Ok(self.project.templates.len() - before)
+    }
+
+    /// Writes the project's own templates to the file `path`, to pass on. Returns how many it
+    /// wrote; none to write is an error.
+    pub fn export_templates(&self, path: &Path) -> Result<usize, ServiceError> {
+        if self.project.templates.is_empty() {
+            return Err(ServiceError::EmptyLibrary);
+        }
+
+        klappe_store::save_template_file(path, &self.project.templates)?;
+
+        Ok(self.project.templates.len())
     }
 
     /// The ids of the scene and the plan on view.

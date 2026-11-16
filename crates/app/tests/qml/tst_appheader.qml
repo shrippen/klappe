@@ -471,6 +471,18 @@ TestCase {
         compare(form.title, "Neuer Plan")
     }
 
+    SignalSpy { id: templateImportSpy; signalName: "templateImportRequested" }
+
+    function test_the_palette_asks_the_window_for_a_template_file() {
+        const header = make()
+        templateImportSpy.target = header
+        templateImportSpy.clear()
+
+        header.run("plan.templateImport")
+
+        compare(templateImportSpy.count, 1)
+    }
+
     function test_a_locked_window_locks_scenes_plans_and_tools_in_the_palette() {
         const header = make()
         header.locked = true

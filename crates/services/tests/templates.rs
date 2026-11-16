@@ -438,3 +438,158 @@ fn copy_dir(from: &Path, to: &Path) {
         fs::copy(entry.path(), target).unwrap();
     }
 }
+
+fn scratch(name: &str) -> PathBuf {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+
+    dir
+}
+
+fn ids(s: &Session) -> Vec<String> {
+    own(s).into_iter().map(|e| e.id).collect()
+}
+
+fn rename(id: &str, name: &str) -> ProjectEdit {
+    ProjectEdit::EditTemplate {
+        id: id.into(),
+        name: name.into(),
+    }
+}
+
+fn remove(id: &str) -> ProjectEdit {
+    ProjectEdit::RemoveTemplate { id: id.into() }
+}
+
+#[test]
+fn an_own_template_is_renamed_and_the_rename_undone() {
+    let mut s = open();
+    s.save_template("Mein Dialog").unwrap();
+
+    s.edit_project(rename("mein-dialog", "  Zwiegespräch "))
+        .unwrap();
+
+    let entry = &own(&s)[0];
+    assert_eq!(
+        (entry.id.as_str(), entry.label.as_str()),
+        ("mein-dialog", "Zwiegespräch")
+    );
+
+    s.undo();
+    assert_eq!(own(&s)[0].label, "Mein Dialog");
+}
+
+#[test]
+fn a_blank_name_or_an_unknown_template_is_refused_on_rename() {
+    let mut s = open();
+    s.save_template("Mein Dialog").unwrap();
+
+    assert!(matches!(
+        s.edit_project(rename("mein-dialog", "  ")),
+        Err(ServiceError::BadValue {
+            field: Field::Name,
+            ..
+        })
+    ));
+    assert!(matches!(
+        s.edit_project(rename("nix", "Nix")),
+        Err(ServiceError::Gone)
+    ));
+    assert_eq!(own(&s)[0].label, "Mein Dialog");
+}
+
+#[test]
+fn an_own_template_is_deleted_and_the_deletion_undone() {
+    let mut s = open();
+    s.save_template("Eins").unwrap();
+    s.save_template("Zwei").unwrap();
+
+    s.edit_project(remove("eins")).unwrap();
+    assert_eq!(ids(&s), ["zwei"]);
+
+    s.undo();
+    assert_eq!(ids(&s), ["eins", "zwei"]);
+}
+
+#[test]
+fn a_built_in_template_cannot_be_renamed_or_deleted() {
+    let mut s = open();
+
+    assert!(matches!(
+        s.edit_project(rename("triangle", "Mein Dreieck")),
+        Err(ServiceError::Gone)
+    ));
+    assert!(matches!(
+        s.edit_project(remove("triangle")),
+        Err(ServiceError::Gone)
+    ));
+    assert_eq!(s.templates().len(), 3);
+    assert!(!s.is_dirty());
+}
+
+#[test]
+fn a_template_file_goes_from_one_project_to_another() {
+    let mut first = open();
+    first.save_template("Eins").unwrap();
+    first.save_template("Zwei").unwrap();
+    let file = scratch("templates-pass-on").join("dialoge.toml");
+
+    assert_eq!(first.export_templates(&file).unwrap(), 2);
+    let mut second = open();
+
+    assert_eq!(second.import_templates(&file).unwrap(), 2);
+    assert_eq!(second.project().templates, first.project().templates);
+
+    // Passed on twice, it adds nothing; one undo step takes the first import back.
+    assert_eq!(second.import_templates(&file).unwrap(), 0);
+    second.undo();
+    assert!(ids(&second).is_empty());
+}
+
+#[test]
+fn an_imported_template_whose_id_is_taken_gets_another_id() {
+    let mut first = open();
+    first.save_template("Dreieck").unwrap();
+    first.save_template("Triangle").unwrap();
+    let file = scratch("templates-clash").join("dialoge.toml");
+    first.export_templates(&file).unwrap();
+
+    let mut second = open();
+    second.save_template("Dreieck").unwrap();
+
+    assert_eq!(second.import_templates(&file).unwrap(), 1);
+
+    // The first file entry equals the own `dreieck` and is skipped; `triangle` clashes with
+    // the built-in one.
+    assert_eq!(ids(&second), ["dreieck", "triangle-2"]);
+    assert_eq!(second.templates().len(), 5);
+}
+
+#[test]
+fn there_is_nothing_to_export_without_own_templates() {
+    let s = open();
+    let file = scratch("templates-nothing").join("leer.toml");
+
+    assert!(matches!(
+        s.export_templates(&file),
+        Err(ServiceError::EmptyLibrary)
+    ));
+    assert!(!file.exists());
+}
+
+#[test]
+fn a_broken_template_file_is_refused_and_changes_nothing() {
+    let mut s = open();
+    let dir = scratch("templates-broken");
+
+    let missing = dir.join("fehlt.toml");
+    assert!(s.import_templates(&missing).is_err());
+
+    let other = dir.join("projekt.toml");
+    fs::write(&other, "title = \"Projekt\"\n").unwrap();
+    assert!(s.import_templates(&other).is_err());
+
+    assert!(s.project().templates.is_empty());
+    assert!(!s.is_dirty());
+}

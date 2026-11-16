@@ -16,6 +16,7 @@ import Kante
 //                            Schnappschuss…  Neuer Plan…  Umbenennen…
 //                          ──────────────
 //                            Vorlage einfügen…  Als Vorlage speichern…
+//                            Vorlagen importieren…  Vorlagen exportieren…
 //                          ──────────────
 //                            Löschen…
 HeaderMenu {
@@ -23,6 +24,9 @@ HeaderMenu {
 
     required property var texts
     required property var controller
+    /// The window asks for the template file (LH-07).
+    signal templateImportRequested()
+    signal templateExportRequested()
     // While the backup question is open nothing may change the project, also not from the palette.
     property bool locked: false
 
@@ -30,8 +34,10 @@ HeaderMenu {
     readonly property var plans: project.plans
     readonly property int index: plans.findIndex(p => p.id === project.plan)
     readonly property var current: index < 0 ? null : plans[index]
+    readonly property bool hasOwnTemplates: controller.choicesJson ? (JSON.parse(controller.choicesJson).template || []).some(t => t.custom) : false
     /// The actions, for the command palette too.
-    readonly property var actions: [snapshotAction, newAction, renameAction, templateAction, templateSaveAction, removeAction]
+    readonly property var actions: [snapshotAction, newAction, renameAction, templateAction, templateSaveAction,
+                                      templateImportAction, templateExportAction, removeAction]
 
     text: current ? current.name : ""
     enabled: plans.length > 0
@@ -65,6 +71,8 @@ HeaderMenu {
     QQC2.MenuSeparator {}
     KanteMenuItem { objectName: "applyTemplate"; action: templateAction; iconRoom: true }
     KanteMenuItem { objectName: "saveTemplate"; action: templateSaveAction; iconRoom: true }
+    KanteMenuItem { objectName: "importTemplates"; action: templateImportAction; iconRoom: true }
+    KanteMenuItem { objectName: "exportTemplates"; action: templateExportAction; iconRoom: true }
     QQC2.MenuSeparator {}
     KanteMenuItem { objectName: "removePlan"; action: removeAction; iconRoom: true; destructive: true }
 
@@ -107,6 +115,22 @@ HeaderMenu {
         text: chooser.texts.t("plan.templateSave")
         enabled: !chooser.locked && chooser.current !== null
         onTriggered: templates.show("save")
+    }
+    CommandAction {
+        id: templateImportAction
+        cmd: "plan.templateImport"
+        group: "plans"
+        text: chooser.texts.t("plan.templateImport")
+        enabled: !chooser.locked && chooser.current !== null
+        onTriggered: chooser.templateImportRequested()
+    }
+    CommandAction {
+        id: templateExportAction
+        cmd: "plan.templateExport"
+        group: "plans"
+        text: chooser.texts.t("plan.templateExport")
+        enabled: !chooser.locked && chooser.hasOwnTemplates
+        onTriggered: chooser.templateExportRequested()
     }
     CommandAction {
         id: removeAction

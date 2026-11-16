@@ -56,8 +56,9 @@ pub enum ServiceError {
     /// A new project needs an empty (or missing) folder.
     #[error("{} is not empty", .0.display())]
     NotEmpty(std::path::PathBuf),
-    /// There is nothing to pass on: the project has no own objects.
-    #[error("the project has no own objects")]
+    /// There is nothing to pass on: the project has no own objects (or templates, for a
+    /// template file).
+    #[error("the project has nothing of its own to pass on")]
     EmptyLibrary,
     /// A plan without marks has no frames to write (LH-83).
     #[error("the plan has no marks")]

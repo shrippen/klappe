@@ -65,6 +65,8 @@ Kirigami.ApplicationWindow {
                 onNewRequested: root.switchProject(() => newFolderDialog.open())
                 onOpenRequested: root.switchProject(() => openFolderDialog.open())
                 onProjectRequested: projectDialog.open()
+                onTemplateImportRequested: templateImportDialog.open()
+                onTemplateExportRequested: templateExportDialog.open()
                 onBackgroundRequested: backgroundDialog.open()
                 onViewToggled: (area, shown) => {
                     switch (area) {
@@ -154,7 +156,7 @@ Kirigami.ApplicationWindow {
         id: libraryImportDialog
         title: texts.t("library.importPick")
         nameFilters: [texts.t("library.filter")]
-        onAccepted: ctl.importLibrary(selectedFile.toString())
+        onAccepted: ctl.importLibrary(selectedFile.toString(), "objects")
     }
     FileDialog {
         id: libraryExportDialog
@@ -162,7 +164,22 @@ Kirigami.ApplicationWindow {
         nameFilters: [texts.t("library.filter")]
         fileMode: FileDialog.SaveFile
         defaultSuffix: "toml"
-        onAccepted: ctl.exportLibrary(selectedFile.toString())
+        onAccepted: ctl.exportLibrary(selectedFile.toString(), "objects")
+    }
+
+    FileDialog {
+        id: templateImportDialog
+        title: texts.t("template.importPick")
+        nameFilters: [texts.t("template.filter")]
+        onAccepted: ctl.importLibrary(selectedFile.toString(), "templates")
+    }
+    FileDialog {
+        id: templateExportDialog
+        title: texts.t("template.exportPick")
+        nameFilters: [texts.t("template.filter")]
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "toml"
+        onAccepted: ctl.exportLibrary(selectedFile.toString(), "templates")
     }
 
     // A project in the way of the next one: save it first or stay (the open one is backed

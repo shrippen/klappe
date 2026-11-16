@@ -7,6 +7,7 @@
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
 //! load_library, save_library ◄──►          bibliothek.toml, or any library file to pass on
 //!                            builtin_templates, vorlagen.toml (the project's own templates)
+//! load_template_file, save_template_file ◄──► vorlagen.toml, or any template file to pass on
 //! write_atomic, write_tree, project_mtime, ..  whole-folder file operations (tree.rs)
 //! ```
 //!
@@ -37,7 +38,7 @@ use files::{Dir, Kind};
 pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
-pub use template::{builtin_templates, check_template};
+pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
 
 /// Whether `id` may name a location or scene file on every system (FORMAT.md, Ids).

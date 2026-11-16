@@ -205,6 +205,12 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   0 bis 50 m, Neigung bis ±90°, Brennweite 1 bis 5000 mm, Sensorbreite über 0 bis 500 mm,
   Seitenverhältnis über 0 bis 20. Ohne eigene Vorlagen gibt es die Datei nicht: `save` löscht sie dann.
   Keine neue Formatversion, wie bei der Bibliothek.
+  Eigene Vorlagen lassen sich umbenennen (`label`) und löschen; die eingebauten nicht. Eine
+  Vorlagendatei zum Weitergeben hat dasselbe Format wie `vorlagen.toml` (je `[[vorlage]]`; ohne
+  `vorlage` ist sie keine Vorlagendatei) und wird als Ganzes abgelehnt, wenn eine Vorlage
+  unbrauchbar ist. Beim Import wird eine Vorlage mit gleichem `label`, gleichen Figuren und
+  Kameras übersprungen; ist ihre `id` sonst schon vergeben (eigen oder eingebaut), bekommt sie
+  eine freie (`id-2`, `id-3` …).
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.

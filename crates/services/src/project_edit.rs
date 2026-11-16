@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use klappe_model::{
     is_figure_size_m, is_object_height_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
-    Point, Project, Scene, SetPlan, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    Point, Project, Scene, SetPlan, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -105,6 +105,22 @@ pub enum ProjectEdit {
         plan: String,
         name: String,
     },
+    /// Renames the project's own template `id` (LH-07). A built-in template is not the
+    /// project's to change.
+    EditTemplate {
+        id: String,
+        name: String,
+    },
+    /// Takes the project's own template `id` away (LH-07).
+    RemoveTemplate {
+        id: String,
+    },
+    /// Takes the templates of a template file over (LH-07). One the project has already (same
+    /// name and content) is skipped; one whose id is taken by something else gets an id of its
+    /// own.
+    ImportTemplates {
+        items: Vec<Template>,
+    },
     /// Renames and regroups the project's own entry `kind` (LH-12); no group takes it out of
     /// any. Placed objects keep their kind. A built-in entry is not the project's to change.
     EditLibraryItem {
@@ -178,9 +194,11 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
         ProjectEdit::LibraryFromObject { .. } | ProjectEdit::ImportLibrary { .. } => {
             library::apply(project, edit)
         }
-        ProjectEdit::PlaceTemplate { .. } | ProjectEdit::SaveTemplate { .. } => {
-            templates::apply(project, edit)
-        }
+        ProjectEdit::PlaceTemplate { .. }
+        | ProjectEdit::SaveTemplate { .. }
+        | ProjectEdit::EditTemplate { .. }
+        | ProjectEdit::RemoveTemplate { .. }
+        | ProjectEdit::ImportTemplates { .. } => templates::apply(project, edit),
         ProjectEdit::EditLibraryItem { .. } | ProjectEdit::RemoveLibraryItem { .. } => {
             library::apply(project, edit)
         }

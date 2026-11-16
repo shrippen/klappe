@@ -1,10 +1,12 @@
 import QtQuick
+import QtCore
 import io.github.shrippen.klappe
 import "lib"
 
 // Templates (LH-07) through the real controller: placing is one undo step and adds characters
 // when the plan has none free, a locked layer refuses it, filing lists the plan as an own
-// template.
+// template; an own template is renamed and deleted (one undo step each, a built-in one is
+// refused), and a template file goes out and comes back in.
 Item {
     id: root
 
@@ -63,10 +65,42 @@ Item {
                 return root.fail("own template: " + JSON.stringify(own))
             }
 
-            ctl.undo()
-            ctl.undo()
+            const id = own[0].id
+            if (!ctl.renameTemplate(id, "Zwiegespräch")) {
+                return root.fail("rename was refused: " + ctl.status)
+            }
+            if (choices().template.filter(t => t.custom)[0].label !== "Zwiegespräch") {
+                return root.fail("rename is not listed")
+            }
+            if (ctl.renameTemplate(id, " ") || ctl.renameTemplate("triangle", "Dreieck 2")) {
+                return root.fail("a blank name and a built-in template must be refused")
+            }
+
+            const file = StandardPaths.writableLocation(StandardPaths.TempLocation) + "/klappe-templates-test.toml"
+            if (!ctl.exportLibrary(file, "templates") || ctl.status.indexOf("1") < 0) {
+                return root.fail("export failed: " + ctl.status)
+            }
+            if (!ctl.removeTemplate(id) || choices().template.length !== 3) {
+                return root.fail("delete failed: " + ctl.status)
+            }
+            if (ctl.removeTemplate("triangle") || choices().template.length !== 3) {
+                return root.fail("a built-in template must not be deleted")
+            }
+            if (ctl.exportLibrary(file, "templates")) {
+                return root.fail("nothing to export without own templates")
+            }
+            if (!ctl.importLibrary(file, "templates")) {
+                return root.fail("import failed: " + ctl.status)
+            }
+            if (choices().template.filter(t => t.custom)[0].label !== "Zwiegespräch") {
+                return root.fail("import did not bring the template back")
+            }
+
+            for (let step = 0; step < 5; step++) {
+                ctl.undo()
+            }
             if (choices().figure.length !== 2 || choices().template.length !== 3) {
-                return root.fail("undo should take both steps back")
+                return root.fail("undo should take every step back")
             }
             if (ctl.saveTemplate("  ")) {
                 return root.fail("a blank name must be refused")

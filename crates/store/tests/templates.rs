@@ -5,7 +5,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{Project, Template};
-use klappe_store::{builtin_templates, load, load_backup, save, save_backup};
+use klappe_store::{
+    builtin_templates, load, load_backup, load_template_file, save, save_backup,
+    save_template_file, StoreError,
+};
 
 fn test_dir(name: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
@@ -174,4 +177,50 @@ fn a_camera_beyond_the_editor_bounds_is_refused() {
 
         assert!(save(&dir, &project, None).is_err());
     }
+}
+
+#[test]
+fn a_template_file_to_pass_on_reads_back_as_written() {
+    let dir = test_dir("templates-file");
+    let path = dir.join("dialoge.toml");
+    let templates = vec![own("mein-dialog", "Mein Dialog"), own("fahrt", "Fahrt")];
+
+    save_template_file(&path, &templates).unwrap();
+    let text = fs::read_to_string(&path).unwrap();
+
+    assert!(text.contains("[[vorlage]]"));
+    assert_eq!(load_template_file(&path).unwrap(), templates);
+}
+
+#[test]
+fn a_file_that_is_no_template_file_is_refused() {
+    let dir = test_dir("templates-file-broken");
+
+    let missing = load_template_file(&dir.join("fehlt.toml")).unwrap_err();
+    assert!(matches!(missing, StoreError::Io { .. }), "{missing:?}");
+
+    let other = dir.join("projekt.toml");
+    fs::write(&other, "title = \"Kein Vorlagenfile\"\n").unwrap();
+    let err = load_template_file(&other).unwrap_err();
+    assert!(matches!(err, StoreError::Parse { .. }), "{err:?}");
+
+    let unnamed = dir.join("namenlos.toml");
+    save_template_file(&unnamed, &[own("a", "A")]).unwrap();
+    let text = fs::read_to_string(&unnamed)
+        .unwrap()
+        .replace("\"A\"", "\" \"");
+    fs::write(&unnamed, text).unwrap();
+    let err = load_template_file(&unnamed).unwrap_err();
+    assert!(matches!(err, StoreError::Parse { .. }), "{err:?}");
+}
+
+#[test]
+fn an_unusable_template_is_not_written_to_a_file() {
+    let dir = test_dir("templates-file-bad");
+    let path = dir.join("schlecht.toml");
+
+    let err = save_template_file(&path, &[own("a", " ")]).unwrap_err();
+
+    assert!(matches!(err, StoreError::Encode { .. }), "{err:?}");
+    assert!(!path.exists());
 }
