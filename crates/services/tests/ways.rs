@@ -4,7 +4,7 @@
 //! 5 s pause, (12, 6.5) at 9 s. Camera A: (8, 11) at 0 s, 6 s pause, (9, 8) at 6 s.
 #![allow(clippy::unwrap_used)]
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use klappe_services::{
     Arrival, Bend, Curve, Layer, Lock, PlanEdit, Point, Rig, Role, ServiceError, Session, Shape,
@@ -16,7 +16,7 @@ const WALK_M_S: f64 = 1.4;
 
 fn open() -> Session {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
-    let mut s = Session::open(&PathBuf::from(dir)).unwrap();
+    let mut s = Session::open(&dir).unwrap();
     s.set_snapping(Snapping::Off);
     s
 }
@@ -254,7 +254,7 @@ fn way_points(s: &Session) -> usize {
         .iter()
         .find(|i| matches!(i.role, Role::FigurePath(_)) && i.label.is_none());
     let Some(Shape::Polyline { points }) = item.map(|i| i.shape.clone()) else {
-        panic!("a figure's way is a polyline");
+        unreachable!("a figure's way is a polyline");
     };
 
     points.len()
