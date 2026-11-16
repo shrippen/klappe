@@ -32,7 +32,7 @@ impl Session {
 
         let mut next = self.project.clone();
         self.plan_in(&mut next)?.sketches.push(Sketch { points });
-        self.commit(next);
+        self.commit_step(next, "AddSketch");
 
         Ok(())
     }
@@ -47,7 +47,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit(next);
+        self.commit_step(next, "ClearSketches");
 
         Ok(())
     }

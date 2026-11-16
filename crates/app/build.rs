@@ -29,6 +29,7 @@ const PAGES: &[&str] = &[
     "qml/SelectionCard.qml",
     "qml/PlanTools.qml",
     "qml/PlanMenu.qml",
+    "qml/PlanContextMenu.qml",
     "qml/HeaderMenu.qml",
     "qml/CommandAction.qml",
     "qml/AppHeader.qml",

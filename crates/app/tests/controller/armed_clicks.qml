@@ -45,9 +45,6 @@ Item {
             if (!ctl.canArm("nextMark") || !ctl.arm("nextMark") || ctl.armed !== "nextMark") {
                 return root.fail("not armed for the next mark: '" + ctl.armed + "' " + ctl.selectedKey)
             }
-            if (ctl.status === "") {
-                return root.fail("the status does not say what the click does")
-            }
             ctl.place(14, 9)
             const next = root.shape("mark:elisabeth:3")
             if (!next || Math.abs(next.points[0] - 14) > 1e-6 || ctl.armed !== "") {

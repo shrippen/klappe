@@ -296,6 +296,22 @@ fn locked_cameras_refuse_the_figure_that_would_carry_them() {
         .is_err());
 }
 
+/// What the menu offers is what `edit_plan` would do: the turn that would carry a locked
+/// camera is refused, so it is not offered.
+#[test]
+fn changes_agrees_with_edit_plan_on_a_locked_camera() {
+    let mut s = open();
+    s.set_lock(Layer::Cameras, Lock::Locked);
+    let turn = |index| PlanEdit::Spin {
+        source: mark("burgvogt", index),
+        by_deg: 15.0,
+    };
+
+    assert!(s.edit_plan(turn(0)).is_err());
+    assert!(!s.changes(&turn(0)));
+    assert!(s.changes(&turn(1)));
+}
+
 #[test]
 fn removing_the_figure_works_under_a_camera_lock() {
     let mut s = open();

@@ -1,6 +1,8 @@
 //! Actions on the selected elements: remove, duplicate, turn, resize.
 
+use super::q;
 use super::qobject;
+use crate::arm::{self, Armed};
 use crate::drawing;
 use crate::object;
 use crate::selection;
@@ -9,8 +11,62 @@ use crate::tools::DrawStyle;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
+use klappe_services::{layer_of_source, PlanEdit, Session, Source};
+use serde_json::json;
+
+/// The turn a menu entry would make: any would do to ask whether turning changes something.
+const MENU_TURN_DEG: f64 = 15.0;
+
+/// What the context menu offers for the selection: the layer all of it is on (empty when it
+/// is on several), and which commands would change something.
+fn menu_json(s: &Session, selected: &Selection) -> serde_json::Value {
+    let offers = |key| {
+        selection::key_edit(key, selected)
+            .as_ref()
+            .is_some_and(|edit: &PlanEdit| s.changes(edit))
+    };
+    let mut layers: Vec<_> = selected
+        .sources()
+        .iter()
+        .map(|source| layer_of_source(source).name())
+        .collect();
+    layers.dedup();
+    let layer = match layers.as_slice() {
+        [one] => *one,
+        _ => "",
+    };
+
+    // "smooth" or "straight" for the selected way, else empty: the entry offers the other.
+    let way = selected
+        .only()
+        .and_then(|source| s.way_curve(source))
+        .map(|curve| curve.name())
+        .unwrap_or_default();
+
+    json!({
+        "layer": layer,
+        "remove": offers(Key::Remove),
+        "duplicate": offers(Key::Duplicate),
+        "turn": offers(Key::Turn { by_deg: MENU_TURN_DEG }),
+        "straighten": offers(Key::Straighten),
+        "note": matches!(selected.only(), Some(Source::Note(_))),
+        "shot": matches!(selected.only(), Some(Source::Camera(_))),
+        "nextMark": arm::can_arm(Armed::NextMark, selected.only()),
+        "markBefore": arm::can_arm(Armed::MarkBefore, selected.only()),
+        "axisTo": arm::can_arm(Armed::AxisTo, selected.only()),
+        "way": way,
+    })
+}
 
 impl qobject::Controller {
+    pub(super) fn menu_info(&self) -> QString {
+        let Some(s) = self.rust().session.as_ref() else {
+            return q("{}");
+        };
+
+        q(&menu_json(s, &self.rust().selected).to_string())
+    }
+
     pub(super) fn clear_selection(mut self: Pin<&mut Self>) {
         if self.rust().selected.is_empty() {
             return;
@@ -123,5 +179,55 @@ impl qobject::Controller {
         };
 
         self.commit_edit(edit)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bridge::tests::example;
+    use crate::selection::Pick;
+
+    fn info(sources: &[Source]) -> serde_json::Value {
+        let s = example();
+        let selected = sources.iter().fold(Selection::default(), |all, source| {
+            all.click(Some(source.clone()), Pick::Extend)
+        });
+
+        menu_json(&s, &selected)
+    }
+
+    #[test]
+    fn the_menu_offers_what_the_selection_takes() {
+        let note = info(&[Source::Note("n1".into())]);
+        assert_eq!(note["layer"], "notes");
+        assert_eq!(note["remove"], true);
+        assert_eq!(note["duplicate"], true);
+        assert_eq!(note["turn"], false);
+        assert_eq!(note["note"], true);
+
+        let camera = info(&[Source::Camera("a".into())]);
+        assert_eq!(camera["layer"], "cameras");
+        assert_eq!(camera["shot"], true);
+        assert_eq!(camera["turn"], true);
+
+        let figure = info(&[Source::Figure("elisabeth".into())]);
+        assert_eq!(figure["layer"], "figures");
+        assert_eq!(figure["duplicate"], false);
+        assert_eq!(figure["nextMark"], true);
+        assert_eq!(figure["axisTo"], true);
+        assert_eq!(camera["axisTo"], false);
+        assert_eq!(note["nextMark"], false);
+    }
+
+    #[test]
+    fn several_layers_or_nothing_offer_no_layer() {
+        let both = info(&[Source::Note("n1".into()), Source::Object("tisch".into())]);
+        assert_eq!(both["layer"], "");
+        assert_eq!(both["remove"], true);
+
+        let none = info(&[]);
+        assert_eq!(none["layer"], "");
+        assert_eq!(none["remove"], false);
     }
 }

@@ -41,6 +41,10 @@ Item {
     signal projectEntryRequested(string kind, string id)
     /// The tool bar's tool.
     property string tool: "select"
+    /// What the tool's next click does (PlanTools `hint`).
+    property string toolHint: ""
+    /// The plan asks for the select tool (Escape).
+    signal selectToolRequested()
     /// The shot on view in the shot panel.
     property var shot: null
     property bool showTimeline: true
@@ -233,6 +237,8 @@ Item {
                         Layout.fillHeight: true
                         Layout.minimumWidth: 0
                         tool: work.tool
+                        toolHint: work.toolHint
+                        onSelectToolRequested: work.selectToolRequested()
                         texts: work.texts
                         controller: work.controller
                     }
