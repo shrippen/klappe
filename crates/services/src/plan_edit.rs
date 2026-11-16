@@ -335,9 +335,6 @@ pub enum Snapping {
     Off,
 }
 
-/// A full turn; angles are kept within [0, 360).
-const FULL_TURN_DEG: f64 = 360.0;
-
 impl PlanEdit {
     /// The layers the edit changes something on; a locked one refuses it. A group edit can
     /// reach several.

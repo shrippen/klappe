@@ -31,7 +31,7 @@ mod shot;
 mod template;
 
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
-pub use geometry::{normalize_deg, Point};
+pub use geometry::{normalize_deg, Point, FULL_TURN_DEG};
 pub use library::{
     is_floor_offset_m, is_object_height_m, is_object_size_m, is_outline, outline_area_m2,
     outline_box, outline_label_point, BodyForm, FormBox, LibraryItem, ObjectShape, FREE_FORM_KIND,

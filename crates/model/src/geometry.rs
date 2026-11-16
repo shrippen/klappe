@@ -49,7 +49,7 @@ impl Point {
 }
 
 /// A full turn; angles are kept within [0, 360).
-const FULL_TURN_DEG: f64 = 360.0;
+pub const FULL_TURN_DEG: f64 = 360.0;
 
 /// An angle within [0, 360): -90 becomes 270. `rem_euclid` can return 360 for a tiny negative
 /// number, so that case is folded back.

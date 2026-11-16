@@ -13,9 +13,9 @@ use self::forms::{drag_form_point, insert_form_point};
 use super::drawings::{drag_handle, edge_place, insert_point};
 use super::openings::{drag_edge, edge_m, slide};
 use super::target::{target, Target};
-use super::FULL_TURN_DEG;
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping};
 use crate::error::ServiceError;
+use klappe_model::FULL_TURN_DEG;
 
 pub(super) mod forms;
 
