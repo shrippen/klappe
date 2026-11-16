@@ -187,6 +187,32 @@ TestCase {
         verify(entry(header, "fileMenu", "save").enabled)
     }
 
+    Component { id: strangerComponent; Window { width: 100; height: 100 } }
+
+    // Q1-19: the file dialog is a window of its own; without a window manager nobody hands the
+    // keys back, so the dialog does it when it closes. A window of ours stands for the dialog's
+    // here (offscreen has none), and there is no `back()`.
+    function test_the_shortcuts_work_right_after_the_file_dialog() {
+        const header = make()
+        const dialog = findChild(header, "exportDialog")
+        const files = findChild(dialog, "files")
+
+        pick(header, "exportMenu", "csv")
+        tryCompare(files, "visible", true)
+        const stranger = createTemporaryObject(strangerComponent, null)
+        stranger.show()
+        stranger.requestActivate()
+        tryCompare(tc.Window.window, "active", false)
+        stranger.close()
+        files.close()
+        tryCompare(files, "visible", false)
+        tryCompare(tc.Window.window, "active", true)
+
+        fake.calls = []
+        keyClick(Qt.Key_S, Qt.ControlModifier)
+        compare(fake.calls, [["save"]])
+    }
+
     function test_the_exports_ask_for_paper_and_file() {
         const header = make()
         const dialog = findChild(header, "exportDialog")

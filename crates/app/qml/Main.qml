@@ -147,6 +147,7 @@ Kirigami.ApplicationWindow {
 
     FileDialog {
         id: backgroundDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("background.pick")
         nameFilters: [texts.t("background.filter")]
         onAccepted: ctl.setBackground(selectedFile.toString())
@@ -154,12 +155,14 @@ Kirigami.ApplicationWindow {
 
     FileDialog {
         id: libraryImportDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("library.importPick")
         nameFilters: [texts.t("library.filter")]
         onAccepted: ctl.importLibrary(selectedFile.toString(), "objects")
     }
     FileDialog {
         id: libraryExportDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("library.exportPick")
         nameFilters: [texts.t("library.filter")]
         fileMode: FileDialog.SaveFile
@@ -169,12 +172,14 @@ Kirigami.ApplicationWindow {
 
     FileDialog {
         id: templateImportDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("template.importPick")
         nameFilters: [texts.t("template.filter")]
         onAccepted: ctl.importLibrary(selectedFile.toString(), "templates")
     }
     FileDialog {
         id: templateExportDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("template.exportPick")
         nameFilters: [texts.t("template.filter")]
         fileMode: FileDialog.SaveFile
@@ -197,11 +202,13 @@ Kirigami.ApplicationWindow {
 
     FolderDialog {
         id: newFolderDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("project.pickNew")
         onAccepted: newProjectDialog.show(selectedFolder.toString())
     }
     FolderDialog {
         id: openFolderDialog
+        onVisibleChanged: if (!visible) root.requestActivate()
         title: texts.t("project.pickOpen")
         onAccepted: ctl.openProject(selectedFolder.toString())
     }
