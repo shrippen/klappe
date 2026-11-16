@@ -129,6 +129,8 @@ TestCase {
         compare(findChild(card, "holdField").text, "2,5")
         compare(findChild(card, "paceField").text, "1,4")
         verify(!findChild(card, "paceValue").visible)
+        verify(findChild(card, "paceLabel").visible)
+        compare(findChild(card, "paceLabel").text, "Tempo (m/s)")
         verify(findChild(card, "paceWalk").enabled)
     }
 
@@ -210,6 +212,16 @@ TestCase {
 
         compare(fake.paces, ["2,5", "2,5"])
         verify(!field.invalid)
+    }
+
+    // The field shows the pace rounded: applying it unchanged would move the later marks.
+    function test_an_unchanged_pace_is_not_sent() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+
+        findChild(card, "paceApply").clicked()
+
+        compare(fake.paces, [])
     }
 
     function test_a_refused_pace_marks_the_field() {

@@ -9,10 +9,10 @@ import Kante
 // also says how the figure comes to it and whether it leaves after it (LH-26); a camera's
 // mark says its lens height and tilt (LH-34, positive tilt looks up), the rig that brings
 // the camera to it and the lens it states (LH-33; empty: none, between two marks with a lens
-// the focal length runs with time). The pace is shown as the plan has it (a figure's mark: in its field); the two buttons
-// time the way for walking or running and move the later marks along, and the pace can be
-// typed in m/s (a figure's mark). No geometry here: the
-// controller has the numbers from the session. Pose, pause and pace (a camera's mark: lens
+// the focal length runs with time). The pace is shown as the plan has it (a figure's mark:
+// in its field, where it can be typed in m/s); the two buttons time the way for walking or
+// running and move the later marks along. No geometry here: the controller has the numbers
+// from the session. Pose, pause and pace (a camera's mark: lens
 // height, rig and lens) are the common fields; arrival, departure and tilt wait behind
 // "More".
 ColumnLayout {
@@ -25,6 +25,8 @@ ColumnLayout {
     property bool expanded: false
     /// The button for "More"; the selection card has one for all its sections.
     property bool showMore: true
+    /// The pace as the field last showed it, so an unchanged field sends nothing.
+    property string shownPace: ""
 
     readonly property var choices: controller.choicesJson ? JSON.parse(controller.choicesJson) : ({})
     readonly property var poses: choices.pose || []
@@ -63,6 +65,7 @@ ColumnLayout {
         }
         if (!paceField.activeFocus) {
             paceField.text = info.pace === null ? "" : texts.num(info.pace, 1)
+            card.shownPace = paceField.text
         }
         if (!card.isCamera) {
             return
@@ -97,7 +100,12 @@ ColumnLayout {
         controller.setMarkPace(name)
     }
 
+    // The field shows the pace rounded (1,75 as "1,8"): sent unchanged, it would move the
+    // later marks.
     function setSpeed() {
+        if (paceField.text === card.shownPace) {
+            return
+        }
         paceField.invalid = !controller.setMarkPace(paceField.text)
     }
 
@@ -139,6 +147,12 @@ ColumnLayout {
         spacing: Kirigami.Units.smallSpacing
         visible: card.isFigure || (card.info !== null && card.info.hasWay)
 
+        // The field's name and unit: its placeholder hides once a pace fills it.
+        QQC2.Label {
+            objectName: "paceLabel"
+            visible: card.isFigure
+            text: card.texts.t("mark.paceField")
+        }
         QQC2.Label {
             objectName: "paceValue"
             visible: card.isCamera && card.info.hasWay

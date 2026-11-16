@@ -23,7 +23,8 @@ impl Pace {
     /// Every pace.
     pub const ALL: [Pace; 2] = [Pace::Walk, Pace::Run];
 
-    /// The name QML and the catalogue (`pace.<name>`) use, e.g. `run`.
+    /// The name QML and the catalogue (`pace.<name>`) use, e.g. `run`; a typed speed has no
+    /// entry there (`speed`).
     pub fn name(self) -> &'static str {
         match self {
             Pace::Walk => "walk",
