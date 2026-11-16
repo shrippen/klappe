@@ -156,7 +156,7 @@ fn version_index(letters: &str) -> usize {
 
 /// Adds a copy of shot `id` as the next version of its number, behind the last version
 /// of that number: a copy of `12.3` is `12.3A`, then `12.3B`; a copy of `12.3A` is `12.3B`.
-/// Returns the copy's id.
+/// A number that does not end in a digit (`INSERT`) has no versions. Returns the copy's id.
 pub(crate) fn version(plan: &mut FloorPlan, scene: &str, id: &str) -> Result<String, ServiceError> {
     let original = plan
         .shots
@@ -175,9 +175,21 @@ pub(crate) fn version(plan: &mut FloorPlan, scene: &str, id: &str) -> Result<Str
         .unwrap_or(0);
     let at = plan.shots.iter().rposition(in_base).map_or(0, |i| i + 1);
 
+    // Letters that would not count as a version again (`INSERTA`, `12.3AAAA`) are refused:
+    // the next version would repeat the number.
+    let suffix = letters(highest + 1);
+    let counts =
+        base.ends_with(|c: char| c.is_ascii_digit()) && suffix.len() <= MAX_VERSION_LETTERS;
+    if !counts {
+        return Err(ServiceError::BadValue {
+            field: Field::Number,
+            value: original.number.clone(),
+        });
+    }
+
     let mut shot = original.clone();
     shot.id = next_name(plan, scene).1;
-    shot.number = format!("{base}{}", letters(highest + 1));
+    shot.number = format!("{base}{suffix}");
     let new_id = shot.id.clone();
     plan.shots.insert(at, shot);
     Ok(new_id)
