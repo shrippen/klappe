@@ -4,10 +4,10 @@ import Kante
 
 // What each camera sees, as a small picture beside its body in the plan (LH-113, LH-36). Only
 // the cameras whose body is on screen get one (`controller.cameraSpots()` lists those the layer
-// and the track filter leave, the canvas those in view), at the small width the picture needs, and
-// the pictures are made again at most every `interval` ms: a burst of changes (playback, a drag)
-// costs one round, so the plan stays fluid (NF-05). A camera whose picture did not change since
-// keeps what it shows.
+// and the track filter leave, the canvas those in view), at the small width the picture needs.
+// A picture costs a few milliseconds (`make perf`), so a tick of `interval` ms makes one picture,
+// the next camera that is out of date, and a change leaves the rest as it was: ten cameras bring
+// the plan no lost frame (NF-05). The items stay while the cameras stay; only their place moves.
 Item {
     id: thumbs
 
@@ -26,20 +26,57 @@ Item {
                                      && typeof controller.cameraImageOf === "function"
 
     readonly property string paletteJson: colors.json
-    // The cameras in view, `{ id, x_m, y_m, aspect }`, as the session lists them.
-    property var spots: []
-    // Counts the rounds: a picture is made again when its round is not the one it shows.
+    // The cameras listed, `{ id, x_m, y_m, aspect }` by id; `ids` changes only when a camera
+    // comes or goes, so the items below are not made again with every change.
+    property var spotById: ({})
+    property var ids: []
+    // Counts the changes; a picture is out of date when it shows an earlier one.
     property int round: 0
 
     ViewPalette { id: colors }
 
-    // Asks for the spots and has every picture made again.
-    function refresh() {
+    // Reads the spots again: where each body stands, and which cameras there are.
+    function readSpots() {
+        const spots = JSON.parse(controller.cameraSpots())
+        const byId = {}
+        for (const spot of spots) {
+            byId[spot.id] = spot
+        }
+        spotById = byId
+        const next = spots.map(s => s.id)
+        if (next.join("\n") !== ids.join("\n")) {
+            ids = next
+        }
+    }
+
+    // One tick: the spots, then the picture of the first camera in view that is out of date; the
+    // next tick follows while another is.
+    function step() {
         if (!canPaint || !visible) {
             return
         }
-        spots = JSON.parse(controller.cameraSpots())
+        readSpots()
+        let stale = 0
+        for (let i = 0; i < items.count; i++) {
+            const item = items.itemAt(i)
+            if (!item || !item.inView || item.shownRound === round) {
+                continue
+            }
+            if (stale === 0) {
+                item.paint()
+            }
+            stale++
+        }
+        if (stale > 1) {
+            pause.start()
+        }
+    }
+
+    function refresh() {
         round++
+        if (!pause.running) {
+            pause.start()
+        }
     }
 
     onVisibleChanged: refresh()
@@ -49,54 +86,55 @@ Item {
     Timer {
         id: pause
         interval: thumbs.interval
-        onTriggered: thumbs.refresh()
+        onTriggered: thumbs.step()
     }
 
     Connections {
         target: thumbs.canPaint ? thumbs.controller : null
         function onPictureRevisionChanged() {
-            if (thumbs.visible && !pause.running) {
-                pause.start()
+            if (thumbs.visible) {
+                thumbs.refresh()
             }
         }
     }
 
     Repeater {
-        model: thumbs.spots
+        id: items
+        model: thumbs.ids
 
         delegate: Item {
             id: thumb
-            required property var modelData
-            readonly property point body: thumbs.canvas.mapFromModel(modelData.x_m, modelData.y_m)
+            required property string modelData
+            readonly property var spot: thumbs.spotById[modelData] || { x_m: 0, y_m: 0, aspect: 1.5 }
+            readonly property point body: thumbs.canvas.mapFromModel(spot.x_m, spot.y_m)
             readonly property bool inView: body.x >= 0 && body.y >= 0
                                            && body.x <= thumbs.width && body.y <= thumbs.height
             property int shownRound: -1
 
-            objectName: "cameraThumb-" + modelData.id
+            objectName: "cameraThumb-" + modelData
             visible: inView
             x: body.x + thumbs.gap
             y: body.y - height / 2
             width: thumbs.pictureWidth
-            height: width / modelData.aspect
+            height: width / spot.aspect
 
-            // Only a camera in view is painted, and only when its round has not been.
+            // Only a camera in view is painted, and only when it shows an earlier round.
             function paint() {
-                if (!inView || shownRound === thumbs.round || surface.item === null) {
+                if (!inView || surface.item === null) {
                     return
                 }
                 const px = Math.max(1, Math.round(width * Screen.devicePixelRatio))
-                const image = thumbs.controller.cameraImageOf(modelData.id, px, thumbs.paletteJson)
+                const image = thumbs.controller.cameraImageOf(modelData, px, thumbs.paletteJson)
                 surface.item.show(image)
                 shownRound = thumbs.round
             }
 
-            Connections {
-                target: thumbs
-                function onRoundChanged() {
-                    thumb.paint()
+            // A camera that comes into view gets its picture with the next tick.
+            onInViewChanged: {
+                if (inView) {
+                    thumbs.refresh()
                 }
             }
-            onInViewChanged: paint()
 
             Rectangle {
                 anchors.fill: parent
@@ -109,7 +147,7 @@ Item {
                 anchors.fill: parent
                 anchors.margins: KanteStyle.borderWidth
                 source: thumbs.surfaceSource
-                onLoaded: thumb.paint()
+                onLoaded: thumbs.refresh()
             }
         }
     }

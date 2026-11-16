@@ -57,7 +57,7 @@ TestCase {
         fake.pictureRevision = 0
         const thumbs = createTemporaryObject(thumbsComponent, tc)
         verify(thumbs)
-        tryVerify(() => thumbs.spots.length > 0)
+        tryVerify(() => thumbs.ids.length > 0 && findChild(thumbs, "cameraThumb-" + thumbs.ids[0]) !== null)
         return thumbs
     }
 
