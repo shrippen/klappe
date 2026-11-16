@@ -59,6 +59,9 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 - `demo/` is a tool on the level of `services/` and uses `model/`, `script/`, `store/`.
   No other block depends on it.
 - Inside `app/`, QML talks only to the bridge, and the bridge only to `services/`.
+- `app/src/bridge.rs` holds only the declarations of the one QML object (properties, calls,
+  signals); cxx-qt needs them in one module, so the file grows with the window and has no
+  length limit (`structure.baseline` excludes it). Logic goes into `bridge/<area>.rs`.
 - Only `store/` touches a project's files. `export/` returns bytes; `services/` has
   `store/` write them.
 - Surfaces draw the display list. Geometry, hit tests and calculations belong in
