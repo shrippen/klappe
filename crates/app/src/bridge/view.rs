@@ -210,7 +210,9 @@ impl ControllerRust {
 
 /// What the window shows, one field per property that follows the session; a new one needs
 /// its property in `bridge.rs`, a field here and a line in `collect`, `fill` and `show`.
-struct Shown {
+/// The default is what the window shows without a project (closing feeds it to `show`).
+#[derive(Default)]
+pub(super) struct Shown {
     title: QString,
     plan_title: QString,
     plan_json: QString,
@@ -419,7 +421,7 @@ impl qobject::Controller {
     }
 
     /// Sets the properties from `v`; each signals only when its value changed.
-    fn show(mut self: Pin<&mut Self>, v: Shown) {
+    pub(super) fn show(mut self: Pin<&mut Self>, v: Shown) {
         // Restoring a backup or undoing it can change what only the start used to set.
         self.as_mut().set_project_json(v.project_json);
         self.as_mut().set_scene_id(v.scene_id);
