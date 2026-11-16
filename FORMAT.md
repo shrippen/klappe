@@ -65,7 +65,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   - `group`: Szene, Punkt, laufende Nummer einer Gruppe gleichzeitig gedrehter Shots, dahinter
     der Kamerabuchstabe: `12.3A`, `12.3B`. Eine Gruppe sind Shots verschiedener Kameras, deren
     Zeitspannen sich überlappen. Version: Bindestrich und Buchstaben, `12.3A-B`.
-  Eine Version behält beim Umnummerieren ihren Anhang (`-B`, `B`) am neuen Namen ihrer Basis.
+  Eine Version behält beim Umnummerieren ihren Anhang am neuen Namen ihrer Basis, auch über
+  einen Wechsel des Schemas (`12.3A` wird `12B.1-A`). Eine Ausnahme ist `group`: Buchstaben
+  hinter einer Ziffer gelten dort als Kamera, eine Version aus `scene` muss vorher in
+  `camera` oder mit Bindestrich geschrieben sein.
 - **Achse (LH-40):** `axis` im Floorplan (`szenen/<id>.json`) mit `a` und `b`, den Figur-Ids,
   zwischen denen die 180°-Achse liegt; je Floorplan, weil die Spuren der Figuren dort liegen.
   Fehlt `axis`, gilt die Achse zwischen den ersten zwei Figuren des Floorplans. Wird eine der

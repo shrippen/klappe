@@ -232,6 +232,22 @@ fn split_number(numbering: Numbering, number: &str) -> (&str, &str) {
     (base, &number[base.len()..])
 }
 
+/// Splits a number for "Renumber" into its base and version letters, whatever scheme wrote it,
+/// so a version survives a change of scheme: a hyphen tail (`12A.3-B`) is a version in every
+/// scheme, letters after a digit (`12.3A`) one only where the target scheme gives letters no
+/// other meaning (a number written by the group scheme keeps them as its camera).
+fn split_any(target: Numbering, number: &str) -> (&str, &str) {
+    let hyphen = split_number(Numbering::Camera, number);
+    if !hyphen.1.is_empty() {
+        return (hyphen.0, hyphen.1.trim_start_matches(VERSION_SEPARATOR));
+    }
+    if target == Numbering::Group {
+        return (number, "");
+    }
+
+    split_number(Numbering::Scene, number)
+}
+
 /// Version letters for the n-th version (1-based): A to Z, then AA, AB, ...
 fn letters(mut n: usize) -> String {
     let mut out = Vec::new();
@@ -312,8 +328,13 @@ pub(crate) fn renumber(plan: &mut FloorPlan, numbering: Numbering, scene: &str) 
 
     for at in 0..plan.shots.len() {
         let shot = &plan.shots[at];
-        let (base, tail) = split_number(numbering, &shot.number);
-        let (base, tail) = (base.to_owned(), tail.to_owned());
+        let (base, letters) = split_any(numbering, &shot.number);
+        let tail = match (letters.is_empty(), numbering) {
+            (true, _) => String::new(),
+            (false, Numbering::Scene) => letters.to_owned(),
+            (false, _) => format!("{VERSION_SEPARATOR}{letters}"),
+        };
+        let base = base.to_owned();
         let label = camera_name(plan, &shot.camera);
 
         let number = match new_base.get(&base) {
