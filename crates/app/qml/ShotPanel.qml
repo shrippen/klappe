@@ -207,11 +207,12 @@ Item {
             if (shotId === "") {
                 return
             }
-            if (newShortName.text !== "") {
-                panel.send(shotId, "short_name", newShortName.text)
+            if (newShortName.text === "" && newDescription.text === "") {
+                return
             }
-            if (newDescription.text !== "") {
-                panel.send(shotId, "description", newDescription.text)
+            // One call: the new shot and its name are two undo steps, not three.
+            if (!panel.controller.nameShot(shotId, newShortName.text, newDescription.text)) {
+                panel.refused++
             }
         }
 

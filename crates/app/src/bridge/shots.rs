@@ -55,6 +55,21 @@ impl qobject::Controller {
         true
     }
 
+    pub(super) fn name_shot(
+        self: Pin<&mut Self>,
+        id: &QString,
+        short_name: &QString,
+        description: &QString,
+    ) -> bool {
+        let (id, short_name, description) = (
+            id.to_string(),
+            short_name.to_string(),
+            description.to_string(),
+        );
+
+        self.edit_shots(|s| s.name_shot(&id, &short_name, &description))
+    }
+
     pub(super) fn set_shot_image(self: Pin<&mut Self>, id: &QString, path: &QString) -> bool {
         let id = id.to_string();
         let path = path.to_string();

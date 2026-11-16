@@ -172,6 +172,31 @@ impl Session {
         Ok(())
     }
 
+    /// Sets the short name and the description of shot `id` together; one undo step (LH-110).
+    pub fn name_shot(
+        &mut self,
+        id: &str,
+        short_name: &str,
+        description: &str,
+    ) -> Result<(), ServiceError> {
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+        let shot = plan
+            .shots
+            .iter_mut()
+            .find(|s| s.id == id)
+            .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
+
+        shot.short_name = short_name.to_owned();
+        shot.description = description.to_owned();
+        if next == self.project {
+            return Ok(());
+        }
+
+        self.commit(next);
+        Ok(())
+    }
+
     /// The path of a picture file of the project (`bilder/…`, as `ShotRow::image`); `None` for
     /// a name that is not one, so nothing outside the project is shown.
     pub fn image_file(&self, file: &str) -> Option<PathBuf> {

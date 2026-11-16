@@ -218,6 +218,16 @@ pub mod qobject {
         #[cxx_name = "editShot"]
         fn edit_shot(self: Pin<&mut Self>, id: &QString, field: &QString, value: &QString) -> bool;
 
+        /// Sets short name and description of shot `id` as one change (LH-110); false if refused.
+        #[qinvokable]
+        #[cxx_name = "nameShot"]
+        fn name_shot(
+            self: Pin<&mut Self>,
+            id: &QString,
+            short_name: &QString,
+            description: &QString,
+        ) -> bool;
+
         /// Gives shot `id` the storyboard picture `path` (a path or `file://` URL), or takes it
         /// away with an empty path (LH-74); false if refused.
         #[qinvokable]

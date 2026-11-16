@@ -281,3 +281,22 @@ fn only_a_file_of_bilder_has_a_path() {
     assert_eq!(s.image_file("../x.png"), None);
     assert_eq!(s.image_file("/etc/passwd"), None);
 }
+
+#[test]
+fn naming_a_shot_sets_both_fields_in_one_undo_step() {
+    let (mut s, _) = open("numbering-name");
+
+    s.name_shot("s12-2", "Auftritt", "Sie kommt herein")
+        .unwrap();
+    let row = s.shots().into_iter().find(|r| r.id == "s12-2").unwrap();
+    assert_eq!(
+        (row.short_name.as_str(), row.description.as_str()),
+        ("Auftritt", "Sie kommt herein")
+    );
+
+    s.undo();
+    let row = s.shots().into_iter().find(|r| r.id == "s12-2").unwrap();
+    assert_eq!(row.short_name, "");
+    assert_ne!(row.description, "Sie kommt herein");
+    assert!(s.name_shot("nope", "a", "b").is_err());
+}
