@@ -6,9 +6,10 @@ use std::cmp::Reverse;
 use klappe_model::Point;
 use klappe_stellprobe::Source;
 
+use super::target::{target, Target};
 use super::{
     anchor_pair, carry_cameras, figure_mark, free_id, free_letter, move_to, points_mut, remove,
-    rotate, snap, target, turn, Grid, Scope, Snapping, Target,
+    rotate, snap, turn, Grid, Scope, Snapping,
 };
 use crate::error::ServiceError;
 

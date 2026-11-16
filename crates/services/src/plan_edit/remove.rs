@@ -4,9 +4,9 @@ use klappe_model::{FloorPlan, LinkTarget};
 use klappe_stellprobe::{Bend, Source};
 
 use super::moving::forms::remove_grip;
-use super::moving::target;
 use super::openings::opening_mut;
-use super::{Scope, Target};
+use super::target::{target, Target};
+use super::Scope;
 use crate::error::ServiceError;
 
 /// Takes the bend `source` names out of its way.
