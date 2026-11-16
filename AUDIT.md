@@ -1,7 +1,7 @@
 # Code-Audit Klappe, 16.11.2026, Stand 42336c1
 
 ## Urteil
-Das Repo ist wartbar und besser als beim elften Audit. Die vier gewählten Funde des elften Audits sind behoben (#179 bis #182). Dazu kommen drei ältere Funde:
+Das Repo ist wartbar und besser als beim elften Audit. Von den fünf gewählten Funden des elften Audits sind vier behoben (#179 bis #182), der fünfte ist durch Entscheidung des Eigentümers erledigt (#183). Dazu kommen drei ältere Funde:
 - Ein Griff wird jetzt einmal beschrieben (neuntes Audit, #178).
 - Das Einsetzen einer Vorlage ruft nicht mehr im Kreis (fünftes Audit, #111).
 - Den Winkel beim Messen rechnet die Sitzung, nicht mehr die App (viertes Audit, #119).
@@ -36,7 +36,7 @@ Beleg: `crates/model/src/project.rs:265`, `crates/model/src/project.rs:471`, `cr
 ### 2. Zu welchem Element ein Griff gehört und welcher Griff selbst gewählt wird, steht noch an drei Stellen
 #178 hat die Zuordnung „Griff → sein Element“ an eine Stelle gebracht (`Source::owner`). Ebene und Auswahl lesen sie dort. Zwei Listen sind geblieben:
 - **Die Klickerkennung der Sitzung** hat eine eigene Zuordnung „Griff → Element“ (`owner_of`). Sie lässt Türgriffe und Lampengriffe bewusst weg und fängt alles Übrige stumm mit „keins“ ab. `ARCHITECTURE.md` warnt selbst, dass der Compiler hier nicht meldet, wenn etwas fehlt. #185 musste den neuen Bildgriff in beide Zuordnungen eintragen.
-- **Die App** führt zweimal die Liste der Griffe, die beim Klick selbst gewählt werden statt ihres Elements (Punkt einer Zeichnung, Punkt einer freien Form, Knick eines Wegs): einmal beim Klicken, einmal beim Aufräumen der Auswahl nach jeder Änderung.
+- **Die App** führt zweimal eine Liste der Griffe, die selbst gewählt werden statt ihres Elements: beim Klicken (Punkt einer Zeichnung, Punkt einer freien Form) und beim Aufräumen der Auswahl nach jeder Änderung (dazu der Knick eines Wegs). Die beiden Listen sind schon heute verschieden.
 
 Was es kostet: Bei einem neuen Griff kann man eine Stelle vergessen, ohne dass etwas meldet. Fehlt er in der Klickerkennung, fängt der Griff Klicks mitten im Element ab. Fehlt er in der zweiten Liste der App, verschwindet ein selbst gewählter Griff nach der nächsten Änderung aus der Auswahl.
 
@@ -90,14 +90,14 @@ Bei `copy` ist der Grund eine Wiederholung: Objekt, Lampe, Notiz und Bild werden
 
 **An der Grenze:** `bridge/view.rs` mit 788 Zeilen, das Datenmodell `model/src/plan.rs` mit 787, die Testdateien `services/tests/manage.rs` und `library.rs` mit je 800, `export/tests/export.rs` mit 799 und `tst_planarea.qml` mit 782.
 
-Vorschlag: Das Kopieren der vier Elemente mit Nummer und Lage läuft über einen gemeinsamen Ablauf. Damit wächst `copy` mit dem nächsten Element nicht mehr.
+Vorschlag: Das Kopieren der vier Elemente mit Nummer und Lage läuft über einen gemeinsamen Ablauf. Ein neues Element braucht in `copy` dann nur noch einen kurzen Zweig statt eines ausgeschriebenen Ablaufs.
 
 Aufwand klein bis mittel. Risiko gering: Die Kopiertests in `crates/services/tests/` decken jedes Element ab.
 
 Beleg: `structure.baseline`, `crates/services/src/plan_edit/group.rs:232`, `crates/services/src/plan_edit/images.rs:45`, Commit `31cb18a`.
 
 ## Seit dem letzten Audit
-Seit dem elften Audit wurden neun PRs gemergt: #111, #119 und #178 bis #185. Aus dem elften Audit hat der Eigentümer alle fünf Funde gewählt:
+Seit dem elften Audit wurden zehn PRs gemergt: #111, #119 und #178 bis #185. Aus dem elften Audit hat der Eigentümer alle fünf Funde gewählt:
 - Funde 1 bis 4 sind behoben.
 - Fund 5 ist durch seine Entscheidung erledigt.
 
@@ -113,12 +113,12 @@ Elftes Audit:
 Zehntes Audit:
 - **Fund 1 (Schnitt und Kamerablick auf eigenem Weg, `freeLook` schaltet und fragt): offen.** Beleg: `crates/app/src/bridge.rs:141`, `crates/app/src/bridge/free.rs:89`, `crates/app/qml/AppHeader.qml:367`, `crates/app/qml/AppHeader.qml:398`, `crates/app/qml/AppHeader.qml:408`, `crates/app/qml/FreeView.qml:140`.
 - **Fund 2 (Karten hängen am Zähler des Kamerabilds): offen.** Das Schließen zählt ihn jetzt über `show` hoch statt über eine eigene Zeile. Beleg: `crates/app/src/bridge.rs:28`, `crates/app/src/bridge/view.rs:457`.
-- **Fund 3 (Farbe eines Bildpunkts in App und Ausgabe je einmal): offen.** Beleg: `crates/app/src/plan/picture.rs:58`, `crates/export/src/style.rs:216`.
+- **Fund 3 (Farbe eines Bildpunkts in App und Ausgabe je einmal): offen.** Beleg: `crates/app/src/plan/picture.rs:59`, `crates/export/src/style.rs:216`.
 - **Fund 4 (Punkte von freier Form und gezeichneter Fläche zweimal gebaut): offen.** Beleg: `crates/services/src/plan_edit/drawings.rs:42`, `crates/services/src/plan_edit/moving/forms.rs:25`, `crates/services/src/plan_edit/moving.rs:221`, `crates/stellprobe/src/display/handles.rs:64`, `crates/stellprobe/src/display/handles.rs:67`.
 - **Fund 5 („was eine Kamera sieht“ dreimal, „gewählte Kamera“ viermal): offen.** Beleg: `crates/app/src/bridge/export.rs:84`, `crates/app/src/bridge/shots.rs:57`, `crates/app/src/bridge/free.rs:92`, `crates/app/src/bridge/picture.rs:41`, `crates/services/src/session/views.rs:146`.
 
 Neuntes Audit:
-- **Fund 1 (neue Griffart an rund 14 Stellen): behoben (#178),** bis auf die Reste in neuem Fund 2. Eine Rolle `Handle` gilt für alle gleich aussehenden Griffe. `Source::owner` nennt das Element jedes Griffs. Ebene, Auswahl, Löschen und Drehen lesen es. `ARCHITECTURE.md` hat eine Zeile „New grip“. Beleg: `crates/stellprobe/src/display.rs:133`, `crates/app/src/selection.rs:47`.
+- **Fund 1 (neue Griffart an rund 14 Stellen): behoben (#178),** bis auf die Reste in neuem Fund 2. Eine Rolle `Handle` gilt für alle gleich aussehenden Griffe. `Source::owner` nennt das Element jedes Griffs. Ebene und Auswahl lesen es; Löschen und Drehen zählen die Griffe nicht mehr einzeln auf. `ARCHITECTURE.md` hat eine Zeile „New grip“. Beleg: `crates/stellprobe/src/display.rs:133`, `crates/app/src/selection.rs:47`.
 
 Achtes Audit:
 - **Fund 1 (Seite und Scharnier der Tür in eigenen Listen der Karte): offen.** Beleg: `crates/app/qml/OpeningCard.qml:32`, `crates/app/src/object.rs:131`.
