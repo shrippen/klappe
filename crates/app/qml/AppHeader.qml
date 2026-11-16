@@ -472,13 +472,7 @@ RowLayout {
         }
     }
     // The commands of an object and of a bound label (LH-114 to LH-116, LH-118).
-    ObjectCommands {
-        id: objectCommands
-        texts: header.texts
-        controller: header.controller
-        locked: header.locked
-        keyName: header.keyName
-    }
+    ObjectCommands { id: objectCommands; texts: header.texts; controller: header.controller; locked: header.locked; keyName: header.keyName }
 
     // Saved views (LH-119) and the sketch pen's clear command (LH-120).
     ViewCommands {

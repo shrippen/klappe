@@ -21,7 +21,7 @@ crates/imagehead/src/lib.rs	jpeg_frame	ccn=22
 crates/script/src/write.rs	render	ccn=16
 crates/services/src/error_text.rs	own_text	ccn=19
 crates/services/src/field.rs	name	ccn=44
-crates/services/src/plan_edit.rs	apply	ccn=37 length=130
+crates/services/src/plan_edit.rs	apply	ccn=37 length=128
 crates/services/src/plan_edit/check.rs	check	ccn=21
 crates/services/src/plan_edit/group.rs	copy	ccn=20
 crates/services/src/plan_edit/remove.rs	remove	ccn=20
