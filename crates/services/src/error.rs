@@ -82,6 +82,12 @@ pub enum ServiceError {
     BadValue { field: Field, value: String },
     #[error(transparent)]
     Export(#[from] klappe_export::ExportError),
+    /// The example's old copy was set aside, then the fresh one could not be written.
+    #[error("{source}; the old copy is at {}", .aside.display())]
+    ExampleAside {
+        aside: std::path::PathBuf,
+        source: Box<ServiceError>,
+    },
     #[error("cannot write {path}: {source}")]
     Write {
         path: std::path::PathBuf,

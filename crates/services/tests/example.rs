@@ -5,13 +5,17 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use klappe_services::{copy_example, ensure_example, Language, ServiceError, Session};
+use klappe_services::{copy_example, ensure_example, error_text, Language, ServiceError, Session};
 
 const DEMO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../demo");
 
 fn target(name: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
+    for suffix in ["", "-2", "-3"] {
+        let aside = dir.with_file_name(format!("{name}.alt{suffix}"));
+        let _ = std::fs::remove_dir_all(aside);
+    }
     dir
 }
 
@@ -114,4 +118,72 @@ fn a_cut_off_copy_leaves_no_half_folder() {
     let shipped = Path::new(DEMO).join("beispiel-de.klappe");
     assert_eq!(tree(&dir), tree(&shipped));
     assert!(!beside.exists());
+}
+
+/// A copy of an older format no longer loads: it is set aside, never deleted, and a fresh copy
+/// takes its place.
+#[test]
+fn an_unreadable_copy_is_set_aside_and_replaced() {
+    let dir = target("example-old");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("projekt.toml"), "kaputt").unwrap();
+
+    let aside = ensure_example(Language::German, &dir).unwrap().unwrap();
+
+    assert_eq!(aside, dir.with_file_name("example-old.alt"));
+    assert_eq!(
+        std::fs::read(aside.join("projekt.toml")).unwrap(),
+        b"kaputt"
+    );
+    assert!(Session::open(&dir).is_ok());
+}
+
+/// Each old copy keeps its own folder.
+#[test]
+fn a_second_old_copy_gets_a_free_name() {
+    let dir = target("example-old2");
+    let first = dir.with_file_name("example-old2.alt");
+    std::fs::create_dir_all(&first).unwrap();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("projekt.toml"), "kaputt").unwrap();
+
+    let aside = ensure_example(Language::German, &dir).unwrap().unwrap();
+
+    assert_eq!(aside, dir.with_file_name("example-old2.alt-2"));
+    assert!(first.exists());
+}
+
+#[test]
+fn a_readable_copy_is_not_set_aside() {
+    let dir = target("example-fine");
+    ensure_example(Language::German, &dir).unwrap();
+
+    let aside = ensure_example(Language::German, &dir).unwrap();
+
+    assert_eq!(aside, None);
+    assert!(!dir.with_file_name("example-fine.alt").exists());
+}
+
+/// Review of PR 194: the copy failed (disk full) after the old one was set aside; the error
+/// did not say where the old one now is, and no later click mentions it.
+#[test]
+fn a_failed_copy_names_where_the_old_one_went() {
+    let dir = target("example-failed");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("projekt.toml"), "kaputt").unwrap();
+    // A file where the copy is staged: writing the fresh copy fails.
+    let part = dir.with_file_name("example-failed.part");
+    let _ = std::fs::remove_dir_all(&part);
+    let _ = std::fs::remove_file(&part);
+    std::fs::write(&part, "im Weg").unwrap();
+
+    let err = ensure_example(Language::German, &dir).unwrap_err();
+    std::fs::remove_file(&part).unwrap();
+
+    let aside = dir.with_file_name("example-failed.alt");
+    assert!(aside.join("projekt.toml").exists());
+    for language in [Language::German, Language::English] {
+        let text = error_text(language, &err);
+        assert!(text.contains(aside.to_str().unwrap()), "{text}");
+    }
 }

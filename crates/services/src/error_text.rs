@@ -6,6 +6,18 @@ use crate::field::Field;
 
 /// The service's error in the given language; details (path, value) appended where they help.
 pub fn error_text(language: Language, error: &ServiceError) -> String {
+    // Wraps another error: its text first, then where the old example copy went.
+    let ServiceError::ExampleAside { aside, source } = error else {
+        return own_text(language, error);
+    };
+
+    language
+        .text("error.exampleAside")
+        .replace("{reason}", &error_text(language, source))
+        .replace("{aside}", &aside.to_string_lossy())
+}
+
+fn own_text(language: Language, error: &ServiceError) -> String {
     let (key, detail) = match error {
         ServiceError::NoScene(id) => ("error.noScene", id.clone()),
         ServiceError::NoPlan(id) => ("error.noPlan", id.clone()),
@@ -113,6 +125,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::PlanNameTaken(_)
         | ServiceError::Locked(_)
         | ServiceError::BadValue { .. }
+        | ServiceError::ExampleAside { .. }
         | ServiceError::Store(_)
         | ServiceError::Export(_)
         | ServiceError::Write { .. } => None,
@@ -313,6 +326,10 @@ mod tests {
                 plans: 1,
             },
             ServiceError::NotEmpty(PathBuf::from("/a")),
+            ServiceError::ExampleAside {
+                aside: PathBuf::from("/a.alt"),
+                source: Box::new(ServiceError::NoMarks),
+            },
             ServiceError::NoMarks,
             ServiceError::NoPicture,
             ServiceError::NotCopyable,

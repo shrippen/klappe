@@ -185,6 +185,15 @@ Item {
             }
         }
 
+        // What went wrong opening a project (or the example), whole: the header's line is short.
+        KanteCallout {
+            objectName: "status"
+            Layout.fillWidth: true
+            visible: text !== ""
+            kind: KanteCallout.Kind.Danger
+            text: start.controller.status
+        }
+
         QQC2.Label {
             objectName: "noRecent"
             Layout.fillWidth: true

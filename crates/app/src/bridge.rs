@@ -78,6 +78,9 @@ pub mod qobject {
         #[qproperty(QString, note_text, cxx_name = "noteText")]
         /// Last message for the status line, already translated.
         #[qproperty(QString, status)]
+        /// Where the example's old copy went, already translated; empty for none. Kept until
+        /// the user closes it or another project opens (`AsideNotice`).
+        #[qproperty(QString, example_aside, cxx_name = "exampleAside")]
         /// Backup found at open: `none`, `found` or `unreadable`; answer with `restoreBackup`
         /// or `discardBackup`.
         #[qproperty(QString, backup_state, cxx_name = "backupState")]
