@@ -35,7 +35,7 @@ impl HeightField {
 }
 
 /// The height typed for the selected wall, opening or object, as an edit (LH-90): an empty
-/// text takes the height off. A top (wall, head) is more than nothing, a start (sill,
+/// text takes the height off. A top (wall, head) is not under the least height, a start (sill,
 /// underside) may be the floor; the session sets the upper limit and the sill-head order.
 pub fn set_height_edit(selected: Option<&Source>, field: HeightField, text: &str) -> Typed {
     let source = selected?.clone();
@@ -365,7 +365,7 @@ mod tests {
             })
         );
 
-        // A top is more than nothing; a refused text is an error, a wrong selection is none.
+        // A top is not under the least height; a refused text is an error, a wrong selection is none.
         assert_eq!(
             edit_of(set_height_edit(Some(&wall), HeightField::Wall, "0")),
             None

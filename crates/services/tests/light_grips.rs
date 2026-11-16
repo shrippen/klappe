@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_model::{is_beam_deg, Light};
+use klappe_model::{is_beam_deg, Light, MIN_BEAM_DEG};
 use klappe_services::{
     Layer, LightGrip, Lock, PlanEdit, Point, Role, ServiceError, Session, Shape, Snapping, Source,
 };
@@ -145,7 +145,10 @@ fn the_beam_stays_within_what_a_lamp_may_have() {
     let edit = drag(&s, LightGrip::Beam, pointer(&s, 330.0));
     s.edit_plan(edit).unwrap();
     let narrow = light(&s).beam_deg;
-    assert!(is_beam_deg(narrow) && narrow <= 1.0 + EPS, "{narrow}");
+    assert!(
+        is_beam_deg(narrow) && narrow <= MIN_BEAM_DEG + EPS,
+        "{narrow}"
+    );
 
     let edit = drag(&s, LightGrip::Beam, pointer(&s, 150.0));
     s.edit_plan(edit).unwrap();

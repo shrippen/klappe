@@ -67,7 +67,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   fehlt dann in der Datei. Ein eigener Eintrag lässt sich umbenennen (`label`, `group`) und
   löschen; Objekte im Plan behalten `kind`, Maße, Form und Namen, ihr `kind` ist dann wie ein
   unbekanntes. Eine Datei mit einem unbrauchbaren Eintrag (leerer
-  `kind`, Maß nicht in (0, 1000] m, doppelter `kind`) wird als Ganzes abgelehnt; die
+  `kind`, Maß nicht in [0,05, 1000] m, doppelter `kind`) wird als Ganzes abgelehnt; die
   `bibliothek.toml` eines Projekts dann beim Öffnen mit Meldung. Ohne eigene Objekte gibt es die
   Datei nicht: `save` löscht sie dann. Keine neue Formatversion: ältere Fassungen kennen `shape`,
   `group` und `bibliothek.toml` nicht und verlieren sie beim Speichern.
@@ -83,7 +83,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Rechtecke bekommen eine Bauform, keine Ellipse und keine freie Form. Keine neue
   Formatversion: ältere Fassungen verlieren `form` beim Speichern.
 - **Höhe von Objekten (LH-17):** `[[set.objects]]` und `[[objekt]]` der Bibliothek haben optional
-  `height_m`, die Höhe in Metern (größer als 0, höchstens 100). Fehlt der Schlüssel, ist keine
+  `height_m`, die Höhe in Metern (mindestens 0,05, höchstens 100). Fehlt der Schlüssel, ist keine
   Höhe angegeben (Fläche, Teppich); ein Objekt ohne Höhe schreibt ihn nicht, ältere Projekte
   laden und speichern unverändert. Ein neues Objekt übernimmt die Höhe seines
   Bibliothekseintrags, „Als Bibliotheksobjekt ablegen“ die des Objekts. Eine Bibliotheksdatei mit
@@ -95,7 +95,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `base_m`, die Unterkante; fehlt sie, steht das Objekt auf dem größten Objekt mit Höhe, das
   größer ist und seine Mitte trägt, sonst auf dem Boden. Ein Objekt ohne `height_m` wird in
   der Ansicht 0,9 m hoch gezeigt und trägt nichts. Leere Werte schreibt `save` nicht.
-  Raum-, Wand- und Sturzhöhe liegen in (0, 100] m, Brüstung und Unterkante in [0, 100] m, die
+  Raum-, Wand- und Sturzhöhe liegen in [0,05, 100] m, Brüstung und Unterkante in [0, 100] m, die
   Brüstung unter dem Sturz; sonst wird der Drehort beim Öffnen abgelehnt.
   Formatversion 1 lädt unverändert (Raumhöhe 2,6, die feste Wandhöhe von früher) und wird als
   2 gespeichert; eine Fassung für Version 1 lehnt das Projekt danach ab.
@@ -108,7 +108,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   unverändert gespeichert. Eine freie Form ist ein Objekt wie jedes andere (Ebene Set, `height_m`,
   `base_m`; eine neue hat `kind = "form"` und keine Höhe). Eine Bibliotheksdatei und
   `bibliothek.toml` nehmen dieselbe `shape` an. Laden lehnt einen Umriss mit weniger als drei
-  Punkten, einer Zahl, die keine ist, ohne Fläche oder größer als 1000 m ab (Drehort mit Meldung,
+  Punkten, einer Zahl, die keine ist, ohne Fläche, mit einem Kasten unter 0,05 m in einer Richtung
+  oder größer als 1000 m ab (Drehort mit Meldung,
   Bibliotheksdatei als Ganzes). Keine neue Formatversion (noch kein Release).
 - **Kamerahöhe und Neigung (LH-34):** jeder Kamera-Mark (`marks` in `szenen/<id>.json`) hat
   `height_m` (Höhe des Objektivs über dem Boden, 0 bis 50) und `tilt_deg` (Standard 0, −90 bis
@@ -135,14 +136,14 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
 - **Türen und Fenster in Wänden (LH-10):** jede `[[set.walls]]` kann `[[set.walls.openings]]`
   tragen: `kind` (`door` oder `window`), `at_m` (Meter von `from` der Wand bis zur Mitte der
-  Öffnung, entlang der Wand) und `width_m` (größer als 0). Die Wand hat dort eine Lücke; die Tür
+  Öffnung, entlang der Wand) und `width_m` (mindestens 0,30 m, höchstens 1000). Die Wand hat dort eine Lücke; die Tür
   schwingt auf dem Plan standardmäßig nach rechts, von `from` Richtung `to` gesehen, das
   Scharnier liegt am Anfang der Lücke (der Seite von `from`). Optional `side` (`right` oder
   `left`, Standard `right`) und `hinge` (`start` oder `end`, Standard `start`) ändern das;
   beide fehlen in der Datei, wenn sie dem Standard entsprechen, ein anderer Wert lässt das
   Laden scheitern, ein Fenster ignoriert sie. Ohne Öffnungen steht der Schlüssel nicht in der Datei, ältere Projekte
   laden und speichern unverändert. Laden lehnt eine Öffnung ab, deren Breite oder Lage keine
-  Zahl ist oder deren Breite nicht über 0 liegt. Eine Öffnung, die über das Wandende reicht
+  Zahl ist oder deren Breite unter 0,30 m liegt. Eine Öffnung, die über das Wandende reicht
   oder eine andere überdeckt, lädt; die Bearbeitung lässt so etwas nicht zu. Öffnungen werden
   über Wand und Index angesprochen, nicht über eine Id. Treppen bleiben Objekte der Bibliothek
   (`kind = "stairs"`); `door` und `window` gibt es dort weiter als Objekte ohne Wand. Keine

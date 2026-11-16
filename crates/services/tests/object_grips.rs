@@ -5,6 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
+use klappe_model::MIN_OBJECT_M;
 use klappe_services::{
     Layer, Lock, ObjectGrip, PlanEdit, Point, Role, ServiceError, Session, Shape, Snapping, Source,
 };
@@ -136,7 +137,7 @@ fn the_grips_stay_within_the_bounds() {
 
     s.edit_plan(drag(ObjectGrip::Width, -100.0, 0.0)).unwrap();
     let (x, _, width, _) = state(&s);
-    assert!(near(width, 0.05) && near(x, 7.025), "{x} {width}");
+    assert!(near(width, MIN_OBJECT_M) && near(x, 7.025), "{x} {width}");
 
     s.edit_plan(drag(ObjectGrip::Depth, 0.0, 5000.0)).unwrap();
     let (_, _, _, depth) = state(&s);

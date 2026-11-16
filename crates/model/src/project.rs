@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::geometry::Point;
-use crate::library::{LibraryItem, ObjectShape};
+use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
 use crate::plan::FloorPlan;
 use crate::template::Template;
@@ -207,6 +207,14 @@ pub struct Note {
 pub const NOTE_WIDTH_M: f64 = 2.4;
 /// The narrowest a note's card gets.
 pub const NOTE_MIN_WIDTH_M: f64 = 0.6;
+
+/// The narrowest an opening gets: typing and dragging an end leave at least this.
+pub const MIN_OPENING_WIDTH_M: f64 = 0.3;
+
+/// Whether `width_m` is an opening's width: a number, from the least up, not absurd.
+pub fn is_opening_width_m(width_m: f64) -> bool {
+    width_m.is_finite() && (MIN_OPENING_WIDTH_M..=MAX_OBJECT_M).contains(&width_m)
+}
 
 fn default_note_width_m() -> f64 {
     NOTE_WIDTH_M

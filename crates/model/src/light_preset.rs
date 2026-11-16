@@ -5,9 +5,12 @@ use crate::plan::LightKind;
 /// Widest beam is the full circle.
 pub const MAX_BEAM_DEG: f64 = 360.0;
 
-/// Whether `beam_deg` is a beam: more than nothing, up to the full circle. Excludes NaN.
+/// Narrowest beam: typing and dragging leave at least this.
+pub const MIN_BEAM_DEG: f64 = 1.0;
+
+/// Whether `beam_deg` is a beam: from the narrowest up to the full circle. Excludes NaN.
 pub fn is_beam_deg(beam_deg: f64) -> bool {
-    beam_deg > 0.0 && beam_deg <= MAX_BEAM_DEG
+    (MIN_BEAM_DEG..=MAX_BEAM_DEG).contains(&beam_deg)
 }
 
 /// Strongest lamp: more is a typing error.
