@@ -3,11 +3,11 @@
 use klappe_model::{FloorPlan, LinkTarget};
 use klappe_stellprobe::{Bend, Source};
 
+use super::drawings::remove_grip;
 use super::moving::target;
 use super::openings::opening_mut;
 use super::{Scope, Target};
 use crate::error::ServiceError;
-use crate::field::Field;
 
 /// Takes the bend `source` names out of its way.
 fn remove_bend(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
@@ -78,11 +78,7 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
             set.notes.remove(index);
             Ok(())
         }
-        // A grip is no element of its own, and its drawing stays.
-        Source::DrawingPoint { .. } => Err(ServiceError::BadValue {
-            field: Field::Source,
-            value: String::new(),
-        }),
+        Source::DrawingPoint { .. } | Source::DrawingEdge { .. } => remove_grip(scope, source),
         Source::Drawing(id) => {
             let index = scope.plan.drawings.iter().position(|d| d.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;

@@ -650,3 +650,27 @@ fn a_spent_grip_grabs_nothing_until_done() {
     assert_eq!(grip.clone().after(DragPhase::Moving), Grip::Spent);
     assert_eq!(grip.after(DragPhase::Done), Grip::Free);
 }
+
+/// LH-19: the select tool pulls an area's edge grip like any element, which makes the point
+/// where the pointer lets go (the session turns the shift into the point).
+#[test]
+fn a_drag_of_an_edge_grip_is_a_shift() {
+    let grip = Source::DrawingEdge {
+        drawing: "d2".into(),
+        index: 0,
+    };
+
+    assert_eq!(
+        drag_edit(
+            &Tool::Select,
+            Some(&grip),
+            Point::new(2.0, 0.0),
+            Point::new(2.5, -1.0)
+        ),
+        Some(PlanEdit::Shift {
+            source: grip,
+            dx_m: 0.5,
+            dy_m: -1.0
+        })
+    );
+}

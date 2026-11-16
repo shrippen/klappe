@@ -404,7 +404,9 @@ fn layer_of_source(source: &Source) -> Layer {
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
         Source::Note(_) => Layer::Notes,
-        Source::Drawing(_) | Source::DrawingPoint { .. } => Layer::Drawings,
+        Source::Drawing(_) | Source::DrawingPoint { .. } | Source::DrawingEdge { .. } => {
+            Layer::Drawings
+        }
     }
 }
 
@@ -441,6 +443,11 @@ enum Target<'a> {
     Drawing(&'a mut Drawing),
     /// A grip on a point or corner of a drawing: moving it reshapes the drawing.
     Corner {
+        drawing: &'a mut Drawing,
+        index: usize,
+    },
+    /// A grip on the edge of an area after point `index`: moving it makes a point there.
+    Edge {
         drawing: &'a mut Drawing,
         index: usize,
     },

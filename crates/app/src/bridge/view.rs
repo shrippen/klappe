@@ -364,7 +364,12 @@ impl qobject::Controller {
                 list.items.iter().any(|i| i.source.as_ref() == Some(source))
             };
             this.rust().selected.clone().keep(|source| {
-                let grip = matches!(source, Source::FigureVia { .. } | Source::CameraVia { .. });
+                let grip = matches!(
+                    source,
+                    Source::FigureVia { .. }
+                        | Source::CameraVia { .. }
+                        | Source::DrawingPoint { .. }
+                );
 
                 shown(&plain, source) || (grip && shown(&s.display_list_for(Some(source)), source))
             })

@@ -3,7 +3,7 @@
 use klappe_model::{CameraMark, Drawing, DrawingShape, FloorPlan, Mark, Point, Wall};
 use klappe_stellprobe::{bend_follow, bend_grips, drawing_handle_places, Bend, Source};
 
-use super::drawings::drag_handle;
+use super::drawings::{drag_handle, edge_place, insert_point};
 use super::openings::{opening_mut, slide};
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
@@ -31,7 +31,10 @@ pub(super) fn target<'a>(
                 facing_deg: &mut mark.facing_deg,
             })
         }
-        Source::FigureVia { .. } | Source::CameraVia { .. } => grip_target(scope, source),
+        Source::FigureVia { .. }
+        | Source::CameraVia { .. }
+        | Source::DrawingPoint { .. }
+        | Source::DrawingEdge { .. } => grip_target(scope, source),
         Source::Figure(character) => {
             let track = scope
                 .plan
@@ -112,16 +115,6 @@ pub(super) fn target<'a>(
             .find(|d| d.id == *id)
             .map(Target::Drawing)
             .ok_or(ServiceError::Gone),
-        Source::DrawingPoint { drawing, index } => scope
-            .plan
-            .drawings
-            .iter_mut()
-            .find(|d| d.id == *drawing)
-            .map(|drawing| Target::Corner {
-                drawing,
-                index: *index,
-            })
-            .ok_or(ServiceError::Gone),
     }
 }
 
@@ -154,8 +147,33 @@ fn grip_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'
                 .ok_or(ServiceError::Gone)?;
             curve(&mut camera.marks, (*index, *bend), |m| (m.at, &mut m.via))
         }
+        Source::DrawingPoint { drawing, index } => {
+            let drawing = drawing_mut(scope, drawing)?;
+
+            Ok(Target::Corner {
+                drawing,
+                index: *index,
+            })
+        }
+        Source::DrawingEdge { drawing, index } => {
+            let drawing = drawing_mut(scope, drawing)?;
+
+            Ok(Target::Edge {
+                drawing,
+                index: *index,
+            })
+        }
         _ => Err(ServiceError::Gone),
     }
+}
+
+fn drawing_mut<'a>(scope: &'a mut Scope<'_>, id: &str) -> Result<&'a mut Drawing, ServiceError> {
+    scope
+        .plan
+        .drawings
+        .iter_mut()
+        .find(|d| d.id == id)
+        .ok_or(ServiceError::Gone)
 }
 
 /// The grip `bend` on the way to mark `index` of `marks`; `place` gives a mark's place and its
@@ -345,6 +363,7 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
             }
         }
         Target::Corner { drawing, index } => drag_handle(drawing, index, to)?,
+        Target::Edge { drawing, index } => insert_point(drawing, index, to)?,
         Target::Slide { wall, index } => slide(wall, index, to)?,
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
@@ -378,6 +397,11 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
 
             Ok((place, place))
         }
+        Target::Edge { drawing, index } => {
+            let place = edge_place(drawing, index).ok_or(ServiceError::Gone)?;
+
+            Ok((place, place))
+        }
     }
 }
 
@@ -401,7 +425,7 @@ pub(super) fn shift(
         } | Source::CameraVia {
             bend: Bend::New(_),
             ..
-        }
+        } | Source::DrawingEdge { .. }
     ) && !pulled
     {
         return Ok(());
@@ -434,6 +458,7 @@ pub(super) fn spin(
         // Nothing to turn.
         Target::Pin { .. }
         | Target::Corner { .. }
+        | Target::Edge { .. }
         | Target::Curve { .. }
         | Target::Slide { .. } => return Ok(()),
     };
@@ -454,6 +479,7 @@ pub(super) fn turn(
         // Nothing to turn.
         Target::Pin { .. }
         | Target::Corner { .. }
+        | Target::Edge { .. }
         | Target::Curve { .. }
         | Target::Slide { .. } => {}
         Target::Wall(wall) => {

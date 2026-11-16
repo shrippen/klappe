@@ -307,12 +307,7 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
             scope.plan.cameras.push(camera);
         }
         // A character has one track; a grip is no element.
-        Source::Figure(_)
-        | Source::Mark { .. }
-        | Source::FigureVia { .. }
-        | Source::CameraVia { .. }
-        | Source::Opening { .. }
-        | Source::DrawingPoint { .. } => return Ok(Copied::Left),
+        _ => return Ok(Copied::Left),
     }
 
     Ok(Copied::Made)

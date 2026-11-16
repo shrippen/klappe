@@ -14,7 +14,7 @@ use crate::rig::{rig_dash, rig_runs};
 mod handles;
 mod objects;
 
-pub use handles::{drawing_handle_places, handles};
+pub use handles::{drawing_edge_places, drawing_handle_places, handles, Bend};
 pub use objects::label_point;
 pub(crate) use objects::object_corners;
 use objects::set_items;
@@ -117,16 +117,6 @@ pub enum Role {
     },
 }
 
-/// A grip on a way (LH-21): a bend the way passes, or a spot to pull a new bend out of.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Bend {
-    /// Bend `n` of the way: drag to move it, remove it to take it out.
-    At(usize),
-    /// Halfway along piece `n` of the way, which has bends `n - 1` and `n` at its ends (the
-    /// way's start and end for the first and last): drag to make a bend there, as number `n`.
-    New(usize),
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Source {
     Object(String),
@@ -161,6 +151,12 @@ pub enum Source {
     /// Point or corner `index` of a drawing (LH-19): a grip. A rectangle or ellipse has its
     /// four corners, clockwise from the top left before the turn.
     DrawingPoint {
+        drawing: String,
+        index: usize,
+    },
+    /// The grip halfway along the edge of an area from point `index` to the next (and from the
+    /// last to the first): drag to make a point there (LH-19).
+    DrawingEdge {
         drawing: String,
         index: usize,
     },
