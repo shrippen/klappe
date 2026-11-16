@@ -184,3 +184,31 @@ fn bound_notes_and_ids_are_checked_across_set_and_plan() {
         assert!(err.contains(want), "{name}: {err}");
     }
 }
+
+/// Notes of a location are `n<k>`, labels of a plan `t<k>`: the two never share an id, wherever a
+/// scene moves. A hand-written note `t1` is refused, so a label `t1` can follow its scene to
+/// that location and the project still loads.
+#[test]
+fn notes_are_n_and_labels_are_t() {
+    let note = |id: &str, bound: Option<&str>| Note {
+        id: id.into(),
+        at: Point::new(1.0, 1.0),
+        text: "x".into(),
+        width_m: 2.4,
+        bound: bound.map(Into::into),
+    };
+
+    let dir = test_dir("ns-note");
+    let mut project = example();
+    project.locations[0].set.notes = vec![note("t1", None)];
+    save(&dir, &project, None).unwrap();
+    let err = load(&dir).unwrap_err().to_string();
+    assert!(err.contains("note id"), "{err}");
+
+    let dir = test_dir("ns-label");
+    let mut project = example();
+    project.scenes[0].plans[0].labels = vec![note("n9", Some("figure:elisabeth"))];
+    save(&dir, &project, None).unwrap();
+    let err = load(&dir).unwrap_err().to_string();
+    assert!(err.contains("label id"), "{err}");
+}
