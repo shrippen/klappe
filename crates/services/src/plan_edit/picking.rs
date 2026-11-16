@@ -10,6 +10,18 @@ const PICK_RADIUS_M: f64 = 0.15;
 /// The topmost item the user can grab at `at`: the display list is back to front. Items for
 /// which `locked` is true are left out.
 pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> Option<Source> {
+    // Grips lie in front, but where their catch areas overlap the nearest one wins, not the
+    // one drawn last.
+    let grip = items
+        .iter()
+        .filter(|item| is_grip(item.role) && !locked(item.role) && item.source.is_some())
+        .filter(|item| hit(item, at, PICK_RADIUS_M))
+        .filter_map(|item| Some((grip_distance_m(item, at)?, item)))
+        .min_by(|a, b| a.0.total_cmp(&b.0));
+    if let Some((_, item)) = grip {
+        return item.source.clone();
+    }
+
     items
         .iter()
         .rev()
@@ -18,6 +30,28 @@ pub(crate) fn pick(items: &[Item], at: Point, locked: impl Fn(Role) -> bool) -> 
         .filter(|item| grabbable(item.role) && !locked(item.role) && item.source.is_some())
         .find(|item| hit(item, at, PICK_RADIUS_M))
         .and_then(|item| item.source.clone())
+}
+
+/// Whether `role` is that of a grip.
+fn is_grip(role: Role) -> bool {
+    matches!(
+        role,
+        Role::DrawingHandle
+            | Role::NoteHandle
+            | Role::OpeningHandle
+            | Role::LightHandle
+            | Role::ObjectHandle
+            | Role::FigureHandle(_)
+            | Role::CameraHandle
+    )
+}
+
+/// How far `at` is from the centre of the grip `item`; `None` for anything but a circle.
+fn grip_distance_m(item: &Item, at: Point) -> Option<f64> {
+    match item.shape {
+        Shape::Circle { center, .. } => Some(center.distance_m(at)),
+        _ => None,
+    }
 }
 
 /// Every element the user can grab whose shown items all lie in the box with corners `a` and

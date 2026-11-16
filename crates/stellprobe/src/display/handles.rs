@@ -59,6 +59,15 @@ const NEW_BEND_RADIUS_M: f64 = 0.1;
 /// The grip that pulls a new point out of an area's edge.
 const NEW_POINT_RADIUS_M: f64 = 0.1;
 
+/// A side or edge shows a grip that makes a point only when it is longer than this: three
+/// widths of that grip. A shorter one would cover the shape.
+const SIDE_GRIP_MIN_M: f64 = 6.0 * NEW_POINT_RADIUS_M;
+
+/// Whether the side from `a` to `b` is long enough for a grip that makes a point.
+fn side_has_grip(a: Point, b: Point) -> bool {
+    a.distance_m(b) > SIDE_GRIP_MIN_M
+}
+
 /// The grips on the way `selected` belongs to: a figure, camera or mark of it, or one of its
 /// grips (LH-21). For each mark after the first, one on each bend of the way to it and a
 /// smaller one halfway along each piece between bends, to pull out a new bend.
@@ -174,6 +183,10 @@ fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     };
     let grips = match &object.shape {
         ObjectShape::Polygon { points } => (0..points.len())
+            .filter(|n| {
+                let from = form_point_place(object, *n);
+                side_has_grip(from, form_point_place(object, (n + 1) % points.len()))
+            })
             .map(ObjectGrip::Side)
             .chain((0..points.len()).map(ObjectGrip::Point))
             .collect(),
@@ -285,8 +298,12 @@ fn drawing_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
     };
 
     // The edges come first, so the points lie on top of them.
-    let edges = drawing_edge_places(drawing).into_iter().enumerate();
-    let points = drawing_handle_places(drawing).into_iter().enumerate();
+    let corners = drawing_handle_places(drawing);
+    let edges = drawing_edge_places(drawing)
+        .into_iter()
+        .enumerate()
+        .filter(|(n, _)| side_has_grip(corners[*n], corners[(n + 1) % corners.len()]));
+    let points = corners.iter().copied().enumerate();
     let mut grips: Vec<_> = edges
         .map(|(index, at)| {
             let source = Source::DrawingEdge {
