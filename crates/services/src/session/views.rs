@@ -355,6 +355,7 @@ impl Session {
 
         Some(Hint::Image {
             file: image.file.clone(),
+            opacity: image.opacity,
         })
     }
 

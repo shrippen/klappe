@@ -44,7 +44,7 @@ pub(super) fn image_items(
                     width_m: image.width_m,
                     depth_m,
                     rotation_deg: image.rotation_deg,
-                    opacity: 1.0,
+                    opacity: image.opacity,
                 },
                 label: None,
                 source: None,

@@ -3,6 +3,7 @@
 
 use super::q;
 use super::qobject;
+use crate::image;
 use crate::tools;
 use crate::tools::NoteDraft;
 use core::pin::Pin;
@@ -72,6 +73,24 @@ impl qobject::Controller {
 
         self.as_mut()
             .commit_edit(tools::image_edit(&file.to_string(), at))
+    }
+
+    /// Sets the opacity of the selected image to `percent`, as typed.
+    pub(super) fn set_image_opacity(self: Pin<&mut Self>, percent: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let typed = image::opacity_edit(selected, &percent.to_string());
+
+        self.commit_typed(typed)
+    }
+
+    /// Swaps the file of the selected image for `path` (a path or a `file://` URL).
+    pub(super) fn replace_image(self: Pin<&mut Self>, path: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = image::replace_edit(selected, &path.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
     }
 
     /// Starts asking for a note's text: empty for a new note, the note's own for an edit.

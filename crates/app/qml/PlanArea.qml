@@ -142,6 +142,37 @@ Item {
         imageDialog.open()
     }
 
+    // A file dragged in from the file manager lands where it is dropped, as the image tool
+    // places one (LH-18): the first one in a format the background takes. A locked layer refuses
+    // it in the controller, with the usual line in the status.
+    readonly property var imageExtensions: ["png", "jpg", "jpeg"]
+    function imageIn(urls) {
+        const isImage = url => area.imageExtensions.indexOf(String(url).split(".").pop().toLowerCase()) >= 0
+        return urls.map(String).find(isImage)
+    }
+    // Places the image of `urls` at (`x`, `y`), in the canvas's pixels; false when there is none.
+    function dropImage(urls, x, y) {
+        const file = area.imageIn(urls)
+        if (file === undefined) {
+            return false
+        }
+        const at = canvas.mapToModel(x, y)
+        area.controller.addImage(file, at.x, at.y)
+        return true
+    }
+    DropArea {
+        id: imageDrop
+        objectName: "imageDrop"
+        anchors.fill: canvas
+        enabled: canvas.visible
+        onEntered: event => { event.accepted = event.hasUrls && area.imageIn(event.urls) !== undefined }
+        onDropped: event => {
+            if (event.hasUrls && area.dropImage(event.urls, event.x, event.y)) {
+                event.accept()
+            }
+        }
+    }
+
     LayerPopover {
         objectName: "layerPopover"
         anchors.top: parent.top
@@ -250,6 +281,18 @@ Item {
     // A drawing is selected (LH-19): colour, line and fill.
     DrawingCard {
         objectName: "drawingCard"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+        texts: area.texts
+        controller: area.controller
+        width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
+    }
+
+    // An image is selected (LH-18): its opacity, and a new file for it.
+    ImageCard {
+        id: imageCard
+        objectName: "imageCard"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         anchors.topMargin: Kirigami.Units.largeSpacing
@@ -487,7 +530,7 @@ Item {
     readonly property real turnStepDeg: 15
     // Not while a length is typed: Delete there edits the text.
     readonly property bool hasSelection: (!!controller.selectedKey || controller.selectedCount > 0) && !lengthField.activeFocus && !noteField.activeFocus && !measureField.activeFocus
-        && !selection.typing
+        && !selection.typing && !imageCard.typing
     Shortcut {
         sequence: "Delete"
         enabled: area.hasSelection

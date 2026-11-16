@@ -311,6 +311,17 @@ pub mod qobject {
         #[cxx_name = "addImage"]
         fn add_image(self: Pin<&mut Self>, path: &QString, x: f64, y: f64) -> bool;
 
+        /// Gives the selected image the opacity typed in percent (10 to 100) (LH-18).
+        #[qinvokable]
+        #[cxx_name = "setImageOpacity"]
+        fn set_image_opacity(self: Pin<&mut Self>, percent: &QString) -> bool;
+
+        /// Swaps the file of the selected image for the image file at `path` (a path or a
+        /// `file://` URL); place, width, turn and opacity stay (LH-18).
+        #[qinvokable]
+        #[cxx_name = "replaceImage"]
+        fn replace_image(self: Pin<&mut Self>, path: &QString) -> bool;
+
         /// Takes the background off the set.
         #[qinvokable]
         #[cxx_name = "removeBackground"]

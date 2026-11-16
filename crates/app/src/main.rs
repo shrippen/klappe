@@ -11,6 +11,7 @@ mod camera_picture;
 mod catalog;
 mod drawing;
 mod fileurl;
+mod image;
 mod light;
 mod manage;
 mod mark;

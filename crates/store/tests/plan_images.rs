@@ -19,6 +19,7 @@ fn image(width_m: f64, rotation_deg: f64) -> PlanImage {
         at: Point::new(4.0, 5.5),
         width_m,
         rotation_deg,
+        opacity: 1.0,
     }
 }
 
@@ -71,5 +72,52 @@ fn an_image_of_no_usable_width_does_not_load() {
         let error = load(&dir).unwrap_err().to_string();
 
         assert!(error.contains("image i1"), "{error}");
+    }
+}
+
+#[test]
+fn an_opacity_is_written_when_not_full_and_read_back() {
+    let dir = fresh("images-opacity");
+    let mut project = load(Path::new(EXAMPLE)).unwrap().project;
+    project.locations[0].set.images = vec![image(2.0, 0.0), image(1.5, 0.0)];
+    project.locations[0].set.images[1].id = "i2".into();
+    project.locations[0].set.images[1].opacity = 0.4;
+
+    save(&dir, &project, None).unwrap();
+    let text = fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
+
+    // An opaque image writes none.
+    assert_eq!(text.matches("opacity").count(), 1, "{text}");
+    assert!(text.contains("opacity = 0.4"), "{text}");
+    assert_eq!(load(&dir).unwrap().project, project);
+}
+
+/// A file without the field (every image before this one) is opaque.
+#[test]
+fn an_image_without_opacity_is_opaque() {
+    let dir = fresh("images-no-opacity");
+    let mut project = load(Path::new(EXAMPLE)).unwrap().project;
+    project.locations[0].set.images = vec![image(2.0, 0.0)];
+    save(&dir, &project, None).unwrap();
+
+    let loaded = load(&dir).unwrap().project;
+
+    assert_eq!(loaded.locations[0].set.images[0].opacity, 1.0);
+}
+
+/// An opacity the card could not have set does not load.
+#[test]
+fn an_image_of_no_usable_opacity_does_not_load() {
+    for (i, opacity) in [0.0, 0.05, 1.5, -1.0].into_iter().enumerate() {
+        let dir = fresh(&format!("images-bad-opacity-{i}"));
+        let mut project = load(Path::new(EXAMPLE)).unwrap().project;
+        project.locations[0].set.images = vec![image(2.0, 0.0)];
+        project.locations[0].set.images[0].opacity = opacity;
+        save(&dir, &project, None).unwrap();
+
+        let error = load(&dir).unwrap_err().to_string();
+
+        assert!(error.contains("image i1"), "{error}");
+        assert!(error.contains("opacity"), "{error}");
     }
 }

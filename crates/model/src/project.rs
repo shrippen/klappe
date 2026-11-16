@@ -254,10 +254,29 @@ pub struct PlanImage {
     /// Clockwise on screen about `at`.
     #[serde(default, skip_serializing_if = "crate::plan::is_zero")]
     pub rotation_deg: f64,
+    /// `MIN_IMAGE_OPACITY` (faint) to 1 (opaque, not written).
+    #[serde(default = "full_opacity", skip_serializing_if = "is_full_opacity")]
+    pub opacity: f64,
 }
 
 /// The width of a new image: a sketch the size of a small table.
 pub const IMAGE_WIDTH_M: f64 = 2.0;
+
+/// The faintest an image gets; below it a picture is as good as gone.
+pub const MIN_IMAGE_OPACITY: f64 = 0.1;
+
+/// Whether `opacity` is one an image can have. Excludes NaN.
+pub fn is_image_opacity(opacity: f64) -> bool {
+    (MIN_IMAGE_OPACITY..=1.0).contains(&opacity)
+}
+
+fn full_opacity() -> f64 {
+    1.0
+}
+
+fn is_full_opacity(opacity: &f64) -> bool {
+    *opacity == 1.0
+}
 
 impl PlanImage {
     /// The point `(x_m, y_m)` of the image's own frame (origin at its centre, unturned) where

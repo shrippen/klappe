@@ -20,6 +20,11 @@ fn p(x_m: f64, y_m: f64) -> Point {
 
 /// The frame of a 4 x 3 m image at (2, 1), with its picture when `picture` is set.
 fn list(picture: bool) -> DisplayList {
+    list_with(picture, 1.0)
+}
+
+/// As `list`, the picture drawn with `opacity`.
+fn list_with(picture: bool, opacity: f64) -> DisplayList {
     let mut items = Vec::new();
     if picture {
         items.push(Item {
@@ -30,7 +35,7 @@ fn list(picture: bool) -> DisplayList {
                 width_m: 4.0,
                 depth_m: 3.0,
                 rotation_deg: 0.0,
-                opacity: 1.0,
+                opacity,
             },
             label: None,
             source: None,
@@ -95,6 +100,21 @@ fn pdf_prints_the_picture() {
     let bytes = pdf(&list(true), &page(true), Theme::Light).unwrap();
 
     assert!(bytes.windows(JPEG.len()).any(|w| w == JPEG));
+}
+
+/// The image's opacity is printed: an attribute in SVG, a graphics state in PDF.
+#[test]
+fn the_opacity_of_the_image_is_printed() {
+    let faint = list_with(true, 0.4);
+
+    let svg = svg(&faint, &page(true), Theme::Light).unwrap();
+    let image = svg.lines().find(|l| l.contains("<image")).unwrap();
+    assert!(image.contains("opacity=\"0.4\""), "{image}");
+
+    let opaque = pdf(&list(true), &page(true), Theme::Light).unwrap();
+    let pdf = pdf(&faint, &page(true), Theme::Light).unwrap();
+    let has = |bytes: &[u8]| bytes.windows(7).any(|w| w == b"/ca 0.4");
+    assert!(has(&pdf) && !has(&opaque));
 }
 
 /// Nothing is handed in for a missing file: the frame stands alone, named.
