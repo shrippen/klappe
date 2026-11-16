@@ -57,7 +57,7 @@ TestCase {
         fake.pictureRevision = 0
         const thumbs = createTemporaryObject(thumbsComponent, tc)
         verify(thumbs)
-        tryVerify(() => findChild(thumbs, "cameraThumb-a") !== null)
+        tryVerify(() => thumbs.spots.length > 0)
         return thumbs
     }
 
@@ -104,5 +104,25 @@ TestCase {
         wait(thumbs.interval * 3)
 
         compare(fake.requests.length, 0)
+    }
+
+    // NF-05: a round makes one picture per tick, not all at once, and keeps the items.
+    function test_a_round_paints_one_camera_per_tick_and_keeps_the_items() {
+        fake.spots = [1, 2, 3, 4].map(n => ({ id: "c" + n, x_m: 50 * n, y_m: 100, aspect: 2 }))
+        const thumbs = make()
+        wait(thumbs.interval * 8)
+        const first = findChild(thumbs, "cameraThumb-c1")
+        fake.requests = []
+
+        fake.pictureRevision++
+        wait(thumbs.interval * 1.5)
+
+        verify(fake.requests.length < 4, "all at once: " + fake.requests.length)
+        tryVerify(() => fake.requests.length === 4)
+        verify(findChild(thumbs, "cameraThumb-c1") === first, "the item was made again")
+    }
+
+    function cleanup() {
+        fake.spots = [{ id: "a", x_m: 100, y_m: 100, aspect: 2 }, { id: "b", x_m: 5000, y_m: 100, aspect: 1.5 }]
     }
 }
