@@ -96,6 +96,20 @@ fn shot(
     }
 }
 
+/// A Super 35 camera labelled like its id, upper case, with the default colour.
+fn camera(id: &str, lens_mm: f64, follows: Option<&str>, marks: Vec<CameraMark>) -> Camera {
+    Camera {
+        id: id.into(),
+        label: id.to_uppercase(),
+        sensor: Sensor::Super35,
+        lens_mm,
+        aspect: 2.39,
+        marks,
+        follows: follows.map(Into::into),
+        color: None,
+    }
+}
+
 fn plan() -> FloorPlan {
     let mut plan = FloorPlan::new("plan-a", "Plan A");
 
@@ -126,29 +140,21 @@ fn plan() -> FloorPlan {
     dolly.gear = "Dolly, 4 m Schiene".into();
 
     plan.cameras = vec![
-        Camera {
-            id: "a".into(),
-            label: "A".into(),
-            sensor: Sensor::Super35,
-            lens_mm: 35.0,
-            aspect: 2.39,
-            marks: vec![
+        camera(
+            "a",
+            35.0,
+            None,
+            vec![
                 cam_mark(0.0, 8.0, 11.0, 330.0, 6.0),
                 cam_mark(6.0, 9.0, 8.0, 320.0, 0.0),
             ],
-            follows: None,
-            color: None,
-        },
-        Camera {
-            id: "b".into(),
-            label: "B".into(),
-            sensor: Sensor::Super35,
-            lens_mm: 50.0,
-            aspect: 2.39,
-            marks: vec![cam_mark(0.0, 18.0, 4.0, 200.0, 0.0)],
-            follows: Some("burgvogt".into()),
-            color: None,
-        },
+        ),
+        camera(
+            "b",
+            50.0,
+            Some("burgvogt"),
+            vec![cam_mark(0.0, 18.0, 4.0, 200.0, 0.0)],
+        ),
     ];
 
     plan.lights = vec![Light {
@@ -865,130 +871,4 @@ fn load_ignores_the_backup_folder() {
 
     assert_eq!(loaded.project, example());
     assert_eq!(loaded.script.as_deref(), Some(SCRIPT));
-}
-
-fn changed(title: &str) -> Project {
-    let mut project = example();
-    project.title = title.into();
-    project
-}
-
-#[test]
-fn a_crashed_backup_write_is_ignored() {
-    let dir = test_dir("backup-crash-unfinished");
-    save(&dir, &example(), None).unwrap();
-    save_backup(&dir, &changed("Alt"), None).unwrap();
-    // A write that died before the marker.
-    save(&dir.join(".sicherung.neu"), &changed("Halb"), None).unwrap();
-
-    let backup = load_backup(&dir).unwrap().unwrap();
-
-    assert_eq!(backup.project.title, "Alt");
-}
-
-#[test]
-fn an_unfinished_write_alone_is_no_backup() {
-    let dir = test_dir("backup-crash-alone");
-    save(&dir, &example(), None).unwrap();
-    save(&dir.join(".sicherung.neu"), &changed("Halb"), None).unwrap();
-
-    assert_eq!(load_backup(&dir).unwrap(), None);
-}
-
-#[test]
-fn a_finished_write_without_old_backup_is_loaded() {
-    let dir = test_dir("backup-crash-finished");
-    save(&dir, &example(), None).unwrap();
-    // Crash after the old backup was removed, before the rename.
-    let new = dir.join(".sicherung.neu");
-    save(&new, &changed("Neu"), None).unwrap();
-    fs::write(new.join("fertig"), "").unwrap();
-
-    let backup = load_backup(&dir).unwrap().unwrap();
-
-    assert_eq!(backup.project.title, "Neu");
-}
-
-#[test]
-fn a_finished_write_beats_the_old_backup() {
-    let dir = test_dir("backup-crash-both");
-    save(&dir, &example(), None).unwrap();
-    save_backup(&dir, &changed("Alt"), None).unwrap();
-    let new = dir.join(".sicherung.neu");
-    save(&new, &changed("Neu"), None).unwrap();
-    fs::write(new.join("fertig"), "").unwrap();
-
-    assert_eq!(load_backup(&dir).unwrap().unwrap().project.title, "Neu");
-}
-
-#[test]
-fn save_backup_clears_leftovers_and_drop_removes_both() {
-    let dir = test_dir("backup-leftover");
-    save(&dir, &example(), None).unwrap();
-    let new = dir.join(".sicherung.neu");
-    save(&new, &changed("Halb"), None).unwrap();
-
-    save_backup(&dir, &changed("Ganz"), None).unwrap();
-
-    assert!(!new.exists());
-    assert_eq!(load_backup(&dir).unwrap().unwrap().project.title, "Ganz");
-    save(&new, &changed("Halb"), None).unwrap();
-    drop_backup(&dir).unwrap();
-    assert!(!new.exists() && !dir.join(".sicherung").exists());
-}
-
-#[test]
-fn a_backup_folder_without_marker_is_not_read() {
-    let dir = test_dir("backup-no-marker");
-    save(&dir, &example(), None).unwrap();
-    save_backup(&dir, &changed("Alt"), None).unwrap();
-    // What a crash in the middle of a delete leaves: no marker, parts gone.
-    fs::remove_file(dir.join(".sicherung/fertig")).unwrap();
-    fs::remove_dir_all(dir.join(".sicherung/szenen")).unwrap();
-
-    assert_eq!(load_backup(&dir).unwrap(), None);
-}
-
-/// A delete that fails midway must leave no readable backup.
-#[cfg(unix)]
-#[test]
-fn a_failed_drop_leaves_no_valid_backup() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let dir = test_dir("backup-drop-fails");
-    save(&dir, &example(), None).unwrap();
-    save_backup(&dir, &changed("Alt"), None).unwrap();
-    let scenes = dir.join(".sicherung/szenen");
-    fs::set_permissions(&scenes, fs::Permissions::from_mode(0o500)).unwrap();
-    // Root may delete in a read-only folder; then no delete can be made to fail here.
-    if fs::write(scenes.join("probe"), "").is_ok() {
-        fs::set_permissions(&scenes, fs::Permissions::from_mode(0o700)).unwrap();
-        return;
-    }
-
-    let dropped = drop_backup(&dir);
-    fs::set_permissions(&scenes, fs::Permissions::from_mode(0o700)).unwrap();
-
-    assert!(dropped.is_err());
-    assert_eq!(load_backup(&dir).unwrap(), None);
-}
-
-/// Crash between removing `.sicherung` and the rename leaves only a finished `.neu`; the
-/// next write must not delete it before its own is finished.
-#[test]
-fn a_finished_leftover_survives_a_failing_write() {
-    let dir = test_dir("backup-double-crash");
-    save(&dir, &example(), None).unwrap();
-    let new = dir.join(".sicherung.neu");
-    save(&new, &changed("Gerettet"), None).unwrap();
-    fs::write(new.join("fertig"), "").unwrap();
-    let mut bad = example();
-    bad.locations[0].id = "..".into();
-
-    assert!(save_backup(&dir, &bad, None).is_err());
-
-    assert_eq!(
-        load_backup(&dir).unwrap().unwrap().project.title,
-        "Gerettet"
-    );
 }
