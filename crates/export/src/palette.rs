@@ -35,6 +35,20 @@ impl Rgb {
         [self.r, self.g, self.b].map(|c| f64::from(c) / f64::from(u8::MAX))
     }
 
+    /// `share` of this colour over `ground`: 1 keeps it, 0 is the ground.
+    pub fn faded(self, ground: Rgb, share: f64) -> Rgb {
+        let share = share.clamp(0.0, 1.0);
+        let channel = |from: u8, to: u8| {
+            (f64::from(from) * share + f64::from(to) * (1.0 - share)).round() as u8
+        };
+
+        Rgb {
+            r: channel(self.r, ground.r),
+            g: channel(self.g, ground.g),
+            b: channel(self.b, ground.b),
+        }
+    }
+
     fn parse(text: &str) -> Option<Rgb> {
         let digits = text.strip_prefix('#').filter(|d| d.len() == 6)?;
         let channel = |i: usize| u8::from_str_radix(digits.get(i..i + 2)?, 16).ok();

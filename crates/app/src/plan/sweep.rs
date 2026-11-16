@@ -34,7 +34,7 @@ pub(super) fn sweep_shape(sweep: &Sweep) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plan::{shapes_json, HeightTexts};
+    use crate::plan::{shapes_json, Faded, HeightTexts};
     use klappe_services::DisplayList;
     use std::path::Path;
 
@@ -44,7 +44,7 @@ mod tests {
         let corners = Sweep::Box(Point::new(1.0, 2.0), Point::new(4.0, 3.0));
 
         let json = shapes_json(
-            &list,
+            Faded::full(&list),
             Path::new("/p"),
             &|_| false,
             &[],
@@ -71,7 +71,7 @@ mod tests {
 
         let shapes = |picked: &[Point]| -> Vec<Value> {
             let json = shapes_json(
-                &list,
+                Faded::full(&list),
                 Path::new("/p"),
                 &|_| false,
                 picked,
@@ -104,7 +104,7 @@ mod tests {
         ]);
 
         let json = shapes_json(
-            &list,
+            Faded::full(&list),
             Path::new("/p"),
             &|_| false,
             &[],
