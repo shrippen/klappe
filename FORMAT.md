@@ -43,6 +43,29 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `setup_of` sein (keine Ketten) und nicht der Shot selbst. Fehlt das Ziel oder ist es selbst
   zugeordnet, wird der Shot wie ohne `setup_of` berechnet und die Oberfläche weist darauf hin.
   Fehlt `setup_of`, gilt die Berechnung.
+- **Kurzname, Storyboard-Bild (LH-110, LH-74):** ein Shot hat optional `short_name` (freier Text
+  neben der Nummer, nur geschrieben, wenn nicht leer) und `image` (Pfad relativ zum
+  Projektordner, eine Datei in `bilder/`, PNG oder JPEG; nur geschrieben, wenn gesetzt). Die
+  Datei wird beim Wählen in `bilder/` kopiert und beim Entfernen des Bildes nicht gelöscht.
+  Neue Felder ohne Formatversion: ältere Fassungen verlieren sie beim Speichern.
+- **Farbe je Kamera (LH-111):** eine Kamera (`cameras` in `szenen/<id>.json`) hat optional
+  `color`, eine der Farben der Figuren (`red`, `orange`, `yellow`, `green`, `cyan`, `blue`,
+  `purple`; Kantes Label-Rollen, nie ein Hexwert), nur geschrieben, wenn gesetzt. Fehlt sie,
+  gilt die Farbe nach der Stelle der Kamera im Plan (die erste rot, dann orange, gelb, grün,
+  cyan, blau, purpur, danach von vorn). Die Nummer eines Shots erscheint in der Farbe seiner
+  Kamera; ihr Name steht daneben.
+- **Nummernschema (LH-76):** `numbering` in `projekt.toml` (nur geschrieben, wenn nicht
+  `scene`) wählt, wie neue Shots nummeriert und „Umnummerieren“ rechnet; vorhandene Nummern
+  bleiben bis zum Umnummerieren, Nummern sind freier Text. Kein Zeichen hat zwei Bedeutungen:
+  Buchstaben stehen für Versionen *oder* für Kameras, nie für beides ohne Trennzeichen.
+  - `scene` (Standard): Szene, Punkt, laufende Nummer: `12.3`. Version: Buchstaben dahinter,
+    `12.3A`, `12.3B`.
+  - `camera`: Szene, Kamerabuchstabe (`label` der Kamera), Punkt, laufende Nummer dieser
+    Kamera in der Szene: `12A.3`, `12B.1`. Version: Bindestrich und Buchstaben, `12A.3-B`.
+  - `group`: Szene, Punkt, laufende Nummer einer Gruppe gleichzeitig gedrehter Shots, dahinter
+    der Kamerabuchstabe: `12.3A`, `12.3B`. Eine Gruppe sind Shots verschiedener Kameras, deren
+    Zeitspannen sich überlappen. Version: Bindestrich und Buchstaben, `12.3A-B`.
+  Eine Version behält beim Umnummerieren ihren Anhang (`-B`, `B`) am neuen Namen ihrer Basis.
 - **Achse (LH-40):** `axis` im Floorplan (`szenen/<id>.json`) mit `a` und `b`, den Figur-Ids,
   zwischen denen die 180°-Achse liegt; je Floorplan, weil die Spuren der Figuren dort liegen.
   Fehlt `axis`, gilt die Achse zwischen den ersten zwei Figuren des Floorplans. Wird eine der

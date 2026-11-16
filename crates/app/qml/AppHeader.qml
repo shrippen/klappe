@@ -25,6 +25,10 @@ RowLayout {
     property bool showScript: true
     property bool showShot: true
     property bool showTimeline: true
+    /// The small camera pictures beside the camera bodies in the plan (LH-113).
+    property bool showCameraViews: true
+    /// The long description under the selected shot in the shot table (LH-112).
+    property bool showShotDescription: false
     /// The order of the exported shot list: "cut" or "shooting" (LH-72).
     property string shotOrder: "cut"
 
@@ -50,7 +54,8 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
-                                    actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
+                                    actFree, actWallCut, actThrough, actHeights, actCameraViews, actShotDescription,
+                                    actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actUndo, actRedo]
@@ -165,6 +170,8 @@ RowLayout {
         KanteMenuItem { objectName: "wallCut"; action: actWallCut }
         KanteMenuItem { objectName: "through"; action: actThrough }
         KanteMenuItem { objectName: "heights"; action: actHeights }
+        KanteMenuItem { objectName: "cameraViews"; action: actCameraViews }
+        KanteMenuItem { objectName: "shotDescription"; action: actShotDescription }
         KanteMenuSection { text: header.texts.t("menu.viewAreas") }
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
@@ -435,6 +442,34 @@ RowLayout {
         target: actFree
         property: "checked"
         value: header.controller.viewFree === true
+    }
+
+    // The small camera pictures in the plan (Shift+C, LH-113); the window keeps the setting.
+    CommandAction {
+        id: actCameraViews
+        cmd: "view.cameraViews"
+        group: "view"
+        text: header.texts.t("view.cameraViews")
+        shortcut: "Shift+C"
+        keys: header.keyName("Shift+C")
+        checkable: true
+        checked: header.showCameraViews
+        enabled: header.controller.loaded && !header.locked
+        onToggled: header.viewToggled("cameraViews", checked)
+    }
+    // The long description as a second line of the selected shot in the shot table (Shift+S,
+    // LH-112).
+    CommandAction {
+        id: actShotDescription
+        cmd: "view.shotDescription"
+        group: "view"
+        text: header.texts.t("view.shotDescription")
+        shortcut: "Shift+S"
+        keys: header.keyName("Shift+S")
+        checkable: true
+        checked: header.showShotDescription
+        enabled: header.controller.loaded && !header.locked
+        onToggled: header.viewToggled("shotDescription", checked)
     }
 
     // The areas toggle; the window keeps what is shown and hands it back.

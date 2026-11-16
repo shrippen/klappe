@@ -394,6 +394,7 @@ mod tests {
             aspect: 2.39,
             marks: vec![aimed(2.0, 2.0, 1.0, 0.0), aimed(10.0, 0.0, 3.0, -20.0)],
             follows: None,
+            color: None,
         };
 
         assert_eq!(aim_at(&camera, 0.0), Some((1.0, 0.0)));

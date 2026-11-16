@@ -104,6 +104,7 @@ fn camera(i: usize) -> Camera {
         aspect: 2.39,
         marks,
         follows: None,
+        color: None,
     }
 }
 
@@ -170,6 +171,8 @@ fn shot(i: usize) -> Shot {
         crew: String::new(),
         note: String::new(),
         setup_of: None,
+        short_name: String::new(),
+        image: None,
     }
 }
 

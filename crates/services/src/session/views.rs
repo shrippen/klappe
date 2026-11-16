@@ -1,16 +1,17 @@
 //! What the session tells the surfaces about the project and the plan on view, ready to show:
 //! the project lists, the tooltips and the set of the current scene.
 
-use klappe_model::{CameraPresets, DrawingShape, Location, Orientation, Paper};
+use klappe_model::{CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper};
 use klappe_stellprobe::{
-    aim_at, axis_pair, horizontal_fov_deg, object_extent, opening_span, picture, wall_top, Cut,
-    Eye, Picture, Source,
+    aim_at, axis_pair, camera_at, horizontal_fov_deg, object_extent, opening_span, picture,
+    wall_top, Cut, Eye, Picture, Source,
 };
 
-use super::Session;
+use super::{Layer, Session, Visibility};
 use crate::library;
 use crate::views::{
-    AxisChoice, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow, PlanRow, SceneRow,
+    AxisChoice, CameraSpot, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow,
+    PlanRow, SceneRow,
 };
 use crate::ExportFormat;
 
@@ -98,6 +99,8 @@ impl Session {
             characters: characters.collect(),
             plans: plans.collect(),
             plan: self.plan().map(|p| p.id.clone()).unwrap_or_default(),
+            numbering: project.numbering.name(),
+            numberings: Numbering::ALL.map(Numbering::name).into(),
             paper_size: project.paper.size.name(),
             paper_orientation: project.paper.orientation.name(),
             papers: Paper::ALL
@@ -121,10 +124,50 @@ impl Session {
     /// the selected shot, else `fallback` (the camera picked on the plan). Covering is right
     /// per pixel, roles instead of colours. `None` without a camera, or one without marks.
     pub fn camera_picture(&self, fallback: Option<&str>, width_px: usize) -> Option<Picture> {
+        let camera = self.shot_camera(fallback)?;
+
+        self.picture_through(camera, width_px)
+    }
+
+    /// What camera `id` sees at the playhead, `width_px` wide, for the small picture beside its
+    /// body on the plan (LH-113); `None` for a camera without marks or one that is not there.
+    pub fn camera_picture_of(&self, id: &str, width_px: usize) -> Option<Picture> {
+        self.plan()?.camera(id)?;
+
+        self.picture_through(id.to_owned(), width_px)
+    }
+
+    /// The cameras whose body shows on the plan now (layer and track not hidden) and where it
+    /// stands at the playhead (LH-113).
+    pub fn camera_spots(&self) -> Vec<CameraSpot> {
+        let Some(plan) = self.plan() else {
+            return Vec::new();
+        };
+        if self.layer(Layer::Cameras) == Visibility::Hidden {
+            return Vec::new();
+        }
+
+        plan.cameras
+            .iter()
+            .filter(|c| !self.hidden_tracks.contains(&c.id))
+            .filter_map(|c| {
+                let place = camera_at(c, self.time_s)?;
+
+                Some(CameraSpot {
+                    id: c.id.clone(),
+                    x_m: place.at.x_m,
+                    y_m: place.at.y_m,
+                    aspect: c.aspect,
+                })
+            })
+            .collect()
+    }
+
+    fn picture_through(&self, camera: String, width_px: usize) -> Option<Picture> {
         let plan = self.plan()?;
         let location = self.project.location(&self.scene()?.location)?;
         let eye = Eye::Shot {
-            camera: self.shot_camera(fallback)?,
+            camera,
             t_s: self.time_s,
             aspect: None,
         };
@@ -198,6 +241,11 @@ impl Session {
             height_m: aim_at(c, self.time_s).map_or(0.0, |(height_m, _)| height_m),
             shots: shots.join(", "),
             follows,
+            color: plan
+                .camera_color(id)
+                .map(|color| color.name().to_owned())
+                .unwrap_or_default(),
+            own_color: c.color.is_some(),
         })
     }
 

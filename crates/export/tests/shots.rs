@@ -60,6 +60,7 @@ fn camera(id: &str, label: &str, lens_mm: f64) -> Camera {
             lens_mm: None,
         }],
         follows: None,
+        color: None,
     }
 }
 
@@ -96,6 +97,8 @@ fn shot(n: usize) -> Shot {
         crew: "Kamera, Ton".into(),
         note: "Nach dem ersten Take neu ausleuchten".into(),
         setup_of: None,
+        short_name: String::new(),
+        image: None,
     }
 }
 

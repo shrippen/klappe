@@ -209,7 +209,8 @@ mod tests {
             json!({
                 "kind": "camera", "label": "B", "lens": 50.0, "ownLens": 50.0, "sensor": 24.89,
                 "aspect": 2.39, "body": "super35", "fov": 28.0, "height": 1.6,
-                "shots": "12.3, 12.4", "follows": "Burgvogt", "rig": "",
+                "shots": "12.3, 12.4", "follows": "Burgvogt", "rig": "", "color": "orange",
+                "ownColor": false,
             })
         );
         assert_eq!(describe(&s, "camera:a")["shots"], "12.1, 12.2, 12.5");

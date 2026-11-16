@@ -27,9 +27,9 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     is_figure_size_m, is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m,
-    is_opening_width_m, is_outline, Character, Location, ObjectShape, Opening, PaperSetup, Project,
-    Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MAX_OBJECT_M, MIN_FIGURE_M, MIN_GROUP,
-    MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
+    is_opening_width_m, is_outline, Character, Location, Numbering, ObjectShape, Opening,
+    PaperSetup, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MAX_OBJECT_M,
+    MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
@@ -82,6 +82,13 @@ struct Header {
     /// Left out while it is the default, so older projects save unchanged.
     #[serde(default, skip_serializing_if = "is_default_paper")]
     paper: PaperSetup,
+    /// Left out while it is the default (LH-76).
+    #[serde(default, skip_serializing_if = "is_default_numbering")]
+    numbering: Numbering,
+}
+
+fn is_default_numbering(numbering: &Numbering) -> bool {
+    *numbering == Numbering::default()
 }
 
 fn is_default_paper(paper: &PaperSetup) -> bool {
@@ -142,6 +149,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         project: Project {
             title: header.title,
             paper: header.paper,
+            numbering: header.numbering,
             characters: characters.figur,
             locations,
             scenes,
@@ -168,6 +176,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
         format_version: FORMAT_VERSION,
         title: project.title.clone(),
         paper: project.paper,
+        numbering: project.numbering,
     };
     let path = dir.join(PROJECT_FILE);
     writes.push((path.clone(), files::encode_toml(&path, &header)?));

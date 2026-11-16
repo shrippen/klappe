@@ -6,7 +6,10 @@ import Kante
 // The shots as storyboard tiles (D-05): the stage has the frame of the shot's camera, below
 // it the number and size on the left and the lens on the right. The stage stays empty until
 // the camera view (LH-36); the movement is written on it, and a jump over the axis (LH-41) as a
-// warning chip, not only by the tier colour. A click selects the shot.
+// warning chip, not only by the tier colour. A click selects the shot. The number stands on the
+// stage in a chip in the colour of the shot's camera (LH-111) with the short name beside it, and
+// the camera's label is in the caption: the colour is never alone. The storyboard picture (LH-74)
+// fills the stage.
 Item {
     id: tiles
 
@@ -49,9 +52,30 @@ Item {
                     stageAspect: modelData.aspect
                     selected: modelData.id === tiles.selectedId
                     tier: modelData.axis_jump ? KanteTile.Tier.Check : KanteTile.Tier.Good
-                    name: modelData.number + " · " + tiles.texts.t("size." + modelData.size)
+                    name: modelData.camera_label + " · " + tiles.texts.t("size." + modelData.size)
                     figure: modelData.lens_label
+                    source: modelData.image_url ? modelData.image_url : ""
                     onClicked: tiles.picked(modelData.id)
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.margins: Kirigami.Units.smallSpacing
+                        spacing: Kirigami.Units.smallSpacing
+
+                        KanteChip {
+                            objectName: "numberChip-" + tile.modelData.id
+                            interactive: false
+                            chipColor: tile.modelData.camera_color ? KanteStyle.labelColor(tile.modelData.camera_color) : KanteStyle.textColor
+                            text: tile.modelData.number
+                        }
+                        KanteChip {
+                            objectName: "shortName-" + tile.modelData.id
+                            visible: !!tile.modelData.short_name
+                            interactive: false
+                            text: tile.modelData.short_name
+                        }
+                    }
 
                     QQC2.Label {
                         anchors.left: parent.left

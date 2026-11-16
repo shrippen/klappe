@@ -4,6 +4,7 @@ use crate::geometry::{Point, TurnedRect};
 use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
 use crate::plan::FloorPlan;
+use crate::shot::Numbering;
 use crate::template::Template;
 
 /// One film: everything every module works on.
@@ -25,6 +26,9 @@ pub struct Project {
     /// The sheet the plan was last exported on; the export dialog starts from it.
     #[serde(default)]
     pub paper: PaperSetup,
+    /// How the shots are numbered (LH-76).
+    #[serde(default)]
+    pub numbering: Numbering,
 }
 
 impl Project {
@@ -37,6 +41,7 @@ impl Project {
             library: Vec::new(),
             templates: Vec::new(),
             paper: PaperSetup::default(),
+            numbering: Numbering::default(),
         }
     }
 

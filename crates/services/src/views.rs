@@ -15,6 +15,12 @@ pub struct ShotRow {
     pub id: String,
     pub number: String,
     pub camera: String,
+    /// The camera's colour as a Kante label name (LH-111), empty if the camera is gone.
+    pub camera_color: String,
+    /// The short name next to the number (LH-110); empty for none.
+    pub short_name: String,
+    /// The storyboard picture, a file of the project folder (LH-74); empty for none.
+    pub image: String,
     pub camera_label: String,
     /// Width to height of the camera's frame (LH-38); `FALLBACK_ASPECT` if the camera is gone.
     pub aspect: f64,
@@ -325,6 +331,10 @@ pub struct Overview {
     pub orientations: Vec<&'static str>,
     /// The exports, in the order the menu offers them.
     pub formats: Vec<ExportRow>,
+    /// How the project numbers its shots, as `camera` (LH-76).
+    pub numbering: &'static str,
+    /// The numbering schemes to choose from; the surface names them.
+    pub numberings: Vec<&'static str>,
 }
 
 /// One export format: `id` is `pdf`; `paper` says it asks for a sheet; `extension` is that of
@@ -334,6 +344,16 @@ pub struct ExportRow {
     pub id: &'static str,
     pub paper: bool,
     pub extension: Option<&'static str>,
+}
+
+/// Where a camera's body stands on the plan at the playhead, in metres (LH-113).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CameraSpot {
+    pub id: String,
+    pub x_m: f64,
+    pub y_m: f64,
+    /// Width to height of the camera's frame, for the picture beside it.
+    pub aspect: f64,
 }
 
 /// One paper size of the export dialog: `id` is `a4`, `label` what the dialog shows.
@@ -373,6 +393,11 @@ pub enum Hint {
         shots: String,
         /// Name of the character the camera follows, else empty.
         follows: String,
+        /// The colour its shots are marked in, as a Kante label name (LH-111).
+        color: String,
+        /// The colour is the camera's own, not the one its place in the plan gives.
+        #[serde(rename = "ownColor")]
+        own_color: bool,
     },
     Figure {
         name: String,

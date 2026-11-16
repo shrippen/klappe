@@ -18,6 +18,8 @@ Item {
     /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, measure, note, image, line,
     /// arrow, rect, ellipse or area.
     property string tool: "select"
+    /// The small pictures of what the cameras see, beside their bodies (LH-113).
+    property bool cameraViews: true
     /// The grid drawn and snapped to, in metres: the one `gridName` names in `choicesJson`.
     readonly property real gridStepM: {
         const grids = controller.choicesJson ? (JSON.parse(controller.choicesJson).grid || []) : []
@@ -95,6 +97,16 @@ Item {
             area.dragging = !done
             area.controller.drag(fromX, fromY, x, y, done)
         }
+    }
+
+    // What each camera in view sees, small, beside its body (LH-113).
+    CameraThumbs {
+        objectName: "cameraThumbs"
+        anchors.fill: canvas
+        visible: area.cameraViews && canvas.visible
+        texts: area.texts
+        controller: area.controller
+        canvas: canvas
     }
 
     // The free 3D view (LH-94) fills the plan's place; its clicks and drags go through the same

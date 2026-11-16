@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use klappe_model::{AxisPair, Camera, FloorPlan, Movement, Shot};
 use klappe_stellprobe::{
     axis_jumps, movement_in, ordered_shots, setup_choices, setup_target, shot_lens, AxisJump,
@@ -64,6 +66,12 @@ impl Session {
                     id: shot.id.clone(),
                     number: shot.number.clone(),
                     camera: shot.camera.clone(),
+                    camera_color: plan
+                        .camera_color(&shot.camera)
+                        .map(|c| c.name().to_owned())
+                        .unwrap_or_default(),
+                    short_name: shot.short_name.clone(),
+                    image: shot.image.clone().unwrap_or_default(),
                     camera_label: camera.map(|c| c.label.clone()).unwrap_or_default(),
                     aspect: camera.map_or(FALLBACK_ASPECT, |c| c.aspect),
                     follows: camera.and_then(|c| c.follows.clone()).unwrap_or_default(),
@@ -137,6 +145,33 @@ impl Session {
         Ok(())
     }
 
+    /// Gives shot `id` the storyboard picture `file` (PNG or JPEG), copied into the project's
+    /// `bilder/`, or takes it away with `None`; undoable (LH-74). The copy stays in `bilder/`,
+    /// it is the user's file. Refused while the camera layer is locked, like any edit of a shot.
+    pub fn set_shot_image(&mut self, id: &str, file: Option<&Path>) -> Result<(), ServiceError> {
+        self.check_shot_lock()?;
+
+        let image = match file {
+            Some(file) => Some(klappe_store::add_image(&self.dir, file)?),
+            None => None,
+        };
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+        let shot = plan
+            .shots
+            .iter_mut()
+            .find(|s| s.id == id)
+            .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
+
+        shot.image = image;
+        if next == self.project {
+            return Ok(());
+        }
+
+        self.commit(next);
+        Ok(())
+    }
+
     /// Adds a shot at the playhead and selects it; undoable. Its camera is `camera`, else the
     /// selected shot's, else the first (LH-70). Refused while the camera layer is locked: a
     /// shot belongs to its camera.
@@ -145,11 +180,12 @@ impl Session {
 
         let camera = self.camera_for_shot(camera)?;
         let scene = self.scene_number();
+        let numbering = self.project.numbering;
         let at_s = self.time_s;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        let id = shot_edit::add(plan, &scene, &camera, at_s);
+        let id = shot_edit::add(plan, numbering, &scene, &camera, at_s);
         self.commit(next);
         self.selected_shot = Some(id.clone());
         Ok(id)
@@ -161,10 +197,11 @@ impl Session {
         self.check_shot_lock()?;
 
         let scene = self.scene_number();
+        let numbering = self.project.numbering;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        let copy = shot_edit::copy(plan, &scene, id)?;
+        let copy = shot_edit::copy(plan, numbering, &scene, id)?;
         self.commit(next);
         self.selected_shot = Some(copy.clone());
         Ok(copy)
@@ -176,10 +213,11 @@ impl Session {
         self.check_shot_lock()?;
 
         let scene = self.scene_number();
+        let numbering = self.project.numbering;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        let copy = shot_edit::version(plan, &scene, id)?;
+        let copy = shot_edit::version(plan, numbering, &scene, id)?;
         self.commit(next);
         self.selected_shot = Some(copy.clone());
         Ok(copy)
@@ -191,10 +229,11 @@ impl Session {
         self.check_shot_lock()?;
 
         let scene = self.scene_number();
+        let numbering = self.project.numbering;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        shot_edit::renumber(plan, &scene);
+        shot_edit::renumber(plan, numbering, &scene);
         if next == self.project {
             return Ok(());
         }

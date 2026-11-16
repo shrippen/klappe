@@ -88,6 +88,8 @@ fn shot(
         crew: String::new(),
         note: String::new(),
         setup_of: None,
+        short_name: String::new(),
+        image: None,
     }
 }
 
@@ -132,6 +134,7 @@ fn plan() -> FloorPlan {
                 cam_mark(6.0, 9.0, 8.0, 320.0, 0.0),
             ],
             follows: None,
+            color: None,
         },
         Camera {
             id: "b".into(),
@@ -141,6 +144,7 @@ fn plan() -> FloorPlan {
             aspect: 2.39,
             marks: vec![cam_mark(0.0, 18.0, 4.0, 200.0, 0.0)],
             follows: Some("burgvogt".into()),
+            color: None,
         },
     ];
 

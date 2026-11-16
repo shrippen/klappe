@@ -666,5 +666,20 @@
  "export.pick.camera": "Kamerablick speichern",
  "export.filter.view3d": "PNG (*.png)",
  "export.filter.camera": "PNG (*.png)",
- "error.noPicture": "Es gibt kein Bild: Die 3D-Ansicht war noch nicht offen, oder die Kamera hat keine Marks."
+ "error.noPicture": "Es gibt kein Bild: Die 3D-Ansicht war noch nicht offen, oder die Kamera hat keine Marks.",
+ "field.shortName": "Kurzname",
+ "shot.newHint": "Enter bestätigt, Esc lässt den Shot ohne Namen.",
+ "field.image": "Storyboard-Bild",
+ "shot.imagePick": "Bild wählen…",
+ "shot.imageRemove": "Bild entfernen",
+ "shot.imagePickTitle": "Storyboard-Bild wählen",
+ "view.shotDescription": "Lange Beschreibung unter dem gewählten Shot",
+ "view.cameraViews": "Kamerablicke im Plan",
+ "camera.color": "Farbe",
+ "camera.colorAuto": "Nach Reihenfolge",
+ "project.numbering": "Shotnummern",
+ "project.numberingHint": "Gilt für neue Shots; „Umnummerieren“ in der Shotliste ändert die vorhandenen.",
+ "numbering.scene": "Szene und laufende Nummer (12.3, Version 12.3A)",
+ "numbering.camera": "Kamerabuchstabe und deren laufende Nummer (12A.3, Version 12A.3-B)",
+ "numbering.group": "Gruppe gleichzeitiger Shots, Kamerabuchstabe dahinter (12.3A, 12.3B, Version 12.3A-B)"
 }

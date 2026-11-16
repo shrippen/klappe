@@ -44,6 +44,9 @@ Item {
     /// The shot on view in the shot panel.
     property var shot: null
     property bool showTimeline: true
+    /// The camera pictures in the plan (LH-113) and the long description in the shot table (LH-112).
+    property bool cameraViews: true
+    property bool shotDescription: false
     /// The backup question is open: the work area dims and is locked.
     property bool locked: false
     /// Wide: script and shot beside the plan can be hidden (View menu).
@@ -135,6 +138,7 @@ Item {
             shot: work.shot
             view: work.shotView
             order: work.shotOrder
+            descriptionOpen: work.shotDescription
             onViewPicked: v => work.shotView = v
             onOrderPicked: o => work.shotOrder = o
         }
@@ -233,6 +237,7 @@ Item {
                         Layout.fillHeight: true
                         Layout.minimumWidth: 0
                         tool: work.tool
+                        cameraViews: work.cameraViews
                         texts: work.texts
                         controller: work.controller
                     }

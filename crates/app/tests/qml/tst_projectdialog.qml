@@ -30,6 +30,8 @@ TestCase {
                 { id: "hof", name: "Burghof", width: 30, depth: 20.5, height: 3.2, scenes: 1 },
                 { id: "saengersaal", name: "Sängersaal", width: 20, depth: 13, height: 2.6, scenes: 1 }
             ],
+            numbering: "scene",
+            numberings: ["scene", "camera", "group"],
             characters: [
                 { id: "elisabeth", name: "Elisabeth", short: "E", color: "purple", group: 0, size: null },
                 { id: "burgvogt", name: "Burgvogt", short: "B", color: "blue", group: 0, size: 2.4 },
@@ -58,6 +60,7 @@ TestCase {
         function addCharacter(n, s, c, g, z) { return call("addCharacter", [n, s, c, g, z]) }
         function editCharacter(id, n, s, c, g, z) { return call("editCharacter", [id, n, s, c, g, z]) }
         function removeCharacter(id) { return call("removeCharacter", [id]) }
+        function setNumbering(name) { return call("setNumbering", [name]) }
     }
 
     TestTexts { id: de; language: "de" }
@@ -588,5 +591,21 @@ TestCase {
         verify(findChild(listOf(pd, "sceneList"), "empty").visible)
         compare(findChild(listOf(pd, "sceneList"), "rows").count, 0)
         compare(findChild(listOf(pd, "characterList"), "empty").text, "Noch keine Figuren.")
+    }
+
+    // LH-76: the scheme of the shot numbers is a project setting, named with its example.
+    function test_the_numbering_scheme_is_chosen_in_the_project() {
+        const pd = make()
+        opened(pd)
+        const box = findChild(pd, "numberingBox")
+
+        compare(box.count, 3)
+        compare(box.currentIndex, 0)
+        verify(box.textAt(1).indexOf("12A.3") >= 0)
+
+        box.currentIndex = 2
+        box.activated(2)
+
+        compare(fake.calls, [["setNumbering", "group"]])
     }
 }
