@@ -127,7 +127,10 @@ fn an_unreadable_copy_is_set_aside_and_replaced() {
     let aside = ensure_example(Language::German, &dir).unwrap().unwrap();
 
     assert_eq!(aside, dir.with_file_name("example-old.alt"));
-    assert_eq!(std::fs::read(aside.join("projekt.toml")).unwrap(), b"kaputt");
+    assert_eq!(
+        std::fs::read(aside.join("projekt.toml")).unwrap(),
+        b"kaputt"
+    );
     assert!(Session::open(&dir).is_ok());
 }
 
