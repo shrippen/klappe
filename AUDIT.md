@@ -1,124 +1,128 @@
-# Code-Audit Klappe, 16.11.2026, Stand 42336c1
+# Code-Audit Klappe, 16.11.2026, Stand 95f7301
 
 ## Urteil
-Das Repo ist wartbar und besser als beim elften Audit. Von den fünf gewählten Funden des elften Audits sind vier behoben (#179 bis #182), der fünfte ist durch Entscheidung des Eigentümers erledigt (#183). Dazu kommen drei ältere Funde:
-- Ein Griff wird jetzt einmal beschrieben (neuntes Audit, #178).
-- Das Einsetzen einer Vorlage ruft nicht mehr im Kreis (fünftes Audit, #111).
-- Den Winkel beim Messen rechnet die Sitzung, nicht mehr die App (viertes Audit, #119).
+Das Repo ist wartbar und etwas besser als beim zwölften Audit. Vier der fünf Funde sind behoben (#187, #189, #191, #192), und zwar sauber:
+- Möbel und Bilder rechnen jetzt mit derselben Rechnung für gedrehte Rechtecke.
+- Welcher Griff zu welchem Element gehört, steht an einer Stelle.
+- Stellprobe fragt die Bildgröße nur noch auf einem Weg ab.
 
-Die Bestandsliste ist von 33 auf 31 Einträge geschrumpft. Das liegt allerdings nur daran, dass die Verbindungsdatei `bridge.rs` auf Entscheidung des Eigentümers nicht mehr geprüft wird. Neue Schwäche: Die freien Bilder auf dem Plan (#185) sind als gedrehtes Rechteck gebaut, wie ein Möbel. Die Rechnungen dafür sind aber neu geschrieben, statt die der Möbel zu benutzen (Fund 1). Außerdem hat #185 sechs Einträge der Bestandsliste angehoben, jeden mit Begründung.
+Den fünften Fund hat der Eigentümer nicht gewählt. Neu dazugekommen sind das Menü der Projektkacheln auf der Startseite (Umbenennen, Archivieren, Papierkorb; #195) und die neue Beispielkopie (#194). Beide haben kleine Doppelungen mitgebracht. An einer Stelle geht die Sitzung dabei selbst an die Dateien, an der Ablage vorbei (Fund 1). Die Bestandsliste bleibt bei 31 Einträgen. Zwei davon sind leicht gewachsen, beide mit Begründung.
 
 ## Kennzahlen
 | | letztes Audit | jetzt |
 |---|---|---|
-| Quelldateien | 405 | 412 (ohne die Kopie von Kante, gezählt wie die Strukturprüfung) |
-| Einträge in der Bestandsliste | 33 | 31. Weg sind die zwei Einträge von `bridge.rs`: Die Datei ist seit #183 ganz von der Prüfung ausgenommen. #185 hat sechs Einträge angehoben, jeweils um eins bis zwei Punkte Verzweigungen: die Schlüssel `key` und `name` (17 auf 19), `apply`, `copy`, `remove` und `target`. #184 hat `error_text` angehoben (18 auf 19). Jede Erhöhung ist im Commit begründet. |
-| größte Datei (Zeilen) | 1011 (die Ablagetests `crates/store/tests/store.rs`) | 1011 (dieselbe). Ohne Tests ist die größte geprüfte Datei weiter `crates/export/src/jpeg.rs` mit 883 Zeilen. Die nicht mehr geprüfte `bridge.rs` ist von 817 auf 833 Zeilen gewachsen. |
-| längste Funktion (Zeilen) | 138 (`apply` in `plan_edit.rs`) | 139 (dieselbe, eine Zeile für das neue Bild). Die Liste der Aufrufe `switched` wird nicht mehr gemessen, weil sie in `bridge.rs` steht. |
+| Quelldateien | 412 | 425 (gezählt wie die Strukturprüfung, ohne die Kopie von Kante) |
+| Einträge in der Bestandsliste | 31 | 31. Angehoben hat sie nur #190, beide Male mit Begründung im Commit `a8e2cb9`: die Feldnamen `name` in `field.rs` (43 auf 44 Verzweigungen, für die neue Deckkraft) und `apply` in `plan_edit.rs` (139 auf 141 Zeilen, für die Bildänderungen). `error_text` heißt jetzt `own_text`; der Wert ist gleich geblieben. |
+| größte Datei (Zeilen) | 1011 (`crates/store/tests/store.rs`) | 1011 (dieselbe). Ohne Tests ist die größte geprüfte Datei weiter `crates/export/src/jpeg.rs` mit 883 Zeilen. Die nicht geprüfte `bridge.rs` ist von 833 auf 864 Zeilen gewachsen. |
+| längste Funktion (Zeilen) | 139 (`apply` in `plan_edit.rs`) | 141 (dieselbe) |
 
 ## Funde
 
-### 1. Ein Bild auf dem Plan ist ein gedrehtes Rechteck wie ein Möbel, aber jede Rechnung dafür ist neu geschrieben
-Seit #185 (LH-18) kann man Fotos und Skizzen frei auf den Plan legen, verschieben, drehen und an einem Griff breiter ziehen. Geometrisch ist ein Bild dasselbe wie ein Möbel: ein Rechteck um eine Mitte, um diese Mitte gedreht. Die Möbel haben dafür fertige Rechnungen. Das Bild benutzt keine davon, sondern hat von jeder eine eigene Abschrift:
-- „Wo liegt ein Punkt des Rechtecks auf dem Plan“: im Datenmodell zweimal wortgleich.
-- „Wo sitzt der Griff“: in Stellprobe zweimal, beim Bild nur für die Breite.
-- „Wie ändert das Ziehen am Griff die Breite“: in der Sitzung zweimal. Die Bildfassung wiederholt die Möbelfassung Zeile für Zeile, nur ohne Tiefe.
-- „Welcher Punkt rastet beim Ziehen ein“: zweimal.
+### 1. Die Beispielkopie wird an der Ablage vorbei beiseitegelegt, mit einer eigenen Regel für den freien Namen
+Lädt die Kopie des Beispiels nicht mehr, benennt die Sitzung den Ordner um und schreibt eine frische Kopie. Dieses Umbenennen macht die Sitzung selbst, direkt auf der Platte. `ARCHITECTURE.md` sagt aber: Nur die Ablage fasst die Dateien eines Projekts an. Die Ablage hat dafür eine eigene Funktion, die hier nicht benutzt wird.
 
-Was es kostet: Ändert sich die Regel für das Ziehen, gilt sie danach nur für Möbel, und Bilder verhalten sich anders. Beispiele wären eine andere Mindestgröße oder Einrasten an der Kante statt am Griff. Jedes weitere Element dieser Art (etwa ein Schild oder eine Markierungsfläche) brächte eine vierte Abschrift.
+Dazu kommt: Für „Welcher Name neben dem Ordner ist noch frei?“ gibt es jetzt zwei Regeln. Die Sitzung hängt `.alt`, `.alt-2` … an und sucht ohne Obergrenze. Die Ablage (für das ZIP-Archiv, #195) hängt ` (2)`, ` (3)` … an und gibt nach 1000 Versuchen auf.
 
-Vorschlag: Die Rechnungen für „gedrehtes Rechteck“ werden so gefasst, dass sie Mitte, Breite und Drehung bekommen statt eines Möbels, und Möbel und Bild rufen dieselben auf.
+Was es kostet: Wer ändert, wie Ordner auf der Platte umbenannt oder benannt werden (etwa für Windows oder einen Netzordner), muss eine Stelle außerhalb der Ablage kennen. Die beiden Namensregeln verhalten sich schon heute verschieden.
 
-Aufwand klein. Risiko gering: `crates/services/tests/object_grips.rs` (auch gedreht) und `crates/services/tests/images.rs` (auch gedreht) prüfen beide Seiten und sind in diesem Audit grün gelaufen.
+Vorschlag: Die Ablage bekommt eine Funktion „Ordner beiseitelegen“, die ihre Regel für den freien Namen benutzt. Die Sitzung ruft nur diese Funktion auf.
 
-Beleg: `crates/model/src/project.rs:265`, `crates/model/src/project.rs:471`, `crates/stellprobe/src/display/handles.rs:140`, `crates/stellprobe/src/display/handles.rs:268`, `crates/services/src/plan_edit/moving.rs:246`, `crates/services/src/plan_edit/moving.rs:279`, `crates/services/src/plan_edit/moving.rs:336`, `crates/services/src/plan_edit/moving.rs:341`.
+Aufwand klein. Risiko gering: `crates/services/tests/example.rs` (auch für den zweiten freien Namen) und `crates/services/tests/folder.rs` laufen in diesem Audit grün. Ändert sich das Namensmuster, müssen diese Tests mitgeändert werden.
 
-### 2. Zu welchem Element ein Griff gehört und welcher Griff selbst gewählt wird, steht noch an drei Stellen
-#178 hat die Zuordnung „Griff → sein Element“ an eine Stelle gebracht (`Source::owner`). Ebene und Auswahl lesen sie dort. Zwei Listen sind geblieben:
-- **Die Klickerkennung der Sitzung** hat eine eigene Zuordnung „Griff → Element“ (`owner_of`). Sie lässt Türgriffe und Lampengriffe bewusst weg und fängt alles Übrige stumm mit „keins“ ab. `ARCHITECTURE.md` warnt selbst, dass der Compiler hier nicht meldet, wenn etwas fehlt. #185 musste den neuen Bildgriff in beide Zuordnungen eintragen.
-- **Die App** führt zweimal eine Liste der Griffe, die selbst gewählt werden statt ihres Elements: beim Klicken (Punkt einer Zeichnung, Punkt einer freien Form) und beim Aufräumen der Auswahl nach jeder Änderung (dazu der Knick eines Wegs). Die beiden Listen sind schon heute verschieden.
+Beleg: `crates/services/src/example.rs:46`, `crates/services/src/example.rs:62`, `crates/store/src/folder.rs:124`, `crates/store/src/files.rs:150`, `ARCHITECTURE.md:65`.
 
-Was es kostet: Bei einem neuen Griff kann man eine Stelle vergessen, ohne dass etwas meldet. Fehlt er in der Klickerkennung, fängt der Griff Klicks mitten im Element ab. Fehlt er in der zweiten Liste der App, verschwindet ein selbst gewählter Griff nach der nächsten Änderung aus der Auswahl.
+### 2. Die Regel für einen gültigen Projekttitel steht zweimal
+Ein Titel wird beim Anlegen eines Projekts und beim neuen Umbenennen auf der Startseite (#195) gleich geprüft: Leerzeichen am Rand weg, leer ist abgelehnt. Die Regel ist dafür zweimal Zeile für Zeile ausgeschrieben.
 
-Vorschlag: Die Klickerkennung nimmt die eine Zuordnung und nennt nur ihre zwei Ausnahmen ausdrücklich, und die App fragt an beiden Stellen dieselbe Funktion „wird dieser Griff selbst gewählt“.
+Was es kostet: Eine neue Regel für Titel (zum Beispiel eine Höchstlänge oder verbotene Zeichen) gilt sonst nur für einen der beiden Wege.
 
-Aufwand klein. Risiko gering: `crates/services/tests/grip_catch.rs`, `grip_layers.rs` und die Auswahltests der App decken es ab (Sitzungstests grün).
+Vorschlag: Eine Funktion „Titel prüfen“ in der Sitzung, die beide Stellen aufrufen.
 
-Beleg: `crates/stellprobe/src/display.rs:133`, `crates/services/src/plan_edit/picking.rs:63`, `crates/app/src/selection.rs:82`, `crates/app/src/bridge/view.rs:369`, `ARCHITECTURE.md:85`.
+Aufwand klein. Risiko gering: `crates/services/tests/folder.rs` prüft den leeren Titel beim Umbenennen. Für das Anlegen sollte vor dem Umbau ein Test auf den leeren Titel dazukommen.
 
-### 3. Die Anleitung für eine neue Art Element auf dem Plan nennt zwei Stellen nicht, die #185 ändern musste
-`ARCHITECTURE.md` zählt auf, was man für eine neue Art Element anfasst, und sagt: Braucht eine Änderung mehr Stellen, ist das ein Fund. #185 musste zwei Stellen ändern, die in der Zeile „New kind of element on the plan“ fehlen:
-- In der App braucht jedes Element einen eigenen Schlüssel mit Namen (`plan/key.rs`). Die Zeile für neue Griffe nennt die Datei, die für neue Elemente nicht.
-- Die Ablage prüft beim Laden die Werte jedes Elements (`check_images` neben `check_notes` usw.). Die Zeile nennt nur Datenmodell und `FORMAT.md`.
+Beleg: `crates/services/src/folder.rs:17`, `crates/services/src/session/file.rs:59`.
 
-Was es kostet: Wer der Anleitung folgt, vergisst die Ladeprüfung. Eine Projektdatei mit unsinnigen Werten lädt dann ohne Meldung.
+### 3. Jede Karte sucht ihr Element mit demselben kopierten Block, jetzt siebenmal
+Die Karten für Kamera, Objekt, Wand, Lampe, Tür/Fenster, Zeichnung und jetzt auch Bild (#190) holen ihre Daten mit demselben achtzeiligen Block: am Zähler des Kamerabilds hängen, am Anfang des Schlüssels die Art erkennen, die Beschreibung abfragen, die Art noch einmal prüfen. Nur das Wort für die Art ist jeweils ein anderes. Dabei steht diese Schreibweise der Schlüssel („image:“ usw.) schon in der App (`plan/key.rs`). Die Karten schreiben sie ein zweites Mal hin.
 
-Vorschlag: Die Zeile nennt beide Stellen.
+Was es kostet: Jede neue Karte ist eine achte Abschrift. Ändert sich, wann eine Karte neu lesen muss oder wie ein Schlüssel aussieht, ändert man sieben Dateien. Das macht auch den offenen Fund 2 des zehnten Audits („Karten hängen am Zähler des Kamerabilds“) teurer.
+
+Vorschlag: Eine gemeinsame Abfrage „Beschreibung des gewählten Elements dieser Art“, entweder in der Verbindungsschicht oder als kleiner gemeinsamer QML-Baustein. Jede Karte nennt dann nur noch ihre Art.
+
+Aufwand klein bis mittel. Risiko gering: Jede der sieben Karten hat eigene Oberflächentests (`crates/app/tests/qml/tst_*card.qml`).
+
+Beleg: `crates/app/qml/ImageCard.qml:16`, `crates/app/qml/CameraCard.qml:25`, `crates/app/qml/ObjectCard.qml:23`, `crates/app/qml/WallCard.qml:16`, `crates/app/qml/LightCard.qml:20`, `crates/app/qml/OpeningCard.qml:17`, `crates/app/qml/DrawingCard.qml:18`.
+
+### 4. Zwei Tabellen-Ausgaben verschlucken einen möglichen Fehler, und die Grenze des ZIP-Formats wird zweimal geprüft
+Seit #195 kann das ZIP-Schreiben ablehnen, wenn eine Datei zu groß ist (4 GiB oder mehr als 65535 Dateien). Die Ausgaben als ODS- und XLSX-Tabelle machen aus einer Ablehnung stillschweigend eine leere Datei. Ein Kommentar begründet das damit, dass eine Tabelle nie so groß wird. Alle anderen Ausgaben geben einen Fehler weiter.
+
+Die Grenze steht außerdem zweimal: einmal als grobe Vorabprüfung (Anzahl und Summe der Dateien), einmal genau beim Schreiben jeder Datei.
+
+Was es kostet: Ändert sich der Weg einmal (etwa Bilder in einer Tabelle), entsteht eine leere Datei ohne Meldung. Wird die Grenze geändert (zum Beispiel auf ZIP64 für große Archive), muss man beide Prüfungen finden.
+
+Vorschlag: ODS und XLSX geben den Fehler weiter wie die übrigen Ausgaben. Die Vorabprüfung nimmt dieselben Grenzwerte wie das Schreiben, aus einer Stelle.
+
+Aufwand klein. Risiko gering: `crates/export/tests/export.rs` und `crates/services/tests/folder.rs` (Ablehnung zu großer Ordner) decken es ab.
+
+Beleg: `crates/export/src/lib.rs:144`, `crates/export/src/lib.rs:156`, `crates/export/src/zip.rs:37`, `crates/export/src/zip.rs:106`.
+
+### 5. `ARCHITECTURE.md` nennt das ZIP-Archiv nicht unter den Aufgaben der Ausgabe
+Seit #195 packt der Baustein „Ausgabe“ (`export/`) auch einen ganzen Projektordner als ZIP. Die neue Zeile in „Where new things go“ nennt das. Die Beschreibung des Bausteins oben zählt aber nur Plan, Shotliste und Ansichten auf.
+
+Was es kostet: Wer in der Übersicht nachsieht, wo Archive gebaut werden, findet es nicht.
+
+Vorschlag: Die Zeile `export/` nennt „ein Ordner als ZIP-Archiv“.
 
 Aufwand klein, nur Text. Kein Risiko.
 
-Beleg: `ARCHITECTURE.md:84`, `crates/app/src/plan/key.rs:83`, `crates/store/src/lib.rs:383`, `crates/store/src/lib.rs:412`.
+Beleg: `ARCHITECTURE.md:28`, `ARCHITECTURE.md:95`, `crates/export/src/lib.rs:108`.
 
-### 4. Stellprobe bekommt die Bildgröße auf zwei Wegen
-Stellprobe liest keine Dateien. Wie groß ein Bild in Pixeln ist, muss ihr deshalb der Aufrufer sagen. Seit #185 bekommt sie dafür zwei Angaben:
-- eine fertige Größe für das Hintergrundbild,
-- eine Nachfrage für jedes andere Bild.
+### 6. Ein Überbleibsel aus #191: `rotate` gibt nur an `turned` weiter
+Seit #191 dreht `Point::turned` im Datenmodell einen Punkt. Die Planänderungen behalten trotzdem ihre eigene Funktion `rotate`, die nichts anderes tut, als diese aufzurufen. Das Gruppendrehen ruft weiter `rotate`.
 
-Die Sitzung beantwortet beide mit derselben Funktion. Die Nachfrage könnte die Größe des Hintergrunds also genauso liefern.
+Was es kostet: Wenig. Man sieht aber zwei Namen für dasselbe und muss nachlesen, ob sie sich unterscheiden.
 
-Was es kostet: Jeder Aufruf muss beides liefern. Die Ausgabe der Lampenliste reicht deshalb zweimal „nichts“ durch. Ein Aufrufer, der nur eines richtig füllt, zeigt Hintergrund und Bilder verschieden.
+Vorschlag: Beide Aufrufer rufen `turned` direkt, `rotate` entfällt.
 
-Vorschlag: Stellprobe fragt auch die Größe des Hintergrunds über die eine Nachfrage.
+Aufwand klein. Risiko gering: Die Dreh- und Gruppentests in `crates/services/tests/` decken es ab.
 
-Aufwand klein. Risiko gering: Die Tests in `crates/stellprobe/tests/images.rs` und die Hintergrundtests der Sitzung decken beide ab.
+Beleg: `crates/services/src/plan_edit/moving.rs:505`, `crates/services/src/plan_edit/moving.rs:501`, `crates/services/src/plan_edit/group.rs:67`.
 
-Beleg: `crates/stellprobe/src/display.rs:257`, `crates/services/src/session/pick.rs:30`, `crates/services/src/session/pick.rs:61`, `crates/services/src/session/export.rs:224`.
+### 7. Bestandsliste
+**In Ordnung:** die flachen Listen (Feldnamen `name` in `field.rs`, Schlüssel `key` und `name` in `plan/key.rs`). Sie sind lang, weil es viele Elemente und Felder gibt, nicht weil sie viel tun. Die Erhöhungen durch #190 sind je ein Zweig und begründet. Die alten Einträge der Ausgabe (`jpeg.rs`, `layout.rs`, `scan.rs`) sind unverändert.
 
-### 5. Bestandsliste: Jede neue Art Element hebt dieselben sechs Einträge an
-Die flachen Listen (Feldnamen `name` in `field.rs`, Schlüssel `key` und `name` in `plan/key.rs`) sind in Ordnung, wie sie sind. Sie sind lang, weil es viele Elemente gibt, nicht weil sie viel tun.
+**Gewachsen wie erwartet:** `apply` (141 Zeilen) wächst mit jeder neuen Planänderung um einen Zweig. #190 hat die drei Bildänderungen geschickt in einem Zweig gebündelt.
 
-**Gewachsen:** Mit dem Bild (#185) sind sechs Einträge gewachsen, also mit jeder neuen Art Element:
-- `apply`, die Verteilung aller Planänderungen,
-- `copy`, das Kopieren,
-- `remove`, das Löschen,
-- `target`, die Zielsuche beim Ziehen,
-- `key` und `name`.
+**An der Grenze von 800 Zeilen:**
+- `tst_planarea.qml` mit 797 Zeilen (vorher 782),
+- `export/tests/export.rs` mit 799,
+- `services/tests/library.rs` und `manage.rs` mit je 800,
+- `services/tests/session.rs` mit 788,
+- `model/src/plan.rs` mit 787,
+- `app/src/bridge/view.rs` mit 779 (vorher 788).
 
-Bei `copy` ist der Grund eine Wiederholung: Objekt, Lampe, Notiz und Bild werden mit demselben Ablauf kopiert (suchen, neue Nummer, verschieben, anhängen), viermal ausgeschrieben. Das Bild hat seinen Ablauf zudem in eine eigene Datei gelegt.
+Die nicht geprüfte `bridge.rs` wächst weiter (864 Zeilen) und hält sich an `ARCHITECTURE.md`: dort stehen nur Erklärungen, die Logik liegt in `bridge/<Bereich>.rs`.
 
-**In Ordnung:** `bridge.rs` ist seit #183 ausgenommen. `ARCHITECTURE.md` beschreibt das (nur Erklärungen, Logik in `bridge/<Bereich>.rs`), und die Datei hält sich daran.
+Vorschlag: Nichts umbauen. Beim nächsten Test für die Planfläche `tst_planarea.qml` nach Werkzeugen teilen, so wie es `tst_planareadrop.qml` schon tut.
 
-**An der Grenze:** `bridge/view.rs` mit 788 Zeilen, das Datenmodell `model/src/plan.rs` mit 787, die Testdateien `services/tests/manage.rs` und `library.rs` mit je 800, `export/tests/export.rs` mit 799 und `tst_planarea.qml` mit 782.
-
-Vorschlag: Das Kopieren der vier Elemente mit Nummer und Lage läuft über einen gemeinsamen Ablauf. Ein neues Element braucht in `copy` dann nur noch einen kurzen Zweig statt eines ausgeschriebenen Ablaufs.
-
-Aufwand klein bis mittel. Risiko gering: Die Kopiertests in `crates/services/tests/` decken jedes Element ab.
-
-Beleg: `structure.baseline`, `crates/services/src/plan_edit/group.rs:232`, `crates/services/src/plan_edit/images.rs:45`, Commit `31cb18a`.
+Beleg: `structure.baseline`, Commit `a8e2cb9`.
 
 ## Seit dem letzten Audit
-Seit dem elften Audit wurden zehn PRs gemergt: #111, #119 und #178 bis #185. Aus dem elften Audit hat der Eigentümer alle fünf Funde gewählt:
-- Funde 1 bis 4 sind behoben.
-- Fund 5 ist durch seine Entscheidung erledigt.
+Seit dem zwölften Audit wurden zwölf PRs gemergt: #186 bis #197. Aus dem zwölften Audit hat der Eigentümer die Funde 1 bis 4 gewählt; alle vier sind behoben. Fund 5 hat er nicht gewählt.
 
-Aus dem zehnten Audit wurde keiner gewählt oder abgelehnt.
-
-Elftes Audit:
-- **Fund 1 (vierte Liste beim Schließen): behoben (#179).** Das Schließen trägt einen leeren Satz Werte über dieselbe Funktion `show` ein. Damit wird auch der Name des Rasters geleert. Beleg: `crates/app/src/bridge/project.rs:73`, `crates/app/src/bridge/view.rs:213`.
-- **Fund 2 (eigene Formatliste der Kommandozeile): behoben (#180).** Die Kommandozeile nimmt Namen und Endungen aus der Liste der Sitzung, und die CSV-Shotliste geht jetzt auch dort. Beleg: `crates/cli/src/main.rs:241`, `crates/cli/src/main.rs:253`.
-- **Fund 3 (Blattgröße dreimal): behoben (#182),** mit neuem Test für die Kamerablicke. Beleg: `crates/export/src/layout.rs:77`.
-- **Fund 4 (Regel „taugt als Vorbild“ zweimal): behoben (#181).** Beleg: `crates/stellprobe/src/setup.rs:68`, `crates/services/src/shot_edit.rs:232`.
-- **Fund 5 (Bestandsliste, `bridge.rs`): erledigt durch Entscheidung des Eigentümers (#183).** Die Datei ist von der Prüfung ausgenommen, `ARCHITECTURE.md` begründet es. Siehe neuer Fund 5.
+Zwölftes Audit:
+- **Fund 1 (Bild als gedrehtes Rechteck, Rechnungen abgeschrieben): behoben (#191).** Möbel und Bild beschreiben sich als `TurnedRect`. Lage der Griffe, Ziehen und Einrasten laufen für beide über dieselben Funktionen. Rest siehe neuer Fund 6. Beleg: `crates/model/src/geometry.rs:63`, `crates/model/src/project.rs:284`, `crates/model/src/project.rs:499`, `crates/services/src/plan_edit/moving.rs:254`, `crates/services/src/plan_edit/moving.rs:272`.
+- **Fund 2 (Griff → Element an drei Stellen): behoben (#189).** Die Klickerkennung folgt `Source::owner` und nennt nur Tür und Lampe als Ausnahmen. Beide Stellen der App fragen `Source::selected_itself`. Beleg: `crates/services/src/plan_edit/picking.rs:64`, `crates/stellprobe/src/display.rs:165`, `crates/app/src/selection.rs:85`, `crates/app/src/bridge/view.rs:369`.
+- **Fund 3 (Anleitung für neue Elemente unvollständig): behoben (#187).** Beleg: `ARCHITECTURE.md:84`.
+- **Fund 4 (Bildgröße auf zwei Wegen): behoben (#192).** Beleg: `crates/stellprobe/src/display.rs:278`, `crates/services/src/session/pick.rs:30`.
+- **Fund 5 (Kopieren über einen gemeinsamen Ablauf): vom Eigentümer nicht gewählt.** Bleibt stehen und wird nicht neu gemeldet.
 
 Zehntes Audit:
-- **Fund 1 (Schnitt und Kamerablick auf eigenem Weg, `freeLook` schaltet und fragt): offen.** Beleg: `crates/app/src/bridge.rs:141`, `crates/app/src/bridge/free.rs:89`, `crates/app/qml/AppHeader.qml:367`, `crates/app/qml/AppHeader.qml:398`, `crates/app/qml/AppHeader.qml:408`, `crates/app/qml/FreeView.qml:140`.
-- **Fund 2 (Karten hängen am Zähler des Kamerabilds): offen.** Das Schließen zählt ihn jetzt über `show` hoch statt über eine eigene Zeile. Beleg: `crates/app/src/bridge.rs:28`, `crates/app/src/bridge/view.rs:457`.
+- **Fund 1 (Schnitt und Kamerablick auf eigenem Weg, `freeLook` schaltet und fragt): offen.** Beleg: `crates/app/src/bridge.rs:144`, `crates/app/src/bridge/free.rs:89`, `crates/app/qml/AppHeader.qml:367`, `crates/app/qml/FreeView.qml:140`.
+- **Fund 2 (Karten hängen am Zähler des Kamerabilds): offen,** mit der Bildkarte jetzt sieben Karten (siehe neuer Fund 3). Beleg: `crates/app/src/bridge.rs:28`, `crates/app/src/bridge/view.rs:448`.
 - **Fund 3 (Farbe eines Bildpunkts in App und Ausgabe je einmal): offen.** Beleg: `crates/app/src/plan/picture.rs:59`, `crates/export/src/style.rs:216`.
-- **Fund 4 (Punkte von freier Form und gezeichneter Fläche zweimal gebaut): offen.** Beleg: `crates/services/src/plan_edit/drawings.rs:42`, `crates/services/src/plan_edit/moving/forms.rs:25`, `crates/services/src/plan_edit/moving.rs:221`, `crates/stellprobe/src/display/handles.rs:64`, `crates/stellprobe/src/display/handles.rs:67`.
+- **Fund 4 (Punkte von freier Form und gezeichneter Fläche zweimal gebaut): offen.** Beleg: `crates/services/src/plan_edit/drawings.rs:42`, `crates/services/src/plan_edit/moving/forms.rs:25`, `crates/services/src/plan_edit/moving.rs:222`, `crates/stellprobe/src/display/handles.rs:64`, `crates/stellprobe/src/display/handles.rs:67`.
 - **Fund 5 („was eine Kamera sieht“ dreimal, „gewählte Kamera“ viermal): offen.** Beleg: `crates/app/src/bridge/export.rs:84`, `crates/app/src/bridge/shots.rs:57`, `crates/app/src/bridge/free.rs:92`, `crates/app/src/bridge/picture.rs:41`, `crates/services/src/session/views.rs:146`.
-
-Neuntes Audit:
-- **Fund 1 (neue Griffart an rund 14 Stellen): behoben (#178),** bis auf die Reste in neuem Fund 2. Eine Rolle `Handle` gilt für alle gleich aussehenden Griffe. `Source::owner` nennt das Element jedes Griffs. Ebene und Auswahl lesen es; Löschen und Drehen zählen die Griffe nicht mehr einzeln auf. `ARCHITECTURE.md` hat eine Zeile „New grip“. Beleg: `crates/stellprobe/src/display.rs:133`, `crates/app/src/selection.rs:47`.
 
 Achtes Audit:
 - **Fund 1 (Seite und Scharnier der Tür in eigenen Listen der Karte): offen.** Beleg: `crates/app/qml/OpeningCard.qml:32`, `crates/app/src/object.rs:131`.
@@ -131,7 +135,7 @@ Achtes Audit:
 Siebtes Audit:
 - **Fund 1 (App errät Knick beim Ziehen): offen.** Beleg: `crates/app/src/bridge/draw.rs:22`.
 - **Fund 2 (Feld „eigene Höhe oder Vorgabe“ dreimal): offen.** Beleg: `crates/app/qml/WallCard.qml:48`, `crates/app/qml/OpeningCard.qml:66`, `crates/app/qml/ObjectCard.qml:85`.
-- **Fund 3 (Regeln für Türen und Fenster in Ablage und Sitzung): offen.** Beleg: `crates/store/src/lib.rs:461`, `crates/services/src/plan_edit/heights.rs:74`.
+- **Fund 3 (Regeln für Türen und Fenster in Ablage und Sitzung): offen.** Beleg: `crates/store/src/lib.rs:470`, `crates/services/src/plan_edit/heights.rs:74`.
 - **Fund 4 (Kamerabild färbt mit Kopie der Farbregeln von Kante): teilweise, unverändert.** Beleg: `crates/app/qml/ViewPalette.qml:13`.
 - **Fund 5 (Raumhöhe eines neuen Drehorts in Modell und Fenster): offen.** Beleg: `crates/model/src/project.rs:192`, `crates/app/qml/LocationEditor.qml:14`.
 - **Fund 6 (Dateinamen und `Hint` als Datenquelle der Karten): offen.** Beleg: `crates/app/src/bridge/hints.rs:44`.
@@ -141,17 +145,16 @@ Sechstes Audit:
 - **Fund 3 (Spalte „Achsensprung gegen“ in Sitzung und Ausgabe): offen.** Beleg: `crates/services/src/session/shots.rs:14`, `crates/export/src/shots.rs:21`.
 
 Fünftes Audit:
-- **Fund 1 (Gleichheit von Figurennamen an drei Stellen): offen.** Die dritte Stelle ist mit #111 umgezogen. Beleg: `crates/services/src/script_refs.rs:116`, `crates/services/src/project_edit.rs:337`, `crates/services/src/project_edit/templates.rs:171`.
-- **Fund 4 (Marks verschieben und Mitte einer Gruppe mehrfach): offen.** Die Mitte der Gruppe steht weiter zweimal, mit #111 nur umgezogen. Beleg: `crates/services/src/plan_edit/group.rs:184`, `crates/services/src/project_edit/templates.rs:284`.
-- **Fund 5 (Einsetzen einer Vorlage ruft im Kreis): behoben (#111).** Das Einsetzen liegt jetzt ganz bei den Projektänderungen. Die Planänderungen rufen sie nicht mehr. Beleg: `crates/services/src/project_edit/templates.rs:13`.
+- **Fund 1 (Gleichheit von Figurennamen an drei Stellen): offen.** Beleg: `crates/services/src/script_refs.rs:116`, `crates/services/src/project_edit.rs:337`, `crates/services/src/project_edit/templates.rs:171`.
+- **Fund 4 (Marks verschieben und Mitte einer Gruppe mehrfach): offen.** Beleg: `crates/services/src/plan_edit/group.rs:184`, `crates/services/src/project_edit/templates.rs:284`.
 
 Viertes Audit:
-- **Fund 2 (Verbindungsdatei): erledigt durch Entscheidung des Eigentümers (#183),** siehe elftes Audit, Fund 5.
 - **Fund 3 (Lampenkarte als Kopie der Kamerakarte): offen.** Beleg: `crates/app/qml/CameraCard.qml:95`, `crates/app/qml/LightCard.qml:74`.
-- **Fund 5 (Winkel beim Messen in der App berechnet): behoben (#119).** Die Sitzung rechnet ihn, die App zeigt ihn nur. Beleg: `crates/services/src/measure.rs:8`, `crates/app/src/tools.rs:465`.
 
 Drittes Audit:
-- **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): Rest offen.** Die Kommandozeile schreibt für „keine solche Szene“ und „Szene ohne Plan“ weiter eigene englische Sätze. Beleg: `crates/cli/src/main.rs:186`, `crates/cli/src/main.rs:197`.
+- **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): Rest offen.** Beleg: `crates/cli/src/main.rs:186`, `crates/cli/src/main.rs:197`.
 - **Fund 2 (Drehbuch- und Shot-Spalte je zweimal gebaut): offen.** Beleg: `crates/app/qml/Workspace.qml`.
-- **Fund 4 (angezeigte Werte in mehreren Listen ohne gegenseitige Prüfung): offen.** Die vierte Liste ist mit #179 weg, die drei übrigen (`collect`, `fill`, `show`) bleiben. Beleg: `crates/app/src/bridge/view.rs:213`.
+- **Fund 4 (angezeigte Werte in mehreren Listen ohne gegenseitige Prüfung): offen.** Beleg: `crates/app/src/bridge/view.rs:211`.
 - **Fund 5 (Bestandsliste): offen.** `item_prims` (106 Zeilen) und `scan` (98 Zeilen) sind unverändert. Beleg: `crates/export/src/layout.rs:276`, `crates/export/src/scan.rs:85`.
+
+Geprüft: Die Tests `crates/services/tests/folder.rs` (10) und `example.rs` (6) sind in diesem Audit grün gelaufen (`CARGO_TARGET_DIR=/home/arian/.cache/claude/klappe-audit13/target`). Die Strukturprüfung meldet 425 Dateien, 0 Verstöße und 31 Einträge in der Bestandsliste.
