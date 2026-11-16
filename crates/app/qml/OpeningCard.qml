@@ -15,8 +15,9 @@ ColumnLayout {
     required property var controller
 
     readonly property var info: {
-        // The plan changes with every edit; the key alone would not tell the new width.
-        card.controller.planJson
+        // Every edit raises the picture revision; the plan may not change (a drag ends as
+        // previewed), and the key alone would not tell the new width.
+        card.controller.pictureRevision
         const key = card.controller.selectedKey
         if (!key || key.indexOf("opening:") !== 0) {
             return null

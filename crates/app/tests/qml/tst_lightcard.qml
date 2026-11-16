@@ -15,7 +15,10 @@ TestCase {
     QtObject {
         id: fake
         property string planJson: "{}"
+        property int pictureRevision: 0
         property string selectedKey: ""
+        // Like the bridge's `describe`: reading it tells QML of no change.
+        property var lamp: ({ temp: 5600, power: 200 })
         property bool fieldOk: true
         property var sets: []
         property string choicesJson: JSON.stringify({
@@ -29,14 +32,21 @@ TestCase {
             return JSON.stringify({
                 kind: "light", label: led ? "LED" : "L1",
                 type: led ? "led-panel" : (bounce ? "reflector" : "fresnel"),
-                facing: 330, beam: 22.5, temp: led ? 5600 : 3200, power: bounce ? 650 : 200,
+                facing: 330, beam: 22.5, temp: led ? lamp.temp : 3200, power: bounce ? 650 : lamp.power,
                 tunable: led, gives_light: !bounce,
             })
         }
         function setLightField(field, value) {
             sets.push([field, value])
-            // Like the bridge: every edit gives a new plan, so the card reads the lamp again.
-            planJson = JSON.stringify({ edits: sets.length })
+            if (field === "temp" || field === "power") {
+                lamp[field] = Number(value)
+            }
+            // Like the bridge: every edit gives a new picture revision. The plan changes only
+            // with what it draws; the colour and the power it does not draw.
+            pictureRevision++
+            if (field !== "temp" && field !== "power") {
+                planJson = JSON.stringify({ edits: sets.length })
+            }
             return fieldOk
         }
     }
@@ -55,6 +65,8 @@ TestCase {
     function init() {
         fake.selectedKey = ""
         fake.planJson = "{}"
+        fake.pictureRevision = 0
+        fake.lamp = { temp: 5600, power: 200 }
         fake.sets = []
         fake.fieldOk = true
     }
@@ -196,5 +208,29 @@ TestCase {
         fake.selectedKey = "light:led"
 
         compare(findChild(card, "lightTempField").text, "5600")
+    }
+
+    // The plan draws no colour: the card reads the lamp again after every edit, not only
+    // after one that changes the plan (QA round 2).
+    function test_a_new_colour_stays_in_the_field() {
+        const card = shown("light:led")
+        const field = findChild(card, "lightTempField")
+
+        field.text = "4000"
+        findChild(card, "lightApply").clicked()
+
+        compare(fake.sets, [["temp", "4000"]])
+        compare(field.text, "4000")
+    }
+
+    function test_a_new_power_stays_in_the_field() {
+        const card = shown("light:led")
+        const field = findChild(card, "lightPowerField")
+
+        field.text = "300"
+        findChild(card, "lightApply").clicked()
+
+        compare(fake.sets, [["power", "300"]])
+        compare(field.text, "300")
     }
 }

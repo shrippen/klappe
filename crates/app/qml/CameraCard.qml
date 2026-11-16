@@ -20,9 +20,10 @@ ColumnLayout {
     /// The button for "More"; the selection card has one for all its sections.
     property bool showMore: true
 
-    // The plan changes with every edit; the key alone would not tell the new values.
+    // Every edit raises the picture revision; the plan may not change (a drag ends as
+    // previewed), and the key alone would not tell the new values.
     readonly property var info: {
-        card.controller.planJson
+        card.controller.pictureRevision
         const key = card.controller.selectedKey
         if (!key || key.indexOf("camera:") !== 0) {
             return null

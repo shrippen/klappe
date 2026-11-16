@@ -15,9 +15,10 @@ KanteCard {
     required property var texts
     required property var controller
 
-    // The plan changes with every edit; the key alone would not tell the new values.
+    // The picture revision rises with every edit; the plan does not draw colour and power,
+    // and the key alone would not tell the new values.
     readonly property var info: {
-        card.controller.planJson
+        card.controller.pictureRevision
         const key = card.controller.selectedKey
         if (!key || key.indexOf("light:") !== 0) {
             return null
@@ -41,7 +42,8 @@ KanteCard {
     onInfoChanged: card.fill()
     Component.onCompleted: card.fill()
 
-    // Whether an apply is running: its edits refresh the plan, and `fill()` waits for the end.
+    // Whether an apply is running: each of its edits raises the picture revision, and `fill()`
+    // waits for the end.
     property bool applying: false
 
     readonly property var numberFields: [
@@ -69,7 +71,7 @@ KanteCard {
     }
 
     // Sets each typed field of `fields` ([name, field] pairs). The texts are read first and
-    // the card filled once at the end: each edit refreshes the plan, and a fill in between
+    // the card filled once at the end: each edit rereads the lamp, and a fill in between
     // would write the lamp's values over fields not yet applied. A sent field then shows the
     // lamp's value, so a second apply sends nothing; a refused one keeps its text and is
     // marked.
@@ -91,7 +93,7 @@ KanteCard {
         }
         card.applying = false
 
-        // Only an edit refreshes the plan; without one the fields stay as typed.
+        // Only an edit rereads the lamp; without one the fields stay as typed.
         if (sent.length > 0) {
             card.fill()
         }
