@@ -98,6 +98,20 @@ fn side(s: &Session, n: usize) -> Source {
     }
 }
 
+/// Where the grip of side `n` sits on the plan.
+fn side_place(s: &Session, n: usize) -> Point {
+    let list = s.display_list_for(Some(&form(s)));
+
+    list.items
+        .iter()
+        .filter(|i| i.source == Some(side(s, n)))
+        .find_map(|i| match &i.shape {
+            Shape::Circle { center, .. } => Some(*center),
+            _ => None,
+        })
+        .expect("side grip")
+}
+
 fn pull(s: &mut Session, n: usize, dx_m: f64, dy_m: f64) -> Result<(), ServiceError> {
     let source = side(s, n);
 
@@ -308,13 +322,17 @@ fn a_turned_form_keeps_the_points_when_a_side_is_pulled() {
     turn(&mut s, 90.0);
     let before = places(&s);
 
+    let grip = side_place(&s, 2);
+
     pull(&mut s, 2, 2.0, 1.0).unwrap();
 
+    // The new point lands where the grip was dropped, on the plan, turn or not.
     let after = places(&s);
     assert_eq!(after.len(), 4);
     for n in 0..3 {
         assert!(near(before[n], after[n]), "point {n}");
     }
+    assert!(near(after[3], Point::new(grip.x_m + 2.0, grip.y_m + 1.0)), "{:?}", after[3]);
 }
 
 /// A side not pulled at all makes no point.
