@@ -4,7 +4,8 @@
 
 use klappe_services::{
     measure_angle_deg, read_number, Dash, DrawingShape, Field, FigureColor, Fill, Layer, Lock,
-    OpeningKind, PlanEdit, Point, Range, ServiceError, Source, Unit, MIN_OBJECT_HEIGHT_M,
+    ObjectChange, OpeningKind, PlanEdit, Point, Range, ServiceError, Source, Unit,
+    MIN_OBJECT_HEIGHT_M,
 };
 
 /// A new camera looks to the right (0°); the user turns it afterwards.
@@ -580,6 +581,8 @@ pub enum NoteDraft {
     Idle,
     New(Point),
     Edit(String),
+    /// A new note bound to an element (LH-118).
+    Label(Source),
 }
 
 impl NoteDraft {
@@ -628,6 +631,10 @@ pub fn note_edit(draft: &NoteDraft, text: &str) -> Option<PlanEdit> {
         NoteDraft::Edit(id) => Some(PlanEdit::EditNote {
             id: id.clone(),
             text: text.to_owned(),
+        }),
+        NoteDraft::Label(source) => Some(PlanEdit::SetObject {
+            source: source.clone(),
+            change: ObjectChange::Label(text.to_owned()),
         }),
     }
 }

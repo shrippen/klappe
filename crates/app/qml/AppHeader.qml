@@ -50,7 +50,7 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
-                                    actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
+                                    actFree, actWallCut, actThrough, actHeights, actMirror, actResetSize, actLabel, actUnbind, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actUndo, actRedo]
@@ -430,6 +430,63 @@ RowLayout {
             }
         }
     }
+    // What is selected, for the commands of an object, an element to label and a bound note.
+    readonly property string selectedKey: controller.selectedKey || ""
+    readonly property bool objectSelected: header.selectedKey.indexOf("object:") === 0
+    // An object, a figure or a mark: not the grip of one (`objectgrip:`, `figurevia:`).
+    readonly property bool labellable: /^(object|figure|mark):/.test(header.selectedKey)
+    // A note bound to an element; every edit raises the picture revision.
+    readonly property bool noteBound: {
+        header.controller.pictureRevision
+        if (header.selectedKey.indexOf("note:") !== 0 || typeof header.controller.describe !== "function") {
+            return false
+        }
+        const info = header.controller.describe(header.selectedKey)
+        return info !== "" && JSON.parse(info).bound === true
+    }
+    // Mirror (Shift+M), reset size (Shift+S), label (Shift+L) and let a label go (Shift+U)
+    // (LH-115, LH-116, LH-118); the kind is changed from the palette ("kind:<kind>") or the card.
+    CommandAction {
+        id: actMirror
+        cmd: "object.mirror"
+        group: "edit"
+        text: header.texts.t("object.mirror")
+        shortcut: "Shift+M"
+        keys: header.keyName("Shift+M")
+        enabled: header.controller.loaded && !header.locked && header.objectSelected
+        onTriggered: header.controller.changeSelected("mirror", "")
+    }
+    CommandAction {
+        id: actResetSize
+        cmd: "object.resetSize"
+        group: "edit"
+        text: header.texts.t("object.resetSize")
+        shortcut: "Shift+S"
+        keys: header.keyName("Shift+S")
+        enabled: header.controller.loaded && !header.locked && header.objectSelected
+        onTriggered: header.controller.changeSelected("resetSize", "")
+    }
+    CommandAction {
+        id: actLabel
+        cmd: "object.label"
+        group: "edit"
+        text: header.texts.t("object.label")
+        shortcut: "Shift+L"
+        keys: header.keyName("Shift+L")
+        enabled: header.controller.loaded && !header.locked && header.labellable
+        onTriggered: header.controller.labelSelected()
+    }
+    CommandAction {
+        id: actUnbind
+        cmd: "note.unbind"
+        group: "edit"
+        text: header.texts.t("note.unbind")
+        shortcut: "Shift+U"
+        keys: header.keyName("Shift+U")
+        enabled: header.controller.loaded && !header.locked && header.noteBound
+        onTriggered: header.controller.changeSelected("unbind", "")
+    }
+
     // The checkmark follows the controller, which also leaves 3D when another project opens.
     Binding {
         target: actFree
@@ -613,8 +670,8 @@ RowLayout {
 
     // What the palette lists: the modes, the tools, the actions, the scenes, the plans. Each is
     // listed with the key it has anywhere else.
-    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), sceneCommands(),
-                                              actionCommands(planMenu.actions), planCommands())
+    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), kindCommands(),
+                                              sceneCommands(), actionCommands(planMenu.actions), planCommands())
 
     function actionCommands(actions) {
         return actions.map(a => ({
@@ -652,6 +709,19 @@ RowLayout {
         }))
     }
 
+    // One entry per library kind while an object is selected: change its kind (LH-114).
+    function kindCommands() {
+        if (!objectSelected || !controller.choicesJson) {
+            return []
+        }
+        return (JSON.parse(controller.choicesJson).object || []).map(o => ({
+            id: "kind:" + o.kind,
+            text: texts.t("object.kindTo", { name: o.custom ? (o.label || o.kind) : texts.t("objectKind." + o.kind) }),
+            group: texts.t("palette.group.edit"),
+            enabled: controller.loaded && !locked
+        }))
+    }
+
     function sceneCommands() {
         return project.scenes.map(s => ({
             id: "scene:" + s.id,
@@ -681,6 +751,9 @@ RowLayout {
             return
         case "tool":
             tools.tool = target
+            return
+        case "kind":
+            controller.changeSelected("kind", target)
             return
         case "scene":
             controller.selectScene(target)

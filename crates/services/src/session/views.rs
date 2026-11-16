@@ -292,6 +292,7 @@ impl Session {
             height_m: o.height_m,
             base_m: object_extent(set, index).0,
             base_default: o.base_m.is_none(),
+            mirrored: o.mirrored,
         })
     }
 
@@ -343,8 +344,15 @@ impl Session {
 
     /// The tooltip of note `id`; empty text for an unknown note.
     pub fn note_hint(&self, id: &str) -> Hint {
+        let notes = self.scene_location().map(|l| l.set.notes.as_slice());
+        let bound = notes
+            .unwrap_or_default()
+            .iter()
+            .any(|n| n.id == id && n.bound.is_some());
+
         Hint::Note {
             text: self.note_text(id).unwrap_or_default(),
+            bound,
         }
     }
 

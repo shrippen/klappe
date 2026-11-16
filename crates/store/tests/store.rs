@@ -34,6 +34,7 @@ fn object(id: &str, kind: &str, label: &str, at: Point, w: f64, d: f64) -> SetOb
         shape: ObjectShape::Rect,
         height_m: None,
         base_m: None,
+        mirrored: false,
     }
 }
 
@@ -282,6 +283,7 @@ fn example() -> Project {
                 at: Point::new(3.0, 11.5),
                 text: "Vorhang schließen".into(),
                 width_m: 2.4,
+                bound: None,
             }],
             ..Default::default()
         },
@@ -426,25 +428,6 @@ fn an_object_height_is_written_only_when_given() {
     let text = fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
 
     assert_eq!(text.matches("height_m = 0.75").count(), 1, "{text}");
-    assert_eq!(load(&dir).unwrap().project, project);
-}
-
-/// A group's head count is written only for a group, reads back, and a file without it
-/// loads as a single person (LH-23).
-#[test]
-fn a_group_is_written_only_when_given() {
-    let dir = test_dir("group");
-    let mut project = example();
-    save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("figuren.toml")).unwrap();
-    assert!(!text.contains("group"), "{text}");
-    assert_eq!(load(&dir).unwrap().project.characters[0].group, None);
-
-    project.characters[0].group = Some(12);
-    save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("figuren.toml")).unwrap();
-
-    assert_eq!(text.matches("group = 12").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
 

@@ -99,6 +99,15 @@ impl qobject::Controller {
         self.commit_typed(typed)
     }
 
+    pub(super) fn change_selected(self: Pin<&mut Self>, what: &QString, arg: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = object::change_edit(selected, &what.to_string(), &arg.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
     pub(super) fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool {
         let selected = self.rust().selected.only();
         let typed = object::object_height_edit(selected, &height.to_string());

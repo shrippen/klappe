@@ -68,7 +68,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   (Name), `width_m`, `depth_m` und `shape`. Dieselbe Struktur hat eine Bibliotheksdatei zum
   Weitergeben (beliebiger Name, `*.toml`). Optional `group` (LH-12): die Gruppe, unter der die
   Auswahlliste den Eintrag zeigt; in der eingebauten Bibliothek ein Schlüssel (`furniture`,
-  `build`, `vehicles`, `nature`, `camera`; Namen im Katalog unter `objectGroup.<group>`), bei
+  `build`, `vehicles`, `nature`, `camera`, `crew`, `props`; Namen im Katalog unter
+  `objectGroup.<group>`), bei
   eigenen Objekten freier Text. Ohne Gruppe steht ein eigenes Objekt unter „Eigene“; der Schlüssel
   fehlt dann in der Datei. Ein eigener Eintrag lässt sich umbenennen (`label`, `group`) und
   löschen; Objekte im Plan behalten `kind`, Maße, Form und Namen, ihr `kind` ist dann wie ein
@@ -88,6 +89,20 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   (eigener Eintrag zuerst, dann eingebaut); `[[set.objects]]` haben kein Feld dafür. Nur
   Rechtecke bekommen eine Bauform, keine Ellipse und keine freie Form. Keine neue
   Formatversion: ältere Fassungen verlieren `form` beim Speichern.
+- **Spiegeln (LH-115):** `[[set.objects]]` haben optional `mirrored` (`true`: links und rechts
+  vertauscht, entlang der eigenen Breite, vor dem Drehen). Fehlt der Schlüssel, gilt `false`;
+  ein nicht gespiegeltes Objekt schreibt ihn nicht, ältere Projekte laden und speichern
+  unverändert. Die Bauform in 3D (LH-97) wird gespiegelt; ein Rechteck und eine Ellipse sehen im
+  Plan gleich aus. Eine freie Form (`polygon`) hat das Feld nicht nötig: Spiegeln kehrt ihre
+  Punkte um (x wird -x, Reihenfolge umgekehrt), `mirrored` bleibt `false`. Keine neue
+  Formatversion (noch kein Release), ältere Fassungen verlieren das Feld beim Speichern.
+- **Art ändern, Maße zurücksetzen (LH-114, LH-116):** keine Felder, nur Bearbeitungen. Eine neue
+  Art (`kind`) behält Mitte, Drehung, Ebene und Unterkante. Breite, Tiefe, Höhe und Name folgen
+  dem neuen Bibliothekseintrag, solange das Objekt noch die des alten Eintrags hat; hat der
+  Nutzer sie geändert (oder kennt keine Bibliothek die alte Art), bleiben sie. Die Form
+  (`shape`) folgt dem neuen Eintrag, außer bei einer freien Form. Eine Art ohne Eintrag und die
+  freie Form (`form`) als Ziel werden abgelehnt. „Maße zurücksetzen“ setzt Breite, Tiefe und
+  Höhe auf die des Eintrags der Art; ohne Eintrag wird es abgelehnt.
 - **Höhe von Objekten (LH-17):** `[[set.objects]]` und `[[objekt]]` der Bibliothek haben optional
   `height_m`, die Höhe in Metern (mindestens 0,05, höchstens 100). Fehlt der Schlüssel, ist keine
   Höhe angegeben (Fläche, Teppich); ein Objekt ohne Höhe schreibt ihn nicht, ältere Projekte
@@ -140,6 +155,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   schmaler lädt nicht; fehlt sie, gilt 2,4). Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
+- **Beschriftung an ein Element gebunden (LH-118):** eine Notiz (`[[set.notes]]`) hat optional
+  `bound`, den Schlüssel des Elements, dessen Beschriftung sie ist: `object:<id>` (Objekt des
+  Drehorts), `figure:<figur>` (die Figur am Abspielkopf) oder `mark:<figur>:<index>` (der Mark
+  mit diesem Index, von 0). `at` bleibt der Ort des Kärtchens. Die Bearbeitung verschiebt es um
+  dieselbe Strecke wie das Element; zieht man die Notiz selbst, bleibt sie gebunden und das
+  Abstandsmaß ändert sich. Fehlt das Element (entfernt) oder ändert sich die Zahl der Marks der
+  Figur, wird die Bindung gelöst, die Notiz bleibt stehen. Ohne Bindung fehlt der Schlüssel;
+  ein unlesbarer Schlüssel bindet nichts. Ältere Projekte laden und speichern unverändert,
+  ältere Fassungen verlieren `bound` beim Speichern. Keine neue Formatversion.
 - **Bilder (LH-18):** `[[set.images]]` im Drehort: Fotos und Skizzen, frei auf dem Plan. Je Bild
   `id` (`i1`, `i2` …, innerhalb des Drehorts), `file` (relativ zum Projektordner, die Datei liegt
   in `bilder/`, PNG oder JPEG wie beim Hintergrund), die Mitte `at` in Metern, die Breite

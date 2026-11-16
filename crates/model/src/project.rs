@@ -205,6 +205,10 @@ pub struct Note {
     /// Width of the card in metres (LH-16); the text wraps to it.
     #[serde(default = "default_note_width_m")]
     pub width_m: f64,
+    /// The element the note is a label of (LH-118): `object:<id>`, `figure:<character>` or
+    /// `mark:<character>:<index>`. `at` stays where the card is; it moves with the element.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bound: Option<String>,
 }
 
 /// The card width of a new note, and of one a file gives none.
@@ -492,6 +496,9 @@ pub struct SetObject {
     /// Height of its underside above the floor (LH-91); `None` stands it on what is below.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_m: Option<f64>,
+    /// Flipped left to right (LH-115), along its own width, before the turn.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub mirrored: bool,
 }
 
 impl SetObject {
@@ -509,6 +516,10 @@ impl SetObject {
     pub fn placed(&self, x_m: f64, y_m: f64) -> Point {
         self.rect().placed(x_m, y_m)
     }
+}
+
+fn is_false(flag: &bool) -> bool {
+    !*flag
 }
 
 fn is_rect(shape: &ObjectShape) -> bool {
@@ -547,6 +558,7 @@ mod tests {
             shape: ObjectShape::Rect,
             height_m: None,
             base_m: None,
+            mirrored: false,
         };
 
         assert_eq!(table.placed(1.0, 0.0), Point::new(11.0, 5.0));

@@ -90,7 +90,7 @@ A change that needs more places than listed is a finding for the audit.
 | New screenplay element | `script/` (element, parse, write, tests); the script lines in `services/` (`session/timeline.rs`); its look in `tui/` (`fountain.rs`) and in `app/` (`ScriptPanel.qml`). |
 | New text in a surface | The same key in `services/i18n/de.json` and `en.json`; used through `texts.t("key")` in QML or `Language::text` in Rust. |
 | New file or changed layout of the project folder | `model/` (data, `FORMAT_VERSION`); `store/`; `FORMAT.md`; `testdata/`; regenerate the examples (`cargo run -p klappe-demo`). |
-| New library object, camera preset or lamp | Data only: `store/library/standard.toml`, `store/camera/standard.toml`, `store/light/standard.toml` (and its name `lightPreset.<id>` in the catalogue). |
+| New library object, camera preset or lamp | Data only: `store/library/standard.toml` (and its 3D form in `forms.toml`, its name `objectKind.<kind>` and group `objectGroup.<group>` in the catalogue), `store/camera/standard.toml`, `store/light/standard.toml` (and its name `lightPreset.<id>` in the catalogue). |
 | New template (set-up of figures and cameras) | Data only: `store/template/standard.toml` and its name `template.<id>` in the catalogue. |
 | New component or colour for the window | Kante first (its own repository), then `scripts/sync-kante.sh`; never in `app/qml/Kante`. |
 

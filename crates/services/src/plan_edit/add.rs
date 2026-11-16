@@ -242,6 +242,7 @@ pub(super) fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result
         shape,
         height_m,
         base_m: None,
+        mirrored: false,
     });
 
     Ok(())
@@ -289,6 +290,7 @@ fn add_shape(scope: &mut Scope<'_>, points: &[Point]) -> Result<(), ServiceError
         shape: ObjectShape::Polygon { points },
         height_m: None,
         base_m: None,
+        mirrored: false,
     });
 
     Ok(())
@@ -336,7 +338,7 @@ fn room_corners(from: Point, to: Point) -> Vec<Point> {
 }
 
 /// A note's text as kept: trimmed, and more than nothing.
-fn note_text(text: &str) -> Result<String, ServiceError> {
+pub(super) fn note_text(text: &str) -> Result<String, ServiceError> {
     let text = text.trim();
     if text.is_empty() {
         return Err(ServiceError::BadValue {
@@ -361,6 +363,7 @@ pub(super) fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(
         at,
         text,
         width_m: NOTE_WIDTH_M,
+        bound: None,
     });
 
     Ok(())

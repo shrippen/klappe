@@ -437,6 +437,20 @@ pub mod qobject {
         #[cxx_name = "setObjectHeight"]
         fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool;
 
+        /// Changes the selection (LH-114 to LH-116, LH-118): `what` is `kind` (with the library
+        /// kind in `arg`), `mirror`, `resetSize` for an object, `unbind` for a bound note.
+        /// False when it does not fit the selection; a refusal by the session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "changeSelected"]
+        fn change_selected(self: Pin<&mut Self>, what: &QString, arg: &QString) -> bool;
+
+        /// Asks for the text of a note bound to the selected object, figure or mark (LH-118);
+        /// `commitNote` sets it. False when the selection cannot be labelled or the notes layer
+        /// is locked.
+        #[qinvokable]
+        #[cxx_name = "labelSelected"]
+        fn label_selected(self: Pin<&mut Self>) -> bool;
+
         /// A typed measure (LH-95): the length of the wall being dragged, else the selection's height.
         #[qinvokable]
         #[cxx_name = "typeMeasure"]

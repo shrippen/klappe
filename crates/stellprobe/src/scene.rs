@@ -441,7 +441,8 @@ fn objects(set: &SetPlan, forms: &Forms, solids: &mut Vec<Solid>) {
 }
 
 /// The floor outline and the underside and top of `part` of `object`'s body form: its
-/// fractions scaled to the object's size and turned about its centre like its outline.
+/// fractions scaled to the object's size and turned about its centre like its outline; a
+/// mirrored object's left and right are swapped.
 fn form_box(
     object: &SetObject,
     part: &FormBox,
@@ -450,11 +451,16 @@ fn form_box(
     let corner =
         |fx: f64, fy: f64| object.placed((fx - 0.5) * object.width_m, (fy - 0.5) * object.depth_m);
     let (from, to) = (part.from, part.to);
+    // Mirrored (LH-115): the box lies across the middle, its corners in the same order.
+    let (x0, x1) = match object.mirrored {
+        true => (1.0 - to[0], 1.0 - from[0]),
+        false => (from[0], to[0]),
+    };
     let outline = [
-        corner(from[0], from[1]),
-        corner(to[0], from[1]),
-        corner(to[0], to[1]),
-        corner(from[0], to[1]),
+        corner(x0, from[1]),
+        corner(x1, from[1]),
+        corner(x1, to[1]),
+        corner(x0, to[1]),
     ];
     let level = |f: f64| base_m + f * (top_m - base_m);
 
@@ -600,6 +606,7 @@ mod tests {
                 shape: ObjectShape::Rect,
                 height_m: Some(height_m),
                 base_m: None,
+                mirrored: false,
             }],
             ..SetPlan::default()
         }
@@ -681,6 +688,23 @@ mod tests {
         assert!(close((tops[0], tops[1]), (0.3, 0.6)) && (tops[2] - 0.9).abs() < 1e-9);
         let from_x: Vec<f64> = solids.iter().map(|s| range(s, 0).0).collect();
         assert!(from_x[0] < from_x[1] && from_x[1] < from_x[2]);
+    }
+
+    /// Mirrored (LH-115), the flight rises the other way: its first step lies at the right end.
+    #[test]
+    fn a_mirrored_flight_rises_the_other_way() {
+        let step = |i: f64| ([i / 3.0, 0.0, 0.0], [(i + 1.0) / 3.0, 1.0, (i + 1.0) / 3.0]);
+        let forms = forms_of("stairs", &[step(0.0), step(1.0), step(2.0)]);
+        let mut set = placed("stairs", 0.0, 0.9);
+        let mut solids = Vec::new();
+        set.objects[0].mirrored = true;
+
+        objects(&set, &forms, &mut solids);
+
+        let tops: Vec<f64> = solids.iter().map(|s| range(s, 2).1).collect();
+        assert!(close((tops[0], tops[1]), (0.3, 0.6)) && (tops[2] - 0.9).abs() < 1e-9);
+        assert!(close(range(&solids[0], 0), (9.2 + 1.6 * 2.0 / 3.0, 10.8)));
+        assert!(range(&solids[1], 0).0 > range(&solids[2], 0).0);
     }
 
     /// A 4 m wall, 0.2 m thick, with a window from 1 to 2 m: two full boxes and one each

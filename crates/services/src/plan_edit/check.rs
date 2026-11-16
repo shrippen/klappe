@@ -50,9 +50,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             check_distance(*distance_m)
         }
         PlanEdit::MoveBackground { dx_m, dy_m } => check_point(Point::new(*dx_m, *dy_m)),
-        PlanEdit::Resize {
-            width_m, depth_m, ..
-        } => check_object_size(*width_m, *depth_m),
+        PlanEdit::Resize { .. } | PlanEdit::SetObjectHeight { .. } => check_object(edit),
         PlanEdit::AddDrawing { shape, .. } => check_shape(shape),
         PlanEdit::SetSensor {
             width_mm, aspect, ..
@@ -64,11 +62,12 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
             height_m, tilt_deg, ..
         } => check_camera_aim(*height_m, *tilt_deg),
         PlanEdit::SetMarkLens { lens_mm, .. } => lens_mm.map_or(Ok(()), camera_edit::check_lens),
-        PlanEdit::SetObjectHeight { height_m, .. } => check_object_height(*height_m),
         PlanEdit::SetWallHeight { .. }
         | PlanEdit::SetOpeningHead { .. }
         | PlanEdit::SetOpeningSill { .. }
         | PlanEdit::SetObjectBase { .. } => check_heights(edit),
+        // The kind is checked against the library when it applies.
+        PlanEdit::SetObject { .. } => Ok(()),
         PlanEdit::Remove { .. }
         | PlanEdit::RemoveGroup { .. }
         | PlanEdit::Straighten { .. }
@@ -133,6 +132,17 @@ fn check_camera_aim(height_m: f64, tilt_deg: f64) -> Result<(), ServiceError> {
     }
 
     Ok(())
+}
+
+/// The size and height an edit gives an object.
+fn check_object(edit: &PlanEdit) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::Resize {
+            width_m, depth_m, ..
+        } => check_object_size(*width_m, *depth_m),
+        PlanEdit::SetObjectHeight { height_m, .. } => check_object_height(*height_m),
+        _ => Ok(()),
+    }
 }
 
 /// An object's height, when given: a number, not under the least height, not absurd.

@@ -62,6 +62,15 @@ fn the_typed_text_makes_the_note_edit() {
             text: "Licht aus".into()
         })
     );
+    // LH-118: a label is the same text, bound to an element.
+    let tisch = Source::Object("tisch".into());
+    assert_eq!(
+        note_edit(&NoteDraft::Label(tisch.clone()), " Gedeck "),
+        Some(PlanEdit::SetObject {
+            source: tisch,
+            change: ObjectChange::Label("Gedeck".into())
+        })
+    );
     assert_eq!(note_edit(&NoteDraft::New(at), "  "), None);
     assert_eq!(note_edit(&NoteDraft::Idle, "x"), None);
 }
