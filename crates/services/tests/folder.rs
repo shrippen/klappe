@@ -141,6 +141,28 @@ mod trash {
     }
 
     #[test]
+    fn a_folder_with_too_many_files_is_refused_and_stays() {
+        let trash = own_trash();
+        let parent = scratch("archive-big");
+        let dir = project(&parent, "gross.klappe");
+        let many = dir.join("viele");
+        std::fs::create_dir_all(&many).unwrap();
+        for n in 0..=u16::MAX {
+            std::fs::write(many.join(n.to_string()), b"").unwrap();
+        }
+
+        let refused = archive_project(&dir);
+
+        assert!(matches!(
+            refused,
+            Err(ServiceError::Export(klappe_export::ExportError::ZipTooBig))
+        ));
+        assert!(dir.join("projekt.toml").is_file());
+        assert!(!trash.join("gross.klappe").exists());
+        assert!(!parent.join("gross.klappe.zip").exists());
+    }
+
+    #[test]
     fn a_taken_archive_name_is_not_overwritten() {
         own_trash();
         let parent = scratch("archive-taken");

@@ -86,10 +86,52 @@ fn common(crc: u32, size: u32, name_len: usize) -> Vec<u8> {
     out
 }
 
+/// A size or offset as the format's 32 bits.
+fn offset_of(len: usize) -> Result<u32, crate::ExportError> {
+    Ok(len as u32)
+}
+
 fn put16(out: &mut Vec<u8>, v: u16) {
     out.extend_from_slice(&v.to_le_bytes());
 }
 
 fn put32(out: &mut Vec<u8>, v: u32) {
     out.extend_from_slice(&v.to_le_bytes());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{zip_files, zip_fits, ExportError};
+
+    const GIB4: u64 = 1 << 32;
+
+    #[test]
+    fn the_65536th_entry_is_refused() {
+        let names: Vec<String> = (0..=u16::MAX).map(|n| n.to_string()).collect();
+        let files: Vec<(&str, &[u8])> = names.iter().map(|n| (n.as_str(), &[][..])).collect();
+
+        assert!(matches!(zip_files(&files), Err(ExportError::ZipTooBig)));
+        assert!(zip_files(&files[..usize::from(u16::MAX)]).is_ok());
+    }
+
+    #[test]
+    fn a_size_of_4_gib_is_refused_before_anything_is_read() {
+        assert!(matches!(zip_fits(1, GIB4), Err(ExportError::ZipTooBig)));
+        assert!(matches!(zip_fits(1, u64::MAX), Err(ExportError::ZipTooBig)));
+        assert!(matches!(
+            zip_fits(usize::from(u16::MAX) + 1, 0),
+            Err(ExportError::ZipTooBig)
+        ));
+        assert!(zip_fits(usize::from(u16::MAX), GIB4 - 1).is_ok());
+    }
+
+    #[test]
+    fn an_offset_past_4_gib_is_refused() {
+        assert!(matches!(
+            offset_of(GIB4 as usize),
+            Err(ExportError::ZipTooBig)
+        ));
+        assert!(offset_of(1).is_ok());
+    }
 }

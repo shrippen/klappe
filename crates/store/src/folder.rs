@@ -36,6 +36,27 @@ fn collect(dir: &Path, prefix: &str, out: &mut Vec<(String, Vec<u8>)>) -> Result
     Ok(())
 }
 
+/// How many files lie below `dir` and their bytes in all, without reading them.
+pub fn folder_size(dir: &Path) -> Result<(usize, u64), StoreError> {
+    let mut count = 0;
+    let mut bytes = 0;
+    for entry in fs::read_dir(dir).map_err(|e| io_err(dir, e))? {
+        let entry = entry.map_err(|e| io_err(dir, e))?;
+        let path = entry.path();
+        if path.is_dir() {
+            let (inner_count, inner_bytes) = folder_size(&path)?;
+            count += inner_count;
+            bytes += inner_bytes;
+            continue;
+        }
+
+        count += 1;
+        bytes += entry.metadata().map_err(|e| io_err(&path, e))?.len();
+    }
+
+    Ok((count, bytes))
+}
+
 /// `<dir>.<ext>` beside `dir`, or `<dir> (2).<ext>`, `(3)` ... when that is taken.
 pub fn free_sibling(dir: &Path, ext: &str) -> Result<PathBuf, StoreError> {
     let name = dir.file_name().unwrap_or_default().to_string_lossy();

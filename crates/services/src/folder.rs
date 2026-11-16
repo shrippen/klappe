@@ -43,7 +43,7 @@ pub fn archive_project(dir: &Path) -> Result<PathBuf, ServiceError> {
         .collect();
 
     let target = klappe_store::free_sibling(dir, ARCHIVE_EXT)?;
-    klappe_store::write_atomic(&target, &klappe_export::zip_files(&entries))?;
+    klappe_store::write_atomic(&target, &klappe_export::zip_files(&entries)?)?;
     klappe_store::move_to_trash(dir)?;
 
     Ok(target)
