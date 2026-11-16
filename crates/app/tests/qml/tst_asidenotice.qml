@@ -37,6 +37,21 @@ TestCase {
         return notice
     }
 
+    // The callout's close cross: what a click or a screen reader runs.
+    function cross(item) {
+        for (let i = 0; i < item.children.length; ++i) {
+            const child = item.children[i]
+            if (child.text === "×") {
+                return child
+            }
+            const found = cross(child)
+            if (found) {
+                return found
+            }
+        }
+        return null
+    }
+
     function test_nothing_shows_without_a_note() {
         verify(!make().visible)
     }
@@ -70,5 +85,15 @@ TestCase {
         verify(!notice.visible)
         fake.exampleAside = note
         verify(notice.visible, "a later note shows again")
+    }
+
+    function test_a_later_note_shows_after_closing_with_the_cross() {
+        const notice = make()
+        fake.exampleAside = note
+
+        cross(notice).dismiss()
+        fake.exampleAside = note
+
+        verify(notice.visible, "closing must not cut the binding")
     }
 }
