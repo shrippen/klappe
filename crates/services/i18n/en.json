@@ -398,6 +398,7 @@
  "error.noScene": "Scene not found: {detail}",
  "error.noPlan": "Plan not found: {detail}",
  "error.noShot": "Shot not found: {detail}",
+ "error.noVersion": "No version can be added to {detail}: version letters follow a digit, at most three",
  "error.badValue": "Invalid value for {field}: {value}",
  "error.badField": "Invalid value for {field}",
  "error.notCopyable": "The selection cannot be duplicated",

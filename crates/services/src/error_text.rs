@@ -10,6 +10,7 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         ServiceError::NoScene(id) => ("error.noScene", id.clone()),
         ServiceError::NoPlan(id) => ("error.noPlan", id.clone()),
         ServiceError::NoShot(id) => ("error.noShot", id.clone()),
+        ServiceError::NoVersion(number) => ("error.noVersion", number.clone()),
         ServiceError::NoLocation(id) => ("error.noLocation", id.clone()),
         ServiceError::NoCharacter(id) => ("error.noCharacter", id.clone()),
         ServiceError::NotEmpty(path) => ("error.notEmpty", path.to_string_lossy().into_owned()),
@@ -92,6 +93,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::NoScene(_)
         | ServiceError::NoPlan(_)
         | ServiceError::NoShot(_)
+        | ServiceError::NoVersion(_)
         | ServiceError::NoLocation(_)
         | ServiceError::NoCharacter(_)
         | ServiceError::NotEmpty(_)
@@ -284,6 +286,7 @@ mod tests {
         let errors = [
             ServiceError::NoScene("s".to_owned()),
             ServiceError::NoShot("x".to_owned()),
+            ServiceError::NoVersion("12.3ZZZ".to_owned()),
             ServiceError::Gone,
             ServiceError::NoLocation("l".to_owned()),
             ServiceError::NoFreeCamera,

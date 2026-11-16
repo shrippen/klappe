@@ -398,6 +398,7 @@
  "error.noScene": "Szene nicht gefunden: {detail}",
  "error.noPlan": "Plan nicht gefunden: {detail}",
  "error.noShot": "Shot nicht gefunden: {detail}",
+ "error.noVersion": "Zu {detail} lässt sich keine Version anlegen: Versionsbuchstaben stehen nach einer Ziffer, höchstens drei",
  "error.badValue": "Ungültiger Wert für {field}: {value}",
  "error.badField": "Ungültiger Wert für {field}",
  "error.notCopyable": "Die Auswahl lässt sich nicht duplizieren",

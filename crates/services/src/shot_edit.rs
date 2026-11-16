@@ -181,10 +181,7 @@ pub(crate) fn version(plan: &mut FloorPlan, scene: &str, id: &str) -> Result<Str
     let counts =
         base.ends_with(|c: char| c.is_ascii_digit()) && suffix.len() <= MAX_VERSION_LETTERS;
     if !counts {
-        return Err(ServiceError::BadValue {
-            field: Field::Number,
-            value: original.number.clone(),
-        });
+        return Err(ServiceError::NoVersion(original.number.clone()));
     }
 
     let mut shot = original.clone();

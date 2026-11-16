@@ -16,6 +16,9 @@ pub enum ServiceError {
     NoBackup,
     #[error("no shot {0}")]
     NoShot(String),
+    /// The shot number has no further version (`INSERT`, `12.3ZZZ`).
+    #[error("no version of {0}")]
+    NoVersion(String),
     /// What an edit names is no longer in the plan.
     #[error("the element is gone")]
     Gone,

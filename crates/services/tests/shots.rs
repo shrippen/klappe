@@ -668,7 +668,8 @@ fn a_number_without_a_digit_before_its_letters_has_no_versions() {
 
     // A version would have letters that count as no version: a second one would repeat it.
     for id in ["s12-3", "s12-4", "s12-5"] {
-        assert!(s.version_shot(id).is_err(), "{id}");
+        let refused = s.version_shot(id);
+        assert!(matches!(refused, Err(ServiceError::NoVersion(_))), "{id}");
     }
     assert_eq!(
         numbers(&s),
