@@ -358,12 +358,12 @@ fn prints_the_plan_as_pdf() {
 
     let bytes = std::fs::read(&path).unwrap();
     assert!(bytes.starts_with(b"%PDF-"));
-    // The plan and one sheet of shots.
+    // The plan, one sheet of shots and one of camera views (LH-86).
     assert_eq!(
         String::from_utf8_lossy(&bytes)
             .matches("/Type /Page /")
             .count(),
-        2
+        3
     );
     assert_eq!(s.plan_title(), "12 · INT. SÄNGERSAAL – TAG · Plan A");
 }

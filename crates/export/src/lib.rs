@@ -1,4 +1,4 @@
-//! Writes Stellprobe's display list as SVG, PDF and PNG, and the shot list as PDF, CSV, ODS and XLSX (planung/KONZEPT.md, section 4).
+//! Writes Stellprobe's display list as SVG, PDF and PNG, the shot list as PDF, CSV, ODS and XLSX, and the views of the set (PNG, PDF pages) (planung/KONZEPT.md, section 4).
 //! The GUI draws the same list, so the printout matches the screen (LH-80/81).
 //!
 //! ```text
@@ -9,6 +9,7 @@
 //!
 //! Colours come from Kante's `palette.json` (`scripts/sync-kante.sh`), never from Rust.
 
+mod camera_pages;
 mod canvas;
 mod deflate;
 mod error;
@@ -23,6 +24,7 @@ mod ods;
 mod page;
 mod palette;
 mod pdf;
+mod picture_png;
 mod png;
 mod png_write;
 mod raster;
@@ -41,8 +43,10 @@ use klappe_model::FloorPlan;
 
 pub use error::ExportError;
 pub use klappe_model::{Orientation, Paper};
-pub use klappe_stellprobe::{DisplayList, Lamp, ShotOrder};
-pub use page::{DrawingTexts, LampColumns, LampTexts, Page, ShotColumns, ShotTexts, Texts};
+pub use klappe_stellprobe::{DisplayList, Lamp, Picture, ShotOrder, VectorView};
+pub use page::{
+    DrawingTexts, LampColumns, LampTexts, Page, ShotColumns, ShotTexts, ShotView, Texts,
+};
 pub use palette::Theme;
 
 /// The plan on one page as SVG.
@@ -76,10 +80,32 @@ pub fn pdf_with_shots(
     plan: &FloorPlan,
     order: ShotOrder,
 ) -> Result<Vec<u8>, ExportError> {
+    pdf_with_views(list, page, theme, plan, order, &[])
+}
+
+/// `pdf_with_shots`, then the pages of camera views (LH-86): each shot of `views` at its
+/// start, in `order`, six to a page in the page's paper and orientation; a shot without a
+/// view is left out.
+pub fn pdf_with_views(
+    list: &DisplayList,
+    page: &Page,
+    theme: Theme,
+    plan: &FloorPlan,
+    order: ShotOrder,
+    views: &[ShotView],
+) -> Result<Vec<u8>, ExportError> {
+    let pal = palette::palette(theme)?;
     let mut doc = layout::compose(list, page, theme)?;
-    doc.sheets = table::sheets(plan, page, palette::palette(theme)?, order)?;
+    doc.sheets = table::sheets(plan, page, pal, order)?;
+    doc.sheets
+        .extend(camera_pages::sheets(plan, page, pal, order, views)?);
 
     pdf::write(&doc)
+}
+
+/// A view of the set as PNG (LH-86), as wide as the picture: print colours, names written in.
+pub fn picture_png(picture: &Picture, theme: Theme) -> Result<Vec<u8>, ExportError> {
+    picture_png::write(picture, theme)
 }
 
 /// The plan's shots in `order` as CSV (LH-82): RFC 4180, UTF-8, `\r\n`, numbers with a point.

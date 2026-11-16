@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::Project;
 use klappe_script::Script;
-use klappe_stellprobe::Orbit;
+use klappe_stellprobe::{Cut, Orbit};
 use klappe_store::ImageStamp;
 
 use crate::error::{write_failed, ServiceError};
@@ -163,6 +163,18 @@ pub struct Session {
     /// Which view of the set shows, and where the 3D view looks once it has been opened.
     view: View,
     orbit: Option<Orbit>,
+    /// The 3D view's wall cut (LH-98) and the camera it looks through (LH-99), if any.
+    cut: Cut,
+    through: Option<Through>,
+}
+
+/// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends
+/// for good (`end_stale_look`) when another plan shows or the camera is gone.
+#[derive(Debug)]
+struct Through {
+    scene: String,
+    plan: String,
+    camera: String,
 }
 
 /// `dir` may be missing or an empty folder; anything else would mix the project with it.

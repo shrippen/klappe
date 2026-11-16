@@ -279,6 +279,10 @@
  "view.none": "Kein Kamerablick: Die Kamera des Shots hat keine Marks.",
  "view.free": "3D-Ansicht",
  "view.freeNone": "3D-Ansicht: Für diesen Plan gibt es noch nichts zu sehen.",
+ "view.wallCut": "Wände kappen",
+ "view.through": "Durch Kamera sehen",
+ "view.throughHint": "Blick durch die Kamera · Drehen, Schieben und Zoomen verlässt ihn",
+ "view.throughRefused": "Kein Shot und keine Kamera gewählt, oder die Kamera hat keine Marks.",
  "height.missing": "Höhe ?",
  "height.missingHeader": "{n} ohne Höhe · ergänzen (Umschalt+H)",
  "height.next": "Höhen ergänzen",
@@ -630,5 +634,15 @@
  "menu.markPrev": "Voriger Mark",
  "menu.markNext": "Nächster Mark",
  "palette.group.playback": "Wiedergabe",
- "key.space": "Leertaste"
+ "key.space": "Leertaste",
+ "shots.views": "Kamerablicke",
+ "menu.view3d": "3D-Ansicht als PNG",
+ "menu.camera": "Kamerablick als PNG",
+ "menu.view3dSaved": "3D-Ansicht gespeichert: {path}",
+ "menu.cameraSaved": "Kamerablick gespeichert: {path}",
+ "export.pick.view3d": "3D-Ansicht speichern",
+ "export.pick.camera": "Kamerablick speichern",
+ "export.filter.view3d": "PNG (*.png)",
+ "export.filter.camera": "PNG (*.png)",
+ "error.noPicture": "Es gibt kein Bild: Die 3D-Ansicht war noch nicht offen, oder die Kamera hat keine Marks."
 }

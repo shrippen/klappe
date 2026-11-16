@@ -82,6 +82,24 @@ Item {
                 return root.fail("frames into a folder that is not empty reported success")
             }
 
+            // LH-86: the 3D view (as the view is shown, so after `freeSize`) and the camera view
+            // as PNG; the camera view needs a shot or a picked camera.
+            if (ctl.exportTo("view3d", "cut", "a4", base + "/3D.png")) {
+                return root.fail("the 3D view of a project never shown in 3D reported success")
+            }
+            ctl.toggleView()
+            ctl.freeSize(800, 450)
+            if (!ctl.exportTo("view3d", "cut", "a4", base + "/3D.png")) {
+                return root.fail("3D view export failed: " + ctl.status)
+            }
+            if (ctl.exportTo("camera", "cut", "a4", base + "/Kamera.png")) {
+                return root.fail("the camera view without a shot or camera reported success")
+            }
+            ctl.selectShot(JSON.parse(ctl.shotsJson)[0].id)
+            if (!ctl.exportTo("camera", "cut", "a4", base + "/Kamera.png")) {
+                return root.fail("camera view export failed: " + ctl.status)
+            }
+
             // A plan without marks has no frames: nothing is written, and it says so.
             if (!ctl.addPlan("Leer")) {
                 return root.fail("no empty plan: " + ctl.status)

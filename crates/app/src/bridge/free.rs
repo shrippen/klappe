@@ -10,8 +10,12 @@ use crate::tools::{Grip, Tool};
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QImage, QString};
-use klappe_services::{Size, Source, View};
+use klappe_services::{Cut, Size, Source, View};
 use serde_json::{json, Value};
+
+/// The commands of `freeLook` and the words it answers with.
+const CUT: &str = "cut";
+const CAMERA: &str = "camera";
 
 /// The 3D view's size in device pixels (`freeSize`), and the height above the floor at which a
 /// running drag holds what it grabbed: the drag runs on that level, so a wall top seen over
@@ -80,6 +84,54 @@ impl qobject::Controller {
 
     pub(super) fn free_frame(&self) -> QString {
         QString::from(self.rust().captioned().as_str())
+    }
+
+    pub(super) fn free_look(mut self: Pin<&mut Self>, command: &QString) -> QString {
+        // The camera picked on the plan serves where no shot is selected.
+        let picked = match self.rust().selected.only() {
+            Some(Source::Camera(id)) => Some(id.clone()),
+            _ => None,
+        };
+        let Some(s) = self.as_mut().session() else {
+            return QString::default();
+        };
+
+        // Nothing to look through: the entry says so instead of switching on.
+        // Only a command that changes the view makes a new revision: FreeView and the header
+        // ask with "" on every revision, a revision from asking would loop.
+        let mut refused = false;
+        let mut changed = false;
+        match command.to_string().as_str() {
+            CUT => {
+                s.toggle_cut();
+                changed = true;
+            }
+            CAMERA => {
+                let was = s.looks_through();
+                s.look_through(picked.as_deref());
+                refused = !was && !s.looks_through();
+                changed = was != s.looks_through();
+            }
+            _ => {}
+        }
+        let mut on = Vec::new();
+        if s.cut() == Cut::Chest {
+            on.push(CUT);
+        }
+        if s.looks_through() {
+            on.push(CAMERA);
+        }
+        let on = QString::from(on.join(" ").as_str());
+
+        if refused {
+            let text = self.rust().language.text("view.throughRefused");
+            self.as_mut().say(text);
+        }
+        if changed {
+            self.bump_free();
+        }
+
+        on
     }
 
     pub(super) fn turn_view(mut self: Pin<&mut Self>, dx: f64, dy: f64) {
@@ -238,6 +290,11 @@ impl qobject::Controller {
 }
 
 impl super::ControllerRust {
+    /// The size the 3D view has on screen (`freeSize`), for the PNG of it.
+    pub(super) fn free_shown(&self) -> Size {
+        self.free.size
+    }
+
     /// `free_frame` with the height drag's caption as one more name at the pointer.
     fn captioned(&self) -> String {
         let plain = || self.free_frame.clone();

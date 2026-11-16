@@ -48,8 +48,8 @@ RowLayout {
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actBackground, actBackgroundRemove,
-                                    actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames,
-                                    actFree, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
+                                    actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
+                                    actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actUndo, actRedo]
@@ -144,6 +144,8 @@ RowLayout {
         KanteMenuItem { objectName: "ods"; action: actOds; iconRoom: true }
         KanteMenuItem { objectName: "xlsx"; action: actXlsx; iconRoom: true }
         KanteMenuItem { objectName: "frames"; action: actFrames; iconRoom: true }
+        KanteMenuItem { objectName: "view3d"; action: actView3d; iconRoom: true }
+        KanteMenuItem { objectName: "camera"; action: actCameraPng; iconRoom: true }
     }
     HeaderMenu {
         objectName: "viewMenu"
@@ -151,6 +153,8 @@ RowLayout {
         text: header.texts.t("menu.view")
         KanteMenuSection { text: header.texts.t("menu.viewMode"); rule: false }
         KanteMenuItem { objectName: "free"; action: actFree }
+        KanteMenuItem { objectName: "wallCut"; action: actWallCut }
+        KanteMenuItem { objectName: "through"; action: actThrough }
         KanteMenuItem { objectName: "heights"; action: actHeights }
         KanteMenuSection { text: header.texts.t("menu.viewAreas") }
         KanteMenuItem { objectName: "script"; action: actScript }
@@ -316,6 +320,23 @@ RowLayout {
         enabled: header.controller.loaded
         onTriggered: exportDialog.request("frames")
     }
+    // LH-86: the 3D view as it is on screen (so only in 3D), and the shot card's camera view.
+    CommandAction {
+        id: actView3d
+        cmd: "export.view3d"
+        group: "export"
+        text: header.texts.t("menu.view3d")
+        enabled: header.controller.loaded && header.controller.viewFree === true
+        onTriggered: exportDialog.request("view3d")
+    }
+    CommandAction {
+        id: actCameraPng
+        cmd: "export.camera"
+        group: "export"
+        text: header.texts.t("menu.camera")
+        enabled: header.controller.loaded
+        onTriggered: exportDialog.request("camera")
+    }
 
     // Plan or 3D (J): the controller keeps which one shows.
     CommandAction {
@@ -328,6 +349,49 @@ RowLayout {
         checkable: true
         enabled: header.controller.loaded && !header.locked
         onToggled: header.controller.toggleView()
+    }
+    // What the 3D view has on, as words (`freeLook`): "cut", "camera". It asks again whenever the
+    // 3D picture is made again, and after any change of the session (another plan, undo): those
+    // can end the look through a camera without a 3D command.
+    readonly property string look: {
+        header.controller.freeRevision
+        header.controller.pictureRevision
+        header.controller.viewFree
+        return typeof header.controller.freeLook === "function" ? header.controller.freeLook("") : ""
+    }
+    // Walls cut at the chest (Y, LH-98): only in 3D.
+    CommandAction {
+        id: actWallCut
+        cmd: "view.wallCut"
+        group: "view"
+        text: header.texts.t("view.wallCut")
+        shortcut: "Y"
+        keys: "Y"
+        checkable: true
+        enabled: header.controller.loaded && !header.locked && header.controller.viewFree === true
+        onToggled: header.controller.freeLook("cut")
+    }
+    // Look through the selected shot's camera (LH-99). No key: Z, the one letter left, means
+    // nothing here.
+    CommandAction {
+        id: actThrough
+        cmd: "view.through"
+        group: "view"
+        text: header.texts.t("view.through")
+        checkable: true
+        enabled: header.controller.loaded && !header.locked && header.controller.viewFree === true
+        // The entry shows what is true: a look that was refused leaves it unchecked.
+        onToggled: actThrough.checked = header.controller.freeLook("camera").split(" ").includes("camera")
+    }
+    Binding {
+        target: actWallCut
+        property: "checked"
+        value: header.look.split(" ").includes("cut")
+    }
+    Binding {
+        target: actThrough
+        property: "checked"
+        value: header.look.split(" ").includes("camera")
     }
     // Height missing (Shift+H, LH-93): selects the next object without one; its card takes the
     // typed height.

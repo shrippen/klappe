@@ -6,7 +6,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
-use klappe_services::{PaperSetup, ServiceError, Session, ShotOrder, Texts};
+use klappe_services::{PaperSetup, ServiceError, Session, ShotOrder, Source, Texts};
 
 impl qobject::Controller {
     /// Writes the plan to `path` (a `file://` URL or a path) with `write`; says where it went
@@ -88,6 +88,23 @@ impl qobject::Controller {
             "xlsx" => self.export_plan(path, "menu.xlsxSaved", |s, path, texts| {
                 s.export_xlsx(path, &texts, order)
             }),
+            VIEW3D => {
+                let shown = self.rust().free_shown();
+
+                self.export_plan(path, "menu.view3dSaved", move |s, path, _| {
+                    s.export_view_png(path, shown)
+                })
+            }
+            CAMERA => {
+                let picked = match self.rust().selected.only() {
+                    Some(Source::Camera(id)) => Some(id.clone()),
+                    _ => None,
+                };
+
+                self.export_plan(path, "menu.cameraSaved", move |s, path, _| {
+                    s.export_camera_png(path, picked.as_deref())
+                })
+            }
             FRAMES => self.export_plan(path, "menu.framesSaved", |s, dir, texts| {
                 s.export_frames(dir, paper, &texts).map(|_| ())
             }),
@@ -112,6 +129,9 @@ impl qobject::Controller {
 
 /// The kind that writes a folder of PNGs, one per mark, not a file.
 const FRAMES: &str = "frames";
+/// The kinds that write the 3D view and the camera's view as PNG (LH-86).
+const VIEW3D: &str = "view3d";
+const CAMERA: &str = "camera";
 
 /// The kinds that print on a sheet.
 const PAPER_KINDS: [&str; 4] = ["pdf", "png", "svg", FRAMES];
@@ -128,9 +148,11 @@ fn shot_order(name: &str) -> ShotOrder {
 fn plan_file(s: &Session, extension: &str) -> std::path::PathBuf {
     let title = s.plan_title().replace([' ', '·', '/', '–'], "-");
 
-    // A folder has no extension.
+    // A folder has no extension; the PNGs of a view sit beside the plan's under their own name.
     let name = match extension {
         FRAMES => title,
+        VIEW3D => format!("{title}-3d.png"),
+        CAMERA => format!("{title}-camera.png"),
         _ => format!("{title}.{extension}"),
     };
 

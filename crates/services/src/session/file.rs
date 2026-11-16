@@ -50,6 +50,8 @@ impl Session {
             backup,
             view: View::Plan,
             orbit: None,
+            cut: klappe_stellprobe::Cut::Off,
+            through: None,
         })
     }
 
@@ -126,6 +128,7 @@ impl Session {
             self.set_script_text(&text);
         }
         self.keep_view_valid();
+        self.end_stale_look();
         self.backup = BackupState::None;
         Ok(())
     }

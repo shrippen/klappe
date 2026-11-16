@@ -13,47 +13,7 @@ TestCase {
     when: windowShown
     visible: true
 
-    QtObject {
-        id: fake
-        property bool loaded: true
-        property string title: "Wartburg"
-        property string sceneId: "s12"
-        property string status: ""
-        property bool dirty: false
-        property bool canUndo: true
-        property bool canRedo: true
-        property bool hasBackground: false
-        property bool viewFree: false
-        property int missingHeights: 0
-        property var calls: []
-        property var scenes: [
-            { id: "s12", number: "12", heading: "INT. SÄNGERSAAL – TAG" },
-            { id: "s13", number: "13", heading: "EXT. HOF – NACHT" }
-        ]
-        property var plans: [
-            { id: "plan-a", name: "Plan A", shots: 5 },
-            { id: "plan-b", name: "Plan B", shots: 0 }
-        ]
-        property string plan: "plan-a"
-        property string projectJson: JSON.stringify({ scenes: scenes, plans: plans, plan: plan })
-
-        function call(name, args) {
-            calls.push([name].concat(args))
-            return true
-        }
-        function undo() { call("undo", []) }
-        function redo() { call("redo", []) }
-        function save() { return call("save", []) }
-        function removeBackground() { call("removeBackground", []) }
-        function exportFile(extension) { return "file:///work/Wartburg." + extension }
-        function exportTo(kind, order, paper, path) { return call("exportTo", [kind, order, paper, path]) }
-        function selectScene(id) { return call("selectScene", [id]) }
-        function selectPlan(id) { return call("selectPlan", [id]) }
-        function clearStatus() {}
-        function stepMark(direction) { call("stepMark", [direction]) }
-        function toggleView() { call("toggleView", []); viewFree = !viewFree }
-        function nextMissingHeight() { return call("nextMissingHeight", []) }
-    }
+    FakeHeaderController { id: fake }
 
     QtObject {
         id: fakeTools
@@ -288,6 +248,37 @@ TestCase {
         compare(fake.calls, [["exportTo", "ods", "cut", "a4-landscape", "file:///work/Liste.ods"],
                              ["exportTo", "xlsx", "cut", "a4-landscape", "file:///work/Liste.xlsx"],
                              ["exportTo", "frames", "cut", "a4-landscape", "file:///work/Wartburg"]])
+    }
+
+    // LH-86: the 3D view as it is on screen (so only in 3D) and the camera view, as PNG: both ask
+    // for the file only and are in the palette.
+    function test_the_view_exports_are_in_the_menu() {
+        const header = make()
+        const dialog = findChild(header, "exportDialog")
+
+        verify(!entry(header, "exportMenu", "view3d").enabled)
+        verify(entry(header, "exportMenu", "camera").enabled)
+        pick(header, "exportMenu", "camera")
+        compare(dialog.kind, "camera")
+        verify(!dialog.opened)
+
+        fake.viewFree = true
+        verify(entry(header, "exportMenu", "view3d").enabled)
+        pick(header, "exportMenu", "view3d")
+        compare(dialog.kind, "view3d")
+        verify(!dialog.opened)
+
+        for (const id of ["export.view3d", "export.camera"]) {
+            verify(header.commandPalette.commands.some(c => c.id === id), id)
+        }
+
+        dialog.kind = "view3d"
+        dialog.save("file:///work/Wartburg-3d.png")
+        dialog.kind = "camera"
+        dialog.save("file:///work/Wartburg-camera.png")
+
+        compare(fake.calls, [["exportTo", "view3d", "cut", "a4-landscape", "file:///work/Wartburg-3d.png"],
+                             ["exportTo", "camera", "cut", "a4-landscape", "file:///work/Wartburg-camera.png"]])
     }
 
     function test_the_exports_use_the_shot_order() {
@@ -634,6 +625,72 @@ TestCase {
         verify(!entry(header, "viewMenu", "free").checked)
     }
 
+    // LH-98: Y cuts the walls in 3D only; the View menu and the palette do the same.
+    function test_y_cuts_the_walls_in_3d() {
+        const header = make()
+        verify(!entry(header, "viewMenu", "wallCut").enabled)
+        keyClick(Qt.Key_Y)
+        compare(fake.calls, [])
+
+        keyClick(Qt.Key_J)
+        verify(entry(header, "viewMenu", "wallCut").enabled)
+        keyClick(Qt.Key_Y)
+        compare(fake.calls, [["toggleView"], ["freeLook", "cut"]])
+        verify(entry(header, "viewMenu", "wallCut").checked)
+
+        pick(header, "viewMenu", "wallCut")
+        verify(!entry(header, "viewMenu", "wallCut").checked)
+        header.run("view.wallCut")
+        verify(entry(header, "viewMenu", "wallCut").checked)
+
+        const cmd = header.commandPalette.commands.find(c => c.id === "view.wallCut")
+        compare(cmd.keys, "Y")
+        compare(cmd.text, "Wände kappen")
+        header.texts = en
+        compare(header.commandPalette.commands.find(c => c.id === "view.wallCut").text, "Cut walls")
+    }
+
+    // LH-99: looking through the camera is a command of the View menu and the palette, in 3D only.
+    function test_the_view_looks_through_a_camera() {
+        const header = make()
+        verify(!entry(header, "viewMenu", "through").enabled)
+
+        keyClick(Qt.Key_J)
+        verify(entry(header, "viewMenu", "through").enabled)
+        pick(header, "viewMenu", "through")
+        compare(fake.calls, [["toggleView"], ["freeLook", "camera"]])
+        verify(entry(header, "viewMenu", "through").checked)
+
+        header.run("view.through")
+        verify(!entry(header, "viewMenu", "through").checked)
+        compare(header.commandPalette.commands.find(c => c.id === "view.through").text, "Durch Kamera sehen")
+    }
+
+    // A plan change ends the look without a 3D command: the entry follows `pictureRevision`.
+    function test_the_entry_unchecks_when_the_plan_changes() {
+        const header = make()
+        keyClick(Qt.Key_J)
+        pick(header, "viewMenu", "through")
+        verify(entry(header, "viewMenu", "through").checked)
+        fake.state.look = ""
+        fake.pictureRevision++
+        verify(!entry(header, "viewMenu", "through").checked)
+    }
+
+    // No shot, no camera or none with marks: the look stays off, so the entry does too.
+    function test_a_refused_look_leaves_the_entry_unchecked() {
+        const header = make()
+        keyClick(Qt.Key_J)
+        fake.refuseCamera = true
+
+        pick(header, "viewMenu", "through")
+        verify(!entry(header, "viewMenu", "through").checked)
+
+        header.run("view.through")
+        verify(!entry(header, "viewMenu", "through").checked)
+        fake.refuseCamera = false
+    }
+
     function test_the_palette_lists_the_3d_view_with_its_key() {
         const header = make()
 
@@ -689,8 +746,10 @@ TestCase {
     }
 
     function test_the_texts_are_in_both_languages() {
-        for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewMode", "view.free", "height.next", "height.missingHeader", "menu.viewOrder",
+        for (const key of ["menu.file", "menu.export", "menu.view", "menu.viewAreas", "menu.viewMode", "view.free", "view.wallCut", "view.through", "view.throughHint", "height.next", "height.missingHeader", "menu.viewOrder",
                            "menu.ods", "menu.xlsx", "menu.frames", "export.pick.frames",
+                           "menu.view3d", "menu.camera", "export.pick.view3d", "export.pick.camera",
+                           "export.filter.view3d", "export.filter.camera",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
                            "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",

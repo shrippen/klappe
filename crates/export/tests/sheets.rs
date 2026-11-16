@@ -35,6 +35,7 @@ fn texts() -> ShotTexts {
         sizes: vec![(ShotSize::Wide, "Totale".into())],
         angles: Vec::new(),
         movements: vec![(Movement::Pan, "Schwenk".into())],
+        views: "Kamerablicke".into(),
     }
 }
 

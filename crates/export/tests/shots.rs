@@ -2,14 +2,14 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    pdf, pdf_with_shots, shots_csv, LampTexts, Orientation, Page, Paper, ShotColumns, ShotOrder,
-    ShotTexts, Texts, Theme,
+    pdf, pdf_with_shots, pdf_with_views, picture_png, shots_csv, LampTexts, Orientation, Page,
+    Paper, ShotColumns, ShotOrder, ShotTexts, ShotView, Texts, Theme,
 };
 use klappe_model::{
     Angle, Arrival, Camera, CameraMark, Departure, FigureTrack, FloorPlan, Mark, Movement, Point,
     Pose, Project, Sensor, SetPlan, Shot, ShotSize,
 };
-use klappe_stellprobe::{render, DisplayList};
+use klappe_stellprobe::{picture, render, vector_view, Cut, DisplayList, Eye, Forms};
 
 const A4_LANDSCAPE_PT: &str = "[0 0 841.89 595.28]";
 
@@ -37,6 +37,7 @@ fn texts() -> ShotTexts {
         sizes: vec![(ShotSize::Wide, "Totale".into())],
         angles: vec![(Angle::Low, "Untersicht".into())],
         movements: vec![(Movement::Pan, "Schwenk".into())],
+        views: "Kamerablicke".into(),
     }
 }
 
@@ -430,4 +431,127 @@ fn csv_names_the_shots_the_axis_is_crossed_against() {
     assert!(csv.lines().nth(1).unwrap().ends_with(","));
     assert!(csv.lines().nth(2).unwrap().ends_with(","));
     assert!(csv.lines().nth(3).unwrap().ends_with(",\"12.1, 12.2\""));
+}
+
+const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+/// Where the width sits in a PNG file: after the signature, the IHDR length and its name.
+const PNG_WIDTH_AT: usize = 16;
+
+fn camera_eye(shot: &Shot) -> Eye {
+    Eye::Shot {
+        camera: shot.camera.clone(),
+        t_s: shot.from_s,
+        aspect: None,
+    }
+}
+
+fn shot_views(plan: &FloorPlan) -> Vec<ShotView> {
+    plan.shots
+        .iter()
+        .map(|shot| ShotView {
+            shot: shot.id.clone(),
+            view: vector_view(
+                &Project::new("Test"),
+                &SetPlan {
+                    width_m: 20.0,
+                    depth_m: 13.0,
+                    ..Default::default()
+                },
+                plan,
+                &Forms::default(),
+                &camera_eye(shot),
+            )
+            .unwrap(),
+        })
+        .collect()
+}
+
+fn pdf_with_camera_views(plan: &FloorPlan) -> Vec<u8> {
+    let views = shot_views(plan);
+
+    pdf_with_views(
+        &list(plan),
+        &page(),
+        Theme::Light,
+        plan,
+        ShotOrder::Cut,
+        &views,
+    )
+    .unwrap()
+}
+
+/// LH-86: six views to a page, so 7 shots add 2 pages; each view has the shot's number and
+/// size above it, and a view is its faces as filled paths.
+#[test]
+fn the_pdf_has_camera_pages_with_captions() {
+    let plan = plan(7);
+    let without = pages(&pdf_of(7));
+
+    let bytes = pdf_with_camera_views(&plan);
+
+    assert_eq!(pages(&bytes), without + 2);
+    let text = String::from_utf8_lossy(&bytes);
+    assert!(text.contains("(Szene 12 \\267 S\\344ngersaal \\267 Plan A \\267 Kamerablicke)"));
+    for n in 1..=7 {
+        assert!(text.contains(&format!("(12.{n} \\267 Totale)")), "{n}");
+    }
+    assert!(text.contains("(35 mm)"));
+    assert!(text.contains(" f\n") || text.contains(" B\n"));
+}
+
+/// No view, no page: a plan without camera views prints as before.
+#[test]
+fn without_views_the_pdf_has_no_camera_pages() {
+    let plan = plan(2);
+
+    let bytes = pdf_with_views(
+        &list(&plan),
+        &page(),
+        Theme::Light,
+        &plan,
+        ShotOrder::Cut,
+        &[],
+    )
+    .unwrap();
+
+    assert_eq!(bytes, pdf_of(2));
+    assert!(!String::from_utf8_lossy(&bytes).contains("Kamerablicke"));
+}
+
+/// LH-86: the picture as PNG has the picture's size.
+#[test]
+fn the_camera_picture_is_a_png_of_its_size() {
+    let plan = plan(1);
+    let set = SetPlan {
+        width_m: 20.0,
+        depth_m: 13.0,
+        ..Default::default()
+    };
+    let eye = camera_eye(&plan.shots[0]);
+    let view = picture(
+        &Project::new("Test"),
+        &set,
+        &plan,
+        &Forms::default(),
+        &eye,
+        640,
+        Cut::Off,
+    )
+    .unwrap();
+
+    let bytes = picture_png(&view, Theme::Light).unwrap();
+
+    assert!(bytes.starts_with(&PNG_SIGNATURE));
+    let width = u32::from_be_bytes(bytes[PNG_WIDTH_AT..PNG_WIDTH_AT + 4].try_into().unwrap());
+    let height = u32::from_be_bytes(
+        bytes[PNG_WIDTH_AT + 4..PNG_WIDTH_AT + 8]
+            .try_into()
+            .unwrap(),
+    );
+    assert_eq!(
+        (width as usize, height as usize),
+        (view.frame.width, view.frame.height)
+    );
+    assert_eq!(width, 640);
+    assert_eq!(height, (640.0_f64 / 2.39).round() as u32);
 }

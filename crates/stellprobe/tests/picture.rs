@@ -7,7 +7,8 @@ use klappe_model::{
     FormBox, Mark, ObjectShape, Point, Pose, Project, Sensor, SetObject, SetPlan, Wall,
 };
 use klappe_stellprobe::{
-    floor_at, grab_at, picture, source_at, Eye, Forms, Orbit, Picture, SceneRole, Source,
+    floor_at, grab_at, picture, source_at, vector_view, Cut, Eye, Forms, Orbit, Picture, SceneRole,
+    Source, VectorView,
 };
 
 const WIDTH_PX: usize = 160;
@@ -80,13 +81,23 @@ fn set() -> SetPlan {
 
 fn shot() -> Eye {
     Eye::Shot {
+        aspect: None,
         camera: "a".into(),
         t_s: 0.0,
     }
 }
 
 fn take(set: &SetPlan, plan: &FloorPlan) -> Picture {
-    picture(&project(), set, plan, &Forms::default(), &shot(), WIDTH_PX).expect("picture")
+    picture(
+        &project(),
+        set,
+        plan,
+        &Forms::default(),
+        &shot(),
+        WIDTH_PX,
+        Cut::Off,
+    )
+    .expect("picture")
 }
 
 /// The columns where the figure of colour `color` shows, left and right.
@@ -156,6 +167,37 @@ fn a_wall_in_front_hides_the_figure_and_its_name() {
     assert!(picture.labels.is_empty());
     let middle = picture.frame.width * picture.frame.height / 2 + picture.frame.width / 2;
     assert_eq!(picture.frame.role[middle], SceneRole::Wall.code());
+}
+
+/// The chest cut (LH-98): a pixel that showed the upper part of a 3 m wall shows, at 1.2 m,
+/// what lies behind it, here the figure.
+#[test]
+fn the_cut_shows_what_a_high_wall_hid() {
+    let mut set = set();
+    set.walls = vec![Wall::new(Point::new(5.0, 7.0), Point::new(15.0, 7.0), 0.2)];
+    set.wall_height_m = 3.0;
+    let plan = plan(35.0, &[("e", 10.0, 5.0)]);
+    let at = |cut| {
+        picture(
+            &project(),
+            &set,
+            &plan,
+            &Forms::default(),
+            &shot(),
+            WIDTH_PX,
+            cut,
+        )
+        .expect("picture")
+    };
+    let (high, cut) = (at(Cut::Off), at(Cut::Chest));
+    let middle = high.frame.width * high.frame.height / 2 + high.frame.width / 2;
+
+    assert_eq!(high.frame.role[middle], SceneRole::Wall.code());
+    assert_eq!(
+        cut.frame.role[middle],
+        SceneRole::Figure(FigureColor::Purple).code()
+    );
+    assert_eq!(cut.labels.len(), 1);
 }
 
 /// A low wall (1 m) hides the legs but not the head; the name stays.
@@ -293,6 +335,7 @@ fn a_camera_shows_in_the_free_view_but_not_in_its_own_picture() {
         &Forms::default(),
         &orbit_eye(Orbit::fitting(20.0, 20.0)),
         WIDTH_PX,
+        Cut::Off,
     );
     let own = take(&set, &plan);
     let camera = SceneRole::Camera.code();
@@ -326,8 +369,16 @@ fn a_grab_takes_the_height_of_the_point_seen() {
     let mut orbit = Orbit::fitting(set.width_m, set.depth_m);
     orbit.turn(0.0, -1000.0);
     let eye = orbit_eye(orbit);
-    let shot =
-        picture(&project(), &set, &plan, &Forms::default(), &eye, WIDTH_PX).expect("picture");
+    let shot = picture(
+        &project(),
+        &set,
+        &plan,
+        &Forms::default(),
+        &eye,
+        WIDTH_PX,
+        Cut::Off,
+    )
+    .expect("picture");
     let column = WIDTH_PX / 2;
     let wall_rows: Vec<usize> = (0..shot.frame.height)
         .filter(|y| source_at(&shot, (column, *y)) == Some(&Source::Wall(0)))
@@ -370,8 +421,16 @@ fn a_free_form_leaves_its_notch_open() {
     }];
     let plan = plan(35.0, &[]);
     let eye = orbit_eye(Orbit::fitting(set.width_m, set.depth_m));
-    let picture =
-        picture(&project(), &set, &plan, &Forms::default(), &eye, WIDTH_PX).expect("picture");
+    let picture = picture(
+        &project(),
+        &set,
+        &plan,
+        &Forms::default(),
+        &eye,
+        WIDTH_PX,
+        Cut::Off,
+    )
+    .expect("picture");
 
     // The floor point under every pixel that shows the object; its top is so low that the
     // point is the outline's, give or take a few centimetres.
@@ -435,7 +494,8 @@ fn one_sees_under_a_table_between_its_legs() {
     );
     let (column, row) = (WIDTH_PX / 2, 85);
     let role_at = |forms: &Forms| {
-        let picture = picture(&project(), &set, &plan, forms, &shot(), WIDTH_PX).expect("picture");
+        let picture =
+            picture(&project(), &set, &plan, forms, &shot(), WIDTH_PX, Cut::Off).expect("picture");
         let i = picture.frame.index(column, row).expect("pixel");
 
         SceneRole::of_code(picture.frame.role[i])
@@ -443,4 +503,68 @@ fn one_sees_under_a_table_between_its_legs() {
 
     assert_eq!(role_at(&Forms::default()), Some(SceneRole::Object));
     assert_eq!(role_at(&forms), Some(SceneRole::Floor));
+}
+
+fn vector(set: &SetPlan, plan: &FloorPlan) -> VectorView {
+    vector_view(&project(), set, plan, &Forms::default(), &shot()).expect("vector view")
+}
+
+/// The position of the first and last face of `role` in the drawing order.
+fn span(view: &VectorView, role: SceneRole) -> Option<(usize, usize)> {
+    let at: Vec<usize> = (0..view.faces.len())
+        .filter(|i| view.faces[*i].role == role)
+        .collect();
+
+    Some((*at.first()?, *at.last()?))
+}
+
+/// Print (3D-KONZEPT.md, section 5.4): the floor first, then the far wall, then the near
+/// figure, so each covers what lies behind it.
+#[test]
+fn the_vector_faces_run_from_far_to_near() {
+    let mut set = set();
+    set.walls = vec![Wall::new(Point::new(5.0, 2.0), Point::new(15.0, 2.0), 0.2)];
+    set.wall_height_m = 3.0;
+
+    let view = vector(&set, &plan(35.0, &[("e", 10.0, 7.0)]));
+    let figure = SceneRole::Figure(FigureColor::Purple);
+
+    let floor = span(&view, SceneRole::Floor).expect("floor");
+    let wall = span(&view, SceneRole::Wall).expect("wall");
+    let near = span(&view, figure).expect("figure");
+    assert_eq!(floor, (0, 0));
+    assert!(wall.1 < near.0, "wall {wall:?}, figure {near:?}");
+    assert_eq!(view.height, 9.0 / 16.0);
+}
+
+/// A wall that stands across the camera has faces behind it and faces that reach through the
+/// near plane: those are cut, the rest drawn inside the picture.
+#[test]
+fn faces_at_the_camera_are_cut_at_the_near_plane() {
+    let mut set = set();
+    set.walls = vec![Wall::new(
+        Point::new(5.0, 9.95),
+        Point::new(15.0, 9.95),
+        0.2,
+    )];
+    set.wall_height_m = 3.0;
+    let walls = |view: &VectorView| {
+        view.faces
+            .iter()
+            .filter(|f| f.role == SceneRole::Wall)
+            .count()
+    };
+    let mut ahead = set.clone();
+    ahead.walls = vec![Wall::new(Point::new(5.0, 5.0), Point::new(15.0, 5.0), 0.2)];
+
+    let view = vector(&set, &plan(35.0, &[]));
+
+    let (cut, whole) = (walls(&view), walls(&vector(&ahead, &plan(35.0, &[]))));
+    assert!(cut > 0 && cut < whole, "{cut} of {whole}");
+    for corner in view.faces.iter().flat_map(|f| &f.corners) {
+        assert!(
+            (0.0..=1.0).contains(&corner[0]) && (0.0..=view.height).contains(&corner[1]),
+            "{corner:?}"
+        );
+    }
 }

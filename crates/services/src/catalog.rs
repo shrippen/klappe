@@ -122,6 +122,7 @@ impl Language {
                 .iter()
                 .map(|m| (*m, t(&format!("movement.{}", m.name()))))
                 .collect(),
+            views: t("shots.views"),
         }
     }
 }

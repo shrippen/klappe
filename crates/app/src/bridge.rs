@@ -136,6 +136,11 @@ pub mod qobject {
         #[cxx_name = "freeFrame"]
         fn free_frame(self: &Self) -> QString;
 
+        /// Runs `"cut"` or `"camera"` in 3D (other words only ask); returns what is on.
+        #[qinvokable]
+        #[cxx_name = "freeLook"]
+        fn free_look(self: Pin<&mut Self>, command: &QString) -> QString;
+
         /// Turns the 3D view by a drag of `dx`, `dy` pixels.
         #[qinvokable]
         #[cxx_name = "turnView"]
@@ -546,8 +551,8 @@ pub mod qobject {
         fn cancel_drag(self: Pin<&mut Self>);
 
         /// Writes an export to `path` (a `file://` URL); the result goes to `status`. `kind` is
-        /// `pdf`, `png`, `svg` or `csv`; `order` (`cut` or `shooting`) orders the shot list of
-        /// PDF and CSV; `paper` (`a4-portrait` …) is the sheet of PDF, PNG, SVG, frames.
+        /// `pdf`, `png`, `svg`, `csv`, `view3d` or `camera` (PNG of that view); `order` orders the
+        /// shot list of PDF and CSV; `paper` (`a4-portrait` …) is the sheet of PDF, PNG, SVG, frames.
         #[qinvokable]
         #[cxx_name = "exportTo"]
         fn export_to(

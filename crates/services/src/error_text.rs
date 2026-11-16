@@ -9,16 +9,9 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         ServiceError::NoScene(id) => ("error.noScene", id.clone()),
         ServiceError::NoPlan(id) => ("error.noPlan", id.clone()),
         ServiceError::NoShot(id) => ("error.noShot", id.clone()),
-        ServiceError::Gone => ("error.gone", String::new()),
         ServiceError::NoLocation(id) => ("error.noLocation", id.clone()),
-        ServiceError::NoFreeCamera => ("error.noFreeCamera", String::new()),
-        ServiceError::NoCamera => ("error.noCamera", String::new()),
         ServiceError::NoCharacter(id) => ("error.noCharacter", id.clone()),
         ServiceError::NotEmpty(path) => ("error.notEmpty", path.to_string_lossy().into_owned()),
-        ServiceError::NoBackup => ("error.noBackup", String::new()),
-        ServiceError::EmptyLibrary => ("error.emptyLibrary", String::new()),
-        ServiceError::EmptyTemplate => ("error.emptyTemplate", String::new()),
-        ServiceError::NoMarks => ("error.noMarks", String::new()),
         ServiceError::CameraInUse { camera, shot } => {
             return language
                 .text("error.cameraInUse")
@@ -40,8 +33,6 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
                 .text("error.characterInUse")
                 .replace("{count}", &plans.to_string());
         }
-        ServiceError::LastPlan(_) => ("error.lastPlan", String::new()),
-        ServiceError::FewPoints => ("error.fewPoints", String::new()),
         ServiceError::PlanHasShots { shots, .. } => {
             return language
                 .text("error.planHasShots")
@@ -67,9 +58,44 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         ServiceError::Write { path, source } => {
             ("error.write", format!("{}: {source}", path.display()))
         }
+        other => (plain_key(other).unwrap_or_default(), String::new()),
     };
 
     language.text(key).replace("{detail}", &detail)
+}
+
+/// The catalogue key of an error that has no detail to add.
+fn plain_key(error: &ServiceError) -> Option<&'static str> {
+    match error {
+        ServiceError::Gone => Some("error.gone"),
+        ServiceError::NoFreeCamera => Some("error.noFreeCamera"),
+        ServiceError::NoCamera => Some("error.noCamera"),
+        ServiceError::NoBackup => Some("error.noBackup"),
+        ServiceError::EmptyLibrary => Some("error.emptyLibrary"),
+        ServiceError::EmptyTemplate => Some("error.emptyTemplate"),
+        ServiceError::NoMarks => Some("error.noMarks"),
+        ServiceError::NoPicture => Some("error.noPicture"),
+        ServiceError::LastPlan(_) => Some("error.lastPlan"),
+        ServiceError::FewPoints => Some("error.fewPoints"),
+        // Listed so a new variant must be placed: `error_text` words these itself.
+        ServiceError::NoScene(_)
+        | ServiceError::NoPlan(_)
+        | ServiceError::NoShot(_)
+        | ServiceError::NoLocation(_)
+        | ServiceError::NoCharacter(_)
+        | ServiceError::NotEmpty(_)
+        | ServiceError::CameraInUse { .. }
+        | ServiceError::NumberTaken(_)
+        | ServiceError::LocationInUse { .. }
+        | ServiceError::CharacterInUse { .. }
+        | ServiceError::PlanHasShots { .. }
+        | ServiceError::PlanNameTaken(_)
+        | ServiceError::Locked(_)
+        | ServiceError::BadValue { .. }
+        | ServiceError::Store(_)
+        | ServiceError::Export(_)
+        | ServiceError::Write { .. } => None,
+    }
 }
 
 #[cfg(test)]
@@ -236,6 +262,7 @@ mod tests {
             },
             ServiceError::NotEmpty(PathBuf::from("/a")),
             ServiceError::NoMarks,
+            ServiceError::NoPicture,
         ];
 
         for error in &errors {

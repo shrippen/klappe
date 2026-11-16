@@ -2,7 +2,7 @@
 //! Translucent areas use opacity, not extra colours.
 
 use klappe_model::{Dash as DrawDash, FigureColor};
-use klappe_stellprobe::{look, Area, Hue, Role};
+use klappe_stellprobe::{look, scene_look, Area, Hue, Role, SceneRole};
 
 use crate::canvas::{Dash, Fill, Stroke};
 use crate::error::ExportError;
@@ -17,6 +17,8 @@ const DRAWING_PT: f64 = 1.5;
 const AREA_OPACITY: f64 = 0.15;
 const MARK_OPACITY: f64 = 0.3;
 const DRAWING_OPACITY: f64 = 0.25;
+/// A tinted body of a view is this share of its colour over the paper.
+const SCENE_TINT: f64 = 0.2;
 
 pub(crate) struct RoleStyle {
     pub class: String,
@@ -219,6 +221,43 @@ pub(crate) fn role_style(role: Role, pal: &Palette) -> Result<RoleStyle, ExportE
             dash: dash_of(look.line),
         }),
     })
+}
+
+/// `rgb` lit by `shade` (0 dark to 255 full), as the raster stores a face's light.
+pub(crate) fn shaded(rgb: Rgb, shade: u8) -> Rgb {
+    let channel = |c: u8| (f64::from(c) * f64::from(shade) / f64::from(u8::MAX)).round() as u8;
+
+    Rgb {
+        r: channel(rgb.r),
+        g: channel(rgb.g),
+        b: channel(rgb.b),
+    }
+}
+
+/// A scene role on paper: the colour of its faces and of its outline.
+pub(crate) struct SceneStyle {
+    pub face: Rgb,
+    pub line: Rgb,
+}
+
+/// What stellprobe's look of a scene role (a pixel or face of a view) becomes in the palette;
+/// a tinted body is paler, so what stands before it stays readable.
+pub(crate) fn scene_style(role: SceneRole, pal: &Palette) -> Result<SceneStyle, ExportError> {
+    let look = scene_look(role);
+    let line = hue_rgb(look.hue, pal)?;
+    let mix = |from: u8, to: u8| {
+        (f64::from(from) + (f64::from(to) - f64::from(from)) * SCENE_TINT).round() as u8
+    };
+    let face = match look.area {
+        Area::Tint => Rgb {
+            r: mix(pal.paper.r, line.r),
+            g: mix(pal.paper.g, line.g),
+            b: mix(pal.paper.b, line.b),
+        },
+        Area::None | Area::Solid => line,
+    };
+
+    Ok(SceneStyle { face, line })
 }
 
 #[cfg(test)]

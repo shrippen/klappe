@@ -1,14 +1,17 @@
 use std::path::{Path, PathBuf};
 
-use klappe_export::{Page, Texts, Theme};
+use klappe_export::{Page, ShotView, Texts, Theme};
 use klappe_model::{FloorPlan, PaperSetup};
-use klappe_stellprobe::{render, DisplayList, Lamp, Shape, ShotOrder};
+use klappe_stellprobe::{render, vector_view, DisplayList, Eye, Lamp, Shape, ShotOrder};
 
-use super::Session;
+use super::{Session, Size};
 use crate::error::{write_failed, ServiceError};
+use crate::library;
 
 const SECONDS_PER_MINUTE: u64 = 60;
 const MIN_NUMBER_WIDTH: usize = 2;
+/// Width of the PNG of a view (LH-86).
+const VIEW_WIDTH_PX: f64 = 1920.0;
 
 impl Session {
     /// Prints the current plan at the playhead as PDF (LH-80), followed by its shot list;
@@ -22,11 +25,77 @@ impl Session {
     ) -> Result<(), ServiceError> {
         let (list, page) = self.printout(paper.into(), texts)?;
         let bytes = match self.plan() {
-            Some(plan) => klappe_export::pdf_with_shots(&list, &page, Theme::Light, plan, order)?,
+            Some(plan) => {
+                let views = self.shot_views();
+
+                klappe_export::pdf_with_views(&list, &page, Theme::Light, plan, order, &views)?
+            }
             None => klappe_export::pdf(&list, &page, Theme::Light)?,
         };
 
         write_file(path, bytes)
+    }
+
+    /// Writes the 3D view as PNG (LH-86), as it is on screen: orbit or through a camera, with
+    /// the cut, `shown` the size it has there; the PNG is as wide as `VIEW_WIDTH_PX` and keeps
+    /// its aspect.
+    pub fn export_view_png(&self, path: &Path, shown: Size) -> Result<(), ServiceError> {
+        if shown.0 <= 0.0 || shown.1 <= 0.0 {
+            return Err(ServiceError::NoPicture);
+        }
+
+        let size = (VIEW_WIDTH_PX, (VIEW_WIDTH_PX * shown.1 / shown.0).round());
+        let picture = self.free_picture(size).ok_or(ServiceError::NoPicture)?;
+
+        write_file(path, klappe_export::picture_png(&picture, Theme::Light)?)
+    }
+
+    /// Writes the picture of the selected shot's camera at the playhead as PNG (LH-86), else
+    /// that of `fallback`, the camera picked on the plan; as wide as `VIEW_WIDTH_PX`, in the
+    /// camera's aspect.
+    pub fn export_camera_png(
+        &self,
+        path: &Path,
+        fallback: Option<&str>,
+    ) -> Result<(), ServiceError> {
+        let picture = self
+            .camera_picture(fallback, VIEW_WIDTH_PX as usize)
+            .ok_or(ServiceError::NoPicture)?;
+
+        write_file(path, klappe_export::picture_png(&picture, Theme::Light)?)
+    }
+
+    /// What each shot's camera sees at the shot's start, as faces for print; a shot whose
+    /// camera sees nothing has none.
+    fn shot_views(&self) -> Vec<ShotView> {
+        let (Some(plan), Some(location)) = (
+            self.plan(),
+            self.scene()
+                .and_then(|s| self.project.location(&s.location)),
+        ) else {
+            return Vec::new();
+        };
+
+        let forms = library::forms_of(&self.project.library, &location.set);
+        let mut views = Vec::new();
+        for shot in &plan.shots {
+            let eye = Eye::Shot {
+                camera: shot.camera.clone(),
+                t_s: shot.from_s,
+                aspect: None,
+            };
+            let set = &location.set;
+            let Some(view) = vector_view(&self.project, set, plan, &forms, &eye) else {
+                continue;
+            };
+
+            views.push(ShotView {
+                shot: shot.id.clone(),
+                view,
+            });
+        }
+
+        views
     }
 
     /// Writes the current plan at the playhead as PNG (LH-81): RGB, 150 dpi, no shot list.

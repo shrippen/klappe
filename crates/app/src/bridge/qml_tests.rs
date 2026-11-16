@@ -6,6 +6,10 @@
 use cxx_qt_lib::{QQmlApplicationEngine, QString, QUrl};
 use std::path::{Path, PathBuf};
 
+const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+/// Where the width sits in a PNG file; the height follows.
+const PNG_WIDTH_AT: usize = 16;
+
 fn scenarios() -> Vec<PathBuf> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/controller");
     let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
@@ -21,8 +25,19 @@ fn scenarios() -> Vec<PathBuf> {
 /// Letter portrait is 612 by 792 pt; the shot list's sheets stay landscape.
 const LETTER_PORTRAIT_MEDIA_BOX: &str = "/MediaBox [0 0 612 792]";
 
-/// ODS and XLSX are ZIP files; the frames folder holds one PNG per mark of the example.
+/// ODS and XLSX are ZIP files; the frames folder holds one PNG per mark of the example; the
+/// PNGs of the 3D view (800 x 450 on screen) and of the camera are 1920 wide.
 fn check_list_exports(base: &Path) {
+    let png_size = |name: &str| {
+        let bytes = std::fs::read(base.join(name)).unwrap();
+        assert!(bytes.starts_with(&PNG_SIGNATURE), "{name} is no PNG");
+        let number = |at: usize| u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap());
+
+        (number(PNG_WIDTH_AT), number(PNG_WIDTH_AT + 4))
+    };
+    assert_eq!(png_size("3D.png"), (1920, 1080));
+    assert_eq!(png_size("Kamera.png").0, 1920);
+
     for name in ["Liste.ods", "Liste.xlsx"] {
         let bytes = std::fs::read(base.join(name)).unwrap();
         assert!(bytes.starts_with(b"PK"), "{name} is no ZIP");

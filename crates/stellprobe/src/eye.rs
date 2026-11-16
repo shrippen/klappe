@@ -24,8 +24,14 @@ pub(crate) type Vec3 = [f64; 3];
 /// What a view looks through.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Eye {
-    /// Camera `camera` of the plan at `t_s` (LH-36).
-    Shot { camera: String, t_s: f64 },
+    /// Camera `camera` of the plan at `t_s` (LH-36), its picture `aspect` wide to high: the
+    /// camera's own when `None`; the shape of the 3D view when looking through it (LH-99),
+    /// which keeps the camera's width of view.
+    Shot {
+        camera: String,
+        t_s: f64,
+        aspect: Option<f64>,
+    },
     /// The free 3D view (LH-94) on the set at `t_s`, `aspect` wide to high.
     Orbit { orbit: Orbit, t_s: f64, aspect: f64 },
 }
@@ -148,7 +154,11 @@ impl Pinhole {
     /// nothing (no angle, no aspect).
     pub(crate) fn of(eye: &Eye, plan: &FloorPlan) -> Option<Self> {
         match eye {
-            Eye::Shot { camera, t_s } => Self::of_camera(plan.camera(camera)?, plan, *t_s),
+            Eye::Shot {
+                camera,
+                t_s,
+                aspect,
+            } => Self::of_camera(plan.camera(camera)?, plan, *t_s, *aspect),
             Eye::Orbit { orbit, aspect, .. } => Self::of_orbit(orbit, *aspect),
         }
     }
@@ -179,11 +189,12 @@ impl Pinhole {
         })
     }
 
-    fn of_camera(camera: &Camera, plan: &FloorPlan, t_s: f64) -> Option<Self> {
+    fn of_camera(camera: &Camera, plan: &FloorPlan, t_s: f64, aspect: Option<f64>) -> Option<Self> {
         let place = camera_at(camera, t_s)?;
         let (height_m, tilt_deg) = aim_at(camera, t_s)?;
         let fov = horizontal_fov_deg(camera.sensor, lens_at(camera, &plan.shots, t_s));
-        if fov <= 0.0 || camera.aspect <= 0.0 {
+        let aspect = aspect.unwrap_or(camera.aspect);
+        if fov <= 0.0 || aspect <= 0.0 {
             return None;
         }
 
@@ -197,7 +208,7 @@ impl Pinhole {
             right: [-sin, cos],
             tilt: tilt.sin_cos(),
             focal: FRAME_WIDTH / 2.0 / (fov.to_radians() / 2.0).tan(),
-            frame_height: FRAME_WIDTH / camera.aspect,
+            frame_height: FRAME_WIDTH / aspect,
         })
     }
 
@@ -392,6 +403,7 @@ mod tests {
 
     fn pinhole(height_m: f64, tilt_deg: f64, aspect: f64) -> Pinhole {
         let eye = Eye::Shot {
+            aspect: None,
             camera: "a".into(),
             t_s: 0.0,
         };
@@ -493,6 +505,7 @@ mod tests {
     #[test]
     fn unknown_camera_has_no_pinhole() {
         let eye = Eye::Shot {
+            aspect: None,
             camera: "x".into(),
             t_s: 0.0,
         };

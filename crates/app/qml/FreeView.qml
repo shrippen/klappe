@@ -24,6 +24,9 @@ Item {
     // surface.
     readonly property bool canPaint: controller !== null && typeof controller.freeImage === "function"
 
+    // What the 3D view has on, as words (`freeLook`); "camera" shows the hint.
+    property string look: ""
+
     // `{ width, height, labels: [{ text, x, y }] }` of the picture shown, in its pixels; null
     // without one.
     property var frame: null
@@ -72,6 +75,7 @@ Item {
         controller.freeSize(width * dpr, height * dpr)
         const image = controller.freeImage(interacting ? handScale : 1, colors.json)
         reframe()
+        look = typeof controller.freeLook === "function" ? controller.freeLook("") : ""
         surface.item.show(image)
     }
 
@@ -125,6 +129,19 @@ Item {
             style: Text.Outline
             styleColor: KanteStyle.backgroundColor
         }
+    }
+
+    // Looking through a camera: how to leave it.
+    QQC2.Label {
+        objectName: "freeThrough"
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.margins: Kirigami.Units.largeSpacing
+        visible: view.look.split(" ").includes("camera")
+        color: KanteStyle.mutedTextColor
+        style: Text.Outline
+        styleColor: KanteStyle.backgroundColor
+        text: view.texts.t("view.throughHint")
     }
 
     QQC2.Label {
