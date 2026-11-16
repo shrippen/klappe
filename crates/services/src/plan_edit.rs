@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 use klappe_model::{
     Arrival, Character, Dash, Departure, DoorSide, Drawing, DrawingShape, FigureColor, Fill,
     FloorPlan, Hinge, LibraryItem, Light, Note, OpeningKind, Point, Pose, Project, Rig, Scene,
-    SetPlan, Wall,
+    SetObject, SetPlan, Wall,
 };
-use klappe_stellprobe::{Bend, LightGrip, OpeningEnd, Source};
+use klappe_stellprobe::{Bend, LightGrip, ObjectGrip, OpeningEnd, Source};
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -403,7 +403,8 @@ fn layer_of_source(source: &Source) -> Layer {
         Source::Object(_)
         | Source::Wall(_)
         | Source::Opening { .. }
-        | Source::OpeningEdge { .. } => Layer::Set,
+        | Source::OpeningEdge { .. }
+        | Source::ObjectGrip { .. } => Layer::Set,
         Source::Light(_) | Source::LightGrip { .. } => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
@@ -458,6 +459,11 @@ enum Target<'a> {
     },
     /// A grip on the right edge of a note's card: moving it sets the card's width.
     NoteEdge(&'a mut Note),
+    /// A grip outside the right or bottom edge of an object: moving it sets its width or depth.
+    ObjectEdge {
+        object: &'a mut SetObject,
+        grip: ObjectGrip,
+    },
     /// A grip on a point or corner of a drawing: moving it reshapes the drawing.
     Corner {
         drawing: &'a mut Drawing,

@@ -121,6 +121,7 @@ pub(super) fn layer_of(role: Role) -> Layer {
         | Role::Door
         | Role::Window
         | Role::OpeningHandle
+        | Role::ObjectHandle
         | Role::Object
         | Role::Height { .. } => Layer::Set,
         Role::Light | Role::LightBeam | Role::LightHandle => Layer::Lights,

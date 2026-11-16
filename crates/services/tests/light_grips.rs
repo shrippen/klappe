@@ -1,6 +1,6 @@
 //! The grips on a lamp's beam (LH-50), on the example project's lamp `led-1`: at (1, 10),
 //! facing 330°, 60° beam, drawn 4 m long. So the direction grip is at (4.4641, 8) and the
-//! beam grip, at 360°, at (5, 10).
+//! beam grip, at 360° and halfway out the beam, at (3, 10).
 #![allow(clippy::unwrap_used)]
 
 use std::path::{Path, PathBuf};

@@ -1,6 +1,8 @@
 //! The grips of the selected element: on the bends of a way, on the points of a drawing.
 
-use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Project, SetPlan};
+use klappe_model::{
+    Drawing, DrawingShape, FloorPlan, ObjectShape, Point, Project, SetObject, SetPlan,
+};
 
 use super::{rect_corners, Item, Role, Shape, Source};
 use crate::card::note_card;
@@ -35,6 +37,15 @@ pub enum LightGrip {
     Beam,
 }
 
+/// The edge of a set object a grip sits on, in the object's own turned frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectGrip {
+    /// Just outside the middle of the right edge: sets the width.
+    Width,
+    /// Just outside the middle of the bottom edge: sets the depth.
+    Depth,
+}
+
 /// The grip on a way's bend.
 const HANDLE_RADIUS_M: f64 = 0.15;
 /// The grip that pulls a new bend out of a way.
@@ -52,6 +63,8 @@ const NEW_POINT_RADIUS_M: f64 = 0.1;
 /// width (LH-10).
 /// A selected lamp has two at the beam's reach: one on its facing, one on the beam's edge
 /// (LH-50).
+/// A selected object drawn by its width and depth has one just outside the middle of its right
+/// edge and one outside its bottom edge, to set them (LH-25).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -68,6 +81,7 @@ pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &So
             opening_handles(set, *wall, *index)
         }
         Source::Light(id) | Source::LightGrip { light: id, .. } => light_handles(plan, id),
+        Source::Object(id) | Source::ObjectGrip { object: id, .. } => object_handles(set, id),
         _ => Vec::new(),
     }
 }
@@ -89,6 +103,52 @@ fn light_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
             label: None,
             source: Some(Source::LightGrip {
                 light: id.to_owned(),
+                grip,
+            }),
+        })
+        .collect()
+}
+
+/// How far outside its edge an object's grip sits: farther than a grip catches a click
+/// (radius and pick tolerance, 0.3 m), so a click on a small object takes the object, and so
+/// far that the two grips of a 10 cm box (at least 0.45 m · √2 apart) do not cover each other.
+const OBJECT_GRIP_GAP_M: f64 = 0.45;
+
+/// Where the grip `grip` of `object` sits on the plan: just outside the middle of its right or
+/// bottom edge, turned with the object.
+pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
+    let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
+    let (x_m, y_m) = match grip {
+        ObjectGrip::Width => (object.width_m / 2.0 + OBJECT_GRIP_GAP_M, 0.0),
+        ObjectGrip::Depth => (0.0, object.depth_m / 2.0 + OBJECT_GRIP_GAP_M),
+    };
+
+    Point::new(
+        object.at.x_m + x_m * cos - y_m * sin,
+        object.at.y_m + x_m * sin + y_m * cos,
+    )
+}
+
+/// The width and depth grips of object `id`; a free form has none, its points are its own.
+fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
+    let Some(object) = set.objects.iter().find(|o| o.id == id) else {
+        return Vec::new();
+    };
+    if matches!(object.shape, ObjectShape::Polygon { .. }) {
+        return Vec::new();
+    }
+
+    [ObjectGrip::Width, ObjectGrip::Depth]
+        .into_iter()
+        .map(|grip| Item {
+            role: Role::ObjectHandle,
+            shape: Shape::Circle {
+                center: object_grip_place(object, grip),
+                radius_m: HANDLE_RADIUS_M,
+            },
+            label: None,
+            source: Some(Source::ObjectGrip {
+                object: id.to_owned(),
                 grip,
             }),
         })

@@ -1,11 +1,12 @@
 //! The keys of the plan's shapes: which element a shape on the canvas stands for.
 
-use klappe_services::{Bend, LightGrip, OpeningEnd, Source};
+use klappe_services::{Bend, LightGrip, ObjectGrip, OpeningEnd, Source};
 
 /// The kinds of element a key names; `name` is the key's first part.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ElementKind {
     Object,
+    ObjectGrip,
     Light,
     LightGrip,
     Camera,
@@ -24,8 +25,9 @@ pub enum ElementKind {
 }
 
 impl ElementKind {
-    const ALL: [ElementKind; 16] = [
+    const ALL: [ElementKind; 17] = [
         Self::Object,
+        Self::ObjectGrip,
         Self::Light,
         Self::LightGrip,
         Self::Camera,
@@ -46,6 +48,7 @@ impl ElementKind {
     pub fn name(self) -> &'static str {
         match self {
             Self::Object => "object",
+            Self::ObjectGrip => "objectgrip",
             Self::Light => "light",
             Self::LightGrip => "lightgrip",
             Self::Camera => "camera",
@@ -73,10 +76,14 @@ impl ElementKind {
 pub fn key(source: &Source) -> String {
     let (kind, rest) = match source {
         Source::Object(id) => (ElementKind::Object, id.clone()),
+        Source::ObjectGrip { object, grip } => (
+            ElementKind::ObjectGrip,
+            format!("{object}:{}", object_grip_part(*grip)),
+        ),
         Source::Light(id) => (ElementKind::Light, id.clone()),
         Source::LightGrip { light, grip } => (
             ElementKind::LightGrip,
-            format!("{light}:{}", grip_part(*grip)),
+            format!("{light}:{}", light_grip_part(*grip)),
         ),
         Source::Camera(id) => (ElementKind::Camera, id.clone()),
         Source::Figure(id) => (ElementKind::Figure, id.clone()),
@@ -134,10 +141,18 @@ fn end_part(end: OpeningEnd) -> &'static str {
 }
 
 /// The last part of a lamp grip's key: which grip of the lamp it is.
-fn grip_part(grip: LightGrip) -> &'static str {
+fn light_grip_part(grip: LightGrip) -> &'static str {
     match grip {
         LightGrip::Direction => "direction",
         LightGrip::Beam => "beam",
+    }
+}
+
+/// The last part of an object grip's key: the size it sets.
+fn object_grip_part(grip: ObjectGrip) -> &'static str {
+    match grip {
+        ObjectGrip::Width => "width",
+        ObjectGrip::Depth => "depth",
     }
 }
 
@@ -178,6 +193,7 @@ mod tests {
 
         assert_eq!(key(&figure), "figurevia:e:1:at0");
         assert_eq!(key(&camera), "cameravia:a:1:new2");
+        assert_eq!(key(&object_grip()), "objectgrip:o:depth");
     }
 
     fn opening() -> Source {
@@ -199,6 +215,13 @@ mod tests {
         }
     }
 
+    fn object_grip() -> Source {
+        Source::ObjectGrip {
+            object: "o".into(),
+            grip: ObjectGrip::Depth,
+        }
+    }
+
     /// Too long for one line of the table below.
     fn note_width() -> Source {
         Source::NoteWidth("n".into())
@@ -209,6 +232,7 @@ mod tests {
     fn every_key_reads_back() {
         let sources = [
             (Source::Object("o".into()), ElementKind::Object, "o", None),
+            (object_grip(), ElementKind::ObjectGrip, "o", None),
             (Source::Light("l".into()), ElementKind::Light, "l", None),
             (light_grip(), ElementKind::LightGrip, "l", None),
             (Source::Camera("a".into()), ElementKind::Camera, "a", None),
