@@ -64,6 +64,10 @@ TestCase {
             calls.push([id, field, value])
             return accept
         }
+        function nameShot(id, shortName, description) {
+            calls.push([id, "name", shortName, description])
+            return accept
+        }
         function setShotImage(id, path) {
             imageCalls.push([id, path])
             return accept
@@ -455,7 +459,8 @@ TestCase {
         field(panel, "newDescription").accepted()
 
         verify(!dialog.opened)
-        compare(fake.calls, [["s12-3", "short_name", "Auftritt"], ["s12-3", "description", "Sie betritt den Saal"]])
+        // One call, so one undo step for both.
+        compare(fake.calls, [["s12-3", "name", "Auftritt", "Sie betritt den Saal"]])
     }
 
     function test_escape_keeps_the_shot_unnamed() {
