@@ -299,19 +299,88 @@ fn portrait(paper: Paper, shots: usize) -> Vec<u8> {
     pdf_with_shots(&list(&plan), &page, Theme::Light, &plan, ShotOrder::Cut).unwrap()
 }
 
-/// The plan page is upright; the shot list stays on landscape sheets and breaks onto more.
-#[test]
-fn a_portrait_pdf_has_the_upright_plan_and_the_shot_list_pages() {
-    let text = String::from_utf8_lossy(&portrait(Paper::A4, 120)).into_owned();
+/// The text of every string a PDF draws, in file order, joined by one space.
+fn drawn(text: &str) -> String {
+    let mut out = String::new();
+    let mut open = false;
+    for c in text.chars() {
+        match (c, open) {
+            ('(', false) => open = true,
+            (')', true) => {
+                open = false;
+                out.push(' ');
+            }
+            (c, true) => out.push(c),
+            _ => {}
+        }
+    }
 
-    assert!(text.contains(&format!("/MediaBox {A4_PORTRAIT_PT}")));
-    assert!(text.contains(&format!("/MediaBox {A4_LANDSCAPE_PT}")));
-    assert!(
-        pages(text.as_bytes()) > 2,
-        "{} pages",
-        pages(text.as_bytes())
+    out
+}
+
+const LONG_DESCRIPTION: &str = "Elisabeth tritt durch die Tuer, bleibt am Fenster stehen und sieht hinaus auf den Hof, waehrend Wolfram im Hintergrund die Laute stimmt und Tannhaeuser schweigt";
+
+/// Shots 12.1 to 12.23 of camera a, and 12.24 of camera b across the axis from all of them.
+fn crossing_plan() -> FloorPlan {
+    let mut plan = plan(24);
+    plan.figures = vec![figure("e", 2.0), figure("v", 8.0)];
+    let mut b = camera("b", "B", 50.0);
+    b.marks[0].at = Point::new(8.0, 1.0);
+    plan.cameras.push(b);
+    plan.shots[23].camera = "b".into();
+    plan.shots[23].description = LONG_DESCRIPTION.into();
+
+    plan
+}
+
+/// Plan and shot list pages are all upright, every column is there, and nothing is cut that
+/// the landscape list shows: a 160 character description and 23 axis partners.
+#[test]
+fn a_portrait_pdf_has_upright_shot_list_pages() {
+    let plan = crossing_plan();
+    let mut page = page();
+    page.orientation = Orientation::Portrait;
+    let bytes = pdf_with_shots(&list(&plan), &page, Theme::Light, &plan, ShotOrder::Cut).unwrap();
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    let words = drawn(&text);
+    let all = pages(text.as_bytes());
+
+    assert!(all > 1, "{all} pages");
+    assert_eq!(
+        text.matches(&format!("/MediaBox {A4_PORTRAIT_PT}")).count(),
+        all
     );
-    assert!(text.contains("(12.120)"));
+    assert!(!text.contains(A4_LANDSCAPE_PT));
+    for head in [
+        "Nummer",
+        "Kamera",
+        "Objektiv",
+        "Perspektive",
+        "Bewegung",
+        "Von",
+        "Bis",
+        "Dauer",
+        "Inhalt",
+        "Requisiten",
+        "Technik",
+        "Team",
+        "Notiz",
+        "Achsensprung",
+    ] {
+        assert!(words.contains(head), "{head}");
+    }
+    // A cut cell ends in "…", which the PDF writes as the WinAnsi escape \205.
+    assert!(!text.contains("\\205"), "a cell is cut");
+
+    let flat = words.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        flat.contains(LONG_DESCRIPTION),
+        "description is cut or broken"
+    );
+    let axis = &flat[flat.find("Achsensprung gegen:").unwrap()..];
+    for n in 1..=23 {
+        assert!(axis.contains(&format!("12.{n}")), "12.{n}");
+    }
 }
 
 #[test]

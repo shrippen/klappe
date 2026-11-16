@@ -71,7 +71,7 @@ pub fn png(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, Exp
     ))
 }
 
-/// The plan as PDF 1.4, followed by the plan's shot list on landscape sheets (LH-80), in
+/// The plan as PDF 1.4, followed by the plan's shot list on sheets of the page's paper and orientation (LH-80), in
 /// `order`; in shooting order each setup starts under its own heading.
 pub fn pdf_with_shots(
     list: &DisplayList,
