@@ -507,6 +507,8 @@
  "plan.new": "Neuer Plan…",
  "plan.snapshot": "Schnappschuss…",
  "plan.rename": "Umbenennen…",
+ "plan.moveEarlier": "Nach vorn",
+ "plan.moveLater": "Nach hinten",
  "plan.remove": "Löschen…",
  "plan.newTitle": "Neuer Plan",
  "plan.snapshotTitle": "Schnappschuss",

@@ -507,6 +507,8 @@
  "plan.new": "New plan…",
  "plan.snapshot": "Snapshot…",
  "plan.rename": "Rename…",
+ "plan.moveEarlier": "Move earlier",
+ "plan.moveLater": "Move later",
  "plan.remove": "Delete…",
  "plan.newTitle": "New plan",
  "plan.snapshotTitle": "Snapshot",
