@@ -17,8 +17,8 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     Angle, Arrival, Dash, Departure, DisplayList, FigureColor, Fill, Grid, Language, Layer,
-    LightKind, Lock, Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping, Source,
-    Visibility,
+    LightKind, Lock, Movement, ObjectGrip, Point, Pose, Rig, Session, ShotOrder, ShotSize,
+    Snapping, Source, Visibility,
 };
 use serde_json::json;
 
@@ -369,6 +369,10 @@ impl qobject::Controller {
                     Source::FigureVia { .. }
                         | Source::CameraVia { .. }
                         | Source::DrawingPoint { .. }
+                        | Source::ObjectGrip {
+                            grip: ObjectGrip::Point(_),
+                            ..
+                        }
                 );
 
                 shown(&plain, source) || (grip && shown(&s.display_list_for(Some(source)), source))

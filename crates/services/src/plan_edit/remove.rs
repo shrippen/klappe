@@ -3,7 +3,7 @@
 use klappe_model::{FloorPlan, LinkTarget};
 use klappe_stellprobe::{Bend, Source};
 
-use super::drawings::remove_grip;
+use super::moving::forms::remove_grip;
 use super::moving::target;
 use super::openings::opening_mut;
 use super::{Scope, Target};

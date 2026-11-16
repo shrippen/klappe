@@ -83,15 +83,39 @@ fn an_ellipse_has_grips_and_a_selected_grip_keeps_them() {
     assert!(grips(&ellipse, &Source::Object("x".into())).is_empty());
 }
 
-/// A free form is reshaped by its points, which are a separate matter.
-#[test]
-fn a_free_form_has_no_size_grips() {
+fn triangle(rotation_deg: f64) -> SetPlan {
     let points = vec![
         Point::new(-1.0, -1.0),
         Point::new(1.0, -1.0),
         Point::new(0.0, 1.0),
     ];
-    let form = set(0.0, ObjectShape::Polygon { points });
 
-    assert!(grips(&form, &Source::Object("o".into())).is_empty());
+    set(rotation_deg, ObjectShape::Polygon { points })
+}
+
+/// A free form has a grip on each point, not on the edges (LH-92). The outline's own box is
+/// 2 m x 2 m and the object 4 m x 2 m, so the points lie stretched twice as wide.
+#[test]
+fn a_free_form_has_a_grip_on_each_point() {
+    let found = grips(&triangle(0.0), &Source::Object("o".into()));
+
+    assert_eq!(found.len(), 3);
+    assert_eq!(found[0].0, grip(ObjectGrip::Point(0)));
+    assert!(near(found[0].1, Point::new(8.0, 5.0)));
+    assert!(near(found[1].1, Point::new(12.0, 5.0)));
+    assert_eq!(found[2].0, grip(ObjectGrip::Point(2)));
+    assert!(near(found[2].1, Point::new(10.0, 7.0)));
+}
+
+/// Turned by 90 degrees clockwise, (x, y) around the centre (10, 6) becomes (-y, x); a grip
+/// that is selected keeps them all.
+#[test]
+fn the_point_grips_turn_with_the_form() {
+    let turned = triangle(90.0);
+    let found = grips(&turned, &grip(ObjectGrip::Point(1)));
+
+    assert_eq!(found.len(), 3);
+    assert!(near(found[0].1, Point::new(11.0, 4.0)));
+    assert!(near(found[1].1, Point::new(11.0, 8.0)));
+    assert!(near(found[2].1, Point::new(9.0, 6.0)));
 }

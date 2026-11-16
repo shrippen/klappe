@@ -9,11 +9,14 @@ use klappe_stellprobe::{
     LightGrip, ObjectGrip, Source,
 };
 
+use self::forms::drag_form_point;
 use super::drawings::{drag_handle, edge_place, insert_point};
 use super::openings::{drag_edge, edge_m, opening_mut, slide};
 use super::FULL_TURN_DEG;
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
+
+pub(super) mod forms;
 
 /// The least a drag leaves of an object's width or depth; the model only asks for more than
 /// nothing.
@@ -448,6 +451,10 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
         Target::NoteEdge(note) => {
             note.width_m = (to.x_m - note.at.x_m).max(NOTE_MIN_WIDTH_M);
         }
+        Target::ObjectEdge {
+            object,
+            grip: ObjectGrip::Point(n),
+        } => drag_form_point(object, n, to)?,
         Target::ObjectEdge { object, grip } => stretch(object, grip, to),
         _ => {}
     }
@@ -455,15 +462,14 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// Sets the width or depth so the grip lands on `to` as far as its axis goes, in the object's
-/// turned frame; the opposite edge (left or top) stays, so the centre moves half the change.
-/// The middle of the edge grip `grip` sizes: the right edge for the width, the bottom edge for
-/// the depth, turned with the object.
+/// The point of grip `grip` that snaps: the middle of the edge it sizes (the right edge for the
+/// width, the bottom edge for the depth, turned with the object), or the outline point itself.
 fn edge_middle(object: &SetObject, grip: ObjectGrip) -> Point {
     let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
     let (axis, half_m) = match grip {
         ObjectGrip::Width => ((cos, sin), object.width_m / 2.0),
         ObjectGrip::Depth => ((-sin, cos), object.depth_m / 2.0),
+        ObjectGrip::Point(_) => return object_grip_place(object, grip),
     };
 
     Point::new(
@@ -472,11 +478,15 @@ fn edge_middle(object: &SetObject, grip: ObjectGrip) -> Point {
     )
 }
 
+/// Sets the width or depth so the grip lands on `to` as far as its axis goes, in the object's
+/// turned frame; the opposite edge (left or top) stays, so the centre moves half the change.
 fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
     let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
     let (axis, size_m) = match grip {
         ObjectGrip::Width => ((cos, sin), object.width_m),
         ObjectGrip::Depth => ((-sin, cos), object.depth_m),
+        // A point sets no size.
+        ObjectGrip::Point(_) => return,
     };
 
     // The grip sits a gap outside the edge: the size changes by how far `to` lies beyond it.
@@ -492,6 +502,7 @@ fn stretch(object: &mut SetObject, grip: ObjectGrip, to: Point) {
     match grip {
         ObjectGrip::Width => object.width_m = new_m,
         ObjectGrip::Depth => object.depth_m = new_m,
+        ObjectGrip::Point(_) => {}
     }
 }
 
@@ -534,7 +545,7 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
 
             Ok((edge, edge))
         }
-        // The edge snaps, the grip outside it follows: a snapped drag gives round sizes.
+        // The edge snaps, the grip outside it follows: an unturned object gets round sizes.
         Target::ObjectEdge { object, grip } => {
             Ok((edge_middle(object, grip), object_grip_place(object, grip)))
         }
