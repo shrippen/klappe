@@ -104,7 +104,7 @@ Priorität: **M** muss (erste Version), **S** soll (vor 1.0), **K** kann (späte
 | Nr | Anforderung | Prio |
 |---|---|---|
 | DB-30 | Paginierung nach Industriestandard (A4 als Standard, US Letter wählbar (F-01); Courier 12 pt, Ränder nach Standard): Seitenumbrüche im Editor sichtbar, Stand der letzten Rechnung (DN-02, DN-07). | M |
-| DB-31 | Umbruchregeln: Szenenkopf nie allein am Seitenende; Dialog nur zwischen Sätzen oder an einer Klammer teilen, mit (MORE) unten und Figur (CONT'D) oben; mindestens zwei Zeilen auf jeder Seite; Handlung nur zwischen Sätzen teilen. Wahlweise (CONT'D) bzw. (FORTS.) auch, wenn dieselbe Figur nach einer Handlungszeile weiterspricht. | M |
+| DB-31 | Umbruchregeln: Szenenkopf nie allein am Seitenende; Dialog nur zwischen Sätzen oder an einer Klammer teilen, mit (MORE) unten und Figur (CONT'D) oben; mindestens zwei Zeilen auf jeder Seite; Handlung nur zwischen Sätzen teilen. Wahlweise (CONT'D) bzw. (FORTS.) auch, wenn dieselbe Figur nach einer Handlungszeile weiterspricht: je Projekt einschaltbar, Standard aus (Wort nach F-04). | M |
 | DB-32 | Länge je Szene in Achteln und Gesamtlänge in Seiten und geschätzten Minuten. | M |
 | DB-33 | Szenennummern: automatisch oder gesperrt; Startnummer frei; eingefügte Szenen bekommen A-Nummern (12A), gestrichene bleiben als „ENTFÄLLT“ stehen. Die Nummer steht im Fountain-Text (`#12#`). Ändert sich das Buch (in Klappe oder extern, z. B. in einem anderen Programm oder per Git), passt Klappe die automatischen Nummern nach diesen Regeln an und führt Floorplan, Marks und Shots jeder Szene mit (DB-65). In den Fountain-Text schreibt Klappe sie erst beim Speichern in Klappe, nie schon beim Öffnen (sonst ergäbe bloßes Öffnen Änderungen und Merge-Konflikte in Git); gesperrte Nummern ändert Klappe nie, A-Nummern neuer Szenen schreibt sie beim Speichern wie die übrigen. Gesperrt wird je Fassung (DB-40), nicht je Szene. | M |
 | DB-34 | Gesperrte Seiten mit A-Seiten (12A) nach dem Sperren einer Fassung. Vor dem Sperren rechnet Klappe Seiten und Längen sofort neu (wie vor Export und Druck, DN-02), damit keine veralteten Seitenzahlen gesperrt werden. | S |
@@ -210,7 +210,9 @@ Entschieden vom Eigentümer am 2026-11-14:
 Übernommen wird, *was* die Vorbilder leisten. Code, Texte, Grafiken, Vorlagen und eigene
 Dateiformate werden nicht übernommen. Klappe steht unter MIT.
 
-- **Fade In** (proprietär, GCC Productions): nur öffentliche Seiten.
+- **Fade In** (proprietär, GCC Productions): öffentliche Seiten. Auf Auftrag des Eigentümers
+  (2026-11-16, bestätigt in #196) wurde zudem seine lizenzierte Kopie (5.0.15) bedient und ihre
+  mitinstallierte Hilfe gelesen. Daraus steht hier nur Verhalten in eigenen Worten.
 - **Beat** (GPL v3, Lauri-Matti Parppei): öffentliche Seiten. Auf Wunsch des Eigentümers
   (2026-11-14, bestätigt in einem Kommentar zu #17) wurden auch einzelne Quelldateien gelesen, um Verhalten zu verstehen
   (Paginierung, Revisionen, Dokumenteinstellungen, Tagging, Autovervollständigung). Daraus
@@ -248,7 +250,7 @@ Gelesen (2026-11-14):
 
 ### Fade In im Verhalten (beobachtet, in eigenen Worten)
 
-- **Elementwechsel:** Enter und Tab auf einer leeren Zeile führen so weiter:
+- **Elementwechsel:** Enter am Ende eines Elements und Tab auf einer leeren Zeile führen so weiter:
 
   | Element | Enter | Tab auf leerer Zeile |
   |---|---|---|
@@ -259,16 +261,18 @@ Gelesen (2026-11-14):
   | Dialog | Handlung | Klammer (Klammern stehen schon) |
   | Übergang | Szenenkopf | – |
 
-- **Wechselgespräch:** Auf der leeren Figurzeile ist die andere Figur vorgeschlagen; eine Replik
-  kostet Enter, Tab, Tab, Enter und den Text.
+- **Wechselgespräch:** Nach Dialog führt Enter zur Handlung, Tab zur Figur; dort ist die andere
+  Figur des Gesprächs vorgeschlagen, und ein zweites Tab übernimmt sie (bei offenem Vorschlag gilt
+  Tab als Übernahme, nicht als Wechsel). Eine Replik kostet Enter, Tab, Tab, Enter und den Text.
 - **Vorschläge:** Ein Enter auf dem Vorschlag übernimmt ihn und wechselt ins nächste Element.
   Vorbelegt sind nur englische Tageszeiten; deutsche Wörter markiert die Rechtschreibung rot.
-- **Großschreibung** ist nur Darstellung des Elements, nicht Text. Klappe schreibt Fountain und
-  muss Szenenköpfe und Figuren darum groß in die Datei schreiben (DB-01).
+- **Großschreibung** ist nur Darstellung des Elements, nicht Text. Klappe schreibt Fountain, das
+  Figuren an der Großschreibung erkennt; Figurennamen müssen darum groß in der Datei stehen
+  (Szenenköpfe erkennt Fountain auch klein, DB-01 schreibt sie trotzdem groß).
 - **(cont'd)** setzt Fade In auch, wenn dieselbe Figur nach Handlung weiterspricht, nicht nur am
   Seitenumbruch.
 - **Revisionen** werden beim Tippen markiert, nur wenn der Revisionsmodus an ist; Klappe vergleicht
-  stattdessen mit der gesperrten Fassung (F-03), eine vergessene Einstellung kann nichts verlieren.
+  stattdessen mit der gesperrten Fassung (F-03): Wer den Modus vergisst, verliert keine Markierung.
 - **Notizen** öffnen als schwebende Zettel über dem Text und schließen nur von Hand; Klappe hält
   Notizen im Text (`[[ ]]`) mit Liste (DB-24).
 - **Suchen und Ersetzen** lässt sich auf einen Elementtyp begrenzen (DB-07 geht weiter: eine Figur).
