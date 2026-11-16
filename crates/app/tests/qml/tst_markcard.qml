@@ -132,6 +132,18 @@ TestCase {
         compare(findChild(card, "holdField").text, "4")
     }
 
+    // Playing while a drag is held moves the playhead with only a preview: no edit, a new
+    // plan. The card shows the mark at the playhead, so it reads it again on the plan too.
+    function test_the_card_follows_the_playhead_during_a_drag() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+
+        fake.info.hold = 4
+        fake.planJson = JSON.stringify({ preview: 1 })
+
+        compare(findChild(card, "holdField").text, "4")
+    }
+
     function test_a_figure_mark_shows_pose_pause_and_pace() {
         const card = createTemporaryObject(cardComponent, tc)
 
