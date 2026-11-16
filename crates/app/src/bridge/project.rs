@@ -31,6 +31,50 @@ impl qobject::Controller {
         self.show_recent(&list);
     }
 
+    pub(super) fn rename_recent(mut self: Pin<&mut Self>, path: &QString, title: &QString) -> bool {
+        let renamed =
+            klappe_services::rename_project(Path::new(&path.to_string()), &title.to_string());
+        if !self.as_mut().finish_folder(renamed) {
+            return false;
+        }
+
+        // The card is read again: the tile shows the new title.
+        let list = manage::parse_recent(&self.rust().recent_store.to_string());
+        self.show_recent(&list);
+        true
+    }
+
+    pub(super) fn archive_recent(mut self: Pin<&mut Self>, path: &QString) -> bool {
+        let archived = klappe_services::archive_project(Path::new(&path.to_string()));
+        if !self.as_mut().finish_folder(archived.map(|_| ())) {
+            return false;
+        }
+
+        self.forget_recent(path);
+        true
+    }
+
+    pub(super) fn trash_recent(mut self: Pin<&mut Self>, path: &QString) -> bool {
+        let trashed = klappe_services::trash_project(Path::new(&path.to_string()));
+        if !self.as_mut().finish_folder(trashed) {
+            return false;
+        }
+
+        self.forget_recent(path);
+        true
+    }
+
+    /// Says why a folder action failed; true when it did not.
+    fn finish_folder(mut self: Pin<&mut Self>, done: Result<(), ServiceError>) -> bool {
+        let Err(e) = done else {
+            return true;
+        };
+
+        let language = self.rust().language;
+        self.as_mut().say(error_text(language, &e));
+        false
+    }
+
     pub(super) fn create_project(self: Pin<&mut Self>, path: &QString, title: &QString) -> bool {
         let dir = fileurl::to_path(&path.to_string());
         let created = Session::create(&dir, &title.to_string());

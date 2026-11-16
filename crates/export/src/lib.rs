@@ -103,6 +103,17 @@ pub fn pdf_with_views(
     pdf::write(&doc)
 }
 
+/// `files` (name with `/`, bytes) as one ZIP archive, stored uncompressed: a folder handed on
+/// whole, e.g. a project archived beside its folder. Needs less than 4 GiB and 65535 files.
+pub fn zip_files(files: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut zip = zip::Zip::default();
+    for (name, bytes) in files {
+        zip.add(name, bytes);
+    }
+
+    zip.finish()
+}
+
 /// A view of the set as PNG (LH-86), as wide as the picture: print colours, names written in.
 pub fn picture_png(picture: &Picture, theme: Theme) -> Result<Vec<u8>, ExportError> {
     picture_png::write(picture, theme)

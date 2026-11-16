@@ -8,6 +8,9 @@ import Kante
 // preview of their first plan, the example as the last tile, and the two ways to start another.
 // Arrow keys move between the tiles, Enter opens one; a project whose folder is gone is dimmed
 // and can be taken off the list. The first tile has the keyboard focus whenever the page shows.
+// A right click, the menu key or Shift+F10 on a project tile opens its menu: rename, remove from
+// the list, archive (a ZIP beside the folder, the folder to the trash), move to the trash. The
+// example tile has none: its copy is made again when it is missing.
 Item {
     id: start
 
@@ -96,8 +99,64 @@ Item {
         return count + " · " + date
     }
 
+    // The menu of a project tile (a copy of its path, name and state: the tile may go).
+    function openMenu(cell, anchor, x, y) {
+        if (cell.isExample) {
+            return
+        }
+        menu.target = { path: cell.path, name: cell.name, state: cell.state }
+        menu.popup(anchor, x, y)
+    }
+
     onRecentChanged: sync()
     Component.onCompleted: sync()
+
+    QQC2.Menu {
+        id: menu
+        objectName: "tileMenu"
+
+        // The tile the menu is for: { path, name, state }.
+        property var target: ({ path: "", name: "", state: "" })
+
+        KantePopupSkin { popup: menu }
+
+        KanteMenuItem {
+            objectName: "renameItem"
+            text: start.texts.t("start.rename")
+            iconRoom: true
+            enabled: menu.target.state === "ready"
+            onTriggered: folderDialog.show("rename", menu.target)
+        }
+        KanteMenuItem {
+            objectName: "forgetItem"
+            text: start.texts.t("start.forget")
+            iconRoom: true
+            onTriggered: start.forgetRequested(menu.target.path)
+        }
+        QQC2.MenuSeparator {}
+        KanteMenuItem {
+            objectName: "archiveItem"
+            text: start.texts.t("start.archive")
+            iconRoom: true
+            enabled: menu.target.state !== start.stateMissing
+            onTriggered: folderDialog.show("archive", menu.target)
+        }
+        KanteMenuItem {
+            objectName: "trashItem"
+            text: start.texts.t("start.trash")
+            iconRoom: true
+            destructive: true
+            enabled: menu.target.state !== start.stateMissing
+            onTriggered: folderDialog.show("trash", menu.target)
+        }
+    }
+
+    FolderDialog {
+        id: folderDialog
+        objectName: "folderDialog"
+        texts: start.texts
+        controller: start.controller
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -212,6 +271,24 @@ Item {
                         onActiveFocusChanged: {
                             if (activeFocus) {
                                 grid.currentIndex = cell.index
+                            }
+                        }
+
+                        // Menu key and Shift+F10 open the menu in the tile's middle.
+                        Keys.onMenuPressed: start.openMenu(cell, tile, tile.width / 2, tile.height / 2)
+                        Keys.onPressed: event => {
+                            const shiftF10 = event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier)
+                            if (!shiftF10) {
+                                return
+                            }
+                            event.accepted = true
+                            start.openMenu(cell, tile, tile.width / 2, tile.height / 2)
+                        }
+                        TapHandler {
+                            acceptedButtons: Qt.RightButton
+                            onTapped: eventPoint => {
+                                tile.forceActiveFocus()
+                                start.openMenu(cell, tile, eventPoint.position.x, eventPoint.position.y)
                             }
                         }
 
