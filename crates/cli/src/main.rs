@@ -60,6 +60,8 @@ enum Command {
         #[arg(long, value_enum)]
         language: Option<LanguageArg>,
         /// Taken from the extension of --out if left out; `frames` and `camera` are never guessed.
+        /// `frames`: one PNG per mark into the folder --out, --at is ignored. `camera`: what
+        /// --camera sees at --at, 1920 px wide.
         #[arg(long, value_parser = format_arg)]
         format: Option<ExportFormat>,
         /// The camera `--format camera` shows.
