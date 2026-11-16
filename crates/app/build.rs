@@ -40,6 +40,7 @@ const PAGES: &[&str] = &[
     "qml/ViewCommands.qml",
     "qml/Timeline.qml",
     "qml/Workspace.qml",
+    "qml/TileDialog.qml",
     "qml/FormDialog.qml",
     "qml/NewProjectDialog.qml",
     "qml/RefCard.qml",

@@ -2,6 +2,7 @@
 
 use crate::sheet::{escape, grid, Cell, Sheet};
 use crate::zip::Zip;
+use crate::ExportError;
 
 const MIMETYPE: &str = "application/vnd.oasis.opendocument.spreadsheet";
 const MANIFEST: &str = concat!(
@@ -20,13 +21,13 @@ const CONTENT_HEAD: &str = concat!(
 );
 const CONTENT_TAIL: &str = "</office:spreadsheet></office:body></office:document-content>";
 
-pub(crate) fn write(sheets: &[Sheet]) -> Vec<u8> {
+pub(crate) fn write(sheets: &[Sheet]) -> Result<Vec<u8>, ExportError> {
     let mut zip = Zip::default();
 
     // The mimetype comes first and stays uncompressed: that is how readers tell the format.
-    zip.add("mimetype", MIMETYPE.as_bytes());
-    zip.add("META-INF/manifest.xml", MANIFEST.as_bytes());
-    zip.add("content.xml", content(sheets).as_bytes());
+    zip.add("mimetype", MIMETYPE.as_bytes())?;
+    zip.add("META-INF/manifest.xml", MANIFEST.as_bytes())?;
+    zip.add("content.xml", content(sheets).as_bytes())?;
 
     zip.finish()
 }

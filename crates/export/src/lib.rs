@@ -117,6 +117,23 @@ pub fn pdf_with_views(
     pdf::write(&doc)
 }
 
+/// `files` (name with `/`, bytes) as one ZIP archive, stored uncompressed: a folder handed on
+/// whole, e.g. a project archived beside its folder. Refuses 4 GiB or more and more than 65535 files (`ZipTooBig`).
+pub fn zip_files(files: &[(&str, &[u8])]) -> Result<Vec<u8>, ExportError> {
+    let mut zip = zip::Zip::default();
+    for (name, bytes) in files {
+        zip.add(name, bytes)?;
+    }
+
+    zip.finish()
+}
+
+/// Whether `entries` files of `bytes` in all fit a ZIP archive (`zip_files`), so a caller can
+/// ask before it reads them.
+pub fn zip_fits(entries: usize, bytes: u64) -> Result<(), ExportError> {
+    zip::fits(entries, bytes)
+}
+
 /// A view of the set as PNG (LH-86), as wide as the picture: print colours, names written in.
 pub fn picture_png(
     picture: &Picture,
@@ -141,7 +158,8 @@ pub fn shots_ods(
     lamps: &[Lamp],
     words: &LampTexts,
 ) -> Vec<u8> {
-    ods::write(&sheets(plan, texts, order, lamps, words))
+    // A sheet list is far below the limits (4 GiB, 65535 files): the refusal cannot come.
+    ods::write(&sheets(plan, texts, order, lamps, words)).unwrap_or_default()
 }
 
 /// The plan's shots in `order` as Excel workbook (LH-85), the same as `shots_ods`.
@@ -152,7 +170,8 @@ pub fn shots_xlsx(
     lamps: &[Lamp],
     words: &LampTexts,
 ) -> Vec<u8> {
-    xlsx::write(&sheets(plan, texts, order, lamps, words))
+    // As in `shots_ods`.
+    xlsx::write(&sheets(plan, texts, order, lamps, words)).unwrap_or_default()
 }
 
 /// The sheets of a workbook: the shot list, and the lamp list when the plan has lamps.
