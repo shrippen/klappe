@@ -49,6 +49,29 @@ pub struct LampTexts {
     /// Without it the list is cut without a note.
     pub more: String,
     pub kinds: Vec<(LightKind, String)>,
+    /// Name of the lamp sheet in ODS and XLSX, e.g. "Lampen".
+    pub title: String,
+    pub columns: LampColumns,
+}
+
+/// Column heads of the lamp sheet, in its order.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LampColumns {
+    pub label: String,
+    pub kind: String,
+    pub power_w: String,
+    pub color_temp_k: String,
+    pub beam_deg: String,
+}
+
+impl LampTexts {
+    /// What the lamp list calls `kind`; the built-in name without a word for it.
+    pub(crate) fn kind_name(&self, kind: LightKind) -> &str {
+        self.kinds
+            .iter()
+            .find(|(k, _)| *k == kind)
+            .map_or(kind.name(), |(_, name)| name.as_str())
+    }
 }
 
 /// What the legend calls a drawing: lines by their dash, a filled shape an area.

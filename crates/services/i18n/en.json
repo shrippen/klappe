@@ -308,6 +308,7 @@
  "field.from": "From (s)",
  "field.to": "To (s)",
  "field.duration": "Duration (s)",
+ "lamps.title": "Lamps",
  "shots.title": "Shot list",
  "shots.view.tiles": "Tiles",
  "shots.view.table": "Table",

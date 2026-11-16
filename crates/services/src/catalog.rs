@@ -2,7 +2,7 @@
 //! to QML as JSON (`Texts.qml`); Rust reads single keys for what it prints, so does the CLI
 //! for its exports.
 
-use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts};
+use klappe_export::{DrawingTexts, LampColumns, LampTexts, ShotColumns, ShotTexts, Texts};
 use klappe_model::{Angle, FigureColor, LightKind, Movement, ShotSize};
 use serde_json::{Map, Value};
 
@@ -74,6 +74,14 @@ impl Language {
                     .iter()
                     .map(|k| (*k, t(&format!("lightKind.{}", k.name()))))
                     .collect(),
+                title: t("lamps.title"),
+                columns: LampColumns {
+                    label: t("field.name"),
+                    kind: t("light.kind"),
+                    power_w: t("field.power"),
+                    color_temp_k: t("field.temp"),
+                    beam_deg: t("field.beam"),
+                },
             },
         }
     }

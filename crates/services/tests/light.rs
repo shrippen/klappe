@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use klappe_model::{Light, LightKind, Point};
 use klappe_services::{
     Field, Hint, Language, Layer, LightChange, Lock, Paper, PlanEdit, ServiceError, Session,
-    Source, Visibility,
+    ShotOrder, Source, Visibility,
 };
 
 fn example() -> PathBuf {
@@ -383,4 +383,49 @@ fn a_passive_lamp_has_no_colour_on_the_timeline() {
         .unwrap();
 
     assert_eq!(text(&s), "");
+}
+
+/// The tables carry the plan's lamps as a second sheet; the ZIP writer stores entries
+/// uncompressed, so the text is readable.
+#[test]
+fn the_tables_carry_the_lamps_of_the_plan() {
+    let s = open();
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR"));
+    let texts = Language::German.print_texts();
+
+    s.export_ods(&dir.join("lamps.ods"), &texts, ShotOrder::Cut)
+        .unwrap();
+    s.export_xlsx(&dir.join("lamps.xlsx"), &texts, ShotOrder::Cut)
+        .unwrap();
+
+    for name in ["lamps.ods", "lamps.xlsx"] {
+        let bytes = std::fs::read(dir.join(name)).unwrap();
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("Lampen"), "{name}");
+        assert!(text.contains("LED-Panel"), "{name}");
+        assert!(text.contains("5600"), "{name}");
+    }
+}
+
+/// A table lists what the plan holds: hiding the lights layer on the plan keeps the lamp sheet,
+/// as the shot sheet keeps every shot.
+#[test]
+fn hidden_lamps_stay_in_the_tables() {
+    let mut s = open();
+    s.set_layer(Layer::Lights, Visibility::Hidden);
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR"));
+    let texts = Language::German.print_texts();
+
+    s.export_ods(&dir.join("hidden-lamps.ods"), &texts, ShotOrder::Cut)
+        .unwrap();
+    s.export_xlsx(&dir.join("hidden-lamps.xlsx"), &texts, ShotOrder::Cut)
+        .unwrap();
+
+    for name in ["hidden-lamps.ods", "hidden-lamps.xlsx"] {
+        let bytes = std::fs::read(dir.join(name)).unwrap();
+        assert!(
+            String::from_utf8_lossy(&bytes).contains("LED-Panel"),
+            "{name}"
+        );
+    }
 }

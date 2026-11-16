@@ -1,7 +1,6 @@
-//! The shot list as OpenDocument spreadsheet: a ZIP of `mimetype`, a manifest and `content.xml`.
+//! The shot list (and lamp list) as OpenDocument spreadsheet: a ZIP of `mimetype`, a manifest and `content.xml`.
 
-use crate::sheet::{escape, grid, Cell};
-use crate::shots::Table;
+use crate::sheet::{escape, grid, Cell, Sheet};
 use crate::zip::Zip;
 
 const MIMETYPE: &str = "application/vnd.oasis.opendocument.spreadsheet";
@@ -21,33 +20,37 @@ const CONTENT_HEAD: &str = concat!(
 );
 const CONTENT_TAIL: &str = "</office:spreadsheet></office:body></office:document-content>";
 
-pub(crate) fn write(table: &Table, sheet_name: &str) -> Vec<u8> {
+pub(crate) fn write(sheets: &[Sheet]) -> Vec<u8> {
     let mut zip = Zip::default();
 
     // The mimetype comes first and stays uncompressed: that is how readers tell the format.
     zip.add("mimetype", MIMETYPE.as_bytes());
     zip.add("META-INF/manifest.xml", MANIFEST.as_bytes());
-    zip.add("content.xml", content(table, sheet_name).as_bytes());
+    zip.add("content.xml", content(sheets).as_bytes());
 
     zip.finish()
 }
 
-fn content(table: &Table, sheet_name: &str) -> String {
+fn content(sheets: &[Sheet]) -> String {
     let mut out = String::from(CONTENT_HEAD);
-    out.push_str(&format!(
-        r#"<table:table table:name="{}">"#,
-        escape(sheet_name)
-    ));
 
-    for row in grid(table) {
-        out.push_str("<table:table-row>");
-        for cell in row {
-            out.push_str(&cell_xml(cell));
+    for sheet in sheets {
+        out.push_str(&format!(
+            r#"<table:table table:name="{}">"#,
+            escape(sheet.name)
+        ));
+
+        for row in grid(&sheet.table) {
+            out.push_str("<table:table-row>");
+            for cell in row {
+                out.push_str(&cell_xml(cell));
+            }
+            out.push_str("</table:table-row>");
         }
-        out.push_str("</table:table-row>");
+
+        out.push_str("</table:table>");
     }
 
-    out.push_str("</table:table>");
     out.push_str(CONTENT_TAIL);
 
     out

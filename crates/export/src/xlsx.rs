@@ -1,6 +1,7 @@
-//! The shot list as Excel workbook (SpreadsheetML): a ZIP with one worksheet, text inline.
+//! The shot list (and lamp list) as Excel workbook (SpreadsheetML): a ZIP with a worksheet each,
+//! text inline.
 
-use crate::sheet::{escape, grid, Cell};
+use crate::sheet::{escape, grid, Cell, Sheet};
 use crate::shots::Table;
 use crate::zip::Zip;
 
@@ -10,21 +11,21 @@ const CONTENT_TYPES: &str = concat!(
     r#"<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>"#,
     r#"<Default Extension="xml" ContentType="application/xml"/>"#,
     r#"<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>"#,
-    r#"<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>"#,
     r#"</Types>"#,
 );
+const SHEET_OVERRIDE: &str = r#"<Override PartName="/xl/worksheets/sheet{n}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>"#;
 const ROOT_RELS: &str = concat!(
     r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>"#,
     r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">"#,
     r#"<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>"#,
     r#"</Relationships>"#,
 );
-const WORKBOOK_RELS: &str = concat!(
+const WORKBOOK_RELS_HEAD: &str = concat!(
     r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>"#,
     r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">"#,
-    r#"<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>"#,
-    r#"</Relationships>"#,
 );
+const SHEET_REL: &str = r#"<Relationship Id="rId{n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet{n}.xml"/>"#;
+const WORKBOOK_RELS_TAIL: &str = "</Relationships>";
 const SHEET_HEAD: &str = concat!(
     r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>"#,
     r#"<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>"#,
@@ -34,41 +35,85 @@ const SHEET_TAIL: &str = "</sheetData></worksheet>";
 /// Excel refuses longer sheet names and these characters.
 const MAX_NAME_CHARS: usize = 31;
 const FORBIDDEN_IN_NAME: [char; 7] = ['[', ']', ':', '*', '?', '/', '\\'];
-const FALLBACK_NAME: &str = "Sheet1";
+const FALLBACK_NAME: &str = "Sheet";
 const LETTERS: usize = 26;
 
-pub(crate) fn write(table: &Table, sheet_name: &str) -> Vec<u8> {
+pub(crate) fn write(sheets: &[Sheet]) -> Vec<u8> {
     let mut zip = Zip::default();
 
-    zip.add("[Content_Types].xml", CONTENT_TYPES.as_bytes());
+    zip.add(
+        "[Content_Types].xml",
+        content_types(sheets.len()).as_bytes(),
+    );
     zip.add("_rels/.rels", ROOT_RELS.as_bytes());
-    zip.add("xl/workbook.xml", workbook(sheet_name).as_bytes());
-    zip.add("xl/_rels/workbook.xml.rels", WORKBOOK_RELS.as_bytes());
-    zip.add("xl/worksheets/sheet1.xml", sheet(table).as_bytes());
+    zip.add("xl/workbook.xml", workbook(sheets).as_bytes());
+    zip.add(
+        "xl/_rels/workbook.xml.rels",
+        workbook_rels(sheets.len()).as_bytes(),
+    );
+    for (i, sheet_data) in sheets.iter().enumerate() {
+        zip.add(
+            &format!("xl/worksheets/sheet{}.xml", i + 1),
+            sheet(&sheet_data.table).as_bytes(),
+        );
+    }
 
     zip.finish()
 }
 
-fn workbook(sheet_name: &str) -> String {
+/// `template` once per sheet, `{n}` counting from 1.
+fn per_sheet(template: &str, count: usize) -> String {
+    (1..=count)
+        .map(|n| template.replace("{n}", &n.to_string()))
+        .collect()
+}
+
+fn content_types(count: usize) -> String {
+    let overrides = per_sheet(SHEET_OVERRIDE, count);
+
+    CONTENT_TYPES.replace("</Types>", &format!("{overrides}</Types>"))
+}
+
+fn workbook_rels(count: usize) -> String {
+    format!(
+        "{WORKBOOK_RELS_HEAD}{}{WORKBOOK_RELS_TAIL}",
+        per_sheet(SHEET_REL, count)
+    )
+}
+
+fn workbook(sheets: &[Sheet]) -> String {
+    let entries: String = sheets
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            format!(
+                r#"<sheet name="{}" sheetId="{n}" r:id="rId{n}"/>"#,
+                escape(&valid_name(s.name, i + 1)),
+                n = i + 1
+            )
+        })
+        .collect();
+
     format!(
         concat!(
             r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>"#,
             r#"<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" "#,
             r#"xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">"#,
-            r#"<sheets><sheet name="{}" sheetId="1" r:id="rId1"/></sheets></workbook>"#,
+            r#"<sheets>{}</sheets></workbook>"#,
         ),
-        escape(&valid_name(sheet_name))
+        entries
     )
 }
 
-fn valid_name(name: &str) -> String {
+/// `nr` (from 1) makes the fallback name unique.
+fn valid_name(name: &str, nr: usize) -> String {
     let clean: String = name
         .chars()
         .filter(|c| !FORBIDDEN_IN_NAME.contains(c))
         .take(MAX_NAME_CHARS)
         .collect();
     if clean.trim().is_empty() {
-        return FALLBACK_NAME.to_owned();
+        return format!("{FALLBACK_NAME}{nr}");
     }
 
     clean
