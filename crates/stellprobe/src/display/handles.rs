@@ -4,6 +4,7 @@ use klappe_model::{
     Drawing, DrawingShape, FloorPlan, ObjectShape, Point, Project, SetObject, SetPlan,
 };
 
+use super::objects::object_corners;
 use super::{rect_corners, Item, Role, Shape, Source};
 use crate::card::note_card;
 use crate::light::light_grip_place;
@@ -37,13 +38,15 @@ pub enum LightGrip {
     Beam,
 }
 
-/// The edge of a set object a grip sits on, in the object's own turned frame.
+/// A grip on a set object, in the object's own turned frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectGrip {
     /// Just outside the middle of the right edge: sets the width.
     Width,
     /// Just outside the middle of the bottom edge: sets the depth.
     Depth,
+    /// Point `n` of a free form's outline (LH-92): drag to move it, remove it to take it out.
+    Point(usize),
 }
 
 /// The grip on a way's bend.
@@ -64,7 +67,8 @@ const NEW_POINT_RADIUS_M: f64 = 0.1;
 /// A selected lamp has two at the beam's reach: one on its facing, one on the beam's edge
 /// (LH-50).
 /// A selected object drawn by its width and depth has one just outside the middle of its right
-/// edge and one outside its bottom edge, to set them (LH-25).
+/// edge and one outside its bottom edge, to set them (LH-25); a free form has one on each point
+/// of its outline instead (LH-92).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -115,12 +119,14 @@ fn light_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
 const OBJECT_GRIP_GAP_M: f64 = 0.45;
 
 /// Where the grip `grip` of `object` sits on the plan: just outside the middle of its right or
-/// bottom edge, turned with the object.
+/// bottom edge, turned with the object; a free form's point sits on the point, where it lies
+/// on the plan (the object's centre for a point the form does not have).
 pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
     let (sin, cos) = object.rotation_deg.to_radians().sin_cos();
     let (x_m, y_m) = match grip {
         ObjectGrip::Width => (object.width_m / 2.0 + OBJECT_GRIP_GAP_M, 0.0),
         ObjectGrip::Depth => (0.0, object.depth_m / 2.0 + OBJECT_GRIP_GAP_M),
+        ObjectGrip::Point(n) => return form_point_place(object, n),
     };
 
     Point::new(
@@ -129,16 +135,30 @@ pub fn object_grip_place(object: &SetObject, grip: ObjectGrip) -> Point {
     )
 }
 
-/// The width and depth grips of object `id`; a free form has none, its points are its own.
+/// Where point `index` of a free form lies on the plan, stretched to the object's size and
+/// turned; the object's centre when `object` has no such point.
+fn form_point_place(object: &SetObject, index: usize) -> Point {
+    if !matches!(object.shape, ObjectShape::Polygon { .. }) {
+        return object.at;
+    }
+
+    object_corners(object)
+        .get(index)
+        .copied()
+        .unwrap_or(object.at)
+}
+
+/// The grips of object `id`: width and depth, or for a free form one on each point.
 fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
     let Some(object) = set.objects.iter().find(|o| o.id == id) else {
         return Vec::new();
     };
-    if matches!(object.shape, ObjectShape::Polygon { .. }) {
-        return Vec::new();
-    }
+    let grips = match &object.shape {
+        ObjectShape::Polygon { points } => (0..points.len()).map(ObjectGrip::Point).collect(),
+        _ => vec![ObjectGrip::Width, ObjectGrip::Depth],
+    };
 
-    [ObjectGrip::Width, ObjectGrip::Depth]
+    grips
         .into_iter()
         .map(|grip| Item {
             role: Role::ObjectHandle,

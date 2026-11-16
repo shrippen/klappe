@@ -148,11 +148,12 @@ fn light_grip_part(grip: LightGrip) -> &'static str {
     }
 }
 
-/// The last part of an object grip's key: the size it sets.
-fn object_grip_part(grip: ObjectGrip) -> &'static str {
+/// The last part of an object grip's key: the size it sets, or `point2` for point 2 of a form.
+fn object_grip_part(grip: ObjectGrip) -> String {
     match grip {
-        ObjectGrip::Width => "width",
-        ObjectGrip::Depth => "depth",
+        ObjectGrip::Width => "width".to_owned(),
+        ObjectGrip::Depth => "depth".to_owned(),
+        ObjectGrip::Point(n) => format!("point{n}"),
     }
 }
 
@@ -194,6 +195,11 @@ mod tests {
         assert_eq!(key(&figure), "figurevia:e:1:at0");
         assert_eq!(key(&camera), "cameravia:a:1:new2");
         assert_eq!(key(&object_grip()), "objectgrip:o:depth");
+        let point = Source::ObjectGrip {
+            object: "o".into(),
+            grip: ObjectGrip::Point(2),
+        };
+        assert_eq!(key(&point), "objectgrip:o:point2");
     }
 
     fn opening() -> Source {

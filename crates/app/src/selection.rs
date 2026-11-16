@@ -1,7 +1,7 @@
 //! What the select tool has picked and what the keys and a group drag do to it. Like the
 //! tools (`tools.rs`), no geometry here.
 
-use klappe_services::{Bend, PlanEdit, Point, Source};
+use klappe_services::{Bend, ObjectGrip, PlanEdit, Point, Source};
 
 /// What the keys do to the selection.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -43,6 +43,7 @@ pub enum Reach {
 /// keeps its grips, its card and its keys; the width grip of a note or of an opening stands
 /// for the note or opening, a grip on a lamp's beam for the lamp; a grip on a way is selected
 /// itself (it is the bend to straighten). A click on a point is the exception, see `click`.
+/// A free form's point stands for the form.
 fn whole(source: Source) -> Source {
     match source {
         Source::DrawingPoint { drawing, .. } | Source::DrawingEdge { drawing, .. } => {
@@ -86,11 +87,20 @@ impl Selection {
     }
 
     /// A click on `picked` (`None`: empty ground). A plain click takes just that, a click on a
-    /// drawing's point that point, so Delete takes it out; with `Extend` it takes the element
+    /// drawing's point or a free form's point that point, so Delete takes it out; with `Extend` it takes the element
     /// in, or out when it is in already, and a click on empty ground changes nothing.
     pub fn click(mut self, picked: Option<Source>, how: Pick) -> Selection {
         match (how, picked) {
             (Pick::Replace, Some(point @ Source::DrawingPoint { .. })) => Selection(vec![point]),
+            (
+                Pick::Replace,
+                Some(
+                    point @ Source::ObjectGrip {
+                        grip: ObjectGrip::Point(_),
+                        ..
+                    },
+                ),
+            ) => Selection(vec![point]),
             (Pick::Replace, picked) => Selection::of(picked),
             (Pick::Extend, None) => self,
             (Pick::Extend, Some(source)) => {
@@ -420,6 +430,31 @@ mod tests {
         assert_eq!(
             Selection::of(Some(drawing.clone())).grab(Some(grip)),
             Selection::of(Some(drawing))
+        );
+    }
+
+    /// A plain click on a free form's point selects the point, for Delete; any other pick of
+    /// it, and a width grip, stands for the object.
+    #[test]
+    fn a_click_on_a_form_point_selects_the_point() {
+        let grip = |grip| Source::ObjectGrip {
+            object: "o".into(),
+            grip,
+        };
+        let point = grip(ObjectGrip::Point(1));
+        let object = Source::Object("o".into());
+
+        assert_eq!(
+            Selection::of(None).click(Some(point.clone()), Pick::Replace),
+            Selection(vec![point.clone()])
+        );
+        assert_eq!(
+            Selection::of(None).click(Some(point), Pick::Extend),
+            Selection::of(Some(object.clone()))
+        );
+        assert_eq!(
+            Selection::of(None).click(Some(grip(ObjectGrip::Width)), Pick::Replace),
+            Selection::of(Some(object))
         );
     }
 
