@@ -82,7 +82,7 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 | Spielort | Projekt (`orte.toml`); entsteht aus dem Ort im Kopf, mit und ohne Buch (DB-51) | zufällig, stabil | Name, Varianten (andere Schreibweisen im Kopf) | Breakdown, Drehplan |
 | Spielort → Drehort | Projekt (Ortsplanung) | – | Vorgabe je Spielort; Abweichung je Szene im Szenenblatt | Stellprobe, Drehplan, Dispo |
 | Drehort | Stellprobe (Raum mit Set), Produktion (Adresse, später eigenes Ding) | stabil | Name, Set | Drehplan, Dispo |
-| Floorplan | Stellprobe | je Szene stabil | **Set, auf dem er gezeichnet ist** (ersetzt `Scene.location`; Migration: der heutige Wert geht an jeden Plan der Szene); Marks (mit Id), Kameras, Licht | Storyboard, Breakdown |
+| Floorplan | Stellprobe | je Szene stabil | **Set, auf dem er gezeichnet ist** (ersetzt `Scene.location`); Marks (mit Id), Kameras, Licht | Storyboard, Breakdown |
 | Shot | Stellprobe | stabil | wie heute; Storyboard-Bild und Notiz | Storyboard, Drehplan, Dispo |
 | Element | Breakdown | zufällig | Kategorie, Name, Beschreibung, verantwortliche Person, Status | Dispo, Stellprobe |
 | Person | Besetzung/Team | zufällig | Name, Department, Funktion, Agentur, Kontakt | Dispo |
@@ -198,7 +198,8 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
    zufällige Ids.
    Zuerst Tests, die heute scheitern (Zeile vor verknüpfter Zeile einfügen, Szene davor
    einfügen, fremd neu nummerieren, Konfliktmarken im Buch).
-   Migration von `testdata/` und Demo, `format_version` 3.
+   `testdata/` und Demo werden im neuen Format geschrieben, `format_version` 3. Vorhandene
+   Projekte werden nicht migriert: es gibt kein Release (Eigentümer, 17.11.2026).
 2. Breakdown: Elemente, Szenenblatt, Figuren der Szene, Vorschläge aus dem Set.
 3. Besetzung/Team.
 4. Drehplan (Stripboard, Versionen, Day out of Days).
@@ -220,8 +221,28 @@ Entschieden vom Eigentümer am 2026-11-17:
 | F-07 | Ist das Drehbuch Pflicht? | Nein: auch Projekte ohne Drehbuch (Reportage, Doku, EB). Das Szenenregister gehört darum dem Projekt: Gibt es ein Buch, ist es die Quelle von Nummer und Kopf; sonst werden Szenen direkt in Klappe angelegt und bearbeitet. |
 | F-08 | Automatische Szenennummern vor der Sperre im Text? | Ja, von Anfang an (DB-33 bleibt). Kommt es beim Zusammenführen (Git) zum Konflikt, löst ihn ein Dialog in Klappe auf. |
 | F-09 | Neuer Baustein `planung/` in „Layers“ von `ARCHITECTURE.md` | Ja. |
-| F-10 | Wie wird verschlüsselt (F-03), ohne Lesbarkeit und Vergleich in Git (NF-03) zu verlieren? | Lokal klar lesbar; verschlüsselt nur beim Ablegen in ein fremdes Git (Git-Filter mit Projektpasswort, wie git-crypt). Eigenes Lastenheft-Kapitel. Zu klären dort: Ein fremdes Git sieht nur verschlüsselte Dateien und kann nicht zeilenweise zusammenführen; Grundsatz 8 und der Dialog aus F-08 brauchen dann einen eigenen Merge-Treiber, der entschlüsselt. |
+| F-10 | Wie wird verschlüsselt (F-03), ohne Lesbarkeit und Vergleich in Git (NF-03) zu verlieren? | Lokal klar lesbar; verschlüsselt nur beim Ablegen an einem Ziel, dem nicht vertraut wird (Projektpasswort; bei Git z. B. ein Filter wie git-crypt). Je Ziel wählbar: vertraut (privat, Klartext) oder nicht vertraut (öffentlich, verschlüsselt). Siehe Abschnitt 9. Zu klären im Lastenheft-Kapitel: Ein fremdes Git sieht nur verschlüsselte Dateien und kann nicht zeilenweise zusammenführen; Grundsatz 8 und der Dialog aus F-08 brauchen dann einen eigenen Merge-Treiber, der entschlüsselt. |
 | F-07a | Projekte ohne Szenen (Reportage, Doku, EB) | Content Items gleich als Konzept einplanen (Abschnitt 3). |
+| F-11 | Abgleich neben Git | Weitere Wege vorsehen: WebDAV, eventuell p2panda (Abschnitt 9); Vertrauen je Ziel wählbar. |
+| F-12 | Hinweise des Advisors (zweite Runde) | Übernehmen; keine Migration vorhandener Projekte, da kein Release. |
+
+## 9. Abgleich (Sync)
+
+Ein Projekt lässt sich mit anderen Geräten und Personen abgleichen. Klappe sieht dafür mehrere
+Wege vor, hinter einer gemeinsamen Schicht, damit Teilbereiche nichts vom Weg wissen:
+
+| Weg | Wofür | Hinweise |
+|---|---|---|
+| Git | Versionen, Zusammenarbeit mit Verlauf | heute schon möglich (Textformat, NF-03) |
+| WebDAV | einfache Ablage auf eigenem Server oder Cloud-Speicher (z. B. Nextcloud) | kein Verlauf; Konflikte erkennt Klappe selbst |
+| p2panda | Abgleich von Gerät zu Gerät ohne Server, local-first | zu prüfen: Eignung und Reife (Rust-Bibliothek), Abbildung der Projektdateien |
+
+- **Vertrauen je Ziel** (F-10): Für jedes Ziel wählt der Nutzer „vertraut (privat)“ oder „nicht
+  vertraut (öffentlich)“. Nicht vertraute Ziele bekommen nur verschlüsselte Daten (Projektpasswort).
+- **Konflikte** löst derselbe Dialog in Klappe, gleich über welchen Weg sie kommen (F-08).
+- **Grundsätze 3 und 8** (zufällige Ids, eine Datei je Szene) halten Konflikte bei allen Wegen klein.
+- Das Abgleichen selbst ist ein eigenes Vorhaben mit eigenem Lastenheft-Kapitel; Schritt 1 baut
+  nur, was es später braucht (Ids, Dateigrenzen, Erkennen von Konfliktmarken).
 
 ## Anhang A: Yamdu im Verhalten
 
