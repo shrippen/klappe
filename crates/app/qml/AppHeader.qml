@@ -30,6 +30,7 @@ RowLayout {
 
     signal newRequested()
     signal openRequested()
+    signal closeRequested()
     signal projectRequested()
     signal backgroundRequested()
     signal viewToggled(string area, bool shown)
@@ -47,7 +48,7 @@ RowLayout {
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
-    readonly property var entries: [actNew, actOpen, actProject, actSave, actBackground, actBackgroundRemove,
+    readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
                                     actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actZoomIn, actZoomOut, actZoomFit,
@@ -124,6 +125,7 @@ RowLayout {
         QQC2.MenuSeparator { visible: header.controller.loaded }
         KanteMenuItem { objectName: "project"; action: actProject; iconRoom: true; visible: header.controller.loaded }
         KanteMenuItem { objectName: "save"; action: actSave; iconRoom: true; visible: header.controller.loaded }
+        KanteMenuItem { objectName: "close"; action: actClose; iconRoom: true; visible: header.controller.loaded }
         QQC2.MenuSeparator { visible: header.controller.loaded }
         KanteMenuItem { objectName: "background"; action: actBackground; iconRoom: true; visible: header.controller.loaded }
         KanteMenuItem {
@@ -234,6 +236,16 @@ RowLayout {
         keys: header.keyName("Ctrl+S")
         enabled: header.controller.loaded
         onTriggered: header.controller.save()
+    }
+    CommandAction {
+        id: actClose
+        cmd: "project.close"
+        group: "file"
+        text: header.texts.t("menu.close")
+        shortcut: "Ctrl+W"
+        keys: header.keyName("Ctrl+W")
+        enabled: header.controller.loaded && !header.locked
+        onTriggered: header.closeRequested()
     }
     CommandAction {
         id: actBackground

@@ -41,6 +41,7 @@ TestCase {
 
     SignalSpy { id: newSpy; signalName: "newRequested" }
     SignalSpy { id: openSpy; signalName: "openRequested" }
+    SignalSpy { id: closeSpy; signalName: "closeRequested" }
     SignalSpy { id: projectSpy; signalName: "projectRequested" }
     SignalSpy { id: backgroundSpy; signalName: "backgroundRequested" }
     SignalSpy { id: viewSpy; signalName: "viewToggled" }
@@ -74,7 +75,7 @@ TestCase {
     function make() {
         const header = createTemporaryObject(headerComponent, tc)
         verify(header)
-        for (const spy of [newSpy, openSpy, projectSpy, backgroundSpy, viewSpy, orderSpy, zoomSpy, playSpy, heightSpy]) {
+        for (const spy of [newSpy, openSpy, closeSpy, projectSpy, backgroundSpy, viewSpy, orderSpy, zoomSpy, playSpy, heightSpy]) {
             spy.target = header
             spy.clear()
         }
@@ -137,7 +138,7 @@ TestCase {
         }
         verify(entry(header, "fileMenu", "new").visible)
         verify(entry(header, "fileMenu", "open").visible)
-        for (const name of ["project", "save", "background", "backgroundRemove"]) {
+        for (const name of ["project", "save", "close", "background", "backgroundRemove"]) {
             verify(!entry(header, "fileMenu", name).visible, name)
         }
     }
@@ -163,6 +164,27 @@ TestCase {
         compare(projectSpy.count, 1)
         compare(backgroundSpy.count, 1)
         compare(fake.calls, [["save"]])
+    }
+
+    function test_close_is_in_the_file_menu_and_asks_to_close() {
+        const header = make()
+
+        compare(entry(header, "fileMenu", "close").text, "Schließen")
+        pick(header, "fileMenu", "close")
+
+        compare(closeSpy.count, 1)
+        compare(fake.calls, [])
+    }
+
+    function test_ctrl_w_closes_the_project() {
+        make()
+
+        keyClick(Qt.Key_W, Qt.ControlModifier)
+        compare(closeSpy.count, 1)
+
+        fake.loaded = false
+        keyClick(Qt.Key_W, Qt.ControlModifier)
+        compare(closeSpy.count, 1)
     }
 
     function test_removing_the_background_is_offered_only_with_one() {

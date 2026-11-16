@@ -5,6 +5,7 @@ use super::qobject;
 use super::view::to_json;
 use crate::fileurl;
 use crate::manage;
+use crate::tools::Preview;
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
@@ -42,6 +43,27 @@ impl qobject::Controller {
         let opened = Session::open(&dir);
 
         self.switch_to(opened)
+    }
+
+    pub(super) fn close_project(mut self: Pin<&mut Self>) -> bool {
+        let language = self.rust().language;
+        let Some(old) = self.as_mut().session() else {
+            return true;
+        };
+        let dir = old.dir().to_string_lossy().into_owned();
+        if let Err(e) = old.autosave() {
+            self.say(error_text(language, &e));
+            return false;
+        }
+
+        {
+            let this = self.as_mut().rust_mut().get_mut();
+            this.session = None;
+            this.drop_drafts();
+        }
+        self.as_mut().show_closed();
+        self.remember(&dir);
+        true
     }
 
     pub(super) fn open_example(self: Pin<&mut Self>) -> bool {
@@ -177,6 +199,50 @@ impl qobject::Controller {
         self.as_mut().show_backup();
         self.remember(&dir);
         true
+    }
+
+    /// Empties what the window shows of a project, after the session is gone: the start page
+    /// stays, and nothing of the old project is read by a page that is still alive.
+    fn show_closed(mut self: Pin<&mut Self>) {
+        let empty = QString::default;
+        self.as_mut().rust_mut().get_mut().shown = String::new();
+        self.as_mut().rust_mut().get_mut().preview = Preview::Hidden;
+
+        self.as_mut().set_loaded(false);
+        self.as_mut().set_status(empty());
+        self.as_mut().rust_mut().get_mut().notice.say(String::new());
+        self.as_mut().set_title(empty());
+        self.as_mut().set_plan_title(empty());
+        self.as_mut().set_plan_json(empty());
+        self.as_mut().set_tracks_json(empty());
+        self.as_mut().set_shots_json(empty());
+        self.as_mut().set_shots_shooting_json(empty());
+        self.as_mut().set_script_json(empty());
+        self.as_mut().set_layers_json(empty());
+        self.as_mut().set_locks_json(empty());
+        self.as_mut().set_choices_json(empty());
+        self.as_mut().set_project_json(empty());
+        self.as_mut().set_scene_id(empty());
+        self.as_mut().set_selected_shot(empty());
+        self.as_mut().set_selected_key(empty());
+        self.as_mut().set_selected_count(0);
+        self.as_mut().set_time(0.0);
+        self.as_mut().set_duration(0.0);
+        self.as_mut().set_can_undo(false);
+        self.as_mut().set_can_redo(false);
+        self.as_mut().set_dirty(false);
+        self.as_mut().set_has_background(false);
+        self.as_mut().set_missing_heights(0);
+        self.as_mut().set_scale_points(0);
+        self.as_mut().set_area_points(0);
+        self.as_mut().set_asks_note(false);
+        self.as_mut().set_measuring(false);
+        self.as_mut().set_view_free(false);
+        self.as_mut().set_backup_state(empty());
+        self.as_mut().set_backup_message(empty());
+
+        let revision = self.picture_revision().wrapping_add(1);
+        self.set_picture_revision(revision);
     }
 
     /// Puts the folder first in the list of recent projects.
