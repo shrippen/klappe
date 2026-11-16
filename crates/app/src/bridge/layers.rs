@@ -3,7 +3,8 @@
 use super::qobject;
 use core::pin::Pin;
 use cxx_qt_lib::QString;
-use klappe_services::{Layer, Lock, Visibility};
+use klappe_services::{Layer, Lock, Session, Visibility};
+use serde_json::json;
 
 const SHOWN: &str = "shown";
 const LOCKED: &str = "locked";
@@ -56,4 +57,32 @@ fn visibility(text: &QString) -> Visibility {
         return Visibility::Shown;
     }
     Visibility::Hidden
+}
+
+pub(super) fn layers_json(s: &Session) -> String {
+    layer_flags(|l| s.layer(l) == Visibility::Shown)
+}
+
+pub(super) fn locks_json(s: &Session) -> String {
+    layer_flags(|l| s.lock(l) == Lock::Locked)
+}
+
+/// The strength of each layer, by name, as the names of `Fade` (`100`, `60`, `30`).
+pub(super) fn fades_json(s: &Session) -> String {
+    let fades: serde_json::Map<_, _> = Layer::ALL
+        .iter()
+        .map(|l| (l.name().to_owned(), json!(s.fade(*l).name())))
+        .collect();
+
+    serde_json::Value::Object(fades).to_string()
+}
+
+/// One switch per layer, by name: what `layersJson` and `locksJson` hand to QML.
+pub(super) fn layer_flags(flag: impl Fn(Layer) -> bool) -> String {
+    let flags: serde_json::Map<_, _> = Layer::ALL
+        .iter()
+        .map(|l| (l.name().to_owned(), json!(flag(*l))))
+        .collect();
+
+    json!(flags).to_string()
 }

@@ -38,6 +38,8 @@ const PAGES: &[&str] = &[
     "qml/TemplateForm.qml",
     "qml/ViewForm.qml",
     "qml/ViewCommands.qml",
+    "qml/PageExports.qml",
+    "qml/ZoomCommands.qml",
     "qml/Timeline.qml",
     "qml/Workspace.qml",
     "qml/TileDialog.qml",

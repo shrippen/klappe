@@ -93,6 +93,7 @@ pub(crate) fn seat_speakers(project: &mut Project, scene: usize, plan: usize, id
                 pose: Pose::Standing,
                 hold_s: 0.0,
                 via: Vec::new(),
+                curve: Default::default(),
                 arrival: Arrival::Walk,
                 departure: Departure::Stay,
             }],

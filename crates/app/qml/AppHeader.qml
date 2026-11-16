@@ -50,12 +50,10 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
-                                    actShotPages, actCameraPages, actShotFiles, actCameraFiles,
-                                    actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
-                                    actZoomIn, actZoomOut, actZoomFit,
+                                                                        actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actNextMark, actMarkBefore, actAxisTo, actWaySmooth, actWayStraight,
-                                    actUndo, actRedo].concat(viewCommands.actions)
+                                    actUndo, actRedo].concat(zoom.actions, pageExports.actions, viewCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -158,10 +156,10 @@ RowLayout {
         KanteMenuItem { objectName: "view3d"; action: actView3d; iconRoom: true }
         KanteMenuItem { objectName: "camera"; action: actCameraPng; iconRoom: true }
         QQC2.MenuSeparator {}
-        KanteMenuItem { objectName: "shotPages"; action: actShotPages; iconRoom: true }
-        KanteMenuItem { objectName: "cameraPages"; action: actCameraPages; iconRoom: true }
-        KanteMenuItem { objectName: "shotFiles"; action: actShotFiles; iconRoom: true }
-        KanteMenuItem { objectName: "cameraFiles"; action: actCameraFiles; iconRoom: true }
+        KanteMenuItem { objectName: "shotPages"; action: pageExports.shotPages; iconRoom: true }
+        KanteMenuItem { objectName: "cameraPages"; action: pageExports.cameraPages; iconRoom: true }
+        KanteMenuItem { objectName: "shotFiles"; action: pageExports.shotFiles; iconRoom: true }
+        KanteMenuItem { objectName: "cameraFiles"; action: pageExports.cameraFiles; iconRoom: true }
     }
     HeaderMenu {
         id: viewMenu
@@ -195,9 +193,9 @@ RowLayout {
         KanteMenuItem { objectName: "shot"; action: actShot }
         KanteMenuItem { objectName: "timeline"; action: actTimeline }
         KanteMenuSection { text: header.texts.t("menu.viewZoom") }
-        KanteMenuItem { objectName: "zoomIn"; action: actZoomIn }
-        KanteMenuItem { objectName: "zoomOut"; action: actZoomOut }
-        KanteMenuItem { objectName: "zoomFit"; action: actZoomFit }
+        KanteMenuItem { objectName: "zoomIn"; action: zoom.inAction }
+        KanteMenuItem { objectName: "zoomOut"; action: zoom.outAction }
+        KanteMenuItem { objectName: "zoomFit"; action: zoom.fitAction }
         KanteMenuSection { text: header.texts.t("menu.viewOrder") }
         KanteMenuItem { objectName: "cut"; action: actCut }
         KanteMenuItem { objectName: "shooting"; action: actShooting }
@@ -385,37 +383,11 @@ RowLayout {
     }
 
     // LH-87: one page per shot or per camera, its camera strong and the rest faded.
-    CommandAction {
-        id: actShotPages
-        cmd: "export.shotpages"
-        group: "export"
-        text: header.texts.t("menu.shotpages")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("shotpages")
-    }
-    CommandAction {
-        id: actCameraPages
-        cmd: "export.camerapages"
-        group: "export"
-        text: header.texts.t("menu.camerapages")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("camerapages")
-    }
-    CommandAction {
-        id: actShotFiles
-        cmd: "export.shotfiles"
-        group: "export"
-        text: header.texts.t("menu.shotfiles")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("shotfiles")
-    }
-    CommandAction {
-        id: actCameraFiles
-        cmd: "export.camerafiles"
-        group: "export"
-        text: header.texts.t("menu.camerafiles")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("camerafiles")
+    PageExports {
+        id: pageExports
+        texts: header.texts
+        controller: header.controller
+        dialog: exportDialog
     }
 
     // Plan or 3D (J): the controller keeps which one shows.
@@ -559,42 +531,14 @@ RowLayout {
         onTriggered: header.shotOrderPicked("shooting")
     }
 
-    // Zoom of the plan; the window hands it on. Ctrl+= is the same key as Ctrl++ without Shift.
-    CommandAction {
-        id: actZoomIn
-        cmd: "view.zoomIn"
-        group: "view"
-        text: header.texts.t("menu.zoomIn")
-        shortcut: "Ctrl++"
-        keys: header.keyName("Ctrl++")
-        enabled: header.controller.loaded && !header.locked
-        onTriggered: header.zoomRequested("in")
-    }
-    Shortcut {
-        sequence: "Ctrl+="
-        enabled: actZoomIn.enabled
-        onActivated: actZoomIn.trigger()
-    }
-    CommandAction {
-        id: actZoomOut
-        cmd: "view.zoomOut"
-        group: "view"
-        text: header.texts.t("menu.zoomOut")
-        shortcut: "Ctrl+-"
-        keys: header.keyName("Ctrl+-")
-        enabled: header.controller.loaded && !header.locked
-        onTriggered: header.zoomRequested("out")
-    }
-    CommandAction {
-        id: actZoomFit
-        cmd: "view.zoomFit"
-        group: "view"
-        text: header.texts.t("menu.zoomFit")
-        shortcut: "Ctrl+0"
-        keys: header.keyName("Ctrl+0")
-        // The whole plan: the 3D view has no plan to fit.
-        enabled: header.controller.loaded && !header.locked && !header.controller.viewFree
-        onTriggered: header.zoomRequested("fit")
+    // Zoom of the plan; the window hands it on.
+    ZoomCommands {
+        id: zoom
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        keyName: header.keyName
+        onRequested: how => header.zoomRequested(how)
     }
 
     // Play or pause: K works everywhere. Space does too, except where it already means

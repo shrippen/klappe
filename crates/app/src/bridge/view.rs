@@ -1,6 +1,7 @@
 //! What the controller shows: the properties filled from the session after each call, and the
 //! JSON they carry.
 
+use super::layers::{fades_json, layers_json, locks_json};
 use super::qobject;
 use super::{q, ControllerRust};
 use crate::arm::Armed;
@@ -18,8 +19,7 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     Angle, Arrival, Curve, Dash, Departure, DisplayList, Fade, FigureColor, Fill, Grid, Language,
-    Layer, LightKind, Lock, Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping,
-    Source, Visibility,
+    Layer, LightKind, Movement, Point, Pose, Rig, Session, ShotOrder, ShotSize, Snapping, Source,
 };
 use serde_json::json;
 
@@ -343,34 +343,6 @@ pub(super) fn choices_json(s: &Session) -> String {
     .to_string()
 }
 
-fn layers_json(s: &Session) -> String {
-    layer_flags(|l| s.layer(l) == Visibility::Shown)
-}
-
-fn locks_json(s: &Session) -> String {
-    layer_flags(|l| s.lock(l) == Lock::Locked)
-}
-
-/// The strength of each layer, by name, as the names of `Fade` (`100`, `60`, `30`).
-fn fades_json(s: &Session) -> String {
-    let fades: serde_json::Map<_, _> = Layer::ALL
-        .iter()
-        .map(|l| (l.name().to_owned(), json!(s.fade(*l).name())))
-        .collect();
-
-    serde_json::Value::Object(fades).to_string()
-}
-
-/// One switch per layer, by name: what `layersJson` and `locksJson` hand to QML.
-fn layer_flags(flag: impl Fn(Layer) -> bool) -> String {
-    let flags: serde_json::Map<_, _> = Layer::ALL
-        .iter()
-        .map(|l| (l.name().to_owned(), json!(flag(*l))))
-        .collect();
-
-    json!(flags).to_string()
-}
-
 impl qobject::Controller {
     pub(super) fn session(self: Pin<&mut Self>) -> Option<&mut Session> {
         self.rust_mut().get_mut().session.as_mut()
@@ -502,6 +474,7 @@ mod tests {
     use super::*;
     use crate::bridge::tests::example;
     use crate::catalog::Language;
+    use klappe_services::{Lock, Visibility};
 
     /// The object tool lists the library: sizes in metres, built in first.
     #[test]
