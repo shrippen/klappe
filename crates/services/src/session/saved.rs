@@ -56,7 +56,7 @@ impl Session {
         let mut next = self.project.clone();
         let id = project_edit::save_view(&mut next, view)?;
         if next != self.project {
-            self.commit(next);
+            self.commit_step(next, "SaveView");
         }
 
         Ok(id)
@@ -112,7 +112,7 @@ impl Session {
     pub fn remove_view(&mut self, id: &str) -> Result<(), ServiceError> {
         let mut next = self.project.clone();
         project_edit::remove_view(&mut next, id)?;
-        self.commit(next);
+        self.commit_step(next, "RemoveView");
 
         Ok(())
     }

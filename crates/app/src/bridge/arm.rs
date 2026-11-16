@@ -20,11 +20,6 @@ impl qobject::Controller {
         }
 
         self.as_mut().rust_mut().get_mut().arm = armed;
-        let hint = self
-            .rust()
-            .language
-            .text(&format!("arm.hint.{}", armed.name()));
-        self.as_mut().say(hint);
         self.refresh();
         true
     }
@@ -40,7 +35,6 @@ impl qobject::Controller {
         }
 
         self.as_mut().rust_mut().get_mut().arm = Armed::Idle;
-        self.as_mut().clear_status();
         self.refresh();
     }
 
