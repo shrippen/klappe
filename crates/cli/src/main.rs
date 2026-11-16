@@ -4,7 +4,7 @@
 //! klappe-cli fov --lens 35 [--sensor super35|full-frame|mft|<width mm>]
 //! klappe-cli export --project <folder> --scene <nr> --out <file> [--plan <id>] [--at <s>]
 //!                   [--paper a4|a3|letter] [--orientation landscape|portrait]
-//!                   [--language de|en] [--format pdf|svg|png|ods|xlsx|frames|camera]
+//!                   [--language de|en] [--format pdf|svg|png|csv|ods|xlsx|frames|camera]
 //!                   [--camera <id>]
 //! ```
 
@@ -60,8 +60,8 @@ enum Command {
         #[arg(long, value_enum)]
         language: Option<LanguageArg>,
         /// Taken from the extension of --out if left out; `frames` and `camera` are never guessed.
-        #[arg(long, value_enum)]
-        format: Option<FormatArg>,
+        #[arg(long, value_parser = format_arg)]
+        format: Option<ExportFormat>,
         /// The camera `--format camera` shows.
         #[arg(long)]
         camera: Option<String>,
@@ -77,33 +77,6 @@ enum LanguageArg {
     En,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum FormatArg {
-    Pdf,
-    Svg,
-    Png,
-    Ods,
-    Xlsx,
-    /// One PNG per mark, into the folder --out; --at is ignored.
-    Frames,
-    /// What the camera --camera sees at --at, 1920 px wide.
-    Camera,
-}
-
-impl FormatArg {
-    fn format(self) -> ExportFormat {
-        match self {
-            FormatArg::Pdf => ExportFormat::Pdf,
-            FormatArg::Svg => ExportFormat::Svg,
-            FormatArg::Png => ExportFormat::Png,
-            FormatArg::Ods => ExportFormat::Ods,
-            FormatArg::Xlsx => ExportFormat::Xlsx,
-            FormatArg::Frames => ExportFormat::Frames,
-            FormatArg::Camera => ExportFormat::Camera,
-        }
-    }
-}
-
 /// The size of the 3D view on screen; the command line has none and offers no export of it.
 const NO_VIEW: Size = (0.0, 0.0);
 
@@ -116,7 +89,7 @@ struct ExportJob {
     paper: Option<Paper>,
     orientation: Option<Orientation>,
     language: Language,
-    format: FormatArg,
+    format: ExportFormat,
     camera: Option<String>,
     out: PathBuf,
 }
@@ -140,11 +113,11 @@ fn main() -> ExitCode {
                 eprintln!("klappe-cli: cannot tell the format of {out:?}, use --format");
                 return ExitCode::FAILURE;
             };
-            if format == FormatArg::Camera && camera.is_none() {
+            if format == ExportFormat::Camera && camera.is_none() {
                 eprintln!("klappe-cli: --format camera needs --camera <id>");
                 return ExitCode::FAILURE;
             }
-            if format != FormatArg::Camera && camera.is_some() {
+            if format != ExportFormat::Camera && camera.is_some() {
                 eprintln!("klappe-cli: --camera goes with --format camera only");
                 return ExitCode::FAILURE;
             }
@@ -236,7 +209,7 @@ fn write_export(job: &ExportJob) -> Result<(), String> {
         camera: job.camera.clone(),
     };
     session
-        .export(job.format.format(), &job.out, &options)
+        .export(job.format, &job.out, &options)
         .map_err(|e| error_text(job.language, &e))
 }
 
@@ -260,18 +233,28 @@ fn language_of(language: Option<LanguageArg>) -> Language {
     }
 }
 
-/// The format a file name asks for by its extension (`plan.PNG`).
-fn format_of(out: &Path) -> Option<FormatArg> {
+/// A format by its name; the 3D view is left out, the command line has no state for it.
+fn format_arg(name: &str) -> Result<ExportFormat, String> {
+    let offered = || {
+        ExportFormat::ALL
+            .into_iter()
+            .filter(|f| *f != ExportFormat::View3d)
+    };
+    let names: Vec<&str> = offered().map(|f| f.name()).collect();
+
+    offered()
+        .find(|f| f.name() == name)
+        .ok_or_else(|| format!("use one of {}", names.join(", ")))
+}
+
+/// The format a file name asks for by its extension (`plan.PNG`). `png` is the plan's, the
+/// views and the folder of frames are never guessed.
+fn format_of(out: &Path) -> Option<ExportFormat> {
     let extension = out.extension()?.to_str()?.to_lowercase();
 
-    match extension.as_str() {
-        "pdf" => Some(FormatArg::Pdf),
-        "svg" => Some(FormatArg::Svg),
-        "png" => Some(FormatArg::Png),
-        "ods" => Some(FormatArg::Ods),
-        "xlsx" => Some(FormatArg::Xlsx),
-        _ => None,
-    }
+    ExportFormat::ALL
+        .into_iter()
+        .find(|f| f.extension() == Some(extension.as_str()))
 }
 
 /// A sensor by name, or by its width in millimetres (e.g. `23.76`).
@@ -316,11 +299,12 @@ mod tests {
 
     #[test]
     fn format_follows_the_extension() {
-        assert_eq!(format_of(Path::new("a/plan.png")), Some(FormatArg::Png));
-        assert_eq!(format_of(Path::new("plan.SVG")), Some(FormatArg::Svg));
-        assert_eq!(format_of(Path::new("plan.pdf")), Some(FormatArg::Pdf));
-        assert_eq!(format_of(Path::new("list.ods")), Some(FormatArg::Ods));
-        assert_eq!(format_of(Path::new("list.XLSX")), Some(FormatArg::Xlsx));
+        assert_eq!(format_of(Path::new("a/plan.png")), Some(ExportFormat::Png));
+        assert_eq!(format_of(Path::new("plan.SVG")), Some(ExportFormat::Svg));
+        assert_eq!(format_of(Path::new("plan.pdf")), Some(ExportFormat::Pdf));
+        assert_eq!(format_of(Path::new("list.ods")), Some(ExportFormat::Ods));
+        assert_eq!(format_of(Path::new("list.XLSX")), Some(ExportFormat::Xlsx));
+        assert_eq!(format_of(Path::new("list.csv")), Some(ExportFormat::Csv));
         assert_eq!(format_of(Path::new("frames")), None);
         assert_eq!(format_of(Path::new("plan.jpg")), None);
         assert_eq!(format_of(Path::new("plan")), None);
