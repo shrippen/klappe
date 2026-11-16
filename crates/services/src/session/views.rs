@@ -11,7 +11,7 @@ use super::{Layer, Session, Visibility};
 use crate::library;
 use crate::views::{
     AxisChoice, CameraSpot, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow,
-    PlanRow, SceneRow,
+    PlanRow, SceneRow, ViewRow,
 };
 use crate::ExportFormat;
 
@@ -117,6 +117,14 @@ impl Session {
                     extension: f.extension(),
                 })
                 .into(),
+            views: self
+                .saved_views()
+                .iter()
+                .map(|v| ViewRow {
+                    id: v.id.clone(),
+                    name: v.name.clone(),
+                })
+                .collect(),
         }
     }
 

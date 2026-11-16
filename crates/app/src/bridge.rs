@@ -39,6 +39,8 @@ pub mod qobject {
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
         /// `{ set, figures, cameras, lights, notes, drawings }`: true when locked.
         #[qproperty(QString, locks_json, cxx_name = "locksJson")]
+        /// `{ set, figures, … }`: how strongly each layer is drawn, as `choicesJson.fade` names it.
+        #[qproperty(QString, fades_json, cxx_name = "fadesJson")]
         #[qproperty(f64, time)]
         #[qproperty(f64, duration)]
         #[qproperty(QString, selected_shot, cxx_name = "selectedShot")]
@@ -330,6 +332,46 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setLock"]
         fn set_lock(self: Pin<&mut Self>, layer: &QString, locked: &QString);
+
+        /// `layer` as for `setLayer`: takes it one step paler in the plan and in 3D (LH-15),
+        /// after the faintest step back to full; `fadesJson` says where it is.
+        #[qinvokable]
+        #[cxx_name = "cycleFade"]
+        fn cycle_fade(self: Pin<&mut Self>, layer: &QString);
+
+        /// Saves what the plan shows (layers, cameras, figures) as a view called `name`
+        /// (LH-119); false when the name is refused.
+        #[qinvokable]
+        #[cxx_name = "saveView"]
+        fn save_view(self: Pin<&mut Self>, name: &QString) -> bool;
+
+        /// Shows what the saved view `id` names.
+        #[qinvokable]
+        #[cxx_name = "applyView"]
+        fn apply_view(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Deletes the saved view `id`.
+        #[qinvokable]
+        #[cxx_name = "removeView"]
+        fn remove_view(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// A drag with the sketch pen (LH-120), in metres: every call adds the pointer's place
+        /// to the stroke, `done` ends it and commits it as one undo step.
+        #[qinvokable]
+        #[cxx_name = "sketchDrag"]
+        fn sketch_drag(
+            self: Pin<&mut Self>,
+            from_x: f64,
+            from_y: f64,
+            x: f64,
+            y: f64,
+            done: bool,
+        ) -> bool;
+
+        /// Takes every sketch off the plan (LH-120).
+        #[qinvokable]
+        #[cxx_name = "clearSketches"]
+        fn clear_sketches(self: Pin<&mut Self>) -> bool;
 
         /// The tool in use: `select`, `wall`, `object` …; `choice` is the value picked in the
         /// tool's list (object kind, character id, lamp kind). False for an unknown tool.
@@ -927,9 +969,11 @@ mod project;
 #[cfg(test)]
 mod qml_tests;
 mod retime;
+mod saved;
 mod script;
 mod selection;
 mod shots;
+mod sketch;
 mod start;
 mod state;
 mod templates;

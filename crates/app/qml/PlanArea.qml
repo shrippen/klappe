@@ -95,6 +95,11 @@ Item {
                 return
             }
             area.dragging = !done
+            // The sketch pen collects the pointer's places into one stroke (LH-120).
+            if (area.tool === "sketch") {
+                area.controller.sketchDrag(fromX, fromY, x, y, done)
+                return
+            }
             area.controller.drag(fromX, fromY, x, y, done)
         }
     }

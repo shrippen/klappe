@@ -34,6 +34,11 @@ fn open_at_start(args: &AppArgs, language: Language, notice: &mut Status) -> Opt
     }
 }
 
+/// The screenshot file the start asked for, as the property holds it; empty for none.
+fn screenshot_url(path: Option<std::path::PathBuf>) -> QString {
+    path.map(|p| q(&p.to_string_lossy())).unwrap_or_default()
+}
+
 impl Default for ControllerRust {
     fn default() -> Self {
         let args = AppArgs::from_env();
@@ -64,6 +69,7 @@ impl Default for ControllerRust {
             script_json: QString::default(),
             layers_json: QString::default(),
             locks_json: QString::default(),
+            fades_json: QString::default(),
             time: 0.0,
             duration: 0.0,
             selected_shot: QString::default(),
@@ -79,6 +85,7 @@ impl Default for ControllerRust {
             choices_json: QString::default(),
             selected: Selection::default(),
             marquee: None,
+            sketch: Vec::new(),
             tool: Tool::Select,
             scale: ScaleStep::Idle,
             measure: MeasureStep::Idle,
@@ -105,10 +112,7 @@ impl Default for ControllerRust {
             scene_id: QString::default(),
             recent_json: q("[]"),
             recent_store: q("[]"),
-            screenshot_path: args
-                .screenshot
-                .map(|p| q(&p.to_string_lossy()))
-                .unwrap_or_default(),
+            screenshot_path: screenshot_url(args.screenshot),
             screenshot_after: args.screenshot_after_ms,
         };
         this.fill();

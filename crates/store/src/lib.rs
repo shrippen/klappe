@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 use klappe_model::{
     is_figure_size_m, is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m,
     is_opening_width_m, is_outline, Character, Location, Numbering, ObjectShape, Opening,
-    PaperSetup, Project, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MAX_OBJECT_M,
+    PaperSetup, Project, SavedView, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MAX_OBJECT_M,
     MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
@@ -88,6 +88,9 @@ struct Header {
     /// Left out while it is the default (LH-76).
     #[serde(default, skip_serializing_if = "is_default_numbering")]
     numbering: Numbering,
+    /// The saved views (LH-119), each an `[[ansicht]]`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    ansicht: Vec<SavedView>,
 }
 
 fn is_default_numbering(numbering: &Numbering) -> bool {
@@ -112,6 +115,15 @@ struct Characters {
     figur: Vec<Character>,
 }
 
+/// `projekt.toml` read and checked.
+fn read_header(dir: &Path) -> Result<Header, StoreError> {
+    let path = dir.join(PROJECT_FILE);
+    let header: Header = files::read_toml(&path)?;
+    check_views(&header.ansicht).map_err(|message| StoreError::Parse { path, message })?;
+
+    Ok(header)
+}
+
 /// Reads the project folder `dir`. Locations and scenes come back sorted by id.
 pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     let version: Version = files::read_toml(&dir.join(PROJECT_FILE))?;
@@ -122,7 +134,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             supported: FORMAT_VERSION,
         });
     }
-    let header: Header = files::read_toml(&dir.join(PROJECT_FILE))?;
+    let header = read_header(dir)?;
 
     let characters_path = dir.join(CHARACTERS_FILE);
     let characters: Characters = match files::exists(&characters_path)? {
@@ -152,6 +164,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             title: header.title,
             paper: header.paper,
             numbering: header.numbering,
+            views: header.ansicht,
             characters: characters.figur,
             locations,
             scenes,
@@ -179,6 +192,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
         title: project.title.clone(),
         paper: project.paper,
         numbering: project.numbering,
+        ansicht: project.views.clone(),
     };
     let path = dir.join(PROJECT_FILE);
     writes.push((path.clone(), files::encode_toml(&path, &header)?));
@@ -380,6 +394,23 @@ fn check_characters(characters: &[Character]) -> Result<(), String> {
                     character.id
                 ));
             }
+        }
+    }
+
+    Ok(())
+}
+
+/// Saved views (LH-119): an id and a name each, and no id twice.
+fn check_views(views: &[SavedView]) -> Result<(), String> {
+    for (index, view) in views.iter().enumerate() {
+        if view.id.trim().is_empty() || view.name.trim().is_empty() {
+            return Err("a saved view needs an id and a name".to_owned());
+        }
+        if views[..index]
+            .iter()
+            .any(|other| other.id.to_lowercase() == view.id.to_lowercase())
+        {
+            return Err(format!("{}: saved view twice", view.id));
         }
     }
 

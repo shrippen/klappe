@@ -143,6 +143,7 @@ fn grabbable(role: Role) -> bool {
     !matches!(
         role,
         Role::Background
+            | Role::Sketch
             | Role::Frustum
             | Role::Axis
             | Role::CameraPath { .. }

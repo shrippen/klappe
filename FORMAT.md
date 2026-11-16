@@ -5,7 +5,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 
 ```
 <name>.klappe/
-├── projekt.toml         Formatversion, Titel
+├── projekt.toml         Formatversion, Titel, Papier, gespeicherte Ansichten
 ├── figuren.toml         Figuren, je ein [[figur]]
 ├── bibliothek.toml      eigene Objekte der Bibliothek, je ein [[objekt]] (optional)
 ├── vorlagen.toml        eigene Vorlagen, je ein [[vorlage]] (optional)
@@ -209,6 +209,21 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Rechteck oder eine gedrehte Ellipse ist also nicht mehr achsenparallel; die Punkte bleiben ungedreht
   gespeichert. Ohne Zeichnungen fehlt der Schlüssel; ältere Projekte laden und
   speichern unverändert. Keine neue Formatversion, wie bei den Notizen.
+- **Skizzen (LH-120):** `sketches` im Floorplan der Szene (`szenen/<id>.json`), je Eintrag ein
+  Strich des Skizzenstifts: `points`, eine Liste von Punkten (`x_m`, `y_m` in Metern) in der
+  Reihenfolge, in der der Stift sie berührt hat (mindestens zwei; der Stift lässt Punkte unter
+  3 cm Abstand aus). Die Striche liegen auf der Ebene „Skizzen“, über allem anderen, haben keine
+  Id und sind nicht wählbar; ein Befehl löscht alle. Ohne Skizzen fehlt der Schlüssel; ältere
+  Projekte laden und speichern unverändert. Keine neue Formatversion, wie bei den Notizen.
+- **Gespeicherte Ansichten (LH-119):** `[[ansicht]]` in `projekt.toml`, je Eintrag `id`
+  (eindeutig, ohne Beachtung der Groß-/Kleinschreibung), `name`, `layers` (Namen der sichtbaren
+  Ebenen: `set`, `figures`, `cameras`, `lights`, `notes`, `drawings`, `sketches`), `cameras` (Ids der
+  sichtbaren Kameras) und `figures` (Ids der Figuren, deren Figur sichtbar ist). Was eine Liste
+  nicht nennt, ist beim Wählen der Ansicht aus; Lampen und Ebenen-Sperren und -Abblendung gehören
+  nicht dazu. Eine Ansicht im Plan zu wählen ist keine Änderung des Projekts. Fehlen `id` oder
+  `name` oder steht eine `id` zweimal, wird das Projekt beim Öffnen mit Meldung abgelehnt. Ohne
+  Ansichten fehlt der Abschnitt; ältere Projekte laden und speichern unverändert. Keine neue
+  Formatversion (noch kein Release).
 - **Lampen (LH-50, LH-51):** `lights` im Floorplan der Szene (`szenen/<id>.json`), je Eintrag
   `id` (`l1`, `l2` …), `label`, `kind` (`fresnel`, `led-panel`, `tube`, `balloon`, `reflector`,
   `flag`), `at` in Metern, `facing_deg` (Richtung, 0° nach rechts, im Uhrzeigersinn),

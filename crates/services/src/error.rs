@@ -66,6 +66,9 @@ pub enum ServiceError {
     /// A plan without marks has no frames to write (LH-83).
     #[error("the plan has no marks")]
     NoMarks,
+    /// The plan has no shot (or camera) to write a page for (LH-87).
+    #[error("the plan has no shots or cameras")]
+    NoPages,
     /// A view has nothing to show: 3D not open yet, or no camera with marks (LH-86).
     #[error("there is no picture")]
     NoPicture,

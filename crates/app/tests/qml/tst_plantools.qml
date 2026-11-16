@@ -135,7 +135,7 @@ TestCase {
         const bar = make()
         const wanted = {
             build: ["select", "wall", "room", "door", "window", "object", "freeform", "height", "scale", "image", "measure"],
-            stage: ["select", "figure", "measure"],
+            stage: ["select", "figure", "sketch", "measure"],
             resolve: ["select", "camera", "light", "measure"],
             draw: ["select", "note", "line", "arrow", "rect", "ellipse", "area", "measure"]
         }
@@ -303,6 +303,22 @@ TestCase {
             keyClick(key)
             compare(bar.tool, tool)
         }
+    }
+
+    // LH-120: Shift+P is the sketch pen (P is the area); its clear button shows with the pen only.
+    function test_shift_p_picks_the_sketch_pen_and_its_clear_button_shows() {
+        const bar = make()
+        keyClick(Qt.Key_P)
+        compare(bar.tool, "area")
+
+        keyClick(Qt.Key_P, Qt.ShiftModifier)
+
+        compare(bar.tool, "sketch")
+        compare(bar.keys[bar.names.indexOf("sketch")], "Shift+P")
+        compare(bar.mode, "stage")
+        verify(findChild(bar, "sketchClear").visible)
+        bar.tool = "select"
+        verify(!findChild(bar, "sketchClear").visible)
     }
 
     function test_shift_b_picks_the_image_tool() {
