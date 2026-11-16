@@ -1,6 +1,6 @@
 # Lastenheft: Stellprobe
 
-Modul der Film-Vorproduktionssuite **Klappe**. Stand: 2026-11-15, Entwurf.
+Modul der Film-Vorproduktionssuite **Klappe**. Stand: 2026-11-16, Entwurf.
 
 Das Lastenheft beschreibt, *was* Stellprobe leisten muss. *Wie* es umgesetzt wird,
 steht in [`../KONZEPT.md`](../KONZEPT.md) und später im Pflichtenheft.
@@ -86,7 +86,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | LH-06 | Rückgängig / Wiederholen ohne feste Grenze innerhalb einer Sitzung. | M |
 | LH-07 | Vorlagen für typische Auflösungen (z. B. Schuss-Gegenschuss, Dreieck, Plansequenz); eigene Vorlagen aus einem Plan speichern. | S |
 | LH-08 | Auswahl per Klick, Rechteck und Lasso; Auswahl gemeinsam verschieben, drehen, kopieren. | M |
-| LH-09 | Ein neuer Floorplan enthält schon die Figuren, die in dieser Szene des Drehbuchs sprechen: nebeneinander am Rand, ohne Wege. | S |
+| LH-09 | Ein neuer Floorplan enthält schon die Figuren, die in dieser Szene des Drehbuchs sprechen: nebeneinander am Rand, ohne Wege. Ohne Drehbuch, oder für eine Figur, die noch keiner Projektfigur zugeordnet ist, bleibt der Plan ohne sie. | S |
 
 ### 6.2 Set und Grundriss
 
@@ -165,7 +165,7 @@ Priorität: **M** = Muss (erste Version), **S** = Soll, **K** = Kann (später).
 | LH-73 | Shot im Plan markieren hebt Kamera, Weg und Sichtkegel hervor. | M |
 | LH-74 | Storyboard-Bild je Shot (importiert oder skizziert). | K |
 | LH-75 | Standbild aus dem Kamerablick als Storyboard-Bild übernehmen. | K |
-| LH-76 | Shot-Versionen (12, 12A, 12B) mit Umnummerieren; Nummernschema je Projekt wählbar (Szene.n, Kamerabuchstabe, Mehrkamera wie A-1). | S |
+| LH-76 | Shot-Versionen (12, 12A, 12B) mit Umnummerieren; Nummernschema je Projekt wählbar: Standard Szene und laufende Nummer (12.3); daneben Schemata mit Kamerakennung oder Mehrkamera-Gruppe, die das Pflichtenheft festlegt. Kein Zeichen hat zwei Bedeutungen: Nutzt ein Schema Buchstaben für Kameras, stehen Versionen anders abgesetzt. | S |
 | LH-77 | Shot von seinem Setup lösen und einem anderen zuordnen. | S |
 
 ### 6.9 Ausgabe
@@ -210,7 +210,7 @@ zeichnet, legt die Grundlagen für 3D schon mit an. Umsetzung:
 | NF-04 | Oberfläche nach dem Design System Kante. | M |
 | NF-05 | Flüssige Bedienung bei mindestens 50 Figuren, 10 Kameras, 300 Set-Objekten je Floorplan. | M |
 | NF-06 | Bedienung mit Maus und Tastatur; Tastenkürzel für alle häufigen Werkzeuge. Jede Funktion hat beide Wege: mit der Maus (Klick, Ziehen, Kontextmenü) und mit der Tastatur (Taste oder Befehlspalette); kein Befehl nur über Hover, Rechtsklick oder eine Taste allein, damit Touch (NF-07) später ohne Umbau dazukommt. | M |
-| NF-07 | Stift- und Touch-Bedienung (Tablet am Set); später, heute wird nicht auf Touch gezielt. | K |
+| NF-07 | Stift- und Touch-Bedienung (Tablet am Set); später; die erste Version zielt nicht auf Touch (E-01). | K |
 | NF-08 | Sprachen: Deutsch und Englisch. | M |
 | NF-09 | Fachbegriffe nach deutscher Filmpraxis, englische Begriffe in der englischen Fassung. | M |
 | NF-10 | Alle Funktionen ohne Konto und ohne Bezahlgrenze; Abgleich zwischen Geräten über Git oder beliebigen Dateiabgleich. | M |
@@ -259,7 +259,7 @@ für den Nutzer leistet, nie *wie* es das tut.
 - Wer Stellprobe programmiert, arbeitet nach Lastenheft und Pflichtenheft, nicht mit
   Shot Designer daneben.
 - Namen, Symbole, Objektbibliothek und Dateiformat sind eigene Entwürfe.
-- Ausnahme auf Auftrag des Eigentümers (2026-11-16, bestätigt in #197): Seine lizenzierte
+- Ausnahme auf Auftrag des Eigentümers (2026-11-16, Wortlaut im Kommentar zu #197): Seine lizenzierte
   Kopie wurde in einer unsichtbaren Sitzung bedient, um Bedienung und Tempo beim Blocking zu
   beobachten. Daraus steht hier nur Verhalten in eigenen Worten (Abschnitt „Shot Designer
   in der Bedienung“); nichts sonst aus der Liste oben wurde getan.
@@ -317,6 +317,11 @@ unten als *vermutet* gekennzeichnet.
 9. Geschlossenes Dateiformat.
 
 ### Shot Designer in der Bedienung (beobachtet, in eigenen Worten)
+
+Beobachtet wurde die Fassung ohne Pro-Lizenz. Wo das der Tabelle „Funktionsumfang“ (nach den
+Herstellerseiten) widerspricht, etwa bei Lasso, Kamera folgt Figur, Tempo und Sichtkegel, gilt
+die Tabelle als Angabe des Herstellers und dieser Abschnitt als das, was in der Bedienung zu
+finden war.
 
 - Die Oberfläche ist für Berührung gebaut: keine Tooltips, kein Rechtsklick, kein Menü auf
   leerer Fläche. Ein Element öffnet sein Menü erst beim zweiten Tippen, ohne Hinweis.
