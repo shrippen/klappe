@@ -47,16 +47,29 @@ impl qobject::Controller {
         let paper = PaperSetup::from_name(&paper.to_string());
         let kind = kind.to_string();
 
-        // The sheet of a plan export is the project's from now on (no undo step, see
-        // `Session::set_paper`).
-        if PAPER_KINDS.contains(&kind.as_str()) {
+        let ok = self.as_mut().export_kind(&kind, order, paper, path);
+
+        // The sheet a plan was printed on is the project's from now on (no undo step, see
+        // `Session::set_paper`); a failed export printed nothing.
+        if ok && PAPER_KINDS.contains(&kind.as_str()) {
             if let Some(s) = self.as_mut().session() {
                 s.set_paper(paper);
             }
             self.as_mut().refresh();
         }
 
-        match kind.as_str() {
+        ok
+    }
+
+    /// Writes `path` as `kind` says; false and a message when it fails.
+    fn export_kind(
+        mut self: Pin<&mut Self>,
+        kind: &str,
+        order: ShotOrder,
+        paper: PaperSetup,
+        path: &QString,
+    ) -> bool {
+        match kind {
             "pdf" => self.export_plan(path, "menu.pdfSaved", |s, path, texts| {
                 s.export_pdf(path, paper, texts, order)
             }),
