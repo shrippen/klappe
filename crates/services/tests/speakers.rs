@@ -113,7 +113,7 @@ fn a_scene_the_script_does_not_have_starts_empty() {
 fn a_narrow_set_closes_the_row_up() {
     let mut s = example();
     let script = format!(
-        "{}\n\nINT. FLUR – TAG #15#\n\nELISABETH\nA\n\nBURGVOGT\nB\n\nGraf\nC\n",
+        "{}\n\nINT. FLUR – TAG #15#\n\nELISABETH\nA\n\nBURGVOGT\nB\n\nGRAF\nC\n",
         s.script_text()
     );
     s.set_script_text(&script);
