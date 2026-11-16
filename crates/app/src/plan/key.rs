@@ -1,12 +1,13 @@
 //! The keys of the plan's shapes: which element a shape on the canvas stands for.
 
-use klappe_services::{Bend, OpeningEnd, Source};
+use klappe_services::{Bend, LightGrip, OpeningEnd, Source};
 
 /// The kinds of element a key names; `name` is the key's first part.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ElementKind {
     Object,
     Light,
+    LightGrip,
     Camera,
     Figure,
     Mark,
@@ -23,9 +24,10 @@ pub enum ElementKind {
 }
 
 impl ElementKind {
-    const ALL: [ElementKind; 15] = [
+    const ALL: [ElementKind; 16] = [
         Self::Object,
         Self::Light,
+        Self::LightGrip,
         Self::Camera,
         Self::Figure,
         Self::Mark,
@@ -45,6 +47,7 @@ impl ElementKind {
         match self {
             Self::Object => "object",
             Self::Light => "light",
+            Self::LightGrip => "lightgrip",
             Self::Camera => "camera",
             Self::Figure => "figure",
             Self::Mark => "mark",
@@ -71,6 +74,10 @@ pub fn key(source: &Source) -> String {
     let (kind, rest) = match source {
         Source::Object(id) => (ElementKind::Object, id.clone()),
         Source::Light(id) => (ElementKind::Light, id.clone()),
+        Source::LightGrip { light, grip } => (
+            ElementKind::LightGrip,
+            format!("{light}:{}", grip_part(*grip)),
+        ),
         Source::Camera(id) => (ElementKind::Camera, id.clone()),
         Source::Figure(id) => (ElementKind::Figure, id.clone()),
         Source::Mark { character, index } => (ElementKind::Mark, format!("{character}:{index}")),
@@ -126,6 +133,14 @@ fn end_part(end: OpeningEnd) -> &'static str {
     }
 }
 
+/// The last part of a lamp grip's key: which grip of the lamp it is.
+fn grip_part(grip: LightGrip) -> &'static str {
+    match grip {
+        LightGrip::Direction => "direction",
+        LightGrip::Beam => "beam",
+    }
+}
+
 /// A key taken apart: `mark:elisabeth:0` is `Mark`, `elisabeth` and index 0.
 pub struct ParsedKey<'a> {
     pub kind: ElementKind,
@@ -177,6 +192,13 @@ mod tests {
         }
     }
 
+    fn light_grip() -> Source {
+        Source::LightGrip {
+            light: "l".into(),
+            grip: LightGrip::Beam,
+        }
+    }
+
     /// Too long for one line of the table below.
     fn note_width() -> Source {
         Source::NoteWidth("n".into())
@@ -188,6 +210,7 @@ mod tests {
         let sources = [
             (Source::Object("o".into()), ElementKind::Object, "o", None),
             (Source::Light("l".into()), ElementKind::Light, "l", None),
+            (light_grip(), ElementKind::LightGrip, "l", None),
             (Source::Camera("a".into()), ElementKind::Camera, "a", None),
             (Source::Figure("e".into()), ElementKind::Figure, "e", None),
             (

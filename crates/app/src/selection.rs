@@ -49,6 +49,7 @@ fn whole(source: Source) -> Source {
         }
         Source::NoteWidth(note) => Source::Note(note),
         Source::OpeningEdge { wall, index, .. } => Source::Opening { wall, index },
+        Source::LightGrip { light, .. } => Source::Light(light),
         source => source,
     }
 }

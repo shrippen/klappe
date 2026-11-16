@@ -43,7 +43,8 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
         ElementKind::DrawingPoint
         | ElementKind::DrawingEdge
         | ElementKind::NoteWidth
-        | ElementKind::OpeningEdge => None,
+        | ElementKind::OpeningEdge
+        | ElementKind::LightGrip => None,
     };
 
     // Without a plan nothing is described, a note included.

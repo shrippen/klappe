@@ -2,10 +2,10 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     Arrival, Character, Dash, Departure, DoorSide, Drawing, DrawingShape, FigureColor, Fill,
-    FloorPlan, Hinge, LibraryItem, Note, OpeningKind, Point, Pose, Project, Rig, Scene, SetPlan,
-    Wall,
+    FloorPlan, Hinge, LibraryItem, Light, Note, OpeningKind, Point, Pose, Project, Rig, Scene,
+    SetPlan, Wall,
 };
-use klappe_stellprobe::{Bend, OpeningEnd, Source};
+use klappe_stellprobe::{Bend, LightGrip, OpeningEnd, Source};
 
 use crate::camera_edit;
 use crate::error::ServiceError;
@@ -404,7 +404,7 @@ fn layer_of_source(source: &Source) -> Layer {
         | Source::Wall(_)
         | Source::Opening { .. }
         | Source::OpeningEdge { .. } => Layer::Set,
-        Source::Light(_) => Layer::Lights,
+        Source::Light(_) | Source::LightGrip { .. } => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
         Source::Note(_) | Source::NoteWidth(_) => Layer::Notes,
@@ -450,6 +450,11 @@ enum Target<'a> {
         wall: &'a mut Wall,
         index: usize,
         end: OpeningEnd,
+    },
+    /// A grip on a lamp's beam: moving it turns the lamp or sets its beam, never moves it.
+    LightEdge {
+        light: &'a mut Light,
+        grip: LightGrip,
     },
     /// A grip on the right edge of a note's card: moving it sets the card's width.
     NoteEdge(&'a mut Note),

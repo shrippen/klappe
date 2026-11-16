@@ -123,7 +123,7 @@ pub(super) fn layer_of(role: Role) -> Layer {
         | Role::OpeningHandle
         | Role::Object
         | Role::Height { .. } => Layer::Set,
-        Role::Light | Role::LightBeam => Layer::Lights,
+        Role::Light | Role::LightBeam | Role::LightHandle => Layer::Lights,
         Role::Camera | Role::Frustum | Role::CameraPath { .. } | Role::CameraHandle => {
             Layer::Cameras
         }
