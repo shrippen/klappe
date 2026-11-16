@@ -99,6 +99,12 @@ impl Selection {
         }
     }
 
+    /// A right click on `picked` (`None`: empty ground): a member keeps the selection, else
+    /// the pick is made as a click makes it; empty ground clears it.
+    pub fn context(self, picked: Option<Source>) -> Selection {
+        self.grab(picked)
+    }
+
     /// A box that took `found`: replaces the selection, or with `Extend` adds to it.
     pub fn boxed(mut self, found: Vec<Source>, how: Pick) -> Selection {
         if how == Pick::Replace {
@@ -276,6 +282,31 @@ mod tests {
 
     fn p(x_m: f64, y_m: f64) -> Point {
         Point::new(x_m, y_m)
+    }
+
+    /// A right click picks as a left click does: a point selected for itself stays a point.
+    #[test]
+    fn a_right_click_on_a_point_selects_the_point() {
+        let point = Source::ObjectGrip {
+            object: "form".into(),
+            grip: ObjectGrip::Point(1),
+        };
+        let form = Selection::of(Some(Source::Object("form".into())));
+
+        let after = form.context(Some(point.clone()));
+
+        assert_eq!(after.sources(), [point]);
+    }
+
+    #[test]
+    fn a_right_click_on_a_member_keeps_the_selection() {
+        let both = Selection::of(Some(Source::Object("a".into())))
+            .click(Some(Source::Object("b".into())), Pick::Extend);
+
+        let after = both.clone().context(Some(Source::Object("b".into())));
+
+        assert_eq!(after, both);
+        assert_eq!(both.context(None), Selection::default());
     }
 
     #[test]
