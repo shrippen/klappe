@@ -32,6 +32,8 @@ Item {
     property var ids: []
     // Counts the changes; a picture is out of date when it shows an earlier one.
     property int round: 0
+    // Counts the pictures made, to tell which camera was painted longest ago.
+    property int made: 0
 
     ViewPalette { id: colors }
 
@@ -49,23 +51,28 @@ Item {
         }
     }
 
-    // One tick: the spots, then the picture of the first camera in view that is out of date; the
-    // next tick follows while another is.
+    // One tick: the spots, then the picture of the camera in view that is out of date and was
+    // painted longest ago (round robin: while changes keep coming, each camera gets its turn);
+    // the next tick follows while another is out of date.
     function step() {
         if (!canPaint || !visible) {
             return
         }
         readSpots()
+        let next = null
         let stale = 0
         for (let i = 0; i < items.count; i++) {
             const item = items.itemAt(i)
             if (!item || !item.inView || item.shownRound === round) {
                 continue
             }
-            if (stale === 0) {
-                item.paint()
-            }
             stale++
+            if (next === null || item.paintedAt < next.paintedAt) {
+                next = item
+            }
+        }
+        if (next !== null) {
+            next.paint()
         }
         if (stale > 1) {
             pause.start()
@@ -110,6 +117,7 @@ Item {
             readonly property bool inView: body.x >= 0 && body.y >= 0
                                            && body.x <= thumbs.width && body.y <= thumbs.height
             property int shownRound: -1
+            property int paintedAt: 0
 
             objectName: "cameraThumb-" + modelData
             visible: inView
@@ -127,6 +135,7 @@ Item {
                 const image = thumbs.controller.cameraImageOf(modelData, px, thumbs.paletteJson)
                 surface.item.show(image)
                 shownRound = thumbs.round
+                paintedAt = ++thumbs.made
             }
 
             // A camera that comes into view gets its picture with the next tick.
