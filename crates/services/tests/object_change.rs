@@ -494,7 +494,13 @@ fn a_figure_label_ignores_edits_in_another_plan() {
     s.set_time(6.0);
     s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
         .unwrap();
-    let id = s.project().locations[0].set.notes.last().unwrap().id.clone();
+    let id = s.project().locations[0]
+        .set
+        .notes
+        .last()
+        .unwrap()
+        .id
+        .clone();
     let at = note_at(&s, &id);
     let copy = s.copy_plan("B").unwrap();
     s.select_plan(&copy).unwrap();
@@ -521,7 +527,13 @@ fn a_figure_label_ignores_edits_in_another_plan() {
 fn a_copied_label_is_free() {
     let mut s = open();
     s.edit_plan(label(obj("tisch"), "Gedeck")).unwrap();
-    let id = s.project().locations[0].set.notes.last().unwrap().id.clone();
+    let id = s.project().locations[0]
+        .set
+        .notes
+        .last()
+        .unwrap()
+        .id
+        .clone();
 
     s.edit_plan(PlanEdit::Duplicate {
         sources: vec![Source::Note(id.clone())],
@@ -543,7 +555,13 @@ fn a_figure_label_survives_a_new_mark() {
     s.set_time(6.0);
     s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
         .unwrap();
-    let id = s.project().locations[0].set.notes.last().unwrap().id.clone();
+    let id = s.project().locations[0]
+        .set
+        .notes
+        .last()
+        .unwrap()
+        .id
+        .clone();
 
     s.edit_plan(PlanEdit::AddMark {
         character: "elisabeth".into(),

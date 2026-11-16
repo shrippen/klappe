@@ -88,6 +88,7 @@ impl Session {
             &edit,
         )?;
         self.check_cameras(&next)?;
+        self.check_notes(&next)?;
         self.check_tripods(&next)?;
         if next == self.project {
             return Ok(());

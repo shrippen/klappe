@@ -257,19 +257,7 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
             light.at = shifted(light.at, by_m);
             lights.push(light);
         }
-        Source::Note(id) => {
-            let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
-            let mut note = set
-                .notes
-                .iter()
-                .find(|n| n.id == *id)
-                .cloned()
-                .ok_or(ServiceError::Gone)?;
-
-            note.id = free_id("n", set.notes.iter().map(|n| n.id.as_str()));
-            note.at = shifted(note.at, by_m);
-            set.notes.push(note);
-        }
+        Source::Note(id) => copy_note(scope, id, by_m)?,
         Source::Image(id) => images::copy_image(scope, id, by_m)?,
         Source::Drawing(id) => {
             let drawings = &mut scope.plan.drawings;
@@ -310,4 +298,23 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
     }
 
     Ok(Copied::Made)
+}
+
+/// A copy of the note `id`, set down by `by_m`. It is a free note: bound to the same element
+/// it would hang on the original.
+fn copy_note(scope: &mut Scope<'_>, id: &str, by_m: (f64, f64)) -> Result<(), ServiceError> {
+    let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
+    let mut note = set
+        .notes
+        .iter()
+        .find(|n| n.id == id)
+        .cloned()
+        .ok_or(ServiceError::Gone)?;
+
+    note.id = free_id("n", set.notes.iter().map(|n| n.id.as_str()));
+    note.at = shifted(note.at, by_m);
+    note.bound = None;
+    set.notes.push(note);
+
+    Ok(())
 }

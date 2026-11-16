@@ -157,13 +157,18 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
 - **Beschriftung an ein Element gebunden (LH-118):** eine Notiz (`[[set.notes]]`) hat optional
   `bound`, den Schlüssel des Elements, dessen Beschriftung sie ist: `object:<id>` (Objekt des
-  Drehorts), `figure:<figur>` (die Figur am Abspielkopf) oder `mark:<figur>:<index>` (der Mark
-  mit diesem Index, von 0). `at` bleibt der Ort des Kärtchens. Die Bearbeitung verschiebt es um
-  dieselbe Strecke wie das Element; zieht man die Notiz selbst, bleibt sie gebunden und das
-  Abstandsmaß ändert sich. Fehlt das Element (entfernt) oder ändert sich die Zahl der Marks der
-  Figur, wird die Bindung gelöst, die Notiz bleibt stehen. Ohne Bindung fehlt der Schlüssel;
-  ein unlesbarer Schlüssel bindet nichts. Ältere Projekte laden und speichern unverändert,
-  ältere Fassungen verlieren `bound` beim Speichern. Keine neue Formatversion.
+  Drehorts), `figure:<plan>:<figur>` (die Figur am Abspielkopf im Plan `<plan>`) oder
+  `mark:<plan>:<figur>:<index>` (der Mark mit diesem Index, von 0, im Plan `<plan>`). Figur und
+  Mark gehören zu einem Plan, weil die Notizen dem Drehort gehören und jeder Plan eigene Spuren
+  hat; Bearbeitungen in einem anderen Plan lassen die Notiz stehen. `at` bleibt der Ort des
+  Kärtchens. Die Bearbeitung verschiebt es um dieselbe Strecke wie das Element; zieht man die
+  Notiz selbst, bleibt sie gebunden und das Abstandsmaß ändert sich. Fehlt das Element
+  (entfernt) oder ändert sich die Zahl der Marks der Figur (nur bei `mark:`, deren Index sonst
+  einen anderen Mark meint), wird die Bindung gelöst, die Notiz bleibt stehen. Eine Kopie der
+  Notiz (Strg+D) ist ungebunden. Bei gesperrter Ebene Notizen lehnt die Sitzung eine
+  Bearbeitung ab, die eine gebundene Notiz verschieben oder lösen würde. Ohne Bindung fehlt der
+  Schlüssel; ein unlesbarer Schlüssel bindet nichts. Ältere Projekte laden und speichern
+  unverändert, ältere Fassungen verlieren `bound` beim Speichern. Keine neue Formatversion.
 - **Bilder (LH-18):** `[[set.images]]` im Drehort: Fotos und Skizzen, frei auf dem Plan. Je Bild
   `id` (`i1`, `i2` …, innerhalb des Drehorts), `file` (relativ zum Projektordner, die Datei liegt
   in `bilder/`, PNG oder JPEG wie beim Hintergrund), die Mitte `at` in Metern, die Breite

@@ -215,9 +215,10 @@ ColumnLayout {
 
         KanteButton {
             objectName: "objectMirror"
-            // Primary while the object is mirrored.
-            emphasis: card.info !== null && card.info.mirrored === true
-                ? KanteButton.Emphasis.Primary : KanteButton.Emphasis.Normal
+            // The state is the button's checked mark, which a screen reader announces; the click
+            // asks the controller, the card shows the answer.
+            checked: card.info !== null && card.info.mirrored === true
+            Accessible.checkable: true
             text: card.texts.t("object.mirror")
             onClicked: card.controller.changeSelected("mirror", "")
             QQC2.ToolTip.text: card.texts.t("object.mirrorTip", { key: card.texts.t("key.shift") + "+M" })
@@ -228,7 +229,7 @@ ColumnLayout {
             objectName: "objectResetSize"
             text: card.texts.t("object.resetSize")
             onClicked: card.controller.changeSelected("resetSize", "")
-            QQC2.ToolTip.text: card.texts.t("object.resetSizeTip", { key: card.texts.t("key.shift") + "+S" })
+            QQC2.ToolTip.text: card.texts.t("object.resetSizeTip", { key: card.texts.t("key.shift") + "+G" })
             QQC2.ToolTip.visible: hovered
             QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
         }

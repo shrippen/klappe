@@ -19,8 +19,8 @@ use crate::field::Field;
 /// Gap between an element and the label set beside it, right and up.
 const LABEL_GAP_M: f64 = 0.3;
 
-/// Where an element is, and how many marks its figure has (a mark's index means something
-/// else once one went).
+/// Where an element is, and for a mark how many marks its figure has (its index means
+/// something else once one went).
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Anchor {
     at: Point,
@@ -36,44 +36,91 @@ pub(super) struct Held {
     anchor: Option<Anchor>,
 }
 
-/// The key a note keeps for `source`; `None` for what cannot be labelled.
-fn key_of(source: &Source) -> Option<String> {
+/// What a bound note is bound to. Figures and marks are of one plan (a variant has its own
+/// tracks, the notes are the set's); an edit in another plan leaves such a note alone.
+enum Target<'a> {
+    Object(&'a str),
+    Figure {
+        plan: &'a str,
+        character: &'a str,
+    },
+    Mark {
+        plan: &'a str,
+        character: &'a str,
+        index: usize,
+    },
+}
+
+impl<'a> Target<'a> {
+    /// Reads `object:<id>`, `figure:<plan>:<character>` or `mark:<plan>:<character>:<index>`.
+    fn parse(key: &'a str) -> Option<Self> {
+        let (kind, rest) = key.split_once(':')?;
+
+        match kind {
+            "object" => Some(Self::Object(rest)),
+            "figure" => {
+                let (plan, character) = rest.split_once(':')?;
+                Some(Self::Figure { plan, character })
+            }
+            "mark" => {
+                let (plan, rest) = rest.split_once(':')?;
+                let (character, index) = rest.rsplit_once(':')?;
+                let index = index.parse().ok()?;
+                Some(Self::Mark {
+                    plan,
+                    character,
+                    index,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// The plan the target belongs to; `None` for an object, which is the set's.
+    fn plan(&self) -> Option<&str> {
+        match self {
+            Self::Object(_) => None,
+            Self::Figure { plan, .. } | Self::Mark { plan, .. } => Some(plan),
+        }
+    }
+}
+
+/// The key a note keeps for `source` on the plan `plan`; `None` for what cannot be labelled.
+fn key_of(source: &Source, plan: &str) -> Option<String> {
     match source {
         Source::Object(id) => Some(format!("object:{id}")),
-        Source::Figure(character) => Some(format!("figure:{character}")),
-        Source::Mark { character, index } => Some(format!("mark:{character}:{index}")),
+        Source::Figure(character) => Some(format!("figure:{plan}:{character}")),
+        Source::Mark { character, index } => Some(format!("mark:{plan}:{character}:{index}")),
         _ => None,
     }
 }
 
 fn anchor(set: &SetPlan, plan: &FloorPlan, time_s: f64, key: &str) -> Option<Anchor> {
-    let (kind, rest) = key.split_once(':')?;
-
-    match kind {
-        "object" => {
-            let object = set.objects.iter().find(|o| o.id == rest)?;
+    match Target::parse(key)? {
+        Target::Object(id) => {
+            let object = set.objects.iter().find(|o| o.id == id)?;
             Some(Anchor {
                 at: object.at,
                 marks: 0,
             })
         }
-        "figure" => {
-            let track = plan.figures.iter().find(|f| f.character == rest)?;
+        Target::Figure { character, .. } => {
+            let track = plan.figures.iter().find(|f| f.character == character)?;
             Some(Anchor {
                 at: figure_at(track, time_s)?.at,
-                marks: track.marks.len(),
+                marks: 0,
             })
         }
-        "mark" => {
-            let (character, index) = rest.rsplit_once(':')?;
+        Target::Mark {
+            character, index, ..
+        } => {
             let track = plan.figures.iter().find(|f| f.character == character)?;
-            let mark = track.marks.get(index.parse::<usize>().ok()?)?;
+            let mark = track.marks.get(index)?;
             Some(Anchor {
                 at: mark.at,
                 marks: track.marks.len(),
             })
         }
-        _ => None,
     }
 }
 
@@ -99,6 +146,11 @@ pub(super) fn held(project: &Project, at: (usize, usize), time_s: f64) -> Vec<He
         .iter()
         .filter_map(|n| {
             let key = n.bound.clone()?;
+            // A figure or mark of another plan is none of this edit's business.
+            if Target::parse(&key)?.plan().is_some_and(|p| p != plan.id) {
+                return None;
+            }
+
             Some(Held {
                 note: n.id.clone(),
                 at: n.at,
@@ -166,7 +218,7 @@ pub(super) fn add_label(
     text: &str,
 ) -> Result<(), ServiceError> {
     let text = note_text(text)?;
-    let key = key_of(source).ok_or_else(bad_source)?;
+    let key = key_of(source, &scope.plan.id).ok_or_else(bad_source)?;
     let set = scope
         .set
         .as_deref_mut()
