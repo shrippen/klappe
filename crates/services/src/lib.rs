@@ -60,7 +60,7 @@ pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Dash, Departure, DoorSide, DrawingShape,
     FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, ObjectShape,
     OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, Sensor, ShotSize,
-    MIN_OBJECT_HEIGHT_M,
+    MIN_IMAGE_OPACITY, MIN_OBJECT_HEIGHT_M,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, scene_look, Area, Bend, Cut, DisplayList, Frame, Hue, Item,

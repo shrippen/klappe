@@ -1,19 +1,24 @@
 //! The card of a selected image (LH-18): its opacity typed or its file swapped, as plan edits.
 
-use klappe_services::{read_number, Field, PlanEdit, Range, Source, Unit};
+use klappe_services::{read_number, Field, PlanEdit, Range, Source, Unit, MIN_IMAGE_OPACITY};
 
 use crate::fileurl;
 use crate::tools::Typed;
 
 const PERCENT: f64 = 100.0;
 
-/// The opacity in percent as typed, for the selected image; the session checks the limits.
-/// `None` when something else is selected.
+/// The opacity in percent as typed, for the selected image; out of its range it is refused
+/// as typed (`5`, not `0.05`). `None` when something else is selected.
 pub fn opacity_edit(selected: Option<&Source>, text: &str) -> Typed {
     let Some(source @ Source::Image(_)) = selected else {
         return None;
     };
-    let percent = read_number(Field::Opacity, text, Unit::Percent, Range::Any);
+    let percent = read_number(
+        Field::Opacity,
+        text,
+        Unit::Percent,
+        Range::Within(MIN_IMAGE_OPACITY * PERCENT, PERCENT),
+    );
 
     Some(percent.map(|percent| PlanEdit::SetImageOpacity {
         source: source.clone(),
@@ -66,7 +71,10 @@ mod tests {
     fn a_percent_out_of_range_is_refused_as_typed() {
         // The status line names what was typed, not the share the session keeps.
         for typed in ["5", "150"] {
-            assert!(opacity_edit(Some(&image()), typed).unwrap().is_err(), "{typed}");
+            assert!(
+                opacity_edit(Some(&image()), typed).unwrap().is_err(),
+                "{typed}"
+            );
         }
     }
 
