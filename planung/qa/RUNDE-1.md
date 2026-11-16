@@ -80,7 +80,7 @@ nachzuspielen.
 - **Beleg:** P1 `shot-046`; P3 `shot-014`, `shot-029` bis `shot-031`
 - **Nachgeprüft:** nein; abgeglichen am Menü und im Code (kein Eintrag zum Schließen).
 - **Einordnung:** fehlt in der Oberfläche
-- **Status:** gewählt
+- **Status:** offen (Behebung vorbereitet: #168)
 
 ### Q1-03 Felder in den Karten ohne Beschriftung
 - **Art:** unverständlich · **Stufe:** hoch
