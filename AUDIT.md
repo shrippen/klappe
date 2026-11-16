@@ -108,7 +108,7 @@ Vorschlag: Nichts umbauen. Beim nächsten Test für die Planfläche `tst_planare
 Beleg: `structure.baseline`, Commit `a8e2cb9`.
 
 ## Seit dem letzten Audit
-Seit dem zwölften Audit wurden elf PRs gemergt: #187 bis #197. Aus dem zwölften Audit hat der Eigentümer die Funde 1 bis 4 gewählt; alle vier sind behoben. Fund 5 hat er nicht gewählt.
+Seit dem zwölften Audit wurden zehn PRs gemergt: #188 bis #197. Aus dem zwölften Audit hat der Eigentümer die Funde 1 bis 4 gewählt; alle vier sind behoben. Fund 5 hat er nicht gewählt.
 
 Zwölftes Audit:
 - **Fund 1 (Bild als gedrehtes Rechteck, Rechnungen abgeschrieben): behoben (#191).** Möbel und Bild beschreiben sich als `TurnedRect`. Lage der Griffe, Ziehen und Einrasten laufen für beide über dieselben Funktionen. Rest siehe neuer Fund 6. Beleg: `crates/model/src/geometry.rs:63`, `crates/model/src/project.rs:284`, `crates/model/src/project.rs:499`, `crates/services/src/plan_edit/moving.rs:254`, `crates/services/src/plan_edit/moving.rs:272`.
