@@ -115,3 +115,45 @@ fn a_cut_off_copy_leaves_no_half_folder() {
     assert_eq!(tree(&dir), tree(&shipped));
     assert!(!beside.exists());
 }
+
+/// A copy of an older format no longer loads: it is set aside, never deleted, and a fresh copy
+/// takes its place.
+#[test]
+fn an_unreadable_copy_is_set_aside_and_replaced() {
+    let dir = target("example-old");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("projekt.toml"), "kaputt").unwrap();
+
+    let aside = ensure_example(Language::German, &dir).unwrap().unwrap();
+
+    assert_eq!(aside, dir.with_file_name("example-old.alt"));
+    assert_eq!(std::fs::read(aside.join("projekt.toml")).unwrap(), b"kaputt");
+    assert!(Session::open(&dir).is_ok());
+}
+
+/// Each old copy keeps its own folder.
+#[test]
+fn a_second_old_copy_gets_a_free_name() {
+    let dir = target("example-old2");
+    let first = dir.with_file_name("example-old2.alt");
+    let _ = std::fs::remove_dir_all(&first);
+    std::fs::create_dir_all(&first).unwrap();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("projekt.toml"), "kaputt").unwrap();
+
+    let aside = ensure_example(Language::German, &dir).unwrap().unwrap();
+
+    assert_eq!(aside, dir.with_file_name("example-old2.alt-2"));
+    assert!(first.exists());
+}
+
+#[test]
+fn a_readable_copy_is_not_set_aside() {
+    let dir = target("example-fine");
+    ensure_example(Language::German, &dir).unwrap();
+
+    let aside = ensure_example(Language::German, &dir).unwrap();
+
+    assert_eq!(aside, None);
+    assert!(!dir.with_file_name("example-fine.alt").exists());
+}

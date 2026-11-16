@@ -4,7 +4,7 @@
 //! packaged app finds them without a data folder. Only the two project folders are embedded,
 //! nothing else of `demo/`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::catalog::Language;
 use crate::error::{write_failed, ServiceError};
@@ -27,10 +27,10 @@ pub fn copy_example(language: Language, dir: &Path) -> Result<(), ServiceError> 
 
 /// The user's copy of the example in `dir`: written when `dir` is missing or empty, else left
 /// as it is, so what the user changed in it is not lost by another click.
-pub fn ensure_example(language: Language, dir: &Path) -> Result<(), ServiceError> {
+pub fn ensure_example(language: Language, dir: &Path) -> Result<Option<PathBuf>, ServiceError> {
     match check_empty(dir) {
-        Err(ServiceError::NotEmpty(_)) => Ok(()),
+        Err(ServiceError::NotEmpty(_)) => Ok(None),
         Err(e) => Err(e),
-        Ok(()) => copy_example(language, dir),
+        Ok(()) => copy_example(language, dir).map(|()| None),
     }
 }
