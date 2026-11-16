@@ -63,6 +63,14 @@ mod tests {
     }
 
     #[test]
+    fn a_percent_out_of_range_is_refused_as_typed() {
+        // The status line names what was typed, not the share the session keeps.
+        for typed in ["5", "150"] {
+            assert!(opacity_edit(Some(&image()), typed).unwrap().is_err(), "{typed}");
+        }
+    }
+
+    #[test]
     fn a_url_is_a_path() {
         let edit = replace_edit(Some(&image()), "file:///tmp/a%20b.png");
 
