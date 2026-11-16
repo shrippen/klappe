@@ -88,6 +88,19 @@ TestCase {
         compare(dialog.kind, "csv")
     }
 
+    // The shot list opens the file dialog straight from the menu, with the paper form closed:
+    // the dialog still needs the window to show in (QA Q1-01: nothing came).
+    function test_the_file_dialog_of_the_shot_list_has_the_window() {
+        const dialog = make()
+        const files = findChild(dialog, "files")
+
+        dialog.request("csv")
+
+        verify(files.parentWindow !== null)
+        compare(files.parentWindow, tc.Window.window)
+        files.close()
+    }
+
     function test_the_paper_goes_to_the_plan_exports() {
         const dialog = make()
 

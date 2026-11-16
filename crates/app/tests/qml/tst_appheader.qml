@@ -242,6 +242,12 @@ TestCase {
         pick(header, "exportMenu", "csv")
         compare(dialog.kind, "csv")
         verify(!dialog.opened)
+        // The shot list asks for the file straight away (QA Q1-01).
+        const files = findChild(dialog, "files")
+        tryCompare(files, "visible", true)
+        files.close()
+        tryCompare(files, "visible", false)
+        back()
 
         // Nothing is written before a file is chosen.
         compare(fake.calls, [])
@@ -252,10 +258,15 @@ TestCase {
         const dialog = findChild(header, "exportDialog")
 
         // The lists ask for the file only, the frames (a folder) for the paper first.
+        const files = findChild(dialog, "files")
         for (const kind of ["ods", "xlsx"]) {
             pick(header, "exportMenu", kind)
             compare(dialog.kind, kind)
             verify(!dialog.opened)
+            tryCompare(files, "visible", true)
+            files.close()
+            tryCompare(files, "visible", false)
+            back()
         }
         pick(header, "exportMenu", "frames")
         compare(dialog.kind, "frames")
@@ -409,6 +420,13 @@ TestCase {
         header.run("tool:wall")
 
         compare(fakeTools.tool, "wall")
+    }
+
+    // The file dialog is a window of its own; once it closes, a window manager hands the keys
+    // back to the main window. The test does that itself.
+    function back() {
+        tc.Window.window.requestActivate()
+        tryCompare(tc.Window.window, "active", true)
     }
 
     function test_the_palette_lists_the_menu_commands_and_runs_them() {
