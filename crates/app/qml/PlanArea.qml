@@ -262,6 +262,16 @@ Item {
     // The card goes with the tool (Q1-04).
     onToolChanged: selection.dismissed = true
 
+    // In 3D only a click with the select tool opens it again (as a click on the plan).
+    Connections {
+        target: freeView
+        function onClickAtChanged() {
+            if (area.tool === "select") {
+                selection.dismissed = false
+            }
+        }
+    }
+
     Connections {
         target: area.controller
         function onAsksNoteChanged() {

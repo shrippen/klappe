@@ -54,10 +54,7 @@ KantePopover {
         card.place()
     }
     onFreeChanged: place()
-    onFreeAtChanged: {
-        card.dismissed = false
-        card.place()
-    }
+    onFreeAtChanged: place()
     onWantedChanged: place()
     onImplicitWidthChanged: place()
     onImplicitHeightChanged: place()

@@ -283,6 +283,29 @@ TestCase {
         verify(card.y <= 250 && 250 <= card.y + card.height)
     }
 
+    // Review of #173: in 3D a click with another tool selects nothing and does not reopen the
+    // card; one with the select tool does.
+    function test_in_3d_only_a_select_click_reopens_the_card() {
+        fake.viewFree = true
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        const view = findChild(area, "freeView")
+        view.clickAt = Qt.point(200, 150)
+        fake.selectedKey = "object:o1"
+        settled(card)
+        area.tool = "measure"
+        tryVerify(() => !card.visible)
+
+        view.clickAt = Qt.point(300, 250)
+        wait(100)
+
+        verify(!card.visible)
+
+        area.tool = "select"
+        view.clickAt = Qt.point(250, 200)
+        settled(card)
+    }
+
     // Q1-04: Escape closes the card (it clears the selection, so a click on the element opens
     // it again).
     function test_escape_closes_the_card() {
