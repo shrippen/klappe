@@ -4,6 +4,7 @@ use klappe_model::{Drawing, DrawingShape, FloorPlan, Point, Project, SetPlan};
 
 use super::{rect_corners, Item, Role, Shape, Source};
 use crate::card::note_card;
+use crate::light::light_grip_place;
 use crate::motion::{bend_grips, walked_ways};
 
 /// A grip on a way (LH-21): a bend the way passes, or a spot to pull a new bend out of.
@@ -25,6 +26,15 @@ pub enum OpeningEnd {
     End,
 }
 
+/// A grip on a lamp's beam (LH-50), both at the beam's reach.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LightGrip {
+    /// On the lamp's facing: drag to turn the lamp towards the pointer.
+    Direction,
+    /// On the beam's edge clockwise of the facing: drag to set the beam's angle.
+    Beam,
+}
+
 /// The grip on a way's bend.
 const HANDLE_RADIUS_M: f64 = 0.15;
 /// The grip that pulls a new bend out of a way.
@@ -40,6 +50,8 @@ const NEW_POINT_RADIUS_M: f64 = 0.1;
 /// A selected note has one in the middle of its card's right edge, to set its width (LH-16).
 /// A selected door or window has one on each end, on the wall's middle line, to set its
 /// width (LH-10).
+/// A selected lamp has two at the beam's reach: one on its facing, one on the beam's edge
+/// (LH-50).
 /// Only the selected way shows them, so the plan is not full of dots; `render` leaves them
 /// out, and with it the export.
 pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &Source) -> Vec<Item> {
@@ -55,8 +67,32 @@ pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &So
         Source::Opening { wall, index } | Source::OpeningEdge { wall, index, .. } => {
             opening_handles(set, *wall, *index)
         }
+        Source::Light(id) | Source::LightGrip { light: id, .. } => light_handles(plan, id),
         _ => Vec::new(),
     }
+}
+
+/// The grips on the beam of lamp `id`.
+fn light_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
+    let Some(light) = plan.lights.iter().find(|l| l.id == id) else {
+        return Vec::new();
+    };
+
+    [LightGrip::Beam, LightGrip::Direction]
+        .into_iter()
+        .map(|grip| Item {
+            role: Role::LightHandle,
+            shape: Shape::Circle {
+                center: light_grip_place(light, grip),
+                radius_m: HANDLE_RADIUS_M,
+            },
+            label: None,
+            source: Some(Source::LightGrip {
+                light: id.to_owned(),
+                grip,
+            }),
+        })
+        .collect()
 }
 
 /// The grips on the two ends of opening `index` of wall `wall`.

@@ -1,13 +1,39 @@
 //! The lamps of a plan: their symbols and beams on the plan, and what a printed legend says
 //! about them (LH-50, LH-51).
 
-use klappe_model::{FloorPlan, LightKind};
+use klappe_model::{FloorPlan, Light, LightKind, Point};
 
-use crate::display::{Item, Role, Shape, Source, BODY_RADIUS_M};
+use crate::display::{Item, LightGrip, Role, Shape, Source, BODY_RADIUS_M};
 use crate::optics::frustum;
 
 /// How far a lamp's beam is drawn.
 const BEAM_REACH_M: f64 = 4.0;
+/// How far out along the beam's edge its grip sits, as a share of the reach: closer than the
+/// direction grip, so a narrow beam does not put one grip on the other (2 m apart at least).
+const BEAM_GRIP_SHARE: f64 = 0.5;
+
+/// Where grip `grip` of `light` sits: the direction grip `BEAM_REACH_M` out on its facing,
+/// the beam grip halfway out on the beam's edge clockwise of it.
+///
+/// ```text
+///             /
+///      beam ·
+///          /
+///   lamp ·--------- direction grip
+///         \
+/// ```
+pub fn light_grip_place(light: &Light, grip: LightGrip) -> Point {
+    let (angle_deg, reach_m) = match grip {
+        LightGrip::Direction => (light.facing_deg, BEAM_REACH_M),
+        LightGrip::Beam => (
+            light.facing_deg + light.beam_deg / 2.0,
+            BEAM_REACH_M * BEAM_GRIP_SHARE,
+        ),
+    };
+    let (sin, cos) = angle_deg.to_radians().sin_cos();
+
+    Point::new(light.at.x_m + reach_m * cos, light.at.y_m + reach_m * sin)
+}
 
 /// A lamp as a legend names it: the label the plan shows, and what it is.
 #[derive(Debug, Clone, PartialEq)]

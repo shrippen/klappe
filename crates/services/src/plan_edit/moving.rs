@@ -1,12 +1,15 @@
 //! Moving, turning and bending elements: which points an edit targets and how they move.
 
 use klappe_model::{
-    CameraMark, Drawing, DrawingShape, FloorPlan, Mark, Point, Wall, NOTE_MIN_WIDTH_M,
+    CameraMark, Drawing, DrawingShape, FloorPlan, Light, Mark, Point, Wall, NOTE_MIN_WIDTH_M,
 };
-use klappe_stellprobe::{bend_follow, bend_grips, drawing_handle_places, Bend, Source};
+use klappe_stellprobe::{
+    bend_follow, bend_grips, drawing_handle_places, light_grip_place, Bend, LightGrip, Source,
+};
 
 use super::drawings::{drag_handle, edge_place, insert_point};
 use super::openings::{drag_edge, edge_m, opening_mut, slide};
+use super::FULL_TURN_DEG;
 use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping, Target};
 use crate::error::ServiceError;
 
@@ -67,18 +70,7 @@ pub(super) fn target<'a>(
                 facing_deg: &mut mark.facing_deg,
             })
         }
-        Source::Light(id) => {
-            let light = scope
-                .plan
-                .lights
-                .iter_mut()
-                .find(|l| l.id == *id)
-                .ok_or(ServiceError::Gone)?;
-            Ok(Target::Place {
-                at: &mut light.at,
-                facing_deg: &mut light.facing_deg,
-            })
-        }
+        Source::Light(_) | Source::LightGrip { .. } => light_target(scope, source),
         Source::Object(id) => {
             let object = scope
                 .set
@@ -107,6 +99,27 @@ pub(super) fn target<'a>(
             .find(|d| d.id == *id)
             .map(Target::Drawing)
             .ok_or(ServiceError::Gone),
+    }
+}
+
+/// A lamp, or the grip on its beam.
+fn light_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, ServiceError> {
+    let (Source::Light(id) | Source::LightGrip { light: id, .. }) = source else {
+        return Err(ServiceError::Gone);
+    };
+    let light = scope
+        .plan
+        .lights
+        .iter_mut()
+        .find(|l| l.id == *id)
+        .ok_or(ServiceError::Gone)?;
+
+    match source {
+        Source::LightGrip { grip, .. } => Ok(Target::LightEdge { light, grip: *grip }),
+        _ => Ok(Target::Place {
+            at: &mut light.at,
+            facing_deg: &mut light.facing_deg,
+        }),
     }
 }
 
@@ -384,6 +397,44 @@ fn place_drawing(drawing: &mut Drawing, to: Point) {
     }
 }
 
+/// The narrowest beam a drag sets; `is_beam_deg` wants more than 0°. A drag gives 360° at most.
+const LIGHT_MIN_BEAM_DEG: f64 = 1.0;
+
+/// The pointer at `to` turns the lamp towards it (direction grip) or sets the beam so that
+/// its edge runs through it (beam grip). The lamp stays; a pointer on the lamp changes nothing.
+fn drag_light(light: &mut Light, grip: LightGrip, to: Point) {
+    if light.at.distance_m(to) == 0.0 {
+        return;
+    }
+    let to_deg = light.at.bearing_deg(to);
+
+    match grip {
+        LightGrip::Direction => light.facing_deg = normalize_deg(to_deg),
+        LightGrip::Beam => {
+            // Half the beam is the angle between the facing and the pointer, 0 to 180°.
+            let half_turn_deg = FULL_TURN_DEG / 2.0;
+            let off_deg = normalize_deg(to_deg - light.facing_deg + half_turn_deg) - half_turn_deg;
+
+            light.beam_deg = (2.0 * off_deg.abs()).max(LIGHT_MIN_BEAM_DEG);
+        }
+    }
+}
+
+/// The grips that set a size or an angle: `to` is where the pointer drags the grip.
+fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
+    match grip {
+        Target::OpeningEdge { wall, index, end } => drag_edge(wall, index, end, to)?,
+        Target::LightEdge { light, grip } => drag_light(light, grip, to),
+        // The card keeps its top left; its right edge lands on `to`.
+        Target::NoteEdge(note) => {
+            note.width_m = (to.x_m - note.at.x_m).max(NOTE_MIN_WIDTH_M);
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
 fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
         Target::Place { at, .. } | Target::Pin { at } => *at = to,
@@ -393,10 +444,8 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
         Target::Corner { drawing, index } => drag_handle(drawing, index, to)?,
         Target::Edge { drawing, index } => insert_point(drawing, index, to)?,
         Target::Slide { wall, index } => slide(wall, index, to)?,
-        Target::OpeningEdge { wall, index, end } => drag_edge(wall, index, end, to)?,
-        // The card keeps its top left; its right edge lands on `to`.
-        Target::NoteEdge(note) => {
-            note.width_m = (to.x_m - note.at.x_m).max(NOTE_MIN_WIDTH_M);
+        grip @ (Target::OpeningEdge { .. } | Target::LightEdge { .. } | Target::NoteEdge(_)) => {
+            place_grip(grip, to)?
         }
         Target::Wall(wall) => {
             // The whole wall keeps its shape; its middle lands on `to`.
@@ -425,6 +474,11 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
             Ok((edge, edge))
         }
         Target::Wall(wall) => Ok((wall.from, middle(wall))),
+        Target::LightEdge { light, grip } => {
+            let place = light_grip_place(light, grip);
+
+            Ok((place, place))
+        }
         Target::OpeningEdge { wall, index, end } => {
             let grip = wall.point_at(edge_m(&wall.openings[index], end));
 
@@ -506,6 +560,7 @@ pub(super) fn spin(
         | Target::NoteEdge(_)
         | Target::Curve { .. }
         | Target::OpeningEdge { .. }
+        | Target::LightEdge { .. }
         | Target::Slide { .. } => return Ok(()),
     };
 
@@ -529,6 +584,7 @@ pub(super) fn turn(
         | Target::NoteEdge(_)
         | Target::Curve { .. }
         | Target::OpeningEdge { .. }
+        | Target::LightEdge { .. }
         | Target::Slide { .. } => {}
         Target::Wall(wall) => {
             // Turns about its middle, keeping its length; from -> to then points to `facing_deg`.

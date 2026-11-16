@@ -14,7 +14,9 @@ use crate::rig::{rig_dash, rig_runs};
 mod handles;
 mod objects;
 
-pub use handles::{drawing_edge_places, drawing_handle_places, handles, Bend, OpeningEnd};
+pub use handles::{
+    drawing_edge_places, drawing_handle_places, handles, Bend, LightGrip, OpeningEnd,
+};
 pub use objects::label_point;
 pub(crate) use objects::object_corners;
 use objects::set_items;
@@ -108,6 +110,8 @@ pub enum Role {
     NoteHandle,
     /// A grip on an end of the selected door or window (LH-10); only drawn while selected.
     OpeningHandle,
+    /// A grip on the beam of the selected lamp (LH-50); only drawn while it is selected.
+    LightHandle,
     /// The grip that bends the way to a mark (LH-21); only drawn for a selected way.
     FigureHandle(FigureColor),
     CameraHandle,
@@ -157,6 +161,11 @@ pub enum Source {
         wall: usize,
         index: usize,
         end: OpeningEnd,
+    },
+    /// A grip on the far edge of a lamp's beam (LH-50): drag to turn the lamp or set its beam.
+    LightGrip {
+        light: String,
+        grip: LightGrip,
     },
     Note(String),
     /// The grip in the middle of the right edge of a note's card (LH-16): drag to set its width.
