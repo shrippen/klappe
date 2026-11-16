@@ -96,10 +96,14 @@ impl qobject::Controller {
             return QString::default();
         };
 
+        // Nothing to look through: the entry says so instead of switching on.
+        let mut refused = false;
         match command.to_string().as_str() {
             CUT => s.toggle_cut(),
             CAMERA => {
+                let was = s.looks_through();
                 s.look_through(picked.as_deref());
+                refused = !was && !s.looks_through();
             }
             _ => {}
         }
@@ -112,6 +116,10 @@ impl qobject::Controller {
         }
         let on = QString::from(on.join(" ").as_str());
 
+        if refused {
+            let text = self.rust().language.text("view.throughRefused");
+            self.as_mut().say(text);
+        }
         self.bump_free();
 
         on

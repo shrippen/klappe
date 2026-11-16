@@ -54,9 +54,13 @@ TestCase {
         function clearStatus() {}
         function stepMark(direction) { call("stepMark", [direction]) }
         function toggleView() { call("toggleView", []); viewFree = !viewFree }
+        property bool refuseCamera: false
         function freeLook(command) {
             if (command !== "") {
                 call("freeLook", [command])
+                if (command === "camera" && refuseCamera) {
+                    return look
+                }
                 const on = look.split(" ").filter(w => w !== "")
                 look = on.includes(command) ? on.filter(w => w !== command).join(" ") : on.concat([command]).join(" ")
                 freeRevision++
@@ -697,6 +701,20 @@ TestCase {
         header.run("view.through")
         verify(!entry(header, "viewMenu", "through").checked)
         compare(header.commandPalette.commands.find(c => c.id === "view.through").text, "Durch Kamera sehen")
+    }
+
+    // No shot, no camera or none with marks: the look stays off, so the entry does too.
+    function test_a_refused_look_leaves_the_entry_unchecked() {
+        const header = make()
+        keyClick(Qt.Key_J)
+        fake.refuseCamera = true
+
+        pick(header, "viewMenu", "through")
+        verify(!entry(header, "viewMenu", "through").checked)
+
+        header.run("view.through")
+        verify(!entry(header, "viewMenu", "through").checked)
+        fake.refuseCamera = false
     }
 
     function test_the_palette_lists_the_3d_view_with_its_key() {

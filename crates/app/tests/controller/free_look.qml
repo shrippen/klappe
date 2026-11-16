@@ -45,6 +45,14 @@ Item {
                 return fail("the cut is an edit")
             }
 
+            // Nothing selected: no camera to look through; it says so.
+            if (ctl.freeLook("camera").split(" ").includes("camera")) {
+                return fail("a look through no camera: " + ctl.freeLook(""))
+            }
+            if (ctl.status === "") {
+                return fail("the refused look said nothing")
+            }
+
             // Through the camera of the selected shot.
             ctl.selectShot(JSON.parse(ctl.shotsJson)[0].id)
             revision = ctl.freeRevision

@@ -282,6 +282,7 @@
  "view.wallCut": "Cut walls",
  "view.through": "Look through camera",
  "view.throughHint": "Through the camera · turning, panning or zooming leaves it",
+ "view.throughRefused": "No shot and no camera selected, or the camera has no marks.",
  "height.missing": "Height ?",
  "height.missingHeader": "{n} without height · add (Shift+H)",
  "height.next": "Add heights",

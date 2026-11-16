@@ -282,6 +282,7 @@
  "view.wallCut": "Wände kappen",
  "view.through": "Durch Kamera sehen",
  "view.throughHint": "Blick durch die Kamera · Drehen, Schieben und Zoomen verlässt ihn",
+ "view.throughRefused": "Kein Shot und keine Kamera gewählt, oder die Kamera hat keine Marks.",
  "height.missing": "Höhe ?",
  "height.missingHeader": "{n} ohne Höhe · ergänzen (Umschalt+H)",
  "height.next": "Höhen ergänzen",

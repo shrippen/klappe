@@ -378,7 +378,8 @@ RowLayout {
         text: header.texts.t("view.through")
         checkable: true
         enabled: header.controller.loaded && !header.locked && header.controller.viewFree === true
-        onToggled: header.controller.freeLook("camera")
+        // The entry shows what is true: a look that was refused leaves it unchecked.
+        onToggled: actThrough.checked = header.controller.freeLook("camera").split(" ").includes("camera")
     }
     Binding {
         target: actWallCut
