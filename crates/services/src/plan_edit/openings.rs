@@ -157,7 +157,8 @@ pub(super) fn drag_edge(
     if start_m < -ROUNDING_M || end_m > length_m + ROUNDING_M {
         return Err(refused(Field::Wall, String::new()));
     }
-    let width_m = end_m - start_m;
+    // The rounded ends may differ by a hair under the least; the width is never under it.
+    let width_m = (end_m - start_m).max(MIN_OPENING_WIDTH_M);
 
     wall.openings[index].at_m = centre_m(wall, Some(index), start_m + width_m / 2.0, width_m)?;
     wall.openings[index].width_m = width_m;

@@ -67,7 +67,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   fehlt dann in der Datei. Ein eigener Eintrag lässt sich umbenennen (`label`, `group`) und
   löschen; Objekte im Plan behalten `kind`, Maße, Form und Namen, ihr `kind` ist dann wie ein
   unbekanntes. Eine Datei mit einem unbrauchbaren Eintrag (leerer
-  `kind`, Maß nicht in (0, 1000] m, doppelter `kind`) wird als Ganzes abgelehnt; die
+  `kind`, Maß nicht in [0,05, 1000] m, doppelter `kind`) wird als Ganzes abgelehnt; die
   `bibliothek.toml` eines Projekts dann beim Öffnen mit Meldung. Ohne eigene Objekte gibt es die
   Datei nicht: `save` löscht sie dann. Keine neue Formatversion: ältere Fassungen kennen `shape`,
   `group` und `bibliothek.toml` nicht und verlieren sie beim Speichern.

@@ -456,7 +456,7 @@ fn check_openings(path: &Path, locations: &[Location]) -> Result<(), StoreError>
     Ok(())
 }
 
-/// Heights an edit would refuse (LH-90, LH-91): a room, wall or head is more than nothing; a sill
+/// Heights an edit would refuse (LH-90, LH-91): a room, wall or head is not under the least height; a sill
 /// or underside starts at the floor or above; a sill lies below its head.
 fn check_heights(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     for location in locations {

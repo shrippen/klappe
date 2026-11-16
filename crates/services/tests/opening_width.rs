@@ -256,3 +256,38 @@ fn a_typed_width_follows_the_least_a_drag_leaves() {
     let (start_m, end_m) = span_m(&s);
     assert!(near(end_m - start_m, MIN_OPENING_WIDTH_M));
 }
+
+/// A door dragged down to the least width is saved with a width that loads again: the width
+/// is the limit itself, not the difference of two rounded ends.
+#[test]
+fn a_door_dragged_to_the_least_width_reopens() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("opening-least-width");
+    let _ = std::fs::remove_dir_all(&dir);
+    copy_dir(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe"),
+        &dir,
+    );
+    let mut s = Session::open(&dir).unwrap();
+    s.set_snapping(Snapping::Off);
+    s.edit_plan(drag(OpeningEnd::End, 5.0)).unwrap();
+
+    s.save().unwrap();
+
+    let reopened = Session::open(&dir).unwrap();
+    let door = &reopened.project().locations[0].set.walls[WALL].openings[0];
+    assert!(door.width_m >= MIN_OPENING_WIDTH_M, "{}", door.width_m);
+}
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        match entry.file_type().unwrap().is_dir() {
+            true => copy_dir(&entry.path(), &target),
+            false => {
+                std::fs::copy(entry.path(), target).unwrap();
+            }
+        }
+    }
+}

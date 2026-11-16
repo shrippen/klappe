@@ -132,7 +132,7 @@ fn check_camera_aim(height_m: f64, tilt_deg: f64) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// An object's height, when given: a number, more than nothing, not absurd.
+/// An object's height, when given: a number, not under the least height, not absurd.
 fn check_object_height(height_m: Option<f64>) -> Result<(), ServiceError> {
     let Some(height_m) = height_m else {
         return Ok(());
@@ -158,8 +158,8 @@ fn check_heights(edit: &PlanEdit) -> Result<(), ServiceError> {
     }
 }
 
-/// A height above the floor that something ends at, when given: a number, more than nothing,
-/// not absurd.
+/// A height above the floor that something ends at, when given: a number, not under the least
+/// height, not absurd.
 fn check_top(field: Field, height_m: Option<f64>) -> Result<(), ServiceError> {
     match height_m {
         Some(height_m) if !is_object_height_m(height_m) => Err(bad_height(field, height_m)),
