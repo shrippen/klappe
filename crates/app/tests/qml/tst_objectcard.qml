@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import QtQuick.Controls as QQC2
 import "../../qml"
 import "FieldLabels.js" as FieldLabels
 
@@ -41,6 +42,9 @@ TestCase {
             }
             if (key === "object:o2") {
                 return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8, base: 0.4, baseDefault: false })
+            }
+            if (key === "object:o4") {
+                return JSON.stringify({ kind: "object", label: "", library: "sofa", width: 2, depth: 0.9, height: 0.85, base: 0, baseDefault: true, mirrored: true })
             }
             if (key === "object:o3") {
                 return JSON.stringify({ kind: "object", label: "", library: "zeppelin", width: 12, depth: 3, height: null, base: 0, baseDefault: true })
@@ -452,6 +456,27 @@ TestCase {
 
         compare(fake.changes, [["mirror", ""], ["resetSize", ""]])
         compare(fake.labels, 1)
+    }
+
+    // The mirror button shows its state to the eye and to a screen reader, not by colour alone.
+    function test_the_mirror_button_is_checked_while_mirrored() {
+        const card = make()
+        const button = findChild(card, "objectMirror")
+
+        fake.selectedKey = "object:o1"
+        verify(!button.checked)
+        fake.selectedKey = "object:o4"
+        verify(button.checked)
+        verify(button.Accessible.checkable)
+    }
+
+    // The tooltip names the key the command has (Shift+G, not Shift+S).
+    function test_the_reset_tooltip_names_its_key() {
+        const card = make()
+        const tip = findChild(card, "objectResetSize").QQC2.ToolTip.text
+
+        verify(tip.indexOf("+G") >= 0, tip)
+        verify(tip.indexOf("+S") < 0, tip)
     }
 
     function test_the_texts_of_the_object_commands_are_in_both_languages() {

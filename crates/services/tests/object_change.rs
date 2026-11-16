@@ -467,3 +467,89 @@ fn the_library_has_crew_vehicles_a_dog_and_props() {
         assert!(entry.height_m.is_some(), "{kind}");
     }
 }
+
+/// Review of PR 201: a bound note follows its element even while the notes layer is locked.
+#[test]
+fn a_locked_notes_layer_keeps_a_bound_note_where_it_is() {
+    let mut s = open();
+    s.edit_plan(label(obj("tisch"), "Gedeck")).unwrap();
+    s.set_lock(Layer::Notes, Lock::Locked);
+    let move_table = PlanEdit::Move {
+        source: obj("tisch"),
+        to: p(12.0, 8.0),
+    };
+
+    assert!(matches!(
+        s.edit_plan(move_table),
+        Err(ServiceError::Locked(Layer::Notes))
+    ));
+    assert_eq!(object(&s, "tisch").at, p(10.0, 6.5));
+}
+
+/// Review of PR 201: a note bound to a figure belongs to the plan it was set on; the same
+/// set in another plan neither moves it nor lets it go.
+#[test]
+fn a_figure_label_ignores_edits_in_another_plan() {
+    let mut s = open();
+    s.set_time(6.0);
+    s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
+        .unwrap();
+    let id = s.project().locations[0].set.notes.last().unwrap().id.clone();
+    let at = note_at(&s, &id);
+    let copy = s.copy_plan("B").unwrap();
+    s.select_plan(&copy).unwrap();
+
+    s.edit_plan(PlanEdit::Move {
+        source: Source::Figure("elisabeth".into()),
+        to: p(3.0, 3.0),
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Remove {
+        source: Source::Mark {
+            character: "elisabeth".into(),
+            index: 0,
+        },
+    })
+    .unwrap();
+
+    assert_eq!(note_at(&s, &id), at);
+    assert!(bound(&s, &id).is_some());
+}
+
+/// Review of PR 201: a copy of a bound note hangs on the original element.
+#[test]
+fn a_copied_label_is_free() {
+    let mut s = open();
+    s.edit_plan(label(obj("tisch"), "Gedeck")).unwrap();
+    let id = s.project().locations[0].set.notes.last().unwrap().id.clone();
+
+    s.edit_plan(PlanEdit::Duplicate {
+        sources: vec![Source::Note(id.clone())],
+        dx_m: 5.0,
+        dy_m: 0.0,
+    })
+    .unwrap();
+
+    let notes = &s.project().locations[0].set.notes;
+    assert_eq!(notes.last().unwrap().bound, None);
+    assert!(bound(&s, &id).is_some());
+}
+
+/// Review of PR 201: a new mark of a labelled figure (the next blocking step) does not let
+/// the label go.
+#[test]
+fn a_figure_label_survives_a_new_mark() {
+    let mut s = open();
+    s.set_time(6.0);
+    s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
+        .unwrap();
+    let id = s.project().locations[0].set.notes.last().unwrap().id.clone();
+
+    s.edit_plan(PlanEdit::AddMark {
+        character: "elisabeth".into(),
+        at: p(18.0, 3.0),
+    })
+    .unwrap();
+
+    assert!(bound(&s, &id).is_some());
+}
