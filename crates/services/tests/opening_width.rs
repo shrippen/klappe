@@ -150,3 +150,32 @@ fn removing_the_grip_removes_nothing() {
     assert!(result.is_err());
     assert_eq!(s.project().locations[0].set.walls[WALL].openings.len(), 1);
 }
+
+/// A door narrower than the minimum at the start of its wall: the minimum would push the start
+/// past the wall, so the drag is refused and the other end does not move.
+#[test]
+fn a_narrow_door_at_the_wall_start_keeps_its_end() {
+    let mut s = open();
+    let door = Source::Opening {
+        wall: WALL,
+        index: 0,
+    };
+    s.edit_plan(PlanEdit::SetOpeningWidth {
+        source: door.clone(),
+        width_m: 0.2,
+    })
+    .unwrap();
+    s.edit_plan(PlanEdit::Shift {
+        source: door,
+        dx_m: 20.0,
+        dy_m: 0.0,
+    })
+    .unwrap();
+    let (start_m, end_m) = span_m(&s);
+    assert!(near(start_m, 0.0) && near(end_m, 0.2), "{start_m} {end_m}");
+
+    let _ = s.edit_plan(drag(OpeningEnd::Start, -0.05));
+
+    let (start_m, end_m) = span_m(&s);
+    assert!(near(start_m, 0.0) && near(end_m, 0.2), "{start_m} {end_m}");
+}

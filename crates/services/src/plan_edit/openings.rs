@@ -151,6 +151,10 @@ pub(super) fn drag_edge(
         OpeningEnd::Start => (along_m.min(end_m - OPENING_MIN_WIDTH_M), end_m),
         OpeningEnd::End => (start_m, along_m.max(start_m + OPENING_MIN_WIDTH_M)),
     };
+    // The minimum must not push an end past the wall: `centre_m` would move the other end.
+    if start_m < 0.0 || end_m > length_m {
+        return Err(refused(Field::Wall, String::new()));
+    }
     let width_m = end_m - start_m;
 
     wall.openings[index].at_m = centre_m(wall, Some(index), start_m + width_m / 2.0, width_m)?;
