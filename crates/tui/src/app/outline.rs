@@ -102,6 +102,10 @@ impl App {
 
     /// Moves the cursor to the line of the selected entry.
     pub(super) fn jump(&mut self) {
+        // A filter that matches nothing leaves no entry to jump to.
+        if self.list_rows().is_empty() {
+            return;
+        }
         self.snap_selection();
         self.jump_entry(self.list_sel);
     }
@@ -275,5 +279,21 @@ impl App {
             .iter()
             .position(|e| e.line == moved.line);
         self.list_sel = at.unwrap_or(self.list_sel);
+        self.unfold_around(self.list_sel);
+    }
+
+    /// Opens the sections around an entry, so a block moved into a folded section stays
+    /// on screen.
+    fn unfold_around(&mut self, index: usize) {
+        let entries = &self.analysis.outline;
+        let mut depth = entries[index].depth;
+
+        for entry in entries[..index].iter().rev() {
+            if !is_section(entry) || entry.depth >= depth {
+                continue;
+            }
+            self.collapsed.remove(&fold_key(entry));
+            depth = entry.depth;
+        }
     }
 }
