@@ -48,15 +48,19 @@ pub(crate) fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
         false => format!(" {}: {}", app.texts.filter, app.list_filter),
     };
     frame.render_widget(Paragraph::new(label).style(heading), title);
-    // The whole screenplay in pages and eighths (DB-32); italic while the text has changed.
+    // The whole screenplay in pages, eighths and minutes (DB-32); italic while the text has changed.
     if let Some(pages) = app.pages() {
         let mut style = Style::new().fg(theme::MUTED);
         if app.pages_stale() {
             style = style.add_modifier(Modifier::ITALIC);
         }
-        let total = Paragraph::new(format!("{} ", pages.length))
-            .alignment(Alignment::Right)
-            .style(style);
+        let total = Paragraph::new(format!(
+            "{} · {} ",
+            pages.length,
+            app.texts.minutes(pages.minutes)
+        ))
+        .alignment(Alignment::Right)
+        .style(style);
         frame.render_widget(total, title);
     }
 
