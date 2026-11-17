@@ -59,7 +59,7 @@ fn own_text(language: Language, error: &ServiceError) -> String {
             return language.text("error.locked").replace("{layer}", &name);
         }
         ServiceError::BadValue { field, value } => return bad_value(language, field, value),
-        ServiceError::Store(e) => ("error.store", e.to_string()),
+        ServiceError::Store(e) => store_text(e),
         ServiceError::Export(e) => (export_key(e), e.to_string()),
         // The path and the system's reason, e.g. "/a/b.pdf: No such file or directory".
         ServiceError::Write { path, source } => {
@@ -69,6 +69,17 @@ fn own_text(language: Language, error: &ServiceError) -> String {
     };
 
     language.text(key).replace("{detail}", &detail)
+}
+
+/// A store error: a merge conflict has its own text, naming file and line; the rest says what
+/// the store says.
+fn store_text(error: &klappe_store::StoreError) -> (&'static str, String) {
+    match error {
+        klappe_store::StoreError::Conflict { path, line } => {
+            ("error.conflict", format!("{}:{line}", path.display()))
+        }
+        other => ("error.store", other.to_string()),
+    }
 }
 
 /// The key of an export error: the one a user can act on has its own text.
@@ -131,6 +142,20 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::Export(_)
         | ServiceError::Write { .. } => None,
     }
+}
+
+/// What loaded but is odd, one sentence per note, for the status line after opening.
+pub fn load_notes_text(language: Language, notes: &[klappe_store::LoadNote]) -> String {
+    let lines: Vec<String> = notes
+        .iter()
+        .map(|note| match note {
+            klappe_store::LoadNote::OrphanScene { id } => {
+                language.text("note.orphanScene").replace("{id}", id)
+            }
+        })
+        .collect();
+
+    lines.join(" ")
 }
 
 #[cfg(test)]

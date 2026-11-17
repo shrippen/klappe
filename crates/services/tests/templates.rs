@@ -27,7 +27,8 @@ fn on_empty_plan() -> Session {
         location: "saengersaal".into(),
     })
     .unwrap();
-    s.select_scene("szene-013").unwrap();
+    let id = s.project().scenes.last().unwrap().id.clone();
+    s.select_scene(&id).unwrap();
 
     s
 }
@@ -308,7 +309,8 @@ fn an_own_template_survives_saving_and_can_be_placed() {
             location: "saengersaal".into(),
         })
         .unwrap();
-    again.select_scene("szene-013").unwrap();
+    let id = again.project().scenes.last().unwrap().id.clone();
+    again.select_scene(&id).unwrap();
     again.apply_template("mein-dialog", p(10.0, 10.0)).unwrap();
 
     let plan = again.plan().unwrap();

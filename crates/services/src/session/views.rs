@@ -3,7 +3,9 @@
 
 use std::borrow::Cow;
 
-use klappe_model::{CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper, SetPlan};
+use klappe_model::{
+    BookState, CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper, SetPlan,
+};
 use klappe_stellprobe::{
     aim_at, axis_pair, camera_at, horizontal_fov_deg, object_extent, opening_span, picture, set_at,
     wall_top, Cut, Eye, Picture, Source,
@@ -72,6 +74,7 @@ impl Session {
                 id: s.id.clone(),
                 number: s.number.clone(),
                 heading: s.heading.clone(),
+                in_book: s.state == BookState::InBook,
                 location: s.location.clone(),
                 location_name: location.map(|l| l.name.clone()).unwrap_or_default(),
             }

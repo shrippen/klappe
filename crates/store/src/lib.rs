@@ -1,7 +1,7 @@
 //! Reads and writes a Klappe project folder (FORMAT.md).
 //!
 //! ```text
-//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen/
+//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen.toml, szenen/
 //! load(dir)                  ◄──         drehbuch.fountain
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
@@ -21,6 +21,7 @@ mod folder;
 mod images;
 mod library;
 mod light;
+mod register;
 mod template;
 mod tree;
 
@@ -59,6 +60,7 @@ const TEMPLATES_FILE: &str = "vorlagen.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
+const SCENES_FILE: &str = "szenen.toml";
 const IMAGES_DIR: &str = "bilder";
 /// Folder of the unsaved-changes backup inside a project folder (FORMAT.md).
 const BACKUP_DIR: &str = ".sicherung";
@@ -77,6 +79,16 @@ pub struct Loaded {
     pub project: Project,
     /// The screenplay as Fountain text; `None` if the folder has no `drehbuch.fountain`.
     pub script: Option<String>,
+    /// What loaded but is odd (see `LoadNote`); empty for a sound project.
+    pub notes: Vec<LoadNote>,
+}
+
+/// Something odd about a project that still loaded, for the surface to tell the user.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoadNote {
+    /// `szenen/<id>.json` has no entry in `szenen.toml`; it was taken in as a scene that is
+    /// not in the book.
+    OrphanScene { id: String },
 }
 
 /// `projekt.toml`.
@@ -133,16 +145,33 @@ fn read_header(dir: &Path) -> Result<Header, StoreError> {
     Ok(header)
 }
 
-/// Reads the project folder `dir`. Locations and scenes come back sorted by id.
+/// Only the current format version is read: a newer one belongs to a newer program, and an older
+/// one is not migrated (no release yet).
+fn check_version(dir: &Path, found: u32) -> Result<(), StoreError> {
+    let path = dir.join(PROJECT_FILE);
+    let supported = FORMAT_VERSION;
+
+    match found.cmp(&supported) {
+        std::cmp::Ordering::Greater => Err(StoreError::NewerFormat {
+            path,
+            found,
+            supported,
+        }),
+        std::cmp::Ordering::Less => Err(StoreError::OlderFormat {
+            path,
+            found,
+            supported,
+        }),
+        std::cmp::Ordering::Equal => Ok(()),
+    }
+}
+
+/// Reads the project folder `dir`. Locations come back sorted by id, scenes in the order of
+/// `szenen.toml`. A project of another format version, or with Git conflict markers in
+/// `szenen.toml`, is refused.
 pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     let version: Version = files::read_toml(&dir.join(PROJECT_FILE))?;
-    if version.format_version > FORMAT_VERSION {
-        return Err(StoreError::NewerFormat {
-            path: dir.join(PROJECT_FILE),
-            found: version.format_version,
-            supported: FORMAT_VERSION,
-        });
-    }
+    check_version(dir, version.format_version)?;
     let header = read_header(dir)?;
 
     let characters_path = dir.join(CHARACTERS_FILE);
@@ -165,7 +194,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
-    let scenes = load_scenes(&dir.join(SCENES_DIR))?;
+    let (scenes, notes) = load_scenes(dir)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -182,6 +211,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             templates,
         },
         script,
+        notes,
     })
 }
 
@@ -225,10 +255,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
         writes.push(locations.encode(&location.id, location)?);
     }
 
-    let scenes = Dir::new(dir.join(SCENES_DIR), Kind::Json);
-    for scene in &project.scenes {
-        writes.push(scenes.encode(&scene.id, scene)?);
-    }
+    writes.extend(register::encode(dir, &project.scenes)?);
 
     for (path, bytes) in &writes {
         files::write_atomic(path, bytes)?;
@@ -242,7 +269,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     let keep: HashSet<&str> = project.locations.iter().map(|l| l.id.as_str()).collect();
     locations.remove_except(&keep)?;
     let keep: HashSet<&str> = project.scenes.iter().map(|s| s.id.as_str()).collect();
-    scenes.remove_except(&keep)?;
+    Dir::new(dir.join(SCENES_DIR), Kind::Json).remove_except(&keep)?;
 
     if let Some(text) = script {
         files::write_atomic(&dir.join(SCRIPT_FILE), text.as_bytes())?;
@@ -364,7 +391,11 @@ fn remove_backup(folder: &Path) -> Result<(), StoreError> {
 }
 
 /// Reads every file of a kind in `dir`, sorted by file name; the id inside must match it.
-fn load_all<T>(dir: &Path, kind: Kind, id_of: impl Fn(&T) -> &String) -> Result<Vec<T>, StoreError>
+pub(crate) fn load_all<T>(
+    dir: &Path,
+    kind: Kind,
+    id_of: impl Fn(&T) -> &String,
+) -> Result<Vec<T>, StoreError>
 where
     T: for<'de> Deserialize<'de>,
 {
@@ -479,15 +510,15 @@ fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     Ok(())
 }
 
-/// The scenes of `path`, their labels and shot pictures checked.
-fn load_scenes(path: &Path) -> Result<Vec<Scene>, StoreError> {
-    let mut scenes = load_all::<Scene>(path, Kind::Json, |s| &s.id)?;
+/// The register of the project `dir`, its labels and shot pictures checked.
+fn load_scenes(dir: &Path) -> Result<(Vec<Scene>, Vec<LoadNote>), StoreError> {
+    let (mut scenes, notes) = register::load(dir)?;
 
-    check_labels(path, &scenes)?;
+    check_labels(&dir.join(SCENES_DIR), &scenes)?;
     clear_passive_power(&mut scenes);
-    check_shot_images(path, &scenes)?;
+    check_shot_images(&dir.join(SCENES_DIR), &scenes)?;
 
-    Ok(scenes)
+    Ok((scenes, notes))
 }
 
 /// Notes of a location are `n<k>` and labels of a plan `t<k>`: `Source::Note` names either by id,
@@ -692,7 +723,7 @@ fn opening_heights_ok(opening: &Opening) -> bool {
 }
 
 /// Rejects ids that are unsafe as file names (path traversal) or used twice.
-fn check_ids<'a>(ids: impl Iterator<Item = &'a str>) -> Result<(), StoreError> {
+pub(crate) fn check_ids<'a>(ids: impl Iterator<Item = &'a str>) -> Result<(), StoreError> {
     let mut seen: HashSet<String> = HashSet::new();
 
     for id in ids {

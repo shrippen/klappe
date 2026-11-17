@@ -13,7 +13,7 @@ use crate::shot_edit;
 impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
-        let mut loaded = klappe_store::load(dir)?;
+        let mut loaded = crate::load::load_project(dir)?;
         let backup = check_backup(dir, &loaded);
         shot_edit::clear_orphans(&mut loaded.project);
         let script = loaded
@@ -50,6 +50,7 @@ impl Session {
             unbacked: false,
             project_changed: false,
             backup,
+            load_notes: loaded.notes,
             view: View::Plan,
             orbit: None,
             cut: klappe_stellprobe::Cut::Off,
@@ -107,6 +108,11 @@ impl Session {
         klappe_store::save_backup(&self.dir, &self.project, self.script_text.as_deref())?;
         self.unbacked = false;
         Ok(Autosave::Written)
+    }
+
+    /// What `open` found odd in the project; shown once after opening.
+    pub fn load_notes(&self) -> &[klappe_store::LoadNote] {
+        &self.load_notes
     }
 
     /// The backup `open` found.

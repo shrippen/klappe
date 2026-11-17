@@ -408,7 +408,7 @@ fn versions_on_several_cameras_survive_every_scheme_change() {
 fn a_scene_number_with_a_letter_numbers_every_scheme() {
     let (mut s, _) = open("numbering-12a");
     s.edit_project(ProjectEdit::EditScene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
         number: "12A".into(),
         heading: s.scene().unwrap().heading.clone(),
         location: s.scene().unwrap().location.clone(),
@@ -451,7 +451,7 @@ fn a_version_is_stored_as_a_reference_and_an_orphan_becomes_a_base() {
     let (mut s, dir) = open("numbering-ref");
     let id = s.version_shot("s12-3").unwrap();
     s.save().unwrap();
-    let text = std::fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = std::fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert!(text.contains("\"version_of\""), "{text}");
 
     let mut s = Session::open(&dir).unwrap();
@@ -514,7 +514,7 @@ fn a_version_of_no_shot_is_a_base_after_loading() {
     s.version_shot("s12-3").unwrap();
     s.save().unwrap();
 
-    let file = dir.join("szenen/szene-012.json");
+    let file = dir.join("szenen/m4djbtj6.json");
     let text = std::fs::read_to_string(&file).unwrap();
     assert!(text.contains("\"shot\": \"s12-3\""), "{text}");
     std::fs::write(
@@ -586,7 +586,7 @@ fn a_restored_backup_clears_a_version_of_no_shot() {
     s.autosave().unwrap();
     drop(s);
 
-    let file = dir.join(".sicherung/szenen/szene-012.json");
+    let file = dir.join(".sicherung/szenen/m4djbtj6.json");
     let text = std::fs::read_to_string(&file).unwrap();
     assert!(text.contains("\"shot\": \"s12-3\""), "{text}");
     let gone = text.replace("\"shot\": \"s12-3\"", "\"shot\": \"s12-7\"");

@@ -17,7 +17,7 @@ const ARCHIVE_EXT: &str = "zip";
 pub fn rename_project(dir: &Path, title: &str) -> Result<(), ServiceError> {
     let title = check_title(title)?;
 
-    let mut loaded = klappe_store::load(dir)?;
+    let mut loaded = crate::load::load_project(dir)?;
     loaded.project.title = title.to_owned();
     klappe_store::save(dir, &loaded.project, None)?;
 

@@ -90,7 +90,7 @@ fn plan_labels_are_written_only_when_given() {
     let dir = test_dir("labels");
     let mut project = example();
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert!(!text.contains("labels"), "{text}");
 
     project.scenes[0].plans[0].labels.push(Note {
@@ -101,7 +101,7 @@ fn plan_labels_are_written_only_when_given() {
         bound: Some("figure:elisabeth".into()),
     });
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
 
     assert_eq!(text.matches("\"labels\"").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);

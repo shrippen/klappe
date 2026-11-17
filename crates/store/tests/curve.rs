@@ -31,7 +31,7 @@ fn a_bend_is_written_only_when_there_is() {
     plan.figures[0].marks[2].via.clear();
 
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert!(!text.contains("via"), "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 
@@ -40,7 +40,7 @@ fn a_bend_is_written_only_when_there_is() {
     plan.cameras[0].marks[1].via = vec![Point::new(8.0, 9.0)];
 
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert_eq!(text.matches("\"via\"").count(), 2, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
@@ -53,7 +53,7 @@ fn a_straight_way_is_written_only_when_set() {
     let mut project = load(Path::new(EXAMPLE)).unwrap().project;
 
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert!(!text.contains("curve"), "{text}");
 
     let plan = &mut project.scenes[0].plans[0];
@@ -61,7 +61,7 @@ fn a_straight_way_is_written_only_when_set() {
     plan.cameras[0].marks[1].curve = Curve::Straight;
 
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert_eq!(text.matches("\"curve\": \"straight\"").count(), 2, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }

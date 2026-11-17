@@ -354,7 +354,7 @@ fn example_with_a_way() -> PathBuf {
     let _ = std::fs::remove_dir_all(&dir);
     copy_dir(&example(), &dir);
 
-    let scene = dir.join("szenen/szene-012.json");
+    let scene = dir.join("szenen/m4djbtj6.json");
     let mut json: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&scene).unwrap()).unwrap();
     json["plans"][0]["cameras"][0]["marks"][0]["hold_s"] = 2.0.into();
@@ -402,7 +402,7 @@ fn example_with_a_pan() -> PathBuf {
     let _ = std::fs::remove_dir_all(&dir);
     copy_dir(&example(), &dir);
 
-    let scene = dir.join("szenen/szene-012.json");
+    let scene = dir.join("szenen/m4djbtj6.json");
     let mut json: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&scene).unwrap()).unwrap();
     let marks = &mut json["plans"][0]["cameras"][0]["marks"];

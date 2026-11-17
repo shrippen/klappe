@@ -31,7 +31,7 @@ Item {
     readonly property string stand1: "12 · INT. SÄNGERSAAL – TAG · Stand 1"
     readonly property var opened: Object.assign({}, started, {
         loaded: true, title: "Die Wartburg-Szene", planTitle: planA, duration: 20,
-        backupState: "none", sceneId: "szene-012", gridName: "cm25"
+        backupState: "none", sceneId: "m4djbtj6", gridName: "cm25"
     })
     readonly property var moved: Object.assign({}, opened, {
         time: 4, canUndo: true, dirty: true, selectedKey: "figure:elisabeth", selectedCount: 1

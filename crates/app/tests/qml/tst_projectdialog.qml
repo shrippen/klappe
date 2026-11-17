@@ -15,7 +15,7 @@ TestCase {
     QtObject {
         id: fake
         property string status: ""
-        property string sceneId: "szene-012"
+        property string sceneId: "m4djbtj6"
         property bool accept: true
         property var calls: []
         // What a rename would change in the script text (`sceneChanges`, `characterChanges`).
@@ -23,7 +23,7 @@ TestCase {
         property string projectJson: fixture
         readonly property string fixture: JSON.stringify({
             scenes: [
-                { id: "szene-012", number: "12", heading: "INT. SÄNGERSAAL – TAG", location: "saengersaal", locationName: "Sängersaal" },
+                { id: "m4djbtj6", number: "12", heading: "INT. SÄNGERSAAL – TAG", location: "saengersaal", locationName: "Sängersaal" },
                 { id: "szene-013", number: "13", heading: "EXT. HOF", location: "hof", locationName: "Burghof" }
             ],
             locations: [
@@ -132,7 +132,7 @@ TestCase {
         const dialog = opened(pd)
         const form = findChild(pd, "sceneForm")
 
-        compare(listOf(pd, "sceneList").currentId, "szene-012")
+        compare(listOf(pd, "sceneList").currentId, "m4djbtj6")
         verify(form.visible)
         compare(findChild(form, "numberField").text, "12")
 
@@ -216,7 +216,7 @@ TestCase {
         findChild(form, "headingField").text = "INT. SÄNGERSAAL – NACHT"
         press(form, "apply")
 
-        compare(fake.calls, [["editScene", "szene-012", "12", "INT. SÄNGERSAAL – NACHT", "saengersaal"]])
+        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – NACHT", "saengersaal"]])
     }
 
     function test_another_location_is_one_edit() {
@@ -227,7 +227,7 @@ TestCase {
         findChild(form, "locationBox").currentIndex = 0
         press(form, "apply")
 
-        compare(fake.calls, [["editScene", "szene-012", "12", "INT. SÄNGERSAAL – TAG", "hof"]])
+        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – TAG", "hof"]])
     }
 
     // The new location has other objects: the ways of objects are dropped, the form says so.

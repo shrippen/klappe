@@ -15,6 +15,7 @@ pub(super) fn empty() -> Project {
         heading: String::new(),
         location: "l".into(),
         plans: vec![FloorPlan::new("p", "Plan A")],
+        ..Default::default()
     }];
     project
 }

@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use klappe_model::{Opening, OpeningKind, Project, FORMAT_VERSION};
+use klappe_model::{Opening, OpeningKind, Project};
 use klappe_store::{load, save, StoreError};
 
 const EXAMPLE: &str = concat!(
@@ -59,22 +59,11 @@ fn heights_are_written_only_when_given() {
     assert_eq!(load(&dir).unwrap().project, project);
 }
 
-/// A version 1 project has no room height: it loads with 2.6 m, the old fixed wall height, and
-/// is saved as the current version.
+/// A file without a room height loads with 2.6 m, the old fixed wall height.
 #[test]
-fn a_version_1_project_loads_and_saves_as_the_current_version() {
-    let dir = test_dir("format-1");
+fn a_set_without_a_room_height_loads_with_the_default() {
+    let dir = test_dir("no-room-height");
     save(&dir, &example(), None).unwrap();
-    let projekt = dir.join("projekt.toml");
-    let text = fs::read_to_string(&projekt).unwrap();
-    fs::write(
-        &projekt,
-        text.replace(
-            &format!("format_version = {FORMAT_VERSION}"),
-            "format_version = 1",
-        ),
-    )
-    .unwrap();
     let location = fs::read_to_string(dir.join(LOCATION)).unwrap();
     fs::write(
         dir.join(LOCATION),
@@ -83,14 +72,8 @@ fn a_version_1_project_loads_and_saves_as_the_current_version() {
     .unwrap();
 
     let project = load(&dir).unwrap().project;
-    assert_eq!(project.locations[0].set.wall_height_m, 2.6);
 
-    save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(&projekt).unwrap();
-    assert!(
-        text.contains(&format!("format_version = {FORMAT_VERSION}")),
-        "{text}"
-    );
+    assert_eq!(project.locations[0].set.wall_height_m, 2.6);
 }
 
 /// Makes one height of the example unusable.

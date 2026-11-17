@@ -3,8 +3,9 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, is_object_height_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
-    Numbering, Point, Project, Scene, SetPlan, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    is_figure_size_m, is_object_height_m, random_id, BookState, Character, FigureColor, FloorPlan,
+    Kind, LibraryItem, Location, Numbering, Point, Project, Scene, SetPlan, Template, MAX_GROUP,
+    MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -145,10 +146,6 @@ pub enum ProjectEdit {
 /// The label in a figure's circle has room for this many letters.
 const MAX_SHORT_CHARS: usize = 3;
 
-/// Scene ids pad the number's digits so that file order is scene order (`szene-012`).
-const SCENE_ID_DIGITS: usize = 3;
-
-const SCENE_ID_PREFIX: &str = "szene";
 const LOCATION_ID_FALLBACK: &str = "drehort";
 const CHARACTER_ID_FALLBACK: &str = "figur";
 const FIRST_PLAN_ID: &str = "plan-a";
@@ -222,21 +219,21 @@ fn add_scene(
     heading: &str,
     location: &str,
 ) -> Result<(), ServiceError> {
+    let heading = check_heading(heading)?;
     let number = free_number(project, number, None)?;
     check_location(project, location)?;
 
-    let id = unique_id(
-        &scene_base(&number),
-        project.scenes.iter().map(|s| s.id.as_str()),
-    );
+    // Appended: the register keeps the order of the project, not of the ids.
     project.scenes.push(Scene {
-        id,
+        id: free_scene_id(project),
+        kind: Kind::Scene,
         number,
-        heading: heading.trim().to_owned(),
+        heading,
+        state: BookState::InBook,
+        prints: Vec::new(),
         location: location.to_owned(),
         plans: vec![FloorPlan::new(FIRST_PLAN_ID, FIRST_PLAN_NAME)],
     });
-    project.scenes.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(())
 }
 
@@ -247,6 +244,7 @@ fn edit_scene(
     heading: &str,
     location: &str,
 ) -> Result<(), ServiceError> {
+    let heading = check_heading(heading)?;
     let current = project
         .scene(id)
         .ok_or_else(|| ServiceError::NoScene(id.to_owned()))?;
@@ -260,7 +258,7 @@ fn edit_scene(
         return Err(ServiceError::NoScene(id.to_owned()));
     };
     scene.number = number;
-    scene.heading = heading.trim().to_owned();
+    scene.heading = heading;
     // The ways name objects of the old set; a same-named object of the new one is another.
     if scene.location != location {
         scene.plans.iter_mut().for_each(|p| p.object_tracks.clear());
@@ -444,6 +442,19 @@ fn uses(plan: &FloorPlan, character: &str) -> bool {
     axis || plan.figure(character).is_some()
 }
 
+/// A heading is one line: the register and the script both hold it so.
+fn check_heading(heading: &str) -> Result<String, ServiceError> {
+    let heading = heading.trim();
+    if !heading.contains(['\n', '\r']) {
+        return Ok(heading.to_owned());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Heading,
+        value: heading.to_owned(),
+    })
+}
+
 /// The trimmed number, if it is not empty and no other scene (not `own`) has it. `12a` and
 /// `12A` count as one.
 fn free_number(project: &Project, number: &str, own: Option<&str>) -> Result<String, ServiceError> {
@@ -550,18 +561,18 @@ fn check_room_height(wall_height_m: f64) -> Result<(), ServiceError> {
     })
 }
 
-/// `szene-012` for `12`, `szene-012a` for `12A`: the digits are padded so that ids sort
-/// like numbers.
-fn scene_base(number: &str) -> String {
-    let digits = number.chars().take_while(char::is_ascii_digit).count();
-    let (head, tail) = number.split_at(digits);
-    let rest = slug(tail, "");
-
-    let number = match head.is_empty() {
-        true => rest,
-        false => format!("{head:0>SCENE_ID_DIGITS$}{rest}"),
-    };
-    format!("{SCENE_ID_PREFIX}-{}", slug(&number, "0"))
+/// A random id no scene has (ids are file names, which may not differ by case only).
+fn free_scene_id(project: &Project) -> String {
+    loop {
+        let id = random_id();
+        if !project
+            .scenes
+            .iter()
+            .any(|s| s.id.eq_ignore_ascii_case(&id))
+        {
+            return id;
+        }
+    }
 }
 
 /// Lower-case ASCII with `-` between words (`Sängersaal` → `saengersaal`); `fallback` when
@@ -611,15 +622,6 @@ mod tests {
         assert_eq!(slug("Sängersaal", "x"), "saengersaal");
         assert_eq!(slug("  Burg – Hof! ", "x"), "burg-hof");
         assert_eq!(slug("§§", "x"), "x");
-    }
-
-    #[test]
-    fn scene_ids_sort_like_numbers() {
-        assert_eq!(scene_base("12"), "szene-012");
-        assert_eq!(scene_base("2"), "szene-002");
-        assert_eq!(scene_base("12A"), "szene-012a");
-        assert_eq!(scene_base("A"), "szene-a");
-        assert_eq!(scene_base("1234"), "szene-1234");
     }
 
     #[test]

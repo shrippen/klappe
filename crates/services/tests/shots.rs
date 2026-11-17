@@ -398,7 +398,7 @@ fn shot_rows_carry_the_aspect_of_their_camera() {
 #[test]
 fn a_shot_without_its_camera_gets_the_fallback_aspect() {
     let dir = copy("shots-fallback");
-    let file = dir.join("szenen/szene-012.json");
+    let file = dir.join("szenen/m4djbtj6.json");
     let text = std::fs::read_to_string(&file).unwrap();
     std::fs::write(
         &file,

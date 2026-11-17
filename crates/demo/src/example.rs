@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use klappe_model::{Character, FloorPlan, Location, Project, Scene};
+use klappe_model::{id_from_seed, BookState, Character, FloorPlan, Kind, Location, Project, Scene};
 use klappe_script::{Element, Script};
 use serde::Deserialize;
 use serde_json::Value;
@@ -71,6 +71,19 @@ pub fn write_example(world: &Value, lang: Lang, dir: &Path) -> Result<(), DemoEr
     Ok(())
 }
 
+/// The id a world scene gets: random-looking like every id of the register, but made from the
+/// world's own id so that the example comes out the same on every run (FNV-1a).
+fn scene_id(world_id: &str) -> String {
+    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+
+    let seed = world_id.bytes().fold(OFFSET, |hash, byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(PRIME)
+    });
+
+    id_from_seed(seed)
+}
+
 fn build(section: Section) -> Result<(Project, String), DemoError> {
     let mut project = Project::new(&section.title);
     let mut script = Script {
@@ -91,9 +104,12 @@ fn build(section: Section) -> Result<(Project, String), DemoError> {
         });
         script.elements.extend(elements);
         project.scenes.push(Scene {
-            id: spec.id,
+            id: scene_id(&spec.id),
+            kind: Kind::Scene,
             number: spec.number,
             heading: spec.heading,
+            state: BookState::InBook,
+            prints: Vec::new(),
             location: spec.location,
             plans,
         });

@@ -585,14 +585,14 @@ fn autosave_survives_a_crash_and_restores() {
     let dir = copy("session-autosave");
     let mut s = Session::open(&dir).unwrap();
     change_lens(&mut s);
-    let saved = std::fs::read(dir.join("szenen/szene-012.json")).unwrap();
+    let saved = std::fs::read(dir.join("szenen/m4djbtj6.json")).unwrap();
 
     assert_eq!(s.autosave().unwrap(), Autosave::Written);
     drop(s); // the crash: no save
 
     // Project files are untouched.
     assert_eq!(
-        std::fs::read(dir.join("szenen/szene-012.json")).unwrap(),
+        std::fs::read(dir.join("szenen/m4djbtj6.json")).unwrap(),
         saved
     );
     let mut s = Session::open(&dir).unwrap();
@@ -708,13 +708,13 @@ fn autosave_keeps_an_unanswered_backup() {
     change_lens(&mut s);
     s.autosave().unwrap();
     let mut s = Session::open(&dir).unwrap();
-    let backup = std::fs::read(dir.join(".sicherung/szenen/szene-012.json")).unwrap();
+    let backup = std::fs::read(dir.join(".sicherung/szenen/m4djbtj6.json")).unwrap();
 
     s.edit_shot("s12-1", ShotField::Lens, "50 mm").unwrap();
 
     assert_eq!(s.autosave().unwrap(), Autosave::Held);
     assert_eq!(
-        std::fs::read(dir.join(".sicherung/szenen/szene-012.json")).unwrap(),
+        std::fs::read(dir.join(".sicherung/szenen/m4djbtj6.json")).unwrap(),
         backup
     );
 }

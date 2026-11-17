@@ -1,5 +1,7 @@
 //! Backup and autosave (DN-06), the help (DN-04) and undo (DB-09).
 
+use std::fs;
+
 use super::support::*;
 use super::*;
 
@@ -219,4 +221,15 @@ fn the_help_scroll_stays_in_range() {
     assert_eq!(app.help_scroll, 14);
     press(&mut app, KeyCode::Up);
     assert_eq!(app.help_scroll, 13);
+}
+
+#[test]
+fn an_orphan_scene_file_is_told_on_the_status_line() {
+    let scratch = Scratch::new("INT. A - TAG\n\nx");
+    fs::write(scratch.dir.join("szenen.toml"), "").unwrap_or_else(|e| unreachable!("{e}"));
+    let mut app = scratch.app();
+
+    let text = screen(&mut app, 120, 24);
+
+    assert!(text.contains("without a register entry"), "{text}");
 }

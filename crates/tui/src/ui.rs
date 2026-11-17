@@ -450,6 +450,7 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
         Some(Notice::Saved) => app.texts.saved.clone(),
         Some(Notice::SaveFailed(why)) => format!("{}: {why}", app.texts.save_failed),
         Some(Notice::Replaced(count)) => app.texts.replaced(*count),
+        Some(Notice::Loaded(text)) => text.clone(),
         None => app.texts.hints.clone(),
     };
     let mut spans = vec![

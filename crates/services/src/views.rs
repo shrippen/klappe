@@ -270,6 +270,9 @@ pub struct SceneRow {
     pub id: String,
     pub number: String,
     pub heading: String,
+    /// False for a scene the screenplay does not hold; its row shows a placeholder when the
+    /// heading is empty.
+    pub in_book: bool,
     pub location: String,
     pub location_name: String,
 }

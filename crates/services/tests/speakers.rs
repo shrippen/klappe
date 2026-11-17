@@ -86,7 +86,8 @@ fn the_first_plan_of_a_new_scene_holds_the_matched_speakers_once() {
         location: "saengersaal".into(),
     })
     .unwrap();
-    s.select_scene("szene-013").unwrap();
+    let id = s.project().scenes.last().unwrap().id.clone();
+    s.select_scene(&id).unwrap();
 
     let names: Vec<_> = standing(&s).into_iter().map(|p| p.0).collect();
     assert_eq!(names, ["burgvogt"]);
@@ -102,7 +103,8 @@ fn a_scene_the_script_does_not_have_starts_empty() {
         location: "saengersaal".into(),
     })
     .unwrap();
-    s.select_scene("szene-014").unwrap();
+    let id = s.project().scenes.last().unwrap().id.clone();
+    s.select_scene(&id).unwrap();
 
     assert!(s.plan().unwrap().figures.is_empty());
 }
@@ -138,7 +140,8 @@ fn a_narrow_set_closes_the_row_up() {
         location: "flur".into(),
     })
     .unwrap();
-    s.select_scene("szene-015").unwrap();
+    let id = s.project().scenes.last().unwrap().id.clone();
+    s.select_scene(&id).unwrap();
 
     let xs: Vec<f64> = standing(&s).iter().map(|p| p.1).collect();
 

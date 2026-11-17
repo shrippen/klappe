@@ -82,7 +82,8 @@ wartburg.klappe/
 ├── bilder/
 │   └── saengersaal.png     Bilder für Hintergründe (PNG, JPEG), Dateien des Nutzers
 └── szenen/
-    └── szene-012.json      Szene mit ihren Floorplans: Marks, Kameras, Licht, Shots, Verweise
+    └── m4djbtj6.json       Szene mit ihren Floorplans: Marks, Kameras, Licht, Shots, Verweise
+                            (Id zufällig; Nummer und Kopf stehen in `szenen.toml`)
 ```
 
 Genaue Beschreibung: [`../FORMAT.md`](../FORMAT.md). Hintergrundbilder (LH-13) sind da, als

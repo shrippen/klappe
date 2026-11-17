@@ -432,7 +432,7 @@ mod tests {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
         let session = Session::open(&dir).unwrap();
 
-        let card: Value = serde_json::from_str(&uses_json(&session, "scene", "szene-012")).unwrap();
+        let card: Value = serde_json::from_str(&uses_json(&session, "scene", "m4djbtj6")).unwrap();
         assert_eq!(card["time"], "TAG");
         assert_eq!(card["cast"][0]["id"], "elisabeth");
         assert_eq!(card["cast"][0]["cues"], 1);

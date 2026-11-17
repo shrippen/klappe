@@ -1,5 +1,5 @@
 //! Editing the plan of the example project (`testdata/beispiel.klappe`), numbers worked out by
-//! hand from `szenen/szene-012.json` and `drehorte/saengersaal.toml`.
+//! hand from `szenen/m4djbtj6.json` and `drehorte/saengersaal.toml`.
 #![allow(clippy::unwrap_used)]
 
 use std::path::{Path, PathBuf};

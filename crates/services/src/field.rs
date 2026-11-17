@@ -18,6 +18,7 @@ pub enum Field {
     Gear,
     Group,
     Head,
+    Heading,
     Height,
     HoldS,
     Kind,
@@ -49,7 +50,7 @@ pub enum Field {
 }
 
 impl Field {
-    pub const ALL: [Field; 44] = [
+    pub const ALL: [Field; 45] = [
         Self::Angle,
         Self::Aspect,
         Self::Base,
@@ -66,6 +67,7 @@ impl Field {
         Self::Gear,
         Self::Group,
         Self::Head,
+        Self::Heading,
         Self::Height,
         Self::HoldS,
         Self::Kind,
@@ -115,6 +117,7 @@ impl Field {
             Self::Gear => "gear",
             Self::Group => "group",
             Self::Head => "head",
+            Self::Heading => "heading",
             Self::Height => "height",
             Self::HoldS => "hold_s",
             Self::Kind => "kind",
