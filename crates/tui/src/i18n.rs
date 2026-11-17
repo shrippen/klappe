@@ -357,4 +357,19 @@ mod tests {
         assert_eq!(t.minutes(0.375), "1 min");
         assert_eq!(t.minutes(0.0), "0 min");
     }
+
+    #[test]
+    fn every_help_line_fits_eighty_columns() {
+        // F1 draws a box of at most 80 columns: frame and margin leave 76 for a line.
+        const ROOM: usize = 76;
+        for lang in [Language::German, Language::English] {
+            for line in &Texts::new(lang).help {
+                assert!(
+                    line.chars().count() <= ROOM,
+                    "{} chars: {line}",
+                    line.chars().count()
+                );
+            }
+        }
+    }
 }
