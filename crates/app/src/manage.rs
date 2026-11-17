@@ -519,7 +519,7 @@ mod tests {
             .map(|e| e.with_file_name("manage-json"))
             .unwrap_or_default();
         let _ = std::fs::remove_dir_all(&dir);
-        let mut session = Session::create(&dir, "Film").unwrap();
+        let mut session = Session::create(&dir, "Film", Language::German).unwrap();
         session
             .edit_project(ProjectEdit::AddLocation {
                 name: "Halle".to_owned(),

@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use crate::parse::{DUAL_MARK, FORCE_CHARACTER, FORCE_HEADING, HEADING_PREFIXES, NUMBER_MARK};
+use crate::parse::{heading_prefix, DUAL_MARK, FORCE_CHARACTER, FORCE_HEADING, NUMBER_MARK};
 use crate::{Element, Located};
 
 /// Scene heading prefixes offered; the forced German ones start with the `.` that makes a
@@ -78,9 +78,6 @@ fn ranked(words: &[(usize, String)], skip: Option<usize>) -> Vec<String> {
     counted.into_iter().map(|(w, _)| w.to_owned()).collect()
 }
 
-/// Prefixes of forced German headings (`.INNEN KÜCHE`); the parser drops the dot only.
-const GERMAN_PREFIXES: [&str; 5] = ["innen/aussen", "aussen/innen", "innen", "aussen", "int/ext"];
-
 /// Whether two names are the same in any case, umlauts included.
 pub(crate) fn same_name(a: &str, b: &str) -> bool {
     a.to_lowercase() == b.to_lowercase()
@@ -88,16 +85,7 @@ pub(crate) fn same_name(a: &str, b: &str) -> bool {
 
 /// A heading's text cut into location and time of day, without its prefix.
 fn split_heading(text: &str) -> (&str, Option<&str>) {
-    let lower = text.to_lowercase();
-    let prefix = HEADING_PREFIXES
-        .iter()
-        .chain(GERMAN_PREFIXES.iter())
-        .find(|p| {
-            lower
-                .strip_prefix(**p)
-                .is_some_and(|rest| rest.starts_with(['.', ' ']))
-        })
-        .map_or(0, |p| p.len());
+    let prefix = heading_prefix(text).map_or(0, str::len);
     let rest = text.get(prefix..).unwrap_or(text);
     let rest = rest
         .strip_prefix(FORCE_HEADING)
@@ -266,12 +254,7 @@ fn context_of(trimmed: &str, ctx: Context) -> Context {
         return Context::Cue;
     }
 
-    let lower = trimmed.to_lowercase();
-    let heading = HEADING_PREFIXES.iter().any(|p| {
-        lower
-            .strip_prefix(p)
-            .is_some_and(|rest| rest.starts_with(['.', ' ']))
-    });
+    let heading = heading_prefix(trimmed).is_some();
     if heading || trimmed.starts_with(FORCE_HEADING) && !trimmed.starts_with("..") {
         return Context::Heading;
     }

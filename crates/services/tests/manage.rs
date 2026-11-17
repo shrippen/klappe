@@ -5,7 +5,9 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{Field, FigureColor, ProjectEdit, ServiceError, Session};
+use klappe_services::{
+    Field, FigureColor, Language, ProjectEdit, ScriptLanguage, ServiceError, Session,
+};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -78,7 +80,7 @@ fn scene_ids(s: &Session) -> Vec<String> {
 fn creates_a_project_in_a_missing_folder() {
     let dir = scratch("manage-create");
 
-    let s = Session::create(&dir, "  Neue Burg ").unwrap();
+    let s = Session::create(&dir, "  Neue Burg ", Language::German).unwrap();
 
     assert_eq!(s.project().title, "Neue Burg");
     assert!(s.project().scenes.is_empty());
@@ -87,11 +89,33 @@ fn creates_a_project_in_a_missing_folder() {
 }
 
 #[test]
+fn a_new_project_takes_the_surface_language() {
+    for (language, want) in [
+        (Language::German, ScriptLanguage::De),
+        (Language::English, ScriptLanguage::En),
+    ] {
+        let dir = scratch("manage-create-language");
+        let s = Session::create(&dir, "Film", language).unwrap();
+
+        assert_eq!(s.project().script.language, Some(want));
+        let saved = std::fs::read_to_string(dir.join("projekt.toml")).unwrap();
+        assert!(
+            saved.contains(&format!("language = \"{}\"", want.name())),
+            "{saved}"
+        );
+        assert_eq!(
+            Session::open(&dir).unwrap().project().script.language,
+            Some(want)
+        );
+    }
+}
+
+#[test]
 fn creates_a_project_in_an_empty_folder() {
     let dir = scratch("manage-create-empty");
     std::fs::create_dir_all(&dir).unwrap();
 
-    assert!(Session::create(&dir, "Film").is_ok());
+    assert!(Session::create(&dir, "Film", Language::German).is_ok());
 }
 
 #[test]
@@ -100,7 +124,7 @@ fn create_refuses_a_folder_with_files() {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("notizen.txt"), "x").unwrap();
 
-    let err = Session::create(&dir, "Film").unwrap_err();
+    let err = Session::create(&dir, "Film", Language::German).unwrap_err();
 
     assert!(matches!(err, ServiceError::NotEmpty(p) if p == dir));
     assert!(!dir.join("projekt.toml").exists());
@@ -108,7 +132,7 @@ fn create_refuses_a_folder_with_files() {
 
 #[test]
 fn create_refuses_an_empty_title() {
-    let err = Session::create(&scratch("manage-create-title"), "  ").unwrap_err();
+    let err = Session::create(&scratch("manage-create-title"), "  ", Language::German).unwrap_err();
 
     assert!(matches!(
         err,
@@ -479,7 +503,7 @@ fn saves_and_loads_again() {
 #[test]
 fn a_new_project_fills_up_and_reloads() {
     let dir = scratch("manage-from-scratch");
-    let mut s = Session::create(&dir, "Film").unwrap();
+    let mut s = Session::create(&dir, "Film", Language::German).unwrap();
 
     s.edit_project(add_location("Halle")).unwrap();
     s.edit_project(add_scene("1", "halle")).unwrap();
