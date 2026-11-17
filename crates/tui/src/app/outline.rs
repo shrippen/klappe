@@ -53,6 +53,15 @@ impl App {
         rows.iter().rposition(|&i| i <= self.list_sel).unwrap_or(0)
     }
 
+    /// Puts the selection on a row that is shown: what the list highlights is what the
+    /// commands act on.
+    pub(crate) fn snap_selection(&mut self) {
+        let rows = self.list_rows();
+        if let Some(&row) = rows.get(self.list_pos(&rows)) {
+            self.list_sel = row;
+        }
+    }
+
     pub(crate) fn is_collapsed(&self, entry: &OutlineEntry) -> bool {
         self.collapsed.contains(&fold_key(entry))
     }
@@ -93,6 +102,7 @@ impl App {
 
     /// Moves the cursor to the line of the selected entry.
     pub(super) fn jump(&mut self) {
+        self.snap_selection();
         self.jump_entry(self.list_sel);
     }
 
@@ -155,6 +165,7 @@ impl App {
             return;
         }
         self.list_filter.clear();
+        self.snap_selection();
     }
 
     fn select_row(&mut self, rows: &[usize], pos: usize) {
@@ -244,6 +255,7 @@ impl App {
         if !self.list_filter.is_empty() {
             return;
         }
+        self.snap_selection();
         let entries = &self.analysis.outline;
         let Some(moved) = move_entry(self.editor.lines(), entries, self.list_sel, way) else {
             return;

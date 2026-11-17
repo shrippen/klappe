@@ -443,6 +443,7 @@ impl App {
         if self.focus == Focus::List {
             let scene = self.analysis.scene_at(self.editor.cursor().line);
             self.list_sel = scene.and_then(|i| self.entry_of_scene(i)).unwrap_or(0);
+            self.snap_selection();
         }
 
         Flow::Continue

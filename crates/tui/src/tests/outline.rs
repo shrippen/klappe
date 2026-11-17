@@ -355,3 +355,56 @@ fn the_help_lists_the_outline_keys() {
         assert!(help.contains(key), "{key}:\n{help}");
     }
 }
+
+#[test]
+fn the_selection_is_a_visible_row_after_folding_and_going_back() {
+    let (_s, mut app) = outlined();
+    select(&mut app, "Akt I");
+    press(&mut app, KeyCode::Left);
+    press(&mut app, KeyCode::F(6));
+    // The cursor goes into a hidden scene, then back to the list.
+    app.editor.go_to_line(6);
+    press(&mut app, KeyCode::F(6));
+    assert_eq!(
+        selected(&app),
+        "Akt I",
+        "the folded section, not the hidden scene"
+    );
+
+    alt(&mut app, KeyCode::Down);
+    assert!(app.text().starts_with("# Akt II"), "the section moved");
+    ctrl(&mut app, 'z');
+    app.editor.go_to_line(6);
+    press(&mut app, KeyCode::F(6));
+
+    press(&mut app, KeyCode::Enter);
+    assert_eq!(app.cursor().line, 0, "Enter jumps to the visible row");
+}
+
+#[test]
+fn leaving_a_filter_selects_a_visible_row() {
+    let (_s, mut app) = outlined();
+    select(&mut app, "Akt I");
+    press(&mut app, KeyCode::Left);
+    typed(&mut app, "saal");
+    assert_eq!(selected(&app), "Akt I");
+    press(&mut app, KeyCode::Down);
+    press(&mut app, KeyCode::Down);
+    assert_eq!(selected(&app), "INT. SAAL - TAG");
+    press(&mut app, KeyCode::Esc);
+
+    assert_eq!(selected(&app), "Akt I", "SAAL is hidden again");
+    alt(&mut app, KeyCode::Down);
+    assert!(app.text().starts_with("# Akt II"));
+}
+
+#[test]
+fn the_filter_matches_the_number_the_list_shows() {
+    let (_s, mut app) = app_with("INT. EINS - TAG\n\nText.\n\nINT. ZWEI - TAG\n\nText.\n");
+    let _ = screen(&mut app, WIDTH, HEIGHT);
+    press(&mut app, KeyCode::F(6));
+    typed(&mut app, "2");
+
+    let shown = frame(&mut app);
+    assert!(shown.contains("ZWEI") && !shown.contains("EINS"), "{shown}");
+}

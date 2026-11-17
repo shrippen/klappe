@@ -143,11 +143,14 @@ fn close_blocks(entries: &mut [Entry], line_count: usize) {
 pub fn visible(entries: &[Entry], collapsed: &dyn Fn(&Entry) -> bool, filter: &str) -> Vec<usize> {
     let filter = filter.to_lowercase();
     if !filter.is_empty() {
+        // The number a list shows: the `#n#`, else the position.
         let hit = |e: &Entry| {
+            let number = e
+                .number
+                .clone()
+                .or_else(|| e.scene.map(|n| (n + 1).to_string()));
             e.text.to_lowercase().contains(&filter)
-                || e.number
-                    .as_deref()
-                    .is_some_and(|n| n.to_lowercase().contains(&filter))
+                || number.is_some_and(|n| n.to_lowercase().contains(&filter))
         };
         return (0..entries.len())
             .filter(|&i| {
