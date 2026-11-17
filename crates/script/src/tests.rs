@@ -70,6 +70,14 @@ fn scene_heading_prefixes() {
         "INT/EXT AUTO - TAG",
         "I/E AUTO - TAG",
         "int. küche - nacht",
+        "INNEN. KÜCHE - TAG",
+        "INNEN KÜCHE - TAG",
+        "AUSSEN. HOF - NACHT",
+        "außen. hof - nacht",
+        "INNEN/AUSSEN AUTO - TAG",
+        "AUSSEN/INNEN. AUTO - TAG",
+        "innen/außen. auto - tag",
+        "innen. küche",
     ] {
         let found = els(&format!("{line}\n\nText."));
         assert_eq!(found[0], heading(line, None), "{line}");
@@ -83,6 +91,44 @@ fn heading_needs_blank_lines() {
         els("INTERIEUR ist kein Kopf."),
         vec![action("INTERIEUR ist kein Kopf.")]
     );
+}
+
+#[test]
+fn german_heading_needs_blank_lines_and_a_word_end() {
+    assert_eq!(
+        els("innen. küche\nText."),
+        vec![action("innen. küche\nText.")]
+    );
+    assert_eq!(
+        els("Innenhof liegt still."),
+        vec![action("Innenhof liegt still.")]
+    );
+    assert_eq!(els("Außenseiter."), vec![action("Außenseiter.")]);
+}
+
+#[test]
+fn a_german_prefix_as_a_word_of_prose_is_no_heading() {
+    // "Innen" and "Außen" are German words: without a dot only capitals make a heading.
+    assert_eq!(
+        els("Innen ist es kalt."),
+        vec![action("Innen ist es kalt.")]
+    );
+    assert_eq!(
+        els("Außen tobt der Sturm."),
+        vec![action("Außen tobt der Sturm.")]
+    );
+    assert!(matches!(
+        els("INNEN KÜCHE - TAG")[0],
+        Element::SceneHeading { .. }
+    ));
+    assert!(matches!(
+        els("AUßEN HOF - NACHT")[0],
+        Element::SceneHeading { .. }
+    ));
+    assert!(matches!(
+        els("innen. küche - tag")[0],
+        Element::SceneHeading { .. }
+    ));
 }
 
 #[test]

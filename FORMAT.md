@@ -58,7 +58,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Fassungen verlieren ihn beim Speichern.
 - **Drehbuchseiten:** Tabelle `[script]` in `projekt.toml` (DB-30, DB-31, DN-05, F-01, F-04);
   fehlt sie, gilt alles Folgende als Standard, und sie wird nicht geschrieben. `language`: `de`
-  oder `en`, die Sprache des Projekts; fehlt das Feld, entscheidet die Sprache der Oberfläche.
+  oder `en`, die Sprache des Projekts; beim Anlegen steht dort die Sprache der Oberfläche, fehlt
+  das Feld (ältere Projekte), entscheidet sie.
   `words`: `local` (Standard) oder `international`, die Wörter am Seitenumbruch: `local`
   heißt die der Sprache ((WEITER), (FORTS.) im deutschen, (MORE), (CONT'D) im englischen
   Projekt), `international` immer (MORE), (CONT'D). `paper`: `a4` (Standard) oder `letter`, das
@@ -406,7 +407,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   gelesen; vor dem nächsten Schreiben wird er befördert, nie gelöscht. Ordner ohne `fertig`
   sind Absturzreste und werden ignoriert. Speichert der
   Nutzer nur das Drehbuch (TUI: schreibt `drehbuch.fountain` und `szenen.toml`, nicht
-  `szenen/<id>.json`), wird die Sicherung entfernt, wenn nur das Drehbuch ungesichert
+  `szenen/<id>.json`; im PDF-Formular nur den Schalter `contd_after_action` in `projekt.toml`), wird die Sicherung entfernt, wenn nur das Drehbuch ungesichert
   war, sonst mit dem gespeicherten Drehbuch neu geschrieben. `load` liest `.sicherung/` nie
   als Teil des Projekts. Git soll die Ordner ignorieren; Vorschlag für `.gitignore` im Projekt:
 
