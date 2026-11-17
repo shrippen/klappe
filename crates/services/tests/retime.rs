@@ -177,3 +177,61 @@ fn the_edges_of_a_shot_move_and_keep_their_order() {
     let (new_from, new_to) = span(&s, "s12-2");
     assert!((new_to - new_from - 0.1).abs() < 1e-9);
 }
+
+/// NF-06: the keyboard moves a mark by a tenth, as the drag would drop it.
+#[test]
+fn a_nudge_moves_a_mark_by_a_tenth_in_one_undo_step() {
+    let mut s = open();
+
+    s.nudge_time(&elisabeth(1), 0.1).unwrap();
+    assert_eq!(arrivals(&s), vec![0.0, 6.1, 14.0]);
+
+    s.nudge_time(&elisabeth(1), -0.1).unwrap();
+    s.nudge_time(&elisabeth(1), -0.1).unwrap();
+    assert_eq!(arrivals(&s), vec![0.0, 5.9, 14.0]);
+
+    s.undo();
+    assert_eq!(arrivals(&s), vec![0.0, 6.0, 14.0]);
+}
+
+#[test]
+fn a_nudge_stays_between_the_neighbours() {
+    let mut s = open();
+
+    s.drop_time(&elisabeth(1), 13.9, TimeSnap::Tenths).unwrap();
+    s.nudge_time(&elisabeth(1), 0.1).unwrap();
+    s.nudge_time(&elisabeth(1), 0.1).unwrap();
+    assert_eq!(
+        arrivals(&s),
+        vec![0.0, 14.0, 14.0],
+        "not past the next mark"
+    );
+
+    s.nudge_time(&elisabeth(0), -0.1).unwrap();
+    assert_eq!(arrivals(&s), vec![0.0, 14.0, 14.0], "not before 0");
+}
+
+#[test]
+fn a_nudge_moves_the_edges_of_a_shot() {
+    let mut s = open();
+    let (from_s, to_s) = span(&s, "s12-2");
+
+    s.nudge_time(&Grab::ShotTo("s12-2".into()), 0.1).unwrap();
+    s.nudge_time(&Grab::ShotFrom("s12-2".into()), -0.1).unwrap();
+
+    let (now_from, now_to) = span(&s, "s12-2");
+    assert!((now_to - to_s - 0.1).abs() < 1e-9 && (from_s - now_from - 0.1).abs() < 1e-9);
+}
+
+#[test]
+fn a_nudge_is_refused_on_a_locked_layer_and_for_nothing() {
+    let mut s = open();
+    s.set_lock(Layer::Figures, Lock::Locked);
+
+    assert!(matches!(
+        s.nudge_time(&elisabeth(1), 0.1),
+        Err(ServiceError::Locked(Layer::Figures))
+    ));
+    assert!(s.nudge_time(&elisabeth(9), 0.1).is_err());
+    assert_eq!(arrivals(&s), vec![0.0, 6.0, 14.0]);
+}
