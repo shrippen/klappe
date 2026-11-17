@@ -14,12 +14,9 @@
 //! the chain and the block after it are placed on a copy; if a heading would end a page,
 //! the page ends first, once.
 
-use super::block::{blocks, Block, DUAL_RIGHT_X, MIN_SPLIT_ROWS};
-use super::{Line, Page, PageKind, PageOptions, Pagination, SceneLength};
+use super::block::{blocks, column, with_contd, Block, MIN_SPLIT_ROWS};
+use super::{Line, Page, PageKind, PageOptions, Pagination, SceneLength, Words};
 use crate::Element;
-
-/// Column of `(MORE)`: under the name of a dialogue.
-const MORE_X: usize = 22;
 
 /// What the placement does, in order; the real run turns it into pages.
 enum Step {
@@ -75,20 +72,9 @@ impl Sim {
     /// The first part of a cut block; a dialogue ends in `(MORE)`.
     fn put_first(&mut self, out: &mut Vec<Step>, first: &Block, before: usize, o: &PageOptions) {
         let mut rows = first.rows();
-        let dialogue = rows
-            .iter()
-            .any(|r| r.first().is_some_and(|l| l.kind == PageKind::Character));
-        if dialogue {
-            rows.push(vec![Line {
-                row: 0,
-                x: MORE_X,
-                kind: PageKind::More,
-                text: format!("({})", o.words.more),
-                element: first.element().unwrap_or_default(),
-                offset: 0,
-                number: None,
-                added: true,
-            }]);
+        if let Some(cues) = cue_row(&rows) {
+            let more = marked(cues, PageKind::More, o.words);
+            rows.push(more);
         }
 
         self.put(out, first, before, rows);
@@ -168,9 +154,8 @@ fn cut_rows(
         .cloned()
         .collect();
     if !going.is_empty() {
-        let more = format!("({})", o.words.more);
-        first.push(marked(&going, PageKind::More, &more));
-        rest.insert(0, marked(&going, PageKind::Character, o.words.contd));
+        first.push(marked(&going, PageKind::More, o.words));
+        rest.insert(0, marked(&going, PageKind::Character, o.words));
     }
 
     (first, rest)
@@ -182,24 +167,15 @@ fn cue_row(rows: &[Vec<Line>]) -> Option<&Vec<Line>> {
         .filter(|r| r.iter().any(|l| l.kind == PageKind::Character))
 }
 
-/// The column of a line: 1 from where a dual dialogue's right column starts, else 0.
-fn column(line: &Line) -> usize {
-    usize::from(line.x >= DUAL_RIGHT_X)
-}
-
 /// A row from the names of `cues`: `(MORE)` under each, or the name again with `(CONT'D)`.
-fn marked(cues: &[Line], kind: PageKind, word: &str) -> Vec<Line> {
+fn marked(cues: &[Line], kind: PageKind, words: Words) -> Vec<Line> {
     cues.iter()
         .filter(|c| c.kind == PageKind::Character)
         .map(|c| {
-            let mut text = c.text.clone();
-            let mark = format!(" ({word})");
-            if kind == PageKind::Character && !text.ends_with(&mark) {
-                text.push_str(&mark);
-            }
-            if kind == PageKind::More {
-                text = word.to_owned();
-            }
+            let text = match kind {
+                PageKind::More => format!("({})", words.more),
+                _ => with_contd(&c.text, words.contd),
+            };
 
             Line {
                 text,

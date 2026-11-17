@@ -15,7 +15,7 @@ const CHARACTER_X: usize = 22;
 const CHARACTER_WIDTH: usize = 38;
 /// Dual dialogue: two columns of this width, the second starting at `DUAL_RIGHT_X`.
 const DUAL_WIDTH: usize = 29;
-pub(super) const DUAL_RIGHT_X: usize = 31;
+const DUAL_RIGHT_X: usize = 31;
 const DUAL_CHARACTER_X: usize = 6;
 const DUAL_CHARACTER_WIDTH: usize = 23;
 const DUAL_PAREN_X: usize = 4;
@@ -360,16 +360,25 @@ impl Block {
     }
 }
 
+/// The column of a line: 1 from where a dual dialogue's right column starts, else 0.
+pub(super) fn column(line: &Line) -> usize {
+    usize::from(line.x >= DUAL_RIGHT_X)
+}
+
 /// The name with `(CONT'D)` after it, once.
-fn continued(cue: &Part, words: Words) -> Part {
-    let mark = format!(" ({})", words.contd);
-    let mut text = cue.text.clone();
-    if !text.ends_with(&mark) {
-        text.push_str(&mark);
+pub(super) fn with_contd(name: &str, contd: &str) -> String {
+    let mark = format!(" ({contd})");
+    if name.ends_with(&mark) {
+        return name.to_owned();
     }
 
+    format!("{name}{mark}")
+}
+
+/// The name part of the next page's dialogue: the name with `(CONT'D)`.
+fn continued(cue: &Part, words: Words) -> Part {
     Part {
-        text,
+        text: with_contd(&cue.text, words.contd),
         number: None,
         added: true,
         ..cue.clone()
