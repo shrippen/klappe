@@ -167,6 +167,18 @@ fn script(rng: &mut Rng, blocks: usize) -> String {
         let joiner = if rng.next(2) == 0 { " " } else { "\n" };
         let count = 1 + rng.next(8);
         let body = sentences(rng, count, joiner);
+        // Now and then a dialogue without a sentence end, taller than a page.
+        if rng.next(25) == 0 {
+            let tall: Vec<String> = (0..70).map(|i| format!("line {i}")).collect();
+            let dual = if rng.next(2) == 0 {
+                "\n\nBEN ^\nShort."
+            } else {
+                ""
+            };
+            text.push_str(&format!("ANNA\n{}{dual}\n\n", tall.join("\n")));
+            continue;
+        }
+
         let block = match kind {
             1..=3 => body,
             4 | 5 => format!("ANNA\n{body}"),
@@ -206,11 +218,23 @@ fn ends_a_sentence(text: &str) -> bool {
 
 #[test]
 fn every_cut_and_page_keeps_the_rules() {
-    let mut rng = Rng(7);
+    check_rules(7, 400, None);
+}
 
-    for round in 0..400 {
-        // Room for three headings and the start of a block after them.
-        let body_lines = 14 + rng.next(30);
+/// The same on the real pages, A4 and Letter.
+#[test]
+fn the_rules_hold_on_a_letter_and_an_a4_page() {
+    check_rules(11, 150, Some(55));
+    check_rules(13, 150, Some(59));
+}
+
+/// `rounds` random screenplays; `lines` rows a page, else 14 to 43 (room for three headings
+/// and the start of a block after them).
+fn check_rules(seed: u64, rounds: usize, lines: Option<usize>) {
+    let mut rng = Rng(seed);
+
+    for round in 0..rounds {
+        let body_lines = lines.unwrap_or_else(|| 14 + rng.next(30));
         let blocks = 5 + rng.next(60);
         let text = script(&mut rng, blocks);
         let p = lay(&text, body_lines);
@@ -227,6 +251,13 @@ fn every_cut_and_page_keeps_the_rules() {
                 );
             }
             assert!(page.lines.iter().all(|l| l.row < body_lines), "{ctx}");
+
+            // A page never begins with words without the name above them.
+            let first_row = page.lines.iter().filter(|l| l.row == 0);
+            let orphan = first_row
+                .clone()
+                .any(|l| matches!(l.kind, PageKind::Dialogue | PageKind::Parenthetical));
+            assert!(!orphan, "page {} starts without a name: {ctx}", n + 1);
 
             let ends = last_row_kinds(page);
             // No heading last on a page unless the script ends there.
@@ -277,4 +308,71 @@ fn every_cut_and_page_keeps_the_rules() {
             );
         }
     }
+}
+
+/// A dialogue taller than a page that starts mid-page, with a sentence end inside: it is not
+/// cut at a row where it stands; it starts on the next page and is cut after a sentence
+/// there, with `(MORE)` and `(CONT'D)`.
+#[test]
+fn a_tall_dialogue_mid_page_is_cut_at_a_sentence_with_markers() {
+    let action: Vec<String> = (0..40).map(|i| format!("Action {i}")).collect();
+    let words: Vec<String> = (0..30).map(|i| format!("Word {i}")).collect();
+    let more: Vec<String> = (0..39).map(|i| format!("More {i}.")).collect();
+    let text = format!(
+        "{}\n\nANNA\n{}\nend.\n{}\n",
+        action.join("\n"),
+        words.join("\n"),
+        more.join("\n")
+    );
+    let p = lay(&text, 59);
+
+    // Page 1 holds the action only.
+    assert!(p.pages[0].lines.iter().all(|l| l.kind == PageKind::Action));
+    // Page 2 starts with the name and ends in (MORE), page 3 repeats the name.
+    assert_eq!(p.pages[1].lines[0].text, "ANNA");
+    assert_eq!(last_row_kinds(&p.pages[1]), [PageKind::More]);
+    assert_eq!(p.pages[2].lines[0].text, "ANNA (CONT'D)");
+    // The cut is after a sentence end.
+    let tail = p.pages[1]
+        .lines
+        .iter()
+        .rev()
+        .find(|l| l.kind == PageKind::Dialogue);
+    assert!(tail.is_some_and(|l| l.text.ends_with('.')), "{tail:?}");
+}
+
+/// A dialogue with no cut place, taller than a page, is cut at a row, with the markers.
+#[test]
+fn a_row_cut_dialogue_carries_more_and_contd() {
+    let lines: Vec<String> = (0..70).map(|i| format!("line {i}")).collect();
+    let p = lay(&format!("ANNA\n{}\n", lines.join("\n")), 59);
+
+    assert_eq!(last_row_kinds(&p.pages[0]), [PageKind::More]);
+    assert_eq!(p.pages[1].lines[0].text, "ANNA (CONT'D)");
+    assert!(p.pages[1].lines[0].added);
+}
+
+/// The same for a dual dialogue: each column gets its own (MORE) and repeated name.
+#[test]
+fn a_row_cut_dual_dialogue_carries_more_and_contd() {
+    let lines: Vec<String> = (0..70).map(|i| format!("line {i}")).collect();
+    let p = lay(
+        &format!("ANNA\n{}\n\nBEN ^\nShort.\n", lines.join("\n")),
+        59,
+    );
+
+    let more: Vec<usize> = p.pages[0]
+        .lines
+        .iter()
+        .filter(|l| l.kind == PageKind::More)
+        .map(|l| l.x)
+        .collect();
+    assert_eq!(more, [6, 37]);
+    let names: Vec<&str> = p.pages[1]
+        .lines
+        .iter()
+        .filter(|l| l.row == 0)
+        .map(|l| l.text.as_str())
+        .collect();
+    assert_eq!(names, ["ANNA (CONT'D)", "BEN (CONT'D)"]);
 }
