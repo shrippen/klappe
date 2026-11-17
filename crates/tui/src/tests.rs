@@ -18,6 +18,7 @@ mod find;
 mod flow;
 mod marks;
 mod outline;
+mod pdf;
 mod session;
 mod support;
 
@@ -585,7 +586,7 @@ fn a_page_break_is_a_thin_line_with_the_page_number() {
     assert!(
         frame
             .lines()
-            .any(|l| l.contains("Scenes") && l.contains("1 5/8")),
+            .any(|l| l.contains("Scenes") && l.contains("1 5/8 · 2 min")),
         "{frame}"
     );
 }

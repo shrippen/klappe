@@ -1,5 +1,5 @@
 //! The boxes over the editor: the suggestion list, search and replace, the title page form
-//! the open questions about the book and the question about a backup.
+//! the open questions about the book, the PDF options and the question about a backup.
 
 use klappe_services::{Case, Choice};
 use ratatui::layout::{Position, Rect};
@@ -8,7 +8,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
-use crate::app::{App, Backup, FindField};
+use crate::app::{App, Backup, FindField, PdfRow, PDF_ROWS};
 use crate::layout::cols;
 use crate::theme;
 use crate::ui::centered;
@@ -168,6 +168,46 @@ pub(crate) fn draw_title(frame: &mut Frame, app: &App) {
     frame.render_widget(
         Paragraph::new(app.texts.title_hint.as_str()).style(Style::new().fg(theme::MUTED)),
         hint,
+    );
+}
+
+/// The PDF options: one on/off row each.
+pub(crate) fn draw_pdf(frame: &mut Frame, app: &App) {
+    let Some(form) = &app.pdf else {
+        return;
+    };
+    let area = centered(frame.area(), BOX_WIDTH, PDF_ROWS.len() + 4);
+    let block = framed(&app.texts.pdf_title);
+    let inner = block.inner(area);
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+
+    for (i, kind) in PDF_ROWS.into_iter().enumerate() {
+        let label = match kind {
+            PdfRow::Numbers => &app.texts.pdf_numbers,
+            PdfRow::Header => &app.texts.pdf_header,
+            PdfRow::Contd => &app.texts.pdf_contd,
+        };
+        let value = match form.is_on(kind) {
+            true => &app.texts.pdf_on,
+            false => &app.texts.pdf_off,
+        };
+        let line = Line::from(vec![
+            Span::styled(
+                format!("{label:<LABEL_WIDTH$}"),
+                Style::new().fg(theme::MUTED),
+            ),
+            Span::styled(value.as_str(), Style::new().fg(theme::STRONG)),
+        ]);
+        let style = match form.sel == i {
+            true => Style::new().bg(theme::RAISED),
+            false => Style::new(),
+        };
+        frame.render_widget(Paragraph::new(line).style(style), row(inner, i as u16));
+    }
+    frame.render_widget(
+        Paragraph::new(app.texts.pdf_hint.as_str()).style(Style::new().fg(theme::MUTED)),
+        row(inner, PDF_ROWS.len() as u16 + 1),
     );
 }
 

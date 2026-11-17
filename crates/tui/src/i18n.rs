@@ -4,7 +4,7 @@
 pub use klappe_services::Language;
 
 /// Keys of the help lines, in the order they are shown.
-const HELP_KEYS: [&str; 25] = [
+const HELP_KEYS: [&str; 26] = [
     "tui.help.save",
     "tui.help.quit",
     "tui.help.undo",
@@ -16,6 +16,7 @@ const HELP_KEYS: [&str; 25] = [
     "tui.help.findNext",
     "tui.help.title",
     "tui.help.book",
+    "tui.help.pdf",
     "tui.help.focus",
     "tui.help.goto",
     "tui.help.list",
@@ -89,6 +90,15 @@ pub(crate) struct Texts {
     pub goto_none: String,
     /// Marks the page breaks and lengths of an older text.
     pub stale: String,
+    pub mode_pdf: String,
+    pub pdf_title: String,
+    pub pdf_hint: String,
+    pub pdf_numbers: String,
+    pub pdf_header: String,
+    pub pdf_contd: String,
+    pub pdf_on: String,
+    pub pdf_off: String,
+    pub pdf_save_first: String,
     pub help: Vec<String>,
 }
 
@@ -141,6 +151,15 @@ impl Texts {
             goto_title: t("tui.goto.title"),
             goto_none: t("tui.goto.none"),
             stale: t("tui.stale"),
+            mode_pdf: t("tui.mode.pdf"),
+            pdf_title: t("tui.pdf.title"),
+            pdf_hint: t("tui.pdf.hint"),
+            pdf_numbers: t("tui.pdf.numbers"),
+            pdf_header: t("tui.pdf.header"),
+            pdf_contd: t("tui.pdf.contd"),
+            pdf_on: t("tui.pdf.on"),
+            pdf_off: t("tui.pdf.off"),
+            pdf_save_first: t("tui.pdf.saveFirst"),
             help: HELP_KEYS.iter().map(|k| lang.text(k)).collect(),
         }
     }
@@ -189,6 +208,18 @@ impl Texts {
         self.lang
             .text("tui.page")
             .replace("{number}", &number.to_string())
+    }
+
+    /// "2 min": the estimated running time, rounded.
+    pub(crate) fn minutes(&self, minutes: f64) -> String {
+        self.lang
+            .text("tui.minutes")
+            .replace("{count}", &format!("{minutes:.0}"))
+    }
+
+    /// "PDF written: drehbuch.pdf".
+    pub(crate) fn pdf_done(&self, file: &str) -> String {
+        self.lang.text("tui.pdf.done").replace("{file}", file)
     }
 
     /// "Shots: 3".
@@ -258,6 +289,16 @@ mod tests {
                 &t.goto_title,
                 &t.goto_none,
                 &t.stale,
+                &t.mode_pdf,
+                &t.pdf_title,
+                &t.pdf_hint,
+                &t.pdf_numbers,
+                &t.pdf_header,
+                &t.pdf_contd,
+                &t.pdf_on,
+                &t.pdf_off,
+                &t.pdf_save_first,
+                &t.pdf_done("a.pdf"),
                 &t.page(3),
                 &t.scene_of(1, 2),
                 &t.shots(1),

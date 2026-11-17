@@ -22,12 +22,14 @@ mod book;
 mod compose;
 mod find;
 mod outline;
+mod pdf;
 mod title;
 
 pub(crate) use backup::Backup;
 pub(crate) use compose::Suggest;
 pub(crate) use find::{Find, FindField};
 pub(crate) use outline::{list_top, INDENT};
+pub(crate) use pdf::{PdfForm, PdfRow, PDF_ROWS};
 pub(crate) use title::TitleForm;
 
 /// Closes a parenthetical.
@@ -76,6 +78,8 @@ pub(crate) enum Mode {
     Book,
     /// A backup of unsaved work from an earlier run waits for an answer.
     Backup,
+    /// `Ctrl+E`: the script as PDF.
+    Pdf,
 }
 
 /// A message for the status line, until the next key.
@@ -89,6 +93,8 @@ pub(crate) enum Notice {
     Loaded(String),
     /// The questions about the book wait for the editor's text to be saved.
     SaveFirst,
+    /// What the PDF export did, or why it did not start.
+    Pdf(String),
 }
 
 #[derive(Debug)]
@@ -133,6 +139,7 @@ pub struct App {
     suggest_off: Option<u64>,
     pub(crate) find: Find,
     pub(crate) title: Option<TitleForm>,
+    pub(crate) pdf: Option<PdfForm>,
     /// Chosen row of the open question in `Mode::Book`.
     pub(crate) book_sel: usize,
     /// What waits for an answer in `Mode::Backup`.
@@ -195,6 +202,7 @@ impl App {
             suggest_off: None,
             find: Find::default(),
             title: None,
+            pdf: None,
             book_sel: 0,
             backup: None,
             autosaved: 0,
@@ -366,6 +374,7 @@ impl App {
             Mode::Title => return self.title_key(key),
             Mode::Book => return self.book_key(key),
             Mode::Backup => return self.backup_key(key),
+            Mode::Pdf => return self.pdf_key(key),
             Mode::Normal => {}
         }
 
@@ -408,6 +417,7 @@ impl App {
             'f' => self.open_find(),
             't' => self.open_title(),
             'k' => self.open_book(),
+            'e' => self.open_pdf(),
             _ => self.pane_key(key),
         }
     }
