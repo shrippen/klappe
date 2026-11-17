@@ -260,7 +260,7 @@ impl Session {
             order,
             &lamps,
             &texts.lamps,
-        );
+        )?;
 
         write_file(path, bytes)
     }
@@ -280,7 +280,7 @@ impl Session {
             order,
             &lamps,
             &texts.lamps,
-        );
+        )?;
 
         write_file(path, bytes)
     }

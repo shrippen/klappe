@@ -25,9 +25,6 @@ pub fn copy_example(language: Language, dir: &Path) -> Result<(), ServiceError> 
     klappe_store::write_tree(dir, files).map_err(write_failed)
 }
 
-/// Suffix of a copy set aside; a further one gets `-2`, `-3` ... after it.
-const ASIDE: &str = ".alt";
-
 /// The user's copy of the example in `dir`: written when `dir` is missing or empty, else left
 /// as it is, so what the user changed in it is not lost by another click. A copy that does not
 /// load (an older format) is renamed beside `dir`, never deleted, and a fresh one is written;
@@ -42,11 +39,7 @@ pub fn ensure_example(language: Language, dir: &Path) -> Result<Option<PathBuf>,
         return Ok(None);
     }
 
-    let aside = free_name(dir);
-    std::fs::rename(dir, &aside).map_err(|source| ServiceError::Write {
-        path: dir.to_owned(),
-        source,
-    })?;
+    let aside = klappe_store::set_aside(dir).map_err(write_failed)?;
     // From here the old copy is somewhere else; the error says where.
     if let Err(source) = copy_example(language, dir) {
         return Err(ServiceError::ExampleAside {
@@ -56,18 +49,4 @@ pub fn ensure_example(language: Language, dir: &Path) -> Result<Option<PathBuf>,
     }
 
     Ok(Some(aside))
-}
-
-/// `dir` with `.alt`, or `.alt-2`, `.alt-3` ... after its name: the first that is free.
-fn free_name(dir: &Path) -> PathBuf {
-    let name = dir.file_name().unwrap_or_default().to_string_lossy();
-    let mut taken = dir.with_file_name(format!("{name}{ASIDE}"));
-    let mut n = 2;
-
-    while taken.exists() {
-        taken = dir.with_file_name(format!("{name}{ASIDE}-{n}"));
-        n += 1;
-    }
-
-    taken
 }

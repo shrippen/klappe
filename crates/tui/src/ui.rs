@@ -1,5 +1,6 @@
 //! Drawing a frame: header, scene list, editor, status line and the overlays, in Kante's colours.
 
+use klappe_services::inline_runs;
 use ratatui::layout::{Alignment, Constraint, Layout, Position, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -10,6 +11,7 @@ use crate::app::{App, Focus, Mode, Notice};
 use crate::fountain::LineKind;
 use crate::layout::{cols, Row, TAB_WIDTH};
 use crate::theme;
+use crate::ui_overlay::{draw_backup, draw_find, draw_suggest, draw_title};
 
 /// Share of the width the scene list takes: 1/4, but at least `LIST_MIN` columns.
 const LIST_SHARE: u16 = 4;
@@ -26,6 +28,10 @@ const CHIP_GAP: usize = 2;
 /// Width of the search box and the matches it shows at most.
 const GOTO_WIDTH: usize = 60;
 const GOTO_ROWS: usize = 10;
+/// The page break line is drawn with this character.
+const PAGE_RULE: &str = "─";
+/// Columns between a scene's heading and its length in the list.
+const LENGTH_GAP: usize = 1;
 /// Prompt of the search box.
 const GOTO_PROMPT: &str = "› ";
 
@@ -42,11 +48,12 @@ fn style_of(kind: LineKind) -> Style {
         LineKind::Transition => Style::new().fg(theme::MUTED),
         LineKind::Centered => base.add_modifier(Modifier::ITALIC),
         LineKind::Section => Style::new().fg(theme::BLUE).add_modifier(Modifier::BOLD),
-        LineKind::Synopsis | LineKind::Note => {
-            Style::new().fg(theme::MUTED).add_modifier(Modifier::ITALIC)
-        }
-        LineKind::PageBreak => Style::new().fg(theme::MUTED),
-        LineKind::Lyrics => base.add_modifier(Modifier::ITALIC),
+        LineKind::Synopsis => Style::new().fg(theme::MUTED).add_modifier(Modifier::ITALIC),
+        LineKind::Note => Style::new().fg(theme::NOTE).add_modifier(Modifier::ITALIC),
+        LineKind::PageBreak | LineKind::Title => Style::new().fg(theme::MUTED),
+        LineKind::Lyrics => Style::new()
+            .fg(theme::LYRICS)
+            .add_modifier(Modifier::ITALIC),
         LineKind::Blank | LineKind::Action | LineKind::Dialogue => base,
     }
 }
@@ -68,9 +75,84 @@ fn slice(line: &str, start: usize, end: usize) -> String {
         .collect()
 }
 
+/// The style of a character: the line's own, then its inline marks (emphasis, a note, a
+/// boneyard) and, while searching, the matches.
+fn mark_style(base: Style, marks: klappe_services::Marks) -> Style {
+    let mut style = base;
+    if marks.bold {
+        style = style.add_modifier(Modifier::BOLD);
+    }
+    if marks.italic {
+        style = style.add_modifier(Modifier::ITALIC);
+    }
+    if marks.underline {
+        style = style.add_modifier(Modifier::UNDERLINED);
+    }
+    if marks.note {
+        style = style.fg(theme::NOTE).add_modifier(Modifier::ITALIC);
+    }
+    if marks.boneyard {
+        style = style.fg(theme::MUTED).add_modifier(Modifier::DIM);
+    }
+
+    style
+}
+
+/// Characters `start..end` of a screen row as spans, styled per character.
+fn row_spans(app: &App, row: Row, base: Style, end: usize) -> Vec<Span<'static>> {
+    let text = app.editor.lines().get(row.line).map_or("", String::as_str);
+    let open = app
+        .analysis
+        .boneyard
+        .get(row.line)
+        .copied()
+        .unwrap_or(false);
+    let (runs, _) = inline_runs(text, open);
+    let hits = app.find_hits_on(row.line);
+    let end = end.max(row.start);
+    let tab = " ".repeat(TAB_WIDTH);
+
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    let mut last: Option<Style> = None;
+    for (i, c) in text
+        .chars()
+        .enumerate()
+        .skip(row.start)
+        .take(end - row.start)
+    {
+        let marks = runs
+            .iter()
+            .find(|r| r.start <= i && i < r.end)
+            .map(|r| r.marks)
+            .unwrap_or_default();
+        let mut style = mark_style(base, marks);
+        for (hit, current) in &hits {
+            if hit.start <= i && i < hit.end {
+                style = style.add_modifier(match current {
+                    true => Modifier::REVERSED,
+                    false => Modifier::UNDERLINED,
+                });
+            }
+        }
+
+        let piece = match c {
+            '\t' => tab.clone(),
+            _ => c.to_string(),
+        };
+        match (spans.last_mut(), last == Some(style)) {
+            (Some(span), true) => span.content.to_mut().push_str(&piece),
+            _ => spans.push(Span::styled(piece, style)),
+        }
+        last = Some(style);
+    }
+
+    spans
+}
+
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     app.set_screen(area.width);
+    app.clamp_help(usize::from(area.height));
     frame.render_widget(
         Block::new().style(Style::new().fg(theme::TEXT).bg(theme::GROUND)),
         area,
@@ -98,6 +180,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     match app.mode {
         Mode::Help => draw_help(frame, app),
         Mode::Goto => draw_goto(frame, app),
+        Mode::Find => draw_find(frame, app),
+        Mode::Title => draw_title(frame, app),
+        Mode::Backup => draw_backup(frame, app),
         Mode::Normal | Mode::ConfirmQuit => {}
     }
 }
@@ -152,6 +237,17 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
         Paragraph::new(format!(" {}", app.texts.scenes)).style(heading),
         title,
     );
+    // The whole screenplay in pages and eighths (DB-32); italic while the text has changed.
+    if let Some(pages) = app.pages() {
+        let mut style = Style::new().fg(theme::MUTED);
+        if app.pages_stale() {
+            style = style.add_modifier(Modifier::ITALIC);
+        }
+        let total = Paragraph::new(format!("{} ", pages.length))
+            .alignment(Alignment::Right)
+            .style(style);
+        frame.render_widget(total, title);
+    }
 
     if app.analysis.scenes.is_empty() {
         let none =
@@ -161,28 +257,8 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     let current = app.analysis.scene_at(app.cursor().line);
-    let items: Vec<ListItem> = app
-        .analysis
-        .scenes
-        .iter()
-        .enumerate()
-        .map(|(i, scene)| {
-            let number = scene.display_number(i);
-            if current == Some(i) {
-                return ListItem::new(Line::from(vec![
-                    Span::styled(CURRENT_MARK, Style::new().fg(theme::ACCENT)),
-                    Span::styled(
-                        format!("{number}  {}", scene.heading),
-                        Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD),
-                    ),
-                ]));
-            }
-            ListItem::new(Line::from(vec![
-                Span::raw(OTHER_MARK),
-                Span::styled(format!("{number}  "), Style::new().fg(theme::MUTED)),
-                Span::styled(scene.heading.as_str(), Style::new().fg(theme::SOFT)),
-            ]))
-        })
+    let items: Vec<ListItem> = (0..app.analysis.scenes.len())
+        .map(|i| scene_item(app, i, current == Some(i), usize::from(rows.width)))
         .collect();
 
     let highlight = if focused {
@@ -193,6 +269,39 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
     let widget = List::new(items).highlight_style(highlight);
     let mut state = ListState::default().with_selected(Some(app.list_sel));
     frame.render_stateful_widget(widget, rows, &mut state);
+}
+
+/// One scene of the list: number, heading cut to fit and its length at the right edge.
+fn scene_item(app: &App, i: usize, current: bool, width: usize) -> ListItem<'_> {
+    let scene = &app.analysis.scenes[i];
+    let number = scene.display_number(i);
+    let length = app.scene_length(i).unwrap_or_default();
+    let prefix = cols(format!("{number}  ").chars()) + cols(CURRENT_MARK.chars());
+    let room = width
+        .saturating_sub(prefix + cols(length.chars()) + LENGTH_GAP)
+        .max(1);
+    let heading = fit(&scene.heading, room);
+    let pad =
+        " ".repeat(width.saturating_sub(prefix + cols(heading.chars()) + cols(length.chars())));
+    let tail = Span::styled(format!("{pad}{length}"), Style::new().fg(theme::MUTED));
+
+    if current {
+        return ListItem::new(Line::from(vec![
+            Span::styled(CURRENT_MARK, Style::new().fg(theme::ACCENT)),
+            Span::styled(
+                format!("{number}  {heading}"),
+                Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD),
+            ),
+            tail,
+        ]));
+    }
+
+    ListItem::new(Line::from(vec![
+        Span::raw(OTHER_MARK),
+        Span::styled(format!("{number}  "), Style::new().fg(theme::MUTED)),
+        Span::styled(heading, Style::new().fg(theme::SOFT)),
+        tail,
+    ]))
 }
 
 fn draw_editor(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -222,25 +331,40 @@ fn draw_editor(frame: &mut Frame, app: &mut App, area: Rect) {
         draw_row(frame, app, *row, band, rect);
     }
 
-    if !focused || app.mode != Mode::Normal {
+    let shown = focused && app.mode == Mode::Normal;
+    if !shown && !(focused && app.mode == Mode::Find) {
         return;
     }
-    place_cursor(frame, app, inner);
+    let Some(cell) = cursor_cell(app, inner) else {
+        return;
+    };
+    if shown {
+        frame.set_cursor_position(cell);
+        draw_suggest(frame, app, cell);
+    }
 }
 
 /// One screen row of text; scene headings get a band and the number at the right, other
 /// lines the chips of their links.
 fn draw_row(frame: &mut Frame, app: &App, row: Row, band: Rect, rect: Rect) {
+    if let Some(page) = row.page {
+        draw_page_break(frame, app, page, rect);
+        return;
+    }
+
     let text = app.editor.lines().get(row.line).map_or("", String::as_str);
     let kind = app.analysis.kind(row.line);
     let style = style_of(kind);
 
     if kind != LineKind::Heading {
-        let line = Line::from(vec![
-            Span::raw(" ".repeat(row.indent)),
-            Span::styled(slice(text, row.start, row.end), style),
-        ]);
-        frame.render_widget(Paragraph::new(line), rect);
+        let mut spans = vec![Span::raw(" ".repeat(row.indent))];
+        spans.extend(row_spans(
+            app,
+            row,
+            dual_style(style, app, row.line),
+            row.end,
+        ));
+        frame.render_widget(Paragraph::new(Line::from(spans)), rect);
         draw_chips(frame, app, row, rect);
         return;
     }
@@ -256,9 +380,11 @@ fn draw_row(frame: &mut Frame, app: &App, row: Row, band: Rect, rect: Rect) {
         .and_then(|s| s.number.as_deref())
         .filter(|_| row.line != app.cursor().line);
     let end = number.map_or(row.end, |n| row.end.min(shown_chars(text, n)));
-    let shown = slice(text, row.start, end.max(row.start));
-    let shown_cols = cols(shown.chars());
-    frame.render_widget(Paragraph::new(Span::styled(shown, style)), rect);
+    let shown_cols = cols(slice(text, row.start, end.max(row.start)).chars());
+    frame.render_widget(
+        Paragraph::new(Line::from(row_spans(app, row, style, end))),
+        rect,
+    );
 
     let Some(number) = number.filter(|_| row.last) else {
         return;
@@ -275,6 +401,33 @@ fn draw_row(frame: &mut Frame, app: &App, row: Row, band: Rect, rect: Rect) {
     };
     let quiet = Style::new().fg(theme::MUTED).bg(theme::SURFACE);
     frame.render_widget(Paragraph::new(number).style(quiet), at);
+}
+
+/// The thin line between two pages: `─ Page 3 ───────`, in the quiet colour; italic while it
+/// belongs to an older text.
+fn draw_page_break(frame: &mut Frame, app: &App, page: usize, rect: Rect) {
+    let mut label = format!("{PAGE_RULE} {} ", app.texts.page(page));
+    if app.pages_stale() {
+        label.push_str(&format!("({}) ", app.texts.stale));
+    }
+
+    let fill = usize::from(rect.width).saturating_sub(cols(label.chars()));
+    let line = format!("{label}{}", PAGE_RULE.repeat(fill));
+    let mut style = Style::new().fg(theme::MUTED);
+    if app.pages_stale() {
+        style = style.add_modifier(Modifier::ITALIC);
+    }
+
+    frame.render_widget(Paragraph::new(line).style(style), rect);
+}
+
+/// The cue and the speech of a dual dialogue in their own colour.
+fn dual_style(style: Style, app: &App, line: usize) -> Style {
+    if app.analysis.is_dual(line) {
+        return style.fg(theme::DUAL);
+    }
+
+    style
 }
 
 /// Characters of a heading line left of its `#number#` and the space before it.
@@ -325,27 +478,24 @@ fn draw_chips(frame: &mut Frame, app: &App, row: Row, rect: Rect) {
     );
 }
 
-/// Puts the terminal cursor on the text cursor, if it is in view.
-fn place_cursor(frame: &mut Frame, app: &App, inner: Rect) {
+/// The screen cell of the text cursor, if it is in view.
+fn cursor_cell(app: &App, inner: Rect) -> Option<Position> {
     let cursor = app.cursor();
     let index = app.layout.row_of(cursor);
-    let Some(row) = app.layout.row(index) else {
-        return;
-    };
-    let Some(y) = index.checked_sub(app.scroll) else {
-        return;
-    };
+    let row = app.layout.row(index)?;
+    let y = index.checked_sub(app.scroll)?;
     if y >= usize::from(inner.height) {
-        return;
+        return None;
     }
 
     let text = app.editor.lines().get(row.line).map_or("", String::as_str);
     let before = text.chars().skip(row.start).take(cursor.col - row.start);
     let x = row.indent + cols(before);
     let (Ok(x), Ok(y)) = (u16::try_from(x), u16::try_from(y)) else {
-        return;
+        return None;
     };
-    frame.set_cursor_position(Position::new(inner.x + x, inner.y + y));
+
+    Some(Position::new(inner.x + x, inner.y + y))
 }
 
 fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
@@ -365,6 +515,9 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
     let mode = match (app.mode, app.focus) {
         (Mode::Help, _) => &app.texts.mode_help,
         (Mode::Goto, _) => &app.texts.mode_goto,
+        (Mode::Find, _) => &app.texts.mode_find,
+        (Mode::Title, _) => &app.texts.mode_title,
+        (Mode::Backup, _) => &app.texts.mode_backup,
         (_, Focus::List) => &app.texts.mode_list,
         (_, Focus::Editor) => &app.texts.mode_text,
     };
@@ -377,6 +530,7 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
     let message = match &app.notice {
         Some(Notice::Saved) => app.texts.saved.clone(),
         Some(Notice::SaveFailed(why)) => format!("{}: {why}", app.texts.save_failed),
+        Some(Notice::Replaced(count)) => app.texts.replaced(*count),
         None => app.texts.hints.clone(),
     };
     let mut spans = vec![
@@ -406,12 +560,20 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(Paragraph::new(Line::from(spans)).style(bar), area);
 }
 
+/// Rows of the help box: every line, or as many as the screen has.
+pub(crate) fn help_height(lines: usize, rows: usize) -> usize {
+    (lines + 2).min(rows)
+}
+
 fn draw_help(frame: &mut Frame, app: &App) {
     let lines = &app.texts.help;
     let width = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0) + 4;
-    let height = lines.len() + 2;
+    let height = help_height(lines.len(), usize::from(frame.area().height));
     let area = centered(frame.area(), width, height);
 
+    // A screen too low for every line scrolls.
+    let room = height.saturating_sub(2);
+    let first = app.help_scroll.min(lines.len().saturating_sub(room));
     let block = Block::new()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(theme::ACCENT))
@@ -420,6 +582,8 @@ fn draw_help(frame: &mut Frame, app: &App) {
     let body = Paragraph::new(
         lines
             .iter()
+            .skip(first)
+            .take(room)
             .map(|l| Line::from(l.as_str()))
             .collect::<Vec<_>>(),
     )
@@ -483,8 +647,20 @@ fn draw_goto(frame: &mut Frame, app: &App) {
     frame.render_stateful_widget(widget, rows, &mut state);
 }
 
+/// The text cut to `room` columns.
+fn fit(text: &str, room: usize) -> String {
+    let mut used = 0;
+
+    text.chars()
+        .take_while(|&c| {
+            used += cols([c]);
+            used <= room
+        })
+        .collect()
+}
+
 /// A box of the size, centred in the area and cut to it.
-fn centered(area: Rect, width: usize, height: usize) -> Rect {
+pub(crate) fn centered(area: Rect, width: usize, height: usize) -> Rect {
     let width = u16::try_from(width).unwrap_or(u16::MAX).min(area.width);
     let height = u16::try_from(height).unwrap_or(u16::MAX).min(area.height);
 

@@ -22,6 +22,9 @@ const DOS_DATE: u16 = 0x0021;
 const LOCAL_HEADER: usize = 30;
 /// Bytes of the end record.
 const END_RECORD: usize = 22;
+/// What the format's plain fields hold: 16 bits of entries, 32 bits of bytes.
+const MAX_ENTRIES: u64 = u16::MAX as u64;
+const MAX_BYTES: u64 = u32::MAX as u64;
 
 /// Entries in the order they are added; `finish` writes the archive.
 #[derive(Default)]
@@ -40,10 +43,9 @@ impl Zip {
         let size = to_u32(data.len())?;
         let name = name.as_bytes();
         let name_len = u16::try_from(name.len()).map_err(|_| ExportError::ZipTooBig)?;
-        let entries = self.entries.checked_add(1).ok_or(ExportError::ZipTooBig)?;
         // The data and both headers must still end below 4 GiB.
         let end = self.out.len() + LOCAL_HEADER + name.len() + data.len();
-        to_u32(end)?;
+        fits(usize::from(self.entries) + 1, end as u64)?;
 
         // Local header, then the data.
         put32(&mut self.out, LOCAL_SIGNATURE);
@@ -59,7 +61,7 @@ impl Zip {
         put32(&mut self.central, offset);
         self.central.extend_from_slice(name);
 
-        self.entries = entries;
+        self.entries += 1;
 
         Ok(())
     }
@@ -104,7 +106,7 @@ fn common(crc: u32, size: u32, name_len: u16) -> Vec<u8> {
 
 /// Whether `entries` files of `bytes` in all stay within the format's plain limits.
 pub(crate) fn fits(entries: usize, bytes: u64) -> Result<(), ExportError> {
-    if entries > usize::from(u16::MAX) || bytes > u64::from(u32::MAX) {
+    if entries as u64 > MAX_ENTRIES || bytes > MAX_BYTES {
         return Err(ExportError::ZipTooBig);
     }
 
