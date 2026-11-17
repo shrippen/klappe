@@ -48,6 +48,8 @@ TestCase {
         fake.canRedo = true
         fake.hasBackground = false
         fake.viewFree = false
+        fake.selectedKey = ""
+        fake.selectedShot = ""
         fake.missingHeights = 0
         fake.calls = []
         fake.plan = "plan-a"
@@ -186,5 +188,55 @@ TestCase {
 
         fake.viewFree = true
         verify(!fit.enabled)
+    }
+
+    // NF-06: the palette turns and shifts the 3D view, in 3D only; the keys are the arrows of
+    // the view itself.
+    function test_the_palette_turns_and_shifts_the_3d_view() {
+        const header = make()
+        const find = id => header.commandPalette.commands.find(c => c.id === id)
+
+        verify(!find("view.turnLeft").enabled)
+        fake.viewFree = true
+        verify(find("view.turnLeft").enabled)
+        compare(find("view.turnLeft").keys, "←")
+        compare(find("view.panUp").keys, "Umschalt+↑")
+        compare(find("view.tiltUp").text, "3D-Ansicht nach oben kippen")
+
+        header.run("view.turnRight")
+        header.run("view.panDown")
+        compare(fake.calls, [["stepView", "turnRight"], ["stepView", "panDown"]])
+
+        header.texts = en
+        compare(find("view.turnLeft").text, "Turn 3D view left")
+    }
+
+    // NF-06: Alt+Left and Alt+Right move the selected mark by a tenth of a second; the edges of the
+    // selected shot have palette entries.
+    function test_alt_arrows_nudge_the_selected_mark() {
+        const header = make()
+
+        keyClick(Qt.Key_Left, Qt.AltModifier)
+        compare(fake.calls, [])
+
+        fake.selectedKey = "mark:elisabeth:1"
+        keyClick(Qt.Key_Left, Qt.AltModifier)
+        keyClick(Qt.Key_Right, Qt.AltModifier)
+        compare(fake.calls, [["nudgeTime", "mark", -0.1], ["nudgeTime", "mark", 0.1]])
+        compare(header.commandPalette.commands.find(c => c.id === "retime.markLater").keys, "Alt+Right")
+    }
+
+    function test_the_palette_nudges_the_edges_of_the_selected_shot() {
+        const header = make()
+        const find = id => header.commandPalette.commands.find(c => c.id === id)
+
+        verify(!find("retime.toLater").enabled)
+        fake.selectedShot = "s12-2"
+        verify(find("retime.toLater").enabled)
+
+        header.run("retime.fromEarlier")
+        header.run("retime.toLater")
+        compare(fake.calls, [["nudgeTime", "shot-from", -0.1], ["nudgeTime", "shot-to", 0.1]])
+        compare(find("retime.toLater").text, "Ende des gewählten Shots 0,1 s später")
     }
 }

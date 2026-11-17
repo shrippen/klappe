@@ -185,6 +185,11 @@ pub mod qobject {
         #[cxx_name = "zoomView"]
         fn zoom_view(self: Pin<&mut Self>, steps: f64, x: f64, y: f64);
 
+        /// A key's step of the 3D view: `turnLeft`, `panUp`, `zoomIn` … (`ViewStep`).
+        #[qinvokable]
+        #[cxx_name = "stepView"]
+        fn step_view(self: Pin<&mut Self>, step: &QString);
+
         /// A click in 3D: the select tool takes what is seen there, the other tools get the
         /// plan point of the floor there. False where nothing happened.
         #[qinvokable]
@@ -754,6 +759,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "dropTime"]
         fn drop_time(self: Pin<&mut Self>, grab: &QString, seconds: f64, snap: &QString) -> bool;
+
+        /// Moves what the selection holds on the timeline by `delta_s` (`what`: `mark` of the
+        /// selected figure mark, `shot-from` or `shot-to` of the selected shot), one undo
+        /// step; false if nothing of that kind is selected or the move is refused.
+        #[qinvokable]
+        #[cxx_name = "nudgeTime"]
+        fn nudge_time(self: Pin<&mut Self>, what: &QString, delta_s: f64) -> bool;
 
         #[qinvokable]
         #[cxx_name = "setGrid"]

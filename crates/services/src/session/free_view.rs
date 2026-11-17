@@ -30,6 +30,50 @@ pub enum View {
 /// A picture's size in pixels: width and height.
 pub type Size = (f64, f64);
 
+/// A key's turn of the 3D view, in degrees.
+const KEY_TURN_DEG: f64 = 15.0;
+
+/// A key's shift of the 3D view, as a share of the picture's width.
+const KEY_PAN_SHARE: f64 = 0.1;
+
+/// A key's zoom: one step of the wheel.
+const KEY_ZOOM_STEPS: f64 = 1.0;
+
+/// What a key does to the 3D view. Each is the drag of the same name: `Left` is a drag to the
+/// left, so the turn brings the set's right side round and the shift moves the set left.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ViewStep {
+    TurnLeft,
+    TurnRight,
+    TurnUp,
+    TurnDown,
+    PanLeft,
+    PanRight,
+    PanUp,
+    PanDown,
+    ZoomIn,
+    ZoomOut,
+}
+
+impl ViewStep {
+    /// The step `name` (`turnLeft`, `panUp`, `zoomIn` …) names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "turnLeft" => ViewStep::TurnLeft,
+            "turnRight" => ViewStep::TurnRight,
+            "turnUp" => ViewStep::TurnUp,
+            "turnDown" => ViewStep::TurnDown,
+            "panLeft" => ViewStep::PanLeft,
+            "panRight" => ViewStep::PanRight,
+            "panUp" => ViewStep::PanUp,
+            "panDown" => ViewStep::PanDown,
+            "zoomIn" => ViewStep::ZoomIn,
+            "zoomOut" => ViewStep::ZoomOut,
+            _ => return None,
+        })
+    }
+}
+
 impl Session {
     pub fn view(&self) -> View {
         self.view
@@ -127,6 +171,37 @@ impl Session {
         self.through = None;
         if let Some(orbit) = self.orbit.as_mut() {
             orbit.pan(dx, dy, size.0);
+        }
+    }
+
+    /// The keyboard's way to turn, shift and zoom the 3D view: a fixed step per key, zooming to
+    /// the middle of the picture of `size`. The plan and a view before its first switch to 3D
+    /// change nothing.
+    pub fn step_view(&mut self, step: ViewStep, size: Size) {
+        if self.view != View::Free {
+            return;
+        }
+
+        let pan_px = size.0 * KEY_PAN_SHARE;
+        let middle = (size.0 / 2.0, size.1 / 2.0);
+        match step {
+            ViewStep::TurnLeft => self.turn_deg(KEY_TURN_DEG, 0.0),
+            ViewStep::TurnRight => self.turn_deg(-KEY_TURN_DEG, 0.0),
+            ViewStep::TurnUp => self.turn_deg(0.0, -KEY_TURN_DEG),
+            ViewStep::TurnDown => self.turn_deg(0.0, KEY_TURN_DEG),
+            ViewStep::PanLeft => self.pan_view(-pan_px, 0.0, size),
+            ViewStep::PanRight => self.pan_view(pan_px, 0.0, size),
+            ViewStep::PanUp => self.pan_view(0.0, -pan_px, size),
+            ViewStep::PanDown => self.pan_view(0.0, pan_px, size),
+            ViewStep::ZoomIn => self.zoom_view(KEY_ZOOM_STEPS, middle, size),
+            ViewStep::ZoomOut => self.zoom_view(-KEY_ZOOM_STEPS, middle, size),
+        }
+    }
+
+    fn turn_deg(&mut self, yaw_deg: f64, pitch_deg: f64) {
+        self.through = None;
+        if let Some(orbit) = self.orbit.as_mut() {
+            orbit.turn_deg(yaw_deg, pitch_deg);
         }
     }
 
