@@ -303,12 +303,12 @@ fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, St
     Ok(vec![(library_path, library), (templates_path, templates)])
 }
 
-/// Replaces the screenplay setup in `projekt.toml` of `dir` and nothing else: the rest of the
+/// Sets "(CONT'D) after action" in `projekt.toml` of `dir` and nothing else: the rest of the
 /// file stays as it is on disk, as another program may have saved it meanwhile (TUI beside
 /// the window).
-pub fn save_script_setup(dir: &Path, setup: ScriptSetup) -> Result<(), StoreError> {
+pub fn save_contd(dir: &Path, on: bool) -> Result<(), StoreError> {
     let mut header = read_header(dir)?;
-    header.script = setup;
+    header.script.contd_after_action = on;
 
     let path = dir.join(PROJECT_FILE);
     let bytes = files::encode_toml(&path, &header)?;

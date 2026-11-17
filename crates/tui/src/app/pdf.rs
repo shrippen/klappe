@@ -107,9 +107,7 @@ impl App {
         };
         self.mode = Mode::Normal;
 
-        let mut setup = self.session.project().script;
-        setup.contd_after_action = form.contd;
-        let changed = setup != self.session.project().script;
+        let changed = form.contd != self.session.project().script.contd_after_action;
 
         let path = self.session.dir().join(PDF_FILE);
         let print = ScriptPrint {
@@ -118,7 +116,7 @@ impl App {
             language: self.lang,
         };
         let done = match changed {
-            true => self.session.keep_script_setup(setup),
+            true => self.session.keep_contd(form.contd),
             false => Ok(()),
         }
         .and_then(|()| self.session.export_script_pdf(&path, &print));

@@ -406,7 +406,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   gelesen; vor dem nächsten Schreiben wird er befördert, nie gelöscht. Ordner ohne `fertig`
   sind Absturzreste und werden ignoriert. Speichert der
   Nutzer nur das Drehbuch (TUI: schreibt `drehbuch.fountain` und `szenen.toml`, nicht
-  `szenen/<id>.json`), wird die Sicherung entfernt, wenn nur das Drehbuch ungesichert
+  `szenen/<id>.json`; im PDF-Formular nur den Schalter `contd_after_action` in `projekt.toml`), wird die Sicherung entfernt, wenn nur das Drehbuch ungesichert
   war, sonst mit dem gespeicherten Drehbuch neu geschrieben. `load` liest `.sicherung/` nie
   als Teil des Projekts. Git soll die Ordner ignorieren; Vorschlag für `.gitignore` im Projekt:
 
