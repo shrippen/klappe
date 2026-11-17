@@ -5,7 +5,7 @@ use klappe_model::{
     SetObject, Wall, MAX_OBJECT_M, MIN_BEAM_DEG, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use klappe_stellprobe::{
-    bend_follow, bend_grips, drawing_handle_places, image_grip_place, light_grip_place,
+    bend_follow, bend_grips, drawing_handle_places, image_grip_place, light_grip_place, object_at,
     object_grip_place, Bend, LightGrip, ObjectGrip, Source,
 };
 
@@ -13,7 +13,7 @@ use self::forms::{drag_form_point, insert_form_point};
 use super::drawings::{drag_handle, edge_place, insert_point};
 use super::openings::{drag_edge, edge_m, slide};
 use super::target::{target, Target};
-use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping};
+use super::{current_index, figure_mark, normalize_deg, snap, Grid, PlanEdit, Scope, Snapping};
 use crate::error::ServiceError;
 use klappe_model::FULL_TURN_DEG;
 
@@ -471,7 +471,7 @@ pub(super) fn carry_cameras(
     change: impl FnOnce(&mut Scope<'_>) -> Result<(), ServiceError>,
 ) -> Result<(), ServiceError> {
     let Some((character, index)) = figure_mark(scope, source) else {
-        return change(scope);
+        return placed_grip(scope, source, change);
     };
     let mark_of = |plan: &FloorPlan| plan.figure(&character)?.marks.get(index).cloned();
     let before = mark_of(scope.plan);
@@ -507,6 +507,81 @@ pub(super) fn carry_cameras(
     }
 
     Ok(())
+}
+
+fn object_in<'a>(scope: &'a mut Scope<'_>, id: &str) -> Option<&'a mut SetObject> {
+    scope
+        .set
+        .as_deref_mut()
+        .and_then(|s| s.objects.iter_mut().find(|o| o.id == id))
+}
+
+/// A grip of a moving object sits where the object is at the playhead, so the change works
+/// on the object put there; afterwards the set keeps its own place and the way takes the
+/// difference (resizing from the left edge moves the middle), each mark in its own frame.
+pub(super) fn placed_grip(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    change: impl FnOnce(&mut Scope<'_>) -> Result<(), ServiceError>,
+) -> Result<(), ServiceError> {
+    let Source::ObjectGrip { object, .. } = source else {
+        return change(scope);
+    };
+    let track = scope.plan.object_track(object);
+    let Some(place) = track.and_then(|t| object_at(scope.plan, t, scope.time_s)) else {
+        return change(scope);
+    };
+    let Some(own) = object_in(scope, object) else {
+        return change(scope);
+    };
+    let home = (own.at, own.rotation_deg);
+    (own.at, own.rotation_deg) = (place.at, place.facing_deg);
+
+    let done = change(scope);
+
+    let Some(own) = object_in(scope, object) else {
+        return done;
+    };
+    let delta = Point::new(own.at.x_m - place.at.x_m, own.at.y_m - place.at.y_m);
+    (own.at, own.rotation_deg) = home;
+
+    // The shift is the object's own: along its axes at the playhead, so a mark turned
+    // otherwise takes it along its own axes.
+    let origin = Point::new(0.0, 0.0);
+    let local = delta.turned(origin, -place.facing_deg);
+    for mark in scope
+        .plan
+        .object_tracks
+        .iter_mut()
+        .filter(|t| t.object == *object)
+        .flat_map(|t| t.marks.iter_mut())
+    {
+        let by = local.turned(origin, mark.rotation_deg);
+        mark.at = Point::new(mark.at.x_m + by.x_m, mark.at.y_m + by.y_m);
+    }
+
+    done
+}
+
+/// Moves, shifts, spins or turns what the edit names; a figure's mark takes its cameras along.
+pub(super) fn place_edit(
+    scope: &mut Scope<'_>,
+    edit: &PlanEdit,
+    snap_to: (Snapping, Grid),
+) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::Move { source, to } => carry_cameras(scope, source, |s| move_to(s, source, *to)),
+        PlanEdit::Shift { source, dx_m, dy_m } => {
+            carry_cameras(scope, source, |s| shift(s, source, (*dx_m, *dy_m), snap_to))
+        }
+        PlanEdit::Spin { source, by_deg } => {
+            carry_cameras(scope, source, |s| spin(s, source, *by_deg))
+        }
+        PlanEdit::Turn { source, facing_deg } => {
+            carry_cameras(scope, source, |s| turn(s, source, *facing_deg))
+        }
+        _ => Ok(()),
+    }
 }
 
 /// `point` shifted by `delta_m`, then turned by `deg` about `centre`: where a following

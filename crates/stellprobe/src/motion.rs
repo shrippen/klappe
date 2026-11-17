@@ -1,4 +1,7 @@
-use klappe_model::{Arrival, Camera, CameraMark, Curve, Departure, FigureTrack, Mark, Point};
+use klappe_model::{
+    Arrival, Camera, CameraMark, Curve, Departure, FigureTrack, Mark, ObjectMark, ObjectTrack,
+    Point,
+};
 
 /// Where something is and where it faces at one moment.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -61,6 +64,29 @@ impl<'a> From<&'a CameraMark> for Key<'a> {
             },
         }
     }
+}
+
+impl<'a> From<&'a ObjectMark> for Key<'a> {
+    fn from(m: &'a ObjectMark) -> Self {
+        Key {
+            at_s: m.at_s,
+            hold_s: m.hold_s,
+            via: &[],
+            curve: Curve::default(),
+            arrival: Arrival::Walk,
+            departure: Departure::Stay,
+            place: Placement {
+                at: m.at,
+                facing_deg: m.rotation_deg,
+            },
+        }
+    }
+}
+
+/// An object on its track at `t_s`, as its marks give it (LH-24); `None` without marks.
+pub(crate) fn track_at(track: &ObjectTrack, t_s: f64) -> Option<Placement> {
+    let keys: Vec<Key<'_>> = track.marks.iter().map(Key::from).collect();
+    place_at(&keys, t_s)
 }
 
 /// A figure at time `t_s` (LH-60); `None` without marks, and while it is not in the scene

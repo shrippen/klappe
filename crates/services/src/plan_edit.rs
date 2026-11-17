@@ -26,6 +26,7 @@ mod moving;
 mod object;
 mod openings;
 mod picking;
+mod props;
 mod remove;
 mod target;
 
@@ -44,7 +45,7 @@ use images::edit_image;
 use marks::edit_field;
 pub(crate) use marks::{check_tripods, mark_info, way_curve};
 pub use marks::{MarkInfo, Pace};
-use moving::{anchor_pair, carry_cameras, edit_way, move_to, points_mut, shift, spin, turn};
+use moving::{anchor_pair, carry_cameras, edit_way, move_to, place_edit, points_mut, turn};
 pub use object::ObjectChange;
 use openings::edit_opening;
 use remove::remove;
@@ -122,6 +123,21 @@ pub enum PlanEdit {
     AddCameraMark {
         camera: String,
         at: Point,
+    },
+    /// Adds a mark to the way of the set object `object` at `at` (LH-24): the first click also
+    /// marks where the object stands now, at the playhead. After a mark a figure carries the
+    /// object from, the new mark is where the object is carried to at the playhead, `at` is
+    /// not used: the object does not jump.
+    AddObjectMark {
+        object: String,
+        at: Point,
+    },
+    /// Lets the figure `figure` carry the object from its mark until the next one (LH-24), or
+    /// sets it down with `None`: `Source::ObjectMark`, or `Source::Object` for its mark at the
+    /// playhead.
+    SetCarrier {
+        source: Source,
+        figure: Option<String>,
     },
     /// Sets a mark before the first one of the figure or camera `source` names, at `at`
     /// (LH-105): where it comes from. The old marks move later by the way from the new mark to
@@ -407,6 +423,7 @@ impl PlanEdit {
             | PlanEdit::SetArrival { source, .. }
             | PlanEdit::SetDeparture { source, .. }
             | PlanEdit::SetHold { source, .. }
+            | PlanEdit::SetCarrier { source, .. }
             | PlanEdit::SetCameraAim { source, .. }
             | PlanEdit::SetRig { source, .. }
             | PlanEdit::SetMarkLens { source, .. }
@@ -433,6 +450,7 @@ impl PlanEdit {
                 return sources.iter().map(layer_of_source).collect();
             }
             PlanEdit::AddMark { .. } => Layer::Figures,
+            PlanEdit::AddObjectMark { .. } => Layer::Set,
             PlanEdit::AddCamera { .. }
             | PlanEdit::AddCameraMark { .. }
             | PlanEdit::Follow { .. }
@@ -467,7 +485,10 @@ impl PlanEdit {
 /// The layer an element of the plan is on.
 pub fn layer_of_source(source: &Source) -> Layer {
     match source {
-        Source::Object(_) | Source::Wall(_) | Source::Opening { .. } => Layer::Set,
+        Source::Object(_)
+        | Source::ObjectMark { .. }
+        | Source::Wall(_)
+        | Source::Opening { .. } => Layer::Set,
         Source::Light(_) => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
@@ -489,6 +510,8 @@ struct Scope<'a> {
     /// The project's own library entries, for what a new object looks like.
     library: &'a [LibraryItem],
     time_s: f64,
+    /// Ids of the objects any plan of the scene's location has a track for, taken or not.
+    tracked: &'a [String],
 }
 
 /// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snap_to` is for
@@ -508,6 +531,8 @@ pub(crate) fn apply(
 
     let at = (scene, plan);
     let held = bound::held(project, at, time_s);
+    let tracked = props::tracked_ids(project, scene);
+    let removing = props::watch_removal(project, scene, edit);
     let Project {
         characters,
         locations,
@@ -535,21 +560,14 @@ pub(crate) fn apply(
         characters,
         library,
         time_s,
+        tracked: &tracked,
     };
 
     let done = match edit {
-        PlanEdit::Move { source, to } => {
-            carry_cameras(&mut scope, source, |s| move_to(s, source, *to))
-        }
-        PlanEdit::Shift { source, dx_m, dy_m } => carry_cameras(&mut scope, source, |s| {
-            shift(s, source, (*dx_m, *dy_m), snap_to)
-        }),
-        PlanEdit::Spin { source, by_deg } => {
-            carry_cameras(&mut scope, source, |s| spin(s, source, *by_deg))
-        }
-        PlanEdit::Turn { source, facing_deg } => {
-            carry_cameras(&mut scope, source, |s| turn(s, source, *facing_deg))
-        }
+        PlanEdit::Move { .. }
+        | PlanEdit::Shift { .. }
+        | PlanEdit::Spin { .. }
+        | PlanEdit::Turn { .. } => place_edit(&mut scope, edit, snap_to),
         PlanEdit::Remove { source } => remove(&mut scope, source),
         PlanEdit::ShiftGroup {
             sources,
@@ -570,6 +588,9 @@ pub(crate) fn apply(
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
         PlanEdit::AddCameraMark { camera, at } => add_camera_mark(&mut scope, camera, *at),
+        PlanEdit::AddObjectMark { .. } | PlanEdit::SetCarrier { .. } => {
+            props::edit(&mut scope, edit)
+        }
         PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => edit_light(&mut scope, edit),
         PlanEdit::AddObject { .. } | PlanEdit::AddShape { .. } => add_objects(&mut scope, edit),
         PlanEdit::Resize { .. } | PlanEdit::SetObject { .. } => object::edit(&mut scope, edit),
@@ -612,6 +633,7 @@ pub(crate) fn apply(
         | PlanEdit::SetCameraAim { .. } => edit_field(&mut scope, edit),
     };
 
+    props::forget_removed(project, scene, removing.as_deref());
     bound::follow(project, at, time_s, &held);
 
     done

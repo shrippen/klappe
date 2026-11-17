@@ -10,6 +10,7 @@
 //! └── scenes       Scene → FloorPlan   (the register of what is shot: a scene or a content item,
 //!                           by `kind`; its order is the project's order)
 //!                           ├── figures  FigureTrack → Mark (time, place, facing)
+//!                           ├── object_tracks ObjectTrack → ObjectMark (a set object's way, LH-24)
 //!                           ├── cameras  Camera      → CameraMark
 //!                           ├── lights   Light
 //!                           ├── drawings Drawing  (lines, arrows, shapes)
@@ -30,6 +31,7 @@ mod geometry;
 mod library;
 mod light_preset;
 mod limits;
+mod object_track;
 mod paper;
 mod plan;
 mod project;
@@ -55,6 +57,7 @@ pub use limits::{
     MAX_ASPECT, MAX_CAMERA_HEIGHT_M, MAX_CAMERA_LENS_MM, MAX_SENSOR_WIDTH_MM, MAX_SET_M,
     MAX_TILT_DEG, MIN_CAMERA_LENS_MM,
 };
+pub use object_track::{ObjectMark, ObjectTrack};
 pub use paper::{Orientation, Paper, PaperSetup};
 pub use plan::{
     Arrival, AxisPair, Camera, CameraMark, Departure, Drawing, DrawingShape, FigureTrack,

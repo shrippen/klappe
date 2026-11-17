@@ -257,6 +257,10 @@ fn edit_scene(
     };
     scene.number = number;
     scene.heading = heading.trim().to_owned();
+    // The ways name objects of the old set; a same-named object of the new one is another.
+    if scene.location != location {
+        scene.plans.iter_mut().for_each(|p| p.object_tracks.clear());
+    }
     scene.location = location.to_owned();
     Ok(())
 }

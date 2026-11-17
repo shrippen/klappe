@@ -49,15 +49,32 @@ pub fn departure_edit(selected: Option<&Source>, name: &str) -> Option<PlanEdit>
     })
 }
 
-/// The pause typed for the selected mark (figure or camera), as an edit.
+/// The pause typed for the selected mark (figure, camera or object), as an edit.
 pub fn hold_edit(selected: Option<&Source>, text: &str) -> Typed {
-    let source = selected.filter(|s| is_figure_mark(s) || matches!(s, Source::Camera(_)))?;
+    let source = selected.filter(|s| {
+        is_figure_mark(s)
+            || matches!(
+                s,
+                Source::Camera(_) | Source::Object(_) | Source::ObjectMark { .. }
+            )
+    })?;
     let hold_s = read_number(Field::HoldS, text, Unit::Second, Range::NotNegative);
 
     Some(hold_s.map(|hold_s| PlanEdit::SetHold {
         source: source.clone(),
         hold_s,
     }))
+}
+
+/// The figure `figure` (empty: none) carrying the selected object from its mark on, as an
+/// edit (LH-24). `None` for a selection that is no object or object mark.
+pub fn carrier_edit(selected: Option<&Source>, figure: &str) -> Option<PlanEdit> {
+    let source = selected.filter(|s| matches!(s, Source::Object(_) | Source::ObjectMark { .. }))?;
+
+    Some(PlanEdit::SetCarrier {
+        source: source.clone(),
+        figure: (!figure.is_empty()).then(|| figure.to_owned()),
+    })
 }
 
 /// The lens height and the tilt typed for the selected camera mark, as an edit (LH-34). The
@@ -196,6 +213,32 @@ mod tests {
         assert_eq!(edit_of(hold_edit(Some(&camera), "")), None);
         assert_eq!(edit_of(hold_edit(Some(&Source::Wall(0)), "1")), None);
         assert_eq!(edit_of(hold_edit(None, "1")), None);
+    }
+
+    #[test]
+    fn a_figure_for_an_object_mark_is_a_set_carrier() {
+        let mark = Source::ObjectMark {
+            object: "chair".into(),
+            index: 1,
+        };
+
+        assert_eq!(
+            carrier_edit(Some(&mark), "elisabeth"),
+            Some(PlanEdit::SetCarrier {
+                source: mark.clone(),
+                figure: Some("elisabeth".into())
+            })
+        );
+        assert_eq!(
+            carrier_edit(Some(&Source::Object("chair".into())), ""),
+            Some(PlanEdit::SetCarrier {
+                source: Source::Object("chair".into()),
+                figure: None
+            })
+        );
+        assert_eq!(carrier_edit(Some(&Source::Figure("e".into())), "e"), None);
+        assert_eq!(carrier_edit(None, "e"), None);
+        assert!(edit_of(hold_edit(Some(&mark), "2")).is_some());
     }
 
     #[test]

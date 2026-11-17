@@ -18,6 +18,11 @@ TestCase {
         property string planJson: ""
         property int pictureRevision: 0
         property string selectedKey: ""
+        property string tracksJson: JSON.stringify([
+            { kind: "figure", id: "elisabeth", name: "Elisabeth" },
+            { kind: "figure", id: "burgvogt", name: "Burgvogt" },
+            { kind: "camera", id: "a", name: "A" }
+        ])
         property string choicesJson: JSON.stringify({
             pose: ["standing", "sitting", "lying"],
             arrival: ["walk", "appear"],
@@ -29,6 +34,7 @@ TestCase {
         property var poses: []
         property var holds: []
         property var paces: []
+        property var carriers: []
         property var aims: []
         property var rigs: []
         property var lenses: []
@@ -75,6 +81,10 @@ TestCase {
             curves.push(name)
             return true
         }
+        function setMarkCarrier(id) {
+            carriers.push(id)
+            return true
+        }
         function setMarkPace(name) {
             paces.push(name)
             return paceOk
@@ -99,6 +109,7 @@ TestCase {
         fake.poses = []
         fake.holds = []
         fake.paces = []
+        fake.carriers = []
         fake.arrivals = []
         fake.departures = []
         fake.poseOk = true
@@ -121,6 +132,32 @@ TestCase {
     function figureMark(extra) {
         fake.info = Object.assign({ kind: "figure", pose: "sitting", arrival: "walk", departure: "stay", hold: 2.5, hasWay: true, pace: 1.4 }, extra || {})
         fake.selectedKey = "mark:elisabeth:1"
+    }
+
+    // An object's mark (LH-24) has a pause and the figure that carries it, no pose, pace or
+    // way; the choice lists the plan's figures after "nobody".
+    function test_an_object_mark_has_the_carrier_choice() {
+        const card = createTemporaryObject(cardComponent, tc)
+        fake.info = { kind: "object", pose: "", arrival: "", departure: "", hold: 1, hasWay: false, pace: null, carriedBy: "burgvogt" }
+        fake.selectedKey = "objectmark:saeule-1:0"
+
+        const choice = findChild(card, "carrierChoice")
+        verify(card.visible)
+        verify(findChild(card, "carrierRow").visible)
+        verify(!findChild(card, "poseChoice").visible)
+        compare(choice.count, 3)
+        compare(choice.currentIndex, 2)
+
+        choice.activated(1)
+        choice.activated(0)
+        compare(fake.carriers, ["elisabeth", ""])
+    }
+
+    function test_a_figure_mark_has_no_carrier_choice() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+
+        verify(!findChild(card, "carrierRow").visible)
     }
 
     function test_no_mark_selected_no_card() {

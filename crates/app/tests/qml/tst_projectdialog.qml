@@ -230,6 +230,20 @@ TestCase {
         compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – TAG", "hof"]])
     }
 
+    // The new location has other objects: the ways of objects are dropped, the form says so.
+    function test_another_location_says_the_object_ways_go() {
+        const pd = make()
+        opened(pd)
+        const form = findChild(pd, "sceneForm")
+        const hint = findChild(form, "waysDropped")
+
+        verify(!hint.visible)
+        findChild(form, "locationBox").currentIndex = 0
+        verify(hint.visible)
+        findChild(form, "locationBox").currentIndex = 1
+        verify(!hint.visible)
+    }
+
     function test_a_refusal_keeps_the_form_with_the_message() {
         const pd = make()
         opened(pd)

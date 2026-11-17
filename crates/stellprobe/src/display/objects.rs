@@ -1,8 +1,11 @@
 //! The set's objects on the plan: the body of each and the caption of its height (LH-93).
 
-use klappe_model::{outline_box, outline_label_point, ObjectShape, Point, SetObject, SetPlan};
+use klappe_model::{
+    outline_box, outline_label_point, FigureColor, FloorPlan, ObjectShape, Point, SetObject,
+    SetPlan,
+};
 
-use super::{Item, Role, Shape, Source, ELLIPSE_CORNERS};
+use super::{Item, Role, Shape, Source, ELLIPSE_CORNERS, MARK_RADIUS_M};
 use crate::opening::wall_items;
 
 /// Where a height caption sits below the centre of a named object, clear of its name.
@@ -58,6 +61,55 @@ pub(super) fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
             items.push(name_item(object, name));
         }
         items.push(height_item(object));
+    }
+}
+
+/// The colour an object's marks and way have: no figure's, a prop is not a person.
+const TRACK_COLOR: FigureColor = FigureColor::Cyan;
+
+/// The marks of the objects that move (LH-24), numbered 1, 2, 3 …, and their ways: a way
+/// leads to a mark unless the object is carried from the mark before, then the figure's
+/// path is its way.
+pub(super) fn track_items(set: &SetPlan, plan: &FloorPlan, items: &mut Vec<Item>) {
+    for track in &plan.object_tracks {
+        // The object may be gone from the set another scene shares.
+        if !set.objects.iter().any(|o| o.id == track.object) {
+            continue;
+        }
+
+        let source = |index| Source::ObjectMark {
+            object: track.object.clone(),
+            index,
+        };
+        let carried: Vec<bool> = track.marks.iter().map(|m| m.carried_by.is_some()).collect();
+        let marks: Vec<_> = track.marks.iter().enumerate().collect();
+
+        for way in marks.chunk_by(|(a, _), _| !carried[*a]) {
+            if way.len() < 2 {
+                continue;
+            }
+
+            items.push(Item {
+                role: Role::FigurePath(TRACK_COLOR),
+                shape: Shape::Polyline {
+                    points: way.iter().map(|(_, m)| m.at).collect(),
+                },
+                label: None,
+                source: Some(Source::Object(track.object.clone())),
+            });
+        }
+
+        for (index, mark) in marks {
+            items.push(Item {
+                role: Role::Mark(TRACK_COLOR),
+                shape: Shape::Circle {
+                    center: mark.at,
+                    radius_m: MARK_RADIUS_M,
+                },
+                label: Some((index + 1).to_string()),
+                source: Some(source(index)),
+            });
+        }
     }
 }
 
