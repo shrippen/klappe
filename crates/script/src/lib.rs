@@ -8,6 +8,7 @@ mod align;
 mod anchor;
 mod assist;
 mod conflict;
+mod flow;
 mod inline;
 mod outline;
 mod pages;
@@ -19,11 +20,9 @@ mod title;
 mod write;
 
 pub use align::{align, heading_print, scene_states, Alignment, Fingerprint, Outcome, SceneState};
-pub use assist::{
-    enter_step, suggest, tab_step, Context, EnterStep, Gap, Slot, Stage, Suggestions, TabStep,
-    Vocabulary,
-};
+pub use assist::{suggest, Context, Stage, Suggestions, Vocabulary};
 pub use conflict::conflict_line;
+pub use flow::{enter_step, tab_step, EnterStep, Gap, Slot, TabStep};
 pub use inline::{inline_runs, Marks, Run};
 pub use outline::{move_entry, outline, outline_of, visible, Entry, EntryKind, Moved, Way};
 pub use pages::{
