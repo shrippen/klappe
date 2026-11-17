@@ -30,6 +30,35 @@ const ABBREVIATIONS: [&str; 16] = [
     "dr.", "hr.", "fr.", "st.", "nr.", "mr.", "mrs.", "ms.", "mt.", "prof.", "bzw.", "usw.", "ca.",
     "vgl.", "sr.", "jr.",
 ];
+/// Month names, lowercase, German and English: `3. Mai` is a date, no sentence end.
+const MONTHS: [&str; 24] = [
+    "januar",
+    "jänner",
+    "februar",
+    "märz",
+    "april",
+    "mai",
+    "juni",
+    "juli",
+    "august",
+    "september",
+    "oktober",
+    "november",
+    "dezember",
+    "january",
+    "february",
+    "march",
+    "may",
+    "june",
+    "july",
+    "october",
+    "december",
+    "sept",
+    "okt",
+    "dez",
+];
+/// Quotes and brackets that may stand before a word.
+const OPENERS: [char; 8] = ['"', '\'', '(', '[', '„', '“', '«', '‚'];
 const CLOSERS: [char; 6] = ['"', '\'', ')', '”', '»', '’'];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -155,7 +184,12 @@ pub(super) fn sentence_starts(text: &str) -> Vec<usize> {
             continue;
         }
 
-        if ended && spaced && (!c.is_lowercase() && !abbreviation(&text[..pos])) {
+        if ended
+            && spaced
+            && (!c.is_lowercase()
+                && !abbreviation(&text[..pos])
+                && !ordinal_date(&text[..pos], &text[pos..]))
+        {
             starts.push(pos);
         }
         if ended && !spaced && CLOSERS.contains(&c) {
@@ -176,12 +210,32 @@ fn abbreviation(before: &str) -> bool {
         .rsplit(char::is_whitespace)
         .next()
         .unwrap_or("");
-    let word = word.trim_end_matches(CLOSERS).to_lowercase();
+    let word = word
+        .trim_start_matches(OPENERS)
+        .trim_end_matches(CLOSERS)
+        .to_lowercase();
     let single = word
         .strip_suffix('.')
         .is_some_and(|w| w.chars().count() == 1 && w.chars().all(char::is_alphabetic));
 
     single || ABBREVIATIONS.contains(&word.as_str())
+}
+
+/// Whether `before` ends in a number with a full stop and a month follows: `3. Mai`.
+fn ordinal_date(before: &str, after: &str) -> bool {
+    let word = before
+        .trim_end()
+        .rsplit(char::is_whitespace)
+        .next()
+        .unwrap_or("");
+    let number = word.strip_suffix('.').filter(|n| !n.is_empty());
+    if !number.is_some_and(|n| n.chars().all(|c| c.is_ascii_digit())) {
+        return false;
+    }
+
+    let next: String = after.chars().take_while(|c| c.is_alphabetic()).collect();
+
+    MONTHS.contains(&next.to_lowercase().as_str())
 }
 
 #[derive(Debug, Clone)]

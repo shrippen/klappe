@@ -5,7 +5,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 
 ```
 <name>.klappe/
-├── projekt.toml         Formatversion, Titel, Papier, Drehbuchseiten ([script]), Papier, gespeicherte Ansichten
+├── projekt.toml         Formatversion, Titel, Papier, Drehbuchseiten ([script]), gespeicherte Ansichten
 ├── figuren.toml         Figuren, je ein [[figur]]
 ├── bibliothek.toml      eigene Objekte der Bibliothek, je ein [[objekt]] (optional)
 ├── vorlagen.toml        eigene Vorlagen, je ein [[vorlage]] (optional)

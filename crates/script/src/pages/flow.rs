@@ -29,7 +29,7 @@ pub(super) fn run(elements: &[Element], options: &PageOptions) -> Pagination {
     };
 
     for (i, block) in blocks.iter().enumerate() {
-        flow.place(block.clone(), blocks.get(i + 1));
+        flow.place(block.clone(), &blocks[i + 1..]);
     }
     flow.end_page();
 
@@ -64,7 +64,7 @@ impl Flow<'_> {
         self.pages.push(Page { number, lines });
     }
 
-    fn place(&mut self, mut block: Block, next: Option<&Block>) {
+    fn place(&mut self, mut block: Block, rest: &[Block]) {
         if block.page_break {
             self.end_page();
             return;
@@ -79,47 +79,63 @@ impl Flow<'_> {
             }
 
             let left = self.space().saturating_sub(before + rows.len());
-            // A heading stays only where the block after it can start on the page.
-            let company = !block.heading || at_top || self.can_start(next, left);
+            // A heading is never the last thing on a page: it stays only where what follows
+            // can start on the page.
+            let company = !block.heading || at_top || self.can_start(rest, left);
             if before + rows.len() <= self.space() && company {
                 self.put(&block, before, rows);
                 return;
             }
 
             let room = self.space().saturating_sub(before);
-            if let Some((first, rest)) = block.split(room, self.options.words) {
+            if let Some((first, tail)) = block.split(room, self.options.words) {
                 self.put_first(&first, before);
                 self.end_page();
-                block = rest;
+                block = tail;
                 continue;
             }
 
-            if !at_top {
+            // Taller than a page, with no place to cut: cut at a row, right here if two
+            // rows fit (under the heading before it), else at the top of the next page.
+            let tall = rows.len() > self.options.body_lines;
+            if !at_top && !(tall && room >= MIN_SPLIT_ROWS) {
                 self.end_page();
                 continue;
             }
 
-            // Taller than a page, with no place to cut: cut at a row.
+            let take = match at_top {
+                true => self.options.body_lines.max(MIN_SPLIT_ROWS),
+                false => room,
+            };
             let mut rows = rows;
-            let rest = rows.split_off(self.options.body_lines.max(MIN_SPLIT_ROWS).min(rows.len()));
-            self.put(&block, 0, rows);
+            let tail = rows.split_off(take.min(rows.len()));
+            self.put(&block, before, rows);
             self.end_page();
-            block = Block::from_rows(rest);
+            block = Block::from_rows(tail);
         }
     }
 
-    /// Whether `next` can start in `left` rows: whole, or cut where the rules allow.
-    fn can_start(&self, next: Option<&Block>, left: usize) -> bool {
-        let Some(next) = next.filter(|n| !n.page_break) else {
+    /// Whether what follows can start in `left` rows: whole, cut where the rules allow, or a
+    /// block taller than a page, which is cut at a row. A heading after a heading needs
+    /// the one after it to start too.
+    fn can_start(&self, rest: &[Block], left: usize) -> bool {
+        let Some(next) = rest.first().filter(|n| !n.page_break) else {
             return true;
         };
         let rows = next.rows().len();
-        if rows == 0 || next.before + rows <= left {
-            return true;
+        if rows == 0 {
+            return self.can_start(&rest[1..], left);
+        }
+
+        let whole = next.before + rows <= left;
+        if next.heading {
+            return whole && self.can_start(&rest[1..], left - next.before - rows);
         }
 
         let room = left.saturating_sub(next.before);
-        next.split(room, self.options.words).is_some()
+        let tall = rows > self.options.body_lines && room >= MIN_SPLIT_ROWS;
+
+        whole || tall || next.split(room, self.options.words).is_some()
     }
 
     /// The first half of a cut block; a dialogue ends in `(MORE)`.
