@@ -13,6 +13,8 @@ const CUE: &str = "character";
 const PARENTHETICAL: &str = "parenthetical";
 /// The characters that mark emphasis in Fountain.
 const EMPHASIS: [char; 2] = ['*', '_'];
+/// Fountain's escape: `\*` is a star, not emphasis.
+const ESCAPE: char = '\\';
 
 /// A line a voice reads when the playhead gets to `at_s`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -86,28 +88,30 @@ fn schedule(lines: &[ScriptLine]) -> Vec<SpokenLine> {
     spoken
 }
 
-/// What a voice reads of Fountain text: notes, boneyards and the marks of emphasis (`*`, `_`)
-/// are left out. Example: `Hallo [[Regie]] *laut*` is read as `Hallo laut`.
+/// What a voice reads of Fountain text: notes and the marks of emphasis (`*`, `_`, and the
+/// backslash of `\*`) are left out. Example: `Hallo [[Regie]] *laut*` is read as `Hallo laut`.
+/// Boneyards are gone before (the parser cuts them); a `/*` here is text, as in `Und/* oder`.
 fn readable(text: &str) -> String {
     let mut out = String::new();
-    let mut in_boneyard = false;
 
     for line in text.lines() {
-        let (runs, boneyard) = inline_runs(line, in_boneyard);
-        in_boneyard = boneyard;
+        let (runs, _) = inline_runs(line, false);
         let chars: Vec<char> = line.chars().collect();
 
         for run in runs {
             let marks = run.marks;
-            if marks.note || marks.boneyard {
+            if marks.note {
                 continue;
             }
             let emphasis = marks.bold || marks.italic || marks.underline;
-            out.extend(
-                chars[run.start..run.end]
-                    .iter()
-                    .filter(|c| !(emphasis && EMPHASIS.contains(c))),
-            );
+            let part = &chars[run.start..run.end];
+            for (i, c) in part.iter().enumerate() {
+                let escapes = *c == ESCAPE && part.get(i + 1).is_some_and(|n| EMPHASIS.contains(n));
+                if escapes || (emphasis && EMPHASIS.contains(c)) {
+                    continue;
+                }
+                out.push(*c);
+            }
         }
         out.push(' ');
     }
@@ -231,16 +235,39 @@ mod tests {
         assert!(read(&lines).is_empty());
     }
 
+    /// The dialogue text as the parser hands it over (boneyards cut, `/\*` unescaped).
+    fn parsed(source: &str) -> String {
+        let script = klappe_script::parse(&format!("ANNA\n{source}"));
+        let text = script.elements.iter().find_map(|e| match e {
+            klappe_script::Element::Dialogue(text) => Some(text.clone()),
+            _ => None,
+        });
+
+        text.expect("a dialogue")
+    }
+
     #[test]
-    fn notes_boneyards_and_emphasis_are_not_read() {
-        let lines = [line(
-            0,
-            "dialogue",
-            "Hallo [[Notiz an Regie]] *laut* _jetzt_.\nNoch /* weg\nweg */ **mehr**.",
-            &[],
-        )];
+    fn notes_and_emphasis_are_not_read() {
+        let lines = [line(0, "dialogue", "Hallo [[Notiz an Regie]] *laut* _jetzt_.\nNoch **mehr**.", &[])];
 
         assert_eq!(read(&lines), [(0.0, "Hallo laut jetzt. Noch mehr.")]);
+    }
+
+    #[test]
+    fn an_escaped_mark_is_read_without_its_backslash() {
+        let lines = [line(0, "dialogue", "Zwei \\* drei", &[])];
+
+        assert_eq!(read(&lines), [(0.0, "Zwei * drei")]);
+    }
+
+    #[test]
+    fn a_boneyard_opener_in_the_text_is_read() {
+        let text = parsed("Hallo /*weg*/ *laut* Und/\\* oder.");
+        assert_eq!(text, "Hallo  *laut* Und/* oder.");
+
+        let lines = [line(0, "dialogue", &text, &[])];
+
+        assert_eq!(read(&lines), [(0.0, "Hallo laut Und/* oder.")]);
     }
 
     #[test]
