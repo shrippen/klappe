@@ -418,6 +418,20 @@ fn cursor_cell(app: &App, inner: Rect) -> Option<Position> {
     Some(Position::new(inner.x + x, inner.y + y))
 }
 
+/// What the status line's mode badge says.
+fn mode_label(app: &App) -> &str {
+    match (app.mode, app.focus) {
+        (Mode::Help, _) => &app.texts.mode_help,
+        (Mode::Goto, _) => &app.texts.mode_goto,
+        (Mode::Find, _) => &app.texts.mode_find,
+        (Mode::Title, _) => &app.texts.mode_title,
+        (Mode::Book, _) => &app.texts.mode_book,
+        (Mode::Backup, _) => &app.texts.mode_backup,
+        (_, Focus::List) => &app.texts.mode_list,
+        (_, Focus::Editor) => &app.texts.mode_text,
+    }
+}
+
 fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
     let bar = Style::new().fg(theme::SOFT).bg(theme::SURFACE);
     if app.mode == Mode::ConfirmQuit {
@@ -432,16 +446,7 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
     }
     frame.render_widget(Block::new().style(bar), area);
 
-    let mode = match (app.mode, app.focus) {
-        (Mode::Help, _) => &app.texts.mode_help,
-        (Mode::Goto, _) => &app.texts.mode_goto,
-        (Mode::Find, _) => &app.texts.mode_find,
-        (Mode::Title, _) => &app.texts.mode_title,
-        (Mode::Book, _) => &app.texts.mode_book,
-        (Mode::Backup, _) => &app.texts.mode_backup,
-        (_, Focus::List) => &app.texts.mode_list,
-        (_, Focus::Editor) => &app.texts.mode_text,
-    };
+    let mode = mode_label(app);
     let mode_style = Style::new()
         .fg(theme::GROUND)
         .bg(theme::ACCENT)
