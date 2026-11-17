@@ -110,6 +110,7 @@ fn build(section: Section) -> Result<(Project, String), DemoError> {
             heading: spec.heading,
             state: BookState::InBook,
             prints: Vec::new(),
+            refused: Vec::new(),
             location: spec.location,
             plans,
         });

@@ -17,7 +17,7 @@ pub struct Candidate {
     pub number: String,
     pub heading: String,
     /// Names the scene's content, so a choice made on an older book is recognised.
-    pub key: u64,
+    pub key: SceneKey,
 }
 
 /// An entry of the register the alignment could not place without asking.
@@ -41,9 +41,7 @@ pub struct BookReport {
 
 use std::collections::HashSet;
 
-use klappe_model::{random_id, BookState, Kind, Print, Project, Scene};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use klappe_model::{random_id, BookState, Kind, Print, Project, Scene, SceneKey};
 
 use klappe_script::{
     align, heading_print, normal, scene_states, Fingerprint, Outcome, SceneState, Script,
@@ -67,6 +65,8 @@ pub(crate) struct Plan {
     fates: Vec<(usize, Fate)>,
     /// The scenes of the book, in text order.
     book: Vec<SceneState>,
+    /// Answers "not in the book" of this run: the entry and the scenes it was asked about.
+    refusals: Vec<(usize, Vec<SceneKey>)>,
 }
 
 pub(crate) fn print_of(fingerprint: Fingerprint) -> Print {
@@ -132,16 +132,25 @@ pub(crate) fn plan(project: &Project, script: &Script) -> Plan {
         .iter()
         .zip(alignment.old)
         .map(|(&entry, outcome)| {
+            let allowed = |n: &usize| !refuses(&project.scenes[entry], &book[*n]);
             let fate = match outcome {
-                Outcome::Matched { scene } if has_heading(&book[scene]) => Fate::Matched(scene),
+                Outcome::Matched { scene } if has_heading(&book[scene]) && allowed(&scene) => {
+                    Fate::Matched(scene)
+                }
                 Outcome::Matched { .. } | Outcome::NotFound => Fate::Missing,
-                Outcome::Ambiguous(found) => Fate::Pending(found),
+                Outcome::Ambiguous(found) => {
+                    Fate::Pending(found.into_iter().filter(allowed).collect())
+                }
             };
             (entry, fate)
         })
         .collect();
 
-    let mut plan = Plan { fates, book };
+    let mut plan = Plan {
+        fates,
+        book,
+        refusals: Vec::new(),
+    };
     plan.settle();
     plan.first_run(project, &first);
     plan.settle();
@@ -161,12 +170,33 @@ fn same_heading(scene: &Scene, book: &SceneState) -> bool {
     !scene.heading.is_empty() && heading == Some(normal(&scene.heading))
 }
 
-/// Names the content of a book scene, to tell it from another at the same place.
-fn key_of(state: &SceneState) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    (&state.number, &state.heading, &state.prints).hash(&mut hasher);
+/// FNV-1a, 64 bits: the same on every machine and release, so a key can be saved.
+const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+const FNV_PRIME: u64 = 0x0100_0000_01b3;
 
-    hasher.finish()
+/// Names the content of a book scene, to tell it from another at the same place. Each part
+/// ends in a byte no text holds, so `("1", "2")` and `("12", "")` differ.
+fn key_of(state: &SceneState) -> SceneKey {
+    let mut bytes = Vec::new();
+    for text in [&state.number, &state.heading] {
+        bytes.extend(text.as_deref().unwrap_or_default().bytes());
+        bytes.push(0xff);
+    }
+    for print in &state.prints {
+        bytes.push(print.tag);
+        bytes.extend(print.hash.to_le_bytes());
+    }
+
+    let hash = bytes.iter().fold(FNV_OFFSET, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(FNV_PRIME)
+    });
+
+    SceneKey(hash)
+}
+
+/// Whether the user said the entry is not this scene of the book.
+fn refuses(scene: &Scene, book: &SceneState) -> bool {
+    !scene.refused.is_empty() && scene.refused.contains(&key_of(book))
 }
 
 impl Plan {
@@ -204,7 +234,12 @@ impl Plan {
             let both = |n: &usize| {
                 same_number(scene, &self.book[*n]) && same_heading(scene, &self.book[*n])
             };
-            let exact: Vec<usize> = open.iter().copied().filter(both).collect();
+            let exact: Vec<usize> = open
+                .iter()
+                .copied()
+                .filter(both)
+                .filter(|n| !refuses(scene, &self.book[*n]))
+                .collect();
             let twins = first
                 .iter()
                 .map(|&e| &project.scenes[e])
@@ -222,7 +257,12 @@ impl Plan {
             let agree = |n: &&usize| {
                 same_number(scene, &self.book[**n]) || same_heading(scene, &self.book[**n])
             };
-            let mut found: Vec<usize> = open.iter().filter(agree).copied().collect();
+            let mut found: Vec<usize> = open
+                .iter()
+                .filter(agree)
+                .filter(|n| !refuses(scene, &self.book[**n]))
+                .copied()
+                .collect();
             found.sort_by_key(|n| !exact.contains(n));
             self.fates.push((entry, Fate::Pending(found)));
         }
@@ -291,7 +331,11 @@ impl Plan {
                 self.fates[k].1 = Fate::Matched(c.index);
             }
             Choice::Scene(_) => return false,
-            Choice::NotInBook => self.fates[k].1 = Fate::Missing,
+            Choice::NotInBook => {
+                let keys = found.iter().map(|&n| key_of(&self.book[n])).collect();
+                self.refusals.push((self.fates[k].0, keys));
+                self.fates[k].1 = Fate::Missing;
+            }
         }
         self.settle();
 
@@ -309,6 +353,7 @@ impl Plan {
         let mut held = HashSet::new();
 
         for (i, mut scene) in std::mem::take(&mut project.scenes).into_iter().enumerate() {
+            self.remember(i, &mut scene);
             let fate = self
                 .fates
                 .iter()
@@ -351,7 +396,18 @@ impl Plan {
         project.scenes != before
     }
 
-    /// The entry becomes the book's scene `n`.
+    /// Keeps the answers "not in the book" given for entry `i` in this run.
+    fn remember(&self, i: usize, scene: &mut Scene) {
+        let keys = self.refusals.iter().filter(|(entry, _)| *entry == i);
+
+        for key in keys.flat_map(|(_, keys)| keys) {
+            if !scene.refused.contains(key) {
+                scene.refused.push(*key);
+            }
+        }
+    }
+
+    /// The entry becomes the book's scene `n`; what it was not no longer matters.
     fn take(&self, scene: &mut Scene, n: usize) {
         let state = &self.book[n];
 
@@ -363,6 +419,7 @@ impl Plan {
             .map(print_of)
             .collect();
         scene.state = BookState::InBook;
+        scene.refused.clear();
     }
 }
 

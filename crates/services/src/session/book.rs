@@ -46,9 +46,12 @@ impl Session {
             return Err(none());
         }
 
-        let pending = plan.pending(&self.project);
         let mut next = self.project.clone();
         plan.apply(&mut next);
+        // The answer may settle others: an entry whose rival is out now agrees alone.
+        let settled = book::plan(&next, &self.script);
+        let pending = settled.pending(&next);
+        settled.apply(&mut next);
 
         let (scene, shown) = self.ids_on_view();
         self.commit_step(next, RESOLVE_STEP);

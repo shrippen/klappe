@@ -376,3 +376,38 @@ fn content_evidence_ranks_before_a_first_run_agreement() {
     assert!(scene(&s, "cccc").prints.is_empty());
     assert_eq!(s.project().scenes.len(), 3, "no entry for the candidate");
 }
+
+/// Two entries ask about the same scene of the book (as in
+/// `content_evidence_ranks_before_a_first_run_agreement`).
+fn two_ask_one(name: &str) -> PathBuf {
+    let dir = settled(name, two(), &(saal("1") + &hof("2")));
+    let loaded = klappe_store::load(&dir).unwrap();
+    let mut project = loaded.project;
+    project.scenes.push(Scene {
+        state: BookState::NotInBook,
+        ..entry("cccc", "3", HOF)
+    });
+    klappe_store::save(&dir, &project, None).unwrap();
+    let rewritten = format!("{HOF} #3#\n\nEin Hund bellt im Hof.\n\nBERT\nGanz neue Rede.\n\n");
+    rewrite_book(&dir, &(saal("1") + &rewritten));
+
+    dir
+}
+
+#[test]
+fn an_answer_not_in_book_holds_after_reopening() {
+    let dir = two_ask_one("book-refused");
+    let mut s = Session::open(&dir).unwrap();
+
+    // bbbb is not the scene: cccc, whose number and heading agree, takes it.
+    s.resolve_scene("bbbb", Choice::NotInBook).unwrap();
+
+    assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+    assert_eq!(scene(&s, "cccc").state, BookState::InBook);
+    s.save().unwrap();
+    let s = Session::open(&dir).unwrap();
+    assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+    assert_eq!(scene(&s, "bbbb").state, BookState::NotInBook);
+    assert_eq!(scene(&s, "cccc").state, BookState::InBook);
+    assert_eq!(s.project().scenes.len(), 3);
+}

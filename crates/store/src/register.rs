@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use klappe_model::{BookState, FloorPlan, Kind, Print, Scene};
+use klappe_model::{BookState, FloorPlan, Kind, Print, Scene, SceneKey};
 use serde::{Deserialize, Serialize};
 
 use crate::files::{self, Dir, Kind as FileKind};
@@ -33,6 +33,8 @@ struct Entry {
     state: BookState,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     prints: Vec<Print>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    refused: Vec<SceneKey>,
 }
 
 fn is_in_book(state: &BookState) -> bool {
@@ -87,6 +89,7 @@ pub(crate) fn load(dir: &Path) -> Result<(Vec<Scene>, Vec<LoadNote>), StoreError
                 heading: String::new(),
                 state: BookState::NotInBook,
                 prints: Vec::new(),
+                refused: Vec::new(),
             },
             Some(stage),
         ));
@@ -135,6 +138,7 @@ fn join(entry: Entry, stage: Option<Stage>) -> Scene {
         heading: entry.heading,
         state: entry.state,
         prints: entry.prints,
+        refused: entry.refused,
         location,
         plans,
     }
@@ -157,6 +161,7 @@ pub(crate) fn encode(
                 heading: s.heading.clone(),
                 state: s.state,
                 prints: s.prints.clone(),
+                refused: s.refused.clone(),
             })
             .collect(),
     };
