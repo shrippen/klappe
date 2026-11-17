@@ -175,8 +175,9 @@ impl Session {
     }
 
     /// The keyboard's way to turn, shift and zoom the 3D view: a fixed step per key, zooming to
-    /// the middle of the picture of `size`. The plan and a view before its first switch to 3D
-    /// change nothing.
+    /// the middle of the picture of `size`. A pan key shows more of its side, as on the plan (the
+    /// content moves the other way). The plan and a view before its first switch to 3D change
+    /// nothing.
     pub fn step_view(&mut self, step: ViewStep, size: Size) {
         if self.view != View::Free {
             return;
@@ -189,10 +190,10 @@ impl Session {
             ViewStep::TurnRight => self.turn_deg(-KEY_TURN_DEG, 0.0),
             ViewStep::TurnUp => self.turn_deg(0.0, -KEY_TURN_DEG),
             ViewStep::TurnDown => self.turn_deg(0.0, KEY_TURN_DEG),
-            ViewStep::PanLeft => self.pan_view(-pan_px, 0.0, size),
-            ViewStep::PanRight => self.pan_view(pan_px, 0.0, size),
-            ViewStep::PanUp => self.pan_view(0.0, -pan_px, size),
-            ViewStep::PanDown => self.pan_view(0.0, pan_px, size),
+            ViewStep::PanLeft => self.pan_view(pan_px, 0.0, size),
+            ViewStep::PanRight => self.pan_view(-pan_px, 0.0, size),
+            ViewStep::PanUp => self.pan_view(0.0, pan_px, size),
+            ViewStep::PanDown => self.pan_view(0.0, -pan_px, size),
             ViewStep::ZoomIn => self.zoom_view(KEY_ZOOM_STEPS, middle, size),
             ViewStep::ZoomOut => self.zoom_view(-KEY_ZOOM_STEPS, middle, size),
         }

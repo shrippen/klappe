@@ -4,7 +4,8 @@ import QtQuick
 // moving the selected mark or the edges of the selected shot on the timeline by a tenth of a
 // second. The palette lists them all. The arrows and + - of the 3D view are keys of FreeView
 // while it has the focus (a global arrow key would take the cursor from every text field), so
-// their actions show the key but own no shortcut; Alt+Left and Alt+Right move a mark anywhere.
+// their actions show the key but own no shortcut; Ctrl+Shift+Left and Right move a mark anywhere
+// (not Alt+arrows: Kirigami's page row owns them as Back and Forward).
 Item {
     id: nav
 
@@ -58,8 +59,8 @@ Item {
         what: "mark"
         direction: -1
         text: nav.texts.t("retime.markEarlier")
-        shortcut: "Alt+Left"
-        keys: nav.keyName("Alt+Left")
+        shortcut: "Ctrl+Shift+Left"
+        keys: nav.keyName("Ctrl+Shift+←")
         enabled: nav.markSelected
     }
     Edge {
@@ -67,8 +68,8 @@ Item {
         cmd: "retime.markLater"
         what: "mark"
         text: nav.texts.t("retime.markLater")
-        shortcut: "Alt+Right"
-        keys: nav.keyName("Alt+Right")
+        shortcut: "Ctrl+Shift+Right"
+        keys: nav.keyName("Ctrl+Shift+→")
         enabled: nav.markSelected
     }
     Edge { id: actFromEarlier; cmd: "retime.fromEarlier"; what: "shot-from"; direction: -1; text: nav.texts.t("retime.fromEarlier"); enabled: nav.shotSelected }

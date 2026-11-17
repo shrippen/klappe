@@ -387,7 +387,8 @@ fn unrelated_edits_keep_the_look() {
 /// The mouse's way to do what a key step does.
 type Drag = fn(&mut Session);
 
-/// NF-06: each key is the drag of the same name, so the picture is the mouse's.
+/// NF-06: each key is the drag of the same name, so the picture is the mouse's. A pan key shows
+/// more of its side, as on the plan: the content moves the other way.
 #[test]
 fn a_key_step_is_the_drag_of_the_same_name() {
     // Turning 15 degrees is 50 px of drag at 0.3 degrees per px; a shift is a tenth of the width.
@@ -396,10 +397,10 @@ fn a_key_step_is_the_drag_of_the_same_name() {
         (ViewStep::TurnRight, |s| s.turn_view(50.0, 0.0)),
         (ViewStep::TurnUp, |s| s.turn_view(0.0, -50.0)),
         (ViewStep::TurnDown, |s| s.turn_view(0.0, 50.0)),
-        (ViewStep::PanLeft, |s| s.pan_view(-32.0, 0.0, SIZE)),
-        (ViewStep::PanRight, |s| s.pan_view(32.0, 0.0, SIZE)),
-        (ViewStep::PanUp, |s| s.pan_view(0.0, -32.0, SIZE)),
-        (ViewStep::PanDown, |s| s.pan_view(0.0, 32.0, SIZE)),
+        (ViewStep::PanLeft, |s| s.pan_view(32.0, 0.0, SIZE)),
+        (ViewStep::PanRight, |s| s.pan_view(-32.0, 0.0, SIZE)),
+        (ViewStep::PanUp, |s| s.pan_view(0.0, 32.0, SIZE)),
+        (ViewStep::PanDown, |s| s.pan_view(0.0, -32.0, SIZE)),
         (ViewStep::ZoomIn, |s| s.zoom_view(1.0, (160.0, 120.0), SIZE)),
     ];
 

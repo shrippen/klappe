@@ -8,6 +8,7 @@ use klappe_services::{Grab, Source, TimeSnap};
 
 const FIGURE_MARK: &str = "figure";
 const CAMERA_MARK: &str = "camera";
+const MARK: &str = "mark";
 const SHOT_FROM: &str = "shot-from";
 const SHOT_TO: &str = "shot-to";
 
@@ -50,7 +51,7 @@ impl qobject::Controller {
             return false;
         };
         let grab = match what.as_str() {
-            "mark" => mark.map(|(character, index)| Grab::FigureMark { character, index }),
+            MARK => mark.map(|(character, index)| Grab::FigureMark { character, index }),
             SHOT_FROM => s.selected_shot().map(|id| Grab::ShotFrom(id.to_owned())),
             SHOT_TO => s.selected_shot().map(|id| Grab::ShotTo(id.to_owned())),
             _ => None,

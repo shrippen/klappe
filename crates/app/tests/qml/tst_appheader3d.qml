@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import org.kde.kirigami as Kirigami
 import "../../qml"
 
 // AppHeader in 3D (LH-94, LH-98, LH-99): J switches to 3D, Y cuts the walls, the View menu looks
@@ -211,19 +212,43 @@ TestCase {
         compare(find("view.turnLeft").text, "Turn 3D view left")
     }
 
-    // NF-06: Alt+Left and Alt+Right move the selected mark by a tenth of a second; the edges of the
-    // selected shot have palette entries.
-    function test_alt_arrows_nudge_the_selected_mark() {
-        const header = make()
+    // A page row made before the header, as Kirigami's window is: its Back and Forward shortcuts
+    // (Alt+Left, Alt+Right) are live, so a mark key that clashes with them loses presses.
+    Component {
+        id: rowComponent
+        Kirigami.PageRow {
+            anchors.fill: parent
+            Component.onCompleted: {
+                push(pageComponent)
+                push(pageComponent)
+            }
+        }
+    }
+    Component { id: pageComponent; Kirigami.Page { } }
 
-        keyClick(Qt.Key_Left, Qt.AltModifier)
+    // NF-06: Ctrl+Shift+Left and Ctrl+Shift+Right move the selected mark by a tenth of a second.
+    // Not Alt+arrows: Kirigami's page row owns them.
+    function test_ctrl_shift_arrows_nudge_the_selected_mark() {
+        const row = createTemporaryObject(rowComponent, tc)
+        verify(row)
+        const header = make()
+        const keys = Qt.ControlModifier | Qt.ShiftModifier
+
+        keyClick(Qt.Key_Left, keys)
         compare(fake.calls, [])
 
         fake.selectedKey = "mark:elisabeth:1"
-        keyClick(Qt.Key_Left, Qt.AltModifier)
-        keyClick(Qt.Key_Right, Qt.AltModifier)
-        compare(fake.calls, [["nudgeTime", "mark", -0.1], ["nudgeTime", "mark", 0.1]])
-        compare(header.commandPalette.commands.find(c => c.id === "retime.markLater").keys, "Alt+Right")
+        for (let i = 0; i < 3; i++) {
+            keyClick(Qt.Key_Left, keys)
+            keyClick(Qt.Key_Right, keys)
+        }
+        compare(fake.calls.length, 6)
+        compare(fake.calls[0], ["nudgeTime", "mark", -0.1])
+        compare(fake.calls[1], ["nudgeTime", "mark", 0.1])
+        const later = header.commandPalette.commands.find(c => c.id === "retime.markLater")
+        compare(later.keys, "Strg+Umschalt+→")
+        header.texts = en
+        compare(header.commandPalette.commands.find(c => c.id === "retime.markEarlier").keys, "Ctrl+Shift+←")
     }
 
     function test_the_palette_nudges_the_edges_of_the_selected_shot() {

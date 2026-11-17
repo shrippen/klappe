@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use klappe_services::{scene_look, Area, Picture, SceneRole, Source};
+use klappe_services::{scene_look, Area, Frame, Picture, SceneRole, Source};
 use serde_json::{json, Value};
 
 use super::hue_name;
@@ -85,8 +85,8 @@ fn paints(palette: &Palette) -> Vec<Option<Paint>> {
 /// The picture as a PPM image (the format `QImage` reads): the face of a pixel is its role's
 /// colour times its shade, an outline is the role's colour as it is, empty is the ground.
 /// `strength` says how much of its colour a role keeps (LH-15): a faded layer is mixed with the
-/// ground. The outline of a source `selected` names is the accent (edge role "Auswahl", the
-/// face stays as it is).
+/// ground. The outline of a source `selected` names is the accent (edge role "Auswahl") and
+/// twice as wide, so the selection shows by form too, not only by colour.
 pub fn ppm(
     picture: &Picture,
     palette: &Palette,
@@ -98,6 +98,7 @@ pub fn ppm(
     let ground = palette.color(GROUND_HUE);
     let accent = palette.color(ACCENT_HUE);
     let chosen: Vec<bool> = picture.sources.iter().map(selected).collect();
+    let outlined = selection_outline(frame, &chosen);
     let strengths: Vec<f64> = (0..CODES)
         .map(|code| {
             u8::try_from(code)
@@ -114,9 +115,7 @@ pub fn ppm(
         let role = usize::from(frame.role[i]);
         let color = match paints[role] {
             None => ground,
-            Some(_) if frame.edge[i] && chosen.get(frame.source[i] as usize) == Some(&true) => {
-                accent
-            }
+            Some(_) if outlined[i] => accent,
             Some(paint) if frame.edge[i] => paint.line,
             Some(paint) => shaded(paint.face, frame.shade[i]),
         };
@@ -124,6 +123,31 @@ pub fn ppm(
     }
 
     bytes
+}
+
+/// The pixels of the selection's outline: the edge of a chosen source and the pixel inside it
+/// next to the edge (same source, above, below, left or right).
+fn selection_outline(frame: &Frame, chosen: &[bool]) -> Vec<bool> {
+    let (width, height) = (frame.width, frame.height);
+    let is_chosen = |i: usize| chosen.get(frame.source[i] as usize) == Some(&true);
+    let mut outlined = vec![false; frame.edge.len()];
+
+    for i in (0..outlined.len()).filter(|&i| frame.edge[i] && is_chosen(i)) {
+        let (x, y) = (i % width, i / width);
+        let around = [
+            Some(i),
+            x.checked_sub(1).map(|_| i - 1),
+            (x + 1 < width).then_some(i + 1),
+            y.checked_sub(1).map(|_| i - width),
+            (y + 1 < height).then_some(i + width),
+        ];
+
+        for j in around.into_iter().flatten() {
+            outlined[j] |= frame.source[j] == frame.source[i];
+        }
+    }
+
+    outlined
 }
 
 /// `{ width, height, labels: [{ text, x, y }] }`: the frame's size and the names to write, in
@@ -247,13 +271,14 @@ mod tests {
         assert_eq!(pixels[3], [225, 125, 125]);
     }
 
-    /// LH-94: the outline of a selected source is the accent, its face and the outlines of
-    /// others stay.
+    /// LH-94: the outline of a selected source is the accent, and a pixel wider than the plain
+    /// outline: the selection is not told by colour alone. A palette whose accent is the line
+    /// colour of the figure (the dark theme's yellow) changes the picture all the same.
     #[test]
-    fn a_selected_source_has_an_accent_outline() {
-        let accent: Rgb = [0, 0, 200];
+    fn a_selected_source_has_a_double_accent_outline() {
+        let accent: Rgb = RED;
         let palette = Palette::parse(
-            r#"{"ground":[250,250,250],"text":[10,10,10],"muted":[100,100,100],"red":[200,0,0],"accent":[0,0,200]}"#,
+            r#"{"ground":[250,250,250],"text":[10,10,10],"muted":[100,100,100],"red":[200,0,0],"accent":[200,0,0]}"#,
         )
         .expect("palette");
         let mut picture = picture();
@@ -263,9 +288,11 @@ mod tests {
         let marked = pixels(&ppm(&picture, &palette, &|_| 1.0, &chosen));
         let plain = pixels(&ppm(&picture, &palette, &|_| 1.0, &|_| false));
 
+        assert_ne!(marked, plain);
         assert_eq!(marked[3], accent);
-        assert_eq!(plain[3], RED);
-        assert_eq!(marked[2], plain[2]);
+        assert_eq!(marked[2], accent, "the pixel beside the outline");
+        assert_eq!(marked[1], plain[1], "other sources stay");
+        assert_eq!(marked[0], plain[0]);
     }
 
     #[test]
