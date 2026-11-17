@@ -8,12 +8,16 @@ use klappe_store::Loaded;
 use super::{check_empty, check_title, Autosave, BackupState, Session, View};
 use crate::error::ServiceError;
 use crate::plan_edit::{Grid, Snapping};
+use crate::shot_edit;
 
 impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
-        let loaded = klappe_store::load(dir)?;
+        let mut loaded = klappe_store::load(dir)?;
         let backup = check_backup(dir, &loaded);
+        for plan in loaded.project.scenes.iter_mut().flat_map(|s| &mut s.plans) {
+            shot_edit::clear_orphans(plan);
+        }
         let script = loaded
             .script
             .as_deref()

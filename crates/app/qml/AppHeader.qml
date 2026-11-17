@@ -52,11 +52,11 @@ RowLayout {
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
-                                     actFree, actWallCut, actThrough, actHeights,
-                                     actScript, actShot, actTimeline,
-                                     actUndo, actRedo].concat(exportCommands.actions, shotViews.actions, zoom.actions,
-                                     pageExports.actions, viewCommands.actions, objectCommands.actions,
-                                     playCommands.actions, armCommands.actions)
+                                    actFree, actWallCut, actThrough, actHeights,
+                                    actScript, actShot, actTimeline,
+                                    actUndo, actRedo].concat(exportCommands.actions, shotViews.actions, zoom.actions,
+                                    pageExports.actions, viewCommands.actions, objectCommands.actions,
+                                    playCommands.actions, armCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {

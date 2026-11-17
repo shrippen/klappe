@@ -65,6 +65,7 @@ impl Session {
                 ShotRow {
                     id: shot.id.clone(),
                     number: shot.number.clone(),
+                    is_version: !shot_edit::is_base(plan, shot),
                     camera: shot.camera.clone(),
                     camera_color: plan
                         .camera_color(&shot.camera)
@@ -282,10 +283,11 @@ impl Session {
     pub fn delete_shot(&mut self, id: &str) -> Result<(), ServiceError> {
         self.check_shot_lock()?;
 
+        let numbering = self.project.numbering;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        let neighbour = shot_edit::remove(plan, id)?;
+        let neighbour = shot_edit::remove(plan, numbering, id)?;
         self.commit_step(next, "DeleteShot");
         if self.selected_shot.as_deref() == Some(id) {
             self.selected_shot = neighbour;

@@ -505,3 +505,74 @@ fn a_version_keeps_the_camera_of_its_base() {
     assert_eq!(camera_of(&s, "s12-3"), "a");
     assert_eq!(camera_of(&s, &version), "a");
 }
+
+/// FORMAT.md: a `version_of` that names no shot makes the shot a base. Loading says so in the
+/// data, so nothing else reads a base as a version.
+#[test]
+fn a_version_of_no_shot_is_a_base_after_loading() {
+    let (mut s, dir) = open("numbering-orphan-load");
+    s.version_shot("s12-3").unwrap();
+    s.save().unwrap();
+
+    let file = dir.join("szenen/szene-012.json");
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert!(text.contains("\"shot\": \"s12-3\""), "{text}");
+    std::fs::write(
+        &file,
+        text.replace("\"shot\": \"s12-3\"", "\"shot\": \"gone\""),
+    )
+    .unwrap();
+
+    let mut s = Session::open(&dir).unwrap();
+    s.save().unwrap();
+    let saved = std::fs::read_to_string(&file).unwrap();
+
+    assert!(!saved.contains("version_of"), "{saved}");
+}
+
+/// The promoted base takes the number of the deleted one, its versions follow it: a new
+/// version then carries on from them, without renumbering first.
+#[test]
+fn a_promoted_base_takes_the_number_of_the_deleted_one() {
+    let (mut s, _) = open("numbering-promote");
+    s.version_shot("s12-3").unwrap();
+    let second = s.version_shot("s12-3").unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.3", "12.3A", "12.3B", "12.4", "12.5"]
+    );
+
+    s.delete_shot("s12-3").unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.3", "12.3A", "12.4", "12.5"]
+    );
+
+    s.version_shot(&second).unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.3", "12.3A", "12.3B", "12.4", "12.5"]
+    );
+}
+
+/// The refusal of a version's camera says why, not the id of the shot.
+#[test]
+fn a_version_says_why_its_camera_is_refused() {
+    let (mut s, _) = open("numbering-camera-reason");
+    let version = s.version_shot("s12-3").unwrap();
+    let row = |s: &Session| s.shots().into_iter().find(|r| r.id == version).unwrap();
+
+    assert!(row(&s).is_version);
+    assert!(
+        !s.shots()
+            .into_iter()
+            .find(|r| r.id == "s12-3")
+            .unwrap()
+            .is_version
+    );
+
+    let refused = s.edit_shot(&version, ShotField::Camera, "a").unwrap_err();
+    let text = klappe_services::error_text(klappe_services::Language::English, &refused);
+    assert!(!text.contains(&version), "{text}");
+    assert!(text.contains("base"), "{text}");
+}

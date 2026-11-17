@@ -476,6 +476,7 @@
  "error.fewPoints": "Eine Fläche braucht mindestens drei Punkte.",
  "error.planHasShots": "Der Plan enthält {count} Shot(s): lösche sie zuerst",
  "error.planNameTaken": "Einen Plan „{name}“ gibt es in dieser Szene schon",
+ "error.versionCamera": "Eine Version hat die Kamera ihrer Basis: ändere die Kamera des Basis-Shots",
  "unit.m": "m",
  "unit.deg": "°",
  "unit.s": "s",
