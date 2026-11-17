@@ -2,7 +2,8 @@
 //! it is filed in, each as an edit. Like the tools (`tools.rs`), no geometry here.
 
 use klappe_services::{
-    read_number, DoorSide, Field, Hinge, PlanEdit, ProjectEdit, Range, ServiceError, Source, Unit,
+    read_number, DoorSide, Field, Hinge, ObjectChange, PlanEdit, ProjectEdit, Range, ServiceError,
+    Source, Unit,
 };
 
 use crate::tools::{length_m, Typed};
@@ -85,6 +86,32 @@ pub fn resize_edit(selected: Option<&Source>, width: &str, depth: &str) -> Typed
     });
 
     Some(resized)
+}
+
+/// What the object commands make of the selection (LH-114 to LH-116, LH-118): `kind` with the
+/// library kind in `arg`, `mirror` and `resetSize` for an object, `unbind` for a note. `None`
+/// for anything else.
+pub fn change_edit(selected: Option<&Source>, what: &str, arg: &str) -> Option<PlanEdit> {
+    let source = selected?.clone();
+    let change = match (what, &source) {
+        ("kind", Source::Object(_)) if !arg.is_empty() => ObjectChange::Kind(arg.to_owned()),
+        ("mirror", Source::Object(_)) => ObjectChange::Mirror,
+        ("resetSize", Source::Object(_)) => ObjectChange::ResetSize,
+        ("unbind", Source::Note(_)) => ObjectChange::Unbind,
+        _ => return None,
+    };
+
+    Some(PlanEdit::SetObject { source, change })
+}
+
+/// The selection when a label can be bound to it: an object, a figure or a mark (LH-118).
+pub fn label_source(selected: Option<&Source>) -> Option<Source> {
+    match selected? {
+        source @ (Source::Object(_) | Source::Figure(_) | Source::Mark { .. }) => {
+            Some(source.clone())
+        }
+        _ => None,
+    }
 }
 
 /// The height typed for the selected object, as an edit (LH-17): an empty text takes the
@@ -407,5 +434,60 @@ mod tests {
             }))
         ));
         assert!(resize_edit(Some(&Source::Wall(0)), "x", "x").is_none());
+    }
+
+    /// LH-114 to LH-116, LH-118: the object commands fit an object (a note for `unbind`) only.
+    #[test]
+    fn the_object_commands_fit_their_selection() {
+        let object = Source::Object("o1".into());
+        let note = Source::Note("n1".into());
+        let change = |source: &Source, change| {
+            Some(PlanEdit::SetObject {
+                source: source.clone(),
+                change,
+            })
+        };
+
+        assert_eq!(
+            change_edit(Some(&object), "kind", "chair"),
+            change(&object, ObjectChange::Kind("chair".into()))
+        );
+        assert_eq!(
+            change_edit(Some(&object), "mirror", ""),
+            change(&object, ObjectChange::Mirror)
+        );
+        assert_eq!(
+            change_edit(Some(&object), "resetSize", ""),
+            change(&object, ObjectChange::ResetSize)
+        );
+        assert_eq!(
+            change_edit(Some(&note), "unbind", ""),
+            change(&note, ObjectChange::Unbind)
+        );
+        assert_eq!(change_edit(Some(&object), "kind", ""), None);
+        assert_eq!(change_edit(Some(&note), "mirror", ""), None);
+        assert_eq!(change_edit(Some(&object), "unbind", ""), None);
+        assert_eq!(change_edit(Some(&object), "spin", ""), None);
+        assert_eq!(change_edit(None, "mirror", ""), None);
+    }
+
+    /// An object, a figure and a mark take a label; a wall, a note and nothing do not.
+    #[test]
+    fn a_label_goes_on_an_object_a_figure_or_a_mark() {
+        let mark = Source::Mark {
+            character: "e".into(),
+            index: 1,
+        };
+
+        for source in [
+            Source::Object("o1".into()),
+            Source::Figure("e".into()),
+            mark,
+        ] {
+            assert_eq!(label_source(Some(&source)), Some(source));
+        }
+        assert_eq!(label_source(Some(&Source::Wall(0))), None);
+        assert_eq!(label_source(Some(&Source::Note("n1".into()))), None);
+        assert_eq!(label_source(None), None);
     }
 }

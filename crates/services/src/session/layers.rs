@@ -67,6 +67,29 @@ impl Session {
         }
     }
 
+    /// Refuses a result `next` in which a note has changed while the notes layer is locked: a
+    /// bound note follows its element (LH-118), or lets go of one that is gone.
+    pub(super) fn check_notes(&self, next: &Project) -> Result<(), ServiceError> {
+        if self.lock(Layer::Notes) == Lock::Unlocked {
+            return Ok(());
+        }
+
+        let notes = |project: &Project| {
+            let location = &project.scenes.get(self.scene)?.location;
+            let set = &project.locations.iter().find(|l| l.id == *location)?.set;
+            let labels = project.scenes[self.scene]
+                .plans
+                .iter()
+                .map(|p| p.labels.clone());
+            Some((set.notes.clone(), labels.collect::<Vec<_>>()))
+        };
+        if notes(next) == notes(&self.project) {
+            return Ok(());
+        }
+
+        Err(ServiceError::Locked(Layer::Notes))
+    }
+
     /// Refuses a result `next` in which a locked camera layer has moved: a figure drags its
     /// coupled cameras along (LH-37), and a camera left behind would break distance and angle.
     pub(super) fn check_cameras(&self, next: &Project) -> Result<(), ServiceError> {

@@ -3,6 +3,7 @@
 use klappe_model::{FloorPlan, LinkTarget};
 use klappe_stellprobe::{Bend, Source};
 
+use super::bound::remove_note;
 use super::images;
 use super::moving::forms::remove_grip;
 use super::openings::opening_mut;
@@ -72,13 +73,7 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
             wall.openings.remove(index);
             Ok(())
         }
-        Source::Note(id) => {
-            let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
-            let index = set.notes.iter().position(|n| n.id == *id);
-            let index = index.ok_or(ServiceError::Gone)?;
-            set.notes.remove(index);
-            Ok(())
-        }
+        Source::Note(id) => remove_note(scope, id),
         Source::Image(id) => images::remove_image(scope, id),
         Source::Drawing(id) => {
             let index = scope.plan.drawings.iter().position(|d| d.id == *id);

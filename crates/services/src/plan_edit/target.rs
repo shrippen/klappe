@@ -3,6 +3,7 @@
 use klappe_model::{Curve, Drawing, Light, Note, PlanImage, Point, SetObject, Wall};
 use klappe_stellprobe::{Bend, LightGrip, ObjectGrip, OpeningEnd, Source};
 
+use super::bound::note_mut;
 use super::openings::opening_mut;
 use super::{current_index, Scope};
 use crate::error::ServiceError;
@@ -196,11 +197,7 @@ fn note_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'
     let (Source::Note(id) | Source::NoteWidth(id)) = source else {
         return Err(ServiceError::Gone);
     };
-    let note = scope
-        .set
-        .as_deref_mut()
-        .and_then(|s| s.notes.iter_mut().find(|n| n.id == *id))
-        .ok_or(ServiceError::Gone)?;
+    let note = note_mut(scope, id).ok_or(ServiceError::Gone)?;
 
     match source {
         Source::NoteWidth(_) => Ok(Target::NoteEdge(note)),

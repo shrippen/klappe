@@ -42,7 +42,7 @@ pub use folder::{archive_project, rename_project, trash_project};
 pub use light_edit::LightChange;
 pub use measure::measure_angle_deg;
 pub use number::{read_number, Range, Unit};
-pub use plan_edit::{layer_of_source, Grid, MarkInfo, Pace, PlanEdit, Snapping};
+pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdit, Snapping};
 pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
