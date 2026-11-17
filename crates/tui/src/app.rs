@@ -2,16 +2,28 @@
 
 use std::path::Path;
 
-use klappe_services::{ServiceError, Session};
+use klappe_services::{ServiceError, Session, Slot};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 
 use crate::buffer::Pos;
 use crate::editor::Editor;
-use crate::fountain::{analyse, typed_caps, Analysis};
+use crate::fountain::{analyse, typed_caps, Analysis, LineKind};
 use crate::i18n::{Language, Texts};
 use crate::layout::Layout;
 use crate::links::Links;
 
+mod backup;
+mod compose;
+mod find;
+mod title;
+
+pub(crate) use backup::Backup;
+pub(crate) use compose::Suggest;
+pub(crate) use find::{Find, FindField};
+pub(crate) use title::TitleForm;
+
+/// Closes a parenthetical.
+const PAREN_CLOSE: char = ')';
 /// Rows one mouse wheel notch scrolls.
 const WHEEL_ROWS: usize = 3;
 /// Entries a PageUp/PageDown moves in the scene list.
@@ -45,6 +57,12 @@ pub(crate) enum Mode {
     ConfirmQuit,
     /// `Ctrl+P`: search box over the scenes.
     Goto,
+    /// `Ctrl+F`: search and replace.
+    Find,
+    /// `Ctrl+T`: the title page form.
+    Title,
+    /// A backup of unsaved work from an earlier run waits for an answer.
+    Backup,
 }
 
 /// A message for the status line, until the next key.
@@ -52,6 +70,8 @@ pub(crate) enum Mode {
 pub(crate) enum Notice {
     Saved,
     SaveFailed(String),
+    /// Matches replaced by "Replace all".
+    Replaced(usize),
 }
 
 #[derive(Debug)]
@@ -73,6 +93,21 @@ pub struct App {
     /// What the search box has been typed, and its selected match.
     pub(crate) goto_query: String,
     pub(crate) goto_sel: usize,
+    /// First line of the help shown; the help scrolls when the screen is low.
+    pub(crate) help_scroll: usize,
+    /// The element a line was turned into by Enter or Tab and not left since: the line and
+    /// its slot. A line with no text yet has no kind of its own.
+    pub(crate) pending: Option<(usize, Slot)>,
+    /// What can be completed at the cursor.
+    pub(crate) suggest: Option<Suggest>,
+    /// Revision a suggestion was dismissed at; none shows until the text changes.
+    suggest_off: Option<u64>,
+    pub(crate) find: Find,
+    pub(crate) title: Option<TitleForm>,
+    /// What waits for an answer in `Mode::Backup`.
+    pub(crate) backup: Option<Backup>,
+    /// Revision of the text the backup holds.
+    autosaved: u64,
     /// `Ctrl+B`; `None` follows the terminal width.
     list_override: Option<bool>,
     screen_cols: u16,
@@ -110,12 +145,22 @@ impl App {
             scroll: 0,
             goto_query: String::new(),
             goto_sel: 0,
+            help_scroll: 0,
+            pending: None,
+            suggest: None,
+            suggest_off: None,
+            find: Find::default(),
+            title: None,
+            backup: None,
+            autosaved: 0,
             list_override: None,
             screen_cols: DEFAULT_SCREEN_COLS,
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             built_for: None,
         };
+        app.autosaved = app.editor.revision();
+        app.check_backup();
         app.refresh();
 
         Ok(app)
@@ -162,16 +207,16 @@ impl App {
     }
 
     /// Rebuilds what depends on the text or the width, if either changed.
-    fn refresh(&mut self) {
+    pub(crate) fn refresh(&mut self) {
         let key = (self.editor.revision(), self.width);
         if self.built_for == Some(key) {
             return;
         }
         self.built_for = Some(key);
 
-        let lines = self.editor.lines();
-        self.analysis = analyse(lines);
-        self.layout = Layout::build(lines, &self.analysis.kinds, self.width);
+        self.analysis = analyse(self.editor.lines());
+        self.apply_pending();
+        self.layout = Layout::build(self.editor.lines(), &self.analysis.kinds, self.width);
         self.list_sel = self
             .list_sel
             .min(self.analysis.scenes.len().saturating_sub(1));
@@ -194,33 +239,52 @@ impl App {
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Flow {
         match self.mode {
-            Mode::Help => {
-                self.mode = Mode::Normal;
-                return Flow::Continue;
-            }
+            Mode::Help => return self.help_key(key),
             Mode::ConfirmQuit => return self.answer_quit(key),
             Mode::Goto => return self.goto_key(key),
+            Mode::Find => return self.find_key(key),
+            Mode::Title => return self.title_key(key),
+            Mode::Backup => return self.backup_key(key),
             Mode::Normal => {}
         }
 
         self.notice = None;
-        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
-        let flow = match (ctrl, key.code) {
-            (true, KeyCode::Char('q')) => self.ask_quit(),
-            (true, KeyCode::Char('s')) => self.save(),
-            (true, KeyCode::Char('z')) => self.edit_with(Editor::undo),
-            (true, KeyCode::Char('y')) => self.edit_with(Editor::redo),
-            (true, KeyCode::Char('g')) => self.jump(),
-            (true, KeyCode::Char('p')) => self.open_goto(),
-            (true, KeyCode::Char('b')) => self.toggle_list(),
-            (_, KeyCode::F(1)) => self.open_help(),
-            (_, KeyCode::Tab) => self.switch_focus(),
-            _ => self.pane_key(key),
-        };
+        let flow = self.normal_key(key);
+        self.leave_pending();
         self.refresh();
+        self.update_suggest();
         self.show_cursor_if_editing();
 
         flow
+    }
+
+    /// The keys that work whichever pane has the focus; the rest goes to the pane.
+    fn normal_key(&mut self, key: KeyEvent) -> Flow {
+        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+
+        match (ctrl, key.code) {
+            (true, KeyCode::Char(c)) => self.ctrl_key(c, key),
+            (_, KeyCode::F(1)) => self.open_help(),
+            (_, KeyCode::F(3)) => self.find_step(shift),
+            (_, KeyCode::F(6)) => self.switch_focus(),
+            _ => self.pane_key(key),
+        }
+    }
+
+    fn ctrl_key(&mut self, c: char, key: KeyEvent) -> Flow {
+        match c {
+            'q' => self.ask_quit(),
+            's' => self.save(),
+            'z' => self.edit_with(Editor::undo),
+            'y' => self.edit_with(Editor::redo),
+            'g' => self.jump(),
+            'p' => self.open_goto(),
+            'b' => self.toggle_list(),
+            'f' => self.open_find(),
+            't' => self.open_title(),
+            _ => self.pane_key(key),
+        }
     }
 
     fn show_cursor_if_editing(&mut self) {
@@ -248,6 +312,28 @@ impl App {
 
     fn open_help(&mut self) -> Flow {
         self.mode = Mode::Help;
+        self.help_scroll = 0;
+        Flow::Continue
+    }
+
+    /// Keeps the help's scroll within what a screen of `rows` rows can show.
+    pub(crate) fn clamp_help(&mut self, rows: usize) {
+        let lines = self.texts.help.len();
+        let room = crate::ui::help_height(lines, rows).saturating_sub(2);
+
+        self.help_scroll = self.help_scroll.min(lines.saturating_sub(room));
+    }
+
+    /// Up, Down and the page keys scroll the help; any other key closes it.
+    fn help_key(&mut self, key: KeyEvent) -> Flow {
+        match key.code {
+            KeyCode::Up => self.help_scroll = self.help_scroll.saturating_sub(1),
+            KeyCode::Down => self.help_scroll += 1,
+            KeyCode::PageUp => self.help_scroll = self.help_scroll.saturating_sub(LIST_PAGE),
+            KeyCode::PageDown => self.help_scroll += LIST_PAGE,
+            _ => self.mode = Mode::Normal,
+        }
+
         Flow::Continue
     }
 
@@ -339,6 +425,8 @@ impl App {
     fn edit_with(&mut self, action: fn(&mut Editor)) -> Flow {
         action(&mut self.editor);
         self.focus = Focus::Editor;
+        self.pending = None;
+        self.built_for = None;
         Flow::Continue
     }
 
@@ -396,15 +484,26 @@ impl App {
             KeyCode::Enter => {
                 self.jump();
             }
+            KeyCode::Esc => self.focus = Focus::Editor,
             _ => {}
         }
     }
 
-    /// Types the character; scene headings and forced cues turn to capitals as they go.
+    /// Types the character; scene headings and cues turn to capitals as they go. A `)` typed
+    /// before the `)` of a parenthetical steps over it.
     fn type_char(&mut self, c: char) {
+        let Pos { line, col } = self.editor.cursor();
+        let next = self.editor.lines()[line].chars().nth(col);
+        if c == PAREN_CLOSE && next == Some(PAREN_CLOSE) && self.is_parenthetical(line) {
+            self.editor.right();
+            return;
+        }
+
         self.editor.type_char(c);
 
-        let Some(caps) = typed_caps(self.editor.lines(), self.editor.cursor().line) else {
+        // A pending heading is capitalised once it is one (`INT.`), not while it may be prose.
+        let pending = self.pending_kind(line).filter(|k| *k != LineKind::Heading);
+        let Some(caps) = typed_caps(self.editor.lines(), line, pending) else {
             return;
         };
         self.editor.replace_line(caps);
@@ -413,13 +512,26 @@ impl App {
     fn editor_key(&mut self, key: KeyEvent) {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let alt = key.modifiers.contains(KeyModifiers::ALT);
-        let page = isize::try_from(self.height).unwrap_or(isize::MAX);
 
         match key.code {
             KeyCode::Char(c) if !ctrl && !alt => self.type_char(c),
-            KeyCode::Enter => self.editor.newline(),
+            KeyCode::Enter => self.enter(),
+            KeyCode::Tab => self.tab(),
+            KeyCode::Esc => self.dismiss_suggest(),
+            KeyCode::Up if self.suggest.is_some() => self.move_suggest(-1),
+            KeyCode::Down if self.suggest.is_some() => self.move_suggest(1),
             KeyCode::Backspace => self.editor.backspace(),
             KeyCode::Delete => self.editor.delete(),
+            _ => self.move_key(key),
+        }
+    }
+
+    /// Keys that move the cursor.
+    fn move_key(&mut self, key: KeyEvent) {
+        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        let page = isize::try_from(self.height).unwrap_or(isize::MAX);
+
+        match key.code {
             KeyCode::Left if ctrl => self.editor.word_left(),
             KeyCode::Right if ctrl => self.editor.word_right(),
             KeyCode::Left => self.editor.left(),

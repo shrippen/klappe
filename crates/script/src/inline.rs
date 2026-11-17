@@ -1,0 +1,281 @@
+//! Marks inside a line of Fountain text: emphasis, notes and boneyards, so a surface can
+//! show them without reading the rules again.
+
+const BONEYARD_OPEN: &str = "/*";
+const BONEYARD_CLOSE: &str = "*/";
+const NOTE_OPEN: &str = "[[";
+const NOTE_CLOSE: &str = "]]";
+const ESCAPE: char = '\\';
+const STAR: char = '*';
+const UNDERLINE: char = '_';
+/// Longest run of stars that means emphasis: `***bold italic***`.
+const MAX_STARS: usize = 3;
+
+/// What applies to a character.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Marks {
+    pub bold: bool,
+    pub italic: bool,
+    pub underline: bool,
+    pub note: bool,
+    pub boneyard: bool,
+}
+
+/// Characters `start..end` of the line share `marks`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Run {
+    pub start: usize,
+    pub end: usize,
+    pub marks: Marks,
+}
+
+fn starts(chars: &[char], at: usize, token: &str) -> bool {
+    token
+        .chars()
+        .enumerate()
+        .all(|(i, t)| chars.get(at + i) == Some(&t))
+}
+
+fn find(chars: &[char], from: usize, token: &str) -> Option<usize> {
+    (from..chars.len()).find(|&i| starts(chars, i, token))
+}
+
+/// Length of the run of `c` at `at`.
+fn run_of(chars: &[char], at: usize, c: char) -> usize {
+    chars[at..].iter().take_while(|&&x| x == c).count()
+}
+
+/// Whether the same star run comes again later on the line.
+fn closes_later(chars: &[char], from: usize, run: usize) -> bool {
+    let mut at = from;
+
+    while at < chars.len() {
+        if chars[at] == ESCAPE {
+            at += 2;
+            continue;
+        }
+        if chars[at] != STAR {
+            at += 1;
+            continue;
+        }
+        let here = run_of(chars, at, STAR);
+        if here == run {
+            return true;
+        }
+        at += here;
+    }
+
+    false
+}
+
+/// Reads one line. `in_boneyard` says whether the line starts inside a `/* … */` that an
+/// earlier line opened; the second value says whether the next line does.
+///
+/// Emphasis counts only when its closing mark is on the same line, so a lone `*` is text.
+/// Example: `a *b* [[c]]` gives italic for `*b*` and note for `[[c]]`.
+pub fn inline_runs(line: &str, in_boneyard: bool) -> (Vec<Run>, bool) {
+    let chars: Vec<char> = line.chars().collect();
+    let mut marks = vec![Marks::default(); chars.len()];
+    let mut now = Marks::default();
+    let mut boneyard = in_boneyard;
+    let mut at = 0;
+
+    while at < chars.len() {
+        if boneyard {
+            let end =
+                find(&chars, at, BONEYARD_CLOSE).map_or(chars.len(), |i| i + BONEYARD_CLOSE.len());
+            marks[at..end].iter_mut().for_each(|m| m.boneyard = true);
+            boneyard = end == chars.len() && !starts(&chars, end.saturating_sub(2), BONEYARD_CLOSE);
+            at = end;
+            continue;
+        }
+
+        let c = chars[at];
+        if starts(&chars, at, BONEYARD_OPEN) {
+            boneyard = true;
+            marks[at..at + 2].iter_mut().for_each(|m| m.boneyard = true);
+            at += 2;
+            continue;
+        }
+        if starts(&chars, at, NOTE_OPEN) {
+            if let Some(end) = find(&chars, at + 2, NOTE_CLOSE) {
+                let end = end + NOTE_CLOSE.len();
+                marks[at..end].iter_mut().for_each(|m| m.note = true);
+                at = end;
+                continue;
+            }
+        }
+        if c == ESCAPE {
+            at += 2;
+            continue;
+        }
+
+        let before = now;
+        let step = match c {
+            STAR => toggle_stars(&chars, at, &mut now),
+            UNDERLINE => toggle_underline(&chars, at, &mut now),
+            _ => 1,
+        };
+        // The marks of an emphasis count to it, the opening and the closing one.
+        for m in marks.iter_mut().skip(at).take(step) {
+            m.bold = before.bold || now.bold;
+            m.italic = before.italic || now.italic;
+            m.underline = before.underline || now.underline;
+        }
+        at += step;
+    }
+
+    (runs(&marks), boneyard)
+}
+
+/// Handles a run of stars at `at`; returns how many characters it took.
+fn toggle_stars(chars: &[char], at: usize, now: &mut Marks) -> usize {
+    let run = run_of(chars, at, STAR);
+    if run > MAX_STARS {
+        return run;
+    }
+
+    let open = match run {
+        1 => now.italic,
+        2 => now.bold,
+        _ => now.bold && now.italic,
+    };
+    if !open && !closes_later(chars, at + run, run) {
+        return run;
+    }
+
+    match run {
+        1 => now.italic = !now.italic,
+        2 => now.bold = !now.bold,
+        _ => {
+            now.bold = !open;
+            now.italic = !open;
+        }
+    }
+
+    run
+}
+
+fn toggle_underline(chars: &[char], at: usize, now: &mut Marks) -> usize {
+    let closes = chars[at + 1..].contains(&UNDERLINE);
+    if now.underline || closes {
+        now.underline = !now.underline;
+    }
+
+    1
+}
+
+/// Joins neighbours with the same marks; plain text gets runs too, so they cover the line.
+fn runs(marks: &[Marks]) -> Vec<Run> {
+    let mut out: Vec<Run> = Vec::new();
+
+    for (i, m) in marks.iter().enumerate() {
+        match out.last_mut() {
+            Some(last) if last.marks == *m => last.end = i + 1,
+            _ => out.push(Run {
+                start: i,
+                end: i + 1,
+                marks: *m,
+            }),
+        }
+    }
+
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn marked(line: &str) -> Vec<(String, Marks)> {
+        let chars: Vec<char> = line.chars().collect();
+        let (runs, _) = inline_runs(line, false);
+
+        runs.iter()
+            .map(|r| (chars[r.start..r.end].iter().collect(), r.marks))
+            .collect()
+    }
+
+    fn only(f: impl Fn(&mut Marks)) -> Marks {
+        let mut m = Marks::default();
+        f(&mut m);
+        m
+    }
+
+    #[test]
+    fn emphasis_covers_its_marks() {
+        let got = marked("a *b* **c** ***d*** _e_");
+
+        let italic = only(|m| m.italic = true);
+        let bold = only(|m| m.bold = true);
+        let both = only(|m| {
+            m.bold = true;
+            m.italic = true;
+        });
+        let under = only(|m| m.underline = true);
+        let plain = Marks::default();
+        assert_eq!(
+            got,
+            [
+                ("a ".to_owned(), plain),
+                ("*b*".to_owned(), italic),
+                (" ".to_owned(), plain),
+                ("**c**".to_owned(), bold),
+                (" ".to_owned(), plain),
+                ("***d***".to_owned(), both),
+                (" ".to_owned(), plain),
+                ("_e_".to_owned(), under),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_lone_mark_is_text() {
+        for line in ["2 * 3", "a_b", "**auf", "x \\*y\\* z"] {
+            assert_eq!(
+                marked(line),
+                [(line.to_owned(), Marks::default())],
+                "{line}"
+            );
+        }
+    }
+
+    #[test]
+    fn notes_mark_their_brackets() {
+        let got = marked("Hallo [[prüfen]] Welt");
+
+        assert_eq!(got.len(), 3);
+        assert_eq!(got[1], ("[[prüfen]]".to_owned(), only(|m| m.note = true)));
+        assert_eq!(marked("[[offen")[0].1, Marks::default());
+    }
+
+    #[test]
+    fn a_boneyard_can_run_over_lines() {
+        let (first, open) = inline_runs("a /* b", false);
+        assert!(open);
+        assert_eq!(first[1].marks, only(|m| m.boneyard = true));
+
+        let (middle, open) = inline_runs("noch drin", true);
+        assert!(open);
+        assert_eq!(middle.len(), 1);
+        assert!(middle[0].marks.boneyard);
+
+        let (last, open) = inline_runs("ende */ danach", true);
+        assert!(!open);
+        assert_eq!(last.len(), 2);
+        assert!(last[0].marks.boneyard && !last[1].marks.boneyard);
+
+        let (whole, open) = inline_runs("x /* y */ z", false);
+        assert!(!open);
+        assert_eq!(whole.len(), 3);
+    }
+
+    #[test]
+    fn runs_cover_the_whole_line() {
+        let (runs, _) = inline_runs("ä *b* ü", false);
+
+        assert_eq!(runs.first().map(|r| r.start), Some(0));
+        assert_eq!(runs.last().map(|r| r.end), Some(7));
+        assert!(inline_runs("", false).0.is_empty());
+    }
+}
