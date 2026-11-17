@@ -75,9 +75,9 @@ pub fn parse_located(text: &str) -> Vec<Located> {
 /// Per line of `text`: it starts inside a `/* … */` an earlier line opened. Lines count
 /// as in [`parse_located`], so an editor can style them without reading the rules again.
 pub fn boneyard_lines(text: &str) -> Vec<bool> {
-    let text = text.replace("\r\n", "\n").replace('\r', "\n");
-    let (_, origin) = strip_boneyard(&text);
-    let mut inside = vec![true; text.matches('\n').count() + 1];
+    let (_, origin) = cut_boneyard(text);
+    let lines = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut inside = vec![true; lines.matches('\n').count() + 1];
 
     // A line that starts a line of the reader's text is outside; the rest was cut.
     for line in origin {
@@ -132,27 +132,42 @@ fn strip_boneyard(text: &str) -> (String, Vec<usize>) {
     let mut out = String::with_capacity(text.len());
     let mut origin = vec![0];
     let mut line = 0;
-    let mut rest = text;
+    let mut at = 0;
 
-    while let Some(start) = rest.find(BONEYARD_OPEN) {
-        if let Some(end) = note_end(rest, start) {
-            keep(&rest[..end], &mut out, &mut origin, &mut line);
-            rest = &rest[end..];
+    for span in boneyard_spans(text) {
+        keep(&text[at..span.start], &mut out, &mut origin, &mut line);
+        // The boneyard's line breaks are gone, but the typed lines still count.
+        line += text[span.clone()].matches('\n').count();
+        at = span.end;
+    }
+
+    keep(&text[at..], &mut out, &mut origin, &mut line);
+    (escape_openers(&out, Escape::Remove), origin)
+}
+
+/// Byte ranges of the `/* ... */` comments in `text`, openers and closers included; an
+/// unclosed one runs to the end. The one place that says what a boneyard is.
+pub(crate) fn boneyard_spans(text: &str) -> Vec<Range<usize>> {
+    let mut spans = Vec::new();
+    let mut at = 0;
+
+    while let Some(found) = text[at..].find(BONEYARD_OPEN) {
+        let rest = &text[at..];
+        if let Some(end) = note_end(rest, found) {
+            at += end;
             continue;
         }
 
-        keep(&rest[..start], &mut out, &mut origin, &mut line);
-        let after = &rest[start + BONEYARD_OPEN.len()..];
-        let Some(end) = after.find(BONEYARD_CLOSE) else {
-            return (escape_openers(&out, Escape::Remove), origin);
-        };
-        // The boneyard's line breaks are gone, but the typed lines still count.
-        line += after[..end].matches('\n').count();
-        rest = &after[end + BONEYARD_CLOSE.len()..];
+        let start = at + found;
+        let after = start + BONEYARD_OPEN.len();
+        let end = text[after..]
+            .find(BONEYARD_CLOSE)
+            .map_or(text.len(), |close| after + close + BONEYARD_CLOSE.len());
+        spans.push(start..end);
+        at = end;
     }
 
-    keep(rest, &mut out, &mut origin, &mut line);
-    (escape_openers(&out, Escape::Remove), origin)
+    spans
 }
 
 /// Where the note ends that holds the opener at `start` of `rest`, if one does. A note
