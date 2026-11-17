@@ -1,7 +1,7 @@
 //! The title page of a Fountain text: reading the fields of the form and writing them back
 //! without touching the rest of the text.
 
-use crate::parse::{parse, title_page_span};
+use crate::parse::{boneyard_spans, parse, title_page_span};
 use crate::{write, Script};
 
 /// The keys of the form, in the order Fountain lists them.
@@ -86,26 +86,12 @@ fn merged(old: Vec<(String, String)>, fields: &[(String, String)]) -> Vec<(Strin
     pairs
 }
 
-const BONEYARD_OPEN: &str = "/*";
-const BONEYARD_CLOSE: &str = "*/";
-
 /// The `/* … */` comments in `text`, each as written; an unclosed one runs to the end.
 fn boneyards(text: &str) -> Vec<&str> {
-    let mut found = Vec::new();
-    let mut rest = text;
-
-    while let Some(open) = rest.find(BONEYARD_OPEN) {
-        let from = &rest[open..];
-        let len = from[BONEYARD_OPEN.len()..]
-            .find(BONEYARD_CLOSE)
-            .map_or(from.len(), |at| {
-                at + BONEYARD_OPEN.len() + BONEYARD_CLOSE.len()
-            });
-        found.push(&from[..len]);
-        rest = &from[len..];
-    }
-
-    found
+    boneyard_spans(text)
+        .into_iter()
+        .map(|span| &text[span])
+        .collect()
 }
 
 /// The text with the form's keys of the title page set to `fields`. The rest of the text,
@@ -161,6 +147,23 @@ mod tests {
     }
 
     const BODY: &str = "INT. A - TAG\n\nAnna geht.\n\nANNA\nHallo.\n";
+
+    #[test]
+    fn a_boneyard_opener_in_a_note_is_not_moved() {
+        let text = format!("Title: Film [[Arbeitstitel /* alt]]\nAuthor: Anna\n\n{BODY}");
+        let new = set_title_fields(&text, &fields(&[("Author", "Bert")]));
+
+        assert_eq!(
+            parse(&new).title_page[0],
+            ("Title".into(), "Film [[Arbeitstitel /* alt]]".into()),
+            "{new}"
+        );
+        assert_eq!(
+            parse(&new).title_page[1],
+            ("Author".into(), "Bert".into()),
+            "{new}"
+        );
+    }
 
     #[test]
     fn a_text_without_title_page_gets_one() {

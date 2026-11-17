@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use crate::parse::HEADING_PREFIXES;
+use crate::parse::{DUAL_MARK, FORCE_CHARACTER, FORCE_HEADING, HEADING_PREFIXES, NUMBER_MARK};
 use crate::{Element, Located};
 
 /// Scene heading prefixes offered; the forced German ones start with the `.` that makes a
@@ -48,12 +48,8 @@ const EXTENSIONS: [&str; 7] = ["OFF", "V.O.", "O.S.", "O.C.", "CONT'D", "WEITER"
 const SEPARATORS: [&str; 3] = [" - ", " – ", " — "];
 /// What a suggestion for a location puts behind it, so the time of day can follow.
 const LOCATION_END: &str = " - ";
-const FORCE_HEADING: char = '.';
-const FORCE_CHARACTER: char = '@';
 const OPEN: char = '(';
 const CLOSE: char = ')';
-const MARK_NUMBER: char = '#';
-const MARK_DUAL: char = '^';
 
 /// The kind of element a line of the editor is meant to be, as far as Enter and Tab care.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -295,7 +291,7 @@ pub fn suggest(
     let ctx = context_of(trimmed, ctx);
     let skip = line.len() - trimmed.len() + line_marker(trimmed, ctx);
     let body = &line[skip..];
-    if body.contains(MARK_NUMBER) || body.contains(MARK_DUAL) {
+    if body.contains(NUMBER_MARK) || body.contains(DUAL_MARK) {
         return None;
     }
 
