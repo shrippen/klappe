@@ -144,13 +144,15 @@ impl Session {
         Ok(())
     }
 
-    /// Writes only the screenplay; every other file of the folder stays as it is on disk.
+    /// Writes the screenplay and the register file `szenen.toml`, not the scene files with
+    /// the plans; every other file of the folder stays as it is on disk.
     /// The backup then no longer holds the screenplay as unsaved work: it is removed if only
     /// the screenplay was unsaved, else rewritten with the saved screenplay. An unanswered
     /// backup (`Found`, `Unreadable`) stays for the user to decide.
     pub fn save_script(&mut self) -> Result<(), ServiceError> {
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;
+        klappe_store::save_register(&self.dir, &self.project.scenes)?;
         if self.backup != BackupState::None {
             return Ok(());
         }
