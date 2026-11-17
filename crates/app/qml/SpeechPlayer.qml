@@ -5,8 +5,10 @@ import QtQuick
 // voice once the playhead has reached its time.
 //
 // A step of the playhead is small (a timer tick). A move back or by more than `jumpS` is a
-// seek (the timeline, a mark, a loop): speech stops and goes on from the first line that
-// has not come yet. `active` off (paused, stopped, switched off) stops it too.
+// seek (the timeline, a mark): speech stops and goes on from the first line that has not come
+// yet. A move back to within `jumpS` of the loop's start is the loop wrapping: it goes on from
+// the start itself, so the line there is read again. `active` off (paused, stopped,
+// switched off) stops it too, but not at the scene's end (`letFinish`).
 Item {
     id: reader
 
@@ -15,6 +17,12 @@ Item {
     property var voice: null
     /// Reading is wanted and the scene plays.
     property bool active: false
+    /// Playing ends by itself (the scene's end): the voice reads on instead of stopping. Set
+    /// before `active` goes off, taken back at the next start.
+    property bool letFinish: false
+    /// A shot loop wraps to the start of its range plus the rest of the tick: that is no seek.
+    property bool looping: false
+    property real loopStartS: 0
 
     readonly property real jumpS: 1
     readonly property real epsS: 1e-6
@@ -48,7 +56,8 @@ Item {
 
         const t = controller.time
         if (t < lastS || t - lastS > jumpS) {
-            skipTo(t)
+            const wrapped = looping && t < lastS && t - loopStartS <= jumpS
+            skipTo(wrapped ? loopStartS : t)
         }
         lastS = t
 
@@ -63,10 +72,14 @@ Item {
             return
         }
         if (!active) {
-            voice.stop()
+            if (!letFinish) {
+                voice.stop()
+            }
+            letFinish = false
             return
         }
 
+        letFinish = false
         load()
         lastS = controller.time
         skipTo(lastS)

@@ -76,8 +76,18 @@ Item {
         function onSwitched() { line.playing = false }
     }
 
+    // Where the loop starts: the selected shot's start, else the scene's.
+    readonly property real loopStartS: {
+        const cut = source.find(tr => tr.kind === "cut")
+        const shot = cut ? cut.segments.find(s => s.selected) : null
+        return shot ? shot.from_s : 0
+    }
+
     SpeechPlayer {
+        id: reader
         controller: line.controller
+        looping: line.looping
+        loopStartS: line.loopStartS
         voice: line.voice
         active: line.playing && line.speak && line.voice !== null && line.voice.available
     }
@@ -94,6 +104,8 @@ Item {
             const dt = (now - lastMs) / line.msPerS
             lastMs = now
             if (!line.controller.advance(dt, line.speed, line.looping ? "shot" : "off")) {
+                // The end of the scene: what is being said is read to its end.
+                reader.letFinish = true
                 line.playing = false
             }
         }

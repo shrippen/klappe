@@ -1,6 +1,7 @@
 //! The spoken dialogue of the scene (LH-64): which line a speech voice reads at which time.
 
 use klappe_model::ScriptLanguage;
+use klappe_script::inline_runs;
 use serde::Serialize;
 
 use super::Session;
@@ -10,6 +11,8 @@ use crate::Language;
 const DIALOGUE: &str = "dialogue";
 const CUE: &str = "character";
 const PARENTHETICAL: &str = "parenthetical";
+/// The characters that mark emphasis in Fountain.
+const EMPHASIS: [char; 2] = ['*', '_'];
 
 /// A line a voice reads when the playhead gets to `at_s`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -63,20 +66,54 @@ fn schedule(lines: &[ScriptLine]) -> Vec<SpokenLine> {
         if let Some(at_s) = own_s {
             last_s = at_s;
         }
-        if line.kind != DIALOGUE || line.text.trim().is_empty() {
+        if line.kind != DIALOGUE {
+            continue;
+        }
+        let text = readable(&line.text);
+        if text.is_empty() {
             continue;
         }
 
         spoken.push(SpokenLine {
             index: line.index,
             at_s: own_s.unwrap_or(last_s),
-            text: line.text.clone(),
+            text,
         });
     }
 
     // Stable: equal times keep the script's order.
     spoken.sort_by(|a, b| a.at_s.total_cmp(&b.at_s));
     spoken
+}
+
+/// What a voice reads of Fountain text: notes, boneyards and the marks of emphasis (`*`, `_`)
+/// are left out. Example: `Hallo [[Regie]] *laut*` is read as `Hallo laut`.
+fn readable(text: &str) -> String {
+    let mut out = String::new();
+    let mut in_boneyard = false;
+
+    for line in text.lines() {
+        let (runs, boneyard) = inline_runs(line, in_boneyard);
+        in_boneyard = boneyard;
+        let chars: Vec<char> = line.chars().collect();
+
+        for run in runs {
+            let marks = run.marks;
+            if marks.note || marks.boneyard {
+                continue;
+            }
+            let emphasis = marks.bold || marks.italic || marks.underline;
+            out.extend(
+                chars[run.start..run.end]
+                    .iter()
+                    .filter(|c| !(emphasis && EMPHASIS.contains(c))),
+            );
+        }
+        out.push(' ');
+    }
+
+    // Left-out parts leave double spaces.
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// The earliest time the line is linked to.
@@ -119,11 +156,11 @@ mod tests {
         }
     }
 
-    fn read(lines: &[ScriptLine]) -> Vec<(f64, &str)> {
-        let spoken = schedule(lines);
-        spoken
-            .iter()
-            .map(|s| (s.at_s, lines[s.index].text.as_str()))
+    /// Leaks the texts: test code only.
+    fn read(lines: &[ScriptLine]) -> Vec<(f64, &'static str)> {
+        schedule(lines)
+            .into_iter()
+            .map(|s| (s.at_s, &*Box::leak(s.text.into_boxed_str())))
             .collect()
     }
 
@@ -190,6 +227,25 @@ mod tests {
             line(3, "dialogue", "  ", &[]),
             line(4, "transition", "SCHNITT", &[]),
         ];
+
+        assert!(read(&lines).is_empty());
+    }
+
+    #[test]
+    fn notes_boneyards_and_emphasis_are_not_read() {
+        let lines = [line(
+            0,
+            "dialogue",
+            "Hallo [[Notiz an Regie]] *laut* _jetzt_.\nNoch /* weg\nweg */ **mehr**.",
+            &[],
+        )];
+
+        assert_eq!(read(&lines), [(0.0, "Hallo laut jetzt. Noch mehr.")]);
+    }
+
+    #[test]
+    fn a_dialogue_of_notes_only_is_not_read() {
+        let lines = [line(0, "dialogue", "[[Nur eine Notiz]]", &[])];
 
         assert!(read(&lines).is_empty());
     }

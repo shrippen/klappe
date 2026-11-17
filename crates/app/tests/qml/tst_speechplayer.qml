@@ -142,4 +142,53 @@ TestCase {
         playTo(3)
         compare(fakeVoice.said, [])
     }
+
+    // A shot loop wraps to the shot's start plus the rest of the tick: the line at the start
+    // is read again (shot 5 to 10 s, lines at 5 and 7 s).
+    function test_a_loop_wrap_restarts_at_the_loop_start() {
+        fakeController.json = JSON.stringify({ language: "en", lines: [
+            { index: 1, at_s: 5, text: "Shot." }, { index: 3, at_s: 7, text: "Middle." }] })
+        fakeController.time = 5
+        const player = createTemporaryObject(playerComponent, tc, { looping: true, loopStartS: 5 })
+        player.active = true
+        playTo(10)
+        compare(fakeVoice.said, ["en:Shot.", "en:Middle."])
+
+        fakeController.time = 5.04
+        compare(fakeVoice.said, ["en:Shot.", "en:Middle.", "en:Shot."])
+        playTo(7.1)
+        compare(fakeVoice.said.length, 4)
+    }
+
+    // A seek back inside the loop is no wrap: only what comes after it is read.
+    function test_a_seek_back_inside_a_loop_is_no_wrap() {
+        fakeController.json = JSON.stringify({ language: "en", lines: [
+            { index: 1, at_s: 5, text: "Shot." }, { index: 3, at_s: 7, text: "Middle." }] })
+        fakeController.time = 8
+        const player = createTemporaryObject(playerComponent, tc, { looping: true, loopStartS: 5 })
+        player.active = true
+        compare(fakeVoice.said, [])
+
+        fakeController.time = 6.5
+        playTo(7.1)
+        compare(fakeVoice.said, ["en:Middle."])
+    }
+
+    // The scene's end stops playing in the tick that said the last line: it is read to its end.
+    function test_the_natural_end_lets_the_voice_finish() {
+        const player = make()
+        player.active = true
+        playTo(8.1)
+        fakeVoice.stops = 0
+
+        player.letFinish = true
+        player.active = false
+        compare(fakeVoice.stops, 0)
+
+        // The next play, then a pause: stops as ever.
+        player.active = true
+        fakeVoice.stops = 0
+        player.active = false
+        compare(fakeVoice.stops, 1)
+    }
 }
