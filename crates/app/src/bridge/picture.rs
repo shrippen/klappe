@@ -49,7 +49,7 @@ impl qobject::Controller {
             let width = usize::try_from(width_px).ok()?;
             let picture = s.shot_picture(&id.to_string(), width)?;
 
-            colored(&picture, &palette, &|_| FULL_STRENGTH)
+            colored(&picture, &palette, &|_| FULL_STRENGTH, &|_| false)
         });
 
         image.map(|(image, _)| image).unwrap_or_default()
