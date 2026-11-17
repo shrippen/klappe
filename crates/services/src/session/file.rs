@@ -108,6 +108,7 @@ impl Session {
     /// Writes the project back to its folder and removes the backup. An unanswered backup
     /// (`Found`, `Unreadable`) stays, as with `autosave`: the user decides on it.
     pub fn save(&mut self) -> Result<(), ServiceError> {
+        self.number_script();
         // So the register holds the book as saved: the next outside change aligns against it.
         self.reconcile();
         klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
@@ -172,12 +173,13 @@ impl Session {
         Ok(())
     }
 
-    /// Aligns the register with the book, then writes the screenplay and the register file
+    /// Numbers the scenes (DB-33), aligns the register with the book, then writes the screenplay and the register file
     /// `szenen.toml`, not the scene files with the plans; every other file of the folder stays
     /// as it is on disk. The backup then no longer holds the screenplay as unsaved work: it
     /// is removed if only the screenplay was unsaved, else rewritten with the saved screenplay.
     /// An unanswered backup (`Found`, `Unreadable`) stays for the user to decide.
     pub fn save_script(&mut self) -> Result<(), ServiceError> {
+        self.number_script();
         self.reconcile();
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;

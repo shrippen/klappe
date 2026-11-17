@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_model::{BookState, FloorPlan, Kind, Project, Scene};
+use klappe_model::{BookState, FloorPlan, Kind, Project, Scene, SceneNumbering};
 use klappe_services::{Choice, ProjectEdit, Session};
 
 const SAAL: &str = "INT. SAAL – TAG";
@@ -38,11 +38,13 @@ fn entry(id: &str, number: &str, heading: &str) -> Scene {
     }
 }
 
-/// A project folder with these entries (no prints yet) and this book.
+/// A project folder with these entries (no prints yet) and this book. Its numbers are locked:
+/// the tests meet numbers as another program wrote them, which saving must not renumber.
 fn make(name: &str, entries: Vec<Scene>, book: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
     let mut project = Project::new("Test");
+    project.script.scene_numbering = SceneNumbering::Locked;
     project.scenes = entries;
     klappe_store::save(&dir, &project, Some(book)).unwrap();
 

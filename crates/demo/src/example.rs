@@ -8,7 +8,9 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use klappe_model::{id_from_seed, BookState, Character, FloorPlan, Kind, Location, Project, Scene};
+use klappe_model::{
+    id_from_seed, BookState, Character, FloorPlan, Kind, Location, Project, Scene, SceneNumbering,
+};
 use klappe_script::{Element, Script};
 use serde::Deserialize;
 use serde_json::Value;
@@ -86,6 +88,8 @@ fn scene_id(world_id: &str) -> String {
 
 fn build(section: Section) -> Result<(Project, String), DemoError> {
     let mut project = Project::new(&section.title);
+    // An excerpt of a longer book keeps its numbers (DB-33): saving must not renumber it.
+    project.script.scene_numbering = SceneNumbering::Locked;
     let mut script = Script {
         title_page: section.title_page,
         elements: Vec::new(),

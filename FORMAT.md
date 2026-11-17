@@ -68,6 +68,19 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   unbekannter Wert von `language`, `words` oder `paper` gilt als Standard (wie bei `paper` im
   Plan), ein Wert, der kein Text ist, lädt nicht. Keine neue Formatversion: ältere Fassungen
   verlieren die Tabelle beim Speichern.
+  **Szenennummern (DB-33):** `scene_numbering`: `automatic` (Standard, nicht geschrieben) oder
+  `locked`; ein unbekannter Wert gilt als `automatic`. `first_scene` (Zahl, Standard 1, dann
+  nicht geschrieben): die Nummer der ersten Szene bei `automatic`. Das Schlüsselwort ist nicht
+  `numbering` der Kopftabelle (das ist das Nummernschema der Shots, LH-76). Die Nummern selbst
+  stehen im Fountain-Text (`#12#`) und im Register (`number`); Klappe schreibt sie nur beim
+  Speichern in Klappe in den Text, nie beim Öffnen. `automatic`: Szene i hat `first_scene + i`.
+  `locked`: keine Nummer ändert sich; eine Szene ohne Nummer bekommt die ihres Vorgängers mit
+  dem nächsten Buchstaben (12, dann 12A, 12B), vor der ersten Nummer `A` und die Nummer der
+  nächsten Szene (A1); eine Szene, die das Buch verlor, bleibt als Kopf `.ENTFÄLLT #12#`
+  (`.OMITTED #12#` im englischen Projekt, ohne Sprache: `ENTFÄLLT`) hinter der Szene davor stehen.
+  Dieser Kopf legt keinen Eintrag im Register an; der Eintrag der gestrichenen Szene bleibt mit
+  seinen Plänen im Zustand „nicht im Buch“. Die Sperre je Fassung (DB-40) setzt später
+  `locked` zusammen mit den Seiten.
 - **Ids:** Drehort- und Szenen-Ids sind Dateinamen und müssen mit der `id` in der Datei
   übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`, Ende auf `.` oder Leerzeichen,
   `<>:"|?*`, Steuerzeichen, Windows-Gerätenamen (`con`, `nul`, `com1` …). Ids, die sich nur

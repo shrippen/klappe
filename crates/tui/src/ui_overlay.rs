@@ -1,7 +1,7 @@
 //! The boxes over the editor: the suggestion list, search and replace, the title page form
 //! the open questions about the book and the question about a backup.
 
-use klappe_services::{Case, Choice};
+use klappe_services::{Case, Choice, SceneNumbering};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -20,6 +20,8 @@ const BOX_WIDTH: usize = 72;
 /// Columns the label of a field takes in a form.
 const LABEL_WIDTH: usize = 18;
 /// Marks the chosen row.
+/// Rows of the numbering box: two fields, a gap, the hint, and the frame.
+const NUMBERS_HEIGHT: usize = 6;
 const CHOSEN: &str = "▌";
 
 fn framed<'a>(title: &'a str) -> Block<'a> {
@@ -168,6 +170,33 @@ pub(crate) fn draw_title(frame: &mut Frame, app: &App) {
     frame.render_widget(
         Paragraph::new(app.texts.title_hint.as_str()).style(Style::new().fg(theme::MUTED)),
         hint,
+    );
+}
+
+pub(crate) fn draw_numbers(frame: &mut Frame, app: &App) {
+    let Some(form) = &app.numbers else {
+        return;
+    };
+    let area = centered(frame.area(), BOX_WIDTH, NUMBERS_HEIGHT);
+    let block = framed(&app.texts.numbers_box);
+    let inner = block.inner(area);
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+
+    let mode = match form.numbering {
+        SceneNumbering::Automatic => &app.texts.numbering_automatic,
+        SceneNumbering::Locked => &app.texts.numbering_locked,
+    };
+    let rows = [
+        (&app.texts.numbering_label, mode.as_str()),
+        (&app.texts.first_scene_label, form.first.as_str()),
+    ];
+    for (i, (label, value)) in rows.into_iter().enumerate() {
+        field_row(frame, row(inner, i as u16), label, value, form.sel == i);
+    }
+    frame.render_widget(
+        Paragraph::new(app.texts.numbers_hint.as_str()).style(Style::new().fg(theme::MUTED)),
+        row(inner, rows.len() as u16 + 1),
     );
 }
 

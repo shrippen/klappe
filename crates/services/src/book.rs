@@ -44,7 +44,8 @@ use std::collections::HashSet;
 use klappe_model::{BookState, Kind, Print, Project, Scene, SceneKey};
 
 use klappe_script::{
-    align, heading_print, normal, scene_states, Fingerprint, Outcome, SceneState, Script,
+    align, heading_print, is_omitted, normal, scene_states, Fingerprint, Outcome, SceneState,
+    Script, Struck,
 };
 
 use crate::project_edit::free_scene_id;
@@ -106,9 +107,9 @@ fn state_of(scene: &Scene) -> SceneState {
 }
 
 /// Whether a scene of the book is one to keep an entry for: text before the first heading
-/// is no scene.
+/// is no scene, and the heading of a struck scene (DB-33) only holds its number.
 fn has_heading(state: &SceneState) -> bool {
-    state.heading.is_some()
+    state.heading.as_deref().is_some_and(|h| !is_omitted(h))
 }
 
 /// Aligns the entries of kind scene with the scenes of `script`. Without a scene in the
@@ -358,6 +359,34 @@ impl Plan {
             }
             _ => false,
         })
+    }
+
+    /// The entries the book lost that had a number, each behind the scene its predecessor in
+    /// the register is now (DB-33): they stay in a locked book as "OMITTED" headings.
+    pub(crate) fn struck(&self, project: &Project) -> Vec<Struck> {
+        let mut out = Vec::new();
+        let mut after = None;
+
+        for (i, scene) in project.scenes.iter().enumerate() {
+            let fate = self.fates.iter().find(|(entry, _)| *entry == i);
+            match fate.map(|f| &f.1) {
+                Some(Fate::Matched(n)) => after = Some(self.heading_index(*n)),
+                Some(Fate::Missing) if !scene.number.is_empty() => out.push(Struck {
+                    after,
+                    number: scene.number.clone(),
+                }),
+                _ => {}
+            }
+        }
+
+        out
+    }
+
+    /// Among the headings of the text, whatever their kind, the place of book scene `n`.
+    fn heading_index(&self, n: usize) -> usize {
+        let before = self.book[..n].iter();
+
+        before.filter(|state| state.heading.is_some()).count()
     }
 
     /// The entries to ask about, with the scenes they may be.

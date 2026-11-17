@@ -4,7 +4,7 @@
 pub use klappe_services::Language;
 
 /// Keys of the help lines, in the order they are shown.
-const HELP_KEYS: [&str; 25] = [
+const HELP_KEYS: [&str; 26] = [
     "tui.help.save",
     "tui.help.quit",
     "tui.help.undo",
@@ -15,6 +15,7 @@ const HELP_KEYS: [&str; 25] = [
     "tui.help.find",
     "tui.help.findNext",
     "tui.help.title",
+    "tui.help.numbers",
     "tui.help.book",
     "tui.help.focus",
     "tui.help.goto",
@@ -62,6 +63,7 @@ pub(crate) struct Texts {
     pub mode_help: String,
     pub mode_find: String,
     pub mode_title: String,
+    pub mode_numbers: String,
     pub mode_backup: String,
     pub mode_book: String,
     pub book_title: String,
@@ -78,6 +80,12 @@ pub(crate) struct Texts {
     pub find_hint: String,
     pub title_box: String,
     pub title_hint: String,
+    pub numbers_box: String,
+    pub numbers_hint: String,
+    pub numbering_label: String,
+    pub numbering_automatic: String,
+    pub numbering_locked: String,
+    pub first_scene_label: String,
     /// The labels of the title form by field name (a `TITLE_KEYS` spelling).
     pub fields: Vec<(&'static str, String)>,
     pub backup_title: String,
@@ -113,6 +121,7 @@ impl Texts {
             mode_help: t("tui.mode.help"),
             mode_find: t("tui.mode.find"),
             mode_title: t("tui.mode.title"),
+            mode_numbers: t("tui.mode.numbers"),
             mode_backup: t("tui.mode.backup"),
             mode_book: t("tui.mode.book"),
             book_title: t("book.title"),
@@ -129,6 +138,12 @@ impl Texts {
             find_hint: t("tui.find.hint"),
             title_box: t("tui.titleBox"),
             title_hint: t("tui.titleHint"),
+            numbers_box: t("tui.numbersBox"),
+            numbers_hint: t("tui.numbersHint"),
+            numbering_label: t("tui.numbering.label"),
+            numbering_automatic: t("tui.numbering.automatic"),
+            numbering_locked: t("tui.numbering.locked"),
+            first_scene_label: t("tui.numbering.first"),
             fields: FIELD_KEYS
                 .iter()
                 .map(|(name, k)| (*name, lang.text(k)))
@@ -231,6 +246,7 @@ mod tests {
                 &t.mode_help,
                 &t.mode_find,
                 &t.mode_title,
+                &t.mode_numbers,
                 &t.mode_backup,
                 &t.mode_book,
                 &t.book_title,
@@ -248,6 +264,12 @@ mod tests {
                 &t.find_hint,
                 &t.title_box,
                 &t.title_hint,
+                &t.numbers_box,
+                &t.numbers_hint,
+                &t.numbering_label,
+                &t.numbering_automatic,
+                &t.numbering_locked,
+                &t.first_scene_label,
                 &t.backup_title,
                 &t.backup_found,
                 &t.backup_unreadable,

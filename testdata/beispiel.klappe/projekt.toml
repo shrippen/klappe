@@ -1,2 +1,5 @@
 format_version = 3
 title = "Die Wartburg-Szene"
+
+[script]
+scene_numbering = "locked"

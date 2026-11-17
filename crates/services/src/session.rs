@@ -18,6 +18,7 @@ mod fade;
 mod file;
 mod free_view;
 mod layers;
+mod numbering;
 mod objects;
 mod pages;
 mod pick;

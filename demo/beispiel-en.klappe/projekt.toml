@@ -1,2 +1,7 @@
 format_version = 3
 title = "Nightwatch"
+
+[script]
+paper = "a4"
+contd_after_action = false
+scene_numbering = "locked"

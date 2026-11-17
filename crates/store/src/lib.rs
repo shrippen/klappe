@@ -232,16 +232,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     // Encode everything first: a document that cannot be encoded fails before any file changes.
     let mut writes = Vec::new();
 
-    let header = Header {
-        format_version: FORMAT_VERSION,
-        title: project.title.clone(),
-        paper: project.paper,
-        numbering: project.numbering,
-        script: project.script,
-        ansicht: project.views.clone(),
-    };
-    let path = dir.join(PROJECT_FILE);
-    writes.push((path.clone(), files::encode_toml(&path, &header)?));
+    writes.push(encode_header(dir, project)?);
 
     let characters = Characters {
         figur: project.characters.clone(),
@@ -281,6 +272,29 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     }
 
     Ok(())
+}
+
+/// `projekt.toml` of `project` with its path.
+fn encode_header(dir: &Path, project: &Project) -> Result<(PathBuf, Vec<u8>), StoreError> {
+    let header = Header {
+        format_version: FORMAT_VERSION,
+        title: project.title.clone(),
+        paper: project.paper,
+        numbering: project.numbering,
+        script: project.script,
+        ansicht: project.views.clone(),
+    };
+    let path = dir.join(PROJECT_FILE);
+    let bytes = files::encode_toml(&path, &header)?;
+
+    Ok((path, bytes))
+}
+
+/// Writes `projekt.toml` of `project` in `dir` and nothing else.
+pub fn save_header(dir: &Path, project: &Project) -> Result<(), StoreError> {
+    let (path, bytes) = encode_header(dir, project)?;
+
+    files::write_atomic(&path, &bytes)
 }
 
 /// A file's path with its content, or `None` when there is to be no file.
