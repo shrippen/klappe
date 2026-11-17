@@ -3,9 +3,9 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, is_object_height_m, random_id, BookState, Character, FigureColor, FloorPlan,
-    Kind, LibraryItem, Location, Numbering, Point, Project, Scene, SetPlan, Template, MAX_GROUP,
-    MAX_SET_M, MIN_GROUP,
+    is_figure_size_m, is_object_height_m, normalize_deg, random_id, BookState, Character,
+    FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project, Scene, SetPlan,
+    Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -39,16 +39,19 @@ pub enum ProjectEdit {
         number: String,
         heading: String,
         location: String,
+        /// When it is shot (LH-52); `None` clears it.
+        sun: Option<SunTime>,
     },
     RemoveScene {
         id: String,
     },
-    /// `wall_height_m` is the set's room height (LH-90).
+    /// `wall_height_m` is the set's room height (LH-90), `site` its place and north (LH-52).
     AddLocation {
         name: String,
         width_m: f64,
         depth_m: f64,
         wall_height_m: f64,
+        site: Option<Site>,
     },
     /// Renames and resizes; the set's walls and objects stay where they are.
     EditLocation {
@@ -57,6 +60,8 @@ pub enum ProjectEdit {
         width_m: f64,
         depth_m: f64,
         wall_height_m: f64,
+        /// `None` clears the place.
+        site: Option<Site>,
     },
     /// Refused while a scene is set there.
     RemoveLocation {
@@ -165,7 +170,8 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             number,
             heading,
             location,
-        } => edit_scene(project, id, number, heading, location),
+            sun,
+        } => edit_scene(project, id, number, heading, location, *sun),
         ProjectEdit::RemoveScene { id } => remove_scene(project, id),
         ProjectEdit::SetNumbering { numbering } => {
             project.numbering = *numbering;
@@ -176,14 +182,23 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             width_m,
             depth_m,
             wall_height_m,
-        } => add_location(project, name, (*width_m, *depth_m), *wall_height_m),
+            site,
+        } => add_location(project, name, (*width_m, *depth_m), *wall_height_m, *site),
         ProjectEdit::EditLocation {
             id,
             name,
             width_m,
             depth_m,
             wall_height_m,
-        } => edit_location(project, id, name, (*width_m, *depth_m), *wall_height_m),
+            site,
+        } => edit_location(
+            project,
+            id,
+            name,
+            (*width_m, *depth_m),
+            *wall_height_m,
+            *site,
+        ),
         ProjectEdit::RemoveLocation { id } => remove_location(project, id),
         ProjectEdit::AddCharacter {
             name,
@@ -235,6 +250,7 @@ fn add_scene(
         prints: Vec::new(),
         refused: Vec::new(),
         location: location.to_owned(),
+        sun: None,
         plans: vec![FloorPlan::new(FIRST_PLAN_ID, FIRST_PLAN_NAME)],
     });
     Ok(())
@@ -246,8 +262,10 @@ fn edit_scene(
     number: &str,
     heading: &str,
     location: &str,
+    sun: Option<SunTime>,
 ) -> Result<(), ServiceError> {
     let heading = check_heading(heading)?;
+    check_sun_time(sun)?;
     let current = project
         .scene(id)
         .ok_or_else(|| ServiceError::NoScene(id.to_owned()))?;
@@ -267,6 +285,7 @@ fn edit_scene(
         scene.plans.iter_mut().for_each(|p| p.object_tracks.clear());
     }
     scene.location = location.to_owned();
+    scene.sun = sun;
     Ok(())
 }
 
@@ -284,16 +303,19 @@ fn add_location(
     name: &str,
     (width_m, depth_m): (f64, f64),
     wall_height_m: f64,
+    site: Option<Site>,
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     check_size(width_m, depth_m)?;
     check_room_height(wall_height_m)?;
+    let site = check_site(site)?;
 
     let base = slug(&name, LOCATION_ID_FALLBACK);
     let id = unique_id(&base, project.locations.iter().map(|l| l.id.as_str()));
     project.locations.push(Location {
         id,
         name,
+        site,
         set: SetPlan {
             width_m,
             depth_m,
@@ -311,10 +333,12 @@ fn edit_location(
     name: &str,
     (width_m, depth_m): (f64, f64),
     wall_height_m: f64,
+    site: Option<Site>,
 ) -> Result<(), ServiceError> {
     let name = name_of(name)?;
     check_size(width_m, depth_m)?;
     check_room_height(wall_height_m)?;
+    let site = check_site(site)?;
 
     let Some(location) = project.locations.iter_mut().find(|l| l.id == id) else {
         return Err(ServiceError::NoLocation(id.to_owned()));
@@ -323,6 +347,7 @@ fn edit_location(
     location.set.width_m = width_m;
     location.set.depth_m = depth_m;
     location.set.wall_height_m = wall_height_m;
+    location.site = site;
     Ok(())
 }
 
@@ -561,6 +586,39 @@ fn check_room_height(wall_height_m: f64) -> Result<(), ServiceError> {
     Err(ServiceError::BadValue {
         field: Field::RoomHeight,
         value: wall_height_m.to_string(),
+    })
+}
+
+/// The place is on the globe; north is turned into `[0, 360)`.
+fn check_site(site: Option<Site>) -> Result<Option<Site>, ServiceError> {
+    let Some(site) = site else {
+        return Ok(None);
+    };
+    if site.is_valid() {
+        return Ok(Some(Site {
+            north_deg: normalize_deg(site.north_deg),
+            ..site
+        }));
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Latitude,
+        value: format!("{}, {}", site.latitude_deg, site.longitude_deg),
+    })
+}
+
+/// The date exists and the time is on a clock.
+fn check_sun_time(sun: Option<SunTime>) -> Result<(), ServiceError> {
+    let Some(time) = sun else {
+        return Ok(());
+    };
+    if time.is_valid() {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Date,
+        value: format!("{} {}", time.date_text(), time.time_text()),
     })
 }
 

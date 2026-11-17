@@ -173,5 +173,8 @@ fn grabbable(role: Role) -> bool {
             | Role::CameraPath { .. }
             | Role::FigurePath(_)
             | Role::LightBeam
+            | Role::SunPatch
+            | Role::SunRay
+            | Role::North
     )
 }

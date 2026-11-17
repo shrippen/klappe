@@ -1,5 +1,5 @@
 use klappe_model::{Curve, DrawingShape, Point, Project};
-use klappe_stellprobe::{handles, lens_at, render, set_at, DisplayList, Item, Source};
+use klappe_stellprobe::{add_sun, handles, lens_at, render, set_at, DisplayList, Item, Source};
 
 use super::layers::layer_of;
 use super::{Lock, Session};
@@ -30,6 +30,9 @@ impl Session {
         let mut list = render(project, &location.set, plan, self.time_s, &|file| {
             self.image_size(file)
         });
+        if let (Some(site), Some(time)) = (&location.site, &scene.sun) {
+            add_sun(&mut list, &location.set, site, time);
+        }
         if let Some(selected) = selected {
             let set = set_at(&location.set, plan, self.time_s);
             list.items.extend(handles(project, &set, plan, selected));

@@ -22,6 +22,7 @@ mod images;
 mod library;
 mod light;
 mod register;
+mod sun;
 mod template;
 mod tree;
 
@@ -491,6 +492,7 @@ fn check_sets(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     check_outlines(path, locations)?;
     check_notes(path, locations)?;
     check_images(path, locations)?;
+    sun::check_sites(path, locations)?;
 
     check_heights(path, locations)
 }
@@ -541,6 +543,7 @@ fn load_scenes(dir: &Path) -> Result<(Vec<Scene>, Vec<LoadNote>), StoreError> {
     let (mut scenes, notes) = register::load(dir)?;
 
     check_labels(&dir.join(SCENES_DIR), &scenes)?;
+    sun::check_suns(&dir.join(SCENES_DIR), &scenes)?;
     clear_passive_power(&mut scenes);
     check_shot_images(&dir.join(SCENES_DIR), &scenes)?;
 

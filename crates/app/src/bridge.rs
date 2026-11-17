@@ -886,6 +886,7 @@ pub mod qobject {
             location: &QString,
         ) -> bool;
 
+        /// `sun` is a JSON array of the texts date, time and offset from UTC (LH-52).
         #[qinvokable]
         #[cxx_name = "editScene"]
         fn edit_scene(
@@ -894,13 +895,15 @@ pub mod qobject {
             number: &QString,
             heading: &QString,
             location: &QString,
+            sun: &QString,
         ) -> bool;
 
         #[qinvokable]
         #[cxx_name = "removeScene"]
         fn remove_scene(self: Pin<&mut Self>, id: &QString) -> bool;
 
-        /// Sizes and the room height are text in metres (`8,5`).
+        /// Sizes and the room height are text in metres (`8,5`); `site` is a JSON array of the
+        /// texts latitude, longitude and north in degrees, all blank is no place (LH-52).
         #[qinvokable]
         #[cxx_name = "addLocation"]
         fn add_location(
@@ -909,6 +912,7 @@ pub mod qobject {
             width: &QString,
             depth: &QString,
             height: &QString,
+            site: &QString,
         ) -> bool;
 
         #[qinvokable]
@@ -920,6 +924,7 @@ pub mod qobject {
             width: &QString,
             depth: &QString,
             height: &QString,
+            site: &QString,
         ) -> bool;
 
         #[qinvokable]

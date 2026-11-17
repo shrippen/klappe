@@ -153,7 +153,9 @@ pub(super) fn layer_of(role: Role, source: Option<&Source>) -> Layer {
         | Role::Window
         | Role::Object
         | Role::Height { .. } => Layer::Set,
-        Role::Light | Role::LightBeam => Layer::Lights,
+        Role::Light | Role::LightBeam | Role::SunPatch | Role::SunRay | Role::North => {
+            Layer::Lights
+        }
         Role::Camera | Role::Frustum | Role::CameraPath { .. } | Role::CameraHandle => {
             Layer::Cameras
         }

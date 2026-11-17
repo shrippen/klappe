@@ -995,5 +995,19 @@
  "step.SetNumbering": "Change shot numbering",
  "step.NameShot": "Name shot",
  "step.ShotImage": "Shot picture",
- "step.ShotStill": "Still as shot picture"
+ "step.ShotStill": "Still as shot picture",
+ "field.latitude": "Latitude (°, north positive, −90 to 90)",
+ "field.longitude": "Longitude (°, east positive, −180 to 180)",
+ "field.north": "North in the plan (°)",
+ "field.date": "Date (YYYY-MM-DD)",
+ "field.time": "Time (HH:MM)",
+ "field.utc offset": "UTC offset (±HH:MM)",
+ "location.latitude": "Latitude (°)",
+ "location.longitude": "Longitude (°)",
+ "location.north": "North in the plan (° clockwise from the top)",
+ "location.sunHint": "Without latitude and longitude the plan shows no sun.",
+ "scene.sunDate": "Date (YYYY-MM-DD)",
+ "scene.sunTime": "Time (HH:MM)",
+ "scene.sunOffset": "UTC offset (±HH:MM, empty: the location's time zone)",
+ "scene.sunHint": "Date and time set the sun; the location needs latitude and longitude for it."
 }

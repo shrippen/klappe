@@ -995,5 +995,19 @@
  "step.SetNumbering": "Nummernschema ändern",
  "step.NameShot": "Shot benennen",
  "step.ShotImage": "Shot-Bild",
- "step.ShotStill": "Standbild als Shot-Bild"
+ "step.ShotStill": "Standbild als Shot-Bild",
+ "field.latitude": "Breitengrad (°, Nord positiv, −90 bis 90)",
+ "field.longitude": "Längengrad (°, Ost positiv, −180 bis 180)",
+ "field.north": "Norden im Plan (°)",
+ "field.date": "Datum (JJJJ-MM-TT)",
+ "field.time": "Uhrzeit (HH:MM)",
+ "field.utc offset": "UTC-Abweichung (±HH:MM)",
+ "location.latitude": "Breitengrad (°)",
+ "location.longitude": "Längengrad (°)",
+ "location.north": "Norden im Plan (° im Uhrzeigersinn von oben)",
+ "location.sunHint": "Ohne Breiten- und Längengrad gibt es keine Sonne im Plan.",
+ "scene.sunDate": "Datum (JJJJ-MM-TT)",
+ "scene.sunTime": "Uhrzeit (HH:MM)",
+ "scene.sunOffset": "UTC-Abweichung (±HH:MM, leer: Zeitzone des Drehorts)",
+ "scene.sunHint": "Datum und Uhrzeit setzen die Sonne; der Drehort braucht dafür Breiten- und Längengrad."
 }

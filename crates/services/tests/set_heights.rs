@@ -355,6 +355,7 @@ fn room(name: &str, wall_height_m: f64) -> [ProjectEdit; 2] {
             width_m: 8.0,
             depth_m: 5.0,
             wall_height_m,
+            site: None,
         },
         ProjectEdit::EditLocation {
             id: "saengersaal".into(),
@@ -362,6 +363,7 @@ fn room(name: &str, wall_height_m: f64) -> [ProjectEdit; 2] {
             width_m: 8.0,
             depth_m: 5.0,
             wall_height_m,
+            site: None,
         },
     ]
 }

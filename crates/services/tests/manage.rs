@@ -52,6 +52,7 @@ fn add_location(name: &str) -> ProjectEdit {
         width_m: 8.0,
         depth_m: 5.5,
         wall_height_m: 2.6,
+        site: None,
     }
 }
 
@@ -199,6 +200,7 @@ fn changing_the_heading_keeps_the_number() {
         number: "12".into(),
         heading: " INT. SÄNGERSAAL – NACHT ".into(),
         location: "saengersaal".into(),
+        sun: None,
     })
     .unwrap();
 
@@ -221,6 +223,7 @@ fn renumbers_a_scene_but_not_onto_another() {
             number: "12".into(),
             heading: "x".into(),
             location: "saengersaal".into(),
+            sun: None,
         })
         .unwrap_err();
     assert!(matches!(err, ServiceError::NumberTaken(_)));
@@ -230,6 +233,7 @@ fn renumbers_a_scene_but_not_onto_another() {
         number: "14".into(),
         heading: "x".into(),
         location: "saengersaal".into(),
+        sun: None,
     })
     .unwrap();
 
@@ -247,6 +251,7 @@ fn edits_a_scene_and_moves_it_in_one_undo_step() {
         number: "13".into(),
         heading: "EXT. BURGHOF".into(),
         location: "burghof".into(),
+        sun: None,
     })
     .unwrap();
     let scene = s.project().scene("m4djbtj6").unwrap();
@@ -265,6 +270,7 @@ fn edits_a_scene_and_moves_it_in_one_undo_step() {
             number: "12".into(),
             heading: "x".into(),
             location: "nirgends".into(),
+            sun: None,
         })
         .unwrap_err();
     assert!(matches!(err, ServiceError::NoLocation(_)));
@@ -370,6 +376,7 @@ fn a_location_gets_a_name_and_a_size() {
                 width_m,
                 depth_m,
                 wall_height_m: 2.6,
+                site: None,
             })
             .unwrap_err();
         assert!(matches!(err, ServiceError::BadValue { field: f, .. } if f == field));
@@ -389,6 +396,7 @@ fn renames_and_resizes_a_location_keeping_id_and_set() {
         width_m: 22.0,
         depth_m: 14.0,
         wall_height_m: 3.2,
+        site: None,
     })
     .unwrap();
 

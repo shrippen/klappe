@@ -79,6 +79,7 @@ fn sketches_are_part_of_the_plan_and_optional() {
     project.locations.push(Location {
         id: "saal".into(),
         name: "Saal".into(),
+        site: None,
         set: SetPlan::default(),
     });
     let mut plan = FloorPlan::new("plan-a", "Plan A");

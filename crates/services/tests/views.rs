@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_services::{
     CharacterRow, FigureColor, Hint, LocationRow, PlanEdit, PlanRow, ProjectEdit, SceneRow,
-    Session, TrackKind,
+    Session, SunTexts, TrackKind,
 };
 use serde_json::json;
 
@@ -60,6 +60,7 @@ fn the_overview_lists_scenes_locations_and_plans() {
             in_book: true,
             location: s.project().scenes[0].location.clone(),
             location_name: s.project().locations[0].name.clone(),
+            sun: SunTexts::default(),
         }
     );
     assert_eq!(
@@ -70,6 +71,9 @@ fn the_overview_lists_scenes_locations_and_plans() {
             width_m: s.project().locations[0].set.width_m,
             depth_m: s.project().locations[0].set.depth_m,
             wall_height_m: s.project().locations[0].set.wall_height_m,
+            latitude: None,
+            longitude: None,
+            north: 0.0,
             scenes: s.project().scenes.len(),
         }
     );
