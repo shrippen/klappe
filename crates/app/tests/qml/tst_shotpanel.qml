@@ -73,6 +73,11 @@ TestCase {
             return accept
         }
         property var imageCalls: []
+        property var stillCalls: []
+        function shotStill(id) {
+            stillCalls.push(id)
+            return accept
+        }
     }
 
     TestTexts { id: catalogue }
@@ -508,6 +513,17 @@ TestCase {
         field(panel, "shortNameField").editingFinished()
 
         compare(fake.calls, [["s12-3", "short_name", "Auftritt"]])
+    }
+
+    // LH-75: the button takes the still of the camera view for the shot.
+    function test_the_still_button_takes_the_camera_view() {
+        fake.stillCalls = []
+        const panel = make(null)
+
+        verify(field(panel, "shotStill").enabled)
+        field(panel, "shotStill").clicked()
+
+        compare(fake.stillCalls, ["s12-3"])
     }
 
     // LH-74: the picture can be taken away; it has a button only with one.

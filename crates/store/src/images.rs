@@ -38,24 +38,52 @@ pub fn add_image(dir: &Path, source: &Path) -> Result<String, StoreError> {
     let bytes = fs::read(source).map_err(|e| io_err(source, e))?;
     check_new(&bytes).map_err(|message| bad(&message))?;
 
+    place(dir, stem, ext, &bytes)?.ok_or_else(|| bad("no free file name"))
+}
+
+/// Writes `bytes`, a PNG or JPEG made here (a still of a view), as `stem.ext` into `bilder/`
+/// of `dir`; names and repeats as `add_image`. `name` is the file name, e.g. `standbild-s1.png`.
+pub fn add_image_bytes(dir: &Path, name: &str, bytes: &[u8]) -> Result<String, StoreError> {
+    let bad = |message: &str| StoreError::BadImage {
+        path: dir.join(IMAGES_DIR).join(name),
+        message: message.to_owned(),
+    };
+    if !files::safe_name(name) {
+        return Err(StoreError::BadId {
+            id: name.to_owned(),
+        });
+    }
+
+    let (stem, ext) = name.rsplit_once('.').ok_or_else(|| bad("no extension"))?;
+    if !EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()) {
+        return Err(bad("only .png, .jpg and .jpeg images are supported"));
+    }
+    check_new(bytes).map_err(|message| bad(&message))?;
+
+    place(dir, stem, ext, bytes)?.ok_or_else(|| bad("no free file name"))
+}
+
+/// Writes `bytes` to the first free `stem.ext`, `stem-2.ext` … of `bilder/`, or finds the file
+/// that has these bytes already; its path relative to `dir`. `None` when no name is free.
+fn place(dir: &Path, stem: &str, ext: &str, bytes: &[u8]) -> Result<Option<String>, StoreError> {
     for number in 1_u32.. {
         let candidate = match number {
-            1 => name.to_owned(),
+            1 => format!("{stem}.{ext}"),
             n => format!("{stem}-{n}.{ext}"),
         };
         let target = dir.join(IMAGES_DIR).join(&candidate);
         let relative = format!("{IMAGES_DIR}/{candidate}");
 
         if !files::exists(&target)? {
-            files::write_atomic(&target, &bytes)?;
-            return Ok(relative);
+            files::write_atomic(&target, bytes)?;
+            return Ok(Some(relative));
         }
         if fs::read(&target).map_err(|e| io_err(&target, e))? == bytes {
-            return Ok(relative);
+            return Ok(Some(relative));
         }
     }
 
-    Err(bad("no free file name"))
+    Ok(None)
 }
 
 /// Whether `file` names a file of `bilder/`: a relative path without `..`, e.g.

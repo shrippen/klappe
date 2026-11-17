@@ -617,6 +617,16 @@ Item {
                             onClicked: imageDialog.open()
                         }
                         KanteButton {
+                            objectName: "shotStill"
+                            enabled: !!panel.shot
+                            text: panel.texts.t("shot.still")
+                            onClicked: {
+                                if (!panel.controller.shotStill(panel.shot.id)) {
+                                    panel.refused++
+                                }
+                            }
+                        }
+                        KanteButton {
                             objectName: "shotImageRemove"
                             enabled: !!panel.shot && !!panel.shot.image
                             text: panel.texts.t("shot.imageRemove")

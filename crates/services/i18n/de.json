@@ -743,6 +743,7 @@
  "shot.newHint": "Enter bestätigt, Esc lässt den Shot ohne Namen.",
  "field.image": "Storyboard-Bild",
  "shot.imagePick": "Bild wählen…",
+ "shot.still": "Kamerablick als Storyboard-Bild",
  "shot.imageRemove": "Bild entfernen",
  "shot.imagePickTitle": "Storyboard-Bild wählen",
  "view.shotDescription": "Lange Beschreibung unter dem gewählten Shot",
@@ -946,5 +947,6 @@
  "step.SetCameraColor": "Kamerafarbe ändern",
  "step.SetNumbering": "Nummernschema ändern",
  "step.NameShot": "Shot benennen",
- "step.ShotImage": "Shot-Bild"
+ "step.ShotImage": "Shot-Bild",
+ "step.ShotStill": "Standbild als Shot-Bild"
 }

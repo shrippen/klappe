@@ -17,6 +17,17 @@ use serde_json::json;
 /// The turn a menu entry would make: any would do to ask whether turning changes something.
 const MENU_TURN_DEG: f64 = 15.0;
 
+/// Whether the selection is the camera of the selected shot: the still is of that shot (LH-75).
+fn still_of_selected(s: &Session, selected: &Selection) -> bool {
+    let Some(Source::Camera(camera)) = selected.only() else {
+        return false;
+    };
+
+    s.shots()
+        .iter()
+        .any(|row| Some(row.id.as_str()) == s.selected_shot() && row.camera == *camera)
+}
+
 /// What the context menu offers for the selection: the layer all of it is on (empty when it
 /// is on several), and which commands would change something.
 fn menu_json(s: &Session, selected: &Selection) -> serde_json::Value {
@@ -51,6 +62,7 @@ fn menu_json(s: &Session, selected: &Selection) -> serde_json::Value {
         "straighten": offers(Key::Straighten),
         "note": matches!(selected.only(), Some(Source::Note(_))),
         "shot": matches!(selected.only(), Some(Source::Camera(_))),
+        "still": still_of_selected(s, selected),
         "nextMark": arm::can_arm(Armed::NextMark, selected.only()),
         "markBefore": arm::can_arm(Armed::MarkBefore, selected.only()),
         "axisTo": arm::can_arm(Armed::AxisTo, selected.only()),
