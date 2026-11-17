@@ -61,6 +61,7 @@ fn plan(shots: usize) -> FloorPlan {
             lens_mm: None,
         }],
         follows: None,
+        color: None,
     }];
     plan.shots = (1..=shots)
         .map(|n| Shot {
@@ -79,6 +80,9 @@ fn plan(shots: usize) -> FloorPlan {
             crew: "Kamera, Ton".into(),
             note: "Zeile 1\nZeile 2".into(),
             setup_of: None,
+            short_name: String::new(),
+            image: None,
+            version_of: None,
         })
         .collect();
 

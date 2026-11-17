@@ -378,6 +378,12 @@ pub enum PlanEdit {
         camera: String,
         aspect: f64,
     },
+    /// Gives the camera `camera` its own colour, or the one its place in the plan gives with
+    /// `None` (LH-111).
+    SetCameraColor {
+        camera: String,
+        color: Option<FigureColor>,
+    },
 }
 
 /// Whether points snap to the grid (LH-14).
@@ -432,7 +438,8 @@ impl PlanEdit {
             | PlanEdit::Follow { .. }
             | PlanEdit::SetSensor { .. }
             | PlanEdit::SetLens { .. }
-            | PlanEdit::SetAspect { .. } => Layer::Cameras,
+            | PlanEdit::SetAspect { .. }
+            | PlanEdit::SetCameraColor { .. } => Layer::Cameras,
             PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => Layer::Lights,
             PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } | PlanEdit::AddImage { .. } => {
                 Layer::Notes
@@ -591,17 +598,10 @@ pub(crate) fn apply(
         PlanEdit::MoveBackground { dx_m, dy_m } => move_background(&mut scope, (*dx_m, *dy_m)),
         PlanEdit::RemoveBackground => remove_background(&mut scope),
         PlanEdit::Follow { camera, figure } => follow(&mut scope, camera, figure.as_deref()),
-        PlanEdit::SetSensor {
-            camera,
-            width_mm,
-            aspect,
-        } => camera_edit::set_sensor(scope.plan, camera, *width_mm, *aspect),
-        PlanEdit::SetLens { camera, lens_mm } => {
-            camera_edit::set_lens(scope.plan, camera, *lens_mm)
-        }
-        PlanEdit::SetAspect { camera, aspect } => {
-            camera_edit::set_aspect(scope.plan, camera, *aspect)
-        }
+        PlanEdit::SetSensor { .. }
+        | PlanEdit::SetLens { .. }
+        | PlanEdit::SetAspect { .. }
+        | PlanEdit::SetCameraColor { .. } => camera_edit::apply(scope.plan, edit),
         PlanEdit::SetPose { .. }
         | PlanEdit::SetArrival { .. }
         | PlanEdit::SetDeparture { .. }

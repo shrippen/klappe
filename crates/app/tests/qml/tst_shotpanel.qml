@@ -64,6 +64,15 @@ TestCase {
             calls.push([id, field, value])
             return accept
         }
+        function nameShot(id, shortName, description) {
+            calls.push([id, "name", shortName, description])
+            return accept
+        }
+        function setShotImage(id, path) {
+            imageCalls.push([id, path])
+            return accept
+        }
+        property var imageCalls: []
     }
 
     TestTexts { id: catalogue }
@@ -425,5 +434,92 @@ TestCase {
         keyClick(Qt.Key_S)
 
         compare(fake.shotCalls.length, 0)
+    }
+
+    // LH-110: a new shot asks for its short name and description at once.
+    function test_a_new_shot_opens_short_name_and_description() {
+        const panel = make(null)
+        const dialog = field(panel, "newShotDialog")
+        verify(!dialog.opened)
+
+        field(panel, "newShotButton").clicked()
+
+        verify(dialog.opened)
+        compare(fake.shotCalls, [["add"]])
+        tryVerify(() => field(panel, "newShortName").activeFocus)
+    }
+
+    function test_enter_finishes_and_sends_both_fields() {
+        const panel = make(null)
+        field(panel, "newShotButton").clicked()
+        const dialog = field(panel, "newShotDialog")
+        type(field(panel, "newShortName"), "Auftritt")
+        type(field(panel, "newDescription"), "Sie betritt den Saal")
+
+        field(panel, "newDescription").accepted()
+
+        verify(!dialog.opened)
+        // One call, so one undo step for both.
+        compare(fake.calls, [["s12-3", "name", "Auftritt", "Sie betritt den Saal"]])
+    }
+
+    function test_escape_keeps_the_shot_unnamed() {
+        const panel = make(null)
+        field(panel, "newShotButton").clicked()
+        const dialog = field(panel, "newShotDialog")
+        type(field(panel, "newShortName"), "Auftritt")
+
+        keyClick(Qt.Key_Escape)
+
+        verify(!dialog.opened)
+        compare(fake.calls.length, 0)
+    }
+
+    function test_nothing_typed_sends_nothing() {
+        const panel = make(null)
+        field(panel, "newShotButton").clicked()
+
+        field(panel, "newShortName").accepted()
+
+        compare(fake.calls.length, 0)
+    }
+
+    function test_a_refused_new_shot_opens_no_dialog() {
+        const panel = make(null)
+        fake.accept = false
+
+        field(panel, "newShotButton").clicked()
+
+        verify(!field(panel, "newShotDialog").opened)
+    }
+
+    function test_s_opens_the_dialog_too() {
+        const panel = make(null)
+
+        keyClick(Qt.Key_S)
+
+        verify(field(panel, "newShotDialog").opened)
+    }
+
+    function test_the_short_name_field_sends_its_change() {
+        const panel = make(null)
+
+        type(field(panel, "shortNameField"), "Auftritt")
+        field(panel, "shortNameField").editingFinished()
+
+        compare(fake.calls, [["s12-3", "short_name", "Auftritt"]])
+    }
+
+    // LH-74: the picture can be taken away; it has a button only with one.
+    function test_the_storyboard_picture_is_removed_with_its_button() {
+        fake.imageCalls = []
+        const panel = make(null)
+        verify(!field(panel, "shotImageRemove").enabled)
+
+        panel.shot = Object.assign(row(null), { image: "bilder/a.png", image_url: "file:///x/bilder/a.png" })
+
+        verify(field(panel, "shotImageRemove").enabled)
+        field(panel, "shotImageRemove").clicked()
+        compare(fake.imageCalls, [["s12-3", ""]])
     }
 }

@@ -52,6 +52,7 @@ fn plan(lens_mm: f64, figures: &[(&str, f64, f64)]) -> FloorPlan {
             lens_mm: None,
         }],
         follows: None,
+        color: None,
     }];
     plan.figures = figures
         .iter()

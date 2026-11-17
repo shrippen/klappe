@@ -199,6 +199,7 @@ mod tests {
                 })
                 .collect(),
             follows: None,
+            color: None,
         }
     }
 
@@ -219,6 +220,9 @@ mod tests {
             crew: String::new(),
             note: String::new(),
             setup_of: None,
+            short_name: String::new(),
+            image: None,
+            version_of: None,
         }
     }
 

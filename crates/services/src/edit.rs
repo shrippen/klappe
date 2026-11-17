@@ -8,6 +8,7 @@ use crate::number::{read_number, Range, Unit};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShotField {
     Number,
+    ShortName,
     Camera,
     Size,
     Angle,
@@ -26,6 +27,7 @@ impl ShotField {
     pub fn from_name(name: &str) -> Option<Self> {
         let field = match name {
             "number" => Self::Number,
+            "short_name" => Self::ShortName,
             "camera" => Self::Camera,
             "size" => Self::Size,
             "angle" => Self::Angle,
@@ -45,6 +47,7 @@ impl ShotField {
     fn field(self) -> Field {
         match self {
             Self::Number => Field::Number,
+            Self::ShortName => Field::Name,
             Self::Camera => Field::Camera,
             Self::Size => Field::Size,
             Self::Angle => Field::Angle,
@@ -96,7 +99,8 @@ pub(crate) fn apply(
         | ShotField::Props
         | ShotField::Gear
         | ShotField::Crew
-        | ShotField::Note => {}
+        | ShotField::Note
+        | ShotField::ShortName => {}
     }
 
     Ok(())
@@ -127,6 +131,7 @@ fn lens_of(value: &str) -> Result<Option<f64>, ServiceError> {
 /// The free-text field `field` names, else `None`.
 fn text_of(shot: &mut Shot, field: ShotField) -> Option<&mut String> {
     match field {
+        ShotField::ShortName => Some(&mut shot.short_name),
         ShotField::Description => Some(&mut shot.description),
         ShotField::Props => Some(&mut shot.props),
         ShotField::Gear => Some(&mut shot.gear),
@@ -216,5 +221,9 @@ mod tests {
         for f in fields {
             assert_eq!(ShotField::from_name(f.field().name()), Some(f));
         }
+        assert_eq!(
+            ShotField::from_name("short_name"),
+            Some(ShotField::ShortName)
+        );
     }
 }

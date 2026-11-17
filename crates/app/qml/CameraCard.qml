@@ -182,6 +182,29 @@ ColumnLayout {
         }
     }
 
+    // The colour of the camera's shots in the list and tiles (LH-111); "By order" takes the one its
+    // place in the plan gives.
+    RowLayout {
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteSwatchPicker {
+            objectName: "cameraColor"
+            Accessible.name: card.texts.t("camera.color")
+            colors: KanteStyle.labels.map(n => KanteStyle.labelColor(n))
+            names: KanteStyle.labels.map(n => card.texts.t("color." + n))
+            currentIndex: card.info ? KanteStyle.labels.indexOf(card.info.color) : -1
+            onPicked: index => card.choose("color", KanteStyle.labels[index])
+        }
+        KanteButton {
+            objectName: "cameraColorAuto"
+            enabled: card.info !== null && !!card.info.ownColor
+            emphasis: KanteButton.Emphasis.Quiet
+            size: KanteButton.Size.Small
+            text: card.texts.t("camera.colorAuto")
+            onClicked: card.choose("color", "")
+        }
+    }
+
     KanteButton {
         objectName: "cameraMore"
         visible: card.showMore

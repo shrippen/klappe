@@ -16,6 +16,9 @@ pub struct Shot {
     /// Shot number as written on the slate, e.g. `12.3` or `12.4A` (LH-76).
     pub number: String,
     pub camera: String,
+    /// Short name next to the number (LH-71); empty for none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub short_name: String,
     pub size: ShotSize,
     /// Camera angle: from above, below, tilted (LH-71).
     #[serde(default)]
@@ -41,11 +44,60 @@ pub struct Shot {
     /// computes the setup from camera, place and lens.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub setup_of: Option<String>,
+    /// The storyboard picture (LH-74): a file of the project's `bilder/`, e.g. `bilder/s12-3.png`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    /// The shot this one is a version of (LH-76); `None` for a base shot. `number` is derived
+    /// from it (and the project's scheme) when the shot is made or numbered again, never read
+    /// back.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_of: Option<VersionOf>,
+}
+
+/// What a version refers to: the id of its base shot in the same plan and its own place among
+/// the versions of that base (1 is the first, written `A`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VersionOf {
+    pub shot: String,
+    pub index: u32,
 }
 
 impl Shot {
     pub fn duration_s(&self) -> f64 {
         (self.to_s - self.from_s).max(0.0)
+    }
+}
+
+/// How the numbers of a project's shots are built (LH-76); the project chooses one. Each letter
+/// has one meaning in a scheme: a camera letter is never also a version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Numbering {
+    /// Scene and running number, `12.3`; a version is a letter behind it, `12.3A`.
+    #[default]
+    Scene,
+    /// Scene, camera letter, dot and the camera's running number, `12A.3`; a version is a
+    /// hyphen and letters, `12A.3-B`.
+    Camera,
+    /// Scene, dot and the running number of a group of shots taken at the same time, then the
+    /// camera letter, `12.3A`, `12.3B`; a version is a hyphen and letters, `12.3A-B`.
+    Group,
+}
+
+impl Numbering {
+    pub const ALL: [Numbering; 3] = [Numbering::Scene, Numbering::Camera, Numbering::Group];
+
+    /// The name the file format uses, e.g. `group`; also the end of the text key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Numbering::Scene => "scene",
+            Numbering::Camera => "camera",
+            Numbering::Group => "group",
+        }
+    }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|n| n.name() == name)
     }
 }
 

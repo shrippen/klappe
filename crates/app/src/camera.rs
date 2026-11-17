@@ -3,7 +3,7 @@
 //! (agent.md): the session sets the values, Stellprobe works out the angle of view.
 
 use klappe_services::{
-    read_number, CameraPresets, Field, PlanEdit, Range, ServiceError, Source, Unit,
+    read_number, CameraPresets, Field, FigureColor, PlanEdit, Range, ServiceError, Source, Unit,
 };
 
 use crate::tools::Typed;
@@ -20,6 +20,8 @@ pub enum CameraField {
     Lens,
     /// Frame, width to height: `2.39` or `16:9`.
     Aspect,
+    /// The colour of the camera's shots (LH-111): a Kante label name, empty for the automatic one.
+    Color,
 }
 
 impl CameraField {
@@ -29,6 +31,7 @@ impl CameraField {
             "sensor" => Some(CameraField::Sensor),
             "lens" => Some(CameraField::Lens),
             "aspect" => Some(CameraField::Aspect),
+            "color" => Some(CameraField::Color),
             _ => None,
         }
     }
@@ -95,6 +98,15 @@ pub fn camera_edit(
         }
         CameraField::Aspect => {
             Some(parse_aspect(value).map(|aspect| PlanEdit::SetAspect { camera, aspect }))
+        }
+        CameraField::Color => {
+            let name = value.trim();
+            let color = FigureColor::from_name(name);
+            if color.is_none() && !name.is_empty() {
+                return None;
+            }
+
+            Some(Ok(PlanEdit::SetCameraColor { camera, color }))
         }
     }
 }
@@ -192,6 +204,36 @@ mod tests {
         assert!(pick(CameraField::Lens, "85 mm").is_some());
         assert!(pick(CameraField::Sensor, "36 mm").is_some());
         assert!(pick(CameraField::Lens, "85 m").is_none());
+    }
+
+    /// LH-111: a Kante label name is an own colour, empty is the one by order, anything else
+    /// is no edit.
+    #[test]
+    fn a_colour_is_a_label_name_or_empty() {
+        let pick = |text| {
+            edit_of(camera_edit(
+                Some(&camera()),
+                presets(),
+                CameraField::Color,
+                text,
+            ))
+        };
+
+        assert_eq!(
+            pick("blue"),
+            Some(PlanEdit::SetCameraColor {
+                camera: "a".into(),
+                color: Some(FigureColor::Blue),
+            })
+        );
+        assert_eq!(
+            pick(""),
+            Some(PlanEdit::SetCameraColor {
+                camera: "a".into(),
+                color: None,
+            })
+        );
+        assert_eq!(pick("magenta"), None);
     }
 
     #[test]

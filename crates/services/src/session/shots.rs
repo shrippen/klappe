@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use klappe_model::{AxisPair, Camera, FloorPlan, Movement, Shot};
 use klappe_stellprobe::{
     axis_jumps, movement_in, ordered_shots, setup_choices, setup_target, shot_lens, AxisJump,
@@ -64,6 +66,12 @@ impl Session {
                     id: shot.id.clone(),
                     number: shot.number.clone(),
                     camera: shot.camera.clone(),
+                    camera_color: plan
+                        .camera_color(&shot.camera)
+                        .map(|c| c.name().to_owned())
+                        .unwrap_or_default(),
+                    short_name: shot.short_name.clone(),
+                    image: shot.image.clone().unwrap_or_default(),
                     camera_label: camera.map(|c| c.label.clone()).unwrap_or_default(),
                     aspect: camera.map_or(FALLBACK_ASPECT, |c| c.aspect),
                     follows: camera.and_then(|c| c.follows.clone()).unwrap_or_default(),
@@ -122,6 +130,9 @@ impl Session {
         if field == ShotField::Setup {
             shot_edit::check_setup(plan, id, value)?;
         }
+        if field == ShotField::Camera {
+            shot_edit::check_camera(plan, id)?;
+        }
         let shot = plan
             .shots
             .iter_mut()
@@ -129,12 +140,71 @@ impl Session {
             .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
 
         edit::apply(shot, &plan.cameras, field, value)?;
+        shot_edit::follow_camera(plan, id);
         if next == self.project {
             return Ok(());
         }
 
         self.commit_step(next, "EditShot");
         Ok(())
+    }
+
+    /// Gives shot `id` the storyboard picture `file` (PNG or JPEG), copied into the project's
+    /// `bilder/`, or takes it away with `None`; undoable (LH-74). The copy stays in `bilder/`,
+    /// it is the user's file. Refused while the camera layer is locked, like any edit of a shot.
+    pub fn set_shot_image(&mut self, id: &str, file: Option<&Path>) -> Result<(), ServiceError> {
+        self.check_shot_lock()?;
+
+        let image = match file {
+            Some(file) => Some(klappe_store::add_image(&self.dir, file)?),
+            None => None,
+        };
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+        let shot = plan
+            .shots
+            .iter_mut()
+            .find(|s| s.id == id)
+            .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
+
+        shot.image = image;
+        if next == self.project {
+            return Ok(());
+        }
+
+        self.commit_step(next, "ShotImage");
+        Ok(())
+    }
+
+    /// Sets the short name and the description of shot `id` together; one undo step (LH-110).
+    pub fn name_shot(
+        &mut self,
+        id: &str,
+        short_name: &str,
+        description: &str,
+    ) -> Result<(), ServiceError> {
+        let mut next = self.project.clone();
+        let plan = self.plan_in(&mut next)?;
+        let shot = plan
+            .shots
+            .iter_mut()
+            .find(|s| s.id == id)
+            .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
+
+        shot.short_name = short_name.to_owned();
+        shot.description = description.to_owned();
+        if next == self.project {
+            return Ok(());
+        }
+
+        self.commit_step(next, "NameShot");
+        Ok(())
+    }
+
+    /// The path of a picture file of the project (`bilder/…`, as `ShotRow::image`); `None` for
+    /// a name that is not one, so nothing outside the project is shown.
+    pub fn image_file(&self, file: &str) -> Option<PathBuf> {
+        klappe_store::is_image_path(file).then(|| self.dir.join(file))
     }
 
     /// Adds a shot at the playhead and selects it; undoable. Its camera is `camera`, else the
@@ -145,11 +215,12 @@ impl Session {
 
         let camera = self.camera_for_shot(camera)?;
         let scene = self.scene_number();
+        let numbering = self.project.numbering;
         let at_s = self.time_s;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        let id = shot_edit::add(plan, &scene, &camera, at_s);
+        let id = shot_edit::add(plan, numbering, &scene, &camera, at_s);
         self.commit_step(next, "AddShot");
         self.selected_shot = Some(id.clone());
         Ok(id)
@@ -161,10 +232,11 @@ impl Session {
         self.check_shot_lock()?;
 
         let scene = self.scene_number();
+        let numbering = self.project.numbering;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        let copy = shot_edit::copy(plan, &scene, id)?;
+        let copy = shot_edit::copy(plan, numbering, &scene, id)?;
         self.commit_step(next, "CopyShot");
         self.selected_shot = Some(copy.clone());
         Ok(copy)
@@ -176,10 +248,11 @@ impl Session {
         self.check_shot_lock()?;
 
         let scene = self.scene_number();
+        let numbering = self.project.numbering;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        let copy = shot_edit::version(plan, &scene, id)?;
+        let copy = shot_edit::version(plan, numbering, &scene, id)?;
         self.commit_step(next, "VersionShot");
         self.selected_shot = Some(copy.clone());
         Ok(copy)
@@ -191,10 +264,11 @@ impl Session {
         self.check_shot_lock()?;
 
         let scene = self.scene_number();
+        let numbering = self.project.numbering;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        shot_edit::renumber(plan, &scene);
+        shot_edit::renumber(plan, numbering, &scene);
         if next == self.project {
             return Ok(());
         }

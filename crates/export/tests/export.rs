@@ -99,6 +99,7 @@ fn plan() -> FloorPlan {
             lens_mm: None,
         }],
         follows: None,
+        color: None,
     }];
     p.lights = vec![Light {
         id: "l1".into(),

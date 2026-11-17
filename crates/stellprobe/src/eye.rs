@@ -398,6 +398,7 @@ mod tests {
                 lens_mm: None,
             }],
             follows: None,
+            color: None,
         }];
         plan
     }

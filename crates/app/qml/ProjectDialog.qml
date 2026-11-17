@@ -24,9 +24,11 @@ Item {
     required property var texts
     required property var controller
 
+    readonly property var numberings: project.numberings || []
+
     readonly property var project: controller.projectJson
         ? JSON.parse(controller.projectJson)
-        : { scenes: [], locations: [], characters: [] }
+        : { scenes: [], locations: [], characters: [], numberings: [], numbering: "" }
 
     // The kinds, in the order of the tabs.
     readonly property var kinds: ["scene", "location", "character"]
@@ -74,121 +76,155 @@ Item {
             tabs.currentIndex = 0
         }
 
-        RowLayout {
+        ColumnLayout {
             width: parent ? parent.width : implicitWidth
             spacing: Kirigami.Units.largeSpacing
 
-            ColumnLayout {
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 18
-                Layout.maximumWidth: Kirigami.Units.gridUnit * 18
-                Layout.alignment: Qt.AlignTop
-                spacing: Kirigami.Units.smallSpacing
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.largeSpacing
 
-                KanteTabBar {
-                    id: tabs
-                    objectName: "tabs"
-                    Layout.fillWidth: true
-                    model: [
-                        root.texts.t("project.scenes"),
-                        root.texts.t("project.locations"),
-                        root.texts.t("project.characters")
-                    ]
-                    counts: [
-                        String(root.project.scenes.length),
-                        String(root.project.locations.length),
-                        String(root.project.characters.length)
-                    ]
-                    onActivated: index => {
-                        currentIndex = index
-                        root.adding = false
+                ColumnLayout {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 18
+                    Layout.maximumWidth: Kirigami.Units.gridUnit * 18
+                    Layout.alignment: Qt.AlignTop
+                    spacing: Kirigami.Units.smallSpacing
+
+                    KanteTabBar {
+                        id: tabs
+                        objectName: "tabs"
+                        Layout.fillWidth: true
+                        model: [
+                            root.texts.t("project.scenes"),
+                            root.texts.t("project.locations"),
+                            root.texts.t("project.characters")
+                        ]
+                        counts: [
+                            String(root.project.scenes.length),
+                            String(root.project.locations.length),
+                            String(root.project.characters.length)
+                        ]
+                        onActivated: index => {
+                            currentIndex = index
+                            root.adding = false
+                        }
+                    }
+
+                    StackLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Kirigami.Units.gridUnit * 20
+                        currentIndex: tabs.currentIndex
+
+                        ManageList {
+                            id: sceneList
+                            objectName: "sceneList"
+                            texts: root.texts
+                            kind: "scene"
+                            items: root.project.scenes
+                            onAddRequested: root.add(sceneList, sceneForm)
+                            onCurrentIdChanged: root.adding = false
+                        }
+                        ManageList {
+                            id: locationList
+                            objectName: "locationList"
+                            texts: root.texts
+                            kind: "location"
+                            items: root.project.locations
+                            onAddRequested: root.add(locationList, locationForm)
+                            onCurrentIdChanged: root.adding = false
+                        }
+                        ManageList {
+                            id: characterList
+                            objectName: "characterList"
+                            texts: root.texts
+                            kind: "character"
+                            items: root.project.characters
+                            onAddRequested: root.add(characterList, characterForm)
+                            onCurrentIdChanged: root.adding = false
+                        }
                     }
                 }
 
-                StackLayout {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Kirigami.Units.gridUnit * 20
-                    currentIndex: tabs.currentIndex
+                    Layout.alignment: Qt.AlignTop
+                    spacing: Kirigami.Units.smallSpacing
 
-                    ManageList {
-                        id: sceneList
-                        objectName: "sceneList"
-                        texts: root.texts
-                        kind: "scene"
-                        items: root.project.scenes
-                        onAddRequested: root.add(sceneList, sceneForm)
-                        onCurrentIdChanged: root.adding = false
+                    QQC2.Label {
+                        objectName: "pick"
+                        Layout.fillWidth: true
+                        visible: !root.adding && root.listOf(root.kinds[tabs.currentIndex]).current === null
+                        wrapMode: Text.Wrap
+                        color: KanteStyle.mutedTextColor
+                        text: root.texts.t("project.pick")
                     }
-                    ManageList {
-                        id: locationList
-                        objectName: "locationList"
+
+                    SceneEditor {
+                        id: sceneForm
+                        objectName: "sceneForm"
+                        Layout.fillWidth: true
+                        visible: tabs.currentIndex === 0 && (root.adding || sceneList.current !== null)
                         texts: root.texts
-                        kind: "location"
-                        items: root.project.locations
-                        onAddRequested: root.add(locationList, locationForm)
-                        onCurrentIdChanged: root.adding = false
+                        controller: root.controller
+                        locations: root.project.locations
+                        item: root.adding ? null : sceneList.current
+                        onDone: root.finished(sceneList)
+                        onShowRequested: id => {
+                            if (root.controller.selectScene(id)) {
+                                dialog.close()
+                            }
+                        }
                     }
-                    ManageList {
-                        id: characterList
-                        objectName: "characterList"
+                    LocationEditor {
+                        id: locationForm
+                        objectName: "locationForm"
+                        Layout.fillWidth: true
+                        visible: tabs.currentIndex === 1 && (root.adding || locationList.current !== null)
                         texts: root.texts
-                        kind: "character"
-                        items: root.project.characters
-                        onAddRequested: root.add(characterList, characterForm)
-                        onCurrentIdChanged: root.adding = false
+                        controller: root.controller
+                        item: root.adding ? null : locationList.current
+                        onDone: root.finished(locationList)
+                    }
+                    CharacterEditor {
+                        id: characterForm
+                        objectName: "characterForm"
+                        Layout.fillWidth: true
+                        visible: tabs.currentIndex === 2 && (root.adding || characterList.current !== null)
+                        texts: root.texts
+                        controller: root.controller
+                        characters: root.project.characters
+                        item: root.adding ? null : characterList.current
+                        onDone: root.finished(characterList)
                     }
                 }
             }
 
+            // How new shots are numbered (LH-76): one scheme per project.
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
                 spacing: Kirigami.Units.smallSpacing
 
-                QQC2.Label {
-                    objectName: "pick"
+                KanteSectionLabel { text: root.texts.t("project.numbering") }
+                KanteComboBox {
+                    id: numberingBox
+                    objectName: "numberingBox"
                     Layout.fillWidth: true
-                    visible: !root.adding && root.listOf(root.kinds[tabs.currentIndex]).current === null
-                    wrapMode: Text.Wrap
-                    color: KanteStyle.mutedTextColor
-                    text: root.texts.t("project.pick")
-                }
-
-                SceneEditor {
-                    id: sceneForm
-                    objectName: "sceneForm"
-                    Layout.fillWidth: true
-                    visible: tabs.currentIndex === 0 && (root.adding || sceneList.current !== null)
-                    texts: root.texts
-                    controller: root.controller
-                    locations: root.project.locations
-                    item: root.adding ? null : sceneList.current
-                    onDone: root.finished(sceneList)
-                    onShowRequested: id => {
-                        if (root.controller.selectScene(id)) {
-                            dialog.close()
+                    Accessible.name: root.texts.t("project.numbering")
+                    textRole: "text"
+                    valueRole: "value"
+                    model: root.numberings.map(n => ({ value: n, text: root.texts.t("numbering." + n) }))
+                    currentIndex: root.numberings.indexOf(root.project.numbering)
+                    onActivated: {
+                        if (!root.controller.setNumbering(String(currentValue))) {
+                            currentIndex = root.numberings.indexOf(root.project.numbering)
                         }
                     }
                 }
-                LocationEditor {
-                    id: locationForm
-                    objectName: "locationForm"
+                QQC2.Label {
                     Layout.fillWidth: true
-                    visible: tabs.currentIndex === 1 && (root.adding || locationList.current !== null)
-                    texts: root.texts
-                    controller: root.controller
-                    item: root.adding ? null : locationList.current
-                    onDone: root.finished(locationList)
-                }
-                CharacterEditor {
-                    id: characterForm
-                    objectName: "characterForm"
-                    Layout.fillWidth: true
-                    visible: tabs.currentIndex === 2 && (root.adding || characterList.current !== null)
-                    texts: root.texts
-                    controller: root.controller
-                    characters: root.project.characters
-                    item: root.adding ? null : characterList.current
-                    onDone: root.finished(characterList)
+                    wrapMode: Text.Wrap
+                    color: KanteStyle.mutedTextColor
+                    text: root.texts.t("project.numberingHint")
                 }
             }
         }

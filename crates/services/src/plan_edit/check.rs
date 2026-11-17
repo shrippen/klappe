@@ -50,11 +50,9 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         PlanEdit::MoveBackground { dx_m, dy_m } => check_point(Point::new(*dx_m, *dy_m)),
         PlanEdit::Resize { .. } | PlanEdit::SetObjectHeight { .. } => check_object(edit),
         PlanEdit::AddDrawing { shape, .. } => check_shape(shape),
-        PlanEdit::SetSensor {
-            width_mm, aspect, ..
-        } => camera_edit::check_sensor(*width_mm, *aspect),
-        PlanEdit::SetLens { lens_mm, .. } => camera_edit::check_lens(*lens_mm),
-        PlanEdit::SetAspect { aspect, .. } => camera_edit::check_aspect(*aspect),
+        PlanEdit::SetSensor { .. }
+        | PlanEdit::SetLens { .. }
+        | PlanEdit::SetAspect { .. } => camera_edit::check(edit),
         PlanEdit::SetHold { hold_s, .. } => check_hold(*hold_s),
         PlanEdit::SetCameraAim {
             height_m, tilt_deg, ..
@@ -74,6 +72,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetBackground { .. }
         | PlanEdit::RemoveBackground
         | PlanEdit::Follow { .. }
+        | PlanEdit::SetCameraColor { .. }
         | PlanEdit::SetPose { .. }
         | PlanEdit::SetArrival { .. }
         | PlanEdit::SetDeparture { .. }

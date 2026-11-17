@@ -2,11 +2,14 @@
 
 use super::view::to_json;
 use super::{q, qobject};
+use crate::fileurl;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
-use klappe_services::{PlanEdit, ServiceError, Session, ShotField, Source};
+use klappe_services::{
+    Field, Numbering, PlanEdit, ProjectEdit, ServiceError, Session, ShotField, Source,
+};
 
 impl qobject::Controller {
     pub(super) fn select_shot(mut self: Pin<&mut Self>, id: &QString) {
@@ -50,6 +53,53 @@ impl qobject::Controller {
         self.as_mut().changed();
         self.refresh();
         true
+    }
+
+    pub(super) fn name_shot(
+        self: Pin<&mut Self>,
+        id: &QString,
+        short_name: &QString,
+        description: &QString,
+    ) -> bool {
+        let (id, short_name, description) = (
+            id.to_string(),
+            short_name.to_string(),
+            description.to_string(),
+        );
+
+        self.edit_shots(|s| s.name_shot(&id, &short_name, &description))
+    }
+
+    pub(super) fn set_shot_image(self: Pin<&mut Self>, id: &QString, path: &QString) -> bool {
+        let id = id.to_string();
+        let path = path.to_string();
+        let file = (!path.is_empty()).then(|| fileurl::to_path(&path));
+
+        self.edit_shots(|s| s.set_shot_image(&id, file.as_deref()))
+    }
+
+    pub(super) fn project_file_url(&self, file: &QString) -> QString {
+        let Some(s) = self.rust().session.as_ref() else {
+            return QString::default();
+        };
+        let Some(joined) = s.image_file(&file.to_string()) else {
+            return QString::default();
+        };
+        let absolute = std::path::absolute(&joined).unwrap_or(joined);
+
+        q(&fileurl::from_path(&absolute))
+    }
+
+    pub(super) fn set_numbering(self: Pin<&mut Self>, name: &QString) -> bool {
+        let name = name.to_string();
+        let edit = Numbering::from_name(&name)
+            .map(|numbering| ProjectEdit::SetNumbering { numbering })
+            .ok_or(ServiceError::BadValue {
+                field: Field::Kind,
+                value: name,
+            });
+
+        self.commit_project(edit)
     }
 
     pub(super) fn add_shot(self: Pin<&mut Self>) -> bool {
