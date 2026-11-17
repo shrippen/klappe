@@ -1,7 +1,6 @@
 //! The register against the book: answering an open question about a scene.
 
 use super::qobject;
-use crate::manage;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
@@ -14,11 +13,11 @@ impl qobject::Controller {
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-        let Some(choice) = manage::pending_choice(s, &id, index) else {
+        let Ok(at) = usize::try_from(index) else {
             return false;
         };
 
-        if let Err(e) = s.resolve_scene(&id, choice) {
+        if let Err(e) = s.answer_book(&id, at) {
             self.say(error_text(language, &e));
             return false;
         }

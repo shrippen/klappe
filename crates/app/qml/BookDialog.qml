@@ -13,7 +13,7 @@ Item {
 
     required property var texts
     required property var controller
-    /// The open questions, `[{ id, number, heading, candidates: [{ number, heading }] }]`.
+    /// The open questions, `[{ id, number, heading, answers: [{ number, heading, none }] }]`.
     readonly property var questions: controller.projectJson ? (JSON.parse(controller.projectJson).pending || []) : []
     readonly property var question: questions.length > 0 ? questions[0] : null
     readonly property alias dialog: dialog
@@ -24,11 +24,9 @@ Item {
         }
     }
 
-    // The candidates, then the last row; its position is `-1`, which the controller reads as
-    // "not in the book".
+    // The answers as the session lists them; the controller takes the position.
     readonly property var options: question
-        ? question.candidates.map((c, i) => ({ index: i, number: c.number, text: c.heading }))
-            .concat([{ index: -1, number: "", text: texts.t("book.none") }])
+        ? question.answers.map((a, i) => ({ index: i, number: a.number, text: a.none ? texts.t("book.none") : a.heading }))
         : []
 
     function answer(index) {

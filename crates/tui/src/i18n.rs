@@ -115,8 +115,8 @@ impl Texts {
             mode_title: t("tui.mode.title"),
             mode_backup: t("tui.mode.backup"),
             mode_book: t("tui.mode.book"),
-            book_title: t("tui.book.title"),
-            book_none: t("tui.book.none"),
+            book_title: t("book.title"),
+            book_none: t("book.none"),
             book_hint: t("tui.book.hint"),
             book_save_first: t("tui.book.saveFirst"),
             find_title: t("tui.find.title"),
@@ -179,7 +179,7 @@ impl Texts {
     /// "Entry 1 INT. A - TAG - which scene of the book is this?".
     pub(crate) fn book_ask(&self, number: &str, heading: &str) -> String {
         self.lang
-            .text("tui.book.ask")
+            .text("book.ask")
             .replace("{number}", number)
             .replace("{heading}", heading)
     }

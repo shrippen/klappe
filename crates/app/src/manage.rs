@@ -30,8 +30,9 @@ const HOME_SHORT: &str = "~";
 /// `{ scenes, locations, characters, plans, plan }`: lists of plain objects for QML, `plans`
 /// those of the scene on view and `plan` the id of the one shown. The colour is the model's
 /// role name (`purple`), which Kante's `labelColor` takes as it is. `pending` holds the open
-/// questions about the book: `[{ id, number, heading, candidates: [{ number, heading }] }]`,
-/// the candidates best first; `resolveScene` answers by the position in that list.
+/// questions about the book: `[{ id, number, heading, answers: [{ number, heading, none }] }]`,
+/// the scenes it may be best first, then "not in the book" (`none`); `resolveScene` answers by
+/// the position in that list.
 pub fn project_json(session: &Session) -> String {
     let mut value = serde_json::to_value(session.overview()).unwrap_or_default();
     value["pending"] = pending_rows(session);
@@ -44,33 +45,20 @@ fn pending_rows(session: &Session) -> Value {
         .pending_scenes()
         .iter()
         .map(|p| {
-            let candidates: Vec<_> = p
-                .candidates
+            let answers: Vec<_> = session
+                .book_answers(&p.id)
                 .iter()
-                .map(|c| json!({ "number": c.number, "heading": c.heading }))
+                .map(|a| {
+                    let none = a.choice == Choice::NotInBook;
+                    json!({ "number": a.number, "heading": a.heading, "none": none })
+                })
                 .collect();
 
-            json!({ "id": p.id, "number": p.number, "heading": p.heading, "candidates": candidates })
+            json!({ "id": p.id, "number": p.number, "heading": p.heading, "answers": answers })
         })
         .collect();
 
     Value::Array(rows)
-}
-
-/// What `resolveScene` sends for "not in the book".
-pub const NOT_IN_BOOK: i32 = -1;
-
-/// The answer to the open question about entry `id`: candidate `index` of its list, or
-/// `NOT_IN_BOOK`. `None` when the question or the candidate is gone.
-pub fn pending_choice(session: &Session, id: &str, index: i32) -> Option<Choice> {
-    let pending = session.pending_scenes().iter().find(|p| p.id == id)?;
-    if index == NOT_IN_BOOK {
-        return Some(Choice::NotInBook);
-    }
-
-    let at = usize::try_from(index).ok()?;
-
-    pending.candidates.get(at).cloned().map(Choice::Scene)
 }
 
 /// Where a scene or a character occurs (D-08): `kind` is `scene` or `character`.
@@ -305,27 +293,11 @@ mod tests {
         assert_eq!(pending.len(), 2, "{pending:?}");
         assert_eq!(pending[0]["number"], "1");
         assert_eq!(pending[0]["heading"], "INT. KELLER – NACHT");
-        assert_eq!(pending[0]["candidates"].as_array().map(Vec::len), Some(2));
-        assert_eq!(pending[0]["candidates"][0]["heading"], "INT. HOF – NACHT");
-        assert_eq!(pending[0]["candidates"][0]["number"], "1");
-    }
-
-    #[test]
-    fn an_answer_is_a_candidate_or_not_in_the_book() {
-        let session = asked("choice");
-        let id = session.pending_scenes()[0].id.clone();
-
-        assert!(matches!(
-            pending_choice(&session, &id, 0),
-            Some(Choice::Scene(_))
-        ));
-        assert!(matches!(
-            pending_choice(&session, &id, NOT_IN_BOOK),
-            Some(Choice::NotInBook)
-        ));
-        assert!(pending_choice(&session, &id, 5).is_none());
-        assert!(pending_choice(&session, &id, -2).is_none());
-        assert!(pending_choice(&session, "gone", 0).is_none());
+        assert_eq!(pending[0]["answers"].as_array().map(Vec::len), Some(3));
+        assert_eq!(pending[0]["answers"][0]["heading"], "INT. HOF – NACHT");
+        assert_eq!(pending[0]["answers"][0]["number"], "1");
+        assert_eq!(pending[0]["answers"][0]["none"], false);
+        assert_eq!(pending[0]["answers"][2]["none"], true);
     }
 
     #[test]
