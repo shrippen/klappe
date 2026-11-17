@@ -8,15 +8,8 @@ use super::*;
 const BOOK: &str = "INT. A - TAG\n\nEr wartet.\n\nINT. B - NACHT #7#\n\nSie geht.";
 const NUMBERED: &str = "INT. A - TAG #1#\n\nEr wartet.\n\nINT. B - NACHT #2#\n\nSie geht.";
 
-/// A scratch project that numbers automatically: the example has no key, so it is locked.
 fn automatic(book: &str) -> (Scratch, App) {
-    let scratch = Scratch::new(book);
-    let path = scratch.dir.join("projekt.toml");
-    let header = fs::read_to_string(&path).unwrap_or_default();
-    let _ = fs::write(
-        &path,
-        format!("{header}\n[script]\nscene_numbering = \"automatic\"\n"),
-    );
+    let scratch = Scratch::automatic(book);
     let mut app = scratch.app();
     let _ = screen(&mut app, 100, 24);
     ctrl_end(&mut app);
