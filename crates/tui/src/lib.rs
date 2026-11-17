@@ -19,6 +19,7 @@ mod links;
 mod terminal;
 mod theme;
 mod ui;
+mod ui_list;
 mod ui_overlay;
 
 pub use app::{App, Flow};

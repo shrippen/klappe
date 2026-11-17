@@ -14,14 +14,12 @@
 //! the chain and the block after it are placed on a copy; if a heading would end a page,
 //! the page ends first, once.
 
-use super::block::{blocks, Block, MIN_SPLIT_ROWS};
+use super::block::{blocks, Block, DUAL_RIGHT_X, MIN_SPLIT_ROWS};
 use super::{Line, Page, PageKind, PageOptions, Pagination, SceneLength};
 use crate::Element;
 
 /// Column of `(MORE)`: under the name of a dialogue.
 const MORE_X: usize = 22;
-/// Column where the right half of a dual dialogue starts.
-const DUAL_RIGHT_X: usize = 31;
 
 /// What the placement does, in order; the real run turns it into pages.
 enum Step {

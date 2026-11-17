@@ -11,6 +11,7 @@ use crate::app::{App, Focus, Mode, Notice};
 use crate::fountain::LineKind;
 use crate::layout::{cols, Row, TAB_WIDTH};
 use crate::theme;
+use crate::ui_list::{draw_list, list_rows_area};
 use crate::ui_overlay::{draw_backup, draw_find, draw_suggest, draw_title};
 
 /// Share of the width the scene list takes: 1/4, but at least `LIST_MIN` columns.
@@ -19,8 +20,7 @@ const LIST_MIN: u16 = 24;
 /// Gap between the pieces of the status line.
 const GAP: &str = "  ";
 /// Marks the scene the cursor is in, in the list: a bar in the accent colour.
-const CURRENT_MARK: &str = "▌ ";
-const OTHER_MARK: &str = "  ";
+pub(crate) const CURRENT_MARK: &str = "▌ ";
 /// Columns the text keeps free at the left and right edge of the editor.
 const EDITOR_PAD: u16 = 1;
 /// Columns between a row's text and its chips, and between two chips.
@@ -30,8 +30,6 @@ const GOTO_WIDTH: usize = 60;
 const GOTO_ROWS: usize = 10;
 /// The page break line is drawn with this character.
 const PAGE_RULE: &str = "─";
-/// Columns between a scene's heading and its length in the list.
-const LENGTH_GAP: usize = 1;
 /// Prompt of the search box.
 const GOTO_PROMPT: &str = "› ";
 
@@ -170,9 +168,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         let list_width = (main.width / LIST_SHARE).max(LIST_MIN).min(main.width / 2);
         let [list, editor] =
             Layout::horizontal([Constraint::Length(list_width), Constraint::Min(1)]).areas(main);
+        app.set_list_area(list_rows_area(list));
         draw_list(frame, app, list);
         draw_editor(frame, app, editor);
     } else {
+        app.set_list_area(Rect::default());
         draw_editor(frame, app, main);
     }
     draw_status(frame, app, status);
@@ -221,87 +221,6 @@ fn draw_header(frame: &mut Frame, app: &App, area: Rect) {
         Paragraph::new(right).alignment(Alignment::Right).style(bar),
         area,
     );
-}
-
-fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
-    let focused = app.focus == Focus::List;
-    let block = Block::new()
-        .borders(Borders::RIGHT)
-        .border_style(Style::new().fg(theme::RAISED));
-    let inner = block.inner(area);
-    frame.render_widget(block, area);
-
-    let [title, rows] = Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
-    let heading = Style::new().fg(theme::MUTED).add_modifier(Modifier::BOLD);
-    frame.render_widget(
-        Paragraph::new(format!(" {}", app.texts.scenes)).style(heading),
-        title,
-    );
-    // The whole screenplay in pages and eighths (DB-32); italic while the text has changed.
-    if let Some(pages) = app.pages() {
-        let mut style = Style::new().fg(theme::MUTED);
-        if app.pages_stale() {
-            style = style.add_modifier(Modifier::ITALIC);
-        }
-        let total = Paragraph::new(format!("{} ", pages.length))
-            .alignment(Alignment::Right)
-            .style(style);
-        frame.render_widget(total, title);
-    }
-
-    if app.analysis.scenes.is_empty() {
-        let none =
-            Paragraph::new(app.texts.no_scenes.as_str()).style(Style::new().fg(theme::MUTED));
-        frame.render_widget(none, rows);
-        return;
-    }
-
-    let current = app.analysis.scene_at(app.cursor().line);
-    let items: Vec<ListItem> = (0..app.analysis.scenes.len())
-        .map(|i| scene_item(app, i, current == Some(i), usize::from(rows.width)))
-        .collect();
-
-    let highlight = if focused {
-        Style::new().bg(theme::RAISED)
-    } else {
-        Style::new()
-    };
-    let widget = List::new(items).highlight_style(highlight);
-    let mut state = ListState::default().with_selected(Some(app.list_sel));
-    frame.render_stateful_widget(widget, rows, &mut state);
-}
-
-/// One scene of the list: number, heading cut to fit and its length at the right edge.
-fn scene_item(app: &App, i: usize, current: bool, width: usize) -> ListItem<'_> {
-    let scene = &app.analysis.scenes[i];
-    let number = scene.display_number(i);
-    let length = app.scene_length(i).unwrap_or_default();
-    let prefix = cols(format!("{number}  ").chars()) + cols(CURRENT_MARK.chars());
-    let room = width
-        .saturating_sub(prefix + cols(length.chars()) + LENGTH_GAP)
-        .max(1);
-    let heading = fit(&scene.heading, room);
-    let pad =
-        " ".repeat(width.saturating_sub(prefix + cols(heading.chars()) + cols(length.chars())));
-    let tail = Span::styled(format!("{pad}{length}"), Style::new().fg(theme::MUTED));
-
-    if current {
-        return ListItem::new(Line::from(vec![
-            Span::styled(CURRENT_MARK, Style::new().fg(theme::ACCENT)),
-            Span::styled(
-                format!("{number}  {heading}"),
-                Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD),
-            ),
-            tail,
-        ]));
-    }
-
-    ListItem::new(Line::from(vec![
-        Span::raw(OTHER_MARK),
-        Span::styled(format!("{number}  "), Style::new().fg(theme::MUTED)),
-        Span::styled(heading, Style::new().fg(theme::SOFT)),
-        tail,
-    ]))
 }
 
 fn draw_editor(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -648,7 +567,7 @@ fn draw_goto(frame: &mut Frame, app: &App) {
 }
 
 /// The text cut to `room` columns.
-fn fit(text: &str, room: usize) -> String {
+pub(crate) fn fit(text: &str, room: usize) -> String {
     let mut used = 0;
 
     text.chars()

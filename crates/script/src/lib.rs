@@ -9,6 +9,7 @@ mod anchor;
 mod assist;
 mod conflict;
 mod inline;
+mod outline;
 mod pages;
 mod parse;
 mod quote;
@@ -21,6 +22,7 @@ pub use align::{align, scene_states, Alignment, Fingerprint, Outcome, SceneState
 pub use assist::{suggest, Context, Gap, Slot, Stage, Suggestions, Vocabulary};
 pub use conflict::conflict_line;
 pub use inline::{inline_runs, Marks, Run};
+pub use outline::{move_entry, outline, outline_of, visible, Entry, EntryKind, Moved, Way};
 pub use pages::{
     length_text, paginate, ContdAfterAction, Line, Page, PageKind, PageOptions, PageSize,
     Pagination, SceneLength, Words, TEXT_COLUMNS,
@@ -137,3 +139,6 @@ fn view<'a>(head: Option<(&'a str, Option<&'a str>)>, elements: &'a [Element]) -
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod outline_tests;
