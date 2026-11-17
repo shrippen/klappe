@@ -5,7 +5,7 @@
 //! cursor leaves it.
 
 use klappe_services::{
-    enter_step, suggest, tab_step, Context, EnterStep, Gap, Slot, Stage, Suggestions,
+    enter_step, force_line, suggest, tab_step, Context, EnterStep, Gap, Slot, Stage, Suggestions,
 };
 
 use super::{App, Mode};
@@ -158,6 +158,21 @@ impl App {
             },
         );
         self.set_pending(line, step.slot);
+    }
+
+    /// Turns the cursor line into a scene heading or a transition (`Alt+H`, `Alt+T`), as one
+    /// undo step; an empty line shows as that element until the cursor leaves it.
+    pub(super) fn make_element(&mut self, slot: Slot) {
+        let Pos { line, .. } = self.editor.cursor();
+        let text = self.editor.lines()[line].clone();
+        let Some(new) = force_line(&text, slot) else {
+            return;
+        };
+
+        let col = new.chars().count();
+        self.editor
+            .set_lines(line, line + 1, vec![new], Pos { line, col });
+        self.set_pending(line, slot);
     }
 
     /// What the line at the cursor is for completion.

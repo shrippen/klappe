@@ -416,3 +416,45 @@ fn prose_that_starts_like_a_prefix_stays_as_typed() {
     assert_eq!(app.text(), "x\n\nCUT TO:\n\nIn der Küche");
     assert_eq!(app.analysis.kind(app.cursor().line), LineKind::Action);
 }
+
+#[test]
+fn alt_h_and_alt_t_make_a_heading_and_a_transition() {
+    // (text, key, what the line becomes, the element read)
+    for (text, key, want) in [
+        ("Anna geht.", 'h', ".ANNA GEHT."),
+        ("int. küche - tag", 'h', "INT. KÜCHE - TAG"),
+        (".alt", 'h', ".ALT"),
+        ("cut to:", 't', "CUT TO:"),
+        ("fade out.", 't', ">FADE OUT."),
+    ] {
+        let (_s, mut app) = app_with(&format!("x\n\n{text}\n\ny"));
+        keys(&mut app, &[KeyCode::Up, KeyCode::Up]);
+        press(&mut app, KeyCode::End);
+        alt(&mut app, key);
+
+        assert_eq!(app.text(), format!("x\n\n{want}\n\ny"), "{text:?}");
+        let kind = parse(&app.text()).elements[1].clone();
+        match key {
+            'h' => assert!(matches!(kind, Element::SceneHeading { .. }), "{kind:?}"),
+            _ => assert!(matches!(kind, Element::Transition(_)), "{kind:?}"),
+        }
+        // One undo step.
+        ctrl(&mut app, 'z');
+        assert_eq!(app.text(), format!("x\n\n{text}\n\ny"), "{text:?}");
+    }
+}
+
+#[test]
+fn alt_h_on_an_empty_line_opens_a_heading_line() {
+    let (_s, mut app) = app_with("x\n\n");
+    alt(&mut app, 'h');
+
+    assert_eq!(app.text(), "x\n\n");
+    assert_eq!(app.pending.map(|p| p.1), Some(Slot::Heading));
+    typed(&mut app, "int. a - tag");
+    assert!(app.text().ends_with("INT. A - TAG"), "{}", app.text());
+
+    let (_s, mut app) = app_with("x\n\n");
+    alt(&mut app, 't');
+    assert_eq!(app.pending.map(|p| p.1), Some(Slot::Transition));
+}

@@ -693,6 +693,8 @@
  "tui.help.wheel": "Mausrad          Scrollen",
  "tui.help.help": "F1               Diese Hilfe",
  "tui.help.element": "Enter            Am Ende eines Elements: nächstes Element",
+ "tui.help.heading": "Alt+H            Zeile zum Szenenkopf",
+ "tui.help.transition": "Alt+T            Zeile zum Übergang",
  "tui.help.tab": "Tab              Leere Zeile: Element wechseln",
  "tui.help.suggest": "Tab / Enter      Angezeigten Vorschlag übernehmen",
  "tui.help.suggestMove": "Hoch / Runter / Esc  Vorschlag wählen / verwerfen",

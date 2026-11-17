@@ -693,6 +693,8 @@
  "tui.help.wheel": "Mouse wheel      Scroll",
  "tui.help.help": "F1               This help",
  "tui.help.element": "Enter            End of an element: the next element",
+ "tui.help.heading": "Alt+H            Line becomes scene heading",
+ "tui.help.transition": "Alt+T            Line becomes transition",
  "tui.help.tab": "Tab              Empty line: change the element",
  "tui.help.suggest": "Tab / Enter      Take the suggestion shown",
  "tui.help.suggestMove": "Up / Down / Esc  Choose / dismiss a suggestion",

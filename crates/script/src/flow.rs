@@ -1,6 +1,9 @@
 //! The element flow of the editor: the element a line becomes on Enter at its end, and
 //! on Tab on an empty line. `assist.rs` offers the suggestions for the same line.
 
+use crate::parse::{
+    parse_elements, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING, FORCE_TRANSITION,
+};
 use crate::Element;
 
 /// The kind of element a line of the editor is meant to be, as far as Enter and Tab care.
@@ -149,6 +152,69 @@ pub fn tab_step(text: &str, slot: Option<Slot>) -> Option<TabStep> {
     })
 }
 
+const SHARP_S: char = 'ß';
+const CENTER_END: char = '<';
+
+/// Capitals, `ß` kept (it would become `SS`).
+fn capitals(text: &str) -> String {
+    text.chars()
+        .flat_map(|c| match c {
+            SHARP_S => vec![c],
+            _ => c.to_uppercase().collect(),
+        })
+        .collect()
+}
+
+/// `text` without a leading forcing marker (and the `<` of a centered `>text<`).
+fn unforced(text: &str) -> &str {
+    let text = text.trim();
+    let marked = [
+        FORCE_HEADING,
+        FORCE_ACTION,
+        FORCE_CHARACTER,
+        FORCE_TRANSITION,
+    ];
+    let Some(first) = text.chars().next().filter(|c| marked.contains(c)) else {
+        return text;
+    };
+    let rest = &text[first.len_utf8()..];
+    if first == FORCE_HEADING && rest.starts_with(FORCE_HEADING) {
+        return text;
+    }
+
+    match first == FORCE_TRANSITION {
+        true => rest.strip_suffix(CENTER_END).unwrap_or(rest).trim(),
+        false => rest.trim(),
+    }
+}
+
+/// The line `text` made a scene heading or transition (`slot`; none for other slots): in
+/// capitals, with the forcing marker (`.`, `>`) only where the plain text would not be read
+/// as that element.
+///
+/// ```text
+/// "kueche tag"  ─► ".KUECHE TAG"      "int. küche"  ─► "INT. KÜCHE"
+/// "fade out."   ─► ">FADE OUT."       "cut to:"     ─► "CUT TO:"
+/// ```
+pub fn force_line(text: &str, slot: Slot) -> Option<String> {
+    let marker = match slot {
+        Slot::Heading => FORCE_HEADING,
+        Slot::Transition => FORCE_TRANSITION,
+        _ => return None,
+    };
+    let plain = capitals(unforced(text));
+    if plain.is_empty() {
+        return Some(plain);
+    }
+
+    let read = parse_elements(&plain);
+    let is_slot = read.len() == 1 && Slot::of(&read[0]) == Some(slot);
+    match is_slot {
+        true => Some(plain),
+        false => Some(format!("{marker}{plain}")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,5 +278,25 @@ mod tests {
         assert_eq!(tab_step("", Some(Heading)), None);
         assert_eq!(tab_step("x", Some(Action)), None);
         assert_eq!(tab_step("()", Some(Dialogue)), None);
+    }
+
+    #[test]
+    fn force_line_marks_only_where_needed() {
+        for (text, slot, want) in [
+            ("int. küche - tag", Slot::Heading, "INT. KÜCHE - TAG"),
+            ("küche", Slot::Heading, ".KÜCHE"),
+            (".küche", Slot::Heading, ".KÜCHE"),
+            ("  >Fade out. ", Slot::Heading, ".FADE OUT."),
+            ("Gasse #3#", Slot::Heading, ".GASSE #3#"),
+            ("cut to:", Slot::Transition, "CUT TO:"),
+            ("fade out.", Slot::Transition, ">FADE OUT."),
+            (".INT. A", Slot::Transition, ">INT. A"),
+            (">FADE OUT.<", Slot::Transition, ">FADE OUT."),
+            ("straße", Slot::Heading, ".STRAßE"),
+            ("", Slot::Heading, ""),
+        ] {
+            assert_eq!(force_line(text, slot).as_deref(), Some(want), "{text:?}");
+        }
+        assert_eq!(force_line("x", Slot::Action), None);
     }
 }
