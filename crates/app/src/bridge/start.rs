@@ -46,7 +46,6 @@ impl Default for ControllerRust {
         let language = Language::pick(args.language.as_deref());
         let mut notice = Status::default();
         let session = open_at_start(&args, language, &mut notice);
-
         let mut this = Self {
             session,
             language,
