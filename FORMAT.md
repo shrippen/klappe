@@ -10,7 +10,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── bibliothek.toml      eigene Objekte der Bibliothek, je ein [[objekt]] (optional)
 ├── vorlagen.toml        eigene Vorlagen, je ein [[vorlage]] (optional)
 ├── drehorte/<id>.toml   ein Drehort samt Set (Wände, Objekte)
-├── szenen/<id>.json     eine Szene: Nummer, Überschrift, Drehort, Floorplans
+├── szenen.toml          Register der Drehinhalte (Szenen, Content Items), je ein [[szene]], in Projektfolge
+├── szenen/<id>.json     Stellprobe je Drehinhalt: Drehort, Floorplans (Nummer und Kopf stehen im Register)
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
 └── .sicherung/          Sicherung ungespeicherter Änderungen (optional, siehe unten)
@@ -18,8 +19,21 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 
 ## Regeln
 
-- **Formatversion:** `format_version` in `projekt.toml` (aktuell 2). Eine neuere Version als die
-  des Programms wird nicht geladen, sondern gemeldet.
+- **Formatversion:** `format_version` in `projekt.toml` (aktuell 3). Eine andere Version als die
+  des Programms wird nicht geladen, sondern gemeldet; ältere Projekte werden nicht migriert (es
+  gibt kein Release).
+- **Register `szenen.toml` (Formatversion 3):** je Drehinhalt ein `[[szene]]` mit `id` (zufällig,
+  8 Zeichen aus `a-z2-7`, nie aus der Nummer gebildet, bleibt für immer), `art`, `number`,
+  `heading`, `state` und `prints`. `art`: `scene` (Standard), `interview`, `statement`,
+  `cutaways` (Schnittbilder), `vignette`, `intro` (Einführung), `vlog`; bei einem Content Item
+  ist `heading` der Titel. `state`: `in-book` (Standard, nicht geschrieben) oder `not-in-book`
+  (aus dem Buch gestrichen, bleibt mit seinen Floorplans). `prints`: Fingerabdrücke der Elemente
+  im Buch, je `"<Art>:<Hash>"` (Zahl, Doppelpunkt, 8 Hexziffern), wie `script/` sie bildet; nicht
+  geschrieben, solange leer. Die Folge der Einträge ist die Folge im Projekt. Zu jedem Eintrag
+  gehört `szenen/<id>.json` (fehlt sie, hat er keinen Drehort und keinen Plan); eine Datei ohne
+  Eintrag lädt nicht. Enthält `szenen.toml` Git-Konfliktmarken (`<<<<<<<` am Zeilenanfang) oder
+  `drehbuch.fountain` eine vollständige Konfliktfolge (`<<<<<<<`, `=======`, `>>>>>>>`), lädt
+  das Projekt nicht und der Fehler nennt Datei und Zeile.
 - **Papier:** `paper` in `projekt.toml`, z. B. `"a4-portrait"`: Größe (`a4`, `a3`, `letter`),
   Bindestrich, Ausrichtung (`portrait`, `landscape`). Das Blatt, auf dem zuletzt ausgegeben wurde;
   der Ausgabedialog beginnt damit. Fehlt der Schlüssel (und er wird bei `a4-landscape` nicht
@@ -41,8 +55,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`, Ende auf `.` oder Leerzeichen,
   `<>:"|?*`, Steuerzeichen, Windows-Gerätenamen (`con`, `nul`, `com1` …). Ids, die sich nur
   in der Groß-/Kleinschreibung unterscheiden, gelten als gleich.
-- **Reihenfolge:** Drehorte und Szenen werden nach Id sortiert gelesen. Die Reihenfolge der
-  Figuren steht in `figuren.toml`, die der Shots (Schnittfolge) im Floorplan.
+- **Reihenfolge:** Drehorte werden nach Id sortiert gelesen. Die Reihenfolge der Szenen steht in
+  `szenen.toml`, die der Figuren in `figuren.toml`, die der Shots (Schnittfolge) im Floorplan.
 - **Shots:** `size` (Einstellungsgröße), `angle` (Perspektive) und `movement` sind Namen in
   Kleinschreibung mit Bindestrich. `angle`: `eye-level` (Normalsicht), `high` (Aufsicht), `low`
   (Untersicht), `birds-eye` (Vogelperspektive), `worms-eye` (Froschperspektive), `dutch`

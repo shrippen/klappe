@@ -351,7 +351,7 @@ mod tests {
             });
         }
         for (id, number, heading) in [
-            ("szene-012", "12", "INT. SAAL – TAG"),
+            ("m4djbtj6", "12", "INT. SAAL – TAG"),
             ("szene-013", "13", "INT. HOF – NACHT"),
         ] {
             p.scenes.push(Scene {
@@ -360,6 +360,7 @@ mod tests {
                 heading: heading.into(),
                 location: "saal".into(),
                 plans: Vec::new(),
+                ..Default::default()
             });
         }
         p
@@ -404,7 +405,7 @@ mod tests {
         p.scenes[0].heading = String::new();
         let script = ".#12#\n\nA.\n";
 
-        let text = scene_text(&p, script, "szene-012", "12", "INT. NEU").unwrap();
+        let text = scene_text(&p, script, "m4djbtj6", "12", "INT. NEU").unwrap();
         assert!(text.starts_with("INT. NEU #12#\n"), "{text:?}");
     }
 
@@ -421,7 +422,7 @@ mod tests {
     fn a_new_heading_and_number_change_one_line() {
         let p = project();
 
-        let changes = scene_changes(&p, SCRIPT, "szene-012", "12A", "INT. SAAL – NACHT");
+        let changes = scene_changes(&p, SCRIPT, "m4djbtj6", "12A", "INT. SAAL – NACHT");
         assert_eq!(changes.len(), 2);
         assert_eq!(changes[0].kind, ChangeKind::Heading);
         assert_eq!(changes[0].to, "INT. SAAL – NACHT");
@@ -431,7 +432,7 @@ mod tests {
             ("#12#", "#12A#")
         );
 
-        let text = scene_text(&p, SCRIPT, "szene-012", "12A", "INT. SAAL – NACHT").unwrap();
+        let text = scene_text(&p, SCRIPT, "m4djbtj6", "12A", "INT. SAAL – NACHT").unwrap();
         assert!(text.starts_with("INT. SAAL – NACHT #12A#\n"));
         assert!(text.contains("INT. HOF – NACHT #13#\n"));
     }
@@ -442,7 +443,7 @@ mod tests {
         let p = project();
 
         assert_eq!(
-            scene_text(&p, SCRIPT, "szene-012", "12", "INT. SAAL – TAG"),
+            scene_text(&p, SCRIPT, "m4djbtj6", "12", "INT. SAAL – TAG"),
             None
         );
     }
@@ -453,7 +454,7 @@ mod tests {
         let p = project();
         let script = SCRIPT.replace("INT. SAAL – TAG", "INT. GROSSER SAAL – TAG");
 
-        let text = scene_text(&p, &script, "szene-012", "14", "INT. SAAL – NACHT").unwrap();
+        let text = scene_text(&p, &script, "m4djbtj6", "14", "INT. SAAL – NACHT").unwrap();
         assert!(text.starts_with("INT. GROSSER SAAL – TAG #14#\n"));
     }
 
@@ -462,7 +463,7 @@ mod tests {
     fn a_heading_without_a_prefix_is_forced() {
         let p = project();
 
-        let text = scene_text(&p, SCRIPT, "szene-012", "12", "Der Saal").unwrap();
+        let text = scene_text(&p, SCRIPT, "m4djbtj6", "12", "Der Saal").unwrap();
         assert!(text.starts_with(".Der Saal #12#\n"));
         assert!(matches!(
             parse(&text).elements.first(),
@@ -476,7 +477,7 @@ mod tests {
         let elisabeth = p.character("elisabeth").unwrap();
 
         assert_eq!(
-            cue_count(SCRIPT, p.scene("szene-012").unwrap(), elisabeth),
+            cue_count(SCRIPT, p.scene("m4djbtj6").unwrap(), elisabeth),
             2
         );
         assert_eq!(

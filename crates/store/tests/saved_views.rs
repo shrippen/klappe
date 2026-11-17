@@ -105,6 +105,7 @@ fn scene_with(project: &Project, plan: FloorPlan) -> Project {
         heading: "INT. SAAL – TAG".into(),
         location: "saal".into(),
         plans: vec![plan],
+        ..Default::default()
     }];
 
     project

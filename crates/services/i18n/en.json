@@ -754,6 +754,7 @@
  "numbering.camera": "Camera letter and its running number (12A.3, version 12A.3-B)",
  "numbering.group": "Group of simultaneous shots, camera letter behind (12.3A, 12.3B, version 12.3A-B)",
  "error.noScript": "The project has no screenplay.",
+ "error.conflict": "Unresolved Git conflict markers in {detail}; the project is not opened.",
  "undo.tip": "Undo: {step} ({key})",
  "redo.tip": "Redo: {step} ({key})",
  "hint.stays": "The tool stays active for more, Esc picks Select.",

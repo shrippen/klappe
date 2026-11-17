@@ -24,6 +24,17 @@ pub enum StoreError {
         supported: u32,
     },
 
+    #[error("{}: format version {found} is older than the supported {supported}; older projects are not migrated", path.display())]
+    OlderFormat {
+        path: PathBuf,
+        found: u32,
+        supported: u32,
+    },
+
+    /// A file holds the markers Git leaves for a merge it could not do.
+    #[error("{}:{line}: unresolved Git merge conflict", path.display())]
+    Conflict { path: PathBuf, line: usize },
+
     #[error("{}: id {found:?} does not match the file name", path.display())]
     IdMismatch { path: PathBuf, found: String },
 

@@ -59,7 +59,7 @@ fn own_text(language: Language, error: &ServiceError) -> String {
             return language.text("error.locked").replace("{layer}", &name);
         }
         ServiceError::BadValue { field, value } => return bad_value(language, field, value),
-        ServiceError::Store(e) => ("error.store", e.to_string()),
+        ServiceError::Store(e) => store_text(e),
         ServiceError::Export(e) => (export_key(e), e.to_string()),
         // The path and the system's reason, e.g. "/a/b.pdf: No such file or directory".
         ServiceError::Write { path, source } => {
@@ -69,6 +69,17 @@ fn own_text(language: Language, error: &ServiceError) -> String {
     };
 
     language.text(key).replace("{detail}", &detail)
+}
+
+/// A store error: a merge conflict has its own text, naming file and line; the rest says what
+/// the store says.
+fn store_text(error: &klappe_store::StoreError) -> (&'static str, String) {
+    match error {
+        klappe_store::StoreError::Conflict { path, line } => {
+            ("error.conflict", format!("{}:{line}", path.display()))
+        }
+        other => ("error.store", other.to_string()),
+    }
 }
 
 /// The key of an export error: the one a user can act on has its own text.

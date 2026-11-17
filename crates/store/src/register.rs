@@ -1,0 +1,146 @@
+//! The register of what is shot: `szenen.toml` (id, kind, number, heading, state, prints, in
+//! the order of the project) and, per entry, `szenen/<id>.json` (location, plans).
+
+use std::collections::HashMap;
+use std::path::Path;
+
+use klappe_model::{BookState, FloorPlan, Kind, Print, Scene};
+use serde::{Deserialize, Serialize};
+
+use crate::files::{self, Dir, Kind as FileKind};
+use crate::{StoreError, SCENES_DIR, SCENES_FILE};
+
+/// Start of a Git conflict; no line of valid TOML begins with it.
+const CONFLICT_MARK: &str = "<<<<<<<";
+
+#[derive(Serialize, Deserialize)]
+struct Register {
+    #[serde(default)]
+    szene: Vec<Entry>,
+}
+
+/// One `[[szene]]` of the register.
+#[derive(Serialize, Deserialize)]
+struct Entry {
+    id: String,
+    #[serde(default)]
+    art: Kind,
+    number: String,
+    heading: String,
+    #[serde(default, skip_serializing_if = "is_in_book")]
+    state: BookState,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    prints: Vec<Print>,
+}
+
+fn is_in_book(state: &BookState) -> bool {
+    *state == BookState::InBook
+}
+
+/// `szenen/<id>.json`: what Stellprobe keeps of an entry.
+#[derive(Serialize, Deserialize)]
+struct Stage {
+    id: String,
+    location: String,
+    #[serde(default)]
+    plans: Vec<FloorPlan>,
+}
+
+/// The register in project order, each entry joined with its Stellprobe file. An entry
+/// without a file has no location and no plans; a file without an entry is refused.
+pub(crate) fn load(dir: &Path) -> Result<Vec<Scene>, StoreError> {
+    let path = dir.join(SCENES_FILE);
+    let register = read(&path)?;
+    crate::check_ids(register.szene.iter().map(|e| e.id.as_str()))?;
+
+    let mut stages: HashMap<String, Stage> =
+        crate::load_all::<Stage>(&dir.join(SCENES_DIR), FileKind::Json, |s| &s.id)?
+            .into_iter()
+            .map(|s| (s.id.clone(), s))
+            .collect();
+
+    let scenes = register
+        .szene
+        .into_iter()
+        .map(|entry| {
+            let stage = stages.remove(&entry.id);
+            join(entry, stage)
+        })
+        .collect();
+
+    if let Some(id) = stages.keys().min() {
+        return Err(StoreError::Parse {
+            path: dir.join(SCENES_DIR).join(format!("{id}.json")),
+            message: format!("{id}: no entry in {SCENES_FILE}"),
+        });
+    }
+
+    Ok(scenes)
+}
+
+fn read(path: &Path) -> Result<Register, StoreError> {
+    let Some(text) = files::read_optional(path)? else {
+        return Ok(Register { szene: Vec::new() });
+    };
+    let conflict = text.lines().position(|l| l.starts_with(CONFLICT_MARK));
+    if let Some(index) = conflict {
+        return Err(StoreError::Conflict {
+            path: path.to_path_buf(),
+            line: index + 1,
+        });
+    }
+
+    toml::from_str(&text).map_err(|e| StoreError::Parse {
+        path: path.to_path_buf(),
+        message: e.to_string(),
+    })
+}
+
+fn join(entry: Entry, stage: Option<Stage>) -> Scene {
+    let (location, plans) = stage.map_or_else(Default::default, |s| (s.location, s.plans));
+
+    Scene {
+        id: entry.id,
+        kind: entry.art,
+        number: entry.number,
+        heading: entry.heading,
+        state: entry.state,
+        prints: entry.prints,
+        location,
+        plans,
+    }
+}
+
+/// The content of `szenen.toml` and of every `szenen/<id>.json`, with their paths.
+pub(crate) fn encode(
+    dir: &Path,
+    scenes: &[Scene],
+) -> Result<Vec<(std::path::PathBuf, Vec<u8>)>, StoreError> {
+    let register = Register {
+        szene: scenes
+            .iter()
+            .map(|s| Entry {
+                id: s.id.clone(),
+                art: s.kind,
+                number: s.number.clone(),
+                heading: s.heading.clone(),
+                state: s.state,
+                prints: s.prints.clone(),
+            })
+            .collect(),
+    };
+    let path = dir.join(SCENES_FILE);
+    let mut writes = vec![(path.clone(), files::encode_toml(&path, &register)?)];
+
+    let stages = Dir::new(dir.join(SCENES_DIR), FileKind::Json);
+    for scene in scenes {
+        let stage = Stage {
+            id: scene.id.clone(),
+            location: scene.location.clone(),
+            plans: scene.plans.clone(),
+        };
+        writes.push(stages.encode(&scene.id, &stage)?);
+    }
+
+    Ok(writes)
+}

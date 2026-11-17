@@ -1,5 +1,5 @@
 //! Renames carried into the screenplay text, and where scenes and characters occur (D-08), on a
-//! copy of the example project: scene `szene-012` ("12"), characters `elisabeth` and `burgvogt`.
+//! copy of the example project: scene `m4djbtj6` ("12"), characters `elisabeth` and `burgvogt`.
 #![allow(clippy::unwrap_used)]
 
 use std::path::{Path, PathBuf};
@@ -101,13 +101,13 @@ fn a_scene_edit_carries_heading_and_number_into_the_script() {
     let mut s = open("manage-rename-scene");
     let before = s.script_text().to_owned();
     let edit = ProjectEdit::EditScene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
         number: "12A".into(),
         heading: "INT. SÄNGERSAAL – NACHT".into(),
         location: "saengersaal".into(),
     };
 
-    let changes = s.scene_script_changes("szene-012", "12A", "INT. SÄNGERSAAL – NACHT");
+    let changes = s.scene_script_changes("m4djbtj6", "12A", "INT. SÄNGERSAAL – NACHT");
     assert_eq!(changes.len(), 2);
 
     s.edit_project(edit).unwrap();
@@ -130,7 +130,7 @@ fn uses_tell_where_a_character_and_a_scene_occur() {
     assert_eq!((uses[0].number.as_str(), uses[0].cues), ("12", 1));
     assert!(s.character_uses("nobody").is_empty());
 
-    let card = s.scene_card("szene-012").unwrap();
+    let card = s.scene_card("m4djbtj6").unwrap();
     assert_eq!(card.time, "TAG");
     assert_eq!(card.cast.len(), 2);
     assert_eq!(card.cast[0].cues, 1);
@@ -215,7 +215,7 @@ fn a_scene_cannot_take_a_number_the_script_has() {
     let mut s = open("manage-number-in-script");
     s.set_script_text("INT. A #12#\n\nA.\n\nEXT. HOF – NACHT #13#\n\nB.\n");
     let edit = ProjectEdit::EditScene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
         number: "13".into(),
         heading: "INT. A".into(),
         location: "saengersaal".into(),

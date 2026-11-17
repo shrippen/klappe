@@ -1,4 +1,4 @@
-//! Plan variants of a scene (LH-04), on a copy of the example project: scene `szene-012` has
+//! Plan variants of a scene (LH-04), on a copy of the example project: scene `m4djbtj6` has
 //! one plan, `plan-a` ("Plan A") with five shots and two figures.
 #![allow(clippy::unwrap_used)]
 

@@ -4,38 +4,30 @@ use crate::geometry::{Point, TurnedRect};
 use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
 use crate::plan::FloorPlan;
+use crate::register::{BookState, Kind, Print};
 use crate::saved_view::SavedView;
 use crate::script_setup::ScriptSetup;
 use crate::shot::Numbering;
 use crate::template::Template;
 
 /// One film: everything every module works on.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Project {
     pub title: String,
-    #[serde(default)]
     pub characters: Vec<Character>,
-    #[serde(default)]
     pub locations: Vec<Location>,
-    #[serde(default)]
     pub scenes: Vec<Scene>,
     /// The project's own objects (LH-12), next to the built-in library.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub library: Vec<LibraryItem>,
     /// The project's own templates (LH-07), next to the built-in ones.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<Template>,
     /// The saved views of the plan (LH-119).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub views: Vec<SavedView>,
     /// The sheet the plan was last exported on; the export dialog starts from it.
-    #[serde(default)]
     pub paper: PaperSetup,
     /// How the shots are numbered (LH-76).
-    #[serde(default)]
     pub numbering: Numbering,
     /// How the screenplay is paged and printed (DB-30, DB-31).
-    #[serde(default)]
     pub script: ScriptSetup,
 }
 
@@ -541,16 +533,24 @@ fn is_rect(shape: &ObjectShape) -> bool {
     *shape == ObjectShape::Rect
 }
 
-/// A scene from the script, at one location (LH-01).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// An entry of the register of what is shot (DATENMODELL §3): a scene of the script at one
+/// location (LH-01), or a content item (`kind`). Floor plans and shots hang on its id.
+///
+/// The project folder keeps the register (id, kind, number, heading, state, prints) in
+/// `szenen.toml` and the rest in `szenen/<id>.json` (FORMAT.md).
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Scene {
+    /// Random and stable; never made from the number.
     pub id: String,
+    pub kind: Kind,
     /// Scene number as in the script, e.g. `12` or `12A`.
     pub number: String,
-    /// Scene heading, e.g. `INT. SÄNGERSAAL – TAG`.
+    /// Scene heading, e.g. `INT. SÄNGERSAAL – TAG`; the title of a content item.
     pub heading: String,
+    pub state: BookState,
+    /// What the book held of this entry when it was last saved.
+    pub prints: Vec<Print>,
     pub location: String,
-    #[serde(default)]
     pub plans: Vec<FloorPlan>,
 }
 

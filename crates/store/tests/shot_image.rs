@@ -32,5 +32,5 @@ fn a_picture_inside_bilder_loads() {
 fn a_picture_outside_the_project_does_not_load() {
     assert!(!load_with("shot-image-up", "../x.png"));
     assert!(!load_with("shot-image-abs", "/home/u/x.png"));
-    assert!(!load_with("shot-image-other", "szenen/szene-012.json"));
+    assert!(!load_with("shot-image-other", "szenen/m4djbtj6.json"));
 }

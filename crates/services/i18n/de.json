@@ -754,6 +754,7 @@
  "numbering.camera": "Kamerabuchstabe und deren laufende Nummer (12A.3, Version 12A.3-B)",
  "numbering.group": "Gruppe gleichzeitiger Shots, Kamerabuchstabe dahinter (12.3A, 12.3B, Version 12.3A-B)",
  "error.noScript": "Das Projekt hat kein Drehbuch.",
+ "error.conflict": "Ungelöste Git-Konfliktmarken in {detail}; das Projekt wird nicht geöffnet.",
  "undo.tip": "Rückgängig: {step} ({key})",
  "redo.tip": "Wiederholen: {step} ({key})",
  "hint.stays": "Das Werkzeug bleibt für weitere aktiv, Esc wählt die Auswahl.",

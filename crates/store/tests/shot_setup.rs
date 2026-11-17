@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_store::{load, save};
 
-const SCENE_FILE: &str = "szenen/szene-012.json";
+const SCENE_FILE: &str = "szenen/m4djbtj6.json";
 
 /// A fresh, empty folder for one test.
 fn test_dir(name: &str) -> PathBuf {

@@ -19,7 +19,7 @@ TestCase {
         // Replaces the character's scenes when set.
         property string noScenes: ""
         property string projectJson: JSON.stringify({
-            scenes: [{ id: "szene-012", number: "12", heading: "INT. SÄNGERSAAL – TAG",
+            scenes: [{ id: "m4djbtj6", number: "12", heading: "INT. SÄNGERSAAL – TAG",
                        location: "saengersaal", locationName: "Sängersaal" }],
             locations: [],
             characters: [{ id: "elisabeth", name: "Elisabeth", short: "E", color: "purple", group: 0 }]
@@ -36,7 +36,7 @@ TestCase {
                 return noScenes
             }
             return JSON.stringify([
-                { id: "szene-012", number: "12", heading: "INT. SÄNGERSAAL – TAG", cues: 3, figures: 2 },
+                { id: "m4djbtj6", number: "12", heading: "INT. SÄNGERSAAL – TAG", cues: 3, figures: 2 },
                 { id: "szene-014", number: "14", heading: "EXT. HOF", cues: 1, figures: 0 }
             ])
         }
@@ -53,7 +53,7 @@ TestCase {
             height: 500
             texts: de
             controller: fake
-            scene: { "id": "szene-012", "number": "12", "heading": "INT. SÄNGERSAAL – TAG" }
+            scene: { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG" }
             lines: [
                 { kind: "action", text: "Elisabeth tritt ein.", current: false, chips: [], character: "" },
                 { kind: "character", text: "ELISABETH", current: false, chips: [], character: "elisabeth" },
@@ -86,7 +86,7 @@ TestCase {
 
         const card = findChild(panel, "refCard")
         tryCompare(card, "opened", true)
-        compare(fake.asked, [["scene", "szene-012"]])
+        compare(fake.asked, [["scene", "m4djbtj6"]])
         compare(findChild(card, "cardTitle").text, "12 INT. SÄNGERSAAL – TAG")
         verify(findChild(card, "sceneFacts").visible)
         verify(!findChild(card, "characterFacts").visible)

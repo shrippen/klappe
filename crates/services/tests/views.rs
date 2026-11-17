@@ -54,7 +54,7 @@ fn the_overview_lists_scenes_locations_and_plans() {
     assert_eq!(
         o.scenes[0],
         SceneRow {
-            id: "szene-012".into(),
+            id: "m4djbtj6".into(),
             number: "12".into(),
             heading: s.project().scenes[0].heading.clone(),
             location: s.project().scenes[0].location.clone(),

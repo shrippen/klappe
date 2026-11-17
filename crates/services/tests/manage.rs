@@ -1,5 +1,5 @@
 //! Projects, scenes, locations and characters (LH-01 to LH-03), on a copy of the example
-//! project: scene `szene-012` ("12") at `saengersaal`, characters `elisabeth` and `burgvogt`
+//! project: scene `m4djbtj6` ("12") at `saengersaal`, characters `elisabeth` and `burgvogt`
 //! (both in Plan A).
 #![allow(clippy::unwrap_used)]
 
@@ -67,6 +67,13 @@ fn add_character(name: &str, short: &str) -> ProjectEdit {
     }
 }
 
+/// The id of the scene with `number`.
+fn id_of(s: &Session, number: &str) -> String {
+    let scene = s.project().scenes.iter().find(|x| x.number == number);
+
+    scene.unwrap().id.clone()
+}
+
 fn scene_ids(s: &Session) -> Vec<String> {
     s.project().scenes.iter().map(|x| x.id.clone()).collect()
 }
@@ -122,7 +129,7 @@ fn adds_a_scene_with_an_empty_plan() {
 
     s.edit_project(add_scene("13", "saengersaal")).unwrap();
 
-    let scene = s.project().scene("szene-013").unwrap();
+    let scene = s.project().scene(&id_of(&s, "13")).unwrap();
     assert_eq!(scene.number, "13");
     assert_eq!(scene.heading, "INT. HOF – NACHT");
     assert_eq!(scene.location, "saengersaal");
@@ -130,16 +137,6 @@ fn adds_a_scene_with_an_empty_plan() {
     assert_eq!(scene.plans[0].name, "Plan A");
     assert!(scene.plans[0].figures.is_empty());
     assert!(s.is_dirty());
-}
-
-#[test]
-fn scene_ids_come_from_the_number_and_stay_unique() {
-    let mut s = open("manage-scene-ids");
-
-    s.edit_project(add_scene("12A", "saengersaal")).unwrap();
-    s.edit_project(add_scene("2", "saengersaal")).unwrap();
-
-    assert_eq!(scene_ids(&s), ["szene-002", "szene-012", "szene-012a"]);
 }
 
 #[test]
@@ -178,14 +175,14 @@ fn changing_the_heading_keeps_the_number() {
     let mut s = open("manage-heading");
 
     s.edit_project(ProjectEdit::EditScene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
         number: "12".into(),
         heading: " INT. SÄNGERSAAL – NACHT ".into(),
         location: "saengersaal".into(),
     })
     .unwrap();
 
-    let scene = s.project().scene("szene-012").unwrap();
+    let scene = s.project().scene("m4djbtj6").unwrap();
     assert_eq!(scene.number, "12");
     assert_eq!(scene.heading, "INT. SÄNGERSAAL – NACHT");
     // The script's scene 12 still finds the plan: its lines are linked.
@@ -196,10 +193,11 @@ fn changing_the_heading_keeps_the_number() {
 fn renumbers_a_scene_but_not_onto_another() {
     let mut s = open("manage-renumber");
     s.edit_project(add_scene("13", "saengersaal")).unwrap();
+    let id = id_of(&s, "13");
 
     let err = s
         .edit_project(ProjectEdit::EditScene {
-            id: "szene-013".into(),
+            id: id.clone(),
             number: "12".into(),
             heading: "x".into(),
             location: "saengersaal".into(),
@@ -208,7 +206,7 @@ fn renumbers_a_scene_but_not_onto_another() {
     assert!(matches!(err, ServiceError::NumberTaken(_)));
 
     s.edit_project(ProjectEdit::EditScene {
-        id: "szene-013".into(),
+        id: id.clone(),
         number: "14".into(),
         heading: "x".into(),
         location: "saengersaal".into(),
@@ -216,7 +214,7 @@ fn renumbers_a_scene_but_not_onto_another() {
     .unwrap();
 
     // The id stays: it is a file name.
-    assert_eq!(s.project().scene("szene-013").unwrap().number, "14");
+    assert_eq!(s.project().scene(&id).unwrap().number, "14");
 }
 
 #[test]
@@ -225,25 +223,25 @@ fn edits_a_scene_and_moves_it_in_one_undo_step() {
     s.edit_project(add_location("Burghof")).unwrap();
 
     s.edit_project(ProjectEdit::EditScene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
         number: "13".into(),
         heading: "EXT. BURGHOF".into(),
         location: "burghof".into(),
     })
     .unwrap();
-    let scene = s.project().scene("szene-012").unwrap();
+    let scene = s.project().scene("m4djbtj6").unwrap();
     assert_eq!(scene.number, "13");
     assert_eq!(scene.location, "burghof");
 
     s.undo();
-    let scene = s.project().scene("szene-012").unwrap();
+    let scene = s.project().scene("m4djbtj6").unwrap();
     assert_eq!(scene.number, "12");
     assert_eq!(scene.heading, "INT. SÄNGERSAAL – TAG");
     assert_eq!(scene.location, "saengersaal");
 
     let err = s
         .edit_project(ProjectEdit::EditScene {
-            id: "szene-012".into(),
+            id: "m4djbtj6".into(),
             number: "12".into(),
             heading: "x".into(),
             location: "nirgends".into(),
@@ -251,7 +249,7 @@ fn edits_a_scene_and_moves_it_in_one_undo_step() {
         .unwrap_err();
     assert!(matches!(err, ServiceError::NoLocation(_)));
     assert_eq!(
-        s.project().scene("szene-012").unwrap().heading,
+        s.project().scene("m4djbtj6").unwrap().heading,
         "INT. SÄNGERSAAL – TAG"
     );
 }
@@ -261,14 +259,14 @@ fn removes_a_scene_and_undoes() {
     let mut s = open("manage-remove-scene");
 
     s.edit_project(ProjectEdit::RemoveScene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
     })
     .unwrap();
     assert!(s.project().scenes.is_empty());
     assert!(s.scene().is_none());
 
     s.undo();
-    assert_eq!(scene_ids(&s), ["szene-012"]);
+    assert_eq!(scene_ids(&s), ["m4djbtj6"]);
     assert!(s.scene().is_some());
 
     let err = s
@@ -280,15 +278,15 @@ fn removes_a_scene_and_undoes() {
 #[test]
 fn the_view_stays_on_its_scene() {
     let mut s = open("manage-view");
-    // Sorts before szene-012: the current scene moves down the list.
+    // Sorts before m4djbtj6: the current scene moves down the list.
     s.edit_project(add_scene("2", "saengersaal")).unwrap();
-    assert_eq!(s.scene().unwrap().id, "szene-012");
+    assert_eq!(s.scene().unwrap().id, "m4djbtj6");
 
     s.undo();
-    assert_eq!(s.scene().unwrap().id, "szene-012");
+    assert_eq!(s.scene().unwrap().id, "m4djbtj6");
 
     s.redo();
-    assert_eq!(s.scene().unwrap().id, "szene-012");
+    assert_eq!(s.scene().unwrap().id, "m4djbtj6");
 }
 
 #[test]
@@ -297,11 +295,11 @@ fn removing_the_scene_on_view_leaves_a_valid_view() {
     s.edit_project(add_scene("13", "saengersaal")).unwrap();
 
     s.edit_project(ProjectEdit::RemoveScene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
     })
     .unwrap();
 
-    assert_eq!(s.scene().unwrap().id, "szene-013");
+    assert_eq!(s.scene().unwrap().number, "13");
     assert!(s.plan().is_some());
 }
 
@@ -705,7 +703,8 @@ fn every_change_undoes_redoes_and_marks_dirty() {
         s.redo();
     }
     assert!(!s.can_redo());
-    assert!(s.project().scene("szene-013").is_some());
+    assert_eq!(s.project().scenes.len(), 2);
+    assert_eq!(s.project().scenes[1].number, "13");
 }
 
 #[test]
@@ -725,7 +724,7 @@ fn saves_and_loads_again() {
     s.edit_project(add_character("Graf", "G")).unwrap();
     s.edit_project(add_scene("13", "burghof")).unwrap();
     s.edit_project(ProjectEdit::RemoveScene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
     })
     .unwrap();
 
@@ -733,8 +732,9 @@ fn saves_and_loads_again() {
 
     let again = Session::open(s.dir()).unwrap();
     assert_eq!(again.project(), s.project());
-    assert_eq!(scene_ids(&again), ["szene-013"]);
-    assert!(!s.dir().join("szenen/szene-012.json").exists());
+    assert_eq!(again.project().scenes.len(), 1);
+    assert_eq!(again.project().scenes[0].number, "13");
+    assert!(!s.dir().join("szenen/m4djbtj6.json").exists());
 }
 
 #[test]
@@ -752,8 +752,8 @@ fn a_new_project_fills_up_and_reloads() {
     assert_eq!(again.scene().unwrap().number, "1");
 }
 
-/// The example project plus a location `Hof` and a scene `Szene-099` (ids that differ from
-/// the generated ones only in case).
+/// The example project plus a location `Hof` (an id that differs from the generated one only
+/// in case).
 fn open_with_capitals(name: &str) -> Session {
     let dir = scratch(name);
     copy_dir(&example(), &dir);
@@ -761,12 +761,6 @@ fn open_with_capitals(name: &str) -> Session {
     let location = std::fs::read_to_string(dir.join("drehorte/saengersaal.toml")).unwrap();
     let location = location.replace("id = \"saengersaal\"", "id = \"Hof\"");
     std::fs::write(dir.join("drehorte/Hof.toml"), location).unwrap();
-
-    let scene = std::fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
-    let scene = scene
-        .replace("\"id\": \"szene-012\"", "\"id\": \"Szene-099\"")
-        .replace("\"number\": \"12\"", "\"number\": \"x\"");
-    std::fs::write(dir.join("szenen/Szene-099.json"), scene).unwrap();
 
     Session::open(&dir).unwrap()
 }
@@ -786,15 +780,4 @@ fn a_new_location_id_differs_from_others_in_more_than_case() {
     assert_eq!(ids, ["hof", "hof-2", "saengersaal"]);
     s.save().unwrap();
     assert_eq!(s.autosave().unwrap(), klappe_services::Autosave::Clean);
-}
-
-#[test]
-fn a_new_scene_id_differs_from_others_in_more_than_case() {
-    let mut s = open_with_capitals("manage-case-scene");
-
-    s.edit_project(add_scene("99", "saengersaal")).unwrap();
-
-    let ids: Vec<_> = scene_ids(&s).iter().map(|i| i.to_lowercase()).collect();
-    assert_eq!(ids, ["szene-099", "szene-012", "szene-099-2"]);
-    s.save().unwrap();
 }

@@ -7,7 +7,8 @@
 //! ├── library      LibraryItem      (the project's own objects, LH-12)
 //! ├── templates    Template         (the project's own set-ups, LH-07)
 //! ├── views        SavedView        (named choices of visible layers, cameras, figures, LH-119)
-//! └── scenes       Scene → FloorPlan
+//! └── scenes       Scene → FloorPlan   (the register of what is shot: a scene or a content item,
+//!                           by `kind`; its order is the project's order)
 //!                           ├── figures  FigureTrack → Mark (time, place, facing)
 //!                           ├── cameras  Camera      → CameraMark
 //!                           ├── lights   Light
@@ -32,6 +33,7 @@ mod limits;
 mod paper;
 mod plan;
 mod project;
+mod register;
 mod saved_view;
 mod script_setup;
 mod shot;
@@ -64,6 +66,7 @@ pub use project::{
     SetPlan, Wall, IMAGE_WIDTH_M, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
     MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
+pub use register::{id_from_seed, random_id, BookState, Kind, Print};
 pub use saved_view::SavedView;
 pub use script_setup::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 pub use shot::{Angle, Movement, Numbering, Shot, ShotSize, VersionOf};
@@ -71,4 +74,4 @@ pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).
-pub const FORMAT_VERSION: u32 = 2;
+pub const FORMAT_VERSION: u32 = 3;

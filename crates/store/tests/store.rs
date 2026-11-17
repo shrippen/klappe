@@ -303,11 +303,12 @@ fn example() -> Project {
     }];
 
     project.scenes = vec![Scene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
         number: "12".into(),
         heading: "INT. SÄNGERSAAL – TAG".into(),
         location: "saengersaal".into(),
         plans: vec![plan()],
+        ..Default::default()
     }];
 
     project
@@ -345,7 +346,7 @@ fn loads_example() {
     assert_eq!(hall.set.walls.len(), 4);
     assert_eq!(hall.set.objects.len(), 3);
 
-    let scene = project.scene("szene-012").unwrap();
+    let scene = project.scene("m4djbtj6").unwrap();
     assert_eq!(scene.number, "12");
     assert_eq!(scene.heading, "INT. SÄNGERSAAL – TAG");
     assert_eq!(scene.location, "saengersaal");
@@ -384,7 +385,7 @@ fn appearing_and_leaving_are_written_only_when_set() {
     let mut project = example();
 
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert!(
         !text.contains("arrival") && !text.contains("departure"),
         "{text}"
@@ -396,7 +397,7 @@ fn appearing_and_leaving_are_written_only_when_set() {
     marks[2].departure = Departure::Leave;
 
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert_eq!(text.matches("\"arrival\"").count(), 1, "{text}");
     assert_eq!(text.matches("\"departure\"").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
@@ -445,7 +446,7 @@ fn a_plan_without_drawings_loads_and_writes_none() {
     project.scenes[0].plans[0].drawings.clear();
 
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     let loaded = load(&dir).unwrap();
 
     assert!(!text.contains("drawings"), "{text}");
@@ -498,7 +499,7 @@ fn files_end_with_newline_and_leave_no_temp() {
         "projekt.toml",
         "figuren.toml",
         "drehorte/saengersaal.toml",
-        "szenen/szene-012.json",
+        "szenen/m4djbtj6.json",
     ] {
         let text = fs::read_to_string(dir.join(rel)).unwrap();
         assert!(text.ends_with('\n'), "{rel}");
@@ -526,7 +527,7 @@ fn removes_stale_files_only() {
 
     assert!(!dir.join("szenen/szene-013.json").exists());
     assert!(!dir.join("drehorte/hof.toml").exists());
-    assert!(dir.join("szenen/szene-012.json").exists());
+    assert!(dir.join("szenen/m4djbtj6.json").exists());
     assert!(dir.join("drehorte/saengersaal.toml").exists());
     assert!(dir.join("drehorte/hof.png").exists());
     assert!(dir.join("notizen.txt").exists());
@@ -641,7 +642,7 @@ fn id_must_match_file_name() {
     let dir = test_dir("mismatch");
     save(&dir, &example(), None).unwrap();
     fs::rename(
-        dir.join("szenen/szene-012.json"),
+        dir.join("szenen/m4djbtj6.json"),
         dir.join("szenen/andere.json"),
     )
     .unwrap();
@@ -655,11 +656,11 @@ fn id_must_match_file_name() {
 fn broken_file_names_it() {
     let dir = test_dir("broken");
     save(&dir, &example(), None).unwrap();
-    fs::write(dir.join("szenen/szene-012.json"), "{").unwrap();
+    fs::write(dir.join("szenen/m4djbtj6.json"), "{").unwrap();
 
     let error = load(&dir).unwrap_err();
 
-    assert!(error.to_string().contains("szene-012.json"));
+    assert!(error.to_string().contains("m4djbtj6.json"));
 }
 
 #[test]
@@ -709,22 +710,6 @@ fn non_finite_optional_numbers_are_refused() {
 }
 
 #[test]
-fn newer_format_wins_over_missing_title() {
-    let dir = test_dir("newer-no-title");
-    fs::create_dir_all(&dir).unwrap();
-    let newer = FORMAT_VERSION + 1;
-    fs::write(
-        dir.join("projekt.toml"),
-        format!("format_version = {newer}\n"),
-    )
-    .unwrap();
-
-    let error = load(&dir).unwrap_err();
-
-    assert!(matches!(error, StoreError::NewerFormat { .. }), "{error}");
-}
-
-#[test]
 fn windows_invalid_ids_are_rejected() {
     let ids = [
         "12:A", "con", "CON", "aux", "nul", "prn", "com1", "LPT9", "con.txt", "a.", "a ", "a<b",
@@ -746,7 +731,7 @@ fn ids_equal_ignoring_case_are_duplicates() {
     let dir = test_dir("case-id");
     let mut project = example();
     let mut scene = project.scenes[0].clone();
-    scene.id = "SZENE-012".into();
+    scene.id = "M4DJBTJ6".into();
     project.scenes.push(scene);
     let result = save(&dir, &project, None);
     assert!(matches!(result, Err(StoreError::DuplicateId { .. })));

@@ -213,6 +213,7 @@ fn big_session(name: &str) -> Session {
         heading: "INT. HALLE".into(),
         location: "l1".into(),
         plans: vec![plan],
+        ..Default::default()
     }];
 
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);

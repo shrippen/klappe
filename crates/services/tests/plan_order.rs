@@ -1,4 +1,4 @@
-//! Moving the plans of a scene (LH-04), on a copy of the example project: scene `szene-012`
+//! Moving the plans of a scene (LH-04), on a copy of the example project: scene `m4djbtj6`
 //! has one plan, `plan-a`, to which the tests add `plan-b` and `plan-c`.
 #![allow(clippy::unwrap_used)]
 

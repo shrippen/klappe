@@ -12,7 +12,7 @@ use crate::plan_edit::{Grid, Snapping};
 impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
-        let loaded = klappe_store::load(dir)?;
+        let loaded = crate::load::load_project(dir)?;
         let backup = check_backup(dir, &loaded);
         let script = loaded
             .script

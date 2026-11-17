@@ -679,7 +679,7 @@ mod tests {
             c.plan_title.to_string(),
             "12 · INT. SÄNGERSAAL – TAG · Plan A"
         );
-        assert_eq!(c.scene_id.to_string(), "szene-012");
+        assert_eq!(c.scene_id.to_string(), "m4djbtj6");
         assert_eq!(c.duration, 20.0);
         assert_eq!(c.time, 0.0);
         assert_eq!(c.selected_shot.to_string(), "");
@@ -746,7 +746,7 @@ mod tests {
         c.follow_view(shown_view(&session));
 
         assert!(c.area.is_empty());
-        assert_eq!(c.shown, "szene-012/stand-1");
+        assert_eq!(c.shown, "m4djbtj6/stand-1");
     }
 
     /// Review of PR 23, round 3: undo, redo or deleting the scene on view changed the scene
@@ -755,12 +755,12 @@ mod tests {
     #[test]
     fn drafts_go_when_the_view_changes() {
         let mut c = ControllerRust {
-            shown: "szene-012/a".into(),
+            shown: "m4djbtj6/a".into(),
             area: AreaDraft::default().click(Point::new(1.0, 1.0)),
             ..ControllerRust::default()
         };
 
-        c.follow_view("szene-012/a".into());
+        c.follow_view("m4djbtj6/a".into());
         assert!(!c.area.is_empty());
 
         c.follow_view("szene-013/a".into());
