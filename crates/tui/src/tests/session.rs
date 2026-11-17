@@ -215,8 +215,8 @@ fn the_help_scroll_stays_in_range() {
     }
     let _ = screen(&mut app, 100, 12);
 
-    // 21 lines, 10 rows of room: the last first line is 11, and one Up goes back one.
-    assert_eq!(app.help_scroll, 11);
+    // 24 lines, 10 rows of room: the last first line is 14, and one Up goes back one.
+    assert_eq!(app.help_scroll, 14);
     press(&mut app, KeyCode::Up);
-    assert_eq!(app.help_scroll, 10);
+    assert_eq!(app.help_scroll, 13);
 }

@@ -1,10 +1,14 @@
 //! The editor's state and what keys and the mouse do to it; no drawing, no terminal.
 
+use std::collections::HashSet;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use klappe_services::{ServiceError, Session, Slot};
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use klappe_services::{SceneSpan, ServiceError, Session, Slot};
+use ratatui::crossterm::event::{
+    KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
+use ratatui::layout::Rect;
 
 use crate::buffer::Pos;
 use crate::editor::Editor;
@@ -16,11 +20,13 @@ use crate::links::Links;
 mod backup;
 mod compose;
 mod find;
+mod outline;
 mod title;
 
 pub(crate) use backup::Backup;
 pub(crate) use compose::Suggest;
 pub(crate) use find::{Find, FindField};
+pub(crate) use outline::{list_top, INDENT};
 pub(crate) use title::TitleForm;
 
 /// Closes a parenthetical.
@@ -90,8 +96,14 @@ pub struct App {
     pub(crate) focus: Focus,
     pub(crate) mode: Mode,
     pub(crate) notice: Option<Notice>,
-    /// Selected entry of the scene list.
+    /// Selected entry of the outline (an index into `analysis.outline`).
     pub(crate) list_sel: usize,
+    /// Sections folded in the outline, by `fold_key`.
+    collapsed: HashSet<String>,
+    /// What is typed to narrow the outline.
+    pub(crate) list_filter: String,
+    /// Where the outline's rows were drawn, for the mouse.
+    list_area: Rect,
     /// First visible screen row of the editor.
     pub(crate) scroll: usize,
     /// What the search box has been typed, and its selected match.
@@ -153,6 +165,9 @@ impl App {
             mode: Mode::Normal,
             notice: None,
             list_sel: 0,
+            collapsed: HashSet::new(),
+            list_filter: String::new(),
+            list_area: Rect::default(),
             scroll: 0,
             goto_query: String::new(),
             goto_sel: 0,
@@ -187,21 +202,18 @@ impl App {
         self.session.script_pages()
     }
 
-    /// The length of scene `index` of the list as the last computation has it, e.g. `3/8`;
-    /// `None` without one. While the text has gained or lost scenes since, the scene is
-    /// found by its line, which moves with typing: then a length may be missing, never wrong
-    /// by more than the last edit.
-    pub(crate) fn scene_length(&self, index: usize) -> Option<&str> {
+    /// Scene `index` of the list as the last computation has it; `None` without one. While
+    /// the text has gained or lost scenes since, the scene is found by its line, which moves
+    /// with typing: then a length may be missing, never wrong by more than the last edit.
+    pub(crate) fn scene_span(&self, index: usize) -> Option<&SceneSpan> {
         let spans = &self.pages()?.scenes;
-        let span = match spans.len() == self.analysis.scenes.len() {
+        match spans.len() == self.analysis.scenes.len() {
             true => spans.get(index),
             false => {
                 let line = self.analysis.scenes.get(index)?.line;
                 spans.iter().find(|s| s.line == line)
             }
-        };
-
-        span.map(|s| s.length.as_str())
+        }
     }
 
     pub(crate) fn file_name(&self) -> &str {
@@ -296,7 +308,7 @@ impl App {
         );
         self.list_sel = self
             .list_sel
-            .min(self.analysis.scenes.len().saturating_sub(1));
+            .min(self.analysis.outline.len().saturating_sub(1));
     }
 
     fn clamp_scroll(&mut self) {
@@ -356,7 +368,10 @@ impl App {
             's' => self.save(),
             'z' => self.edit_with(Editor::undo),
             'y' => self.edit_with(Editor::redo),
-            'g' => self.jump(),
+            'g' => {
+                self.jump();
+                Flow::Continue
+            }
             'p' => self.open_goto(),
             'b' => self.toggle_list(),
             'f' => self.open_find(),
@@ -426,10 +441,8 @@ impl App {
         };
         // The list starts at the scene the cursor is in.
         if self.focus == Focus::List {
-            self.list_sel = self
-                .analysis
-                .scene_at(self.editor.cursor().line)
-                .unwrap_or(0);
+            let scene = self.analysis.scene_at(self.editor.cursor().line);
+            self.list_sel = scene.and_then(|i| self.entry_of_scene(i)).unwrap_or(0);
         }
 
         Flow::Continue
@@ -523,12 +536,6 @@ impl App {
         Flow::Continue
     }
 
-    /// Moves the cursor to the heading of the scene selected in the list.
-    fn jump(&mut self) -> Flow {
-        self.jump_to(self.list_sel);
-        Flow::Continue
-    }
-
     /// Moves the cursor to the heading of scene `index`.
     fn jump_to(&mut self, index: usize) {
         let Some(scene) = self.analysis.scenes.get(index) else {
@@ -536,7 +543,7 @@ impl App {
         };
         self.editor.go_to_line(scene.line);
         self.focus = Focus::Editor;
-        self.list_sel = index;
+        self.list_sel = self.entry_of_scene(index).unwrap_or(self.list_sel);
 
         // The heading goes to the top of the view.
         self.scroll = self.layout.row_of(self.editor.cursor());
@@ -548,23 +555,6 @@ impl App {
             Focus::Editor => self.editor_key(key),
         }
         Flow::Continue
-    }
-
-    fn list_key(&mut self, key: KeyEvent) {
-        let last = self.analysis.scenes.len().saturating_sub(1);
-        match key.code {
-            KeyCode::Up => self.list_sel = self.list_sel.saturating_sub(1),
-            KeyCode::Down => self.list_sel = (self.list_sel + 1).min(last),
-            KeyCode::PageUp => self.list_sel = self.list_sel.saturating_sub(LIST_PAGE),
-            KeyCode::PageDown => self.list_sel = (self.list_sel + LIST_PAGE).min(last),
-            KeyCode::Home => self.list_sel = 0,
-            KeyCode::End => self.list_sel = last,
-            KeyCode::Enter => {
-                self.jump();
-            }
-            KeyCode::Esc => self.focus = Focus::Editor,
-            _ => {}
-        }
     }
 
     /// Types the character; scene headings and cues turn to capitals as they go. A `)` typed
@@ -632,6 +622,9 @@ impl App {
         match event.kind {
             MouseEventKind::ScrollUp => self.scroll = self.scroll.saturating_sub(WHEEL_ROWS),
             MouseEventKind::ScrollDown => self.scroll += WHEEL_ROWS,
+            MouseEventKind::Down(MouseButton::Left) => {
+                return self.click_list(event.column, event.row)
+            }
             _ => return,
         }
         self.clamp_scroll();
