@@ -12,7 +12,7 @@ TestCase {
     when: windowShown
     visible: true
 
-    readonly property string note: "Die alte Beispielkopie passt nicht mehr zum Format und liegt jetzt unter /home/anna/.local/share/klappe/beispiel-de.klappe.alt-2."
+    readonly property string note: "Die alte Beispielkopie passt nicht mehr zum Format und liegt jetzt unter /home/anna/.local/share/klappe/beispiel-de.klappe (2).alt."
 
     QtObject {
         id: fake

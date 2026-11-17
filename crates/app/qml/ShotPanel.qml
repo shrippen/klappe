@@ -423,6 +423,8 @@ Item {
                     KanteComboBox {
                         objectName: "cameraBox"
                         Layout.fillWidth: true
+                        // A version has the camera of its base (LH-76).
+                        enabled: !!panel.shot && !panel.shot.is_version
                         model: panel.cameras.map(c => c.name)
                         currentIndex: panel.shot ? panel.cameras.findIndex(c => c.id === panel.shot.camera) : -1
                         onActivated: index => panel.commit("camera", panel.cameras[index].id, panel.shot.camera)

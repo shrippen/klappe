@@ -54,7 +54,7 @@ fn menu_json(s: &Session, selected: &Selection) -> serde_json::Value {
         .map(|curve| curve.name())
         .unwrap_or_default();
 
-    json!({
+    let mut info = json!({
         "layer": layer,
         "remove": offers(Key::Remove),
         "duplicate": offers(Key::Duplicate),
@@ -67,7 +67,63 @@ fn menu_json(s: &Session, selected: &Selection) -> serde_json::Value {
         "markBefore": arm::can_arm(Armed::MarkBefore, selected.only()),
         "axisTo": arm::can_arm(Armed::AxisTo, selected.only()),
         "way": way,
-    })
+    });
+    let more = [
+        object_json(s, selected.only()),
+        shot_json(s, selected.only()),
+    ];
+
+    for (key, value) in more.into_iter().flatten() {
+        info[key] = value;
+    }
+    info
+}
+
+/// The object commands the menu offers (LH-114 to LH-116, LH-118): which would change the
+/// selected object or note.
+fn object_json(s: &Session, only: Option<&Source>) -> serde_json::Map<String, serde_json::Value> {
+    let changes = |what| {
+        object::change_edit(only, what, "")
+            .as_ref()
+            .is_some_and(|edit| s.changes(edit))
+    };
+    let mut info = serde_json::Map::new();
+
+    info.insert("mirror".into(), json!(changes("mirror")));
+    info.insert("resetSize".into(), json!(changes("resetSize")));
+    info.insert("unbind".into(), json!(changes("unbind")));
+    info.insert("label".into(), json!(object::label_source(only).is_some()));
+    info.insert(
+        "kind".into(),
+        json!(matches!(only, Some(Source::Object(_)))),
+    );
+    info
+}
+
+/// The shot commands the menu offers on a camera: those of the selected shot when it is shot
+/// with this camera (LH-74, LH-76, LH-110). `shortNameNow` is the name to start the dialog from.
+fn shot_json(s: &Session, only: Option<&Source>) -> serde_json::Map<String, serde_json::Value> {
+    let mut info = serde_json::Map::new();
+    let row = match (only, s.selected_shot()) {
+        (Some(Source::Camera(camera)), Some(shot)) => s
+            .shots()
+            .into_iter()
+            .find(|row| row.id == shot && row.camera == *camera),
+        _ => None,
+    };
+
+    info.insert("versionShot".into(), json!(row.is_some()));
+    info.insert("shortName".into(), json!(row.is_some()));
+    info.insert(
+        "shortNameNow".into(),
+        json!(row.as_ref().map(|r| r.short_name.as_str())),
+    );
+    info.insert("shotImage".into(), json!(row.is_some()));
+    info.insert(
+        "shotImageRemove".into(),
+        json!(row.is_some_and(|r| !r.image.is_empty())),
+    );
+    info
 }
 
 impl qobject::Controller {
@@ -250,5 +306,46 @@ mod tests {
         let none = info(&[]);
         assert_eq!(none["layer"], "");
         assert_eq!(none["remove"], false);
+    }
+
+    /// LH-114 to LH-118: the menu offers the object commands that change the selection.
+    #[test]
+    fn the_menu_offers_the_object_commands() {
+        let object = info(&[Source::Object("tisch".into())]);
+        assert_eq!(object["mirror"], true);
+        assert_eq!(object["label"], true);
+        assert_eq!(object["kind"], true);
+        assert_eq!(object["unbind"], false);
+
+        let note = info(&[Source::Note("n1".into())]);
+        assert_eq!(note["mirror"], false);
+        assert_eq!(note["kind"], false);
+        assert_eq!(note["label"], false);
+        assert_eq!(note["unbind"], false);
+
+        let figure = info(&[Source::Figure("elisabeth".into())]);
+        assert_eq!(figure["label"], true);
+        assert_eq!(figure["mirror"], false);
+    }
+
+    /// LH-74, LH-76, LH-110: a camera offers the commands of the selected shot, if it is its own.
+    #[test]
+    fn a_camera_offers_the_commands_of_its_shot() {
+        let mut s = example();
+        let camera = Selection::default().click(Some(Source::Camera("a".into())), Pick::Extend);
+
+        let none = menu_json(&s, &camera);
+        assert_eq!(none["versionShot"], false);
+        assert_eq!(none["shortName"], false);
+
+        s.select_shot("s12-1").unwrap();
+        let shot = menu_json(&s, &camera);
+        assert_eq!(shot["versionShot"], true);
+        assert_eq!(shot["shortName"], true);
+        assert_eq!(shot["shotImage"], true);
+        assert_eq!(shot["shotImageRemove"], false);
+
+        let other = Selection::default().click(Some(Source::Camera("b".into())), Pick::Extend);
+        assert_eq!(menu_json(&s, &other)["versionShot"], false);
     }
 }

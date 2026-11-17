@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use klappe_model::{Angle, FloorPlan, LinkTarget, Movement, Numbering, Shot, ShotSize, VersionOf};
+use klappe_model::{
+    Angle, FloorPlan, LinkTarget, Movement, Numbering, Project, Shot, ShotSize, VersionOf,
+};
 use klappe_stellprobe::is_setup_model;
 
 use crate::error::ServiceError;
@@ -56,8 +58,30 @@ fn base_of<'a>(plan: &'a FloorPlan, shot: &Shot) -> Option<&'a Shot> {
 }
 
 /// A shot that is no version, or whose base is gone, counts as a base.
-fn is_base(plan: &FloorPlan, shot: &Shot) -> bool {
+pub(crate) fn is_base(plan: &FloorPlan, shot: &Shot) -> bool {
     base_of(plan, shot).is_none()
+}
+
+/// Makes the shots of a loaded project (opened or restored) that name a base which is not
+/// there bases, so the data says what `is_base` reads (FORMAT.md); the number stays.
+pub(crate) fn clear_orphans(project: &mut Project) {
+    for plan in project.scenes.iter_mut().flat_map(|s| &mut s.plans) {
+        clear_plan_orphans(plan);
+    }
+}
+
+fn clear_plan_orphans(plan: &mut FloorPlan) {
+    let ids: Vec<String> = plan.shots.iter().map(|s| s.id.clone()).collect();
+
+    for shot in &mut plan.shots {
+        let orphan = shot
+            .version_of
+            .as_ref()
+            .is_some_and(|v| !ids.contains(&v.shot));
+        if orphan {
+            shot.version_of = None;
+        }
+    }
 }
 
 /// Whether the stretches of two shots share time.
@@ -371,15 +395,19 @@ fn join_group(groups: &mut Vec<RunGroup>, shot: &Shot, label: &str) -> usize {
 
 /// Removes shot `id` and the script links to it; returns the id of the shot that takes
 /// its place in the list (the next, else the previous), if any.
-pub(crate) fn remove(plan: &mut FloorPlan, id: &str) -> Result<Option<String>, ServiceError> {
+pub(crate) fn remove(
+    plan: &mut FloorPlan,
+    numbering: Numbering,
+    id: &str,
+) -> Result<Option<String>, ServiceError> {
     let at = plan
         .shots
         .iter()
         .position(|s| s.id == id)
         .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
 
-    plan.shots.remove(at);
-    promote_version(plan, id);
+    let removed = plan.shots.remove(at);
+    promote_version(plan, numbering, &removed);
     plan.links
         .retain(|l| !matches!(&l.target, LinkTarget::Shot { id: linked } if linked == id));
 
@@ -390,9 +418,11 @@ pub(crate) fn remove(plan: &mut FloorPlan, id: &str) -> Result<Option<String>, S
     Ok(neighbour.map(|s| s.id.clone()))
 }
 
-/// The first version of the deleted base `id` becomes the base of the others, so no version
-/// hangs on a shot that is gone; the versions keep their order, counted from 1 again.
-fn promote_version(plan: &mut FloorPlan, id: &str) {
+/// The first version of the deleted base becomes the base of the others, so no version
+/// hangs on a shot that is gone; it takes the number of the deleted base, the versions keep
+/// their order, counted from 1 again, and their numbers follow.
+fn promote_version(plan: &mut FloorPlan, numbering: Numbering, deleted: &Shot) {
+    let id = deleted.id.as_str();
     let versions: Vec<usize> = (0..plan.shots.len())
         .filter(|&at| {
             plan.shots[at]
@@ -406,12 +436,16 @@ fn promote_version(plan: &mut FloorPlan, id: &str) {
     };
 
     plan.shots[first].version_of = None;
+    plan.shots[first].number = deleted.number.clone();
     let base = plan.shots[first].id.clone();
     for (rank, &at) in rest.iter().enumerate() {
+        let index = rank as u32 + 1;
+
         plan.shots[at].version_of = Some(VersionOf {
             shot: base.clone(),
-            index: rank as u32 + 1,
+            index,
         });
+        plan.shots[at].number = format!("{}{}", deleted.number, suffix(numbering, index));
     }
 }
 
@@ -426,10 +460,7 @@ pub(crate) fn check_camera(plan: &FloorPlan, id: &str) -> Result<(), ServiceErro
         return Ok(());
     }
 
-    Err(ServiceError::BadValue {
-        field: Field::Camera,
-        value: id.to_owned(),
-    })
+    Err(ServiceError::VersionCamera(id.to_owned()))
 }
 
 /// Gives the versions of shot `id` the camera of `id`, after its camera changed.
