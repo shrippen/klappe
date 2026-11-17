@@ -1,6 +1,13 @@
 //! Random edits of generated scripts with the true lineage of every scene and line: a
 //! `Matched` scene and an `At` line must be the same one the edits carried along. Scenes
-//! and lines are drawn from a small vocabulary, so equal lines and twins occur.
+//! and lines are drawn from a small vocabulary, so equal lines and twins occur; half of
+//! the scenes have no line of their own, half of the inserted lines come from the
+//! vocabulary, lines move, and no two quotes may land on one line.
+//!
+//! Only what the text cannot tell is excused, and counted: a scene that became equal in
+//! content to its old one (twins), and a line whose true successor is gone or equal in
+//! content while an equal line stands elsewhere (an inserted "Ja." next to a deleted
+//! one, equal lines in another order).
 #![allow(clippy::unwrap_used)]
 
 use klappe_script::{align, parse, quote_at, scene_states, Element, Found, Outcome, SceneState};
@@ -61,23 +68,27 @@ impl Gen {
         }
     }
 
-    /// A line no other has: edits never recreate text, or lineage could not be told from
-    /// text (an inserted "Ja." next to a deleted one is the same script).
-    fn fresh(&mut self) -> Block {
+    /// A line for an insertion: half from the vocabulary, half with text no other has.
+    fn inserted(&mut self) -> Block {
         let mut b = self.block();
+        if self.below(2) == 0 {
+            return b;
+        }
         b.text = format!("Neu {}.", b.id);
         b
     }
 
-    /// A scene with a line only it has, so scenes are never identical twins.
+    /// A scene, half of them with a line only they have.
     fn scene(&mut self, number: u32) -> SceneM {
         let id = self.id();
-        let marker = Block {
-            id: self.id(),
-            speaker: None,
-            text: format!("Szene {id} beginnt."),
-        };
-        let mut blocks = vec![marker];
+        let mut blocks = Vec::new();
+        if self.below(2) == 0 {
+            blocks.push(Block {
+                id: self.id(),
+                speaker: None,
+                text: format!("Szene {id} beginnt."),
+            });
+        }
         for _ in 0..3 + self.below(4) {
             blocks.push(self.block());
         }
@@ -99,7 +110,11 @@ impl Gen {
             return;
         }
         let k = self.below(s.len());
-        match self.below(9) {
+        let op = self.below(10);
+        if s[k].blocks.is_empty() && op >= 6 {
+            return;
+        }
+        match op {
             0 => {
                 s.remove(k);
             }
@@ -122,7 +137,7 @@ impl Gen {
             4 => s[k].head = self.below(HEADS.len()),
             5 => {
                 let at = self.below(s[k].blocks.len() + 1);
-                let b = self.fresh();
+                let b = self.inserted();
                 s[k].blocks.insert(at, b);
             }
             6 => {
@@ -130,6 +145,12 @@ impl Gen {
                 s[k].blocks.remove(self.below(n));
             }
             7 => self.change(&mut s[k]),
+            8 => {
+                let from = self.below(s[k].blocks.len());
+                let b = s[k].blocks.remove(from);
+                let at = self.below(s[k].blocks.len() + 1);
+                s[k].blocks.insert(at, b);
+            }
             _ => {
                 let n = s[k].blocks.len();
                 let (a, b) = (self.below(n), self.below(n));
@@ -179,9 +200,26 @@ fn ids(s: &SceneM) -> Vec<Option<u32>> {
     out
 }
 
+/// The content of a scene without its number.
+fn content(s: &SceneM) -> (usize, Vec<(Option<&'static str>, &str)>) {
+    let blocks = s
+        .blocks
+        .iter()
+        .map(|b| (b.speaker, b.text.as_str()))
+        .collect();
+    (s.head, blocks)
+}
+
+#[derive(Default)]
+struct Tally {
+    scenes: usize,
+    lines: usize,
+    excused: usize,
+}
+
 /// Aligns `old` to `new` and checks every `Matched` scene and every `At` line against the
-/// lineage. Returns how many of each were right.
-fn check(seed: u64, old: &[SceneM], new: &[SceneM]) -> (usize, usize) {
+/// lineage, and that no two quotes land on one line.
+fn check(seed: u64, old: &[SceneM], new: &[SceneM], tally: &mut Tally) {
     let (old_text, new_text) = (render(old), render(new));
     let (old_script, new_script) = (parse(&old_text), parse(&new_text));
     let (old_views, new_views) = (old_script.scenes(), new_script.scenes());
@@ -190,33 +228,72 @@ fn check(seed: u64, old: &[SceneM], new: &[SceneM]) -> (usize, usize) {
 
     let states = scene_states(&old_script);
     let al = align(&states, &new_script);
-    let (mut scenes, mut lines) = (0, 0);
 
     for (o, outcome) in al.old.iter().enumerate() {
-        let Outcome::Matched { scene: n, .. } = outcome else {
+        let Outcome::Matched { scene: n } = outcome else {
             continue;
         };
-        let msg =
-            format!("seed {seed}, old scene {o} -> {n}\n--- old\n{old_text}--- new\n{new_text}");
-        assert_eq!(new[*n].id, old[o].id, "{msg}");
-        scenes += 1;
+        let msg = format!(
+            "seed {seed}, old scene {o} -> {n}\n--- old\n{old_text}--- new\n{new_text}\n{:?}\n{:?}",
+            old[o], new[*n]
+        );
+        tally.scenes += 1;
+        if new[*n].id != old[o].id {
+            // Twins: the new scene reads exactly like the old one.
+            assert_eq!(content(&new[*n]), content(&old[o]), "{msg}");
+            tally.excused += 1;
+        }
 
         let (old_ids, new_ids) = (ids(&old[o]), ids(&new[*n]));
         assert_eq!(old_views[o].elements.len(), old_ids.len(), "{msg}");
         assert_eq!(new_views[*n].elements.len(), new_ids.len(), "{msg}");
+
+        let mut landed: Vec<usize> = Vec::new();
         for (i, id) in old_ids.iter().enumerate() {
+            let q = quote_at(old_views[o].elements, i).unwrap();
+            let Found::At(j) = find(&states[o], new_views[*n].elements, &q) else {
+                continue;
+            };
+            assert!(!landed.contains(&j), "{msg}\nline {i} found at {j} again");
+            landed.push(j);
+
             let Some(id) = id else {
                 continue;
             };
-            let q = quote_at(old_views[o].elements, i).unwrap();
-            let found = find(&states[o], new_views[*n].elements, &q);
-            if let Found::At(j) = found {
-                assert_eq!(new_ids[j], Some(*id), "{msg}\nline {i} found at {j}");
-                lines += 1;
+            tally.lines += 1;
+            if new_ids[j] != Some(*id) {
+                assert!(
+                    excused(&old[o], &new[*n], *id, new_ids[j].unwrap()),
+                    "{msg}\nline {i} found at {j}"
+                );
+                tally.excused += 1;
             }
         }
     }
-    (scenes, lines)
+}
+
+/// The text cannot tell the old line `id` from the found line `found`: they read the same
+/// and either the old line's own successor is gone or reads the same too (equal lines in
+/// another order), or the found line was inserted right next to the successor (an
+/// inserted "Stille." next to an old "Stille." that was edited).
+fn excused(old: &SceneM, new: &SceneM, id: u32, found: u32) -> bool {
+    let read = |s: &SceneM, id: u32| {
+        s.blocks
+            .iter()
+            .find(|b| b.id == id)
+            .map(|b| (b.speaker, b.text.clone()))
+    };
+    let at = |id: u32| new.blocks.iter().position(|b| b.id == id);
+    let (was, now) = (read(old, id), read(new, found));
+    if was != now {
+        return false;
+    }
+
+    let successor = read(new, id);
+    let inserted = read(old, found).is_none();
+    let next_to =
+        |a: Option<usize>, b: Option<usize>| a.zip(b).is_some_and(|(a, b)| a.abs_diff(b) == 1);
+    successor.is_none() || successor == was || (inserted && next_to(at(id), at(found)))
 }
 
 fn find(old: &SceneState, scene: &[Element], q: &klappe_script::Quote) -> Found {
@@ -225,7 +302,7 @@ fn find(old: &SceneState, scene: &[Element], q: &klappe_script::Quote) -> Found 
 
 #[test]
 fn matches_and_lines_agree_with_the_lineage() {
-    let (mut scenes, mut lines) = (0, 0);
+    let mut tally = Tally::default();
     for seed in 1..=SEEDS {
         let mut g = Gen {
             state: seed,
@@ -236,12 +313,13 @@ fn matches_and_lines_agree_with_the_lineage() {
         for _ in 0..1 + g.below(MAX_OPS as usize) {
             g.edit(&mut new);
         }
-        let (s, l) = check(seed, &old, &new);
-        scenes += s;
-        lines += l;
+        check(seed, &old, &new, &mut tally);
     }
-    println!("fuzz: {scenes} scenes and {lines} lines matched, all agree");
-    assert!(scenes > 0 && lines > 0);
+    println!(
+        "fuzz: {} scenes and {} lines matched, {} excused as unreadable from the text",
+        tally.scenes, tally.lines, tally.excused
+    );
+    assert!(tally.scenes > 0 && tally.lines > 0);
 }
 
 #[test]

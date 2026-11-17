@@ -269,3 +269,40 @@ fn a_gap_that_spans_paired_lines_is_ambiguous() {
         );
     }
 }
+
+#[test]
+fn two_different_quotes_on_one_line_are_both_ambiguous() {
+    let s = scene("Ja.\n");
+    let first = quote_at(&s, 0).unwrap();
+    let second = Quote {
+        at: None,
+        ..first.clone()
+    };
+    let state = scene_states(&Script {
+        title_page: vec![],
+        elements: s.clone(),
+    })
+    .pop()
+    .unwrap();
+
+    let found = klappe_script::find_quotes(&state, &s, &[first, second]);
+
+    assert_eq!(found, vec![Found::Ambiguous(vec![0]); 2]);
+}
+
+#[test]
+fn the_same_quote_twice_is_the_same_answer() {
+    let s = scene("Ja.\n\nNein.\n");
+    let q = quote_at(&s, 0).unwrap();
+    let other = quote_at(&s, 1).unwrap();
+    let state = scene_states(&Script {
+        title_page: vec![],
+        elements: s.clone(),
+    })
+    .pop()
+    .unwrap();
+
+    let found = klappe_script::find_quotes(&state, &s, &[q.clone(), other, q]);
+
+    assert_eq!(found, vec![Found::At(0), Found::At(1), Found::At(0)]);
+}

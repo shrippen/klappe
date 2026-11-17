@@ -9,15 +9,16 @@
 //!   text): that is the line, wherever it moved.
 //! - It is not paired (edited, or one of several equal lines): look at its nearest paired
 //!   neighbours before and after (the scene's edge counts). The line is among the unpaired
-//!   new lines between their partners. One clearly most similar line there is the answer,
-//!   several are ambiguous, none is missing.
+//!   new lines between their partners, if the partners are directly consecutive paired
+//!   lines (else the line may have moved: ambiguous). One clearly most similar line there
+//!   is the answer, several are ambiguous, none is missing.
 //! - Nothing to go by (a note, a changed scene, a speaker that differs): the line only if
 //!   it was the only equal line and is the only one now; else the equal lines as
 //!   candidates, or missing.
 //!
 //! Case, spacing and dash variants (`–`, `—`, `-`) do not matter.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::align::{print, CUE_TAG};
 use crate::anchor::pair;
@@ -150,6 +151,8 @@ pub fn find_quote(old: &SceneState, scene: &[Element], quote: &Quote) -> Found {
     }
 
     let paired: HashSet<usize> = pairs.iter().flatten().copied().collect();
+    // Paired lines between the partners: the line may have moved out of its stretch.
+    let spans = (from..to).any(|n| paired.contains(&n));
     let gap: HashSet<usize> = (from..to)
         .filter(|n| !paired.contains(n))
         .map(|n| printed[n])
@@ -162,7 +165,7 @@ pub fn find_quote(old: &SceneState, scene: &[Element], quote: &Quote) -> Found {
         .filter(|&o| pairs[o].is_none() && old.prints[o] == old.prints[at])
         .count();
     match found {
-        Found::At(i) if twins > 1 => Found::Ambiguous(vec![i]),
+        Found::At(i) if twins > 1 || spans => Found::Ambiguous(vec![i]),
         other => other,
     }
 }
@@ -181,6 +184,32 @@ fn after_old(pairs: &[Option<usize>], at: usize) -> usize {
         .iter()
         .position(|p| p.is_some())
         .map_or(pairs.len(), |i| at + 1 + i)
+}
+
+/// Looks up all quotes of one scene at once. Two different quotes that land on the same
+/// line cannot both be right: both become ambiguous (a safety net on top of
+/// [`find_quote`]; the same quote twice is the same answer twice).
+pub fn find_quotes(old: &SceneState, scene: &[Element], quotes: &[Quote]) -> Vec<Found> {
+    let mut found: Vec<Found> = quotes.iter().map(|q| find_quote(old, scene, q)).collect();
+
+    let mut owners: HashMap<usize, Vec<&Quote>> = HashMap::new();
+    for (f, q) in found.iter().zip(quotes) {
+        let Found::At(i) = f else {
+            continue;
+        };
+        let owner = owners.entry(*i).or_default();
+        if !owner.contains(&q) {
+            owner.push(q);
+        }
+    }
+
+    for f in found.iter_mut() {
+        match f {
+            Found::At(i) if owners[i].len() > 1 => *f = Found::Ambiguous(vec![*i]),
+            _ => {}
+        }
+    }
+    found
 }
 
 /// The fingerprint the quote's line has.

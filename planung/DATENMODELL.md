@@ -128,7 +128,10 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
   Wertung dafür gegen den Inhalt entscheiden lassen). Alles andere ist mehrdeutig (Kandidaten:
   Szenen mit gepaarten Zeilen, dann ungenommene mit gleichem Kopf oder gleicher Nummer) oder
   nicht gefunden; Zwillinge und Kopien bleiben mehrdeutig, außer das Buch ist um sie herum
-  gleich. Floorplans und Shots hängen an der
+  gleich. **Szenen ohne Zeilen** (nur Kopf, oder nur Figurenzeilen) haben nichts außer dem Kopf:
+  sie sind zugeordnet, wenn ihr Kopf gepaart ist und die neue Szene ebenfalls keine Zeilen hat;
+  wird der Kopf umgeschrieben oder die Szene ausgeschrieben, ist sie mehrdeutig (Kandidaten:
+  gleicher Kopf, gleiche Nummer). Floorplans und Shots hängen an der
   Id; Nummer und Kopf stehen nur noch im Register, nicht zusätzlich in `szenen/<id>.json`.
   Derselbe Abgleich zweier Buchstände dient später Revisionen, Vergleich und verschobenen
   Szenen (DB-41, DB-42, DB-44) und steht einmal in `script/` (nur die Suche auf Text;
@@ -153,8 +156,12 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
   der alten und der neuen Szene (wie oben): ist die Zeile gepaart und gleich, ist sie es, auch
   verschoben; sonst liegt sie zwischen den Partnern ihrer nächsten gepaarten Nachbarn, und eine
   eindeutig ähnlichste Zeile dort ist es; mehrere sind mehrdeutig, keine ist verschwunden. Gleiche
-  Zeilen und ein anderer Sprecher werden nie still zugeordnet, sondern vorgelegt, mit dem Zitat
-  als Hinweis, was gemeint war. Beim Speichern wird das Zitat erneuert.
+  Zeilen werden nie allein deshalb zugeordnet, weil sie gleich sind; zwischen unveränderten
+  Nachbarn entscheidet ihre Stelle. Liegen gepaarte Zeilen dazwischen (die Zeile ist
+  vielleicht umgezogen), eine von mehreren gleichen Zeilen im alten Abschnitt war oder ein
+  anderer Sprecher spricht, wird vorgelegt, mit dem Zitat als Hinweis, was gemeint war.
+  Mehrere Zitate einer Szene werden zusammen aufgelöst (`find_quotes`): zwei verschiedene
+  Zitate auf derselben Zeile werden beide vorgelegt. Beim Speichern wird das Zitat erneuert.
   Keine unsichtbaren Ids im Fountain (Entscheidung F-02 im Lastenheft Drehbuch).
 - **Marks bekommen eine Id** (kurz und zufällig); Verweise auf einen Mark nennen sie statt
   der Position in der Spur.
