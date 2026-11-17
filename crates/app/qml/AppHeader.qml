@@ -52,12 +52,11 @@ RowLayout {
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
-                                    actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
-                                    actFree, actWallCut, actThrough, actHeights,
-                                    actScript, actShot, actTimeline,
-                                    actPlay, actMarkPrev, actMarkNext,
-                                    actNextMark, actMarkBefore, actAxisTo, actWaySmooth, actWayStraight,
-                                    actUndo, actRedo].concat(shotViews.actions, zoom.actions, pageExports.actions, viewCommands.actions, objectCommands.actions)
+                                     actFree, actWallCut, actThrough, actHeights,
+                                     actScript, actShot, actTimeline,
+                                     actUndo, actRedo].concat(exportCommands.actions, shotViews.actions, zoom.actions,
+                                     pageExports.actions, viewCommands.actions, objectCommands.actions,
+                                     playCommands.actions, armCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -160,15 +159,15 @@ RowLayout {
         objectName: "exportMenu"
         visible: header.controller.loaded
         text: header.texts.t("menu.export")
-        KanteMenuItem { objectName: "pdf"; action: actPdf; iconRoom: true }
-        KanteMenuItem { objectName: "png"; action: actPng; iconRoom: true }
-        KanteMenuItem { objectName: "svg"; action: actSvg; iconRoom: true }
-        KanteMenuItem { objectName: "csv"; action: actCsv; iconRoom: true }
-        KanteMenuItem { objectName: "ods"; action: actOds; iconRoom: true }
-        KanteMenuItem { objectName: "xlsx"; action: actXlsx; iconRoom: true }
-        KanteMenuItem { objectName: "frames"; action: actFrames; iconRoom: true }
-        KanteMenuItem { objectName: "view3d"; action: actView3d; iconRoom: true }
-        KanteMenuItem { objectName: "camera"; action: actCameraPng; iconRoom: true }
+        KanteMenuItem { objectName: "pdf"; action: exportCommands.pdf; iconRoom: true }
+        KanteMenuItem { objectName: "png"; action: exportCommands.png; iconRoom: true }
+        KanteMenuItem { objectName: "svg"; action: exportCommands.svg; iconRoom: true }
+        KanteMenuItem { objectName: "csv"; action: exportCommands.csv; iconRoom: true }
+        KanteMenuItem { objectName: "ods"; action: exportCommands.ods; iconRoom: true }
+        KanteMenuItem { objectName: "xlsx"; action: exportCommands.xlsx; iconRoom: true }
+        KanteMenuItem { objectName: "frames"; action: exportCommands.frames; iconRoom: true }
+        KanteMenuItem { objectName: "view3d"; action: exportCommands.view3d; iconRoom: true }
+        KanteMenuItem { objectName: "camera"; action: exportCommands.camera; iconRoom: true }
         QQC2.MenuSeparator {}
         KanteMenuItem { objectName: "shotPages"; action: pageExports.shotPages; iconRoom: true }
         KanteMenuItem { objectName: "cameraPages"; action: pageExports.cameraPages; iconRoom: true }
@@ -310,16 +309,6 @@ RowLayout {
         onTriggered: header.controller.removeBackground()
     }
 
-    CommandAction {
-        id: actPdf
-        cmd: "export.pdf"
-        group: "export"
-        text: header.texts.t("menu.pdf")
-        shortcut: "Ctrl+P"
-        keys: header.keyName("Ctrl+P")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("pdf")
-    }
     ExportDialog {
         id: exportDialog
         objectName: "exportDialog"
@@ -332,70 +321,12 @@ RowLayout {
         projectSize: header.project.paper_size || ""
         projectOrientation: header.project.paper_orientation || ""
     }
-    CommandAction {
-        id: actPng
-        cmd: "export.png"
-        group: "export"
-        text: header.texts.t("menu.png")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("png")
-    }
-    CommandAction {
-        id: actSvg
-        cmd: "export.svg"
-        group: "export"
-        text: header.texts.t("menu.svg")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("svg")
-    }
-    CommandAction {
-        id: actCsv
-        cmd: "export.csv"
-        group: "export"
-        text: header.texts.t("menu.csv")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("csv")
-    }
-    CommandAction {
-        id: actOds
-        cmd: "export.ods"
-        group: "export"
-        text: header.texts.t("menu.ods")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("ods")
-    }
-    CommandAction {
-        id: actXlsx
-        cmd: "export.xlsx"
-        group: "export"
-        text: header.texts.t("menu.xlsx")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("xlsx")
-    }
-    CommandAction {
-        id: actFrames
-        cmd: "export.frames"
-        group: "export"
-        text: header.texts.t("menu.frames")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("frames")
-    }
-    // LH-86: the 3D view as it is on screen (so only in 3D), and the shot card's camera view.
-    CommandAction {
-        id: actView3d
-        cmd: "export.view3d"
-        group: "export"
-        text: header.texts.t("menu.view3d")
-        enabled: header.controller.loaded && header.controller.viewFree === true
-        onTriggered: exportDialog.request("view3d")
-    }
-    CommandAction {
-        id: actCameraPng
-        cmd: "export.camera"
-        group: "export"
-        text: header.texts.t("menu.camera")
-        enabled: header.controller.loaded
-        onTriggered: exportDialog.request("camera")
+    ExportCommands {
+        id: exportCommands
+        texts: header.texts
+        controller: header.controller
+        dialog: exportDialog
+        keyName: header.keyName
     }
 
     // LH-87: one page per shot or per camera, its camera strong and the rest faded.
@@ -550,104 +481,23 @@ RowLayout {
         onRequested: how => header.zoomRequested(how)
     }
 
-    // Play or pause: K works everywhere. Space does too, except where it already means
-    // something: the plan pans with Space held (Kante), a button presses with it, a text field
-    // types it. A text field keeps its keys anyway: it takes the key before a shortcut.
-    CommandAction {
-        id: actPlay
-        cmd: "playback.toggle"
-        group: "playback"
-        text: header.texts.t("menu.play")
-        shortcut: "K"
-        keys: header.keyName("Space") + " / K"
-        enabled: header.controller.loaded && !header.locked
-        onTriggered: header.playRequested()
-    }
-    readonly property Item focused: Window.window ? Window.window.activeFocusItem : null
-    Shortcut {
-        sequence: "Space"
-        enabled: actPlay.enabled && !(header.focused && header.focused.down !== undefined)
-            && !(header.focused && header.focused.objectName === "planCanvas")
-        onActivated: actPlay.trigger()
+    PlayCommands {
+        id: playCommands
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        keyName: header.keyName
+        onRequested: header.playRequested()
     }
 
-    // Marks: the playhead jumps to the previous or next mark of the shot.
-    CommandAction {
-        id: actMarkPrev
-        cmd: "playback.markPrev"
-        group: "playback"
-        text: header.texts.t("menu.markPrev")
-        shortcut: ","
-        keys: ","
-        enabled: header.controller.loaded && !header.locked
-        onTriggered: header.controller.stepMark(-1)
-    }
-    CommandAction {
-        id: actMarkNext
-        cmd: "playback.markNext"
-        group: "playback"
-        text: header.texts.t("menu.markNext")
-        shortcut: "."
-        keys: "."
-        enabled: header.controller.loaded && !header.locked
-        onTriggered: header.controller.stepMark(1)
+    ArmCommands {
+        id: armCommands
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        keyName: header.keyName
     }
 
-    // The selected figure or camera (LH-104, LH-105, LH-109): the key arms the next click on the
-    // plan, no tool is switched; the controller says what the click does and Escape cancels.
-    // The selected way (LH-108): its shape.
-    readonly property bool planSelected: controller.loaded && !locked && !!controller.selectedKey
-    readonly property string wayCurve: {
-        controller.pictureRevision
-        controller.selectedKey
-        return controller.wayCurve ? controller.wayCurve() : ""
-    }
-    CommandAction {
-        id: actNextMark
-        cmd: "plan.nextMark"
-        group: "edit"
-        text: header.texts.t("arm.nextMark")
-        shortcut: "Shift+F"
-        keys: header.keyName("Shift+F")
-        enabled: header.planSelected && header.controller.canArm("nextMark")
-        onTriggered: header.controller.arm("nextMark")
-    }
-    CommandAction {
-        id: actMarkBefore
-        cmd: "plan.markBefore"
-        group: "edit"
-        text: header.texts.t("arm.markBefore")
-        shortcut: "Shift+Z"
-        keys: header.keyName("Shift+Z")
-        enabled: header.planSelected && header.controller.canArm("markBefore")
-        onTriggered: header.controller.arm("markBefore")
-    }
-    CommandAction {
-        id: actAxisTo
-        cmd: "plan.axisTo"
-        group: "edit"
-        text: header.texts.t("arm.axisTo")
-        shortcut: "Shift+A"
-        keys: header.keyName("Shift+A")
-        enabled: header.planSelected && header.controller.canArm("axisTo")
-        onTriggered: header.controller.arm("axisTo")
-    }
-    CommandAction {
-        id: actWaySmooth
-        cmd: "plan.waySmooth"
-        group: "edit"
-        text: header.texts.t("way.smooth")
-        enabled: header.planSelected && header.wayCurve === "straight"
-        onTriggered: header.controller.setWayCurve("smooth")
-    }
-    CommandAction {
-        id: actWayStraight
-        cmd: "plan.wayStraight"
-        group: "edit"
-        text: header.texts.t("way.straight")
-        enabled: header.planSelected && header.wayCurve === "smooth"
-        onTriggered: header.controller.setWayCurve("straight")
-    }
 
     CommandAction {
         id: actUndo
