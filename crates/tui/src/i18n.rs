@@ -264,6 +264,24 @@ mod tests {
     use klappe_services::TITLE_KEYS;
 
     #[test]
+    fn the_numbering_form_has_its_texts_in_both_catalogues() {
+        for lang in [Language::German, Language::English] {
+            let t = Texts::new(lang);
+            let all = [
+                &t.mode_numbers,
+                &t.numbers_box,
+                &t.numbers_hint,
+                &t.numbering_label,
+                &t.numbering_automatic,
+                &t.numbering_locked,
+                &t.first_scene_label,
+            ];
+
+            assert!(all.iter().all(|s| !s.starts_with("tui.")), "{all:?}");
+        }
+    }
+
+    #[test]
     fn every_key_is_in_both_catalogues() {
         for lang in [Language::German, Language::English] {
             let t = Texts::new(lang);
@@ -283,7 +301,6 @@ mod tests {
                 &t.mode_help,
                 &t.mode_find,
                 &t.mode_title,
-                &t.mode_numbers,
                 &t.mode_backup,
                 &t.mode_book,
                 &t.book_title,
@@ -301,12 +318,6 @@ mod tests {
                 &t.find_hint,
                 &t.title_box,
                 &t.title_hint,
-                &t.numbers_box,
-                &t.numbers_hint,
-                &t.numbering_label,
-                &t.numbering_automatic,
-                &t.numbering_locked,
-                &t.first_scene_label,
                 &t.backup_title,
                 &t.backup_found,
                 &t.backup_unreadable,
