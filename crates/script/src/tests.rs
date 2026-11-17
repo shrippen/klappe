@@ -243,6 +243,16 @@ fn boneyard_opener_in_a_note_is_text() {
 }
 
 #[test]
+fn boneyard_lines_start_inside_a_boneyard() {
+    assert_eq!(
+        boneyard_lines("a /* b\nc\nd */ e\nf"),
+        [false, true, true, false]
+    );
+    assert_eq!(boneyard_lines("a /* b\r\nc"), [false, true]);
+    assert_eq!(boneyard_lines("[[a /* b]]\nc"), [false, false]);
+}
+
+#[test]
 fn windows_line_endings() {
     assert_eq!(
         els("INT. A - TAG\r\n\r\nText.\r\n"),

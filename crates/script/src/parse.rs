@@ -6,26 +6,26 @@ use crate::{Element, Located, Script};
 
 pub(crate) const FORCE_ACTION: char = '!';
 pub(crate) const FORCE_HEADING: char = '.';
-pub(crate) const FORCE_CHARACTER: char = '@';
+pub const FORCE_CHARACTER: char = '@';
 pub(crate) const FORCE_TRANSITION: char = '>';
 const CENTER_END: char = '<';
 const LYRICS: char = '~';
 const SECTION: char = '#';
 const SYNOPSIS: char = '=';
-const NUMBER_MARK: char = '#';
-const DUAL_MARK: char = '^';
+pub const NUMBER_MARK: char = '#';
+pub(crate) const DUAL_MARK: char = '^';
 const SHARP_S: char = 'ß';
 const PAGE_BREAK_MIN: usize = 3;
 const TRANSITION_END: &str = "TO:";
-const NOTE_OPEN: &str = "[[";
-const NOTE_CLOSE: &str = "]]";
+pub(crate) const NOTE_OPEN: &str = "[[";
+pub(crate) const NOTE_CLOSE: &str = "]]";
 pub(crate) const BONEYARD_OPEN: &str = "/*";
-const BONEYARD_CLOSE: &str = "*/";
+pub(crate) const BONEYARD_CLOSE: &str = "*/";
 /// Fountain's escape: `/\*` is the text `/*`, never a boneyard, and other Fountain
 /// programs show it the same. A literal `/\*` is written `/\\*`, and so on: each `/`,
 /// backslashes, `*` run carries one backslash more on paper than in the text.
-const ESCAPE: char = '\\';
-const STAR: char = '*';
+pub(crate) const ESCAPE: char = '\\';
+pub(crate) const STAR: char = '*';
 const SLASH: char = '/';
 
 /// Which way `escape_openers` moves a backslash run.
@@ -70,6 +70,21 @@ pub fn parse_located(text: &str) -> Vec<Located> {
                 .collect(),
         })
         .collect()
+}
+
+/// Per line of `text`: it starts inside a `/* … */` an earlier line opened. Lines count
+/// as in [`parse_located`], so an editor can style them without reading the rules again.
+pub fn boneyard_lines(text: &str) -> Vec<bool> {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let (_, origin) = strip_boneyard(&text);
+    let mut inside = vec![true; text.matches('\n').count() + 1];
+
+    // A line that starts a line of the reader's text is outside; the rest was cut.
+    for line in origin {
+        inside[line] = false;
+    }
+
+    inside
 }
 
 /// Lines of `text` the title page takes, leading blank lines included; 0 without one. A

@@ -1,7 +1,7 @@
 //! The title page of a Fountain text: reading the fields of the form and writing them back
 //! without touching the rest of the text.
 
-use crate::parse::{parse, title_page_span};
+use crate::parse::{parse, title_page_span, BONEYARD_CLOSE, BONEYARD_OPEN};
 use crate::{write, Script};
 
 /// The keys of the form, in the order Fountain lists them.
@@ -85,9 +85,6 @@ fn merged(old: Vec<(String, String)>, fields: &[(String, String)]) -> Vec<(Strin
 
     pairs
 }
-
-const BONEYARD_OPEN: &str = "/*";
-const BONEYARD_CLOSE: &str = "*/";
 
 /// The `/* … */` comments in `text`, each as written; an unclosed one runs to the end.
 fn boneyards(text: &str) -> Vec<&str> {
