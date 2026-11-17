@@ -44,9 +44,7 @@ use images::edit_image;
 use marks::edit_field;
 pub(crate) use marks::{check_tripods, mark_info, way_curve};
 pub use marks::{MarkInfo, Pace};
-use moving::{
-    anchor_pair, carry_cameras, edit_way, move_to, points_mut, rotate, shift, spin, turn,
-};
+use moving::{anchor_pair, carry_cameras, edit_way, move_to, points_mut, shift, spin, turn};
 pub use object::ObjectChange;
 use openings::edit_opening;
 use remove::remove;
