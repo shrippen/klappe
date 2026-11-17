@@ -107,8 +107,8 @@ pub struct App {
     pub(crate) book_note: String,
     /// Editor undo depth at each book answer that Ctrl+Z can take back, oldest first.
     answered: Vec<usize>,
-    /// Editor revision at each taken-back answer that Ctrl+Y can do again.
-    unanswered: Vec<u64>,
+    /// Editor undo depth at each taken-back answer that Ctrl+Y can do again.
+    unanswered: Vec<usize>,
     /// Selected entry of the outline (an index into `analysis.outline`).
     pub(crate) list_sel: usize,
     /// Sections folded in the outline, by `fold_key`.

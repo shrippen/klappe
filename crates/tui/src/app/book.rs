@@ -89,14 +89,15 @@ impl App {
 
         self.answered.pop();
         self.session.undo();
-        self.unanswered.push(self.editor.revision());
+        self.unanswered.push(self.editor.undo_depth());
 
         self.settle_answer()
     }
 
-    /// Ctrl+Y: does a taken-back answer again, unless the editor changed since.
+    /// Ctrl+Y: does a taken-back answer again when the editor is back at the step it was at
+    /// then (its undo depth, not its revision, which every undo and redo raises).
     pub(super) fn redo(&mut self) -> Flow {
-        if self.unanswered.last() != Some(&self.editor.revision()) {
+        if self.unanswered.last() != Some(&self.editor.undo_depth()) {
             return self.edit_with(Editor::redo);
         }
 

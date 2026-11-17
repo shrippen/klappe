@@ -197,3 +197,20 @@ fn typing_after_an_answer_does_not_join_the_earlier_step() {
     assert!(app.text().trim_end().ends_with("ab"), "{}", app.text());
     assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("2"));
 }
+
+#[test]
+fn ctrl_y_brings_an_answer_back_after_undoing_typing_before_it() {
+    let (_s, mut app) = swapped();
+    ctrl_end(&mut app);
+    typed(&mut app, "ab");
+    ctrl(&mut app, 's');
+    answer_first(&mut app);
+
+    ctrl(&mut app, 'z');
+    ctrl(&mut app, 'z');
+    ctrl(&mut app, 'y');
+    assert!(app.text().ends_with("ab"), "first the typing again");
+    ctrl(&mut app, 'y');
+
+    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("2"));
+}
