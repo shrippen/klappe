@@ -56,7 +56,10 @@ fn menu_json(s: &Session, selected: &Selection) -> serde_json::Value {
         "axisTo": arm::can_arm(Armed::AxisTo, selected.only()),
         "way": way,
     });
-    let more = [object_json(s, selected.only()), shot_json(s, selected.only())];
+    let more = [
+        object_json(s, selected.only()),
+        shot_json(s, selected.only()),
+    ];
 
     for (key, value) in more.into_iter().flatten() {
         info[key] = value;
@@ -78,7 +81,10 @@ fn object_json(s: &Session, only: Option<&Source>) -> serde_json::Map<String, se
     info.insert("resetSize".into(), json!(changes("resetSize")));
     info.insert("unbind".into(), json!(changes("unbind")));
     info.insert("label".into(), json!(object::label_source(only).is_some()));
-    info.insert("kind".into(), json!(matches!(only, Some(Source::Object(_)))));
+    info.insert(
+        "kind".into(),
+        json!(matches!(only, Some(Source::Object(_)))),
+    );
     info
 }
 
@@ -96,9 +102,15 @@ fn shot_json(s: &Session, only: Option<&Source>) -> serde_json::Map<String, serd
 
     info.insert("versionShot".into(), json!(row.is_some()));
     info.insert("shortName".into(), json!(row.is_some()));
-    info.insert("shortNameNow".into(), json!(row.as_ref().map(|r| r.short_name.as_str())));
+    info.insert(
+        "shortNameNow".into(),
+        json!(row.as_ref().map(|r| r.short_name.as_str())),
+    );
     info.insert("shotImage".into(), json!(row.is_some()));
-    info.insert("shotImageRemove".into(), json!(row.is_some_and(|r| !r.image.is_empty())));
+    info.insert(
+        "shotImageRemove".into(),
+        json!(row.is_some_and(|r| !r.image.is_empty())),
+    );
     info
 }
 
