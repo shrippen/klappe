@@ -3,6 +3,11 @@
 
 use klappe_services::{Bend, PlanEdit, Point, Source};
 
+mod copies;
+mod grips;
+
+pub use copies::copied;
+
 /// What the keys do to the selection.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Key {
@@ -124,11 +129,11 @@ impl Selection {
     }
 
     /// A grip shows only while its way alone is selected, so several hold none: it would be
-    /// picked unseen and bend or straighten its way with the rest.
+    /// picked unseen and bend or straighten its way with the rest. Grips of one way, picked
+    /// together by a box, are the exception: they are what shows.
     fn no_grips(mut self) -> Selection {
-        if self.0.len() > 1 {
-            self.0
-                .retain(|s| !matches!(s, Source::FigureVia { .. } | Source::CameraVia { .. }));
+        if self.0.len() > 1 && self.handled().is_none() {
+            self.0.retain(|s| !s.selected_itself());
         }
 
         self
@@ -233,11 +238,18 @@ pub fn group_drag_edit(
     })
 }
 
-/// The elements `after` shows that `before` did not: what a copy added.
+/// The elements `after` shows that `before` did not: what a copy added. An element drawn from
+/// several items (a figure and its facing wedge) counts once.
 pub fn added(before: &[Source], after: &[Source]) -> Selection {
-    let new = after.iter().filter(|s| !before.contains(s)).cloned();
+    let mut new: Vec<Source> = Vec::new();
 
-    Selection(new.collect())
+    for source in after.iter().filter(|s| !before.contains(s)) {
+        if !new.contains(source) {
+            new.push(source.clone());
+        }
+    }
+
+    Selection(new)
 }
 
 /// A key on the selection; `None` when nothing is selected. Several elements take one group

@@ -11,11 +11,13 @@ use klappe_model::{
 use crate::error::ServiceError;
 use crate::field::Field;
 
+mod copy;
 mod library;
 mod plans;
 pub(crate) mod templates;
 mod views;
 
+pub(crate) use copy::copy_character;
 pub(crate) use plans::{add_plan, copy_plan, move_plan, remove_plan, rename_plan, seat_speakers};
 pub use plans::{PlanShift, ShotsGo};
 pub(crate) use views::{remove_view, save_view};
