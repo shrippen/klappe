@@ -77,7 +77,6 @@ TestCase {
         function editSelectedNote() { calls.push(["editNote"]) }
         function addShot() { calls.push(["addShot"]) }
         function shotStill(id) { calls.push(["shotStill", id]) }
-        property string selectedShot: "s12-2"
         function clearSelection() { calls.push(["clear"]) }
         function setLock(layer, state) { calls.push(["lock", layer, state]) }
         function setLayer(layer, state) { calls.push(["layer", layer, state]) }
@@ -248,7 +247,7 @@ TestCase {
         findChild(area, "ctxFadeLayer").triggered()
         findChild(area, "ctxHideLayer").triggered()
 
-        compare(fake.calls, [["duplicate"], ["turn", 15], ["turn", -15], ["straighten"], ["addShot"], ["shotStill", "s12-2"], ["remove"],
+        compare(fake.calls, [["duplicate"], ["turn", 15], ["turn", -15], ["straighten"], ["addShot"], ["shotStill", "s1"], ["remove"],
                              ["lock", "cameras", "locked"], ["fade", "cameras"], ["layer", "cameras", "hidden"]])
     }
 
