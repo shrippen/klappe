@@ -29,8 +29,7 @@ fn copy_all(from: &Path, to: &Path) {
 impl Scratch {
     pub(super) fn new(script: &str) -> Self {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let dir =
-            std::env::temp_dir().join(format!("klappe-tui-{}-{n}.klappe", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("kt-{}-{n}.klappe", std::process::id()));
         copy_all(&example(), &dir);
         fs::write(dir.join("drehbuch.fountain"), script).unwrap_or_else(|e| unreachable!("{e}"));
 

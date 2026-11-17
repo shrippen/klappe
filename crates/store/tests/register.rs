@@ -5,7 +5,9 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use klappe_model::{random_id, BookState, FloorPlan, Kind, Print, Project, Scene, FORMAT_VERSION};
+use klappe_model::{
+    random_id, BookState, FloorPlan, Kind, Print, Project, Scene, SceneKey, FORMAT_VERSION,
+};
 use klappe_store::{load, save, LoadNote, StoreError};
 
 fn test_dir(name: &str) -> PathBuf {
@@ -41,6 +43,7 @@ fn the_register_round_trips_in_file_order() {
             hash: 0xdead_beef,
         },
     ];
+    struck.refused = vec![SceneKey(0x0123_4567_89ab_cdef)];
     // Not sorted by id: the register keeps its own order.
     project.scenes = vec![interview, scene("mm", "1", "INT. SAAL – TAG"), struck];
 
@@ -51,6 +54,7 @@ fn the_register_round_trips_in_file_order() {
     assert!(text.contains("art = \"interview\""), "{text}");
     assert!(text.contains("state = \"not-in-book\""), "{text}");
     assert!(text.contains("\"2:deadbeef\""), "{text}");
+    assert!(text.contains("refused = [\"0123456789abcdef\"]"), "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
 
@@ -189,6 +193,7 @@ fn a_register_with_bad_content_is_refused() {
         ("unknown-art", format!("{entry}art = \"quiz\"\n")),
         ("unknown-state", format!("{entry}state = \"gone\"\n")),
         ("bad-print", format!("{entry}prints = [\"zz\"]\n")),
+        ("bad-refused", format!("{entry}refused = [\"12\"]\n")),
         ("unknown-field", format!("{entry}colour = \"red\"\n")),
         (
             "break",

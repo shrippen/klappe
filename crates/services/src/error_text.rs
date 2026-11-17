@@ -6,6 +6,10 @@ use crate::field::Field;
 
 /// The service's error in the given language; details (path, value) appended where they help.
 pub fn error_text(language: Language, error: &ServiceError) -> String {
+    if let ServiceError::NoDecision(_) = error {
+        return language.text("error.noDecision");
+    }
+
     // Wraps another error: its text first, then where the old example copy went.
     let ServiceError::ExampleAside { aside, source } = error else {
         return own_text(language, error);
@@ -124,6 +128,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::VersionCamera(_) => Some("error.versionCamera"),
         // Listed so a new variant must be placed: `error_text` words these itself.
         ServiceError::NoScene(_)
+        | ServiceError::NoDecision(_)
         | ServiceError::NoPlan(_)
         | ServiceError::NoShot(_)
         | ServiceError::NoLocation(_)
@@ -154,6 +159,22 @@ pub fn load_notes_text(language: Language, notes: &[klappe_store::LoadNote]) -> 
             }
         })
         .collect();
+
+    lines.join(" ")
+}
+
+/// What the status line says about the book: scenes to match and scenes struck from it;
+/// empty when there is nothing to say.
+pub fn book_report_text(language: Language, report: &crate::BookReport) -> String {
+    let count = |key: &str, n: usize| language.text(key).replace("{count}", &n.to_string());
+    let mut lines = Vec::new();
+
+    if report.pending > 0 {
+        lines.push(count("book.pending", report.pending));
+    }
+    if report.not_in_book > 0 {
+        lines.push(count("book.notInBook", report.not_in_book));
+    }
 
     lines.join(" ")
 }
@@ -319,6 +340,21 @@ mod tests {
     }
 
     #[test]
+    fn the_book_report_is_worded_in_both_languages() {
+        let report = crate::BookReport {
+            pending: 2,
+            not_in_book: 1,
+        };
+
+        for language in [Language::German, Language::English] {
+            let text = book_report_text(language, &report);
+            assert!(text.contains('2') && text.contains('1') && !text.contains("{count}"));
+            assert!(!text.contains("book."), "{text}");
+        }
+        assert_eq!(book_report_text(Language::English, &Default::default()), "");
+    }
+
+    #[test]
     fn every_layer_has_a_name_in_both_languages() {
         for layer in Layer::ALL {
             let key = format!("layer.{}", layer.name());
@@ -332,6 +368,7 @@ mod tests {
     fn every_error_kind_has_a_text_in_both_languages() {
         let errors = [
             ServiceError::NoScene("s".to_owned()),
+            ServiceError::NoDecision("s".to_owned()),
             ServiceError::NoShot("x".to_owned()),
             ServiceError::Gone,
             ServiceError::NoLocation("l".to_owned()),

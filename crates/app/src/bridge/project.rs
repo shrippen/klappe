@@ -9,7 +9,7 @@ use crate::tools::Preview;
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
-use klappe_services::{error_text, load_notes_text};
+use klappe_services::{book_report_text, error_text, load_notes_text};
 use klappe_services::{ProjectEdit, ServiceError, Session};
 use std::path::Path;
 
@@ -258,7 +258,11 @@ impl qobject::Controller {
         }
 
         let dir = session.dir().to_string_lossy().into_owned();
-        let notes = load_notes_text(language, session.load_notes());
+        let notes = [
+            load_notes_text(language, session.load_notes()),
+            book_report_text(language, &session.book_report()),
+        ];
+        let notes = notes.join(" ").trim().to_owned();
         {
             let this = self.as_mut().rust_mut().get_mut();
             this.session = Some(session);
