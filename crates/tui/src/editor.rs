@@ -316,9 +316,10 @@ impl Editor {
 
         let last = layout.len().saturating_sub(1);
         let to = from.saturating_add_signed(delta).min(last);
-        if to == from {
+        // A page break row is no place for the cursor; go on past it, or stay.
+        let Some(to) = layout.text_row(to, delta).filter(|&to| to != from) else {
             return;
-        }
+        };
 
         let x = self
             .goal
@@ -340,7 +341,7 @@ mod tests {
 
     fn layout_of(ed: &Editor, width: usize) -> Layout {
         let kinds = vec![LineKind::Action; ed.lines().len()];
-        Layout::build(ed.lines(), &kinds, width)
+        Layout::build(ed.lines(), &kinds, width, &[])
     }
 
     fn typed(ed: &mut Editor, text: &str) {

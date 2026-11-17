@@ -5,6 +5,7 @@ use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
 use crate::plan::FloorPlan;
 use crate::saved_view::SavedView;
+use crate::script_setup::ScriptSetup;
 use crate::template::Template;
 
 /// One film: everything every module works on.
@@ -29,6 +30,9 @@ pub struct Project {
     /// The sheet the plan was last exported on; the export dialog starts from it.
     #[serde(default)]
     pub paper: PaperSetup,
+    /// How the screenplay is paged and printed (DB-30, DB-31).
+    #[serde(default)]
+    pub script: ScriptSetup,
 }
 
 impl Project {
@@ -42,6 +46,7 @@ impl Project {
             templates: Vec::new(),
             views: Vec::new(),
             paper: PaperSetup::default(),
+            script: ScriptSetup::default(),
         }
     }
 

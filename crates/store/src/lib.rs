@@ -30,8 +30,8 @@ use std::path::{Path, PathBuf};
 use klappe_model::{
     is_figure_size_m, is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m,
     is_opening_width_m, is_outline, Character, Location, ObjectShape, Opening, PaperSetup, Project,
-    SavedView, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MAX_OBJECT_M, MIN_FIGURE_M,
-    MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
+    SavedView, Scene, ScriptSetup, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MAX_OBJECT_M,
+    MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
@@ -85,9 +85,16 @@ struct Header {
     /// Left out while it is the default, so older projects save unchanged.
     #[serde(default, skip_serializing_if = "is_default_paper")]
     paper: PaperSetup,
+    /// A table of its own, left out while it is the default.
+    #[serde(default, skip_serializing_if = "is_default_script")]
+    script: ScriptSetup,
     /// The saved views (LH-119), each an `[[ansicht]]`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     ansicht: Vec<SavedView>,
+}
+
+fn is_default_script(script: &ScriptSetup) -> bool {
+    *script == ScriptSetup::default()
 }
 
 fn is_default_paper(paper: &PaperSetup) -> bool {
@@ -156,6 +163,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         project: Project {
             title: header.title,
             paper: header.paper,
+            script: header.script,
             views: header.ansicht,
             characters: characters.figur,
             locations,
@@ -183,6 +191,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
         format_version: FORMAT_VERSION,
         title: project.title.clone(),
         paper: project.paper,
+        script: project.script,
         ansicht: project.views.clone(),
     };
     let path = dir.join(PROJECT_FILE);

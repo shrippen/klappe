@@ -75,6 +75,9 @@ pub enum ServiceError {
     /// A view has nothing to show: 3D not open yet, or no camera with marks (LH-86).
     #[error("there is no picture")]
     NoPicture,
+    /// The project has no screenplay to page or print (DB-70).
+    #[error("the project has no screenplay")]
+    NoScript,
     /// A plan with no figure and no camera has nothing to file as a template.
     #[error("the plan has no figure and no camera")]
     EmptyTemplate,

@@ -76,6 +76,8 @@ pub(crate) struct Texts {
     pub backup_hint_unreadable: String,
     pub goto_title: String,
     pub goto_none: String,
+    /// Marks the page breaks and lengths of an older text.
+    pub stale: String,
     pub help: Vec<String>,
 }
 
@@ -118,6 +120,7 @@ impl Texts {
             backup_hint_unreadable: t("tui.backup.hintUnreadable"),
             goto_title: t("tui.goto.title"),
             goto_none: t("tui.goto.none"),
+            stale: t("tui.stale"),
             help: HELP_KEYS.iter().map(|k| lang.text(k)).collect(),
         }
     }
@@ -143,6 +146,13 @@ impl Texts {
         self.lang
             .text("tui.replaced")
             .replace("{count}", &count.to_string())
+    }
+
+    /// "Page 3".
+    pub(crate) fn page(&self, number: usize) -> String {
+        self.lang
+            .text("tui.page")
+            .replace("{number}", &number.to_string())
     }
 
     /// "Shots: 3".
@@ -203,6 +213,8 @@ mod tests {
                 &t.replaced(1),
                 &t.goto_title,
                 &t.goto_none,
+                &t.stale,
+                &t.page(3),
                 &t.scene_of(1, 2),
                 &t.shots(1),
                 &t.figures(1),

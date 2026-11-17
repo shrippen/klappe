@@ -53,6 +53,7 @@ impl Session {
             orbit: None,
             cut: klappe_stellprobe::Cut::Off,
             through: None,
+            layout: None,
         })
     }
 

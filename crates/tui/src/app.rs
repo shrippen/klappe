@@ -1,6 +1,7 @@
 //! The editor's state and what keys and the mouse do to it; no drawing, no terminal.
 
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use klappe_services::{ServiceError, Session, Slot};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
@@ -35,6 +36,9 @@ const DEFAULT_HEIGHT: usize = 24;
 const LIST_AUTO_MIN_COLS: u16 = 100;
 /// Terminal width before the first frame says the real one.
 const DEFAULT_SCREEN_COLS: u16 = 80;
+
+/// Time without a key before the pages are laid out again (DN-02).
+pub const IDLE_BEFORE_PAGES: Duration = Duration::from_secs(5);
 
 /// Whether the program goes on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,8 +118,15 @@ pub struct App {
     width: usize,
     height: usize,
     saved_revision: u64,
-    /// Revision and width the analysis and layout were built for.
-    built_for: Option<(u64, usize)>,
+    /// Revision, width and page computation the analysis and layout were built for.
+    built_for: Option<(u64, usize, u64)>,
+    lang: Language,
+    /// Counts the page computations; the layout follows it (`built_for`).
+    pages_run: u64,
+    /// The editor's revision the last page computation read.
+    pages_for: u64,
+    /// When the last key came; the pages wait `IDLE_BEFORE_PAGES` after it.
+    last_key: Option<Instant>,
 }
 
 impl App {
@@ -158,12 +169,39 @@ impl App {
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             built_for: None,
+            lang,
+            pages_run: 0,
+            pages_for: 0,
+            last_key: None,
         };
         app.autosaved = app.editor.revision();
         app.check_backup();
+        app.recompute_pages();
         app.refresh();
 
         Ok(app)
+    }
+
+    /// The pages of the last computation (DN-02), `None` never in practice: `open` lays out.
+    pub(crate) fn pages(&self) -> Option<&klappe_services::ScriptPages> {
+        self.session.script_pages()
+    }
+
+    /// The length of scene `index` of the list as the last computation has it, e.g. `3/8`;
+    /// `None` without one. While the text has gained or lost scenes since, the scene is
+    /// found by its line, which moves with typing: then a length may be missing, never wrong
+    /// by more than the last edit.
+    pub(crate) fn scene_length(&self, index: usize) -> Option<&str> {
+        let spans = &self.pages()?.scenes;
+        let span = match spans.len() == self.analysis.scenes.len() {
+            true => spans.get(index),
+            false => {
+                let line = self.analysis.scenes.get(index)?.line;
+                spans.iter().find(|s| s.line == line)
+            }
+        };
+
+        span.map(|s| s.length.as_str())
     }
 
     pub(crate) fn file_name(&self) -> &str {
@@ -206,9 +244,38 @@ impl App {
         self.clamp_scroll();
     }
 
+    /// Lays the pages out again for the text as it is in the editor (DN-02): the page
+    /// breaks and scene lengths shown from now on are those of this text.
+    pub fn recompute_pages(&mut self) {
+        let text = self.editor.text();
+
+        self.session.paginate_text(&text, self.lang);
+        self.pages_for = self.editor.revision();
+        self.pages_run += 1;
+        self.refresh();
+    }
+
+    /// How long until the pages are due, `None` if they are up to date. They are due
+    /// `IDLE_BEFORE_PAGES` after the last key; a key never waits for them.
+    pub fn pages_wait(&self, now: Instant) -> Option<Duration> {
+        if !self.pages_stale() {
+            return None;
+        }
+        let since = self
+            .last_key
+            .map_or(IDLE_BEFORE_PAGES, |at| now.saturating_duration_since(at));
+
+        Some(IDLE_BEFORE_PAGES.saturating_sub(since))
+    }
+
+    /// Whether the text changed since the pages were laid out.
+    pub(crate) fn pages_stale(&self) -> bool {
+        self.pages_for != self.editor.revision()
+    }
+
     /// Rebuilds what depends on the text or the width, if either changed.
     pub(crate) fn refresh(&mut self) {
-        let key = (self.editor.revision(), self.width);
+        let key = (self.editor.revision(), self.width, self.pages_run);
         if self.built_for == Some(key) {
             return;
         }
@@ -216,7 +283,17 @@ impl App {
 
         self.analysis = analyse(self.editor.lines());
         self.apply_pending();
-        self.layout = Layout::build(self.editor.lines(), &self.analysis.kinds, self.width);
+        let breaks: Vec<(usize, usize)> = self
+            .session
+            .script_pages()
+            .map(|p| p.breaks.iter().map(|b| (b.line, b.page)).collect())
+            .unwrap_or_default();
+        self.layout = Layout::build(
+            self.editor.lines(),
+            &self.analysis.kinds,
+            self.width,
+            &breaks,
+        );
         self.list_sel = self
             .list_sel
             .min(self.analysis.scenes.len().saturating_sub(1));
@@ -238,6 +315,7 @@ impl App {
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Flow {
+        self.last_key = Some(Instant::now());
         match self.mode {
             Mode::Help => return self.help_key(key),
             Mode::ConfirmQuit => return self.answer_quit(key),

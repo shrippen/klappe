@@ -43,7 +43,12 @@ pub fn run(app: &mut App) -> io::Result<()> {
     loop {
         terminal.draw(|frame| draw(frame, app))?;
 
-        let wait = next_autosave.saturating_duration_since(Instant::now());
+        // The next autosave, or the old pages becoming due (DN-02), whichever is first; a key
+        // never waits for the layout.
+        let mut wait = next_autosave.saturating_duration_since(Instant::now());
+        if let Some(pages) = app.pages_wait(Instant::now()) {
+            wait = wait.min(pages);
+        }
         if event::poll(wait)? {
             match event::read()? {
                 Event::Key(key) if key.kind != KeyEventKind::Release => {
@@ -56,6 +61,9 @@ pub fn run(app: &mut App) -> io::Result<()> {
                 Event::Mouse(mouse) => app.handle_mouse(mouse),
                 _ => {}
             }
+        }
+        if app.pages_wait(Instant::now()).is_some_and(|w| w.is_zero()) {
+            app.recompute_pages();
         }
         if Instant::now() >= next_autosave {
             app.autosave();
