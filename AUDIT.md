@@ -81,7 +81,7 @@ Für das Papier gibt es heute vier Stellen:
 
 Die Breite des Textes von 60 Spalten steht im Drehbuch-Baustein und in der Ausgabe je als eigene Zahl.
 
-Was es kostet: Ein neues Papier (etwa Legal) oder ein korrigiertes Maß muss man in der Ausgabe zweimal ändern. Wird die Textbreite geändert, setzt das PDF die Zeilen an der alten Breite aus.
+Was es kostet: Ein neues Papier (etwa Legal) oder ein korrigiertes Maß muss man in der Ausgabe zweimal ändern. Wird die Textbreite geändert, stehen im PDF der rechte Rand (Seitenzahl, rechte Szenennummer, Datum der Titelseite) und die Mitte der Titelseite an der alten Breite; die Textzeilen selbst bleiben richtig.
 
 Vorschlag: Die Ausgabe nimmt für beide Wege eine Tabelle der Papiermaße. Die Textbreite kommt mit dem Blatt aus der Sitzung, statt als zweite Zahl in der Ausgabe zu stehen.
 
@@ -159,7 +159,7 @@ Die nicht geprüfte `bridge.rs` wächst weiter (978 Zeilen), wie in `ARCHITECTUR
 Beleg: `structure.baseline`, `crates/app/qml/AppHeader.qml:475`, `crates/app/qml/ObjectCommands.qml:1`.
 
 ## Seit dem letzten Audit
-Seit dem 13. Audit wurden elf PRs gemergt: #198 bis #207, #209 und #210. #211 (`audit13-klein`) ist noch offen.
+Seit dem 13. Audit wurden elf PRs gemergt: #198 bis #201, #203 bis #207, #209 und #210 (#202 ist noch offen). #211 (`audit13-klein`) ist noch offen.
 
 13. Audit:
 - **Fund 1 (Beispielkopie an der Ablage vorbei beiseitegelegt): behoben (#209).** Die Ablage bietet `set_aside` mit ihrer Regel für den freien Namen an. Beleg: `crates/store/src/folder.rs:86`.
