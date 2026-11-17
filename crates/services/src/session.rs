@@ -34,6 +34,7 @@ mod undo;
 mod uses;
 mod views;
 
+pub use book::Answer;
 pub use export::ExportOptions;
 pub use fade::Fade;
 pub use free_view::{Size, View};

@@ -51,7 +51,7 @@ pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
-    Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages, Playing,
+    Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages, Playing,
     Session, Size, Step, TimeSnap, View, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};

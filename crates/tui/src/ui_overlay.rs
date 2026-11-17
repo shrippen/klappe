@@ -1,7 +1,7 @@
 //! The boxes over the editor: the suggestion list, search and replace, the title page form
 //! the open questions about the book and the question about a backup.
 
-use klappe_services::Case;
+use klappe_services::{Case, Choice};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -206,12 +206,14 @@ pub(crate) fn draw_book(frame: &mut Frame, app: &App) {
         return;
     };
     let ask = app.texts.book_ask(&question.number, &question.heading);
-    let mut options: Vec<String> = question
-        .candidates
+    let options: Vec<String> = app
+        .book_answers()
         .iter()
-        .map(|c| format!("{} {}", c.number, c.heading))
+        .map(|a| match a.choice {
+            Choice::NotInBook => app.texts.book_none.clone(),
+            Choice::Scene(_) => format!("{} {}", a.number, a.heading),
+        })
         .collect();
-    options.push(app.texts.book_none.clone());
 
     let width = BOX_WIDTH.max(cols(ask.chars()) + 4);
     let area = centered(frame.area(), width, options.len() + 4);

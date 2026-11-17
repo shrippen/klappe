@@ -1,7 +1,7 @@
 //! The questions the register leaves open about the book (`Ctrl+K`): which scene of the
 //! book an entry is, one question at a time.
 
-use klappe_services::{Choice, PendingScene};
+use klappe_services::{Answer, PendingScene};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::{App, Flow, Mode, Notice};
@@ -10,6 +10,15 @@ impl App {
     /// The question being asked: the first open one.
     pub(crate) fn book_question(&self) -> Option<&PendingScene> {
         self.session.pending_scenes().first()
+    }
+
+    /// The lines of the question being asked, the last one "not in the book".
+    pub(crate) fn book_answers(&self) -> Vec<Answer> {
+        let Some(question) = self.book_question() else {
+            return Vec::new();
+        };
+
+        self.session.book_answers(&question.id)
     }
 
     pub(super) fn open_book(&mut self) -> Flow {
@@ -30,12 +39,11 @@ impl App {
     }
 
     pub(super) fn book_key(&mut self, key: KeyEvent) -> Flow {
-        let Some(question) = self.book_question() else {
+        if self.book_question().is_none() {
             self.mode = Mode::Normal;
             return Flow::Continue;
-        };
-        // The candidates, then "Not in the book".
-        let options = question.candidates.len() + 1;
+        }
+        let options = self.book_answers().len();
 
         match key.code {
             KeyCode::Esc => self.mode = Mode::Normal,
@@ -54,13 +62,9 @@ impl App {
             return;
         };
         let id = question.id.clone();
-        let choice = match question.candidates.get(self.book_sel) {
-            Some(candidate) => Choice::Scene(candidate.clone()),
-            None => Choice::NotInBook,
-        };
 
         // The answer is written at once: the TUI saves no plans, so quitting asks nothing.
-        let answered = self.session.resolve_scene(&id, choice);
+        let answered = self.session.answer_book(&id, self.book_sel);
         if let Err(e) = answered.and_then(|()| self.session.save_register()) {
             self.notice = Some(Notice::SaveFailed(e.to_string()));
             self.mode = Mode::Normal;

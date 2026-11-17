@@ -467,3 +467,27 @@ fn adding_or_renaming_an_entry_refreshes_the_questions() {
     assert_ne!(s.pending_scenes()[0].id, "aaaa");
     assert_eq!(s.book_report().pending, 1);
 }
+
+#[test]
+fn the_answers_are_the_candidates_then_not_in_the_book() {
+    let dir = settled("book-answers", two(), &(saal("1") + &hof("2")));
+    rewrite_book(&dir, &rewritten());
+    let mut s = Session::open(&dir).unwrap();
+
+    let answers = s.book_answers("bbbb");
+
+    let last = answers.len() - 1;
+    assert_eq!(last, s.pending_scenes()[0].candidates.len());
+    assert_eq!(
+        answers[0].heading,
+        s.pending_scenes()[0].candidates[0].heading
+    );
+    assert_eq!(answers[last].choice, Choice::NotInBook);
+    assert!(s.book_answers("gone").is_empty());
+    assert!(s.answer_book("bbbb", last + 1).is_err());
+    assert!(s.answer_book("gone", 0).is_err());
+
+    s.answer_book("bbbb", last).unwrap();
+
+    assert_eq!(scene(&s, "bbbb").state, BookState::NotInBook);
+}

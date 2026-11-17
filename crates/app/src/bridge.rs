@@ -318,8 +318,8 @@ pub mod qobject {
         fn autosave(self: Pin<&mut Self>);
 
         /// Answers the open question about the register entry `id` (`projectJson.pending`): the
-        /// scene of the book at position `index` of its candidates, or -1 for "not in the
-        /// book". False when the question is gone or the answer is refused.
+        /// answer at position `index` of its `answers` (the scenes of the book, then "not in
+        /// the book" last). False when the question is gone or the answer is refused.
         #[qinvokable]
         #[cxx_name = "resolveScene"]
         fn resolve_scene(self: Pin<&mut Self>, id: &QString, index: i32) -> bool;

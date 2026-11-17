@@ -10,11 +10,51 @@ use crate::error::ServiceError;
 /// Undo step of `resolve_scene`.
 const RESOLVE_STEP: &str = "ResolveScene";
 
+/// One line of the dialog for an open question: a scene of the book the entry may be, or
+/// "not in the book" as the last line. Surfaces show the lines and hand back the position.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Answer {
+    /// Empty for `Choice::NotInBook`; the surface names that line.
+    pub number: String,
+    pub heading: String,
+    pub choice: Choice,
+}
+
 impl Session {
     /// The entries of the register the book could not place without asking, with the scenes
     /// each may be (DATENMODELL principle 6). Their scenes get no entry before an answer.
     pub fn pending_scenes(&self) -> &[PendingScene] {
         &self.pending
+    }
+
+    /// The answers of the open question about entry `id`: its candidates best first, then
+    /// "not in the book". Empty when there is no such question.
+    pub fn book_answers(&self, id: &str) -> Vec<Answer> {
+        let Some(pending) = self.pending.iter().find(|p| p.id == id) else {
+            return Vec::new();
+        };
+        let scenes = pending.candidates.iter().map(|c| Answer {
+            number: c.number.clone(),
+            heading: c.heading.clone(),
+            choice: Choice::Scene(c.clone()),
+        });
+        let none = Answer {
+            number: String::new(),
+            heading: String::new(),
+            choice: Choice::NotInBook,
+        };
+
+        scenes.chain(std::iter::once(none)).collect()
+    }
+
+    /// Answers the question about entry `id` with line `index` of `book_answers`.
+    pub fn answer_book(&mut self, id: &str, index: usize) -> Result<(), ServiceError> {
+        let answers = self.book_answers(id);
+        let Some(answer) = answers.into_iter().nth(index) else {
+            return Err(ServiceError::NoDecision(id.to_owned()));
+        };
+
+        self.resolve_scene(id, answer.choice)
     }
 
     /// What there is to say about the book and the register: for the status line.
