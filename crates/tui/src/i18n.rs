@@ -210,11 +210,17 @@ impl Texts {
             .replace("{number}", &number.to_string())
     }
 
-    /// "2 min": the estimated running time, rounded.
+    /// "2 min": the estimated running time, half a minute up (2.5 → 3); a book shorter than
+    /// half a minute shows 1, not 0.
     pub(crate) fn minutes(&self, minutes: f64) -> String {
+        let shown = match minutes > 0.0 {
+            true => minutes.round().max(1.0),
+            false => 0.0,
+        };
+
         self.lang
             .text("tui.minutes")
-            .replace("{count}", &format!("{minutes:.0}"))
+            .replace("{count}", &format!("{shown:.0}"))
     }
 
     /// "PDF written: drehbuch.pdf".
@@ -322,5 +328,15 @@ mod tests {
             }
             assert_eq!(t.help.len(), HELP_KEYS.len());
         }
+    }
+
+    #[test]
+    fn minutes_round_half_up_and_never_show_zero() {
+        let t = Texts::new(Language::English);
+
+        assert_eq!(t.minutes(2.5), "3 min");
+        assert_eq!(t.minutes(3.5), "4 min");
+        assert_eq!(t.minutes(0.375), "1 min");
+        assert_eq!(t.minutes(0.0), "0 min");
     }
 }

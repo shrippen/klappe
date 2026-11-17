@@ -110,7 +110,6 @@ impl App {
         let mut setup = self.session.project().script;
         setup.contd_after_action = form.contd;
         let changed = setup != self.session.project().script;
-        self.session.set_script_setup(setup);
 
         let path = self.session.dir().join(PDF_FILE);
         let print = ScriptPrint {
@@ -119,7 +118,7 @@ impl App {
             language: self.lang,
         };
         let done = match changed {
-            true => self.session.save(),
+            true => self.session.keep_script_setup(setup),
             false => Ok(()),
         }
         .and_then(|()| self.session.export_script_pdf(&path, &print));

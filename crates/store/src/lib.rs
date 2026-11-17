@@ -303,6 +303,18 @@ fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, St
     Ok(vec![(library_path, library), (templates_path, templates)])
 }
 
+/// Replaces the screenplay setup in `projekt.toml` of `dir` and nothing else: the rest of the
+/// file stays as it is on disk, as another program may have saved it meanwhile (TUI beside
+/// the window).
+pub fn save_script_setup(dir: &Path, setup: ScriptSetup) -> Result<(), StoreError> {
+    let mut header = read_header(dir)?;
+    header.script = setup;
+
+    let path = dir.join(PROJECT_FILE);
+    let bytes = files::encode_toml(&path, &header)?;
+    files::write_atomic(&path, &bytes)
+}
+
 /// Writes `drehbuch.fountain` in `dir` atomically and nothing else.
 pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
     files::write_atomic(&dir.join(SCRIPT_FILE), script.as_bytes())

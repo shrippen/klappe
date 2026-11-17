@@ -62,3 +62,20 @@ fn contd_after_action_is_kept_in_the_project() {
     press(&mut app, KeyCode::Enter);
     assert!(!contd_saved(&s));
 }
+
+#[test]
+fn the_contd_setting_writes_no_other_file() {
+    let (s, mut app) = app_with(BOOK);
+    // The window saved its plans and characters meanwhile.
+    let characters = s.dir.join("figuren.toml");
+    let theirs = std::fs::read_to_string(&characters).unwrap_or_default() + "# extern\n";
+    std::fs::write(&characters, &theirs).unwrap();
+
+    ctrl(&mut app, 'e');
+    keys(&mut app, &[KeyCode::Down, KeyCode::Down]);
+    press(&mut app, KeyCode::Char(' '));
+    press(&mut app, KeyCode::Enter);
+
+    assert!(contd_saved(&s));
+    assert_eq!(std::fs::read_to_string(&characters).unwrap(), theirs);
+}

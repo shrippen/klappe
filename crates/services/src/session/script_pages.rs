@@ -43,6 +43,16 @@ impl Session {
         self.touch();
     }
 
+    /// Sets how the screenplay is paged and printed and writes only that into `projekt.toml`
+    /// at once, leaving every other file as it is on disk (the TUI, which saves the book
+    /// without the plans).
+    pub fn keep_script_setup(&mut self, setup: ScriptSetup) -> Result<(), ServiceError> {
+        klappe_store::save_script_setup(&self.dir, setup)?;
+        self.project.script = setup;
+
+        Ok(())
+    }
+
     /// Writes the screenplay as PDF (DB-70) after laying it out again, so the pages are the
     /// ones in the text now.
     pub fn export_script_pdf(
