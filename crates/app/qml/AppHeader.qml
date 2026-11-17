@@ -53,7 +53,7 @@ RowLayout {
                                     actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actNextMark, actMarkBefore, actAxisTo, actWaySmooth, actWayStraight,
-                                    actUndo, actRedo].concat(zoom.actions, pageExports.actions, viewCommands.actions)
+                                    actUndo, actRedo].concat(zoom.actions, pageExports.actions, viewCommands.actions, objectCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -471,6 +471,9 @@ RowLayout {
             }
         }
     }
+    // The commands of an object and of a bound label (LH-114 to LH-116, LH-118).
+    ObjectCommands { id: objectCommands; texts: header.texts; controller: header.controller; locked: header.locked; keyName: header.keyName }
+
     // Saved views (LH-119) and the sketch pen's clear command (LH-120).
     ViewCommands {
         id: viewCommands
@@ -690,7 +693,7 @@ RowLayout {
 
     // What the palette lists: the modes, the tools, the actions, the scenes, the plans. Each is
     // listed with the key it has anywhere else.
-    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), viewCommands.palette(),
+    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), viewCommands.palette(), objectCommands.kindCommands(),
                                               sceneCommands(), actionCommands(planMenu.actions), planCommands())
 
     function actionCommands(actions) {
@@ -758,6 +761,9 @@ RowLayout {
             return
         case "tool":
             tools.tool = target
+            return
+        case "kind":
+            controller.changeSelected("kind", target)
             return
         case "scene":
             controller.selectScene(target)

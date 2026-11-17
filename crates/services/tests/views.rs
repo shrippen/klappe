@@ -211,12 +211,12 @@ fn the_other_hints_carry_their_fields() {
         serde_json::to_value(s.object_hint("tisch")).unwrap(),
         json!({
             "kind": "object", "label": "Tafel", "library": "table", "width": 6.0,
-            "depth": 1.2, "height": null, "base": 0.0, "baseDefault": true,
+            "depth": 1.2, "height": null, "base": 0.0, "baseDefault": true, "mirrored": false,
         })
     );
     assert_eq!(s.object_hint("x"), None);
     assert_eq!(
         serde_json::to_value(s.note_hint("x")).unwrap(),
-        json!({ "kind": "note", "text": "" })
+        json!({ "kind": "note", "text": "", "bound": false })
     );
 }

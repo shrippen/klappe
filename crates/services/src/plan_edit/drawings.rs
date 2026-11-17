@@ -4,12 +4,28 @@ use klappe_model::{Dash, Drawing, DrawingShape, FigureColor, Fill, Point};
 use klappe_stellprobe::{drawing_edge_places, drawing_handle_places, Source};
 
 use super::add::check_drawable;
-use super::Scope;
+use super::{PlanEdit, Scope};
 use crate::error::ServiceError;
 use crate::field::Field;
 
-/// Gives the drawing `source` names a new look; any other source is refused.
+/// Applies `SetDrawingStyle`; any other edit is none of its business.
 pub(super) fn set_drawing_style(
+    scope: &mut Scope<'_>,
+    edit: &PlanEdit,
+) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::SetDrawingStyle {
+            source,
+            color,
+            dash,
+            fill,
+        } => restyle(scope, source, (*color, *dash, *fill)),
+        _ => Ok(()),
+    }
+}
+
+/// Gives the drawing `source` names a new look; any other source is refused.
+fn restyle(
     scope: &mut Scope<'_>,
     source: &Source,
     (color, dash, fill): (FigureColor, Dash, Fill),

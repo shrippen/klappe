@@ -96,7 +96,7 @@ pub fn handles(project: &Project, set: &SetPlan, plan: &FloorPlan, selected: &So
         Source::Drawing(id)
         | Source::DrawingPoint { drawing: id, .. }
         | Source::DrawingEdge { drawing: id, .. } => drawing_handles(plan, id),
-        Source::Note(id) | Source::NoteWidth(id) => note_handles(set, id),
+        Source::Note(id) | Source::NoteWidth(id) => note_handles(set, plan, id),
         Source::Image(id) | Source::ImageSize(id) => image_handles(set, id),
         Source::Opening { wall, index } | Source::OpeningEdge { wall, index, .. } => {
             opening_handles(set, *wall, *index)
@@ -244,8 +244,8 @@ fn opening_handles(set: &SetPlan, wall: usize, index: usize) -> Vec<Item> {
 }
 
 /// The grip on the card of note `id`: where its right edge is half as high as the card.
-fn note_handles(set: &SetPlan, id: &str) -> Vec<Item> {
-    let Some(note) = set.notes.iter().find(|n| n.id == id) else {
+fn note_handles(set: &SetPlan, plan: &FloorPlan, id: &str) -> Vec<Item> {
+    let Some(note) = set.notes.iter().chain(&plan.labels).find(|n| n.id == id) else {
         return Vec::new();
     };
     let (corners, _) = note_card(note.at, note.width_m, &note.text);

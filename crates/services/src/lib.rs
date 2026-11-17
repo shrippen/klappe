@@ -42,7 +42,7 @@ pub use folder::{archive_project, rename_project, trash_project};
 pub use light_edit::LightChange;
 pub use measure::measure_angle_deg;
 pub use number::{read_number, Range, Unit};
-pub use plan_edit::{layer_of_source, Grid, MarkInfo, Pace, PlanEdit, Snapping};
+pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdit, Snapping};
 pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
@@ -73,3 +73,11 @@ pub use klappe_stellprobe::{
 // Fountain, so the TUI editor can style and list what it types without the script crate;
 // `parse` for its tests.
 pub use klappe_script::{parse, parse_located, Element, Located};
+
+// The writing aids of `script/` (completion, Enter and Tab flow, search, title page, inline
+// marks), for the screenplay editors of the surfaces.
+pub use klappe_script::{
+    find_all, inline_runs, replace_all, replace_line, set_title_fields, suggest, title_fields,
+    title_page_lines, Case, Context, Gap, Hit, Marks, Query, Run, Slot, Stage, Suggestions,
+    Vocabulary, TITLE_KEYS,
+};

@@ -6,16 +6,24 @@
 
 mod align;
 mod anchor;
+mod assist;
 mod conflict;
+mod inline;
 mod parse;
 mod quote;
+mod search;
 mod text;
+mod title;
 mod write;
 
 pub use align::{align, scene_states, Alignment, Fingerprint, Outcome, SceneState};
+pub use assist::{suggest, Context, Gap, Slot, Stage, Suggestions, Vocabulary};
 pub use conflict::conflict_line;
-pub use parse::{parse, parse_located};
+pub use inline::{inline_runs, Marks, Run};
+pub use parse::{parse, parse_located, title_page_lines};
 pub use quote::{find_quote, find_quotes, quote_at, Found, LineKind, Quote};
+pub use search::{find_all, replace_all, replace_line, Case, Hit, Query};
+pub use title::{set_title_fields, title_fields, TITLE_KEYS};
 pub use write::write;
 
 /// One block of a screenplay.

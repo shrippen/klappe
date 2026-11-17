@@ -8,7 +8,9 @@ import Kante
 // its name or kind, its size as two fields; under "More" its height (empty is none), its
 // underside (the value in force; emptied it stands on what is below again) and filing it in the
 // library under a name. Enter in a size field sets the size, Enter in the height or underside
-// field that one; a value that is no length marks the field and changes nothing.
+// field that one; a value that is no length marks the field and changes nothing. Under "More"
+// too: its kind (a list of the library, LH-114), mirroring (LH-115), the size of its entry again
+// (LH-116) and a label bound to it (LH-118).
 ColumnLayout {
     id: card
 
@@ -32,9 +34,19 @@ ColumnLayout {
         return d.kind === "object" ? d : null
     }
     readonly property bool shown: info !== null
+    /// The library as the kind list shows it: built in first, then the project's own.
+    readonly property var kinds: {
+        const choices = card.controller.choicesJson ? JSON.parse(card.controller.choicesJson) : {}
+        return (choices.object || []).map(o => ({
+            value: o.kind,
+            text: o.custom ? (o.label || o.kind) : card.texts.t("objectKind." + o.kind),
+            group: !o.custom ? card.texts.t("objectGroup." + o.group) : (o.group || card.texts.t("library.custom"))
+        }))
+    }
+    readonly property int kindIndex: info ? kinds.findIndex(k => k.value === info.library) : -1
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: widthField.typing || depthField.typing
-        || heightField.typing || baseField.typing || libraryName.activeFocus
+        || heightField.typing || baseField.typing || libraryName.activeFocus || kindBox.popupOpen
     readonly property string title: info ? (info.label !== "" ? info.label : card.kindOf(info)) : ""
 
     visible: shown
@@ -175,6 +187,60 @@ ColumnLayout {
         size: KanteButton.Size.Small
         text: card.texts.t(card.expanded ? "card.less" : "card.more")
         onClicked: card.expanded = !card.expanded
+    }
+
+    // Kind, mirror, size of the entry, label (LH-114 to LH-116, LH-118).
+    KanteSearchCombo {
+        id: kindBox
+        objectName: "kindBox"
+        visible: card.expanded
+        Layout.fillWidth: true
+        Accessible.name: card.texts.t("object.kind")
+        placeholderText: card.texts.t("object.kind")
+        textRole: "text"
+        sectionRole: "group"
+        model: card.kinds
+        // A pick sets the kind itself, which ends the binding; Binding keeps it.
+        onActivated: index => card.controller.changeSelected("kind", model[index].value)
+    }
+    Binding {
+        target: kindBox
+        property: "currentIndex"
+        value: card.kindIndex
+    }
+
+    RowLayout {
+        visible: card.expanded
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteButton {
+            objectName: "objectMirror"
+            // The state is the button's checked mark, which a screen reader announces; the click
+            // asks the controller, the card shows the answer.
+            checked: card.info !== null && card.info.mirrored === true
+            Accessible.checkable: true
+            text: card.texts.t("object.mirror")
+            onClicked: card.controller.changeSelected("mirror", "")
+            QQC2.ToolTip.text: card.texts.t("object.mirrorTip", { key: card.texts.t("key.shift") + "+M" })
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
+        KanteButton {
+            objectName: "objectResetSize"
+            text: card.texts.t("object.resetSize")
+            onClicked: card.controller.changeSelected("resetSize", "")
+            QQC2.ToolTip.text: card.texts.t("object.resetSizeTip", { key: card.texts.t("key.shift") + "+G" })
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
+        KanteButton {
+            objectName: "objectLabel"
+            text: card.texts.t("object.label")
+            onClicked: card.controller.labelSelected()
+            QQC2.ToolTip.text: card.texts.t("object.labelTip", { key: card.texts.t("key.shift") + "+L" })
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
     }
 
     RowLayout {

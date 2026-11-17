@@ -98,6 +98,11 @@ fn col_offsets(chars: &[char]) -> Vec<usize> {
     out
 }
 
+/// Columns before a centered line that fits one row: half the room it leaves.
+fn centered_indent(line: &str, width: usize) -> usize {
+    width.saturating_sub(cols(line.trim().chars()) + 1) / 2
+}
+
 impl Layout {
     pub(crate) fn build(lines: &[String], kinds: &[LineKind], width: usize) -> Self {
         let mut rows = Vec::new();
@@ -106,7 +111,10 @@ impl Layout {
 
         for (i, line) in lines.iter().enumerate() {
             let kind = kinds.get(i).copied().unwrap_or(LineKind::Action);
-            let indent = kind.indent().min(width / INDENT_SHARE);
+            let indent = match kind {
+                LineKind::Centered => centered_indent(line, width),
+                _ => kind.indent().min(width / INDENT_SHARE),
+            };
             // One column stays free for the cursor behind the last character.
             let room = width.saturating_sub(indent + 1).max(MIN_WRAP);
             let parts = wrap(line, room);
@@ -264,6 +272,15 @@ mod tests {
         let l = layout(&["x"], &[LineKind::Character], 60);
 
         assert_eq!(l.row(0).map(|r| r.indent), Some(20));
+    }
+
+    #[test]
+    fn a_centered_line_stands_in_the_middle_and_a_long_one_at_the_edge() {
+        let l = layout(&["> ENDE <", &"x".repeat(80)], &[LineKind::Centered; 2], 40);
+
+        // "> ENDE <" is 8 columns: (40 - 9) / 2.
+        assert_eq!(l.row(0).map(|r| r.indent), Some(15));
+        assert_eq!(l.row(1).map(|r| r.indent), Some(0));
     }
 
     #[test]

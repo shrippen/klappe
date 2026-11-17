@@ -48,6 +48,12 @@ pub(crate) const SOFT: Color = rgb(SOFT_HEX);
 pub(crate) const MUTED: Color = rgb(MUTED_HEX);
 pub(crate) const ACCENT: Color = rgb(ACCENT_HEX);
 pub(crate) const BLUE: Color = rgb(BLUE_HEX);
+/// A note `[[ ]]`.
+pub(crate) const NOTE: Color = rgb(GREEN_HEX);
+/// Lyrics `~`.
+pub(crate) const LYRICS: Color = rgb(PURPLE_HEX);
+/// The cue of a dual dialogue `^`.
+pub(crate) const DUAL: Color = rgb(ORANGE_HEX);
 
 /// A figure's colour by Kante's label name (`ScriptLine` chips: `purple`, `blue` …); the
 /// text colour for `""` and unknown names.
@@ -109,6 +115,14 @@ mod tests {
             let role_name = format!("label{}{}", name[..1].to_uppercase(), &name[1..]);
             assert_eq!(label(name), role(&palette, &role_name), "{name}");
         }
+    }
+
+    #[test]
+    fn screenplay_marks_follow_the_palette() {
+        let palette = palette();
+        assert_eq!(NOTE, resolve(&palette, "aqua"), "note");
+        assert_eq!(LYRICS, resolve(&palette, "purple"), "lyrics");
+        assert_eq!(DUAL, resolve(&palette, "orange"), "dual");
     }
 
     #[test]
