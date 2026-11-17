@@ -191,6 +191,10 @@ fn a_register_with_bad_content_is_refused() {
         ("bad-print", format!("{entry}prints = [\"zz\"]\n")),
         ("unknown-field", format!("{entry}colour = \"red\"\n")),
         (
+            "break",
+            "[[szene]]\nid = \"a\"\nnumber = \"1\"\nheading = \"x\\ny\"\n".to_owned(),
+        ),
+        (
             "no-number",
             "[[szene]]\nid = \"a\"\nheading = \"x\"\n".to_owned(),
         ),

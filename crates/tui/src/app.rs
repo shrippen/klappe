@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use klappe_services::{SceneSpan, ServiceError, Session, Slot};
+use klappe_services::{load_notes_text, SceneSpan, ServiceError, Session, Slot};
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
@@ -82,6 +82,8 @@ pub(crate) enum Notice {
     SaveFailed(String),
     /// Matches replaced by "Replace all".
     Replaced(usize),
+    /// What loaded but is odd in the project.
+    Loaded(String),
 }
 
 #[derive(Debug)]
@@ -190,6 +192,10 @@ impl App {
             last_key: None,
         };
         app.autosaved = app.editor.revision();
+        let notes = load_notes_text(lang, app.session.load_notes());
+        if !notes.is_empty() {
+            app.notice = Some(Notice::Loaded(notes));
+        }
         app.check_backup();
         app.recompute_pages();
         app.refresh();

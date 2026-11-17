@@ -6,6 +6,7 @@ use klappe_stellprobe::{
     ShotOrder,
 };
 
+use super::export::VIEW_WIDTH_PX;
 use super::{Layer, Lock, Session};
 use crate::edit::{self, ShotField};
 use crate::error::ServiceError;
@@ -13,6 +14,8 @@ use crate::field::Field;
 use crate::shot_edit;
 use crate::views::{SetupOption, ShotRow, FALLBACK_ASPECT};
 
+/// The file name of a shot's still starts with this, then the shot's id.
+const STILL_PREFIX: &str = "standbild-";
 const AGAINST_SEPARATOR: &str = ", ";
 
 /// The numbers of the shots `jump` is against, as "12.1, 12.2".
@@ -65,6 +68,7 @@ impl Session {
                 ShotRow {
                     id: shot.id.clone(),
                     number: shot.number.clone(),
+                    is_version: !shot_edit::is_base(plan, shot),
                     camera: shot.camera.clone(),
                     camera_color: plan
                         .camera_color(&shot.camera)
@@ -159,6 +163,42 @@ impl Session {
             Some(file) => Some(klappe_store::add_image(&self.dir, file)?),
             None => None,
         };
+
+        self.assign_image(id, image, "ShotImage")
+    }
+
+    /// Makes what the camera of shot `id` sees a still in `bilder/` (`standbild-<id>.png`, as
+    /// wide as the camera view's PNG) and its storyboard picture; one undo step (LH-75). The
+    /// time is the playhead if it lies within the shot, else the shot's start. Undo takes the
+    /// reference away; the file stays, like a replaced picture of `set_shot_image`. Refused
+    /// while the camera layer is locked, and for a camera that sees nothing.
+    pub fn shot_still(&mut self, id: &str) -> Result<(), ServiceError> {
+        self.check_shot_lock()?;
+
+        let shot = self
+            .plan()
+            .and_then(|p| p.shots.iter().find(|s| s.id == id))
+            .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
+        let within = (shot.from_s..=shot.to_s).contains(&self.time_s);
+        let t_s = if within { self.time_s } else { shot.from_s };
+        let picture = self
+            .picture_through(shot.camera.clone(), t_s, VIEW_WIDTH_PX as usize)
+            .ok_or(ServiceError::NoPicture)?;
+
+        let bytes = self.picture_bytes(&picture)?;
+        let name = format!("{STILL_PREFIX}{id}.png");
+        let image = klappe_store::add_image_bytes(&self.dir, &name, &bytes)?;
+
+        self.assign_image(id, Some(image), "ShotStill")
+    }
+
+    /// Sets (or clears) the storyboard picture of shot `id` as one undo step named `step`.
+    fn assign_image(
+        &mut self,
+        id: &str,
+        image: Option<String>,
+        step: &'static str,
+    ) -> Result<(), ServiceError> {
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
         let shot = plan
@@ -172,7 +212,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit_step(next, "ShotImage");
+        self.commit_step(next, step);
         Ok(())
     }
 
@@ -282,10 +322,11 @@ impl Session {
     pub fn delete_shot(&mut self, id: &str) -> Result<(), ServiceError> {
         self.check_shot_lock()?;
 
+        let numbering = self.project.numbering;
         let mut next = self.project.clone();
         let plan = self.plan_in(&mut next)?;
 
-        let neighbour = shot_edit::remove(plan, id)?;
+        let neighbour = shot_edit::remove(plan, numbering, id)?;
         self.commit_step(next, "DeleteShot");
         if self.selected_shot.as_deref() == Some(id) {
             self.selected_shot = neighbour;

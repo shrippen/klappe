@@ -41,7 +41,6 @@ pub use example::{copy_example, ensure_example};
 pub use export_format::ExportFormat;
 pub use field::Field;
 pub use folder::{archive_project, rename_project, trash_project};
-pub use klappe_store::LoadNote;
 pub use light_edit::LightChange;
 pub use measure::measure_angle_deg;
 pub use number::{read_number, Range, Unit};

@@ -5,7 +5,8 @@ import QtQuick.Controls as QQC2
 // camera bodies in the plan (Shift+C, LH-113) and the long description as a second line of the
 // selected shot in the shot table (Shift+S, LH-112), and the order of the shot list, cut or
 // shooting (LH-72). The window keeps the state (`cameraViews`, `description`, `shotOrder`) and
-// hands it back; `toggled` names the area ("cameraViews", "shotDescription").
+// hands it back; `toggled` names the area ("cameraViews", "shotDescription"). Also the command
+// that takes the camera view as the selected shot's storyboard picture (LH-75).
 Item {
     id: views
 
@@ -25,8 +26,9 @@ Item {
     readonly property alias descriptionAction: actDescription
     readonly property alias cutAction: actCut
     readonly property alias shootingAction: actShooting
+    readonly property alias stillAction: actStill
     /// In the order of the palette.
-    readonly property var actions: [actCameraViews, actDescription, actCut, actShooting]
+    readonly property var actions: [actCameraViews, actDescription, actCut, actShooting, actStill]
 
     visible: false
     width: 0
@@ -79,5 +81,14 @@ Item {
         checked: views.shotOrder === "shooting"
         enabled: views.controller.loaded
         onTriggered: views.orderPicked("shooting")
+    }
+
+    CommandAction {
+        id: actStill
+        cmd: "shot.still"
+        group: "edit"
+        text: views.texts.t("shot.still")
+        enabled: views.controller.loaded && !!views.controller.selectedShot
+        onTriggered: views.controller.shotStill(views.controller.selectedShot)
     }
 }

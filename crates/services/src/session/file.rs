@@ -8,12 +8,14 @@ use klappe_store::Loaded;
 use super::{check_empty, check_title, Autosave, BackupState, Session, View};
 use crate::error::ServiceError;
 use crate::plan_edit::{Grid, Snapping};
+use crate::shot_edit;
 
 impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
-        let loaded = crate::load::load_project(dir)?;
+        let mut loaded = crate::load::load_project(dir)?;
         let backup = check_backup(dir, &loaded);
+        shot_edit::clear_orphans(&mut loaded.project);
         let script = loaded
             .script
             .as_deref()
@@ -122,8 +124,9 @@ impl Session {
     /// screenplay text cannot (undo covers the project only). The backup's screenplay replaces
     /// the one on disk at the next save, also a newer one saved after the crash.
     pub fn restore_backup(&mut self) -> Result<(), ServiceError> {
-        let loaded = klappe_store::load_backup(&self.dir)?.ok_or(ServiceError::NoBackup)?;
+        let mut loaded = klappe_store::load_backup(&self.dir)?.ok_or(ServiceError::NoBackup)?;
 
+        shot_edit::clear_orphans(&mut loaded.project);
         self.commit(loaded.project);
         if let Some(text) = loaded.script {
             self.set_script_text(&text);

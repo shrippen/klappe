@@ -121,6 +121,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
         ServiceError::FewPoints => Some("error.fewPoints"),
         ServiceError::NotCopyable => Some("error.notCopyable"),
+        ServiceError::VersionCamera(_) => Some("error.versionCamera"),
         // Listed so a new variant must be placed: `error_text` words these itself.
         ServiceError::NoScene(_)
         | ServiceError::NoPlan(_)

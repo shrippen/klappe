@@ -14,6 +14,8 @@ pub const FALLBACK_ASPECT: f64 = 16.0 / 9.0;
 pub struct ShotRow {
     pub id: String,
     pub number: String,
+    /// A version of another shot: it has the camera of its base (LH-76).
+    pub is_version: bool,
     pub camera: String,
     /// The camera's colour as a Kante label name (LH-111), empty if the camera is gone.
     pub camera_color: String,
@@ -268,6 +270,9 @@ pub struct SceneRow {
     pub id: String,
     pub number: String,
     pub heading: String,
+    /// False for a scene the screenplay does not hold; its row shows a placeholder when the
+    /// heading is empty.
+    pub in_book: bool,
     pub location: String,
     pub location_name: String,
 }

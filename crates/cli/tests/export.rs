@@ -268,3 +268,40 @@ fn a_camera_goes_with_the_camera_format_only() {
     assert!(stderr(&output).contains("--camera"), "{}", stderr(&output));
     assert!(!out.exists());
 }
+
+#[test]
+fn an_orphan_scene_file_is_told_on_stderr_and_the_export_goes_on() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-orphan.klappe");
+    let _ = std::fs::remove_dir_all(&dir);
+    copy_dir(Path::new(EXAMPLE), &dir);
+    std::fs::write(dir.join("szenen.toml"), "").unwrap();
+    let out = out_file("cli-orphan.svg");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_klappe-cli"))
+        .args(["export", "--project"])
+        .arg(&dir)
+        .args(["--scene", ""])
+        .arg("--out")
+        .arg(&out)
+        .args(["--language", "en"])
+        .output()
+        .unwrap();
+
+    assert!(
+        stderr(&output).contains("without a register entry"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        match entry.file_type().unwrap().is_dir() {
+            true => copy_dir(&entry.path(), &target),
+            false => drop(std::fs::copy(entry.path(), target).unwrap()),
+        }
+    }
+}
