@@ -140,7 +140,11 @@ fn bad_plan_labels_do_not_load() {
         ),
         ("no-figure", vec![label("t1", 2.4, "figure:")], "bound"),
         ("no-character", vec![label("t1", 2.4, "mark::0")], "bound"),
-        ("no-index", vec![label("t1", 2.4, "mark:elisabeth")], "bound"),
+        (
+            "no-index",
+            vec![label("t1", 2.4, "mark:elisabeth")],
+            "bound",
+        ),
         ("unknown", vec![label("t1", 2.4, "wall:1")], "bound"),
     ];
 

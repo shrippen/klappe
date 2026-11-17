@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     is_figure_size_m, is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m,
-    is_opening_width_m, is_outline, Character, Location, Numbering, ObjectShape, Opening,
+    is_opening_width_m, is_outline, Binding, Character, Location, Numbering, ObjectShape, Opening,
     PaperSetup, Project, SavedView, Scene, ScriptSetup, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
     MAX_OBJECT_M, MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
@@ -493,7 +493,7 @@ fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
                 });
             }
             let bound = note.bound.as_deref();
-            if !bound.is_none_or(|b| b.strip_prefix("object:").is_some_and(|id| !id.is_empty())) {
+            if !bound.is_none_or(|b| matches!(Binding::parse(b), Some(Binding::Object(_)))) {
                 return Err(StoreError::Parse {
                     path: path.to_path_buf(),
                     message: format!(
@@ -565,7 +565,7 @@ fn check_labels(path: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
                         label.id
                     )));
                 }
-                if !is_plan_binding(label.bound.as_deref()) {
+                if !label.bound.as_deref().is_none_or(is_plan_binding) {
                     return Err(parse(format!(
                         "{at}: label {} is bound to {:?}, not a figure or a mark",
                         label.id, label.bound
@@ -599,20 +599,9 @@ fn check_shot_images(path: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
     Ok(())
 }
 
-/// Whether `bound` is what a plan's label has: `figure:<id>` or `mark:<id>:<index>`; unbound is
-/// fine too.
-fn is_plan_binding(bound: Option<&str>) -> bool {
-    let Some(bound) = bound else {
-        return true;
-    };
-
-    match bound.split_once(':') {
-        Some(("figure", id)) => !id.is_empty(),
-        Some(("mark", rest)) => rest
-            .rsplit_once(':')
-            .is_some_and(|(id, index)| !id.is_empty() && index.parse::<usize>().is_ok()),
-        _ => false,
-    }
+/// Whether `bound` is what a plan's label has: `figure:<id>` or `mark:<id>:<index>`.
+fn is_plan_binding(bound: &str) -> bool {
+    Binding::parse(bound).is_some_and(|b| b.is_plan())
 }
 
 /// An image (LH-18) has a width a drag of its grip allows and the plan can draw: finite, within
