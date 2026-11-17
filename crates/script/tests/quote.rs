@@ -252,3 +252,20 @@ fn swapped_exchanges_are_not_guessed_by_order() {
         Found::Ambiguous(vec![1, 5])
     );
 }
+
+#[test]
+fn a_gap_that_spans_paired_lines_is_ambiguous() {
+    // Round 3: "Drei." moved up between the neighbours of both "Ja." lines; the gap
+    // between their partners then holds paired lines, and both quotes landed on one line.
+    let old = scene("Eins.\n\nANNA\nJa.\n\nZwei.\n\nDrei.\n\nANNA\nJa.\n");
+    let new = scene("Eins.\n\nDrei.\n\nANNA\nJa.\n\nZwei.\n");
+
+    for index in [2, 6] {
+        let q = quote_at(&old, index).unwrap();
+        assert_eq!(
+            find_in(&old, &new, &q),
+            Found::Ambiguous(vec![3]),
+            "line {index}"
+        );
+    }
+}
