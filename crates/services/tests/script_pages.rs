@@ -18,7 +18,7 @@ const PRINT: ScriptPrint = ScriptPrint {
 fn session(name: &str, text: &str) -> Session {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
-    let mut session = Session::create(&dir, "Nachtwache").unwrap();
+    let mut session = Session::create(&dir, "Nachtwache", Language::English).unwrap();
     session.set_script_text(text);
 
     session
@@ -87,6 +87,7 @@ fn the_words_follow_the_projects_language() {
     let mut s = session("pages-words", &text);
 
     // No language chosen: the surface's decides.
+    s.set_script_setup(ScriptSetup::default());
     s.paginate(Language::German);
     assert_eq!(s.script_pages().map(|p| p.pages), Some(2));
     let german = out("pages-words-de.pdf");
@@ -213,4 +214,23 @@ fn a_german_project_can_keep_the_international_words() {
     s.export_script_pdf(&path, &PRINT).unwrap();
     let pdf = String::from_utf8_lossy(&std::fs::read(&path).unwrap()).into_owned();
     assert!(pdf.contains("(\\(WEITER\\)) Tj"), "{pdf}");
+}
+
+#[test]
+fn keeping_contd_leaves_the_rest_of_the_setup_on_disk() {
+    let mut tui = session("pages-keep-contd", &scene(1, 3));
+    let dir = tui.dir().to_path_buf();
+    // Another program sets the language meanwhile.
+    let mut window = Session::open(&dir).unwrap();
+    window.set_script_setup(ScriptSetup {
+        language: Some(ScriptLanguage::En),
+        ..ScriptSetup::default()
+    });
+    window.save().unwrap();
+
+    tui.keep_contd(true).unwrap();
+
+    let again = Session::open(&dir).unwrap();
+    assert!(again.project().script.contd_after_action);
+    assert_eq!(again.project().script.language, Some(ScriptLanguage::En));
 }

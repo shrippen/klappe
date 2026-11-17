@@ -37,7 +37,7 @@ impl qobject::Controller {
             let width = usize::try_from(width_px).ok()?;
             let picture = s.camera_picture_of(&id.to_string(), width)?;
 
-            colored(&picture, &palette, &|_| FULL_STRENGTH)
+            colored(&picture, &palette, &|_| FULL_STRENGTH, &|_| false)
         });
 
         image.map(|(image, _)| image).unwrap_or_default()
@@ -83,7 +83,7 @@ impl super::ControllerRust {
         };
         let picture = s.camera_picture(picked, usize::try_from(width_px).ok()?)?;
 
-        colored(&picture, &palette, &|_| FULL_STRENGTH)
+        colored(&picture, &palette, &|_| FULL_STRENGTH, &|_| false)
     }
 }
 
@@ -91,13 +91,18 @@ impl super::ControllerRust {
 const FULL_STRENGTH: f64 = 1.0;
 
 /// `picture` as an image in the palette's colours and the JSON of its size and names;
-/// `strength` is how much of its colour a role keeps (LH-15).
+/// `strength` is how much of its colour a role keeps (LH-15); the outline of what `selected`
+/// names is the accent.
 pub(super) fn colored(
     picture: &Picture,
     palette: &Palette,
     strength: &dyn Fn(SceneRole) -> f64,
+    selected: &dyn Fn(&Source) -> bool,
 ) -> Option<(QImage, String)> {
-    let image = QImage::from_data(&ppm(picture, palette, strength), Some(IMAGE_FORMAT))?;
+    let image = QImage::from_data(
+        &ppm(picture, palette, strength, selected),
+        Some(IMAGE_FORMAT),
+    )?;
 
     Some((image, frame_json(picture)))
 }

@@ -103,9 +103,15 @@ impl Orbit {
     /// Turns the view by a drag of `dx_px`, `dy_px`: sideways about the target, up and down
     /// between grazing and straight down.
     pub fn turn(&mut self, dx_px: f64, dy_px: f64) {
-        self.yaw_deg = (self.yaw_deg - dx_px * TURN_DEG_PER_PX).rem_euclid(360.0);
-        self.pitch_deg =
-            (self.pitch_deg + dy_px * TURN_DEG_PER_PX).clamp(MIN_PITCH_DEG, MAX_PITCH_DEG);
+        self.turn_deg(-dx_px * TURN_DEG_PER_PX, dy_px * TURN_DEG_PER_PX);
+    }
+
+    /// Turns the view by `yaw_deg` about the target (positive: counter-clockwise seen from
+    /// above) and tilts it by `pitch_deg` (positive: higher), kept between grazing and straight
+    /// down.
+    pub fn turn_deg(&mut self, yaw_deg: f64, pitch_deg: f64) {
+        self.yaw_deg = (self.yaw_deg + yaw_deg).rem_euclid(360.0);
+        self.pitch_deg = (self.pitch_deg + pitch_deg).clamp(MIN_PITCH_DEG, MAX_PITCH_DEG);
     }
 
     /// Shifts the view by a drag of `dx_px`, `dy_px` in a picture `width_px` wide: the floor

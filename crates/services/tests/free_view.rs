@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use klappe_model::Point;
-use klappe_services::{Cut, PlanEdit, Session, Source, View};
+use klappe_services::{Cut, PlanEdit, Session, Source, View, ViewStep};
 
 const EXAMPLE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -382,4 +382,109 @@ fn unrelated_edits_keep_the_look() {
     .unwrap();
 
     assert!(s.looks_through());
+}
+
+/// The mouse's way to do what a key step does.
+type Drag = fn(&mut Session);
+
+/// NF-06: each key is the drag of the same name, so the picture is the mouse's. A pan key shows
+/// more of its side, as on the plan: the content moves the other way.
+#[test]
+fn a_key_step_is_the_drag_of_the_same_name() {
+    // Turning 15 degrees is 50 px of drag at 0.3 degrees per px; a shift is a tenth of the width.
+    let pairs: [(ViewStep, Drag); 9] = [
+        (ViewStep::TurnLeft, |s| s.turn_view(-50.0, 0.0)),
+        (ViewStep::TurnRight, |s| s.turn_view(50.0, 0.0)),
+        (ViewStep::TurnUp, |s| s.turn_view(0.0, -50.0)),
+        (ViewStep::TurnDown, |s| s.turn_view(0.0, 50.0)),
+        (ViewStep::PanLeft, |s| s.pan_view(32.0, 0.0, SIZE)),
+        (ViewStep::PanRight, |s| s.pan_view(-32.0, 0.0, SIZE)),
+        (ViewStep::PanUp, |s| s.pan_view(0.0, 32.0, SIZE)),
+        (ViewStep::PanDown, |s| s.pan_view(0.0, -32.0, SIZE)),
+        (ViewStep::ZoomIn, |s| s.zoom_view(1.0, (160.0, 120.0), SIZE)),
+    ];
+
+    for (step, drag) in pairs {
+        let (mut keyed, mut dragged) = (example(), example());
+        keyed.toggle_view();
+        dragged.toggle_view();
+        let start = keyed.free_picture(SIZE).unwrap();
+
+        keyed.step_view(step, SIZE);
+        drag(&mut dragged);
+
+        let picture = keyed.free_picture(SIZE).unwrap();
+        assert_ne!(picture, start, "{step:?} changes nothing");
+        assert_eq!(picture, dragged.free_picture(SIZE).unwrap(), "{step:?}");
+        assert!(!keyed.can_undo(), "{step:?} is an edit");
+    }
+}
+
+#[test]
+fn zooming_out_by_key_undoes_zooming_in() {
+    let mut s = example();
+    s.toggle_view();
+    let middle = s.free_floor_at((160.0, 120.0), SIZE).unwrap();
+
+    s.step_view(ViewStep::ZoomIn, SIZE);
+    s.step_view(ViewStep::ZoomOut, SIZE);
+
+    let after = s.free_floor_at((160.0, 120.0), SIZE).unwrap();
+    assert!((after.x_m - middle.x_m).abs() < 1e-6 && (after.y_m - middle.y_m).abs() < 1e-6);
+}
+
+/// 24 turns of 15 degrees make a full circle: the sideways key never runs out.
+#[test]
+fn turning_by_key_goes_round_and_tilting_stops_at_the_ends() {
+    let mut s = example();
+    s.toggle_view();
+    let corner = (40.0, 200.0);
+    let start = s.free_floor_at(corner, SIZE).unwrap();
+
+    for _ in 0..24 {
+        s.step_view(ViewStep::TurnLeft, SIZE);
+    }
+    let round = s.free_floor_at(corner, SIZE).unwrap();
+    assert!((round.x_m - start.x_m).abs() < 1e-6 && (round.y_m - start.y_m).abs() < 1e-6);
+
+    for _ in 0..20 {
+        s.step_view(ViewStep::TurnDown, SIZE);
+    }
+    let down = s.free_picture(SIZE).unwrap();
+    s.step_view(ViewStep::TurnDown, SIZE);
+    assert_eq!(
+        s.free_picture(SIZE).unwrap(),
+        down,
+        "straight down is the end"
+    );
+}
+
+#[test]
+fn a_key_step_leaves_the_look_through_a_camera() {
+    let mut s = example();
+    s.toggle_view();
+    assert!(s.look_through(Some("a")));
+
+    s.step_view(ViewStep::PanLeft, SIZE);
+
+    assert!(!s.looks_through());
+}
+
+#[test]
+fn the_plan_ignores_key_steps() {
+    let mut s = example();
+
+    s.step_view(ViewStep::TurnLeft, SIZE);
+    s.toggle_view();
+    let mut fresh = example();
+    fresh.toggle_view();
+
+    assert_eq!(s.free_picture(SIZE), fresh.free_picture(SIZE));
+}
+
+#[test]
+fn step_names_are_read_back() {
+    assert_eq!(ViewStep::from_name("turnLeft"), Some(ViewStep::TurnLeft));
+    assert_eq!(ViewStep::from_name("zoomOut"), Some(ViewStep::ZoomOut));
+    assert_eq!(ViewStep::from_name("spin"), None);
 }
