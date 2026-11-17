@@ -134,7 +134,6 @@ impl Texts {
         }
     }
 
-    /// "Scene 2/5".
     /// The label of the title form's field `name`; the name itself if there is none.
     pub(crate) fn field_label<'a>(&'a self, name: &'a str) -> &'a str {
         self.fields
@@ -143,6 +142,7 @@ impl Texts {
             .map_or(name, |(_, label)| label.as_str())
     }
 
+    /// "Scene 2/5".
     pub(crate) fn scene_of(&self, current: usize, total: usize) -> String {
         self.lang
             .text("tui.sceneOf")

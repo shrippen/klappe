@@ -10,7 +10,7 @@ use klappe_export::{Face, Paper, ScriptLine, ScriptPage, ScriptSheet, TitlePage}
 use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 use klappe_script::{
     length_text, paginate, parse_located, title_fields, ContdAfterAction, Element, Located,
-    PageKind, PageOptions, PageSize, Pagination, Words,
+    PageKind, PageOptions, PageSize, Pagination, Words, TITLE_KEYS,
 };
 
 pub use klappe_export::SceneNumbers;
@@ -227,11 +227,12 @@ impl Layout {
             })
             .collect();
 
-        let key = |name: &str| title_key(&self.title_page, name);
-        let title = key("Title");
+        // The fields in the order of `TITLE_KEYS`, so a new spelling there reaches the PDF.
+        let [title, credit, author, source, draft_date, contact] =
+            TITLE_KEYS.map(|name| title_key(&self.title_page, name));
         let header = match print.header {
             HeaderLine::Off => None,
-            HeaderLine::Title => Some(header_text(&title, project_title, &key("Draft date"))),
+            HeaderLine::Title => Some(header_text(&title, project_title, &draft_date)),
         };
 
         ScriptSheet {
@@ -241,11 +242,11 @@ impl Layout {
             },
             title_page: TitlePage {
                 title,
-                credit: key("Credit"),
-                author: key("Author"),
-                source: key("Source"),
-                draft_date: key("Draft date"),
-                contact: key("Contact"),
+                credit,
+                author,
+                source,
+                draft_date,
+                contact,
             },
             pages,
             scene_numbers: print.scene_numbers,
