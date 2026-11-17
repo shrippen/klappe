@@ -226,6 +226,15 @@ TestCase {
         verify(!table.editable(tc.rows[1], column))
     }
 
+    // A version has the camera of its base (LH-76): its camera cell is read only.
+    function test_the_camera_cell_of_a_version_is_read_only() {
+        const table = part(make("table"), "shotTable")
+        const column = table.columns.findIndex(c => c.key === "camera")
+
+        verify(table.editable(tc.rows[0], column))
+        verify(!table.editable(Object.assign({}, tc.rows[0], { is_version: true }), column))
+    }
+
     // The selected row wears Kante's selection role and edge, as `KanteListRow`.
     function test_the_selected_row_has_the_kante_selection() {
         const panel = make("table", "cut", "s2")

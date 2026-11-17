@@ -544,6 +544,22 @@ TestCase {
         }
     }
 
+    // By keyboard the menu is still open when the entry runs: the picture dialog opens after it closed.
+    function test_the_picture_dialog_opens_after_the_menu_closed() {
+        const area = made()
+        fake.extra = ({ shotImage: true })
+        open(area, "camera:a")
+
+        findChild(area, "ctxShotImage").triggered()
+        const dialog = findChild(area, "ctxImageDialog")
+        verify(dialog !== null)
+        verify(!dialog.visible, "not opened while the menu is open")
+
+        menuOf(area).close()
+        tryVerify(() => dialog.visible)
+        dialog.close()
+    }
+
     function test_the_shot_entries_run_the_commands_of_the_shot() {
         const area = made()
         fake.extra = ({ versionShot: true, shortName: true, shortNameNow: "Totale", shotImage: true, shotImageRemove: true })

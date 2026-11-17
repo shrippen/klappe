@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use klappe_model::{Angle, FloorPlan, LinkTarget, Movement, Numbering, Shot, ShotSize, VersionOf};
+use klappe_model::{
+    Angle, FloorPlan, LinkTarget, Movement, Numbering, Project, Shot, ShotSize, VersionOf,
+};
 use klappe_stellprobe::is_setup_model;
 
 use crate::error::ServiceError;
@@ -60,9 +62,15 @@ pub(crate) fn is_base(plan: &FloorPlan, shot: &Shot) -> bool {
     base_of(plan, shot).is_none()
 }
 
-/// Makes the shots that name a base which is not there bases, so the data says what
-/// `is_base` reads (FORMAT.md); the number stays.
-pub(crate) fn clear_orphans(plan: &mut FloorPlan) {
+/// Makes the shots of a loaded project (opened or restored) that name a base which is not
+/// there bases, so the data says what `is_base` reads (FORMAT.md); the number stays.
+pub(crate) fn clear_orphans(project: &mut Project) {
+    for plan in project.scenes.iter_mut().flat_map(|s| &mut s.plans) {
+        clear_plan_orphans(plan);
+    }
+}
+
+fn clear_plan_orphans(plan: &mut FloorPlan) {
     let ids: Vec<String> = plan.shots.iter().map(|s| s.id.clone()).collect();
 
     for shot in &mut plan.shots {

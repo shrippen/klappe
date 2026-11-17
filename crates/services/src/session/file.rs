@@ -15,9 +15,7 @@ impl Session {
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
         let mut loaded = klappe_store::load(dir)?;
         let backup = check_backup(dir, &loaded);
-        for plan in loaded.project.scenes.iter_mut().flat_map(|s| &mut s.plans) {
-            shot_edit::clear_orphans(plan);
-        }
+        shot_edit::clear_orphans(&mut loaded.project);
         let script = loaded
             .script
             .as_deref()
@@ -120,8 +118,9 @@ impl Session {
     /// screenplay text cannot (undo covers the project only). The backup's screenplay replaces
     /// the one on disk at the next save, also a newer one saved after the crash.
     pub fn restore_backup(&mut self) -> Result<(), ServiceError> {
-        let loaded = klappe_store::load_backup(&self.dir)?.ok_or(ServiceError::NoBackup)?;
+        let mut loaded = klappe_store::load_backup(&self.dir)?.ok_or(ServiceError::NoBackup)?;
 
+        shot_edit::clear_orphans(&mut loaded.project);
         self.commit(loaded.project);
         if let Some(text) = loaded.script {
             self.set_script_text(&text);

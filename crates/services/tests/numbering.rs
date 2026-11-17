@@ -576,3 +576,26 @@ fn a_version_says_why_its_camera_is_refused() {
     assert!(!text.contains(&version), "{text}");
     assert!(text.contains("base"), "{text}");
 }
+
+/// A restored backup is a load like opening: a `version_of` naming no shot is cleared, so a
+/// shot added later with that id does not turn the shot into its version.
+#[test]
+fn a_restored_backup_clears_a_version_of_no_shot() {
+    let (mut s, dir) = open("numbering-restore");
+    let version = s.version_shot("s12-3").unwrap();
+    s.autosave().unwrap();
+    drop(s);
+
+    let file = dir.join(".sicherung/szenen/szene-012.json");
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert!(text.contains("\"shot\": \"s12-3\""), "{text}");
+    let gone = text.replace("\"shot\": \"s12-3\"", "\"shot\": \"s12-7\"");
+    std::fs::write(&file, gone).unwrap();
+
+    let mut s = Session::open(&dir).unwrap();
+    s.restore_backup().unwrap();
+    assert_eq!(s.add_shot(None).unwrap(), "s12-7");
+
+    let row = s.shots().into_iter().find(|r| r.id == version).unwrap();
+    assert!(!row.is_version);
+}

@@ -12,7 +12,6 @@ Item {
 
     signal requested()
 
-    readonly property alias playAction: actPlay
     /// In the order of the palette.
     readonly property var actions: [actPlay, actMarkPrev, actMarkNext]
 

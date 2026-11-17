@@ -2,8 +2,6 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQml
 import QtQuick.Dialogs
-import QtQuick.Layouts
-import org.kde.kirigami as Kirigami
 import Kante
 
 // The context menu of the plan (LH-100): right click, the Menu key or Shift+F10 on an element
@@ -291,7 +289,8 @@ QQC2.Menu {
         if (!imageDialog) {
             imageDialog = imageDialogComponent.createObject(menu, { objectName: "ctxImageDialog" })
         }
-        imageDialog.open()
+        // After the menu has closed: a dialog opened under an open menu gets no keyboard focus.
+        Qt.callLater(() => imageDialog.open())
     }
     function askShortName() {
         shotId = controller.selectedShot
