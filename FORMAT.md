@@ -54,6 +54,41 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `setup_of` sein (keine Ketten) und nicht der Shot selbst. Fehlt das Ziel oder ist es selbst
   zugeordnet, wird der Shot wie ohne `setup_of` berechnet und die Oberfläche weist darauf hin.
   Fehlt `setup_of`, gilt die Berechnung.
+- **Kurzname, Storyboard-Bild (LH-110, LH-74):** ein Shot hat optional `short_name` (freier Text
+  neben der Nummer, nur geschrieben, wenn nicht leer) und `image` (Pfad relativ zum
+  Projektordner, eine Datei in `bilder/`, PNG oder JPEG; nur geschrieben, wenn gesetzt). Die
+  Datei wird beim Wählen in `bilder/` kopiert und beim Entfernen des Bildes nicht gelöscht.
+  Neue Felder ohne Formatversion: ältere Fassungen verlieren sie beim Speichern.
+- **Farbe je Kamera (LH-111):** eine Kamera (`cameras` in `szenen/<id>.json`) hat optional
+  `color`, eine der Farben der Figuren (`red`, `orange`, `yellow`, `green`, `cyan`, `blue`,
+  `purple`; Kantes Label-Rollen, nie ein Hexwert), nur geschrieben, wenn gesetzt. Fehlt sie,
+  gilt die Farbe nach der Stelle der Kamera im Plan (die erste rot, dann orange, gelb, grün,
+  cyan, blau, purpur, danach von vorn). Die Nummer eines Shots erscheint in der Farbe seiner
+  Kamera; ihr Name steht daneben.
+- **Nummernschema und Versionen (LH-76):** `numbering` in `projekt.toml` (nur geschrieben, wenn
+  nicht `scene`) wählt, wie neue Shots nummeriert und „Umnummerieren“ rechnet. Ein Shot ist
+  eine Version eines anderen, wenn er `version_of` hat (nur geschrieben, wenn gesetzt):
+  `{ shot = <id des Basis-Shots im selben Floorplan>, index = n }`, `n` ab 1 (die erste Version
+  ist `A`). Ein Basis-Shot hat kein `version_of`; eine Version hat die Kamera ihrer Basis (sie
+  entsteht als Kopie; die Kamera einer Version wird nicht einzeln geändert, die der Basis zieht
+  ihre Versionen mit). Wird die Basis gelöscht, wird ihre erste Version die neue Basis der
+  übrigen. Zeigt `version_of` auf einen Shot, den es nicht gibt oder der selbst
+  eine Version ist, zählt der Shot als Basis. `number` ist freier Text und wird nie
+  zurückgelesen: er wird beim Anlegen eines Shots oder einer Version und beim Umnummerieren
+  aus den Feldern der Shots (Szene, Reihenfolge, Kamera-`label`, Zeitspannen, `version_of`)
+  und dem Schema geschrieben; ein Wechsel des Schemas ist deshalb nur Umnummerieren, auch mit
+  Versionen. Eine Version heißt Nummer ihrer Basis plus Anhang. Vorhandene Nummern bleiben, bis
+  umnummeriert wird; eine neue Nummer zählt die Basis-Shots (der Kamera, der Gruppen) und rückt
+  weiter, solange die Nummer vergeben ist.
+  - `scene` (Standard): Szene, Punkt, laufende Nummer: `12.3`. Version: Buchstaben dahinter,
+    `12.3A`, `12.3B`.
+  - `camera`: Szene, Kamerabuchstabe (`label` der Kamera), Punkt, laufende Nummer dieser
+    Kamera in der Szene: `12A.3`, `12B.1`. Version: Bindestrich und Buchstaben, `12A.3-B`.
+  - `group`: Szene, Punkt, laufende Nummer einer Gruppe gleichzeitig gedrehter Shots, dahinter
+    der Kamerabuchstabe: `12.3A`, `12.3B`. Eine Gruppe sind Basis-Shots verschiedener Kameras,
+    deren Zeitspannen sich überlappen. Version: Bindestrich und Buchstaben, `12.3A-B`.
+  Kein Zeichen hat zwei Bedeutungen: wo Buchstaben Kameras sind, steht vor Versionen ein
+  Bindestrich. Eine Szenennummer mit Buchstaben (`12A`) wird unverändert vorangestellt.
 - **Achse (LH-40):** `axis` im Floorplan (`szenen/<id>.json`) mit `a` und `b`, den Figur-Ids,
   zwischen denen die 180°-Achse liegt; je Floorplan, weil die Spuren der Figuren dort liegen.
   Fehlt `axis`, gilt die Achse zwischen den ersten zwei Figuren des Floorplans. Wird eine der

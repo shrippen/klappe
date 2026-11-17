@@ -53,18 +53,19 @@ pub use session::{
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
-    AxisChoice, CastUse, CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow, Marker,
-    Overview, PlanRow, SceneCard, SceneRow, SceneUse, ScriptLine, Segment, SetupOption, ShotRow,
-    TemplateEntry, Track, TrackKind, ViewRow,
+    AxisChoice, CameraSpot, CastUse, CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow,
+    Marker, Overview, PlanRow, SceneCard, SceneRow, SceneUse, ScriptLine, Segment, SetupOption,
+    ShotRow, TemplateEntry, Track, TrackKind, ViewRow,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.
 pub use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts, Theme};
 pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Curve, Dash, Departure, DoorSide, DrawingShape,
-    FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, ObjectShape,
-    OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, ScriptLanguage, ScriptPaper,
-    ScriptSetup, ScriptWords, Sensor, ShotSize, MIN_IMAGE_OPACITY, MIN_OBJECT_HEIGHT_M,
+    FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, Numbering,
+    ObjectShape, OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, ScriptLanguage,
+    ScriptPaper, ScriptSetup, ScriptWords, Sensor, ShotSize, MIN_IMAGE_OPACITY,
+    MIN_OBJECT_HEIGHT_M,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, scene_look, Area, Bend, Cut, DisplayList, Frame, Hue, Item,
@@ -82,4 +83,11 @@ pub use klappe_script::{
     find_all, inline_runs, replace_all, replace_line, set_title_fields, suggest, title_fields,
     title_page_lines, Case, Context, Gap, Hit, Marks, Query, Run, Slot, Stage, Suggestions,
     Vocabulary, TITLE_KEYS,
+};
+
+// The outline of a screenplay (DB-20, DB-21): the tree, what a filter or a collapsed
+// section leaves, and moving a scene or a section.
+pub use klappe_script::{
+    length_text, move_entry, outline, outline_of, visible as visible_entries,
+    Entry as OutlineEntry, EntryKind as OutlineKind, Moved, Way as MoveWay,
 };

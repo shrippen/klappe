@@ -77,5 +77,8 @@ pub(super) fn keys(app: &mut App, codes: &[KeyCode]) {
 }
 
 pub(super) fn shift(app: &mut App, code: KeyCode) -> Flow {
-    app.handle_key(KeyEvent::new(code, KeyModifiers::SHIFT))
+    let flow = app.handle_key(KeyEvent::new(code, KeyModifiers::SHIFT));
+    assert_backup_answered(app);
+
+    flow
 }

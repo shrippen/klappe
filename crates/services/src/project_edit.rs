@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use klappe_model::{
     is_figure_size_m, is_object_height_m, Character, FigureColor, FloorPlan, LibraryItem, Location,
-    Point, Project, Scene, SetPlan, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    Numbering, Point, Project, Scene, SetPlan, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -135,6 +135,11 @@ pub enum ProjectEdit {
     RemoveLibraryItem {
         kind: String,
     },
+    /// Chooses how the project numbers new shots (LH-76). Numbers that exist stay until
+    /// "Renumber".
+    SetNumbering {
+        numbering: Numbering,
+    },
 }
 
 /// The label in a figure's circle has room for this many letters.
@@ -163,6 +168,10 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             location,
         } => edit_scene(project, id, number, heading, location),
         ProjectEdit::RemoveScene { id } => remove_scene(project, id),
+        ProjectEdit::SetNumbering { numbering } => {
+            project.numbering = *numbering;
+            Ok(())
+        }
         ProjectEdit::AddLocation {
             name,
             width_m,

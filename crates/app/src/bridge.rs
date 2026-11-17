@@ -122,6 +122,23 @@ pub mod qobject {
         #[cxx_name = "cameraImage"]
         fn camera_image(self: Pin<&mut Self>, width_px: i32, palette_json: &QString) -> QImage;
 
+        /// What camera `id` sees at the playhead, `width_px` wide, for the small picture beside
+        /// its body in the plan (LH-113); a null image for a camera without marks.
+        #[qinvokable]
+        #[cxx_name = "cameraImageOf"]
+        fn camera_image_of(
+            self: &Self,
+            id: &QString,
+            width_px: i32,
+            palette_json: &QString,
+        ) -> QImage;
+
+        /// The cameras whose body shows on the plan and where it stands at the playhead, as a
+        /// JSON array of `{id, x_m, y_m}` (LH-113).
+        #[qinvokable]
+        #[cxx_name = "cameraSpots"]
+        fn camera_spots(self: &Self) -> QString;
+
         /// `{ width, height, labels: [{ text, x, y }] }` of the last image; empty if null.
         #[qinvokable]
         #[cxx_name = "cameraFrame"]
@@ -209,6 +226,32 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "editShot"]
         fn edit_shot(self: Pin<&mut Self>, id: &QString, field: &QString, value: &QString) -> bool;
+
+        /// Sets short name and description of shot `id` as one change (LH-110); false if refused.
+        #[qinvokable]
+        #[cxx_name = "nameShot"]
+        fn name_shot(
+            self: Pin<&mut Self>,
+            id: &QString,
+            short_name: &QString,
+            description: &QString,
+        ) -> bool;
+
+        /// Gives shot `id` the storyboard picture `path` (a path or `file://` URL), or takes it
+        /// away with an empty path (LH-74); false if refused.
+        #[qinvokable]
+        #[cxx_name = "setShotImage"]
+        fn set_shot_image(self: Pin<&mut Self>, id: &QString, path: &QString) -> bool;
+
+        /// The `file://` URL of `file`, a file of the project folder (a shot's picture).
+        #[qinvokable]
+        #[cxx_name = "projectFileUrl"]
+        fn project_file_url(self: &Self, file: &QString) -> QString;
+
+        /// Chooses how the project numbers its shots (LH-76), by the name `Overview` lists.
+        #[qinvokable]
+        #[cxx_name = "setNumbering"]
+        fn set_numbering(self: Pin<&mut Self>, name: &QString) -> bool;
 
         /// The setups shot `id` can be assigned to without itself (LH-77), as a JSON array of
         /// `{setup, first_id, first_number, camera_label, lens_mm}`.

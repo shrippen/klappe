@@ -26,6 +26,34 @@ impl qobject::Controller {
         image
     }
 
+    pub(super) fn camera_image_of(
+        &self,
+        id: &QString,
+        width_px: i32,
+        palette_json: &QString,
+    ) -> QImage {
+        let image = self.rust().session.as_ref().and_then(|s| {
+            let palette = Palette::parse(&palette_json.to_string())?;
+            let width = usize::try_from(width_px).ok()?;
+            let picture = s.camera_picture_of(&id.to_string(), width)?;
+
+            colored(&picture, &palette, &|_| FULL_STRENGTH)
+        });
+
+        image.map(|(image, _)| image).unwrap_or_default()
+    }
+
+    pub(super) fn camera_spots(&self) -> QString {
+        let spots = self
+            .rust()
+            .session
+            .as_ref()
+            .map(|s| s.camera_spots())
+            .unwrap_or_default();
+
+        QString::from(super::view::to_json(&spots).as_str())
+    }
+
     pub(super) fn camera_frame(&self) -> QString {
         QString::from(self.rust().camera_frame.as_str())
     }

@@ -137,6 +137,7 @@ pub(super) fn add_camera(
             lens_mm: None,
         }],
         follows: None,
+        color: None,
     };
     scope.plan.cameras.push(camera);
 

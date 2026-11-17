@@ -4,7 +4,7 @@
 pub use klappe_services::Language;
 
 /// Keys of the help lines, in the order they are shown.
-const HELP_KEYS: [&str; 21] = [
+const HELP_KEYS: [&str; 24] = [
     "tui.help.save",
     "tui.help.quit",
     "tui.help.undo",
@@ -19,6 +19,9 @@ const HELP_KEYS: [&str; 21] = [
     "tui.help.goto",
     "tui.help.list",
     "tui.help.jump",
+    "tui.help.fold",
+    "tui.help.move",
+    "tui.help.filter",
     "tui.help.enter",
     "tui.help.arrows",
     "tui.help.home",
@@ -44,6 +47,8 @@ pub(crate) struct Texts {
     lang: Language,
     pub scenes: String,
     pub no_scenes: String,
+    /// Label of the outline's filter.
+    pub filter: String,
     pub hints: String,
     pub saved: String,
     pub save_failed: String,
@@ -89,6 +94,7 @@ impl Texts {
             lang,
             scenes: t("tui.scenes"),
             no_scenes: t("tui.noScenes"),
+            filter: t("tui.filter"),
             hints: t("tui.hints"),
             saved: t("tui.saved"),
             save_failed: t("tui.saveFailed"),
@@ -181,6 +187,7 @@ mod tests {
             let all = [
                 &t.scenes,
                 &t.no_scenes,
+                &t.filter,
                 &t.hints,
                 &t.saved,
                 &t.save_failed,

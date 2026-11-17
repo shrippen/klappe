@@ -351,6 +351,10 @@ pub struct Camera {
     /// A figure the camera keeps its distance and angle to when that figure is moved (LH-37).
     #[serde(default)]
     pub follows: Option<String>,
+    /// The colour the camera's shots are marked in (LH-111); `None` takes the one its place in
+    /// the plan gives (`FloorPlan::camera_color`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<FigureColor>,
 }
 
 /// Camera position at a moment.

@@ -27,6 +27,7 @@ TestCase {
             id: id, number: number, camera: camera, camera_label: label, aspect: aspect, follows: "",
             size: size, angle: "eye-level", movement: movement, movement_hint: "", lens_mm: lens,
             lens_to_mm: null, lens_from_marks: false, own_lens_mm: null, from_s: from, to_s: to,
+            short_name: "Kurz " + number, camera_color: camera === "a" ? "red" : "orange", image: "", image_url: "",
             description: "Szene " + number, props: "", gear: "", crew: "", note: "", axis_jump: jump === true, axis_against: jump === true ? "12.1, 12.3" : "", setup: setup
         }
     }
@@ -92,6 +93,11 @@ TestCase {
         grabImage(panel).save(dir + "/klappe-shots-" + name + ".png")
     }
 
+    // The index of the column with `key`.
+    function col(table, key) {
+        return table.columns.findIndex(c => c.key === key)
+    }
+
     function numbers(table) {
         return table.items.filter(i => !i.band).map(i => i.shot.number)
     }
@@ -147,7 +153,7 @@ TestCase {
 
         compare(part(panel, "tile-s1").stageAspect, 2.39)
         compare(part(panel, "tile-s2").stageAspect, 1.78)
-        compare(part(panel, "tile-s1").name, "12.1 · Totale")
+        compare(part(panel, "tile-s1").name, "A · Totale")
         compare(part(panel, "tile-s2").figure, "85 mm")
     }
 
@@ -201,9 +207,9 @@ TestCase {
     function test_the_table_has_the_columns_of_the_export() {
         const table = part(make("table"), "shotTable")
 
-        compare(table.columns.map(c => de.t(c.title)), ["Nummer", "Kamera", "Objektiv (mm)", "Setup", "Größe", "Perspektive",
+        compare(table.columns.map(c => de.t(c.title)), ["Nummer", "Kurzname", "Kamera", "Objektiv (mm)", "Setup", "Größe", "Perspektive",
             "Bewegung", "Von (s)", "Bis (s)", "Dauer (s)", "Inhalt", "Requisiten", "Technik", "Team", "Notiz",
-            "Achsensprung gegen"])
+            "Achsensprung gegen", "Storyboard-Bild"])
         compare(table.cellText(tc.rows[1], "camera"), "B")
         compare(table.cellText(tc.rows[1], "size"), "Groß")
         compare(table.cellText(tc.rows[1], "duration"), "6")
@@ -233,6 +239,45 @@ TestCase {
         verify(!findChild(table, "rowEdge-s1").visible)
     }
 
+    // The number is a chip in its camera's colour, the short name has a column (LH-111).
+    function test_the_number_wears_the_colour_of_its_camera() {
+        const panel = make("table", "cut", "s2")
+        waitForRendering(part(panel, "shotRows"))
+
+        const chip = part(panel, "numberChip-s2")
+        compare(chip.text, "12.2")
+        compare(chip.chipColor, KanteStyle.labelColor("orange"))
+        compare(part(panel, "numberChip-s1").chipColor, KanteStyle.labelColor("red"))
+        compare(part(panel, "shotTable").cellText(tc.rows[1], "camera"), "B")
+        compare(part(panel, "shotTable").cellText(tc.rows[1], "short_name"), "Kurz 12.2")
+    }
+
+    function test_the_tile_has_a_chip_with_number_and_short_name() {
+        const panel = make("tiles")
+
+        compare(part(panel, "numberChip-s1").text, "12.1")
+        compare(part(panel, "numberChip-s1").chipColor, KanteStyle.labelColor("red"))
+        compare(part(panel, "shortName-s2").text, "Kurz 12.2")
+    }
+
+    // LH-112: the selected shot's description is a second line under its row.
+    function test_the_description_opens_a_second_line() {
+        const panel = make("table", "cut", "s2")
+        const table = part(panel, "shotTable")
+        const list = part(panel, "shotRows")
+        waitForRendering(list)
+
+        compare(list.itemAtIndex(1).height, table.rowHeight)
+        panel.descriptionOpen = true
+
+        compare(list.itemAtIndex(1).height, table.rowHeight * 2)
+        compare(list.itemAtIndex(0).height, table.rowHeight)
+        const line = findChild(list.itemAtIndex(1), "descriptionLine")
+        verify(line.visible)
+        compare(line.text, "Szene 12.2")
+        verify(!findChild(list.itemAtIndex(0), "descriptionLine").visible)
+    }
+
     function test_a_click_on_a_row_selects_the_shot() {
         const panel = make("table", "cut", "s1")
         const list = part(panel, "shotRows")
@@ -260,7 +305,7 @@ TestCase {
         const panel = make("table", "cut", "s2")
         const table = part(panel, "shotTable")
 
-        table.edit("s2", 2)
+        table.edit("s2", col(table, "lens"))
         const editor = part(panel, "cellEditor")
         compare(editor.text, "")
         type(editor, "100")
@@ -273,7 +318,7 @@ TestCase {
     function test_a_cell_left_unchanged_edits_nothing() {
         const panel = make("table", "cut", "s2")
 
-        part(panel, "shotTable").edit("s2", 10)
+        part(panel, "shotTable").edit("s2", col(part(panel, "shotTable"), "description"))
         part(panel, "cellEditor").editingFinished()
 
         compare(fake.calls.length, 0)
@@ -283,7 +328,7 @@ TestCase {
         const panel = make("table", "cut", "s2")
         const table = part(panel, "shotTable")
 
-        table.edit("s2", 1)
+        table.edit("s2", col(table, "camera"))
         part(panel, "cellEditor").activated(0)
 
         compare(fake.calls, [["s2", "camera", "a"]])
@@ -293,7 +338,7 @@ TestCase {
     function test_the_movement_cell_offers_the_movements_of_the_controller() {
         const panel = make("table", "cut", "s2")
 
-        part(panel, "shotTable").edit("s2", 6)
+        part(panel, "shotTable").edit("s2", col(part(panel, "shotTable"), "movement"))
         const box = part(panel, "cellEditor")
         compare(box.model, ["Statisch", "Schwenk", "Fahrt"])
         box.activated(1)
@@ -305,7 +350,7 @@ TestCase {
         const panel = make("table", "cut", "s2")
         const table = part(panel, "shotTable")
 
-        table.edit("s2", 10)
+        table.edit("s2", col(table, "description"))
         const editor = part(panel, "cellEditor")
         type(editor, "anderer Text")
         keyClick(Qt.Key_Escape)
@@ -319,13 +364,13 @@ TestCase {
         const table = part(panel, "shotTable")
         part(panel, "shotRows").forceActiveFocus()
 
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < col(table, "description"); i++) {
             keyClick(Qt.Key_Right)
         }
         keyClick(Qt.Key_Return)
 
         compare(table.editId, "s2")
-        compare(table.editColumn, 10)
+        compare(table.editColumn, col(table, "description"))
         verify(part(panel, "cellEditor").activeFocus)
     }
 
@@ -339,7 +384,7 @@ TestCase {
         findChild(list.itemAtIndex(1), "cell-description").parent.open()
 
         compare(part(panel, "shotTable").editId, "s2")
-        compare(part(panel, "shotTable").editColumn, 10)
+        compare(part(panel, "shotTable").editColumn, col(part(panel, "shotTable"), "description"))
         compare(fake.selects, ["s2"])
     }
 
@@ -347,8 +392,8 @@ TestCase {
         const panel = make("table", "cut", "s1")
         const table = part(panel, "shotTable")
 
-        table.edit("s1", 7)
-        table.edit("s1", 9)
+        table.edit("s1", col(table, "from_s"))
+        table.edit("s1", col(table, "duration"))
 
         compare(table.editId, "")
     }
@@ -358,8 +403,8 @@ TestCase {
         const table = part(panel, "shotTable")
         const marked = Object.assign({}, tc.rows[0], { lens_from_marks: true })
 
-        verify(!table.editable(marked, 2))
-        verify(table.editable(tc.rows[0], 2))
+        verify(!table.editable(marked, col(table, "lens")))
+        verify(table.editable(tc.rows[0], col(table, "lens")))
     }
 
     function test_a_refused_cell_shows_the_model_value_again() {
@@ -369,7 +414,7 @@ TestCase {
         waitForRendering(list)
         fake.accept = false
 
-        table.edit("s2", 10)
+        table.edit("s2", col(table, "description"))
         type(part(panel, "cellEditor"), "anderer Text")
         part(panel, "cellEditor").editingFinished()
 

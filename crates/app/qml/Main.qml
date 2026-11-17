@@ -29,6 +29,8 @@ Kirigami.ApplicationWindow {
     color: KanteStyle.backgroundColor
 
     property bool showTimeline: true
+    property bool showCameraViews: true
+    property bool showShotDescription: false
     // The order of the exported shot list: the film's or the shoot's (LH-72).
     readonly property var shotOrders: ["cut", "shooting"]
     property string shotOrder: "cut"
@@ -61,6 +63,8 @@ Kirigami.ApplicationWindow {
                 showScript: workspace.scriptShown
                 showShot: workspace.shotShown
                 showTimeline: root.showTimeline
+                showCameraViews: root.showCameraViews
+                showShotDescription: root.showShotDescription
                 shotOrder: root.shotOrder
                 onNewRequested: root.switchProject(() => newFolderDialog.open())
                 onOpenRequested: root.switchProject(() => openFolderDialog.open())
@@ -74,6 +78,8 @@ Kirigami.ApplicationWindow {
                     case "script":
                     case "shot": workspace.setArea(area, shown); break
                     case "timeline": root.showTimeline = shown; break
+                    case "cameraViews": root.showCameraViews = shown; break
+                    case "shotDescription": root.showShotDescription = shown; break
                     }
                 }
                 onShotOrderPicked: order => root.shotOrder = order
@@ -148,6 +154,8 @@ Kirigami.ApplicationWindow {
                 onSelectToolRequested: planTools.tool = "select"
                 shot: root.selected
                 showTimeline: root.showTimeline
+                cameraViews: root.showCameraViews
+                shotDescription: root.showShotDescription
                 locked: backupNotice.blocking
                 onProjectEntryRequested: (kind, id) => projectDialog.openAt(kind, id)
             }

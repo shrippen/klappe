@@ -34,6 +34,8 @@ const LIMIT_FACTOR: u32 = 4;
 const SHOT_PICTURE_PX: usize = 600;
 const SHOT_PICTURE_BUDGET: Duration = Duration::from_millis(5);
 const FULL_HD_PX: usize = 1920;
+/// A small camera picture in the plan, in pixels.
+const THUMB_PX: usize = 96;
 const RUNS: usize = 200;
 
 /// A point on a fixed pseudo-random walk over the set, so runs repeat.
@@ -106,6 +108,7 @@ fn camera(i: usize) -> Camera {
         aspect: 2.39,
         marks,
         follows: None,
+        color: None,
     }
 }
 
@@ -173,6 +176,9 @@ fn shot(i: usize) -> Shot {
         crew: String::new(),
         note: String::new(),
         setup_of: None,
+        short_name: String::new(),
+        image: None,
+        version_of: None,
     }
 }
 
@@ -309,6 +315,33 @@ fn the_camera_picture_stays_fluid() {
         assert!(
             took < budget * LIMIT_FACTOR,
             "{took:?} over {LIMIT_FACTOR}x the {budget:?} budget"
+        );
+    }
+}
+
+/// The small camera pictures beside the bodies (LH-113): the plan makes one per timer tick, so
+/// one must fit a frame, at 96 units and at twice that for a high-density screen.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn a_camera_thumbnail_fits_a_frame() {
+    let mut s = big_session("perf-thumb");
+    s.set_time(7.0);
+    let cameras: Vec<String> = s
+        .plan()
+        .map(|p| p.cameras.iter().map(|c| c.id.clone()).collect())
+        .unwrap_or_default();
+
+    for width_px in [THUMB_PX, THUMB_PX * 2] {
+        let took = median(|| {
+            for id in &cameras {
+                std::hint::black_box(s.camera_picture_of(id, width_px));
+            }
+        }) / cameras.len().max(1) as u32;
+        report(&format!("camera thumbnail {width_px} px wide"), took);
+
+        assert!(
+            took < BUDGET * LIMIT_FACTOR,
+            "{took:?} over {LIMIT_FACTOR}x the {BUDGET:?} budget"
         );
     }
 }

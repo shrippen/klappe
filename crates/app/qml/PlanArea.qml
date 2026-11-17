@@ -18,6 +18,8 @@ Item {
     /// The tool of PlanTools: select, wall, object, figure, camera, light, scale, measure, note, image, line,
     /// arrow, rect, ellipse or area.
     property string tool: "select"
+    /// The small pictures of what the cameras see, beside their bodies (LH-113).
+    property bool cameraViews: true
     /// What the next click of the tool does (LH-101, PlanTools `hint`); empty for none.
     property string toolHint: ""
     /// The hint line: what a key armed for the next click does, else the tool's hint.
@@ -115,6 +117,16 @@ Item {
             }
             area.controller.drag(fromX, fromY, x, y, done)
         }
+    }
+
+    // What each camera in view sees, small, beside its body (LH-113).
+    CameraThumbs {
+        objectName: "cameraThumbs"
+        anchors.fill: canvas
+        visible: area.cameraViews && canvas.visible
+        texts: area.texts
+        controller: area.controller
+        canvas: canvas
     }
 
     // The free 3D view (LH-94) fills the plan's place; its clicks and drags go through the same

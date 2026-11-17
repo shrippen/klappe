@@ -1,7 +1,8 @@
 //! What each line of the text is, from the Fountain parser, for styling and the scene list.
 
 use klappe_services::{
-    inline_runs, parse_located, title_page_lines, Element, Located, Slot, Vocabulary,
+    inline_runs, outline_of, parse_located, title_page_lines, Element, Located, OutlineEntry, Slot,
+    Vocabulary,
 };
 
 /// Display-only indents in columns (the stored text stays plain Fountain).
@@ -98,6 +99,8 @@ impl Scene {
 pub(crate) struct Analysis {
     pub kinds: Vec<LineKind>,
     pub scenes: Vec<Scene>,
+    /// Sections, scenes and synopses as the outline lists them.
+    pub outline: Vec<OutlineEntry>,
     /// In text order.
     pub elements: Vec<ElementPos>,
     /// What the screenplay names, for completion.
@@ -156,6 +159,7 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
         place(item, &mut seen);
     }
     seen.vocab = Vocabulary::from_located(&located);
+    seen.outline = outline_of(&located, lines.len());
 
     let mut open = false;
     for line in lines {

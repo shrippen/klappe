@@ -4,10 +4,12 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// The shot list as a table (D-05, LH-71): the columns of the exported list (15) and the setup, a
+// The shot list as a table (D-05, LH-71): the columns of the exported list (15), the short name and the setup, a
 // row per shot in the order given, in shooting order a band per setup (LH-72). A click on a row
 // selects the shot; double click or Enter edits the cell, Enter or a click away sends it, Esc
-// drops it.
+// drops it. The number is a chip in the colour of the shot's camera, whose label has its own
+// column (LH-111); with `descriptionOpen` the selected shot's long description is a second line
+// under its row (LH-112).
 //
 //  Nr.  Kam. Obj.  Größe  …       Up/Down: row, Left/Right: column
 //  ── Setup 1 ───────────────     Enter or F2: edit the cell
@@ -28,6 +30,8 @@ FocusScope {
     property string selectedId: ""
     /// "shooting" puts a band with the setup in front of each group.
     property string order: "cut"
+    /// The selected shot shows its description as a second line (LH-112).
+    property bool descriptionOpen: false
     /// Choices of the Choice columns, as in the shot form.
     property var cameras: []
     property var sizes: []
@@ -50,6 +54,7 @@ FocusScope {
 
     readonly property var columns: [
         { key: "number", kind: ShotTable.Kind.Text, title: "field.number", width: _unit * 4 },
+        { key: "short_name", kind: ShotTable.Kind.Text, title: "field.shortName", width: _unit * 8 },
         { key: "camera", kind: ShotTable.Kind.Choice, title: "field.camera", width: _unit * 5 },
         { key: "lens", kind: ShotTable.Kind.Text, title: "field.lens", width: _unit * 5 },
         { key: "setup", kind: ShotTable.Kind.Fixed, title: "field.setup", width: _unit * 4 },
@@ -64,7 +69,8 @@ FocusScope {
         { key: "gear", kind: ShotTable.Kind.Text, title: "field.gear", width: _unit * 10 },
         { key: "crew", kind: ShotTable.Kind.Text, title: "field.crew", width: _unit * 10 },
         { key: "note", kind: ShotTable.Kind.Text, title: "field.note", width: _unit * 12 },
-        { key: "axis_against", kind: ShotTable.Kind.Fixed, title: "field.axisAgainst", width: _unit * 8 }
+        { key: "axis_against", kind: ShotTable.Kind.Fixed, title: "field.axisAgainst", width: _unit * 8 },
+        { key: "image", kind: ShotTable.Kind.Fixed, title: "field.image", width: _unit * 5 }
     ]
 
     readonly property var planKeys: [Qt.Key_F2, Qt.Key_Return, Qt.Key_Enter, Qt.Key_Delete, Qt.Key_R, Qt.Key_G]
@@ -232,7 +238,7 @@ FocusScope {
                 readonly property bool selected: !band && shot.id === table.selectedId
 
                 width: list.width
-                height: band ? table.rowHeight * 0.75 : table.rowHeight
+                height: band ? table.rowHeight * 0.75 : table.rowHeight * (selected && table.descriptionOpen ? 2 : 1)
 
                 Rectangle {
                     objectName: line.band ? "" : "rowFill-" + line.shot.id
@@ -264,6 +270,20 @@ FocusScope {
                     text: line.band ? table.texts.t("field.setup") + " " + line.modelData.setup : ""
                 }
 
+                // The long description of the selected shot (LH-112).
+                QQC2.Label {
+                    objectName: "descriptionLine"
+                    visible: line.selected && table.descriptionOpen
+                    x: Kirigami.Units.smallSpacing
+                    y: table.rowHeight
+                    width: parent.width - 2 * Kirigami.Units.smallSpacing
+                    height: table.rowHeight
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                    color: !line.band && line.shot.description ? KanteStyle.textColor : KanteStyle.mutedTextColor
+                    text: line.band ? "" : (line.shot.description || table.texts.t("field.description"))
+                }
+
                 TapHandler {
                     enabled: !line.band
                     onTapped: {
@@ -282,7 +302,7 @@ FocusScope {
                         readonly property bool editing: table.editId === line.shot.id && table.editColumn === index
                         x: head.columnX(index)
                         width: head.columnWidth(index)
-                        height: line.height
+                        height: table.rowHeight
 
                         // The current cell of the selected row: a frame.
                         Rectangle {
@@ -294,9 +314,32 @@ FocusScope {
                             border.color: KanteStyle.focusColor
                         }
 
+                        // The number in its camera's colour; the camera's label is its own column.
+                        KanteChip {
+                            objectName: "numberChip-" + line.shot.id
+                            visible: cell.col.key === "number" && !cell.editing
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width
+                            interactive: false
+                            chipColor: line.shot.camera_color ? KanteStyle.labelColor(line.shot.camera_color) : KanteStyle.textColor
+                            text: { table.refused; return line.shot.number }
+                        }
+
+                        // The storyboard picture (LH-74), small.
+                        Image {
+                            objectName: "shotThumb-" + line.shot.id
+                            visible: cell.col.key === "image" && !!line.shot.image_url
+                            anchors.fill: parent
+                            anchors.margins: KanteStyle.borderWidth * 2
+                            source: visible ? line.shot.image_url : ""
+                            fillMode: Image.PreserveAspectFit
+                            horizontalAlignment: Image.AlignLeft
+                            sourceSize.height: table.rowHeight
+                        }
+
                         QQC2.Label {
                             objectName: "cell-" + cell.col.key
-                            visible: !cell.editing
+                            visible: !cell.editing && cell.col.key !== "number" && cell.col.key !== "image"
                             anchors.fill: parent
                             verticalAlignment: Text.AlignVCenter
                             elide: Text.ElideRight

@@ -25,6 +25,9 @@ RowLayout {
     property bool showScript: true
     property bool showShot: true
     property bool showTimeline: true
+    /// Camera pictures in the plan (LH-113), long shot description in the table (LH-112).
+    property bool showCameraViews: true
+    property bool showShotDescription: false
     /// The order of the exported shot list: "cut" or "shooting" (LH-72).
     property string shotOrder: "cut"
 
@@ -50,10 +53,11 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
-                                    actFree, actWallCut, actThrough, actHeights, actScript, actShot, actTimeline, actCut, actShooting,
+                                    actFree, actWallCut, actThrough, actHeights,
+                                    actScript, actShot, actTimeline,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actNextMark, actMarkBefore, actAxisTo, actWaySmooth, actWayStraight,
-                                    actUndo, actRedo].concat(zoom.actions, pageExports.actions, viewCommands.actions, objectCommands.actions)
+                                    actUndo, actRedo].concat(shotViews.actions, zoom.actions, pageExports.actions, viewCommands.actions, objectCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -198,6 +202,8 @@ RowLayout {
         KanteMenuItem { objectName: "through"; action: actThrough }
         KanteMenuItem { objectName: "heights"; action: actHeights }
         KanteMenuItem { objectName: "sketchClear"; action: viewCommands.clearAction }
+        KanteMenuItem { objectName: "cameraViews"; action: shotViews.cameraViewsAction }
+        KanteMenuItem { objectName: "shotDescription"; action: shotViews.descriptionAction }
         KanteMenuSection { text: header.texts.t("menu.viewAreas") }
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
@@ -207,8 +213,8 @@ RowLayout {
         KanteMenuItem { objectName: "zoomOut"; action: zoom.outAction }
         KanteMenuItem { objectName: "zoomFit"; action: zoom.fitAction }
         KanteMenuSection { text: header.texts.t("menu.viewOrder") }
-        KanteMenuItem { objectName: "cut"; action: actCut }
-        KanteMenuItem { objectName: "shooting"; action: actShooting }
+        KanteMenuItem { objectName: "cut"; action: shotViews.cutAction }
+        KanteMenuItem { objectName: "shooting"; action: shotViews.shootingAction }
     }
 
     KanteToolButton {
@@ -520,28 +526,18 @@ RowLayout {
         enabled: header.controller.loaded
         onToggled: header.viewToggled("timeline", checked)
     }
-    QQC2.ActionGroup { id: orderGroup }
-    CommandAction {
-        id: actCut
-        cmd: "order.cut"
-        group: "view"
-        text: header.texts.t("export.order.cut")
-        QQC2.ActionGroup.group: orderGroup
-        checkable: true
-        checked: header.shotOrder === "cut"
-        enabled: header.controller.loaded
-        onTriggered: header.shotOrderPicked("cut")
-    }
-    CommandAction {
-        id: actShooting
-        cmd: "order.shooting"
-        group: "view"
-        text: header.texts.t("export.order.shooting")
-        QQC2.ActionGroup.group: orderGroup
-        checkable: true
-        checked: header.shotOrder === "shooting"
-        enabled: header.controller.loaded
-        onTriggered: header.shotOrderPicked("shooting")
+
+    ShotViewCommands {
+        id: shotViews
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        keyName: header.keyName
+        cameraViews: header.showCameraViews
+        description: header.showShotDescription
+        shotOrder: header.shotOrder
+        onToggled: (area, shown) => header.viewToggled(area, shown)
+        onOrderPicked: order => header.shotOrderPicked(order)
     }
 
     // Zoom of the plan; the window hands it on.

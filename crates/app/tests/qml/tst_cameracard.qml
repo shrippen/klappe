@@ -42,7 +42,7 @@ TestCase {
             const lens = { "camera:a": 35, "camera:b": 50, "camera:c": 200 }[key]
             return JSON.stringify({
                 kind: "camera", label: key.substring(7).toUpperCase(), lens: lens, ownLens: lens,
-                sensor: cam.sensor, aspect: 2.39, body: "super35", fov: 39.6, height: 1.6, shots: "",
+                sensor: cam.sensor, aspect: 2.39, body: "super35", fov: 39.6, height: 1.6, shots: "", color: cam.color || "red", ownColor: !!cam.color,
             })
         }
         function setCameraField(field, value) {
@@ -339,5 +339,30 @@ TestCase {
             verify(labels.indexOf(names[objectName]) >= 0, names[objectName] + " in " + labels)
             compare(findChild(card, objectName).Accessible.name, names[objectName])
         }
+    }
+
+    // LH-111: the colour of the camera's shots; "By order" gives the one its place gives.
+    function test_the_colour_shows_and_is_chosen() {
+        const card = shown("camera:a")
+        const picker = findChild(card, "cameraColor")
+
+        compare(picker.currentIndex, 0)
+        verify(!findChild(card, "cameraColorAuto").enabled)
+
+        picker.picked(5)
+
+        compare(fake.sets, [["color", "blue"]])
+    }
+
+    function test_by_order_clears_an_own_colour() {
+        fake.cam = { sensor: 24.89, color: "green" }
+        const card = shown("camera:a")
+
+        compare(findChild(card, "cameraColor").currentIndex, 3)
+        verify(findChild(card, "cameraColorAuto").enabled)
+
+        findChild(card, "cameraColorAuto").clicked()
+
+        compare(fake.sets, [["color", ""]])
     }
 }

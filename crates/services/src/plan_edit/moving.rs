@@ -13,7 +13,7 @@ use self::forms::{drag_form_point, insert_form_point};
 use super::drawings::{drag_handle, edge_place, insert_point};
 use super::openings::{drag_edge, edge_m, slide};
 use super::target::{target, Target};
-use super::{current_index, figure_mark, normalize_deg, snap, Grid, Scope, Snapping};
+use super::{current_index, figure_mark, normalize_deg, snap, Grid, PlanEdit, Scope, Snapping};
 use crate::error::ServiceError;
 use klappe_model::FULL_TURN_DEG;
 
@@ -561,6 +561,27 @@ pub(super) fn placed_grip(
     }
 
     done
+}
+
+/// Moves, shifts, spins or turns what the edit names; a figure's mark takes its cameras along.
+pub(super) fn place_edit(
+    scope: &mut Scope<'_>,
+    edit: &PlanEdit,
+    snap_to: (Snapping, Grid),
+) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::Move { source, to } => carry_cameras(scope, source, |s| move_to(s, source, *to)),
+        PlanEdit::Shift { source, dx_m, dy_m } => {
+            carry_cameras(scope, source, |s| shift(s, source, (*dx_m, *dy_m), snap_to))
+        }
+        PlanEdit::Spin { source, by_deg } => {
+            carry_cameras(scope, source, |s| spin(s, source, *by_deg))
+        }
+        PlanEdit::Turn { source, facing_deg } => {
+            carry_cameras(scope, source, |s| turn(s, source, *facing_deg))
+        }
+        _ => Ok(()),
+    }
 }
 
 /// `point` shifted by `delta_m`, then turned by `deg` about `centre`: where a following

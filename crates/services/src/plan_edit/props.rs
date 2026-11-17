@@ -1,7 +1,9 @@
 //! The marks of set objects that figures move (LH-24): add, remove, carry.
 
-use klappe_model::{normalize_deg, FloorPlan, ObjectMark, ObjectTrack, Point, Project, SetPlan};
-use klappe_stellprobe::{object_at, Source};
+use klappe_model::{
+    normalize_deg, FloorPlan, ObjectMark, ObjectTrack, Point, Project, SetObject, SetPlan,
+};
+use klappe_stellprobe::{object_at, Placement, Source};
 
 use super::free_id;
 use super::marks::WALK_SPEED_M_S;
@@ -225,6 +227,19 @@ pub(super) fn forget_removed(project: &mut Project, scene: usize, before: Option
     {
         plan.object_tracks
             .retain(|t| now.contains(&t.object) || !before.contains(&t.object));
+    }
+}
+
+/// Where object `id` is shown at `time_s` when it has a way.
+pub(super) fn shown(plan: &FloorPlan, id: &str, time_s: f64) -> Option<Placement> {
+    object_at(plan, plan.object_track(id)?, time_s)
+}
+
+/// Puts `object` where it is shown (a copy of a moving object starts there), turned as shown.
+pub(super) fn put_at(object: &mut SetObject, shown: Option<Placement>) {
+    if let Some(place) = shown {
+        object.at = place.at;
+        object.rotation_deg = place.facing_deg;
     }
 }
 

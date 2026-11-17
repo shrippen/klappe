@@ -92,6 +92,7 @@ fn plan() -> FloorPlan {
             lens_mm: None,
         }],
         follows: None,
+        color: None,
     }];
     p.lights = vec![Light {
         id: "l1".into(),
@@ -442,6 +443,9 @@ fn shot(lens_mm: Option<f64>, from_s: f64, to_s: f64) -> Shot {
         crew: String::new(),
         note: String::new(),
         setup_of: None,
+        short_name: String::new(),
+        image: None,
+        version_of: None,
     }
 }
 

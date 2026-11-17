@@ -15,7 +15,7 @@ const CHARACTER_X: usize = 22;
 const CHARACTER_WIDTH: usize = 38;
 /// Dual dialogue: two columns of this width, the second starting at `DUAL_RIGHT_X`.
 const DUAL_WIDTH: usize = 29;
-const DUAL_RIGHT_X: usize = 31;
+pub(super) const DUAL_RIGHT_X: usize = 31;
 const DUAL_CHARACTER_X: usize = 6;
 const DUAL_CHARACTER_WIDTH: usize = 23;
 const DUAL_PAREN_X: usize = 4;

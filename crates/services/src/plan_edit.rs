@@ -45,7 +45,7 @@ use images::edit_image;
 use marks::edit_field;
 pub(crate) use marks::{check_tripods, mark_info, way_curve};
 pub use marks::{MarkInfo, Pace};
-use moving::{anchor_pair, carry_cameras, edit_way, move_to, points_mut, shift, spin, turn};
+use moving::{anchor_pair, carry_cameras, edit_way, move_to, place_edit, points_mut, turn};
 pub use object::ObjectChange;
 use openings::edit_opening;
 use remove::remove;
@@ -394,6 +394,12 @@ pub enum PlanEdit {
         camera: String,
         aspect: f64,
     },
+    /// Gives the camera `camera` its own colour, or the one its place in the plan gives with
+    /// `None` (LH-111).
+    SetCameraColor {
+        camera: String,
+        color: Option<FigureColor>,
+    },
 }
 
 /// Whether points snap to the grid (LH-14).
@@ -450,7 +456,8 @@ impl PlanEdit {
             | PlanEdit::Follow { .. }
             | PlanEdit::SetSensor { .. }
             | PlanEdit::SetLens { .. }
-            | PlanEdit::SetAspect { .. } => Layer::Cameras,
+            | PlanEdit::SetAspect { .. }
+            | PlanEdit::SetCameraColor { .. } => Layer::Cameras,
             PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => Layer::Lights,
             PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } | PlanEdit::AddImage { .. } => {
                 Layer::Notes
@@ -557,18 +564,10 @@ pub(crate) fn apply(
     };
 
     let done = match edit {
-        PlanEdit::Move { source, to } => {
-            carry_cameras(&mut scope, source, |s| move_to(s, source, *to))
-        }
-        PlanEdit::Shift { source, dx_m, dy_m } => carry_cameras(&mut scope, source, |s| {
-            shift(s, source, (*dx_m, *dy_m), snap_to)
-        }),
-        PlanEdit::Spin { source, by_deg } => {
-            carry_cameras(&mut scope, source, |s| spin(s, source, *by_deg))
-        }
-        PlanEdit::Turn { source, facing_deg } => {
-            carry_cameras(&mut scope, source, |s| turn(s, source, *facing_deg))
-        }
+        PlanEdit::Move { .. }
+        | PlanEdit::Shift { .. }
+        | PlanEdit::Spin { .. }
+        | PlanEdit::Turn { .. } => place_edit(&mut scope, edit, snap_to),
         PlanEdit::Remove { source } => remove(&mut scope, source),
         PlanEdit::ShiftGroup {
             sources,
@@ -620,9 +619,10 @@ pub(crate) fn apply(
         PlanEdit::MoveBackground { dx_m, dy_m } => move_background(&mut scope, (*dx_m, *dy_m)),
         PlanEdit::RemoveBackground => remove_background(&mut scope),
         PlanEdit::Follow { camera, figure } => follow(&mut scope, camera, figure.as_deref()),
-        PlanEdit::SetSensor { .. } | PlanEdit::SetLens { .. } | PlanEdit::SetAspect { .. } => {
-            camera_edit::edit(scope.plan, edit)
-        }
+        PlanEdit::SetSensor { .. }
+        | PlanEdit::SetLens { .. }
+        | PlanEdit::SetAspect { .. }
+        | PlanEdit::SetCameraColor { .. } => camera_edit::apply(scope.plan, edit),
         PlanEdit::SetPose { .. }
         | PlanEdit::SetArrival { .. }
         | PlanEdit::SetDeparture { .. }

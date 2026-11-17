@@ -22,6 +22,7 @@
 //! (`_mm`), kelvin (`_k`), watts (`_w`). The plan's origin is its top left corner, x to the right,
 //! y downwards (as drawn); 0° faces right (+x), angles grow clockwise on screen.
 
+mod camera_color;
 mod camera_preset;
 mod curve;
 mod drawing_style;
@@ -68,7 +69,7 @@ pub use project::{
 };
 pub use saved_view::SavedView;
 pub use script_setup::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
-pub use shot::{Angle, Movement, Shot, ShotSize};
+pub use shot::{Angle, Movement, Numbering, Shot, ShotSize, VersionOf};
 pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};
 

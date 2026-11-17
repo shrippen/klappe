@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
+import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import Kante
 
@@ -23,6 +24,8 @@ Item {
     /// What the list shows: "tiles" or "table"; and in which order: "cut" or "shooting" (LH-72).
     property string view: "tiles"
     property string order: "cut"
+    /// The table shows the long description as a second line under the selected shot (LH-112).
+    property bool descriptionOpen: false
     signal viewPicked(string view)
     signal orderPicked(string order)
 
@@ -32,7 +35,23 @@ Item {
     // The shots in the chosen order, each with its lens as shown.
     readonly property var listed: {
         const json = order === "shooting" ? controller.shotsShootingJson : controller.shotsJson
-        return json ? JSON.parse(json).map(s => Object.assign(s, { lens_label: lensLabel(s) })) : []
+        return json ? JSON.parse(json).map(s => Object.assign(s, { lens_label: lensLabel(s), image_url: imageUrl(s) })) : []
+    }
+
+    // The storyboard picture of a row as a URL (LH-74); empty for none.
+    function imageUrl(row) {
+        if (!row.image || typeof controller.projectFileUrl !== "function") {
+            return ""
+        }
+        return controller.projectFileUrl(row.image)
+    }
+
+    // A new shot opens its short name and description for typing (LH-110); Enter finishes,
+    // Esc leaves the shot as it is.
+    function newShot() {
+        if (controller.addShot()) {
+            newShotDialog.open()
+        }
     }
 
     // Cameras of the plan (the timeline's camera tracks), for the camera chooser.
@@ -132,7 +151,7 @@ Item {
         KanteToolButton {
             objectName: "newShotButton"
             text: panel.texts.t("shot.new")
-            onClicked: panel.controller.addShot()
+            onClicked: panel.newShot()
         }
         KanteToolButton {
             objectName: "copyShotButton"
@@ -163,7 +182,77 @@ Item {
     Shortcut {
         sequence: "S"
         enabled: panel.visible && panel.enabled && !!panel.controller.loaded
-        onActivated: panel.controller.addShot()
+        onActivated: panel.newShot()
+    }
+
+    KanteDialog {
+        id: newShotDialog
+        objectName: "newShotDialog"
+
+        property string shotId: ""
+
+        parent: QQC2.Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        size: KanteDialog.Size.Small
+        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
+        title: panel.texts.t("shot.new")
+        onAboutToShow: {
+            shotId = panel.shot ? panel.shot.id : ""
+            newShortName.text = ""
+            newDescription.text = ""
+        }
+        onOpened: newShortName.forceActiveFocus()
+        onAccepted: {
+            if (shotId === "") {
+                return
+            }
+            if (newShortName.text === "" && newDescription.text === "") {
+                return
+            }
+            // One call: the new shot and its name are two undo steps, not three.
+            if (!panel.controller.nameShot(shotId, newShortName.text, newDescription.text)) {
+                panel.refused++
+            }
+        }
+
+        ColumnLayout {
+            width: parent ? parent.width : implicitWidth
+            spacing: Kirigami.Units.smallSpacing
+
+            KanteSectionLabel { text: panel.texts.t("field.shortName") }
+            KanteTextField {
+                id: newShortName
+                objectName: "newShortName"
+                Layout.fillWidth: true
+                onAccepted: newShotDialog.accept()
+            }
+            KanteSectionLabel { text: panel.texts.t("field.description") }
+            KanteTextField {
+                id: newDescription
+                objectName: "newDescription"
+                Layout.fillWidth: true
+                onAccepted: newShotDialog.accept()
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: KanteStyle.mutedTextColor
+                text: panel.texts.t("shot.newHint")
+            }
+        }
+    }
+
+    FileDialog {
+        id: imageDialog
+        objectName: "shotImageDialog"
+        title: panel.texts.t("shot.imagePickTitle")
+        nameFilters: [panel.texts.t("background.filter")]
+        onAccepted: {
+            if (panel.shot && !panel.controller.setShotImage(panel.shot.id, selectedFile.toString())) {
+                panel.refused++
+            }
+        }
     }
 
     KanteDialog {
@@ -239,6 +328,7 @@ Item {
                 texts: panel.texts
                 shots: panel.listed
                 order: panel.order
+                descriptionOpen: panel.descriptionOpen
                 selectedId: panel.shot ? panel.shot.id : ""
                 cameras: panel.cameras
                 sizes: panel.sizes
@@ -284,6 +374,13 @@ Item {
                         Layout.fillWidth: true
                         level: 4
                         text: panel.shot ? panel.texts.t("shot.title", { number: panel.shot.number }) : ""
+                    }
+                    KanteChip {
+                        objectName: "cameraChip"
+                        visible: panel.shot !== null && !!panel.shot.camera_color
+                        interactive: false
+                        chipColor: panel.shot && panel.shot.camera_color ? KanteStyle.labelColor(panel.shot.camera_color) : KanteStyle.textColor
+                        text: panel.shot ? panel.shot.camera_label : ""
                     }
                     KanteChip {
                         objectName: "axisChip"
@@ -478,6 +575,57 @@ Item {
                         enabled: !!panel.axis && panel.axis.own
                         text: panel.texts.t("axis.auto")
                         onClicked: panel.controller.setAxis("", "")
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.smallSpacing
+                    KanteSectionLabel { text: panel.texts.t("field.shortName") }
+                    KanteTextField {
+                        objectName: "shortNameField"
+                        Layout.fillWidth: true
+                        text: { panel.refused; return panel.shot && panel.shot.short_name ? panel.shot.short_name : "" }
+                        onEditingFinished: panel.commit("short_name", text, panel.shot.short_name)
+                    }
+                }
+
+                // The storyboard picture (LH-74): a file of the project, shown here, in the tile
+                // and in the table.
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.smallSpacing
+                    KanteSectionLabel { text: panel.texts.t("field.image") }
+                    Image {
+                        objectName: "shotImage"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: visible ? Kirigami.Units.gridUnit * 8 : 0
+                        visible: !!panel.shot && !!panel.shot.image_url
+                        source: panel.shot && panel.shot.image_url ? panel.shot.image_url : ""
+                        fillMode: Image.PreserveAspectFit
+                        sourceSize.width: Kirigami.Units.gridUnit * 24
+                    }
+                    RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        KanteButton {
+                            objectName: "shotImagePick"
+                            text: panel.texts.t("shot.imagePick")
+                            onClicked: imageDialog.open()
+                        }
+                        KanteButton {
+                            objectName: "shotImageRemove"
+                            enabled: !!panel.shot && !!panel.shot.image
+                            text: panel.texts.t("shot.imageRemove")
+                            onClicked: {
+                                if (!panel.controller.setShotImage(panel.shot.id, "")) {
+                                    panel.refused++
+                                }
+                            }
+                        }
                     }
                 }
 

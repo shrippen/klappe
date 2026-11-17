@@ -29,9 +29,9 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     is_figure_size_m, is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m,
-    is_opening_width_m, is_outline, Character, Location, ObjectShape, Opening, PaperSetup, Project,
-    SavedView, Scene, ScriptSetup, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MAX_OBJECT_M,
-    MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
+    is_opening_width_m, is_outline, Character, Location, Numbering, ObjectShape, Opening,
+    PaperSetup, Project, SavedView, Scene, ScriptSetup, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
+    MAX_OBJECT_M, MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
@@ -39,7 +39,7 @@ pub use camera::builtin_camera_presets;
 pub use error::StoreError;
 use files::{Dir, Kind};
 pub use folder::{folder_size, free_sibling, move_to_trash, read_files, set_aside};
-pub use images::{add_image, image_size, image_stamp, read_image, ImageStamp};
+pub use images::{add_image, image_size, image_stamp, is_image_path, read_image, ImageStamp};
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
 pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
@@ -85,12 +85,19 @@ struct Header {
     /// Left out while it is the default, so older projects save unchanged.
     #[serde(default, skip_serializing_if = "is_default_paper")]
     paper: PaperSetup,
+    /// Left out while it is the default (LH-76).
+    #[serde(default, skip_serializing_if = "is_default_numbering")]
+    numbering: Numbering,
     /// A table of its own, left out while it is the default.
     #[serde(default, skip_serializing_if = "is_default_script")]
     script: ScriptSetup,
     /// The saved views (LH-119), each an `[[ansicht]]`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     ansicht: Vec<SavedView>,
+}
+
+fn is_default_numbering(numbering: &Numbering) -> bool {
+    *numbering == Numbering::default()
 }
 
 fn is_default_script(script: &ScriptSetup) -> bool {
@@ -163,6 +170,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         project: Project {
             title: header.title,
             paper: header.paper,
+            numbering: header.numbering,
             script: header.script,
             views: header.ansicht,
             characters: characters.figur,
@@ -191,6 +199,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
         format_version: FORMAT_VERSION,
         title: project.title.clone(),
         paper: project.paper,
+        numbering: project.numbering,
         script: project.script,
         ansicht: project.views.clone(),
     };
@@ -468,12 +477,13 @@ fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     Ok(())
 }
 
-/// The scenes of `path`, their labels checked.
+/// The scenes of `path`, their labels and shot pictures checked.
 fn load_scenes(path: &Path) -> Result<Vec<Scene>, StoreError> {
     let mut scenes = load_all::<Scene>(path, Kind::Json, |s| &s.id)?;
 
     check_labels(path, &scenes)?;
     clear_passive_power(&mut scenes);
+    check_shot_images(path, &scenes)?;
 
     Ok(scenes)
 }
@@ -521,6 +531,27 @@ fn check_labels(path: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
                 }
             }
         }
+    }
+
+    Ok(())
+}
+
+/// A shot's picture (LH-74) is a file of `bilder/`, never one outside the project.
+fn check_shot_images(path: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
+    let shots = scenes.iter().flat_map(|s| &s.plans).flat_map(|p| &p.shots);
+
+    for shot in shots {
+        let Some(image) = shot.image.as_deref().filter(|f| !is_image_path(f)) else {
+            continue;
+        };
+
+        return Err(StoreError::Parse {
+            path: path.to_path_buf(),
+            message: format!(
+                "shot {}: image {image} is not a file of {IMAGES_DIR}/",
+                shot.id
+            ),
+        });
     }
 
     Ok(())
