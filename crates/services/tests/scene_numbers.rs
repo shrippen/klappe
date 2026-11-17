@@ -143,7 +143,7 @@ fn an_outside_change_is_numbered_at_the_next_save() {
         &(saal("") + &hof("")),
     );
     write(&dir, &(keller(" #1#") + &saal(" #2#") + &hof(" #3#")));
-    let mut s = Session::open(&dir).unwrap();
+    let s = Session::open(&dir).unwrap();
     assert_eq!(number_of(&s, "aaaa"), "2");
 
     write(&dir, &(keller(" #1#") + &hof(" #3#")));
