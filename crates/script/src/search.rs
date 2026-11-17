@@ -39,6 +39,14 @@ fn fold(c: char) -> char {
     }
 }
 
+/// A character as it is compared under the case option.
+fn keyed(c: char, case: Case) -> char {
+    match case {
+        Case::Ignore => fold(c),
+        Case::Match => c,
+    }
+}
+
 /// Lines that hold the dialogue (not the cue or parentheticals) of the character.
 fn dialogue_lines(located: &[Located], speaker: &str) -> HashSet<usize> {
     let mut lines = HashSet::new();
@@ -64,10 +72,7 @@ pub fn find_all(lines: &[String], located: &[Located], query: &Query) -> Vec<Hit
     }
 
     let allowed = query.speaker.map(|s| dialogue_lines(located, s));
-    let key = |c: char| match query.case {
-        Case::Ignore => fold(c),
-        Case::Match => c,
-    };
+    let key = |c: char| keyed(c, query.case);
     let needle: Vec<char> = query.find.chars().map(key).collect();
     let mut hits = Vec::new();
 
@@ -96,14 +101,17 @@ pub fn find_all(lines: &[String], located: &[Located], query: &Query) -> Vec<Hit
 }
 
 /// The line with each hit that is on it replaced. Hits of other lines are ignored.
-pub fn replace_line(line: &str, line_no: usize, hits: &[Hit], with: &str) -> String {
+pub fn replace_line(line: &str, line_no: usize, hits: &[Hit], replacement: &str) -> String {
     let chars: Vec<char> = line.chars().collect();
     let mut out = String::new();
     let mut at = 0;
 
-    for hit in hits.iter().filter(|h| h.line == line_no) {
+    for hit in hits {
+        if hit.line != line_no {
+            continue;
+        }
         out.extend(&chars[at..hit.start]);
-        out.push_str(with);
+        out.push_str(replacement);
         at = hit.end;
     }
     out.extend(&chars[at..]);
@@ -112,17 +120,18 @@ pub fn replace_line(line: &str, line_no: usize, hits: &[Hit], with: &str) -> Str
 }
 
 /// The lines that change when every hit is replaced: line number and new text.
-pub fn replace_all(lines: &[String], hits: &[Hit], with: &str) -> Vec<(usize, String)> {
+pub fn replace_all(lines: &[String], hits: &[Hit], replacement: &str) -> Vec<(usize, String)> {
     let mut changed: Vec<(usize, String)> = Vec::new();
 
     for hit in hits {
-        if changed.last().is_some_and(|(n, _)| *n == hit.line) {
+        let done = changed.last().map(|(n, _)| *n);
+        if done == Some(hit.line) {
             continue;
         }
         let Some(text) = lines.get(hit.line) else {
             continue;
         };
-        changed.push((hit.line, replace_line(text, hit.line, hits, with)));
+        changed.push((hit.line, replace_line(text, hit.line, hits, replacement)));
     }
 
     changed

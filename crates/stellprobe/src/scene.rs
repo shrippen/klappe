@@ -210,7 +210,16 @@ fn walls(set: &SetPlan, cut: Cut, solids: &mut Vec<Solid>) {
         let mut next = FIRST_OWN_SURFACE;
         for (start_m, end_m) in solid_spans(wall) {
             let mut band = wall_band(wall, start_m, end_m);
-            mitre_band(&mut band, (start_m, end_m), length_m, &ends);
+            if start_m <= 0.0 {
+                if let Some((plus, minus)) = ends[0] {
+                    (band[0], band[3]) = (plus, minus);
+                }
+            }
+            if end_m >= length_m {
+                if let Some((plus, minus)) = ends[1] {
+                    (band[1], band[2]) = (plus, minus);
+                }
+            }
             faces.extend(wall_box(&band, (0.0, top_m), top_m, &mut next));
         }
         for opening in &wall.openings {
@@ -233,21 +242,6 @@ fn walls(set: &SetPlan, cut: Cut, solids: &mut Vec<Solid>) {
             faces,
             label: None,
         });
-    }
-}
-
-/// Gives the band the mitred corners at the ends of the wall it reaches.
-fn mitre_band(
-    band: &mut [Point; 4],
-    (start_m, end_m): (f64, f64),
-    length_m: f64,
-    ends: &[Option<(Point, Point)>; 2],
-) {
-    if let Some((plus, minus)) = ends[0].filter(|_| start_m <= 0.0) {
-        (band[0], band[3]) = (plus, minus);
-    }
-    if let Some((plus, minus)) = ends[1].filter(|_| end_m >= length_m) {
-        (band[1], band[2]) = (plus, minus);
     }
 }
 

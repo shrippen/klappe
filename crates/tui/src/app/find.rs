@@ -235,10 +235,10 @@ impl App {
         let Some(hit) = self.find.hits.get(self.find.sel).copied() else {
             return;
         };
-        let with = self.find.replace.clone();
+        let new = self.find.replace.clone();
         let line = self.editor.lines()[hit.line].clone();
-        let text = replace_line(&line, hit.line, &[hit], &with);
-        let col = hit.start + with.chars().count();
+        let text = replace_line(&line, hit.line, &[hit], &new);
+        let col = hit.start + new.chars().count();
 
         self.editor.set_lines(
             hit.line,
