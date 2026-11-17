@@ -24,16 +24,33 @@ fn body_rows(page: &Page) -> usize {
     rows.len()
 }
 
-/// A thin page is right only when the block that starts the next page, in the rows from its
-/// top to the first blank row, could not have started on it.
+/// A thin page is right only when what starts the next page could not have started on it:
+/// its first block, and with a heading first the block after the headings too.
 fn unavoidable(page: &Page, next: &Page, body_lines: usize) -> bool {
     let used = page.lines.iter().map(|l| l.row + 1).max().unwrap_or(0);
-    let mut run = 0;
-    while next.lines.iter().any(|l| l.row == run) {
-        run += 1;
+    let has = |row: usize| next.lines.iter().any(|l| l.row == row);
+    let kind_at = |row: usize| next.lines.iter().find(|l| l.row == row).map(|l| l.kind);
+
+    let mut end = 0;
+    loop {
+        while has(end) {
+            end += 1;
+        }
+        // Past the gap, the next block; a heading chain is followed to the first other block.
+        let first = end.saturating_sub(1);
+        if kind_at(first) != Some(PageKind::Heading) {
+            break;
+        }
+        end += 1;
+        if !has(end) {
+            end += 1;
+        }
+        if !has(end) {
+            break;
+        }
     }
 
-    used + 1 + run > body_lines
+    used + 1 + end > body_lines
 }
 
 fn last_row_kinds(page: &Page) -> Vec<PageKind> {
@@ -165,6 +182,20 @@ fn script(rng: &mut Rng, blocks: usize) -> String {
     text
 }
 
+/// The pages as rows of `x kind text`, for a failure message.
+fn dump(p: &Pagination) -> String {
+    let mut out = String::new();
+    for page in &p.pages {
+        out.push_str(&format!("--- page {}\n", page.number));
+        for l in &page.lines {
+            let text: String = l.text.chars().take(24).collect();
+            out.push_str(&format!("{:2} {:2} {:?} {text}\n", l.row, l.x, l.kind));
+        }
+    }
+
+    out
+}
+
 fn ends_a_sentence(text: &str) -> bool {
     let text = text
         .trim_end()
@@ -177,12 +208,13 @@ fn ends_a_sentence(text: &str) -> bool {
 fn every_cut_and_page_keeps_the_rules() {
     let mut rng = Rng(7);
 
-    for round in 0..300 {
-        let body_lines = 8 + rng.next(30);
+    for round in 0..400 {
+        // Room for three headings and the start of a block after them.
+        let body_lines = 14 + rng.next(30);
         let blocks = 5 + rng.next(60);
         let text = script(&mut rng, blocks);
         let p = lay(&text, body_lines);
-        let ctx = format!("round {round}, {body_lines} rows\n{text}");
+        let ctx = format!("round {round}, {body_lines} rows\n{text}\n{}", dump(&p));
         let last = p.pages.len().saturating_sub(1);
 
         for (n, page) in p.pages.iter().enumerate() {

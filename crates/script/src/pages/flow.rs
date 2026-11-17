@@ -1,4 +1,18 @@
-//! Puts blocks on pages: fills a page, cuts a block where the rules allow, starts the next.
+//! Puts blocks on pages. One placement function, `plan`, serves the real run and the look
+//! ahead on a copy of the position, so both decide the same way.
+//!
+//! For a block with room left on the page:
+//! 1. it fits whole: place it;
+//! 2. else the last allowed cut with `MIN_SPLIT_ROWS` rows on both sides (a dialogue gets
+//!    `(MORE)` and `(CONT'D)`): place the first part, end the page, go on with the rest;
+//! 3. else, for a block taller than a page that has no cut that works on a fresh page, or
+//!    one that would leave a heading alone: cut at a row;
+//! 4. else end the page and try again on the fresh one (at the top of a page, a block that
+//!    still does not fit is cut at a row, so the flow always advances).
+//!
+//! A heading is never the last thing on a page: before the first heading of a chain,
+//! the chain and the block after it are placed on a copy; if a heading would end a page,
+//! the page ends first, once.
 
 use super::block::{blocks, Block, MIN_SPLIT_ROWS};
 use super::{Line, Page, PageKind, PageOptions, Pagination, SceneLength};
@@ -7,8 +21,134 @@ use crate::Element;
 /// Column of `(MORE)`: under the name of a dialogue.
 const MORE_X: usize = 22;
 
+/// What the placement does, in order; the real run turns it into pages.
+enum Step {
+    Put {
+        heading: bool,
+        element: usize,
+        before: usize,
+        rows: Vec<Vec<Line>>,
+    },
+    EndPage,
+}
+
+/// Where the next row goes, and what the pages so far would look like.
+#[derive(Clone)]
+struct Sim {
+    used: usize,
+    /// The last thing put on this page is a heading.
+    last_heading: bool,
+    /// Only headings are on this page so far: moving on would not give them company.
+    only_headings: bool,
+    /// A page ended on a heading.
+    bad: bool,
+    /// Pages ended.
+    ended: usize,
+}
+
+impl Sim {
+    fn end_page(&mut self, out: &mut Vec<Step>) {
+        if self.used == 0 {
+            return;
+        }
+
+        self.bad |= self.last_heading;
+        self.ended += 1;
+        self.used = 0;
+        self.last_heading = false;
+        self.only_headings = true;
+        out.push(Step::EndPage);
+    }
+
+    fn put(&mut self, out: &mut Vec<Step>, block: &Block, before: usize, rows: Vec<Vec<Line>>) {
+        self.used += before + rows.len();
+        self.last_heading = block.heading;
+        self.only_headings &= block.heading;
+        out.push(Step::Put {
+            heading: block.heading,
+            element: block.element().unwrap_or_default(),
+            before,
+            rows,
+        });
+    }
+
+    /// The first part of a cut block; a dialogue ends in `(MORE)`.
+    fn put_first(&mut self, out: &mut Vec<Step>, first: &Block, before: usize, o: &PageOptions) {
+        let mut rows = first.rows();
+        let dialogue = rows
+            .iter()
+            .any(|r| r.first().is_some_and(|l| l.kind == PageKind::Character));
+        if dialogue {
+            rows.push(vec![Line {
+                row: 0,
+                x: MORE_X,
+                kind: PageKind::More,
+                text: format!("({})", o.words.more),
+                element: first.element().unwrap_or_default(),
+                offset: 0,
+                number: None,
+                added: true,
+            }]);
+        }
+
+        self.put(out, first, before, rows);
+    }
+}
+
+/// Places `block` from the position `sim`, appending the steps.
+fn plan(sim: &mut Sim, o: &PageOptions, mut block: Block, out: &mut Vec<Step>) {
+    if block.page_break {
+        sim.end_page(out);
+        return;
+    }
+
+    loop {
+        let at_top = sim.used == 0;
+        let before = if at_top { 0 } else { block.before };
+        let rows = block.rows();
+        if rows.is_empty() {
+            return;
+        }
+
+        let space = o.body_lines.saturating_sub(sim.used);
+        if before + rows.len() <= space {
+            sim.put(out, &block, before, rows);
+            return;
+        }
+
+        let room = space.saturating_sub(before);
+        if let Some((first, rest)) = block.split(room, o.words) {
+            sim.put_first(out, &first, before, o);
+            sim.end_page(out);
+            block = rest;
+            continue;
+        }
+
+        let tall = rows.len() > o.body_lines;
+        let fresh = block.split(o.body_lines, o.words).is_some();
+        // A block that cannot start here is cut at a row if it is taller than a page and
+        // would not be cut on a fresh page either, or if headings would be left alone on a page.
+        let wanted = (tall && !fresh) || (sim.last_heading && sim.only_headings);
+        let here = wanted && room >= MIN_SPLIT_ROWS && rows.len() >= 2 * MIN_SPLIT_ROWS;
+        if !at_top && !here {
+            sim.end_page(out);
+            continue;
+        }
+
+        // Cut at a row, both parts keeping `MIN_SPLIT_ROWS`.
+        let take = if at_top { o.body_lines } else { room };
+        let take = take.min(rows.len().saturating_sub(MIN_SPLIT_ROWS));
+        let mut rows = rows;
+        let rest = rows.split_off(take);
+        sim.put(out, &block, before, rows);
+        sim.end_page(out);
+        block = Block::from_rows(rest);
+    }
+}
+
 struct Flow<'a> {
     options: &'a PageOptions,
+    sim: Sim,
     pages: Vec<Page>,
     /// The page being filled and the rows it has used.
     lines: Vec<Line>,
@@ -21,6 +161,13 @@ pub(super) fn run(elements: &[Element], options: &PageOptions) -> Pagination {
     let blocks = blocks(elements, options);
     let mut flow = Flow {
         options,
+        sim: Sim {
+            used: 0,
+            last_heading: false,
+            only_headings: true,
+            bad: false,
+            ended: 0,
+        },
         pages: Vec::new(),
         lines: Vec::new(),
         used: 0,
@@ -29,7 +176,14 @@ pub(super) fn run(elements: &[Element], options: &PageOptions) -> Pagination {
     };
 
     for (i, block) in blocks.iter().enumerate() {
-        flow.place(block.clone(), &blocks[i + 1..]);
+        let chain_start = block.heading && (i == 0 || !blocks[i - 1].heading);
+        let mut steps = Vec::new();
+        if chain_start && flow.sim.used > 0 && flow.chain_ends_a_page(&blocks[i..]) {
+            flow.sim.end_page(&mut steps);
+        }
+
+        plan(&mut flow.sim, options, block.clone(), &mut steps);
+        flow.apply(steps);
     }
     flow.end_page();
 
@@ -48,8 +202,43 @@ pub(super) fn run(elements: &[Element], options: &PageOptions) -> Pagination {
 }
 
 impl Flow<'_> {
-    fn space(&self) -> usize {
-        self.options.body_lines.saturating_sub(self.used)
+    /// Places the chain of headings at the start of `rest` and the block after it on a copy
+    /// of the position, up to the end of the current page, and tells whether a heading
+    /// would end a page. A forced page break or the end of the script is no such end.
+    fn chain_ends_a_page(&self, rest: &[Block]) -> bool {
+        let mut sim = Sim {
+            bad: false,
+            ended: 0,
+            ..self.sim.clone()
+        };
+        let mut sink = Vec::new();
+
+        for block in rest {
+            if block.page_break {
+                break;
+            }
+
+            plan(&mut sim, self.options, block.clone(), &mut sink);
+            sink.clear();
+            if !block.heading || sim.ended > 0 {
+                break;
+            }
+        }
+        sim.bad
+    }
+
+    fn apply(&mut self, steps: Vec<Step>) {
+        for step in steps {
+            match step {
+                Step::EndPage => self.end_page(),
+                Step::Put {
+                    heading,
+                    element,
+                    before,
+                    rows,
+                } => self.put(heading, element, before, rows),
+            }
+        }
     }
 
     /// Finishes the page, if it has anything on it.
@@ -64,112 +253,13 @@ impl Flow<'_> {
         self.pages.push(Page { number, lines });
     }
 
-    fn place(&mut self, mut block: Block, rest: &[Block]) {
-        if block.page_break {
-            self.end_page();
-            return;
-        }
-
-        loop {
-            let at_top = self.used == 0;
-            let before = if at_top { 0 } else { block.before };
-            let rows = block.rows();
-            if rows.is_empty() {
-                return;
-            }
-
-            let left = self.space().saturating_sub(before + rows.len());
-            // A heading is never the last thing on a page: it stays only where what follows
-            // can start on the page.
-            let company = !block.heading || at_top || self.can_start(rest, left);
-            if before + rows.len() <= self.space() && company {
-                self.put(&block, before, rows);
-                return;
-            }
-
-            let room = self.space().saturating_sub(before);
-            if let Some((first, tail)) = block.split(room, self.options.words) {
-                self.put_first(&first, before);
-                self.end_page();
-                block = tail;
-                continue;
-            }
-
-            // Taller than a page, with no place to cut: cut at a row, right here if two
-            // rows fit (under the heading before it), else at the top of the next page.
-            let tall = rows.len() > self.options.body_lines;
-            if !at_top && !(tall && room >= MIN_SPLIT_ROWS) {
-                self.end_page();
-                continue;
-            }
-
-            let take = match at_top {
-                true => self.options.body_lines.max(MIN_SPLIT_ROWS),
-                false => room,
-            };
-            let mut rows = rows;
-            let tail = rows.split_off(take.min(rows.len()));
-            self.put(&block, before, rows);
-            self.end_page();
-            block = Block::from_rows(tail);
-        }
-    }
-
-    /// Whether what follows can start in `left` rows: whole, cut where the rules allow, or a
-    /// block taller than a page, which is cut at a row. A heading after a heading needs
-    /// the one after it to start too.
-    fn can_start(&self, rest: &[Block], left: usize) -> bool {
-        let Some(next) = rest.first().filter(|n| !n.page_break) else {
-            return true;
-        };
-        let rows = next.rows().len();
-        if rows == 0 {
-            return self.can_start(&rest[1..], left);
-        }
-
-        let whole = next.before + rows <= left;
-        if next.heading {
-            return whole && self.can_start(&rest[1..], left - next.before - rows);
-        }
-
-        let room = left.saturating_sub(next.before);
-        let tall = rows > self.options.body_lines && room >= MIN_SPLIT_ROWS;
-
-        whole || tall || next.split(room, self.options.words).is_some()
-    }
-
-    /// The first half of a cut block; a dialogue ends in `(MORE)`.
-    fn put_first(&mut self, first: &Block, before: usize) {
-        let mut rows = first.rows();
-        let dialogue = rows
-            .iter()
-            .any(|r| r.first().is_some_and(|l| l.kind == PageKind::Character));
-        if dialogue {
-            let element = first.element().unwrap_or_default();
-            rows.push(vec![Line {
-                row: 0,
-                x: MORE_X,
-                kind: PageKind::More,
-                text: format!("({})", self.options.words.more),
-                element,
-                offset: 0,
-                number: None,
-                added: true,
-            }]);
-        }
-
-        self.put(first, before, rows);
-    }
-
-    fn put(&mut self, block: &Block, before: usize, rows: Vec<Vec<Line>>) {
+    fn put(&mut self, heading: bool, element: usize, before: usize, rows: Vec<Vec<Line>>) {
         self.used += before;
-        let first_row = self.used;
-
-        if block.heading {
+        if heading {
             self.scenes.push(SceneLength {
-                element: block.element().unwrap_or_default(),
+                element,
                 page: self.pages.len() + 1,
-                row: first_row,
+                row: self.used,
                 lines: 0,
                 eighths: 0,
             });
