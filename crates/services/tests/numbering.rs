@@ -464,3 +464,44 @@ fn a_version_is_stored_as_a_reference_and_an_orphan_becomes_a_base() {
     let all = numbers(&s);
     assert_eq!(all, ["12A.1", "12A.2", "12B.1", "12B.2", "12A.3"], "{id}");
 }
+
+/// Deleting a base shot promotes its first version, so a version of a survivor hangs on a real
+/// base and is no shot of its own after renumbering.
+#[test]
+fn a_version_of_a_survivor_of_a_deleted_base_is_still_a_version() {
+    let (mut s, _) = open("numbering-orphan");
+    let first = s.version_shot("s12-3").unwrap();
+    let second = s.version_shot("s12-3").unwrap();
+    s.delete_shot("s12-3").unwrap();
+    s.renumber_shots().unwrap();
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.3", "12.3A", "12.4", "12.5"]
+    );
+
+    s.version_shot(&second).unwrap();
+    s.renumber_shots().unwrap();
+
+    assert_eq!(
+        numbers(&s),
+        ["12.1", "12.2", "12.3", "12.3A", "12.3B", "12.4", "12.5"],
+        "{first}"
+    );
+}
+
+/// A version has the camera of its base: the camera of a version is refused, the base's moves
+/// all its versions.
+#[test]
+fn a_version_keeps_the_camera_of_its_base() {
+    let (mut s, _) = open("numbering-camera-of-version");
+    let version = s.version_shot("s12-3").unwrap();
+    let camera_of =
+        |s: &Session, id: &str| s.shots().into_iter().find(|r| r.id == id).unwrap().camera;
+
+    assert!(s.edit_shot(&version, ShotField::Camera, "a").is_err());
+    assert_eq!(camera_of(&s, &version), "b");
+
+    s.edit_shot("s12-3", ShotField::Camera, "a").unwrap();
+    assert_eq!(camera_of(&s, "s12-3"), "a");
+    assert_eq!(camera_of(&s, &version), "a");
+}
