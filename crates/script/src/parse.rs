@@ -34,8 +34,23 @@ pub(crate) enum Escape {
     Remove,
 }
 
-/// Prefixes of scene headings, longest first; each must be followed by `.` or a space.
-pub(crate) const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext", "est"];
+/// Prefixes of scene headings in both languages, longest first; each must be followed by `.` or
+/// a space.
+pub(crate) const HEADING_PREFIXES: [&str; 13] = [
+    "int./ext",
+    "int/ext",
+    "innen/aussen",
+    "innen/außen",
+    "aussen/innen",
+    "außen/innen",
+    "i/e",
+    "int",
+    "ext",
+    "est",
+    "innen",
+    "aussen",
+    "außen",
+];
 
 /// Parses Fountain text. Never fails; unknown input becomes `Element::Action`.
 pub fn parse(text: &str) -> Script {
@@ -496,13 +511,39 @@ fn note_inner(t: &str) -> Option<&str> {
 }
 
 fn has_heading_prefix(t: &str) -> bool {
+    heading_prefix(t).is_some()
+}
+
+/// The heading prefix `t` starts with, followed by `.` or a space. The German prefixes are
+/// words of prose too ("Innen ist es kalt."): before a space they count only in capitals,
+/// e.g. "INNEN KÜCHE" or "innen. küche".
+pub(crate) fn heading_prefix(t: &str) -> Option<&'static str> {
     let lower = t.to_lowercase();
 
-    HEADING_PREFIXES.iter().any(|p| {
-        lower
-            .strip_prefix(p)
-            .is_some_and(|rest| rest.starts_with(['.', ' ']))
+    HEADING_PREFIXES.iter().copied().find(|p| {
+        let Some(rest) = lower.strip_prefix(p) else {
+            return false;
+        };
+        if rest.starts_with('.') {
+            return true;
+        }
+        if !rest.starts_with(' ') {
+            return false;
+        }
+
+        !is_german(p) || in_capitals(t.split(' ').next().unwrap_or(t))
     })
+}
+
+fn is_german(prefix: &str) -> bool {
+    ["innen", "aussen", "außen"]
+        .iter()
+        .any(|w| prefix.starts_with(w))
+}
+
+/// Whether a word is written in capitals; `ß` has no common capital and is allowed.
+fn in_capitals(word: &str) -> bool {
+    !word.chars().any(|c| c.is_lowercase() && c != 'ß')
 }
 
 /// Splits a trailing `#12A#` off the heading.
