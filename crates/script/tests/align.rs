@@ -160,7 +160,7 @@ fn a_reworded_heading_is_confirmed_by_content() {
 }
 
 #[test]
-fn a_heavily_rewritten_scene_is_confirmed_by_number_and_heading() {
+fn a_heavily_rewritten_scene_with_number_and_heading_is_offered() {
     let old = old_of(&three());
     let new = [
         scene(Some("1"), "SAAL", A),
@@ -169,7 +169,11 @@ fn a_heavily_rewritten_scene_is_confirmed_by_number_and_heading() {
     ]
     .concat();
 
-    assert_eq!(align(&old, &parse(&new)).old[1], matched(1, How::Number));
+    // Number and heading alone are no proof: the user is asked.
+    assert_eq!(
+        align(&old, &parse(&new)).old[1],
+        Outcome::Ambiguous(vec![1])
+    );
 }
 
 #[test]
@@ -315,4 +319,157 @@ fn fingerprints_ignore_case_spacing_and_notes() {
     let b = old_of("INT. A\n\ner geht.\n");
 
     assert_eq!(a[0].prints, b[0].prints);
+}
+
+/// A scene of the given action lines.
+fn lines_scene(number: Option<&str>, head: &str, lines: &[String]) -> String {
+    let num = number.map(|n| format!(" #{n}#")).unwrap_or_default();
+    let mut s = format!("INT. {head} – TAG{num}\n\n");
+    for l in lines {
+        s.push_str(&format!("{l}\n\n"));
+    }
+    s
+}
+
+/// `n` lines "<tag> Zeile i", all different from the lines of other tags.
+fn tagged(tag: &str, n: usize) -> Vec<String> {
+    (0..n)
+        .map(|i| format!("{tag} Zeile {i} mit Text"))
+        .collect()
+}
+
+fn dialogue_scene(number: &str, head: &str, lines: &[String]) -> String {
+    let mut s = format!("INT. {head} – TAG #{number}#\n\n");
+    for l in lines {
+        s.push_str(&format!("ELISABETH\n{l}\n\n"));
+    }
+    s
+}
+
+#[test]
+fn a_deleted_twin_heading_does_not_steal_the_number() {
+    // Review: two KÜCHE scenes 2 and 3; scene 2 is deleted and the rest renumbered.
+    let old = old_of(
+        &[
+            scene(Some("1"), "SAAL", A),
+            scene(Some("2"), "KÜCHE", B),
+            scene(Some("3"), "KÜCHE", C),
+        ]
+        .concat(),
+    );
+    let new = [scene(Some("1"), "SAAL", A), scene(Some("2"), "KÜCHE", C)].concat();
+    let al = align(&old, &parse(&new));
+
+    assert_eq!(
+        al.old,
+        vec![
+            matched(0, How::Number),
+            Outcome::NotFound,
+            matched(1, How::Content)
+        ]
+    );
+    assert!(al.unmatched.is_empty());
+}
+
+#[test]
+fn a_deleted_first_twin_renumbered_is_found_by_content() {
+    let old = old_of(&[scene(Some("1"), "KÜCHE", B), scene(Some("2"), "KÜCHE", C)].concat());
+    let new = scene(Some("1"), "KÜCHE", C);
+    let al = align(&old, &parse(&new));
+
+    assert_eq!(al.old, vec![Outcome::NotFound, matched(0, How::Content)]);
+}
+
+#[test]
+fn similar_dialogue_scenes_do_not_steal_the_number() {
+    // Review: 14 of 16 elements shared (Dice 0.75), same heading, same number.
+    let first: Vec<String> = (1..=8).map(|i| format!("Satz {i}")).collect();
+    let mut second = first.clone();
+    for (i, l) in second.iter_mut().enumerate().skip(4) {
+        *l = format!("Anderer Satz {i}");
+    }
+    let old = old_of(
+        &[
+            dialogue_scene("2", "KÜCHE", &first),
+            dialogue_scene("3", "KÜCHE", &second),
+        ]
+        .concat(),
+    );
+    let new = dialogue_scene("2", "KÜCHE", &second);
+    let al = align(&old, &parse(&new));
+
+    assert_eq!(al.old[1], matched(0, How::Content));
+    assert_eq!(al.old[0], Outcome::NotFound);
+}
+
+#[test]
+fn an_inserted_scene_with_the_same_heading_does_not_take_a_rewritten_original() {
+    let old = old_of(&scene(Some("1"), "SAAL", A));
+    let new = [
+        scene(Some("1"), "SAAL", "Delta"),
+        scene(Some("2"), "SAAL", "Omega"),
+    ]
+    .concat();
+    let al = align(&old, &parse(&new));
+
+    assert!(
+        !matches!(al.old[0], Outcome::Matched { .. }),
+        "{:?}",
+        al.old
+    );
+}
+
+#[test]
+fn a_near_twin_is_ambiguous() {
+    // Review: one candidate at 0.8, the next at 0.6.
+    let base = tagged("Basis", 10);
+    let mut near = base.clone();
+    near[8] = "Neu eins".into();
+    near[9] = "Neu zwei".into();
+    let mut far = base.clone();
+    for (i, l) in far.iter_mut().enumerate().skip(6) {
+        *l = format!("Fern {i}");
+    }
+    let old = old_of(&lines_scene(None, "ALT", &base));
+    let new = [
+        lines_scene(None, "EINS", &near),
+        lines_scene(None, "ZWEI", &far),
+    ]
+    .concat();
+    let al = align(&old, &parse(&new));
+
+    assert_eq!(al.old, vec![Outcome::Ambiguous(vec![0, 1])]);
+}
+
+#[test]
+fn a_clear_lead_over_the_second_is_a_match() {
+    let base = tagged("Basis", 10);
+    let mut near = base.clone();
+    near[9] = "Neu".into();
+    let old = old_of(&lines_scene(None, "ALT", &base));
+    let new = [
+        lines_scene(None, "EINS", &near),
+        lines_scene(None, "ZWEI", &tagged("Fremd", 10)),
+    ]
+    .concat();
+
+    assert_eq!(align(&old, &parse(&new)).old[0], matched(0, How::Content));
+}
+
+#[test]
+fn a_heading_only_scene_matches_by_number_and_heading() {
+    let text = "INT. SAAL – TAG #1#\n\nINT. HOF – TAG #2#\n\n";
+
+    assert_eq!(
+        align(&old_of(text), &parse(text)).old,
+        vec![matched(0, How::Number), matched(1, How::Number)]
+    );
+}
+
+#[test]
+fn dash_variants_and_spaces_in_headings_are_equal() {
+    let old = old_of("INT. SAAL – TAG #1#\n\nEr geht.\n");
+    let new = "INT.  SAAL — TAG #1#\n\nEr geht.\n";
+
+    assert_eq!(align(&old, &parse(new)).old, vec![matched(0, How::Number)]);
 }

@@ -121,3 +121,55 @@ fn a_line_of_another_kind_is_no_candidate() {
     assert_eq!(q.kind, LineKind::Action);
     assert_eq!(find_quote(&edited, &q), Found::Missing);
 }
+
+#[test]
+fn equal_lines_inserted_before_do_not_shift_the_occurrence() {
+    // Review: ANNA "Ja." and BEN inserted before; the old second "Ja." is now the third.
+    let old = "ANNA\nJa.\n\nBEN\nNein.\n\nANNA\nJa.\n";
+    let q = quote_at(&scene(old), 5).unwrap();
+    let new = scene(&format!("ANNA\nJa.\n\nBEN\nHm.\n\n{old}"));
+
+    assert_eq!(find_quote(&new, &q), Found::At(9));
+}
+
+#[test]
+fn equal_lines_inserted_before_and_after_are_told_apart_by_neighbours() {
+    let q = quote_at(&scene("ANNA\nJa.\n\nEs klopft.\n"), 1).unwrap();
+    let new =
+        scene("ANNA\nJa.\n\nEr nickt.\n\nANNA\nJa.\n\nEs klopft.\n\nANNA\nJa.\n\nSie geht.\n");
+
+    assert_eq!(find_quote(&new, &q), Found::At(4));
+}
+
+#[test]
+fn equal_lines_with_the_same_neighbours_are_ambiguous() {
+    let q = quote_at(&scene("ANNA\nJa.\n\nEs klopft.\n"), 1).unwrap();
+    let new = scene("ANNA\nJa.\n\nEs klopft.\n\nANNA\nJa.\n\nEs klopft.\n");
+
+    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![1, 4]));
+}
+
+#[test]
+fn neighbours_break_a_tie_between_similar_lines() {
+    let q = quote_at(
+        &scene("Es regnet.\n\nEr öffnet die schwere Tür zum Saal.\n\nEs klopft.\n"),
+        1,
+    )
+    .unwrap();
+    let new = scene(
+        "Es schneit.\n\nEr öffnet die schwere Tür zum Hof.\n\nEs klopft.\n\n\
+         Er öffnet die schwere Tür zum Keller.\n\nEs donnert.\n",
+    );
+
+    assert_eq!(find_quote(&new, &q), Found::At(1));
+}
+
+#[test]
+fn dash_variants_and_spaces_in_a_line_are_equal() {
+    let q = quote_at(&scene("Er wartet – lange.\n"), 0).unwrap();
+
+    assert_eq!(
+        find_quote(&scene("Er  wartet — lange.\n"), &q),
+        Found::At(0)
+    );
+}
