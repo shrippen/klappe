@@ -23,7 +23,7 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 | `services/` | The project session, the one door for every surface: open, select, edit, undo, play, save, export. Hands out data ready to show and holds all texts (`i18n/`). |
 | `stellprobe/` | Stellprobe's calculations, without files or window: who stands where at a time, what a camera sees, the axis, the display list (what a plan shows, in metres, colours as roles), and the set as bodies (`scene`) with the picture a view of them gives (`picture`, through `raster/`). |
 | `raster/` | Fills triangles on the screen into a frame with depth: role, shade, source and edges per pixel, no colours; knows nothing of sets; depends on nothing. |
-| `script/` | Reads and writes Fountain. |
+| `script/` | Reads and writes Fountain, and searches script text: matches the scenes of two script states (`align`), finds a quoted line in a scene (`find_quote`), detects Git conflict markers. |
 | `store/` | The only block that reads or writes a project folder (`FORMAT.md`); also the built-in object library, camera presets and lamps (data files). |
 | `export/` | Turns the display list and the shot list into PDF, SVG, PNG, CSV, ODS and XLSX, and a view of the set (`stellprobe`'s picture or vector faces) into PNG or PDF pages, as bytes; colours from Kante's `palette.json` (copied by the same script). |
 | `model/` | The project's data, shared by all: project, scene, character, location, floor plan, shot. |

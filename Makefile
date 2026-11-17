@@ -25,6 +25,7 @@ qml:
 # numbers, fails above four times the 16 ms budget (the plan JSON: four times its half). Not in `check`: timings need a quiet machine.
 perf:
 	cargo test --release -p klappe-services --test perf -- --ignored --nocapture
+	cargo test --release -p klappe-script --test perf -- --ignored --nocapture
 	cargo test --release -p klappe-app a_large_plan -- --ignored --nocapture
 	scripts/check-qml.sh crates/app/tests/perf
 

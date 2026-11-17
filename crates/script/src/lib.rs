@@ -4,10 +4,17 @@
 //! parses to the same elements. Parsing never fails: input that matches no other rule
 //! becomes an [`Element::Action`].
 
+mod align;
+mod conflict;
 mod parse;
+mod quote;
+mod text;
 mod write;
 
+pub use align::{align, scene_states, Alignment, Fingerprint, How, Outcome, SceneState};
+pub use conflict::conflict_line;
 pub use parse::{parse, parse_located};
+pub use quote::{find_quote, quote_at, Found, LineKind, Quote};
 pub use write::write;
 
 /// One block of a screenplay.
