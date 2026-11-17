@@ -10,6 +10,7 @@
 //! A frame is made when it is written, one at a time: what the job holds does not grow with
 //! the length of the plan.
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
@@ -47,6 +48,9 @@ pub struct VideoJob {
     hidden_tracks: HashSet<String>,
     faded_layers: HashMap<Layer, Fade>,
     page: Page,
+    /// Pixel size of each image file, read once for all frames (a photo is read per file,
+    /// not per frame).
+    sizes: RefCell<HashMap<String, Option<(u32, u32)>>>,
 }
 
 impl VideoJob {
@@ -86,7 +90,13 @@ impl VideoJob {
             return DisplayList::default();
         };
 
-        let size = |file: &str| klappe_store::image_size(&self.dir, file).ok();
+        let size = |file: &str| {
+            *self
+                .sizes
+                .borrow_mut()
+                .entry(file.to_owned())
+                .or_insert_with(|| klappe_store::image_size(&self.dir, file).ok())
+        };
         let mut list = render(&self.project, &location.set, plan, t_s, &size);
         let shows = |role, source: Option<&_>| {
             is_shown(&self.hidden_layers, &self.hidden_tracks, role, source)
@@ -189,6 +199,7 @@ impl Session {
                 self.plan_title(),
                 texts.clone(),
             ),
+            sizes: RefCell::new(HashMap::new()),
         })
     }
 

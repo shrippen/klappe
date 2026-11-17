@@ -74,7 +74,8 @@ impl qobject::Controller {
     }
 
     /// Writes the playback as MP4 (LH-84) on a thread of its own, so the window stays alive
-    /// while ffmpeg works: the frames are collected here, drawn and encoded there. The status
+    /// while ffmpeg works: here the job copies the project, there each frame is drawn when it
+    /// is written and encoded. The status
     /// line shows the progress and, last, where the video went or what failed. `true` if it
     /// started.
     fn write_video(mut self: Pin<&mut Self>, path: std::path::PathBuf, texts: &Texts) -> bool {
