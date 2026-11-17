@@ -1,7 +1,7 @@
 //! The register against the book (DATENMODELL §4): aligns on open and save, and takes the
 //! user's answer for an entry that could not be placed.
 
-use klappe_model::{BookState, Kind};
+use klappe_model::{BookState, Kind, Project, Scene};
 
 use super::Session;
 use crate::book::{self, BookReport, Choice, PendingScene};
@@ -50,12 +50,10 @@ impl Session {
         plan.apply(&mut next);
         // The answer may settle others: an entry whose rival is out now agrees alone.
         let settled = book::plan(&next, &self.script);
-        let pending = settled.pending(&next);
         settled.apply(&mut next);
 
         let (scene, shown) = self.ids_on_view();
         self.commit_step(next, RESOLVE_STEP);
-        self.pending = pending;
         self.follow_scene(scene, shown);
 
         Ok(())
@@ -98,4 +96,21 @@ impl Session {
 
         (scene, plan)
     }
+}
+
+/// Whether two states hold different registers (what the alignment reads of the entries), so
+/// that the open questions may have moved. An edit of the plans alone does not move them, and
+/// must not pay for aligning the register with the book again.
+pub(super) fn register_moved(before: &Project, after: &Project) -> bool {
+    let differ = |(a, b): (&Scene, &Scene)| {
+        a.id != b.id
+            || a.kind != b.kind
+            || a.number != b.number
+            || a.heading != b.heading
+            || a.state != b.state
+            || a.prints != b.prints
+            || a.refused != b.refused
+    };
+
+    before.scenes.len() != after.scenes.len() || before.scenes.iter().zip(&after.scenes).any(differ)
 }

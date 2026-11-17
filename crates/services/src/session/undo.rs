@@ -1,5 +1,6 @@
 use klappe_model::Project;
 
+use super::book::register_moved;
 use super::Session;
 
 /// Undo keeps this many steps (LH-06 asks for no fixed limit within a session; this only
@@ -56,6 +57,13 @@ impl Session {
         self.redo.clear();
         self.project_changed = true;
         self.touch();
+        if self
+            .undo
+            .last()
+            .is_some_and(|s| register_moved(&s.project, &self.project))
+        {
+            self.refresh_pending();
+        }
     }
 
     pub(super) fn touch(&mut self) {
@@ -141,12 +149,15 @@ impl Session {
         let plan_on_view = self.plan().map(|p| p.id.clone());
         let mut current = self.swap(previous);
         current.step = step;
+        let moved = register_moved(&current.project, &self.project);
         self.redo.push(current);
         self.project_changed = true;
         self.touch();
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
-        self.refresh_pending();
+        if moved {
+            self.refresh_pending();
+        }
     }
 
     pub fn redo(&mut self) {
@@ -158,12 +169,15 @@ impl Session {
         let plan_on_view = self.plan().map(|p| p.id.clone());
         let mut current = self.swap(next);
         current.step = step;
+        let moved = register_moved(&current.project, &self.project);
         self.undo.push(current);
         self.project_changed = true;
         self.touch();
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
-        self.refresh_pending();
+        if moved {
+            self.refresh_pending();
+        }
     }
 
     /// Makes `step` the state and returns the one it replaces, for the other stack.

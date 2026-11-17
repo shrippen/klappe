@@ -37,6 +37,11 @@ const FULL_HD_PX: usize = 1920;
 /// A small camera picture in the plan, in pixels.
 const THUMB_PX: usize = 96;
 const RUNS: usize = 200;
+/// Scenes of the screenplay beside the large plan: a feature film's worth.
+const BOOK_SCENES: usize = 150;
+/// An edit of the plan does not touch the register: it must not pay for aligning it with
+/// the book (over 1 ms for `BOOK_SCENES`, against 0.05 ms for the edit itself).
+const BOOK_EDIT_BUDGET: Duration = Duration::from_micros(100);
 
 /// A point on a fixed pseudo-random walk over the set, so runs repeat.
 fn spot(n: usize) -> Point {
@@ -184,6 +189,44 @@ fn shot(i: usize) -> Shot {
 
 /// The NF-05 plan as a session on disk (`name` names the folder under the target's tmp).
 fn big_session(name: &str) -> Session {
+    open(name, big_project(), None)
+}
+
+/// The large plan in a project whose register holds `BOOK_SCENES` scenes of a screenplay.
+fn big_session_with_book(name: &str) -> Session {
+    let mut project = big_project();
+    let mut book = String::new();
+
+    for n in 1..=BOOK_SCENES {
+        let heading = format!("INT. RAUM {n}");
+        book += &format!(
+            "{heading} #{n}#\n\nAnna geht durch Raum {n}.\n\nANNA\nHier ist Raum {n}.\n\n"
+        );
+        if n == 1 {
+            project.scenes[0].heading = heading;
+            continue;
+        }
+        project.scenes.push(Scene {
+            id: format!("s{n}"),
+            number: n.to_string(),
+            heading,
+            location: "l1".into(),
+            ..Default::default()
+        });
+    }
+
+    open(name, project, Some(&book))
+}
+
+fn open(name: &str, project: Project, book: Option<&str>) -> Session {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    klappe_store::save(&dir, &project, book).unwrap();
+
+    Session::open(&dir).unwrap()
+}
+
+fn big_project() -> Project {
     let mut plan = FloorPlan::new("p1", "Plan A");
     plan.figures = (0..FIGURES).map(figure).collect();
     plan.cameras = (0..CAMERAS).map(camera).collect();
@@ -216,11 +259,7 @@ fn big_session(name: &str) -> Session {
         ..Default::default()
     }];
 
-    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
-    let _ = std::fs::remove_dir_all(&dir);
-    klappe_store::save(&dir, &project, None).unwrap();
-
-    Session::open(&dir).unwrap()
+    project
 }
 
 /// Median of `RUNS` runs of `work`.
@@ -290,6 +329,21 @@ fn a_large_plan_stays_fluid() {
     assert!(
         both < BUDGET * LIMIT_FACTOR,
         "{both:?} over {LIMIT_FACTOR}x the {BUDGET:?} budget"
+    );
+}
+
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn an_edit_beside_a_screenplay_stays_fluid() {
+    let mut s = big_session_with_book("perf-book");
+    assert!(s.pending_scenes().is_empty(), "every entry has its scene");
+
+    let edit = median(|| edit_and_undo(&mut s));
+    report("edit + undo beside a screenplay", edit);
+
+    assert!(
+        edit < BOOK_EDIT_BUDGET * LIMIT_FACTOR,
+        "{edit:?} over {LIMIT_FACTOR}x the {BOOK_EDIT_BUDGET:?} budget"
     );
 }
 
