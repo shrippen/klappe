@@ -147,28 +147,57 @@ pub(crate) fn draw_title(frame: &mut Frame, app: &App) {
     let Some(form) = &app.title else {
         return;
     };
-    let height = form.fields.len() + 4;
-    let area = centered(frame.area(), BOX_WIDTH, height);
+    let rows: usize = form
+        .fields
+        .iter()
+        .map(|f| field_lines(&f.shown).len())
+        .sum();
+    let area = centered(frame.area(), BOX_WIDTH, rows + 4);
     let block = framed(&app.texts.title_box);
     let inner = block.inner(area);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
 
+    // A field takes one row per line; the label stands on its first row.
+    let mut at = 0u16;
     for (i, field) in form.fields.iter().enumerate() {
         let label = app.texts.field_label(&field.key);
-        field_row(
-            frame,
-            row(inner, i as u16),
-            label,
-            &field.shown,
-            form.sel == i,
-        );
+        let lines = field_lines(&field.shown);
+        let height = lines.len() as u16;
+        let rect = Rect {
+            height,
+            ..row(inner, at)
+        };
+        field_rows(frame, rect, label, &lines, form.sel == i);
+        at += height;
     }
-    let hint = row(inner, form.fields.len() as u16 + 1);
+    let hint = row(inner, at + 1);
     frame.render_widget(
         Paragraph::new(app.texts.title_hint.as_str()).style(Style::new().fg(theme::MUTED)),
         hint,
     );
+}
+
+/// The lines of a field value; an empty or newline-ending value still has a last line.
+fn field_lines(value: &str) -> Vec<&str> {
+    value.split('\n').collect()
+}
+
+/// A field over several rows, the cursor at the end of the last line when active.
+fn field_rows(frame: &mut Frame, area: Rect, label: &str, lines: &[&str], active: bool) {
+    for (i, line) in lines.iter().enumerate() {
+        let shown_label = match i {
+            0 => label,
+            _ => "",
+        };
+        let rect = Rect {
+            y: area.y + i as u16,
+            height: 1,
+            ..area
+        };
+        let last = i + 1 == lines.len();
+        field_row(frame, rect, shown_label, line, active && last);
+    }
 }
 
 /// The PDF options: one on/off row each.

@@ -713,7 +713,7 @@
  "tui.find.hint": "Enter weiter  ^P zurück  ^R ersetzen  ^A alle  ^T Schreibung  Tab Feld  Esc zu",
  "tui.replaced": "{count} ersetzt",
  "tui.titleBox": "Titelseite",
- "tui.titleHint": "Tab weiter  Enter übernehmen  Esc abbrechen  ^U leeren",
+ "tui.titleHint": "Tab weiter  Enter übernehmen  Alt+Enter neue Zeile  Esc abbrechen  ^U leeren",
  "tui.help.book": "Ctrl+K           Szenen mit dem Buch abgleichen",
  "tui.mode.book": "BUCH",
  "tui.book.hint": "Hoch/Runter wählen  Enter antworten  Esc später",

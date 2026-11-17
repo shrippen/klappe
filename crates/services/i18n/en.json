@@ -713,7 +713,7 @@
  "tui.find.hint": "Enter next  ^P previous  ^R replace  ^A all  ^T case  Tab field  Esc close",
  "tui.replaced": "{count} replaced",
  "tui.titleBox": "Title page",
- "tui.titleHint": "Tab next  Enter apply  Esc cancel  ^U clear",
+ "tui.titleHint": "Tab next  Enter apply  Alt+Enter new line  Esc cancel  ^U clear",
  "tui.help.book": "Ctrl+K           Match scenes with the book",
  "tui.mode.book": "BOOK",
  "tui.book.hint": "Up/Down choose  Enter answer  Esc later",
