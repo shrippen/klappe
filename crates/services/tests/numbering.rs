@@ -225,7 +225,11 @@ fn the_default_scheme_is_not_written() {
 
     let header = std::fs::read_to_string(dir.join("projekt.toml")).unwrap();
 
-    assert!(!header.contains("numbering"), "{header}");
+    // `scene_numbering` (DB-33) is another key.
+    assert!(
+        !header.lines().any(|l| l.starts_with("numbering")),
+        "{header}"
+    );
 }
 
 #[test]
