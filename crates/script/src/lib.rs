@@ -4,21 +4,29 @@
 //! parses to the same elements. Parsing never fails: input that matches no other rule
 //! becomes an [`Element::Action`].
 
+mod align;
+mod anchor;
 mod assist;
+mod conflict;
 mod inline;
 mod pages;
 mod parse;
+mod quote;
 mod search;
+mod text;
 mod title;
 mod write;
 
+pub use align::{align, scene_states, Alignment, Fingerprint, Outcome, SceneState};
 pub use assist::{suggest, Context, Gap, Slot, Stage, Suggestions, Vocabulary};
+pub use conflict::conflict_line;
 pub use inline::{inline_runs, Marks, Run};
 pub use pages::{
     length_text, paginate, ContdAfterAction, Line, Page, PageKind, PageOptions, PageSize,
     Pagination, SceneLength, Words, TEXT_COLUMNS,
 };
 pub use parse::{parse, parse_located, title_page_lines};
+pub use quote::{find_quote, find_quotes, quote_at, Found, LineKind, Quote};
 pub use search::{find_all, replace_all, replace_line, Case, Hit, Query};
 pub use title::{set_title_fields, title_fields, TITLE_KEYS};
 pub use write::write;
