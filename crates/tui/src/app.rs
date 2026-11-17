@@ -96,6 +96,8 @@ pub struct App {
     pub(crate) focus: Focus,
     pub(crate) mode: Mode,
     pub(crate) notice: Option<Notice>,
+    /// What the register has to say about the book (`book_report_text`); empty when nothing.
+    pub(crate) book_note: String,
     /// Selected entry of the outline (an index into `analysis.outline`).
     pub(crate) list_sel: usize,
     /// Sections folded in the outline, by `fold_key`.
@@ -164,6 +166,7 @@ impl App {
             focus: Focus::Editor,
             mode: Mode::Normal,
             notice: None,
+            book_note: String::new(),
             list_sel: 0,
             collapsed: HashSet::new(),
             list_filter: String::new(),
@@ -190,6 +193,7 @@ impl App {
             last_key: None,
         };
         app.autosaved = app.editor.revision();
+        app.refresh_book_note();
         app.check_backup();
         app.recompute_pages();
         app.refresh();
@@ -223,6 +227,12 @@ impl App {
     /// The text as it is in the editor, saved or not.
     pub fn text(&self) -> String {
         self.editor.text()
+    }
+
+    fn refresh_book_note(&mut self) {
+        let report = self.session.book_report();
+
+        self.book_note = klappe_services::book_report_text(self.lang, &report);
     }
 
     pub fn is_modified(&self) -> bool {
@@ -529,6 +539,7 @@ impl App {
             Ok(()) => {
                 self.saved_revision = self.editor.revision();
                 self.links = Links::read(&mut self.session);
+                self.refresh_book_note();
                 Notice::Saved
             }
             Err(e) => Notice::SaveFailed(e.to_string()),

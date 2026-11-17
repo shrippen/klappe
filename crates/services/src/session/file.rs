@@ -13,7 +13,6 @@ impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
         let loaded = crate::load::load_project(dir)?;
-        let backup = check_backup(dir, &loaded);
         let script = loaded
             .script
             .as_deref()
@@ -26,7 +25,7 @@ impl Session {
             .position(|s| !s.plans.is_empty())
             .unwrap_or(0);
 
-        Ok(Self {
+        let mut session = Self {
             dir: dir.to_owned(),
             project: loaded.project,
             script_text: loaded.script,
@@ -47,14 +46,33 @@ impl Session {
             image_px: RefCell::new(HashMap::new()),
             unbacked: false,
             project_changed: false,
-            backup,
+            backup: BackupState::None,
             load_notes: loaded.notes,
             view: View::Plan,
             orbit: None,
             cut: klappe_stellprobe::Cut::Off,
             through: None,
             layout: None,
-        })
+            pending: Vec::new(),
+        };
+        session.reconcile();
+        session.scene = session
+            .project
+            .scenes
+            .iter()
+            .position(|s| !s.plans.is_empty())
+            .unwrap_or(0);
+
+        // Against the register as it follows the book: a backup that only differs by that is
+        // no unsaved work.
+        let reconciled = Loaded {
+            project: session.project.clone(),
+            script: session.script_text.clone(),
+            notes: session.load_notes.clone(),
+        };
+        session.backup = check_backup(dir, &reconciled);
+
+        Ok(session)
     }
 
     /// Creates an empty project titled `title` in `dir` (missing or empty) and opens it.
@@ -81,6 +99,8 @@ impl Session {
     /// Writes the project back to its folder and removes the backup. An unanswered backup
     /// (`Found`, `Unreadable`) stays, as with `autosave`: the user decides on it.
     pub fn save(&mut self) -> Result<(), ServiceError> {
+        // So the register holds the book as saved: the next outside change aligns against it.
+        self.reconcile();
         klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
         self.dirty = false;
         self.unbacked = false;
@@ -128,6 +148,7 @@ impl Session {
         if let Some(text) = loaded.script {
             self.set_script_text(&text);
         }
+        self.reconcile();
         self.keep_view_valid();
         self.end_stale_look();
         self.backup = BackupState::None;
@@ -141,11 +162,12 @@ impl Session {
         Ok(())
     }
 
-    /// Writes only the screenplay; every other file of the folder stays as it is on disk.
-    /// The backup then no longer holds the screenplay as unsaved work: it is removed if only
+    /// Writes only the screenplay; every other file of the folder stays as it is on disk, the
+    /// register too (it follows the book in memory and is written with the next `save`). The backup then no longer holds the screenplay as unsaved work: it is removed if only
     /// the screenplay was unsaved, else rewritten with the saved screenplay. An unanswered
     /// backup (`Found`, `Unreadable`) stays for the user to decide.
     pub fn save_script(&mut self) -> Result<(), ServiceError> {
+        self.reconcile();
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;
         if self.backup != BackupState::None {
@@ -177,6 +199,7 @@ impl Session {
         self.script = klappe_script::parse(text);
         self.script_text = Some(text.to_owned());
         self.touch();
+        self.refresh_pending();
     }
 }
 

@@ -469,6 +469,12 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
             app.texts.scene_of(i + 1, total)
         )));
     }
+    if !app.book_note.is_empty() {
+        spans.push(Span::styled(
+            format!("{GAP}{}", app.book_note),
+            Style::new().fg(theme::ACCENT),
+        ));
+    }
     spans.push(Span::raw(format!(
         "{GAP}{}:{}{GAP}",
         cursor.line + 1,

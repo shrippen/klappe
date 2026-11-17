@@ -9,6 +9,7 @@
 //!        └─► views: ShotRow, Track, ScriptLine  (plain data, ready to show)
 //! ```
 
+mod book;
 mod camera_edit;
 mod catalog;
 mod edit;
@@ -33,10 +34,11 @@ mod start;
 mod templates;
 mod views;
 
+pub use book::{BookReport, Candidate, Choice, PendingScene};
 pub use catalog::Language;
 pub use edit::ShotField;
 pub use error::ServiceError;
-pub use error_text::{error_text, load_notes_text};
+pub use error_text::{book_report_text, error_text, load_notes_text};
 pub use example::{copy_example, ensure_example};
 pub use export_format::ExportFormat;
 pub use field::Field;

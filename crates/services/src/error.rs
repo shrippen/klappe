@@ -10,6 +10,9 @@ pub enum ServiceError {
     Store(#[from] klappe_store::StoreError),
     #[error("no scene {0}")]
     NoScene(String),
+    /// The entry has no open question, or the scene is none of its candidates.
+    #[error("no open decision for scene {0}")]
+    NoDecision(String),
     #[error("no plan {0}")]
     NoPlan(String),
     #[error("there is no backup")]

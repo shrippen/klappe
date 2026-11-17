@@ -38,7 +38,12 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Ids (auch nur in der Groß-/Kleinschreibung) und Ids, die kein Dateiname sein können, ab;
   `heading` ist eine Zeile. Enthält `szenen.toml` Git-Konfliktmarken (`<<<<<<<` am Zeilenanfang) oder
   `drehbuch.fountain` eine vollständige Konfliktfolge (`<<<<<<<`, `=======`, `>>>>>>>`), lädt
-  das Projekt nicht und der Fehler nennt Datei und Zeile.
+  das Projekt nicht und der Fehler nennt Datei und Zeile. Nummer, Kopf, `state` und `prints`
+  folgen dem Buch: Beim Öffnen und Speichern gleicht Klappe die Einträge mit
+  `drehbuch.fountain` ab (`script/` `align`, verbunden in `services/`); mit Buch steht die Folge
+  im Text, Einträge ohne Szene im Buch (`not-in-book`, offene Fragen, Content Items) folgen
+  danach in ihrer Folge. Ein Eintrag ohne `prints` wird einmal nach Nummer, dann nach Kopf
+  zugeordnet. Nichts Neues wird gespeichert; eine offene Frage steht nur in der Sitzung.
 - **Papier:** `paper` in `projekt.toml`, z. B. `"a4-portrait"`: Größe (`a4`, `a3`, `letter`),
   Bindestrich, Ausrichtung (`portrait`, `landscape`). Das Blatt, auf dem zuletzt ausgegeben wurde;
   der Ausgabedialog beginnt damit. Fehlt der Schlüssel (und er wird bei `a4-landscape` nicht

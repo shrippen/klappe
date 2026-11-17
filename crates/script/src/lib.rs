@@ -30,6 +30,7 @@ pub use pages::{
 pub use parse::{parse, parse_located, title_page_lines};
 pub use quote::{find_quote, find_quotes, quote_at, Found, LineKind, Quote};
 pub use search::{find_all, replace_all, replace_line, Case, Hit, Query};
+pub use text::normal;
 pub use title::{set_title_fields, title_fields, TITLE_KEYS};
 pub use write::write;
 

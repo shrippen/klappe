@@ -719,7 +719,11 @@ fn a_refused_edit_takes_no_undo_step() {
 
 #[test]
 fn saves_and_loads_again() {
-    let mut s = open("manage-save");
+    // No book: with one, the removed scene 12 would come back from it (the register follows
+    // the book) and 13 would be one it does not hold.
+    let dir = open("manage-save").dir().to_owned();
+    std::fs::remove_file(dir.join("drehbuch.fountain")).unwrap();
+    let mut s = Session::open(&dir).unwrap();
     s.edit_project(add_location("Burghof")).unwrap();
     s.edit_project(add_character("Graf", "G")).unwrap();
     s.edit_project(add_scene("13", "burghof")).unwrap();

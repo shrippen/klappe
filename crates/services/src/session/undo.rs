@@ -146,6 +146,7 @@ impl Session {
         self.touch();
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
+        self.refresh_pending();
     }
 
     pub fn redo(&mut self) {
@@ -162,6 +163,7 @@ impl Session {
         self.touch();
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
+        self.refresh_pending();
     }
 
     /// Makes `step` the state and returns the one it replaces, for the other stack.

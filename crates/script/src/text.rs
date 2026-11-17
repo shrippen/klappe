@@ -6,7 +6,7 @@ const FNV_PRIME: u32 = 0x0100_0193;
 
 /// Lower case, runs of whitespace collapsed, dash variants equal and set off by spaces:
 /// `"INT.  Küche – Tag"`, `"int. küche - tag"` and `"INT. KÜCHE—TAG"` are equal.
-pub(crate) fn normal(text: &str) -> String {
+pub fn normal(text: &str) -> String {
     let mut spaced = String::with_capacity(text.len() + 8);
     for c in text.chars() {
         if c == '-' || DASHES.contains(&c) {
