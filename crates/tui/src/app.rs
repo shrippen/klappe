@@ -105,6 +105,10 @@ pub struct App {
     pub(crate) notice: Option<Notice>,
     /// What the register has to say about the book (`book_report_text`); empty when nothing.
     pub(crate) book_note: String,
+    /// Editor undo depth at each book answer that Ctrl+Z can take back, oldest first.
+    answered: Vec<usize>,
+    /// Editor revision at each taken-back answer that Ctrl+Y can do again.
+    unanswered: Vec<u64>,
     /// Selected entry of the outline (an index into `analysis.outline`).
     pub(crate) list_sel: usize,
     /// Sections folded in the outline, by `fold_key`.
@@ -176,6 +180,8 @@ impl App {
             mode: Mode::Normal,
             notice: None,
             book_note: String::new(),
+            answered: Vec::new(),
+            unanswered: Vec::new(),
             list_sel: 0,
             collapsed: HashSet::new(),
             list_filter: String::new(),
@@ -391,8 +397,8 @@ impl App {
         match c {
             'q' => self.ask_quit(),
             's' => self.save(),
-            'z' => self.edit_with(Editor::undo),
-            'y' => self.edit_with(Editor::redo),
+            'z' => self.undo(),
+            'y' => self.redo(),
             'g' => {
                 self.jump();
                 Flow::Continue
@@ -550,6 +556,10 @@ impl App {
 
     /// Writes the text through the session.
     fn save(&mut self) -> Flow {
+        // The register follows changed text without an undo step: answers before it stay.
+        if self.is_modified() {
+            self.forget_answers();
+        }
         self.session.set_script_text(&self.editor.text());
         self.notice = Some(match self.session.save_script() {
             Ok(()) => {

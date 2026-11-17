@@ -63,6 +63,19 @@ impl Editor {
         self.revision
     }
 
+    /// Notes the point between two edits where something else happened (a book answer): the
+    /// next edit starts a step of its own. Returns how many steps lie before the point.
+    pub(crate) fn mark_step(&mut self) -> usize {
+        self.last_edit = None;
+
+        self.undo_depth()
+    }
+
+    /// How many steps undo can take back.
+    pub(crate) fn undo_depth(&self) -> usize {
+        self.history.depth()
+    }
+
     /// Puts the cursor at a position.
     pub(crate) fn go_to(&mut self, pos: Pos) {
         self.cursor = self.buffer.clamp(pos);

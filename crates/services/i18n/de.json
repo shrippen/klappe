@@ -664,7 +664,7 @@
  "tui.stale": "veraltet",
  "tui.help.save": "Ctrl+S           Speichern",
  "tui.help.quit": "Ctrl+Q           Beenden (fragt bei Änderungen)",
- "tui.help.undo": "Ctrl+Z / Ctrl+Y  Rückgängig / Wiederholen",
+ "tui.help.undo": "Ctrl+Z / Ctrl+Y  Rückgängig / Wiederholen (auch Buchantwort)",
  "tui.help.focus": "F6               Fokus: Szenenliste / Text",
  "tui.help.goto": "Ctrl+P           Szene suchen und wechseln",
  "tui.help.list": "Ctrl+B           Szenenliste ein- / ausblenden",
