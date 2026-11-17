@@ -8,6 +8,7 @@ use klappe_stellprobe::{Cut, Orbit};
 use klappe_store::ImageStamp;
 
 use crate::error::{write_failed, ServiceError};
+use crate::field::Field;
 use crate::plan_edit::{Grid, Snapping};
 use undo::Snapshot;
 
@@ -23,6 +24,7 @@ mod playback;
 mod retime;
 mod saved;
 mod scene;
+mod script_pages;
 mod shots;
 mod sketch;
 mod templates;
@@ -177,6 +179,8 @@ pub struct Session {
     /// The 3D view's wall cut (LH-98) and the camera it looks through (LH-99), if any.
     cut: Cut,
     through: Option<Through>,
+    /// The screenplay as last laid out on pages (DN-02); only `paginate` changes it.
+    layout: Option<crate::script_pages::Layout>,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends
@@ -186,6 +190,18 @@ struct Through {
     scene: String,
     plan: String,
     camera: String,
+}
+
+/// A project title without the blanks at its ends; empty is refused.
+pub(crate) fn check_title(title: &str) -> Result<&str, ServiceError> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err(ServiceError::BadValue {
+            field: Field::Title,
+            value: String::new(),
+        });
+    }
+    Ok(title)
 }
 
 /// `dir` may be missing or an empty folder; anything else would mix the project with it.

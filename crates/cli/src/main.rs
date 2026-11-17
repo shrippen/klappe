@@ -7,13 +7,16 @@
 //!                   [--language de|en] [--format pdf|svg|png|csv|ods|xlsx|frames|camera|
 //!                                                shotpages|camerapages|shotfiles|camerafiles]
 //!                   [--camera <id>]
+//! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
+//!                       [--scene-numbers] [--header]
 //! ```
 
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
-    error_text, read_number, ExportFormat, ExportOptions, Field, Language, Orientation, Paper,
-    PaperSetup, Range, Sensor, Session, ShotOrder, Size, Unit,
+    error_text, read_number, ExportFormat, ExportOptions, Field, HeaderLine, Language, Orientation,
+    Paper, PaperSetup, Range, SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder,
+    Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -73,6 +76,34 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
+    /// The screenplay as PDF in Courier on A4 or US Letter, with a title page from the title
+    /// page keys (DB-70).
+    ScriptPdf {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// The PDF to write.
+        #[arg(long)]
+        out: PathBuf,
+        /// Paper of the pages; the project's own (A4 if never chosen) if left out.
+        #[arg(long, value_enum)]
+        paper: Option<PaperArg>,
+        /// Language of (MORE) and (CONT'D) when the project has none; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
+        /// Print the scene numbers at both sides of the headings.
+        #[arg(long)]
+        scene_numbers: bool,
+        /// Print title and draft date at the top of every page.
+        #[arg(long)]
+        header: bool,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum PaperArg {
+    A4,
+    Letter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -140,7 +171,71 @@ fn main() -> ExitCode {
 
             export(&job)
         }
+        Command::ScriptPdf {
+            project,
+            out,
+            paper,
+            language,
+            scene_numbers,
+            header,
+        } => {
+            let print = ScriptPrint {
+                scene_numbers: if scene_numbers {
+                    SceneNumbers::Shown
+                } else {
+                    SceneNumbers::Hidden
+                },
+                header: if header {
+                    HeaderLine::Title
+                } else {
+                    HeaderLine::Off
+                },
+                language: language_of(language),
+            };
+
+            script_pdf(&project, &out, paper, &print)
+        }
     }
+}
+
+/// Writes the screenplay; `paper` replaces the project's for this one PDF.
+fn script_pdf(
+    project: &Path,
+    out: &Path,
+    paper: Option<PaperArg>,
+    print: &ScriptPrint,
+) -> ExitCode {
+    let written = write_script_pdf(project, out, paper, print);
+
+    match written {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => {
+            eprintln!("klappe-cli: {message}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn write_script_pdf(
+    project: &Path,
+    out: &Path,
+    paper: Option<PaperArg>,
+    print: &ScriptPrint,
+) -> Result<(), String> {
+    let mut session = Session::open(project).map_err(|e| error_text(print.language, &e))?;
+    if let Some(paper) = paper {
+        // Only in memory: the CLI saves nothing.
+        let mut setup = session.project().script;
+        setup.paper = match paper {
+            PaperArg::A4 => ScriptPaper::A4,
+            PaperArg::Letter => ScriptPaper::Letter,
+        };
+        session.set_script_setup(setup);
+    }
+
+    session
+        .export_script_pdf(out, print)
+        .map_err(|e| error_text(print.language, &e))
 }
 
 fn fov(lens_mm: f64, sensor: &str) -> ExitCode {
@@ -297,6 +392,24 @@ mod tests {
         );
         assert_eq!(parse_sensor("-1"), None);
         assert_eq!(parse_sensor("imax"), None);
+    }
+
+    #[test]
+    fn the_screenplay_goes_to_a_pdf() {
+        let project = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+        let out = std::env::temp_dir().join("klappe-cli-script.pdf");
+        let print = ScriptPrint {
+            scene_numbers: SceneNumbers::Shown,
+            header: HeaderLine::Off,
+            language: Language::English,
+        };
+
+        let written = write_script_pdf(&project, &out, Some(PaperArg::Letter), &print);
+
+        assert_eq!(written, Ok(()));
+        let bytes = std::fs::read(&out).unwrap_or_default();
+        assert!(bytes.starts_with(b"%PDF"));
+        assert!(String::from_utf8_lossy(&bytes).contains("/MediaBox [0 0 612 792]"));
     }
 
     #[test]

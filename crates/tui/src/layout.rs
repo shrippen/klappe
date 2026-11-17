@@ -35,6 +35,8 @@ pub(crate) struct Row {
     pub indent: usize,
     /// The last row of its line; only there the cursor may stand behind the last character.
     pub last: bool,
+    /// A row of no text: the page break above `line`, starting this page (DB-30).
+    pub page: Option<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -98,20 +100,47 @@ fn col_offsets(chars: &[char]) -> Vec<usize> {
     out
 }
 
+/// Columns before a centered line that fits one row: half the room it leaves.
+fn centered_indent(line: &str, width: usize) -> usize {
+    width.saturating_sub(cols(line.trim().chars()) + 1) / 2
+}
+
 impl Layout {
-    pub(crate) fn build(lines: &[String], kinds: &[LineKind], width: usize) -> Self {
+    /// `breaks` are the pages of the last computation: `(line, page)`, ascending; the page
+    /// starts above the line, with a row of its own.
+    pub(crate) fn build(
+        lines: &[String],
+        kinds: &[LineKind],
+        width: usize,
+        breaks: &[(usize, usize)],
+    ) -> Self {
         let mut rows = Vec::new();
         let mut offsets = Vec::new();
         let mut first_row = Vec::with_capacity(lines.len());
 
         for (i, line) in lines.iter().enumerate() {
             let kind = kinds.get(i).copied().unwrap_or(LineKind::Action);
-            let indent = kind.indent().min(width / INDENT_SHARE);
+            let indent = match kind {
+                LineKind::Centered => centered_indent(line, width),
+                _ => kind.indent().min(width / INDENT_SHARE),
+            };
             // One column stays free for the cursor behind the last character.
             let room = width.saturating_sub(indent + 1).max(MIN_WRAP);
             let parts = wrap(line, room);
             let chars: Vec<char> = line.chars().collect();
             let count = parts.len();
+
+            for (_, page) in breaks.iter().filter(|(line, _)| *line == i) {
+                offsets.push(vec![0]);
+                rows.push(Row {
+                    line: i,
+                    start: 0,
+                    end: 0,
+                    indent: 0,
+                    last: false,
+                    page: Some(*page),
+                });
+            }
 
             first_row.push(rows.len());
             for (n, (start, end)) in parts.into_iter().enumerate() {
@@ -122,6 +151,7 @@ impl Layout {
                     end,
                     indent,
                     last: n + 1 == count,
+                    page: None,
                 });
             }
         }
@@ -172,6 +202,21 @@ impl Layout {
             .and_then(|o| o.last())
             .copied()
             .unwrap_or(0)
+    }
+
+    /// The row at `index`, or the next one in the direction of `delta` if it is a page
+    /// break: the cursor never stops there. `None` past the end.
+    pub(crate) fn text_row(&self, index: usize, delta: isize) -> Option<usize> {
+        let mut at = index;
+
+        while self.rows.get(at)?.page.is_some() {
+            at = match delta < 0 {
+                true => at.checked_sub(1)?,
+                false => at + 1,
+            };
+        }
+
+        Some(at)
     }
 
     /// Position at screen column `x` of a row, kept on that row.
@@ -233,7 +278,7 @@ mod tests {
 
     fn layout(lines: &[&str], kinds: &[LineKind], width: usize) -> Layout {
         let lines: Vec<String> = lines.iter().map(|s| (*s).to_owned()).collect();
-        Layout::build(&lines, kinds, width)
+        Layout::build(&lines, kinds, width, &[])
     }
 
     #[test]
@@ -264,6 +309,15 @@ mod tests {
         let l = layout(&["x"], &[LineKind::Character], 60);
 
         assert_eq!(l.row(0).map(|r| r.indent), Some(20));
+    }
+
+    #[test]
+    fn a_centered_line_stands_in_the_middle_and_a_long_one_at_the_edge() {
+        let l = layout(&["> ENDE <", &"x".repeat(80)], &[LineKind::Centered; 2], 40);
+
+        // "> ENDE <" is 8 columns: (40 - 9) / 2.
+        assert_eq!(l.row(0).map(|r| r.indent), Some(15));
+        assert_eq!(l.row(1).map(|r| r.indent), Some(0));
     }
 
     #[test]

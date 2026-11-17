@@ -35,7 +35,7 @@ pub(crate) enum Escape {
 }
 
 /// Prefixes of scene headings, longest first; each must be followed by `.` or a space.
-const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext", "est"];
+pub(crate) const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext", "est"];
 
 /// Parses Fountain text. Never fails; unknown input becomes `Element::Action`.
 pub fn parse(text: &str) -> Script {
@@ -70,6 +70,35 @@ pub fn parse_located(text: &str) -> Vec<Located> {
                 .collect(),
         })
         .collect()
+}
+
+/// Lines of `text` the title page takes, leading blank lines included; 0 without one. A
+/// block that ends at the end of the text counts its last line break as a line.
+///
+/// A line count of the typed text, so an editor can style those lines as the title page.
+pub fn title_page_lines(text: &str) -> usize {
+    title_page_span(text).map_or(0, |(_, end)| end)
+}
+
+/// The lines of `text` from the first key line of the title page to the end of its block
+/// (`start..end`), in typed lines, so what stands before it (a boneyard) is not in it.
+pub(crate) fn title_page_span(text: &str) -> Option<(usize, usize)> {
+    let (text, origin) = cut_boneyard(text);
+    let (title_page, body) = split_title_page(&text);
+    if title_page.is_empty() {
+        return None;
+    }
+
+    let skipped = text[..text.len() - body.len()].matches('\n').count();
+    let leading = text.len() - text.trim_start_matches(['\n', '\r']).len();
+    let first = text[..leading].matches('\n').count();
+    let total = origin.last().map_or(0, |last| last + 1);
+    let start = origin.get(first).copied().unwrap_or(total);
+    // The end is where the next line of the reader's text starts, so a boneyard that ends
+    // on the last title line is inside the span.
+    let end = origin.get(skipped + 1).copied().unwrap_or(total);
+
+    Some((start, end))
 }
 
 /// The text without boneyards and, for each of its lines, the line of the typed text

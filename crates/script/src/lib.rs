@@ -1,13 +1,26 @@
-//! Fountain screenplay parser and writer.
+//! Fountain screenplay parser and writer, and the layout of a screenplay on pages.
 //!
 //! `parse` turns Fountain text into a [`Script`]; `write` turns it back into text that
 //! parses to the same elements. Parsing never fails: input that matches no other rule
 //! becomes an [`Element::Action`].
 
+mod assist;
+mod inline;
+mod pages;
 mod parse;
+mod search;
+mod title;
 mod write;
 
-pub use parse::{parse, parse_located};
+pub use assist::{suggest, Context, Gap, Slot, Stage, Suggestions, Vocabulary};
+pub use inline::{inline_runs, Marks, Run};
+pub use pages::{
+    length_text, paginate, ContdAfterAction, Line, Page, PageKind, PageOptions, PageSize,
+    Pagination, SceneLength, Words, TEXT_COLUMNS,
+};
+pub use parse::{parse, parse_located, title_page_lines};
+pub use search::{find_all, replace_all, replace_line, Case, Hit, Query};
+pub use title::{set_title_fields, title_fields, TITLE_KEYS};
 pub use write::write;
 
 /// One block of a screenplay.

@@ -11,7 +11,7 @@ use super::images;
 use super::target::{target, Target};
 use super::{
     anchor_pair, carry_cameras, figure_mark, free_id, free_letter, move_to, points_mut, remove,
-    rotate, snap, turn, Grid, Scope, Snapping,
+    snap, turn, Grid, Scope, Snapping,
 };
 use crate::error::ServiceError;
 
@@ -65,7 +65,7 @@ pub(super) fn spin(
     };
 
     for (source, placing) in members.iter().zip(&placings) {
-        let to = rotate(placing.middle, centre, by_deg);
+        let to = placing.middle.turned(centre, by_deg);
         carry_cameras(scope, source, |s| {
             move_to(s, source, to)?;
             let Some(facing_deg) = placing.facing_deg else {

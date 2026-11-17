@@ -9,7 +9,7 @@
 //!                            builtin_templates, vorlagen.toml (the project's own templates)
 //! load_template_file, save_template_file ◄──► vorlagen.toml, or any template file to pass on
 //! write_atomic, write_tree, project_mtime, ..  whole-folder file operations (tree.rs)
-//! read_files, folder_size, free_sibling, move_to_trash      a folder as bytes, its size, a free name beside it, the system trash (folder.rs)
+//! read_files, folder_size, free_sibling, set_aside, move_to_trash   a folder as bytes, its size, a free name beside it, renamed to one, the system trash (folder.rs)
 //! ```
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
@@ -30,15 +30,15 @@ use std::path::{Path, PathBuf};
 use klappe_model::{
     is_figure_size_m, is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m,
     is_opening_width_m, is_outline, Character, Location, Numbering, ObjectShape, Opening,
-    PaperSetup, Project, SavedView, Scene, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP, MAX_OBJECT_M,
-    MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
+    PaperSetup, Project, SavedView, Scene, ScriptSetup, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
+    MAX_OBJECT_M, MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
 pub use camera::builtin_camera_presets;
 pub use error::StoreError;
 use files::{Dir, Kind};
-pub use folder::{folder_size, free_sibling, move_to_trash, read_files};
+pub use folder::{folder_size, free_sibling, move_to_trash, read_files, set_aside};
 pub use images::{add_image, image_size, image_stamp, is_image_path, read_image, ImageStamp};
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
@@ -88,6 +88,9 @@ struct Header {
     /// Left out while it is the default (LH-76).
     #[serde(default, skip_serializing_if = "is_default_numbering")]
     numbering: Numbering,
+    /// A table of its own, left out while it is the default.
+    #[serde(default, skip_serializing_if = "is_default_script")]
+    script: ScriptSetup,
     /// The saved views (LH-119), each an `[[ansicht]]`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     ansicht: Vec<SavedView>,
@@ -95,6 +98,10 @@ struct Header {
 
 fn is_default_numbering(numbering: &Numbering) -> bool {
     *numbering == Numbering::default()
+}
+
+fn is_default_script(script: &ScriptSetup) -> bool {
+    *script == ScriptSetup::default()
 }
 
 fn is_default_paper(paper: &PaperSetup) -> bool {
@@ -164,6 +171,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             title: header.title,
             paper: header.paper,
             numbering: header.numbering,
+            script: header.script,
             views: header.ansicht,
             characters: characters.figur,
             locations,
@@ -192,6 +200,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
         title: project.title.clone(),
         paper: project.paper,
         numbering: project.numbering,
+        script: project.script,
         ansicht: project.views.clone(),
     };
     let path = dir.join(PROJECT_FILE);

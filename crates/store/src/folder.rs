@@ -5,10 +5,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::error::StoreError;
-use crate::files::io_err;
+use crate::files::{self, io_err};
 
 /// Names tried beside a folder before `free_sibling` gives up: `a.zip`, `a (2).zip` ...
 const MAX_COPIES: u32 = 1000;
+
+/// Extension of a folder set aside.
+const ASIDE_EXT: &str = "alt";
 
 /// Every file below `dir` (the hidden backup too) as path inside the folder with `/` and
 /// bytes, sorted by path.
@@ -76,6 +79,15 @@ pub fn free_sibling(dir: &Path, ext: &str) -> Result<PathBuf, StoreError> {
         &first,
         std::io::Error::new(std::io::ErrorKind::AlreadyExists, "no free name"),
     ))
+}
+
+/// Renames the folder `dir` to a free name beside it (`<dir>.alt`, `<dir> (2).alt` ...) and
+/// returns that name; for a copy that must not be overwritten or deleted.
+pub fn set_aside(dir: &Path) -> Result<PathBuf, StoreError> {
+    let aside = free_sibling(dir, ASIDE_EXT)?;
+    files::rename(dir, &aside)?;
+
+    Ok(aside)
 }
 
 /// Moves `dir` to the system trash (freedesktop, Windows recycle bin, macOS trash).

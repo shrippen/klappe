@@ -1,23 +1,22 @@
 //! The text, the cursor and undo; no terminal in here.
 
 use crate::buffer::{Buffer, Pos};
+use crate::history::{Before, History};
 use crate::layout::Layout;
-
-/// Undo steps kept; older ones are dropped.
-const UNDO_LIMIT: usize = 200;
 
 /// What an edit does, so a run of typing or erasing undoes in one step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Edit {
+pub(crate) enum Edit {
     Insert,
     Erase,
     Break,
 }
 
-#[derive(Debug, Clone)]
-struct Snapshot {
-    buffer: Buffer,
-    cursor: Pos,
+/// Whether a typed character starts a new undo step (the first letter of a word).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Step {
+    Join,
+    New,
 }
 
 #[derive(Debug)]
@@ -26,8 +25,7 @@ pub(crate) struct Editor {
     cursor: Pos,
     /// Display column within the row that up/down keep; `None` until a vertical move.
     goal: Option<usize>,
-    undo: Vec<Snapshot>,
-    redo: Vec<Snapshot>,
+    history: History,
     last_edit: Option<Edit>,
     /// Counts every change of the text, undo and redo included.
     revision: u64,
@@ -43,8 +41,7 @@ impl Editor {
             buffer: Buffer::from_text(text),
             cursor: Pos::default(),
             goal: None,
-            undo: Vec::new(),
-            redo: Vec::new(),
+            history: History::default(),
             last_edit: None,
             revision: 0,
         }
@@ -66,6 +63,13 @@ impl Editor {
         self.revision
     }
 
+    /// Puts the cursor at a position.
+    pub(crate) fn go_to(&mut self, pos: Pos) {
+        self.cursor = self.buffer.clamp(pos);
+        self.goal = None;
+        self.last_edit = None;
+    }
+
     /// Puts the cursor at the start of a line.
     pub(crate) fn go_to_line(&mut self, line: usize) {
         self.cursor = self.buffer.clamp(Pos { line, col: 0 });
@@ -75,33 +79,42 @@ impl Editor {
 
     // --- editing -----------------------------------------------------------------
 
-    /// Saves the state for undo, unless this edit continues the one before.
-    fn record(&mut self, edit: Edit) {
-        self.revision += 1;
-        let joins = edit != Edit::Break && self.last_edit == Some(edit);
-        self.last_edit = Some(edit);
-        self.goal = None;
-        self.redo.clear();
-        if joins {
-            return;
-        }
+    /// Runs `change` on the buffer and records what it did for undo. Everything an edit can
+    /// touch lies within the line of the cursor and its neighbours; `replace_line` may
+    /// rewrite the cursor line afterwards, as part of the same step.
+    fn edit(&mut self, kind: Edit, step: Step, change: impl FnOnce(&mut Buffer, Pos) -> Pos) {
+        let window = self.buffer.window(self.cursor.line);
+        let before = Before::of(&self.buffer, window.start, window.end);
+        let from = self.cursor;
 
-        self.undo.push(self.snapshot());
-        if self.undo.len() > UNDO_LIMIT {
-            self.undo.remove(0);
-        }
+        self.cursor = change(&mut self.buffer, from);
+        let joins = step == Step::Join && kind != Edit::Break && self.last_edit == Some(kind);
+        self.last_edit = Some(kind);
+        self.finish(before, from, joins);
     }
 
-    fn snapshot(&self) -> Snapshot {
-        Snapshot {
-            buffer: self.buffer.clone(),
-            cursor: self.cursor,
-        }
+    fn finish(&mut self, before: Before, from: Pos, joins: bool) {
+        self.revision += 1;
+        self.goal = None;
+        self.history
+            .record(before, &self.buffer, (from, self.cursor), joins);
     }
 
     pub(crate) fn type_char(&mut self, c: char) {
-        self.record(Edit::Insert);
-        self.cursor = self.buffer.insert_char(self.cursor, c);
+        let at = self.cursor;
+        let after_space = at.col > 0
+            && self
+                .buffer
+                .line(at.line)
+                .chars()
+                .nth(at.col - 1)
+                .is_some_and(char::is_whitespace);
+        let step = match after_space && !c.is_whitespace() {
+            true => Step::New,
+            false => Step::Join,
+        };
+
+        self.edit(Edit::Insert, step, |b, p| b.insert_char(p, c));
     }
 
     /// Rewrites the cursor line as part of the edit just made, so undo takes both back.
@@ -110,16 +123,14 @@ impl Editor {
     }
 
     pub(crate) fn newline(&mut self) {
-        self.record(Edit::Break);
-        self.cursor = self.buffer.insert_newline(self.cursor);
+        self.edit(Edit::Break, Step::New, |b, p| b.insert_newline(p));
     }
 
     pub(crate) fn backspace(&mut self) {
         if self.cursor == Pos::default() {
             return;
         }
-        self.record(Edit::Erase);
-        self.cursor = self.buffer.backspace(self.cursor);
+        self.edit(Edit::Erase, Step::Join, |b, p| b.backspace(p));
     }
 
     pub(crate) fn delete(&mut self) {
@@ -128,29 +139,73 @@ impl Editor {
         if at_end {
             return;
         }
-        self.record(Edit::Erase);
-        self.buffer.delete(self.cursor);
+        self.edit(Edit::Erase, Step::Join, |b, p| {
+            b.delete(p);
+            p
+        });
+    }
+
+    /// Replaces lines `from..to` by `lines` and puts the cursor at `cursor`; one undo step.
+    /// For what is more than a keystroke: a suggestion taken, a replacement.
+    pub(crate) fn set_lines(&mut self, from: usize, to: usize, lines: Vec<String>, cursor: Pos) {
+        let before = Before::of(&self.buffer, from, to);
+        let start = self.cursor;
+        if before.is(&lines) {
+            // Nothing to take back: only the cursor moves.
+            self.go_to(cursor);
+            return;
+        }
+
+        self.buffer.splice(from, to, lines);
+        self.cursor = self.buffer.clamp(cursor);
+        self.last_edit = None;
+        self.finish(before, start, false);
+    }
+
+    /// Replaces the whole text, as one undo step that spans only the lines that differ.
+    pub(crate) fn set_text(&mut self, text: &str) {
+        let new = Buffer::from_text(text);
+        let old = self.buffer.lines();
+        let (new_lines, old_len) = (new.lines(), old.len());
+
+        let same_head = old
+            .iter()
+            .zip(new_lines)
+            .take_while(|(a, b)| a == b)
+            .count();
+        let room = old_len.min(new_lines.len()) - same_head;
+        let same_tail = old
+            .iter()
+            .rev()
+            .zip(new_lines.iter().rev())
+            .take(room)
+            .take_while(|(a, b)| a == b)
+            .count();
+        if same_head == old_len && old_len == new_lines.len() {
+            return;
+        }
+
+        let changed = new_lines[same_head..new_lines.len() - same_tail].to_vec();
+        let cursor = self.cursor;
+        self.set_lines(same_head, old_len - same_tail, changed, cursor);
     }
 
     pub(crate) fn undo(&mut self) {
-        let Some(step) = self.undo.pop() else {
+        let Some(cursor) = self.history.undo(&mut self.buffer) else {
             return;
         };
-        self.redo.push(self.snapshot());
-        self.restore(step);
+        self.after_history(cursor);
     }
 
     pub(crate) fn redo(&mut self) {
-        let Some(step) = self.redo.pop() else {
+        let Some(cursor) = self.history.redo(&mut self.buffer) else {
             return;
         };
-        self.undo.push(self.snapshot());
-        self.restore(step);
+        self.after_history(cursor);
     }
 
-    fn restore(&mut self, step: Snapshot) {
-        self.buffer = step.buffer;
-        self.cursor = step.cursor;
+    fn after_history(&mut self, cursor: Pos) {
+        self.cursor = self.buffer.clamp(cursor);
         self.goal = None;
         self.last_edit = None;
         self.revision += 1;
@@ -261,9 +316,10 @@ impl Editor {
 
         let last = layout.len().saturating_sub(1);
         let to = from.saturating_add_signed(delta).min(last);
-        if to == from {
+        // A page break row is no place for the cursor; go on past it, or stay.
+        let Some(to) = layout.text_row(to, delta).filter(|&to| to != from) else {
             return;
-        }
+        };
 
         let x = self
             .goal
@@ -285,7 +341,7 @@ mod tests {
 
     fn layout_of(ed: &Editor, width: usize) -> Layout {
         let kinds = vec![LineKind::Action; ed.lines().len()];
-        Layout::build(ed.lines(), &kinds, width)
+        Layout::build(ed.lines(), &kinds, width, &[])
     }
 
     fn typed(ed: &mut Editor, text: &str) {
@@ -381,6 +437,87 @@ mod tests {
         ed.redo();
         assert_eq!(ed.text(), "abc\nde");
         assert_eq!(ed.cursor(), at(1, 2));
+    }
+
+    #[test]
+    fn typing_undoes_by_word() {
+        let mut ed = Editor::new("");
+        typed(&mut ed, "ab cd  ef");
+
+        ed.undo();
+        assert_eq!(ed.text(), "ab cd  ");
+        ed.undo();
+        assert_eq!(ed.text(), "ab ");
+        ed.undo();
+        assert_eq!(ed.text(), "");
+    }
+
+    #[test]
+    fn undo_has_no_fixed_limit() {
+        let mut ed = Editor::new("");
+        for _ in 0..1000 {
+            ed.newline();
+        }
+        assert_eq!(ed.history.depth(), 1000);
+
+        for _ in 0..1000 {
+            ed.undo();
+        }
+        assert_eq!(ed.text(), "");
+        for _ in 0..1000 {
+            ed.redo();
+        }
+        assert_eq!(ed.lines().len(), 1001);
+    }
+
+    #[test]
+    fn a_step_keeps_lines_not_the_text() {
+        let text = "x\n".repeat(5000);
+        let mut ed = Editor::new(&text);
+        ed.go_to_line(2500);
+        typed(&mut ed, "ab");
+        ed.newline();
+
+        // Steps hold the lines around the cursor, however long the text is.
+        let kept: usize = ed.history.lines_kept();
+        assert!(kept < 20, "{kept}");
+        ed.undo();
+        ed.undo();
+        assert_eq!(ed.text(), text);
+    }
+
+    #[test]
+    fn erasing_across_lines_is_one_step_and_undoes_exactly() {
+        let mut ed = Editor::new("one\ntwo\nthree\nfour");
+        ed.go_to_line(3);
+        ed.backspace();
+        ed.backspace();
+        ed.backspace();
+        assert_eq!(ed.text(), "one\ntwo\nthrfour");
+
+        ed.undo();
+        assert_eq!(ed.text(), "one\ntwo\nthree\nfour");
+        assert_eq!(ed.cursor(), at(3, 0));
+        ed.redo();
+        assert_eq!(ed.text(), "one\ntwo\nthrfour");
+        assert_eq!(ed.cursor(), at(2, 3));
+    }
+
+    #[test]
+    fn set_lines_is_one_step_and_set_text_spans_the_difference() {
+        let mut ed = Editor::new("a\nb\nc\nd\ne");
+        ed.set_text("a\nB\nB2\nd\ne");
+        assert_eq!(ed.text(), "a\nB\nB2\nd\ne");
+        assert_eq!(ed.history.lines_kept(), 2 + 2);
+
+        ed.undo();
+        assert_eq!(ed.text(), "a\nb\nc\nd\ne");
+        ed.redo();
+        assert_eq!(ed.text(), "a\nB\nB2\nd\ne");
+
+        let r = ed.revision();
+        ed.set_text("a\nB\nB2\nd\ne");
+        assert_eq!(ed.revision(), r);
     }
 
     #[test]

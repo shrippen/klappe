@@ -8,19 +8,14 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::{Field, ServiceError};
+use crate::session::check_title;
+use crate::ServiceError;
 
 const ARCHIVE_EXT: &str = "zip";
 
 /// Gives the project in `dir` the title `title`; the folder keeps its name.
 pub fn rename_project(dir: &Path, title: &str) -> Result<(), ServiceError> {
-    let title = title.trim();
-    if title.is_empty() {
-        return Err(ServiceError::BadValue {
-            field: Field::Title,
-            value: String::new(),
-        });
-    }
+    let title = check_title(title)?;
 
     let mut loaded = klappe_store::load(dir)?;
     loaded.project.title = title.to_owned();

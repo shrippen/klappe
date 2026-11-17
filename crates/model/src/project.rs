@@ -5,6 +5,7 @@ use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
 use crate::plan::FloorPlan;
 use crate::saved_view::SavedView;
+use crate::script_setup::ScriptSetup;
 use crate::shot::Numbering;
 use crate::template::Template;
 
@@ -33,6 +34,9 @@ pub struct Project {
     /// How the shots are numbered (LH-76).
     #[serde(default)]
     pub numbering: Numbering,
+    /// How the screenplay is paged and printed (DB-30, DB-31).
+    #[serde(default)]
+    pub script: ScriptSetup,
 }
 
 impl Project {
@@ -47,6 +51,7 @@ impl Project {
             views: Vec::new(),
             paper: PaperSetup::default(),
             numbering: Numbering::default(),
+            script: ScriptSetup::default(),
         }
     }
 
