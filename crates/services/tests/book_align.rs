@@ -353,3 +353,26 @@ fn a_choice_made_before_the_book_moved_is_refused() {
 fn rewritten_second() -> String {
     rewritten().split_off(saal("1").len())
 }
+
+#[test]
+fn content_evidence_ranks_before_a_first_run_agreement() {
+    let dir = settled("book-rank", two(), &(saal("1") + &hof("2")));
+    // An entry that never met a book, number and heading equal to the rewritten scene's.
+    let loaded = klappe_store::load(&dir).unwrap();
+    let mut project = loaded.project;
+    project.scenes.push(Scene {
+        state: BookState::NotInBook,
+        ..entry("cccc", "3", HOF)
+    });
+    klappe_store::save(&dir, &project, None).unwrap();
+    let rewritten = format!("{HOF} #3#\n\nEin Hund bellt im Hof.\n\nBERT\nGanz neue Rede.\n\n");
+    rewrite_book(&dir, &(saal("1") + &rewritten));
+
+    let s = Session::open(&dir).unwrap();
+
+    let asked: Vec<&str> = s.pending_scenes().iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(asked, ["bbbb", "cccc"]);
+    assert_eq!(scene(&s, "bbbb").state, BookState::InBook);
+    assert!(scene(&s, "cccc").prints.is_empty());
+    assert_eq!(s.project().scenes.len(), 3, "no entry for the candidate");
+}

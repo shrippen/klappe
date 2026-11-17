@@ -83,7 +83,9 @@ fn fingerprint_of(print: &Print) -> Fingerprint {
     }
 }
 
-/// What the register remembers of an entry, as the alignment takes it.
+/// What the register remembers of an entry, as the alignment takes it. The heading print (the
+/// first of `Scene::prints`) is dropped: every reader of register prints must do the same, or
+/// positions among the prints (`Quote::at`) are off by one.
 fn state_of(scene: &Scene) -> SceneState {
     let some = |text: &str| (!text.is_empty()).then(|| text.to_owned());
     // The heading is the alignment's own first token: not one of the lines.
@@ -180,11 +182,21 @@ impl Plan {
     /// An entry that never met a book has nothing but number and heading to go by, and they
     /// never confirm alone (DATENMODELL §4): it is matched only if both agree with one scene
     /// of the book and with no other entry. Otherwise it is asked about, with the scenes that
-    /// agree in either, or missing if none does.
+    /// agree in either, or missing if none does. Content ranks first: a scene that is a
+    /// candidate of an entry with prints is never taken silently, the entry is asked about
+    /// too.
     fn first_run(&mut self, project: &Project, first: &[usize]) {
         let taken = self.matched();
-        let free: Vec<usize> = (0..self.book.len())
+        let open: Vec<usize> = (0..self.book.len())
             .filter(|n| has_heading(&self.book[*n]) && !taken.contains(n))
+            .collect();
+        let claimed: HashSet<usize> = self
+            .fates
+            .iter()
+            .flat_map(|(_, fate)| match fate {
+                Fate::Pending(found) => found.clone(),
+                _ => Vec::new(),
+            })
             .collect();
 
         for &entry in first {
@@ -192,7 +204,7 @@ impl Plan {
             let both = |n: &usize| {
                 same_number(scene, &self.book[*n]) && same_heading(scene, &self.book[*n])
             };
-            let exact: Vec<usize> = free.iter().copied().filter(both).collect();
+            let exact: Vec<usize> = open.iter().copied().filter(both).collect();
             let twins = first
                 .iter()
                 .map(|&e| &project.scenes[e])
@@ -201,14 +213,16 @@ impl Plan {
                 })
                 .count();
             if let ([only], 1) = (&exact[..], twins) {
-                self.fates.push((entry, Fate::Matched(*only)));
-                continue;
+                if !claimed.contains(only) {
+                    self.fates.push((entry, Fate::Matched(*only)));
+                    continue;
+                }
             }
 
             let agree = |n: &&usize| {
                 same_number(scene, &self.book[**n]) || same_heading(scene, &self.book[**n])
             };
-            let mut found: Vec<usize> = free.iter().filter(agree).copied().collect();
+            let mut found: Vec<usize> = open.iter().filter(agree).copied().collect();
             found.sort_by_key(|n| !exact.contains(n));
             self.fates.push((entry, Fate::Pending(found)));
         }
