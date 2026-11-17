@@ -124,6 +124,7 @@ fn object(i: usize) -> SetObject {
         shape: Default::default(),
         height_m: None,
         base_m: None,
+        mirrored: false,
     }
 }
 

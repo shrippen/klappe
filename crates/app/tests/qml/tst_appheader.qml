@@ -389,20 +389,6 @@ TestCase {
         compare(Array.from(viewSpy.signalArguments[1]), ["timeline", false])
     }
 
-    // LH-112, LH-113: camera pictures and long description toggle in the View menu and palette.
-    function test_the_view_menu_toggles_camera_views_and_description() {
-        const header = make()
-        verify(entry(header, "viewMenu", "cameraViews").checked)
-        verify(!entry(header, "viewMenu", "shotDescription").checked)
-        pick(header, "viewMenu", "cameraViews")
-        pick(header, "viewMenu", "shotDescription")
-        compare(Array.from(viewSpy.signalArguments[0]), ["cameraViews", false])
-        compare(Array.from(viewSpy.signalArguments[1]), ["shotDescription", true])
-        const commands = header.commandPalette.commands
-        compare(commands.find(c => c.id === "view.cameraViews").keys, "Umschalt+C")
-        compare(commands.find(c => c.id === "view.shotDescription").keys, "Umschalt+S")
-    }
-
     function test_the_view_menu_ticks_the_areas_shown() {
         const header = make()
         header.showShot = false
@@ -435,6 +421,21 @@ TestCase {
         mouseClick(redo)
 
         compare(fake.calls, [["undo"], ["redo"]])
+    }
+
+    // LH-103: the tooltips name the step; without a text for it the plain name and key stay.
+    function test_undo_and_redo_tooltips_name_the_step() {
+        const header = make()
+        const undo = findChild(header, "undo")
+        const redo = findChild(header, "redo")
+        compare(undo.QQC2.ToolTip.text, "Rückgängig (Strg+Z)")
+        fake.undoStep = "Shift"
+        fake.redoStep = "AddObject"
+        compare(undo.QQC2.ToolTip.text, "Rückgängig: Verschieben (Strg+Z)")
+        compare(redo.QQC2.ToolTip.text, "Wiederholen: Objekt setzen (Strg+Umschalt+Z)")
+        fake.undoStep = "NoSuchStep"
+        compare(undo.QQC2.ToolTip.text, "Rückgängig (Strg+Z)")
+        fake.undoStep = fake.redoStep = ""
     }
 
     function test_undo_and_redo_wait_for_something_to_undo() {

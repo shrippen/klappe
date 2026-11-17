@@ -16,6 +16,7 @@ fn refused(field: Field, value: String) -> ServiceError {
 pub(super) fn edit_height(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
     match edit {
         PlanEdit::SetWallHeight { source, height_m } => set_wall(scope, source, *height_m),
+        PlanEdit::SetObjectHeight { source, height_m } => set_height(scope, source, *height_m),
         PlanEdit::SetObjectBase { source, base_m } => set_base(scope, source, *base_m),
         PlanEdit::SetOpeningSill { source, sill_m } => set_sill(scope, source, *sill_m),
         PlanEdit::SetOpeningHead { source, head_m } => set_head(scope, source, *head_m),
@@ -38,6 +39,25 @@ fn set_wall(
         .ok_or(ServiceError::Gone)?;
 
     wall.height_m = height_m;
+
+    Ok(())
+}
+
+fn set_height(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    height_m: Option<f64>,
+) -> Result<(), ServiceError> {
+    let Source::Object(id) = source else {
+        return Err(refused(Field::Source, String::new()));
+    };
+    let object = scope
+        .set
+        .as_deref_mut()
+        .and_then(|s| s.objects.iter_mut().find(|o| o.id == *id))
+        .ok_or(ServiceError::Gone)?;
+
+    object.height_m = height_m;
 
     Ok(())
 }

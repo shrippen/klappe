@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::curve::Curve;
 use crate::drawing_style::{Dash, Fill};
 use crate::geometry::Point;
-use crate::project::FigureColor;
+use crate::project::{FigureColor, Note};
 use crate::shot::Shot;
 use crate::sketch::Sketch;
 
@@ -31,6 +31,9 @@ pub struct FloorPlan {
     /// Lines, arrows and shapes drawn on the plan by hand (LH-19).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub drawings: Vec<Drawing>,
+    /// Notes bound to a figure or mark of this plan (LH-118); they go with the plan.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<Note>,
     /// Freehand strokes of the sketch pen, over everything else (LH-120).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sketches: Vec<Sketch>,
@@ -55,6 +58,7 @@ impl FloorPlan {
             links: Vec::new(),
             axis: None,
             drawings: Vec::new(),
+            labels: Vec::new(),
             sketches: Vec::new(),
         }
     }

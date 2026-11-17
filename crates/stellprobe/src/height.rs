@@ -98,6 +98,7 @@ mod tests {
             shape: ObjectShape::Rect,
             height_m,
             base_m: None,
+            mirrored: false,
         }
     }
 

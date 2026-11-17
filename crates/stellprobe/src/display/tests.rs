@@ -7,6 +7,7 @@ use klappe_model::{
 };
 
 mod drawings;
+mod labels;
 
 fn project() -> Project {
     let mut p = Project::new("Test");
@@ -245,6 +246,7 @@ fn notes_come_last_with_their_text() {
         at: Point::new(3.0, 4.0),
         text: "Vorhang schließen".into(),
         width_m: 2.4,
+        bound: None,
     }];
 
     let list = render(&project(), &room, &plan(), 0.0, &|_| None);
@@ -346,6 +348,7 @@ fn objects_turn_clockwise() {
         shape: ObjectShape::Rect,
         height_m: None,
         base_m: None,
+        mirrored: false,
     };
     let corners = object_corners(&o);
 
@@ -365,6 +368,7 @@ fn object(kind: &str, shape: ObjectShape, rotation_deg: f64) -> SetObject {
         shape,
         height_m: None,
         base_m: None,
+        mirrored: false,
     }
 }
 

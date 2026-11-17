@@ -2,11 +2,12 @@
 //! changing a note's text, which shares the note rules.
 
 use klappe_model::{
-    is_outline, outline_box, Arrival, Camera, CameraMark, Dash, Departure, Drawing, DrawingShape,
-    FigureColor, FigureTrack, Fill, Light, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject,
-    Wall, FREE_FORM_KIND, NOTE_WIDTH_M,
+    is_outline, outline_box, Arrival, Camera, CameraMark, Departure, Drawing, DrawingShape,
+    FigureTrack, Light, Mark, Note, ObjectShape, Point, Pose, Sensor, SetObject, Wall,
+    FREE_FORM_KIND, NOTE_WIDTH_M,
 };
 
+use super::bound::note_mut;
 use super::marks::WALK_SPEED_M_S;
 use super::{normalize_deg, PlanEdit, Scope};
 use crate::error::ServiceError;
@@ -246,6 +247,7 @@ pub(super) fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result
         shape,
         height_m,
         base_m: None,
+        mirrored: false,
     });
 
     Ok(())
@@ -293,6 +295,7 @@ fn add_shape(scope: &mut Scope<'_>, points: &[Point]) -> Result<(), ServiceError
         shape: ObjectShape::Polygon { points },
         height_m: None,
         base_m: None,
+        mirrored: false,
     });
 
     Ok(())
@@ -340,7 +343,7 @@ fn room_corners(from: Point, to: Point) -> Vec<Point> {
 }
 
 /// A note's text as kept: trimmed, and more than nothing.
-fn note_text(text: &str) -> Result<String, ServiceError> {
+pub(super) fn note_text(text: &str) -> Result<String, ServiceError> {
     let text = text.trim();
     if text.is_empty() {
         return Err(ServiceError::BadValue {
@@ -365,6 +368,7 @@ pub(super) fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(
         at,
         text,
         width_m: NOTE_WIDTH_M,
+        bound: None,
     });
 
     Ok(())
@@ -372,11 +376,7 @@ pub(super) fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(
 
 pub(super) fn edit_note(scope: &mut Scope<'_>, id: &str, text: &str) -> Result<(), ServiceError> {
     let text = note_text(text)?;
-    let note = scope
-        .set
-        .as_deref_mut()
-        .and_then(|s| s.notes.iter_mut().find(|n| n.id == id))
-        .ok_or(ServiceError::Gone)?;
+    let note = note_mut(scope, id).ok_or(ServiceError::Gone)?;
     note.text = text;
 
     Ok(())
@@ -402,11 +402,17 @@ pub(super) fn check_drawable(shape: &DrawingShape) -> Result<(), ServiceError> {
     })
 }
 
-pub(super) fn add_drawing(
-    scope: &mut Scope<'_>,
-    shape: &DrawingShape,
-    (color, dash, fill): (FigureColor, Dash, Fill),
-) -> Result<(), ServiceError> {
+/// Applies `AddDrawing`; any other edit is none of its business.
+pub(super) fn add_drawing(scope: &mut Scope<'_>, edit: &PlanEdit) -> Result<(), ServiceError> {
+    let PlanEdit::AddDrawing {
+        shape,
+        color,
+        dash,
+        fill,
+    } = edit
+    else {
+        return Ok(());
+    };
     check_drawable(shape)?;
 
     let id = free_id("d", scope.plan.drawings.iter().map(|d| d.id.as_str()));
@@ -414,9 +420,9 @@ pub(super) fn add_drawing(
     scope.plan.drawings.push(Drawing {
         id,
         shape: shape.clone(),
-        color,
-        dash,
-        fill,
+        color: *color,
+        dash: *dash,
+        fill: *fill,
         rotation_deg: 0.0,
     });
 

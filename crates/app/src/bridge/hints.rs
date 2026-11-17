@@ -179,6 +179,28 @@ mod tests {
         assert_eq!(describe(&s, "object:o99"), json!({}));
     }
 
+    /// LH-115, LH-118: the card reads whether the object is mirrored and the note bound.
+    #[test]
+    fn describe_gives_mirrored_and_bound() {
+        use klappe_services::{ObjectChange, PlanEdit};
+
+        let mut s = example();
+        let table = Source::Object("tisch".into());
+        let edit = |source: &Source, change| PlanEdit::SetObject {
+            source: source.clone(),
+            change,
+        };
+
+        assert_eq!(describe(&s, "object:tisch")["mirrored"], false);
+        s.edit_plan(edit(&table, ObjectChange::Mirror)).unwrap();
+        assert_eq!(describe(&s, "object:tisch")["mirrored"], true);
+
+        s.edit_plan(edit(&table, ObjectChange::Label("Gedeck".into())))
+            .unwrap();
+        assert_eq!(describe(&s, "note:n2")["bound"], true);
+        assert_eq!(describe(&s, "note:n1")["bound"], false);
+    }
+
     /// The camera card starts from what the selected camera has now, and offers the presets.
     #[test]
     fn describe_gives_the_cameras_body_and_frame() {
@@ -225,11 +247,11 @@ mod tests {
         assert_eq!(describe(&s, "light:x"), json!({}));
         assert_eq!(
             describe(&s, "note:n1"),
-            json!({ "kind": "note", "text": "Vorhang schließen" })
+            json!({ "kind": "note", "text": "Vorhang schließen", "bound": false })
         );
         assert_eq!(
             describe(&s, "note:x"),
-            json!({ "kind": "note", "text": "" })
+            json!({ "kind": "note", "text": "", "bound": false })
         );
         assert_eq!(
             describe(&s, "figure:elisabeth"),
@@ -243,7 +265,7 @@ mod tests {
             describe(&s, "object:tisch"),
             json!({
                 "kind": "object", "label": "Tafel", "library": "table", "width": 6.0,
-                "depth": 1.2, "height": null, "base": 0.0, "baseDefault": true,
+                "depth": 1.2, "height": null, "base": 0.0, "baseDefault": true, "mirrored": false,
             })
         );
     }

@@ -10,8 +10,9 @@ the owner's machine has the rules through the global `CLAUDE.md` already and rea
 
 ## Zweck
 Film-Vorproduktionssuite (Linux zuerst, dann Windows, macOS). Erstes Modul **Stellprobe**:
-Floorplans mit Blocking, Kameras, Licht, 180°-Achse, Shotliste. Später Drehbuch (Fountain,
-TUI) und Planung. Anforderungen: `planung/stellprobe/LASTENHEFT.md` (Clean Room, Anhang A);
+Floorplans mit Blocking, Kameras, Licht, 180°-Achse, Shotliste. Dazu Drehbuch (Fountain, TUI
+und Fenster); später Storyboard, Breakdown, Besetzung/Team, Drehplan, Dispo. Teilbereiche und
+gemeinsame Daten: `planung/DATENMODELL.md`. Anforderungen: `planung/stellprobe/LASTENHEFT.md` (Clean Room, Anhang A);
 Technik und Entscheidungen: `planung/KONZEPT.md`; Arbeitsstand: `planung/STAND.md`.
 
 Implementierung: Rust (Cargo-Workspace), GUI in QML (Kirigami + Kante) über cxx-qt, TUI mit

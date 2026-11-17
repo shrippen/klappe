@@ -10,6 +10,8 @@ QtObject {
     property bool dirty: false
     property bool canUndo: true
     property bool canRedo: true
+    property string undoStep: ""
+    property string redoStep: ""
     property bool hasBackground: false
     property bool viewFree: false
     property int freeRevision: 0
@@ -17,6 +19,12 @@ QtObject {
     // Not a property: reading one would bind the header to it, as the real call does not.
     readonly property var state: ({ look: "" })
     property int missingHeights: 0
+    property string choicesJson: JSON.stringify({ object: [{ kind: "table", custom: false, group: "furniture" }, { kind: "sofa", custom: false, group: "furniture" }] })
+    // The bound note of the selection, for `describe`.
+    property bool noteBound: false
+    function describe(key) { return JSON.stringify({ kind: "note", bound: noteBound }) }
+    function changeSelected(what, arg) { return call("changeSelected", [what, arg]) }
+    function labelSelected() { return call("labelSelected", []) }
     property var calls: []
     property var scenes: [
         { id: "s12", number: "12", heading: "INT. SÄNGERSAAL – TAG" },

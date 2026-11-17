@@ -59,6 +59,7 @@ mod tests {
             shape,
             height_m: Some(1.0),
             base_m: None,
+            mirrored: false,
         }
     }
 

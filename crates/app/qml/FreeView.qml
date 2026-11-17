@@ -132,11 +132,17 @@ Item {
     }
 
     // Looking through a camera: how to leave it.
+    /// How far the cards of the tools at the bottom of the plan reach up: the label stands above.
+    property real cardsLift: 0
+    /// The room the label takes at the bottom, with its margin; 0 while it is hidden.
+    readonly property real throughHeight: through.visible ? through.height + Kirigami.Units.largeSpacing : 0
     QQC2.Label {
+        id: through
         objectName: "freeThrough"
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.margins: Kirigami.Units.largeSpacing
+        anchors.bottomMargin: Kirigami.Units.largeSpacing + view.cardsLift
         visible: view.look.split(" ").includes("camera")
         color: KanteStyle.mutedTextColor
         style: Text.Outline

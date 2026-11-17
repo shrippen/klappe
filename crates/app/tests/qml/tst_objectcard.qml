@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import QtQuick.Controls as QQC2
 import "../../qml"
 import "FieldLabels.js" as FieldLabels
 
@@ -27,6 +28,13 @@ TestCase {
         property bool baseOk: true
         property var filed: []
         property bool fileOk: true
+        property var changes: []
+        property int labels: 0
+        property string choicesJson: JSON.stringify({ object: [
+            { kind: "table", custom: false, group: "furniture" },
+            { kind: "sofa", custom: false, group: "furniture" },
+            { kind: "thron", custom: true, label: "Thron", group: "" }
+        ] })
 
         function describe(key) {
             if (key === "object:o1") {
@@ -34,6 +42,9 @@ TestCase {
             }
             if (key === "object:o2") {
                 return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8, base: 0.4, baseDefault: false })
+            }
+            if (key === "object:o4") {
+                return JSON.stringify({ kind: "object", label: "", library: "sofa", width: 2, depth: 0.9, height: 0.85, base: 0, baseDefault: true, mirrored: true })
             }
             if (key === "object:o3") {
                 return JSON.stringify({ kind: "object", label: "", library: "zeppelin", width: 12, depth: 3, height: null, base: 0, baseDefault: true })
@@ -51,6 +62,14 @@ TestCase {
         function setSelectedField(field, text) {
             bases.push([field, text])
             return baseOk
+        }
+        function changeSelected(what, arg) {
+            changes.push([what, arg])
+            return true
+        }
+        function labelSelected() {
+            labels++
+            return true
         }
         function saveToLibrary(name) {
             filed.push(name)
@@ -79,6 +98,8 @@ TestCase {
         fake.baseOk = true
         fake.filed = []
         fake.fileOk = true
+        fake.changes = []
+        fake.labels = 0
     }
 
     function make() {
@@ -400,6 +421,68 @@ TestCase {
         for (const objectName in names) {
             verify(labels.indexOf(names[objectName]) >= 0, names[objectName] + " in " + labels)
             compare(findChild(card, objectName).Accessible.name, names[objectName])
+        }
+    }
+
+    // LH-114: the kind is a list of the library under "More"; the object's own kind is picked, a
+    // pick changes the kind, and a free form or an unknown kind picks none.
+    function test_the_kind_list_shows_the_kind_and_a_pick_changes_it() {
+        const card = make()
+        const box = findChild(card, "kindBox")
+        card.expanded = true
+
+        fake.selectedKey = "object:o1"
+        compare(box.currentText, "Tisch")
+        fake.selectedKey = "object:o2"
+        compare(box.currentText, "Thron")
+        fake.selectedKey = "object:o3"
+        compare(box.currentIndex, -1)
+
+        fake.selectedKey = "object:o1"
+        box.activated(1)
+        compare(fake.changes, [["kind", "sofa"]])
+    }
+
+    // LH-115, LH-116, LH-118: buttons under "More" mirror, reset the size and label; the mirror
+    // button is primary while the object is mirrored.
+    function test_the_buttons_mirror_reset_the_size_and_label() {
+        const card = make()
+        card.expanded = true
+        fake.selectedKey = "object:o1"
+
+        findChild(card, "objectMirror").clicked()
+        findChild(card, "objectResetSize").clicked()
+        findChild(card, "objectLabel").clicked()
+
+        compare(fake.changes, [["mirror", ""], ["resetSize", ""]])
+        compare(fake.labels, 1)
+    }
+
+    // The mirror button shows its state to the eye and to a screen reader, not by colour alone.
+    function test_the_mirror_button_is_checked_while_mirrored() {
+        const card = make()
+        const button = findChild(card, "objectMirror")
+
+        fake.selectedKey = "object:o1"
+        verify(!button.checked)
+        fake.selectedKey = "object:o4"
+        verify(button.checked)
+        verify(button.Accessible.checkable)
+    }
+
+    // The tooltip names the key the command has (Shift+G, not Shift+S).
+    function test_the_reset_tooltip_names_its_key() {
+        const card = make()
+        const tip = findChild(card, "objectResetSize").QQC2.ToolTip.text
+
+        verify(tip.indexOf("+G") >= 0, tip)
+        verify(tip.indexOf("+S") < 0, tip)
+    }
+
+    function test_the_texts_of_the_object_commands_are_in_both_languages() {
+        for (const key of ["object.kind", "object.kindTo", "object.mirror", "object.mirrorTip", "object.resetSize",
+                           "object.resetSizeTip", "object.label", "object.labelTip", "note.unbind"]) {
+            verify(de.t(key) !== key, "de " + key)
         }
     }
 }

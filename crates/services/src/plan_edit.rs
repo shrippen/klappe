@@ -14,6 +14,7 @@ use crate::session::Layer;
 
 mod add;
 mod background;
+mod bound;
 mod check;
 mod drawings;
 mod grid;
@@ -22,6 +23,7 @@ mod heights;
 mod images;
 mod marks;
 mod moving;
+mod object;
 mod openings;
 mod picking;
 mod remove;
@@ -45,6 +47,7 @@ pub use marks::{MarkInfo, Pace};
 use moving::{
     anchor_pair, carry_cameras, edit_way, move_to, points_mut, rotate, shift, spin, turn,
 };
+pub use object::ObjectChange;
 use openings::edit_opening;
 use remove::remove;
 
@@ -172,6 +175,11 @@ pub enum PlanEdit {
         source: Source,
         width_m: f64,
         depth_m: f64,
+    },
+    /// Changes the object `source` (LH-114 to LH-116), or pins a note to an element (LH-118).
+    SetObject {
+        source: Source,
+        change: ObjectChange,
     },
     /// Sets how tall the object `source` is (LH-17), or takes the height off with `None`. Only
     /// objects have a height.
@@ -438,6 +446,10 @@ impl PlanEdit {
             PlanEdit::AddNote { .. } | PlanEdit::EditNote { .. } | PlanEdit::AddImage { .. } => {
                 Layer::Notes
             }
+            PlanEdit::SetObject { source, change } => match change {
+                ObjectChange::Label(_) => Layer::Notes,
+                _ => layer_of_source(source),
+            },
             PlanEdit::AddDrawing { .. } => Layer::Drawings,
             PlanEdit::AddObject { .. }
             | PlanEdit::AddShape { .. }
@@ -455,7 +467,7 @@ impl PlanEdit {
 }
 
 /// The layer an element of the plan is on.
-pub(crate) fn layer_of_source(source: &Source) -> Layer {
+pub fn layer_of_source(source: &Source) -> Layer {
     match source {
         Source::Object(_) | Source::Wall(_) | Source::Opening { .. } => Layer::Set,
         Source::Light(_) => Layer::Lights,
@@ -496,6 +508,8 @@ pub(crate) fn apply(
 ) -> Result<(), ServiceError> {
     check(edit)?;
 
+    let at = (scene, plan);
+    let held = bound::held(project, at, time_s);
     let Project {
         characters,
         locations,
@@ -525,7 +539,7 @@ pub(crate) fn apply(
         time_s,
     };
 
-    match edit {
+    let done = match edit {
         PlanEdit::Move { source, to } => {
             carry_cameras(&mut scope, source, |s| move_to(s, source, *to))
         }
@@ -560,32 +574,19 @@ pub(crate) fn apply(
         PlanEdit::AddCameraMark { camera, at } => add_camera_mark(&mut scope, camera, *at),
         PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => edit_light(&mut scope, edit),
         PlanEdit::AddObject { .. } | PlanEdit::AddShape { .. } => add_objects(&mut scope, edit),
-        PlanEdit::Resize {
-            source,
-            width_m,
-            depth_m,
-        } => resize(&mut scope, source, (*width_m, *depth_m)),
+        PlanEdit::Resize { .. } | PlanEdit::SetObject { .. } => object::edit(&mut scope, edit),
         PlanEdit::AddWall { .. } | PlanEdit::AddRoom { .. } => add_walls(&mut scope, edit),
         PlanEdit::AddOpening { .. }
         | PlanEdit::SetOpeningWidth { .. }
         | PlanEdit::SetOpeningSwing { .. } => edit_opening(&mut scope, edit),
         PlanEdit::SetWallHeight { .. }
+        | PlanEdit::SetObjectHeight { .. }
         | PlanEdit::SetObjectBase { .. }
         | PlanEdit::SetOpeningSill { .. }
         | PlanEdit::SetOpeningHead { .. } => edit_height(&mut scope, edit),
         PlanEdit::AddNote { at, text } => add_note(&mut scope, *at, text),
-        PlanEdit::AddDrawing {
-            shape,
-            color,
-            dash,
-            fill,
-        } => add_drawing(&mut scope, shape, (*color, *dash, *fill)),
-        PlanEdit::SetDrawingStyle {
-            source,
-            color,
-            dash,
-            fill,
-        } => set_drawing_style(&mut scope, source, (*color, *dash, *fill)),
+        PlanEdit::AddDrawing { .. } => add_drawing(&mut scope, edit),
+        PlanEdit::SetDrawingStyle { .. } => set_drawing_style(&mut scope, edit),
         PlanEdit::EditNote { id, text } => edit_note(&mut scope, id, text),
         PlanEdit::AddImage { .. }
         | PlanEdit::SetImageOpacity { .. }
@@ -611,10 +612,11 @@ pub(crate) fn apply(
         | PlanEdit::SetMarkLens { .. }
         | PlanEdit::SetPace { .. }
         | PlanEdit::SetCameraAim { .. } => edit_field(&mut scope, edit),
-        PlanEdit::SetObjectHeight { source, height_m } => {
-            set_object_height(&mut scope, source, *height_m)
-        }
-    }
+    };
+
+    bound::follow(project, at, time_s, &held);
+
+    done
 }
 
 /// The mark a figure or camera stands at, or is leaving, at `time_s`: the last one that has
@@ -715,28 +717,6 @@ fn set_camera_aim(
     Ok(())
 }
 
-fn set_object_height(
-    scope: &mut Scope<'_>,
-    source: &Source,
-    height_m: Option<f64>,
-) -> Result<(), ServiceError> {
-    let Source::Object(id) = source else {
-        return Err(ServiceError::BadValue {
-            field: Field::Source,
-            value: String::new(),
-        });
-    };
-    let object = scope
-        .set
-        .as_deref_mut()
-        .and_then(|s| s.objects.iter_mut().find(|o| o.id == *id))
-        .ok_or(ServiceError::Gone)?;
-
-    object.height_m = height_m;
-
-    Ok(())
-}
-
 /// Couples `camera` to `figure`, a figure of this plan, or lets it go.
 fn follow(scope: &mut Scope<'_>, camera: &str, figure: Option<&str>) -> Result<(), ServiceError> {
     if let Some(character) = figure {
@@ -755,24 +735,6 @@ fn follow(scope: &mut Scope<'_>, camera: &str, figure: Option<&str>) -> Result<(
         .find(|c| c.id == camera)
         .ok_or(ServiceError::Gone)?;
     camera.follows = figure.map(str::to_owned);
-
-    Ok(())
-}
-
-fn resize(scope: &mut Scope<'_>, source: &Source, size_m: (f64, f64)) -> Result<(), ServiceError> {
-    let Source::Object(id) = source else {
-        return Err(ServiceError::BadValue {
-            field: Field::Source,
-            value: String::new(),
-        });
-    };
-    let object = scope
-        .set
-        .as_deref_mut()
-        .and_then(|s| s.objects.iter_mut().find(|o| o.id == *id))
-        .ok_or(ServiceError::Gone)?;
-
-    (object.width_m, object.depth_m) = size_m;
 
     Ok(())
 }

@@ -9,9 +9,14 @@ Anforderungen des ersten Moduls: [`stellprobe/LASTENHEFT.md`](stellprobe/LASTENH
 |---|---|---|---|
 | Stellprobe | Floorplans, Blocking, Kameras, Licht, Shotliste | GUI | zuerst |
 | Drehbuch | Drehbuch schreiben (Fountain), Lastenheft: [`drehbuch/LASTENHEFT.md`](drehbuch/LASTENHEFT.md) | **TUI**, später GUI | zweites |
-| Planung | Drehplan, Dispo, Drehorte, Team | GUI | später |
+| Storyboard | Bilder der Shots ansehen, ordnen, ausgeben | GUI | später |
+| Breakdown | Elemente je Szene für die Departments erfassen und verfolgen | GUI | später |
+| Besetzung/Team | Rollen besetzen, Personen, Departments | GUI | später |
+| Drehplan | Szenen auf Drehtage verteilen (Stripboard), Versionen | GUI | später |
+| Dispo | Tagesdisposition je Drehtag, als Druckvorlage | GUI | später |
 
-Alle Module arbeiten auf demselben Projekt und demselben Datenmodell.
+Alle Module arbeiten auf demselben Projekt und demselben Datenmodell
+([`DATENMODELL.md`](DATENMODELL.md): wer welche Daten besitzt, Verweise, Ablage).
 
 ## 2. Vorbild: eigene Projekte
 

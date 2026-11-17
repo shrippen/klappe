@@ -150,6 +150,8 @@ Kirigami.ApplicationWindow {
                 texts: texts
                 controller: ctl
                 tool: planTools.tool
+                toolHint: planTools.hint
+                onSelectToolRequested: planTools.tool = "select"
                 shot: root.selected
                 showTimeline: root.showTimeline
                 cameraViews: root.showCameraViews

@@ -141,7 +141,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit(next);
+        self.commit_step(next, "EditShot");
         Ok(())
     }
 
@@ -168,7 +168,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit(next);
+        self.commit_step(next, "ShotImage");
         Ok(())
     }
 
@@ -193,7 +193,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit(next);
+        self.commit_step(next, "NameShot");
         Ok(())
     }
 
@@ -217,7 +217,7 @@ impl Session {
         let plan = self.plan_in(&mut next)?;
 
         let id = shot_edit::add(plan, numbering, &scene, &camera, at_s);
-        self.commit(next);
+        self.commit_step(next, "AddShot");
         self.selected_shot = Some(id.clone());
         Ok(id)
     }
@@ -233,7 +233,7 @@ impl Session {
         let plan = self.plan_in(&mut next)?;
 
         let copy = shot_edit::copy(plan, numbering, &scene, id)?;
-        self.commit(next);
+        self.commit_step(next, "CopyShot");
         self.selected_shot = Some(copy.clone());
         Ok(copy)
     }
@@ -249,7 +249,7 @@ impl Session {
         let plan = self.plan_in(&mut next)?;
 
         let copy = shot_edit::version(plan, numbering, &scene, id)?;
-        self.commit(next);
+        self.commit_step(next, "VersionShot");
         self.selected_shot = Some(copy.clone());
         Ok(copy)
     }
@@ -269,7 +269,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit(next);
+        self.commit_step(next, "RenumberShots");
         Ok(())
     }
 
@@ -282,7 +282,7 @@ impl Session {
         let plan = self.plan_in(&mut next)?;
 
         let neighbour = shot_edit::remove(plan, id)?;
-        self.commit(next);
+        self.commit_step(next, "DeleteShot");
         if self.selected_shot.as_deref() == Some(id) {
             self.selected_shot = neighbour;
         }
@@ -320,7 +320,7 @@ impl Session {
             return Ok(());
         }
 
-        self.commit(next);
+        self.commit_step(next, "SetAxis");
         Ok(())
     }
 

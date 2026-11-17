@@ -46,6 +46,10 @@ pub mod qobject {
         #[qproperty(QString, selected_shot, cxx_name = "selectedShot")]
         #[qproperty(bool, can_undo, cxx_name = "canUndo")]
         #[qproperty(bool, can_redo, cxx_name = "canRedo")]
+        /// What undo and redo do, as the name of the step (`AddObject`); empty for none or an
+        /// unnamed one.
+        #[qproperty(QString, undo_step, cxx_name = "undoStep")]
+        #[qproperty(QString, redo_step, cxx_name = "redoStep")]
         #[qproperty(bool, dirty)]
         /// Key of the selected plan element (`camera:a` …), empty for none.
         #[qproperty(QString, selected_key, cxx_name = "selectedKey")]
@@ -390,6 +394,13 @@ pub mod qobject {
         #[qinvokable]
         fn place(self: Pin<&mut Self>, x: f64, y: f64) -> bool;
 
+        /// A right click at (`x`, `y`) with any tool: selects what lies there as a click of the
+        /// select tool does, but a member of the selection keeps it and empty ground clears it.
+        /// False for empty ground.
+        #[qinvokable]
+        #[cxx_name = "selectAt"]
+        fn select_at(self: Pin<&mut Self>, x: f64, y: f64) -> bool;
+
         /// Takes the image file at `path` (a path or a `file://` URL) as the set's background
         /// and points to the scale tool in the status line.
         #[qinvokable]
@@ -490,7 +501,7 @@ pub mod qobject {
         fn duplicate_selected(self: Pin<&mut Self>) -> bool;
 
         /// Arms the next click on the plan (`nextMark`, `markBefore`, `axisTo`) for the selected
-        /// figure or camera, and says in the status what it does; false when `canArm` is not.
+        /// figure or camera, the hint line shows what it does; false when `canArm` is not.
         #[qinvokable]
         fn arm(self: Pin<&mut Self>, what: &QString) -> bool;
 
@@ -557,6 +568,20 @@ pub mod qobject {
         #[cxx_name = "setObjectHeight"]
         fn set_object_height(self: Pin<&mut Self>, height: &QString) -> bool;
 
+        /// Changes the selection (LH-114 to LH-116, LH-118): `what` is `kind` (with the library
+        /// kind in `arg`), `mirror`, `resetSize` for an object, `unbind` for a bound note.
+        /// False when it does not fit the selection; a refusal by the session goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "changeSelected"]
+        fn change_selected(self: Pin<&mut Self>, what: &QString, arg: &QString) -> bool;
+
+        /// Asks for the text of a note bound to the selected object, figure or mark (LH-118);
+        /// `commitNote` sets it. False when the selection cannot be labelled or the notes layer
+        /// is locked.
+        #[qinvokable]
+        #[cxx_name = "labelSelected"]
+        fn label_selected(self: Pin<&mut Self>) -> bool;
+
         /// A typed measure (LH-95): the length of the wall being dragged, else the selection's height.
         #[qinvokable]
         #[cxx_name = "typeMeasure"]
@@ -601,6 +626,15 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "markInfo"]
         fn mark_info(self: &Self) -> QString;
+
+        /// What the context menu offers for the selection, as JSON: `layer` (name, empty for
+        /// none or several), and `remove`, `duplicate`, `turn`, `straighten` (the command
+        /// would change something), `note` and `shot` (one note or one camera is selected),
+        /// `nextMark`, `markBefore` and `axisTo` (what `arm` can arm for the selection) and
+        /// `way` (`smooth` or `straight` for a selected way, else empty).
+        #[qinvokable]
+        #[cxx_name = "menuInfo"]
+        fn menu_info(self: &Self) -> QString;
 
         /// Sets lens height (m) and tilt (degrees, positive looks up) of the selected camera
         /// mark (LH-34), comma or point as decimal separator. False for another selection or

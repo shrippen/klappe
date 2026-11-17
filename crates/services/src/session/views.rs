@@ -48,8 +48,16 @@ impl Session {
     /// The text of the note `id` on the scene's set.
     pub fn note_text(&self, id: &str) -> Option<String> {
         let set = &self.scene_location()?.set;
+        let labels = self.plan().map_or(&[][..], |p| p.labels.as_slice());
 
-        Some(set.notes.iter().find(|n| n.id == id)?.text.clone())
+        Some(
+            set.notes
+                .iter()
+                .chain(labels)
+                .find(|n| n.id == id)?
+                .text
+                .clone(),
+        )
     }
 
     /// The lists of the project view.
@@ -348,6 +356,7 @@ impl Session {
             height_m: o.height_m,
             base_m: object_extent(set, index).0,
             base_default: o.base_m.is_none(),
+            mirrored: o.mirrored,
         })
     }
 
@@ -399,8 +408,17 @@ impl Session {
 
     /// The tooltip of note `id`; empty text for an unknown note.
     pub fn note_hint(&self, id: &str) -> Hint {
+        let notes = self.scene_location().map(|l| l.set.notes.as_slice());
+        let labels = self.plan().map_or(&[][..], |p| p.labels.as_slice());
+        let bound = notes
+            .unwrap_or_default()
+            .iter()
+            .chain(labels)
+            .any(|n| n.id == id && n.bound.is_some());
+
         Hint::Note {
             text: self.note_text(id).unwrap_or_default(),
+            bound,
         }
     }
 

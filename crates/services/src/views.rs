@@ -459,6 +459,8 @@ pub enum Hint {
         base_m: f64,
         #[serde(rename = "baseDefault")]
         base_default: bool,
+        /// Flipped left to right (LH-115).
+        mirrored: bool,
     },
     /// A door or window in a wall (LH-10).
     Opening {
@@ -489,6 +491,8 @@ pub enum Hint {
     },
     Note {
         text: String,
+        /// Bound to an element, which it follows (LH-118).
+        bound: bool,
     },
     /// A photo or sketch (LH-18): the name of its file, and what its card shows.
     Image {

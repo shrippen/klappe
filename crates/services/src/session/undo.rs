@@ -12,24 +12,44 @@ const UNDO_LIMIT: usize = 500;
 pub(super) struct Snapshot {
     project: Project,
     script: Option<String>,
+    /// What the step that made this state's successor did (`AddObject`); empty if unnamed.
+    step: String,
+}
+
+/// The name of an edit for the undo tooltip: its variant (`Move { .. }` is `Move`). The app
+/// turns it into words (`step.<name>`).
+pub(super) fn step_name(edit: &impl std::fmt::Debug) -> String {
+    format!("{edit:?}")
+        .chars()
+        .take_while(|c| c.is_alphanumeric())
+        .collect()
 }
 
 impl Session {
     pub(super) fn commit(&mut self, next: Project) {
-        self.commit_with(next, None);
+        self.commit_step(next, "");
+    }
+
+    /// Like `commit`; undo and redo name the step `step`.
+    pub(super) fn commit_step(&mut self, next: Project, step: &str) {
+        self.commit_with(next, None, step);
     }
 
     /// Like `commit`, and the screenplay becomes `script`; undo restores both.
-    pub(super) fn commit_script(&mut self, next: Project, script: &str) {
+    pub(super) fn commit_script(&mut self, next: Project, script: &str, step: &str) {
         let before = self.script_text().to_owned();
 
-        self.commit_with(next, Some(before));
+        self.commit_with(next, Some(before), step);
         self.set_script_text(script);
     }
 
-    fn commit_with(&mut self, next: Project, script: Option<String>) {
+    fn commit_with(&mut self, next: Project, script: Option<String>, step: &str) {
         let project = std::mem::replace(&mut self.project, next);
-        self.undo.push(Snapshot { project, script });
+        self.undo.push(Snapshot {
+            project,
+            script,
+            step: step.to_owned(),
+        });
         if self.undo.len() > UNDO_LIMIT {
             self.undo.remove(0);
         }
@@ -102,13 +122,25 @@ impl Session {
         !self.redo.is_empty()
     }
 
+    /// What undo takes back: the name of the step; `None` for no step or an unnamed one.
+    pub fn undo_step(&self) -> Option<&str> {
+        named(self.undo.last())
+    }
+
+    /// What redo does again, named as `undo_step`.
+    pub fn redo_step(&self) -> Option<&str> {
+        named(self.redo.last())
+    }
+
     pub fn undo(&mut self) {
         let Some(previous) = self.undo.pop() else {
             return;
         };
+        let step = previous.step.clone();
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());
-        let current = self.swap(previous);
+        let mut current = self.swap(previous);
+        current.step = step;
         self.redo.push(current);
         self.project_changed = true;
         self.touch();
@@ -120,9 +152,11 @@ impl Session {
         let Some(next) = self.redo.pop() else {
             return;
         };
+        let step = next.step.clone();
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());
-        let current = self.swap(next);
+        let mut current = self.swap(next);
+        current.step = step;
         self.undo.push(current);
         self.project_changed = true;
         self.touch();
@@ -142,6 +176,14 @@ impl Session {
             now
         });
 
-        Snapshot { project, script }
+        Snapshot {
+            project,
+            script,
+            step: String::new(),
+        }
     }
+}
+
+fn named(step: Option<&Snapshot>) -> Option<&str> {
+    step.map(|s| s.step.as_str()).filter(|s| !s.is_empty())
 }

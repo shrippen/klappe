@@ -54,15 +54,25 @@ RowLayout {
     readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
                                     actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng,
                                     actFree, actWallCut, actThrough, actHeights,
-                                    actScript, actShot, actTimeline, actCut, actShooting,
+                                    actScript, actShot, actTimeline,
                                     actPlay, actMarkPrev, actMarkNext,
                                     actNextMark, actMarkBefore, actAxisTo, actWaySmooth, actWayStraight,
-                                    actUndo, actRedo].concat(shotViews.actions, zoom.actions, pageExports.actions, viewCommands.actions)
+                                    actUndo, actRedo].concat(shotViews.actions, zoom.actions, pageExports.actions, viewCommands.actions, objectCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
         return sequence.replace("Ctrl", texts.t("key.ctrl")).replace("Shift", texts.t("key.shift"))
             .replace("Space", texts.t("key.space"))
+    }
+
+    // "Undo: Move (Ctrl+Z)": the step the button takes back or does again (LH-103); the plain
+    // name while the step has no text of its own.
+    function stepTip(tipKey, step, action) {
+        const key = "step." + step
+        if (!step || texts.map[key] === undefined) {
+            return texts.t("tool.tip", { name: action.text, key: action.keys })
+        }
+        return texts.t(tipKey, { step: texts.t(key), key: action.keys })
     }
 
     spacing: Kirigami.Units.largeSpacing
@@ -203,8 +213,8 @@ RowLayout {
         KanteMenuItem { objectName: "zoomOut"; action: zoom.outAction }
         KanteMenuItem { objectName: "zoomFit"; action: zoom.fitAction }
         KanteMenuSection { text: header.texts.t("menu.viewOrder") }
-        KanteMenuItem { objectName: "cut"; action: actCut }
-        KanteMenuItem { objectName: "shooting"; action: actShooting }
+        KanteMenuItem { objectName: "cut"; action: shotViews.cutAction }
+        KanteMenuItem { objectName: "shooting"; action: shotViews.shootingAction }
     }
 
     KanteToolButton {
@@ -212,7 +222,7 @@ RowLayout {
         visible: header.controller.loaded
         action: actUndo
         display: QQC2.AbstractButton.IconOnly
-        QQC2.ToolTip.text: header.texts.t("tool.tip", { name: actUndo.text, key: actUndo.keys })
+        QQC2.ToolTip.text: header.stepTip("undo.tip", header.controller.undoStep, actUndo)
         QQC2.ToolTip.visible: hovered
         QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
     }
@@ -221,7 +231,7 @@ RowLayout {
         visible: header.controller.loaded
         action: actRedo
         display: QQC2.AbstractButton.IconOnly
-        QQC2.ToolTip.text: header.texts.t("tool.tip", { name: actRedo.text, key: actRedo.keys })
+        QQC2.ToolTip.text: header.stepTip("redo.tip", header.controller.redoStep, actRedo)
         QQC2.ToolTip.visible: hovered
         QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
     }
@@ -467,6 +477,9 @@ RowLayout {
             }
         }
     }
+    // The commands of an object and of a bound label (LH-114 to LH-116, LH-118).
+    ObjectCommands { id: objectCommands; texts: header.texts; controller: header.controller; locked: header.locked; keyName: header.keyName }
+
     // Saved views (LH-119) and the sketch pen's clear command (LH-120).
     ViewCommands {
         id: viewCommands
@@ -513,29 +526,6 @@ RowLayout {
         enabled: header.controller.loaded
         onToggled: header.viewToggled("timeline", checked)
     }
-    QQC2.ActionGroup { id: orderGroup }
-    CommandAction {
-        id: actCut
-        cmd: "order.cut"
-        group: "view"
-        text: header.texts.t("export.order.cut")
-        QQC2.ActionGroup.group: orderGroup
-        checkable: true
-        checked: header.shotOrder === "cut"
-        enabled: header.controller.loaded
-        onTriggered: header.shotOrderPicked("cut")
-    }
-    CommandAction {
-        id: actShooting
-        cmd: "order.shooting"
-        group: "view"
-        text: header.texts.t("export.order.shooting")
-        QQC2.ActionGroup.group: orderGroup
-        checkable: true
-        checked: header.shotOrder === "shooting"
-        enabled: header.controller.loaded
-        onTriggered: header.shotOrderPicked("shooting")
-    }
 
     ShotViewCommands {
         id: shotViews
@@ -545,7 +535,9 @@ RowLayout {
         keyName: header.keyName
         cameraViews: header.showCameraViews
         description: header.showShotDescription
+        shotOrder: header.shotOrder
         onToggled: (area, shown) => header.viewToggled(area, shown)
+        onOrderPicked: order => header.shotOrderPicked(order)
     }
 
     // Zoom of the plan; the window hands it on.
@@ -697,7 +689,7 @@ RowLayout {
 
     // What the palette lists: the modes, the tools, the actions, the scenes, the plans. Each is
     // listed with the key it has anywhere else.
-    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), viewCommands.palette(),
+    readonly property var commands: [].concat(modeCommands(), toolCommands(), actionCommands(entries), viewCommands.palette(), objectCommands.kindCommands(),
                                               sceneCommands(), actionCommands(planMenu.actions), planCommands())
 
     function actionCommands(actions) {
@@ -765,6 +757,9 @@ RowLayout {
             return
         case "tool":
             tools.tool = target
+            return
+        case "kind":
+            controller.changeSelected("kind", target)
             return
         case "scene":
             controller.selectScene(target)
