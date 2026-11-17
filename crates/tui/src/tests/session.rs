@@ -217,10 +217,23 @@ fn the_help_scroll_stays_in_range() {
     }
     let _ = screen(&mut app, 100, 12);
 
-    // 24 lines, 10 rows of room: the last first line is 14, and one Up goes back one.
-    assert_eq!(app.help_scroll, 14);
+    // 25 lines, 10 rows of room: the last first line is 15, and one Up goes back one.
+    assert_eq!(app.help_scroll, 15);
     press(&mut app, KeyCode::Up);
-    assert_eq!(app.help_scroll, 13);
+    assert_eq!(app.help_scroll, 14);
+}
+
+#[test]
+fn the_status_line_counts_scenes_struck_from_the_book() {
+    // The example's scene 12 is not in this book.
+    let scratch = Scratch::new("INT. A - TAG\n\nx");
+    let mut app = scratch.app();
+
+    assert!(screen(&mut app, 120, 24).contains("Scenes not in the book: 1."));
+
+    let same = Scratch::new("INT. SÄNGERSAAL – TAG #12#\n\nx");
+    let mut fine = same.app();
+    assert!(!screen(&mut fine, 120, 24).contains("not in the book"));
 }
 
 #[test]

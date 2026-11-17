@@ -70,6 +70,7 @@ Kirigami.ApplicationWindow {
                 onOpenRequested: root.switchProject(() => openFolderDialog.open())
                 onCloseRequested: guard.run(() => ctl.closeProject(), "project.closeSave")
                 onProjectRequested: projectDialog.open()
+                onBookRequested: bookDialog.open()
                 onTemplateImportRequested: templateImportDialog.open()
                 onTemplateExportRequested: templateExportDialog.open()
                 onBackgroundRequested: backgroundDialog.open()
@@ -132,6 +133,14 @@ Kirigami.ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.margins: Kirigami.Units.smallSpacing
                 controller: ctl
+            }
+
+            BookNotice {
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.smallSpacing
+                texts: texts
+                controller: ctl
+                onMatchRequested: bookDialog.open()
             }
 
             BackupNotice {
@@ -233,6 +242,11 @@ Kirigami.ApplicationWindow {
     }
     ProjectDialog {
         id: projectDialog
+        texts: texts
+        controller: ctl
+    }
+    BookDialog {
+        id: bookDialog
         texts: texts
         controller: ctl
     }

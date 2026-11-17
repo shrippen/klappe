@@ -22,6 +22,7 @@ fn sheet() -> ScriptSheet {
 
     ScriptSheet {
         paper: Paper::A4,
+        columns: 60,
         title_page: TitlePage::default(),
         pages: vec![
             ScriptPage {
@@ -108,4 +109,38 @@ fn an_empty_script_is_one_blank_page() {
     s.pages.clear();
 
     assert!(text(&script_pdf(&s)).contains("/Count 1"));
+}
+
+#[test]
+fn every_paper_has_its_size() {
+    let sizes = [
+        (Paper::A4, "595.28 841.89"),
+        (Paper::A3, "841.89 1190.55"),
+        (Paper::Letter, "612 792"),
+    ];
+
+    for (paper, size) in sizes {
+        let mut s = sheet();
+        s.paper = paper;
+
+        let pdf = text(&script_pdf(&s));
+
+        assert!(
+            pdf.contains(&format!("/MediaBox [0 0 {size}]")),
+            "{paper:?}: {pdf}"
+        );
+    }
+}
+
+#[test]
+fn the_text_width_moves_the_right_edge() {
+    let mut s = sheet();
+    s.columns = 50;
+    s.scene_numbers = SceneNumbers::Shown;
+
+    let pdf = text(&script_pdf(&s));
+
+    // 108 pt + 50 columns = 468 pt; page number two columns left, scene number a gap right.
+    assert!(pdf.contains("453.6 795.89 Td (2.) Tj"), "{pdf}");
+    assert!(pdf.contains("475.2 759.89 Td (12) Tj"), "{pdf}");
 }

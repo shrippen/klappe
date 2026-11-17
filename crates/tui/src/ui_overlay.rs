@@ -1,5 +1,5 @@
 //! The boxes over the editor: the suggestion list, search and replace, the title page form
-//! and the question about a backup.
+//! the open questions about the book and the question about a backup.
 
 use klappe_services::Case;
 use ratatui::layout::{Position, Rect};
@@ -197,5 +197,43 @@ pub(crate) fn draw_backup(frame: &mut Frame, app: &App) {
     frame.render_widget(
         Paragraph::new(hint.as_str()).style(Style::new().fg(theme::MUTED)),
         row(inner, 1),
+    );
+}
+
+/// One open question about the book: the entry and the scenes it may be.
+pub(crate) fn draw_book(frame: &mut Frame, app: &App) {
+    let Some(question) = app.book_question() else {
+        return;
+    };
+    let ask = app.texts.book_ask(&question.number, &question.heading);
+    let mut options: Vec<String> = question
+        .candidates
+        .iter()
+        .map(|c| format!("{} {}", c.number, c.heading))
+        .collect();
+    options.push(app.texts.book_none.clone());
+
+    let width = BOX_WIDTH.max(cols(ask.chars()) + 4);
+    let area = centered(frame.area(), width, options.len() + 4);
+    let block = framed(&app.texts.book_title);
+    let inner = block.inner(area);
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+
+    let strong = Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD);
+    frame.render_widget(Paragraph::new(ask).style(strong), row(inner, 0));
+    for (i, option) in options.iter().enumerate() {
+        let chosen = app.book_sel == i;
+        let (mark, style) = match chosen {
+            true => (CHOSEN, Style::new().fg(theme::STRONG).bg(theme::RAISED)),
+            false => (" ", Style::new().fg(theme::TEXT)),
+        };
+        let line = format!("{mark}{option}");
+        frame.render_widget(Paragraph::new(line).style(style), row(inner, i as u16 + 1));
+    }
+    let hint = row(inner, options.len() as u16 + 1);
+    frame.render_widget(
+        Paragraph::new(app.texts.book_hint.as_str()).style(Style::new().fg(theme::MUTED)),
+        hint,
     );
 }

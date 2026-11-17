@@ -4,7 +4,7 @@ use crate::geometry::{Point, TurnedRect};
 use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
 use crate::plan::FloorPlan;
-use crate::register::{BookState, Kind, Print};
+use crate::register::{BookState, Kind, Print, SceneKey};
 use crate::saved_view::SavedView;
 use crate::script_setup::ScriptSetup;
 use crate::shot::Numbering;
@@ -550,6 +550,8 @@ pub struct Scene {
     pub state: BookState,
     /// What the book held of this entry when it was last saved.
     pub prints: Vec<Print>,
+    /// Scenes of the book the user said this entry is not, so they are not asked about again.
+    pub refused: Vec<SceneKey>,
     pub location: String,
     pub plans: Vec<FloorPlan>,
 }
