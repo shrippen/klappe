@@ -155,11 +155,7 @@ pub(crate) fn draw_title(frame: &mut Frame, app: &App) {
     frame.render_widget(block, area);
 
     for (i, field) in form.fields.iter().enumerate() {
-        let label = app
-            .texts
-            .fields
-            .get(i)
-            .map_or(field.key.as_str(), String::as_str);
+        let label = app.texts.field_label(&field.key);
         field_row(
             frame,
             row(inner, i as u16),

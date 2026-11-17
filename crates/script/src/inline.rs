@@ -1,12 +1,8 @@
 //! Marks inside a line of Fountain text: emphasis, notes and boneyards, so a surface can
 //! show them without reading the rules again.
 
-const BONEYARD_OPEN: &str = "/*";
-const BONEYARD_CLOSE: &str = "*/";
-const NOTE_OPEN: &str = "[[";
-const NOTE_CLOSE: &str = "]]";
-const ESCAPE: char = '\\';
-const STAR: char = '*';
+use crate::parse::{BONEYARD_CLOSE, BONEYARD_OPEN, ESCAPE, NOTE_CLOSE, NOTE_OPEN, STAR};
+
 const UNDERLINE: char = '_';
 /// Longest run of stars that means emphasis: `***bold italic***`.
 const MAX_STARS: usize = 3;

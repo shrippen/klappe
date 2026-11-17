@@ -303,6 +303,15 @@ pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
     files::write_atomic(&dir.join(SCRIPT_FILE), script.as_bytes())
 }
 
+/// Writes `szenen.toml` of `scenes` in `dir` and nothing else: the Stellprobe files stay, as
+/// unsaved plans are for `save` to write (LH-05).
+pub fn save_register(dir: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
+    check_ids(scenes.iter().map(|s| s.id.as_str()))?;
+
+    let (path, bytes) = register::encode_register(dir, scenes)?;
+    files::write_atomic(&path, &bytes)
+}
+
 /// Writes `project` as a backup into `dir/.sicherung`, in the project format. The project
 /// files stay as they are, so the user alone decides what a save changes (LH-05).
 ///

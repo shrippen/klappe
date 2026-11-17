@@ -27,7 +27,9 @@ pub use pages::{
     length_text, paginate, ContdAfterAction, Line, Page, PageKind, PageOptions, PageSize,
     Pagination, SceneLength, Words, TEXT_COLUMNS,
 };
-pub use parse::{parse, parse_located, title_page_lines};
+pub use parse::{
+    boneyard_lines, parse, parse_located, title_page_lines, FORCE_CHARACTER, NUMBER_MARK,
+};
 pub use quote::{find_quote, find_quotes, quote_at, Found, LineKind, Quote};
 pub use search::{find_all, replace_all, replace_line, Case, Hit, Query};
 pub use text::normal;

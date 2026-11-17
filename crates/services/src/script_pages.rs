@@ -9,8 +9,8 @@
 use klappe_export::{Face, Paper, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
 use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 use klappe_script::{
-    length_text, paginate, parse, parse_located, ContdAfterAction, Element, Located, PageKind,
-    PageOptions, PageSize, Pagination, Words,
+    length_text, paginate, parse_located, title_fields, ContdAfterAction, Element, Located,
+    PageKind, PageOptions, PageSize, Pagination, Words, TITLE_KEYS,
 };
 
 pub use klappe_export::SceneNumbers;
@@ -121,7 +121,7 @@ pub(crate) fn lay_out(text: &str, setup: &ScriptSetup, fallback: Language) -> La
 
     Layout {
         pagination,
-        title_page: parse(text).title_page,
+        title_page: title_fields(text),
         view,
     }
 }
@@ -172,11 +172,11 @@ fn scenes(pagination: &Pagination, located: &[Located]) -> Vec<SceneSpan> {
         .collect()
 }
 
-/// The value of the first key of the title page called `name`, any case.
+/// The value of the form field `name` (a `TITLE_KEYS` spelling).
 fn title_key(title_page: &[(String, String)], name: &str) -> String {
     title_page
         .iter()
-        .find(|(key, _)| key.eq_ignore_ascii_case(name))
+        .find(|(key, _)| key == name)
         .map(|(_, value)| value.clone())
         .unwrap_or_default()
 }
@@ -227,11 +227,12 @@ impl Layout {
             })
             .collect();
 
-        let key = |name: &str| title_key(&self.title_page, name);
-        let title = key("title");
+        // The fields in the order of `TITLE_KEYS`, so a new spelling there reaches the PDF.
+        let [title, credit, author, source, draft_date, contact] =
+            TITLE_KEYS.map(|name| title_key(&self.title_page, name));
         let header = match print.header {
             HeaderLine::Off => None,
-            HeaderLine::Title => Some(header_text(&title, project_title, &key("draft date"))),
+            HeaderLine::Title => Some(header_text(&title, project_title, &draft_date)),
         };
 
         ScriptSheet {
@@ -241,11 +242,11 @@ impl Layout {
             },
             title_page: TitlePage {
                 title,
-                credit: key("credit"),
-                author: key("author"),
-                source: key("source"),
-                draft_date: key("draft date"),
-                contact: key("contact"),
+                credit,
+                author,
+                source,
+                draft_date,
+                contact,
             },
             pages,
             scene_numbers: print.scene_numbers,

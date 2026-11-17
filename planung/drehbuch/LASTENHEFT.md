@@ -9,7 +9,7 @@ Eigentümers: Abschnitt 10.
 ## 1. Ausgangslage
 
 Klappe hat einen Fountain-Parser (`crates/script`) und eine erste TUI (`klappe-tui`, #6, #8). Die
-TUI formatiert beim Tippen und zeigt die Szenenliste. Sie speichert nur `drehbuch.fountain`.
+TUI formatiert beim Tippen und zeigt die Szenenliste. Sie speichert `drehbuch.fountain` und das Register `szenen.toml`, nicht die Floorplans.
 Stellprobe verknüpft Drehbuchzeilen mit Marks und Shots (Entwurf B, „Drehbuch daneben“).
 
 Was fehlt, ist ein Schreibwerkzeug auf Augenhöhe mit Fade In und Beat. Es soll unter Linux im

@@ -1,8 +1,8 @@
 //! What each line of the text is, from the Fountain parser, for styling and the scene list.
 
 use klappe_services::{
-    inline_runs, outline_of, parse_located, title_page_lines, Element, Located, OutlineEntry, Slot,
-    Vocabulary,
+    boneyard_lines, outline_of, parse_located, title_page_lines, Element, Located, OutlineEntry,
+    Slot, Vocabulary, FORCE_CHARACTER, NUMBER_MARK,
 };
 
 /// Display-only indents in columns (the stored text stays plain Fountain).
@@ -161,11 +161,7 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
     seen.vocab = Vocabulary::from_located(&located);
     seen.outline = outline_of(&located, lines.len());
 
-    let mut open = false;
-    for line in lines {
-        seen.boneyard.push(open);
-        open = inline_runs(line, open).1;
-    }
+    seen.boneyard = boneyard_lines(&text);
     for kind in seen.kinds.iter_mut().take(title_page_lines(&text)) {
         *kind = LineKind::Title;
     }
@@ -174,8 +170,6 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
 }
 
 /// Characters that mark parts of a line the writer types as is.
-const FORCE_CHARACTER: char = '@';
-const NUMBER_MARK: char = '#';
 const EXTENSION_OPEN: char = '(';
 const SHARP_S: char = 'ß';
 

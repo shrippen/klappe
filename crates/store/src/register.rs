@@ -144,13 +144,11 @@ fn join(entry: Entry, stage: Option<Stage>) -> Scene {
     }
 }
 
-/// The content of every `szenen/<id>.json` and, last, of `szenen.toml`, with their paths. In
-/// this order a crash leaves a file the register lacks (loads, reported), never an entry whose
-/// plans were lost.
-pub(crate) fn encode(
+/// The content of `szenen.toml` with its path: the register alone, without the Stellprobe files.
+pub(crate) fn encode_register(
     dir: &Path,
     scenes: &[Scene],
-) -> Result<Vec<(std::path::PathBuf, Vec<u8>)>, StoreError> {
+) -> Result<(std::path::PathBuf, Vec<u8>), StoreError> {
     let register = Register {
         szene: scenes
             .iter()
@@ -165,6 +163,19 @@ pub(crate) fn encode(
             })
             .collect(),
     };
+    let path = dir.join(SCENES_FILE);
+    let bytes = files::encode_toml(&path, &register)?;
+
+    Ok((path, bytes))
+}
+
+/// The content of every `szenen/<id>.json` and, last, of `szenen.toml`, with their paths. In
+/// this order a crash leaves a file the register lacks (loads, reported), never an entry whose
+/// plans were lost.
+pub(crate) fn encode(
+    dir: &Path,
+    scenes: &[Scene],
+) -> Result<Vec<(std::path::PathBuf, Vec<u8>)>, StoreError> {
     let mut writes = Vec::new();
 
     let stages = Dir::new(dir.join(SCENES_DIR), FileKind::Json);
@@ -176,9 +187,7 @@ pub(crate) fn encode(
         };
         writes.push(stages.encode(&scene.id, &stage)?);
     }
-
-    let path = dir.join(SCENES_FILE);
-    writes.push((path.clone(), files::encode_toml(&path, &register)?));
+    writes.push(encode_register(dir, scenes)?);
 
     Ok(writes)
 }

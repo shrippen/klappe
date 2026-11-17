@@ -6,26 +6,26 @@ use crate::{Element, Located, Script};
 
 pub(crate) const FORCE_ACTION: char = '!';
 pub(crate) const FORCE_HEADING: char = '.';
-pub(crate) const FORCE_CHARACTER: char = '@';
+pub const FORCE_CHARACTER: char = '@';
 pub(crate) const FORCE_TRANSITION: char = '>';
 const CENTER_END: char = '<';
 const LYRICS: char = '~';
 const SECTION: char = '#';
 const SYNOPSIS: char = '=';
-const NUMBER_MARK: char = '#';
-const DUAL_MARK: char = '^';
+pub const NUMBER_MARK: char = '#';
+pub(crate) const DUAL_MARK: char = '^';
 const SHARP_S: char = 'ß';
 const PAGE_BREAK_MIN: usize = 3;
 const TRANSITION_END: &str = "TO:";
-const NOTE_OPEN: &str = "[[";
-const NOTE_CLOSE: &str = "]]";
+pub(crate) const NOTE_OPEN: &str = "[[";
+pub(crate) const NOTE_CLOSE: &str = "]]";
 pub(crate) const BONEYARD_OPEN: &str = "/*";
-const BONEYARD_CLOSE: &str = "*/";
+pub(crate) const BONEYARD_CLOSE: &str = "*/";
 /// Fountain's escape: `/\*` is the text `/*`, never a boneyard, and other Fountain
 /// programs show it the same. A literal `/\*` is written `/\\*`, and so on: each `/`,
 /// backslashes, `*` run carries one backslash more on paper than in the text.
-const ESCAPE: char = '\\';
-const STAR: char = '*';
+pub(crate) const ESCAPE: char = '\\';
+pub(crate) const STAR: char = '*';
 const SLASH: char = '/';
 
 /// Which way `escape_openers` moves a backslash run.
@@ -72,6 +72,21 @@ pub fn parse_located(text: &str) -> Vec<Located> {
         .collect()
 }
 
+/// Per line of `text`: it starts inside a `/* … */` an earlier line opened. Lines count
+/// as in [`parse_located`], so an editor can style them without reading the rules again.
+pub fn boneyard_lines(text: &str) -> Vec<bool> {
+    let (_, origin) = cut_boneyard(text);
+    let lines = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut inside = vec![true; lines.matches('\n').count() + 1];
+
+    // A line that starts a line of the reader's text is outside; the rest was cut.
+    for line in origin {
+        inside[line] = false;
+    }
+
+    inside
+}
+
 /// Lines of `text` the title page takes, leading blank lines included; 0 without one. A
 /// block that ends at the end of the text counts its last line break as a line.
 ///
@@ -110,27 +125,73 @@ fn cut_boneyard(text: &str) -> (String, Vec<usize>) {
 }
 
 /// Cuts `/* ... */` out of the text; an unclosed one runs to the end. An escaped opener
-/// (`/\*`) is no opener and reads as `/*`. Also returns the line of `text` each line of
-/// the result starts on.
+/// (`/\*`) is no opener and reads as `/*`. A `/*` inside a note `[[ ... ]]` on one line
+/// is note text, no opener. Also returns the line of `text` each line of the result
+/// starts on.
 fn strip_boneyard(text: &str) -> (String, Vec<usize>) {
     let mut out = String::with_capacity(text.len());
     let mut origin = vec![0];
     let mut line = 0;
-    let mut rest = text;
+    let mut at = 0;
 
-    while let Some(start) = rest.find(BONEYARD_OPEN) {
-        keep(&rest[..start], &mut out, &mut origin, &mut line);
-        let after = &rest[start + BONEYARD_OPEN.len()..];
-        let Some(end) = after.find(BONEYARD_CLOSE) else {
-            return (escape_openers(&out, Escape::Remove), origin);
-        };
+    for span in boneyard_spans(text) {
+        keep(&text[at..span.start], &mut out, &mut origin, &mut line);
         // The boneyard's line breaks are gone, but the typed lines still count.
-        line += after[..end].matches('\n').count();
-        rest = &after[end + BONEYARD_CLOSE.len()..];
+        line += text[span.clone()].matches('\n').count();
+        at = span.end;
     }
 
-    keep(rest, &mut out, &mut origin, &mut line);
+    keep(&text[at..], &mut out, &mut origin, &mut line);
     (escape_openers(&out, Escape::Remove), origin)
+}
+
+/// Byte ranges of the `/* ... */` comments in `text`, openers and closers included; an
+/// unclosed one runs to the end. The one place that says what a boneyard is.
+pub(crate) fn boneyard_spans(text: &str) -> Vec<Range<usize>> {
+    let mut spans = Vec::new();
+    let mut at = 0;
+
+    while let Some(found) = text[at..].find(BONEYARD_OPEN) {
+        let rest = &text[at..];
+        if let Some(end) = note_end(rest, found) {
+            at += end;
+            continue;
+        }
+
+        let start = at + found;
+        let after = start + BONEYARD_OPEN.len();
+        let end = text[after..]
+            .find(BONEYARD_CLOSE)
+            .map_or(text.len(), |close| after + close + BONEYARD_CLOSE.len());
+        spans.push(start..end);
+        at = end;
+    }
+
+    spans
+}
+
+/// Where the note ends that holds the opener at `start` of `rest`, if one does. A note
+/// closes on its own line: `[[a /* b]]` is a note, `[[a /* b` is not.
+fn note_end(rest: &str, start: usize) -> Option<usize> {
+    let mut at = 0;
+
+    while let Some(found) = rest[at..start].find(NOTE_OPEN) {
+        let body_at = at + found + NOTE_OPEN.len();
+        let body = &rest[body_at..];
+        let line = body.find('\n').unwrap_or(body.len());
+        let Some(close) = body[..line].find(NOTE_CLOSE) else {
+            at = body_at;
+            continue;
+        };
+
+        let end = body_at + close + NOTE_CLOSE.len();
+        if end > start {
+            return Some(end);
+        }
+        at = end;
+    }
+
+    None
 }
 
 /// Appends text that stays; every line break in it starts a line of the result.
