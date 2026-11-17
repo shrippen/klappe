@@ -23,6 +23,7 @@ const PAGES: &[&str] = &[
     "qml/LightCard.qml",
     "qml/MarkCard.qml",
     "qml/ObjectCard.qml",
+    "qml/ObjectCommands.qml",
     "qml/OpeningCard.qml",
     "qml/WallCard.qml",
     "qml/LabeledField.qml",

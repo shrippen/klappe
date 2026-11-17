@@ -4,6 +4,7 @@
 use super::q;
 use super::qobject;
 use crate::image;
+use crate::object;
 use crate::tools;
 use crate::tools::NoteDraft;
 use core::pin::Pin;
@@ -40,6 +41,14 @@ impl qobject::Controller {
         };
 
         self.ask_note(NoteDraft::Edit(id))
+    }
+
+    pub(super) fn label_selected(self: Pin<&mut Self>) -> bool {
+        let Some(source) = object::label_source(self.rust().selected.only()) else {
+            return false;
+        };
+
+        self.ask_note(NoteDraft::Label(source))
     }
 
     /// Whether the notes layer takes something new; when it is locked, the status line says so.

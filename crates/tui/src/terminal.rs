@@ -1,7 +1,7 @@
 //! The real terminal: raw mode, alternate screen, mouse; restored on every way out.
 
 use std::io;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use ratatui::crossterm::event::{
     self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind,
@@ -10,6 +10,9 @@ use ratatui::crossterm::execute;
 
 use crate::app::{App, Flow};
 use crate::ui::draw;
+
+/// How often unsaved text goes into the backup (LH-05, DN-06), as in the window.
+const AUTOSAVE_EVERY: Duration = Duration::from_secs(30);
 
 /// Leaves raw mode and the alternate screen when dropped, also on an error or a panic
 /// that unwinds.
@@ -36,26 +39,35 @@ pub fn run(app: &mut App) -> io::Result<()> {
         previous(info);
     }));
 
+    let mut next_autosave = Instant::now() + AUTOSAVE_EVERY;
     loop {
         terminal.draw(|frame| draw(frame, app))?;
 
-        // With old pages, wait for an event only until they are due; then lay them out
-        // again and draw (DN-02). A key never waits for the layout.
-        if let Some(wait) = app.pages_wait(Instant::now()) {
-            if !event::poll(wait)? {
-                app.recompute_pages();
-                continue;
+        // The next autosave, or the old pages becoming due (DN-02), whichever is first; a key
+        // never waits for the layout.
+        let mut wait = next_autosave.saturating_duration_since(Instant::now());
+        if let Some(pages) = app.pages_wait(Instant::now()) {
+            wait = wait.min(pages);
+        }
+        if event::poll(wait)? {
+            match event::read()? {
+                Event::Key(key) if key.kind != KeyEventKind::Release => {
+                    if app.handle_key(key) == Flow::Quit {
+                        // Unsaved text that was quit on stays in the backup.
+                        app.autosave();
+                        return Ok(());
+                    }
+                }
+                Event::Mouse(mouse) => app.handle_mouse(mouse),
+                _ => {}
             }
         }
-
-        match event::read()? {
-            Event::Key(key) if key.kind != KeyEventKind::Release => {
-                if app.handle_key(key) == Flow::Quit {
-                    return Ok(());
-                }
-            }
-            Event::Mouse(mouse) => app.handle_mouse(mouse),
-            _ => {}
+        if app.pages_wait(Instant::now()).is_some_and(|w| w.is_zero()) {
+            app.recompute_pages();
+        }
+        if Instant::now() >= next_autosave {
+            app.autosave();
+            next_autosave = Instant::now() + AUTOSAVE_EVERY;
         }
     }
 }

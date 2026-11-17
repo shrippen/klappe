@@ -31,6 +31,7 @@ fn form() -> SetPlan {
             },
             height_m: None,
             base_m: None,
+            mirrored: false,
         }],
         ..Default::default()
     }

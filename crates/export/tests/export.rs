@@ -46,6 +46,7 @@ fn set() -> SetPlan {
             shape: ObjectShape::Rect,
             height_m: None,
             base_m: None,
+            mirrored: false,
         }],
         background: None,
         notes: Vec::new(),
@@ -352,20 +353,14 @@ fn a_figure_that_left_is_not_printed() {
 fn notes_are_printed_with_their_text() {
     let mut room = set();
     let long = "Der Vorhang wird erst nach dem dritten Gong geschlossen";
-    room.notes = vec![
-        Note {
-            id: "n1".into(),
-            at: Point::new(4.0, 3.0),
-            text: "Vorhang schließen".into(),
-            width_m: 2.4,
-        },
-        Note {
-            id: "n2".into(),
-            at: Point::new(4.0, 8.0),
-            text: long.into(),
-            width_m: 2.4,
-        },
-    ];
+    let note = |id: &str, y_m: f64, text: &str| Note {
+        id: id.into(),
+        at: Point::new(4.0, y_m),
+        text: text.into(),
+        width_m: 2.4,
+        bound: None,
+    };
+    room.notes = vec![note("n1", 3.0, "Vorhang schließen"), note("n2", 8.0, long)];
     let list = render(&project(), &room, &plan(), 0.0, &|_| None);
 
     let out = svg(&list, &page(), Theme::Light).unwrap();

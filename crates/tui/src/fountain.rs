@@ -1,6 +1,8 @@
 //! What each line of the text is, from the Fountain parser, for styling and the scene list.
 
-use klappe_services::{parse_located, Element, Located};
+use klappe_services::{
+    inline_runs, parse_located, title_page_lines, Element, Located, Slot, Vocabulary,
+};
 
 /// Display-only indents in columns (the stored text stays plain Fountain).
 const INDENT_CHARACTER: usize = 20;
@@ -23,9 +25,35 @@ pub(crate) enum LineKind {
     Note,
     PageBreak,
     Lyrics,
+    /// A line of the title page (`Title: …`).
+    Title,
 }
 
 impl LineKind {
+    /// The element a line is for Enter and Tab; none for those that are not part of the flow.
+    pub(crate) fn slot(self) -> Option<Slot> {
+        match self {
+            Self::Heading => Some(Slot::Heading),
+            Self::Action => Some(Slot::Action),
+            Self::Character => Some(Slot::Character),
+            Self::Parenthetical => Some(Slot::Parenthetical),
+            Self::Dialogue => Some(Slot::Dialogue),
+            Self::Transition => Some(Slot::Transition),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn of_slot(slot: Slot) -> Self {
+        match slot {
+            Slot::Heading => Self::Heading,
+            Slot::Action => Self::Action,
+            Slot::Character => Self::Character,
+            Slot::Parenthetical => Self::Parenthetical,
+            Slot::Dialogue => Self::Dialogue,
+            Slot::Transition => Self::Transition,
+        }
+    }
+
     pub(crate) fn indent(self) -> usize {
         match self {
             Self::Character => INDENT_CHARACTER,
@@ -72,11 +100,23 @@ pub(crate) struct Analysis {
     pub scenes: Vec<Scene>,
     /// In text order.
     pub elements: Vec<ElementPos>,
+    /// What the screenplay names, for completion.
+    pub vocab: Vocabulary,
+    /// Per line: it belongs to a dual dialogue (its cue with `^`, parentheticals, dialogue).
+    pub dual: Vec<bool>,
+    /// Whether the element parsed last is part of a dual dialogue.
+    dual_now: bool,
+    /// Per line: it starts inside a `/* … */` an earlier line opened.
+    pub boneyard: Vec<bool>,
     /// Scene number and element count of the scene the parsing is in.
     current: (Option<String>, usize),
 }
 
 impl Analysis {
+    pub(crate) fn is_dual(&self, line: usize) -> bool {
+        self.dual.get(line).copied().unwrap_or(false)
+    }
+
     pub(crate) fn kind(&self, line: usize) -> LineKind {
         self.kinds.get(line).copied().unwrap_or(LineKind::Action)
     }
@@ -96,8 +136,8 @@ impl Analysis {
 /// Classifies every line.
 ///
 /// The reader in `klappe_script` says which lines each element stands on, so the rules
-/// stay its own. Typed text that is no element (a boneyard, a title page) shows as plain
-/// action.
+/// stay its own. Typed text that is no element (a boneyard) shows as plain action, the
+/// title page as `Title`; the inline marks of a boneyard are read per line.
 pub(crate) fn analyse(lines: &[String]) -> Analysis {
     let mut seen = Analysis {
         kinds: lines
@@ -110,8 +150,20 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
         ..Analysis::default()
     };
 
-    for located in parse_located(&lines.join("\n")) {
-        place(&located, &mut seen);
+    let text = lines.join("\n");
+    let located = parse_located(&text);
+    for item in &located {
+        place(item, &mut seen);
+    }
+    seen.vocab = Vocabulary::from_located(&located);
+
+    let mut open = false;
+    for line in lines {
+        seen.boneyard.push(open);
+        open = inline_runs(line, open).1;
+    }
+    for kind in seen.kinds.iter_mut().take(title_page_lines(&text)) {
+        *kind = LineKind::Title;
     }
 
     seen
@@ -148,9 +200,12 @@ fn upper_before(line: &str, cut: usize) -> String {
 /// lowercase letters left. A heading keeps its `#12a#` number as typed (also half typed), a cue its
 /// extension, also while it is still open: `@anna (cont'd)` becomes `@ANNA (cont'd)`, Fountain
 /// allows both cases. An unforced cue is no cue until it is in capitals, so it has nothing to fix.
-pub(crate) fn typed_caps(lines: &[String], at: usize) -> Option<String> {
+pub(crate) fn typed_caps(lines: &[String], at: usize, pending: Option<LineKind>) -> Option<String> {
     let line = lines.get(at)?;
-    let kind = analyse(lines).kind(at);
+    let kind = match (analyse(lines).kind(at), pending) {
+        (LineKind::Blank | LineKind::Action, Some(pending)) => pending,
+        (kind, _) => kind,
+    };
     let trimmed = line.trim_end();
 
     let cut = match kind {
@@ -163,7 +218,11 @@ pub(crate) fn typed_caps(lines: &[String], at: usize) -> Option<String> {
                 _ => trimmed.len(),
             }
         }
-        LineKind::Character if line.trim_start().starts_with(FORCE_CHARACTER) => {
+        // A cue of a pending line and a forced one are capitals up to the extension.
+        LineKind::Character
+            if pending == Some(LineKind::Character)
+                || line.trim_start().starts_with(FORCE_CHARACTER) =>
+        {
             trimmed.find(EXTENSION_OPEN).unwrap_or(trimmed.len())
         }
         _ => return None,
@@ -212,10 +271,22 @@ fn place(located: &Located, out: &mut Analysis) {
         out.current.1 += 1;
     }
 
+    out.dual_now = match &located.element {
+        Element::Character { dual, .. } => *dual,
+        Element::Parenthetical(_) | Element::Dialogue(_) => out.dual_now,
+        _ => false,
+    };
+    if out.dual.len() < out.kinds.len() {
+        out.dual.resize(out.kinds.len(), false);
+    }
+
     let kind = kind_of(&located.element);
     for &at in &located.lines {
         if let Some(slot) = out.kinds.get_mut(at) {
             *slot = kind;
+        }
+        if let Some(slot) = out.dual.get_mut(at) {
+            *slot = out.dual_now;
         }
     }
 }
@@ -227,7 +298,7 @@ mod tests {
     use super::*;
 
     fn caps(text: &str, at: usize) -> Option<String> {
-        typed_caps(&lines(text), at)
+        typed_caps(&lines(text), at, None)
     }
 
     #[test]
@@ -487,6 +558,7 @@ mod tests {
                 LineKind::Note => 'N',
                 LineKind::PageBreak => 'B',
                 LineKind::Lyrics => 'L',
+                LineKind::Title => 'K',
             })
             .collect()
     }
@@ -500,6 +572,28 @@ mod tests {
     fn kinds_of_forced_elements() {
         let text = "!INT. A\nzwei\n\n.hof\n\n@bob\nhi\n\n>RAUS\n\n> mitte <\n\n~la la\n\n[[note]]\n\n===\n\n= kurz\n\n## Akt";
         assert_eq!(letters(text), "AA.H.CD.T.Z.L.N.B.Y.S");
+    }
+
+    #[test]
+    fn no_title_page_no_title_kind() {
+        assert_eq!(letters("INT. A\n\nx"), "H.A");
+    }
+
+    #[test]
+    fn a_boneyard_is_followed_from_line_to_line() {
+        let a = analyse(&lines("a /* b\nc\nd */ e\nf"));
+
+        assert_eq!(a.boneyard, [false, true, true, false]);
+    }
+
+    #[test]
+    fn the_vocabulary_comes_from_the_text() {
+        let a = analyse(&lines(
+            "INT. KÜCHE - TAG\n\nx\n\nANNA\nhi\n\nBEN\nho\n\nANNA\nna",
+        ));
+
+        assert_eq!(a.vocab.characters(), ["ANNA", "BEN"]);
+        assert_eq!(a.vocab.locations(), ["KÜCHE"]);
     }
 
     #[test]
@@ -557,8 +651,8 @@ mod tests {
 
     #[test]
     fn kinds_of_a_title_page_block() {
-        // The reader takes the first block as title page; the editor shows plain lines.
-        assert_eq!(letters("Title: Foo\nAuthor: Bar\n\nINT. A\n\nx"), "AA.H.A");
+        // The reader takes the first block as title page; the editor marks its lines.
+        assert_eq!(letters("Title: Foo\nAuthor: Bar\n\nINT. A\n\nx"), "KK.H.A");
     }
 
     #[test]

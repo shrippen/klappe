@@ -13,6 +13,14 @@ use crate::app::IDLE_BEFORE_PAGES;
 use crate::app::{Focus, Mode};
 use crate::{draw, theme, App, Flow, Language};
 
+mod find;
+mod flow;
+mod marks;
+mod session;
+mod support;
+
+use support::Scratch;
+
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
 }
@@ -21,8 +29,19 @@ fn app() -> App {
     App::open(&example(), Language::English).unwrap_or_else(|e| unreachable!("{e}"))
 }
 
+/// The editor is never open with a backup unanswered: autosave would hold for good.
+fn assert_backup_answered(app: &App) {
+    assert!(
+        app.mode != Mode::Normal || !app.backup_held(),
+        "Normal mode with an unanswered backup"
+    );
+}
+
 fn press(app: &mut App, code: KeyCode) -> Flow {
-    app.handle_key(KeyEvent::new(code, KeyModifiers::NONE))
+    let flow = app.handle_key(KeyEvent::new(code, KeyModifiers::NONE));
+    assert_backup_answered(app);
+
+    flow
 }
 
 fn ctrl(app: &mut App, c: char) -> Flow {
@@ -175,16 +194,16 @@ fn list_follows_the_text() {
 }
 
 #[test]
-fn tab_and_enter_jump_to_the_selected_scene() {
+fn f6_and_enter_jump_to_the_selected_scene() {
     let mut app = two_scenes();
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     assert_eq!(app.focus, Focus::List);
 
     press(&mut app, KeyCode::Up);
     press(&mut app, KeyCode::Enter);
     assert_eq!((app.focus, app.cursor().line), (Focus::Editor, 0));
 
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     press(&mut app, KeyCode::Down);
     press(&mut app, KeyCode::Enter);
     assert_eq!((app.focus, app.cursor().line), (Focus::Editor, 2));
@@ -193,7 +212,7 @@ fn tab_and_enter_jump_to_the_selected_scene() {
 #[test]
 fn ctrl_g_jumps_from_the_list_selection() {
     let mut app = two_scenes();
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     press(&mut app, KeyCode::Home);
     press(&mut app, KeyCode::End);
     ctrl(&mut app, 'g');
@@ -423,7 +442,7 @@ fn narrow_terminal_hides_the_list_until_asked() {
 }
 
 #[test]
-fn ctrl_b_shows_the_list_on_a_narrow_terminal_and_tab_too() {
+fn ctrl_b_shows_the_list_on_a_narrow_terminal_and_f6_too() {
     let mut app = app();
     let _ = screen(&mut app, 80, 20);
     ctrl(&mut app, 'b');
@@ -431,7 +450,7 @@ fn ctrl_b_shows_the_list_on_a_narrow_terminal_and_tab_too() {
 
     let mut app = self::app();
     let _ = screen(&mut app, 80, 20);
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     assert_eq!(app.focus, Focus::List);
     assert!(screen(&mut app, 80, 20).contains("Scenes"));
 
@@ -443,7 +462,7 @@ fn ctrl_b_shows_the_list_on_a_narrow_terminal_and_tab_too() {
 fn shrinking_the_terminal_moves_focus_from_the_hidden_list() {
     let mut app = app();
     let _ = screen(&mut app, 120, 20);
-    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::F(6));
     assert_eq!(app.focus, Focus::List);
 
     let narrow = screen(&mut app, 80, 20);
@@ -504,6 +523,9 @@ fn undo_takes_typing_and_capitals_back_together() {
     typed(&mut app, "int. küche");
     ctrl(&mut app, 'z');
 
+    // A word is one step: "küche" goes with its capitals, "INT. " stays.
+    assert!(app.text().starts_with("\n\n\nINT. \n"), "{}", app.text());
+    ctrl(&mut app, 'z');
     assert!(app.text().starts_with("\n\n\n\n"), "{}", app.text());
 }
 
@@ -536,34 +558,16 @@ fn a_hash_without_a_number_is_heading_text() {
 /// A project whose screenplay is one scene of `rows` rows of action, one sentence each:
 /// text line 0 is the heading, line 2 the first row (A4 has 59 rows, so page 2 starts at
 /// "Line 57." on text line 59).
-fn long_project(name: &str, rows: usize) -> (App, Scratch) {
-    let dir = std::env::temp_dir().join(format!("klappe-tui-{name}"));
-    let _ = std::fs::remove_dir_all(&dir);
-    let mut session =
-        klappe_services::Session::create(&dir, "T").unwrap_or_else(|e| unreachable!("{e}"));
+fn long_project(rows: usize) -> (App, Scratch) {
     let lines: Vec<String> = (0..rows).map(|i| format!("Line {i}.")).collect();
-    session.set_script_text(&format!("INT. A - DAY #1#\n\n{}\n", lines.join("\n")));
-    session
-        .save_script()
-        .unwrap_or_else(|e| unreachable!("{e}"));
+    let scratch = Scratch::new(&format!("INT. A - DAY #1#\n\n{}\n", lines.join("\n")));
 
-    let app = App::open(&dir, Language::English).unwrap_or_else(|e| unreachable!("{e}"));
-
-    (app, Scratch(dir))
-}
-
-/// A folder that goes when the test ends.
-struct Scratch(PathBuf);
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
+    (scratch.app(), scratch)
 }
 
 #[test]
 fn a_page_break_is_a_thin_line_with_the_page_number() {
-    let (mut app, _scratch) = long_project("break", 90);
+    let (mut app, _scratch) = long_project(90);
     let frame = screen(&mut app, 120, 80);
     let lines: Vec<&str> = frame.lines().collect();
     let at = lines.iter().position(|l| l.contains("Page 2")).unwrap_or(0);
@@ -583,7 +587,7 @@ fn a_page_break_is_a_thin_line_with_the_page_number() {
 
 #[test]
 fn the_cursor_passes_a_page_break_without_stopping_on_it() {
-    let (mut app, _scratch) = long_project("cursor", 90);
+    let (mut app, _scratch) = long_project(90);
     let _ = screen(&mut app, 120, 80);
     app.editor.go_to_line(58);
 
@@ -617,7 +621,7 @@ fn the_scene_list_shows_the_length_in_eighths() {
 
 #[test]
 fn pages_are_laid_out_again_five_seconds_after_the_last_key() {
-    let (mut app, _scratch) = long_project("idle", 90);
+    let (mut app, _scratch) = long_project(90);
     assert_eq!(app.pages_wait(Instant::now()), None);
     let before = app.pages().map(|p| p.breaks.clone());
 

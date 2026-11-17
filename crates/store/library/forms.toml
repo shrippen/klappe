@@ -138,3 +138,123 @@ to = [0.8, 0.15, 0.75]
 [[form.box]]
 from = [0, 0, 0.75]
 to = [1, 1, 1]
+
+# Two end panels, the top and two screens on it, which face +y.
+[[form]]
+name = "monitor"
+
+[[form.box]]
+from = [0, 0, 0]
+to = [0.04, 1, 0.5]
+
+[[form.box]]
+from = [0.96, 0, 0]
+to = [1, 1, 0.5]
+
+[[form.box]]
+from = [0, 0, 0.5]
+to = [1, 1, 0.55]
+
+[[form.box]]
+from = [0.08, 0.35, 0.55]
+to = [0.48, 0.45, 1]
+
+[[form.box]]
+from = [0.52, 0.35, 0.55]
+to = [0.92, 0.45, 1]
+
+# The body as one block and wheels under it; the front at +x.
+[[form]]
+name = "bus"
+
+[[form.box]]
+from = [0, 0.02, 0.12]
+to = [1, 0.98, 1]
+
+[[form.box]]
+from = [0.1, 0, 0]
+to = [0.2, 1, 0.22]
+
+[[form.box]]
+from = [0.8, 0, 0]
+to = [0.9, 1, 0.22]
+
+# Cab at the front, the box behind it, wheels under both.
+[[form]]
+name = "truck"
+
+[[form.box]]
+from = [0.78, 0.02, 0.12]
+to = [1, 0.98, 0.65]
+
+[[form.box]]
+from = [0, 0.02, 0.2]
+to = [0.76, 0.98, 1]
+
+[[form.box]]
+from = [0.05, 0, 0]
+to = [0.25, 1, 0.25]
+
+[[form.box]]
+from = [0.8, 0, 0]
+to = [0.95, 1, 0.25]
+
+# Two wheels, the body between them and the handlebar; the front at +x.
+[[form]]
+name = "motorcycle"
+
+[[form.box]]
+from = [0, 0.35, 0]
+to = [0.25, 0.65, 0.45]
+
+[[form.box]]
+from = [0.75, 0.35, 0]
+to = [1, 0.65, 0.45]
+
+[[form.box]]
+from = [0.2, 0.2, 0.35]
+to = [0.75, 0.8, 0.65]
+
+[[form.box]]
+from = [0.65, 0, 0.7]
+to = [0.75, 1, 0.8]
+
+# Four legs, the body and the head; the head at +x.
+[[form]]
+name = "dog"
+
+[[form.box]]
+from = [0.1, 0, 0]
+to = [0.2, 0.4, 0.4]
+
+[[form.box]]
+from = [0.1, 0.6, 0]
+to = [0.2, 1, 0.4]
+
+[[form.box]]
+from = [0.6, 0, 0]
+to = [0.7, 0.4, 0.4]
+
+[[form.box]]
+from = [0.6, 0.6, 0]
+to = [0.7, 1, 0.4]
+
+[[form.box]]
+from = [0.05, 0, 0.4]
+to = [0.75, 1, 0.8]
+
+[[form.box]]
+from = [0.75, 0.1, 0.55]
+to = [1, 0.9, 1]
+
+# Base and a screen standing up at the back, which is the low y side.
+[[form]]
+name = "laptop"
+
+[[form.box]]
+from = [0, 0, 0]
+to = [1, 1, 0.08]
+
+[[form.box]]
+from = [0, 0, 0.08]
+to = [1, 0.08, 1]

@@ -17,6 +17,7 @@ fn set(rotation_deg: f64, shape: ObjectShape) -> SetPlan {
             shape,
             height_m: None,
             base_m: None,
+            mirrored: false,
         }],
         ..Default::default()
     }
