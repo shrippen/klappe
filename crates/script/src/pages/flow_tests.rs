@@ -239,82 +239,89 @@ fn check_rules(seed: u64, rounds: usize, lines: Option<usize>) {
         let text = script(&mut rng, blocks);
         let p = lay(&text, body_lines);
         let ctx = format!("round {round}, {body_lines} rows\n{text}\n{}", dump(&p));
-        let last = p.pages.len().saturating_sub(1);
-
-        for (n, page) in p.pages.iter().enumerate() {
-            // Every page but the last has at least two lines of body.
-            if n != last && body_rows(page) < 2 {
-                assert!(
-                    unavoidable(page, &p.pages[n + 1], body_lines),
-                    "page {} thin: {ctx}",
-                    n + 1
-                );
-            }
-            assert!(page.lines.iter().all(|l| l.row < body_lines), "{ctx}");
-
-            // A page never begins with words without the name above them.
-            let first_row = page.lines.iter().filter(|l| l.row == 0);
-            let orphan = first_row
-                .clone()
-                .any(|l| matches!(l.kind, PageKind::Dialogue | PageKind::Parenthetical));
-            assert!(!orphan, "page {} starts without a name: {ctx}", n + 1);
-
-            let ends = last_row_kinds(page);
-            // No heading last on a page unless the script ends there.
-            if n != last {
-                assert!(
-                    !ends.contains(&PageKind::Heading),
-                    "heading last, page {}: {ctx}",
-                    n + 1
-                );
-            }
-
-            // (MORE) ends a page and the next page opens with the name again, and back.
-            let has_more = !ends.is_empty() && ends.iter().all(|k| *k == PageKind::More);
-            let next_contd = p.pages.get(n + 1).is_some_and(|q| q.lines[0].added);
-            assert_eq!(
-                has_more,
-                next_contd,
-                "more {has_more} contd {next_contd} page {}: {ctx}",
-                n + 1
-            );
-            assert!(
-                page.lines
-                    .iter()
-                    .filter(|l| l.kind == PageKind::More)
-                    .count()
-                    <= 2,
-                "{ctx}"
-            );
+        for n in 0..p.pages.len() {
+            check_page(&p, n, body_lines, &ctx);
         }
-
-        // An action cut falls at a sentence end, unless the action is taller than a page.
-        for (n, page) in p.pages.iter().enumerate().take(last) {
-            let (Some(tail), Some(head)) = (
-                page.lines.iter().max_by_key(|l| l.row),
-                p.pages[n + 1].lines.first(),
-            ) else {
-                continue;
-            };
-            if tail.kind != PageKind::Action || head.element != tail.element {
-                continue;
-            }
-
-            let rows = p
-                .pages
-                .iter()
-                .flat_map(|q| &q.lines)
-                .filter(|l| l.element == tail.element)
-                .count();
-            assert!(
-                ends_a_sentence(&tail.text) || rows > body_lines,
-                "{}: {ctx}",
-                tail.text
-            );
-        }
+        check_action_cuts(&p, body_lines, &ctx);
     }
 }
 
+/// The rules for page `n` (from 0) of `p`.
+fn check_page(p: &Pagination, n: usize, body_lines: usize, ctx: &str) {
+    let page = &p.pages[n];
+    let last = p.pages.len() - 1;
+    // Every page but the last has at least two lines of body.
+    if n != last && body_rows(page) < 2 {
+        assert!(
+            unavoidable(page, &p.pages[n + 1], body_lines),
+            "page {} thin: {ctx}",
+            n + 1
+        );
+    }
+    assert!(page.lines.iter().all(|l| l.row < body_lines), "{ctx}");
+
+    // A page never begins with words without the name above them.
+    let first_row = page.lines.iter().filter(|l| l.row == 0);
+    let orphan = first_row
+        .clone()
+        .any(|l| matches!(l.kind, PageKind::Dialogue | PageKind::Parenthetical));
+    assert!(!orphan, "page {} starts without a name: {ctx}", n + 1);
+
+    let ends = last_row_kinds(page);
+    // No heading last on a page unless the script ends there.
+    if n != last {
+        assert!(
+            !ends.contains(&PageKind::Heading),
+            "heading last, page {}: {ctx}",
+            n + 1
+        );
+    }
+
+    // (MORE) ends a page and the next page opens with the name again, and back.
+    let has_more = !ends.is_empty() && ends.iter().all(|k| *k == PageKind::More);
+    let next_contd = p.pages.get(n + 1).is_some_and(|q| q.lines[0].added);
+    assert_eq!(
+        has_more,
+        next_contd,
+        "more {has_more} contd {next_contd} page {}: {ctx}",
+        n + 1
+    );
+    assert!(
+        page.lines
+            .iter()
+            .filter(|l| l.kind == PageKind::More)
+            .count()
+            <= 2,
+        "{ctx}"
+    );
+}
+
+/// An action cut falls at a sentence end, unless the action is taller than a page.
+fn check_action_cuts(p: &Pagination, body_lines: usize, ctx: &str) {
+    for (n, page) in p.pages.iter().enumerate().take(p.pages.len() - 1) {
+        let (Some(tail), Some(head)) = (
+            page.lines.iter().max_by_key(|l| l.row),
+            p.pages[n + 1].lines.first(),
+        ) else {
+            continue;
+        };
+        if tail.kind != PageKind::Action || head.element != tail.element {
+            continue;
+        }
+
+        let rows = p
+            .pages
+            .iter()
+            .flat_map(|q| &q.lines)
+            .filter(|l| l.element == tail.element)
+            .count();
+        assert!(
+            ends_a_sentence(&tail.text) || rows > body_lines,
+            "{}: {ctx}",
+            tail.text
+        );
+    }
+}
 /// A dialogue taller than a page that starts mid-page, with a sentence end inside: it is not
 /// cut at a row where it stands; it starts on the next page and is cut after a sentence
 /// there, with `(MORE)` and `(CONT'D)`.
