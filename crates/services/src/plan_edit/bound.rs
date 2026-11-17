@@ -17,7 +17,7 @@
 //! scene): no key names a plan or a scene.
 
 use klappe_model::{FloorPlan, Note, Point, Project, SetPlan, NOTE_WIDTH_M};
-use klappe_stellprobe::{figure_at, Source};
+use klappe_stellprobe::{figure_at, set_at, Source};
 
 use super::add::{free_id, note_text};
 use super::Scope;
@@ -84,6 +84,8 @@ fn key_of(source: &Source) -> Option<String> {
 fn anchor(set: &SetPlan, plan: &FloorPlan, time_s: f64, key: &str) -> Option<Anchor> {
     match Target::parse(key)? {
         Target::Object(id) => {
+            // Where the object stands at the playhead, not where the set puts it.
+            let set = set_at(set, plan, time_s);
             let object = set.objects.iter().find(|o| o.id == id)?;
             Some(Anchor {
                 at: object.at,

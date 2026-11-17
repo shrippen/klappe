@@ -1,5 +1,5 @@
 use klappe_model::{Curve, DrawingShape, Point, Project};
-use klappe_stellprobe::{handles, lens_at, render, DisplayList, Item, Source};
+use klappe_stellprobe::{handles, lens_at, render, set_at, DisplayList, Item, Source};
 
 use super::layers::layer_of;
 use super::{Lock, Session};
@@ -31,8 +31,8 @@ impl Session {
             self.image_size(file)
         });
         if let Some(selected) = selected {
-            list.items
-                .extend(handles(project, &location.set, plan, selected));
+            let set = set_at(&location.set, plan, self.time_s);
+            list.items.extend(handles(project, &set, plan, selected));
         }
         list.items
             .retain(|item| self.shows(item.role, item.source.as_ref()));

@@ -4,6 +4,7 @@ use klappe_model::{is_outline, outline_box, ObjectShape, Point, SetObject};
 use klappe_stellprobe::{object_grip_place, ObjectGrip, Source};
 
 use super::super::{drawings, Scope};
+use super::placed_grip;
 use crate::error::ServiceError;
 use crate::field::Field;
 
@@ -123,7 +124,7 @@ pub(in super::super) fn remove_grip(
         Source::ObjectGrip {
             grip: ObjectGrip::Point(_),
             ..
-        } => remove_form_point(scope, source),
+        } => placed_grip(scope, source, |s| remove_form_point(s, source)),
         _ => drawings::remove_grip(scope, source),
     }
 }

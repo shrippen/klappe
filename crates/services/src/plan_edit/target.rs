@@ -5,6 +5,7 @@ use klappe_stellprobe::{Bend, LightGrip, ObjectGrip, OpeningEnd, Source};
 
 use super::bound::note_mut;
 use super::openings::opening_mut;
+use super::props::object_mark_mut;
 use super::{current_index, Scope};
 use crate::error::ServiceError;
 
@@ -66,10 +67,9 @@ pub(super) enum Target<'a> {
     },
 }
 
-pub(super) fn target<'a>(
-    scope: &'a mut Scope<'_>,
-    source: &Source,
-) -> Result<Target<'a>, ServiceError> {
+/// The place of a mark: of a figure or camera, or of an object that moves (LH-24); a figure,
+/// camera or object stands for its mark at the playhead.
+fn mark_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'a>, ServiceError> {
     let time_s = scope.time_s;
 
     match source {
@@ -86,11 +86,6 @@ pub(super) fn target<'a>(
                 facing_deg: &mut mark.facing_deg,
             })
         }
-        Source::FigureVia { .. }
-        | Source::CameraVia { .. }
-        | Source::DrawingPoint { .. }
-        | Source::DrawingEdge { .. }
-        | Source::ObjectGrip { .. } => grip_target(scope, source),
         Source::Figure(character) => {
             let track = scope
                 .plan
@@ -121,6 +116,32 @@ pub(super) fn target<'a>(
                 facing_deg: &mut mark.facing_deg,
             })
         }
+        Source::ObjectMark { .. } | Source::Object(_) => {
+            let mark = object_mark_mut(scope, source)?;
+            Ok(Target::Place {
+                at: &mut mark.at,
+                facing_deg: &mut mark.rotation_deg,
+            })
+        }
+        _ => Err(ServiceError::Gone),
+    }
+}
+
+pub(super) fn target<'a>(
+    scope: &'a mut Scope<'_>,
+    source: &Source,
+) -> Result<Target<'a>, ServiceError> {
+    match source {
+        Source::FigureVia { .. }
+        | Source::CameraVia { .. }
+        | Source::DrawingPoint { .. }
+        | Source::DrawingEdge { .. }
+        | Source::ObjectGrip { .. } => grip_target(scope, source),
+        Source::Mark { .. } | Source::Figure(_) | Source::Camera(_) | Source::ObjectMark { .. } => {
+            mark_target(scope, source)
+        }
+        // An object that moves is dragged by its mark at the playhead, like a figure.
+        Source::Object(id) if scope.plan.object_track(id).is_some() => mark_target(scope, source),
         Source::Light(_) | Source::LightGrip { .. } => light_target(scope, source),
         Source::Object(id) => {
             let object = scope

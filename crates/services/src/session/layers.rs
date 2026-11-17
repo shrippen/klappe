@@ -138,6 +138,13 @@ impl Session {
 
 /// Which layer switch an item of the display list belongs to. A grip is on its element's.
 pub(super) fn layer_of(role: Role, source: Option<&Source>) -> Layer {
+    // The marks and the way of a set object are on the set's layer (LH-24).
+    if matches!(source, Some(Source::Object(_) | Source::ObjectMark { .. }))
+        && matches!(role, Role::Mark(_) | Role::FigurePath(_))
+    {
+        return Layer::Set;
+    }
+
     match role {
         Role::Handle => source.map_or(Layer::Set, layer_of_source),
         Role::Background

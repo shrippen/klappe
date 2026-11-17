@@ -2,7 +2,8 @@
 //! shown for them (hold and mark info apply to cameras too); a camera mark's rig and lens.
 
 use klappe_model::{
-    Arrival, CameraMark, Curve, Departure, FigureTrack, FloorPlan, Mark, Point, Pose, Rig,
+    Arrival, CameraMark, Curve, Departure, FigureTrack, FloorPlan, Mark, ObjectTrack, Point, Pose,
+    Rig,
 };
 use klappe_stellprobe::{walked_ways, way_length_m, Source};
 
@@ -48,7 +49,7 @@ impl Pace {
 }
 
 /// What the plan says about a mark, for the fields that change it.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MarkInfo {
     /// `None` for a camera's mark.
     pub pose: Option<Pose>,
@@ -73,6 +74,9 @@ pub struct MarkInfo {
     pub pace_m_s: Option<f64>,
     /// The way's shape (LH-108); `None` where the mark has no way.
     pub curve: Option<Curve>,
+    /// The figure that carries the object from this mark on (LH-24); `None` for any other
+    /// mark and for an object that is set down.
+    pub carried_by: Option<String>,
 }
 
 /// Walking speed that sets the time of a new mark: an easy pace on set, 5 km/h.
@@ -205,6 +209,22 @@ fn timing<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Timing<'a>, S
 
             (index, marks.map(|m| (&mut m.at_s, &mut m.hold_s)).collect())
         }
+        Source::ObjectMark { object, index } => {
+            let track = object_track_mut(scope, object)?;
+            let marks = track.marks.iter_mut();
+
+            (
+                Some(*index),
+                marks.map(|m| (&mut m.at_s, &mut m.hold_s)).collect(),
+            )
+        }
+        Source::Object(object) => {
+            let track = object_track_mut(scope, object)?;
+            let index = current_index(track.marks.iter().map(|m| m.at_s), time_s);
+            let marks = track.marks.iter_mut();
+
+            (index, marks.map(|m| (&mut m.at_s, &mut m.hold_s)).collect())
+        }
         Source::Camera(id) => {
             let camera = scope
                 .plan
@@ -224,6 +244,18 @@ fn timing<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Timing<'a>, S
         .ok_or(ServiceError::Gone)?;
 
     Ok(Timing { marks, index })
+}
+
+fn object_track_mut<'a>(
+    scope: &'a mut Scope<'_>,
+    object: &str,
+) -> Result<&'a mut ObjectTrack, ServiceError> {
+    scope
+        .plan
+        .object_tracks
+        .iter_mut()
+        .find(|t| t.object == object)
+        .ok_or(ServiceError::Gone)
 }
 
 fn set_hold(scope: &mut Scope<'_>, source: &Source, hold_s: f64) -> Result<(), ServiceError> {
@@ -375,10 +407,43 @@ pub(crate) fn mark_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Optio
                 has_way: index > 0,
                 pace_m_s,
                 curve: (index > 0).then_some(mark.curve),
+                carried_by: None,
             })
         }
+        Source::ObjectMark { .. } | Source::Object(_) => object_info(plan, time_s, source),
         _ => None,
     }
+}
+
+/// The fields of an object's mark: its pause and who carries it (LH-24).
+fn object_info(plan: &FloorPlan, time_s: f64, source: &Source) -> Option<MarkInfo> {
+    let (object, index) = match source {
+        Source::ObjectMark { object, index } => (object, *index),
+        Source::Object(object) => {
+            let track = plan.object_track(object)?;
+            (
+                object,
+                current_index(track.marks.iter().map(|m| m.at_s), time_s)?,
+            )
+        }
+        _ => return None,
+    };
+    let mark = plan.object_track(object)?.marks.get(index)?;
+
+    Some(MarkInfo {
+        pose: None,
+        arrival: None,
+        departure: None,
+        hold_s: mark.hold_s,
+        height_m: None,
+        tilt_deg: None,
+        rig: None,
+        lens_mm: None,
+        has_way: false,
+        pace_m_s: None,
+        curve: None,
+        carried_by: mark.carried_by.clone(),
+    })
 }
 
 /// The shape of the way `source` names: a mark, a figure or a camera (its mark at the
@@ -431,6 +496,7 @@ fn figure_info(track: &FigureTrack, index: usize) -> Option<MarkInfo> {
         has_way,
         pace_m_s,
         curve: has_way.then_some(mark.curve),
+        carried_by: None,
     })
 }
 

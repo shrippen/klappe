@@ -47,6 +47,7 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
         | ElementKind::ImageSize
         | ElementKind::OpeningEdge
         | ElementKind::LightGrip
+        | ElementKind::ObjectMark
         | ElementKind::ObjectGrip => None,
     };
 

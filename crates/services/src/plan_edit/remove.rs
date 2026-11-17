@@ -7,6 +7,7 @@ use super::bound::remove_note;
 use super::images;
 use super::moving::forms::remove_grip;
 use super::openings::opening_mut;
+use super::props;
 use super::target::{target, Target};
 use super::Scope;
 use crate::error::ServiceError;
@@ -33,6 +34,7 @@ fn remove_bend(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceErro
 pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
     match source {
         Source::Mark { character, index } => remove_mark(scope.plan, character, *index),
+        Source::ObjectMark { object, index } => props::remove_object_mark(scope, object, *index),
         Source::Figure(character) => {
             let known = scope.plan.figure(character).is_some();
             if !known {
@@ -46,6 +48,28 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
         // A grip is no element of its own: removing a bend takes it out; a grip for a new
         // bend has nothing to remove.
         Source::FigureVia { .. } | Source::CameraVia { .. } => remove_bend(scope, source),
+        Source::Light(_) | Source::Object(_) | Source::Wall(_) => remove_item(scope, source),
+        Source::Opening { .. } => {
+            let (wall, index) = opening_mut(scope, source)?;
+            wall.openings.remove(index);
+            Ok(())
+        }
+        Source::Note(id) => remove_note(scope, id),
+        Source::Image(id) => images::remove_image(scope, id),
+        Source::Drawing(id) => {
+            let index = scope.plan.drawings.iter().position(|d| d.id == *id);
+            let index = index.ok_or(ServiceError::Gone)?;
+            scope.plan.drawings.remove(index);
+            Ok(())
+        }
+        // The other grips are no element of their own: nothing to remove, but a point.
+        grip => remove_grip(scope, grip),
+    }
+}
+
+/// Takes a lamp, an object (and its way) or a wall out of the plan.
+fn remove_item(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceError> {
+    match source {
         Source::Light(id) => {
             let index = scope.plan.lights.iter().position(|l| l.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;
@@ -68,21 +92,7 @@ pub(super) fn remove(scope: &mut Scope<'_>, source: &Source) -> Result<(), Servi
             set.walls.remove(*index);
             Ok(())
         }
-        Source::Opening { .. } => {
-            let (wall, index) = opening_mut(scope, source)?;
-            wall.openings.remove(index);
-            Ok(())
-        }
-        Source::Note(id) => remove_note(scope, id),
-        Source::Image(id) => images::remove_image(scope, id),
-        Source::Drawing(id) => {
-            let index = scope.plan.drawings.iter().position(|d| d.id == *id);
-            let index = index.ok_or(ServiceError::Gone)?;
-            scope.plan.drawings.remove(index);
-            Ok(())
-        }
-        // The other grips are no element of their own: nothing to remove, but a point.
-        grip => remove_grip(scope, grip),
+        _ => Ok(()),
     }
 }
 
@@ -130,6 +140,7 @@ fn remove_mark(plan: &mut FloorPlan, character: &str, index: usize) -> Result<()
 /// The whole track, with everything that pointed at the figure.
 fn remove_figure(plan: &mut FloorPlan, character: &str) {
     plan.figures.retain(|f| f.character != character);
+    props::drop_carrier(plan, character);
     plan.links
         .retain(|l| !matches!(&l.target, LinkTarget::Mark { character: c, .. } if c == character));
 

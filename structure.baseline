@@ -4,7 +4,6 @@
 exclude	crates/app/qml/Kante/**
 exclude	crates/app/src/bridge.rs
 crates/app/src/plan/key.rs	key	ccn=19
-crates/app/src/plan/key.rs	name	ccn=19
 crates/export/src/deflate.rs	block	length=86
 crates/export/src/font.rs	composite_glyph	ccn=23
 crates/export/src/inflate.rs	dynamic	ccn=21
@@ -20,11 +19,9 @@ crates/imagehead/src/lib.rs	jpeg_frame	ccn=22
 crates/script/src/write.rs	render	ccn=16
 crates/services/src/error_text.rs	own_text	ccn=18
 crates/services/src/field.rs	name	ccn=44
-crates/services/src/plan_edit.rs	apply	ccn=35 length=121
+crates/services/src/plan_edit.rs	apply	ccn=33 length=120
 crates/services/src/plan_edit/check.rs	check	ccn=19
 crates/services/src/plan_edit/group.rs	copy	ccn=20
-crates/services/src/plan_edit/remove.rs	remove	ccn=20
-crates/services/src/plan_edit/target.rs	target	ccn=20 length=87
 crates/services/tests/plan_edit.rs	-	lines=841
 crates/stellprobe/src/display.rs	figure_items	length=83
 crates/stellprobe/src/look.rs	look	ccn=16

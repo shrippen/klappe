@@ -68,6 +68,15 @@ EditorPane {
         Layout.fillWidth: true
         model: form.locations.map(l => l.name)
     }
+    // Another location drops the object ways of the scene's plans (LH-24); undo brings them back.
+    KanteCallout {
+        objectName: "waysDropped"
+        Layout.fillWidth: true
+        visible: form.item !== null && locationBox.currentIndex >= 0
+            && form.locations[locationBox.currentIndex].id !== form.item.location
+        kind: KanteCallout.Kind.Info
+        text: form.texts.t("scene.waysDropped")
+    }
     KanteCallout {
         objectName: "needLocation"
         Layout.fillWidth: true
