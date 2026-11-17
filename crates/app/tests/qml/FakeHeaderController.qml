@@ -66,6 +66,9 @@ QtObject {
     function clearStatus() {}
     function stepMark(direction) { call("stepMark", [direction]) }
     property string selectedKey: ""
+    property string selectedShot: ""
+    function stepView(step) { call("stepView", [step]) }
+    function nudgeTime(what, delta) { return call("nudgeTime", [what, delta]) }
     property string curve: ""
     function canArm(what) { return what !== "axisTo" || selectedKey.indexOf("figure") === 0 }
     function arm(what) { return call("arm", [what]) }

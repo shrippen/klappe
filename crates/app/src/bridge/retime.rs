@@ -4,10 +4,11 @@ use super::qobject;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
-use klappe_services::{Grab, TimeSnap};
+use klappe_services::{Grab, Source, TimeSnap};
 
 const FIGURE_MARK: &str = "figure";
 const CAMERA_MARK: &str = "camera";
+const MARK: &str = "mark";
 const SHOT_FROM: &str = "shot-from";
 const SHOT_TO: &str = "shot-to";
 
@@ -36,6 +37,29 @@ impl qobject::Controller {
             return false;
         };
         let result = s.drop_time(&grab, seconds, snap);
+
+        self.report(Some(result))
+    }
+
+    pub(super) fn nudge_time(mut self: Pin<&mut Self>, what: &QString, delta_s: f64) -> bool {
+        let what = what.to_string();
+        let mark = match self.rust().selected.only() {
+            Some(Source::Mark { character, index }) => Some((character.clone(), *index)),
+            _ => None,
+        };
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+        let grab = match what.as_str() {
+            MARK => mark.map(|(character, index)| Grab::FigureMark { character, index }),
+            SHOT_FROM => s.selected_shot().map(|id| Grab::ShotFrom(id.to_owned())),
+            SHOT_TO => s.selected_shot().map(|id| Grab::ShotTo(id.to_owned())),
+            _ => None,
+        };
+        let Some(grab) = grab else {
+            return false;
+        };
+        let result = s.nudge_time(&grab, delta_s);
 
         self.report(Some(result))
     }

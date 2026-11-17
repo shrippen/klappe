@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use klappe_services::{scene_look, Area, Picture, SceneRole};
+use klappe_services::{scene_look, Area, Frame, Picture, SceneRole, Source};
 use serde_json::{json, Value};
 
 use super::hue_name;
@@ -21,6 +21,7 @@ const MAX_CHANNEL: &str = "255";
 pub const IMAGE_FORMAT: &str = "PPM";
 const TEXT_HUE: &str = "text";
 const GROUND_HUE: &str = "ground";
+const ACCENT_HUE: &str = "accent";
 /// Every role code of a pixel fits a byte.
 const CODES: usize = 256;
 
@@ -84,11 +85,20 @@ fn paints(palette: &Palette) -> Vec<Option<Paint>> {
 /// The picture as a PPM image (the format `QImage` reads): the face of a pixel is its role's
 /// colour times its shade, an outline is the role's colour as it is, empty is the ground.
 /// `strength` says how much of its colour a role keeps (LH-15): a faded layer is mixed with the
-/// ground.
-pub fn ppm(picture: &Picture, palette: &Palette, strength: &dyn Fn(SceneRole) -> f64) -> Vec<u8> {
+/// ground. The outline of a source `selected` names is the accent (edge role "Auswahl") and
+/// twice as wide, so the selection shows by form too, not only by colour.
+pub fn ppm(
+    picture: &Picture,
+    palette: &Palette,
+    strength: &dyn Fn(SceneRole) -> f64,
+    selected: &dyn Fn(&Source) -> bool,
+) -> Vec<u8> {
     let frame = &picture.frame;
     let paints = paints(palette);
     let ground = palette.color(GROUND_HUE);
+    let accent = palette.color(ACCENT_HUE);
+    let chosen: Vec<bool> = picture.sources.iter().map(selected).collect();
+    let outlined = selection_outline(frame, &chosen);
     let strengths: Vec<f64> = (0..CODES)
         .map(|code| {
             u8::try_from(code)
@@ -105,6 +115,7 @@ pub fn ppm(picture: &Picture, palette: &Palette, strength: &dyn Fn(SceneRole) ->
         let role = usize::from(frame.role[i]);
         let color = match paints[role] {
             None => ground,
+            Some(_) if outlined[i] => accent,
             Some(paint) if frame.edge[i] => paint.line,
             Some(paint) => shaded(paint.face, frame.shade[i]),
         };
@@ -112,6 +123,31 @@ pub fn ppm(picture: &Picture, palette: &Palette, strength: &dyn Fn(SceneRole) ->
     }
 
     bytes
+}
+
+/// The pixels of the selection's outline: the edge of a chosen source and the pixel inside it
+/// next to the edge (same source, above, below, left or right).
+fn selection_outline(frame: &Frame, chosen: &[bool]) -> Vec<bool> {
+    let (width, height) = (frame.width, frame.height);
+    let is_chosen = |i: usize| chosen.get(frame.source[i] as usize) == Some(&true);
+    let mut outlined = vec![false; frame.edge.len()];
+
+    for i in (0..outlined.len()).filter(|&i| frame.edge[i] && is_chosen(i)) {
+        let (x, y) = (i % width, i / width);
+        let around = [
+            Some(i),
+            x.checked_sub(1).map(|_| i - 1),
+            (x + 1 < width).then_some(i + 1),
+            y.checked_sub(1).map(|_| i - width),
+            (y + 1 < height).then_some(i + width),
+        ];
+
+        for j in around.into_iter().flatten() {
+            outlined[j] |= frame.source[j] == frame.source[i];
+        }
+    }
+
+    outlined
 }
 
 /// `{ width, height, labels: [{ text, x, y }] }`: the frame's size and the names to write, in
@@ -133,7 +169,7 @@ pub fn frame_json(picture: &Picture) -> String {
 
 #[cfg(test)]
 mod tests {
-    use klappe_services::{FigureColor, PictureLabel};
+    use klappe_services::{FigureColor, PictureLabel, Source};
 
     use super::*;
 
@@ -185,7 +221,7 @@ mod tests {
 
     #[test]
     fn it_is_a_ppm_of_the_frames_size() {
-        let bytes = ppm(&picture(), &palette(), &|_| 1.0);
+        let bytes = ppm(&picture(), &palette(), &|_| 1.0, &|_| false);
 
         assert!(bytes.starts_with(b"P6\n4 1\n255\n"));
         assert_eq!(bytes.len(), b"P6\n4 1\n255\n".len() + 12);
@@ -194,7 +230,7 @@ mod tests {
     #[test]
     fn qt_reads_it() {
         let image = cxx_qt_lib::QImage::from_data(
-            &ppm(&picture(), &palette(), &|_| 1.0),
+            &ppm(&picture(), &palette(), &|_| 1.0, &|_| false),
             Some(IMAGE_FORMAT),
         )
         .expect("image");
@@ -204,7 +240,7 @@ mod tests {
 
     #[test]
     fn empty_is_the_ground_and_the_floor_a_tint_of_muted() {
-        let pixels = pixels(&ppm(&picture(), &palette(), &|_| 1.0));
+        let pixels = pixels(&ppm(&picture(), &palette(), &|_| 1.0, &|_| false));
 
         assert_eq!(pixels[0], GROUND);
         // 20 % of muted (100) over the ground (250), fully lit.
@@ -213,7 +249,7 @@ mod tests {
 
     #[test]
     fn shade_multiplies_a_figure_and_an_edge_keeps_its_colour() {
-        let pixels = pixels(&ppm(&picture(), &palette(), &|_| 1.0));
+        let pixels = pixels(&ppm(&picture(), &palette(), &|_| 1.0, &|_| false));
 
         assert_eq!(pixels[2], [100, 0, 0]);
         assert_eq!(pixels[3], RED);
@@ -227,12 +263,36 @@ mod tests {
             _ => 1.0,
         };
 
-        let pixels = pixels(&ppm(&picture(), &palette(), &figures_half));
+        let pixels = pixels(&ppm(&picture(), &palette(), &figures_half, &|_| false));
 
         assert_eq!(pixels[0], GROUND);
         assert_eq!(pixels[1], [220, 220, 220]);
         assert_eq!(pixels[2], [175, 125, 125]);
         assert_eq!(pixels[3], [225, 125, 125]);
+    }
+
+    /// LH-94: the outline of a selected source is the accent, and a pixel wider than the plain
+    /// outline: the selection is not told by colour alone. A palette whose accent is the line
+    /// colour of the figure (the dark theme's yellow) changes the picture all the same.
+    #[test]
+    fn a_selected_source_has_a_double_accent_outline() {
+        let accent: Rgb = RED;
+        let palette = Palette::parse(
+            r#"{"ground":[250,250,250],"text":[10,10,10],"muted":[100,100,100],"red":[200,0,0],"accent":[200,0,0]}"#,
+        )
+        .expect("palette");
+        let mut picture = picture();
+        picture.sources = vec![Source::Figure("e".into())];
+
+        let chosen = |source: &Source| *source == Source::Figure("e".into());
+        let marked = pixels(&ppm(&picture, &palette, &|_| 1.0, &chosen));
+        let plain = pixels(&ppm(&picture, &palette, &|_| 1.0, &|_| false));
+
+        assert_ne!(marked, plain);
+        assert_eq!(marked[3], accent);
+        assert_eq!(marked[2], accent, "the pixel beside the outline");
+        assert_eq!(marked[1], plain[1], "other sources stay");
+        assert_eq!(marked[0], plain[0]);
     }
 
     #[test]

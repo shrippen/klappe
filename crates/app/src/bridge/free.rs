@@ -10,7 +10,7 @@ use crate::tools::{Grip, Tool};
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QImage, QString};
-use klappe_services::{Cut, Size, Source, View};
+use klappe_services::{Cut, Size, Source, View, ViewStep};
 use serde_json::{json, Value};
 
 /// The commands of `freeLook` and the words it answers with.
@@ -153,6 +153,17 @@ impl qobject::Controller {
         let size = self.rust().free.size;
         if let Some(s) = self.as_mut().session() {
             s.zoom_view(steps, (x, y), size);
+        }
+        self.bump_free();
+    }
+
+    pub(super) fn step_view(mut self: Pin<&mut Self>, step: &QString) {
+        let Some(step) = ViewStep::from_name(&step.to_string()) else {
+            return;
+        };
+        let size = self.rust().free.size;
+        if let Some(s) = self.as_mut().session() {
+            s.step_view(step, size);
         }
         self.bump_free();
     }
@@ -328,6 +339,11 @@ impl super::ControllerRust {
             (self.free.size.1 * scale).round(),
         );
 
-        colored(&s.free_picture(size)?, &palette, &|role| s.scene_fade(role))
+        colored(
+            &s.free_picture(size)?,
+            &palette,
+            &|role| s.scene_fade(role),
+            &|source| self.selected.contains(source),
+        )
     }
 }

@@ -19,6 +19,8 @@ TestCase {
         id: fake
         property int pictureRevision: 0
         property int freeRevision: 0
+        property string selectedKey: ""
+        property int selectedCount: 0
         property string frameText: ""
         property var requests: []
         property var calls: []
@@ -32,6 +34,7 @@ TestCase {
         function turnView(dx, dy) { calls.push(["turnView", dx, dy]) }
         function panView(dx, dy) { calls.push(["panView", dx, dy]) }
         function zoomView(steps, x, y) { calls.push(["zoomView", steps, x, y]) }
+        function stepView(step) { calls.push(["stepView", step]) }
         function freePlace(x, y) { calls.push(["freePlace", x, y]); return true }
         function freeDrag(fx, fy, x, y, done) { calls.push(["freeDrag", fx, fy, x, y, done]); return true }
         function cancelDrag() { calls.push(["cancelDrag"]) }
@@ -93,6 +96,31 @@ TestCase {
 
         fake.pictureRevision += 1
         compare(fake.requests.length, before + 2)
+    }
+
+    // NF-06: the arrows turn and tilt, Shift + arrows shift, + and - zoom; Ctrl keeps its keys.
+    function test_the_keys_step_the_view_while_it_has_the_focus() {
+        const view = make()
+        view.forceActiveFocus()
+
+        keyClick(Qt.Key_Left)
+        keyClick(Qt.Key_Up)
+        keyClick(Qt.Key_Right, Qt.ShiftModifier)
+        keyClick(Qt.Key_Down, Qt.ShiftModifier)
+        keyClick(Qt.Key_Plus)
+        keyClick(Qt.Key_Minus)
+        keyClick(Qt.Key_Left, Qt.ControlModifier)
+
+        compare(calls(), [["stepView", "turnLeft"], ["stepView", "turnUp"], ["stepView", "panRight"],
+                          ["stepView", "panDown"], ["stepView", "zoomIn"], ["stepView", "zoomOut"]])
+    }
+
+    function test_a_new_selection_makes_the_picture_again() {
+        make()
+        const before = fake.requests.length
+
+        fake.selectedKey = "wall:1"
+        compare(fake.requests.length, before + 1)
     }
 
     function test_hint_without_a_picture() {
