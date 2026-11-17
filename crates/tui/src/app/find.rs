@@ -1,6 +1,8 @@
 //! Search and replace (`Ctrl+F`), in all text or only in the dialogue of one character.
 
-use klappe_services::{find_all, parse_located, replace_all, replace_line, Case, Hit, Query};
+use std::ops::Range;
+
+use klappe_services::{find_all, parse_located, replace_hits, Case, Hit, Query};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{App, Flow, Mode, Notice};
@@ -61,8 +63,10 @@ impl Default for Find {
 }
 
 impl App {
-    /// The matches on a line to mark while searching, and whether each is the current one.
-    pub(crate) fn find_hits_on(&self, line: usize) -> Vec<(Hit, bool)> {
+    /// The columns of the matches on a line to mark while searching (a match over a line
+    /// break marks the end of one line and the start of the next), and whether each is the
+    /// current one.
+    pub(crate) fn find_hits_on(&self, line: usize) -> Vec<(Range<usize>, bool)> {
         if self.mode != Mode::Find {
             return Vec::new();
         }
@@ -71,8 +75,16 @@ impl App {
             .hits
             .iter()
             .enumerate()
-            .filter(|(_, h)| h.line == line)
-            .map(|(i, h)| (*h, i == self.find.sel))
+            .filter(|(_, h)| h.line <= line && line <= h.end_line)
+            .map(|(i, h)| {
+                let start = if h.line == line { h.start } else { 0 };
+                let end = if h.end_line == line {
+                    h.end
+                } else {
+                    usize::MAX
+                };
+                (start..end, i == self.find.sel)
+            })
             .collect()
     }
 
@@ -169,8 +181,10 @@ impl App {
             KeyCode::Esc => self.mode = Mode::Normal,
             KeyCode::Tab => self.find.field = self.find.field.next(),
             KeyCode::BackTab => self.find.field = self.find.field.previous(),
-            KeyCode::Down => return self.find_step_in(false),
-            KeyCode::Up => return self.find_step_in(true),
+            KeyCode::Left | KeyCode::Right if self.find.field == FindField::Speaker => {
+                self.pick_speaker(key.code == KeyCode::Left);
+            }
+            KeyCode::Down | KeyCode::Up => return self.find_step_in(key.code == KeyCode::Up),
             KeyCode::Char(c) if ctrl => return self.find_ctrl(c),
             KeyCode::Enter if self.find.field == FindField::Replace => self.replace_one(),
             KeyCode::Enter => return self.find_step_in(false),
@@ -230,20 +244,37 @@ impl App {
         self.find_show();
     }
 
+    /// Steps the "Only dialogue of" box through the characters of the script, most frequent
+    /// first, and the empty choice (everyone) before the first and after the last.
+    fn pick_speaker(&mut self, back: bool) {
+        let names = self.analysis.vocab.characters();
+        let at = names
+            .iter()
+            .position(|n| n.to_lowercase() == self.find.speaker.trim().to_lowercase());
+        // Slot 0 is "everyone", slot n is `names[n - 1]`.
+        let count = names.len() + 1;
+        let now = at.map_or(0, |i| i + 1);
+        let next = match back {
+            true => (now + count - 1) % count,
+            false => (now + 1) % count,
+        };
+        self.find.speaker = match next {
+            0 => String::new(),
+            n => names[n - 1].clone(),
+        };
+        self.find_update();
+        self.find_show();
+    }
+
     /// Replaces the match the cursor is on and goes on to the next.
     fn replace_one(&mut self) {
         let Some(hit) = self.find.hits.get(self.find.sel).copied() else {
             return;
         };
         let new = self.find.replace.clone();
-        let line = self.editor.lines()[hit.line].clone();
-        let text = replace_line(&line, hit.line, &[hit], &new);
         let col = hit.start + new.chars().count();
-
-        self.editor.set_lines(
-            hit.line,
-            hit.line + 1,
-            vec![text],
+        self.splice_hits(
+            &[hit],
             Pos {
                 line: hit.line,
                 col,
@@ -257,22 +288,19 @@ impl App {
     /// Replaces every match, as one undo step.
     fn replace_every(&mut self) {
         let hits = self.find.hits.clone();
-        let (Some(first), Some(last)) = (hits.first(), hits.last()) else {
-            return;
-        };
-        let (from, to) = (first.line, last.line + 1);
-
-        let changed = replace_all(self.editor.lines(), &hits, &self.find.replace);
-        let lines: Vec<String> = (from..to)
-            .map(|n| match changed.iter().find(|(at, _)| *at == n) {
-                Some((_, text)) => text.clone(),
-                None => self.editor.lines()[n].clone(),
-            })
-            .collect();
         let cursor = self.editor.cursor();
-
-        self.editor.set_lines(from, to, lines, cursor);
+        self.splice_hits(&hits, cursor);
         self.find_update();
         self.notice = Some(Notice::Replaced(hits.len()));
+    }
+
+    /// Puts the replacement over `hits` in the editor, one undo step.
+    fn splice_hits(&mut self, hits: &[Hit], cursor: Pos) {
+        let Some(edit) = replace_hits(self.editor.lines(), hits, &self.find.replace) else {
+            return;
+        };
+
+        self.editor
+            .set_lines(edit.from, edit.to, edit.lines, cursor);
     }
 }

@@ -124,8 +124,8 @@ fn row_spans(app: &App, row: Row, base: Style, end: usize) -> Vec<Span<'static>>
             .map(|r| r.marks)
             .unwrap_or_default();
         let mut style = mark_style(base, marks);
-        for (hit, current) in &hits {
-            if hit.start <= i && i < hit.end {
+        for (cols, current) in &hits {
+            if cols.contains(&i) {
                 style = style.add_modifier(match current {
                     true => Modifier::REVERSED,
                     false => Modifier::UNDERLINED,

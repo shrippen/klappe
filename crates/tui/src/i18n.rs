@@ -4,7 +4,7 @@
 pub use klappe_services::Language;
 
 /// Keys of the help lines, in the order they are shown.
-const HELP_KEYS: [&str; 26] = [
+const HELP_KEYS: [&str; 28] = [
     "tui.help.save",
     "tui.help.quit",
     "tui.help.undo",
@@ -14,6 +14,8 @@ const HELP_KEYS: [&str; 26] = [
     "tui.help.suggestMove",
     "tui.help.find",
     "tui.help.findNext",
+    "tui.help.findSpeaker",
+    "tui.help.findBreak",
     "tui.help.title",
     "tui.help.book",
     "tui.help.pdf",
@@ -77,6 +79,7 @@ pub(crate) struct Texts {
     pub find_case_off: String,
     pub find_none: String,
     pub find_hint: String,
+    pub find_hint_more: String,
     pub title_box: String,
     pub title_hint: String,
     /// The labels of the title form by field name (a `TITLE_KEYS` spelling).
@@ -137,6 +140,7 @@ impl Texts {
             find_case_off: t("tui.find.caseOff"),
             find_none: t("tui.find.none"),
             find_hint: t("tui.find.hint"),
+            find_hint_more: t("tui.find.hintMore"),
             title_box: t("tui.titleBox"),
             title_hint: t("tui.titleHint"),
             fields: FIELD_KEYS
@@ -249,6 +253,28 @@ mod tests {
     use klappe_services::TITLE_KEYS;
 
     #[test]
+    fn the_search_texts_are_in_both_catalogues() {
+        for lang in [Language::German, Language::English] {
+            let t = Texts::new(lang);
+            let all = [
+                &t.find_title,
+                &t.find_find,
+                &t.find_replace,
+                &t.find_speaker,
+                &t.find_case_on,
+                &t.find_case_off,
+                &t.find_none,
+                &t.find_hint,
+                &t.find_hint_more,
+            ];
+
+            for text in all {
+                assert!(!text.is_empty() && !text.contains("tui."), "{text}");
+            }
+        }
+    }
+
+    #[test]
     fn every_key_is_in_both_catalogues() {
         for lang in [Language::German, Language::English] {
             let t = Texts::new(lang);
@@ -275,14 +301,6 @@ mod tests {
                 &t.book_hint,
                 &t.book_save_first,
                 &t.book_ask("1", "INT. A - TAG"),
-                &t.find_title,
-                &t.find_find,
-                &t.find_replace,
-                &t.find_speaker,
-                &t.find_case_on,
-                &t.find_case_off,
-                &t.find_none,
-                &t.find_hint,
                 &t.title_box,
                 &t.title_hint,
                 &t.backup_title,
