@@ -19,8 +19,25 @@ use klappe_script::{align, parse, quote_at, scene_states, Element, Found, Outcom
 const SEEDS: u64 = 1000;
 const HEADS: [&str; 3] = ["KÜCHE", "SAAL", "HOF"];
 const SPEAKERS: [&str; 3] = ["ANNA", "BEN", "CARLA"];
-const ACTIONS: [&str; 4] = ["Er wartet.", "Sie geht zur Tür.", "Es regnet.", "Stille."];
-const TALKS: [&str; 5] = ["Ja.", "Nein.", "Doch.", "Komm her.", "Warum?"];
+// Some lines are similar but not equal ("Sie geht zur Tür." and "... hinaus.").
+const ACTIONS: [&str; 6] = [
+    "Er wartet.",
+    "Sie geht zur Tür.",
+    "Sie geht zur Tür hinaus.",
+    "Er geht zur Tür.",
+    "Es regnet.",
+    "Stille.",
+];
+const TALKS: [&str; 7] = [
+    "Ja.",
+    "Nein.",
+    "Doch.",
+    "Komm her.",
+    "Komm sofort her.",
+    "Komm her jetzt.",
+    "Warum?",
+];
+const FILLERS: [&str; 3] = ["schon", "bald", "jetzt"];
 const MAX_OPS: u64 = 5;
 const LCG_MUL: u64 = 6_364_136_223_846_793_005;
 const LCG_ADD: u64 = 1_442_695_040_888_963_407;
@@ -180,6 +197,7 @@ impl Gen {
         }
     }
 
+    /// Two in three changes keep the line similar: a word appended or replaced.
     fn change(&mut self, sc: &mut SceneM) {
         let n = sc.blocks.len();
         if n == 0 {
@@ -187,7 +205,20 @@ impl Gen {
         }
         let i = self.below(n);
         let id = self.id();
-        sc.blocks[i].text = format!("Geändert {id}.");
+        let filler = FILLERS[self.below(FILLERS.len())];
+        let how = self.below(3);
+        let words: Vec<&str> = sc.blocks[i].text.trim_end_matches('.').split(' ').collect();
+
+        sc.blocks[i].text = match how {
+            0 => format!("Geändert {id}."),
+            1 => format!("{} {filler}.", words.join(" ")),
+            _ => {
+                let at = self.below(words.len());
+                let mut replaced = words.clone();
+                replaced[at] = filler;
+                format!("{}.", replaced.join(" "))
+            }
+        };
     }
 }
 

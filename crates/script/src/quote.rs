@@ -10,9 +10,12 @@
 //! - It is not paired (edited, or one of several equal lines): look at its nearest paired
 //!   neighbours before and after (the scene's edge counts). The line is among the unpaired
 //!   new lines between their partners. One clearly most similar line there is the answer,
-//!   several are ambiguous, none is missing (nothing similar: the line is gone). That one
-//!   line is only offered (ambiguous) if paired lines lie between the partners (the line
-//!   may have moved) or the old stretch held equal twins.
+//!   several are ambiguous, none is missing (nothing similar: the line is gone). A line
+//!   that is similar but not equal is the answer only if the stretch is a 1:1 replacement
+//!   (the anchor the only unpaired old line, that line the only unpaired new one); else
+//!   it may be an unchanged neighbour of a line that was deleted or rewritten. It is also
+//!   only offered (ambiguous) if paired lines lie between the partners (the line may have
+//!   moved) or the old stretch held equal twins.
 //! - Nothing to go by (a note, a changed scene, a speaker that differs): the line only if
 //!   it was the only equal line and is the only one now; else the equal lines as
 //!   candidates, or missing.
@@ -165,8 +168,14 @@ pub fn find_quote(old: &SceneState, scene: &[Element], quote: &Quote) -> Found {
     let twins = (before_old(&pairs, at)..after_old(&pairs, at))
         .filter(|&o| pairs[o].is_none() && same_kind_of_line(&old.prints[o], &old.prints[at]))
         .count();
+
+    // A similar line that is not equal is the line only if the stretch is a 1:1
+    // replacement: the anchor is the only unpaired old line, the line the only new one.
+    // Else it may be an unchanged neighbour of a line that was deleted or rewritten.
+    let replaced = after_old(&pairs, at) - before_old(&pairs, at) == 1 && gap.len() == 1;
+    let equal = |i: usize| lines.iter().any(|(j, l)| *j == i && l.same(&wanted));
     match found {
-        Found::At(i) if twins > 1 || spans => Found::Ambiguous(vec![i]),
+        Found::At(i) if twins > 1 || spans || !(replaced || equal(i)) => Found::Ambiguous(vec![i]),
         other => other,
     }
 }

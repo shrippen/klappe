@@ -86,12 +86,23 @@ fn a_vanished_equal_line_is_ambiguous() {
 }
 
 #[test]
-fn a_reworded_line_is_found_when_it_is_clearly_the_most_similar() {
+fn a_reworded_line_alone_in_its_stretch_is_found() {
+    let s = scene("Eins.\n\nEr öffnet die schwere Tür zum Saal.\n\nDrei.\n");
+    let q = quote_at(&s, 1).unwrap();
+    let edited = scene("Eins.\n\nEr öffnet die schwere Tür zum Hof.\n\nDrei.\n");
+
+    assert_eq!(find_in(&s, &edited, &q), Found::At(1));
+}
+
+#[test]
+fn a_reworded_line_among_other_unpaired_lines_is_offered() {
+    // Three old and three new lines are unpaired between the same neighbours: not a 1:1
+    // replacement.
     let s = scene(BASE);
     let q = quote_at(&s, 0).unwrap();
     let edited = scene(&BASE.replace("schaut hinaus in den Hof", "blickt hinaus in den Hof"));
 
-    assert_eq!(find_in(&s, &edited, &q), Found::At(0));
+    assert_eq!(find_in(&s, &edited, &q), Found::Ambiguous(vec![0]));
 }
 
 #[test]
@@ -172,7 +183,7 @@ fn equal_lines_with_the_same_neighbours_are_ambiguous() {
 }
 
 #[test]
-fn neighbours_break_a_tie_between_similar_lines() {
+fn a_similar_line_next_to_other_changes_is_offered() {
     let q = quote_at(
         &scene("Es regnet.\n\nEr öffnet die schwere Tür zum Saal.\n\nEs klopft.\n"),
         1,
@@ -189,7 +200,7 @@ fn neighbours_break_a_tie_between_similar_lines() {
             &new,
             &q
         ),
-        Found::At(1)
+        Found::Ambiguous(vec![1])
     );
 }
 

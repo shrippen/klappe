@@ -155,8 +155,11 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
   Zeile (Art, Figur, Text, Vorkommen, Stelle unter den Fingerabdrücken der Szene). In der
   Sitzung folgt der Anker dem Editor; beim Laden nach fremder Änderung paart Klappe die Zeilen
   der alten und der neuen Szene (wie oben): ist die Zeile gepaart und gleich, ist sie es, auch
-  verschoben; sonst liegt sie zwischen den Partnern ihrer nächsten gepaarten Nachbarn, und eine
-  eindeutig ähnlichste Zeile dort ist es; mehrere sind mehrdeutig, keine ist verschwunden. Gleiche
+  verschoben; sonst liegt sie zwischen den Partnern ihrer nächsten gepaarten Nachbarn. Eine
+  gleiche Zeile dort ist es; eine nur ähnliche Zeile ist es nur, wenn der Abschnitt ein
+  Eins-zu-eins-Ersatz ist (die Zeile ist die einzige ungepaarte alte, die ähnliche die einzige
+  ungepaarte neue); sonst kann sie ein unveränderter Nachbar einer gestrichenen oder
+  umgeschriebenen Zeile sein und wird vorgelegt; keine ähnliche Zeile heißt verschwunden. Gleiche
   Zeilen werden nie allein deshalb zugeordnet, weil sie gleich sind; zwischen unveränderten
   Nachbarn entscheidet ihre Stelle. Liegen gepaarte Zeilen dazwischen (die Zeile ist
   vielleicht umgezogen), eine von mehreren gleichen Zeilen im alten Abschnitt war oder ein
