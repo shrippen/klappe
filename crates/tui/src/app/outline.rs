@@ -111,19 +111,10 @@ impl App {
     pub(super) fn list_key(&mut self, key: KeyEvent) {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let alt = key.modifiers.contains(KeyModifiers::ALT);
-        let rows = self.list_rows();
-        let pos = self.list_pos(&rows);
-        let last = rows.len().saturating_sub(1);
 
         match key.code {
             KeyCode::Up if alt => self.move_block(MoveWay::Up),
             KeyCode::Down if alt => self.move_block(MoveWay::Down),
-            KeyCode::Up => self.select_row(&rows, pos.saturating_sub(1)),
-            KeyCode::Down => self.select_row(&rows, (pos + 1).min(last)),
-            KeyCode::PageUp => self.select_row(&rows, pos.saturating_sub(LIST_PAGE)),
-            KeyCode::PageDown => self.select_row(&rows, (pos + LIST_PAGE).min(last)),
-            KeyCode::Home => self.select_row(&rows, 0),
-            KeyCode::End => self.select_row(&rows, last),
             KeyCode::Left => self.fold(Fold::Close),
             KeyCode::Right => self.fold(Fold::Open),
             KeyCode::Enter => self.jump(),
@@ -136,6 +127,23 @@ impl App {
                 self.list_filter.push(c);
                 self.select_first();
             }
+            code => self.list_move(code),
+        }
+    }
+
+    /// The keys that move the selection.
+    fn list_move(&mut self, code: KeyCode) {
+        let rows = self.list_rows();
+        let pos = self.list_pos(&rows);
+        let last = rows.len().saturating_sub(1);
+
+        match code {
+            KeyCode::Up => self.select_row(&rows, pos.saturating_sub(1)),
+            KeyCode::Down => self.select_row(&rows, (pos + 1).min(last)),
+            KeyCode::PageUp => self.select_row(&rows, pos.saturating_sub(LIST_PAGE)),
+            KeyCode::PageDown => self.select_row(&rows, (pos + LIST_PAGE).min(last)),
+            KeyCode::Home => self.select_row(&rows, 0),
+            KeyCode::End => self.select_row(&rows, last),
             _ => {}
         }
     }

@@ -211,3 +211,65 @@ fn sections_and_synopses_round_trip() {
     assert_eq!(again, script);
     assert_eq!(outline(&write(&script)), outline(TEXT));
 }
+
+/// Kinds and texts of the entries, sorted: what a move must not change.
+fn bag(text: &str) -> Vec<String> {
+    let mut all: Vec<String> = outline(text)
+        .iter()
+        .map(|e| format!("{:?} {} {:?}", e.kind, e.text, e.number))
+        .collect();
+    all.sort();
+
+    all
+}
+
+/// Scripts of sections, scenes, synopses and text with 0 to 2 blank lines between blocks;
+/// `seed` picks the pieces (a small linear generator, no dependency).
+fn generated(seed: u64) -> String {
+    let mut state = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+    let mut next = |n: u64| {
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (state >> 33) % n
+    };
+    let mut out = String::new();
+    for i in 0..8 {
+        out.push_str(&match next(5) {
+            0 => format!("{} Teil {i}", "#".repeat(1 + next(3) as usize)),
+            1 => format!("= Kurz {i}"),
+            2 => format!("Handlung {i}."),
+            _ => format!("INT. ORT {i} - TAG #{i}#"),
+        });
+        out.push_str(&"\n".repeat(1 + next(3) as usize));
+    }
+
+    out
+}
+
+#[test]
+fn a_move_never_changes_what_an_element_is() {
+    for seed in 0..300 {
+        let text = generated(seed);
+        let before = bag(&text);
+        let lines = lines(&text);
+        let entries = outline(&text);
+
+        for index in 0..entries.len() {
+            for way in [Way::Up, Way::Down] {
+                let Some(m) = move_entry(&lines, &entries, index, way) else {
+                    continue;
+                };
+                let mut out = lines.clone();
+                out.splice(m.from..m.to, m.lines);
+                let after = out.join("\n");
+
+                assert_eq!(
+                    bag(&after),
+                    before,
+                    "seed {seed} entry {index} {way:?}\n{text}\n--\n{after}"
+                );
+            }
+        }
+    }
+}

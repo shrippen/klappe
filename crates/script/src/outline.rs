@@ -259,18 +259,25 @@ fn swap(lines: &[String], first: Range<usize>, second: Range<usize>, way: Way) -
     let gap = first.end - a.end;
     let tail = second.end - b.end;
 
-    let mut out: Vec<String> = lines[b.clone()].to_vec();
+    // A heading only reads as one after a blank line, and the block after the pair needs
+    // one before it: a move must not turn a scene into action.
+    let lead = usize::from(first.start > 0 && !lines[first.start - 1].trim().is_empty());
+    let after =
+        usize::from(tail == 0 && lines.get(second.end).is_some_and(|l| !l.trim().is_empty()));
+
+    let mut out: Vec<String> = vec![String::new(); lead];
+    out.extend_from_slice(&lines[b.clone()]);
     let a_start = first.start + out.len() + gap.max(1);
     out.extend(std::iter::repeat_n(String::new(), gap.max(1)));
     out.extend_from_slice(&lines[a.clone()]);
-    out.extend(std::iter::repeat_n(String::new(), tail));
+    out.extend(std::iter::repeat_n(String::new(), tail.max(after)));
 
     Moved {
         from: first.start,
         to: second.end,
         lines: out,
         line: match way {
-            Way::Up => first.start,
+            Way::Up => first.start + lead,
             Way::Down => a_start,
         },
     }
