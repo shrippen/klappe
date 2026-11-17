@@ -21,6 +21,7 @@ pub(crate) enum Backup {
 impl App {
     /// Whether the session still holds a backup nobody has answered: it writes no other one
     /// meanwhile, so the question must stay open then.
+    #[cfg(test)]
     pub(crate) fn backup_held(&self) -> bool {
         *self.session.backup() != BackupState::None
     }
