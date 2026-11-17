@@ -9,13 +9,17 @@
 //!   text): that is the line, wherever it moved.
 //! - It is not paired (edited, or one of several equal lines): look at its nearest paired
 //!   neighbours before and after (the scene's edge counts). The line is among the unpaired
-//!   new lines between their partners, if the partners are directly consecutive paired
-//!   lines (else the line may have moved: ambiguous). One clearly most similar line there
-//!   is the answer, several are ambiguous, none (nothing similar: the line is gone) is
-//!   missing.
+//!   new lines between their partners. One clearly most similar line there is the answer,
+//!   several are ambiguous, none is missing (nothing similar: the line is gone). That one
+//!   line is only offered (ambiguous) if paired lines lie between the partners (the line
+//!   may have moved) or the old stretch held equal twins.
 //! - Nothing to go by (a note, a changed scene, a speaker that differs): the line only if
 //!   it was the only equal line and is the only one now; else the equal lines as
 //!   candidates, or missing.
+//!
+//! A cue line is its name and its speech, and the quote holds only the name: a cue is
+//! assigned only by the pairing (which compares the whole fingerprint); by name or by
+//! similarity it is only offered.
 //!
 //! Case, spacing and dash variants (`–`, `—`, `-`) do not matter.
 
@@ -155,7 +159,7 @@ pub fn find_quote(old: &SceneState, scene: &[Element], quote: &Quote) -> Found {
         .map(|n| printed[n])
         .collect();
     let between: Vec<&(usize, Line)> = lines.iter().filter(|(i, _)| gap.contains(i)).collect();
-    let found = similar(&between, &wanted);
+    let found = unproven(quote.kind, similar(&between, &wanted));
 
     // Equal twins unpaired in the same old stretch: one new line cannot tell whose it is.
     let twins = (before_old(&pairs, at)..after_old(&pairs, at))
@@ -240,8 +244,18 @@ fn by_equal(lines: &[(usize, Line)], wanted: &Line, quote: &Quote) -> Found {
 
     match equal.as_slice() {
         [] => Found::Missing,
-        [i] if quote.equal == 1 => Found::At(*i),
+        [i] if quote.equal == 1 => unproven(quote.kind, Found::At(*i)),
         _ => Found::Ambiguous(equal),
+    }
+}
+
+/// A cue line is its name and its speech; a quote holds only the name. Without the
+/// pairing, which compares the whole fingerprint, a cue is never assigned: a line found
+/// by name (or by similarity) is only offered.
+fn unproven(kind: LineKind, found: Found) -> Found {
+    match found {
+        Found::At(i) if kind == LineKind::Character => Found::Ambiguous(vec![i]),
+        other => other,
     }
 }
 

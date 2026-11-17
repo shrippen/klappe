@@ -5,10 +5,11 @@
 //! vocabulary, lines move, and no two quotes may land on one line.
 //!
 //! Only what the text cannot tell is excused, and counted: a scene that became equal in
-//! content to its old one (twins), and a line for which reading it as the found line
-//! explains the new script with no more edits (changes, moves, insertions, deletions)
-//! than the true lineage, or a diff of the two scenes could pair them (an inserted "Ja."
-//! next to an edited one, equal lines in another order).
+//! content to its old one (twins); and a line for which reading it as the found line
+//! explains the new script with fewer edits (changes, moves, insertions, deletions) than
+//! the true lineage, or, if the found line reads exactly like the old one (speaker and
+//! text; a cue line with its speech), with as many edits or by a diff that could pair them
+//! (an inserted "Ja." next to an edited one, equal lines in another order).
 #![allow(clippy::unwrap_used)]
 
 use std::collections::HashMap;
@@ -289,9 +290,10 @@ fn check(seed: u64, old: &[SceneM], new: &[SceneM], tally: &mut Tally) {
 }
 
 /// The text cannot tell the old line `id` from the found line `found` if reading `id` as
-/// `found` explains the new script with no more edits (changes, moves, insertions,
-/// deletions) than the true lineage does: a "Stille." edited and another inserted next to
-/// it, or equal lines in another order.
+/// `found` explains the new script with fewer edits (changes, moves, insertions,
+/// deletions) than the true lineage does. If the found line reads the same as the old one
+/// (speaker and text; for a cue line: name and speech), equally many edits suffice, and
+/// so does a diff that could pair them (equal lines in another order).
 fn excused(old: &SceneM, new: &SceneM, id: u32, found: u32) -> bool {
     if (id & CUE) != (found & CUE) {
         return false;
@@ -316,19 +318,29 @@ fn excused(old: &SceneM, new: &SceneM, id: u32, found: u32) -> bool {
             alt.insert(found, s);
         }
     }
+    let (reading, true_reading) = (edits(old, new, &alt), edits(old, new, &truth));
 
-    edits(old, new, &alt) <= edits(old, new, &truth) || same_diff(old, new, id, found, cue)
+    let content = |s: &SceneM, id: u32| {
+        s.blocks
+            .iter()
+            .find(|b| b.id == id)
+            .map(|b| (b.speaker, b.text.clone()))
+    };
+    if content(old, id) != content(new, found) {
+        return reading < true_reading;
+    }
+    reading <= true_reading || same_diff(old, new, id, found, cue)
 }
 
 /// Some longest common subsequence of the two scenes' lines pairs `id` with `found`: a
-/// diff, which knows nothing of lineage, could pick either. For a cue line only the
-/// speaker counts.
+/// diff, which knows nothing of lineage, could pick either. A cue line is compared with
+/// its speech, so only the blocks with a speaker take part.
 fn same_diff(old: &SceneM, new: &SceneM, id: u32, found: u32, cue: bool) -> bool {
     let key = |b: &Block| {
         if !cue {
             return Some((b.speaker, b.text.clone()));
         }
-        b.speaker.map(|s| (Some(s), String::new()))
+        b.speaker.map(|s| (Some(s), b.text.clone()))
     };
     let side = |s: &SceneM| -> Vec<(u32, (Option<&'static str>, String))> {
         s.blocks
@@ -467,4 +479,37 @@ fn an_unchanged_script_yields_only_matches() {
         }
         assert!(al.unmatched.is_empty());
     }
+}
+
+/// A hand-made lineage: the oracle must catch what the random edits rarely reach.
+#[test]
+fn a_cue_paired_by_its_name_is_caught() {
+    let block = |id: u32, speaker: Option<&'static str>, text: &str| Block {
+        id,
+        speaker,
+        text: text.into(),
+    };
+    let scene = |blocks: Vec<Block>| SceneM {
+        id: 1,
+        number: 1,
+        head: 0,
+        blocks,
+    };
+
+    // BEN's speech was deleted, another speech of BEN's added at the end, and the first
+    // two lines swapped: the cue BEN of the old scene has no successor.
+    let old = scene(vec![
+        block(2, None, "Anna kommt herein."),
+        block(3, Some("BEN"), "Hallo."),
+        block(4, None, "Sie setzt sich."),
+        block(5, Some("ANNA"), "Danke."),
+    ]);
+    let new = scene(vec![
+        block(4, None, "Sie setzt sich."),
+        block(2, None, "Anna kommt herein."),
+        block(5, Some("ANNA"), "Danke."),
+        block(6, Some("BEN"), "Tschüss."),
+    ]);
+
+    check(0, &[old], &[new], &mut Tally::default());
 }
