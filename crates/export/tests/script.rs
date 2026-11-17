@@ -109,3 +109,21 @@ fn an_empty_script_is_one_blank_page() {
 
     assert!(text(&script_pdf(&s)).contains("/Count 1"));
 }
+
+#[test]
+fn every_paper_has_its_size() {
+    let sizes = [
+        (Paper::A4, "595.28 841.89"),
+        (Paper::A3, "841.89 1190.55"),
+        (Paper::Letter, "612 792"),
+    ];
+
+    for (paper, size) in sizes {
+        let mut s = sheet();
+        s.paper = paper;
+
+        let pdf = text(&script_pdf(&s));
+
+        assert!(pdf.contains(&format!("/MediaBox [0 0 {size}]")), "{paper:?}: {pdf}");
+    }
+}
