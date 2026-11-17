@@ -29,6 +29,8 @@ pub(crate) struct Editor {
     last_edit: Option<Edit>,
     /// Counts every change of the text, undo and redo included.
     revision: u64,
+    /// New edits made (not undo or redo): a new edit drops what redo could bring back.
+    edits: u64,
 }
 
 fn is_word(c: char) -> bool {
@@ -44,6 +46,7 @@ impl Editor {
             history: History::default(),
             last_edit: None,
             revision: 0,
+            edits: 0,
         }
     }
 
@@ -69,6 +72,11 @@ impl Editor {
         self.last_edit = None;
 
         self.undo_depth()
+    }
+
+    /// How many new edits were made, undo and redo not counted.
+    pub(crate) fn edits(&self) -> u64 {
+        self.edits
     }
 
     /// How many steps undo can take back.
@@ -108,6 +116,7 @@ impl Editor {
 
     fn finish(&mut self, before: Before, from: Pos, joins: bool) {
         self.revision += 1;
+        self.edits += 1;
         self.goal = None;
         self.history
             .record(before, &self.buffer, (from, self.cursor), joins);

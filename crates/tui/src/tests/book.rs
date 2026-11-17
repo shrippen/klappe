@@ -214,3 +214,34 @@ fn ctrl_y_brings_an_answer_back_after_undoing_typing_before_it() {
 
     assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("2"));
 }
+
+#[test]
+fn typing_after_taking_back_an_answer_drops_its_redo() {
+    let (_s, mut app) = swapped();
+    answer_first(&mut app);
+    ctrl(&mut app, 'z');
+    ctrl_end(&mut app);
+    typed(&mut app, "x");
+    ctrl(&mut app, 'z');
+
+    ctrl(&mut app, 'y');
+
+    assert!(app.text().ends_with('x'), "the typing comes back");
+    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("1"));
+}
+
+#[test]
+fn a_new_edit_at_the_same_depth_drops_the_answer_redo() {
+    let (_s, mut app) = swapped();
+    ctrl_end(&mut app);
+    typed(&mut app, "ab");
+    ctrl(&mut app, 's');
+    answer_first(&mut app);
+    ctrl(&mut app, 'z');
+    ctrl(&mut app, 'z');
+    typed(&mut app, "c");
+
+    ctrl(&mut app, 'y');
+
+    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("1"));
+}
