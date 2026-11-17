@@ -8,6 +8,7 @@ use klappe_stellprobe::{Cut, Orbit};
 use klappe_store::ImageStamp;
 
 use crate::error::{write_failed, ServiceError};
+use crate::field::Field;
 use crate::plan_edit::{Grid, Snapping};
 use undo::Snapshot;
 
@@ -189,6 +190,18 @@ struct Through {
     scene: String,
     plan: String,
     camera: String,
+}
+
+/// A project title without the blanks at its ends; empty is refused.
+pub(crate) fn check_title(title: &str) -> Result<&str, ServiceError> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err(ServiceError::BadValue {
+            field: Field::Title,
+            value: String::new(),
+        });
+    }
+    Ok(title)
 }
 
 /// `dir` may be missing or an empty folder; anything else would mix the project with it.
