@@ -25,7 +25,7 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 | `raster/` | Fills triangles on the screen into a frame with depth: role, shade, source and edges per pixel, no colours; knows nothing of sets; depends on nothing. |
 | `script/` | Reads and writes Fountain. |
 | `store/` | The only block that reads or writes a project folder (`FORMAT.md`); also the built-in object library, camera presets and lamps (data files). |
-| `export/` | Turns the display list and the shot list into PDF, SVG, PNG, CSV, ODS and XLSX, and a view of the set (`stellprobe`'s picture or vector faces) into PNG or PDF pages, as bytes; colours from Kante's `palette.json` (copied by the same script). |
+| `export/` | Turns the display list and the shot list into PDF, SVG, PNG, CSV, ODS and XLSX, a view of the set (`stellprobe`'s picture or vector faces) into PNG or PDF pages, and a folder's files into a ZIP archive, as bytes; colours from Kante's `palette.json` (copied by the same script). |
 | `model/` | The project's data, shared by all: project, scene, character, location, floor plan, shot. |
 | `imagehead/` | Reads the header of an image file; depends on nothing. |
 | `demo/` (crate) | Tool, never shipped: writes the example projects into the root folder `demo/`. |
