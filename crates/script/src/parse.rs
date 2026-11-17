@@ -135,13 +135,23 @@ fn strip_boneyard(text: &str) -> (String, Vec<usize>) {
     let mut at = 0;
 
     for span in boneyard_spans(text) {
-        keep(&text[at..span.start], &mut out, &mut origin, &mut line);
+        keep(
+            &unescape_opener(&text[at..span.start]),
+            &mut out,
+            &mut origin,
+            &mut line,
+        );
         // The boneyard's line breaks are gone, but the typed lines still count.
         line += text[span.clone()].matches('\n').count();
         at = span.end;
     }
 
-    keep(&text[at..], &mut out, &mut origin, &mut line);
+    keep(
+        &unescape_opener(&text[at..]),
+        &mut out,
+        &mut origin,
+        &mut line,
+    );
     (escape_openers(&out, Escape::Remove), origin)
 }
 
@@ -159,6 +169,11 @@ pub(crate) fn boneyard_spans(text: &str) -> Vec<Range<usize>> {
         }
 
         let start = at + found;
+        if is_escaped(text, start) {
+            at = start + BONEYARD_OPEN.len();
+            continue;
+        }
+
         let after = start + BONEYARD_OPEN.len();
         let end = text[after..]
             .find(BONEYARD_CLOSE)
@@ -168,6 +183,40 @@ pub(crate) fn boneyard_spans(text: &str) -> Vec<Range<usize>> {
     }
 
     spans
+}
+
+/// Whether the character at `at` follows an odd run of backslashes: `\/*` escapes the
+/// slash, `\\/*` is a backslash and an opener. Matches how `inline_runs` skips escapes.
+fn is_escaped(text: &str, at: usize) -> bool {
+    let run = text[..at]
+        .chars()
+        .rev()
+        .take_while(|&c| c == ESCAPE)
+        .count();
+
+    run % 2 == 1
+}
+
+/// Turns the escaped opener `\/*` into the text `/*`, as the escape says.
+fn unescape_opener(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut at = 0;
+
+    while let Some(found) = text[at..].find(BONEYARD_OPEN) {
+        let start = at + found;
+        let cut = if is_escaped(text, start) {
+            ESCAPE.len_utf8()
+        } else {
+            0
+        };
+
+        out.push_str(&text[at..start - cut]);
+        out.push_str(BONEYARD_OPEN);
+        at = start + BONEYARD_OPEN.len();
+    }
+
+    out.push_str(&text[at..]);
+    out
 }
 
 /// Where the note ends that holds the opener at `start` of `rest`, if one does. A note

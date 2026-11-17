@@ -229,6 +229,17 @@ fn boneyard() {
     assert_eq!(found, vec![action("Vorher  nachher."), action("Ende.")]);
 }
 
+/// A backslash escapes the next character: `\/*` is the text `/*`, no opener.
+#[test]
+fn backslash_escaped_opener_is_text() {
+    let found = els("Vorher \\/* weg */ danach.");
+    assert_eq!(found, vec![action("Vorher /* weg */ danach.")]);
+
+    // An escaped backslash does not escape the opener.
+    let found = els("Vorher \\\\/* weg */ danach.");
+    assert_eq!(found, vec![action("Vorher \\\\ danach.")]);
+}
+
 #[test]
 fn boneyard_opener_in_a_note_is_text() {
     let found = els("Vorher [[a /* b]] weiter.\n\nZeile zwei.\n\nZeile drei */ ende.");
