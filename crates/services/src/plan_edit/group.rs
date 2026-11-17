@@ -4,7 +4,7 @@
 use std::cmp::Reverse;
 
 use klappe_model::Point;
-use klappe_stellprobe::Source;
+use klappe_stellprobe::{object_at, Source};
 
 use super::bound;
 use super::images;
@@ -238,6 +238,11 @@ fn shifted(p: Point, by_m: (f64, f64)) -> Point {
 fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copied, ServiceError> {
     match source {
         Source::Object(id) => {
+            // A moving object is copied where it is shown, turned as it is shown.
+            let shown = scope
+                .plan
+                .object_track(id)
+                .and_then(|t| object_at(scope.plan, t, scope.time_s));
             let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
             let mut object = set
                 .objects
@@ -246,6 +251,10 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
                 .cloned()
                 .ok_or(ServiceError::Gone)?;
 
+            if let Some(place) = shown {
+                object.at = place.at;
+                object.rotation_deg = place.facing_deg;
+            }
             object.id = props::free_object_id(set, scope.tracked);
             object.at = shifted(object.at, by_m);
             set.objects.push(object);

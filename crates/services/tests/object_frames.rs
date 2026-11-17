@@ -201,3 +201,29 @@ fn changing_the_location_of_a_scene_drops_its_object_ways() {
     s.undo();
     assert_eq!(s.plan().unwrap().object_tracks.len(), 1);
 }
+
+/// A copy of an object that has walked lands where the object is shown, plus the offset, and
+/// turned as it is shown.
+#[test]
+fn a_copy_of_a_moving_object_starts_where_it_is_shown() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::AddObjectMark {
+        object: "saeule-1".into(),
+        at: p(16.0, 4.0),
+    })
+    .unwrap();
+    s.set_time(100.0);
+    let count = s.project().locations[0].set.objects.len();
+
+    s.edit_plan(PlanEdit::Duplicate {
+        sources: vec![Source::Object("saeule-1".into())],
+        dx_m: 0.5,
+        dy_m: 0.5,
+    })
+    .unwrap();
+
+    let objects = &s.project().locations[0].set.objects;
+    assert_eq!(objects.len(), count + 1);
+    let copy = objects.last().unwrap();
+    assert!(near(copy.at, p(16.5, 4.5)), "{:?}", copy.at);
+}
