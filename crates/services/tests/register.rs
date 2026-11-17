@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{ProjectEdit, ServiceError, Session};
+use klappe_services::{Field, ProjectEdit, ServiceError, Session};
 
 const FIXTURE_ID: &str = "m4djbtj6";
 
@@ -127,5 +127,53 @@ fn a_conflict_is_worded_in_both_languages() {
     assert!(
         en.contains("conflict markers") && en.contains("szenen.toml:1"),
         "{en}"
+    );
+}
+
+#[test]
+fn a_heading_with_a_line_break_is_refused() {
+    let mut s = Session::open(&copy_example("reg-heading")).unwrap();
+
+    let added = s.edit_project(ProjectEdit::AddScene {
+        number: "1".into(),
+        heading: "INT. HOF\n– NACHT".into(),
+        location: "saengersaal".into(),
+    });
+    let edited = s.edit_project(ProjectEdit::EditScene {
+        id: FIXTURE_ID.into(),
+        number: "12".into(),
+        heading: "INT.\r\nSAAL".into(),
+        location: "saengersaal".into(),
+    });
+
+    for result in [added, edited] {
+        let error = result.unwrap_err();
+        assert!(
+            matches!(
+                error,
+                ServiceError::BadValue {
+                    field: Field::Heading,
+                    ..
+                }
+            ),
+            "{error}"
+        );
+    }
+    assert_eq!(s.project().scenes.len(), 1);
+}
+
+#[test]
+fn an_orphan_scene_file_is_listed_in_the_load_notes() {
+    let dir = copy_example("reg-orphan-note");
+    std::fs::write(dir.join("szenen.toml"), "").unwrap();
+
+    let s = Session::open(&dir).unwrap();
+
+    assert_eq!(s.load_notes().len(), 1);
+    let text = klappe_services::load_notes_text(klappe_services::Language::English, s.load_notes());
+    assert!(text.contains(FIXTURE_ID), "{text}");
+    assert_eq!(
+        s.project().scenes[0].state,
+        klappe_model::BookState::NotInBook
     );
 }

@@ -509,7 +509,7 @@ fn a_new_object_never_takes_an_id_a_track_names() {
         &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe"),
         &dir,
     );
-    let file = dir.join("szenen/szene-012.json");
+    let file = dir.join("szenen/m4djbtj6.json");
     let text = std::fs::read_to_string(&file).unwrap();
     let orphan = r#""object_tracks": [{"object": "o1", "marks": [{"at_s": 0.0, "at": {"x_m": 1.0, "y_m": 1.0}, "rotation_deg": 0.0}]}], "figures": ["#;
     std::fs::write(&file, text.replacen(r#""figures": ["#, orphan, 1)).unwrap();

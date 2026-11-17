@@ -77,6 +77,16 @@ pub struct Loaded {
     pub project: Project,
     /// The screenplay as Fountain text; `None` if the folder has no `drehbuch.fountain`.
     pub script: Option<String>,
+    /// What loaded but is odd (see `LoadNote`); empty for a sound project.
+    pub notes: Vec<LoadNote>,
+}
+
+/// Something odd about a project that still loaded, for the surface to tell the user.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoadNote {
+    /// `szenen/<id>.json` has no entry in `szenen.toml`; it was taken in as a scene that is
+    /// not in the book.
+    OrphanScene { id: String },
 }
 
 /// `projekt.toml`.
@@ -182,7 +192,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
-    let scenes = load_scenes(dir)?;
+    let (scenes, notes) = load_scenes(dir)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -199,6 +209,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             templates,
         },
         script,
+        notes,
     })
 }
 
@@ -498,14 +509,14 @@ fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
 }
 
 /// The register of the project `dir`, its labels and shot pictures checked.
-fn load_scenes(dir: &Path) -> Result<Vec<Scene>, StoreError> {
-    let mut scenes = register::load(dir)?;
+fn load_scenes(dir: &Path) -> Result<(Vec<Scene>, Vec<LoadNote>), StoreError> {
+    let (mut scenes, notes) = register::load(dir)?;
 
     check_labels(&dir.join(SCENES_DIR), &scenes)?;
     clear_passive_power(&mut scenes);
     check_shot_images(&dir.join(SCENES_DIR), &scenes)?;
 
-    Ok(scenes)
+    Ok((scenes, notes))
 }
 
 /// Notes of a location are `n<k>` and labels of a plan `t<k>`: `Source::Note` names either by id,

@@ -149,7 +149,7 @@ fn removing_a_form_point_of_a_moving_object_keeps_the_others() {
 #[test]
 fn changing_the_location_of_a_scene_drops_its_object_ways() {
     let mut s = open();
-    let id = new_object(&mut s, "szene-012", p(3.0, 3.0));
+    let id = new_object(&mut s, "m4djbtj6", p(3.0, 3.0));
     s.edit_plan(PlanEdit::AddObjectMark {
         object: id.clone(),
         at: p(5.0, 3.0),
@@ -186,11 +186,11 @@ fn changing_the_location_of_a_scene_drops_its_object_ways() {
         .clone();
     s.select_scene(&other).unwrap();
     assert_eq!(new_object(&mut s, &other, p(1.0, 1.0)), id);
-    s.select_scene("szene-012").unwrap();
-    let number = s.project().scene("szene-012").unwrap().number.clone();
+    s.select_scene("m4djbtj6").unwrap();
+    let number = s.project().scene("m4djbtj6").unwrap().number.clone();
 
     s.edit_project(ProjectEdit::EditScene {
-        id: "szene-012".into(),
+        id: "m4djbtj6".into(),
         number,
         heading: "x".into(),
         location: halle,

@@ -30,8 +30,13 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   (aus dem Buch gestrichen, bleibt mit seinen Floorplans). `prints`: Fingerabdrücke der Elemente
   im Buch, je `"<Art>:<Hash>"` (Zahl, Doppelpunkt, 8 Hexziffern), wie `script/` sie bildet; nicht
   geschrieben, solange leer. Die Folge der Einträge ist die Folge im Projekt. Zu jedem Eintrag
-  gehört `szenen/<id>.json` (fehlt sie, hat er keinen Drehort und keinen Plan); eine Datei ohne
-  Eintrag lädt nicht. Enthält `szenen.toml` Git-Konfliktmarken (`<<<<<<<` am Zeilenanfang) oder
+  gehört `szenen/<id>.json` (fehlt sie, hat er keinen Drehort und keinen Plan). Eine Datei ohne
+  Eintrag (Absturz beim Speichern, Git-Zusammenführung) lädt: als Eintrag am Ende, ohne Nummer
+  und Kopf, `state = "not-in-book"`; das Programm meldet es. `save` schreibt erst die
+  Szenen-Dateien, dann `szenen.toml`, dann löscht es Dateien ohne Eintrag. `szenen.toml` lehnt
+  unbekannte Schlüssel, unbekannte `art`- und `state`-Werte, ungültige `prints`, doppelte
+  Ids (auch nur in der Groß-/Kleinschreibung) und Ids, die kein Dateiname sein können, ab;
+  `heading` ist eine Zeile. Enthält `szenen.toml` Git-Konfliktmarken (`<<<<<<<` am Zeilenanfang) oder
   `drehbuch.fountain` eine vollständige Konfliktfolge (`<<<<<<<`, `=======`, `>>>>>>>`), lädt
   das Projekt nicht und der Fehler nennt Datei und Zeile.
 - **Papier:** `paper` in `projekt.toml`, z. B. `"a4-portrait"`: Größe (`a4`, `a3`, `letter`),

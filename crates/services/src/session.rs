@@ -173,6 +173,8 @@ pub struct Session {
     /// The project (not only the screenplay) changed since the last save.
     project_changed: bool,
     backup: BackupState,
+    /// What `open` found odd in the project (an orphan scene file …).
+    load_notes: Vec<klappe_store::LoadNote>,
     /// Which view of the set shows, and where the 3D view looks once it has been opened.
     view: View,
     orbit: Option<Orbit>,

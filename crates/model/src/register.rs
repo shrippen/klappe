@@ -25,19 +25,6 @@ pub enum Kind {
     Vlog,
 }
 
-impl Kind {
-    /// Every kind, in the order a list of choices shows them.
-    pub const ALL: [Kind; 7] = [
-        Kind::Scene,
-        Kind::Interview,
-        Kind::Statement,
-        Kind::Cutaways,
-        Kind::Vignette,
-        Kind::Intro,
-        Kind::Vlog,
-    ];
-}
-
 /// Whether the screenplay still holds an entry. A scene struck from the book stays with its
 /// plans until the user assigns or deletes it (DATENMODELL §4).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

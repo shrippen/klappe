@@ -48,6 +48,7 @@ impl Session {
             unbacked: false,
             project_changed: false,
             backup,
+            load_notes: loaded.notes,
             view: View::Plan,
             orbit: None,
             cut: klappe_stellprobe::Cut::Off,
@@ -105,6 +106,11 @@ impl Session {
         klappe_store::save_backup(&self.dir, &self.project, self.script_text.as_deref())?;
         self.unbacked = false;
         Ok(Autosave::Written)
+    }
+
+    /// What `open` found odd in the project; shown once after opening.
+    pub fn load_notes(&self) -> &[klappe_store::LoadNote] {
+        &self.load_notes
     }
 
     /// The backup `open` found.

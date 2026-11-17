@@ -38,8 +38,9 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 3. **Neue Ids sind kurz und zufällig**, nicht aus Name oder Zähler gebildet: zwei Personen, die
    in Git gleichzeitig etwas anlegen, erzeugen sonst dieselbe Id für Verschiedenes (auch Marks;
    heutige Zähler-Ids wie `l1`, `n1` werden bei neuen Dingen nicht fortgeführt). Vorhandene Ids
-   (`szene-012`, `saengersaal`) bleiben. Listen ohne fachliche Reihenfolge werden nach Id
-   sortiert geschrieben; das Register hält seine Folge (siehe Abschnitt 4).
+   (`saengersaal`) bleiben; Szenen-Ids sind seit Schritt 1 zufällig (`m4djbtj6`), `szene-012`
+   gibt es nicht mehr. Listen ohne fachliche Reihenfolge werden nach Id sortiert geschrieben;
+   das Register hält seine Folge (siehe Abschnitt 4).
 4. **Abgeleitetes wird nicht gespeichert**: Achtel, Seiten, Figuren einer Szene aus dem Buch,
    Drehtage eines Elements, erster Drehtag, Day out of Days. Ausnahme: Das Register merkt sich
    Nummer, Kopf und Fingerabdrücke aus dem Buch beim Speichern, weil der Abgleich nach einer

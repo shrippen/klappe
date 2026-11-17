@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{random_id, BookState, FloorPlan, Kind, Print, Project, Scene, FORMAT_VERSION};
-use klappe_store::{load, save, StoreError};
+use klappe_store::{load, save, LoadNote, StoreError};
 
 fn test_dir(name: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
@@ -137,17 +137,91 @@ fn an_older_format_is_refused() {
     );
 }
 
+/// A crash between the writes or a Git merge can leave a scene file the register lacks: it
+/// loads, not in the book, after the others, and is reported (DATENMODELL §2.5).
 #[test]
-fn a_scene_file_without_an_entry_is_refused() {
+fn a_scene_file_without_an_entry_loads_as_not_in_book_and_is_reported() {
     let dir = test_dir("register-orphan");
+    let mut project = Project::new("Film");
+    project.scenes = vec![scene("mm", "1", "INT. SAAL – TAG"), scene("aa", "2", "x")];
+    save(&dir, &project, None).unwrap();
+    let register = fs::read_to_string(dir.join("szenen.toml")).unwrap();
+    let (kept, _) = register.split_at(register.rfind("[[szene]]").unwrap());
+    fs::write(dir.join("szenen.toml"), kept).unwrap();
+
+    let loaded = load(&dir).unwrap();
+
+    let orphan = &loaded.project.scenes[1];
+    assert_eq!(orphan.id, "aa");
+    assert_eq!(orphan.state, BookState::NotInBook);
+    assert_eq!((orphan.number.as_str(), orphan.heading.as_str()), ("", ""));
+    assert_eq!(orphan.plans, project.scenes[1].plans);
+    assert_eq!(loaded.notes, [LoadNote::OrphanScene { id: "aa".into() }]);
+}
+
+#[test]
+fn an_entry_without_a_file_loads_empty() {
+    let dir = test_dir("register-no-file");
     let mut project = Project::new("Film");
     project.scenes = vec![scene("mm", "1", "INT. SAAL – TAG")];
     save(&dir, &project, None).unwrap();
-    fs::write(dir.join("szenen.toml"), "").unwrap();
+    fs::remove_file(dir.join("szenen/mm.json")).unwrap();
 
-    let error = load(&dir).unwrap_err();
+    let loaded = load(&dir).unwrap();
 
-    assert!(matches!(error, StoreError::Parse { .. }), "{error}");
+    assert_eq!(loaded.project.scenes[0].plans, []);
+    assert_eq!(loaded.project.scenes[0].location, "");
+    assert!(loaded.notes.is_empty());
+}
+
+fn register_error(name: &str, text: &str) -> StoreError {
+    let dir = test_dir(name);
+    save(&dir, &Project::new("Film"), None).unwrap();
+    fs::write(dir.join("szenen.toml"), text).unwrap();
+
+    load(&dir).unwrap_err()
+}
+
+#[test]
+fn a_register_with_bad_content_is_refused() {
+    let entry = "[[szene]]\nid = \"a\"\nnumber = \"1\"\nheading = \"x\"\n";
+    for (name, text) in [
+        ("unknown-art", format!("{entry}art = \"quiz\"\n")),
+        ("unknown-state", format!("{entry}state = \"gone\"\n")),
+        ("bad-print", format!("{entry}prints = [\"zz\"]\n")),
+        ("unknown-field", format!("{entry}colour = \"red\"\n")),
+        (
+            "no-number",
+            "[[szene]]\nid = \"a\"\nheading = \"x\"\n".to_owned(),
+        ),
+    ] {
+        let error = register_error(&format!("register-bad-{name}"), &text);
+
+        assert!(matches!(error, StoreError::Parse { .. }), "{name}: {error}");
+    }
+}
+
+#[test]
+fn register_ids_must_be_safe_and_unique_whatever_their_case() {
+    let entry = |id: &str| format!("[[szene]]\nid = \"{id}\"\nnumber = \"1\"\nheading = \"x\"\n");
+
+    let error = register_error("register-dup", &format!("{}{}", entry("ab"), entry("AB")));
+    assert!(matches!(error, StoreError::DuplicateId { .. }), "{error}");
+
+    let error = register_error("register-up", &entry("../x"));
+    assert!(matches!(error, StoreError::BadId { .. }), "{error}");
+}
+
+#[test]
+fn saving_refuses_unsafe_and_duplicate_scene_ids() {
+    for ids in [["a", "A"], ["../x", "b"]] {
+        let mut project = Project::new("Film");
+        project.scenes = ids.iter().map(|id| scene(id, "1", "x")).collect();
+
+        let result = save(&test_dir("register-save-bad"), &project, None);
+
+        assert!(result.is_err(), "{ids:?}");
+    }
 }
 
 #[test]

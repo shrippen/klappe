@@ -9,7 +9,7 @@ use crate::tools::Preview;
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
-use klappe_services::error_text;
+use klappe_services::{error_text, load_notes_text};
 use klappe_services::{ProjectEdit, ServiceError, Session};
 use std::path::Path;
 
@@ -258,6 +258,7 @@ impl qobject::Controller {
         }
 
         let dir = session.dir().to_string_lossy().into_owned();
+        let notes = load_notes_text(language, session.load_notes());
         {
             let this = self.as_mut().rust_mut().get_mut();
             this.session = Some(session);
@@ -269,6 +270,10 @@ impl qobject::Controller {
         self.as_mut().changed();
         self.as_mut().refresh();
         self.as_mut().show_backup();
+        // On the status line, which the first edit clears.
+        if !notes.is_empty() {
+            self.as_mut().say(notes);
+        }
         self.remember(&dir);
         true
     }

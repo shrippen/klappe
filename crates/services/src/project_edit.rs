@@ -219,6 +219,7 @@ fn add_scene(
     heading: &str,
     location: &str,
 ) -> Result<(), ServiceError> {
+    let heading = check_heading(heading)?;
     let number = free_number(project, number, None)?;
     check_location(project, location)?;
 
@@ -227,7 +228,7 @@ fn add_scene(
         id: free_scene_id(project),
         kind: Kind::Scene,
         number,
-        heading: heading.trim().to_owned(),
+        heading,
         state: BookState::InBook,
         prints: Vec::new(),
         location: location.to_owned(),
@@ -243,6 +244,7 @@ fn edit_scene(
     heading: &str,
     location: &str,
 ) -> Result<(), ServiceError> {
+    let heading = check_heading(heading)?;
     let current = project
         .scene(id)
         .ok_or_else(|| ServiceError::NoScene(id.to_owned()))?;
@@ -256,7 +258,7 @@ fn edit_scene(
         return Err(ServiceError::NoScene(id.to_owned()));
     };
     scene.number = number;
-    scene.heading = heading.trim().to_owned();
+    scene.heading = heading;
     // The ways name objects of the old set; a same-named object of the new one is another.
     if scene.location != location {
         scene.plans.iter_mut().for_each(|p| p.object_tracks.clear());
@@ -442,6 +444,19 @@ fn uses(plan: &FloorPlan, character: &str) -> bool {
 
 /// The trimmed number, if it is not empty and no other scene (not `own`) has it. `12a` and
 /// `12A` count as one.
+/// A heading is one line: the register and the script both hold it so.
+fn check_heading(heading: &str) -> Result<String, ServiceError> {
+    let heading = heading.trim();
+    if !heading.contains(['\n', '\r']) {
+        return Ok(heading.to_owned());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Heading,
+        value: heading.to_owned(),
+    })
+}
+
 fn free_number(project: &Project, number: &str, own: Option<&str>) -> Result<String, ServiceError> {
     let number = number.trim();
     let bad = || ServiceError::BadValue {

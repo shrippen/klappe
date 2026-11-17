@@ -36,7 +36,7 @@ fn a_track_is_written_only_when_there_is_one() {
     let mut project = load(Path::new(EXAMPLE)).unwrap().project;
 
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert!(
         !text.contains("object_tracks") && !text.contains("carried_by"),
         "{text}"
@@ -48,7 +48,7 @@ fn a_track_is_written_only_when_there_is_one() {
     }];
 
     save(&dir, &project, None).unwrap();
-    let text = fs::read_to_string(dir.join("szenen/szene-012.json")).unwrap();
+    let text = fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert_eq!(text.matches("\"carried_by\"").count(), 1, "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }

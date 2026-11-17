@@ -143,6 +143,20 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
     }
 }
 
+/// What loaded but is odd, one sentence per note, for the status line after opening.
+pub fn load_notes_text(language: Language, notes: &[klappe_store::LoadNote]) -> String {
+    let lines: Vec<String> = notes
+        .iter()
+        .map(|note| match note {
+            klappe_store::LoadNote::OrphanScene { id } => {
+                language.text("note.orphanScene").replace("{id}", id)
+            }
+        })
+        .collect();
+
+    lines.join(" ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

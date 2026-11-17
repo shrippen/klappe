@@ -8,12 +8,13 @@ use klappe_model::{BookState, FloorPlan, Kind, Print, Scene};
 use serde::{Deserialize, Serialize};
 
 use crate::files::{self, Dir, Kind as FileKind};
-use crate::{StoreError, SCENES_DIR, SCENES_FILE};
+use crate::{LoadNote, StoreError, SCENES_DIR, SCENES_FILE};
 
 /// Start of a Git conflict; no line of valid TOML begins with it.
 const CONFLICT_MARK: &str = "<<<<<<<";
 
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Register {
     #[serde(default)]
     szene: Vec<Entry>,
@@ -21,6 +22,7 @@ struct Register {
 
 /// One `[[szene]]` of the register.
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Entry {
     id: String,
     #[serde(default)]
@@ -47,8 +49,10 @@ struct Stage {
 }
 
 /// The register in project order, each entry joined with its Stellprobe file. An entry
-/// without a file has no location and no plans; a file without an entry is refused.
-pub(crate) fn load(dir: &Path) -> Result<Vec<Scene>, StoreError> {
+/// without a file has no location and no plans. A file without an entry (a crash between the
+/// writes, a Git merge) is not lost: it comes last, not in the book, with no number or
+/// heading, and is reported (DATENMODELL §2.5).
+pub(crate) fn load(dir: &Path) -> Result<(Vec<Scene>, Vec<LoadNote>), StoreError> {
     let path = dir.join(SCENES_FILE);
     let register = read(&path)?;
     crate::check_ids(register.szene.iter().map(|e| e.id.as_str()))?;
@@ -59,7 +63,7 @@ pub(crate) fn load(dir: &Path) -> Result<Vec<Scene>, StoreError> {
             .map(|s| (s.id.clone(), s))
             .collect();
 
-    let scenes = register
+    let mut scenes: Vec<Scene> = register
         .szene
         .into_iter()
         .map(|entry| {
@@ -68,14 +72,27 @@ pub(crate) fn load(dir: &Path) -> Result<Vec<Scene>, StoreError> {
         })
         .collect();
 
-    if let Some(id) = stages.keys().min() {
-        return Err(StoreError::Parse {
-            path: dir.join(SCENES_DIR).join(format!("{id}.json")),
-            message: format!("{id}: no entry in {SCENES_FILE}"),
+    let mut orphans: Vec<Stage> = stages.into_values().collect();
+    orphans.sort_by(|a, b| a.id.cmp(&b.id));
+    let mut notes = Vec::new();
+    for stage in orphans {
+        notes.push(LoadNote::OrphanScene {
+            id: stage.id.clone(),
         });
+        scenes.push(join(
+            Entry {
+                id: stage.id.clone(),
+                art: Kind::Scene,
+                number: String::new(),
+                heading: String::new(),
+                state: BookState::NotInBook,
+                prints: Vec::new(),
+            },
+            Some(stage),
+        ));
     }
 
-    Ok(scenes)
+    Ok((scenes, notes))
 }
 
 fn read(path: &Path) -> Result<Register, StoreError> {
@@ -111,7 +128,9 @@ fn join(entry: Entry, stage: Option<Stage>) -> Scene {
     }
 }
 
-/// The content of `szenen.toml` and of every `szenen/<id>.json`, with their paths.
+/// The content of every `szenen/<id>.json` and, last, of `szenen.toml`, with their paths. In
+/// this order a crash leaves a file the register lacks (loads, reported), never an entry whose
+/// plans were lost.
 pub(crate) fn encode(
     dir: &Path,
     scenes: &[Scene],
@@ -129,8 +148,7 @@ pub(crate) fn encode(
             })
             .collect(),
     };
-    let path = dir.join(SCENES_FILE);
-    let mut writes = vec![(path.clone(), files::encode_toml(&path, &register)?)];
+    let mut writes = Vec::new();
 
     let stages = Dir::new(dir.join(SCENES_DIR), FileKind::Json);
     for scene in scenes {
@@ -141,6 +159,9 @@ pub(crate) fn encode(
         };
         writes.push(stages.encode(&scene.id, &stage)?);
     }
+
+    let path = dir.join(SCENES_FILE);
+    writes.push((path.clone(), files::encode_toml(&path, &register)?));
 
     Ok(writes)
 }
