@@ -56,6 +56,7 @@ impl Session {
         self.redo.clear();
         self.project_changed = true;
         self.touch();
+        self.refresh_pending();
     }
 
     pub(super) fn touch(&mut self) {

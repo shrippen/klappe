@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{BookState, FloorPlan, Kind, Project, Scene};
-use klappe_services::{Choice, Session};
+use klappe_services::{Choice, ProjectEdit, Session};
 
 const SAAL: &str = "INT. SAAL – TAG";
 const HOF: &str = "INT. HOF – NACHT";
@@ -410,4 +410,60 @@ fn an_answer_not_in_book_holds_after_reopening() {
     assert_eq!(scene(&s, "bbbb").state, BookState::NotInBook);
     assert_eq!(scene(&s, "cccc").state, BookState::InBook);
     assert_eq!(s.project().scenes.len(), 3);
+}
+
+/// The entry "9 HOF" is open: the book has two scenes with its heading.
+fn open_hof(name: &str) -> Session {
+    let book = hof("9") + &hof("9");
+    let dir = make(name, vec![entry("aaaa", "9", HOF)], &book);
+    let s = Session::open(&dir).unwrap();
+    assert_eq!(s.pending_scenes().len(), 1);
+
+    s
+}
+
+#[test]
+fn removing_an_entry_closes_its_question() {
+    let mut s = open_hof("book-remove-open");
+
+    s.edit_project(ProjectEdit::RemoveScene { id: "aaaa".into() })
+        .unwrap();
+
+    assert!(s.project().scenes.is_empty());
+    assert!(s.pending_scenes().is_empty());
+    assert_eq!(s.book_report().pending, 0);
+}
+
+#[test]
+fn adding_or_renaming_an_entry_refreshes_the_questions() {
+    let mut s = open_hof("book-edit-open");
+    s.edit_project(ProjectEdit::AddLocation {
+        name: "Halle".into(),
+        width_m: 8.0,
+        depth_m: 5.5,
+        wall_height_m: 2.6,
+    })
+    .unwrap();
+    let halle = s.project().locations[0].id.clone();
+
+    // The entry no longer carries the doubled heading: no question.
+    s.edit_project(ProjectEdit::EditScene {
+        id: "aaaa".into(),
+        number: "9".into(),
+        heading: KELLER.into(),
+        location: halle.clone(),
+    })
+    .unwrap();
+    assert!(s.pending_scenes().is_empty());
+
+    // A new entry with the doubled heading is a question of its own.
+    s.edit_project(ProjectEdit::AddScene {
+        number: "10".into(),
+        heading: HOF.into(),
+        location: halle.clone(),
+    })
+    .unwrap();
+    assert_eq!(s.pending_scenes().len(), 1);
+    assert_ne!(s.pending_scenes()[0].id, "aaaa");
+    assert_eq!(s.book_report().pending, 1);
 }
