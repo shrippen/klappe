@@ -239,9 +239,7 @@ fn plan() -> FloorPlan {
 
 fn example() -> Project {
     let mut project = Project::new("Die Wartburg-Szene");
-    // An excerpt of a longer book keeps its numbers (DB-33).
-    project.script.scene_numbering = SceneNumbering::Locked;
-
+    project.script.scene_numbering = SceneNumbering::Locked; // an excerpt keeps its numbers
     project.characters = vec![
         Character {
             id: "elisabeth".into(),
