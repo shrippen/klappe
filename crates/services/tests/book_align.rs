@@ -491,3 +491,218 @@ fn the_answers_are_the_candidates_then_not_in_the_book() {
 
     assert_eq!(scene(&s, "bbbb").state, BookState::NotInBook);
 }
+
+/// The ids of the register, in order.
+fn ids(s: &Session) -> Vec<String> {
+    s.project().scenes.iter().map(|x| x.id.clone()).collect()
+}
+
+/// Opens, checks and reopens after a save: the register must tell the same both times.
+fn twice(dir: &Path, check: impl Fn(&Session)) {
+    let mut s = Session::open(dir).unwrap();
+    check(&s);
+    s.save().unwrap();
+    check(&Session::open(dir).unwrap());
+}
+
+#[test]
+fn a_copied_scene_keeps_its_entry_on_the_first_twin() {
+    let dir = settled("book-twin-copy", vec![entry("aaaa", "9", HOF)], &hof("9"));
+    rewrite_book(&dir, &(hof("9") + &hof("9")));
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(s.project().scenes.len(), 2);
+        assert_eq!(s.project().scenes[0].id, "aaaa");
+        assert_eq!(scene(s, "aaaa").plans.len(), 1);
+        assert_eq!(scene(s, "aaaa").state, BookState::InBook);
+        let new = &s.project().scenes[1];
+        assert!(new.plans.is_empty() && new.state == BookState::InBook);
+    });
+}
+
+/// A settled register with one entry per copy of "9 HOF", ids in register order. They get
+/// there as in practice: a scene is copied and pasted, one copy at a time, and saved.
+fn twinned(name: &str, copies: usize) -> (PathBuf, Vec<String>) {
+    let dir = settled(name, vec![entry("aaaa", "9", HOF)], &hof("9"));
+    for n in 2..=copies {
+        rewrite_book(&dir, &hof("9").repeat(n));
+        let mut s = Session::open(&dir).unwrap();
+        s.save().unwrap();
+    }
+    let s = Session::open(&dir).unwrap();
+
+    (dir, ids(&s))
+}
+
+#[test]
+fn two_entries_take_two_twins_in_order() {
+    let (dir, before) = twinned("book-twin-two", 2);
+    assert_eq!(before.len(), 2);
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(ids(s), before);
+        assert!(s
+            .project()
+            .scenes
+            .iter()
+            .all(|x| x.state == BookState::InBook));
+    });
+}
+
+#[test]
+fn three_entries_take_three_twins_in_order() {
+    let (dir, before) = twinned("book-twin-three", 3);
+    assert_eq!(before.len(), 3);
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(ids(s), before);
+        assert!(s
+            .project()
+            .scenes
+            .iter()
+            .all(|x| x.state == BookState::InBook));
+    });
+}
+
+#[test]
+fn a_deleted_copy_leaves_the_second_entry_struck() {
+    let (dir, before) = twinned("book-twin-struck", 2);
+    rewrite_book(&dir, &hof("9"));
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(ids(s), before);
+        assert_eq!(scene(s, &before[0]).state, BookState::InBook);
+        assert_eq!(scene(s, &before[1]).state, BookState::NotInBook);
+    });
+}
+
+#[test]
+fn placeholder_scenes_with_only_a_heading_take_their_entries_in_order() {
+    let head = format!("{HOF} #9#\n\n");
+    let dir = settled("book-twin-heads", vec![entry("aaaa", "9", HOF)], &head);
+    rewrite_book(&dir, &head.repeat(2));
+    Session::open(&dir).unwrap().save().unwrap();
+    let before = ids(&Session::open(&dir).unwrap());
+    assert_eq!(before.len(), 2);
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(ids(s), before);
+        assert!(s
+            .project()
+            .scenes
+            .iter()
+            .all(|x| x.state == BookState::InBook));
+    });
+}
+
+/// Scene 9 with its own lines.
+fn hof_with(action: &str, speech: &str) -> String {
+    format!("{HOF} #9#\n\n{action}\n\nBERT\n{speech}\n\n")
+}
+
+#[test]
+fn a_scene_rewritten_into_a_twin_moves_no_other_entry() {
+    let x = hof_with("Ein Hund bellt im Hof.", "Sei still, du Köter.");
+    let y = hof_with(
+        "Eine Katze schleicht über den Hof.",
+        "Wo kommst du denn her?",
+    );
+    let dir = settled("book-twin-rewritten", vec![entry("aaaa", "9", HOF)], &x);
+    // A second scene 9 with other lines gets its own entry.
+    rewrite_book(&dir, &(x.clone() + &y));
+    let mut s = Session::open(&dir).unwrap();
+    s.save().unwrap();
+    assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+    let second = ids(&s)[1].clone();
+
+    // The scene of aaaa is rewritten into the text of bbbb's: two twins.
+    rewrite_book(&dir, &(y.clone() + &y));
+    let s = Session::open(&dir).unwrap();
+
+    let asked: Vec<(&str, Vec<usize>)> = s
+        .pending_scenes()
+        .iter()
+        .map(|p| {
+            (
+                p.id.as_str(),
+                p.candidates.iter().map(|c| c.index).collect(),
+            )
+        })
+        .collect();
+    assert_eq!(asked, [("aaaa", vec![0, 1]), (second.as_str(), vec![0, 1])]);
+}
+
+#[test]
+fn a_copy_is_not_given_silently_to_an_entry_that_never_met_the_book() {
+    let dir = settled(
+        "book-twin-first-run",
+        vec![entry("aaaa", "9", HOF)],
+        &hof("9"),
+    );
+    // An entry made in Stellprobe with the same number and heading, never aligned.
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    project.scenes.push(Scene {
+        state: BookState::NotInBook,
+        ..entry("ffff", "9", HOF)
+    });
+    klappe_store::save(&dir, &project, None).unwrap();
+    rewrite_book(&dir, &(hof("9") + &hof("9")));
+
+    let s = Session::open(&dir).unwrap();
+
+    let asked: Vec<&str> = s.pending_scenes().iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(asked, ["aaaa", "ffff"]);
+    assert!(scene(&s, "ffff").prints.is_empty(), "ffff took no scene");
+}
+
+#[test]
+fn an_entry_said_not_in_the_book_leaves_the_order_to_the_twins() {
+    let dir = settled(
+        "book-twin-refused",
+        vec![entry("aaaa", "9", HOF)],
+        &hof("9"),
+    );
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    project.scenes.push(Scene {
+        state: BookState::NotInBook,
+        ..entry("ffff", "9", HOF)
+    });
+    klappe_store::save(&dir, &project, None).unwrap();
+    rewrite_book(&dir, &(hof("9") + &hof("9")));
+    let mut s = Session::open(&dir).unwrap();
+    s.resolve_scene("ffff", Choice::NotInBook).unwrap();
+    assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+    s.save().unwrap();
+
+    // A third copy: the refused entry is no candidate, so the order decides.
+    rewrite_book(&dir, &hof("9").repeat(3));
+    let s = Session::open(&dir).unwrap();
+
+    assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+}
+
+#[test]
+fn an_entry_with_only_the_same_heading_leaves_the_order_to_the_twins() {
+    let dir = settled(
+        "book-twin-other-number",
+        vec![entry("aaaa", "9", HOF)],
+        &hof("9"),
+    );
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    project.scenes.push(Scene {
+        state: BookState::NotInBook,
+        ..entry("gggg", "12", HOF)
+    });
+    klappe_store::save(&dir, &project, None).unwrap();
+    rewrite_book(&dir, &(hof("9") + &hof("9")));
+
+    let s = Session::open(&dir).unwrap();
+
+    let asked: Vec<&str> = s.pending_scenes().iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(asked, ["gggg"], "only the entry the book cannot place");
+}

@@ -154,6 +154,7 @@ pub(crate) fn plan(project: &Project, script: &Script) -> Plan {
         refusals: Vec::new(),
     };
     plan.settle();
+    plan.pair_twins(project, &first);
     plan.first_run(project, &first);
     plan.settle();
 
@@ -284,6 +285,79 @@ impl Plan {
                 *fate = Fate::Missing;
             }
         }
+    }
+
+    /// Entries that are word-identical to the scenes they ask about (twins: the same number,
+    /// heading and lines, so the same key) cannot be told apart by content. Among twins the
+    /// order decides, without a question: the entries in register order take the twins in
+    /// book order. Twins left over become new entries (a scene copied and pasted), entries
+    /// left over are missing (a copy deleted). The register follows the book's order, so
+    /// this is the same after saving and reopening.
+    fn pair_twins(&mut self, project: &Project, first: &[usize]) {
+        let mut groups: Vec<(SceneKey, Vec<usize>)> = Vec::new();
+
+        for (entry, fate) in &self.fates {
+            let Fate::Pending(found) = fate else {
+                continue;
+            };
+            let key = key_of(&self.book[found[0]]);
+            let alike = found.iter().all(|&n| key_of(&self.book[n]) == key);
+            if !alike || key_of(&state_of(&project.scenes[*entry])) != key {
+                continue;
+            }
+
+            match groups.iter_mut().find(|(k, _)| *k == key) {
+                Some((_, entries)) => entries.push(*entry),
+                None => groups.push((key, vec![*entry])),
+            }
+        }
+
+        for (key, entries) in groups {
+            let mut twins: Vec<usize> = (0..self.book.len())
+                .filter(|&n| key_of(&self.book[n]) == key && has_heading(&self.book[n]))
+                .collect();
+            twins.retain(|n| !self.matched().contains(n));
+            // An entry outside the group that may be one of the twins (its scene was
+            // rewritten into their text, or it never met the book and agrees in number and
+            // heading) leaves the order no say: all of them are asked.
+            if self.claimed_outside(&entries, &twins) || self.first_may_be(project, first, &twins) {
+                continue;
+            }
+            let mut twins = twins.into_iter();
+
+            for entry in entries {
+                let fate = match twins.next() {
+                    Some(n) => Fate::Matched(n),
+                    None => Fate::Missing,
+                };
+                if let Some(f) = self.fates.iter_mut().find(|f| f.0 == entry) {
+                    f.1 = fate;
+                }
+            }
+        }
+        self.settle();
+    }
+
+    /// Whether an entry that never met a book (`first_run` comes later) could take one of
+    /// `twins` silently there: same number and heading, and not refused.
+    fn first_may_be(&self, project: &Project, first: &[usize], twins: &[usize]) -> bool {
+        first.iter().any(|&e| {
+            let scene = &project.scenes[e];
+            twins.iter().any(|&n| {
+                let twin = &self.book[n];
+                same_number(scene, twin) && same_heading(scene, twin) && !refuses(scene, twin)
+            })
+        })
+    }
+
+    /// Whether an open entry not in `group` has one of `twins` among its candidates.
+    fn claimed_outside(&self, group: &[usize], twins: &[usize]) -> bool {
+        self.fates.iter().any(|(entry, fate)| match fate {
+            Fate::Pending(found) => {
+                !group.contains(entry) && found.iter().any(|n| twins.contains(n))
+            }
+            _ => false,
+        })
     }
 
     /// The entries to ask about, with the scenes they may be.
