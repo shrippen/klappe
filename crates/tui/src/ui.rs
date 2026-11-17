@@ -464,10 +464,9 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
         Some(Notice::Pdf(text)) => text.clone(),
         None => app.texts.hints.clone(),
     };
-    let mut spans = vec![
-        Span::styled(format!(" {mode} "), mode_style),
-        Span::raw(format!(" {}", app.file_name())),
-    ];
+    let mut spans = vec![Span::styled(format!(" {mode} "), mode_style)];
+    let name_at = spans.len();
+    spans.push(Span::raw(format!(" {}", app.file_name())));
     if app.is_modified() {
         spans.push(Span::styled(
             format!("{GAP}{}", app.texts.modified),
@@ -492,9 +491,30 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
         cursor.line + 1,
         cursor.col + 1
     )));
-    spans.push(Span::styled(message, Style::new().fg(theme::MUTED)));
 
-    frame.render_widget(Paragraph::new(Line::from(spans)).style(bar), area);
+    // The message keeps its width; the file name gives way first, then the rest of the left part.
+    let message = Line::styled(message, Style::new().fg(theme::MUTED));
+    let message_width = message.width().min(usize::from(area.width));
+    let room = usize::from(area.width) - message_width;
+    let left = Line::from(spans);
+    let excess = left.width().saturating_sub(room);
+    let mut left = left;
+    if excess > 0 {
+        left.spans[name_at] = Span::raw(shorten(&format!(" {}", app.file_name()), excess));
+    }
+    let left_width = left.width().min(room);
+    let [left_area, message_area] =
+        Layout::horizontal([Constraint::Length(left_width as u16), Constraint::Min(0)]).areas(area);
+    frame.render_widget(Paragraph::new(left).style(bar), left_area);
+    frame.render_widget(Paragraph::new(message).style(bar), message_area);
+}
+
+/// `text` without its last `cut` columns (at least one stays), closed by an ellipsis.
+fn shorten(text: &str, cut: usize) -> String {
+    let keep = text.chars().count().saturating_sub(cut + 1).max(1);
+    let head: String = text.chars().take(keep).collect();
+
+    format!("{head}…")
 }
 
 /// Rows of the help box: every line, or as many as the screen has.

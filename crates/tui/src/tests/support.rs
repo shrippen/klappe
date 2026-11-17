@@ -29,7 +29,12 @@ fn copy_all(from: &Path, to: &Path) {
 impl Scratch {
     pub(super) fn new(script: &str) -> Self {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("kt-{}-{n}.klappe", std::process::id()));
+        Self::named(script, &format!("kt-{}-{n}.klappe", std::process::id()))
+    }
+
+    /// Like `new`, in a folder of the given name.
+    pub(super) fn named(script: &str, name: &str) -> Self {
+        let dir = std::env::temp_dir().join(name);
         copy_all(&example(), &dir);
         fs::write(dir.join("drehbuch.fountain"), script).unwrap_or_else(|e| unreachable!("{e}"));
 
