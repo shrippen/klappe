@@ -16,7 +16,7 @@ Neu ist vor allem der Abgleich des Registers mit dem Buch (#215, #220, #224). Se
 ## Funde
 
 ### 1. Die offenen Fragen zum Abgleich werden neben dem Register als eigene Liste gehalten, und das Entfernen einer Szene vergisst sie
-Manche Einträge des Registers kann der Abgleich keiner Szene des Buchs sicher zuordnen. Für jeden solchen Eintrag stellt er eine Frage, welche Szene es ist. Die Sitzung rechnet diese Fragen nicht bei Bedarf aus dem Register und dem Buch aus. Sie hält sie als eigene Liste und frischt sie an neun Stellen von Hand auf: beim Öffnen, Speichern, Speichern des Buchs, Wiederherstellen, bei neuem Buchtext, bei Rückgängig, Wiederholen und beim Beantworten einer Frage. Bei einer Änderung am Projekt über die Szenenverwaltung (Szene anlegen, entfernen, umbenennen) frischt sie sie nicht auf.
+Manche Einträge des Registers kann der Abgleich keiner Szene des Buchs sicher zuordnen. Für jeden solchen Eintrag stellt er eine Frage, welche Szene es ist. Die Sitzung rechnet diese Fragen nicht bei Bedarf aus dem Register und dem Buch aus. Sie hält sie als eigene Liste und frischt sie an acht Stellen von Hand auf: beim Öffnen, Speichern, Speichern des Buchs, Wiederherstellen, bei neuem Buchtext, bei Rückgängig, Wiederholen und beim Beantworten einer Frage. Bei einer Änderung am Projekt über die Szenenverwaltung (Szene anlegen, entfernen, umbenennen) frischt sie sie nicht auf, außer eine Umbenennung ändert dabei den Buchtext.
 
 Ich habe das mit einem kleinen Programm gegen die Sitzung geprüft. Ein Projekt hat einen Eintrag „9 INT. HOF – NACHT“, und das Buch hat zwei Szenen mit diesem Kopf. Daraus entsteht eine offene Frage. Wird der Eintrag dann entfernt, ist das Register leer. Die Sitzung meldet aber weiter eine offene Frage für den Eintrag, den es nicht mehr gibt (`pending: 1`). Die Statuszeile zeigt das an. Eine Antwort auf diese Frage scheitert.
 
@@ -31,11 +31,11 @@ Beleg: `crates/services/src/session/book.rs:16`, `crates/services/src/session/bo
 ### 2. `ARCHITECTURE.md` schickt neue Befehle nach `AppHeader.qml`, sie stehen aber seit #216 in eigenen Dateien
 Um die Grenze von 800 Zeilen zu halten, hat #216 die Befehle der Kopfleiste in eigene Dateien gelegt: Ausgaben (`ExportCommands.qml`), Abspielen (`PlayCommands.qml`) und Befehle für die nächste Auswahl (`ArmCommands.qml`). Daneben gibt es schon `ObjectCommands.qml`, `PageExports.qml`, `ShotViewCommands.qml`, `ViewCommands.qml` und `ZoomCommands.qml`. `ARCHITECTURE.md` nennt keine dieser Dateien. In drei Zeilen der Tabelle „Where new things go“ steht weiter `AppHeader.qml`: bei neuen Tasten oder Befehlen für die Auswahl, bei neuen Ausgabeformaten und bei neuen Einstellungen der Ansicht.
 
-Die Zeile für Ausgabeformate sagt außerdem, die Oberfläche nenne kein Format, sie lese die Liste aus der Sitzung. Das Menü und die Befehlspalette schreiben aber jedes der neun Formate selbst hin, in `ExportCommands.qml` und noch einmal im Menü von `AppHeader.qml`.
+Die Zeile für Ausgabeformate nennt den Menüeintrag in `AppHeader.qml`, aber nicht die Befehlspalette: Jedes der neun Formate steht auch in `ExportCommands.qml`.
 
-Was es kostet: Wer der Tabelle folgt, sucht in der falschen Datei. Ein neues Format braucht drei Stellen im Fenster, die nicht genannt sind.
+Was es kostet: Wer der Tabelle folgt, sucht in der falschen Datei. Ein neues Format braucht eine Stelle im Fenster, die nicht genannt ist.
 
-Vorschlag: Die drei Zeilen nennen die Befehlsdateien. Die Zeile für Ausgabeformate sagt, wo die Formate im Menü stehen.
+Vorschlag: Die drei Zeilen nennen die Befehlsdateien, die Zeile für Ausgabeformate auch `ExportCommands.qml`.
 
 Aufwand klein, nur Text. Kein Risiko.
 
@@ -67,7 +67,7 @@ Vorschlag: Die Sitzung gibt die Antworten einer Frage als fertige Liste heraus, 
 
 Aufwand klein bis mittel. Risiko gering: Es gibt `crates/tui/src/tests/book.rs`, `crates/app/tests/qml/tst_bookdialog.qml` und die Tests in `crates/app/src/manage.rs`.
 
-Beleg: `crates/tui/src/app/book.rs:37`, `crates/tui/src/app/book.rs:56`, `crates/app/src/manage.rs:59`, `crates/app/src/manage.rs:63`, `crates/app/qml/BookDialog.qml:27`, `crates/services/i18n/de.json:429`, `crates/services/i18n/de.json:707`, `ARCHITECTURE.md:84`.
+Beleg: `crates/tui/src/app/book.rs:37`, `crates/tui/src/app/book.rs:56`, `crates/app/src/manage.rs:61`, `crates/app/src/manage.rs:65`, `crates/app/qml/BookDialog.qml:27`, `crates/services/i18n/de.json:429`, `crates/services/i18n/de.json:707`, `ARCHITECTURE.md:84`.
 
 ### 5. Zwei kleine Doppelungen beim Register: die freie Kennung eines neuen Eintrags, der Dateiname des Drehbuchs
 Ein neuer Eintrag im Register bekommt eine zufällige Kennung. Sie darf sich von keiner vorhandenen nur durch Groß- und Kleinschreibung unterscheiden, sonst würden sich auf manchen Rechnern die Dateien überschreiben. Diese Suche nach einer freien Kennung steht zweimal in der Sitzung: beim Abgleich mit dem Buch und beim Anlegen einer Szene von Hand.
