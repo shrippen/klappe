@@ -16,6 +16,7 @@ use crate::{draw, theme, App, Flow, Language};
 mod find;
 mod flow;
 mod marks;
+mod outline;
 mod session;
 mod support;
 
@@ -45,7 +46,10 @@ fn press(app: &mut App, code: KeyCode) -> Flow {
 }
 
 fn ctrl(app: &mut App, c: char) -> Flow {
-    app.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL))
+    let flow = app.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL));
+    assert_backup_answered(app);
+
+    flow
 }
 
 fn typed(app: &mut App, text: &str) {
