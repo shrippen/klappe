@@ -42,8 +42,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   folgen dem Buch: Beim Öffnen und Speichern gleicht Klappe die Einträge mit
   `drehbuch.fountain` ab (`script/` `align`, verbunden in `services/`); mit Buch steht die Folge
   im Text, Einträge ohne Szene im Buch (`not-in-book`, offene Fragen, Content Items) folgen
-  danach in ihrer Folge. Ein Eintrag ohne `prints` wird einmal nach Nummer, dann nach Kopf
-  zugeordnet. Nichts Neues wird gespeichert; eine offene Frage steht nur in der Sitzung.
+  danach in ihrer Folge. Die `prints` einer Szene des Buchs beginnen mit dem Kopf
+  (Art 0); ein Eintrag ohne `prints` kennt noch kein Buch und wird nur zugeordnet, wenn
+  Nummer und Kopf beide gleich sind und auf beiden Seiten nur einmal vorkommen, sonst
+  gefragt. Nichts Neues wird gespeichert; eine offene Frage steht nur in der Sitzung.
 - **Papier:** `paper` in `projekt.toml`, z. B. `"a4-portrait"`: Größe (`a4`, `a3`, `letter`),
   Bindestrich, Ausrichtung (`portrait`, `landscape`). Das Blatt, auf dem zuletzt ausgegeben wurde;
   der Ausgabedialog beginnt damit. Fehlt der Schlüssel (und er wird bei `a4-landscape` nicht

@@ -159,9 +159,9 @@ fn a_scene_struck_from_the_book_stays_not_in_book() {
 }
 
 #[test]
-fn a_project_without_prints_is_matched_by_number_then_heading() {
+fn a_project_without_prints_is_matched_when_number_and_heading_agree() {
     let entries = vec![
-        entry("aaaa", "1", "ganz anders"),
+        entry("aaaa", "1", SAAL),
         entry("bbbb", "77", HOF),
         entry("cccc", "99", "INT. NIRGENDWO – TAG"),
     ];
@@ -171,13 +171,79 @@ fn a_project_without_prints_is_matched_by_number_then_heading() {
 
     let a = scene(&s, "aaaa");
     assert_eq!((a.number.as_str(), a.heading.as_str()), ("1", SAAL));
+    assert!(!a.prints.is_empty());
+    assert_eq!(a.state, BookState::InBook);
+    // Only the heading agrees: asked, not matched.
     let b = scene(&s, "bbbb");
-    assert_eq!((b.number.as_str(), b.heading.as_str()), ("2", HOF));
-    assert!(!a.prints.is_empty() && !b.prints.is_empty());
+    assert_eq!((b.number.as_str(), b.heading.as_str()), ("77", HOF));
+    assert!(b.prints.is_empty());
+    assert_eq!(s.pending_scenes().len(), 1);
+    assert_eq!(s.pending_scenes()[0].id, "bbbb");
     assert_eq!(scene(&s, "cccc").state, BookState::NotInBook);
-    assert!(s.pending_scenes().is_empty());
     assert_eq!(s.project().scenes.len(), 3);
-    assert_eq!(s.project().scenes[2].id, "cccc", "not in the book: last");
+}
+
+#[test]
+fn a_first_run_with_swapped_headings_asks_about_both() {
+    let entries = vec![entry("aaaa", "1", KELLER), entry("bbbb", "2", HOF)];
+    let book = hof("1") + &keller("2");
+    let dir = make("book-first-swap", entries, &book);
+
+    let s = Session::open(&dir).unwrap();
+
+    assert_eq!(s.pending_scenes().len(), 2);
+    assert_eq!(scene(&s, "aaaa").heading, KELLER);
+    assert_eq!(scene(&s, "bbbb").heading, HOF);
+    assert_eq!(s.project().scenes.len(), 2, "no entry for the candidates");
+}
+
+#[test]
+fn a_first_run_with_a_doubled_scene_asks() {
+    let flur = |n: &str, line: &str| format!("INT. FLUR – TAG #{n}#\n\n{line}\n\n");
+
+    // Two scenes of the book carry the same number and heading.
+    let book = flur("5", "Schritte hallen.") + &flur("5", "Eine Tür quietscht.");
+    let dir = make(
+        "book-first-flur-book",
+        vec![entry("aaaa", "5", "INT. FLUR – TAG")],
+        &book,
+    );
+    let s = Session::open(&dir).unwrap();
+    assert_eq!(s.pending_scenes().len(), 1);
+    assert_eq!(s.pending_scenes()[0].candidates.len(), 2);
+    assert!(scene(&s, "aaaa").prints.is_empty());
+
+    // Two entries carry the same number and heading, the book one scene.
+    let entries = vec![
+        entry("aaaa", "5", "INT. FLUR – TAG"),
+        entry("bbbb", "5", "INT. FLUR – TAG"),
+    ];
+    let dir = make(
+        "book-first-flur-entries",
+        entries,
+        &flur("5", "Schritte hallen."),
+    );
+    let s = Session::open(&dir).unwrap();
+    assert_eq!(s.pending_scenes().len(), 2);
+    assert!(scene(&s, "aaaa").prints.is_empty() && scene(&s, "bbbb").prints.is_empty());
+}
+
+#[test]
+fn a_heading_only_scene_whose_heading_is_rewritten_is_asked_about() {
+    let haus = "INT. HAUS – TAG #1#\n\n";
+    let wald = "INT. WALD – TAG #1#\n\n";
+    let dir = settled(
+        "book-heading-only",
+        vec![entry("aaaa", "1", "INT. HAUS – TAG")],
+        haus,
+    );
+    rewrite_book(&dir, wald);
+
+    let s = Session::open(&dir).unwrap();
+
+    assert_eq!(s.pending_scenes().len(), 1);
+    assert_eq!(scene(&s, "aaaa").heading, "INT. HAUS – TAG");
+    assert_eq!(s.project().scenes.len(), 1);
 }
 
 #[test]
@@ -198,9 +264,9 @@ fn resolving_assigns_the_scene_in_one_undo_step() {
     let dir = settled("book-resolve", two(), &(saal("1") + &hof("2")));
     rewrite_book(&dir, &rewritten());
     let mut s = Session::open(&dir).unwrap();
-    let index = s.pending_scenes()[0].candidates[0].index;
+    let candidate = s.pending_scenes()[0].candidates[0].clone();
 
-    s.resolve_scene("bbbb", Choice::Scene(index)).unwrap();
+    s.resolve_scene("bbbb", Choice::Scene(candidate)).unwrap();
 
     let b = scene(&s, "bbbb");
     assert_eq!(b.heading, KELLER);
@@ -243,7 +309,9 @@ fn resolving_refuses_what_is_no_open_decision() {
     let mut s = Session::open(&dir).unwrap();
 
     assert!(s.resolve_scene("aaaa", Choice::NotInBook).is_err());
-    assert!(s.resolve_scene("bbbb", Choice::Scene(0)).is_err());
+    let mut wrong = s.pending_scenes()[0].candidates[0].clone();
+    wrong.index = 0;
+    assert!(s.resolve_scene("bbbb", Choice::Scene(wrong)).is_err());
     assert!(s.pending_scenes().len() == 1 && !s.can_undo());
 }
 
@@ -258,4 +326,30 @@ fn saving_refreshes_the_register_from_the_book() {
 
     assert_eq!(scene(&s, "aaaa").number, "5");
     assert_eq!(scene(&s, "bbbb").number, "6");
+}
+
+#[test]
+fn a_choice_made_before_the_book_moved_is_refused() {
+    let dir = settled("book-stale", two(), &(saal("1") + &hof("2")));
+    rewrite_book(&dir, &rewritten());
+    let mut s = Session::open(&dir).unwrap();
+    let candidate = s.pending_scenes()[0].candidates[0].clone();
+
+    // Another scene with number 2 goes in before it: index 1 is still a candidate of the
+    // entry, but no longer the scene the user saw.
+    let garten = "INT. GARTEN – TAG #2#\n\nVögel singen.\n\nEMMA\nWas für ein Morgen.\n\n";
+    s.set_script_text(&(saal("1") + garten + &rewritten_second()));
+    assert!(s.pending_scenes()[0]
+        .candidates
+        .iter()
+        .any(|c| c.index == candidate.index));
+    let refused = s.resolve_scene("bbbb", Choice::Scene(candidate));
+
+    assert!(refused.is_err());
+    assert_eq!(scene(&s, "bbbb").heading, HOF);
+    assert!(!s.can_undo());
+}
+
+fn rewritten_second() -> String {
+    rewritten().split_off(saal("1").len())
 }

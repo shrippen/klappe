@@ -166,8 +166,9 @@ impl Session {
     }
 
     /// Writes only the screenplay; every other file of the folder stays as it is on disk, the
-    /// register too (it follows the book in memory and is written with the next `save`). The backup then no longer holds the screenplay as unsaved work: it is removed if only
-    /// the screenplay was unsaved, else rewritten with the saved screenplay. An unanswered
+    /// register too (it follows the book in memory and is written with the next `save`). The
+    /// backup then no longer holds the screenplay as unsaved work: it is removed if only the
+    /// screenplay was unsaved, else rewritten with the saved screenplay. An unanswered
     /// backup (`Found`, `Unreadable`) stays for the user to decide.
     pub fn save_script(&mut self) -> Result<(), ServiceError> {
         self.reconcile();

@@ -18,7 +18,7 @@ mod text;
 mod title;
 mod write;
 
-pub use align::{align, scene_states, Alignment, Fingerprint, Outcome, SceneState};
+pub use align::{align, heading_print, scene_states, Alignment, Fingerprint, Outcome, SceneState};
 pub use assist::{suggest, Context, Gap, Slot, Stage, Suggestions, Vocabulary};
 pub use conflict::conflict_line;
 pub use inline::{inline_runs, Marks, Run};

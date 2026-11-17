@@ -1,10 +1,10 @@
 //! Joins the register to the book (DATENMODELL §4).
 
 /// What the user decides for an entry the alignment could not place by itself.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Choice {
-    /// The entry is this scene of the book (`Candidate::index`).
-    Scene(usize),
+    /// The entry is this scene of the book, as a candidate of `PendingScene` named it.
+    Scene(Candidate),
     /// The entry is not in the book; the candidates are new scenes.
     NotInBook,
 }
@@ -16,6 +16,8 @@ pub struct Candidate {
     pub index: usize,
     pub number: String,
     pub heading: String,
+    /// Names the scene's content, so a choice made on an older book is recognised.
+    pub key: u64,
 }
 
 /// An entry of the register the alignment could not place without asking.
@@ -40,7 +42,12 @@ pub struct BookReport {
 use std::collections::HashSet;
 
 use klappe_model::{random_id, BookState, Kind, Print, Project, Scene};
-use klappe_script::{align, normal, scene_states, Fingerprint, Outcome, SceneState, Script};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+use klappe_script::{
+    align, heading_print, normal, scene_states, Fingerprint, Outcome, SceneState, Script,
+};
 
 /// What the alignment made of one entry of the register.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,11 +86,18 @@ fn fingerprint_of(print: &Print) -> Fingerprint {
 /// What the register remembers of an entry, as the alignment takes it.
 fn state_of(scene: &Scene) -> SceneState {
     let some = |text: &str| (!text.is_empty()).then(|| text.to_owned());
+    // The heading is the alignment's own first token: not one of the lines.
+    let heading_tag = heading_print("").tag;
 
     SceneState {
         number: some(&scene.number),
         heading: some(&scene.heading),
-        prints: scene.prints.iter().map(fingerprint_of).collect(),
+        prints: scene
+            .prints
+            .iter()
+            .map(fingerprint_of)
+            .filter(|p| p.tag != heading_tag)
+            .collect(),
     }
 }
 
@@ -95,15 +109,24 @@ fn has_heading(state: &SceneState) -> bool {
 
 /// Aligns the entries of kind scene with the scenes of `script`. Without a scene in the
 /// book there is nothing to align with: the caller does not ask.
+///
+/// An entry with prints has been aligned with a book before (a book scene's prints always
+/// hold its heading's): `align` places it. One without has not: it is placed by `first_run`.
 pub(crate) fn plan(project: &Project, script: &Script) -> Plan {
     let book = scene_states(script);
     let kept: Vec<usize> = (0..project.scenes.len())
         .filter(|&i| project.scenes[i].kind == Kind::Scene)
         .collect();
-    let old: Vec<SceneState> = kept.iter().map(|&i| state_of(&project.scenes[i])).collect();
+    let (aligned, first): (Vec<usize>, Vec<usize>) = kept
+        .into_iter()
+        .partition(|&i| !project.scenes[i].prints.is_empty());
+    let old: Vec<SceneState> = aligned
+        .iter()
+        .map(|&i| state_of(&project.scenes[i]))
+        .collect();
     let alignment = align(&old, script);
 
-    let fates = kept
+    let fates = aligned
         .iter()
         .zip(alignment.old)
         .map(|(&entry, outcome)| {
@@ -117,10 +140,31 @@ pub(crate) fn plan(project: &Project, script: &Script) -> Plan {
         .collect();
 
     let mut plan = Plan { fates, book };
-    plan.claim_first_run(project);
+    plan.settle();
+    plan.first_run(project, &first);
     plan.settle();
 
     plan
+}
+
+/// Whether the entry and the book scene have the same number.
+fn same_number(scene: &Scene, book: &SceneState) -> bool {
+    !scene.number.is_empty() && book.number.as_deref() == Some(scene.number.as_str())
+}
+
+/// Whether the entry and the book scene have the same heading.
+fn same_heading(scene: &Scene, book: &SceneState) -> bool {
+    let heading = book.heading.as_deref().map(normal);
+
+    !scene.heading.is_empty() && heading == Some(normal(&scene.heading))
+}
+
+/// Names the content of a book scene, to tell it from another at the same place.
+fn key_of(state: &SceneState) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    (&state.number, &state.heading, &state.prints).hash(&mut hasher);
+
+    hasher.finish()
 }
 
 impl Plan {
@@ -133,31 +177,40 @@ impl Plan {
         found.collect()
     }
 
-    /// An entry without prints has no content to go by (the project had no book before, or
-    /// it was made in Klappe): it is matched once by its number, then by its heading, each
-    /// only if that names one scene that nobody holds (DATENMODELL §4).
-    fn claim_first_run(&mut self, project: &Project) {
-        for by_number in [true, false] {
-            for k in 0..self.fates.len() {
-                let (entry, Fate::Pending(found)) = &self.fates[k] else {
-                    continue;
-                };
-                let scene = &project.scenes[*entry];
-                if !scene.prints.is_empty() {
-                    continue;
-                }
+    /// An entry that never met a book has nothing but number and heading to go by, and they
+    /// never confirm alone (DATENMODELL §4): it is matched only if both agree with one scene
+    /// of the book and with no other entry. Otherwise it is asked about, with the scenes that
+    /// agree in either, or missing if none does.
+    fn first_run(&mut self, project: &Project, first: &[usize]) {
+        let taken = self.matched();
+        let free: Vec<usize> = (0..self.book.len())
+            .filter(|n| has_heading(&self.book[*n]) && !taken.contains(n))
+            .collect();
 
-                let taken = self.matched();
-                let named: Vec<usize> = found
-                    .iter()
-                    .copied()
-                    .filter(|n| !taken.contains(n))
-                    .filter(|&n| names(&self.book[n], scene, by_number))
-                    .collect();
-                if let [only] = named[..] {
-                    self.fates[k].1 = Fate::Matched(only);
-                }
+        for &entry in first {
+            let scene = &project.scenes[entry];
+            let both = |n: &usize| {
+                same_number(scene, &self.book[*n]) && same_heading(scene, &self.book[*n])
+            };
+            let exact: Vec<usize> = free.iter().copied().filter(both).collect();
+            let twins = first
+                .iter()
+                .map(|&e| &project.scenes[e])
+                .filter(|o| {
+                    o.number == scene.number && normal(&o.heading) == normal(&scene.heading)
+                })
+                .count();
+            if let ([only], 1) = (&exact[..], twins) {
+                self.fates.push((entry, Fate::Matched(*only)));
+                continue;
             }
+
+            let agree = |n: &&usize| {
+                same_number(scene, &self.book[**n]) || same_heading(scene, &self.book[**n])
+            };
+            let mut found: Vec<usize> = free.iter().filter(agree).copied().collect();
+            found.sort_by_key(|n| !exact.contains(n));
+            self.fates.push((entry, Fate::Pending(found)));
         }
     }
 
@@ -196,6 +249,7 @@ impl Plan {
                         index,
                         number: self.book[index].number.clone().unwrap_or_default(),
                         heading: self.book[index].heading.clone().unwrap_or_default(),
+                        key: key_of(&self.book[index]),
                     })
                     .collect(),
             });
@@ -217,7 +271,11 @@ impl Plan {
         };
 
         match choice {
-            Choice::Scene(n) if found.contains(&n) => self.fates[k].1 = Fate::Matched(n),
+            Choice::Scene(c)
+                if found.contains(&c.index) && key_of(&self.book[c.index]) == c.key =>
+            {
+                self.fates[k].1 = Fate::Matched(c.index);
+            }
             Choice::Scene(_) => return false,
             Choice::NotInBook => self.fates[k].1 = Fate::Missing,
         }
@@ -285,19 +343,13 @@ impl Plan {
 
         scene.number = state.number.clone().unwrap_or_default();
         scene.heading = state.heading.clone().unwrap_or_default();
-        scene.prints = state.prints.iter().copied().map(print_of).collect();
+        let heading = heading_print(state.heading.as_deref().unwrap_or_default());
+        scene.prints = std::iter::once(heading)
+            .chain(state.prints.iter().copied())
+            .map(print_of)
+            .collect();
         scene.state = BookState::InBook;
     }
-}
-
-/// Whether the entry's number (or else its heading) is the book scene's.
-fn names(book: &SceneState, scene: &Scene, by_number: bool) -> bool {
-    if by_number {
-        return !scene.number.is_empty() && book.number.as_deref() == Some(scene.number.as_str());
-    }
-
-    let heading = book.heading.as_deref().map(normal);
-    !scene.heading.is_empty() && heading == Some(normal(&scene.heading))
 }
 
 /// A random id that no entry has, kept or yet to be placed (ids are file names, which may
