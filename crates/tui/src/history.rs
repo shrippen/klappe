@@ -149,7 +149,6 @@ impl History {
     }
 
     /// Steps that can be undone.
-    #[cfg(test)]
     pub(crate) fn depth(&self) -> usize {
         self.undo.len()
     }

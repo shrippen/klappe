@@ -664,7 +664,7 @@
  "tui.stale": "out of date",
  "tui.help.save": "Ctrl+S           Save",
  "tui.help.quit": "Ctrl+Q           Quit (asks when modified)",
- "tui.help.undo": "Ctrl+Z / Ctrl+Y  Undo / redo",
+ "tui.help.undo": "Ctrl+Z / Ctrl+Y  Undo / redo (also a book answer)",
  "tui.help.focus": "F6               Focus: scene list / text",
  "tui.help.goto": "Ctrl+P           Find a scene and go to it",
  "tui.help.list": "Ctrl+B           Show / hide the scene list",

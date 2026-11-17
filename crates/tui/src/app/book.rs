@@ -4,7 +4,7 @@
 use klappe_services::{Answer, PendingScene};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
-use super::{App, Flow, Mode, Notice};
+use super::{App, Editor, Flow, Mode, Notice};
 
 impl App {
     /// The question being asked: the first open one.
@@ -71,10 +71,63 @@ impl App {
             return;
         }
 
+        self.answered.push(self.editor.mark_step());
+        self.unanswered.clear();
         self.book_sel = 0;
         self.refresh_book_note();
         if self.book_question().is_none() {
             self.mode = Mode::Normal;
         }
+    }
+
+    /// Ctrl+Z: takes back the latest of editor edit and book answer. The answer is the
+    /// latest when the editor has no step since it.
+    pub(super) fn undo(&mut self) -> Flow {
+        if self.answered.last() != Some(&self.editor.undo_depth()) {
+            return self.edit_with(Editor::undo);
+        }
+
+        self.answered.pop();
+        self.session.undo();
+        self.unanswered
+            .push((self.editor.undo_depth(), self.editor.edits()));
+
+        self.settle_answer()
+    }
+
+    /// Ctrl+Y: does a taken-back answer again when the editor is back at the step it was at
+    /// then (its undo depth, not its revision, which every undo and redo raises) and made no
+    /// new edit since, which drops the answer from redo like any undone step.
+    pub(super) fn redo(&mut self) -> Flow {
+        let now = (self.editor.undo_depth(), self.editor.edits());
+        if self.unanswered.last().is_some_and(|then| then.1 != now.1) {
+            self.unanswered.clear();
+        }
+        if self.unanswered.last() != Some(&now) {
+            return self.edit_with(Editor::redo);
+        }
+
+        self.unanswered.pop();
+        self.session.redo();
+        self.answered.push(self.editor.mark_step());
+
+        self.settle_answer()
+    }
+
+    /// Answers are no longer taken back (the register moved on with a saved change).
+    pub(super) fn forget_answers(&mut self) {
+        self.answered.clear();
+        self.unanswered.clear();
+    }
+
+    /// Writes the register as undo or redo left it and shows its questions.
+    fn settle_answer(&mut self) -> Flow {
+        if let Err(e) = self.session.save_register() {
+            self.notice = Some(Notice::SaveFailed(e.to_string()));
+        }
+        self.book_sel = 0;
+        self.refresh_book_note();
+
+        Flow::Continue
     }
 }
