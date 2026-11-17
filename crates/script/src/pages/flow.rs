@@ -141,30 +141,41 @@ fn plan(sim: &mut Sim, o: &PageOptions, mut block: Block, out: &mut Vec<Step>) {
 
         // Cut at a row, both parts keeping `MIN_SPLIT_ROWS`.
         let take = if at_top { o.body_lines } else { room };
-        let take = take.saturating_sub(extra);
-        let take = take.min(rows.len().saturating_sub(MIN_SPLIT_ROWS)).max(1);
-        let mut first = rows.clone();
-        let mut rest = first.split_off(take);
-        if let Some(cues) = cue_row(&rows) {
-            // Only a column that goes on gets the marks.
-            let going: Vec<Line> = cues
-                .iter()
-                .filter(|c| rest.iter().flatten().any(|l| column(l) == column(c)))
-                .cloned()
-                .collect();
-            if !going.is_empty() {
-                first.push(marked(
-                    &going,
-                    PageKind::More,
-                    &format!("({})", o.words.more),
-                ));
-                rest.insert(0, marked(&going, PageKind::Character, o.words.contd));
-            }
-        }
+        let (first, rest) = cut_rows(rows, take, o);
         sim.put(out, &block, before, first);
         sim.end_page(out);
         block = Block::from_rows(rest);
     }
+}
+
+/// Cuts `rows` after at most `take` rows, both parts keeping `MIN_SPLIT_ROWS`; a dialogue
+/// gets `(MORE)` below and its name again above, for each column that goes on.
+fn cut_rows(
+    rows: Vec<Vec<Line>>,
+    take: usize,
+    o: &PageOptions,
+) -> (Vec<Vec<Line>>, Vec<Vec<Line>>) {
+    let extra = usize::from(cue_row(&rows).is_some());
+    let take = take.saturating_sub(extra);
+    let take = take.min(rows.len().saturating_sub(MIN_SPLIT_ROWS)).max(1);
+    let mut first = rows.clone();
+    let mut rest = first.split_off(take);
+    let Some(cues) = cue_row(&rows) else {
+        return (first, rest);
+    };
+
+    let going: Vec<Line> = cues
+        .iter()
+        .filter(|c| rest.iter().flatten().any(|l| column(l) == column(c)))
+        .cloned()
+        .collect();
+    if !going.is_empty() {
+        let more = format!("({})", o.words.more);
+        first.push(marked(&going, PageKind::More, &more));
+        rest.insert(0, marked(&going, PageKind::Character, o.words.contd));
+    }
+
+    (first, rest)
 }
 
 /// The name row of a dialogue: its first row, if it holds a name (two for a dual dialogue).
