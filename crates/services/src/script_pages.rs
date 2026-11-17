@@ -10,7 +10,7 @@ use klappe_export::{Face, Paper, ScriptLine, ScriptPage, ScriptSheet, TitlePage}
 use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 use klappe_script::{
     length_text, paginate, parse_located, title_fields, ContdAfterAction, Element, Located,
-    PageKind, PageOptions, PageSize, Pagination, Words, TITLE_KEYS,
+    PageKind, PageOptions, PageSize, Pagination, Words, TEXT_COLUMNS, TITLE_KEYS,
 };
 
 pub use klappe_export::SceneNumbers;
@@ -240,6 +240,7 @@ impl Layout {
                 ScriptPaper::A4 => Paper::A4,
                 ScriptPaper::Letter => Paper::Letter,
             },
+            columns: TEXT_COLUMNS,
             title_page: TitlePage {
                 title,
                 credit,
