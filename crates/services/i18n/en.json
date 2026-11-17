@@ -708,6 +708,7 @@
  "tui.book.ask": "Entry {number} {heading} — which scene of the book is this?",
  "tui.book.none": "Not in the book",
  "tui.book.hint": "Up/Down choose  Enter answer  Esc later",
+ "tui.book.saveFirst": "Save first (Ctrl+S), then match the scenes",
  "tui.field.title": "Title",
  "tui.field.credit": "Credit",
  "tui.field.author": "Author",

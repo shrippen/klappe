@@ -108,3 +108,19 @@ fn an_answer_is_kept_without_saving_the_book() {
     assert!(again.book_question().is_none(), "{}", again.book_note);
     let _ = screen(&mut again, 100, 24);
 }
+
+#[test]
+fn an_unsaved_book_is_saved_before_questions_are_answered() {
+    let (scratch, mut app) = swapped();
+    ctrl_end(&mut app);
+    typed(&mut app, "\n\nINT. GARTEN – TAG\n\nVögel.\n");
+    app.autosave();
+
+    ctrl(&mut app, 'k');
+
+    assert_eq!(app.mode, Mode::Normal, "no question on an unsaved book");
+    let register = fs::read_to_string(scratch.dir.join("szenen.toml")).unwrap_or_default();
+    assert!(!register.contains("GARTEN"), "{register}");
+    let frame = screen(&mut app, 100, 24);
+    assert!(frame.contains("Save first"), "{frame}");
+}

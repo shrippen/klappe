@@ -16,6 +16,12 @@ impl App {
         if self.book_question().is_none() {
             return Flow::Continue;
         }
+        // An answer is written at once: against the saved book only, never against text the
+        // user may still discard (the session holds the autosaved text).
+        if self.is_modified() {
+            self.notice = Some(Notice::SaveFirst);
+            return Flow::Continue;
+        }
         self.book_sel = 0;
         self.mode = Mode::Book;
         self.suggest = None;

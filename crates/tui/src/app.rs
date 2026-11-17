@@ -87,6 +87,8 @@ pub(crate) enum Notice {
     Replaced(usize),
     /// What loaded but is odd in the project.
     Loaded(String),
+    /// The questions about the book wait for the editor's text to be saved.
+    SaveFirst,
 }
 
 #[derive(Debug)]

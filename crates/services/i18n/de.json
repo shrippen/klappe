@@ -708,6 +708,7 @@
  "tui.book.ask": "Eintrag {number} {heading} — welche Szene des Buchs ist das?",
  "tui.book.none": "Nicht im Buch",
  "tui.book.hint": "Hoch/Runter wählen  Enter antworten  Esc später",
+ "tui.book.saveFirst": "Erst speichern (Strg+S), dann Szenen abgleichen",
  "tui.field.title": "Titel",
  "tui.field.credit": "Nennung",
  "tui.field.author": "Autor",
