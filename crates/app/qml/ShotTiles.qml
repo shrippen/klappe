@@ -4,12 +4,12 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The shots as storyboard tiles (D-05): the stage has the frame of the shot's camera, below
-// it the number and size on the left and the lens on the right. The stage stays empty until
-// the camera view (LH-36); the movement is written on it, and a jump over the axis (LH-41) as a
+// it the number and size on the left and the lens on the right. The stage shows the camera view
+// at the start of the shot (LH-36) until the shot has a storyboard picture (LH-74), which takes
+// its place; the movement is written on it, and a jump over the axis (LH-41) as a
 // warning chip, not only by the tier colour. A click selects the shot. The number stands on the
 // stage in a chip in the colour of the shot's camera (LH-111) with the short name beside it, and
-// the camera's label is in the caption: the colour is never alone. The storyboard picture (LH-74)
-// fills the stage.
+// the camera's label is in the caption: the colour is never alone.
 Item {
     id: tiles
 
@@ -17,8 +17,34 @@ Item {
     /// The rows (`ShotRow`s with `lens_label`), already in the order to show.
     property var shots: []
     property string selectedId: ""
+    // `shotImage(id, widthPx, paletteJson)` and `pictureRevision`: the views are made again when
+    // the revision, the width or the theme changes. Without a controller the stage stays empty.
+    property var controller: null
+    // The element that shows an image (`show(image)`); a Rust type the tests do not have.
+    property url surfaceSource: Qt.resolvedUrl("CameraSurface.qml")
 
     signal picked(string id)
+
+    readonly property bool canPaint: controller !== null && typeof controller.shotImage === "function"
+    readonly property string paletteJson: colors.json
+    // Counts the changes; a tile makes its view again when it shows an earlier round.
+    property int round: 0
+
+    // A change repaints the tiles with the next tick, however many changes come before it.
+    function refresh() {
+        round++
+    }
+
+    ViewPalette { id: colors }
+
+    onPaletteJsonChanged: refresh()
+
+    Connections {
+        target: tiles.canPaint ? tiles.controller : null
+        function onPictureRevisionChanged() {
+            tiles.refresh()
+        }
+    }
 
     readonly property real tileMin: KanteStyle.unit(168)
     readonly property real gap: Kirigami.Units.smallSpacing
@@ -56,6 +82,44 @@ Item {
                     figure: modelData.lens_label
                     source: modelData.image_url ? modelData.image_url : ""
                     onClicked: tiles.picked(modelData.id)
+
+                    // The camera view over the placeholder (it paints nothing for a camera
+                    // without marks), until a storyboard picture takes the stage.
+                    readonly property bool wantsView: tiles.canPaint && tiles.visible && !modelData.image_url
+
+                    function paint() {
+                        if (!wantsView || width <= 0 || surface.item === null) {
+                            return
+                        }
+                        const px = Math.max(1, Math.round(width * Screen.devicePixelRatio))
+                        const image = tiles.controller.shotImage(modelData.id, px, tiles.paletteJson)
+                        surface.item.show(image)
+                    }
+
+                    onWantsViewChanged: if (wantsView) { paintLater.restart() }
+                    onWidthChanged: paintLater.restart()
+                    Component.onCompleted: paintLater.restart()
+
+                    Connections {
+                        target: tiles
+                        function onRoundChanged() {
+                            paintLater.restart()
+                        }
+                    }
+                    Timer {
+                        id: paintLater
+                        interval: 120
+                        onTriggered: tile.paint()
+                    }
+
+                    Loader {
+                        id: surface
+                        objectName: "tileView-" + tile.modelData.id
+                        anchors.fill: parent
+                        active: tile.wantsView
+                        source: tiles.surfaceSource
+                        onLoaded: tile.paint()
+                    }
 
                     Row {
                         anchors.left: parent.left

@@ -44,6 +44,19 @@ fn the_picture_follows_the_playhead() {
     assert_ne!(s.camera_picture(Some("a"), WIDTH_PX).unwrap(), before);
 }
 
+/// LH-36: a tile shows the shot's camera when the shot starts, wherever the playhead stands.
+#[test]
+fn a_shot_shows_its_camera_at_its_start() {
+    let mut s = open();
+    s.set_time(0.0);
+    let at_start = s.shot_picture("s12-2", WIDTH_PX).unwrap();
+    s.set_time(14.0);
+
+    assert_eq!(s.shot_picture("s12-2", WIDTH_PX).unwrap(), at_start);
+    assert_ne!(s.shot_picture("s12-4", WIDTH_PX).unwrap(), at_start);
+    assert!(s.shot_picture("nope", WIDTH_PX).is_none());
+}
+
 const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
 /// Where the width sits in a PNG file; the height follows.
 const PNG_WIDTH_AT: usize = 16;

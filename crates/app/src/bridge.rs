@@ -133,6 +133,12 @@ pub mod qobject {
             palette_json: &QString,
         ) -> QImage;
 
+        /// What the camera of shot `id` sees when the shot starts, `width_px` wide, for the
+        /// shot's tile (LH-36); a null image without a camera or marks.
+        #[qinvokable]
+        #[cxx_name = "shotImage"]
+        fn shot_image(self: &Self, id: &QString, width_px: i32, palette_json: &QString) -> QImage;
+
         /// The cameras whose body shows on the plan and where it stands at the playhead, as a
         /// JSON array of `{id, x_m, y_m}` (LH-113).
         #[qinvokable]

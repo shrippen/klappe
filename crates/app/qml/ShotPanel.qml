@@ -318,6 +318,7 @@ Item {
                 visible: panel.view === "tiles"
                 texts: panel.texts
                 shots: panel.listed
+                controller: panel.controller
                 selectedId: panel.shot ? panel.shot.id : ""
                 onPicked: id => panel.controller.selectShot(id)
             }
