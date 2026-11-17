@@ -225,7 +225,7 @@ fn add_scene(
 
     // Appended: the register keeps the order of the project, not of the ids.
     project.scenes.push(Scene {
-        id: free_scene_id(project),
+        id: free_scene_id(project, &[]),
         kind: Kind::Scene,
         number,
         heading,
@@ -562,15 +562,17 @@ fn check_room_height(wall_height_m: f64) -> Result<(), ServiceError> {
     })
 }
 
-/// A random id no scene has (ids are file names, which may not differ by case only).
-fn free_scene_id(project: &Project) -> String {
+/// A random id that no entry has, kept or yet to be placed (ids are file names, which may
+/// not differ by case only).
+pub(crate) fn free_scene_id(project: &Project, placed: &[(usize, Scene)]) -> String {
     loop {
         let id = random_id();
-        if !project
+        let taken = project
             .scenes
             .iter()
-            .any(|s| s.id.eq_ignore_ascii_case(&id))
-        {
+            .chain(placed.iter().map(|(_, s)| s))
+            .any(|s| s.id.eq_ignore_ascii_case(&id));
+        if !taken {
             return id;
         }
     }

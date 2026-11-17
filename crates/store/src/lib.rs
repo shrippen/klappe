@@ -53,6 +53,11 @@ pub fn is_safe_id(id: &str) -> bool {
     files::safe_name(id)
 }
 
+/// The screenplay file of the project folder `dir`.
+pub fn script_path(dir: &Path) -> PathBuf {
+    dir.join(SCRIPT_FILE)
+}
+
 const PROJECT_FILE: &str = "projekt.toml";
 const CHARACTERS_FILE: &str = "figuren.toml";
 const LIBRARY_FILE: &str = "bibliothek.toml";
