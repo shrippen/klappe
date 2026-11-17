@@ -154,7 +154,7 @@ pub(crate) fn plan(project: &Project, script: &Script) -> Plan {
         refusals: Vec::new(),
     };
     plan.settle();
-    plan.pair_twins(project);
+    plan.pair_twins(project, &first);
     plan.first_run(project, &first);
     plan.settle();
 
@@ -293,7 +293,7 @@ impl Plan {
     /// book order. Twins left over become new entries (a scene copied and pasted), entries
     /// left over are missing (a copy deleted). The register follows the book's order, so
     /// this is the same after saving and reopening.
-    fn pair_twins(&mut self, project: &Project) {
+    fn pair_twins(&mut self, project: &Project, first: &[usize]) {
         let mut groups: Vec<(SceneKey, Vec<usize>)> = Vec::new();
 
         for (entry, fate) in &self.fates {
@@ -318,8 +318,9 @@ impl Plan {
                 .collect();
             twins.retain(|n| !self.matched().contains(n));
             // An entry outside the group that may be one of the twins (its scene was
-            // rewritten into their text) leaves the order no say: all of them are asked.
-            if self.claimed_outside(&entries, &twins) {
+            // rewritten into their text, or it never met the book and agrees in number or
+            // heading) leaves the order no say: all of them are asked.
+            if self.claimed_outside(&entries, &twins) || self.first_may_be(project, first, &twins) {
                 continue;
             }
             let mut twins = twins.into_iter();
@@ -335,6 +336,17 @@ impl Plan {
             }
         }
         self.settle();
+    }
+
+    /// Whether an entry that never met a book (`first_run` comes later) agrees in number or
+    /// heading with one of `twins`, so that it would be a candidate for it there.
+    fn first_may_be(&self, project: &Project, first: &[usize], twins: &[usize]) -> bool {
+        first.iter().any(|&e| {
+            let scene = &project.scenes[e];
+            twins
+                .iter()
+                .any(|&n| same_number(scene, &self.book[n]) || same_heading(scene, &self.book[n]))
+        })
     }
 
     /// Whether an open entry not in `group` has one of `twins` among its candidates.

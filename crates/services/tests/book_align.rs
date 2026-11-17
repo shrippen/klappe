@@ -636,3 +636,26 @@ fn a_scene_rewritten_into_a_twin_moves_no_other_entry() {
         .collect();
     assert_eq!(asked, [("aaaa", vec![0, 1]), (second.as_str(), vec![0, 1])]);
 }
+
+#[test]
+fn a_copy_is_not_given_silently_to_an_entry_that_never_met_the_book() {
+    let dir = settled(
+        "book-twin-first-run",
+        vec![entry("aaaa", "9", HOF)],
+        &hof("9"),
+    );
+    // An entry made in Stellprobe with the same number and heading, never aligned.
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    project.scenes.push(Scene {
+        state: BookState::NotInBook,
+        ..entry("ffff", "9", HOF)
+    });
+    klappe_store::save(&dir, &project, None).unwrap();
+    rewrite_book(&dir, &(hof("9") + &hof("9")));
+
+    let s = Session::open(&dir).unwrap();
+
+    let asked: Vec<&str> = s.pending_scenes().iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(asked, ["aaaa", "ffff"]);
+    assert!(scene(&s, "ffff").prints.is_empty(), "ffff took no scene");
+}
