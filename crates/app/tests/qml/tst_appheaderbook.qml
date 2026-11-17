@@ -49,7 +49,7 @@ TestCase {
 
         verify(!entry().enabled)
         fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats,
-                                            pending: [{ id: "a", number: "4", heading: "INT. A", candidates: [] }] })
+                                            pending: [{ id: "a", number: "4", heading: "INT. A", answers: [] }] })
         verify(entry().enabled)
 
         header.run("book.match")
