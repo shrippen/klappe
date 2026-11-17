@@ -12,8 +12,8 @@ const DEMO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../demo");
 fn target(name: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
-    for suffix in ["", "-2", "-3"] {
-        let aside = dir.with_file_name(format!("{name}.alt{suffix}"));
+    for suffix in [".alt", " (2).alt", " (3).alt"] {
+        let aside = dir.with_file_name(format!("{name}{suffix}"));
         let _ = std::fs::remove_dir_all(aside);
     }
     dir
@@ -149,7 +149,7 @@ fn a_second_old_copy_gets_a_free_name() {
 
     let aside = ensure_example(Language::German, &dir).unwrap().unwrap();
 
-    assert_eq!(aside, dir.with_file_name("example-old2.alt-2"));
+    assert_eq!(aside, dir.with_file_name("example-old2 (2).alt"));
     assert!(first.exists());
 }
 

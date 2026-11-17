@@ -30,6 +30,7 @@ mod png_write;
 mod raster;
 mod rgb8;
 mod scan;
+mod script;
 mod sheet;
 mod shots;
 mod stroke;
@@ -48,6 +49,7 @@ pub use page::{
     DrawingTexts, LampColumns, LampTexts, Page, ShotColumns, ShotTexts, ShotView, Texts,
 };
 pub use palette::Theme;
+pub use script::{Face, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
 
 /// The plan on one page as SVG.
 pub fn svg(list: &DisplayList, page: &Page, theme: Theme) -> Result<String, ExportError> {
@@ -117,6 +119,12 @@ pub fn pdf_with_views(
     pdf::write(&doc)
 }
 
+/// A screenplay laid out by the caller, as PDF 1.4 in Courier (a standard font, nothing
+/// embedded): the title page when it has anything, then the pages.
+pub fn script_pdf(sheet: &ScriptSheet) -> Vec<u8> {
+    script::pdf(sheet)
+}
+
 /// `files` (name with `/`, bytes) as one ZIP archive, stored uncompressed: a folder handed on
 /// whole, e.g. a project archived beside its folder. Refuses 4 GiB or more and more than 65535 files (`ZipTooBig`).
 pub fn zip_files(files: &[(&str, &[u8])]) -> Result<Vec<u8>, ExportError> {
@@ -157,9 +165,8 @@ pub fn shots_ods(
     order: ShotOrder,
     lamps: &[Lamp],
     words: &LampTexts,
-) -> Vec<u8> {
-    // A sheet list is far below the limits (4 GiB, 65535 files): the refusal cannot come.
-    ods::write(&sheets(plan, texts, order, lamps, words)).unwrap_or_default()
+) -> Result<Vec<u8>, ExportError> {
+    ods::write(&sheets(plan, texts, order, lamps, words))
 }
 
 /// The plan's shots in `order` as Excel workbook (LH-85), the same as `shots_ods`.
@@ -169,9 +176,8 @@ pub fn shots_xlsx(
     order: ShotOrder,
     lamps: &[Lamp],
     words: &LampTexts,
-) -> Vec<u8> {
-    // As in `shots_ods`.
-    xlsx::write(&sheets(plan, texts, order, lamps, words)).unwrap_or_default()
+) -> Result<Vec<u8>, ExportError> {
+    xlsx::write(&sheets(plan, texts, order, lamps, words))
 }
 
 /// The sheets of a workbook: the shot list, and the lamp list when the plan has lamps.

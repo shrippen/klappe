@@ -28,6 +28,10 @@ const CHIP_GAP: usize = 2;
 /// Width of the search box and the matches it shows at most.
 const GOTO_WIDTH: usize = 60;
 const GOTO_ROWS: usize = 10;
+/// The page break line is drawn with this character.
+const PAGE_RULE: &str = "─";
+/// Columns between a scene's heading and its length in the list.
+const LENGTH_GAP: usize = 1;
 /// Prompt of the search box.
 const GOTO_PROMPT: &str = "› ";
 
@@ -233,6 +237,17 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
         Paragraph::new(format!(" {}", app.texts.scenes)).style(heading),
         title,
     );
+    // The whole screenplay in pages and eighths (DB-32); italic while the text has changed.
+    if let Some(pages) = app.pages() {
+        let mut style = Style::new().fg(theme::MUTED);
+        if app.pages_stale() {
+            style = style.add_modifier(Modifier::ITALIC);
+        }
+        let total = Paragraph::new(format!("{} ", pages.length))
+            .alignment(Alignment::Right)
+            .style(style);
+        frame.render_widget(total, title);
+    }
 
     if app.analysis.scenes.is_empty() {
         let none =
@@ -242,28 +257,8 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     let current = app.analysis.scene_at(app.cursor().line);
-    let items: Vec<ListItem> = app
-        .analysis
-        .scenes
-        .iter()
-        .enumerate()
-        .map(|(i, scene)| {
-            let number = scene.display_number(i);
-            if current == Some(i) {
-                return ListItem::new(Line::from(vec![
-                    Span::styled(CURRENT_MARK, Style::new().fg(theme::ACCENT)),
-                    Span::styled(
-                        format!("{number}  {}", scene.heading),
-                        Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD),
-                    ),
-                ]));
-            }
-            ListItem::new(Line::from(vec![
-                Span::raw(OTHER_MARK),
-                Span::styled(format!("{number}  "), Style::new().fg(theme::MUTED)),
-                Span::styled(scene.heading.as_str(), Style::new().fg(theme::SOFT)),
-            ]))
-        })
+    let items: Vec<ListItem> = (0..app.analysis.scenes.len())
+        .map(|i| scene_item(app, i, current == Some(i), usize::from(rows.width)))
         .collect();
 
     let highlight = if focused {
@@ -274,6 +269,39 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
     let widget = List::new(items).highlight_style(highlight);
     let mut state = ListState::default().with_selected(Some(app.list_sel));
     frame.render_stateful_widget(widget, rows, &mut state);
+}
+
+/// One scene of the list: number, heading cut to fit and its length at the right edge.
+fn scene_item(app: &App, i: usize, current: bool, width: usize) -> ListItem<'_> {
+    let scene = &app.analysis.scenes[i];
+    let number = scene.display_number(i);
+    let length = app.scene_length(i).unwrap_or_default();
+    let prefix = cols(format!("{number}  ").chars()) + cols(CURRENT_MARK.chars());
+    let room = width
+        .saturating_sub(prefix + cols(length.chars()) + LENGTH_GAP)
+        .max(1);
+    let heading = fit(&scene.heading, room);
+    let pad =
+        " ".repeat(width.saturating_sub(prefix + cols(heading.chars()) + cols(length.chars())));
+    let tail = Span::styled(format!("{pad}{length}"), Style::new().fg(theme::MUTED));
+
+    if current {
+        return ListItem::new(Line::from(vec![
+            Span::styled(CURRENT_MARK, Style::new().fg(theme::ACCENT)),
+            Span::styled(
+                format!("{number}  {heading}"),
+                Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD),
+            ),
+            tail,
+        ]));
+    }
+
+    ListItem::new(Line::from(vec![
+        Span::raw(OTHER_MARK),
+        Span::styled(format!("{number}  "), Style::new().fg(theme::MUTED)),
+        Span::styled(heading, Style::new().fg(theme::SOFT)),
+        tail,
+    ]))
 }
 
 fn draw_editor(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -319,6 +347,11 @@ fn draw_editor(frame: &mut Frame, app: &mut App, area: Rect) {
 /// One screen row of text; scene headings get a band and the number at the right, other
 /// lines the chips of their links.
 fn draw_row(frame: &mut Frame, app: &App, row: Row, band: Rect, rect: Rect) {
+    if let Some(page) = row.page {
+        draw_page_break(frame, app, page, rect);
+        return;
+    }
+
     let text = app.editor.lines().get(row.line).map_or("", String::as_str);
     let kind = app.analysis.kind(row.line);
     let style = style_of(kind);
@@ -368,6 +401,24 @@ fn draw_row(frame: &mut Frame, app: &App, row: Row, band: Rect, rect: Rect) {
     };
     let quiet = Style::new().fg(theme::MUTED).bg(theme::SURFACE);
     frame.render_widget(Paragraph::new(number).style(quiet), at);
+}
+
+/// The thin line between two pages: `─ Page 3 ───────`, in the quiet colour; italic while it
+/// belongs to an older text.
+fn draw_page_break(frame: &mut Frame, app: &App, page: usize, rect: Rect) {
+    let mut label = format!("{PAGE_RULE} {} ", app.texts.page(page));
+    if app.pages_stale() {
+        label.push_str(&format!("({}) ", app.texts.stale));
+    }
+
+    let fill = usize::from(rect.width).saturating_sub(cols(label.chars()));
+    let line = format!("{label}{}", PAGE_RULE.repeat(fill));
+    let mut style = Style::new().fg(theme::MUTED);
+    if app.pages_stale() {
+        style = style.add_modifier(Modifier::ITALIC);
+    }
+
+    frame.render_widget(Paragraph::new(line).style(style), rect);
 }
 
 /// The cue and the speech of a dual dialogue in their own colour.
@@ -594,6 +645,18 @@ fn draw_goto(frame: &mut Frame, app: &App) {
         .highlight_style(Style::new().fg(theme::ACCENT).bg(theme::RAISED));
     let mut state = ListState::default().with_selected(Some(app.goto_sel));
     frame.render_stateful_widget(widget, rows, &mut state);
+}
+
+/// The text cut to `room` columns.
+fn fit(text: &str, room: usize) -> String {
+    let mut used = 0;
+
+    text.chars()
+        .take_while(|&c| {
+            used += cols([c]);
+            used <= room
+        })
+        .collect()
 }
 
 /// A box of the size, centred in the area and cut to it.

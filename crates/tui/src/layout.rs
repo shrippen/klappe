@@ -35,6 +35,8 @@ pub(crate) struct Row {
     pub indent: usize,
     /// The last row of its line; only there the cursor may stand behind the last character.
     pub last: bool,
+    /// A row of no text: the page break above `line`, starting this page (DB-30).
+    pub page: Option<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -104,7 +106,14 @@ fn centered_indent(line: &str, width: usize) -> usize {
 }
 
 impl Layout {
-    pub(crate) fn build(lines: &[String], kinds: &[LineKind], width: usize) -> Self {
+    /// `breaks` are the pages of the last computation: `(line, page)`, ascending; the page
+    /// starts above the line, with a row of its own.
+    pub(crate) fn build(
+        lines: &[String],
+        kinds: &[LineKind],
+        width: usize,
+        breaks: &[(usize, usize)],
+    ) -> Self {
         let mut rows = Vec::new();
         let mut offsets = Vec::new();
         let mut first_row = Vec::with_capacity(lines.len());
@@ -121,6 +130,18 @@ impl Layout {
             let chars: Vec<char> = line.chars().collect();
             let count = parts.len();
 
+            for (_, page) in breaks.iter().filter(|(line, _)| *line == i) {
+                offsets.push(vec![0]);
+                rows.push(Row {
+                    line: i,
+                    start: 0,
+                    end: 0,
+                    indent: 0,
+                    last: false,
+                    page: Some(*page),
+                });
+            }
+
             first_row.push(rows.len());
             for (n, (start, end)) in parts.into_iter().enumerate() {
                 offsets.push(col_offsets(&chars[start..end]));
@@ -130,6 +151,7 @@ impl Layout {
                     end,
                     indent,
                     last: n + 1 == count,
+                    page: None,
                 });
             }
         }
@@ -180,6 +202,21 @@ impl Layout {
             .and_then(|o| o.last())
             .copied()
             .unwrap_or(0)
+    }
+
+    /// The row at `index`, or the next one in the direction of `delta` if it is a page
+    /// break: the cursor never stops there. `None` past the end.
+    pub(crate) fn text_row(&self, index: usize, delta: isize) -> Option<usize> {
+        let mut at = index;
+
+        while self.rows.get(at)?.page.is_some() {
+            at = match delta < 0 {
+                true => at.checked_sub(1)?,
+                false => at + 1,
+            };
+        }
+
+        Some(at)
     }
 
     /// Position at screen column `x` of a row, kept on that row.
@@ -241,7 +278,7 @@ mod tests {
 
     fn layout(lines: &[&str], kinds: &[LineKind], width: usize) -> Layout {
         let lines: Vec<String> = lines.iter().map(|s| (*s).to_owned()).collect();
-        Layout::build(&lines, kinds, width)
+        Layout::build(&lines, kinds, width, &[])
     }
 
     #[test]

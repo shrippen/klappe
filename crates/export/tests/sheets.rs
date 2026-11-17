@@ -2,7 +2,8 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    shots_ods, shots_xlsx, Lamp, LampColumns, LampTexts, ShotColumns, ShotOrder, ShotTexts,
+    shots_ods, shots_xlsx, ExportError, Lamp, LampColumns, LampTexts, ShotColumns, ShotOrder,
+    ShotTexts,
 };
 use klappe_model::{
     Camera, CameraMark, FloorPlan, LightKind, Movement, Point, Rig, Sensor, Shot, ShotSize,
@@ -165,7 +166,8 @@ fn ods_holds_the_required_files_mimetype_first() {
         ShotOrder::Cut,
         &[],
         &LampTexts::default(),
-    );
+    )
+    .unwrap();
     let entries = entries(&zip);
 
     let names: Vec<&str> = entries.iter().map(|(n, _)| n.as_str()).collect();
@@ -188,7 +190,8 @@ fn ods_cells_follow_the_csv() {
         ShotOrder::Cut,
         &[],
         &LampTexts::default(),
-    );
+    )
+    .unwrap();
     let content = text_of(&entries(&zip), "content.xml");
 
     assert_eq!(content.matches("<table:table-row>").count(), 3);
@@ -217,7 +220,8 @@ fn xlsx_holds_the_required_files() {
         ShotOrder::Cut,
         &[],
         &LampTexts::default(),
-    );
+    )
+    .unwrap();
     let entries = entries(&zip);
 
     let names: Vec<&str> = entries.iter().map(|(n, _)| n.as_str()).collect();
@@ -245,7 +249,8 @@ fn xlsx_cells_follow_the_csv() {
         ShotOrder::Cut,
         &[],
         &LampTexts::default(),
-    );
+    )
+    .unwrap();
     let sheet = text_of(&entries(&zip), "xl/worksheets/sheet1.xml");
 
     assert_eq!(sheet.matches("<row ").count(), 3);
@@ -265,7 +270,8 @@ fn shooting_order_adds_the_setup_column_as_number() {
         ShotOrder::Shooting,
         &[],
         &LampTexts::default(),
-    );
+    )
+    .unwrap();
     let sheet = text_of(&entries(&zip), "xl/worksheets/sheet1.xml");
 
     assert!(sheet.contains(r#"<c r="A1" t="inlineStr"><is><t xml:space="preserve">Setup</t>"#));
@@ -277,23 +283,29 @@ fn shooting_order_adds_the_setup_column_as_number() {
 #[test]
 fn without_shots_only_the_head_row_remains() {
     let ods = text_of(
-        &entries(&shots_ods(
-            &plan(0),
-            &texts(),
-            ShotOrder::Cut,
-            &[],
-            &LampTexts::default(),
-        )),
+        &entries(
+            &shots_ods(
+                &plan(0),
+                &texts(),
+                ShotOrder::Cut,
+                &[],
+                &LampTexts::default(),
+            )
+            .unwrap(),
+        ),
         "content.xml",
     );
     let xlsx = text_of(
-        &entries(&shots_xlsx(
-            &plan(0),
-            &texts(),
-            ShotOrder::Cut,
-            &[],
-            &LampTexts::default(),
-        )),
+        &entries(
+            &shots_xlsx(
+                &plan(0),
+                &texts(),
+                ShotOrder::Cut,
+                &[],
+                &LampTexts::default(),
+            )
+            .unwrap(),
+        ),
         "xl/worksheets/sheet1.xml",
     );
 
@@ -306,7 +318,7 @@ fn a_sheet_name_excel_would_refuse_is_cleaned() {
     let mut texts = texts();
     texts.title = "Szene 1/2: [Plan] mit einem sehr langen Namen".into();
 
-    let zip = shots_xlsx(&plan(0), &texts, ShotOrder::Cut, &[], &LampTexts::default());
+    let zip = shots_xlsx(&plan(0), &texts, ShotOrder::Cut, &[], &LampTexts::default()).unwrap();
     let workbook = text_of(&entries(&zip), "xl/workbook.xml");
 
     assert!(
@@ -348,7 +360,7 @@ fn lamps() -> Vec<Lamp> {
 
 #[test]
 fn ods_has_a_lamp_sheet_with_numbers() {
-    let zip = shots_ods(&plan(1), &texts(), ShotOrder::Cut, &lamps(), &lamp_texts());
+    let zip = shots_ods(&plan(1), &texts(), ShotOrder::Cut, &lamps(), &lamp_texts()).unwrap();
     let content = text_of(&entries(&zip), "content.xml");
 
     assert_well_formed(&content);
@@ -377,7 +389,7 @@ fn ods_has_a_lamp_sheet_with_numbers() {
 
 #[test]
 fn xlsx_has_a_lamp_sheet_with_numbers() {
-    let zip = shots_xlsx(&plan(1), &texts(), ShotOrder::Cut, &lamps(), &lamp_texts());
+    let zip = shots_xlsx(&plan(1), &texts(), ShotOrder::Cut, &lamps(), &lamp_texts()).unwrap();
     let entries = entries(&zip);
     let sheet = text_of(&entries, "xl/worksheets/sheet2.xml");
 
@@ -405,7 +417,7 @@ fn a_nameless_lamp_sheet_is_the_second_sheet() {
         title: String::new(),
         ..lamp_texts()
     };
-    let zip = shots_xlsx(&plan(1), &texts(), ShotOrder::Cut, &lamps(), &words);
+    let zip = shots_xlsx(&plan(1), &texts(), ShotOrder::Cut, &lamps(), &words).unwrap();
 
     assert!(text_of(&entries(&zip), "xl/workbook.xml")
         .contains(r#"<sheet name="Sheet2" sheetId="2" r:id="rId2"/>"#));
@@ -413,8 +425,8 @@ fn a_nameless_lamp_sheet_is_the_second_sheet() {
 
 #[test]
 fn without_lamps_there_is_no_lamp_sheet() {
-    let ods = shots_ods(&plan(1), &texts(), ShotOrder::Cut, &[], &lamp_texts());
-    let xlsx = shots_xlsx(&plan(1), &texts(), ShotOrder::Cut, &[], &lamp_texts());
+    let ods = shots_ods(&plan(1), &texts(), ShotOrder::Cut, &[], &lamp_texts()).unwrap();
+    let xlsx = shots_xlsx(&plan(1), &texts(), ShotOrder::Cut, &[], &lamp_texts()).unwrap();
 
     assert!(!text_of(&entries(&ods), "content.xml").contains("Lampen"));
     let xlsx = entries(&xlsx);
@@ -432,12 +444,12 @@ fn libreoffice_reads_both_files() {
     let plan = plan(2);
     std::fs::write(
         dir.join("ods.ods"),
-        shots_ods(&plan, &texts(), ShotOrder::Cut, &[], &LampTexts::default()),
+        shots_ods(&plan, &texts(), ShotOrder::Cut, &[], &LampTexts::default()).unwrap(),
     )
     .unwrap();
     std::fs::write(
         dir.join("xlsx.xlsx"),
-        shots_xlsx(&plan, &texts(), ShotOrder::Cut, &[], &LampTexts::default()),
+        shots_xlsx(&plan, &texts(), ShotOrder::Cut, &[], &LampTexts::default()).unwrap(),
     )
     .unwrap();
 
@@ -461,4 +473,18 @@ fn libreoffice_reads_both_files() {
         assert!(csv.contains("12.1,A,35,Totale,"), "{name}: {csv}");
         assert!(csv.contains("\"Zeile 1\nZeile 2\""), "{name}: {csv}");
     }
+}
+
+/// Audit 13, finding 4: a refused archive (`ZipTooBig`) was turned into an empty file. Both
+/// writers hand the result on, so the caller sees a refusal. (A real one needs 4 GiB of text;
+/// this pins the type that carries it.)
+#[test]
+fn ods_and_xlsx_hand_the_zip_result_on() {
+    let args = (plan(1), texts(), ShotOrder::Cut, LampTexts::default());
+
+    let ods: Result<Vec<u8>, ExportError> = shots_ods(&args.0, &args.1, args.2, &[], &args.3);
+    let xlsx: Result<Vec<u8>, ExportError> = shots_xlsx(&args.0, &args.1, args.2, &[], &args.3);
+
+    assert!(ods.is_ok());
+    assert!(xlsx.is_ok());
 }

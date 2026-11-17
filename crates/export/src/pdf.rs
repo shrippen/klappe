@@ -1,4 +1,4 @@
-//! A minimal PDF 1.4 writer: vector paths and Helvetica text, nothing else.
+//! A minimal PDF 1.4 writer: vector paths and Helvetica text, and pages of Courier text.
 //!
 //! ```text
 //! 1 Catalog → 2 Pages → pages, each a Page object and its content stream (last)
@@ -94,6 +94,12 @@ pub(crate) fn write(doc: &Doc) -> Result<Vec<u8>, ExportError> {
     }
     debug_assert_eq!(objects.len(), first_page - 1 + 2 * pages.len());
 
+    Ok(assemble(&objects))
+}
+
+/// The file: header, the objects in order (object `n` is `objects[n - 1]`), the table of
+/// their offsets and the trailer naming the catalog (object 1).
+fn assemble(objects: &[Vec<u8>]) -> Vec<u8> {
     let mut out = HEADER.to_vec();
     let mut offsets = Vec::with_capacity(objects.len());
     for (i, body) in objects.iter().enumerate() {
@@ -115,7 +121,51 @@ pub(crate) fn write(doc: &Doc) -> Result<Vec<u8>, ExportError> {
     );
     out.extend_from_slice(table.as_bytes());
 
-    Ok(out)
+    out
+}
+
+/// A page of fixed text: its size in points and its content stream.
+pub(crate) struct TextPage {
+    pub width_pt: f64,
+    pub height_pt: f64,
+    pub content: Vec<u8>,
+}
+
+/// Pages of Courier text (`/F1` regular, `/F2` bold; standard fonts, nothing embedded):
+/// the same objects as `write`, without a plan.
+pub(crate) fn write_text(pages: &[TextPage]) -> Vec<u8> {
+    // No transparency states and no pictures: the pages follow the fonts.
+    let first_page = OBJ_FIRST_STATE;
+    let kids: Vec<String> = (0..pages.len())
+        .map(|i| format!("{} 0 R", first_page + 2 * i))
+        .collect();
+    let resources = format!("<< /Font << /F1 {OBJ_FONT_REGULAR} 0 R /F2 {OBJ_FONT_BOLD} 0 R >> >>");
+
+    let mut objects: Vec<Vec<u8>> = vec![
+        format!("<< /Type /Catalog /Pages {OBJ_PAGES} 0 R >>").into_bytes(),
+        format!(
+            "<< /Type /Pages /Kids [{}] /Count {} >>",
+            kids.join(" "),
+            pages.len()
+        )
+        .into_bytes(),
+        font("Courier").into_bytes(),
+        font("Courier-Bold").into_bytes(),
+    ];
+    for (i, page) in pages.iter().enumerate() {
+        objects.push(
+            format!(
+                "<< /Type /Page /Parent {OBJ_PAGES} 0 R /MediaBox [0 0 {} {}] /Resources {resources} /Contents {} 0 R >>",
+                num(page.width_pt),
+                num(page.height_pt),
+                first_page + 2 * i + 1
+            )
+            .into_bytes(),
+        );
+        objects.push(stream(&page.content));
+    }
+
+    assemble(&objects)
 }
 
 fn font(name: &str) -> String {
@@ -430,7 +480,7 @@ fn winansi(c: char) -> u8 {
 }
 
 /// A literal string: ASCII stays, everything else is an octal escape, so the stream stays text.
-fn pdf_string(text: &str) -> String {
+pub(crate) fn pdf_string(text: &str) -> String {
     let mut out = String::new();
     for c in text.chars() {
         let b = winansi(c);
