@@ -307,6 +307,8 @@ mod tests {
             ("int./ext. auto", "INT./EXT. AUTO"),
             ("i/e auto", "I/E AUTO"),
             (".innen küche", ".INNEN KÜCHE"),
+            ("innen. küche - tag", "INNEN. KÜCHE - TAG"),
+            ("außen. hof", "AUßEN. HOF"),
             ("int. küche #3a#", "INT. KÜCHE #3a#"),
         ] {
             assert_eq!(caps(typed, 0).as_deref(), Some(want), "{typed}");

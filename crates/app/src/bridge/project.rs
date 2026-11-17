@@ -79,7 +79,7 @@ impl qobject::Controller {
 
     pub(super) fn create_project(self: Pin<&mut Self>, path: &QString, title: &QString) -> bool {
         let dir = fileurl::to_path(&path.to_string());
-        let created = Session::create(&dir, &title.to_string());
+        let created = Session::create(&dir, &title.to_string(), self.rust().language);
 
         self.switch_to(created)
     }
