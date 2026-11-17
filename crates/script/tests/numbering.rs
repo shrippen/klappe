@@ -75,12 +75,74 @@ fn scenes_before_the_first_number_count_in_front_of_it() {
 }
 
 #[test]
-fn locked_without_any_number_counts_from_the_first() {
+fn locked_without_any_number_stays_as_it_is() {
     let text = "INT. X - DAY\n\nINT. Y - DAY\n";
+    let struck = [Struck {
+        after: Some(0),
+        number: "2".into(),
+    }];
+
+    assert_eq!(numbered(text, NumberMode::Locked), text);
+    assert_eq!(
+        number_scenes(text, &rules(NumberMode::Locked, &struck)),
+        text
+    );
+}
+
+#[test]
+fn a_copied_number_makes_the_later_scene_an_inserted_one() {
+    let text = "INT. A - DAY #1#\n\nINT. B - DAY #2#\n\nINT. B - DAY #2#\n\nINT. C - DAY #3#\n";
 
     assert_eq!(
         numbered(text, NumberMode::Locked),
-        "INT. X - DAY #1#\n\nINT. Y - DAY #2#\n"
+        "INT. A - DAY #1#\n\nINT. B - DAY #2#\n\nINT. B - DAY #2A#\n\nINT. C - DAY #3#\n"
+    );
+}
+
+#[test]
+fn letters_stop_at_z_and_go_on_with_two() {
+    let text = "INT. A - DAY #12Z#\n\nINT. NEW - DAY\n\nINT. B - DAY #13#\n";
+    let lower = text.replace("12Z", "12z");
+
+    assert!(numbered(text, NumberMode::Locked).contains("INT. NEW - DAY #12AA#"));
+    assert!(numbered(&lower, NumberMode::Locked).contains("INT. NEW - DAY #12AA#"));
+}
+
+#[test]
+fn a_scene_before_a_prefixed_number_sorts_in_front_of_it() {
+    let text = "INT. X - DAY\n\nINT. Y - DAY\n\nINT. A - DAY #A1#\n\nINT. B - DAY #1#\n";
+
+    assert_eq!(
+        numbered(text, NumberMode::Locked),
+        "INT. X - DAY #A0#\n\nINT. Y - DAY #A0A#\n\nINT. A - DAY #A1#\n\nINT. B - DAY #1#\n"
+    );
+}
+
+#[test]
+fn a_number_between_two_prefixed_ones_takes_letters_behind() {
+    let text = "INT. A - DAY #A1#\n\nINT. NEW - DAY\n\nINT. B - DAY #B1#\n";
+
+    assert!(numbered(text, NumberMode::Locked).contains("INT. NEW - DAY #A1A#"));
+}
+
+#[test]
+fn with_no_free_number_between_the_next_free_one_is_taken() {
+    let text = "INT. A - DAY #12#\n\nINT. NEW - DAY\n\nINT. B - DAY #12A#\n";
+
+    assert!(numbered(text, NumberMode::Locked).contains("INT. NEW - DAY #12B#"));
+}
+
+#[test]
+fn crlf_lines_keep_their_return() {
+    let text = "INT. A - DAY #1#\r\n\r\nINT. B - DAY\r\n\r\nINT. C - DAY #5#\r\n";
+
+    assert_eq!(
+        numbered(text, NumberMode::Locked),
+        "INT. A - DAY #1#\r\n\r\nINT. B - DAY #1A#\r\n\r\nINT. C - DAY #5#\r\n"
+    );
+    assert_eq!(
+        numbered("INT. A - DAY\r\n", NumberMode::Automatic),
+        "INT. A - DAY #1#\r\n"
     );
 }
 

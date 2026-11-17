@@ -76,9 +76,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `numbering` der Kopftabelle (das ist das Nummernschema der Shots, LH-76). Die Nummern selbst
   stehen im Fountain-Text (`#12#`) und im Register (`number`); Klappe schreibt sie nur beim
   Speichern in Klappe in den Text, nie beim Öffnen. `automatic`: Szene i hat `first_scene + i`.
-  `locked`: keine Nummer ändert sich; eine Szene ohne Nummer bekommt die ihres Vorgängers mit
-  dem nächsten Buchstaben (12, dann 12A, 12B), vor der ersten Nummer `A` und die Nummer der
-  nächsten Szene (A1); eine Szene, die das Buch seit dem letzten Speichern verlor (der Eintrag war „im Buch“), bleibt als Kopf `.ENTFÄLLT #12#`
+  `locked`: keine Nummer ändert sich; ein Buch ganz ohne Nummer (üblich bei Fountain aus
+  anderen Programmen) bleibt beim Speichern Byte für Byte gleich, auch eine neue Szene darin
+  bekommt keine. Sonst bekommt eine Szene ohne Nummer die ihres Vorgängers mit dem nächsten
+  Buchstaben (12, dann 12A, 12B; nach `Z` folgt `AA`; Kleinbuchstaben zählen als Großbuchstaben),
+  vor der ersten Nummer `A` und die Nummer der nächsten Szene (A1), vor einer Nummer mit
+  Buchstaben `A0`, dann `A0A`; zwischen `A1` und `B1` folgt `A1A`. Steht `12A` schon hinter der
+  Stelle, wird es die nächste freie Nummer (12B), denn dazwischen sortiert nichts. Trägt eine Szene
+  die Nummer einer früheren Szene (kopiert), gilt die spätere als eingefügt und bekommt die
+  nächste freie Nummer nach der früheren. Zeilen behalten ihr `\r` (CRLF). Eine Szene, die das Buch seit dem letzten Speichern verlor (der Eintrag war „im Buch“), bleibt als Kopf `.ENTFÄLLT #12#`
   (`.OMITTED #12#` im englischen Projekt, ohne Sprache: `ENTFÄLLT`) hinter der Szene davor stehen.
   Ein Eintrag, der schon „nicht im Buch“ war, bekommt nie einen Kopf. Dieser Kopf legt keinen Eintrag im Register an; der Eintrag der gestrichenen Szene bleibt mit
   seinen Plänen im Zustand „nicht im Buch“. Die Sperre je Fassung (DB-40) setzt später

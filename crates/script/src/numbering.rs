@@ -71,6 +71,11 @@ pub fn number_scenes(text: &str, rules: &NumberRules) -> String {
         return text.to_owned();
     }
 
+    // A locked book without a number is not ours to number (Fountain from elsewhere).
+    if rules.mode == NumberMode::Locked && !has_numbers(&heads) {
+        return text.to_owned();
+    }
+
     let wanted = assign(&heads, rules);
     let mut lines: Vec<String> = text.split('\n').map(str::to_owned).collect();
     for (head, number) in heads.iter().zip(&wanted) {
@@ -84,23 +89,32 @@ pub fn number_scenes(text: &str, rules: &NumberRules) -> String {
     lines.join("\n")
 }
 
+fn has_numbers(heads: &[Heading]) -> bool {
+    heads
+        .iter()
+        .any(|h| h.number.is_some() && !is_omitted(&h.text))
+}
+
 /// The number of every heading. A struck scene's heading keeps its number in both modes and
 /// takes no part in the counting.
 fn assign(heads: &[Heading], rules: &NumberRules) -> Vec<String> {
-    let numbered = heads
-        .iter()
-        .any(|h| h.number.is_some() && !is_omitted(&h.text));
-    if rules.mode == NumberMode::Automatic || !numbered {
+    if rules.mode == NumberMode::Automatic {
         return sequential(heads, rules.first);
     }
 
     let mut used: HashSet<String> = heads.iter().filter_map(|h| h.number.clone()).collect();
+    let mut seen: HashSet<&str> = HashSet::new();
     let mut last: Option<Parts> = None;
     let mut out = Vec::new();
 
     for (i, head) in heads.iter().enumerate() {
-        let number = match &head.number {
-            Some(number) => number.clone(),
+        // A number met before (a copied scene) counts as none: the later scene is inserted.
+        let own = head
+            .number
+            .as_deref()
+            .filter(|n| is_omitted(&head.text) || seen.insert(n));
+        let number = match own {
+            Some(number) => number.to_owned(),
             None => {
                 let later = heads[i..].iter().find_map(|h| h.number.as_deref());
                 let number = next_free(last.as_ref(), later, &used);
@@ -161,13 +175,14 @@ impl Parts {
     }
 }
 
-/// The next letters after `letters`: `A`, `B` .. `Z`, `AA`, `AB` ..
+/// The next letters after `letters`: `A`, `B` .. `Z`, `AA`, `AB` .. (lower case counts as upper).
 fn bump(letters: &str) -> String {
     let mut chars: Vec<char> = letters.chars().collect();
 
     for at in (0..chars.len()).rev() {
-        if chars[at] != 'Z' {
-            chars[at] = char::from(chars[at] as u8 + 1);
+        let upper = chars[at].to_ascii_uppercase();
+        if upper != 'Z' {
+            chars[at] = char::from(upper as u8 + 1);
             return chars.into_iter().collect();
         }
         chars[at] = 'A';
@@ -178,20 +193,40 @@ fn bump(letters: &str) -> String {
 
 /// The number of a scene that has none: after `last` it is `last` with the next letters
 /// (12 then 12A, 12A then 12B); before every number it is `A` and the number of the next
-/// scene that has one (A1, then B1). A number in use is skipped.
+/// scene that has one (A1, then B1), before a prefixed one (`A1`) it is `A0`, then `A0A`.
+/// Between two prefixed numbers the letters go behind the digits (A1A). A number in use is
+/// skipped, so with `12` and `12A` side by side the new scene gets the next free letter
+/// (12B): nothing sorts between those two.
 fn next_free(last: Option<&Parts>, later: Option<&str>, used: &HashSet<String>) -> String {
-    let start = last.cloned().or_else(|| {
-        let mut parts = later.and_then(Parts::of)?;
-        parts.before = String::new();
-        parts.after = String::new();
-        Some(parts)
-    });
-    let Some(mut parts) = start else {
-        return "1".to_owned();
+    let later = later.and_then(Parts::of);
+    let later_plain = later.as_ref().is_some_and(|l| l.before.is_empty());
+    let mut parts = match (last, &later) {
+        (Some(last), _) => last.clone(),
+        (None, Some(later)) => Parts {
+            before: if later_plain {
+                String::new()
+            } else {
+                later.before.clone()
+            },
+            digits: if later_plain {
+                later.digits.clone()
+            } else {
+                "0".to_owned()
+            },
+            after: String::new(),
+        },
+        (None, None) => return "1".to_owned(),
     };
 
-    // Leading scenes count up in front of the digits, the others behind them.
-    let in_front = last.is_none() || !parts.before.is_empty();
+    // Only the scenes in front of a plain number count up in front of the digits.
+    let in_front = match last {
+        None => later_plain,
+        Some(_) => !parts.before.is_empty() && later_plain,
+    };
+    if last.is_none() && !later_plain && !used.contains(&parts.text()) {
+        return parts.text();
+    }
+
     loop {
         match in_front {
             true => parts.before = bump(&parts.before),
@@ -205,6 +240,9 @@ fn next_free(last: Option<&Parts>, later: Option<&str>, used: &HashSet<String>) 
 
 /// `line` with its number set: a `#..#` at its end is replaced, a heading without one gets it.
 fn with_number(line: &str, number: &str) -> String {
+    let (line, ret) = line
+        .strip_suffix('\r')
+        .map_or((line, ""), |line| (line, "\r"));
     let line = line.trim_end();
     let base = line
         .strip_suffix(NUMBER_MARK)
@@ -217,7 +255,7 @@ fn with_number(line: &str, number: &str) -> String {
         })
         .unwrap_or(line);
 
-    format!("{base} {NUMBER_MARK}{number}{NUMBER_MARK}")
+    format!("{base} {NUMBER_MARK}{number}{NUMBER_MARK}{ret}")
 }
 
 /// Puts a heading for every struck scene of `rules` that the text lacks behind the scene it
