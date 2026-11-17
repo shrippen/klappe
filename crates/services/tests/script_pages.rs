@@ -146,6 +146,18 @@ fn the_pdf_has_the_pages_of_the_text_and_the_title_page() {
 }
 
 #[test]
+fn the_pdf_reads_title_keys_like_the_form() {
+    let text = format!("DraftDate: 1. Mai\nTitle: Nachtwache\n\n{}", scene(1, 3));
+    let mut s = session("pages-title-key", &text);
+    let path = out("pages-title-key.pdf");
+    s.export_script_pdf(&path, &PRINT).unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    let pdf = String::from_utf8_lossy(&bytes).into_owned();
+
+    assert!(pdf.contains("(1. Mai) Tj"), "{pdf}");
+}
+
+#[test]
 fn letter_pages_hold_fewer_rows_than_a4() {
     let text = scene(1, 57);
     let mut s = session("pages-paper", &text);
