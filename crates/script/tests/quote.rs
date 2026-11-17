@@ -328,3 +328,28 @@ fn a_cue_is_never_assigned_by_its_name_when_the_neighbours_cross() {
 
     assert_eq!(find_in(&old, &new, &q), Found::Ambiguous(vec![4]));
 }
+
+#[test]
+fn a_deleted_line_does_not_land_on_a_similar_one_in_its_stretch() {
+    // Round 6: Ben's line is gone; "Anna öffnet das Fenster." shares three of four words.
+    let old = scene(
+        "Anna öffnet das Fenster.\n\nBen öffnet das Fenster.\n\nEs regnet.\n\nAnna öffnet das Fenster.\n",
+    );
+    let new = scene("Anna öffnet das Fenster.\n\nEs regnet.\n\nAnna öffnet das Fenster.\n");
+    let q = quote_at(&old, 1).unwrap();
+
+    assert_eq!(find_in(&old, &new, &q), Found::Ambiguous(vec![0]));
+}
+
+#[test]
+fn a_rewritten_line_does_not_land_on_a_similar_one_in_its_stretch() {
+    let old = scene(
+        "Anna öffnet das Fenster.\n\nBen öffnet das Fenster.\n\nEs regnet.\n\nAnna öffnet das Fenster.\n",
+    );
+    let new = scene(
+        "Anna öffnet das Fenster.\n\nBen schläft schon.\n\nEs regnet.\n\nAnna öffnet das Fenster.\n",
+    );
+    let q = quote_at(&old, 1).unwrap();
+
+    assert_eq!(find_in(&old, &new, &q), Found::Ambiguous(vec![0]));
+}
