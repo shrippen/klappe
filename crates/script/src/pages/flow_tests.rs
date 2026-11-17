@@ -364,7 +364,7 @@ fn a_row_cut_dialogue_carries_more_and_contd() {
     assert!(p.pages[1].lines[0].added);
 }
 
-/// The same for a dual dialogue: each column gets its own (MORE) and repeated name.
+/// The same for a dual dialogue: only the column that goes on gets (MORE) and its name again.
 #[test]
 fn a_row_cut_dual_dialogue_carries_more_and_contd() {
     let lines: Vec<String> = (0..70).map(|i| format!("line {i}")).collect();
@@ -379,12 +379,12 @@ fn a_row_cut_dual_dialogue_carries_more_and_contd() {
         .filter(|l| l.kind == PageKind::More)
         .map(|l| l.x)
         .collect();
-    assert_eq!(more, [6, 37]);
+    assert_eq!(more, [6]);
     let names: Vec<&str> = p.pages[1]
         .lines
         .iter()
         .filter(|l| l.row == 0)
         .map(|l| l.text.as_str())
         .collect();
-    assert_eq!(names, ["ANNA (CONT'D)", "BEN (CONT'D)"]);
+    assert_eq!(names, ["ANNA (CONT'D)"]);
 }
