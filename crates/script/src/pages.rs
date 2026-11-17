@@ -13,6 +13,8 @@ mod flow;
 mod wrap;
 
 #[cfg(test)]
+mod flow_tests;
+#[cfg(test)]
 mod tests;
 
 use crate::Element;
