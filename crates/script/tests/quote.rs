@@ -1,7 +1,18 @@
 //! DB-64: quote anchors.
 #![allow(clippy::unwrap_used)]
 
-use klappe_script::{find_quote, parse, quote_at, Element, Found, LineKind};
+use klappe_script::{parse, quote_at, scene_states, Element, Found, LineKind, Quote, Script};
+
+/// Looks the quote up in `new`; `old` is the scene the quote was made in.
+fn find_in(old: &[Element], new: &[Element], q: &Quote) -> Found {
+    let state = scene_states(&Script {
+        title_page: vec![],
+        elements: old.to_vec(),
+    })
+    .pop()
+    .unwrap();
+    klappe_script::find_quote(&state, new, q)
+}
 
 fn scene(text: &str) -> Vec<Element> {
     parse(&format!("INT. SAAL\n\n{text}")).elements[1..].to_vec()
@@ -51,7 +62,7 @@ fn an_exact_line_is_found_after_lines_were_inserted_before() {
     let q = quote_at(&s, 7).unwrap();
     let edited = scene(&format!("Es regnet.\n\nNoch eine Zeile.\n\n{BASE}"));
 
-    assert_eq!(find_quote(&edited, &q), Found::At(9));
+    assert_eq!(find_in(&s, &edited, &q), Found::At(9));
 }
 
 #[test]
@@ -60,18 +71,18 @@ fn the_occurrence_picks_among_equal_lines() {
     let first = quote_at(&s, 2).unwrap();
     let second = quote_at(&s, 7).unwrap();
 
-    assert_eq!(find_quote(&s, &first), Found::At(2));
-    assert_eq!(find_quote(&s, &second), Found::At(7));
+    assert_eq!(find_in(&s, &s, &first), Found::At(2));
+    assert_eq!(find_in(&s, &s, &second), Found::At(7));
 }
 
 #[test]
-fn a_vanished_equal_line_is_ambiguous() {
+fn a_vanished_equal_line_is_missing() {
     let s = scene(BASE);
     let second = quote_at(&s, 7).unwrap();
     let edited = scene("ELISABETH\nIhr kommt spät.\n\nBURGVOGT\nGuten Tag.\n");
 
-    // Occurrence 1 of the line is gone; the one left may be either.
-    assert_eq!(find_quote(&edited, &second), Found::Ambiguous(vec![1]));
+    // Occurrence 1 of the line is gone; the one left stands before the new line.
+    assert_eq!(find_in(&s, &edited, &second), Found::Missing);
 }
 
 #[test]
@@ -80,16 +91,17 @@ fn a_reworded_line_is_found_when_it_is_clearly_the_most_similar() {
     let q = quote_at(&s, 0).unwrap();
     let edited = scene(&BASE.replace("schaut hinaus in den Hof", "blickt hinaus in den Hof"));
 
-    assert_eq!(find_quote(&edited, &q), Found::At(0));
+    assert_eq!(find_in(&s, &edited, &q), Found::At(0));
 }
 
 #[test]
-fn a_reworded_line_of_a_renamed_speaker_is_found() {
+fn a_reworded_line_of_a_renamed_speaker_is_offered() {
     let s = scene("ELISABETH\nDer Weg war vereist und lang.\n");
     let q = quote_at(&s, 1).unwrap();
     let edited = scene("ELISA\nDer Weg war vereist und sehr lang.\n");
 
-    assert_eq!(find_quote(&edited, &q), Found::At(1));
+    // A new speaker may be a rename or another line: the user confirms.
+    assert_eq!(find_in(&s, &edited, &q), Found::Ambiguous(vec![1]));
 }
 
 #[test]
@@ -99,7 +111,7 @@ fn two_equally_similar_lines_are_ambiguous() {
     let edited =
         scene("Er öffnet die schwere Tür zum Hof.\n\nEr öffnet die schwere Tür zum Keller.\n");
 
-    assert_eq!(find_quote(&edited, &q), Found::Ambiguous(vec![0, 1]));
+    assert_eq!(find_in(&s, &edited, &q), Found::Ambiguous(vec![0, 1]));
 }
 
 #[test]
@@ -108,7 +120,7 @@ fn a_rewritten_line_is_missing() {
     let q = quote_at(&s, 0).unwrap();
 
     assert_eq!(
-        find_quote(&scene("Es klopft dreimal.\n"), &q),
+        find_in(&s, &scene("Es klopft dreimal.\n"), &q),
         Found::Missing
     );
 }
@@ -119,28 +131,33 @@ fn a_line_of_another_kind_is_no_candidate() {
     let edited = scene("ELISABETH\nIhr kommt spät.\n");
 
     assert_eq!(q.kind, LineKind::Action);
-    assert_eq!(find_quote(&edited, &q), Found::Missing);
+    assert_eq!(
+        find_in(&scene("Ihr kommt spät.\n"), &edited, &q),
+        Found::Missing
+    );
 }
 
 #[test]
-fn equal_lines_inserted_before_the_last_line_are_ambiguous() {
+fn equal_lines_inserted_before_the_last_line_do_not_shift_it() {
     // Review: ANNA "Ja." and BEN inserted before; the old second "Ja." is now the third.
     let old = "ANNA\nJa.\n\nBEN\nNein.\n\nANNA\nJa.\n";
     let q = quote_at(&scene(old), 5).unwrap();
     let new = scene(&format!("ANNA\nJa.\n\nBEN\nHm.\n\n{old}"));
 
-    // The line at the scene's end looks the same whether pairs were added before or
-    // after it: no pick.
-    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![1, 5, 9]));
+    // The "Nein." before the line is still there, so the line after it is the one.
+    assert_eq!(find_in(&scene(old), &new, &q), Found::At(9));
 }
 
 #[test]
-fn equal_lines_inserted_before_and_after_are_told_apart_by_neighbours() {
+fn equal_lines_inserted_before_and_after_are_ambiguous() {
     let q = quote_at(&scene("ANNA\nJa.\n\nEs klopft.\n"), 1).unwrap();
     let new =
         scene("ANNA\nJa.\n\nEr nickt.\n\nANNA\nJa.\n\nEs klopft.\n\nANNA\nJa.\n\nSie geht.\n");
 
-    assert_eq!(find_quote(&new, &q), Found::At(4));
+    assert_eq!(
+        find_in(&scene("ANNA\nJa.\n\nEs klopft.\n"), &new, &q),
+        Found::Ambiguous(vec![1, 4])
+    );
 }
 
 #[test]
@@ -148,7 +165,10 @@ fn equal_lines_with_the_same_neighbours_are_ambiguous() {
     let q = quote_at(&scene("ANNA\nJa.\n\nEs klopft.\n"), 1).unwrap();
     let new = scene("ANNA\nJa.\n\nEs klopft.\n\nANNA\nJa.\n\nEs klopft.\n");
 
-    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![1, 4]));
+    assert_eq!(
+        find_in(&scene("ANNA\nJa.\n\nEs klopft.\n"), &new, &q),
+        Found::Ambiguous(vec![1, 4])
+    );
 }
 
 #[test]
@@ -163,15 +183,23 @@ fn neighbours_break_a_tie_between_similar_lines() {
          Er öffnet die schwere Tür zum Keller.\n\nEs donnert.\n",
     );
 
-    assert_eq!(find_quote(&new, &q), Found::At(1));
+    assert_eq!(
+        find_in(
+            &scene("Es regnet.\n\nEr öffnet die schwere Tür zum Saal.\n\nEs klopft.\n"),
+            &new,
+            &q
+        ),
+        Found::At(1)
+    );
 }
 
 #[test]
 fn dash_variants_and_spaces_in_a_line_are_equal() {
     let q = quote_at(&scene("Er wartet – lange.\n"), 0).unwrap();
 
+    let old = scene("Er wartet – lange.\n");
     assert_eq!(
-        find_quote(&scene("Er  wartet — lange.\n"), &q),
+        find_in(&old, &scene("Er  wartet — lange.\n"), &q),
         Found::At(0)
     );
 }
@@ -182,7 +210,10 @@ fn an_equal_line_appended_right_behind_the_anchor_is_ambiguous() {
     let q = quote_at(&scene("Tür.\n\nEs klopft.\n"), 1).unwrap();
     let new = scene("Tür.\n\nEs klopft.\n\nEs klopft.\n");
 
-    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![1, 2]));
+    assert_eq!(
+        find_in(&scene("Tür.\n\nEs klopft.\n"), &new, &q),
+        Found::Ambiguous(vec![1, 2])
+    );
 }
 
 #[test]
@@ -190,7 +221,10 @@ fn an_equal_line_inserted_right_before_the_anchor_is_ambiguous() {
     let q = quote_at(&scene("Es klopft.\n\nTür.\n"), 0).unwrap();
     let new = scene("Es klopft.\n\nEs klopft.\n\nTür.\n");
 
-    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![0, 1]));
+    assert_eq!(
+        find_in(&scene("Es klopft.\n\nTür.\n"), &new, &q),
+        Found::Ambiguous(vec![0, 1])
+    );
 }
 
 #[test]
@@ -200,7 +234,10 @@ fn a_dialogue_appended_at_the_scene_end_is_ambiguous() {
     let q = quote_at(&scene("ANNA\nJa.\n"), 1).unwrap();
     let new = scene("ANNA\nJa.\n\nBEN\nHm.\n\nANNA\nJa.\n");
 
-    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![1, 5]));
+    assert_eq!(
+        find_in(&scene("ANNA\nJa.\n"), &new, &q),
+        Found::Ambiguous(vec![1, 5])
+    );
 }
 
 #[test]
@@ -210,5 +247,8 @@ fn swapped_exchanges_are_not_guessed_by_order() {
     let new = "ANNA\nJa.\n\nBEN\nDoch.\n\nANNA\nJa.\n\nBEN\nNein.\n";
     let q = quote_at(&scene(old), 1).unwrap();
 
-    assert_eq!(find_quote(&scene(new), &q), Found::Ambiguous(vec![1, 5]));
+    assert_eq!(
+        find_in(&scene(old), &scene(new), &q),
+        Found::Ambiguous(vec![1, 5])
+    );
 }

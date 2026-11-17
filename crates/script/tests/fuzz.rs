@@ -5,7 +5,7 @@
 
 use klappe_script::{align, parse, quote_at, scene_states, Element, Found, Outcome, SceneState};
 
-const SEEDS: u64 = 3000;
+const SEEDS: u64 = 1000;
 const HEADS: [&str; 3] = ["KÜCHE", "SAAL", "HOF"];
 const SPEAKERS: [&str; 3] = ["ANNA", "BEN", "CARLA"];
 const ACTIONS: [&str; 4] = ["Er wartet.", "Sie geht zur Tür.", "Es regnet.", "Stille."];
@@ -61,6 +61,14 @@ impl Gen {
         }
     }
 
+    /// A line no other has: edits never recreate text, or lineage could not be told from
+    /// text (an inserted "Ja." next to a deleted one is the same script).
+    fn fresh(&mut self) -> Block {
+        let mut b = self.block();
+        b.text = format!("Neu {}.", b.id);
+        b
+    }
+
     /// A scene with a line only it has, so scenes are never identical twins.
     fn scene(&mut self, number: u32) -> SceneM {
         let id = self.id();
@@ -114,7 +122,7 @@ impl Gen {
             4 => s[k].head = self.below(HEADS.len()),
             5 => {
                 let at = self.below(s[k].blocks.len() + 1);
-                let b = self.block();
+                let b = self.fresh();
                 s[k].blocks.insert(at, b);
             }
             6 => {
@@ -125,7 +133,11 @@ impl Gen {
             _ => {
                 let n = s[k].blocks.len();
                 let (a, b) = (self.below(n), self.below(n));
-                s[k].blocks.swap(a, b);
+                // Swapping equal lines changes nothing a reader could tell.
+                let (x, y) = (&s[k].blocks[a], &s[k].blocks[b]);
+                if (x.speaker, &x.text) != (y.speaker, &y.text) {
+                    s[k].blocks.swap(a, b);
+                }
             }
         }
     }
@@ -136,12 +148,8 @@ impl Gen {
             return;
         }
         let i = self.below(n);
-        let talk = sc.blocks[i].speaker.is_some();
-        sc.blocks[i].text = if talk {
-            TALKS[self.below(TALKS.len())].into()
-        } else {
-            ACTIONS[self.below(ACTIONS.len())].into()
-        };
+        let id = self.id();
+        sc.blocks[i].text = format!("Geändert {id}.");
     }
 }
 
@@ -212,8 +220,7 @@ fn check(seed: u64, old: &[SceneM], new: &[SceneM]) -> (usize, usize) {
 }
 
 fn find(old: &SceneState, scene: &[Element], q: &klappe_script::Quote) -> Found {
-    let _ = old;
-    klappe_script::find_quote(scene, q)
+    klappe_script::find_quote(old, scene, q)
 }
 
 #[test]

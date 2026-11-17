@@ -117,9 +117,18 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ## 4. Verzahnung Drehbuch ↔ Stellprobe (zuerst zu bauen)
 
 - **Szenenidentität (DB-65):** Das Register (`szenen.toml`, Projektebene) hält je Szene Id, Nummer,
-  Kopf und kurze Fingerabdrücke je Element. Nach einer Änderung des Buchs ordnet Klappe zu: die
-  Nummer ist der Kandidat, Kopf oder Inhalt müssen ihn bestätigen; reicht das nicht, sucht Klappe
-  nach Inhalt, und was dann nicht eindeutig ist, legt es vor. Floorplans und Shots hängen an der
+  Kopf und kurze Fingerabdrücke je Element (Art und Hash des Textes). Nach einer Änderung des
+  Buchs paart Klappe die Fingerabdrücke des alten und des neuen Buchs: eine Zeile, die in beiden
+  Büchern genau einmal vorkommt, ist dieselbe, wo auch immer sie steht; gleiche Abschnitte
+  zwischen zwei so gepaarten Zeilen werden Stelle für Stelle gepaart. Eine Szene ist
+  zugeordnet, wenn mehr als die Hälfte ihrer Zeilen (ohne Figurenzeilen, die in fast jedem
+  Dialog stehen) in genau eine neue Szene gepaart sind und umgekehrt. **Nummer und Kopf
+  bestätigen nie**: sie nennen nur Kandidaten fürs Vorlegen (eine Nummer ist, was ein Programm
+  meinte; Neunummerieren, Kopieren und Einfügen von Szenen mit gleichem Kopf haben jede
+  Wertung dafür gegen den Inhalt entscheiden lassen). Alles andere ist mehrdeutig (Kandidaten:
+  Szenen mit gepaarten Zeilen, dann ungenommene mit gleichem Kopf oder gleicher Nummer) oder
+  nicht gefunden; Zwillinge und Kopien bleiben mehrdeutig, außer das Buch ist um sie herum
+  gleich. Floorplans und Shots hängen an der
   Id; Nummer und Kopf stehen nur noch im Register, nicht zusätzlich in `szenen/<id>.json`.
   Derselbe Abgleich zweier Buchstände dient später Revisionen, Vergleich und verschobenen
   Szenen (DB-41, DB-42, DB-44) und steht einmal in `script/` (nur die Suche auf Text;
@@ -139,9 +148,13 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
   Müll abzugleichen. Der Dialog zum Auflösen (F-08) ist ein eigenes Vorhaben.
 - **Verweise ins Buch (DB-64):** Heute zeigt ein Mark oder Shot auf „Element Nr. n der Szene“
   (`ScriptLink.element`); das bricht beim Einfügen einer Zeile. Neu: Szenen-Id plus Zitat der
-  Zeile (Art, Figur, Text, Vorkommen in der Szene). In der Sitzung folgt der Anker dem Editor;
-  beim Laden nach fremder Änderung: exakter Treffer, sonst eindeutig ähnlichste Zeile, sonst
-  vorlegen, mit dem Zitat als Hinweis, was gemeint war. Beim Speichern wird das Zitat erneuert.
+  Zeile (Art, Figur, Text, Vorkommen, Stelle unter den Fingerabdrücken der Szene). In der
+  Sitzung folgt der Anker dem Editor; beim Laden nach fremder Änderung paart Klappe die Zeilen
+  der alten und der neuen Szene (wie oben): ist die Zeile gepaart und gleich, ist sie es, auch
+  verschoben; sonst liegt sie zwischen den Partnern ihrer nächsten gepaarten Nachbarn, und eine
+  eindeutig ähnlichste Zeile dort ist es; mehrere sind mehrdeutig, keine ist verschwunden. Gleiche
+  Zeilen und ein anderer Sprecher werden nie still zugeordnet, sondern vorgelegt, mit dem Zitat
+  als Hinweis, was gemeint war. Beim Speichern wird das Zitat erneuert.
   Keine unsichtbaren Ids im Fountain (Entscheidung F-02 im Lastenheft Drehbuch).
 - **Marks bekommen eine Id** (kurz und zufällig); Verweise auf einen Mark nennen sie statt
   der Position in der Spur.

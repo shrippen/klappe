@@ -1,25 +1,34 @@
 //! Quote anchors (DB-64): a line of a scene named by its content, so a link survives
 //! lines inserted before it.
 //!
-//! A [`Quote`] holds the line, how many equal lines the scene had and the fingerprints of
-//! the elements next to it. Lookup: the exact line; if the scene still has as many equal
-//! lines, the occurrence decides; if the number changed, the one equal line with both
-//! neighbours (not the scene edge, not another equal line) does; else the clearly most
-//! similar line of the same kind, neighbours
-//! breaking ties; else the candidates. Case, spacing and dash variants (`–`, `—`, `-`)
-//! do not matter.
+//! A [`Quote`] holds the line (kind, speaker, text), how many equal lines the scene had
+//! and where the line stood among the scene's fingerprints (`at`). To find it again the
+//! old scene's fingerprints and the new scene's lines are paired (`anchor.rs`):
+//!
+//! - The line's old fingerprint is paired and the new line is the same (kind, speaker,
+//!   text): that is the line, wherever it moved.
+//! - It is not paired (edited, or one of several equal lines): look at its nearest paired
+//!   neighbours before and after (the scene's edge counts). The line is among the unpaired
+//!   new lines between their partners. One clearly most similar line there is the answer,
+//!   several are ambiguous, none is missing.
+//! - Nothing to go by (a note, a changed scene, a speaker that differs): the line only if
+//!   it was the only equal line and is the only one now; else the equal lines as
+//!   candidates, or missing.
+//!
+//! Case, spacing and dash variants (`–`, `—`, `-`) do not matter.
 
+use std::collections::HashSet;
+
+use crate::align::{print, CUE_TAG};
+use crate::anchor::pair;
 use crate::text::{hash, normal, words};
-use crate::Element;
-use crate::Fingerprint;
+use crate::{Element, Fingerprint, SceneState};
 
 /// Words in common over words in all (Jaccard) from which a line counts as similar:
 /// 0.6 survives a fixed typo or one changed word in a sentence of five.
 const SIMILAR_MIN: f64 = 0.6;
 /// A best candidate needs this lead over the next to be taken without asking.
 const LEAD_MIN: f64 = 0.15;
-/// The elements before and after a line.
-const NEIGHBOURS: usize = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LineKind {
@@ -35,6 +44,22 @@ pub enum LineKind {
     Note,
 }
 
+impl LineKind {
+    /// The tag of the kind's fingerprints; `None` for lines that have none.
+    pub(crate) fn tag(self) -> Option<u8> {
+        match self {
+            LineKind::Action => Some(1),
+            LineKind::Character => Some(CUE_TAG),
+            LineKind::Parenthetical => Some(3),
+            LineKind::Dialogue => Some(4),
+            LineKind::Transition => Some(5),
+            LineKind::Centered => Some(6),
+            LineKind::Lyrics => Some(7),
+            LineKind::Section | LineKind::Synopsis | LineKind::Note => None,
+        }
+    }
+}
+
 /// One line of a scene: kind, speaker, text and which of the equal lines it is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Quote {
@@ -46,9 +71,9 @@ pub struct Quote {
     pub occurrence: usize,
     /// How many equal lines the scene had when the quote was made.
     pub equal: usize,
-    /// The elements before and after (`None` at the scene's edge or at a page break).
-    pub before: Option<Fingerprint>,
-    pub after: Option<Fingerprint>,
+    /// Index of the line among the scene's fingerprints (`SceneState::prints`); `None`
+    /// for lines without one (note, section, synopsis).
+    pub at: Option<usize>,
 }
 
 /// Where a quote is in a scene (indices into the scene's elements).
@@ -67,6 +92,7 @@ pub fn quote_at(scene: &[Element], index: usize) -> Option<Quote> {
         .filter(|&i| self::line(scene, i).is_some_and(|l| l.same(&line)))
         .collect();
     let occurrence = equal_at.iter().filter(|&&i| i < index).count();
+    let at = print(&scene[index]).map(|_| scene[..index].iter().filter_map(print).count());
 
     Some(Quote {
         kind: line.kind,
@@ -74,82 +100,116 @@ pub fn quote_at(scene: &[Element], index: usize) -> Option<Quote> {
         text: line.text,
         occurrence,
         equal: equal_at.len(),
-        before: index.checked_sub(1).and_then(|i| print(scene, i)),
-        after: print(scene, index + 1),
+        at,
     })
 }
 
-/// Finds the quote in the (matched) scene: the exact line, else the one clearly most
-/// similar line, else the candidates.
-pub fn find_quote(scene: &[Element], quote: &Quote) -> Found {
+/// Finds the quote in the (matched) new scene; `old` is the state of the old scene the
+/// quote was made in.
+pub fn find_quote(old: &SceneState, scene: &[Element], quote: &Quote) -> Found {
     let lines: Vec<(usize, Line)> = (0..scene.len())
         .filter_map(|i| line(scene, i).map(|l| (i, l)))
         .collect();
-
     let wanted = Line::of(quote);
-    let equal: Vec<usize> = lines
-        .iter()
-        .filter(|(_, l)| l.same(&wanted))
-        .map(|&(i, _)| i)
-        .collect();
-    if equal.is_empty() {
-        return similar(scene, &lines, quote);
-    }
-    if equal.len() == quote.equal {
-        return Found::At(equal[quote.occurrence.min(equal.len() - 1)]);
-    }
 
-    // The number of equal lines changed: only the neighbours tell which one it was.
-    match by_both(scene, &equal, quote) {
-        Some(i) => Found::At(i),
-        None => Found::Ambiguous(equal),
-    }
-}
-
-/// How many of the stored neighbours the element at `i` has.
-fn near(scene: &[Element], i: usize, quote: &Quote) -> usize {
-    let before = i.checked_sub(1).and_then(|b| print(scene, b));
-    usize::from(before == quote.before) + usize::from(print(scene, i + 1) == quote.after)
-}
-
-/// The only one of the equal lines with both stored neighbours. The scene's edge and a
-/// neighbour that is an equal line itself are no evidence: lines added before or after
-/// the anchor look the same there.
-fn by_both(scene: &[Element], equal: &[usize], quote: &Quote) -> Option<usize> {
-    let proves = |at: Option<usize>, stored: Option<Fingerprint>| {
-        let Some(i) = at.filter(|i| !equal.contains(i)) else {
-            return false;
-        };
-        stored.is_some() && print(scene, i) == stored
+    let Some(at) = quote
+        .at
+        .filter(|&a| old.prints.get(a) == own_print(quote).as_ref())
+    else {
+        return by_equal(&lines, &wanted, quote);
     };
 
-    let mut both = equal
+    // The scene's fingerprints with the element each one belongs to.
+    let printed: Vec<usize> = (0..scene.len())
+        .filter(|&i| print(&scene[i]).is_some())
+        .collect();
+    let new_tokens: Vec<u32> = printed
         .iter()
-        .filter(|&&i| proves(i.checked_sub(1), quote.before) && proves(Some(i + 1), quote.after));
-    let first = both.next()?;
-    both.next().is_none().then_some(*first)
+        .filter_map(|&i| print(&scene[i]))
+        .map(|p| p.hash)
+        .collect();
+    let old_tokens: Vec<u32> = old.prints.iter().map(|p| p.hash).collect();
+    let pairs = pair(&old_tokens, &new_tokens);
+
+    if let Some(n) = pairs[at] {
+        let same = lines
+            .iter()
+            .any(|(i, l)| *i == printed[n] && l.same(&wanted));
+        if same {
+            return Found::At(printed[n]);
+        }
+        return by_equal(&lines, &wanted, quote);
+    }
+
+    // Unpaired: between the partners of the nearest paired lines before and after.
+    let before = pairs[..at].iter().rev().find_map(|p| *p);
+    let after = pairs[at + 1..].iter().find_map(|p| *p);
+    let (from, to) = (before.map_or(0, |n| n + 1), after.unwrap_or(printed.len()));
+    if from > to {
+        return by_equal(&lines, &wanted, quote);
+    }
+
+    let paired: HashSet<usize> = pairs.iter().flatten().copied().collect();
+    let gap: HashSet<usize> = (from..to)
+        .filter(|n| !paired.contains(n))
+        .map(|n| printed[n])
+        .collect();
+    let between: Vec<&(usize, Line)> = lines.iter().filter(|(i, _)| gap.contains(i)).collect();
+    let found = similar(&between, &wanted);
+
+    // Equal twins unpaired in the same old stretch: one new line cannot tell whose it is.
+    let twins = (before_old(&pairs, at)..after_old(&pairs, at))
+        .filter(|&o| pairs[o].is_none() && old.prints[o] == old.prints[at])
+        .count();
+    match found {
+        Found::At(i) if twins > 1 => Found::Ambiguous(vec![i]),
+        other => other,
+    }
 }
 
-/// The one of `candidates` with more matching neighbours than any other (at least one);
-/// a lone candidate needs both.
-fn by_neighbours(scene: &[Element], candidates: &[usize], quote: &Quote) -> Option<usize> {
-    let mut rated: Vec<(usize, usize)> = candidates
+/// First old fingerprint after the nearest paired one before `at`.
+fn before_old(pairs: &[Option<usize>], at: usize) -> usize {
+    pairs[..at]
         .iter()
-        .map(|&i| (i, near(scene, i, quote)))
-        .collect();
-    rated.sort_by_key(|r| std::cmp::Reverse(r.1));
+        .rposition(|p| p.is_some())
+        .map_or(0, |i| i + 1)
+}
 
-    match rated.as_slice() {
-        [(i, n)] if *n == NEIGHBOURS => Some(*i),
-        [(i, n), (_, next), ..] if n > next && *n > 0 => Some(*i),
-        _ => None,
+/// The nearest paired old fingerprint after `at`, or the end.
+fn after_old(pairs: &[Option<usize>], at: usize) -> usize {
+    pairs[at + 1..]
+        .iter()
+        .position(|p| p.is_some())
+        .map_or(pairs.len(), |i| at + 1 + i)
+}
+
+/// The fingerprint the quote's line has.
+fn own_print(q: &Quote) -> Option<Fingerprint> {
+    let tag = q.kind.tag()?;
+    Some(Fingerprint {
+        tag,
+        hash: hash(tag, &q.text),
+    })
+}
+
+/// No pairing to go by: the line if it was and is the only equal one.
+fn by_equal(lines: &[(usize, Line)], wanted: &Line, quote: &Quote) -> Found {
+    let equal: Vec<usize> = lines
+        .iter()
+        .filter(|(_, l)| l.same(wanted))
+        .map(|&(i, _)| i)
+        .collect();
+
+    match equal.as_slice() {
+        [] => Found::Missing,
+        [i] if quote.equal == 1 => Found::At(*i),
+        _ => Found::Ambiguous(equal),
     }
 }
 
 /// Most similar line of the same kind, preferring the same speaker.
-fn similar(scene: &[Element], lines: &[(usize, Line)], quote: &Quote) -> Found {
-    let wanted = Line::of(quote);
-    let mut pool: Vec<&(usize, Line)> = lines
+fn similar(lines: &[&(usize, Line)], wanted: &Line) -> Found {
+    let mut pool: Vec<&&(usize, Line)> = lines
         .iter()
         .filter(|(_, l)| l.kind == wanted.kind)
         .collect();
@@ -170,19 +230,18 @@ fn similar(scene: &[Element], lines: &[(usize, Line)], quote: &Quote) -> Found {
         return Found::Missing;
     };
 
-    // Everything within the lead of the best is a rival; one rival is the answer.
-    let rivals: Vec<usize> = scored
+    // Another speaker may be a rename or another line: only a confirmation will tell.
+    let speaker_kept = lines
         .iter()
-        .filter(|&&(_, s)| best - s < LEAD_MIN)
-        .map(|&(i, _)| i)
-        .collect();
-    if rivals.len() == 1 {
+        .find(|(i, _)| *i == best_at)
+        .is_some_and(|(_, l)| {
+            l.character.as_deref().map(normal) == wanted.character.as_deref().map(normal)
+        });
+    let rivals = scored.iter().filter(|&&(_, s)| best - s < LEAD_MIN).count();
+    if rivals == 1 && speaker_kept {
         return Found::At(best_at);
     }
-    match by_neighbours(scene, &rivals, quote) {
-        Some(i) => Found::At(i),
-        None => Found::Ambiguous(scored.iter().map(|a| a.0).collect()),
-    }
+    Found::Ambiguous(scored.iter().map(|a| a.0).collect())
 }
 
 struct Line {
@@ -208,8 +267,9 @@ impl Line {
     }
 }
 
-fn line(scene: &[Element], index: usize) -> Option<Line> {
-    let (kind, text) = match scene.get(index)? {
+/// Kind and text of an element, `None` for a scene heading and a page break.
+pub(crate) fn kind_text(el: &Element) -> Option<(LineKind, &str)> {
+    Some(match el {
         Element::Action(t) => (LineKind::Action, t.as_str()),
         Element::Character { name, .. } => (LineKind::Character, name.as_str()),
         Element::Parenthetical(t) => (LineKind::Parenthetical, t.as_str()),
@@ -221,7 +281,11 @@ fn line(scene: &[Element], index: usize) -> Option<Line> {
         Element::Synopsis(t) => (LineKind::Synopsis, t.as_str()),
         Element::Note(t) => (LineKind::Note, t.as_str()),
         Element::SceneHeading { .. } | Element::PageBreak => return None,
-    };
+    })
+}
+
+fn line(scene: &[Element], index: usize) -> Option<Line> {
+    let (kind, text) = kind_text(scene.get(index)?)?;
 
     let speaks = matches!(kind, LineKind::Parenthetical | LineKind::Dialogue);
     Some(Line {
@@ -238,12 +302,6 @@ fn speaker(scene: &[Element], index: usize) -> Option<String> {
         Element::Parenthetical(_) | Element::Dialogue(_) => None,
         _ => Some(None),
     })?
-}
-
-/// Fingerprint of the element at `index`, if it is a line.
-fn print(scene: &[Element], index: usize) -> Option<Fingerprint> {
-    let l = line(scene, index)?;
-    Some(Fingerprint(hash(l.kind as u8, &l.text)))
 }
 
 fn jaccard(a: &[String], b: &[String]) -> f64 {

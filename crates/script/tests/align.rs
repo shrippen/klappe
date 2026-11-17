@@ -1,7 +1,7 @@
 //! DB-65: matching two script states.
 #![allow(clippy::unwrap_used)]
 
-use klappe_script::{align, parse, scene_states, How, Outcome, SceneState};
+use klappe_script::{align, parse, scene_states, Outcome, SceneState};
 
 /// A scene of five action lines that only this `tag` has, plus one dialogue.
 fn scene(number: Option<&str>, head: &str, tag: &str) -> String {
@@ -20,8 +20,8 @@ fn old_of(text: &str) -> Vec<SceneState> {
     scene_states(&parse(text))
 }
 
-fn matched(scene: usize, how: How) -> Outcome {
-    Outcome::Matched { scene, how }
+fn matched(scene: usize) -> Outcome {
+    Outcome::Matched { scene }
 }
 
 const A: &str = "Alpha";
@@ -41,14 +41,7 @@ fn three() -> String {
 fn an_unchanged_script_matches_by_number() {
     let al = align(&old_of(&three()), &parse(&three()));
 
-    assert_eq!(
-        al.old,
-        vec![
-            matched(0, How::Number),
-            matched(1, How::Number),
-            matched(2, How::Number)
-        ]
-    );
+    assert_eq!(al.old, vec![matched(0), matched(1), matched(2)]);
     assert!(al.unmatched.is_empty());
 }
 
@@ -64,14 +57,7 @@ fn a_scene_inserted_before_shifts_the_numbers() {
     .concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(
-        al.old,
-        vec![
-            matched(1, How::Content),
-            matched(2, How::Content),
-            matched(3, How::Content)
-        ]
-    );
+    assert_eq!(al.old, vec![matched(1), matched(2), matched(3)]);
     assert_eq!(al.unmatched, vec![0]);
 }
 
@@ -87,7 +73,7 @@ fn a_scene_inserted_before_with_the_same_heading_does_not_steal_the_number() {
     .concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(al.old[0], matched(1, How::Content));
+    assert_eq!(al.old[0], matched(1));
     assert_eq!(al.unmatched, vec![0]);
 }
 
@@ -102,14 +88,7 @@ fn a_moved_scene_keeps_its_number() {
     .concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(
-        al.old,
-        vec![
-            matched(1, How::Number),
-            matched(2, How::Number),
-            matched(0, How::Number)
-        ]
-    );
+    assert_eq!(al.old, vec![matched(1), matched(2), matched(0)]);
 }
 
 #[test]
@@ -123,14 +102,7 @@ fn a_scene_renumbered_by_another_program_is_found_by_content() {
     .concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(
-        al.old,
-        vec![
-            matched(0, How::Content),
-            matched(1, How::Content),
-            matched(2, How::Content)
-        ]
-    );
+    assert_eq!(al.old, vec![matched(0), matched(1), matched(2)]);
 }
 
 #[test]
@@ -143,7 +115,7 @@ fn a_scene_that_lost_its_number_is_found_by_content() {
     ]
     .concat();
 
-    assert_eq!(align(&old, &parse(&new)).old[1], matched(1, How::Content));
+    assert_eq!(align(&old, &parse(&new)).old[1], matched(1));
 }
 
 #[test]
@@ -156,7 +128,7 @@ fn a_reworded_heading_is_confirmed_by_content() {
     ]
     .concat();
 
-    assert_eq!(align(&old, &parse(&new)).old[1], matched(1, How::Number));
+    assert_eq!(align(&old, &parse(&new)).old[1], matched(1));
 }
 
 #[test]
@@ -193,7 +165,7 @@ fn a_rewritten_scene_with_a_reworded_heading_keeps_only_the_number() {
 }
 
 #[test]
-fn a_scene_split_in_two_keeps_the_number_on_the_first_half() {
+fn a_scene_split_in_half_is_ambiguous_even_with_the_number_on_one_half() {
     let old = old_of(&three());
     let first: String = scene(Some("2"), "KÜCHE", B)
         .lines()
@@ -216,8 +188,8 @@ fn a_scene_split_in_two_keeps_the_number_on_the_first_half() {
     .concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(al.old[1], matched(1, How::Number));
-    assert_eq!(al.unmatched, vec![2]);
+    // The first half has exactly half of the scene's lines: not more than half.
+    assert_eq!(al.old[1], Outcome::Ambiguous(vec![1, 2]));
 }
 
 #[test]
@@ -234,12 +206,11 @@ fn a_scene_split_in_two_without_numbers_is_ambiguous() {
     );
     let al = align(&old, &parse(&new));
 
-    // Best first: the larger half scores higher.
-    assert_eq!(al.old, vec![Outcome::Ambiguous(vec![1, 0])]);
+    assert_eq!(al.old, vec![Outcome::Ambiguous(vec![0, 1])]);
 }
 
 #[test]
-fn a_duplicated_scene_matches_the_original_and_leaves_the_copy() {
+fn a_duplicated_scene_cannot_tell_the_original_from_the_copy() {
     let old = old_of(&three());
     let new = [
         scene(Some("1"), "SAAL", A),
@@ -250,8 +221,10 @@ fn a_duplicated_scene_matches_the_original_and_leaves_the_copy() {
     .concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(al.old[1], matched(1, How::Number));
-    assert_eq!(al.unmatched, vec![2]);
+    // Numbers never confirm: both are offered, the rest is matched.
+    assert_eq!(al.old[1], Outcome::Ambiguous(vec![1, 2]));
+    assert_eq!(al.old[0], matched(0));
+    assert_eq!(al.old[2], matched(3));
 }
 
 #[test]
@@ -265,7 +238,7 @@ fn a_duplicated_scene_without_numbers_is_ambiguous() {
     .concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(al.old[0], matched(0, How::Content));
+    assert_eq!(al.old[0], matched(0));
     assert_eq!(al.old[1], Outcome::Ambiguous(vec![1, 2]));
 }
 
@@ -275,14 +248,7 @@ fn a_deleted_scene_is_not_found() {
     let new = [scene(Some("1"), "SAAL", A), scene(Some("3"), "HOF", C)].concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(
-        al.old,
-        vec![
-            matched(0, How::Number),
-            Outcome::NotFound,
-            matched(1, How::Number)
-        ]
-    );
+    assert_eq!(al.old, vec![matched(0), Outcome::NotFound, matched(1)]);
     assert!(al.unmatched.is_empty());
 }
 
@@ -291,19 +257,17 @@ fn two_identical_scenes_keep_their_numbers() {
     let text = [scene(Some("1"), "FLUR", A), scene(Some("2"), "FLUR", A)].concat();
     let al = align(&old_of(&text), &parse(&text));
 
-    assert_eq!(
-        al.old,
-        vec![matched(0, How::Number), matched(1, How::Number)]
-    );
+    assert_eq!(al.old, vec![matched(0), matched(1)]);
 }
 
 #[test]
-fn two_identical_scenes_renumbered_are_ambiguous() {
+fn two_identical_scenes_renumbered_keep_their_order() {
     let old = old_of(&[scene(Some("1"), "FLUR", A), scene(Some("2"), "FLUR", A)].concat());
     let new = [scene(Some("8"), "FLUR", A), scene(Some("9"), "FLUR", A)].concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(al.old, vec![Outcome::Ambiguous(vec![0, 1]); 2]);
+    // The scripts are equal around the twins, so their order pairs them.
+    assert_eq!(al.old, vec![matched(0), matched(1)]);
 }
 
 #[test]
@@ -361,14 +325,7 @@ fn a_deleted_twin_heading_does_not_steal_the_number() {
     let new = [scene(Some("1"), "SAAL", A), scene(Some("2"), "KÜCHE", C)].concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(
-        al.old,
-        vec![
-            matched(0, How::Number),
-            Outcome::NotFound,
-            matched(1, How::Content)
-        ]
-    );
+    assert_eq!(al.old, vec![matched(0), Outcome::NotFound, matched(1)]);
     assert!(al.unmatched.is_empty());
 }
 
@@ -378,7 +335,7 @@ fn a_deleted_first_twin_renumbered_is_found_by_content() {
     let new = scene(Some("1"), "KÜCHE", C);
     let al = align(&old, &parse(&new));
 
-    assert_eq!(al.old, vec![Outcome::NotFound, matched(0, How::Content)]);
+    assert_eq!(al.old, vec![Outcome::NotFound, matched(0)]);
 }
 
 #[test]
@@ -439,7 +396,8 @@ fn a_near_twin_is_ambiguous() {
     .concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(al.old, vec![Outcome::Ambiguous(vec![0, 1])]);
+    // The 0.6 scene shares no line that is unique; the 0.8 one is offered, not taken.
+    assert_eq!(al.old, vec![Outcome::Ambiguous(vec![0])]);
 }
 
 #[test]
@@ -454,7 +412,7 @@ fn a_clear_lead_over_the_second_is_a_match() {
     ]
     .concat();
 
-    assert_eq!(align(&old, &parse(&new)).old[0], matched(0, How::Content));
+    assert_eq!(align(&old, &parse(&new)).old[0], matched(0));
 }
 
 #[test]
@@ -463,7 +421,7 @@ fn a_heading_only_scene_matches_by_number_and_heading() {
 
     assert_eq!(
         align(&old_of(text), &parse(text)).old,
-        vec![matched(0, How::Number), matched(1, How::Number)]
+        vec![matched(0), matched(1)]
     );
 }
 
@@ -472,7 +430,7 @@ fn dash_variants_and_spaces_in_headings_are_equal() {
     let old = old_of("INT. SAAL – TAG #1#\n\nEr geht.\n");
     let new = "INT.  SAAL — TAG #1#\n\nEr geht.\n";
 
-    assert_eq!(align(&old, &parse(new)).old, vec![matched(0, How::Number)]);
+    assert_eq!(align(&old, &parse(new)).old, vec![matched(0)]);
 }
 
 fn dialogue(number: &str, head: &str, lines: &[&str]) -> String {
