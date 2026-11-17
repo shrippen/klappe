@@ -110,8 +110,9 @@ fn cut_boneyard(text: &str) -> (String, Vec<usize>) {
 }
 
 /// Cuts `/* ... */` out of the text; an unclosed one runs to the end. An escaped opener
-/// (`/\*`) is no opener and reads as `/*`. Also returns the line of `text` each line of
-/// the result starts on.
+/// (`/\*`) is no opener and reads as `/*`. A `/*` inside a note `[[ ... ]]` on one line
+/// is note text, no opener. Also returns the line of `text` each line of the result
+/// starts on.
 fn strip_boneyard(text: &str) -> (String, Vec<usize>) {
     let mut out = String::with_capacity(text.len());
     let mut origin = vec![0];
@@ -119,6 +120,12 @@ fn strip_boneyard(text: &str) -> (String, Vec<usize>) {
     let mut rest = text;
 
     while let Some(start) = rest.find(BONEYARD_OPEN) {
+        if let Some(end) = note_end(rest, start) {
+            keep(&rest[..end], &mut out, &mut origin, &mut line);
+            rest = &rest[end..];
+            continue;
+        }
+
         keep(&rest[..start], &mut out, &mut origin, &mut line);
         let after = &rest[start + BONEYARD_OPEN.len()..];
         let Some(end) = after.find(BONEYARD_CLOSE) else {
@@ -131,6 +138,30 @@ fn strip_boneyard(text: &str) -> (String, Vec<usize>) {
 
     keep(rest, &mut out, &mut origin, &mut line);
     (escape_openers(&out, Escape::Remove), origin)
+}
+
+/// Where the note ends that holds the opener at `start` of `rest`, if one does. A note
+/// closes on its own line: `[[a /* b]]` is a note, `[[a /* b` is not.
+fn note_end(rest: &str, start: usize) -> Option<usize> {
+    let mut at = 0;
+
+    while let Some(found) = rest[at..start].find(NOTE_OPEN) {
+        let body_at = at + found + NOTE_OPEN.len();
+        let body = &rest[body_at..];
+        let line = body.find('\n').unwrap_or(body.len());
+        let Some(close) = body[..line].find(NOTE_CLOSE) else {
+            at = body_at;
+            continue;
+        };
+
+        let end = body_at + close + NOTE_CLOSE.len();
+        if end > start {
+            return Some(end);
+        }
+        at = end;
+    }
+
+    None
 }
 
 /// Appends text that stays; every line break in it starts a line of the result.

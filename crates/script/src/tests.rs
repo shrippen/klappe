@@ -230,6 +230,19 @@ fn boneyard() {
 }
 
 #[test]
+fn boneyard_opener_in_a_note_is_text() {
+    let found = els("Vorher [[a /* b]] weiter.\n\nZeile zwei.\n\nZeile drei */ ende.");
+    assert_eq!(
+        found,
+        vec![
+            action("Vorher [[a /* b]] weiter."),
+            action("Zeile zwei."),
+            action("Zeile drei */ ende."),
+        ]
+    );
+}
+
+#[test]
 fn windows_line_endings() {
     assert_eq!(
         els("INT. A - TAG\r\n\r\nText.\r\n"),
