@@ -165,9 +165,8 @@ pub fn shots_ods(
     order: ShotOrder,
     lamps: &[Lamp],
     words: &LampTexts,
-) -> Vec<u8> {
-    // A sheet list is far below the limits (4 GiB, 65535 files): the refusal cannot come.
-    ods::write(&sheets(plan, texts, order, lamps, words)).unwrap_or_default()
+) -> Result<Vec<u8>, ExportError> {
+    ods::write(&sheets(plan, texts, order, lamps, words))
 }
 
 /// The plan's shots in `order` as Excel workbook (LH-85), the same as `shots_ods`.
@@ -177,9 +176,8 @@ pub fn shots_xlsx(
     order: ShotOrder,
     lamps: &[Lamp],
     words: &LampTexts,
-) -> Vec<u8> {
-    // As in `shots_ods`.
-    xlsx::write(&sheets(plan, texts, order, lamps, words)).unwrap_or_default()
+) -> Result<Vec<u8>, ExportError> {
+    xlsx::write(&sheets(plan, texts, order, lamps, words))
 }
 
 /// The sheets of a workbook: the shot list, and the lamp list when the plan has lamps.
