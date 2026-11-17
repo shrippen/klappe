@@ -90,6 +90,7 @@ impl Session {
             edit,
         )?;
         self.check_cameras(&next)?;
+        self.check_notes(&next)?;
         self.check_tripods(&next)?;
 
         Ok((next != self.project).then_some(next))

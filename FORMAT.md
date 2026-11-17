@@ -68,7 +68,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   (Name), `width_m`, `depth_m` und `shape`. Dieselbe Struktur hat eine Bibliotheksdatei zum
   Weitergeben (beliebiger Name, `*.toml`). Optional `group` (LH-12): die Gruppe, unter der die
   Auswahlliste den Eintrag zeigt; in der eingebauten Bibliothek ein Schlüssel (`furniture`,
-  `build`, `vehicles`, `nature`, `camera`; Namen im Katalog unter `objectGroup.<group>`), bei
+  `build`, `vehicles`, `nature`, `camera`, `crew`, `props`; Namen im Katalog unter
+  `objectGroup.<group>`), bei
   eigenen Objekten freier Text. Ohne Gruppe steht ein eigenes Objekt unter „Eigene“; der Schlüssel
   fehlt dann in der Datei. Ein eigener Eintrag lässt sich umbenennen (`label`, `group`) und
   löschen; Objekte im Plan behalten `kind`, Maße, Form und Namen, ihr `kind` ist dann wie ein
@@ -88,6 +89,20 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   (eigener Eintrag zuerst, dann eingebaut); `[[set.objects]]` haben kein Feld dafür. Nur
   Rechtecke bekommen eine Bauform, keine Ellipse und keine freie Form. Keine neue
   Formatversion: ältere Fassungen verlieren `form` beim Speichern.
+- **Spiegeln (LH-115):** `[[set.objects]]` haben optional `mirrored` (`true`: links und rechts
+  vertauscht, entlang der eigenen Breite, vor dem Drehen). Fehlt der Schlüssel, gilt `false`;
+  ein nicht gespiegeltes Objekt schreibt ihn nicht, ältere Projekte laden und speichern
+  unverändert. Die Bauform in 3D (LH-97) wird gespiegelt; ein Rechteck und eine Ellipse sehen im
+  Plan gleich aus. Eine freie Form (`polygon`) hat das Feld nicht nötig: Spiegeln kehrt ihre
+  Punkte um (x wird -x, Reihenfolge umgekehrt), `mirrored` bleibt `false`. Keine neue
+  Formatversion (noch kein Release), ältere Fassungen verlieren das Feld beim Speichern.
+- **Art ändern, Maße zurücksetzen (LH-114, LH-116):** keine Felder, nur Bearbeitungen. Eine neue
+  Art (`kind`) behält Mitte, Drehung, Ebene und Unterkante. Breite, Tiefe, Höhe und Name folgen
+  dem neuen Bibliothekseintrag, solange das Objekt noch die des alten Eintrags hat; hat der
+  Nutzer sie geändert (oder kennt keine Bibliothek die alte Art), bleiben sie. Die Form
+  (`shape`) folgt dem neuen Eintrag, außer bei einer freien Form. Eine Art ohne Eintrag und die
+  freie Form (`form`) als Ziel werden abgelehnt. „Maße zurücksetzen“ setzt Breite, Tiefe und
+  Höhe auf die des Eintrags der Art; ohne Eintrag wird es abgelehnt.
 - **Höhe von Objekten (LH-17):** `[[set.objects]]` und `[[objekt]]` der Bibliothek haben optional
   `height_m`, die Höhe in Metern (mindestens 0,05, höchstens 100). Fehlt der Schlüssel, ist keine
   Höhe angegeben (Fläche, Teppich); ein Objekt ohne Höhe schreibt ihn nicht, ältere Projekte
@@ -140,6 +155,29 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   schmaler lädt nicht; fehlt sie, gilt 2,4). Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
+- **Beschriftung an ein Element gebunden (LH-118):** eine Notiz mit `bound`, dem Schlüssel
+  des Elements, dessen Beschriftung sie ist. Ein Objekt gehört dem Drehort: seine Beschriftung
+  ist eine gewöhnliche `[[set.notes]]` mit `bound = "object:<id>"`. Figur und Mark gehören dem
+  Plan: ihre Beschriftungen stehen in `labels` im Floorplan (`szenen/<id>.json`), je Eintrag
+  wie eine Notiz (`id` `t1`, `t2` …, innerhalb des Plans, `at`, `text`, `width_m`) mit `bound` =
+  `figure:<figur>` (die Figur am Abspielkopf) oder `mark:<figur>:<index>` (der Mark mit diesem
+  Index, von 0). Sie leben und sterben mit dem Plan: eine Kopie des Plans kopiert sie, das
+  Löschen des Plans oder der Szene nimmt sie mit; kein Schlüssel nennt Plan oder Szene. Sie
+  werden im Plan, in 3D und in den Ausgaben wie Notizen gezeichnet. `at` bleibt der Ort des
+  Kärtchens. Die Bearbeitung verschiebt es um dieselbe Strecke wie das Element; zieht man die
+  Notiz selbst, bleibt sie gebunden und das Abstandsmaß ändert sich. Fehlt das Element
+  (entfernt) oder ändert sich bei `mark:` die Zahl der Marks der Figur (der Index meint sonst
+  einen anderen Mark), wird die Bindung gelöst, die Notiz bleibt stehen. Eine Kopie (Strg+D)
+  ist ungebunden. Bei gesperrter Ebene Notizen lehnt die Sitzung eine Bearbeitung ab, die eine
+  Notiz oder Beschriftung verschieben oder lösen würde. Ohne Bindung fehlt der Schlüssel, ohne
+  Beschriftungen fehlt `labels`; ein unlesbarer Schlüssel bindet nichts. Laden lehnt eine Beschriftung ab, deren Breite unter
+  0,6 m liegt oder keine Zahl ist, mit doppelter `id` im Plan, mit einer `id`, die nicht mit `t` beginnt, oder mit
+  `bound` ungleich `figure:`/`mark:`. Eine Notiz des Drehorts lädt nicht, wenn ihre `id` nicht mit
+  `n` beginnt oder ihr `bound` nicht `object:<id>` ist. So sind die Ids beider Arten nie gleich,
+  auch wenn eine Szene an einen anderen Drehort zieht (`Source::Note` nennt beide nur mit der
+  `id`). Ältere Projekte laden
+  und speichern unverändert, ältere Fassungen verlieren beides beim Speichern. Keine neue
+  Formatversion (noch kein Release).
 - **Bilder (LH-18):** `[[set.images]]` im Drehort: Fotos und Skizzen, frei auf dem Plan. Je Bild
   `id` (`i1`, `i2` …, innerhalb des Drehorts), `file` (relativ zum Projektordner, die Datei liegt
   in `bilder/`, PNG oder JPEG wie beim Hintergrund), die Mitte `at` in Metern, die Breite

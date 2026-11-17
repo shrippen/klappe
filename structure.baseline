@@ -21,16 +21,16 @@ crates/imagehead/src/lib.rs	jpeg_frame	ccn=22
 crates/script/src/write.rs	render	ccn=16
 crates/services/src/error_text.rs	own_text	ccn=19
 crates/services/src/field.rs	name	ccn=44
-crates/services/src/plan_edit.rs	apply	ccn=38 length=138
+crates/services/src/plan_edit.rs	apply	ccn=37 length=128
 crates/services/src/plan_edit/check.rs	check	ccn=21
-crates/services/src/plan_edit/group.rs	copy	ccn=21 length=82
-crates/services/src/plan_edit/remove.rs	remove	ccn=22
+crates/services/src/plan_edit/group.rs	copy	ccn=20
+crates/services/src/plan_edit/remove.rs	remove	ccn=20
 crates/services/src/plan_edit/target.rs	target	ccn=20 length=87
 crates/services/tests/plan_edit.rs	-	lines=841
 crates/stellprobe/src/display.rs	figure_items	length=83
 crates/stellprobe/src/look.rs	look	ccn=16
 crates/store/src/lib.rs	load	ccn=16
 crates/store/src/lib.rs	save	ccn=19
-crates/store/tests/store.rs	-	lines=989
+crates/store/tests/store.rs	-	lines=972
 crates/store/tests/store.rs	plan	length=131
 crates/tui/src/app.rs	editor_key	ccn=19
