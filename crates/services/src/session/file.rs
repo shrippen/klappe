@@ -5,9 +5,8 @@ use std::path::Path;
 use klappe_model::Project;
 use klappe_store::Loaded;
 
-use super::{check_empty, Autosave, BackupState, Session, View};
+use super::{check_empty, check_title, Autosave, BackupState, Session, View};
 use crate::error::ServiceError;
-use crate::field::Field;
 use crate::plan_edit::{Grid, Snapping};
 
 impl Session {
@@ -58,13 +57,7 @@ impl Session {
 
     /// Creates an empty project titled `title` in `dir` (missing or empty) and opens it.
     pub fn create(dir: &Path, title: &str) -> Result<Self, ServiceError> {
-        let title = title.trim();
-        if title.is_empty() {
-            return Err(ServiceError::BadValue {
-                field: Field::Title,
-                value: String::new(),
-            });
-        }
+        let title = check_title(title)?;
         check_empty(dir)?;
 
         klappe_store::save(dir, &Project::new(title), None)?;
