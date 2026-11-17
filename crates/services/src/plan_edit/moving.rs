@@ -514,10 +514,5 @@ pub(super) fn carry_cameras(
 fn carry(point: Point, delta_m: (f64, f64), centre: Point, deg: f64) -> Point {
     let moved = Point::new(point.x_m + delta_m.0, point.y_m + delta_m.1);
 
-    rotate(moved, centre, deg)
-}
-
-/// `point` turned clockwise on the plan by `deg` about `centre`.
-pub(super) fn rotate(point: Point, centre: Point, deg: f64) -> Point {
-    point.turned(centre, deg)
+    moved.turned(centre, deg)
 }
