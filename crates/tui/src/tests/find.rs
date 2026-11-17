@@ -277,3 +277,22 @@ fn alt_enter_adds_a_line_to_a_title_field() {
     ctrl(&mut app, 'z');
     assert_eq!(app.text(), BOOK);
 }
+
+#[test]
+fn a_long_title_field_scrolls_and_keeps_frame_and_hint() {
+    let (_s, mut app) = app_with(BOOK);
+    ctrl(&mut app, 't');
+    for _ in 0..5 {
+        press(&mut app, KeyCode::Tab);
+    }
+    for i in 0..30 {
+        typed(&mut app, &format!("Zeile{i}"));
+        app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::ALT));
+    }
+    typed(&mut app, "Letzte");
+
+    let frame = screen(&mut app, 100, 24);
+    assert!(frame.contains("Letzte"), "{frame}");
+    assert!(frame.contains(app.texts.title_hint.as_str()), "{frame}");
+    assert!(frame.contains('└'), "{frame}");
+}
