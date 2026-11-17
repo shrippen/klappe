@@ -17,8 +17,9 @@ Item {
     /// The rows (`ShotRow`s with `lens_label`), already in the order to show.
     property var shots: []
     property string selectedId: ""
-    // `shotImage(id, widthPx, paletteJson)` and `pictureRevision`: the views are made again when
-    // the revision, the width or the theme changes. Without a controller the stage stays empty.
+    // `shotImage(id, widthPx, paletteJson)` and `projectJson`: a tile's view depends on the
+    // project (plan, shot start), its width and the theme, not on the selection or the playhead,
+    // so only a change of those makes it again. Without a controller the stage stays empty.
     property var controller: null
     // The element that shows an image (`show(image)`); a Rust type the tests do not have.
     property url surfaceSource: Qt.resolvedUrl("CameraSurface.qml")
@@ -27,21 +28,65 @@ Item {
 
     readonly property bool canPaint: controller !== null && typeof controller.shotImage === "function"
     readonly property string paletteJson: colors.json
-    // Counts the changes; a tile makes its view again when it shows an earlier round.
+    readonly property int interval: 120
+    // Counts the changes; a tile is out of date when it shows an earlier round.
     property int round: 0
+    // Counts the views made, to tell which tile was painted longest ago.
+    property int made: 0
 
-    // A change repaints the tiles with the next tick, however many changes come before it.
+    // One tick: the view of the tile on screen that is out of date and was painted longest
+    // ago, then the next tick while another is out of date. A view costs a few milliseconds
+    // (`make perf`), so ten tiles do not stall one frame (NF-05).
+    function step() {
+        if (!canPaint || !visible) {
+            return
+        }
+        let next = null
+        let stale = 0
+        for (let i = 0; i < items.count; i++) {
+            const item = items.itemAt(i)
+            if (!item || !item.stale) {
+                continue
+            }
+            stale++
+            if (next === null || item.paintedAt < next.paintedAt) {
+                next = item
+            }
+        }
+        if (next !== null) {
+            next.paint()
+        }
+        if (stale > 1) {
+            pause.restart()
+        }
+    }
+
+    // A change repaints the tiles on screen with the next tick, however many changes come before.
+    function kick() {
+        if (!pause.running) {
+            pause.start()
+        }
+    }
+
     function refresh() {
         round++
+        kick()
+    }
+
+    onPaletteJsonChanged: refresh()
+    onVisibleChanged: kick()
+
+    Timer {
+        id: pause
+        interval: tiles.interval
+        onTriggered: tiles.step()
     }
 
     ViewPalette { id: colors }
 
-    onPaletteJsonChanged: refresh()
-
     Connections {
         target: tiles.canPaint ? tiles.controller : null
-        function onPictureRevisionChanged() {
+        function onProjectJsonChanged() {
             tiles.refresh()
         }
     }
@@ -65,6 +110,7 @@ Item {
             spacing: tiles.gap
 
             Repeater {
+                id: items
                 model: tiles.shots
 
                 delegate: KanteTile {
@@ -87,30 +133,30 @@ Item {
                     // without marks), until a storyboard picture takes the stage.
                     readonly property bool wantsView: tiles.canPaint && tiles.visible && !modelData.image_url
 
+                    readonly property int px: Math.max(1, Math.round(width * Screen.devicePixelRatio))
+                    // On screen: its rows meet the part of the list the scroll view shows.
+                    readonly property real scrolled: scroll.contentItem.contentY
+                    readonly property bool inView: y + height > scrolled && y < scrolled + scroll.height
+                    property int shownRound: -1
+                    property int shownPx: 0
+                    property int paintedAt: 0
+                    readonly property bool stale: wantsView && inView && width > 0
+                                                  && surface.item !== null
+                                                  && (shownRound !== tiles.round || shownPx !== px)
+
                     function paint() {
-                        if (!wantsView || width <= 0 || surface.item === null) {
+                        if (!stale) {
                             return
                         }
-                        const px = Math.max(1, Math.round(width * Screen.devicePixelRatio))
-                        const image = tiles.controller.shotImage(modelData.id, px, tiles.paletteJson)
-                        surface.item.show(image)
+                        surface.item.show(tiles.controller.shotImage(modelData.id, px, tiles.paletteJson))
+                        shownRound = tiles.round
+                        shownPx = px
+                        paintedAt = ++tiles.made
                     }
 
-                    onWantsViewChanged: if (wantsView) { paintLater.restart() }
-                    onWidthChanged: paintLater.restart()
-                    Component.onCompleted: paintLater.restart()
-
-                    Connections {
-                        target: tiles
-                        function onRoundChanged() {
-                            paintLater.restart()
-                        }
-                    }
-                    Timer {
-                        id: paintLater
-                        interval: 120
-                        onTriggered: tile.paint()
-                    }
+                    // A tile that comes into view, grows or shows the view again gets its
+                    // picture with the next tick.
+                    onStaleChanged: if (stale) { tiles.kick() }
 
                     Loader {
                         id: surface
@@ -118,7 +164,6 @@ Item {
                         anchors.fill: parent
                         active: tile.wantsView
                         source: tiles.surfaceSource
-                        onLoaded: tile.paint()
                     }
 
                     Row {
