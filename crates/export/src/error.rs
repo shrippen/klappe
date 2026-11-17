@@ -14,4 +14,10 @@ pub enum ExportError {
     /// A ZIP archive of 4 GiB or more, or of more than 65535 files: the format's plain limits.
     #[error("too big for a ZIP archive")]
     ZipTooBig,
+    /// The program that writes the video is not installed (LH-84).
+    #[error("{0} not found")]
+    NoVideoProgram(String),
+    /// The video program failed or could not be fed; its own message.
+    #[error("video: {0}")]
+    Video(String),
 }

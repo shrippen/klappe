@@ -354,6 +354,22 @@ TestCase {
                              ["exportTo", "camera", "cut", "a4-landscape", "file:///work/Wartburg-camera.png"]])
     }
 
+    // LH-84: the video asks for the file only and is in the palette.
+    function test_the_video_export_is_in_the_menu() {
+        const header = make()
+        const dialog = findChild(header, "exportDialog")
+
+        verify(entry(header, "exportMenu", "video").enabled)
+        pick(header, "exportMenu", "video")
+        compare(dialog.kind, "mp4")
+        verify(!dialog.opened)
+        verify(header.commandPalette.commands.some(c => c.id === "export.mp4"))
+
+        dialog.save("file:///work/Wartburg.mp4")
+
+        compare(fake.calls, [["exportTo", "mp4", "cut", "a4-landscape", "file:///work/Wartburg.mp4"]])
+    }
+
     function test_the_exports_use_the_shot_order() {
         const header = make()
         const dialog = findChild(header, "exportDialog")
@@ -622,6 +638,7 @@ TestCase {
                            "menu.ods", "menu.xlsx", "menu.frames", "export.pick.frames",
                            "menu.view3d", "menu.camera", "export.pick.view3d", "export.pick.camera",
                            "export.filter.view3d", "export.filter.camera",
+                           "menu.mp4", "export.pick.mp4", "export.filter.mp4",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
                            "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",

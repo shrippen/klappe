@@ -170,6 +170,7 @@ RowLayout {
         KanteMenuItem { objectName: "frames"; action: exportCommands.frames; iconRoom: true }
         KanteMenuItem { objectName: "view3d"; action: exportCommands.view3d; iconRoom: true }
         KanteMenuItem { objectName: "camera"; action: exportCommands.camera; iconRoom: true }
+        KanteMenuItem { objectName: "video"; action: exportCommands.video; iconRoom: true }
         QQC2.MenuSeparator {}
         KanteMenuItem { objectName: "shotPages"; action: pageExports.shotPages; iconRoom: true }
         KanteMenuItem { objectName: "cameraPages"; action: pageExports.cameraPages; iconRoom: true }

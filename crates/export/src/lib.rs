@@ -37,6 +37,7 @@ mod stroke;
 mod style;
 mod svg;
 mod table;
+mod video;
 mod xlsx;
 mod zip;
 
@@ -50,6 +51,7 @@ pub use page::{
 };
 pub use palette::Theme;
 pub use script::{Face, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
+pub use video::{video_program_found, VideoSpec, VideoWriter, FFMPEG};
 
 /// The plan on one page as SVG.
 pub fn svg(list: &DisplayList, page: &Page, theme: Theme) -> Result<String, ExportError> {
@@ -85,6 +87,25 @@ pub fn png(list: &DisplayList, page: &Page, theme: Theme) -> Result<Vec<u8>, Exp
         &surface.pixels,
         raster::RESOLUTION_DPI,
     ))
+}
+
+/// One picture as raw pixels: RGB, row by row, `3 * width * height` bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Frame {
+    pub width: u32,
+    pub height: u32,
+    pub pixels: Vec<u8>,
+}
+
+/// The plan on one page as pixels, as `png` draws it, for a video (LH-84).
+pub fn frame(list: &DisplayList, page: &Page, theme: Theme) -> Result<Frame, ExportError> {
+    let surface = raster::render(&layout::compose(list, page, theme)?)?;
+
+    Ok(Frame {
+        width: surface.width,
+        height: surface.height,
+        pixels: surface.pixels,
+    })
 }
 
 /// The plan as PDF 1.4, followed by the plan's shot list on sheets of the page's paper and orientation (LH-80), in

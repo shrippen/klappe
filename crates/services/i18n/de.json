@@ -969,5 +969,14 @@
  "step.SetNumbering": "Nummernschema ändern",
  "step.NameShot": "Shot benennen",
  "step.ShotImage": "Shot-Bild",
- "step.ShotStill": "Standbild als Shot-Bild"
+ "step.ShotStill": "Standbild als Shot-Bild",
+ "menu.mp4": "Wiedergabe als Video (MP4)",
+ "menu.mp4Saved": "Video gespeichert: {path}",
+ "menu.mp4Started": "Video wird geschrieben …",
+ "menu.mp4Progress": "Video wird geschrieben: {percent} %",
+ "export.pick.mp4": "Video speichern",
+ "export.filter.mp4": "MP4 (*.mp4)",
+ "error.noFfmpeg": "Für das Video fehlt ffmpeg. Bitte ffmpeg installieren (es muss im Suchpfad liegen); es wurde nichts geschrieben.",
+ "error.video": "Das Video konnte nicht geschrieben werden: {detail}",
+ "error.noDuration": "Der Plan hat keine Dauer, also kein Video."
 }
