@@ -270,15 +270,15 @@ fn check_rules(seed: u64, rounds: usize, lines: Option<usize>) {
             }
 
             // (MORE) ends a page and the next page opens with the name again, and back.
-            let has_more = ends == [PageKind::More];
+            let has_more = !ends.is_empty() && ends.iter().all(|k| *k == PageKind::More);
             let next_contd = p.pages.get(n + 1).is_some_and(|q| q.lines[0].added);
-            assert_eq!(has_more, next_contd, "page {}: {ctx}", n + 1);
+            assert_eq!(has_more, next_contd, "more {has_more} contd {next_contd} page {}: {ctx}", n + 1);
             assert!(
                 page.lines
                     .iter()
                     .filter(|l| l.kind == PageKind::More)
                     .count()
-                    <= 1,
+                    <= 2,
                 "{ctx}"
             );
         }

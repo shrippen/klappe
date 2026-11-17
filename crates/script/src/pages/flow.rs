@@ -124,12 +124,14 @@ fn plan(sim: &mut Sim, o: &PageOptions, mut block: Block, out: &mut Vec<Step>) {
             continue;
         }
 
+        // A dialogue cut at a row also gets `(MORE)` below and its name(s) again above.
+        let extra = usize::from(cue_row(&rows).is_some());
         let tall = rows.len() > o.body_lines;
         let fresh = block.split(o.body_lines, o.words).is_some();
         // A block that cannot start here is cut at a row if it is taller than a page and
         // would not be cut on a fresh page either, or if headings would be left alone on a page.
         let wanted = (tall && !fresh) || (sim.last_heading && sim.only_headings);
-        let here = wanted && room >= MIN_SPLIT_ROWS && rows.len() >= 2 * MIN_SPLIT_ROWS;
+        let here = wanted && room >= MIN_SPLIT_ROWS + extra && rows.len() >= 2 * MIN_SPLIT_ROWS;
         if !at_top && !here {
             sim.end_page(out);
             continue;
@@ -137,13 +139,50 @@ fn plan(sim: &mut Sim, o: &PageOptions, mut block: Block, out: &mut Vec<Step>) {
 
         // Cut at a row, both parts keeping `MIN_SPLIT_ROWS`.
         let take = if at_top { o.body_lines } else { room };
-        let take = take.min(rows.len().saturating_sub(MIN_SPLIT_ROWS));
-        let mut rows = rows;
-        let rest = rows.split_off(take);
-        sim.put(out, &block, before, rows);
+        let take = take.saturating_sub(extra);
+        let take = take.min(rows.len().saturating_sub(MIN_SPLIT_ROWS)).max(1);
+        let mut first = rows.clone();
+        let mut rest = first.split_off(take);
+        if let Some(cues) = cue_row(&rows) {
+            first.push(marked(cues, PageKind::More, &format!("({})", o.words.more)));
+            rest.insert(0, marked(cues, PageKind::Character, o.words.contd));
+        }
+        sim.put(out, &block, before, first);
         sim.end_page(out);
         block = Block::from_rows(rest);
     }
+}
+
+/// The name row of a dialogue: its first row, if it holds a name (two for a dual dialogue).
+fn cue_row(rows: &[Vec<Line>]) -> Option<&Vec<Line>> {
+    rows.first()
+        .filter(|r| r.iter().any(|l| l.kind == PageKind::Character))
+}
+
+/// A row from the names of `cues`: `(MORE)` under each, or the name again with `(CONT'D)`.
+fn marked(cues: &[Line], kind: PageKind, word: &str) -> Vec<Line> {
+    cues.iter()
+        .filter(|c| c.kind == PageKind::Character)
+        .map(|c| {
+            let mut text = c.text.clone();
+            let mark = format!(" ({word})");
+            if kind == PageKind::Character && !text.ends_with(&mark) {
+                text.push_str(&mark);
+            }
+            if kind == PageKind::More {
+                text = word.to_owned();
+            }
+
+            Line {
+                text,
+                kind,
+                offset: 0,
+                number: None,
+                added: true,
+                ..c.clone()
+            }
+        })
+        .collect()
 }
 
 struct Flow<'a> {

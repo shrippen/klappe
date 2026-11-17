@@ -294,7 +294,12 @@ fn a_block_taller_than_a_page_is_cut_at_rows() {
     let p = lay(&format!("ANNA\nx\n\nBEN ^\n{words}\n"), 5);
 
     assert!(p.pages.len() >= 3);
-    let total: usize = p.pages.iter().map(|pg| pg.lines.len()).sum();
+    let total: usize = p
+        .pages
+        .iter()
+        .flat_map(|pg| &pg.lines)
+        .filter(|l| !l.added)
+        .count();
     assert_eq!(total, 1 + 1 + 1 + 12);
 }
 
