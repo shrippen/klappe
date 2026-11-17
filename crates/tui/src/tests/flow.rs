@@ -392,12 +392,27 @@ fn the_line_after_a_transition_is_no_heading_until_it_is_one() {
 }
 
 #[test]
-fn a_typed_prefix_keeps_the_line_a_heading() {
+fn a_typed_prefix_keeps_the_line_a_heading_and_is_capitalised_when_complete() {
     let (_s, mut app) = app_with("x\n\n");
     typed(&mut app, "CUT TO:");
     press(&mut app, KeyCode::Enter);
     typed(&mut app, "in");
 
+    // Only possibly a prefix: shown as the heading to come, typed as it is.
     assert_eq!(app.analysis.kind(app.cursor().line), LineKind::Heading);
-    assert_eq!(app.text(), "x\n\nCUT TO:\n\nIN");
+    assert_eq!(app.text(), "x\n\nCUT TO:\n\nin");
+
+    typed(&mut app, "t. küche");
+    assert_eq!(app.text(), "x\n\nCUT TO:\n\nINT. KÜCHE");
+}
+
+#[test]
+fn prose_that_starts_like_a_prefix_stays_as_typed() {
+    let (_s, mut app) = app_with("x\n\n");
+    typed(&mut app, "CUT TO:");
+    press(&mut app, KeyCode::Enter);
+    typed(&mut app, "In der Küche");
+
+    assert_eq!(app.text(), "x\n\nCUT TO:\n\nIn der Küche");
+    assert_eq!(app.analysis.kind(app.cursor().line), LineKind::Action);
 }

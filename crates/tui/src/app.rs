@@ -7,7 +7,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, Mou
 
 use crate::buffer::Pos;
 use crate::editor::Editor;
-use crate::fountain::{analyse, typed_caps, Analysis};
+use crate::fountain::{analyse, typed_caps, Analysis, LineKind};
 use crate::i18n::{Language, Texts};
 use crate::layout::Layout;
 use crate::links::Links;
@@ -501,7 +501,8 @@ impl App {
 
         self.editor.type_char(c);
 
-        let pending = self.pending_kind(line);
+        // A pending heading is capitalised once it is one (`INT.`), not while it may be prose.
+        let pending = self.pending_kind(line).filter(|k| *k != LineKind::Heading);
         let Some(caps) = typed_caps(self.editor.lines(), line, pending) else {
             return;
         };
