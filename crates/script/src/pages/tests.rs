@@ -383,3 +383,84 @@ fn a_number_before_a_full_stop_still_ends_the_sentence() {
 
     assert_eq!(sentence_starts(text), [17]);
 }
+
+/// Whether a heading is the last thing on a page that another page follows; at the very end
+/// of the script it may be.
+fn heading_ends_a_page(p: &Pagination) -> bool {
+    let followed = p.pages.len().saturating_sub(1);
+
+    p.pages.iter().take(followed).any(|page| {
+        let last = page.lines.iter().map(|l| l.row).max();
+        page.lines
+            .iter()
+            .any(|l| Some(l.row) == last && l.kind == PageKind::Heading)
+    })
+}
+
+#[test]
+fn a_heading_starts_the_block_taller_than_a_page_under_it() {
+    let items: Vec<String> = (0..70).map(|i| format!("item {i}")).collect();
+    let p = heading_before(&items.join("\n"));
+
+    assert!(heading_is_on_page(&p, 1));
+    assert!(!heading_ends_a_page(&p));
+    assert!(p.pages[0].lines.iter().any(|l| l.text == "item 0"));
+}
+
+#[test]
+fn a_heading_before_an_empty_scene_does_not_end_a_page() {
+    let p = heading_before("INT. EMPTY - DAY\n\nText after it.");
+
+    assert!(!heading_ends_a_page(&p));
+    assert!(!heading_is_on_page(&p, 1));
+}
+
+/// Every kind of block after a heading, with the heading at every row near the page end:
+/// the heading is never the last thing on a page.
+#[test]
+fn a_heading_is_never_last_on_a_page() {
+    let tall: Vec<String> = (0..70).map(|i| format!("item {i}")).collect();
+    let nexts = [
+        "One sentence\nover\nfour\nrows".to_string(),
+        "A. B. C. D. E.\nF.".to_string(),
+        "ANNA\nOne\ntwo\nthree\nfour".to_string(),
+        "ANNA\nOne.\nTwo.\nThree.".to_string(),
+        "ANNA\nOne\ntwo\nthree\nfour\n\nBEN ^\nFive".to_string(),
+        "ANNA\n(softly)\nOne".to_string(),
+        "INT. EMPTY - DAY".to_string(),
+        "INT. EMPTY - DAY\n\nText after it.".to_string(),
+        "CUT TO:".to_string(),
+        ">CENTRED<".to_string(),
+        "~Sing the\n~song".to_string(),
+        "Short.".to_string(),
+        tall.join("\n"),
+    ];
+
+    for next in &nexts {
+        for filler in 30..59 {
+            let rows: Vec<String> = (0..filler).map(|i| format!("Filler {i}.")).collect();
+            let text = format!("{}\n\nINT. NEXT - DAY\n\n{next}\n", rows.join("\n"));
+            let p = lay(&text, PageSize::A4.body_lines());
+
+            assert!(!heading_ends_a_page(&p), "{filler} rows, then {next:?}");
+        }
+    }
+}
+
+#[test]
+fn a_date_and_a_quoted_abbreviation_do_not_end_a_sentence() {
+    use super::block::sentence_starts;
+
+    let text =
+        "Er rief „Dr. Meyer kam. Dann ging er am 3. Mai heim. Am 12. Mai nicht. (Mr. Lee) blieb.";
+    let starts: Vec<&str> = sentence_starts(text).iter().map(|&i| &text[i..]).collect();
+
+    assert_eq!(
+        starts,
+        [
+            "Dann ging er am 3. Mai heim. Am 12. Mai nicht. (Mr. Lee) blieb.",
+            "Am 12. Mai nicht. (Mr. Lee) blieb.",
+            "(Mr. Lee) blieb."
+        ]
+    );
+}
