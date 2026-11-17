@@ -166,7 +166,8 @@ impl qobject::Controller {
         }
 
         // The copies are what the plan shows anew; they are selected.
-        let copies = selection::added(&before, &self.rust().shown_sources());
+        let after = self.rust().shown_sources();
+        let copies = selection::copied(&self.rust().selected, &before, &after);
         self.as_mut().rust_mut().get_mut().selected = copies;
         self.refresh();
         true
@@ -290,7 +291,7 @@ mod tests {
 
         let figure = info(&[Source::Figure("elisabeth".into())]);
         assert_eq!(figure["layer"], "figures");
-        assert_eq!(figure["duplicate"], false);
+        assert_eq!(figure["duplicate"], true);
         assert_eq!(figure["nextMark"], true);
         assert_eq!(figure["axisTo"], true);
         assert_eq!(camera["axisTo"], false);

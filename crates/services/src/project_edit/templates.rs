@@ -2,8 +2,8 @@
 //! placeholder stands for (LH-07).
 
 use klappe_model::{
-    Camera, CameraMark, FigureColor, FigureTrack, FloorPlan, Mark, Point, Project, Template,
-    TemplateFigure,
+    Camera, CameraMark, Character, FigureColor, FigureTrack, FloorPlan, Mark, Point, Project,
+    Template, TemplateFigure,
 };
 use klappe_store::{builtin_templates, check_template};
 
@@ -77,7 +77,7 @@ pub(crate) fn place(
         let character = match free {
             Some(character) => character.id.clone(),
             None => {
-                let name = free_name(project, &figure.slot);
+                let name = free_name(&project.characters, &figure.slot);
                 new_character(project, &name)?
             }
         };
@@ -163,10 +163,9 @@ fn moved_camera(mark: &CameraMark, by: Point) -> CameraMark {
 
 /// `base`, or `base 2`, `base 3` … when a character has that name; compared in capitals, as
 /// the cues are.
-fn free_name(project: &Project, base: &str) -> String {
+pub(super) fn free_name(characters: &[Character], base: &str) -> String {
     let taken = |name: &str| {
-        project
-            .characters
+        characters
             .iter()
             .any(|c| c.name.to_uppercase() == name.to_uppercase())
     };
