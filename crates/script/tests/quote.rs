@@ -202,3 +202,13 @@ fn a_dialogue_appended_at_the_scene_end_is_ambiguous() {
 
     assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![1, 5]));
 }
+
+#[test]
+fn swapped_exchanges_are_not_guessed_by_order() {
+    // Round 2: two exchanges swapped; the "Ja." lines are equal, only the neighbours differ.
+    let old = "ANNA\nJa.\n\nBEN\nNein.\n\nANNA\nJa.\n\nBEN\nDoch.\n";
+    let new = "ANNA\nJa.\n\nBEN\nDoch.\n\nANNA\nJa.\n\nBEN\nNein.\n";
+    let q = quote_at(&scene(old), 1).unwrap();
+
+    assert_eq!(find_quote(&scene(new), &q), Found::Ambiguous(vec![1, 5]));
+}

@@ -474,3 +474,62 @@ fn dash_variants_and_spaces_in_headings_are_equal() {
 
     assert_eq!(align(&old, &parse(new)).old, vec![matched(0, How::Number)]);
 }
+
+fn dialogue(number: &str, head: &str, lines: &[&str]) -> String {
+    let lines: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+    let mut s = format!("INT. {head} – TAG #{number}#\n\n");
+    for (i, l) in lines.iter().enumerate() {
+        let who = if i % 2 == 0 { "ANNA" } else { "BEN" };
+        s.push_str(&format!("{who}\n{l}\n\n"));
+    }
+    s
+}
+
+#[test]
+fn a_cue_only_overlap_does_not_beat_the_content() {
+    // Round 2: ANNA/BEN scene with the same heading inserted before; the original was
+    // rewritten. The cue lines alone must not make the inserted scene the match.
+    let old = old_of(
+        &[
+            scene(Some("1"), "SAAL", A),
+            dialogue("2", "KÜCHE", &["Eins.", "Zwei.", "Drei.", "Vier."]),
+        ]
+        .concat(),
+    );
+    let new = [
+        scene(Some("1"), "SAAL", A),
+        dialogue(
+            "2",
+            "KÜCHE",
+            &["Neu eins.", "Neu zwei.", "Neu drei.", "Neu vier."],
+        ),
+        dialogue("3", "KÜCHE", &["Fünf.", "Sechs.", "Sieben.", "Acht."]),
+    ]
+    .concat();
+    let al = align(&old, &parse(&new));
+
+    assert!(
+        !matches!(al.old[1], Outcome::Matched { .. }),
+        "{:?}",
+        al.old
+    );
+}
+
+#[test]
+fn twins_with_a_scene_inserted_before_are_not_guessed() {
+    // Round 2: two equal scenes, one scene inserted before (scores 1.4 against 1.1).
+    let old = old_of(&[scene(Some("1"), "AUTO X", A), scene(Some("2"), "AUTO X", A)].concat());
+    let new = [
+        scene(Some("1"), "NEU", "Delta"),
+        scene(Some("2"), "AUTO X", A),
+        scene(Some("3"), "AUTO X", A),
+    ]
+    .concat();
+    let al = align(&old, &parse(&new));
+
+    assert!(
+        al.old.iter().all(|o| !matches!(o, Outcome::Matched { .. })),
+        "{:?}",
+        al.old
+    );
+}
