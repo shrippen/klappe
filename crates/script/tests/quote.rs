@@ -123,13 +123,15 @@ fn a_line_of_another_kind_is_no_candidate() {
 }
 
 #[test]
-fn equal_lines_inserted_before_do_not_shift_the_occurrence() {
+fn equal_lines_inserted_before_the_last_line_are_ambiguous() {
     // Review: ANNA "Ja." and BEN inserted before; the old second "Ja." is now the third.
     let old = "ANNA\nJa.\n\nBEN\nNein.\n\nANNA\nJa.\n";
     let q = quote_at(&scene(old), 5).unwrap();
     let new = scene(&format!("ANNA\nJa.\n\nBEN\nHm.\n\n{old}"));
 
-    assert_eq!(find_quote(&new, &q), Found::At(9));
+    // The line at the scene's end looks the same whether pairs were added before or
+    // after it: no pick.
+    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![1, 5, 9]));
 }
 
 #[test]
@@ -172,4 +174,31 @@ fn dash_variants_and_spaces_in_a_line_are_equal() {
         find_quote(&scene("Er  wartet — lange.\n"), &q),
         Found::At(0)
     );
+}
+
+#[test]
+fn an_equal_line_appended_right_behind_the_anchor_is_ambiguous() {
+    // The anchor was the last line; the neighbours of both lines are then partly equal lines.
+    let q = quote_at(&scene("Tür.\n\nEs klopft.\n"), 1).unwrap();
+    let new = scene("Tür.\n\nEs klopft.\n\nEs klopft.\n");
+
+    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![1, 2]));
+}
+
+#[test]
+fn an_equal_line_inserted_right_before_the_anchor_is_ambiguous() {
+    let q = quote_at(&scene("Es klopft.\n\nTür.\n"), 0).unwrap();
+    let new = scene("Es klopft.\n\nEs klopft.\n\nTür.\n");
+
+    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![0, 1]));
+}
+
+#[test]
+fn a_dialogue_appended_at_the_scene_end_is_ambiguous() {
+    // The anchor is the only "Ja."; an equal one follows at the end. Both have the cue
+    // above and the scene's edge below.
+    let q = quote_at(&scene("ANNA\nJa.\n"), 1).unwrap();
+    let new = scene("ANNA\nJa.\n\nBEN\nHm.\n\nANNA\nJa.\n");
+
+    assert_eq!(find_quote(&new, &q), Found::Ambiguous(vec![1, 5]));
 }
