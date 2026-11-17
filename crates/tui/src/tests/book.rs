@@ -121,7 +121,7 @@ fn an_unsaved_book_is_saved_before_questions_are_answered() {
     assert_eq!(app.mode, Mode::Normal, "no question on an unsaved book");
     let register = fs::read_to_string(scratch.dir.join("szenen.toml")).unwrap_or_default();
     assert!(!register.contains("GARTEN"), "{register}");
-    let frame = screen(&mut app, 140, 24);
+    let frame = screen(&mut app, 100, 24);
     assert!(frame.contains("Save first"), "{frame}");
 }
 
