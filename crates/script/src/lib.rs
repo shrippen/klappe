@@ -19,7 +19,10 @@ mod title;
 mod write;
 
 pub use align::{align, heading_print, scene_states, Alignment, Fingerprint, Outcome, SceneState};
-pub use assist::{suggest, Context, Gap, Slot, Stage, Suggestions, Vocabulary};
+pub use assist::{
+    enter_step, suggest, tab_step, Context, EnterStep, Gap, Slot, Stage, Suggestions, TabStep,
+    Vocabulary,
+};
 pub use conflict::conflict_line;
 pub use inline::{inline_runs, Marks, Run};
 pub use outline::{move_entry, outline, outline_of, visible, Entry, EntryKind, Moved, Way};
