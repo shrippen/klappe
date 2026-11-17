@@ -24,6 +24,8 @@ QtObject {
     property bool noteBound: false
     function describe(key) { return JSON.stringify({ kind: "note", bound: noteBound }) }
     function changeSelected(what, arg) { return call("changeSelected", [what, arg]) }
+    // What the bridge offers a label for: an object, a figure or a mark, not the grip of one.
+    function menuInfo() { return JSON.stringify({ label: /^(object|figure|mark):/.test(selectedKey) }) }
     function labelSelected() { return call("labelSelected", []) }
     property var calls: []
     property var scenes: [

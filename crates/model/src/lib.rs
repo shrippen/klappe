@@ -23,6 +23,7 @@
 //! (`_mm`), kelvin (`_k`), watts (`_w`). The plan's origin is its top left corner, x to the right,
 //! y downwards (as drawn); 0° faces right (+x), angles grow clockwise on screen.
 
+mod binding;
 mod camera_color;
 mod camera_preset;
 mod curve;
@@ -42,6 +43,7 @@ mod shot;
 mod sketch;
 mod template;
 
+pub use binding::Binding;
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use curve::Curve;
 pub use drawing_style::{Dash, Fill};

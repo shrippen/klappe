@@ -16,8 +16,11 @@ QtObject {
 
     readonly property string selectedKey: controller.selectedKey || ""
     readonly property bool objectSelected: selectedKey.indexOf("object:") === 0
-    // An object, a figure or a mark: not the grip of one (`objectgrip:`, `figurevia:`).
-    readonly property bool labellable: /^(object|figure|mark):/.test(selectedKey)
+    // What the bridge offers a label for (`menuInfo`): an object, a figure or a mark, not the
+    // grip of one. Asked again only when the selection changes: the answer depends on its
+    // kind, and `menuInfo` is costly (it tries every edit of the menu).
+    readonly property bool labellable: selectedKey !== ""
+        && JSON.parse(controller.menuInfo()).label === true
     // A note bound to an element; every edit raises the picture revision.
     readonly property bool noteBound: {
         controller.pictureRevision

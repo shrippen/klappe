@@ -16,7 +16,7 @@
 //! plan, so their labels live in it and go with it (a copy of the plan, a deleted plan or
 //! scene): no key names a plan or a scene.
 
-use klappe_model::{FloorPlan, Note, Point, Project, SetPlan, NOTE_WIDTH_M};
+use klappe_model::{Binding, FloorPlan, Note, Point, Project, SetPlan, NOTE_WIDTH_M};
 use klappe_stellprobe::{figure_at, set_at, Source};
 
 use super::add::{free_id, note_text};
@@ -44,63 +44,39 @@ pub(super) struct Held {
     anchor: Option<Anchor>,
 }
 
-/// What a bound note is bound to.
-enum Target<'a> {
-    Object(&'a str),
-    Figure(&'a str),
-    Mark { character: &'a str, index: usize },
-}
-
-impl<'a> Target<'a> {
-    /// Reads `object:<id>`, `figure:<character>` or `mark:<character>:<index>`.
-    fn parse(key: &'a str) -> Option<Self> {
-        let (kind, rest) = key.split_once(':')?;
-
-        match kind {
-            "object" => Some(Self::Object(rest)),
-            "figure" => Some(Self::Figure(rest)),
-            "mark" => {
-                let (character, index) = rest.rsplit_once(':')?;
-                Some(Self::Mark {
-                    character,
-                    index: index.parse().ok()?,
-                })
-            }
-            _ => None,
-        }
-    }
-}
-
-/// The key a note keeps for `source`; `None` for what cannot be labelled.
-fn key_of(source: &Source) -> Option<String> {
+/// The binding a note keeps for `source`; `None` for what cannot be labelled.
+fn binding_of(source: &Source) -> Option<Binding> {
     match source {
-        Source::Object(id) => Some(format!("object:{id}")),
-        Source::Figure(character) => Some(format!("figure:{character}")),
-        Source::Mark { character, index } => Some(format!("mark:{character}:{index}")),
+        Source::Object(id) => Some(Binding::Object(id.clone())),
+        Source::Figure(character) => Some(Binding::Figure(character.clone())),
+        Source::Mark { character, index } => Some(Binding::Mark {
+            character: character.clone(),
+            index: *index,
+        }),
         _ => None,
     }
 }
 
 fn anchor(set: &SetPlan, plan: &FloorPlan, time_s: f64, key: &str) -> Option<Anchor> {
-    match Target::parse(key)? {
-        Target::Object(id) => {
+    match Binding::parse(key)? {
+        Binding::Object(id) => {
             // Where the object stands at the playhead, not where the set puts it.
             let set = set_at(set, plan, time_s);
-            let object = set.objects.iter().find(|o| o.id == id)?;
+            let object = set.objects.iter().find(|o| o.id == *id)?;
             Some(Anchor {
                 at: object.at,
                 marks: 0,
             })
         }
-        Target::Figure(character) => {
-            let track = plan.figures.iter().find(|f| f.character == character)?;
+        Binding::Figure(character) => {
+            let track = plan.figures.iter().find(|f| f.character == *character)?;
             Some(Anchor {
                 at: figure_at(track, time_s)?.at,
                 marks: 0,
             })
         }
-        Target::Mark { character, index } => {
-            let track = plan.figures.iter().find(|f| f.character == character)?;
+        Binding::Mark { character, index } => {
+            let track = plan.figures.iter().find(|f| f.character == *character)?;
             let mark = track.marks.get(index)?;
             Some(Anchor {
                 at: mark.at,
@@ -272,7 +248,7 @@ pub(super) fn add_label(
     text: &str,
 ) -> Result<(), ServiceError> {
     let text = note_text(text)?;
-    let key = key_of(source).ok_or_else(bad_source)?;
+    let key = binding_of(source).ok_or_else(bad_source)?.key();
     let set = scope
         .set
         .as_deref_mut()
