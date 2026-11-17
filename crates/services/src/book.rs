@@ -318,7 +318,7 @@ impl Plan {
                 .collect();
             twins.retain(|n| !self.matched().contains(n));
             // An entry outside the group that may be one of the twins (its scene was
-            // rewritten into their text, or it never met the book and agrees in number or
+            // rewritten into their text, or it never met the book and agrees in number and
             // heading) leaves the order no say: all of them are asked.
             if self.claimed_outside(&entries, &twins) || self.first_may_be(project, first, &twins) {
                 continue;
@@ -338,14 +338,15 @@ impl Plan {
         self.settle();
     }
 
-    /// Whether an entry that never met a book (`first_run` comes later) agrees in number or
-    /// heading with one of `twins`, so that it would be a candidate for it there.
+    /// Whether an entry that never met a book (`first_run` comes later) could take one of
+    /// `twins` silently there: same number and heading, and not refused.
     fn first_may_be(&self, project: &Project, first: &[usize], twins: &[usize]) -> bool {
         first.iter().any(|&e| {
             let scene = &project.scenes[e];
-            twins
-                .iter()
-                .any(|&n| same_number(scene, &self.book[n]) || same_heading(scene, &self.book[n]))
+            twins.iter().any(|&n| {
+                let twin = &self.book[n];
+                same_number(scene, twin) && same_heading(scene, twin) && !refuses(scene, twin)
+            })
         })
     }
 

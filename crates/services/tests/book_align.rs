@@ -659,3 +659,50 @@ fn a_copy_is_not_given_silently_to_an_entry_that_never_met_the_book() {
     assert_eq!(asked, ["aaaa", "ffff"]);
     assert!(scene(&s, "ffff").prints.is_empty(), "ffff took no scene");
 }
+
+#[test]
+fn an_entry_said_not_in_the_book_leaves_the_order_to_the_twins() {
+    let dir = settled(
+        "book-twin-refused",
+        vec![entry("aaaa", "9", HOF)],
+        &hof("9"),
+    );
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    project.scenes.push(Scene {
+        state: BookState::NotInBook,
+        ..entry("ffff", "9", HOF)
+    });
+    klappe_store::save(&dir, &project, None).unwrap();
+    rewrite_book(&dir, &(hof("9") + &hof("9")));
+    let mut s = Session::open(&dir).unwrap();
+    s.resolve_scene("ffff", Choice::NotInBook).unwrap();
+    assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+    s.save().unwrap();
+
+    // A third copy: the refused entry is no candidate, so the order decides.
+    rewrite_book(&dir, &hof("9").repeat(3));
+    let s = Session::open(&dir).unwrap();
+
+    assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+}
+
+#[test]
+fn an_entry_with_only_the_same_heading_leaves_the_order_to_the_twins() {
+    let dir = settled(
+        "book-twin-other-number",
+        vec![entry("aaaa", "9", HOF)],
+        &hof("9"),
+    );
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    project.scenes.push(Scene {
+        state: BookState::NotInBook,
+        ..entry("gggg", "12", HOF)
+    });
+    klappe_store::save(&dir, &project, None).unwrap();
+    rewrite_book(&dir, &(hof("9") + &hof("9")));
+
+    let s = Session::open(&dir).unwrap();
+
+    let asked: Vec<&str> = s.pending_scenes().iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(asked, ["gggg"], "only the entry the book cannot place");
+}

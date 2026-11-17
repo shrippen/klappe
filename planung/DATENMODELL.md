@@ -138,7 +138,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
   Zwillinge: die ersten bekommen sie, der Rest ist nicht im Buch wie eine gestrichene Szene.
   Einträge ohne `prints` (erster Lauf) gelten weiter nach der Regel oben. Kommt ein anderer
   Eintrag für einen der Zwillinge in Frage (seine Szene wurde in ihren Text umgeschrieben, oder
-  er kennt noch kein Buch und hat dieselbe Nummer oder denselben Kopf), entscheidet die Folge
+  er kennt noch kein Buch, hat dieselbe Nummer und denselben Kopf und hat sie nicht abgelehnt), entscheidet die Folge
   nicht: alle werden gefragt.
   **Szenen ohne Zeilen** (nur Kopf, oder nur Figurenzeilen) haben nichts außer dem Kopf:
   sie sind zugeordnet, wenn ihr Kopf gepaart ist und die neue Szene ebenfalls keine Zeilen hat;
