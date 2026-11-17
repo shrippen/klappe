@@ -291,3 +291,51 @@ fn a_new_project_is_automatic_and_says_so_in_its_file() {
         "{header}"
     );
 }
+
+/// An entry that is not in the book already (made in Stellprobe, or struck long ago) gets no
+/// heading: only a scene struck since the last save does.
+#[test]
+fn an_entry_not_in_the_book_already_gets_no_heading() {
+    let dir = make(
+        "sn-old",
+        SceneNumbering::Locked,
+        1,
+        &(saal(" #1#") + &hof(" #2#")),
+    );
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    let mut old = entry("cccc", "9", KELLER);
+    old.state = BookState::NotInBook;
+    project.scenes.push(old);
+    klappe_store::save(&dir, &project, None).unwrap();
+    let before = book(&dir);
+
+    let mut s = Session::open(&dir).unwrap();
+    s.save().unwrap();
+    s.set_script_text(&(saal(" #1#") + "\n"));
+    s.save().unwrap();
+
+    let text = book(&dir);
+    assert!(!text.contains("#9#"), "{text}");
+    assert!(text.contains(".ENTFÄLLT #2#"), "{text}");
+    assert_eq!(before, saal(" #1#") + &hof(" #2#"));
+}
+
+#[test]
+fn saving_a_locked_book_with_old_entries_leaves_the_text_alone() {
+    let dir = make(
+        "sn-old-same",
+        SceneNumbering::Locked,
+        1,
+        &(saal(" #1#") + &hof(" #2#")),
+    );
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    let mut old = entry("cccc", "9", KELLER);
+    old.state = BookState::NotInBook;
+    project.scenes.push(old);
+    klappe_store::save(&dir, &project, None).unwrap();
+    let before = book(&dir);
+
+    Session::open(&dir).unwrap().save().unwrap();
+
+    assert_eq!(book(&dir), before);
+}

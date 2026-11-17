@@ -162,6 +162,11 @@ pub(crate) fn plan(project: &Project, script: &Script) -> Plan {
     plan
 }
 
+/// Whether the register had the entry as a scene of the book, numbered.
+fn was_in_book(scene: &Scene) -> bool {
+    scene.state == BookState::InBook && !scene.prints.is_empty() && !scene.number.is_empty()
+}
+
 /// Whether the entry and the book scene have the same number.
 fn same_number(scene: &Scene, book: &SceneState) -> bool {
     !scene.number.is_empty() && book.number.as_deref() == Some(scene.number.as_str())
@@ -361,8 +366,10 @@ impl Plan {
         })
     }
 
-    /// The entries the book lost that had a number, each behind the scene its predecessor in
-    /// the register is now (DB-33): they stay in a locked book as "OMITTED" headings.
+    /// The entries the book lost since the register last followed it (they were in the book,
+    /// with prints, and have a number), each behind the scene its predecessor in the register
+    /// is now (DB-33): they stay in a locked book as "OMITTED" headings. An entry that was not
+    /// in the book already never gets one.
     pub(crate) fn struck(&self, project: &Project) -> Vec<Struck> {
         let mut out = Vec::new();
         let mut after = None;
@@ -371,7 +378,7 @@ impl Plan {
             let fate = self.fates.iter().find(|(entry, _)| *entry == i);
             match fate.map(|f| &f.1) {
                 Some(Fate::Matched(n)) => after = Some(self.heading_index(*n)),
-                Some(Fate::Missing) if !scene.number.is_empty() => out.push(Struck {
+                Some(Fate::Missing) if was_in_book(scene) => out.push(Struck {
                     after,
                     number: scene.number.clone(),
                 }),

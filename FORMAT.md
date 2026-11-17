@@ -78,9 +78,9 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Speichern in Klappe in den Text, nie beim Öffnen. `automatic`: Szene i hat `first_scene + i`.
   `locked`: keine Nummer ändert sich; eine Szene ohne Nummer bekommt die ihres Vorgängers mit
   dem nächsten Buchstaben (12, dann 12A, 12B), vor der ersten Nummer `A` und die Nummer der
-  nächsten Szene (A1); eine Szene, die das Buch verlor, bleibt als Kopf `.ENTFÄLLT #12#`
+  nächsten Szene (A1); eine Szene, die das Buch seit dem letzten Speichern verlor (der Eintrag war „im Buch“), bleibt als Kopf `.ENTFÄLLT #12#`
   (`.OMITTED #12#` im englischen Projekt, ohne Sprache: `ENTFÄLLT`) hinter der Szene davor stehen.
-  Dieser Kopf legt keinen Eintrag im Register an; der Eintrag der gestrichenen Szene bleibt mit
+  Ein Eintrag, der schon „nicht im Buch“ war, bekommt nie einen Kopf. Dieser Kopf legt keinen Eintrag im Register an; der Eintrag der gestrichenen Szene bleibt mit
   seinen Plänen im Zustand „nicht im Buch“. Die Sperre je Fassung (DB-40) setzt später
   `locked` zusammen mit den Seiten.
 - **Ids:** Drehort- und Szenen-Ids sind Dateinamen und müssen mit der `id` in der Datei

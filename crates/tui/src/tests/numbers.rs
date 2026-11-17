@@ -67,12 +67,12 @@ fn the_form_locks_the_numbers_and_sets_the_first_number() {
         "the book changes with the next save"
     );
 
-    // Locked, the 7 stays and the scene before it becomes A7. The example's scene 12 is not in
-    // this book: it stays as a struck heading (the example has no language: German).
+    // Locked, the 7 stays and the scene before it becomes A7. The example's scene 12 was never
+    // in this book: it gets no struck heading.
     ctrl(&mut app, 's');
     assert_eq!(
         scratch.script(),
-        "INT. A - TAG #A7#\n\nEr wartet.\n\nINT. B - NACHT #7#\n\nSie geht.\n\n.ENTFÄLLT #12#"
+        "INT. A - TAG #A7#\n\nEr wartet.\n\nINT. B - NACHT #7#\n\nSie geht."
     );
 }
 
