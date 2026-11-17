@@ -138,6 +138,10 @@ fn bad_plan_labels_do_not_load() {
             vec![label("t1", 2.4, "mark:elisabeth:x")],
             "bound",
         ),
+        ("no-figure", vec![label("t1", 2.4, "figure:")], "bound"),
+        ("no-character", vec![label("t1", 2.4, "mark::0")], "bound"),
+        ("no-index", vec![label("t1", 2.4, "mark:elisabeth")], "bound"),
+        ("unknown", vec![label("t1", 2.4, "wall:1")], "bound"),
     ];
 
     for (name, labels, want) in cases {
@@ -167,6 +171,8 @@ fn bound_notes_and_ids_are_checked_across_set_and_plan() {
     let cases = [
         ("figure-note", "figure:elisabeth", None, "bound"),
         ("garbled-note", "object:", None, "bound"),
+        ("mark-note", "mark:elisabeth:1", None, "bound"),
+        ("unknown-note", "wall:1", None, "bound"),
     ];
 
     for (name, bound, label_id, want) in cases {
