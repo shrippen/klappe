@@ -130,6 +130,9 @@ impl Session {
         if field == ShotField::Setup {
             shot_edit::check_setup(plan, id, value)?;
         }
+        if field == ShotField::Camera {
+            shot_edit::check_camera(plan, id)?;
+        }
         let shot = plan
             .shots
             .iter_mut()
@@ -137,6 +140,7 @@ impl Session {
             .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
 
         edit::apply(shot, &plan.cameras, field, value)?;
+        shot_edit::follow_camera(plan, id);
         if next == self.project {
             return Ok(());
         }

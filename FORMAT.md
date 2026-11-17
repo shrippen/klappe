@@ -70,7 +70,9 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   eine Version eines anderen, wenn er `version_of` hat (nur geschrieben, wenn gesetzt):
   `{ shot = <id des Basis-Shots im selben Floorplan>, index = n }`, `n` ab 1 (die erste Version
   ist `A`). Ein Basis-Shot hat kein `version_of`; eine Version hat die Kamera ihrer Basis (sie
-  entsteht als Kopie). Zeigt `version_of` auf einen Shot, den es nicht gibt oder der selbst
+  entsteht als Kopie; die Kamera einer Version wird nicht einzeln geändert, die der Basis zieht
+  ihre Versionen mit). Wird die Basis gelöscht, wird ihre erste Version die neue Basis der
+  übrigen. Zeigt `version_of` auf einen Shot, den es nicht gibt oder der selbst
   eine Version ist, zählt der Shot als Basis. `number` ist freier Text und wird nie
   zurückgelesen: er wird beim Anlegen eines Shots oder einer Version und beim Umnummerieren
   aus den Feldern der Shots (Szene, Reihenfolge, Kamera-`label`, Zeitspannen, `version_of`)

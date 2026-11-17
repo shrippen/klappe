@@ -379,6 +379,7 @@ pub(crate) fn remove(plan: &mut FloorPlan, id: &str) -> Result<Option<String>, S
         .ok_or_else(|| ServiceError::NoShot(id.to_owned()))?;
 
     plan.shots.remove(at);
+    promote_version(plan, id);
     plan.links
         .retain(|l| !matches!(&l.target, LinkTarget::Shot { id: linked } if linked == id));
 
@@ -387,6 +388,66 @@ pub(crate) fn remove(plan: &mut FloorPlan, id: &str) -> Result<Option<String>, S
         .get(at)
         .or(at.checked_sub(1).and_then(|i| plan.shots.get(i)));
     Ok(neighbour.map(|s| s.id.clone()))
+}
+
+/// The first version of the deleted base `id` becomes the base of the others, so no version
+/// hangs on a shot that is gone; the versions keep their order, counted from 1 again.
+fn promote_version(plan: &mut FloorPlan, id: &str) {
+    let versions: Vec<usize> = (0..plan.shots.len())
+        .filter(|&at| {
+            plan.shots[at]
+                .version_of
+                .as_ref()
+                .is_some_and(|v| v.shot == id)
+        })
+        .collect();
+    let Some((&first, rest)) = versions.split_first() else {
+        return;
+    };
+
+    plan.shots[first].version_of = None;
+    let base = plan.shots[first].id.clone();
+    for (rank, &at) in rest.iter().enumerate() {
+        plan.shots[at].version_of = Some(VersionOf {
+            shot: base.clone(),
+            index: rank as u32 + 1,
+        });
+    }
+}
+
+/// A version has the camera of its base: its camera is not edited alone.
+pub(crate) fn check_camera(plan: &FloorPlan, id: &str) -> Result<(), ServiceError> {
+    let is_version = plan
+        .shots
+        .iter()
+        .find(|s| s.id == id)
+        .is_some_and(|s| !is_base(plan, s));
+    if !is_version {
+        return Ok(());
+    }
+
+    Err(ServiceError::BadValue {
+        field: Field::Camera,
+        value: id.to_owned(),
+    })
+}
+
+/// Gives the versions of shot `id` the camera of `id`, after its camera changed.
+pub(crate) fn follow_camera(plan: &mut FloorPlan, id: &str) {
+    let Some(camera) = plan
+        .shots
+        .iter()
+        .find(|s| s.id == id)
+        .map(|s| s.camera.clone())
+    else {
+        return;
+    };
+
+    for shot in &mut plan.shots {
+        if shot.version_of.as_ref().is_some_and(|v| v.shot == id) {
+            shot.camera = camera.clone();
+        }
+    }
 }
 
 /// Refuses a setup target for shot `id` that is no model (`is_setup_model`). Empty
