@@ -5,10 +5,13 @@
 //! vocabulary, lines move, and no two quotes may land on one line.
 //!
 //! Only what the text cannot tell is excused, and counted: a scene that became equal in
-//! content to its old one (twins), and a line whose true successor is gone or equal in
-//! content while an equal line stands elsewhere (an inserted "Ja." next to a deleted
-//! one, equal lines in another order).
+//! content to its old one (twins), and a line for which reading it as the found line
+//! explains the new script with no more edits (changes, moves, insertions, deletions)
+//! than the true lineage, or a diff of the two scenes could pair them (an inserted "Ja."
+//! next to an edited one, equal lines in another order).
 #![allow(clippy::unwrap_used)]
+
+use std::collections::HashMap;
 
 use klappe_script::{align, parse, quote_at, scene_states, Element, Found, Outcome, SceneState};
 
@@ -110,11 +113,7 @@ impl Gen {
             return;
         }
         let k = self.below(s.len());
-        let op = self.below(10);
-        if s[k].blocks.is_empty() && op >= 6 {
-            return;
-        }
-        match op {
+        match self.below(11) {
             0 => {
                 s.remove(k);
             }
@@ -135,29 +134,46 @@ impl Gen {
                 }
             }
             4 => s[k].head = self.below(HEADS.len()),
-            5 => {
-                let at = self.below(s[k].blocks.len() + 1);
-                let b = self.inserted();
-                s[k].blocks.insert(at, b);
-            }
+            op => self.edit_lines(op, &mut s[k]),
+        }
+    }
+
+    /// The edits of the lines of one scene.
+    fn edit_lines(&mut self, op: usize, sc: &mut SceneM) {
+        let n = sc.blocks.len();
+        if op == 5 {
+            let at = self.below(n + 1);
+            let b = self.inserted();
+            sc.blocks.insert(at, b);
+            return;
+        }
+        if n == 0 {
+            return;
+        }
+
+        let i = self.below(n);
+        match op {
             6 => {
-                let n = s[k].blocks.len();
-                s[k].blocks.remove(self.below(n));
+                sc.blocks.remove(i);
             }
-            7 => self.change(&mut s[k]),
+            7 => self.change(sc),
             8 => {
-                let from = self.below(s[k].blocks.len());
-                let b = s[k].blocks.remove(from);
-                let at = self.below(s[k].blocks.len() + 1);
-                s[k].blocks.insert(at, b);
+                let b = sc.blocks.remove(i);
+                let at = self.below(n);
+                sc.blocks.insert(at, b);
+            }
+            9 => {
+                let other = SPEAKERS[self.below(SPEAKERS.len())];
+                if sc.blocks[i].speaker.is_some() {
+                    sc.blocks[i].speaker = Some(other);
+                }
             }
             _ => {
-                let n = s[k].blocks.len();
-                let (a, b) = (self.below(n), self.below(n));
+                let j = self.below(n);
                 // Swapping equal lines changes nothing a reader could tell.
-                let (x, y) = (&s[k].blocks[a], &s[k].blocks[b]);
+                let (x, y) = (&sc.blocks[i], &sc.blocks[j]);
                 if (x.speaker, &x.text) != (y.speaker, &y.text) {
-                    s[k].blocks.swap(a, b);
+                    sc.blocks.swap(i, j);
                 }
             }
         }
@@ -188,14 +204,17 @@ fn render(scenes: &[SceneM]) -> String {
     out
 }
 
-/// The block id of every element of the scene (`None` for cue lines).
-fn ids(s: &SceneM) -> Vec<Option<u32>> {
+/// Marks the id of a cue line: the cue and the speech of a block share its id.
+const CUE: u32 = 1 << 31;
+
+/// The block id of every element of the scene, `CUE` set on cue lines.
+fn ids(s: &SceneM) -> Vec<u32> {
     let mut out = Vec::new();
     for b in &s.blocks {
         if b.speaker.is_some() {
-            out.push(None);
+            out.push(b.id | CUE);
         }
-        out.push(Some(b.id));
+        out.push(b.id);
     }
     out
 }
@@ -257,13 +276,10 @@ fn check(seed: u64, old: &[SceneM], new: &[SceneM], tally: &mut Tally) {
             assert!(!landed.contains(&j), "{msg}\nline {i} found at {j} again");
             landed.push(j);
 
-            let Some(id) = id else {
-                continue;
-            };
             tally.lines += 1;
-            if new_ids[j] != Some(*id) {
+            if new_ids[j] != *id {
                 assert!(
-                    excused(&old[o], &new[*n], *id, new_ids[j].unwrap()),
+                    excused(&old[o], &new[*n], *id, new_ids[j]),
                     "{msg}\nline {i} found at {j}"
                 );
                 tally.excused += 1;
@@ -272,28 +288,123 @@ fn check(seed: u64, old: &[SceneM], new: &[SceneM], tally: &mut Tally) {
     }
 }
 
-/// The text cannot tell the old line `id` from the found line `found`: they read the same
-/// and either the old line's own successor is gone or reads the same too (equal lines in
-/// another order), or the found line was inserted right next to the successor (an
-/// inserted "Stille." next to an old "Stille." that was edited).
+/// The text cannot tell the old line `id` from the found line `found` if reading `id` as
+/// `found` explains the new script with no more edits (changes, moves, insertions,
+/// deletions) than the true lineage does: a "Stille." edited and another inserted next to
+/// it, or equal lines in another order.
 fn excused(old: &SceneM, new: &SceneM, id: u32, found: u32) -> bool {
-    let read = |s: &SceneM, id: u32| {
+    if (id & CUE) != (found & CUE) {
+        return false;
+    }
+    let cue = id & CUE != 0;
+    let (id, found) = (id & !CUE, found & !CUE);
+
+    let truth: HashMap<u32, u32> = old
+        .blocks
+        .iter()
+        .filter(|b| new.blocks.iter().any(|n| n.id == b.id))
+        .map(|b| (b.id, b.id))
+        .collect();
+
+    // Read `id` as `found`; the block that was `found` takes over `id`'s successor.
+    let mut alt = truth.clone();
+    let successor = alt.remove(&id);
+    alt.insert(id, found);
+    if found != id && old.blocks.iter().any(|b| b.id == found) {
+        alt.remove(&found);
+        if let Some(s) = successor {
+            alt.insert(found, s);
+        }
+    }
+
+    edits(old, new, &alt) <= edits(old, new, &truth) || same_diff(old, new, id, found, cue)
+}
+
+/// Some longest common subsequence of the two scenes' lines pairs `id` with `found`: a
+/// diff, which knows nothing of lineage, could pick either. For a cue line only the
+/// speaker counts.
+fn same_diff(old: &SceneM, new: &SceneM, id: u32, found: u32, cue: bool) -> bool {
+    let key = |b: &Block| {
+        if !cue {
+            return Some((b.speaker, b.text.clone()));
+        }
+        b.speaker.map(|s| (Some(s), String::new()))
+    };
+    let side = |s: &SceneM| -> Vec<(u32, (Option<&'static str>, String))> {
         s.blocks
             .iter()
-            .find(|b| b.id == id)
-            .map(|b| (b.speaker, b.text.clone()))
+            .filter_map(|b| key(b).map(|k| (b.id, k)))
+            .collect()
     };
-    let at = |id: u32| new.blocks.iter().position(|b| b.id == id);
-    let (was, now) = (read(old, id), read(new, found));
-    if was != now {
+    let (a, b) = (side(old), side(new));
+    let (Some(i), Some(j)) = (
+        a.iter().position(|x| x.0 == id),
+        b.iter().position(|x| x.0 == found),
+    ) else {
+        return false;
+    };
+    if a[i].1 != b[j].1 {
         return false;
     }
 
-    let successor = read(new, id);
-    let inserted = read(old, found).is_none();
-    let next_to =
-        |a: Option<usize>, b: Option<usize>| a.zip(b).is_some_and(|(a, b)| a.abs_diff(b) == 1);
-    successor.is_none() || successor == was || (inserted && next_to(at(id), at(found)))
+    // lcs[x][y]: longest common subsequence of a[x..] and b[y..].
+    let mut lcs = vec![vec![0usize; b.len() + 1]; a.len() + 1];
+    for x in (0..a.len()).rev() {
+        for y in (0..b.len()).rev() {
+            lcs[x][y] = if a[x].1 == b[y].1 {
+                lcs[x + 1][y + 1] + 1
+            } else {
+                lcs[x + 1][y].max(lcs[x][y + 1])
+            };
+        }
+    }
+    // Before the pair, `a[..i]` against `b[..j]`: computed on the reversed prefix.
+    let before = {
+        let mut t = vec![vec![0usize; j + 1]; i + 1];
+        for x in 0..i {
+            for y in 0..j {
+                t[x + 1][y + 1] = if a[x].1 == b[y].1 {
+                    t[x][y] + 1
+                } else {
+                    t[x][y + 1].max(t[x + 1][y])
+                };
+            }
+        }
+        t[i][j]
+    };
+    before + 1 + lcs[i + 1][j + 1] == lcs[0][0]
+}
+
+/// Changes, moves, deletions and insertions that turn `old` into `new` if `map` says which
+/// new block each old block became.
+fn edits(old: &SceneM, new: &SceneM, map: &HashMap<u32, u32>) -> usize {
+    let new_at = |id: u32| new.blocks.iter().position(|b| b.id == id);
+    let mut pairs: Vec<(usize, usize)> = Vec::new();
+    let mut changed = 0;
+    for (i, b) in old.blocks.iter().enumerate() {
+        let Some(&to) = map.get(&b.id) else {
+            continue;
+        };
+        let Some(j) = new_at(to) else {
+            continue;
+        };
+        let n = &new.blocks[j];
+        changed += usize::from((b.speaker, &b.text) != (n.speaker, &n.text));
+        pairs.push((i, j));
+    }
+
+    // Longest run that keeps its order; the rest moved.
+    let mut best: Vec<usize> = vec![1; pairs.len()];
+    for i in 0..pairs.len() {
+        for k in 0..i {
+            if pairs[k].1 < pairs[i].1 {
+                best[i] = best[i].max(best[k] + 1);
+            }
+        }
+    }
+    let kept = best.iter().copied().max().unwrap_or(0);
+    let lost = (old.blocks.len() - pairs.len()) + (new.blocks.len() - pairs.len());
+    changed + (pairs.len() - kept) + lost
 }
 
 fn find(old: &SceneState, scene: &[Element], q: &klappe_script::Quote) -> Found {
@@ -344,10 +455,7 @@ fn an_unchanged_script_yields_only_matches() {
 
         let views = script.scenes();
         for (o, view) in views.iter().enumerate() {
-            for (i, id) in ids(&old[o]).iter().enumerate() {
-                if id.is_none() {
-                    continue;
-                }
+            for i in 0..ids(&old[o]).len() {
                 let q = quote_at(view.elements, i).unwrap();
                 let found = find(&states[o], view.elements, &q);
                 assert_eq!(

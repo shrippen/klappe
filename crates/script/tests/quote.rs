@@ -76,13 +76,13 @@ fn the_occurrence_picks_among_equal_lines() {
 }
 
 #[test]
-fn a_vanished_equal_line_is_missing() {
+fn a_vanished_equal_line_is_ambiguous() {
     let s = scene(BASE);
     let second = quote_at(&s, 7).unwrap();
     let edited = scene("ELISABETH\nIhr kommt spät.\n\nBURGVOGT\nGuten Tag.\n");
 
-    // Occurrence 1 of the line is gone; the one left stands before the new line.
-    assert_eq!(find_in(&s, &edited, &second), Found::Missing);
+    // Occurrence 1 of the line is gone; the one left may be either.
+    assert_eq!(find_in(&s, &edited, &second), Found::Ambiguous(vec![1]));
 }
 
 #[test]

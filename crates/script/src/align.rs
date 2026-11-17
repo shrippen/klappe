@@ -57,7 +57,7 @@ impl SceneState {
         SceneState {
             number: scene.number.map(str::to_string),
             heading: scene.heading.map(str::to_string),
-            prints: scene.elements.iter().filter_map(print).collect(),
+            prints: prints(scene.elements).into_iter().flatten().collect(),
         }
     }
 
@@ -217,9 +217,39 @@ fn offer(
     Outcome::Ambiguous(found)
 }
 
-/// Fingerprint of an element, `None` for those that are not script text (notes, page
-/// breaks, sections, synopses, headings): editing them does not change the scene.
-pub(crate) fn print(el: &Element) -> Option<Fingerprint> {
+/// Separates a cue's name from the lines of its speech in the text that is hashed.
+const SPEECH_SEPARATOR: char = '\u{1}';
+
+/// The fingerprint of every element, `None` for those that are not script text (notes,
+/// page breaks, sections, synopses, headings): editing them does not change the scene.
+///
+/// A cue line is only a name, which says nothing about which cue it is: its fingerprint
+/// covers its speech too (the parentheticals and dialogue up to the next other element).
+pub(crate) fn prints(elements: &[Element]) -> Vec<Option<Fingerprint>> {
+    (0..elements.len())
+        .map(|i| match &elements[i] {
+            Element::Character { name, .. } => Some(cue_print(name, &elements[i + 1..])),
+            el => print(el),
+        })
+        .collect()
+}
+
+fn cue_print(name: &str, speech: &[Element]) -> Fingerprint {
+    let mut text = name.to_string();
+    for el in speech {
+        let (Element::Parenthetical(t) | Element::Dialogue(t)) = el else {
+            break;
+        };
+        text.push(SPEECH_SEPARATOR);
+        text.push_str(t);
+    }
+    Fingerprint {
+        tag: CUE_TAG,
+        hash: hash(CUE_TAG, &text),
+    }
+}
+
+fn print(el: &Element) -> Option<Fingerprint> {
     let (kind, text) = kind_text(el)?;
     let tag = kind.tag()?;
     Some(Fingerprint {

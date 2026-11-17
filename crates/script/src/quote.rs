@@ -11,7 +11,8 @@
 //!   neighbours before and after (the scene's edge counts). The line is among the unpaired
 //!   new lines between their partners, if the partners are directly consecutive paired
 //!   lines (else the line may have moved: ambiguous). One clearly most similar line there
-//!   is the answer, several are ambiguous, none is missing.
+//!   is the answer, several are ambiguous, none (nothing similar: the line is gone) is
+//!   missing.
 //! - Nothing to go by (a note, a changed scene, a speaker that differs): the line only if
 //!   it was the only equal line and is the only one now; else the equal lines as
 //!   candidates, or missing.
@@ -20,7 +21,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::align::{print, CUE_TAG};
+use crate::align::{prints, CUE_TAG};
 use crate::anchor::pair;
 use crate::text::{hash, normal, words};
 use crate::{Element, Fingerprint, SceneState};
@@ -93,7 +94,8 @@ pub fn quote_at(scene: &[Element], index: usize) -> Option<Quote> {
         .filter(|&i| self::line(scene, i).is_some_and(|l| l.same(&line)))
         .collect();
     let occurrence = equal_at.iter().filter(|&&i| i < index).count();
-    let at = print(&scene[index]).map(|_| scene[..index].iter().filter_map(print).count());
+    let all = prints(scene);
+    let at = all[index].map(|_| all[..index].iter().flatten().count());
 
     Some(Quote {
         kind: line.kind,
@@ -115,20 +117,15 @@ pub fn find_quote(old: &SceneState, scene: &[Element], quote: &Quote) -> Found {
 
     let Some(at) = quote
         .at
-        .filter(|&a| old.prints.get(a) == own_print(quote).as_ref())
+        .filter(|&a| old.prints.get(a).is_some_and(|p| fits(p, quote)))
     else {
         return by_equal(&lines, &wanted, quote);
     };
 
     // The scene's fingerprints with the element each one belongs to.
-    let printed: Vec<usize> = (0..scene.len())
-        .filter(|&i| print(&scene[i]).is_some())
-        .collect();
-    let new_tokens: Vec<u32> = printed
-        .iter()
-        .filter_map(|&i| print(&scene[i]))
-        .map(|p| p.hash)
-        .collect();
+    let all = prints(scene);
+    let printed: Vec<usize> = (0..scene.len()).filter(|&i| all[i].is_some()).collect();
+    let new_tokens: Vec<u32> = all.iter().flatten().map(|p| p.hash).collect();
     let old_tokens: Vec<u32> = old.prints.iter().map(|p| p.hash).collect();
     let pairs = pair(&old_tokens, &new_tokens);
 
@@ -162,12 +159,18 @@ pub fn find_quote(old: &SceneState, scene: &[Element], quote: &Quote) -> Found {
 
     // Equal twins unpaired in the same old stretch: one new line cannot tell whose it is.
     let twins = (before_old(&pairs, at)..after_old(&pairs, at))
-        .filter(|&o| pairs[o].is_none() && old.prints[o] == old.prints[at])
+        .filter(|&o| pairs[o].is_none() && same_kind_of_line(&old.prints[o], &old.prints[at]))
         .count();
     match found {
         Found::At(i) if twins > 1 || spans => Found::Ambiguous(vec![i]),
         other => other,
     }
+}
+
+/// Equal fingerprints; for cue lines any two cues, as the fingerprint covers the speech
+/// and a name alone is what a new cue can be told by.
+fn same_kind_of_line(a: &Fingerprint, b: &Fingerprint) -> bool {
+    a == b || (a.tag == CUE_TAG && b.tag == CUE_TAG)
 }
 
 /// First old fingerprint after the nearest paired one before `at`.
@@ -212,13 +215,19 @@ pub fn find_quotes(old: &SceneState, scene: &[Element], quotes: &[Quote]) -> Vec
     found
 }
 
-/// The fingerprint the quote's line has.
-fn own_print(q: &Quote) -> Option<Fingerprint> {
-    let tag = q.kind.tag()?;
-    Some(Fingerprint {
+/// The old fingerprint at the quote's `at` belongs to the quote's line. A cue's
+/// fingerprint covers its speech, which the quote does not hold: the kind must do.
+fn fits(old: &Fingerprint, q: &Quote) -> bool {
+    let Some(tag) = q.kind.tag() else {
+        return false;
+    };
+    if q.kind == LineKind::Character {
+        return old.tag == tag;
+    }
+    *old == Fingerprint {
         tag,
         hash: hash(tag, &q.text),
-    })
+    }
 }
 
 /// No pairing to go by: the line if it was and is the only equal one.

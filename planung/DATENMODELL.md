@@ -119,7 +119,8 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 - **Szenenidentität (DB-65):** Das Register (`szenen.toml`, Projektebene) hält je Szene Id, Nummer,
   Kopf und kurze Fingerabdrücke je Element (Art und Hash des Textes). Nach einer Änderung des
   Buchs paart Klappe die Fingerabdrücke des alten und des neuen Buchs: eine Zeile, die in beiden
-  Büchern genau einmal vorkommt, ist dieselbe, wo auch immer sie steht; gleiche Abschnitte
+  Büchern genau einmal vorkommt, ist dieselbe, wo auch immer sie steht (eine Figurenzeile
+  zählt dabei mit ihrer Rede, nie allein mit dem Namen); gleiche Abschnitte
   zwischen zwei so gepaarten Zeilen werden Stelle für Stelle gepaart. Eine Szene ist
   zugeordnet, wenn mehr als die Hälfte ihrer Zeilen (ohne Figurenzeilen, die in fast jedem
   Dialog stehen) in genau eine neue Szene gepaart sind und umgekehrt. **Nummer und Kopf
