@@ -3,8 +3,9 @@
 //!
 //! A [`Quote`] holds the line, how many equal lines the scene had and the fingerprints of
 //! the elements next to it. Lookup: the exact line; if the scene still has as many equal
-//! lines, the occurrence decides; if the number changed, the equal line whose neighbours
-//! match (uniquely) does; else the clearly most similar line of the same kind, neighbours
+//! lines, the occurrence decides; if the number changed, the one equal line with both
+//! neighbours (not the scene edge, not another equal line) does; else the clearly most
+//! similar line of the same kind, neighbours
 //! breaking ties; else the candidates. Case, spacing and dash variants (`–`, `—`, `-`)
 //! do not matter.
 
@@ -99,7 +100,7 @@ pub fn find_quote(scene: &[Element], quote: &Quote) -> Found {
     }
 
     // The number of equal lines changed: only the neighbours tell which one it was.
-    match by_neighbours(scene, &equal, quote) {
+    match by_both(scene, &equal, quote) {
         Some(i) => Found::At(i),
         None => Found::Ambiguous(equal),
     }
@@ -109,6 +110,24 @@ pub fn find_quote(scene: &[Element], quote: &Quote) -> Found {
 fn near(scene: &[Element], i: usize, quote: &Quote) -> usize {
     let before = i.checked_sub(1).and_then(|b| print(scene, b));
     usize::from(before == quote.before) + usize::from(print(scene, i + 1) == quote.after)
+}
+
+/// The only one of the equal lines with both stored neighbours. The scene's edge and a
+/// neighbour that is an equal line itself are no evidence: lines added before or after
+/// the anchor look the same there.
+fn by_both(scene: &[Element], equal: &[usize], quote: &Quote) -> Option<usize> {
+    let proves = |at: Option<usize>, stored: Option<Fingerprint>| {
+        let Some(i) = at.filter(|i| !equal.contains(i)) else {
+            return false;
+        };
+        stored.is_some() && print(scene, i) == stored
+    };
+
+    let mut both = equal
+        .iter()
+        .filter(|&&i| proves(i.checked_sub(1), quote.before) && proves(Some(i + 1), quote.after));
+    let first = both.next()?;
+    both.next().is_none().then_some(*first)
 }
 
 /// The one of `candidates` with more matching neighbours than any other (at least one);
