@@ -244,3 +244,50 @@ fn the_setting_is_written_to_the_project_file_alone() {
     );
     assert_eq!(book(&dir), text);
 }
+
+/// A project from before the setting has no key: its numbers are the author's and stay.
+#[test]
+fn a_project_without_the_key_keeps_its_numbers() {
+    let dir = make(
+        "sn-nokey",
+        SceneNumbering::Automatic,
+        1,
+        &(saal("") + &hof("")),
+    );
+    let text = saal(" #12#") + &keller("") + &hof(" #13#");
+    write(&dir, &text);
+    let path = dir.join("projekt.toml");
+    let header = std::fs::read_to_string(&path).unwrap();
+    let without: String = header
+        .lines()
+        .filter(|l| !l.starts_with("scene_numbering"))
+        .map(|l| format!("{l}\n"))
+        .collect();
+    std::fs::write(&path, without).unwrap();
+
+    let mut s = Session::open(&dir).unwrap();
+    s.save().unwrap();
+
+    assert_eq!(
+        book(&dir),
+        saal(" #12#") + &keller(" #12A#") + &hof(" #13#")
+    );
+}
+
+#[test]
+fn a_new_project_is_automatic_and_says_so_in_its_file() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("sn-create");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let s = Session::create(&dir, "Neu", klappe_services::Language::English).unwrap();
+
+    assert_eq!(
+        s.project().script.scene_numbering,
+        SceneNumbering::Automatic
+    );
+    let header = std::fs::read_to_string(dir.join("projekt.toml")).unwrap();
+    assert!(
+        header.contains("scene_numbering = \"automatic\""),
+        "{header}"
+    );
+}

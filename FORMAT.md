@@ -68,8 +68,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   unbekannter Wert von `language`, `words` oder `paper` gilt als Standard (wie bei `paper` im
   Plan), ein Wert, der kein Text ist, lädt nicht. Keine neue Formatversion: ältere Fassungen
   verlieren die Tabelle beim Speichern.
-  **Szenennummern (DB-33):** `scene_numbering`: `automatic` (Standard, nicht geschrieben) oder
-  `locked`; ein unbekannter Wert gilt als `automatic`. `first_scene` (Zahl, Standard 1, dann
+  **Szenennummern (DB-33):** `scene_numbering`: `locked` oder `automatic`. Fehlt der
+  Schlüssel (Projekte aus der Zeit davor), gilt `locked` und er wird nicht geschrieben; ein
+  unbekannter Wert gilt auch als `locked`, damit Klappe nie ungefragt Nummern ändert. Neue
+  Projekte schreiben `automatic` ausdrücklich. `first_scene` (Zahl, Standard 1, dann
   nicht geschrieben): die Nummer der ersten Szene bei `automatic`. Das Schlüsselwort ist nicht
   `numbering` der Kopftabelle (das ist das Nummernschema der Shots, LH-76). Die Nummern selbst
   stehen im Fountain-Text (`#12#`) und im Register (`number`); Klappe schreibt sie nur beim

@@ -109,15 +109,16 @@ fn write_language<S: serde::Serializer>(
 }
 
 /// Who sets the scene numbers (DB-33): Klappe follows the book, or the numbers stay as they
-/// are and only new scenes get one (12A).
+/// are and only new scenes get one (12A). A project without the key is locked, so a script
+/// from before the setting is never renumbered unasked; a new project says `automatic`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(from = "String", into = "String")]
 pub enum SceneNumbering {
     /// Sequential from the first number; changes with the book.
-    #[default]
     Automatic,
     /// No number changes; a new scene is numbered between its neighbours, a struck one stays
     /// as "OMITTED".
+    #[default]
     Locked,
 }
 
@@ -131,11 +132,11 @@ impl SceneNumbering {
 }
 
 impl From<String> for SceneNumbering {
-    /// Any other text is automatic.
+    /// Any other text is locked: a number is never changed on a guess.
     fn from(name: String) -> Self {
         match name.as_str() {
-            "locked" => SceneNumbering::Locked,
-            _ => SceneNumbering::Automatic,
+            "automatic" => SceneNumbering::Automatic,
+            _ => SceneNumbering::Locked,
         }
     }
 }

@@ -8,6 +8,22 @@ use super::*;
 const BOOK: &str = "INT. A - TAG\n\nEr wartet.\n\nINT. B - NACHT #7#\n\nSie geht.";
 const NUMBERED: &str = "INT. A - TAG #1#\n\nEr wartet.\n\nINT. B - NACHT #2#\n\nSie geht.";
 
+/// A scratch project that numbers automatically: the example has no key, so it is locked.
+fn automatic(book: &str) -> (Scratch, App) {
+    let scratch = Scratch::new(book);
+    let path = scratch.dir.join("projekt.toml");
+    let header = fs::read_to_string(&path).unwrap_or_default();
+    let _ = fs::write(
+        &path,
+        format!("{header}\n[script]\nscene_numbering = \"automatic\"\n"),
+    );
+    let mut app = scratch.app();
+    let _ = screen(&mut app, 100, 24);
+    ctrl_end(&mut app);
+
+    (scratch, app)
+}
+
 fn project_file(scratch: &Scratch) -> String {
     fs::read_to_string(scratch.dir.join("projekt.toml")).unwrap_or_default()
 }
@@ -24,7 +40,7 @@ fn opening_leaves_the_numbers_as_they_are() {
 
 #[test]
 fn saving_numbers_the_scenes_in_the_file_and_the_editor() {
-    let (scratch, mut app) = app_with(BOOK);
+    let (scratch, mut app) = automatic(BOOK);
 
     ctrl(&mut app, 's');
 
@@ -35,7 +51,7 @@ fn saving_numbers_the_scenes_in_the_file_and_the_editor() {
 
 #[test]
 fn the_form_locks_the_numbers_and_sets_the_first_number() {
-    let (scratch, mut app) = app_with(BOOK);
+    let (scratch, mut app) = automatic(BOOK);
 
     ctrl(&mut app, 'n');
     assert_eq!(app.mode, Mode::Numbers);
@@ -49,7 +65,8 @@ fn the_form_locks_the_numbers_and_sets_the_first_number() {
 
     assert_eq!(app.mode, Mode::Normal);
     let file = project_file(&scratch);
-    assert!(file.contains("scene_numbering = \"locked\""), "{file}");
+    // Locked is what a project without the key is.
+    assert!(!file.contains("scene_numbering"), "{file}");
     assert!(file.contains("first_scene = 40"), "{file}");
     assert_eq!(
         scratch.script(),
@@ -68,12 +85,12 @@ fn the_form_locks_the_numbers_and_sets_the_first_number() {
 
 #[test]
 fn escape_leaves_the_numbering_as_it_was() {
-    let (scratch, mut app) = app_with(BOOK);
+    let (scratch, mut app) = automatic(BOOK);
 
     ctrl(&mut app, 'n');
     press(&mut app, KeyCode::Right);
     press(&mut app, KeyCode::Esc);
 
     assert_eq!(app.mode, Mode::Normal);
-    assert!(!project_file(&scratch).contains("scene_numbering"));
+    assert!(project_file(&scratch).contains("scene_numbering = \"automatic\""));
 }
