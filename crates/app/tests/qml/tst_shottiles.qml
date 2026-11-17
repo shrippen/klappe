@@ -3,7 +3,7 @@ import QtTest
 import "../../qml"
 
 // ShotTiles: the stage shows the camera view of the shot (LH-36) unless a storyboard picture
-// (LH-74) is there. It is made again when the project changes, not when only the selection
+// (LH-74) is there. It is made again when the plan is edited, not when only the selection
 // does, and one view per tick, for the tiles on screen only (NF-05).
 TestCase {
     id: tc
@@ -16,7 +16,7 @@ TestCase {
     QtObject {
         id: fake
         property int pictureRevision: 0
-        property string projectJson: "{}"
+        property int editRevision: 0
         property var requests: []
         property var times: []
 
@@ -51,7 +51,7 @@ TestCase {
         fake.requests = []
         fake.times = []
         fake.pictureRevision = 0
-        fake.projectJson = "{}"
+        fake.editRevision = 0
         const tiles = createTemporaryObject(tilesComponent, tc, { shots: shots })
         verify(tiles)
         return tiles
@@ -73,13 +73,13 @@ TestCase {
         compare(findChild(tiles, "tileView-s1").item, null)
     }
 
-    function test_a_changed_project_makes_the_view_again() {
+    function test_an_edit_makes_the_view_again() {
         const tiles = make([shot("s1", "")])
         const surface = findChild(tiles, "tileView-s1")
         tryVerify(() => surface.item !== null && surface.item.shows > 0)
         const before = surface.item.shows
 
-        fake.projectJson = "{\"edited\":1}"
+        fake.editRevision++
 
         tryVerify(() => surface.item.shows > before)
     }

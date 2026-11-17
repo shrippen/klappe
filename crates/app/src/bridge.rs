@@ -26,6 +26,9 @@ pub mod qobject {
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
         /// Counts refreshes: the camera's picture is made again when it changes.
         #[qproperty(i32, picture_revision, cxx_name = "pictureRevision")]
+        /// Names the state of the project: changes with every edit, undo and redo, not with a
+        /// selection or the playhead; what is drawn from the plan is made again when it does.
+        #[qproperty(i32, edit_revision, cxx_name = "editRevision")]
         /// Counts what turns, shifts or zooms the 3D view: the 3D picture is made again.
         #[qproperty(i32, free_revision, cxx_name = "freeRevision")]
         /// Whether the plan area shows the free 3D view (J) instead of the plan.

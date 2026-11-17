@@ -59,6 +59,7 @@ impl Default for ControllerRust {
             plan_title: QString::default(),
             plan_json: QString::default(),
             picture_revision: 0,
+            edit_revision: 0,
             camera_frame: String::new(),
             free_revision: 0,
             view_free: false,

@@ -17,9 +17,10 @@ Item {
     /// The rows (`ShotRow`s with `lens_label`), already in the order to show.
     property var shots: []
     property string selectedId: ""
-    // `shotImage(id, widthPx, paletteJson)` and `projectJson`: a tile's view depends on the
-    // project (plan, shot start), its width and the theme, not on the selection or the playhead,
-    // so only a change of those makes it again. Without a controller the stage stays empty.
+    // `shotImage(id, widthPx, paletteJson)` and `editRevision`: a tile's view depends on the plan
+    // (an edit, undo or redo, another plan), its width and the theme, not on the selection or
+    // the playhead, so only a change of those makes it again. Not `projectJson`: that is the
+    // overview, it holds no plan. Without a controller the stage stays empty.
     property var controller: null
     // The element that shows an image (`show(image)`); a Rust type the tests do not have.
     property url surfaceSource: Qt.resolvedUrl("CameraSurface.qml")
@@ -86,7 +87,7 @@ Item {
 
     Connections {
         target: tiles.canPaint ? tiles.controller : null
-        function onProjectJsonChanged() {
+        function onEditRevisionChanged() {
             tiles.refresh()
         }
     }

@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use klappe_model::Project;
 
 use super::book::register_moved;
@@ -6,6 +8,14 @@ use super::Session;
 /// Undo keeps this many steps (LH-06 asks for no fixed limit within a session; this only
 /// guards memory on very long sessions).
 const UNDO_LIMIT: usize = 500;
+
+static EDITS: AtomicU64 = AtomicU64::new(0);
+
+/// A number no state has had before: one count for all sessions, so opening another project
+/// never repeats one.
+pub(super) fn next_edit() -> u64 {
+    EDITS.fetch_add(1, Ordering::Relaxed)
+}
 
 /// A state an undo goes back to: the project, and the screenplay text when the step changed
 /// it too (a rename in the project also renames in the text, as one step).
@@ -56,6 +66,7 @@ impl Session {
         }
         self.redo.clear();
         self.project_changed = true;
+        self.edits = next_edit();
         self.touch();
         if self
             .undo
@@ -122,6 +133,13 @@ impl Session {
         }
     }
 
+    /// Names the state of the plan on view: it changes with every edit, undo and redo and with
+    /// the scene or plan shown, not with the selection or the playhead, so what is drawn from
+    /// the plan is out of date when it does.
+    pub fn edits(&self) -> u64 {
+        self.edits
+    }
+
     pub fn can_undo(&self) -> bool {
         !self.undo.is_empty()
     }
@@ -152,6 +170,7 @@ impl Session {
         let moved = register_moved(&current.project, &self.project);
         self.redo.push(current);
         self.project_changed = true;
+        self.edits = next_edit();
         self.touch();
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
@@ -172,6 +191,7 @@ impl Session {
         let moved = register_moved(&current.project, &self.project);
         self.undo.push(current);
         self.project_changed = true;
+        self.edits = next_edit();
         self.touch();
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();

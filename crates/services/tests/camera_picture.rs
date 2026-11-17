@@ -163,3 +163,26 @@ fn the_pdf_ends_with_the_camera_views() {
         assert!(text.contains(&format!("(12.{shot} ")), "{shot}");
     }
 }
+
+#[test]
+fn edits_name_the_state_the_tiles_are_drawn_from() {
+    let mut s = open();
+    let opened = s.edits();
+
+    s.select_shot("s12-1").unwrap();
+    s.set_time(3.0);
+    assert_eq!(s.edits(), opened, "a selection or the playhead is no edit");
+
+    s.copy_plan("Stand 1").unwrap();
+    let copied = s.edits();
+    assert_ne!(copied, opened);
+
+    s.undo();
+    let undone = s.edits();
+    assert_ne!(undone, copied);
+
+    s.redo();
+    assert_ne!(s.edits(), undone);
+
+    assert_ne!(open().edits(), opened, "another session never repeats one");
+}

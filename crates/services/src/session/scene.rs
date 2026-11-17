@@ -1,6 +1,6 @@
 use klappe_model::{FloorPlan, Project, Scene};
 
-use super::undo::step_name;
+use super::undo::{next_edit, step_name};
 use super::Session;
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit};
@@ -29,6 +29,7 @@ impl Session {
         self.plan = 0;
         self.time_s = 0.0;
         self.selected_shot = None;
+        self.edits = next_edit();
         self.end_stale_look();
         Ok(())
     }
@@ -43,6 +44,7 @@ impl Session {
         self.plan = index;
         self.time_s = 0.0;
         self.selected_shot = None;
+        self.edits = next_edit();
         self.end_stale_look();
         Ok(())
     }

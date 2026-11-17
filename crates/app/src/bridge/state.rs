@@ -22,6 +22,7 @@ pub struct ControllerRust {
     pub(super) plan_title: QString,
     pub(super) plan_json: QString,
     pub(super) picture_revision: i32,
+    pub(super) edit_revision: i32,
     /// `cameraFrame`: the size and names of the last camera image.
     pub(super) camera_frame: String,
     pub(super) free_revision: i32,
