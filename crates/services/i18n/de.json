@@ -542,6 +542,7 @@
  "scene.heading": "Szenenkopf",
  "scene.location": "Drehort",
  "scene.needLocation": "Lege zuerst einen Drehort an.",
+ "scene.waysDropped": "Ein anderer Drehort entfernt die Wege der Gegenstände in den Plänen dieser Szene; Rückgängig bringt sie zurück.",
  "location.new": "Neuer Drehort",
  "location.edit": "Drehort bearbeiten",
  "location.name": "Name",

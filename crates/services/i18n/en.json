@@ -542,6 +542,7 @@
  "scene.heading": "Heading",
  "scene.location": "Location",
  "scene.needLocation": "Add a location first.",
+ "scene.waysDropped": "Another location removes the object ways in this scene's plans; undo brings them back.",
  "location.new": "New location",
  "location.edit": "Edit location",
  "location.name": "Name",

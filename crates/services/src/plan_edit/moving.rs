@@ -518,8 +518,8 @@ fn object_in<'a>(scope: &'a mut Scope<'_>, id: &str) -> Option<&'a mut SetObject
 
 /// A grip of a moving object sits where the object is at the playhead, so the change works
 /// on the object put there; afterwards the set keeps its own place and the way takes the
-/// difference (resizing from the left edge moves the middle).
-fn placed_grip(
+/// difference (resizing from the left edge moves the middle), each mark in its own frame.
+pub(super) fn placed_grip(
     scope: &mut Scope<'_>,
     source: &Source,
     change: impl FnOnce(&mut Scope<'_>) -> Result<(), ServiceError>,
@@ -542,8 +542,13 @@ fn placed_grip(
     let Some(own) = object_in(scope, object) else {
         return done;
     };
-    let (dx_m, dy_m) = (own.at.x_m - place.at.x_m, own.at.y_m - place.at.y_m);
+    let delta = Point::new(own.at.x_m - place.at.x_m, own.at.y_m - place.at.y_m);
     (own.at, own.rotation_deg) = home;
+
+    // The shift is the object's own: along its axes at the playhead, so a mark turned
+    // otherwise takes it along its own axes.
+    let origin = Point::new(0.0, 0.0);
+    let local = delta.turned(origin, -place.facing_deg);
     for mark in scope
         .plan
         .object_tracks
@@ -551,7 +556,8 @@ fn placed_grip(
         .filter(|t| t.object == *object)
         .flat_map(|t| t.marks.iter_mut())
     {
-        mark.at = Point::new(mark.at.x_m + dx_m, mark.at.y_m + dy_m);
+        let by = local.turned(origin, mark.rotation_deg);
+        mark.at = Point::new(mark.at.x_m + by.x_m, mark.at.y_m + by.y_m);
     }
 
     done
