@@ -17,7 +17,7 @@ mod sweep;
 
 use height::height_shape;
 pub use height::HeightTexts;
-pub use key::{key, parse_key, ElementKind, ParsedKey};
+pub use key::{grip_tip, key, parse_key, ElementKind, ParsedKey};
 pub use picture::{frame_json, ppm, Palette, IMAGE_FORMAT};
 use sweep::sweep_shape;
 pub use sweep::Sweep;

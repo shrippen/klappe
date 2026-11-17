@@ -177,6 +177,45 @@ fn object_grip_part(grip: ObjectGrip) -> String {
     }
 }
 
+/// The text key of the tooltip of a grip's key (`objectgrip:o:width`), `None` for a key that is
+/// no grip.
+pub fn grip_tip(key: &str) -> Option<&'static str> {
+    let mut parts = key.split(':');
+    let kind = ElementKind::from_name(parts.next()?)?;
+    let last = key.rsplit(':').next()?;
+
+    let tip = match kind {
+        ElementKind::ObjectGrip => object_grip_tip(last),
+        ElementKind::LightGrip => light_grip_tip(last),
+        ElementKind::OpeningEdge => "tip.gripOpening",
+        ElementKind::NoteWidth => "tip.gripNote",
+        ElementKind::ImageSize => "tip.gripImage",
+        ElementKind::DrawingPoint => "tip.gripDrawing",
+        ElementKind::DrawingEdge => "tip.gripEdge",
+        _ => return None,
+    };
+
+    Some(tip)
+}
+
+/// The tooltip of an object grip, from the last part of its key.
+fn object_grip_tip(last: &str) -> &'static str {
+    match last {
+        "width" => "tip.gripWidth",
+        "depth" => "tip.gripDepth",
+        _ if last.starts_with("point") => "tip.gripPoint",
+        _ => "tip.gripSide",
+    }
+}
+
+/// The tooltip of a lamp grip, from the last part of its key.
+fn light_grip_tip(last: &str) -> &'static str {
+    match last {
+        "beam" => "tip.gripBeam",
+        _ => "tip.gripDirection",
+    }
+}
+
 /// A key taken apart: `mark:elisabeth:0` is `Mark`, `elisabeth` and index 0.
 pub struct ParsedKey<'a> {
     pub kind: ElementKind,
@@ -225,6 +264,49 @@ mod tests {
             grip: ObjectGrip::Side(1),
         };
         assert_eq!(key(&side), "objectgrip:o:side1");
+    }
+
+    /// Each grip has the tooltip its drag does; the other keys have none.
+    #[test]
+    fn a_grip_key_names_its_tooltip() {
+        let object_grip = |grip| Source::ObjectGrip {
+            object: "o".into(),
+            grip,
+        };
+        let light_grip = |grip| Source::LightGrip {
+            light: "l".into(),
+            grip,
+        };
+        let drawing = |index| Source::DrawingPoint {
+            drawing: "d".into(),
+            index,
+        };
+        let cases = [
+            (object_grip(ObjectGrip::Width), "tip.gripWidth"),
+            (object_grip(ObjectGrip::Depth), "tip.gripDepth"),
+            (object_grip(ObjectGrip::Point(2)), "tip.gripPoint"),
+            (object_grip(ObjectGrip::Side(1)), "tip.gripSide"),
+            (light_grip(LightGrip::Direction), "tip.gripDirection"),
+            (light_grip(LightGrip::Beam), "tip.gripBeam"),
+            (opening_edge(), "tip.gripOpening"),
+            (note_width(), "tip.gripNote"),
+            (Source::ImageSize("i".into()), "tip.gripImage"),
+            (drawing(2), "tip.gripDrawing"),
+            (
+                Source::DrawingEdge {
+                    drawing: "d".into(),
+                    index: 1,
+                },
+                "tip.gripEdge",
+            ),
+        ];
+
+        for (source, tip) in cases {
+            assert_eq!(grip_tip(&key(&source)), Some(tip), "{source:?}");
+        }
+        assert_eq!(grip_tip(&key(&Source::Object("o".into()))), None);
+        assert_eq!(grip_tip(&key(&opening())), None);
+        assert_eq!(grip_tip("nonsense:x"), None);
     }
 
     fn opening() -> Source {

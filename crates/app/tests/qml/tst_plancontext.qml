@@ -41,7 +41,11 @@ TestCase {
         property string armed: ""
         property bool viewFree: false
 
-        function describe(key) { return "{}" }
+        // The tooltip keys of grips, as the bridge's `describe` names them.
+        property var tips: ({})
+        function describe(key) {
+            return JSON.stringify(tips[key] ? { kind: "grip", tip: tips[key] } : {})
+        }
         function markInfo() { return "{}" }
         // What the controller says of the selection: the table stands for its rules.
         readonly property var infos: ({
@@ -124,6 +128,7 @@ TestCase {
         fake.armed = ""
         fake.viewFree = false
         fake.extra = ({})
+        fake.tips = ({})
     }
 
     function made(tool) {
@@ -463,18 +468,25 @@ TestCase {
     // LH-102: the grips say what dragging them does.
     function test_grips_have_tooltips() {
         const area = made()
+        fake.tips = {
+            "objectgrip:o1:width": "tip.gripWidth", "objectgrip:o1:depth": "tip.gripDepth",
+            "objectgrip:o1:point2": "tip.gripPoint", "objectgrip:o1:side1": "tip.gripSide",
+            "lightgrip:l1:direction": "tip.gripDirection", "lightgrip:l1:beam": "tip.gripBeam",
+            "openingedge:4:1:end": "tip.gripOpening", "notewidth:n1": "tip.gripNote",
+            "imagesize:i1": "tip.gripImage", "drawingpoint:d1:2": "tip.gripDrawing",
+            "drawingedge:d1:1": "tip.gripEdge" }
 
-        compare(area.tipOf("objectgrip:o1:width"), ["Breite: ziehen"])
-        compare(area.tipOf("objectgrip:o1:depth"), ["Tiefe: ziehen"])
-        compare(area.tipOf("objectgrip:o1:point2"), ["Punkt: ziehen, Entf nimmt ihn heraus"])
-        compare(area.tipOf("objectgrip:o1:side1"), ["Seite: ziehen"])
-        compare(area.tipOf("lightgrip:l1:direction"), ["Richtung der Lampe: ziehen"])
-        compare(area.tipOf("lightgrip:l1:beam"), ["Öffnungswinkel: ziehen"])
-        compare(area.tipOf("openingedge:4:1:end"), ["Öffnung verbreitern oder verschmälern: ziehen"])
-        compare(area.tipOf("notewidth:n1"), ["Breite der Notiz: ziehen"])
-        compare(area.tipOf("imagesize:i1"), ["Größe des Bildes: ziehen"])
-        compare(area.tipOf("drawingpoint:d1:2"), ["Punkt der Zeichnung: ziehen"])
-        compare(area.tipOf("drawingedge:d1:1"), ["Kante der Zeichnung: ziehen"])
+        compare(area.tipLines("objectgrip:o1:width"), ["Breite: ziehen"])
+        compare(area.tipLines("objectgrip:o1:depth"), ["Tiefe: ziehen"])
+        compare(area.tipLines("objectgrip:o1:point2"), ["Punkt: ziehen, Entf nimmt ihn heraus"])
+        compare(area.tipLines("objectgrip:o1:side1"), ["Seite: ziehen"])
+        compare(area.tipLines("lightgrip:l1:direction"), ["Richtung der Lampe: ziehen"])
+        compare(area.tipLines("lightgrip:l1:beam"), ["Öffnungswinkel: ziehen"])
+        compare(area.tipLines("openingedge:4:1:end"), ["Öffnung verbreitern oder verschmälern: ziehen"])
+        compare(area.tipLines("notewidth:n1"), ["Breite der Notiz: ziehen"])
+        compare(area.tipLines("imagesize:i1"), ["Größe des Bildes: ziehen"])
+        compare(area.tipLines("drawingpoint:d1:2"), ["Punkt der Zeichnung: ziehen"])
+        compare(area.tipLines("drawingedge:d1:1"), ["Kante der Zeichnung: ziehen"])
     }
 
     // The object commands come as the controller offers them; each entry is there or absent.
