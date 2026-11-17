@@ -23,9 +23,11 @@ qml:
 
 # NF-05 timings on a large plan (50 figures, 10 cameras, 300 objects): release build, prints the
 # numbers, fails above four times the 16 ms budget (the plan JSON: four times its half); the
-# screenplay's 120 pages within 1 s (DN-02). Not in `check`: timings need a quiet machine.
+# screenplay's 120 pages within 1 s (DN-02); matching a 120-page script against its previous
+# state (`align_perf`) within 100 ms. Not in `check`: timings need a quiet machine.
 perf:
 	cargo test --release -p klappe-services --test perf -- --ignored --nocapture
+	cargo test --release -p klappe-script --test align_perf -- --ignored --nocapture
 	cargo test --release -p klappe-app a_large_plan -- --ignored --nocapture
 	cargo test --release -p klappe-script --test perf -- --ignored --nocapture
 	scripts/check-qml.sh crates/app/tests/perf
