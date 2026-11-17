@@ -306,3 +306,14 @@ fn the_same_quote_twice_is_the_same_answer() {
 
     assert_eq!(found, vec![Found::At(0), Found::At(1), Found::At(0)]);
 }
+
+#[test]
+fn a_cue_never_pairs_on_its_name_alone() {
+    // Round 4: BEN's cue exists once on both sides, but with a different speech.
+    let old = scene("Anna kommt herein.\n\nBEN\nHallo.\n\nSie setzt sich.\n\nANNA\nDanke.\n");
+    let new = scene("Anna kommt herein.\n\nSie setzt sich.\n\nANNA\nDanke.\n\nBEN\nTschüss.\n");
+    let q = quote_at(&old, 1).unwrap();
+
+    assert_eq!(q.kind, LineKind::Character);
+    assert_eq!(find_in(&old, &new, &q), Found::Missing);
+}
