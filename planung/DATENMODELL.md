@@ -131,12 +131,14 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
   Szenen mit gepaarten Zeilen, dann ungenommene mit gleichem Kopf oder gleicher Nummer) oder
   nicht gefunden. **Zwillinge** (Szenen des Buchs mit gleicher Nummer, gleichem Kopf und gleichen
   Zeilen, z. B. Platzhalter nur mit Kopf oder eine kopierte Szene) trennt der Inhalt nicht. Ein
-  Eintrag mit Zeilen, der wortgleich zu Zwillingen ist, bekommt sie ohne Frage: die Einträge in
+  Eintrag mit `prints`, der wortgleich zu Zwillingen ist, bekommt sie ohne Frage: die Einträge in
   der Folge des Registers die Zwillinge in der Folge des Buchs (das Register folgt nach dem
   Speichern der Folge des Buchs, so bleibt es beim Neuöffnen gleich). Mehr Zwillinge als Einträge
   (Strg+C, Strg+V einer Szene): die übrigen Zwillinge werden neue Einträge. Mehr Einträge als
   Zwillinge: die ersten bekommen sie, der Rest ist nicht im Buch wie eine gestrichene Szene.
-  Einträge ohne `prints` (erster Lauf) gelten weiter nach der Regel oben.
+  Einträge ohne `prints` (erster Lauf) gelten weiter nach der Regel oben. Kommt ein anderer
+  Eintrag für einen der Zwillinge in Frage (seine Szene wurde in ihren Text umgeschrieben),
+  entscheidet die Folge nicht: alle werden gefragt.
   **Szenen ohne Zeilen** (nur Kopf, oder nur Figurenzeilen) haben nichts außer dem Kopf:
   sie sind zugeordnet, wenn ihr Kopf gepaart ist und die neue Szene ebenfalls keine Zeilen hat;
   wird der Kopf umgeschrieben oder die Szene ausgeschrieben, ist sie mehrdeutig (Kandidaten:

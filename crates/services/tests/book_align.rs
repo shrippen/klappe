@@ -599,3 +599,40 @@ fn placeholder_scenes_with_only_a_heading_take_their_entries_in_order() {
             .all(|x| x.state == BookState::InBook));
     });
 }
+
+/// Scene 9 with its own lines.
+fn hof_with(action: &str, speech: &str) -> String {
+    format!("{HOF} #9#\n\n{action}\n\nBERT\n{speech}\n\n")
+}
+
+#[test]
+fn a_scene_rewritten_into_a_twin_moves_no_other_entry() {
+    let x = hof_with("Ein Hund bellt im Hof.", "Sei still, du Köter.");
+    let y = hof_with(
+        "Eine Katze schleicht über den Hof.",
+        "Wo kommst du denn her?",
+    );
+    let dir = settled("book-twin-rewritten", vec![entry("aaaa", "9", HOF)], &x);
+    // A second scene 9 with other lines gets its own entry.
+    rewrite_book(&dir, &(x.clone() + &y));
+    let mut s = Session::open(&dir).unwrap();
+    s.save().unwrap();
+    assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+    let second = ids(&s)[1].clone();
+
+    // The scene of aaaa is rewritten into the text of bbbb's: two twins.
+    rewrite_book(&dir, &(y.clone() + &y));
+    let s = Session::open(&dir).unwrap();
+
+    let asked: Vec<(&str, Vec<usize>)> = s
+        .pending_scenes()
+        .iter()
+        .map(|p| {
+            (
+                p.id.as_str(),
+                p.candidates.iter().map(|c| c.index).collect(),
+            )
+        })
+        .collect();
+    assert_eq!(asked, [("aaaa", vec![0, 1]), (second.as_str(), vec![0, 1])]);
+}

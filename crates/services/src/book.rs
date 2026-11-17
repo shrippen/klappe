@@ -317,6 +317,11 @@ impl Plan {
                 .filter(|&n| key_of(&self.book[n]) == key && has_heading(&self.book[n]))
                 .collect();
             twins.retain(|n| !self.matched().contains(n));
+            // An entry outside the group that may be one of the twins (its scene was
+            // rewritten into their text) leaves the order no say: all of them are asked.
+            if self.claimed_outside(&entries, &twins) {
+                continue;
+            }
             let mut twins = twins.into_iter();
 
             for entry in entries {
@@ -330,6 +335,16 @@ impl Plan {
             }
         }
         self.settle();
+    }
+
+    /// Whether an open entry not in `group` has one of `twins` among its candidates.
+    fn claimed_outside(&self, group: &[usize], twins: &[usize]) -> bool {
+        self.fates.iter().any(|(entry, fate)| match fate {
+            Fate::Pending(found) => {
+                !group.contains(entry) && found.iter().any(|n| twins.contains(n))
+            }
+            _ => false,
+        })
     }
 
     /// The entries to ask about, with the scenes they may be.
