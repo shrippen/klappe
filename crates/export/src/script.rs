@@ -13,6 +13,7 @@ use std::fmt::Write;
 use klappe_model::Paper;
 
 use crate::canvas::num;
+use crate::layout::{paper_mm, PT_PER_MM};
 use crate::pdf::{pdf_string, write_text, TextPage};
 
 const COLUMN_PT: f64 = 7.2;
@@ -22,8 +23,6 @@ const FONT_PT: f64 = 12.0;
 const LEFT_PT: f64 = 108.0;
 /// Top of the first row: 1 inch.
 const TOP_PT: f64 = 72.0;
-/// Columns of the text area: 6 inches.
-const TEXT_COLUMNS: usize = 60;
 /// Baseline of the line of page number and header: half an inch down.
 const HEADER_BASELINE_PT: f64 = 46.0;
 /// Distance of the baseline from the top of its row.
@@ -36,9 +35,6 @@ const TITLE_GAP_ROWS: usize = 2;
 const FOOT_PT: f64 = 72.0;
 /// A scene number stands this many columns away from the text.
 const NUMBER_GAP_COLUMNS: usize = 1;
-const A4_PT: (f64, f64) = (595.28, 841.89);
-const LETTER_PT: (f64, f64) = (612.0, 792.0);
-const A3_PT: (f64, f64) = (841.89, 1190.55);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Face {
@@ -94,6 +90,8 @@ pub enum SceneNumbers {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScriptSheet {
     pub paper: Paper,
+    /// Columns of the text area; the right edge and the middle of the title page follow it.
+    pub columns: usize,
     pub title_page: TitlePage,
     pub pages: Vec<ScriptPage>,
     pub scene_numbers: SceneNumbers,
@@ -101,12 +99,11 @@ pub struct ScriptSheet {
     pub header: Option<String>,
 }
 
+/// The paper upright, in points.
 fn size_pt(paper: Paper) -> (f64, f64) {
-    match paper {
-        Paper::A4 => A4_PT,
-        Paper::Letter => LETTER_PT,
-        Paper::A3 => A3_PT,
-    }
+    let (width_mm, height_mm) = paper_mm(paper);
+
+    (width_mm * PT_PER_MM, height_mm * PT_PER_MM)
 }
 
 pub(crate) fn pdf(sheet: &ScriptSheet) -> Vec<u8> {
@@ -117,7 +114,7 @@ pub(crate) fn pdf(sheet: &ScriptSheet) -> Vec<u8> {
         pages.push(TextPage {
             width_pt,
             height_pt,
-            content: title_content(&sheet.title_page, height_pt).into_bytes(),
+            content: title_content(&sheet.title_page, sheet.columns, height_pt).into_bytes(),
         });
     }
     for page in &sheet.pages {
@@ -164,8 +161,8 @@ fn width_pt(text: &str) -> f64 {
 }
 
 /// The right edge of the text.
-fn right_pt() -> f64 {
-    LEFT_PT + TEXT_COLUMNS as f64 * COLUMN_PT
+fn right_pt(columns: usize) -> f64 {
+    LEFT_PT + columns as f64 * COLUMN_PT
 }
 
 fn page_content(sheet: &ScriptSheet, page: &ScriptPage) -> String {
@@ -183,7 +180,7 @@ fn page_content(sheet: &ScriptSheet, page: &ScriptPage) -> String {
         );
     }
     if let Some(label) = &page.label {
-        let x_pt = right_pt() - width_pt(label);
+        let x_pt = right_pt(sheet.columns) - width_pt(label);
         text_ops(
             &mut out,
             Face::Regular,
@@ -218,7 +215,7 @@ fn page_content(sheet: &ScriptSheet, page: &ScriptPage) -> String {
         text_ops(
             &mut out,
             line.face,
-            right_pt() + gap_pt,
+            right_pt(sheet.columns) + gap_pt,
             at_pt,
             height_pt,
             number,
@@ -230,9 +227,9 @@ fn page_content(sheet: &ScriptSheet, page: &ScriptPage) -> String {
 
 /// Title, credit, author and source centred a third down; contact bottom left, draft date
 /// bottom right.
-fn title_content(title: &TitlePage, height_pt: f64) -> String {
+fn title_content(title: &TitlePage, columns: usize, height_pt: f64) -> String {
     let mut out = String::new();
-    let centre_pt = LEFT_PT + width_pt(&" ".repeat(TEXT_COLUMNS)) / 2.0;
+    let centre_pt = LEFT_PT + width_pt(&" ".repeat(columns)) / 2.0;
     let mut at_pt = height_pt * TITLE_AT;
 
     let parts = [
@@ -264,7 +261,7 @@ fn title_content(title: &TitlePage, height_pt: f64) -> String {
     }
 
     let date = &title.draft_date;
-    let x_pt = right_pt() - width_pt(date);
+    let x_pt = right_pt(columns) - width_pt(date);
     text_ops(
         &mut out,
         Face::Regular,
