@@ -23,7 +23,7 @@ impl Session {
         self.time_s = t_s.clamp(0.0, self.duration_s());
     }
 
-    /// Every mark of every figure and camera and both edges of every shot, sorted, each once.
+    /// Every mark of every figure, object and camera and both edges of every shot, sorted, each once.
     pub fn marks_s(&self) -> Vec<f64> {
         let Some(plan) = self.plan() else {
             return Vec::new();
@@ -36,8 +36,12 @@ impl Session {
             .cameras
             .iter()
             .flat_map(|c| c.marks.iter().map(|m| m.at_s));
+        let objects = plan
+            .object_tracks
+            .iter()
+            .flat_map(|t| t.marks.iter().map(|m| m.at_s));
         let edges = plan.shots.iter().flat_map(|s| [s.from_s, s.to_s]);
-        let mut marks: Vec<f64> = figures.chain(cameras).chain(edges).collect();
+        let mut marks: Vec<f64> = figures.chain(objects).chain(cameras).chain(edges).collect();
 
         marks.sort_by(f64::total_cmp);
         marks.dedup_by(|b, a| *b - *a < MARK_EPS_S);

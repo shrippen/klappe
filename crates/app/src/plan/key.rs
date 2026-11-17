@@ -12,6 +12,7 @@ pub enum ElementKind {
     Camera,
     Figure,
     Mark,
+    ObjectMark,
     FigureVia,
     CameraVia,
     Wall,
@@ -26,8 +27,32 @@ pub enum ElementKind {
     DrawingEdge,
 }
 
+/// The first part of the key of each kind.
+const NAMES: [(ElementKind, &str); 20] = [
+    (ElementKind::Object, "object"),
+    (ElementKind::ObjectGrip, "objectgrip"),
+    (ElementKind::Light, "light"),
+    (ElementKind::LightGrip, "lightgrip"),
+    (ElementKind::Camera, "camera"),
+    (ElementKind::Figure, "figure"),
+    (ElementKind::Mark, "mark"),
+    (ElementKind::ObjectMark, "objectmark"),
+    (ElementKind::FigureVia, "figurevia"),
+    (ElementKind::CameraVia, "cameravia"),
+    (ElementKind::Wall, "wall"),
+    (ElementKind::Opening, "opening"),
+    (ElementKind::OpeningEdge, "openingedge"),
+    (ElementKind::Note, "note"),
+    (ElementKind::NoteWidth, "notewidth"),
+    (ElementKind::Image, "image"),
+    (ElementKind::ImageSize, "imagesize"),
+    (ElementKind::Drawing, "drawing"),
+    (ElementKind::DrawingPoint, "drawingpoint"),
+    (ElementKind::DrawingEdge, "drawingedge"),
+];
+
 impl ElementKind {
-    const ALL: [ElementKind; 19] = [
+    const ALL: [ElementKind; 20] = [
         Self::Object,
         Self::ObjectGrip,
         Self::Light,
@@ -35,6 +60,7 @@ impl ElementKind {
         Self::Camera,
         Self::Figure,
         Self::Mark,
+        Self::ObjectMark,
         Self::FigureVia,
         Self::CameraVia,
         Self::Wall,
@@ -50,27 +76,10 @@ impl ElementKind {
     ];
 
     pub fn name(self) -> &'static str {
-        match self {
-            Self::Object => "object",
-            Self::ObjectGrip => "objectgrip",
-            Self::Light => "light",
-            Self::LightGrip => "lightgrip",
-            Self::Camera => "camera",
-            Self::Figure => "figure",
-            Self::Mark => "mark",
-            Self::FigureVia => "figurevia",
-            Self::CameraVia => "cameravia",
-            Self::Wall => "wall",
-            Self::Opening => "opening",
-            Self::OpeningEdge => "openingedge",
-            Self::Note => "note",
-            Self::NoteWidth => "notewidth",
-            Self::Image => "image",
-            Self::ImageSize => "imagesize",
-            Self::Drawing => "drawing",
-            Self::DrawingPoint => "drawingpoint",
-            Self::DrawingEdge => "drawingedge",
-        }
+        NAMES
+            .iter()
+            .find(|(kind, _)| *kind == self)
+            .map_or("", |(_, name)| name)
     }
 
     fn from_name(name: &str) -> Option<Self> {
@@ -93,7 +102,11 @@ pub fn key(source: &Source) -> String {
         ),
         Source::Camera(id) => (ElementKind::Camera, id.clone()),
         Source::Figure(id) => (ElementKind::Figure, id.clone()),
-        Source::Mark { character, index } => (ElementKind::Mark, format!("{character}:{index}")),
+        Source::Mark {
+            character: id,
+            index,
+        }
+        | Source::ObjectMark { object: id, index } => (mark_kind(source), format!("{id}:{index}")),
         Source::FigureVia {
             character,
             index,
@@ -130,6 +143,15 @@ pub fn key(source: &Source) -> String {
     };
 
     format!("{}:{rest}", kind.name())
+}
+
+/// The kind of a mark: a figure's or an object's.
+fn mark_kind(source: &Source) -> ElementKind {
+    if matches!(source, Source::ObjectMark { .. }) {
+        return ElementKind::ObjectMark;
+    }
+
+    ElementKind::Mark
 }
 
 /// The last part of a grip's key: `at2` for bend 2, `new0` for the grip of piece 0.
@@ -260,6 +282,15 @@ mod tests {
         }
     }
 
+    fn object_mark() -> (Source, ElementKind, &'static str, Option<usize>) {
+        let source = Source::ObjectMark {
+            object: "o".into(),
+            index: 3,
+        };
+
+        (source, ElementKind::ObjectMark, "o", Some(3))
+    }
+
     /// Every kind of element reads back from the key it is written as.
     #[test]
     fn every_key_reads_back() {
@@ -279,6 +310,7 @@ mod tests {
                 "e",
                 Some(2),
             ),
+            object_mark(),
             (
                 Source::FigureVia {
                     character: "e".into(),

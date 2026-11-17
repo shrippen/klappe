@@ -4,6 +4,7 @@ use klappe_model::{is_aspect, is_camera_lens_mm, is_sensor_width_mm, Camera, Flo
 
 use crate::error::ServiceError;
 use crate::field::Field;
+use crate::plan_edit::PlanEdit;
 
 pub(crate) fn check_sensor(width_mm: f64, aspect: Option<f64>) -> Result<(), ServiceError> {
     if !is_sensor_width_mm(width_mm) {
@@ -76,4 +77,18 @@ pub(crate) fn set_aspect(plan: &mut FloorPlan, id: &str, aspect: f64) -> Result<
     camera(plan, id)?.aspect = aspect;
 
     Ok(())
+}
+
+/// The edit of a camera's own fields: sensor, lens or frame.
+pub(crate) fn edit(plan: &mut FloorPlan, edit: &PlanEdit) -> Result<(), ServiceError> {
+    match edit {
+        PlanEdit::SetSensor {
+            camera,
+            width_mm,
+            aspect,
+        } => set_sensor(plan, camera, *width_mm, *aspect),
+        PlanEdit::SetLens { camera, lens_mm } => set_lens(plan, camera, *lens_mm),
+        PlanEdit::SetAspect { camera, aspect } => set_aspect(plan, camera, *aspect),
+        _ => Ok(()),
+    }
 }

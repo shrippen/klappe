@@ -638,6 +638,12 @@ pub mod qobject {
         #[cxx_name = "setMarkLens"]
         fn set_mark_lens(self: Pin<&mut Self>, lens: &QString) -> bool;
 
+        /// Lets the figure with id `figure` (empty: none) carry the selected object from its mark
+        /// on (LH-24). False for another selection or a figure the plan does not have.
+        #[qinvokable]
+        #[cxx_name = "setMarkCarrier"]
+        fn set_mark_carrier(self: Pin<&mut Self>, figure: &QString) -> bool;
+
         /// Times the way to the selected figure mark for `walk`, `run` or a typed speed in m/s.
         /// False for another selection or a refused text; the first mark is refused by the session.
         #[qinvokable]

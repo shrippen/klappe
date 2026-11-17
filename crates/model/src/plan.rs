@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::curve::Curve;
 use crate::drawing_style::{Dash, Fill};
 use crate::geometry::Point;
+use crate::object_track::ObjectTrack;
 use crate::project::{FigureColor, Note};
 use crate::shot::Shot;
 use crate::sketch::Sketch;
@@ -15,6 +16,10 @@ pub struct FloorPlan {
     pub name: String,
     #[serde(default)]
     pub figures: Vec<FigureTrack>,
+    /// Ways of set objects through this scene, e.g. a prop a figure carries (LH-24); an
+    /// object without a track stays where the set puts it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub object_tracks: Vec<ObjectTrack>,
     #[serde(default)]
     pub cameras: Vec<Camera>,
     #[serde(default)]
@@ -52,6 +57,7 @@ impl FloorPlan {
             id: id.to_owned(),
             name: name.to_owned(),
             figures: Vec::new(),
+            object_tracks: Vec::new(),
             cameras: Vec::new(),
             lights: Vec::new(),
             shots: Vec::new(),
@@ -65,6 +71,10 @@ impl FloorPlan {
 
     pub fn figure(&self, character: &str) -> Option<&FigureTrack> {
         self.figures.iter().find(|f| f.character == character)
+    }
+
+    pub fn object_track(&self, object: &str) -> Option<&ObjectTrack> {
+        self.object_tracks.iter().find(|t| t.object == object)
     }
 
     pub fn camera(&self, id: &str) -> Option<&Camera> {
@@ -82,9 +92,17 @@ impl FloorPlan {
             .cameras
             .iter()
             .map(|c| track_end(c.marks.iter().map(|m| (m.at_s, m.hold_s))));
+        let objects = self
+            .object_tracks
+            .iter()
+            .map(|t| track_end(t.marks.iter().map(|m| (m.at_s, m.hold_s))));
         let shots = self.shots.iter().map(|s| s.to_s);
 
-        figures.chain(cameras).chain(shots).fold(0.0, f64::max)
+        figures
+            .chain(objects)
+            .chain(cameras)
+            .chain(shots)
+            .fold(0.0, f64::max)
     }
 }
 

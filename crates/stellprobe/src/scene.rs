@@ -134,7 +134,7 @@ pub(crate) fn scene(
 ) -> Vec<Solid> {
     let mut solids = vec![floor(set)];
     walls(set, cut, &mut solids);
-    objects(set, forms, &mut solids);
+    objects(&crate::prop::set_at(set, plan, t_s), forms, &mut solids);
     figures(project, plan, t_s, &mut solids);
     cameras(plan, t_s, looking, &mut solids);
 

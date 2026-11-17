@@ -26,6 +26,7 @@ mod moving;
 mod object;
 mod openings;
 mod picking;
+mod props;
 mod remove;
 mod target;
 
@@ -119,6 +120,19 @@ pub enum PlanEdit {
     },
     /// Appends a mark to the camera `camera` (LH-33): it keeps the aim, height, tilt and lens
     /// of the last mark and comes by dolly.
+    /// Adds a mark to the way of the set object `object` at `at` (LH-24): the first click also
+    /// marks where the object stands now, at the playhead.
+    AddObjectMark {
+        object: String,
+        at: Point,
+    },
+    /// Lets the figure `figure` carry the object from its mark until the next one (LH-24), or
+    /// sets it down with `None`: `Source::ObjectMark`, or `Source::Object` for its mark at the
+    /// playhead.
+    SetCarrier {
+        source: Source,
+        figure: Option<String>,
+    },
     AddCameraMark {
         camera: String,
         at: Point,
@@ -401,6 +415,7 @@ impl PlanEdit {
             | PlanEdit::SetArrival { source, .. }
             | PlanEdit::SetDeparture { source, .. }
             | PlanEdit::SetHold { source, .. }
+            | PlanEdit::SetCarrier { source, .. }
             | PlanEdit::SetCameraAim { source, .. }
             | PlanEdit::SetRig { source, .. }
             | PlanEdit::SetMarkLens { source, .. }
@@ -427,6 +442,7 @@ impl PlanEdit {
                 return sources.iter().map(layer_of_source).collect();
             }
             PlanEdit::AddMark { .. } => Layer::Figures,
+            PlanEdit::AddObjectMark { .. } => Layer::Set,
             PlanEdit::AddCamera { .. }
             | PlanEdit::AddCameraMark { .. }
             | PlanEdit::Follow { .. }
@@ -460,7 +476,10 @@ impl PlanEdit {
 /// The layer an element of the plan is on.
 pub fn layer_of_source(source: &Source) -> Layer {
     match source {
-        Source::Object(_) | Source::Wall(_) | Source::Opening { .. } => Layer::Set,
+        Source::Object(_)
+        | Source::ObjectMark { .. }
+        | Source::Wall(_)
+        | Source::Opening { .. } => Layer::Set,
         Source::Light(_) => Layer::Lights,
         Source::Camera(_) | Source::CameraVia { .. } => Layer::Cameras,
         Source::Figure(_) | Source::Mark { .. } | Source::FigureVia { .. } => Layer::Figures,
@@ -563,6 +582,9 @@ pub(crate) fn apply(
         PlanEdit::AddMark { character, at } => add_mark(&mut scope, character, *at),
         PlanEdit::AddCamera { at, facing_deg } => add_camera(&mut scope, *at, *facing_deg),
         PlanEdit::AddCameraMark { camera, at } => add_camera_mark(&mut scope, camera, *at),
+        PlanEdit::AddObjectMark { .. } | PlanEdit::SetCarrier { .. } => {
+            props::edit(&mut scope, edit)
+        }
         PlanEdit::AddLight { .. } | PlanEdit::SetLight { .. } => edit_light(&mut scope, edit),
         PlanEdit::AddObject { .. } | PlanEdit::AddShape { .. } => add_objects(&mut scope, edit),
         PlanEdit::Resize { .. } | PlanEdit::SetObject { .. } => object::edit(&mut scope, edit),
@@ -591,16 +613,8 @@ pub(crate) fn apply(
         PlanEdit::MoveBackground { dx_m, dy_m } => move_background(&mut scope, (*dx_m, *dy_m)),
         PlanEdit::RemoveBackground => remove_background(&mut scope),
         PlanEdit::Follow { camera, figure } => follow(&mut scope, camera, figure.as_deref()),
-        PlanEdit::SetSensor {
-            camera,
-            width_mm,
-            aspect,
-        } => camera_edit::set_sensor(scope.plan, camera, *width_mm, *aspect),
-        PlanEdit::SetLens { camera, lens_mm } => {
-            camera_edit::set_lens(scope.plan, camera, *lens_mm)
-        }
-        PlanEdit::SetAspect { camera, aspect } => {
-            camera_edit::set_aspect(scope.plan, camera, *aspect)
+        PlanEdit::SetSensor { .. } | PlanEdit::SetLens { .. } | PlanEdit::SetAspect { .. } => {
+            camera_edit::edit(scope.plan, edit)
         }
         PlanEdit::SetPose { .. }
         | PlanEdit::SetArrival { .. }

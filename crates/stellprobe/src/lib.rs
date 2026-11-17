@@ -28,6 +28,7 @@ mod movement;
 mod opening;
 mod optics;
 mod picture;
+mod prop;
 mod rig;
 mod scene;
 mod setup;
@@ -56,6 +57,7 @@ pub use picture::{
     floor_at, grab_at, level_at, lift_at, picture, source_at, vector_view, Picture, PictureLabel,
     VectorFace, VectorView,
 };
+pub use prop::{object_at, set_at};
 pub use scene::{Cut, SceneRole};
 pub use setup::{
     is_setup_model, ordered_shots, setup_choices, setup_target, shot_setups, SetupChoice,

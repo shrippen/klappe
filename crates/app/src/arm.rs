@@ -36,10 +36,12 @@ impl Armed {
     }
 }
 
-/// The figure (its character) or camera a selection stands for, a grip on its way included.
+/// The figure (its character), camera or set object a selection stands for, a grip of its way
+/// included.
 enum Subject<'a> {
     Figure(&'a str),
     Camera(&'a str),
+    Object(&'a str),
 }
 
 fn subject(selected: Option<&Source>) -> Option<Subject<'_>> {
@@ -48,16 +50,18 @@ fn subject(selected: Option<&Source>) -> Option<Subject<'_>> {
         | Source::Mark { character: id, .. }
         | Source::FigureVia { character: id, .. } => Some(Subject::Figure(id)),
         Source::Camera(id) | Source::CameraVia { camera: id, .. } => Some(Subject::Camera(id)),
+        Source::Object(id) | Source::ObjectMark { object: id, .. } => Some(Subject::Object(id)),
         _ => None,
     }
 }
 
-/// Whether `armed` has something to work on with this selection: the marks need a figure or
-/// a camera, the axis a figure.
+/// Whether `armed` has something to work on with this selection: the next mark needs a figure,
+/// a camera or an object, the mark before and the axis a figure (a camera for the mark before).
 pub fn can_arm(armed: Armed, selected: Option<&Source>) -> bool {
     match (armed, subject(selected)) {
         (Armed::Idle, _) | (_, None) => false,
         (Armed::AxisTo, Some(subject)) => matches!(subject, Subject::Figure(_)),
+        (Armed::MarkBefore, Some(Subject::Object(_))) => false,
         (_, Some(_)) => true,
     }
 }
@@ -74,6 +78,10 @@ pub fn click_edit(armed: Armed, selected: Option<&Source>, at: Point) -> Option<
         }),
         (Armed::NextMark, Subject::Camera(camera)) => Some(PlanEdit::AddCameraMark {
             camera: camera.to_owned(),
+            at,
+        }),
+        (Armed::NextMark, Subject::Object(object)) => Some(PlanEdit::AddObjectMark {
+            object: object.to_owned(),
             at,
         }),
         (Armed::MarkBefore, Subject::Figure(character)) => Some(PlanEdit::AddMarkBefore {
@@ -148,6 +156,28 @@ mod tests {
             None
         );
         assert_eq!(click_edit(Armed::NextMark, None, at()), None);
+    }
+
+    /// An object, its mark and a grip name the object; it has no mark before the first.
+    #[test]
+    fn a_click_sets_the_next_mark_of_the_selected_object() {
+        let mark = Source::ObjectMark {
+            object: "chair".into(),
+            index: 0,
+        };
+
+        for selected in [Source::Object("chair".into()), mark] {
+            assert_eq!(
+                click_edit(Armed::NextMark, Some(&selected), at()),
+                Some(PlanEdit::AddObjectMark {
+                    object: "chair".into(),
+                    at: at()
+                })
+            );
+            assert!(can_arm(Armed::NextMark, Some(&selected)));
+            assert!(!can_arm(Armed::MarkBefore, Some(&selected)));
+            assert!(!can_arm(Armed::AxisTo, Some(&selected)));
+        }
     }
 
     #[test]
