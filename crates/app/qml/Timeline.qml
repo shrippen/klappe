@@ -10,6 +10,9 @@ import Kante
 // Playing: a timer asks the controller to advance by the real time since its last tick; the
 // controller (services) does the arithmetic and says when the end is reached.
 //
+// Dialogue (LH-64): with the switch on, SpeechPlayer has the voice read the scene's dialogue
+// while it plays. The switch is off (with the reason in its text) where the system has no voice.
+//
 // Dragging (LH-61, in KanteTrackTimeline): a mark of a figure or camera moves its arrival, an
 // edge of a shot in the cut row moves that edge. While the button is down a line and the time
 // show where it lands; the controller (services) snaps it to 0.1 s (Shift: free) and keeps it
@@ -19,6 +22,11 @@ Item {
 
     required property var texts
     required property var controller
+    /// The speech voice (`available`, `say`, `stop`), null for none.
+    property var voice: null
+    /// Dialogue is read while playing; the window keeps the choice.
+    property bool speak: false
+    signal speakToggled(bool on)
 
     readonly property var source: controller.tracksJson ? JSON.parse(controller.tracksJson) : []
 
@@ -68,6 +76,12 @@ Item {
         function onSwitched() { line.playing = false }
     }
 
+    SpeechPlayer {
+        controller: line.controller
+        voice: line.voice
+        active: line.playing && line.speak && line.voice !== null && line.voice.available
+    }
+
     Timer {
         id: clock
         interval: line.tickMs
@@ -112,36 +126,54 @@ Item {
         anchors.margins: Kirigami.Units.smallSpacing
         spacing: Kirigami.Units.smallSpacing
 
-        KanteTransportBar {
-            id: bar
-            objectName: "transport"
+        RowLayout {
             Layout.fillWidth: true
-            metronomeVisible: false
-            countInVisible: false
-            markersVisible: true
-            timeFormat: "mm:ss,d"
-            positionText: line.clock(line.controller.time) + " / " + line.clock(line.controller.duration)
-            speedSteps: line.speedSteps
-            playing: line.playing
-            looping: line.looping
-            speed: line.speed
-            position: line.controller.time
-            duration: line.controller.duration
-            rewindText: line.texts.t("timeline.start")
-            playText: line.texts.t("timeline.play")
-            pauseText: line.texts.t("timeline.pause")
-            loopText: line.texts.t("timeline.loop")
-            speedText: line.texts.t("timeline.speed")
-            markerBackText: line.texts.t("timeline.markerBack")
-            markerOnText: line.texts.t("timeline.markerOn")
-            positionName: line.texts.t("timeline.position")
-            accessibleName: line.texts.t("timeline.transport")
+            spacing: Kirigami.Units.largeSpacing
 
-            onRewind: line.controller.seek(0)
-            onPlayToggled: line.togglePlay()
-            onLoopToggled: line.looping = !line.looping
-            onSpeedChangeRequested: s => line.speed = s
-            onMarkerStepRequested: direction => line.controller.stepMark(direction)
+            KanteTransportBar {
+                id: bar
+                objectName: "transport"
+                Layout.fillWidth: true
+                metronomeVisible: false
+                countInVisible: false
+                markersVisible: true
+                timeFormat: "mm:ss,d"
+                positionText: line.clock(line.controller.time) + " / " + line.clock(line.controller.duration)
+                speedSteps: line.speedSteps
+                playing: line.playing
+                looping: line.looping
+                speed: line.speed
+                position: line.controller.time
+                duration: line.controller.duration
+                rewindText: line.texts.t("timeline.start")
+                playText: line.texts.t("timeline.play")
+                pauseText: line.texts.t("timeline.pause")
+                loopText: line.texts.t("timeline.loop")
+                speedText: line.texts.t("timeline.speed")
+                markerBackText: line.texts.t("timeline.markerBack")
+                markerOnText: line.texts.t("timeline.markerOn")
+                positionName: line.texts.t("timeline.position")
+                accessibleName: line.texts.t("timeline.transport")
+
+                onRewind: line.controller.seek(0)
+                onPlayToggled: line.togglePlay()
+                onLoopToggled: line.looping = !line.looping
+                onSpeedChangeRequested: s => line.speed = s
+                onMarkerStepRequested: direction => line.controller.stepMark(direction)
+            }
+
+            KanteSwitch {
+                objectName: "speakSwitch"
+                readonly property bool usable: line.voice !== null && line.voice.available
+                text: usable ? line.texts.t("timeline.speak") : line.texts.t("timeline.speakNone")
+                enabled: usable
+                checked: usable && line.speak
+                onToggled: {
+                    line.speakToggled(checked)
+                    // The window's answer, not this click, says what is on.
+                    checked = Qt.binding(() => usable && line.speak)
+                }
+            }
         }
 
         KanteTrackTimeline {

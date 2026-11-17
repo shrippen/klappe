@@ -43,6 +43,9 @@ RowLayout {
     /// Zoom of the plan: "in", "out" or "fit".
     signal zoomRequested(string how)
     signal playRequested()
+    signal speakRequested()
+    /// The system has a speech voice.
+    property bool speechAvailable: false
     /// An object without a height is selected (LH-93): its card takes the height.
     signal heightRequested()
     /// The plan menu's template files (LH-07): the window asks for the file.
@@ -505,7 +508,9 @@ RowLayout {
         controller: header.controller
         locked: header.locked
         keyName: header.keyName
+        speechAvailable: header.speechAvailable
         onRequested: header.playRequested()
+        onSpeakRequested: header.speakRequested()
     }
 
     ArmCommands {

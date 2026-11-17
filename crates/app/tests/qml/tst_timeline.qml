@@ -14,6 +14,8 @@ TestCase {
     QtObject {
         id: fake
         property string tracksJson: "[]"
+        property string speech: "null"
+        function speechJson() { return speech }
         property real time: 6
         property real duration: 20
         property var seeks: []
@@ -68,6 +70,7 @@ TestCase {
 
     function init() {
         fake.time = 6
+        fake.speech = "null"
         fake.running = true
         fake.tracksJson = "[]"
         fake.drags = []
@@ -93,6 +96,68 @@ TestCase {
         line.togglePlay()
         fake.switched()
         verify(!line.playing)
+    }
+
+    QtObject {
+        id: fakeVoice
+        property bool available: true
+        property var said: []
+        property int stops: 0
+        function say(text, language) { said.push(text) }
+        function stop() { stops++ }
+    }
+
+    function speechOf(line) {
+        return findChild(line, "speakSwitch")
+    }
+
+    // LH-64: without a voice the switch is off and says why; with one it asks the window.
+    function test_the_speak_switch_is_off_and_explained_without_a_voice() {
+        const sw = speechOf(make(de))
+
+        verify(!sw.enabled)
+        compare(sw.text, "Dialog vorlesen (keine Sprachausgabe gefunden)")
+    }
+
+    function test_the_speak_switch_asks_the_window() {
+        const line = make(en)
+        line.voice = fakeVoice
+        const spy = createTemporaryObject(spyComponent, tc, { target: line, signalName: "speakToggled" })
+        const sw = speechOf(line)
+
+        verify(sw.enabled)
+        compare(sw.text, "Read dialogue aloud")
+        verify(!sw.checked)
+        mouseClick(sw)
+        compare(spy.count, 1)
+        compare(spy.signalArguments[0][0], true)
+        // The window did not turn it on: the switch follows the window.
+        verify(!sw.checked)
+        line.speak = true
+        verify(sw.checked)
+    }
+
+    // The voice reads only while playing with the switch on; pause stops it.
+    function test_the_voice_reads_only_while_playing_with_the_switch_on() {
+        fakeVoice.said = []
+        fake.speech = JSON.stringify({ language: "de", lines: [{ index: 1, at_s: 6, text: "Hallo." }] })
+        const line = make(de)
+        line.voice = fakeVoice
+        line.speak = true
+
+        fake.time = 6
+        compare(fakeVoice.said, [])
+        line.togglePlay()
+        compare(fakeVoice.said, ["Hallo."])
+
+        fakeVoice.stops = 0
+        line.togglePlay()
+        compare(fakeVoice.stops, 1)
+    }
+
+    Component {
+        id: spyComponent
+        SignalSpy {}
     }
 
     function make(texts) {

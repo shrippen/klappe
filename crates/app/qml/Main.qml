@@ -36,6 +36,13 @@ Kirigami.ApplicationWindow {
     property string shotOrder: "cut"
 
     Controller { id: ctl }
+    SpeechVoice { id: speechVoice }
+    // Reading the dialogue aloud stays over a restart (LH-64).
+    Settings {
+        id: playback
+        category: "playback"
+        property bool speak: false
+    }
     Texts { id: texts; source: ctl.texts }
 
     Binding { target: KanteStyle; property: "kind"; value: KanteStyle.Kind.Kante }
@@ -86,6 +93,8 @@ Kirigami.ApplicationWindow {
                 onShotOrderPicked: order => root.shotOrder = order
                 onZoomRequested: how => workspace.zoomPlan(how)
                 onPlayRequested: workspace.togglePlay()
+                speechAvailable: speechVoice.available
+                onSpeakRequested: playback.speak = !playback.speak
                 onHeightRequested: workspace.focusHeight()
             }
 
@@ -166,6 +175,9 @@ Kirigami.ApplicationWindow {
                 cameraViews: root.showCameraViews
                 shotDescription: root.showShotDescription
                 locked: backupNotice.blocking
+                voice: speechVoice
+                speak: playback.speak
+                onSpeakToggled: on => playback.speak = on
                 onProjectEntryRequested: (kind, id) => projectDialog.openAt(kind, id)
             }
         }

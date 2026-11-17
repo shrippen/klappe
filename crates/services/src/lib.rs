@@ -52,7 +52,7 @@ pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPag
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
     Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages, Playing,
-    Session, Size, Step, TimeSnap, View, ViewStep, Visibility,
+    Session, Size, Speech, SpokenLine, Step, TimeSnap, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{

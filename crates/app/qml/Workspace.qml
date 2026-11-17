@@ -28,6 +28,10 @@ Item {
 
     required property var texts
     required property var controller
+    /// Dialogue is read aloud while playing (LH-64) by `voice` (SpeechVoice), the window's choice.
+    property var voice: null
+    property bool speak: false
+    signal speakToggled(bool on)
 
     // The scene on view as the script's head shows it: { id, number, heading } or null.
     readonly property var sceneOnView: {
@@ -348,6 +352,9 @@ Item {
             visible: work.showTimeline
             texts: work.texts
             controller: work.controller
+            voice: work.voice
+            speak: work.speak
+            onSpeakToggled: on => work.speakToggled(on)
         }
     }
 

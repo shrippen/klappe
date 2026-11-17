@@ -31,6 +31,15 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 | `demo/` (crate) | Tool, never shipped: writes the example projects into the root folder `demo/`. |
 | `demo/` (root) | The demo world and the generated example projects; only those two projects ship, embedded by `services/`. |
 
+## Dependencies outside the workspace
+
+- Qt Quick, Kirigami and Kante for the window (see `app/`).
+- **Qt TextToSpeech** (`qt6-speech`, QML module `QtTextToSpeech`): the voice that reads the
+  dialogue while playing (LH-64). Only `app/qml/SpeechVoice.qml` uses it, and it makes the
+  module from text at run time, so the build needs nothing of it and a system without it
+  starts with the switch off. No Rust crate depends on it; `services/` plans the speech
+  without Qt.
+
 ## Layers
 
 ```
@@ -94,6 +103,7 @@ A change that needs more places than listed is a finding for the audit.
 | New screenplay element | `script/` (element, parse, write, its line kind for quotes and prints in `quote.rs` (`LineKind`, `kind_text`), its line kind on the page `PageKind` in `pages.rs` and its place in `pages/block.rs`, tests); in `services/` the script lines (`session/timeline.rs`) and its face in the PDF (`script_pages.rs`); its look in `tui/` (line kind in `fountain.rs`, style in `ui.rs` `style_of`) and in `app/` (`ScriptPanel.qml`). |
 | New writing aid for the screenplay (suggestion list, element flow, search, title page field, inline mark, outline) | `script/` the rule and its tests (`assist.rs`, `flow.rs` for the element flow, `search.rs`, `title.rs`, `inline.rs`, `outline.rs`), re-exported in `services/` `lib.rs`; `tui/` the key (`app.rs`, `app/`), the drawing (`ui.rs`, `ui_overlay.rs`) and its help line; `app/` its editor later; texts. A title page field is also a line in `TITLE_KEYS` (`title.rs`), its label in `tui/` `i18n.rs` (`FIELD_KEYS`, by field name), its place on the sheet in `services/` `script_pages.rs` and the PDF in `export/` `script.rs` (`TitlePage`; `export/` does not see `script/`). |
 | New view setting of the plan (layer fade, saved view) or output built on one (pages per shot or camera) | `services/` the setting in `session/` (`fade.rs`, `layers.rs`, `saved.rs`) and what it changes in the display list or the picture (`item_fades`, `scene_fade`); a project edit in `project_edit/` (`views.rs`) with its data in `model/` and `FORMAT.md`; pages in `session/pages.rs` (they fade through `Page::fade`, `export/`); `app/` one property in the bridge (`fadesJson`), the calls in a `bridge/` file, the entry in `LayerPopover.qml`, a palette entry in `ViewCommands.qml` (`palette()`, run by a `case` in `AppHeader.qml` `run`; a plain command as a `CommandAction` there, shot views in `ShotViewCommands.qml`) and its menu item in `AppHeader.qml`; texts. |
+| New thing read or played to the ear (speech, later sound) | `services/` what plays when, as a plan without Qt (`session/speech.rs`, `Session::speech`); `app/` one call in the bridge (`speech_json`), the voice as a QML object (`SpeechVoice.qml`, Qt TextToSpeech) and the player that follows the playhead (`SpeechPlayer.qml`); the switch in `Timeline.qml`, the palette entry in `PlayCommands.qml`, its choice in the window's settings (`Main.qml`); texts. |
 | New text in a surface | The same key in `services/i18n/de.json` and `en.json`; used through `texts.t("key")` in QML or `Language::text` in Rust. |
 | New file or changed layout of the project folder | `model/` (data, `FORMAT_VERSION`); `store/`; `FORMAT.md`; `testdata/`; regenerate the examples (`cargo run -p klappe-demo`). |
 | New library object, camera preset or lamp | Data only: `store/library/standard.toml` (and its 3D form in `forms.toml`, its name `objectKind.<kind>` and group `objectGroup.<group>` in the catalogue), `store/camera/standard.toml`, `store/light/standard.toml` (and its name `lightPreset.<id>` in the catalogue). |

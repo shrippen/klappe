@@ -223,6 +223,12 @@ pub mod qobject {
         #[qinvokable]
         fn advance(self: Pin<&mut Self>, dt: f64, speed: f64, looping: &QString) -> bool;
 
+        /// The dialogue a voice reads while playing (LH-64), as JSON `{ language, lines: [{
+        /// index, at_s, text }] }` in the order of the time; `language` is `de` or `en`.
+        #[qinvokable]
+        #[cxx_name = "speechJson"]
+        fn speech_json(self: &Self) -> QString;
+
         #[qinvokable]
         #[cxx_name = "selectShot"]
         fn select_shot(self: Pin<&mut Self>, id: &QString);

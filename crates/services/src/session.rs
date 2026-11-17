@@ -28,6 +28,7 @@ mod scene;
 mod script_pages;
 mod shots;
 mod sketch;
+mod speech;
 mod templates;
 mod timeline;
 mod undo;
@@ -40,6 +41,7 @@ pub use fade::Fade;
 pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
 pub use retime::{Grab, TimeSnap};
+pub use speech::{Speech, SpokenLine};
 
 /// Groups of the plan the timeline's layer switches show or hide.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
