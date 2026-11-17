@@ -14,9 +14,9 @@
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
-    error_text, read_number, ExportFormat, ExportOptions, Field, HeaderLine, Language, Orientation,
-    Paper, PaperSetup, Range, SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder,
-    Size, Unit,
+    error_text, load_notes_text, read_number, ExportFormat, ExportOptions, Field, HeaderLine,
+    Language, Orientation, Paper, PaperSetup, Range, SceneNumbers, ScriptPaper, ScriptPrint,
+    Sensor, Session, ShotOrder, Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -223,6 +223,7 @@ fn write_script_pdf(
     print: &ScriptPrint,
 ) -> Result<(), String> {
     let mut session = Session::open(project).map_err(|e| error_text(print.language, &e))?;
+    warn_load_notes(&session, print.language);
     if let Some(paper) = paper {
         // Only in memory: the CLI saves nothing.
         let mut setup = session.project().script;
@@ -271,8 +272,17 @@ fn export(job: &ExportJob) -> ExitCode {
     }
 }
 
+/// What loaded but is odd in the project goes to stderr; the export goes on.
+fn warn_load_notes(session: &Session, language: Language) {
+    let notes = load_notes_text(language, session.load_notes());
+    if !notes.is_empty() {
+        eprintln!("{notes}");
+    }
+}
+
 fn write_export(job: &ExportJob) -> Result<(), String> {
     let mut session = Session::open(&job.project).map_err(|e| error_text(job.language, &e))?;
+    warn_load_notes(&session, job.language);
     let scene_id = session
         .project()
         .scenes

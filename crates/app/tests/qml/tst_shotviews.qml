@@ -9,7 +9,13 @@ TestCase {
     name: "ShotViewCommands"
     when: windowShown
 
-    QtObject { id: fake; property bool loaded: true }
+    QtObject {
+        id: fake
+        property bool loaded: true
+        property string selectedShot: ""
+        property var stills: []
+        function shotStill(id) { stills.push(id) }
+    }
     TestTexts { id: de; language: "de" }
 
     Component {
@@ -56,7 +62,21 @@ TestCase {
         views.cutAction.trigger()
 
         compare(orderSpy.signalArguments[0][0], "cut")
-        compare(views.actions.map(a => a.cmd), ["view.cameraViews", "view.shotDescription", "order.cut", "order.shooting"])
+        compare(views.actions.map(a => a.cmd), ["view.cameraViews", "view.shotDescription", "order.cut", "order.shooting", "shot.still"])
+    }
+
+    // LH-75: the command takes the still of the selected shot, and only with one.
+    function test_the_still_is_taken_for_the_selected_shot() {
+        fake.stills = []
+        const views = make()
+        verify(!views.stillAction.enabled)
+
+        fake.selectedShot = "s12-2"
+        verify(views.stillAction.enabled)
+        views.stillAction.trigger()
+
+        compare(fake.stills, ["s12-2"])
+        fake.selectedShot = ""
     }
 
     function test_nothing_works_without_a_project() {

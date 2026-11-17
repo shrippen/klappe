@@ -1,5 +1,7 @@
 //! Backup and autosave (DN-06), the help (DN-04) and undo (DB-09).
 
+use std::fs;
+
 use super::support::*;
 use super::*;
 
@@ -232,4 +234,15 @@ fn the_status_line_counts_scenes_struck_from_the_book() {
     let same = Scratch::new("INT. SÄNGERSAAL – TAG #12#\n\nx");
     let mut fine = same.app();
     assert!(!screen(&mut fine, 120, 24).contains("not in the book"));
+}
+
+#[test]
+fn an_orphan_scene_file_is_told_on_the_status_line() {
+    let scratch = Scratch::new("INT. A - TAG\n\nx");
+    fs::write(scratch.dir.join("szenen.toml"), "").unwrap_or_else(|e| unreachable!("{e}"));
+    let mut app = scratch.app();
+
+    let text = screen(&mut app, 120, 24);
+
+    assert!(text.contains("without a register entry"), "{text}");
 }

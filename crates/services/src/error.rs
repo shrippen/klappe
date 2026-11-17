@@ -59,6 +59,9 @@ pub enum ServiceError {
     /// Plan names are unique within a scene, so the variants can be told apart.
     #[error("plan name {0} is taken")]
     PlanNameTaken(String),
+    /// A version has the camera of its base: only the base's camera is changed.
+    #[error("shot {0} is a version: it has the camera of its base")]
+    VersionCamera(String),
     /// A new project needs an empty (or missing) folder.
     #[error("{} is not empty", .0.display())]
     NotEmpty(std::path::PathBuf),

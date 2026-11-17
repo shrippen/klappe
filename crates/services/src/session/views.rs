@@ -3,7 +3,9 @@
 
 use std::borrow::Cow;
 
-use klappe_model::{CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper, SetPlan};
+use klappe_model::{
+    BookState, CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper, SetPlan,
+};
 use klappe_stellprobe::{
     aim_at, axis_pair, camera_at, horizontal_fov_deg, object_extent, opening_span, picture, set_at,
     wall_top, Cut, Eye, Picture, Source,
@@ -72,6 +74,7 @@ impl Session {
                 id: s.id.clone(),
                 number: s.number.clone(),
                 heading: s.heading.clone(),
+                in_book: s.state == BookState::InBook,
                 location: s.location.clone(),
                 location_name: location.map(|l| l.name.clone()).unwrap_or_default(),
             }
@@ -144,7 +147,7 @@ impl Session {
     pub fn camera_picture(&self, fallback: Option<&str>, width_px: usize) -> Option<Picture> {
         let camera = self.shot_camera(fallback)?;
 
-        self.picture_through(camera, width_px)
+        self.picture_through(camera, self.time_s, width_px)
     }
 
     /// What camera `id` sees at the playhead, `width_px` wide, for the small picture beside its
@@ -152,7 +155,7 @@ impl Session {
     pub fn camera_picture_of(&self, id: &str, width_px: usize) -> Option<Picture> {
         self.plan()?.camera(id)?;
 
-        self.picture_through(id.to_owned(), width_px)
+        self.picture_through(id.to_owned(), self.time_s, width_px)
     }
 
     /// The cameras whose body shows on the plan now (layer and track not hidden) and where it
@@ -181,12 +184,18 @@ impl Session {
             .collect()
     }
 
-    fn picture_through(&self, camera: String, width_px: usize) -> Option<Picture> {
+    /// What camera `camera` sees at `t_s`, `width_px` wide.
+    pub(super) fn picture_through(
+        &self,
+        camera: String,
+        t_s: f64,
+        width_px: usize,
+    ) -> Option<Picture> {
         let plan = self.plan()?;
         let location = self.project.location(&self.scene()?.location)?;
         let eye = Eye::Shot {
             camera,
-            t_s: self.time_s,
+            t_s,
             aspect: None,
         };
 

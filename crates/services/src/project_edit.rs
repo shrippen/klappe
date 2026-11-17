@@ -442,8 +442,6 @@ fn uses(plan: &FloorPlan, character: &str) -> bool {
     axis || plan.figure(character).is_some()
 }
 
-/// The trimmed number, if it is not empty and no other scene (not `own`) has it. `12a` and
-/// `12A` count as one.
 /// A heading is one line: the register and the script both hold it so.
 fn check_heading(heading: &str) -> Result<String, ServiceError> {
     let heading = heading.trim();
@@ -457,6 +455,8 @@ fn check_heading(heading: &str) -> Result<String, ServiceError> {
     })
 }
 
+/// The trimmed number, if it is not empty and no other scene (not `own`) has it. `12a` and
+/// `12A` count as one.
 fn free_number(project: &Project, number: &str, own: Option<&str>) -> Result<String, ServiceError> {
     let number = number.trim();
     let bad = || ServiceError::BadValue {

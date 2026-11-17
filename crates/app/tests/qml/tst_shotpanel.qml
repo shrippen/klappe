@@ -73,6 +73,11 @@ TestCase {
             return accept
         }
         property var imageCalls: []
+        property var stillCalls: []
+        function shotStill(id) {
+            stillCalls.push(id)
+            return accept
+        }
     }
 
     TestTexts { id: catalogue }
@@ -361,6 +366,19 @@ TestCase {
         compare(box.currentIndex, -1)
     }
 
+    // A version has the camera of its base (LH-76): the chooser is off, the base's camera is the one to change.
+    function test_the_camera_of_a_version_is_not_to_choose() {
+        const panel = make(null)
+        const box = field(panel, "cameraBox")
+        verify(box.enabled)
+
+        panel.shot = Object.assign({}, panel.shot, { is_version: true })
+        verify(!box.enabled)
+
+        panel.shot = Object.assign({}, panel.shot, { is_version: false })
+        verify(box.enabled)
+    }
+
     function test_the_current_camera_is_not_sent_again() {
         const box = field(make(null), "cameraBox")
 
@@ -508,6 +526,17 @@ TestCase {
         field(panel, "shortNameField").editingFinished()
 
         compare(fake.calls, [["s12-3", "short_name", "Auftritt"]])
+    }
+
+    // LH-75: the button takes the still of the camera view for the shot.
+    function test_the_still_button_takes_the_camera_view() {
+        fake.stillCalls = []
+        const panel = make(null)
+
+        verify(field(panel, "shotStill").enabled)
+        field(panel, "shotStill").clicked()
+
+        compare(fake.stillCalls, ["s12-3"])
     }
 
     // LH-74: the picture can be taken away; it has a button only with one.

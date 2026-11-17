@@ -28,7 +28,7 @@ ColumnLayout {
             width: ListView.view.width
             leadingText: modelData.number
             leadingWidth: Kirigami.Units.gridUnit * 3
-            text: modelData.heading
+            text: modelData.heading !== "" || modelData.inBook ? modelData.heading : list.texts.t("scene.notInBook")
             meta: modelData.locationName
             selected: modelData.id === list.currentId
             onClicked: list.currentId = modelData.id

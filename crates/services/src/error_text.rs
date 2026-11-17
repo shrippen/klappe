@@ -6,6 +6,10 @@ use crate::field::Field;
 
 /// The service's error in the given language; details (path, value) appended where they help.
 pub fn error_text(language: Language, error: &ServiceError) -> String {
+    if let ServiceError::NoDecision(_) = error {
+        return language.text("error.noDecision");
+    }
+
     // Wraps another error: its text first, then where the old example copy went.
     let ServiceError::ExampleAside { aside, source } = error else {
         return own_text(language, error);
@@ -117,13 +121,14 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::NoMarks => Some("error.noMarks"),
         ServiceError::NoPicture => Some("error.noPicture"),
         ServiceError::NoScript => Some("error.noScript"),
-        ServiceError::NoDecision(_) => Some("error.noDecision"),
         ServiceError::NoPages => Some("error.noPages"),
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
         ServiceError::FewPoints => Some("error.fewPoints"),
         ServiceError::NotCopyable => Some("error.notCopyable"),
+        ServiceError::VersionCamera(_) => Some("error.versionCamera"),
         // Listed so a new variant must be placed: `error_text` words these itself.
         ServiceError::NoScene(_)
+        | ServiceError::NoDecision(_)
         | ServiceError::NoPlan(_)
         | ServiceError::NoShot(_)
         | ServiceError::NoLocation(_)

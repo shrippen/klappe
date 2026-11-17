@@ -107,10 +107,22 @@ fn read(path: &Path) -> Result<Register, StoreError> {
         });
     }
 
-    toml::from_str(&text).map_err(|e| StoreError::Parse {
+    let register: Register = toml::from_str(&text).map_err(|e| StoreError::Parse {
         path: path.to_path_buf(),
         message: e.to_string(),
-    })
+    })?;
+    let broken = register
+        .szene
+        .iter()
+        .find(|e| e.heading.contains(['\n', '\r']));
+    if let Some(entry) = broken {
+        return Err(StoreError::Parse {
+            path: path.to_path_buf(),
+            message: format!("{}: the heading has a line break", entry.id),
+        });
+    }
+
+    Ok(register)
 }
 
 fn join(entry: Entry, stage: Option<Stage>) -> Scene {

@@ -137,6 +137,10 @@ FocusScope {
         if (col.kind === ShotTable.Kind.Fixed) {
             return false
         }
+        // A version has the camera of its base (LH-76).
+        if (col.key === "camera" && shot.is_version) {
+            return false
+        }
         return !(col.key === "lens" && shot.lens_from_marks)
     }
 

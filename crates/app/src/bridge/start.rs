@@ -10,7 +10,7 @@ use crate::catalog::Language;
 use crate::notice::Status;
 use crate::selection::Selection;
 use crate::tools::{AreaDraft, DrawStyle, Grip, MeasureStep, NoteDraft, Preview, ScaleStep, Tool};
-use klappe_services::error_text;
+use klappe_services::{error_text, load_notes_text};
 
 /// Seconds between two backups of unsaved changes while a project is open.
 const AUTOSAVE_S: i32 = 30;
@@ -25,6 +25,7 @@ fn open_at_start(args: &AppArgs, language: Language, notice: &mut Status) -> Opt
                 let _ = s.select_shot(shot);
             }
             s.set_time(args.time_s.max(s.time_s()));
+            notice.say(load_notes_text(language, s.load_notes()));
             Some(s)
         }
         Err(e) => {
