@@ -85,6 +85,32 @@ impl Session {
         self.commit_step(next, "Retime");
         Ok(())
     }
+
+    /// The keyboard's way to move what `grab` holds: `delta_s` later (negative: earlier) from
+    /// where it is, snapped to the tenth and kept between its neighbours; one undo step.
+    pub fn nudge_time(&mut self, grab: &Grab, delta_s: f64) -> Result<(), ServiceError> {
+        let now_s = time_of(self.plan().ok_or(ServiceError::Gone)?, grab)?;
+
+        self.drop_time(grab, now_s + delta_s, TimeSnap::Tenths)
+    }
+}
+
+/// The time `grab` holds now.
+fn time_of(plan: &FloorPlan, grab: &Grab) -> Result<f64, ServiceError> {
+    let time_s = match grab {
+        Grab::FigureMark { character, index } => plan
+            .figure(character)
+            .and_then(|f| f.marks.get(*index))
+            .map(|m| m.at_s),
+        Grab::CameraMark { camera, index } => plan
+            .camera(camera)
+            .and_then(|c| c.marks.get(*index))
+            .map(|m| m.at_s),
+        Grab::ShotFrom(id) => Some(shot(plan, id)?.from_s),
+        Grab::ShotTo(id) => Some(shot(plan, id)?.to_s),
+    };
+
+    time_s.ok_or_else(|| bad_grab(grab))
 }
 
 /// The earliest and latest time `grab` may be moved to. A mark lies between the marks around

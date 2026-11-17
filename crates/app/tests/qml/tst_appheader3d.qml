@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import org.kde.kirigami as Kirigami
 import "../../qml"
 
 // AppHeader in 3D (LH-94, LH-98, LH-99): J switches to 3D, Y cuts the walls, the View menu looks
@@ -48,6 +49,8 @@ TestCase {
         fake.canRedo = true
         fake.hasBackground = false
         fake.viewFree = false
+        fake.selectedKey = ""
+        fake.selectedShot = ""
         fake.missingHeights = 0
         fake.calls = []
         fake.plan = "plan-a"
@@ -186,5 +189,79 @@ TestCase {
 
         fake.viewFree = true
         verify(!fit.enabled)
+    }
+
+    // NF-06: the palette turns and shifts the 3D view, in 3D only; the keys are the arrows of
+    // the view itself.
+    function test_the_palette_turns_and_shifts_the_3d_view() {
+        const header = make()
+        const find = id => header.commandPalette.commands.find(c => c.id === id)
+
+        verify(!find("view.turnLeft").enabled)
+        fake.viewFree = true
+        verify(find("view.turnLeft").enabled)
+        compare(find("view.turnLeft").keys, "←")
+        compare(find("view.panUp").keys, "Umschalt+↑")
+        compare(find("view.tiltUp").text, "3D-Ansicht nach oben kippen")
+
+        header.run("view.turnRight")
+        header.run("view.panDown")
+        compare(fake.calls, [["stepView", "turnRight"], ["stepView", "panDown"]])
+
+        header.texts = en
+        compare(find("view.turnLeft").text, "Turn 3D view left")
+    }
+
+    // A page row made before the header, as Kirigami's window is: its Back and Forward shortcuts
+    // (Alt+Left, Alt+Right) are live, so a mark key that clashes with them loses presses.
+    Component {
+        id: rowComponent
+        Kirigami.PageRow {
+            anchors.fill: parent
+            Component.onCompleted: {
+                push(pageComponent)
+                push(pageComponent)
+            }
+        }
+    }
+    Component { id: pageComponent; Kirigami.Page { } }
+
+    // NF-06: Ctrl+Shift+Left and Ctrl+Shift+Right move the selected mark by a tenth of a second.
+    // Not Alt+arrows: Kirigami's page row owns them.
+    function test_ctrl_shift_arrows_nudge_the_selected_mark() {
+        const row = createTemporaryObject(rowComponent, tc)
+        verify(row)
+        const header = make()
+        const keys = Qt.ControlModifier | Qt.ShiftModifier
+
+        keyClick(Qt.Key_Left, keys)
+        compare(fake.calls, [])
+
+        fake.selectedKey = "mark:elisabeth:1"
+        for (let i = 0; i < 3; i++) {
+            keyClick(Qt.Key_Left, keys)
+            keyClick(Qt.Key_Right, keys)
+        }
+        compare(fake.calls.length, 6)
+        compare(fake.calls[0], ["nudgeTime", "mark", -0.1])
+        compare(fake.calls[1], ["nudgeTime", "mark", 0.1])
+        const later = header.commandPalette.commands.find(c => c.id === "retime.markLater")
+        compare(later.keys, "Strg+Umschalt+→")
+        header.texts = en
+        compare(header.commandPalette.commands.find(c => c.id === "retime.markEarlier").keys, "Ctrl+Shift+←")
+    }
+
+    function test_the_palette_nudges_the_edges_of_the_selected_shot() {
+        const header = make()
+        const find = id => header.commandPalette.commands.find(c => c.id === id)
+
+        verify(!find("retime.toLater").enabled)
+        fake.selectedShot = "s12-2"
+        verify(find("retime.toLater").enabled)
+
+        header.run("retime.fromEarlier")
+        header.run("retime.toLater")
+        compare(fake.calls, [["nudgeTime", "shot-from", -0.1], ["nudgeTime", "shot-to", 0.1]])
+        compare(find("retime.toLater").text, "Ende des gewählten Shots 0,1 s später")
     }
 }
