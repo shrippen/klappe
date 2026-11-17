@@ -13,6 +13,7 @@ use crate::app::IDLE_BEFORE_PAGES;
 use crate::app::{Focus, Mode};
 use crate::{draw, theme, App, Flow, Language};
 
+mod book;
 mod find;
 mod flow;
 mod marks;

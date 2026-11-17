@@ -231,6 +231,7 @@ fn add_scene(
         heading,
         state: BookState::InBook,
         prints: Vec::new(),
+        refused: Vec::new(),
         location: location.to_owned(),
         plans: vec![FloorPlan::new(FIRST_PLAN_ID, FIRST_PLAN_NAME)],
     });

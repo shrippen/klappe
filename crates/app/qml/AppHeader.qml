@@ -35,6 +35,8 @@ RowLayout {
     signal openRequested()
     signal closeRequested()
     signal projectRequested()
+    /// The open questions about the book are to be answered.
+    signal bookRequested()
     signal backgroundRequested()
     signal viewToggled(string area, bool shown)
     signal shotOrderPicked(string order)
@@ -51,7 +53,7 @@ RowLayout {
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
-    readonly property var entries: [actNew, actOpen, actProject, actSave, actClose, actBackground, actBackgroundRemove,
+    readonly property var entries: [actNew, actOpen, actProject, actBook, actSave, actClose, actBackground, actBackgroundRemove,
                                     actFree, actWallCut, actThrough, actHeights,
                                     actScript, actShot, actTimeline,
                                     actUndo, actRedo].concat(exportCommands.actions, shotViews.actions, zoom.actions,
@@ -271,6 +273,14 @@ RowLayout {
         text: header.texts.t("menu.project")
         enabled: header.controller.loaded && !header.locked
         onTriggered: header.projectRequested()
+    }
+    CommandAction {
+        id: actBook
+        cmd: "book.match"
+        group: "file"
+        text: header.texts.t("book.command")
+        enabled: header.controller.loaded && !header.locked && (header.project.pending || []).length > 0
+        onTriggered: header.bookRequested()
     }
     CommandAction {
         id: actSave

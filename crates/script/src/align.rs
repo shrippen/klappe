@@ -67,6 +67,15 @@ impl SceneState {
     }
 }
 
+/// The fingerprint of a scene heading (without its number): what `align` takes as the first
+/// token of a scene, for a register to keep next to the prints of the elements.
+pub fn heading_print(heading: &str) -> Fingerprint {
+    Fingerprint {
+        tag: HEADING_TAG,
+        hash: hash(HEADING_TAG, heading),
+    }
+}
+
 /// The state of every scene of the script, in text order.
 pub fn scene_states(script: &Script) -> Vec<SceneState> {
     script.scenes().iter().map(SceneState::of).collect()

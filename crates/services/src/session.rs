@@ -12,6 +12,7 @@ use crate::field::Field;
 use crate::plan_edit::{Grid, Snapping};
 use undo::Snapshot;
 
+mod book;
 mod export;
 mod fade;
 mod file;
@@ -183,6 +184,8 @@ pub struct Session {
     through: Option<Through>,
     /// The screenplay as last laid out on pages (DN-02); only `paginate` changes it.
     layout: Option<crate::script_pages::Layout>,
+    /// Entries the book could not place (`pending_scenes`).
+    pending: Vec<crate::book::PendingScene>,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends
