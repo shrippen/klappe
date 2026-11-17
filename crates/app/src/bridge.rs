@@ -243,6 +243,12 @@ pub mod qobject {
         #[cxx_name = "setShotImage"]
         fn set_shot_image(self: Pin<&mut Self>, id: &QString, path: &QString) -> bool;
 
+        /// Takes what the camera of shot `id` sees, at the playhead or else the shot's start, as
+        /// its storyboard picture (LH-75); false if refused.
+        #[qinvokable]
+        #[cxx_name = "shotStill"]
+        fn shot_still(self: Pin<&mut Self>, id: &QString) -> bool;
+
         /// The `file://` URL of `file`, a file of the project folder (a shot's picture).
         #[qinvokable]
         #[cxx_name = "projectFileUrl"]

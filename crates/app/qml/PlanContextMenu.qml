@@ -115,6 +115,12 @@ QQC2.Menu {
         text: menu.texts.t("ctx.addShot")
         onTriggered: menu.controller.addShot()
     }
+    KanteMenuItem {
+        objectName: "ctxShotStill"
+        visible: menu.info.still === true
+        text: menu.texts.t("shot.still")
+        onTriggered: menu.controller.shotStill(menu.controller.selectedShot)
+    }
 
     // The commands that arm the next click (LH-104, LH-105, LH-109) and set a way's curve (LH-108).
     KanteMenuItem {

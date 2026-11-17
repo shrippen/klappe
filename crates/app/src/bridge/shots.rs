@@ -78,6 +78,12 @@ impl qobject::Controller {
         self.edit_shots(|s| s.set_shot_image(&id, file.as_deref()))
     }
 
+    pub(super) fn shot_still(self: Pin<&mut Self>, id: &QString) -> bool {
+        let id = id.to_string();
+
+        self.edit_shots(|s| s.shot_still(&id))
+    }
+
     pub(super) fn project_file_url(&self, file: &QString) -> QString {
         let Some(s) = self.rust().session.as_ref() else {
             return QString::default();

@@ -43,7 +43,7 @@ TestCase {
         // What the controller says of the selection: the table stands for its rules.
         readonly property var infos: ({
             "object": { layer: "set", remove: true, duplicate: true, turn: true },
-            "camera": { layer: "cameras", remove: true, duplicate: true, turn: true, straighten: true, shot: true },
+            "camera": { layer: "cameras", remove: true, duplicate: true, turn: true, straighten: true, shot: true, still: true },
             "figure": { layer: "figures", remove: true, turn: true, straighten: true, nextMark: true, markBefore: true, axisTo: true, way: "smooth" },
             "note": { layer: "notes", remove: true, duplicate: true, note: true },
             "opening": { layer: "set", remove: true },
@@ -68,6 +68,8 @@ TestCase {
         function straightenSelected() { calls.push(["straighten"]) }
         function editSelectedNote() { calls.push(["editNote"]) }
         function addShot() { calls.push(["addShot"]) }
+        function shotStill(id) { calls.push(["shotStill", id]) }
+        property string selectedShot: "s12-2"
         function clearSelection() { calls.push(["clear"]) }
         function setLock(layer, state) { calls.push(["lock", layer, state]) }
         function setLayer(layer, state) { calls.push(["layer", layer, state]) }
@@ -127,7 +129,7 @@ TestCase {
     }
 
     function shown(area) {
-        const names = ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxEditNote", "ctxAddShot",
+        const names = ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxEditNote", "ctxAddShot", "ctxShotStill",
                        "ctxNextMark", "ctxMarkBefore", "ctxAxisTo", "ctxWaySmooth", "ctxWayStraight", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect", "ctxUndo", "ctxRedo", "ctxClearSketches", "ctxFit"]
         return names.filter(n => findChild(area, n).visible)
     }
@@ -183,7 +185,7 @@ TestCase {
         const area = made()
         const kinds = {
             "object:o1": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"],
-            "camera:a": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxAddShot", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"],
+            "camera:a": ["ctxDelete", "ctxDuplicate", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxAddShot", "ctxShotStill", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"],
             "figure:e": ["ctxDelete", "ctxTurnRight", "ctxTurnLeft", "ctxStraighten", "ctxNextMark", "ctxMarkBefore", "ctxAxisTo", "ctxWayStraight", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"],
             "note:n1": ["ctxDelete", "ctxDuplicate", "ctxEditNote", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"],
             "opening:3:0": ["ctxDelete", "ctxLockLayer", "ctxFadeLayer", "ctxHideLayer", "ctxDeselect"]
@@ -231,12 +233,13 @@ TestCase {
         findChild(area, "ctxTurnLeft").triggered()
         findChild(area, "ctxStraighten").triggered()
         findChild(area, "ctxAddShot").triggered()
+        findChild(area, "ctxShotStill").triggered()
         findChild(area, "ctxDelete").triggered()
         findChild(area, "ctxLockLayer").triggered()
         findChild(area, "ctxFadeLayer").triggered()
         findChild(area, "ctxHideLayer").triggered()
 
-        compare(fake.calls, [["duplicate"], ["turn", 15], ["turn", -15], ["straighten"], ["addShot"], ["remove"],
+        compare(fake.calls, [["duplicate"], ["turn", 15], ["turn", -15], ["straighten"], ["addShot"], ["shotStill", "s12-2"], ["remove"],
                              ["lock", "cameras", "locked"], ["fade", "cameras"], ["layer", "cameras", "hidden"]])
     }
 

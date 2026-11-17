@@ -12,7 +12,7 @@ use crate::ExportFormat;
 const SECONDS_PER_MINUTE: u64 = 60;
 pub(super) const MIN_NUMBER_WIDTH: usize = 2;
 /// Width of the PNG of a view (LH-86).
-const VIEW_WIDTH_PX: f64 = 1920.0;
+pub(super) const VIEW_WIDTH_PX: f64 = 1920.0;
 
 /// What an export needs besides its path; each format takes what it uses.
 #[derive(Debug, Clone)]
@@ -89,7 +89,10 @@ impl Session {
     }
 
     /// `picture` as print PNG, each body as strong as its layer's fade says (LH-15).
-    fn picture_bytes(&self, picture: &klappe_stellprobe::Picture) -> Result<Vec<u8>, ServiceError> {
+    pub(super) fn picture_bytes(
+        &self,
+        picture: &klappe_stellprobe::Picture,
+    ) -> Result<Vec<u8>, ServiceError> {
         let strength = |role| self.scene_fade(role);
 
         Ok(klappe_export::picture_png(
