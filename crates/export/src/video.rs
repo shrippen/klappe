@@ -86,7 +86,7 @@ impl VideoWriter {
             .args(["-framerate", &spec.fps.to_string(), "-i", "-"])
             .args(["-vf", &filter, "-c:v", "libx264", "-pix_fmt", "yuv420p"])
             .args(["-f", "mp4"])
-            .arg(&part)
+            .arg(file_url(&part))
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(Stdio::piped());
@@ -136,23 +136,37 @@ impl VideoWriter {
         std::fs::rename(&self.part, &self.path).map_err(|e| ExportError::Video(e.to_string()))
     }
 
-    /// Gives up: stops the program and removes the part file; returns what it said.
-    pub fn abort(&mut self) -> String {
+    /// Gives up: stops the program and removes the part file; returns what it said, or how it
+    /// ended when it said nothing (`signal: 9 (SIGKILL)`).
+    fn abort(&mut self) -> String {
         drop(self.stdin.take());
         let _ = self.child.kill();
         let mut said = String::new();
         if let Some(mut err) = self.child.stderr.take() {
             let _ = err.read_to_string(&mut said);
         }
-        let _ = self.child.wait();
+        let status = self.child.wait();
         let _ = std::fs::remove_file(&self.part);
 
-        said.trim().to_owned()
+        let said = said.trim();
+        match status {
+            Ok(status) if said.is_empty() => status.to_string(),
+            _ => said.to_owned(),
+        }
     }
 
     fn fail(&mut self) -> ExportError {
         ExportError::Video(self.abort())
     }
+}
+
+/// `path` as ffmpeg reads it: `file:` makes a name with a `:` or a leading `-` a file, not a
+/// protocol or an option.
+fn file_url(path: &Path) -> std::ffi::OsString {
+    let mut url = std::ffi::OsString::from("file:");
+    url.push(path);
+
+    url
 }
 
 impl Drop for VideoWriter {
@@ -161,5 +175,41 @@ impl Drop for VideoWriter {
         if self.part.exists() {
             self.abort();
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    /// A program that dies by a signal says nothing; the message still names how it ended.
+    #[test]
+    fn a_signalled_program_is_named() {
+        let dir = std::env::temp_dir().join("klappe-video-signal");
+        std::fs::create_dir_all(&dir).unwrap();
+        let program = dir.join("dies");
+        std::fs::write(&program, "#!/bin/sh\nkill -KILL $$\n").unwrap();
+        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let spec = VideoSpec {
+            width: 2,
+            height: 2,
+            fps: 1,
+        };
+
+        let mut writer = VideoWriter::start(
+            program.to_str().unwrap(),
+            &dir.join("out.mp4"),
+            spec,
+            (2, 2),
+            [0; 3],
+        )
+        .unwrap();
+        let result = writer.push(&[0; 12]).and_then(|()| writer.finish());
+
+        let message = result.unwrap_err().to_string();
+        assert!(message.contains("signal"), "{message}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

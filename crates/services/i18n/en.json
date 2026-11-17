@@ -1004,5 +1004,6 @@
  "export.filter.mp4": "MP4 (*.mp4)",
  "error.noFfmpeg": "ffmpeg is missing for the video. Install ffmpeg (it must be on the search path); nothing was written.",
  "error.video": "The video could not be written: {detail}",
- "error.noDuration": "The plan has no duration, so there is no video."
+ "error.noDuration": "The plan has no duration, so there is no video.",
+ "error.cancelled": "The video was stopped."
 }

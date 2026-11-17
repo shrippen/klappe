@@ -72,6 +72,9 @@ pub enum ServiceError {
     /// A plan without marks has no frames to write (LH-83).
     #[error("the plan has no marks")]
     NoMarks,
+    /// The video was stopped before it was whole (LH-84).
+    #[error("the video was stopped")]
+    Cancelled,
     /// A plan of no duration has no video (LH-84).
     #[error("the plan has no duration")]
     NoDuration,

@@ -122,6 +122,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::EmptyTemplate => Some("error.emptyTemplate"),
         ServiceError::NoMarks
         | ServiceError::NoDuration
+        | ServiceError::Cancelled
         | ServiceError::NoPicture
         | ServiceError::NoScript
         | ServiceError::NoPages => nothing_key(error),
@@ -157,6 +158,7 @@ fn nothing_key(error: &ServiceError) -> Option<&'static str> {
     match error {
         ServiceError::NoMarks => Some("error.noMarks"),
         ServiceError::NoDuration => Some("error.noDuration"),
+        ServiceError::Cancelled => Some("error.cancelled"),
         ServiceError::NoPicture => Some("error.noPicture"),
         ServiceError::NoScript => Some("error.noScript"),
         ServiceError::NoPages => Some("error.noPages"),
@@ -411,6 +413,7 @@ mod tests {
             ServiceError::NoPicture,
             ServiceError::NoScript,
             ServiceError::NoDuration,
+            ServiceError::Cancelled,
             ServiceError::NotCopyable,
             ServiceError::Export(klappe_export::ExportError::NoVideoProgram("ffmpeg".into())),
             ServiceError::Export(klappe_export::ExportError::Video("x".into())),

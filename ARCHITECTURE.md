@@ -63,7 +63,8 @@ Each block is one crate under `crates/`, unless the path says otherwise.
   signals); cxx-qt needs them in one module, so the file grows with the window and has no
   length limit (`structure.baseline` excludes it). Logic goes into `bridge/<area>.rs`.
 - Only `store/` touches a project's files. `export/` returns bytes; `services/` has
-  `store/` write them.
+  `store/` write them. One exception: the MP4 is written by ffmpeg, an external program;
+  `export/` (`video.rs`) only drives it.
 - Surfaces draw the display list. Geometry, hit tests and calculations belong in
   `stellprobe/`, never in QML or a surface.
 - What an element looks like (colour role, line, fill) is decided once; screen and
