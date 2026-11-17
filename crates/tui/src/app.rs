@@ -18,6 +18,7 @@ use crate::layout::Layout;
 use crate::links::Links;
 
 mod backup;
+mod book;
 mod compose;
 mod find;
 mod outline;
@@ -71,6 +72,8 @@ pub(crate) enum Mode {
     Find,
     /// `Ctrl+T`: the title page form.
     Title,
+    /// `Ctrl+K`: the open questions about the book.
+    Book,
     /// A backup of unsaved work from an earlier run waits for an answer.
     Backup,
 }
@@ -124,6 +127,8 @@ pub struct App {
     suggest_off: Option<u64>,
     pub(crate) find: Find,
     pub(crate) title: Option<TitleForm>,
+    /// Chosen row of the open question in `Mode::Book`.
+    pub(crate) book_sel: usize,
     /// What waits for an answer in `Mode::Backup`.
     pub(crate) backup: Option<Backup>,
     /// Revision of the text the backup holds.
@@ -182,6 +187,7 @@ impl App {
             suggest_off: None,
             find: Find::default(),
             title: None,
+            book_sel: 0,
             backup: None,
             autosaved: 0,
             list_override: None,
@@ -350,6 +356,7 @@ impl App {
             Mode::Goto => return self.goto_key(key),
             Mode::Find => return self.find_key(key),
             Mode::Title => return self.title_key(key),
+            Mode::Book => return self.book_key(key),
             Mode::Backup => return self.backup_key(key),
             Mode::Normal => {}
         }
@@ -392,6 +399,7 @@ impl App {
             'b' => self.toggle_list(),
             'f' => self.open_find(),
             't' => self.open_title(),
+            'k' => self.open_book(),
             _ => self.pane_key(key),
         }
     }

@@ -4,7 +4,7 @@
 pub use klappe_services::Language;
 
 /// Keys of the help lines, in the order they are shown.
-const HELP_KEYS: [&str; 24] = [
+const HELP_KEYS: [&str; 25] = [
     "tui.help.save",
     "tui.help.quit",
     "tui.help.undo",
@@ -15,6 +15,7 @@ const HELP_KEYS: [&str; 24] = [
     "tui.help.find",
     "tui.help.findNext",
     "tui.help.title",
+    "tui.help.book",
     "tui.help.focus",
     "tui.help.goto",
     "tui.help.list",
@@ -62,6 +63,10 @@ pub(crate) struct Texts {
     pub mode_find: String,
     pub mode_title: String,
     pub mode_backup: String,
+    pub mode_book: String,
+    pub book_title: String,
+    pub book_none: String,
+    pub book_hint: String,
     pub find_title: String,
     pub find_find: String,
     pub find_replace: String,
@@ -108,6 +113,10 @@ impl Texts {
             mode_find: t("tui.mode.find"),
             mode_title: t("tui.mode.title"),
             mode_backup: t("tui.mode.backup"),
+            mode_book: t("tui.mode.book"),
+            book_title: t("tui.book.title"),
+            book_none: t("tui.book.none"),
+            book_hint: t("tui.book.hint"),
             find_title: t("tui.find.title"),
             find_find: t("tui.find.find"),
             find_replace: t("tui.find.replace"),
@@ -152,6 +161,14 @@ impl Texts {
         self.lang
             .text("tui.replaced")
             .replace("{count}", &count.to_string())
+    }
+
+    /// "Entry 1 INT. A - TAG - which scene of the book is this?".
+    pub(crate) fn book_ask(&self, number: &str, heading: &str) -> String {
+        self.lang
+            .text("tui.book.ask")
+            .replace("{number}", number)
+            .replace("{heading}", heading)
     }
 
     /// "Page 3".
@@ -201,6 +218,11 @@ mod tests {
                 &t.mode_find,
                 &t.mode_title,
                 &t.mode_backup,
+                &t.mode_book,
+                &t.book_title,
+                &t.book_none,
+                &t.book_hint,
+                &t.book_ask("1", "INT. A - TAG"),
                 &t.find_title,
                 &t.find_find,
                 &t.find_replace,
