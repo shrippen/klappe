@@ -107,7 +107,7 @@ fn a_cut_off_preview_is_cleaned_up() {
 #[test]
 fn a_project_without_a_plan_gets_the_placeholder() {
     let dir = scratch("start-empty").join("leer");
-    Session::create(&dir, "Leer").unwrap();
+    Session::create(&dir, "Leer", Language::German).unwrap();
 
     let card = project_card(&dir, &scratch("start-empty-cache"), Language::English);
 

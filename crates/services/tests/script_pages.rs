@@ -18,7 +18,7 @@ const PRINT: ScriptPrint = ScriptPrint {
 fn session(name: &str, text: &str) -> Session {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
-    let mut session = Session::create(&dir, "Nachtwache").unwrap();
+    let mut session = Session::create(&dir, "Nachtwache", Language::English).unwrap();
     session.set_script_text(text);
 
     session
@@ -87,6 +87,7 @@ fn the_words_follow_the_projects_language() {
     let mut s = session("pages-words", &text);
 
     // No language chosen: the surface's decides.
+    s.set_script_setup(ScriptSetup::default());
     s.paginate(Language::German);
     assert_eq!(s.script_pages().map(|p| p.pages), Some(2));
     let german = out("pages-words-de.pdf");

@@ -2,10 +2,11 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use klappe_model::Project;
+use klappe_model::{Project, ScriptLanguage};
 use klappe_store::Loaded;
 
 use super::{check_empty, check_title, Autosave, BackupState, Session, View};
+use crate::catalog::Language;
 use crate::error::ServiceError;
 use crate::plan_edit::{Grid, Snapping};
 use crate::shot_edit;
@@ -77,12 +78,18 @@ impl Session {
         Ok(session)
     }
 
-    /// Creates an empty project titled `title` in `dir` (missing or empty) and opens it.
-    pub fn create(dir: &Path, title: &str) -> Result<Self, ServiceError> {
+    /// Creates an empty project titled `title` in `dir` (missing or empty) and opens it. The
+    /// project's language is `language`, the surface's (DN-05).
+    pub fn create(dir: &Path, title: &str, language: Language) -> Result<Self, ServiceError> {
         let title = check_title(title)?;
         check_empty(dir)?;
 
-        klappe_store::save(dir, &Project::new(title), None)?;
+        let mut project = Project::new(title);
+        project.script.language = Some(match language {
+            Language::German => ScriptLanguage::De,
+            Language::English => ScriptLanguage::En,
+        });
+        klappe_store::save(dir, &project, None)?;
         Self::open(dir)
     }
 

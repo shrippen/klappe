@@ -4,7 +4,7 @@
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use klappe_services::{FigureColor, PlanEdit, Point, ProjectEdit, Session};
+use klappe_services::{FigureColor, Language, PlanEdit, Point, ProjectEdit, Session};
 
 use super::{shapes_json, Faded, HeightTexts};
 
@@ -28,7 +28,8 @@ fn at(n: usize) -> Point {
 
 /// The big plan, built with the edits a user would make.
 fn big_session(dir: &Path) -> Session {
-    let mut session = Session::create(dir, "Perf").unwrap_or_else(|e| panic!("{e}"));
+    let mut session =
+        Session::create(dir, "Perf", Language::English).unwrap_or_else(|e| panic!("{e}"));
     let mut project = |edit| session.edit_project(edit).unwrap_or_else(|e| panic!("{e}"));
     project(ProjectEdit::AddLocation {
         name: "Halle".to_owned(),
