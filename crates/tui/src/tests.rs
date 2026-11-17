@@ -25,8 +25,19 @@ fn app() -> App {
     App::open(&example(), Language::English).unwrap_or_else(|e| unreachable!("{e}"))
 }
 
+/// The editor is never open with a backup unanswered: autosave would hold for good.
+fn assert_backup_answered(app: &App) {
+    assert!(
+        app.mode != Mode::Normal || !app.backup_held(),
+        "Normal mode with an unanswered backup"
+    );
+}
+
 fn press(app: &mut App, code: KeyCode) -> Flow {
-    app.handle_key(KeyEvent::new(code, KeyModifiers::NONE))
+    let flow = app.handle_key(KeyEvent::new(code, KeyModifiers::NONE));
+    assert_backup_answered(app);
+
+    flow
 }
 
 fn ctrl(app: &mut App, c: char) -> Flow {

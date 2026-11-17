@@ -19,6 +19,12 @@ pub(crate) enum Backup {
 }
 
 impl App {
+    /// Whether the session still holds a backup nobody has answered: it writes no other one
+    /// meanwhile, so the question must stay open then.
+    pub(crate) fn backup_held(&self) -> bool {
+        *self.session.backup() != BackupState::None
+    }
+
     /// Asks about a backup the session found at open.
     pub(super) fn check_backup(&mut self) {
         self.backup = match self.session.backup() {
@@ -50,24 +56,31 @@ impl App {
         Flow::Continue
     }
 
+    /// Restores the backup; on an error the question stays open with the message.
     fn restore(&mut self) {
-        match self.session.restore_backup() {
-            Ok(()) => {
-                let text = self.session.script_text().to_owned();
-                self.editor.set_text(&text);
-                self.links = Links::read(&mut self.session);
-                self.backup = None;
-            }
-            Err(e) => self.notice = Some(Notice::SaveFailed(e.to_string())),
+        if let Err(e) = self.session.restore_backup() {
+            self.notice = Some(Notice::SaveFailed(e.to_string()));
+            return;
         }
-        self.mode = Mode::Normal;
+
+        let text = self.session.script_text().to_owned();
+        self.editor.set_text(&text);
+        self.links = Links::read(&mut self.session);
+        self.answered();
     }
 
     fn discard(&mut self) {
-        match self.session.discard_backup() {
-            Ok(()) => self.backup = None,
-            Err(e) => self.notice = Some(Notice::SaveFailed(e.to_string())),
+        if let Err(e) = self.session.discard_backup() {
+            self.notice = Some(Notice::SaveFailed(e.to_string()));
+            return;
         }
+
+        self.answered();
+    }
+
+    fn answered(&mut self) {
+        self.backup = None;
+        self.notice = None;
         self.mode = Mode::Normal;
     }
 

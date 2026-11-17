@@ -29,7 +29,7 @@ fn autosave_writes_the_backup_and_the_next_start_asks() {
 }
 
 #[test]
-fn discarding_or_deciding_later_and_saving_clear_the_backup() {
+fn discarding_quitting_and_saving_handle_the_backup() {
     let scratch = Scratch::new("x");
     let mut app = scratch.app();
     typed(&mut app, "a");
@@ -86,6 +86,33 @@ fn the_backup_question_names_its_keys() {
     assert!(frame.contains("r Restore"), "{frame}");
     assert!(frame.contains("d Discard"), "{frame}");
     assert!(frame.contains("Ctrl+Q"), "{frame}");
+}
+
+#[test]
+fn a_failed_restore_keeps_the_question_open() {
+    let scratch = Scratch::new("x");
+    let mut app = scratch.app();
+    typed(&mut app, "a");
+    app.autosave();
+
+    // The backup folder is gone by the time the answer comes.
+    let mut again = scratch.app();
+    assert_eq!(again.mode, Mode::Backup);
+    std::fs::remove_dir_all(scratch.dir.join(".sicherung")).unwrap_or_else(|e| unreachable!("{e}"));
+    press(&mut again, KeyCode::Char('r'));
+    assert_eq!(again.mode, Mode::Backup, "still asking");
+    assert!(screen(&mut again, 100, 24).contains("Saving failed"));
+
+    // Discarding what is not there ends the question, and then autosave writes again.
+    press(&mut again, KeyCode::Char('d'));
+    assert_eq!(again.mode, Mode::Normal);
+    typed(&mut again, "b");
+    again.autosave();
+    assert_eq!(
+        scratch.app().mode,
+        Mode::Backup,
+        "the new work is in a backup"
+    );
 }
 
 #[test]
