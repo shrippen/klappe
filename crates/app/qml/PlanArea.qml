@@ -707,35 +707,18 @@ Item {
         return /^(figure|camera)via:.*:at\d+$/.test(key)
     }
 
-    /// The text key of the tooltip of a grip (LH-102), `""` for a key that is none.
-    function gripTip(key) {
-        const parts = key.split(":")
-        const last = parts[parts.length - 1]
-        switch (parts[0]) {
-        case "objectgrip":
-            return { width: "tip.gripWidth", depth: "tip.gripDepth" }[last] || (last.indexOf("point") === 0 ? "tip.gripPoint" : "tip.gripSide")
-        case "lightgrip": return last === "beam" ? "tip.gripBeam" : "tip.gripDirection"
-        case "openingedge": return "tip.gripOpening"
-        case "notewidth": return "tip.gripNote"
-        case "imagesize": return "tip.gripImage"
-        case "drawingpoint": return "tip.gripDrawing"
-        case "drawingedge": return "tip.gripEdge"
-        }
-        return ""
-    }
-
-    /// The lines of the tooltip of a shape: a grip's one line, else what the element is.
-    function tipOf(key) {
-        const grip = area.gripTip(key)
-        return grip !== "" ? [area.texts.t(grip)] : area.tipLines(key)
-    }
-
     // Tooltip text from the controller's data and the catalogue.
     function tipLines(key) {
         if (key === "") {
             return []
         }
         const d = JSON.parse(controller.describe(key))
+        // A grip's one line (LH-102): the bridge names the text.
+        return d.kind === "grip" ? [area.texts.t(d.tip)] : area.dataLines(d)
+    }
+
+    // The lines of a tooltip from the described data.
+    function dataLines(d) {
         const t = area.texts
         // A note and an image have one line of text each.
         if ({ note: 1, image: 1 }[d.kind]) {
@@ -768,7 +751,7 @@ Item {
     }
 
     QQC2.ToolTip {
-        readonly property var lines: area.tipOf(area.tipKey).filter(l => l !== "")
+        readonly property var lines: area.tipLines(area.tipKey).filter(l => l !== "")
         parent: area
         x: area.tipAt.x + Kirigami.Units.largeSpacing
         y: area.tipAt.y + Kirigami.Units.largeSpacing

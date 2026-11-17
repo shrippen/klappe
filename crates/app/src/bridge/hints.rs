@@ -47,14 +47,22 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
         | ElementKind::ImageSize
         | ElementKind::OpeningEdge
         | ElementKind::LightGrip
-        | ElementKind::ObjectMark
-        | ElementKind::ObjectGrip => None,
+        | ElementKind::ObjectGrip => return grip_hint(s, key),
+        ElementKind::ObjectMark => None,
     };
 
     // Without a plan nothing is described, a note included.
     match s.plan().and(hint) {
         Some(hint) => serde_json::to_value(hint).unwrap_or_default(),
         None => json!({}),
+    }
+}
+
+/// A grip has one line, the text key of what dragging it does; QML looks it up.
+fn grip_hint(s: &Session, key: &str) -> serde_json::Value {
+    match (s.plan(), plan::grip_tip(key)) {
+        (Some(_), Some(tip)) => json!({ "kind": "grip", "tip": tip }),
+        _ => json!({}),
     }
 }
 
@@ -281,12 +289,27 @@ mod tests {
         assert_eq!(s.note_text("x"), None);
     }
 
-    /// An image the set does not have, and its grip, have no tooltip.
+    /// A grip's tooltip is the text key of its drag; the bridge decides, QML shows.
+    #[test]
+    fn describe_gives_a_grip_its_tooltip_key() {
+        let s = example();
+
+        assert_eq!(
+            describe(&s, "objectgrip:tisch:width"),
+            json!({ "kind": "grip", "tip": "tip.gripWidth" })
+        );
+        assert_eq!(
+            describe(&s, "lightgrip:led-1:beam"),
+            json!({ "kind": "grip", "tip": "tip.gripBeam" })
+        );
+        assert_eq!(describe(&s, "objectmark:tisch:0"), json!({}));
+    }
+
+    /// An image the set does not have has no tooltip.
     #[test]
     fn describe_knows_no_image_the_set_lacks() {
         let s = example();
 
         assert_eq!(describe(&s, "image:i1"), json!({}));
-        assert_eq!(describe(&s, "imagesize:i1"), json!({}));
     }
 }
