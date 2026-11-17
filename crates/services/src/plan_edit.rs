@@ -50,7 +50,7 @@ pub use object::ObjectChange;
 use openings::edit_opening;
 use remove::remove;
 
-pub(crate) use picking::{pick, pick_in, pick_lasso};
+pub(crate) use picking::{pick, pick_in, pick_lasso, point_grips};
 
 /// What a tool or a drag does to the current plan.
 #[derive(Debug, Clone, PartialEq)]
@@ -97,9 +97,11 @@ pub enum PlanEdit {
     RemoveGroup {
         sources: Vec<Source>,
     },
-    /// Copies the group, set down by a distance. Objects, lamps, notes, images, drawings, walls and
-    /// cameras have copies; a figure, a mark or a grip has none and is left out. An error when
-    /// nothing is left to copy.
+    /// Copies the group, set down by a distance. Objects, lamps, notes, images, drawings, walls
+    /// and cameras have copies. A figure is copied with a character of its own (named with the
+    /// next free number, with a track like the figure's, set down by the distance); a mark is
+    /// copied as a new mark right after it on its way. A grip has none and is left out. An
+    /// error when nothing is left to copy.
     Duplicate {
         sources: Vec<Source>,
         dx_m: f64,
@@ -506,7 +508,7 @@ struct Scope<'a> {
     set: Option<&'a mut SetPlan>,
     /// Id of the scene's location, for the error when it is missing.
     location: &'a str,
-    characters: &'a [Character],
+    characters: &'a mut Vec<Character>,
     /// The project's own library entries, for what a new object looks like.
     library: &'a [LibraryItem],
     time_s: f64,

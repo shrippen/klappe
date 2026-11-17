@@ -13,7 +13,7 @@ use crate::layout::{cols, Row, TAB_WIDTH};
 use crate::theme;
 use crate::ui_list::{draw_list, list_rows_area};
 use crate::ui_overlay::{
-    draw_backup, draw_book, draw_find, draw_numbers, draw_suggest, draw_title,
+    draw_backup, draw_book, draw_find, draw_numbers, draw_pdf, draw_suggest, draw_title,
 };
 
 /// Share of the width the scene list takes: 1/4, but at least `LIST_MIN` columns.
@@ -187,6 +187,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         Mode::Numbers => draw_numbers(frame, app),
         Mode::Book => draw_book(frame, app),
         Mode::Backup => draw_backup(frame, app),
+        Mode::Pdf => draw_pdf(frame, app),
         Mode::Normal | Mode::ConfirmQuit => {}
     }
 }
@@ -431,6 +432,7 @@ fn mode_label(app: &App) -> &str {
         (Mode::Numbers, _) => &app.texts.mode_numbers,
         (Mode::Book, _) => &app.texts.mode_book,
         (Mode::Backup, _) => &app.texts.mode_backup,
+        (Mode::Pdf, _) => &app.texts.mode_pdf,
         (_, Focus::List) => &app.texts.mode_list,
         (_, Focus::Editor) => &app.texts.mode_text,
     }
@@ -463,6 +465,7 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
         Some(Notice::Replaced(count)) => app.texts.replaced(*count),
         Some(Notice::Loaded(text)) => text.clone(),
         Some(Notice::SaveFirst) => app.texts.book_save_first.clone(),
+        Some(Notice::Pdf(text)) => text.clone(),
         None => app.texts.hints.clone(),
     };
     let mut spans = vec![

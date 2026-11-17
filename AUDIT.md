@@ -1,134 +1,92 @@
-# Code-Audit Klappe, 17.11.2026, Stand 10fdcfd2
+# Code-Audit Klappe, 17.11.2026, Stand a05fd92b
 
 ## Urteil
-Das Repo ist wartbar und besser als beim 14. Audit. Von den acht Funden des 14. Audits sind sechs ganz behoben, zwei zum größten Teil. Die Bestandsliste ist von 30 auf 26 Einträge geschrumpft, und die längste Funktion im Programmcode ist von 128 auf 120 Zeilen gesunken.
+Das Repo ist wartbar und besser als beim 15. Audit. Alle sechs Funde des 15. Audits sind behoben, jeder in einem eigenen PR (#231, #233 bis #237). Die Bestandsliste ist gleich geblieben (26 Einträge). Die größte Datei und die längste Funktion haben sich nicht verändert.
 
-Neu ist vor allem der Abgleich des Registers mit dem Buch (#215, #220, #224). Sein Kern in der Sitzung ist sauber an einer Stelle gebaut. Am Rand ist aber wieder einiges doppelt entstanden. Die offenen Fragen zum Abgleich liegen als zweite Liste neben dem Register und werden von Hand nachgeführt. Ich habe gezeigt, dass sie dabei veralten (Fund 1). Der Dialog für diese Fragen ist im Terminal und im Fenster je für sich gebaut, mit doppelten Texten (Fund 4). Dazu ist `ARCHITECTURE.md` an zwei Stellen nicht mehr richtig (Funde 2 und 3).
+Neu sind drei Änderungen am Abgleich mit dem Buch: Im Terminal lässt sich eine Antwort mit Strg+Z zurücknehmen (#238), gleiche Zwillingsszenen werden nach ihrer Reihenfolge zugeordnet (#239), und deutsche Szenenköpfe werden erkannt (#240). Der Kern davon sitzt am richtigen Ort. Zwei neue Stellen stehen aber nicht in `ARCHITECTURE.md`, und an einer davon muss eine Liste von Hand mit dem Abgleich übereinstimmen (Funde 1 und 2). #240 hat drei kleine Doppelungen mitgebracht (Fund 3).
 
 ## Kennzahlen
 | | letztes Audit | jetzt |
 |---|---|---|
-| Quelldateien | 500 | 558 (gezählt wie die Strukturprüfung, ohne die Kopie von Kante) |
-| Einträge in der Bestandsliste | 30 | 26. Weg sind `write` (PDF), `name` in `plan/key.rs`, `remove` und `target`. Kleiner geworden sind `apply`, `check`, `own_text`, `save` und die Tests der Ablage. Gewachsen ist ein Eintrag: `name` in `field.rs`, von 44 auf 45 Zweige (#215). |
-| größte Datei (Zeilen) | 972 (`crates/store/tests/store.rs`) | 883 (`crates/export/src/jpeg.rs`, unverändert). Die Tests der Ablage haben jetzt 842 Zeilen. Die nicht geprüfte `bridge.rs` ist von 978 auf 1041 Zeilen gewachsen. |
-| längste Funktion (Zeilen) | 131 (Testhilfe `plan` in `store/tests/store.rs`), im Programmcode `apply` mit 128 | 125 (dieselbe Testhilfe), im Programmcode `apply` mit 120 |
+| Quelldateien | 558 | 559 (gezählt wie die Strukturprüfung, ohne die Kopie von Kante) |
+| Einträge in der Bestandsliste | 26 | 26, unverändert. Seit dem letzten Audit hat kein PR die Liste geändert. |
+| größte Datei (Zeilen) | 883 (`crates/export/src/jpeg.rs`) | 883, dieselbe Datei. Die nicht geprüfte `bridge.rs` bleibt bei 1041 Zeilen. |
+| längste Funktion (Zeilen) | 125 (Testhilfe `plan` in `store/tests/store.rs`), im Programmcode `apply` mit 120 | unverändert 125 und 120 |
 
 ## Funde
 
-### 1. Die offenen Fragen zum Abgleich werden neben dem Register als eigene Liste gehalten, und das Entfernen einer Szene vergisst sie
-Manche Einträge des Registers kann der Abgleich keiner Szene des Buchs sicher zuordnen. Für jeden solchen Eintrag stellt er eine Frage, welche Szene es ist. Die Sitzung rechnet diese Fragen nicht bei Bedarf aus dem Register und dem Buch aus. Sie hält sie als eigene Liste und frischt sie an acht Stellen von Hand auf: beim Öffnen, Speichern, Speichern des Buchs, Wiederherstellen, bei neuem Buchtext, bei Rückgängig, Wiederholen und beim Beantworten einer Frage. Bei einer Änderung am Projekt über die Szenenverwaltung (Szene anlegen, entfernen, umbenennen) frischt sie sie nicht auf, außer eine Umbenennung ändert dabei den Buchtext.
+### 1. Ob sich das Register geändert hat, prüft eine Liste von Feldern, die von Hand zum Abgleich passen muss
+Seit #235 werden die offenen Fragen zum Buch nach jeder Änderung neu ausgerechnet. Das geschieht aber nur, wenn sich das Register geändert hat. Ob es sich geändert hat, entscheidet eine eigene Prüfung. Sie vergleicht sieben der neun Angaben eines Eintrags: Kennung, Art, Nummer, Kopf, Zustand, den gespeicherten Text und die abgelehnten Szenen. Ort und Pläne vergleicht sie nicht, weil der Abgleich sie nicht liest. Heute stimmt das.
 
-Ich habe das mit einem kleinen Programm gegen die Sitzung geprüft. Ein Projekt hat einen Eintrag „9 INT. HOF – NACHT“, und das Buch hat zwei Szenen mit diesem Kopf. Daraus entsteht eine offene Frage. Wird der Eintrag dann entfernt, ist das Register leer. Die Sitzung meldet aber weiter eine offene Frage für den Eintrag, den es nicht mehr gibt (`pending: 1`). Die Statuszeile zeigt das an. Eine Antwort auf diese Frage scheitert.
+Was es kostet: Bekommt ein Eintrag eine neue Angabe, die der Abgleich liest, muss sie auch in diese Prüfung. Fehlt sie dort, veralten die offenen Fragen wieder still, genau wie im Fund 1 des 15. Audits. Weder der Compiler noch die Zeile für den Abgleich in `ARCHITECTURE.md` weisen darauf hin.
 
-Was es kostet: Jede neue Stelle, die Register oder Buch ändert, muss daran denken, die Fragen aufzufrischen. Vergisst sie es, fällt das nicht beim Bauen auf, sondern erst beim Benutzer.
+Vorschlag: Die Prüfung zerlegt den Eintrag in alle seine Angaben und nennt Ort und Pläne ausdrücklich als „egal“. Dann meldet der Compiler jede neue Angabe, bis jemand entschieden hat, ob sie zählt. Dazu nennt die Zeile in `ARCHITECTURE.md` die Prüfung.
 
-Vorschlag: Die Fragen an einer Stelle auffrischen, über die jede Änderung läuft (dort, wo die Sitzung einen neuen Stand übernimmt). Die Alternative ist, sie nur bei Bedarf auszurechnen. Zuerst kommt ein Test für das Entfernen dazu.
+Aufwand klein. Risiko gering: Es gibt `crates/services/tests/book_align.rs` (auch für das Entfernen eines Eintrags) und `crates/services/tests/perf.rs`.
 
-Aufwand klein. Risiko gering: Es gibt `crates/services/tests/book_align.rs` und `crates/services/tests/register.rs`.
+Beleg: `crates/services/src/session/book.rs:144`, `crates/services/src/session/undo.rs:60`, `crates/model/src/project.rs:542`, `ARCHITECTURE.md:84`.
 
-Beleg: `crates/services/src/session/book.rs:16`, `crates/services/src/session/book.rs:88`, `crates/services/src/session/file.rs:60`, `crates/services/src/session/file.rs:215`, `crates/services/src/session/undo.rs:46`, `crates/services/src/session/undo.rs:149`, `crates/services/src/session/scene.rs:117`, `crates/services/src/project_edit.rs:271`.
+### 2. Das Terminal führt selbst Buch darüber, welche Antworten Strg+Z zurücknehmen kann; `ARCHITECTURE.md` sagt, die Oberflächen zeigen nur an
+Im Terminal gibt es zwei Verläufe zum Rückgängigmachen: den des Texteditors und den der Sitzung, in dem die Antworten auf die Fragen zum Buch stehen. Seit #238 entscheidet das Terminal bei Strg+Z und Strg+Y selbst, welcher der beiden dran ist. Dafür merkt es sich bei jeder Antwort, wie viele Schritte der Editor gerade hatte. Diese zwei Listen hält es an vier Stellen von Hand richtig: beim Antworten, bei Rückgängig, bei Wiederholen und beim Speichern von geändertem Text. Die Regeln sind gut getestet.
 
-### 2. `ARCHITECTURE.md` schickt neue Befehle nach `AppHeader.qml`, sie stehen aber seit #216 in eigenen Dateien
-Um die Grenze von 800 Zeilen zu halten, hat #216 die Befehle der Kopfleiste in eigene Dateien gelegt: Ausgaben (`ExportCommands.qml`), Abspielen (`PlayCommands.qml`) und Befehle für die nächste Auswahl (`ArmCommands.qml`). Daneben gibt es schon `ObjectCommands.qml`, `PageExports.qml`, `ShotViewCommands.qml`, `ViewCommands.qml` und `ZoomCommands.qml`. `ARCHITECTURE.md` nennt keine dieser Dateien. In drei Zeilen der Tabelle „Where new things go“ steht weiter `AppHeader.qml`: bei neuen Tasten oder Befehlen für die Auswahl, bei neuen Ausgabeformaten und bei neuen Einstellungen der Ansicht.
+`ARCHITECTURE.md` sagt in der Zeile für den Abgleich, dass Terminal und Fenster nur die Statuszeile und den Fragedialog zeigen und die gewählte Position zurückgeben. Das Zurücknehmen von Antworten steht dort nicht.
 
-Die Zeile für Ausgabeformate nennt den Menüeintrag in `AppHeader.qml`, aber nicht die Befehlspalette: Jedes der neun Formate steht auch in `ExportCommands.qml`.
+Was es kostet: Wer den Abgleich ändert, findet diese Stelle über die Tabelle nicht. Das Fenster bekommt noch einen eigenen Drehbuch-Editor (DB-23, „Known deviations“). Dann braucht es dieselbe Regel und müsste sie ein zweites Mal bauen. Dazu nimmt das Terminal an, dass jeder Schritt im Verlauf der Sitzung eine Antwort ist. Ein zweiter Schritt der Sitzung im Terminal würde das still brechen.
 
-Was es kostet: Wer der Tabelle folgt, sucht in der falschen Datei. Ein neues Format braucht eine Stelle im Fenster, die nicht genannt ist.
+Vorschlag: Jetzt die Zeile in `ARCHITECTURE.md` um diese Stelle ergänzen. Kommt der Editor im Fenster, wandert die Regel „welcher Verlauf zuerst“ in einen gemeinsamen Baustein, und die Oberflächen fragen sie dort ab. Für die Annahme kann das Terminal den Namen des obersten Schritts prüfen, den die Sitzung schon herausgibt.
 
-Vorschlag: Die drei Zeilen nennen die Befehlsdateien, die Zeile für Ausgabeformate auch `ExportCommands.qml`.
+Aufwand klein (Text), später mittel. Risiko gering: Es gibt sieben Tests in `crates/tui/src/tests/book.rs` ab Zeile 136.
 
-Aufwand klein, nur Text. Kein Risiko.
+Beleg: `crates/tui/src/app/book.rs:83`, `crates/tui/src/app/book.rs:101`, `crates/tui/src/app/book.rs:118`, `crates/tui/src/app.rs:108`, `crates/tui/src/app.rs:560`, `crates/tui/src/editor.rs:71`, `crates/services/src/session/undo.rs:134`, `ARCHITECTURE.md:84`, `ARCHITECTURE.md:106`.
 
-Beleg: `ARCHITECTURE.md:90`, `ARCHITECTURE.md:93`, `ARCHITECTURE.md:96`, `crates/app/qml/ExportCommands.qml:23`, `crates/app/qml/ArmCommands.qml:14`, `crates/app/qml/AppHeader.qml:59`, `crates/app/qml/AppHeader.qml:164`.
+### 3. Drei kleine Doppelungen aus #240: deutsche Szenenköpfe und die Sprache eines neuen Projekts
+Die deutschen Anfänge von Szenenköpfen („INNEN“, „AUSSEN“, „AUßEN“) stehen im Leser des Drehbuchs zweimal: in der Liste aller Anfänge und noch einmal in einer eigenen Prüfung, ob ein Anfang deutsch ist. Nur deutsche Anfänge müssen großgeschrieben sein, weil „Innen ist es kalt.“ sonst ein Szenenkopf wäre. Ein neuer deutscher Anfang, der nur in die erste Liste kommt, macht gewöhnliche Sätze zu Szenenköpfen, die mit diesem Wort beginnen.
 
-### 3. Welchen Tooltip ein Griff zeigt, entscheidet das Fenster selbst aus dem Text des Auswahl-Schlüssels
-Fährt man mit der Maus über einen Griff, etwa die Breite eines Möbels oder die Kante einer Tür, zeigt der Plan einen Tooltip. Diesen Text sucht `PlanArea.qml` selbst aus. Es zerlegt dafür den Schlüssel des Griffs (z. B. `objectgrip:o:width`) und kennt dazu die Namen der Griffarten, die schon in `plan/key.rs` stehen. Die Brücke sagt für diese Griffe ausdrücklich „kein Tooltip“. Auf dieselbe Weise erkennt das Fenster auch Knicke von Wegen und die Griffe, für die die Pfeiltasten gelten.
+Ob ein Wort großgeschrieben ist, prüft #240 mit einer neuen Funktion. Dieselbe Prüfung gibt es 30 Zeilen weiter schon. Die neue Funktion schreibt die Ausnahme für „ß“ als Zeichen hin, statt die vorhandene Konstante zu nutzen. Damit steht die Regel für „ß“ jetzt dreimal im Repo, zusammen mit der Großschreibung im Terminal (siehe unten, alter Fund).
 
-`ARCHITECTURE.md` sagt für einen neuen Griff: in der Brücke den Zweig mit „kein Tooltip“ eintragen. Dass der Tooltip in `PlanArea.qml` entsteht, steht dort nicht. Nach den Regeln der Datei soll das Fenster so etwas auch nicht selbst entscheiden.
+Ein neues Projekt bekommt die Sprache der Oberfläche als Sprache des Drehbuchs. Die Übersetzung von der einen Sprachangabe in die andere steht beim Anlegen. Eine zweite Übersetzung in die Gegenrichtung steht bei den Seiten des Drehbuchs.
 
-Was es kostet: Ein neuer Griff, der nach der Tabelle gebaut wird, bekommt still keinen Tooltip, während alle anderen einen haben. Ändert sich die Schreibweise eines Schlüssels, bricht der Tooltip, ohne dass ein Rust-Test es merkt.
+Was es kostet: Eine geänderte Regel für Szenenköpfe oder Großschreibung gilt sonst nur an einer der Stellen. Eine dritte Sprache braucht zwei Übersetzungen.
 
-Vorschlag: Die Brücke liefert für Griffe den Text-Schlüssel des Tooltips wie für die anderen Elemente. `PlanArea.qml` zeigt ihn nur noch an.
+Vorschlag: Die deutschen Anfänge stehen in einer eigenen Liste, aus der sich die Liste aller Anfänge zusammensetzt. Die neue Prüfung auf Großschreibung entfällt zugunsten der vorhandenen. Die Sprachübersetzung kommt an eine Stelle neben den Typ.
 
-Aufwand klein. Risiko gering: Es gibt die Tests in `crates/app/src/bridge/hints.rs` und `crates/app/tests/qml/tst_planarea.qml`.
+Aufwand klein. Risiko gering: Es gibt die Tests in `crates/script/src/tests.rs` (auch für Prosa mit „Innen“) und `crates/services/tests/manage.rs`.
 
-Beleg: `crates/app/qml/PlanArea.qml:711`, `crates/app/qml/PlanArea.qml:706`, `crates/app/qml/PlanArea.qml:681`, `crates/app/src/bridge/hints.rs:44`, `crates/app/src/plan/key.rs:33`, `ARCHITECTURE.md:86`.
+Beleg: `crates/script/src/parse.rs:39`, `crates/script/src/parse.rs:538`, `crates/script/src/parse.rs:545`, `crates/script/src/parse.rs:573`, `crates/script/src/parse.rs:17`, `crates/tui/src/fountain.rs:174`, `crates/services/src/session/file.rs:87`, `crates/services/src/script_pages.rs:83`.
 
-### 4. Die Frage „Welche Szene des Buchs ist das?“ ist im Terminal und im Fenster je für sich gebaut, mit doppelten Texten
-Beide Oberflächen stellen die offenen Fragen aus Fund 1. Jede baut selbst die Liste der Antworten: erst die möglichen Szenen, dann als letzte Zeile „Nicht im Buch“. Das Terminal erkennt diese letzte Zeile daran, dass ihr keine Szene mehr entspricht. Das Fenster gibt ihr die Nummer −1, die die App wieder in „Nicht im Buch“ übersetzt.
+### 4. Bestandsliste
+**Unverändert:** alle 26 Einträge. Kein PR seit dem letzten Audit hat einen Eintrag erhöht oder neu angelegt.
 
-Die drei Texte des Dialogs stehen im Katalog zweimal, wortgleich: Titel, Frage und „Nicht im Buch“, einmal als `book.*` und einmal als `tui.book.*`, auf Deutsch und auf Englisch.
+**Geteilt, wie vorgeschlagen:** `script/src/assist.rs` ist durch #236 von 769 auf 546 Zeilen geschrumpft. Der Ablauf von Enter und Tab steht jetzt in `flow.rs` (216 Zeilen).
 
-`ARCHITECTURE.md` sagt in der Zeile für den Abgleich, dass Fenster und Terminal nur die Statuszeile betreffen. Die Dialoge und die Übersetzung der Antwort nennt die Zeile nicht.
+**Schnell gewachsen:** Die Tests des Abgleichs (`services/tests/book_align.rs`) sind in diesem Abschnitt von 411 auf 708 Zeilen gewachsen. Bei diesem Tempo erreichen sie in zwei bis drei PRs die Grenze. Eine natürliche Naht sind die Tests für Zwillingsszenen (#239). Sie können in eine eigene Datei.
 
-Was es kostet: Eine neue Antwort, etwa „später entscheiden“ für einzelne Einträge, braucht Änderungen in beiden Oberflächen und in der App-Übersetzung. Eine andere Formulierung der Frage braucht vier Einträge im Katalog statt zwei.
+**An der Grenze von 800 Zeilen** (unverändert seit dem letzten Audit): `stellprobe/src/motion.rs` mit 797, `export/tests/export.rs` mit 790, `services/tests/session.rs` und `app/src/bridge/view.rs` mit je 788, `model/src/plan.rs` mit 772, `services/src/plan_edit.rs` mit 763. `PlanArea.qml` ist durch #233 von 778 auf 761 Zeilen geschrumpft.
 
-Vorschlag: Die Sitzung gibt die Antworten einer Frage als fertige Liste heraus, mit „Nicht im Buch“ als eigenem Eintrag. Beide Oberflächen zeigen sie nur an. Die doppelten Texte fallen weg, und die Zeile in `ARCHITECTURE.md` nennt die Dialoge.
+**In Ordnung:** die flachen Listen (`field.rs` `name`, `plan/key.rs` `key`), die alten Einträge der Ausgabe (`jpeg.rs`, `layout.rs`, `scan.rs`) und `apply`.
 
-Aufwand klein bis mittel. Risiko gering: Es gibt `crates/tui/src/tests/book.rs`, `crates/app/tests/qml/tst_bookdialog.qml` und die Tests in `crates/app/src/manage.rs`.
-
-Beleg: `crates/tui/src/app/book.rs:37`, `crates/tui/src/app/book.rs:56`, `crates/app/src/manage.rs:61`, `crates/app/src/manage.rs:65`, `crates/app/qml/BookDialog.qml:27`, `crates/services/i18n/de.json:429`, `crates/services/i18n/de.json:707`, `ARCHITECTURE.md:84`.
-
-### 5. Zwei kleine Doppelungen beim Register: die freie Kennung eines neuen Eintrags, der Dateiname des Drehbuchs
-Ein neuer Eintrag im Register bekommt eine zufällige Kennung. Sie darf sich von keiner vorhandenen nur durch Groß- und Kleinschreibung unterscheiden, sonst würden sich auf manchen Rechnern die Dateien überschreiben. Diese Suche nach einer freien Kennung steht zweimal in der Sitzung: beim Abgleich mit dem Buch und beim Anlegen einer Szene von Hand.
-
-Der Dateiname `drehbuch.fountain` steht in der Ablage und noch einmal in der Sitzung. Die Sitzung braucht ihn nur, um bei Konfliktmarken von Git im Drehbuch den Pfad in der Fehlermeldung zu nennen.
-
-Was es kostet: Eine geänderte Regel für Kennungen gilt sonst nur auf einem der beiden Wege. Ein umbenanntes Drehbuch zeigt in dieser Fehlermeldung den alten Namen.
-
-Vorschlag: Eine Funktion für die freie Kennung, die beide Wege benutzen. Die Ablage nennt den Pfad des Drehbuchs (oder meldet den Konflikt selbst), statt dass die Sitzung ihn wiederholt.
-
-Aufwand klein. Risiko gering: Es gibt `crates/services/tests/book_align.rs`, `crates/services/tests/manage.rs` und `crates/store/tests/register.rs`.
-
-Beleg: `crates/services/src/book.rs:426`, `crates/services/src/project_edit.rs:566`, `crates/services/src/load.rs:10`, `crates/store/src/lib.rs:60`.
-
-### 6. Bestandsliste
-**Gewachsen:**
-- `name` in `field.rs` hat jetzt 45 statt 44 Zweige (#215). Der Commit nennt dafür keinen Grund. Es ist aber eine flache Liste der Feldnamen mit einem Zweig je Feld und in Ordnung.
-
-**Kann sich teilen:**
-- `script/src/assist.rs` ist durch #226 von 624 auf 769 Zeilen gewachsen. Die Datei hat zwei Aufgaben: Vorschläge beim Tippen und den Ablauf von Enter und Tab (`Slot`, `enter_step`, `tab_step`). Das ist eine natürliche Naht. Der Ablauf kann in eine eigene Datei, bevor die Datei die Grenze erreicht.
-
-**An der Grenze von 800 Zeilen:**
-- `stellprobe/src/motion.rs` mit 797 (vorher 770),
-- `model/src/plan.rs` mit 772 (vorher 750),
-- `services/src/plan_edit.rs` mit 763 (vorher 743),
-- `export/tests/export.rs` mit 790, `services/tests/session.rs` und `app/src/bridge/view.rs` mit je 788, `PlanArea.qml` mit 778.
-
-Bei den ersten drei kam der Zuwachs von den Wegen der Requisiten (#214).
-
-**In Ordnung:**
-- die flachen Listen (`field.rs` `name`, `plan/key.rs` `key`),
-- die alten Einträge der Ausgabe (`jpeg.rs`, `layout.rs`, `scan.rs`),
-- `apply`, das weiter schrumpft.
-
-Die nicht geprüfte `bridge.rs` wächst weiter (1041 Zeilen), wie in `ARCHITECTURE.md` vorgesehen.
-
-Beleg: `structure.baseline`, `crates/script/src/assist.rs:54`, `crates/script/src/assist.rs:115`, `crates/stellprobe/src/motion.rs:1`.
+Beleg: `structure.baseline`, `crates/services/tests/book_align.rs:571`, `crates/script/src/flow.rs:1`.
 
 ## Seit dem letzten Audit
-Seit dem 14. Audit wurden 19 PRs gemergt: #202, #208, #213 bis #229.
+Seit dem 15. Audit wurden zehn PRs gemergt: #231 bis #240.
 
-14. Audit (alle acht Funde vom Eigentümer zum Beheben gewählt):
-- **Fund 1 (Titelseite mit eigener Regel und vier Stellen): behoben (#221).** Die Sitzung liest die Felder über `title_fields`, und das Terminal ordnet die Beschriftungen nach dem Namen der Felder zu. Beleg: `crates/services/src/script_pages.rs:124`, `crates/tui/src/i18n.rs:36`.
-- **Fund 2 (auskommentierte Teile zweimal bestimmt): größtenteils behoben (#222).** Die Zeichen stehen nur noch im Leser. Ob eine Zeile innerhalb eines Kommentars beginnt, übernimmt der Editor jetzt vom Leser. Innerhalb einer Zeile entscheidet er aber weiter selbst, und dort lesen beide noch verschieden. Ich habe es geprüft: `Vorher \/* weg */ danach.` Der Leser schneidet „/* weg */“ heraus, und das PDF zeigt `Vorher \ danach.`. Der Editor zeigt denselben Teil kursiv statt grau. Beleg: `crates/script/src/inline.rs:72`, `crates/script/src/inline.rs:103`, `crates/script/src/parse.rs:150`.
-- **Fund 3 (gebundenes Etikett an vier Stellen): behoben (#225).** Ein Typ `Binding` im Datenmodell. Die Palette fragt die Brücke. Beleg: `crates/model/src/binding.rs:11`, `crates/app/qml/ObjectCommands.qml:22`.
-- **Fund 4 (Papiergrößen und Textbreite doppelt): behoben (#228).** Die Ausgabe hat eine Tabelle der Papiermaße, und die Textbreite kommt mit dem Blatt. Es bleibt eine Kleinigkeit: Die Sitzung übersetzt das Papier des Drehbuchs weiter an zwei Stellen. Beleg: `crates/services/src/script_pages.rs:96`, `crates/services/src/script_pages.rs:239`.
-- **Fund 5 (Enter und Tab nur im Terminal): größtenteils behoben (#226).** Die drei Regeln stehen jetzt im Drehbuch-Baustein. Es bleibt ein Rest: Das Terminal übersetzt seine Zeilenarten weiter selbst in die Rollen des Ablaufs. Die gleichwertige Funktion `Slot::of` rufen weiter nur Tests auf. Das Zeichen „)“ steht in `assist.rs` zweimal als Konstante und im Terminal ein drittes Mal. Beleg: `crates/tui/src/fountain.rs:35`, `crates/script/src/assist.rs:74`, `crates/script/src/assist.rs:52`, `crates/script/src/assist.rs:114`, `crates/tui/src/app.rs:34`.
-- **Fund 6 („(MORE)“ und „(CONT'D)“ an zwei Stellen): behoben (#227).** Beleg: `crates/script/src/pages/flow.rs:17`.
-- **Fund 7 (`ARCHITECTURE.md` nennt nicht alle Stellen eines Drehbuch-Elements): behoben (#229).** Beleg: `ARCHITECTURE.md:100`.
-- **Fund 8 (Bestandsliste): behoben (#223 und #216).** Der Eintrag `write` ist weg. `AppHeader.qml` ist von 799 auf 655 Zeilen geschrumpft. Die Testdateien und `scene.rs` sind geteilt.
+15. Audit (alle sechs Funde vom Eigentümer zum Beheben gewählt):
+- **Fund 1 (offene Fragen veralten beim Entfernen einer Szene): behoben (#235).** Jede Änderung über einen Schritt der Sitzung frischt die Fragen auf, wenn sich das Register geändert hat. Ein Test prüft das Entfernen. Den neuen Rest dieser Lösung beschreibt Fund 1 oben. Beleg: `crates/services/src/session/undo.rs:60`, `crates/services/tests/book_align.rs:426`.
+- **Fund 2 (`ARCHITECTURE.md` schickt neue Befehle nach `AppHeader.qml`): behoben (#231).** Beleg: `ARCHITECTURE.md:90`, `ARCHITECTURE.md:93`, `ARCHITECTURE.md:96`.
+- **Fund 3 (Tooltip eines Griffs entsteht im Fenster): behoben (#233).** Die Brücke liefert den Text-Schlüssel, und `PlanArea.qml` zeigt ihn nur an. Beleg: `crates/app/src/plan/key.rs:182`, `crates/app/src/bridge/hints.rs:62`, `crates/app/qml/PlanArea.qml:717`.
+- **Fund 4 (Fragedialog im Terminal und im Fenster doppelt gebaut): behoben (#237).** Die Sitzung gibt die Antwortzeilen heraus, und die doppelten Texte `tui.book.*` sind weg. Beleg: `crates/services/src/session/book.rs:32`, `crates/tui/src/ui_overlay.rs:209`, `crates/app/qml/BookDialog.qml:28`.
+- **Fund 5 (freie Kennung, Dateiname des Drehbuchs): behoben (#234).** Beleg: `crates/services/src/project_edit.rs:567`, `crates/store/src/lib.rs:57`.
+- **Fund 6 (Bestandsliste, `assist.rs` teilen): behoben (#236).**
+
+14. Audit, Reste:
+- **Fund 2 (auskommentierte Teile, innerhalb einer Zeile verschieden gelesen): im Verhalten behoben (#232).** `Vorher \/* weg */ danach.` liest der Leser jetzt wie der Editor. Die Regel steht weiter zweimal, einmal im Leser und einmal in den Markierungen des Editors. Beleg: `crates/script/src/parse.rs:203`, `crates/script/src/inline.rs:104`.
+- **Fund 4 (Papier des Drehbuchs an zwei Stellen übersetzt): offen.** Beleg: `crates/services/src/script_pages.rs:98`, `crates/services/src/script_pages.rs:240`.
+- **Fund 5 (Enter und Tab): Rest offen.** Das Terminal übersetzt seine Zeilenarten weiter selbst. `Slot::of` ruft weiter nur ein Test auf. Das Zeichen „)“ steht jetzt in `assist.rs`, `flow.rs` und im Terminal. Beleg: `crates/tui/src/fountain.rs:35`, `crates/script/src/flow.rs:26`, `crates/script/src/assist.rs:526`, `crates/script/src/flow.rs:66`, `crates/script/src/assist.rs:52`, `crates/tui/src/app.rs:34`.
 
 13. Audit:
-- **Fund 3 (Karten suchen ihr Element mit kopiertem Block, siebenmal): offen.** Beleg: `crates/app/qml/ImageCard.qml:16` und die sechs anderen Karten.
-- **Funde 5 und 6: behoben (#211).**
+- **Fund 3 (Karten suchen ihr Element mit kopiertem Block, siebenmal): offen.** Beleg: `crates/app/qml/ImageCard.qml:21`, `crates/app/qml/CameraCard.qml:28`, `crates/app/qml/ObjectCard.qml:30` und die anderen Karten.
 
 12. Audit:
 - **Fund 5 (Kopieren über einen gemeinsamen Ablauf): vom Eigentümer nicht gewählt.** Er bleibt stehen und wird nicht neu gemeldet.
 
-Aus dem 10., 8., 7., 6., 5., 4. und 3. Audit sind weiter alle Funde offen, die das 14. Audit dort als offen führt. Beim 6. Audit, Fund 1 (Großschreibung beim Tippen kopiert Regeln des Drehbuchlesers) hat sich am Beleg nichts geändert: `crates/tui/src/fountain.rs:201`, `crates/script/src/parse.rs:483`.
-
-Geprüft:
-- Die Tests der Bausteine Drehbuch, Terminal, Sitzung, Ablage, Datenmodell und Ausgabe sind in diesem Audit grün gelaufen (`cargo test -p klappe-script -p klappe-tui -p klappe-services -p klappe-store -p klappe-model -p klappe-export`).
-- Die veraltete offene Frage in Fund 1 und das verschiedene Lesen von `\/*` beim 14. Audit, Fund 2, habe ich mit kleinen Programmen gegen Sitzung und Drehbuch-Baustein nachgewiesen. Sie lagen außerhalb des Repos und sind gelöscht.
-- Die Strukturprüfung meldet 558 Dateien, 0 Verstöße und 26 Einträge in der Bestandsliste.
+Aus dem 10., 8., 7., 6., 5., 4. und 3. Audit sind weiter alle Funde offen, die das 15. Audit dort als offen führt. Beim Fund „Die Großschreibung beim Tippen kopiert Regeln des Drehbuchlesers in das Terminalprogramm“ hat #240 die Prüfung der Anfänge von Szenenköpfen an einer Stelle zusammengelegt. Die Großschreibung selbst schreibt das Terminal aber weiter mit eigenen Regeln. Die Ausnahme für „ß“ steht jetzt an drei Stellen (Fund 3). Beleg: `crates/tui/src/fountain.rs:176`, `crates/tui/src/fountain.rs:200`, `crates/script/src/parse.rs:573`.

@@ -43,6 +43,16 @@ impl Session {
         self.touch();
     }
 
+    /// Sets "(CONT'D) after action" (DB-31) and writes only that into `projekt.toml` at once,
+    /// leaving everything else as it is on disk (the TUI, which saves the book without the
+    /// plans).
+    pub fn keep_contd(&mut self, on: bool) -> Result<(), ServiceError> {
+        klappe_store::save_contd(&self.dir, on)?;
+        self.project.script.contd_after_action = on;
+
+        Ok(())
+    }
+
     /// Writes the screenplay as PDF (DB-70) after laying it out again, so the pages are the
     /// ones in the text now.
     pub fn export_script_pdf(

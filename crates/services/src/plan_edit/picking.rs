@@ -2,7 +2,7 @@
 //! inside. Locked layers are left out by the caller's `locked`.
 
 use klappe_model::Point;
-use klappe_stellprobe::{anchor, hit, in_lasso, within, Item, Role, Shape, Source};
+use klappe_stellprobe::{anchor, hit, in_lasso, within, Bend, Item, Role, Shape, Source};
 
 /// How far beside a shape a click still takes it: a finger or a mouse is not exact.
 const PICK_RADIUS_M: f64 = 0.15;
@@ -74,6 +74,30 @@ fn grip_distance_m(item: &Item, at: Point) -> Option<f64> {
         Shape::Circle { center, .. } => Some(center.distance_m(at)),
         _ => None,
     }
+}
+
+/// The items of `items` a box or lasso over a selected element's grips may take: the grips on
+/// a point (a bend of a way, a point of a drawing or a free form). A bend not made yet is
+/// none, and no other grip moves with its fellows.
+pub(crate) fn point_grips(items: Vec<Item>) -> Vec<Item> {
+    let made = |source: &Source| {
+        source.selected_itself()
+            && !matches!(
+                source,
+                Source::FigureVia {
+                    bend: Bend::New(_),
+                    ..
+                } | Source::CameraVia {
+                    bend: Bend::New(_),
+                    ..
+                }
+            )
+    };
+
+    items
+        .into_iter()
+        .filter(|item| is_grip(item.role) && item.source.as_ref().is_some_and(made))
+        .collect()
 }
 
 /// Every element the user can grab whose shown items all lie in the box with corners `a` and

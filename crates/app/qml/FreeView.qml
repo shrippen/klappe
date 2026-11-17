@@ -9,13 +9,16 @@ import Kante
 //   left click / drag        select, set, move: as on the plan, through the floor under the pointer
 //   right drag, Alt + left   turn         middle drag, Shift + right   shift
 //   wheel                    zoom to the pointer; a touchpad's two-finger scroll shifts, a pinch zooms
+// The keyboard (NF-06), while the view has the focus (a click or Tab): arrows turn and tilt,
+// Shift + arrows shift, + and - zoom to the middle; the palette lists them (NavCommands).
 Item {
     id: view
 
     required property var texts
     // `freeSize(w, h)`, `freeImage(scale, paletteJson)`, `freeFrame()`, `turnView`, `panView`,
-    // `zoomView`, `freePlace`, `freeDrag`, `cancelDrag` and the revisions `pictureRevision` and
-    // `freeRevision`: the picture is made again when a revision, the size or the theme changes.
+    // `zoomView`, `stepView`, `freePlace`, `freeDrag`, `cancelDrag` and the revisions
+    // `pictureRevision`, `freeRevision`, `selectedKey` and `selectedCount`: the picture is made again when one of them, the size or the theme
+    // changes.
     property var controller: null
     // The element that shows the image (`show(image)`); a Rust type the tests do not have.
     property url surfaceSource: Qt.resolvedUrl("CameraSurface.qml")
@@ -94,10 +97,37 @@ Item {
         target: view.canPaint ? view.controller : null
         function onPictureRevisionChanged() { view.refresh() }
         function onFreeRevisionChanged() { view.refresh() }
+        // The outline of the selection is part of the picture.
+        function onSelectedKeyChanged() { view.refresh() }
+        function onSelectedCountChanged() { view.refresh() }
     }
     Connections {
         target: colors
         function onJsonChanged() { view.refresh() }
+    }
+
+    activeFocusOnTab: canPaint
+
+    // The keys of the 3D view as the controller's steps. Ctrl+arrows and the like stay free.
+    readonly property var arrowSteps: ({ [Qt.Key_Left]: "Left", [Qt.Key_Right]: "Right", [Qt.Key_Up]: "Up", [Qt.Key_Down]: "Down" })
+    Keys.onPressed: event => {
+        const arrow = arrowSteps[event.key]
+        const plain = (event.modifiers & ~Qt.ShiftModifier & ~Qt.KeypadModifier) === 0
+        if (!canPaint || !plain) {
+            return
+        }
+
+        const shift = (event.modifiers & Qt.ShiftModifier) !== 0
+        if (arrow !== undefined) {
+            controller.stepView((shift ? "pan" : "turn") + arrow)
+            event.accepted = true
+        } else if (event.key === Qt.Key_Plus || event.key === Qt.Key_Equal) {
+            controller.stepView("zoomIn")
+            event.accepted = true
+        } else if (event.key === Qt.Key_Minus) {
+            controller.stepView("zoomOut")
+            event.accepted = true
+        }
     }
 
     Accessible.role: Accessible.Graphic
