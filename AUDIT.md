@@ -1,160 +1,179 @@
-# Code-Audit Klappe, 16.11.2026, Stand 95f7301
+# Code-Audit Klappe, 17.11.2026, Stand 9ecdea6
 
 ## Urteil
-Das Repo ist wartbar und etwas besser als beim zwölften Audit. Vier der fünf Funde sind behoben (#187, #189, #191, #192), und zwar sauber:
-- Möbel und Bilder rechnen jetzt mit derselben Rechnung für gedrehte Rechtecke.
-- Welcher Griff zu welchem Element gehört, steht an einer Stelle.
-- Stellprobe fragt die Bildgröße nur noch auf einem Weg ab.
+Das Repo ist wartbar. Beim Planen ist es besser geworden, das Drehbuch ist die neue Schwachstelle.
 
-Den fünften Fund hat der Eigentümer nicht gewählt. Neu dazugekommen sind das Menü der Projektkacheln auf der Startseite (Umbenennen, Archivieren, Papierkorb; #195) und die neue Beispielkopie (#194). Beide haben kleine Doppelungen mitgebracht. An einer Stelle geht die Sitzung dabei selbst an die Dateien, an der Ablage vorbei (Fund 1). Die Bestandsliste bleibt bei 31 Einträgen. Zwei davon sind leicht gewachsen, beide mit Begründung.
+Beim Planen haben sich die größten Funktionen verkleinert:
+- `apply` hat jetzt 128 statt 141 Zeilen.
+- `check`, `copy` und `remove` sind ebenfalls kleiner.
+- `editor_key` im Terminal ist aus der Bestandsliste verschwunden.
+- Drei Funde des 13. Audits sind sauber behoben.
+
+Mit dem Drehbuch sind rund 75 Dateien dazugekommen: Seiten, Schreibhilfen, Suche, Titelseite, Hervorhebungen, Editor im Terminal und PDF. Dabei sind einige Regeln zweimal entstanden. Zwei dieser Doppelungen verhalten sich schon heute verschieden (Funde 1 und 2). Teile des Schreibablaufs liegen nur im Terminal, obwohl `ARCHITECTURE.md` sie in den gemeinsamen Drehbuch-Baustein legt (Fund 5). Das verteuert den geplanten Editor im Fenster.
 
 ## Kennzahlen
 | | letztes Audit | jetzt |
 |---|---|---|
-| Quelldateien | 412 | 425 (gezählt wie die Strukturprüfung, ohne die Kopie von Kante) |
-| Einträge in der Bestandsliste | 31 | 31. Angehoben hat sie nur #190, beide Male mit Begründung im Commit `a8e2cb9`: die Feldnamen `name` in `field.rs` (43 auf 44 Verzweigungen, für die neue Deckkraft) und `apply` in `plan_edit.rs` (139 auf 141 Zeilen, für die Bildänderungen). `error_text` heißt jetzt `own_text`; der Wert ist gleich geblieben. |
-| größte Datei (Zeilen) | 1011 (`crates/store/tests/store.rs`) | 1011 (dieselbe). Ohne Tests ist die größte geprüfte Datei weiter `crates/export/src/jpeg.rs` mit 883 Zeilen. Die nicht geprüfte `bridge.rs` ist von 833 auf 864 Zeilen gewachsen. |
-| längste Funktion (Zeilen) | 139 (`apply` in `plan_edit.rs`) | 141 (dieselbe) |
+| Quelldateien | 425 | 500 (gezählt wie die Strukturprüfung, ohne die Kopie von Kante) |
+| Einträge in der Bestandsliste | 31 | 30. Kein Eintrag ist gewachsen. `editor_key` (Terminal) ist weg. `apply`, `check`, `copy`, `remove` und `store/tests/store.rs` sind kleiner geworden. Ein Wert kann noch schrumpfen (siehe Fund 8). |
+| größte Datei (Zeilen) | 1011 (`crates/store/tests/store.rs`) | 972 (dieselbe). Ohne Tests ist es weiter `crates/export/src/jpeg.rs` mit 883 Zeilen. Die nicht geprüfte `bridge.rs` ist von 864 auf 978 Zeilen gewachsen. |
+| längste Funktion (Zeilen) | 141 (`apply` in `plan_edit.rs`) | 131 (die Testhilfe `plan` in `store/tests/store.rs`). Im Programmcode ist es `apply` mit 128. |
 
 ## Funde
 
-### 1. Die Beispielkopie wird an der Ablage vorbei beiseitegelegt, mit einer eigenen Regel für den freien Namen
-Lädt die Kopie des Beispiels nicht mehr, benennt die Sitzung den Ordner um und schreibt eine frische Kopie. Dieses Umbenennen macht die Sitzung selbst, direkt auf der Platte. `ARCHITECTURE.md` sagt aber: Nur die Ablage fasst die Dateien eines Projekts an. Die Ablage benennt intern selbst um, bietet dafür nach außen aber keine passende Funktion an.
+### 1. Die Titelseite wird für das PDF mit einer eigenen Regel gelesen, und ihre sechs Felder stehen an vier Stellen
+Der Drehbuch-Baustein hat eine Regel dafür, welcher Eintrag der Titelseite welches Feld ist. Groß- und Kleinschreibung und Leerzeichen zählen dabei nicht. Das Formular im Terminal benutzt diese Regel. Die Sitzung baut das PDF aber mit einer eigenen Suche, bei der Leerzeichen zählen, und schreibt die Feldnamen dafür noch einmal hin.
 
-Dazu kommt: Für „Welcher Name neben dem Ordner ist noch frei?“ gibt es jetzt zwei Regeln. Die Sitzung hängt `.alt`, `.alt-2` … an und sucht ohne Obergrenze. Die Ablage (für das ZIP-Archiv, #195) hängt ` (2)`, ` (3)` … an und gibt nach 1000 Versuchen auf.
+Die beiden Regeln verhalten sich schon heute verschieden. Ich habe es mit `DraftDate: 1. Mai` geprüft: Das Formular zeigt das Datum unter „Draft date“, das PDF lässt es weg.
 
-Was es kostet: Wer ändert, wie Ordner auf der Platte umbenannt oder benannt werden (etwa für Windows oder einen Netzordner), muss eine Stelle außerhalb der Ablage kennen. Die beiden Namensregeln verhalten sich schon heute verschieden.
+Die sechs Felder (Titel, Credit, Autor, Quelle, Datum, Kontakt) stehen außerdem an vier Stellen:
+- als Liste im Drehbuch-Baustein,
+- als Liste der Beschriftungen im Terminal (deren Reihenfolge nur an der Länge geprüft wird),
+- als Feld für Feld ausgeschriebene Titelseite in der Ausgabe,
+- in der Zuordnung in der Sitzung.
 
-Vorschlag: Die Ablage bekommt eine Funktion „Ordner beiseitelegen“, die ihre Regel für den freien Namen benutzt. Die Sitzung ruft nur diese Funktion auf.
+Was es kostet: Ein neues Feld der Titelseite braucht diese vier Stellen. Die Tabelle „Where new things go“ nennt nur `title.rs`. Eine geänderte Regel für die Namen der Einträge gilt sonst nur im Editor.
 
-Aufwand klein. Risiko gering: `crates/services/tests/example.rs` (auch für den zweiten freien Namen) und `crates/services/tests/folder.rs` laufen in diesem Audit grün. Ändert sich das Namensmuster, müssen diese Tests mitgeändert werden.
+Vorschlag: Die Sitzung holt die Felder für das PDF über die Funktion des Drehbuch-Bausteins (`title_fields`). Das Terminal ordnet seine Beschriftungen über die Namen der Felder zu, nicht über ihre Reihenfolge.
 
-Beleg: `crates/services/src/example.rs:46`, `crates/services/src/example.rs:62`, `crates/store/src/folder.rs:61`, `crates/store/src/files.rs:150`, `ARCHITECTURE.md:65`.
+Aufwand klein. Risiko gering: Es gibt Tests in `crates/script/src/title.rs`, `crates/services/tests/script_pages.rs` und `crates/export/tests/script.rs`. Ein Test mit `DraftDate:` sollte vor dem Umbau dazukommen.
 
-### 2. Die Regel für einen gültigen Projekttitel steht zweimal
-Ein Titel wird beim Anlegen eines Projekts und beim neuen Umbenennen auf der Startseite (#195) gleich geprüft: Leerzeichen am Rand weg, leer ist abgelehnt. Die Regel ist dafür zweimal Zeile für Zeile ausgeschrieben.
+Beleg: `crates/script/src/title.rs:17`, `crates/script/src/title.rs:36`, `crates/services/src/script_pages.rs:176`, `crates/services/src/script_pages.rs:231`, `crates/services/src/script_pages.rs:247`, `crates/export/src/script.rs:72`, `crates/tui/src/i18n.rs:32`, `crates/tui/src/i18n.rs:234`, `ARCHITECTURE.md:93`.
 
-Was es kostet: Eine neue Regel für Titel (zum Beispiel eine Höchstlänge oder verbotene Zeichen) gilt sonst nur für einen der beiden Wege.
+### 2. Was ein auskommentierter Teil (`/* … */`) ist, wird zweimal bestimmt, und die Zeichen von Fountain stehen dreimal
+Ein Drehbuch kann Teile mit `/* … */` auskommentieren. Was dazugehört, bestimmt der Drehbuchleser für den ganzen Text. Die Hervorhebungen, die der Editor einfärbt, bestimmen es ein zweites Mal, Zeile für Zeile, mit eigenen Zeichen-Konstanten.
 
-Vorschlag: Eine Funktion „Titel prüfen“ in der Sitzung, die beide Stellen aufrufen.
+Die beiden Wege verhalten sich verschieden. Ich habe es geprüft: Steht `/*` innerhalb einer Notiz, etwa `[[a /* b]]`, schneidet der Leser alles bis zum nächsten `*/` heraus, auch über mehrere Zeilen. Diese Teile fehlen dann im Drehbuch und im PDF. Der Editor zeigt dieselben Zeilen als gewöhnlichen Text.
 
-Aufwand klein. Risiko gering: `crates/services/tests/folder.rs` prüft den leeren Titel beim Umbenennen. Für das Anlegen sollte vor dem Umbau ein Test auf den leeren Titel dazukommen.
+Die Zeichen von Fountain (`.`, `@`, `#`, `^`, `/*`, `*/`, `[[`, `]]`, `\`) stehen außerdem einzeln im Leser, in den Schreibhilfen und in den Hervorhebungen. Im Leser sind sie schon für den ganzen Baustein freigegeben.
 
-Beleg: `crates/services/src/folder.rs:17`, `crates/services/src/session/file.rs:59`.
+Was es kostet: Eine Änderung an den Regeln für Kommentare oder Notizen muss man an zwei Stellen gleich machen, und die beiden lesen schon heute anders.
 
-### 3. Jede Karte sucht ihr Element mit demselben kopierten Block, jetzt siebenmal
-Die Karten für Kamera, Objekt, Wand, Lampe, Tür/Fenster, Zeichnung und jetzt auch Bild (#190) holen ihre Daten mit demselben achtzeiligen Block: am Zähler des Kamerabilds hängen, am Anfang des Schlüssels die Art erkennen, die Beschreibung abfragen, die Art noch einmal prüfen. Nur das Wort für die Art ist jeweils ein anderes. Dabei steht diese Schreibweise der Schlüssel („image:“ usw.) schon in der App (`plan/key.rs`). Die Karten schreiben sie ein zweites Mal hin.
+Vorschlag: Die Hervorhebungen übernehmen, was auskommentiert ist, aus dem Leser (der kennt die Zeilen schon). Die Zeichen stehen nur noch im Leser.
 
-Was es kostet: Jede neue Karte ist eine achte Abschrift. Ändert sich, wann eine Karte neu lesen muss oder wie ein Schlüssel aussieht, ändert man sieben Dateien. Das macht auch den offenen Fund 2 des zehnten Audits („Karten hängen am Zähler des Kamerabilds“) teurer.
+Aufwand mittel. Risiko gering: Es gibt Tests in `crates/script/src/inline.rs:186` und `crates/script/src/tests.rs` und Editortests in `crates/tui/src/tests/marks.rs`.
 
-Vorschlag: Eine gemeinsame Abfrage „Beschreibung des gewählten Elements dieser Art“, entweder in der Verbindungsschicht oder als kleiner gemeinsamer QML-Baustein. Jede Karte nennt dann nur noch ihre Art.
+Beleg: `crates/script/src/parse.rs:7`, `crates/script/src/parse.rs:22`, `crates/script/src/parse.rs:113`, `crates/script/src/inline.rs:4`, `crates/script/src/inline.rs:76`, `crates/script/src/assist.rs:51`, `crates/tui/src/fountain.rs:139`.
 
-Aufwand klein bis mittel. Risiko gering: Jede der sieben Karten hat eigene Oberflächentests (`crates/app/tests/qml/tst_*card.qml`).
+### 3. Wie ein gebundenes Etikett sein Element nennt, steht in Sitzung, Ablage und Befehlspalette je für sich
+Seit #201 kann eine Beschriftung an ein Objekt, eine Figur oder einen Mark gebunden sein. In der Projektdatei steht das als Text, zum Beispiel `object:tisch` oder `mark:anna:2`.
 
-Beleg: `crates/app/qml/ImageCard.qml:16`, `crates/app/qml/CameraCard.qml:25`, `crates/app/qml/ObjectCard.qml:23`, `crates/app/qml/WallCard.qml:16`, `crates/app/qml/LightCard.qml:20`, `crates/app/qml/OpeningCard.qml:17`, `crates/app/qml/DrawingCard.qml:18`.
+- Die Sitzung schreibt und liest diesen Text mit eigener Regel.
+- Die Ablage prüft ihn beim Laden mit zwei weiteren eigenen Regeln: eine für die Notizen am Drehort, eine für die Beschriftungen im Plan.
+- Die Befehlspalette des Fensters entscheidet selbst, welche Elemente ein Etikett bekommen können. Sie liest dafür den Anfang des Auswahl-Schlüssels (`object|figure|mark`).
 
-### 4. Zwei Tabellen-Ausgaben verschlucken einen möglichen Fehler, und die Grenze des ZIP-Formats wird zweimal geprüft
-Seit #195 kann das ZIP-Schreiben ablehnen, wenn eine Datei zu groß ist (4 GiB oder mehr als 65535 Dateien). Die Ausgaben als ODS- und XLSX-Tabelle machen aus einer Ablehnung stillschweigend eine leere Datei. Ein Kommentar begründet das damit, dass eine Tabelle nie so groß wird. Alle anderen Ausgaben geben einen Fehler weiter.
+Das Kontextmenü fragt für jeden Eintrag die Brücke, ob er angeboten wird. Die Palette fragt nicht.
 
-Die Grenze steht außerdem zweimal: einmal als grobe Vorabprüfung (Anzahl und Summe der Dateien), einmal genau beim Schreiben jeder Datei.
+Was es kostet: Sollen auch Kameras oder Lampen ein Etikett bekommen, oder ändert sich die Schreibweise in der Datei, muss man vier Stellen in drei Bausteinen finden. Eine davon ist QML und nach `ARCHITECTURE.md` gar nicht vorgesehen: Die Oberfläche soll nichts selbst entscheiden.
 
-Was es kostet: Ändert sich der Weg einmal (etwa Bilder in einer Tabelle), entsteht eine leere Datei ohne Meldung. Wird die Grenze geändert (zum Beispiel auf ZIP64 für große Archive), muss man beide Prüfungen finden.
+Vorschlag: Ein kleiner Typ „gebunden an“ im Datenmodell, mit Schreiben und Lesen an einer Stelle; Ablage und Sitzung benutzen ihn. Die Brücke liefert „Etikett möglich“ wie die anderen Einträge des Kontextmenüs.
 
-Vorschlag: ODS und XLSX geben den Fehler weiter wie die übrigen Ausgaben. Die Vorabprüfung nimmt dieselben Grenzwerte wie das Schreiben, aus einer Stelle.
+Aufwand klein bis mittel. Risiko gering: Es gibt `crates/services/tests/object_change.rs`, `crates/store/tests/object_fields.rs` und `crates/app/tests/qml/tst_objectcard.qml`.
 
-Aufwand klein. Risiko gering: `crates/export/tests/export.rs` und `crates/services/tests/folder.rs` (Ablehnung zu großer Ordner) decken es ab.
+Beleg: `crates/services/src/plan_edit/bound.rs:55`, `crates/services/src/plan_edit/bound.rs:75`, `crates/store/src/lib.rs:445`, `crates/store/src/lib.rs:531`, `crates/app/qml/ObjectCommands.qml:20`, `crates/app/src/bridge/selection.rs:46`, `crates/model/src/project.rs:221`.
 
-Beleg: `crates/export/src/lib.rs:144`, `crates/export/src/lib.rs:156`, `crates/export/src/zip.rs:37`, `crates/export/src/zip.rs:106`.
+### 4. Die Papiergrößen stehen in der Ausgabe zweimal, die Breite des Drehbuchs zweimal
+Für das Papier gibt es heute vier Stellen:
+- Das Datenmodell hat zwei Arten Papier: eine für den Plan (A4, A3, Letter) und eine für das Drehbuch (A4, Letter).
+- Die Sitzung übersetzt das Drehbuch-Papier an zwei Stellen, einmal für den Seitenumbruch und einmal für das PDF.
+- In der Ausgabe stehen die Maße desselben Papiers zweimal: für den Plan in Millimetern, für das Drehbuch in Punkten.
+- A3 ist dort für das Drehbuch ausgeschrieben, obwohl es nie ankommt.
 
-### 5. `ARCHITECTURE.md` nennt das ZIP-Archiv nicht unter den Aufgaben der Ausgabe
-Seit #195 packt der Baustein „Ausgabe“ (`export/`) auch einen ganzen Projektordner als ZIP. Die neue Zeile in „Where new things go“ nennt das. Die Beschreibung des Bausteins oben zählt aber nur Plan, Shotliste und Ansichten auf.
+Die Breite des Textes von 60 Spalten steht im Drehbuch-Baustein und in der Ausgabe je als eigene Zahl.
 
-Was es kostet: Wer in der Übersicht nachsieht, wo Archive gebaut werden, findet es nicht.
+Was es kostet: Ein neues Papier (etwa Legal) oder ein korrigiertes Maß muss man in der Ausgabe zweimal ändern. Wird die Textbreite geändert, setzt das PDF die Zeilen an der alten Breite aus.
 
-Vorschlag: Die Zeile `export/` nennt „ein Ordner als ZIP-Archiv“.
+Vorschlag: Die Ausgabe nimmt für beide Wege eine Tabelle der Papiermaße. Die Textbreite kommt mit dem Blatt aus der Sitzung, statt als zweite Zahl in der Ausgabe zu stehen.
+
+Aufwand klein. Risiko gering: Es gibt `crates/export/tests/script.rs` und `crates/export/tests/export.rs`.
+
+Beleg: `crates/model/src/paper.rs:5`, `crates/model/src/script_setup.rs:29`, `crates/services/src/script_pages.rs:96`, `crates/services/src/script_pages.rs:239`, `crates/export/src/layout.rs:70`, `crates/export/src/script.rs:39`, `crates/export/src/script.rs:104`, `crates/script/src/pages.rs:23`, `crates/export/src/script.rs:26`.
+
+### 5. Teile des Ablaufs von Enter und Tab stehen nur im Terminal, nicht im gemeinsamen Drehbuch-Baustein
+`ARCHITECTURE.md` sagt: Die Regeln zum Text, die jeder Editor teilt, „the Enter and Tab flow“ eingeschlossen, liegen im Drehbuch-Baustein. Dort steht, was nach welchem Element kommt. Drei Regeln liegen aber nur im Terminal:
+- „Diese Zeile ist noch leer“ (auch `()` zählt als leer),
+- „Der Cursor steht am Ende des Elements“ (vor einer schließenden Klammer zählt mit),
+- „Enter springt bei Text darunter ans Ende der nächsten Zeile“.
+
+Dazu übersetzt das Terminal selbst, welches Element welche Rolle im Ablauf hat. Die gleichwertige Funktion des Drehbuch-Bausteins (`Slot::of`) rufen nur Tests auf.
+
+Was es kostet: Der Editor im Fenster ist geplant (`ARCHITECTURE.md`, „Known deviations“, DB-23). Er müsste diese Regeln abschreiben, und dann verhalten sich beide Editoren auseinander. Dieselbe Richtung hat der offene Fund 1 des sechsten Audits (Großschreibung beim Tippen).
+
+Vorschlag: Die drei Regeln kommen nach `assist.rs`. Das Terminal ruft sie und `Slot::of` auf.
+
+Aufwand klein bis mittel. Risiko gering: Es gibt `crates/tui/src/tests/flow.rs` (418 Zeilen) und die Tests in `crates/script/src/assist.rs:430`.
+
+Beleg: `ARCHITECTURE.md:26`, `ARCHITECTURE.md:104`, `crates/tui/src/app/compose.rs:25`, `crates/tui/src/app/compose.rs:151`, `crates/tui/src/app/compose.rs:160`, `crates/tui/src/fountain.rs:33`, `crates/tui/src/fountain.rs:236`, `crates/script/src/assist.rs:78`, `crates/script/src/assist.rs:591`.
+
+### 6. Beim Seitenumbruch entstehen „(MORE)“ und „(CONT'D)“ je an zwei Stellen, eine davon mit eigenen Spaltenzahlen
+Wird ein Dialog über eine Seite gebrochen, steht unten „(MORE)“ und oben der Name mit „(CONT'D)“. Das passiert auf zwei Wegen, und jeder Weg baut beide Zeilen selbst:
+- Schnitt an einem Satzende: Die Spaltenzahl, an der „(MORE)“ steht, ist eine eigene Zahl (22). Sie ist eine Abschrift der Spalte der Namen.
+- Schnitt an einer Zeile: Welche Hälfte eines Doppeldialogs eine Zeile ist, errät die Seitenverteilung aus der Spaltenzahl 31. Auch das ist eine Abschrift aus dem Baustein der Blöcke.
+
+Was es kostet: Wer die Spalte der Namen oder die Breite eines Doppeldialogs ändert, muss wissen, dass die Seitenverteilung die Zahlen noch einmal hat. Sonst steht „(MORE)“ an der alten Stelle. Neue Wörter für den Umbruch müssen an beiden Stellen gleich behandelt werden.
+
+Vorschlag: Ein Block sagt selbst, wo sein Name steht und zu welcher Hälfte eine Zeile gehört. Eine Funktion baut „(MORE)“ und „(CONT'D)“ für beide Wege.
+
+Aufwand klein. Risiko gering: Es gibt `crates/script/src/pages/flow_tests.rs` und `crates/script/src/pages/tests.rs`.
+
+Beleg: `crates/script/src/pages/flow.rs:22`, `crates/script/src/pages/flow.rs:24`, `crates/script/src/pages/flow.rs:78`, `crates/script/src/pages/flow.rs:188`, `crates/script/src/pages/flow.rs:193`, `crates/script/src/pages/block.rs:14`, `crates/script/src/pages/block.rs:18`, `crates/script/src/pages/block.rs:364`.
+
+### 7. `ARCHITECTURE.md` nennt für ein neues Drehbuch-Element nicht alle Stellen
+Die Zeile „New screenplay element“ nennt drei Stellen nicht:
+- `fountain.rs` im Terminal nennt sie zwar, aber das Aussehen jeder Zeilenart wird in `ui.rs` festgelegt.
+- Ein Element auf der Seite braucht seine Art in `pages.rs`.
+- Die Sitzung entscheidet in `script_pages.rs`, wie diese Art im PDF gesetzt wird (fett oder normal).
+
+Was es kostet: Wer der Tabelle folgt, findet diese drei Stellen erst über die Fehler beim Bauen oder gar nicht.
+
+Vorschlag: Die Zeile ergänzen.
 
 Aufwand klein, nur Text. Kein Risiko.
 
-Beleg: `ARCHITECTURE.md:28`, `ARCHITECTURE.md:95`, `crates/export/src/lib.rs:108`.
+Beleg: `ARCHITECTURE.md:92`, `crates/tui/src/ui.rs:41`, `crates/script/src/pages.rs:99`, `crates/services/src/script_pages.rs:214`.
 
-### 6. Ein Überbleibsel aus #191: `rotate` gibt nur an `turned` weiter
-Seit #191 dreht `Point::turned` im Datenmodell einen Punkt. Die Planänderungen behalten trotzdem ihre eigene Funktion `rotate`, die nichts anderes tut, als diese aufzurufen. Das Gruppendrehen ruft weiter `rotate`.
+### 8. Bestandsliste
+**Kann schrumpfen:**
+- Die PDF-Funktion `write` in `export/pdf.rs` liegt seit #206 unter 80 Zeilen. Ihr Eintrag (89 Zeilen) kann mit `--update` entfallen.
 
-Was es kostet: Wenig. Man sieht aber zwei Namen für dasselbe und muss nachlesen, ob sie sich unterscheiden.
-
-Vorschlag: Beide Aufrufer rufen `turned` direkt, `rotate` entfällt.
-
-Aufwand klein. Risiko gering: Die Dreh- und Gruppentests in `crates/services/tests/` decken es ab.
-
-Beleg: `crates/services/src/plan_edit/moving.rs:505`, `crates/services/src/plan_edit/moving.rs:501`, `crates/services/src/plan_edit/group.rs:67`.
-
-### 7. Bestandsliste
-**In Ordnung:** die flachen Listen (Feldnamen `name` in `field.rs`, Schlüssel `key` und `name` in `plan/key.rs`). Sie sind lang, weil es viele Elemente und Felder gibt, nicht weil sie viel tun. Die Erhöhungen durch #190 sind je ein Zweig und begründet. Die alten Einträge der Ausgabe (`jpeg.rs`, `layout.rs`, `scan.rs`) sind unverändert.
-
-**Gewachsen wie erwartet:** `apply` (141 Zeilen) wächst mit jeder neuen Planänderung um einen Zweig. #190 hat die drei Bildänderungen geschickt in einem Zweig gebündelt.
+**Wird bald voll:**
+- `AppHeader.qml` ist von 707 auf 799 Zeilen gewachsen. Der nächste Befehl überschreitet die Grenze. Die Datei wurde in vier der zehn PRs geändert, weil jeder Befehl dort seinen Eintrag in der Palette bekommt.
+- Die Naht ist schon da: #201 hat die Befehle der Objekte nach `ObjectCommands.qml` gelegt, #203 die Seiten-Ausgaben nach `PageExports.qml`.
+- Vorschlag: Die übrigen Befehle der Palette ebenso in eigene Dateien, bevor der nächste dazukommt.
 
 **An der Grenze von 800 Zeilen:**
-- `tst_planarea.qml` mit 797 Zeilen (vorher 782),
-- `export/tests/export.rs` mit 799,
+- `stellprobe/src/scene.rs` mit 800 (vorher 776),
+- `tst_appheader.qml` und `tst_plantools.qml` mit je 800 (vorher 738 und 701),
 - `services/tests/library.rs` und `manage.rs` mit je 800,
-- `services/tests/session.rs` mit 788,
-- `model/src/plan.rs` mit 787,
-- `app/src/bridge/view.rs` mit 779 (vorher 788).
+- `tst_planarea.qml` mit 797.
 
-Die nicht geprüfte `bridge.rs` wächst weiter (864 Zeilen) und hält sich an `ARCHITECTURE.md`: dort stehen nur Erklärungen, die Logik liegt in `bridge/<Bereich>.rs`.
+Bei den Testdateien hilft dasselbe Vorgehen wie bei `tst_appheader_objects.qml`: nach Bereichen teilen.
 
-Vorschlag: Nichts umbauen. Beim nächsten Test für die Planfläche `tst_planarea.qml` nach Werkzeugen teilen, so wie es `tst_planareadrop.qml` schon tut.
+**In Ordnung:**
+- die flachen Listen (`field.rs` `name`, `plan/key.rs`),
+- die alten Einträge der Ausgabe (`jpeg.rs`, `layout.rs`, `scan.rs`),
+- `apply`, das kleiner geworden ist.
 
-Beleg: `structure.baseline`, Commit `a8e2cb9`.
+Die nicht geprüfte `bridge.rs` wächst weiter (978 Zeilen), wie in `ARCHITECTURE.md` vorgesehen.
+
+Beleg: `structure.baseline`, `crates/app/qml/AppHeader.qml:475`, `crates/app/qml/ObjectCommands.qml:1`.
 
 ## Seit dem letzten Audit
-Seit dem zwölften Audit wurden zehn PRs gemergt: #188 bis #197. Aus dem zwölften Audit hat der Eigentümer die Funde 1 bis 4 gewählt; alle vier sind behoben. Fund 5 hat er nicht gewählt.
+Seit dem 13. Audit wurden elf PRs gemergt: #198 bis #207, #209 und #210. #211 (`audit13-klein`) ist noch offen.
 
-Zwölftes Audit:
-- **Fund 1 (Bild als gedrehtes Rechteck, Rechnungen abgeschrieben): behoben (#191).** Möbel und Bild beschreiben sich als `TurnedRect`. Lage der Griffe, Ziehen und Einrasten laufen für beide über dieselben Funktionen. Rest siehe neuer Fund 6. Beleg: `crates/model/src/geometry.rs:63`, `crates/model/src/project.rs:284`, `crates/model/src/project.rs:499`, `crates/services/src/plan_edit/moving.rs:254`, `crates/services/src/plan_edit/moving.rs:272`.
-- **Fund 2 (Griff → Element an drei Stellen): behoben (#189).** Die Klickerkennung folgt `Source::owner` und nennt nur Tür und Lampe als Ausnahmen. Beide Stellen der App fragen `Source::selected_itself`. Beleg: `crates/services/src/plan_edit/picking.rs:64`, `crates/stellprobe/src/display.rs:165`, `crates/app/src/selection.rs:85`, `crates/app/src/bridge/view.rs:369`.
-- **Fund 3 (Anleitung für neue Elemente unvollständig): behoben (#187).** Beleg: `ARCHITECTURE.md:84`.
-- **Fund 4 (Bildgröße auf zwei Wegen): behoben (#192).** Beleg: `crates/stellprobe/src/display.rs:278`, `crates/services/src/session/pick.rs:30`.
+13. Audit:
+- **Fund 1 (Beispielkopie an der Ablage vorbei beiseitegelegt): behoben (#209).** Die Ablage bietet `set_aside` mit ihrer Regel für den freien Namen an. Beleg: `crates/store/src/folder.rs:86`.
+- **Fund 2 (Titelregel zweimal): behoben (#209).** Beleg: Commit `8de4da6`, `crates/services/src/folder.rs`.
+- **Fund 3 (Karten suchen ihr Element mit kopiertem Block, siebenmal): offen.** Beleg: `crates/app/qml/ImageCard.qml:16` und die sechs anderen Karten.
+- **Fund 4 (ODS und XLSX verschlucken die ZIP-Ablehnung, Grenze zweimal): behoben (#210).** Beleg: `crates/export/src/zip.rs:26`, `crates/export/src/zip.rs:109`.
+- **Fund 5 (`ARCHITECTURE.md` nennt das ZIP-Archiv nicht bei `export/`): offen, in #211.** Beleg: `ARCHITECTURE.md:28`.
+- **Fund 6 (`rotate` gibt nur an `turned` weiter): offen, in #211.** Beleg: `crates/services/src/plan_edit/moving.rs:521`, `crates/services/src/plan_edit/group.rs:68`.
+
+12. Audit:
 - **Fund 5 (Kopieren über einen gemeinsamen Ablauf): vom Eigentümer nicht gewählt.** Bleibt stehen und wird nicht neu gemeldet.
 
-Zehntes Audit:
-- **Fund 1 (Schnitt und Kamerablick auf eigenem Weg, `freeLook` schaltet und fragt): offen.** Beleg: `crates/app/src/bridge.rs:144`, `crates/app/src/bridge/free.rs:89`, `crates/app/qml/AppHeader.qml:367`, `crates/app/qml/FreeView.qml:140`.
-- **Fund 2 (Karten hängen am Zähler des Kamerabilds): offen,** mit der Bildkarte jetzt sieben Karten (siehe neuer Fund 3). Beleg: `crates/app/src/bridge.rs:28`, `crates/app/src/bridge/view.rs:448`.
-- **Fund 3 (Farbe eines Bildpunkts in App und Ausgabe je einmal): offen.** Beleg: `crates/app/src/plan/picture.rs:59`, `crates/export/src/style.rs:216`.
-- **Fund 4 (Punkte von freier Form und gezeichneter Fläche zweimal gebaut): offen.** Beleg: `crates/services/src/plan_edit/drawings.rs:42`, `crates/services/src/plan_edit/moving/forms.rs:25`, `crates/services/src/plan_edit/moving.rs:222`, `crates/stellprobe/src/display/handles.rs:64`, `crates/stellprobe/src/display/handles.rs:67`.
-- **Fund 5 („was eine Kamera sieht“ dreimal, „gewählte Kamera“ viermal): offen.** Beleg: `crates/app/src/bridge/export.rs:84`, `crates/app/src/bridge/shots.rs:57`, `crates/app/src/bridge/free.rs:92`, `crates/app/src/bridge/picture.rs:41`, `crates/services/src/session/views.rs:146`.
+Aus dem 10., 8., 7., 6., 5., 4. und 3. Audit sind weiter alle Funde offen, die das 13. Audit dort als offen oder teilweise führt. An den Belegen hat sich nichts geändert. Das Gewicht hat sich bei zwei Funden verschoben:
+- **6. Audit, Fund 1 (Großschreibung beim Tippen kopiert Regeln des Drehbuchlesers):** offen. Er wird teurer, sobald der Editor im Fenster kommt (siehe neuer Fund 5). Beleg: `crates/tui/src/fountain.rs:189`, `crates/script/src/parse.rs:399`.
+- **8. Audit, Fund 1 (Seite und Scharnier der Tür in eigenen Listen der Karte):** unverändert offen.
 
-Achtes Audit:
-- **Fund 1 (Seite und Scharnier der Tür in eigenen Listen der Karte): offen.** Beleg: `crates/app/qml/OpeningCard.qml:32`, `crates/app/src/object.rs:131`.
-- **Fund 2 (Regeln der eigenen Bibliothek in Ablage und Sitzung): offen.** Beleg: `crates/services/src/project_edit/library.rs:78`, `crates/store/src/library.rs:106`.
-- **Fund 3 (Regeln des Höhenwerkzeugs in der App): teilweise.** Beleg: `crates/app/src/tools.rs:276`, `crates/app/src/bridge/free.rs:282`.
-- **Fund 4 (Vorlagen unter dem Namen der Bibliothek): offen.** Beleg: `crates/app/src/bridge/library.rs:19`.
-- **Fund 5 (Punkt in Fläche zweimal): offen.** Beleg: `crates/model/src/library.rs:146`, `crates/stellprobe/src/hit.rs:110`.
-- **Fund 6 (3D-Ansicht kopiert Bildteil des Kamerabilds): offen.** Beleg: `crates/app/qml/FreeView.qml:48`, `crates/stellprobe/src/eye.rs:78`.
-
-Siebtes Audit:
-- **Fund 1 (App errät Knick beim Ziehen): offen.** Beleg: `crates/app/src/bridge/draw.rs:22`.
-- **Fund 2 (Feld „eigene Höhe oder Vorgabe“ dreimal): offen.** Beleg: `crates/app/qml/WallCard.qml:48`, `crates/app/qml/OpeningCard.qml:66`, `crates/app/qml/ObjectCard.qml:85`.
-- **Fund 3 (Regeln für Türen und Fenster in Ablage und Sitzung): offen.** Beleg: `crates/store/src/lib.rs:470`, `crates/services/src/plan_edit/heights.rs:74`.
-- **Fund 4 (Kamerabild färbt mit Kopie der Farbregeln von Kante): teilweise, unverändert.** Beleg: `crates/app/qml/ViewPalette.qml:13`.
-- **Fund 5 (Raumhöhe eines neuen Drehorts in Modell und Fenster): offen.** Beleg: `crates/model/src/project.rs:192`, `crates/app/qml/LocationEditor.qml:14`.
-- **Fund 6 (Dateinamen und `Hint` als Datenquelle der Karten): offen.** Beleg: `crates/app/src/bridge/hints.rs:44`.
-
-Sechstes Audit:
-- **Fund 1 (Großschreibung beim Tippen kopiert Regeln des Drehbuchlesers): offen.** Beleg: `crates/tui/src/fountain.rs:130`, `crates/script/src/parse.rs:9`.
-- **Fund 3 (Spalte „Achsensprung gegen“ in Sitzung und Ausgabe): offen.** Beleg: `crates/services/src/session/shots.rs:14`, `crates/export/src/shots.rs:21`.
-
-Fünftes Audit:
-- **Fund 1 (Gleichheit von Figurennamen an drei Stellen): offen.** Beleg: `crates/services/src/script_refs.rs:116`, `crates/services/src/project_edit.rs:337`, `crates/services/src/project_edit/templates.rs:171`.
-- **Fund 4 (Marks verschieben und Mitte einer Gruppe mehrfach): offen.** Beleg: `crates/services/src/plan_edit/group.rs:184`, `crates/services/src/project_edit/templates.rs:284`.
-
-Viertes Audit:
-- **Fund 3 (Lampenkarte als Kopie der Kamerakarte): offen.** Beleg: `crates/app/qml/CameraCard.qml:95`, `crates/app/qml/LightCard.qml:74`.
-
-Drittes Audit:
-- **Fund 1 (Fehlermeldungen nur im Fenster übersetzt): Rest offen.** Beleg: `crates/cli/src/main.rs:186`, `crates/cli/src/main.rs:197`.
-- **Fund 2 (Drehbuch- und Shot-Spalte je zweimal gebaut): offen.** Beleg: `crates/app/qml/Workspace.qml`.
-- **Fund 4 (angezeigte Werte in mehreren Listen ohne gegenseitige Prüfung): offen.** Beleg: `crates/app/src/bridge/view.rs:211`.
-- **Fund 5 (Bestandsliste): offen.** `item_prims` (106 Zeilen) und `scan` (98 Zeilen) sind unverändert. Beleg: `crates/export/src/layout.rs:276`, `crates/export/src/scan.rs:85`.
-
-Geprüft: Die Tests `crates/services/tests/folder.rs` (10) und `example.rs` (6) sind in diesem Audit grün gelaufen (`CARGO_TARGET_DIR=/home/arian/.cache/claude/klappe-audit13/target`). Die Strukturprüfung meldet 425 Dateien, 0 Verstöße und 31 Einträge in der Bestandsliste.
+Geprüft: Die Tests der Bausteine Drehbuch, Terminal, Ausgabe und Ablage sind in diesem Audit grün gelaufen (`cargo test -p klappe-script -p klappe-tui -p klappe-export -p klappe-store`). Die beiden verschiedenen Verhalten in Fund 1 (`DraftDate:`) und Fund 2 (`/*` in einer Notiz) habe ich mit einem kleinen Programm gegen den Drehbuch-Baustein nachgewiesen. Die Strukturprüfung meldet 500 Dateien, 0 Verstöße und 30 Einträge in der Bestandsliste, davon 1 Wert, der schrumpfen kann.
