@@ -290,6 +290,34 @@ fn alt_up_moves_a_scene_out_of_its_section_over_the_heading() {
 }
 
 #[test]
+fn a_scene_moved_into_a_folded_section_unfolds_it_and_stays_selected() {
+    let (_s, mut app) = outlined();
+    select(&mut app, "Akt I");
+    press(&mut app, KeyCode::Left);
+    select(&mut app, "INT. KELLER - NACHT");
+    alt(&mut app, KeyCode::Up);
+    assert_eq!(selected(&app), "INT. KELLER - NACHT");
+
+    alt(&mut app, KeyCode::Down);
+    assert_eq!(app.text(), TEXT);
+}
+
+#[test]
+fn enter_and_ctrl_g_do_nothing_when_the_filter_matches_nothing() {
+    let (_s, mut app) = outlined();
+    select(&mut app, "INT. KELLER - NACHT");
+    let before = app.cursor();
+    for c in "xyzq".chars() {
+        press(&mut app, KeyCode::Char(c));
+    }
+
+    press(&mut app, KeyCode::Enter);
+    assert_eq!((app.focus, app.cursor()), (Focus::List, before));
+    ctrl(&mut app, 'g');
+    assert_eq!((app.focus, app.cursor()), (Focus::List, before));
+}
+
+#[test]
 fn alt_moves_a_whole_section() {
     let (_s, mut app) = outlined();
     select(&mut app, "Akt I");
