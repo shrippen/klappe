@@ -5,7 +5,8 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    read_number, CardState, Field, Language, ProjectCard, Range, ServiceError, Session, Unit,
+    read_number, CardState, Choice, Field, Language, ProjectCard, Range, ServiceError, Session,
+    Unit,
 };
 use serde_json::{json, Value};
 
@@ -28,9 +29,48 @@ const HOME_SHORT: &str = "~";
 
 /// `{ scenes, locations, characters, plans, plan }`: lists of plain objects for QML, `plans`
 /// those of the scene on view and `plan` the id of the one shown. The colour is the model's
-/// role name (`purple`), which Kante's `labelColor` takes as it is.
+/// role name (`purple`), which Kante's `labelColor` takes as it is. `pending` holds the open
+/// questions about the book: `[{ id, number, heading, candidates: [{ number, heading }] }]`,
+/// the candidates best first; `resolveScene` answers by the position in that list.
 pub fn project_json(session: &Session) -> String {
-    serde_json::to_string(&session.overview()).unwrap_or_default()
+    let mut value = serde_json::to_value(session.overview()).unwrap_or_default();
+    value["pending"] = pending_rows(session);
+
+    value.to_string()
+}
+
+fn pending_rows(session: &Session) -> Value {
+    let rows: Vec<_> = session
+        .pending_scenes()
+        .iter()
+        .map(|p| {
+            let candidates: Vec<_> = p
+                .candidates
+                .iter()
+                .map(|c| json!({ "number": c.number, "heading": c.heading }))
+                .collect();
+
+            json!({ "id": p.id, "number": p.number, "heading": p.heading, "candidates": candidates })
+        })
+        .collect();
+
+    Value::Array(rows)
+}
+
+/// What `resolveScene` sends for "not in the book".
+pub const NOT_IN_BOOK: i32 = -1;
+
+/// The answer to the open question about entry `id`: candidate `index` of its list, or
+/// `NOT_IN_BOOK`. `None` when the question or the candidate is gone.
+pub fn pending_choice(session: &Session, id: &str, index: i32) -> Option<Choice> {
+    let pending = session.pending_scenes().iter().find(|p| p.id == id)?;
+    if index == NOT_IN_BOOK {
+        return Some(Choice::NotInBook);
+    }
+
+    let at = usize::try_from(index).ok()?;
+
+    pending.candidates.get(at).cloned().map(Choice::Scene)
 }
 
 /// Where a scene or a character occurs (D-08): `kind` is `scene` or `character`.
@@ -231,6 +271,61 @@ mod tests {
 
     fn os(s: &str) -> Option<OsString> {
         Some(OsString::from(s))
+    }
+
+    /// A session whose register holds "1 Keller" and "2 Hof" against a book that numbers them
+    /// the other way round: both entries are asked about.
+    fn asked(name: &str) -> Session {
+        let dir = std::env::temp_dir().join(format!("klappe-manage-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        klappe_services::copy_example(Language::German, &dir).unwrap();
+        std::fs::write(
+            dir.join("drehbuch.fountain"),
+            "INT. HOF – NACHT #1#\n\nEin Hund bellt.\n\nINT. KELLER – NACHT #2#\n\nWasser tropft.\n",
+        )
+        .unwrap();
+        let entry = |id: &str, number: &str, heading: &str| {
+            format!("[[szene]]\nid = \"{id}\"\nart = \"scene\"\nnumber = \"{number}\"\nheading = \"{heading}\"\n\n")
+        };
+        let register =
+            entry("aaaa", "1", "INT. KELLER – NACHT") + &entry("bbbb", "2", "INT. HOF – NACHT");
+        std::fs::write(dir.join("szenen.toml"), register).unwrap();
+        let _ = std::fs::remove_dir_all(dir.join("szenen"));
+
+        Session::open(&dir).unwrap()
+    }
+
+    #[test]
+    fn the_open_questions_are_listed_with_their_candidates() {
+        let session = asked("list");
+
+        let value: Value = serde_json::from_str(&project_json(&session)).unwrap();
+
+        let pending = value["pending"].as_array().unwrap();
+        assert_eq!(pending.len(), 2, "{pending:?}");
+        assert_eq!(pending[0]["number"], "1");
+        assert_eq!(pending[0]["heading"], "INT. KELLER – NACHT");
+        assert_eq!(pending[0]["candidates"].as_array().map(Vec::len), Some(2));
+        assert_eq!(pending[0]["candidates"][0]["heading"], "INT. HOF – NACHT");
+        assert_eq!(pending[0]["candidates"][0]["number"], "1");
+    }
+
+    #[test]
+    fn an_answer_is_a_candidate_or_not_in_the_book() {
+        let session = asked("choice");
+        let id = session.pending_scenes()[0].id.clone();
+
+        assert!(matches!(
+            pending_choice(&session, &id, 0),
+            Some(Choice::Scene(_))
+        ));
+        assert!(matches!(
+            pending_choice(&session, &id, NOT_IN_BOOK),
+            Some(Choice::NotInBook)
+        ));
+        assert!(pending_choice(&session, &id, 5).is_none());
+        assert!(pending_choice(&session, &id, -2).is_none());
+        assert!(pending_choice(&session, "gone", 0).is_none());
     }
 
     #[test]

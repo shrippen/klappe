@@ -172,8 +172,7 @@ fn an_orphan_scene_file_is_listed_in_the_load_notes() {
     assert_eq!(s.load_notes().len(), 1);
     let text = klappe_services::load_notes_text(klappe_services::Language::English, s.load_notes());
     assert!(text.contains(FIXTURE_ID), "{text}");
-    assert_eq!(
-        s.project().scenes[0].state,
-        klappe_model::BookState::NotInBook
-    );
+    // The book's scene 12 gets an entry of its own, first; the orphan follows.
+    let orphan = s.project().scenes.iter().find(|x| x.id == FIXTURE_ID);
+    assert_eq!(orphan.unwrap().state, klappe_model::BookState::NotInBook);
 }

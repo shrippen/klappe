@@ -317,6 +317,13 @@ pub mod qobject {
         #[qinvokable]
         fn autosave(self: Pin<&mut Self>);
 
+        /// Answers the open question about the register entry `id` (`projectJson.pending`): the
+        /// scene of the book at position `index` of its candidates, or -1 for "not in the
+        /// book". False when the question is gone or the answer is refused.
+        #[qinvokable]
+        #[cxx_name = "resolveScene"]
+        fn resolve_scene(self: Pin<&mut Self>, id: &QString, index: i32) -> bool;
+
         /// Takes the project from the backup found at open.
         #[qinvokable]
         #[cxx_name = "restoreBackup"]
@@ -998,6 +1005,7 @@ use cxx_qt_lib::QString;
 pub use state::ControllerRust;
 
 mod arm;
+mod book;
 mod draw;
 mod export;
 mod free;

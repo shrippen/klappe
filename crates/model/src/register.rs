@@ -77,6 +77,47 @@ impl<'de> Deserialize<'de> for Print {
     }
 }
 
+/// Names the content of a scene of the book (number, heading, prints), so an answer of the
+/// user about that scene still applies after the book moved, but not after it changed.
+/// Written as 16 hex digits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SceneKey(pub u64);
+
+impl fmt::Display for SceneKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:016x}", self.0)
+    }
+}
+
+impl FromStr for SceneKey {
+    type Err = String;
+
+    fn from_str(text: &str) -> Result<Self, String> {
+        let bad = || format!("{text:?} is not a scene key like 0a1b2c3d4e5f6071");
+        if text.len() != 16 {
+            return Err(bad());
+        }
+
+        u64::from_str_radix(text, 16)
+            .map(SceneKey)
+            .map_err(|_| bad())
+    }
+}
+
+impl Serialize for SceneKey {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+impl<'de> Deserialize<'de> for SceneKey {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let text = String::deserialize(deserializer)?;
+
+        text.parse().map_err(serde::de::Error::custom)
+    }
+}
+
 /// Characters of an id.
 const ID_LEN: usize = 8;
 const ID_BITS: u32 = 5;

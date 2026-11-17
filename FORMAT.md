@@ -24,7 +24,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   gibt kein Release).
 - **Register `szenen.toml` (Formatversion 3):** je Drehinhalt ein `[[szene]]` mit `id` (zufällig,
   8 Zeichen aus `a-z2-7`, nie aus der Nummer gebildet, bleibt für immer), `art`, `number`,
-  `heading`, `state` und `prints`. `art`: `scene` (Standard), `interview`, `statement`,
+  `heading`, `state`, `prints` und `refused`. `art`: `scene` (Standard), `interview`, `statement`,
   `cutaways` (Schnittbilder), `vignette`, `intro` (Einführung), `vlog`; bei einem Content Item
   ist `heading` der Titel. `state`: `in-book` (Standard, nicht geschrieben) oder `not-in-book`
   (aus dem Buch gestrichen, bleibt mit seinen Floorplans). `prints`: Fingerabdrücke der Elemente
@@ -34,11 +34,22 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Eintrag (Absturz beim Speichern, Git-Zusammenführung) lädt: als Eintrag am Ende, ohne Nummer
   und Kopf, `state = "not-in-book"`; das Programm meldet es. `save` schreibt erst die
   Szenen-Dateien, dann `szenen.toml`, dann löscht es Dateien ohne Eintrag. `szenen.toml` lehnt
-  unbekannte Schlüssel, unbekannte `art`- und `state`-Werte, ungültige `prints`, doppelte
+  unbekannte Schlüssel, unbekannte `art`- und `state`-Werte, ungültige `prints` und `refused`, doppelte
   Ids (auch nur in der Groß-/Kleinschreibung) und Ids, die kein Dateiname sein können, ab;
   `heading` ist eine Zeile. Enthält `szenen.toml` Git-Konfliktmarken (`<<<<<<<` am Zeilenanfang) oder
   `drehbuch.fountain` eine vollständige Konfliktfolge (`<<<<<<<`, `=======`, `>>>>>>>`), lädt
-  das Projekt nicht und der Fehler nennt Datei und Zeile.
+  das Projekt nicht und der Fehler nennt Datei und Zeile. Nummer, Kopf, `state` und `prints`
+  folgen dem Buch: Beim Öffnen und Speichern gleicht Klappe die Einträge mit
+  `drehbuch.fountain` ab (`script/` `align`, verbunden in `services/`); mit Buch steht die Folge
+  im Text, Einträge ohne Szene im Buch (`not-in-book`, offene Fragen, Content Items) folgen
+  danach in ihrer Folge. Die `prints` einer Szene des Buchs beginnen mit dem Kopf
+  (Art 0); ein Eintrag ohne `prints` kennt noch kein Buch und wird nur zugeordnet, wenn
+  Nummer und Kopf beide gleich sind und auf beiden Seiten nur einmal vorkommen, sonst
+  gefragt. Eine offene Frage steht nur in der Sitzung. `refused`: Szenen des Buchs, die der
+  Eintrag laut Antwort des Nutzers („nicht im Buch“) nicht ist, je 16 Hexziffern über Nummer,
+  Kopf und `prints` der Szene; nach ihnen wird nicht wieder gefragt, solange ihr Inhalt
+  gleich bleibt. Nicht geschrieben, solange leer; wird geleert, sobald der Eintrag einer
+  Szene zugeordnet ist.
 - **Papier:** `paper` in `projekt.toml`, z. B. `"a4-portrait"`: Größe (`a4`, `a3`, `letter`),
   Bindestrich, Ausrichtung (`portrait`, `landscape`). Das Blatt, auf dem zuletzt ausgegeben wurde;
   der Ausgabedialog beginnt damit. Fehlt der Schlüssel (und er wird bei `a4-landscape` nicht
