@@ -154,6 +154,7 @@ pub(crate) fn plan(project: &Project, script: &Script) -> Plan {
         refusals: Vec::new(),
     };
     plan.settle();
+    plan.pair_twins(project);
     plan.first_run(project, &first);
     plan.settle();
 
@@ -284,6 +285,51 @@ impl Plan {
                 *fate = Fate::Missing;
             }
         }
+    }
+
+    /// Entries that are word-identical to the scenes they ask about (twins: the same number,
+    /// heading and lines, so the same key) cannot be told apart by content. Among twins the
+    /// order decides, without a question: the entries in register order take the twins in
+    /// book order. Twins left over become new entries (a scene copied and pasted), entries
+    /// left over are missing (a copy deleted). The register follows the book's order, so
+    /// this is the same after saving and reopening.
+    fn pair_twins(&mut self, project: &Project) {
+        let mut groups: Vec<(SceneKey, Vec<usize>)> = Vec::new();
+
+        for (entry, fate) in &self.fates {
+            let Fate::Pending(found) = fate else {
+                continue;
+            };
+            let key = key_of(&self.book[found[0]]);
+            let alike = found.iter().all(|&n| key_of(&self.book[n]) == key);
+            if !alike || key_of(&state_of(&project.scenes[*entry])) != key {
+                continue;
+            }
+
+            match groups.iter_mut().find(|(k, _)| *k == key) {
+                Some((_, entries)) => entries.push(*entry),
+                None => groups.push((key, vec![*entry])),
+            }
+        }
+
+        for (key, entries) in groups {
+            let mut twins: Vec<usize> = (0..self.book.len())
+                .filter(|&n| key_of(&self.book[n]) == key && has_heading(&self.book[n]))
+                .collect();
+            twins.retain(|n| !self.matched().contains(n));
+            let mut twins = twins.into_iter();
+
+            for entry in entries {
+                let fate = match twins.next() {
+                    Some(n) => Fate::Matched(n),
+                    None => Fate::Missing,
+                };
+                if let Some(f) = self.fates.iter_mut().find(|f| f.0 == entry) {
+                    f.1 = fate;
+                }
+            }
+        }
+        self.settle();
     }
 
     /// The entries to ask about, with the scenes they may be.

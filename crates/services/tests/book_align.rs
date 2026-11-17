@@ -491,3 +491,111 @@ fn the_answers_are_the_candidates_then_not_in_the_book() {
 
     assert_eq!(scene(&s, "bbbb").state, BookState::NotInBook);
 }
+
+/// The ids of the register, in order.
+fn ids(s: &Session) -> Vec<String> {
+    s.project().scenes.iter().map(|x| x.id.clone()).collect()
+}
+
+/// Opens, checks and reopens after a save: the register must tell the same both times.
+fn twice(dir: &Path, check: impl Fn(&Session)) {
+    let mut s = Session::open(dir).unwrap();
+    check(&s);
+    s.save().unwrap();
+    check(&Session::open(dir).unwrap());
+}
+
+#[test]
+fn a_copied_scene_keeps_its_entry_on_the_first_twin() {
+    let dir = settled("book-twin-copy", vec![entry("aaaa", "9", HOF)], &hof("9"));
+    rewrite_book(&dir, &(hof("9") + &hof("9")));
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(s.project().scenes.len(), 2);
+        assert_eq!(s.project().scenes[0].id, "aaaa");
+        assert_eq!(scene(s, "aaaa").plans.len(), 1);
+        assert_eq!(scene(s, "aaaa").state, BookState::InBook);
+        let new = &s.project().scenes[1];
+        assert!(new.plans.is_empty() && new.state == BookState::InBook);
+    });
+}
+
+/// A settled register with one entry per copy of "9 HOF", ids in register order. They get
+/// there as in practice: a scene is copied and pasted, one copy at a time, and saved.
+fn twinned(name: &str, copies: usize) -> (PathBuf, Vec<String>) {
+    let dir = settled(name, vec![entry("aaaa", "9", HOF)], &hof("9"));
+    for n in 2..=copies {
+        rewrite_book(&dir, &hof("9").repeat(n));
+        let mut s = Session::open(&dir).unwrap();
+        s.save().unwrap();
+    }
+    let s = Session::open(&dir).unwrap();
+
+    (dir, ids(&s))
+}
+
+#[test]
+fn two_entries_take_two_twins_in_order() {
+    let (dir, before) = twinned("book-twin-two", 2);
+    assert_eq!(before.len(), 2);
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(ids(s), before);
+        assert!(s
+            .project()
+            .scenes
+            .iter()
+            .all(|x| x.state == BookState::InBook));
+    });
+}
+
+#[test]
+fn three_entries_take_three_twins_in_order() {
+    let (dir, before) = twinned("book-twin-three", 3);
+    assert_eq!(before.len(), 3);
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(ids(s), before);
+        assert!(s
+            .project()
+            .scenes
+            .iter()
+            .all(|x| x.state == BookState::InBook));
+    });
+}
+
+#[test]
+fn a_deleted_copy_leaves_the_second_entry_struck() {
+    let (dir, before) = twinned("book-twin-struck", 2);
+    rewrite_book(&dir, &hof("9"));
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(ids(s), before);
+        assert_eq!(scene(s, &before[0]).state, BookState::InBook);
+        assert_eq!(scene(s, &before[1]).state, BookState::NotInBook);
+    });
+}
+
+#[test]
+fn placeholder_scenes_with_only_a_heading_take_their_entries_in_order() {
+    let head = format!("{HOF} #9#\n\n");
+    let dir = settled("book-twin-heads", vec![entry("aaaa", "9", HOF)], &head);
+    rewrite_book(&dir, &head.repeat(2));
+    Session::open(&dir).unwrap().save().unwrap();
+    let before = ids(&Session::open(&dir).unwrap());
+    assert_eq!(before.len(), 2);
+
+    twice(&dir, |s| {
+        assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
+        assert_eq!(ids(s), before);
+        assert!(s
+            .project()
+            .scenes
+            .iter()
+            .all(|x| x.state == BookState::InBook));
+    });
+}
