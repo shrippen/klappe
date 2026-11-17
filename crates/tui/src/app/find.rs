@@ -8,6 +8,13 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use super::{App, Flow, Mode, Notice};
 use crate::buffer::Pos;
 
+/// Which way a choice steps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Way {
+    Next,
+    Previous,
+}
+
 /// Which box of the form takes the typing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) enum FindField {
@@ -182,7 +189,11 @@ impl App {
             KeyCode::Tab => self.find.field = self.find.field.next(),
             KeyCode::BackTab => self.find.field = self.find.field.previous(),
             KeyCode::Left | KeyCode::Right if self.find.field == FindField::Speaker => {
-                self.pick_speaker(key.code == KeyCode::Left);
+                let way = match key.code == KeyCode::Left {
+                    true => Way::Previous,
+                    false => Way::Next,
+                };
+                self.pick_speaker(way);
             }
             KeyCode::Down | KeyCode::Up => return self.find_step_in(key.code == KeyCode::Up),
             KeyCode::Char(c) if ctrl => return self.find_ctrl(c),
@@ -246,7 +257,7 @@ impl App {
 
     /// Steps the "Only dialogue of" box through the characters of the script, most frequent
     /// first, and the empty choice (everyone) before the first and after the last.
-    fn pick_speaker(&mut self, back: bool) {
+    fn pick_speaker(&mut self, way: Way) {
         let names = self.analysis.vocab.characters();
         let at = names
             .iter()
@@ -254,9 +265,9 @@ impl App {
         // Slot 0 is "everyone", slot n is `names[n - 1]`.
         let count = names.len() + 1;
         let now = at.map_or(0, |i| i + 1);
-        let next = match back {
-            true => (now + count - 1) % count,
-            false => (now + 1) % count,
+        let next = match way {
+            Way::Previous => (now + count - 1) % count,
+            Way::Next => (now + 1) % count,
         };
         self.find.speaker = match next {
             0 => String::new(),
@@ -288,10 +299,42 @@ impl App {
     /// Replaces every match, as one undo step.
     fn replace_every(&mut self) {
         let hits = self.find.hits.clone();
-        let cursor = self.editor.cursor();
+        let cursor = self.cursor_after(&hits);
         self.splice_hits(&hits, cursor);
         self.find_update();
         self.notice = Some(Notice::Replaced(hits.len()));
+    }
+
+    /// Where the cursor is once `hits` are replaced, on the same text: lines joined by a
+    /// hit before it move it up, and on the line a hit ends on, its column follows the
+    /// change in length. A cursor inside a hit is left where it is (the editor clamps it).
+    fn cursor_after(&self, hits: &[Hit]) -> Pos {
+        let cursor = self.editor.cursor();
+        let width = self.find.replace.chars().count() as isize;
+        let mut joined = 0;
+        // Original line a column shift holds on, and the shift.
+        let mut shift = (usize::MAX, 0isize);
+
+        for hit in hits {
+            if (hit.end_line, hit.end) > (cursor.line, cursor.col) {
+                break;
+            }
+            // Earlier hits on the line where this one starts moved its start.
+            let before = if shift.0 == hit.line { shift.1 } else { 0 };
+            let new_end = hit.start as isize + before + width;
+            shift = (hit.end_line, new_end - hit.end as isize);
+            joined += hit.end_line - hit.line;
+        }
+
+        let col = match shift.0 == cursor.line {
+            true => cursor.col.saturating_add_signed(shift.1),
+            false => cursor.col,
+        };
+
+        Pos {
+            line: cursor.line - joined,
+            col,
+        }
     }
 
     /// Puts the replacement over `hits` in the editor, one undo step.

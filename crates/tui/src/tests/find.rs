@@ -296,3 +296,20 @@ fn left_and_right_pick_the_character_for_the_dialogue_only_search() {
     press(&mut app, KeyCode::Left);
     assert_eq!(app.find.speaker, "BEN");
 }
+
+#[test]
+fn replace_all_keeps_the_cursor_on_its_text() {
+    let (_s, mut app) = broken_app();
+    typed(&mut app, "die tür");
+    press(&mut app, KeyCode::Esc);
+    ctrl_end(&mut app);
+    keys(&mut app, &[KeyCode::Up, KeyCode::Up]);
+    let before = at(&app);
+    ctrl(&mut app, 'f');
+    press(&mut app, KeyCode::Tab);
+    typed(&mut app, "eine Tür");
+    ctrl(&mut app, 'a');
+
+    // One line joined before the cursor.
+    assert_eq!(at(&app), (before.0 - 1, before.1));
+}

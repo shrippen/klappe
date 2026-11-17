@@ -86,8 +86,35 @@ struct Cell {
 const SPACE: char = ' ';
 const BREAK: char = '\n';
 
-/// The text as cells, a line break between every two lines.
-fn cells(lines: &[String], allowed: Option<&HashSet<usize>>, case: Case) -> Vec<Cell> {
+/// The line breaks that may stand for a space: after line `n`, when `n` and the next line
+/// are lines of one action paragraph or one speech, and neither is blank. Never at the start
+/// or end of an element, next to a blank line or between cue, parenthetical and dialogue.
+fn spaced_breaks(lines: &[String], located: &[Located]) -> HashSet<usize> {
+    let mut breaks = HashSet::new();
+
+    for item in located {
+        if !matches!(item.element, Element::Action(_) | Element::Dialogue(_)) {
+            continue;
+        }
+        for pair in item.lines.windows(2) {
+            let blank = |n: usize| lines.get(n).is_none_or(|l| l.trim().is_empty());
+            if pair[1] == pair[0] + 1 && !blank(pair[0]) && !blank(pair[1]) {
+                breaks.insert(pair[0]);
+            }
+        }
+    }
+
+    breaks
+}
+
+/// The text as cells, a line break after each line of `breaks`; other line ends are cells
+/// no needle matches.
+fn cells(
+    lines: &[String],
+    allowed: Option<&HashSet<usize>>,
+    breaks: &HashSet<usize>,
+    case: Case,
+) -> Vec<Cell> {
     let mut out = Vec::new();
 
     for (line, text) in lines.iter().enumerate() {
@@ -101,7 +128,7 @@ fn cells(lines: &[String], allowed: Option<&HashSet<usize>>, case: Case) -> Vec<
             break;
         }
         let col = text.chars().count();
-        let key = open.then_some(BREAK);
+        let key = (open && breaks.contains(&line)).then_some(BREAK);
         out.push(Cell { key, line, col });
     }
 
@@ -109,32 +136,27 @@ fn cells(lines: &[String], allowed: Option<&HashSet<usize>>, case: Case) -> Vec<
 }
 
 /// Whether the cells match the needle. A space of the needle also matches a line break, so a
-/// phrase broken over two lines is found; a blank line (two breaks in a row) never matches.
+/// phrase broken over two lines is found; see `spaced_breaks` for which breaks count.
 fn matches_at(cells: &[Cell], needle: &[char]) -> bool {
-    let mut broke = false;
-
-    for (cell, n) in cells.iter().zip(needle) {
+    cells.iter().zip(needle).all(|(cell, n)| {
         let is_break = cell.key == Some(BREAK);
-        let same = cell.key == Some(*n) || (is_break && *n == SPACE);
-        if !same || (is_break && broke) {
-            return false;
-        }
-        broke = is_break;
-    }
 
-    true
+        cell.key == Some(*n) || (is_break && *n == SPACE)
+    })
 }
 
 /// Every match in text order, not overlapping. `located` is the screenplay's reading of
-/// `lines`; it is used only for a query with a speaker, whose matches must lie within the
-/// lines of her dialogue. A space in `query.find` also matches a line break.
+/// `lines`; it tells the speaker's dialogue and which line breaks a space may match: a space
+/// in `query.find` also matches a break between two lines of one action or speech, so a
+/// match with a speaker never leaves one speech.
 pub fn find_all(lines: &[String], located: &[Located], query: &Query) -> Vec<Hit> {
     if query.find.is_empty() {
         return Vec::new();
     }
 
     let allowed = query.speaker.map(|s| dialogue_lines(located, s));
-    let text = cells(lines, allowed.as_ref(), query.case);
+    let breaks = spaced_breaks(lines, located);
+    let text = cells(lines, allowed.as_ref(), &breaks, query.case);
     let needle: Vec<char> = query.find.chars().map(|c| keyed(c, query.case)).collect();
     let mut hits = Vec::new();
     let mut at = 0;
@@ -254,7 +276,7 @@ mod tests {
 
     fn replaced(text: &str, find: &str, with: &str) -> Splice {
         let l = lines(text);
-        let h = find_all(&l, &[], &query(find, Case::Ignore, None));
+        let h = find_all(&l, &parse_located(text), &query(find, Case::Ignore, None));
 
         replace_hits(&l, &h, with).unwrap()
     }
@@ -275,7 +297,11 @@ mod tests {
     fn a_space_matches_a_line_break() {
         let text = "Sie geht durch die\nTür und bleibt.";
         let l = lines(text);
-        let h = find_all(&l, &[], &query("die tür", Case::Ignore, None));
+        let h = find_all(
+            &l,
+            &parse_located(text),
+            &query("die tür", Case::Ignore, None),
+        );
 
         assert_eq!(
             h,
@@ -294,22 +320,58 @@ mod tests {
     #[test]
     fn a_match_may_end_on_a_line_break() {
         let l = lines("ab \ncd");
-        let h = find_all(&l, &[], &query("b ", Case::Match, None));
+        let h = find_all(
+            &l,
+            &parse_located("ab \ncd"),
+            &query("b ", Case::Match, None),
+        );
 
         assert_eq!(h.len(), 1);
         assert_eq!((h[0].end_line, h[0].end), (0, 3));
 
         let l = lines("ab\ncd");
-        let h = find_all(&l, &[], &query("b ", Case::Match, None));
+        let h = find_all(
+            &l,
+            &parse_located("ab\ncd"),
+            &query("b ", Case::Match, None),
+        );
         assert_eq!((h[0].end_line, h[0].end), (1, 0));
         assert_eq!(replace_hits(&l, &h, "-").unwrap().lines, ["a-cd"]);
     }
 
+    fn hits_in(text: &str, find: &str, speaker: Option<&str>) -> Vec<Hit> {
+        let query = query(find, Case::Ignore, speaker);
+
+        find_all(&lines(text), &parse_located(text), &query)
+    }
+
     #[test]
     fn a_blank_line_stops_a_match() {
-        let l = lines("Ende.\n\nAnfang");
-        assert!(find_all(&l, &[], &query("Ende. Anfang", Case::Match, None)).is_empty());
-        assert!(find_all(&l, &[], &query("Ende.  Anfang", Case::Match, None)).is_empty());
+        assert!(hits_in("Ende.\n\nAnfang", "Ende. Anfang", None).is_empty());
+        assert!(hits_in("Ende.\n\nAnfang", "Ende.  Anfang", None).is_empty());
+    }
+
+    #[test]
+    fn a_break_at_the_end_of_an_element_is_no_space() {
+        let text = "Ende.\n\nAnfang";
+        assert!(hits_in(text, "ende. ", None).is_empty());
+        assert!(hits_in(text, " anfang", None).is_empty());
+        assert!(hits_in("Er sagt\n\nANNA\nHallo", " ", None)
+            .iter()
+            .all(|h| h.line == h.end_line));
+    }
+
+    #[test]
+    fn a_break_next_to_a_cue_is_no_space() {
+        let text = "Draußen.\n\nANNA\nGuten Tag.\n\nANNA\nNa?";
+        assert!(hits_in(text, "anna ", None).is_empty());
+        assert!(hits_in(text, "anna ", Some("anna")).is_empty());
+    }
+
+    #[test]
+    fn a_speaker_match_never_leaves_one_speech() {
+        let text = "ANNA\nHallo Ben\n\nBEN\nJa.";
+        assert!(hits_in(text, "ben ", Some("anna")).is_empty());
     }
 
     #[test]
