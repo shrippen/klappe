@@ -4,28 +4,19 @@
 //! tells what it is, is `pending`: it shows as that element (indent, colour) until the
 //! cursor leaves it.
 
-use klappe_services::{suggest, Context, Gap, Slot, Stage, Suggestions};
+use klappe_services::{
+    enter_step, suggest, tab_step, Context, EnterStep, Gap, Slot, Stage, Suggestions,
+};
 
 use super::{App, Mode};
 use crate::buffer::Pos;
 use crate::fountain::LineKind;
-
-/// An empty parenthetical as Tab leaves it.
-const EMPTY_PARENTHETICAL: &str = "()";
-const PAREN_CLOSE: char = ')';
 
 /// The suggestions open at the cursor and the one chosen.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Suggest {
     pub items: Suggestions,
     pub sel: usize,
-}
-
-/// Whether the line has no text of its own: empty, or the `()` of an empty parenthetical.
-fn is_empty_slot(text: &str, slot: Slot) -> bool {
-    let text = text.trim();
-
-    text.is_empty() || slot == Slot::Parenthetical && text == EMPTY_PARENTHETICAL
 }
 
 impl App {
@@ -123,45 +114,19 @@ impl App {
 
         let Pos { line, col } = self.editor.cursor();
         let text = self.editor.lines()[line].clone();
-        let slot = self.slot_of(line);
-        let Some(slot) = slot.filter(|_| !text.trim().is_empty()) else {
-            self.editor.newline();
-            return;
-        };
+        let step = enter_step(&text, col, self.slot_of(line), self.next_is_blank(line));
 
-        if is_empty_slot(&text, slot) {
-            self.tab();
-            return;
+        match step {
+            EnterStep::Break => self.editor.newline(),
+            EnterStep::Retag => self.tab(),
+            EnterStep::GoBelow => self.go_below(line),
+            EnterStep::Next(next, gap) => self.open_line(line, text, next, gap),
         }
-        if !self.at_element_end(&text, col, slot) {
-            self.editor.newline();
-            return;
-        }
-        if !self.next_is_blank(line) {
-            // Below a cue or parenthetical the dialogue already stands: go there.
-            self.go_below(line, slot);
-            return;
-        }
-
-        let (next, gap) = slot.after_enter();
-        self.open_line(line, text, next, gap);
-    }
-
-    /// The end of the element: the end of the line, or before the `)` of a parenthetical.
-    fn at_element_end(&self, text: &str, col: usize, slot: Slot) -> bool {
-        let len = text.chars().count();
-        let before_close = slot == Slot::Parenthetical && text.trim_end().ends_with(PAREN_CLOSE);
-
-        col == len || before_close && col + 1 == len
     }
 
     /// Enter at the end of a cue or parenthetical with text below: to the end of the next
-    /// line. Anything else with text below is a plain line break.
-    fn go_below(&mut self, line: usize, slot: Slot) {
-        if !matches!(slot, Slot::Character | Slot::Parenthetical) {
-            self.editor.newline();
-            return;
-        }
+    /// line.
+    fn go_below(&mut self, line: usize) {
         let col = self.editor.lines()[line + 1].chars().count();
 
         self.editor.go_to(Pos {
@@ -179,21 +144,20 @@ impl App {
 
         let Pos { line, .. } = self.editor.cursor();
         let text = self.editor.lines()[line].clone();
-        let slot = self.slot_of(line).unwrap_or(Slot::Action);
-        if !is_empty_slot(&text, slot) {
-            return;
-        }
-        let Some(to) = slot.on_tab() else {
+        let Some(step) = tab_step(&text, self.slot_of(line)) else {
             return;
         };
 
-        let (text, col) = match to {
-            Slot::Parenthetical => (EMPTY_PARENTHETICAL.to_owned(), 1),
-            _ => (String::new(), 0),
-        };
-        self.editor
-            .set_lines(line, line + 1, vec![text], Pos { line, col });
-        self.set_pending(line, to);
+        self.editor.set_lines(
+            line,
+            line + 1,
+            vec![step.text.to_owned()],
+            Pos {
+                line,
+                col: step.col,
+            },
+        );
+        self.set_pending(line, step.slot);
     }
 
     /// What the line at the cursor is for completion.
