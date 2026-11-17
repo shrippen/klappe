@@ -53,7 +53,9 @@ impl App {
             None => Choice::NotInBook,
         };
 
-        if let Err(e) = self.session.resolve_scene(&id, choice) {
+        // The answer is written at once: the TUI saves no plans, so quitting asks nothing.
+        let answered = self.session.resolve_scene(&id, choice);
+        if let Err(e) = answered.and_then(|()| self.session.save_register()) {
             self.notice = Some(Notice::SaveFailed(e.to_string()));
             self.mode = Mode::Normal;
             return;

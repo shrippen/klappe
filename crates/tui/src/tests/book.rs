@@ -92,3 +92,19 @@ fn ctrl_k_without_questions_does_nothing() {
 
     assert_eq!(app.mode, Mode::Normal);
 }
+
+#[test]
+fn an_answer_is_kept_without_saving_the_book() {
+    let (scratch, mut app) = swapped();
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Enter);
+
+    let quit = ctrl(&mut app, 'q');
+    drop(app);
+
+    assert!(matches!(quit, Flow::Quit));
+    let mut again = scratch.app();
+    assert!(again.book_question().is_none(), "{}", again.book_note);
+    let _ = screen(&mut again, 100, 24);
+}

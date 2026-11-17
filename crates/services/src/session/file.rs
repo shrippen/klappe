@@ -191,6 +191,14 @@ impl Session {
         Ok(())
     }
 
+    /// Writes only the register file `szenen.toml`, as the session holds it: an answer about
+    /// the book is a decision, kept at once where the book is edited without the plans (TUI).
+    pub fn save_register(&mut self) -> Result<(), ServiceError> {
+        klappe_store::save_register(&self.dir, &self.project.scenes)?;
+
+        Ok(())
+    }
+
     /// The screenplay as Fountain text (`""` when the project has none yet).
     pub fn script_text(&self) -> &str {
         self.script_text.as_deref().unwrap_or_default()
