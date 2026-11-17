@@ -31,14 +31,14 @@ const HELP_KEYS: [&str; 24] = [
     "tui.help.help",
 ];
 
-/// Keys of the title page form's labels, in the order of `TITLE_KEYS`.
-const FIELD_KEYS: [&str; 6] = [
-    "tui.field.title",
-    "tui.field.credit",
-    "tui.field.author",
-    "tui.field.source",
-    "tui.field.draftDate",
-    "tui.field.contact",
+/// The title page form's fields (a `TITLE_KEYS` spelling) with the key of their label.
+const FIELD_KEYS: [(&str, &str); 6] = [
+    ("Title", "tui.field.title"),
+    ("Credit", "tui.field.credit"),
+    ("Author", "tui.field.author"),
+    ("Source", "tui.field.source"),
+    ("Draft date", "tui.field.draftDate"),
+    ("Contact", "tui.field.contact"),
 ];
 
 /// The texts of one language, looked up once (a lookup parses the catalogue).
@@ -72,8 +72,8 @@ pub(crate) struct Texts {
     pub find_hint: String,
     pub title_box: String,
     pub title_hint: String,
-    /// The labels of the title form, in the order of its fields.
-    pub fields: Vec<String>,
+    /// The labels of the title form by field name (a `TITLE_KEYS` spelling).
+    pub fields: Vec<(&'static str, String)>,
     pub backup_title: String,
     pub backup_found: String,
     pub backup_unreadable: String,
@@ -118,7 +118,10 @@ impl Texts {
             find_hint: t("tui.find.hint"),
             title_box: t("tui.titleBox"),
             title_hint: t("tui.titleHint"),
-            fields: FIELD_KEYS.iter().map(|k| lang.text(k)).collect(),
+            fields: FIELD_KEYS
+                .iter()
+                .map(|(name, k)| (*name, lang.text(k)))
+                .collect(),
             backup_title: t("tui.backup.title"),
             backup_found: t("tui.backup.found"),
             backup_unreadable: t("tui.backup.unreadable"),
@@ -129,6 +132,14 @@ impl Texts {
             stale: t("tui.stale"),
             help: HELP_KEYS.iter().map(|k| lang.text(k)).collect(),
         }
+    }
+
+    /// The label of the title form's field `name`; the name itself if there is none.
+    pub(crate) fn field_label<'a>(&'a self, name: &'a str) -> &'a str {
+        self.fields
+            .iter()
+            .find(|(field, _)| *field == name)
+            .map_or(name, |(_, label)| label.as_str())
     }
 
     /// "Scene 2/5".
@@ -179,6 +190,7 @@ impl Texts {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use klappe_services::TITLE_KEYS;
 
     #[test]
     fn every_key_is_in_both_catalogues() {
@@ -234,11 +246,14 @@ mod tests {
                 t.help
             );
             assert!(
-                t.fields.iter().all(|s| !s.starts_with("tui.")),
+                t.fields.iter().all(|(_, s)| !s.starts_with("tui.")),
                 "{:?}",
                 t.fields
             );
             assert_eq!(t.fields.len(), FIELD_KEYS.len());
+            for key in TITLE_KEYS {
+                assert!(t.fields.iter().any(|(name, _)| *name == key), "{key}");
+            }
             assert_eq!(t.help.len(), HELP_KEYS.len());
         }
     }
