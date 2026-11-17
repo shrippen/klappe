@@ -458,3 +458,81 @@ fn alt_h_on_an_empty_line_opens_a_heading_line() {
     alt(&mut app, 't');
     assert_eq!(app.pending.map(|p| p.1), Some(Slot::Transition));
 }
+
+/// The text with the cursor on `line` (from 0) at its end, `key` pressed.
+fn alt_on(text: &str, line: usize, key: char) -> App {
+    let (_s, mut app) = app_with(text);
+    app.editor.go_to(Pos {
+        line,
+        col: usize::MAX,
+    });
+    alt(&mut app, key);
+
+    app
+}
+
+#[test]
+fn alt_h_and_alt_t_leave_the_title_page_alone() {
+    let text = "Title: Film\nAuthor: Eva\n\nINT. A - TAG\n\nx";
+    for key in ['h', 't'] {
+        let app = alt_on(text, 0, key);
+
+        assert_eq!(app.text(), text, "{key}");
+    }
+}
+
+#[test]
+fn alt_h_and_alt_t_set_the_line_apart_in_a_paragraph() {
+    // (text, line, key, result)
+    for (text, line, key, want) in [
+        (
+            "x\n\nAnna geht.\nint. küche - tag\n\ny",
+            3,
+            'h',
+            "x\n\nAnna geht.\n\nINT. KÜCHE - TAG\n\ny",
+        ),
+        (
+            "x\n\nANNA\nhallo du.\n\ny",
+            3,
+            't',
+            "x\n\nANNA\n\n>HALLO DU.\n\ny",
+        ),
+        (
+            "x\n\nint. küche - tag\nAnna geht.\n\ny",
+            2,
+            'h',
+            "x\n\nINT. KÜCHE - TAG\n\nAnna geht.\n\ny",
+        ),
+        ("x\n\ncut to:\ny", 2, 't', "x\n\nCUT TO:\n\ny"),
+    ] {
+        let mut app = alt_on(text, line, key);
+
+        assert_eq!(app.text(), want, "{text:?}");
+        let found = parse(&app.text()).elements;
+        let slot = |e| Slot::of(e);
+        let wanted = if key == 'h' {
+            Slot::Heading
+        } else {
+            Slot::Transition
+        };
+        assert!(found.iter().any(|e| slot(e) == Some(wanted)), "{found:?}");
+        // One undo step.
+        ctrl(&mut app, 'z');
+        assert_eq!(app.text(), text, "{text:?}");
+    }
+}
+
+#[test]
+fn alt_h_keeps_the_scene_number_as_typed() {
+    let app = alt_on("x\n\nint. a #12a#\n\ny", 2, 'h');
+
+    assert_eq!(app.text(), "x\n\nINT. A #12a#\n\ny");
+}
+
+#[test]
+fn alt_h_does_not_force_a_leading_ellipsis() {
+    let text = "x\n\n...und dann\n\ny";
+    let app = alt_on(text, 2, 'h');
+
+    assert_eq!(app.text(), text);
+}

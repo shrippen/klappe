@@ -164,15 +164,22 @@ impl App {
     /// undo step; an empty line shows as that element until the cursor leaves it.
     pub(super) fn make_element(&mut self, slot: Slot) {
         let Pos { line, .. } = self.editor.cursor();
-        let text = self.editor.lines()[line].clone();
-        let Some(new) = force_line(&text, slot) else {
+        let Some(forced) = force_line(&self.editor.text(), line, slot) else {
             return;
         };
 
-        let col = new.chars().count();
-        self.editor
-            .set_lines(line, line + 1, vec![new], Pos { line, col });
-        self.set_pending(line, slot);
+        let col = forced
+            .text
+            .split('\n')
+            .nth(forced.line)
+            .map_or(0, |l| l.chars().count());
+        let at = Pos {
+            line: forced.line,
+            col,
+        };
+        self.editor.set_text(&forced.text);
+        self.editor.go_to(at);
+        self.set_pending(forced.line, slot);
     }
 
     /// What the line at the cursor is for completion.

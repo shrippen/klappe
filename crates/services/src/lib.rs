@@ -84,9 +84,9 @@ pub use klappe_script::{parse, parse_located, Element, Located};
 // marks), for the screenplay editors of the surfaces.
 pub use klappe_script::{
     boneyard_lines, enter_step, find_all, force_line, inline_runs, replace_all, replace_line,
-    set_title_fields, suggest, tab_step, title_fields, title_page_lines, Case, Context, EnterStep,
-    Gap, Hit, Marks, Query, Run, Slot, Stage, Suggestions, TabStep, Vocabulary, FORCE_CHARACTER,
-    NUMBER_MARK, TITLE_KEYS,
+    set_title_fields, suggest, tab_step, title_fields, title_page_lines, upper, Case, Context,
+    EnterStep, Forced, Gap, Hit, Marks, Query, Run, Slot, Stage, Suggestions, TabStep, Vocabulary,
+    FORCE_CHARACTER, NUMBER_MARK, TITLE_KEYS,
 };
 
 // The outline of a screenplay (DB-20, DB-21): the tree, what a filter or a collapsed

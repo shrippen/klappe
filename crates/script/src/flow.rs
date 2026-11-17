@@ -2,7 +2,8 @@
 //! on Tab on an empty line. `assist.rs` offers the suggestions for the same line.
 
 use crate::parse::{
-    parse_elements, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING, FORCE_TRANSITION,
+    parse_located, title_page_lines, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING,
+    FORCE_TRANSITION, NUMBER_MARK,
 };
 use crate::Element;
 
@@ -154,15 +155,32 @@ pub fn tab_step(text: &str, slot: Option<Slot>) -> Option<TabStep> {
 
 const SHARP_S: char = 'ß';
 const CENTER_END: char = '<';
+/// A heading that starts so is an ellipsis; `.` before it would not force it.
+const ELLIPSIS: &str = "..";
 
-/// Capitals, `ß` kept (it would become `SS`).
+/// Uppercase as the parser counts it: `ß` stays, and a letter whose capital is longer
+/// than one character stays, so the cursor column holds.
+pub fn upper(text: &str) -> String {
+    let one = |c: char| {
+        let mut up = c.to_uppercase();
+        match (up.next(), up.next()) {
+            (Some(u), None) if c != SHARP_S => u,
+            _ => c,
+        }
+    };
+
+    text.chars().map(one).collect()
+}
+
+/// `text` in capitals, a trailing scene number `#12a#` as typed.
 fn capitals(text: &str) -> String {
-    text.chars()
-        .flat_map(|c| match c {
-            SHARP_S => vec![c],
-            _ => c.to_uppercase().collect(),
-        })
-        .collect()
+    let body = text.strip_suffix(NUMBER_MARK).unwrap_or(text);
+    let cut = match body.rfind(NUMBER_MARK) {
+        Some(at) if text.ends_with(NUMBER_MARK) && !body[at..].contains(char::is_whitespace) => at,
+        _ => text.len(),
+    };
+
+    upper(&text[..cut]) + &text[cut..]
 }
 
 /// `text` without a leading forcing marker (and the `<` of a centered `>text<`).
@@ -188,31 +206,75 @@ fn unforced(text: &str) -> &str {
     }
 }
 
-/// The line `text` made a scene heading or transition (`slot`; none for other slots): in
-/// capitals, with the forcing marker (`.`, `>`) only where the plain text would not be read
-/// as that element.
+/// The text after [`force_line`] and the line the forced element stands on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Forced {
+    pub text: String,
+    pub line: usize,
+}
+
+/// Whether line `at` of `lines` is, alone, an element of `slot`.
+fn stands_as(lines: &[String], at: usize, slot: Slot) -> bool {
+    parse_located(&lines.join("\n"))
+        .iter()
+        .any(|l| l.lines == [at] && Slot::of(&l.element) == Some(slot))
+}
+
+fn is_blank(line: Option<&String>) -> bool {
+    line.is_none_or(|l| l.trim().is_empty())
+}
+
+/// Makes line `line` of `text` a scene heading or transition (`slot`; none for other
+/// slots): capitals, the number of a heading as typed, a blank line before and after where
+/// missing (so the line stands alone), and the forcing marker (`.`, `>`) only where
+/// Fountain would not read the line as that element in this place. None for a line of the
+/// title page, and for a heading that starts with `..` (an ellipsis cannot be forced).
 ///
 /// ```text
 /// "kueche tag"  ─► ".KUECHE TAG"      "int. küche"  ─► "INT. KÜCHE"
 /// "fade out."   ─► ">FADE OUT."       "cut to:"     ─► "CUT TO:"
+/// "Anna geht.⏎int. a" ─► "Anna geht.⏎⏎INT. A"
 /// ```
-pub fn force_line(text: &str, slot: Slot) -> Option<String> {
+pub fn force_line(text: &str, line: usize, slot: Slot) -> Option<Forced> {
     let marker = match slot {
         Slot::Heading => FORCE_HEADING,
         Slot::Transition => FORCE_TRANSITION,
         _ => return None,
     };
-    let plain = capitals(unforced(text));
-    if plain.is_empty() {
-        return Some(plain);
+    let mut lines: Vec<String> = text.split('\n').map(str::to_owned).collect();
+    if line >= lines.len() || line < title_page_lines(text) {
+        return None;
     }
 
-    let read = parse_elements(&plain);
-    let is_slot = read.len() == 1 && Slot::of(&read[0]) == Some(slot);
-    match is_slot {
-        true => Some(plain),
-        false => Some(format!("{marker}{plain}")),
+    let plain = match slot {
+        Slot::Heading => capitals(unforced(&lines[line])),
+        _ => upper(unforced(&lines[line])),
+    };
+    if slot == Slot::Heading && plain.starts_with(ELLIPSIS) {
+        return None;
     }
+
+    // An empty line only becomes the pending element: nothing to set apart.
+    let mut at = line;
+    lines[at] = plain.clone();
+    if !plain.is_empty() {
+        // Alone between blank lines; an element needs that to be read as one.
+        if at > 0 && !is_blank(lines.get(at - 1)) {
+            lines.insert(at, String::new());
+            at += 1;
+        }
+        if !is_blank(lines.get(at + 1)) {
+            lines.insert(at + 1, String::new());
+        }
+        if !stands_as(&lines, at, slot) {
+            lines[at] = format!("{marker}{plain}");
+        }
+    }
+
+    Some(Forced {
+        text: lines.join("\n"),
+        line: at,
+    })
 }
 
 #[cfg(test)]
@@ -288,15 +350,44 @@ mod tests {
             (".küche", Slot::Heading, ".KÜCHE"),
             ("  >Fade out. ", Slot::Heading, ".FADE OUT."),
             ("Gasse #3#", Slot::Heading, ".GASSE #3#"),
+            ("int. a #12a#", Slot::Heading, "INT. A #12a#"),
             ("cut to:", Slot::Transition, "CUT TO:"),
             ("fade out.", Slot::Transition, ">FADE OUT."),
             (".INT. A", Slot::Transition, ">INT. A"),
             (">FADE OUT.<", Slot::Transition, ">FADE OUT."),
+            ("...und dann", Slot::Transition, ">...UND DANN"),
             ("straße", Slot::Heading, ".STRAßE"),
             ("", Slot::Heading, ""),
         ] {
-            assert_eq!(force_line(text, slot).as_deref(), Some(want), "{text:?}");
+            let forced = force_line(&format!("x\n\n{text}\n\ny"), 2, slot);
+
+            assert_eq!(
+                forced.map(|f| f.text),
+                Some(format!("x\n\n{want}\n\ny")),
+                "{text:?}"
+            );
         }
-        assert_eq!(force_line("x", Slot::Action), None);
+        assert_eq!(force_line("x", 0, Slot::Action), None);
+        assert_eq!(force_line("x\n\n...und dann", 2, Slot::Heading), None);
+    }
+
+    #[test]
+    fn force_line_sets_the_line_apart_and_spares_the_title_page() {
+        let forced = |text, line, slot| force_line(text, line, slot).map(|f| (f.text, f.line));
+        let own = |s: &str, line| Some((s.to_owned(), line));
+
+        assert_eq!(
+            forced("x\n\nAnna geht.\nint. a\n\ny", 3, Slot::Heading),
+            own("x\n\nAnna geht.\n\nINT. A\n\ny", 4)
+        );
+        assert_eq!(
+            forced("x\n\nANNA\nhallo du.\n\ny", 3, Slot::Transition),
+            own("x\n\nANNA\n\n>HALLO DU.\n\ny", 4)
+        );
+        assert_eq!(forced("Title: T\n\nx", 0, Slot::Heading), None);
+        assert_eq!(
+            forced("Title: T\nAuthor: A\n\nx", 1, Slot::Transition),
+            None
+        );
     }
 }
