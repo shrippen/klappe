@@ -7,8 +7,6 @@ use klappe_store::{Loaded, StoreError};
 
 use crate::error::ServiceError;
 
-const SCRIPT_FILE: &str = "drehbuch.fountain";
-
 /// `klappe_store::load` with a conflicted `drehbuch.fountain` or `szenen.toml` refused as
 /// a `StoreError::Conflict`: the markers would otherwise read as action and match against
 /// rubbish.
@@ -21,7 +19,7 @@ pub(crate) fn load_project(dir: &Path) -> Result<Loaded, ServiceError> {
         .and_then(klappe_script::conflict_line);
     if let Some(line) = conflict {
         return Err(ServiceError::Store(StoreError::Conflict {
-            path: dir.join(SCRIPT_FILE),
+            path: klappe_store::script_path(dir),
             line,
         }));
     }

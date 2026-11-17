@@ -81,7 +81,8 @@ fn a_conflicted_screenplay_is_not_opened() {
     assert!(
         matches!(
             &error,
-            ServiceError::Store(klappe_store::StoreError::Conflict { line: 1, .. })
+            ServiceError::Store(klappe_store::StoreError::Conflict { line: 1, path })
+                if path == &dir.join("drehbuch.fountain")
         ),
         "{error}"
     );

@@ -41,11 +41,13 @@ pub struct BookReport {
 
 use std::collections::HashSet;
 
-use klappe_model::{random_id, BookState, Kind, Print, Project, Scene, SceneKey};
+use klappe_model::{BookState, Kind, Print, Project, Scene, SceneKey};
 
 use klappe_script::{
     align, heading_print, normal, scene_states, Fingerprint, Outcome, SceneState, Script,
 };
+
+use crate::project_edit::free_scene_id;
 
 /// What the alignment made of one entry of the register.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -380,7 +382,7 @@ impl Plan {
         project.scenes = rest;
         for n in (0..self.book.len()).filter(|n| !held.contains(n) && has_heading(&self.book[*n])) {
             let mut scene = Scene {
-                id: free_id(project, &booked),
+                id: free_scene_id(project, &booked),
                 kind: Kind::Scene,
                 ..Scene::default()
             };
@@ -420,21 +422,5 @@ impl Plan {
             .collect();
         scene.state = BookState::InBook;
         scene.refused.clear();
-    }
-}
-
-/// A random id that no entry has, kept or yet to be placed (ids are file names, which may
-/// not differ by case only).
-fn free_id(project: &Project, placed: &[(usize, Scene)]) -> String {
-    loop {
-        let id = random_id();
-        let taken = project
-            .scenes
-            .iter()
-            .chain(placed.iter().map(|(_, s)| s))
-            .any(|s| s.id.eq_ignore_ascii_case(&id));
-        if !taken {
-            return id;
-        }
     }
 }
