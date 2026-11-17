@@ -786,6 +786,8 @@
  "ctx.straighten": "Straighten way",
  "ctx.editNote": "Edit text",
  "ctx.addShot": "Shot with this camera",
+ "ctx.kind": "Change kind",
+ "ctx.shortName": "Short name…",
  "ctx.lockLayer": "Lock layer {layer}",
  "ctx.hideLayer": "Hide layer {layer}",
  "ctx.unlockLayer": "Unlock layer {layer}",

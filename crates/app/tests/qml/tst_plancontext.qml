@@ -21,7 +21,7 @@ TestCase {
         property int selectedCount: 0
         property string layersJson: "{}"
         property string fadesJson: "{}"
-        property string choicesJson: JSON.stringify({ fade: ["100", "60", "30"], layer: ["set", "figures", "cameras", "lights", "notes", "drawings"] })
+        property string choicesJson: JSON.stringify({ object: [{ kind: "table", custom: false }, { kind: "mine", custom: true, label: "Mein Ding" }], fade: ["100", "60", "30"], layer: ["set", "figures", "cameras", "lights", "notes", "drawings"] })
         property string locksJson: "{}"
         property bool canUndo: true
         property bool canRedo: false
@@ -33,6 +33,9 @@ TestCase {
         property string noteText: ""
         property int areaPoints: 0
         property var calls: []
+        property string selectedShot: "s1"
+        // What the controller adds to the menu: the commands of objects and shots (LH-114 to LH-118, LH-74 to LH-110).
+        property var extra: ({})
         // What a right click selects: the key and count the fake then shows.
         property string pickKey: ""
         property string armed: ""
@@ -54,8 +57,13 @@ TestCase {
                 return "{}"
             }
             const kind = selectedCount > 1 ? "many" : selectedKey.split(":")[0]
-            return JSON.stringify(infos[kind] || { layer: "set", remove: true })
+            return JSON.stringify(Object.assign({}, infos[kind] || { layer: "set", remove: true }, extra))
         }
+        function changeSelected(what, arg) { calls.push(["change", what, arg]); return true }
+        function labelSelected() { calls.push(["label"]); return true }
+        function versionShot(id) { calls.push(["version", id]); return true }
+        function editShot(id, field, value) { calls.push(["edit", id, field, value]); return true }
+        function setShotImage(id, path) { calls.push(["image", id, path]); return true }
         function selectAt(x, y) {
             calls.push(["selectAt"])
             selectedKey = pickKey
@@ -114,6 +122,7 @@ TestCase {
         fake.pickKey = ""
         fake.armed = ""
         fake.viewFree = false
+        fake.extra = ({})
     }
 
     function made(tool) {
@@ -464,5 +473,93 @@ TestCase {
         compare(area.tipOf("imagesize:i1"), ["Größe des Bildes: ziehen"])
         compare(area.tipOf("drawingpoint:d1:2"), ["Punkt der Zeichnung: ziehen"])
         compare(area.tipOf("drawingedge:d1:1"), ["Kante der Zeichnung: ziehen"])
+    }
+
+    // The object commands come as the controller offers them; each entry is there or absent.
+    function test_the_object_entries_follow_the_controller() {
+        const area = made()
+        const entries = { mirror: "ctxMirror", resetSize: "ctxResetSize", label: "ctxLabel", unbind: "ctxUnbind" }
+
+        for (const flag in entries) {
+            fake.extra = ({})
+            open(area, "object:o1")
+            verify(!findChild(area, entries[flag]).visible, flag + " absent")
+
+            fake.extra = ({ [flag]: true })
+            open(area, "object:o1")
+            verify(findChild(area, entries[flag]).visible, flag + " offered")
+        }
+    }
+
+    function test_the_object_entries_run_the_commands() {
+        const area = made()
+        fake.extra = ({ mirror: true, resetSize: true, label: true, unbind: true })
+        open(area, "object:o1")
+
+        findChild(area, "ctxMirror").triggered()
+        findChild(area, "ctxResetSize").triggered()
+        findChild(area, "ctxLabel").triggered()
+        findChild(area, "ctxUnbind").triggered()
+
+        compare(fake.calls, [["change", "mirror", ""], ["change", "resetSize", ""], ["label"], ["change", "unbind", ""]])
+        compare(findChild(area, "ctxMirror").shownShortcut, "Umschalt+M")
+        compare(findChild(area, "ctxResetSize").shownShortcut, "Umschalt+G")
+        compare(findChild(area, "ctxLabel").shownShortcut, "Umschalt+L")
+        compare(findChild(area, "ctxUnbind").shownShortcut, "Umschalt+U")
+    }
+
+    function test_the_kind_submenu_lists_the_library() {
+        const area = made()
+        open(area, "object:o1")
+        compare(findChild(area, "ctxKind"), null)
+
+        fake.extra = ({ kind: true })
+        open(area, "object:o1")
+        const sub = findChild(area, "ctxKind")
+        verify(sub !== null)
+        compare(sub.title, "Art ändern")
+        compare(findChild(area, "ctxKind.table").text, "Tisch")
+        compare(findChild(area, "ctxKind.mine").text, "Mein Ding")
+
+        findChild(area, "ctxKind.mine").triggered()
+        compare(fake.calls, [["change", "kind", "mine"]])
+
+        fake.extra = ({})
+        open(area, "object:o1")
+        compare(findChild(area, "ctxKind"), null)
+    }
+
+    function test_the_shot_entries_follow_the_controller() {
+        const area = made()
+        const entries = { versionShot: "ctxVersionShot", shortName: "ctxShortName", shotImage: "ctxShotImage", shotImageRemove: "ctxShotImageRemove" }
+
+        for (const flag in entries) {
+            fake.extra = ({})
+            open(area, "camera:a")
+            verify(!findChild(area, entries[flag]).visible, flag + " absent")
+
+            fake.extra = ({ [flag]: true })
+            open(area, "camera:a")
+            verify(findChild(area, entries[flag]).visible, flag + " offered")
+        }
+    }
+
+    function test_the_shot_entries_run_the_commands_of_the_shot() {
+        const area = made()
+        fake.extra = ({ versionShot: true, shortName: true, shortNameNow: "Totale", shotImage: true, shotImageRemove: true })
+        open(area, "camera:a")
+
+        findChild(area, "ctxVersionShot").triggered()
+        findChild(area, "ctxShotImageRemove").triggered()
+        compare(fake.calls, [["version", "s1"], ["image", "s1", ""]])
+
+        findChild(area, "ctxShortName").triggered()
+        const dialog = findChild(area, "ctxNameDialog")
+        tryVerify(() => dialog.opened)
+        const field = findChild(dialog, "ctxShortNameField")
+        compare(field.text, "Totale")
+        field.text = "Halbtotale"
+        dialog.accept()
+        compare(fake.calls[2], ["edit", "s1", "short_name", "Halbtotale"])
     }
 }

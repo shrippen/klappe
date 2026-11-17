@@ -1,6 +1,9 @@
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQml
+import QtQuick.Dialogs
+import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
 import Kante
 
 // The context menu of the plan (LH-100): right click, the Menu key or Shift+F10 on an element
@@ -116,6 +119,79 @@ QQC2.Menu {
         onTriggered: menu.controller.addShot()
     }
 
+    // The commands of an object and of a label (LH-114 to LH-118): the keys are those of the
+    // palette; the change of kind is a submenu with the library, as the card's list has it.
+    KanteMenuItem {
+        objectName: "ctxMirror"
+        visible: menu.info.mirror === true
+        text: menu.texts.t("object.mirror")
+        shortcutText: menu.keyName("Shift+M")
+        onTriggered: menu.controller.changeSelected("mirror", "")
+    }
+    KanteMenuItem {
+        objectName: "ctxResetSize"
+        visible: menu.info.resetSize === true
+        text: menu.texts.t("object.resetSize")
+        shortcutText: menu.keyName("Shift+G")
+        onTriggered: menu.controller.changeSelected("resetSize", "")
+    }
+    KanteMenuItem {
+        objectName: "ctxLabel"
+        visible: menu.info.label === true
+        text: menu.texts.t("object.label")
+        shortcutText: menu.keyName("Shift+L")
+        onTriggered: menu.controller.labelSelected()
+    }
+    KanteMenuItem {
+        objectName: "ctxUnbind"
+        visible: menu.info.unbind === true
+        text: menu.texts.t("note.unbind")
+        shortcutText: menu.keyName("Shift+U")
+        onTriggered: menu.controller.changeSelected("unbind", "")
+    }
+    // The kinds of the library, built in first, then the project's own (as the palette lists them).
+    readonly property var kinds: {
+        if (!controller.choicesJson) {
+            return []
+        }
+        return (JSON.parse(controller.choicesJson).object || []).map(o => ({
+            kind: o.kind,
+            text: o.custom ? (o.label || o.kind) : texts.t("objectKind." + o.kind)
+        }))
+    }
+    // The submenu is there while the selection takes a new kind; it goes in before the arm commands.
+    Instantiator {
+        model: menu.info.kind === true ? 1 : 0
+        delegate: QQC2.Menu {
+            id: kindMenu
+            objectName: "ctxKind"
+            title: menu.texts.t("ctx.kind")
+            KantePopupSkin { popup: kindMenu }
+            Instantiator {
+                model: menu.kinds
+                delegate: KanteMenuItem {
+                    required property var modelData
+                    objectName: "ctxKind." + modelData.kind
+                    text: modelData.text
+                    // `menu` is the item's own menu here: the controller is the plan menu's.
+                    onTriggered: controller.changeSelected("kind", modelData.kind)
+                }
+                onObjectAdded: (index, object) => kindMenu.addItem(object)
+                onObjectRemoved: (index, object) => kindMenu.removeItem(object)
+            }
+        }
+        onObjectAdded: (index, object) => menu.insertMenu(menu.indexOfEntry("ctxNextMark"), object)
+        onObjectRemoved: (index, object) => menu.removeMenu(object)
+    }
+    function indexOfEntry(name) {
+        for (let i = 0; i < count; i++) {
+            if (itemAt(i).objectName === name) {
+                return i
+            }
+        }
+        return count
+    }
+
     // The commands that arm the next click (LH-104, LH-105, LH-109) and set a way's curve (LH-108).
     KanteMenuItem {
         objectName: "ctxNextMark"
@@ -149,6 +225,81 @@ QQC2.Menu {
         visible: menu.info.way === "smooth"
         text: menu.texts.t("way.straight")
         onTriggered: menu.controller.setWayCurve("straight")
+    }
+
+    // The shot of the selected camera (LH-74, LH-76, LH-110): the commands of the shot panel.
+    KanteMenuItem {
+        objectName: "ctxVersionShot"
+        visible: menu.info.versionShot === true
+        text: menu.texts.t("shot.version")
+        onTriggered: menu.controller.versionShot(menu.controller.selectedShot)
+    }
+    KanteMenuItem {
+        objectName: "ctxShortName"
+        visible: menu.info.shortName === true
+        text: menu.texts.t("ctx.shortName")
+        onTriggered: menu.askShortName()
+    }
+    KanteMenuItem {
+        objectName: "ctxShotImage"
+        visible: menu.info.shotImage === true
+        text: menu.texts.t("shot.imagePick")
+        onTriggered: menu.askShotImage()
+    }
+    KanteMenuItem {
+        objectName: "ctxShotImageRemove"
+        visible: menu.info.shotImageRemove === true
+        text: menu.texts.t("shot.imageRemove")
+        onTriggered: menu.controller.setShotImage(menu.controller.selectedShot, "")
+    }
+
+    // Made on first use: a dialog that exists takes the keyboard focus of the plan's fields.
+    property string shotId: ""
+    property var imageDialog: null
+    property var nameDialog: null
+    Component {
+        id: imageDialogComponent
+        FileDialog {
+            title: menu.texts.t("shot.imagePickTitle")
+            nameFilters: [menu.texts.t("background.filter")]
+            onAccepted: menu.controller.setShotImage(menu.shotId, selectedFile.toString())
+        }
+    }
+    Component {
+        id: nameDialogComponent
+        KanteDialog {
+            id: dialog
+            property alias text: field.text
+            parent: QQC2.Overlay.overlay
+            anchors.centerIn: parent
+            modal: true
+            size: KanteDialog.Size.Small
+            standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
+            title: menu.texts.t("field.shortName")
+            onOpened: field.forceActiveFocus()
+            onAccepted: menu.controller.editShot(menu.shotId, "short_name", field.text)
+            KanteTextField {
+                id: field
+                objectName: "ctxShortNameField"
+                width: parent ? parent.width : implicitWidth
+                onAccepted: dialog.accept()
+            }
+        }
+    }
+    function askShotImage() {
+        shotId = controller.selectedShot
+        if (!imageDialog) {
+            imageDialog = imageDialogComponent.createObject(menu, { objectName: "ctxImageDialog" })
+        }
+        imageDialog.open()
+    }
+    function askShortName() {
+        shotId = controller.selectedShot
+        if (!nameDialog) {
+            nameDialog = nameDialogComponent.createObject(menu, { objectName: "ctxNameDialog" })
+        }
+        nameDialog.text = info.shortNameNow || ""
+        nameDialog.open()
     }
 
     QQC2.MenuSeparator { visible: menu.layer !== "" }

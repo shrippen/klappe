@@ -786,6 +786,8 @@
  "ctx.straighten": "Weg begradigen",
  "ctx.editNote": "Text ändern",
  "ctx.addShot": "Shot mit dieser Kamera",
+ "ctx.kind": "Art ändern",
+ "ctx.shortName": "Kurzname…",
  "ctx.lockLayer": "Ebene {layer} sperren",
  "ctx.hideLayer": "Ebene {layer} ausblenden",
  "ctx.unlockLayer": "Ebene {layer} entsperren",
