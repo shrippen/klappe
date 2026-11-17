@@ -53,7 +53,7 @@ pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;
 pub use session::{
     Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages, Playing,
-    Session, Size, Step, TimeSnap, VideoJob, View, Visibility,
+    Session, Size, Step, TimeSnap, VideoJob, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{

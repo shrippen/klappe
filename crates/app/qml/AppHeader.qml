@@ -58,7 +58,7 @@ RowLayout {
                                     actScript, actShot, actTimeline,
                                     actUndo, actRedo].concat(exportCommands.actions, shotViews.actions, zoom.actions,
                                     pageExports.actions, viewCommands.actions, objectCommands.actions,
-                                    playCommands.actions, armCommands.actions)
+                                    playCommands.actions, navCommands.actions, armCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -490,6 +490,14 @@ RowLayout {
         locked: header.locked
         keyName: header.keyName
         onRequested: how => header.zoomRequested(how)
+    }
+
+    NavCommands {
+        id: navCommands
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        keyName: header.keyName
     }
 
     PlayCommands {

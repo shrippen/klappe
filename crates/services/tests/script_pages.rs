@@ -215,3 +215,22 @@ fn a_german_project_can_keep_the_international_words() {
     let pdf = String::from_utf8_lossy(&std::fs::read(&path).unwrap()).into_owned();
     assert!(pdf.contains("(\\(WEITER\\)) Tj"), "{pdf}");
 }
+
+#[test]
+fn keeping_contd_leaves_the_rest_of_the_setup_on_disk() {
+    let mut tui = session("pages-keep-contd", &scene(1, 3));
+    let dir = tui.dir().to_path_buf();
+    // Another program sets the language meanwhile.
+    let mut window = Session::open(&dir).unwrap();
+    window.set_script_setup(ScriptSetup {
+        language: Some(ScriptLanguage::En),
+        ..ScriptSetup::default()
+    });
+    window.save().unwrap();
+
+    tui.keep_contd(true).unwrap();
+
+    let again = Session::open(&dir).unwrap();
+    assert!(again.project().script.contd_after_action);
+    assert_eq!(again.project().script.language, Some(ScriptLanguage::En));
+}
