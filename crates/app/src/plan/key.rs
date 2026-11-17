@@ -52,28 +52,17 @@ const NAMES: [(ElementKind, &str); 20] = [
 ];
 
 impl ElementKind {
-    const ALL: [ElementKind; 20] = [
-        Self::Object,
-        Self::ObjectGrip,
-        Self::Light,
-        Self::LightGrip,
-        Self::Camera,
-        Self::Figure,
-        Self::Mark,
-        Self::ObjectMark,
-        Self::FigureVia,
-        Self::CameraVia,
-        Self::Wall,
-        Self::Opening,
-        Self::OpeningEdge,
-        Self::Note,
-        Self::NoteWidth,
-        Self::Image,
-        Self::ImageSize,
-        Self::Drawing,
-        Self::DrawingPoint,
-        Self::DrawingEdge,
-    ];
+    /// Every kind, in the order of `NAMES`.
+    const ALL: [ElementKind; NAMES.len()] = {
+        let mut all = [NAMES[0].0; NAMES.len()];
+        let mut i = 0;
+        while i < NAMES.len() {
+            all[i] = NAMES[i].0;
+            i += 1;
+        }
+
+        all
+    };
 
     pub fn name(self) -> &'static str {
         NAMES

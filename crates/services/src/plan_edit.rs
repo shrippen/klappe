@@ -120,8 +120,14 @@ pub enum PlanEdit {
     },
     /// Appends a mark to the camera `camera` (LH-33): it keeps the aim, height, tilt and lens
     /// of the last mark and comes by dolly.
+    AddCameraMark {
+        camera: String,
+        at: Point,
+    },
     /// Adds a mark to the way of the set object `object` at `at` (LH-24): the first click also
-    /// marks where the object stands now, at the playhead.
+    /// marks where the object stands now, at the playhead. After a mark a figure carries the
+    /// object from, the new mark is where the object is carried to at the playhead, `at` is
+    /// not used: the object does not jump.
     AddObjectMark {
         object: String,
         at: Point,
@@ -132,10 +138,6 @@ pub enum PlanEdit {
     SetCarrier {
         source: Source,
         figure: Option<String>,
-    },
-    AddCameraMark {
-        camera: String,
-        at: Point,
     },
     /// Sets a mark before the first one of the figure or camera `source` names, at `at`
     /// (LH-105): where it comes from. The old marks move later by the way from the new mark to
@@ -501,6 +503,8 @@ struct Scope<'a> {
     /// The project's own library entries, for what a new object looks like.
     library: &'a [LibraryItem],
     time_s: f64,
+    /// Ids of the objects any plan of the scene's location has a track for, taken or not.
+    tracked: &'a [String],
 }
 
 /// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snap_to` is for
@@ -520,6 +524,8 @@ pub(crate) fn apply(
 
     let at = (scene, plan);
     let held = bound::held(project, at, time_s);
+    let tracked = props::tracked_ids(project, scene);
+    let removing = props::watch_removal(project, scene, edit);
     let Project {
         characters,
         locations,
@@ -547,6 +553,7 @@ pub(crate) fn apply(
         characters,
         library,
         time_s,
+        tracked: &tracked,
     };
 
     let done = match edit {
@@ -626,6 +633,7 @@ pub(crate) fn apply(
         | PlanEdit::SetCameraAim { .. } => edit_field(&mut scope, edit),
     };
 
+    props::forget_removed(project, scene, removing.as_deref());
     bound::follow(project, at, time_s, &held);
 
     done

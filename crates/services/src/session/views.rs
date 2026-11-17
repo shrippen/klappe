@@ -1,10 +1,12 @@
 //! What the session tells the surfaces about the project and the plan on view, ready to show:
 //! the project lists, the tooltips and the set of the current scene.
 
-use klappe_model::{CameraPresets, DrawingShape, Location, Orientation, Paper};
+use std::borrow::Cow;
+
+use klappe_model::{CameraPresets, DrawingShape, Location, Orientation, Paper, SetPlan};
 use klappe_stellprobe::{
-    aim_at, axis_pair, horizontal_fov_deg, object_extent, opening_span, picture, wall_top, Cut,
-    Eye, Picture, Source,
+    aim_at, axis_pair, horizontal_fov_deg, object_extent, opening_span, picture, set_at, wall_top,
+    Cut, Eye, Picture, Source,
 };
 
 use super::Session;
@@ -248,6 +250,15 @@ impl Session {
         })
     }
 
+    /// The scene's set with its moving objects where they stand at the playhead (LH-24).
+    pub(super) fn set_now(&self) -> Option<Cow<'_, SetPlan>> {
+        Some(set_at(
+            &self.scene_location()?.set,
+            self.plan()?,
+            self.time_s,
+        ))
+    }
+
     /// How many objects of the scene's set have no height yet (LH-93).
     pub fn missing_heights(&self) -> usize {
         let Some(location) = self.scene_location() else {
@@ -281,7 +292,7 @@ impl Session {
     /// How tall `source` stands now, in metres: an object's extent (what it is shown as without
     /// a height of its own), a wall's top (LH-95). `None` for any other source.
     pub fn height_of(&self, source: &Source) -> Option<f64> {
-        let set = &self.scene_location()?.set;
+        let set = &*self.set_now()?;
 
         match source {
             Source::Object(id) => {
@@ -297,7 +308,7 @@ impl Session {
 
     /// The tooltip of object `id` on the scene's set; `None` without such an object.
     pub fn object_hint(&self, id: &str) -> Option<Hint> {
-        let set = &self.scene_location()?.set;
+        let set = &*self.set_now()?;
         let index = set.objects.iter().position(|o| o.id == id)?;
         let o = &set.objects[index];
 

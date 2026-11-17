@@ -282,7 +282,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Objekts bewegt diese Figur den Gegenstand, er behält seinen Versatz zu ihr (aus `at` und dem
   Ort der Figur zur Zeit `at_s`, nicht gespeichert), seine Drehung bleibt; ist die Figur dann
   nicht in der Szene, gelten die Marks. Zwischen zwei Marks läuft der Gegenstand gerade, nach der
-  Pause, gleichmäßig; vor dem ersten und nach dem letzten steht er auf dem Mark. Ein Objekt ohne
+  Pause, gleichmäßig; vor dem ersten und nach dem letzten steht er auf dem Mark. Am nächsten
+  Mark nach einer getragenen Strecke springt er an dessen `at` (er wird dort abgesetzt); ein
+  neuer Mark nach einem Trage-Mark entsteht am Abspielkopf dort, wohin der Gegenstand gerade
+  getragen wird, ohne Sprung. Ein Objekt ohne
   Spur steht unverändert an seinem Ort im Set; `object_tracks` fehlt, wenn leer. Ein Verweis auf
   ein fehlendes Objekt oder eine fehlende Figur lädt und wirkt nicht (kein Fehler). Keine neue
   Formatversion, ältere Dateien laden unverändert.

@@ -5,7 +5,7 @@ use klappe_model::{
     SetObject, Wall, MAX_OBJECT_M, MIN_BEAM_DEG, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use klappe_stellprobe::{
-    bend_follow, bend_grips, drawing_handle_places, image_grip_place, light_grip_place,
+    bend_follow, bend_grips, drawing_handle_places, image_grip_place, light_grip_place, object_at,
     object_grip_place, Bend, LightGrip, ObjectGrip, Source,
 };
 
@@ -471,7 +471,7 @@ pub(super) fn carry_cameras(
     change: impl FnOnce(&mut Scope<'_>) -> Result<(), ServiceError>,
 ) -> Result<(), ServiceError> {
     let Some((character, index)) = figure_mark(scope, source) else {
-        return change(scope);
+        return placed_grip(scope, source, change);
     };
     let mark_of = |plan: &FloorPlan| plan.figure(&character)?.marks.get(index).cloned();
     let before = mark_of(scope.plan);
@@ -507,6 +507,54 @@ pub(super) fn carry_cameras(
     }
 
     Ok(())
+}
+
+fn object_in<'a>(scope: &'a mut Scope<'_>, id: &str) -> Option<&'a mut SetObject> {
+    scope
+        .set
+        .as_deref_mut()
+        .and_then(|s| s.objects.iter_mut().find(|o| o.id == id))
+}
+
+/// A grip of a moving object sits where the object is at the playhead, so the change works
+/// on the object put there; afterwards the set keeps its own place and the way takes the
+/// difference (resizing from the left edge moves the middle).
+fn placed_grip(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    change: impl FnOnce(&mut Scope<'_>) -> Result<(), ServiceError>,
+) -> Result<(), ServiceError> {
+    let Source::ObjectGrip { object, .. } = source else {
+        return change(scope);
+    };
+    let track = scope.plan.object_track(object);
+    let Some(place) = track.and_then(|t| object_at(scope.plan, t, scope.time_s)) else {
+        return change(scope);
+    };
+    let Some(own) = object_in(scope, object) else {
+        return change(scope);
+    };
+    let home = (own.at, own.rotation_deg);
+    (own.at, own.rotation_deg) = (place.at, place.facing_deg);
+
+    let done = change(scope);
+
+    let Some(own) = object_in(scope, object) else {
+        return done;
+    };
+    let (dx_m, dy_m) = (own.at.x_m - place.at.x_m, own.at.y_m - place.at.y_m);
+    (own.at, own.rotation_deg) = home;
+    for mark in scope
+        .plan
+        .object_tracks
+        .iter_mut()
+        .filter(|t| t.object == *object)
+        .flat_map(|t| t.marks.iter_mut())
+    {
+        mark.at = Point::new(mark.at.x_m + dx_m, mark.at.y_m + dy_m);
+    }
+
+    done
 }
 
 /// `point` shifted by `delta_m`, then turned by `deg` about `centre`: where a following

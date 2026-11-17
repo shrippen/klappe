@@ -81,7 +81,6 @@ fn remove_item(scope: &mut Scope<'_>, source: &Source) -> Result<(), ServiceErro
             let index = set.objects.iter().position(|o| o.id == *id);
             let index = index.ok_or(ServiceError::Gone)?;
             set.objects.remove(index);
-            scope.plan.object_tracks.retain(|t| t.object != *id);
             Ok(())
         }
         Source::Wall(index) => {

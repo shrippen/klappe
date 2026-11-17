@@ -4,7 +4,10 @@
 
 use std::path::Path;
 
-use klappe_services::{Layer, Lock, PlanEdit, Point, Role, ServiceError, Session, Shape, Source};
+use klappe_services::{
+    Hint, Layer, Lock, ObjectChange, ObjectGrip, PlanEdit, Point, Role, ServiceError, Session,
+    Shape, Snapping, Source,
+};
 
 const PILLAR: &str = "saeule-1";
 
@@ -310,4 +313,254 @@ fn the_camera_picture_uses_the_place_at_the_playhead() {
 
     s.set_time(20.0);
     assert!(pixels_of_pillar(&s) > 2 * at_home);
+}
+
+// Review of #214: every reader of an object's place reads it at the playhead.
+
+fn grip(grip: ObjectGrip) -> Source {
+    Source::ObjectGrip {
+        object: PILLAR.into(),
+        grip,
+    }
+}
+
+/// The left edge and the width of the pillar's body as drawn at the playhead.
+fn pillar_box(s: &Session) -> (f64, f64) {
+    let list = s.display_list();
+    let body = list
+        .items
+        .iter()
+        .find(|i| i.role == Role::Object && i.source == Some(Source::Object(PILLAR.into())))
+        .unwrap();
+    let Shape::Polygon { points } = &body.shape else {
+        return (f64::NAN, f64::NAN);
+    };
+    let left = points.iter().map(|q| q.x_m).fold(f64::MAX, f64::min);
+    let right = points.iter().map(|q| q.x_m).fold(f64::MIN, f64::max);
+
+    (left, right - left)
+}
+
+/// A pillar that has walked to (9, 10) and is resized there: the grip sits at the place at the
+/// playhead, so the left edge stays where it is drawn; the set keeps the place it gave.
+#[test]
+fn resizing_a_moved_object_keeps_its_edge_and_the_set() {
+    let mut s = open();
+    add(&mut s, p(9.0, 10.0));
+    s.set_time(20.0);
+    s.set_snapping(Snapping::Off);
+    let (left, width) = pillar_box(&s);
+    let grip_at = s
+        .display_list_for(Some(&Source::Object(PILLAR.into())))
+        .items
+        .iter()
+        .find(|i| i.source == Some(grip(ObjectGrip::Width)))
+        .and_then(|i| match &i.shape {
+            Shape::Circle { center, .. } => Some(*center),
+            _ => None,
+        })
+        .unwrap();
+
+    s.edit_plan(PlanEdit::Move {
+        source: grip(ObjectGrip::Width),
+        to: p(grip_at.x_m + 1.0, grip_at.y_m),
+    })
+    .unwrap();
+
+    let (new_left, new_width) = pillar_box(&s);
+    assert!((new_left - left).abs() < 1e-6, "{new_left} {left}");
+    assert!((new_width - (width + 1.0)).abs() < 1e-6, "{new_width}");
+    let base = s.project().locations[0]
+        .set
+        .objects
+        .iter()
+        .find(|o| o.id == PILLAR)
+        .unwrap()
+        .at;
+    assert!(near(base, p(6.0, 4.0)), "{base:?}");
+}
+
+/// The object and its marks removed in one group: the object takes its track, the marks are
+/// not removed a second time; marks alone go from the back.
+#[test]
+fn a_group_may_remove_an_object_with_its_marks() {
+    let mut s = open();
+    add(&mut s, p(9.0, 10.0));
+
+    s.edit_plan(PlanEdit::RemoveGroup {
+        sources: vec![
+            pillar_mark(0),
+            Source::Object(PILLAR.into()),
+            pillar_mark(1),
+        ],
+    })
+    .unwrap();
+    assert!(s.plan().unwrap().object_tracks.is_empty());
+    s.undo();
+
+    s.edit_plan(PlanEdit::RemoveGroup {
+        sources: vec![pillar_mark(0), pillar_mark(1)],
+    })
+    .unwrap();
+    assert!(s.plan().unwrap().object_tracks.is_empty());
+}
+
+/// A label put on an object that has walked sits beside it where it stands now.
+#[test]
+fn a_label_is_put_where_the_object_is_at_the_playhead() {
+    let mut s = open();
+    add(&mut s, p(9.0, 10.0));
+    s.set_time(20.0);
+
+    s.edit_plan(PlanEdit::SetObject {
+        source: Source::Object(PILLAR.into()),
+        change: ObjectChange::Label("Krug".into()),
+    })
+    .unwrap();
+
+    let list = s.display_list();
+    let note = list
+        .items
+        .iter()
+        .find(|i| i.role == Role::Note && i.label.as_deref() == Some("Krug"))
+        .unwrap();
+    let Shape::Polygon { points } = &note.shape else {
+        return;
+    };
+    assert!(
+        points[0].x_m > 9.0 && points[0].y_m < 10.0,
+        "{:?}",
+        points[0]
+    );
+}
+
+/// The tooltip's underside stacks on what lies below the object where it stands now.
+#[test]
+fn the_hint_of_a_moved_object_reads_its_place_at_the_playhead() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::SetObjectHeight {
+        source: Source::Object("tisch".into()),
+        height_m: Some(0.75),
+    })
+    .unwrap();
+    add(&mut s, p(10.0, 6.5));
+    let base = |s: &Session| match s.object_hint(PILLAR) {
+        Some(Hint::Object { base_m, .. }) => base_m,
+        _ => f64::NAN,
+    };
+
+    s.set_time(0.0);
+    assert_eq!(base(&s), 0.0);
+    s.set_time(20.0);
+    assert_eq!(base(&s), 0.75);
+}
+
+/// Taking an object out of the set takes its way out of every plan of that set, so a new
+/// object with the same id starts on its own; ids a track still names are not reused.
+#[test]
+fn removing_an_object_takes_its_tracks_from_every_plan() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::AddObject {
+        kind: "table".into(),
+        at: p(3.0, 3.0),
+    })
+    .unwrap();
+    let id = s.project().locations[0]
+        .set
+        .objects
+        .last()
+        .unwrap()
+        .id
+        .clone();
+    s.edit_plan(PlanEdit::AddObjectMark {
+        object: id.clone(),
+        at: p(5.0, 3.0),
+    })
+    .unwrap();
+    let first = s.plan().unwrap().id.clone();
+    s.copy_plan("B").unwrap();
+
+    s.edit_plan(PlanEdit::Remove {
+        source: Source::Object(id.clone()),
+    })
+    .unwrap();
+    s.select_plan(&first).unwrap();
+
+    assert!(s.plan().unwrap().object_tracks.is_empty());
+    s.edit_plan(PlanEdit::AddObject {
+        kind: "table".into(),
+        at: p(8.0, 3.0),
+    })
+    .unwrap();
+    s.set_time(20.0);
+    let list = s.display_list();
+    assert!(list
+        .items
+        .iter()
+        .all(|i| !matches!(&i.source, Some(Source::ObjectMark { .. }))));
+}
+
+/// A file may name an object no set has; a new object must not take its id and its way.
+#[test]
+fn a_new_object_never_takes_an_id_a_track_names() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("orphan-track");
+    let _ = std::fs::remove_dir_all(&dir);
+    copy_dir(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe"),
+        &dir,
+    );
+    let file = dir.join("szenen/szene-012.json");
+    let text = std::fs::read_to_string(&file).unwrap();
+    let orphan = r#""object_tracks": [{"object": "o1", "marks": [{"at_s": 0.0, "at": {"x_m": 1.0, "y_m": 1.0}, "rotation_deg": 0.0}]}], "figures": ["#;
+    std::fs::write(&file, text.replacen(r#""figures": ["#, orphan, 1)).unwrap();
+    let mut s = Session::open(&dir).unwrap();
+
+    s.edit_plan(PlanEdit::AddObject {
+        kind: "table".into(),
+        at: p(3.0, 3.0),
+    })
+    .unwrap();
+
+    let ids: Vec<_> = s.project().locations[0]
+        .set
+        .objects
+        .iter()
+        .map(|o| o.id.clone())
+        .collect();
+    assert!(!ids.contains(&"o1".to_owned()), "{ids:?}");
+}
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        match entry.file_type().unwrap().is_dir() {
+            true => copy_dir(&entry.path(), &target),
+            false => drop(std::fs::copy(entry.path(), target).unwrap()),
+        }
+    }
+}
+
+/// After a carried span a new mark starts where the object is carried to, at the playhead:
+/// it does not jump at creation.
+#[test]
+fn a_mark_after_a_carried_span_starts_at_the_carried_place() {
+    let mut s = open();
+    s.set_time(0.0);
+    add(&mut s, p(13.0, 4.0));
+    s.edit_plan(PlanEdit::SetCarrier {
+        source: pillar_mark(1),
+        figure: Some("elisabeth".into()),
+    })
+    .unwrap();
+    s.set_time(10.0);
+    let carried = pillar_at(&s);
+
+    add(&mut s, p(1.0, 1.0));
+
+    let found = marks(&s);
+    assert_eq!(found.len(), 3);
+    assert!(near(found[2].1, carried), "{:?} {carried:?}", found[2].1);
+    assert_eq!(found[2].0, 10.0);
 }

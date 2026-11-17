@@ -9,6 +9,7 @@ use klappe_model::{
 
 use super::bound::note_mut;
 use super::marks::WALK_SPEED_M_S;
+use super::props;
 use super::{normalize_deg, PlanEdit, Scope};
 use crate::error::ServiceError;
 use crate::field::Field;
@@ -215,7 +216,7 @@ pub(super) fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result
         .set
         .as_deref_mut()
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
-    let id = free_id("o", set.objects.iter().map(|o| o.id.as_str()));
+    let id = props::free_object_id(set, scope.tracked);
 
     // An old project may name a kind no library has: a square it is.
     let (label, width_m, depth_m, shape, height_m) = match library::find(scope.library, kind) {
@@ -276,7 +277,7 @@ fn add_shape(scope: &mut Scope<'_>, points: &[Point]) -> Result<(), ServiceError
         .set
         .as_deref_mut()
         .ok_or_else(|| ServiceError::NoLocation(scope.location.to_owned()))?;
-    let id = free_id("o", set.objects.iter().map(|o| o.id.as_str()));
+    let id = props::free_object_id(set, scope.tracked);
     let (at, width_m, depth_m) = outline_box(points);
     let points = points
         .iter()

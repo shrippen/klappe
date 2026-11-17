@@ -1,8 +1,9 @@
 //! The marks of set objects that figures move (LH-24): add, remove, carry.
 
-use klappe_model::{normalize_deg, FloorPlan, ObjectMark, ObjectTrack, Point};
-use klappe_stellprobe::Source;
+use klappe_model::{normalize_deg, FloorPlan, ObjectMark, ObjectTrack, Point, Project, SetPlan};
+use klappe_stellprobe::{object_at, Source};
 
+use super::free_id;
 use super::marks::WALK_SPEED_M_S;
 use super::{bad_mark, current_index, PlanEdit, Scope};
 use crate::error::ServiceError;
@@ -77,6 +78,14 @@ pub(super) fn add_object_mark(
             scope.plan.object_tracks.len() - 1
         }
     };
+    // After a carried span the object is where it is carried to: no jump at creation.
+    let track = &scope.plan.object_tracks[index];
+    let carried = track
+        .marks
+        .last()
+        .is_some_and(|m| m.carried_by.is_some() && time_s > m.at_s)
+        .then(|| object_at(scope.plan, track, time_s))
+        .flatten();
     let marks = &mut scope.plan.object_tracks[index].marks;
 
     if marks.is_empty() {
@@ -92,7 +101,11 @@ pub(super) fn add_object_mark(
     let Some(prev) = marks.last() else {
         return Ok(());
     };
-    let at_s = prev.at_s + prev.hold_s + prev.at.distance_m(at) / WALK_SPEED_M_S;
+    let walked_s = prev.at_s + prev.hold_s + prev.at.distance_m(at) / WALK_SPEED_M_S;
+    let (at_s, at) = match carried {
+        Some(place) => (time_s, place.at),
+        None => (walked_s, at),
+    };
     let rotation_deg = prev.rotation_deg;
 
     marks.push(ObjectMark {
@@ -144,6 +157,75 @@ pub(super) fn set_carrier(
     object_mark_mut(scope, source)?.carried_by = figure.map(str::to_owned);
 
     Ok(())
+}
+
+/// The object ids a track names in any plan of the location of scene `scene`, orphans
+/// included: a new object must not take one over.
+pub(super) fn tracked_ids(project: &Project, scene: usize) -> Vec<String> {
+    let Some(location) = project.scenes.get(scene).map(|s| &s.location) else {
+        return Vec::new();
+    };
+
+    project
+        .scenes
+        .iter()
+        .filter(|s| s.location == *location)
+        .flat_map(|s| &s.plans)
+        .flat_map(|p| &p.object_tracks)
+        .map(|t| t.object.clone())
+        .collect()
+}
+
+/// The first `o<n>` that neither the set's objects nor a track name.
+pub(super) fn free_object_id(set: &SetPlan, tracked: &[String]) -> String {
+    let taken = set.objects.iter().map(|o| o.id.as_str());
+
+    free_id("o", taken.chain(tracked.iter().map(String::as_str)))
+}
+
+/// The ids of the objects in the set of scene `scene`'s location.
+pub(super) fn object_ids(project: &Project, scene: usize) -> Vec<String> {
+    let location = project.scenes.get(scene).map(|s| &s.location);
+
+    project
+        .locations
+        .iter()
+        .filter(|l| Some(&l.id) == location)
+        .flat_map(|l| l.set.objects.iter().map(|o| o.id.clone()))
+        .collect()
+}
+
+/// The objects of the set before an edit that may remove some, for `forget_removed`.
+pub(super) fn watch_removal(
+    project: &Project,
+    scene: usize,
+    edit: &PlanEdit,
+) -> Option<Vec<String>> {
+    matches!(edit, PlanEdit::Remove { .. } | PlanEdit::RemoveGroup { .. })
+        .then(|| object_ids(project, scene))
+}
+
+/// Takes the tracks of the objects an edit removed from the set out of every plan of that
+/// location: an object removed in one scene leaves no way behind in another. `before` is
+/// `watch_removal` from before the edit; a track that named no object already stays.
+pub(super) fn forget_removed(project: &mut Project, scene: usize, before: Option<&[String]>) {
+    let Some(before) = before else {
+        return;
+    };
+    let now = object_ids(project, scene);
+    let Some(location) = project.scenes.get(scene).map(|s| s.location.clone()) else {
+        return;
+    };
+
+    for plan in project
+        .scenes
+        .iter_mut()
+        .filter(|s| s.location == location)
+        .flat_map(|s| &mut s.plans)
+    {
+        plan.object_tracks
+            .retain(|t| now.contains(&t.object) || !before.contains(&t.object));
+    }
 }
 
 /// A figure that is gone from the plan carries nothing any more.

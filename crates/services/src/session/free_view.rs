@@ -136,9 +136,10 @@ impl Session {
         if self.view != View::Free {
             return;
         }
-        let Some(set) = self.scene_location().map(|l| &l.set) else {
+        let Some(set) = self.set_now() else {
             return;
         };
+        let set = &*set;
         let Some(index) = set.objects.iter().position(|o| o.id == id) else {
             return;
         };
