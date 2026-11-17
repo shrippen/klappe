@@ -20,6 +20,8 @@ use crate::Element;
 
 /// Column of `(MORE)`: under the name of a dialogue.
 const MORE_X: usize = 22;
+/// Column where the right half of a dual dialogue starts.
+const DUAL_RIGHT_X: usize = 31;
 
 /// What the placement does, in order; the real run turns it into pages.
 enum Step {
@@ -144,8 +146,20 @@ fn plan(sim: &mut Sim, o: &PageOptions, mut block: Block, out: &mut Vec<Step>) {
         let mut first = rows.clone();
         let mut rest = first.split_off(take);
         if let Some(cues) = cue_row(&rows) {
-            first.push(marked(cues, PageKind::More, &format!("({})", o.words.more)));
-            rest.insert(0, marked(cues, PageKind::Character, o.words.contd));
+            // Only a column that goes on gets the marks.
+            let going: Vec<Line> = cues
+                .iter()
+                .filter(|c| rest.iter().flatten().any(|l| column(l) == column(c)))
+                .cloned()
+                .collect();
+            if !going.is_empty() {
+                first.push(marked(
+                    &going,
+                    PageKind::More,
+                    &format!("({})", o.words.more),
+                ));
+                rest.insert(0, marked(&going, PageKind::Character, o.words.contd));
+            }
         }
         sim.put(out, &block, before, first);
         sim.end_page(out);
@@ -157,6 +171,11 @@ fn plan(sim: &mut Sim, o: &PageOptions, mut block: Block, out: &mut Vec<Step>) {
 fn cue_row(rows: &[Vec<Line>]) -> Option<&Vec<Line>> {
     rows.first()
         .filter(|r| r.iter().any(|l| l.kind == PageKind::Character))
+}
+
+/// The column of a line: 1 from where a dual dialogue's right column starts, else 0.
+fn column(line: &Line) -> usize {
+    usize::from(line.x >= DUAL_RIGHT_X)
 }
 
 /// A row from the names of `cues`: `(MORE)` under each, or the name again with `(CONT'D)`.
