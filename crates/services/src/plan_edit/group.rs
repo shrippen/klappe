@@ -3,8 +3,8 @@
 
 use std::cmp::Reverse;
 
-use klappe_model::{normalize_deg, Arrival, Departure, Mark, Point};
-use klappe_stellprobe::Source;
+use klappe_model::{normalize_deg, Arrival, Departure, LinkTarget, Mark, Point};
+use klappe_stellprobe::{Bend, ObjectGrip, Source};
 
 use super::bound;
 use super::images;
@@ -233,17 +233,30 @@ fn removable(sources: &[Source]) -> Vec<Source> {
         .cloned()
         .collect();
 
+    // Grips of one way or drawing go from the back too: each removal shifts the ones behind.
     kept.sort_by_key(|m| match m {
-        Source::FigureVia { index, .. }
-        | Source::CameraVia { index, .. }
-        | Source::Opening { index, .. } => (0, Reverse(*index)),
-        Source::Mark { index, .. } | Source::ObjectMark { index, .. } | Source::Wall(index) => {
-            (1, Reverse(*index))
+        Source::FigureVia { index, bend, .. } | Source::CameraVia { index, bend, .. } => {
+            (0, Reverse(*index), Reverse(bend_number(*bend)))
         }
-        _ => (1, Reverse(0)),
+        Source::Opening { index, .. } => (0, Reverse(*index), Reverse(0)),
+        Source::DrawingPoint { index, .. }
+        | Source::ObjectGrip {
+            grip: ObjectGrip::Point(index),
+            ..
+        } => (0, Reverse(0), Reverse(*index)),
+        Source::Mark { index, .. } | Source::ObjectMark { index, .. } | Source::Wall(index) => {
+            (1, Reverse(*index), Reverse(0))
+        }
+        _ => (1, Reverse(0), Reverse(0)),
     });
 
     kept
+}
+
+fn bend_number(bend: Bend) -> usize {
+    match bend {
+        Bend::At(n) | Bend::New(n) => n,
+    }
 }
 
 fn shifted(p: Point, by_m: (f64, f64)) -> Point {
@@ -386,7 +399,6 @@ fn copy_mark(
         via: Vec::new(),
         curve: Default::default(),
         arrival: Arrival::Walk,
-        departure: Departure::Stay,
         ..origin
     };
 
@@ -394,6 +406,22 @@ fn copy_mark(
         later.at_s += walk_s;
     }
     marks.insert(index + 1, new);
+    // The figure leaves at the copy, behind the way, not at the mark it was copied from.
+    marks[index].departure = Departure::Stay;
+
+    // Links to the marks behind move on by one, as removing a mark moves them up.
+    for link in &mut scope.plan.links {
+        let LinkTarget::Mark {
+            character: c,
+            index: i,
+        } = &mut link.target
+        else {
+            continue;
+        };
+        if c == character && *i > index {
+            *i += 1;
+        }
+    }
 
     Ok(())
 }

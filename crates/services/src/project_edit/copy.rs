@@ -2,7 +2,6 @@
 
 use klappe_model::Character;
 
-use super::templates::free_name;
 use super::{slug, unique_id, CHARACTER_ID_FALLBACK, MAX_SHORT_CHARS};
 use crate::error::ServiceError;
 
@@ -21,7 +20,7 @@ pub(crate) fn copy_character(
         .cloned()
         .ok_or_else(|| ServiceError::NoCharacter(id.to_owned()))?;
 
-    let name = free_name(characters, without_number(&origin.name));
+    let name = numbered(characters, stem_of(&origin.name));
     let new_id = unique_id(
         &slug(&name, CHARACTER_ID_FALLBACK),
         characters.iter().map(|c| c.id.as_str()),
@@ -38,7 +37,36 @@ pub(crate) fn copy_character(
     Ok(new_id)
 }
 
-/// `text` without the number a copy added: `Anna 2` → `Anna`, `A2` → `A`. A text that is
+/// `name` without a trailing ` 2` (space and number): `Anna 2` → `Anna`; `R2D2` stays.
+fn stem_of(name: &str) -> &str {
+    match name.rsplit_once(' ') {
+        Some((head, tail))
+            if !head.trim().is_empty()
+                && !tail.is_empty()
+                && tail.chars().all(|c| c.is_ascii_digit()) =>
+        {
+            head.trim_end()
+        }
+        _ => name,
+    }
+}
+
+/// `stem 2`, `stem 3` … the first name no character has; compared in capitals, as the cues
+/// are. A copy always carries a number.
+fn numbered(characters: &[Character], stem: &str) -> String {
+    let taken = |name: &str| {
+        characters
+            .iter()
+            .any(|c| c.name.to_uppercase() == name.to_uppercase())
+    };
+
+    (2..)
+        .map(|n| format!("{stem} {n}"))
+        .find(|name| !taken(name))
+        .unwrap_or_default()
+}
+
+/// `text` without the digits a copy added: `A2` → `A`. A text that is
 /// nothing but digits stays as it is.
 fn without_number(text: &str) -> &str {
     let stem = text
@@ -108,6 +136,17 @@ mod tests {
 
         assert_eq!(all.last().unwrap().short, "AN3");
         assert_eq!(all.last().unwrap().name, "Anna 3");
+    }
+
+    #[test]
+    fn a_copy_always_carries_a_number_not_in_use() {
+        let mut all = vec![character("a", "Mann 1", "M1"), character("b", "R2D2", "R")];
+
+        copy_character(&mut all, "a").unwrap();
+        copy_character(&mut all, "b").unwrap();
+
+        assert_eq!(all[2].name, "Mann 2");
+        assert_eq!(all[3].name, "R2D2 2");
     }
 
     #[test]

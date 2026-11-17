@@ -340,3 +340,70 @@ fn a_locked_layer_keeps_its_grips_out_of_the_box() {
 
     assert!(s.pick_grips_in(&burgvogt(), WHOLE.0, WHOLE.1).is_empty());
 }
+
+fn link_indices(s: &Session, character: &str) -> Vec<usize> {
+    use klappe_model::LinkTarget;
+
+    s.plan()
+        .unwrap()
+        .links
+        .iter()
+        .filter_map(|l| match &l.target {
+            LinkTarget::Mark {
+                character: c,
+                index,
+            } if c == character => Some(*index),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn links_to_later_marks_follow_their_marks() {
+    let mut s = open();
+    let before = link_indices(&s, "burgvogt");
+    assert!(before.contains(&1));
+
+    let burg = |index| Source::Mark {
+        character: "burgvogt".into(),
+        index,
+    };
+    copy(&mut s, vec![burg(0)]).unwrap();
+
+    let after = link_indices(&s, "burgvogt");
+    assert_eq!(
+        after,
+        before
+            .iter()
+            .map(|i| if *i > 0 { i + 1 } else { *i })
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn the_grips_of_a_box_are_removed_together() {
+    let mut s = open();
+    two_bends(&mut s);
+    let grips = s.pick_grips_in(&burgvogt(), WHOLE.0, WHOLE.1);
+
+    s.edit_plan(PlanEdit::RemoveGroup { sources: grips })
+        .unwrap();
+
+    assert!(bends(&s).is_empty());
+}
+
+#[test]
+fn a_copied_mark_takes_over_leaving() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::SetDeparture {
+        source: mark(2),
+        departure: klappe_services::Departure::Leave,
+    })
+    .unwrap();
+
+    copy(&mut s, vec![mark(2)]).unwrap();
+
+    let marks = &s.plan().unwrap().figure("elisabeth").unwrap().marks;
+    assert_eq!(marks[2].departure, klappe_services::Departure::Stay);
+    assert_eq!(marks[3].departure, klappe_services::Departure::Leave);
+}
