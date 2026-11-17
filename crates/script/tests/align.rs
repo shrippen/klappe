@@ -177,7 +177,7 @@ fn a_heavily_rewritten_scene_with_number_and_heading_is_offered() {
 }
 
 #[test]
-fn a_rewritten_scene_with_a_reworded_heading_is_not_found() {
+fn a_rewritten_scene_with_a_reworded_heading_keeps_only_the_number() {
     let old = old_of(&three());
     let new = [
         scene(Some("1"), "SAAL", A),
@@ -187,7 +187,8 @@ fn a_rewritten_scene_with_a_reworded_heading_is_not_found() {
     .concat();
     let al = align(&old, &parse(&new));
 
-    assert_eq!(al.old[1], Outcome::NotFound);
+    // The number is all that is left: offered, not taken.
+    assert_eq!(al.old[1], Outcome::Ambiguous(vec![1]));
     assert_eq!(al.unmatched, vec![1]);
 }
 
@@ -398,8 +399,8 @@ fn similar_dialogue_scenes_do_not_steal_the_number() {
     let new = dialogue_scene("2", "KÜCHE", &second);
     let al = align(&old, &parse(&new));
 
-    assert_eq!(al.old[1], matched(0, How::Content));
-    assert_eq!(al.old[0], Outcome::NotFound);
+    // Number and heading say 2, the content says 3: no silent pick, both are asked.
+    assert_eq!(al.old, vec![Outcome::Ambiguous(vec![0]); 2]);
 }
 
 #[test]

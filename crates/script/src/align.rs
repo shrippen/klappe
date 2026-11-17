@@ -1,43 +1,48 @@
 //! Matches the scenes of an old script state to the scenes of a new one (DB-65).
 //!
 //! The old state is what was saved: number, heading and a short fingerprint per element
-//! ([`SceneState`]). The new state is a parsed [`Script`]. Per old scene:
+//! ([`SceneState`]). The new state is a parsed [`Script`].
 //!
-//! 1. The number is a candidate. A new scene with that number is the match if its content
-//!    is similar ([`CONFIRM_MIN`]) or, failing that, its heading is equal and the content
-//!    did not turn up in another scene.
-//! 2. Otherwise the content is searched among the new scenes no number claimed. One
-//!    scene at or above [`MATCH_MIN`] is the match; several, or only weak ones above
-//!    [`CANDIDATE_MIN`], are ambiguous.
-//! 3. Nothing similar: not found.
+//! Every old × new pair gets a score: the content similarity (Dice coefficient of the
+//! fingerprint multisets, `2·shared / (a + b)`: 1 for equal content, independent of
+//! order) plus small bonuses for the same number ([`NUMBER_BONUS`]) and the same heading
+//! ([`HEADING_BONUS`]). A pair is accepted only if
 //!
-//! Anything that is not unique is ambiguous, never guessed (DATENMODELL principle 6).
+//! - its score is at least [`ACCEPT_MIN`],
+//! - it is the best of its row and of its column, and
+//! - it leads the second best of its row and of its column by [`LEAD_MIN`].
 //!
-//! Similarity is the Dice coefficient of the fingerprint multisets, `2·shared / (a + b)`:
-//! 1 for equal content, deterministic, independent of order (a moved paragraph still
-//! counts) and cheap. Thresholds, chosen on the tests' cases:
+//! So a neighbour that was deleted, inserted or renumbered cannot take a number, and a
+//! near-twin makes the answer ambiguous: never guess (DATENMODELL principle 6). Every
+//! other old scene gets the new scenes with a score of at least [`CANDIDATE_MIN`],
+//! best first, as [`Outcome::Ambiguous`], except scenes another old scene was accepted
+//! for; with none left it is [`Outcome::NotFound`].
 //!
-//! - `CONFIRM_MIN` 0.6: a scene cut in half keeps 0.67 against each half, a scene with a
-//!   third of its lines rewritten stays above; unrelated scenes sit near 0.
-//! - `MATCH_MIN` 0.8: without the number's help, only a scene that is nearly unchanged
-//!   counts as a unique match; a copy or twin then shows up as a second candidate.
-//! - `CANDIDATE_MIN` 0.3: below, a "similar" scene is a coincidence of common lines
-//!   ("Ja.") and not worth the user's question.
+//! Numbers and headings never suffice alone: the bonuses together (0.4) stay below
+//! `ACCEPT_MIN`; with number and heading equal and the content gone, the new scene is
+//! offered as the single candidate. A scene without elements has no content to compare;
+//! two of them count as equal if their headings are, so unchanged heading-only scenes
+//! still match.
+//!
+//! Thresholds, chosen on the tests' cases:
+//!
+//! - `ACCEPT_MIN` 0.8: unnumbered scenes need nearly unchanged content; with number
+//!   (0.3) and heading (0.1) half the content may have changed.
+//! - `LEAD_MIN` 0.25: 0.8 against 0.6 is ambiguous; it is above `NUMBER_BONUS`, which
+//!   alone separates two identical scenes with different numbers (1.4 against 1.1).
+//! - `CANDIDATE_MIN` 0.4: a scene cut in half scores 0.67 against each half; below
+//!   0.4 a "similar" scene is a coincidence of common lines ("Ja.").
 
-use std::collections::HashMap;
-
-use crate::text::normal;
+use crate::text::{hash, normal};
 use crate::{Element, SceneView, Script};
 
-const CONFIRM_MIN: f64 = 0.6;
-const MATCH_MIN: f64 = 0.8;
-const CANDIDATE_MIN: f64 = 0.3;
+const ACCEPT_MIN: f64 = 0.8;
+const LEAD_MIN: f64 = 0.25;
+const NUMBER_BONUS: f64 = 0.3;
+const HEADING_BONUS: f64 = 0.1;
+const CANDIDATE_MIN: f64 = NUMBER_BONUS + HEADING_BONUS;
 
-const FNV_OFFSET: u32 = 0x811c_9dc5;
-const FNV_PRIME: u32 = 0x0100_0193;
-
-/// Hash of one element's kind and normalised text. FNV-1a, so the value is the same on
-/// every machine and release and can be saved.
+/// Hash of one element's kind and normalised text (FNV-1a, stable, can be saved).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Fingerprint(pub u32);
 
@@ -68,9 +73,9 @@ pub fn scene_states(script: &Script) -> Vec<SceneState> {
 /// How an old scene was found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum How {
-    /// Same number, confirmed by heading or content.
+    /// Both have the same number.
     Number,
-    /// Found by content alone.
+    /// The numbers differ or are missing.
     Content,
 }
 
@@ -81,7 +86,7 @@ pub enum Outcome {
         scene: usize,
         how: How,
     },
-    /// Several or only weak candidates, best first.
+    /// Candidates, best first; one candidate means "probably, please confirm".
     Ambiguous(Vec<usize>),
     NotFound,
 }
@@ -97,27 +102,35 @@ pub struct Alignment {
 /// Matches the old scenes to the scenes of `new`.
 pub fn align(old: &[SceneState], new: &Script) -> Alignment {
     let new = scene_states(new);
-    let ctx = Ctx::new(old, &new);
+    let scores = scores(old, &new);
+    let rows: Vec<Lead> = scores.iter().map(|r| Lead::of(r)).collect();
+    let cols: Vec<Lead> = (0..new.len())
+        .map(|n| Lead::of(&scores.iter().map(|r| r[n]).collect::<Vec<_>>()))
+        .collect();
 
-    let mut outcomes: Vec<Option<Outcome>> = (0..old.len()).map(|i| ctx.by_number(i)).collect();
-    let claimed = claimed(&outcomes);
-    for (i, outcome) in outcomes.iter_mut().enumerate() {
-        if outcome.is_none() {
-            *outcome = Some(ctx.by_content(i, &claimed));
-        }
-    }
-
-    let mut old_out: Vec<Outcome> = outcomes.into_iter().flatten().collect();
-    split_shared(&mut old_out);
-
-    let taken: Vec<usize> = old_out
-        .iter()
-        .filter_map(|o| match o {
-            Outcome::Matched { scene, .. } => Some(*scene),
-            _ => None,
+    // Accepted pairs: best and clear leader in row and column, score high enough.
+    let accepted: Vec<Option<usize>> = (0..old.len())
+        .map(|o| {
+            let n = rows[o].best?;
+            let sure = scores[o][n] >= ACCEPT_MIN
+                && rows[o].lead >= LEAD_MIN
+                && cols[n].best == Some(o)
+                && cols[n].lead >= LEAD_MIN;
+            sure.then_some(n)
         })
         .collect();
-    let unmatched = (0..new.len()).filter(|i| !taken.contains(i)).collect();
+    let taken: Vec<usize> = accepted.iter().flatten().copied().collect();
+
+    let old_out = (0..old.len())
+        .map(|o| match accepted[o] {
+            Some(n) => Outcome::Matched {
+                scene: n,
+                how: how(&old[o], &new[n]),
+            },
+            None => offer(&scores[o], &taken),
+        })
+        .collect();
+    let unmatched = (0..new.len()).filter(|n| !taken.contains(n)).collect();
 
     Alignment {
         old: old_out,
@@ -125,126 +138,92 @@ pub fn align(old: &[SceneState], new: &Script) -> Alignment {
     }
 }
 
-struct Ctx<'a> {
-    old: &'a [SceneState],
-    new: &'a [SceneState],
-    /// `sims[o][n]`: similarity of old scene `o` and new scene `n`.
-    sims: Vec<Vec<f64>>,
+/// Best entry of a row or column and its lead over the second best (the whole value if
+/// it is the only one; 0 on a tie).
+struct Lead {
+    best: Option<usize>,
+    lead: f64,
 }
 
-impl<'a> Ctx<'a> {
-    fn new(old: &'a [SceneState], new: &'a [SceneState]) -> Ctx<'a> {
-        let old_sorted: Vec<Vec<Fingerprint>> = old.iter().map(sorted).collect();
-        let new_sorted: Vec<Vec<Fingerprint>> = new.iter().map(sorted).collect();
-        let sims = old_sorted
-            .iter()
-            .map(|o| new_sorted.iter().map(|n| dice(o, n)).collect())
-            .collect();
-        Ctx { old, new, sims }
-    }
-
-    /// Step 1: the scene with the old number, if heading or content confirm it.
-    fn by_number(&self, o: usize) -> Option<Outcome> {
-        let number = self.old[o].number.as_ref()?;
-        let same: Vec<usize> = (0..self.new.len())
-            .filter(|&n| self.new[n].number.as_ref() == Some(number))
-            .collect();
-
-        let by_content: Vec<usize> = same
-            .iter()
-            .copied()
-            .filter(|&n| self.sims[o][n] >= CONFIRM_MIN)
-            .collect();
-        if !by_content.is_empty() {
-            return Some(number_outcome(by_content));
+impl Lead {
+    fn of(values: &[f64]) -> Lead {
+        let mut best: Option<usize> = None;
+        for (i, v) in values.iter().enumerate() {
+            if best.is_none_or(|b| *v > values[b]) {
+                best = Some(i);
+            }
         }
-
-        // The content may have moved to another scene; then the heading proves nothing.
-        let moved = self.sims[o].iter().any(|&s| s >= MATCH_MIN);
-        if moved {
-            return None;
-        }
-        let by_heading: Vec<usize> = same
-            .into_iter()
-            .filter(|&n| same_heading(&self.old[o], &self.new[n]))
-            .collect();
-        if by_heading.is_empty() {
-            return None;
-        }
-        Some(number_outcome(by_heading))
-    }
-
-    /// Step 2 and 3: search by content among the scenes no number claimed.
-    fn by_content(&self, o: usize, claimed: &[usize]) -> Outcome {
-        let mut found: Vec<(usize, f64)> = (0..self.new.len())
-            .filter(|n| !claimed.contains(n))
-            .map(|n| (n, self.sims[o][n]))
-            .filter(|&(_, s)| s >= CANDIDATE_MIN)
-            .collect();
-        found.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
-
-        let strong: Vec<usize> = found
-            .iter()
-            .filter(|&&(_, s)| s >= MATCH_MIN)
-            .map(|&(n, _)| n)
-            .collect();
-        match (strong.len(), found.len()) {
-            (_, 0) => Outcome::NotFound,
-            (1, _) => Outcome::Matched {
-                scene: strong[0],
-                how: How::Content,
-            },
-            (0, _) => Outcome::Ambiguous(found.iter().map(|f| f.0).collect()),
-            _ => Outcome::Ambiguous(strong),
-        }
-    }
-}
-
-fn number_outcome(mut scenes: Vec<usize>) -> Outcome {
-    if scenes.len() == 1 {
-        return Outcome::Matched {
-            scene: scenes[0],
-            how: How::Number,
+        let Some(b) = best else {
+            return Lead { best, lead: 0.0 };
         };
+
+        let second = values
+            .iter()
+            .enumerate()
+            .filter(|&(i, _)| i != b)
+            .map(|(_, v)| *v)
+            .fold(0.0, f64::max);
+        Lead {
+            best,
+            lead: values[b] - second,
+        }
     }
-    scenes.sort_unstable();
-    Outcome::Ambiguous(scenes)
 }
 
-fn same_heading(a: &SceneState, b: &SceneState) -> bool {
-    match (&a.heading, &b.heading) {
-        (Some(x), Some(y)) => normal(x) == normal(y),
-        _ => false,
+/// Not accepted: the new scenes worth asking about, unless another old scene has them.
+fn offer(row: &[f64], taken: &[usize]) -> Outcome {
+    let mut found: Vec<usize> = (0..row.len())
+        .filter(|n| row[*n] >= CANDIDATE_MIN && !taken.contains(n))
+        .collect();
+    if found.is_empty() {
+        return Outcome::NotFound;
+    }
+
+    found.sort_by(|a, b| row[*b].total_cmp(&row[*a]).then(a.cmp(b)));
+    Outcome::Ambiguous(found)
+}
+
+fn how(old: &SceneState, new: &SceneState) -> How {
+    match (&old.number, &new.number) {
+        (Some(a), Some(b)) if a == b => How::Number,
+        _ => How::Content,
     }
 }
 
-fn claimed(outcomes: &[Option<Outcome>]) -> Vec<usize> {
-    outcomes
-        .iter()
-        .filter_map(|o| match o {
-            Some(Outcome::Matched { scene, .. }) => Some(*scene),
-            _ => None,
+/// `scores[o][n]`: content similarity plus the bonuses.
+fn scores(old: &[SceneState], new: &[SceneState]) -> Vec<Vec<f64>> {
+    let old_sorted: Vec<Vec<Fingerprint>> = old.iter().map(sorted).collect();
+    let new_sorted: Vec<Vec<Fingerprint>> = new.iter().map(sorted).collect();
+    let old_heads: Vec<Option<String>> = old.iter().map(heading).collect();
+    let new_heads: Vec<Option<String>> = new.iter().map(heading).collect();
+
+    old.iter()
+        .enumerate()
+        .map(|(o, a)| {
+            new.iter()
+                .enumerate()
+                .map(|(n, b)| {
+                    let same_head = old_heads[o].is_some() && old_heads[o] == new_heads[n];
+                    score(a, b, same_head, dice(&old_sorted[o], &new_sorted[n]))
+                })
+                .collect()
         })
         .collect()
 }
 
-/// Two old scenes that found the same new scene (an old twin, a split) are both unsure.
-fn split_shared(outcomes: &mut [Outcome]) {
-    let mut count: HashMap<usize, usize> = HashMap::new();
-    for o in outcomes.iter() {
-        if let Outcome::Matched { scene, .. } = o {
-            *count.entry(*scene).or_default() += 1;
-        }
-    }
+fn heading(state: &SceneState) -> Option<String> {
+    state.heading.as_deref().map(normal)
+}
 
-    for o in outcomes.iter_mut() {
-        let Outcome::Matched { scene, .. } = o else {
-            continue;
-        };
-        if count[scene] > 1 {
-            *o = Outcome::Ambiguous(vec![*scene]);
-        }
-    }
+fn score(old: &SceneState, new: &SceneState, same_head: bool, content: f64) -> f64 {
+    let same_number = old.number.is_some() && old.number == new.number;
+
+    // Two scenes without elements have no content to differ in.
+    let empty = old.prints.is_empty() && new.prints.is_empty();
+    let base = if empty && same_head { 1.0 } else { content };
+
+    base + if same_number { NUMBER_BONUS } else { 0.0 }
+        + if same_head { HEADING_BONUS } else { 0.0 }
 }
 
 /// Fingerprint of an element, `None` for those that are not script text (notes, page
@@ -260,12 +239,7 @@ fn print(el: &Element) -> Option<Fingerprint> {
         Element::Lyrics(t) => (7, t),
         _ => return None,
     };
-
-    let mut hash = FNV_OFFSET;
-    for byte in std::iter::once(tag).chain(normal(text).bytes()) {
-        hash = (hash ^ u32::from(byte)).wrapping_mul(FNV_PRIME);
-    }
-    Some(Fingerprint(hash))
+    Some(Fingerprint(hash(tag, text)))
 }
 
 fn sorted(state: &SceneState) -> Vec<Fingerprint> {

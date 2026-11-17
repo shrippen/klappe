@@ -1,14 +1,24 @@
 //! Quote anchors (DB-64): a line of a scene named by its content, so a link survives
 //! lines inserted before it.
+//!
+//! A [`Quote`] holds the line, how many equal lines the scene had and the fingerprints of
+//! the elements next to it. Lookup: the exact line; if the scene still has as many equal
+//! lines, the occurrence decides; if the number changed, the equal line whose neighbours
+//! match (uniquely) does; else the clearly most similar line of the same kind, neighbours
+//! breaking ties; else the candidates. Case, spacing and dash variants (`–`, `—`, `-`)
+//! do not matter.
 
-use crate::text::{normal, words};
+use crate::text::{hash, normal, words};
 use crate::Element;
+use crate::Fingerprint;
 
 /// Words in common over words in all (Jaccard) from which a line counts as similar:
 /// 0.6 survives a fixed typo or one changed word in a sentence of five.
 const SIMILAR_MIN: f64 = 0.6;
 /// A best candidate needs this lead over the next to be taken without asking.
 const LEAD_MIN: f64 = 0.15;
+/// The elements before and after a line.
+const NEIGHBOURS: usize = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LineKind {
@@ -33,6 +43,11 @@ pub struct Quote {
     pub text: String,
     /// Among the lines of the scene equal in kind, speaker and text, from 0.
     pub occurrence: usize,
+    /// How many equal lines the scene had when the quote was made.
+    pub equal: usize,
+    /// The elements before and after (`None` at the scene's edge or at a page break).
+    pub before: Option<Fingerprint>,
+    pub after: Option<Fingerprint>,
 }
 
 /// Where a quote is in a scene (indices into the scene's elements).
@@ -47,16 +62,19 @@ pub enum Found {
 /// The quote of `scene[index]`; `None` for a page break or a scene heading.
 pub fn quote_at(scene: &[Element], index: usize) -> Option<Quote> {
     let line = line(scene, index)?;
-    let occurrence = (0..index)
-        .filter_map(|i| self::line(scene, i))
-        .filter(|l| l.same(&line))
-        .count();
+    let equal_at: Vec<usize> = (0..scene.len())
+        .filter(|&i| self::line(scene, i).is_some_and(|l| l.same(&line)))
+        .collect();
+    let occurrence = equal_at.iter().filter(|&&i| i < index).count();
 
     Some(Quote {
         kind: line.kind,
         character: line.character,
         text: line.text,
         occurrence,
+        equal: equal_at.len(),
+        before: index.checked_sub(1).and_then(|i| print(scene, i)),
+        after: print(scene, index + 1),
     })
 }
 
@@ -73,17 +91,45 @@ pub fn find_quote(scene: &[Element], quote: &Quote) -> Found {
         .filter(|(_, l)| l.same(&wanted))
         .map(|&(i, _)| i)
         .collect();
-    match equal.len() {
-        0 => {}
-        n if quote.occurrence < n => return Found::At(equal[quote.occurrence]),
-        _ => return Found::Ambiguous(equal),
+    if equal.is_empty() {
+        return similar(scene, &lines, quote);
+    }
+    if equal.len() == quote.equal {
+        return Found::At(equal[quote.occurrence.min(equal.len() - 1)]);
     }
 
-    similar(&lines, &wanted)
+    // The number of equal lines changed: only the neighbours tell which one it was.
+    match by_neighbours(scene, &equal, quote) {
+        Some(i) => Found::At(i),
+        None => Found::Ambiguous(equal),
+    }
+}
+
+/// How many of the stored neighbours the element at `i` has.
+fn near(scene: &[Element], i: usize, quote: &Quote) -> usize {
+    let before = i.checked_sub(1).and_then(|b| print(scene, b));
+    usize::from(before == quote.before) + usize::from(print(scene, i + 1) == quote.after)
+}
+
+/// The one of `candidates` with more matching neighbours than any other (at least one);
+/// a lone candidate needs both.
+fn by_neighbours(scene: &[Element], candidates: &[usize], quote: &Quote) -> Option<usize> {
+    let mut rated: Vec<(usize, usize)> = candidates
+        .iter()
+        .map(|&i| (i, near(scene, i, quote)))
+        .collect();
+    rated.sort_by_key(|r| std::cmp::Reverse(r.1));
+
+    match rated.as_slice() {
+        [(i, n)] if *n == NEIGHBOURS => Some(*i),
+        [(i, n), (_, next), ..] if n > next && *n > 0 => Some(*i),
+        _ => None,
+    }
 }
 
 /// Most similar line of the same kind, preferring the same speaker.
-fn similar(lines: &[(usize, Line)], wanted: &Line) -> Found {
+fn similar(scene: &[Element], lines: &[(usize, Line)], quote: &Quote) -> Found {
+    let wanted = Line::of(quote);
     let mut pool: Vec<&(usize, Line)> = lines
         .iter()
         .filter(|(_, l)| l.kind == wanted.kind)
@@ -101,11 +147,22 @@ fn similar(lines: &[(usize, Line)], wanted: &Line) -> Found {
         .collect();
     scored.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
 
-    match scored.as_slice() {
-        [] => Found::Missing,
-        [(i, _)] => Found::At(*i),
-        [(i, best), (_, next), ..] if best - next >= LEAD_MIN => Found::At(*i),
-        all => Found::Ambiguous(all.iter().map(|a| a.0).collect()),
+    let Some(&(best_at, best)) = scored.first() else {
+        return Found::Missing;
+    };
+
+    // Everything within the lead of the best is a rival; one rival is the answer.
+    let rivals: Vec<usize> = scored
+        .iter()
+        .filter(|&&(_, s)| best - s < LEAD_MIN)
+        .map(|&(i, _)| i)
+        .collect();
+    if rivals.len() == 1 {
+        return Found::At(best_at);
+    }
+    match by_neighbours(scene, &rivals, quote) {
+        Some(i) => Found::At(i),
+        None => Found::Ambiguous(scored.iter().map(|a| a.0).collect()),
     }
 }
 
@@ -162,6 +219,12 @@ fn speaker(scene: &[Element], index: usize) -> Option<String> {
         Element::Parenthetical(_) | Element::Dialogue(_) => None,
         _ => Some(None),
     })?
+}
+
+/// Fingerprint of the element at `index`, if it is a line.
+fn print(scene: &[Element], index: usize) -> Option<Fingerprint> {
+    let l = line(scene, index)?;
+    Some(Fingerprint(hash(l.kind as u8, &l.text)))
 }
 
 fn jaccard(a: &[String], b: &[String]) -> f64 {
