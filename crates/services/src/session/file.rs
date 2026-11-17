@@ -144,7 +144,8 @@ impl Session {
         Ok(())
     }
 
-    /// Writes the screenplay and the register file (not the plans); every other file of the folder stays as it is on disk.
+    /// Writes the screenplay and the register file `szenen.toml`, not the scene files with
+    /// the plans; every other file of the folder stays as it is on disk.
     /// The backup then no longer holds the screenplay as unsaved work: it is removed if only
     /// the screenplay was unsaved, else rewritten with the saved screenplay. An unanswered
     /// backup (`Found`, `Unreadable`) stays for the user to decide.

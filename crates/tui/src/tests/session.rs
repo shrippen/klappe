@@ -238,11 +238,14 @@ fn an_orphan_scene_file_is_told_on_the_status_line() {
 fn saving_writes_the_register_too() {
     let scratch = Scratch::new("INT. A - TAG\n\nx");
     let register = scratch.dir.join("szenen.toml");
-    fs::remove_file(&register).unwrap_or_else(|e| unreachable!("{e}"));
     let mut app = scratch.app();
+    // The file on disk falls behind the register the session holds.
+    fs::write(&register, "").unwrap_or_else(|e| unreachable!("{e}"));
     typed(&mut app, "neu ");
 
     ctrl(&mut app, 's');
 
-    assert!(register.exists(), "szenen.toml is written with the book");
+    let text = fs::read_to_string(&register).unwrap_or_default();
+    assert!(text.contains("number = \"12\""), "{text}");
+    assert!(text.contains("INT. SÄNGERSAAL – TAG"), "{text}");
 }
