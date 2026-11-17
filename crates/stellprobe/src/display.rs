@@ -9,6 +9,7 @@ use crate::figure::{body_radius_m, group_dots, GROUP_DOT_RADIUS_M, GROUP_RADIUS_
 use crate::light::{lamps, light_items, Lamp};
 use crate::motion::{camera_at, figure_at, path, walked_ways};
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
+use crate::prop::set_at;
 use crate::rig::{rig_dash, rig_runs};
 
 mod handles;
@@ -22,7 +23,7 @@ pub use handles::{
 use images::image_items;
 pub use objects::label_point;
 pub(crate) use objects::object_corners;
-use objects::set_items;
+use objects::{set_items, track_items};
 
 /// What the GUI draws and the export writes, back to front, in metres (planung/KONZEPT.md,
 /// section 4). Colours are roles; the GUI maps them to Kante.
@@ -151,6 +152,7 @@ impl Source {
             | Source::Camera(_)
             | Source::Figure(_)
             | Source::Mark { .. }
+            | Source::ObjectMark { .. }
             | Source::FigureVia { .. }
             | Source::CameraVia { .. }
             | Source::Wall(_)
@@ -186,6 +188,11 @@ pub enum Source {
     Figure(String),
     Mark {
         character: String,
+        index: usize,
+    },
+    /// Mark `index` of a set object's track (LH-24).
+    ObjectMark {
+        object: String,
         index: usize,
     },
     /// A grip on the way to mark `index` of a character's track (LH-21).
@@ -281,6 +288,7 @@ pub fn render(
 ) -> DisplayList {
     let mut items = Vec::new();
     let reach_m = set_diagonal_m(set).unwrap_or(VIEW_REACH_FALLBACK_M);
+    let set = &*set_at(set, plan, t_s);
 
     if let Some(background) = &set.background {
         if let Some(px) = image_px(&background.file) {
@@ -289,6 +297,7 @@ pub fn render(
     }
     image_items(set, image_px, &mut items);
     set_items(set, &mut items);
+    track_items(set, plan, &mut items);
     drawing_items(plan, &mut items);
     light_items(plan, &mut items);
     axis_items(plan, t_s, reach_m, &mut items);

@@ -8,6 +8,7 @@ use klappe_stellprobe::Source;
 
 use super::bound;
 use super::images;
+use super::props;
 use super::target::{target, Target};
 use super::{
     anchor_pair, carry_cameras, figure_mark, free_id, free_letter, move_to, points_mut, remove,
@@ -202,6 +203,7 @@ fn removable(sources: &[Source]) -> Vec<Source> {
     let members = distinct(sources);
     let gone_figure = |character: &str| members.contains(&Source::Figure(character.to_owned()));
     let gone_camera = |id: &str| members.contains(&Source::Camera(id.to_owned()));
+    let gone_object = |id: &str| members.contains(&Source::Object(id.to_owned()));
 
     let mut kept: Vec<Source> = members
         .iter()
@@ -210,6 +212,7 @@ fn removable(sources: &[Source]) -> Vec<Source> {
                 !gone_figure(character)
             }
             Source::CameraVia { camera, .. } => !gone_camera(camera),
+            Source::ObjectMark { object, .. } => !gone_object(object),
             _ => true,
         })
         .cloned()
@@ -219,7 +222,9 @@ fn removable(sources: &[Source]) -> Vec<Source> {
         Source::FigureVia { index, .. }
         | Source::CameraVia { index, .. }
         | Source::Opening { index, .. } => (0, Reverse(*index)),
-        Source::Mark { index, .. } | Source::Wall(index) => (1, Reverse(*index)),
+        Source::Mark { index, .. } | Source::ObjectMark { index, .. } | Source::Wall(index) => {
+            (1, Reverse(*index))
+        }
         _ => (1, Reverse(0)),
     });
 
@@ -233,6 +238,7 @@ fn shifted(p: Point, by_m: (f64, f64)) -> Point {
 fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copied, ServiceError> {
     match source {
         Source::Object(id) => {
+            let shown = props::shown(scope.plan, id, scope.time_s);
             let set = scope.set.as_deref_mut().ok_or(ServiceError::Gone)?;
             let mut object = set
                 .objects
@@ -241,7 +247,8 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
                 .cloned()
                 .ok_or(ServiceError::Gone)?;
 
-            object.id = free_id("o", set.objects.iter().map(|o| o.id.as_str()));
+            props::put_at(&mut object, shown);
+            object.id = props::free_object_id(set, scope.tracked);
             object.at = shifted(object.at, by_m);
             set.objects.push(object);
         }

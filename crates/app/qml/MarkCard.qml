@@ -46,6 +46,10 @@ ColumnLayout {
     }
     readonly property bool isFigure: info !== null && info.kind === "figure"
     readonly property bool isCamera: info !== null && info.kind === "camera"
+    readonly property bool isObject: info !== null && info.kind === "object"
+    /// The plan's figures: who can carry an object.
+    readonly property var carriers: card.controller.tracksJson
+        ? JSON.parse(card.controller.tracksJson).filter(t => t.kind === "figure") : []
     readonly property bool shown: info !== null
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: holdField.typing || heightField.typing
@@ -72,6 +76,9 @@ ColumnLayout {
         card.shownPace = info.pace === null ? "" : texts.num(info.pace, 1)
         if (!paceField.typing) {
             paceField.text = card.shownPace
+        }
+        if (card.isObject) {
+            carrierChoice.currentIndex = 1 + card.carriers.findIndex(f => f.id === info.carriedBy)
         }
         if (!card.isCamera) {
             return
@@ -192,6 +199,30 @@ ColumnLayout {
             text: card.texts.t("pace.run")
             onClicked: card.setPace("run")
             QQC2.ToolTip.text: card.texts.t("mark.paceTip")
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        }
+    }
+
+    // An object's mark: the figure that carries it from here to its next mark (LH-24).
+    RowLayout {
+        objectName: "carrierRow"
+        visible: card.isObject
+        spacing: Kirigami.Units.smallSpacing
+
+        KanteSectionLabel { text: card.texts.t("mark.carrier") }
+        KanteComboBox {
+            id: carrierChoice
+            objectName: "carrierChoice"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 9
+            model: [card.texts.t("carrier.none")].concat(card.carriers.map(f => f.name))
+            onActivated: index => {
+                const id = index === 0 ? "" : card.carriers[index - 1].id
+                if (!card.controller.setMarkCarrier(id)) {
+                    card.fill()
+                }
+            }
+            QQC2.ToolTip.text: card.texts.t("mark.carrierTip")
             QQC2.ToolTip.visible: hovered
             QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
         }

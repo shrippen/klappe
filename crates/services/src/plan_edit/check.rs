@@ -17,6 +17,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::AddMark { at, .. }
         | PlanEdit::AddMarkBefore { at, .. }
         | PlanEdit::AddCameraMark { at, .. }
+        | PlanEdit::AddObjectMark { at, .. }
         | PlanEdit::AddLight { at, .. }
         | PlanEdit::AddObject { at, .. }
         | PlanEdit::AddOpening { at, .. }
@@ -76,6 +77,7 @@ pub(super) fn check(edit: &PlanEdit) -> Result<(), ServiceError> {
         | PlanEdit::SetPose { .. }
         | PlanEdit::SetArrival { .. }
         | PlanEdit::SetDeparture { .. }
+        | PlanEdit::SetCarrier { .. }
         | PlanEdit::SetRig { .. }
         | PlanEdit::SetPace { .. }
         | PlanEdit::SetCurve { .. }

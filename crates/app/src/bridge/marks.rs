@@ -86,6 +86,15 @@ impl qobject::Controller {
         self.commit_typed(typed)
     }
 
+    pub(super) fn set_mark_carrier(self: Pin<&mut Self>, figure: &QString) -> bool {
+        let selected = self.rust().selected.only();
+        let Some(edit) = mark::carrier_edit(selected, &figure.to_string()) else {
+            return false;
+        };
+
+        self.commit_edit(edit)
+    }
+
     pub(super) fn set_mark_rig(self: Pin<&mut Self>, rig: &QString) -> bool {
         let selected = self.rust().selected.only();
         let Some(edit) = mark::rig_edit(selected, &rig.to_string()) else {
@@ -120,6 +129,7 @@ fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
     };
     let kind = match selected {
         Source::Camera(_) => "camera",
+        Source::Object(_) | Source::ObjectMark { .. } => "object",
         _ => "figure",
     };
 
@@ -136,6 +146,7 @@ fn mark_json(s: &Session, selected: Option<&Source>) -> serde_json::Value {
         "rig": info.rig.map(Rig::name).unwrap_or_default(),
         "lens": info.lens_mm,
         "curve": info.curve.map(Curve::name).unwrap_or_default(),
+        "carriedBy": info.carried_by,
     })
 }
 
