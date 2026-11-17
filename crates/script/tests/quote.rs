@@ -317,3 +317,14 @@ fn a_cue_never_pairs_on_its_name_alone() {
     assert_eq!(q.kind, LineKind::Character);
     assert_eq!(find_in(&old, &new, &q), Found::Missing);
 }
+
+#[test]
+fn a_cue_is_never_assigned_by_its_name_when_the_neighbours_cross() {
+    // Round 5: the neighbours of BEN's cue swapped places, so the search falls back to
+    // equal lines; the name BEN alone must not decide.
+    let old = scene("Anna kommt herein.\n\nBEN\nHallo.\n\nSie setzt sich.\n\nANNA\nDanke.\n");
+    let new = scene("Sie setzt sich.\n\nAnna kommt herein.\n\nANNA\nDanke.\n\nBEN\nTschüss.\n");
+    let q = quote_at(&old, 1).unwrap();
+
+    assert_eq!(find_in(&old, &new, &q), Found::Ambiguous(vec![4]));
+}
