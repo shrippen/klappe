@@ -86,18 +86,48 @@ fn merged(old: Vec<(String, String)>, fields: &[(String, String)]) -> Vec<(Strin
     pairs
 }
 
+const BONEYARD_OPEN: &str = "/*";
+const BONEYARD_CLOSE: &str = "*/";
+
+/// The `/* … */` comments in `text`, each as written; an unclosed one runs to the end.
+fn boneyards(text: &str) -> Vec<&str> {
+    let mut found = Vec::new();
+    let mut rest = text;
+
+    while let Some(open) = rest.find(BONEYARD_OPEN) {
+        let from = &rest[open..];
+        let len = from[BONEYARD_OPEN.len()..]
+            .find(BONEYARD_CLOSE)
+            .map_or(from.len(), |at| {
+                at + BONEYARD_OPEN.len() + BONEYARD_CLOSE.len()
+            });
+        found.push(&from[..len]);
+        rest = &from[len..];
+    }
+
+    found
+}
+
 /// The text with the form's keys of the title page set to `fields`. The rest of the text,
-/// body and other title keys, stays as it is (a boneyard inside the old title page goes, one before it stays); a text without title page gets one.
+/// body and other title keys, stays as it is (a boneyard in or before the old title page stays above the page); a text without title page gets one.
 pub fn set_title_fields(text: &str, fields: &[(String, String)]) -> String {
     let old = parse(text).title_page;
     let pairs = merged(old, fields);
 
     // What stands before the title page (a boneyard) stays; the page ends where the reader
-    // says. A comment inside the old page goes with it.
+    // says. Comments inside the old page move above it.
     let text = text.replace("\r\n", "\n").replace('\r', "\n");
     let lines: Vec<&str> = text.split('\n').collect();
     let (start, end) = title_page_span(&text).unwrap_or((0, 0));
-    let head = lines[..start.min(lines.len())].join("\n");
+    let mut head = lines[..start.min(lines.len())].join("\n");
+    // Comments in the lines the page takes are not part of it: they go above the page.
+    let inside = lines[start.min(lines.len())..end.min(lines.len())].join("\n");
+    for comment in boneyards(&inside) {
+        head = match head.is_empty() {
+            true => comment.to_owned(),
+            false => format!("{head}\n{comment}"),
+        };
+    }
     let rest = lines[end.min(lines.len())..].join("\n");
     let rest = rest.trim_start_matches('\n');
     let head = match head.is_empty() {
@@ -220,5 +250,21 @@ mod tests {
         assert_eq!(parse(&new).elements, parse(BODY).elements);
         assert_eq!(new.matches("Title:").count(), 1, "{new}");
         assert!(new.starts_with("/* weg */\nTitle: Neu\n\n"), "{new}");
+    }
+
+    #[test]
+    fn a_boneyard_in_or_ending_on_the_title_lines_stays() {
+        for text in [
+            format!("/* c\n*/Title: Alt\n\n{BODY}"),
+            format!("Title: Alt /* c */\n\n{BODY}"),
+            format!("Title: Alt\nAuthor: A /* c */\n\n{BODY}"),
+        ] {
+            let new = set_title_fields(&text, &fields(&[("Title", "Neu")]));
+
+            assert!(new.contains("/* c"), "{new}");
+            assert_eq!(new.matches("Title:").count(), 1, "{new}");
+            assert_eq!(title_fields(&new)[0].1, "Neu", "{new}");
+            assert_eq!(parse(&new).elements, parse(BODY).elements, "{new}");
+        }
     }
 }

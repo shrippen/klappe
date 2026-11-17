@@ -94,7 +94,9 @@ pub(crate) fn title_page_span(text: &str) -> Option<(usize, usize)> {
     let first = text[..leading].matches('\n').count();
     let total = origin.last().map_or(0, |last| last + 1);
     let start = origin.get(first).copied().unwrap_or(total);
-    let end = origin.get(skipped).map_or(total, |line| line + 1);
+    // The end is where the next line of the reader's text starts, so a boneyard that ends
+    // on the last title line is inside the span.
+    let end = origin.get(skipped + 1).copied().unwrap_or(total);
 
     Some((start, end))
 }
