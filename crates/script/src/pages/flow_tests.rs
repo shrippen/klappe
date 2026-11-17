@@ -388,3 +388,27 @@ fn a_row_cut_dual_dialogue_carries_more_and_contd() {
         .collect();
     assert_eq!(names, ["ANNA (CONT'D)"]);
 }
+
+/// Both ways of breaking a dialogue put `(MORE)` under the name, also for a dual speaker
+/// standing alone (name in column 6).
+#[test]
+fn more_stands_under_the_name_for_both_cuts() {
+    let lines: Vec<String> = (0..70).map(|i| format!("line {i}")).collect();
+    let rows = lay(&format!("ANNA\n{}\n", lines.join("\n")), 59);
+    let sentences: Vec<String> = (0..70).map(|i| format!("Line {i}.")).collect();
+    let cut = lay(&format!("ANNA\n{}\n", sentences.join("\n")), 59);
+
+    let lone = lay(&format!("BOB ^\n{}\n", sentences.join("\n")), 59);
+    let lone_rows = lay(&format!("BOB ^\n{}\n", lines.join("\n")), 59);
+
+    for p in [rows, cut, lone, lone_rows] {
+        let name = p.pages[0]
+            .lines
+            .iter()
+            .find(|l| l.kind == PageKind::Character);
+        let more = p.pages[0].lines.iter().find(|l| l.kind == PageKind::More);
+        let (name, more) = (name.expect("name"), more.expect("more"));
+        assert_eq!((more.x, more.text.as_str()), (name.x, "(MORE)"));
+        assert!(more.added);
+    }
+}
