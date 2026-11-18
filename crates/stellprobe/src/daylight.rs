@@ -18,6 +18,9 @@ const GRAZING_SINE: f64 = 0.05;
 const ARROW_LENGTH_M: f64 = 1.2;
 const ARROW_MARGIN_M: f64 = 1.0;
 const SUN_ARROW_STEP_M: f64 = 1.6;
+/// Room both arrows need at full size: along the row (margin, step, margin) and across it.
+const ARROWS_ALONG_M: f64 = 2.0 * ARROW_MARGIN_M + SUN_ARROW_STEP_M;
+const ARROWS_ACROSS_M: f64 = 2.0 * ARROW_MARGIN_M;
 const SHAFT_HALF_M: f64 = 0.04;
 const HEAD_LENGTH_M: f64 = 0.3;
 const HEAD_HALF_M: f64 = 0.15;
@@ -114,12 +117,22 @@ fn patch_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
     items
 }
 
-/// North, always; the sun's direction of travel, while it is up.
+/// North, always; the sun's direction of travel, while it is up. Both in a row at the top right
+/// corner, down a deep set or leftwards along a wide one, and smaller when the set is too small
+/// for them (a 2 × 2 m car still shows both whole).
 fn arrow_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
+    let (longer_m, shorter_m) = (set.width_m.max(set.depth_m), set.width_m.min(set.depth_m));
+    let scale = (longer_m / ARROWS_ALONG_M)
+        .min(shorter_m / ARROWS_ACROSS_M)
+        .min(1.0);
+    let down = set.depth_m >= set.width_m;
     let anchor = |step: f64| {
-        let x_m = (set.width_m - ARROW_MARGIN_M).max(ARROW_MARGIN_M);
+        let (along_m, across_m) = (scale * (ARROW_MARGIN_M + step), scale * ARROW_MARGIN_M);
+        if down {
+            return Point::new(set.width_m - across_m, along_m);
+        }
 
-        Point::new(x_m, ARROW_MARGIN_M + step)
+        Point::new(set.width_m - along_m, across_m)
     };
     let north = Sun {
         azimuth_deg: 0.0,
@@ -129,7 +142,7 @@ fn arrow_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
     let mut items = vec![Item {
         role: Role::North,
         shape: Shape::Polygon {
-            points: arrow(anchor(0.0), north),
+            points: arrow(anchor(0.0), north, scale),
         },
         label: Some(NORTH_LABEL.to_owned()),
         source: None,
@@ -143,6 +156,7 @@ fn arrow_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
                 points: arrow(
                     anchor(SUN_ARROW_STEP_M),
                     Point::new(-toward.x_m, -toward.y_m),
+                    scale,
                 ),
             },
             label: Some(format!(
@@ -157,13 +171,13 @@ fn arrow_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
 }
 
 /// An arrow centred on `centre` that points along the unit vector `dir`: the shaft, then the
-/// head.
-fn arrow(centre: Point, dir: Point) -> Vec<Point> {
+/// head; `scale` 1 is full size.
+fn arrow(centre: Point, dir: Point, scale: f64) -> Vec<Point> {
     let side = Point::new(-dir.y_m, dir.x_m);
     let at = |along_m: f64, across_m: f64| {
         Point::new(
-            centre.x_m + dir.x_m * along_m + side.x_m * across_m,
-            centre.y_m + dir.y_m * along_m + side.y_m * across_m,
+            centre.x_m + scale * (dir.x_m * along_m + side.x_m * across_m),
+            centre.y_m + scale * (dir.y_m * along_m + side.y_m * across_m),
         )
     };
     let (tail_m, tip_m) = (-ARROW_LENGTH_M / 2.0, ARROW_LENGTH_M / 2.0);
@@ -398,5 +412,31 @@ mod tests {
         let apart = (north.x_m - ray.x_m).hypot(north.y_m - ray.y_m);
 
         assert!(apart >= ARROW_LENGTH_M, "{apart}");
+    }
+
+    #[test]
+    fn both_arrows_stay_inside_a_small_set() {
+        let sun = Sun {
+            azimuth_deg: 180.0,
+            elevation_deg: 30.0,
+        };
+        for (width_m, depth_m) in [(2.0, 2.0), (3.0, 3.0), (8.0, 2.0), (2.0, 8.0), (1.0, 1.5)] {
+            let set = SetPlan {
+                width_m,
+                depth_m,
+                ..SetPlan::default()
+            };
+            let items = arrow_items(&set, &SITE, &sun);
+            let inside =
+                |p: &Point| (0.0..=width_m).contains(&p.x_m) && (0.0..=depth_m).contains(&p.y_m);
+
+            for role in [Role::North, Role::SunRay] {
+                let points = &polygons(&items, role)[0];
+                assert!(
+                    points.iter().all(inside),
+                    "{width_m}×{depth_m} {role:?}: {points:?}"
+                );
+            }
+        }
     }
 }

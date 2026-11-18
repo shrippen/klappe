@@ -48,7 +48,7 @@ pub fn read_site(
 }
 
 /// Date (`2026-06-21` or `21.6.2026`), time (`14:30`) and offset from UTC (`+02:00`, `-5`; blank
-/// follows the location's zone) as typed. A blank date and time is no date, whatever the offset
+/// is longitude ÷ 15 in whole hours, no daylight saving) as typed. A blank date and time is no date, whatever the offset
 /// says; a date needs its time and the other way round.
 pub fn read_sun_time(
     date: &str,
