@@ -51,6 +51,7 @@ pub(super) fn walls(set: &SetPlan, cut: Cut, solids: &mut Vec<Solid>) {
         }
 
         solids.push(Solid {
+            opacity: 1.0,
             source: Some(Source::Wall(index)),
             role: SceneRole::Wall,
             faces,

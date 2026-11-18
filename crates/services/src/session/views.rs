@@ -289,9 +289,16 @@ impl Session {
 
     /// The tooltip of mark `index` (0-based) of character `id`.
     pub fn mark_hint(&self, id: &str, index: Option<usize>) -> Hint {
-        let (name, index, at_s) = self.figure_facts(id, index);
+        let (name, at, at_s) = self.figure_facts(id, index);
+        let mark = index.and_then(|i| self.plan()?.figure(id)?.marks.get(i));
 
-        Hint::Mark { name, index, at_s }
+        Hint::Mark {
+            name,
+            index: at,
+            at_s,
+            arrival: mark.map_or("", |m| m.arrival.name()).to_owned(),
+            departure: mark.map_or("", |m| m.departure.name()).to_owned(),
+        }
     }
 
     /// The tooltip of light `id`; `None` without such a light.

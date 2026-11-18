@@ -5,7 +5,7 @@
 //! klappe-cli export --project <folder> --scene <nr> --out <file> [--plan <id>] [--at <s>]
 //!                   [--paper a4|a3|letter] [--orientation landscape|portrait]
 //!                   [--language de|en] [--format pdf|svg|png|csv|ods|xlsx|frames|camera|
-//!                                                shotpages|camerapages|shotfiles|camerafiles]
+//!                                                shotpages|camerapages|shotfiles|camerafiles|mp4]
 //!                   [--camera <id>]
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
 //!                       [--scene-numbers] [--header]
@@ -41,7 +41,7 @@ enum Command {
     },
     /// The plan of a scene at a time as PDF (with shot list), SVG or PNG (LH-80, LH-81); the shot
     /// list as ODS or XLSX (LH-85); the plan at every mark as PNGs in a folder (LH-83); what a
-    /// camera sees at a time as PNG (LH-86).
+    /// camera sees at a time as PNG (LH-86); the playback as MP4 (LH-84).
     Export {
         /// The project folder.
         #[arg(long)]
@@ -66,7 +66,8 @@ enum Command {
         language: Option<LanguageArg>,
         /// Taken from the extension of --out if left out; `frames` and `camera` are never guessed.
         /// `frames`: one PNG per mark into the folder --out, --at is ignored. `camera`: what
-        /// --camera sees at --at, 1920 px wide.
+        /// --camera sees at --at, 1920 px wide. `mp4`: the playback as 1920x1080 video, 25 fps,
+        /// written by the installed ffmpeg; --at, --paper and --orientation are ignored.
         #[arg(long, value_parser = format_arg())]
         format: Option<ExportFormat>,
         /// The camera `--format camera` shows.
@@ -430,6 +431,7 @@ mod tests {
         assert_eq!(format_of(Path::new("list.ods")), Some(ExportFormat::Ods));
         assert_eq!(format_of(Path::new("list.XLSX")), Some(ExportFormat::Xlsx));
         assert_eq!(format_of(Path::new("list.csv")), Some(ExportFormat::Csv));
+        assert_eq!(format_of(Path::new("plan.MP4")), Some(ExportFormat::Video));
         assert_eq!(format_of(Path::new("frames")), None);
         assert_eq!(format_of(Path::new("plan.jpg")), None);
         assert_eq!(format_of(Path::new("plan")), None);

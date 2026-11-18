@@ -15,6 +15,8 @@ fn page() -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),

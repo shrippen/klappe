@@ -52,7 +52,8 @@ pub use klappe_raster::Frame;
 pub use light::{light_grip_place, Lamp};
 pub use look::{look, scene_look, Area, Hue, Look};
 pub use motion::{
-    aim_at, bend_follow, bend_grips, camera_at, figure_at, walked_ways, way_length_m, Placement,
+    aim_at, bend_follow, bend_grips, camera_at, figure_at, figure_opacity_at, walked_ways,
+    way_length_m, Placement,
 };
 pub use movement::movement_in;
 pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};

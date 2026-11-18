@@ -119,7 +119,7 @@ pub fn ppm(
             Some(paint) if frame.edge[i] => paint.line,
             Some(paint) => shaded(paint.face, frame.shade[i]),
         };
-        bytes.extend_from_slice(&mix(ground, color, strengths[role]));
+        bytes.extend_from_slice(&mix(ground, color, strengths[role] * picture.opacity_at(i)));
     }
 
     bytes
@@ -205,6 +205,7 @@ mod tests {
         Picture {
             frame,
             sources: Vec::new(),
+            opacities: Vec::new(),
             labels: vec![PictureLabel {
                 text: "Elisabeth".into(),
                 x: 2.0,

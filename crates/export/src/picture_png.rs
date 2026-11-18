@@ -57,7 +57,8 @@ pub(crate) fn write(
             Some(style) if frame.edge[i] => style.line,
             Some(style) => shaded(style.face, frame.shade[i]),
         };
-        let rgb = rgb.faded(pal.paper, strengths[usize::from(frame.role[i])]);
+        let fade = strengths[usize::from(frame.role[i])] * picture.opacity_at(i);
+        let rgb = rgb.faded(pal.paper, fade);
         pixels.extend_from_slice(&[rgb.r, rgb.g, rgb.b]);
     }
 
@@ -124,6 +125,7 @@ mod tests {
                 edge: vec![false, false, true, false],
             },
             sources: Vec::new(),
+            opacities: Vec::new(),
             labels: Vec::new(),
         }
     }

@@ -3,10 +3,37 @@
 use super::qobject;
 use crate::fileurl;
 use core::pin::Pin;
-use cxx_qt::CxxQtType;
+use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
-use klappe_services::{ExportFormat, ExportOptions, PaperSetup, Session, ShotOrder, Source};
+use klappe_services::{
+    ExportFormat, ExportOptions, PaperSetup, Session, ShotOrder, Source, Texts, FFMPEG,
+};
+use std::ops::ControlFlow;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// A video is being written: one at a time, the next export has to wait for it.
+static VIDEO_RUNNING: AtomicBool = AtomicBool::new(false);
+/// Set when the window closes: the video stops and its part file goes.
+static VIDEO_STOP: AtomicBool = AtomicBool::new(false);
+const PERCENT: usize = 100;
+/// How long closing the window waits for ffmpeg to be stopped and its file removed.
+const STOP_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+const STOP_POLL: std::time::Duration = std::time::Duration::from_millis(20);
+
+/// The window closes while a video is written: stops it and waits until its part file is gone,
+/// else ffmpeg would see the end of its input and leave a playable, cut-off `.mp4.part`.
+pub(super) struct VideoStop;
+
+impl Drop for VideoStop {
+    fn drop(&mut self) {
+        VIDEO_STOP.store(true, Ordering::SeqCst);
+        let waited_from = std::time::Instant::now();
+        while VIDEO_RUNNING.load(Ordering::SeqCst) && waited_from.elapsed() < STOP_WAIT {
+            std::thread::sleep(STOP_POLL);
+        }
+    }
+}
 
 impl qobject::Controller {
     /// Writes the plan to `path` (a `file://` URL or a path) as `format` says; says where it
@@ -26,6 +53,9 @@ impl qobject::Controller {
             };
             path = named;
         }
+        if format == ExportFormat::Video {
+            return self.write_video(path, &options.texts);
+        }
         let Some(s) = self.as_mut().session() else {
             return false;
         };
@@ -41,6 +71,69 @@ impl qobject::Controller {
         };
         self.as_mut().say(message);
         ok
+    }
+
+    /// Writes the playback as MP4 (LH-84) on a thread of its own, so the window stays alive
+    /// while ffmpeg works: here the job copies the project, there each frame is drawn when it
+    /// is written and encoded. The status
+    /// line shows the progress and, last, where the video went or what failed. `true` if it
+    /// started.
+    fn write_video(mut self: Pin<&mut Self>, path: std::path::PathBuf, texts: &Texts) -> bool {
+        let language = self.rust().language;
+        if VIDEO_RUNNING.swap(true, Ordering::SeqCst) {
+            let message = language.text("menu.mp4Started");
+            self.as_mut().say(message);
+            return false;
+        }
+
+        let job = match self.as_mut().session() {
+            Some(s) => s.video_job(FFMPEG, texts),
+            None => Err(klappe_services::ServiceError::Gone),
+        };
+        let job = match job {
+            Ok(job) => job,
+            Err(e) => {
+                VIDEO_RUNNING.store(false, Ordering::SeqCst);
+                self.as_mut().say(error_text(language, &e));
+                return false;
+            }
+        };
+
+        VIDEO_STOP.store(false, Ordering::SeqCst);
+        let started = language.text("menu.mp4Started");
+        self.as_mut().say(started);
+        let qt = self.qt_thread();
+        std::thread::spawn(move || {
+            let mut shown = 0;
+            let result = job.run(&path, &mut |done, total| {
+                if VIDEO_STOP.load(Ordering::SeqCst) {
+                    return ControlFlow::Break(());
+                }
+                let percent = done * PERCENT / total;
+                if percent == shown {
+                    return ControlFlow::Continue(());
+                }
+                shown = percent;
+                let message = language
+                    .text("menu.mp4Progress")
+                    .replace("{percent}", &percent.to_string());
+                // Fails only when the window is gone; then nobody reads the progress.
+                let _ = qt.queue(move |this| this.say(message));
+
+                ControlFlow::Continue(())
+            });
+            let message = match result {
+                Ok(()) => language
+                    .text("menu.mp4Saved")
+                    .replace("{path}", &path.to_string_lossy()),
+                Err(e) => error_text(language, &e),
+            };
+
+            VIDEO_RUNNING.store(false, Ordering::SeqCst);
+            let _ = qt.queue(move |this| this.say(message));
+        });
+
+        true
     }
 
     /// `path` with `extension` added. The dialog asked about the name as typed; where the

@@ -46,7 +46,6 @@ impl Default for ControllerRust {
         let language = Language::pick(args.language.as_deref());
         let mut notice = Status::default();
         let session = open_at_start(&args, language, &mut notice);
-
         let mut this = Self {
             session,
             language,
@@ -117,6 +116,7 @@ impl Default for ControllerRust {
             recent_store: q("[]"),
             screenshot_path: screenshot_url(args.screenshot),
             screenshot_after: args.screenshot_after_ms,
+            _video_stop: super::export::VideoStop,
         };
         this.fill();
         this

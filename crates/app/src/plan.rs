@@ -218,8 +218,14 @@ impl<'a> Faded<'a> {
         Self::new(list, &[])
     }
 
+    /// The layer's fade times the item's own opacity (a figure fading in or out, LH-26).
     fn strength(&self, index: usize) -> f64 {
         self.fades.get(index).copied().unwrap_or(FULL_STRENGTH)
+            * self
+                .list
+                .items
+                .get(index)
+                .map_or(FULL_STRENGTH, |i| i.opacity)
     }
 }
 
@@ -266,6 +272,7 @@ mod tests {
             shape,
             label: Some("A".into()),
             source,
+            opacity: 1.0,
         }
     }
 
@@ -443,6 +450,7 @@ mod tests {
                 },
                 label: Some("Vorhang schließen".into()),
                 source: Some(Source::Note("n1".into())),
+                opacity: 1.0,
             }],
             width_m: 20.0,
             depth_m: 13.0,
@@ -475,6 +483,7 @@ mod tests {
             },
             label: label.map(str::to_owned),
             source: Some(Source::Image("i1".into())),
+            opacity: 1.0,
         };
         let picture = Item {
             role: Role::Picture,
@@ -488,6 +497,7 @@ mod tests {
             },
             label: None,
             source: None,
+            opacity: 1.0,
         };
         let list = DisplayList {
             lamps: Vec::new(),
