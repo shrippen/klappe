@@ -589,6 +589,18 @@ fn check_room_height(wall_height_m: f64) -> Result<(), ServiceError> {
     })
 }
 
+/// Folding into the circle adds float residue (370.1 gives 10.100000000000023); the form shows
+/// the stored value, so it is rounded to 1e-9°, far below what a plan shows (a power of ten
+/// as a divisor, so the result is the nearest double of the decimal).
+const NORTH_STEPS_PER_DEG: f64 = 1e9;
+
+fn fold_north(deg: f64) -> f64 {
+    let folded = (normalize_deg(deg) * NORTH_STEPS_PER_DEG).round() / NORTH_STEPS_PER_DEG;
+
+    // Rounding up to 360 is the top again.
+    normalize_deg(folded)
+}
+
 /// The place is on the globe; north is turned into `[0, 360)`.
 fn check_site(site: Option<Site>) -> Result<Option<Site>, ServiceError> {
     let Some(site) = site else {
@@ -596,7 +608,7 @@ fn check_site(site: Option<Site>) -> Result<Option<Site>, ServiceError> {
     };
     if site.is_valid() {
         return Ok(Some(Site {
-            north_deg: normalize_deg(site.north_deg),
+            north_deg: fold_north(site.north_deg),
             ..site
         }));
     }

@@ -13,8 +13,8 @@ const LOW_SUN_DEG: f64 = 2.0;
 /// A wall this close to the beam's direction (sine of the angle between them) lets a sliver of
 /// light through, not a patch.
 const GRAZING_SINE: f64 = 0.05;
-/// The arrows stand one above the other in the top right corner of the set, this far from its
-/// edges and from each other.
+/// The arrows stand in a row in the top right corner of the set (down a deep set, leftwards
+/// along a wide one), this far from its edges and from each other.
 const ARROW_LENGTH_M: f64 = 1.2;
 const ARROW_MARGIN_M: f64 = 1.0;
 const SUN_ARROW_STEP_M: f64 = 1.6;

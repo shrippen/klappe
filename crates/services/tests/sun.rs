@@ -204,6 +204,25 @@ fn north_is_kept_between_0_and_360() {
     assert_eq!(s.project().locations[0].site.unwrap().north_deg, 270.0);
 }
 
+/// Folding 370.1 into the circle leaves 10.100000000000023; the form would show the residue.
+#[test]
+fn folding_north_leaves_no_rounding_residue() {
+    let mut s = open();
+
+    for (typed, kept) in [(370.1, 10.1), (-232.2, 127.8)] {
+        set_location(
+            &mut s,
+            Some(Site {
+                north_deg: typed,
+                ..BERLIN
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(s.project().locations[0].site.unwrap().north_deg, kept);
+    }
+}
+
 #[test]
 fn the_form_rows_carry_the_place_and_the_date() {
     let mut s = lit();
