@@ -281,7 +281,7 @@ mod tests {
         assert_eq!(note["layer"], "notes");
         assert_eq!(note["remove"], true);
         assert_eq!(note["duplicate"], true);
-        assert_eq!(note["turn"], false);
+        assert_eq!(note["turn"], true);
         assert_eq!(note["note"], true);
 
         let camera = info(&[Source::Camera("a".into())]);

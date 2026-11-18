@@ -66,8 +66,10 @@ pub(crate) enum Prim {
         fill: Option<Fill>,
         stroke: Option<Stroke>,
     },
+    /// `rotation_deg` turns it clockwise about `at`; only text that starts at `at` is turned.
     Text {
         class: String,
+        rotation_deg: f64,
         at: Pt,
         anchor: Anchor,
         size_pt: f64,

@@ -251,7 +251,7 @@ fn note_handles(set: &SetPlan, plan: &FloorPlan, id: &str) -> Vec<Item> {
     let Some(note) = set.notes.iter().chain(&plan.labels).find(|n| n.id == id) else {
         return Vec::new();
     };
-    let (corners, _) = note_card(note.at, note.width_m, &note.text);
+    let (corners, _) = note_card(note.at, note.width_m, note.rotation_deg, &note.text);
     let center = corners[1].lerp(corners[2], 0.5);
 
     vec![Item {

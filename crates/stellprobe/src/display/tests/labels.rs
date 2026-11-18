@@ -7,6 +7,7 @@ fn label() -> Note {
         at: Point::new(5.0, 6.0),
         text: "Auftritt".into(),
         width_m: 2.4,
+        rotation_deg: 0.0,
         bound: Some("figure:elisabeth".into()),
     }
 }

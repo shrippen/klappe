@@ -83,6 +83,7 @@ pub(crate) fn sheets(
     let mut sheets = Vec::new();
     for group in shown.chunks(columns * rows) {
         let mut prims = vec![Prim::Text {
+            rotation_deg: 0.0,
             class: "title".into(),
             anchor: Anchor::Start,
             at: (margin, margin + TITLE_PT),
@@ -121,6 +122,7 @@ pub(crate) fn sheets(
 /// The shot's number and size on the left, its lens on the right, above the view.
 fn caption(prims: &mut Vec<Prim>, cell: Rect, name: &str, lens: &str, pal: &Palette) {
     let text = |x: f64, text: &str| Prim::Text {
+        rotation_deg: 0.0,
         class: "caption".into(),
         anchor: Anchor::Start,
         at: (x, cell.y + CAPTION_PT),

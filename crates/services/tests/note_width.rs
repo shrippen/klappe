@@ -116,3 +116,26 @@ fn removing_the_grip_removes_nothing() {
     assert!(result.is_err());
     assert_eq!(s.project().locations[0].set.notes.len(), 1);
 }
+
+/// A note turned a quarter clockwise has its right edge below its corner: the grip is there
+/// and a drag along the card's own width widens it.
+#[test]
+fn a_turned_notes_grip_follows_its_card() {
+    let mut s = open();
+    s.edit_plan(PlanEdit::Spin {
+        source: note(),
+        by_deg: 90.0,
+    })
+    .unwrap();
+
+    assert!(grip_at(&s).unwrap().distance_m(p(3.0 - 0.2, 11.5 + 2.4)) < 1e-9);
+
+    s.edit_plan(PlanEdit::Shift {
+        source: grip(),
+        dx_m: 0.0,
+        dy_m: 1.0,
+    })
+    .unwrap();
+
+    assert!((width_m(&s) - 3.4).abs() < 1e-9);
+}
