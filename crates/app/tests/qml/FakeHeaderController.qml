@@ -28,6 +28,9 @@ QtObject {
     function menuInfo() { return JSON.stringify({ label: /^(object|figure|mark):/.test(selectedKey) }) }
     function labelSelected() { return call("labelSelected", []) }
     property var calls: []
+    // The script line the selection is linked to (DB-63).
+    property int lineNow: -1
+    function scriptLine() { return lineNow }
     property var scenes: [
         { id: "s12", number: "12", heading: "INT. SÄNGERSAAL – TAG" },
         { id: "s13", number: "13", heading: "EXT. HOF – NACHT" }

@@ -82,6 +82,26 @@ fn grabbed_edit(
     }
 }
 
+/// What a box or lasso takes: when the element `handled` shows grips on points (a bend, a
+/// point of a drawing) and the sweep takes any of them, those grips; else the elements.
+/// Grips of another element are never taken, and a sweep that adds takes elements only.
+fn swept(s: &Session, sweep: &Sweep, handled: Option<&Source>, how: Pick) -> Vec<Source> {
+    let grips = handled
+        .filter(|_| how == Pick::Replace)
+        .map(|h| match sweep {
+            Sweep::Box(a, b) => s.pick_grips_in(h, *a, *b),
+            Sweep::Lasso(path) => s.pick_grips_lasso(h, path),
+        });
+    if let Some(grips) = grips.filter(|g| !g.is_empty()) {
+        return grips;
+    }
+
+    match sweep {
+        Sweep::Box(a, b) => s.pick_in(*a, *b),
+        Sweep::Lasso(path) => s.pick_lasso(path),
+    }
+}
+
 /// The edit of a drag of the height tool: `grabbed` made `lift_m` taller than it stands now.
 fn lift_edit(s: &Session, tool: &Tool, grabbed: Option<&Source>, lift_m: f64) -> Option<PlanEdit> {
     let grabbed = grabbed.filter(|_| *tool == Tool::Height)?;
@@ -192,7 +212,7 @@ impl qobject::Controller {
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-        let (grip, grabbed) = grip.take(|| s.pick_for(from, selected.only()));
+        let (grip, grabbed) = grip.take(|| s.pick_for(from, selected.handled()));
 
         // Select and Scale move by a distance (the session snaps where an element lands, a
         // background moves freely), Height by the pointer's rise; the other tools draw between
@@ -311,7 +331,7 @@ impl qobject::Controller {
         };
 
         if tool == Tool::Select {
-            let picked = s.pick_click(Point::new(x, y), selected.only());
+            let picked = s.pick_click(Point::new(x, y), selected.handled());
             let found = picked.is_some();
             self.as_mut().rust_mut().get_mut().selected = selected.click(picked, how);
             self.refresh();
@@ -349,7 +369,7 @@ impl qobject::Controller {
             return false;
         };
 
-        let picked = s.pick_click(Point::new(x, y), selected.only());
+        let picked = s.pick_click(Point::new(x, y), selected.handled());
         let found = picked.is_some();
         self.as_mut().rust_mut().get_mut().selected = selected.context(picked);
         self.refresh();
@@ -439,13 +459,12 @@ impl qobject::Controller {
 
         let found = {
             let this = self.as_ref();
+            let handled = this.rust().selected.handled();
+
             this.rust()
                 .session
                 .as_ref()
-                .map(|s| match &sweep {
-                    Sweep::Box(a, b) => s.pick_in(*a, *b),
-                    Sweep::Lasso(path) => s.pick_lasso(path),
-                })
+                .map(|s| swept(s, &sweep, handled, how))
                 .unwrap_or_default()
         };
         let any = !found.is_empty();
@@ -463,7 +482,7 @@ impl qobject::Controller {
             let this = self.as_ref();
             this.rust().session.as_ref().map(|s| {
                 let selected = &this.rust().selected;
-                let list = s.display_list_for(selected.only());
+                let list = s.display_list_for(selected.handled());
 
                 plan_json(
                     s,
@@ -524,7 +543,7 @@ impl qobject::Controller {
                 let measure = this.rust().measure_view();
                 plan_json(
                     s,
-                    &s.display_list_for(this.rust().selected.only()),
+                    &s.display_list_for(this.rust().selected.handled()),
                     &this.rust().selected,
                     this.rust().language,
                     (
@@ -548,7 +567,7 @@ impl qobject::Controller {
         let json = {
             let this = self.as_ref();
             this.rust().session.as_ref().and_then(|s| {
-                let list = s.preview_for(edit, this.rust().selected.only()).ok()?;
+                let list = s.preview_for(edit, this.rust().selected.handled()).ok()?;
                 let picked = this.rust().picked();
                 Some(plan_json(
                     s,
