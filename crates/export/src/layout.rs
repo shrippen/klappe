@@ -370,6 +370,23 @@ fn item_prims(
     let Some(label) = item.label.as_ref().filter(|l| !l.is_empty()) else {
         return Ok(());
     };
+    let (at, anchor) = label_spot(item, &bounds, body_m, map.scale);
+
+    out.push(Prim::Text {
+        class: "label".into(),
+        anchor,
+        at,
+        size_pt: LABEL_PT,
+        weight: Weight::Regular,
+        rgb: pal.foreground,
+        text: label.clone(),
+    });
+
+    Ok(())
+}
+
+/// Where an item's label goes, and how it is anchored there.
+fn label_spot(item: &Item, bounds: &[Pt], body_m: f64, scale: f64) -> (Pt, Anchor) {
     let right = bounds.iter().map(|p| p.0).fold(f64::MIN, f64::max);
     let top = bounds.iter().map(|p| p.1).fold(f64::MAX, f64::min);
     let bottom = bounds.iter().map(|p| p.1).fold(f64::MIN, f64::max);
@@ -381,7 +398,7 @@ fn item_prims(
         (Role::Mark(_), Shape::Circle { .. }) => (
             (
                 (bounds[0].0 + right) / 2.0,
-                (top + bottom) / 2.0 - body_m * map.scale - LABEL_GAP_PT,
+                (top + bottom) / 2.0 - body_m * scale - LABEL_GAP_PT,
             ),
             Anchor::Middle,
         ),
@@ -401,17 +418,7 @@ fn item_prims(
         ),
     };
 
-    out.push(Prim::Text {
-        class: "label".into(),
-        anchor,
-        at,
-        size_pt: LABEL_PT,
-        weight: Weight::Regular,
-        rgb: pal.foreground,
-        text: label.clone(),
-    });
-
-    Ok(())
+    (at, anchor)
 }
 
 /// The longest round length that fits `SCALE_BAR_MAX_PT`.
