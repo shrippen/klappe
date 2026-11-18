@@ -5,7 +5,7 @@ use klappe_model::{
     Template,
 };
 use klappe_stellprobe::SetupChoice;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// The frame a shot shows when its camera is gone (16:9).
 pub const FALLBACK_ASPECT: f64 = 16.0 / 9.0;
@@ -136,7 +136,7 @@ pub struct Marker {
     pub text: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum LinkKind {
     Mark,
@@ -144,13 +144,10 @@ pub enum LinkKind {
 }
 
 impl LinkKind {
-    /// The kind a surface names by its word (`mark`, `shot`).
+    /// The kind a surface names by the word its chip carried (`mark`, `shot`); the same serde
+    /// name both ways, so a new kind needs no second list.
     pub fn parse(word: &str) -> Option<LinkKind> {
-        match word {
-            "mark" => Some(LinkKind::Mark),
-            "shot" => Some(LinkKind::Shot),
-            _ => None,
-        }
+        serde_json::from_value(serde_json::Value::String(word.to_owned())).ok()
     }
 }
 

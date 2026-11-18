@@ -715,4 +715,10 @@ fn a_link_kind_is_parsed_from_its_word() {
     assert_eq!(LinkKind::parse("mark"), Some(LinkKind::Mark));
     assert_eq!(LinkKind::parse("shot"), Some(LinkKind::Shot));
     assert_eq!(LinkKind::parse("nonsense"), None);
+
+    // The word a chip carries out reads back to its kind.
+    for kind in [LinkKind::Mark, LinkKind::Shot] {
+        let word = serde_json::to_value(kind).unwrap();
+        assert_eq!(LinkKind::parse(word.as_str().unwrap()), Some(kind));
+    }
 }
