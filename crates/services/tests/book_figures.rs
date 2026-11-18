@@ -191,3 +191,46 @@ fn an_answer_to_a_question_nobody_asked_is_refused() {
     assert!(s.figure_answers("NIEMAND").is_empty());
     assert!(s.answer_figure("ANNA", 99).is_err());
 }
+
+fn add(name: &str) -> ProjectEdit {
+    ProjectEdit::AddCharacter {
+        name: name.into(),
+        short: "X".into(),
+        color: FigureColor::Cyan,
+        group: None,
+        size_m: None,
+    }
+}
+
+#[test]
+fn a_name_is_free_against_names_and_aliases_of_other_figures() {
+    let mut anna = character("anna", "Anna", "A", FigureColor::Red);
+    anna.aliases = vec!["Anni".into()];
+    let bert = character("bert", "Bert", "B", FigureColor::Blue);
+    let dir = make("fig-free-name", vec![anna, bert], BOOK);
+    let mut s = Session::open(&dir).unwrap();
+
+    assert!(s.edit_project(add("ANNI")).is_err());
+    assert!(s.edit_project(add("anna")).is_err());
+    let rename = ProjectEdit::EditCharacter {
+        id: "bert".into(),
+        name: "anni".into(),
+        short: "B".into(),
+        color: FigureColor::Blue,
+        group: None,
+        size_m: None,
+    };
+    assert!(s.edit_project(rename).is_err());
+    assert!(s.edit_project(add("Carl")).is_ok());
+}
+
+#[test]
+fn extensions_after_the_name_are_no_part_of_it() {
+    let book = "INT. SAAL – TAG #1#\n\nANNA (V.O.) (FORTS.)\nEins.\n\n\
+BERT (O.S.) (V.O.) (FORTS.)\nZwei.\n\n";
+    let dir = make("fig-extensions", Vec::new(), book);
+
+    let s = Session::open(&dir).unwrap();
+
+    assert_eq!(asked(&s), [("ANNA".to_owned(), 1), ("BERT".to_owned(), 1)]);
+}

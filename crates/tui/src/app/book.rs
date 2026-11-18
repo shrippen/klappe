@@ -70,7 +70,7 @@ impl App {
         match key.code {
             KeyCode::Esc => self.mode = Mode::Normal,
             KeyCode::Down => self.book_sel = (self.book_sel + 1) % options,
-            KeyCode::Up => self.book_sel = (self.book_sel + options - 1) % options,
+            KeyCode::Up => self.book_sel = self.book_sel.saturating_sub(1),
             KeyCode::Enter => self.answer_book(),
             _ => {}
         }

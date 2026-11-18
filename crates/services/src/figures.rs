@@ -11,6 +11,10 @@ use crate::script_refs;
 /// Longest short code the figure label takes.
 const SHORT_MAX: usize = 3;
 
+/// Forces a cue in the book (`@anna`).
+const CUE_MARK: char = '@';
+const SHARP_S: char = 'ß';
+
 /// A cue of the book no character is called by, and which is no figure by the user's word.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingFigure {
@@ -75,6 +79,14 @@ pub(crate) fn decide(project: &mut Project, name: &str, choice: &FigureChoice) -
             true
         }
         FigureChoice::Assign(id) => {
+            // A cue answers to one figure only.
+            if project
+                .characters
+                .iter()
+                .any(|c| c.id != *id && c.is_called(name))
+            {
+                return false;
+            }
             let Some(character) = project.characters.iter_mut().find(|c| c.id == *id) else {
                 return false;
             };
@@ -99,10 +111,14 @@ fn create(project: &mut Project, cue: &str) -> bool {
     project_edit::apply(project, &edit).is_ok()
 }
 
-/// A cue in capitals reads as a name in capitals and small letters: `MARIE` → `Marie`. One
-/// that has small letters already (`@McBride`) stays.
+/// A cue in capitals or all in small letters reads as a name in capitals and small letters:
+/// `MARIE` → `Marie`, `STRAUß` → `Strauß`. One that mixes them already (`@McBride`) stays.
 fn display_name(cue: &str) -> String {
-    if cue != cue.to_uppercase() {
+    let cue = cue.trim_start_matches(CUE_MARK);
+    // `ß` has no uppercase form in everyday use, so it fits a name in capitals.
+    let small = cue.chars().any(|c| c.is_lowercase() && c != SHARP_S);
+    let capital = cue.chars().any(char::is_uppercase);
+    if small && capital {
         return cue.to_owned();
     }
 
@@ -146,5 +162,53 @@ fn next_color(characters: &[Character]) -> FigureColor {
     match free {
         Some(color) => *color,
         None => FigureColor::ALL[characters.len() % FigureColor::ALL.len()],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn figure(id: &str, name: &str, aliases: &[&str]) -> Character {
+        Character {
+            id: id.into(),
+            name: name.into(),
+            short: id.to_uppercase(),
+            color: FigureColor::Red,
+            group: None,
+            size_m: None,
+            aliases: aliases.iter().map(|a| (*a).into()).collect(),
+        }
+    }
+
+    #[test]
+    fn a_name_reads_in_capital_and_small_letters() {
+        assert_eq!(display_name("MARIE"), "Marie");
+        assert_eq!(display_name("STRAUß"), "Strauß");
+        assert_eq!(display_name("@anna"), "Anna");
+        assert_eq!(display_name("McBride"), "McBride");
+    }
+
+    #[test]
+    fn a_cue_another_figure_answers_to_is_no_alias() {
+        let mut project = Project::new("Test");
+        project.characters = vec![figure("a", "Anna", &["ANNI"]), figure("b", "Bert", &[])];
+
+        assert!(!decide(
+            &mut project,
+            "anna",
+            &FigureChoice::Assign("b".into())
+        ));
+        assert!(!decide(
+            &mut project,
+            "Anni",
+            &FigureChoice::Assign("b".into())
+        ));
+        assert!(project.characters[1].aliases.is_empty());
+        assert!(decide(
+            &mut project,
+            "Berti",
+            &FigureChoice::Assign("b".into())
+        ));
     }
 }

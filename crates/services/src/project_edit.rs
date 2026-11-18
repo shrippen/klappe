@@ -343,14 +343,14 @@ fn remove_location(project: &mut Project, id: &str) -> Result<(), ServiceError> 
     Ok(())
 }
 
-/// Two characters of one name (compared as cues are, in capitals) would merge their cues; `own` is the
-/// character being renamed, which may keep its name.
+/// Two characters of one name or alias (compared as cues are) would merge their cues; `own` is
+/// the character being renamed, which may keep its name.
 fn check_free_name(project: &Project, name: &str, own: Option<&str>) -> Result<(), ServiceError> {
     let taken = project
         .characters
         .iter()
         .filter(|c| Some(c.id.as_str()) != own)
-        .any(|c| c.name.to_uppercase() == name.to_uppercase());
+        .any(|c| c.is_called(name));
     if !taken {
         return Ok(());
     }

@@ -37,7 +37,9 @@ fn not_a_figure_is_written_at_once_and_ends_the_question() {
     let _ = screen(&mut app, 100, 24);
     ctrl(&mut app, 'k');
 
-    press(&mut app, KeyCode::Up);
+    // New figure, Is Elisabeth, Not a figure.
+    press(&mut app, KeyCode::Down);
+    press(&mut app, KeyCode::Down);
     press(&mut app, KeyCode::Enter);
 
     assert_eq!(app.mode, Mode::Normal, "no question left");
@@ -67,4 +69,16 @@ fn a_new_figure_is_written_and_undo_asks_again() {
         Some("STIMME")
     );
     assert!(!figures_file(&scratch).contains("Stimme"));
+}
+
+#[test]
+fn up_from_the_first_line_stays_on_it() {
+    let scratch = Scratch::new(BOOK);
+    let mut app = scratch.app();
+    let _ = screen(&mut app, 100, 24);
+    ctrl(&mut app, 'k');
+
+    press(&mut app, KeyCode::Up);
+
+    assert_eq!(app.book_sel, 0);
 }

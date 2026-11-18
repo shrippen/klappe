@@ -468,7 +468,18 @@ where
 /// A group has between `MIN_GROUP` and `MAX_GROUP` people (LH-23); a size is between
 /// `MIN_FIGURE_M` and `MAX_FIGURE_M` (LH-25).
 fn check_characters(characters: &[Character]) -> Result<(), String> {
-    for character in characters {
+    for (index, character) in characters.iter().enumerate() {
+        // A name or alias belongs to one figure: a cue must not name two.
+        let rest = &characters[index + 1..];
+        let names = std::iter::once(&character.name).chain(&character.aliases);
+        for name in names {
+            if let Some(other) = rest.iter().find(|o| o.is_called(name)) {
+                return Err(format!(
+                    "{}: {name} is also a name of {}",
+                    character.id, other.id
+                ));
+            }
+        }
         if let Some(count) = character.group {
             if !(MIN_GROUP..=MAX_GROUP).contains(&count) {
                 return Err(format!(

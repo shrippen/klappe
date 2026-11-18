@@ -61,3 +61,35 @@ fn an_empty_alias_does_not_load() {
 
     assert!(klappe_store::load(&dir).is_err());
 }
+
+fn figure_file(name: &str, body: &str) -> std::path::PathBuf {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    klappe_store::save(&dir, &Project::new("Test"), None).unwrap();
+    std::fs::write(dir.join("figuren.toml"), body).unwrap();
+
+    dir
+}
+
+#[test]
+fn a_name_or_alias_of_two_figures_does_not_load() {
+    let figure = |id: &str, name: &str, aliases: &str| {
+        format!(
+            "[[figur]]\nid = \"{id}\"\nname = \"{name}\"\nshort = \"{id}\"\ncolor = \"red\"\naliases = [{aliases}]\n"
+        )
+    };
+    let cases = [
+        // name twice, in another case
+        figure("a", "Anna", "") + &figure("b", "ANNA", ""),
+        // alias of one is the name of another
+        figure("a", "Anna", "\"Bert\"") + &figure("b", "bert", ""),
+        // alias twice
+        figure("a", "Anna", "\"Liesl\"") + &figure("b", "Bert", "\"LIESL\""),
+    ];
+
+    for (i, body) in cases.iter().enumerate() {
+        let dir = figure_file(&format!("aliases-twice-{i}"), body);
+
+        assert!(klappe_store::load(&dir).is_err(), "case {i}: {body}");
+    }
+}
