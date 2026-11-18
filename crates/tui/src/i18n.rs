@@ -69,6 +69,7 @@ pub(crate) struct Texts {
     pub mode_book: String,
     pub book_title: String,
     pub book_none: String,
+    pub figure_title: String,
     pub book_hint: String,
     pub book_save_first: String,
     pub find_title: String,
@@ -129,6 +130,7 @@ impl Texts {
             mode_book: t("tui.mode.book"),
             book_title: t("book.title"),
             book_none: t("book.none"),
+            figure_title: t("book.figureTitle"),
             book_hint: t("tui.book.hint"),
             book_save_first: t("tui.book.saveFirst"),
             find_title: t("tui.find.title"),
@@ -203,6 +205,25 @@ impl Texts {
             .text("book.ask")
             .replace("{number}", number)
             .replace("{heading}", heading)
+    }
+
+    /// "ANNA, 3 cue(s) in the book - which figure is this?".
+    pub(crate) fn figure_ask(&self, name: &str, cues: usize) -> String {
+        self.lang
+            .text("book.figureAsk")
+            .replace("{name}", name)
+            .replace("{count}", &cues.to_string())
+    }
+
+    /// A line of the figure question: "New figure ANNA", "Is Elisabeth" or "Not a figure".
+    pub(crate) fn figure_line(&self, answer: &klappe_services::FigureAnswer, cue: &str) -> String {
+        let (key, name) = match answer.choice {
+            klappe_services::FigureChoice::Create => ("book.figureNew", cue),
+            klappe_services::FigureChoice::Assign(_) => ("book.figureIs", answer.name.as_str()),
+            klappe_services::FigureChoice::NotFigure => ("book.figureNone", ""),
+        };
+
+        self.lang.text(key).replace("{name}", name)
     }
 
     /// "Page 3".

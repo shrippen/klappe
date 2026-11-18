@@ -263,24 +263,46 @@ pub(crate) fn draw_backup(frame: &mut Frame, app: &App) {
     );
 }
 
-/// One open question about the book: the entry and the scenes it may be.
-pub(crate) fn draw_book(frame: &mut Frame, app: &App) {
-    let Some(question) = app.book_question() else {
-        return;
-    };
-    let ask = app.texts.book_ask(&question.number, &question.heading);
-    let options: Vec<String> = app
-        .book_answers()
+/// The question about the book being asked and its lines: a scene first, then a name (DB-50).
+fn book_lines(app: &App) -> Option<(String, Vec<String>)> {
+    if let Some(question) = app.book_question() {
+        let ask = app.texts.book_ask(&question.number, &question.heading);
+        let options = app
+            .book_answers()
+            .iter()
+            .map(|a| match a.choice {
+                Choice::NotInBook => app.texts.book_none.clone(),
+                Choice::Scene(_) => format!("{} {}", a.number, a.heading),
+            })
+            .collect();
+
+        return Some((ask, options));
+    }
+
+    let question = app.figure_question()?;
+    let ask = app.texts.figure_ask(&question.name, question.cues);
+    let options = app
+        .figure_answers()
         .iter()
-        .map(|a| match a.choice {
-            Choice::NotInBook => app.texts.book_none.clone(),
-            Choice::Scene(_) => format!("{} {}", a.number, a.heading),
-        })
+        .map(|a| app.texts.figure_line(a, &question.name))
         .collect();
 
+    Some((ask, options))
+}
+
+/// One open question about the book: the entry and the scenes it may be, or a name and the
+/// figures it may be.
+pub(crate) fn draw_book(frame: &mut Frame, app: &App) {
+    let Some((ask, options)) = book_lines(app) else {
+        return;
+    };
+    let title = match app.book_question() {
+        Some(_) => &app.texts.book_title,
+        None => &app.texts.figure_title,
+    };
     let width = BOX_WIDTH.max(cols(ask.chars()) + 4);
     let area = centered(frame.area(), width, options.len() + 4);
-    let block = framed(&app.texts.book_title);
+    let block = framed(title);
     let inner = block.inner(area);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);

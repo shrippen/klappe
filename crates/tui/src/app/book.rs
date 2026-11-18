@@ -1,7 +1,7 @@
 //! The questions the register leaves open about the book (`Ctrl+K`): which scene of the
-//! book an entry is, one question at a time.
+//! book an entry is, then which figure a name is (DB-50), one question at a time.
 
-use klappe_services::{Answer, PendingScene};
+use klappe_services::{Answer, FigureAnswer, PendingFigure, PendingScene};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::{App, Editor, Flow, Mode, Notice};
@@ -21,8 +21,27 @@ impl App {
         self.session.book_answers(&question.id)
     }
 
+    /// The name of the book asked about once no scene is: the first open one (DB-50).
+    pub(crate) fn figure_question(&self) -> Option<&PendingFigure> {
+        self.session.pending_figures().first()
+    }
+
+    /// The lines of the figure question being asked.
+    pub(crate) fn figure_answers(&self) -> Vec<FigureAnswer> {
+        let Some(question) = self.figure_question() else {
+            return Vec::new();
+        };
+
+        self.session.figure_answers(&question.name)
+    }
+
+    /// Whether any question about the book is open.
+    fn book_asks(&self) -> bool {
+        self.book_question().is_some() || self.figure_question().is_some()
+    }
+
     pub(super) fn open_book(&mut self) -> Flow {
-        if self.book_question().is_none() {
+        if !self.book_asks() {
             return Flow::Continue;
         }
         // An answer is written at once: against the saved book only, never against text the
@@ -39,11 +58,14 @@ impl App {
     }
 
     pub(super) fn book_key(&mut self, key: KeyEvent) -> Flow {
-        if self.book_question().is_none() {
+        if !self.book_asks() {
             self.mode = Mode::Normal;
             return Flow::Continue;
         }
-        let options = self.book_answers().len();
+        let options = match self.book_question() {
+            Some(_) => self.book_answers().len(),
+            None => self.figure_answers().len(),
+        };
 
         match key.code {
             KeyCode::Esc => self.mode = Mode::Normal,
@@ -58,13 +80,20 @@ impl App {
 
     /// Gives the chosen answer to the session and goes on with the next question.
     fn answer_book(&mut self) {
-        let Some(question) = self.book_question() else {
-            return;
-        };
-        let id = question.id.clone();
-
         // The answer is written at once: the TUI saves no plans, so quitting asks nothing.
-        let answered = self.session.answer_book(&id, self.book_sel);
+        let answered = match (self.book_question(), self.figure_question()) {
+            (Some(question), _) => {
+                let id = question.id.clone();
+
+                self.session.answer_book(&id, self.book_sel)
+            }
+            (None, Some(question)) => {
+                let name = question.name.clone();
+
+                self.session.answer_figure(&name, self.book_sel)
+            }
+            (None, None) => return,
+        };
         if let Err(e) = answered.and_then(|()| self.session.save_register()) {
             self.notice = Some(Notice::SaveFailed(e.to_string()));
             self.mode = Mode::Normal;
@@ -75,7 +104,7 @@ impl App {
         self.unanswered.clear();
         self.book_sel = 0;
         self.refresh_book_note();
-        if self.book_question().is_none() {
+        if !self.book_asks() {
             self.mode = Mode::Normal;
         }
     }
