@@ -311,6 +311,7 @@ fn background_is_first_and_keeps_its_aspect() {
             },
             label: None,
             source: None,
+            opacity: 1.0,
         })
     );
     assert_eq!(list.items.get(1).map(|i| i.role), Some(Role::Wall));
@@ -756,16 +757,15 @@ fn a_fading_figure_carries_its_opacity() {
     let faded: Vec<_> = list
         .items
         .iter()
-        .zip(&list.opacities)
-        .filter(|(_, o)| **o < 1.0)
+        .filter(|item| item.opacity < 1.0)
         .collect();
 
     assert_eq!(faded.len(), 2);
-    for (item, opacity) in faded {
+    for item in faded {
         assert!(matches!(item.role, Role::Figure(_)));
-        assert!((opacity - 0.5).abs() < 1e-9, "{opacity}");
+        assert!((item.opacity - 0.5).abs() < 1e-9, "{}", item.opacity);
     }
 
     let still = render(&project(), &set(), &p, 5.0, &|_| None);
-    assert!(still.opacities.iter().all(|o| *o == 1.0));
+    assert!(still.items.iter().all(|i| i.opacity == 1.0));
 }

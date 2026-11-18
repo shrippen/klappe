@@ -73,6 +73,7 @@ pub(crate) fn light_items(plan: &FloorPlan, items: &mut Vec<Item>) {
             },
             label: None,
             source: source.clone(),
+            opacity: crate::display::FULL_OPACITY,
         });
         items.push(Item {
             role: Role::Light,
@@ -82,6 +83,7 @@ pub(crate) fn light_items(plan: &FloorPlan, items: &mut Vec<Item>) {
             },
             label: Some(light.label.clone()),
             source,
+            opacity: crate::display::FULL_OPACITY,
         });
     }
 }

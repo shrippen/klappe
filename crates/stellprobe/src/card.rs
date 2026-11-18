@@ -160,6 +160,7 @@ mod tests {
             shape: Shape::Polygon { points },
             label: Some(label),
             source: None,
+            opacity: crate::display::FULL_OPACITY,
         };
 
         assert!(hit(&card, Point::new(3.5, 4.3), 0.0));

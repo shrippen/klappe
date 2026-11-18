@@ -19,7 +19,6 @@ fn lamp(id: &str, kind: LightKind, power_w: f64, beam_deg: f64) -> Lamp {
 
 fn list() -> DisplayList {
     DisplayList {
-        opacities: Vec::new(),
         items: Vec::new(),
         lamps: vec![
             lamp("l1", LightKind::LedPanel, 200.0, 60.0),

@@ -78,6 +78,7 @@ mod tests {
             },
             label: None,
             source: None,
+            opacity: 1.0,
         }
     }
 
@@ -86,7 +87,6 @@ mod tests {
     #[test]
     fn a_height_is_a_caption_and_a_missing_one_a_warning() {
         let list = DisplayList {
-            opacities: Vec::new(),
             lamps: Vec::new(),
             items: vec![caption(Some(125)), caption(None)],
             width_m: 20.0,

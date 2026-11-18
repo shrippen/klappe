@@ -40,7 +40,6 @@ fn list() -> DisplayList {
     ];
 
     DisplayList {
-        opacities: Vec::new(),
         items: vec![
             Item {
                 role: Role::Wall,
@@ -51,12 +50,14 @@ fn list() -> DisplayList {
                 },
                 label: None,
                 source: None,
+                opacity: 1.0,
             },
             Item {
                 role: Role::Camera,
                 shape: Shape::Polygon { points: body },
                 label: Some("A".into()),
                 source: None,
+                opacity: 1.0,
             },
         ],
         lamps: Vec::new(),
@@ -96,7 +97,7 @@ fn a_faded_fill_turns_more_transparent() {
 #[test]
 fn an_item_with_its_own_opacity_is_drawn_paler() {
     let mut half = list();
-    half.opacities = vec![1.0, 0.5];
+    half.items[1].opacity = 0.5;
     let full = svg(&list(), &page(Vec::new()), Theme::Light).unwrap();
     let pale = svg(&half, &page(Vec::new()), Theme::Light).unwrap();
 
@@ -106,7 +107,7 @@ fn an_item_with_its_own_opacity_is_drawn_paler() {
         svg(&half, &page(vec![1.0, 0.5]), Theme::Light).unwrap(),
         {
             let mut quarter = list();
-            quarter.opacities = vec![1.0, 0.25];
+            quarter.items[1].opacity = 0.25;
             svg(&quarter, &page(Vec::new()), Theme::Light).unwrap()
         },
         "the layer's fade and the item's opacity multiply"

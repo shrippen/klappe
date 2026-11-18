@@ -220,7 +220,12 @@ impl<'a> Faded<'a> {
 
     /// The layer's fade times the item's own opacity (a figure fading in or out, LH-26).
     fn strength(&self, index: usize) -> f64 {
-        self.fades.get(index).copied().unwrap_or(FULL_STRENGTH) * self.list.opacity(index)
+        self.fades.get(index).copied().unwrap_or(FULL_STRENGTH)
+            * self
+                .list
+                .items
+                .get(index)
+                .map_or(FULL_STRENGTH, |i| i.opacity)
     }
 }
 
@@ -267,6 +272,7 @@ mod tests {
             shape,
             label: Some("A".into()),
             source,
+            opacity: 1.0,
         }
     }
 
@@ -363,7 +369,6 @@ mod tests {
     #[test]
     fn roles_become_kante_names_and_styles() {
         let list = DisplayList {
-            opacities: Vec::new(),
             lamps: Vec::new(),
             items: vec![
                 item(
@@ -410,7 +415,6 @@ mod tests {
             radius_m,
         };
         let list = DisplayList {
-            opacities: Vec::new(),
             lamps: Vec::new(),
             items: vec![
                 item(Role::Figure(FigureColor::Purple), circle(0.6), None),
@@ -430,7 +434,6 @@ mod tests {
     #[test]
     fn a_note_is_a_card_with_its_text() {
         let list = DisplayList {
-            opacities: Vec::new(),
             lamps: Vec::new(),
             items: vec![Item {
                 role: Role::Note,
@@ -444,6 +447,7 @@ mod tests {
                 },
                 label: Some("Vorhang schließen".into()),
                 source: Some(Source::Note("n1".into())),
+                opacity: 1.0,
             }],
             width_m: 20.0,
             depth_m: 13.0,
@@ -476,6 +480,7 @@ mod tests {
             },
             label: label.map(str::to_owned),
             source: Some(Source::Image("i1".into())),
+            opacity: 1.0,
         };
         let picture = Item {
             role: Role::Picture,
@@ -489,9 +494,9 @@ mod tests {
             },
             label: None,
             source: None,
+            opacity: 1.0,
         };
         let list = DisplayList {
-            opacities: Vec::new(),
             lamps: Vec::new(),
             items: vec![picture, frame(None), frame(Some("bilder/b.png"))],
             width_m: 20.0,
@@ -515,7 +520,6 @@ mod tests {
     fn a_drawing_keeps_colour_dash_and_fill() {
         let at = Some(Source::Drawing("d1".into()));
         let list = DisplayList {
-            opacities: Vec::new(),
             lamps: Vec::new(),
             items: vec![
                 item(
@@ -562,7 +566,6 @@ mod tests {
 
     fn background_list() -> DisplayList {
         DisplayList {
-            opacities: Vec::new(),
             lamps: Vec::new(),
             items: vec![item(
                 Role::Background,

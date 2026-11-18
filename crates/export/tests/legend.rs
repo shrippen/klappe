@@ -41,6 +41,7 @@ fn drawing(color: FigureColor, dash: Dash, fill: Fill, shape: Shape) -> Item {
         shape,
         label: None,
         source: None,
+        opacity: 1.0,
     }
 }
 
@@ -65,7 +66,6 @@ fn boxed() -> Shape {
 /// The words of the legend, in order.
 fn legend(items: Vec<Item>) -> Vec<String> {
     let list = DisplayList {
-        opacities: Vec::new(),
         items,
         lamps: Vec::new(),
         width_m: 20.0,
@@ -161,6 +161,7 @@ fn the_legend_lists_the_mark_signs_when_the_plan_has_them() {
         },
         label: None,
         source: None,
+        opacity: 1.0,
     };
 
     assert_eq!(legend(Vec::new()).len(), 6);
@@ -169,7 +170,6 @@ fn the_legend_lists_the_mark_signs_when_the_plan_has_them() {
     assert_eq!(&listed[6..], ["Arrival", "Departure"], "{listed:?}");
 
     let list = DisplayList {
-        opacities: Vec::new(),
         items: vec![sign],
         lamps: Vec::new(),
         width_m: 10.0,

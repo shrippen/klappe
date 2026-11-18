@@ -32,9 +32,6 @@ pub struct DisplayList {
     pub items: Vec<Item>,
     /// What each lamp of the plan is, for a printed legend (LH-51).
     pub lamps: Vec<Lamp>,
-    /// How strongly each item is drawn, 0 to 1, in the order of `items`: a figure fading in or
-    /// out (LH-26). Empty or short: the items without an entry are drawn in full.
-    pub opacities: Vec<f64>,
     pub width_m: f64,
     pub depth_m: f64,
 }
@@ -47,6 +44,8 @@ pub struct Item {
     pub label: Option<String>,
     /// What the item belongs to, for selection and tooltips.
     pub source: Option<Source>,
+    /// How strongly it is drawn, 0 to 1: below 1 for a figure fading in or out (LH-26).
+    pub opacity: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -130,13 +129,6 @@ pub enum Role {
     Height {
         cm: Option<u32>,
     },
-}
-
-impl DisplayList {
-    /// How strongly item `index` is drawn, 0 to 1: 1 unless it is a figure fading (LH-26).
-    pub fn opacity(&self, index: usize) -> f64 {
-        self.opacities.get(index).copied().unwrap_or(FULL_OPACITY)
-    }
 }
 
 impl Source {
@@ -283,8 +275,8 @@ const VIEW_REACH_FALLBACK_M: f64 = 8.0;
 const SIGN_ARM_M: f64 = 0.16;
 const SIGN_GAP_M: f64 = 0.1;
 const CHEVRON_DEG: f64 = 40.0;
-/// An item drawn at its own colour, see `DisplayList::opacities`.
-const FULL_OPACITY: f64 = 1.0;
+/// An item drawn at its own colour, see `Item::opacity`.
+pub(crate) const FULL_OPACITY: f64 = 1.0;
 /// The facing wedge: how far it reaches beyond the body and how wide it is.
 const NOSE_M: f64 = 0.25;
 const NOSE_HALF_DEG: f64 = 35.0;
@@ -316,17 +308,13 @@ pub fn render(
     light_items(plan, &mut items);
     axis_items(plan, t_s, reach_m, &mut items);
     camera_items(plan, t_s, reach_m, &mut items);
-    let mut opacities = Vec::new();
-    figure_items(project, plan, t_s, &mut items, &mut opacities);
+    figure_items(project, plan, t_s, &mut items);
     note_items(set, plan, &mut items);
     sketch_items(plan, &mut items);
-
-    opacities.resize(items.len(), FULL_OPACITY);
 
     DisplayList {
         items,
         lamps: lamps(plan),
-        opacities,
         width_m: set.width_m,
         depth_m: set.depth_m,
     }
@@ -356,6 +344,7 @@ fn background_item(background: &Background, px: (u32, u32), items: &mut Vec<Item
         },
         label: None,
         source: None,
+        opacity: FULL_OPACITY,
     });
 }
 
@@ -377,6 +366,7 @@ fn drawing_items(plan: &FloorPlan, items: &mut Vec<Item>) {
                 shape,
                 label: None,
                 source: source.clone(),
+                opacity: FULL_OPACITY,
             });
         };
 
@@ -411,6 +401,7 @@ fn sketch_items(plan: &FloorPlan, items: &mut Vec<Item>) {
             },
             label: None,
             source: None,
+            opacity: FULL_OPACITY,
         });
     }
 }
@@ -500,6 +491,7 @@ fn note_items(set: &SetPlan, plan: &FloorPlan, items: &mut Vec<Item>) {
             shape: Shape::Polygon { points },
             label: Some(wrapped),
             source: Some(Source::Note(note.id.clone())),
+            opacity: FULL_OPACITY,
         });
     }
 }
@@ -526,6 +518,7 @@ fn axis_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>) {
         },
         label: None,
         source: None,
+        opacity: FULL_OPACITY,
     });
 }
 
@@ -543,6 +536,7 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
                 },
                 label: None,
                 source: source.clone(),
+                opacity: FULL_OPACITY,
             });
         }
 
@@ -559,6 +553,7 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
             },
             label: None,
             source: source.clone(),
+            opacity: FULL_OPACITY,
         });
         items.push(Item {
             role: Role::Camera,
@@ -567,6 +562,7 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
             },
             label: Some(camera.label.clone()),
             source,
+            opacity: FULL_OPACITY,
         });
     }
 }
@@ -589,6 +585,7 @@ fn way_items(track: &FigureTrack, color: FigureColor, items: &mut Vec<Item>) {
             },
             label: None,
             source: Some(Source::Figure(track.character.clone())),
+            opacity: FULL_OPACITY,
         });
     }
 
@@ -608,17 +605,12 @@ fn way_items(track: &FigureTrack, color: FigureColor, items: &mut Vec<Item>) {
             },
             label: Some((index + 1).to_string()),
             source,
+            opacity: FULL_OPACITY,
         });
     }
 }
 
-fn figure_items(
-    project: &Project,
-    plan: &FloorPlan,
-    t_s: f64,
-    items: &mut Vec<Item>,
-    opacities: &mut Vec<f64>,
-) {
+fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<Item>) {
     for track in &plan.figures {
         let Some(character) = project.character(&track.character) else {
             continue;
@@ -634,22 +626,18 @@ fn figure_items(
         if opacity <= 0.0 {
             continue;
         }
-        let mut push = |item: Item| {
-            opacities.resize(items.len(), FULL_OPACITY);
-            items.push(item);
-            opacities.push(opacity);
-        };
         let source = Some(Source::Figure(track.character.clone()));
         let radius_m = body_radius_m(character);
-        push(Item {
+        items.push(Item {
             role: Role::Figure(color),
             shape: Shape::Polygon {
                 points: nose(place.at, place.facing_deg, radius_m),
             },
             label: None,
             source: source.clone(),
+            opacity,
         });
-        push(Item {
+        items.push(Item {
             role: Role::Figure(color),
             shape: Shape::Circle {
                 center: place.at,
@@ -657,6 +645,7 @@ fn figure_items(
             },
             label: Some(character.title()),
             source: source.clone(),
+            opacity,
         });
 
         // Dots inside the body mark a group; a click on one still takes the whole group.
@@ -665,7 +654,7 @@ fn figure_items(
         }
         let scale = radius_m / GROUP_RADIUS_M;
         for center in group_dots(place.at, scale) {
-            push(Item {
+            items.push(Item {
                 role: Role::GroupDot,
                 shape: Shape::Circle {
                     center,
@@ -673,6 +662,7 @@ fn figure_items(
                 },
                 label: None,
                 source: source.clone(),
+                opacity,
             });
         }
     }
@@ -712,6 +702,7 @@ fn sign_items(mark: &Mark, color: FigureColor, source: &Option<Source>) -> Vec<I
             },
             label: None,
             source: source.clone(),
+            opacity: FULL_OPACITY,
         });
     }
 

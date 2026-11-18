@@ -38,7 +38,6 @@ fn numbers(svg: &str, name: &str) -> Vec<f64> {
 #[test]
 fn the_plan_fits_an_upright_page() {
     let list = DisplayList {
-        opacities: Vec::new(),
         items: Vec::new(),
         lamps: Vec::new(),
         width_m: 20.0,

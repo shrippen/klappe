@@ -18,7 +18,6 @@ const JPEG: [u8; 23] = [
 
 fn list(rotation_deg: f64) -> DisplayList {
     DisplayList {
-        opacities: Vec::new(),
         lamps: Vec::new(),
         items: vec![Item {
             role: Role::Background,
@@ -32,6 +31,7 @@ fn list(rotation_deg: f64) -> DisplayList {
             },
             label: None,
             source: None,
+            opacity: 1.0,
         }],
         width_m: 20.0,
         depth_m: 13.0,

@@ -624,7 +624,6 @@ fn the_scale_matches_hand_worked_numbers() {
 #[test]
 fn bar_and_label_agree_on_tiny_plans() {
     let tiny = DisplayList {
-        opacities: Vec::new(),
         width_m: 0.2,
         depth_m: 0.2,
         ..DisplayList::default()

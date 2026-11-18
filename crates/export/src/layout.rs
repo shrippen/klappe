@@ -181,7 +181,7 @@ fn plan_prims(
             _ => item_prims(item, map, pal, body_m, &mut plan)?,
         }
 
-        let strength = page.fade.get(index).copied().unwrap_or(FULL_STRENGTH) * list.opacity(index);
+        let strength = page.fade.get(index).copied().unwrap_or(FULL_STRENGTH) * item.opacity;
         fade_prims(&mut plan[first..], strength, pal.paper);
     }
 

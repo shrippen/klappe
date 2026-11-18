@@ -41,10 +41,10 @@ fn list() -> DisplayList {
         },
         label: None,
         source: None,
+        opacity: 1.0,
     };
 
     DisplayList {
-        opacities: Vec::new(),
         lamps: Vec::new(),
         items: vec![wall],
         width_m: WIDTH_M,
