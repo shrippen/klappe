@@ -202,11 +202,18 @@ impl Session {
         Ok(())
     }
 
-    /// Writes only the register file `szenen.toml` and the characters `figuren.toml`, as the
-    /// session holds them: an answer about the book is a decision, kept at once where the book
-    /// is edited without the plans (TUI).
+    /// Writes only the register file `szenen.toml`, as the session holds it: an answer about
+    /// the book is a decision, kept at once where the book is edited without the plans (TUI).
     pub fn save_register(&mut self) -> Result<(), ServiceError> {
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
+
+        Ok(())
+    }
+
+    /// Writes only `figuren.toml`, as the session holds it. For undo and redo of an answer
+    /// about a name of the book (DB-50), which must reach the file; the answer itself writes
+    /// from the disk (`resolve_figure`).
+    pub fn save_figures(&mut self) -> Result<(), ServiceError> {
         klappe_store::save_characters(&self.dir, &self.project)?;
 
         Ok(())

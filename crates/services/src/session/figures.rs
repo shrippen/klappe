@@ -68,17 +68,31 @@ impl Session {
     }
 
     /// Settles the cue `name`: a new character, an alias of one, or no character. One undo
-    /// step.
+    /// step, written to `figuren.toml` at once, from the file as it is on disk: another
+    /// program (the window beside the TUI) may have changed it, and the answer changes only
+    /// what it touches. A question that is gone there (answered elsewhere) is no error: the
+    /// disk is taken and the question disappears. A cue never asked is refused.
     pub fn resolve_figure(&mut self, name: &str, choice: FigureChoice) -> Result<(), ServiceError> {
-        let none = || ServiceError::NoDecision(name.to_owned());
         if !self.pending_figures.iter().any(|p| p.name == name) {
-            return Err(none());
+            return Err(ServiceError::NoDecision(name.to_owned()));
         }
 
+        // The file as it is now, not the session's copy: it may be older.
+        let (characters, not_figures) = klappe_store::load_figures(&self.dir)?;
         let mut next = self.project.clone();
-        if !figures::decide(&mut next, name, &choice) {
-            return Err(none());
+        next.characters = characters;
+        next.not_figures = not_figures;
+        let open = figures::pending(&next, &self.script)
+            .iter()
+            .any(|p| p.name == name);
+        if !open || !figures::decide(&mut next, name, &choice) {
+            self.project.characters = next.characters;
+            self.project.not_figures = next.not_figures;
+            self.refresh_figures();
+
+            return Ok(());
         }
+        klappe_store::save_characters(&self.dir, &next)?;
 
         let (scene, shown) = self.ids_on_view();
         self.commit_step(next, RESOLVE_STEP);

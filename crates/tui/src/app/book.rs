@@ -196,7 +196,11 @@ impl App {
 
     /// Writes the register as undo or redo left it and shows its questions.
     fn settle_answer(&mut self) -> Flow {
-        if let Err(e) = self.session.save_register() {
+        let saved = self
+            .session
+            .save_register()
+            .and_then(|()| self.session.save_figures());
+        if let Err(e) = saved {
             self.notice = Some(Notice::SaveFailed(e.to_string()));
         }
         self.book_sel = 0;

@@ -234,3 +234,87 @@ BERT (O.S.) (V.O.) (FORTS.)\nZwei.\n\n";
 
     assert_eq!(asked(&s), [("ANNA".to_owned(), 1), ("BERT".to_owned(), 1)]);
 }
+
+fn names(dir: &Path) -> Vec<String> {
+    klappe_store::load(dir)
+        .unwrap()
+        .project
+        .characters
+        .iter()
+        .map(|c| c.name.clone())
+        .collect()
+}
+
+#[test]
+fn an_answer_keeps_a_figure_the_window_saved_meanwhile() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-beside", vec![anna], BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Carl")).unwrap();
+    gui.save().unwrap();
+
+    tui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
+    tui.save_register().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+    assert_eq!(
+        klappe_store::load(&dir).unwrap().project.not_figures,
+        ["ALLE"]
+    );
+}
+
+#[test]
+fn an_alias_answer_keeps_a_figure_the_window_saved_meanwhile() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-beside-alias", vec![anna], BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Carl")).unwrap();
+    gui.save().unwrap();
+
+    tui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
+        .unwrap();
+
+    let saved = klappe_store::load(&dir).unwrap().project;
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+    assert_eq!(saved.characters[0].aliases, ["BERT"]);
+    assert_eq!(
+        tui.project().characters.len(),
+        2,
+        "the session takes the disk"
+    );
+}
+
+#[test]
+fn a_question_answered_elsewhere_disappears_without_a_second_entry() {
+    let dir = make("fig-stale", Vec::new(), BOOK);
+    let mut first = Session::open(&dir).unwrap();
+    let mut second = Session::open(&dir).unwrap();
+    first
+        .resolve_figure("ALLE", FigureChoice::NotFigure)
+        .unwrap();
+
+    second
+        .resolve_figure("ALLE", FigureChoice::NotFigure)
+        .unwrap();
+
+    assert_eq!(
+        klappe_store::load(&dir).unwrap().project.not_figures,
+        ["ALLE"]
+    );
+    assert_eq!(second.project().not_figures, ["ALLE"]);
+    assert!(second.pending_figures().iter().all(|p| p.name != "ALLE"));
+}
+
+#[test]
+fn creating_a_figure_answered_elsewhere_makes_no_second_one() {
+    let dir = make("fig-stale-create", Vec::new(), BOOK);
+    let mut first = Session::open(&dir).unwrap();
+    let mut second = Session::open(&dir).unwrap();
+    first.resolve_figure("BERT", FigureChoice::Create).unwrap();
+
+    second.resolve_figure("BERT", FigureChoice::Create).unwrap();
+
+    assert_eq!(names(&dir), ["Bert"]);
+}

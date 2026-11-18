@@ -379,6 +379,14 @@ fn encode_characters(dir: &Path, project: &Project) -> Result<(PathBuf, Vec<u8>)
     Ok((path, bytes))
 }
 
+/// The characters and the not-figures of `figuren.toml` as it is on disk, for an answer that
+/// changes only what it touches (DB-50).
+pub fn load_figures(dir: &Path) -> Result<(Vec<Character>, Vec<String>), StoreError> {
+    let characters = load_characters(dir)?;
+
+    Ok((characters.figur, characters.not_figures))
+}
+
 /// Writes `figuren.toml` of `project` in `dir` and nothing else: the answer about a name of
 /// the book (DB-50) is kept at once, like the register.
 pub fn save_characters(dir: &Path, project: &Project) -> Result<(), StoreError> {
