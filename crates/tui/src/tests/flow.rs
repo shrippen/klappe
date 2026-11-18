@@ -492,12 +492,6 @@ fn alt_h_and_alt_t_set_the_line_apart_in_a_paragraph() {
             "x\n\nAnna geht.\n\nINT. KÜCHE - TAG\n\ny",
         ),
         (
-            "x\n\nANNA\nhallo du.\n\ny",
-            3,
-            't',
-            "x\n\nANNA\n\n>HALLO DU.\n\ny",
-        ),
-        (
             "x\n\nint. küche - tag\nAnna geht.\n\ny",
             2,
             'h',
@@ -535,4 +529,38 @@ fn alt_h_does_not_force_a_leading_ellipsis() {
     let app = alt_on(text, 2, 'h');
 
     assert_eq!(app.text(), text);
+}
+
+#[test]
+fn alt_h_and_alt_t_leave_dialogue_boneyard_and_notes_alone() {
+    // every line of these blocks refuses
+    for text in [
+        "x\n\nANNA\nhallo.\ndu.\nwie geht's.\n\ny",
+        "x\n\nANNA\n(leise)\nhallo.\n\ny",
+        "x\n\n/* int. a\nb */\n\ny",
+        "x\n\n[[ int. a ]]\n\ny",
+    ] {
+        let last = text.split('\n').count();
+        for at in 2..last - 2 {
+            for key in ['h', 't'] {
+                let mut app = alt_on(text, at, key);
+
+                assert_eq!(app.text(), text, "{text:?} {at} {key}");
+                assert_eq!(app.editor.undo_depth(), 0, "{text:?} {at} {key}");
+                ctrl(&mut app, 'z');
+                assert_eq!(app.text(), text);
+            }
+        }
+    }
+}
+
+#[test]
+fn redo_puts_the_cursor_on_the_new_heading() {
+    let mut app = alt_on("x\n\nanna geht.\n\ny", 2, 'h');
+    let after = app.cursor();
+
+    ctrl(&mut app, 'z');
+    ctrl(&mut app, 'y');
+
+    assert_eq!(app.cursor(), after);
 }

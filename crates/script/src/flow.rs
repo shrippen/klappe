@@ -2,7 +2,7 @@
 //! on Tab on an empty line. `assist.rs` offers the suggestions for the same line.
 
 use crate::parse::{
-    parse_located, title_page_lines, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING,
+    boneyard_lines, parse_located, title_page_lines, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING,
     FORCE_TRANSITION, NUMBER_MARK,
 };
 use crate::Element;
@@ -224,11 +224,36 @@ fn is_blank(line: Option<&String>) -> bool {
     line.is_none_or(|l| l.trim().is_empty())
 }
 
+const BONEYARD_OPEN: &str = "/*";
+const BONEYARD_CLOSE: &str = "*/";
+
+/// Whether line `at` of `text` belongs to a dialogue block, a note or a boneyard, where
+/// setting a line apart would tear the block or change what is commented out.
+fn is_fenced(text: &str, at: usize) -> bool {
+    let line = text.split('\n').nth(at).unwrap_or_default();
+    let boneyard = boneyard_lines(text).get(at).copied().unwrap_or(false);
+    if boneyard || line.contains(BONEYARD_OPEN) || line.contains(BONEYARD_CLOSE) {
+        return true;
+    }
+
+    parse_located(text).iter().any(|l| {
+        let kind = matches!(
+            l.element,
+            Element::Character { .. }
+                | Element::Parenthetical(_)
+                | Element::Dialogue(_)
+                | Element::Note(_)
+        );
+        kind && l.lines.contains(&at)
+    })
+}
+
 /// Makes line `line` of `text` a scene heading or transition (`slot`; none for other
 /// slots): capitals, the number of a heading as typed, a blank line before and after where
 /// missing (so the line stands alone), and the forcing marker (`.`, `>`) only where
 /// Fountain would not read the line as that element in this place. None for a line of the
-/// title page, and for a heading that starts with `..` (an ellipsis cannot be forced).
+/// title page, a dialogue block (cue, parenthetical, speech), a boneyard or a note, and
+/// for a heading that starts with `..` (an ellipsis cannot be forced).
 ///
 /// ```text
 /// "kueche tag"  ─► ".KUECHE TAG"      "int. küche"  ─► "INT. KÜCHE"
@@ -243,6 +268,10 @@ pub fn force_line(text: &str, line: usize, slot: Slot) -> Option<Forced> {
     };
     let mut lines: Vec<String> = text.split('\n').map(str::to_owned).collect();
     if line >= lines.len() || line < title_page_lines(text) {
+        return None;
+    }
+
+    if is_fenced(text, line) {
         return None;
     }
 
@@ -380,10 +409,16 @@ mod tests {
             forced("x\n\nAnna geht.\nint. a\n\ny", 3, Slot::Heading),
             own("x\n\nAnna geht.\n\nINT. A\n\ny", 4)
         );
-        assert_eq!(
-            forced("x\n\nANNA\nhallo du.\n\ny", 3, Slot::Transition),
-            own("x\n\nANNA\n\n>HALLO DU.\n\ny", 4)
-        );
+        for (text, line) in [
+            ("x\n\nANNA\nhallo du.\n\ny", 2),
+            ("x\n\nANNA\nhallo du.\n\ny", 3),
+            ("x\n\nANNA\n(leise)\nhallo.\n\ny", 3),
+            ("x\n\n/* int. a\nb */\n\ny", 2),
+            ("x\n\n/* int. a\nb */\n\ny", 3),
+            ("x\n\n[[ int. a ]]\n\ny", 2),
+        ] {
+            assert_eq!(forced(text, line, Slot::Transition), None, "{text:?}");
+        }
         assert_eq!(forced("Title: T\n\nx", 0, Slot::Heading), None);
         assert_eq!(
             forced("Title: T\nAuthor: A\n\nx", 1, Slot::Transition),
