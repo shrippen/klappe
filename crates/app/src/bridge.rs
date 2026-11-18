@@ -342,6 +342,13 @@ pub mod qobject {
         #[cxx_name = "resolveScene"]
         fn resolve_scene(self: Pin<&mut Self>, id: &QString, index: i32) -> bool;
 
+        /// Answers the open question about the play location `name` of the scene headings
+        /// (`projectJson.pendingPlaces`): the answer at position `index` of its `answers`.
+        /// Written to `orte.toml` at once; no undo step. False when the answer is refused.
+        #[qinvokable]
+        #[cxx_name = "resolvePlace"]
+        fn resolve_place(self: Pin<&mut Self>, name: &QString, index: i32) -> bool;
+
         /// Takes the project from the backup found at open.
         #[qinvokable]
         #[cxx_name = "restoreBackup"]
