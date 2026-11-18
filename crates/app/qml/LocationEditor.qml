@@ -23,9 +23,9 @@ EditorPane {
         widthField.text = texts.num(item ? item.width : defaultWidth, 2)
         depthField.text = texts.num(item ? item.depth : defaultDepth, 2)
         heightField.text = texts.num(item ? item.height : defaultHeight, 2)
-        latitudeField.text = item && item.latitude != null ? texts.num(item.latitude, 4) : ""
-        longitudeField.text = item && item.longitude != null ? texts.num(item.longitude, 4) : ""
-        northField.text = item && item.latitude != null ? texts.num(item.north, 1) : ""
+        latitudeField.text = item && item.latitude != null ? texts.exact(item.latitude) : ""
+        longitudeField.text = item && item.longitude != null ? texts.exact(item.longitude) : ""
+        northField.text = item && item.latitude != null ? texts.exact(item.north) : ""
     }
 
     // The place as the controller takes it: latitude, longitude and north as typed.

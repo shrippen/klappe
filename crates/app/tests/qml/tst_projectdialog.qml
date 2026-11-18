@@ -330,6 +330,23 @@ TestCase {
         compare(findChild(other, "northField").text, "")
     }
 
+    // LH-52: the form shows the stored place without loss, so a rename writes it back unchanged.
+    function test_renaming_a_location_keeps_its_place_exactly() {
+        const project = JSON.parse(fake.fixture)
+        project.locations[0].latitude = 52.520008
+        project.locations[0].longitude = 12.34
+        project.locations[0].north = 33.25
+        fake.projectJson = JSON.stringify(project)
+        const pd = make()
+        opened(pd)
+        showTab(pd, 1)
+
+        const form = select(pd, "locationList", "locationForm", "hof")
+        findChild(form, "nameField").text = "Burghof 2"
+        press(form, "apply")
+        compare(fake.calls, [["editLocation", "hof", "Burghof 2", "30", "20,5", "3,2", '["52,520008","12,34","33,25"]']])
+    }
+
     // LH-52: date, time and offset of a scene are sent as typed.
     function test_a_scene_form_sends_its_date_time_and_offset() {
         const project = JSON.parse(fake.fixture)
