@@ -13,9 +13,9 @@ const PDF_NOTICE: &str = "PDF written to out.pdf";
 /// What the status line showed before notices got priority.
 const UNCHANGED: [(u16, Language, &str); 4] = [
     (80, Language::German, " TEXT  kt-status-film.klappe  Szene 1/1  Szenen, die nicht im Buch stehen: 1.  1:1  F1 Hilfe  ^P Sze"),
-    (80, Language::English, " TEXT  kt-status-film.klappe  Scene 1/1  Scenes not in the book: 1.  1:1  F1 Help  ^P Scene  ^F Find"),
+    (80, Language::English, " TEXT  kt-status-film.klappe  Scene 1/1  Scenes not in the script: 1.  1:1  F1 Help  ^P Scene  ^F Find"),
     (100, Language::German, " TEXT  kt-status-film.klappe  Szene 1/1  Szenen, die nicht im Buch stehen: 1.  1:1  F1 Hilfe  ^P Szene  ^F Suchen"),
-    (100, Language::English, " TEXT  kt-status-film.klappe  Scene 1/1  Scenes not in the book: 1.  1:1  F1 Help  ^P Scene  ^F Find"),
+    (100, Language::English, " TEXT  kt-status-film.klappe  Scene 1/1  Scenes not in the script: 1.  1:1  F1 Help  ^P Scene  ^F Find"),
 ];
 
 /// A project in a folder of its own, so tests do not remove each other's.
