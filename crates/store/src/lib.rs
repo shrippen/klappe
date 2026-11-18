@@ -21,6 +21,8 @@ mod folder;
 mod images;
 mod library;
 mod light;
+mod lock;
+mod partial;
 mod places;
 mod register;
 mod template;
@@ -46,6 +48,8 @@ pub use images::{
 };
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
+pub use lock::{load_lock, save_lock};
+pub use partial::{save_contd, save_register, save_script};
 use places::PlacesFile;
 pub use places::{load_places, save_places};
 pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
@@ -67,6 +71,7 @@ const PLACES_FILE: &str = "orte.toml";
 const LIBRARY_FILE: &str = "bibliothek.toml";
 const TEMPLATES_FILE: &str = "vorlagen.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
+const LOCK_FILE: &str = "nummern.toml";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
 const SCENES_FILE: &str = "szenen.toml";
@@ -359,32 +364,6 @@ fn optional_files(
     files.push((dir.join(PLACES_FILE), encoded));
 
     Ok(files)
-}
-
-/// Sets "(CONT'D) after action" in `projekt.toml` of `dir` and nothing else: the rest of the
-/// file stays as it is on disk, as another program may have saved it meanwhile (TUI beside
-/// the window).
-pub fn save_contd(dir: &Path, on: bool) -> Result<(), StoreError> {
-    let mut header = read_header(dir)?;
-    header.script.contd_after_action = on;
-
-    let path = dir.join(PROJECT_FILE);
-    let bytes = files::encode_toml(&path, &header)?;
-    files::write_atomic(&path, &bytes)
-}
-
-/// Writes `drehbuch.fountain` in `dir` atomically and nothing else.
-pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
-    files::write_atomic(&dir.join(SCRIPT_FILE), script.as_bytes())
-}
-
-/// Writes `szenen.toml` of `scenes` in `dir` and nothing else: the Stellprobe files stay, as
-/// unsaved plans are for `save` to write (LH-05).
-pub fn save_register(dir: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
-    check_ids(scenes.iter().map(|s| s.id.as_str()))?;
-
-    let (path, bytes) = register::encode_register(dir, scenes)?;
-    files::write_atomic(&path, &bytes)
 }
 
 /// Writes `project` as a backup into `dir/.sicherung`, in the project format. The project
