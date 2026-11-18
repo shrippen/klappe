@@ -1,10 +1,19 @@
 //! Search and replace (`Ctrl+F`), in all text or only in the dialogue of one character.
 
-use klappe_services::{find_all, parse_located, replace_all, replace_line, Case, Hit, Query};
+use std::ops::Range;
+
+use klappe_services::{find_all, parse_located, replace_hits, Case, Hit, Query};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{App, Flow, Mode, Notice};
 use crate::buffer::Pos;
+
+/// Which way a choice steps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Way {
+    Next,
+    Previous,
+}
 
 /// Which box of the form takes the typing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -61,8 +70,10 @@ impl Default for Find {
 }
 
 impl App {
-    /// The matches on a line to mark while searching, and whether each is the current one.
-    pub(crate) fn find_hits_on(&self, line: usize) -> Vec<(Hit, bool)> {
+    /// The columns of the matches on a line to mark while searching (a match over a line
+    /// break marks the end of one line and the start of the next), and whether each is the
+    /// current one.
+    pub(crate) fn find_hits_on(&self, line: usize) -> Vec<(Range<usize>, bool)> {
         if self.mode != Mode::Find {
             return Vec::new();
         }
@@ -71,8 +82,16 @@ impl App {
             .hits
             .iter()
             .enumerate()
-            .filter(|(_, h)| h.line == line)
-            .map(|(i, h)| (*h, i == self.find.sel))
+            .filter(|(_, h)| h.line <= line && line <= h.end_line)
+            .map(|(i, h)| {
+                let start = if h.line == line { h.start } else { 0 };
+                let end = if h.end_line == line {
+                    h.end
+                } else {
+                    usize::MAX
+                };
+                (start..end, i == self.find.sel)
+            })
             .collect()
     }
 
@@ -169,8 +188,14 @@ impl App {
             KeyCode::Esc => self.mode = Mode::Normal,
             KeyCode::Tab => self.find.field = self.find.field.next(),
             KeyCode::BackTab => self.find.field = self.find.field.previous(),
-            KeyCode::Down => return self.find_step_in(false),
-            KeyCode::Up => return self.find_step_in(true),
+            KeyCode::Left | KeyCode::Right if self.find.field == FindField::Speaker => {
+                let way = match key.code == KeyCode::Left {
+                    true => Way::Previous,
+                    false => Way::Next,
+                };
+                self.pick_speaker(way);
+            }
+            KeyCode::Down | KeyCode::Up => return self.find_step_in(key.code == KeyCode::Up),
             KeyCode::Char(c) if ctrl => return self.find_ctrl(c),
             KeyCode::Enter if self.find.field == FindField::Replace => self.replace_one(),
             KeyCode::Enter => return self.find_step_in(false),
@@ -230,20 +255,37 @@ impl App {
         self.find_show();
     }
 
+    /// Steps the "Only dialogue of" box through the characters of the script, most frequent
+    /// first, and the empty choice (everyone) before the first and after the last.
+    fn pick_speaker(&mut self, way: Way) {
+        let names = self.analysis.vocab.characters();
+        let at = names
+            .iter()
+            .position(|n| n.to_lowercase() == self.find.speaker.trim().to_lowercase());
+        // Slot 0 is "everyone", slot n is `names[n - 1]`.
+        let count = names.len() + 1;
+        let now = at.map_or(0, |i| i + 1);
+        let next = match way {
+            Way::Previous => (now + count - 1) % count,
+            Way::Next => (now + 1) % count,
+        };
+        self.find.speaker = match next {
+            0 => String::new(),
+            n => names[n - 1].clone(),
+        };
+        self.find_update();
+        self.find_show();
+    }
+
     /// Replaces the match the cursor is on and goes on to the next.
     fn replace_one(&mut self) {
         let Some(hit) = self.find.hits.get(self.find.sel).copied() else {
             return;
         };
         let new = self.find.replace.clone();
-        let line = self.editor.lines()[hit.line].clone();
-        let text = replace_line(&line, hit.line, &[hit], &new);
         let col = hit.start + new.chars().count();
-
-        self.editor.set_lines(
-            hit.line,
-            hit.line + 1,
-            vec![text],
+        self.splice_hits(
+            &[hit],
             Pos {
                 line: hit.line,
                 col,
@@ -257,22 +299,51 @@ impl App {
     /// Replaces every match, as one undo step.
     fn replace_every(&mut self) {
         let hits = self.find.hits.clone();
-        let (Some(first), Some(last)) = (hits.first(), hits.last()) else {
-            return;
-        };
-        let (from, to) = (first.line, last.line + 1);
-
-        let changed = replace_all(self.editor.lines(), &hits, &self.find.replace);
-        let lines: Vec<String> = (from..to)
-            .map(|n| match changed.iter().find(|(at, _)| *at == n) {
-                Some((_, text)) => text.clone(),
-                None => self.editor.lines()[n].clone(),
-            })
-            .collect();
-        let cursor = self.editor.cursor();
-
-        self.editor.set_lines(from, to, lines, cursor);
+        let cursor = self.cursor_after(&hits);
+        self.splice_hits(&hits, cursor);
         self.find_update();
         self.notice = Some(Notice::Replaced(hits.len()));
+    }
+
+    /// Where the cursor is once `hits` are replaced, on the same text: lines joined by a
+    /// hit before it move it up, and on the line a hit ends on, its column follows the
+    /// change in length. A cursor inside a hit is left where it is (the editor clamps it).
+    fn cursor_after(&self, hits: &[Hit]) -> Pos {
+        let cursor = self.editor.cursor();
+        let width = self.find.replace.chars().count() as isize;
+        let mut joined = 0;
+        // Original line a column shift holds on, and the shift.
+        let mut shift = (usize::MAX, 0isize);
+
+        for hit in hits {
+            if (hit.end_line, hit.end) > (cursor.line, cursor.col) {
+                break;
+            }
+            // Earlier hits on the line where this one starts moved its start.
+            let before = if shift.0 == hit.line { shift.1 } else { 0 };
+            let new_end = hit.start as isize + before + width;
+            shift = (hit.end_line, new_end - hit.end as isize);
+            joined += hit.end_line - hit.line;
+        }
+
+        let col = match shift.0 == cursor.line {
+            true => cursor.col.saturating_add_signed(shift.1),
+            false => cursor.col,
+        };
+
+        Pos {
+            line: cursor.line - joined,
+            col,
+        }
+    }
+
+    /// Puts the replacement over `hits` in the editor, one undo step.
+    fn splice_hits(&mut self, hits: &[Hit], cursor: Pos) {
+        let Some(edit) = replace_hits(self.editor.lines(), hits, &self.find.replace) else {
+            return;
+        };
+
+        self.editor
+            .set_lines(edit.from, edit.to, edit.lines, cursor);
     }
 }

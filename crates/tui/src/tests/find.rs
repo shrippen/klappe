@@ -239,6 +239,82 @@ fn the_title_page_lines_show_quiet() {
     assert_eq!(buffer[(x, y)].fg, theme::MUTED);
 }
 
+const BROKEN: &str =
+    "Sie geht durch die\nTür und bleibt.\n\nANNA\nGuten\nTag, Ben.\n\nBEN\nGuten\nTag.";
+
+fn broken_app() -> (Scratch, App) {
+    let (s, mut app) = app_with(BROKEN);
+    keys(&mut app, &[KeyCode::PageUp, KeyCode::PageUp]);
+    press(&mut app, KeyCode::Home);
+    ctrl(&mut app, 'f');
+
+    (s, app)
+}
+
+#[test]
+fn a_phrase_over_two_lines_is_found_and_replaced() {
+    let (_s, mut app) = broken_app();
+    typed(&mut app, "die tür");
+
+    assert_eq!(app.find.hits.len(), 1);
+    assert_eq!(at(&app), (0, 15));
+    assert_eq!(app.find_hits_on(0), [(15..usize::MAX, true)]);
+    assert_eq!(app.find_hits_on(1), [(0..3, true)]);
+    assert!(app.find_hits_on(2).is_empty());
+
+    press(&mut app, KeyCode::Tab);
+    typed(&mut app, "eine Tür");
+    ctrl(&mut app, 'a');
+    assert_eq!(
+        app.text().lines().next(),
+        Some("Sie geht durch eine Tür und bleibt.")
+    );
+
+    press(&mut app, KeyCode::Esc);
+    ctrl(&mut app, 'z');
+    assert_eq!(app.text(), BROKEN, "one undo step");
+}
+
+#[test]
+fn left_and_right_pick_the_character_for_the_dialogue_only_search() {
+    let (_s, mut app) = broken_app();
+    typed(&mut app, "guten tag");
+    assert_eq!(app.find.hits.len(), 2);
+
+    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::Right);
+    assert_eq!(app.find.speaker, "ANNA");
+    assert_eq!(app.find.hits.len(), 1);
+    assert_eq!(at(&app), (4, 0));
+
+    press(&mut app, KeyCode::Right);
+    assert_eq!(app.find.speaker, "BEN");
+    assert_eq!(at(&app), (8, 0));
+
+    press(&mut app, KeyCode::Right);
+    assert_eq!(app.find.speaker, "", "back to everyone");
+    press(&mut app, KeyCode::Left);
+    assert_eq!(app.find.speaker, "BEN");
+}
+
+#[test]
+fn replace_all_keeps_the_cursor_on_its_text() {
+    let (_s, mut app) = broken_app();
+    typed(&mut app, "die tür");
+    press(&mut app, KeyCode::Esc);
+    ctrl_end(&mut app);
+    keys(&mut app, &[KeyCode::Up, KeyCode::Up]);
+    let before = at(&app);
+    ctrl(&mut app, 'f');
+    press(&mut app, KeyCode::Tab);
+    typed(&mut app, "eine Tür");
+    ctrl(&mut app, 'a');
+
+    // One line joined before the cursor.
+    assert_eq!(at(&app), (before.0 - 1, before.1));
+}
+
 #[test]
 fn alt_enter_adds_a_line_to_a_title_field() {
     let (_s, mut app) = app_with(BOOK);
