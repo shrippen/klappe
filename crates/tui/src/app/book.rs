@@ -1,7 +1,8 @@
 //! The questions the register leaves open about the book (`Ctrl+K`): which scene of the
-//! book an entry is, one question at a time.
+//! book an entry is, then which play location a name of a heading is (DB-51), one question
+//! at a time.
 
-use klappe_services::{Answer, PendingScene};
+use klappe_services::{Answer, PendingPlace, PendingScene, PlaceAnswer};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::{App, Editor, Flow, Mode, Notice};
@@ -21,8 +22,27 @@ impl App {
         self.session.book_answers(&question.id)
     }
 
+    /// The location of the headings asked about once no scene is: the first open one.
+    pub(crate) fn place_question(&self) -> Option<&PendingPlace> {
+        self.session.pending_places().first()
+    }
+
+    /// The lines of the place question being asked.
+    pub(crate) fn place_answers(&self) -> Vec<PlaceAnswer> {
+        let Some(question) = self.place_question() else {
+            return Vec::new();
+        };
+
+        self.session.place_answers(&question.name)
+    }
+
+    /// Whether any question about the book is open.
+    fn book_asks(&self) -> bool {
+        self.book_question().is_some() || self.place_question().is_some()
+    }
+
     pub(super) fn open_book(&mut self) -> Flow {
-        if self.book_question().is_none() {
+        if !self.book_asks() {
             return Flow::Continue;
         }
         // An answer is written at once: against the saved book only, never against text the
@@ -39,11 +59,14 @@ impl App {
     }
 
     pub(super) fn book_key(&mut self, key: KeyEvent) -> Flow {
-        if self.book_question().is_none() {
+        if !self.book_asks() {
             self.mode = Mode::Normal;
             return Flow::Continue;
         }
-        let options = self.book_answers().len();
+        let options = match self.book_question() {
+            Some(_) => self.book_answers().len(),
+            None => self.place_answers().len(),
+        };
 
         match key.code {
             KeyCode::Esc => self.mode = Mode::Normal,
@@ -59,7 +82,7 @@ impl App {
     /// Gives the chosen answer to the session and goes on with the next question.
     fn answer_book(&mut self) {
         let Some(question) = self.book_question() else {
-            return;
+            return self.answer_place();
         };
         let id = question.id.clone();
 
@@ -75,7 +98,28 @@ impl App {
         self.unanswered.clear();
         self.book_sel = 0;
         self.refresh_book_note();
-        if self.book_question().is_none() {
+        if !self.book_asks() {
+            self.mode = Mode::Normal;
+        }
+    }
+
+    /// Gives the chosen answer about a play location to the session. It writes only
+    /// `orte.toml`, from the file as it is on disk, and is no step of Ctrl+Z.
+    fn answer_place(&mut self) {
+        let Some(question) = self.place_question() else {
+            return;
+        };
+        let name = question.name.clone();
+
+        if let Err(e) = self.session.answer_place(&name, self.book_sel) {
+            self.notice = Some(Notice::SaveFailed(e.to_string()));
+            self.mode = Mode::Normal;
+            return;
+        }
+
+        self.book_sel = 0;
+        self.refresh_book_note();
+        if !self.book_asks() {
             self.mode = Mode::Normal;
         }
     }
