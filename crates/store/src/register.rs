@@ -97,6 +97,8 @@ pub(crate) fn load(dir: &Path) -> Result<(Vec<Scene>, Vec<LoadNote>), StoreError
         ));
     }
 
+    crate::sun::check_suns(&dir.join(SCENES_DIR), &scenes)?;
+
     Ok((scenes, notes))
 }
 
