@@ -84,6 +84,18 @@ TestCase {
         tryVerify(() => surface.item.shows > before)
     }
 
+    function test_the_view_comes_back_after_the_tiles_were_hidden() {
+        const tiles = make([shot("s1", "")])
+        const surface = findChild(tiles, "tileView-s1")
+        tryVerify(() => surface.item !== null && surface.item.shows > 0)
+
+        tiles.visible = false
+        wait(300)
+        tiles.visible = true
+
+        tryVerify(() => surface.item !== null && surface.item.shows > 0)
+    }
+
     function test_a_selection_does_not_make_the_views_again() {
         const tiles = make([shot("s1", ""), shot("s2", "")])
         tryVerify(() => fake.requests.length === 2)

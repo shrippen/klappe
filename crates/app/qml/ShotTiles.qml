@@ -165,6 +165,8 @@ Item {
                         anchors.fill: parent
                         active: tile.wantsView
                         source: tiles.surfaceSource
+                        // A new surface is empty, whatever the tile showed before.
+                        onLoaded: tile.shownRound = -1
                     }
 
                     Row {
