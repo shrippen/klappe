@@ -45,6 +45,8 @@ TestCase {
     TestTexts { id: de; language: "de" }
 
     SignalSpy { id: edits; signalName: "editRequested" }
+    SignalSpy { id: chips; signalName: "chipClicked" }
+    SignalSpy { id: plans; signalName: "planRequested" }
 
     Component {
         id: panelComponent
@@ -55,7 +57,8 @@ TestCase {
             controller: fake
             scene: { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG" }
             lines: [
-                { kind: "action", text: "Elisabeth tritt ein.", current: false, chips: [], character: "" },
+                { kind: "action", text: "Elisabeth tritt ein.", current: false, character: "",
+                  chips: [{ kind: "mark", text: "E · M2", target: "elisabeth", index: 1, label: "purple", at_s: 6 }] },
                 { kind: "character", text: "ELISABETH", current: false, chips: [], character: "elisabeth" },
                 { kind: "dialogue", text: "Guten Tag.", current: false, chips: [], character: "" }
             ]
@@ -72,6 +75,10 @@ TestCase {
         verify(panel)
         edits.target = panel
         edits.clear()
+        chips.target = panel
+        chips.clear()
+        plans.target = panel
+        plans.clear()
         // The list makes its rows when it has room.
         tryVerify(() => findChild(panel, "cue") !== null)
         return panel
@@ -138,5 +145,65 @@ TestCase {
 
         tryCompare(card, "opened", true)
         verify(findChild(card, "noUses").visible)
+    }
+
+    // DB-63: from the script to the plan.
+    function test_a_chip_names_its_link() {
+        const panel = make()
+        const chip = findChild(panel, "chip")
+        compare(chip.text, "E · M2")
+
+        chip.clicked()
+
+        compare(chips.count, 1)
+        compare(Array.from(chips.signalArguments[0]), ["mark", "elisabeth", 1, 6])
+    }
+
+    function test_enter_on_a_line_takes_its_first_chip() {
+        const panel = make()
+
+        panel.showLine(0)
+        keyClick(Qt.Key_Return)
+        compare(Array.from(chips.signalArguments[0]), ["mark", "elisabeth", 1, 6])
+
+        // A line without a chip does nothing.
+        panel.showLine(2)
+        keyClick(Qt.Key_Return)
+        compare(chips.count, 1)
+    }
+
+    function test_the_head_button_asks_for_the_plan() {
+        const panel = make()
+
+        findChild(panel, "toPlan").clicked()
+
+        compare(plans.count, 1)
+    }
+
+    // DB-63: from the plan to the script.
+    function test_show_line_and_show_head_take_the_focus() {
+        const panel = make()
+        const head = findChild(panel, "sceneHead")
+        const list = findChild(panel, "lineList")
+
+        panel.showLine(1)
+        verify(list.activeFocus)
+        compare(list.currentIndex, 1)
+        verify(!head.activeFocus)
+
+        panel.showHead()
+        verify(head.activeFocus)
+    }
+
+    // The list and its rows are named for a screen reader: role and the line's text.
+    function test_list_and_rows_are_named() {
+        const panel = make()
+        const list = findChild(panel, "lineList")
+        const row = list.itemAtIndex(0)
+
+        compare(list.Accessible.role, Accessible.List)
+        verify(list.Accessible.name !== "")
+        compare(row.Accessible.role, Accessible.ListItem)
+        compare(row.Accessible.name, panel.lines[0].text)
     }
 }

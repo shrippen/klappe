@@ -1,7 +1,7 @@
 //! Ways of marks: a mark before the first one, a whole way moved at once, a way's shape.
 //! A way is the path to mark `index` of a figure or camera; the first mark has none.
 
-use klappe_model::{CameraMark, Curve, Mark, Point};
+use klappe_model::{CameraMark, Curve, LinkTarget, Mark, Point};
 use klappe_stellprobe::Source;
 
 use super::{
@@ -197,6 +197,16 @@ fn add_before(scope: &mut Scope<'_>, source: &Source, at: Point) -> Result<(), S
                 ..first.clone()
             };
             insert_first(marks, new);
+
+            // The old marks move on by one, and so do the links that name them.
+            for link in &mut scope.plan.links {
+                let LinkTarget::Mark { character, index } = &mut link.target else {
+                    continue;
+                };
+                if *character == c {
+                    *index += 1;
+                }
+            }
         }
         Owner::Camera(id) => {
             let camera = scope.plan.cameras.iter_mut().find(|c| c.id == id);

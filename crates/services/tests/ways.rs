@@ -6,6 +6,7 @@
 
 use std::path::Path;
 
+use klappe_model::LinkTarget;
 use klappe_services::{
     Arrival, Bend, Curve, Layer, Lock, PlanEdit, Point, Rig, Role, ServiceError, Session, Shape,
     Snapping, Source,
@@ -90,6 +91,34 @@ fn a_mark_before_the_first_shifts_the_times_later() {
 
     s.undo();
     assert_eq!(s.plan().unwrap().figures[1].marks.len(), 2);
+}
+
+/// Links name a mark by its index: the old marks move on by one, their links with them.
+#[test]
+fn a_mark_before_the_first_keeps_the_links() {
+    let mut s = open();
+    let burgvogt_links = |s: &Session| {
+        s.plan()
+            .unwrap()
+            .links
+            .iter()
+            .filter_map(|l| match &l.target {
+                LinkTarget::Mark { character, index } if character == "burgvogt" => Some(*index),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(burgvogt_links(&s), vec![1]);
+
+    s.edit_plan(PlanEdit::AddMarkBefore {
+        source: Source::Figure("burgvogt".into()),
+        at: p(20.0, 9.5),
+    })
+    .unwrap();
+    assert_eq!(burgvogt_links(&s), vec![2]);
+
+    s.undo();
+    assert_eq!(burgvogt_links(&s), vec![1]);
 }
 
 #[test]
