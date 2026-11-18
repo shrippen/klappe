@@ -272,6 +272,25 @@ mod tests {
         assert_eq!(pixels[3], [225, 125, 125]);
     }
 
+    /// LH-26: a source fading in or out multiplies with its layer's fade.
+    #[test]
+    fn a_fading_source_multiplies_with_the_layers_fade() {
+        let mut picture = picture();
+        picture.sources = vec![Source::Figure("e".into())];
+        picture.opacities = vec![0.5];
+        let figures_half = |role: SceneRole| match role {
+            SceneRole::Figure(_) => 0.5,
+            _ => 1.0,
+        };
+
+        let pixels = pixels(&ppm(&picture, &palette(), &figures_half, &|_| false));
+
+        assert_eq!(pixels[0], GROUND);
+        assert_eq!(pixels[1], [235, 235, 235]);
+        assert_eq!(pixels[2], [213, 188, 188]);
+        assert_eq!(pixels[3], [238, 188, 188]);
+    }
+
     /// LH-94: the outline of a selected source is the accent, and a pixel wider than the plain
     /// outline: the selection is not told by colour alone. A palette whose accent is the line
     /// colour of the figure (the dark theme's yellow) changes the picture all the same.
