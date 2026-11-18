@@ -171,6 +171,13 @@ fn character_extension_and_dual() {
 }
 
 #[test]
+fn trailing_extensions_are_no_part_of_the_name() {
+    let found = els("ANNA (V.O.) (FORTS.)\nHallo.\n\nBERT (O.S.) (V.O.) (FORTS.)\nJa.");
+    assert_eq!(found[0], cue("ANNA", Some("V.O.) (FORTS."), false));
+    assert_eq!(found[2], cue("BERT", Some("O.S.) (V.O.) (FORTS."), false));
+}
+
+#[test]
 fn character_rules() {
     // lowercase, no blank before, nothing below, forced
     assert_eq!(els("Elisabeth\nHallo."), vec![action("Elisabeth\nHallo.")]);
