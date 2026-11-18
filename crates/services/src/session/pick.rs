@@ -1,33 +1,10 @@
-use klappe_model::{Curve, DrawingShape, Location, Point, Project, Scene};
-use klappe_stellprobe::{
-    add_sun, handles, lens_at, render, set_at, DisplayList, Item, Role, Source,
-};
+use klappe_model::{Curve, DrawingShape, Point, Project};
+use klappe_stellprobe::{lens_at, DisplayList, Item, Source};
 
 use super::layers::layer_of;
 use super::{Lock, Session};
 use crate::error::ServiceError;
 use crate::plan_edit::{self, Grid, MarkInfo, PlanEdit, Snapping};
-
-/// Leaves out of `list` what `shows` hides; a hidden lamp is no more in the legend than on the
-/// plan.
-pub(super) fn retain_shown(list: &mut DisplayList, shows: &dyn Fn(Role, Option<&Source>) -> bool) {
-    list.items
-        .retain(|item| shows(item.role, item.source.as_ref()));
-    let on_plan = |id: &str| {
-        let source = Source::Light(id.to_owned());
-        list.items
-            .iter()
-            .any(|i| i.source.as_ref() == Some(&source))
-    };
-    list.lamps.retain(|l| on_plan(&l.id));
-}
-
-/// Adds the sun of `scene` at `location` to `list`, when both give place and time (LH-52).
-pub(super) fn sun_on(list: &mut DisplayList, location: &Location, scene: &Scene) {
-    if let (Some(site), Some(time)) = (&location.site, &scene.sun) {
-        add_sun(list, &location.set, site, time);
-    }
-}
 
 impl Session {
     /// The plan at the playhead, without hidden layers and tracks.
@@ -42,39 +19,9 @@ impl Session {
 
     /// `display_list` of `project`, a changed copy of this session's.
     fn list_of(&self, project: &Project, selected: Option<&Source>) -> DisplayList {
-        let scene = project.scenes.get(self.scene);
-        let Some((scene, plan)) = scene.and_then(|s| Some((s, s.plans.get(self.plan)?))) else {
-            return DisplayList::default();
-        };
-        let Some(location) = project.location(&scene.location) else {
-            return DisplayList::default();
-        };
+        let at = (self.scene, self.plan);
 
-        let mut list = render(project, &location.set, plan, self.time_s, &|file| {
-            self.image_size(file)
-        });
-        sun_on(&mut list, location, scene);
-        if let Some(selected) = selected {
-            let set = set_at(&location.set, plan, self.time_s);
-            list.items.extend(handles(project, &set, plan, selected));
-        }
-        retain_shown(&mut list, &|role, source| self.shows(role, source));
-
-        list
-    }
-
-    /// Pixel size of an image of the project folder; remembered per file.
-    fn image_size(&self, file: &str) -> Option<(u32, u32)> {
-        let stamp = klappe_store::image_stamp(&self.dir, file).ok()?;
-        let mut known = self.image_px.borrow_mut();
-        if let Some((_, px)) = known.get(file).filter(|(seen, _)| *seen == stamp) {
-            return Some(*px);
-        }
-
-        let px = klappe_store::image_size(&self.dir, file).ok()?;
-        known.insert(file.to_owned(), (stamp, px));
-
-        Some(px)
+        self.plan_view.list(project, at, self.time_s, selected)
     }
 
     /// The lens a camera has at the playhead: its shot's own, else its own.

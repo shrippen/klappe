@@ -3,28 +3,24 @@
 //! needs from the session, so a surface can run it on a thread of its own.
 //!
 //! ```text
-//! Session ─► video_job ─► VideoJob { project, view settings }
+//! Session ─► video_job ─► VideoJob { project, PlanView }
 //!                              (thread) run: frame i ─► display list ─► pixels ─► ffmpeg ─► .mp4
 //! ```
 //!
 //! A frame is made when it is written, one at a time: what the job holds does not grow with
 //! the length of the plan.
 
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use klappe_export::{
     video_program_found, Frame, Page, Texts, Theme, VideoSpec, VideoWriter, FFMPEG,
 };
 use klappe_model::{PaperSetup, Project};
-use klappe_stellprobe::{render, DisplayList, Shape};
+use klappe_stellprobe::Shape;
 
-use super::fade::{fades_of, Fade};
-use super::layers::is_shown;
-use super::pick::{retain_shown, sun_on};
-use super::{Layer, Session};
+use super::plan_view::PlanView;
+use super::Session;
 use crate::error::ServiceError;
 
 /// Frames per second of the video.
@@ -33,24 +29,17 @@ const VIDEO_FPS: u32 = 25;
 const VIDEO_WIDTH_PX: u32 = 1920;
 const VIDEO_HEIGHT_PX: u32 = 1080;
 
-/// The plan as the session shows it, copied: its project and which layers and tracks are
-/// hidden or faded, and the sheet. A frame is drawn from it on demand.
+/// The plan as the session shows it, copied: its project and view settings, and the sheet. A frame is drawn from it on demand.
 #[derive(Debug)]
 pub struct VideoJob {
     program: String,
     fps: u32,
     count: usize,
-    dir: PathBuf,
     project: Project,
     scene: usize,
     plan: usize,
-    hidden_layers: HashSet<Layer>,
-    hidden_tracks: HashSet<String>,
-    faded_layers: HashMap<Layer, Fade>,
+    view: PlanView,
     page: Page,
-    /// Pixel size of each image file, read once for all frames (a photo is read per file,
-    /// not per frame).
-    sizes: RefCell<HashMap<String, Option<(u32, u32)>>>,
 }
 
 impl VideoJob {
@@ -62,7 +51,8 @@ impl VideoJob {
     /// Frame `i` (0-based), drawn as the PNG of the plan at `i / fps` s.
     pub fn frame(&mut self, i: usize) -> Result<Frame, ServiceError> {
         let t_s = i as f64 / f64::from(self.fps);
-        let list = self.list_at(t_s);
+        let at = (self.scene, self.plan);
+        let list = self.view.list(&self.project, at, t_s, None);
 
         // The images of the list are read once; a later frame may name another.
         for item in &list.items {
@@ -72,39 +62,12 @@ impl VideoJob {
             if self.page.images.contains_key(file) {
                 continue;
             }
-            let bytes = klappe_store::read_image(&self.dir, file)?;
+            let bytes = klappe_store::read_image(&self.view.dir, file)?;
             self.page.images.insert(file.clone(), bytes);
         }
-        self.page.fade = fades_of(&list, &self.faded_layers);
+        self.page.fade = self.view.fades(&list);
 
         Ok(klappe_export::frame(&list, &self.page, Theme::Light)?)
-    }
-
-    /// What the session's `display_list` would show at `t_s`.
-    fn list_at(&self, t_s: f64) -> DisplayList {
-        let scene = self.project.scenes.get(self.scene);
-        let Some((scene, plan)) = scene.and_then(|s| Some((s, s.plans.get(self.plan)?))) else {
-            return DisplayList::default();
-        };
-        let Some(location) = self.project.location(&scene.location) else {
-            return DisplayList::default();
-        };
-
-        let size = |file: &str| {
-            *self
-                .sizes
-                .borrow_mut()
-                .entry(file.to_owned())
-                .or_insert_with(|| klappe_store::image_size(&self.dir, file).ok())
-        };
-        let mut list = render(&self.project, &location.set, plan, t_s, &size);
-        sun_on(&mut list, location, scene);
-        let shows = |role, source: Option<&_>| {
-            is_shown(&self.hidden_layers, &self.hidden_tracks, role, source)
-        };
-        retain_shown(&mut list, &shows);
-
-        list
     }
 
     /// Draws every frame and writes the video to `path`; `progress` gets the number of
@@ -187,20 +150,16 @@ impl Session {
             program: program.to_owned(),
             fps,
             count: frame_count(duration_s, fps),
-            dir: self.dir.clone(),
             project: self.project.clone(),
             scene: self.scene,
             plan: self.plan,
-            hidden_layers: self.hidden_layers.clone(),
-            hidden_tracks: self.hidden_tracks.clone(),
-            faded_layers: self.faded_layers.clone(),
+            view: self.plan_view.clone(),
             page: Page::new(
                 setup.size,
                 setup.orientation,
                 self.plan_title(),
                 texts.clone(),
             ),
-            sizes: RefCell::new(HashMap::new()),
         })
     }
 

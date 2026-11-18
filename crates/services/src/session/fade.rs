@@ -71,18 +71,22 @@ impl Session {
     /// `set_layer`, not part of the project, and no undo step.
     pub fn set_fade(&mut self, layer: Layer, fade: Fade) {
         match fade {
-            Fade::Full => self.faded_layers.remove(&layer),
-            other => self.faded_layers.insert(layer, other),
+            Fade::Full => self.plan_view.faded_layers.remove(&layer),
+            other => self.plan_view.faded_layers.insert(layer, other),
         };
     }
 
     pub fn fade(&self, layer: Layer) -> Fade {
-        self.faded_layers.get(&layer).copied().unwrap_or_default()
+        self.plan_view
+            .faded_layers
+            .get(&layer)
+            .copied()
+            .unwrap_or_default()
     }
 
     /// The strength of each item of `list`, in its order, 1 for full.
     pub fn item_fades(&self, list: &DisplayList) -> Vec<f64> {
-        fades_of(list, &self.faded_layers)
+        fades_of(list, &self.plan_view.faded_layers)
     }
 
     /// The strength of a body of the 3D view: that of the layer it belongs to.

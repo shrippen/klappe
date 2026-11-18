@@ -1,15 +1,14 @@
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use klappe_model::Project;
 use klappe_script::Script;
 use klappe_stellprobe::{Cut, Orbit};
-use klappe_store::ImageStamp;
 
 use crate::error::{write_failed, ServiceError};
 use crate::field::Field;
 use crate::plan_edit::{Grid, Snapping};
+use plan_view::PlanView;
 use undo::Snapshot;
 
 mod book;
@@ -23,6 +22,7 @@ mod objects;
 mod pages;
 mod pick;
 mod places;
+mod plan_view;
 mod playback;
 mod retime;
 mod saved;
@@ -149,9 +149,6 @@ pub enum BackupState {
     Unreadable(String),
 }
 
-/// The pixel size of an image file and the stamp it was read at.
-type StampedSize = (ImageStamp, (u32, u32));
-
 /// One open project and what the user looks at.
 #[derive(Debug)]
 pub struct Session {
@@ -163,20 +160,13 @@ pub struct Session {
     plan: usize,
     time_s: f64,
     selected_shot: Option<String>,
-    hidden_layers: HashSet<Layer>,
+    plan_view: PlanView,
     locked_layers: HashSet<Layer>,
-    faded_layers: HashMap<Layer, Fade>,
-    hidden_tracks: HashSet<String>,
     snapping: Snapping,
     grid: Grid,
     undo: Vec<Snapshot>,
     redo: Vec<Snapshot>,
     dirty: bool,
-    /// Pixel size of the image files read so far: every redraw asks, the file header is read
-    /// once. `bilder/` is the user's, so a file may change under its name: an entry counts
-    /// only while the file's stamp (length, modification time) is the one it was read at.
-    /// Unreadable files are not kept and are tried again.
-    image_px: RefCell<HashMap<String, StampedSize>>,
     /// Changed since the last save or autosave: what `autosave` writes.
     unbacked: bool,
     /// The project (not only the screenplay) changed since the last save.
