@@ -27,7 +27,7 @@ fn ctrl_k_asks_about_a_name_no_figure_has() {
     assert!(frame.contains("New figure STIMME"), "{frame}");
     assert!(frame.contains("Is Elisabeth"), "{frame}");
     assert!(frame.contains("Not a figure"), "{frame}");
-    assert!(frame.contains("Name of the book"), "{frame}");
+    assert!(frame.contains("Name of the script"), "{frame}");
 }
 
 #[test]
