@@ -227,6 +227,19 @@ pub mod qobject {
         #[cxx_name = "selectShot"]
         fn select_shot(self: Pin<&mut Self>, id: &QString);
 
+        /// Shows what a script line's chip is linked to (DB-63): `kind` `mark` selects mark
+        /// `index` of the character `target` and goes to its arrival, `shot` selects the shot
+        /// `target` and no mark. False for a link the plan on view does not have.
+        #[qinvokable]
+        #[cxx_name = "showLink"]
+        fn show_link(self: Pin<&mut Self>, kind: &QString, target: &QString, index: i32) -> bool;
+
+        /// The line of the scene's script the selected mark (else the selected shot) is linked
+        /// to, counted as `scriptJson` lists them; -1 when no line names it (DB-63).
+        #[qinvokable]
+        #[cxx_name = "scriptLine"]
+        fn script_line(self: &Self) -> i32;
+
         /// Sets one field (`lens`, `size` …) of a shot; false if the value is refused.
         #[qinvokable]
         #[cxx_name = "editShot"]
@@ -1023,6 +1036,7 @@ mod export;
 mod free;
 mod hints;
 mod history;
+mod jump;
 mod layers;
 mod library;
 mod marks;
