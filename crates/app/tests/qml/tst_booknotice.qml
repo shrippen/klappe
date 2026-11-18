@@ -47,7 +47,7 @@ TestCase {
         notice.matchRequested.connect(() => asked.push(true))
 
         verify(notice.visible)
-        compare(notice.text, "Szenen, die dem Buch noch zugeordnet werden müssen: 2.")
+        compare(notice.text, "Szenen zuzuordnen: 2.")
         findChild(notice, "match").clicked()
 
         compare(asked.length, 1)

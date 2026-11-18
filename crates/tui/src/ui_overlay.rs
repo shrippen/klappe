@@ -263,24 +263,44 @@ pub(crate) fn draw_backup(frame: &mut Frame, app: &App) {
     );
 }
 
-/// One open question about the book: the entry and the scenes it may be.
+/// The question about the book being asked and its lines: a scene first, then a location
+/// of the headings (DB-51).
+fn book_lines(app: &App) -> Option<(&str, String, Vec<String>)> {
+    if let Some(question) = app.book_question() {
+        let ask = app.texts.book_ask(&question.number, &question.heading);
+        let options = app
+            .book_answers()
+            .iter()
+            .map(|a| match a.choice {
+                Choice::NotInBook => app.texts.book_none.clone(),
+                Choice::Scene(_) => format!("{} {}", a.number, a.heading),
+            })
+            .collect();
+
+        return Some((&app.texts.book_title, ask, options));
+    }
+
+    let question = app.place_question()?;
+    let ask = app.texts.place_ask(&question.name, question.headings);
+    let options = app
+        .place_answers()
+        .iter()
+        .map(|a| app.texts.place_line(a, &question.name))
+        .collect();
+
+    Some((&app.texts.place_title, ask, options))
+}
+
+/// One open question about the book: the entry and the scenes it may be, or a location of
+/// the headings and the play locations it may be.
 pub(crate) fn draw_book(frame: &mut Frame, app: &App) {
-    let Some(question) = app.book_question() else {
+    let Some((title, ask, options)) = book_lines(app) else {
         return;
     };
-    let ask = app.texts.book_ask(&question.number, &question.heading);
-    let options: Vec<String> = app
-        .book_answers()
-        .iter()
-        .map(|a| match a.choice {
-            Choice::NotInBook => app.texts.book_none.clone(),
-            Choice::Scene(_) => format!("{} {}", a.number, a.heading),
-        })
-        .collect();
 
     let width = BOX_WIDTH.max(cols(ask.chars()) + 4);
     let area = centered(frame.area(), width, options.len() + 4);
-    let block = framed(&app.texts.book_title);
+    let block = framed(title);
     let inner = block.inner(area);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
