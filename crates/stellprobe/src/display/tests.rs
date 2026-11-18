@@ -20,6 +20,7 @@ fn project() -> Project {
             color: FigureColor::Purple,
             group: None,
             size_m: None,
+            aliases: Vec::new(),
         },
         Character {
             id: "v".into(),
@@ -28,6 +29,7 @@ fn project() -> Project {
             color: FigureColor::Blue,
             group: None,
             size_m: None,
+            aliases: Vec::new(),
         },
     ];
     p

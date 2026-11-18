@@ -237,26 +237,24 @@ fn plan() -> FloorPlan {
     plan
 }
 
+fn figure(id: &str, name: &str, short: &str, color: FigureColor) -> Character {
+    Character {
+        id: id.into(),
+        name: name.into(),
+        short: short.into(),
+        color,
+        group: None,
+        size_m: None,
+        aliases: Vec::new(),
+    }
+}
+
 fn example() -> Project {
     let mut project = Project::new("Die Wartburg-Szene");
 
     project.characters = vec![
-        Character {
-            id: "elisabeth".into(),
-            name: "Elisabeth".into(),
-            short: "E".into(),
-            color: FigureColor::Purple,
-            group: None,
-            size_m: None,
-        },
-        Character {
-            id: "burgvogt".into(),
-            name: "Burgvogt".into(),
-            short: "B".into(),
-            color: FigureColor::Blue,
-            group: None,
-            size_m: None,
-        },
+        figure("elisabeth", "Elisabeth", "E", FigureColor::Purple),
+        figure("burgvogt", "Burgvogt", "B", FigureColor::Blue),
     ];
 
     project.locations = vec![Location {

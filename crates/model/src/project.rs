@@ -15,6 +15,9 @@ use crate::template::Template;
 pub struct Project {
     pub title: String,
     pub characters: Vec<Character>,
+    /// Cues of the book that are no character (`ALLE`, `STIMME`), so they are not asked
+    /// about again (DB-50).
+    pub not_figures: Vec<String>,
     pub locations: Vec<Location>,
     pub scenes: Vec<Scene>,
     /// The project's own objects (LH-12), next to the built-in library.
@@ -36,6 +39,7 @@ impl Project {
         Self {
             title: title.to_owned(),
             characters: Vec::new(),
+            not_figures: Vec::new(),
             locations: Vec::new(),
             scenes: Vec::new(),
             library: Vec::new(),
@@ -45,6 +49,12 @@ impl Project {
             numbering: Numbering::default(),
             script: ScriptSetup::default(),
         }
+    }
+
+    /// Whether the cue is settled: a character is called so, or it was marked as no figure.
+    pub fn knows_cue(&self, cue: &str) -> bool {
+        self.characters.iter().any(|c| c.is_called(cue))
+            || self.not_figures.iter().any(|n| same_cue(n, cue))
     }
 
     pub fn character(&self, id: &str) -> Option<&Character> {
@@ -77,6 +87,10 @@ pub struct Character {
     /// `None` is the standard figure.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub size_m: Option<f64>,
+    /// Other names the book calls the character by (DB-50), e.g. `LIESL` for `Elisabeth`;
+    /// the answers to an unknown cue. Not the name: renaming keeps them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
 }
 
 /// A group has two to 999 people; one person is a figure, more would not fit the label.
@@ -92,7 +106,17 @@ pub fn is_figure_size_m(size_m: f64) -> bool {
     (MIN_FIGURE_M..=MAX_FIGURE_M).contains(&size_m)
 }
 
+/// Whether two cues are the same name: the case of a cue is style.
+fn same_cue(a: &str, b: &str) -> bool {
+    a.trim().to_uppercase() == b.trim().to_uppercase()
+}
+
 impl Character {
+    /// Whether the book's cue `cue` names this character: by its name or an alias.
+    pub fn is_called(&self, cue: &str) -> bool {
+        same_cue(&self.name, cue) || self.aliases.iter().any(|a| same_cue(a, cue))
+    }
+
     /// The name with the head count of a group: `Gäste (12)`.
     pub fn title(&self) -> String {
         match self.group {

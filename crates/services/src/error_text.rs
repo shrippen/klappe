@@ -163,7 +163,8 @@ pub fn load_notes_text(language: Language, notes: &[klappe_store::LoadNote]) -> 
     lines.join(" ")
 }
 
-/// What the status line says about the book: scenes to match and scenes struck from it;
+/// What the status line says about the book: scenes to match, scenes struck from it and
+/// names no character answers to;
 /// empty when there is nothing to say.
 pub fn book_report_text(language: Language, report: &crate::BookReport) -> String {
     let count = |key: &str, n: usize| language.text(key).replace("{count}", &n.to_string());
@@ -174,6 +175,9 @@ pub fn book_report_text(language: Language, report: &crate::BookReport) -> Strin
     }
     if report.not_in_book > 0 {
         lines.push(count("book.notInBook", report.not_in_book));
+    }
+    if report.figures > 0 {
+        lines.push(count("book.figures", report.figures));
     }
 
     lines.join(" ")
@@ -344,11 +348,17 @@ mod tests {
         let report = crate::BookReport {
             pending: 2,
             not_in_book: 1,
+            figures: 3,
         };
 
         for language in [Language::German, Language::English] {
             let text = book_report_text(language, &report);
-            assert!(text.contains('2') && text.contains('1') && !text.contains("{count}"));
+            assert!(
+                text.contains('2')
+                    && text.contains('1')
+                    && text.contains('3')
+                    && !text.contains("{count}")
+            );
             assert!(!text.contains("book."), "{text}");
         }
         assert_eq!(book_report_text(Language::English, &Default::default()), "");

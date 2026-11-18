@@ -18,6 +18,7 @@ mod error_text;
 mod example;
 mod export_format;
 mod field;
+mod figures;
 mod folder;
 mod library;
 mod light_edit;
@@ -42,6 +43,7 @@ pub use error_text::{book_report_text, error_text, load_notes_text};
 pub use example::{copy_example, ensure_example};
 pub use export_format::ExportFormat;
 pub use field::Field;
+pub use figures::{FigureChoice, PendingFigure};
 pub use folder::{archive_project, rename_project, trash_project};
 pub use light_edit::LightChange;
 pub use measure::measure_angle_deg;
@@ -51,8 +53,8 @@ pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
-    Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages, Playing,
-    Session, Size, Step, TimeSnap, View, ViewStep, Visibility,
+    Answer, Autosave, BackupState, ExportOptions, Fade, FigureAnswer, Grab, Layer, Lock, Looping,
+    Pages, Playing, Session, Size, Step, TimeSnap, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{

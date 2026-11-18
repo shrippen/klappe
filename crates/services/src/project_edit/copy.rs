@@ -31,6 +31,8 @@ pub(crate) fn copy_character(
         id: new_id.clone(),
         name,
         short,
+        // The aliases name the origin; a cue must not name two characters.
+        aliases: Vec::new(),
         ..origin
     });
 
@@ -80,7 +82,7 @@ fn without_number(text: &str) -> &str {
 }
 
 /// `A2`, `A3` … the first short code of the stem of `short` that no character has.
-fn free_short(characters: &[Character], short: &str) -> String {
+pub(crate) fn free_short(characters: &[Character], short: &str) -> String {
     let stem = without_number(short);
 
     SHORT_NUMBERS
@@ -107,6 +109,7 @@ mod tests {
             color: FigureColor::ALL[0],
             group: Some(4),
             size_m: Some(1.5),
+            aliases: Vec::new(),
         }
     }
 

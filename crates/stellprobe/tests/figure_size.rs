@@ -21,6 +21,7 @@ fn list(size_m: Option<f64>, group: Option<u32>) -> DisplayList {
         color: FigureColor::Purple,
         group,
         size_m,
+        aliases: Vec::new(),
     }];
     let mut plan = FloorPlan::new("a", "Plan A");
     plan.figures = vec![FigureTrack {

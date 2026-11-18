@@ -137,6 +137,9 @@ struct Version {
 /// `figuren.toml`.
 #[derive(Serialize, Deserialize)]
 struct Characters {
+    /// Before the tables: TOML keys come ahead of `[[figur]]`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    not_figures: Vec<String>,
     #[serde(default)]
     figur: Vec<Character>,
 }
@@ -182,7 +185,10 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     let characters_path = dir.join(CHARACTERS_FILE);
     let characters: Characters = match files::exists(&characters_path)? {
         true => files::read_toml(&characters_path)?,
-        false => Characters { figur: Vec::new() },
+        false => Characters {
+            not_figures: Vec::new(),
+            figur: Vec::new(),
+        },
     };
     check_characters(&characters.figur).map_err(|message| StoreError::Parse {
         path: characters_path.clone(),
@@ -210,6 +216,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             script: header.script,
             views: header.ansicht,
             characters: characters.figur,
+            not_figures: characters.not_figures,
             locations,
             scenes,
             library,
@@ -243,11 +250,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     let path = dir.join(PROJECT_FILE);
     writes.push((path.clone(), files::encode_toml(&path, &header)?));
 
-    let characters = Characters {
-        figur: project.characters.clone(),
-    };
-    let path = dir.join(CHARACTERS_FILE);
-    writes.push((path.clone(), files::encode_toml(&path, &characters)?));
+    writes.push(encode_characters(dir, project)?);
 
     let optional = optional_files(dir, project)?;
     writes.extend(optional.iter().filter_map(|(path, bytes)| {
@@ -318,6 +321,25 @@ pub fn save_contd(dir: &Path, on: bool) -> Result<(), StoreError> {
 /// Writes `drehbuch.fountain` in `dir` atomically and nothing else.
 pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
     files::write_atomic(&dir.join(SCRIPT_FILE), script.as_bytes())
+}
+
+/// `figuren.toml` of `project`, encoded.
+fn encode_characters(dir: &Path, project: &Project) -> Result<(PathBuf, Vec<u8>), StoreError> {
+    let characters = Characters {
+        not_figures: project.not_figures.clone(),
+        figur: project.characters.clone(),
+    };
+    let path = dir.join(CHARACTERS_FILE);
+    let bytes = files::encode_toml(&path, &characters)?;
+
+    Ok((path, bytes))
+}
+
+/// Writes `figuren.toml` of `project` in `dir` and nothing else: the answer about a name of
+/// the book (DB-50) is kept at once, like the register.
+pub fn save_characters(dir: &Path, project: &Project) -> Result<(), StoreError> {
+    let (path, bytes) = encode_characters(dir, project)?;
+    files::write_atomic(&path, &bytes)
 }
 
 /// Writes `szenen.toml` of `scenes` in `dir` and nothing else: the Stellprobe files stay, as
@@ -454,6 +476,9 @@ fn check_characters(characters: &[Character]) -> Result<(), String> {
                     character.id
                 ));
             }
+        }
+        if character.aliases.iter().any(|a| a.trim().is_empty()) {
+            return Err(format!("{}: an alias is empty", character.id));
         }
         if let Some(size_m) = character.size_m {
             if !is_figure_size_m(size_m) {

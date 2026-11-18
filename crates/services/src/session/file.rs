@@ -57,6 +57,7 @@ impl Session {
             through: None,
             layout: None,
             pending: Vec::new(),
+            pending_figures: Vec::new(),
         };
         session.reconcile();
         session.scene = session
@@ -198,10 +199,12 @@ impl Session {
         Ok(())
     }
 
-    /// Writes only the register file `szenen.toml`, as the session holds it: an answer about
-    /// the book is a decision, kept at once where the book is edited without the plans (TUI).
+    /// Writes only the register file `szenen.toml` and the characters `figuren.toml`, as the
+    /// session holds them: an answer about the book is a decision, kept at once where the book
+    /// is edited without the plans (TUI).
     pub fn save_register(&mut self) -> Result<(), ServiceError> {
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
+        klappe_store::save_characters(&self.dir, &self.project)?;
 
         Ok(())
     }

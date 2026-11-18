@@ -25,6 +25,7 @@ fn project() -> Project {
             color,
             group: None,
             size_m: None,
+            aliases: Vec::new(),
         })
         .collect();
     p

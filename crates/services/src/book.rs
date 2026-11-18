@@ -37,6 +37,8 @@ pub struct BookReport {
     pub pending: usize,
     /// Entries whose scene is no longer in the book.
     pub not_in_book: usize,
+    /// Names of the book that no character answers to (DB-50).
+    pub figures: usize,
 }
 
 use std::collections::HashSet;

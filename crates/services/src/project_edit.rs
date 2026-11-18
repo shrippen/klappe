@@ -17,7 +17,7 @@ mod plans;
 pub(crate) mod templates;
 mod views;
 
-pub(crate) use copy::copy_character;
+pub(crate) use copy::{copy_character, free_short};
 pub(crate) use plans::{add_plan, copy_plan, move_plan, remove_plan, rename_plan, seat_speakers};
 pub use plans::{PlanShift, ShotsGo};
 pub(crate) use views::{remove_view, save_view};
@@ -383,6 +383,7 @@ fn add_character(
         color,
         group,
         size_m,
+        aliases: Vec::new(),
     });
     Ok(())
 }

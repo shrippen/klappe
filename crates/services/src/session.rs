@@ -15,6 +15,7 @@ use undo::Snapshot;
 mod book;
 mod export;
 mod fade;
+mod figures;
 mod file;
 mod free_view;
 mod layers;
@@ -37,6 +38,7 @@ mod views;
 pub use book::Answer;
 pub use export::ExportOptions;
 pub use fade::Fade;
+pub use figures::FigureAnswer;
 pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
 pub use retime::{Grab, TimeSnap};
@@ -187,6 +189,8 @@ pub struct Session {
     layout: Option<crate::script_pages::Layout>,
     /// Entries the book could not place (`pending_scenes`).
     pending: Vec<crate::book::PendingScene>,
+    /// Cues of the book no character answers to (`pending_figures`).
+    pending_figures: Vec<crate::figures::PendingFigure>,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends

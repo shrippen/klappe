@@ -69,6 +69,7 @@ impl Session {
         BookReport {
             pending: self.pending.len(),
             not_in_book,
+            figures: self.pending_figures.len(),
         }
     }
 
@@ -103,6 +104,7 @@ impl Session {
     /// project, without an undo step: the register follows the text, it is not an edit.
     /// Returns whether the register changed.
     pub(super) fn reconcile(&mut self) -> bool {
+        self.refresh_figures();
         if self.script.scenes().is_empty() {
             self.pending.clear();
             return false;
@@ -123,6 +125,7 @@ impl Session {
     /// Asks the alignment which entries are open, changing nothing. After undo, redo and
     /// a new screenplay text, which move the register or the book under the list.
     pub(super) fn refresh_pending(&mut self) {
+        self.refresh_figures();
         self.pending = match self.script.scenes().is_empty() {
             true => Vec::new(),
             false => book::plan(&self.project, &self.script).pending(&self.project),
@@ -130,7 +133,7 @@ impl Session {
     }
 
     /// The scene and plan on view, to find them again after the entries moved.
-    fn ids_on_view(&self) -> (Option<String>, Option<String>) {
+    pub(super) fn ids_on_view(&self) -> (Option<String>, Option<String>) {
         let scene = self.scene().map(|s| s.id.clone());
         let plan = self.plan().map(|p| p.id.clone());
 
@@ -152,5 +155,8 @@ pub(super) fn register_moved(before: &Project, after: &Project) -> bool {
             || a.refused != b.refused
     };
 
-    before.scenes.len() != after.scenes.len() || before.scenes.iter().zip(&after.scenes).any(differ)
+    before.characters != after.characters
+        || before.not_figures != after.not_figures
+        || before.scenes.len() != after.scenes.len()
+        || before.scenes.iter().zip(&after.scenes).any(differ)
 }
