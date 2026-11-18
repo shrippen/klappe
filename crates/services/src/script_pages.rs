@@ -80,13 +80,10 @@ pub(crate) struct Layout {
 /// International words, or those of the project's language; the surface's language stands in
 /// while the project has none.
 fn words(setup: &ScriptSetup, fallback: Language) -> Words {
-    let german = match (setup.words, setup.language) {
-        (ScriptWords::International, _) => false,
-        (ScriptWords::Local, Some(language)) => language == ScriptLanguage::De,
-        (ScriptWords::Local, None) => fallback == Language::German,
-    };
+    let language = setup.language.unwrap_or_else(|| fallback.into());
+    let local = setup.words == ScriptWords::Local;
 
-    if german {
+    if local && language == ScriptLanguage::De {
         Words::GERMAN
     } else {
         Words::ENGLISH
