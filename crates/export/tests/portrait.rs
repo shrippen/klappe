@@ -12,6 +12,8 @@ fn page(paper: Paper) -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
@@ -36,6 +38,7 @@ fn numbers(svg: &str, name: &str) -> Vec<f64> {
 #[test]
 fn the_plan_fits_an_upright_page() {
     let list = DisplayList {
+        opacities: Vec::new(),
         items: Vec::new(),
         lamps: Vec::new(),
         width_m: 20.0,

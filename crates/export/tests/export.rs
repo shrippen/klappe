@@ -126,6 +126,8 @@ fn german() -> Texts {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         drawing: Default::default(),
         unit: "m".into(),
         decimal_separator: ',',
@@ -622,6 +624,7 @@ fn the_scale_matches_hand_worked_numbers() {
 #[test]
 fn bar_and_label_agree_on_tiny_plans() {
     let tiny = DisplayList {
+        opacities: Vec::new(),
         width_m: 0.2,
         depth_m: 0.2,
         ..DisplayList::default()

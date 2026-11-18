@@ -51,6 +51,7 @@ fn list_with(picture: bool, opacity: f64) -> DisplayList {
     });
 
     DisplayList {
+        opacities: Vec::new(),
         lamps: Vec::new(),
         items,
         width_m: 20.0,
@@ -66,6 +67,8 @@ fn page(with_image: bool) -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         drawing: Default::default(),
         unit: "m".into(),
         decimal_separator: ',',

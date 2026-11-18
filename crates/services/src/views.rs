@@ -427,6 +427,10 @@ pub enum Hint {
         index: Option<usize>,
         #[serde(rename = "time")]
         at_s: Option<f64>,
+        /// `walk` or `appear`; empty for a mark without a figure (LH-26).
+        arrival: String,
+        /// `stay` or `leave`; empty for a mark without a figure.
+        departure: String,
     },
     /// A bend of a way.
     Bend {

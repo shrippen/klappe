@@ -19,6 +19,7 @@ fn lamp(id: &str, kind: LightKind, power_w: f64, beam_deg: f64) -> Lamp {
 
 fn list() -> DisplayList {
     DisplayList {
+        opacities: Vec::new(),
         items: Vec::new(),
         lamps: vec![
             lamp("l1", LightKind::LedPanel, 200.0, 60.0),
@@ -37,6 +38,8 @@ fn page(lamps: LampTexts) -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),

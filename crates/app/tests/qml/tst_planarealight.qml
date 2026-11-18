@@ -22,6 +22,10 @@ TestCase {
 
         function markInfo() { return "{}" }
         function describe(key) {
+            if (key.startsWith("mark:")) {
+                const gone = key === "mark:e:1"
+                return JSON.stringify({ kind: "mark", name: "Elisabeth", index: 2, time: 6, arrival: gone ? "appear" : "walk", departure: gone ? "leave" : "stay" })
+            }
             const lamps = {
                 "light:l1": { type: "fresnel", label: "L1", beam: 30, temp: 3200, power: 650, gives_light: true },
                 "light:l3": { type: "reflector", label: "L3", beam: 90, temp: 5600, power: 650, gives_light: false },
@@ -57,6 +61,14 @@ TestCase {
         compare(area.tipLines("light:l1"), ["L1 · Stufenlinse · 650 W · 3200 K · 30°"])
         compare(area.tipLines("light:l2"), ["L2 · Abschatter · 20°"])
         compare(area.tipLines("light:l3"), ["L3 · Reflektor · 90°"])
+    }
+
+    // LH-26: a mark where the figure appears or leaves says so in its tooltip; a plain one does not.
+    function test_a_mark_tooltip_names_its_entrance_and_exit() {
+        const area = createTemporaryObject(areaComponent, tc)
+
+        compare(area.tipLines("mark:e:1"), ["Elisabeth · Mark 2", "ab 6 s", "Auftritt: erscheint hier", "Abgang: geht hier ab"])
+        compare(area.tipLines("mark:e:0").length, 2)
     }
 
     // A selected lamp shows the lamp card, and only the lamp card.

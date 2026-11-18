@@ -32,6 +32,8 @@ pub struct Picture {
     pub frame: Frame,
     /// What `frame.source` numbers stand for: index into this list.
     pub sources: Vec<Source>,
+    /// How strongly each of `sources` is drawn, 0 to 1 (a figure fading in or out, LH-26).
+    pub opacities: Vec<f64>,
     pub labels: Vec<PictureLabel>,
 }
 
@@ -65,12 +67,14 @@ pub fn picture(
 
     let solids = scene(project, set, plan, forms, eye.t_s(), looking, cut);
     let mut sources = Vec::new();
+    let mut opacities = Vec::new();
     let mut triangles = Vec::new();
     let mut face = 0;
     for solid in &solids {
         let source = match &solid.source {
             Some(s) => {
                 sources.push(s.clone());
+                opacities.push(solid.opacity);
                 (sources.len() - 1) as u32
             }
             None => NO_SOURCE,
@@ -99,8 +103,18 @@ pub fn picture(
     Some(Picture {
         frame,
         sources,
+        opacities,
         labels,
     })
+}
+
+impl Picture {
+    /// How strongly pixel `i` is drawn, 0 to 1: its source's opacity; 1 for no source.
+    pub fn opacity_at(&self, i: usize) -> f64 {
+        let source = self.frame.source[i] as usize;
+
+        self.opacities.get(source).copied().unwrap_or(1.0)
+    }
 }
 
 /// The camera `eye` looks through, which its own picture leaves out.
@@ -117,6 +131,8 @@ pub struct VectorFace {
     pub role: SceneRole,
     /// How much light the face gets, 0 dark to 255 full (as the raster's shade).
     pub shade: u8,
+    /// How strongly the face is drawn, 0 to 1 (a figure fading in or out, LH-26).
+    pub opacity: f64,
     /// Corners in the picture plane: x from 0 to 1 (the width), y down from 0 to `height`.
     pub corners: Vec<[f64; 2]>,
 }
@@ -164,6 +180,7 @@ pub fn vector_view(
                 VectorFace {
                     role,
                     shade,
+                    opacity: solid.opacity,
                     corners,
                 },
             ));

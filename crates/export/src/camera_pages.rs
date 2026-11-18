@@ -174,10 +174,13 @@ fn picture(
         prims.push(Prim::Shape {
             class: "view-face".into(),
             geom: Geom::Closed(corners),
-            fill: Some(Fill { rgb, opacity: 1.0 }),
+            fill: Some(Fill {
+                rgb,
+                opacity: face.opacity,
+            }),
             // A hairline in the role's line colour: outlines, and no seams between faces.
             stroke: Some(Stroke {
-                rgb: style.line,
+                rgb: style.line.faded(pal.paper, face.opacity),
                 width_pt: FACE_LINE_PT,
                 dash: Dash::Solid,
             }),

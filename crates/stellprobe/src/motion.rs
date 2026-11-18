@@ -3,6 +3,10 @@ use klappe_model::{
     Point,
 };
 
+mod presence;
+
+pub use presence::figure_opacity_at;
+
 /// Where something is and where it faces at one moment.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Placement {
@@ -92,8 +96,7 @@ pub(crate) fn track_at(track: &ObjectTrack, t_s: f64) -> Option<Placement> {
 /// A figure at time `t_s` (LH-60); `None` without marks, and while it is not in the scene
 /// (LH-26).
 pub fn figure_at(track: &FigureTrack, t_s: f64) -> Option<Placement> {
-    let keys: Vec<Key<'_>> = track.marks.iter().map(Key::from).collect();
-    place_at(&keys, t_s)
+    presence::presence_at(track, t_s).map(|p| p.place)
 }
 
 /// For each mark of `track`, whether the figure walks the way to it (LH-26): not to the
@@ -712,7 +715,7 @@ mod tests {
         assert_eq!(x_at(&t, 5.0), Some(5.0));
         assert_eq!(x_at(&t, 11.0), Some(10.0));
         assert_eq!(x_at(&t, 12.0), Some(10.0));
-        assert_eq!(x_at(&t, 12.1), None);
+        assert_eq!(x_at(&t, 12.6), None);
         assert_eq!(x_at(&t, 99.0), None);
     }
 
