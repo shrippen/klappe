@@ -15,6 +15,7 @@
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
 
 mod camera;
+mod characters;
 mod error;
 mod files;
 mod folder;
@@ -30,14 +31,16 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    is_figure_size_m, is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m,
-    is_opening_width_m, is_outline, Binding, Character, Location, Numbering, ObjectShape, Opening,
-    PaperSetup, Project, SavedView, Scene, ScriptSetup, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
-    MAX_OBJECT_M, MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
+    is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m, is_opening_width_m,
+    is_outline, Binding, Location, Numbering, ObjectShape, Opening, PaperSetup, Project, SavedView,
+    Scene, ScriptSetup, FORMAT_VERSION, MAX_OBJECT_M, MIN_IMAGE_OPACITY, MIN_OBJECT_M,
+    NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
 pub use camera::builtin_camera_presets;
+use characters::{encode_characters, load_characters};
+pub use characters::{load_figures, save_characters};
 pub use error::StoreError;
 use files::{Dir, Kind};
 pub use folder::{folder_size, free_sibling, move_to_trash, read_files, set_aside};
@@ -138,16 +141,6 @@ struct Version {
     format_version: u32,
 }
 
-/// `figuren.toml`.
-#[derive(Serialize, Deserialize)]
-struct Characters {
-    /// Before the tables: TOML keys come ahead of `[[figur]]`.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    not_figures: Vec<String>,
-    #[serde(default)]
-    figur: Vec<Character>,
-}
-
 /// `projekt.toml` read and checked.
 fn read_header(dir: &Path) -> Result<Header, StoreError> {
     let path = dir.join(PROJECT_FILE);
@@ -219,21 +212,6 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         script,
         notes,
     })
-}
-
-/// `figuren.toml` (characters and not-figures); empty when the file is missing.
-fn load_characters(dir: &Path) -> Result<Characters, StoreError> {
-    let path = dir.join(CHARACTERS_FILE);
-    let characters: Characters = match files::exists(&path)? {
-        true => files::read_toml(&path)?,
-        false => Characters {
-            not_figures: Vec::new(),
-            figur: Vec::new(),
-        },
-    };
-    check_characters(&characters.figur).map_err(|message| StoreError::Parse { path, message })?;
-
-    Ok(characters)
 }
 
 /// Writes `project` into `dir`, creating it if needed. Each file is replaced atomically;
@@ -367,33 +345,6 @@ pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
     files::write_atomic(&dir.join(SCRIPT_FILE), script.as_bytes())
 }
 
-/// `figuren.toml` of `project`, encoded.
-fn encode_characters(dir: &Path, project: &Project) -> Result<(PathBuf, Vec<u8>), StoreError> {
-    let characters = Characters {
-        not_figures: project.not_figures.clone(),
-        figur: project.characters.clone(),
-    };
-    let path = dir.join(CHARACTERS_FILE);
-    let bytes = files::encode_toml(&path, &characters)?;
-
-    Ok((path, bytes))
-}
-
-/// The characters and the not-figures of `figuren.toml` as it is on disk, for an answer that
-/// changes only what it touches (DB-50).
-pub fn load_figures(dir: &Path) -> Result<(Vec<Character>, Vec<String>), StoreError> {
-    let characters = load_characters(dir)?;
-
-    Ok((characters.figur, characters.not_figures))
-}
-
-/// Writes `figuren.toml` of `project` in `dir` and nothing else: the answer about a name of
-/// the book (DB-50) is kept at once, like the register.
-pub fn save_characters(dir: &Path, project: &Project) -> Result<(), StoreError> {
-    let (path, bytes) = encode_characters(dir, project)?;
-    files::write_atomic(&path, &bytes)
-}
-
 /// Writes `szenen.toml` of `scenes` in `dir` and nothing else: the Stellprobe files stay, as
 /// unsaved plans are for `save` to write (LH-05).
 pub fn save_register(dir: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
@@ -515,45 +466,6 @@ where
     }
 
     Ok(items)
-}
-
-/// A group has between `MIN_GROUP` and `MAX_GROUP` people (LH-23); a size is between
-/// `MIN_FIGURE_M` and `MAX_FIGURE_M` (LH-25).
-fn check_characters(characters: &[Character]) -> Result<(), String> {
-    for (index, character) in characters.iter().enumerate() {
-        // A name or alias belongs to one figure: a cue must not name two.
-        let rest = &characters[index + 1..];
-        let names = std::iter::once(&character.name).chain(&character.aliases);
-        for name in names {
-            if let Some(other) = rest.iter().find(|o| o.is_called(name)) {
-                return Err(format!(
-                    "{}: {name} is also a name of {}",
-                    character.id, other.id
-                ));
-            }
-        }
-        if let Some(count) = character.group {
-            if !(MIN_GROUP..=MAX_GROUP).contains(&count) {
-                return Err(format!(
-                    "{}: group of {count} is not usable ({MIN_GROUP} to {MAX_GROUP})",
-                    character.id
-                ));
-            }
-        }
-        if character.aliases.iter().any(|a| a.trim().is_empty()) {
-            return Err(format!("{}: an alias is empty", character.id));
-        }
-        if let Some(size_m) = character.size_m {
-            if !is_figure_size_m(size_m) {
-                return Err(format!(
-                    "{}: size of {size_m} m is not usable ({MIN_FIGURE_M} to {MAX_FIGURE_M})",
-                    character.id
-                ));
-            }
-        }
-    }
-
-    Ok(())
 }
 
 /// Saved views (LH-119): an id and a name each, and no id twice.
