@@ -26,8 +26,10 @@ Item {
             if (!ctl.openProject(base + "/orte-projekt")) {
                 return root.fail("project did not open: " + ctl.status)
             }
-            if (ctl.status.indexOf("Spielorte offen: 1.") < 0) {
-                return root.fail("the status must count the open place: " + ctl.status)
+            // The count's words follow the system language; "1." is in both.
+            const counted = ctl.status
+            if (counted.indexOf(": 1.") < 0) {
+                return root.fail("the status must count the open place: " + counted)
             }
             const asked = JSON.parse(ctl.projectJson).pendingPlaces
             if (asked.length !== 1 || asked[0].name !== "SÄNGERSAAL" || asked[0].answers[1].kind !== "rename") {
@@ -44,7 +46,7 @@ Item {
             if (ctl.dirty || ctl.canUndo !== undoBefore) {
                 return root.fail("a place answer must be no undo step")
             }
-            if (ctl.status.indexOf("Spielorte offen") >= 0) {
+            if (ctl.status.indexOf(counted) >= 0) {
                 return root.fail("the status still counts the answered place: " + ctl.status)
             }
             Qt.exit(0)
