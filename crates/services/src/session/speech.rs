@@ -145,6 +145,7 @@ mod tests {
             text: String::new(),
             target: String::new(),
             label: String::new(),
+            index: 0,
             at_s,
         }
     }
