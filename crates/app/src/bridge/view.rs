@@ -23,6 +23,9 @@ use klappe_services::{
 };
 use serde_json::json;
 
+/// What of `Session::edits` the `editRevision` property takes: the bits of a positive `i32`.
+const EDIT_MASK: u64 = i32::MAX as u64;
+
 /// Whether `refresh` found another scene or plan on view than before.
 #[derive(Debug, PartialEq, Eq)]
 enum View {
@@ -166,6 +169,7 @@ impl ControllerRust {
         self.view_free = v.view_free;
         self.choices_json = v.choices_json;
         self.project_json = v.project_json;
+        self.edit_revision = v.edit_revision;
         self.scene_id = v.scene_id;
     }
 
@@ -213,6 +217,8 @@ impl ControllerRust {
             choices_json: q(&choices_json(s)),
             grid_name: q(s.grid().name()),
             project_json: q(&manage::project_json(s)),
+            // A name of the state, not a number to compare: it wraps.
+            edit_revision: i32::try_from(s.edits() & EDIT_MASK).unwrap_or_default(),
             scene_id: q(s.scene().map(|sc| sc.id.as_str()).unwrap_or_default()),
         })
     }
@@ -254,6 +260,7 @@ pub(super) struct Shown {
     choices_json: QString,
     grid_name: QString,
     project_json: QString,
+    edit_revision: i32,
     scene_id: QString,
 }
 
@@ -417,6 +424,7 @@ impl qobject::Controller {
     pub(super) fn show(mut self: Pin<&mut Self>, v: Shown) {
         // Restoring a backup or undoing it can change what only the start used to set.
         self.as_mut().set_project_json(v.project_json);
+        self.as_mut().set_edit_revision(v.edit_revision);
         self.as_mut().set_scene_id(v.scene_id);
         self.as_mut().set_title(v.title);
         self.as_mut().set_plan_title(v.plan_title);

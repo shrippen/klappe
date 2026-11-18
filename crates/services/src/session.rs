@@ -181,6 +181,8 @@ pub struct Session {
     unbacked: bool,
     /// The project (not only the screenplay) changed since the last save.
     project_changed: bool,
+    /// Which state of the plan on view this is (`edits`).
+    edits: u64,
     backup: BackupState,
     /// What `open` found odd in the project (an orphan scene file …).
     load_notes: Vec<klappe_store::LoadNote>,

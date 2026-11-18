@@ -50,6 +50,7 @@ impl Session {
             image_px: RefCell::new(HashMap::new()),
             unbacked: false,
             project_changed: false,
+            edits: super::undo::next_edit(),
             backup: BackupState::None,
             load_notes: loaded.notes,
             view: View::Plan,

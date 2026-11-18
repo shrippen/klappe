@@ -26,6 +26,9 @@ pub mod qobject {
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
         /// Counts refreshes: the camera's picture is made again when it changes.
         #[qproperty(i32, picture_revision, cxx_name = "pictureRevision")]
+        /// Names the state of the project: changes with every edit, undo and redo, not with a
+        /// selection or the playhead; what is drawn from the plan is made again when it does.
+        #[qproperty(i32, edit_revision, cxx_name = "editRevision")]
         /// Counts what turns, shifts or zooms the 3D view: the 3D picture is made again.
         #[qproperty(i32, free_revision, cxx_name = "freeRevision")]
         /// Whether the plan area shows the free 3D view (J) instead of the plan.
@@ -132,6 +135,12 @@ pub mod qobject {
             width_px: i32,
             palette_json: &QString,
         ) -> QImage;
+
+        /// What the camera of shot `id` sees when the shot starts, `width_px` wide, for the
+        /// shot's tile (LH-36); a null image without a camera or marks.
+        #[qinvokable]
+        #[cxx_name = "shotImage"]
+        fn shot_image(self: &Self, id: &QString, width_px: i32, palette_json: &QString) -> QImage;
 
         /// The cameras whose body shows on the plan and where it stands at the playhead, as a
         /// JSON array of `{id, x_m, y_m}` (LH-113).

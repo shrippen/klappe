@@ -44,6 +44,19 @@ fn the_picture_follows_the_playhead() {
     assert_ne!(s.camera_picture(Some("a"), WIDTH_PX).unwrap(), before);
 }
 
+/// LH-36: a tile shows the shot's camera when the shot starts, wherever the playhead stands.
+#[test]
+fn a_shot_shows_its_camera_at_its_start() {
+    let mut s = open();
+    s.set_time(0.0);
+    let at_start = s.shot_picture("s12-2", WIDTH_PX).unwrap();
+    s.set_time(14.0);
+
+    assert_eq!(s.shot_picture("s12-2", WIDTH_PX).unwrap(), at_start);
+    assert_ne!(s.shot_picture("s12-4", WIDTH_PX).unwrap(), at_start);
+    assert!(s.shot_picture("nope", WIDTH_PX).is_none());
+}
+
 const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
 /// Where the width sits in a PNG file; the height follows.
 const PNG_WIDTH_AT: usize = 16;
@@ -149,4 +162,27 @@ fn the_pdf_ends_with_the_camera_views() {
     for shot in 1..=5 {
         assert!(text.contains(&format!("(12.{shot} ")), "{shot}");
     }
+}
+
+#[test]
+fn edits_name_the_state_the_tiles_are_drawn_from() {
+    let mut s = open();
+    let opened = s.edits();
+
+    s.select_shot("s12-1").unwrap();
+    s.set_time(3.0);
+    assert_eq!(s.edits(), opened, "a selection or the playhead is no edit");
+
+    s.copy_plan("Stand 1").unwrap();
+    let copied = s.edits();
+    assert_ne!(copied, opened);
+
+    s.undo();
+    let undone = s.edits();
+    assert_ne!(undone, copied);
+
+    s.redo();
+    assert_ne!(s.edits(), undone);
+
+    assert_ne!(open().edits(), opened, "another session never repeats one");
 }
