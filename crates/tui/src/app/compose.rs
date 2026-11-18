@@ -177,8 +177,7 @@ impl App {
             line: forced.line,
             col,
         };
-        self.editor.set_text(&forced.text);
-        self.editor.go_to(at);
+        self.editor.set_text_at(&forced.text, at);
         self.set_pending(forced.line, slot);
     }
 
