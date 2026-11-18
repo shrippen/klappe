@@ -23,12 +23,25 @@ pub fn same_place_name(a: &str, b: &str) -> bool {
 fn fold(name: &str) -> String {
     let words: Vec<&str> = name.split_whitespace().collect();
 
-    words.join(" ").to_uppercase()
+    // Upper case turns `ß` into `SS`, not the capital `ẞ`.
+    words.join(" ").to_uppercase().replace('ẞ', "SS")
 }
 
 impl Place {
     /// Whether a heading's location `name` is this place: its name or a variant.
     pub fn is_called(&self, name: &str) -> bool {
         same_place_name(&self.name, name) || self.variants.iter().any(|v| same_place_name(v, name))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn both_sharp_s_agree_with_ss() {
+        assert!(same_place_name("STRAẞE", "STRASSE"));
+        assert!(same_place_name("Straße", "STRAẞE"));
+        assert!(!same_place_name("STRASE", "STRASSE"));
     }
 }

@@ -85,8 +85,13 @@ pub(crate) fn same_name(a: &str, b: &str) -> bool {
 
 /// A heading's text cut into location and time of day, without its prefix.
 fn split_heading(text: &str) -> (&str, Option<&str>) {
-    let prefix = heading_prefix(text).map_or(0, str::len);
-    let rest = text.get(prefix..).unwrap_or(text);
+    // The prefix is found in lower case, whose bytes differ from the text's (`ẞ` is `ß`): cut
+    // the same number of chars from the original.
+    let prefix = heading_prefix(text).map_or(0, |p| p.chars().count());
+    let rest = text
+        .char_indices()
+        .nth(prefix)
+        .map_or("", |(at, _)| &text[at..]);
     let rest = rest
         .strip_prefix(FORCE_HEADING)
         .unwrap_or(rest)
@@ -462,6 +467,8 @@ mod tests {
             ("INNEN KÜCHE - DAY", "KÜCHE"),
             (".WALD", "WALD"),
             ("INT./EXT. AUTO", "AUTO"),
+            ("AUẞEN WIESE - TAG", "WIESE"),
+            ("AUSSEN WIESE - TAG", "WIESE"),
         ] {
             assert_eq!(heading_place(heading), place, "{heading}");
         }
