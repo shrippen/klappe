@@ -175,6 +175,9 @@ pub fn book_report_text(language: Language, report: &crate::BookReport) -> Strin
     if report.not_in_book > 0 {
         lines.push(count("book.notInBook", report.not_in_book));
     }
+    if report.places > 0 {
+        lines.push(count("book.places", report.places));
+    }
 
     lines.join(" ")
 }
@@ -344,11 +347,17 @@ mod tests {
         let report = crate::BookReport {
             pending: 2,
             not_in_book: 1,
+            places: 3,
         };
 
         for language in [Language::German, Language::English] {
             let text = book_report_text(language, &report);
-            assert!(text.contains('2') && text.contains('1') && !text.contains("{count}"));
+            assert!(
+                text.contains('2')
+                    && text.contains('1')
+                    && text.contains('3')
+                    && !text.contains("{count}")
+            );
             assert!(!text.contains("book."), "{text}");
         }
         assert_eq!(book_report_text(Language::English, &Default::default()), "");

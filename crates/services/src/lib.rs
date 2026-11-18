@@ -24,6 +24,7 @@ mod light_edit;
 mod load;
 mod measure;
 mod number;
+mod places;
 mod plan_edit;
 mod project_edit;
 mod script_pages;
@@ -46,13 +47,14 @@ pub use folder::{archive_project, rename_project, trash_project};
 pub use light_edit::LightChange;
 pub use measure::measure_angle_deg;
 pub use number::{read_number, Range, Unit};
+pub use places::{PendingPlace, PlaceChoice};
 pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdit, Snapping};
 pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::{
-    Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages, Playing,
-    Session, Size, Step, TimeSnap, View, ViewStep, Visibility,
+    Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages,
+    PlaceAnswer, Playing, Session, Size, Step, TimeSnap, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{

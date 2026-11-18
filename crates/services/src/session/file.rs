@@ -57,6 +57,7 @@ impl Session {
             through: None,
             layout: None,
             pending: Vec::new(),
+            pending_places: Vec::new(),
         };
         session.reconcile();
         session.scene = session
@@ -110,6 +111,7 @@ impl Session {
     pub fn save(&mut self) -> Result<(), ServiceError> {
         // So the register holds the book as saved: the next outside change aligns against it.
         self.reconcile();
+        self.reload_places()?;
         klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
         self.dirty = false;
         self.unbacked = false;
