@@ -2,6 +2,8 @@
 
 use std::fs;
 
+use crate::app::Notice;
+
 use super::support::*;
 use super::*;
 
@@ -123,6 +125,25 @@ fn an_unsaved_book_is_saved_before_questions_are_answered() {
     assert!(!register.contains("GARTEN"), "{register}");
     let frame = screen(&mut app, 100, 24);
     assert!(frame.contains("Save first"), "{frame}");
+}
+
+#[test]
+fn a_long_folder_name_does_not_cut_the_notice() {
+    let name = format!("kt-{}-long-{}.klappe", std::process::id(), "x".repeat(40));
+    let scratch = Scratch::named("INT. HOF – TAG\n\nEin Hund.\n", &name);
+    let notices = [
+        (Notice::SaveFirst, "Save first (Ctrl+S)"),
+        (Notice::SaveFailed("disk full".into()), "disk full"),
+        (Notice::Pdf("PDF written to out.pdf".into()), "out.pdf"),
+        (Notice::Loaded("Loaded the backup".into()), "the backup"),
+    ];
+
+    for (notice, shown) in notices {
+        let mut app = scratch.app();
+        app.notice = Some(notice);
+        let frame = screen(&mut app, 100, 24);
+        assert!(frame.contains(shown), "{shown}\n{frame}");
+    }
 }
 
 /// Answers the first question through the dialog.
