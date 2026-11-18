@@ -40,6 +40,7 @@ TestCase {
         }
     }
 
+    SignalSpy { id: speakSpy; signalName: "speakRequested" }
     SignalSpy { id: newSpy; signalName: "newRequested" }
     SignalSpy { id: openSpy; signalName: "openRequested" }
     SignalSpy { id: closeSpy; signalName: "closeRequested" }
@@ -356,6 +357,22 @@ TestCase {
                              ["exportTo", "camera", "cut", "a4-landscape", "file:///work/Wartburg-camera.png"]])
     }
 
+    // LH-84: the video asks for the file only and is in the palette.
+    function test_the_video_export_is_in_the_menu() {
+        const header = make()
+        const dialog = findChild(header, "exportDialog")
+
+        verify(entry(header, "exportMenu", "video").enabled)
+        pick(header, "exportMenu", "video")
+        compare(dialog.kind, "mp4")
+        verify(!dialog.opened)
+        verify(header.commandPalette.commands.some(c => c.id === "export.mp4"))
+
+        dialog.save("file:///work/Wartburg.mp4")
+
+        compare(fake.calls, [["exportTo", "mp4", "cut", "a4-landscape", "file:///work/Wartburg.mp4"]])
+    }
+
     function test_the_exports_use_the_shot_order() {
         const header = make()
         const dialog = findChild(header, "exportDialog")
@@ -580,6 +597,28 @@ TestCase {
         compare(keys("playback.toggle"), "Space / K")
     }
 
+    // LH-64: reading the dialogue aloud has a key and a palette entry; both need a voice.
+    function test_the_palette_switches_reading_aloud_when_there_is_a_voice() {
+        const header = make()
+        speakSpy.target = header
+        speakSpy.clear()
+        const command = () => header.commandPalette.commands.find(c => c.id === "playback.speak")
+
+        verify(!command().enabled)
+        header.run("playback.speak")
+        compare(speakSpy.count, 0)
+
+        header.speechAvailable = true
+        verify(command().enabled)
+        compare(command().keys, "Umschalt+V")
+        header.run("playback.speak")
+        compare(speakSpy.count, 1)
+
+        header.texts = en
+        compare(command().keys, "Shift+V")
+        compare(command().text, "Read dialogue aloud on or off")
+    }
+
     // LH-93: the header counts the objects without a height; Shift+H, the View menu, the palette
     // and a click on the count all go to the next one.
     function test_the_missing_heights_are_counted_and_stepped_through() {
@@ -651,6 +690,7 @@ TestCase {
                            "menu.ods", "menu.xlsx", "menu.frames", "export.pick.frames",
                            "menu.view3d", "menu.camera", "export.pick.view3d", "export.pick.camera",
                            "export.filter.view3d", "export.filter.camera",
+                           "menu.mp4", "export.pick.mp4", "export.filter.mp4",
                            "menu.commands", "palette.placeholder", "palette.empty", "palette.name",
                            "palette.group.tools", "palette.group.modes", "palette.mode", "mode.build", "palette.group.file", "palette.group.export",
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",

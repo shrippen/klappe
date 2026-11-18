@@ -111,7 +111,7 @@ fn row(inner: Rect, index: u16) -> Rect {
 }
 
 pub(crate) fn draw_find(frame: &mut Frame, app: &App) {
-    let area = centered(frame.area(), BOX_WIDTH, 8);
+    let area = centered(frame.area(), BOX_WIDTH, 9);
     let block = framed(&app.texts.find_title);
     let inner = block.inner(area);
     frame.render_widget(Clear, area);
@@ -144,6 +144,10 @@ pub(crate) fn draw_find(frame: &mut Frame, app: &App) {
     frame.render_widget(
         Paragraph::new(app.texts.find_hint.as_str()).style(quiet),
         row(inner, 5),
+    );
+    frame.render_widget(
+        Paragraph::new(app.texts.find_hint_more.as_str()).style(quiet),
+        row(inner, 6),
     );
 }
 

@@ -258,11 +258,7 @@ impl qobject::Controller {
         }
 
         let dir = session.dir().to_string_lossy().into_owned();
-        // The window cannot answer place questions yet (F-05): not counted until it can.
-        let report = klappe_services::BookReport {
-            places: 0,
-            ..session.book_report()
-        };
+        let report = session.book_report();
         let notes = [
             load_notes_text(language, session.load_notes()),
             book_report_text(language, &report),

@@ -23,11 +23,13 @@ pub enum ExportFormat {
     ShotFiles,
     /// One PNG per camera in a folder (LH-87).
     CameraFiles,
+    /// The playback as an MP4 video, written by the installed ffmpeg (LH-84).
+    Video,
 }
 
 impl ExportFormat {
     /// Every format, in the order the menu offers them.
-    pub const ALL: [ExportFormat; 13] = [
+    pub const ALL: [ExportFormat; 14] = [
         ExportFormat::Pdf,
         ExportFormat::Png,
         ExportFormat::Svg,
@@ -41,6 +43,7 @@ impl ExportFormat {
         ExportFormat::CameraPages,
         ExportFormat::ShotFiles,
         ExportFormat::CameraFiles,
+        ExportFormat::Video,
     ];
 
     /// How surfaces and the catalogue (`menu.<name>Saved`) call the format.
@@ -59,6 +62,7 @@ impl ExportFormat {
             ExportFormat::CameraPages => "camerapages",
             ExportFormat::ShotFiles => "shotfiles",
             ExportFormat::CameraFiles => "camerafiles",
+            ExportFormat::Video => "mp4",
         }
     }
 
@@ -145,7 +149,8 @@ mod tests {
                 "Plan-A-shots.pdf",
                 "Plan-A-cameras.pdf",
                 "Plan-A-shots",
-                "Plan-A-cameras"
+                "Plan-A-cameras",
+                "Plan-A.mp4"
             ]
         );
     }

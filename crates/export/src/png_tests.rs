@@ -19,6 +19,8 @@ fn page() -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         drawing: Default::default(),
         unit: "m".into(),
         decimal_separator: ',',
@@ -39,6 +41,7 @@ fn list() -> DisplayList {
         },
         label: None,
         source: None,
+        opacity: 1.0,
     };
 
     DisplayList {

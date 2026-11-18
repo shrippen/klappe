@@ -194,7 +194,7 @@ fn the_other_hints_carry_their_fields() {
 
     assert_eq!(
         serde_json::to_value(s.mark_hint("elisabeth", Some(1))).unwrap(),
-        json!({ "kind": "mark", "name": "Elisabeth", "index": 2, "time": 6.0 })
+        json!({ "kind": "mark", "name": "Elisabeth", "index": 2, "time": 6.0, "arrival": "walk", "departure": "stay" })
     );
     assert_eq!(
         serde_json::to_value(s.figure_hint("elisabeth", None)).unwrap(),

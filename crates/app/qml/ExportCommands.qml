@@ -17,10 +17,11 @@ Item {
     readonly property alias ods: actOds
     readonly property alias xlsx: actXlsx
     readonly property alias frames: actFrames
+    readonly property alias video: actVideo
     readonly property alias view3d: actView3d
     readonly property alias camera: actCameraPng
     /// In the order of the palette.
-    readonly property var actions: [actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng]
+    readonly property var actions: [actPdf, actPng, actSvg, actCsv, actOds, actXlsx, actFrames, actView3d, actCameraPng, actVideo]
 
     visible: false
     width: 0
@@ -100,5 +101,14 @@ Item {
         text: exports.texts.t("menu.camera")
         enabled: exports.controller.loaded
         onTriggered: exports.dialog.request("camera")
+    }
+    // LH-84: the playback as MP4; the file only, a sheet is no part of a video.
+    CommandAction {
+        id: actVideo
+        cmd: "export.mp4"
+        group: "export"
+        text: exports.texts.t("menu.mp4")
+        enabled: exports.controller.loaded
+        onTriggered: exports.dialog.request("mp4")
     }
 }

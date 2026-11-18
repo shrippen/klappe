@@ -30,10 +30,12 @@ mod scene;
 mod script_pages;
 mod shots;
 mod sketch;
+mod speech;
 mod templates;
 mod timeline;
 mod undo;
 mod uses;
+mod video;
 mod views;
 
 pub use book::Answer;
@@ -43,6 +45,8 @@ pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
 pub use places::PlaceAnswer;
 pub use retime::{Grab, TimeSnap};
+pub use speech::{Speech, SpokenLine};
+pub use video::{frame_count as video_frame_count, VideoJob};
 
 /// Groups of the plan the timeline's layer switches show or hide.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

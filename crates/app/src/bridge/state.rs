@@ -97,4 +97,6 @@ pub struct ControllerRust {
     pub(super) recent_store: QString,
     pub(super) screenshot_path: QString,
     pub(super) screenshot_after: i32,
+    /// Stops a video that is being written when the controller goes with the window.
+    pub(super) _video_stop: super::export::VideoStop,
 }

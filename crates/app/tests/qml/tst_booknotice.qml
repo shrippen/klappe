@@ -52,4 +52,16 @@ TestCase {
 
         compare(asked.length, 1)
     }
+
+    function test_open_places_show_their_count_alone_and_after_the_scenes() {
+        fake.projectJson = JSON.stringify({ pending: [], pendingPlaces: [{ name: "HOF" }] })
+        const notice = make()
+
+        verify(notice.visible)
+        compare(notice.text, "Spielorte offen: 1.")
+
+        fake.projectJson = JSON.stringify({ pending: [{ id: "a" }], pendingPlaces: [{ name: "HOF" }, { name: "KELLER" }] })
+
+        compare(notice.text, "Szenen zuzuordnen: 1. Spielorte offen: 2.")
+    }
 }
