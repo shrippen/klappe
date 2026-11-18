@@ -7,8 +7,9 @@ use crate::metrics::text_width_pt;
 use crate::palette::Palette;
 use klappe_stellprobe::{Item, Shape};
 
-/// The label of a sun or north arrow, centred on the arrow as the app does, so it never reaches
-/// over the other arrow of the pair, and moved in as far as the set's clip needs. Right of the
+/// The label of a sun or north arrow, centred on the arrow as the app does, so it stays off the
+/// other arrow of the pair, and moved sideways into the set's clip (not up or down: on a very
+/// large set "N" and the sun's label can meet, as in the app zoomed out). Right of the
 /// shape, like the other polygons, it ran over the neighbour or out of the clip. A label wider
 /// than the set breaks at its slash into two lines ("180° / 61°" over a 3 m wide set).
 fn label(label: &str, bounds: &[Pt], map: &Map, pal: &Palette, out: &mut Vec<Prim>) {

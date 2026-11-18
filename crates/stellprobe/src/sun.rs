@@ -20,6 +20,7 @@ const MONTH_END_DAY: u8 = 31;
 const UNIX_EPOCH_WEEKDAY: i64 = 4;
 const DAYS_PER_WEEK: i64 = 7;
 const MINUTES_PER_DAY_INT: i64 = 1_440;
+const MINUTES_PER_HOUR_INT: i64 = 60;
 /// Summer time switches at 01:00 UTC.
 const SWITCH_UTC_MIN: i64 = 60;
 const CET_MIN: i64 = 60;
@@ -86,7 +87,10 @@ pub fn sun_at(site: &Site, time: &SunTime) -> Sun {
 
 /// The clock of Central Europe at `time` when the user gave no offset: +01:00, and +02:00 while
 /// summer time runs, from the last Sunday of March 01:00 UTC to the last Sunday of October
-/// 01:00 UTC. Pure rule, no zone database; elsewhere the user types the offset.
+/// 01:00 UTC. Pure rule, no zone database; elsewhere the user types the offset. The clock is
+/// read as winter time first: 02:30 on the March switch day, which no clock shows, counts as
+/// summer time (00:30 UTC); 02:30 on the October day, shown twice, is the second time (01:30
+/// UTC). The first one needs "+02:00".
 fn central_european_offset_min(time: &SunTime) -> f64 {
     let last_sunday_utc_min = |month: u8| {
         let last = days_from_civil(time.year, month, MONTH_END_DAY);
@@ -95,7 +99,7 @@ fn central_european_offset_min(time: &SunTime) -> f64 {
         (last - weekday) * MINUTES_PER_DAY_INT + SWITCH_UTC_MIN
     };
     let clock_min = days_from_civil(time.year, time.month, time.day) * MINUTES_PER_DAY_INT
-        + i64::from(time.hour) * 60
+        + i64::from(time.hour) * MINUTES_PER_HOUR_INT
         + i64::from(time.minute);
     // The instant the clock shows if it is winter time.
     let utc_min = clock_min - CET_MIN;
@@ -296,6 +300,15 @@ mod tests {
         assert!(same(
             &blank((2026, 10, 25), (2, 0)),
             &given((2026, 10, 25), (2, 0), 60)
+        ));
+        // The hour of the switch: missing in March, read as summer; twice in October, the second.
+        assert!(same(
+            &blank((2026, 3, 29), (2, 30)),
+            &given((2026, 3, 29), (2, 30), 120)
+        ));
+        assert!(same(
+            &blank((2026, 10, 25), (2, 30)),
+            &given((2026, 10, 25), (2, 30), 60)
         ));
         // The days around the switches.
         assert!(same(
