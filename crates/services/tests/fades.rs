@@ -71,6 +71,7 @@ fn the_3d_view_reads_the_layer_of_each_body() {
     let picture = s.free_picture((640.0, 480.0)).unwrap();
     s.set_fade(Layer::Set, Fade::Faint);
     s.set_fade(Layer::Figures, Fade::Medium);
+    s.set_fade(Layer::Cameras, Fade::Medium);
     let strength = s.picture_strength(&picture);
     let mut seen = Vec::new();
 
@@ -79,8 +80,7 @@ fn the_3d_view_reads_the_layer_of_each_body() {
             continue;
         };
         let want = match role {
-            SceneRole::Figure(_) => 0.6,
-            SceneRole::Camera => 1.0,
+            SceneRole::Figure(_) | SceneRole::Camera => 0.6,
             _ => 0.3,
         };
 
@@ -90,6 +90,7 @@ fn the_3d_view_reads_the_layer_of_each_body() {
     seen.sort_unstable();
     seen.dedup();
     assert!(seen.len() > 1, "{seen:?}");
+    assert!(seen.contains(&SceneRole::Camera.code()), "no camera pixel");
 }
 
 /// LH-15: what the screen shows faded, the printout and the 3D PNG show faded too.
