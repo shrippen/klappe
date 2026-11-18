@@ -4,6 +4,7 @@ use klappe_export::{Page, ShotView, Texts, Theme};
 use klappe_model::{FloorPlan, PaperSetup};
 use klappe_stellprobe::{render, vector_view, DisplayList, Eye, Lamp, Shape, ShotOrder};
 
+use super::fade::face_strengths;
 use super::{Pages, Session, Size};
 use crate::error::{write_failed, ServiceError};
 use crate::library;
@@ -115,7 +116,7 @@ impl Session {
         &self,
         picture: &klappe_stellprobe::Picture,
     ) -> Result<Vec<u8>, ServiceError> {
-        let strength = |role| self.scene_fade(role);
+        let strength = self.picture_strength(picture);
 
         Ok(klappe_export::picture_png(
             picture,
@@ -179,6 +180,7 @@ impl Session {
 
             views.push(ShotView {
                 shot: shot.id.clone(),
+                strength: face_strengths(&view),
                 view,
             });
         }

@@ -12,7 +12,7 @@
 //! ```
 
 use klappe_model::{FloorPlan, Shot};
-use klappe_stellprobe::{axis_jumps, ordered_shots, ShotOrder, VectorView};
+use klappe_stellprobe::{axis_jumps, ordered_shots, ShotOrder};
 
 use crate::canvas::{Anchor, Dash, Fill, Geom, Prim, Rect, Sheet, Stroke, Weight};
 use crate::error::ExportError;
@@ -48,12 +48,12 @@ pub(crate) fn sheets(
     views: &[ShotView],
 ) -> Result<Vec<Sheet>, ExportError> {
     let ordered = ordered_shots(plan, order);
-    let shown: Vec<(&Shot, &VectorView)> = ordered
+    let shown: Vec<(&Shot, &ShotView)> = ordered
         .iter()
         .filter_map(|(_, shot)| {
             let view = views.iter().find(|v| v.shot == shot.id)?;
 
-            Some((*shot, &view.view))
+            Some((*shot, view))
         })
         .collect();
     if shown.is_empty() {
@@ -141,9 +141,10 @@ fn caption(prims: &mut Vec<Prim>, cell: Rect, name: &str, lens: &str, pal: &Pale
 fn picture(
     prims: &mut Vec<Prim>,
     cell: Rect,
-    view: &VectorView,
+    shot_view: &ShotView,
     pal: &Palette,
 ) -> Result<(), ExportError> {
+    let view = &shot_view.view;
     let room = (cell.w, cell.h - CAPTION_BAND_PT);
     let width = room.0.min(room.1 / view.height);
     let (x, y) = (cell.x + (room.0 - width) / 2.0, cell.y + CAPTION_BAND_PT);
@@ -164,7 +165,8 @@ fn picture(
         }),
     });
 
-    for face in &view.faces {
+    for (i, face) in view.faces.iter().enumerate() {
+        let strength = shot_view.strength.get(i).copied().unwrap_or(1.0);
         let style = scene_style(face.role, pal)?;
         let rgb = shaded(style.face, face.shade);
         let corners = face
@@ -178,11 +180,11 @@ fn picture(
             geom: Geom::Closed(corners),
             fill: Some(Fill {
                 rgb,
-                opacity: face.opacity,
+                opacity: strength,
             }),
             // A hairline in the role's line colour: outlines, and no seams between faces.
             stroke: Some(Stroke {
-                rgb: style.line.faded(pal.paper, face.opacity),
+                rgb: style.line.faded(pal.paper, strength),
                 width_pt: FACE_LINE_PT,
                 dash: Dash::Solid,
             }),

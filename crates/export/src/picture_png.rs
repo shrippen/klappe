@@ -27,7 +27,7 @@ const HALO_STEPS: [(f64, f64); 4] = [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.
 pub(crate) fn write(
     picture: &Picture,
     theme: Theme,
-    strength: &dyn Fn(SceneRole) -> f64,
+    strength: &dyn Fn(usize) -> f64,
 ) -> Result<Vec<u8>, ExportError> {
     let pal = palette(theme)?;
     let frame = &picture.frame;
@@ -41,15 +41,6 @@ pub(crate) fn write(
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let strengths: Vec<f64> = (0..CODES)
-        .map(|code| {
-            u8::try_from(code)
-                .ok()
-                .and_then(SceneRole::of_code)
-                .map_or(1.0, strength)
-        })
-        .collect();
-
     let mut pixels = Vec::with_capacity(frame.role.len() * 3);
     for i in 0..frame.role.len() {
         let rgb = match &styles[usize::from(frame.role[i])] {
@@ -57,8 +48,7 @@ pub(crate) fn write(
             Some(style) if frame.edge[i] => style.line,
             Some(style) => shaded(style.face, frame.shade[i]),
         };
-        let fade = strengths[usize::from(frame.role[i])] * picture.opacity_at(i);
-        let rgb = rgb.faded(pal.paper, fade);
+        let rgb = rgb.faded(pal.paper, strength(i));
         pixels.extend_from_slice(&[rgb.r, rgb.g, rgb.b]);
     }
 

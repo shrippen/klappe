@@ -15,7 +15,6 @@ type Rgb = [u8; 3];
 /// `KanteShapeCanvas` tint.
 const TINT: f64 = 0.2;
 const FULL_SHADE: f64 = 255.0;
-const FULL_STRENGTH: f64 = 1.0;
 const MAX_CHANNEL: &str = "255";
 /// The Qt name of the format `ppm` writes.
 pub const IMAGE_FORMAT: &str = "PPM";
@@ -84,13 +83,13 @@ fn paints(palette: &Palette) -> Vec<Option<Paint>> {
 
 /// The picture as a PPM image (the format `QImage` reads): the face of a pixel is its role's
 /// colour times its shade, an outline is the role's colour as it is, empty is the ground.
-/// `strength` says how much of its colour a role keeps (LH-15): a faded layer is mixed with the
-/// ground. The outline of a source `selected` names is the accent (edge role "Auswahl") and
+/// `strength` says how much of its colour pixel `i` keeps (LH-15): a faded pixel is mixed with
+/// the ground. The outline of a source `selected` names is the accent (edge role "Auswahl") and
 /// twice as wide, so the selection shows by form too, not only by colour.
 pub fn ppm(
     picture: &Picture,
     palette: &Palette,
-    strength: &dyn Fn(SceneRole) -> f64,
+    strength: &dyn Fn(usize) -> f64,
     selected: &dyn Fn(&Source) -> bool,
 ) -> Vec<u8> {
     let frame = &picture.frame;
@@ -99,15 +98,6 @@ pub fn ppm(
     let accent = palette.color(ACCENT_HUE);
     let chosen: Vec<bool> = picture.sources.iter().map(selected).collect();
     let outlined = selection_outline(frame, &chosen);
-    let strengths: Vec<f64> = (0..CODES)
-        .map(|code| {
-            u8::try_from(code)
-                .ok()
-                .and_then(SceneRole::of_code)
-                .map_or(FULL_STRENGTH, strength)
-        })
-        .collect();
-
     let mut bytes = format!("P6\n{} {}\n{MAX_CHANNEL}\n", frame.width, frame.height).into_bytes();
     bytes.reserve(frame.role.len() * 3);
 
@@ -119,7 +109,7 @@ pub fn ppm(
             Some(paint) if frame.edge[i] => paint.line,
             Some(paint) => shaded(paint.face, frame.shade[i]),
         };
-        bytes.extend_from_slice(&mix(ground, color, strengths[role] * picture.opacity_at(i)));
+        bytes.extend_from_slice(&mix(ground, color, strength(i)));
     }
 
     bytes
@@ -256,13 +246,11 @@ mod tests {
         assert_eq!(pixels[3], RED);
     }
 
-    /// LH-15: a faded layer's pixels are mixed with the ground, the others stay.
+    /// LH-15: a faded pixel is mixed with the ground, the others stay.
     #[test]
-    fn a_faded_role_is_mixed_with_the_ground() {
-        let figures_half = |role: SceneRole| match role {
-            SceneRole::Figure(_) => 0.5,
-            _ => 1.0,
-        };
+    fn a_faded_pixel_is_mixed_with_the_ground() {
+        // The two figure pixels are the last two.
+        let figures_half = |i: usize| if i >= 2 { 0.5 } else { 1.0 };
 
         let pixels = pixels(&ppm(&picture(), &palette(), &figures_half, &|_| false));
 

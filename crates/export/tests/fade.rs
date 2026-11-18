@@ -92,29 +92,25 @@ fn a_faded_fill_turns_more_transparent() {
     assert!(element(&pale, "camera").contains("opacity"));
 }
 
-/// A figure fading in or out (LH-26): the list's own opacity paints the still frame paler, in
-/// SVG and in PDF, on top of the layer's fade.
+/// A figure fading in or out (LH-26): the caller hands its finished strength in `Page::fade`,
+/// the layer's fade times the item's opacity; the item's own `opacity` is not read here.
 #[test]
-fn an_item_with_its_own_opacity_is_drawn_paler() {
-    let mut half = list();
-    half.items[1].opacity = 0.5;
+fn a_page_fade_below_full_draws_an_item_paler() {
     let full = svg(&list(), &page(Vec::new()), Theme::Light).unwrap();
-    let pale = svg(&half, &page(Vec::new()), Theme::Light).unwrap();
+    let pale = svg(&list(), &page(vec![1.0, 0.5]), Theme::Light).unwrap();
+    let mut own = list();
+    own.items[1].opacity = 0.5;
 
     assert_ne!(element(&full, "camera"), element(&pale, "camera"));
     assert_eq!(element(&full, "wall"), element(&pale, "wall"));
     assert_eq!(
-        svg(&half, &page(vec![1.0, 0.5]), Theme::Light).unwrap(),
-        {
-            let mut quarter = list();
-            quarter.items[1].opacity = 0.25;
-            svg(&quarter, &page(Vec::new()), Theme::Light).unwrap()
-        },
-        "the layer's fade and the item's opacity multiply"
+        svg(&own, &page(Vec::new()), Theme::Light).unwrap(),
+        full,
+        "the item's own opacity is the caller's to fold into the fade"
     );
     assert_ne!(
         pdf(&list(), &page(Vec::new()), Theme::Light).unwrap(),
-        pdf(&half, &page(Vec::new()), Theme::Light).unwrap()
+        pdf(&list(), &page(vec![1.0, 0.5]), Theme::Light).unwrap()
     );
 }
 

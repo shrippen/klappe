@@ -5,8 +5,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Arrival, Departure, DisplayList, Layer, Lock, Pace, PlanEdit, Role, ServiceError, Session,
-    Snapping, Source, Visibility,
+    Arrival, Departure, DisplayList, Fade, Layer, Lock, Pace, PlanEdit, Role, ServiceError,
+    Session, Snapping, Source, Visibility,
 };
 
 fn example() -> PathBuf {
@@ -270,4 +270,64 @@ fn the_print_fades_the_same_figure_when_a_layer_is_hidden() {
             "{hidden}"
         );
     }
+}
+
+/// The print draws a figure at its layer's fade times its own opacity: Elisabeth at 6.25 s
+/// is half there, so with her layer at 60 % she keeps 30 % of her fill.
+#[test]
+fn the_print_multiplies_layer_fade_and_opacity() {
+    let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("opacity-fade-print");
+    std::fs::create_dir_all(&dir).unwrap();
+    let fill_opacities = |fade: Fade| -> Vec<f64> {
+        let mut s = fading();
+        s.set_fade(Layer::Figures, fade);
+        let path = dir.join(format!("{}.svg", fade.name()));
+        s.export_svg(
+            &path,
+            klappe_services::PaperSetup::default(),
+            klappe_services::Language::English.print_texts(),
+        )
+        .unwrap();
+        let svg = std::fs::read_to_string(path).unwrap();
+
+        svg.lines()
+            .filter(|l| l.contains("class=\"item figure purple\""))
+            .filter_map(|l| {
+                let at = l.find("fill-opacity=\"")? + "fill-opacity=\"".len();
+
+                l[at..].split('"').next()?.parse().ok()
+            })
+            .collect()
+    };
+
+    let half = fill_opacities(Fade::Full);
+    let product = fill_opacities(Fade::Medium);
+
+    assert!(!half.is_empty());
+    assert_eq!(half.len(), product.len());
+    for (half, product) in half.iter().zip(&product) {
+        assert!((product - half * 0.6).abs() < 1e-3, "{half} -> {product}");
+    }
+}
+
+/// The 3D view takes the same finished strength: layer fade times the opacity of the source.
+#[test]
+fn the_3d_view_multiplies_layer_fade_and_opacity() {
+    let mut s = fading();
+    s.toggle_view();
+    s.set_fade(Layer::Figures, Fade::Medium);
+    let picture = s.free_picture((640.0, 480.0)).unwrap();
+    let strength = s.picture_strength(&picture);
+    let of = |id: &str| {
+        let at = picture
+            .frame
+            .source
+            .iter()
+            .position(|n| picture.sources.get(*n as usize) == Some(&Source::Figure(id.into())));
+
+        strength(at.unwrap())
+    };
+
+    assert_eq!(of("elisabeth"), 0.6 * 0.5);
+    assert_eq!(of("burgvogt"), 0.6);
 }
