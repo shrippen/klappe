@@ -194,4 +194,16 @@ TestCase {
         panel.showHead()
         verify(head.activeFocus)
     }
+
+    // The list and its rows are named for a screen reader: role and the line's text.
+    function test_list_and_rows_are_named() {
+        const panel = make()
+        const list = findChild(panel, "lineList")
+        const row = list.itemAtIndex(0)
+
+        compare(list.Accessible.role, Accessible.List)
+        verify(list.Accessible.name !== "")
+        compare(row.Accessible.role, Accessible.ListItem)
+        compare(row.Accessible.name, panel.lines[0].text)
+    }
 }

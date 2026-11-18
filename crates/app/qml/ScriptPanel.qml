@@ -84,6 +84,12 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: text
+                // The focus shows as a frame, like the line list's.
+                background: Rectangle {
+                    color: "transparent"
+                    border.width: sceneHead.activeFocus ? KanteStyle.borderWidth : 0
+                    border.color: KanteStyle.focusColor
+                }
                 HoverHandler { id: headHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: card.showAt("scene", panel.scene.id, sceneHead) }
                 Keys.onReturnPressed: card.showAt("scene", panel.scene.id, sceneHead)
@@ -115,6 +121,8 @@ Item {
             // Arrow keys step through the lines once the list has the focus (Tab).
             keyNavigationEnabled: true
             activeFocusOnTab: true
+            Accessible.role: Accessible.List
+            Accessible.name: panel.texts.t("script.title")
             Keys.onReturnPressed: panel.activateLine(currentIndex)
 
             delegate: Rectangle {
@@ -126,6 +134,8 @@ Item {
                 // The line the arrow keys are on: a frame, not only a colour.
                 border.width: ListView.isCurrentItem && list.activeFocus ? KanteStyle.borderWidth : 0
                 border.color: KanteStyle.focusColor
+                Accessible.role: Accessible.ListItem
+                Accessible.name: lineText.text
 
                 // The current line's bar (shape, not only colour).
                 Rectangle {
