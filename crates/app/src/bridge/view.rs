@@ -184,7 +184,7 @@ impl ControllerRust {
             plan_title: q(&s.plan_title()),
             plan_json: q(&plan_json(
                 s,
-                &s.display_list_for(self.selected.only()),
+                &s.display_list_for(self.selected.handled()),
                 &self.selected,
                 self.language,
                 (&self.picked(), self.marquee.as_ref(), measure.as_ref()),

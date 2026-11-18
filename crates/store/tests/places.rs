@@ -1,0 +1,118 @@
+//! The play locations: `orte.toml` (DB-51, FORMAT.md).
+#![allow(clippy::unwrap_used)]
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use klappe_model::{Place, Project};
+use klappe_store::{load, load_places, save, save_keeping_places, save_places};
+
+const EXAMPLE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/beispiel.klappe"
+);
+
+fn place(id: &str, name: &str, variants: &[&str]) -> Place {
+    Place {
+        id: id.into(),
+        name: name.into(),
+        variants: variants.iter().map(|v| (*v).into()).collect(),
+    }
+}
+
+fn dir(name: &str) -> PathBuf {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let _ = fs::remove_dir_all(&dir);
+
+    dir
+}
+
+#[test]
+fn the_example_has_its_place() {
+    let loaded = load(Path::new(EXAMPLE)).unwrap();
+
+    assert_eq!(
+        loaded.project.places,
+        [place("k3m9q2xa", "SÄNGERSAAL", &[])]
+    );
+}
+
+#[test]
+fn places_survive_a_save_and_the_file_exists_only_with_them() {
+    let dir = dir("places-roundtrip");
+    let mut project = Project::new("T");
+    save(&dir, &project, None).unwrap();
+    assert!(!dir.join("orte.toml").exists());
+
+    project.places = vec![place("a", "SÄNGERSAAL", &["SAAL"]), place("b", "HOF", &[])];
+    save(&dir, &project, None).unwrap();
+    assert_eq!(load(&dir).unwrap().project.places, project.places);
+    let text = fs::read_to_string(dir.join("orte.toml")).unwrap();
+    assert!(
+        text.contains("[[ort]]") && text.contains("variants = [\"SAAL\"]"),
+        "{text}"
+    );
+    assert_eq!(text.matches("variants").count(), 1, "{text}");
+
+    project.places.clear();
+    save(&dir, &project, None).unwrap();
+    assert!(!dir.join("orte.toml").exists());
+}
+
+#[test]
+fn save_places_writes_nothing_else() {
+    let dir = dir("places-only");
+    save(&dir, &Project::new("T"), None).unwrap();
+    let before = fs::read(dir.join("projekt.toml")).unwrap();
+
+    save_places(&dir, &[place("a", "HOF", &[])]).unwrap();
+
+    assert_eq!(load_places(&dir).unwrap(), [place("a", "HOF", &[])]);
+    assert_eq!(fs::read(dir.join("projekt.toml")).unwrap(), before);
+}
+
+#[test]
+fn a_name_on_two_places_is_refused_on_save_and_load() {
+    let dir = dir("places-refused");
+    let both = vec![place("a", "Straße", &[]), place("b", "X", &["STRASSE"])];
+    let mut project = Project::new("T");
+    project.places = both.clone();
+
+    assert!(save(&dir, &project, None).is_err());
+    assert!(save_places(&dir, &both).is_err());
+
+    save(&dir, &Project::new("T"), None).unwrap();
+    fs::write(
+        dir.join("orte.toml"),
+        "[[ort]]\nid = \"a\"\nname = \"Straße\"\n\n[[ort]]\nid = \"b\"\nname = \"STRASSE\"\n",
+    )
+    .unwrap();
+    assert!(load(&dir).is_err());
+}
+
+#[test]
+fn an_empty_name_or_a_repeated_id_is_refused() {
+    let dir = dir("places-bad");
+    save(&dir, &Project::new("T"), None).unwrap();
+
+    assert!(save_places(&dir, &[place("a", " ", &[])]).is_err());
+    assert!(save_places(&dir, &[place("a", "X", &[]), place("a", "Y", &[])]).is_err());
+    assert!(save_places(&dir, &[place("a", "X", &[""])]).is_err());
+}
+
+#[test]
+fn a_save_keeping_places_never_touches_orte_toml() {
+    let dir = dir("places-kept");
+    let mut project = Project::new("T");
+    project.places = vec![place("a", "HOF", &[])];
+    save(&dir, &project, None).unwrap();
+    let before = fs::read(dir.join("orte.toml")).unwrap();
+
+    project.places = vec![place("b", "WALD", &[])];
+    save_keeping_places(&dir, &project, None).unwrap();
+    assert_eq!(fs::read(dir.join("orte.toml")).unwrap(), before);
+
+    project.places.clear();
+    save_keeping_places(&dir, &project, None).unwrap();
+    assert_eq!(fs::read(dir.join("orte.toml")).unwrap(), before);
+}

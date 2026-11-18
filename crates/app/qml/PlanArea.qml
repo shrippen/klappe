@@ -454,6 +454,11 @@ Item {
         selection.focusHeight()
     }
 
+    /// The keyboard goes to the plan (or the 3D view), as after a click on it (DB-63).
+    function focusCanvas() {
+        (area.free ? freeView : canvas).forceActiveFocus()
+    }
+
     function setNote() {
         if (!controller.commitNote(noteField.text)) {
             noteField.invalid = true

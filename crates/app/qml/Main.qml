@@ -86,6 +86,8 @@ Kirigami.ApplicationWindow {
                 onShotOrderPicked: order => root.shotOrder = order
                 onZoomRequested: how => workspace.zoomPlan(how)
                 onPlayRequested: workspace.togglePlay()
+                onScriptRequested: line => workspace.revealScript(line)
+                onPlanRequested: workspace.revealPlan()
                 onHeightRequested: workspace.focusHeight()
             }
 
