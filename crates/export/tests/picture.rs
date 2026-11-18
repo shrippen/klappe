@@ -39,6 +39,7 @@ fn list_with(picture: bool, opacity: f64) -> DisplayList {
             },
             label: None,
             source: None,
+            opacity: 1.0,
         });
     }
     items.push(Item {
@@ -48,6 +49,7 @@ fn list_with(picture: bool, opacity: f64) -> DisplayList {
         },
         label: (!picture).then(|| FILE.to_owned()),
         source: Some(Source::Image("i1".into())),
+        opacity: 1.0,
     });
 
     DisplayList {
@@ -66,6 +68,8 @@ fn page(with_image: bool) -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         drawing: Default::default(),
         unit: "m".into(),
         decimal_separator: ',',

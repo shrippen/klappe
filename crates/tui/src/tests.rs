@@ -18,6 +18,7 @@ mod figures;
 mod find;
 mod flow;
 mod marks;
+mod numbers;
 mod outline;
 mod pdf;
 mod places;

@@ -20,17 +20,22 @@ fn chars_per_line(width_m: f64) -> usize {
     (((width_m - 2.0 * CARD_PAD_M) / CHAR_WIDTH_M + 0.5) as usize).max(1)
 }
 
-/// The corners of the card with top left `at` and width `width_m` (not below the minimum), and
-/// its text, lines joined by `\n`.
-pub(crate) fn note_card(at: Point, width_m: f64, text: &str) -> (Vec<Point>, String) {
+/// The corners of the card with top left `at` and width `width_m` (not below the minimum), turned
+/// clockwise by `rotation_deg` about `at`, and its text, lines joined by `\n`.
+pub(crate) fn note_card(
+    at: Point,
+    width_m: f64,
+    rotation_deg: f64,
+    text: &str,
+) -> (Vec<Point>, String) {
     let width_m = width_m.max(NOTE_MIN_WIDTH_M);
     let lines = wrap(text, chars_per_line(width_m));
     let height_m = lines.len() as f64 * LINE_HEIGHT_M + 2.0 * CARD_PAD_M;
     let corners = vec![
         at,
-        Point::new(at.x_m + width_m, at.y_m),
-        Point::new(at.x_m + width_m, at.y_m + height_m),
-        Point::new(at.x_m, at.y_m + height_m),
+        Point::new(at.x_m + width_m, at.y_m).turned(at, rotation_deg),
+        Point::new(at.x_m + width_m, at.y_m + height_m).turned(at, rotation_deg),
+        Point::new(at.x_m, at.y_m + height_m).turned(at, rotation_deg),
     ];
 
     (corners, lines.join("\n"))
@@ -103,7 +108,7 @@ mod tests {
     /// truncating 21.999… gave.
     #[test]
     fn a_line_has_the_characters_the_card_holds() {
-        let (_, text) = note_card(Point::new(0.0, 0.0), NOTE_WIDTH_M, &"x".repeat(50));
+        let (_, text) = note_card(Point::new(0.0, 0.0), NOTE_WIDTH_M, 0.0, &"x".repeat(50));
         let lengths: Vec<usize> = text.lines().map(|l| l.chars().count()).collect();
 
         assert_eq!(lengths, [22, 22, 6]);
@@ -113,7 +118,7 @@ mod tests {
     fn a_wider_card_wraps_into_fewer_lines() {
         let at = Point::new(0.0, 0.0);
         let text = "wort ".repeat(20);
-        let lines = |width_m| note_card(at, width_m, &text).1.lines().count();
+        let lines = |width_m| note_card(at, width_m, 0.0, &text).1.lines().count();
 
         assert!(lines(4.8) < lines(NOTE_WIDTH_M));
         assert!(lines(NOTE_WIDTH_M) < lines(1.2));
@@ -122,15 +127,20 @@ mod tests {
     #[test]
     fn a_card_is_not_narrower_than_the_minimum() {
         let at = Point::new(1.0, 1.0);
-        let (corners, text) = note_card(at, 0.0, "abc def");
+        let (corners, text) = note_card(at, 0.0, 0.0, "abc def");
 
         assert_eq!(corners[1].x_m, 1.0 + NOTE_MIN_WIDTH_M);
-        assert_eq!(text, note_card(at, NOTE_MIN_WIDTH_M, "abc def").1);
+        assert_eq!(text, note_card(at, NOTE_MIN_WIDTH_M, 0.0, "abc def").1);
     }
 
     #[test]
     fn an_own_line_break_stays() {
-        let (_, text) = note_card(Point::new(0.0, 0.0), NOTE_WIDTH_M, "Akt 1\nVorhang\n\nEnde");
+        let (_, text) = note_card(
+            Point::new(0.0, 0.0),
+            NOTE_WIDTH_M,
+            0.0,
+            "Akt 1\nVorhang\n\nEnde",
+        );
 
         assert_eq!(text, "Akt 1\nVorhang\n\nEnde");
     }
@@ -138,8 +148,8 @@ mod tests {
     #[test]
     fn the_card_grows_with_its_lines() {
         let at = Point::new(1.0, 2.0);
-        let (one, _) = note_card(at, NOTE_WIDTH_M, "kurz");
-        let (two, text) = note_card(at, NOTE_WIDTH_M, &"wort ".repeat(10));
+        let (one, _) = note_card(at, NOTE_WIDTH_M, 0.0, "kurz");
+        let (two, text) = note_card(at, NOTE_WIDTH_M, 0.0, &"wort ".repeat(10));
 
         assert_eq!(one[0], at);
         assert_eq!(one[1].x_m, 1.0 + NOTE_WIDTH_M);
@@ -153,6 +163,7 @@ mod tests {
         let (points, label) = note_card(
             at,
             NOTE_WIDTH_M,
+            0.0,
             "Der Vorhang wird erst nach dem dritten Gong zu",
         );
         let card = Item {
@@ -160,6 +171,7 @@ mod tests {
             shape: Shape::Polygon { points },
             label: Some(label),
             source: None,
+            opacity: crate::display::FULL_OPACITY,
         };
 
         assert!(hit(&card, Point::new(3.5, 4.3), 0.0));

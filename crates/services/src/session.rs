@@ -19,6 +19,7 @@ mod figures;
 mod file;
 mod free_view;
 mod layers;
+mod numbering;
 mod objects;
 mod pages;
 mod pick;
@@ -30,10 +31,12 @@ mod scene;
 mod script_pages;
 mod shots;
 mod sketch;
+mod speech;
 mod templates;
 mod timeline;
 mod undo;
 mod uses;
+mod video;
 mod views;
 
 pub use book::Answer;
@@ -44,6 +47,8 @@ pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
 pub use places::PlaceAnswer;
 pub use retime::{Grab, TimeSnap};
+pub use speech::{Speech, SpokenLine};
+pub use video::{frame_count as video_frame_count, VideoJob};
 
 /// Groups of the plan the timeline's layer switches show or hide.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -195,6 +200,11 @@ pub struct Session {
     pending_figures: Vec<crate::figures::PendingFigure>,
     /// Locations of the headings no play location is called by (`pending_places`).
     pending_places: Vec<crate::places::PendingPlace>,
+    /// The Sperrstand of the scene numbers (DB-33) as saved last; `None` without the file.
+    /// Only a save changes it, so undo and the backup never carry it.
+    lock: Option<Vec<klappe_model::LockedNumber>>,
+    /// How many numbers two scenes carry that the Sperrstand cannot settle (`book_report`).
+    twin_numbers: usize,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends

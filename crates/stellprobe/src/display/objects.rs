@@ -56,6 +56,7 @@ pub(super) fn set_items(set: &SetPlan, items: &mut Vec<Item>) {
             },
             label: name.clone().filter(|_| !free),
             source: Some(Source::Object(object.id.clone())),
+            opacity: crate::display::FULL_OPACITY,
         });
         if free && name.is_some() {
             items.push(name_item(object, name));
@@ -96,6 +97,7 @@ pub(super) fn track_items(set: &SetPlan, plan: &FloorPlan, items: &mut Vec<Item>
                 },
                 label: None,
                 source: Some(Source::Object(track.object.clone())),
+                opacity: crate::display::FULL_OPACITY,
             });
         }
 
@@ -108,6 +110,7 @@ pub(super) fn track_items(set: &SetPlan, plan: &FloorPlan, items: &mut Vec<Item>
                 },
                 label: Some((index + 1).to_string()),
                 source: Some(source(index)),
+                opacity: crate::display::FULL_OPACITY,
             });
         }
     }
@@ -123,6 +126,7 @@ fn name_item(object: &SetObject, name: Option<String>) -> Item {
         },
         label: name,
         source: None,
+        opacity: crate::display::FULL_OPACITY,
     }
 }
 
@@ -151,6 +155,7 @@ fn height_item(object: &SetObject) -> Item {
         },
         label: None,
         source: None,
+        opacity: crate::display::FULL_OPACITY,
     }
 }
 

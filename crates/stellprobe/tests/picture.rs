@@ -574,3 +574,79 @@ fn faces_at_the_camera_are_cut_at_the_near_plane() {
         );
     }
 }
+
+/// LH-26: a figure that appears at 0 s is not drawn at that instant, half there after half the
+/// fade, whole after it; the picture and the vector view agree.
+#[test]
+fn an_appearing_figure_fades_in_the_picture_and_the_vector_view() {
+    let mut plan = plan(35.0, &[("e", 10.0, 5.0)]);
+    plan.figures[0].marks[0].arrival = Arrival::Appear;
+    let at = |t_s: f64| Eye::Shot {
+        aspect: None,
+        camera: "a".into(),
+        t_s,
+    };
+    let opacities = |t_s: f64| {
+        let eye = at(t_s);
+        let seen = picture(
+            &project(),
+            &set(),
+            &plan,
+            &Forms::default(),
+            &eye,
+            WIDTH_PX,
+            Cut::Off,
+        )
+        .expect("picture");
+        let vector =
+            vector_view(&project(), &set(), &plan, &Forms::default(), &eye).expect("vector view");
+        let faces: Vec<f64> = vector
+            .faces
+            .iter()
+            .filter(|f| matches!(f.role, SceneRole::Figure(_)))
+            .map(|f| f.opacity)
+            .collect();
+
+        (seen.opacities, faces)
+    };
+
+    let (none, faces) = opacities(0.0);
+    assert!(none.is_empty() && faces.is_empty(), "{none:?} {faces:?}");
+
+    let (half, faces) = opacities(0.25);
+    assert_eq!(half, [0.5]);
+    assert!(
+        !faces.is_empty() && faces.iter().all(|o| *o == 0.5),
+        "{faces:?}"
+    );
+
+    let (full, faces) = opacities(5.0);
+    assert_eq!(full, [1.0]);
+    assert!(faces.iter().all(|o| *o == 1.0), "{faces:?}");
+}
+
+/// Review of PR 255: a fading figure shows only its faces turned to the eye in the vector view,
+/// else the back faces show through and it reads denser than its opacity.
+#[test]
+fn a_fading_figure_has_no_back_faces_in_the_vector_view() {
+    let mut plan = plan(35.0, &[("e", 10.0, 5.0)]);
+    plan.figures[0].marks[0].arrival = Arrival::Appear;
+    let figure_faces = |t_s: f64| {
+        let eye = Eye::Shot {
+            aspect: None,
+            camera: "a".into(),
+            t_s,
+        };
+
+        vector_view(&project(), &set(), &plan, &Forms::default(), &eye)
+            .expect("vector view")
+            .faces
+            .iter()
+            .filter(|f| matches!(f.role, SceneRole::Figure(_)))
+            .count()
+    };
+
+    let (half, full) = (figure_faces(0.25), figure_faces(5.0));
+
+    assert!(half > 0 && half < full, "{half} of {full}");
+}

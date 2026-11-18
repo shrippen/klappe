@@ -42,6 +42,7 @@ mod register;
 mod saved_view;
 mod script_setup;
 mod shot;
+mod site;
 mod sketch;
 mod template;
 
@@ -74,10 +75,11 @@ pub use project::{
     SetPlan, Wall, IMAGE_WIDTH_M, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
     MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
-pub use register::{id_from_seed, random_id, BookState, Kind, Print, SceneKey};
+pub use register::{id_from_seed, random_id, BookState, Kind, LockedNumber, Print, SceneKey};
 pub use saved_view::SavedView;
-pub use script_setup::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
+pub use script_setup::{SceneNumbering, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 pub use shot::{Angle, Movement, Numbering, Shot, ShotSize, VersionOf};
+pub use site::{Site, SunTime, MAX_UTC_OFFSET_MIN};
 pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};
 

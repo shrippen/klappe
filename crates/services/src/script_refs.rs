@@ -360,6 +360,7 @@ mod tests {
             id: "saal".into(),
             name: "Saal".into(),
             set: Default::default(),
+            site: None,
         });
         for (id, name) in [("elisabeth", "Elisabeth"), ("burgvogt", "Burgvogt")] {
             p.characters.push(Character {

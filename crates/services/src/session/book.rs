@@ -71,6 +71,7 @@ impl Session {
             not_in_book,
             figures: self.pending_figures.len(),
             places: self.pending_places.len(),
+            twin_numbers: self.twin_numbers,
         }
     }
 
@@ -109,12 +110,14 @@ impl Session {
         self.refresh_places();
         if self.script.scenes().is_empty() {
             self.pending.clear();
+            self.twin_numbers = 0;
             return false;
         }
 
         let plan = book::plan(&self.project, &self.script);
         let (scene, shown) = self.ids_on_view();
         self.pending = plan.pending(&self.project);
+        self.count_twin_numbers(&plan);
         if !plan.apply(&mut self.project) {
             return false;
         }
@@ -129,10 +132,15 @@ impl Session {
     pub(super) fn refresh_pending(&mut self) {
         self.refresh_figures();
         self.refresh_places();
-        self.pending = match self.script.scenes().is_empty() {
-            true => Vec::new(),
-            false => book::plan(&self.project, &self.script).pending(&self.project),
-        };
+        if self.script.scenes().is_empty() {
+            self.pending = Vec::new();
+            self.twin_numbers = 0;
+            return;
+        }
+
+        let plan = book::plan(&self.project, &self.script);
+        self.pending = plan.pending(&self.project);
+        self.count_twin_numbers(&plan);
     }
 
     /// The scene and plan on view, to find them again after the entries moved.

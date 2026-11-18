@@ -51,6 +51,8 @@ fn printed_radius(size_m: Option<f64>) -> f64 {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         unit: "m".into(),
         decimal_separator: ',',
         shots: Default::default(),

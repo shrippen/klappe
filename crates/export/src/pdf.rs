@@ -30,7 +30,7 @@ const OPACITY_STEPS: f64 = 1000.0;
 
 pub(crate) fn write(doc: &Doc) -> Result<Vec<u8>, ExportError> {
     let plans: Vec<&Doc> = std::iter::once(doc).chain(&doc.pages).collect();
-    let (states, pictures) = (opacities(&plans), pictures(&plans));
+    let (states, pictures) = (opacities(&plans, &doc.sheets), pictures(&plans));
 
     // Page 1 is the plan, then the further plan pages and the sheets; each page is two
     // objects, page and content.
@@ -39,7 +39,11 @@ pub(crate) fn write(doc: &Doc) -> Result<Vec<u8>, ExportError> {
         .map(|d| (d.width_pt, d.height_pt, content(d, &states, &pictures)))
         .collect();
     for sheet in &doc.sheets {
-        pages.push((sheet.width_pt, sheet.height_pt, sheet_content(doc, sheet)));
+        pages.push((
+            sheet.width_pt,
+            sheet.height_pt,
+            sheet_content(doc, sheet, &states),
+        ));
     }
     let first_image = OBJ_FIRST_STATE + states.len();
     let first_page = first_image + pictures.len();
@@ -205,10 +209,12 @@ fn pictures(plans: &[&Doc]) -> Vec<Arc<Picture>> {
     found
 }
 
-/// The distinct translucent fills and pictures of the page, in first-use order.
-fn opacities(plans: &[&Doc]) -> Vec<u32> {
+/// The distinct translucent fills and pictures of the plan pages and the sheets, in first-use
+/// order.
+fn opacities(plans: &[&Doc], sheets: &[Sheet]) -> Vec<u32> {
     let mut keys = Vec::new();
-    for prim in plans.iter().flat_map(|d| d.plan.iter().chain(&d.chrome)) {
+    let on_plans = plans.iter().flat_map(|d| d.plan.iter().chain(&d.chrome));
+    for prim in on_plans.chain(sheets.iter().flat_map(|s| &s.prims)) {
         let opacity = match prim {
             Prim::Shape {
                 fill: Some(Fill { opacity, .. }),
@@ -240,10 +246,10 @@ fn paper(rgb: Rgb, width_pt: f64, height_pt: f64) -> String {
     )
 }
 
-fn sheet_content(doc: &Doc, sheet: &Sheet) -> Vec<u8> {
+fn sheet_content(doc: &Doc, sheet: &Sheet, states: &[u32]) -> Vec<u8> {
     let mut s = paper(doc.paper, sheet.width_pt, sheet.height_pt);
     for prim in &sheet.prims {
-        s.push_str(&operators(prim, sheet.height_pt, &[], &[]));
+        s.push_str(&operators(prim, sheet.height_pt, states, &[]));
     }
 
     s.into_bytes()
@@ -290,6 +296,7 @@ fn operators(prim: &Prim, h: f64, states: &[u32], pictures: &[Arc<Picture>]) -> 
             geom, fill, stroke, ..
         } => shape_ops(geom, *fill, *stroke, h, states),
         Prim::Text {
+            rotation_deg,
             at,
             anchor,
             size_pt,
@@ -306,12 +313,26 @@ fn operators(prim: &Prim, h: f64, states: &[u32], pictures: &[Arc<Picture>]) -> 
                 Anchor::Start => at.0,
                 Anchor::Middle => at.0 - text_width(text, *size_pt) / 2.0,
             };
+            // A turned text sets its matrix, as `image_ops` does: clockwise on screen.
+            let place = match *rotation_deg == 0.0 {
+                true => format!("{} {} Td", num(x), num(h - at.1)),
+                false => {
+                    let (sin, cos) = rotation_deg.to_radians().sin_cos();
+                    format!(
+                        "{} {} {} {} {} {} Tm",
+                        num(cos),
+                        num(-sin),
+                        num(sin),
+                        num(cos),
+                        num(x),
+                        num(h - at.1)
+                    )
+                }
+            };
             format!(
-                "BT /{font} {} Tf {} rg {} {} Td ({}) Tj ET\n",
+                "BT /{font} {} Tf {} rg {place} ({}) Tj ET\n",
                 num(*size_pt),
                 colour(rgb.unit()),
-                num(x),
-                num(h - at.1),
                 pdf_string(text)
             )
         }

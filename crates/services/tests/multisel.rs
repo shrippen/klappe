@@ -194,6 +194,38 @@ fn a_group_turns_about_its_middle() {
     assert_eq!(rotation_of(&s, "saeule-2"), 90.0);
 }
 
+fn note_turn(s: &Session, id: &str) -> f64 {
+    let location = s.project().location("saengersaal").unwrap();
+
+    location
+        .set
+        .notes
+        .iter()
+        .find(|n| n.id == id)
+        .unwrap()
+        .rotation_deg
+}
+
+/// A note turns with the group: its corner swings about the middle and its card turns by the
+/// same angle, so its text does.
+#[test]
+fn a_group_turns_its_note() {
+    let mut s = open();
+    let at_before = s.project().location("saengersaal").unwrap().set.notes[0].at;
+
+    s.edit_plan(PlanEdit::SpinGroup {
+        sources: vec![Source::Note("n1".into()), object("saeule-1")],
+        by_deg: 90.0,
+    })
+    .unwrap();
+
+    assert_eq!(note_turn(&s, "n1"), 90.0);
+    assert!(!near(
+        s.project().location("saengersaal").unwrap().set.notes[0].at,
+        at_before
+    ));
+}
+
 /// Review of what a group of a figure and its camera does: the figure carries the camera
 /// that follows it, and the camera is in the group, too. It must not move twice.
 #[test]

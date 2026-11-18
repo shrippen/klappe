@@ -15,7 +15,7 @@ use super::{Layer, Session, Visibility};
 use crate::library;
 use crate::views::{
     AxisChoice, CameraSpot, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow,
-    PlanRow, SceneRow, ViewRow,
+    PlanRow, SceneRow, SunTexts, ViewRow,
 };
 use crate::ExportFormat;
 
@@ -77,6 +77,7 @@ impl Session {
                 in_book: s.state == BookState::InBook,
                 location: s.location.clone(),
                 location_name: location.map(|l| l.name.clone()).unwrap_or_default(),
+                sun: SunTexts::of(s.sun),
             }
         });
         let locations = project.locations.iter().map(|l| LocationRow {
@@ -85,6 +86,9 @@ impl Session {
             width_m: l.set.width_m,
             depth_m: l.set.depth_m,
             wall_height_m: l.set.wall_height_m,
+            latitude: l.site.map(|s| s.latitude_deg),
+            longitude: l.site.map(|s| s.longitude_deg),
+            north: l.site.map_or(0.0, |s| s.north_deg),
             scenes: project.scenes.iter().filter(|s| s.location == l.id).count(),
         });
         let characters = project.characters.iter().map(|c| CharacterRow {
@@ -285,9 +289,16 @@ impl Session {
 
     /// The tooltip of mark `index` (0-based) of character `id`.
     pub fn mark_hint(&self, id: &str, index: Option<usize>) -> Hint {
-        let (name, index, at_s) = self.figure_facts(id, index);
+        let (name, at, at_s) = self.figure_facts(id, index);
+        let mark = index.and_then(|i| self.plan()?.figure(id)?.marks.get(i));
 
-        Hint::Mark { name, index, at_s }
+        Hint::Mark {
+            name,
+            index: at,
+            at_s,
+            arrival: mark.map_or("", |m| m.arrival.name()).to_owned(),
+            departure: mark.map_or("", |m| m.departure.name()).to_owned(),
+        }
     }
 
     /// The tooltip of light `id`; `None` without such a light.

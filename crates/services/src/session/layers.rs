@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use klappe_model::Project;
 use klappe_stellprobe::{Role, Source};
 
@@ -122,18 +124,29 @@ impl Session {
     }
 
     pub(super) fn shows(&self, role: Role, source: Option<&Source>) -> bool {
-        if self.hidden_layers.contains(&layer_of(role, source)) {
-            return false;
-        }
-
-        let id = match source {
-            Some(Source::Camera(id) | Source::Light(id) | Source::Figure(id)) => id,
-            Some(Source::Mark { character, .. } | Source::FigureVia { character, .. }) => character,
-            Some(Source::CameraVia { camera, .. }) => camera,
-            _ => return true,
-        };
-        !self.hidden_tracks.contains(id)
+        is_shown(&self.hidden_layers, &self.hidden_tracks, role, source)
     }
+}
+
+/// Whether an item of `role` from `source` is on view, given the hidden layers and tracks.
+pub(super) fn is_shown(
+    hidden_layers: &HashSet<Layer>,
+    hidden_tracks: &HashSet<String>,
+    role: Role,
+    source: Option<&Source>,
+) -> bool {
+    if hidden_layers.contains(&layer_of(role, source)) {
+        return false;
+    }
+
+    let id = match source {
+        Some(Source::Camera(id) | Source::Light(id) | Source::Figure(id)) => id,
+        Some(Source::Mark { character, .. } | Source::FigureVia { character, .. }) => character,
+        Some(Source::CameraVia { camera, .. }) => camera,
+        _ => return true,
+    };
+
+    !hidden_tracks.contains(id)
 }
 
 /// Which layer switch an item of the display list belongs to. A grip is on its element's.
@@ -153,7 +166,9 @@ pub(super) fn layer_of(role: Role, source: Option<&Source>) -> Layer {
         | Role::Window
         | Role::Object
         | Role::Height { .. } => Layer::Set,
-        Role::Light | Role::LightBeam => Layer::Lights,
+        Role::Light | Role::LightBeam | Role::SunPatch | Role::SunRay | Role::North => {
+            Layer::Lights
+        }
         Role::Camera | Role::Frustum | Role::CameraPath { .. } | Role::CameraHandle => {
             Layer::Cameras
         }

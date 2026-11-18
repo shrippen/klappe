@@ -5,7 +5,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Arrival, Departure, Layer, Lock, Pace, PlanEdit, Role, ServiceError, Session, Snapping, Source,
+    Arrival, Departure, DisplayList, Layer, Lock, Pace, PlanEdit, Role, ServiceError, Session,
+    Snapping, Source, Visibility,
 };
 
 fn example() -> PathBuf {
@@ -174,4 +175,99 @@ fn an_appearing_mark_has_no_way_to_pace() {
             pace: Pace::Run,
         })
         .is_err());
+}
+
+/// Elisabeth appears at 6 s; at 6.25 s she is half faded and Burgvogt is not.
+fn fading() -> Session {
+    let mut s = open();
+    s.edit_plan(PlanEdit::SetArrival {
+        source: mark(1),
+        arrival: Arrival::Appear,
+    })
+    .unwrap();
+    s.set_time(6.25);
+
+    s
+}
+
+/// The opacities of the figures' bodies by character, not their ways.
+fn figure_opacities(list: &DisplayList) -> Vec<(String, f64)> {
+    let figure = |s: &Option<Source>| match s {
+        Some(Source::Figure(id)) => Some(id.clone()),
+        _ => None,
+    };
+
+    list.items
+        .iter()
+        .filter(|i| matches!(i.role, Role::Figure(_)))
+        .filter_map(|i| Some((figure(&i.source)?, i.opacity)))
+        .collect()
+}
+
+/// Review of PR 255: a hidden layer or track takes items out of the list; the opacity of the
+/// others stays with them.
+#[test]
+fn the_opacity_stays_with_its_figure_when_items_are_hidden() {
+    let camera = fading().plan().unwrap().cameras[0].id.clone();
+    let hide: [&dyn Fn(&mut Session); 3] = [
+        &|_| {},
+        &|s| s.set_layer(Layer::Cameras, Visibility::Hidden),
+        &|s| s.set_track(&camera, Visibility::Hidden),
+    ];
+
+    for hide in hide {
+        let mut s = fading();
+        hide(&mut s);
+        let figures = figure_opacities(&s.display_list());
+
+        assert!(figures.iter().any(|(id, _)| id == "burgvogt"));
+        for (id, opacity) in figures {
+            let want = if id == "elisabeth" { 0.5 } else { 1.0 };
+            assert_eq!(opacity, want, "{id}");
+        }
+    }
+}
+
+/// The same in the print: Elisabeth (purple) is the translucent one, Burgvogt (blue) is not.
+#[test]
+fn the_print_fades_the_same_figure_when_a_layer_is_hidden() {
+    let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("opacity-print");
+    std::fs::create_dir_all(&dir).unwrap();
+    let print = |hidden: bool| {
+        let mut s = fading();
+        if hidden {
+            s.set_layer(Layer::Cameras, Visibility::Hidden);
+        }
+        let path = dir.join(format!("{hidden}.svg"));
+        s.export_svg(
+            &path,
+            klappe_services::PaperSetup::default(),
+            klappe_services::Language::English.print_texts(),
+        )
+        .unwrap();
+
+        std::fs::read_to_string(path).unwrap()
+    };
+    let figure_lines = |svg: &str, color: &str| -> Vec<String> {
+        svg.lines()
+            .filter(|l| l.contains(&format!("class=\"item figure {color}\"")))
+            .map(str::to_owned)
+            .collect()
+    };
+
+    for hidden in [false, true] {
+        let svg = print(hidden);
+        let elisabeth = figure_lines(&svg, "purple");
+        let burgvogt = figure_lines(&svg, "blue");
+
+        assert!(!elisabeth.is_empty() && !burgvogt.is_empty(), "{svg}");
+        assert!(
+            elisabeth.iter().all(|l| l.contains("fill-opacity")),
+            "{hidden}"
+        );
+        assert!(
+            burgvogt.iter().all(|l| !l.contains("fill-opacity")),
+            "{hidden}"
+        );
+    }
 }

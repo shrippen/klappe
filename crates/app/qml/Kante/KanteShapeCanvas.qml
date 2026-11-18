@@ -23,6 +23,10 @@ import "."
  *              zoom, like the shape, and is left out below 4 px. Default: the small font, fixed.
  *     textAnchor  "center" (default) or "topLeft": a polygon's caption starts at its top left
  *              corner, with a small margin, instead of at its centre
+ *     textRotation  degrees, clockwise like an image's rotation (default 0): all lines of the caption
+ *              are drawn rotated about the anchor. With textAnchor "topLeft" the anchor is the
+ *              polygon's first point, its top left corner when the app lists the corners from there
+ *              clockwise, so a card turned by an angle carries its caption turned by the same angle.
  *     opacity  0..1 (default 1): fades fill, stroke, selection frame and caption; not the hit test
  *     key      id given back by the signals; selected: framed wider in the focus colour
  *     Drawn in order, so the last shape is on top (and wins the hit test).
@@ -56,6 +60,8 @@ import "."
  *
  * Drawn with one Canvas, repainted when a property changes; 600 shapes with 272 captions take about
  * 15 ms to draw (offscreen), about 6 ms zoomed in, as shapes and captions out of view are left out.
+ * A rotated caption (textRotation) costs one save, translate, rotate and restore more; with
+ * none rotated the cost is unchanged.
  * Captions are the dear part (fillText, about 45 µs each): keep the text for what needs it.
  */
 FocusScope {
@@ -504,23 +510,63 @@ FocusScope {
             const zx = v => root.panX + v * root.zoom
             const zy = v => root.panY + v * root.zoom
             if (s.kind === "circle") {
-                return { x: zx(pts[0]) + (s.radius || 0) * root.zoom + gap, y: zy(pts[1]),
-                         align: "left", top: -rows / 2 }
+                const cx = zx(pts[0]) + (s.radius || 0) * root.zoom + gap
+                return { x: cx, y: zy(pts[1]), ax: cx, ay: zy(pts[1]), align: "left", top: -rows / 2 }
             }
             if (s.kind !== "polygon") {
                 const n = pts.length
-                return { x: zx((pts[0] + pts[n - 2]) / 2) + gap, y: zy((pts[1] + pts[n - 1]) / 2) - gap,
-                         align: "left", top: -rows / 2 }
+                const lx = zx((pts[0] + pts[n - 2]) / 2) + gap
+                const ly = zy((pts[1] + pts[n - 1]) / 2) - gap
+                return { x: lx, y: ly, ax: lx, ay: ly, align: "left", top: -rows / 2 }
             }
             const xs = pts.filter((v, i) => i % 2 === 0)
             const ys = pts.filter((v, i) => i % 2 === 1)
             // Several lines hang from the top left when the shape asks, else centre on the box.
             if (s.textAnchor === "topLeft") {
-                return { x: zx(Math.min(...xs)) + gap, y: zy(Math.min(...ys)) + gap + fontPx / 2,
+                // A rotated caption turns about the corner the card's own turn leaves in place.
+                const cx = s.textRotation ? pts[0] : Math.min(...xs)
+                const cy = s.textRotation ? pts[1] : Math.min(...ys)
+                return { x: zx(cx) + gap, y: zy(cy) + gap + fontPx / 2, ax: zx(cx), ay: zy(cy),
                          align: "left", top: 0 }
             }
-            return { x: zx((Math.min(...xs) + Math.max(...xs)) / 2), y: zy((Math.min(...ys) + Math.max(...ys)) / 2),
-                     align: "center", top: -rows / 2 }
+            const mx = zx((Math.min(...xs) + Math.max(...xs)) / 2)
+            const my = zy((Math.min(...ys) + Math.max(...ys)) / 2)
+            return { x: mx, y: my, ax: mx, ay: my, align: "center", top: -rows / 2 }
+        }
+
+        // Whether a caption lies outside the view (fillText is the dearest call). Wide glyphs (CJK)
+        // take up to about 1.1 em; two em for each character leaves room for them. Turned text lies
+        // within a circle about its anchor: its lines, their length and the gap.
+        function _captionOut(s, spot, fontPx, gap, rows) {
+            const emsPerChar = 2
+            const reach = String(s.text).length * emsPerChar * fontPx
+            if (!s.textRotation) {
+                const yFirst = spot.y + spot.top
+                return spot.x + reach < 0 || spot.x - reach > width
+                    || yFirst + rows + fontPx < 0 || yFirst - fontPx > height
+            }
+
+            const r = reach + rows + gap + 2 * fontPx
+            return spot.ax + r < 0 || spot.ax - r > width || spot.ay + r < 0 || spot.ay - r > height
+        }
+
+        // Draws the lines of a caption; a turned one in a frame turned about its anchor.
+        function _captionLines(ctx, lines, spot, fontPx, rot) {
+            const turned = rot !== 0
+            if (turned) {
+                ctx.save()
+                ctx.translate(spot.ax, spot.ay)
+                ctx.rotate(rot * Math.PI / 180)
+            }
+
+            const ox = turned ? spot.ax : 0
+            const oy = turned ? spot.ay : 0
+            for (let i = 0; i < lines.length; i++) {
+                ctx.fillText(lines[i], spot.x - ox, spot.y + spot.top - oy + i * fontPx * root._lineSpacing)
+            }
+            if (turned) {
+                ctx.restore()
+            }
         }
 
         // Draws a shape's caption beside it.
@@ -535,15 +581,7 @@ FocusScope {
             const lines = String(s.text).split("\n")
             const rows = (lines.length - 1) * fontPx * root._lineSpacing
             const spot = _captionSpot(s, pts, fontPx, gap, rows)
-            const x = spot.x
-            const align = spot.align
-
-            // Outside the view (fillText is the dearest call). Wide glyphs (CJK) take up to about
-            // 1.1 em; two em for each character leaves room for them.
-            const emsPerChar = 2
-            const reach = String(s.text).length * emsPerChar * fontPx
-            const yFirst = spot.y + spot.top
-            if (x + reach < 0 || x - reach > width || yFirst + rows + fontPx < 0 || yFirst - fontPx > height) {
+            if (_captionOut(s, spot, fontPx, gap, rows)) {
                 return
             }
 
@@ -551,18 +589,16 @@ FocusScope {
                 _ctxFontPx = fontPx
                 ctx.font = fontPx + "px \"" + _fontFamily + "\", sans-serif"
             }
-            if (align !== _align) {
-                _align = align
-                ctx.textAlign = align
+            if (spot.align !== _align) {
+                _align = spot.align
+                ctx.textAlign = spot.align
             }
             const label = String(s.label)
             if (label !== _fillKey) {
                 _fillKey = label
                 ctx.fillStyle = _ink(s.label)
             }
-            for (let i = 0; i < lines.length; i++) {
-                ctx.fillText(lines[i], x, yFirst + i * fontPx * root._lineSpacing)
-            }
+            _captionLines(ctx, lines, spot, fontPx, s.textRotation || 0)
         }
 
         function _grid(ctx) {

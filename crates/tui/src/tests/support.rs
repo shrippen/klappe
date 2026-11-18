@@ -44,6 +44,18 @@ impl Scratch {
         Self { dir }
     }
 
+    /// Like `new`, but the scenes are numbered automatically: the example has no key, so its
+    /// numbers are locked and a save leaves them as they are.
+    pub(super) fn automatic(script: &str) -> Self {
+        let scratch = Self::new(script);
+        let path = scratch.dir.join("projekt.toml");
+        let header = fs::read_to_string(&path).unwrap_or_default();
+        let setup = format!("{header}\n[script]\nscene_numbering = \"automatic\"\n");
+        fs::write(&path, setup).unwrap_or_else(|e| unreachable!("{e}"));
+
+        scratch
+    }
+
     pub(super) fn app(&self) -> App {
         App::open(&self.dir, Language::English).unwrap_or_else(|e| unreachable!("{e}"))
     }

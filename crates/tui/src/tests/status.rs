@@ -61,25 +61,35 @@ fn without_a_notice_the_status_line_is_unchanged() {
     }
 }
 
-/// A book note of 1 scene to match, 1 gone from the book, or 1 location to match.
-const BOOK_NOTES: [BookReport; 3] = [
+/// A book note of 1 scene to match, 1 gone from the book, 1 location to match, or 1 number carried twice.
+const BOOK_NOTES: [BookReport; 4] = [
     BookReport {
         pending: 1,
         not_in_book: 0,
         figures: 0,
         places: 0,
+        twin_numbers: 0,
     },
     BookReport {
         pending: 0,
         not_in_book: 1,
         figures: 0,
         places: 0,
+        twin_numbers: 0,
     },
     BookReport {
         pending: 0,
         not_in_book: 0,
         figures: 0,
         places: 1,
+        twin_numbers: 0,
+    },
+    BookReport {
+        pending: 0,
+        not_in_book: 0,
+        figures: 0,
+        places: 0,
+        twin_numbers: 1,
     },
 ];
 

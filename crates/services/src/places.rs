@@ -4,7 +4,7 @@
 //! a location too.
 
 use klappe_model::{random_id, Place, Project};
-use klappe_script::{heading_place, Element, Script};
+use klappe_script::{heading_place, is_omitted, Element, Script};
 
 /// A location of the headings no play location is called by.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +33,7 @@ fn heading_places(script: &Script) -> Vec<&str> {
         .elements
         .iter()
         .filter_map(|e| match e {
-            Element::SceneHeading { text, .. } => Some(heading_place(text)),
+            Element::SceneHeading { text, .. } if !is_omitted(text) => Some(heading_place(text)),
             _ => None,
         })
         .filter(|place| !place.is_empty())

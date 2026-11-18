@@ -305,3 +305,20 @@ fn copy_dir(from: &Path, to: &Path) {
         }
     }
 }
+
+/// LH-84: without ffmpeg the command says so and writes nothing. With it, the whole example
+/// is 500 frames, too slow for a debug build; `klappe-services` tests the writing.
+#[test]
+fn the_video_needs_ffmpeg() {
+    if Command::new("ffmpeg").arg("-version").output().is_ok() {
+        eprintln!("skipped: ffmpeg is installed; the video itself is tested in klappe-services");
+        return;
+    }
+    let out = out_file("cli-video.mp4");
+
+    let output = export(&out, &["--format", "mp4"]);
+
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("ffmpeg"), "{}", stderr(&output));
+    assert!(!out.exists());
+}

@@ -4,7 +4,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use klappe_model::{Project, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
+use klappe_model::{
+    Project, SceneNumbering, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords,
+};
 use klappe_store::{load, save};
 
 const PROJECT_FILE: &str = "projekt.toml";
@@ -26,6 +28,8 @@ fn the_setup_is_written_and_read_back() {
         words: ScriptWords::International,
         paper: ScriptPaper::Letter,
         contd_after_action: true,
+        scene_numbering: SceneNumbering::Automatic,
+        first_scene: 10,
     };
 
     save(&dir, &project, None).unwrap();
@@ -35,6 +39,8 @@ fn the_setup_is_written_and_read_back() {
     assert!(text.contains("language = \"de\""), "{text}");
     assert!(text.contains("words = \"international\""), "{text}");
     assert!(text.contains("paper = \"letter\""), "{text}");
+    assert!(text.contains("scene_numbering = \"automatic\""), "{text}");
+    assert!(text.contains("first_scene = 10"), "{text}");
     assert_eq!(load(&dir).unwrap().project, project);
 }
 

@@ -1,13 +1,13 @@
 use klappe_model::{
-    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, Fill, FloorPlan, Mark, Point,
-    Project, SetPlan,
+    Arrival, Background, Dash, Departure, DrawingShape, FigureColor, FigureTrack, Fill, FloorPlan,
+    Mark, Point, Project, SetPlan,
 };
 
 use crate::axis::axis_at;
 use crate::card::note_card;
 use crate::figure::{body_radius_m, group_dots, GROUP_DOT_RADIUS_M, GROUP_RADIUS_M};
 use crate::light::{lamps, light_items, Lamp};
-use crate::motion::{camera_at, figure_at, path, walked_ways};
+use crate::motion::{camera_at, figure_at, figure_opacity_at, path, walked_ways};
 use crate::optics::{frustum, horizontal_fov_deg, lens_at};
 use crate::prop::set_at;
 use crate::rig::{rig_dash, rig_runs};
@@ -44,6 +44,8 @@ pub struct Item {
     pub label: Option<String>,
     /// What the item belongs to, for selection and tooltips.
     pub source: Option<Source>,
+    /// How strongly it is drawn, 0 to 1: below 1 for a figure fading in or out (LH-26).
+    pub opacity: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -90,6 +92,12 @@ pub enum Role {
     Object,
     LightBeam,
     Light,
+    /// Sunlight through a window on the floor (LH-52): a patch under the set's walls.
+    SunPatch,
+    /// The arrow of the sun's direction of travel (LH-52), its azimuth and elevation as label.
+    SunRay,
+    /// The arrow of north (LH-52).
+    North,
     Axis,
     /// One run of a camera's way, in the line its rig has (LH-33).
     CameraPath {
@@ -268,9 +276,13 @@ const ARROW_HEAD_HALF_DEG: f64 = 25.0;
 const ELLIPSE_CORNERS: usize = 48;
 /// How far a camera's view is drawn when the set gives no size.
 const VIEW_REACH_FALLBACK_M: f64 = 8.0;
-/// Shown before a mark's number where the figure appears, after it where it leaves (LH-26).
-const APPEAR_SIGN: &str = "+";
-const LEAVE_SIGN: &str = "-";
+/// The sign of an appearing or leaving mark (LH-26): a chevron `ARM_M` long with arms
+/// `CHEVRON_DEG` off its axis, `SIGN_GAP_M` clear of the mark's ring.
+const SIGN_ARM_M: f64 = 0.16;
+const SIGN_GAP_M: f64 = 0.1;
+const CHEVRON_DEG: f64 = 40.0;
+/// An item drawn at its own colour, see `Item::opacity`.
+pub(crate) const FULL_OPACITY: f64 = 1.0;
 /// The facing wedge: how far it reaches beyond the body and how wide it is.
 const NOSE_M: f64 = 0.25;
 const NOSE_HALF_DEG: f64 = 35.0;
@@ -338,6 +350,7 @@ fn background_item(background: &Background, px: (u32, u32), items: &mut Vec<Item
         },
         label: None,
         source: None,
+        opacity: FULL_OPACITY,
     });
 }
 
@@ -359,6 +372,7 @@ fn drawing_items(plan: &FloorPlan, items: &mut Vec<Item>) {
                 shape,
                 label: None,
                 source: source.clone(),
+                opacity: FULL_OPACITY,
             });
         };
 
@@ -393,6 +407,7 @@ fn sketch_items(plan: &FloorPlan, items: &mut Vec<Item>) {
             },
             label: None,
             source: None,
+            opacity: FULL_OPACITY,
         });
     }
 }
@@ -476,12 +491,13 @@ fn ellipse_corners(a: Point, b: Point) -> Vec<Point> {
 /// and marks (LH-118) are drawn as notes are.
 fn note_items(set: &SetPlan, plan: &FloorPlan, items: &mut Vec<Item>) {
     for note in set.notes.iter().chain(&plan.labels) {
-        let (points, wrapped) = note_card(note.at, note.width_m, &note.text);
+        let (points, wrapped) = note_card(note.at, note.width_m, note.rotation_deg, &note.text);
         items.push(Item {
             role: Role::Note,
             shape: Shape::Polygon { points },
             label: Some(wrapped),
             source: Some(Source::Note(note.id.clone())),
+            opacity: FULL_OPACITY,
         });
     }
 }
@@ -508,6 +524,7 @@ fn axis_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>) {
         },
         label: None,
         source: None,
+        opacity: FULL_OPACITY,
     });
 }
 
@@ -525,6 +542,7 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
                 },
                 label: None,
                 source: source.clone(),
+                opacity: FULL_OPACITY,
             });
         }
 
@@ -541,6 +559,7 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
             },
             label: None,
             source: source.clone(),
+            opacity: FULL_OPACITY,
         });
         items.push(Item {
             role: Role::Camera,
@@ -549,6 +568,50 @@ fn camera_items(plan: &FloorPlan, t_s: f64, reach_m: f64, items: &mut Vec<Item>)
             },
             label: Some(camera.label.clone()),
             source,
+            opacity: FULL_OPACITY,
+        });
+    }
+}
+
+/// The way of a figure and its numbered marks.
+fn way_items(track: &FigureTrack, color: FigureColor, items: &mut Vec<Item>) {
+    // A way the figure does not walk (to a mark it appears at, or after it left) is not
+    // drawn: the path breaks there (LH-26).
+    let walked = walked_ways(track);
+    let marks: Vec<_> = track.marks.iter().zip(&walked).collect();
+    for way in marks.chunk_by(|_, (_, walked)| **walked) {
+        if way.len() < 2 {
+            continue;
+        }
+
+        items.push(Item {
+            role: Role::FigurePath(color),
+            shape: Shape::Polyline {
+                points: path(way.iter().map(|(m, _)| (m.at, m.via.as_slice(), m.curve))),
+            },
+            label: None,
+            source: Some(Source::Figure(track.character.clone())),
+            opacity: FULL_OPACITY,
+        });
+    }
+
+    // Numbered marks 1, 2, 3 …, with a chevron towards an appearing one and away from a
+    // leaving one.
+    for (index, mark) in track.marks.iter().enumerate() {
+        let source = Some(Source::Mark {
+            character: track.character.clone(),
+            index,
+        });
+        items.extend(sign_items(mark, color, &source));
+        items.push(Item {
+            role: Role::Mark(color),
+            shape: Shape::Circle {
+                center: mark.at,
+                radius_m: MARK_RADIUS_M,
+            },
+            label: Some((index + 1).to_string()),
+            source,
+            opacity: FULL_OPACITY,
         });
     }
 }
@@ -560,44 +623,15 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
         };
         let color = character.color;
 
-        // A way the figure does not walk (to a mark it appears at, or after it left) is not
-        // drawn: the path breaks there (LH-26).
-        let walked = walked_ways(track);
-        let marks: Vec<_> = track.marks.iter().zip(&walked).collect();
-        for way in marks.chunk_by(|_, (_, walked)| **walked) {
-            if way.len() < 2 {
-                continue;
-            }
-
-            items.push(Item {
-                role: Role::FigurePath(color),
-                shape: Shape::Polyline {
-                    points: path(way.iter().map(|(m, _)| (m.at, m.via.as_slice(), m.curve))),
-                },
-                label: None,
-                source: Some(Source::Figure(track.character.clone())),
-            });
-        }
-
-        // Numbered marks 1, 2, 3 …, `+` before an appearing one and `-` after a leaving one.
-        for (index, mark) in track.marks.iter().enumerate() {
-            items.push(Item {
-                role: Role::Mark(color),
-                shape: Shape::Circle {
-                    center: mark.at,
-                    radius_m: MARK_RADIUS_M,
-                },
-                label: Some(mark_label(index, mark)),
-                source: Some(Source::Mark {
-                    character: track.character.clone(),
-                    index,
-                }),
-            });
-        }
+        way_items(track, color, items);
 
         let Some(place) = figure_at(track, t_s) else {
             continue;
         };
+        let opacity = figure_opacity_at(track, t_s);
+        if opacity <= 0.0 {
+            continue;
+        }
         let source = Some(Source::Figure(track.character.clone()));
         let radius_m = body_radius_m(character);
         items.push(Item {
@@ -607,6 +641,7 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
             },
             label: None,
             source: source.clone(),
+            opacity,
         });
         items.push(Item {
             role: Role::Figure(color),
@@ -616,6 +651,7 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
             },
             label: Some(character.title()),
             source: source.clone(),
+            opacity,
         });
 
         // Dots inside the body mark a group; a click on one still takes the whole group.
@@ -632,24 +668,68 @@ fn figure_items(project: &Project, plan: &FloorPlan, t_s: f64, items: &mut Vec<I
                 },
                 label: None,
                 source: source.clone(),
+                opacity,
             });
         }
     }
 }
 
-fn mark_label(index: usize, mark: &Mark) -> String {
-    let appears = if mark.arrival == Arrival::Appear {
-        APPEAR_SIGN
-    } else {
-        ""
+/// The chevrons of a mark (LH-26): one behind the ring pointing at it where the figure
+/// appears, one in front pointing away from it where it leaves, along the mark's facing.
+fn sign_items(mark: &Mark, color: FigureColor, source: &Option<Source>) -> Vec<Item> {
+    let mut signs = Vec::new();
+    let heading = mark.facing_deg.to_radians();
+    let at = |reach_m: f64| {
+        Point::new(
+            mark.at.x_m + reach_m * heading.cos(),
+            mark.at.y_m + reach_m * heading.sin(),
+        )
     };
-    let leaves = if mark.departure == Departure::Leave {
-        LEAVE_SIGN
-    } else {
-        ""
+    let tips = [
+        (
+            mark.arrival == Arrival::Appear,
+            -(MARK_RADIUS_M + SIGN_GAP_M),
+        ),
+        (
+            mark.departure == Departure::Leave,
+            MARK_RADIUS_M + SIGN_GAP_M + SIGN_ARM_M,
+        ),
+    ];
+
+    for (shown, reach_m) in tips {
+        if !shown {
+            continue;
+        }
+
+        signs.push(Item {
+            role: Role::Mark(color),
+            shape: Shape::Polyline {
+                points: chevron(at(reach_m), mark.facing_deg),
+            },
+            label: None,
+            source: source.clone(),
+            opacity: FULL_OPACITY,
+        });
+    }
+
+    signs
+}
+
+/// A `>` pointing where `facing_deg` says, its tip at `tip`.
+fn chevron(tip: Point, facing_deg: f64) -> Vec<Point> {
+    let arm = |deg: f64| {
+        let a = deg.to_radians();
+        Point::new(
+            tip.x_m - SIGN_ARM_M * a.cos(),
+            tip.y_m - SIGN_ARM_M * a.sin(),
+        )
     };
 
-    format!("{appears}{}{leaves}", index + 1)
+    vec![
+        arm(facing_deg - CHEVRON_DEG),
+        tip,
+        arm(facing_deg + CHEVRON_DEG),
+    ]
 }
 
 /// A wedge in front of a body of `radius_m`, pointing where it faces.

@@ -6,6 +6,8 @@
 //!                                  └─► strength per body of the 3D view (`scene_fade`)
 //! ```
 
+use std::collections::HashMap;
+
 use klappe_stellprobe::{DisplayList, Item, SceneRole};
 
 use super::layers::layer_of;
@@ -53,6 +55,17 @@ impl Fade {
     }
 }
 
+/// The strength of each item of `list` with the layers in `faded` drawn paler.
+pub(super) fn fades_of(list: &DisplayList, faded: &HashMap<Layer, Fade>) -> Vec<f64> {
+    let strength = |item: &Item| {
+        let layer = layer_of(item.role, item.source.as_ref());
+
+        faded.get(&layer).copied().unwrap_or_default().strength()
+    };
+
+    list.items.iter().map(strength).collect()
+}
+
 impl Session {
     /// Sets how strongly `layer` is drawn in plan, 3D view and printout. A view setting like
     /// `set_layer`, not part of the project, and no undo step.
@@ -69,12 +82,7 @@ impl Session {
 
     /// The strength of each item of `list`, in its order, 1 for full.
     pub fn item_fades(&self, list: &DisplayList) -> Vec<f64> {
-        list.items.iter().map(|i| self.item_strength(i)).collect()
-    }
-
-    fn item_strength(&self, item: &Item) -> f64 {
-        self.fade(layer_of(item.role, item.source.as_ref()))
-            .strength()
+        fades_of(list, &self.faded_layers)
     }
 
     /// The strength of a body of the 3D view: that of the layer it belongs to.

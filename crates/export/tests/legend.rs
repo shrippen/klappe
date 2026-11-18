@@ -13,6 +13,8 @@ fn page() -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         drawing: DrawingTexts {
             line: "Zeichnung".into(),
             dashed: "Gestrichelt".into(),
@@ -39,6 +41,7 @@ fn drawing(color: FigureColor, dash: Dash, fill: Fill, shape: Shape) -> Item {
         shape,
         label: None,
         source: None,
+        opacity: 1.0,
     }
 }
 
@@ -141,4 +144,79 @@ fn the_legend_names_the_edge_of_an_area() {
         ],
         "{listed:?}"
     );
+}
+
+/// LH-26: the chevrons of an appearing and a leaving mark are listed once the plan has one,
+/// each with its own symbol (ring and chevron, no colour needed); not before.
+#[test]
+fn the_legend_lists_the_mark_signs_when_the_plan_has_them() {
+    let sign = Item {
+        role: Role::Mark(FigureColor::Blue),
+        shape: Shape::Polyline {
+            points: vec![
+                Point::new(2.0, 2.0),
+                Point::new(2.2, 2.1),
+                Point::new(2.0, 2.2),
+            ],
+        },
+        label: None,
+        source: None,
+        opacity: 1.0,
+    };
+
+    assert_eq!(legend(Vec::new()).len(), 6);
+
+    let listed = legend(vec![sign.clone()]);
+    assert_eq!(&listed[6..], ["Arrival", "Departure"], "{listed:?}");
+
+    let list = DisplayList {
+        items: vec![sign],
+        lamps: Vec::new(),
+        width_m: 10.0,
+        depth_m: 6.0,
+    };
+    let out = svg(&list, &page(), Theme::Light).unwrap();
+    let swatch = |key: &str| -> Vec<String> {
+        out.lines()
+            .filter(|l| l.contains(&format!("legend {key}")))
+            .map(str::to_owned)
+            .collect()
+    };
+    assert_eq!(swatch("arrival").len(), 2, "ring and chevron");
+    assert_eq!(swatch("departure").len(), 2);
+    assert_ne!(swatch("arrival"), swatch("departure"));
+}
+
+/// Review of PR 255: the chevron on the plan is an open line like in the legend, not a filled
+/// triangle.
+#[test]
+fn a_mark_chevron_is_not_filled() {
+    let sign = Item {
+        role: Role::Mark(FigureColor::Blue),
+        shape: Shape::Polyline {
+            points: vec![
+                Point::new(2.0, 2.0),
+                Point::new(2.2, 2.1),
+                Point::new(2.0, 2.2),
+            ],
+        },
+        label: None,
+        source: None,
+        opacity: 1.0,
+    };
+    let list = DisplayList {
+        items: vec![sign],
+        lamps: Vec::new(),
+        width_m: 10.0,
+        depth_m: 6.0,
+    };
+
+    let out = svg(&list, &page(), Theme::Light).unwrap();
+    let chevron = out
+        .lines()
+        .find(|l| l.contains("class=\"item mark"))
+        .unwrap();
+
+    assert!(chevron.contains("fill=\"none\""), "{chevron}");
+    assert!(!chevron.contains("fill-opacity"), "{chevron}");
 }

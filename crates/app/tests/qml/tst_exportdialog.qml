@@ -44,7 +44,8 @@ TestCase {
                 { id: "xlsx", paper: false, extension: "xlsx" },
                 { id: "frames", paper: true, extension: null },
                 { id: "view3d", paper: false, extension: "png" },
-                { id: "camera", paper: false, extension: "png" }
+                { id: "camera", paper: false, extension: "png" },
+                { id: "mp4", paper: false, extension: "mp4" }
             ]
         }
     }
@@ -72,7 +73,7 @@ TestCase {
     // What prints on a sheet asks for it; the lists and the views of the plan do not.
     function test_only_the_formats_that_print_on_paper_ask_for_it() {
         const asks = { pdf: true, png: true, svg: true, frames: true,
-                       csv: false, ods: false, xlsx: false, view3d: false, camera: false }
+                       csv: false, ods: false, xlsx: false, view3d: false, camera: false, mp4: false }
 
         for (const kind in asks) {
             const dialog = make()
