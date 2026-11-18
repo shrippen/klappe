@@ -284,7 +284,7 @@ pub struct SceneRow {
 }
 
 /// When a scene is shot, as its form shows it: `2026-06-21`, `14:30`, `+02:00`; empty strings
-/// without a date, and an empty offset is longitude ÷ 15 in whole hours (LH-52).
+/// without a date, and an empty offset is Central European Time with EU summer time (LH-52).
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SunTexts {

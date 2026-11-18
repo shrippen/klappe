@@ -138,9 +138,11 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   90 Norden rechts; Standard 0, beim Bearbeiten auf 0 bis unter 360 gebracht). `sun` in
   `szenen/<id>.json` (optional, nur geschrieben, wenn gesetzt): `year`, `month`, `day`, `hour`,
   `minute` als Uhrzeit auf der Uhr der Crew (Jahr 1900 bis 2100) und `utc_offset_min`
-  (Minuten, die die Uhr UTC voraus ist, `120` für MESZ; −840 bis 840; fehlt er, gilt die
-  Zeitzone des Längengrads in ganzen Stunden ohne Sommerzeit). Der Versatz steht in der Datei,
-  weil Sommerzeit und Zonengrenzen offline keine Regel haben und ein Drehplan die Uhrzeit nennt.
+  (Minuten, die die Uhr UTC voraus ist, `120` für MESZ; −840 bis 840; fehlt er, gilt
+  Mitteleuropäische Zeit mit EU-Sommerzeit: +01:00, und +02:00 vom letzten Sonntag im März
+  01:00 UTC bis zum letzten Sonntag im Oktober 01:00 UTC; als feste Regel ohne Zonendatenbank,
+  außerhalb Europas wird der Versatz eingetragen). Der Versatz steht in der Datei, weil
+  Zonengrenzen offline keine Regel haben und ein Drehplan die Uhrzeit nennt.
   Die Sonne steht im Plan nur, wenn der Drehort `[site]` und die Szene `sun` hat. Ein Ort
   außerhalb der Erdkugel oder ein Datum, das es nicht gibt, lädt nicht (Meldung mit Id). Keine
   neue Formatversion: beides ist optional, ältere Fassungen verlieren es beim Speichern.

@@ -12,8 +12,19 @@ const JULIAN_DAY_J2000: f64 = 2_451_545.0;
 const DAYS_PER_CENTURY: f64 = 36_525.0;
 const MINUTES_PER_DAY: f64 = 1_440.0;
 const MINUTES_PER_HOUR: f64 = 60.0;
+const MARCH: u8 = 3;
+const OCTOBER: u8 = 10;
+/// Both months end on the 31st.
+const MONTH_END_DAY: u8 = 31;
+/// 1970-01-01 was a Thursday; Sunday is 0.
+const UNIX_EPOCH_WEEKDAY: i64 = 4;
+const DAYS_PER_WEEK: i64 = 7;
+const MINUTES_PER_DAY_INT: i64 = 1_440;
+/// Summer time switches at 01:00 UTC.
+const SWITCH_UTC_MIN: i64 = 60;
+const CET_MIN: i64 = 60;
+const CEST_MIN: i64 = 120;
 /// The Earth turns 15° an hour: one degree of longitude is four minutes of solar time.
-const DEG_PER_HOUR: f64 = 15.0;
 const MINUTES_PER_DEG: f64 = 4.0;
 const HALF_TURN_DEG: f64 = 180.0;
 const FULL_TURN_DEG: f64 = 360.0;
@@ -46,7 +57,7 @@ impl Sun {
 pub fn sun_at(site: &Site, time: &SunTime) -> Sun {
     let offset_min = time
         .utc_offset_min
-        .map_or_else(|| nominal_offset_min(site), f64::from);
+        .map_or_else(|| central_european_offset_min(time), f64::from);
     let utc_min = f64::from(time.hour) * MINUTES_PER_HOUR + f64::from(time.minute) - offset_min;
     let day = days_from_civil(time.year, time.month, time.day) as f64;
     let julian_day = day + JULIAN_DAY_UNIX_EPOCH + utc_min / MINUTES_PER_DAY;
@@ -73,9 +84,27 @@ pub fn sun_at(site: &Site, time: &SunTime) -> Sun {
     }
 }
 
-/// The clock of the zone the longitude lies in, whole hours: Berlin 13.4° E is +60.
-fn nominal_offset_min(site: &Site) -> f64 {
-    (site.longitude_deg / DEG_PER_HOUR).round() * MINUTES_PER_HOUR
+/// The clock of Central Europe at `time` when the user gave no offset: +01:00, and +02:00 while
+/// summer time runs, from the last Sunday of March 01:00 UTC to the last Sunday of October
+/// 01:00 UTC. Pure rule, no zone database; elsewhere the user types the offset.
+fn central_european_offset_min(time: &SunTime) -> f64 {
+    let last_sunday_utc_min = |month: u8| {
+        let last = days_from_civil(time.year, month, MONTH_END_DAY);
+        let weekday = (last + UNIX_EPOCH_WEEKDAY).rem_euclid(DAYS_PER_WEEK);
+
+        (last - weekday) * MINUTES_PER_DAY_INT + SWITCH_UTC_MIN
+    };
+    let clock_min = days_from_civil(time.year, time.month, time.day) * MINUTES_PER_DAY_INT
+        + i64::from(time.hour) * 60
+        + i64::from(time.minute);
+    // The instant the clock shows if it is winter time.
+    let utc_min = clock_min - CET_MIN;
+    let summer = (last_sunday_utc_min(MARCH)..last_sunday_utc_min(OCTOBER)).contains(&utc_min);
+
+    match summer {
+        true => CEST_MIN as f64,
+        false => CET_MIN as f64,
+    }
 }
 
 /// The sun's declination in degrees and the equation of time in minutes at `julian_day`.
@@ -221,13 +250,70 @@ mod tests {
         assert!((summer.elevation_deg - winter_clock.elevation_deg).abs() < 1e-9);
     }
 
-    /// Without an offset the zone of the longitude counts: Berlin is +01:00.
-    #[test]
-    fn without_an_offset_the_zone_of_the_longitude_counts() {
-        let nominal = sun_at(&BERLIN, &at((2026, 6, 21), (13, 0), None));
-        let given = sun_at(&BERLIN, &at((2026, 6, 21), (13, 0), Some(60)));
+    fn same(a: &Sun, b: &Sun) -> bool {
+        (a.azimuth_deg - b.azimuth_deg).abs() < 1e-9
+            && (a.elevation_deg - b.elevation_deg).abs() < 1e-9
+    }
 
-        assert_eq!(nominal, given);
+    /// Without an offset the clock is Central European Time: +02:00 in summer, +01:00 in winter,
+    /// wherever the place lies.
+    #[test]
+    fn without_an_offset_the_clock_is_central_european() {
+        let madrid = Site {
+            latitude_deg: 40.42,
+            longitude_deg: -3.70,
+            north_deg: 0.0,
+        };
+        let summer = sun_at(&madrid, &at((2026, 7, 15), (14, 0), None));
+        let summer_given = sun_at(&madrid, &at((2026, 7, 15), (14, 0), Some(120)));
+        let winter = sun_at(&BERLIN, &at((2026, 1, 15), (14, 0), None));
+        let winter_given = sun_at(&BERLIN, &at((2026, 1, 15), (14, 0), Some(60)));
+
+        assert_eq!(summer, summer_given);
+        assert_eq!(winter, winter_given);
+    }
+
+    /// Summer time starts on the last Sunday of March at 01:00 UTC and ends on the last Sunday
+    /// of October at 01:00 UTC (2026: 29 March, 25 October).
+    #[test]
+    fn summer_time_switches_at_one_utc() {
+        let blank = |date, time| sun_at(&BERLIN, &at(date, time, None));
+        let given = |date, time, offset| sun_at(&BERLIN, &at(date, time, Some(offset)));
+
+        // 00:59 UTC is still winter, 01:00 UTC is summer; the clock of the instant is +01:00.
+        assert!(same(
+            &blank((2026, 3, 29), (1, 59)),
+            &given((2026, 3, 29), (1, 59), 60)
+        ));
+        assert!(same(
+            &blank((2026, 3, 29), (2, 0)),
+            &given((2026, 3, 29), (2, 0), 120)
+        ));
+        assert!(same(
+            &blank((2026, 10, 25), (1, 59)),
+            &given((2026, 10, 25), (1, 59), 120)
+        ));
+        assert!(same(
+            &blank((2026, 10, 25), (2, 0)),
+            &given((2026, 10, 25), (2, 0), 60)
+        ));
+        // The days around the switches.
+        assert!(same(
+            &blank((2026, 3, 28), (12, 0)),
+            &given((2026, 3, 28), (12, 0), 60)
+        ));
+        assert!(same(
+            &blank((2026, 3, 30), (12, 0)),
+            &given((2026, 3, 30), (12, 0), 120)
+        ));
+        assert!(same(
+            &blank((2026, 10, 24), (12, 0)),
+            &given((2026, 10, 24), (12, 0), 120)
+        ));
+        assert!(same(
+            &blank((2026, 10, 26), (12, 0)),
+            &given((2026, 10, 26), (12, 0), 60)
+        ));
     }
 
     /// The compass turned by the plan's north: sun due south with north at the plan's top is

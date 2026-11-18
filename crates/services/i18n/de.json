@@ -1020,6 +1020,6 @@
  "location.sunHint": "Ohne Breiten- und Längengrad gibt es keine Sonne im Plan.",
  "scene.sunDate": "Datum (JJJJ-MM-TT)",
  "scene.sunTime": "Uhrzeit (HH:MM)",
- "scene.sunOffset": "UTC-Abweichung (±HH:MM, leer: Längengrad ÷ 15 in ganzen Stunden, ohne Sommerzeit)",
+ "scene.sunOffset": "UTC-Abweichung (±HH:MM, leer: Mitteleuropäische Zeit, im Sommer +02:00; außerhalb Europas eintragen)",
  "scene.sunHint": "Datum und Uhrzeit setzen die Sonne; der Drehort braucht dafür Breiten- und Längengrad."
 }

@@ -47,8 +47,9 @@ pub struct SunTime {
     pub day: u8,
     pub hour: u8,
     pub minute: u8,
-    /// Minutes the clock is ahead of UTC (`+120` for CEST); `None` takes the zone the
-    /// location's longitude lies in, whole hours, without summer time.
+    /// Minutes the clock is ahead of UTC (`+120` for CEST); `None` is Central European
+    /// Time with EU summer time (+01:00, +02:00 from the last Sunday of March to the last Sunday
+    /// of October), as a pure rule; elsewhere the offset is typed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub utc_offset_min: Option<i16>,
 }
