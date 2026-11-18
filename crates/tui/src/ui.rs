@@ -479,7 +479,7 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
     // then the rest of the left part. At least one space separates the two parts.
     let width = usize::from(area.width);
     let notice_width = message.width().min(width.saturating_sub(chip.width() + 1));
-    let room = width - notice_width - 1;
+    let room = width.saturating_sub(notice_width + 1);
     let mut left = status_left(app, chip.clone(), StatusNote::Show, app.file_name());
     if left.width() > room {
         left = status_left(app, chip.clone(), StatusNote::Hide, app.file_name());

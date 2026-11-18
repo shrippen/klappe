@@ -34,7 +34,10 @@ impl Scratch {
 
     /// Like `new`, in a folder of the given name.
     pub(super) fn named(script: &str, name: &str) -> Self {
-        let dir = std::env::temp_dir().join(name);
+        // A folder per process, so two test runs in one temp dir never remove each other's.
+        let dir = std::env::temp_dir()
+            .join(format!("kt-{}", std::process::id()))
+            .join(name);
         copy_all(&example(), &dir);
         fs::write(dir.join("drehbuch.fountain"), script).unwrap_or_else(|e| unreachable!("{e}"));
 

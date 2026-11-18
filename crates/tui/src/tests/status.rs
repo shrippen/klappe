@@ -137,3 +137,11 @@ fn a_wide_file_name_is_cut_by_display_width() {
     // One column may stay free when the next wide character does not fit.
     assert!(UnicodeWidthStr::width(row.as_str()) >= 78, "{row}");
 }
+
+#[test]
+fn a_zero_wide_screen_with_a_notice_draws() {
+    let scratch = film(9);
+    let mut app = with_notice(&scratch, Notice::Pdf(PDF_NOTICE.into()));
+
+    let _ = screen(&mut app, 0, 24);
+}
