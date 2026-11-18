@@ -149,12 +149,14 @@ TestCase {
         fakeController.json = JSON.stringify({ language: "en", lines: [
             { index: 1, at_s: 5, text: "Shot." }, { index: 3, at_s: 7, text: "Middle." }] })
         fakeController.time = 5
-        const player = createTemporaryObject(playerComponent, tc, { looping: true, loopStartS: 5 })
+        const player = createTemporaryObject(playerComponent, tc, { loopStartS: 5 })
         player.active = true
         playTo(10)
         compare(fakeVoice.said, ["en:Shot.", "en:Middle."])
 
+        player.wrapping = true
         fakeController.time = 5.04
+        player.wrapping = false
         compare(fakeVoice.said, ["en:Shot.", "en:Middle.", "en:Shot."])
         playTo(7.1)
         compare(fakeVoice.said.length, 4)
@@ -165,11 +167,11 @@ TestCase {
         fakeController.json = JSON.stringify({ language: "en", lines: [
             { index: 1, at_s: 5, text: "Shot." }, { index: 3, at_s: 7, text: "Middle." }] })
         fakeController.time = 8
-        const player = createTemporaryObject(playerComponent, tc, { looping: true, loopStartS: 5 })
+        const player = createTemporaryObject(playerComponent, tc, { loopStartS: 5 })
         player.active = true
         compare(fakeVoice.said, [])
 
-        fakeController.time = 6.5
+        fakeController.time = 5.8
         playTo(7.1)
         compare(fakeVoice.said, ["en:Middle."])
     }

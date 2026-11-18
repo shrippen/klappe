@@ -6,9 +6,10 @@ import QtQuick
 //
 // A step of the playhead is small (a timer tick). A move back or by more than `jumpS` is a
 // seek (the timeline, a mark): speech stops and goes on from the first line that has not come
-// yet. A move back to within `jumpS` of the loop's start is the loop wrapping: it goes on from
-// the start itself, so the line there is read again. `active` off (paused, stopped,
-// switched off) stops it too, but not at the scene's end (`letFinish`).
+// yet. A move back during a step that the timeline says wraps a loop (`wrapping`) goes on from
+// the loop's start, so the line there is read again. `active` off (paused, stopped, switched
+// off) stops it too, but not at the scene's end (`letFinish`): then the next move of the
+// playhead, `stop()` or the next start ends it.
 Item {
     id: reader
 
@@ -18,10 +19,11 @@ Item {
     /// Reading is wanted and the scene plays.
     property bool active: false
     /// Playing ends by itself (the scene's end): the voice reads on instead of stopping. Set
-    /// before `active` goes off, taken back at the next start.
+    /// before `active` goes off, taken back by `stop()` and at the next start.
     property bool letFinish: false
-    /// A shot loop wraps to the start of its range plus the rest of the tick: that is no seek.
-    property bool looping: false
+    /// The timeline is in a step that may wrap a shot loop to `loopStartS` plus the rest of
+    /// the tick: a move back in it is no seek.
+    property bool wrapping: false
     property real loopStartS: 0
 
     readonly property real jumpS: 1
@@ -49,15 +51,26 @@ Item {
         next = first < 0 ? lines.length : first
     }
 
+    function stop() {
+        letFinish = false
+        if (voice) {
+            voice.stop()
+        }
+    }
+
     function follow() {
+        // After the scene's end the voice still reads; any move of the playhead is a seek.
+        if (!active && letFinish) {
+            stop()
+            return
+        }
         if (!active || !voice) {
             return
         }
 
         const t = controller.time
         if (t < lastS || t - lastS > jumpS) {
-            const wrapped = looping && t < lastS && t - loopStartS <= jumpS
-            skipTo(wrapped ? loopStartS : t)
+            skipTo(wrapping && t < lastS ? loopStartS : t)
         }
         lastS = t
 
@@ -75,7 +88,6 @@ Item {
             if (!letFinish) {
                 voice.stop()
             }
-            letFinish = false
             return
         }
 

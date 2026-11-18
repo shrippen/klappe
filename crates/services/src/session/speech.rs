@@ -248,7 +248,12 @@ mod tests {
 
     #[test]
     fn notes_and_emphasis_are_not_read() {
-        let lines = [line(0, "dialogue", "Hallo [[Notiz an Regie]] *laut* _jetzt_.\nNoch **mehr**.", &[])];
+        let lines = [line(
+            0,
+            "dialogue",
+            "Hallo [[Notiz an Regie]] *laut* _jetzt_.\nNoch **mehr**.",
+            &[],
+        )];
 
         assert_eq!(read(&lines), [(0.0, "Hallo laut jetzt. Noch mehr.")]);
     }
