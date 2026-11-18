@@ -6,7 +6,7 @@ use std::process::Command;
 
 use std::ops::ControlFlow;
 
-use klappe_services::{video_frame_count, Language, ServiceError, Session, VideoJob};
+use klappe_services::{video_frame_count, Fade, Language, Layer, ServiceError, Session, VideoJob};
 
 /// Few frames: the drawing is slow in a debug build.
 const TEST_FPS: u32 = 1;
@@ -134,6 +134,42 @@ fn a_frame_is_drawn_when_asked() {
     page.fade = s.item_fades(&list);
     let expected = klappe_export::frame(&list, &page, klappe_services::Theme::Light).unwrap();
     assert_eq!(frame, expected);
+}
+
+/// The plan as the video draws it at `i / TEST_FPS` s.
+fn plan_frame(s: &mut Session, i: usize) -> klappe_export::Frame {
+    s.set_time(i as f64 / f64::from(TEST_FPS));
+    let list = s.display_list();
+    let setup = klappe_services::PaperSetup::default();
+    let texts = Language::English.print_texts();
+    let mut page = klappe_export::Page::new(setup.size, setup.orientation, s.plan_title(), texts);
+    page.fade = s.item_fades(&list);
+
+    klappe_export::frame(&list, &page, klappe_services::Theme::Light).unwrap()
+}
+
+/// What the window hides or fades, the video hides or fades: the job takes the view settings
+/// of the session at the time it is made.
+#[test]
+fn a_frame_follows_hidden_and_faded_layers() {
+    if !installed("ffmpeg") {
+        eprintln!("skipped: ffmpeg is not installed (no job without it)");
+        return;
+    }
+    let (mut s, _) = open("video-view");
+    let texts = Language::English.print_texts();
+    let plain = plan_frame(&mut s, 1);
+
+    s.set_layer(Layer::Figures, klappe_services::Visibility::Hidden);
+    s.set_fade(Layer::Set, Fade::Faint);
+    let track = s.plan().unwrap().cameras[0].id.clone();
+    s.set_track(&track, klappe_services::Visibility::Hidden);
+    let mut job = s.video_job_at("ffmpeg", &texts, TEST_FPS).unwrap();
+
+    let frame = job.frame(1).unwrap();
+
+    assert_ne!(frame, plain, "the settings change the picture");
+    assert_eq!(frame, plan_frame(&mut s, 1));
 }
 
 /// A job goes to a thread of its own.

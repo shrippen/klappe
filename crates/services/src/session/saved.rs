@@ -24,7 +24,7 @@ impl Session {
     /// Saves what the plan shows now (visible layers, cameras and figures of the plan on
     /// view) under `name`; a view of that name is replaced. Undoable. Returns the view's id.
     pub fn save_view(&mut self, name: &str) -> Result<String, ServiceError> {
-        let shown = |id: &String| !self.hidden_tracks.contains(id);
+        let shown = |id: &String| !self.plan_view.track_hidden(id);
         let plan = self.plan();
         let view = SavedView {
             id: String::new(),

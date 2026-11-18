@@ -119,20 +119,17 @@ impl Session {
     /// Sets how strongly `layer` is drawn in plan, 3D view and printout. A view setting like
     /// `set_layer`, not part of the project, and no undo step.
     pub fn set_fade(&mut self, layer: Layer, fade: Fade) {
-        match fade {
-            Fade::Full => self.faded_layers.remove(&layer),
-            other => self.faded_layers.insert(layer, other),
-        };
+        self.plan_view.set_fade(layer, fade);
     }
 
     pub fn fade(&self, layer: Layer) -> Fade {
-        self.faded_layers.get(&layer).copied().unwrap_or_default()
+        self.plan_view.fade(layer)
     }
 
     /// The strength of each item of `list`, in its order, 1 for full: layer fade times the
     /// item's opacity. The plan and the printout draw with exactly this number.
     pub fn item_fades(&self, list: &DisplayList) -> Vec<f64> {
-        fades_of(list, &self.faded_layers)
+        self.plan_view.fades(list)
     }
 
     /// The strength of pixel `i` of a 3D picture: the fade of its body's layer times the

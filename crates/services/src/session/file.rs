@@ -1,10 +1,10 @@
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 
 use klappe_model::{Project, SceneNumbering};
 use klappe_store::Loaded;
 
+use super::plan_view::PlanView;
 use super::{check_empty, check_title, Autosave, BackupState, Session, View};
 use crate::catalog::Language;
 use crate::error::ServiceError;
@@ -38,16 +38,13 @@ impl Session {
             plan: 0,
             time_s: 0.0,
             selected_shot: None,
-            hidden_layers: HashSet::new(),
             locked_layers: HashSet::new(),
-            faded_layers: HashMap::new(),
-            hidden_tracks: HashSet::new(),
             snapping: Snapping::On,
             grid: Grid::default(),
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: false,
-            image_px: RefCell::new(HashMap::new()),
+            plan_view: PlanView::new(),
             unbacked: false,
             project_changed: false,
             edits: super::undo::next_edit(),
