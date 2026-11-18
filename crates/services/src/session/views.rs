@@ -182,7 +182,7 @@ impl Session {
 
         plan.cameras
             .iter()
-            .filter(|c| !self.plan_view.hidden_tracks.contains(&c.id))
+            .filter(|c| !self.plan_view.track_hidden(&c.id))
             .filter_map(|c| {
                 let place = camera_at(c, self.time_s)?;
 

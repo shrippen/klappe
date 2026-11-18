@@ -9,14 +9,11 @@ use crate::plan_edit::{layer_of_source, PlanEdit};
 
 impl Session {
     pub fn set_layer(&mut self, layer: Layer, visibility: Visibility) {
-        match visibility {
-            Visibility::Shown => self.plan_view.hidden_layers.remove(&layer),
-            Visibility::Hidden => self.plan_view.hidden_layers.insert(layer),
-        };
+        self.plan_view.set_layer(layer, visibility);
     }
 
     pub fn layer(&self, layer: Layer) -> Visibility {
-        if self.plan_view.hidden_layers.contains(&layer) {
+        if self.plan_view.layer_hidden(layer) {
             return Visibility::Hidden;
         }
         Visibility::Shown
@@ -117,10 +114,7 @@ impl Session {
 
     /// Shows or hides one figure, camera or light in plan and timeline.
     pub fn set_track(&mut self, id: &str, visibility: Visibility) {
-        match visibility {
-            Visibility::Shown => self.plan_view.hidden_tracks.remove(id),
-            Visibility::Hidden => self.plan_view.hidden_tracks.insert(id.to_owned()),
-        };
+        self.plan_view.set_track(id, visibility);
     }
 }
 

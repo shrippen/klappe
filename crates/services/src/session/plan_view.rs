@@ -1,10 +1,10 @@
 //! What makes up a view of the plan besides the project: which layers and tracks are hidden or
-//! faded, and the sizes of the image files. The session holds one; a video job takes a copy, so
-//! both put the display list together the same way (`list`).
+//! faded, and the sizes of the image files. The session holds one; a video job takes a frozen
+//! copy, so both put the display list together the same way (`list`).
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::Path;
 
 use klappe_model::{Location, Project, Scene};
 use klappe_stellprobe::{add_sun, handles, render, set_at, DisplayList, Role, Source};
@@ -12,18 +12,25 @@ use klappe_store::ImageStamp;
 
 use super::fade::{fades_of, Fade};
 use super::layers::is_shown;
-use super::Layer;
+use super::{Layer, Visibility};
 
 /// The pixel size of an image file and the stamp it was read at.
 type StampedSize = (ImageStamp, (u32, u32));
 
-/// The view settings of a plan and the project folder its images are read from.
+/// Whether a known image size is trusted or checked against the file again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Sizes {
+    Checked,
+    Frozen,
+}
+
+/// The view settings of a plan.
 #[derive(Debug, Clone)]
 pub(super) struct PlanView {
-    pub(super) dir: PathBuf,
-    pub(super) hidden_layers: HashSet<Layer>,
-    pub(super) hidden_tracks: HashSet<String>,
-    pub(super) faded_layers: HashMap<Layer, Fade>,
+    hidden_layers: HashSet<Layer>,
+    hidden_tracks: HashSet<String>,
+    faded_layers: HashMap<Layer, Fade>,
+    sizes: Sizes,
     /// Pixel size of the image files read so far: every redraw asks, the file header is read
     /// once. `bilder/` is the user's, so a file may change under its name: an entry counts
     /// only while the file's stamp (length, modification time) is the one it was read at.
@@ -32,20 +39,65 @@ pub(super) struct PlanView {
 }
 
 impl PlanView {
-    pub(super) fn new(dir: PathBuf) -> Self {
+    pub(super) fn new() -> Self {
         Self {
-            dir,
             hidden_layers: HashSet::new(),
             hidden_tracks: HashSet::new(),
             faded_layers: HashMap::new(),
+            sizes: Sizes::Checked,
             image_px: RefCell::new(HashMap::new()),
         }
     }
 
-    /// The plan `plan` of scene `scene` of `project` at `t_s`, without hidden layers and
-    /// tracks, with the grips on the bends of the way `selected` belongs to (LH-21).
+    /// A copy for a job that runs over time: the image sizes it reads stay as read first, so
+    /// a file replaced meanwhile cannot give a new size to the bytes the job read before.
+    pub(super) fn frozen(&self) -> Self {
+        Self {
+            sizes: Sizes::Frozen,
+            image_px: RefCell::new(HashMap::new()),
+            ..self.clone()
+        }
+    }
+
+    pub(super) fn set_layer(&mut self, layer: Layer, visibility: Visibility) {
+        match visibility {
+            Visibility::Shown => self.hidden_layers.remove(&layer),
+            Visibility::Hidden => self.hidden_layers.insert(layer),
+        };
+    }
+
+    pub(super) fn layer_hidden(&self, layer: Layer) -> bool {
+        self.hidden_layers.contains(&layer)
+    }
+
+    pub(super) fn set_track(&mut self, id: &str, visibility: Visibility) {
+        match visibility {
+            Visibility::Shown => self.hidden_tracks.remove(id),
+            Visibility::Hidden => self.hidden_tracks.insert(id.to_owned()),
+        };
+    }
+
+    pub(super) fn track_hidden(&self, id: &str) -> bool {
+        self.hidden_tracks.contains(id)
+    }
+
+    pub(super) fn set_fade(&mut self, layer: Layer, fade: Fade) {
+        match fade {
+            Fade::Full => self.faded_layers.remove(&layer),
+            other => self.faded_layers.insert(layer, other),
+        };
+    }
+
+    pub(super) fn fade(&self, layer: Layer) -> Fade {
+        self.faded_layers.get(&layer).copied().unwrap_or_default()
+    }
+
+    /// The plan `plan` of scene `scene` of `project` (images read from `dir`) at `t_s`, without
+    /// hidden layers and tracks, with the grips on the bends of the way `selected` belongs to
+    /// (LH-21).
     pub(super) fn list(
         &self,
+        dir: &Path,
         project: &Project,
         (scene, plan): (usize, usize),
         t_s: f64,
@@ -60,7 +112,7 @@ impl PlanView {
         };
 
         let mut list = render(project, &location.set, plan, t_s, &|file| {
-            self.image_size(file)
+            self.image_size(dir, file)
         });
         sun_on(&mut list, location, scene);
         if let Some(selected) = selected {
@@ -96,14 +148,20 @@ impl PlanView {
     }
 
     /// Pixel size of an image of the project folder; remembered per file.
-    fn image_size(&self, file: &str) -> Option<(u32, u32)> {
-        let stamp = klappe_store::image_stamp(&self.dir, file).ok()?;
+    fn image_size(&self, dir: &Path, file: &str) -> Option<(u32, u32)> {
         let mut known = self.image_px.borrow_mut();
+        if self.sizes == Sizes::Frozen {
+            if let Some((_, px)) = known.get(file) {
+                return Some(*px);
+            }
+        }
+
+        let stamp = klappe_store::image_stamp(dir, file).ok()?;
         if let Some((_, px)) = known.get(file).filter(|(seen, _)| *seen == stamp) {
             return Some(*px);
         }
 
-        let px = klappe_store::image_size(&self.dir, file).ok()?;
+        let px = klappe_store::image_size(dir, file).ok()?;
         known.insert(file.to_owned(), (stamp, px));
 
         Some(px)

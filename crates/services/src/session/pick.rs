@@ -21,7 +21,8 @@ impl Session {
     fn list_of(&self, project: &Project, selected: Option<&Source>) -> DisplayList {
         let at = (self.scene, self.plan);
 
-        self.plan_view.list(project, at, self.time_s, selected)
+        self.plan_view
+            .list(&self.dir, project, at, self.time_s, selected)
     }
 
     /// The lens a camera has at the playhead: its shot's own, else its own.

@@ -97,7 +97,7 @@ impl Session {
     }
 
     fn track_shown(&self, id: &str, layer: Layer) -> bool {
-        !self.plan_view.hidden_tracks.contains(id) && !self.plan_view.hidden_layers.contains(&layer)
+        !self.plan_view.track_hidden(id) && !self.plan_view.layer_hidden(layer)
     }
 
     fn cut_track(&self, plan: &FloorPlan) -> Track {

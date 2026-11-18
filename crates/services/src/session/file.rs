@@ -44,7 +44,7 @@ impl Session {
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: false,
-            plan_view: PlanView::new(dir.to_owned()),
+            plan_view: PlanView::new(),
             unbacked: false,
             project_changed: false,
             edits: super::undo::next_edit(),

@@ -11,14 +11,14 @@
 //! the length of the plan.
 
 use std::ops::ControlFlow;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use klappe_export::{
     video_program_found, Frame, Page, Texts, Theme, VideoSpec, VideoWriter, FFMPEG,
 };
 use klappe_model::{PaperSetup, Project};
-use klappe_stellprobe::Shape;
 
+use super::export::read_images;
 use super::plan_view::PlanView;
 use super::Session;
 use crate::error::ServiceError;
@@ -29,7 +29,8 @@ const VIDEO_FPS: u32 = 25;
 const VIDEO_WIDTH_PX: u32 = 1920;
 const VIDEO_HEIGHT_PX: u32 = 1080;
 
-/// The plan as the session shows it, copied: its project and view settings, and the sheet. A frame is drawn from it on demand.
+/// The plan as the session shows it, copied: its project and view settings, and the sheet. A
+/// frame is drawn from it on demand.
 #[derive(Debug)]
 pub struct VideoJob {
     program: String,
@@ -38,6 +39,7 @@ pub struct VideoJob {
     project: Project,
     scene: usize,
     plan: usize,
+    dir: PathBuf,
     view: PlanView,
     page: Page,
 }
@@ -52,19 +54,10 @@ impl VideoJob {
     pub fn frame(&mut self, i: usize) -> Result<Frame, ServiceError> {
         let t_s = i as f64 / f64::from(self.fps);
         let at = (self.scene, self.plan);
-        let list = self.view.list(&self.project, at, t_s, None);
+        let list = self.view.list(&self.dir, &self.project, at, t_s, None);
 
         // The images of the list are read once; a later frame may name another.
-        for item in &list.items {
-            let Shape::Image { file, .. } = &item.shape else {
-                continue;
-            };
-            if self.page.images.contains_key(file) {
-                continue;
-            }
-            let bytes = klappe_store::read_image(&self.view.dir, file)?;
-            self.page.images.insert(file.clone(), bytes);
-        }
+        read_images(&self.dir, &list, &mut self.page.images)?;
         self.page.fade = self.view.fades(&list);
 
         Ok(klappe_export::frame(&list, &self.page, Theme::Light)?)
@@ -153,7 +146,8 @@ impl Session {
             project: self.project.clone(),
             scene: self.scene,
             plan: self.plan,
-            view: self.plan_view.clone(),
+            dir: self.dir.clone(),
+            view: self.plan_view.frozen(),
             page: Page::new(
                 setup.size,
                 setup.orientation,
