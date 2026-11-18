@@ -143,6 +143,17 @@ pub enum LinkKind {
     Shot,
 }
 
+impl LinkKind {
+    /// The kind a surface names by its word (`mark`, `shot`).
+    pub fn parse(word: &str) -> Option<LinkKind> {
+        match word {
+            "mark" => Some(LinkKind::Mark),
+            "shot" => Some(LinkKind::Shot),
+            _ => None,
+        }
+    }
+}
+
 /// A link of a script line, shown as a chip beside it ("E · M2", "12.3").
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Chip {

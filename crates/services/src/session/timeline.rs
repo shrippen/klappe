@@ -1,7 +1,9 @@
 use klappe_model::{FloorPlan, LinkTarget};
 use klappe_script::Element;
+use klappe_stellprobe::Source;
 
 use super::{Layer, Session};
+use crate::error::ServiceError;
 use crate::views::{Chip, LinkKind, Marker, ScriptLine, Segment, Track, TrackKind};
 
 /// Id of the cut-order track.
@@ -156,6 +158,33 @@ impl Session {
 
         mark_current(&mut lines, self.time_s);
         lines
+    }
+
+    /// Goes to what a script line's chip links: a mark is the one to select and the time
+    /// goes to its arrival; a shot is selected as in the shot list, so nothing else stays
+    /// selected (`None`). `index` counts for marks only.
+    pub fn show_link(
+        &mut self,
+        kind: LinkKind,
+        target: &str,
+        index: usize,
+    ) -> Result<Option<Source>, ServiceError> {
+        if kind == LinkKind::Shot {
+            self.select_shot(target)?;
+            return Ok(None);
+        }
+
+        let mark = self
+            .plan()
+            .and_then(|plan| plan.figure(target))
+            .and_then(|figure| figure.marks.get(index))
+            .ok_or(ServiceError::Gone)?;
+
+        self.set_time(mark.at_s);
+        Ok(Some(Source::Mark {
+            character: target.to_owned(),
+            index,
+        }))
     }
 
     fn chips(&self, plan: &FloorPlan, index: usize) -> Vec<Chip> {

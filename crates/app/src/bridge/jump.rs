@@ -10,31 +10,21 @@ use klappe_services::{LinkKind, ScriptLine, Session, Source};
 /// What `script_line` answers when no line is linked to the selection.
 const NO_LINE: i32 = -1;
 
-/// A link as the script panel's chip names it.
-enum Link {
-    Mark { character: String, index: usize },
-    Shot(String),
+/// The index of a negative one from the surface: no mark has it.
+const NO_INDEX: usize = usize::MAX;
+
+/// A link as the script panel's chip names it; a shot's index is 0.
+struct Link {
+    kind: LinkKind,
+    target: String,
+    index: usize,
 }
 
 impl Link {
-    fn of(kind: &str, target: &str, index: i32) -> Option<Link> {
-        match (kind, usize::try_from(index)) {
-            ("mark", Ok(index)) => Some(Link::Mark {
-                character: target.to_owned(),
-                index,
-            }),
-            ("shot", _) => Some(Link::Shot(target.to_owned())),
-            _ => None,
-        }
-    }
-
     /// Whether `line` has a chip for this link.
     fn is_on(&self, line: &ScriptLine) -> bool {
-        line.chips.iter().any(|chip| match self {
-            Link::Mark { character, index } => {
-                chip.kind == LinkKind::Mark && chip.target == *character && chip.index == *index
-            }
-            Link::Shot(id) => chip.kind == LinkKind::Shot && chip.target == *id,
+        line.chips.iter().any(|chip| {
+            chip.kind == self.kind && chip.target == self.target && chip.index == self.index
         })
     }
 }
@@ -42,13 +32,18 @@ impl Link {
 /// The mark selected alone, else the selected shot.
 fn selected_link(s: &Session, selected: &Selection) -> Option<Link> {
     if let Some(Source::Mark { character, index }) = selected.only() {
-        return Some(Link::Mark {
-            character: character.clone(),
+        return Some(Link {
+            kind: LinkKind::Mark,
+            target: character.clone(),
             index: *index,
         });
     }
 
-    s.selected_shot().map(|id| Link::Shot(id.to_owned()))
+    s.selected_shot().map(|id| Link {
+        kind: LinkKind::Shot,
+        target: id.to_owned(),
+        index: 0,
+    })
 }
 
 impl qobject::Controller {
@@ -58,37 +53,19 @@ impl qobject::Controller {
         target: &QString,
         index: i32,
     ) -> bool {
-        let Some(link) = Link::of(&kind.to_string(), &target.to_string(), index) else {
+        let Some(kind) = LinkKind::parse(&kind.to_string()) else {
             return false;
         };
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-
-        // The mark is selected and the time goes to its arrival; a shot is selected as in
-        // the shot list, and no mark stays selected beside it.
-        let shown = match link {
-            Link::Mark { character, index } => {
-                let Some(mark) = s
-                    .plan()
-                    .and_then(|plan| plan.figure(&character))
-                    .and_then(|figure| figure.marks.get(index))
-                else {
-                    return false;
-                };
-
-                let at_s = mark.at_s;
-                s.set_time(at_s);
-                Selection::of(Some(Source::Mark { character, index }))
-            }
-            Link::Shot(id) => {
-                if s.select_shot(&id).is_err() {
-                    return false;
-                }
-
-                Selection::default()
-            }
+        let index = usize::try_from(index).unwrap_or(NO_INDEX);
+        let Ok(mark) = s.show_link(kind, &target.to_string(), index) else {
+            return false;
         };
+
+        // A shot is selected as in the shot list, and no mark stays selected beside it.
+        let shown = Selection::of(mark);
 
         self.as_mut().rust_mut().get_mut().selected = shown;
         self.refresh();
