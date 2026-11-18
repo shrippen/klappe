@@ -5,18 +5,39 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The open questions about the book (DATENMODELL §4): a register entry the screenplay could not
-// place. One question at a time: the scenes of the book it may be, best first, and "not in the
-// book". Arrows and Enter choose, a click answers; Close (Esc) leaves the questions open. The
+// place, then a location of the scene headings no play location is called by (DB-51).
+// One question at a time: the scenes of the book it may be, best first, and "not in the book";
+// for a location the play locations it may be, or a new one. Arrows and Enter choose, a click answers; Close (Esc) leaves the questions open. The
 // next question follows; the dialog closes after the last.
 Item {
     id: root
 
     required property var texts
     required property var controller
-    /// The open questions, `[{ id, number, heading, answers: [{ number, heading, none }] }]`.
-    readonly property var questions: controller.projectJson ? (JSON.parse(controller.projectJson).pending || []) : []
+    /// The open questions in the order they are asked: the scenes (`pending`), then the play
+    /// locations of the headings (`pendingPlaces`), `[{ kind, key, title, ask, answers: [{ number, text }] }]`.
+    readonly property var questions: {
+        const project = controller.projectJson ? JSON.parse(controller.projectJson) : {}
+        const scenes = (project.pending || []).map(q => ({
+            kind: "scene", key: q.id, title: texts.t("book.title"),
+            ask: texts.t("book.ask", { number: q.number, heading: q.heading }),
+            answers: q.answers.map(a => ({ number: a.number, text: a.none ? texts.t("book.none") : a.heading }))
+        }))
+        const places = (project.pendingPlaces || []).map(q => ({
+            kind: "place", key: q.name, title: texts.t("book.placeTitle"),
+            ask: texts.t("book.placeAsk", { name: q.name, count: q.headings }),
+            answers: q.answers.map(a => ({ number: "", text: placeText(a, q.name) }))
+        }))
+        return scenes.concat(places)
+    }
     readonly property var question: questions.length > 0 ? questions[0] : null
     readonly property alias dialog: dialog
+
+    // "New play location HOF", "Spelling of SAAL" or "SAAL is now called HOF".
+    function placeText(answer, name) {
+        const key = { create: "book.placeNew", rename: "book.placeRename", variant: "book.placeVariant" }[answer.kind]
+        return texts.t(key, { name: name, old: answer.name, new: name })
+    }
 
     function open() {
         if (question) {
@@ -25,15 +46,17 @@ Item {
     }
 
     // The answers as the session lists them; the controller takes the position.
-    readonly property var options: question
-        ? question.answers.map((a, i) => ({ index: i, number: a.number, text: a.none ? texts.t("book.none") : a.heading }))
-        : []
+    readonly property var options: question ? question.answers.map((a, i) => ({ index: i, number: a.number, text: a.text })) : []
 
     function answer(index) {
         if (!question) {
             return
         }
-        controller.resolveScene(question.id, index)
+        if (question.kind === "place") {
+            controller.resolvePlace(question.key, index)
+        } else {
+            controller.resolveScene(question.key, index)
+        }
         rows.currentIndex = 0
         if (!question) {
             dialog.close()
@@ -47,7 +70,7 @@ Item {
         anchors.centerIn: parent
         modal: true
         size: KanteDialog.Size.Medium
-        title: root.texts.t("book.title")
+        title: root.question ? root.question.title : root.texts.t("book.title")
         standardButtons: QQC2.Dialog.Close
         rejectText: root.texts.t("book.later")
         onAboutToShow: rows.currentIndex = 0
@@ -62,12 +85,13 @@ Item {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 color: KanteStyle.textColor
-                text: root.question ? root.texts.t("book.ask", { number: root.question.number, heading: root.question.heading }) : ""
+                text: root.question ? root.question.ask : ""
             }
 
             ListView {
                 id: rows
                 objectName: "rows"
+                Accessible.name: root.question ? root.question.ask : ""
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(contentHeight, Kirigami.Units.gridUnit * 16)
                 clip: true

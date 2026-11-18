@@ -284,7 +284,7 @@ RowLayout {
         cmd: "book.match"
         group: "file"
         text: header.texts.t("book.command")
-        enabled: header.controller.loaded && !header.locked && (header.project.pending || []).length > 0
+        enabled: header.controller.loaded && !header.locked && ((header.project.pending || []).length + (header.project.pendingPlaces || []).length) > 0
         onTriggered: header.bookRequested()
     }
     CommandAction {

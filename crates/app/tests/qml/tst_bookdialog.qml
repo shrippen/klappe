@@ -18,15 +18,23 @@ TestCase {
         property bool loaded: true
         property string projectJson: ""
         property var pending: []
+        property var places: []
         property var calls: []
 
         function show() {
-            projectJson = JSON.stringify({ scenes: [], pending: pending })
+            projectJson = JSON.stringify({ scenes: [], pending: pending, pendingPlaces: places })
         }
         // Answered: the question is gone, as the session has it.
         function resolveScene(id, index) {
             calls.push([id, index])
             pending = pending.filter(p => p.id !== id)
+            show()
+            return true
+        }
+        // Answered: the question is gone, as the session has it.
+        function resolvePlace(name, index) {
+            calls.push([name, index])
+            places = places.filter(p => p.name !== name)
             show()
             return true
         }
@@ -48,6 +56,15 @@ TestCase {
                 { number: "", heading: "", none: true }] },
             { id: "b", number: "5", heading: "INT. HOF – NACHT", answers: [
                 { number: "1", heading: "INT. HOF – NACHT" }, { number: "", heading: "", none: true }] }
+        ]
+        fake.places = []
+        fake.show()
+    }
+
+    function placeQuestions() {
+        fake.places = [
+            { name: "HOF", headings: 2, answers: [
+                { kind: "create", name: "" }, { kind: "rename", name: "SÄNGERSAAL" }, { kind: "variant", name: "SÄNGERSAAL" }] }
         ]
         fake.show()
     }
@@ -135,5 +152,56 @@ TestCase {
 
         compare(findChild(book, "ask").text, "Entry 4 INT. KELLER – NACHT — which scene of the script is this?")
         compare(book.options[2].text, "Not in the script")
+    }
+
+    function test_the_places_come_after_the_scenes() {
+        placeQuestions()
+        const book = make()
+        book.open()
+        tryVerify(() => book.dialog.opened)
+
+        compare(book.questions.map(q => q.kind), ["scene", "scene", "place"])
+        book.answer(0)
+        book.answer(0)
+
+        compare(findChild(book, "ask").text, "HOF, in 2 Szenenkopf/-köpfen — welcher Spielort ist das?")
+        compare(book.dialog.title, "Spielort der Szenenköpfe")
+    }
+
+    function test_a_place_question_lists_new_rename_and_variant() {
+        fake.pending = []
+        placeQuestions()
+        const book = make()
+        book.open()
+        tryVerify(() => book.dialog.opened)
+
+        compare(book.options.map(o => o.text), ["Neuer Spielort HOF", "SÄNGERSAAL heißt jetzt HOF", "Schreibweise von SÄNGERSAAL"])
+        compare(findChild(book, "rows").Accessible.name, findChild(book, "ask").text)
+    }
+
+    function test_a_place_answer_goes_to_the_controller_by_name_and_position_and_the_last_closes() {
+        fake.pending = []
+        placeQuestions()
+        const book = make()
+        book.open()
+        tryVerify(() => book.dialog.opened)
+
+        keyClick(Qt.Key_Down)
+        keyClick(Qt.Key_Return)
+
+        compare(fake.calls, [["HOF", 1]])
+        tryVerify(() => !book.dialog.visible)
+    }
+
+    function test_the_english_place_text() {
+        fake.pending = []
+        placeQuestions()
+        const book = make()
+        book.texts = en
+        book.open()
+        tryVerify(() => book.dialog.opened)
+
+        compare(book.options[1].text, "SÄNGERSAAL is now called HOF")
+        compare(book.dialog.title, "Scripted location of the scene headings")
     }
 }
