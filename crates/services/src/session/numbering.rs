@@ -40,12 +40,13 @@ impl Session {
             return;
         };
         let setup = self.project.script;
-        let (mode, struck) = match setup.scene_numbering {
-            SceneNumbering::Automatic => (NumberMode::Automatic, Vec::new()),
-            SceneNumbering::Locked => (
-                NumberMode::Locked,
-                book::plan(&self.project, &self.script).struck(&self.project),
-            ),
+        let (mode, struck, holders) = match setup.scene_numbering {
+            SceneNumbering::Automatic => (NumberMode::Automatic, Vec::new(), Vec::new()),
+            SceneNumbering::Locked => {
+                let plan = book::plan(&self.project, &self.script);
+                let (struck, holders) = (plan.struck(&self.project), plan.holders(&self.project));
+                (NumberMode::Locked, struck, holders)
+            }
         };
         let omitted = match setup.language {
             Some(ScriptLanguage::En) => OMITTED_EN,
@@ -56,6 +57,7 @@ impl Session {
             first: setup.first_scene,
             omitted,
             struck: &struck,
+            holders: &holders,
         };
 
         let numbered = number_scenes(&text, &rules);

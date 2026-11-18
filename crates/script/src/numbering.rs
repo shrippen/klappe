@@ -35,6 +35,11 @@ pub struct NumberRules<'a> {
     /// The heading of a struck scene (`OMITTED_DE`, `OMITTED_EN`).
     pub omitted: &'a str,
     pub struck: &'a [Struck],
+    /// The headings (counted as in `Struck::after`) the register knows as the holder of the
+    /// number they carry. Of several headings with one number while locked, the one among
+    /// them keeps it and the others are inserted scenes; if the register names none or more
+    /// than one, they all keep it.
+    pub holders: &'a [usize],
 }
 
 /// Whether the heading is a struck scene's (`.OMITTED #12#`), in either language.
@@ -103,16 +108,14 @@ fn assign(heads: &[Heading], rules: &NumberRules) -> Vec<String> {
     }
 
     let mut used: HashSet<String> = heads.iter().filter_map(|h| h.number.clone()).collect();
-    let mut seen: HashSet<&str> = HashSet::new();
     let mut last: Option<Parts> = None;
     let mut out = Vec::new();
 
     for (i, head) in heads.iter().enumerate() {
-        // A number met before (a copied scene) counts as none: the later scene is inserted.
         let own = head
             .number
             .as_deref()
-            .filter(|n| is_omitted(&head.text) || seen.insert(n));
+            .filter(|n| is_omitted(&head.text) || keeps(heads, rules.holders, i, n));
         let number = match own {
             Some(number) => number.to_owned(),
             None => {
@@ -127,6 +130,17 @@ fn assign(heads: &[Heading], rules: &NumberRules) -> Vec<String> {
     }
 
     out
+}
+
+/// Whether heading `i` keeps its number `n`: unless another heading carries it, and the
+/// register knows `i` and no other as the holder (a copy then is the inserted scene).
+fn keeps(heads: &[Heading], holders: &[usize], i: usize, n: &str) -> bool {
+    let same: Vec<usize> = (0..heads.len())
+        .filter(|&j| heads[j].number.as_deref() == Some(n) && !is_omitted(&heads[j].text))
+        .collect();
+    let known: Vec<&usize> = same.iter().filter(|j| holders.contains(j)).collect();
+
+    known.len() != 1 || *known[0] == i
 }
 
 fn sequential(heads: &[Heading], first: u32) -> Vec<String> {
@@ -215,7 +229,11 @@ fn next_free(last: Option<&Parts>, later: Option<&str>, used: &HashSet<String>) 
             },
             after: String::new(),
         },
-        (None, None) => return "1".to_owned(),
+        (None, None) => Parts {
+            before: String::new(),
+            digits: "1".to_owned(),
+            after: String::new(),
+        },
     };
 
     // Only the scenes in front of a plain number count up in front of the digits.
@@ -261,6 +279,12 @@ fn with_number(line: &str, number: &str) -> String {
 /// Puts a heading for every struck scene of `rules` that the text lacks behind the scene it
 /// followed, so the number stays in the book.
 fn insert_struck(lines: &mut Vec<String>, heads: &[Heading], rules: &NumberRules) {
+    // The line ending of the book, for the lines made here.
+    let ret = if lines.iter().any(|l| l.ends_with('\r')) {
+        "\r"
+    } else {
+        ""
+    };
     let have = |number: &str| {
         heads
             .iter()
@@ -286,15 +310,16 @@ fn insert_struck(lines: &mut Vec<String>, heads: &[Heading], rules: &NumberRules
     for (line, number) in places {
         let heading = format!(".{} {NUMBER_MARK}{number}{NUMBER_MARK}", rules.omitted);
         if line == end {
-            if lines.last().is_some_and(|l| !l.is_empty()) {
-                lines.push(String::new());
+            if lines.last().is_some_and(|l| !l.trim().is_empty()) {
+                lines.push(ret.to_owned());
             }
-            lines.push(heading);
+            // The last line has an ending only if the text's last newline follows it.
+            lines.push(format!("{heading}{}", if newline { ret } else { "" }));
             continue;
         }
 
         let at = line + shift;
-        lines.splice(at..at, [heading, String::new()]);
+        lines.splice(at..at, [format!("{heading}{ret}"), ret.to_owned()]);
         shift += 2;
     }
 

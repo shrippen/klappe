@@ -82,9 +82,13 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Buchstaben (12, dann 12A, 12B; nach `Z` folgt `AA`; Kleinbuchstaben zählen als Großbuchstaben),
   vor der ersten Nummer `A` und die Nummer der nächsten Szene (A1), vor einer Nummer mit
   Buchstaben `A0`, dann `A0A`; zwischen `A1` und `B1` folgt `A1A`. Steht `12A` schon hinter der
-  Stelle, wird es die nächste freie Nummer (12B), denn dazwischen sortiert nichts. Trägt eine Szene
-  die Nummer einer früheren Szene (kopiert), gilt die spätere als eingefügt und bekommt die
-  nächste freie Nummer nach der früheren. Zeilen behalten ihr `\r` (CRLF). Eine Szene, die das Buch seit dem letzten Speichern verlor (der Eintrag war „im Buch“), bleibt als Kopf `.ENTFÄLLT #12#`
+  Stelle, wird es die nächste freie Nummer (12B), denn dazwischen sortiert nichts. Tragen
+  mehrere Szenen dieselbe Nummer (kopiert), behält sie die Szene, die das Register als bisherigen
+  Träger kennt; die anderen gelten als eingefügt und bekommen die nächste freie Nummer. Kennt das
+  Register keinen Träger oder mehrere (Buch von außen, offene Fragen zu Zwillingen), bleibt die
+  Nummer überall stehen. Eine neue Szene nimmt nie eine Nummer, die im Buch schon steht, auch nicht
+  hinter einer Nummer ohne Muster (`I`, `1.1`). Zeilen behalten ihr `\r` (CRLF), auch die
+  eingefügten Köpfe `.ENTFÄLLT` mit ihrer Leerzeile. Eine Szene, die das Buch seit dem letzten Speichern verlor (der Eintrag war „im Buch“), bleibt als Kopf `.ENTFÄLLT #12#`
   (`.OMITTED #12#` im englischen Projekt, ohne Sprache: `ENTFÄLLT`) hinter der Szene davor stehen.
   Ein Eintrag, der schon „nicht im Buch“ war, bekommt nie einen Kopf. Dieser Kopf legt keinen Eintrag im Register an; der Eintrag der gestrichenen Szene bleibt mit
   seinen Plänen im Zustand „nicht im Buch“. Die Sperre je Fassung (DB-40) setzt später

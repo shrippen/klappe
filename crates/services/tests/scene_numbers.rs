@@ -339,3 +339,69 @@ fn saving_a_locked_book_with_old_entries_leaves_the_text_alone() {
 
     assert_eq!(book(&dir), before);
 }
+
+/// A copy of a scene (new lines) placed before the scene the register knows gets a number between
+/// of its own: the register's scene keeps `2`, the copy is the inserted one.
+#[test]
+fn a_copy_placed_before_leaves_the_number_with_the_register_scene() {
+    let dir = make(
+        "sn-copy-before",
+        SceneNumbering::Locked,
+        1,
+        &(saal(" #1#") + &hof(" #2#")),
+    );
+    let mut s = Session::open(&dir).unwrap();
+    let copy = hof(" #2#").replace("Hund bellt", "Pferd wiehert");
+
+    s.set_script_text(&(saal(" #1#") + &copy + &hof(" #2#")));
+    s.save_script().unwrap();
+
+    let expected = saal(" #1#") + &copy.replace("#2#", "#1A#") + &hof(" #2#");
+    assert_eq!(book(&dir), expected);
+    assert_eq!(number_of(&s, "bbbb"), "2");
+}
+
+/// Two scenes with `9` from outside, and the register cannot tell which was first: saving
+/// without a change of the text leaves the book as it is.
+#[test]
+fn a_duplicate_number_from_outside_stays_when_no_scene_is_known_as_holder() {
+    let dir = make(
+        "sn-dup-outside",
+        SceneNumbering::Locked,
+        1,
+        &(saal(" #1#") + &hof(" #2#")),
+    );
+    let text = saal(" #9#") + &hof(" #9#");
+    write(&dir, &text);
+
+    let mut s = Session::open(&dir).unwrap();
+    s.save().unwrap();
+
+    assert_eq!(book(&dir), text);
+}
+
+/// An entry that never met the book asks which of two scenes with its number it is: until
+/// answered, neither is the holder and neither gets a letter.
+#[test]
+fn open_twin_questions_write_no_number() {
+    let dir = make(
+        "sn-twins",
+        SceneNumbering::Locked,
+        1,
+        &(saal(" #1#") + &hof(" #2#")),
+    );
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    let mut asked = entry("cccc", "9", KELLER);
+    asked.plans.clear();
+    project.scenes.push(asked);
+    klappe_store::save(&dir, &project, None).unwrap();
+    let twin = keller(" #9#").replace("Wasser tropft", "Es riecht nach Rauch");
+    let text = saal(" #1#") + &keller(" #9#") + &twin + &hof(" #2#");
+    write(&dir, &text);
+
+    let mut s = Session::open(&dir).unwrap();
+    assert_eq!(s.pending_scenes().len(), 1);
+    s.save().unwrap();
+
+    assert_eq!(book(&dir), text);
+}

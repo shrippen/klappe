@@ -389,6 +389,21 @@ impl Plan {
         out
     }
 
+    /// The headings (counted as in `struck`) of the scenes the register knows as holders of
+    /// their number: matched, and the entry's number is the one in the book.
+    pub(crate) fn holders(&self, project: &Project) -> Vec<usize> {
+        let found = self.fates.iter().filter_map(|(entry, fate)| {
+            let Fate::Matched(n) = fate else {
+                return None;
+            };
+            let state = &self.book[*n];
+
+            same_number(&project.scenes[*entry], state).then(|| self.heading_index(*n))
+        });
+
+        found.collect()
+    }
+
     /// Among the headings of the text, whatever their kind, the place of book scene `n`.
     fn heading_index(&self, n: usize) -> usize {
         let before = self.book[..n].iter();
