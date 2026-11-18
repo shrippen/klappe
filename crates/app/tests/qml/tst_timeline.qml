@@ -230,6 +230,29 @@ TestCase {
         compare(fakeVoice.said, ["Shot."])
     }
 
+    // In a loop, a jump back by the user is a seek, not a wrap: nothing from the loop start.
+    function test_a_jump_back_in_a_loop_reads_nothing_from_its_start() {
+        fakeVoice.said = []
+        fake.tracksJson = JSON.stringify([
+            { kind: "cut", id: "cut", name: "", label: "yellow", shown: true,
+              segments: [{ from_s: 2, to_s: 6, text: "1", key: "s1", selected: true }], markers: [] }])
+        fake.speech = JSON.stringify({ language: "de", lines: [
+            { index: 1, at_s: 2, text: "Start." }, { index: 3, at_s: 3, text: "Middle." },
+            { index: 5, at_s: 5.5, text: "Late." }] })
+        fake.time = 5
+        const line = make(de)
+        line.voice = fakeVoice
+        line.speak = true
+        line.looping = true
+        line.togglePlay()
+        fake.nextTime = 5.04
+        tryVerify(() => fake.time === 5.04)
+
+        fake.time = 4.5
+        wait(100)
+        compare(fakeVoice.said, [])
+    }
+
     // The scene's end does not stop the voice: the last line is read to its end.
     function test_the_natural_end_leaves_the_voice_alone() {
         endedWithVoice()
