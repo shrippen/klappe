@@ -11,7 +11,7 @@
 
 use std::collections::HashMap;
 
-use klappe_stellprobe::{DisplayList, Item, Picture, SceneRole, Source};
+use klappe_stellprobe::{DisplayList, Item, Picture, SceneRole, Source, VectorView};
 
 use super::layers::layer_of;
 use super::{Layer, Session};
@@ -88,6 +88,12 @@ pub(super) fn focused_fades(list: &DisplayList, camera: &str) -> Vec<f64> {
             _ => pale,
         })
         .collect()
+}
+
+/// The strength of each face of a shot's camera view, in its order: no layers, only a figure
+/// fading in or out is paler, as in `Session::camera_strength`.
+pub(super) fn face_strengths(view: &VectorView) -> Vec<f64> {
+    view.faces.iter().map(|face| face.opacity).collect()
 }
 
 /// Every role code of a pixel fits a byte.

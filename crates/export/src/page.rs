@@ -113,6 +113,9 @@ pub struct ShotView {
     /// The id of the shot.
     pub shot: String,
     pub view: VectorView,
+    /// How strongly each face of the view is drawn, 0 to 1, by the face's place; a face
+    /// beyond the end, or none given, is full. The caller hands the finished number.
+    pub strength: Vec<f64>,
 }
 
 /// Column heads, in the order of the table.
