@@ -296,6 +296,7 @@ fn operators(prim: &Prim, h: f64, states: &[u32], pictures: &[Arc<Picture>]) -> 
             geom, fill, stroke, ..
         } => shape_ops(geom, *fill, *stroke, h, states),
         Prim::Text {
+            rotation_deg,
             at,
             anchor,
             size_pt,
@@ -312,12 +313,26 @@ fn operators(prim: &Prim, h: f64, states: &[u32], pictures: &[Arc<Picture>]) -> 
                 Anchor::Start => at.0,
                 Anchor::Middle => at.0 - text_width(text, *size_pt) / 2.0,
             };
+            // A turned text sets its matrix, as `image_ops` does: clockwise on screen.
+            let place = match *rotation_deg == 0.0 {
+                true => format!("{} {} Td", num(x), num(h - at.1)),
+                false => {
+                    let (sin, cos) = rotation_deg.to_radians().sin_cos();
+                    format!(
+                        "{} {} {} {} {} {} Tm",
+                        num(cos),
+                        num(-sin),
+                        num(sin),
+                        num(cos),
+                        num(x),
+                        num(h - at.1)
+                    )
+                }
+            };
             format!(
-                "BT /{font} {} Tf {} rg {} {} Td ({}) Tj ET\n",
+                "BT /{font} {} Tf {} rg {place} ({}) Tj ET\n",
                 num(*size_pt),
                 colour(rgb.unit()),
-                num(x),
-                num(h - at.1),
                 pdf_string(text)
             )
         }

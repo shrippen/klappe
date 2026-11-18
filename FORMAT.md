@@ -293,7 +293,9 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   einem solchen Mark lädt, der Ort gilt. Keine neue Formatversion, wie bei den Notizen.
 - **Notizen (LH-16):** `[[set.notes]]` im Drehort: `id` (`n1`, `n2` …, innerhalb des Drehorts),
   Ort `at` in Metern, `text` und die Breite `width_m` des Kärtchens in Metern (mindestens 0,6,
-  schmaler lädt nicht; fehlt sie, gilt 2,4). Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
+  schmaler lädt nicht; fehlt sie, gilt 2,4) und optional `rotation_deg` (Grad im Uhrzeigersinn um
+  die obere linke Ecke `at`, Standard 0, bei 0 nicht geschrieben): Karte und Text drehen sich
+  zusammen, im Plan und in den Ausgaben. Beschriftungen (`labels`) haben es ebenso. Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
 - **Beschriftung an ein Element gebunden (LH-118):** eine Notiz mit `bound`, dem Schlüssel

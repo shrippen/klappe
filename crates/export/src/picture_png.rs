@@ -82,6 +82,7 @@ pub(crate) fn write(
 fn names(picture: &Picture, ink: Rgb, paper: Rgb) -> Vec<Prim> {
     let size = picture.frame.width as f64 * LABEL_SHARE;
     let text = |dx: f64, dy: f64, rgb: Rgb, label: &klappe_stellprobe::PictureLabel| Prim::Text {
+        rotation_deg: 0.0,
         class: "name".into(),
         at: (label.x + dx, label.y + dy),
         anchor: Anchor::Middle,

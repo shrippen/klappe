@@ -217,7 +217,8 @@ fn place_grip(grip: Target<'_>, to: Point) -> Result<(), ServiceError> {
         Target::LightEdge { light, grip } => drag_light(light, grip, to),
         // The card keeps its top left; its right edge lands on `to`.
         Target::NoteEdge(note) => {
-            note.width_m = (to.x_m - note.at.x_m).max(NOTE_MIN_WIDTH_M);
+            let along = to.turned(note.at, -note.rotation_deg);
+            note.width_m = (along.x_m - note.at.x_m).max(NOTE_MIN_WIDTH_M);
         }
         Target::ImageEdge(image) => stretch_image(image, to),
         Target::ObjectEdge {
@@ -286,7 +287,7 @@ fn stretch_image(image: &mut PlanImage, to: Point) {
 
 fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), ServiceError> {
     match target(scope, source)? {
-        Target::Place { at, .. } | Target::Pin { at } => *at = to,
+        Target::Place { at, .. } => *at = to,
         // `to` is where the grip sits: a bend moves there, or a new one is made there.
         Target::Curve {
             via,
@@ -319,7 +320,7 @@ fn place(scope: &mut Scope<'_>, source: &Source, to: Point) -> Result<(), Servic
 /// What `shift` reads off an element: the point that snaps and the point that moves.
 pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceError> {
     match target {
-        Target::Place { at, .. } | Target::Pin { at } => Ok((*at, *at)),
+        Target::Place { at, .. } => Ok((*at, *at)),
         Target::Curve {
             via,
             curve,
@@ -330,9 +331,10 @@ pub(super) fn anchor_pair(target: Target<'_>) -> Result<(Point, Point), ServiceE
             let grip = grip_at((via, curve), (a, b), bend).ok_or(ServiceError::Gone)?;
             Ok((grip, grip))
         }
-        // Only the x of the grip counts; the card's height is Stellprobe's to know.
+        // Only the card's own x counts; the card's height is Stellprobe's to know.
         Target::NoteEdge(note) => {
-            let edge = Point::new(note.at.x_m + note.width_m, note.at.y_m);
+            let edge = Point::new(note.at.x_m + note.width_m, note.at.y_m)
+                .turned(note.at, note.rotation_deg);
 
             Ok((edge, edge))
         }
@@ -429,7 +431,7 @@ pub(super) fn spin(
         Target::Place { facing_deg, .. } => *facing_deg,
         Target::Wall(wall) => wall.from.bearing_deg(wall.to),
         Target::Drawing(drawing) => drawing.rotation_deg,
-        // Nothing to turn: a note, an opening and every grip.
+        // Nothing to turn: an opening and every grip.
         _ => return Ok(()),
     };
 
@@ -454,7 +456,7 @@ pub(super) fn turn(
             wall.from = Point::new(mid.x_m - half_m * cos, mid.y_m - half_m * sin);
             wall.to = Point::new(mid.x_m + half_m * cos, mid.y_m + half_m * sin);
         }
-        // Nothing to turn: a note, an opening and every grip.
+        // Nothing to turn: an opening and every grip.
         _ => {}
     }
 

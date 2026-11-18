@@ -186,9 +186,9 @@ fn moves_shifts_and_removes_a_note() {
     ));
 }
 
-/// A note has no facing: turning it changes nothing and takes no undo step.
+/// A note turns about its corner (LH-08): one undo step, the text with the card.
 #[test]
-fn turning_a_note_does_nothing() {
+fn turning_a_note_turns_its_card() {
     let mut s = open();
 
     s.edit_plan(PlanEdit::Spin {
@@ -197,6 +197,10 @@ fn turning_a_note_does_nothing() {
     })
     .unwrap();
 
+    assert_eq!(s.project().locations[0].set.notes[0].rotation_deg, 15.0);
+    assert!(s.can_undo());
+    s.undo();
+    assert_eq!(s.project().locations[0].set.notes[0].rotation_deg, 0.0);
     assert!(!s.can_undo());
 }
 

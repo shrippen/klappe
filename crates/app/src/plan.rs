@@ -112,6 +112,19 @@ fn image(dir: &Path, shape: &Shape) -> Option<Value> {
     }))
 }
 
+/// How far a note's card is turned: its top edge's bearing, clockwise on screen. The caption
+/// turns by it, so the text stays in the card.
+fn card_deg(shape: &Shape) -> f64 {
+    let Shape::Polygon { points } = shape else {
+        return 0.0;
+    };
+    let [first, second, ..] = points.as_slice() else {
+        return 0.0;
+    };
+
+    first.bearing_deg(*second)
+}
+
 fn shape(
     dir: &Path,
     item: &Item,
@@ -143,6 +156,7 @@ fn shape(
         "text": item.label.clone().unwrap_or_default(),
         "textAnchor": if item.role == Role::Note { "topLeft" } else { "center" },
         "captionSize": if item.role == Role::Note { NOTE_TEXT_M } else { 0.0 },
+        "textRotation": if item.role == Role::Note { card_deg(&item.shape) } else { 0.0 },
         "key": item.source.as_ref().map(key).unwrap_or_default(),
         "selected": item.source.as_ref().is_some_and(selected),
         "opacity": strength,
@@ -465,6 +479,38 @@ mod tests {
         assert_eq!(v["shapes"][0]["textAnchor"], "topLeft");
         assert_eq!(v["shapes"][0]["captionSize"], NOTE_TEXT_M);
         assert_eq!(v["shapes"][0]["fill"], "tint");
+    }
+
+    /// A turned note card carries its angle, so the canvas turns the caption with it.
+    #[test]
+    fn a_note_card_carries_its_text_angle() {
+        let card = |points: Vec<Point>| DisplayList {
+            items: vec![Item {
+                role: Role::Note,
+                shape: Shape::Polygon { points },
+                label: Some("Vorhang".into()),
+                source: Some(Source::Note("n1".into())),
+                opacity: 1.0,
+            }],
+            lamps: Vec::new(),
+            width_m: 20.0,
+            depth_m: 13.0,
+        };
+        let angle = |list: &DisplayList| {
+            let v: Value = serde_json::from_str(&json_of(list, &|_| false)).unwrap_or_default();
+            v["shapes"][0]["textRotation"].as_f64().unwrap_or(f64::NAN)
+        };
+        let square = |a: (f64, f64), b: (f64, f64)| {
+            vec![
+                Point::new(a.0, a.1),
+                Point::new(b.0, b.1),
+                Point::new(b.0 + 1.0, b.1 + 1.0),
+                Point::new(a.0 + 1.0, a.1 + 1.0),
+            ]
+        };
+
+        assert_eq!(angle(&card(square((3.0, 4.0), (5.0, 4.0)))), 0.0);
+        assert!((angle(&card(square((3.0, 4.0), (3.0, 6.0)))) - 90.0).abs() < 1e-9);
     }
 
     /// A placed image is its picture, which has no key, and its frame, which has: the frame

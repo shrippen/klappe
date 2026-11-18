@@ -225,6 +225,9 @@ pub struct Note {
     /// Width of the card in metres (LH-16); the text wraps to it.
     #[serde(default = "default_note_width_m")]
     pub width_m: f64,
+    /// Clockwise on screen about `at`, the card's top left corner; the text turns with it.
+    #[serde(default, skip_serializing_if = "crate::plan::is_zero")]
+    pub rotation_deg: f64,
     /// The element the note is a label of (LH-118): `object:<id>`, `figure:<character>` or
     /// `mark:<character>:<index>`. `at` stays where the card is; it moves with the element.
     #[serde(default, skip_serializing_if = "Option::is_none")]

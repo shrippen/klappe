@@ -36,6 +36,7 @@ fn label(label: &str, bounds: &[Pt], map: &Map, pal: &Palette, out: &mut Vec<Pri
         };
 
         out.push(Prim::Text {
+            rotation_deg: 0.0,
             class: "label".into(),
             anchor: Anchor::Middle,
             at: (x, first_y + row as f64 * LABEL_PT),

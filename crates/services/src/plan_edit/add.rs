@@ -369,6 +369,7 @@ pub(super) fn add_note(scope: &mut Scope<'_>, at: Point, text: &str) -> Result<(
         at,
         text,
         width_m: NOTE_WIDTH_M,
+        rotation_deg: 0.0,
         bound: None,
     });
 
