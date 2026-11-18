@@ -39,11 +39,11 @@ fn ctrl_k_asks_the_first_question_with_its_candidates() {
     let frame = screen(&mut app, 100, 24);
     assert!(frame.contains("Entry 1 INT. KELLER"), "{frame}");
     assert!(
-        frame.contains("which scene of the book is this?"),
+        frame.contains("which scene of the script is this?"),
         "{frame}"
     );
-    assert!(frame.contains("Not in the book"), "{frame}");
-    assert!(frame.contains("BOOK"), "{frame}");
+    assert!(frame.contains("Not in the script"), "{frame}");
+    assert!(frame.contains("MATCH"), "{frame}");
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn choosing_a_candidate_goes_on_to_the_next_question() {
 fn not_in_the_book_closes_the_question() {
     let (_s, mut app) = swapped();
     ctrl(&mut app, 'k');
-    // Up from the first row wraps to the last: "Not in the book".
+    // Up from the first row wraps to the last: "Not in the script".
     press(&mut app, KeyCode::Up);
     press(&mut app, KeyCode::Enter);
 

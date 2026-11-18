@@ -257,11 +257,11 @@ mod tests {
         );
         assert_eq!(
             error_text(Language::German, &bad),
-            "Ungültiger Wert für Objektiv (mm): 5000"
+            "Ungültiger Wert für Brennweite (mm): 5000"
         );
         assert_eq!(
             error_text(Language::English, &bad),
-            "Invalid value for Lens (mm): 5000"
+            "Invalid value for Focal length (mm): 5000"
         );
     }
 

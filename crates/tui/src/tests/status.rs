@@ -5,6 +5,7 @@ use unicode_width::UnicodeWidthStr;
 use super::support::*;
 use super::*;
 use crate::app::Notice;
+use klappe_services::BookReport;
 
 const GOLDEN_FOLDER: &str = "kt-status-film.klappe";
 const MODE_CHIP: &str = " TEXT ";
@@ -12,10 +13,10 @@ const PDF_NOTICE: &str = "PDF written to out.pdf";
 
 /// What the status line showed before notices got priority.
 const UNCHANGED: [(u16, Language, &str); 4] = [
-    (80, Language::German, " TEXT  kt-status-film.klappe  Szene 1/1  Szenen, die nicht im Buch stehen: 1.  1:1  F1 Hilfe  ^P Sze"),
-    (80, Language::English, " TEXT  kt-status-film.klappe  Scene 1/1  Scenes not in the book: 1.  1:1  F1 Help  ^P Scene  ^F Find"),
-    (100, Language::German, " TEXT  kt-status-film.klappe  Szene 1/1  Szenen, die nicht im Buch stehen: 1.  1:1  F1 Hilfe  ^P Szene  ^F Suchen"),
-    (100, Language::English, " TEXT  kt-status-film.klappe  Scene 1/1  Scenes not in the book: 1.  1:1  F1 Help  ^P Scene  ^F Find"),
+    (80, Language::German, " TEXT  kt-status-film.klappe  Szene 1/1  Szenen nicht im Buch: 1.  1:1  F1 Hilfe  ^P Sze"),
+    (80, Language::English, " TEXT  kt-status-film.klappe  Scene 1/1  Scenes not in the script: 1.  1:1  F1 Help  ^P Scene  ^F Find"),
+    (100, Language::German, " TEXT  kt-status-film.klappe  Szene 1/1  Szenen nicht im Buch: 1.  1:1  F1 Hilfe  ^P Szene  ^F Suchen"),
+    (100, Language::English, " TEXT  kt-status-film.klappe  Scene 1/1  Scenes not in the script: 1.  1:1  F1 Help  ^P Scene  ^F Find"),
 ];
 
 /// A project in a folder of its own, so tests do not remove each other's.
@@ -57,6 +58,49 @@ fn without_a_notice_the_status_line_is_unchanged() {
         let expected: String = expected.chars().take(usize::from(width)).collect();
 
         assert_eq!(row.trim_end(), expected.trim_end(), "{width} {language:?}");
+    }
+}
+
+/// A book note of 1 scene to match, 1 gone from the book, or 1 location to match.
+const BOOK_NOTES: [BookReport; 3] = [
+    BookReport {
+        pending: 1,
+        not_in_book: 0,
+        places: 0,
+    },
+    BookReport {
+        pending: 0,
+        not_in_book: 1,
+        places: 0,
+    },
+    BookReport {
+        pending: 0,
+        not_in_book: 0,
+        places: 1,
+    },
+];
+
+#[test]
+fn a_book_note_leaves_cursor_and_first_hint_at_80_columns() {
+    // A folder name of 14 characters.
+    let scratch = Scratch::named("INT. HOF – TAG\n\nEin Hund.\n", "kt-film5.klappe");
+
+    for language in [Language::German, Language::English] {
+        for report in BOOK_NOTES {
+            let mut app = App::open(&scratch.dir, language).unwrap_or_else(|e| unreachable!("{e}"));
+            app.book_note = klappe_services::book_report_text(language, &report);
+            let row = status_row(&mut app, 80);
+
+            assert!(
+                row.contains(&app.book_note),
+                "{language:?} {report:?}: {row}"
+            );
+            assert!(row.contains("  1:1  "), "{language:?} {report:?}: {row}");
+            assert!(
+                row.contains(app.texts.hints.split("  ").next().unwrap_or_default()),
+                "{language:?} {report:?}: {row}"
+            );
+        }
     }
 }
 

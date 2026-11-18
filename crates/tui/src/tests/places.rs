@@ -64,7 +64,7 @@ fn ctrl_k_asks_about_a_location_no_place_has() {
     let scratch = bare(BOOK);
     let mut app = scratch.app();
     let _ = screen(&mut app, 100, 24);
-    assert!(app.book_note.contains("Locations"), "{}", app.book_note);
+    assert!(app.book_note.contains("locations"), "{}", app.book_note);
 
     ctrl(&mut app, 'k');
 
@@ -74,8 +74,14 @@ fn ctrl_k_asks_about_a_location_no_place_has() {
         frame.contains("SÄNGERSAAL, in 1 scene heading(s)"),
         "{frame}"
     );
-    assert!(frame.contains("New play location SÄNGERSAAL"), "{frame}");
-    assert!(frame.contains("Location of the headings"), "{frame}");
+    assert!(
+        frame.contains("New scripted location SÄNGERSAAL"),
+        "{frame}"
+    );
+    assert!(
+        frame.contains("Scripted location of the scene headings"),
+        "{frame}"
+    );
 }
 
 #[test]
