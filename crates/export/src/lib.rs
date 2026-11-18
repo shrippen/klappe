@@ -45,7 +45,7 @@ use klappe_model::FloorPlan;
 
 pub use error::ExportError;
 pub use klappe_model::{Orientation, Paper};
-pub use klappe_stellprobe::{DisplayList, Lamp, Picture, SceneRole, ShotOrder, VectorView};
+pub use klappe_stellprobe::{DisplayList, Lamp, Picture, ShotOrder, VectorView};
 pub use page::{
     DrawingTexts, LampColumns, LampTexts, Page, ShotColumns, ShotTexts, ShotView, Texts,
 };
