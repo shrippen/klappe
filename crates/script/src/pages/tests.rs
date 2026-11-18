@@ -207,6 +207,26 @@ fn a_cue_that_says_contd_gets_no_second_one() {
 }
 
 #[test]
+fn a_cue_with_contd_in_any_spelling_or_place_gets_no_second_one() {
+    let cases = [
+        ("ANNA (cont'd)", "CONT'D"),
+        ("ANNA (WEITER)", "FORTS."),
+        ("ANNA (weiter)", "CONT'D"),
+        ("ANNA (forts.)", "FORTS."),
+        ("ANNA (CONT'D) (V.O.)", "CONT'D"),
+        ("ANNA (V.O.) (cont'd) (O.S.)", "FORTS."),
+    ];
+
+    for (cue, contd) in cases {
+        assert_eq!(block::with_contd(cue, contd), cue, "{cue}");
+    }
+    assert_eq!(
+        block::with_contd("ANNA (V.O.)", "CONT'D"),
+        "ANNA (V.O.) (CONT'D)"
+    );
+}
+
+#[test]
 fn transition_and_centered_are_set_in_their_places() {
     let p = lay(">THE END<\n\nCUT TO:\n", 10);
 

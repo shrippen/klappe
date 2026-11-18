@@ -365,14 +365,26 @@ pub(super) fn column(line: &Line) -> usize {
     usize::from(line.x >= DUAL_RIGHT_X)
 }
 
-/// The name with `(CONT'D)` after it, once.
+/// The words of a continued cue in either language, in any case (Fountain: an extension in
+/// parentheses after the name, in any order).
+const CONTD_WORDS: [&str; 3] = ["CONT'D", "WEITER", "FORTS."];
+
+/// Whether an extension of `name` already says it is continued: `ANNA (cont'd)`,
+/// `ANNA (WEITER) (V.O.)`.
+fn has_contd(name: &str) -> bool {
+    name.split('(')
+        .skip(1)
+        .filter_map(|group| group.split(')').next())
+        .any(|word| CONTD_WORDS.contains(&word.trim().to_uppercase().as_str()))
+}
+
+/// The name with `(CONT'D)` after it, once: a name that has one in any spelling stays.
 pub(super) fn with_contd(name: &str, contd: &str) -> String {
-    let mark = format!(" ({contd})");
-    if name.ends_with(&mark) {
+    if has_contd(name) {
         return name.to_owned();
     }
 
-    format!("{name}{mark}")
+    format!("{name} ({contd})")
 }
 
 /// The name part of the next page's dialogue: the name with `(CONT'D)`.
