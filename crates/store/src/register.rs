@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use klappe_model::{BookState, FloorPlan, Kind, Print, Scene, SceneKey};
+use klappe_model::{BookState, FloorPlan, Kind, Print, Scene, SceneKey, SunTime};
 use serde::{Deserialize, Serialize};
 
 use crate::files::{self, Dir, Kind as FileKind};
@@ -46,6 +46,8 @@ fn is_in_book(state: &BookState) -> bool {
 struct Stage {
     id: String,
     location: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    sun: Option<SunTime>,
     #[serde(default)]
     plans: Vec<FloorPlan>,
 }
@@ -95,6 +97,8 @@ pub(crate) fn load(dir: &Path) -> Result<(Vec<Scene>, Vec<LoadNote>), StoreError
         ));
     }
 
+    crate::sun::check_suns(&dir.join(SCENES_DIR), &scenes)?;
+
     Ok((scenes, notes))
 }
 
@@ -129,7 +133,8 @@ fn read(path: &Path) -> Result<Register, StoreError> {
 }
 
 fn join(entry: Entry, stage: Option<Stage>) -> Scene {
-    let (location, plans) = stage.map_or_else(Default::default, |s| (s.location, s.plans));
+    let (location, sun, plans) =
+        stage.map_or_else(Default::default, |s| (s.location, s.sun, s.plans));
 
     Scene {
         id: entry.id,
@@ -140,6 +145,7 @@ fn join(entry: Entry, stage: Option<Stage>) -> Scene {
         prints: entry.prints,
         refused: entry.refused,
         location,
+        sun,
         plans,
     }
 }
@@ -183,6 +189,7 @@ pub(crate) fn encode(
         let stage = Stage {
             id: scene.id.clone(),
             location: scene.location.clone(),
+            sun: scene.sun,
             plans: scene.plans.clone(),
         };
         writes.push(stages.encode(&scene.id, &stage)?);

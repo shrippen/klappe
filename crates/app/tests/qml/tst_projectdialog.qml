@@ -52,10 +52,10 @@ TestCase {
         function characterChanges(id, n) { return JSON.stringify(changes) }
         function selectScene(id) { return call("selectScene", [id]) }
         function addScene(n, h, l) { return call("addScene", [n, h, l]) }
-        function editScene(id, n, h, l) { return call("editScene", [id, n, h, l]) }
+        function editScene(id, n, h, l, sun) { return call("editScene", [id, n, h, l, sun]) }
         function removeScene(id) { return call("removeScene", [id]) }
-        function addLocation(n, w, d, h) { return call("addLocation", [n, w, d, h]) }
-        function editLocation(id, n, w, d, h) { return call("editLocation", [id, n, w, d, h]) }
+        function addLocation(n, w, d, h, site) { return call("addLocation", [n, w, d, h, site]) }
+        function editLocation(id, n, w, d, h, site) { return call("editLocation", [id, n, w, d, h, site]) }
         function removeLocation(id) { return call("removeLocation", [id]) }
         function addCharacter(n, s, c, g, z) { return call("addCharacter", [n, s, c, g, z]) }
         function editCharacter(id, n, s, c, g, z) { return call("editCharacter", [id, n, s, c, g, z]) }
@@ -216,7 +216,7 @@ TestCase {
         findChild(form, "headingField").text = "INT. SÄNGERSAAL – NACHT"
         press(form, "apply")
 
-        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – NACHT", "saengersaal"]])
+        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – NACHT", "saengersaal", '["","",""]']])
     }
 
     function test_another_location_is_one_edit() {
@@ -227,7 +227,7 @@ TestCase {
         findChild(form, "locationBox").currentIndex = 0
         press(form, "apply")
 
-        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – TAG", "hof"]])
+        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – TAG", "hof", '["","",""]']])
     }
 
     // The new location has other objects: the ways of objects are dropped, the form says so.
@@ -287,7 +287,7 @@ TestCase {
         findChild(form, "roomHeightField").text = "3"
         press(form, "apply")
 
-        compare(fake.calls, [["addLocation", "Keller", "6,5", "8", "3"]])
+        compare(fake.calls, [["addLocation", "Keller", "6,5", "8", "3", '["","",""]']])
     }
 
     function test_a_location_edit_starts_with_its_values() {
@@ -302,7 +302,69 @@ TestCase {
         compare(findChild(form, "depthField").text, "20,5")
         compare(findChild(form, "roomHeightField").text, "3,2")
         press(form, "apply")
-        compare(fake.calls, [["editLocation", "hof", "Burghof", "30", "20,5", "3,2"]])
+        compare(fake.calls, [["editLocation", "hof", "Burghof", "30", "20,5", "3,2", '["","",""]']])
+    }
+
+    // LH-52: the place of a location and its north are text; blank is no place.
+    function test_a_location_form_sends_its_place_and_north() {
+        const project = JSON.parse(fake.fixture)
+        project.locations[0].latitude = 52.52
+        project.locations[0].longitude = 13.405
+        project.locations[0].north = 90
+        fake.projectJson = JSON.stringify(project)
+        const pd = make()
+        opened(pd)
+        showTab(pd, 1)
+
+        const form = select(pd, "locationList", "locationForm", "hof")
+        compare(findChild(form, "latitudeField").text, "52,52")
+        compare(findChild(form, "longitudeField").text, "13,405")
+        compare(findChild(form, "northField").text, "90")
+
+        findChild(form, "northField").text = "-30"
+        press(form, "apply")
+        compare(fake.calls, [["editLocation", "hof", "Burghof", "30", "20,5", "3,2", '["52,52","13,405","-30"]']])
+
+        const other = select(pd, "locationList", "locationForm", "saengersaal")
+        compare(findChild(other, "latitudeField").text, "")
+        compare(findChild(other, "northField").text, "")
+    }
+
+    // LH-52: the form shows the stored place without loss, so a rename writes it back unchanged.
+    function test_renaming_a_location_keeps_its_place_exactly() {
+        const project = JSON.parse(fake.fixture)
+        project.locations[0].latitude = 52.520008
+        project.locations[0].longitude = 12.34
+        project.locations[0].north = 33.25
+        fake.projectJson = JSON.stringify(project)
+        const pd = make()
+        opened(pd)
+        showTab(pd, 1)
+
+        const form = select(pd, "locationList", "locationForm", "hof")
+        findChild(form, "nameField").text = "Burghof 2"
+        press(form, "apply")
+        compare(fake.calls, [["editLocation", "hof", "Burghof 2", "30", "20,5", "3,2", '["52,520008","12,34","33,25"]']])
+    }
+
+    // LH-52: date, time and offset of a scene are sent as typed.
+    function test_a_scene_form_sends_its_date_time_and_offset() {
+        const project = JSON.parse(fake.fixture)
+        project.scenes[0].sunDate = "2026-06-21"
+        project.scenes[0].sunTime = "14:30"
+        project.scenes[0].sunOffset = "+02:00"
+        fake.projectJson = JSON.stringify(project)
+        const pd = make()
+        opened(pd)
+        const form = findChild(pd, "sceneForm")
+
+        compare(findChild(form, "sunDateField").text, "2026-06-21")
+        compare(findChild(form, "sunTimeField").text, "14:30")
+        compare(findChild(form, "sunOffsetField").text, "+02:00")
+
+        findChild(form, "sunTimeField").text = "09:15"
+        press(form, "apply")
+        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – TAG", "saengersaal", '["2026-06-21","09:15","+02:00"]']])
     }
 
     function test_a_new_character_gets_a_free_colour_and_a_label() {

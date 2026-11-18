@@ -42,6 +42,7 @@ mod register;
 mod saved_view;
 mod script_setup;
 mod shot;
+mod site;
 mod sketch;
 mod template;
 
@@ -78,6 +79,7 @@ pub use register::{id_from_seed, random_id, BookState, Kind, LockedNumber, Print
 pub use saved_view::SavedView;
 pub use script_setup::{SceneNumbering, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 pub use shot::{Angle, Movement, Numbering, Shot, ShotSize, VersionOf};
+pub use site::{Site, SunTime, MAX_UTC_OFFSET_MIN};
 pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};
 

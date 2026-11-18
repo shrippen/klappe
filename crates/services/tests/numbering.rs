@@ -416,6 +416,7 @@ fn a_scene_number_with_a_letter_numbers_every_scheme() {
         number: "12A".into(),
         heading: s.scene().unwrap().heading.clone(),
         location: s.scene().unwrap().location.clone(),
+        sun: None,
     })
     .unwrap();
     s.version_shot("s12-3").unwrap();

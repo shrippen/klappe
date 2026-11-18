@@ -25,6 +25,7 @@ mod lock;
 mod partial;
 mod places;
 mod register;
+mod sun;
 mod template;
 mod tree;
 
@@ -521,7 +522,7 @@ fn check_sets(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     check_outlines(path, locations)?;
     check_notes(path, locations)?;
     check_images(path, locations)?;
-
+    sun::check_sites(path, locations)?;
     check_heights(path, locations)
 }
 

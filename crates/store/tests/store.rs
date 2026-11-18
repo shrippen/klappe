@@ -300,6 +300,7 @@ fn example() -> Project {
             }],
             ..Default::default()
         },
+        site: None,
     }];
 
     project.scenes = vec![Scene {

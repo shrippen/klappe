@@ -249,6 +249,7 @@ fn big_project() -> Project {
         id: "l1".into(),
         name: "Halle".into(),
         set,
+        site: None,
     }];
     project.scenes = vec![Scene {
         id: "s1".into(),

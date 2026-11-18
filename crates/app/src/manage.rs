@@ -573,6 +573,7 @@ mod tests {
                 width_m: 8.0,
                 depth_m: 5.0,
                 wall_height_m: 2.6,
+                site: None,
             })
             .unwrap();
         session
@@ -604,6 +605,9 @@ mod tests {
         assert_eq!(value["locations"][0]["scenes"], 1);
         assert_eq!(value["locations"][0]["width"], 8.0);
         assert_eq!(value["locations"][0]["height"], 2.6);
+        assert_eq!(value["locations"][0]["latitude"], Value::Null);
+        assert_eq!(value["locations"][0]["north"], 0.0);
+        assert_eq!(value["scenes"][0]["sunDate"], "");
         assert_eq!(value["characters"][0]["color"], "red");
         assert_eq!(value["characters"][0]["group"], 12);
         assert_eq!(value["characters"][0]["size"], Value::Null);

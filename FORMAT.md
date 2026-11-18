@@ -12,7 +12,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── vorlagen.toml        eigene Vorlagen, je ein [[vorlage]] (optional)
 ├── drehorte/<id>.toml   ein Drehort samt Set (Wände, Objekte)
 ├── szenen.toml          Register der Drehinhalte (Szenen, Content Items), je ein [[szene]], in Projektfolge
-├── szenen/<id>.json     Stellprobe je Drehinhalt: Drehort, Floorplans (Nummer und Kopf stehen im Register)
+├── szenen/<id>.json     Stellprobe je Drehinhalt: Drehort, Zeitpunkt der Sonne, Floorplans (Nummer und Kopf stehen im Register)
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
 ├── nummern.toml         Sperrstand der Szenennummern (optional, DB-33)
@@ -181,6 +181,20 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   und dann umbenannt; ein Absturz hinterlässt nie eine halbe Datei (LH-05). Dateien in
   `drehorte/` und `szenen/`, deren Id nicht mehr zum Projekt gehört, werden gelöscht, sonst
   nichts. Ohne Drehbuchtext bleibt eine vorhandene `drehbuch.fountain` unberührt.
+- **Sonne (LH-52):** `[site]` im Drehort (optional, nur geschrieben, wenn gesetzt): `latitude_deg`
+  (Breitengrad, Nord positiv, −90 bis 90), `longitude_deg` (Längengrad, Ost positiv, −180 bis
+  180) und `north_deg` (wie weit Norden im Plan im Uhrzeigersinn von oben liegt: 0 Norden oben,
+  90 Norden rechts; Standard 0, beim Bearbeiten auf 0 bis unter 360 gebracht). `sun` in
+  `szenen/<id>.json` (optional, nur geschrieben, wenn gesetzt): `year`, `month`, `day`, `hour`,
+  `minute` als Uhrzeit auf der Uhr der Crew (Jahr 1900 bis 2100) und `utc_offset_min`
+  (Minuten, die die Uhr UTC voraus ist, `120` für MESZ; −840 bis 840; fehlt er, gilt
+  Mitteleuropäische Zeit mit EU-Sommerzeit: +01:00, und +02:00 vom letzten Sonntag im März
+  01:00 UTC bis zum letzten Sonntag im Oktober 01:00 UTC; als feste Regel ohne Zonendatenbank,
+  außerhalb Europas wird der Versatz eingetragen). Der Versatz steht in der Datei, weil
+  Zonengrenzen offline keine Regel haben und ein Drehplan die Uhrzeit nennt.
+  Die Sonne steht im Plan nur, wenn der Drehort `[site]` und die Szene `sun` hat. Ein Ort
+  außerhalb der Erdkugel oder ein Datum, das es nicht gibt, lädt nicht (Meldung mit Id). Keine
+  neue Formatversion: beides ist optional, ältere Fassungen verlieren es beim Speichern.
 - **Hintergrund:** `[set.background]` im Drehort (Datei relativ zum Projektordner, linke obere
   Ecke `at`, `width_m`, `rotation_deg` im Uhrzeigersinn um `at`, `opacity`). Die Höhe folgt aus
   dem Seitenverhältnis des Bildes. Fehlt der Abschnitt, gibt es keinen Hintergrund.
