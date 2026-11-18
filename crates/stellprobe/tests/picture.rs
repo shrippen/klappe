@@ -574,6 +574,127 @@ fn faces_at_the_camera_are_cut_at_the_near_plane() {
     }
 }
 
+/// A crate of `height_m` between the camera and a figure behind it (LH-17).
+fn with_crate(height_m: f64) -> SetPlan {
+    let mut set = set();
+    set.objects = vec![SetObject {
+        id: "c".into(),
+        kind: "crate".into(),
+        label: String::new(),
+        at: Point::new(10.0, 7.0),
+        width_m: 6.0,
+        depth_m: 0.5,
+        rotation_deg: 0.0,
+        shape: ObjectShape::Rect,
+        height_m: Some(height_m),
+        base_m: None,
+        mirrored: false,
+    }];
+
+    set
+}
+
+/// LH-17: a tall object hides what stands behind it, a low one only its feet.
+#[test]
+fn a_tall_object_hides_the_figure_behind_it_and_a_low_one_does_not() {
+    let plan = plan(35.0, &[("e", 10.0, 5.0)]);
+
+    let tall = take(&with_crate(2.5), &plan);
+    assert_eq!(columns(&tall, FigureColor::Purple), None);
+    assert!(tall.labels.is_empty());
+
+    let low = take(&with_crate(0.5), &plan);
+    assert!(columns(&low, FigureColor::Purple).is_some());
+    assert_eq!(low.labels.len(), 1);
+}
+
+/// LH-17: the object's top decides how much of the figure shows.
+#[test]
+fn a_higher_object_covers_more_of_the_figure() {
+    let plan = plan(35.0, &[("e", 10.0, 5.0)]);
+    let figure_pixels = |height_m| {
+        let code = SceneRole::Figure(FigureColor::Purple).code();
+
+        take(&with_crate(height_m), &plan)
+            .frame
+            .role
+            .iter()
+            .filter(|r| **r == code)
+            .count()
+    };
+
+    assert!(figure_pixels(1.0) < figure_pixels(0.5));
+    assert!(figure_pixels(1.4) < figure_pixels(1.0));
+}
+
+/// LH-34: a camera raised above a wall sees what the wall hides from eye height.
+#[test]
+fn a_raised_camera_sees_over_a_wall() {
+    let mut set = set();
+    let mut wall = Wall::new(Point::new(5.0, 7.0), Point::new(15.0, 7.0), 0.2);
+    wall.height_m = Some(1.8);
+    set.walls = vec![wall];
+    let mut plan = plan(35.0, &[("e", 10.0, 5.0)]);
+
+    assert_eq!(columns(&take(&set, &plan), FigureColor::Purple), None);
+
+    plan.cameras[0].marks[0].height_m = 4.0;
+    plan.cameras[0].marks[0].tilt_deg = -25.0;
+    assert!(columns(&take(&set, &plan), FigureColor::Purple).is_some());
+}
+
+/// LH-34: tilting down fills the picture with floor, tilting up with sky.
+#[test]
+fn the_tilt_moves_the_horizon() {
+    let floor = SceneRole::Floor.code();
+    let top_is_floor = |tilt_deg: f64| {
+        let mut plan = plan(35.0, &[]);
+        plan.cameras[0].marks[0].tilt_deg = tilt_deg;
+
+        take(&set(), &plan).frame.role[0] == floor
+    };
+
+    assert!(!top_is_floor(0.0));
+    assert!(top_is_floor(-60.0));
+}
+
+/// LH-34: the camera's height and tilt run linearly between two marks like its lens, so the
+/// picture halfway differs from both ends.
+#[test]
+fn height_and_tilt_follow_the_time_between_marks() {
+    let mut plan = plan(35.0, &[("e", 10.0, 5.0)]);
+    let mut end = plan.cameras[0].marks[0].clone();
+    end.at_s = 4.0;
+    end.height_m = 5.0;
+    end.tilt_deg = -45.0;
+    plan.cameras[0].marks.push(end);
+    let figure_top = |t_s| {
+        let eye = Eye::Shot {
+            aspect: None,
+            camera: "a".into(),
+            t_s,
+        };
+        let picture = picture(
+            &project(),
+            &set(),
+            &plan,
+            &Forms::default(),
+            &eye,
+            WIDTH_PX,
+            Cut::Off,
+        )
+        .expect("picture");
+
+        top_row(&picture, FigureColor::Purple).expect("figure")
+    };
+
+    let (start, middle, end) = (figure_top(0.0), figure_top(2.0), figure_top(4.0));
+    assert!(
+        start != middle && middle != end && start != end,
+        "{start} {middle} {end}"
+    );
+}
+
 /// LH-26: a figure that appears at 0 s is not drawn at that instant, half there after half the
 /// fade, whole after it; the picture and the vector view agree.
 #[test]

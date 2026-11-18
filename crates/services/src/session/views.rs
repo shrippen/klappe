@@ -162,6 +162,14 @@ impl Session {
         self.picture_through(id.to_owned(), self.time_s, width_px)
     }
 
+    /// What the camera of shot `id` sees when the shot starts, `width_px` wide, for the shot's
+    /// tile (LH-36); `None` for an unknown shot, a camera that is gone or one without marks.
+    pub fn shot_picture(&self, id: &str, width_px: usize) -> Option<Picture> {
+        let shot = self.plan()?.shots.iter().find(|s| s.id == id)?;
+
+        self.picture_through(shot.camera.clone(), shot.from_s, width_px)
+    }
+
     /// The cameras whose body shows on the plan now (layer and track not hidden) and where it
     /// stands at the playhead (LH-113).
     pub fn camera_spots(&self) -> Vec<CameraSpot> {

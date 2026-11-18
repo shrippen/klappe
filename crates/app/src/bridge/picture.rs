@@ -32,17 +32,19 @@ impl qobject::Controller {
         width_px: i32,
         palette_json: &QString,
     ) -> QImage {
-        let image = self.rust().session.as_ref().and_then(|s| {
-            let palette = Palette::parse(&palette_json.to_string())?;
-            let width = usize::try_from(width_px).ok()?;
-            let picture = s.camera_picture_of(&id.to_string(), width)?;
+        let id = id.to_string();
 
-            let strength = Session::camera_strength(&picture);
+        self.rust().small_image(width_px, palette_json, |s, width| {
+            s.camera_picture_of(&id, width)
+        })
+    }
 
-            colored(&picture, &palette, &strength, &|_| false)
-        });
+    pub(super) fn shot_image(&self, id: &QString, width_px: i32, palette_json: &QString) -> QImage {
+        let id = id.to_string();
 
-        image.map(|(image, _)| image).unwrap_or_default()
+        self.rust().small_image(width_px, palette_json, |s, width| {
+            s.shot_picture(&id, width)
+        })
     }
 
     pub(super) fn camera_spots(&self) -> QString {
@@ -62,6 +64,27 @@ impl qobject::Controller {
 }
 
 impl super::ControllerRust {
+    /// The image of what `make` takes from the session, `width_px` wide, in the palette's
+    /// colours; empty if there is no session, palette or picture.
+    fn small_image(
+        &self,
+        width_px: i32,
+        palette_json: &QString,
+        make: impl FnOnce(&Session, usize) -> Option<Picture>,
+    ) -> QImage {
+        let image = self.session.as_ref().and_then(|s| {
+            let palette = Palette::parse(&palette_json.to_string())?;
+            let width = usize::try_from(width_px).ok()?;
+
+            let picture = make(s, width)?;
+            let strength = Session::camera_strength(&picture);
+
+            colored(&picture, &palette, &strength, &|_| false)
+        });
+
+        image.map(|(image, _)| image).unwrap_or_default()
+    }
+
     /// The image of the selected shot's camera and the JSON of its size and names; the camera
     /// picked on the plan is only the fallback, the panel shows the view with a shot.
     fn colored_picture(&self, width_px: i32, palette_json: &str) -> Option<(QImage, String)> {

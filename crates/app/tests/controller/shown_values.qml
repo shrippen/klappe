@@ -159,6 +159,17 @@ Item {
                 return root.fail("shot: the camera picture is empty: " + JSON.stringify(frame))
             }
 
+            // The shot's tile: its picture at the shot's start, as wide as asked for. QML has no
+            // accessor for a QImage, only its text: `QImage(QSize(160, 67), ...)`, or `QImage(null)`.
+            const shotPicture = String(ctl.shotImage(JSON.parse(ctl.shotsJson)[0].id, 160, root.colors))
+            if (!shotPicture.includes("QSize(160, ")) {
+                return root.fail("shot: the tile picture is not 160 px wide: " + shotPicture)
+            }
+            const noPicture = String(ctl.shotImage("none", 160, root.colors))
+            if (!noPicture.includes("QImage(null)")) {
+                return root.fail("shot: an unknown shot has a picture: " + noPicture)
+            }
+
             ctl.setLayer("notes", "hidden")
             if (!root.check("layer", root.shot, { planJson: 1, layersJson: 1 })
                     || JSON.parse(ctl.layersJson).notes !== false) {

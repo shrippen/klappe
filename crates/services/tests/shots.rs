@@ -673,3 +673,52 @@ fn a_typed_number_has_versions_and_is_replaced_by_renumbering() {
         ["12.1", "12.2", "12.3", "12.3A", "12.4", "12.5", "12.5A"]
     );
 }
+
+/// A chip's link (DB-63): a mark is named for selecting and the time goes to its arrival.
+#[test]
+fn showing_a_mark_link_goes_to_its_arrival() {
+    let mut s = open();
+
+    let shown = s.show_link(LinkKind::Mark, "burgvogt", 1).unwrap();
+
+    assert_eq!(
+        shown,
+        Some(Source::Mark {
+            character: "burgvogt".into(),
+            index: 1
+        })
+    );
+    assert_eq!(s.time_s(), 9.0);
+}
+
+/// A shot link selects the shot as the shot list does, and no mark beside it.
+#[test]
+fn showing_a_shot_link_selects_the_shot() {
+    let mut s = open();
+
+    let shown = s.show_link(LinkKind::Shot, "s12-2", 0).unwrap();
+
+    assert_eq!(shown, None);
+    assert_eq!(s.selected_shot(), Some("s12-2"));
+}
+
+#[test]
+fn showing_a_missing_link_fails() {
+    let mut s = open();
+
+    assert!(s.show_link(LinkKind::Mark, "elisabeth", 99).is_err());
+    assert!(s.show_link(LinkKind::Shot, "nope", 0).is_err());
+}
+
+#[test]
+fn a_link_kind_is_parsed_from_its_word() {
+    assert_eq!(LinkKind::parse("mark"), Some(LinkKind::Mark));
+    assert_eq!(LinkKind::parse("shot"), Some(LinkKind::Shot));
+    assert_eq!(LinkKind::parse("nonsense"), None);
+
+    // The word a chip carries out reads back to its kind.
+    for kind in [LinkKind::Mark, LinkKind::Shot] {
+        let word = serde_json::to_value(kind).unwrap();
+        assert_eq!(LinkKind::parse(word.as_str().unwrap()), Some(kind));
+    }
+}
