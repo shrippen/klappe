@@ -48,6 +48,7 @@ pub(super) fn image_items(
                 },
                 label: None,
                 source: None,
+                opacity: crate::display::FULL_OPACITY,
             });
         }
 
@@ -58,6 +59,7 @@ pub(super) fn image_items(
             },
             label: size.is_none().then(|| image.file.clone()),
             source: Some(Source::Image(image.id.clone())),
+            opacity: crate::display::FULL_OPACITY,
         });
     }
 }

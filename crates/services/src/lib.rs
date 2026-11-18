@@ -52,10 +52,11 @@ pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdi
 pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
+pub use session::video_frame_count;
 pub use session::{
     Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages,
-    PlaceAnswer, Playing, Session, Size, Speech, SpokenLine, Step, TimeSnap, View, ViewStep,
-    Visibility,
+    PlaceAnswer, Playing, Session, Size, Speech, SpokenLine, Step, TimeSnap, VideoJob, View,
+    ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use views::{
@@ -65,7 +66,7 @@ pub use views::{
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.
-pub use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts, Theme};
+pub use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts, Theme, FFMPEG};
 pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Curve, Dash, Departure, DoorSide, DrawingShape,
     FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, Numbering,

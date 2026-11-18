@@ -78,6 +78,7 @@ mod tests {
             },
             label: None,
             source: None,
+            opacity: 1.0,
         }
     }
 

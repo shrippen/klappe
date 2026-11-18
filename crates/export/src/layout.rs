@@ -29,6 +29,9 @@ use crate::style::{role_style, RoleStyle};
 use klappe_model::FigureColor;
 
 mod note;
+mod swatch;
+
+use swatch::{Swatch, SWATCH_PT};
 
 pub(crate) const PT_PER_MM: f64 = 72.0 / 25.4;
 /// Print text never goes below this.
@@ -46,8 +49,6 @@ pub(crate) const TITLE_BAND_PT: f64 = 24.0;
 const SCALE_ROW_PT: f64 = 26.0;
 const LEGEND_ROW_PT: f64 = 16.0;
 const LEGEND_ENTRY_PT: f64 = 84.0;
-const SWATCH_PT: f64 = 18.0;
-const SWATCH_RADIUS_PT: f64 = 4.0;
 const SWATCH_TEXT_GAP_PT: f64 = 5.0;
 pub(crate) const GAP_PT: f64 = 6.0;
 /// A thin wall must still show.
@@ -180,7 +181,7 @@ fn plan_prims(
             _ => item_prims(item, map, pal, body_m, &mut plan)?,
         }
 
-        let strength = page.fade.get(index).copied().unwrap_or(FULL_STRENGTH);
+        let strength = page.fade.get(index).copied().unwrap_or(FULL_STRENGTH) * item.opacity;
         fade_prims(&mut plan[first..], strength, pal.paper);
     }
 
@@ -313,7 +314,7 @@ fn item_prims(
 ) -> Result<(), ExportError> {
     let RoleStyle {
         class,
-        fill,
+        mut fill,
         mut stroke,
     } = role_style(item.role, pal)?;
 
@@ -332,6 +333,8 @@ fn item_prims(
             (Geom::Open(pts.clone()), pts)
         }
         Shape::Polyline { points } => {
+            // An open line, e.g. a mark's chevron, is not a shape to fill.
+            fill = None;
             let pts: Vec<Pt> = points.iter().map(|p| map.pt(*p)).collect();
             (Geom::Open(pts.clone()), pts)
         }
@@ -367,6 +370,23 @@ fn item_prims(
     let Some(label) = item.label.as_ref().filter(|l| !l.is_empty()) else {
         return Ok(());
     };
+    let (at, anchor) = label_spot(item, &bounds, body_m, map.scale);
+
+    out.push(Prim::Text {
+        class: "label".into(),
+        anchor,
+        at,
+        size_pt: LABEL_PT,
+        weight: Weight::Regular,
+        rgb: pal.foreground,
+        text: label.clone(),
+    });
+
+    Ok(())
+}
+
+/// Where an item's label goes, and how it is anchored there.
+fn label_spot(item: &Item, bounds: &[Pt], body_m: f64, scale: f64) -> (Pt, Anchor) {
     let right = bounds.iter().map(|p| p.0).fold(f64::MIN, f64::max);
     let top = bounds.iter().map(|p| p.1).fold(f64::MAX, f64::min);
     let bottom = bounds.iter().map(|p| p.1).fold(f64::MIN, f64::max);
@@ -378,7 +398,7 @@ fn item_prims(
         (Role::Mark(_), Shape::Circle { .. }) => (
             (
                 (bounds[0].0 + right) / 2.0,
-                (top + bottom) / 2.0 - body_m * map.scale - LABEL_GAP_PT,
+                (top + bottom) / 2.0 - body_m * scale - LABEL_GAP_PT,
             ),
             Anchor::Middle,
         ),
@@ -398,17 +418,7 @@ fn item_prims(
         ),
     };
 
-    out.push(Prim::Text {
-        class: "label".into(),
-        anchor,
-        at,
-        size_pt: LABEL_PT,
-        weight: Weight::Regular,
-        rgb: pal.foreground,
-        text: label.clone(),
-    });
-
-    Ok(())
+    (at, anchor)
 }
 
 /// The longest round length that fits `SCALE_BAR_MAX_PT`.
@@ -526,6 +536,8 @@ fn legend_entries<'a>(list: &DisplayList, texts: &'a Texts) -> Vec<Entry<'a>> {
             swatch: Swatch::Mark,
         },
     ];
+    entries.extend(sign_entries(list, texts, color));
+
     let words = &texts.drawing;
     let mut seen: Vec<(FigureColor, klappe_model::Dash, bool)> = Vec::new();
 
@@ -556,6 +568,33 @@ fn legend_entries<'a>(list: &DisplayList, texts: &'a Texts) -> Vec<Entry<'a>> {
     }
 
     entries
+}
+
+/// The entries for the chevrons of appearing and leaving marks, when the plan has any: a
+/// chevron is a polyline in the mark role, a mark's ring a circle (LH-26).
+fn sign_entries<'a>(list: &DisplayList, texts: &'a Texts, color: FigureColor) -> Vec<Entry<'a>> {
+    let signed = list
+        .items
+        .iter()
+        .any(|i| matches!(i.role, Role::Mark(_)) && matches!(i.shape, Shape::Polyline { .. }));
+    if !signed {
+        return Vec::new();
+    }
+
+    vec![
+        Entry {
+            key: "arrival",
+            name: Cow::Borrowed(&texts.arrival),
+            role: Role::Mark(color),
+            swatch: Swatch::Arrival,
+        },
+        Entry {
+            key: "departure",
+            name: Cow::Borrowed(&texts.departure),
+            role: Role::Mark(color),
+            swatch: Swatch::Departure,
+        },
+    ]
 }
 
 /// The words of a drawing drawn as `swatch` (a line or an area); an area's edge follows "Area"
@@ -607,7 +646,8 @@ fn legend(
 
         for geom in swatch.geoms(left, mid) {
             // Lines have no inside; an open mark shows the ring only.
-            let open = matches!(geom, Geom::Open(_)) || *swatch == Swatch::Mark;
+            let open = matches!(geom, Geom::Open(_))
+                || matches!(swatch, Swatch::Mark | Swatch::Arrival | Swatch::Departure);
             out.push(Prim::Shape {
                 class: format!("legend {key}"),
                 geom,
@@ -705,73 +745,5 @@ fn lamp_list(
             rgb: pal.foreground,
             text,
         });
-    }
-}
-
-/// Each symbol has its own shape, so the legend reads without colour: the figure is the plan's
-/// circle with its facing wedge, the lamp a circle with its cone, the camera its wedge, the mark
-/// a ring, path and axis a dotted and a dashed line.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Swatch {
-    Figure,
-    Light,
-    Camera,
-    Mark,
-    Line,
-    /// A filled drawing: a small box.
-    Area,
-}
-
-impl Swatch {
-    fn geoms(self, left: f64, mid: f64) -> Vec<Geom> {
-        let cx = left + SWATCH_PT / 2.0;
-        let r = SWATCH_RADIUS_PT;
-
-        match self {
-            Swatch::Figure => {
-                let c = cx - r / 2.0;
-                vec![
-                    Geom::Circle {
-                        center: (c, mid),
-                        radius: r,
-                    },
-                    Geom::Closed(vec![
-                        (c + r * 0.8, mid - r * 0.6),
-                        (c + r * 1.5, mid),
-                        (c + r * 0.8, mid + r * 0.6),
-                    ]),
-                ]
-            }
-            Swatch::Light => {
-                let body = r * 0.75;
-                vec![
-                    Geom::Circle {
-                        center: (cx - r / 2.0, mid),
-                        radius: body,
-                    },
-                    Geom::Closed(vec![
-                        (cx - r / 2.0, mid),
-                        (cx + r * 1.5, mid - r * 0.9),
-                        (cx + r * 1.5, mid + r * 0.9),
-                    ]),
-                ]
-            }
-            Swatch::Camera => vec![Geom::Closed(vec![
-                (cx - r, mid - r),
-                (cx + r + 2.0, mid),
-                (cx - r, mid + r),
-            ])],
-            Swatch::Mark => vec![Geom::Circle {
-                center: (cx, mid),
-                radius: r,
-            }],
-            Swatch::Line => vec![Geom::Open(vec![(left, mid), (left + SWATCH_PT, mid)])],
-            Swatch::Area => vec![Geom::Closed(vec![
-                (left, mid - r),
-                (left + SWATCH_PT, mid - r),
-                (left + SWATCH_PT, mid + r),
-                (left, mid + r),
-            ])],
-        }
     }
 }
