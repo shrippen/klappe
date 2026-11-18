@@ -37,6 +37,8 @@ pub struct BookReport {
     pub pending: usize,
     /// Entries whose scene is no longer in the book.
     pub not_in_book: usize,
+    /// Locations of the headings no play location is called by (DB-51).
+    pub places: usize,
 }
 
 use std::collections::HashSet;

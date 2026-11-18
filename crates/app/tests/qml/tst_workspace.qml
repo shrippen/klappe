@@ -47,7 +47,7 @@ TestCase {
         property string scriptJson: JSON.stringify([
             { kind: "scene", text: "INNEN. BURGHOF – TAG", current: false, chips: [] },
             { kind: "action", text: "Elisabeth steigt die Treppe hinab.", current: true,
-              chips: [{ text: "12.1", kind: "shot", target: "s12-1", label: "", at_s: 0 }] },
+              chips: [{ text: "12.1", kind: "shot", target: "s12-1", index: 0, label: "", at_s: 0 }] },
             { kind: "character", text: "ELISABETH", current: false, chips: [] },
             { kind: "dialogue", text: "Wer hat die Tür offen gelassen?", current: false, chips: [] }
         ])
@@ -69,6 +69,7 @@ TestCase {
         function setDrawStyle() { return true }
         function setSnapping() {}
         function selectShot(id) { calls.push(["shot", id]) }
+        function showLink(kind, target, index) { calls.push(["link", kind, target, index]); return true }
         function seek(at) { calls.push(["seek", at]) }
         function advance() { return false }
         function stepMark() {}
@@ -521,5 +522,42 @@ TestCase {
 
         verify(part(work, "scriptSlot").item)
         compare(part(work, "shotSlot").item.shot.id, "s12-3")
+    }
+
+    // DB-63: a chip shows its link on the plan; the plan and the script ask each other in
+    // every step of the layout.
+    function test_a_chip_shows_its_link() {
+        const work = make(1600)
+        fake.calls = []
+
+        part(work, "chip").clicked()
+
+        compare(fake.calls, [["link", "shot", "s12-1", 0]])
+    }
+
+    function test_the_script_is_shown_in_every_step() {
+        for (const width of [1600, 1200, 800]) {
+            const work = make(width)
+
+            work.revealScript(1)
+            tryVerify(() => work.scriptShown)
+            tryVerify(() => part(work, "lineList").activeFocus, 5000, "line list focus at " + width)
+            compare(part(work, "lineList").currentIndex, 1)
+
+            work.revealScript(-1)
+            tryVerify(() => part(work, "sceneHead").activeFocus, 5000, "head focus at " + width)
+        }
+    }
+
+    function test_the_plan_is_shown_from_the_script() {
+        const work = make(800)
+
+        work.area = "script"
+        tryVerify(() => part(work, "tabScript").visible)
+        work.revealPlan()
+
+        compare(work.area, "plan")
+        verify(part(work, "plan").visible)
+        tryVerify(() => part(work, "planCanvas").activeFocus)
     }
 }

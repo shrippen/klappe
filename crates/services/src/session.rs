@@ -22,6 +22,7 @@ mod numbering;
 mod objects;
 mod pages;
 mod pick;
+mod places;
 mod playback;
 mod retime;
 mod saved;
@@ -40,6 +41,7 @@ pub use export::ExportOptions;
 pub use fade::Fade;
 pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
+pub use places::PlaceAnswer;
 pub use retime::{Grab, TimeSnap};
 
 /// Groups of the plan the timeline's layer switches show or hide.
@@ -188,6 +190,8 @@ pub struct Session {
     layout: Option<crate::script_pages::Layout>,
     /// Entries the book could not place (`pending_scenes`).
     pending: Vec<crate::book::PendingScene>,
+    /// Locations of the headings no play location is called by (`pending_places`).
+    pending_places: Vec<crate::places::PendingPlace>,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends

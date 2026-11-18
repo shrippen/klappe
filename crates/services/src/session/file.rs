@@ -57,6 +57,7 @@ impl Session {
             through: None,
             layout: None,
             pending: Vec::new(),
+            pending_places: Vec::new(),
         };
         session.reconcile();
         session.scene = session
@@ -112,7 +113,7 @@ impl Session {
         self.number_script();
         // So the register holds the book as saved: the next outside change aligns against it.
         self.reconcile();
-        klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
+        klappe_store::save_keeping_places(&self.dir, &self.project, self.script_text.as_deref())?;
         self.dirty = false;
         self.unbacked = false;
         self.project_changed = false;
@@ -160,6 +161,8 @@ impl Session {
         if let Some(text) = loaded.script {
             self.set_script_text(&text);
         }
+        // The backup's places are not written back: the file on disk is their only source.
+        self.reload_places()?;
         self.reconcile();
         self.keep_view_valid();
         self.end_stale_look();

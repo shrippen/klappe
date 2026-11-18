@@ -20,7 +20,9 @@ mod marks;
 mod numbers;
 mod outline;
 mod pdf;
+mod places;
 mod session;
+mod status;
 mod support;
 
 use support::Scratch;
