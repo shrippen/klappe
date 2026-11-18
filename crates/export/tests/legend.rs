@@ -186,3 +186,34 @@ fn the_legend_lists_the_mark_signs_when_the_plan_has_them() {
     assert_eq!(swatch("departure").len(), 2);
     assert_ne!(swatch("arrival"), swatch("departure"));
 }
+
+/// Review of PR 255: the chevron on the plan is an open line like in the legend, not a filled
+/// triangle.
+#[test]
+fn a_mark_chevron_is_not_filled() {
+    let sign = Item {
+        role: Role::Mark(FigureColor::Blue),
+        shape: Shape::Polyline {
+            points: vec![
+                Point::new(2.0, 2.0),
+                Point::new(2.2, 2.1),
+                Point::new(2.0, 2.2),
+            ],
+        },
+        label: None,
+        source: None,
+        opacity: 1.0,
+    };
+    let list = DisplayList {
+        items: vec![sign],
+        lamps: Vec::new(),
+        width_m: 10.0,
+        depth_m: 6.0,
+    };
+
+    let out = svg(&list, &page(), Theme::Light).unwrap();
+    let chevron = out.lines().find(|l| l.contains("class=\"item mark")).unwrap();
+
+    assert!(chevron.contains("fill=\"none\""), "{chevron}");
+    assert!(!chevron.contains("fill-opacity"), "{chevron}");
+}

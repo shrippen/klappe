@@ -314,7 +314,7 @@ fn item_prims(
 ) -> Result<(), ExportError> {
     let RoleStyle {
         class,
-        fill,
+        mut fill,
         mut stroke,
     } = role_style(item.role, pal)?;
 
@@ -333,6 +333,8 @@ fn item_prims(
             (Geom::Open(pts.clone()), pts)
         }
         Shape::Polyline { points } => {
+            // An open line, e.g. a mark's chevron, is not a shape to fill.
+            fill = None;
             let pts: Vec<Pt> = points.iter().map(|p| map.pt(*p)).collect();
             (Geom::Open(pts.clone()), pts)
         }
