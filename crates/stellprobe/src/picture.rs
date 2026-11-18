@@ -11,7 +11,7 @@
 use klappe_model::{FloorPlan, Point, Project, SetPlan};
 use klappe_raster::{rasterize, Corner, Frame, Paint, Triangle, NO_SOURCE};
 
-use crate::display::Source;
+use crate::display::{Source, FULL_OPACITY};
 use crate::eye::{clip, clip_near, Eye, Pinhole, Vec3, FRAME_WIDTH, NEAR_M};
 use crate::forms::Forms;
 use crate::scene::{scene, Cut, SceneRole, Solid};
@@ -165,7 +165,8 @@ pub fn vector_view(
     // Each face with its farthest depth, the key of the sort.
     let mut faces: Vec<(f64, VectorFace)> = Vec::new();
     for solid in &solids {
-        for f in &solid.faces {
+        let shown = shown_faces(&pinhole, solid);
+        for (f, _) in solid.faces.iter().zip(&shown).filter(|(_, shown)| **shown) {
             let local: Vec<Vec3> = f.corners.iter().map(|c| pinhole.local(*c)).collect();
             let near = clip_near(&local);
             let far_m = near.iter().map(|p| p[2]).fold(f64::MIN, f64::max);
@@ -195,6 +196,60 @@ pub fn vector_view(
         height,
         faces: faces.into_iter().map(|(_, face)| face).collect(),
     })
+}
+
+/// Which faces of `solid` the vector view draws: all, but of a translucent body (a figure
+/// fading, LH-26) only those turned to the eye, else the back faces show through and it reads
+/// denser than its opacity. The body is convex, so a face turns away when its outward normal
+/// points the same way as its distance from the eye.
+fn shown_faces(pinhole: &Pinhole, solid: &Solid) -> Vec<bool> {
+    if solid.opacity >= FULL_OPACITY {
+        return vec![true; solid.faces.len()];
+    }
+
+    let local: Vec<Vec<Vec3>> = solid
+        .faces
+        .iter()
+        .map(|f| f.corners.iter().map(|c| pinhole.local(*c)).collect())
+        .collect();
+    let mean = |points: &mut dyn Iterator<Item = &Vec3>| {
+        let (mut sum, mut n) = ([0.0; 3], 0.0);
+        for p in points {
+            (0..3).for_each(|i| sum[i] += p[i]);
+            n += 1.0;
+        }
+
+        sum.map(|v| v / n)
+    };
+    let centre = mean(&mut local.iter().flatten());
+
+    local
+        .iter()
+        .map(|corners| {
+            let at = mean(&mut corners.iter());
+            let normal = normal(corners);
+            let dot = |a: Vec3, b: Vec3| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+            let outward = dot(
+                normal,
+                [at[0] - centre[0], at[1] - centre[1], at[2] - centre[2]],
+            );
+
+            outward * dot(normal, at) < 0.0
+        })
+        .collect()
+}
+
+/// The normal of a flat polygon, whatever its winding, not unit length (Newell's method).
+fn normal(corners: &[Vec3]) -> Vec3 {
+    let mut n = [0.0; 3];
+    for (i, a) in corners.iter().enumerate() {
+        let b = corners[(i + 1) % corners.len()];
+        n[0] += (a[1] - b[1]) * (a[2] + b[2]);
+        n[1] += (a[2] - b[2]) * (a[0] + b[0]);
+        n[2] += (a[0] - b[0]) * (a[1] + b[1]);
+    }
+
+    n
 }
 
 /// The part of `polygon` inside the picture, 1 wide and `height` high.

@@ -623,3 +623,29 @@ fn an_appearing_figure_fades_in_the_picture_and_the_vector_view() {
     assert_eq!(full, [1.0]);
     assert!(faces.iter().all(|o| *o == 1.0), "{faces:?}");
 }
+
+/// Review of PR 255: a fading figure shows only its faces turned to the eye in the vector view,
+/// else the back faces show through and it reads denser than its opacity.
+#[test]
+fn a_fading_figure_has_no_back_faces_in_the_vector_view() {
+    let mut plan = plan(35.0, &[("e", 10.0, 5.0)]);
+    plan.figures[0].marks[0].arrival = Arrival::Appear;
+    let figure_faces = |t_s: f64| {
+        let eye = Eye::Shot {
+            aspect: None,
+            camera: "a".into(),
+            t_s,
+        };
+
+        vector_view(&project(), &set(), &plan, &Forms::default(), &eye)
+            .expect("vector view")
+            .faces
+            .iter()
+            .filter(|f| matches!(f.role, SceneRole::Figure(_)))
+            .count()
+    };
+
+    let (half, full) = (figure_faces(0.25), figure_faces(5.0));
+
+    assert!(half > 0 && half < full, "{half} of {full}");
+}

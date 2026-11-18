@@ -212,7 +212,10 @@ fn a_mark_chevron_is_not_filled() {
     };
 
     let out = svg(&list, &page(), Theme::Light).unwrap();
-    let chevron = out.lines().find(|l| l.contains("class=\"item mark")).unwrap();
+    let chevron = out
+        .lines()
+        .find(|l| l.contains("class=\"item mark"))
+        .unwrap();
 
     assert!(chevron.contains("fill=\"none\""), "{chevron}");
     assert!(!chevron.contains("fill-opacity"), "{chevron}");
