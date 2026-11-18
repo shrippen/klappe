@@ -110,6 +110,7 @@ fn patch_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
                 },
                 label: None,
                 source: None,
+                opacity: crate::display::FULL_OPACITY,
             });
         }
     }
@@ -146,6 +147,7 @@ fn arrow_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
         },
         label: Some(NORTH_LABEL.to_owned()),
         source: None,
+        opacity: crate::display::FULL_OPACITY,
     }];
 
     if sun.is_up() {
@@ -164,6 +166,7 @@ fn arrow_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
                 sun.azimuth_deg, sun.elevation_deg
             )),
             source: None,
+            opacity: crate::display::FULL_OPACITY,
         });
     }
 
@@ -319,6 +322,7 @@ mod tests {
             shape: Shape::Polyline { points: vec![] },
             label: None,
             source: None,
+            opacity: crate::display::FULL_OPACITY,
         };
         let background = Item {
             role: Role::Background,

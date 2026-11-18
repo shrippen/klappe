@@ -286,3 +286,38 @@ fn place_and_date_survive_saving() {
     assert_eq!(back.project().locations[0].site, Some(BERLIN));
     assert_eq!(back.project().scenes[0].sun, Some(noon()));
 }
+
+/// The video shows the sun as the plan does: its frame is the plan's at the same time.
+#[test]
+fn the_video_shows_the_sun() {
+    let installed = std::process::Command::new("ffmpeg")
+        .arg("-version")
+        .output()
+        .is_ok_and(|o| o.status.success());
+    if !installed {
+        eprintln!("skipped: ffmpeg is not installed (no job without it)");
+        return;
+    }
+    let mut s = open();
+    set_location(&mut s, Some(BERLIN)).unwrap();
+    set_scene(&mut s, Some(noon())).unwrap();
+    let texts = klappe_services::Language::English.print_texts();
+    let mut job = s.video_job_at("ffmpeg", &texts, VIDEO_FPS).unwrap();
+
+    let frame = job.frame(0).unwrap();
+
+    s.set_time(0.0);
+    let list = s.display_list();
+    assert_eq!(roles(&s, Role::SunRay), 1);
+    let setup = klappe_services::PaperSetup::default();
+    let mut page = klappe_export::Page::new(setup.size, setup.orientation, s.plan_title(), texts);
+    page.fade = s.item_fades(&list);
+    let expected = klappe_export::frame(&list, &page, klappe_services::Theme::Light).unwrap();
+    assert!(
+        frame == expected,
+        "the video frame differs from the plan with its sun"
+    );
+}
+
+/// Frames per second of the video in the test; few, so the job is quick.
+const VIDEO_FPS: u32 = 5;

@@ -1,4 +1,4 @@
-use klappe_model::{Curve, DrawingShape, Point, Project};
+use klappe_model::{Curve, DrawingShape, Location, Point, Project, Scene};
 use klappe_stellprobe::{
     add_sun, handles, lens_at, render, set_at, DisplayList, Item, Role, Source,
 };
@@ -20,6 +20,13 @@ pub(super) fn retain_shown(list: &mut DisplayList, shows: &dyn Fn(Role, Option<&
             .any(|i| i.source.as_ref() == Some(&source))
     };
     list.lamps.retain(|l| on_plan(&l.id));
+}
+
+/// Adds the sun of `scene` at `location` to `list`, when both give place and time (LH-52).
+pub(super) fn sun_on(list: &mut DisplayList, location: &Location, scene: &Scene) {
+    if let (Some(site), Some(time)) = (&location.site, &scene.sun) {
+        add_sun(list, &location.set, site, time);
+    }
 }
 
 impl Session {
@@ -46,9 +53,7 @@ impl Session {
         let mut list = render(project, &location.set, plan, self.time_s, &|file| {
             self.image_size(file)
         });
-        if let (Some(site), Some(time)) = (&location.site, &scene.sun) {
-            add_sun(&mut list, &location.set, site, time);
-        }
+        sun_on(&mut list, location, scene);
         if let Some(selected) = selected {
             let set = set_at(&location.set, plan, self.time_s);
             list.items.extend(handles(project, &set, plan, selected));
