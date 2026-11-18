@@ -186,6 +186,16 @@ impl Editor {
 
     /// Replaces the whole text, as one undo step that spans only the lines that differ.
     pub(crate) fn set_text(&mut self, text: &str) {
+        self.replace_text(text, None);
+    }
+
+    /// Like [`Self::set_text`], with the cursor at `cursor` after the step (and after a redo).
+    pub(crate) fn set_text_at(&mut self, text: &str, cursor: Pos) {
+        self.replace_text(text, Some(cursor));
+    }
+
+    /// Without `at`, a cursor below the changed lines moves with them, so it stays on its line.
+    fn replace_text(&mut self, text: &str, at: Option<Pos>) {
         let new = Buffer::from_text(text);
         let old = self.buffer.lines();
         let (new_lines, old_len) = (new.lines(), old.len());
@@ -204,15 +214,18 @@ impl Editor {
             .take_while(|(a, b)| a == b)
             .count();
         if same_head == old_len && old_len == new_lines.len() {
+            self.go_to(at.unwrap_or(self.cursor));
             return;
         }
 
         let changed = new_lines[same_head..new_lines.len() - same_tail].to_vec();
-        // A cursor below the changed lines moves with them, so it stays on its line.
-        let mut cursor = self.cursor;
-        if cursor.line >= old_len - same_tail {
-            cursor.line = cursor.line + new_lines.len() - old_len;
-        }
+        let cursor = at.unwrap_or_else(|| {
+            let mut cursor = self.cursor;
+            if cursor.line >= old_len - same_tail {
+                cursor.line = cursor.line + new_lines.len() - old_len;
+            }
+            cursor
+        });
         self.set_lines(same_head, old_len - same_tail, changed, cursor);
     }
 

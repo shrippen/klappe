@@ -1,8 +1,8 @@
 //! What each line of the text is, from the Fountain parser, for styling and the scene list.
 
 use klappe_services::{
-    boneyard_lines, outline_of, parse_located, title_page_lines, Element, Located, OutlineEntry,
-    Slot, Vocabulary, FORCE_CHARACTER, NUMBER_MARK,
+    boneyard_lines, outline_of, parse_located, title_page_lines, upper, Element, Located,
+    OutlineEntry, Slot, Vocabulary, FORCE_CHARACTER, NUMBER_MARK,
 };
 
 /// Display-only indents in columns (the stored text stays plain Fountain).
@@ -171,21 +171,6 @@ pub(crate) fn analyse(lines: &[String]) -> Analysis {
 
 /// Characters that mark parts of a line the writer types as is.
 const EXTENSION_OPEN: char = '(';
-const SHARP_S: char = 'ß';
-
-/// Uppercase as the parser counts it: `ß` stays, and a letter whose capital is longer
-/// than one character stays, so the cursor column holds.
-fn upper(text: &str) -> String {
-    let one = |c: char| {
-        let mut up = c.to_uppercase();
-        match (up.next(), up.next()) {
-            (Some(u), None) if c != SHARP_S => u,
-            _ => c,
-        }
-    };
-
-    text.chars().map(one).collect()
-}
 
 /// Uppercases the part of `line` before the first `cut`, `rest` stays as typed.
 fn upper_before(line: &str, cut: usize) -> String {

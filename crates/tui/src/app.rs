@@ -36,6 +36,10 @@ pub(crate) use title::TitleForm;
 
 /// Closes a parenthetical.
 const PAREN_CLOSE: char = ')';
+/// `Alt+` key: the cursor line becomes a scene heading / a transition. Alt letters reach every
+/// terminal as Esc + letter, which `Ctrl+digit` does not, and no other editor key uses them.
+const KEY_HEADING: char = 'h';
+const KEY_TRANSITION: char = 't';
 /// Rows one mouse wheel notch scrolls.
 const WHEEL_ROWS: usize = 3;
 /// Entries a PageUp/PageDown moves in the scene list.
@@ -641,10 +645,9 @@ impl App {
 
     fn editor_key(&mut self, key: KeyEvent) {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
-        let alt = key.modifiers.contains(KeyModifiers::ALT);
 
         match key.code {
-            KeyCode::Char(c) if !ctrl && !alt => self.type_char(c),
+            KeyCode::Char(c) if !ctrl => self.char_key(c, key.modifiers),
             KeyCode::Enter => self.enter(),
             KeyCode::Tab => self.tab(),
             KeyCode::Esc => self.dismiss_suggest(),
@@ -653,6 +656,21 @@ impl App {
             KeyCode::Backspace => self.editor.backspace(),
             KeyCode::Delete => self.editor.delete(),
             _ => self.move_key(key),
+        }
+    }
+
+    /// A letter types; with `Alt` it turns the cursor line into a scene heading or a
+    /// transition.
+    fn char_key(&mut self, c: char, modifiers: KeyModifiers) {
+        if !modifiers.contains(KeyModifiers::ALT) {
+            self.type_char(c);
+            return;
+        }
+
+        match c {
+            KEY_HEADING => self.make_element(Slot::Heading),
+            KEY_TRANSITION => self.make_element(Slot::Transition),
+            _ => {}
         }
     }
 

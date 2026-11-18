@@ -149,6 +149,8 @@ fn every_key_is_in_the_help() {
         "Ctrl+F",
         "F3",
         "Ctrl+T",
+        "Alt+H",
+        "Alt+T",
         "F6",
         "Ctrl+P",
         "Ctrl+B",
@@ -217,10 +219,10 @@ fn the_help_scroll_stays_in_range() {
     }
     let _ = screen(&mut app, 100, 12);
 
-    // 27 lines, 10 rows of room: the last first line is 17, and one Up goes back one.
-    assert_eq!(app.help_scroll, 17);
+    // 29 lines, 10 rows of room: the last first line is 19, and one Up goes back one.
+    assert_eq!(app.help_scroll, 19);
     press(&mut app, KeyCode::Up);
-    assert_eq!(app.help_scroll, 16);
+    assert_eq!(app.help_scroll, 18);
 }
 
 #[test]

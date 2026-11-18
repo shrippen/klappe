@@ -17,6 +17,8 @@ use crate::ui::centered;
 const SUGGEST_ROWS: usize = 6;
 /// Width of the search and title boxes.
 const BOX_WIDTH: usize = 72;
+/// Rows of the title box besides its fields: two borders, a blank row and the hint.
+const TITLE_CHROME: usize = 4;
 /// Columns the label of a field takes in a form.
 const LABEL_WIDTH: usize = 18;
 /// Rows of the numbering box: two fields, a gap, the hint, and the frame.
@@ -149,24 +151,41 @@ pub(crate) fn draw_title(frame: &mut Frame, app: &App) {
     let Some(form) = &app.title else {
         return;
     };
-    let height = form.fields.len() + 4;
-    let area = centered(frame.area(), BOX_WIDTH, height);
+    let rows: usize = form
+        .fields
+        .iter()
+        .map(|f| field_lines(&f.shown).len())
+        .sum();
+    let area = centered(frame.area(), BOX_WIDTH, rows + TITLE_CHROME);
     let block = framed(&app.texts.title_box);
     let inner = block.inner(area);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
 
+    // A field takes one row per line; the label stands on its first row. Where the rows do
+    // not fit, they scroll so the last line of the selected field (the cursor) stays shown.
+    let mut shown: Vec<(&str, &str, bool)> = Vec::new();
+    let mut cursor = 0;
     for (i, field) in form.fields.iter().enumerate() {
         let label = app.texts.field_label(&field.key);
-        field_row(
-            frame,
-            row(inner, i as u16),
-            label,
-            &field.shown,
-            form.sel == i,
-        );
+        let lines = field_lines(&field.shown);
+        let last = lines.len() - 1;
+        for (n, line) in lines.into_iter().enumerate() {
+            let label = if n == 0 { label } else { "" };
+            shown.push((label, line, form.sel == i && n == last));
+        }
+        if i <= form.sel {
+            cursor = shown.len() - 1;
+        }
     }
-    let hint = row(inner, form.fields.len() as u16 + 1);
+    let room = (inner.height as usize)
+        .saturating_sub(TITLE_CHROME - 2)
+        .max(1);
+    let top = (cursor + 1).saturating_sub(room);
+    for (r, (label, line, active)) in shown.iter().skip(top).take(room).enumerate() {
+        field_row(frame, row(inner, r as u16), label, line, *active);
+    }
+    let hint = row(inner, shown.len().min(room) as u16 + 1);
     frame.render_widget(
         Paragraph::new(app.texts.title_hint.as_str()).style(Style::new().fg(theme::MUTED)),
         hint,
@@ -198,6 +217,11 @@ pub(crate) fn draw_numbers(frame: &mut Frame, app: &App) {
         Paragraph::new(app.texts.numbers_hint.as_str()).style(Style::new().fg(theme::MUTED)),
         row(inner, rows.len() as u16 + 1),
     );
+}
+
+/// The lines of a field value; an empty or newline-ending value still has a last line.
+fn field_lines(value: &str) -> Vec<&str> {
+    value.split('\n').collect()
 }
 
 /// The PDF options: one on/off row each.
