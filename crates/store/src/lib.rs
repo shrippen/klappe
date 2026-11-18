@@ -1,7 +1,7 @@
 //! Reads and writes a Klappe project folder (FORMAT.md).
 //!
 //! ```text
-//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen.toml, szenen/
+//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, orte.toml, drehorte/, szenen.toml, szenen/
 //! load(dir)                  ◄──         drehbuch.fountain
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
@@ -21,6 +21,7 @@ mod folder;
 mod images;
 mod library;
 mod light;
+mod places;
 mod register;
 mod template;
 mod tree;
@@ -45,6 +46,8 @@ pub use images::{
 };
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
+use places::PlacesFile;
+pub use places::{load_places, save_places};
 pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
 
@@ -60,6 +63,7 @@ pub fn script_path(dir: &Path) -> PathBuf {
 
 const PROJECT_FILE: &str = "projekt.toml";
 const CHARACTERS_FILE: &str = "figuren.toml";
+const PLACES_FILE: &str = "orte.toml";
 const LIBRARY_FILE: &str = "bibliothek.toml";
 const TEMPLATES_FILE: &str = "vorlagen.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
@@ -182,18 +186,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     check_version(dir, version.format_version)?;
     let header = read_header(dir)?;
 
-    let characters_path = dir.join(CHARACTERS_FILE);
-    let characters: Characters = match files::exists(&characters_path)? {
-        true => files::read_toml(&characters_path)?,
-        false => Characters {
-            not_figures: Vec::new(),
-            figur: Vec::new(),
-        },
-    };
-    check_characters(&characters.figur).map_err(|message| StoreError::Parse {
-        path: characters_path.clone(),
-        message,
-    })?;
+    let characters = load_characters(dir)?;
 
     let library_path = dir.join(LIBRARY_FILE);
     let library = match files::exists(&library_path)? {
@@ -217,6 +210,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             views: header.ansicht,
             characters: characters.figur,
             not_figures: characters.not_figures,
+            places: load_places(dir)?,
             locations,
             scenes,
             library,
@@ -227,11 +221,45 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     })
 }
 
+/// `figuren.toml` (characters and not-figures); empty when the file is missing.
+fn load_characters(dir: &Path) -> Result<Characters, StoreError> {
+    let path = dir.join(CHARACTERS_FILE);
+    let characters: Characters = match files::exists(&path)? {
+        true => files::read_toml(&path)?,
+        false => Characters {
+            not_figures: Vec::new(),
+            figur: Vec::new(),
+        },
+    };
+    check_characters(&characters.figur).map_err(|message| StoreError::Parse { path, message })?;
+
+    Ok(characters)
+}
+
 /// Writes `project` into `dir`, creating it if needed. Each file is replaced atomically;
 /// location and scene files of other ids are removed, and `bibliothek.toml` and `vorlagen.toml`
 /// when the project has no own objects or templates. `script: None` leaves an existing
 /// `drehbuch.fountain` untouched.
 pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), StoreError> {
+    save_with(dir, project, script, PlacesFile::Write)
+}
+
+/// `save`, but `orte.toml` stays as it is on disk: only `save_places` writes it, from the file
+/// as it is, so a save never undoes an answer another program gave meanwhile.
+pub fn save_keeping_places(
+    dir: &Path,
+    project: &Project,
+    script: Option<&str>,
+) -> Result<(), StoreError> {
+    save_with(dir, project, script, PlacesFile::Keep)
+}
+
+fn save_with(
+    dir: &Path,
+    project: &Project,
+    script: Option<&str>,
+    places: PlacesFile,
+) -> Result<(), StoreError> {
     // Ids become file names: check all before the first write.
     check_ids(project.locations.iter().map(|l| l.id.as_str()))?;
     check_ids(project.scenes.iter().map(|s| s.id.as_str()))?;
@@ -252,7 +280,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
 
     writes.push(encode_characters(dir, project)?);
 
-    let optional = optional_files(dir, project)?;
+    let optional = optional_files(dir, project, places)?;
     writes.extend(optional.iter().filter_map(|(path, bytes)| {
         let bytes = bytes.clone()?;
         Some((path.clone(), bytes))
@@ -289,9 +317,14 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
 /// A file's path with its content, or `None` when there is to be no file.
 type OptionalFile = (PathBuf, Option<Vec<u8>>);
 
-/// The files that exist only while there are entries: own objects and own templates, each
+/// The files that exist only while there are entries: own objects, own templates and play
+/// locations, each
 /// with its content, or `None` when there are none.
-fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, StoreError> {
+fn optional_files(
+    dir: &Path,
+    project: &Project,
+    places: PlacesFile,
+) -> Result<Vec<OptionalFile>, StoreError> {
     let library_path = dir.join(LIBRARY_FILE);
     let templates_path = dir.join(TEMPLATES_FILE);
     let library = match project.library.is_empty() {
@@ -303,7 +336,18 @@ fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, St
         false => Some(template::encode(&templates_path, &project.templates)?),
     };
 
-    Ok(vec![(library_path, library), (templates_path, templates)])
+    let mut files = vec![(library_path, library), (templates_path, templates)];
+    if places == PlacesFile::Keep {
+        return Ok(files);
+    }
+
+    let encoded = match project.places.is_empty() {
+        true => None,
+        false => Some(places::encode(dir, &project.places)?.1),
+    };
+    files.push((dir.join(PLACES_FILE), encoded));
+
+    Ok(files)
 }
 
 /// Sets "(CONT'D) after action" in `projekt.toml` of `dir` and nothing else: the rest of the

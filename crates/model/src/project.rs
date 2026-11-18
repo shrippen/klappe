@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::geometry::{Point, TurnedRect};
 use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
+use crate::place::Place;
 use crate::plan::FloorPlan;
 use crate::register::{BookState, Kind, Print, SceneKey};
 use crate::saved_view::SavedView;
@@ -18,6 +19,8 @@ pub struct Project {
     /// Cues of the book that are no character (`ALLE`, `STIMME`), so they are not asked
     /// about again (DB-50).
     pub not_figures: Vec<String>,
+    /// The play locations of the scene headings (DB-51).
+    pub places: Vec<Place>,
     pub locations: Vec<Location>,
     pub scenes: Vec<Scene>,
     /// The project's own objects (LH-12), next to the built-in library.
@@ -40,6 +43,7 @@ impl Project {
             title: title.to_owned(),
             characters: Vec::new(),
             not_figures: Vec::new(),
+            places: Vec::new(),
             locations: Vec::new(),
             scenes: Vec::new(),
             library: Vec::new(),
@@ -59,6 +63,11 @@ impl Project {
 
     pub fn character(&self, id: &str) -> Option<&Character> {
         self.characters.iter().find(|c| c.id == id)
+    }
+
+    /// The play location a heading's location `name` is, by name or variant.
+    pub fn place_named(&self, name: &str) -> Option<&Place> {
+        self.places.iter().find(|p| p.is_called(name))
     }
 
     pub fn location(&self, id: &str) -> Option<&Location> {

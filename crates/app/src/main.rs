@@ -20,6 +20,8 @@ mod notice;
 mod object;
 mod plan;
 mod selection;
+#[cfg(test)]
+mod shortcuts;
 mod tools;
 mod way;
 

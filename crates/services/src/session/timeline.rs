@@ -171,6 +171,7 @@ impl Session {
                         text: format!("{} · M{}", c.short, index + 1),
                         target: character.clone(),
                         label: c.color.name().to_owned(),
+                        index: *index,
                         at_s: mark.at_s,
                     })
                 }
@@ -181,6 +182,7 @@ impl Session {
                         text: shot.number.clone(),
                         target: id.clone(),
                         label: String::new(),
+                        index: 0,
                         at_s: shot.from_s,
                     })
                 }

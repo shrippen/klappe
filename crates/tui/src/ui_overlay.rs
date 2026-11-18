@@ -263,8 +263,9 @@ pub(crate) fn draw_backup(frame: &mut Frame, app: &App) {
     );
 }
 
-/// The question about the book being asked and its lines: a scene first, then a name (DB-50).
-fn book_lines(app: &App) -> Option<(String, Vec<String>)> {
+/// The question about the book being asked and its lines: a scene first, then a name of the
+/// book (DB-50), then a location of the headings (DB-51).
+fn book_lines(app: &App) -> Option<(&str, String, Vec<String>)> {
     if let Some(question) = app.book_question() {
         let ask = app.texts.book_ask(&question.number, &question.heading);
         let options = app
@@ -276,29 +277,36 @@ fn book_lines(app: &App) -> Option<(String, Vec<String>)> {
             })
             .collect();
 
-        return Some((ask, options));
+        return Some((&app.texts.book_title, ask, options));
     }
 
-    let question = app.figure_question()?;
-    let ask = app.texts.figure_ask(&question.name, question.cues);
+    if let Some(question) = app.figure_question() {
+        let ask = app.texts.figure_ask(&question.name, question.cues);
+        let options = app
+            .figure_answers()
+            .iter()
+            .map(|a| app.texts.figure_line(a, &question.name))
+            .collect();
+
+        return Some((&app.texts.figure_title, ask, options));
+    }
+
+    let question = app.place_question()?;
+    let ask = app.texts.place_ask(&question.name, question.headings);
     let options = app
-        .figure_answers()
+        .place_answers()
         .iter()
-        .map(|a| app.texts.figure_line(a, &question.name))
+        .map(|a| app.texts.place_line(a, &question.name))
         .collect();
 
-    Some((ask, options))
+    Some((&app.texts.place_title, ask, options))
 }
 
-/// One open question about the book: the entry and the scenes it may be, or a name and the
-/// figures it may be.
+/// One open question about the book: the entry and the scenes it may be, a name and the
+/// figures it may be, or a location of the headings and the play locations it may be.
 pub(crate) fn draw_book(frame: &mut Frame, app: &App) {
-    let Some((ask, options)) = book_lines(app) else {
+    let Some((title, ask, options)) = book_lines(app) else {
         return;
-    };
-    let title = match app.book_question() {
-        Some(_) => &app.texts.book_title,
-        None => &app.texts.figure_title,
     };
     let width = BOX_WIDTH.max(cols(ask.chars()) + 4);
     let area = centered(frame.area(), width, options.len() + 4);

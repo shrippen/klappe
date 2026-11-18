@@ -70,6 +70,7 @@ impl Session {
             pending: self.pending.len(),
             not_in_book,
             figures: self.pending_figures.len(),
+            places: self.pending_places.len(),
         }
     }
 
@@ -105,6 +106,7 @@ impl Session {
     /// Returns whether the register changed.
     pub(super) fn reconcile(&mut self) -> bool {
         self.refresh_figures();
+        self.refresh_places();
         if self.script.scenes().is_empty() {
             self.pending.clear();
             return false;
@@ -126,6 +128,7 @@ impl Session {
     /// a new screenplay text, which move the register or the book under the list.
     pub(super) fn refresh_pending(&mut self) {
         self.refresh_figures();
+        self.refresh_places();
         self.pending = match self.script.scenes().is_empty() {
             true => Vec::new(),
             false => book::plan(&self.project, &self.script).pending(&self.project),

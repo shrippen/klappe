@@ -230,6 +230,11 @@ fn script_lines_carry_their_links() {
     assert_eq!(lines[0].chips[0].text, "E · M1");
     assert_eq!(lines[1].chips[0].text, "12.2");
 
+    // A mark's chip says which mark of the track it is (DB-63).
+    assert_eq!(lines[0].chips[0].index, 0);
+    assert_eq!(lines[3].chips[0].target, "burgvogt");
+    assert_eq!(lines[3].chips[0].index, 1);
+
     // At 0 s only the first line's link has come; at 9 s Burgvogt's mark 2 (line 3).
     assert!(lines[0].current);
     s.set_time(9.0);

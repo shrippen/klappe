@@ -39,6 +39,8 @@ pub struct BookReport {
     pub not_in_book: usize,
     /// Names of the book that no character answers to (DB-50).
     pub figures: usize,
+    /// Locations of the headings no play location is called by (DB-51).
+    pub places: usize,
 }
 
 use std::collections::HashSet;

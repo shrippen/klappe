@@ -1,7 +1,10 @@
 //! The questions the register leaves open about the book (`Ctrl+K`): which scene of the
-//! book an entry is, then which figure a name is (DB-50), one question at a time.
+//! book an entry is, then which figure a name is (DB-50), then which play location a name of
+//! a heading is (DB-51), one question at a time.
 
-use klappe_services::{Answer, FigureAnswer, PendingFigure, PendingScene};
+use klappe_services::{
+    Answer, FigureAnswer, PendingFigure, PendingPlace, PendingScene, PlaceAnswer,
+};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::{App, Editor, Flow, Mode, Notice};
@@ -35,9 +38,25 @@ impl App {
         self.session.figure_answers(&question.name)
     }
 
+    /// The location of the headings asked about once no scene is: the first open one.
+    pub(crate) fn place_question(&self) -> Option<&PendingPlace> {
+        self.session.pending_places().first()
+    }
+
+    /// The lines of the place question being asked.
+    pub(crate) fn place_answers(&self) -> Vec<PlaceAnswer> {
+        let Some(question) = self.place_question() else {
+            return Vec::new();
+        };
+
+        self.session.place_answers(&question.name)
+    }
+
     /// Whether any question about the book is open.
     fn book_asks(&self) -> bool {
-        self.book_question().is_some() || self.figure_question().is_some()
+        self.book_question().is_some()
+            || self.figure_question().is_some()
+            || self.place_question().is_some()
     }
 
     pub(super) fn open_book(&mut self) -> Flow {
@@ -64,7 +83,10 @@ impl App {
         }
         let options = match self.book_question() {
             Some(_) => self.book_answers().len(),
-            None => self.figure_answers().len(),
+            None => match self.figure_question() {
+                Some(_) => self.figure_answers().len(),
+                None => self.place_answers().len(),
+            },
         };
 
         match key.code {
@@ -92,7 +114,7 @@ impl App {
 
                 self.session.answer_figure(&name, self.book_sel)
             }
-            (None, None) => return,
+            (None, None) => return self.answer_place(),
         };
         if let Err(e) = answered.and_then(|()| self.session.save_register()) {
             self.notice = Some(Notice::SaveFailed(e.to_string()));
@@ -102,6 +124,29 @@ impl App {
 
         self.answered.push(self.editor.mark_step());
         self.unanswered.clear();
+        self.book_sel = 0;
+        self.refresh_book_note();
+        if !self.book_asks() {
+            self.mode = Mode::Normal;
+        }
+    }
+
+    /// Gives the chosen answer about a play location to the session. It writes only
+    /// `orte.toml`, from the file as it is on disk, and is no step of Ctrl+Z.
+    fn answer_place(&mut self) {
+        let Some(question) = self.place_question() else {
+            return;
+        };
+        let name = question.name.clone();
+
+        if let Err(e) = self.session.answer_place(&name, self.book_sel) {
+            self.notice = Some(Notice::SaveFailed(klappe_services::error_text(
+                self.lang, &e,
+            )));
+            self.mode = Mode::Normal;
+            return;
+        }
+
         self.book_sel = 0;
         self.refresh_book_note();
         if !self.book_asks() {

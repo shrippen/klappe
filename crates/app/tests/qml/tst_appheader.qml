@@ -50,6 +50,8 @@ TestCase {
     SignalSpy { id: zoomSpy; signalName: "zoomRequested" }
     SignalSpy { id: playSpy; signalName: "playRequested" }
     SignalSpy { id: heightSpy; signalName: "heightRequested" }
+    SignalSpy { id: scriptSpy; signalName: "scriptRequested" }
+    SignalSpy { id: planSpy; signalName: "planRequested" }
 
     // Stands for the plan's canvas, which takes Space itself (held, it pans).
     Item { id: fakeCanvas; objectName: "planCanvas"; width: 10; height: 10 }
@@ -78,7 +80,7 @@ TestCase {
     function make() {
         const header = createTemporaryObject(headerComponent, tc)
         verify(header)
-        for (const spy of [newSpy, openSpy, closeSpy, projectSpy, backgroundSpy, viewSpy, orderSpy, zoomSpy, playSpy, heightSpy]) {
+        for (const spy of [newSpy, openSpy, closeSpy, projectSpy, backgroundSpy, viewSpy, orderSpy, zoomSpy, playSpy, heightSpy, scriptSpy, planSpy]) {
             spy.target = header
             spy.clear()
         }
@@ -607,6 +609,33 @@ TestCase {
         compare(count.text, "2 without height · add (Shift+H)")
     }
 
+    // DB-63: the selection's script line, and the plan, by menu, key and palette.
+    function test_the_script_and_the_plan_are_one_command_away() {
+        const header = make()
+        fake.lineNow = 3
+
+        pick(header, "viewMenu", "scriptShow")
+        keyClick(Qt.Key_D, Qt.ShiftModifier)
+        header.run("script.show")
+        compare(scriptSpy.signalArguments.map(a => a[0]), [3, 3, 3])
+
+        fake.lineNow = -1
+        pick(header, "viewMenu", "scriptShow")
+        compare(scriptSpy.signalArguments[3][0], -1)
+
+        pick(header, "viewMenu", "planShow")
+        keyClick(Qt.Key_E, Qt.ShiftModifier)
+        header.run("script.plan")
+        compare(planSpy.count, 3)
+
+        const command = id => header.commandPalette.commands.find(c => c.id === id)
+        compare(command("script.show").keys, "Umschalt+D")
+        compare(command("script.plan").keys, "Umschalt+E")
+        fake.loaded = false
+        verify(!entry(header, "viewMenu", "scriptShow").enabled)
+        verify(!entry(header, "viewMenu", "planShow").enabled)
+    }
+
     function test_the_view_menu_zooms() {
         const header = make()
 
@@ -627,7 +656,7 @@ TestCase {
                            "palette.group.view", "palette.group.edit", "palette.group.scenes",
                            "palette.group.plans", "key.ctrl", "key.shift", "key.space", "menu.viewZoom", "menu.zoomIn",
                            "menu.zoomOut", "menu.zoomFit", "menu.play", "menu.markPrev", "menu.markNext",
-                           "palette.group.playback"]) {
+                           "palette.group.playback", "script.toPlan", "script.show", "script.plan"]) {
             verify(de.t(key) !== key, "de " + key)
             verify(en.t(key) !== key, "en " + key)
         }

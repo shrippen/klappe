@@ -22,6 +22,7 @@ mod layers;
 mod objects;
 mod pages;
 mod pick;
+mod places;
 mod playback;
 mod retime;
 mod saved;
@@ -41,6 +42,7 @@ pub use fade::Fade;
 pub use figures::FigureAnswer;
 pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
+pub use places::PlaceAnswer;
 pub use retime::{Grab, TimeSnap};
 
 /// Groups of the plan the timeline's layer switches show or hide.
@@ -191,6 +193,8 @@ pub struct Session {
     pending: Vec<crate::book::PendingScene>,
     /// Cues of the book no character answers to (`pending_figures`).
     pending_figures: Vec<crate::figures::PendingFigure>,
+    /// Locations of the headings no play location is called by (`pending_places`).
+    pending_places: Vec<crate::places::PendingPlace>,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends

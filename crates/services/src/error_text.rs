@@ -9,6 +9,9 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
     if let ServiceError::NoDecision(_) = error {
         return language.text("error.noDecision");
     }
+    if let ServiceError::NoPlaceAnswer(_) = error {
+        return language.text("error.noPlaceAnswer");
+    }
 
     // Wraps another error: its text first, then where the old example copy went.
     let ServiceError::ExampleAside { aside, source } = error else {
@@ -129,6 +132,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         // Listed so a new variant must be placed: `error_text` words these itself.
         ServiceError::NoScene(_)
         | ServiceError::NoDecision(_)
+        | ServiceError::NoPlaceAnswer(_)
         | ServiceError::NoPlan(_)
         | ServiceError::NoShot(_)
         | ServiceError::NoLocation(_)
@@ -178,6 +182,9 @@ pub fn book_report_text(language: Language, report: &crate::BookReport) -> Strin
     }
     if report.figures > 0 {
         lines.push(count("book.figures", report.figures));
+    }
+    if report.places > 0 {
+        lines.push(count("book.places", report.places));
     }
 
     lines.join(" ")
@@ -254,11 +261,11 @@ mod tests {
         );
         assert_eq!(
             error_text(Language::German, &bad),
-            "Ungültiger Wert für Objektiv (mm): 5000"
+            "Ungültiger Wert für Brennweite (mm): 5000"
         );
         assert_eq!(
             error_text(Language::English, &bad),
-            "Invalid value for Lens (mm): 5000"
+            "Invalid value for Focal length (mm): 5000"
         );
     }
 
@@ -349,6 +356,7 @@ mod tests {
             pending: 2,
             not_in_book: 1,
             figures: 3,
+            places: 3,
         };
 
         for language in [Language::German, Language::English] {
