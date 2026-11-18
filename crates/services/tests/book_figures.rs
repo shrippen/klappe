@@ -318,3 +318,127 @@ fn creating_a_figure_answered_elsewhere_makes_no_second_one() {
 
     assert_eq!(names(&dir), ["Bert"]);
 }
+
+fn aliases_of(dir: &Path, id: &str) -> Vec<String> {
+    let project = klappe_store::load(dir).unwrap().project;
+
+    project.character(id).unwrap().aliases.clone()
+}
+
+#[test]
+fn undoing_an_answer_keeps_a_figure_the_window_saved_meanwhile() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-undo-beside", vec![anna], BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Carl")).unwrap();
+    gui.save().unwrap();
+    tui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
+
+    tui.undo();
+    tui.save_answer().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+    assert!(klappe_store::load(&dir)
+        .unwrap()
+        .project
+        .not_figures
+        .is_empty());
+
+    tui.redo();
+    tui.save_answer().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+    assert_eq!(
+        klappe_store::load(&dir).unwrap().project.not_figures,
+        ["ALLE"]
+    );
+}
+
+#[test]
+fn undoing_an_alias_or_a_creation_takes_back_only_that_entry() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-undo-entry", vec![anna], BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    tui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
+        .unwrap();
+    tui.resolve_figure("ALLE", FigureChoice::Create).unwrap();
+    gui.edit_project(add("Carl")).unwrap();
+    gui.save().unwrap();
+
+    tui.undo();
+    tui.save_answer().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+    assert_eq!(aliases_of(&dir, "anna"), ["BERT"]);
+
+    tui.undo();
+    tui.save_answer().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+    assert!(aliases_of(&dir, "anna").is_empty());
+}
+
+#[test]
+fn an_undo_that_is_no_figure_answer_leaves_the_figures_file_alone() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-undo-scene", vec![anna], BOOK);
+    let mut tui = Session::open(&dir).unwrap();
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Carl")).unwrap();
+    gui.save().unwrap();
+    tui.edit_project(add("Dora")).unwrap();
+
+    tui.undo();
+    tui.save_answer().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+}
+
+#[test]
+fn a_save_keeps_a_figure_and_a_not_figure_another_program_wrote() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-save-merge", vec![anna], BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    tui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
+    tui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
+        .unwrap();
+
+    gui.edit_project(add("Carl")).unwrap();
+    gui.save().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+    assert_eq!(aliases_of(&dir, "anna"), ["BERT"]);
+    assert_eq!(
+        klappe_store::load(&dir).unwrap().project.not_figures,
+        ["ALLE"]
+    );
+    assert!(gui.pending_figures().iter().all(|p| p.name != "ALLE"));
+}
+
+#[test]
+fn a_save_still_deletes_and_renames_what_the_window_changed() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let bert = character("bert", "Bert", "B", FigureColor::Blue);
+    let dir = make("fig-save-own", vec![anna, bert], BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    tui.resolve_figure("ALLE", FigureChoice::Create).unwrap();
+
+    gui.edit_project(ProjectEdit::RemoveCharacter { id: "bert".into() })
+        .unwrap();
+    let rename = ProjectEdit::EditCharacter {
+        id: "anna".into(),
+        name: "Annabelle".into(),
+        short: "A".into(),
+        color: FigureColor::Red,
+        group: None,
+        size_m: None,
+    };
+    gui.edit_project(rename).unwrap();
+    gui.save().unwrap();
+
+    assert_eq!(names(&dir), ["Annabelle", "Alle"]);
+}

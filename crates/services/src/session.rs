@@ -198,6 +198,11 @@ pub struct Session {
     pending: Vec<crate::book::PendingScene>,
     /// Cues of the book no character answers to (`pending_figures`).
     pending_figures: Vec<crate::figures::PendingFigure>,
+    /// The figures as last taken from or written to `figuren.toml`: a save keeps what other
+    /// programs wrote since, and replaces only what the session changed against this.
+    figures_base: crate::figure_file::FigureSet,
+    /// The figure answer `undo` or `redo` just went over, for `save_answer`.
+    disk_step: Option<(crate::figure_file::FigureDelta, crate::disk_step::Way)>,
     /// Locations of the headings no play location is called by (`pending_places`).
     pending_places: Vec<crate::places::PendingPlace>,
     /// The Sperrstand of the scene numbers (DB-33) as saved last; `None` without the file.

@@ -12,12 +12,14 @@
 mod book;
 mod camera_edit;
 mod catalog;
+mod disk_step;
 mod edit;
 mod error;
 mod error_text;
 mod example;
 mod export_format;
 mod field;
+mod figure_file;
 mod figures;
 mod folder;
 mod library;

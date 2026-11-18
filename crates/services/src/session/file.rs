@@ -29,6 +29,7 @@ impl Session {
             .position(|s| !s.plans.is_empty())
             .unwrap_or(0);
 
+        let figures_base = crate::figure_file::FigureSet::of(&loaded.project);
         let mut session = Self {
             dir: dir.to_owned(),
             project: loaded.project,
@@ -59,6 +60,8 @@ impl Session {
             layout: None,
             pending: Vec::new(),
             pending_figures: Vec::new(),
+            figures_base,
+            disk_step: None,
             pending_places: Vec::new(),
             lock,
             twin_numbers: 0,
@@ -118,6 +121,7 @@ impl Session {
         self.number_script();
         // So the register holds the book as saved: the next outside change aligns against it.
         self.reconcile();
+        self.merge_figures()?;
         klappe_store::save_keeping_places(&self.dir, &self.project, self.script_text.as_deref())?;
         self.write_lock()?;
         self.dirty = false;
@@ -215,15 +219,6 @@ impl Session {
     /// the book is a decision, kept at once where the book is edited without the plans (TUI).
     pub fn save_register(&mut self) -> Result<(), ServiceError> {
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
-
-        Ok(())
-    }
-
-    /// Writes only `figuren.toml`, as the session holds it. For undo and redo of an answer
-    /// about a name of the book (DB-50), which must reach the file; the answer itself writes
-    /// from the disk (`resolve_figure`).
-    pub fn save_figures(&mut self) -> Result<(), ServiceError> {
-        klappe_store::save_characters(&self.dir, &self.project)?;
 
         Ok(())
     }

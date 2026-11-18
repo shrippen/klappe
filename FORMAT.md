@@ -453,6 +453,12 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   wenn nicht leer). Umbenennen in Klappe ändert `name`, nicht `id` und nicht `aliases`. Ein Name oder Alias
   gehört genau einer Figur: tragen zwei Figuren denselben (Groß- und Kleinschreibung zählt nicht),
   lehnt Laden das Projekt ab. Keine neue Formatversion: Schlüssel, die fehlen, gelten als leer.
+  Eine zweite Sitzung (die TUI neben dem Fenster) kann `figuren.toml` ändern; darum liest jedes
+  Schreiben die Datei neu. Eine Antwort auf einen Namen, auch ihr Rückgängig und Wiederholen,
+  ändert nur ihren Eintrag (Figur, Alias, `not_figures`). Speichern im Fenster vereinigt Datei
+  und Sitzung: Figuren nach `id`, Aliase und `not_figures` vereinigt; was das Fenster seit
+  dem Öffnen geändert hat (umbenannt, gelöscht), gilt. Ein im Fenster gelöschter Alias kommt
+  durch die Vereinigung zurück, wenn die Datei ihn noch hat.
 - **Größe von Figuren (LH-25):** eine Figur in `figuren.toml` hat optional `size_m`, den
   Durchmesser des Körpers in Metern (0,1 bis 20), etwa Kind, Pferd oder Kutsche. Ohne `size_m`
   gilt der Standard (0,7 m). Eine Gruppe bleibt um denselben Faktor größer als eine einzelne

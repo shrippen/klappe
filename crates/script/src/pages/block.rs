@@ -378,7 +378,11 @@ fn has_contd(name: &str) -> bool {
     name.split('(')
         .skip(1)
         .filter_map(|group| group.split(')').next())
-        .map(|word| word.trim().to_uppercase().replace(TYPOGRAPHIC_APOSTROPHE, "'"))
+        .map(|word| {
+            word.trim()
+                .to_uppercase()
+                .replace(TYPOGRAPHIC_APOSTROPHE, "'")
+        })
         .any(|word| CONTD_WORDS.contains(&word.as_str()))
 }
 

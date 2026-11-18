@@ -2,7 +2,9 @@
 //! answer for each.
 
 use super::Session;
+use crate::disk_step::DiskStep;
 use crate::error::ServiceError;
+use crate::figure_file::{self, FigureDelta, FigureSet};
 use crate::figures::{self, FigureChoice, PendingFigure};
 
 /// Undo step of `resolve_figure`.
@@ -77,29 +79,80 @@ impl Session {
             return Err(ServiceError::NoDecision(name.to_owned()));
         }
 
-        // The file as it is now, not the session's copy: it may be older.
-        let (characters, not_figures) = klappe_store::load_figures(&self.dir)?;
-        let mut next = self.project.clone();
-        next.characters = characters;
-        next.not_figures = not_figures;
+        let mut next = self.project_with_disk_figures()?;
         let open = figures::pending(&next, &self.script)
             .iter()
             .any(|p| p.name == name);
         if !open || !figures::decide(&mut next, name, &choice) {
-            self.project.characters = next.characters;
-            self.project.not_figures = next.not_figures;
-            self.refresh_figures();
+            self.take_figures(next);
 
             return Ok(());
         }
         klappe_store::save_characters(&self.dir, &next)?;
 
+        let Some(delta) = FigureDelta::of(name, &choice, &next) else {
+            return Err(ServiceError::NoDecision(name.to_owned()));
+        };
         let (scene, shown) = self.ids_on_view();
-        self.commit_step(next, RESOLVE_STEP);
+        self.figures_base = FigureSet::of(&next);
+        self.commit_answer(next, RESOLVE_STEP, delta);
         self.follow_scene(scene, shown);
         self.refresh_figures();
 
         Ok(())
+    }
+
+    /// Writes what undo or redo left: the register, and for the answer to a cue only its
+    /// entry in `figuren.toml`, taken back or done again in the file as it is on disk (the
+    /// window beside the TUI may have changed the rest). The session then has the file's
+    /// figures. Undo of anything else leaves `figuren.toml` alone.
+    pub fn save_answer(&mut self) -> Result<(), ServiceError> {
+        klappe_store::save_register(&self.dir, &self.project.scenes)?;
+
+        let mut disk = self.project_with_disk_figures()?;
+        if let Some((delta, way)) = self.disk_step.take() {
+            delta.run(&mut disk, way);
+            klappe_store::save_characters(&self.dir, &disk)?;
+        }
+        self.take_figures(disk);
+
+        Ok(())
+    }
+
+    /// Before a save: the figures of the file and of the session, merged (see `figure_file`).
+    pub(super) fn merge_figures(&mut self) -> Result<(), ServiceError> {
+        let (characters, not_figures) = klappe_store::load_figures(&self.dir)?;
+        let disk = FigureSet {
+            characters,
+            not_figures,
+        };
+        let merged = figure_file::merge(&self.figures_base, &self.project, disk);
+
+        merged.clone().put(&mut self.project);
+        self.figures_base = merged;
+        self.refresh_figures();
+
+        Ok(())
+    }
+
+    /// The project with the figures of `figuren.toml` as it is now, not the session's copy:
+    /// it may be older.
+    fn project_with_disk_figures(&self) -> Result<klappe_model::Project, ServiceError> {
+        let (characters, not_figures) = klappe_store::load_figures(&self.dir)?;
+        let mut project = self.project.clone();
+        project.characters = characters;
+        project.not_figures = not_figures;
+
+        Ok(project)
+    }
+
+    /// The figures of `from` (read from the file) become the session's.
+    fn take_figures(&mut self, from: klappe_model::Project) {
+        let figures = FigureSet::of(&from);
+
+        self.figures_base = figures.clone();
+        figures.put(&mut self.project);
+        self.refresh_figures();
     }
 
     /// Asks the book which cues are open, changing nothing.
