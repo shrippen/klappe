@@ -215,6 +215,7 @@ fn a_cue_with_contd_in_any_spelling_or_place_gets_no_second_one() {
         ("ANNA (forts.)", "FORTS."),
         ("ANNA (CONT'D) (V.O.)", "CONT'D"),
         ("ANNA (V.O.) (cont'd) (O.S.)", "FORTS."),
+        ("ANNA (CONT\u{2019}D)", "CONT'D"),
     ];
 
     for (cue, contd) in cases {

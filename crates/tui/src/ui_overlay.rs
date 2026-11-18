@@ -342,6 +342,7 @@ pub(crate) fn draw_book(frame: &mut Frame, app: &App) {
     let Some((title, ask, options)) = book_lines(app) else {
         return;
     };
+
     let width = BOX_WIDTH.max(cols(ask.chars()) + 4);
     let area = centered(frame.area(), width, options.len() + 4);
     let block = framed(title);

@@ -369,13 +369,17 @@ pub(super) fn column(line: &Line) -> usize {
 /// parentheses after the name, in any order).
 const CONTD_WORDS: [&str; 3] = ["CONT'D", "WEITER", "FORTS."];
 
+/// What a word processor makes of the `'` in `CONT'D`.
+const TYPOGRAPHIC_APOSTROPHE: char = '\u{2019}';
+
 /// Whether an extension of `name` already says it is continued: `ANNA (cont'd)`,
 /// `ANNA (WEITER) (V.O.)`.
 fn has_contd(name: &str) -> bool {
     name.split('(')
         .skip(1)
         .filter_map(|group| group.split(')').next())
-        .any(|word| CONTD_WORDS.contains(&word.trim().to_uppercase().as_str()))
+        .map(|word| word.trim().to_uppercase().replace(TYPOGRAPHIC_APOSTROPHE, "'"))
+        .any(|word| CONTD_WORDS.contains(&word.as_str()))
 }
 
 /// The name with `(CONT'D)` after it, once: a name that has one in any spelling stays.
