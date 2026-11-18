@@ -4,7 +4,7 @@
 pub use klappe_services::Language;
 
 /// Keys of the help lines, in the order they are shown.
-const HELP_KEYS: [&str; 28] = [
+const HELP_KEYS: [&str; 30] = [
     "tui.help.save",
     "tui.help.quit",
     "tui.help.undo",
