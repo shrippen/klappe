@@ -28,6 +28,7 @@ use crate::palette::{palette, Palette, Rgb, Theme};
 use crate::style::{role_style, RoleStyle};
 use klappe_model::FigureColor;
 
+mod arrow;
 mod note;
 mod swatch;
 
@@ -178,6 +179,7 @@ fn plan_prims(
         match (&item.shape, item.role) {
             (Shape::Image { .. }, _) => image_prim(item, map, &page.images, &mut plan)?,
             (_, Role::Note) => note::prims(item, map, pal, body_m, &mut plan)?,
+            (_, Role::North | Role::SunRay) => arrow::prims(item, map, pal, body_m, &mut plan)?,
             _ => item_prims(item, map, pal, body_m, &mut plan)?,
         }
 

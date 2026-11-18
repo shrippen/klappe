@@ -442,6 +442,7 @@ fn adding_or_renaming_an_entry_refreshes_the_questions() {
         width_m: 8.0,
         depth_m: 5.5,
         wall_height_m: 2.6,
+        site: None,
     })
     .unwrap();
     let halle = s.project().locations[0].id.clone();
@@ -452,6 +453,7 @@ fn adding_or_renaming_an_entry_refreshes_the_questions() {
         number: "9".into(),
         heading: KELLER.into(),
         location: halle.clone(),
+        sun: None,
     })
     .unwrap();
     assert!(s.pending_scenes().is_empty());

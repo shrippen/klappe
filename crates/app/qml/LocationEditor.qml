@@ -3,8 +3,8 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import Kante
 
-// Adds a location or changes its name, size and room height (LH-02, LH-90, D-08). The set drawn
-// there stays.
+// Adds a location or changes its name, size, room height and place on Earth (LH-02, LH-90,
+// LH-52, D-08). The set drawn there stays.
 EditorPane {
     id: form
 
@@ -23,15 +23,23 @@ EditorPane {
         widthField.text = texts.num(item ? item.width : defaultWidth, 2)
         depthField.text = texts.num(item ? item.depth : defaultDepth, 2)
         heightField.text = texts.num(item ? item.height : defaultHeight, 2)
+        latitudeField.text = item && item.latitude != null ? texts.exact(item.latitude) : ""
+        longitudeField.text = item && item.longitude != null ? texts.exact(item.longitude) : ""
+        northField.text = item && item.latitude != null ? texts.exact(item.north) : ""
+    }
+
+    // The place as the controller takes it: latitude, longitude and north as typed.
+    function site() {
+        return JSON.stringify([latitudeField.text, longitudeField.text, northField.text])
     }
 
     onItemChanged: load()
 
     submit: function () {
         if (!item) {
-            return controller.addLocation(nameField.text, widthField.text, depthField.text, heightField.text)
+            return controller.addLocation(nameField.text, widthField.text, depthField.text, heightField.text, site())
         }
-        return controller.editLocation(item.id, nameField.text, widthField.text, depthField.text, heightField.text)
+        return controller.editLocation(item.id, nameField.text, widthField.text, depthField.text, heightField.text, site())
     }
     remove: function () { return controller.removeLocation(item.id) }
 
@@ -72,5 +80,42 @@ EditorPane {
         objectName: "roomHeightField"
         Layout.fillWidth: true
         inputMethodHints: Qt.ImhFormattedNumbersOnly
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Kirigami.Units.largeSpacing
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            KanteSectionLabel { text: form.texts.t("location.latitude") }
+            KanteTextField {
+                id: latitudeField
+                objectName: "latitudeField"
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+            }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            KanteSectionLabel { text: form.texts.t("location.longitude") }
+            KanteTextField {
+                id: longitudeField
+                objectName: "longitudeField"
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+            }
+        }
+    }
+    KanteSectionLabel { text: form.texts.t("location.north") }
+    KanteTextField {
+        id: northField
+        objectName: "northField"
+        Layout.fillWidth: true
+        inputMethodHints: Qt.ImhFormattedNumbersOnly
+    }
+    KanteCallout {
+        Layout.fillWidth: true
+        kind: KanteCallout.Kind.Info
+        text: form.texts.t("location.sunHint")
     }
 }

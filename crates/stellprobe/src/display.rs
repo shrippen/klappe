@@ -92,6 +92,12 @@ pub enum Role {
     Object,
     LightBeam,
     Light,
+    /// Sunlight through a window on the floor (LH-52): a patch under the set's walls.
+    SunPatch,
+    /// The arrow of the sun's direction of travel (LH-52), its azimuth and elevation as label.
+    SunRay,
+    /// The arrow of north (LH-52).
+    North,
     Axis,
     /// One run of a camera's way, in the line its rig has (LH-33).
     CameraPath {

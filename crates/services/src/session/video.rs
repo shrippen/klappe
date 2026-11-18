@@ -23,7 +23,7 @@ use klappe_stellprobe::{render, DisplayList, Shape};
 
 use super::fade::{fades_of, Fade};
 use super::layers::is_shown;
-use super::pick::retain_shown;
+use super::pick::{retain_shown, sun_on};
 use super::{Layer, Session};
 use crate::error::ServiceError;
 
@@ -98,6 +98,7 @@ impl VideoJob {
                 .or_insert_with(|| klappe_store::image_size(&self.dir, file).ok())
         };
         let mut list = render(&self.project, &location.set, plan, t_s, &size);
+        sun_on(&mut list, location, scene);
         let shows = |role, source: Option<&_>| {
             is_shown(&self.hidden_layers, &self.hidden_tracks, role, source)
         };

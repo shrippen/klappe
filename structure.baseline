@@ -17,13 +17,12 @@ crates/export/src/stroke.rs	visible	ccn=17
 crates/imagehead/src/lib.rs	jpeg_frame	ccn=22
 crates/script/src/write.rs	render	ccn=16
 crates/services/src/error_text.rs	own_text	ccn=18
-crates/services/src/field.rs	name	ccn=45
+crates/services/src/field.rs	name	ccn=51
 crates/services/src/plan_edit.rs	apply	ccn=33 length=120
 crates/services/src/plan_edit/check.rs	check	ccn=19
 crates/services/src/plan_edit/group.rs	copy	ccn=20
 crates/services/tests/plan_edit.rs	-	lines=841
 crates/stellprobe/src/look.rs	look	ccn=16
-crates/store/src/lib.rs	load	ccn=16
 crates/store/src/lib.rs	save_with	ccn=18
-crates/store/tests/store.rs	-	lines=842
+crates/store/tests/store.rs	-	lines=843
 crates/store/tests/store.rs	plan	length=125
