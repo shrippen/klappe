@@ -78,13 +78,15 @@ fn fading_out(keys: &[Key<'_>], t_s: f64) -> Option<(Placement, f64)> {
             continue;
         }
 
-        // A figure that appears at this mark is not there before it: the fade starts no
-        // earlier and is shorter then (appears at 10 s, next mark at 10.2 s: 10 to 10.2 s).
+        // A figure is not there before its latest appearance up to this mark: the fade starts
+        // no earlier and is shorter then (appears at 10 s, leaves at 10.2 s: 10 to 10.2 s).
         let ends_s = (key.at_s + key.hold_s + FADE_S).min(next.map_or(f64::INFINITY, |n| n.at_s));
-        let mut starts_s = ends_s - FADE_S;
-        if key.arrival == Arrival::Appear {
-            starts_s = starts_s.max(key.at_s);
-        }
+        let appeared_s = keys[..=i]
+            .iter()
+            .rev()
+            .find(|k| k.arrival == Arrival::Appear)
+            .map_or(f64::NEG_INFINITY, |k| k.at_s);
+        let starts_s = (ends_s - FADE_S).max(appeared_s);
         if t_s > starts_s && t_s < ends_s {
             return Some((key.place, (ends_s - t_s) / (ends_s - starts_s)));
         }
@@ -251,6 +253,12 @@ mod tests {
                 mark(0.0, 0.0, Arrival::Walk, Departure::Leave),
                 mark(10.0, 0.0, Arrival::Appear, Departure::Leave),
                 mark(10.3, 0.0, Arrival::Walk, Departure::Stay),
+            ],
+            // A walking mark leaves soon after the appearance.
+            vec![
+                mark(10.0, 0.0, Arrival::Appear, Departure::Stay),
+                mark(10.2, 0.0, Arrival::Walk, Departure::Leave),
+                mark(10.4, 0.0, Arrival::Walk, Departure::Stay),
             ],
         ];
 
