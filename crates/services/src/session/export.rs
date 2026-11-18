@@ -115,7 +115,7 @@ impl Session {
         &self,
         picture: &klappe_stellprobe::Picture,
     ) -> Result<Vec<u8>, ServiceError> {
-        let strength = |role| self.scene_fade(role);
+        let strength = self.picture_strength(picture);
 
         Ok(klappe_export::picture_png(
             picture,

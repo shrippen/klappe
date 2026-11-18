@@ -6,7 +6,7 @@ use crate::plan::{frame_json, ppm, Palette, IMAGE_FORMAT};
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QImage, QString};
-use klappe_services::{Picture, SceneRole, Source};
+use klappe_services::{Picture, Session, Source};
 
 impl qobject::Controller {
     pub(super) fn camera_image(
@@ -37,7 +37,9 @@ impl qobject::Controller {
             let width = usize::try_from(width_px).ok()?;
             let picture = s.camera_picture_of(&id.to_string(), width)?;
 
-            colored(&picture, &palette, &|_| FULL_STRENGTH, &|_| false)
+            let strength = Session::camera_strength(&picture);
+
+            colored(&picture, &palette, &strength, &|_| false)
         });
 
         image.map(|(image, _)| image).unwrap_or_default()
@@ -71,20 +73,19 @@ impl super::ControllerRust {
         };
         let picture = s.camera_picture(picked, usize::try_from(width_px).ok()?)?;
 
-        colored(&picture, &palette, &|_| FULL_STRENGTH, &|_| false)
+        let strength = Session::camera_strength(&picture);
+
+        colored(&picture, &palette, &strength, &|_| false)
     }
 }
 
-/// What a camera's picture takes from a layer's fade: nothing, a camera sees what is there.
-const FULL_STRENGTH: f64 = 1.0;
-
 /// `picture` as an image in the palette's colours and the JSON of its size and names;
-/// `strength` is how much of its colour a role keeps (LH-15); the outline of what `selected`
+/// `strength` is how much of its colour pixel `i` keeps (LH-15); the outline of what `selected`
 /// names is the accent.
 pub(super) fn colored(
     picture: &Picture,
     palette: &Palette,
-    strength: &dyn Fn(SceneRole) -> f64,
+    strength: &dyn Fn(usize) -> f64,
     selected: &dyn Fn(&Source) -> bool,
 ) -> Option<(QImage, String)> {
     let image = QImage::from_data(

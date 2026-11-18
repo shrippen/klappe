@@ -14,6 +14,7 @@ use klappe_model::PaperSetup;
 use klappe_stellprobe::{DisplayList, Source};
 
 use super::export::{file_part, write_file, MIN_NUMBER_WIDTH};
+use super::fade::layer_fade_of;
 use super::{Fade, Session};
 use crate::error::{write_failed, ServiceError};
 
@@ -147,10 +148,13 @@ impl Session {
         page.fade = list
             .items
             .iter()
-            .zip(self.item_fades(&list))
-            .map(|(item, own)| match &item.source {
-                Some(Source::Camera(id)) if *id == focus.camera => 1.0,
-                _ => own.min(Fade::Faint.strength()),
+            .map(|item| match &item.source {
+                Some(Source::Camera(id)) if *id == focus.camera => item.opacity,
+                _ => {
+                    let layer = layer_fade_of(item, &self.faded_layers);
+
+                    layer.min(Fade::Faint.strength()) * item.opacity
+                }
             })
             .collect();
 

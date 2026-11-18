@@ -5,8 +5,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Arrival, Departure, DisplayList, Fade, Layer, Lock, Pace, PlanEdit, Role, ServiceError, Session,
-    Snapping, Source, Visibility,
+    Arrival, Departure, DisplayList, Fade, Layer, Lock, Pace, PlanEdit, Role, ServiceError,
+    Session, Snapping, Source, Visibility,
 };
 
 fn example() -> PathBuf {
@@ -308,4 +308,26 @@ fn the_print_multiplies_layer_fade_and_opacity() {
     for (half, product) in half.iter().zip(&product) {
         assert!((product - half * 0.6).abs() < 1e-3, "{half} -> {product}");
     }
+}
+
+/// The 3D view takes the same finished strength: layer fade times the opacity of the source.
+#[test]
+fn the_3d_view_multiplies_layer_fade_and_opacity() {
+    let mut s = fading();
+    s.toggle_view();
+    s.set_fade(Layer::Figures, Fade::Medium);
+    let picture = s.free_picture((640.0, 480.0)).unwrap();
+    let strength = s.picture_strength(&picture);
+    let of = |id: &str| {
+        let at = picture
+            .frame
+            .source
+            .iter()
+            .position(|n| picture.sources.get(*n as usize) == Some(&Source::Figure(id.into())));
+
+        strength(at.unwrap())
+    };
+
+    assert_eq!(of("elisabeth"), 0.6 * 0.5);
+    assert_eq!(of("burgvogt"), 0.6);
 }

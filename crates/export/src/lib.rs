@@ -164,10 +164,11 @@ pub fn zip_fits(entries: usize, bytes: u64) -> Result<(), ExportError> {
 }
 
 /// A view of the set as PNG (LH-86), as wide as the picture: print colours, names written in.
+/// `strength` is how much of its colour pixel `i` keeps, 1 for all of it.
 pub fn picture_png(
     picture: &Picture,
     theme: Theme,
-    strength: &dyn Fn(SceneRole) -> f64,
+    strength: &dyn Fn(usize) -> f64,
 ) -> Result<Vec<u8>, ExportError> {
     picture_png::write(picture, theme, strength)
 }
