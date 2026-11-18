@@ -13,8 +13,8 @@ const LOW_SUN_DEG: f64 = 2.0;
 /// A wall this close to the beam's direction (sine of the angle between them) lets a sliver of
 /// light through, not a patch.
 const GRAZING_SINE: f64 = 0.05;
-/// The arrows stand in the top right corner of the set, this far from its edges and from each
-/// other.
+/// The arrows stand one above the other in the top right corner of the set, this far from its
+/// edges and from each other.
 const ARROW_LENGTH_M: f64 = 1.2;
 const ARROW_MARGIN_M: f64 = 1.0;
 const SUN_ARROW_STEP_M: f64 = 1.6;
@@ -117,9 +117,9 @@ fn patch_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
 /// North, always; the sun's direction of travel, while it is up.
 fn arrow_items(set: &SetPlan, site: &Site, sun: &Sun) -> Vec<Item> {
     let anchor = |step: f64| {
-        let x_m = (set.width_m - ARROW_MARGIN_M - step).max(ARROW_MARGIN_M);
+        let x_m = (set.width_m - ARROW_MARGIN_M).max(ARROW_MARGIN_M);
 
-        Point::new(x_m, ARROW_MARGIN_M)
+        Point::new(x_m, ARROW_MARGIN_M + step)
     };
     let north = Sun {
         azimuth_deg: 0.0,
@@ -370,5 +370,33 @@ mod tests {
             .max_by(|a, b| a.x_m.total_cmp(&b.x_m))
             .unwrap();
         assert!(near(tip.x_m, 9.0 + ARROW_LENGTH_M / 2.0), "{tip:?}");
+    }
+
+    /// A set narrower than two arrows side by side keeps them apart.
+    #[test]
+    fn the_arrows_on_a_narrow_set_do_not_overlap() {
+        let sun = Sun {
+            azimuth_deg: 180.0,
+            elevation_deg: 30.0,
+        };
+        let set = SetPlan {
+            width_m: 2.0,
+            depth_m: 8.0,
+            ..SetPlan::default()
+        };
+        let items = arrow_items(&set, &SITE, &sun);
+        let centre = |role| {
+            let points = &polygons(&items, role)[0];
+            let n = points.len() as f64;
+
+            Point::new(
+                points.iter().map(|p| p.x_m).sum::<f64>() / n,
+                points.iter().map(|p| p.y_m).sum::<f64>() / n,
+            )
+        };
+        let (north, ray) = (centre(Role::North), centre(Role::SunRay));
+        let apart = (north.x_m - ray.x_m).hypot(north.y_m - ray.y_m);
+
+        assert!(apart >= ARROW_LENGTH_M, "{apart}");
     }
 }
