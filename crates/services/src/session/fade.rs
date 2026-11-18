@@ -11,7 +11,7 @@
 
 use std::collections::HashMap;
 
-use klappe_stellprobe::{DisplayList, Item, Picture, SceneRole};
+use klappe_stellprobe::{DisplayList, Item, Picture, SceneRole, Source};
 
 use super::layers::layer_of;
 use super::{Layer, Session};
@@ -71,6 +71,23 @@ pub(super) fn fades_of(list: &DisplayList, faded: &HashMap<Layer, Fade>) -> Vec<
     let strength = |item: &Item| layer_fade_of(item, faded) * item.opacity;
 
     list.items.iter().map(strength).collect()
+}
+
+/// The strength of each item of `list` on the page of `camera`: that camera as it is, the rest
+/// at most `Fade::Faint` (LH-87). The same rule as `fades_of`, with the layers set for the page.
+pub(super) fn focused_fades(list: &DisplayList, camera: &str) -> Vec<f64> {
+    let faint: HashMap<Layer, Fade> = Layer::ALL.into_iter().map(|l| (l, Fade::Faint)).collect();
+    let strong = fades_of(list, &HashMap::new());
+    let pale = fades_of(list, &faint);
+
+    list.items
+        .iter()
+        .zip(strong.into_iter().zip(pale))
+        .map(|(item, (strong, pale))| match &item.source {
+            Some(Source::Camera(id)) if id == camera => strong,
+            _ => pale,
+        })
+        .collect()
 }
 
 /// Every role code of a pixel fits a byte.
