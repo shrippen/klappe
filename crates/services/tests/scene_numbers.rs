@@ -178,7 +178,7 @@ fn a_struck_scene_stays_as_a_heading_and_keeps_its_plans() {
         "sn-struck",
         SceneNumbering::Locked,
         1,
-        &(saal("") + &hof("")),
+        &(saal(" #1#") + &hof(" #2#")),
     );
     let mut s = Session::open(&dir).unwrap();
 
@@ -209,7 +209,7 @@ fn an_english_project_says_omitted() {
         "sn-omitted",
         SceneNumbering::Locked,
         1,
-        &(saal("") + &hof("")),
+        &(saal(" #1#") + &hof(" #2#")),
     );
     let s = Session::open(&dir).unwrap();
     let mut project = s.project().clone();

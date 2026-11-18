@@ -523,15 +523,20 @@ fn a_copied_scene_keeps_its_entry_on_the_first_twin() {
     });
 }
 
-/// A settled register with one entry per copy of "9 HOF", ids in register order. They get
-/// there as in practice: a scene is copied and pasted, one copy at a time, and saved.
+/// A settled register with one entry per copy of "9 HOF", ids in register order, and the book
+/// with the copies pasted from outside: saving would number them 9A, 9B, so the register is
+/// written directly.
 fn twinned(name: &str, copies: usize) -> (PathBuf, Vec<String>) {
     let dir = settled(name, vec![entry("aaaa", "9", HOF)], &hof("9"));
-    for n in 2..=copies {
-        rewrite_book(&dir, &hof("9").repeat(n));
-        let mut s = Session::open(&dir).unwrap();
-        s.save().unwrap();
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    for n in 1..copies {
+        let id = format!("copy{n}");
+        project.scenes.push(Scene {
+            id,
+            ..project.scenes[0].clone()
+        });
     }
+    klappe_store::save(&dir, &project, Some(&hof("9").repeat(copies))).unwrap();
     let s = Session::open(&dir).unwrap();
 
     (dir, ids(&s))
@@ -679,7 +684,8 @@ fn an_entry_said_not_in_the_book_leaves_the_order_to_the_twins() {
     let mut s = Session::open(&dir).unwrap();
     s.resolve_scene("ffff", Choice::NotInBook).unwrap();
     assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
-    s.save().unwrap();
+    // Not `save`: it would number the second copy 9A and end the twins.
+    klappe_store::save(&dir, s.project(), Some(&(hof("9") + &hof("9")))).unwrap();
 
     // A third copy: the refused entry is no candidate, so the order decides.
     rewrite_book(&dir, &hof("9").repeat(3));
