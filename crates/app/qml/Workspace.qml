@@ -113,6 +113,29 @@ Item {
         area = shown ? name : "plan"
     }
 
+    /// DB-63: the script on view with line `line` shown and focused (-1: the scene's head).
+    function revealScript(line) {
+        setArea("script", true)
+        // The pane of a narrow window or a drawer is made by the step above.
+        Qt.callLater(() => {
+            if (!_script) {
+                return
+            }
+            line < 0 ? _script.showHead() : _script.showLine(line)
+        })
+    }
+
+    /// DB-63: the plan on view with the focus on it.
+    function revealPlan() {
+        if (tier !== Workspace.Tier.Wide) {
+            area = "plan"
+        }
+        plan.focusCanvas()
+    }
+
+    /// The script panel on screen, for `revealScript`.
+    property var _script: null
+
     function _limit(other) {
         return Math.max(paneMin, Math.min(paneMax, width - other - planMin - scriptHandle.width - shotHandle.width))
     }
@@ -130,12 +153,16 @@ Item {
     Component {
         id: scriptPane
         ScriptPanel {
+            id: scriptPanel
             texts: work.texts
             controller: work.controller
             scene: work.sceneOnView
             onEditRequested: (kind, id) => work.projectEntryRequested(kind, id)
             lines: work.controller.scriptJson ? JSON.parse(work.controller.scriptJson) : []
-            onChipClicked: (kind, target, at) => kind === "shot" ? work.controller.selectShot(target) : work.controller.seek(at)
+            onChipClicked: (kind, target, index) => work.controller.showLink(kind, target, index)
+            onPlanRequested: work.revealPlan()
+            Component.onCompleted: work._script = scriptPanel
+            Component.onDestruction: if (work._script === scriptPanel) work._script = null
         }
     }
     Component {

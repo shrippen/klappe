@@ -6,15 +6,13 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{App, Flow, Mode};
 
-/// Where the lines of a multi-line value are joined for the one-line box.
-const JOIN: &str = " / ";
 const LINE: &str = "\n";
 
 #[derive(Debug)]
 pub(crate) struct TitleField {
     /// The Fountain key.
     pub key: String,
-    /// What the box shows.
+    /// What the box holds; lines are separated by `\n`.
     pub shown: String,
     /// What the text had; kept when the box is left as it was.
     raw: String,
@@ -32,7 +30,7 @@ impl App {
             .into_iter()
             .map(|(key, raw)| TitleField {
                 key,
-                shown: raw.replace(LINE, JOIN),
+                shown: raw.clone(),
                 raw,
             })
             .collect();
@@ -54,6 +52,13 @@ impl App {
 
         match key.code {
             KeyCode::Esc => self.close_title(),
+            KeyCode::Enter
+                if key
+                    .modifiers
+                    .intersects(KeyModifiers::ALT | KeyModifiers::SHIFT) =>
+            {
+                form.fields[form.sel].shown.push_str(LINE);
+            }
             KeyCode::Enter => self.apply_title(),
             KeyCode::Tab | KeyCode::Down => form.sel = (form.sel + 1) % count,
             KeyCode::BackTab | KeyCode::Up => form.sel = (form.sel + count - 1) % count,
@@ -82,10 +87,9 @@ impl App {
             .fields
             .into_iter()
             .map(|f| {
-                let unchanged = f.shown == f.raw.replace(LINE, JOIN);
-                let value = match unchanged {
+                let value = match f.shown == f.raw {
                     true => f.raw,
-                    false => f.shown.replace(JOIN, LINE),
+                    false => without_blank_lines(&f.shown),
                 };
                 (f.key, value)
             })
@@ -97,4 +101,11 @@ impl App {
         self.pending = None;
         self.built_for = None;
     }
+}
+
+/// The value without empty lines (a new line left empty, `Contact:` with a gap).
+fn without_blank_lines(value: &str) -> String {
+    let lines: Vec<&str> = value.lines().filter(|l| !l.trim().is_empty()).collect();
+
+    lines.join(LINE)
 }

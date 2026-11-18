@@ -186,6 +186,11 @@ impl Editor {
 
     /// Replaces the whole text, as one undo step that spans only the lines that differ.
     pub(crate) fn set_text(&mut self, text: &str) {
+        self.set_text_at(text, self.cursor);
+    }
+
+    /// Like [`Self::set_text`], with the cursor at `cursor` after the step (and after a redo).
+    pub(crate) fn set_text_at(&mut self, text: &str, cursor: Pos) {
         let new = Buffer::from_text(text);
         let old = self.buffer.lines();
         let (new_lines, old_len) = (new.lines(), old.len());
@@ -204,11 +209,11 @@ impl Editor {
             .take_while(|(a, b)| a == b)
             .count();
         if same_head == old_len && old_len == new_lines.len() {
+            self.go_to(cursor);
             return;
         }
 
         let changed = new_lines[same_head..new_lines.len() - same_tail].to_vec();
-        let cursor = self.cursor;
         self.set_lines(same_head, old_len - same_tail, changed, cursor);
     }
 

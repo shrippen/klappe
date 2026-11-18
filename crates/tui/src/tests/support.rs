@@ -29,7 +29,15 @@ fn copy_all(from: &Path, to: &Path) {
 impl Scratch {
     pub(super) fn new(script: &str) -> Self {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("kt-{}-{n}.klappe", std::process::id()));
+        Self::named(script, &format!("kt-{}-{n}.klappe", std::process::id()))
+    }
+
+    /// Like `new`, in a folder of the given name.
+    pub(super) fn named(script: &str, name: &str) -> Self {
+        // A folder per process, so two test runs in one temp dir never remove each other's.
+        let dir = std::env::temp_dir()
+            .join(format!("kt-{}", std::process::id()))
+            .join(name);
         copy_all(&example(), &dir);
         fs::write(dir.join("drehbuch.fountain"), script).unwrap_or_else(|e| unreachable!("{e}"));
 
@@ -73,6 +81,13 @@ pub(super) fn keys(app: &mut App, codes: &[KeyCode]) {
     for code in codes {
         press(app, *code);
     }
+}
+
+pub(super) fn alt(app: &mut App, c: char) -> Flow {
+    let flow = app.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::ALT));
+    assert_backup_answered(app);
+
+    flow
 }
 
 pub(super) fn shift(app: &mut App, code: KeyCode) -> Flow {

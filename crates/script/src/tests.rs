@@ -633,3 +633,23 @@ fn the_title_page_takes_its_lines() {
     assert_eq!(title_page_lines("Title: T\n"), 2);
     assert_eq!(title_page_lines(""), 0);
 }
+
+#[test]
+fn multi_line_title_values_round_trip() {
+    let fields = vec![
+        ("Author".to_owned(), "Eva\nBert".to_owned()),
+        (
+            "Contact".to_owned(),
+            "Eva Muster\nWeg 1\n12345 Ort".to_owned(),
+        ),
+    ];
+    let text = set_title_fields("INT. A\n\nx\n", &fields);
+
+    assert_eq!(
+        text,
+        "Author:\n   Eva\n   Bert\nContact:\n   Eva Muster\n   Weg 1\n   12345 Ort\n\nINT. A\n\nx\n"
+    );
+    assert_eq!(title_fields(&text)[2], fields[0]);
+    assert_eq!(title_fields(&text)[5], fields[1]);
+    assert_eq!(write(&parse(&text)), text);
+}

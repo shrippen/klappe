@@ -95,6 +95,8 @@ Kirigami.ApplicationWindow {
                 onPlayRequested: workspace.togglePlay()
                 speechAvailable: speechVoice.available
                 onSpeakRequested: playback.speak = !playback.speak
+                onScriptRequested: line => workspace.revealScript(line)
+                onPlanRequested: workspace.revealPlan()
                 onHeightRequested: workspace.focusHeight()
             }
 

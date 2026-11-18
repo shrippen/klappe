@@ -303,7 +303,7 @@ TestCase {
 
         compare(b.rewindText, "To start")
         compare(b.loopText, "Loop shot")
-        compare(b.markerOnText, "Next marker")
+        compare(b.markerOnText, "Next mark")
     }
 
     function test_rewind_goes_to_the_start() {
