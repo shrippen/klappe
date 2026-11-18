@@ -182,10 +182,13 @@ impl Session {
 
     /// Makes `step` the state and returns the one it replaces, for the other stack.
     fn swap(&mut self, step: Snapshot) -> Snapshot {
-        // The export paper is a setting, not an edit: undo and redo keep the current one.
+        // The export paper is a setting, not an edit: undo and redo keep the current one. So are
+        // the play locations: an answer about a heading is kept in `orte.toml` at once.
         let paper = self.project.paper;
+        let places = self.project.places.clone();
         let project = std::mem::replace(&mut self.project, step.project);
         self.project.paper = paper;
+        self.project.places = places;
         let script = step.script.map(|text| {
             let now = self.script_text().to_owned();
             self.set_script_text(&text);

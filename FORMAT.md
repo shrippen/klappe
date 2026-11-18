@@ -7,6 +7,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 <name>.klappe/
 ├── projekt.toml         Formatversion, Titel, Papier, Drehbuchseiten ([script]), gespeicherte Ansichten
 ├── figuren.toml         Figuren, je ein [[figur]]
+├── orte.toml            Spielorte der Szenenköpfe, je ein [[ort]] (optional)
 ├── bibliothek.toml      eigene Objekte der Bibliothek, je ein [[objekt]] (optional)
 ├── vorlagen.toml        eigene Vorlagen, je ein [[vorlage]] (optional)
 ├── drehorte/<id>.toml   ein Drehort samt Set (Wände, Objekte)
@@ -355,6 +356,22 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Spur steht unverändert an seinem Ort im Set; `object_tracks` fehlt, wenn leer. Ein Verweis auf
   ein fehlendes Objekt oder eine fehlende Figur lädt und wirkt nicht (kein Fehler). Keine neue
   Formatversion, ältere Dateien laden unverändert.
+- **Spielorte (DB-51):** `orte.toml` hat je Spielort ein `[[ort]]` mit `id` (zufällig, stabil),
+  `name` und optional `variants`, andere Schreibweisen des Orts im Szenenkopf (`variants =
+  ["SAAL"]`). Der Ort im Kopf ist der Text ohne Präfix (`INT.`, `INNEN` …), Tageszeit (nach dem
+  letzten ` - `, ` – ` oder ` — `) und Szenennummer: `INT. SÄNGERSAAL – TAG #12#` hat den Ort
+  `SÄNGERSAAL`. Er gehört zum Spielort, der ihn als `name` oder in `variants` trägt (Groß- und
+  Kleinschreibung und Leerraum zählen nicht, `ß` gilt wie `SS`). Ein Ort, den kein Spielort trägt,
+  wird nicht still angelegt, sondern vorgelegt: neuer Spielort, Variante eines bekannten oder
+  Umbenennung eines bekannten (`name` ändert sich, `id` bleibt). Ein Name oder eine Variante
+  gehört genau einem Spielort, jede `id` kommt einmal vor, kein Name ist leer; sonst lehnt Laden
+  das Projekt ab. Die Datei steht nur, wenn es Spielorte gibt. Eine Antwort schreibt nur diese
+  Datei, ausgehend vom Stand auf der Platte (ein Programm daneben, etwa das TUI beim Fenster,
+  behält seine Änderungen); `save` schreibt die Datei nicht (nur eine Antwort tut es), auch
+  nicht aus einer wiederhergestellten Sicherung: der Stand auf der Platte gilt. Eine Frage, die
+  eine Antwort schon nicht mehr offen findet, verschwindet nach dem Neulesen der Platte. Antworten
+  sind kein Schritt von Rückgängig. Die Zuordnung Spielort → Drehort folgt (Datenmodell Schritt 2). Keine
+  neue Formatversion: die Datei fehlt in älteren Projekten und gilt dann als leer.
 - **Gruppen (LH-23):** eine Figur in `figuren.toml` hat optional `group`, die Zahl der Personen
   (2 bis 999). Mit `group` ist die Figur eine Gruppe (Gäste, Wachen): sie hat eine Spur, Marks
   und Wege wie jede Figur und wird größer gezeichnet, mit drei Punkten im Umriss, ihr Name trägt
@@ -392,7 +409,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.
-- Fehlende `figuren.toml`, fehlende Ordner und fehlendes Drehbuch gelten als leer.
+- Fehlende `figuren.toml`, `orte.toml`, fehlende Ordner und fehlendes Drehbuch gelten als leer.
 - **Sicherung (LH-05):** ungespeicherte Änderungen schreibt die Sitzung regelmäßig nach
   `.sicherung/`, ein vollständiger Projektordner im selben Format. Die Projektdateien bleiben
   dabei unberührt; erst der Nutzer speichert, und das Speichern löscht `.sicherung/`, außer die Sitzung
