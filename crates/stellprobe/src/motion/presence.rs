@@ -59,7 +59,8 @@ fn fade_in(keys: &[Key<'_>], t_s: f64) -> f64 {
 /// The mark the figure fades out at `t_s` and how much is left of it, 1 to 0, when it is
 /// fading out then. The fade follows the pause at a mark it leaves or the next mark appears at
 /// and always lasts `FADE_S`, ending at the next mark's time at the latest; where that leaves
-/// less than `FADE_S` after the pause, it starts earlier, never as a jump:
+/// less than `FADE_S` after the pause, it starts earlier, never as a jump, but never before
+/// the figure appeared:
 ///
 /// ```text
 ///  pause ends          next mark              pause ends   next mark
@@ -77,10 +78,15 @@ fn fading_out(keys: &[Key<'_>], t_s: f64) -> Option<(Placement, f64)> {
             continue;
         }
 
+        // A figure that appears at this mark is not there before it: the fade starts no
+        // earlier and is shorter then (appears at 10 s, next mark at 10.2 s: 10 to 10.2 s).
         let ends_s = (key.at_s + key.hold_s + FADE_S).min(next.map_or(f64::INFINITY, |n| n.at_s));
-        let starts_s = ends_s - FADE_S;
+        let mut starts_s = ends_s - FADE_S;
+        if key.arrival == Arrival::Appear {
+            starts_s = starts_s.max(key.at_s);
+        }
         if t_s > starts_s && t_s < ends_s {
-            return Some((key.place, (ends_s - t_s) / FADE_S));
+            return Some((key.place, (ends_s - t_s) / (ends_s - starts_s)));
         }
     }
 
@@ -220,11 +226,39 @@ mod tests {
                 mark(10.0, 0.0, Arrival::Walk, Departure::Leave),
                 mark(10.2, 0.0, Arrival::Appear, Departure::Stay),
             ],
+            // An appearance 0.2 s before the next appearance.
+            vec![
+                mark(10.0, 0.0, Arrival::Appear, Departure::Stay),
+                mark(10.2, 0.0, Arrival::Appear, Departure::Stay),
+            ],
         ];
 
         for marks in cases {
             let step = largest_step(&marks, 13.0);
             assert!(step < 0.01, "step {step} in {marks:?}");
+        }
+    }
+
+    /// A fade-out never starts before the figure has appeared.
+    #[test]
+    fn no_fade_out_before_the_appearance() {
+        let cases = [
+            vec![
+                mark(10.0, 0.0, Arrival::Appear, Departure::Stay),
+                mark(10.2, 0.0, Arrival::Appear, Departure::Stay),
+            ],
+            vec![
+                mark(0.0, 0.0, Arrival::Walk, Departure::Leave),
+                mark(10.0, 0.0, Arrival::Appear, Departure::Leave),
+                mark(10.3, 0.0, Arrival::Walk, Departure::Stay),
+            ],
+        ];
+
+        for marks in cases {
+            for t_s in [9.6, 9.75, 9.9, 9.999] {
+                let seen = opacity(marks.clone(), t_s).unwrap_or(0.0);
+                assert!(seen < 1e-9, "{seen} at {t_s} in {marks:?}");
+            }
         }
     }
 
