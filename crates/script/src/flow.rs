@@ -5,6 +5,7 @@ use crate::parse::{
     boneyard_lines, parse_located, title_page_lines, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING,
     FORCE_TRANSITION, NUMBER_MARK,
 };
+use crate::text::SHARP_S;
 use crate::Element;
 
 /// The kind of element a line of the editor is meant to be, as far as Enter and Tab care.
@@ -153,7 +154,6 @@ pub fn tab_step(text: &str, slot: Option<Slot>) -> Option<TabStep> {
     })
 }
 
-const SHARP_S: char = 'ß';
 const CENTER_END: char = '<';
 /// A heading that starts so is an ellipsis; `.` before it would not force it.
 const ELLIPSIS: &str = "..";
@@ -309,6 +309,13 @@ pub fn force_line(text: &str, line: usize, slot: Slot) -> Option<Forced> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn upper_keeps_sharp_s_and_long_capitals() {
+        assert_eq!(upper("Straße"), "STRAßE");
+        assert_eq!(upper("STRAẞE"), "STRAẞE");
+        assert_eq!(upper("ﬁsch"), "ﬁSCH");
+    }
 
     #[test]
     fn enter_follows_the_element() {

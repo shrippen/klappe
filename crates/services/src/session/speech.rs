@@ -1,6 +1,5 @@
 //! The spoken dialogue of the scene (LH-64): which line a speech voice reads at which time.
 
-use klappe_model::ScriptLanguage;
 use klappe_script::inline_runs;
 use serde::Serialize;
 
@@ -36,10 +35,11 @@ pub struct Speech {
 impl Session {
     /// The dialogue of the scene on view with the time each line is read at.
     pub fn speech(&self, fallback: Language) -> Speech {
-        let language = match (self.project().script.language, fallback) {
-            (Some(ScriptLanguage::De), _) | (None, Language::German) => ScriptLanguage::De,
-            _ => ScriptLanguage::En,
-        };
+        let language = self
+            .project()
+            .script
+            .language
+            .unwrap_or_else(|| fallback.into());
 
         Speech {
             language: language.name(),

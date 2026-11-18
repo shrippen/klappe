@@ -80,13 +80,10 @@ pub(crate) struct Layout {
 /// International words, or those of the project's language; the surface's language stands in
 /// while the project has none.
 fn words(setup: &ScriptSetup, fallback: Language) -> Words {
-    let german = match (setup.words, setup.language) {
-        (ScriptWords::International, _) => false,
-        (ScriptWords::Local, Some(language)) => language == ScriptLanguage::De,
-        (ScriptWords::Local, None) => fallback == Language::German,
-    };
+    let language = setup.language.unwrap_or_else(|| fallback.into());
+    let local = setup.words == ScriptWords::Local;
 
-    if german {
+    if local && language == ScriptLanguage::De {
         Words::GERMAN
     } else {
         Words::ENGLISH
@@ -267,5 +264,36 @@ fn header_text(title: &str, project_title: &str, draft_date: &str) -> String {
     match draft_date.is_empty() {
         true => title.to_owned(),
         false => format!("{title} - {draft_date}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn words_follow_the_project_language_else_the_surface() {
+        let setup = |language, words| ScriptSetup {
+            language,
+            words,
+            ..ScriptSetup::default()
+        };
+        let local = ScriptWords::Local;
+
+        for (language, fallback, german) in [
+            (Some(ScriptLanguage::De), Language::English, true),
+            (Some(ScriptLanguage::En), Language::German, false),
+            (None, Language::German, true),
+            (None, Language::English, false),
+        ] {
+            let want = if german {
+                Words::GERMAN
+            } else {
+                Words::ENGLISH
+            };
+            assert_eq!(words(&setup(language, local), fallback), want);
+        }
+        let international = setup(Some(ScriptLanguage::De), ScriptWords::International);
+        assert_eq!(words(&international, Language::German), Words::ENGLISH);
     }
 }
