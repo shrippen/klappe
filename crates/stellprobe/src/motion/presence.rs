@@ -16,8 +16,8 @@ use klappe_model::{Arrival, Departure, FigureTrack};
 use super::{gone_on_arrival, place_at, Key, Placement};
 
 /// How long a figure takes to fade in or out. Half a second is a few frames at film speed:
-/// seen as a fade, but short enough that the action is not held up. The fade-out is cut short
-/// where the next mark's time comes first.
+/// seen as a fade, but short enough that the action is not held up. A fade-out that the next mark's
+/// time would cut short starts earlier instead.
 const FADE_S: f64 = 0.5;
 
 /// How strongly a figure is drawn at `t_s`, 0 to 1: it fades in at an appearing mark and out
@@ -35,16 +35,9 @@ pub(super) struct Presence {
 /// The figure of `track` at `t_s`; `None` while it is not in the scene, fading included.
 pub(super) fn presence_at(track: &FigureTrack, t_s: f64) -> Option<Presence> {
     let keys: Vec<Key<'_>> = track.marks.iter().map(Key::from).collect();
-
-    if let Some(place) = place_at(&keys, t_s) {
-        return Some(Presence {
-            place,
-            opacity: fade_in(&keys, t_s),
-        });
-    }
-
-    let (place, left_s) = fading_out(&keys, t_s)?;
-    let out = 1.0 - (t_s - left_s) / FADE_S;
+    let fading = fading_out(&keys, t_s);
+    let place = place_at(&keys, t_s).or(fading.map(|(place, _)| place))?;
+    let out = fading.map_or(1.0, |(_, out)| out);
 
     Some(Presence {
         place,
@@ -63,8 +56,16 @@ fn fade_in(keys: &[Key<'_>], t_s: f64) -> f64 {
     appeared.map_or(1.0, |k| ((t_s - k.at_s) / FADE_S).clamp(0.0, 1.0))
 }
 
-/// Where the figure stands at `t_s` and the time it started to fade out, when it is fading
-/// out then: after the pause at a mark it leaves or the next mark appears at, for `FADE_S`.
+/// The mark the figure fades out at `t_s` and how much is left of it, 1 to 0, when it is
+/// fading out then. The fade follows the pause at a mark it leaves or the next mark appears at
+/// and always lasts `FADE_S`, ending at the next mark's time at the latest; where that leaves
+/// less than `FADE_S` after the pause, it starts earlier, never as a jump:
+///
+/// ```text
+///  pause ends          next mark              pause ends   next mark
+///      |--- FADE_S ---|                   |-- FADE_S --|       |
+///                                  starts earlier: |-- FADE_S -|
+/// ```
 fn fading_out(keys: &[Key<'_>], t_s: f64) -> Option<(Placement, f64)> {
     let gone = gone_on_arrival(keys);
 
@@ -76,12 +77,10 @@ fn fading_out(keys: &[Key<'_>], t_s: f64) -> Option<(Placement, f64)> {
             continue;
         }
 
-        let left_s = next.map_or(key.at_s + key.hold_s, |n| {
-            (key.at_s + key.hold_s).min(n.at_s)
-        });
-        let until_s = next.map_or(f64::INFINITY, |n| n.at_s);
-        if t_s > left_s && t_s < (left_s + FADE_S).min(until_s) {
-            return Some((key.place, left_s));
+        let ends_s = (key.at_s + key.hold_s + FADE_S).min(next.map_or(f64::INFINITY, |n| n.at_s));
+        let starts_s = ends_s - FADE_S;
+        if t_s > starts_s && t_s < ends_s {
+            return Some((key.place, (ends_s - t_s) / FADE_S));
         }
     }
 
@@ -182,16 +181,71 @@ mod tests {
         near(opacity(marks(), 10.0 + FADE_S), 1.0);
     }
 
-    /// The next mark's time ends a fade-out that has not run its course.
+    /// The largest step of the opacity between two moments a millisecond apart, over `0..to_s`.
+    fn largest_step(marks: &[Mark], to_s: f64) -> f64 {
+        let mut worst = 0.0_f64;
+        let mut t_s = 0.0;
+        while t_s < to_s {
+            let now = opacity(marks.to_vec(), t_s).unwrap_or(0.0);
+            let then = opacity(marks.to_vec(), t_s + 0.001).unwrap_or(0.0);
+            worst = worst.max((now - then).abs());
+            t_s += 0.001;
+        }
+
+        worst
+    }
+
+    /// A fade-out never jumps, however near the next mark is: it lasts `FADE_S` and ends at the
+    /// next mark, starting earlier than the pause's end when it has to.
     #[test]
-    fn a_fade_out_stops_at_the_next_mark() {
-        let marks = vec![
-            mark(0.0, 0.0, Arrival::Walk, Departure::Leave),
-            mark(0.2, 0.0, Arrival::Appear, Departure::Stay),
+    fn a_fade_out_is_never_a_jump() {
+        let cases = [
+            // Leaves at 10 s after 2 s, an appearance at 12 s.
+            vec![
+                mark(10.0, 2.0, Arrival::Walk, Departure::Leave),
+                mark(12.0, 0.0, Arrival::Appear, Departure::Stay),
+            ],
+            // Two marks at the same time.
+            vec![
+                mark(10.0, 0.0, Arrival::Walk, Departure::Leave),
+                mark(10.0, 0.0, Arrival::Appear, Departure::Stay),
+            ],
+            // The next mark comes 0.2 s after the pause.
+            vec![
+                mark(8.0, 2.0, Arrival::Walk, Departure::Leave),
+                mark(10.2, 0.0, Arrival::Walk, Departure::Stay),
+            ],
+            // The old case: 0.2 s between the marks.
+            vec![
+                mark(10.0, 0.0, Arrival::Walk, Departure::Leave),
+                mark(10.2, 0.0, Arrival::Appear, Departure::Stay),
+            ],
         ];
 
-        near(opacity(marks.clone(), 0.1), 1.0 - 0.1 / FADE_S);
-        near(opacity(marks, 0.2), 0.0);
+        for marks in cases {
+            let step = largest_step(&marks, 13.0);
+            assert!(step < 0.01, "step {step} in {marks:?}");
+        }
+    }
+
+    /// With room for `FADE_S` after the pause the fade is as before; with less it ends at the
+    /// next mark and starts `FADE_S` before.
+    #[test]
+    fn a_short_room_moves_the_fade_forward() {
+        let marks = vec![
+            mark(10.0, 2.0, Arrival::Walk, Departure::Leave),
+            mark(12.2, 0.0, Arrival::Appear, Departure::Stay),
+        ];
+
+        near(opacity(marks.clone(), 11.7), 1.0);
+        near(opacity(marks.clone(), 11.95), 0.5);
+        near(opacity(marks.clone(), 12.2), 0.0);
+
+        let same = vec![
+            mark(10.0, 0.0, Arrival::Walk, Departure::Leave),
+            mark(10.0, 0.0, Arrival::Appear, Departure::Stay),
+        ];
+        near(opacity(same, 9.75), 0.5);
     }
 
     /// A figure that only walks is drawn in full all the time.
