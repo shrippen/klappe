@@ -102,6 +102,12 @@ fn split_heading(text: &str) -> (&str, Option<&str>) {
     }
 }
 
+/// The location of a scene heading without prefix (`INT.`, `INNEN`), time of day (`TAG`) and
+/// scene number: `INT. SÄNGERSAAL – TAG #12#` has the location `SÄNGERSAAL`.
+pub fn heading_place(heading: &str) -> &str {
+    split_heading(heading).0
+}
+
 impl Vocabulary {
     /// Reads the names from the elements of a located screenplay.
     pub fn from_located(located: &[Located]) -> Self {
@@ -446,6 +452,19 @@ mod tests {
             [".INNEN ", ".INNEN/AUSSEN "]
         );
         assert!(options(&v, "", Context::Heading).len() >= 5);
+    }
+
+    #[test]
+    fn a_heading_names_its_place() {
+        for (heading, place) in [
+            ("INT. SÄNGERSAAL – TAG", "SÄNGERSAAL"),
+            ("EXT. BURG - HOF - NACHT", "BURG - HOF"),
+            ("INNEN KÜCHE - DAY", "KÜCHE"),
+            (".WALD", "WALD"),
+            ("INT./EXT. AUTO", "AUTO"),
+        ] {
+            assert_eq!(heading_place(heading), place, "{heading}");
+        }
     }
 
     #[test]
