@@ -311,6 +311,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn upper_keeps_sharp_s_and_long_capitals() {
+        assert_eq!(upper("Straße"), "STRAßE");
+        assert_eq!(upper("STRAẞE"), "STRAẞE");
+        assert_eq!(upper("ﬁsch"), "ﬁSCH");
+    }
+
+    #[test]
     fn enter_follows_the_element() {
         use Slot::*;
 

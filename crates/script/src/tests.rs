@@ -653,3 +653,14 @@ fn multi_line_title_values_round_trip() {
     assert_eq!(title_fields(&text)[5], fields[1]);
     assert_eq!(write(&parse(&text)), text);
 }
+
+#[test]
+fn german_headings_take_sharp_s_as_capital() {
+    for text in ["AUßEN HOF", "AUẞEN HOF", "INNEN/AUßEN HOF"] {
+        assert!(
+            matches!(els(text)[0], Element::SceneHeading { .. }),
+            "{text}"
+        );
+    }
+    assert!(matches!(els("Außen HOF")[0], Element::Action(_)));
+}

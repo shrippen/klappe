@@ -269,3 +269,34 @@ fn header_text(title: &str, project_title: &str, draft_date: &str) -> String {
         false => format!("{title} - {draft_date}"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn words_follow_the_project_language_else_the_surface() {
+        let setup = |language, words| ScriptSetup {
+            language,
+            words,
+            ..ScriptSetup::default()
+        };
+        let local = ScriptWords::Local;
+
+        for (language, fallback, german) in [
+            (Some(ScriptLanguage::De), Language::English, true),
+            (Some(ScriptLanguage::En), Language::German, false),
+            (None, Language::German, true),
+            (None, Language::English, false),
+        ] {
+            let want = if german {
+                Words::GERMAN
+            } else {
+                Words::ENGLISH
+            };
+            assert_eq!(words(&setup(language, local), fallback), want);
+        }
+        let international = setup(Some(ScriptLanguage::De), ScriptWords::International);
+        assert_eq!(words(&international, Language::German), Words::ENGLISH);
+    }
+}
