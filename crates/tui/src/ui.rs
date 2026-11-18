@@ -6,6 +6,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::app::{App, Focus, Mode, Notice};
 use crate::fountain::LineKind;
@@ -453,8 +454,8 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
         .fg(theme::GROUND)
         .bg(theme::ACCENT)
         .add_modifier(Modifier::BOLD);
+    let chip = Span::styled(format!(" {mode} "), mode_style);
 
-    let cursor = app.cursor();
     let message = match &app.notice {
         Some(Notice::Saved) => app.texts.saved.clone(),
         Some(Notice::SaveFailed(why)) => format!("{}: {why}", app.texts.save_failed),
@@ -464,10 +465,52 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
         Some(Notice::Pdf(text)) => text.clone(),
         None => app.texts.hints.clone(),
     };
-    let mut spans = vec![
-        Span::styled(format!(" {mode} "), mode_style),
-        Span::raw(format!(" {}", app.file_name())),
-    ];
+    let message = Span::styled(message, Style::new().fg(theme::MUTED));
+
+    // Without a notice the hints simply follow, cut at the end of the line.
+    if app.notice.is_none() {
+        let mut line = status_left(app, chip, StatusNote::Show, app.file_name());
+        line.push_span(message);
+        frame.render_widget(Paragraph::new(line).style(bar), area);
+        return;
+    }
+
+    // The mode word and the notice stay. The book note gives way first, then the file name,
+    // then the rest of the left part. At least one space separates the two parts.
+    let width = usize::from(area.width);
+    let notice_width = message.width().min(width.saturating_sub(chip.width() + 1));
+    let room = width.saturating_sub(notice_width + 1);
+    let mut left = status_left(app, chip.clone(), StatusNote::Show, app.file_name());
+    if left.width() > room {
+        left = status_left(app, chip.clone(), StatusNote::Hide, app.file_name());
+    }
+    let excess = left.width().saturating_sub(room);
+    if excess > 0 {
+        let name = shorten(app.file_name(), excess);
+        left = status_left(app, chip, StatusNote::Hide, &name);
+    }
+    let notice_at = left.width().min(room + 1);
+    let [left_area, _] = Layout::horizontal([
+        Constraint::Length(notice_at.min(room) as u16),
+        Constraint::Min(0),
+    ])
+    .areas(area);
+    let [_, notice_area] =
+        Layout::horizontal([Constraint::Length(notice_at as u16), Constraint::Min(0)]).areas(area);
+    frame.render_widget(Paragraph::new(left).style(bar), left_area);
+    frame.render_widget(Paragraph::new(message).style(bar), notice_area);
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum StatusNote {
+    Show,
+    Hide,
+}
+
+/// The left part of the status line: mode word, file name, scene, book note, cursor.
+fn status_left<'a>(app: &App, chip: Span<'a>, note: StatusNote, name: &str) -> Line<'a> {
+    let cursor = app.cursor();
+    let mut spans = vec![chip, Span::raw(format!(" {name}"))];
     if app.is_modified() {
         spans.push(Span::styled(
             format!("{GAP}{}", app.texts.modified),
@@ -481,7 +524,7 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
             app.texts.scene_of(i + 1, total)
         )));
     }
-    if !app.book_note.is_empty() {
+    if note == StatusNote::Show && !app.book_note.is_empty() {
         spans.push(Span::styled(
             format!("{GAP}{}", app.book_note),
             Style::new().fg(theme::ACCENT),
@@ -492,9 +535,25 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
         cursor.line + 1,
         cursor.col + 1
     )));
-    spans.push(Span::styled(message, Style::new().fg(theme::MUTED)));
 
-    frame.render_widget(Paragraph::new(Line::from(spans)).style(bar), area);
+    Line::from(spans)
+}
+
+/// `text` without its last `cut` columns (at least one character stays), closed by an ellipsis.
+fn shorten(text: &str, cut: usize) -> String {
+    let keep = text.width().saturating_sub(cut + 1);
+    let mut head = String::new();
+    let mut used = 0;
+    for ch in text.chars() {
+        let next = used + ch.width().unwrap_or(0);
+        if next > keep && !head.is_empty() {
+            break;
+        }
+        head.push(ch);
+        used = next;
+    }
+
+    format!("{head}…")
 }
 
 /// Rows of the help box: every line, or as many as the screen has.

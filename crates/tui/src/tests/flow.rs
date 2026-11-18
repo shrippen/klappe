@@ -416,3 +416,151 @@ fn prose_that_starts_like_a_prefix_stays_as_typed() {
     assert_eq!(app.text(), "x\n\nCUT TO:\n\nIn der Küche");
     assert_eq!(app.analysis.kind(app.cursor().line), LineKind::Action);
 }
+
+#[test]
+fn alt_h_and_alt_t_make_a_heading_and_a_transition() {
+    // (text, key, what the line becomes, the element read)
+    for (text, key, want) in [
+        ("Anna geht.", 'h', ".ANNA GEHT."),
+        ("int. küche - tag", 'h', "INT. KÜCHE - TAG"),
+        (".alt", 'h', ".ALT"),
+        ("cut to:", 't', "CUT TO:"),
+        ("fade out.", 't', ">FADE OUT."),
+    ] {
+        let (_s, mut app) = app_with(&format!("x\n\n{text}\n\ny"));
+        keys(&mut app, &[KeyCode::Up, KeyCode::Up]);
+        press(&mut app, KeyCode::End);
+        alt(&mut app, key);
+
+        assert_eq!(app.text(), format!("x\n\n{want}\n\ny"), "{text:?}");
+        let kind = parse(&app.text()).elements[1].clone();
+        match key {
+            'h' => assert!(matches!(kind, Element::SceneHeading { .. }), "{kind:?}"),
+            _ => assert!(matches!(kind, Element::Transition(_)), "{kind:?}"),
+        }
+        // One undo step.
+        ctrl(&mut app, 'z');
+        assert_eq!(app.text(), format!("x\n\n{text}\n\ny"), "{text:?}");
+    }
+}
+
+#[test]
+fn alt_h_on_an_empty_line_opens_a_heading_line() {
+    let (_s, mut app) = app_with("x\n\n");
+    alt(&mut app, 'h');
+
+    assert_eq!(app.text(), "x\n\n");
+    assert_eq!(app.pending.map(|p| p.1), Some(Slot::Heading));
+    typed(&mut app, "int. a - tag");
+    assert!(app.text().ends_with("INT. A - TAG"), "{}", app.text());
+
+    let (_s, mut app) = app_with("x\n\n");
+    alt(&mut app, 't');
+    assert_eq!(app.pending.map(|p| p.1), Some(Slot::Transition));
+}
+
+/// The text with the cursor on `line` (from 0) at its end, `key` pressed.
+fn alt_on(text: &str, line: usize, key: char) -> App {
+    let (_s, mut app) = app_with(text);
+    app.editor.go_to(Pos {
+        line,
+        col: usize::MAX,
+    });
+    alt(&mut app, key);
+
+    app
+}
+
+#[test]
+fn alt_h_and_alt_t_leave_the_title_page_alone() {
+    let text = "Title: Film\nAuthor: Eva\n\nINT. A - TAG\n\nx";
+    for key in ['h', 't'] {
+        let app = alt_on(text, 0, key);
+
+        assert_eq!(app.text(), text, "{key}");
+    }
+}
+
+#[test]
+fn alt_h_and_alt_t_set_the_line_apart_in_a_paragraph() {
+    // (text, line, key, result)
+    for (text, line, key, want) in [
+        (
+            "x\n\nAnna geht.\nint. küche - tag\n\ny",
+            3,
+            'h',
+            "x\n\nAnna geht.\n\nINT. KÜCHE - TAG\n\ny",
+        ),
+        (
+            "x\n\nint. küche - tag\nAnna geht.\n\ny",
+            2,
+            'h',
+            "x\n\nINT. KÜCHE - TAG\n\nAnna geht.\n\ny",
+        ),
+        ("x\n\ncut to:\ny", 2, 't', "x\n\nCUT TO:\n\ny"),
+    ] {
+        let mut app = alt_on(text, line, key);
+
+        assert_eq!(app.text(), want, "{text:?}");
+        let found = parse(&app.text()).elements;
+        let slot = |e| Slot::of(e);
+        let wanted = if key == 'h' {
+            Slot::Heading
+        } else {
+            Slot::Transition
+        };
+        assert!(found.iter().any(|e| slot(e) == Some(wanted)), "{found:?}");
+        // One undo step.
+        ctrl(&mut app, 'z');
+        assert_eq!(app.text(), text, "{text:?}");
+    }
+}
+
+#[test]
+fn alt_h_keeps_the_scene_number_as_typed() {
+    let app = alt_on("x\n\nint. a #12a#\n\ny", 2, 'h');
+
+    assert_eq!(app.text(), "x\n\nINT. A #12a#\n\ny");
+}
+
+#[test]
+fn alt_h_does_not_force_a_leading_ellipsis() {
+    let text = "x\n\n...und dann\n\ny";
+    let app = alt_on(text, 2, 'h');
+
+    assert_eq!(app.text(), text);
+}
+
+#[test]
+fn alt_h_and_alt_t_leave_dialogue_boneyard_and_notes_alone() {
+    // every line of these blocks refuses
+    for text in [
+        "x\n\nANNA\nhallo.\ndu.\nwie geht's.\n\ny",
+        "x\n\nANNA\n(leise)\nhallo.\n\ny",
+        "x\n\n/* int. a\nb */\n\ny",
+        "x\n\n[[ int. a ]]\n\ny",
+    ] {
+        let last = text.split('\n').count();
+        for at in 2..last - 2 {
+            for key in ['h', 't'] {
+                let mut app = alt_on(text, at, key);
+
+                assert_eq!(app.text(), text, "{text:?} {at} {key}");
+                assert_eq!(app.editor.undo_depth(), 0, "{text:?} {at} {key}");
+                ctrl(&mut app, 'z');
+                assert_eq!(app.text(), text);
+            }
+        }
+    }
+}
+
+#[test]
+fn redo_puts_the_cursor_on_the_new_heading() {
+    let mut app = alt_on("x\n\nanna geht.\n\ny", 2, 'h');
+    let after = app.cursor();
+
+    ctrl(&mut app, 'z');
+    ctrl(&mut app, 'y');
+
+    assert_eq!(app.cursor(), after);
+}

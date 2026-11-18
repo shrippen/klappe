@@ -9,6 +9,9 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
     if let ServiceError::NoDecision(_) = error {
         return language.text("error.noDecision");
     }
+    if let ServiceError::NoPlaceAnswer(_) = error {
+        return language.text("error.noPlaceAnswer");
+    }
 
     // Wraps another error: its text first, then where the old example copy went.
     let ServiceError::ExampleAside { aside, source } = error else {
@@ -133,6 +136,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         // Listed so a new variant must be placed: `error_text` words these itself.
         ServiceError::NoScene(_)
         | ServiceError::NoDecision(_)
+        | ServiceError::NoPlaceAnswer(_)
         | ServiceError::NoPlan(_)
         | ServiceError::NoShot(_)
         | ServiceError::NoLocation(_)
@@ -191,6 +195,9 @@ pub fn book_report_text(language: Language, report: &crate::BookReport) -> Strin
     }
     if report.not_in_book > 0 {
         lines.push(count("book.notInBook", report.not_in_book));
+    }
+    if report.places > 0 {
+        lines.push(count("book.places", report.places));
     }
 
     lines.join(" ")
@@ -267,11 +274,11 @@ mod tests {
         );
         assert_eq!(
             error_text(Language::German, &bad),
-            "Ungültiger Wert für Objektiv (mm): 5000"
+            "Ungültiger Wert für Brennweite (mm): 5000"
         );
         assert_eq!(
             error_text(Language::English, &bad),
-            "Invalid value for Lens (mm): 5000"
+            "Invalid value for Focal length (mm): 5000"
         );
     }
 
@@ -361,11 +368,17 @@ mod tests {
         let report = crate::BookReport {
             pending: 2,
             not_in_book: 1,
+            places: 3,
         };
 
         for language in [Language::German, Language::English] {
             let text = book_report_text(language, &report);
-            assert!(text.contains('2') && text.contains('1') && !text.contains("{count}"));
+            assert!(
+                text.contains('2')
+                    && text.contains('1')
+                    && text.contains('3')
+                    && !text.contains("{count}")
+            );
             assert!(!text.contains("book."), "{text}");
         }
         assert_eq!(book_report_text(Language::English, &Default::default()), "");

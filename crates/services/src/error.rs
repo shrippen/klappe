@@ -13,6 +13,9 @@ pub enum ServiceError {
     /// The entry has no open question, or the scene is none of its candidates.
     #[error("no open decision for scene {0}")]
     NoDecision(String),
+    /// The dialog line of a place question is not there.
+    #[error("no answer {0} to the place question")]
+    NoPlaceAnswer(usize),
     #[error("no plan {0}")]
     NoPlan(String),
     #[error("there is no backup")]

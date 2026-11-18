@@ -174,6 +174,26 @@ impl Session {
         plan_edit::pick_lasso(&self.display_list().items, lasso, locked)
     }
 
+    /// Every grip on a point (a bend, a point of a drawing or a free form) of the element
+    /// `selected` names that lies wholly in the box with corners `a` and `b` (LH-08). Only the
+    /// grips that show are taken, and no others than that element's.
+    pub fn pick_grips_in(&self, selected: &Source, a: Point, b: Point) -> Vec<Source> {
+        let locked =
+            |item: &Item| self.lock(layer_of(item.role, item.source.as_ref())) == Lock::Locked;
+        let grips = plan_edit::point_grips(self.display_list_for(Some(selected)).items);
+
+        plan_edit::pick_in(&grips, (a, b), locked)
+    }
+
+    /// `pick_grips_in` for a freehand shape: the grips whose middle lies in `lasso`.
+    pub fn pick_grips_lasso(&self, selected: &Source, lasso: &[Point]) -> Vec<Source> {
+        let locked =
+            |item: &Item| self.lock(layer_of(item.role, item.source.as_ref())) == Lock::Locked;
+        let grips = plan_edit::point_grips(self.display_list_for(Some(selected)).items);
+
+        plan_edit::pick_lasso(&grips, lasso, locked)
+    }
+
     pub fn set_snapping(&mut self, snapping: Snapping) {
         self.snapping = snapping;
     }

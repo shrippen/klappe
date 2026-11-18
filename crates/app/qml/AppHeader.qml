@@ -43,6 +43,9 @@ RowLayout {
     /// Zoom of the plan: "in", "out" or "fit".
     signal zoomRequested(string how)
     signal playRequested()
+    /// The script is to show line `line` (-1: the scene's head), or the plan (DB-63).
+    signal scriptRequested(int line)
+    signal planRequested()
     /// An object without a height is selected (LH-93): its card takes the height.
     signal heightRequested()
     /// The plan menu's template files (LH-07): the window asks for the file.
@@ -58,7 +61,7 @@ RowLayout {
                                     actScript, actShot, actTimeline,
                                     actUndo, actRedo].concat(exportCommands.actions, shotViews.actions, zoom.actions,
                                     pageExports.actions, viewCommands.actions, objectCommands.actions,
-                                    playCommands.actions, navCommands.actions, armCommands.actions)
+                                    playCommands.actions, navCommands.actions, armCommands.actions, jumpCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -210,6 +213,8 @@ RowLayout {
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
         KanteMenuItem { objectName: "timeline"; action: actTimeline }
+        KanteMenuItem { objectName: "scriptShow"; action: jumpCommands.scriptAction }
+        KanteMenuItem { objectName: "planShow"; action: jumpCommands.planAction }
         KanteMenuSection { text: header.texts.t("menu.viewZoom") }
         KanteMenuItem { objectName: "zoomIn"; action: zoom.inAction }
         KanteMenuItem { objectName: "zoomOut"; action: zoom.outAction }
@@ -498,6 +503,16 @@ RowLayout {
         controller: header.controller
         locked: header.locked
         keyName: header.keyName
+    }
+
+    JumpCommands {
+        id: jumpCommands
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        keyName: header.keyName
+        onScriptRequested: line => header.scriptRequested(line)
+        onPlanRequested: header.planRequested()
     }
 
     PlayCommands {

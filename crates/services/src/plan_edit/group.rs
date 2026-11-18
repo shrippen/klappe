@@ -3,11 +3,12 @@
 
 use std::cmp::Reverse;
 
-use klappe_model::Point;
-use klappe_stellprobe::Source;
+use klappe_model::{normalize_deg, Arrival, Departure, LinkTarget, Mark, Point};
+use klappe_stellprobe::{Bend, ObjectGrip, Source};
 
 use super::bound;
 use super::images;
+use super::marks::WALK_SPEED_M_S;
 use super::props;
 use super::target::{target, Target};
 use super::{
@@ -15,6 +16,7 @@ use super::{
     snap, turn, Grid, Scope, Snapping,
 };
 use crate::error::ServiceError;
+use crate::project_edit::copy_character;
 
 /// Moves every element by the distance, as `shift` does for one. The distance is snapped for
 /// the first element, so it lands on the grid and the others keep their place to it.
@@ -102,7 +104,7 @@ pub(super) fn duplicate(
 ) -> Result<(), ServiceError> {
     let mut made = 0;
 
-    for source in distinct(sources) {
+    for source in copy_order(sources) {
         if matches!(copy(scope, &source, by_m)?, Copied::Made) {
             made += 1;
         }
@@ -123,6 +125,19 @@ fn distinct(sources: &[Source]) -> Vec<Source> {
             found.push(source.clone());
         }
     }
+
+    found
+}
+
+/// `sources` without repeats, the marks last and from the back: a copy of a mark shifts the
+/// index of those behind it.
+fn copy_order(sources: &[Source]) -> Vec<Source> {
+    let mut found = distinct(sources);
+
+    found.sort_by_key(|s| match s {
+        Source::Mark { index, .. } => (1, Reverse(*index)),
+        _ => (0, Reverse(0)),
+    });
 
     found
 }
@@ -218,17 +233,30 @@ fn removable(sources: &[Source]) -> Vec<Source> {
         .cloned()
         .collect();
 
+    // Grips of one way or drawing go from the back too: each removal shifts the ones behind.
     kept.sort_by_key(|m| match m {
-        Source::FigureVia { index, .. }
-        | Source::CameraVia { index, .. }
-        | Source::Opening { index, .. } => (0, Reverse(*index)),
-        Source::Mark { index, .. } | Source::ObjectMark { index, .. } | Source::Wall(index) => {
-            (1, Reverse(*index))
+        Source::FigureVia { index, bend, .. } | Source::CameraVia { index, bend, .. } => {
+            (0, Reverse(*index), Reverse(bend_number(*bend)))
         }
-        _ => (1, Reverse(0)),
+        Source::Opening { index, .. } => (0, Reverse(*index), Reverse(0)),
+        Source::DrawingPoint { index, .. }
+        | Source::ObjectGrip {
+            grip: ObjectGrip::Point(index),
+            ..
+        } => (0, Reverse(0), Reverse(*index)),
+        Source::Mark { index, .. } | Source::ObjectMark { index, .. } | Source::Wall(index) => {
+            (1, Reverse(*index), Reverse(0))
+        }
+        _ => (1, Reverse(0), Reverse(0)),
     });
 
     kept
+}
+
+fn bend_number(bend: Bend) -> usize {
+    match bend {
+        Bend::At(n) | Bend::New(n) => n,
+    }
 }
 
 fn shifted(p: Point, by_m: (f64, f64)) -> Point {
@@ -301,9 +329,99 @@ fn copy(scope: &mut Scope<'_>, source: &Source, by_m: (f64, f64)) -> Result<Copi
             }
             scope.plan.cameras.push(camera);
         }
-        // A character has one track; a grip is no element.
+        _ => return copy_track(scope, source, by_m),
+    }
+
+    Ok(Copied::Made)
+}
+
+/// `copy` for what has a track of its own: a figure and a mark. A grip is no element.
+fn copy_track(
+    scope: &mut Scope<'_>,
+    source: &Source,
+    by_m: (f64, f64),
+) -> Result<Copied, ServiceError> {
+    match source {
+        Source::Figure(character) => copy_figure(scope, character, by_m)?,
+        Source::Mark { character, index } => copy_mark(scope, character, *index, by_m)?,
         _ => return Ok(Copied::Left),
     }
 
     Ok(Copied::Made)
+}
+
+/// Makes a character like `character` and gives it a track like the figure's, `by_m` away.
+fn copy_figure(
+    scope: &mut Scope<'_>,
+    character: &str,
+    by_m: (f64, f64),
+) -> Result<(), ServiceError> {
+    let mut track = scope
+        .plan
+        .figure(character)
+        .cloned()
+        .ok_or(ServiceError::Gone)?;
+
+    track.character = copy_character(scope.characters, character)?;
+    for mark in &mut track.marks {
+        mark.at = shifted(mark.at, by_m);
+        mark.via = mark.via.iter().map(|via| shifted(*via, by_m)).collect();
+    }
+    scope.plan.figures.push(track);
+
+    Ok(())
+}
+
+/// Sets a mark `by_m` from mark `index` of `character`, right after it on the way. It comes
+/// as a next mark does: a walk away, facing along it. The marks behind it move later by that
+/// walk, so their ways keep their duration.
+fn copy_mark(
+    scope: &mut Scope<'_>,
+    character: &str,
+    index: usize,
+    by_m: (f64, f64),
+) -> Result<(), ServiceError> {
+    let track = scope
+        .plan
+        .figures
+        .iter_mut()
+        .find(|f| f.character == character);
+    let marks = &mut track.ok_or(ServiceError::Gone)?.marks;
+    let origin = marks.get(index).cloned().ok_or(ServiceError::Gone)?;
+
+    let at = shifted(origin.at, by_m);
+    let walk_s = origin.at.distance_m(at) / WALK_SPEED_M_S;
+    let new = Mark {
+        at_s: origin.at_s + origin.hold_s + walk_s,
+        at,
+        facing_deg: normalize_deg(origin.at.bearing_deg(at)),
+        hold_s: 0.0,
+        via: Vec::new(),
+        curve: Default::default(),
+        arrival: Arrival::Walk,
+        ..origin
+    };
+
+    for later in &mut marks[index + 1..] {
+        later.at_s += walk_s;
+    }
+    marks.insert(index + 1, new);
+    // The figure leaves at the copy, behind the way, not at the mark it was copied from.
+    marks[index].departure = Departure::Stay;
+
+    // Links to the marks behind move on by one, as removing a mark moves them up.
+    for link in &mut scope.plan.links {
+        let LinkTarget::Mark {
+            character: c,
+            index: i,
+        } = &mut link.target
+        else {
+            continue;
+        };
+        if c == character && *i > index {
+            *i += 1;
+        }
+    }
+
+    Ok(())
 }
