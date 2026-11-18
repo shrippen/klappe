@@ -1008,6 +1008,6 @@
  "location.sunHint": "Without latitude and longitude the plan shows no sun.",
  "scene.sunDate": "Date (YYYY-MM-DD)",
  "scene.sunTime": "Time (HH:MM)",
- "scene.sunOffset": "UTC offset (±HH:MM, empty: the location's time zone)",
+ "scene.sunOffset": "UTC offset (±HH:MM, empty: longitude ÷ 15, no daylight saving)",
  "scene.sunHint": "Date and time set the sun; the location needs latitude and longitude for it."
 }

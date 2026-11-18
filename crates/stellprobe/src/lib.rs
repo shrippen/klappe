@@ -66,4 +66,3 @@ pub use setup::{
     is_setup_model, ordered_shots, setup_choices, setup_target, shot_setups, SetupChoice,
     ShotOrder, SETUP_TOLERANCE_M,
 };
-pub use sun::{sun_at, Sun};

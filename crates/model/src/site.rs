@@ -95,7 +95,7 @@ impl SunTime {
 }
 
 /// How many days `month` of `year` has.
-pub fn days_in_month(year: i32, month: u8) -> u8 {
+fn days_in_month(year: i32, month: u8) -> u8 {
     let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
 
     match month {

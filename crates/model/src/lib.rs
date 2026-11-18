@@ -76,7 +76,7 @@ pub use register::{id_from_seed, random_id, BookState, Kind, Print, SceneKey};
 pub use saved_view::SavedView;
 pub use script_setup::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 pub use shot::{Angle, Movement, Numbering, Shot, ShotSize, VersionOf};
-pub use site::{days_in_month, Site, SunTime, MAX_UTC_OFFSET_MIN};
+pub use site::{Site, SunTime, MAX_UTC_OFFSET_MIN};
 pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};
 
