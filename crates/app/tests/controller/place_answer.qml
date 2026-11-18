@@ -44,6 +44,9 @@ Item {
             if (ctl.dirty || ctl.canUndo !== undoBefore) {
                 return root.fail("a place answer must be no undo step")
             }
+            if (ctl.status.indexOf("Spielorte offen") >= 0) {
+                return root.fail("the status still counts the answered place: " + ctl.status)
+            }
             Qt.exit(0)
         }
     }

@@ -7,8 +7,9 @@ import Kante
 // The open questions about the book (DATENMODELL §4): a register entry the screenplay could not
 // place, then a location of the scene headings no play location is called by (DB-51).
 // One question at a time: the scenes of the book it may be, best first, and "not in the book";
-// for a location the play locations it may be, or a new one. Arrows and Enter choose, a click answers; Close (Esc) leaves the questions open. The
-// next question follows; the dialog closes after the last.
+// for a location the play locations it may be, or a new one. Arrows and Enter choose, a click
+// answers; Close (Esc) leaves the questions open. The next question follows; the dialog closes
+// after the last.
 Item {
     id: root
 

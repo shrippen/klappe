@@ -14,6 +14,8 @@ const PLACE_PROJECT: &str = "orte-projekt";
 /// The play location of the example, and the name the copy has before the scenario renames it.
 const PLACE_NAME: &str = "SÄNGERSAAL";
 const PLACE_OLD_NAME: &str = "FESTSAAL";
+/// The id of the renamed play place in the example project; a rename keeps it.
+const PLACE_ID: &str = "k3m9q2xa";
 /// Where the width sits in a PNG file; the height follows.
 const PNG_WIDTH_AT: usize = 16;
 
@@ -64,7 +66,7 @@ fn check_place_answer(base: &Path) {
 
     assert!(places.contains(PLACE_NAME), "{places}");
     assert!(!places.contains(PLACE_OLD_NAME), "{places}");
-    assert!(places.contains("k3m9q2xa"), "{places}");
+    assert!(places.contains(PLACE_ID), "{places}");
 }
 
 /// What `image_pick.qml` picked lies in the copy's `bilder/`, byte for byte, both files.

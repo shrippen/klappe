@@ -41,6 +41,9 @@ impl qobject::Controller {
             self.say(error_text(language, &e));
             return false;
         }
+
+        // Clears the status line's count; the answer is no project change for "unsaved".
+        self.as_mut().changed();
         self.refresh();
         true
     }
