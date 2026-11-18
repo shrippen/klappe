@@ -1011,5 +1011,15 @@
  "step.SetNumbering": "Change shot numbering",
  "step.NameShot": "Name shot",
  "step.ShotImage": "Storyboard image",
- "step.ShotStill": "Camera view as storyboard image"
+ "step.ShotStill": "Camera view as storyboard image",
+ "menu.mp4": "Playback as video (MP4)",
+ "menu.mp4Saved": "Video saved: {path}",
+ "menu.mp4Started": "Writing video …",
+ "menu.mp4Progress": "Writing video: {percent} %",
+ "export.pick.mp4": "Save video",
+ "export.filter.mp4": "MP4 (*.mp4)",
+ "error.noFfmpeg": "ffmpeg is missing for the video. Install ffmpeg (it must be on the search path); nothing was written.",
+ "error.video": "The video could not be written: {detail}",
+ "error.noDuration": "The plan has no duration, so there is no video.",
+ "error.cancelled": "The video was stopped."
 }

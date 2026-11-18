@@ -150,7 +150,8 @@ fn the_overview_lists_what_each_export_needs() {
             "shotpages",
             "camerapages",
             "shotfiles",
-            "camerafiles"
+            "camerafiles",
+            "mp4"
         ]
     );
     let on_paper: Vec<&str> = formats
@@ -181,6 +182,7 @@ fn the_overview_lists_what_each_export_needs() {
     assert_eq!(extensions[10], "pdf");
     assert_eq!(extensions[11], serde_json::Value::Null);
     assert_eq!(extensions[12], serde_json::Value::Null);
+    assert_eq!(extensions[13], "mp4");
 }
 
 /// The plan printed on a sheet makes it the project's; lists and views of it do not.
@@ -193,7 +195,11 @@ fn an_export_keeps_the_paper_it_printed_on() {
     s.set_time(6.0);
     s.toggle_view();
 
+    // The video draws 500 frames and needs ffmpeg: `video.rs` tests it.
     for format in ExportFormat::ALL {
+        if format == ExportFormat::Video {
+            continue;
+        }
         let target = out.join(format.name());
         s.set_paper(PaperSetup::default());
 

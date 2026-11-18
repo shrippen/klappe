@@ -93,6 +93,8 @@ fn store_text(error: &klappe_store::StoreError) -> (&'static str, String) {
 fn export_key(error: &klappe_export::ExportError) -> &'static str {
     match error {
         klappe_export::ExportError::ZipTooBig => "error.zipTooBig",
+        klappe_export::ExportError::NoVideoProgram(_) => "error.noFfmpeg",
+        klappe_export::ExportError::Video(_) => "error.video",
         _ => "error.export",
     }
 }
@@ -121,10 +123,12 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::NoBackup => Some("error.noBackup"),
         ServiceError::EmptyLibrary => Some("error.emptyLibrary"),
         ServiceError::EmptyTemplate => Some("error.emptyTemplate"),
-        ServiceError::NoMarks => Some("error.noMarks"),
-        ServiceError::NoPicture => Some("error.noPicture"),
-        ServiceError::NoScript => Some("error.noScript"),
-        ServiceError::NoPages => Some("error.noPages"),
+        ServiceError::NoMarks
+        | ServiceError::NoDuration
+        | ServiceError::Cancelled
+        | ServiceError::NoPicture
+        | ServiceError::NoScript
+        | ServiceError::NoPages => nothing_key(error),
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
         ServiceError::FewPoints => Some("error.fewPoints"),
         ServiceError::NotCopyable => Some("error.notCopyable"),
@@ -150,6 +154,19 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::Store(_)
         | ServiceError::Export(_)
         | ServiceError::Write { .. } => None,
+    }
+}
+
+/// The key of an error that says an output has nothing to write.
+fn nothing_key(error: &ServiceError) -> Option<&'static str> {
+    match error {
+        ServiceError::NoMarks => Some("error.noMarks"),
+        ServiceError::NoDuration => Some("error.noDuration"),
+        ServiceError::Cancelled => Some("error.cancelled"),
+        ServiceError::NoPicture => Some("error.noPicture"),
+        ServiceError::NoScript => Some("error.noScript"),
+        ServiceError::NoPages => Some("error.noPages"),
+        _ => None,
     }
 }
 
@@ -408,7 +425,11 @@ mod tests {
             ServiceError::NoMarks,
             ServiceError::NoPicture,
             ServiceError::NoScript,
+            ServiceError::NoDuration,
+            ServiceError::Cancelled,
             ServiceError::NotCopyable,
+            ServiceError::Export(klappe_export::ExportError::NoVideoProgram("ffmpeg".into())),
+            ServiceError::Export(klappe_export::ExportError::Video("x".into())),
             ServiceError::Export(klappe_export::ExportError::ZipTooBig),
         ];
 

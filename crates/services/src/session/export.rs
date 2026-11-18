@@ -49,14 +49,11 @@ impl Session {
             ExportFormat::Frames => self.export_frames(path, paper, texts).map(|_| ()),
             ExportFormat::View3d => self.export_view_png(path, options.shown),
             ExportFormat::Camera => self.export_camera_png(path, options.camera.as_deref()),
-            ExportFormat::ShotPages => self.export_pages(path, paper, texts, Pages::PerShot),
-            ExportFormat::CameraPages => self.export_pages(path, paper, texts, Pages::PerCamera),
-            ExportFormat::ShotFiles => self
-                .export_page_files(path, paper, texts, Pages::PerShot)
-                .map(|_| ()),
-            ExportFormat::CameraFiles => self
-                .export_page_files(path, paper, texts, Pages::PerCamera)
-                .map(|_| ()),
+            ExportFormat::ShotPages
+            | ExportFormat::CameraPages
+            | ExportFormat::ShotFiles
+            | ExportFormat::CameraFiles => self.export_paged(format, path, paper, texts),
+            ExportFormat::Video => self.export_video(path, texts),
         }?;
 
         if format.needs_paper() {
@@ -64,6 +61,31 @@ impl Session {
         }
 
         Ok(())
+    }
+
+    /// The outputs with one page or picture per shot or camera (LH-87).
+    fn export_paged(
+        &mut self,
+        format: ExportFormat,
+        path: &Path,
+        paper: PaperSetup,
+        texts: &Texts,
+    ) -> Result<(), ServiceError> {
+        let per_shot = matches!(format, ExportFormat::ShotPages | ExportFormat::ShotFiles);
+        let pages = if per_shot {
+            Pages::PerShot
+        } else {
+            Pages::PerCamera
+        };
+
+        match format {
+            ExportFormat::ShotPages | ExportFormat::CameraPages => {
+                self.export_pages(path, paper, texts, pages)
+            }
+            _ => self
+                .export_page_files(path, paper, texts, pages)
+                .map(|_| ()),
+        }
     }
 
     /// Prints the current plan at the playhead as PDF (LH-80), followed by its shot list;
