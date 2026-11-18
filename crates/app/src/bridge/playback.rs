@@ -60,4 +60,11 @@ impl qobject::Controller {
         self.refresh();
         playing == Playing::Running
     }
+
+    pub(super) fn speech_json(&self) -> QString {
+        let rust = self.rust();
+        let speech = rust.session.as_ref().map(|s| s.speech(rust.language));
+
+        QString::from(super::view::to_json(&speech).as_str())
+    }
 }

@@ -14,18 +14,25 @@ TestCase {
     QtObject {
         id: fake
         property string tracksJson: "[]"
+        property string speech: "null"
+        function speechJson() { return speech }
         property real time: 6
         property real duration: 20
         property var seeks: []
         property var steps: []
         property var advances: []
         property bool running: true
+        // Where the next `advance` puts the playhead (-1: stays), e.g. a loop's wrap.
+        property real nextTime: -1
         signal switched()
 
         function seek(at) { seeks.push(at) }
         function stepMark(direction) { steps.push(direction) }
         function advance(dt, speed, looping) {
             advances.push([speed, looping])
+            if (nextTime >= 0) {
+                time = nextTime
+            }
             return running
         }
         function setTrack() {}
@@ -68,7 +75,9 @@ TestCase {
 
     function init() {
         fake.time = 6
+        fake.speech = "null"
         fake.running = true
+        fake.nextTime = -1
         fake.tracksJson = "[]"
         fake.drags = []
         fake.drops = []
@@ -93,6 +102,167 @@ TestCase {
         line.togglePlay()
         fake.switched()
         verify(!line.playing)
+    }
+
+    QtObject {
+        id: fakeVoice
+        property bool available: true
+        property var said: []
+        property int stops: 0
+        function say(text, language) { said.push(text) }
+        function stop() { stops++ }
+    }
+
+    function speechOf(line) {
+        return findChild(line, "speakSwitch")
+    }
+
+    // LH-64: without a voice the switch is off and says why; with one it asks the window.
+    function test_the_speak_switch_is_off_and_explained_without_a_voice() {
+        const sw = speechOf(make(de))
+
+        verify(!sw.enabled)
+        compare(sw.text, "Dialog vorlesen (keine Sprachausgabe gefunden)")
+    }
+
+    function test_the_speak_switch_asks_the_window() {
+        const line = make(en)
+        line.voice = fakeVoice
+        const spy = createTemporaryObject(spyComponent, tc, { target: line, signalName: "speakToggled" })
+        const sw = speechOf(line)
+
+        verify(sw.enabled)
+        compare(sw.text, "Read dialogue aloud")
+        verify(!sw.checked)
+        mouseClick(sw)
+        compare(spy.count, 1)
+        compare(spy.signalArguments[0][0], true)
+        // The window did not turn it on: the switch follows the window.
+        verify(!sw.checked)
+        line.speak = true
+        verify(sw.checked)
+    }
+
+    // The voice reads only while playing with the switch on; pause stops it.
+    function test_the_voice_reads_only_while_playing_with_the_switch_on() {
+        fakeVoice.said = []
+        fake.speech = JSON.stringify({ language: "de", lines: [{ index: 1, at_s: 6, text: "Hallo." }] })
+        const line = make(de)
+        line.voice = fakeVoice
+        line.speak = true
+
+        fake.time = 6
+        compare(fakeVoice.said, [])
+        line.togglePlay()
+        compare(fakeVoice.said, ["Hallo."])
+
+        fakeVoice.stops = 0
+        line.togglePlay()
+        compare(fakeVoice.stops, 1)
+    }
+
+    // The voice of a line at 6 s speaks (playing, the switch on); then the scene ends by itself.
+    function endedWithVoice() {
+        fakeVoice.said = []
+        fake.speech = JSON.stringify({ language: "de", lines: [{ index: 1, at_s: 6, text: "Ende." }] })
+        const line = make(de)
+        line.voice = fakeVoice
+        line.speak = true
+        line.togglePlay()
+        compare(fakeVoice.said, ["Ende."])
+
+        fakeVoice.stops = 0
+        fake.running = false
+        tryVerify(() => !line.playing)
+        compare(fakeVoice.stops, 0)
+        return line
+    }
+
+    // After the scene's end the last line is read on; the voice stops with the switch ...
+    function test_the_voice_after_the_end_stops_with_the_switch() {
+        const line = endedWithVoice()
+        line.speak = false
+        compare(fakeVoice.stops, 1)
+    }
+
+    // ... with another scene or project ...
+    function test_the_voice_after_the_end_stops_on_a_switch() {
+        endedWithVoice()
+        fake.switched()
+        compare(fakeVoice.stops, 1)
+    }
+
+    // ... with a seek ...
+    function test_the_voice_after_the_end_stops_on_a_seek() {
+        endedWithVoice()
+        fake.time = 3
+        compare(fakeVoice.stops, 1)
+    }
+
+    // ... and with the next start.
+    function test_the_voice_after_the_end_stops_on_the_next_play() {
+        const line = endedWithVoice()
+        fake.running = true
+        line.looping = true
+        line.togglePlay()
+        verify(fakeVoice.stops >= 1)
+    }
+
+    // A shot loop wraps to the shot's start plus the rest of a tick: the line there is read
+    // again, the one before the shot is not (shot 2 to 6 s, lines at 1 s and 2 s).
+    function test_a_loop_wrap_reads_the_line_at_the_shot_start() {
+        fakeVoice.said = []
+        fake.tracksJson = JSON.stringify([
+            { kind: "cut", id: "cut", name: "", label: "yellow", shown: true,
+              segments: [{ from_s: 2, to_s: 6, text: "1", key: "s1", selected: true }], markers: [] }])
+        fake.speech = JSON.stringify({ language: "de", lines: [
+            { index: 1, at_s: 1, text: "Before." }, { index: 3, at_s: 2, text: "Shot." }] })
+        fake.time = 5.9
+        const line = make(de)
+        line.voice = fakeVoice
+        line.speak = true
+        line.looping = true
+        line.togglePlay()
+        compare(fakeVoice.said, [])
+
+        fake.nextTime = 2.04
+        tryCompare(fakeVoice.said, "length", 1)
+        compare(fakeVoice.said, ["Shot."])
+    }
+
+    // In a loop, a jump back by the user is a seek, not a wrap: nothing from the loop start.
+    function test_a_jump_back_in_a_loop_reads_nothing_from_its_start() {
+        fakeVoice.said = []
+        fake.tracksJson = JSON.stringify([
+            { kind: "cut", id: "cut", name: "", label: "yellow", shown: true,
+              segments: [{ from_s: 2, to_s: 6, text: "1", key: "s1", selected: true }], markers: [] }])
+        fake.speech = JSON.stringify({ language: "de", lines: [
+            { index: 1, at_s: 2, text: "Start." }, { index: 3, at_s: 3, text: "Middle." },
+            { index: 5, at_s: 5.5, text: "Late." }] })
+        fake.time = 5
+        const line = make(de)
+        line.voice = fakeVoice
+        line.speak = true
+        line.looping = true
+        line.togglePlay()
+        fake.nextTime = 5.04
+        tryVerify(() => fake.time === 5.04)
+
+        fake.time = 4.5
+        wait(100)
+        compare(fakeVoice.said, [])
+    }
+
+    // The scene's end does not stop the voice: the last line is read to its end.
+    function test_the_natural_end_leaves_the_voice_alone() {
+        endedWithVoice()
+        wait(100)
+        compare(fakeVoice.stops, 0)
+    }
+
+    Component {
+        id: spyComponent
+        SignalSpy {}
     }
 
     function make(texts) {
