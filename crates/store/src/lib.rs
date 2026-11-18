@@ -46,6 +46,7 @@ pub use images::{
 };
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
+use places::PlacesFile;
 pub use places::{load_places, save_places};
 pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
@@ -233,6 +234,25 @@ fn load_characters(dir: &Path) -> Result<Vec<Character>, StoreError> {
 /// when the project has no own objects or templates. `script: None` leaves an existing
 /// `drehbuch.fountain` untouched.
 pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), StoreError> {
+    save_with(dir, project, script, PlacesFile::Write)
+}
+
+/// `save`, but `orte.toml` stays as it is on disk: only `save_places` writes it, from the file
+/// as it is, so a save never undoes an answer another program gave meanwhile.
+pub fn save_keeping_places(
+    dir: &Path,
+    project: &Project,
+    script: Option<&str>,
+) -> Result<(), StoreError> {
+    save_with(dir, project, script, PlacesFile::Keep)
+}
+
+fn save_with(
+    dir: &Path,
+    project: &Project,
+    script: Option<&str>,
+    places: PlacesFile,
+) -> Result<(), StoreError> {
     // Ids become file names: check all before the first write.
     check_ids(project.locations.iter().map(|l| l.id.as_str()))?;
     check_ids(project.scenes.iter().map(|s| s.id.as_str()))?;
@@ -257,7 +277,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     let path = dir.join(CHARACTERS_FILE);
     writes.push((path.clone(), files::encode_toml(&path, &characters)?));
 
-    let optional = optional_files(dir, project)?;
+    let optional = optional_files(dir, project, places)?;
     writes.extend(optional.iter().filter_map(|(path, bytes)| {
         let bytes = bytes.clone()?;
         Some((path.clone(), bytes))
@@ -297,7 +317,11 @@ type OptionalFile = (PathBuf, Option<Vec<u8>>);
 /// The files that exist only while there are entries: own objects, own templates and play
 /// locations, each
 /// with its content, or `None` when there are none.
-fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, StoreError> {
+fn optional_files(
+    dir: &Path,
+    project: &Project,
+    places: PlacesFile,
+) -> Result<Vec<OptionalFile>, StoreError> {
     let library_path = dir.join(LIBRARY_FILE);
     let templates_path = dir.join(TEMPLATES_FILE);
     let library = match project.library.is_empty() {
@@ -309,16 +333,18 @@ fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, St
         false => Some(template::encode(&templates_path, &project.templates)?),
     };
 
-    let places = match project.places.is_empty() {
+    let mut files = vec![(library_path, library), (templates_path, templates)];
+    if places == PlacesFile::Keep {
+        return Ok(files);
+    }
+
+    let encoded = match project.places.is_empty() {
         true => None,
         false => Some(places::encode(dir, &project.places)?.1),
     };
+    files.push((dir.join(PLACES_FILE), encoded));
 
-    Ok(vec![
-        (library_path, library),
-        (templates_path, templates),
-        (dir.join(PLACES_FILE), places),
-    ])
+    Ok(files)
 }
 
 /// Sets "(CONT'D) after action" in `projekt.toml` of `dir` and nothing else: the rest of the

@@ -4,6 +4,7 @@
 //! The answer is written to `orte.toml` at once, from the file as it is on disk: another
 //! program (the TUI beside the window) may have changed it, and the answer changes only what
 //! it touches. It is no undo step; undo and redo keep the places as they are (like the paper).
+//! Nothing else writes the file: a save leaves it alone.
 
 use super::Session;
 use crate::error::ServiceError;
@@ -70,27 +71,33 @@ impl Session {
     }
 
     /// Answers the question about the location `name` with line `index` of `place_answers`.
+    /// A question that is gone is no error: the disk is taken and the questions refreshed.
     pub fn answer_place(&mut self, name: &str, index: usize) -> Result<(), ServiceError> {
         let answers = self.place_answers(name);
+        if answers.is_empty() {
+            return self.reload_places();
+        }
+
         let Some(answer) = answers.into_iter().nth(index) else {
-            return Err(ServiceError::NoDecision(name.to_owned()));
+            return Err(ServiceError::NoPlaceAnswer(index));
         };
 
         self.resolve_place(name, answer.choice)
     }
 
     /// Settles the location `name`: a new play location, a variant of one, or the new name
-    /// of one. Written to `orte.toml` at once.
+    /// of one. Written to `orte.toml` at once. A question that is gone (another program
+    /// answered it, or a backup came back) is no error: the disk is taken, the questions are
+    /// refreshed and the question disappears.
     pub fn resolve_place(&mut self, name: &str, choice: PlaceChoice) -> Result<(), ServiceError> {
-        let none = || ServiceError::NoDecision(name.to_owned());
         if !self.pending_places.iter().any(|p| p.name == name) {
-            return Err(none());
+            return self.reload_places();
         }
 
         // The file as it is now, not the session's copy: it may be older.
         let mut disk = klappe_store::load_places(&self.dir)?;
         if !places::decide(&mut disk, name, &choice) {
-            return Err(none());
+            return self.reload_places();
         }
         klappe_store::save_places(&self.dir, &disk)?;
 
@@ -100,8 +107,7 @@ impl Session {
         Ok(())
     }
 
-    /// Takes the play locations from `orte.toml`: the file is their only source, so a save
-    /// writes back what another program may have added since the project was opened.
+    /// Takes the play locations from `orte.toml`: the file is their only source.
     pub(super) fn reload_places(&mut self) -> Result<(), ServiceError> {
         self.project.places = klappe_store::load_places(&self.dir)?;
         self.refresh_places();

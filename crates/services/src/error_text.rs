@@ -9,6 +9,9 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
     if let ServiceError::NoDecision(_) = error {
         return language.text("error.noDecision");
     }
+    if let ServiceError::NoPlaceAnswer(_) = error {
+        return language.text("error.noPlaceAnswer");
+    }
 
     // Wraps another error: its text first, then where the old example copy went.
     let ServiceError::ExampleAside { aside, source } = error else {
@@ -129,6 +132,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         // Listed so a new variant must be placed: `error_text` words these itself.
         ServiceError::NoScene(_)
         | ServiceError::NoDecision(_)
+        | ServiceError::NoPlaceAnswer(_)
         | ServiceError::NoPlan(_)
         | ServiceError::NoShot(_)
         | ServiceError::NoLocation(_)

@@ -112,7 +112,9 @@ impl App {
         let name = question.name.clone();
 
         if let Err(e) = self.session.answer_place(&name, self.book_sel) {
-            self.notice = Some(Notice::SaveFailed(e.to_string()));
+            self.notice = Some(Notice::SaveFailed(klappe_services::error_text(
+                self.lang, &e,
+            )));
             self.mode = Mode::Normal;
             return;
         }

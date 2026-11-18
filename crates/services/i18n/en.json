@@ -427,6 +427,7 @@
  "legend.area": "Area",
  "error.noScene": "Scene not found: {detail}",
  "error.noDecision": "No open decision for this scene.",
+ "error.noPlaceAnswer": "No such answer to the location question.",
  "book.pending": "Scenes to match with the book: {count}.",
  "book.notInBook": "Scenes not in the book: {count}.",
  "book.places": "Locations of the headings to match: {count}.",

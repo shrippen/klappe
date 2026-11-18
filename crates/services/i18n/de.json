@@ -427,6 +427,7 @@
  "legend.area": "Fläche",
  "error.noScene": "Szene nicht gefunden: {detail}",
  "error.noDecision": "Keine offene Entscheidung für diese Szene.",
+ "error.noPlaceAnswer": "Diese Antwort gibt es für die Frage zum Ort nicht.",
  "book.pending": "Szenen, die dem Buch noch zugeordnet werden müssen: {count}.",
  "book.notInBook": "Szenen, die nicht im Buch stehen: {count}.",
  "book.places": "Orte der Szenenköpfe, die noch zugeordnet werden müssen: {count}.",

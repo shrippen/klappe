@@ -367,8 +367,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   gehört genau einem Spielort, jede `id` kommt einmal vor, kein Name ist leer; sonst lehnt Laden
   das Projekt ab. Die Datei steht nur, wenn es Spielorte gibt. Eine Antwort schreibt nur diese
   Datei, ausgehend vom Stand auf der Platte (ein Programm daneben, etwa das TUI beim Fenster,
-  behält seine Änderungen); `save` liest die Datei vor dem Schreiben neu. Antworten sind kein
-  Schritt von Rückgängig. Die Zuordnung Spielort → Drehort folgt (Datenmodell Schritt 2). Keine
+  behält seine Änderungen); `save` schreibt die Datei nicht (nur eine Antwort tut es), auch
+  nicht aus einer wiederhergestellten Sicherung: der Stand auf der Platte gilt. Eine Frage, die
+  eine Antwort schon nicht mehr offen findet, verschwindet nach dem Neulesen der Platte. Antworten
+  sind kein Schritt von Rückgängig. Die Zuordnung Spielort → Drehort folgt (Datenmodell Schritt 2). Keine
   neue Formatversion: die Datei fehlt in älteren Projekten und gilt dann als leer.
 - **Gruppen (LH-23):** eine Figur in `figuren.toml` hat optional `group`, die Zahl der Personen
   (2 bis 999). Mit `group` ist die Figur eine Gruppe (Gäste, Wachen): sie hat eine Spur, Marks

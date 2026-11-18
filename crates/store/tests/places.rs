@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{Place, Project};
-use klappe_store::{load, load_places, save, save_places};
+use klappe_store::{load, load_places, save, save_keeping_places, save_places};
 
 const EXAMPLE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -98,4 +98,21 @@ fn an_empty_name_or_a_repeated_id_is_refused() {
     assert!(save_places(&dir, &[place("a", " ", &[])]).is_err());
     assert!(save_places(&dir, &[place("a", "X", &[]), place("a", "Y", &[])]).is_err());
     assert!(save_places(&dir, &[place("a", "X", &[""])]).is_err());
+}
+
+#[test]
+fn a_save_keeping_places_never_touches_orte_toml() {
+    let dir = dir("places-kept");
+    let mut project = Project::new("T");
+    project.places = vec![place("a", "HOF", &[])];
+    save(&dir, &project, None).unwrap();
+    let before = fs::read(dir.join("orte.toml")).unwrap();
+
+    project.places = vec![place("b", "WALD", &[])];
+    save_keeping_places(&dir, &project, None).unwrap();
+    assert_eq!(fs::read(dir.join("orte.toml")).unwrap(), before);
+
+    project.places.clear();
+    save_keeping_places(&dir, &project, None).unwrap();
+    assert_eq!(fs::read(dir.join("orte.toml")).unwrap(), before);
 }

@@ -170,10 +170,15 @@ fn a_name_belongs_to_one_place() {
     let hof = other.project().places[0].id.clone();
     let before = orte(&dir);
 
-    // The question is stale: the file already knows the name.
-    let answered = early.resolve_place("SÄNGERSAAL", PlaceChoice::Variant(hof));
+    // The question is stale: the file already knows the name. It goes, the file stays.
+    early
+        .resolve_place("SÄNGERSAAL", PlaceChoice::Variant(hof))
+        .unwrap();
 
-    assert!(answered.is_err());
+    assert!(early
+        .pending_places()
+        .iter()
+        .all(|p| p.name != "SÄNGERSAAL"));
     assert_eq!(orte(&dir), before);
 }
 
@@ -265,4 +270,47 @@ fn a_file_written_by_an_answer_is_saved_unchanged() {
     s.save().unwrap();
 
     assert_eq!(changed(&snapshot(&dir), &before), Vec::<PathBuf>::new());
+}
+
+/// Review of PR 256: a question another session had answered stayed and said
+/// "no open decision for scene HOF".
+#[test]
+fn a_stale_question_takes_the_disk_and_goes() {
+    let dir = make("places-stale-question", BOOK);
+    let mut early = Session::open(&dir).unwrap();
+    let mut other = Session::open(&dir).unwrap();
+    other.resolve_place("HOF", PlaceChoice::Create).unwrap();
+
+    early.resolve_place("HOF", PlaceChoice::Create).unwrap();
+
+    assert_eq!(names(&early), [("SÄNGERSAAL".to_owned(), 2)]);
+    assert_eq!(orte(&dir).matches("HOF").count(), 1);
+    assert_eq!(early.project().places.len(), 1);
+
+    let mut third = Session::open(&dir).unwrap();
+    other
+        .resolve_place("SÄNGERSAAL", PlaceChoice::Create)
+        .unwrap();
+    third.answer_place("SÄNGERSAAL", 0).unwrap();
+    assert!(third.pending_places().is_empty());
+}
+
+/// The places of a backup are not written back: the disk wins.
+#[test]
+fn a_restored_backup_leaves_the_places_to_the_disk() {
+    let dir = make("places-backup", BOOK);
+    let mut project = Project::new("Test");
+    project.places = vec![klappe_model::Place {
+        id: "zz".into(),
+        name: "WALD".into(),
+        variants: Vec::new(),
+    }];
+    klappe_store::save_backup(&dir, &project, Some(BOOK)).unwrap();
+
+    let mut s = Session::open(&dir).unwrap();
+    s.restore_backup().unwrap();
+    s.save().unwrap();
+
+    assert!(s.project().places.is_empty());
+    assert_eq!(orte(&dir), "");
 }
