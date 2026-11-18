@@ -31,6 +31,9 @@ pub struct Texts {
     pub axis: String,
     pub path: String,
     pub mark: String,
+    /// The legend's words for the signs of an appearing and a leaving mark (LH-26).
+    pub arrival: String,
+    pub departure: String,
     /// The legend's words for drawings (LH-19).
     pub drawing: DrawingTexts,
     /// Metre unit, e.g. "m".

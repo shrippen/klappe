@@ -73,6 +73,31 @@ mod tests {
     use crate::bridge::view::choices_json;
     use klappe_services::{Bend, FigureColor, ProjectEdit, Source};
 
+    /// LH-26: the tooltip of a mark says where the figure appears or leaves.
+    #[test]
+    fn describe_names_the_arrival_and_departure_of_a_mark() {
+        let mut s = example();
+        let mark = Source::Mark {
+            character: "elisabeth".into(),
+            index: 1,
+        };
+        let key = plan::key(&mark);
+        for (edit, name) in [
+            (crate::mark::arrival_edit(Some(&mark), "appear"), "arrival"),
+            (
+                crate::mark::departure_edit(Some(&mark), "leave"),
+                "departure",
+            ),
+        ] {
+            s.edit_plan(edit.unwrap()).unwrap();
+            assert!(!describe(&s, &key)[name].as_str().unwrap().is_empty());
+        }
+
+        let described = describe(&s, &key);
+        assert_eq!(described["arrival"], "appear");
+        assert_eq!(described["departure"], "leave");
+    }
+
     /// A group's tooltip, and the camera that follows it, name it with its head count.
     #[test]
     fn describe_names_a_group_with_its_count() {
@@ -268,7 +293,10 @@ mod tests {
         );
         assert_eq!(
             describe(&s, "mark:elisabeth:1"),
-            json!({ "kind": "mark", "name": "Elisabeth", "index": 2, "time": 6.0 })
+            json!({
+                "kind": "mark", "name": "Elisabeth", "index": 2, "time": 6.0,
+                "arrival": "walk", "departure": "stay",
+            })
         );
         assert_eq!(
             describe(&s, "object:tisch"),

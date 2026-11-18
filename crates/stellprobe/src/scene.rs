@@ -24,7 +24,7 @@ use crate::eye::Vec3;
 use crate::figure::body_radius_m;
 use crate::forms::Forms;
 use crate::height::{figure_height_m, object_extent};
-use crate::motion::{aim_at, camera_at, figure_at};
+use crate::motion::{aim_at, camera_at, figure_at, figure_opacity_at};
 
 /// Corners of a figure's body.
 const FIGURE_SIDES: usize = 8;
@@ -82,6 +82,8 @@ pub(crate) struct Solid {
     pub(crate) source: Option<Source>,
     pub(crate) role: SceneRole,
     pub(crate) faces: Vec<Face>,
+    /// How strongly it is drawn, 0 to 1: a figure fading in or out (LH-26).
+    pub(crate) opacity: f64,
     /// A name and the point it stands at, e.g. a figure's above its head.
     pub(crate) label: Option<(String, Vec3)>,
 }
@@ -170,6 +172,7 @@ fn cameras(plan: &FloorPlan, t_s: f64, looking: Option<&str>, solids: &mut Vec<S
         let low_m = (height_m - high / 2.0).max(0.0);
 
         solids.push(Solid {
+            opacity: 1.0,
             source: Some(Source::Camera(camera.id.clone())),
             role: SceneRole::Camera,
             faces: prism(&outline, (low_m, low_m + high), Sides::Flat),
@@ -185,6 +188,7 @@ fn floor(set: &SetPlan) -> Solid {
     let (w, d) = (set.width_m, set.depth_m);
 
     Solid {
+        opacity: 1.0,
         source: None,
         role: SceneRole::Floor,
         faces: vec![Face {
@@ -212,6 +216,7 @@ fn objects(set: &SetPlan, forms: &Forms, solids: &mut Vec<Solid>) {
             .filter(|_| object.shape == ObjectShape::Rect);
         let Some(boxes) = form else {
             solids.push(Solid {
+                opacity: 1.0,
                 source,
                 role,
                 faces: prism(&object_corners(object), (base_m, top_m), sides),
@@ -223,6 +228,7 @@ fn objects(set: &SetPlan, forms: &Forms, solids: &mut Vec<Solid>) {
         for part in boxes {
             let (outline, levels) = form_box(object, part, (base_m, top_m));
             solids.push(Solid {
+                opacity: 1.0,
                 source: source.clone(),
                 role,
                 faces: prism(&outline, levels, Sides::Flat),
@@ -268,6 +274,10 @@ fn figures(project: &Project, plan: &FloorPlan, t_s: f64, solids: &mut Vec<Solid
         let Some(place) = figure_at(track, t_s) else {
             continue;
         };
+        let opacity = figure_opacity_at(track, t_s);
+        if opacity <= 0.0 {
+            continue;
+        }
 
         let radius_m = body_radius_m(character);
         let outline: Vec<Point> = (0..FIGURE_SIDES)
@@ -284,6 +294,7 @@ fn figures(project: &Project, plan: &FloorPlan, t_s: f64, solids: &mut Vec<Solid
         let top_m = figure_height_m(pose.unwrap_or_default());
 
         solids.push(Solid {
+            opacity,
             source: Some(Source::Figure(track.character.clone())),
             role: SceneRole::Figure(character.color),
             faces: prism(&outline, (0.0, top_m), Sides::Round),

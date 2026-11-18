@@ -136,6 +136,7 @@ mod tests {
             shape,
             label: None,
             source: None,
+            opacity: crate::display::FULL_OPACITY,
         }
     }
 

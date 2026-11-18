@@ -311,6 +311,7 @@ fn background_is_first_and_keeps_its_aspect() {
             },
             label: None,
             source: None,
+            opacity: 1.0,
         })
     );
     assert_eq!(list.items.get(1).map(|i| i.role), Some(Role::Wall));
@@ -638,6 +639,14 @@ fn coming_and_going() -> FloorPlan {
     p
 }
 
+/// The numbered rings, not their signs.
+fn marks(list: &DisplayList) -> usize {
+    list.items
+        .iter()
+        .filter(|i| i.role == Role::Mark(FigureColor::Purple) && i.label.is_some())
+        .count()
+}
+
 fn bodies(list: &DisplayList) -> usize {
     count(list, Role::Figure(FigureColor::Purple))
 }
@@ -650,8 +659,8 @@ fn a_figure_out_of_the_scene_is_not_drawn() {
 
     assert_eq!(bodies(&at(5.0)), 2);
     assert_eq!(bodies(&at(15.0)), 0);
-    assert_eq!(bodies(&at(20.0)), 2);
-    assert_eq!(count(&at(15.0), Role::Mark(FigureColor::Purple)), 3);
+    assert_eq!(bodies(&at(20.5)), 2);
+    assert_eq!(marks(&at(15.0)), 3);
     assert_eq!(count(&at(15.0), Role::FigurePath(FigureColor::Purple)), 1);
 }
 
@@ -708,16 +717,55 @@ fn an_appearing_mark_has_no_grip() {
     );
 }
 
-/// The mark's number says it: `+` where the figure appears, `-` where it leaves.
+/// A chevron says it: pointing at the ring behind it where the figure appears, away from it in
+/// front where it leaves; the numbers stay plain.
 #[test]
 fn marks_show_appearing_and_leaving() {
     let list = render(&project(), &set(), &coming_and_going(), 0.0, &|_| None);
-    let labels: Vec<_> = list
+    let mark_items = || {
+        list.items
+            .iter()
+            .filter(|i| matches!(i.role, Role::Mark(FigureColor::Purple)))
+    };
+    let labels: Vec<_> = mark_items().filter_map(|i| i.label.as_deref()).collect();
+    assert_eq!(labels, ["1", "2", "3"]);
+
+    // Facing 0: the figure walks along +x. Sign of mark 2 (x = 5, leaves): ahead of the ring.
+    // Sign of mark 3 (x = 9, appears): behind it.
+    let sign_tip = |index: usize| {
+        mark_items()
+            .filter(|i| i.label.is_none())
+            .find_map(|i| match (&i.source, &i.shape) {
+                (Some(Source::Mark { index: n, .. }), Shape::Polyline { points })
+                    if *n == index =>
+                {
+                    Some(points[1])
+                }
+                _ => None,
+            })
+    };
+    assert_eq!(sign_tip(0), None);
+    assert!(sign_tip(1).unwrap().x_m > 5.0 + MARK_RADIUS_M);
+    assert!(sign_tip(2).unwrap().x_m < 9.0 - MARK_RADIUS_M);
+}
+
+/// A figure fades with the item list's opacity: its own items carry it, the marks stay full.
+#[test]
+fn a_fading_figure_carries_its_opacity() {
+    let p = coming_and_going();
+    let list = render(&project(), &set(), &p, 10.25, &|_| None);
+    let faded: Vec<_> = list
         .items
         .iter()
-        .filter(|i| matches!(i.role, Role::Mark(FigureColor::Purple)))
-        .filter_map(|i| i.label.as_deref())
+        .filter(|item| item.opacity < 1.0)
         .collect();
 
-    assert_eq!(labels, ["1", "2-", "+3"]);
+    assert_eq!(faded.len(), 2);
+    for item in faded {
+        assert!(matches!(item.role, Role::Figure(_)));
+        assert!((item.opacity - 0.5).abs() < 1e-9, "{}", item.opacity);
+    }
+
+    let still = render(&project(), &set(), &p, 5.0, &|_| None);
+    assert!(still.items.iter().all(|i| i.opacity == 1.0));
 }

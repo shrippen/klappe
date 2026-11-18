@@ -53,6 +53,8 @@ impl Language {
             axis: t("legend.axis"),
             path: t("legend.path"),
             mark: t("legend.mark"),
+            arrival: t("legend.arrival"),
+            departure: t("legend.departure"),
             drawing: DrawingTexts {
                 line: t("legend.drawing"),
                 dashed: t("legend.drawing.dashed"),
