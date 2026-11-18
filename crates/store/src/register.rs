@@ -11,7 +11,7 @@ use crate::files::{self, Dir, Kind as FileKind};
 use crate::{LoadNote, StoreError, SCENES_DIR, SCENES_FILE};
 
 /// Start of a Git conflict; no line of valid TOML begins with it.
-const CONFLICT_MARK: &str = "<<<<<<<";
+pub(crate) const CONFLICT_MARK: &str = "<<<<<<<";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

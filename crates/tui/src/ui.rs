@@ -13,7 +13,9 @@ use crate::fountain::LineKind;
 use crate::layout::{cols, Row, TAB_WIDTH};
 use crate::theme;
 use crate::ui_list::{draw_list, list_rows_area};
-use crate::ui_overlay::{draw_backup, draw_book, draw_find, draw_pdf, draw_suggest, draw_title};
+use crate::ui_overlay::{
+    draw_backup, draw_book, draw_find, draw_numbers, draw_pdf, draw_suggest, draw_title,
+};
 
 /// Share of the width the scene list takes: 1/4, but at least `LIST_MIN` columns.
 const LIST_SHARE: u16 = 4;
@@ -183,6 +185,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         Mode::Goto => draw_goto(frame, app),
         Mode::Find => draw_find(frame, app),
         Mode::Title => draw_title(frame, app),
+        Mode::Numbers => draw_numbers(frame, app),
         Mode::Book => draw_book(frame, app),
         Mode::Backup => draw_backup(frame, app),
         Mode::Pdf => draw_pdf(frame, app),
@@ -427,6 +430,7 @@ fn mode_label(app: &App) -> &str {
         (Mode::Goto, _) => &app.texts.mode_goto,
         (Mode::Find, _) => &app.texts.mode_find,
         (Mode::Title, _) => &app.texts.mode_title,
+        (Mode::Numbers, _) => &app.texts.mode_numbers,
         (Mode::Book, _) => &app.texts.mode_book,
         (Mode::Backup, _) => &app.texts.mode_backup,
         (Mode::Pdf, _) => &app.texts.mode_pdf,

@@ -25,6 +25,14 @@ pub enum Kind {
     Vlog,
 }
 
+/// A scene number of the Sperrstand (DB-33): the numbers of the book as Klappe saved it last.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LockedNumber {
+    pub number: String,
+    /// The register entry that held the scene; empty for a struck heading.
+    pub id: String,
+}
+
 /// Whether the screenplay still holds an entry. A scene struck from the book stays with its
 /// plans until the user assigns or deletes it (DATENMODELL §4).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

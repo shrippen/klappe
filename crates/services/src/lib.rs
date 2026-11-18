@@ -72,9 +72,9 @@ pub use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts, 
 pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Curve, Dash, Departure, DoorSide, DrawingShape,
     FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, Numbering,
-    ObjectShape, OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, ScriptLanguage,
-    ScriptPaper, ScriptSetup, ScriptWords, Sensor, ShotSize, Site, SunTime, MIN_IMAGE_OPACITY,
-    MIN_OBJECT_HEIGHT_M,
+    ObjectShape, OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, SceneNumbering,
+    ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords, Sensor, ShotSize, Site, SunTime,
+    MIN_IMAGE_OPACITY, MIN_OBJECT_HEIGHT_M,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, scene_look, Area, Bend, Cut, DisplayList, Frame, Hue, Item,
