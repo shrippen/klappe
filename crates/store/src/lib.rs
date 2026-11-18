@@ -49,7 +49,7 @@ pub use images::{
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
 pub use lock::{load_lock, save_lock};
-pub use partial::{save_contd, save_register, save_script};
+pub use partial::{save_contd, save_register, save_scene_numbering, save_script};
 use places::PlacesFile;
 pub use places::{load_places, save_places};
 pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
@@ -321,13 +321,6 @@ fn encode_header(dir: &Path, project: &Project) -> Result<(PathBuf, Vec<u8>), St
     let bytes = files::encode_toml(&path, &header)?;
 
     Ok((path, bytes))
-}
-
-/// Writes `projekt.toml` of `project` in `dir` and nothing else.
-pub fn save_header(dir: &Path, project: &Project) -> Result<(), StoreError> {
-    let (path, bytes) = encode_header(dir, project)?;
-
-    files::write_atomic(&path, &bytes)
 }
 
 /// A file's path with its content, or `None` when there is to be no file.

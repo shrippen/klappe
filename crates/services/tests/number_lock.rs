@@ -301,3 +301,70 @@ fn conflict_marks_in_the_lock_refuse_the_project() {
 
     assert!(error.contains("conflict"), "{error}");
 }
+
+const UNNUMBERED: &str =
+    "INT. SAAL - TAG\n\nAnna.\n\nINT. HOF - NACHT\n\nBert.\n\nINT. KELLER - NACHT\n\nCarl.\n";
+
+/// Review round 4: a locked book that never had a number (from another program) stays so
+/// on the second and later saves, and a new scene in it gets none.
+#[test]
+fn a_book_without_any_number_stays_without_any() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("nl-none-ever");
+    let _ = std::fs::remove_dir_all(&dir);
+    let mut project = Project::new("Test");
+    project.script.scene_numbering = SceneNumbering::Locked;
+    klappe_store::save(&dir, &project, Some(UNNUMBERED)).unwrap();
+
+    for _ in 0..3 {
+        Session::open(&dir).unwrap().save().unwrap();
+        assert_eq!(book(&dir), UNNUMBERED);
+    }
+
+    let more = format!("{UNNUMBERED}\nINT. DACH - TAG\n\nDora.\n");
+    let mut s = Session::open(&dir).unwrap();
+    s.set_script_text(&more);
+    s.save().unwrap();
+
+    assert_eq!(book(&dir), more);
+}
+
+/// Review round 4: `.ENTFÄLLT` is no play location.
+#[test]
+fn a_struck_heading_is_no_pending_place() {
+    let dir = make(
+        "nl-places",
+        SceneNumbering::Locked,
+        &(saal(" #1#") + &hof(" #2#")),
+    );
+    write(&dir, &saal(" #1#"));
+    let mut s = Session::open(&dir).unwrap();
+    s.save().unwrap();
+
+    assert!(book(&dir).contains(".ENTFÄLLT #2#"));
+    let names: Vec<String> = s.pending_places().iter().map(|p| p.name.clone()).collect();
+    assert!(!names.iter().any(|n| n.contains("ENTFÄLLT")), "{names:?}");
+}
+
+/// Review round 4: setting the numbering writes only its keys; what another program saved
+/// in `projekt.toml` meanwhile stays.
+#[test]
+fn setting_the_numbering_keeps_what_another_session_saved() {
+    let dir = make(
+        "nl-header",
+        SceneNumbering::Locked,
+        &(saal(" #1#") + &hof(" #2#")),
+    );
+    let mut tui = Session::open(&dir).unwrap();
+    let mut window = Session::open(&dir).unwrap();
+    let paper = klappe_model::PaperSetup::from("a3-landscape".to_owned());
+    window.set_paper(paper);
+    window.save().unwrap();
+
+    tui.set_scene_numbering(SceneNumbering::Automatic, 5)
+        .unwrap();
+
+    let saved = klappe_store::load(&dir).unwrap().project;
+    assert_eq!(saved.paper, paper);
+    assert_eq!(saved.script.scene_numbering, SceneNumbering::Automatic);
+    assert_eq!(saved.script.first_scene, 5);
+}

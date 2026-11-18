@@ -148,7 +148,7 @@ impl From<SceneNumbering> for String {
 }
 
 /// The number the first scene gets while numbers are automatic.
-pub const DEFAULT_FIRST_SCENE: u32 = 1;
+const DEFAULT_FIRST_SCENE: u32 = 1;
 
 fn default_first_scene() -> u32 {
     DEFAULT_FIRST_SCENE

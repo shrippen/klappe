@@ -160,7 +160,7 @@ fn locked_numbers_stay_and_a_new_scene_gets_a_letter() {
         "sn-locked",
         SceneNumbering::Locked,
         1,
-        &(saal("") + &hof("")),
+        &(saal(" #1#") + &hof(" #2#")),
     );
     let mut s = Session::open(&dir).unwrap();
     let text = saal(" #1#") + &keller("") + &hof(" #2#");

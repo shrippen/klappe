@@ -76,9 +76,7 @@ pub use project::{
 };
 pub use register::{id_from_seed, random_id, BookState, Kind, LockedNumber, Print, SceneKey};
 pub use saved_view::SavedView;
-pub use script_setup::{
-    SceneNumbering, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords, DEFAULT_FIRST_SCENE,
-};
+pub use script_setup::{SceneNumbering, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 pub use shot::{Angle, Movement, Numbering, Shot, ShotSize, VersionOf};
 pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};

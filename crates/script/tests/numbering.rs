@@ -268,3 +268,40 @@ fn inserted_struck_headings_use_the_line_ending_of_the_book() {
         "INT. A - DAY #1#\r\n\r\n.OMITTED #2#\r\n\r\nINT. B - DAY #3#\r\n\r\n.OMITTED #4#\r\n"
     );
 }
+
+/// Review round 4: a struck last scene in a CRLF book without a final newline went behind
+/// a bare `\n`.
+#[test]
+fn a_struck_heading_at_the_end_of_a_crlf_text_without_newline_keeps_crlf() {
+    let text = "INT. A - DAY #1#\r\n\r\nAnna.";
+    let locked = lock(&["1", "2"]);
+
+    assert_eq!(
+        number_scenes(text, &rules(NumberMode::Locked, &locked)),
+        "INT. A - DAY #1#\r\n\r\nAnna.\r\n\r\n.OMITTED #2#"
+    );
+}
+
+/// Review round 4: removing the struck headings of a CRLF book left a single `\r` at the end.
+#[test]
+fn automatic_removes_struck_headings_of_a_crlf_book_cleanly() {
+    let text =
+        "INT. A - DAY #1#\r\n\r\n.OMITTED #2#\r\n\r\nINT. B - DAY #3#\r\n\r\n.OMITTED #4#\r\n";
+
+    assert_eq!(
+        numbered(text, NumberMode::Automatic),
+        "INT. A - DAY #1#\r\n\r\nINT. B - DAY #2#\r\n"
+    );
+}
+
+/// Review round 4: a struck heading without a number (from another program) stays so.
+#[test]
+fn a_struck_heading_without_a_number_gets_none_while_locked() {
+    let text = "INT. A - DAY #1#\n\n.OMITTED\n\nINT. B - DAY #2#\n";
+    let locked = lock(&["1", "2"]);
+
+    assert_eq!(
+        number_scenes(text, &rules(NumberMode::Locked, &locked)),
+        text
+    );
+}

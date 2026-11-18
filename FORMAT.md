@@ -95,10 +95,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   auch bei `automatic`; `Session::create` legt sie leer an. Abgleich, Antworten auf Fragen,
   Sicherung und Wiederherstellen schreiben sie nie, und sie gehört der Sitzung, nicht dem
   Projekt: Rückgängig und die Sicherung tragen sie nicht. Fehlt die Datei, gilt „kein
-  Sperrstand“; Git-Konfliktmarken (`<<<<<<<`) in ihr lassen das Projekt nicht laden. Bei
+  Sperrstand“; eine kaputte Datei (Git-Konfliktmarken `<<<<<<<`, ein Wert falschen Typs wie
+  `number = 5`) lässt das Projekt nicht laden, wie bei `szenen.toml`; die Meldung nennt Pfad und
+  Zeile. Bei
   `locked` gilt: (1) Ohne Sperrstand ändert das Speichern keine Nummer (ein Buch aus der Zeit
   davor, Fountain aus anderen Programmen, bleibt Byte für Byte gleich) und legt nur den
-  Sperrstand an. (2) Gestrichen ist eine Nummer des Sperrstands, die im Text weder an einer
+  Sperrstand an. Ebenso, wenn der Sperrstand keine Nummer enthält (ein Buch, das nie
+  nummeriert war): auch beim zweiten und jedem weiteren Speichern ändert sich nichts, und eine
+  neue Szene darin bekommt keine Nummer. Nummeriert wird ein gesperrtes Buch nur nach einem
+  Sperrstand mit Nummern. Ein Kopf `.ENTFÄLLT` / `.OMITTED` ohne Nummer bekommt nie eine. (2) Gestrichen ist eine Nummer des Sperrstands, die im Text weder an einer
   Szene noch an einem Kopf `.ENTFÄLLT` steht: ihr Kopf `.ENTFÄLLT #12#` (`.OMITTED #12#` im
   englischen Projekt, ohne Sprache `ENTFÄLLT`) kommt vor die nächste Nummer des Sperrstands, die
   der Text noch hat, sonst ans Ende; er legt keinen Eintrag im Register an und kennt keinen

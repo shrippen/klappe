@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use klappe_model::Scene;
+use klappe_model::{Scene, SceneNumbering};
 
 use crate::{check_ids, files, read_header, register, StoreError, PROJECT_FILE, SCRIPT_FILE};
 
@@ -13,6 +13,22 @@ use crate::{check_ids, files, read_header, register, StoreError, PROJECT_FILE, S
 pub fn save_contd(dir: &Path, on: bool) -> Result<(), StoreError> {
     let mut header = read_header(dir)?;
     header.script.contd_after_action = on;
+
+    let path = dir.join(PROJECT_FILE);
+    let bytes = files::encode_toml(&path, &header)?;
+    files::write_atomic(&path, &bytes)
+}
+
+/// Sets the scene numbering and the first scene number in `projekt.toml` of `dir` and
+/// nothing else, as `save_contd` does.
+pub fn save_scene_numbering(
+    dir: &Path,
+    numbering: SceneNumbering,
+    first: u32,
+) -> Result<(), StoreError> {
+    let mut header = read_header(dir)?;
+    header.script.scene_numbering = numbering;
+    header.script.first_scene = first;
 
     let path = dir.join(PROJECT_FILE);
     let bytes = files::encode_toml(&path, &header)?;

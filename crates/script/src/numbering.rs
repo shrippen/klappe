@@ -78,7 +78,7 @@ pub fn number_scenes(text: &str, rules: &NumberRules) -> String {
     let wanted = assign(&heads, rules);
     let mut lines: Vec<String> = text.split('\n').map(str::to_owned).collect();
     for (head, number) in heads.iter().zip(&wanted) {
-        if head.number.as_ref() != Some(number) {
+        if head.number.as_ref() != Some(number) && !number.is_empty() {
             lines[head.line] = with_number(&lines[head.line], number);
         }
     }
@@ -114,11 +114,17 @@ fn without_omitted(text: &str) -> String {
         .filter(|(at, _)| !dropped.contains(at))
         .map(|(_, line)| *line);
 
-    kept.collect::<Vec<_>>().join("\n")
+    let mut joined = kept.collect::<Vec<_>>().join("\n");
+    // The dropped last blank line leaves the `\r` of the one before it behind.
+    if joined.ends_with('\r') && !text.ends_with('\r') {
+        joined.pop();
+    }
+
+    joined
 }
 
-/// The number of every heading. A struck scene's heading keeps its number in both modes and
-/// takes no part in the counting.
+/// The number of every heading, empty for a struck heading that has none. A struck scene's
+/// heading keeps its number in both modes and takes no part in the counting.
 fn assign(heads: &[Heading], rules: &NumberRules) -> Vec<String> {
     if rules.mode == NumberMode::Automatic {
         return sequential(heads, rules.first);
@@ -129,6 +135,12 @@ fn assign(heads: &[Heading], rules: &NumberRules) -> Vec<String> {
     let mut out = Vec::new();
 
     for (i, head) in heads.iter().enumerate() {
+        // A struck heading without a number (from another program) stays without one.
+        if head.number.is_none() && is_omitted(&head.text) {
+            out.push(String::new());
+            continue;
+        }
+
         let own = head
             .number
             .as_deref()
@@ -312,6 +324,15 @@ fn struck_places(heads: &[Heading], locked: &[String]) -> Vec<(Option<usize>, St
     places
 }
 
+/// Gives the last line its ending when the text has no final newline to give it one.
+fn end_last_line(lines: &mut [String], newline: bool, ret: &str) {
+    let Some(last) = lines.last_mut().filter(|_| !newline) else {
+        return;
+    };
+
+    last.push_str(ret);
+}
+
 /// Puts a heading for every struck number of the Sperrstand the text lacks in front of the
 /// next number it still has, so the number stays in the book.
 fn insert_struck(lines: &mut Vec<String>, heads: &[Heading], rules: &NumberRules) {
@@ -339,6 +360,7 @@ fn insert_struck(lines: &mut Vec<String>, heads: &[Heading], rules: &NumberRules
         let heading = format!(".{} {NUMBER_MARK}{number}{NUMBER_MARK}", rules.omitted);
         if line == end {
             if lines.last().is_some_and(|l| !l.trim().is_empty()) {
+                end_last_line(lines, newline, ret);
                 lines.push(ret.to_owned());
             }
             // The last line has an ending only if the text's last newline follows it.

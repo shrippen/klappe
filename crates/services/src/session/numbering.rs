@@ -25,7 +25,7 @@ impl Session {
 
         setup.scene_numbering = numbering;
         setup.first_scene = first;
-        klappe_store::save_header(&self.dir, &self.project)?;
+        klappe_store::save_scene_numbering(&self.dir, numbering, first)?;
 
         Ok(())
     }
@@ -48,7 +48,9 @@ impl Session {
         let setup = self.project.script;
         let (mode, locked, holders) = match (setup.scene_numbering, &self.lock) {
             (SceneNumbering::Automatic, _) => (NumberMode::Automatic, Vec::new(), Vec::new()),
+            // A Sperrstand without a number (a book never numbered) is none.
             (SceneNumbering::Locked, None) => return,
+            (SceneNumbering::Locked, Some(lock)) if lock.is_empty() => return,
             (SceneNumbering::Locked, Some(lock)) => {
                 let plan = book::plan(&self.project, &self.script);
                 let holding = plan.holding(&self.project, lock);
