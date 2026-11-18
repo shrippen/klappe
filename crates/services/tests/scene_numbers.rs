@@ -245,9 +245,10 @@ fn the_setting_is_written_to_the_project_file_alone() {
     assert_eq!(book(&dir), text);
 }
 
-/// A project from before the setting has no key: its numbers are the author's and stay.
+/// A project from before the setting has no key and no Sperrstand: its text stays as it is,
+/// the unnumbered scene included.
 #[test]
-fn a_project_without_the_key_keeps_its_numbers() {
+fn a_project_without_the_key_keeps_its_text() {
     let dir = make(
         "sn-nokey",
         SceneNumbering::Automatic,
@@ -264,14 +265,12 @@ fn a_project_without_the_key_keeps_its_numbers() {
         .map(|l| format!("{l}\n"))
         .collect();
     std::fs::write(&path, without).unwrap();
+    std::fs::remove_file(dir.join("nummern.toml")).unwrap();
 
     let mut s = Session::open(&dir).unwrap();
     s.save().unwrap();
 
-    assert_eq!(
-        book(&dir),
-        saal(" #12#") + &keller(" #12A#") + &hof(" #13#")
-    );
+    assert_eq!(book(&dir), text);
 }
 
 #[test]
@@ -361,8 +360,8 @@ fn a_copy_placed_before_leaves_the_number_with_the_register_scene() {
     assert_eq!(number_of(&s, "bbbb"), "2");
 }
 
-/// Two scenes with `9` from outside, and the register cannot tell which was first: saving
-/// without a change of the text leaves the book as it is.
+/// Two scenes with `9` from outside, and no Sperrstand names the holder: saving without a
+/// change of the text leaves the book as it is.
 #[test]
 fn a_duplicate_number_from_outside_stays_when_no_scene_is_known_as_holder() {
     let dir = make(
@@ -373,6 +372,7 @@ fn a_duplicate_number_from_outside_stays_when_no_scene_is_known_as_holder() {
     );
     let text = saal(" #9#") + &hof(" #9#");
     write(&dir, &text);
+    std::fs::remove_file(dir.join("nummern.toml")).unwrap();
 
     let mut s = Session::open(&dir).unwrap();
     s.save().unwrap();

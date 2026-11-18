@@ -39,6 +39,8 @@ pub struct BookReport {
     pub not_in_book: usize,
     /// Locations of the headings no play location is called by (DB-51).
     pub places: usize,
+    /// Scene numbers two scenes carry that saving leaves alone (DB-33).
+    pub twin_numbers: usize,
 }
 
 use std::collections::HashSet;
@@ -47,10 +49,12 @@ use klappe_model::{BookState, Kind, Print, Project, Scene, SceneKey};
 
 use klappe_script::{
     align, heading_print, is_omitted, normal, scene_states, Fingerprint, Outcome, SceneState,
-    Script, Struck,
+    Script,
 };
 
 use crate::project_edit::free_scene_id;
+
+mod lock;
 
 /// What the alignment made of one entry of the register.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,11 +166,6 @@ pub(crate) fn plan(project: &Project, script: &Script) -> Plan {
     plan.settle();
 
     plan
-}
-
-/// Whether the register had the entry as a scene of the book, numbered.
-fn was_in_book(scene: &Scene) -> bool {
-    scene.state == BookState::InBook && !scene.prints.is_empty() && !scene.number.is_empty()
 }
 
 /// Whether the entry and the book scene have the same number.
@@ -368,45 +367,8 @@ impl Plan {
         })
     }
 
-    /// The entries the book lost since the register last followed it (they were in the book,
-    /// with prints, and have a number), each behind the scene its predecessor in the register
-    /// is now (DB-33): they stay in a locked book as "OMITTED" headings. An entry that was not
-    /// in the book already never gets one.
-    pub(crate) fn struck(&self, project: &Project) -> Vec<Struck> {
-        let mut out = Vec::new();
-        let mut after = None;
-
-        for (i, scene) in project.scenes.iter().enumerate() {
-            let fate = self.fates.iter().find(|(entry, _)| *entry == i);
-            match fate.map(|f| &f.1) {
-                Some(Fate::Matched(n)) => after = Some(self.heading_index(*n)),
-                Some(Fate::Missing) if was_in_book(scene) => out.push(Struck {
-                    after,
-                    number: scene.number.clone(),
-                }),
-                _ => {}
-            }
-        }
-
-        out
-    }
-
-    /// The headings (counted as in `struck`) of the scenes the register knows as holders of
-    /// their number: matched, and the entry's number is the one in the book.
-    pub(crate) fn holders(&self, project: &Project) -> Vec<usize> {
-        let found = self.fates.iter().filter_map(|(entry, fate)| {
-            let Fate::Matched(n) = fate else {
-                return None;
-            };
-            let state = &self.book[*n];
-
-            same_number(&project.scenes[*entry], state).then(|| self.heading_index(*n))
-        });
-
-        found.collect()
-    }
-
-    /// Among the headings of the text, whatever their kind, the place of book scene `n`.
+    /// Among the headings of the text, whatever their kind (the struck ones too), the place of
+    /// book scene `n`.
     fn heading_index(&self, n: usize) -> usize {
         let before = self.book[..n].iter();
 

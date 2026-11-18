@@ -15,6 +15,7 @@ impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
         let mut loaded = crate::load::load_project(dir)?;
+        let lock = klappe_store::load_lock(dir)?;
         shot_edit::clear_orphans(&mut loaded.project);
         let script = loaded
             .script
@@ -58,6 +59,8 @@ impl Session {
             layout: None,
             pending: Vec::new(),
             pending_places: Vec::new(),
+            lock,
+            twin_numbers: 0,
         };
         session.reconcile();
         session.scene = session
@@ -92,6 +95,7 @@ impl Session {
             Language::English => ScriptLanguage::En,
         });
         klappe_store::save(dir, &project, None)?;
+        klappe_store::save_lock(dir, &[])?;
         Self::open(dir)
     }
 
@@ -114,6 +118,7 @@ impl Session {
         // So the register holds the book as saved: the next outside change aligns against it.
         self.reconcile();
         klappe_store::save_keeping_places(&self.dir, &self.project, self.script_text.as_deref())?;
+        self.write_lock()?;
         self.dirty = false;
         self.unbacked = false;
         self.project_changed = false;
@@ -188,6 +193,7 @@ impl Session {
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
+        self.write_lock()?;
         if self.backup != BackupState::None {
             return Ok(());
         }

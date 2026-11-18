@@ -1,5 +1,6 @@
 //! Scene numbers in the text (DB-33): sequential while automatic, kept while locked, with a
-//! new scene numbered between its neighbours (12A) and a struck one left as "OMITTED".
+//! new scene numbered between its neighbours (12A) and a struck one, by the Sperrstand, left
+//! as "OMITTED".
 
 use std::collections::HashSet;
 
@@ -18,15 +19,6 @@ pub enum NumberMode {
     Locked,
 }
 
-/// A scene that left the book and keeps its number as an "OMITTED" heading.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Struck {
-    /// The heading, counted from 0 among the scene headings of the text, it follows;
-    /// `None` puts it before the first.
-    pub after: Option<usize>,
-    pub number: String,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct NumberRules<'a> {
     pub mode: NumberMode,
@@ -34,11 +26,13 @@ pub struct NumberRules<'a> {
     pub first: u32,
     /// The heading of a struck scene (`OMITTED_DE`, `OMITTED_EN`).
     pub omitted: &'a str,
-    pub struck: &'a [Struck],
-    /// The headings (counted as in `Struck::after`) the register knows as the holder of the
-    /// number they carry. Of several headings with one number while locked, the one among
-    /// them keeps it and the others are inserted scenes; if the register names none or more
-    /// than one, they all keep it.
+    /// The Sperrstand while locked: the numbers of the saved book in order. One the text no
+    /// longer carries, on a scene or on an "OMITTED" heading, is struck: its heading is put
+    /// in front of the next number of the Sperrstand the text still carries, else at the end.
+    pub locked: &'a [String],
+    /// The headings (counted from 0 among the scene headings of the text) that keep a number
+    /// other headings carry too, the holders of the Sperrstand; the others are inserted
+    /// scenes. A number carried twice without a holder stays on all of them.
     pub holders: &'a [usize],
 }
 
@@ -71,14 +65,14 @@ fn headings(text: &str) -> Vec<Heading> {
 /// Numbers the scene headings of `text` by `rules` and returns the text; the lines it does
 /// not change stay as they are. Without a scene heading the text is returned unchanged.
 pub fn number_scenes(text: &str, rules: &NumberRules) -> String {
-    let heads = headings(text);
+    // Automatic numbering counts anyway: a struck heading has no use.
+    let text = match rules.mode {
+        NumberMode::Automatic => without_omitted(text),
+        NumberMode::Locked => text.to_owned(),
+    };
+    let heads = headings(&text);
     if heads.is_empty() {
-        return text.to_owned();
-    }
-
-    // A locked book without a number is not ours to number (Fountain from elsewhere).
-    if rules.mode == NumberMode::Locked && !has_numbers(&heads) {
-        return text.to_owned();
+        return text;
     }
 
     let wanted = assign(&heads, rules);
@@ -89,15 +83,38 @@ pub fn number_scenes(text: &str, rules: &NumberRules) -> String {
         }
     }
 
-    insert_struck(&mut lines, &heads, rules);
+    if rules.mode == NumberMode::Locked {
+        insert_struck(&mut lines, &heads, rules);
+    }
 
     lines.join("\n")
 }
 
-fn has_numbers(heads: &[Heading]) -> bool {
-    heads
+/// `text` without its struck headings and the blank line behind each.
+fn without_omitted(text: &str) -> String {
+    let heads = headings(text);
+    let struck: Vec<usize> = heads
         .iter()
-        .any(|h| h.number.is_some() && !is_omitted(&h.text))
+        .filter(|h| is_omitted(&h.text))
+        .map(|h| h.line)
+        .collect();
+    if struck.is_empty() {
+        return text.to_owned();
+    }
+
+    let lines: Vec<&str> = text.split('\n').collect();
+    let blank_after = |at: &usize| lines.get(at + 1).is_some_and(|l| l.trim().is_empty());
+    let dropped: HashSet<usize> = struck
+        .iter()
+        .flat_map(|at| std::iter::once(*at).chain(blank_after(at).then_some(at + 1)))
+        .collect();
+    let kept = lines
+        .iter()
+        .enumerate()
+        .filter(|(at, _)| !dropped.contains(at))
+        .map(|(_, line)| *line);
+
+    kept.collect::<Vec<_>>().join("\n")
 }
 
 /// The number of every heading. A struck scene's heading keeps its number in both modes and
@@ -132,8 +149,8 @@ fn assign(heads: &[Heading], rules: &NumberRules) -> Vec<String> {
     out
 }
 
-/// Whether heading `i` keeps its number `n`: unless another heading carries it, and the
-/// register knows `i` and no other as the holder (a copy then is the inserted scene).
+/// Whether heading `i` keeps its number `n`: unless another heading carries it and one of
+/// them, not `i`, is the holder (a copy then is the inserted scene).
 fn keeps(heads: &[Heading], holders: &[usize], i: usize, n: &str) -> bool {
     let same: Vec<usize> = (0..heads.len())
         .filter(|&j| heads[j].number.as_deref() == Some(n) && !is_omitted(&heads[j].text))
@@ -276,8 +293,27 @@ fn with_number(line: &str, number: &str) -> String {
     format!("{base} {NUMBER_MARK}{number}{NUMBER_MARK}{ret}")
 }
 
-/// Puts a heading for every struck scene of `rules` that the text lacks behind the scene it
-/// followed, so the number stays in the book.
+/// The struck numbers of the Sperrstand with the line each heading goes in front of; `None`
+/// for the end of the text. In the order of the Sperrstand.
+fn struck_places(heads: &[Heading], locked: &[String]) -> Vec<(Option<usize>, String)> {
+    let present = |number: &String| heads.iter().position(|h| h.number.as_ref() == Some(number));
+    let mut places = Vec::new();
+
+    for (at, number) in locked.iter().enumerate() {
+        let done = places.iter().any(|(_, n): &(_, String)| n == number);
+        if present(number).is_some() || done {
+            continue;
+        }
+
+        let next = locked[at + 1..].iter().find_map(present);
+        places.push((next.map(|head| heads[head].line), number.clone()));
+    }
+
+    places
+}
+
+/// Puts a heading for every struck number of the Sperrstand the text lacks in front of the
+/// next number it still has, so the number stays in the book.
 fn insert_struck(lines: &mut Vec<String>, heads: &[Heading], rules: &NumberRules) {
     // The line ending of the book, for the lines made here.
     let ret = if lines.iter().any(|l| l.ends_with('\r')) {
@@ -285,24 +321,16 @@ fn insert_struck(lines: &mut Vec<String>, heads: &[Heading], rules: &NumberRules
     } else {
         ""
     };
-    let have = |number: &str| {
-        heads
-            .iter()
-            .any(|h| is_omitted(&h.text) && h.number.as_deref() == Some(number))
-    };
     // The text's last newline stays last.
     let newline = lines.len() > 1 && lines.last().is_some_and(String::is_empty);
     if newline {
         lines.pop();
     }
     let end = lines.len();
-    let mut places: Vec<(usize, &str)> = Vec::new();
-
-    for struck in rules.struck.iter().filter(|s| !have(&s.number)) {
-        let next = struck.after.map_or(0, |after| after + 1);
-        let line = heads.get(next).map_or(end, |head| head.line);
-        places.push((line, &struck.number));
-    }
+    let mut places: Vec<(usize, String)> = struck_places(heads, rules.locked)
+        .into_iter()
+        .map(|(line, number)| (line.unwrap_or(end), number))
+        .collect();
     places.sort_by_key(|(line, _)| *line);
 
     // In order of the lines; `shift` is what the headings before added.

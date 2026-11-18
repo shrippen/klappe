@@ -1,18 +1,21 @@
 //! Scene numbers in the text (DB-33).
 #![allow(clippy::unwrap_used)]
 
-use klappe_script::{
-    is_omitted, number_scenes, NumberMode, NumberRules, Struck, OMITTED_DE, OMITTED_EN,
-};
+use klappe_script::{is_omitted, number_scenes, NumberMode, NumberRules, OMITTED_DE, OMITTED_EN};
 
-fn rules(mode: NumberMode, struck: &[Struck]) -> NumberRules<'_> {
+fn rules<'a>(mode: NumberMode, locked: &'a [String]) -> NumberRules<'a> {
     NumberRules {
         mode,
         first: 1,
         omitted: OMITTED_EN,
-        struck,
+        locked,
         holders: &[],
     }
+}
+
+/// The numbers of a Sperrstand.
+fn lock(numbers: &[&str]) -> Vec<String> {
+    numbers.iter().map(|n| (*n).to_owned()).collect()
 }
 
 fn numbered(text: &str, mode: NumberMode) -> String {
@@ -72,21 +75,6 @@ fn scenes_before_the_first_number_count_in_front_of_it() {
     assert_eq!(
         numbered(text, NumberMode::Locked),
         "INT. X - DAY #A1#\n\nINT. Y - DAY #B1#\n\nINT. A - DAY #1#\n"
-    );
-}
-
-#[test]
-fn locked_without_any_number_stays_as_it_is() {
-    let text = "INT. X - DAY\n\nINT. Y - DAY\n";
-    let struck = [Struck {
-        after: Some(0),
-        number: "2".into(),
-    }];
-
-    assert_eq!(numbered(text, NumberMode::Locked), text);
-    assert_eq!(
-        number_scenes(text, &rules(NumberMode::Locked, &struck)),
-        text
     );
 }
 
@@ -172,14 +160,11 @@ fn crlf_lines_keep_their_return() {
 }
 
 #[test]
-fn a_struck_scene_stays_as_a_heading_behind_its_neighbour() {
+fn a_struck_scene_stays_as_a_heading_in_front_of_the_next_number() {
     let text = "INT. A - DAY #1#\n\nHe waits.\n\nINT. C - DAY #3#\n";
-    let struck = [Struck {
-        after: Some(0),
-        number: "2".into(),
-    }];
+    let locked = lock(&["1", "2", "3"]);
 
-    let out = number_scenes(text, &rules(NumberMode::Locked, &struck));
+    let out = number_scenes(text, &rules(NumberMode::Locked, &locked));
 
     assert_eq!(
         out,
@@ -187,7 +172,7 @@ fn a_struck_scene_stays_as_a_heading_behind_its_neighbour() {
     );
     // A second run finds it there and adds nothing; the heading is not renumbered.
     assert_eq!(
-        number_scenes(&out, &rules(NumberMode::Locked, &struck)),
+        number_scenes(&out, &rules(NumberMode::Locked, &locked)),
         out
     );
 }
@@ -195,23 +180,10 @@ fn a_struck_scene_stays_as_a_heading_behind_its_neighbour() {
 #[test]
 fn struck_scenes_go_in_front_and_at_the_end() {
     let text = "INT. A - DAY #2#\n";
-    let struck = [
-        Struck {
-            after: Some(0),
-            number: "9".into(),
-        },
-        Struck {
-            after: None,
-            number: "1".into(),
-        },
-        Struck {
-            after: Some(0),
-            number: "10".into(),
-        },
-    ];
+    let locked = lock(&["1", "2", "9", "10"]);
     let rules = NumberRules {
         omitted: OMITTED_DE,
-        ..rules(NumberMode::Locked, &struck)
+        ..rules(NumberMode::Locked, &locked)
     };
 
     assert_eq!(
@@ -220,13 +192,39 @@ fn struck_scenes_go_in_front_and_at_the_end() {
     );
 }
 
+/// A number the text carries on a struck heading is not struck again, and the struck heading
+/// is a place to put the next one in front of.
 #[test]
-fn automatic_counting_passes_a_struck_heading() {
-    let text = "INT. A - DAY #1#\n\n.OMITTED #2#\n\nINT. C - DAY #3#\n\nINT. D - DAY\n";
+fn a_struck_heading_in_the_text_counts_as_present() {
+    let text = "INT. A - DAY #1#\n\n.OMITTED #3#\n\nINT. D - DAY #4#\n";
+    let locked = lock(&["1", "2", "3", "4"]);
+
+    assert_eq!(
+        number_scenes(text, &rules(NumberMode::Locked, &locked)),
+        "INT. A - DAY #1#\n\n.OMITTED #2#\n\n.OMITTED #3#\n\nINT. D - DAY #4#\n"
+    );
+}
+
+/// A number carried twice is struck once.
+#[test]
+fn a_struck_number_listed_twice_is_inserted_once() {
+    let text = "INT. A - DAY #1#\n";
+    let locked = lock(&["1", "2", "2"]);
+
+    assert_eq!(
+        number_scenes(text, &rules(NumberMode::Locked, &locked)),
+        "INT. A - DAY #1#\n\n.OMITTED #2#\n"
+    );
+}
+
+#[test]
+fn automatic_removes_the_struck_headings() {
+    let text =
+        "INT. A - DAY #1#\n\n.OMITTED #2#\n\nINT. C - DAY #3#\n\nINT. D - DAY\n\n.ENTFÄLLT #9#\n";
 
     assert_eq!(
         numbered(text, NumberMode::Automatic),
-        "INT. A - DAY #1#\n\n.OMITTED #2#\n\nINT. C - DAY #2#\n\nINT. D - DAY #3#\n"
+        "INT. A - DAY #1#\n\nINT. C - DAY #2#\n\nINT. D - DAY #3#\n"
     );
 }
 
@@ -263,19 +261,10 @@ fn a_new_scene_before_a_dotted_number_skips_the_ones_in_use() {
 #[test]
 fn inserted_struck_headings_use_the_line_ending_of_the_book() {
     let text = "INT. A - DAY #1#\r\n\r\nINT. B - DAY #3#\r\n";
-    let struck = [
-        Struck {
-            after: Some(0),
-            number: "2".into(),
-        },
-        Struck {
-            after: Some(1),
-            number: "4".into(),
-        },
-    ];
+    let locked = lock(&["1", "2", "3", "4"]);
 
     assert_eq!(
-        number_scenes(text, &rules(NumberMode::Locked, &struck)),
+        number_scenes(text, &rules(NumberMode::Locked, &locked)),
         "INT. A - DAY #1#\r\n\r\n.OMITTED #2#\r\n\r\nINT. B - DAY #3#\r\n\r\n.OMITTED #4#\r\n"
     );
 }

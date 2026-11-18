@@ -431,6 +431,7 @@
  "book.pending": "Scenes to match: {count}.",
  "book.notInBook": "Scenes not in the script: {count}.",
  "book.places": "Scripted locations open: {count}.",
+ "book.twinNumbers": "Duplicate numbers: {count}.",
  "book.placeTitle": "Scripted location of the scene headings",
  "book.placeAsk": "{name}, in {count} scene heading(s) — which scripted location is this?",
  "book.placeNew": "New scripted location {name}",

@@ -431,6 +431,7 @@
  "book.pending": "Szenen zuzuordnen: {count}.",
  "book.notInBook": "Szenen nicht im Buch: {count}.",
  "book.places": "Spielorte offen: {count}.",
+ "book.twinNumbers": "Doppelte Nummern: {count}.",
  "book.placeTitle": "Spielort der Szenenköpfe",
  "book.placeAsk": "{name}, in {count} Szenenkopf/-köpfen — welcher Spielort ist das?",
  "book.placeNew": "Neuer Spielort {name}",

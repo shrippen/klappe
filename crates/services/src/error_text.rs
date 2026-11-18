@@ -182,6 +182,9 @@ pub fn book_report_text(language: Language, report: &crate::BookReport) -> Strin
     if report.places > 0 {
         lines.push(count("book.places", report.places));
     }
+    if report.twin_numbers > 0 {
+        lines.push(count("book.twinNumbers", report.twin_numbers));
+    }
 
     lines.join(" ")
 }
@@ -352,6 +355,7 @@ mod tests {
             pending: 2,
             not_in_book: 1,
             places: 3,
+            twin_numbers: 4,
         };
 
         for language in [Language::German, Language::English] {
@@ -360,6 +364,7 @@ mod tests {
                 text.contains('2')
                     && text.contains('1')
                     && text.contains('3')
+                    && text.contains('4')
                     && !text.contains("{count}")
             );
             assert!(!text.contains("book."), "{text}");

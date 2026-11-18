@@ -15,6 +15,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── szenen/<id>.json     Stellprobe je Drehinhalt: Drehort, Floorplans (Nummer und Kopf stehen im Register)
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
+├── nummern.toml         Sperrstand der Szenennummern (optional, DB-33)
 └── .sicherung/          Sicherung ungespeicherter Änderungen (optional, siehe unten)
 ```
 
@@ -77,22 +78,40 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `numbering` der Kopftabelle (das ist das Nummernschema der Shots, LH-76). Die Nummern selbst
   stehen im Fountain-Text (`#12#`) und im Register (`number`); Klappe schreibt sie nur beim
   Speichern in Klappe in den Text, nie beim Öffnen. `automatic`: Szene i hat `first_scene + i`.
-  `locked`: keine Nummer ändert sich; ein Buch ganz ohne Nummer (üblich bei Fountain aus
-  anderen Programmen) bleibt beim Speichern Byte für Byte gleich, auch eine neue Szene darin
-  bekommt keine. Sonst bekommt eine Szene ohne Nummer die ihres Vorgängers mit dem nächsten
-  Buchstaben (12, dann 12A, 12B; nach `Z` folgt `AA`; Kleinbuchstaben zählen als Großbuchstaben),
-  vor der ersten Nummer `A` und die Nummer der nächsten Szene (A1), vor einer Nummer mit
-  Buchstaben `A0`, dann `A0A`; zwischen `A1` und `B1` folgt `A1A`. Steht `12A` schon hinter der
-  Stelle, wird es die nächste freie Nummer (12B), denn dazwischen sortiert nichts. Tragen
-  mehrere Szenen dieselbe Nummer (kopiert), behält sie die Szene, die das Register als bisherigen
-  Träger kennt; die anderen gelten als eingefügt und bekommen die nächste freie Nummer. Kennt das
-  Register keinen Träger oder mehrere (Buch von außen, offene Fragen zu Zwillingen), bleibt die
-  Nummer überall stehen. Eine neue Szene nimmt nie eine Nummer, die im Buch schon steht, auch nicht
-  hinter einer Nummer ohne Muster (`I`, `1.1`). Zeilen behalten ihr `\r` (CRLF), auch die
-  eingefügten Köpfe `.ENTFÄLLT` mit ihrer Leerzeile. Eine Szene, die das Buch seit dem letzten Speichern verlor (der Eintrag war „im Buch“), bleibt als Kopf `.ENTFÄLLT #12#`
-  (`.OMITTED #12#` im englischen Projekt, ohne Sprache: `ENTFÄLLT`) hinter der Szene davor stehen.
-  Ein Eintrag, der schon „nicht im Buch“ war, bekommt nie einen Kopf. Dieser Kopf legt keinen Eintrag im Register an; der Eintrag der gestrichenen Szene bleibt mit
-  seinen Plänen im Zustand „nicht im Buch“. Die Sperre je Fassung (DB-40) setzt später
+  `locked`: Klappe ändert keine Nummer, außer was der Sperrstand
+  (`nummern.toml`, unten) für zwei Fälle vorsieht. `automatic` entfernt auch die Köpfe
+  `.ENTFÄLLT` / `.OMITTED` (es nummeriert ohnehin neu). Bei `locked` bekommt eine Szene
+  ohne Nummer die ihres Vorgängers mit dem nächsten Buchstaben (12, dann 12A, 12B; nach `Z`
+  folgt `AA`; Kleinbuchstaben zählen als Großbuchstaben), vor der ersten Nummer `A` und die
+  Nummer der nächsten Szene (A1), vor einer Nummer mit Buchstaben `A0`, dann `A0A`; zwischen
+  `A1` und `B1` folgt `A1A`. Steht `12A` schon hinter der Stelle, wird es die nächste freie
+  Nummer (12B), denn dazwischen sortiert nichts. Eine neue Szene nimmt nie eine Nummer, die im
+  Buch schon steht, auch nicht hinter einer Nummer ohne Muster (`I`, `1.1`). Zeilen behalten
+  ihr `\r` (CRLF), auch die eingefügten Köpfe `.ENTFÄLLT` mit ihrer Leerzeile.
+  **Sperrstand (`nummern.toml`):** die Liste aller nummerierten Köpfe des zuletzt von Klappe
+  gespeicherten Buchs in Textfolge, je `[[nummer]]` mit `number` und `id` (die Id des
+  Registereintrags, der die Szene hielt; bei einem Kopf `.ENTFÄLLT` nicht geschrieben).
+  Nur `Session::save` und `save_script` schreiben sie, zuletzt, nach dem Abgleich des Registers,
+  auch bei `automatic`; `Session::create` legt sie leer an. Abgleich, Antworten auf Fragen,
+  Sicherung und Wiederherstellen schreiben sie nie, und sie gehört der Sitzung, nicht dem
+  Projekt: Rückgängig und die Sicherung tragen sie nicht. Fehlt die Datei, gilt „kein
+  Sperrstand“; Git-Konfliktmarken (`<<<<<<<`) in ihr lassen das Projekt nicht laden. Bei
+  `locked` gilt: (1) Ohne Sperrstand ändert das Speichern keine Nummer (ein Buch aus der Zeit
+  davor, Fountain aus anderen Programmen, bleibt Byte für Byte gleich) und legt nur den
+  Sperrstand an. (2) Gestrichen ist eine Nummer des Sperrstands, die im Text weder an einer
+  Szene noch an einem Kopf `.ENTFÄLLT` steht: ihr Kopf `.ENTFÄLLT #12#` (`.OMITTED #12#` im
+  englischen Projekt, ohne Sprache `ENTFÄLLT`) kommt vor die nächste Nummer des Sperrstands, die
+  der Text noch hat, sonst ans Ende; er legt keinen Eintrag im Register an und kennt keinen
+  Zustand „war im Buch“, der Eintrag der Szene bleibt mit seinen Plänen „nicht im Buch“.
+  (3) Ein Kopf ohne Nummer bekommt eine A-Nummer wie oben. (4) Tragen mehrere Szenen
+  dieselbe Nummer N, behält sie die Szene, die der Abgleich dem Eintrag zuordnet, den der
+  Sperrstand für N nennt; die anderen gelten als eingefügt und bekommen eine A-Nummer. Gibt es
+  keine solche Szene, oder ist eine Szene mit N Kandidat einer offenen Frage, bleibt N überall
+  stehen und die Statuszeile meldet es. (5) Nach dem Speichern wird der Sperrstand aus Text und
+  Register neu gebildet. Folgen: Speichern ändert nichts, wenn es keinen Sperrstand gibt oder
+  der Text ihm entspricht; ein von außen eingefügtes zweites `#2#` wird `2A`, sobald die
+  Frage beantwortet ist; eine von Hand von 12 auf 13 geschriebene Nummer ergibt `.ENTFÄLLT
+  #12#`; ein von Hand gelöschter Kopf `.ENTFÄLLT` kommt beim nächsten Speichern zurück. Die Sperre je Fassung (DB-40) setzt später
   `locked` zusammen mit den Seiten.
 - **Ids:** Drehort- und Szenen-Ids sind Dateinamen und müssen mit der `id` in der Datei
   übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`, Ende auf `.` oder Leerzeichen,

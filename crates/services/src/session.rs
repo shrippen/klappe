@@ -192,6 +192,11 @@ pub struct Session {
     pending: Vec<crate::book::PendingScene>,
     /// Locations of the headings no play location is called by (`pending_places`).
     pending_places: Vec<crate::places::PendingPlace>,
+    /// The Sperrstand of the scene numbers (DB-33) as saved last; `None` without the file.
+    /// Only a save changes it, so undo and the backup never carry it.
+    lock: Option<Vec<klappe_model::LockedNumber>>,
+    /// How many numbers two scenes carry that the Sperrstand cannot settle (`book_report`).
+    twin_numbers: usize,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends

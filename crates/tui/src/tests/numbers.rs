@@ -67,13 +67,19 @@ fn the_form_locks_the_numbers_and_sets_the_first_number() {
         "the book changes with the next save"
     );
 
-    // Locked, the 7 stays and the scene before it becomes A7. The example's scene 12 was never
-    // in this book: it gets no struck heading.
+    // Locked without a Sperrstand (a book from before it), saving changes no number; it
+    // only makes the Sperrstand.
     ctrl(&mut app, 's');
-    assert_eq!(
-        scratch.script(),
-        "INT. A - TAG #A7#\n\nEr wartet.\n\nINT. B - NACHT #7#\n\nSie geht."
-    );
+    assert_eq!(scratch.script(), BOOK);
+    assert!(scratch.dir.join("nummern.toml").exists());
+
+    // With it, the scene before the 7 gets A7 and a scene typed behind it 7A; the example's
+    // scene 12, which was never in this book, gets no struck heading.
+    ctrl_end(&mut app);
+    typed(&mut app, "\n\nINT. C - TAG");
+    ctrl(&mut app, 's');
+    let numbered = BOOK.replace("INT. A - TAG", "INT. A - TAG #A7#");
+    assert_eq!(scratch.script(), format!("{numbered}\n\nINT. C - TAG #7A#"));
 }
 
 #[test]
