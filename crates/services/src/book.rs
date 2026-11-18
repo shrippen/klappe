@@ -39,6 +39,8 @@ pub struct BookReport {
     pub not_in_book: usize,
     /// Locations of the headings no play location is called by (DB-51).
     pub places: usize,
+    /// Scene numbers two scenes carry that saving leaves alone (DB-33).
+    pub twin_numbers: usize,
 }
 
 use std::collections::HashSet;
@@ -46,10 +48,13 @@ use std::collections::HashSet;
 use klappe_model::{BookState, Kind, Print, Project, Scene, SceneKey};
 
 use klappe_script::{
-    align, heading_print, normal, scene_states, Fingerprint, Outcome, SceneState, Script,
+    align, heading_print, is_omitted, normal, scene_states, Fingerprint, Outcome, SceneState,
+    Script,
 };
 
 use crate::project_edit::free_scene_id;
+
+mod lock;
 
 /// What the alignment made of one entry of the register.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -108,9 +113,9 @@ fn state_of(scene: &Scene) -> SceneState {
 }
 
 /// Whether a scene of the book is one to keep an entry for: text before the first heading
-/// is no scene.
+/// is no scene, and the heading of a struck scene (DB-33) only holds its number.
 fn has_heading(state: &SceneState) -> bool {
-    state.heading.is_some()
+    state.heading.as_deref().is_some_and(|h| !is_omitted(h))
 }
 
 /// Aligns the entries of kind scene with the scenes of `script`. Without a scene in the
@@ -360,6 +365,14 @@ impl Plan {
             }
             _ => false,
         })
+    }
+
+    /// Among the headings of the text, whatever their kind (the struck ones too), the place of
+    /// book scene `n`.
+    fn heading_index(&self, n: usize) -> usize {
+        let before = self.book[..n].iter();
+
+        before.filter(|state| state.heading.is_some()).count()
     }
 
     /// The entries to ask about, with the scenes they may be.

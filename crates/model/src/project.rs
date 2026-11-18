@@ -9,6 +9,7 @@ use crate::register::{BookState, Kind, Print, SceneKey};
 use crate::saved_view::SavedView;
 use crate::script_setup::ScriptSetup;
 use crate::shot::Numbering;
+use crate::site::{Site, SunTime};
 use crate::template::Template;
 
 /// One film: everything every module works on.
@@ -161,6 +162,9 @@ impl FigureColor {
 pub struct Location {
     pub id: String,
     pub name: String,
+    /// Where it lies and how the plan is turned to the compass (LH-52); `None` without sun.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub site: Option<Site>,
     #[serde(default)]
     pub set: SetPlan,
 }
@@ -221,6 +225,9 @@ pub struct Note {
     /// Width of the card in metres (LH-16); the text wraps to it.
     #[serde(default = "default_note_width_m")]
     pub width_m: f64,
+    /// Clockwise on screen about `at`, the card's top left corner; the text turns with it.
+    #[serde(default, skip_serializing_if = "crate::plan::is_zero")]
+    pub rotation_deg: f64,
     /// The element the note is a label of (LH-118): `object:<id>`, `figure:<character>` or
     /// `mark:<character>:<index>`. `at` stays where the card is; it moves with the element.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -562,6 +569,8 @@ pub struct Scene {
     /// Scenes of the book the user said this entry is not, so they are not asked about again.
     pub refused: Vec<SceneKey>,
     pub location: String,
+    /// When it is shot (LH-52); `None` shows no sun.
+    pub sun: Option<SunTime>,
     pub plans: Vec<FloorPlan>,
 }
 

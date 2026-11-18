@@ -39,6 +39,7 @@ fn wall_pieces(index: usize, wall: &Wall, items: &mut Vec<Item>) {
             },
             label: None,
             source: Some(Source::Wall(index)),
+            opacity: crate::display::FULL_OPACITY,
         });
     }
 }
@@ -116,6 +117,7 @@ fn opening_items(wall: &Wall, opening: &Opening, source: Source, items: &mut Vec
                 shape: Shape::Polygon { points },
                 label: None,
                 source: Some(source),
+                opacity: crate::display::FULL_OPACITY,
             });
         }
         OpeningKind::Window => {
@@ -132,6 +134,7 @@ fn opening_items(wall: &Wall, opening: &Opening, source: Source, items: &mut Vec
                     },
                     label: None,
                     source: Some(source.clone()),
+                    opacity: crate::display::FULL_OPACITY,
                 });
             }
         }

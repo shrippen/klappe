@@ -195,6 +195,7 @@ impl Ctx<'_> {
     /// Title and head row at the top of a new sheet.
     fn begin(&mut self) {
         self.prims.push(Prim::Text {
+            rotation_deg: 0.0,
             class: "title".into(),
             anchor: Anchor::Start,
             at: (self.margin, self.margin + TITLE_PT),
@@ -230,6 +231,7 @@ impl Ctx<'_> {
         let top = self.y - ROW_PAD_PT;
         for (k, text) in extra.iter().enumerate() {
             self.prims.push(Prim::Text {
+                rotation_deg: 0.0,
                 class: "shot".into(),
                 anchor: Anchor::Start,
                 at: (x, top + k as f64 * LINE_PT + CELL_PT),
@@ -271,6 +273,7 @@ impl Ctx<'_> {
         for (cell, width) in lines.iter().zip(self.widths) {
             for (k, text) in cell.iter().enumerate() {
                 self.prims.push(Prim::Text {
+                    rotation_deg: 0.0,
                     class: "shot".into(),
                     anchor: Anchor::Start,
                     at: (
@@ -296,6 +299,7 @@ impl Ctx<'_> {
     /// A heading over the rows that follow, e.g. "Setup 2".
     fn band(&mut self, text: &str) {
         self.prims.push(Prim::Text {
+            rotation_deg: 0.0,
             class: "setup".into(),
             anchor: Anchor::Start,
             at: (self.margin + PAD_PT, self.y + ROW_PAD_PT + CELL_PT),

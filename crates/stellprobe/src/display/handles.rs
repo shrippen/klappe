@@ -126,6 +126,7 @@ fn light_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
                 light: id.to_owned(),
                 grip,
             }),
+            opacity: crate::display::FULL_OPACITY,
         })
         .collect()
 }
@@ -213,6 +214,7 @@ fn object_handles(set: &SetPlan, id: &str) -> Vec<Item> {
                 object: id.to_owned(),
                 grip,
             }),
+            opacity: crate::display::FULL_OPACITY,
         })
         .collect()
 }
@@ -239,6 +241,7 @@ fn opening_handles(set: &SetPlan, wall: usize, index: usize) -> Vec<Item> {
             },
             label: None,
             source: Some(Source::OpeningEdge { wall, index, end }),
+            opacity: crate::display::FULL_OPACITY,
         })
         .collect()
 }
@@ -248,7 +251,7 @@ fn note_handles(set: &SetPlan, plan: &FloorPlan, id: &str) -> Vec<Item> {
     let Some(note) = set.notes.iter().chain(&plan.labels).find(|n| n.id == id) else {
         return Vec::new();
     };
-    let (corners, _) = note_card(note.at, note.width_m, &note.text);
+    let (corners, _) = note_card(note.at, note.width_m, note.rotation_deg, &note.text);
     let center = corners[1].lerp(corners[2], 0.5);
 
     vec![Item {
@@ -259,6 +262,7 @@ fn note_handles(set: &SetPlan, plan: &FloorPlan, id: &str) -> Vec<Item> {
         },
         label: None,
         source: Some(Source::NoteWidth(id.to_owned())),
+        opacity: crate::display::FULL_OPACITY,
     }]
 }
 
@@ -282,6 +286,7 @@ fn image_handles(set: &SetPlan, id: &str) -> Vec<Item> {
         },
         label: None,
         source: Some(Source::ImageSize(id.to_owned())),
+        opacity: crate::display::FULL_OPACITY,
     }]
 }
 
@@ -322,6 +327,7 @@ fn drawing_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
         shape: Shape::Circle { center, radius_m },
         label: None,
         source: Some(source),
+        opacity: crate::display::FULL_OPACITY,
     };
 
     // The edges come first, so the points lie on top of them.
@@ -377,6 +383,7 @@ fn figure_handles(project: &Project, plan: &FloorPlan, character: &str) -> Vec<I
                 index,
                 bend,
             }),
+            opacity: crate::display::FULL_OPACITY,
         })
         .collect()
 }
@@ -402,6 +409,7 @@ fn camera_handles(plan: &FloorPlan, id: &str) -> Vec<Item> {
                 index,
                 bend,
             }),
+            opacity: crate::display::FULL_OPACITY,
         })
         .collect()
 }

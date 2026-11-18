@@ -57,7 +57,8 @@ pub(crate) fn write(
             Some(style) if frame.edge[i] => style.line,
             Some(style) => shaded(style.face, frame.shade[i]),
         };
-        let rgb = rgb.faded(pal.paper, strengths[usize::from(frame.role[i])]);
+        let fade = strengths[usize::from(frame.role[i])] * picture.opacity_at(i);
+        let rgb = rgb.faded(pal.paper, fade);
         pixels.extend_from_slice(&[rgb.r, rgb.g, rgb.b]);
     }
 
@@ -81,6 +82,7 @@ pub(crate) fn write(
 fn names(picture: &Picture, ink: Rgb, paper: Rgb) -> Vec<Prim> {
     let size = picture.frame.width as f64 * LABEL_SHARE;
     let text = |dx: f64, dy: f64, rgb: Rgb, label: &klappe_stellprobe::PictureLabel| Prim::Text {
+        rotation_deg: 0.0,
         class: "name".into(),
         at: (label.x + dx, label.y + dy),
         anchor: Anchor::Middle,
@@ -124,6 +126,7 @@ mod tests {
                 edge: vec![false, false, true, false],
             },
             sources: Vec::new(),
+            opacities: Vec::new(),
             labels: Vec::new(),
         }
     }

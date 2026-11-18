@@ -117,6 +117,7 @@ impl Default for ControllerRust {
             recent_store: q("[]"),
             screenshot_path: screenshot_url(args.screenshot),
             screenshot_after: args.screenshot_after_ms,
+            _video_stop: super::export::VideoStop,
         };
         this.fill();
         this

@@ -21,6 +21,11 @@ QtObject {
         return Number(value).toFixed(digits).replace(".", t("unit.decimal"))
     }
 
+    // `value` as stored, every digit: "52,520008".
+    function exact(value) {
+        return String(Number(value)).replace(".", t("unit.decimal"))
+    }
+
     function num(value, digits) {
         return String(Number(Number(value).toFixed(digits))).replace(".", t("unit.decimal"))
     }

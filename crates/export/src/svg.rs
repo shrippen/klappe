@@ -124,6 +124,7 @@ fn element(prim: &Prim) -> String {
         Prim::Image { .. } => image(prim),
         Prim::Text {
             class,
+            rotation_deg,
             at,
             anchor,
             size_pt,
@@ -139,8 +140,17 @@ fn element(prim: &Prim) -> String {
                 Anchor::Middle => " text-anchor=\"middle\"",
                 Anchor::Start => "",
             };
+            let turn = match *rotation_deg == 0.0 {
+                true => String::new(),
+                false => format!(
+                    " transform=\"rotate({} {} {})\"",
+                    num(*rotation_deg),
+                    num(at.0),
+                    num(at.1)
+                ),
+            };
             format!(
-                "<text class=\"{class}\" x=\"{}\" y=\"{}\" font-family=\"{FONT_FAMILY}\" font-size=\"{}\"{bold}{anchor} fill=\"{}\">{}</text>\n",
+                "<text class=\"{class}\" x=\"{}\" y=\"{}\" font-family=\"{FONT_FAMILY}\" font-size=\"{}\"{bold}{anchor}{turn} fill=\"{}\">{}</text>\n",
                 num(at.0),
                 num(at.1),
                 num(*size_pt),

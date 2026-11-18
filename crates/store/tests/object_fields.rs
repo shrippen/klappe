@@ -98,6 +98,7 @@ fn plan_labels_are_written_only_when_given() {
         at: Point::new(4.0, 5.0),
         text: "Auftritt".into(),
         width_m: 2.4,
+        rotation_deg: 0.0,
         bound: Some("figure:elisabeth".into()),
     });
     save(&dir, &project, None).unwrap();
@@ -116,6 +117,7 @@ fn bad_plan_labels_do_not_load() {
         at: Point::new(1.0, 1.0),
         text: "x".into(),
         width_m,
+        rotation_deg: 0.0,
         bound: Some(bound.into()),
     };
     let cases = [
@@ -170,6 +172,7 @@ fn bound_notes_and_ids_are_checked_across_set_and_plan() {
         at: Point::new(1.0, 1.0),
         text: "x".into(),
         width_m: 2.4,
+        rotation_deg: 0.0,
         bound: Some("figure:elisabeth".into()),
     };
     let cases = [
@@ -204,6 +207,7 @@ fn notes_are_n_and_labels_are_t() {
         at: Point::new(1.0, 1.0),
         text: "x".into(),
         width_m: 2.4,
+        rotation_deg: 0.0,
         bound: bound.map(Into::into),
     };
 

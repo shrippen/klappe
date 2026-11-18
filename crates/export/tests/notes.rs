@@ -15,6 +15,8 @@ fn page() -> Page {
         axis: "Achse".into(),
         path: "Weg".into(),
         mark: "Mark".into(),
+        arrival: "Arrival".into(),
+        departure: "Departure".into(),
         unit: "m".into(),
         decimal_separator: ',',
         shots: ShotTexts::default(),
@@ -74,6 +76,7 @@ fn assert_note_text_inside_card(width_m: f64, depth_m: f64) {
             at: Point::new(4.0, 3.0),
             text: "Der Vorhang wird erst nach dem dritten Gong geschlossen".into(),
             width_m: 2.4,
+            rotation_deg: 0.0,
             bound: None,
         }],
         ..Default::default()
@@ -128,4 +131,67 @@ fn note_text_stays_in_its_card_in_a_small_room() {
 #[test]
 fn note_text_stays_in_its_card_in_a_large_room() {
     assert_note_text_inside_card(40.0, 25.0);
+}
+
+fn turned_room(rotation_deg: f64) -> SetPlan {
+    SetPlan {
+        width_m: 20.0,
+        depth_m: 13.0,
+        notes: vec![Note {
+            id: "n".into(),
+            at: Point::new(4.0, 3.0),
+            text: "Vorhang schließen".into(),
+            width_m: 2.4,
+            rotation_deg,
+            bound: None,
+        }],
+        ..Default::default()
+    }
+}
+
+fn turned_list(rotation_deg: f64) -> klappe_stellprobe::DisplayList {
+    render(
+        &Project::new("Test"),
+        &turned_room(rotation_deg),
+        &FloorPlan::new("a", "Plan A"),
+        0.0,
+        &|_| None,
+    )
+}
+
+/// A turned note's text turns with its card, about the start of its line.
+#[test]
+fn a_turned_note_turns_its_text_in_svg() {
+    let out = svg(&turned_list(30.0), &page(), Theme::Light).unwrap();
+    let text = lines_with(&out, "label")
+        .into_iter()
+        .find(|l| l.contains(">Vorhang schließen<"))
+        .unwrap();
+
+    let want = format!(
+        "transform=\"rotate(30 {} {})\"",
+        attr(text, "x"),
+        attr(text, "y")
+    );
+    assert!(text.contains(&want), "{text}");
+}
+
+#[test]
+fn an_unturned_note_text_has_no_transform() {
+    let out = svg(&turned_list(0.0), &page(), Theme::Light).unwrap();
+    let text = lines_with(&out, "label")
+        .into_iter()
+        .find(|l| l.contains(">Vorhang schließen<"))
+        .unwrap();
+
+    assert!(!text.contains("transform"), "{text}");
+}
+
+/// In the PDF the text matrix turns it: clockwise on screen is `cos sin -sin cos` with y up.
+#[test]
+fn a_turned_note_turns_its_text_in_pdf() {
+    let bytes = klappe_export::pdf(&turned_list(90.0), &page(), Theme::Light).unwrap();
+    let text = String::from_utf8_lossy(&bytes);
+
+    assert!(text.contains(" 0 -1 1 0 "), "no text matrix");
 }

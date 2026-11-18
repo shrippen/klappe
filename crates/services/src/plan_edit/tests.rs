@@ -8,6 +8,7 @@ pub(super) fn empty() -> Project {
         id: "l".into(),
         name: "L".into(),
         set: SetPlan::default(),
+        site: None,
     }];
     project.scenes = vec![Scene {
         id: "s".into(),

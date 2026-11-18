@@ -15,6 +15,7 @@
 
 mod axis;
 mod card;
+mod daylight;
 mod display;
 mod eye;
 mod figure;
@@ -32,10 +33,12 @@ mod prop;
 mod rig;
 mod scene;
 mod setup;
+mod sun;
 mod triangulate;
 
 pub use axis::{axis_at, axis_jumps, axis_pair, Axis, AxisJump, Side};
 pub use card::NOTE_TEXT_M;
+pub use daylight::add_sun;
 pub use display::{
     drawing_edge_places, drawing_handle_places, handles, image_grip_place, label_point,
     object_grip_place, render, Bend, DisplayList, Item, LightGrip, ObjectGrip, OpeningEnd, Role,
@@ -49,7 +52,8 @@ pub use klappe_raster::Frame;
 pub use light::{light_grip_place, Lamp};
 pub use look::{look, scene_look, Area, Hue, Look};
 pub use motion::{
-    aim_at, bend_follow, bend_grips, camera_at, figure_at, walked_ways, way_length_m, Placement,
+    aim_at, bend_follow, bend_grips, camera_at, figure_at, figure_opacity_at, walked_ways,
+    way_length_m, Placement,
 };
 pub use movement::movement_in;
 pub use optics::{frustum, horizontal_fov_deg, lens_at, shot_lens, ShotLens};

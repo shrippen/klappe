@@ -126,6 +126,7 @@ fn build(section: Section) -> Result<(Project, String), DemoError> {
             prints: Vec::new(),
             refused: Vec::new(),
             location: spec.location,
+            sun: None,
             plans,
         });
     }

@@ -30,7 +30,7 @@ Item {
             if (!ctl.createProject(dir, "Schlusstest") || !ctl.loaded || ctl.title !== "Schlusstest") {
                 return root.fail("project did not open: " + ctl.status)
             }
-            if (!ctl.addLocation("Halle", "8", "6", "3") || !ctl.dirty) {
+            if (!ctl.addLocation("Halle", "8", "6", "3", "[\"\",\"\",\"\"]") || !ctl.dirty) {
                 return root.fail("an edit must leave the project unsaved: " + ctl.status)
             }
 
@@ -46,7 +46,7 @@ Item {
                     || ctl.gridName !== "") {
                 return root.fail("the closed project left state behind: " + ctl.title + " " + ctl.projectJson + " grid " + ctl.gridName)
             }
-            if (ctl.save() || ctl.addLocation("Hof", "5", "5", "3")) {
+            if (ctl.save() || ctl.addLocation("Hof", "5", "5", "3", "[\"\",\"\",\"\"]")) {
                 return root.fail("a closed project must refuse edits and saving")
             }
 

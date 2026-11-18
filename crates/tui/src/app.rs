@@ -21,6 +21,7 @@ mod backup;
 mod book;
 mod compose;
 mod find;
+mod numbers;
 mod outline;
 mod pdf;
 mod title;
@@ -28,6 +29,7 @@ mod title;
 pub(crate) use backup::Backup;
 pub(crate) use compose::Suggest;
 pub(crate) use find::{Find, FindField};
+pub(crate) use numbers::NumbersForm;
 pub(crate) use outline::{list_top, INDENT};
 pub(crate) use pdf::{PdfForm, PdfRow, PDF_ROWS};
 pub(crate) use title::TitleForm;
@@ -78,6 +80,8 @@ pub(crate) enum Mode {
     Find,
     /// `Ctrl+T`: the title page form.
     Title,
+    /// `Ctrl+N`: how the scenes are numbered.
+    Numbers,
     /// `Ctrl+K`: the open questions about the book.
     Book,
     /// A backup of unsaved work from an earlier run waits for an answer.
@@ -143,6 +147,7 @@ pub struct App {
     suggest_off: Option<u64>,
     pub(crate) find: Find,
     pub(crate) title: Option<TitleForm>,
+    pub(crate) numbers: Option<NumbersForm>,
     pub(crate) pdf: Option<PdfForm>,
     /// Chosen row of the open question in `Mode::Book`.
     pub(crate) book_sel: usize,
@@ -206,6 +211,7 @@ impl App {
             suggest_off: None,
             find: Find::default(),
             title: None,
+            numbers: None,
             pdf: None,
             book_sel: 0,
             backup: None,
@@ -376,6 +382,7 @@ impl App {
             Mode::Goto => return self.goto_key(key),
             Mode::Find => return self.find_key(key),
             Mode::Title => return self.title_key(key),
+            Mode::Numbers => return self.numbers_key(key),
             Mode::Book => return self.book_key(key),
             Mode::Backup => return self.backup_key(key),
             Mode::Pdf => return self.pdf_key(key),
@@ -420,6 +427,7 @@ impl App {
             'b' => self.toggle_list(),
             'f' => self.open_find(),
             't' => self.open_title(),
+            'n' => self.open_numbers(),
             'k' => self.open_book(),
             'e' => self.open_pdf(),
             _ => self.pane_key(key),
@@ -577,6 +585,12 @@ impl App {
         self.session.set_script_text(&self.editor.text());
         self.notice = Some(match self.session.save_script() {
             Ok(()) => {
+                // Saving numbers the scenes: the editor takes the numbers as written.
+                let text = self.session.script_text();
+                if text != self.editor.text() {
+                    self.editor.set_text(text);
+                    self.built_for = None;
+                }
                 self.saved_revision = self.editor.revision();
                 self.links = Links::read(&mut self.session);
                 self.refresh_book_note();

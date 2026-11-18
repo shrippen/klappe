@@ -5,8 +5,8 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    read_number, CardState, Choice, Field, Language, ProjectCard, Range, ServiceError, Session,
-    Unit,
+    read_number, CardState, Choice, Field, Language, PlaceChoice, ProjectCard, Range, ServiceError,
+    Session, Unit,
 };
 use serde_json::{json, Value};
 
@@ -32,10 +32,14 @@ const HOME_SHORT: &str = "~";
 /// role name (`purple`), which Kante's `labelColor` takes as it is. `pending` holds the open
 /// questions about the book: `[{ id, number, heading, answers: [{ number, heading, none }] }]`,
 /// the scenes it may be best first, then "not in the book" (`none`); `resolveScene` answers by
-/// the position in that list.
+/// the position in that list. `pendingPlaces` holds those about the play locations of the scene
+/// headings: `[{ name, headings, answers: [{ kind, name }] }]`, `kind` being `create`, `rename`
+/// or `variant` and `name` the play location it concerns (empty for `create`); `resolvePlace`
+/// answers by the position in `answers`.
 pub fn project_json(session: &Session) -> String {
     let mut value = serde_json::to_value(session.overview()).unwrap_or_default();
     value["pending"] = pending_rows(session);
+    value["pendingPlaces"] = place_rows(session);
 
     value.to_string()
 }
@@ -55,6 +59,31 @@ fn pending_rows(session: &Session) -> Value {
                 .collect();
 
             json!({ "id": p.id, "number": p.number, "heading": p.heading, "answers": answers })
+        })
+        .collect();
+
+    Value::Array(rows)
+}
+
+fn place_rows(session: &Session) -> Value {
+    let rows: Vec<_> = session
+        .pending_places()
+        .iter()
+        .map(|p| {
+            let answers: Vec<_> = session
+                .place_answers(&p.name)
+                .iter()
+                .map(|a| {
+                    let kind = match a.choice {
+                        PlaceChoice::Create => "create",
+                        PlaceChoice::Rename(_) => "rename",
+                        PlaceChoice::Variant(_) => "variant",
+                    };
+                    json!({ "kind": kind, "name": a.name })
+                })
+                .collect();
+
+            json!({ "name": p.name, "headings": p.headings, "answers": answers })
         })
         .collect();
 
@@ -301,6 +330,24 @@ mod tests {
     }
 
     #[test]
+    fn the_open_place_questions_are_listed_with_their_answers() {
+        let session = asked("places");
+        let value: Value = serde_json::from_str(&project_json(&session)).unwrap();
+        let places = value["pendingPlaces"].as_array().unwrap();
+
+        assert_eq!(places.len(), 2, "{places:?}");
+        assert_eq!(places[0]["name"], "HOF");
+        assert_eq!(places[0]["headings"], 1);
+        assert_eq!(
+            places[0]["answers"][0],
+            json!({ "kind": "create", "name": "" })
+        );
+        assert_eq!(places[0]["answers"][1]["kind"], "rename");
+        assert_ne!(places[0]["answers"][1]["name"], "");
+        assert_eq!(places[0]["answers"][2]["kind"], "variant");
+    }
+
+    #[test]
     fn an_empty_or_relative_home_is_no_base() {
         assert_eq!(base_dir(None, os(""), DATA_FALLBACK), None);
         assert_eq!(base_dir(None, os("home"), DATA_FALLBACK), None);
@@ -526,6 +573,7 @@ mod tests {
                 width_m: 8.0,
                 depth_m: 5.0,
                 wall_height_m: 2.6,
+                site: None,
             })
             .unwrap();
         session
@@ -557,6 +605,9 @@ mod tests {
         assert_eq!(value["locations"][0]["scenes"], 1);
         assert_eq!(value["locations"][0]["width"], 8.0);
         assert_eq!(value["locations"][0]["height"], 2.6);
+        assert_eq!(value["locations"][0]["latitude"], Value::Null);
+        assert_eq!(value["locations"][0]["north"], 0.0);
+        assert_eq!(value["scenes"][0]["sunDate"], "");
         assert_eq!(value["characters"][0]["color"], "red");
         assert_eq!(value["characters"][0]["group"], 12);
         assert_eq!(value["characters"][0]["size"], Value::Null);

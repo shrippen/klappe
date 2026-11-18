@@ -62,6 +62,7 @@ fn renumbering_a_scene_keeps_its_id() {
         number: "40".into(),
         heading: "INT. SÄNGERSAAL – TAG".into(),
         location: "saengersaal".into(),
+        sun: None,
     })
     .unwrap();
 
@@ -145,6 +146,7 @@ fn a_heading_with_a_line_break_is_refused() {
         number: "12".into(),
         heading: "INT.\r\nSAAL".into(),
         location: "saengersaal".into(),
+        sun: None,
     });
 
     for result in [added, edited] {

@@ -722,6 +722,14 @@ Item {
         return d.kind === "grip" ? [area.texts.t(d.tip)] : area.dataLines(d)
     }
 
+    // A mark's lines: its number and time, and where the figure appears or leaves (LH-26).
+    function markLines(d) {
+        const t = area.texts
+        return [t.t("tip.mark", { name: d.name, index: d.index }), t.t("tip.at", { time: t.num(d.time, 1) })]
+            .concat(d.arrival === "appear" ? [t.t("tip.arrival")] : [])
+            .concat(d.departure === "leave" ? [t.t("tip.departure")] : [])
+    }
+
     // The lines of a tooltip from the described data.
     function dataLines(d) {
         const t = area.texts
@@ -738,7 +746,7 @@ Item {
         case "figure":
             return [t.t("tip.figure", { name: d.name })]
         case "mark":
-            return [t.t("tip.mark", { name: d.name, index: d.index }), t.t("tip.at", { time: t.num(d.time, 1) })]
+            return area.markLines(d)
         case "bend":
             return [t.t("tip.bend", { index: d.index })]
         case "light":
