@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQml
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
@@ -52,7 +53,7 @@ FocusScope {
     readonly property real rowHeight: KanteStyle.heightMedium
     readonly property real _unit: Kirigami.Units.gridUnit
 
-    readonly property var columns: [
+    readonly property var _specs: [
         { key: "number", kind: ShotTable.Kind.Text, title: "field.number", width: _unit * 4 },
         { key: "short_name", kind: ShotTable.Kind.Text, title: "field.shortName", width: _unit * 8 },
         { key: "camera", kind: ShotTable.Kind.Choice, title: "field.camera", width: _unit * 5 },
@@ -72,6 +73,28 @@ FocusScope {
         { key: "axis_against", kind: ShotTable.Kind.Fixed, title: "field.axisAgainst", width: _unit * 8 },
         { key: "image", kind: ShotTable.Kind.Fixed, title: "field.image", width: _unit * 5 }
     ]
+
+    // Each title's width in the header's font, so no title is cut (e.g. "BRENNWEITE (MM)").
+    readonly property var _titleWidths: {
+        const out = []
+        for (let i = 0; i < titleSizes.count; i++) {
+            out.push(titleSizes.objectAt(i).advanceWidth)
+        }
+        return out
+    }
+    readonly property var columns: _specs.map((c, i) => Object.assign({}, c, {
+        width: Math.max(c.width, Math.ceil(_titleWidths[i] || 0))
+    }))
+
+    Instantiator {
+        id: titleSizes
+        model: table._specs
+        TextMetrics {
+            required property var modelData
+            font: KanteStyle.labelFont()
+            text: table.texts.t(modelData.title)
+        }
+    }
 
     readonly property var planKeys: [Qt.Key_F2, Qt.Key_Return, Qt.Key_Enter, Qt.Key_Delete, Qt.Key_R, Qt.Key_G]
 
@@ -195,6 +218,7 @@ FocusScope {
 
         KanteTableHeader {
             id: head
+            objectName: "shotHead"
             width: sideways.contentWidth
             implicitWidth: table.columns.reduce((sum, c) => sum + c.width, 0) + (table.columns.length - 1) * spacing
             columns: table.columns.map(c => ({ title: table.texts.t(c.title), width: c.width }))

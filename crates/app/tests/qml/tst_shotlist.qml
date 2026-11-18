@@ -216,6 +216,27 @@ TestCase {
         compare(table.cellText(tc.rows[1], "setup"), "2")
     }
 
+    // A header cut short ("BRENNWEITE…") hides the unit; each title must fit its column. The
+    // app runs the Kante style, whose labels are wider capitals.
+    function test_no_column_header_is_cut() {
+        KanteStyle.kind = KanteStyle.Kind.Kante
+        const cut = []
+        for (const lang of [de, en]) {
+            const panel = createTemporaryObject(panelComponent, tc, { texts: lang, view: "table" })
+            const table = part(panel, "shotTable")
+            const titles = part(panel, "shotHead").children.filter(c => c.Accessible.role === Accessible.ColumnHeader)
+
+            compare(titles.length, table.columns.length)
+            for (const title of titles) {
+                if (title.truncated) {
+                    cut.push(lang.language + " " + title.text + ": " + Math.ceil(title.contentWidth) + " of " + Math.floor(title.width) + " px")
+                }
+            }
+        }
+        KanteStyle.kind = KanteStyle.Kind.System
+        compare(cut, [])
+    }
+
     // The jump column names the opposing shots, as the export does; it is computed, so read only.
     function test_the_axis_column_names_the_opposing_shots() {
         const table = part(make("table"), "shotTable")
