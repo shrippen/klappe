@@ -56,7 +56,8 @@ pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;
 pub use session::{
     Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages,
-    PlaceAnswer, Playing, Session, Size, Step, TimeSnap, VideoJob, View, ViewStep, Visibility,
+    PlaceAnswer, Playing, Session, Size, Speech, SpokenLine, Step, TimeSnap, VideoJob, View,
+    ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};
@@ -88,9 +89,9 @@ pub use klappe_script::{parse, parse_located, Element, Located};
 // The writing aids of `script/` (completion, Enter and Tab flow, search, title page, inline
 // marks), for the screenplay editors of the surfaces.
 pub use klappe_script::{
-    boneyard_lines, enter_step, find_all, force_line, inline_runs, replace_all, replace_line,
-    set_title_fields, suggest, tab_step, title_fields, title_page_lines, upper, Case, Context,
-    EnterStep, Forced, Gap, Hit, Marks, Query, Run, Slot, Stage, Suggestions, TabStep, Vocabulary,
+    boneyard_lines, enter_step, find_all, force_line, inline_runs, replace_hits, set_title_fields,
+    suggest, tab_step, title_fields, title_page_lines, upper, Case, Context, EnterStep, Forced,
+    Gap, Hit, Marks, Query, Run, Slot, Splice, Stage, Suggestions, TabStep, Vocabulary,
     FORCE_CHARACTER, NUMBER_MARK, TITLE_KEYS,
 };
 

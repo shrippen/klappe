@@ -31,6 +31,15 @@ Each block is one crate under `crates/`, unless the path says otherwise.
 | `demo/` (crate) | Tool, never shipped: writes the example projects into the root folder `demo/`. |
 | `demo/` (root) | The demo world and the generated example projects; only those two projects ship, embedded by `services/`. |
 
+## Dependencies outside the workspace
+
+- Qt Quick, Kirigami and Kante for the window (see `app/`).
+- **Qt TextToSpeech** (`qt6-speech`, QML module `QtTextToSpeech`): the voice that reads the
+  dialogue while playing (LH-64). Only `app/qml/SpeechVoice.qml` uses it, and it makes the
+  module from text at run time, so the build needs nothing of it and a system without it
+  starts with the switch off. No Rust crate depends on it; `services/` plans the speech
+  without Qt.
+
 ## Layers
 
 ```
@@ -96,6 +105,7 @@ A change that needs more places than listed is a finding for the audit.
 | New writing aid for the screenplay (suggestion list, element flow, search, title page field, inline mark, outline) | `script/` the rule and its tests (`assist.rs`, `flow.rs` for the element flow, `search.rs`, `title.rs`, `inline.rs`, `outline.rs`), re-exported in `services/` `lib.rs`; `tui/` the key (`app.rs`, `app/`), the drawing (`ui.rs`, `ui_overlay.rs`) and its help line; `app/` its editor later; texts. A title page field is also a line in `TITLE_KEYS` (`title.rs`), its label in `tui/` `i18n.rs` (`FIELD_KEYS`, by field name), its place on the sheet in `services/` `script_pages.rs` and the PDF in `export/` `script.rs` (`TitlePage`; `export/` does not see `script/`). |
 | New view setting of the plan (layer fade, saved view) or output built on one (pages per shot or camera) | `services/` the setting in `session/` (`fade.rs`, `layers.rs`, `saved.rs`) and what it changes in the display list or the picture (`item_fades`, `scene_fade`); a project edit in `project_edit/` (`views.rs`) with its data in `model/` and `FORMAT.md`; pages in `session/pages.rs` (they fade through `Page::fade`, `export/`); `app/` one property in the bridge (`fadesJson`), the calls in a `bridge/` file, the entry in `LayerPopover.qml`, a palette entry in `ViewCommands.qml` (`palette()`, run by a `case` in `AppHeader.qml` `run`; a plain command as a `CommandAction` there, shot views in `ShotViewCommands.qml`) and its menu item in `AppHeader.qml`; texts. |
 | New thing the sun or the compass does to the plan (a place, a date, what daylight draws) | `model/` `site.rs` (`Site` of a location, `SunTime` of a scene) and `FORMAT.md`; `store/` `sun.rs` (refused values do not load); `stellprobe/` `sun.rs` (position from place and time) and `daylight.rs` (patches and arrows as items, added to the list by `add_sun`) with a `Role` and its look (`look.rs`); `services/` the edit (`EditLocation`, `EditScene` in `project_edit.rs`), the text of the forms (`sun_input.rs`), the call of `add_sun` in `session/pick.rs` and the layer of the role (`session/layers.rs`: the Lights layer); `app/` the fields of the location and scene forms (`LocationEditor.qml`, `SceneEditor.qml`, their calls in `bridge/script.rs`); `export/` `style.rs`; texts. |
+| New thing read or played to the ear (speech, later sound) | `services/` what plays when, as a plan without Qt (`session/speech.rs`, `Session::speech`); `app/` one call in the bridge (`speech_json`), the voice as a QML object (`SpeechVoice.qml`, Qt TextToSpeech) and the player that follows the playhead (`SpeechPlayer.qml`); the switch in `Timeline.qml`, the palette entry in `PlayCommands.qml`, its choice in the window's settings (`Main.qml`); texts. |
 | Jump between a script line and what it is linked to (DB-63) | `services/` the link data (`Chip` in `views.rs`, built in `session/timeline.rs`); `app/` the calls in `bridge/jump.rs` (declaration in `bridge.rs`), the commands as `CommandAction` in `JumpCommands.qml` (listed in `AppHeader.qml` `entries` and the View menu), the showing in `Workspace.qml` (`revealScript`, `revealPlan`) and `ScriptPanel.qml` (`showLine`, `showHead`, chips); texts `script.*`. The terminal has no jump. |
 | New text in a surface | The same key in `services/i18n/de.json` and `en.json`; used through `texts.t("key")` in QML or `Language::text` in Rust. |
 | New file or changed layout of the project folder | `model/` (data, `FORMAT_VERSION`); `store/`; `FORMAT.md`; `testdata/`; regenerate the examples (`cargo run -p klappe-demo`). |

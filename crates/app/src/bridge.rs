@@ -223,6 +223,12 @@ pub mod qobject {
         #[qinvokable]
         fn advance(self: Pin<&mut Self>, dt: f64, speed: f64, looping: &QString) -> bool;
 
+        /// The dialogue a voice reads while playing (LH-64), as JSON `{ language, lines: [{
+        /// index, at_s, text }] }` in the order of the time; `language` is `de` or `en`.
+        #[qinvokable]
+        #[cxx_name = "speechJson"]
+        fn speech_json(self: &Self) -> QString;
+
         #[qinvokable]
         #[cxx_name = "selectShot"]
         fn select_shot(self: Pin<&mut Self>, id: &QString);
@@ -341,6 +347,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "resolveScene"]
         fn resolve_scene(self: Pin<&mut Self>, id: &QString, index: i32) -> bool;
+
+        /// Answers the open question about the play location `name` of the scene headings
+        /// (`projectJson.pendingPlaces`): the answer at position `index` of its `answers`.
+        /// Written to `orte.toml` at once; no undo step. False when the answer is refused.
+        #[qinvokable]
+        #[cxx_name = "resolvePlace"]
+        fn resolve_place(self: Pin<&mut Self>, name: &QString, index: i32) -> bool;
 
         /// Takes the project from the backup found at open.
         #[qinvokable]
