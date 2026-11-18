@@ -3,6 +3,7 @@
 //! ```text
 //! Project
 //! ├── characters   Character        (project-wide: Elisabeth, Burgvogt …)
+//! ├── places       Place            (play locations of the scene headings, DB-51)
 //! ├── locations    Location → Set   (walls, objects, notes, images, background image)
 //! ├── library      LibraryItem      (the project's own objects, LH-12)
 //! ├── templates    Template         (the project's own set-ups, LH-07)
@@ -34,6 +35,7 @@ mod light_preset;
 mod limits;
 mod object_track;
 mod paper;
+mod place;
 mod plan;
 mod project;
 mod register;
@@ -62,6 +64,7 @@ pub use limits::{
 };
 pub use object_track::{ObjectMark, ObjectTrack};
 pub use paper::{Orientation, Paper, PaperSetup};
+pub use place::{same_place_name, Place};
 pub use plan::{
     Arrival, AxisPair, Camera, CameraMark, Departure, Drawing, DrawingShape, FigureTrack,
     FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,

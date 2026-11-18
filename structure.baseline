@@ -26,6 +26,6 @@ crates/services/tests/plan_edit.rs	-	lines=841
 crates/stellprobe/src/display.rs	figure_items	length=83
 crates/stellprobe/src/look.rs	look	ccn=16
 crates/store/src/lib.rs	load	ccn=16
-crates/store/src/lib.rs	save	ccn=18
+crates/store/src/lib.rs	save_with	ccn=18
 crates/store/tests/store.rs	-	lines=843
 crates/store/tests/store.rs	plan	length=125

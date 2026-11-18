@@ -149,6 +149,8 @@ fn every_key_is_in_the_help() {
         "Ctrl+F",
         "F3",
         "Ctrl+T",
+        "Alt+H",
+        "Alt+T",
         "F6",
         "Ctrl+P",
         "Ctrl+B",
@@ -217,10 +219,10 @@ fn the_help_scroll_stays_in_range() {
     }
     let _ = screen(&mut app, 100, 12);
 
-    // 26 lines, 10 rows of room: the last first line is 16, and one Up goes back one.
-    assert_eq!(app.help_scroll, 16);
+    // 28 lines, 10 rows of room: the last first line is 18, and one Up goes back one.
+    assert_eq!(app.help_scroll, 18);
     press(&mut app, KeyCode::Up);
-    assert_eq!(app.help_scroll, 15);
+    assert_eq!(app.help_scroll, 17);
 }
 
 #[test]
@@ -229,11 +231,11 @@ fn the_status_line_counts_scenes_struck_from_the_book() {
     let scratch = Scratch::new("INT. A - TAG\n\nx");
     let mut app = scratch.app();
 
-    assert!(screen(&mut app, 120, 24).contains("Scenes not in the book: 1."));
+    assert!(screen(&mut app, 120, 24).contains("Scenes not in the script: 1."));
 
     let same = Scratch::new("INT. SÄNGERSAAL – TAG #12#\n\nx");
     let mut fine = same.app();
-    assert!(!screen(&mut fine, 120, 24).contains("not in the book"));
+    assert!(!screen(&mut fine, 120, 24).contains("not in the script"));
 }
 
 #[test]

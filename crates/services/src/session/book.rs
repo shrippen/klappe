@@ -69,6 +69,7 @@ impl Session {
         BookReport {
             pending: self.pending.len(),
             not_in_book,
+            places: self.pending_places.len(),
         }
     }
 
@@ -103,6 +104,7 @@ impl Session {
     /// project, without an undo step: the register follows the text, it is not an edit.
     /// Returns whether the register changed.
     pub(super) fn reconcile(&mut self) -> bool {
+        self.refresh_places();
         if self.script.scenes().is_empty() {
             self.pending.clear();
             return false;
@@ -123,6 +125,7 @@ impl Session {
     /// Asks the alignment which entries are open, changing nothing. After undo, redo and
     /// a new screenplay text, which move the register or the book under the list.
     pub(super) fn refresh_pending(&mut self) {
+        self.refresh_places();
         self.pending = match self.script.scenes().is_empty() {
             true => Vec::new(),
             false => book::plan(&self.project, &self.script).pending(&self.project),

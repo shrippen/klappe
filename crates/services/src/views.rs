@@ -151,6 +151,8 @@ pub struct Chip {
     /// Character id (marks) or shot id (shots).
     pub target: String,
     pub label: String,
+    /// The mark's place in its track (0-based); 0 for a shot.
+    pub index: usize,
     /// When it happens: the mark's arrival or the shot's start.
     pub at_s: f64,
 }

@@ -8,13 +8,18 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use klappe_model::{id_from_seed, BookState, Character, FloorPlan, Kind, Location, Project, Scene};
-use klappe_script::{Element, Script};
+use klappe_model::{
+    id_from_seed, BookState, Character, FloorPlan, Kind, Location, Place, Project, Scene,
+};
+use klappe_script::{heading_place, Element, Script};
 use serde::Deserialize;
 use serde_json::Value;
 
 use crate::error::DemoError;
 use crate::lang::{localize, Lang};
+
+/// Put before a place's name to seed its id, apart from the ids of scenes.
+const PLACE_SEED: &str = "ort:";
 
 /// The section of the world file that holds the example.
 const SECTION: &str = "klappe";
@@ -96,6 +101,15 @@ fn build(section: Section) -> Result<(Project, String), DemoError> {
         let mut plans = Vec::new();
         for plan in &spec.plans {
             plans.push(plan_of(plan, &ids)?);
+        }
+
+        let place = heading_place(&spec.heading);
+        if !place.is_empty() && project.place_named(place).is_none() {
+            project.places.push(Place {
+                id: scene_id(&format!("{PLACE_SEED}{place}")),
+                name: place.to_owned(),
+                variants: Vec::new(),
+            });
         }
 
         script.elements.push(Element::SceneHeading {

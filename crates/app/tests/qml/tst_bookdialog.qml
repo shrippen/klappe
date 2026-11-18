@@ -133,7 +133,7 @@ TestCase {
         book.open()
         tryVerify(() => book.dialog.opened)
 
-        compare(findChild(book, "ask").text, "Entry 4 INT. KELLER – NACHT — which scene of the book is this?")
-        compare(book.options[2].text, "Not in the book")
+        compare(findChild(book, "ask").text, "Entry 4 INT. KELLER – NACHT — which scene of the script is this?")
+        compare(book.options[2].text, "Not in the script")
     }
 }

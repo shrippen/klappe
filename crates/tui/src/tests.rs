@@ -19,7 +19,9 @@ mod flow;
 mod marks;
 mod outline;
 mod pdf;
+mod places;
 mod session;
+mod status;
 mod support;
 
 use support::Scratch;

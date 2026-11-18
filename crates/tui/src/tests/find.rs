@@ -197,7 +197,8 @@ fn the_form_shows_what_the_title_page_holds_and_keeps_other_keys() {
     ctrl(&mut app, 't');
     let frame = screen(&mut app, 100, 24);
     assert!(frame.contains("Alt"), "{frame}");
-    assert!(frame.contains("Eva / Weg 1"), "{frame}");
+    assert!(frame.contains("Eva"), "{frame}");
+    assert!(frame.contains("Weg 1"), "{frame}");
 
     // Rename the title, leave the contact as it is.
     for _ in 0..3 {
@@ -236,4 +237,62 @@ fn the_title_page_lines_show_quiet() {
     let (x, y) = find(&buffer, 100, 24, "Title: Alt");
 
     assert_eq!(buffer[(x, y)].fg, theme::MUTED);
+}
+
+#[test]
+fn alt_enter_adds_a_line_to_a_title_field() {
+    let (_s, mut app) = app_with(BOOK);
+    ctrl(&mut app, 't');
+    keys(&mut app, &[KeyCode::Tab, KeyCode::Tab]);
+    typed(&mut app, "Eva");
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::ALT));
+    typed(&mut app, "Bert");
+    // A line left empty is dropped.
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::ALT));
+    let frame = screen(&mut app, 100, 24);
+    assert!(frame.contains("Eva") && frame.contains("Bert"), "{frame}");
+
+    press(&mut app, KeyCode::Enter);
+
+    let text = app.text();
+    assert!(
+        text.starts_with("Author:\n   Eva\n   Bert\n\nINT. A - TAG"),
+        "{text}"
+    );
+    assert_eq!(
+        parse(&text).title_page,
+        vec![("Author".into(), "Eva\nBert".into())]
+    );
+
+    // Reopened, the lines are there; Backspace takes the line break away.
+    ctrl(&mut app, 't');
+    keys(&mut app, &[KeyCode::Tab, KeyCode::Tab]);
+    for _ in 0..5 {
+        press(&mut app, KeyCode::Backspace);
+    }
+    press(&mut app, KeyCode::Enter);
+    assert!(app.text().starts_with("Author: Eva\n\n"), "{}", app.text());
+
+    ctrl(&mut app, 'z');
+    ctrl(&mut app, 'z');
+    assert_eq!(app.text(), BOOK);
+}
+
+#[test]
+fn a_long_title_field_scrolls_and_keeps_frame_and_hint() {
+    let (_s, mut app) = app_with(BOOK);
+    ctrl(&mut app, 't');
+    for _ in 0..5 {
+        press(&mut app, KeyCode::Tab);
+    }
+    for i in 0..30 {
+        typed(&mut app, &format!("Zeile{i}"));
+        app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::ALT));
+    }
+    typed(&mut app, "Letzte");
+
+    let frame = screen(&mut app, 100, 24);
+    assert!(frame.contains("Letzte"), "{frame}");
+    assert!(frame.contains(app.texts.title_hint.as_str()), "{frame}");
+    assert!(frame.contains('└'), "{frame}");
 }
