@@ -199,7 +199,7 @@ impl Texts {
             .replace("{count}", &count.to_string())
     }
 
-    /// "Entry 1 INT. A - TAG - which scene of the book is this?".
+    /// "Entry 1 INT. A – TAG — which scene of the script is this?".
     pub(crate) fn book_ask(&self, number: &str, heading: &str) -> String {
         self.lang
             .text("book.ask")
@@ -207,7 +207,7 @@ impl Texts {
             .replace("{heading}", heading)
     }
 
-    /// "HOF, 2 scene heading(s) - which play location is this?".
+    /// "HOF, in 2 scene heading(s) — which scripted location is this?".
     pub(crate) fn place_ask(&self, name: &str, headings: usize) -> String {
         self.lang
             .text("book.placeAsk")
@@ -215,7 +215,7 @@ impl Texts {
             .replace("{count}", &headings.to_string())
     }
 
-    /// A line of the place question: "New play location HOF", "Spelling of SAAL" or
+    /// A line of the place question: "New scripted location HOF", "Spelling of SAAL" or
     /// "SAAL is now called HOF".
     pub(crate) fn place_line(&self, answer: &klappe_services::PlaceAnswer, name: &str) -> String {
         let key = match answer.choice {
