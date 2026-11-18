@@ -624,13 +624,13 @@ TestCase {
         compare(scriptSpy.signalArguments[3][0], -1)
 
         pick(header, "viewMenu", "planShow")
-        keyClick(Qt.Key_P, Qt.ShiftModifier)
+        keyClick(Qt.Key_E, Qt.ShiftModifier)
         header.run("script.plan")
         compare(planSpy.count, 3)
 
         const command = id => header.commandPalette.commands.find(c => c.id === id)
         compare(command("script.show").keys, "Umschalt+D")
-        compare(command("script.plan").keys, "Umschalt+P")
+        compare(command("script.plan").keys, "Umschalt+E")
         fake.loaded = false
         verify(!entry(header, "viewMenu", "scriptShow").enabled)
         verify(!entry(header, "viewMenu", "planShow").enabled)

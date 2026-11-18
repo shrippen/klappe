@@ -39,8 +39,8 @@ Item {
         cmd: "script.plan"
         group: "view"
         text: jump.texts.t("script.plan")
-        shortcut: "Shift+P"
-        keys: jump.keyName("Shift+P")
+        shortcut: "Shift+E"
+        keys: jump.keyName("Shift+E")
         enabled: jump.controller.loaded && !jump.locked
         onTriggered: jump.planRequested()
     }
