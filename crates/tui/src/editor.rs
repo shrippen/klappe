@@ -208,7 +208,11 @@ impl Editor {
         }
 
         let changed = new_lines[same_head..new_lines.len() - same_tail].to_vec();
-        let cursor = self.cursor;
+        // A cursor below the changed lines moves with them, so it stays on its line.
+        let mut cursor = self.cursor;
+        if cursor.line >= old_len - same_tail {
+            cursor.line = cursor.line + new_lines.len() - old_len;
+        }
         self.set_lines(same_head, old_len - same_tail, changed, cursor);
     }
 
@@ -540,6 +544,18 @@ mod tests {
         let r = ed.revision();
         ed.set_text("a\nB\nB2\nd\ne");
         assert_eq!(ed.revision(), r);
+    }
+
+    #[test]
+    fn set_text_keeps_the_cursor_on_its_line() {
+        let mut ed = Editor::new("a\nb\nc\nd");
+        ed.go_to(at(3, 1));
+        ed.set_text("a\n.OMITTED #2#\n\nb\nc\nd");
+        assert_eq!(ed.cursor(), at(5, 1));
+
+        ed.go_to(at(5, 1));
+        ed.set_text("a\nc\nd");
+        assert_eq!(ed.cursor(), at(2, 1));
     }
 
     #[test]

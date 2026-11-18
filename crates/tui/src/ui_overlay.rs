@@ -19,9 +19,9 @@ const SUGGEST_ROWS: usize = 6;
 const BOX_WIDTH: usize = 72;
 /// Columns the label of a field takes in a form.
 const LABEL_WIDTH: usize = 18;
-/// Marks the chosen row.
 /// Rows of the numbering box: two fields, a gap, the hint, and the frame.
 const NUMBERS_HEIGHT: usize = 6;
+/// Marks the chosen row.
 const CHOSEN: &str = "▌";
 
 fn framed<'a>(title: &'a str) -> Block<'a> {

@@ -37,7 +37,7 @@ impl Scratch {
     }
 
     /// Like `new`, but the scenes are numbered automatically: the example has no key, so its
-    /// numbers are locked and a save would only add the struck scene 12 to the book.
+    /// numbers are locked and a save leaves them as they are.
     pub(super) fn automatic(script: &str) -> Self {
         let scratch = Self::new(script);
         let path = scratch.dir.join("projekt.toml");
