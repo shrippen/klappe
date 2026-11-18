@@ -368,8 +368,9 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   zum Namen). Ein Name, den keine Figur trägt, wird nicht still zur Figur, sondern vorgelegt;
   die Antwort ist ein Alias oder eine neue Figur oder, für `ALLE` und `STIMME`, ein Eintrag in
   `not_figures`, einer Liste am Anfang von `figuren.toml` vor den `[[figur]]` (nur geschrieben,
-  wenn nicht leer). Umbenennen in Klappe ändert `name`, nicht `id` und nicht `aliases`. Keine
-  neue Formatversion: Schlüssel, die fehlen, gelten als leer.
+  wenn nicht leer). Umbenennen in Klappe ändert `name`, nicht `id` und nicht `aliases`. Ein Name oder Alias
+  gehört genau einer Figur: tragen zwei Figuren denselben (Groß- und Kleinschreibung zählt nicht),
+  lehnt Laden das Projekt ab. Keine neue Formatversion: Schlüssel, die fehlen, gelten als leer.
 - **Größe von Figuren (LH-25):** eine Figur in `figuren.toml` hat optional `size_m`, den
   Durchmesser des Körpers in Metern (0,1 bis 20), etwa Kind, Pferd oder Kutsche. Ohne `size_m`
   gilt der Standard (0,7 m). Eine Gruppe bleibt um denselben Faktor größer als eine einzelne

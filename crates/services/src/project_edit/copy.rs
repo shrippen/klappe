@@ -53,14 +53,10 @@ fn stem_of(name: &str) -> &str {
     }
 }
 
-/// `stem 2`, `stem 3` … the first name no character has; compared in capitals, as the cues
-/// are. A copy always carries a number.
+/// `stem 2`, `stem 3` … the first name no character answers to, as name or alias; compared as
+/// the cues are. A copy always carries a number.
 fn numbered(characters: &[Character], stem: &str) -> String {
-    let taken = |name: &str| {
-        characters
-            .iter()
-            .any(|c| c.name.to_uppercase() == name.to_uppercase())
-    };
+    let taken = |name: &str| characters.iter().any(|c| c.is_called(name));
 
     (2..)
         .map(|n| format!("{stem} {n}"))
@@ -126,6 +122,17 @@ mod tests {
             (copy.color, copy.group, copy.size_m),
             (all[0].color, Some(4), Some(1.5))
         );
+    }
+
+    #[test]
+    fn a_copy_skips_a_name_another_figure_answers_to() {
+        let mut bert = character("bert", "Bert", "B");
+        bert.aliases = vec!["ANNA 2".into()];
+        let mut all = vec![character("anna", "Anna", "A"), bert];
+
+        copy_character(&mut all, "anna").unwrap();
+
+        assert_eq!(all.last().unwrap().name, "Anna 3");
     }
 
     #[test]

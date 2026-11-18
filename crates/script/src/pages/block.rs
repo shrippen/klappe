@@ -523,7 +523,7 @@ fn dialogue(
     }
     let again = speaker.name.as_deref() == Some(name.as_str()) && speaker.after_action;
     if again && options.contd_after_action == ContdAfterAction::On && !*dual {
-        cue.push_str(&format!(" ({})", options.words.contd));
+        cue = with_contd(&cue, options.words.contd);
     }
     *speaker = Speaker {
         name: Some(name.clone()),
