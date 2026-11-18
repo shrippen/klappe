@@ -11,17 +11,15 @@ const MAX_LONGITUDE_DEG: f64 = 180.0;
 const MINUTES_PER_HOUR: i16 = 60;
 const HOURS_PER_DAY: u8 = 24;
 
-/// Latitude, longitude and the turn of the plan to north as typed (`"52,5"`, `"13.4°"`). All
-/// three blank is no place; latitude and longitude are needed together; a blank north is 0.
+/// Latitude, longitude and the turn of the plan to north as typed (`"52,5"`, `"13.4°"`). A blank
+/// latitude and longitude is no place, whatever north says; they are needed together; a blank
+/// north is 0.
 pub fn read_site(
     latitude: &str,
     longitude: &str,
     north: &str,
 ) -> Result<Option<Site>, ServiceError> {
-    if [latitude, longitude, north]
-        .iter()
-        .all(|t| t.trim().is_empty())
-    {
+    if [latitude, longitude].iter().all(|t| t.trim().is_empty()) {
         return Ok(None);
     }
 
@@ -50,14 +48,14 @@ pub fn read_site(
 }
 
 /// Date (`2026-06-21` or `21.6.2026`), time (`14:30`) and offset from UTC (`+02:00`, `-5`; blank
-/// follows the location's zone) as typed. All blank is no date; a date needs its time and the
-/// other way round.
+/// follows the location's zone) as typed. A blank date and time is no date, whatever the offset
+/// says; a date needs its time and the other way round.
 pub fn read_sun_time(
     date: &str,
     time: &str,
     offset: &str,
 ) -> Result<Option<SunTime>, ServiceError> {
-    if [date, time, offset].iter().all(|t| t.trim().is_empty()) {
+    if [date, time].iter().all(|t| t.trim().is_empty()) {
         return Ok(None);
     }
 
@@ -182,6 +180,17 @@ mod tests {
             assert!(read_site(lat, lon, "").is_err(), "{lat} {lon}");
         }
         assert!(read_site("52", "13", "nord").is_err());
+    }
+
+    #[test]
+    fn a_blank_place_clears_the_site_whatever_north_says() {
+        assert!(read_site("", "", "30").unwrap().is_none());
+        assert!(read_site(" ", "", "0").unwrap().is_none());
+    }
+
+    #[test]
+    fn a_blank_date_and_time_clear_the_sun_whatever_the_offset_says() {
+        assert!(read_sun_time("", "", "+02:00").unwrap().is_none());
     }
 
     #[test]
