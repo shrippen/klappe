@@ -11,10 +11,11 @@ use std::path::{Path, PathBuf};
 
 use klappe_export::{Page, Texts, Theme};
 use klappe_model::PaperSetup;
-use klappe_stellprobe::{DisplayList, Source};
+use klappe_stellprobe::DisplayList;
 
 use super::export::{file_part, write_file, MIN_NUMBER_WIDTH};
-use super::{Fade, Session};
+use super::fade::focused_fades;
+use super::Session;
 use crate::error::{write_failed, ServiceError};
 
 /// What a page of the output is for.
@@ -144,16 +145,75 @@ impl Session {
         let (list, mut page) = self.printout(paper, texts.clone())?;
 
         page.title = format!("{} · {}", page.title, focus.name);
-        page.fade = list
-            .items
-            .iter()
-            .zip(self.item_fades(&list))
-            .map(|(item, own)| match &item.source {
-                Some(Source::Camera(id)) if *id == focus.camera => 1.0,
-                _ => own.min(Fade::Faint.strength()),
-            })
-            .collect();
+        page.fade = focused_fades(&list, &focus.camera);
 
         Ok((list, page))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use klappe_stellprobe::{Role, Source};
+
+    use super::*;
+    use crate::{Arrival, Fade, Grab, Language, PlanEdit, TimeSnap};
+
+    const EXAMPLE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../testdata/beispiel.klappe"
+    );
+
+    /// Elisabeth appears at 5.75 s, so at 6 s she is half faded in.
+    fn fading() -> Session {
+        let mut s = Session::open(Path::new(EXAMPLE)).unwrap();
+        let mark = Source::Mark {
+            character: "elisabeth".into(),
+            index: 1,
+        };
+        let grab = Grab::FigureMark {
+            character: "elisabeth".into(),
+            index: 1,
+        };
+
+        s.edit_plan(PlanEdit::SetArrival {
+            source: mark,
+            arrival: Arrival::Appear,
+        })
+        .unwrap();
+        s.drop_time(&grab, 5.75, TimeSnap::Free).unwrap();
+
+        s
+    }
+
+    /// The page's camera keeps its opacity, everything else is `Faint` times its opacity.
+    #[test]
+    fn a_page_folds_the_opacity_into_the_fade() {
+        let mut s = fading();
+        let focus = Focus {
+            camera: "a".into(),
+            at_s: 6.0,
+            name: "A".into(),
+        };
+        s.set_fade(crate::Layer::Cameras, Fade::Medium);
+
+        let (list, page) = s
+            .focus_page(
+                &focus,
+                PaperSetup::default(),
+                &Language::English.print_texts(),
+            )
+            .unwrap();
+
+        let mut half = 0;
+        for (item, fade) in list.items.iter().zip(&page.fade) {
+            let own = matches!(&item.source, Some(Source::Camera(id)) if id == "a");
+            let want = if own { 1.0 } else { Fade::Faint.strength() } * item.opacity;
+
+            assert_eq!(*fade, want, "{:?} {:?}", item.role, item.source);
+            half += usize::from(matches!(item.role, Role::Figure(_)) && item.opacity < 1.0);
+        }
+        assert!(half > 0, "no figure fades at 6 s");
     }
 }

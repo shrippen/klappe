@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use klappe_model::{Project, SceneNumbering, ScriptLanguage};
+use klappe_model::{Project, SceneNumbering};
 use klappe_store::Loaded;
 
 use super::plan_view::PlanView;
@@ -88,10 +88,7 @@ impl Session {
 
         let mut project = Project::new(title);
         project.script.scene_numbering = SceneNumbering::Automatic;
-        project.script.language = Some(match language {
-            Language::German => ScriptLanguage::De,
-            Language::English => ScriptLanguage::En,
-        });
+        project.script.language = Some(language.into());
         klappe_store::save(dir, &project, None)?;
         klappe_store::save_lock(dir, &[])?;
         Self::open(dir)

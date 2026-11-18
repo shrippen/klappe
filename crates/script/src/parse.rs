@@ -2,6 +2,7 @@
 
 use std::ops::Range;
 
+use crate::text::in_capitals;
 use crate::{Element, Located, Script};
 
 pub(crate) const FORCE_ACTION: char = '!';
@@ -14,7 +15,6 @@ const SECTION: char = '#';
 const SYNOPSIS: char = '=';
 pub const NUMBER_MARK: char = '#';
 pub(crate) const DUAL_MARK: char = '^';
-const SHARP_S: char = 'ß';
 const PAGE_BREAK_MIN: usize = 3;
 const TRANSITION_END: &str = "TO:";
 pub(crate) const NOTE_OPEN: &str = "[[";
@@ -34,19 +34,17 @@ pub(crate) enum Escape {
     Remove,
 }
 
-/// Prefixes of scene headings in both languages, longest first; each must be followed by `.` or
+/// Prefixes of international scene headings, longest first; each must be followed by `.` or
 /// a space.
-pub(crate) const HEADING_PREFIXES: [&str; 13] = [
-    "int./ext",
-    "int/ext",
+const HEADING_PREFIXES: [&str; 6] = ["int./ext", "int/ext", "i/e", "int", "ext", "est"];
+
+/// Prefixes of German scene headings, longest first. German words, so without a dot they
+/// count only in capitals (`Außen tobt der Sturm.` is action).
+const GERMAN_PREFIXES: [&str; 7] = [
     "innen/aussen",
     "innen/außen",
     "aussen/innen",
     "außen/innen",
-    "i/e",
-    "int",
-    "ext",
-    "est",
     "innen",
     "aussen",
     "außen",
@@ -519,8 +517,10 @@ fn has_heading_prefix(t: &str) -> bool {
 /// e.g. "INNEN KÜCHE" or "innen. küche".
 pub(crate) fn heading_prefix(t: &str) -> Option<&'static str> {
     let lower = t.to_lowercase();
+    let german = GERMAN_PREFIXES.iter().map(|p| (*p, true));
+    let mut all = HEADING_PREFIXES.iter().map(|p| (*p, false)).chain(german);
 
-    HEADING_PREFIXES.iter().copied().find(|p| {
+    all.find(|(p, is_german)| {
         let Some(rest) = lower.strip_prefix(p) else {
             return false;
         };
@@ -531,19 +531,9 @@ pub(crate) fn heading_prefix(t: &str) -> Option<&'static str> {
             return false;
         }
 
-        !is_german(p) || in_capitals(t.split(' ').next().unwrap_or(t))
+        !is_german || in_capitals(t.split(' ').next().unwrap_or(t))
     })
-}
-
-fn is_german(prefix: &str) -> bool {
-    ["innen", "aussen", "außen"]
-        .iter()
-        .any(|w| prefix.starts_with(w))
-}
-
-/// Whether a word is written in capitals; `ß` has no common capital and is allowed.
-fn in_capitals(word: &str) -> bool {
-    !word.chars().any(|c| c.is_lowercase() && c != 'ß')
+    .map(|(p, _)| p)
 }
 
 /// Splits a trailing `#12A#` off the heading.
@@ -571,10 +561,7 @@ fn heading(t: &str) -> Element {
 
 /// No lowercase letter and at least one letter.
 fn is_upper(s: &str) -> bool {
-    // `ß` has no uppercase form in everyday use, so it counts as uppercase.
-    let lower = |c: char| c.is_lowercase() && c != SHARP_S;
-
-    s.chars().any(char::is_alphabetic) && !s.chars().any(lower)
+    s.chars().any(char::is_alphabetic) && in_capitals(s)
 }
 
 /// Parses `NAME (EXT)^`; `Auto` also demands an all-uppercase name.

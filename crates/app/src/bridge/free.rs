@@ -339,11 +339,12 @@ impl super::ControllerRust {
             (self.free.size.1 * scale).round(),
         );
 
-        colored(
-            &s.free_picture(size)?,
-            &palette,
-            &|role| s.scene_fade(role),
-            &|source| self.selected.contains(source),
-        )
+        let picture = s.free_picture(size)?;
+
+        let strength = s.picture_strength(&picture);
+
+        colored(&picture, &palette, &strength, &|source| {
+            self.selected.contains(source)
+        })
     }
 }
