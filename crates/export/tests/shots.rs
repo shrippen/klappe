@@ -685,3 +685,35 @@ fn a_shot_assigned_by_hand_is_listed_in_its_setup() {
     assert_eq!(rows[2], ["1", "12.2", "B"]);
     assert_eq!(rows[3], ["1", "12.3", "A"]);
 }
+
+/// The camera pages of the PDF with every face drawn at `opacity`.
+fn pdf_with_face_opacity(opacity: f64) -> String {
+    let plan = plan(1);
+    let mut views = shot_views(&plan);
+    for face in views.iter_mut().flat_map(|v| &mut v.view.faces) {
+        face.opacity = opacity;
+    }
+    let bytes = pdf_with_views(
+        &list(&plan),
+        &page(),
+        Theme::Light,
+        &plan,
+        ShotOrder::Cut,
+        &views,
+    )
+    .unwrap();
+
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+/// Review of PR 255: a semi-transparent face on a camera page is painted translucent, with its
+/// state in the resources.
+#[test]
+fn camera_pages_paint_translucent_faces() {
+    let full = pdf_with_face_opacity(1.0);
+    let half = pdf_with_face_opacity(0.5);
+
+    assert!(half.matches(" gs ").count() > full.matches(" gs ").count());
+    assert!(half.contains("/ca 0.5 >>"));
+    assert!(!full.contains("/ca 0.5 >>"));
+}
