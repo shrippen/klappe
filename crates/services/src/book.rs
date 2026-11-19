@@ -30,6 +30,19 @@ pub struct PendingScene {
     pub candidates: Vec<Candidate>,
 }
 
+/// What an import of a screenplay made of the register, for the report after it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ImportReport {
+    /// Scenes of the imported book.
+    pub scenes: usize,
+    /// Register entries the import created.
+    pub created: usize,
+    /// Entries waiting for a decision.
+    pub pending: usize,
+    /// Entries whose scene is not in the book.
+    pub not_in_book: usize,
+}
+
 /// What the status line says about the register and the book.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BookReport {

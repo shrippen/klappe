@@ -254,6 +254,7 @@ Kirigami.ApplicationWindow {
         id: scriptImport
         texts: texts
         controller: ctl
+        onQuestionsRequested: bookDialog.open()
     }
 
     ProjectGuard {

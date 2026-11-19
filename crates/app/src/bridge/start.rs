@@ -61,6 +61,7 @@ impl ControllerRust {
             language,
             status: q(notice.text()),
             example_aside: QString::default(),
+            import_report: QString::default(),
             notice,
             texts: q(language.json()),
             loaded: false,

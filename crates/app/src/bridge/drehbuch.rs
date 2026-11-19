@@ -1,11 +1,11 @@
 //! The screenplay in the window: its text and outline for the editor, and the import.
 
-use super::qobject;
+use super::{q, qobject};
 use crate::fileurl;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
-use klappe_services::{error_text, outline, OutlineKind};
+use klappe_services::{error_text, outline, ImportReport, OutlineKind};
 use serde_json::json;
 
 /// The sections and scenes of `text` for the scene list; synopses are left out.
@@ -32,6 +32,17 @@ pub(super) fn outline_json(text: &str) -> String {
     json!(rows).to_string()
 }
 
+/// The counts of an import for the report dialog.
+fn report_json(report: &ImportReport) -> String {
+    json!({
+        "scenes": report.scenes,
+        "created": report.created,
+        "pending": report.pending,
+        "notInBook": report.not_in_book,
+    })
+    .to_string()
+}
+
 impl qobject::Controller {
     pub(super) fn edit_script(mut self: Pin<&mut Self>, text: &QString) {
         let Some(s) = self.as_mut().session() else {
@@ -53,7 +64,10 @@ impl qobject::Controller {
         let result = s.import_script(&path);
         let ok = result.is_ok();
         let message = match result {
-            Ok(()) => language.text("script.imported"),
+            Ok(report) => {
+                self.as_mut().set_import_report(q(&report_json(&report)));
+                language.text("script.imported")
+            }
             Err(e) => error_text(language, &e),
         };
         self.as_mut().changed();

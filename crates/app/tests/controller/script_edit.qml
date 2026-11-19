@@ -71,6 +71,10 @@ Item {
             if (ctl.status === "") {
                 return fail("an import says so in the status line")
             }
+            const report = JSON.parse(ctl.importReport)
+            if (report.scenes !== originalTitles.filter(t => t.startsWith("scene:")).length || report.created !== 0) {
+                return fail("the import report: " + ctl.importReport)
+            }
             Qt.exit(0)
         }
     }

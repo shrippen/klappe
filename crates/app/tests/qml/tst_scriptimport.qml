@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import QtQuick.Controls as QQC2
 import "../../qml"
 
 // ScriptImport (E-09): a project with a screenplay asks before the file dialog; an empty one
@@ -16,7 +17,8 @@ TestCase {
         id: fake
         property string scriptText: ""
         property var imported: []
-        function importScript(path) { imported.push(path); return true }
+        property string importReport: ""
+        function importScript(path) { imported.push(path); return importReport !== "" }
     }
 
     TestTexts { id: de; language: "de" }
@@ -27,6 +29,7 @@ TestCase {
     }
 
     function init() {
+        fake.importReport = ""
         fake.scriptText = ""
         fake.imported = []
     }
@@ -76,5 +79,67 @@ TestCase {
 
         compare(imp.picker.title, "Drehbuch laden")
         compare(imp.picker.nameFilters[0], "Drehbuch (*.fountain *.txt)")
+    }
+
+    function report(pending, notInBook) {
+        fake.importReport = JSON.stringify({ scenes: 14, created: 3, pending: pending, notInBook: notInBook })
+        const imp = createTemporaryObject(importComponent, tc)
+        imp.load("file:///buch.fountain")
+        return imp
+    }
+
+    // One scene and one question read in the singular, not "1 Szenen", "1 Fragen".
+    function test_one_scene_and_one_question_are_singular() {
+        fake.importReport = JSON.stringify({ scenes: 1, created: 1, pending: 1, notInBook: 0 })
+        const imp = createTemporaryObject(importComponent, tc)
+        imp.load("file:///buch.fountain")
+
+        tryVerify(() => imp.report.opened)
+        compare(findChild(imp.report.contentItem, "reportCounts").text, "1 Szene erkannt · 1 neu · 1 Frage")
+    }
+
+    function test_the_report_shows_the_counts() {
+        const imp = report(2, 0)
+
+        tryVerify(() => imp.report.opened)
+        compare(findChild(imp.report.contentItem, "reportCounts").text, "14 Szenen erkannt · 3 neu · 2 Fragen")
+        verify(!findChild(imp.report.contentItem, "reportGone").visible)
+    }
+
+    function test_the_report_names_entries_not_in_the_book() {
+        const imp = report(0, 4)
+
+        tryVerify(() => imp.report.opened)
+        compare(findChild(imp.report.contentItem, "reportGone").text, "4 nicht im Buch")
+    }
+
+    function test_questions_are_offered_and_open_the_book_dialog() {
+        const imp = report(2, 0)
+        const spy = createTemporaryObject(spyComponent, tc, { target: imp })
+        tryVerify(() => imp.report.opened)
+
+        imp.report.accept()
+
+        compare(spy.count, 1)
+    }
+
+    function test_without_questions_there_is_nothing_to_answer() {
+        const imp = report(0, 0)
+
+        tryVerify(() => imp.report.opened)
+        compare(imp.report.standardButtons, QQC2.Dialog.Close)
+    }
+
+    function test_a_refused_file_shows_no_report() {
+        const imp = createTemporaryObject(importComponent, tc)
+
+        imp.load("file:///kaputt.png")
+
+        verify(!imp.report.opened)
+    }
+
+    Component {
+        id: spyComponent
+        SignalSpy { signalName: "questionsRequested" }
     }
 }
