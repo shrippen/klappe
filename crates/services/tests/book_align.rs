@@ -93,6 +93,21 @@ fn a_scene_inserted_before_keeps_the_plans_of_the_others() {
     assert!(s.pending_scenes().is_empty());
 }
 
+/// A scene without a plan still shows its script, without links.
+#[test]
+fn a_scene_without_a_plan_still_has_its_script_lines() {
+    let dir = settled("book-noplan-lines", two(), &(saal("1") + &hof("2")));
+    rewrite_book(&dir, &(keller("1") + &saal("2") + &hof("3")));
+    let mut s = Session::open(&dir).unwrap();
+    let id = s.project().scenes[0].id.clone();
+    s.select_scene(&id).unwrap();
+
+    let lines = s.script_lines();
+
+    assert_eq!(lines.len(), 3);
+    assert!(lines.iter().all(|l| l.chips.is_empty()));
+}
+
 #[test]
 fn renumbering_every_scene_outside_keeps_ids_and_plans() {
     let dir = settled("book-renumber", two(), &(saal("1") + &hof("2")));

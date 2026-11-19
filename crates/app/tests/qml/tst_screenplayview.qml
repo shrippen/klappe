@@ -173,6 +173,34 @@ TestCase {
         tryCompare(fake.edits, "length", 1)
     }
 
+    // D-17: no text says so and offers the next step.
+    function test_an_empty_screenplay_offers_to_load_or_write() {
+        fake.scriptText = ""
+        const view = make()
+        const empty = findChild(view, "emptyBook")
+        const imports = createTemporaryObject(spyComponent, tc, { target: view })
+
+        verify(empty.visible)
+        compare(empty.title, "Noch kein Drehbuch.")
+        findChild(view, "loadScreenplay").clicked()
+        compare(imports.count, 1)
+
+        findChild(view, "writeScreenplay").clicked()
+        verify(view.area.activeFocus)
+        verify(!empty.visible)
+    }
+
+    function test_a_screenplay_with_text_shows_no_offer() {
+        const view = make()
+
+        verify(!findChild(view, "emptyBook").visible)
+    }
+
+    Component {
+        id: spyComponent
+        SignalSpy { signalName: "importRequested" }
+    }
+
     // The list's fillWidth made its column fill the row and left the text 4 px wide (seen in the
     // app at 1440 px with the example).
     function test_the_text_keeps_its_width_beside_the_list() {

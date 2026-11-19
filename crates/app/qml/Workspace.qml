@@ -43,6 +43,9 @@ Item {
 
     // The script's cards ask to change a scene (`kind` "scene") or a character in the project dialog.
     signal projectEntryRequested(string kind, string id)
+    /// The script's empty column asks to load a screenplay or to open the screenplay view (D-17).
+    signal scriptImportRequested()
+    signal screenplayRequested()
     /// The tool bar's tool.
     property string tool: "select"
     /// What the tool's next click does (PlanTools `hint`).
@@ -161,6 +164,8 @@ Item {
             lines: work.controller.scriptJson ? JSON.parse(work.controller.scriptJson) : []
             onChipClicked: (kind, target, index) => work.controller.showLink(kind, target, index)
             onPlanRequested: work.revealPlan()
+            onImportRequested: work.scriptImportRequested()
+            onScreenplayRequested: work.screenplayRequested()
             Component.onCompleted: work._script = scriptPanel
             Component.onDestruction: if (work._script === scriptPanel) work._script = null
         }

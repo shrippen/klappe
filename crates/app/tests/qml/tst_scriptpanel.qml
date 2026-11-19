@@ -15,6 +15,10 @@ TestCase {
     QtObject {
         id: fake
         property string status: ""
+        property string scriptText: "INT. SÄNGERSAAL – TAG #12#\n"
+        property string outlineJson: JSON.stringify([
+            { kind: "scene", depth: 1, line: 0, number: "12", text: "INT. SÄNGERSAAL – TAG" }
+        ])
         property var asked: []
         // Replaces the character's scenes when set.
         property string noScenes: ""
@@ -47,6 +51,8 @@ TestCase {
     SignalSpy { id: edits; signalName: "editRequested" }
     SignalSpy { id: chips; signalName: "chipClicked" }
     SignalSpy { id: plans; signalName: "planRequested" }
+    SignalSpy { id: imports; signalName: "importRequested" }
+    SignalSpy { id: screenplays; signalName: "screenplayRequested" }
 
     Component {
         id: panelComponent
@@ -68,6 +74,10 @@ TestCase {
     function init() {
         fake.asked = []
         fake.noScenes = ""
+        fake.scriptText = "INT. SÄNGERSAAL – TAG #12#\n"
+        fake.outlineJson = JSON.stringify([
+            { kind: "scene", depth: 1, line: 0, number: "12", text: "INT. SÄNGERSAAL – TAG" }
+        ])
     }
 
     function make() {
@@ -205,5 +215,55 @@ TestCase {
         verify(list.Accessible.name !== "")
         compare(row.Accessible.role, Accessible.ListItem)
         compare(row.Accessible.name, panel.lines[0].text)
+    }
+
+    // D-17: an empty column says why and offers the next step.
+    function makeEmpty() {
+        const panel = make()
+        panel.lines = []
+        imports.target = panel
+        imports.clear()
+        screenplays.target = panel
+        screenplays.clear()
+        return panel
+    }
+
+    function test_without_a_screenplay_it_offers_to_load_one() {
+        fake.scriptText = ""
+        fake.outlineJson = "[]"
+        const panel = makeEmpty()
+
+        compare(findChild(panel, "emptyReason").text, "Noch kein Drehbuch.")
+        verify(!findChild(panel, "openScreenplay").visible)
+        findChild(panel, "loadScreenplay").clicked()
+        compare(imports.count, 1)
+        compare(screenplays.count, 0)
+    }
+
+    function test_a_missing_number_offers_to_open_the_screenplay() {
+        fake.outlineJson = JSON.stringify([
+            { kind: "scene", depth: 1, line: 0, number: "1", text: "INT. HOF - TAG" }
+        ])
+        const panel = makeEmpty()
+
+        compare(findChild(panel, "emptyReason").text, "Keine Szene im Drehbuch trägt die Nummer 12.")
+        verify(!findChild(panel, "loadScreenplay").visible)
+        findChild(panel, "openScreenplay").clicked()
+        compare(screenplays.count, 1)
+        compare(imports.count, 0)
+    }
+
+    function test_a_scene_in_the_screenplay_without_lines_keeps_the_plain_text() {
+        const panel = makeEmpty()
+
+        compare(findChild(panel, "emptyReason").text, "Zu dieser Szene gibt es keinen Drehbuchtext.")
+        verify(!findChild(panel, "loadScreenplay").visible)
+        verify(!findChild(panel, "openScreenplay").visible)
+    }
+
+    function test_with_lines_no_reason_shows() {
+        const panel = make()
+
+        verify(!findChild(panel, "emptyReason").visible)
     }
 }

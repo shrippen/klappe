@@ -53,6 +53,17 @@ Item {
     property point tipAt: Qt.point(0, 0)
     /// The 3D view shows instead of the plan (J).
     readonly property bool free: controller.viewFree === true
+    /// The scene on view has no plan yet (D-17): { number } or null.
+    readonly property var planless: {
+        if (!controller.loaded || !controller.projectJson || !controller.sceneId) {
+            return null
+        }
+        const project = JSON.parse(controller.projectJson)
+        if (project.plans.length > 0) {
+            return null
+        }
+        return project.scenes.find(s => s.id === controller.sceneId) || null
+    }
 
     KanteEmptyState {
         anchors.centerIn: parent
@@ -62,11 +73,23 @@ Item {
         text: area.texts.t("empty.text")
     }
 
+    Loader {
+        active: area.planless !== null
+        z: 1
+        anchors.centerIn: parent
+        width: Math.min(area.width, Kirigami.Units.gridUnit * 24)
+        sourceComponent: PlanNone {
+            texts: area.texts
+            controller: area.controller
+            scene: area.planless
+        }
+    }
+
     KanteShapeCanvas {
         id: canvas
         objectName: "planCanvas"
         anchors.fill: parent
-        visible: area.plan !== null && !area.free
+        visible: area.plan !== null && !area.free && area.planless === null
         contentWidth: area.plan ? area.plan.width : 1
         contentHeight: area.plan ? area.plan.depth : 1
         gridStep: area.drawnGridM

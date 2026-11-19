@@ -27,6 +27,8 @@ RowLayout {
     readonly property real listWidth: Kirigami.Units.gridUnit * 16
     readonly property var entries: controller.outlineJson ? JSON.parse(controller.outlineJson) : []
     readonly property alias area: area
+    /// The empty view's button: ask for a screenplay file.
+    signal importRequested()
 
     spacing: 0
 
@@ -131,6 +133,31 @@ RowLayout {
         Layout.fillHeight: true
 
         FontMetrics { id: metrics; font: area.font }
+
+        // Without text the view says why and offers the next step (D-17); it gives way to the
+        // cursor once the text area has the focus.
+        KanteEmptyState {
+            objectName: "emptyBook"
+            z: 1
+            anchors.centerIn: parent
+            width: Math.min(parent.width, Kirigami.Units.gridUnit * 24)
+            visible: area.text === "" && !area.activeFocus
+            title: view.texts.t("screenplay.empty")
+
+            RowLayout {
+                spacing: Kirigami.Units.smallSpacing
+                KanteButton {
+                    objectName: "loadScreenplay"
+                    text: view.texts.t("script.import")
+                    onClicked: view.importRequested()
+                }
+                KanteButton {
+                    objectName: "writeScreenplay"
+                    text: view.texts.t("screenplay.write")
+                    onClicked: area.forceActiveFocus()
+                }
+            }
+        }
 
         QQC2.ScrollView {
             id: scroll

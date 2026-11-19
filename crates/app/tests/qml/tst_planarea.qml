@@ -16,6 +16,9 @@ TestCase {
         id: fake
         property bool loaded: true
         property string planJson: ""
+        property string projectJson: ""
+        property string sceneId: ""
+        property var newPlans: []
         property string selectedKey: ""
         property string choicesJson: ""
         property int selectedCount: 0
@@ -54,6 +57,7 @@ TestCase {
         property bool fileOk: true
 
         function markInfo() { return markJson }
+        function addPlan(name) { newPlans.push(name); return true }
         function describe(key) {
             if (key === "object:o1") {
                 return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: null, base: 0, baseDefault: true })
@@ -194,6 +198,9 @@ TestCase {
 
     function init() {
         fake.planJson = planWith(1)
+        fake.projectJson = ""
+        fake.sceneId = ""
+        fake.newPlans = []
         fake.selectedKey = ""
         fake.selectedCount = 0
         fake.extendSelection = false
@@ -594,5 +601,34 @@ TestCase {
         compare(fake.images[0][1], area.imageAt.x)
         compare(fake.images[0][2], area.imageAt.y)
         dialog.close()
+    }
+
+    // D-17: a scene without a plan says so and offers to create one; a click, nothing before.
+    function noPlanProject(plans) {
+        return JSON.stringify({ scenes: [{ id: "s15", number: "15", heading: "INT. HOF - TAG" }],
+                                plans: plans, plan: plans.length > 0 ? plans[0].id : "" })
+    }
+
+    function test_a_scene_without_a_plan_offers_one() {
+        fake.projectJson = noPlanProject([])
+        fake.sceneId = "s15"
+        const area = drawn("select")
+        const empty = findChild(area, "noPlan")
+
+        verify(empty.visible)
+        compare(empty.title, "Szene 15 hat noch keinen Plan.")
+        // A loader without a size of its own once drew the notice 0 px wide.
+        tryVerify(() => empty.width > area.width / 4, 1000, "notice is " + empty.width + " px wide")
+        compare(fake.newPlans.length, 0)
+        findChild(area, "createPlan").clicked()
+        compare(fake.newPlans, [""])
+    }
+
+    function test_a_scene_with_a_plan_offers_nothing() {
+        fake.projectJson = noPlanProject([{ id: "plan-a", name: "Plan A", shots: 0 }])
+        fake.sceneId = "s15"
+        const area = drawn("select")
+
+        compare(findChild(area, "noPlan"), null)
     }
 }

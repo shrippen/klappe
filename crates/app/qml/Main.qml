@@ -194,6 +194,8 @@ Kirigami.ApplicationWindow {
                 speak: playback.speak
                 onSpeakToggled: on => playback.speak = on
                 onProjectEntryRequested: (kind, id) => projectDialog.openAt(kind, id)
+                onScriptImportRequested: scriptImport.start()
+                onScreenplayRequested: root.showScreenplay = true
             }
 
             ScreenplayView {
@@ -204,6 +206,7 @@ Kirigami.ApplicationWindow {
                 Layout.fillHeight: true
                 texts: texts
                 controller: ctl
+                onImportRequested: scriptImport.start()
             }
         }
     }

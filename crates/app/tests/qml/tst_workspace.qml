@@ -43,6 +43,10 @@ TestCase {
             layer: ["set", "figures", "cameras", "lights", "notes"]
         })
         property string layersJson: ""
+        property string projectJson: ""
+        property string sceneId: ""
+        property string scriptText: ""
+        property string outlineJson: "[]"
         property string locksJson: ""
         property string scriptJson: JSON.stringify([
             { kind: "scene", text: "INNEN. BURGHOF – TAG", current: false, chips: [] },
@@ -320,6 +324,38 @@ TestCase {
 
         compare(work.scriptFolded, false)
         compare(work.scriptShown, true)
+    }
+
+    // D-17: the script's empty column reaches the window through the workspace.
+    function test_the_empty_script_column_asks_the_window() {
+        fake.projectJson = JSON.stringify({ scenes: [{ id: "s15", number: "15", heading: "INT. HOF - TAG" }],
+                                            plans: [{ id: "plan-a", name: "Plan A", shots: 0 }], plan: "plan-a" })
+        fake.sceneId = "s15"
+        const keptScript = fake.scriptJson
+        fake.scriptJson = "[]"
+        const work = make(1600)
+        const imports = createTemporaryObject(spyComponent, tc, { target: work, signalName: "scriptImportRequested" })
+        const opens = createTemporaryObject(spyComponent, tc, { target: work, signalName: "screenplayRequested" })
+
+        findChild(work, "loadScreenplay").clicked()
+        compare(imports.count, 1)
+
+        fake.scriptText = "INT. HOF - TAG #1#\n"
+        fake.outlineJson = JSON.stringify([{ kind: "scene", depth: 1, line: 0, number: "1", text: "INT. HOF - TAG" }])
+        tryVerify(() => findChild(work, "openScreenplay").visible)
+        findChild(work, "openScreenplay").clicked()
+        compare(opens.count, 1)
+
+        fake.scriptJson = keptScript
+        fake.projectJson = ""
+        fake.sceneId = ""
+        fake.scriptText = ""
+        fake.outlineJson = "[]"
+    }
+
+    Component {
+        id: spyComponent
+        SignalSpy {}
     }
 
     function test_wide_shows_everything_beside_the_plan() {

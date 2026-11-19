@@ -132,7 +132,7 @@ impl Session {
 
     /// The current scene's script with its links to marks and shots (design B).
     pub fn script_lines(&self) -> Vec<ScriptLine> {
-        let (Some(scene), Some(plan)) = (self.scene(), self.plan()) else {
+        let Some(scene) = self.scene() else {
             return Vec::new();
         };
         let Some(view) = self.script.scene(&scene.number) else {
@@ -149,7 +149,11 @@ impl Session {
                     index,
                     kind,
                     text,
-                    chips: self.chips(plan, index),
+                    // A scene without a plan has no links yet.
+                    chips: self
+                        .plan()
+                        .map(|p| self.chips(p, index))
+                        .unwrap_or_default(),
                     current: false,
                     character: self.cue_character(element),
                 }
