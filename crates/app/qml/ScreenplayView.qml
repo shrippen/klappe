@@ -23,6 +23,8 @@ RowLayout {
     property int debounceMs: 500
     /// The width of the text column, in characters of the monospace font.
     readonly property int columns: 60
+    /// The width of the scene list beside the text.
+    readonly property real listWidth: Kirigami.Units.gridUnit * 16
     readonly property var entries: controller.outlineJson ? JSON.parse(controller.outlineJson) : []
     readonly property alias area: area
     /// The empty view's button: ask for a screenplay file.
@@ -86,7 +88,10 @@ RowLayout {
 
     ColumnLayout {
         Layout.fillHeight: true
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 16
+        // Fixed: the list's fillWidth would otherwise make the column fill and squeeze the text.
+        Layout.fillWidth: false
+        Layout.preferredWidth: view.listWidth
+        Layout.maximumWidth: view.listWidth
         Layout.margins: Kirigami.Units.smallSpacing
         spacing: Kirigami.Units.smallSpacing
 
