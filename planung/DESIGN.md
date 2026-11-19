@@ -1,7 +1,8 @@
 # Oberfläche: Entscheidungen der Designrunde
 
-Stand: 2026-11-14. Grundlage: Designrunde mit Bildern aller Ansichten auf main 7c820b6
-(https://claude.ai/artifact/L2GFw9iK7vwjqHMXbfcyaG); der Eigentümer hat je Ansicht entschieden.
+Stand: 2026-11-19. Grundlage von D-01 bis D-10: Designrunde mit Bildern aller Ansichten auf main
+7c820b6 (https://claude.ai/artifact/L2GFw9iK7vwjqHMXbfcyaG); von D-11 bis D-17: Entscheidungsrunde
+Module mit Bildern von main e85289e4 (https://claude.ai/artifact/6wLaK6otgShSzdqkRcSk6Q); der Eigentümer hat je Ansicht entschieden.
 Dieses Dokument hält die Entscheidungen und die Reihenfolge der Umsetzung fest; `STAND.md` führt,
 was davon fertig ist. Es löst die Oberflächen-Entscheidung E-14 in `KONZEPT.md` ab, wo die
 beiden sich unterscheiden (Werkzeugleiste, Shot-Bereich, Ebenen, Plan-Auswahl).
@@ -41,6 +42,13 @@ beiden sich unterscheiden (Werkzeugleiste, Shot-Bereich, Ebenen, Plan-Auswahl).
 | D-08 | Projekt verwalten | Aus dem Drehbuch heraus (Szenenkopf und Figurennamen anklickbar, Karte mit Eigenschaften und Vorkommen) und dazu ein zweispaltiger Dialog (Liste links, Formular rechts, kein Dialog im Dialog). Eine Änderung, die das Drehbuch ändert (Szenenkopf, Figurenname), zeigt vorher eine Warnung mit dem, was sich im Text ändert. |
 | D-09 | Schmale Fenster | Feste Breitenstufen (≥ 1400 alles; 1000–1400 Shots und Paletten als Schubladen; < 1000 Plan und Zeitleiste, Rest über Reiter) und ziehbare Teiler (`KanteSplitHandle`, Breite gemerkt, Doppelklick klappt ein). Nichts wird abgeschnitten; Überlauf geht ins Menü. Je Stufe ein Screenshot-Test. |
 | D-10 | TUI | Kante-Farben (aktive Szene gelb, Marken für Shots und Marks rechts an der Zeile, Szenenkopf ohne `#12#`, Sprache wie die App) und dichte Ansicht (Szenenwechsel über Strg+P mit Suche, ganze Breite für den Text). |
+| D-11 | Modulwechsel | Modulleiste: schmale Symbolleiste am linken Rand, ein Symbol je Modul (Drehbuch, Stellprobe, Storyboard, Breakdown, Besetzung/Team, Drehplan, Dispo), Tooltip mit Taste. Die gewählte Szene bleibt beim Wechsel; der Pfad im Kopf zeigt, was das Modul in ihr offen hat. |
+| D-12 | Tasten der Module | Strg+1 bis Strg+7 in der Reihenfolge der Leiste; Strg+E (heute Drehbuch-Ansicht) entfällt. Die Tasten 1–4 ohne Strg bleiben die Modi der Stellprobe. |
+| D-13 | Szenenliste | Gemeinsame Szenenleiste: alle Szenen des Projekts (nicht nur die Köpfe im Text), in jedem Modul gleich, mit Marken für Text, Plan, Shots; Szenen ohne Text als „nicht im Buch“. Ab 1400 px sichtbar, darunter Schublade (D-09). |
+| D-14 | Linke Spalte der Stellprobe | Reiter „Szenen“ und „Text“ in derselben Spalte; „Text“ ist der heutige Drehbuchtext der Szene mit den Chips. |
+| D-15 | Drehbuch-Modul | Fließtext über die ganze Breite, Elemente eingerückt, ohne Seiten; ein Schalter für das Druckbild (Seiten mit Umbrüchen wie gedruckt). |
+| D-16 | Import eines Drehbuchs | Gleicht sofort ab: die Szenen entstehen beim Import, nicht erst beim Speichern; danach ein Bericht („14 Szenen erkannt · 3 neu · 2 Fragen“) mit Knopf zu den Fragen. |
+| D-17 | Leere Flächen | Jede leere Fläche sagt, warum sie leer ist, und bietet den nächsten Schritt als Knopf (Szene ohne Plan: „Plan anlegen“; Spalte ohne Text: „Drehbuch laden …“ oder „Drehbuch öffnen“). Nichts entsteht ohne Klick. |
 
 ## Werkzeuge je Modus
 
@@ -84,6 +92,10 @@ Fehlt etwas Weiteres, kommt es zuerst in Kante (GUI-Regel).
 6. Startseite (D-07).
 7. Projekt aus dem Drehbuch und zweispaltiger Dialog (D-08).
 8. TUI (D-10) – unabhängig, läuft parallel.
+9. Import mit sofortigem Abgleich und Bericht (D-16), leere Flächen (D-17).
+10. Gemeinsame Szenenleiste (D-13), zuerst in Drehbuch und Stellprobe, mit Reitern Szenen/Text (D-14).
+11. Modulleiste und Strg+Ziffer (D-11, D-12); das Drehbuch wird das erste Modul neben der Stellprobe.
+12. Drehbuch-Editor als Fließtext mit Elementen und Schalter für das Druckbild (D-15).
 
 Jeder Schritt ist ein eigener PR und hält die bestehenden Funktionen; QML-Tests und Screenshots
 der App (offscreen) zeigen den neuen Stand.
