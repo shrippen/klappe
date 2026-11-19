@@ -234,3 +234,19 @@ fn keeping_contd_leaves_the_rest_of_the_setup_on_disk() {
     assert!(again.project().script.contd_after_action);
     assert_eq!(again.project().script.language, Some(ScriptLanguage::En));
 }
+
+/// D-15: the print view gets the pages of the PDF, laid out from the text now: a second scene
+/// typed after the first layout shows at once, with its number at both sides.
+#[test]
+fn the_print_pages_follow_the_text() {
+    let mut s = session("print-pages", &scene(1, 2));
+    s.paginate(Language::English);
+
+    s.set_script_text(&(scene(1, 2) + &scene(2, 2)));
+    let pages = s.print_pages(&PRINT);
+
+    let numbers = pages[0].texts.iter().filter(|t| t.text == "2").count();
+    assert_eq!(pages.len(), 1);
+    assert_eq!(numbers, 2);
+    assert!(pages[0].texts.iter().any(|t| t.text == "Nachtwache"));
+}

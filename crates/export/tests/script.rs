@@ -2,7 +2,8 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    script_pdf, Face, Paper, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, TitlePage,
+    script_pdf, script_sheet_pages, Face, Paper, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet,
+    TitlePage,
 };
 
 fn line(row: usize, col: usize, text: &str) -> ScriptLine {
@@ -143,4 +144,25 @@ fn the_text_width_moves_the_right_edge() {
     // 108 pt + 50 columns = 468 pt; page number two columns left, scene number a gap right.
     assert!(pdf.contains("453.6 795.89 Td (2.) Tj"), "{pdf}");
     assert!(pdf.contains("475.2 759.89 Td (12) Tj"), "{pdf}");
+}
+
+/// D-15: the print view gets the PDF's places: the cue 22 columns right of the 1.5 inch
+/// margin, on the baseline of row 2 below the 1 inch top; the title page first.
+#[test]
+fn the_pages_place_each_text_as_the_pdf_does() {
+    let mut with_title = sheet();
+    with_title.title_page.title = "Nachtwache".into();
+
+    let pages = script_sheet_pages(&with_title);
+    let anna = pages[1].texts.iter().find(|t| t.text == "ANNA").unwrap();
+
+    assert_eq!(pages.len(), 3);
+    assert_eq!(pages[0].texts[0].text, "NACHTWACHE");
+    assert!((anna.x_pt - (108.0 + 22.0 * 7.2)).abs() < 1e-9);
+    assert!((anna.baseline_pt - (72.0 + 2.0 * 12.0 + 10.0)).abs() < 1e-9);
+    assert!(pdf_has(&with_title, "266.4 735.89 Td (ANNA)"));
+}
+
+fn pdf_has(sheet: &ScriptSheet, ops: &str) -> bool {
+    text(&script_pdf(sheet)).contains(ops)
 }

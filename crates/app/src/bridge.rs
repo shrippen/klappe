@@ -380,6 +380,13 @@ pub mod qobject {
         #[cxx_name = "scriptLooks"]
         fn script_looks(self: &Self) -> QString;
 
+        /// The screenplay's pages as they print (D-15), laid out from the session's text now:
+        /// `{ fontPt, ascentPt, pages: [{ width, height, texts: [{ x, y, bold, text }] }] }`, in
+        /// points from the page's top left, `y` the baseline. Scene numbers shown, no header.
+        #[qinvokable]
+        #[cxx_name = "scriptPrintJson"]
+        fn script_print_json(self: Pin<&mut Self>) -> QString;
+
         /// Writes unsaved changes to the backup; QML calls it on a timer. An error goes to the
         /// status line.
         #[qinvokable]

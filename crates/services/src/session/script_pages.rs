@@ -5,6 +5,7 @@ use super::Session;
 use crate::catalog::Language;
 use crate::error::ServiceError;
 use crate::script_pages::{lay_out, ScriptPages, ScriptPrint};
+use klappe_export::SheetPage;
 use klappe_model::ScriptSetup;
 
 impl Session {
@@ -51,6 +52,18 @@ impl Session {
         self.project.script.contd_after_action = on;
 
         Ok(())
+    }
+
+    /// The screenplay's pages as `export_script_pdf` prints them, each text where it stands on
+    /// the paper, laid out again from the text now: the print view of the window (D-15).
+    pub fn print_pages(&mut self, print: &ScriptPrint) -> Vec<SheetPage> {
+        self.paginate(print.language);
+        let Some(layout) = &self.layout else {
+            return Vec::new();
+        };
+        let sheet = layout.sheet(&self.project.script, print, &self.project.title);
+
+        klappe_export::script_sheet_pages(&sheet)
     }
 
     /// Writes the screenplay as PDF (DB-70) after laying it out again, so the pages are the

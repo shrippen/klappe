@@ -37,6 +37,10 @@ RowLayout {
     /// What sets the lines as their kind and keeps the undo history; the tests give a stand-in.
     property url toolsSource: Qt.resolvedUrl("ScriptTools.qml")
     readonly property alias tools: tools.item
+    /// What the text shows: `flow` to write in, `print` the pages as they print (D-15).
+    readonly property var layouts: ["flow", "print"]
+    property string layout: "flow"
+    readonly property alias printView: printView
     /// The empty view's button: ask for a screenplay file.
     signal importRequested()
 
@@ -66,10 +70,20 @@ RowLayout {
         flick.contentY = Math.max(0, Math.min(top, flick.contentHeight - flick.height))
     }
 
+    /// Shows `layout`; the pages are laid out from what was typed up to now.
+    function showLayout(name) {
+        if (name === "print") {
+            flush()
+            printView.refresh()
+        }
+        layout = name
+    }
+
     /// The cursor at the heading of `scene`, a row of the scene list: its `line` is the heading's
     /// text line, null when the book does not hold the scene, which leaves the cursor where it is.
     function goToScene(scene) {
         if (typeof scene.line === "number") {
+            showLayout("flow")
             goToLine(scene.line)
         }
     }
@@ -145,7 +159,12 @@ RowLayout {
     Component.onCompleted: load()
     Connections {
         target: view.controller
-        function onScriptTextChanged() { view.load() }
+        function onScriptTextChanged() {
+            view.load()
+            if (view.layout === "print") {
+                printView.refresh()
+            }
+        }
     }
     Loader {
         id: tools
@@ -186,78 +205,105 @@ RowLayout {
 
     Kirigami.Separator { Layout.fillHeight: true }
 
-    Item {
+    ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
+        spacing: 0
 
-        FontMetrics { id: metrics; font: area.font }
-
-        // Without text the view says why and offers the next step (D-17); it gives way to the
-        // cursor once the text area has the focus.
-        KanteEmptyState {
-            objectName: "emptyBook"
-            z: 1
-            anchors.centerIn: parent
-            width: Math.min(parent.width, Kirigami.Units.gridUnit * 24)
-            visible: area.text === "" && !area.activeFocus
-            title: view.texts.t("screenplay.empty")
-
-            RowLayout {
-                spacing: Kirigami.Units.smallSpacing
-                KanteButton {
-                    objectName: "loadScreenplay"
-                    text: view.texts.t("script.import")
-                    onClicked: view.importRequested()
-                }
-                KanteButton {
-                    objectName: "writeScreenplay"
-                    text: view.texts.t("screenplay.write")
-                    onClicked: area.forceActiveFocus()
-                }
-            }
+        // Flowing text to write in, or the pages as they print (D-15).
+        KanteSegmented {
+            objectName: "layoutSwitch"
+            Layout.alignment: Qt.AlignRight
+            Layout.margins: Kirigami.Units.smallSpacing
+            model: view.layouts.map(l => view.texts.t("screenplay." + l))
+            currentIndex: view.layouts.indexOf(view.layout)
+            onActivated: index => view.showLayout(view.layouts[index])
         }
 
-        QQC2.ScrollView {
-            id: scroll
-            anchors.horizontalCenter: parent.horizontalCenter
-            height: parent.height
-            width: Math.min(parent.width, metrics.averageCharacterWidth * view.columns
-                            + area.leftPadding + area.rightPadding)
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
 
-            QQC2.TextArea {
-                id: area
-                objectName: "scriptArea"
-                wrapMode: TextEdit.Wrap
-                font.family: KanteStyle.monoFamily
-                color: KanteStyle.textColor
-                selectionColor: KanteStyle.selectionColor
-                selectedTextColor: KanteStyle.textColor
-                topPadding: Kirigami.Units.largeSpacing
-                bottomPadding: Kirigami.Units.largeSpacing
-                persistentSelection: true
-                Accessible.name: view.texts.t("screenplay.editor")
-                background: null
-                Keys.onPressed: event => {
-                    if (event.matches(StandardKey.Undo)) {
-                        view.undoText()
-                        event.accepted = true
-                    } else if (event.matches(StandardKey.Redo)) {
-                        view.redoText()
-                        event.accepted = true
+            FontMetrics { id: metrics; font: area.font }
+
+            PrintView {
+                id: printView
+                objectName: "printView"
+                anchors.fill: parent
+                z: 2
+                visible: view.layout === "print" && area.text !== ""
+                controller: view.controller
+                texts: view.texts
+            }
+
+            // Without text the view says why and offers the next step (D-17); it gives way to the
+            // cursor once the text area has the focus.
+            KanteEmptyState {
+                objectName: "emptyBook"
+                z: 1
+                anchors.centerIn: parent
+                width: Math.min(parent.width, Kirigami.Units.gridUnit * 24)
+                visible: area.text === "" && !area.activeFocus
+                title: view.texts.t("screenplay.empty")
+
+                RowLayout {
+                    spacing: Kirigami.Units.smallSpacing
+                    KanteButton {
+                        objectName: "loadScreenplay"
+                        text: view.texts.t("script.import")
+                        onClicked: view.importRequested()
+                    }
+                    KanteButton {
+                        objectName: "writeScreenplay"
+                        text: view.texts.t("screenplay.write")
+                        onClicked: area.forceActiveFocus()
                     }
                 }
-                onTextChanged: {
-                    // A new look changes no text: nothing to send or set again.
-                    if (view._loading || text === view._styled) {
-                        return
+            }
+
+            QQC2.ScrollView {
+                id: scroll
+                visible: view.layout === "flow"
+                anchors.horizontalCenter: parent.horizontalCenter
+                height: parent.height
+                width: Math.min(parent.width, metrics.averageCharacterWidth * view.columns
+                                + area.leftPadding + area.rightPadding)
+
+                QQC2.TextArea {
+                    id: area
+                    objectName: "scriptArea"
+                    wrapMode: TextEdit.Wrap
+                    font.family: KanteStyle.monoFamily
+                    color: KanteStyle.textColor
+                    selectionColor: KanteStyle.selectionColor
+                    selectedTextColor: KanteStyle.textColor
+                    topPadding: Kirigami.Units.largeSpacing
+                    bottomPadding: Kirigami.Units.largeSpacing
+                    persistentSelection: true
+                    Accessible.name: view.texts.t("screenplay.editor")
+                    background: null
+                    Keys.onPressed: event => {
+                        if (event.matches(StandardKey.Undo)) {
+                            view.undoText()
+                            event.accepted = true
+                        } else if (event.matches(StandardKey.Redo)) {
+                            view.redoText()
+                            event.accepted = true
+                        }
                     }
-                    push.restart()
-                    view.restyle()
-                }
-                // A leaving focus is a good moment to send: a menu or dialog may save next.
-                onActiveFocusChanged: {
-                    if (!activeFocus) {
-                        view.flush()
+                    onTextChanged: {
+                        // A new look changes no text: nothing to send or set again.
+                        if (view._loading || text === view._styled) {
+                            return
+                        }
+                        push.restart()
+                        view.restyle()
+                    }
+                    // A leaving focus is a good moment to send: a menu or dialog may save next.
+                    onActiveFocusChanged: {
+                        if (!activeFocus) {
+                            view.flush()
+                        }
                     }
                 }
             }

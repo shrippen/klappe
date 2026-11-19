@@ -43,6 +43,14 @@ TestCase {
         function scriptKinds(text) {
             return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")
         }
+        property int prints: 0
+        // One page: a heading in bold where the PDF puts it.
+        function scriptPrintJson() {
+            prints += 1
+            return JSON.stringify({ fontPt: 12, ascentPt: 10, pages: [
+                { width: 595, height: 842, texts: [{ x: 108, y: 82, bold: true, text: "INT. SAAL - TAG" }] }
+            ] })
+        }
         function scriptLooks() {
             return JSON.stringify({ columns: 60, looks: {
                 "h": { kind: "heading", x: 0, width: 60, align: "left" },
@@ -74,6 +82,7 @@ TestCase {
         fake.sceneId = ""
         fake.selected = []
         fake.edits = []
+        fake.prints = 0
     }
 
     function make() {
@@ -318,5 +327,47 @@ TestCase {
         keySequence(StandardKey.Undo)
 
         compare(view.tools.undos, 1)
+    }
+
+    // D-15: the switch shows the pages as they print, laid out from what was typed.
+    function test_the_print_view_shows_the_pages() {
+        const view = make()
+        view.area.insert(0, "x")
+
+        findChild(view, "layoutSwitch").activated(1)
+
+        compare(view.layout, "print")
+        compare(fake.edits.length, 1)
+        compare(fake.prints, 1)
+        verify(view.printView.visible)
+        verify(!view.area.visible)
+        tryVerify(() => findChild(view.printView, "page.0") !== null)
+        const page = findChild(view.printView, "page.0")
+        fuzzyCompare(page.height / page.width, 842 / 595, 0.01)
+        verify(page.width <= view.printView.width)
+    }
+
+    // A scene picked in the list goes back to the text at its heading.
+    function test_a_scene_from_the_print_view_goes_to_the_text() {
+        const view = make()
+        view.showLayout("print")
+        const list = findChild(view, "sceneRows")
+        tryVerify(() => findChild(list, "scene.s2") !== null)
+
+        findChild(list, "scene.s2").clicked()
+
+        compare(view.layout, "flow")
+        verify(!view.printView.visible)
+        compare(view.area.cursorPosition, book.indexOf("EXT. HOF"))
+    }
+
+    // A change from outside while the pages show lays them out again.
+    function test_the_pages_follow_the_text() {
+        const view = make()
+        view.showLayout("print")
+
+        fake.scriptText = "INT. KELLER - NACHT\n"
+
+        compare(fake.prints, 2)
     }
 }

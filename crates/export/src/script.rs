@@ -1,9 +1,14 @@
 //! A screenplay as PDF: pages of text positioned in columns and rows, in Courier. The caller
 //! has laid the text out; this only sets it on paper, so export knows nothing of Fountain.
+//! Where each text stands (`sheet_pages`) is apart from the PDF, so a surface can show the pages
+//! as they print (D-15).
 //!
 //! ```text
 //! title page (optional)   then per page:  header · · · · · page number
 //!                                         row 0   column 0 ………………… column 59
+//!
+//! ScriptSheet ─► sheet_pages (texts in points) ─┬─► PDF
+//!                                                └─► the editor's print view
 //! ```
 //!
 //! One column is 1/10 inch (7.2 pt, Courier 12 pt), one row 1/6 inch (12 pt).
@@ -18,7 +23,8 @@ use crate::pdf::{pdf_string, write_text, TextPage};
 
 const COLUMN_PT: f64 = 7.2;
 const ROW_PT: f64 = 12.0;
-const FONT_PT: f64 = 12.0;
+/// The size of the type, in points.
+pub const FONT_PT: f64 = 12.0;
 /// Left edge of the text: 1.5 inches.
 const LEFT_PT: f64 = 108.0;
 /// Top of the first row: 1 inch.
@@ -26,7 +32,7 @@ const TOP_PT: f64 = 72.0;
 /// Baseline of the line of page number and header: half an inch down.
 const HEADER_BASELINE_PT: f64 = 46.0;
 /// Distance of the baseline from the top of its row.
-const ASCENT_PT: f64 = 10.0;
+pub const ASCENT_PT: f64 = 10.0;
 /// Where the title starts on the title page: a third down.
 const TITLE_AT: f64 = 1.0 / 3.0;
 /// Rows between the parts of the title page, and below the title.
@@ -99,6 +105,23 @@ pub struct ScriptSheet {
     pub header: Option<String>,
 }
 
+/// A text on a page: `x_pt` from the left edge, its baseline `baseline_pt` below the top.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Placed {
+    pub x_pt: f64,
+    pub baseline_pt: f64,
+    pub face: Face,
+    pub text: String,
+}
+
+/// A page as it prints, upright, in points.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SheetPage {
+    pub width_pt: f64,
+    pub height_pt: f64,
+    pub texts: Vec<Placed>,
+}
+
 /// The paper upright, in points.
 fn size_pt(paper: Paper) -> (f64, f64) {
     let (width_mm, height_mm) = paper_mm(paper);
@@ -106,43 +129,60 @@ fn size_pt(paper: Paper) -> (f64, f64) {
     (width_mm * PT_PER_MM, height_mm * PT_PER_MM)
 }
 
-pub(crate) fn pdf(sheet: &ScriptSheet) -> Vec<u8> {
+/// The pages the PDF prints: the title page if it has a part, then the pages of text; at
+/// least one page.
+pub(crate) fn sheet_pages(sheet: &ScriptSheet) -> Vec<SheetPage> {
     let (width_pt, height_pt) = size_pt(sheet.paper);
+    let page = |texts| SheetPage {
+        width_pt,
+        height_pt,
+        texts,
+    };
     let mut pages = Vec::new();
 
     if !sheet.title_page.is_empty() {
-        pages.push(TextPage {
-            width_pt,
+        pages.push(page(title_texts(
+            &sheet.title_page,
+            sheet.columns,
             height_pt,
-            content: title_content(&sheet.title_page, sheet.columns, height_pt).into_bytes(),
-        });
+        )));
     }
-    for page in &sheet.pages {
-        pages.push(TextPage {
-            width_pt,
-            height_pt,
-            content: page_content(sheet, page).into_bytes(),
-        });
+    for one in &sheet.pages {
+        pages.push(page(page_texts(sheet, one)));
     }
-    // A PDF has at least one page.
     if pages.is_empty() {
-        pages.push(TextPage {
-            width_pt,
-            height_pt,
-            content: Vec::new(),
-        });
+        pages.push(page(Vec::new()));
     }
+
+    pages
+}
+
+pub(crate) fn pdf(sheet: &ScriptSheet) -> Vec<u8> {
+    let pages: Vec<TextPage> = sheet_pages(sheet)
+        .into_iter()
+        .map(|page| TextPage {
+            width_pt: page.width_pt,
+            height_pt: page.height_pt,
+            content: content(&page).into_bytes(),
+        })
+        .collect();
 
     write_text(&pages)
 }
 
-/// `BT /F1 12 Tf x y Td (text) Tj ET`: `at_pt` is the baseline's distance from the top.
-fn text_ops(out: &mut String, face: Face, x_pt: f64, at_pt: f64, height_pt: f64, text: &str) {
-    if text.trim().is_empty() {
-        return;
+/// The texts of a page as PDF operators.
+fn content(page: &SheetPage) -> String {
+    let mut out = String::new();
+    for placed in &page.texts {
+        text_ops(&mut out, placed, page.height_pt);
     }
 
-    let font = match face {
+    out
+}
+
+/// `BT /F1 12 Tf x y Td (text) Tj ET`: `at_pt` is the baseline's distance from the top.
+fn text_ops(out: &mut String, placed: &Placed, height_pt: f64) {
+    let font = match placed.face {
         Face::Regular => "F1",
         Face::Bold => "F2",
     };
@@ -150,10 +190,24 @@ fn text_ops(out: &mut String, face: Face, x_pt: f64, at_pt: f64, height_pt: f64,
         out,
         "BT /{font} {} Tf {} {} Td ({}) Tj ET",
         num(FONT_PT),
-        num(x_pt),
-        num(height_pt - at_pt),
-        pdf_string(text)
+        num(placed.x_pt),
+        num(height_pt - placed.baseline_pt),
+        pdf_string(&placed.text)
     );
+}
+
+/// Adds `text` at `x_pt` with its baseline `at_pt` below the top; blank text prints nothing.
+fn place(out: &mut Vec<Placed>, face: Face, x_pt: f64, at_pt: f64, text: &str) {
+    if text.trim().is_empty() {
+        return;
+    }
+
+    out.push(Placed {
+        x_pt,
+        baseline_pt: at_pt,
+        face,
+        text: text.to_owned(),
+    });
 }
 
 fn width_pt(text: &str) -> f64 {
@@ -165,36 +219,21 @@ fn right_pt(columns: usize) -> f64 {
     LEFT_PT + columns as f64 * COLUMN_PT
 }
 
-fn page_content(sheet: &ScriptSheet, page: &ScriptPage) -> String {
-    let height_pt = size_pt(sheet.paper).1;
-    let mut out = String::new();
+fn page_texts(sheet: &ScriptSheet, page: &ScriptPage) -> Vec<Placed> {
+    let mut out = Vec::new();
 
     if let Some(header) = &sheet.header {
-        text_ops(
-            &mut out,
-            Face::Regular,
-            LEFT_PT,
-            HEADER_BASELINE_PT,
-            height_pt,
-            header,
-        );
+        place(&mut out, Face::Regular, LEFT_PT, HEADER_BASELINE_PT, header);
     }
     if let Some(label) = &page.label {
         let x_pt = right_pt(sheet.columns) - width_pt(label);
-        text_ops(
-            &mut out,
-            Face::Regular,
-            x_pt,
-            HEADER_BASELINE_PT,
-            height_pt,
-            label,
-        );
+        place(&mut out, Face::Regular, x_pt, HEADER_BASELINE_PT, label);
     }
 
     for line in &page.lines {
         let at_pt = TOP_PT + line.row as f64 * ROW_PT + ASCENT_PT;
         let x_pt = LEFT_PT + line.col as f64 * COLUMN_PT;
-        text_ops(&mut out, line.face, x_pt, at_pt, height_pt, &line.text);
+        place(&mut out, line.face, x_pt, at_pt, &line.text);
 
         let Some(number) = line
             .scene_number
@@ -204,20 +243,18 @@ fn page_content(sheet: &ScriptSheet, page: &ScriptPage) -> String {
             continue;
         };
         let gap_pt = NUMBER_GAP_COLUMNS as f64 * COLUMN_PT;
-        text_ops(
+        place(
             &mut out,
             line.face,
             LEFT_PT - gap_pt - width_pt(number),
             at_pt,
-            height_pt,
             number,
         );
-        text_ops(
+        place(
             &mut out,
             line.face,
             right_pt(sheet.columns) + gap_pt,
             at_pt,
-            height_pt,
             number,
         );
     }
@@ -227,8 +264,8 @@ fn page_content(sheet: &ScriptSheet, page: &ScriptPage) -> String {
 
 /// Title, credit, author and source centred a third down; contact bottom left, draft date
 /// bottom right.
-fn title_content(title: &TitlePage, columns: usize, height_pt: f64) -> String {
-    let mut out = String::new();
+fn title_texts(title: &TitlePage, columns: usize, height_pt: f64) -> Vec<Placed> {
+    let mut out = Vec::new();
     let centre_pt = LEFT_PT + width_pt(&" ".repeat(columns)) / 2.0;
     let mut at_pt = height_pt * TITLE_AT;
 
@@ -241,7 +278,7 @@ fn title_content(title: &TitlePage, columns: usize, height_pt: f64) -> String {
     for (text, face) in parts.iter().filter(|(t, _)| !t.is_empty()) {
         for line in text.lines() {
             let x_pt = centre_pt - width_pt(line) / 2.0;
-            text_ops(&mut out, *face, x_pt, at_pt, height_pt, line);
+            place(&mut out, *face, x_pt, at_pt, line);
             at_pt += ROW_PT;
         }
         at_pt += TITLE_GAP_ROWS as f64 * ROW_PT;
@@ -250,26 +287,18 @@ fn title_content(title: &TitlePage, columns: usize, height_pt: f64) -> String {
     let contact: Vec<&str> = title.contact.lines().collect();
     let foot_pt = height_pt - FOOT_PT - contact.len().saturating_sub(1) as f64 * ROW_PT;
     for (i, line) in contact.iter().enumerate() {
-        text_ops(
+        place(
             &mut out,
             Face::Regular,
             LEFT_PT,
             foot_pt + i as f64 * ROW_PT,
-            height_pt,
             line,
         );
     }
 
     let date = &title.draft_date;
     let x_pt = right_pt(columns) - width_pt(date);
-    text_ops(
-        &mut out,
-        Face::Regular,
-        x_pt,
-        height_pt - FOOT_PT,
-        height_pt,
-        date,
-    );
+    place(&mut out, Face::Regular, x_pt, height_pt - FOOT_PT, date);
 
     out
 }

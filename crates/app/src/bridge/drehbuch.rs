@@ -6,7 +6,8 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    error_text, outline, text_kinds, Align, ImportReport, OutlineKind, TextKind, TEXT_COLUMNS,
+    error_text, outline, text_kinds, Align, HeaderLine, ImportReport, OutlineKind, PrintFace,
+    SceneNumbers, ScriptPrint, SheetPage, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -86,6 +87,30 @@ pub(super) fn outline_json(text: &str) -> String {
     json!(rows).to_string()
 }
 
+/// The pages of the print view, as `scriptPrintJson` describes them.
+pub(super) fn print_json(pages: &[SheetPage]) -> String {
+    let pages: Vec<_> = pages
+        .iter()
+        .map(|page| {
+            let texts: Vec<_> = page
+                .texts
+                .iter()
+                .map(|t| {
+                    json!({
+                        "x": t.x_pt,
+                        "y": t.baseline_pt,
+                        "bold": t.face == PrintFace::Bold,
+                        "text": t.text,
+                    })
+                })
+                .collect();
+            json!({ "width": page.width_pt, "height": page.height_pt, "texts": texts })
+        })
+        .collect();
+
+    json!({ "fontPt": SCRIPT_FONT_PT, "ascentPt": SCRIPT_ASCENT_PT, "pages": pages }).to_string()
+}
+
 /// The counts of an import for the report dialog.
 fn report_json(report: &ImportReport) -> String {
     json!({
@@ -104,6 +129,19 @@ impl qobject::Controller {
 
     pub(super) fn script_looks(&self) -> QString {
         q(&looks_json())
+    }
+
+    pub(super) fn script_print_json(mut self: Pin<&mut Self>) -> QString {
+        let print = ScriptPrint {
+            scene_numbers: SceneNumbers::Shown,
+            header: HeaderLine::Off,
+            language: self.rust().language,
+        };
+        let Some(s) = self.as_mut().session() else {
+            return q(&print_json(&[]));
+        };
+
+        q(&print_json(&s.print_pages(&print)))
     }
 
     pub(super) fn edit_script(mut self: Pin<&mut Self>, text: &QString) {
@@ -141,7 +179,31 @@ impl qobject::Controller {
 
 #[cfg(test)]
 mod tests {
-    use super::{kinds_text, looks_json, outline_json};
+    use super::{kinds_text, looks_json, outline_json, print_json};
+    use klappe_services::{Placed, PrintFace, SheetPage};
+
+    /// Texts keep their place in points and their face.
+    #[test]
+    fn a_page_lists_its_texts_in_points() {
+        let page = SheetPage {
+            width_pt: 595.0,
+            height_pt: 842.0,
+            texts: vec![Placed {
+                x_pt: 108.0,
+                baseline_pt: 82.0,
+                face: PrintFace::Bold,
+                text: "INT. SAAL".into(),
+            }],
+        };
+
+        let v: serde_json::Value = serde_json::from_str(&print_json(&[page])).unwrap();
+        let text = &v["pages"][0]["texts"][0];
+        assert_eq!(v["fontPt"], 12.0);
+        assert_eq!(v["pages"][0]["height"], 842.0);
+        assert_eq!(text["x"], 108.0);
+        assert_eq!(text["y"], 82.0);
+        assert_eq!(text["bold"], true);
+    }
 
     /// A cue and its line get their own letter, and the looks place the cue as the page does.
     #[test]

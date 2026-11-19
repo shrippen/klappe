@@ -325,6 +325,8 @@
  "screenplay.write": "Write a new one",
  "screenplay.scenes": "Scenes",
  "screenplay.noScenes": "No scenes yet.",
+ "screenplay.flow": "Flowing text",
+ "screenplay.print": "Print view",
  "screenplay.editor": "Screenplay text",
  "scenelist.filter": "Filter scenes",
  "scenelist.noMatch": "No scene matches.",

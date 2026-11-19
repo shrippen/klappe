@@ -325,6 +325,8 @@
  "screenplay.write": "Neu schreiben",
  "screenplay.scenes": "Szenen",
  "screenplay.noScenes": "Noch keine Szene.",
+ "screenplay.flow": "Fließtext",
+ "screenplay.print": "Druckbild",
  "screenplay.editor": "Drehbuchtext",
  "scenelist.filter": "Szenen filtern",
  "scenelist.noMatch": "Keine Szene passt.",
