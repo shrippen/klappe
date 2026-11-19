@@ -58,6 +58,8 @@ fn the_overview_lists_scenes_locations_and_plans() {
             number: "12".into(),
             heading: s.project().scenes[0].heading.clone(),
             in_book: true,
+            plans: 2,
+            shots: 10,
             location: s.project().scenes[0].location.clone(),
             location_name: s.project().locations[0].name.clone(),
             sun: SunTexts::default(),
@@ -138,6 +140,21 @@ fn the_overview_serialises_as_the_view_reads_it() {
         value["plans"][0],
         json!({ "id": "plan-a", "name": "Plan A", "shots": 5 })
     );
+}
+
+/// A scene row counts the plans of its scene and the shots on all of them (D-13 markers).
+#[test]
+fn a_scene_row_counts_plans_and_shots() {
+    let mut s = open();
+    let before = serde_json::to_value(s.overview()).unwrap();
+    assert_eq!(before["scenes"][0]["plans"], 1);
+    assert_eq!(before["scenes"][0]["shots"], 5);
+
+    s.copy_plan("Stand 1").unwrap();
+    let after = serde_json::to_value(s.overview()).unwrap();
+
+    assert_eq!(after["scenes"][0]["plans"], 2);
+    assert_eq!(after["scenes"][0]["shots"], 10);
 }
 
 /// The set of the scene gives its notes and its background.

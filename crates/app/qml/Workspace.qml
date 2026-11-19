@@ -76,6 +76,7 @@ Item {
     /// The plan keeps at least this much beside the panes.
     readonly property real planMin: Kirigami.Units.gridUnit * 24
     readonly property var _tabs: ["plan", "script", "shot"]
+    readonly property var _leftTabs: ["scenes", "text"]
 
     /// What the View menu shows as on: the pane beside the plan, the open drawer, the tab.
     readonly property bool scriptShown: tier === Workspace.Tier.Wide ? showScript && !scriptFolded : area === "script"
@@ -85,6 +86,8 @@ Item {
     property alias shotWidth: store.shotWidth
     property alias scriptFolded: store.scriptFolded
     property alias shotFolded: store.shotFolded
+    /// The left column's tab, remembered (D-14): "scenes" or "text".
+    property alias leftTab: store.leftTab
     /// The shot list's view and order, remembered (D-05).
     property alias shotView: store.shotView
     property alias shotOrder: store.shotOrder
@@ -119,6 +122,7 @@ Item {
     /// DB-63: the script on view with line `line` shown and focused (-1: the scene's head).
     function revealScript(line) {
         setArea("script", true)
+        leftTab = "text"
         // The pane of a narrow window or a drawer is made by the step above.
         Qt.callLater(() => {
             if (!_script) {
@@ -153,21 +157,46 @@ Item {
 
     onTierChanged: area = "plan"
 
+    // The left column (D-14): tabs "Szenen" (the project's scene list, D-13) and "Text" (the
+    // scene's script). Both stay alive, so the script can be shown from a jump (`revealScript`).
     Component {
         id: scriptPane
-        ScriptPanel {
-            id: scriptPanel
-            texts: work.texts
-            controller: work.controller
-            scene: work.sceneOnView
-            onEditRequested: (kind, id) => work.projectEntryRequested(kind, id)
-            lines: work.controller.scriptJson ? JSON.parse(work.controller.scriptJson) : []
-            onChipClicked: (kind, target, index) => work.controller.showLink(kind, target, index)
-            onPlanRequested: work.revealPlan()
-            onImportRequested: work.scriptImportRequested()
-            onScreenplayRequested: work.screenplayRequested()
-            Component.onCompleted: work._script = scriptPanel
-            Component.onDestruction: if (work._script === scriptPanel) work._script = null
+        ColumnLayout {
+            spacing: 0
+
+            KanteTabBar {
+                objectName: "leftTabs"
+                Layout.fillWidth: true
+                accessibleName: work.texts.t("layout.leftTabs")
+                model: [work.texts.t("layout.tabScenes"), work.texts.t("layout.tabText")]
+                currentIndex: work.leftTab === "scenes" ? 0 : 1
+                onActivated: index => work.leftTab = work._leftTabs[index]
+            }
+            SceneList {
+                visible: work.leftTab === "scenes"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: Kirigami.Units.smallSpacing
+                texts: work.texts
+                controller: work.controller
+            }
+            ScriptPanel {
+                id: scriptPanel
+                visible: work.leftTab === "text"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                texts: work.texts
+                controller: work.controller
+                scene: work.sceneOnView
+                onEditRequested: (kind, id) => work.projectEntryRequested(kind, id)
+                lines: work.controller.scriptJson ? JSON.parse(work.controller.scriptJson) : []
+                onChipClicked: (kind, target, index) => work.controller.showLink(kind, target, index)
+                onPlanRequested: work.revealPlan()
+                onImportRequested: work.scriptImportRequested()
+                onScreenplayRequested: work.screenplayRequested()
+                Component.onCompleted: work._script = scriptPanel
+                Component.onDestruction: if (work._script === scriptPanel) work._script = null
+            }
         }
     }
     Component {
@@ -398,6 +427,7 @@ Item {
         property real shotWidth: Kirigami.Units.gridUnit * 20
         property bool scriptFolded: false
         property bool shotFolded: false
+        property string leftTab: "text"
         // The shot list's view ("tiles", "table") and order ("cut", "shooting"), D-05.
         property string shotView: "tiles"
         property string shotOrder: "cut"

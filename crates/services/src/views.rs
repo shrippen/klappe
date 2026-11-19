@@ -284,6 +284,9 @@ pub struct SceneRow {
     /// False for a scene the screenplay does not hold; its row shows a placeholder when the
     /// heading is empty.
     pub in_book: bool,
+    /// Floor plans of the scene and the shots on all of them (the scene list's markers).
+    pub plans: usize,
+    pub shots: usize,
     pub location: String,
     pub location_name: String,
     /// When it is shot (LH-52); `sunDate`, `sunTime` and `sunOffset` in the JSON.

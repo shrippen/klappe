@@ -5,14 +5,14 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // E-09, rough first version: the screenplay as one text. The window's second working view
-// beside the plan (View menu, Ctrl+E). The scenes and sections on the left, the Fountain text
+// beside the plan (View menu, Ctrl+E). The project's scenes (SceneList) on the left, the Fountain text
 // in a page-wide column in the middle. What is typed goes to the session after a short pause
 // (`editScript`), so the scene list and the script panel follow; nothing is saved by it.
 //
 //  ┌ Szenen ──────────┬──────────────────────────────┐
-//  │ # Akt I          │      INT. SAAL - TAG         │
-//  │ 1 INT. SAAL      │                              │
-//  │ 2 EXT. HOF       │      Sie kommt an.           │
+//  │ 1 INT. SAAL  T   │      INT. SAAL - TAG         │
+//  │ 2 EXT. HOF   T   │                              │
+//  │ 3 INT. KELLER    │      Sie kommt an.           │
 //  └──────────────────┴──────────────────────────────┘
 RowLayout {
     id: view
@@ -56,6 +56,15 @@ RowLayout {
         flick.contentY = Math.max(0, Math.min(top, flick.contentHeight - flick.height))
     }
 
+    /// The cursor at the heading of the scene numbered `number`; a scene the text does not hold
+    /// (not in the book) leaves the cursor where it is. The number is matched as written.
+    function goToScene(number) {
+        const entry = entries.find(e => e.kind === "scene" && e.number === number)
+        if (entry) {
+            goToLine(entry.line)
+        }
+    }
+
     function send() {
         if (area.text !== controller.scriptText) {
             controller.editScript(area.text)
@@ -97,32 +106,13 @@ RowLayout {
 
         KanteSectionLabel { text: view.texts.t("screenplay.scenes") }
 
-        QQC2.Label {
-            visible: view.entries.length === 0
-            Layout.fillWidth: true
-            wrapMode: Text.Wrap
-            color: KanteStyle.mutedTextColor
-            text: view.texts.t("screenplay.noScenes")
-        }
-
-        ListView {
-            id: list
+        SceneList {
             objectName: "sceneList"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
-            model: view.entries
-            QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
-            delegate: KanteListRow {
-                required property var modelData
-                objectName: "scene." + modelData.line
-                width: ListView.view.width
-                density: KanteListRow.Density.Compact
-                leadingText: modelData.kind === "section" ? "#".repeat(modelData.depth + 1) : modelData.number
-                leadingWidth: Kirigami.Units.gridUnit * 2
-                text: modelData.text
-                onClicked: view.goToLine(modelData.line)
-            }
+            texts: view.texts
+            controller: view.controller
+            onPicked: scene => view.goToScene(scene.number)
         }
     }
 

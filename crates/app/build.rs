@@ -12,6 +12,7 @@ const PAGES: &[&str] = &[
     "qml/Texts.qml",
     "qml/ScriptPanel.qml",
     "qml/ScreenplayView.qml",
+    "qml/SceneList.qml",
     "qml/ScriptImport.qml",
     "qml/ShotPanel.qml",
     "qml/CameraView.qml",
