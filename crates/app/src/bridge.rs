@@ -861,6 +861,12 @@ pub mod qobject {
         #[cxx_name = "openExample"]
         fn open_example(self: Pin<&mut Self>) -> bool;
 
+        /// Opens a new project with one scene and its empty plan, in the data folder; an
+        /// error goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "openBlank"]
+        fn open_blank(self: Pin<&mut Self>) -> bool;
+
         /// Shows the scene `id`.
         #[qinvokable]
         #[cxx_name = "selectScene"]
