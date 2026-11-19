@@ -32,7 +32,7 @@ beiden sich unterscheiden (Werkzeugleiste, Shot-Bereich, Ebenen, Plan-Auswahl).
 
 | Nr | Ansicht | Entscheidung |
 |---|---|---|
-| D-01 | Fensteraufbau | Mischung: Werkzeugleiste als Symbol-Leiste (Gruppen, Tooltip mit Taste), Arbeitsmodi (Set bauen, Inszenieren, Auflösen, Zeichnen; Tasten 1–4) und Plan randlos mit schwebenden, einklappbaren Paletten. Das Drehbuch bleibt ein eigener Bereich am linken Rand. Werkzeuge je Modus siehe unten. |
+| D-01 | Fensteraufbau | Mischung: Werkzeugleiste als Symbol-Leiste (Gruppen, Tooltip mit Taste), Arbeitsmodi (Set bauen, Inszenieren, Auflösen, Zeichnen; Tasten 1–4) und Plan randlos mit schwebenden, einklappbaren Paletten. Das Drehbuch bleibt ein eigener Bereich am linken Rand (seit D-11 und D-14: Modulleiste ganz links, die Spalte mit Reitern Szenen | Text; das Zielbild oben zeigt den Stand davor). Werkzeuge je Modus siehe unten. |
 | D-02 | Kopf und Werkzeuge | Befehlspalette (Strg+K: Werkzeuge, Exporte, Ansichten, Projektbefehle mit Suche) und geordnete Menüs im Kopf (Datei, Ausgeben, Ansicht); Rückgängig/Wiederholen als Symbole. Einrasten ist ein Schalter, kein Werkzeug. |
 | D-03 | Plan-Varianten | Im Pfad: der Planname im Kopf ist ein Menü mit Liste der Varianten, Schnappschuss, Neu, Umbenennen, Löschen (abgesetzt). Die eigene Zeile über dem Plan entfällt. |
 | D-04 | Karten der Auswahl | Am Element: die Karte (Objekt, Kamera, Mark, Notiz) öffnet neben dem gewählten Element, mit einem Pfeil zum Element, und weicht dem Mauszeiger aus; häufige Felder, „Mehr …“ für alles. Bei einer Kamera eine Karte mit Abschnitten statt zwei Karten. |
@@ -43,7 +43,7 @@ beiden sich unterscheiden (Werkzeugleiste, Shot-Bereich, Ebenen, Plan-Auswahl).
 | D-09 | Schmale Fenster | Feste Breitenstufen (≥ 1400 alles; 1000–1400 Shots und Paletten als Schubladen; < 1000 Plan und Zeitleiste, Rest über Reiter) und ziehbare Teiler (`KanteSplitHandle`, Breite gemerkt, Doppelklick klappt ein). Nichts wird abgeschnitten; Überlauf geht ins Menü. Je Stufe ein Screenshot-Test. |
 | D-10 | TUI | Kante-Farben (aktive Szene gelb, Marken für Shots und Marks rechts an der Zeile, Szenenkopf ohne `#12#`, Sprache wie die App) und dichte Ansicht (Szenenwechsel über Strg+P mit Suche, ganze Breite für den Text). |
 | D-11 | Modulwechsel | Modulleiste: schmale Symbolleiste am linken Rand, ein Symbol je Modul (Drehbuch, Stellprobe, Storyboard, Breakdown, Besetzung/Team, Drehplan, Dispo), Tooltip mit Taste. Die gewählte Szene bleibt beim Wechsel; der Pfad im Kopf zeigt, was das Modul in ihr offen hat. |
-| D-12 | Tasten der Module | Strg+1 bis Strg+7 in der Reihenfolge der Leiste; Strg+E (heute Drehbuch-Ansicht) entfällt. Die Tasten 1–4 ohne Strg bleiben die Modi der Stellprobe. |
+| D-12 | Tasten der Module | Strg+1 bis Strg+7 in der Reihenfolge der Leiste; Strg+E (heute Drehbuch-Ansicht in der App) entfällt dort; im TUI bleibt Strg+E „Drehbuch als PDF“. Die Tasten 1–4 ohne Strg bleiben die Modi der Stellprobe. |
 | D-13 | Szenenliste | Gemeinsame Szenenleiste: alle Szenen des Projekts (nicht nur die Köpfe im Text), in jedem Modul gleich, mit Marken für Text, Plan, Shots; Szenen ohne Text als „nicht im Buch“. Ab 1400 px sichtbar, darunter Schublade (D-09). |
 | D-14 | Linke Spalte der Stellprobe | Reiter „Szenen“ und „Text“ in derselben Spalte; „Text“ ist der heutige Drehbuchtext der Szene mit den Chips. |
 | D-15 | Drehbuch-Modul | Fließtext über die ganze Breite, Elemente eingerückt, ohne Seiten; ein Schalter für das Druckbild (Seiten mit Umbrüchen wie gedruckt). |
