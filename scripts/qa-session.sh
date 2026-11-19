@@ -59,6 +59,10 @@ BWRAP="${QA_BWRAP:-bwrap}"
 # Kante's QML module: the binary finds it through KLAPPE_QML_DIR; it lives in the repository,
 # which the jail does not show, so the jail binds it in.
 qml_dir="${QA_QML_DIR:-$repo/crates/app/qml}"
+# Where the jail shows the binary and the QML module: a folder of their own, so the jail does not
+# show the folders above them (the repository, the home folder).
+JAIL_APP=/app/klappe
+JAIL_QML=/app/qml
 
 # The start time of process $1 (field 22 of /proc/PID/stat, in clock ticks since boot); with the
 # pid it names one process for good, however the paths were written on its command line.
@@ -259,7 +263,7 @@ esac
 clean=(env -i PATH="$PATH" LANG="$locale" LC_ALL="$locale"
     QT_QPA_PLATFORM=xcb DISPLAY=":$display" HOME="$sandbox/home" XDG_RUNTIME_DIR="$sandbox/runtime"
     XDG_CONFIG_HOME="$sandbox/config" XDG_CACHE_HOME="$sandbox/cache" XDG_DATA_HOME="$sandbox/data"
-    KLAPPE_QML_DIR="$qml_dir"
+    KLAPPE_QML_DIR="$JAIL_QML"
     QT_AUTO_SCREEN_SCALE_FACTOR=0 QT_SCALE_FACTOR="$scale" QT_FORCE_STDERR_LOGGING=1
     PULSE_SERVER=unix:/nonexistent)
 # The jail around Klappe, the buses and the registry. It is built up from nothing, not from the
@@ -288,7 +292,7 @@ done
 jail=("$BWRAP" --unshare-user --unshare-ipc --unshare-pid --unshare-net --unshare-uts
     --die-with-parent --new-session "${root_args[@]}"
     --tmpfs /tmp --tmpfs /var/tmp --tmpfs /run --dev /dev --proc /proc
-    --bind "$sandbox" "$sandbox" --ro-bind "$app" "$app" --ro-bind "$qml_dir" "$qml_dir"
+    --bind "$sandbox" "$sandbox" --ro-bind "$app" "$JAIL_APP" --ro-bind "$qml_dir" "$JAIL_QML"
     --bind "/tmp/.X11-unix/X$display" "/tmp/.X11-unix/X$display")
 # Private buses for Klappe and the --run command (qactl talks to Klappe over AT-SPI): a
 # session bus, the accessibility bus beside it and the AT-SPI registry on it. Not by
@@ -330,7 +334,7 @@ clean+=(DBUS_SESSION_BUS_ADDRESS="$(head -1 "$sandbox/session")"
 setsid "${jail[@]}" "${clean[@]}" "$REGISTRY" > "$sandbox/registry.log" 2>&1 &
 bus_pids+=("$!")
 
-setsid "${jail[@]}" "${clean[@]}" "$app" --language "$lang" "${open_args[@]}" "$@" > "$sandbox/klappe.log" 2>&1 &
+setsid "${jail[@]}" "${clean[@]}" "$JAIL_APP" --language "$lang" "${open_args[@]}" "$@" > "$sandbox/klappe.log" 2>&1 &
 app_pid=$!
 
 # Wait for the window (xdotool). The X server is Klappe's alone: any window is its own.
