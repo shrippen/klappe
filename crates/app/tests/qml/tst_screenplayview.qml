@@ -172,4 +172,15 @@ TestCase {
 
         tryCompare(fake.edits, "length", 1)
     }
+
+    // The list's fillWidth made its column fill the row and left the text 4 px wide (seen in the
+    // app at 1440 px with the example).
+    function test_the_text_keeps_its_width_beside_the_list() {
+        const view = make()
+        const list = findChild(view, "sceneList")
+        const area = findChild(view, "scriptArea")
+
+        tryVerify(() => area.width > view.width / 3, 1000, "text is " + area.width + " px wide")
+        verify(list.width < view.width / 2, "scene list is " + list.width + " px wide")
+    }
 }
