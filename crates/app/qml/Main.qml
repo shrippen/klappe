@@ -156,6 +156,8 @@ Kirigami.ApplicationWindow {
 
                 ModuleBar {
                     Layout.fillHeight: true
+                    // Like the keys: no switch while the backup question waits.
+                    enabled: !backupNotice.blocking
                     texts: texts
                     modules: root.modules
                     module: root.module
@@ -186,7 +188,7 @@ Kirigami.ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             // The options need the full 1400 px of D-09; a module bar beside the work area takes some.
-                            compact: workspace.tier !== Workspace.Tier.Wide || workspace.width < workspace.wideMin
+                            compact: workspace.width < workspace.wideMin
                             texts: texts
                             controller: ctl
                             onImportRequested: libraryImportDialog.open()
