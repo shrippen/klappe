@@ -159,6 +159,18 @@ pub(crate) fn read_optional(path: &Path) -> Result<Option<String>, StoreError> {
     }
 }
 
+/// Reads a Fountain file from anywhere (an import): UTF-8, a leading byte order mark dropped,
+/// CRLF and CR line ends made LF.
+/// Text in another encoding is refused with the path in the error.
+pub fn load_script_file(path: &Path) -> Result<String, StoreError> {
+    let text = fs::read_to_string(path).map_err(|e| io_err(path, e))?;
+
+    // Line ends are LF in the book: the editor and the parser both count lines by it.
+    let text = text.trim_start_matches('\u{feff}');
+
+    Ok(text.replace("\r\n", "\n").replace('\r', "\n"))
+}
+
 pub(crate) fn read_toml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, StoreError> {
     let text = fs::read_to_string(path).map_err(|e| io_err(path, e))?;
 

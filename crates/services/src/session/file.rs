@@ -228,6 +228,15 @@ impl Session {
         self.touch();
         self.refresh_pending();
     }
+
+    /// Replaces the screenplay with the Fountain file `path` (UTF-8); unsaved until `save`.
+    /// A file that cannot be read changes nothing.
+    pub fn import_script(&mut self, path: &Path) -> Result<(), ServiceError> {
+        let text = klappe_store::load_script_file(path)?;
+        self.set_script_text(&text);
+
+        Ok(())
+    }
 }
 
 /// Looks at the backup next to the project. One equal to the project is removed (nothing

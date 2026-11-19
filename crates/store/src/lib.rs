@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 
 pub use camera::builtin_camera_presets;
 pub use error::StoreError;
+pub use files::load_script_file;
 use files::{Dir, Kind};
 pub use folder::{folder_size, free_sibling, move_to_trash, read_files, set_aside};
 pub use images::{

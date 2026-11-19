@@ -114,4 +114,14 @@ TestCase {
 
         compare(guard.dialog.acceptText, "Speichern und schließen")
     }
+
+    // Typing that has not reached the controller yet counts: the guard asks for it first.
+    function test_pending_typing_is_flushed_before_asking() {
+        const guard = createTemporaryObject(guardComponent, tc, { flush: () => { fake.dirty = true } })
+
+        guard.run(tc.action, "project.closeSave")
+
+        verify(guard.asking)
+        compare(tc.ran, 0)
+    }
 }

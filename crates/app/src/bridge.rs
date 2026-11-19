@@ -38,6 +38,12 @@ pub mod qobject {
         /// The shot list in shooting order: setups grouped (LH-72); `shotsJson` is the cut order.
         #[qproperty(QString, shots_shooting_json, cxx_name = "shotsShootingJson")]
         #[qproperty(QString, script_json, cxx_name = "scriptJson")]
+        /// The whole screenplay as Fountain text, for the editor of the screenplay view; change
+        /// it with `editScript`.
+        #[qproperty(QString, script_text, cxx_name = "scriptText")]
+        /// `[{ kind: "section" | "scene", depth, line, number, text }]`: the sections and scenes
+        /// of the screenplay in order; `line` counts from 0.
+        #[qproperty(QString, outline_json, cxx_name = "outlineJson")]
         /// `{ set, figures, cameras, lights, notes, drawings }`: true when shown.
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
         /// `{ set, figures, cameras, lights, notes, drawings }`: true when locked.
@@ -344,6 +350,18 @@ pub mod qobject {
 
         #[qinvokable]
         fn save(self: Pin<&mut Self>) -> bool;
+
+        /// Replaces the screenplay with `text` (the editor's typing, debounced); unsaved until
+        /// `save`. The scene list and the script panel follow.
+        #[qinvokable]
+        #[cxx_name = "editScript"]
+        fn edit_script(self: Pin<&mut Self>, text: &QString);
+
+        /// Replaces the screenplay with the Fountain file `path` (a path or a `file://` URL);
+        /// unsaved until `save`. The result goes to `status`; false when the file is refused.
+        #[qinvokable]
+        #[cxx_name = "importScript"]
+        fn import_script(self: Pin<&mut Self>, path: &QString) -> bool;
 
         /// Writes unsaved changes to the backup; QML calls it on a timer. An error goes to the
         /// status line.
@@ -1065,6 +1083,7 @@ pub use state::ControllerRust;
 mod arm;
 mod book;
 mod draw;
+mod drehbuch;
 mod export;
 mod free;
 mod hints;
