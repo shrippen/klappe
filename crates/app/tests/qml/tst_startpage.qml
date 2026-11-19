@@ -4,7 +4,7 @@ import QtTest
 import "../../qml"
 import Kante
 
-// StartPage (LH-01, D-07): the two ways in, the recent projects and the example as tiles.
+// StartPage (LH-01, D-07): the two ways in, the recent projects as tiles between the blank plan and the example.
 TestCase {
     id: tc
     name: "StartPage"
@@ -73,18 +73,23 @@ TestCase {
         { path: "/film/weg.klappe", shortPath: "/film/weg.klappe", name: "Weg", state: "missing" }
     ]
 
-    function tiles(page) {
+    // All tiles: the blank tile, the projects, the example tile after them.
+    function allTiles(page) {
         const found = []
         const grid = findChild(page, "tiles")
         waitForRendering(grid)
-        // The projects and the example tile after them.
-        tryVerify(() => grid.count === JSON.parse(fake.recentJson).length + 1)
+        tryVerify(() => grid.count === JSON.parse(fake.recentJson).length + 2)
         for (let i = 0; i < grid.count; i++) {
             grid.currentIndex = i
             found.push(grid.currentItem)
         }
         grid.currentIndex = 0
         return found
+    }
+
+    // The projects and the example tile, without the blank one.
+    function tiles(page) {
+        return allTiles(page).slice(1)
     }
 
     function test_the_projects_are_tiles_with_name_scenes_and_date() {
@@ -130,7 +135,9 @@ TestCase {
         page.exampleRequested.connect(() => { asked++ })
         page.recentRequested.connect(path => { opened = path })
 
-        tryVerify(() => page.Window.activeFocusItem !== null && page.Window.activeFocusItem.objectName === "example")
+        tryVerify(() => page.Window.activeFocusItem !== null && page.Window.activeFocusItem.objectName === "blank")
+        keyClick(Qt.Key_Right)
+        tryVerify(() => page.Window.activeFocusItem.objectName === "example")
         keyClick(Qt.Key_Return)
 
         compare(asked, 1)
@@ -141,6 +148,7 @@ TestCase {
         fake.recentJson = "[]"
         const page = make()
         page.texts = en
+        tiles(page)
 
         compare(findChild(page, "example").name, "Open the example")
     }
@@ -149,15 +157,16 @@ TestCase {
         fake.recentJson = JSON.stringify(projects)
         const page = make({ visible: false })
         const grid = findChild(page, "tiles")
-        tryVerify(() => grid.count === 4)
+        tryVerify(() => grid.count === 5)
 
         page.visible = true
 
         tryVerify(() => grid.itemAtIndex(0) !== null)
-        const first = findChild(grid.itemAtIndex(0), "recent")
+        const first = findChild(grid.itemAtIndex(0), "blank")
         tryVerify(() => first.activeFocus)
         let opened = ""
         page.recentRequested.connect(path => { opened = path })
+        keyClick(Qt.Key_Right)
         keyClick(Qt.Key_Right)
         keyClick(Qt.Key_Return)
         compare(opened, "/film/zwei.klappe")
@@ -188,7 +197,8 @@ TestCase {
         let opened = ""
         page.recentRequested.connect(path => { opened = path })
 
-        tryVerify(() => page.Window.activeFocusItem !== null && page.Window.activeFocusItem.objectName === "recent")
+        tryVerify(() => page.Window.activeFocusItem !== null && page.Window.activeFocusItem.objectName === "blank")
+        keyClick(Qt.Key_Right)
         keyClick(Qt.Key_Right)
         keyClick(Qt.Key_Return)
 
@@ -216,7 +226,7 @@ TestCase {
         compare(forgotten, "/film/weg.klappe")
 
         forgotten = ""
-        grid.currentIndex = 2
+        grid.currentIndex = 3
         keyClick(Qt.Key_Delete)
         compare(forgotten, "/film/weg.klappe")
     }
@@ -225,13 +235,14 @@ TestCase {
         fake.recentJson = JSON.stringify(projects)
         const page = make()
         const before = tiles(page)[0]
+        const current = findChild(page, "tiles").currentItem
         const loading = JSON.parse(fake.recentJson)
         loading[0].preview = "file:///cache/a.png"
 
         fake.recentJson = JSON.stringify(loading)
 
         tryVerify(() => before.preview === "file:///cache/a.png")
-        compare(findChild(page, "tiles").currentItem, before)
+        compare(findChild(page, "tiles").currentItem, current)
     }
 
     function test_the_english_text() {
@@ -279,8 +290,9 @@ TestCase {
         const page = make()
         tiles(page)
         const menu = findChild(page, "tileMenu")
-        tryVerify(() => page.Window.activeFocusItem !== null && page.Window.activeFocusItem.objectName === "recent")
+        tryVerify(() => page.Window.activeFocusItem !== null && page.Window.activeFocusItem.objectName === "blank")
 
+        keyClick(Qt.Key_Right)
         keyClick(Qt.Key_Menu)
         tryVerify(() => menu.visible)
         compare(menu.target.path, "/home/anna/film/wartburg.klappe")
@@ -299,6 +311,47 @@ TestCase {
         const example = findChild(tiles(page)[0], "example")
 
         mouseClick(example, example.width / 2, example.height / 2, Qt.RightButton)
+
+        verify(!findChild(page, "tileMenu").visible)
+    }
+
+    function test_the_blank_tile_is_first_has_the_focus_and_asks_for_a_blank_plan() {
+        fake.recentJson = JSON.stringify(projects)
+        const page = make()
+        const cells = allTiles(page)
+        const blank = findChild(cells[0], "blank")
+        let asked = 0
+        let opened = ""
+        page.blankRequested.connect(() => { asked++ })
+        page.recentRequested.connect(path => { opened = path })
+
+        verify(blank)
+        compare(blank.name, "Leerer Plan")
+        compare(findChild(cells[1], "recent").name, "Wartburg")
+        tryVerify(() => blank.activeFocus)
+
+        keyClick(Qt.Key_Return)
+        compare(asked, 1)
+        blank.clicked()
+        compare(asked, 2)
+        compare(opened, "")
+    }
+
+    function test_the_blank_tile_is_there_without_projects_and_in_english() {
+        fake.recentJson = "[]"
+        const page = make()
+        page.texts = en
+
+        compare(allTiles(page).length, 2)
+        compare(findChild(page, "blank").name, "Blank plan")
+    }
+
+    function test_the_blank_tile_has_no_menu() {
+        fake.recentJson = "[]"
+        const page = make()
+        const blank = findChild(allTiles(page)[0], "blank")
+
+        mouseClick(blank, blank.width / 2, blank.height / 2, Qt.RightButton)
 
         verify(!findChild(page, "tileMenu").visible)
     }

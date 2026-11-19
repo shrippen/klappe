@@ -5,8 +5,8 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    read_number, CardState, Choice, Field, Language, PlaceChoice, ProjectCard, Range, ServiceError,
-    Session, Unit,
+    read_number, CardState, Choice, Field, Language, PlaceChoice, ProjectCard, ProjectEdit, Range,
+    ServiceError, Session, Unit,
 };
 use serde_json::{json, Value};
 
@@ -25,6 +25,12 @@ const CACHE_APP_DIR: &str = "klappe";
 const DATA_VAR: &str = "XDG_DATA_HOME";
 const DATA_APP_DIR: &str = "klappe";
 const EXAMPLES_DIR: &str = "beispiel";
+const BLANK_DIR: &str = "entwuerfe";
+const BLANK_EXT: &str = ".klappe";
+const BLANK_SCENE_NUMBER: &str = "1";
+const BLANK_SET_WIDTH_M: f64 = 8.0;
+const BLANK_SET_DEPTH_M: f64 = 5.0;
+const BLANK_SET_HEIGHT_M: f64 = 2.6;
 const HOME_SHORT: &str = "~";
 
 /// `{ scenes, locations, characters, plans, plan }`: lists of plain objects for QML, `plans`
@@ -250,6 +256,63 @@ pub fn example_dir(language: Language, data: &Path) -> PathBuf {
     data.join(EXAMPLES_DIR).join(name)
 }
 
+/// The first `N` from 1 for which `<stem>-<N>.klappe` is not in `taken`.
+fn blank_number(stem: &str, taken: &[String]) -> u32 {
+    let free = |n: &u32| !taken.contains(&format!("{stem}-{n}{BLANK_EXT}"));
+
+    (1..).find(free).unwrap_or(1)
+}
+
+/// A new project in `data/entwuerfe/<unbenannt|untitled>-N.klappe` (first free N) with one scene
+/// and its empty plan, saved, so the folder is complete and closing asks nothing; nothing to undo.
+pub fn blank_project(language: Language, data: &Path) -> Result<Session, ServiceError> {
+    let folder = data.join(BLANK_DIR);
+    let taken: Vec<String> = std::fs::read_dir(&folder)
+        .map(|entries| {
+            entries
+                .flatten()
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .collect()
+        })
+        .unwrap_or_default();
+    let stem = language.text("start.blankStem");
+    let n = blank_number(&stem, &taken);
+    let title = match n {
+        1 => language.text("start.blankTitle"),
+        _ => format!("{} {n}", language.text("start.blankTitle")),
+    };
+
+    let mut session = Session::create(
+        &folder.join(format!("{stem}-{n}{BLANK_EXT}")),
+        &title,
+        language,
+    )?;
+
+    // A scene needs a location: one room of a plain size, which the user may change.
+    session.edit_project(ProjectEdit::AddLocation {
+        name: language.text("start.blankSet"),
+        width_m: BLANK_SET_WIDTH_M,
+        depth_m: BLANK_SET_DEPTH_M,
+        wall_height_m: BLANK_SET_HEIGHT_M,
+        site: None,
+    })?;
+    let location = session
+        .project()
+        .locations
+        .first()
+        .map(|l| l.id.clone())
+        .unwrap_or_default();
+    session.edit_project(ProjectEdit::AddScene {
+        number: BLANK_SCENE_NUMBER.to_owned(),
+        heading: language.text("start.blankHeading"),
+        location,
+    })?;
+    session.save()?;
+
+    // Opened again, so undo cannot take the set and scene back into an empty project.
+    Session::open(session.dir())
+}
+
 /// `path` with `home` at its start as `~`; unchanged elsewhere.
 fn tilde(path: &str, home: &Path) -> String {
     match Path::new(path).strip_prefix(home) {
@@ -284,7 +347,7 @@ fn folder_name(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klappe_services::{FigureColor, ProjectEdit};
+    use klappe_services::FigureColor;
 
     fn os(s: &str) -> Option<OsString> {
         Some(OsString::from(s))
@@ -451,6 +514,48 @@ mod tests {
             serde_json::from_str(&recent_view(&list(&["/gibt/es/nicht"]))).unwrap_or_default();
 
         assert_eq!(view[0]["shortPath"], "/gibt/es/nicht");
+    }
+
+    #[test]
+    fn a_blank_project_takes_the_first_free_number() {
+        let names = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+
+        assert_eq!(blank_number("unbenannt", &[]), 1);
+        assert_eq!(
+            blank_number(
+                "unbenannt",
+                &names(&["unbenannt-1.klappe", "unbenannt-3.klappe"])
+            ),
+            2
+        );
+        assert_eq!(blank_number("unbenannt", &names(&["untitled-1.klappe"])), 1);
+    }
+
+    #[test]
+    fn a_blank_project_has_one_scene_with_its_plan_and_is_saved() {
+        let data = std::env::current_exe()
+            .map(|e| e.with_file_name("manage-blank"))
+            .unwrap_or_default();
+        let _ = std::fs::remove_dir_all(&data);
+
+        let first = blank_project(Language::German, &data).unwrap();
+        let second = blank_project(Language::English, &data).unwrap();
+
+        assert!(first.dir().ends_with("entwuerfe/unbenannt-1.klappe"));
+        assert!(second.dir().ends_with("entwuerfe/untitled-1.klappe"));
+        assert_eq!(first.project().title, "Unbenannt");
+        assert_eq!(first.project().scenes.len(), 1);
+        assert!(first.plan().is_some());
+        assert!(!first.is_dirty());
+        assert!(
+            !first.can_undo(),
+            "the blank plan must not undo into an empty project"
+        );
+
+        let third = blank_project(Language::German, &data).unwrap();
+        assert!(third.dir().ends_with("unbenannt-2.klappe"));
+        assert_eq!(third.project().title, "Unbenannt 2");
+        let _ = std::fs::remove_dir_all(&data);
     }
 
     #[test]
