@@ -1,5 +1,4 @@
 import QtQuick
-import org.kde.kirigami as Kirigami
 import Kante
 
 // D-17: the scene on view has no plan. Says so and offers one; nothing is made before the
@@ -13,7 +12,8 @@ KanteEmptyState {
     required property var scene
 
     objectName: "noPlan"
-    width: Math.min(parent.width, Kirigami.Units.gridUnit * 24)
+    // The loader in PlanArea sets the width; without it the notice would be 0 px wide.
+    width: parent ? parent.width : implicitWidth
     title: texts.t("plan.none", { number: scene.number })
     text: texts.t("plan.noneText")
 

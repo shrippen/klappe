@@ -77,6 +77,7 @@ Item {
         active: area.planless !== null
         z: 1
         anchors.centerIn: parent
+        width: Math.min(area.width, Kirigami.Units.gridUnit * 24)
         sourceComponent: PlanNone {
             texts: area.texts
             controller: area.controller

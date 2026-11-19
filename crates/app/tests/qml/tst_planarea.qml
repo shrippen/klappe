@@ -617,6 +617,8 @@ TestCase {
 
         verify(empty.visible)
         compare(empty.title, "Szene 15 hat noch keinen Plan.")
+        // A loader without a size of its own once drew the notice 0 px wide.
+        tryVerify(() => empty.width > area.width / 4, 1000, "notice is " + empty.width + " px wide")
         compare(fake.newPlans.length, 0)
         findChild(area, "createPlan").clicked()
         compare(fake.newPlans, [""])
