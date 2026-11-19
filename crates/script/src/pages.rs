@@ -109,6 +109,23 @@ pub enum PageKind {
     Lyrics,
 }
 
+/// How a line is set within its columns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Align {
+    Left,
+    Right,
+    Center,
+}
+
+/// The columns a kind of line takes on the page: from `x`, `width` wide, in columns of the
+/// text area (`TEXT_COLUMNS`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Margin {
+    pub x: usize,
+    pub width: usize,
+    pub align: Align,
+}
+
 /// A piece of text on a row. Two dual dialogues share a row: two lines with the same `row`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Line {

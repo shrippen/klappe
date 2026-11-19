@@ -2,9 +2,10 @@ import QtQuick
 import QtTest
 import "../../qml"
 
-// ScreenplayView (E-09, rough): the scene list shows the project's scenes (D-13), a click shows
+// ScreenplayView (E-09, D-15): the scene list shows the project's scenes (D-13), a click shows
 // the scene and moves the cursor to its heading when the text holds it, typing reaches the controller after the pause, and a change from outside (an
-// import) shows in the text.
+// import) shows in the text. Each line gets the look of its kind, in the page's columns scaled
+// to the text's width.
 TestCase {
     id: tc
     name: "ScreenplayView"
@@ -38,6 +39,19 @@ TestCase {
             edits.push(text)
             scriptText = text
         }
+        // A heading's line is "h", every other line "a": enough to see the kinds arrive.
+        function scriptKinds(text) {
+            return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")
+        }
+        function scriptLooks() {
+            return JSON.stringify({ columns: 60, looks: {
+                "h": { kind: "heading", x: 0, width: 60, align: "left" },
+                "a": { kind: "action", x: 0, width: 60, align: "left" },
+                "c": { kind: "character", x: 22, width: 38, align: "left" },
+                "r": { kind: "transition", x: 0, width: 60, align: "right" },
+                "n": { kind: "note" }
+            } })
+        }
     }
 
     TestTexts { id: de; language: "de" }
@@ -50,6 +64,7 @@ TestCase {
             width: tc.width
             height: tc.height
             debounceMs: 50
+            toolsSource: Qt.resolvedUrl("StubTools.qml")
         }
     }
 
@@ -250,5 +265,58 @@ TestCase {
 
         tryVerify(() => area.width > view.width / 3, 1000, "text is " + area.width + " px wide")
         verify(list.width < view.width / 2, "scene list is " + list.width + " px wide")
+    }
+
+    // D-15: the page's columns are scaled from 60 to the text's columns, the same for every line.
+    function test_a_cue_is_indented_as_on_the_page() {
+        const view = make()
+        tryVerify(() => view.tools !== null)
+        const unit = view.lineLooks.c.left / 22
+
+        verify(unit > 0)
+        compare(view.lineLooks.c.right, 0)
+        compare(view.lineLooks.a.left, 0)
+        compare(view.lineLooks.r.align, "right")
+        verify(view.lineLooks.h.bold)
+        verify(view.lineLooks.n.muted)
+        // 60 page columns are `columns` characters of the editor's font.
+        const metrics = createTemporaryQmlObject("import QtQuick; FontMetrics {}", tc)
+        metrics.font = view.area.font
+        fuzzyCompare(unit * 60, view.columns * metrics.averageCharacterWidth, 0.01)
+    }
+
+    function test_a_loaded_text_gets_its_kinds_anew() {
+        const view = make()
+        tryVerify(() => view.tools !== null)
+        const forgets = view.tools.forgets
+
+        fake.scriptText = "INT. KELLER - NACHT\n\nDunkel.\n"
+
+        compare(view.tools.kinds, "haaa")
+        compare(view.tools.forgets, forgets + 1)
+    }
+
+    // The kinds follow every keystroke at once, not only the pause before the session.
+    function test_typing_sets_the_kinds_at_once() {
+        const view = make()
+        tryVerify(() => view.tools !== null)
+        const forgets = view.tools.forgets
+
+        view.area.insert(view.area.length, "INT. KELLER")
+
+        compare(view.tools.kinds, fake.scriptKinds(view.area.text))
+        compare(view.tools.forgets, forgets)
+        compare(fake.edits.length, 0)
+    }
+
+    // Ctrl+Z in the text is the text's own step back, not the project's.
+    function test_ctrl_z_in_the_text_takes_back_typing() {
+        const view = make()
+        tryVerify(() => view.tools !== null)
+        view.area.forceActiveFocus()
+
+        keySequence(StandardKey.Undo)
+
+        compare(view.tools.undos, 1)
     }
 }

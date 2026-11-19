@@ -10,6 +10,7 @@ mod assist;
 mod conflict;
 mod flow;
 mod inline;
+mod kinds;
 mod numbering;
 mod outline;
 mod pages;
@@ -25,11 +26,12 @@ pub use assist::{heading_place, suggest, Context, Stage, Suggestions, Vocabulary
 pub use conflict::conflict_line;
 pub use flow::{enter_step, force_line, tab_step, upper, EnterStep, Forced, Gap, Slot, TabStep};
 pub use inline::{inline_runs, Marks, Run};
+pub use kinds::{text_kinds, TextKind};
 pub use numbering::{is_omitted, number_scenes, NumberMode, NumberRules, OMITTED_DE, OMITTED_EN};
 pub use outline::{move_entry, outline, outline_of, visible, Entry, EntryKind, Moved, Way};
 pub use pages::{
-    length_text, paginate, ContdAfterAction, Line, Page, PageKind, PageOptions, PageSize,
-    Pagination, SceneLength, Words, TEXT_COLUMNS,
+    length_text, paginate, Align, ContdAfterAction, Line, Margin, Page, PageKind, PageOptions,
+    PageSize, Pagination, SceneLength, Words, TEXT_COLUMNS,
 };
 pub use parse::{
     boneyard_lines, parse, parse_located, title_page_lines, FORCE_CHARACTER, NUMBER_MARK,

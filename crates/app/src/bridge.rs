@@ -367,6 +367,19 @@ pub mod qobject {
         #[cxx_name = "importScript"]
         fn import_script(self: Pin<&mut Self>, path: &QString) -> bool;
 
+        /// One letter per line of `text` for its kind (D-15); `scriptLooks` says what each letter
+        /// is and where the page sets it. Reads only the text it is given, typed or not yet sent.
+        #[qinvokable]
+        #[cxx_name = "scriptKinds"]
+        fn script_kinds(self: &Self, text: &QString) -> QString;
+
+        /// `{ columns, looks: { <letter>: { kind, x, width, align } } }`: the kinds of
+        /// `scriptKinds`, with the columns of the page (`x` from the left edge of `columns`);
+        /// `x` and `width` are missing for what the page does not print.
+        #[qinvokable]
+        #[cxx_name = "scriptLooks"]
+        fn script_looks(self: &Self) -> QString;
+
         /// Writes unsaved changes to the backup; QML calls it on a timer. An error goes to the
         /// status line.
         #[qinvokable]
