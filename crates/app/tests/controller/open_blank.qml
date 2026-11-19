@@ -24,20 +24,25 @@ Item {
                 return root.fail("the blank plan did not open: " + ctl.status)
             }
 
+            // The names follow the language of the surface (CI runs in English).
+            const texts = JSON.parse(ctl.texts)
+            const title = texts["start.blankTitle"]
+            const folder = "/entwuerfe/" + texts["start.blankStem"] + "-1.klappe"
+
             const project = JSON.parse(ctl.projectJson)
             if (project.scenes.length !== 1 || project.plans.length !== 1 || project.plan !== "plan-a") {
                 return root.fail("one scene with its plan expected: " + ctl.projectJson)
             }
-            if (ctl.sceneId === "" || ctl.planJson === "" || ctl.dirty || ctl.title !== "Unbenannt") {
+            if (ctl.sceneId === "" || ctl.planJson === "" || ctl.dirty || ctl.title !== title) {
                 return root.fail("the blank plan must show its plan, saved, titled: " + ctl.title)
             }
 
             const first = JSON.parse(ctl.recentJson)[0].path
-            if (!first.endsWith("/entwuerfe/unbenannt-1.klappe")) {
+            if (!first.endsWith(folder)) {
                 return root.fail("not in the data folder: " + first)
             }
 
-            if (!ctl.openBlank() || JSON.parse(ctl.recentJson)[0].path === first || ctl.title !== "Unbenannt 2") {
+            if (!ctl.openBlank() || JSON.parse(ctl.recentJson)[0].path === first || ctl.title !== title + " 2") {
                 return root.fail("the second blank plan needs its own folder: " + ctl.title)
             }
             Qt.exit(0)
