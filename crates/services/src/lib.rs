@@ -36,7 +36,7 @@ mod sun_input;
 mod templates;
 mod views;
 
-pub use book::{BookReport, Candidate, Choice, PendingScene};
+pub use book::{BookReport, Candidate, Choice, ImportReport, PendingScene};
 pub use catalog::Language;
 pub use edit::ShotField;
 pub use error::ServiceError;

@@ -67,3 +67,120 @@ fn line_ends_become_newlines() {
         "INT. HALLE - TAG\n\nSie kommt an.\nEnde.\n"
     );
 }
+
+const SAAL: &str = "INT. SAAL - TAG";
+const THREE_SCENES: &str = "INT. SAAL - TAG\n\nAnna.\n\nEXT. HOF - NACHT\n\nEs regnet.\n\nINT. KELLER - NACHT\n\nEs tropft.\n";
+
+/// A project that holds the scene `SAAL` and its book.
+fn with_saal(name: &str) -> (Session, PathBuf) {
+    let base = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let _ = fs::remove_dir_all(&base);
+    fs::create_dir_all(&base).unwrap();
+    let dir = base.join("projekt");
+    Session::create(&dir, "Film", Language::German).unwrap();
+    fs::write(dir.join("drehbuch.fountain"), format!("{SAAL}\n\nAnna.\n")).unwrap();
+    let session = Session::open(&dir).unwrap();
+
+    (session, base)
+}
+
+#[test]
+fn the_register_follows_the_import_at_once() {
+    let (mut s, base) = with_saal("script-import-register");
+    let id = s.project().scenes[0].id.clone();
+    let file = base.join("buch.fountain");
+    fs::write(&file, THREE_SCENES).unwrap();
+
+    let report = s.import_script(&file).unwrap();
+
+    // Before any save: the matched scene keeps its entry, two are new.
+    assert_eq!(s.project().scenes.len(), 3);
+    assert_eq!(s.project().scenes[0].id, id);
+    assert_eq!((report.scenes, report.created), (3, 2));
+    assert_eq!((report.pending, report.not_in_book), (0, 0));
+}
+
+#[test]
+fn the_import_is_one_undo_step() {
+    let (mut s, base) = with_saal("script-import-undo");
+    let before = s.script_text().to_owned();
+    let file = base.join("buch.fountain");
+    fs::write(&file, THREE_SCENES).unwrap();
+    s.import_script(&file).unwrap();
+
+    s.undo();
+
+    assert_eq!(s.project().scenes.len(), 1);
+    assert_eq!(s.script_text(), before);
+}
+
+#[test]
+fn entries_the_book_lost_are_counted() {
+    let (mut s, base) = with_saal("script-import-gone");
+    let file = base.join("buch.fountain");
+    fs::write(&file, "EXT. HOF - NACHT\n\nEs regnet.\n").unwrap();
+
+    let report = s.import_script(&file).unwrap();
+
+    assert_eq!((report.scenes, report.not_in_book), (1, 1));
+}
+
+#[test]
+fn a_scene_the_import_cannot_place_is_a_question() {
+    let base = Path::new(env!("CARGO_TARGET_TMPDIR")).join("script-import-ask");
+    let _ = fs::remove_dir_all(&base);
+    fs::create_dir_all(&base).unwrap();
+    let dir = base.join("projekt");
+    Session::create(&dir, "Film", Language::German).unwrap();
+    let book = "INT. SAAL - TAG #1#\n\nAnna.\n\nEXT. HOF - NACHT #2#\n\nEs regnet.\n";
+    fs::write(dir.join("drehbuch.fountain"), book).unwrap();
+    let mut s = Session::open(&dir).unwrap();
+    // Scene 2 is a different scene now but keeps its number.
+    let file = base.join("buch.fountain");
+    let rewritten = "INT. SAAL - TAG #1#\n\nAnna.\n\nINT. KELLER - NACHT #2#\n\nEs tropft.\n";
+    fs::write(&file, rewritten).unwrap();
+
+    let report = s.import_script(&file).unwrap();
+
+    assert_eq!((report.scenes, report.created, report.pending), (2, 0, 1));
+    assert_eq!(s.pending_scenes().len(), 1);
+}
+
+#[test]
+fn only_scenes_with_a_heading_are_counted() {
+    let (mut s, base) = session("script-import-count");
+    let file = base.join("buch.fountain");
+    // Text before the first heading is no scene; an omitted one is none either.
+    fs::write(
+        &file,
+        "Ein Film.\n\nINT. SAAL - TAG\n\nAnna.\n\n.ENTFÄLLT #12#\n\nEXT. HOF - NACHT\n\nRegen.\n",
+    )
+    .unwrap();
+
+    let report = s.import_script(&file).unwrap();
+
+    assert_eq!(report.scenes, 2);
+}
+
+#[test]
+fn a_book_without_headings_has_no_scenes() {
+    let (mut s, base) = session("script-import-none");
+    let file = base.join("buch.fountain");
+    fs::write(&file, "Ein Film ohne Szenen.\n").unwrap();
+
+    assert_eq!(s.import_script(&file).unwrap().scenes, 0);
+}
+
+#[test]
+fn the_same_book_again_changes_nothing() {
+    let (mut s, base) = with_saal("script-import-same");
+    let file = base.join("buch.fountain");
+    fs::write(&file, format!("{SAAL}\n\nAnna.\n")).unwrap();
+    assert!(!s.is_dirty());
+
+    let report = s.import_script(&file).unwrap();
+
+    assert!(!s.is_dirty());
+    assert!(!s.can_undo());
+    assert_eq!((report.scenes, report.created), (1, 0));
+}

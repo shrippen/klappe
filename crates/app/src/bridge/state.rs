@@ -91,6 +91,7 @@ pub struct ControllerRust {
     pub(super) grip: Grip,
     pub(super) status: QString,
     pub(super) example_aside: QString,
+    pub(super) import_report: QString,
     pub(super) backup_state: QString,
     pub(super) backup_message: QString,
     pub(super) autosave_ms: i32,

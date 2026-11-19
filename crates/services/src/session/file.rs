@@ -6,6 +6,7 @@ use klappe_store::Loaded;
 
 use super::plan_view::PlanView;
 use super::{check_empty, check_title, Autosave, BackupState, Session, View};
+use crate::book::ImportReport;
 use crate::catalog::Language;
 use crate::error::ServiceError;
 use crate::plan_edit::{Grid, Snapping};
@@ -229,13 +230,13 @@ impl Session {
         self.refresh_pending();
     }
 
-    /// Replaces the screenplay with the Fountain file `path` (UTF-8); unsaved until `save`.
-    /// A file that cannot be read changes nothing.
-    pub fn import_script(&mut self, path: &Path) -> Result<(), ServiceError> {
+    /// Replaces the screenplay with the Fountain file `path` (UTF-8) and aligns the register
+    /// with it at once (D-16); unsaved until `save`, one undo step. A file that cannot be
+    /// read changes nothing.
+    pub fn import_script(&mut self, path: &Path) -> Result<ImportReport, ServiceError> {
         let text = klappe_store::load_script_file(path)?;
-        self.set_script_text(&text);
 
-        Ok(())
+        Ok(self.import_book(&text))
     }
 }
 

@@ -1,14 +1,17 @@
-//! The register against the book (DATENMODELL §4): aligns on open and save, and takes the
+//! The register against the book (DATENMODELL §4): aligns on open, save and import, and takes the
 //! user's answer for an entry that could not be placed.
 
 use klappe_model::{BookState, Kind, Project, Scene};
 
 use super::Session;
-use crate::book::{self, BookReport, Choice, PendingScene};
+use crate::book::{self, BookReport, Choice, ImportReport, PendingScene};
 use crate::error::ServiceError;
 
 /// Undo step of `resolve_scene`.
 const RESOLVE_STEP: &str = "ResolveScene";
+
+/// Undo step of `import_script`.
+const IMPORT_STEP: &str = "ImportScript";
 
 /// One line of the dialog for an open question: a scene of the book the entry may be, or
 /// "not in the book" as the last line. Surfaces show the lines and hand back the position.
@@ -99,6 +102,42 @@ impl Session {
         self.follow_scene(scene, shown);
 
         Ok(())
+    }
+
+    /// Takes `text` as the screenplay and aligns the register with it in one undo step (undo
+    /// restores project and text). An empty book leaves the register alone, as `reconcile` does.
+    pub(super) fn import_book(&mut self, text: &str) -> ImportReport {
+        let book = klappe_script::parse(text);
+        let scenes = book::heading_count(&book);
+        if book.scenes().is_empty() {
+            self.set_script_text(text);
+
+            return ImportReport::default();
+        }
+
+        let mut next = self.project.clone();
+        book::plan(&self.project, &book).apply(&mut next);
+        let created = next
+            .scenes
+            .iter()
+            .filter(|s| self.project.scene(&s.id).is_none())
+            .count();
+
+        // The book the project has already: no edit, so no unsaved state and no empty undo step.
+        let same = next == self.project && self.script_text.as_deref() == Some(text);
+        if !same {
+            let (scene, shown) = self.ids_on_view();
+            self.commit_script(next, text, IMPORT_STEP);
+            self.follow_scene(scene, shown);
+        }
+        let report = self.book_report();
+
+        ImportReport {
+            scenes,
+            created,
+            pending: report.pending,
+            not_in_book: report.not_in_book,
+        }
     }
 
     /// Aligns the register with the book as it is now and writes the result into the

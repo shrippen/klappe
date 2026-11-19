@@ -39,7 +39,7 @@ fn variants(path: &str, name: &str) -> Vec<String> {
         .collect()
 }
 
-/// The names `Session` passes to `commit_step`.
+/// The names `Session` passes to `commit_step`, also by constant.
 fn session_steps() -> Vec<String> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/session");
     let mut names = Vec::new();
@@ -48,6 +48,10 @@ fn session_steps() -> Vec<String> {
         for part in text.split("commit_step(next, \"").skip(1) {
             // `commit` names nothing: an unnamed step.
             names.push(part.split('"').next().unwrap().to_owned());
+        }
+        // Names kept in a constant, as `const RESOLVE_STEP: &str = "ResolveScene";`.
+        for line in text.lines().filter(|l| l.contains("_STEP: &str = \"")) {
+            names.push(line.split('"').nth(1).unwrap().to_owned());
         }
     }
 

@@ -30,6 +30,19 @@ pub struct PendingScene {
     pub candidates: Vec<Candidate>,
 }
 
+/// What an import of a screenplay made of the register, for the report after it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ImportReport {
+    /// Scenes of the imported book.
+    pub scenes: usize,
+    /// Register entries the import created.
+    pub created: usize,
+    /// Entries waiting for a decision.
+    pub pending: usize,
+    /// Entries whose scene is not in the book.
+    pub not_in_book: usize,
+}
+
 /// What the status line says about the register and the book.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BookReport {
@@ -116,6 +129,14 @@ fn state_of(scene: &Scene) -> SceneState {
 /// is no scene, and the heading of a struck scene (DB-33) only holds its number.
 fn has_heading(state: &SceneState) -> bool {
     state.heading.as_deref().is_some_and(|h| !is_omitted(h))
+}
+
+/// How many scenes of `script` an entry may stand for: those with a heading that is not struck.
+pub(crate) fn heading_count(script: &Script) -> usize {
+    scene_states(script)
+        .iter()
+        .filter(|s| has_heading(s))
+        .count()
 }
 
 /// Aligns the entries of kind scene with the scenes of `script`. Without a scene in the

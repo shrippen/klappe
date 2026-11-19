@@ -96,6 +96,9 @@ pub mod qobject {
         #[qproperty(QString, note_text, cxx_name = "noteText")]
         /// Last message for the status line, already translated.
         #[qproperty(QString, status)]
+        /// What the last `importScript` made of the register, as JSON `{ scenes, created,
+        /// pending, notInBook }`; empty before the first import.
+        #[qproperty(QString, import_report, cxx_name = "importReport")]
         /// Where the example's old copy went, already translated; empty for none. Kept until
         /// the user closes it or another project opens (`AsideNotice`).
         #[qproperty(QString, example_aside, cxx_name = "exampleAside")]
@@ -358,7 +361,8 @@ pub mod qobject {
         fn edit_script(self: Pin<&mut Self>, text: &QString);
 
         /// Replaces the screenplay with the Fountain file `path` (a path or a `file://` URL);
-        /// unsaved until `save`. The result goes to `status`; false when the file is refused.
+        /// aligns the register with it at once (one undo step); unsaved until `save`. The result goes
+        /// to `status` and `importReport`; false when the file is refused.
         #[qinvokable]
         #[cxx_name = "importScript"]
         fn import_script(self: Pin<&mut Self>, path: &QString) -> bool;
