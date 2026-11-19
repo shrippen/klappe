@@ -235,7 +235,7 @@ fn blank_number(stem: &str, taken: &[String]) -> u32 {
 }
 
 /// A new project in `data/entwuerfe/<unbenannt|untitled>-N.klappe` (first free N) with one scene
-/// and its empty plan, saved, so the folder is complete and closing asks nothing.
+/// and its empty plan, saved, so the folder is complete and closing asks nothing; nothing to undo.
 pub fn blank_project(language: Language, data: &Path) -> Result<Session, ServiceError> {
     let folder = data.join(BLANK_DIR);
     let taken: Vec<String> = std::fs::read_dir(&folder)
@@ -279,7 +279,8 @@ pub fn blank_project(language: Language, data: &Path) -> Result<Session, Service
     })?;
     session.save()?;
 
-    Ok(session)
+    // Opened again, so undo cannot take the set and scene back into an empty project.
+    Session::open(session.dir())
 }
 
 /// `path` with `home` at its start as `~`; unchanged elsewhere.
@@ -498,6 +499,10 @@ mod tests {
         assert_eq!(first.project().scenes.len(), 1);
         assert!(first.plan().is_some());
         assert!(!first.is_dirty());
+        assert!(
+            !first.can_undo(),
+            "the blank plan must not undo into an empty project"
+        );
 
         let third = blank_project(Language::German, &data).unwrap();
         assert!(third.dir().ends_with("unbenannt-2.klappe"));
