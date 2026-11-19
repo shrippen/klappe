@@ -1,4 +1,4 @@
-//! The register against the book (DATENMODELL §4): aligns on open and save, and takes the
+//! The register against the book (DATENMODELL §4): aligns on open, save and import, and takes the
 //! user's answer for an entry that could not be placed.
 
 use klappe_model::{BookState, Kind, Project, Scene};
@@ -108,8 +108,8 @@ impl Session {
     /// restores project and text). An empty book leaves the register alone, as `reconcile` does.
     pub(super) fn import_book(&mut self, text: &str) -> ImportReport {
         let book = klappe_script::parse(text);
-        let scenes = book.scenes().len();
-        if scenes == 0 {
+        let scenes = book::heading_count(&book);
+        if book.scenes().is_empty() {
             self.set_script_text(text);
 
             return ImportReport::default();
@@ -123,9 +123,13 @@ impl Session {
             .filter(|s| self.project.scene(&s.id).is_none())
             .count();
 
-        let (scene, shown) = self.ids_on_view();
-        self.commit_script(next, text, IMPORT_STEP);
-        self.follow_scene(scene, shown);
+        // The book the project has already: no edit, so no unsaved state and no empty undo step.
+        let same = next == self.project && self.script_text.as_deref() == Some(text);
+        if !same {
+            let (scene, shown) = self.ids_on_view();
+            self.commit_script(next, text, IMPORT_STEP);
+            self.follow_scene(scene, shown);
+        }
         let report = self.book_report();
 
         ImportReport {

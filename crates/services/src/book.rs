@@ -131,6 +131,14 @@ fn has_heading(state: &SceneState) -> bool {
     state.heading.as_deref().is_some_and(|h| !is_omitted(h))
 }
 
+/// How many scenes of `script` an entry may stand for: those with a heading that is not struck.
+pub(crate) fn heading_count(script: &Script) -> usize {
+    scene_states(script)
+        .iter()
+        .filter(|s| has_heading(s))
+        .count()
+}
+
 /// Aligns the entries of kind scene with the scenes of `script`. Without a scene in the
 /// book there is nothing to align with: the caller does not ask.
 ///

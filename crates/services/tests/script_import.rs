@@ -145,3 +145,42 @@ fn a_scene_the_import_cannot_place_is_a_question() {
     assert_eq!((report.scenes, report.created, report.pending), (2, 0, 1));
     assert_eq!(s.pending_scenes().len(), 1);
 }
+
+#[test]
+fn only_scenes_with_a_heading_are_counted() {
+    let (mut s, base) = session("script-import-count");
+    let file = base.join("buch.fountain");
+    // Text before the first heading is no scene; an omitted one is none either.
+    fs::write(
+        &file,
+        "Ein Film.\n\nINT. SAAL - TAG\n\nAnna.\n\n.ENTFÄLLT #12#\n\nEXT. HOF - NACHT\n\nRegen.\n",
+    )
+    .unwrap();
+
+    let report = s.import_script(&file).unwrap();
+
+    assert_eq!(report.scenes, 2);
+}
+
+#[test]
+fn a_book_without_headings_has_no_scenes() {
+    let (mut s, base) = session("script-import-none");
+    let file = base.join("buch.fountain");
+    fs::write(&file, "Ein Film ohne Szenen.\n").unwrap();
+
+    assert_eq!(s.import_script(&file).unwrap().scenes, 0);
+}
+
+#[test]
+fn the_same_book_again_changes_nothing() {
+    let (mut s, base) = with_saal("script-import-same");
+    let file = base.join("buch.fountain");
+    fs::write(&file, format!("{SAAL}\n\nAnna.\n")).unwrap();
+    assert!(!s.is_dirty());
+
+    let report = s.import_script(&file).unwrap();
+
+    assert!(!s.is_dirty());
+    assert!(!s.can_undo());
+    assert_eq!((report.scenes, report.created), (1, 0));
+}

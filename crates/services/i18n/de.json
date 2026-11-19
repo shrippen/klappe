@@ -956,6 +956,7 @@
  "step.SetPace": "Tempo ändern",
  "step.AddScene": "Szene anlegen",
  "step.EditScene": "Szene ändern",
+ "step.ImportScript": "Drehbuch laden",
  "step.ResolveScene": "Szene dem Buch zuordnen",
  "step.RemoveScene": "Szene löschen",
  "step.AddLocation": "Drehort anlegen",

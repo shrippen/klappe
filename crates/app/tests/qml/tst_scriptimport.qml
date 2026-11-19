@@ -117,6 +117,7 @@ TestCase {
         const imp = report(2, 0)
         const spy = createTemporaryObject(spyComponent, tc, { target: imp })
         tryVerify(() => imp.report.opened)
+        compare(imp.report.rejectText, "Später")
 
         imp.report.accept()
 
@@ -128,6 +129,7 @@ TestCase {
 
         tryVerify(() => imp.report.opened)
         compare(imp.report.standardButtons, QQC2.Dialog.Close)
+        compare(imp.report.rejectText, "Schließen")
     }
 
     function test_a_refused_file_shows_no_report() {

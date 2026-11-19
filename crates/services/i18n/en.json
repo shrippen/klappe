@@ -956,6 +956,7 @@
  "step.SetPace": "Change pace",
  "step.AddScene": "Add scene",
  "step.EditScene": "Edit scene",
+ "step.ImportScript": "Load screenplay",
  "step.ResolveScene": "Match scene with the script",
  "step.RemoveScene": "Delete scene",
  "step.AddLocation": "Add location",

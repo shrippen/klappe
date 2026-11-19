@@ -89,7 +89,7 @@ Item {
         title: imp.texts.t("script.reportTitle")
         standardButtons: imp.counts.pending > 0 ? QQC2.Dialog.Ok | QQC2.Dialog.Close : QQC2.Dialog.Close
         acceptText: imp.texts.t("script.reportAsk")
-        rejectText: imp.texts.t("book.later")
+        rejectText: imp.texts.t(imp.counts.pending > 0 ? "book.later" : "menu.close")
         onAccepted: imp.questionsRequested()
         ColumnLayout {
             width: parent ? parent.width : implicitWidth
