@@ -12,15 +12,17 @@ TestCase {
     when: windowShown
     visible: true
 
-    QtObject {
-        id: fake
-        property string sceneId: "b"
-        property string projectJson: JSON.stringify({ scenes: [
+    readonly property var base: [
             { id: "a", number: "1", heading: "INT. SAAL - TAG", inBook: true, plans: 1, shots: 5 },
             { id: "b", number: "2", heading: "EXT. HOF - NACHT", inBook: true, plans: 0, shots: 0 },
             { id: "c", number: "3", heading: "INT. KELLER", inBook: false, plans: 2, shots: 7 },
             { id: "d", number: "12A", heading: "", inBook: false, plans: 0, shots: 0 }
-        ] })
+        ]
+
+    QtObject {
+        id: fake
+        property string sceneId: "b"
+        property string projectJson: JSON.stringify({ scenes: tc.base })
         property var selected: []
         function selectScene(id) {
             selected.push(id)
@@ -43,7 +45,7 @@ TestCase {
     }
 
     function init() {
-        fake.projectJson = JSON.stringify({ scenes: JSON.parse(fake.projectJson).scenes })
+        fake.projectJson = JSON.stringify({ scenes: base })
         fake.sceneId = "b"
         fake.selected = []
     }
@@ -147,5 +149,50 @@ TestCase {
         compare(findChild(list, "sceneRows").count, 0)
         compare(findChild(list, "noScenes").text, "Noch keine Szene.")
         verify(!findChild(list, "noMatch").visible)
+    }
+
+    // Arrow keys: from the filter into the list, down the rows with the view following, and
+    // back up to the filter.
+    function test_the_arrow_keys_walk_the_list_and_scroll() {
+        const many = []
+        for (let i = 1; i <= 60; i++) {
+            many.push({ id: "m" + i, number: String(i), heading: "INT. ORT " + i, inBook: true, plans: 0, shots: 0 })
+        }
+        fake.projectJson = JSON.stringify({ scenes: many })
+        const list = make()
+        const filter = findChild(list, "sceneFilter")
+        const rows = findChild(list, "sceneRows")
+        filter.forceActiveFocus()
+
+        keyClick(Qt.Key_Down)
+        tryVerify(() => findChild(rows, "scene.m1") !== null && findChild(rows, "scene.m1").activeFocus)
+
+        for (let i = 0; i < 40; i++) {
+            keyClick(Qt.Key_Down)
+        }
+        const item = findChild(rows, "scene.m41")
+        verify(item !== null)
+        verify(item.activeFocus, "row 41 has the focus")
+        verify(item.y >= rows.contentY - 1 && item.y + item.height <= rows.contentY + rows.height + 1,
+               "row 41 is in view: y " + item.y + ", contentY " + rows.contentY)
+
+        for (let i = 0; i < 40; i++) {
+            keyClick(Qt.Key_Up)
+        }
+        tryVerify(() => findChild(rows, "scene.m1").activeFocus)
+        keyClick(Qt.Key_Up)
+        verify(filter.activeFocus)
+    }
+
+    // A row says all of it to a screen reader: number, heading, the note and the markers.
+    function test_a_row_describes_itself_whole() {
+        const list = make()
+
+        const text = row(list, "c").Accessible.description
+        verify(text.includes("nicht im Buch"), text)
+        verify(text.includes("Pläne: 2"), text)
+        verify(text.includes("Shots: 7"), text)
+        verify(row(list, "a").Accessible.description.includes("im Buch"), "text marker")
+        verify(!row(list, "a").Accessible.description.includes("nicht im Buch"))
     }
 }

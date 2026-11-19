@@ -14,23 +14,17 @@ TestCase {
     visible: true
 
     readonly property string book: "# Akt I\n\nINT. SAAL - TAG\n\nSie kommt an.\n\nEXT. HOF - NACHT\n\nEs regnet.\n"
-    readonly property var outline: [
-        { kind: "section", depth: 0, line: 0, number: "", text: "Akt I" },
-        { kind: "scene", depth: 1, line: 2, number: "1", text: "INT. SAAL - TAG" },
-        { kind: "scene", depth: 1, line: 6, number: "2", text: "EXT. HOF - NACHT" }
-    ]
 
-    // The project's scenes: two are in the text, one is not (no heading line to go to).
+    // The project's scenes: two are in the text (`line` is their heading's), one is not.
     readonly property var scenes: [
-        { id: "s1", number: "1", heading: "INT. SAAL - TAG", inBook: true, plans: 1, shots: 3 },
-        { id: "s2", number: "2", heading: "EXT. HOF - NACHT", inBook: true, plans: 0, shots: 0 },
-        { id: "s3", number: "3", heading: "INT. KELLER", inBook: false, plans: 0, shots: 0 }
+        { id: "s1", number: "1", heading: "INT. SAAL - TAG", inBook: true, plans: 1, shots: 3, line: 2 },
+        { id: "s2", number: "2", heading: "EXT. HOF - NACHT", inBook: true, plans: 0, shots: 0, line: 6 },
+        { id: "s3", number: "3", heading: "INT. KELLER", inBook: false, plans: 0, shots: 0, line: null }
     ]
 
     QtObject {
         id: fake
         property string scriptText: tc.book
-        property string outlineJson: JSON.stringify(tc.outline)
         property string sceneId: ""
         property string projectJson: JSON.stringify({ scenes: tc.scenes })
         property var selected: []
@@ -61,7 +55,6 @@ TestCase {
 
     function init() {
         fake.scriptText = book
-        fake.outlineJson = JSON.stringify(outline)
         fake.projectJson = JSON.stringify({ scenes: scenes })
         fake.sceneId = ""
         fake.selected = []
@@ -118,15 +111,21 @@ TestCase {
         compare(view.area.cursorPosition, 3)
     }
 
-    function test_the_scene_is_found_by_its_number_as_written() {
+    // An imported book has no numbers: every scene is "", and each still goes to its own heading.
+    function test_unnumbered_scenes_go_to_their_own_heading() {
+        const rows = [
+            { id: "s1", number: "", heading: "INT. SAAL - TAG", inBook: true, plans: 0, shots: 0, line: 2 },
+            { id: "s2", number: "", heading: "EXT. HOF - NACHT", inBook: true, plans: 0, shots: 0, line: 6 }
+        ]
+        fake.projectJson = JSON.stringify({ scenes: rows })
         const view = make()
+        const list = findChild(view, "sceneRows")
+        tryVerify(() => findChild(list, "scene.s2") !== null)
 
-        view.goToScene("2")
+        findChild(list, "scene.s2").clicked()
+
+        compare(fake.selected, ["s2"])
         compare(view.area.cursorPosition, book.indexOf("EXT. HOF"))
-
-        view.area.cursorPosition = 0
-        view.goToScene("02")
-        compare(view.area.cursorPosition, 0)
     }
 
     function test_the_editor_is_monospace_and_wraps() {
@@ -183,13 +182,11 @@ TestCase {
     }
 
     function test_without_scenes_the_list_says_so() {
-        fake.outlineJson = "[]"
         fake.projectJson = JSON.stringify({ scenes: [] })
         fake.scriptText = ""
         const view = make()
 
         compare(findChild(view, "sceneRows").count, 0)
-        compare(view.entries.length, 0)
     }
 
     // The text area gives back other text than it got (CRLF becomes LF, a no-break space a

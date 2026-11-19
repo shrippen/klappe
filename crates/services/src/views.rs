@@ -287,6 +287,8 @@ pub struct SceneRow {
     /// Floor plans of the scene and the shots on all of them (the scene list's markers).
     pub plans: usize,
     pub shots: usize,
+    /// The text line (from 0) of the scene's heading; `None` when the book does not hold it.
+    pub line: Option<usize>,
     pub location: String,
     pub location_name: String,
     /// When it is shot (LH-52); `sunDate`, `sunTime` and `sunOffset` in the JSON.

@@ -57,6 +57,8 @@ impl Session {
             through: None,
             layout: None,
             pending: Vec::new(),
+            book_scene: Vec::new(),
+            heading_line: Vec::new(),
             pending_places: Vec::new(),
             lock,
             twin_numbers: 0,

@@ -231,6 +231,15 @@ fn refuses(scene: &Scene, book: &SceneState) -> bool {
 }
 
 impl Plan {
+    /// The scene of the book (position among `Script::scenes`) that entry `entry` (position in
+    /// `Project::scenes`) is; `None` when the alignment did not place it.
+    pub(crate) fn scene_of(&self, entry: usize) -> Option<usize> {
+        self.fates.iter().find_map(|(e, fate)| match fate {
+            Fate::Matched(n) if *e == entry => Some(*n),
+            _ => None,
+        })
+    }
+
     fn matched(&self) -> HashSet<usize> {
         let found = self.fates.iter().filter_map(|(_, fate)| match fate {
             Fate::Matched(scene) => Some(*scene),

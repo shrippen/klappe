@@ -132,10 +132,11 @@ impl Session {
 
     /// The current scene's script with its links to marks and shots (design B).
     pub fn script_lines(&self) -> Vec<ScriptLine> {
-        let Some(scene) = self.scene() else {
+        let Some(at) = self.book_scene_of(self.scene) else {
             return Vec::new();
         };
-        let Some(view) = self.script.scene(&scene.number) else {
+        let scenes = self.script.scenes();
+        let Some(view) = scenes.get(at) else {
             return Vec::new();
         };
 

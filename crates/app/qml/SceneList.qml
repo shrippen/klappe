@@ -46,6 +46,31 @@ ColumnLayout {
         return parts.join(" ")
     }
 
+    // What a screen reader says of a row: all the row shows, the second line and the markers too.
+    function describe(scene) {
+        const text = scene.heading !== "" ? scene.number + " " + scene.heading : scene.number
+        const book = texts.t(scene.inBook ? "scenelist.inBook" : "scene.notInBook")
+
+        return [text, book, texts.t("scenelist.marks", { plans: scene.plans, shots: scene.shots })].join(", ")
+    }
+
+    // Arrow keys: the focus moves from row to row and the view follows; up from the first row
+    // goes back to the filter field.
+    function step(from, by) {
+        const to = from + by
+        if (to < 0) {
+            filter.forceActiveFocus()
+            return
+        }
+        if (to >= rows.count) {
+            return
+        }
+        rows.positionViewAtIndex(to, ListView.Contain)
+        // The row may not be made yet: a view creates its rows on its next layout.
+        rows.forceLayout()
+        rows.itemAtIndex(to).forceActiveFocus()
+    }
+
     KanteTextField {
         id: filter
         objectName: "sceneFilter"
@@ -53,6 +78,7 @@ ColumnLayout {
         Layout.fillWidth: true
         placeholderText: list.texts.t("scenelist.filter")
         Accessible.name: list.texts.t("scenelist.filter")
+        Keys.onDownPressed: list.step(-1, 1)
     }
 
     QQC2.Label {
@@ -74,6 +100,7 @@ ColumnLayout {
     }
 
     ListView {
+        id: rows
         objectName: "sceneRows"
         Layout.fillWidth: true
         Layout.fillHeight: true
@@ -82,6 +109,7 @@ ColumnLayout {
         QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
         delegate: KanteListRow {
             required property var modelData
+            required property int index
             objectName: "scene." + modelData.id
             width: ListView.view.width
             density: KanteListRow.Density.Compact
@@ -92,7 +120,9 @@ ColumnLayout {
             subtitle: !modelData.inBook && modelData.heading !== "" ? list.texts.t("scene.notInBook") : ""
             meta: list.marks(modelData)
             selected: modelData.id === list.controller.sceneId
-            Accessible.description: list.texts.t("scenelist.marks", { plans: modelData.plans, shots: modelData.shots })
+            Accessible.description: list.describe(modelData)
+            Keys.onDownPressed: list.step(index, 1)
+            Keys.onUpPressed: list.step(index, -1)
             onClicked: {
                 list.controller.selectScene(modelData.id)
                 list.picked(modelData)

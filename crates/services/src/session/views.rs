@@ -27,7 +27,7 @@ const FOV_STEPS_PER_DEG: f64 = 10.0;
 const NO_GROUP: u32 = 0;
 
 /// One row of the scene list: the scene with its location and the counts of its markers.
-fn scene_row(project: &Project, s: &Scene) -> SceneRow {
+fn scene_row(project: &Project, s: &Scene, line: Option<usize>) -> SceneRow {
     let location = project.location(&s.location);
 
     SceneRow {
@@ -37,6 +37,7 @@ fn scene_row(project: &Project, s: &Scene) -> SceneRow {
         in_book: s.state == BookState::InBook,
         plans: s.plans.len(),
         shots: s.plans.iter().map(|p| p.shots.len()).sum(),
+        line,
         location: s.location.clone(),
         location_name: location.map(|l| l.name.clone()).unwrap_or_default(),
         sun: SunTexts::of(s.sun),
@@ -85,7 +86,12 @@ impl Session {
     /// The lists of the project view.
     pub fn overview(&self) -> Overview {
         let project = self.project();
-        let scenes = project.scenes.iter().map(|s| scene_row(project, s));
+        let lines = self.heading_lines();
+        let scenes = project
+            .scenes
+            .iter()
+            .zip(lines)
+            .map(|(s, line)| scene_row(project, s, line));
         let locations = project.locations.iter().map(|l| LocationRow {
             id: l.id.clone(),
             name: l.name.clone(),

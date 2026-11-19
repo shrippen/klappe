@@ -27,6 +27,7 @@ mod playback;
 mod retime;
 mod saved;
 mod scene;
+mod scene_book;
 mod script_pages;
 mod shots;
 mod sketch;
@@ -186,6 +187,10 @@ pub struct Session {
     layout: Option<crate::script_pages::Layout>,
     /// Entries the book could not place (`pending_scenes`).
     pending: Vec<crate::book::PendingScene>,
+    /// For each entry of the register its scene in the book and that scene's heading line
+    /// (`refresh_scene_map`), kept so a refresh of the window does not align the book again.
+    book_scene: Vec<Option<usize>>,
+    heading_line: Vec<Option<usize>>,
     /// Locations of the headings no play location is called by (`pending_places`).
     pending_places: Vec<crate::places::PendingPlace>,
     /// The Sperrstand of the scene numbers (DB-33) as saved last; `None` without the file.

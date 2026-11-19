@@ -637,6 +637,22 @@ TestCase {
         tryVerify(() => part(work, "lineList").activeFocus)
     }
 
+    // The drawer button and the narrow tab name what the left column shows now.
+    function test_the_left_button_and_tab_follow_the_column_tab() {
+        for (const width of [1200, 800]) {
+            const work = make(width)
+            const names = () => width === 1200 ? [part(work, "scriptButton").text]
+                                               : [findChild(work, "tabs").model[1]]
+
+            work.leftTab = "text"
+            compare(names()[0], "Drehbuch")
+
+            work.leftTab = "scenes"
+            compare(names()[0], "Szenen")
+            work.leftTab = "text"
+        }
+    }
+
     function test_the_script_is_shown_in_every_step() {
         for (const width of [1600, 1200, 800]) {
             const work = make(width)

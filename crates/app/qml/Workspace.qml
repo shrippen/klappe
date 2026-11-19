@@ -77,6 +77,8 @@ Item {
     readonly property real planMin: Kirigami.Units.gridUnit * 24
     readonly property var _tabs: ["plan", "script", "shot"]
     readonly property var _leftTabs: ["scenes", "text"]
+    /// What the left column is called in a drawer button or a tab: after the tab it shows.
+    readonly property string leftName: texts.t(leftTab === "scenes" ? "layout.tabScenes" : "toggle.script")
 
     /// What the View menu shows as on: the pane beside the plan, the open drawer, the tab.
     readonly property bool scriptShown: tier === Workspace.Tier.Wide ? showScript && !scriptFolded : area === "script"
@@ -272,7 +274,7 @@ Item {
 
                         KanteToolButton {
                             objectName: "scriptButton"
-                            text: work.texts.t("toggle.script")
+                            text: work.leftName
                             checkable: true
                             checked: work.area === "script"
                             onClicked: work.setArea("script", checked)
@@ -292,7 +294,7 @@ Item {
                         visible: work.tier === Workspace.Tier.Narrow
                         Layout.fillWidth: true
                         accessibleName: work.texts.t("layout.areas")
-                        model: [work.texts.t("layout.plan"), work.texts.t("toggle.script"), work.texts.t("toggle.shot")]
+                        model: [work.texts.t("layout.plan"), work.leftName, work.texts.t("toggle.shot")]
                         currentIndex: work._tabs.indexOf(work.area)
                         onActivated: index => work.area = work._tabs[index]
                     }

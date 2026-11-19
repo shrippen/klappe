@@ -329,6 +329,7 @@
  "scenelist.markPlan": "P",
  "scenelist.markShots": "S",
  "scenelist.marks": "Plans: {plans}, shots: {shots}",
+ "scenelist.inBook": "in script",
  "layout.leftTabs": "Left column",
  "layout.tabScenes": "Scenes",
  "layout.tabText": "Text",

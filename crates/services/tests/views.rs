@@ -60,6 +60,7 @@ fn the_overview_lists_scenes_locations_and_plans() {
             in_book: true,
             plans: 2,
             shots: 10,
+            line: Some(0),
             location: s.project().scenes[0].location.clone(),
             location_name: s.project().locations[0].name.clone(),
             sun: SunTexts::default(),

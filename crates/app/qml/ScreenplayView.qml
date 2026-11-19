@@ -25,7 +25,6 @@ RowLayout {
     readonly property int columns: 60
     /// The width of the scene list beside the text.
     readonly property real listWidth: Kirigami.Units.gridUnit * 16
-    readonly property var entries: controller.outlineJson ? JSON.parse(controller.outlineJson) : []
     readonly property alias area: area
     /// The empty view's button: ask for a screenplay file.
     signal importRequested()
@@ -56,12 +55,11 @@ RowLayout {
         flick.contentY = Math.max(0, Math.min(top, flick.contentHeight - flick.height))
     }
 
-    /// The cursor at the heading of the scene numbered `number`; a scene the text does not hold
-    /// (not in the book) leaves the cursor where it is. The number is matched as written.
-    function goToScene(number) {
-        const entry = entries.find(e => e.kind === "scene" && e.number === number)
-        if (entry) {
-            goToLine(entry.line)
+    /// The cursor at the heading of `scene`, a row of the scene list: its `line` is the heading's
+    /// text line, null when the book does not hold the scene, which leaves the cursor where it is.
+    function goToScene(scene) {
+        if (typeof scene.line === "number") {
+            goToLine(scene.line)
         }
     }
 
@@ -112,7 +110,7 @@ RowLayout {
             Layout.fillHeight: true
             texts: view.texts
             controller: view.controller
-            onPicked: scene => view.goToScene(scene.number)
+            onPicked: scene => view.goToScene(scene)
         }
     }
 
