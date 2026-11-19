@@ -112,6 +112,18 @@ Item {
             if (redone !== undone || area.text !== typed) {
                 return root.fail("redo lost steps: " + undone + " undone, " + redone + " redone")
             }
+            // Review of PR 278: lines put in above a heading move it to another number; it
+            // turns into action and must lose the bold of its old kind.
+            area.text = "Text\n\nINT. A\n\nMehr"
+            if (view.tools.faceOf(2) !== "bold") {
+                return root.fail("a heading is bold: " + view.tools.faceOf(2))
+            }
+            area.remove(5, 5)
+            area.insert(5, "y\nz\nw")
+            if (ctl.scriptKinds(area.text)[4] !== "a" || view.tools.faceOf(4) !== "") {
+                return root.fail("the old heading in line 4 is " + ctl.scriptKinds(area.text)[4]
+                    + ", drawn '" + view.tools.faceOf(4) + "'")
+            }
             Qt.exit(0)
         }
     }

@@ -94,9 +94,40 @@ ScriptLook::Look ScriptLook::lookOf(int block) const
     return m_looks.value(m_kinds.at(block));
 }
 
+QString ScriptLook::drawnFace(int block) const
+{
+    if (!m_document) {
+        return {};
+    }
+
+    const QTextBlock found = m_document->textDocument()->findBlockByNumber(block);
+    if (!found.isValid() || found.layout()->formats().isEmpty()) {
+        return {};
+    }
+
+    const QTextCharFormat face = found.layout()->formats().constFirst().format;
+    if (face.fontWeight() == QFont::Bold) {
+        return QStringLiteral("bold");
+    }
+
+    return face.hasProperty(QTextFormat::ForegroundBrush) ? QStringLiteral("muted") : QString();
+}
+
 QColor ScriptLook::mutedColor() const
 {
     return m_muted;
+}
+
+void ScriptLook::setMutedColor(const QColor& color)
+{
+    if (color == m_muted) {
+        return;
+    }
+
+    m_muted = color;
+    if (m_faces) {
+        m_faces->rehighlight();
+    }
 }
 
 void ScriptLook::apply(const QString& kinds, const QVariantMap& looks)
@@ -127,9 +158,14 @@ void ScriptLook::apply(const QString& kinds, const QVariantMap& looks)
 }
 
 // Draws again the blocks whose kind changed; the highlighter drew the edited ones already.
+// Lines put in or taken out move the blocks below to other numbers: then all are drawn again.
 void ScriptLook::refaceChanged(const QString& before)
 {
     if (!m_faces) {
+        return;
+    }
+    if (before.size() != m_kinds.size()) {
+        m_faces->rehighlight();
         return;
     }
     QTextDocument* doc = m_document->textDocument();

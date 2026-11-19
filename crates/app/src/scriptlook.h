@@ -25,7 +25,7 @@ class ScriptLook : public QObject {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(QQuickTextDocument* document READ document WRITE setDocument NOTIFY documentChanged)
-    Q_PROPERTY(QColor mutedColor MEMBER m_muted)
+    Q_PROPERTY(QColor mutedColor READ mutedColor WRITE setMutedColor)
 
 public:
     struct Look {
@@ -45,8 +45,12 @@ public:
     // margins in pixels, `align` "left", "right" or "center".
     Q_INVOKABLE void apply(const QString& kinds, const QVariantMap& looks);
 
+    // How block `block` is drawn now: "bold", "muted" or "" (what the highlighter put there).
+    Q_INVOKABLE QString drawnFace(int block) const;
+
     Look lookOf(int block) const;
     QColor mutedColor() const;
+    void setMutedColor(const QColor& color);
 
 Q_SIGNALS:
     void documentChanged();

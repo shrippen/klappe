@@ -28,12 +28,13 @@ impl PageKind {
     /// Where the kind is set on the page; a dual dialogue moves its parts (`dialogue`).
     pub fn margin(self) -> Margin {
         let (x, width, align) = match self {
-            PageKind::Character => (CHARACTER_X, CHARACTER_WIDTH, Align::Left),
+            // `(MORE)` stands under the name.
+            PageKind::Character | PageKind::More => (CHARACTER_X, CHARACTER_WIDTH, Align::Left),
             PageKind::Parenthetical => (PAREN_X, PAREN_WIDTH, Align::Left),
             PageKind::Dialogue | PageKind::Lyrics => (DIALOGUE_X, DIALOGUE_WIDTH, Align::Left),
             PageKind::Transition => (0, TEXT_COLUMNS, Align::Right),
             PageKind::Centered => (0, TEXT_COLUMNS, Align::Center),
-            PageKind::Heading | PageKind::Action | PageKind::More => (0, TEXT_COLUMNS, Align::Left),
+            PageKind::Heading | PageKind::Action => (0, TEXT_COLUMNS, Align::Left),
         };
 
         Margin { x, width, align }

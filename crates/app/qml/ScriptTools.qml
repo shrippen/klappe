@@ -15,6 +15,11 @@ Item {
         look.apply(kinds, looks)
     }
 
+    /// How line `line` is drawn: "bold", "muted" or "".
+    function faceOf(line) {
+        return look.drawnFace(line)
+    }
+
     /// The text came from outside: nothing to take back.
     function forget() {
         history.reset()

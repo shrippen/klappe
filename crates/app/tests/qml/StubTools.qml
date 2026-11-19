@@ -16,6 +16,10 @@ Item {
         this.looks = looks
     }
 
+    function faceOf(line) {
+        return ""
+    }
+
     function forget() {
         forgets += 1
     }
