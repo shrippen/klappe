@@ -84,7 +84,10 @@ RowLayout {
 
     ColumnLayout {
         Layout.fillHeight: true
+        // Fixed: the list's rows would otherwise make the column fill and squeeze the text.
+        Layout.fillWidth: false
         Layout.preferredWidth: Kirigami.Units.gridUnit * 16
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 16
         Layout.margins: Kirigami.Units.smallSpacing
         spacing: Kirigami.Units.smallSpacing
 
