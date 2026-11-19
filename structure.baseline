@@ -4,6 +4,7 @@
 exclude	crates/app/qml/Kante/**
 exclude	crates/app/src/bridge.rs
 crates/app/src/plan/key.rs	key	ccn=19
+crates/app/src/bridge/start.rs	default	length=82
 crates/export/src/deflate.rs	block	length=86
 crates/export/src/font.rs	composite_glyph	ccn=23
 crates/export/src/inflate.rs	dynamic	ccn=21

@@ -1,6 +1,7 @@
 //! What the controller shows: the properties filled from the session after each call, and the
 //! JSON they carry.
 
+use super::drehbuch::outline_json;
 use super::layers::{fades_json, layers_json, locks_json};
 use super::qobject;
 use super::{q, ControllerRust};
@@ -143,6 +144,8 @@ impl ControllerRust {
         self.shots_json = v.shots_json;
         self.shots_shooting_json = v.shots_shooting_json;
         self.script_json = v.script_json;
+        self.script_text = v.script_text;
+        self.outline_json = v.outline_json;
         self.layers_json = v.layers_json;
         self.locks_json = v.locks_json;
         self.fades_json = v.fades_json;
@@ -189,6 +192,8 @@ impl ControllerRust {
             shots_json: q(&to_json(&s.shots())),
             shots_shooting_json: q(&to_json(&s.shots_in(ShotOrder::Shooting))),
             script_json: q(&to_json(&s.script_lines())),
+            script_text: q(s.script_text()),
+            outline_json: q(&outline_json(s.script_text())),
             layers_json: q(&layers_json(s)),
             locks_json: q(&locks_json(s)),
             fades_json: q(&fades_json(s)),
@@ -230,6 +235,8 @@ pub(super) struct Shown {
     shots_json: QString,
     shots_shooting_json: QString,
     script_json: QString,
+    script_text: QString,
+    outline_json: QString,
     layers_json: QString,
     locks_json: QString,
     fades_json: QString,
@@ -429,6 +436,8 @@ impl qobject::Controller {
         self.as_mut().set_shots_json(v.shots_json);
         self.as_mut().set_shots_shooting_json(v.shots_shooting_json);
         self.as_mut().set_script_json(v.script_json);
+        self.as_mut().set_script_text(v.script_text);
+        self.as_mut().set_outline_json(v.outline_json);
         self.as_mut().set_layers_json(v.layers_json);
         self.as_mut().set_locks_json(v.locks_json);
         self.as_mut().set_fades_json(v.fades_json);

@@ -31,6 +31,8 @@ Kirigami.ApplicationWindow {
     property bool showTimeline: true
     property bool showCameraViews: true
     property bool showShotDescription: false
+    // The screenplay view (E-09) takes the window instead of the plan workspace.
+    property bool showScreenplay: false
     // The order of the exported shot list: the film's or the shoot's (LH-72).
     readonly property var shotOrders: ["cut", "shooting"]
     property string shotOrder: "cut"
@@ -63,6 +65,7 @@ Kirigami.ApplicationWindow {
                 showScript: workspace.scriptShown
                 showShot: workspace.shotShown
                 showTimeline: root.showTimeline
+                showScreenplay: root.showScreenplay
                 showCameraViews: root.showCameraViews
                 showShotDescription: root.showShotDescription
                 shotOrder: root.shotOrder
@@ -74,11 +77,14 @@ Kirigami.ApplicationWindow {
                 onTemplateImportRequested: templateImportDialog.open()
                 onTemplateExportRequested: templateExportDialog.open()
                 onBackgroundRequested: backgroundDialog.open()
+                onScriptImportRequested: scriptImport.start()
+                onFlushRequested: screenplay.flush()
                 onViewToggled: (area, shown) => {
                     switch (area) {
                     case "script":
                     case "shot": workspace.setArea(area, shown); break
                     case "timeline": root.showTimeline = shown; break
+                    case "screenplay": root.showScreenplay = shown; break
                     case "cameraViews": root.showCameraViews = shown; break
                     case "shotDescription": root.showShotDescription = shown; break
                     }
@@ -86,8 +92,14 @@ Kirigami.ApplicationWindow {
                 onShotOrderPicked: order => root.shotOrder = order
                 onZoomRequested: how => workspace.zoomPlan(how)
                 onPlayRequested: workspace.togglePlay()
-                onScriptRequested: line => workspace.revealScript(line)
-                onPlanRequested: workspace.revealPlan()
+                onScriptRequested: line => {
+                    root.showScreenplay = false
+                    workspace.revealScript(line)
+                }
+                onPlanRequested: {
+                    root.showScreenplay = false
+                    workspace.revealPlan()
+                }
                 onHeightRequested: workspace.focusHeight()
             }
 
@@ -106,7 +118,7 @@ Kirigami.ApplicationWindow {
 
             // Tool bar: the drawing tools.
             RowLayout {
-                visible: ctl.loaded
+                visible: ctl.loaded && !root.showScreenplay
                 Layout.fillWidth: true
                 // Its overflow is for the narrow-window step (D-09); it must not widen the header.
                 Layout.minimumWidth: 0
@@ -129,7 +141,7 @@ Kirigami.ApplicationWindow {
                 }
             }
 
-            Kirigami.Separator { Layout.fillWidth: true; visible: ctl.loaded }
+            Kirigami.Separator { Layout.fillWidth: true; visible: ctl.loaded && !root.showScreenplay }
 
             AsideNotice {
                 Layout.fillWidth: true
@@ -155,7 +167,7 @@ Kirigami.ApplicationWindow {
 
             Workspace {
                 id: workspace
-                visible: ctl.loaded
+                visible: ctl.loaded && !root.showScreenplay
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 texts: texts
@@ -169,6 +181,16 @@ Kirigami.ApplicationWindow {
                 shotDescription: root.showShotDescription
                 locked: backupNotice.blocking
                 onProjectEntryRequested: (kind, id) => projectDialog.openAt(kind, id)
+            }
+
+            ScreenplayView {
+                id: screenplay
+                visible: ctl.loaded && root.showScreenplay
+                enabled: !backupNotice.blocking
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                texts: texts
+                controller: ctl
             }
         }
     }
@@ -213,6 +235,12 @@ Kirigami.ApplicationWindow {
         fileMode: FileDialog.SaveFile
         defaultSuffix: "toml"
         onAccepted: ctl.exportLibrary(selectedFile.toString(), "templates")
+    }
+
+    ScriptImport {
+        id: scriptImport
+        texts: texts
+        controller: ctl
     }
 
     ProjectGuard {

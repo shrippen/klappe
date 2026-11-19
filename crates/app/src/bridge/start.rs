@@ -67,6 +67,8 @@ impl Default for ControllerRust {
             shots_json: QString::default(),
             shots_shooting_json: QString::default(),
             script_json: QString::default(),
+            script_text: QString::default(),
+            outline_json: QString::default(),
             layers_json: QString::default(),
             locks_json: QString::default(),
             fades_json: QString::default(),

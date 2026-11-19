@@ -25,6 +25,8 @@ RowLayout {
     property bool showScript: true
     property bool showShot: true
     property bool showTimeline: true
+    /// The screenplay view instead of the plan workspace (E-09).
+    property bool showScreenplay: false
     /// Camera pictures in the plan (LH-113), long shot description in the table (LH-112).
     property bool showCameraViews: true
     property bool showShotDescription: false
@@ -38,6 +40,10 @@ RowLayout {
     /// The open questions about the book are to be answered.
     signal bookRequested()
     signal backgroundRequested()
+    /// A screenplay file is to be loaded: the window asks for it.
+    signal scriptImportRequested()
+    /// The screenplay view sends what is typed (before a save).
+    signal flushRequested()
     signal viewToggled(string area, bool shown)
     signal shotOrderPicked(string order)
     /// Zoom of the plan: "in", "out" or "fit".
@@ -56,9 +62,9 @@ RowLayout {
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
-    readonly property var entries: [actNew, actOpen, actProject, actBook, actSave, actClose, actBackground, actBackgroundRemove,
+    readonly property var entries: [actNew, actOpen, actProject, actBook, actSave, actClose, actBackground, actBackgroundRemove, actScriptImport,
                                     actFree, actWallCut, actThrough, actHeights,
-                                    actScript, actShot, actTimeline,
+                                    actScript, actShot, actTimeline, actScreenplay,
                                     actUndo, actRedo].concat(exportCommands.actions, shotViews.actions, zoom.actions,
                                     pageExports.actions, viewCommands.actions, objectCommands.actions,
                                     playCommands.actions, navCommands.actions, armCommands.actions, jumpCommands.actions)
@@ -159,6 +165,8 @@ RowLayout {
             iconRoom: true
             visible: header.controller.loaded && header.controller.hasBackground
         }
+        QQC2.MenuSeparator { visible: header.controller.loaded }
+        KanteMenuItem { objectName: "scriptImport"; action: actScriptImport; iconRoom: true; visible: header.controller.loaded }
     }
     HeaderMenu {
         objectName: "exportMenu"
@@ -213,6 +221,7 @@ RowLayout {
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
         KanteMenuItem { objectName: "timeline"; action: actTimeline }
+        KanteMenuItem { objectName: "screenplay"; action: actScreenplay }
         KanteMenuItem { objectName: "scriptShow"; action: jumpCommands.scriptAction }
         KanteMenuItem { objectName: "planShow"; action: jumpCommands.planAction }
         KanteMenuSection { text: header.texts.t("menu.viewZoom") }
@@ -296,7 +305,10 @@ RowLayout {
         shortcut: "Ctrl+S"
         keys: header.keyName("Ctrl+S")
         enabled: header.controller.loaded
-        onTriggered: header.controller.save()
+        onTriggered: {
+            header.flushRequested()
+            header.controller.save()
+        }
     }
     CommandAction {
         id: actClose
@@ -323,6 +335,15 @@ RowLayout {
         text: header.texts.t("menu.backgroundRemove")
         enabled: !header.locked && header.controller.loaded && header.controller.hasBackground
         onTriggered: header.controller.removeBackground()
+    }
+
+    CommandAction {
+        id: actScriptImport
+        cmd: "script.import"
+        group: "file"
+        text: header.texts.t("script.import")
+        enabled: header.controller.loaded && !header.locked
+        onTriggered: header.scriptImportRequested()
     }
 
     ExportDialog {
@@ -472,6 +493,20 @@ RowLayout {
         checked: header.showTimeline
         enabled: header.controller.loaded
         onToggled: header.viewToggled("timeline", checked)
+    }
+
+    // The screenplay view replaces the plan workspace (E-09); the window keeps which one shows.
+    CommandAction {
+        id: actScreenplay
+        cmd: "view.screenplay"
+        group: "view"
+        text: header.texts.t("toggle.screenplay")
+        shortcut: "Ctrl+E"
+        keys: header.keyName("Ctrl+E")
+        checkable: true
+        checked: header.showScreenplay
+        enabled: header.controller.loaded
+        onToggled: header.viewToggled("screenplay", checked)
     }
 
     ShotViewCommands {

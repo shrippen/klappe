@@ -34,6 +34,8 @@ pub struct ControllerRust {
     pub(super) shots_json: QString,
     pub(super) shots_shooting_json: QString,
     pub(super) script_json: QString,
+    pub(super) script_text: QString,
+    pub(super) outline_json: QString,
     pub(super) layers_json: QString,
     pub(super) locks_json: QString,
     pub(super) fades_json: QString,
