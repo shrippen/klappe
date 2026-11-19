@@ -1,15 +1,14 @@
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use klappe_model::Project;
 use klappe_script::Script;
 use klappe_stellprobe::{Cut, Orbit};
-use klappe_store::ImageStamp;
 
 use crate::error::{write_failed, ServiceError};
 use crate::field::Field;
 use crate::plan_edit::{Grid, Snapping};
+use plan_view::PlanView;
 use undo::Snapshot;
 
 mod book;
@@ -18,10 +17,12 @@ mod fade;
 mod file;
 mod free_view;
 mod layers;
+mod numbering;
 mod objects;
 mod pages;
 mod pick;
 mod places;
+mod plan_view;
 mod playback;
 mod retime;
 mod saved;
@@ -29,6 +30,7 @@ mod scene;
 mod script_pages;
 mod shots;
 mod sketch;
+mod speech;
 mod templates;
 mod timeline;
 mod undo;
@@ -43,6 +45,7 @@ pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
 pub use places::PlaceAnswer;
 pub use retime::{Grab, TimeSnap};
+pub use speech::{Speech, SpokenLine};
 pub use video::{frame_count as video_frame_count, VideoJob};
 
 /// Groups of the plan the timeline's layer switches show or hide.
@@ -146,9 +149,6 @@ pub enum BackupState {
     Unreadable(String),
 }
 
-/// The pixel size of an image file and the stamp it was read at.
-type StampedSize = (ImageStamp, (u32, u32));
-
 /// One open project and what the user looks at.
 #[derive(Debug)]
 pub struct Session {
@@ -160,24 +160,19 @@ pub struct Session {
     plan: usize,
     time_s: f64,
     selected_shot: Option<String>,
-    hidden_layers: HashSet<Layer>,
+    plan_view: PlanView,
     locked_layers: HashSet<Layer>,
-    faded_layers: HashMap<Layer, Fade>,
-    hidden_tracks: HashSet<String>,
     snapping: Snapping,
     grid: Grid,
     undo: Vec<Snapshot>,
     redo: Vec<Snapshot>,
     dirty: bool,
-    /// Pixel size of the image files read so far: every redraw asks, the file header is read
-    /// once. `bilder/` is the user's, so a file may change under its name: an entry counts
-    /// only while the file's stamp (length, modification time) is the one it was read at.
-    /// Unreadable files are not kept and are tried again.
-    image_px: RefCell<HashMap<String, StampedSize>>,
     /// Changed since the last save or autosave: what `autosave` writes.
     unbacked: bool,
     /// The project (not only the screenplay) changed since the last save.
     project_changed: bool,
+    /// Which state of the plan on view this is (`edits`).
+    edits: u64,
     backup: BackupState,
     /// What `open` found odd in the project (an orphan scene file …).
     load_notes: Vec<klappe_store::LoadNote>,
@@ -193,6 +188,11 @@ pub struct Session {
     pending: Vec<crate::book::PendingScene>,
     /// Locations of the headings no play location is called by (`pending_places`).
     pending_places: Vec<crate::places::PendingPlace>,
+    /// The Sperrstand of the scene numbers (DB-33) as saved last; `None` without the file.
+    /// Only a save changes it, so undo and the backup never carry it.
+    lock: Option<Vec<klappe_model::LockedNumber>>,
+    /// How many numbers two scenes carry that the Sperrstand cannot settle (`book_report`).
+    twin_numbers: usize,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends

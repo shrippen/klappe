@@ -21,10 +21,6 @@ pub(super) enum Target<'a> {
         wall: &'a mut Wall,
         index: usize,
     },
-    /// Has a place but no facing: a note.
-    Pin {
-        at: &'a mut Point,
-    },
     /// Points and a turn about the middle of its box.
     Drawing(&'a mut Drawing),
     /// A grip on an end of an opening: moving it sets that end, the other stays.
@@ -222,7 +218,10 @@ fn note_target<'a>(scope: &'a mut Scope<'_>, source: &Source) -> Result<Target<'
 
     match source {
         Source::NoteWidth(_) => Ok(Target::NoteEdge(note)),
-        _ => Ok(Target::Pin { at: &mut note.at }),
+        _ => Ok(Target::Place {
+            at: &mut note.at,
+            facing_deg: &mut note.rotation_deg,
+        }),
     }
 }
 

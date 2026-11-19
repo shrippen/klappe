@@ -361,6 +361,7 @@ fn notes_are_printed_with_their_text() {
         at: Point::new(4.0, y_m),
         text: text.into(),
         width_m: 2.4,
+        rotation_deg: 0.0,
         bound: None,
     };
     room.notes = vec![note("n1", 3.0, "Vorhang schließen"), note("n2", 8.0, long)];

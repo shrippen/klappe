@@ -1,4 +1,5 @@
-//! The register against the book: answering an open question about a scene.
+//! The register against the book: answering an open question about a scene or a play
+//! location. A place answer is no undo step: it goes to `orte.toml` and not to the project.
 
 use super::qobject;
 use core::pin::Pin;
@@ -21,6 +22,27 @@ impl qobject::Controller {
             self.say(error_text(language, &e));
             return false;
         }
+        self.as_mut().changed();
+        self.refresh();
+        true
+    }
+
+    pub(super) fn resolve_place(mut self: Pin<&mut Self>, name: &QString, index: i32) -> bool {
+        let language = self.rust().language;
+        let name = name.to_string();
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+        let Ok(at) = usize::try_from(index) else {
+            return false;
+        };
+
+        if let Err(e) = s.answer_place(&name, at) {
+            self.say(error_text(language, &e));
+            return false;
+        }
+
+        // Clears the status line's count; the answer is no project change for "unsaved".
         self.as_mut().changed();
         self.refresh();
         true

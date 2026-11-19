@@ -43,6 +43,9 @@ RowLayout {
     /// Zoom of the plan: "in", "out" or "fit".
     signal zoomRequested(string how)
     signal playRequested()
+    signal speakRequested()
+    /// The system has a speech voice.
+    property bool speechAvailable: false
     /// The script is to show line `line` (-1: the scene's head), or the plan (DB-63).
     signal scriptRequested(int line)
     signal planRequested()
@@ -285,7 +288,7 @@ RowLayout {
         cmd: "book.match"
         group: "file"
         text: header.texts.t("book.command")
-        enabled: header.controller.loaded && !header.locked && (header.project.pending || []).length > 0
+        enabled: header.controller.loaded && !header.locked && ((header.project.pending || []).length + (header.project.pendingPlaces || []).length) > 0
         onTriggered: header.bookRequested()
     }
     CommandAction {
@@ -521,7 +524,9 @@ RowLayout {
         controller: header.controller
         locked: header.locked
         keyName: header.keyName
+        speechAvailable: header.speechAvailable
         onRequested: header.playRequested()
+        onSpeakRequested: header.speakRequested()
     }
 
     ArmCommands {

@@ -12,9 +12,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── vorlagen.toml        eigene Vorlagen, je ein [[vorlage]] (optional)
 ├── drehorte/<id>.toml   ein Drehort samt Set (Wände, Objekte)
 ├── szenen.toml          Register der Drehinhalte (Szenen, Content Items), je ein [[szene]], in Projektfolge
-├── szenen/<id>.json     Stellprobe je Drehinhalt: Drehort, Floorplans (Nummer und Kopf stehen im Register)
+├── szenen/<id>.json     Stellprobe je Drehinhalt: Drehort, Zeitpunkt der Sonne, Floorplans (Nummer und Kopf stehen im Register)
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
+├── nummern.toml         Sperrstand der Szenennummern (optional, DB-33)
 └── .sicherung/          Sicherung ungespeicherter Änderungen (optional, siehe unten)
 ```
 
@@ -69,6 +70,54 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   unbekannter Wert von `language`, `words` oder `paper` gilt als Standard (wie bei `paper` im
   Plan), ein Wert, der kein Text ist, lädt nicht. Keine neue Formatversion: ältere Fassungen
   verlieren die Tabelle beim Speichern.
+  **Szenennummern (DB-33):** `scene_numbering`: `locked` oder `automatic`. Fehlt der
+  Schlüssel (Projekte aus der Zeit davor), gilt `locked` und er wird nicht geschrieben; ein
+  unbekannter Wert gilt auch als `locked`, damit Klappe nie ungefragt Nummern ändert. Neue
+  Projekte schreiben `automatic` ausdrücklich. `first_scene` (Zahl, Standard 1, dann
+  nicht geschrieben): die Nummer der ersten Szene bei `automatic`. Das Schlüsselwort ist nicht
+  `numbering` der Kopftabelle (das ist das Nummernschema der Shots, LH-76). Die Nummern selbst
+  stehen im Fountain-Text (`#12#`) und im Register (`number`); Klappe schreibt sie nur beim
+  Speichern in Klappe in den Text, nie beim Öffnen. `automatic`: Szene i hat `first_scene + i`.
+  `locked`: Klappe ändert keine Nummer, außer was der Sperrstand
+  (`nummern.toml`, unten) für zwei Fälle vorsieht. `automatic` entfernt auch die Köpfe
+  `.ENTFÄLLT` / `.OMITTED` (es nummeriert ohnehin neu). Bei `locked` bekommt eine Szene
+  ohne Nummer die ihres Vorgängers mit dem nächsten Buchstaben (12, dann 12A, 12B; nach `Z`
+  folgt `AA`; Kleinbuchstaben zählen als Großbuchstaben), vor der ersten Nummer `A` und die
+  Nummer der nächsten Szene (A1), vor einer Nummer mit Buchstaben `A0`, dann `A0A`; zwischen
+  `A1` und `B1` folgt `A1A`. Steht `12A` schon hinter der Stelle, wird es die nächste freie
+  Nummer (12B), denn dazwischen sortiert nichts. Eine neue Szene nimmt nie eine Nummer, die im
+  Buch schon steht, auch nicht hinter einer Nummer ohne Muster (`I`, `1.1`). Zeilen behalten
+  ihr `\r` (CRLF), auch die eingefügten Köpfe `.ENTFÄLLT` mit ihrer Leerzeile.
+  **Sperrstand (`nummern.toml`):** die Liste aller nummerierten Köpfe des zuletzt von Klappe
+  gespeicherten Buchs in Textfolge, je `[[nummer]]` mit `number` und `id` (die Id des
+  Registereintrags, der die Szene hielt; bei einem Kopf `.ENTFÄLLT` nicht geschrieben).
+  Nur `Session::save` und `save_script` schreiben sie, zuletzt, nach dem Abgleich des Registers,
+  auch bei `automatic`; `Session::create` legt sie leer an. Abgleich, Antworten auf Fragen,
+  Sicherung und Wiederherstellen schreiben sie nie, und sie gehört der Sitzung, nicht dem
+  Projekt: Rückgängig und die Sicherung tragen sie nicht. Fehlt die Datei, gilt „kein
+  Sperrstand“; eine kaputte Datei (Git-Konfliktmarken `<<<<<<<`, ein Wert falschen Typs wie
+  `number = 5`) lässt das Projekt nicht laden, wie bei `szenen.toml`; die Meldung nennt Pfad und
+  Zeile. Bei
+  `locked` gilt: (1) Ohne Sperrstand ändert das Speichern keine Nummer (ein Buch aus der Zeit
+  davor, Fountain aus anderen Programmen, bleibt Byte für Byte gleich) und legt nur den
+  Sperrstand an. Ebenso, wenn der Sperrstand keine Nummer enthält (ein Buch, das nie
+  nummeriert war): auch beim zweiten und jedem weiteren Speichern ändert sich nichts, und eine
+  neue Szene darin bekommt keine Nummer. Nummeriert wird ein gesperrtes Buch nur nach einem
+  Sperrstand mit Nummern. Ein Kopf `.ENTFÄLLT` / `.OMITTED` ohne Nummer bekommt nie eine. (2) Gestrichen ist eine Nummer des Sperrstands, die im Text weder an einer
+  Szene noch an einem Kopf `.ENTFÄLLT` steht: ihr Kopf `.ENTFÄLLT #12#` (`.OMITTED #12#` im
+  englischen Projekt, ohne Sprache `ENTFÄLLT`) kommt vor die nächste Nummer des Sperrstands, die
+  der Text noch hat, sonst ans Ende; er legt keinen Eintrag im Register an und kennt keinen
+  Zustand „war im Buch“, der Eintrag der Szene bleibt mit seinen Plänen „nicht im Buch“.
+  (3) Ein Kopf ohne Nummer bekommt eine A-Nummer wie oben. (4) Tragen mehrere Szenen
+  dieselbe Nummer N, behält sie die Szene, die der Abgleich dem Eintrag zuordnet, den der
+  Sperrstand für N nennt; die anderen gelten als eingefügt und bekommen eine A-Nummer. Gibt es
+  keine solche Szene, oder ist eine Szene mit N Kandidat einer offenen Frage, bleibt N überall
+  stehen und die Statuszeile meldet es. (5) Nach dem Speichern wird der Sperrstand aus Text und
+  Register neu gebildet. Folgen: Speichern ändert nichts, wenn es keinen Sperrstand gibt oder
+  der Text ihm entspricht; ein von außen eingefügtes zweites `#2#` wird `2A`, sobald die
+  Frage beantwortet ist; eine von Hand von 12 auf 13 geschriebene Nummer ergibt `.ENTFÄLLT
+  #12#`; ein von Hand gelöschter Kopf `.ENTFÄLLT` kommt beim nächsten Speichern zurück. Die Sperre je Fassung (DB-40) setzt später
+  `locked` zusammen mit den Seiten.
 - **Ids:** Drehort- und Szenen-Ids sind Dateinamen und müssen mit der `id` in der Datei
   übereinstimmen. Nicht erlaubt: leer, `/`, `\`, `..`, Beginn mit `.`, Ende auf `.` oder Leerzeichen,
   `<>:"|?*`, Steuerzeichen, Windows-Gerätenamen (`con`, `nul`, `com1` …). Ids, die sich nur
@@ -132,6 +181,20 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   und dann umbenannt; ein Absturz hinterlässt nie eine halbe Datei (LH-05). Dateien in
   `drehorte/` und `szenen/`, deren Id nicht mehr zum Projekt gehört, werden gelöscht, sonst
   nichts. Ohne Drehbuchtext bleibt eine vorhandene `drehbuch.fountain` unberührt.
+- **Sonne (LH-52):** `[site]` im Drehort (optional, nur geschrieben, wenn gesetzt): `latitude_deg`
+  (Breitengrad, Nord positiv, −90 bis 90), `longitude_deg` (Längengrad, Ost positiv, −180 bis
+  180) und `north_deg` (wie weit Norden im Plan im Uhrzeigersinn von oben liegt: 0 Norden oben,
+  90 Norden rechts; Standard 0, beim Bearbeiten auf 0 bis unter 360 gebracht). `sun` in
+  `szenen/<id>.json` (optional, nur geschrieben, wenn gesetzt): `year`, `month`, `day`, `hour`,
+  `minute` als Uhrzeit auf der Uhr der Crew (Jahr 1900 bis 2100) und `utc_offset_min`
+  (Minuten, die die Uhr UTC voraus ist, `120` für MESZ; −840 bis 840; fehlt er, gilt
+  Mitteleuropäische Zeit mit EU-Sommerzeit: +01:00, und +02:00 vom letzten Sonntag im März
+  01:00 UTC bis zum letzten Sonntag im Oktober 01:00 UTC; als feste Regel ohne Zonendatenbank,
+  außerhalb Europas wird der Versatz eingetragen). Der Versatz steht in der Datei, weil
+  Zonengrenzen offline keine Regel haben und ein Drehplan die Uhrzeit nennt.
+  Die Sonne steht im Plan nur, wenn der Drehort `[site]` und die Szene `sun` hat. Ein Ort
+  außerhalb der Erdkugel oder ein Datum, das es nicht gibt, lädt nicht (Meldung mit Id). Keine
+  neue Formatversion: beides ist optional, ältere Fassungen verlieren es beim Speichern.
 - **Hintergrund:** `[set.background]` im Drehort (Datei relativ zum Projektordner, linke obere
   Ecke `at`, `width_m`, `rotation_deg` im Uhrzeigersinn um `at`, `opacity`). Die Höhe folgt aus
   dem Seitenverhältnis des Bildes. Fehlt der Abschnitt, gibt es keinen Hintergrund.
@@ -230,7 +293,9 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   einem solchen Mark lädt, der Ort gilt. Keine neue Formatversion, wie bei den Notizen.
 - **Notizen (LH-16):** `[[set.notes]]` im Drehort: `id` (`n1`, `n2` …, innerhalb des Drehorts),
   Ort `at` in Metern, `text` und die Breite `width_m` des Kärtchens in Metern (mindestens 0,6,
-  schmaler lädt nicht; fehlt sie, gilt 2,4). Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
+  schmaler lädt nicht; fehlt sie, gilt 2,4) und optional `rotation_deg` (Grad im Uhrzeigersinn um
+  die obere linke Ecke `at`, Standard 0, bei 0 nicht geschrieben): Karte und Text drehen sich
+  zusammen, im Plan und in den Ausgaben. Beschriftungen (`labels`) haben es ebenso. Fehlt der Abschnitt, gibt es keine Notizen; ohne Notizen wird
   er nicht geschrieben, ältere Projekte laden und speichern unverändert. Keine neue
   Formatversion: ein Feld mehr, das ältere Fassungen nicht kennen und beim Speichern verlieren.
 - **Beschriftung an ein Element gebunden (LH-118):** eine Notiz mit `bound`, dem Schlüssel

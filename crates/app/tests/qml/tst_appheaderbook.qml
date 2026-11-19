@@ -56,4 +56,15 @@ TestCase {
 
         compare(bookSpy.count, 1)
     }
+
+    function test_open_places_alone_enable_the_command() {
+        const header = createTemporaryObject(headerComponent, tc)
+        verify(header)
+        const before = fake.projectJson
+        fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats,
+                                            pending: [], pendingPlaces: [{ name: "HOF", headings: 1, answers: [] }] })
+
+        verify(header.commandPalette.commands.find(c => c.text === "Szenen mit dem Buch abgleichen …").enabled)
+        fake.projectJson = before
+    }
 }

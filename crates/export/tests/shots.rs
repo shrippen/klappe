@@ -526,9 +526,8 @@ fn camera_eye(shot: &Shot) -> Eye {
 fn shot_views(plan: &FloorPlan) -> Vec<ShotView> {
     plan.shots
         .iter()
-        .map(|shot| ShotView {
-            shot: shot.id.clone(),
-            view: vector_view(
+        .map(|shot| {
+            let view = vector_view(
                 &Project::new("Test"),
                 &SetPlan {
                     width_m: 20.0,
@@ -539,7 +538,14 @@ fn shot_views(plan: &FloorPlan) -> Vec<ShotView> {
                 &Forms::default(),
                 &camera_eye(shot),
             )
-            .unwrap(),
+            .unwrap();
+            let strength = view.faces.iter().map(|f| f.opacity).collect();
+
+            ShotView {
+                shot: shot.id.clone(),
+                view,
+                strength,
+            }
         })
         .collect()
 }
@@ -690,8 +696,8 @@ fn a_shot_assigned_by_hand_is_listed_in_its_setup() {
 fn pdf_with_face_opacity(opacity: f64) -> String {
     let plan = plan(1);
     let mut views = shot_views(&plan);
-    for face in views.iter_mut().flat_map(|v| &mut v.view.faces) {
-        face.opacity = opacity;
+    for view in &mut views {
+        view.strength = vec![opacity; view.view.faces.len()];
     }
     let bytes = pdf_with_views(
         &list(&plan),

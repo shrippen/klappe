@@ -247,6 +247,7 @@ fn notes_come_last_with_their_text() {
         at: Point::new(3.0, 4.0),
         text: "Vorhang schließen".into(),
         width_m: 2.4,
+        rotation_deg: 0.0,
         bound: None,
     }];
 
@@ -268,6 +269,32 @@ fn notes_come_last_with_their_text() {
     };
     assert_eq!(corners[0], Point::new(3.0, 4.0));
     assert!(corners[2].x_m > 3.0 && corners[2].y_m > 4.0);
+}
+
+/// A turned note's card turns about its top left corner, clockwise on screen.
+#[test]
+fn a_turned_note_turns_its_card_about_its_corner() {
+    let mut room = set();
+    room.notes = vec![Note {
+        id: "n1".into(),
+        at: Point::new(3.0, 4.0),
+        text: "Vorhang schließen".into(),
+        width_m: 2.4,
+        rotation_deg: 90.0,
+        bound: None,
+    }];
+
+    let list = render(&project(), &room, &plan(), 0.0, &|_| None);
+    let corners = match list.items.last().map(|i| i.shape.clone()) {
+        Some(Shape::Polygon { points }) => points,
+        other => panic!("not a card: {other:?}"),
+    };
+
+    assert_eq!(corners[0], Point::new(3.0, 4.0));
+    assert!(
+        corners[1].distance_m(Point::new(3.0, 6.4)) < 1e-9,
+        "{corners:?}"
+    );
 }
 
 #[test]

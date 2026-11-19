@@ -48,6 +48,9 @@ fn coloured_class(role: Role) -> Option<(&'static str, FigureColor)> {
         | Role::CameraPath { .. }
         | Role::Light
         | Role::LightBeam
+        | Role::SunPatch
+        | Role::SunRay
+        | Role::North
         | Role::Note
         | Role::Axis
         | Role::Sketch
@@ -75,6 +78,9 @@ fn plain_class(role: Role) -> Option<&'static str> {
         Role::GroupDot => Some("group-dot"),
         Role::Picture
         | Role::Sketch
+        | Role::SunPatch
+        | Role::SunRay
+        | Role::North
         | Role::Height { .. }
         | Role::Drawing { .. }
         | Role::ArrowHead(_)
@@ -94,8 +100,21 @@ fn class_of(role: Role) -> String {
     if role == Role::Sketch {
         return "sketch".into();
     }
+    if let Some(name) = daylight_class(role) {
+        return name.into();
+    }
 
     plain_class(role).unwrap_or_default().into()
+}
+
+/// The class of what the sun and the compass draw (LH-52).
+fn daylight_class(role: Role) -> Option<&'static str> {
+    match role {
+        Role::SunPatch => Some("sun-patch"),
+        Role::SunRay => Some("sun-ray"),
+        Role::North => Some("north"),
+        _ => None,
+    }
 }
 
 /// `None` for what the export does not stroke.
@@ -116,6 +135,9 @@ fn width_pt(role: Role) -> Option<f64> {
         | Role::Object
         | Role::LightBeam
         | Role::Light
+        | Role::SunPatch
+        | Role::SunRay
+        | Role::North
         | Role::Note
         | Role::Picture
         | Role::Frustum
@@ -127,7 +149,7 @@ fn width_pt(role: Role) -> Option<f64> {
 
 fn tint_opacity(role: Role) -> f64 {
     match role {
-        Role::Mark(_) => MARK_OPACITY,
+        Role::Mark(_) | Role::SunPatch => MARK_OPACITY,
         Role::Drawing { .. } => DRAWING_OPACITY,
         Role::Background
         | Role::Picture
@@ -137,6 +159,8 @@ fn tint_opacity(role: Role) -> f64 {
         | Role::Object
         | Role::LightBeam
         | Role::Light
+        | Role::SunRay
+        | Role::North
         | Role::Note
         | Role::Axis
         | Role::Sketch
@@ -364,6 +388,17 @@ mod tests {
         Ok(vec![
             (Role::Camera, "camera".into(), (fill(yellow, 1.0), outline)),
             (Role::Light, "light".into(), (fill(orange, 1.0), outline)),
+            (
+                Role::North,
+                "north".into(),
+                (None, line(fg, 0.75, Dash::Solid)),
+            ),
+            (Role::SunRay, "sun-ray".into(), (fill(orange, 1.0), outline)),
+            (
+                Role::SunPatch,
+                "sun-patch".into(),
+                (fill(orange, 0.3), line(orange, 0.75, Dash::Solid)),
+            ),
             (
                 Role::GroupDot,
                 "group-dot".into(),

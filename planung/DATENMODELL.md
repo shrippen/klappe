@@ -44,7 +44,9 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 4. **Abgeleitetes wird nicht gespeichert**: Achtel, Seiten, Figuren einer Szene aus dem Buch,
    Drehtage eines Elements, erster Drehtag, Day out of Days. Ausnahme: Das Register merkt sich
    Nummer, Kopf und Fingerabdrücke aus dem Buch beim Speichern, weil der Abgleich nach einer
-   fremden Änderung (DB-65) den alten Stand braucht.
+   fremden Änderung (DB-65) den alten Stand braucht; ebenso der Sperrstand der Szenennummern
+   (`nummern.toml`, DB-33), den nur das Speichern schreibt und der der Sitzung gehört, nicht
+   dem Projekt.
 5. **Verwaistes lädt und wird gemeldet**, nie still entfernt oder umgebogen (DB-64). `store`
    lehnt Unlesbares und unzulässige Werte ab (wie heute), prüft aber keine Verweise zwischen
    Dateien; diese Prüfung läuft in `services/` (oder als reine
@@ -154,8 +156,12 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
   - „Neue Szene“ in Stellprobe schreibt einen Szenenkopf ins Buch (am Ende oder hinter der
     gewählten Szene); es gibt keinen Szeneneintrag ohne Gegenstück im Buch.
   - Wird eine Szene im Buch gestrichen, bleibt ihr Eintrag mit Floorplans im Zustand „nicht im
-    Buch“ und wird gemeldet (Grundsatz 5; DB-33 „ENTFÄLLT“), bis der Nutzer ihn zuordnet oder
-    löscht.
+    Buch“ und wird gemeldet (Grundsatz 5), bis der Nutzer ihn zuordnet oder löscht. In einem
+    gesperrten Buch (DB-33) bleibt ihre Nummer als Kopf `.ENTFÄLLT` im Text: nicht der Eintrag
+    merkt sich das, sondern der Sperrstand (`nummern.toml`, FORMAT.md): was dort steht und im
+    Text fehlt, gilt als gestrichen, gleich auf welchem Weg das Register es erfuhr. Ebenso
+    behält bei doppelter Nummer die Szene sie, die der Abgleich dem Eintrag des Sperrstands
+    zuordnet.
   - Bekommt ein Projekt ohne Buch später eines, ordnet Klappe einmal nach Nummer und Kopf zu und
     legt den Rest vor.
 - **Konfliktmarken:** Enthält `drehbuch.fountain` oder `szenen.toml` Git-Konfliktmarken
@@ -203,6 +209,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ├── drehorte/<id>.toml        Drehort: Set
 ├── szenen.toml               Register der Drehinhalte: Szenen, Content Items (neu)
 ├── drehbuch.fountain         Buchtext (optional, F-07)
+├── nummern.toml              Sperrstand der Szenennummern (DB-33)
 ├── drehbuch/fassungen/       gesperrte Fassungen (DB-40, F-02 im Lastenheft Drehbuch)
 ├── szenen/<id>.json          Stellprobe: Floorplans, Shots je Drehinhalt
 ├── breakdown/elemente.toml   Elemente                                       (neu)

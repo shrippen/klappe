@@ -1,10 +1,11 @@
 //! Plain data for the surfaces: what a row, a track or a script line shows.
 
 use klappe_model::{
-    Dash, DoorSide, FigureColor, Fill, Hinge, LibraryItem, ObjectShape, OpeningKind, Template,
+    Dash, DoorSide, FigureColor, Fill, Hinge, LibraryItem, ObjectShape, OpeningKind, SunTime,
+    Template,
 };
 use klappe_stellprobe::SetupChoice;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// The frame a shot shows when its camera is gone (16:9).
 pub const FALLBACK_ASPECT: f64 = 16.0 / 9.0;
@@ -135,11 +136,19 @@ pub struct Marker {
     pub text: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum LinkKind {
     Mark,
     Shot,
+}
+
+impl LinkKind {
+    /// The kind a surface names by the word its chip carried (`mark`, `shot`); the same serde
+    /// name both ways, so a new kind needs no second list.
+    pub fn parse(word: &str) -> Option<LinkKind> {
+        serde_json::from_value(serde_json::Value::String(word.to_owned())).ok()
+    }
 }
 
 /// A link of a script line, shown as a chip beside it ("E · M2", "12.3").
@@ -277,6 +286,33 @@ pub struct SceneRow {
     pub in_book: bool,
     pub location: String,
     pub location_name: String,
+    /// When it is shot (LH-52); `sunDate`, `sunTime` and `sunOffset` in the JSON.
+    #[serde(flatten)]
+    pub sun: SunTexts,
+}
+
+/// When a scene is shot, as its form shows it: `2026-06-21`, `14:30`, `+02:00`; empty strings
+/// without a date, and an empty offset is Central European Time with EU summer time (LH-52).
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SunTexts {
+    pub sun_date: String,
+    pub sun_time: String,
+    pub sun_offset: String,
+}
+
+impl SunTexts {
+    pub(crate) fn of(sun: Option<SunTime>) -> Self {
+        let Some(time) = sun else {
+            return Self::default();
+        };
+
+        Self {
+            sun_date: time.date_text(),
+            sun_time: time.time_text(),
+            sun_offset: time.offset_text(),
+        }
+    }
 }
 
 /// One location in the project lists.
@@ -291,6 +327,10 @@ pub struct LocationRow {
     /// The set's room height (LH-90).
     #[serde(rename = "height")]
     pub wall_height_m: f64,
+    /// The place and the turn of the plan to north (LH-52); `None` without a place.
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub north: f64,
     /// How many scenes play here.
     pub scenes: usize,
 }

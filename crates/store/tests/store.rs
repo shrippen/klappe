@@ -296,10 +296,12 @@ fn example() -> Project {
                 at: Point::new(3.0, 11.5),
                 text: "Vorhang schließen".into(),
                 width_m: 2.4,
+                rotation_deg: 0.0,
                 bound: None,
             }],
             ..Default::default()
         },
+        site: None,
     }];
 
     project.scenes = vec![Scene {

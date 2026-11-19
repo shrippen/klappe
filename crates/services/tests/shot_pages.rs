@@ -3,7 +3,10 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{ExportFormat, ExportOptions, Language, Pages, PaperSetup, Session};
+use klappe_services::{
+    Arrival, ExportFormat, ExportOptions, Grab, Language, Pages, PaperSetup, PlanEdit, Session,
+    ShotOrder, Source, TimeSnap,
+};
 
 fn example() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe")
@@ -147,4 +150,43 @@ fn the_formats_go_through_export() {
 
     assert!(dir.join("a.pdf").exists());
     assert_eq!(std::fs::read_dir(dir.join("files")).unwrap().count(), 2);
+}
+
+/// A figure fading in at a shot's start is drawn translucent in the shot's camera view on the
+/// PDF's shot pages (LH-26): the plan itself, at 0 s, has no translucent figure.
+#[test]
+fn a_fading_figure_is_translucent_in_a_shot_view() {
+    let (mut s, dir) = open("pages-view-fade");
+    let out = dir.join("views.pdf");
+    let plain = dir.join("plain.pdf");
+    let ca = |pdf: &Path| {
+        String::from_utf8_lossy(&std::fs::read(pdf).unwrap())
+            .matches("/ca 0.5 ")
+            .count()
+    };
+    s.export_pdf(&plain, PaperSetup::default(), texts(), ShotOrder::Cut)
+        .unwrap();
+    s.edit_plan(PlanEdit::SetArrival {
+        source: Source::Mark {
+            character: "elisabeth".into(),
+            index: 1,
+        },
+        arrival: Arrival::Appear,
+    })
+    .unwrap();
+    s.drop_time(
+        &Grab::FigureMark {
+            character: "elisabeth".into(),
+            index: 1,
+        },
+        5.75,
+        TimeSnap::Free,
+    )
+    .unwrap();
+
+    s.export_pdf(&out, PaperSetup::default(), texts(), ShotOrder::Cut)
+        .unwrap();
+
+    assert_eq!(ca(&plain), 0);
+    assert!(ca(&out) > 0, "no half-faded face on the shot pages");
 }

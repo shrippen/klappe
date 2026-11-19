@@ -54,7 +54,7 @@ pub(super) fn shift(
 
 /// Turns the group about the middle of its bounding box: every element swings to where the
 /// turn puts it and turns by the same angle itself (what `spin` leaves unturned stays so: a
-/// note, a grip only swing).
+/// grip only swings).
 pub(super) fn spin(
     scope: &mut Scope<'_>,
     sources: &[Source],

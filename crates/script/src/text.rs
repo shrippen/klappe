@@ -1,5 +1,8 @@
 //! Text normalisation shared by the comparison code.
 
+/// `ß` has no common capital, so a word written with it still counts as capitals.
+pub(crate) const SHARP_S: char = 'ß';
+
 const DASHES: [char; 4] = ['–', '—', '‑', '−'];
 const FNV_OFFSET: u32 = 0x811c_9dc5;
 const FNV_PRIME: u32 = 0x0100_0193;
@@ -21,6 +24,11 @@ pub fn normal(text: &str) -> String {
         .map(str::to_lowercase)
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Whether a text has no lowercase letter; `ß` is not one.
+pub(crate) fn in_capitals(text: &str) -> bool {
+    !text.chars().any(|c| c.is_lowercase() && c != SHARP_S)
 }
 
 /// FNV-1a over a kind tag and the normalised text; the same on every machine and

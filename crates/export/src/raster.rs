@@ -121,6 +121,7 @@ impl Painter {
                 self.shape(geom, fill.map(|f| (f.rgb, f.opacity)), *stroke);
             }
             Prim::Text {
+                rotation_deg,
                 at,
                 anchor,
                 size_pt,
@@ -128,7 +129,7 @@ impl Painter {
                 rgb,
                 text,
                 ..
-            } => self.text(*at, *anchor, *size_pt, *weight, *rgb, text),
+            } => self.text((*at, *rotation_deg), *anchor, *size_pt, *weight, *rgb, text),
             Prim::Image {
                 at,
                 width_pt,
@@ -194,15 +195,28 @@ impl Painter {
         self.fill(&polys, line.rgb, 1.0);
     }
 
-    fn text(&mut self, at: Pt, anchor: Anchor, size_pt: f64, weight: Weight, rgb: Rgb, text: &str) {
+    fn text(
+        &mut self,
+        (at, rotation_deg): (Pt, f64),
+        anchor: Anchor,
+        size_pt: f64,
+        weight: Weight,
+        rgb: Rgb,
+        text: &str,
+    ) {
         let x = match anchor {
             Anchor::Start => at.0,
             Anchor::Middle => at.0 - font::text_width_pt(text, weight, size_pt) / 2.0,
         };
 
+        // Turned clockwise on screen about the baseline's start, as the image is.
+        let (sin, cos) = rotation_deg.to_radians().sin_cos();
         let contours: Vec<Vec<Pt>> = font::text_outline(text, weight, size_pt)
             .iter()
-            .map(|c| c.iter().map(|p| self.px((p.0 + x, p.1 + at.1))).collect())
+            .map(|c| {
+                let at_px = |p: &Pt| (x + p.0 * cos - p.1 * sin, at.1 + p.0 * sin + p.1 * cos);
+                c.iter().map(|p| self.px(at_px(p))).collect()
+            })
             .collect();
         self.fill(&contours, rgb, 1.0);
     }
@@ -583,6 +597,38 @@ mod tests {
         assert_eq!(at(&s, 30, 31), [250, 250, 245]);
         assert_eq!(at(&s, 10, 70), [250, 250, 245]);
         assert_eq!(at(&s, 10, 15), [250, 250, 245]);
+    }
+
+    fn text(rotation_deg: f64) -> Prim {
+        Prim::Text {
+            class: "t".into(),
+            rotation_deg,
+            at: (10.0, 10.0),
+            anchor: Anchor::Start,
+            size_pt: 10.0,
+            weight: Weight::Bold,
+            rgb: INK,
+            text: "HHHHH".into(),
+        }
+    }
+
+    /// Whether any pixel of the box (page points) is not paper.
+    fn inked(s: &Surface, (x0, y0, x1, y1): (f64, f64, f64, f64)) -> bool {
+        let px = RESOLUTION_DPI / PT_PER_INCH;
+        let range = |a: f64, b: f64| (a * px) as u32..(b * px) as u32;
+
+        range(y0, y1).any(|y| range(x0, x1).any(|x| at(s, x, y) != [250, 250, 245]))
+    }
+
+    /// Clockwise a quarter: the line runs down from its start and its tops point right.
+    #[test]
+    fn a_turned_text_runs_down_the_page() {
+        let turned = render(&doc(vec![text(90.0)])).unwrap();
+        let flat = render(&doc(vec![text(0.0)])).unwrap();
+        let below = (11.0, 25.0, 15.0, 35.0);
+        let right = (30.0, 4.0, 40.0, 9.0);
+        assert!(inked(&turned, below) && !inked(&turned, right));
+        assert!(!inked(&flat, below) && inked(&flat, right));
     }
 
     #[test]

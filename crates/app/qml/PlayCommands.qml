@@ -1,19 +1,23 @@
 import QtQuick
 
-// Play or pause and the jumps between marks, as commands: menu, palette and keys. The window
-// does the playing (`requested`).
+// Play or pause, the jumps between marks and reading the dialogue aloud (LH-64), as commands:
+// menu, palette and keys. The window does the playing (`requested`) and keeps the choice to
+// read (`speakRequested`).
 Item {
     id: playing
 
     required property var texts
     required property var controller
     property bool locked: false
+    /// The system has a speech voice.
+    property bool speechAvailable: false
     property var keyName: sequence => sequence
 
     signal requested()
+    signal speakRequested()
 
     /// In the order of the palette.
-    readonly property var actions: [actPlay, actMarkPrev, actMarkNext]
+    readonly property var actions: [actPlay, actMarkPrev, actMarkNext, actSpeak]
 
     visible: false
     width: 0
@@ -60,5 +64,17 @@ Item {
         keys: "."
         enabled: playing.controller.loaded && !playing.locked
         onTriggered: playing.controller.stepMark(1)
+    }
+
+    // Dialogue aloud on or off. Shift+V: V is the select tool.
+    CommandAction {
+        id: actSpeak
+        cmd: "playback.speak"
+        group: "playback"
+        text: playing.texts.t("menu.speak")
+        shortcut: "Shift+V"
+        keys: playing.keyName("Shift+V")
+        enabled: playing.controller.loaded && !playing.locked && playing.speechAvailable
+        onTriggered: playing.speakRequested()
     }
 }

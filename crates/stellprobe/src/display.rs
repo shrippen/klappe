@@ -92,6 +92,12 @@ pub enum Role {
     Object,
     LightBeam,
     Light,
+    /// Sunlight through a window on the floor (LH-52): a patch under the set's walls.
+    SunPatch,
+    /// The arrow of the sun's direction of travel (LH-52), its azimuth and elevation as label.
+    SunRay,
+    /// The arrow of north (LH-52).
+    North,
     Axis,
     /// One run of a camera's way, in the line its rig has (LH-33).
     CameraPath {
@@ -485,7 +491,7 @@ fn ellipse_corners(a: Point, b: Point) -> Vec<Point> {
 /// and marks (LH-118) are drawn as notes are.
 fn note_items(set: &SetPlan, plan: &FloorPlan, items: &mut Vec<Item>) {
     for note in set.notes.iter().chain(&plan.labels) {
-        let (points, wrapped) = note_card(note.at, note.width_m, &note.text);
+        let (points, wrapped) = note_card(note.at, note.width_m, note.rotation_deg, &note.text);
         items.push(Item {
             role: Role::Note,
             shape: Shape::Polygon { points },
