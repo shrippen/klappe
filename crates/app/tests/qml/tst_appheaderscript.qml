@@ -3,7 +3,7 @@ import QtTest
 import "../../qml"
 
 // AppHeader and the screenplay (E-09): "Load screenplay …" in the File menu and the palette,
-// the screenplay view in the View menu with Ctrl+E, Save sends what was typed first.
+// Save sends what was typed first (the modules: tst_modulebar.qml).
 TestCase {
     id: tc
     name: "AppHeaderScript"
@@ -85,31 +85,6 @@ TestCase {
         header.locked = true
 
         verify(!entry(header, "fileMenu", "scriptImport").enabled)
-    }
-
-    function test_the_view_menu_toggles_the_screenplay_view() {
-        const header = make()
-        verify(!entry(header, "viewMenu", "screenplay").checked)
-
-        pick(header, "viewMenu", "screenplay")
-
-        compare(viewSpy.count, 1)
-        compare(Array.from(viewSpy.signalArguments[0]), ["screenplay", true])
-    }
-
-    function test_the_view_menu_ticks_the_screenplay_view_when_shown() {
-        const header = make()
-        header.showScreenplay = true
-
-        verify(entry(header, "viewMenu", "screenplay").checked)
-    }
-
-    function test_ctrl_e_is_the_key_of_the_screenplay_view() {
-        const header = make()
-        const found = header.commands.find(c => c.id === "view.screenplay")
-
-        verify(found)
-        compare(found.keys, "Strg+E")
     }
 
     function test_save_sends_the_typing_first() {

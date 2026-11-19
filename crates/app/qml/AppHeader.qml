@@ -25,8 +25,9 @@ RowLayout {
     property bool showScript: true
     property bool showShot: true
     property bool showTimeline: true
-    /// The screenplay view instead of the plan workspace (E-09).
-    property bool showScreenplay: false
+    /// The modules of the bar (`{ id, name, icon }`) and the id of the open one (D-11).
+    property var modules: []
+    property string module: "stellprobe"
     /// Camera pictures in the plan (LH-113), long shot description in the table (LH-112).
     property bool showCameraViews: true
     property bool showShotDescription: false
@@ -45,6 +46,8 @@ RowLayout {
     /// The screenplay view sends what is typed (before a save).
     signal flushRequested()
     signal viewToggled(string area, bool shown)
+    /// A module is asked for: its button, key or palette command (D-11, D-12).
+    signal moduleRequested(string id)
     signal shotOrderPicked(string order)
     /// Zoom of the plan: "in", "out" or "fit".
     signal zoomRequested(string how)
@@ -67,8 +70,8 @@ RowLayout {
     /// The actions of the menus and buttons, in the order of the palette.
     readonly property var entries: [actNew, actOpen, actProject, actBook, actSave, actClose, actBackground, actBackgroundRemove, actScriptImport,
                                     actFree, actWallCut, actThrough, actHeights,
-                                    actScript, actShot, actTimeline, actScreenplay,
-                                    actUndo, actRedo].concat(exportCommands.actions, shotViews.actions, zoom.actions,
+                                    actScript, actShot, actTimeline,
+                                    actUndo, actRedo].concat(moduleCommands.actions, exportCommands.actions, shotViews.actions, zoom.actions,
                                     pageExports.actions, viewCommands.actions, objectCommands.actions,
                                     playCommands.actions, navCommands.actions, armCommands.actions, jumpCommands.actions)
 
@@ -113,7 +116,7 @@ RowLayout {
         objectName: "planMenu"
         Layout.minimumWidth: Kirigami.Units.gridUnit * 5
         Layout.maximumWidth: Kirigami.Units.gridUnit * 14
-        visible: header.controller.loaded
+        visible: header.controller.loaded && header.module === "stellprobe"
         enabled: !header.locked && plans.length > 0
         texts: header.texts
         controller: header.controller
@@ -224,7 +227,6 @@ RowLayout {
         KanteMenuItem { objectName: "script"; action: actScript }
         KanteMenuItem { objectName: "shot"; action: actShot }
         KanteMenuItem { objectName: "timeline"; action: actTimeline }
-        KanteMenuItem { objectName: "screenplay"; action: actScreenplay }
         KanteMenuItem { objectName: "scriptShow"; action: jumpCommands.scriptAction }
         KanteMenuItem { objectName: "planShow"; action: jumpCommands.planAction }
         KanteMenuSection { text: header.texts.t("menu.viewZoom") }
@@ -498,18 +500,15 @@ RowLayout {
         onToggled: header.viewToggled("timeline", checked)
     }
 
-    // The screenplay view replaces the plan workspace (E-09); the window keeps which one shows.
-    CommandAction {
-        id: actScreenplay
-        cmd: "view.screenplay"
-        group: "view"
-        text: header.texts.t("toggle.screenplay")
-        shortcut: "Ctrl+E"
-        keys: header.keyName("Ctrl+E")
-        checkable: true
-        checked: header.showScreenplay
-        enabled: header.controller.loaded
-        onToggled: header.viewToggled("screenplay", checked)
+    // D-12: Ctrl+1 to Ctrl+N and "Go to" in the palette; the window switches the module.
+    ModuleCommands {
+        id: moduleCommands
+        texts: header.texts
+        controller: header.controller
+        modules: header.modules
+        locked: header.locked
+        keyName: header.keyName
+        onRequested: id => header.moduleRequested(id)
     }
 
     ShotViewCommands {
@@ -608,7 +607,9 @@ RowLayout {
     function pathText() {
         const scene = header.scene
         const sceneText = scene ? header.texts.t("app.scene", { number: scene.number }) + " · " + scene.heading : ""
-        return [header.controller.title, sceneText].filter(t => t !== "").join(" › ") + " ›"
+        const path = [header.controller.title, sceneText].filter(t => t !== "").join(" › ")
+        // Stellprobe goes on with the plan's menu.
+        return header.module === "stellprobe" ? path + " ›" : path
     }
 
     // What the palette lists: the modes, the tools, the actions, the scenes, the plans. Each is

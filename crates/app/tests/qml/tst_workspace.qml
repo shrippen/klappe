@@ -102,13 +102,16 @@ TestCase {
         ColumnLayout {
             property alias bar: bar
             property alias workspace: work
+            // What stands left of the work area, as the module bar does (D-11).
+            property real lead: 0
             spacing: 0
 
             PlanTools {
                 id: bar
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                compact: work.tier !== Workspace.Tier.Wide
+                Layout.leftMargin: lead
+                compact: work.tier !== Workspace.Tier.Wide || work.width < work.wideMin
                 texts: de
                 controller: fake
             }
@@ -116,6 +119,8 @@ TestCase {
                 id: work
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.leftMargin: lead
+                tierWidth: width + lead
                 texts: de
                 controller: fake
                 shot: tc.shotRow
@@ -206,6 +211,28 @@ TestCase {
                        [999, Workspace.Tier.Narrow], [700, Workspace.Tier.Narrow]]
         for (const [w, tier] of steps) {
             compare(make(w).tier, tier, "width " + w)
+        }
+    }
+
+    // D-09 and D-11: the module bar takes width, the steps stay those of the window, and at
+    // exactly 1400 and 1000 nothing is cut.
+    function test_the_steps_are_the_windows_with_a_module_bar() {
+        for (const [w, tier] of [[1440, Workspace.Tier.Wide], [1400, Workspace.Tier.Wide], [1399, Workspace.Tier.Medium],
+                                 [1000, Workspace.Tier.Medium], [999, Workspace.Tier.Narrow]]) {
+            win = createTemporaryObject(windowComponent, tc, { width: w, height: 800, lead: 48 })
+            const work = win.workspace
+            work.scriptFolded = false
+            work.shotFolded = false
+            waitForRendering(work)
+            compare(work.tier, tier, "window " + w)
+            if (tier === Workspace.Tier.Wide) {
+                compare(whole(work, ["plan", "scriptSlot", "shotSlot"]).length, 3, "parts at " + w)
+            }
+            win.bar.mode = "draw"
+            win.bar.tool = "rect"
+            waitForRendering(win)
+            wait(50)
+            barFits("window " + w)
         }
     }
 

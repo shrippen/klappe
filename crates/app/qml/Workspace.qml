@@ -68,8 +68,11 @@ Item {
 
     readonly property int wideMin: 1400
     readonly property int mediumMin: 1000
-    readonly property int tier: width >= wideMin ? Workspace.Tier.Wide
-                              : width >= mediumMin ? Workspace.Tier.Medium : Workspace.Tier.Narrow
+    /// The width the step is judged by: the window's (D-09), which is more than this item's
+    /// when a module bar stands beside it.
+    property real tierWidth: width
+    readonly property int tier: tierWidth >= wideMin ? Workspace.Tier.Wide
+                              : tierWidth >= mediumMin ? Workspace.Tier.Medium : Workspace.Tier.Narrow
     readonly property real paneMin: Kirigami.Units.gridUnit * 12
     readonly property real paneMax: Kirigami.Units.gridUnit * 40
     readonly property real paneDefault: Kirigami.Units.gridUnit * 20

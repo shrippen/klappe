@@ -31,8 +31,21 @@ Kirigami.ApplicationWindow {
     property bool showTimeline: true
     property bool showCameraViews: true
     property bool showShotDescription: false
-    // The screenplay view (E-09) takes the window instead of the plan workspace.
-    property bool showScreenplay: false
+    // D-11: the modules of the bar, in its order (D-12: Ctrl+1 first). A new module is one entry
+    // here, its view below with `visible: root.module === <id>`, and its texts `module.<id>`.
+    readonly property var modules: [
+        { id: "screenplay", name: "module.screenplay", icon: "document-edit" },
+        { id: "stellprobe", name: "module.stellprobe", icon: "view-split-left-right" }
+    ]
+    // The open module; the settings keep it over a restart (an unknown stored id gives Stellprobe).
+    readonly property string module: modules.some(m => m.id === windowStore.module) ? windowStore.module : "stellprobe"
+    readonly property bool inStellprobe: module === "stellprobe"
+
+    // Typing in the screenplay goes to the session at once, then the module changes.
+    function openModule(id) {
+        screenplay.flush()
+        windowStore.module = id
+    }
     // The order of the exported shot list: the film's or the shoot's (LH-72).
     readonly property var shotOrders: ["cut", "shooting"]
     property string shotOrder: "cut"
@@ -46,6 +59,12 @@ Kirigami.ApplicationWindow {
         property bool speak: false
     }
     Texts { id: texts; source: ctl.texts }
+    // The window's state that stays over a restart, like the layout of the workspace.
+    Settings {
+        id: windowStore
+        category: "window"
+        property string module: "stellprobe"
+    }
 
     Binding { target: KanteStyle; property: "kind"; value: KanteStyle.Kind.Kante }
     KanteScope { target: root.contentItem }
@@ -63,6 +82,7 @@ Kirigami.ApplicationWindow {
             spacing: 0
 
             AppHeader {
+                objectName: "header"
                 Layout.fillWidth: true
                 Layout.margins: Kirigami.Units.smallSpacing
                 texts: texts
@@ -72,7 +92,8 @@ Kirigami.ApplicationWindow {
                 showScript: workspace.scriptShown
                 showShot: workspace.shotShown
                 showTimeline: root.showTimeline
-                showScreenplay: root.showScreenplay
+                modules: root.modules
+                module: root.module
                 showCameraViews: root.showCameraViews
                 showShotDescription: root.showShotDescription
                 shotOrder: root.shotOrder
@@ -91,7 +112,6 @@ Kirigami.ApplicationWindow {
                     case "script":
                     case "shot": workspace.setArea(area, shown); break
                     case "timeline": root.showTimeline = shown; break
-                    case "screenplay": root.showScreenplay = shown; break
                     case "cameraViews": root.showCameraViews = shown; break
                     case "shotDescription": root.showShotDescription = shown; break
                     }
@@ -101,12 +121,13 @@ Kirigami.ApplicationWindow {
                 onPlayRequested: workspace.togglePlay()
                 speechAvailable: speechVoice.available
                 onSpeakRequested: playback.speak = !playback.speak
+                onModuleRequested: id => root.openModule(id)
                 onScriptRequested: line => {
-                    root.showScreenplay = false
+                    root.openModule("stellprobe")
                     workspace.revealScript(line)
                 }
                 onPlanRequested: {
-                    root.showScreenplay = false
+                    root.openModule("stellprobe")
                     workspace.revealPlan()
                 }
                 onHeightRequested: workspace.focusHeight()
@@ -126,87 +147,115 @@ Kirigami.ApplicationWindow {
                 onForgetRequested: path => ctl.forgetRecent(path)
             }
 
-            // Tool bar: the drawing tools.
+            // D-11: the module bar at the left edge, the module's own area beside it.
             RowLayout {
-                visible: ctl.loaded && !root.showScreenplay
+                visible: ctl.loaded
                 Layout.fillWidth: true
-                // Its overflow is for the narrow-window step (D-09); it must not widen the header.
-                Layout.minimumWidth: 0
-                Layout.leftMargin: Kirigami.Units.smallSpacing
-                Layout.rightMargin: Kirigami.Units.smallSpacing
-                spacing: Kirigami.Units.smallSpacing
+                Layout.fillHeight: true
+                spacing: 0
 
-                // Locked while the backup question is open (its buttons dim themselves); the
-                // view toggles stay usable.
-                PlanTools {
-                    id: planTools
+                ModuleBar {
+                    Layout.fillHeight: true
+                    // Like the keys: no switch while the backup question waits.
                     enabled: !backupNotice.blocking
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    compact: workspace.tier !== Workspace.Tier.Wide
                     texts: texts
-                    controller: ctl
-                    onImportRequested: libraryImportDialog.open()
-                    onExportRequested: libraryExportDialog.open()
+                    modules: root.modules
+                    module: root.module
+                    keyName: sequence => sequence.replace("Ctrl", texts.t("key.ctrl"))
+                    onPicked: id => root.openModule(id)
                 }
-            }
 
-            Kirigami.Separator { Layout.fillWidth: true; visible: ctl.loaded && !root.showScreenplay }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: 0
 
-            AsideNotice {
-                Layout.fillWidth: true
-                Layout.margins: Kirigami.Units.smallSpacing
-                controller: ctl
-            }
+                    // Tool bar: the drawing tools.
+                    RowLayout {
+                        visible: ctl.loaded && root.inStellprobe
+                        Layout.fillWidth: true
+                        // Its overflow is for the narrow-window step (D-09); it must not widen the header.
+                        Layout.minimumWidth: 0
+                        Layout.leftMargin: Kirigami.Units.smallSpacing
+                        Layout.rightMargin: Kirigami.Units.smallSpacing
+                        spacing: Kirigami.Units.smallSpacing
 
-            BookNotice {
-                Layout.fillWidth: true
-                Layout.margins: Kirigami.Units.smallSpacing
-                texts: texts
-                controller: ctl
-                onMatchRequested: bookDialog.open()
-            }
+                        // Locked while the backup question is open (its buttons dim themselves); the
+                        // view toggles stay usable.
+                        PlanTools {
+                            id: planTools
+                            enabled: !backupNotice.blocking
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            // The options need the full 1400 px of D-09; a module bar beside the work area takes some.
+                            compact: workspace.width < workspace.wideMin
+                            texts: texts
+                            controller: ctl
+                            onImportRequested: libraryImportDialog.open()
+                            onExportRequested: libraryExportDialog.open()
+                        }
+                    }
 
-            BackupNotice {
-                id: backupNotice
-                Layout.fillWidth: true
-                Layout.margins: Kirigami.Units.smallSpacing
-                texts: texts
-                controller: ctl
-            }
+                    Kirigami.Separator { Layout.fillWidth: true; visible: ctl.loaded && root.inStellprobe }
 
-            Workspace {
-                id: workspace
-                visible: ctl.loaded && !root.showScreenplay
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                texts: texts
-                controller: ctl
-                tool: planTools.tool
-                toolHint: planTools.hint
-                onSelectToolRequested: planTools.tool = "select"
-                shot: root.selected
-                showTimeline: root.showTimeline
-                cameraViews: root.showCameraViews
-                shotDescription: root.showShotDescription
-                locked: backupNotice.blocking
-                voice: speechVoice
-                speak: playback.speak
-                onSpeakToggled: on => playback.speak = on
-                onProjectEntryRequested: (kind, id) => projectDialog.openAt(kind, id)
-                onScriptImportRequested: scriptImport.start()
-                onScreenplayRequested: root.showScreenplay = true
-            }
+                    AsideNotice {
+                        Layout.fillWidth: true
+                        Layout.margins: Kirigami.Units.smallSpacing
+                        controller: ctl
+                    }
 
-            ScreenplayView {
-                id: screenplay
-                visible: ctl.loaded && root.showScreenplay
-                enabled: !backupNotice.blocking
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                texts: texts
-                controller: ctl
-                onImportRequested: scriptImport.start()
+                    BookNotice {
+                        Layout.fillWidth: true
+                        Layout.margins: Kirigami.Units.smallSpacing
+                        texts: texts
+                        controller: ctl
+                        onMatchRequested: bookDialog.open()
+                    }
+
+                    BackupNotice {
+                        id: backupNotice
+                        Layout.fillWidth: true
+                        Layout.margins: Kirigami.Units.smallSpacing
+                        texts: texts
+                        controller: ctl
+                    }
+
+                    Workspace {
+                        id: workspace
+                        objectName: "workspace"
+                        tierWidth: root.width
+                        visible: ctl.loaded && root.inStellprobe
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        texts: texts
+                        controller: ctl
+                        tool: planTools.tool
+                        toolHint: planTools.hint
+                        onSelectToolRequested: planTools.tool = "select"
+                        shot: root.selected
+                        showTimeline: root.showTimeline
+                        cameraViews: root.showCameraViews
+                        shotDescription: root.showShotDescription
+                        locked: backupNotice.blocking
+                        voice: speechVoice
+                        speak: playback.speak
+                        onSpeakToggled: on => playback.speak = on
+                        onProjectEntryRequested: (kind, id) => projectDialog.openAt(kind, id)
+                        onScriptImportRequested: scriptImport.start()
+                        onScreenplayRequested: root.openModule("screenplay")
+                    }
+
+                    ScreenplayView {
+                        id: screenplay
+                        visible: ctl.loaded && root.module === "screenplay"
+                        enabled: !backupNotice.blocking
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        texts: texts
+                        controller: ctl
+                        onImportRequested: scriptImport.start()
+                    }
+                }
             }
         }
     }

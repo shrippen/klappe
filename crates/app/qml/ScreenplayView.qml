@@ -5,7 +5,7 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // E-09, rough first version: the screenplay as one text. The window's second working view
-// beside the plan (View menu, Ctrl+E). The project's scenes (SceneList) on the left, the Fountain text
+// beside the plan (the module bar, Ctrl+1). The project's scenes (SceneList) on the left, the Fountain text
 // in a page-wide column in the middle. What is typed goes to the session after a short pause
 // (`editScript`), so the scene list and the script panel follow; nothing is saved by it.
 //
