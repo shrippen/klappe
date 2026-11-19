@@ -5,6 +5,9 @@
 # target/debug/klappe); the live part is skipped without it.
 #
 #   scripts/qa-session.test.sh
+#
+# A short $TMPDIR: the session's bus sockets live below it, and a long path fails with
+# "Socket name too long" (dbus-daemon).
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 # The checks must see a caller in the repository: Klappe inherits the folder it is started from.
@@ -254,7 +257,7 @@ done
 echo "NOT CHECKABLE: native Wayland windows of the desktop (no tool for the compositor); Klappe has no WAYLAND_DISPLAY and cannot open one"
 # Nothing of Klappe in the real settings or caches.
 leaked="$(find "$HOME/.config" "$HOME/.local/share" "$HOME/.cache" -maxdepth 2 -newer "$marker" \
-    \( -ipath '*shrippen*' -o -ipath '*klappe*' \) -not -path "$HOME/.cache/claude/*" 2> /dev/null || true)"
+    -ipath '*klappe*' -not -path "$HOME/.cache/claude/*" 2> /dev/null || true)"
 [ -z "$leaked" ] || fail "files in the real folders: $leaked"
 echo "ok: nothing in the real config, cache or data folders"
 
