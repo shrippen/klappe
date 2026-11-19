@@ -148,6 +148,7 @@ impl Session {
         if self.script.scenes().is_empty() {
             self.pending.clear();
             self.twin_numbers = 0;
+            self.refresh_scene_map(None);
             return false;
         }
 
@@ -156,9 +157,12 @@ impl Session {
         self.pending = plan.pending(&self.project);
         self.count_twin_numbers(&plan);
         if !plan.apply(&mut self.project) {
+            self.refresh_scene_map(Some(&plan));
             return false;
         }
 
+        // The entries moved: the plan's positions are the old ones.
+        self.refresh_scene_map(None);
         self.follow_scene(scene, shown);
 
         true
@@ -171,12 +175,14 @@ impl Session {
         if self.script.scenes().is_empty() {
             self.pending = Vec::new();
             self.twin_numbers = 0;
+            self.refresh_scene_map(None);
             return;
         }
 
         let plan = book::plan(&self.project, &self.script);
         self.pending = plan.pending(&self.project);
         self.count_twin_numbers(&plan);
+        self.refresh_scene_map(Some(&plan));
     }
 
     /// The scene and plan on view, to find them again after the entries moved.

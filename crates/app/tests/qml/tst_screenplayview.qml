@@ -2,8 +2,8 @@ import QtQuick
 import QtTest
 import "../../qml"
 
-// ScreenplayView (E-09, rough): the scene list shows the outline, a click moves the cursor to
-// the heading, typing reaches the controller after the pause, and a change from outside (an
+// ScreenplayView (E-09, rough): the scene list shows the project's scenes (D-13), a click shows
+// the scene and moves the cursor to its heading when the text holds it, typing reaches the controller after the pause, and a change from outside (an
 // import) shows in the text.
 TestCase {
     id: tc
@@ -14,17 +14,26 @@ TestCase {
     visible: true
 
     readonly property string book: "# Akt I\n\nINT. SAAL - TAG\n\nSie kommt an.\n\nEXT. HOF - NACHT\n\nEs regnet.\n"
-    readonly property var outline: [
-        { kind: "section", depth: 0, line: 0, number: "", text: "Akt I" },
-        { kind: "scene", depth: 1, line: 2, number: "1", text: "INT. SAAL - TAG" },
-        { kind: "scene", depth: 1, line: 6, number: "2", text: "EXT. HOF - NACHT" }
+
+    // The project's scenes: two are in the text (`line` is their heading's), one is not.
+    readonly property var scenes: [
+        { id: "s1", number: "1", heading: "INT. SAAL - TAG", inBook: true, plans: 1, shots: 3, line: 2 },
+        { id: "s2", number: "2", heading: "EXT. HOF - NACHT", inBook: true, plans: 0, shots: 0, line: 6 },
+        { id: "s3", number: "3", heading: "INT. KELLER", inBook: false, plans: 0, shots: 0, line: null }
     ]
 
     QtObject {
         id: fake
         property string scriptText: tc.book
-        property string outlineJson: JSON.stringify(tc.outline)
+        property string sceneId: ""
+        property string projectJson: JSON.stringify({ scenes: tc.scenes })
+        property var selected: []
         property var edits: []
+        function selectScene(id) {
+            selected.push(id)
+            sceneId = id
+            return true
+        }
         function editScript(text) {
             edits.push(text)
             scriptText = text
@@ -46,7 +55,9 @@ TestCase {
 
     function init() {
         fake.scriptText = book
-        fake.outlineJson = JSON.stringify(outline)
+        fake.projectJson = JSON.stringify({ scenes: scenes })
+        fake.sceneId = ""
+        fake.selected = []
         fake.edits = []
     }
 
@@ -62,29 +73,59 @@ TestCase {
         compare(view.area.text, book)
     }
 
-    function test_the_list_shows_sections_and_scenes() {
+    function test_the_list_shows_the_projects_scenes() {
         const view = make()
-        const list = findChild(view, "sceneList")
+        const list = findChild(view, "sceneRows")
 
         compare(list.count, 3)
-        tryVerify(() => list.itemAtIndex(1) !== null)
-        const second = list.itemAtIndex(1)
-        compare(second.objectName, "scene.2")
-        compare(second.leadingText, "1")
-        compare(second.text, "INT. SAAL - TAG")
-        compare(list.itemAtIndex(0).leadingText, "#")
+        tryVerify(() => findChild(list, "scene.s1") !== null)
+        const first = findChild(list, "scene.s1")
+        compare(first.leadingText, "1")
+        compare(first.text, "INT. SAAL - TAG")
+        // A scene that is not in the text is listed too.
+        tryVerify(() => findChild(list, "scene.s3") !== null)
+        compare(findChild(list, "scene.s3").subtitle, "nicht im Buch")
     }
 
-    function test_a_click_moves_the_cursor_to_the_heading() {
+    function test_a_click_shows_the_scene_and_moves_the_cursor_to_the_heading() {
         const view = make()
-        const list = findChild(view, "sceneList")
-        tryVerify(() => list.itemAtIndex(2) !== null)
-        const row = list.itemAtIndex(2)
+        const list = findChild(view, "sceneRows")
+        tryVerify(() => findChild(list, "scene.s2") !== null)
 
-        row.clicked()
+        findChild(list, "scene.s2").clicked()
 
+        compare(fake.selected, ["s2"])
         compare(view.area.cursorPosition, book.indexOf("EXT. HOF"))
         verify(view.area.activeFocus)
+    }
+
+    function test_a_scene_not_in_the_text_is_only_shown() {
+        const view = make()
+        const list = findChild(view, "sceneRows")
+        view.area.cursorPosition = 3
+        tryVerify(() => findChild(list, "scene.s3") !== null)
+
+        findChild(list, "scene.s3").clicked()
+
+        compare(fake.selected, ["s3"])
+        compare(view.area.cursorPosition, 3)
+    }
+
+    // An imported book has no numbers: every scene is "", and each still goes to its own heading.
+    function test_unnumbered_scenes_go_to_their_own_heading() {
+        const rows = [
+            { id: "s1", number: "", heading: "INT. SAAL - TAG", inBook: true, plans: 0, shots: 0, line: 2 },
+            { id: "s2", number: "", heading: "EXT. HOF - NACHT", inBook: true, plans: 0, shots: 0, line: 6 }
+        ]
+        fake.projectJson = JSON.stringify({ scenes: rows })
+        const view = make()
+        const list = findChild(view, "sceneRows")
+        tryVerify(() => findChild(list, "scene.s2") !== null)
+
+        findChild(list, "scene.s2").clicked()
+
+        compare(fake.selected, ["s2"])
+        compare(view.area.cursorPosition, book.indexOf("EXT. HOF"))
     }
 
     function test_the_editor_is_monospace_and_wraps() {
@@ -141,12 +182,11 @@ TestCase {
     }
 
     function test_without_scenes_the_list_says_so() {
-        fake.outlineJson = "[]"
+        fake.projectJson = JSON.stringify({ scenes: [] })
         fake.scriptText = ""
         const view = make()
 
-        compare(findChild(view, "sceneList").count, 0)
-        compare(view.entries.length, 0)
+        compare(findChild(view, "sceneRows").count, 0)
     }
 
     // The text area gives back other text than it got (CRLF becomes LF, a no-break space a

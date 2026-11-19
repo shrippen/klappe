@@ -5,14 +5,14 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // E-09, rough first version: the screenplay as one text. The window's second working view
-// beside the plan (View menu, Ctrl+E). The scenes and sections on the left, the Fountain text
+// beside the plan (View menu, Ctrl+E). The project's scenes (SceneList) on the left, the Fountain text
 // in a page-wide column in the middle. What is typed goes to the session after a short pause
 // (`editScript`), so the scene list and the script panel follow; nothing is saved by it.
 //
 //  ┌ Szenen ──────────┬──────────────────────────────┐
-//  │ # Akt I          │      INT. SAAL - TAG         │
-//  │ 1 INT. SAAL      │                              │
-//  │ 2 EXT. HOF       │      Sie kommt an.           │
+//  │ 1 INT. SAAL  T   │      INT. SAAL - TAG         │
+//  │ 2 EXT. HOF   T   │                              │
+//  │ 3 INT. KELLER    │      Sie kommt an.           │
 //  └──────────────────┴──────────────────────────────┘
 RowLayout {
     id: view
@@ -25,7 +25,6 @@ RowLayout {
     readonly property int columns: 60
     /// The width of the scene list beside the text.
     readonly property real listWidth: Kirigami.Units.gridUnit * 16
-    readonly property var entries: controller.outlineJson ? JSON.parse(controller.outlineJson) : []
     readonly property alias area: area
     /// The empty view's button: ask for a screenplay file.
     signal importRequested()
@@ -54,6 +53,14 @@ RowLayout {
         const flick = scroll.contentItem
         const top = area.positionToRectangle(at).y
         flick.contentY = Math.max(0, Math.min(top, flick.contentHeight - flick.height))
+    }
+
+    /// The cursor at the heading of `scene`, a row of the scene list: its `line` is the heading's
+    /// text line, null when the book does not hold the scene, which leaves the cursor where it is.
+    function goToScene(scene) {
+        if (typeof scene.line === "number") {
+            goToLine(scene.line)
+        }
     }
 
     function send() {
@@ -97,32 +104,13 @@ RowLayout {
 
         KanteSectionLabel { text: view.texts.t("screenplay.scenes") }
 
-        QQC2.Label {
-            visible: view.entries.length === 0
-            Layout.fillWidth: true
-            wrapMode: Text.Wrap
-            color: KanteStyle.mutedTextColor
-            text: view.texts.t("screenplay.noScenes")
-        }
-
-        ListView {
-            id: list
+        SceneList {
             objectName: "sceneList"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
-            model: view.entries
-            QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
-            delegate: KanteListRow {
-                required property var modelData
-                objectName: "scene." + modelData.line
-                width: ListView.view.width
-                density: KanteListRow.Density.Compact
-                leadingText: modelData.kind === "section" ? "#".repeat(modelData.depth + 1) : modelData.number
-                leadingWidth: Kirigami.Units.gridUnit * 2
-                text: modelData.text
-                onClicked: view.goToLine(modelData.line)
-            }
+            texts: view.texts
+            controller: view.controller
+            onPicked: scene => view.goToScene(scene)
         }
     }
 

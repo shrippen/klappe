@@ -571,6 +571,88 @@ TestCase {
         compare(fake.calls, [["link", "shot", "s12-1", 0]])
     }
 
+    // D-14: the left column has the tabs "Szenen" and "Text"; "Text" is the default.
+    function test_the_left_column_opens_on_the_text() {
+        const work = make(1600)
+
+        compare(work.leftTab, "text")
+        compare(findChild(work, "leftTabs").currentIndex, 1)
+        verify(part(work, "lineList") !== null)
+        verify(!findChild(work, "sceneRows").visible)
+    }
+
+    function test_the_tabs_switch_between_the_scenes_and_the_text() {
+        fake.projectJson = JSON.stringify({ scenes: [{ id: "s15", number: "15", heading: "INT. HOF - TAG",
+                                                       inBook: true, plans: 1, shots: 0 }] })
+        const work = make(1600)
+        const tabs = findChild(work, "leftTabs")
+
+        tabs.activated(0)
+
+        compare(work.leftTab, "scenes")
+        verify(findChild(work, "sceneRows").visible)
+        compare(findChild(work, "sceneRows").count, 1)
+        verify(!part(work, "lineList").visible)
+
+        tabs.activated(1)
+
+        compare(work.leftTab, "text")
+        verify(part(work, "lineList").visible)
+        verify(!findChild(work, "sceneRows").visible)
+        fake.projectJson = ""
+    }
+
+    function test_the_scene_list_is_in_every_step() {
+        for (const width of [1600, 1200, 800]) {
+            const work = make(width)
+            work.leftTab = "scenes"
+            work.setArea("script", true)
+
+            tryVerify(() => findChild(work, "sceneRows") !== null && findChild(work, "sceneRows").visible,
+                      5000, "scene list at " + width)
+        }
+    }
+
+    function test_the_tab_stays_for_the_next_window() {
+        const work = make(1600)
+        work.leftTab = "scenes"
+        wait(50)
+        win.destroy()
+        wait(50)
+
+        const next = createTemporaryObject(windowComponent, tc, { width: 1600, height: 800 }).workspace
+
+        compare(next.leftTab, "scenes")
+        next.leftTab = "text"
+    }
+
+    // A jump to a script line shows the text, whichever tab was open.
+    function test_a_jump_to_the_script_opens_the_text_tab() {
+        const work = make(1600)
+        work.leftTab = "scenes"
+
+        work.revealScript(1)
+
+        compare(work.leftTab, "text")
+        tryVerify(() => part(work, "lineList").activeFocus)
+    }
+
+    // The drawer button and the narrow tab name what the left column shows now.
+    function test_the_left_button_and_tab_follow_the_column_tab() {
+        for (const width of [1200, 800]) {
+            const work = make(width)
+            const names = () => width === 1200 ? [part(work, "scriptButton").text]
+                                               : [findChild(work, "tabs").model[1]]
+
+            work.leftTab = "text"
+            compare(names()[0], "Drehbuch")
+
+            work.leftTab = "scenes"
+            compare(names()[0], "Szenen")
+            work.leftTab = "text"
+        }
+    }
+
     function test_the_script_is_shown_in_every_step() {
         for (const width of [1600, 1200, 800]) {
             const work = make(width)
