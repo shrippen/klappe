@@ -26,6 +26,23 @@ Item {
     signal planRequested()
     // The card's button: change the scene or character in the project dialog.
     signal editRequested(string kind, string id)
+    // The empty column's buttons: load a screenplay, or open the screenplay view.
+    signal importRequested()
+    signal screenplayRequested()
+
+    // Why the column is empty (D-17): "book" no screenplay at all, "number" none of its scenes
+    // carries this scene's number, "" otherwise (the scene is there, without text).
+    readonly property string emptyCause: {
+        if (lines.length > 0 || scene === null) {
+            return ""
+        }
+        if ((controller.scriptText || "").trim() === "") {
+            return "book"
+        }
+        const outline = controller.outlineJson ? JSON.parse(controller.outlineJson) : []
+        const found = outline.some(e => e.kind === "scene" && e.number === scene.number)
+        return scene.number !== "" && !found ? "number" : ""
+    }
 
     // The line `index` in view, the arrow keys' current line, with the focus on the list.
     function showLine(index) {
@@ -103,11 +120,26 @@ Item {
         }
 
         QQC2.Label {
+            objectName: "emptyReason"
             Layout.fillWidth: true
             visible: panel.lines.length === 0
             wrapMode: Text.Wrap
             color: KanteStyle.mutedTextColor
-            text: panel.texts.t("script.empty")
+            text: panel.emptyCause === "book" ? panel.texts.t("script.noBook")
+                : panel.emptyCause === "number" ? panel.texts.t("script.noNumber", { number: panel.scene.number })
+                : panel.texts.t("script.empty")
+        }
+        KanteButton {
+            objectName: "loadScreenplay"
+            visible: panel.emptyCause === "book"
+            text: panel.texts.t("script.import")
+            onClicked: panel.importRequested()
+        }
+        KanteButton {
+            objectName: "openScreenplay"
+            visible: panel.emptyCause === "number"
+            text: panel.texts.t("script.open")
+            onClicked: panel.screenplayRequested()
         }
 
         ListView {
