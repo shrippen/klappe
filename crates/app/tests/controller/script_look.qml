@@ -118,7 +118,6 @@ Item {
             if (view.tools.faceOf(2) !== "bold") {
                 return root.fail("a heading is bold: " + view.tools.faceOf(2))
             }
-            area.remove(5, 5)
             area.insert(5, "y\nz\nw")
             if (ctl.scriptKinds(area.text)[4] !== "a" || view.tools.faceOf(4) !== "") {
                 return root.fail("the old heading in line 4 is " + ctl.scriptKinds(area.text)[4]
