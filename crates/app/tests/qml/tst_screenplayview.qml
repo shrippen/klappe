@@ -148,4 +148,28 @@ TestCase {
         compare(findChild(view, "sceneList").count, 0)
         compare(view.entries.length, 0)
     }
+
+    // The text area gives back other text than it got (CRLF becomes LF, a no-break space a
+    // space): that is no typing, and must not make the project unsaved.
+    function test_loading_never_sends() {
+        fake.scriptText = "INT. HALLE - TAG\r\n\r\nSie\u00a0kommt an.\r\n"
+        const view = make()
+
+        wait(200)
+        compare(fake.edits.length, 0)
+
+        fake.scriptText = "EXT. HOF\r\n\u00a0\r\n"
+        wait(200)
+        compare(fake.edits.length, 0)
+    }
+
+    function test_typing_after_a_load_is_sent() {
+        fake.scriptText = "INT. HALLE - TAG\r\n"
+        const view = make()
+        wait(100)
+
+        view.area.insert(0, "x")
+
+        tryCompare(fake.edits, "length", 1)
+    }
 }

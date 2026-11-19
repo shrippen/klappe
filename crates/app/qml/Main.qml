@@ -247,6 +247,7 @@ Kirigami.ApplicationWindow {
         id: guard
         texts: texts
         controller: ctl
+        flush: () => screenplay.flush()
     }
 
     function switchProject(action) {
@@ -296,7 +297,10 @@ Kirigami.ApplicationWindow {
     Component.onCompleted: ctl.loadRecent(recent.projects)
 
     // Closing keeps the last seconds too: they go to the backup, offered at the next open.
-    onClosing: ctl.autosave()
+    onClosing: {
+        screenplay.flush()
+        ctl.autosave()
+    }
 
     // Backs up unsaved changes while a project is open; errors reach the status line.
     Timer {

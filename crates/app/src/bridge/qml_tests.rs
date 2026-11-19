@@ -9,6 +9,10 @@ use std::path::{Path, PathBuf};
 const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
 /// The copy of the example `image_pick.qml` opens, inside the scenarios' folder.
 const IMAGE_PROJECT: &str = "bild-projekt";
+/// The project `script_untouched.qml` opens: its screenplay has CRLF line ends and a no-break
+/// space, which the editor's text area does not give back as it got them.
+const CRLF_PROJECT: &str = "crlf-projekt";
+const CRLF_SCRIPT: &str = "INT. HALLE - TAG\r\n\r\nSie\u{a0}kommt an.\r\n";
 /// Where the width sits in a PNG file; the height follows.
 const PNG_WIDTH_AT: usize = 16;
 
@@ -43,6 +47,15 @@ fn copy_example(base: &Path) {
     let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
 
     copy_dir(&example, &base.join(IMAGE_PROJECT));
+}
+
+/// An empty project with the screenplay of `CRLF_SCRIPT`, for `script_untouched.qml`.
+fn write_crlf_project(base: &Path) {
+    let dir = base.join(CRLF_PROJECT);
+    let session = klappe_services::Session::create(&dir, "CRLF", klappe_services::Language::German);
+
+    assert!(session.is_ok());
+    std::fs::write(dir.join("drehbuch.fountain"), CRLF_SCRIPT).unwrap();
 }
 
 /// What `image_pick.qml` picked lies in the copy's `bilder/`, byte for byte, both files.
@@ -116,6 +129,7 @@ fn controller_scenarios_hold() {
     let base = std::env::temp_dir().join("klappe-export-test");
     let _ = std::fs::remove_dir_all(&base);
     copy_example(&base);
+    write_crlf_project(&base);
 
     // `main_creates.qml` makes the whole window: its recent list, previews and settings go to the
     // test folder, never to the user's.

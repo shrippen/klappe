@@ -53,3 +53,17 @@ fn a_missing_file_is_an_error() {
 
     assert!(s.import_script(&base.join("fehlt.fountain")).is_err());
 }
+
+#[test]
+fn line_ends_become_newlines() {
+    let (mut s, base) = session("script-import-crlf");
+    let file = base.join("windows.fountain");
+    fs::write(&file, "INT. HALLE - TAG\r\n\r\nSie kommt an.\rEnde.\r\n").unwrap();
+
+    s.import_script(&file).unwrap();
+
+    assert_eq!(
+        s.script_text(),
+        "INT. HALLE - TAG\n\nSie kommt an.\nEnde.\n"
+    );
+}

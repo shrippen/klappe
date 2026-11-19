@@ -14,10 +14,16 @@ Item {
     readonly property bool asking: dialog.opened || dialog.visible
 
     property var pending: null
+    /// Called first by `run`: sends typing the controller has not seen yet, so a pause in the
+    /// screenplay view does not hide unsaved work (null for none).
+    property var flush: null
 
     /// Runs `action` at once if nothing is unsaved, else after the user saved; `saveKey` is the
     /// key of the button that saves and goes on.
     function run(action, saveKey) {
+        if (flush) {
+            flush()
+        }
         if (!controller.loaded || !controller.dirty) {
             action()
             return

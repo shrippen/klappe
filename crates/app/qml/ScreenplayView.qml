@@ -59,10 +59,16 @@ RowLayout {
     }
 
     // Import, a restored backup or another project change the text outside the editor.
+    // The text area gives back other text than it got (CRLF, no-break spaces), so what load sets
+    // is no typing: it must never be sent.
+    property bool _loading: false
     function load() {
-        if (area.text !== controller.scriptText) {
-            area.text = controller.scriptText
+        if (area.text === controller.scriptText) {
+            return
         }
+        _loading = true
+        area.text = controller.scriptText
+        _loading = false
     }
 
     Component.onCompleted: load()
@@ -141,9 +147,17 @@ RowLayout {
                 persistentSelection: true
                 Accessible.name: view.texts.t("screenplay.editor")
                 background: null
-                onTextChanged: push.restart()
+                onTextChanged: {
+                    if (!view._loading) {
+                        push.restart()
+                    }
+                }
                 // A leaving focus is a good moment to send: a menu or dialog may save next.
-                onActiveFocusChanged: if (!activeFocus) view.flush()
+                onActiveFocusChanged: {
+                    if (!activeFocus) {
+                        view.flush()
+                    }
+                }
             }
         }
     }
