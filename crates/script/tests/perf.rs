@@ -5,12 +5,14 @@
 use std::fmt::Write;
 use std::time::{Duration, Instant};
 
-use klappe_script::{paginate, parse, PageOptions, PageSize, Words};
+use klappe_script::{paginate, parse, text_kinds, PageOptions, PageSize, Words};
 
 const PAGES: usize = 120;
 /// The target of DN-02.
 const BUDGET: Duration = Duration::from_secs(1);
 const RUNS: usize = 5;
+/// The window's editor reads the kind of every line at each keystroke (D-15): one frame.
+const KEYSTROKE_BUDGET: Duration = Duration::from_millis(16);
 
 /// Scenes of action and dialogue, until the layout reaches `PAGES` pages.
 fn screenplay() -> String {
@@ -55,4 +57,24 @@ fn a_script_of_120_pages_is_paged_in_a_second() {
     println!("{pages} pages, slowest of {RUNS} runs: {slowest:?} (budget {BUDGET:?})");
     assert!(pages >= PAGES);
     assert!(slowest <= BUDGET, "{slowest:?} is over {BUDGET:?}");
+}
+
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn the_kinds_of_120_pages_take_a_frame() {
+    let text = screenplay();
+    let mut slowest = Duration::ZERO;
+    let mut lines = 0;
+
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        lines = text_kinds(&text).len();
+        slowest = slowest.max(start.elapsed());
+    }
+
+    println!("{lines} lines, slowest of {RUNS} runs: {slowest:?} (budget {KEYSTROKE_BUDGET:?})");
+    assert!(
+        slowest <= KEYSTROKE_BUDGET,
+        "{slowest:?} is over {KEYSTROKE_BUDGET:?}"
+    );
 }

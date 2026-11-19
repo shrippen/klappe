@@ -4,16 +4,18 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// E-09, rough first version: the screenplay as one text. The window's second working view
-// beside the plan (the module bar, Ctrl+1). The project's scenes (SceneList) on the left, the Fountain text
-// in a page-wide column in the middle. What is typed goes to the session after a short pause
-// (`editScript`), so the scene list and the script panel follow; nothing is saved by it.
+// E-09, D-15: the screenplay as flowing text. The window's second working view beside the plan
+// (the module bar, Ctrl+1). The project's scenes (SceneList) on the left, the Fountain text in
+// the middle, its elements set in the columns of the page, scaled to the width of the text
+// (ScriptLook; the text itself stays plain Fountain). What is typed goes to the session after a
+// short pause (`editScript`), so the scene list and the script panel follow; nothing is saved by it.
 //
-//  ┌ Szenen ──────────┬──────────────────────────────┐
-//  │ 1 INT. SAAL  T   │      INT. SAAL - TAG         │
-//  │ 2 EXT. HOF   T   │                              │
-//  │ 3 INT. KELLER    │      Sie kommt an.           │
-//  └──────────────────┴──────────────────────────────┘
+//  ┌ Szenen ──────────┬──────────────────────────────────────┐
+//  │ 1 INT. SAAL  T   │ INT. SAAL - TAG                      │
+//  │ 2 EXT. HOF   T   │ Sie kommt an.                        │
+//  │ 3 INT. KELLER    │               ANNA                   │
+//  │                  │         Ihr kommt spät.              │
+//  └──────────────────┴──────────────────────────────────────┘
 RowLayout {
     id: view
 
@@ -21,11 +23,20 @@ RowLayout {
     required property var controller
     /// How long typing rests before the text goes to the session.
     property int debounceMs: 500
-    /// The width of the text column, in characters of the monospace font.
-    readonly property int columns: 60
+    /// The width of the text column at most, in characters of the monospace font: nearly the
+    /// whole view (D-15), yet lines a reader can follow. The page's columns are scaled to it once,
+    /// not to the view, so a resize never touches the text's undo history.
+    readonly property int columns: 100
+    /// The kinds of `scriptKinds` and the columns the page sets them in.
+    readonly property var pageLooks: JSON.parse(controller.scriptLooks())
+    /// The same in pixels, with the faces: what ScriptLook gets.
+    readonly property var lineLooks: pixelLooks(metrics.averageCharacterWidth)
     /// The width of the scene list beside the text.
     readonly property real listWidth: Kirigami.Units.gridUnit * 16
     readonly property alias area: area
+    /// What sets the lines as their kind and keeps the undo history; the tests give a stand-in.
+    property url toolsSource: Qt.resolvedUrl("ScriptTools.qml")
+    readonly property alias tools: tools.item
     /// The empty view's button: ask for a screenplay file.
     signal importRequested()
 
@@ -63,6 +74,51 @@ RowLayout {
         }
     }
 
+    /// Margins in pixels of the page's columns, scaled to `columns`; headings bold, what the page
+    /// does not print (sections, synopses, notes) muted.
+    function pixelLooks(charWidth) {
+        const unit = charWidth * columns / pageLooks.columns
+        const out = {}
+        for (const letter in pageLooks.looks) {
+            const look = pageLooks.looks[letter]
+            const printed = look.x !== undefined
+            out[letter] = {
+                left: printed ? look.x * unit : 0,
+                right: printed ? (pageLooks.columns - look.x - look.width) * unit : 0,
+                align: printed ? look.align : "left",
+                bold: look.kind === "heading",
+                muted: look.kind === "section" || look.kind === "synopsis" || look.kind === "note"
+            }
+        }
+        return out
+    }
+
+    /// Sets each line as its kind; `_styled` is the text it was done for.
+    property string _styled: ""
+    function restyle() {
+        if (!tools.item) {
+            return
+        }
+        _styled = area.text
+        tools.item.setLooks(controller.scriptKinds(_styled), lineLooks)
+    }
+    onLineLooksChanged: restyle()
+
+    /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history, not the project's.
+    function undoText() {
+        moveCursor(tools.item ? tools.item.undo() : -1)
+    }
+
+    function redoText() {
+        moveCursor(tools.item ? tools.item.redo() : -1)
+    }
+
+    function moveCursor(at) {
+        if (at >= 0) {
+            area.cursorPosition = at
+        }
+    }
+
     function send() {
         if (area.text !== controller.scriptText) {
             controller.editScript(area.text)
@@ -80,12 +136,26 @@ RowLayout {
         _loading = true
         area.text = controller.scriptText
         _loading = false
+        restyle()
+        if (tools.item) {
+            tools.item.forget()
+        }
     }
 
     Component.onCompleted: load()
     Connections {
         target: view.controller
         function onScriptTextChanged() { view.load() }
+    }
+    Loader {
+        id: tools
+        source: view.toolsSource
+        onLoaded: {
+            item.document = area.textDocument
+            item.mutedColor = Qt.binding(() => KanteStyle.mutedTextColor)
+            view.restyle()
+            item.forget()
+        }
     }
     Timer {
         id: push
@@ -167,10 +237,22 @@ RowLayout {
                 persistentSelection: true
                 Accessible.name: view.texts.t("screenplay.editor")
                 background: null
-                onTextChanged: {
-                    if (!view._loading) {
-                        push.restart()
+                Keys.onPressed: event => {
+                    if (event.matches(StandardKey.Undo)) {
+                        view.undoText()
+                        event.accepted = true
+                    } else if (event.matches(StandardKey.Redo)) {
+                        view.redoText()
+                        event.accepted = true
                     }
+                }
+                onTextChanged: {
+                    // A new look changes no text: nothing to send or set again.
+                    if (view._loading || text === view._styled) {
+                        return
+                    }
+                    push.restart()
+                    view.restyle()
                 }
                 // A leaving focus is a good moment to send: a menu or dialog may save next.
                 onActiveFocusChanged: {

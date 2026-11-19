@@ -1,7 +1,7 @@
 //! The elements as blocks of rows, and where a block may be cut.
 
 use super::wrap::wrap;
-use super::{ContdAfterAction, Line, PageKind, PageOptions, Words, TEXT_COLUMNS};
+use super::{Align, ContdAfterAction, Line, Margin, PageKind, PageOptions, Words, TEXT_COLUMNS};
 use crate::Element;
 
 /// A block cut in two keeps at least this many rows (not counting the name) on each page.
@@ -23,6 +23,23 @@ const DUAL_PAREN_WIDTH: usize = 21;
 /// Blank rows before a scene heading and before the other blocks.
 const HEADING_SPACE: usize = 2;
 const BLOCK_SPACE: usize = 1;
+
+impl PageKind {
+    /// Where the kind is set on the page; a dual dialogue moves its parts (`dialogue`).
+    pub fn margin(self) -> Margin {
+        let (x, width, align) = match self {
+            PageKind::Character => (CHARACTER_X, CHARACTER_WIDTH, Align::Left),
+            PageKind::Parenthetical => (PAREN_X, PAREN_WIDTH, Align::Left),
+            PageKind::Dialogue | PageKind::Lyrics => (DIALOGUE_X, DIALOGUE_WIDTH, Align::Left),
+            PageKind::Transition => (0, TEXT_COLUMNS, Align::Right),
+            PageKind::Centered => (0, TEXT_COLUMNS, Align::Center),
+            PageKind::Heading | PageKind::Action | PageKind::More => (0, TEXT_COLUMNS, Align::Left),
+        };
+
+        Margin { x, width, align }
+    }
+}
+
 const TERMINATORS: [char; 4] = ['.', '!', '?', '…'];
 /// Words that end in a full stop without ending the sentence, lowercase; a single letter
 /// (`z. B.`, `St.` is listed) does the same.
@@ -62,13 +79,6 @@ const OPENERS: [char; 8] = ['"', '\'', '(', '[', '„', '“', '«', '‚'];
 const CLOSERS: [char; 6] = ['"', '\'', ')', '”', '»', '’'];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Align {
-    Left,
-    Right,
-    Center,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Cut {
     Whole,
     BetweenSentences,
@@ -93,12 +103,13 @@ struct Part {
 
 impl Part {
     fn new(kind: PageKind, element: usize, text: String) -> Self {
+        let margin = kind.margin();
         Self {
             kind,
             element,
-            x: 0,
-            width: TEXT_COLUMNS,
-            align: Align::Left,
+            x: margin.x,
+            width: margin.width,
+            align: margin.align,
             text,
             base: 0,
             cut: Cut::Whole,
@@ -471,17 +482,15 @@ fn one(
         Element::Character { .. } => return dialogue(elements, i, options, speaker, out),
         Element::Transition(text) => {
             *speaker = Speaker::default();
-            let mut part = Part::new(PageKind::Transition, i, text.to_uppercase());
-            part.align = Align::Right;
+            let part = Part::new(PageKind::Transition, i, text.to_uppercase());
             out.push(Block::new(BLOCK_SPACE, vec![part]));
         }
         Element::Centered(text) => {
-            let mut part = Part::new(PageKind::Centered, i, text.clone());
-            part.align = Align::Center;
+            let part = Part::new(PageKind::Centered, i, text.clone());
             out.push(Block::new(BLOCK_SPACE, vec![part]));
         }
         Element::Lyrics(text) => {
-            let part = Part::new(PageKind::Lyrics, i, text.clone()).at(DIALOGUE_X, DIALOGUE_WIDTH);
+            let part = Part::new(PageKind::Lyrics, i, text.clone());
             // Lines of one song stay together.
             let joined = matches!(
                 i.checked_sub(1).map(|p| &elements[p]),
@@ -531,10 +540,11 @@ fn dialogue(
     };
 
     let side = *dual;
+    let cue = Part::new(PageKind::Character, i, cue);
     let mut parts = vec![if side {
-        Part::new(PageKind::Character, i, cue).at(DUAL_CHARACTER_X, DUAL_CHARACTER_WIDTH)
+        cue.at(DUAL_CHARACTER_X, DUAL_CHARACTER_WIDTH)
     } else {
-        Part::new(PageKind::Character, i, cue).at(CHARACTER_X, CHARACTER_WIDTH)
+        cue
     }];
     let mut used = 1;
 
@@ -545,17 +555,13 @@ fn dialogue(
                 parts.push(if side {
                     part.at(DUAL_PAREN_X, DUAL_PAREN_WIDTH)
                 } else {
-                    part.at(PAREN_X, PAREN_WIDTH)
+                    part
                 });
             }
             Element::Dialogue(text) => {
                 let mut part = Part::new(PageKind::Dialogue, i + used, text.clone());
                 part.cut = Cut::BetweenSentences;
-                parts.push(if side {
-                    part.at(0, DUAL_WIDTH)
-                } else {
-                    part.at(DIALOGUE_X, DIALOGUE_WIDTH)
-                });
+                parts.push(if side { part.at(0, DUAL_WIDTH) } else { part });
             }
             _ => break,
         }

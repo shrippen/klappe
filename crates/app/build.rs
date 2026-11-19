@@ -12,6 +12,7 @@ const PAGES: &[&str] = &[
     "qml/Texts.qml",
     "qml/ScriptPanel.qml",
     "qml/ScreenplayView.qml",
+    "qml/ScriptTools.qml",
     "qml/SceneList.qml",
     "qml/ScriptImport.qml",
     "qml/ShotPanel.qml",
@@ -84,5 +85,9 @@ fn main() {
             "src/camera_picture.rs",
         ])
         .cpp_file("src/application.cpp")
+        .cpp_file("src/scriptlook.h")
+        .cpp_file("src/scriptlook.cpp")
+        .cpp_file("src/scripthistory.h")
+        .cpp_file("src/scripthistory.cpp")
         .build();
 }
