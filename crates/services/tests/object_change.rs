@@ -554,6 +554,7 @@ fn scene_made_again(s: &mut Session, first: String, location: String) {
         width_m: 20.0,
         depth_m: 10.0,
         wall_height_m: 2.6,
+        site: None,
     })
     .unwrap();
     let hof = s.project().locations.last().unwrap().id.clone();
@@ -564,6 +565,7 @@ fn scene_made_again(s: &mut Session, first: String, location: String) {
         number: number.clone(),
         heading: heading.clone(),
         location: hof,
+        sun: None,
     })
     .unwrap();
     s.edit_project(ProjectEdit::RemoveScene { id: first })

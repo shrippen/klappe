@@ -193,7 +193,7 @@ pid_b="$(klappe_pid "$(. "$b/session.env" && echo "$QA_APP_PID")")"
 tr '\0' '\n' < "/proc/$pid_b/cmdline" | grep -qx "$b/sandbox/projects/beispiel-en.klappe" \
     || fail "B was not started with --open on its copy"
 [ -z "$("$b/qa" find --role button --contains "Open project")" ] || fail "B shows the start page"
-"$a/qa" find --role button --contains Datei | grep -q Datei || fail "find A: no Datei button"
+"$a/qa" find --role button --contains "Neues Projekt" | grep -q "Neues Projekt" || fail "find A: no button Neues Projekt"
 echo "ok: tree and find"
 
 # A file dialog in session A: a new window there, none on the desktop, none in session B.
@@ -261,13 +261,14 @@ echo "ok: nothing in the real config, cache or data folders"
 # The example tile makes its copy in the session's data folder (close the dialog first).
 "$a/qa" key Escape
 sleep 1
-# The tile has no accessible name, so it is clicked: the first tile on a start page without
-# recent projects (picture pixels equal coordinates).
-EXAMPLE_TILE_X=128
+# The tile has no accessible name, so it is clicked: the second tile on a start page without
+# recent projects, after the blank plan (one cell of 240 + 8 px further; picture pixels equal
+# coordinates).
+EXAMPLE_TILE_X=376
 EXAMPLE_TILE_Y=190
 "$a/qa" click "$EXAMPLE_TILE_X" "$EXAMPLE_TILE_Y"
 for _ in $(seq $((DIALOG_WAIT_S * 5))); do
-    made="$(find "$a/sandbox/data" -maxdepth 4 -name '*.klappe' 2> /dev/null | head -1)"
+    made="$(find "$a/sandbox/data" -maxdepth 4 -path '*/beispiel/*.klappe' 2> /dev/null | head -1)"
     [ -n "$made" ] && break
     sleep 0.2
 done

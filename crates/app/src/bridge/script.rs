@@ -4,7 +4,9 @@ use super::qobject;
 use crate::manage;
 use core::pin::Pin;
 use cxx_qt_lib::QString;
-use klappe_services::{Field, FigureColor, ProjectEdit, ServiceError};
+use klappe_services::{
+    read_site, read_sun_time, Field, FigureColor, ProjectEdit, ServiceError, Site, SunTime,
+};
 
 impl qobject::Controller {
     pub(super) fn add_scene(
@@ -26,13 +28,16 @@ impl qobject::Controller {
         number: &QString,
         heading: &QString,
         location: &QString,
+        sun: &QString,
     ) -> bool {
-        self.commit_project(Ok(ProjectEdit::EditScene {
+        let edit = sun_of(sun).map(|sun| ProjectEdit::EditScene {
             id: id.to_string(),
             number: number.to_string(),
             heading: heading.to_string(),
             location: location.to_string(),
-        }))
+            sun,
+        });
+        self.commit_project(edit)
     }
 
     pub(super) fn remove_scene(self: Pin<&mut Self>, id: &QString) -> bool {
@@ -45,14 +50,16 @@ impl qobject::Controller {
         width: &QString,
         depth: &QString,
         height: &QString,
+        site: &QString,
     ) -> bool {
-        let edit = sizes(width, depth, height).map(|(width_m, depth_m, wall_height_m)| {
-            ProjectEdit::AddLocation {
+        let edit = sizes(width, depth, height).and_then(|(width_m, depth_m, wall_height_m)| {
+            Ok(ProjectEdit::AddLocation {
                 name: name.to_string(),
                 width_m,
                 depth_m,
                 wall_height_m,
-            }
+                site: site_of(site)?,
+            })
         });
         self.commit_project(edit)
     }
@@ -64,15 +71,17 @@ impl qobject::Controller {
         width: &QString,
         depth: &QString,
         height: &QString,
+        site: &QString,
     ) -> bool {
-        let edit = sizes(width, depth, height).map(|(width_m, depth_m, wall_height_m)| {
-            ProjectEdit::EditLocation {
+        let edit = sizes(width, depth, height).and_then(|(width_m, depth_m, wall_height_m)| {
+            Ok(ProjectEdit::EditLocation {
                 id: id.to_string(),
                 name: name.to_string(),
                 width_m,
                 depth_m,
                 wall_height_m,
-            }
+                site: site_of(site)?,
+            })
         });
         self.commit_project(edit)
     }
@@ -135,6 +144,28 @@ fn sizes(
     height: &QString,
 ) -> Result<(f64, f64, f64), ServiceError> {
     manage::sizes(&width.to_string(), &depth.to_string(), &height.to_string())
+}
+
+/// The three texts of a field group (LH-52): a JSON array of strings, as the form sends it.
+fn texts3(json: &QString, field: Field) -> Result<[String; 3], ServiceError> {
+    serde_json::from_str(&json.to_string()).map_err(|_| ServiceError::BadValue {
+        field,
+        value: json.to_string(),
+    })
+}
+
+/// Latitude, longitude and north typed in the location form.
+fn site_of(site: &QString) -> Result<Option<Site>, ServiceError> {
+    let [latitude, longitude, north] = texts3(site, Field::Latitude)?;
+
+    read_site(&latitude, &longitude, &north)
+}
+
+/// Date, time and offset from UTC typed in the scene form.
+fn sun_of(sun: &QString) -> Result<Option<SunTime>, ServiceError> {
+    let [date, time, offset] = texts3(sun, Field::Date)?;
+
+    read_sun_time(&date, &time, &offset)
 }
 
 /// The colour a form sends by its role name.

@@ -9,14 +9,11 @@ use crate::plan_edit::{layer_of_source, PlanEdit};
 
 impl Session {
     pub fn set_layer(&mut self, layer: Layer, visibility: Visibility) {
-        match visibility {
-            Visibility::Shown => self.hidden_layers.remove(&layer),
-            Visibility::Hidden => self.hidden_layers.insert(layer),
-        };
+        self.plan_view.set_layer(layer, visibility);
     }
 
     pub fn layer(&self, layer: Layer) -> Visibility {
-        if self.hidden_layers.contains(&layer) {
+        if self.plan_view.layer_hidden(layer) {
             return Visibility::Hidden;
         }
         Visibility::Shown
@@ -117,14 +114,7 @@ impl Session {
 
     /// Shows or hides one figure, camera or light in plan and timeline.
     pub fn set_track(&mut self, id: &str, visibility: Visibility) {
-        match visibility {
-            Visibility::Shown => self.hidden_tracks.remove(id),
-            Visibility::Hidden => self.hidden_tracks.insert(id.to_owned()),
-        };
-    }
-
-    pub(super) fn shows(&self, role: Role, source: Option<&Source>) -> bool {
-        is_shown(&self.hidden_layers, &self.hidden_tracks, role, source)
+        self.plan_view.set_track(id, visibility);
     }
 }
 
@@ -166,7 +156,9 @@ pub(super) fn layer_of(role: Role, source: Option<&Source>) -> Layer {
         | Role::Window
         | Role::Object
         | Role::Height { .. } => Layer::Set,
-        Role::Light | Role::LightBeam => Layer::Lights,
+        Role::Light | Role::LightBeam | Role::SunPatch | Role::SunRay | Role::North => {
+            Layer::Lights
+        }
         Role::Camera | Role::Frustum | Role::CameraPath { .. } | Role::CameraHandle => {
             Layer::Cameras
         }

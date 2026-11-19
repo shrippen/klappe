@@ -26,6 +26,9 @@ pub mod qobject {
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
         /// Counts refreshes: the camera's picture is made again when it changes.
         #[qproperty(i32, picture_revision, cxx_name = "pictureRevision")]
+        /// Names the state of the project: changes with every edit, undo and redo, not with a
+        /// selection or the playhead; what is drawn from the plan is made again when it does.
+        #[qproperty(i32, edit_revision, cxx_name = "editRevision")]
         /// Counts what turns, shifts or zooms the 3D view: the 3D picture is made again.
         #[qproperty(i32, free_revision, cxx_name = "freeRevision")]
         /// Whether the plan area shows the free 3D view (J) instead of the plan.
@@ -139,6 +142,12 @@ pub mod qobject {
             palette_json: &QString,
         ) -> QImage;
 
+        /// What the camera of shot `id` sees when the shot starts, `width_px` wide, for the
+        /// shot's tile (LH-36); a null image without a camera or marks.
+        #[qinvokable]
+        #[cxx_name = "shotImage"]
+        fn shot_image(self: &Self, id: &QString, width_px: i32, palette_json: &QString) -> QImage;
+
         /// The cameras whose body shows on the plan and where it stands at the playhead, as a
         /// JSON array of `{id, x_m, y_m}` (LH-113).
         #[qinvokable]
@@ -228,6 +237,12 @@ pub mod qobject {
         /// repeat the selected shot, else "off". False once the end is reached.
         #[qinvokable]
         fn advance(self: Pin<&mut Self>, dt: f64, speed: f64, looping: &QString) -> bool;
+
+        /// The dialogue a voice reads while playing (LH-64), as JSON `{ language, lines: [{
+        /// index, at_s, text }] }` in the order of the time; `language` is `de` or `en`.
+        #[qinvokable]
+        #[cxx_name = "speechJson"]
+        fn speech_json(self: &Self) -> QString;
 
         #[qinvokable]
         #[cxx_name = "selectShot"]
@@ -359,6 +374,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "resolveScene"]
         fn resolve_scene(self: Pin<&mut Self>, id: &QString, index: i32) -> bool;
+
+        /// Answers the open question about the play location `name` of the scene headings
+        /// (`projectJson.pendingPlaces`): the answer at position `index` of its `answers`.
+        /// Written to `orte.toml` at once; no undo step. False when the answer is refused.
+        #[qinvokable]
+        #[cxx_name = "resolvePlace"]
+        fn resolve_place(self: Pin<&mut Self>, name: &QString, index: i32) -> bool;
 
         /// Takes the project from the backup found at open.
         #[qinvokable]
@@ -879,6 +901,12 @@ pub mod qobject {
         #[cxx_name = "openExample"]
         fn open_example(self: Pin<&mut Self>) -> bool;
 
+        /// Opens a new project with one scene and its empty plan, in the data folder; an
+        /// error goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "openBlank"]
+        fn open_blank(self: Pin<&mut Self>) -> bool;
+
         /// Shows the scene `id`.
         #[qinvokable]
         #[cxx_name = "selectScene"]
@@ -917,6 +945,7 @@ pub mod qobject {
             location: &QString,
         ) -> bool;
 
+        /// `sun` is a JSON array of the texts date, time and offset from UTC (LH-52).
         #[qinvokable]
         #[cxx_name = "editScene"]
         fn edit_scene(
@@ -925,13 +954,15 @@ pub mod qobject {
             number: &QString,
             heading: &QString,
             location: &QString,
+            sun: &QString,
         ) -> bool;
 
         #[qinvokable]
         #[cxx_name = "removeScene"]
         fn remove_scene(self: Pin<&mut Self>, id: &QString) -> bool;
 
-        /// Sizes and the room height are text in metres (`8,5`).
+        /// Sizes and the room height are text in metres (`8,5`); `site` is a JSON array of the
+        /// texts latitude, longitude and north in degrees, all blank is no place (LH-52).
         #[qinvokable]
         #[cxx_name = "addLocation"]
         fn add_location(
@@ -940,6 +971,7 @@ pub mod qobject {
             width: &QString,
             depth: &QString,
             height: &QString,
+            site: &QString,
         ) -> bool;
 
         #[qinvokable]
@@ -951,6 +983,7 @@ pub mod qobject {
             width: &QString,
             depth: &QString,
             height: &QString,
+            site: &QString,
         ) -> bool;
 
         #[qinvokable]

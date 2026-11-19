@@ -160,6 +160,7 @@ fn changing_the_location_of_a_scene_drops_its_object_ways() {
         width_m: 8.0,
         depth_m: 5.5,
         wall_height_m: 2.6,
+        site: None,
     })
     .unwrap();
     let halle = s
@@ -194,6 +195,7 @@ fn changing_the_location_of_a_scene_drops_its_object_ways() {
         number,
         heading: "x".into(),
         location: halle,
+        sun: None,
     })
     .unwrap();
 

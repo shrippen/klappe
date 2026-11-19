@@ -31,8 +31,10 @@ Handlung drei.
 
 /// An app on `TEXT`, the outline on screen, the cursor at the end of the text.
 fn outlined() -> (Scratch, App) {
-    let (scratch, mut app) = app_with(TEXT);
+    let scratch = Scratch::automatic(TEXT);
+    let mut app = scratch.app();
     let _ = screen(&mut app, WIDTH, HEIGHT);
+    support::ctrl_end(&mut app);
 
     (scratch, app)
 }

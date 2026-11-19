@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_model::{BookState, FloorPlan, Kind, Project, Scene};
+use klappe_model::{BookState, FloorPlan, Kind, Project, Scene, SceneNumbering};
 use klappe_services::{Choice, ProjectEdit, Session};
 
 const SAAL: &str = "INT. SAAL – TAG";
@@ -38,11 +38,13 @@ fn entry(id: &str, number: &str, heading: &str) -> Scene {
     }
 }
 
-/// A project folder with these entries (no prints yet) and this book.
+/// A project folder with these entries (no prints yet) and this book. Its numbers are locked:
+/// the tests meet numbers as another program wrote them, which saving must not renumber.
 fn make(name: &str, entries: Vec<Scene>, book: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
     let mut project = Project::new("Test");
+    project.script.scene_numbering = SceneNumbering::Locked;
     project.scenes = entries;
     klappe_store::save(&dir, &project, Some(book)).unwrap();
 
@@ -442,6 +444,7 @@ fn adding_or_renaming_an_entry_refreshes_the_questions() {
         width_m: 8.0,
         depth_m: 5.5,
         wall_height_m: 2.6,
+        site: None,
     })
     .unwrap();
     let halle = s.project().locations[0].id.clone();
@@ -452,6 +455,7 @@ fn adding_or_renaming_an_entry_refreshes_the_questions() {
         number: "9".into(),
         heading: KELLER.into(),
         location: halle.clone(),
+        sun: None,
     })
     .unwrap();
     assert!(s.pending_scenes().is_empty());
@@ -521,15 +525,20 @@ fn a_copied_scene_keeps_its_entry_on_the_first_twin() {
     });
 }
 
-/// A settled register with one entry per copy of "9 HOF", ids in register order. They get
-/// there as in practice: a scene is copied and pasted, one copy at a time, and saved.
+/// A settled register with one entry per copy of "9 HOF", ids in register order, and the book
+/// with the copies pasted from outside: saving would number them 9A, 9B, so the register is
+/// written directly.
 fn twinned(name: &str, copies: usize) -> (PathBuf, Vec<String>) {
     let dir = settled(name, vec![entry("aaaa", "9", HOF)], &hof("9"));
-    for n in 2..=copies {
-        rewrite_book(&dir, &hof("9").repeat(n));
-        let mut s = Session::open(&dir).unwrap();
-        s.save().unwrap();
+    let mut project = klappe_store::load(&dir).unwrap().project;
+    for n in 1..copies {
+        let id = format!("copy{n}");
+        project.scenes.push(Scene {
+            id,
+            ..project.scenes[0].clone()
+        });
     }
+    klappe_store::save(&dir, &project, Some(&hof("9").repeat(copies))).unwrap();
     let s = Session::open(&dir).unwrap();
 
     (dir, ids(&s))
@@ -677,7 +686,8 @@ fn an_entry_said_not_in_the_book_leaves_the_order_to_the_twins() {
     let mut s = Session::open(&dir).unwrap();
     s.resolve_scene("ffff", Choice::NotInBook).unwrap();
     assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
-    s.save().unwrap();
+    // Not `save`: it would number the second copy 9A and end the twins.
+    klappe_store::save(&dir, s.project(), Some(&(hof("9") + &hof("9")))).unwrap();
 
     // A third copy: the refused entry is no candidate, so the order decides.
     rewrite_book(&dir, &hof("9").repeat(3));

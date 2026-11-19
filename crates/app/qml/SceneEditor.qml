@@ -24,6 +24,9 @@ EditorPane {
     function load() {
         numberField.text = item ? item.number : ""
         headingField.text = item ? item.heading : ""
+        sunDateField.text = item && item.sunDate ? item.sunDate : ""
+        sunTimeField.text = item && item.sunTime ? item.sunTime : ""
+        sunOffsetField.text = item && item.sunOffset ? item.sunOffset : ""
         locationBox.currentIndex = item
             ? locations.findIndex(l => l.id === item.location)
             : (locations.length > 0 ? 0 : -1)
@@ -45,7 +48,8 @@ EditorPane {
         if (!item) {
             return controller.addScene(numberField.text, headingField.text, location)
         }
-        return controller.editScene(item.id, numberField.text, headingField.text, location)
+        return controller.editScene(item.id, numberField.text, headingField.text, location,
+                                    JSON.stringify([sunDateField.text, sunTimeField.text, sunOffsetField.text]))
     }
     remove: function () { return controller.removeScene(item.id) }
 
@@ -67,6 +71,47 @@ EditorPane {
         objectName: "locationBox"
         Layout.fillWidth: true
         model: form.locations.map(l => l.name)
+    }
+    // The sun of the scene (LH-52): the plan shows it once the location has a place.
+    RowLayout {
+        Layout.fillWidth: true
+        visible: form.item !== null
+        spacing: Kirigami.Units.largeSpacing
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            KanteSectionLabel { text: form.texts.t("scene.sunDate") }
+            KanteTextField {
+                id: sunDateField
+                objectName: "sunDateField"
+                Layout.fillWidth: true
+            }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            KanteSectionLabel { text: form.texts.t("scene.sunTime") }
+            KanteTextField {
+                id: sunTimeField
+                objectName: "sunTimeField"
+                Layout.fillWidth: true
+            }
+        }
+    }
+    KanteSectionLabel {
+        text: form.texts.t("scene.sunOffset")
+        visible: form.item !== null
+    }
+    KanteTextField {
+        id: sunOffsetField
+        objectName: "sunOffsetField"
+        Layout.fillWidth: true
+        visible: form.item !== null
+    }
+    KanteCallout {
+        Layout.fillWidth: true
+        visible: form.item !== null
+        kind: KanteCallout.Kind.Info
+        text: form.texts.t("scene.sunHint")
     }
     // Another location drops the object ways of the scene's plans (LH-24); undo brings them back.
     KanteCallout {

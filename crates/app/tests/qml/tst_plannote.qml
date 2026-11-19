@@ -65,6 +65,13 @@ TestCase {
               stroke: "solid", fill: "tint", text: "Vorhang", textAnchor: "topLeft", key: key, selected: false }] })
     }
 
+    function turnedCard(deg) {
+        return JSON.stringify({ width: 20, depth: 13, shapes: [
+            { kind: "polygon", points: [4, 3, 4, 7, 0, 7, 0, 3], radius: 0, width: 0, label: "text",
+              stroke: "solid", fill: "tint", text: "Vorhang\nzu", textAnchor: "topLeft",
+              captionSize: 0.16, textRotation: deg, key: "note:n1", selected: false }] })
+    }
+
     function drawn(tool, key) {
         fake.noteEdits = 0
         fake.planJson = card(key)
@@ -139,5 +146,19 @@ TestCase {
 
         keyClick(Qt.Key_D)
         compare(toolKey.hits, 1)
+    }
+
+    // A turned card hands its angle to the canvas, which turns the caption: the picture differs.
+    function test_a_turned_note_reaches_the_canvas_turned() {
+        fake.planJson = turnedCard(90)
+        const area = createTemporaryObject(areaComponent, tc, { tool: "select" })
+        waitForRendering(area)
+        const canvas = findChild(area, "planCanvas")
+        compare(canvas.shapes[0].textRotation, 90)
+        const turned = grabImage(area)
+
+        fake.planJson = turnedCard(0)
+        waitForRendering(area)
+        verify(!turned.equals(grabImage(area)))
     }
 }

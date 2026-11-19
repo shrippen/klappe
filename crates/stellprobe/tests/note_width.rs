@@ -11,6 +11,7 @@ fn set(width_m: f64) -> SetPlan {
             at: Point::new(3.0, 4.0),
             text: "Vorhang schließen".into(),
             width_m,
+            rotation_deg: 0.0,
             bound: None,
         }],
         ..Default::default()

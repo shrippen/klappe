@@ -1,10 +1,10 @@
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 
-use klappe_model::{Project, ScriptLanguage};
+use klappe_model::{Project, SceneNumbering};
 use klappe_store::Loaded;
 
+use super::plan_view::PlanView;
 use super::{check_empty, check_title, Autosave, BackupState, Session, View};
 use crate::catalog::Language;
 use crate::error::ServiceError;
@@ -15,6 +15,7 @@ impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
         let mut loaded = crate::load::load_project(dir)?;
+        let lock = klappe_store::load_lock(dir)?;
         shot_edit::clear_orphans(&mut loaded.project);
         let script = loaded
             .script
@@ -37,18 +38,16 @@ impl Session {
             plan: 0,
             time_s: 0.0,
             selected_shot: None,
-            hidden_layers: HashSet::new(),
             locked_layers: HashSet::new(),
-            faded_layers: HashMap::new(),
-            hidden_tracks: HashSet::new(),
             snapping: Snapping::On,
             grid: Grid::default(),
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: false,
-            image_px: RefCell::new(HashMap::new()),
+            plan_view: PlanView::new(),
             unbacked: false,
             project_changed: false,
+            edits: super::undo::next_edit(),
             backup: BackupState::None,
             load_notes: loaded.notes,
             view: View::Plan,
@@ -58,6 +57,8 @@ impl Session {
             layout: None,
             pending: Vec::new(),
             pending_places: Vec::new(),
+            lock,
+            twin_numbers: 0,
         };
         session.reconcile();
         session.scene = session
@@ -86,11 +87,10 @@ impl Session {
         check_empty(dir)?;
 
         let mut project = Project::new(title);
-        project.script.language = Some(match language {
-            Language::German => ScriptLanguage::De,
-            Language::English => ScriptLanguage::En,
-        });
+        project.script.scene_numbering = SceneNumbering::Automatic;
+        project.script.language = Some(language.into());
         klappe_store::save(dir, &project, None)?;
+        klappe_store::save_lock(dir, &[])?;
         Self::open(dir)
     }
 
@@ -109,9 +109,11 @@ impl Session {
     /// Writes the project back to its folder and removes the backup. An unanswered backup
     /// (`Found`, `Unreadable`) stays, as with `autosave`: the user decides on it.
     pub fn save(&mut self) -> Result<(), ServiceError> {
+        self.number_script();
         // So the register holds the book as saved: the next outside change aligns against it.
         self.reconcile();
         klappe_store::save_keeping_places(&self.dir, &self.project, self.script_text.as_deref())?;
+        self.write_lock()?;
         self.dirty = false;
         self.unbacked = false;
         self.project_changed = false;
@@ -175,16 +177,18 @@ impl Session {
         Ok(())
     }
 
-    /// Aligns the register with the book, then writes the screenplay and the register file
+    /// Numbers the scenes (DB-33), aligns the register with the book, then writes the screenplay and the register file
     /// `szenen.toml`, not the scene files with the plans; every other file of the folder stays
     /// as it is on disk. The backup then no longer holds the screenplay as unsaved work: it
     /// is removed if only the screenplay was unsaved, else rewritten with the saved screenplay.
     /// An unanswered backup (`Found`, `Unreadable`) stays for the user to decide.
     pub fn save_script(&mut self) -> Result<(), ServiceError> {
+        self.number_script();
         self.reconcile();
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
+        self.write_lock()?;
         if self.backup != BackupState::None {
             return Ok(());
         }

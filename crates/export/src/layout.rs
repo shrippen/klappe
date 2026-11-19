@@ -28,6 +28,7 @@ use crate::palette::{palette, Palette, Rgb, Theme};
 use crate::style::{role_style, RoleStyle};
 use klappe_model::FigureColor;
 
+mod arrow;
 mod note;
 mod swatch;
 
@@ -132,6 +133,7 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
     let mut chrome = vec![
         frame_prim(frame, pal),
         Prim::Text {
+            rotation_deg: 0.0,
             class: "title".into(),
             anchor: Anchor::Start,
             at: (margin, margin + TITLE_PT),
@@ -178,10 +180,11 @@ fn plan_prims(
         match (&item.shape, item.role) {
             (Shape::Image { .. }, _) => image_prim(item, map, &page.images, &mut plan)?,
             (_, Role::Note) => note::prims(item, map, pal, body_m, &mut plan)?,
+            (_, Role::North | Role::SunRay) => arrow::prims(item, map, pal, body_m, &mut plan)?,
             _ => item_prims(item, map, pal, body_m, &mut plan)?,
         }
 
-        let strength = page.fade.get(index).copied().unwrap_or(FULL_STRENGTH) * item.opacity;
+        let strength = page.fade.get(index).copied().unwrap_or(FULL_STRENGTH);
         fade_prims(&mut plan[first..], strength, pal.paper);
     }
 
@@ -373,6 +376,7 @@ fn item_prims(
     let (at, anchor) = label_spot(item, &bounds, body_m, map.scale);
 
     out.push(Prim::Text {
+        rotation_deg: 0.0,
         class: "label".into(),
         anchor,
         at,
@@ -461,6 +465,7 @@ fn scale_bar(map: &Map, x: f64, y: f64, texts: &Texts, pal: &Palette, out: &mut 
         .replace('.', &texts.decimal_separator.to_string());
     let text = format!("{number} {}", texts.unit);
     out.push(Prim::Text {
+        rotation_deg: 0.0,
         class: "scale-label".into(),
         anchor: Anchor::Start,
         at: (
@@ -656,6 +661,7 @@ fn legend(
             });
         }
         out.push(Prim::Text {
+            rotation_deg: 0.0,
             class: "legend-label".into(),
             anchor: Anchor::Start,
             at: (
@@ -737,6 +743,7 @@ fn lamp_list(
         let mid = y + (i / columns) as f64 * LEGEND_ROW_PT + LEGEND_ROW_PT / 2.0;
 
         out.push(Prim::Text {
+            rotation_deg: 0.0,
             class: "lamp-label".into(),
             anchor: Anchor::Start,
             at: (left, mid + LEGEND_PT * BASELINE_SHIFT),

@@ -132,6 +132,7 @@ fn a_narrow_set_closes_the_row_up() {
         width_m: 2.6,
         depth_m: 5.0,
         wall_height_m: 2.6,
+        site: None,
     })
     .unwrap();
     s.edit_project(ProjectEdit::AddScene {

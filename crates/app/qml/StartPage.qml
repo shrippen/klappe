@@ -5,12 +5,14 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // Shown while no project is open (LH-01, D-07): the projects opened last as tiles with a
-// preview of their first plan, the example as the last tile, and the two ways to start another.
+// preview of their first plan, a blank plan as the first tile, the example as the last, and the
+// two ways to start another.
 // Arrow keys move between the tiles, Enter opens one; a project whose folder is gone is dimmed
 // and can be taken off the list. The first tile has the keyboard focus whenever the page shows.
 // A right click, the menu key or Shift+F10 on a project tile opens its menu: rename, remove from
 // the list, archive (a ZIP beside the folder, the folder to the trash), move to the trash. The
-// example tile has none: its copy is made again when it is missing.
+// blank and example tiles have none: they are no project of the list (the example copy is made
+// again when it is missing).
 Item {
     id: start
 
@@ -20,6 +22,7 @@ Item {
     signal newRequested()
     signal openRequested()
     signal recentRequested(string path)
+    signal blankRequested()
     signal exampleRequested()
     signal forgetRequested(string path)
 
@@ -30,6 +33,7 @@ Item {
 
     readonly property string stateMissing: "missing"
     readonly property string stateUnreadable: "unreadable"
+    readonly property string stateBlank: "blank" // the first row: no project yet, a new one
     readonly property string stateExample: "example" // the last row: no project, the example
     readonly property real stageAspect: 1.414 // an A4 sheet, what the preview is drawn on
     readonly property real tileWidth: KanteStyle.unit(240)
@@ -38,7 +42,7 @@ Item {
     readonly property real belowTile: KanteStyle.unit(56) + Kirigami.Units.largeSpacing
 
     // Rows are updated in place while the previews arrive, so the tiles and the focus stay. The
-    // last row is the example tile.
+    // first row is the blank tile, the last the example tile.
     ListModel { id: rows }
 
     function row(entry) {
@@ -54,14 +58,15 @@ Item {
     }
 
     function sync() {
-        const same = recent.length + 1 === rows.count
-            && recent.every((entry, i) => rows.get(i).path === entry.path)
+        const same = recent.length + 2 === rows.count
+            && recent.every((entry, i) => rows.get(i + 1).path === entry.path)
         if (same) {
-            recent.forEach((entry, i) => rows.set(i, row(entry)))
+            recent.forEach((entry, i) => rows.set(i + 1, row(entry)))
             return
         }
 
         rows.clear()
+        rows.append(row({ path: "", name: "", state: stateBlank }))
         recent.forEach(entry => rows.append(row(entry)))
         rows.append(row({ path: "", name: "", state: stateExample }))
     }
@@ -101,7 +106,7 @@ Item {
 
     // The menu of a project tile (a copy of its path, name and state: the tile may go).
     function openMenu(cell, anchor, x, y) {
-        if (cell.isExample) {
+        if (cell.isFixed) {
             return
         }
         menu.target = { path: cell.path, name: cell.name, state: cell.state }
@@ -232,7 +237,9 @@ Item {
                 required property real modifiedS
                 required property string preview
 
+                readonly property bool isBlank: state === start.stateBlank
                 readonly property bool isExample: state === start.stateExample
+                readonly property bool isFixed: isBlank || isExample
                 readonly property bool missing: state === start.stateMissing
                 readonly property bool broken: missing || state === start.stateUnreadable
 
@@ -256,11 +263,12 @@ Item {
 
                     KanteTile {
                         id: tile
-                        objectName: cell.isExample ? "example" : "recent"
+                        objectName: cell.isBlank ? "blank" : cell.isExample ? "example" : "recent"
                         implicitWidth: start.tileWidth
                         Layout.preferredWidth: start.tileWidth
                         stageAspect: start.stageAspect
-                        name: cell.isExample ? start.texts.t("start.example") : cell.name
+                        name: cell.isBlank ? start.texts.t("start.blank")
+                            : cell.isExample ? start.texts.t("start.example") : cell.name
                         tier: cell.broken ? KanteTile.Tier.Check : KanteTile.Tier.Good
                         stale: cell.missing
                         source: cell.preview
@@ -269,6 +277,10 @@ Item {
                         QQC2.ToolTip.visible: tipHover.hovered && cell.shortPath !== ""
                         QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                         onClicked: {
+                            if (cell.isBlank) {
+                                start.blankRequested()
+                                return
+                            }
                             if (cell.isExample) {
                                 start.exampleRequested()
                                 return
@@ -301,7 +313,7 @@ Item {
                             }
                         }
 
-                        // The example has no preview: the tile's own placeholder shows.
+                        // The blank and example tiles have no preview: the tile's own placeholder shows.
                         HoverHandler { id: tipHover }
                     }
                     QQC2.Label {

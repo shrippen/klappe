@@ -73,7 +73,9 @@ pub fn look(role: Role) -> Look {
         Role::Background | Role::Picture | Role::Height { .. } => {
             plain(Hue::Muted, Dash::Solid, Area::None)
         }
-        Role::Wall | Role::Door | Role::Window => plain(Hue::Text, Dash::Solid, Area::None),
+        Role::Wall | Role::Door | Role::Window | Role::North => {
+            plain(Hue::Text, Dash::Solid, Area::None)
+        }
         // On screen the tint keeps the plan below readable; on paper a set object is filled
         // with its ground tone.
         Role::Object => Look {
@@ -81,13 +83,15 @@ pub fn look(role: Role) -> Look {
             paper_fill: Hue::Surface,
             ..plain(Hue::Muted, Dash::Solid, Area::Tint)
         },
-        Role::Light => plain(ORANGE, Dash::Solid, Area::Solid),
+        Role::Light | Role::SunRay => plain(ORANGE, Dash::Solid, Area::Solid),
         // A card: the text colour frames and tints it, on screen and on paper.
         Role::Note => plain(Hue::Text, Dash::Solid, Area::Tint),
         Role::Handle => plain(Hue::Accent, Dash::Solid, Area::Solid),
         Role::Axis => plain(ORANGE, Dash::Dashed, Area::None),
         Role::CameraPath { dash } => plain(YELLOW, dash, Area::None),
-        Role::Frustum | Role::LightBeam => plain(beam_hue(role), Dash::Solid, Area::Tint),
+        Role::Frustum | Role::LightBeam | Role::SunPatch => {
+            plain(beam_hue(role), Dash::Solid, Area::Tint)
+        }
         Role::Camera | Role::CameraHandle => plain(YELLOW, Dash::Solid, Area::Solid),
         // The ground colour stands out from every figure colour (the text colour did not).
         Role::GroupDot => plain(Hue::Ground, Dash::Solid, Area::Solid),
@@ -147,6 +151,9 @@ mod tests {
             Role::Object,
             Role::LightBeam,
             Role::Light,
+            Role::SunPatch,
+            Role::SunRay,
+            Role::North,
             Role::Note,
             Role::ArrowHead(red),
             Role::Axis,

@@ -46,7 +46,17 @@ impl Default for ControllerRust {
         let language = Language::pick(args.language.as_deref());
         let mut notice = Status::default();
         let session = open_at_start(&args, language, &mut notice);
-        let mut this = Self {
+
+        let mut this = Self::fresh(session, language, notice, args);
+        this.fill();
+        this
+    }
+}
+
+impl ControllerRust {
+    /// The controller before its first `fill`: `session` as opened at start, nothing chosen.
+    fn fresh(session: Option<Session>, language: Language, notice: Status, args: AppArgs) -> Self {
+        Self {
             session,
             language,
             status: q(notice.text()),
@@ -58,6 +68,7 @@ impl Default for ControllerRust {
             plan_title: QString::default(),
             plan_json: QString::default(),
             picture_revision: 0,
+            edit_revision: 0,
             camera_frame: String::new(),
             free_revision: 0,
             view_free: false,
@@ -119,8 +130,6 @@ impl Default for ControllerRust {
             screenshot_path: screenshot_url(args.screenshot),
             screenshot_after: args.screenshot_after_ms,
             _video_stop: super::export::VideoStop,
-        };
-        this.fill();
-        this
+        }
     }
 }

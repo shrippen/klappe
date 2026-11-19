@@ -15,7 +15,7 @@ use super::{Layer, Session, Visibility};
 use crate::library;
 use crate::views::{
     AxisChoice, CameraSpot, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow,
-    PlanRow, SceneRow, ViewRow,
+    PlanRow, SceneRow, SunTexts, ViewRow,
 };
 use crate::ExportFormat;
 
@@ -77,6 +77,7 @@ impl Session {
                 in_book: s.state == BookState::InBook,
                 location: s.location.clone(),
                 location_name: location.map(|l| l.name.clone()).unwrap_or_default(),
+                sun: SunTexts::of(s.sun),
             }
         });
         let locations = project.locations.iter().map(|l| LocationRow {
@@ -85,6 +86,9 @@ impl Session {
             width_m: l.set.width_m,
             depth_m: l.set.depth_m,
             wall_height_m: l.set.wall_height_m,
+            latitude: l.site.map(|s| s.latitude_deg),
+            longitude: l.site.map(|s| s.longitude_deg),
+            north: l.site.map_or(0.0, |s| s.north_deg),
             scenes: project.scenes.iter().filter(|s| s.location == l.id).count(),
         });
         let characters = project.characters.iter().map(|c| CharacterRow {
@@ -158,6 +162,14 @@ impl Session {
         self.picture_through(id.to_owned(), self.time_s, width_px)
     }
 
+    /// What the camera of shot `id` sees when the shot starts, `width_px` wide, for the shot's
+    /// tile (LH-36); `None` for an unknown shot, a camera that is gone or one without marks.
+    pub fn shot_picture(&self, id: &str, width_px: usize) -> Option<Picture> {
+        let shot = self.plan()?.shots.iter().find(|s| s.id == id)?;
+
+        self.picture_through(shot.camera.clone(), shot.from_s, width_px)
+    }
+
     /// The cameras whose body shows on the plan now (layer and track not hidden) and where it
     /// stands at the playhead (LH-113).
     pub fn camera_spots(&self) -> Vec<CameraSpot> {
@@ -170,7 +182,7 @@ impl Session {
 
         plan.cameras
             .iter()
-            .filter(|c| !self.hidden_tracks.contains(&c.id))
+            .filter(|c| !self.plan_view.track_hidden(&c.id))
             .filter_map(|c| {
                 let place = camera_at(c, self.time_s)?;
 

@@ -18,7 +18,8 @@ pub struct Page {
     /// list. The export reads no files: the caller hands the bytes in.
     pub images: HashMap<String, Vec<u8>>,
     /// How strong each item of the display list is drawn, 1 full and 0 not at all (LH-15,
-    /// LH-87), by the item's place in the list; an item beyond the end, or none given, is full.
+    /// LH-26, LH-87), by the item's place in the list; an item beyond the end, or none given,
+    /// is full. The caller hands the finished number: layer fade times the item's opacity.
     pub fade: Vec<f64>,
 }
 
@@ -112,6 +113,9 @@ pub struct ShotView {
     /// The id of the shot.
     pub shot: String,
     pub view: VectorView,
+    /// How strongly each face of the view is drawn, 0 to 1, by the face's place; a face
+    /// beyond the end, or none given, is full. The caller hands the finished number.
+    pub strength: Vec<f64>,
 }
 
 /// Column heads, in the order of the table.

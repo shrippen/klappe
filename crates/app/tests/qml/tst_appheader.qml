@@ -40,6 +40,7 @@ TestCase {
         }
     }
 
+    SignalSpy { id: speakSpy; signalName: "speakRequested" }
     SignalSpy { id: newSpy; signalName: "newRequested" }
     SignalSpy { id: openSpy; signalName: "openRequested" }
     SignalSpy { id: closeSpy; signalName: "closeRequested" }
@@ -594,6 +595,28 @@ TestCase {
 
         header.texts = en
         compare(keys("playback.toggle"), "Space / K")
+    }
+
+    // LH-64: reading the dialogue aloud has a key and a palette entry; both need a voice.
+    function test_the_palette_switches_reading_aloud_when_there_is_a_voice() {
+        const header = make()
+        speakSpy.target = header
+        speakSpy.clear()
+        const command = () => header.commandPalette.commands.find(c => c.id === "playback.speak")
+
+        verify(!command().enabled)
+        header.run("playback.speak")
+        compare(speakSpy.count, 0)
+
+        header.speechAvailable = true
+        verify(command().enabled)
+        compare(command().keys, "Umschalt+V")
+        header.run("playback.speak")
+        compare(speakSpy.count, 1)
+
+        header.texts = en
+        compare(command().keys, "Shift+V")
+        compare(command().text, "Read dialogue aloud on or off")
     }
 
     // LH-93: the header counts the objects without a height; Shift+H, the View menu, the palette

@@ -52,6 +52,8 @@ const PAGES: &[&str] = &[
     "qml/NavCommands.qml",
     "qml/JumpCommands.qml",
     "qml/PlayCommands.qml",
+    "qml/SpeechPlayer.qml",
+    "qml/SpeechVoice.qml",
     "qml/ArmCommands.qml",
     "qml/Timeline.qml",
     "qml/Workspace.qml",

@@ -21,8 +21,11 @@ mod folder;
 mod images;
 mod library;
 mod light;
+mod lock;
+mod partial;
 mod places;
 mod register;
+mod sun;
 mod template;
 mod tree;
 
@@ -47,6 +50,8 @@ pub use images::{
 };
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
+pub use lock::{load_lock, save_lock};
+pub use partial::{save_contd, save_register, save_scene_numbering, save_script};
 use places::PlacesFile;
 pub use places::{load_places, save_places};
 pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
@@ -68,6 +73,7 @@ const PLACES_FILE: &str = "orte.toml";
 const LIBRARY_FILE: &str = "bibliothek.toml";
 const TEMPLATES_FILE: &str = "vorlagen.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
+const LOCK_FILE: &str = "nummern.toml";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
 const SCENES_FILE: &str = "szenen.toml";
@@ -261,16 +267,7 @@ fn save_with(
     // Encode everything first: a document that cannot be encoded fails before any file changes.
     let mut writes = Vec::new();
 
-    let header = Header {
-        format_version: FORMAT_VERSION,
-        title: project.title.clone(),
-        paper: project.paper,
-        numbering: project.numbering,
-        script: project.script,
-        ansicht: project.views.clone(),
-    };
-    let path = dir.join(PROJECT_FILE);
-    writes.push((path.clone(), files::encode_toml(&path, &header)?));
+    writes.push(encode_header(dir, project)?);
 
     let characters = Characters {
         figur: project.characters.clone(),
@@ -312,6 +309,22 @@ fn save_with(
     Ok(())
 }
 
+/// `projekt.toml` of `project` with its path.
+fn encode_header(dir: &Path, project: &Project) -> Result<(PathBuf, Vec<u8>), StoreError> {
+    let header = Header {
+        format_version: FORMAT_VERSION,
+        title: project.title.clone(),
+        paper: project.paper,
+        numbering: project.numbering,
+        script: project.script,
+        ansicht: project.views.clone(),
+    };
+    let path = dir.join(PROJECT_FILE);
+    let bytes = files::encode_toml(&path, &header)?;
+
+    Ok((path, bytes))
+}
+
 /// A file's path with its content, or `None` when there is to be no file.
 type OptionalFile = (PathBuf, Option<Vec<u8>>);
 
@@ -346,32 +359,6 @@ fn optional_files(
     files.push((dir.join(PLACES_FILE), encoded));
 
     Ok(files)
-}
-
-/// Sets "(CONT'D) after action" in `projekt.toml` of `dir` and nothing else: the rest of the
-/// file stays as it is on disk, as another program may have saved it meanwhile (TUI beside
-/// the window).
-pub fn save_contd(dir: &Path, on: bool) -> Result<(), StoreError> {
-    let mut header = read_header(dir)?;
-    header.script.contd_after_action = on;
-
-    let path = dir.join(PROJECT_FILE);
-    let bytes = files::encode_toml(&path, &header)?;
-    files::write_atomic(&path, &bytes)
-}
-
-/// Writes `drehbuch.fountain` in `dir` atomically and nothing else.
-pub fn save_script(dir: &Path, script: &str) -> Result<(), StoreError> {
-    files::write_atomic(&dir.join(SCRIPT_FILE), script.as_bytes())
-}
-
-/// Writes `szenen.toml` of `scenes` in `dir` and nothing else: the Stellprobe files stay, as
-/// unsaved plans are for `save` to write (LH-05).
-pub fn save_register(dir: &Path, scenes: &[Scene]) -> Result<(), StoreError> {
-    check_ids(scenes.iter().map(|s| s.id.as_str()))?;
-
-    let (path, bytes) = register::encode_register(dir, scenes)?;
-    files::write_atomic(&path, &bytes)
 }
 
 /// Writes `project` as a backup into `dir/.sicherung`, in the project format. The project
@@ -536,7 +523,7 @@ fn check_sets(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
     check_outlines(path, locations)?;
     check_notes(path, locations)?;
     check_images(path, locations)?;
-
+    sun::check_sites(path, locations)?;
     check_heights(path, locations)
 }
 

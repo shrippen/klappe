@@ -105,6 +105,7 @@ fn a_scene_edit_carries_heading_and_number_into_the_script() {
         number: "12A".into(),
         heading: "INT. SÄNGERSAAL – NACHT".into(),
         location: "saengersaal".into(),
+        sun: None,
     };
 
     let changes = s.scene_script_changes("m4djbtj6", "12A", "INT. SÄNGERSAAL – NACHT");
@@ -219,6 +220,7 @@ fn a_scene_cannot_take_a_number_the_script_has() {
         number: "13".into(),
         heading: "INT. A".into(),
         location: "saengersaal".into(),
+        sun: None,
     };
 
     let err = s.edit_project(edit).unwrap_err();

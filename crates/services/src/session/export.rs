@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use klappe_export::{Page, ShotView, Texts, Theme};
 use klappe_model::{FloorPlan, PaperSetup};
 use klappe_stellprobe::{render, vector_view, DisplayList, Eye, Lamp, Shape, ShotOrder};
 
+use super::fade::face_strengths;
 use super::{Pages, Session, Size};
 use crate::error::{write_failed, ServiceError};
 use crate::library;
@@ -13,6 +15,25 @@ const SECONDS_PER_MINUTE: u64 = 60;
 pub(super) const MIN_NUMBER_WIDTH: usize = 2;
 /// Width of the PNG of a view (LH-86).
 pub(super) const VIEW_WIDTH_PX: f64 = 1920.0;
+
+/// Reads the image files `list` names from `dir` into `images`, those not in it yet.
+pub(super) fn read_images(
+    dir: &Path,
+    list: &DisplayList,
+    images: &mut HashMap<String, Vec<u8>>,
+) -> Result<(), ServiceError> {
+    for item in &list.items {
+        let Shape::Image { file, .. } = &item.shape else {
+            continue;
+        };
+        if images.contains_key(file) {
+            continue;
+        }
+        images.insert(file.clone(), klappe_store::read_image(dir, file)?);
+    }
+
+    Ok(())
+}
 
 /// What an export needs besides its path; each format takes what it uses.
 #[derive(Debug, Clone)]
@@ -115,7 +136,7 @@ impl Session {
         &self,
         picture: &klappe_stellprobe::Picture,
     ) -> Result<Vec<u8>, ServiceError> {
-        let strength = |role| self.scene_fade(role);
+        let strength = self.picture_strength(picture);
 
         Ok(klappe_export::picture_png(
             picture,
@@ -179,6 +200,7 @@ impl Session {
 
             views.push(ShotView {
                 shot: shot.id.clone(),
+                strength: face_strengths(&view),
                 view,
             });
         }
@@ -231,13 +253,7 @@ impl Session {
         let mut page = Page::new(paper.size, paper.orientation, self.plan_title(), texts);
         let list = self.display_list();
         page.fade = self.item_fades(&list);
-        for item in &list.items {
-            let Shape::Image { file, .. } = &item.shape else {
-                continue;
-            };
-            page.images
-                .insert(file.clone(), klappe_store::read_image(&self.dir, file)?);
-        }
+        read_images(&self.dir, &list, &mut page.images)?;
 
         Ok((list, page))
     }

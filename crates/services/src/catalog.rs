@@ -15,6 +15,15 @@ pub enum Language {
     English,
 }
 
+impl From<Language> for klappe_model::ScriptLanguage {
+    fn from(language: Language) -> Self {
+        match language {
+            Language::German => Self::De,
+            Language::English => Self::En,
+        }
+    }
+}
+
 impl Language {
     /// `de` or `en`; else from the system (`LANG`), German only when it says so.
     pub fn pick(wanted: Option<&str>) -> Self {

@@ -44,7 +44,11 @@ Item {
 
     FileDialog {
         id: picker
-        onVisibleChanged: if (!visible && Window.window) Window.window.requestActivate()
+        onVisibleChanged: {
+            if (!visible && Window.window) {
+                Window.window.requestActivate()
+            }
+        }
         title: imp.texts.t("script.importPick")
         nameFilters: [imp.texts.t("script.filter")]
         onAccepted: imp.controller.importScript(selectedFile.toString())

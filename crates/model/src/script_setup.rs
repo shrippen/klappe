@@ -108,8 +108,62 @@ fn write_language<S: serde::Serializer>(
     language.map(ScriptLanguage::name).serialize(s)
 }
 
-/// How the screenplay is paged and printed; `[script]` in `projekt.toml`.
+/// Who sets the scene numbers (DB-33): Klappe follows the book, or the numbers stay as they
+/// are and only new scenes get one (12A). A project without the key is locked, so a script
+/// from before the setting is never renumbered unasked; a new project says `automatic`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(from = "String", into = "String")]
+pub enum SceneNumbering {
+    /// Sequential from the first number; changes with the book.
+    Automatic,
+    /// No number changes; a new scene is numbered between its neighbours, a struck one stays
+    /// as "OMITTED".
+    #[default]
+    Locked,
+}
+
+impl SceneNumbering {
+    pub fn name(self) -> &'static str {
+        match self {
+            SceneNumbering::Automatic => "automatic",
+            SceneNumbering::Locked => "locked",
+        }
+    }
+}
+
+impl From<String> for SceneNumbering {
+    /// Any other text is locked: a number is never changed on a guess.
+    fn from(name: String) -> Self {
+        match name.as_str() {
+            "automatic" => SceneNumbering::Automatic,
+            _ => SceneNumbering::Locked,
+        }
+    }
+}
+
+impl From<SceneNumbering> for String {
+    fn from(numbers: SceneNumbering) -> Self {
+        numbers.name().to_owned()
+    }
+}
+
+/// The number the first scene gets while numbers are automatic.
+const DEFAULT_FIRST_SCENE: u32 = 1;
+
+fn default_first_scene() -> u32 {
+    DEFAULT_FIRST_SCENE
+}
+
+fn is_default_numbering(numbering: &SceneNumbering) -> bool {
+    *numbering == SceneNumbering::default()
+}
+
+fn is_default_first(first: &u32) -> bool {
+    *first == DEFAULT_FIRST_SCENE
+}
+
+/// How the screenplay is paged and printed; `[script]` in `projekt.toml`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScriptSetup {
     /// The project's language; `None` until chosen: the surface's language then decides.
     #[serde(
@@ -127,6 +181,28 @@ pub struct ScriptSetup {
     /// `(CONT'D)` also when a character speaks again after action (DB-31).
     #[serde(default)]
     pub contd_after_action: bool,
+    /// Who sets the scene numbers (DB-33).
+    #[serde(default, skip_serializing_if = "is_default_numbering")]
+    pub scene_numbering: SceneNumbering,
+    /// The number of the first scene while they are automatic.
+    #[serde(
+        default = "default_first_scene",
+        skip_serializing_if = "is_default_first"
+    )]
+    pub first_scene: u32,
+}
+
+impl Default for ScriptSetup {
+    fn default() -> Self {
+        Self {
+            language: None,
+            words: ScriptWords::default(),
+            paper: ScriptPaper::default(),
+            contd_after_action: false,
+            scene_numbering: SceneNumbering::default(),
+            first_scene: DEFAULT_FIRST_SCENE,
+        }
+    }
 }
 
 fn is_local(words: &ScriptWords) -> bool {

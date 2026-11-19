@@ -13,6 +13,13 @@ const IMAGE_PROJECT: &str = "bild-projekt";
 /// space, which the editor's text area does not give back as it got them.
 const CRLF_PROJECT: &str = "crlf-projekt";
 const CRLF_SCRIPT: &str = "INT. HALLE - TAG\r\n\r\nSie\u{a0}kommt an.\r\n";
+/// The copy of the example `place_answer.qml` opens.
+const PLACE_PROJECT: &str = "orte-projekt";
+/// The play location of the example, and the name the copy has before the scenario renames it.
+const PLACE_NAME: &str = "SÄNGERSAAL";
+const PLACE_OLD_NAME: &str = "FESTSAAL";
+/// The id of the renamed play place in the example project; a rename keeps it.
+const PLACE_ID: &str = "k3m9q2xa";
 /// Where the width sits in a PNG file; the height follows.
 const PNG_WIDTH_AT: usize = 16;
 
@@ -47,6 +54,23 @@ fn copy_example(base: &Path) {
     let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
 
     copy_dir(&example, &base.join(IMAGE_PROJECT));
+    copy_dir(&example, &base.join(PLACE_PROJECT));
+
+    // The heading says SÄNGERSAAL: the book renamed what the file calls FESTSAAL.
+    let places = base.join(PLACE_PROJECT).join("orte.toml");
+    let old = std::fs::read_to_string(&places).unwrap();
+    assert!(old.contains(PLACE_NAME));
+    std::fs::write(places, old.replace(PLACE_NAME, PLACE_OLD_NAME)).unwrap();
+}
+
+/// What `place_answer.qml` answered is in `orte.toml`: the old name is called the heading's
+/// now, the id stayed.
+fn check_place_answer(base: &Path) {
+    let places = std::fs::read_to_string(base.join(PLACE_PROJECT).join("orte.toml")).unwrap();
+
+    assert!(places.contains(PLACE_NAME), "{places}");
+    assert!(!places.contains(PLACE_OLD_NAME), "{places}");
+    assert!(places.contains(PLACE_ID), "{places}");
 }
 
 /// An empty project with the screenplay of `CRLF_SCRIPT`, for `script_untouched.qml`.
@@ -171,6 +195,7 @@ fn controller_scenarios_hold() {
     if failed.is_empty() {
         check_list_exports(&base);
         check_picked_images(&base);
+        check_place_answer(&base);
     }
     let _ = std::fs::remove_dir_all(&base);
 
