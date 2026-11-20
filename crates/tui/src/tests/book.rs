@@ -20,7 +20,7 @@ fn swapped() -> (Scratch, App) {
     let register = entry("aaaa", "1", KELLER) + &entry("bbbb", "2", HOF);
     fs::write(scratch.dir.join("szenen.toml"), register).unwrap_or_else(|e| unreachable!("{e}"));
     let _ = fs::remove_dir_all(scratch.dir.join("szenen"));
-    // Both locations are scripted locations: only the scenes are asked about.
+    // Both place names are scripted locations: only the scenes are asked about.
     let places = "[[ort]]\nid = \"hofhofho\"\nname = \"HOF\"\n\n[[ort]]\nid = \"kellerke\"\nname = \"KELLER\"\n";
     fs::write(scratch.dir.join("orte.toml"), places).unwrap_or_else(|e| unreachable!("{e}"));
     let mut app = scratch.app();

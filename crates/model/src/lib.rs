@@ -3,7 +3,7 @@
 //! ```text
 //! Project
 //! ├── characters   Character        (project-wide: Elisabeth, Burgvogt …)
-//! ├── places       Place            (scripted place names of the scene headings, DB-51)
+//! ├── places       Place            (scripted locations the headings name, DB-51)
 //! ├── locations    Location → Set   (walls, objects, notes, images, background image)
 //! ├── library      LibraryItem      (the project's own objects, LH-12)
 //! ├── templates    Template         (the project's own set-ups, LH-07)

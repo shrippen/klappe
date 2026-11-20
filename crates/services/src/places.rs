@@ -1,7 +1,7 @@
 //! Joins the project's scripted locations to the scene headings of the book (DB-51, DATENMODELL
-//! §4): which locations the headings name that no scripted location answers to, and what the
+//! §4): which place names the headings use that no scripted location answers to, and what the
 //! user can make of each. Nothing here becomes a scripted location on its own: a misspelling is
-//! a location too.
+//! a place name too.
 
 use klappe_model::{random_id, Place, Project};
 use klappe_script::{heading_place, is_omitted, Element, Script};
@@ -74,8 +74,8 @@ pub(crate) fn unused(places: &[Place], script: &Script) -> Vec<String> {
         .collect()
 }
 
-/// Settles the location `name` in `places` as `choice`; `false` when `choice` names no play
-/// location or `name` already belongs to one (a name or variant belongs to one place).
+/// Settles the place name `name` in `places` as `choice`; `false` when `choice` names no
+/// scripted location or `name` already belongs to one (a name or variant belongs to one place).
 pub(crate) fn decide(places: &mut Vec<Place>, name: &str, choice: &PlaceChoice) -> bool {
     let name = name.split_whitespace().collect::<Vec<_>>().join(" ");
     if name.is_empty() || places.iter().any(|p| p.is_called(&name)) {

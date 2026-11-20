@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// A place of the story: `SÄNGERSAAL`. Not a shooting location (`Location`): several play
+/// A place of the story: `SÄNGERSAAL`. Not a shooting location (`Location`): several scripted
 /// locations may be shot at one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Place {

@@ -1,5 +1,5 @@
-//! The questions about the headings of the book (`Ctrl+K`, DB-51): a location no play
-//! location is called by.
+//! The questions about the headings of the book (`Ctrl+K`, DB-51): a place name no
+//! scripted location is called by.
 
 use std::collections::BTreeMap;
 use std::fs;

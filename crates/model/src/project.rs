@@ -17,7 +17,7 @@ use crate::template::Template;
 pub struct Project {
     pub title: String,
     pub characters: Vec<Character>,
-    /// The scripted place names of the scene headings (DB-51).
+    /// The scripted locations the scene headings name (DB-51).
     pub places: Vec<Place>,
     pub locations: Vec<Location>,
     pub scenes: Vec<Scene>,
