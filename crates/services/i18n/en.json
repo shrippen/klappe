@@ -713,7 +713,6 @@
  "tui.helpTitle": "Help (Up/Down scroll, any other key closes)",
  "tui.usage": "Usage: klappe-tui [--language de|en] <folder>.klappe",
  "tui.unknownLanguage": "Unknown language (de or en)",
- "tui.openFailed": "Cannot open the project",
  "tui.sceneOf": "Scene {current}/{total}",
  "tui.modified": "modified",
  "tui.mode.text": "TEXT",

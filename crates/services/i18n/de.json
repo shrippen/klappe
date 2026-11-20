@@ -713,7 +713,6 @@
  "tui.helpTitle": "Hilfe (Hoch/Runter scrollt, andere Taste schließt)",
  "tui.usage": "Aufruf: klappe-tui [--language de|en] <Ordner>.klappe",
  "tui.unknownLanguage": "Unbekannte Sprache (de oder en)",
- "tui.openFailed": "Projekt lässt sich nicht öffnen",
  "tui.sceneOf": "Szene {current}/{total}",
  "tui.modified": "geändert",
  "tui.mode.text": "TEXT",

@@ -38,9 +38,8 @@ pub fn unknown_language(lang: Language) -> String {
 
 /// Why the project did not open, in the terminal's language.
 pub fn open_error(lang: Language, error: &klappe_services::ServiceError) -> String {
-    let why = klappe_services::error_text(lang, error);
-
-    format!("{}: {why}", lang.text("tui.openFailed"))
+    // The service's text says what failed and why; a lead-in would say it twice.
+    klappe_services::error_text(lang, error)
 }
 
 #[cfg(test)]
