@@ -99,6 +99,8 @@ Nicht geändert; der Eigentümer entscheidet.
     „Regieplatz“: englisch „boom“, „director's position“.
 11. **Kante-Bausteine** (`crates/app/qml/Kante/`) haben deutsche Vorgabetexte (z. B. „Voriger
     Marker“); Klappe überschreibt sie alle. Die Bibliothek bliebe sauberer ohne Vorgabetexte.
-12. **`klappe-cli`:** Fehler und Hilfetexte stehen englisch im Code (`crates/cli/src/main.rs`),
-    entgegen E-10 („Texte aus dem Katalog“). Auf den Katalog umstellen oder E-10 ändern?
+12. **`klappe-cli`:** entschieden (Eigentümer, 20.11.2026): Katalog. Die eigenen Fehler kommen
+    aus dem Katalog (`cli.*`, Sprache aus `--language`, bei `fov` aus `LANG`). Ausnahmen: die
+    Hilfetexte und Meldungen von clap (auch `use one of …` bei `--paper` und `--orientation`,
+    geprüft, bevor `--language` gelesen ist) bleiben englisch.
 13. **Beispielprojekt** (`crates/demo`, `demo/`): Texte nicht geprüft.

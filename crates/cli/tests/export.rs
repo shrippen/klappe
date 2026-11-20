@@ -101,7 +101,16 @@ fn an_unknown_paper_is_refused() {
 fn an_unknown_scene_fails_without_a_file() {
     let out = out_file("cli-none.png");
     let output = Command::new(env!("CARGO_BIN_EXE_klappe-cli"))
-        .args(["export", "--project", EXAMPLE, "--scene", "99", "--out"])
+        .args([
+            "export",
+            "--project",
+            EXAMPLE,
+            "--scene",
+            "99",
+            "--language",
+            "en",
+            "--out",
+        ])
         .arg(&out)
         .output()
         .unwrap();
@@ -136,7 +145,7 @@ fn a_service_error_uses_the_catalogue_text() {
 fn an_unknown_extension_asks_for_a_format() {
     let out = out_file("cli-plan.jpg");
 
-    let output = export(&out, &[]);
+    let output = export(&out, &["--language", "en"]);
 
     assert!(!output.status.success());
     assert!(stderr(&output).contains("use --format"));
@@ -146,7 +155,7 @@ fn an_unknown_extension_asks_for_a_format() {
 fn a_negative_time_is_refused() {
     let out = out_file("cli-neg.png");
 
-    let output = export(&out, &["--at=-1"]);
+    let output = export(&out, &["--at=-1", "--language", "en"]);
 
     assert!(!output.status.success());
     assert!(stderr(&output).contains("time must be"));
@@ -321,4 +330,101 @@ fn the_video_needs_ffmpeg() {
     assert!(!output.status.success());
     assert!(stderr(&output).contains("ffmpeg"), "{}", stderr(&output));
     assert!(!out.exists());
+}
+
+/// agent.md, no texts in code: the command line's own messages are in its `--language` too.
+#[test]
+fn the_command_lines_own_errors_are_in_german() {
+    let out = out_file("cli-de.png");
+
+    let scene = Command::new(env!("CARGO_BIN_EXE_klappe-cli"))
+        .args([
+            "export",
+            "--project",
+            EXAMPLE,
+            "--scene",
+            "99",
+            "--language",
+            "de",
+            "--out",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let time = export(&out, &["--at=-1", "--language", "de"]);
+    let format = export(&out_file("cli-de.jpg"), &["--language", "de"]);
+
+    assert!(
+        stderr(&scene).contains("klappe-cli: Keine Szene 99"),
+        "{}",
+        stderr(&scene)
+    );
+    assert!(stderr(&time).contains("Sekunden"), "{}", stderr(&time));
+    assert!(
+        stderr(&format).contains("--format angeben"),
+        "{}",
+        stderr(&format)
+    );
+}
+
+/// Review of PR 297: the other refusals in German too, and `fov` follows `LANG`.
+#[test]
+fn the_other_refusals_are_in_german() {
+    let camera_needs_id = export(
+        &out_file("cli-cam.png"),
+        &["--format", "camera", "--language", "de"],
+    );
+    let camera_only = export(
+        &out_file("cli-only.png"),
+        &["--camera", "k1", "--language", "de"],
+    );
+    let fov = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_klappe-cli"))
+            .arg("fov")
+            .args(args)
+            .env("LANG", "de_DE.UTF-8")
+            .output()
+            .unwrap()
+    };
+    let sensor = fov(&["--lens", "35", "--sensor", "riesig"]);
+    let lens = fov(&["--lens", "0"]);
+
+    assert!(
+        stderr(&camera_needs_id).contains("braucht --camera"),
+        "{}",
+        stderr(&camera_needs_id)
+    );
+    assert!(
+        stderr(&camera_only).contains("gehört nur zu"),
+        "{}",
+        stderr(&camera_only)
+    );
+    assert!(
+        stderr(&sensor).contains("Unbekannter Sensor riesig"),
+        "{}",
+        stderr(&sensor)
+    );
+    assert!(stderr(&lens).contains("Brennweite"), "{}", stderr(&lens));
+}
+
+/// Every catalogue key the command line names is in both catalogues; a missing one would print
+/// the key itself (no scene with a plan missing is in the example to show `cli.noPlan`).
+#[test]
+fn every_cli_key_is_in_both_catalogues() {
+    let source = include_str!("../src/main.rs");
+    let keys: Vec<&str> = source
+        .split('"')
+        .filter(|s| s.starts_with("cli.") && !s.contains(' '))
+        .collect();
+    let catalogues = [
+        include_str!("../../services/i18n/de.json"),
+        include_str!("../../services/i18n/en.json"),
+    ];
+
+    assert!(keys.len() >= 8, "{keys:?}");
+    for key in keys {
+        for catalogue in catalogues {
+            assert!(catalogue.contains(&format!("\"{key}\":")), "{key} missing");
+        }
+    }
 }
