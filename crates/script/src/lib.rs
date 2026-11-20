@@ -7,6 +7,7 @@
 mod align;
 mod anchor;
 mod assist;
+mod caps;
 mod conflict;
 mod flow;
 mod inline;
@@ -23,6 +24,7 @@ mod write;
 
 pub use align::{align, heading_print, scene_states, Alignment, Fingerprint, Outcome, SceneState};
 pub use assist::{heading_place, suggest, Context, Stage, Suggestions, Vocabulary};
+pub use caps::typed_caps;
 pub use conflict::conflict_line;
 pub use flow::{enter_step, force_line, tab_step, upper, EnterStep, Forced, Gap, Slot, TabStep};
 pub use inline::{inline_runs, Marks, Run};

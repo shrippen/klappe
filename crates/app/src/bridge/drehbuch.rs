@@ -6,8 +6,9 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    error_text, outline, text_kinds, Align, HeaderLine, ImportReport, OutlineKind, PrintFace,
-    SceneNumbers, ScriptPrint, SheetPage, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    enter_step, error_text, outline, tab_step, text_kinds, typed_caps, Align, EnterStep, Gap,
+    HeaderLine, ImportReport, OutlineKind, PrintFace, SceneNumbers, ScriptPrint, SheetPage, Slot,
+    TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -34,6 +35,61 @@ fn letter(kind: TextKind) -> char {
         .iter()
         .find(|(k, _, _)| *k == kind)
         .map_or(' ', |(_, letter, _)| *letter)
+}
+
+/// The slots of the element flow and their letters, as `KINDS` names the kinds.
+const SLOTS: [(Slot, TextKind); 6] = [
+    (Slot::Heading, TextKind::Heading),
+    (Slot::Action, TextKind::Action),
+    (Slot::Character, TextKind::Character),
+    (Slot::Parenthetical, TextKind::Parenthetical),
+    (Slot::Dialogue, TextKind::Dialogue),
+    (Slot::Transition, TextKind::Transition),
+];
+
+fn slot_of(letter: &str) -> Option<Slot> {
+    let first = letter.chars().next()?;
+    let kind = KINDS.iter().find(|(_, l, _)| *l == first)?.0;
+
+    SLOTS
+        .iter()
+        .find(|(_, k)| *k == kind)
+        .map(|(slot, _)| *slot)
+}
+
+fn slot_letter(slot: Slot) -> String {
+    let kind = SLOTS
+        .iter()
+        .find(|(s, _)| *s == slot)
+        .map_or(TextKind::Action, |(_, k)| *k);
+
+    letter(kind).to_string()
+}
+
+/// What Enter does, as `enterStep` describes it.
+pub(super) fn enter_json(line: &str, col: usize, kind: &str, below: Option<&str>) -> String {
+    let below_blank = below.is_none_or(|b| b.trim().is_empty());
+
+    match enter_step(line, col, slot_of(kind), below_blank) {
+        EnterStep::Break => json!({ "step": "break" }),
+        EnterStep::Retag => json!({ "step": "retag" }),
+        EnterStep::GoBelow => json!({ "step": "below" }),
+        EnterStep::Next(slot, gap) => json!({
+            "step": "next",
+            "kind": slot_letter(slot),
+            "gap": match gap { Gap::Blank => "blank", Gap::None => "none" },
+        }),
+    }
+    .to_string()
+}
+
+/// What Tab does, as `tabStep` describes it; empty for nothing.
+pub(super) fn tab_json(line: &str, kind: &str) -> String {
+    let Some(step) = tab_step(line, slot_of(kind)) else {
+        return String::new();
+    };
+
+    json!({ "kind": slot_letter(step.slot), "text": step.text, "col": step.col }).to_string()
 }
 
 /// One letter per line of `text`, as `scriptLooks` names them.
@@ -144,6 +200,35 @@ impl qobject::Controller {
         q(&print_json(&s.print_pages(&print)))
     }
 
+    pub(super) fn enter_step(
+        &self,
+        line: &QString,
+        col: i32,
+        kind: &QString,
+        below: &QString,
+    ) -> QString {
+        let below = below.to_string();
+        let col = usize::try_from(col).unwrap_or_default();
+
+        q(&enter_json(
+            &line.to_string(),
+            col,
+            &kind.to_string(),
+            Some(&below),
+        ))
+    }
+
+    pub(super) fn tab_step(&self, line: &QString, kind: &QString) -> QString {
+        q(&tab_json(&line.to_string(), &kind.to_string()))
+    }
+
+    pub(super) fn typed_caps(&self, text: &QString, at: i32, pending: &QString) -> QString {
+        let at = usize::try_from(at).unwrap_or_default();
+        let caps = typed_caps(&text.to_string(), at, slot_of(&pending.to_string()));
+
+        q(&caps.unwrap_or_default())
+    }
+
     pub(super) fn edit_script(mut self: Pin<&mut Self>, text: &QString) {
         let Some(s) = self.as_mut().session() else {
             return;
@@ -179,7 +264,36 @@ impl qobject::Controller {
 
 #[cfg(test)]
 mod tests {
-    use super::{kinds_text, looks_json, outline_json, print_json};
+    use super::{enter_json, kinds_text, looks_json, outline_json, print_json, tab_json};
+
+    /// Enter at the end of a heading opens an action after a blank line; at the end of a cue
+    /// the dialogue right below; in the middle of a line it is a plain break.
+    #[test]
+    fn enter_follows_the_element_flow() {
+        let next = |line: &str, kind: &str| -> serde_json::Value {
+            serde_json::from_str(&enter_json(line, line.chars().count(), kind, None)).unwrap()
+        };
+
+        assert_eq!(next("INT. SAAL", "h")["kind"], "a");
+        assert_eq!(next("INT. SAAL", "h")["gap"], "blank");
+        assert_eq!(next("ANNA", "c")["kind"], "d");
+        assert_eq!(next("ANNA", "c")["gap"], "none");
+        let middle: serde_json::Value =
+            serde_json::from_str(&enter_json("ANNA", 2, "c", None)).unwrap();
+        assert_eq!(middle["step"], "break");
+    }
+
+    /// Tab turns an empty action line into a cue, an empty dialogue into `()`.
+    #[test]
+    fn tab_turns_an_empty_line() {
+        let cue: serde_json::Value = serde_json::from_str(&tab_json("", "a")).unwrap();
+        let paren: serde_json::Value = serde_json::from_str(&tab_json("", "d")).unwrap();
+
+        assert_eq!(cue["kind"], "c");
+        assert_eq!(paren["text"], "()");
+        assert_eq!(paren["col"], 1);
+        assert_eq!(tab_json("Text", "a"), "");
+    }
     use klappe_services::{Placed, PrintFace, SheetPage};
 
     /// Texts keep their place in points and their face.

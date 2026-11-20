@@ -380,6 +380,33 @@ pub mod qobject {
         #[cxx_name = "scriptLooks"]
         fn script_looks(self: &Self) -> QString;
 
+        /// Enter at column `col` of `line`, a line of kind `kind` (a letter of `scriptKinds`, or
+        /// of a slot Enter or Tab made it), `below` the line under it: `{ step: "break" |
+        /// "retag" | "below" | "next", kind, gap: "blank" | "none" }`; `kind` and `gap` only
+        /// for `next`, the element that follows.
+        #[qinvokable]
+        #[cxx_name = "enterStep"]
+        fn enter_step(
+            self: &Self,
+            line: &QString,
+            col: i32,
+            kind: &QString,
+            below: &QString,
+        ) -> QString;
+
+        /// Tab on `line` of kind `kind`: `{ kind, text, col }`, the element and text the line
+        /// becomes and where the cursor goes; empty when Tab changes nothing.
+        #[qinvokable]
+        #[cxx_name = "tabStep"]
+        fn tab_step(self: &Self, line: &QString, kind: &QString) -> QString;
+
+        /// Line `at` of `text` in capitals as typed (a heading, a forced or `pending` cue);
+        /// empty when nothing changes. `pending` is the letter of the slot Enter or Tab made the
+        /// line, or empty.
+        #[qinvokable]
+        #[cxx_name = "typedCaps"]
+        fn typed_caps(self: &Self, text: &QString, at: i32, pending: &QString) -> QString;
+
         /// The screenplay's pages as they print (D-15), laid out from the session's text now:
         /// `{ fontPt, ascentPt, pages: [{ width, height, texts: [{ x, y, bold, text }] }] }`, in
         /// points from the page's top left, `y` the baseline. Scene numbers shown, no header.

@@ -25,6 +25,11 @@ Item {
         history.reset()
     }
 
+    /// Puts `text` in place of `from` to `to` as one change of the history.
+    function replace(from, to, text) {
+        history.replace(from, to, text)
+    }
+
     /// Where the cursor goes after the step, -1 for none.
     function undo() {
         return history.undo()
