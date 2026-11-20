@@ -277,9 +277,9 @@ RowLayout {
                         objectName: "writeScreenplay"
                         text: view.texts.t("screenplay.write")
                         onClicked: {
-                        view.showLayout("flow")
-                        area.forceActiveFocus()
-                    }
+                            view.showLayout("flow")
+                            area.forceActiveFocus()
+                        }
                     }
                 }
             }
