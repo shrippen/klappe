@@ -407,6 +407,13 @@ mod tests {
     }
 
     #[test]
+    fn a_cue_prefix_offers_one_entry_per_character() {
+        let v = vocab("WEIẞ\nx\n\nWEISS\ny\n\nANNA\nz\n");
+
+        assert_eq!(options(&v, "WEI", Context::Cue), ["WEIẞ"]);
+    }
+
+    #[test]
     fn an_empty_cue_proposes_the_other_speaker() {
         let v = vocab("A\n\nANNA\nx\n\nBEN\ny\n");
 
