@@ -234,6 +234,7 @@ TestCase {
     }
 
     function test_a_missing_number_offers_to_open_the_screenplay() {
+        fake.scriptText = "INT. HOF – NACHT #1#\n"
         const panel = makeEmpty()
         panel.scene = { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG", "inBook": false }
 
@@ -246,6 +247,8 @@ TestCase {
 
     // The register and the book decide (`inBook`), not the number.
     function test_a_scene_in_the_book_is_not_judged_by_its_number() {
+        // The book writes no number: a search by number would find nothing.
+        fake.scriptText = "INT. SÄNGERSAAL – TAG\n"
         const panel = makeEmpty()
 
         compare(findChild(panel, "emptyReason").text, "Zu dieser Szene gibt es keinen Drehbuchtext.")
@@ -253,6 +256,7 @@ TestCase {
     }
 
     function test_a_scene_out_of_the_book_is_explained_although_its_number_is_in_the_text() {
+        fake.scriptText = "INT. SÄNGERSAAL – TAG #12#\n"
         const panel = makeEmpty()
         panel.scene = { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG", "inBook": false }
 
