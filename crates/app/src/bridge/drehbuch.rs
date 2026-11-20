@@ -7,8 +7,8 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     enter_step, error_text, outline, tab_step, text_kinds, typed_caps, Align, EnterStep, Gap,
-    HeaderLine, ImportReport, OutlineKind, PrintFace, SceneNumbers, ScriptPrint, SheetPage, Slot,
-    TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    HeaderLine, ImportReport, Laid, OutlineKind, PrintFace, SceneNumbers, ScriptPrint, SheetPage,
+    Slot, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -236,6 +236,18 @@ impl qobject::Controller {
 
         s.set_script_text(&text.to_string());
         self.as_mut().changed();
+        self.refresh();
+    }
+
+    pub(super) fn paginate_script(mut self: Pin<&mut Self>) {
+        let language = self.rust().language;
+        let Some(s) = self.as_mut().session() else {
+            return;
+        };
+
+        if s.paginate_if_changed(language) == Laid::Kept {
+            return;
+        }
         self.refresh();
     }
 

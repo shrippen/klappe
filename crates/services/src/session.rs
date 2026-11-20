@@ -46,6 +46,7 @@ pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
 pub use places::PlaceAnswer;
 pub use retime::{Grab, TimeSnap};
+pub use script_pages::Laid;
 pub use speech::{Speech, SpokenLine};
 pub use video::{frame_count as video_frame_count, VideoJob};
 

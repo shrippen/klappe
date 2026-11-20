@@ -39,6 +39,8 @@ TestCase {
             edits.push(text)
             scriptText = text
         }
+        property int layouts: 0
+        function paginateScript() { layouts += 1 }
         // A heading's line is "h", every other line "a": enough to see the kinds arrive.
         function scriptKinds(text) {
             return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")
@@ -81,6 +83,7 @@ TestCase {
             width: tc.width
             height: tc.height
             debounceMs: 50
+            layoutRestMs: 200
             toolsSource: Qt.resolvedUrl("StubTools.qml")
         }
     }
@@ -93,6 +96,7 @@ TestCase {
         fake.edits = []
         fake.prints = 0
         fake.enters = 0
+        fake.layouts = 0
         fake.printLine = "INT. SAAL - TAG"
     }
 
@@ -446,5 +450,22 @@ TestCase {
 
         compare(fake.enters, 0)
         compare(view.area.text, book.slice(0, 2) + "\n" + book.slice(7))
+    }
+
+    // DN-02: the pages and scene lengths are laid out on opening and after the rest without a
+    // key, never at each key.
+    function test_the_layout_waits_for_a_rest() {
+        const view = make()
+        compare(fake.layouts, 1)
+        view.area.forceActiveFocus()
+        view.area.cursorPosition = 0
+
+        keyClick("x")
+        wait(100)
+        keyClick("y")
+        compare(fake.layouts, 1)
+
+        tryCompare(fake, "layouts", 2)
+        verify(fake.edits.length > 0)
     }
 }

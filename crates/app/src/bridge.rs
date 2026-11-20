@@ -354,6 +354,12 @@ pub mod qobject {
         #[qinvokable]
         fn save(self: Pin<&mut Self>) -> bool;
 
+        /// Lays the screenplay out again if it changed since the last time (DN-02): the editor
+        /// calls this after 5 s without a key; the scene list then shows the new lengths.
+        #[qinvokable]
+        #[cxx_name = "paginateScript"]
+        fn paginate_script(self: Pin<&mut Self>);
+
         /// Replaces the screenplay with `text` (the editor's typing, debounced); unsaved until
         /// `save`. The scene list and the script panel follow.
         #[qinvokable]

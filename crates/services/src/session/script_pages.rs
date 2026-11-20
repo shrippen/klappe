@@ -8,9 +8,17 @@ use crate::script_pages::{lay_out, ScriptPages, ScriptPrint, Source};
 use klappe_export::SheetPage;
 use klappe_model::ScriptSetup;
 
+/// Whether `paginate_if_changed` laid the screenplay out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Laid {
+    /// It had not changed: the last layout holds.
+    Kept,
+    Anew,
+}
+
 impl Session {
     /// Lays the screenplay out again and keeps the result (DN-02). Nothing else does: typing
-    /// never lays out. A surface calls this when 5 s have passed without a key, and
+    /// never lays out. A surface calls this (or `paginate_if_changed`) when 5 s have passed without a key, and
     /// `export_script_pdf` and the printing call it themselves. `fallback` is the surface's
     /// language, used for the words (MORE) and (CONT'D) while the project has none.
     pub fn paginate(&mut self, fallback: Language) {
@@ -19,15 +27,16 @@ impl Session {
         self.paginate_text(&text, fallback);
     }
 
-    /// Lays the screenplay out again only if text, paper or words changed since the last
-    /// layout: a window keeps the scene lengths up to date with it after each change.
-    pub fn paginate_if_changed(&mut self, fallback: Language) {
+    /// `paginate`, but only if text, paper or words changed since the last layout: the window
+    /// calls it after 5 s without a key (DN-02) and need not show the same lengths again.
+    pub fn paginate_if_changed(&mut self, fallback: Language) -> Laid {
         let source = Source::of(self.script_text(), &self.project.script, fallback);
         if self.layout.as_ref().is_some_and(|l| l.is_for(&source)) {
-            return;
+            return Laid::Kept;
         }
 
         self.paginate(fallback);
+        Laid::Anew
     }
 
     /// Like `paginate` for `text` that is not (yet) the session's: the terminal editor holds

@@ -55,7 +55,7 @@ pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPag
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;
 pub use session::{
-    Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Layer, Lock, Looping, Pages,
+    Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Laid, Layer, Lock, Looping, Pages,
     PlaceAnswer, Playing, Session, Size, Speech, SpokenLine, Step, TimeSnap, VideoJob, View,
     ViewStep, Visibility,
 };

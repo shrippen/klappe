@@ -392,12 +392,6 @@ impl qobject::Controller {
 
     /// Pushes what may have changed after a call to the properties (and their signals).
     pub(super) fn refresh(mut self: Pin<&mut Self>) {
-        // The scene list shows each scene's length: the layout follows text and paper.
-        let language = self.rust().language;
-        if let Some(s) = self.as_mut().session() {
-            s.paginate_if_changed(language);
-        }
-
         let shown = self
             .rust()
             .session

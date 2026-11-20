@@ -200,7 +200,7 @@ TestCase {
     function test_a_scene_says_its_length() {
         const list = make()
 
-        verify(row(list, "a").Accessible.description.includes("1 3/8 Seiten"))
-        verify(!row(list, "b").Accessible.description.includes("Seiten"))
+        verify(row(list, "a").Accessible.description.includes("Länge 1 3/8"))
+        verify(!row(list, "b").Accessible.description.includes("Länge"))
     }
 }

@@ -333,7 +333,7 @@
  "scenelist.markText": "T",
  "scenelist.markPlan": "P",
  "scenelist.markShots": "S",
- "scenelist.length": "{length} pages",
+ "scenelist.length": "length {length}",
  "scenelist.marks": "Plans: {plans}, shots: {shots}",
  "scenelist.inBook": "in script",
  "layout.leftTabs": "Left column",
