@@ -50,7 +50,10 @@ pub use page::{
     DrawingTexts, LampColumns, LampTexts, Page, ShotColumns, ShotTexts, ShotView, Texts,
 };
 pub use palette::Theme;
-pub use script::{Face, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
+pub use script::{
+    Face, Placed, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, SheetPage, TitlePage,
+    ASCENT_PT as SCRIPT_ASCENT_PT, FONT_PT as SCRIPT_FONT_PT,
+};
 pub use video::{video_program_found, VideoSpec, VideoWriter, FFMPEG};
 
 /// The plan on one page as SVG.
@@ -144,6 +147,12 @@ pub fn pdf_with_views(
 /// embedded): the title page when it has anything, then the pages.
 pub fn script_pdf(sheet: &ScriptSheet) -> Vec<u8> {
     script::pdf(sheet)
+}
+
+/// The pages `script_pdf` prints, each text where it stands on the paper, for a surface that
+/// shows them (D-15).
+pub fn script_sheet_pages(sheet: &ScriptSheet) -> Vec<SheetPage> {
+    script::sheet_pages(sheet)
 }
 
 /// `files` (name with `/`, bytes) as one ZIP archive, stored uncompressed: a folder handed on

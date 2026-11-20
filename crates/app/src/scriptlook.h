@@ -46,6 +46,7 @@ public:
     Q_INVOKABLE void apply(const QString& kinds, const QVariantMap& looks);
 
     // How block `block` is drawn now: "bold", "muted" or "" (what the highlighter put there).
+    // For the test of the look (tests/controller/script_look.qml); the window does not ask.
     Q_INVOKABLE QString drawnFace(int block) const;
 
     Look lookOf(int block) const;

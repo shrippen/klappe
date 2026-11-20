@@ -15,7 +15,7 @@ Item {
         look.apply(kinds, looks)
     }
 
-    /// How line `line` is drawn: "bold", "muted" or "".
+    /// How line `line` is drawn: "bold", "muted" or ""; only the test of the look asks.
     function faceOf(line) {
         return look.drawnFace(line)
     }

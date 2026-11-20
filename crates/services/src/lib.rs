@@ -69,6 +69,8 @@ pub use views::{
 
 // What surfaces draw and print, handed through so they need no lower crate.
 pub use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts, Theme, FFMPEG};
+// The screenplay's pages as they print, for a surface's print view (D-15).
+pub use klappe_export::{Face as PrintFace, Placed, SheetPage, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT};
 pub use klappe_model::{
     Angle, Arrival, CameraBody, CameraPresets, Curve, Dash, Departure, DoorSide, DrawingShape,
     FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, Numbering,
