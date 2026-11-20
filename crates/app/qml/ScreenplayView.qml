@@ -151,14 +151,18 @@ RowLayout {
         _replaying = false
     }
 
+    /// A hit closer than this many lines to the bottom is scrolled to; it then stands this far
+    /// down the view (a third), so the lines before it show too.
+    readonly property int hitMarginLines: 2
+    readonly property real hitHeight: 1 / 3
     /// Selects `from` to `to` and scrolls it into view (a hit of the search).
     function showText(from, to) {
         showLayout("flow")
         area.select(from, to)
         const flick = scroll.contentItem
         const top = area.positionToRectangle(from).y
-        if (top < flick.contentY || top > flick.contentY + flick.height - metrics.height * 2) {
-            flick.contentY = Math.max(0, Math.min(top - flick.height / 3, flick.contentHeight - flick.height))
+        if (top < flick.contentY || top > flick.contentY + flick.height - metrics.height * hitMarginLines) {
+            flick.contentY = Math.max(0, Math.min(top - flick.height * hitHeight, flick.contentHeight - flick.height))
         }
     }
 
@@ -182,8 +186,6 @@ RowLayout {
         event.accepted = true
         if (plain && event.key === Qt.Key_Tab) {
             flow.tab()
-        } else if (event.matches(StandardKey.Find)) {
-            search.open()
         } else if (event.matches(StandardKey.Undo)) {
             undoText()
         } else if (event.matches(StandardKey.Redo)) {
@@ -243,6 +245,12 @@ RowLayout {
             view.restyle()
             item.forget()
         }
+    }
+    // Ctrl+F anywhere in the view, not only in the text (the scene list, the switch).
+    Shortcut {
+        sequences: [StandardKey.Find]
+        enabled: view.visible
+        onActivated: search.open()
     }
     Timer {
         id: push

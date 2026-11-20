@@ -6,9 +6,9 @@ import Kante
 
 // DB-60 in the window: find and replace in the screenplay's text by the rules of `script/`, as
 // the terminal does (the speaker filter stays the terminal's). Ctrl+F opens it above the text;
-// Enter goes to the next hit, Shift+Enter back, Esc closes. The hits are found anew at each step,
-// so typing between two steps never leaves a stale hit. A replacement is one step of the text's
-// own undo history.
+// Enter goes to the next hit, Shift+Enter back, Esc closes. The hits are found anew at each
+// step and Ersetzen takes the marked hit, so typing between two steps never hits a stale one.
+// A replacement is one step of the text's own undo history.
 //
 //  [Suchen: anna    ] [Ersetzen: Eva  ] (o) Groß-/Kleinschreibung  2 von 5  ‹ ›  Ersetzen  Alle  ✕
 RowLayout {
@@ -76,13 +76,17 @@ RowLayout {
         }
     }
 
-    /// The hit shown becomes the replacement; the next hit after it is shown.
+    /// The marked hit becomes the replacement and the next one is shown; without a marked hit
+    /// (typing moved it off) only the next one is shown.
     function replaceOne() {
-        if (current < 0) {
+        find()
+        const marked = hits.findIndex(h => h[0] === area.selectionStart && h[1] === area.selectionEnd)
+        if (marked < 0) {
+            next()
             return
         }
-        const after = hits[current][0] + replaceField.text.length
-        put(controller.replaceInScript(area.text, findField.text, caseMode, replaceField.text, current))
+        const after = hits[marked][0] + replaceField.text.length
+        put(controller.replaceInScript(area.text, findField.text, caseMode, replaceField.text, marked))
         from(after)
     }
 
@@ -131,6 +135,7 @@ RowLayout {
         objectName: "hitCount"
         text: bar.findField.text === "" ? ""
             : bar.hits.length === 0 ? bar.texts.t("search.none")
+            : bar.current < 0 ? bar.texts.t("search.total", { total: bar.hits.length })
             : bar.texts.t("search.count", { current: bar.current + 1, total: bar.hits.length })
     }
     KanteToolButton {

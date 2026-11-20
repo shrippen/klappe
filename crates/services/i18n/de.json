@@ -325,6 +325,7 @@
  "search.replace": "Ersetzen durch",
  "search.matchCase": "Groß-/Kleinschreibung",
  "search.count": "{current} von {total}",
+ "search.total": "{total} Treffer",
  "search.none": "Keine Treffer",
  "search.previous": "Vorheriger Treffer",
  "search.next": "Nächster Treffer",

@@ -325,6 +325,7 @@
  "search.replace": "Replace with",
  "search.matchCase": "Match case",
  "search.count": "{current} of {total}",
+ "search.total": "{total} matches",
  "search.none": "No match",
  "search.previous": "Previous match",
  "search.next": "Next match",

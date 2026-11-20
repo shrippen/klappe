@@ -547,10 +547,42 @@ TestCase {
 
         view.search.replaceAll()
         compare(view.area.text, book.replace(/e/g, "E"))
+        // Without case the replacement still matches: the count, no "0 of".
+        compare(view.search.children.find(c => c.objectName === "hitCount").text, view.search.hits.length + " Treffer")
 
         view.search.findField.forceActiveFocus()
         keyClick(Qt.Key_Escape)
         verify(!view.search.visible)
         verify(view.area.activeFocus)
+    }
+
+    // Review of PR 288: typing between two steps moves the hit; Ersetzen takes the marked one.
+    function test_replace_takes_the_marked_hit_after_typing() {
+        const view = make()
+        fake.scriptText = "Anna sieht anna."
+        view.area.cursorPosition = 0
+        view.search.open()
+        view.search.findField.text = "anna"
+        view.search.from(0)
+        view.search.next()
+        compare(view.area.selectionStart, 11)
+
+        view.area.insert(0, "anna ")
+        compare(view.area.selectionStart, 16)
+        view.search.replaceField.text = "Eva"
+        view.search.replaceOne()
+
+        compare(view.area.text, "anna Anna sieht Eva.")
+    }
+
+    // Review of PR 288: Ctrl+F works anywhere in the view, not only in the text.
+    function test_ctrl_f_works_outside_the_text() {
+        const view = make()
+        const list = findChild(view, "sceneList")
+        list.forceActiveFocus()
+
+        keySequence(StandardKey.Find)
+
+        verify(view.search.visible)
     }
 }
