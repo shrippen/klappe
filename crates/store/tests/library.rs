@@ -217,8 +217,8 @@ fn items_that_cannot_be_used_refuse_the_whole_file() {
 
     assert!(parse_error(&item("x", "0.0", "1.0")).contains("not usable"));
     assert!(parse_error(&item("x", "1.0", "-2.0")).contains("not usable"));
-    assert!(parse_error(&item("x", "nan", "1.0")).contains("not usable"));
-    assert!(parse_error(&item("x", "inf", "1.0")).contains("not usable"));
+    assert!(parse_error(&item("x", "nan", "1.0")).contains("no finite number"));
+    assert!(parse_error(&item("x", "inf", "1.0")).contains("no finite number"));
     assert!(parse_error(&item("x", "5000.0", "1.0")).contains("not usable"));
     assert!(parse_error(&item("  ", "1.0", "1.0")).contains("kind is empty"));
 

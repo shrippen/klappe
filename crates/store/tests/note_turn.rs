@@ -53,5 +53,5 @@ fn a_note_turned_by_no_number_does_not_load() {
 
     let err = load(&dir).unwrap_err();
 
-    assert!(err.to_string().contains("note n1"), "{err}");
+    assert!(err.to_string().contains("rotation_deg"), "{err}");
 }
