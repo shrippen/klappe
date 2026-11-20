@@ -198,15 +198,30 @@ impl Session {
 /// that the open questions may have moved. An edit of the plans alone does not move them, and
 /// must not pay for aligning the register with the book again.
 pub(super) fn register_moved(before: &Project, after: &Project) -> bool {
-    let differ = |(a, b): (&Scene, &Scene)| {
-        a.id != b.id
-            || a.kind != b.kind
-            || a.number != b.number
-            || a.heading != b.heading
-            || a.state != b.state
-            || a.prints != b.prints
-            || a.refused != b.refused
-    };
+    before.scenes.len() != after.scenes.len()
+        || before
+            .scenes
+            .iter()
+            .zip(&after.scenes)
+            .any(|(a, b)| aligned(a) != aligned(b))
+}
 
-    before.scenes.len() != after.scenes.len() || before.scenes.iter().zip(&after.scenes).any(differ)
+/// What the alignment reads of an entry. Every field is named, so a new one does not compile
+/// until someone decides whether the alignment reads it (audit 16, finding 1).
+fn aligned(scene: &Scene) -> impl PartialEq + '_ {
+    let Scene {
+        id,
+        kind,
+        number,
+        heading,
+        state,
+        prints,
+        refused,
+        // Not read by the alignment: where it is shot and what is staged.
+        location: _,
+        sun: _,
+        plans: _,
+    } = scene;
+
+    (id, kind, number, heading, state, prints, refused)
 }
