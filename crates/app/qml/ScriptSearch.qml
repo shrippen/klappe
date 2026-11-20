@@ -129,23 +129,9 @@ Item {
         putText(change.from, change.to, change.text)
     }
 
-    // The hard shadow, as KanteFloatingPanel draws it, and the card.
-    KantePolygon {
-        visible: KanteStyle.themed
-        x: KanteStyle.unit(3)
-        y: KanteStyle.unit(3)
-        z: -1
-        width: bar.width
-        height: bar.height
-        fillColor: KanteStyle.tint(KanteStyle.strongTextColor, 0.2)
-        cutTopRight: KanteStyle.chamferSmall
-    }
-
-    KanteCard {
+    // The card with its hard shadow, as Kante draws floating cards.
+    KanteFloatingCard {
         anchors.fill: parent
-        color: KanteStyle.dialogColor
-        borderColor: KanteStyle.frameColor
-        chamfer: KanteStyle.chamferSmall
     }
 
     ColumnLayout {
