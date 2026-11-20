@@ -85,17 +85,9 @@ Item {
         }
     }
 
-    // Where the loop starts: the selected shot's start, else the scene's.
-    readonly property real loopStartS: {
-        const cut = source.find(tr => tr.kind === "cut")
-        const shot = cut ? cut.segments.find(s => s.selected) : null
-        return shot ? shot.from_s : 0
-    }
-
     SpeechPlayer {
         id: reader
         controller: line.controller
-        loopStartS: line.loopStartS
         voice: line.voice
         active: line.playing && line.speak && line.voice !== null && line.voice.available
     }
@@ -111,10 +103,7 @@ Item {
             const now = Date.now()
             const dt = (now - lastMs) / line.msPerS
             lastMs = now
-            // A loop wraps inside the step: SpeechPlayer must not take that for a seek.
-            reader.wrapping = line.looping
             const more = line.controller.advance(dt, line.speed, line.looping ? "shot" : "off")
-            reader.wrapping = false
             if (!more) {
                 // The end of the scene: what is being said is read to its end.
                 reader.letFinish = true

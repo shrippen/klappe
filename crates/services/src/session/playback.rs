@@ -1,6 +1,6 @@
 use klappe_model::FloorPlan;
 
-use super::{Looping, Playing, Session, Step};
+use super::{Looping, Playing, Session, Step, Tick};
 
 /// Two times closer than this (s) are the same mark.
 const MARK_EPS_S: f64 = 1e-3;
@@ -72,33 +72,46 @@ impl Session {
 
     /// Plays `dt_s` seconds of real time at `speed` (1.0 = real time) from the playhead.
     /// Without a loop it stops at the end of the scene; with one it stays in the selected
-    /// shot (the scene when none is selected), also when the playhead began outside it.
-    pub fn advance(&mut self, dt_s: f64, speed: f64, looping: Looping) -> Playing {
+    /// shot (the scene when none is selected), also when the playhead began outside it. The
+    /// tick says where the loop started over when the playhead went back.
+    pub fn advance(&mut self, dt_s: f64, speed: f64, looping: Looping) -> Tick {
+        let running = Tick {
+            playing: Playing::Running,
+            looped_to_s: None,
+        };
         let step_s = dt_s * speed;
         if !step_s.is_finite() || step_s <= 0.0 {
-            return Playing::Running;
+            return running;
         }
 
-        let next_s = self.time_s + step_s;
+        let before_s = self.time_s;
+        let next_s = before_s + step_s;
         if looping == Looping::Off {
             self.set_time(next_s);
-            return match self.time_s >= self.duration_s() {
+            let playing = match self.time_s >= self.duration_s() {
                 true => Playing::Ended,
                 false => Playing::Running,
             };
+            return Tick { playing, ..running };
         }
 
         let (from_s, to_s) = self.loop_range_s();
         let span_s = to_s - from_s;
         if span_s <= 0.0 {
-            return Playing::Ended;
+            return Tick {
+                playing: Playing::Ended,
+                ..running
+            };
         }
 
         // Outside the range the loop starts at its beginning.
-        let inside = self.time_s >= from_s && self.time_s <= to_s;
+        let inside = before_s >= from_s && before_s <= to_s;
         let start_s = if inside { next_s } else { from_s };
         self.set_time(from_s + (start_s - from_s).rem_euclid(span_s));
-        Playing::Running
+        Tick {
+            looped_to_s: (self.time_s < before_s).then_some(from_s),
+            ..running
+        }
     }
 
     fn loop_range_s(&self) -> (f64, f64) {

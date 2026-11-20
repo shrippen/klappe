@@ -126,6 +126,11 @@ pub mod qobject {
         #[qsignal]
         fn switched(self: Pin<&mut Self>);
 
+        /// A loop in `advance` started over at `to_s` seconds; comes before the move of the
+        /// playhead it belongs to, so a reader can tell it from a seek.
+        #[qsignal]
+        fn looped(self: Pin<&mut Self>, to_s: f64);
+
         /// What the selected shot's camera sees, `width_px` wide, coloured with `palette_json`
         /// (`{ name: [r, g, b] }`); a null image without a camera or marks.
         #[qinvokable]

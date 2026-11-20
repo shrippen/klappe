@@ -130,6 +130,15 @@ pub enum Playing {
     Ended,
 }
 
+/// What a tick of playback did.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Tick {
+    pub playing: Playing,
+    /// Set when a loop jumped back in this tick: the second the loop starts at (the start of
+    /// the selected shot, else of the scene). The playhead is that plus the rest of the tick.
+    pub looped_to_s: Option<f64>,
+}
+
 /// What `Session::autosave` did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Autosave {

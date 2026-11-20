@@ -24,13 +24,19 @@ TestCase {
         property bool running: true
         // Where the next `advance` puts the playhead (-1: stays), e.g. a loop's wrap.
         property real nextTime: -1
+        // The loop start `advance` reports with it (-1: none), as the bridge does.
+        property real nextLoopS: -1
         signal switched()
+        signal looped(real toS)
 
         function seek(at) { seeks.push(at) }
         function stepMark(direction) { steps.push(direction) }
         function advance(dt, speed, looping) {
             advances.push([speed, looping])
             if (nextTime >= 0) {
+                if (nextLoopS >= 0) {
+                    looped(nextLoopS)
+                }
                 time = nextTime
             }
             return running
@@ -225,6 +231,7 @@ TestCase {
         line.togglePlay()
         compare(fakeVoice.said, [])
 
+        fake.nextLoopS = 2
         fake.nextTime = 2.04
         tryCompare(fakeVoice.said, "length", 1)
         compare(fakeVoice.said, ["Shot."])
@@ -244,6 +251,7 @@ TestCase {
         line.togglePlay()
         tryCompare(fakeVoice.said, "length", 0)
 
+        fake.nextLoopS = 0
         fake.nextTime = 0.04
         tryCompare(fakeVoice.said, "length", 1)
         compare(fakeVoice.said, ["Start."])

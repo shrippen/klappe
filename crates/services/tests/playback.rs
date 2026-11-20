@@ -59,10 +59,10 @@ fn the_jumps_stop_at_the_ends() {
 fn playing_runs_in_real_time_times_the_speed() {
     let mut s = open();
 
-    assert_eq!(s.advance(1.0, 1.0, Looping::Off), Playing::Running);
+    assert_eq!(s.advance(1.0, 1.0, Looping::Off).playing, Playing::Running);
     assert_eq!(s.time_s(), 1.0);
 
-    assert_eq!(s.advance(1.0, 0.5, Looping::Off), Playing::Running);
+    assert_eq!(s.advance(1.0, 0.5, Looping::Off).playing, Playing::Running);
     assert_eq!(s.time_s(), 1.5);
 }
 
@@ -71,7 +71,7 @@ fn playing_ends_at_the_end_of_the_scene() {
     let mut s = open();
     s.set_time(19.5);
 
-    assert_eq!(s.advance(1.0, 1.0, Looping::Off), Playing::Ended);
+    assert_eq!(s.advance(1.0, 1.0, Looping::Off).playing, Playing::Ended);
     assert_eq!(s.time_s(), 20.0);
 }
 
@@ -83,7 +83,7 @@ fn a_loop_wraps_at_the_end_of_the_shot() {
 
     // Shot 12.3 runs 6 to 9 s: 8.5 + 1 s wraps to 6.5.
     s.set_time(8.5);
-    assert_eq!(s.advance(1.0, 1.0, Looping::Shot), Playing::Running);
+    assert_eq!(s.advance(1.0, 1.0, Looping::Shot).playing, Playing::Running);
     assert_eq!(s.time_s(), 6.5);
 }
 
@@ -102,7 +102,7 @@ fn a_loop_without_a_shot_runs_the_whole_scene() {
     let mut s = open();
     s.set_time(19.5);
 
-    assert_eq!(s.advance(1.0, 1.0, Looping::Shot), Playing::Running);
+    assert_eq!(s.advance(1.0, 1.0, Looping::Shot).playing, Playing::Running);
     assert_eq!(s.time_s(), 0.5);
 }
 
@@ -118,7 +118,55 @@ fn no_time_or_no_speed_changes_nothing() {
         (f64::NAN, 1.0),
         (1.0, f64::NAN),
     ] {
-        assert_eq!(s.advance(dt_s, speed, Looping::Off), Playing::Running);
+        assert_eq!(
+            s.advance(dt_s, speed, Looping::Off).playing,
+            Playing::Running
+        );
         assert_eq!(s.time_s(), 3.0);
     }
+}
+
+#[test]
+fn a_shot_loop_says_where_it_started_over() {
+    let mut s = open();
+    s.select_shot("s12-3").unwrap();
+
+    s.set_time(7.0);
+    assert_eq!(s.advance(1.0, 1.0, Looping::Shot).looped_to_s, None);
+
+    s.set_time(8.5);
+    assert_eq!(s.advance(1.0, 1.0, Looping::Shot).looped_to_s, Some(6.0));
+}
+
+#[test]
+fn a_scene_loop_says_where_it_started_over() {
+    let mut s = open();
+
+    s.set_time(5.0);
+    assert_eq!(s.advance(1.0, 1.0, Looping::Shot).looped_to_s, None);
+
+    s.set_time(19.5);
+    assert_eq!(s.advance(1.0, 1.0, Looping::Shot).looped_to_s, Some(0.0));
+}
+
+#[test]
+fn entering_the_loop_from_outside_is_no_jump_forward() {
+    let mut s = open();
+    s.select_shot("s12-3").unwrap();
+
+    // Before the shot: the playhead goes on to its start, not back.
+    s.set_time(1.0);
+    assert_eq!(s.advance(0.5, 1.0, Looping::Shot).looped_to_s, None);
+
+    // After the shot: back to its start.
+    s.set_time(15.0);
+    assert_eq!(s.advance(0.5, 1.0, Looping::Shot).looped_to_s, Some(6.0));
+}
+
+#[test]
+fn no_loop_reports_no_jump() {
+    let mut s = open();
+    s.set_time(19.5);
+
+    assert_eq!(s.advance(1.0, 1.0, Looping::Off).looped_to_s, None);
 }
