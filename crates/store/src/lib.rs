@@ -1,10 +1,11 @@
 //! Reads and writes a Klappe project folder (FORMAT.md).
 //!
 //! ```text
-//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, orte.toml, drehorte/, szenen.toml, szenen/
+//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen.toml, szenen/
 //! load(dir)                  ◄──         drehbuch.fountain
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
+//! load_places, save_places   ◄──►          orte.toml (the scripted locations; never part of a save)
 //! load_library, save_library ◄──►          bibliothek.toml, or any library file to pass on
 //!                            builtin_templates, vorlagen.toml (the project's own templates)
 //! load_template_file, save_template_file ◄──► vorlagen.toml, or any template file to pass on
@@ -52,7 +53,6 @@ pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
 pub use lock::{load_lock, save_lock};
 pub use partial::{save_contd, save_register, save_scene_numbering, save_script};
-use places::PlacesFile;
 pub use places::{load_places, save_places};
 pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
@@ -213,7 +213,6 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             script: header.script,
             views: header.ansicht,
             characters,
-            places: load_places(dir)?,
             locations,
             scenes,
             library,
@@ -239,32 +238,42 @@ fn load_characters(dir: &Path) -> Result<Vec<Character>, StoreError> {
 /// Writes `project` into `dir`, creating it if needed. Each file is replaced atomically;
 /// location and scene files of other ids are removed, and `bibliothek.toml` and `vorlagen.toml`
 /// when the project has no own objects or templates. `script: None` leaves an existing
-/// `drehbuch.fountain` untouched.
+/// `drehbuch.fountain` untouched. `orte.toml` is not the project's: only `save_places` writes
+/// it, from the file as it is, so a save never undoes an answer another program gave.
 pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), StoreError> {
-    save_with(dir, project, script, PlacesFile::Write)
+    // Encode everything first: a document that cannot be encoded fails before any file changes.
+    let (writes, optional) = encode_project(dir, project)?;
+
+    for (path, bytes) in &writes {
+        files::write_atomic(path, bytes)?;
+    }
+
+    // None left: the file goes, so the folder shows what the project holds.
+    for (path, _) in optional.iter().filter(|(_, bytes)| bytes.is_none()) {
+        files::remove_file(path)?;
+    }
+
+    let keep: HashSet<&str> = project.locations.iter().map(|l| l.id.as_str()).collect();
+    Dir::new(dir.join(LOCATIONS_DIR), Kind::Toml).remove_except(&keep)?;
+    let keep: HashSet<&str> = project.scenes.iter().map(|s| s.id.as_str()).collect();
+    Dir::new(dir.join(SCENES_DIR), Kind::Json).remove_except(&keep)?;
+
+    if let Some(text) = script {
+        files::write_atomic(&dir.join(SCRIPT_FILE), text.as_bytes())?;
+    }
+
+    Ok(())
 }
 
-/// `save`, but `orte.toml` stays as it is on disk: only `save_places` writes it, from the file
-/// as it is, so a save never undoes an answer another program gave meanwhile.
-pub fn save_keeping_places(
+/// Every file of `project` with its content, and the optional files (`None`: to be removed).
+fn encode_project(
     dir: &Path,
     project: &Project,
-    script: Option<&str>,
-) -> Result<(), StoreError> {
-    save_with(dir, project, script, PlacesFile::Keep)
-}
-
-fn save_with(
-    dir: &Path,
-    project: &Project,
-    script: Option<&str>,
-    places: PlacesFile,
-) -> Result<(), StoreError> {
+) -> Result<(Vec<FileWrite>, Vec<OptionalFile>), StoreError> {
     // Ids become file names: check all before the first write.
     check_ids(project.locations.iter().map(|l| l.id.as_str()))?;
     check_ids(project.scenes.iter().map(|s| s.id.as_str()))?;
 
-    // Encode everything first: a document that cannot be encoded fails before any file changes.
     let mut writes = Vec::new();
 
     writes.push(encode_header(dir, project)?);
@@ -275,7 +284,7 @@ fn save_with(
     let path = dir.join(CHARACTERS_FILE);
     writes.push((path.clone(), files::encode_toml(&path, &characters)?));
 
-    let optional = optional_files(dir, project, places)?;
+    let optional = optional_files(dir, project)?;
     writes.extend(optional.iter().filter_map(|(path, bytes)| {
         let bytes = bytes.clone()?;
         Some((path.clone(), bytes))
@@ -288,25 +297,7 @@ fn save_with(
 
     writes.extend(register::encode(dir, &project.scenes)?);
 
-    for (path, bytes) in &writes {
-        files::write_atomic(path, bytes)?;
-    }
-
-    // None left: the file goes, so the folder shows what the project holds.
-    for (path, _) in optional.iter().filter(|(_, bytes)| bytes.is_none()) {
-        files::remove_file(path)?;
-    }
-
-    let keep: HashSet<&str> = project.locations.iter().map(|l| l.id.as_str()).collect();
-    locations.remove_except(&keep)?;
-    let keep: HashSet<&str> = project.scenes.iter().map(|s| s.id.as_str()).collect();
-    Dir::new(dir.join(SCENES_DIR), Kind::Json).remove_except(&keep)?;
-
-    if let Some(text) = script {
-        files::write_atomic(&dir.join(SCRIPT_FILE), text.as_bytes())?;
-    }
-
-    Ok(())
+    Ok((writes, optional))
 }
 
 /// `projekt.toml` of `project` with its path.
@@ -325,17 +316,15 @@ fn encode_header(dir: &Path, project: &Project) -> Result<(PathBuf, Vec<u8>), St
     Ok((path, bytes))
 }
 
+/// A file's path with the content to write.
+type FileWrite = (PathBuf, Vec<u8>);
+
 /// A file's path with its content, or `None` when there is to be no file.
 type OptionalFile = (PathBuf, Option<Vec<u8>>);
 
-/// The files that exist only while there are entries: own objects, own templates and scripted
-/// locations, each
+/// The files that exist only while there are entries: own objects and own templates, each
 /// with its content, or `None` when there are none.
-fn optional_files(
-    dir: &Path,
-    project: &Project,
-    places: PlacesFile,
-) -> Result<Vec<OptionalFile>, StoreError> {
+fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, StoreError> {
     let library_path = dir.join(LIBRARY_FILE);
     let templates_path = dir.join(TEMPLATES_FILE);
     let library = match project.library.is_empty() {
@@ -347,18 +336,7 @@ fn optional_files(
         false => Some(template::encode(&templates_path, &project.templates)?),
     };
 
-    let mut files = vec![(library_path, library), (templates_path, templates)];
-    if places == PlacesFile::Keep {
-        return Ok(files);
-    }
-
-    let encoded = match project.places.is_empty() {
-        true => None,
-        false => Some(places::encode(dir, &project.places)?.1),
-    };
-    files.push((dir.join(PLACES_FILE), encoded));
-
-    Ok(files)
+    Ok(vec![(library_path, library), (templates_path, templates)])
 }
 
 /// Writes `project` as a backup into `dir/.sicherung`, in the project format. The project

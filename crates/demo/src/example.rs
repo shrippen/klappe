@@ -63,7 +63,7 @@ pub fn write_example(world: &Value, lang: Lang, dir: &Path) -> Result<(), DemoEr
         .get(SECTION)
         .ok_or_else(|| DemoError::World(format!("the world has no \"{SECTION}\" section")))?;
     let section: Section = serde_json::from_value(localize(section, lang)?)?;
-    let (project, script) = build(section)?;
+    let example = build(section)?;
 
     if dir.exists() {
         std::fs::remove_dir_all(dir).map_err(|source| DemoError::Io {
@@ -71,7 +71,8 @@ pub fn write_example(world: &Value, lang: Lang, dir: &Path) -> Result<(), DemoEr
             source,
         })?;
     }
-    klappe_store::save(dir, &project, Some(&script))?;
+    klappe_store::save(dir, &example.project, Some(&example.script))?;
+    klappe_store::save_places(dir, &example.places)?;
 
     Ok(())
 }
@@ -89,8 +90,18 @@ fn scene_id(world_id: &str) -> String {
     id_from_seed(seed)
 }
 
-fn build(section: Section) -> Result<(Project, String), DemoError> {
+/// What an example project is made of: the project, its scripted locations (`orte.toml`,
+/// beside the project) and the screenplay.
+#[derive(Debug)]
+struct Example {
+    project: Project,
+    places: Vec<Place>,
+    script: String,
+}
+
+fn build(section: Section) -> Result<Example, DemoError> {
     let mut project = Project::new(&section.title);
+    let mut places: Vec<Place> = Vec::new();
     let mut script = Script {
         title_page: section.title_page,
         elements: Vec::new(),
@@ -104,8 +115,8 @@ fn build(section: Section) -> Result<(Project, String), DemoError> {
         }
 
         let place = heading_place(&spec.heading);
-        if !place.is_empty() && project.place_named(place).is_none() {
-            project.places.push(Place {
+        if !place.is_empty() && !places.iter().any(|p| p.is_called(place)) {
+            places.push(Place {
                 id: scene_id(&format!("{PLACE_SEED}{place}")),
                 name: place.to_owned(),
                 variants: Vec::new(),
@@ -133,7 +144,11 @@ fn build(section: Section) -> Result<(Project, String), DemoError> {
     project.characters = section.characters;
     project.locations = section.locations;
 
-    Ok((project, klappe_script::write(&script)))
+    Ok(Example {
+        project,
+        places,
+        script: klappe_script::write(&script),
+    })
 }
 
 /// The scene's elements after its heading, and the index of the first element of each line
@@ -234,7 +249,9 @@ mod tests {
         let section: Section =
             serde_json::from_value(localize(&section(), Lang::De).unwrap()).unwrap();
 
-        let (project, script) = build(section).unwrap();
+        let Example {
+            project, script, ..
+        } = build(section).unwrap();
 
         // Action is 0, the cue of the next line is 1.
         assert_eq!(project.scenes[0].plans[0].links[0].element, 1);

@@ -77,7 +77,7 @@ fn headings_are_asked_about_never_made_places() {
         names(&s),
         [("SÄNGERSAAL".to_owned(), 2), ("HOF".to_owned(), 1)]
     );
-    assert!(s.project().places.is_empty());
+    assert!(s.places().is_empty());
     assert!(!dir.join("orte.toml").exists());
     assert_eq!(s.book_report().places, 2);
 }
@@ -95,16 +95,16 @@ fn an_answer_is_written_at_once_and_matches_the_headings() {
         "{}",
         orte(&dir)
     );
-    let id = s.project().places[0].id.clone();
+    let id = s.places()[0].id.clone();
 
     s.resolve_place("HOF", PlaceChoice::Variant(id.clone()))
         .unwrap();
 
     assert!(s.pending_places().is_empty());
-    assert_eq!(s.project().places[0].variants, ["HOF"]);
+    assert_eq!(s.places()[0].variants, ["HOF"]);
     let again = Session::open(&dir).unwrap();
     assert!(again.pending_places().is_empty());
-    assert_eq!(again.project().places[0].id, id);
+    assert_eq!(again.places()[0].id, id);
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn a_rename_in_the_book_keeps_the_id() {
     let mut s = Session::open(&dir).unwrap();
     s.resolve_place("SÄNGERSAAL", PlaceChoice::Create).unwrap();
     s.resolve_place("HOF", PlaceChoice::Create).unwrap();
-    let id = s.project().places[0].id.clone();
+    let id = s.places()[0].id.clone();
     drop(s);
 
     std::fs::write(
@@ -134,8 +134,8 @@ fn a_rename_in_the_book_keeps_the_id() {
     s.answer_place("FESTSAAL", 1).unwrap();
 
     assert!(s.pending_places().is_empty());
-    assert_eq!(s.project().places[0].id, id);
-    assert_eq!(s.project().places[0].name, "FESTSAAL");
+    assert_eq!(s.places()[0].id, id);
+    assert_eq!(s.places()[0].name, "FESTSAAL");
 }
 
 #[test]
@@ -148,14 +148,14 @@ fn an_answer_changes_only_what_it_touches() {
     other
         .resolve_place("SÄNGERSAAL", PlaceChoice::Create)
         .unwrap();
-    let theirs = other.project().places[0].id.clone();
+    let theirs = other.places()[0].id.clone();
 
     early.resolve_place("HOF", PlaceChoice::Create).unwrap();
 
     let places = klappe_store::load_places(&dir).unwrap();
     assert_eq!(places.len(), 2, "{}", orte(&dir));
     assert_eq!(places[0].id, theirs);
-    assert_eq!(early.project().places, places);
+    assert_eq!(early.places(), places);
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn a_name_belongs_to_one_place() {
     other
         .resolve_place("SÄNGERSAAL", PlaceChoice::Create)
         .unwrap();
-    let hof = other.project().places[0].id.clone();
+    let hof = other.places()[0].id.clone();
     let before = orte(&dir);
 
     // The question is stale: the file already knows the name. It goes, the file stays.
@@ -211,7 +211,7 @@ fn undo_and_a_save_keep_the_places() {
     .unwrap();
     s.undo();
 
-    assert_eq!(s.project().places.len(), 1);
+    assert_eq!(s.places().len(), 1);
     s.save().unwrap();
     assert!(orte(&dir).contains("SÄNGERSAAL"));
 }
@@ -285,7 +285,7 @@ fn a_stale_question_takes_the_disk_and_goes() {
 
     assert_eq!(names(&early), [("SÄNGERSAAL".to_owned(), 2)]);
     assert_eq!(orte(&dir).matches("HOF").count(), 1);
-    assert_eq!(early.project().places.len(), 1);
+    assert_eq!(early.places().len(), 1);
 
     let mut third = Session::open(&dir).unwrap();
     other
@@ -295,23 +295,18 @@ fn a_stale_question_takes_the_disk_and_goes() {
     assert!(third.pending_places().is_empty());
 }
 
-/// The places of a backup are not written back: the disk wins.
+/// A backup holds no scripted locations: restoring it leaves them to the disk.
 #[test]
 fn a_restored_backup_leaves_the_places_to_the_disk() {
     let dir = make("places-backup", BOOK);
-    let mut project = Project::new("Test");
-    project.places = vec![klappe_model::Place {
-        id: "zz".into(),
-        name: "WALD".into(),
-        variants: Vec::new(),
-    }];
-    klappe_store::save_backup(&dir, &project, Some(BOOK)).unwrap();
+    klappe_store::save_backup(&dir, &Project::new("Test"), Some(BOOK)).unwrap();
+    assert!(!dir.join(".sicherung/orte.toml").exists());
 
     let mut s = Session::open(&dir).unwrap();
     s.restore_backup().unwrap();
     s.save().unwrap();
 
-    assert!(s.project().places.is_empty());
+    assert!(s.places().is_empty());
     assert_eq!(orte(&dir), "");
 }
 

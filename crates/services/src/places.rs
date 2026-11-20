@@ -3,7 +3,7 @@
 //! user can make of each. Nothing here becomes a scripted location on its own: a misspelling is
 //! a place name too.
 
-use klappe_model::{random_id, Place, Project};
+use klappe_model::{random_id, Place};
 use klappe_script::{heading_place, is_omitted, Element, Script};
 
 /// A place name of the headings no scripted location is called by.
@@ -42,11 +42,11 @@ fn heading_places(script: &Script) -> Vec<&str> {
 
 /// The place names of the headings, each once, that no scripted location is called by, in book
 /// order.
-pub(crate) fn pending(project: &Project, script: &Script) -> Vec<PendingPlace> {
+pub(crate) fn pending(places: &[Place], script: &Script) -> Vec<PendingPlace> {
     let mut found: Vec<PendingPlace> = Vec::new();
 
     for place in heading_places(script) {
-        if project.place_named(place).is_some() {
+        if places.iter().any(|p| p.is_called(place)) {
             continue;
         }
         let same = |p: &&mut PendingPlace| klappe_model::same_place_name(&p.name, place);

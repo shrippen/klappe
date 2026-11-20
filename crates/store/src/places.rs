@@ -8,13 +8,6 @@ use serde::{Deserialize, Serialize};
 use crate::files;
 use crate::{StoreError, PLACES_FILE};
 
-/// Whether a project save writes `orte.toml`.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PlacesFile {
-    Write,
-    Keep,
-}
-
 /// `orte.toml`.
 #[derive(Serialize, Deserialize)]
 struct Places {
