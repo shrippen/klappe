@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{StoreError, JSON_EXT, TOML_EXT};
 
+/// Start of a Git conflict; no line of valid TOML begins with it.
+const CONFLICT_MARK: &str = "<<<<<<<";
 const TEMP_PREFIX: &str = ".";
 const TEMP_SUFFIX: &str = ".tmp";
 /// Characters Windows does not allow in file names (`/` and `\` are checked as separators).
@@ -176,17 +178,41 @@ pub fn load_script_file(path: &Path) -> Result<String, StoreError> {
 /// does not load.
 pub(crate) fn read_toml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, StoreError> {
     let text = fs::read_to_string(path).map_err(|e| io_err(path, e))?;
+
+    parse_toml(path, &text)
+}
+
+/// Like `read_toml` for a file Git merges: `None` when it is missing, and a Git conflict
+/// mark is refused with its line.
+pub(crate) fn read_toml_merged<T: for<'de> Deserialize<'de>>(
+    path: &Path,
+) -> Result<Option<T>, StoreError> {
+    let Some(text) = read_optional(path)? else {
+        return Ok(None);
+    };
+    let conflict = text.lines().position(|l| l.starts_with(CONFLICT_MARK));
+    if let Some(index) = conflict {
+        return Err(StoreError::Conflict {
+            path: path.to_path_buf(),
+            line: index + 1,
+        });
+    }
+
+    parse_toml(path, &text).map(Some)
+}
+
+fn parse_toml<T: for<'de> Deserialize<'de>>(path: &Path, text: &str) -> Result<T, StoreError> {
     let parse = |message: String| StoreError::Parse {
         path: path.to_path_buf(),
         message,
     };
 
-    let value: toml::Value = toml::from_str(&text).map_err(|e| parse(e.to_string()))?;
+    let value: toml::Value = toml::from_str(text).map_err(|e| parse(e.to_string()))?;
     if let Some(key) = endless(&value, "") {
         return Err(parse(format!("{key} is no finite number")));
     }
 
-    toml::from_str(&text).map_err(|e| parse(e.to_string()))
+    toml::from_str(text).map_err(|e| parse(e.to_string()))
 }
 
 /// The dotted key of the first number in `value` that is NaN or endless, e.g.
@@ -298,5 +324,56 @@ pub(crate) fn io_err(path: &Path, source: io::Error) -> StoreError {
     StoreError::Io {
         path: path.to_path_buf(),
         source,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Deserialize)]
+    struct Doc {
+        x: f64,
+    }
+
+    fn write(name: &str, text: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("klappe-files-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("dir");
+        let path = dir.join(name);
+        fs::write(&path, text).expect("write");
+
+        path
+    }
+
+    #[test]
+    fn merged_toml_reads_a_clean_file() {
+        let path = write("clean.toml", "x = 1.5\n");
+        let doc: Option<Doc> = read_toml_merged(&path).expect("read");
+
+        assert_eq!(doc.expect("some").x, 1.5);
+    }
+
+    #[test]
+    fn merged_toml_is_none_when_missing() {
+        let path = write("missing.toml", "").with_file_name("absent.toml");
+        let doc: Option<Doc> = read_toml_merged(&path).expect("read");
+
+        assert!(doc.is_none());
+    }
+
+    #[test]
+    fn merged_toml_refuses_a_conflict_with_its_line() {
+        let path = write("conflict.toml", "x = 1\n<<<<<<< HEAD\nx = 2\n");
+        let error = read_toml_merged::<Doc>(&path).expect_err("conflict");
+
+        assert!(matches!(error, StoreError::Conflict { line: 2, .. }));
+    }
+
+    #[test]
+    fn merged_toml_refuses_an_endless_number() {
+        let path = write("endless.toml", "x = inf\n");
+        let error = read_toml_merged::<Doc>(&path).expect_err("endless");
+
+        assert!(matches!(error, StoreError::Parse { .. }));
     }
 }
