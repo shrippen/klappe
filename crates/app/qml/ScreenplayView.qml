@@ -133,6 +133,7 @@ RowLayout {
         onPendingMoved: view.restyle()
     }
     readonly property alias flow: flow
+    readonly property alias search: search
     onLineLooksChanged: restyle()
 
     /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history, not the project's. A step
@@ -148,6 +149,71 @@ RowLayout {
         _replaying = true
         moveCursor(tools.item ? tools.item.redo() : -1)
         _replaying = false
+    }
+
+    /// The share of the text's width the search card takes.
+    readonly property real searchShare: 0.6
+
+    /// A hit closer than this many lines to the bottom is scrolled to; it then stands this far
+    /// down the view (a third), so the lines before it show too.
+    readonly property int hitMarginLines: 2
+    readonly property real hitHeight: 1 / 3
+    /// Selects `from` to `to` and scrolls it into view (a hit of the search).
+    function showText(from, to) {
+        showLayout("flow")
+        area.select(from, to)
+        const flick = scroll.contentItem
+        const top = area.positionToRectangle(from).y
+        if (top < flick.contentY || top > flick.contentY + flick.height - metrics.height * hitMarginLines) {
+            flick.contentY = Math.max(0, Math.min(top - flick.height * hitHeight, flick.contentHeight - flick.height))
+        }
+        dodgeSearch(from, to)
+    }
+
+    /// The search card goes to the other edge while the hit shown lies under it (DB-07), and
+    /// stays where it is otherwise.
+    property bool searchAtBottom: false
+    function dodgeSearch(from, to) {
+        const a = area.positionToRectangle(from)
+        const b = area.positionToRectangle(to)
+        // A hit that wraps covers its first line up to the text's right edge.
+        const right = b.y > a.y ? area.width : b.x
+        const p = area.mapToItem(search, a.x, a.y)
+        const hit = Qt.rect(p.x, p.y, Math.max(right - a.x, 1), a.height)
+        const under = hit.x < search.width && hit.x + hit.width > 0
+            && hit.y < search.height && hit.y + hit.height > 0
+        if (under) {
+            searchAtBottom = !searchAtBottom
+        }
+    }
+
+    /// Puts `text` in place of `from` to `to` as one undo step; a replacement is no typing,
+    /// so it keeps its case.
+    function putText(from, to, text) {
+        _replaying = true
+        flow.replace(from, to, text)
+        _replaying = false
+    }
+
+    /// The keys of the text that are not typing: the element flow, the search, the text's undo.
+    function keyPressed(event) {
+        // The pad's Enter comes with the keypad modifier; it is a plain Enter all the same.
+        const plain = (event.modifiers & ~Qt.KeypadModifier) === Qt.NoModifier
+        const enter = event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+        if (plain && enter) {
+            event.accepted = flow.enter()
+            return
+        }
+        event.accepted = true
+        if (plain && event.key === Qt.Key_Tab) {
+            flow.tab()
+        } else if (event.matches(StandardKey.Undo)) {
+            undoText()
+        } else if (event.matches(StandardKey.Redo)) {
+            redoText()
+        } else {
+            event.accepted = false
+        }
     }
 
     function moveCursor(at) {
@@ -200,6 +266,12 @@ RowLayout {
             view.restyle()
             item.forget()
         }
+    }
+    // Ctrl+F anywhere in the view, not only in the text (the scene list, the switch).
+    Shortcut {
+        sequences: [StandardKey.Find]
+        enabled: view.visible
+        onActivated: search.open()
     }
     Timer {
         id: push
@@ -258,6 +330,27 @@ RowLayout {
             Layout.fillHeight: true
 
             FontMetrics { id: metrics; font: area.font }
+
+            // Find and replace (DB-07), Ctrl+F in the view: a card over the top right of the
+            // text, so the layout switch above keeps its place; at the bottom right while the
+            // hit shown lies under it.
+            ScriptSearch {
+                id: search
+                objectName: "scriptSearch"
+                z: 3
+                anchors.right: scroll.right
+                anchors.rightMargin: Kirigami.Units.largeSpacing
+                y: view.searchAtBottom ? parent.height - height - Kirigami.Units.largeSpacing
+                                       : Kirigami.Units.largeSpacing
+                width: Math.min(scroll.width - 2 * anchors.rightMargin,
+                                Math.max(Kirigami.Units.gridUnit * 30, scroll.width * view.searchShare))
+                texts: view.texts
+                controller: view.controller
+                area: area
+                showText: view.showText
+                putText: view.putText
+                onClosed: area.forceActiveFocus()
+            }
 
             PrintView {
                 id: printView
@@ -318,23 +411,7 @@ RowLayout {
                     persistentSelection: true
                     Accessible.name: view.texts.t("screenplay.editor")
                     background: null
-                    Keys.onPressed: event => {
-                        // The pad's Enter comes with the keypad modifier; it is a plain Enter all the same.
-                        const plain = (event.modifiers & ~Qt.KeypadModifier) === Qt.NoModifier
-                        const enter = event.key === Qt.Key_Return || event.key === Qt.Key_Enter
-                        if (plain && enter) {
-                            event.accepted = flow.enter()
-                        } else if (plain && event.key === Qt.Key_Tab) {
-                            flow.tab()
-                            event.accepted = true
-                        } else if (event.matches(StandardKey.Undo)) {
-                            view.undoText()
-                            event.accepted = true
-                        } else if (event.matches(StandardKey.Redo)) {
-                            view.redoText()
-                            event.accepted = true
-                        }
-                    }
+                    Keys.onPressed: event => view.keyPressed(event)
                     onTextChanged: {
                         // A new look changes no text: nothing to send or set again.
                         if (view._loading || text === view._styled) {

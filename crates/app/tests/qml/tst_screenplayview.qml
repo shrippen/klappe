@@ -62,6 +62,37 @@ TestCase {
         }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
+        // Search (DB-07) by a plain `indexOf` without case; the rules are `script/`'s, tested there.
+        // A speaker keeps the hits below their cue: the last line in capitals above the hit.
+        function cueAt(text, at) {
+            const lines = text.slice(0, at).split("\n")
+            return lines.reverse().find(l => l !== "" && l === l.toUpperCase()) || ""
+        }
+        function scriptSpeakers(text) {
+            return JSON.stringify(speakers)
+        }
+        property var speakers: []
+        function findInScript(text, find, matching, speaker) {
+            const hits = []
+            const low = text.toLowerCase(), key = find.toLowerCase()
+            for (let at = low.indexOf(key); at >= 0; at = low.indexOf(key, at + key.length)) {
+                if (speaker === "" || cueAt(text, at) === speaker) {
+                    hits.push([at, at + key.length])
+                }
+            }
+            return JSON.stringify(hits)
+        }
+        function replaceInScript(text, find, matching, speaker, replacement, index) {
+            const hits = JSON.parse(findInScript(text, find, matching, speaker))
+            const chosen = index < 0 ? hits : hits.slice(index, index + 1)
+            if (chosen.length === 0) {
+                return ""
+            }
+            const from = chosen[0][0], to = chosen[chosen.length - 1][1]
+            let out = "", at = from
+            chosen.forEach(h => { out += text.slice(at, h[0]) + replacement; at = h[1] })
+            return JSON.stringify({ from: from, to: to, text: out })
+        }
         function scriptLooks() {
             return JSON.stringify({ columns: 60, looks: {
                 "h": { kind: "heading", x: 0, width: 60, align: "left" },
@@ -477,5 +508,230 @@ TestCase {
         fake.scriptText = "INT. KELLER\n\nDunkel.\n"
 
         compare(fake.layouts, before + 1)
+    }
+
+    // DB-07: Ctrl+F opens the search; Enter walks the hits, the shown one selected.
+    function test_ctrl_f_finds_in_the_text() {
+        const view = make()
+        view.area.forceActiveFocus()
+        view.area.cursorPosition = 0
+
+        keySequence(StandardKey.Find)
+        verify(view.search.visible)
+        verify(view.search.findField.activeFocus)
+        keyClick("t")
+        keyClick("a")
+        keyClick("g")
+
+        compare(view.search.hits.length, 1)
+        compare(view.area.selectedText, "TAG")
+        compare(findChild(view, "hitCount").text, "1 von 1")
+    }
+
+    function test_enter_goes_to_the_next_hit_and_wraps() {
+        const view = make()
+        view.area.cursorPosition = 0
+        view.search.open()
+        keyClick("e")
+        const first = view.area.selectionStart
+
+        keyClick(Qt.Key_Return)
+        verify(view.area.selectionStart > first)
+        keyClick(Qt.Key_Return, Qt.ShiftModifier)
+        compare(view.area.selectionStart, first)
+        keyClick(Qt.Key_Return, Qt.ShiftModifier)
+        compare(view.search.current, view.search.hits.length - 1)
+    }
+
+    function test_replace_one_then_all_and_close() {
+        const view = make()
+        view.area.cursorPosition = 0
+        view.search.open()
+        view.search.findField.text = "e"
+        view.search.from(0)
+        view.search.replaceField.text = "E"
+
+        view.search.replaceOne()
+        compare(view.area.text, book.replace("Sie", "SiE"))
+        compare(view.area.selectedText.toLowerCase(), "e")
+        verify(view.area.selectionStart > book.indexOf("Sie"))
+
+        view.search.replaceAll()
+        compare(view.area.text, book.replace(/e/g, "E"))
+        // Without case the replacement still matches: the count, no "0 of".
+        compare(findChild(view, "hitCount").text, view.search.hits.length + " Treffer")
+
+        view.search.findField.forceActiveFocus()
+        keyClick(Qt.Key_Escape)
+        verify(!view.search.visible)
+        verify(view.area.activeFocus)
+    }
+
+    // Review of PR 288: typing between two steps moves the hit; Ersetzen takes the marked one.
+    function test_replace_takes_the_marked_hit_after_typing() {
+        const view = make()
+        fake.scriptText = "Anna sieht anna."
+        view.area.cursorPosition = 0
+        view.search.open()
+        view.search.findField.text = "anna"
+        view.search.from(0)
+        view.search.next()
+        compare(view.area.selectionStart, 11)
+
+        view.area.insert(0, "anna ")
+        compare(view.area.selectionStart, 16)
+        view.search.replaceField.text = "Eva"
+        view.search.replaceOne()
+
+        compare(view.area.text, "anna Anna sieht Eva.")
+    }
+
+    // Review of PR 288: Ctrl+F works anywhere in the view, not only in the text.
+    function test_ctrl_f_works_outside_the_text() {
+        const view = make()
+        const list = findChild(view, "sceneList")
+        list.forceActiveFocus()
+
+        keySequence(StandardKey.Find)
+
+        verify(view.search.visible)
+    }
+
+    // Placement C: the search floats over the text; opening it moves nothing.
+    function test_the_search_floats_over_the_text() {
+        const view = make()
+        const switchBar = findChild(view, "layoutSwitch")
+        const before = switchBar.mapToItem(view, 0, 0)
+
+        view.search.open()
+
+        const after = switchBar.mapToItem(view, 0, 0)
+        compare(after.x, before.x)
+        compare(after.y, before.y)
+        verify(view.search.height > 0)
+        verify(view.search.z > 0)
+        verify(view.search.width >= view.area.width * 0.5)
+        // At the top right of the text, clear of the layout switch above.
+        const box = view.search.mapToItem(view, 0, 0)
+        verify(box.y >= before.y + switchBar.height)
+        verify(box.x + view.search.width <= view.width)
+        verify(box.x > view.width / 3)
+    }
+
+    /// The hit shown, as a rectangle in the view's coordinates.
+    function hitBox(view) {
+        const a = view.area.positionToRectangle(view.area.selectionStart)
+        const b = view.area.positionToRectangle(view.area.selectionEnd)
+        const p = view.area.mapToItem(view, a.x, a.y)
+        return Qt.rect(p.x, p.y, Math.max(b.x - a.x, 1), a.height)
+    }
+
+    /// The first line of the selection; a selection that wraps fills it to the text's right edge.
+    function firstLineBox(view) {
+        const a = view.area.positionToRectangle(view.area.selectionStart)
+        const b = view.area.positionToRectangle(view.area.selectionEnd)
+        const right = b.y > a.y ? view.area.width : b.x
+        const p = view.area.mapToItem(view, a.x, a.y)
+        return Qt.rect(p.x, p.y, Math.max(right - a.x, 1), a.height)
+    }
+
+    function overlaps(a, b) {
+        return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+    }
+
+    function cardBox(view) {
+        const p = view.search.mapToItem(view, 0, 0)
+        return Qt.rect(p.x, p.y, view.search.width, view.search.height)
+    }
+
+    // A hit in the top lines of the view, right of the card's left edge, must not sit under it.
+    function test_the_card_moves_off_a_hit_under_it() {
+        fake.scriptText = "INT. SAAL - TAG\n\nSie kommt an und sieht sich lange im Saal um, dann ZIEL.\n\nEs regnet.\n"
+        const view = make()
+        view.search.open()
+        view.search.findField.text = "ziel"
+        view.search.from(0)
+
+        compare(view.area.selectedText, "ZIEL")
+        verify(!overlaps(hitBox(view), cardBox(view)), "hit " + JSON.stringify(hitBox(view)) + " under card " + JSON.stringify(cardBox(view)))
+        // At the bottom right, same right margin.
+        const box = cardBox(view)
+        verify(box.y > view.height / 2, "card at y " + box.y)
+    }
+
+    // A hit that starts left of the card and wraps lies under it with the rest of its first line.
+    function test_the_card_moves_off_a_wrapped_hit() {
+        let words = []
+        for (let i = 0; i < 30; i++) {
+            words.push("wort" + i)
+        }
+        fake.scriptText = "INT. SAAL - TAG\n\n" + words.join(" ") + " \n\nEs regnet.\n"
+        const view = make()
+        view.search.open()
+        view.showText(30, 115)
+
+        verify(view.area.positionToRectangle(115).y > view.area.positionToRectangle(30).y, "hit wraps")
+        verify(!overlaps(firstLineBox(view), cardBox(view)), "hit " + JSON.stringify(firstLineBox(view)) + " under card " + JSON.stringify(cardBox(view)))
+    }
+
+    // A later hit under the card at the bottom sends it back to the top.
+    function test_the_card_goes_back_up_for_a_hit_at_the_bottom() {
+        let text = "INT. SAAL - TAG\n\nSie kommt an und sieht sich lange im Saal um, dann ZIEL.\n\n"
+        for (let i = 0; i < 40; i++) {
+            text += "Es regnet.\n\n"
+        }
+        text += "Am Ende " + "x".repeat(60) + " ZIEL.\n"
+        fake.scriptText = text
+        const view = make()
+        view.search.open()
+        view.search.findField.text = "ziel"
+        view.search.from(0)
+        verify(cardBox(view).y > view.height / 2)
+
+        view.search.next()
+        verify(!overlaps(hitBox(view), cardBox(view)), "hit " + JSON.stringify(hitBox(view)) + " under card " + JSON.stringify(cardBox(view)))
+        verify(cardBox(view).y < view.height / 2, "card at y " + cardBox(view).y)
+    }
+
+    // A narrow text area: the card stays inside it, not over the scene list.
+    function test_the_card_stays_in_a_narrow_text_area() {
+        const view = make()
+        view.width = 500
+        view.search.open()
+
+        const box = cardBox(view)
+        const area = view.area.mapToItem(view, 0, 0)
+        verify(box.x >= area.x, "card at " + box.x + ", text from " + area.x)
+        verify(box.x + box.width <= area.x + view.area.width, "card to " + (box.x + box.width) + ", text to " + (area.x + view.area.width))
+    }
+
+    // "Nur Dialog von": the cues of the text, most frequent first, after "Alle Figuren"; the
+    // choice limits the hits, and a choice that is no longer a cue falls back to everyone.
+    function test_the_speaker_limits_the_hits() {
+        const view = make()
+        fake.speakers = ["ANNA", "EVA"]
+        fake.scriptText = "ANNA\nHallo Anna.\n\nEVA\nHallo Eva.\n"
+        view.search.open()
+        const box = findChild(view, "speakerBox")
+        compare(box.count, 3)
+        compare(box.textAt(0), "Alle Figuren")
+        compare(box.textAt(1), "ANNA")
+
+        view.search.findField.text = "hallo"
+        view.search.from(0)
+        compare(view.search.hits.length, 2)
+
+        box.currentIndex = 2
+        box.activated(2)
+        compare(view.search.speaker, "EVA")
+        compare(view.search.hits.length, 1)
+        compare(view.area.text.slice(view.area.selectionStart, view.area.selectionEnd), "Hallo")
+        verify(view.area.selectionStart > view.area.text.indexOf("EVA"))
+
+        fake.speakers = ["ANNA"]
+        view.search.open()
+        compare(box.count, 2)
+        compare(view.search.speaker, "")
+        fake.speakers = []
     }
 }
