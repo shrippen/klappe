@@ -230,6 +230,25 @@ TestCase {
         compare(fakeVoice.said, ["Shot."])
     }
 
+    // Without a selected shot the loop is the scene: the wrap reads the line at 0 s again.
+    function test_a_scene_loop_wrap_reads_the_line_at_the_scene_start() {
+        fakeVoice.said = []
+        fake.tracksJson = "[]"
+        fake.speech = JSON.stringify({ language: "de", lines: [
+            { index: 1, at_s: 0, text: "Start." }, { index: 3, at_s: 10, text: "End." }] })
+        fake.time = 19.9
+        const line = make(de)
+        line.voice = fakeVoice
+        line.speak = true
+        line.looping = true
+        line.togglePlay()
+        tryCompare(fakeVoice.said, "length", 0)
+
+        fake.nextTime = 0.04
+        tryCompare(fakeVoice.said, "length", 1)
+        compare(fakeVoice.said, ["Start."])
+    }
+
     // In a loop, a jump back by the user is a seek, not a wrap: nothing from the loop start.
     function test_a_jump_back_in_a_loop_reads_nothing_from_its_start() {
         fakeVoice.said = []
