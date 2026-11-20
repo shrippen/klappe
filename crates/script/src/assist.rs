@@ -351,8 +351,16 @@ fn cue_stage(vocab: &Vocabulary, line: &str, skip: usize, line_no: usize) -> Opt
             .into_iter()
             .collect()
     } else {
-        let names = ranked(&vocab.cues, Some(line_no), same_character_name);
-        matching(names.iter().map(String::as_str), typed)
+        // Matched spelling by spelling (`WEIS` starts `WEISS`, not `WEIẞ`), then one per character.
+        let names = ranked(&vocab.cues, Some(line_no), same_lower);
+        let mut options: Vec<String> = Vec::new();
+        for name in matching(names.iter().map(String::as_str), typed) {
+            if !options.iter().any(|o| same_character_name(o, &name)) {
+                options.push(name);
+            }
+        }
+
+        options
     };
 
     Some(Suggestions {
@@ -389,6 +397,13 @@ mod tests {
         assert_eq!(options(&v, "", Context::Cue), ["ANNA"]);
         assert_eq!(options(&v, "B", Context::Cue), ["BEN"]);
         assert_eq!(options(&v, "@c", Context::Line), ["CARL"]);
+    }
+
+    #[test]
+    fn a_cue_prefix_finds_the_spelling_it_starts() {
+        let v = vocab("WEIẞ\nx\n\nWEISS\ny\n\nANNA\nz\n");
+
+        assert_eq!(options(&v, "WEIS", Context::Cue), ["WEISS"]);
     }
 
     #[test]
