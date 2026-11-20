@@ -53,7 +53,11 @@ TestCase {
             ] })
         }
         // The element flow is the real controller's (tests/controller/script_flow.qml).
-        function enterStep(line, col, kind, below) { return JSON.stringify({ step: "break" }) }
+        property int enters: 0
+        function enterStep(line, col, kind, below) {
+            enters += 1
+            return JSON.stringify({ step: "break" })
+        }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
         function scriptLooks() {
@@ -88,6 +92,7 @@ TestCase {
         fake.selected = []
         fake.edits = []
         fake.prints = 0
+        fake.enters = 0
         fake.printLine = "INT. SAAL - TAG"
     }
 
@@ -418,5 +423,28 @@ TestCase {
         const shown = line.mapToItem(page, line.contentWidth, 0).x - line.mapToItem(page, 0, 0).x
         verify(view.printView.zoom < 1)
         fuzzyCompare(shown, 60 * 7.2 * view.printView.zoom, 60 * 7.2 * view.printView.zoom * 0.02)
+    }
+
+    // Review of PR 280: the Enter of the number pad follows the element flow too.
+    function test_the_pad_enter_follows_the_flow() {
+        const view = make()
+        view.area.forceActiveFocus()
+        view.area.cursorPosition = book.indexOf("\n")
+
+        keyClick(Qt.Key_Enter, Qt.KeypadModifier)
+
+        compare(fake.enters, 1)
+    }
+
+    // Review of PR 280: Enter over a selection replaces it, as without the flow.
+    function test_enter_replaces_a_selection() {
+        const view = make()
+        view.area.forceActiveFocus()
+        view.area.select(2, 7)
+
+        keyClick(Qt.Key_Return)
+
+        compare(fake.enters, 0)
+        compare(view.area.text, book.slice(0, 2) + "\n" + book.slice(7))
     }
 }

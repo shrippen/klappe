@@ -306,7 +306,8 @@ RowLayout {
                     Accessible.name: view.texts.t("screenplay.editor")
                     background: null
                     Keys.onPressed: event => {
-                        const plain = event.modifiers === Qt.NoModifier
+                        // The pad's Enter comes with the keypad modifier; it is a plain Enter all the same.
+                        const plain = (event.modifiers & ~Qt.KeypadModifier) === Qt.NoModifier
                         const enter = event.key === Qt.Key_Return || event.key === Qt.Key_Enter
                         if (plain && enter) {
                             event.accepted = flow.enter()
