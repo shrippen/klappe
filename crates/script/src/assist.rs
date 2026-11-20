@@ -4,6 +4,8 @@
 
 use std::collections::HashMap;
 
+use klappe_model::same_character_name;
+
 use crate::parse::{heading_prefix, DUAL_MARK, FORCE_CHARACTER, FORCE_HEADING, NUMBER_MARK};
 use crate::{Element, Located};
 
@@ -78,11 +80,6 @@ fn ranked(words: &[(usize, String)], skip: Option<usize>) -> Vec<String> {
     counted.into_iter().map(|(w, _)| w.to_owned()).collect()
 }
 
-/// Whether two names are the same in any case, umlauts included.
-pub(crate) fn same_name(a: &str, b: &str) -> bool {
-    a.to_lowercase() == b.to_lowercase()
-}
-
 /// A heading's text cut into location and time of day, without its prefix.
 fn split_heading(text: &str) -> (&str, Option<&str>) {
     // The prefix is found in lower case, whose bytes differ from the text's (`ẞ` is `ß`): cut
@@ -154,7 +151,7 @@ impl Vocabulary {
         let last = &above.next()?.1;
 
         above
-            .find(|(_, name)| !same_name(name, last))
+            .find(|(_, name)| !same_character_name(name, last))
             .map(|(_, name)| name.as_str())
     }
 }

@@ -81,9 +81,14 @@ pub struct Character {
 }
 
 /// Whether two names are the same character name: compared as the cues over the lines are,
-/// in capitals, so two characters of one name would merge their cues.
+/// in capitals, so two characters of one name would merge their cues. Upper case turns `ß`
+/// into `SS`, not the capital `ẞ`: both agree.
 pub fn same_character_name(a: &str, b: &str) -> bool {
-    a.trim().to_uppercase() == b.trim().to_uppercase()
+    capitals(a) == capitals(b)
+}
+
+fn capitals(name: &str) -> String {
+    name.trim().to_uppercase().replace('ẞ', "SS")
 }
 
 /// A group has two to 999 people; one person is a figure, more would not fit the label.
@@ -581,6 +586,8 @@ mod tests {
         assert!(same_character_name("Anna", "ANNA"));
         assert!(same_character_name(" anna ", "Anna"));
         assert!(!same_character_name("Anna", "Anna 2"));
+        assert!(same_character_name("WEISS", "Weiß"));
+        assert!(same_character_name("WEIẞ", "Weiß"));
     }
 
     /// A table of 2 x 1 m at (10, 5): unturned, the middle of its right edge (1, 0) lies to
