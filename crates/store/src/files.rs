@@ -336,18 +336,35 @@ mod tests {
         x: f64,
     }
 
-    fn write(name: &str, text: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("klappe-files-{}", std::process::id()));
-        fs::create_dir_all(&dir).expect("dir");
-        let path = dir.join(name);
-        fs::write(&path, text).expect("write");
+    /// A folder of this test's own, removed when the test ends.
+    struct Scratch(PathBuf);
 
-        path
+    impl Scratch {
+        fn new(test: &str) -> Self {
+            let dir =
+                std::env::temp_dir().join(format!("klappe-files-{test}-{}", std::process::id()));
+            fs::create_dir_all(&dir).expect("dir");
+            Self(dir)
+        }
+
+        fn write(&self, name: &str, text: &str) -> PathBuf {
+            let path = self.0.join(name);
+            fs::write(&path, text).expect("write");
+
+            path
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
     }
 
     #[test]
     fn merged_toml_reads_a_clean_file() {
-        let path = write("clean.toml", "x = 1.5\n");
+        let scratch = Scratch::new("clean");
+        let path = scratch.write("clean.toml", "x = 1.5\n");
         let doc: Option<Doc> = read_toml_merged(&path).expect("read");
 
         assert_eq!(doc.expect("some").x, 1.5);
@@ -355,7 +372,8 @@ mod tests {
 
     #[test]
     fn merged_toml_is_none_when_missing() {
-        let path = write("missing.toml", "").with_file_name("absent.toml");
+        let scratch = Scratch::new("missing");
+        let path = scratch.0.join("absent.toml");
         let doc: Option<Doc> = read_toml_merged(&path).expect("read");
 
         assert!(doc.is_none());
@@ -363,7 +381,8 @@ mod tests {
 
     #[test]
     fn merged_toml_refuses_a_conflict_with_its_line() {
-        let path = write("conflict.toml", "x = 1\n<<<<<<< HEAD\nx = 2\n");
+        let scratch = Scratch::new("conflict");
+        let path = scratch.write("conflict.toml", "x = 1\n<<<<<<< HEAD\nx = 2\n");
         let error = read_toml_merged::<Doc>(&path).expect_err("conflict");
 
         assert!(matches!(error, StoreError::Conflict { line: 2, .. }));
@@ -371,7 +390,8 @@ mod tests {
 
     #[test]
     fn merged_toml_refuses_an_endless_number() {
-        let path = write("endless.toml", "x = inf\n");
+        let scratch = Scratch::new("endless");
+        let path = scratch.write("endless.toml", "x = inf\n");
         let error = read_toml_merged::<Doc>(&path).expect_err("endless");
 
         assert!(matches!(error, StoreError::Parse { .. }));
