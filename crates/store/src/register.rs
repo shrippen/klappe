@@ -10,9 +10,6 @@ use serde::{Deserialize, Serialize};
 use crate::files::{self, Dir, Kind as FileKind};
 use crate::{LoadNote, StoreError, SCENES_DIR, SCENES_FILE};
 
-/// Start of a Git conflict; no line of valid TOML begins with it.
-pub(crate) const CONFLICT_MARK: &str = "<<<<<<<";
-
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Register {
@@ -103,21 +100,9 @@ pub(crate) fn load(dir: &Path) -> Result<(Vec<Scene>, Vec<LoadNote>), StoreError
 }
 
 fn read(path: &Path) -> Result<Register, StoreError> {
-    let Some(text) = files::read_optional(path)? else {
+    let Some(register): Option<Register> = files::read_toml_merged(path)? else {
         return Ok(Register { szene: Vec::new() });
     };
-    let conflict = text.lines().position(|l| l.starts_with(CONFLICT_MARK));
-    if let Some(index) = conflict {
-        return Err(StoreError::Conflict {
-            path: path.to_path_buf(),
-            line: index + 1,
-        });
-    }
-
-    let register: Register = toml::from_str(&text).map_err(|e| StoreError::Parse {
-        path: path.to_path_buf(),
-        message: e.to_string(),
-    })?;
     let broken = register
         .szene
         .iter()
