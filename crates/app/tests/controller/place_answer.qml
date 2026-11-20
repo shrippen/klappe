@@ -39,7 +39,7 @@ Item {
             }
 
             const undoBefore = ctl.canUndo
-            if (!ctl.resolvePlace("SÄNGERSAAL", 1)) {
+            if (!ctl.answerQuestion("place", "SÄNGERSAAL", 1)) {
                 return root.fail("answer refused: " + ctl.status)
             }
             if (JSON.parse(ctl.projectJson).questions.length !== 0) {

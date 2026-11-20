@@ -425,19 +425,13 @@ pub mod qobject {
         #[qinvokable]
         fn autosave(self: Pin<&mut Self>);
 
-        /// Answers the open question about the register entry `id` (`projectJson.questions`,
-        /// kind `scene`): the answer at position `index` of its `answers` (the scenes of the
-        /// book, then "not in the book" last). False when the question is gone or the answer is refused.
+        /// Answers the open question `kind`/`key` of `projectJson.questions` with the answer at
+        /// position `index` of its `answers`. A scene answer is an undo step; a place answer
+        /// goes to `orte.toml` at once and is none. False when the answer is refused.
         #[qinvokable]
-        #[cxx_name = "resolveScene"]
-        fn resolve_scene(self: Pin<&mut Self>, id: &QString, index: i32) -> bool;
-
-        /// Answers the open question about the place name `name` of the scene headings
-        /// (`projectJson.questions`, kind `place`): the answer at position `index` of its `answers`.
-        /// Written to `orte.toml` at once; no undo step. False when the answer is refused.
-        #[qinvokable]
-        #[cxx_name = "resolvePlace"]
-        fn resolve_place(self: Pin<&mut Self>, name: &QString, index: i32) -> bool;
+        #[cxx_name = "answerQuestion"]
+        fn answer_question(self: Pin<&mut Self>, kind: &QString, key: &QString, index: i32)
+            -> bool;
 
         /// Takes the project from the backup found at open.
         #[qinvokable]

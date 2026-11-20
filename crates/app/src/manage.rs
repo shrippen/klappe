@@ -38,13 +38,26 @@ const HOME_SHORT: &str = "~";
 /// role name (`purple`), which Kante's `labelColor` takes as it is. `questions` holds the open
 /// questions about the book as the session words them in `language`, scenes first, then the
 /// place names of the headings: `[{ kind, key, title, ask, answers: [{ number, text }] }]`,
-/// `kind` being `scene` (answered by `resolveScene` with the entry id `key`) or `place`
-/// (`resolvePlace` with the place name `key`), both by the position in `answers`.
+/// `kind` being `scene` (`key` the entry id) or `place` (`key` the place name), answered by
+/// `answerQuestion(kind, key, index)` with the position in `answers`.
 pub fn project_json(session: &Session, language: Language) -> String {
     let mut value = serde_json::to_value(session.overview()).unwrap_or_default();
     value["questions"] = question_rows(session, language);
 
     value.to_string()
+}
+
+/// The question kinds of `questions`: written by `question_rows`, read back by `question_key`.
+const SCENE_KIND: &str = "scene";
+const PLACE_KIND: &str = "place";
+
+/// The question `kind`/`key` of `questions` names; `None` for an unknown kind.
+pub fn question_key(kind: &str, key: String) -> Option<QuestionKey> {
+    match kind {
+        SCENE_KIND => Some(QuestionKey::Scene(key)),
+        PLACE_KIND => Some(QuestionKey::Place(key)),
+        _ => None,
+    }
 }
 
 fn question_rows(session: &Session, language: Language) -> Value {
@@ -53,8 +66,8 @@ fn question_rows(session: &Session, language: Language) -> Value {
         .into_iter()
         .map(|q| {
             let (kind, key) = match q.key {
-                QuestionKey::Scene(id) => ("scene", id),
-                QuestionKey::Place(name) => ("place", name),
+                QuestionKey::Scene(id) => (SCENE_KIND, id),
+                QuestionKey::Place(name) => (PLACE_KIND, name),
             };
             let answers: Vec<_> = q
                 .answers
@@ -369,6 +382,33 @@ mod tests {
             scenes[0]["answers"][2]["text"],
             Language::English.text("book.none")
         );
+    }
+
+    /// Review of PR 298: every listed question finds its way back to the session by kind and key.
+    #[test]
+    fn each_listed_question_names_its_key() {
+        let session = asked("places");
+        let value: Value =
+            serde_json::from_str(&project_json(&session, Language::English)).unwrap();
+        let keys: Vec<_> = value["questions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|q| {
+                question_key(
+                    q["kind"].as_str().unwrap(),
+                    q["key"].as_str().unwrap().into(),
+                )
+            })
+            .collect();
+        let asked: Vec<_> = session
+            .book_questions(Language::English)
+            .into_iter()
+            .map(|q| Some(q.key))
+            .collect();
+
+        assert_eq!(keys, asked);
+        assert_eq!(question_key("other", "x".into()), None);
     }
 
     #[test]

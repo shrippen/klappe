@@ -36,11 +36,7 @@ Item {
         if (!question) {
             return
         }
-        if (question.kind === "place") {
-            controller.resolvePlace(question.key, index)
-        } else {
-            controller.resolveScene(question.key, index)
-        }
+        controller.answerQuestion(question.kind, question.key, index)
         rows.currentIndex = 0
         if (!question) {
             dialog.close()

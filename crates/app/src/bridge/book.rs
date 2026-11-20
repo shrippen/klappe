@@ -7,10 +7,19 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
 
+use crate::manage::question_key;
+
 impl qobject::Controller {
-    pub(super) fn resolve_scene(mut self: Pin<&mut Self>, id: &QString, index: i32) -> bool {
+    pub(super) fn answer_question(
+        mut self: Pin<&mut Self>,
+        kind: &QString,
+        key: &QString,
+        index: i32,
+    ) -> bool {
         let language = self.rust().language;
-        let id = id.to_string();
+        let Some(key) = question_key(&kind.to_string(), key.to_string()) else {
+            return false;
+        };
         let Some(s) = self.as_mut().session() else {
             return false;
         };
@@ -18,31 +27,12 @@ impl qobject::Controller {
             return false;
         };
 
-        if let Err(e) = s.answer_book(&id, at) {
-            self.say(error_text(language, &e));
-            return false;
-        }
-        self.as_mut().changed();
-        self.refresh();
-        true
-    }
-
-    pub(super) fn resolve_place(mut self: Pin<&mut Self>, name: &QString, index: i32) -> bool {
-        let language = self.rust().language;
-        let name = name.to_string();
-        let Some(s) = self.as_mut().session() else {
-            return false;
-        };
-        let Ok(at) = usize::try_from(index) else {
-            return false;
-        };
-
-        if let Err(e) = s.answer_place(&name, at) {
+        if let Err(e) = s.answer_question(&key, at) {
             self.say(error_text(language, &e));
             return false;
         }
 
-        // Clears the status line's count; the answer is no project change for "unsaved".
+        // A place answer is no project change for "unsaved", but clears the status line's count.
         self.as_mut().changed();
         self.refresh();
         true
