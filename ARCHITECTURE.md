@@ -123,6 +123,6 @@ A change that needs more places than listed is a finding for the audit.
 ## Known deviations
 
 - The window's screenplay editor (`ScreenplayView.qml`) lacks what the terminal editor has:
-  suggestions, the title page, folding the outline and moving scenes, and page breaks in the
+  suggestions, the title page form, folding the outline and moving scenes, and page breaks in the
   flowing text (`planung/STAND.md`). Its undo is the editor's own text history
   (`scripthistory.h`), not the session's.
