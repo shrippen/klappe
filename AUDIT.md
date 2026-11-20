@@ -1,135 +1,92 @@
-# Code-Audit Klappe, 18.11.2026, Stand 324d1dbe
+# Code-Audit Klappe, 20.11.2026, Stand 745e5906
 
 ## Urteil
-Das Repo ist wartbar, aber etwas schlechter als beim 16. Audit. Die Bestandsliste ist kleiner geworden (26 auf 24 Einträge, ein weiterer kann gestrichen werden). Die drei neuen Bausteine dieses Abschnitts, die Spielorte (#256), das Video über ffmpeg (#246) und das Ein- und Ausblenden der Figuren (#255), sitzen im richtigen Baustein, und `ARCHITECTURE.md` nennt sie. Jeder bringt aber eine Doppelung mit: Das Video baut nach, wie die Sitzung den Plan zusammenstellt (Fund 3). Wie blass etwas gezeichnet wird, rechnen Fenster und Ausgabe jeweils selbst aus (Fund 2). Die Spielorte stecken in den Projektdaten, obwohl ihre Datei die einzige Quelle sein soll (Fund 4). Am dringendsten ist Fund 1: Die Fragen zu den Spielorten formuliert heute das Terminal selbst. Der noch nicht gemergte PR #258 (Zweig `gui-orte`) baut dieselben Formulierungen im Fenster ein zweites Mal.
+Das Repo ist wartbar und etwas besser als beim 17. Audit. Vier Funde von damals sind behoben (Blässe, Video, Fehler im Terminal, Sprung zwischen Buch und Plan), einer zum größten Teil (gleiche Figurennamen), und die Bestandsliste ist von 24 auf 23 Einträge geschrumpft. Das Fenster ist um Drehbuch-Editor, Szenenliste, Modulleiste, Vorlesen und das leere Projekt gewachsen (rund 7000 Zeilen) und holt die Regeln des Drehbuchs fast überall aus dem Drehbuch-Baustein. Neu sind vor allem Kopien neben einer schon vorhandenen Regel: das leere Projekt im Fenster gebaut statt in der Sitzung, Zeilenarten und Namensvergleich ein zweites Mal, das Vorlesen auf der Anzeige statt auf dem Drehbuch. Am dringendsten bleibt Fund 1 des 17. Audits: Die Fragen zu den Spielorten formulieren Fenster und Terminal jetzt beide selbst (#258), wie damals vorhergesagt.
 
 ## Kennzahlen
 | | letztes Audit | jetzt |
 |---|---|---|
-| Quelldateien | 559 | 586 (gezählt wie die Strukturprüfung, ohne die Kopie von Kante) |
-| Einträge in der Bestandsliste | 26 | 24. Gestrichen sind `figure_items` (#255) und `item_prims` (geteilt). `save` in `store/src/lib.rs` heißt jetzt `save_with`, mit demselben Wert. Ein weiterer Eintrag (`load` in `store/src/lib.rs`) liegt nicht mehr über der Grenze; nach `--update` bleiben 23. |
-| größte Datei (Zeilen) | 883 (`crates/export/src/jpeg.rs`) | 883, dieselbe Datei. Die nicht geprüfte `bridge.rs` ist von 1041 auf 1067 Zeilen gewachsen. |
-| längste Funktion (Zeilen) | 125 (Testhilfe `plan` in `store/tests/store.rs`), im Programmcode `apply` mit 120 | unverändert 125 und 120 |
+| Quelldateien | 586 | 656 (ohne die Kopie von Kante; 454 Rust, 182 QML, 20 weitere) |
+| Einträge in der Bestandsliste | 24 | 23 |
+| größte Datei (Zeilen) | 883 (`export/src/jpeg.rs`) | 883, dieselbe Datei |
+| längste Funktion (Zeilen) | 125 (Testhilfe `plan` in `store/tests/store.rs`), im Programmcode 120 (`apply`) | unverändert 125 und 120 |
 
 ## Funde
 
-### 1. Die Fragen zum Buch formuliert jede Oberfläche selbst, und für die Spielorte entsteht das gerade ein zweites Mal
-Zum Buch gibt es jetzt zwei Arten von Fragen: welche Szene ein Eintrag des Registers ist, und welcher Spielort ein Ort aus einem Szenenkopf ist. Die Sitzung liefert für beide die möglichen Antworten, aber nicht den Text dazu. Den Wortlaut setzt das Terminal selbst zusammen: Es wählt je nach Art der Antwort den passenden Text („Neuer Spielort HOF“, „Schreibweise von SAAL“, „SAAL heißt jetzt HOF“) und setzt die Namen ein. Bei den Szenenfragen ist das schon heute doppelt, denn Terminal und Fenster bauen die Frage und die Zeile „nicht im Buch“ jeweils selbst. Der noch offene PR #258 schreibt jetzt auch die Auswahl der Spielort-Texte im Fenster ein zweites Mal. Dazu verzweigt das Terminal an drei Stellen von Hand zwischen Szenenfrage und Ortsfrage: bei der Zahl der Zeilen, beim Antworten und beim Zeichnen.
+### 1. Das leere Projekt baut das Fenster selbst, an Sitzung und Ablage vorbei
+Die Kachel „Leeres Projekt“ (#270) legt ein neues Projekt an. Das erledigt der Teil des Fensters, der sonst nur Listen für die Startseite aufbereitet. Er liest den Ordner `entwuerfe` selbst von der Platte, sucht nach einer eigenen Regel den nächsten freien Namen („unbenannt-2“), obwohl die Ablage dafür schon eine Regel hat, und legt einen Drehort von 8 × 5 m mit einer Raumhöhe von 2,6 m an. Diese Zahl steht damit zum dritten Mal im Repo: im Datenmodell, im Formular für einen neuen Drehort und hier. `ARCHITECTURE.md` sagt dagegen: Die Oberflächen fassen keine Dateien an, und eine Aktion der Startseite gehört in die Sitzung.
 
-Was es kostet: Ändert sich ein Wortlaut oder kommt eine neue Antwort dazu (etwa „ist kein Spielort“), braucht es Änderungen an zwei Oberflächen, und sie können auseinanderlaufen. Eine dritte Art von Frage braucht in jeder Oberfläche neue Verzweigungen. `ARCHITECTURE.md` sagt dagegen, die Oberflächen zeigen die Zeilen nur an. Die Statuszeile macht es schon richtig: Ihren Text liefert die Sitzung fertig (`book_report_text`).
+Was es kostet: Soll das Terminal oder die Kommandozeile ein leeres Projekt anlegen, muss alles noch einmal gebaut werden. Ändert jemand die übliche Raumhöhe im Datenmodell, bleibt das leere Projekt bei 2,6 m. Vorschlag: Die Sitzung bekommt einen Aufruf „leeres Projekt im Ordner X anlegen“; den freien Namen sucht die Ablage, die Maße kommen aus dem Datenmodell, das Fenster gibt nur Ordner und Sprache weiter. Aufwand klein, Risiko gering (Tests in `manage.rs` und `tests/controller/open_blank.qml`). Beleg: `crates/app/src/manage.rs:260`, `crates/app/src/manage.rs:268`, `crates/app/src/manage.rs:31`, `crates/app/src/manage.rs:33`, `crates/app/src/bridge/project.rs:163`, `crates/store/src/folder.rs:64`, `crates/model/src/project.rs:218`, `crates/app/qml/LocationEditor.qml:14`, `ARCHITECTURE.md:60`, `ARCHITECTURE.md:120`.
 
-Vorschlag: Die Sitzung gibt eine einzige Liste offener Fragen heraus, jede mit fertigem Titel, Frage und Antwortzeilen in der gewählten Sprache, und nimmt die Antwort über einen einzigen Aufruf mit der Position entgegen. Am besten vor oder zusammen mit #258, damit die zweite Kopie gar nicht erst entsteht.
+### 2. Was eine Zeile des Drehbuchs ist und welche Rolle sie bei Enter und Tab hat, übersetzen Terminal und Fenster je selbst
+Der Drehbuch-Baustein ordnet jede Zeile ein (Szenenkopf, Figur, Dialog, Titelseite …) und kennt die Rollen, die Enter und Tab durchlaufen; wie die eine Liste in die andere übergeht, steht dort nicht. Das Terminal hat eine eigene Liste von Zeilenarten mit einem eigenen, Schritt für Schritt gleichen Ablauf und übersetzt sie selbst in die Rollen von Enter und Tab (Rest von Fund 5 des 14. Audits). Das Fenster (#280) hat für dieselbe Übersetzung eine eigene Tabelle in der Brücke, in beide Richtungen, und vergleicht dazu einige Buchstaben der Zeilenarten fest im Text (`"a"`, `"h"`, `" "`). `ARCHITECTURE.md` nennt in der Zeile „New screenplay element“ nur die Liste des Terminals.
 
-Aufwand mittel. Risiko gering: Es gibt `crates/services/tests/book_places.rs`, `crates/tui/src/tests/places.rs`, `crates/tui/src/tests/book.rs` und `crates/app/tests/qml/tst_bookdialog.qml`.
+Was es kostet: Ein neues Element oder eine geänderte Regel (etwa für auskommentierte Zeilen) muss an drei Stellen gleich nachgezogen werden; bei den Buchstaben im Fenster und den Regeln für leere, Titel- und Handlungszeilen merkt es kein Compiler, und dann zeigen Fenster und Terminal dieselbe Zeile verschieden. Vorschlag: Die Übersetzung Zeilenart ↔ Rolle kommt neben die Zeilenart in den Drehbuch-Baustein; das Terminal nimmt dessen Zeilenarten und behält nur Einrückung und Farben; die Brücke liefert die Buchstaben mit Namen, wie schon beim Aussehen (`scriptLooks`). Aufwand klein, Risiko gering (Tests in `script/src/kinds.rs`, `script/src/flow.rs`, `tui/src/fountain.rs`, `bridge/drehbuch.rs`, `tests/controller/script_flow.qml`). Beleg: `crates/script/src/kinds.rs:14`, `crates/script/src/kinds.rs:55`, `crates/script/src/flow.rs:29`, `crates/tui/src/fountain.rs:15`, `crates/tui/src/fountain.rs:35`, `crates/tui/src/fountain.rs:139`, `crates/app/src/bridge/drehbuch.rs:16`, `crates/app/src/bridge/drehbuch.rs:41`, `crates/app/qml/ScriptFlow.qml:55`, `crates/app/qml/ScriptFlow.qml:90`, `ARCHITECTURE.md:107`.
 
-Beleg: `crates/tui/src/i18n.rs:203`, `crates/tui/src/i18n.rs:211`, `crates/tui/src/i18n.rs:220`, `crates/tui/src/ui_overlay.rs:268`, `crates/tui/src/ui_overlay.rs:275`, `crates/tui/src/ui_overlay.rs:288`, `crates/tui/src/app/book.rs:68`, `crates/tui/src/app/book.rs:83`, `crates/app/qml/BookDialog.qml:29`, `crates/app/qml/BookDialog.qml:65`, auf dem Zweig `gui-orte`: `crates/app/qml/BookDialog.qml:29`, `crates/app/qml/BookDialog.qml:38`; `crates/services/src/session/book.rs:32`, `crates/services/src/session/places.rs:32`, `ARCHITECTURE.md:85`.
+### 3. Ob eine Szene im Buch steht, entscheidet die Textspalte selbst, nach der Nummer
+Hat eine Szene keine Zeilen, erklärt die Textspalte der Stellprobe, warum (#274). Dafür sucht sie im Inhaltsverzeichnis des Buchs eine Szene mit derselben Nummer und sagt sonst „Keine Szene im Drehbuch trägt die Nummer 3“. Die Sitzung beantwortet dieselbe Frage schon über den Abgleich von Register und Buch, und die Zeile der Szene, die die Textspalte bekommt, trägt die Antwort (`inBook`). `ARCHITECTURE.md` sagt: welche Szene des Buchs ein Eintrag ist, „nach dem Abgleich, nie nach der Nummer“; #276 hat genau das für Sprung und Zeilen behoben, diese Stelle aber nicht.
 
-### 2. Wie blass etwas gezeichnet wird, rechnen Fenster und Ausgabe jeweils selbst aus
-Ein Element kann aus zwei Gründen blasser erscheinen: Seine Ebene ist abgeblendet, oder eine Figur blendet gerade ein oder aus (#255). Die Sitzung liefert nur den ersten Wert. Das Malen mit dem zweiten erledigen Fenster und Ausgabe jeweils selbst, im Plan an zwei Stellen und im Bild der 3D-Ansicht noch einmal an zwei.
+Was es kostet: In einem Buch ohne geschriebene Nummern findet die Suche nie etwas; Szenenliste und Textspalte sagen dann Verschiedenes über dieselbe Szene. Vorschlag: Die Textspalte nimmt `inBook` aus der Zeile, die sie schon hat, oder die Sitzung liefert den Grund mit. Aufwand klein, Risiko gering (`tst_scriptpanel.qml`, Tests des Abgleichs). Beleg: `crates/app/qml/ScriptPanel.qml:35`, `crates/app/qml/ScriptPanel.qml:42`, `crates/app/qml/Workspace.qml:37`, `crates/services/src/views.rs:286`, `crates/services/src/session/timeline.rs:135`, `ARCHITECTURE.md:115`.
 
-Was es kostet: `ARCHITECTURE.md` verlangt, dass das Aussehen eines Elements einmal festgelegt wird, damit der Ausdruck dem Bildschirm gleicht. Kommt ein dritter Grund zum Abblenden dazu (etwa „nicht in dieser Einstellung“), müssen ihn vier Stellen in zwei Bausteinen lernen. Fehlt er an einer, weicht der Ausdruck still vom Bildschirm ab.
+### 4. Ob zwei Figurennamen gleich sind, entscheiden noch drei Regeln, und sie widersprechen sich
+#285 hat die Regel neben den Typ der Figur gelegt: Großbuchstaben, Leerzeichen am Rand zählen nicht. Die Suche nach den Repliken einer Figur und der Vorschlag „wer spricht als Nächstes“ im Drehbuch-Baustein vergleichen aber in Kleinbuchstaben, ohne Leerzeichen abzuschneiden, und das Terminal vergleicht bei der Auswahl der Figur in der Suche noch einmal selbst. Das „ß“ fällt dabei verschieden aus, nachgewiesen mit einem kleinen Programm: „WEISS“ und „Weiß“ sind für das Projekt dieselbe Figur, für die Suche zwei verschiedene; „WEIẞ“ (großes ß) und „Weiß“ genau umgekehrt.
 
-Vorschlag: Die Sitzung liefert für jedes Element des Plans die fertige Stärke, Ebene und Einblenden zusammen (`item_fades`, `fades_of`), und Fenster und Ausgabe nehmen nur noch diese Zahl. Für das Bild der 3D-Ansicht gilt dasselbe, wenn das Bild seine Stärken schon mit dem Einblenden zusammen trägt.
+Was es kostet: Die Suche „nur Repliken von …“ findet bei manchen Namen nicht alles, was das Projekt derselben Figur zuordnet, und wer die Regel ändert, ändert sie nur an einer Stelle. Vorschlag: eine einzige Regel für gleiche Namen, die Projekt, Drehbuch-Suche und Terminal gemeinsam nutzen. Aufwand klein, Risiko gering (Tests in `model/src/project.rs`, `script/src/search.rs`). Beleg: `crates/model/src/project.rs:94`, `crates/script/src/assist.rs:82`, `crates/script/src/assist.rs:157`, `crates/script/src/search.rs:68`, `crates/tui/src/app/find.rs:264`, `crates/model/src/place.rs:19`.
 
-Aufwand klein. Risiko gering: Es gibt `crates/export/tests/fade.rs`, `crates/services/tests/entrance.rs` und `crates/stellprobe/tests/picture.rs`.
+### 5. Das Vorlesen der Dialoge arbeitet auf der Anzeige statt auf dem Drehbuch und kennt eigene Fountain-Zeichen
+Was die Stimme beim Abspielen liest (#248), sucht die Sitzung in den Zeilen, die sie für die Anzeige im Fenster vorbereitet. Dort ist die Art einer Zeile nur ein Wort („dialogue“, „character“, „parenthetical“), und das Vorlesen vergleicht mit denselben Wörtern, die es noch einmal selbst festlegt. Dazu entfernt es die Zeichen für Hervorhebungen (`*`, `_`, `\`) mit einer eigenen Liste, obwohl diese Regeln laut `ARCHITECTURE.md` in den Drehbuch-Baustein gehören.
 
-Beleg: `crates/services/src/session/fade.rs:59`, `crates/services/src/session/pages.rs:147`, `crates/app/src/plan.rs:221`, `crates/export/src/layout.rs:184`, `crates/export/src/picture_png.rs:60`, `crates/app/src/plan/picture.rs:122`, `ARCHITECTURE.md:70`.
+Was es kostet: Ändert sich ein Wort der Anzeige, liest die Stimme still nichts mehr vor; ändert sich eine Regel der Hervorhebung, liest sie die Zeichen mit oder lässt Text aus. Vorschlag: Das Vorlesen nimmt die Elemente des Drehbuchs mit ihrer Art als Typ, den Text ohne Auszeichnungen liefert der Drehbuch-Baustein. Aufwand klein, Risiko gering (9 Tests in `session/speech.rs`, `tests/speech.rs`). Beleg: `crates/services/src/session/speech.rs:10`, `crates/services/src/session/speech.rs:58`, `crates/services/src/session/speech.rs:129`, `crates/services/src/session/timeline.rs:248`, `crates/services/src/views.rs:174`, `crates/script/src/inline.rs:6`, `crates/script/src/parse.rs:27`.
 
-### 3. Das Video baut nach, wie die Sitzung den Plan zusammenstellt
-Damit das Fenster beim Schreiben des Videos nicht stehen bleibt, nimmt das Video eine Kopie mit: das Projekt, die gewählte Szene und den Plan, die ausgeblendeten Ebenen und Spuren, die abgeblendeten Ebenen. Die Felder kopiert es einzeln. Aus der Kopie stellt es jedes Bild selbst zusammen. Dieser Weg steht damit zweimal im Repo: Szene und Plan suchen, den Plan zeichnen, Ausgeblendetes weglassen, Bilddateien lesen, Bildgrößen merken. Einmal steht er in der Sitzung, einmal im Video. #246 hat die Teilschritte schon in gemeinsame Funktionen gezogen, den Ablauf aber nicht.
+### 6. Die Prüfung auf Git-Konflikte in Dateien der Ablage ist kopiert
+Die Ablage meldet Konfliktmarken im Register `szenen.toml` und seit #250 im Sperrstand `nummern.toml`, beide Male mit einem kopierten Block: Datei lesen, Marken suchen, TOML lesen, Fehler formulieren. Beide gehen dabei an der gemeinsamen Lesefunktion vorbei, die seit #283 unendliche Zahlen ablehnt; heute stehen dort keine Kommazahlen, deshalb schadet es noch nicht.
 
-Was es kostet: Eine neue Ansichtseinstellung (die Zeile „New view setting“ in `ARCHITECTURE.md`) muss auch ins Video, sonst zeigt das Video etwas anderes als der Bildschirm. Die Tabelle nennt das Video dort nicht, und der Compiler meldet nichts.
+Was es kostet: Die nächste Datei mit der Prüfung (etwa `orte.toml`) wird die dritte Kopie; eine Kommazahl im Register bliebe ohne die Prüfung auf unendliche Zahlen. Vorschlag: eine Lesefunktion „TOML mit Konfliktprüfung“ auf der gemeinsamen Lesefunktion. Aufwand klein, Risiko gering (Konflikt-Tests in `store/tests/register.rs`, `store/tests/lock.rs`). Beleg: `crates/store/src/register.rs:105`, `crates/store/src/register.rs:117`, `crates/store/src/lock.rs:30`, `crates/store/src/lock.rs:43`, `crates/store/src/files.rs:180`.
 
-Vorschlag: Was eine Ansicht des Plans ausmacht (Projekt, Szene und Plan, Ein- und Abblenden), wird ein eigener Wert. Die Sitzung hält ihn, das Video nimmt eine Kopie davon, und beide stellen den Plan über dieselbe Funktion zusammen. Bis dahin nennt die Zeile in `ARCHITECTURE.md` das Video.
+### 7. Wo eine Schleife beginnt, steht in Sitzung und Zeitleiste je einmal
+Spielt eine Szene in der Schleife, springt die Sitzung am Ende des gewählten Shots auf dessen Anfang zurück, ohne gewählten Shot auf den Anfang der Szene. Das Vorlesen muss dort wieder einsetzen; die Zeitleiste rechnet den Anfang dafür selbst aus der Spur der Shots aus, und das Vorlesen errät den Sprung daran, dass die Zeit kleiner geworden ist.
 
-Aufwand mittel. Risiko gering: Es gibt `crates/services/tests/video.rs` und die Tests der Ebenen und des Abblendens.
+Was es kostet: Ändert sich, worüber die Schleife läuft (etwa über einen markierten Bereich), springt die Wiedergabe richtig, das Vorlesen setzt aber falsch ein, ohne dass ein Test es merkt. Vorschlag: Der Schritt der Wiedergabe sagt selbst, dass und wohin er zurückgesprungen ist. Aufwand klein, Risiko gering (`tst_speechplayer.qml`, `tst_timeline.qml`, Tests der Wiedergabe). Beleg: `crates/app/qml/Timeline.qml:89`, `crates/app/qml/Timeline.qml:115`, `crates/app/qml/SpeechPlayer.qml:73`, `crates/services/src/session/playback.rs:76`, `crates/services/src/session/playback.rs:104`.
 
-Beleg: `crates/services/src/session/video.rs:39`, `crates/services/src/session/video.rs:84`, `crates/services/src/session/video.rs:68`, `crates/services/src/session/video.rs:93`, `crates/services/src/session/video.rs:193`, `crates/services/src/session/pick.rs:35`, `crates/services/src/session/pick.rs:57`, `crates/services/src/session/export.rs:226`, `ARCHITECTURE.md:97`.
+### 8. `ARCHITECTURE.md` beschreibt den Editor des Fensters noch als Rohfassung
+Unter „Known deviations“ steht, der Editor habe keine Formatierung, kein Enter und Tab und nutze das Rückgängig des Textfelds. Seit #278 und #280 setzt er jede Zeile wie auf der Seite, folgt Enter und Tab wie das Terminal und führt eine eigene Text-Historie; `planung/STAND.md` beschreibt das richtig. Was es kostet: Wer dort nachliest, was fehlt, sucht oder baut Vorhandenes neu. Vorschlag: den Absatz auf das kürzen, was wirklich fehlt (Vorschläge, Titelseite, Gliederung; Suchen und Ersetzen, solange #288 offen ist). Aufwand klein (nur Text), Risiko keins. Beleg: `ARCHITECTURE.md:113`, `ARCHITECTURE.md:125`, `ARCHITECTURE.md:127`, `crates/app/src/scripthistory.h`, `crates/app/qml/ScriptFlow.qml:3`.
 
-### 4. Die Spielorte stecken in den Projektdaten, obwohl ihre Datei die einzige Quelle sein soll
-Eine Antwort zu einem Spielort wird sofort in `orte.toml` geschrieben, ausgehend von der Datei auf der Platte. Rückgängig machen gibt es dafür nicht, und Speichern lässt die Datei in Ruhe. Trotzdem sind die Spielorte ein Teil der Projektdaten. Deshalb wandern sie in jede Rückgängig-Stufe und in jede Sicherung mit, und die Sitzung muss sie an drei Stellen von Hand wieder richtigstellen. Beim Rückgängigmachen behält sie die aktuellen Spielorte. Beim Wiederherstellen einer Sicherung liest sie die Datei neu. Beim Speichern nimmt sie eine eigene Speicherart, die die Datei auslässt. Die Sicherung schreibt dabei eine `orte.toml`, die beim Wiederherstellen nie gelesen wird. Den Ablageteil (`store/`) betrifft das auch: Er hat dafür einen Schalter zwischen zwei Arten zu speichern bekommen.
+### 9. Den Titel des Plans gibt die Brücke an das Fenster, aber keine Seite liest ihn
+Die Brücke hält `planTitle` als eigenen Wert und frischt ihn nach jeder Änderung auf; seit der Kopfzeile mit Menüs liest ihn nur noch ein Test. Was es kostet: Jeder Wert des Fensters steht an vier Stellen, ein toter kostet bei jedem Umbau mit und täuscht vor, eine Seite brauche ihn. Vorschlag: den Wert samt Zeilen und Testzeile streichen. Aufwand klein, Risiko gering (`shown_values.qml`, `bridge/view/tests.rs`). Beleg: `crates/app/src/bridge.rs:24`, `crates/app/src/bridge/view.rs:144`, `crates/app/src/bridge/view.rs:187`, `crates/app/src/bridge/view.rs:238`, `crates/app/src/bridge/start.rs:69`, `crates/app/tests/controller/shown_values.qml:14`.
 
-Was es kostet: Jeder neue Weg, auf dem die Sitzung ihre Projektdaten ersetzt, muss an die Spielorte denken. Vergisst er sie, zeigt die Sitzung alte Spielorte und falsche offene Fragen, und kein Test fällt um, der nicht genau diesen Weg prüft. Dasselbe Muster gibt es schon für das Papier der Ausgabe.
+### 10. Warum die Ablage etwas ablehnt, steht oft noch als englischer Entwicklertext in der deutschen Oberfläche
+#289 übersetzt bei Fehlern der Ablage Konflikt, fehlende Datei, fehlende Rechte und Formatversion. Für die übrigen rund 50 Texte zeigt die Oberfläche den englischen Text der Ablage hinter „Projekt konnte nicht gelesen oder gespeichert werden“, auch bei gewöhnlichen Handlungen: Wer ein GIF als Bild wählt, liest „…/bild.gif: only .png, .jpg and .jpeg images are supported“; ebenso beim Papierkorb. `ARCHITECTURE.md` sagt, Texte für den Nutzer kommen nur aus dem Katalog.
 
-Vorschlag: Die Sitzung hält die Spielorte neben den Projektdaten statt darin und liest und schreibt sie nur über `load_places` und `save_places`. Dann entfallen die drei Stellen, die zweite Speicherart und die ungelesene Datei in der Sicherung. Die Beispielprojekte schreiben ihre Spielorte dann mit einem eigenen Aufruf.
+Was es kostet: Jede neue Prüfung der Ablage schreibt wieder englischen Text, der beim Nutzer landet. Vorschlag: Fälle, die eine Handlung des Nutzers auslöst (Bild, Papierkorb, unbrauchbarer Name), bekommen eigene Fehlerarten mit Texten im Katalog; eine von Hand kaputte Datei behält den Text der Ablage als Detail. Das ist eine Entscheidung des Eigentümers. Aufwand mittel, Risiko gering (Tests in `error_text.rs`). Beleg: `crates/services/src/error_text.rs:84`, `crates/store/src/images.rs:35`, `crates/store/src/images.rs:58`, `crates/store/src/error.rs:44`, `crates/store/src/error.rs:48`, `crates/store/src/sun.rs:22`, `ARCHITECTURE.md:87`.
 
-Aufwand mittel. Risiko gering: Es gibt `crates/store/tests/places.rs` und `crates/services/tests/book_places.rs`.
+## Bestandsliste
+**Die größten Einträge:** `export/src/jpeg.rs` (883 Zeilen), `store/tests/store.rs` (844 Zeilen, Testhilfe `plan` 125 Zeilen), `services/tests/plan_edit.rs` (841 Zeilen), `services/src/plan_edit.rs` `apply` (Komplexität 33, 120 Zeilen), `services/src/field.rs` `name` (Komplexität 51), `export/src/scan.rs` `scan` (Komplexität 22, 98 Zeilen), `export/src/font.rs`, `imagehead/src/lib.rs`, `export/src/inflate.rs`; im Fenster nur `plan/key.rs` `key` (Komplexität 19). Gestrichen seit dem letzten Audit: `load` in `store/src/lib.rs`. Erhöht: `field.rs` `name` von 45 auf 51 und `store/tests/store.rs` von 842 auf 844 (#252, #260).
 
-Beleg: `crates/model/src/project.rs:20`, `crates/services/src/session/undo.rs:188`, `crates/services/src/session/undo.rs:191`, `crates/services/src/session/file.rs:114`, `crates/services/src/session/file.rs:162`, `crates/store/src/lib.rs:236`, `crates/store/src/lib.rs:242`, `crates/store/src/lib.rs:336`, `crates/store/src/lib.rs:396`, `crates/store/src/lib.rs:419`.
+**In Ordnung, wie sie sind:** `field.rs` `name` (ein Name je Feld), `plan_edit.rs` `apply` (flache Verteilung), `error_text.rs` `own_text` (ein Text je Fehlerart), `plan/key.rs` `key` (flache Liste) und die Dateiformate der Ausgabe (`jpeg.rs`, `scan.rs`, `deflate.rs`, `inflate.rs`, `font.rs`), die sich kaum ändern. Die ausgenommene `bridge.rs` ist auf 1176 Zeilen gewachsen; sie enthält nur Erklärungen, wie `ARCHITECTURE.md` es vorsieht.
 
-### 5. Das Terminal zeigt Fehler auf zwei Arten, meist als englischen Entwicklertext
-Das Fenster übersetzt jeden Fehler der Sitzung über eine gemeinsame Funktion in einen Satz auf Deutsch oder Englisch. Das Terminal macht das nur an einer Stelle, der neuen Antwort zu einem Spielort. An den sieben anderen Stellen zeigt es den rohen englischen Text des Fehlers, auch in der deutschen Oberfläche: beim Speichern, beim Sichern, bei der Antwort zu einer Szene, bei der Sicherung und beim neuen PDF des Drehbuchs (#241).
+**Trennen sich an einer natürlichen Naht:** `store/tests/store.rs` wächst mit fast jeder Änderung der Ablage; die Sicherungs-Tests ab Zeile 794 passen zu `backup_crash.rs`, die Ablehnungs-Tests (Zeile 539 bis 750) in eine eigene Datei. Das streicht den Eintrag.
 
-Was es kostet: Ein Fehler, den das Fenster gut erklärt, erscheint im Terminal als „no open decision for scene …“. Wer eine neue Fehlermeldung schreibt, sieht nicht, welcher Weg gilt.
-
-Vorschlag: Das Terminal nimmt überall dieselbe Übersetzung wie das Fenster.
-
-Aufwand klein. Risiko gering: Der Wortlaut der Fehler ist in `crates/services/src/error_text.rs` getestet.
-
-Beleg: `crates/tui/src/app/book.rs:92`, `crates/tui/src/app/book.rs:115`, `crates/tui/src/app/book.rs:172`, `crates/tui/src/app.rs:585`, `crates/tui/src/app/backup.rs:63`, `crates/tui/src/app/backup.rs:75`, `crates/tui/src/app/backup.rs:99`, `crates/tui/src/app/pdf.rs:126`, `crates/app/src/bridge/book.rs:21`.
-
-### 6. Ob zwei Figuren gleich heißen und welcher Name frei ist, steht an mehreren Stellen
-Zwei Figuren dürfen nicht gleich heißen, verglichen in Großbuchstaben wie die Namen über den Repliken. Diese Regel steht viermal im Repo, jedes Mal als eigener Vergleich. Den nächsten freien Namen („Anna 2“, „Anna 3“) sucht das Kopieren einer Figur (#245) mit einer neuen Funktion. Fast dieselbe Funktion gibt es schon beim Einsetzen einer Vorlage. Für die Spielorte hat #256 die Regel dagegen einmal neben den Typ geschrieben (`same_place_name`).
-
-Was es kostet: Ändert sich die Regel (etwa Leerzeichen oder „ß“ wie bei den Spielorten), gilt sie sonst nur an einer Stelle. Zwei Figuren, die die eine Stelle für verschieden hält und die andere für gleich, verschmelzen im Drehbuch.
-
-Vorschlag: Eine Funktion für „gleicher Figurenname“ neben dem Typ der Figur, wie bei den Spielorten, und eine einzige Suche nach dem nächsten freien Namen, die Kopieren und Vorlagen beide nutzen.
-
-Aufwand klein. Risiko gering: Es gibt Tests in `crates/services/src/project_edit/copy.rs`, `crates/services/tests/copies.rs` und die Tests der Vorlagen.
-
-Beleg: `crates/services/src/project_edit.rs:353`, `crates/services/src/project_edit/copy.rs:56`, `crates/services/src/project_edit/templates.rs:166`, `crates/services/src/script_refs.rs:138`, `crates/model/src/place.rs:19`.
-
-### 7. Der Spielort hat drei englische Namen, und „location“ meint zwei Dinge
-Im Code heißt der Spielort `Place`, in den Kommentaren und in `ARCHITECTURE.md` „play location“, in der englischen Oberfläche und in der Begriffsliste von #257 „scripted location“. „Location“ allein ist im Code der Drehort, in den neuen Kommentaren aber auch der Ort, den ein Szenenkopf nennt. Die Zeile für die Projektdaten in `ARCHITECTURE.md` nennt den Spielort nicht.
-
-Was es kostet: Wer nach dem Begriff der Oberfläche sucht, findet den Code nicht. Wer „location“ liest, muss raten, ob Drehort oder Spielort gemeint ist.
-
-Vorschlag: Ein englischer Name für den Spielort in Code, Kommentaren und `ARCHITECTURE.md`, so wie ihn die Begriffsliste festlegt. Dazu nennt die Zeile für `model/` den Spielort.
-
-Aufwand klein (nur Text und Namen). Risiko gering.
-
-Beleg: `crates/model/src/place.rs:5`, `crates/services/src/places.rs:9`, `crates/services/src/session/places.rs:1`, `planung/BEGRIFFE.md:27`, `ARCHITECTURE.md:29`, `ARCHITECTURE.md:85`.
-
-### 8. Der Sprung zwischen Buch und Plan beschreibt seine Verweise ein zweites Mal
-Die Sitzung beschreibt jeden Verweis einer Drehbuchzeile auf den Plan (Mark oder Einstellung), mitsamt dem Zeitpunkt. Die Brücke zum Fenster (#254) hat dafür eine eigene Liste. Sie übersetzt die Art des Verweises über ausgeschriebene Wörter („mark“, „shot“), die von Hand zu den Namen in der Sitzung passen müssen. Den Zeitpunkt einer Mark sucht sie im Plan selbst, obwohl der Verweis ihn schon trägt.
-
-Was es kostet: Eine dritte Art von Verweis (etwa ein Lichtwechsel) braucht Änderungen an vier Stellen der Brücke. Weicht ein Wort ab, springt der Klick still nicht.
-
-Vorschlag: Die Sitzung nimmt den Verweis entgegen und erledigt den Sprung selbst. Die Brücke reicht ihn nur weiter.
-
-Aufwand klein. Risiko gering: Es gibt `crates/app/tests/controller/script_jump.qml` und `crates/app/tests/qml/tst_scriptpanel.qml`.
-
-Beleg: `crates/app/src/bridge/jump.rs:14`, `crates/app/src/bridge/jump.rs:20`, `crates/app/src/bridge/jump.rs:72`, `crates/services/src/views.rs:139`, `crates/services/src/views.rs:155`.
-
-### 9. Bestandsliste
-**Kleiner geworden:** `figure_items` (#255) und `item_prims` (die Beschriftung steht jetzt in `layout/swatch.rs`) sind aus der Liste. `load` in `store/src/lib.rs` liegt nicht mehr über der Grenze und kann mit `--update` gestrichen werden.
-
-**Umbenannt, nicht erhöht:** `save` in `store/src/lib.rs` heißt jetzt `save_with` (#256), mit unverändertem Wert 18.
-
-**An der Grenze von 800 Zeilen:** `stellprobe/src/motion.rs` steht genau bei 800 (vorher 797). Die natürliche Naht sind die Tests ab Zeile 402. Sie können in eine eigene Datei, wie es `display/tests.rs` schon vormacht. `store/src/lib.rs` ist durch die Spielorte von 743 auf 799 Zeilen gewachsen. Natürliche Nähte sind die Prüfungen beim Laden (`check_*` ab Zeile 492) und die Sicherung (ab Zeile 389). Werden die Prüfungen verschoben, muss die Zeile „New kind of element“ in `ARCHITECTURE.md` mit, die sie in `lib.rs` verortet. Behebt jemand Fund 4, schrumpft die Datei ohnehin. Ebenfalls nahe der Grenze: `services/tests/session.rs` mit 795, `export/tests/export.rs` mit 792, `app/src/bridge/view.rs` mit 788, `PlanArea.qml` mit 774 (vorher 761), `model/src/plan.rs` mit 772, `stellprobe/src/display/tests.rs` mit 771, `services/src/plan_edit.rs` mit 765.
-
-**In Ordnung:** die flachen Listen (`field.rs` `name`, `plan/key.rs` `key`), die alten Einträge der Ausgabe (`jpeg.rs`, `scan.rs`, `deflate.rs`, `inflate.rs`) und `apply`.
-
-Beleg: `structure.baseline`, `crates/stellprobe/src/motion.rs:402`, `crates/store/src/lib.rs:389`, `crates/store/src/lib.rs:492`, `ARCHITECTURE.md:86`.
+**An der Grenze von 800 Zeilen, ohne Eintrag:** `app/qml/PlanArea.qml` 797 (Naht: die Eingabekarten für Maßstab ab Zeile 330, Notiz ab 365, Maßfeld ab 491); `export/src/raster.rs` 800 (Tests ab Zeile 342); `stellprobe/src/motion.rs` 800 (Tests ab Zeile 402); `stellprobe/src/display/tests.rs` 798; `services/tests/session.rs` 795; `export/tests/export.rs` 793. Gewachsen, aber darunter: `app/src/selection.rs` 747 und `app/src/manage.rs` 721 (Naht: Tests in eine eigene Datei, wie `bridge/view/tests.rs` es vormacht; Fund 1 nimmt aus `manage.rs` rund 60 Zeilen), `app/qml/AppHeader.qml` 720. `export/src/layout.rs` `item_prims` steht wieder genau bei 80 Zeilen.
 
 ## Seit dem letzten Audit
-Seit dem 16. Audit wurden zehn PRs gemergt: #241, #243, #245, #246, #249, #251, #254, #255, #256 und #257 (dazu #244, der das 16. Audit selbst ablegt). #258 (Spielort-Fragen im Fenster) liegt erst auf dem Zweig `gui-orte` und ist nicht in diesem Stand. Er betrifft Fund 1.
+Seit dem 17. Audit (Stand `324d1dbe`) wurden 30 PRs gemergt, darunter die Audit-PRs #261 bis #264, #284 bis #286 und #289.
 
-16. Audit (der Eigentümer hat am 18.11.2026 entschieden, die Funde 1, 2 und 3 beheben zu lassen; noch nicht behoben):
-- **Fund 1 (Prüfung „hat sich das Register geändert“ mit einer Feldliste von Hand): offen, zur Behebung gewählt.** Unverändert. Beleg: `crates/services/src/session/book.rs:147`.
-- **Fund 2 (das Terminal führt selbst Buch über Strg+Z für Antworten; `ARCHITECTURE.md` nennt das nicht): offen, zur Behebung gewählt.** Die Antworten zu Spielorten sind kein Schritt von Strg+Z. Die Buchführung muss sie also ebenfalls auslassen, was sie heute tut. Die Zeile in `ARCHITECTURE.md` nennt die Stelle weiter nicht. Beleg: `crates/tui/src/app/book.rs:97`, `crates/tui/src/app/book.rs:106`, `crates/tui/src/app/book.rs:131`, `ARCHITECTURE.md:85`.
-- **Fund 3 (deutsche Szenenköpfe, Großschreibung, Sprachübersetzung doppelt): offen, zur Behebung gewählt.** #249 hat die Großschreibung des Terminals in den Drehbuch-Baustein verlegt, mit einer eigenen Konstante für „ß“. Damit steht die Ausnahme für „ß“ jetzt dreimal im Drehbuch-Baustein. Der Namensvergleich der Spielorte hat dazu eine eigene Regel für „ß“. Beleg: `crates/script/src/parse.rs:17`, `crates/script/src/parse.rs:539`, `crates/script/src/parse.rs:546`, `crates/script/src/flow.rs:156`, `crates/model/src/place.rs:27`, `crates/services/src/session/file.rs:90`.
-- **Fund 4 (Bestandsliste):** Die Tests des Abgleichs (`services/tests/book_align.rs`) sind bei 708 Zeilen geblieben.
+17. Audit:
+- **Fund 1 (Fragen zum Buch formuliert jede Oberfläche selbst): offen, eingetreten.** #258 hat die Spielort-Texte im Fenster ein zweites Mal gebaut; der Fragedialog setzt Titel, Frage und Antworten selbst zusammen, die Brücke übersetzt die Art der Antwort in eigene Wörter. Dringendster offener Fund. Beleg: `crates/tui/src/i18n.rs:222`, `crates/tui/src/i18n.rs:241`, `crates/app/qml/BookDialog.qml:20`, `crates/app/qml/BookDialog.qml:38`, `crates/app/src/manage.rs:84`, `crates/services/src/session/places.rs:32`.
+- **Fund 2 (wie blass etwas gezeichnet wird): behoben (#262).** Beleg: `crates/services/src/session/fade.rs:131`, `crates/app/src/bridge/view.rs:299`, `crates/export/src/layout.rs:187`.
+- **Fund 3 (das Video baut die Ansicht nach): behoben (#264).** Beleg: `crates/services/src/session/plan_view.rs:98`, `crates/services/src/session/video.rs:43`.
+- **Fund 4 (Spielorte in den Projektdaten): offen.** Beleg: `crates/model/src/project.rs:21`, `crates/services/src/session/file.rs:119`, `crates/store/src/lib.rs:249`.
+- **Fund 5 (das Terminal zeigt Fehler roh und englisch): behoben (#284, #286).** Den Rest in der Ablage beschreibt Fund 10. Beleg: `crates/tui/src/app/pdf.rs:126`, `crates/tui/src/main.rs:62`.
+- **Fund 6 (gleiche Figurennamen, freier Name): im Projekt behoben (#285), Rest in Fund 4.** Beleg: `crates/model/src/project.rs:94`, `crates/services/src/project_edit.rs:381`.
+- **Fund 7 (drei englische Namen für den Spielort): offen.** 39-mal „play location“, 6-mal „scripted location“. Beleg: `crates/services/src/session/places.rs:1`, `planung/BEGRIFFE.md:27`, `ARCHITECTURE.md:29`.
+- **Fund 8 (Sprung zwischen Buch und Plan): größtenteils behoben (#261).** Rest: Der Weg zurück („im Drehbuch zeigen“) baut den Verweis der Auswahl in der Brücke weiter selbst. Beleg: `crates/app/src/bridge/jump.rs:17`, `crates/app/src/bridge/jump.rs:75`.
 
-14. Audit, Reste:
-- **Fund 2 (auskommentierte Teile, Regel zweimal): offen.** Beleg: `crates/script/src/parse.rs:203`, `crates/script/src/inline.rs:104`.
-- **Fund 4 (Papier des Drehbuchs an zwei Stellen übersetzt): offen.** Beleg: `crates/services/src/script_pages.rs:98`, `crates/services/src/script_pages.rs:240`.
-- **Fund 5 (Enter und Tab): Rest offen.** `Slot::of` wird jetzt auch außerhalb der Tests aufgerufen (`flow.rs`); dieser Teil ist erledigt. Das Terminal übersetzt seine Zeilenarten weiter selbst. Beleg: `crates/tui/src/fountain.rs:35`, `crates/script/src/flow.rs:220`.
+16. Audit (am 18.11.2026 zur Behebung gewählt):
+- **Fund 1 (Prüfung „Register geändert“ mit Feldliste von Hand): offen.** Beleg: `crates/services/src/session/book.rs:199`.
+- **Fund 2 (das Terminal führt selbst Buch über Strg+Z für Antworten): offen.** Beleg: `crates/tui/src/app/book.rs:97`.
+- **Fund 3 (ß, deutsche Szenenköpfe, Sprache doppelt): behoben (#263).**
 
-13. Audit:
-- **Fund 3 (Karten suchen ihr Element mit kopiertem Block, siebenmal): offen.** Beleg: `crates/app/qml/ImageCard.qml:21`, `crates/app/qml/CameraCard.qml:28`, `crates/app/qml/ObjectCard.qml:30` und die anderen Karten.
-
-12. Audit:
-- **Fund 5 (Kopieren über einen gemeinsamen Ablauf): vom Eigentümer nicht gewählt.** Er bleibt stehen und wird nicht neu gemeldet.
-
-Aus dem 10., 8., 7., 6., 5., 4. und 3. Audit sind weiter alle Funde offen, die das 16. Audit dort als offen führt. Beim Fund „Die Großschreibung beim Tippen kopiert Regeln des Drehbuchlesers in das Terminalprogramm“ ist durch #249 ein Teil erledigt: Die Umwandlung in Großbuchstaben steht jetzt im Drehbuch-Baustein, und das Terminal ruft sie auf. Welcher Teil einer Zeile großgeschrieben wird, entscheidet das Terminal weiter selbst. Beleg: `crates/script/src/flow.rs:163`, `crates/tui/src/fountain.rs:176`, `crates/tui/src/fountain.rs:186`.
+Ältere Funde:
+- **Behoben:** 3. Audit Fund 2 (Drehbuch- und Shot-Spalte je zweimal gebaut; schon seit den Breitenstufen, zu Unrecht als offen geführt); 6. Audit Fund 1 (Großschreibung beim Tippen, jetzt `script/caps.rs`); 5. Audit Fund 1 (bis auf den Rest in Fund 4).
+- **Offen:** 14. Audit Fund 2 (auskommentierte Teile; `/*` und `*/` stehen jetzt dreimal, auch in `script/src/flow.rs:227`), Fund 4 (Papier zweimal übersetzt), Fund 5 (geht in Fund 2 auf); 13. Audit Fund 3 (Karten suchen ihr Element mit kopiertem Block); 10. Audit Fund 1 (`freeLook`), Fund 2 (acht Karten hängen am Zähler des Kamerabilds), Fund 3 (Farbe eines Bildpunkts), Fund 4 (Punkte von Form und Fläche), Fund 5 („gewählte Kamera“ viermal); 8. Audit Fund 1, 2, 4, 5, 6 und Fund 3 teilweise; 7. Audit Fund 1, 2, 3, 6, Fund 4 teilweise und Fund 5 (Raumhöhe, mit dem leeren Projekt dreimal, siehe Fund 1); 6. Audit Fund 3; 5. Audit Fund 4; 4. Audit Fund 3; 3. Audit Fund 1 (Rest: Aufruffehler der Kommandozeile nur englisch), Fund 4 (drei Listen der angezeigten Werte), Fund 5 (`scan`, `item_prims`).
+- **Abgelehnt (bleibt stehen, wird nicht neu gemeldet):** 12. Audit Fund 5 (Kopieren über einen gemeinsamen Ablauf), samt der Namensreste beim Kopieren („Plan A (2)“, „Anna 2“, „A2“).
