@@ -145,17 +145,16 @@ fn main() -> ExitCode {
             camera,
             out,
         } => {
+            let language = language_of(language);
             let Some(format) = format.or_else(|| format_of(&out)) else {
-                eprintln!("klappe-cli: cannot tell the format of {out:?}, use --format");
-                return ExitCode::FAILURE;
+                let path = format!("{out:?}");
+                return refuse(language.text("cli.noFormat").replace("{path}", &path));
             };
             if format == ExportFormat::Camera && camera.is_none() {
-                eprintln!("klappe-cli: --format camera needs --camera <id>");
-                return ExitCode::FAILURE;
+                return refuse(language.text("cli.cameraNeedsId"));
             }
             if format != ExportFormat::Camera && camera.is_some() {
-                eprintln!("klappe-cli: --camera goes with --format camera only");
-                return ExitCode::FAILURE;
+                return refuse(language.text("cli.cameraOnly"));
             }
             let job = ExportJob {
                 project,
@@ -164,7 +163,7 @@ fn main() -> ExitCode {
                 at_s: at,
                 paper,
                 orientation,
-                language: language_of(language),
+                language,
                 format,
                 camera,
                 out,
@@ -241,13 +240,17 @@ fn write_script_pdf(
 }
 
 fn fov(lens_mm: f64, sensor: &str) -> ExitCode {
+    let language = Language::pick(None);
     let Some(sensor) = parse_sensor(sensor) else {
-        eprintln!("klappe-cli: unknown sensor {sensor}");
-        return ExitCode::FAILURE;
+        return refuse(
+            language
+                .text("cli.unknownSensor")
+                .replace("{sensor}", sensor),
+        );
     };
     if !is_length(lens_mm) {
-        eprintln!("klappe-cli: lens must be a positive length in mm, not {lens_mm}");
-        return ExitCode::FAILURE;
+        let lens = lens_mm.to_string();
+        return refuse(language.text("cli.badLens").replace("{value}", &lens));
     }
 
     let fov = klappe_services::horizontal_fov_deg(sensor, lens_mm);
@@ -257,11 +260,8 @@ fn fov(lens_mm: f64, sensor: &str) -> ExitCode {
 
 fn export(job: &ExportJob) -> ExitCode {
     if !job.at_s.is_finite() || job.at_s < 0.0 {
-        eprintln!(
-            "klappe-cli: time must be a number of seconds from 0, not {}",
-            job.at_s
-        );
-        return ExitCode::FAILURE;
+        let at = job.at_s.to_string();
+        return refuse(job.language.text("cli.badTime").replace("{value}", &at));
     }
 
     match write_export(job) {
@@ -290,7 +290,11 @@ fn write_export(job: &ExportJob) -> Result<(), String> {
         .iter()
         .find(|s| s.number == job.scene)
         .map(|s| s.id.clone())
-        .ok_or_else(|| format!("no scene {}", job.scene))?;
+        .ok_or_else(|| {
+            job.language
+                .text("cli.noScene")
+                .replace("{number}", &job.scene)
+        })?;
 
     session
         .select_scene(&scene_id)
@@ -301,7 +305,10 @@ fn write_export(job: &ExportJob) -> Result<(), String> {
             .map_err(|e| error_text(job.language, &e))?;
     }
     if session.plan().is_none() {
-        return Err(format!("scene {} has no plan", job.scene));
+        return Err(job
+            .language
+            .text("cli.noPlan")
+            .replace("{number}", &job.scene));
     }
     session.set_time(job.at_s);
 
@@ -333,6 +340,12 @@ fn orientation_arg(name: &str) -> Result<Orientation, String> {
     let names: Vec<&str> = Orientation::ALL.iter().map(|o| o.name()).collect();
 
     Orientation::from_name(name).ok_or_else(|| format!("use one of {}", names.join(", ")))
+}
+
+/// Says why the command line refuses, in the user's language, and fails.
+fn refuse(message: String) -> ExitCode {
+    eprintln!("klappe-cli: {message}");
+    ExitCode::FAILURE
 }
 
 fn language_of(language: Option<LanguageArg>) -> Language {
