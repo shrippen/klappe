@@ -283,7 +283,9 @@ fn resolving_assigns_the_scene_in_one_undo_step() {
     let mut s = Session::open(&dir).unwrap();
     let candidate = s.pending_scenes()[0].candidates[0].clone();
 
+    assert!(!s.undo_is_answer());
     s.resolve_scene("bbbb", Choice::Scene(candidate)).unwrap();
+    assert!(s.undo_is_answer(), "the top step is the answer");
 
     let b = scene(&s, "bbbb");
     assert_eq!(b.heading, KELLER);

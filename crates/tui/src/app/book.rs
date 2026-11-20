@@ -127,7 +127,9 @@ impl App {
     /// Ctrl+Z: takes back the latest of editor edit and book answer. The answer is the
     /// latest when the editor has no step since it.
     pub(super) fn undo(&mut self) -> Flow {
-        if self.answered.last() != Some(&self.editor.undo_depth()) {
+        // The session's top step is an answer, not another kind of step (audit 16, finding 2).
+        let answer = self.session.undo_is_answer();
+        if !answer || self.answered.last() != Some(&self.editor.undo_depth()) {
             return self.edit_with(Editor::undo);
         }
 
