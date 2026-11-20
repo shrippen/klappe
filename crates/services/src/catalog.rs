@@ -4,6 +4,8 @@
 
 use klappe_export::{DrawingTexts, LampColumns, LampTexts, ShotColumns, ShotTexts, Texts};
 use klappe_model::{Angle, FigureColor, LightKind, Movement, ShotSize};
+use std::sync::OnceLock;
+
 use serde_json::{Map, Value};
 
 const DE: &str = include_str!("../i18n/de.json");
@@ -44,11 +46,23 @@ impl Language {
 
     /// One text; the key itself if it is missing (visible, so a gap is noticed).
     pub fn text(self, key: &str) -> String {
-        let map: Map<String, Value> = serde_json::from_str(self.json()).unwrap_or_default();
-        map.get(key)
+        self.map()
+            .get(key)
             .and_then(Value::as_str)
             .unwrap_or(key)
             .to_owned()
+    }
+
+    /// The catalogue, read once per language: a text is asked for at every frame of playback.
+    fn map(self) -> &'static Map<String, Value> {
+        static GERMAN: OnceLock<Map<String, Value>> = OnceLock::new();
+        static ENGLISH: OnceLock<Map<String, Value>> = OnceLock::new();
+        let cell = match self {
+            Self::German => &GERMAN,
+            Self::English => &ENGLISH,
+        };
+
+        cell.get_or_init(|| serde_json::from_str(self.json()).unwrap_or_default())
     }
 
     /// The printed texts of the exports (E-05: no texts in code).

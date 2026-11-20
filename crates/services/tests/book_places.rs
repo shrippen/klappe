@@ -340,3 +340,28 @@ fn the_questions_come_worded_and_are_answered_by_position() {
     let lines: Vec<_> = next[0].answers.iter().map(|a| a.text.as_str()).collect();
     assert_eq!(lines, ["Neuer Spielort HOF", "Schreibweise von SÄNGERSAAL"]);
 }
+
+/// Review of PR 295: the window words the questions at every refresh (each frame of playback),
+/// so wording many is cheap. 80 open place names, worded 10 times, stay well under a frame
+/// budget per wording even in a debug build.
+#[test]
+fn many_questions_are_worded_fast() {
+    const PLACES: usize = 80;
+    const ROUNDS: u32 = 10;
+    const BUDGET_PER_ROUND: std::time::Duration = std::time::Duration::from_millis(40);
+
+    let book: String = (0..PLACES)
+        .map(|i| format!("INT. ORT {i} - TAG\n\nEtwas.\n\n"))
+        .collect();
+    let dir = make("places-many", &book);
+    let s = Session::open(&dir).unwrap();
+    assert_eq!(s.book_questions(Language::German).len(), PLACES);
+
+    let start = std::time::Instant::now();
+    for _ in 0..ROUNDS {
+        let _ = s.book_questions(Language::German);
+    }
+    let per_round = start.elapsed() / ROUNDS;
+
+    assert!(per_round < BUDGET_PER_ROUND, "{per_round:?} per wording");
+}
