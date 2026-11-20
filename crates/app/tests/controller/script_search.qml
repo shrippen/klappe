@@ -3,7 +3,7 @@ import io.github.shrippen.klappe
 import "lib"
 import "../../qml"
 
-// Find and replace in the window (DB-60) with the real controller and text tools: the hits are
+// Find and replace in the window (DB-07) with the real controller and text tools: the hits are
 // positions of the text area, also after a character outside the BMP; "Alle ersetzen" changes
 // every hit and is one step of the text's undo history.
 Item {

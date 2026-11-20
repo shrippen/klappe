@@ -62,7 +62,7 @@ TestCase {
         }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
-        // Search (DB-60) by a plain `indexOf` without case; the rules are `script/`'s, tested there.
+        // Search (DB-07) by a plain `indexOf` without case; the rules are `script/`'s, tested there.
         // A speaker keeps the hits below their cue: the last line in capitals above the hit.
         function cueAt(text, at) {
             const lines = text.slice(0, at).split("\n")
@@ -510,7 +510,7 @@ TestCase {
         compare(fake.layouts, before + 1)
     }
 
-    // DB-60: Ctrl+F opens the search; Enter walks the hits, the shown one selected.
+    // DB-07: Ctrl+F opens the search; Enter walks the hits, the shown one selected.
     function test_ctrl_f_finds_in_the_text() {
         const view = make()
         view.area.forceActiveFocus()
@@ -616,6 +616,69 @@ TestCase {
         verify(box.y >= before.y + switchBar.height)
         verify(box.x + view.search.width <= view.width)
         verify(box.x > view.width / 3)
+    }
+
+    /// The hit shown, as a rectangle in the view's coordinates.
+    function hitBox(view) {
+        const a = view.area.positionToRectangle(view.area.selectionStart)
+        const b = view.area.positionToRectangle(view.area.selectionEnd)
+        const p = view.area.mapToItem(view, a.x, a.y)
+        return Qt.rect(p.x, p.y, Math.max(b.x - a.x, 1), a.height)
+    }
+
+    function overlaps(a, b) {
+        return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+    }
+
+    function cardBox(view) {
+        const p = view.search.mapToItem(view, 0, 0)
+        return Qt.rect(p.x, p.y, view.search.width, view.search.height)
+    }
+
+    // A hit in the top lines of the view, right of the card's left edge, must not sit under it.
+    function test_the_card_moves_off_a_hit_under_it() {
+        fake.scriptText = "INT. SAAL - TAG\n\nSie kommt an und sieht sich lange im Saal um, dann ZIEL.\n\nEs regnet.\n"
+        const view = make()
+        view.search.open()
+        view.search.findField.text = "ziel"
+        view.search.from(0)
+
+        compare(view.area.selectedText, "ZIEL")
+        verify(!overlaps(hitBox(view), cardBox(view)), "hit " + JSON.stringify(hitBox(view)) + " under card " + JSON.stringify(cardBox(view)))
+        // At the bottom right, same right margin.
+        const box = cardBox(view)
+        verify(box.y > view.height / 2, "card at y " + box.y)
+    }
+
+    // A later hit under the card at the bottom sends it back to the top.
+    function test_the_card_goes_back_up_for_a_hit_at_the_bottom() {
+        let text = "INT. SAAL - TAG\n\nSie kommt an und sieht sich lange im Saal um, dann ZIEL.\n\n"
+        for (let i = 0; i < 40; i++) {
+            text += "Es regnet.\n\n"
+        }
+        text += "Am Ende " + "x".repeat(60) + " ZIEL.\n"
+        fake.scriptText = text
+        const view = make()
+        view.search.open()
+        view.search.findField.text = "ziel"
+        view.search.from(0)
+        verify(cardBox(view).y > view.height / 2)
+
+        view.search.next()
+        verify(!overlaps(hitBox(view), cardBox(view)), "hit " + JSON.stringify(hitBox(view)) + " under card " + JSON.stringify(cardBox(view)))
+        verify(cardBox(view).y < view.height / 2, "card at y " + cardBox(view).y)
+    }
+
+    // A narrow text area: the card stays inside it, not over the scene list.
+    function test_the_card_stays_in_a_narrow_text_area() {
+        const view = make()
+        view.width = 500
+        view.search.open()
+
+        const box = cardBox(view)
+        const area = view.area.mapToItem(view, 0, 0)
+        verify(box.x >= area.x, "card at " + box.x + ", text from " + area.x)
+        verify(box.x + box.width <= area.x + view.area.width, "card to " + (box.x + box.width) + ", text to " + (area.x + view.area.width))
     }
 
     // "Nur Dialog von": the cues of the text, most frequent first, after "Alle Figuren"; the

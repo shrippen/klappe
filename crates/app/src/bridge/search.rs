@@ -1,4 +1,4 @@
-//! Search and replace in the window's screenplay editor (DB-60): the hits of `script/` as
+//! Search and replace in the window's screenplay editor (DB-07): the hits of `script/` as
 //! positions the text area counts in (UTF-16 units from the start of the text).
 //!
 //! ```text

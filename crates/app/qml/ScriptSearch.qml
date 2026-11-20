@@ -4,7 +4,7 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// DB-60 in the window: find and replace in the screenplay's text by the rules of `script/`, as
+// DB-07 in the window: find and replace in the screenplay's text by the rules of `script/`, as
 // the terminal does, "only dialogue of" included. A card floating over the top right of the
 // text, so it takes no row from the layout switch. Ctrl+F opens it; Enter goes to the next
 // hit, Shift+Enter back, Esc closes. The hits are found anew at each step and Ersetzen takes

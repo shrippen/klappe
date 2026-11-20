@@ -167,6 +167,22 @@ RowLayout {
         if (top < flick.contentY || top > flick.contentY + flick.height - metrics.height * hitMarginLines) {
             flick.contentY = Math.max(0, Math.min(top - flick.height * hitHeight, flick.contentHeight - flick.height))
         }
+        dodgeSearch(from, to)
+    }
+
+    /// The search card goes to the other edge while the hit shown lies under it (DB-07), and
+    /// stays where it is otherwise.
+    property bool searchAtBottom: false
+    function dodgeSearch(from, to) {
+        const a = area.positionToRectangle(from)
+        const b = area.positionToRectangle(to)
+        const p = area.mapToItem(search, a.x, a.y)
+        const hit = Qt.rect(p.x, p.y, Math.max(b.x - a.x, 1), a.height)
+        const under = hit.x < search.width && hit.x + hit.width > 0
+            && hit.y < search.height && hit.y + hit.height > 0
+        if (under) {
+            searchAtBottom = !searchAtBottom
+        }
     }
 
     /// Puts `text` in place of `from` to `to` as one undo step; a replacement is no typing,
@@ -313,16 +329,19 @@ RowLayout {
 
             FontMetrics { id: metrics; font: area.font }
 
-            // Find and replace (DB-60), Ctrl+F in the view: a card over the top right of the
-            // text, so the layout switch above keeps its place.
+            // Find and replace (DB-07), Ctrl+F in the view: a card over the top right of the
+            // text, so the layout switch above keeps its place; at the bottom right while the
+            // hit shown lies under it.
             ScriptSearch {
                 id: search
                 objectName: "scriptSearch"
                 z: 3
-                anchors.top: parent.top
                 anchors.right: scroll.right
-                anchors.margins: Kirigami.Units.largeSpacing
-                width: Math.max(Kirigami.Units.gridUnit * 30, scroll.width * view.searchShare)
+                anchors.rightMargin: Kirigami.Units.largeSpacing
+                y: view.searchAtBottom ? parent.height - height - Kirigami.Units.largeSpacing
+                                       : Kirigami.Units.largeSpacing
+                width: Math.min(scroll.width - 2 * anchors.rightMargin,
+                                Math.max(Kirigami.Units.gridUnit * 30, scroll.width * view.searchShare))
                 texts: view.texts
                 controller: view.controller
                 area: area

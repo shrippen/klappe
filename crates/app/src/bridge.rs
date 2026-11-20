@@ -419,7 +419,7 @@ pub mod qobject {
         #[cxx_name = "scriptSpeakers"]
         fn script_speakers(self: &Self, text: &QString) -> QString;
 
-        /// Every hit of `find` in `text` (DB-60) as `[[start, end], …]` in positions of the text
+        /// Every hit of `find` in `text` (DB-07) as `[[start, end], …]` in positions of the text
         /// area; `matching` is `"match"` when case counts, else anything; `speaker` limits the
         /// hits to that cue's dialogue, empty for everyone.
         #[qinvokable]
