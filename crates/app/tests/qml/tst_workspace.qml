@@ -66,6 +66,7 @@ TestCase {
         property real duration: 20
         property var calls: []
         signal switched()
+        signal looped(real toS)
 
         function markInfo() { return "{}" }
         function setTool() { return true }

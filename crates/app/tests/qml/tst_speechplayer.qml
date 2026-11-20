@@ -162,8 +162,9 @@ TestCase {
         compare(fakeVoice.said.length, 4)
     }
 
-    // The reported jump decides, not the direction of the move: a loop entered from before
-    // its shot reads the line at the shot's start, as a seek to 5.04 s would not.
+    // The reported jump decides, not the direction of the move: with a jump reported, the
+    // line at the loop's start is read even though the time did not get smaller (a rule of
+    // the player; the session reports no jump when a loop is entered from before it).
     function test_a_reported_jump_restarts_even_when_time_did_not_get_smaller() {
         fakeController.json = JSON.stringify({ language: "en", lines: [
             { index: 1, at_s: 5, text: "Shot." }] })
