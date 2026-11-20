@@ -30,9 +30,12 @@ pub fn add_image(dir: &Path, source: &Path) -> Result<String, StoreError> {
         });
     }
 
-    let (stem, ext) = name.rsplit_once('.').ok_or_else(|| bad("no extension"))?;
+    let image_type = || StoreError::ImageType {
+        path: source.to_path_buf(),
+    };
+    let (stem, ext) = name.rsplit_once('.').ok_or_else(image_type)?;
     if !EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()) {
-        return Err(bad("only .png, .jpg and .jpeg images are supported"));
+        return Err(image_type());
     }
 
     let bytes = fs::read(source).map_err(|e| io_err(source, e))?;
@@ -54,9 +57,12 @@ pub fn add_image_bytes(dir: &Path, name: &str, bytes: &[u8]) -> Result<String, S
         });
     }
 
-    let (stem, ext) = name.rsplit_once('.').ok_or_else(|| bad("no extension"))?;
+    let image_type = || StoreError::ImageType {
+        path: dir.join(IMAGES_DIR).join(name),
+    };
+    let (stem, ext) = name.rsplit_once('.').ok_or_else(image_type)?;
     if !EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()) {
-        return Err(bad("only .png, .jpg and .jpeg images are supported"));
+        return Err(image_type());
     }
     check_new(bytes).map_err(|message| bad(&message))?;
 

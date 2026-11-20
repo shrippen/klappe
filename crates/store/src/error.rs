@@ -45,6 +45,10 @@ pub enum StoreError {
     #[error("{}: {message}", path.display())]
     BadImage { path: PathBuf, message: String },
 
+    /// An image file of a type the project does not take (not `.png`, `.jpg`, `.jpeg`).
+    #[error("{}: only .png, .jpg and .jpeg images are supported", path.display())]
+    ImageType { path: PathBuf },
+
     /// The system trash refused the folder.
     #[error("{}: cannot move to the trash: {message}", path.display())]
     Trash { path: PathBuf, message: String },

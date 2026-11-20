@@ -109,7 +109,7 @@ fn other_files_are_refused() {
 
     assert!(matches!(
         add_image(&project, &gif),
-        Err(StoreError::BadImage { .. })
+        Err(StoreError::ImageType { .. })
     ));
     assert!(matches!(
         add_image(&project, &fake),

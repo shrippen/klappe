@@ -80,8 +80,8 @@ fn own_text(language: Language, error: &ServiceError) -> String {
 }
 
 /// A store error: a merge conflict and the format versions have their own text, naming the
-/// file; a missing file or one without permission says so in the language; the rest says
-/// what the store says.
+/// file; a missing file or one without permission says so in the language; so do the refusals
+/// a user's action causes (image, trash, name); the rest says what the store says.
 fn store_text(language: Language, error: &klappe_store::StoreError) -> (&'static str, String) {
     use klappe_store::StoreError;
 
@@ -95,6 +95,10 @@ fn store_text(language: Language, error: &klappe_store::StoreError) -> (&'static
         ),
         StoreError::NewerFormat { path, .. } => ("error.newerFormat", path.display().to_string()),
         StoreError::OlderFormat { path, .. } => ("error.olderFormat", path.display().to_string()),
+        StoreError::ImageType { path } => ("error.imageType", path.display().to_string()),
+        StoreError::BadImage { path, .. } => ("error.badImage", path.display().to_string()),
+        StoreError::Trash { path, .. } => ("error.trash", path.display().to_string()),
+        StoreError::BadId { id } => ("error.badName", id.clone()),
         other => ("error.store", other.to_string()),
     }
 }
@@ -235,7 +239,7 @@ pub fn book_report_text(language: Language, report: &crate::BookReport) -> Strin
 mod tests {
     use super::*;
     use crate::Layer;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     /// Review of PR 286: a project that does not open said why in the system's English
     /// ("No such file or directory (os error 2)", "format version 9 is newer …").
@@ -264,6 +268,57 @@ mod tests {
             let text = error_text(Language::German, &error);
             assert!(text.contains(german), "{text}");
             assert!(!text.contains("os error"), "{text}");
+        }
+    }
+
+    /// Audit 18, finding 10: choosing `bild.gif` showed the store's English text in the German
+    /// window, behind "Projekt konnte nicht gelesen oder gespeichert werden".
+    #[test]
+    fn refusals_of_user_actions_speak_the_language() {
+        use klappe_store::StoreError;
+
+        let gif = klappe_store::add_image(Path::new("/p"), Path::new("/q/bild.gif")).unwrap_err();
+        let path = PathBuf::from("/q/bild.png");
+        let cases = [
+            (gif, "bild.gif", "Bilder"),
+            (
+                StoreError::BadImage {
+                    path: path.clone(),
+                    message: "not a readable PNG or JPEG image".to_owned(),
+                },
+                "bild.png",
+                "Bild",
+            ),
+            (
+                StoreError::Trash {
+                    path: path.clone(),
+                    message: "no trash".to_owned(),
+                },
+                "bild.png",
+                "Papierkorb",
+            ),
+            (
+                StoreError::BadId {
+                    id: "a/b".to_owned(),
+                },
+                "a/b",
+                "Name",
+            ),
+        ];
+
+        for (error, detail, german) in cases {
+            let text = error_text(Language::German, &ServiceError::Store(error));
+
+            assert!(text.contains(german) && text.contains(detail), "{text}");
+            assert!(!text.contains("konnte nicht gelesen"), "{text}");
+            assert!(
+                !text.contains("supported") && !text.contains("no trash"),
+                "{text}"
+            );
+            assert!(
+                !text.contains("not a readable") && !text.contains("file name"),
+                "{text}"
+            );
         }
     }
 
