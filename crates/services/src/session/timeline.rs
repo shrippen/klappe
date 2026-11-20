@@ -130,18 +130,29 @@ impl Session {
         }
     }
 
-    /// The current scene's script with its links to marks and shots (design B).
-    pub fn script_lines(&self) -> Vec<ScriptLine> {
+    /// The elements of the current scene's script; none for a scene outside the book.
+    pub(super) fn scene_elements(&self) -> &[Element] {
         let Some(at) = self.book_scene_of(self.scene) else {
-            return Vec::new();
-        };
-        let scenes = self.script.scenes();
-        let Some(view) = scenes.get(at) else {
-            return Vec::new();
+            return &[];
         };
 
-        let mut lines: Vec<ScriptLine> = view
-            .elements
+        self.script
+            .scenes()
+            .get(at)
+            .map_or(&[], |view| view.elements)
+    }
+
+    /// The earliest time the scene's element `index` is linked to.
+    pub(super) fn link_s(&self, index: usize) -> Option<f64> {
+        let chips = self.plan().map(|p| self.chips(p, index))?;
+
+        chips.iter().map(|c| c.at_s).min_by(f64::total_cmp)
+    }
+
+    /// The current scene's script with its links to marks and shots (design B).
+    pub fn script_lines(&self) -> Vec<ScriptLine> {
+        let mut lines: Vec<ScriptLine> = self
+            .scene_elements()
             .iter()
             .enumerate()
             .map(|(index, element)| {
