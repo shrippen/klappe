@@ -4,7 +4,9 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use klappe_services::{error_text, load_notes_text, SceneSpan, ServiceError, Session, Slot};
+use klappe_services::{
+    error_text, load_notes_text, SceneSpan, ServiceError, Session, Slot, TextKind,
+};
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
@@ -12,7 +14,7 @@ use ratatui::layout::Rect;
 
 use crate::buffer::Pos;
 use crate::editor::Editor;
-use crate::fountain::{analyse, typed_caps, Analysis, LineKind};
+use crate::fountain::{analyse, typed_caps, Analysis};
 use crate::i18n::{Language, Texts};
 use crate::layout::Layout;
 use crate::links::Links;
@@ -636,7 +638,7 @@ impl App {
         self.editor.type_char(c);
 
         // A pending heading is capitalised once it is one (`INT.`), not while it may be prose.
-        let pending = self.pending_kind(line).filter(|k| *k != LineKind::Heading);
+        let pending = self.pending_kind(line).filter(|k| *k != TextKind::Heading);
         let Some(caps) = typed_caps(self.editor.lines(), line, pending) else {
             return;
         };

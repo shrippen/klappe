@@ -9,13 +9,13 @@ use ratatui::Frame;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::app::{App, Focus, Mode, Notice};
-use crate::fountain::LineKind;
 use crate::layout::{cols, Row, TAB_WIDTH};
 use crate::theme;
 use crate::ui_list::{draw_list, list_rows_area};
 use crate::ui_overlay::{
     draw_backup, draw_book, draw_find, draw_numbers, draw_pdf, draw_suggest, draw_title,
 };
+use klappe_services::TextKind;
 
 /// Share of the width the scene list takes: 1/4, but at least `LIST_MIN` columns.
 const LIST_SHARE: u16 = 4;
@@ -37,25 +37,25 @@ const PAGE_RULE: &str = "─";
 const GOTO_PROMPT: &str = "› ";
 
 /// Style of a line kind, in Kante's colours.
-fn style_of(kind: LineKind) -> Style {
+fn style_of(kind: TextKind) -> Style {
     let base = Style::new().fg(theme::TEXT);
     match kind {
-        LineKind::Heading => Style::new()
+        TextKind::Heading => Style::new()
             .fg(theme::ACCENT)
             .bg(theme::SURFACE)
             .add_modifier(Modifier::BOLD),
-        LineKind::Character => Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD),
-        LineKind::Parenthetical => Style::new().fg(theme::SOFT).add_modifier(Modifier::ITALIC),
-        LineKind::Transition => Style::new().fg(theme::MUTED),
-        LineKind::Centered => base.add_modifier(Modifier::ITALIC),
-        LineKind::Section => Style::new().fg(theme::BLUE).add_modifier(Modifier::BOLD),
-        LineKind::Synopsis => Style::new().fg(theme::MUTED).add_modifier(Modifier::ITALIC),
-        LineKind::Note => Style::new().fg(theme::NOTE).add_modifier(Modifier::ITALIC),
-        LineKind::PageBreak | LineKind::Title => Style::new().fg(theme::MUTED),
-        LineKind::Lyrics => Style::new()
+        TextKind::Character => Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD),
+        TextKind::Parenthetical => Style::new().fg(theme::SOFT).add_modifier(Modifier::ITALIC),
+        TextKind::Transition => Style::new().fg(theme::MUTED),
+        TextKind::Centered => base.add_modifier(Modifier::ITALIC),
+        TextKind::Section => Style::new().fg(theme::BLUE).add_modifier(Modifier::BOLD),
+        TextKind::Synopsis => Style::new().fg(theme::MUTED).add_modifier(Modifier::ITALIC),
+        TextKind::Note => Style::new().fg(theme::NOTE).add_modifier(Modifier::ITALIC),
+        TextKind::PageBreak | TextKind::Title => Style::new().fg(theme::MUTED),
+        TextKind::Lyrics => Style::new()
             .fg(theme::LYRICS)
             .add_modifier(Modifier::ITALIC),
-        LineKind::Blank | LineKind::Action | LineKind::Dialogue => base,
+        TextKind::Blank | TextKind::Action | TextKind::Dialogue => base,
     }
 }
 
@@ -281,7 +281,7 @@ fn draw_row(frame: &mut Frame, app: &App, row: Row, band: Rect, rect: Rect) {
     let kind = app.analysis.kind(row.line);
     let style = style_of(kind);
 
-    if kind != LineKind::Heading {
+    if kind != TextKind::Heading {
         let mut spans = vec![Span::raw(" ".repeat(row.indent))];
         spans.extend(row_spans(
             app,

@@ -5,7 +5,7 @@ use klappe_services::{parse, Element, Slot};
 use super::support::*;
 use super::*;
 use crate::buffer::Pos;
-use crate::fountain::LineKind;
+use klappe_services::TextKind;
 
 fn names(app: &App) -> Vec<String> {
     app.suggest
@@ -380,14 +380,14 @@ fn the_line_after_a_transition_is_no_heading_until_it_is_one() {
     press(&mut app, KeyCode::Enter);
     assert_eq!(
         app.analysis.kind(app.cursor().line),
-        LineKind::Heading,
+        TextKind::Heading,
         "empty: the heading to come"
     );
 
     // Prose typed there is an action, in its case, and shows as one.
     typed(&mut app, "Anna geht.");
     assert_eq!(app.text(), "x\n\nCUT TO:\n\nAnna geht.");
-    assert_eq!(app.analysis.kind(app.cursor().line), LineKind::Action);
+    assert_eq!(app.analysis.kind(app.cursor().line), TextKind::Action);
     assert_eq!(app.suggest, None);
 }
 
@@ -399,7 +399,7 @@ fn a_typed_prefix_keeps_the_line_a_heading_and_is_capitalised_when_complete() {
     typed(&mut app, "in");
 
     // Only possibly a prefix: shown as the heading to come, typed as it is.
-    assert_eq!(app.analysis.kind(app.cursor().line), LineKind::Heading);
+    assert_eq!(app.analysis.kind(app.cursor().line), TextKind::Heading);
     assert_eq!(app.text(), "x\n\nCUT TO:\n\nin");
 
     typed(&mut app, "t. küche");
@@ -414,7 +414,7 @@ fn prose_that_starts_like_a_prefix_stays_as_typed() {
     typed(&mut app, "In der Küche");
 
     assert_eq!(app.text(), "x\n\nCUT TO:\n\nIn der Küche");
-    assert_eq!(app.analysis.kind(app.cursor().line), LineKind::Action);
+    assert_eq!(app.analysis.kind(app.cursor().line), TextKind::Action);
 }
 
 #[test]

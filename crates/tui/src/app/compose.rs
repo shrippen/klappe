@@ -10,7 +10,7 @@ use klappe_services::{
 
 use super::{App, Mode};
 use crate::buffer::Pos;
-use crate::fountain::LineKind;
+use klappe_services::TextKind;
 
 /// The suggestions open at the cursor and the one chosen.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,10 +40,10 @@ impl App {
     }
 
     /// The kind of the pending line, if `line` is it and still looks like its slot.
-    pub(super) fn pending_kind(&self, line: usize) -> Option<LineKind> {
+    pub(super) fn pending_kind(&self, line: usize) -> Option<TextKind> {
         match self.pending {
             Some((at, Slot::Heading)) if at == line && !self.heading_like(line) => None,
-            Some((at, slot)) if at == line => Some(LineKind::of_slot(slot)),
+            Some((at, slot)) if at == line => Some(TextKind::of_slot(slot)),
             _ => None,
         }
     }
@@ -75,8 +75,8 @@ impl App {
         let Some(kind) = self.analysis.kinds.get_mut(line) else {
             return;
         };
-        if matches!(kind, LineKind::Blank | LineKind::Action) {
-            *kind = LineKind::of_slot(slot);
+        if matches!(kind, TextKind::Blank | TextKind::Action) {
+            *kind = TextKind::of_slot(slot);
         }
     }
 
@@ -184,8 +184,8 @@ impl App {
     /// What the line at the cursor is for completion.
     fn context_at(&self, line: usize) -> Context {
         match self.analysis.kind(line) {
-            LineKind::Heading => Context::Heading,
-            LineKind::Character => Context::Cue,
+            TextKind::Heading => Context::Heading,
+            TextKind::Character => Context::Cue,
             _ => Context::Line,
         }
     }

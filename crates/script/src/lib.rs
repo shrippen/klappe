@@ -28,7 +28,7 @@ pub use caps::typed_caps;
 pub use conflict::conflict_line;
 pub use flow::{enter_step, force_line, tab_step, upper, EnterStep, Forced, Gap, Slot, TabStep};
 pub use inline::{inline_runs, Marks, Run};
-pub use kinds::{text_kinds, TextKind};
+pub use kinds::{located_kinds, text_kinds, TextKind};
 pub use numbering::{is_omitted, number_scenes, NumberMode, NumberRules, OMITTED_DE, OMITTED_EN};
 pub use outline::{move_entry, outline, outline_of, visible, Entry, EntryKind, Moved, Way};
 pub use pages::{

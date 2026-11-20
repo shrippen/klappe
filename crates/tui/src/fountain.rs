@@ -1,8 +1,8 @@
 //! What each line of the text is, from the Fountain parser, for styling and the scene list.
 
 use klappe_services::{
-    boneyard_lines, outline_of, parse_located, title_page_lines, Element, Located, OutlineEntry,
-    Slot, Vocabulary,
+    boneyard_lines, located_kinds, outline_of, parse_located, Element, Located, OutlineEntry,
+    TextKind, Vocabulary,
 };
 
 /// Display-only indents in columns (the stored text stays plain Fountain).
@@ -11,58 +11,14 @@ const INDENT_PARENTHETICAL: usize = 15;
 const INDENT_DIALOGUE: usize = 10;
 const INDENT_TRANSITION: usize = 30;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LineKind {
-    Blank,
-    Heading,
-    Action,
-    Character,
-    Parenthetical,
-    Dialogue,
-    Transition,
-    Centered,
-    Section,
-    Synopsis,
-    Note,
-    PageBreak,
-    Lyrics,
-    /// A line of the title page (`Title: …`).
-    Title,
-}
-
-impl LineKind {
-    /// The element a line is for Enter and Tab; none for those that are not part of the flow.
-    pub(crate) fn slot(self) -> Option<Slot> {
-        match self {
-            Self::Heading => Some(Slot::Heading),
-            Self::Action => Some(Slot::Action),
-            Self::Character => Some(Slot::Character),
-            Self::Parenthetical => Some(Slot::Parenthetical),
-            Self::Dialogue => Some(Slot::Dialogue),
-            Self::Transition => Some(Slot::Transition),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn of_slot(slot: Slot) -> Self {
-        match slot {
-            Slot::Heading => Self::Heading,
-            Slot::Action => Self::Action,
-            Slot::Character => Self::Character,
-            Slot::Parenthetical => Self::Parenthetical,
-            Slot::Dialogue => Self::Dialogue,
-            Slot::Transition => Self::Transition,
-        }
-    }
-
-    pub(crate) fn indent(self) -> usize {
-        match self {
-            Self::Character => INDENT_CHARACTER,
-            Self::Parenthetical => INDENT_PARENTHETICAL,
-            Self::Dialogue => INDENT_DIALOGUE,
-            Self::Transition => INDENT_TRANSITION,
-            _ => 0,
-        }
+/// The display-only indent of a line, in columns.
+pub(crate) fn indent(kind: TextKind) -> usize {
+    match kind {
+        TextKind::Character => INDENT_CHARACTER,
+        TextKind::Parenthetical => INDENT_PARENTHETICAL,
+        TextKind::Dialogue => INDENT_DIALOGUE,
+        TextKind::Transition => INDENT_TRANSITION,
+        _ => 0,
     }
 }
 
@@ -97,7 +53,7 @@ impl Scene {
 
 #[derive(Debug, Default)]
 pub(crate) struct Analysis {
-    pub kinds: Vec<LineKind>,
+    pub kinds: Vec<TextKind>,
     pub scenes: Vec<Scene>,
     /// Sections, scenes and synopses as the outline lists them.
     pub outline: Vec<OutlineEntry>,
@@ -120,8 +76,8 @@ impl Analysis {
         self.dual.get(line).copied().unwrap_or(false)
     }
 
-    pub(crate) fn kind(&self, line: usize) -> LineKind {
-        self.kinds.get(line).copied().unwrap_or(LineKind::Action)
+    pub(crate) fn kind(&self, line: usize) -> TextKind {
+        self.kinds.get(line).copied().unwrap_or(TextKind::Action)
     }
 
     /// The element that starts on this line.
@@ -142,54 +98,27 @@ impl Analysis {
 /// stay its own. Typed text that is no element (a boneyard) shows as plain action, the
 /// title page as `Title`; the inline marks of a boneyard are read per line.
 pub(crate) fn analyse(lines: &[String]) -> Analysis {
+    let text = lines.join("\n");
+    let located = parse_located(&text);
     let mut seen = Analysis {
-        kinds: lines
-            .iter()
-            .map(|l| match l.trim().is_empty() {
-                true => LineKind::Blank,
-                false => LineKind::Action,
-            })
-            .collect(),
+        kinds: located_kinds(&text, &located),
         ..Analysis::default()
     };
 
-    let text = lines.join("\n");
-    let located = parse_located(&text);
     for item in &located {
         place(item, &mut seen);
     }
     seen.vocab = Vocabulary::from_located(&located);
     seen.outline = outline_of(&located, lines.len());
-
     seen.boneyard = boneyard_lines(&text);
-    for kind in seen.kinds.iter_mut().take(title_page_lines(&text)) {
-        *kind = LineKind::Title;
-    }
 
     seen
 }
 
 /// The cursor line in capitals as `script` types them (`typed_caps`); `pending` is the kind
 /// Enter or Tab made the line.
-pub(crate) fn typed_caps(lines: &[String], at: usize, pending: Option<LineKind>) -> Option<String> {
-    klappe_services::typed_caps(&lines.join("\n"), at, pending.and_then(LineKind::slot))
-}
-
-fn kind_of(el: &Element) -> LineKind {
-    match el {
-        Element::SceneHeading { .. } => LineKind::Heading,
-        Element::Action(_) => LineKind::Action,
-        Element::Character { .. } => LineKind::Character,
-        Element::Parenthetical(_) => LineKind::Parenthetical,
-        Element::Dialogue(_) => LineKind::Dialogue,
-        Element::Transition(_) => LineKind::Transition,
-        Element::Centered(_) => LineKind::Centered,
-        Element::Section { .. } => LineKind::Section,
-        Element::Synopsis(_) => LineKind::Synopsis,
-        Element::Note(_) => LineKind::Note,
-        Element::PageBreak => LineKind::PageBreak,
-        Element::Lyrics(_) => LineKind::Lyrics,
-    }
+pub(crate) fn typed_caps(lines: &[String], at: usize, pending: Option<TextKind>) -> Option<String> {
+    klappe_services::typed_caps(&lines.join("\n"), at, pending.and_then(TextKind::slot))
 }
 
 fn place(located: &Located, out: &mut Analysis) {
@@ -222,11 +151,7 @@ fn place(located: &Located, out: &mut Analysis) {
         out.dual.resize(out.kinds.len(), false);
     }
 
-    let kind = kind_of(&located.element);
     for &at in &located.lines {
-        if let Some(slot) = out.kinds.get_mut(at) {
-            *slot = kind;
-        }
         if let Some(slot) = out.dual.get_mut(at) {
             *slot = out.dual_now;
         }
@@ -276,7 +201,7 @@ mod tests {
             "INT. SAAL – TAG #12#\n\nElisabeth tritt ein.\n\nELISABETH\n(leise)\nIhr kommt\nspät.\n\nCUT TO:\n",
         ));
 
-        use LineKind::*;
+        use TextKind::*;
         assert_eq!(
             a.kinds,
             [
@@ -431,8 +356,8 @@ mod tests {
     fn key_value_paragraph_is_no_title_page() {
         let a = analyse(&lines("INT. A\n\nNote: hallo\nzweite"));
 
-        assert_eq!(a.kind(2), LineKind::Action);
-        assert_eq!(a.kind(3), LineKind::Action);
+        assert_eq!(a.kind(2), TextKind::Action);
+        assert_eq!(a.kind(3), TextKind::Action);
     }
 
     /// Kinds of every line, written as one letter each for a compact table.
@@ -441,20 +366,20 @@ mod tests {
             .kinds
             .iter()
             .map(|k| match k {
-                LineKind::Blank => '.',
-                LineKind::Heading => 'H',
-                LineKind::Action => 'A',
-                LineKind::Character => 'C',
-                LineKind::Parenthetical => 'P',
-                LineKind::Dialogue => 'D',
-                LineKind::Transition => 'T',
-                LineKind::Centered => 'Z',
-                LineKind::Section => 'S',
-                LineKind::Synopsis => 'Y',
-                LineKind::Note => 'N',
-                LineKind::PageBreak => 'B',
-                LineKind::Lyrics => 'L',
-                LineKind::Title => 'K',
+                TextKind::Blank => '.',
+                TextKind::Heading => 'H',
+                TextKind::Action => 'A',
+                TextKind::Character => 'C',
+                TextKind::Parenthetical => 'P',
+                TextKind::Dialogue => 'D',
+                TextKind::Transition => 'T',
+                TextKind::Centered => 'Z',
+                TextKind::Section => 'S',
+                TextKind::Synopsis => 'Y',
+                TextKind::Note => 'N',
+                TextKind::PageBreak => 'B',
+                TextKind::Lyrics => 'L',
+                TextKind::Title => 'K',
             })
             .collect()
     }
@@ -584,37 +509,9 @@ mod tests {
 
     #[test]
     fn indents_are_display_only_roles() {
-        assert_eq!(LineKind::Character.indent(), 20);
-        assert_eq!(LineKind::Dialogue.indent(), 10);
-        assert_eq!(LineKind::Parenthetical.indent(), 15);
-        assert_eq!(LineKind::Action.indent(), 0);
-    }
-
-    #[test]
-    fn a_kind_and_its_slot_go_both_ways() {
-        let flow = [
-            LineKind::Heading,
-            LineKind::Action,
-            LineKind::Character,
-            LineKind::Parenthetical,
-            LineKind::Dialogue,
-            LineKind::Transition,
-        ];
-        for kind in flow {
-            let slot = kind.slot().expect("part of the flow");
-            assert_eq!(LineKind::of_slot(slot), kind);
-        }
-
-        let outside = [
-            LineKind::Blank,
-            LineKind::Centered,
-            LineKind::Section,
-            LineKind::Synopsis,
-            LineKind::Note,
-            LineKind::PageBreak,
-            LineKind::Lyrics,
-            LineKind::Title,
-        ];
-        assert!(outside.iter().all(|k| k.slot().is_none()));
+        assert_eq!(indent(TextKind::Character), 20);
+        assert_eq!(indent(TextKind::Dialogue), 10);
+        assert_eq!(indent(TextKind::Parenthetical), 15);
+        assert_eq!(indent(TextKind::Action), 0);
     }
 }

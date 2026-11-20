@@ -372,14 +372,14 @@ impl Editor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fountain::LineKind;
+    use klappe_services::TextKind;
 
     fn at(line: usize, col: usize) -> Pos {
         Pos { line, col }
     }
 
     fn layout_of(ed: &Editor, width: usize) -> Layout {
-        let kinds = vec![LineKind::Action; ed.lines().len()];
+        let kinds = vec![TextKind::Action; ed.lines().len()];
         Layout::build(ed.lines(), &kinds, width, &[])
     }
 

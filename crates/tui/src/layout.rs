@@ -3,7 +3,8 @@
 use unicode_width::UnicodeWidthChar;
 
 use crate::buffer::Pos;
-use crate::fountain::LineKind;
+use crate::fountain::indent;
+use klappe_services::TextKind;
 
 /// Narrowest text width a line is wrapped at, however small the window.
 const MIN_WRAP: usize = 8;
@@ -110,7 +111,7 @@ impl Layout {
     /// starts above the line, with a row of its own.
     pub(crate) fn build(
         lines: &[String],
-        kinds: &[LineKind],
+        kinds: &[TextKind],
         width: usize,
         breaks: &[(usize, usize)],
     ) -> Self {
@@ -119,10 +120,10 @@ impl Layout {
         let mut first_row = Vec::with_capacity(lines.len());
 
         for (i, line) in lines.iter().enumerate() {
-            let kind = kinds.get(i).copied().unwrap_or(LineKind::Action);
+            let kind = kinds.get(i).copied().unwrap_or(TextKind::Action);
             let indent = match kind {
-                LineKind::Centered => centered_indent(line, width),
-                _ => kind.indent().min(width / INDENT_SHARE),
+                TextKind::Centered => centered_indent(line, width),
+                _ => indent(kind).min(width / INDENT_SHARE),
             };
             // One column stays free for the cursor behind the last character.
             let room = width.saturating_sub(indent + 1).max(MIN_WRAP);
@@ -276,14 +277,14 @@ mod tests {
         assert_eq!(wrap("ÄÖÜ ÄÖÜ ÄÖÜ", 8), [(0, 8), (8, 11)]);
     }
 
-    fn layout(lines: &[&str], kinds: &[LineKind], width: usize) -> Layout {
+    fn layout(lines: &[&str], kinds: &[TextKind], width: usize) -> Layout {
         let lines: Vec<String> = lines.iter().map(|s| (*s).to_owned()).collect();
         Layout::build(&lines, kinds, width, &[])
     }
 
     #[test]
     fn rows_follow_lines_and_wrapping() {
-        let l = layout(&["aaaaaaaa bbbbbbbb", "", "x"], &[LineKind::Action; 3], 10);
+        let l = layout(&["aaaaaaaa bbbbbbbb", "", "x"], &[TextKind::Action; 3], 10);
 
         // room is 9: "aaaaaaaa " / "bbbbbbbb"
         assert_eq!(l.len(), 4);
@@ -297,7 +298,7 @@ mod tests {
 
     #[test]
     fn pos_at_stays_on_the_row() {
-        let l = layout(&["aaaaaaaa bbbbbbbb"], &[LineKind::Action], 10);
+        let l = layout(&["aaaaaaaa bbbbbbbb"], &[TextKind::Action], 10);
 
         assert_eq!(l.pos_at(0, 99), at(0, 8));
         assert_eq!(l.pos_at(1, 99), at(0, 17));
@@ -306,14 +307,14 @@ mod tests {
 
     #[test]
     fn indent_narrows_the_row() {
-        let l = layout(&["x"], &[LineKind::Character], 60);
+        let l = layout(&["x"], &[TextKind::Character], 60);
 
         assert_eq!(l.row(0).map(|r| r.indent), Some(20));
     }
 
     #[test]
     fn a_centered_line_stands_in_the_middle_and_a_long_one_at_the_edge() {
-        let l = layout(&["> ENDE <", &"x".repeat(80)], &[LineKind::Centered; 2], 40);
+        let l = layout(&["> ENDE <", &"x".repeat(80)], &[TextKind::Centered; 2], 40);
 
         // "> ENDE <" is 8 columns: (40 - 9) / 2.
         assert_eq!(l.row(0).map(|r| r.indent), Some(15));
@@ -322,7 +323,7 @@ mod tests {
 
     #[test]
     fn indent_is_capped_in_a_narrow_window() {
-        let l = layout(&["x"], &[LineKind::Character], 30);
+        let l = layout(&["x"], &[TextKind::Character], 30);
 
         assert_eq!(l.row(0).map(|r| r.indent), Some(10));
     }
