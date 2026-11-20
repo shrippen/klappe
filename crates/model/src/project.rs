@@ -89,6 +89,12 @@ pub struct Character {
     pub size_m: Option<f64>,
 }
 
+/// Whether two names are the same character name: compared as the cues over the lines are,
+/// in capitals, so two characters of one name would merge their cues.
+pub fn same_character_name(a: &str, b: &str) -> bool {
+    a.trim().to_uppercase() == b.trim().to_uppercase()
+}
+
 /// A group has two to 999 people; one person is a figure, more would not fit the label.
 pub const MIN_GROUP: u32 = 2;
 pub const MAX_GROUP: u32 = 999;
@@ -577,6 +583,14 @@ pub struct Scene {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Character names compare as cues do: case and outer spaces are style.
+    #[test]
+    fn character_names_compare_as_cues() {
+        assert!(same_character_name("Anna", "ANNA"));
+        assert!(same_character_name(" anna ", "Anna"));
+        assert!(!same_character_name("Anna", "Anna 2"));
+    }
 
     /// A table of 2 x 1 m at (10, 5): unturned, the middle of its right edge (1, 0) lies to
     /// the right of the centre; turned a quarter, below it.

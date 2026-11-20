@@ -3,9 +3,9 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, is_object_height_m, normalize_deg, random_id, BookState, Character,
-    FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project, Scene, SetPlan,
-    Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    is_figure_size_m, is_object_height_m, normalize_deg, random_id, same_character_name, BookState,
+    Character, FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project,
+    Scene, SetPlan, Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -368,6 +368,32 @@ fn remove_location(project: &mut Project, id: &str) -> Result<(), ServiceError> 
     Ok(())
 }
 
+/// Whether the name of a new character may be `base` itself, or always carries a number.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Numbered {
+    /// `base` if it is free, else `base 2`, `base 3` … (a template's placeholder).
+    WhenTaken,
+    /// `base 2`, `base 3` … (a copy).
+    Always,
+}
+
+/// The first name of `base`, `base 2`, `base 3` … (as `numbered` allows) no character has.
+fn free_character_name(characters: &[Character], base: &str, numbered: Numbered) -> String {
+    let taken = |name: &str| {
+        characters
+            .iter()
+            .any(|c| same_character_name(&c.name, name))
+    };
+    if numbered == Numbered::WhenTaken && !taken(base) {
+        return base.to_owned();
+    }
+
+    (2..)
+        .map(|n| format!("{base} {n}"))
+        .find(|name| !taken(name))
+        .unwrap_or_default()
+}
+
 /// Two characters of one name (compared as cues are, in capitals) would merge their cues; `own` is the
 /// character being renamed, which may keep its name.
 fn check_free_name(project: &Project, name: &str, own: Option<&str>) -> Result<(), ServiceError> {
@@ -375,7 +401,7 @@ fn check_free_name(project: &Project, name: &str, own: Option<&str>) -> Result<(
         .characters
         .iter()
         .filter(|c| Some(c.id.as_str()) != own)
-        .any(|c| c.name.to_uppercase() == name.to_uppercase());
+        .any(|c| same_character_name(&c.name, name));
     if !taken {
         return Ok(());
     }
