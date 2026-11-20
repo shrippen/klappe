@@ -196,10 +196,6 @@ fn the_start_fills_every_value() {
 
     assert!(c.loaded);
     assert_eq!(c.title.to_string(), "Die Wartburg-Szene");
-    assert_eq!(
-        c.plan_title.to_string(),
-        "12 · INT. SÄNGERSAAL – TAG · Plan A"
-    );
     assert_eq!(c.scene_id.to_string(), "m4djbtj6");
     assert_eq!(c.duration, 20.0);
     assert_eq!(c.time, 0.0);

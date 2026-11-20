@@ -11,7 +11,7 @@ Item {
     Watchdog {}
     Controller { id: ctl }
 
-    readonly property var plain: ["loaded", "title", "planTitle", "time", "duration",
+    readonly property var plain: ["loaded", "title", "time", "duration",
         "selectedShot", "canUndo", "canRedo", "dirty", "selectedKey", "selectedCount",
         "snappingOn", "gridName", "hasBackground", "scalePoints", "measuring", "areaPoints", "asksNote",
         "backupState", "backupMessage", "sceneId", "status"]
@@ -21,16 +21,14 @@ Item {
 
     // What the start shows without a project: the first scenario step is relative to it.
     readonly property var started: ({
-        loaded: false, title: "", planTitle: "", time: 0, duration: 0, selectedShot: "",
+        loaded: false, title: "", time: 0, duration: 0, selectedShot: "",
         canUndo: false, canRedo: false, dirty: false, selectedKey: "", selectedCount: 0,
         snappingOn: true, gridName: "", hasBackground: false, scalePoints: 0, measuring: false,
         areaPoints: 0, asksNote: false, backupState: "", backupMessage: "", sceneId: "",
         status: ""
     })
-    readonly property string planA: "12 · INT. SÄNGERSAAL – TAG · Plan A"
-    readonly property string stand1: "12 · INT. SÄNGERSAAL – TAG · Stand 1"
     readonly property var opened: Object.assign({}, started, {
-        loaded: true, title: "Die Wartburg-Szene", planTitle: planA, duration: 20,
+        loaded: true, title: "Die Wartburg-Szene", duration: 20,
         backupState: "none", sceneId: "m4djbtj6", gridName: "cm25"
     })
     readonly property var moved: Object.assign({}, opened, {
@@ -39,10 +37,10 @@ Item {
     readonly property var undone: Object.assign({}, moved, { canUndo: false, canRedo: true })
     readonly property var redone: Object.assign({}, moved, { canUndo: true, canRedo: false })
     readonly property var copied: Object.assign({}, redone, {
-        planTitle: stand1, time: 0, selectedKey: "", selectedCount: 0
+        time: 0, selectedKey: "", selectedCount: 0
     })
     readonly property var back: Object.assign({}, copied, {
-        planTitle: planA, canUndo: true, canRedo: true
+        canUndo: true, canRedo: true
     })
     readonly property var shot: Object.assign({}, back, { selectedShot: "s12-1" })
     readonly property var unsnapped: Object.assign({}, shot, { snappingOn: false })
@@ -91,7 +89,7 @@ Item {
                 return root.fail("project did not open")
             }
             if (!root.check("open", root.opened, {
-                loaded: 1, projectJson: 1, sceneId: 1, title: 1, planTitle: 1, duration: 1,
+                loaded: 1, projectJson: 1, sceneId: 1, title: 1, duration: 1,
                 choicesJson: 1, gridName: 1, planJson: 1, tracksJson: 1, shotsJson: 1, shotsShootingJson: 1, scriptJson: 1,
                 layersJson: 1, locksJson: 1, backupState: 1
             })) {
@@ -137,14 +135,14 @@ Item {
 
             ctl.copyPlan("Stand 1")
             if (!root.check("copy plan", root.copied, {
-                projectJson: 1, planTitle: 1, planJson: 1, time: 1, selectedKey: 1,
+                projectJson: 1, planJson: 1, time: 1, selectedKey: 1,
                 selectedCount: 1
             })) {
                 return
             }
             ctl.undo()
             if (!root.check("undo plan", root.back, {
-                projectJson: 1, planTitle: 1, canRedo: 1
+                projectJson: 1, canRedo: 1
             })) {
                 return
             }

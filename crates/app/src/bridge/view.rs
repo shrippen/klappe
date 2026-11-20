@@ -141,7 +141,6 @@ impl ControllerRust {
         self.backup_state = q(backup_state);
         self.backup_message = q(&backup_message);
         self.title = v.title;
-        self.plan_title = v.plan_title;
         self.plan_json = v.plan_json;
         self.tracks_json = v.tracks_json;
         self.shots_json = v.shots_json;
@@ -184,7 +183,6 @@ impl ControllerRust {
 
         Some(Shown {
             title: q(&s.project().title),
-            plan_title: q(&s.plan_title()),
             plan_json: q(&plan_json(
                 s,
                 &s.display_list_for(self.selected.handled()),
@@ -235,7 +233,6 @@ impl ControllerRust {
 #[derive(Default)]
 pub(super) struct Shown {
     title: QString,
-    plan_title: QString,
     plan_json: QString,
     tracks_json: QString,
     shots_json: QString,
@@ -434,7 +431,6 @@ impl qobject::Controller {
         self.as_mut().set_edit_revision(v.edit_revision);
         self.as_mut().set_scene_id(v.scene_id);
         self.as_mut().set_title(v.title);
-        self.as_mut().set_plan_title(v.plan_title);
         self.as_mut().set_duration(v.duration);
         self.as_mut().set_choices_json(v.choices_json);
         self.as_mut().set_grid_name(v.grid_name);
