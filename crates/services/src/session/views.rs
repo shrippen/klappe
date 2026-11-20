@@ -14,6 +14,7 @@ use klappe_stellprobe::{
 
 use super::{Layer, Session, Visibility};
 use crate::library;
+use crate::script_pages::ScriptPages;
 use crate::views::{
     AxisChoice, CameraSpot, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow,
     PlanRow, SceneRow, SunTexts, ViewRow,
@@ -27,8 +28,17 @@ const FOV_STEPS_PER_DEG: f64 = 10.0;
 const NO_GROUP: u32 = 0;
 
 /// One row of the scene list: the scene with its location and the counts of its markers.
-fn scene_row(project: &Project, s: &Scene, line: Option<usize>) -> SceneRow {
+fn scene_row(
+    project: &Project,
+    s: &Scene,
+    line: Option<usize>,
+    pages: Option<&ScriptPages>,
+) -> SceneRow {
     let location = project.location(&s.location);
+    let length = pages
+        .and_then(|p| p.scenes.iter().find(|span| Some(span.line) == line))
+        .map(|span| span.length.clone())
+        .unwrap_or_default();
 
     SceneRow {
         id: s.id.clone(),
@@ -38,6 +48,7 @@ fn scene_row(project: &Project, s: &Scene, line: Option<usize>) -> SceneRow {
         plans: s.plans.len(),
         shots: s.plans.iter().map(|p| p.shots.len()).sum(),
         line,
+        length,
         location: s.location.clone(),
         location_name: location.map(|l| l.name.clone()).unwrap_or_default(),
         sun: SunTexts::of(s.sun),
@@ -91,7 +102,7 @@ impl Session {
             .scenes
             .iter()
             .zip(lines)
-            .map(|(s, line)| scene_row(project, s, line));
+            .map(|(s, line)| scene_row(project, s, line, self.script_pages()));
         let locations = project.locations.iter().map(|l| LocationRow {
             id: l.id.clone(),
             name: l.name.clone(),

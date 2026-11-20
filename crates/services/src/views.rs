@@ -289,6 +289,9 @@ pub struct SceneRow {
     pub shots: usize,
     /// The text line (from 0) of the scene's heading; `None` when the book does not hold it.
     pub line: Option<usize>,
+    /// Its length on the page as the last layout has it (`1 3/8`, DB-32); empty without one or
+    /// out of the book.
+    pub length: String,
     pub location: String,
     pub location_name: String,
     /// When it is shot (LH-52); `sunDate`, `sunTime` and `sunOffset` in the JSON.

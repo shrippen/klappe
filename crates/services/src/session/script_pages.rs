@@ -4,7 +4,7 @@ use super::export::write_file;
 use super::Session;
 use crate::catalog::Language;
 use crate::error::ServiceError;
-use crate::script_pages::{lay_out, ScriptPages, ScriptPrint};
+use crate::script_pages::{lay_out, ScriptPages, ScriptPrint, Source};
 use klappe_export::SheetPage;
 use klappe_model::ScriptSetup;
 
@@ -17,6 +17,17 @@ impl Session {
         let text = self.script_text().to_owned();
 
         self.paginate_text(&text, fallback);
+    }
+
+    /// Lays the screenplay out again only if text, paper or words changed since the last
+    /// layout: a window keeps the scene lengths up to date with it after each change.
+    pub fn paginate_if_changed(&mut self, fallback: Language) {
+        let source = Source::of(self.script_text(), &self.project.script, fallback);
+        if self.layout.as_ref().is_some_and(|l| l.is_for(&source)) {
+            return;
+        }
+
+        self.paginate(fallback);
     }
 
     /// Like `paginate` for `text` that is not (yet) the session's: the terminal editor holds
