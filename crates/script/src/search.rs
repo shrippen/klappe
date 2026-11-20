@@ -3,8 +3,8 @@
 
 use std::collections::HashSet;
 
-use crate::assist::same_name;
 use crate::{Element, Located};
+use klappe_model::same_character_name;
 
 /// Whether upper and lower case count as different.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,7 +65,7 @@ fn dialogue_lines(located: &[Located], speaker: &str) -> HashSet<usize> {
 
     for item in located {
         match &item.element {
-            Element::Character { name, .. } => speaking = same_name(name, speaker),
+            Element::Character { name, .. } => speaking = same_character_name(name, speaker),
             Element::Dialogue(_) if speaking => lines.extend(item.lines.iter().copied()),
             Element::Dialogue(_) | Element::Parenthetical(_) => {}
             _ => speaking = false,
@@ -417,5 +417,25 @@ mod tests {
 
         assert_eq!(h.len(), 1);
         assert_eq!(h[0].line, 1);
+    }
+
+    /// The search finds a cue's lines exactly when the project calls the names one character.
+    #[test]
+    fn a_speaker_is_the_project_s_character() {
+        let names = ["WEISS", "WEIẞ", "Weiß", " weiss ", "WEISS 2"];
+
+        for cue in ["WEISS", "WEIẞ"] {
+            let text = format!("{cue}\nHallo.");
+
+            for speaker in names {
+                let found = !hits_in(&text, "hallo", Some(speaker)).is_empty();
+
+                assert_eq!(
+                    found,
+                    klappe_model::same_character_name(cue, speaker),
+                    "cue {cue:?}, speaker {speaker:?}"
+                );
+            }
+        }
     }
 }

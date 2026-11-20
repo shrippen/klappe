@@ -2,7 +2,9 @@
 
 use std::ops::Range;
 
-use klappe_services::{find_all, parse_located, replace_hits, Case, Hit, Query};
+use klappe_services::{
+    find_all, parse_located, replace_hits, same_character_name, Case, Hit, Query,
+};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{App, Flow, Mode, Notice};
@@ -261,7 +263,7 @@ impl App {
         let names = self.analysis.vocab.characters();
         let at = names
             .iter()
-            .position(|n| n.to_lowercase() == self.find.speaker.trim().to_lowercase());
+            .position(|n| same_character_name(n, &self.find.speaker));
         // Slot 0 is "everyone", slot n is `names[n - 1]`.
         let count = names.len() + 1;
         let now = at.map_or(0, |i| i + 1);

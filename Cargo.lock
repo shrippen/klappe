@@ -967,6 +967,9 @@ version = "0.0.1"
 [[package]]
 name = "klappe-script"
 version = "0.0.1"
+dependencies = [
+ "klappe-model",
+]
 
 [[package]]
 name = "klappe-services"

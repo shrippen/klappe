@@ -2,7 +2,7 @@
 //! completion) and the suggestions for the line being typed. Surfaces show them; the
 //! rules live here. The element flow of Enter and Tab is in `flow.rs`.
 
-use std::collections::HashMap;
+use klappe_model::same_character_name;
 
 use crate::parse::{heading_prefix, DUAL_MARK, FORCE_CHARACTER, FORCE_HEADING, NUMBER_MARK};
 use crate::{Element, Located};
@@ -61,25 +61,28 @@ pub struct Vocabulary {
 }
 
 /// The words most frequent first, the earlier one first among equals; the words of line
-/// `skip` do not count (the line being typed would suggest itself).
-fn ranked(words: &[(usize, String)], skip: Option<usize>) -> Vec<String> {
-    let mut seen: HashMap<String, usize> = HashMap::new();
+/// `skip` do not count (the line being typed would suggest itself). Words that `same` calls
+/// equal count as one, the first spelling shown.
+fn ranked(
+    words: &[(usize, String)],
+    skip: Option<usize>,
+    same: fn(&str, &str) -> bool,
+) -> Vec<String> {
     let mut counted: Vec<(&str, usize)> = Vec::new();
 
     for (_, word) in words.iter().filter(|(line, _)| Some(*line) != skip) {
-        let at = *seen.entry(word.to_lowercase()).or_insert_with(|| {
-            counted.push((word, 0));
-            counted.len() - 1
-        });
-        counted[at].1 += 1;
+        match counted.iter_mut().find(|(known, _)| same(known, word)) {
+            Some(entry) => entry.1 += 1,
+            None => counted.push((word, 1)),
+        }
     }
     counted.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
 
     counted.into_iter().map(|(w, _)| w.to_owned()).collect()
 }
 
-/// Whether two names are the same in any case, umlauts included.
-pub(crate) fn same_name(a: &str, b: &str) -> bool {
+/// Places and times of day are the same in any case, umlauts included.
+fn same_lower(a: &str, b: &str) -> bool {
     a.to_lowercase() == b.to_lowercase()
 }
 
@@ -140,11 +143,11 @@ impl Vocabulary {
 
     /// Cue names, most frequent first.
     pub fn characters(&self) -> Vec<String> {
-        ranked(&self.cues, None)
+        ranked(&self.cues, None, same_character_name)
     }
 
     pub fn locations(&self) -> Vec<String> {
-        ranked(&self.places, None)
+        ranked(&self.places, None, same_lower)
     }
 
     /// In a conversation the other one: the last speaker above `line` who is not the one
@@ -154,7 +157,7 @@ impl Vocabulary {
         let last = &above.next()?.1;
 
         above
-            .find(|(_, name)| !same_name(name, last))
+            .find(|(_, name)| !same_character_name(name, last))
             .map(|(_, name)| name.as_str())
     }
 }
@@ -299,7 +302,7 @@ fn heading_stage(vocab: &Vocabulary, line: &str, line_no: usize) -> Option<Sugge
 
     let Some((at, len)) = separated else {
         let place = rest.trim_start();
-        let places = ranked(&vocab.places, Some(line_no));
+        let places = ranked(&vocab.places, Some(line_no), same_lower);
         let options = matching(places.iter().map(String::as_str), place.trim_end())
             .into_iter()
             .map(|l| format!("{l}{LOCATION_END}"))
@@ -311,7 +314,7 @@ fn heading_stage(vocab: &Vocabulary, line: &str, line_no: usize) -> Option<Sugge
         });
     };
 
-    let used = ranked(&vocab.times, Some(line_no));
+    let used = ranked(&vocab.times, Some(line_no), same_lower);
     let pool = used.iter().map(String::as_str).chain(TIMES.iter().copied());
     Some(Suggestions {
         stage: Stage::Time,
@@ -348,8 +351,16 @@ fn cue_stage(vocab: &Vocabulary, line: &str, skip: usize, line_no: usize) -> Opt
             .into_iter()
             .collect()
     } else {
-        let names = ranked(&vocab.cues, Some(line_no));
-        matching(names.iter().map(String::as_str), typed)
+        // Matched spelling by spelling (`WEIS` starts `WEISS`, not `WEIẞ`), then one per character.
+        let names = ranked(&vocab.cues, Some(line_no), same_lower);
+        let mut options: Vec<String> = Vec::new();
+        for name in matching(names.iter().map(String::as_str), typed) {
+            if !options.iter().any(|o| same_character_name(o, &name)) {
+                options.push(name);
+            }
+        }
+
+        options
     };
 
     Some(Suggestions {
@@ -386,6 +397,20 @@ mod tests {
         assert_eq!(options(&v, "", Context::Cue), ["ANNA"]);
         assert_eq!(options(&v, "B", Context::Cue), ["BEN"]);
         assert_eq!(options(&v, "@c", Context::Line), ["CARL"]);
+    }
+
+    #[test]
+    fn a_cue_prefix_finds_the_spelling_it_starts() {
+        let v = vocab("WEIẞ\nx\n\nWEISS\ny\n\nANNA\nz\n");
+
+        assert_eq!(options(&v, "WEIS", Context::Cue), ["WEISS"]);
+    }
+
+    #[test]
+    fn a_cue_prefix_offers_one_entry_per_character() {
+        let v = vocab("WEIẞ\nx\n\nWEISS\ny\n\nANNA\nz\n");
+
+        assert_eq!(options(&v, "WEI", Context::Cue), ["WEIẞ"]);
     }
 
     #[test]
@@ -550,6 +575,13 @@ mod tests {
             ]
         );
         assert_eq!(Slot::of(&Element::PageBreak), None);
+    }
+
+    #[test]
+    fn one_character_is_listed_once_whatever_its_eszett() {
+        let v = vocab("WEISS\nx\n\nWEIẞ\ny\n\n@Weiß\nz\n\nBEN\nw\n");
+
+        assert_eq!(v.characters(), ["WEISS", "BEN"]);
     }
 
     #[test]

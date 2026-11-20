@@ -299,6 +299,22 @@ fn left_and_right_pick_the_character_for_the_dialogue_only_search() {
 }
 
 #[test]
+fn the_character_choice_cycles_once_through_everyone() {
+    let (_s, mut app) = app_with("WEISS\nHallo.\n\nWEIẞ\nHallo.\n\nBEN\nHallo.");
+    ctrl(&mut app, 'f');
+    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::Tab);
+
+    let mut seen = Vec::new();
+    for _ in 0..3 {
+        press(&mut app, KeyCode::Right);
+        seen.push(app.find.speaker.clone());
+    }
+
+    assert_eq!(seen, ["WEISS", "BEN", ""]);
+}
+
+#[test]
 fn replace_all_keeps_the_cursor_on_its_text() {
     let (_s, mut app) = broken_app();
     typed(&mut app, "die tür");
