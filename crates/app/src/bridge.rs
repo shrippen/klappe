@@ -20,8 +20,6 @@ pub mod qobject {
         #[qproperty(QString, texts)]
         #[qproperty(bool, loaded)]
         #[qproperty(QString, title)]
-        /// Scene number, heading and plan name.
-        #[qproperty(QString, plan_title, cxx_name = "planTitle")]
         /// `{ width, depth, shapes }` for KanteShapeCanvas.
         #[qproperty(QString, plan_json, cxx_name = "planJson")]
         /// Counts refreshes: the camera's picture is made again when it changes.

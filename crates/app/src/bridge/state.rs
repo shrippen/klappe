@@ -19,7 +19,6 @@ pub struct ControllerRust {
     pub(super) texts: QString,
     pub(super) loaded: bool,
     pub(super) title: QString,
-    pub(super) plan_title: QString,
     pub(super) plan_json: QString,
     pub(super) picture_revision: i32,
     pub(super) edit_revision: i32,

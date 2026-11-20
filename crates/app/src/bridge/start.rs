@@ -66,7 +66,6 @@ impl ControllerRust {
             texts: q(language.json()),
             loaded: false,
             title: QString::default(),
-            plan_title: QString::default(),
             plan_json: QString::default(),
             picture_revision: 0,
             edit_revision: 0,
