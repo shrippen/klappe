@@ -1,4 +1,4 @@
-//! The play locations: `orte.toml` (DB-51).
+//! The scripted locations: `orte.toml` (DB-51).
 
 use std::path::{Path, PathBuf};
 
@@ -22,7 +22,7 @@ struct Places {
     ort: Vec<Place>,
 }
 
-/// The play locations of `dir`; none when the file is missing.
+/// The scripted locations of `dir`; none when the file is missing.
 pub fn load_places(dir: &Path) -> Result<Vec<Place>, StoreError> {
     let path = dir.join(PLACES_FILE);
     if !files::exists(&path)? {

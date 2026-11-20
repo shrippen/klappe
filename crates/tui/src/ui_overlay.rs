@@ -326,7 +326,7 @@ fn book_lines(app: &App) -> Option<(&str, String, Vec<String>)> {
 }
 
 /// One open question about the book: the entry and the scenes it may be, or a location of
-/// the headings and the play locations it may be.
+/// the headings and the scripted locations it may be.
 pub(crate) fn draw_book(frame: &mut Frame, app: &App) {
     let Some((title, ask, options)) = book_lines(app) else {
         return;

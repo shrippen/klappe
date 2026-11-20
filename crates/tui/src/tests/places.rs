@@ -10,7 +10,7 @@ use super::*;
 
 const BOOK: &str = "INT. SÄNGERSAAL – TAG #12#\n\nElisabeth tritt an den Tisch.\n\n";
 
-/// The example project without its play locations, so the headings of `book` ask.
+/// The example project without its scripted locations, so the headings of `book` ask.
 fn bare(book: &str) -> Scratch {
     let scratch = Scratch::new(book);
     let _ = fs::remove_file(scratch.dir.join("orte.toml"));

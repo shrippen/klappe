@@ -195,7 +195,7 @@ pub struct Session {
     /// (`refresh_scene_map`), kept so a refresh of the window does not align the book again.
     book_scene: Vec<Option<usize>>,
     heading_line: Vec<Option<usize>>,
-    /// Locations of the headings no play location is called by (`pending_places`).
+    /// Locations of the headings no scripted location is called by (`pending_places`).
     pending_places: Vec<crate::places::PendingPlace>,
     /// The Sperrstand of the scene numbers (DB-33) as saved last; `None` without the file.
     /// Only a save changes it, so undo and the backup never carry it.

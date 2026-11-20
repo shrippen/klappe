@@ -3,9 +3,9 @@ import QtCore
 import io.github.shrippen.klappe
 import "lib"
 
-// DB-51: a play location the book names and orte.toml does not is asked about when the project
+// DB-51: a scripted location the book names and orte.toml does not is asked about when the project
 // opens (the status line counts it), the answer goes to orte.toml at once and is no step of
-// undo. The folder is a copy of the example whose play location is called FESTSAAL while the
+// undo. The folder is a copy of the example whose scripted location is called FESTSAAL while the
 // heading says SÄNGERSAAL; qml_tests.rs makes it and checks the file afterwards.
 Item {
     id: root

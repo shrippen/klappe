@@ -1,4 +1,4 @@
-//! Play locations (Spielorte, DB-51): the place a scene heading names, with a stable id.
+//! Scripted locations (Spielorte, DB-51): the place a scene heading names, with a stable id.
 
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,7 @@ fn fold(name: &str) -> String {
 }
 
 impl Place {
-    /// Whether a heading's location `name` is this place: its name or a variant.
+    /// Whether the place name `name` of a heading is this place: its name or a variant.
     pub fn is_called(&self, name: &str) -> bool {
         same_place_name(&self.name, name) || self.variants.iter().any(|v| same_place_name(v, name))
     }

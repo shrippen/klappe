@@ -1,4 +1,4 @@
-//! The play locations: `orte.toml` (DB-51, FORMAT.md).
+//! The scripted locations: `orte.toml` (DB-51, FORMAT.md).
 #![allow(clippy::unwrap_used)]
 
 use std::fs;

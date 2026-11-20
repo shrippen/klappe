@@ -15,7 +15,7 @@ const CRLF_PROJECT: &str = "crlf-projekt";
 const CRLF_SCRIPT: &str = "INT. HALLE - TAG\r\n\r\nSie\u{a0}kommt an.\r\n";
 /// The copy of the example `place_answer.qml` opens.
 const PLACE_PROJECT: &str = "orte-projekt";
-/// The play location of the example, and the name the copy has before the scenario renames it.
+/// The scripted location of the example, and the name the copy has before the scenario renames it.
 const PLACE_NAME: &str = "SÄNGERSAAL";
 const PLACE_OLD_NAME: &str = "FESTSAAL";
 /// The id of the renamed play place in the example project; a rename keeps it.

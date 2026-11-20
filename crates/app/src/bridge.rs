@@ -432,7 +432,7 @@ pub mod qobject {
         #[cxx_name = "resolveScene"]
         fn resolve_scene(self: Pin<&mut Self>, id: &QString, index: i32) -> bool;
 
-        /// Answers the open question about the play location `name` of the scene headings
+        /// Answers the open question about the scripted location `name` of the scene headings
         /// (`projectJson.pendingPlaces`): the answer at position `index` of its `answers`.
         /// Written to `orte.toml` at once; no undo step. False when the answer is refused.
         #[qinvokable]
