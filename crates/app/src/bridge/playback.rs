@@ -43,8 +43,13 @@ impl qobject::Controller {
             true => Looping::Shot,
             false => Looping::Off,
         };
-        let playing = s.advance(dt, speed, looping);
+        let tick = s.advance(dt, speed, looping);
+        let playing = tick.playing;
         let time = s.time_s();
+
+        if let Some(to_s) = tick.looped_to_s {
+            self.as_mut().looped(to_s);
+        }
 
         // A refresh would drop a drag preview: show the drag again at the new time, as the
         // release will store it.

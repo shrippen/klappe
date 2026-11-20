@@ -6,8 +6,8 @@ import QtQuick
 //
 // A step of the playhead is small (a timer tick). A move back or by more than `jumpS` is a
 // seek (the timeline, a mark): speech stops and goes on from the first line that has not come
-// yet. A move back during a step that the timeline says wraps a loop (`wrapping`) goes on from
-// the loop's start, so the line there is read again. `active` off (paused, stopped, switched
+// yet. A move that comes with the controller's `looped(toS)` goes on from the loop's start
+// `toS` instead, so the line there is read again. `active` off (paused, stopped, switched
 // off) stops it too, but not at the scene's end (`letFinish`): then the next move of the
 // playhead, `stop()` or the next start ends it.
 Item {
@@ -21,10 +21,9 @@ Item {
     /// Playing ends by itself (the scene's end): the voice reads on instead of stopping. Set
     /// before `active` goes off, taken back by `stop()` and at the next start.
     property bool letFinish: false
-    /// The timeline is in a step that may wrap a shot loop to `loopStartS` plus the rest of
-    /// the tick: a move back in it is no seek.
-    property bool wrapping: false
-    property real loopStartS: 0
+    /// Where the controller said a loop started over, for the move of the playhead that
+    /// follows; negative: none.
+    property real loopedToS: -1
 
     readonly property real jumpS: 1
     readonly property real epsS: 1e-6
@@ -69,9 +68,12 @@ Item {
         }
 
         const t = controller.time
-        if (t < lastS || t - lastS > jumpS) {
-            skipTo(wrapping && t < lastS ? loopStartS : t)
+        if (loopedToS >= 0) {
+            skipTo(loopedToS)
+        } else if (t < lastS || t - lastS > jumpS) {
+            skipTo(t)
         }
+        loopedToS = -1
         lastS = t
 
         while (next < lines.length && lines[next].at_s <= t + epsS) {
@@ -101,5 +103,6 @@ Item {
     Connections {
         target: reader.controller
         function onTimeChanged() { reader.follow() }
+        function onLooped(toS) { reader.loopedToS = reader.active ? toS : -1 }
     }
 }

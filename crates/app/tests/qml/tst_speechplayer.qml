@@ -14,6 +14,7 @@ TestCase {
     QtObject {
         id: fakeController
         property real time: 0
+        signal looped(real toS)
         readonly property string scene: JSON.stringify({
             language: "en",
             lines: [
@@ -143,23 +144,37 @@ TestCase {
         compare(fakeVoice.said, [])
     }
 
-    // A shot loop wraps to the shot's start plus the rest of the tick: the line at the start
-    // is read again (shot 5 to 10 s, lines at 5 and 7 s).
+    // A shot loop wraps to the shot's start plus the rest of the tick, and the controller says
+    // so: the line at the start is read again (shot 5 to 10 s, lines at 5 and 7 s).
     function test_a_loop_wrap_restarts_at_the_loop_start() {
         fakeController.json = JSON.stringify({ language: "en", lines: [
             { index: 1, at_s: 5, text: "Shot." }, { index: 3, at_s: 7, text: "Middle." }] })
         fakeController.time = 5
-        const player = createTemporaryObject(playerComponent, tc, { loopStartS: 5 })
+        const player = createTemporaryObject(playerComponent, tc, {})
         player.active = true
         playTo(10)
         compare(fakeVoice.said, ["en:Shot.", "en:Middle."])
 
-        player.wrapping = true
+        fakeController.looped(5)
         fakeController.time = 5.04
-        player.wrapping = false
         compare(fakeVoice.said, ["en:Shot.", "en:Middle.", "en:Shot."])
         playTo(7.1)
         compare(fakeVoice.said.length, 4)
+    }
+
+    // The reported jump decides, not the direction of the move: with a jump reported, the
+    // line at the loop's start is read even though the time did not get smaller (a rule of
+    // the player; the session reports no jump when a loop is entered from before it).
+    function test_a_reported_jump_restarts_even_when_time_did_not_get_smaller() {
+        fakeController.json = JSON.stringify({ language: "en", lines: [
+            { index: 1, at_s: 5, text: "Shot." }] })
+        fakeController.time = 1
+        const player = make()
+        player.active = true
+
+        fakeController.looped(5)
+        fakeController.time = 5.04
+        compare(fakeVoice.said, ["en:Shot."])
     }
 
     // A seek back inside the loop is no wrap: only what comes after it is read.
@@ -167,7 +182,7 @@ TestCase {
         fakeController.json = JSON.stringify({ language: "en", lines: [
             { index: 1, at_s: 5, text: "Shot." }, { index: 3, at_s: 7, text: "Middle." }] })
         fakeController.time = 8
-        const player = createTemporaryObject(playerComponent, tc, { loopStartS: 5 })
+        const player = createTemporaryObject(playerComponent, tc, {})
         player.active = true
         compare(fakeVoice.said, [])
 

@@ -24,13 +24,19 @@ TestCase {
         property bool running: true
         // Where the next `advance` puts the playhead (-1: stays), e.g. a loop's wrap.
         property real nextTime: -1
+        // The loop start `advance` reports with it (-1: none), as the bridge does.
+        property real nextLoopS: -1
         signal switched()
+        signal looped(real toS)
 
         function seek(at) { seeks.push(at) }
         function stepMark(direction) { steps.push(direction) }
         function advance(dt, speed, looping) {
             advances.push([speed, looping])
             if (nextTime >= 0) {
+                if (nextLoopS >= 0) {
+                    looped(nextLoopS)
+                }
                 time = nextTime
             }
             return running
@@ -225,9 +231,30 @@ TestCase {
         line.togglePlay()
         compare(fakeVoice.said, [])
 
+        fake.nextLoopS = 2
         fake.nextTime = 2.04
         tryCompare(fakeVoice.said, "length", 1)
         compare(fakeVoice.said, ["Shot."])
+    }
+
+    // Without a selected shot the loop is the scene: the wrap reads the line at 0 s again.
+    function test_a_scene_loop_wrap_reads_the_line_at_the_scene_start() {
+        fakeVoice.said = []
+        fake.tracksJson = "[]"
+        fake.speech = JSON.stringify({ language: "de", lines: [
+            { index: 1, at_s: 0, text: "Start." }, { index: 3, at_s: 10, text: "End." }] })
+        fake.time = 19.9
+        const line = make(de)
+        line.voice = fakeVoice
+        line.speak = true
+        line.looping = true
+        line.togglePlay()
+        tryCompare(fakeVoice.said, "length", 0)
+
+        fake.nextLoopS = 0
+        fake.nextTime = 0.04
+        tryCompare(fakeVoice.said, "length", 1)
+        compare(fakeVoice.said, ["Start."])
     }
 
     // In a loop, a jump back by the user is a seek, not a wrap: nothing from the loop start.

@@ -57,7 +57,7 @@ pub use session::video_frame_count;
 pub use session::{
     Answer, AnswerLine, Autosave, BackupState, BookQuestion, ExportOptions, Fade, Grab, Laid,
     Layer, Lock, Looping, Pages, PlaceAnswer, Playing, QuestionKey, Session, Size, Speech,
-    SpokenLine, Step, TimeSnap, VideoJob, View, ViewStep, Visibility,
+    SpokenLine, Step, Tick, TimeSnap, VideoJob, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};
