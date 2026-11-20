@@ -366,3 +366,65 @@ fn the_command_lines_own_errors_are_in_german() {
         stderr(&format)
     );
 }
+
+/// Review of PR 297: the other refusals in German too, and `fov` follows `LANG`.
+#[test]
+fn the_other_refusals_are_in_german() {
+    let camera_needs_id = export(
+        &out_file("cli-cam.png"),
+        &["--format", "camera", "--language", "de"],
+    );
+    let camera_only = export(
+        &out_file("cli-only.png"),
+        &["--camera", "k1", "--language", "de"],
+    );
+    let fov = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_klappe-cli"))
+            .arg("fov")
+            .args(args)
+            .env("LANG", "de_DE.UTF-8")
+            .output()
+            .unwrap()
+    };
+    let sensor = fov(&["--lens", "35", "--sensor", "riesig"]);
+    let lens = fov(&["--lens", "0"]);
+
+    assert!(
+        stderr(&camera_needs_id).contains("braucht --camera"),
+        "{}",
+        stderr(&camera_needs_id)
+    );
+    assert!(
+        stderr(&camera_only).contains("gehört nur zu"),
+        "{}",
+        stderr(&camera_only)
+    );
+    assert!(
+        stderr(&sensor).contains("Unbekannter Sensor riesig"),
+        "{}",
+        stderr(&sensor)
+    );
+    assert!(stderr(&lens).contains("Brennweite"), "{}", stderr(&lens));
+}
+
+/// Every catalogue key the command line names is in both catalogues; a missing one would print
+/// the key itself (no scene with a plan missing is in the example to show `cli.noPlan`).
+#[test]
+fn every_cli_key_is_in_both_catalogues() {
+    let source = include_str!("../src/main.rs");
+    let keys: Vec<&str> = source
+        .split('"')
+        .filter(|s| s.starts_with("cli.") && !s.contains(' '))
+        .collect();
+    let catalogues = [
+        include_str!("../../services/i18n/de.json"),
+        include_str!("../../services/i18n/en.json"),
+    ];
+
+    assert!(keys.len() >= 8, "{keys:?}");
+    for key in keys {
+        for catalogue in catalogues {
+            assert!(catalogue.contains(&format!("\"{key}\":")), "{key} missing");
+        }
+    }
+}
