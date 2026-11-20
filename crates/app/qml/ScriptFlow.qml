@@ -5,9 +5,11 @@ import QtQuick
 // to capitals as they are typed (DB-01). The rules are `script/`'s (`enterStep`, `tabStep`,
 // `typedCaps`); this only moves the cursor and the text.
 //
-//   INT. SAAL⏎   ─►  INT. SAAL         an empty line Enter or Tab made is `pending`: it shows as
-//                                      its element (here action) until the cursor leaves it
-//                    │
+//   before Enter           after Enter
+//   INT. SAAL▌             INT. SAAL
+//                          (blank line)
+//                          ▌            ← pending: an action line, set as one until the
+//                                         cursor leaves it; Tab makes it a cue
 QtObject {
     id: flow
 
@@ -74,8 +76,12 @@ QtObject {
         pendingMoved()
     }
 
-    /// Enter; false leaves the plain line break to the text area.
+    /// Enter; false leaves the plain line break to the text area, also over a selection, which
+    /// it replaces.
     function enter() {
+        if (area.selectedText !== "") {
+            return false
+        }
         const all = rows()
         const line = cursorLine()
         const start = lineStart(line)
