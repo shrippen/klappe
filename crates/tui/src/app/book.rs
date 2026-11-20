@@ -1,44 +1,43 @@
 //! The questions the register leaves open about the book (`Ctrl+K`): which scene of the
-//! book an entry is, then which scripted location a name of a heading is (DB-51), one question
-//! at a time.
+//! book an entry is, then which scripted location a place name of a heading is (DB-51), one
+//! question at a time; the session words them.
 
-use klappe_services::{error_text, Answer, PendingPlace, PendingScene, PlaceAnswer};
+use klappe_services::{error_text, BookQuestion, QuestionKey};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::{App, Editor, Flow, Mode, Notice};
 
 impl App {
-    /// The question being asked: the first open one.
-    pub(crate) fn book_question(&self) -> Option<&PendingScene> {
-        self.session.pending_scenes().first()
-    }
-
-    /// The lines of the question being asked, the last one "not in the book".
-    pub(crate) fn book_answers(&self) -> Vec<Answer> {
-        let Some(question) = self.book_question() else {
-            return Vec::new();
-        };
-
-        self.session.book_answers(&question.id)
-    }
-
-    /// The place name of the headings asked about once no scene is: the first open one.
-    pub(crate) fn place_question(&self) -> Option<&PendingPlace> {
-        self.session.pending_places().first()
-    }
-
-    /// The lines of the place question being asked.
-    pub(crate) fn place_answers(&self) -> Vec<PlaceAnswer> {
-        let Some(question) = self.place_question() else {
-            return Vec::new();
-        };
-
-        self.session.place_answers(&question.name)
+    /// The question being asked, worded by the session: a scene first, then a place name of
+    /// the headings.
+    pub(crate) fn question(&self) -> Option<BookQuestion> {
+        self.session.book_questions(self.lang).into_iter().next()
     }
 
     /// Whether any question about the book is open.
     fn book_asks(&self) -> bool {
-        self.book_question().is_some() || self.place_question().is_some()
+        self.question().is_some()
+    }
+
+    /// The number of the entry asked about, if the question is about a scene (for the tests).
+    #[cfg(test)]
+    pub(crate) fn asked_entry(&self) -> Option<String> {
+        let QuestionKey::Scene(id) = self.question()?.key else {
+            return None;
+        };
+
+        self.session
+            .pending_scenes()
+            .iter()
+            .find(|p| p.id == id)
+            .map(|p| p.number.clone())
+    }
+
+    /// Whether the question is about a place name of the headings (for the tests).
+    #[cfg(test)]
+    pub(crate) fn asks_place(&self) -> bool {
+        self.question()
+            .is_some_and(|q| matches!(q.key, QuestionKey::Place(_)))
     }
 
     pub(super) fn open_book(&mut self) -> Flow {
@@ -63,10 +62,7 @@ impl App {
             self.mode = Mode::Normal;
             return Flow::Continue;
         }
-        let options = match self.book_question() {
-            Some(_) => self.book_answers().len(),
-            None => self.place_answers().len(),
-        };
+        let options = self.question().map_or(0, |q| q.answers.len()).max(1);
 
         match key.code {
             KeyCode::Esc => self.mode = Mode::Normal,
@@ -79,44 +75,30 @@ impl App {
         Flow::Continue
     }
 
-    /// Gives the chosen answer to the session and goes on with the next question.
+    /// Gives the chosen answer to the session and goes on with the next question. An answer
+    /// about a scene is written to the register at once and is a step of Ctrl+Z; one about a
+    /// place name writes only `orte.toml`, from the file as it is on disk, and is none.
     fn answer_book(&mut self) {
-        let Some(question) = self.book_question() else {
-            return self.answer_place();
+        let Some(question) = self.question() else {
+            return;
         };
-        let id = question.id.clone();
+        let scene = matches!(question.key, QuestionKey::Scene(_));
 
         // The answer is written at once: the TUI saves no plans, so quitting asks nothing.
-        let answered = self.session.answer_book(&id, self.book_sel);
-        if let Err(e) = answered.and_then(|()| self.session.save_register()) {
+        let mut answered = self.session.answer_question(&question.key, self.book_sel);
+        if scene {
+            answered = answered.and_then(|()| self.session.save_register());
+        }
+        if let Err(e) = answered {
             self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
             self.mode = Mode::Normal;
             return;
         }
 
-        self.answered.push(self.editor.mark_step());
-        self.unanswered.clear();
-        self.book_sel = 0;
-        self.refresh_book_note();
-        if !self.book_asks() {
-            self.mode = Mode::Normal;
+        if scene {
+            self.answered.push(self.editor.mark_step());
+            self.unanswered.clear();
         }
-    }
-
-    /// Gives the chosen answer about a scripted location to the session. It writes only
-    /// `orte.toml`, from the file as it is on disk, and is no step of Ctrl+Z.
-    fn answer_place(&mut self) {
-        let Some(question) = self.place_question() else {
-            return;
-        };
-        let name = question.name.clone();
-
-        if let Err(e) = self.session.answer_place(&name, self.book_sel) {
-            self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
-            self.mode = Mode::Normal;
-            return;
-        }
-
         self.book_sel = 0;
         self.refresh_book_note();
         if !self.book_asks() {

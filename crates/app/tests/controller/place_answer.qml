@@ -31,8 +31,10 @@ Item {
             if (counted.indexOf(": 1.") < 0) {
                 return root.fail("the status must count the open place: " + counted)
             }
-            const asked = JSON.parse(ctl.projectJson).pendingPlaces
-            if (asked.length !== 1 || asked[0].name !== "SÄNGERSAAL" || asked[0].answers[1].kind !== "rename") {
+            // Worded by the session: the second line renames a scripted location to SÄNGERSAAL.
+            const asked = JSON.parse(ctl.projectJson).questions.filter(q => q.kind === "place")
+            if (asked.length !== 1 || asked[0].key !== "SÄNGERSAAL" || asked[0].answers.length < 2
+                    || asked[0].answers[1].text.indexOf("SÄNGERSAAL") < 0) {
                 return root.fail("one place question with a rename expected: " + ctl.projectJson)
             }
 
@@ -40,7 +42,7 @@ Item {
             if (!ctl.resolvePlace("SÄNGERSAAL", 1)) {
                 return root.fail("answer refused: " + ctl.status)
             }
-            if (JSON.parse(ctl.projectJson).pendingPlaces.length !== 0) {
+            if (JSON.parse(ctl.projectJson).questions.length !== 0) {
                 return root.fail("the answered question is still open")
             }
             if (ctl.dirty || ctl.canUndo !== undoBefore) {

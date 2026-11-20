@@ -6,39 +6,22 @@ import Kante
 
 // The open questions about the book (DATENMODELL §4): a register entry the screenplay could not
 // place, then a place name of the scene headings no scripted location is called by (DB-51).
-// One question at a time: the scenes of the book it may be, best first, and "not in the book";
-// for a location the scripted locations it may be, or a new one. Arrows and Enter choose, a click
-// answers; Close (Esc) leaves the questions open. The next question follows; the dialog closes
-// after the last.
+// The session words them (title, question, answer lines); the dialog only shows them, one at a
+// time, and hands back the position. Arrows and Enter choose, a click answers; Close (Esc) leaves
+// the questions open. The next question follows; the dialog closes after the last.
 Item {
     id: root
 
     required property var texts
     required property var controller
-    /// The open questions in the order they are asked: the scenes (`pending`), then the place
-    /// names of the headings (`pendingPlaces`), `[{ kind, key, title, ask, answers: [{ number, text }] }]`.
+    /// The open questions in the order they are asked, worded by the session:
+    /// `[{ kind, key, title, ask, answers: [{ number, text }] }]`.
     readonly property var questions: {
         const project = controller.projectJson ? JSON.parse(controller.projectJson) : {}
-        const scenes = (project.pending || []).map(q => ({
-            kind: "scene", key: q.id, title: texts.t("book.title"),
-            ask: texts.t("book.ask", { number: q.number, heading: q.heading }),
-            answers: q.answers.map(a => ({ number: a.number, text: a.none ? texts.t("book.none") : a.heading }))
-        }))
-        const places = (project.pendingPlaces || []).map(q => ({
-            kind: "place", key: q.name, title: texts.t("book.placeTitle"),
-            ask: texts.t("book.placeAsk", { name: q.name, count: q.headings }),
-            answers: q.answers.map(a => ({ number: "", text: placeText(a, q.name) }))
-        }))
-        return scenes.concat(places)
+        return project.questions || []
     }
     readonly property var question: questions.length > 0 ? questions[0] : null
     readonly property alias dialog: dialog
-
-    // "New scripted location HOF", "Spelling of SAAL" or "SAAL is now called HOF".
-    function placeText(answer, name) {
-        const key = { create: "book.placeNew", rename: "book.placeRename", variant: "book.placeVariant" }[answer.kind]
-        return texts.t(key, { name: name, old: answer.name, new: name })
-    }
 
     function open() {
         if (question) {

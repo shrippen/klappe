@@ -5,7 +5,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    read_number, CardState, Choice, Field, Language, PlaceChoice, ProjectCard, ProjectEdit, Range,
+    read_number, CardState, Field, Language, ProjectCard, ProjectEdit, QuestionKey, Range,
     ServiceError, Session, Unit,
 };
 use serde_json::{json, Value};
@@ -35,61 +35,34 @@ const HOME_SHORT: &str = "~";
 
 /// `{ scenes, locations, characters, plans, plan }`: lists of plain objects for QML, `plans`
 /// those of the scene on view and `plan` the id of the one shown. The colour is the model's
-/// role name (`purple`), which Kante's `labelColor` takes as it is. `pending` holds the open
-/// questions about the book: `[{ id, number, heading, answers: [{ number, heading, none }] }]`,
-/// the scenes it may be best first, then "not in the book" (`none`); `resolveScene` answers by
-/// the position in that list. `pendingPlaces` holds those about the scripted locations of the scene
-/// headings: `[{ name, headings, answers: [{ kind, name }] }]`, `kind` being `create`, `rename`
-/// or `variant` and `name` the scripted location it concerns (empty for `create`); `resolvePlace`
-/// answers by the position in `answers`.
-pub fn project_json(session: &Session) -> String {
+/// role name (`purple`), which Kante's `labelColor` takes as it is. `questions` holds the open
+/// questions about the book as the session words them in `language`, scenes first, then the
+/// place names of the headings: `[{ kind, key, title, ask, answers: [{ number, text }] }]`,
+/// `kind` being `scene` (answered by `resolveScene` with the entry id `key`) or `place`
+/// (`resolvePlace` with the place name `key`), both by the position in `answers`.
+pub fn project_json(session: &Session, language: Language) -> String {
     let mut value = serde_json::to_value(session.overview()).unwrap_or_default();
-    value["pending"] = pending_rows(session);
-    value["pendingPlaces"] = place_rows(session);
+    value["questions"] = question_rows(session, language);
 
     value.to_string()
 }
 
-fn pending_rows(session: &Session) -> Value {
+fn question_rows(session: &Session, language: Language) -> Value {
     let rows: Vec<_> = session
-        .pending_scenes()
-        .iter()
-        .map(|p| {
-            let answers: Vec<_> = session
-                .book_answers(&p.id)
+        .book_questions(language)
+        .into_iter()
+        .map(|q| {
+            let (kind, key) = match q.key {
+                QuestionKey::Scene(id) => ("scene", id),
+                QuestionKey::Place(name) => ("place", name),
+            };
+            let answers: Vec<_> = q
+                .answers
                 .iter()
-                .map(|a| {
-                    let none = a.choice == Choice::NotInBook;
-                    json!({ "number": a.number, "heading": a.heading, "none": none })
-                })
+                .map(|a| json!({ "number": a.number, "text": a.text }))
                 .collect();
 
-            json!({ "id": p.id, "number": p.number, "heading": p.heading, "answers": answers })
-        })
-        .collect();
-
-    Value::Array(rows)
-}
-
-fn place_rows(session: &Session) -> Value {
-    let rows: Vec<_> = session
-        .pending_places()
-        .iter()
-        .map(|p| {
-            let answers: Vec<_> = session
-                .place_answers(&p.name)
-                .iter()
-                .map(|a| {
-                    let kind = match a.choice {
-                        PlaceChoice::Create => "create",
-                        PlaceChoice::Rename(_) => "rename",
-                        PlaceChoice::Variant(_) => "variant",
-                    };
-                    json!({ "kind": kind, "name": a.name })
-                })
-                .collect();
-
-            json!({ "name": p.name, "headings": p.headings, "answers": answers })
+            json!({ "kind": kind, "key": key, "title": q.title, "ask": q.ask, "answers": answers })
         })
         .collect();
 
@@ -376,38 +349,46 @@ mod tests {
     }
 
     #[test]
-    fn the_open_questions_are_listed_with_their_candidates() {
+    fn the_open_questions_are_listed_worded() {
         let session = asked("list");
 
-        let value: Value = serde_json::from_str(&project_json(&session)).unwrap();
+        let value: Value =
+            serde_json::from_str(&project_json(&session, Language::English)).unwrap();
 
-        let pending = value["pending"].as_array().unwrap();
-        assert_eq!(pending.len(), 2, "{pending:?}");
-        assert_eq!(pending[0]["number"], "1");
-        assert_eq!(pending[0]["heading"], "INT. KELLER – NACHT");
-        assert_eq!(pending[0]["answers"].as_array().map(Vec::len), Some(3));
-        assert_eq!(pending[0]["answers"][0]["heading"], "INT. HOF – NACHT");
-        assert_eq!(pending[0]["answers"][0]["number"], "1");
-        assert_eq!(pending[0]["answers"][0]["none"], false);
-        assert_eq!(pending[0]["answers"][2]["none"], true);
+        let questions = value["questions"].as_array().unwrap();
+        let scenes: Vec<_> = questions.iter().filter(|q| q["kind"] == "scene").collect();
+        assert_eq!(scenes.len(), 2, "{questions:?}");
+        assert!(scenes[0]["ask"]
+            .as_str()
+            .unwrap()
+            .contains("INT. KELLER – NACHT"));
+        assert_eq!(scenes[0]["answers"].as_array().map(Vec::len), Some(3));
+        assert_eq!(scenes[0]["answers"][0]["text"], "INT. HOF – NACHT");
+        assert_eq!(scenes[0]["answers"][0]["number"], "1");
+        assert_eq!(
+            scenes[0]["answers"][2]["text"],
+            Language::English.text("book.none")
+        );
     }
 
     #[test]
-    fn the_open_place_questions_are_listed_with_their_answers() {
+    fn the_open_place_questions_follow_the_scenes() {
         let session = asked("places");
-        let value: Value = serde_json::from_str(&project_json(&session)).unwrap();
-        let places = value["pendingPlaces"].as_array().unwrap();
+        let value: Value =
+            serde_json::from_str(&project_json(&session, Language::English)).unwrap();
+        let questions = value["questions"].as_array().unwrap();
+        let places: Vec<_> = questions.iter().filter(|q| q["kind"] == "place").collect();
 
-        assert_eq!(places.len(), 2, "{places:?}");
-        assert_eq!(places[0]["name"], "HOF");
-        assert_eq!(places[0]["headings"], 1);
+        assert_eq!(places.len(), 2, "{questions:?}");
+        assert_eq!(places[0]["key"], "HOF");
         assert_eq!(
-            places[0]["answers"][0],
-            json!({ "kind": "create", "name": "" })
+            places[0]["title"],
+            Language::English.text("book.placeTitle")
         );
-        assert_eq!(places[0]["answers"][1]["kind"], "rename");
-        assert_ne!(places[0]["answers"][1]["name"], "");
-        assert_eq!(places[0]["answers"][2]["kind"], "variant");
+        assert_eq!(places[0]["answers"][0]["text"], "New scripted location HOF");
+        let last_scene = questions.iter().rposition(|q| q["kind"] == "scene");
+        let first_place = questions.iter().position(|q| q["kind"] == "place");
+        assert!(last_scene < first_place, "scenes first");
     }
 
     #[test]
@@ -622,7 +603,8 @@ mod tests {
         let mut session = Session::open(&dir).unwrap();
         session.copy_plan("Stand 1").unwrap();
 
-        let value: Value = serde_json::from_str(&project_json(&session)).unwrap();
+        let value: Value =
+            serde_json::from_str(&project_json(&session, Language::English)).unwrap();
 
         assert_eq!(
             value["plans"],
@@ -698,7 +680,8 @@ mod tests {
             })
             .unwrap();
 
-        let value: Value = serde_json::from_str(&project_json(&session)).unwrap();
+        let value: Value =
+            serde_json::from_str(&project_json(&session, Language::English)).unwrap();
 
         assert_eq!(
             value["plans"][0],

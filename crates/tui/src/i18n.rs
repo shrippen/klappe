@@ -71,9 +71,6 @@ pub(crate) struct Texts {
     pub mode_numbers: String,
     pub mode_backup: String,
     pub mode_book: String,
-    pub book_title: String,
-    pub book_none: String,
-    pub place_title: String,
     pub book_hint: String,
     pub book_save_first: String,
     pub find_title: String,
@@ -140,9 +137,6 @@ impl Texts {
             mode_numbers: t("tui.mode.numbers"),
             mode_backup: t("tui.mode.backup"),
             mode_book: t("tui.mode.book"),
-            book_title: t("book.title"),
-            book_none: t("book.none"),
-            place_title: t("book.placeTitle"),
             book_hint: t("tui.book.hint"),
             book_save_first: t("tui.book.saveFirst"),
             find_title: t("tui.find.title"),
@@ -216,38 +210,6 @@ impl Texts {
         self.lang
             .text("tui.replaced")
             .replace("{count}", &count.to_string())
-    }
-
-    /// "Entry 1 INT. A – TAG — which scene of the script is this?".
-    pub(crate) fn book_ask(&self, number: &str, heading: &str) -> String {
-        self.lang
-            .text("book.ask")
-            .replace("{number}", number)
-            .replace("{heading}", heading)
-    }
-
-    /// "HOF, in 2 scene heading(s) — which scripted location is this?".
-    pub(crate) fn place_ask(&self, name: &str, headings: usize) -> String {
-        self.lang
-            .text("book.placeAsk")
-            .replace("{name}", name)
-            .replace("{count}", &headings.to_string())
-    }
-
-    /// A line of the place question: "New scripted location HOF", "Spelling of SAAL" or
-    /// "SAAL is now called HOF".
-    pub(crate) fn place_line(&self, answer: &klappe_services::PlaceAnswer, name: &str) -> String {
-        let key = match answer.choice {
-            klappe_services::PlaceChoice::Create => "book.placeNew",
-            klappe_services::PlaceChoice::Variant(_) => "book.placeVariant",
-            klappe_services::PlaceChoice::Rename(_) => "book.placeRename",
-        };
-
-        self.lang
-            .text(key)
-            .replace("{name}", name)
-            .replace("{old}", &answer.name)
-            .replace("{new}", name)
     }
 
     /// "Page 3".
@@ -357,11 +319,8 @@ mod tests {
                 &t.mode_title,
                 &t.mode_backup,
                 &t.mode_book,
-                &t.book_title,
-                &t.book_none,
                 &t.book_hint,
                 &t.book_save_first,
-                &t.book_ask("1", "INT. A - TAG"),
                 &t.title_box,
                 &t.title_hint,
                 &t.backup_title,

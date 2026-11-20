@@ -49,7 +49,7 @@ TestCase {
 
         verify(!entry().enabled)
         fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats,
-                                            pending: [{ id: "a", number: "4", heading: "INT. A", answers: [] }] })
+                                            questions: [{ kind: "scene", key: "a", title: "", ask: "", answers: [] }] })
         verify(entry().enabled)
 
         header.run("book.match")
@@ -62,7 +62,7 @@ TestCase {
         verify(header)
         const before = fake.projectJson
         fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats,
-                                            pending: [], pendingPlaces: [{ name: "HOF", headings: 1, answers: [] }] })
+                                            questions: [{ kind: "place", key: "HOF", title: "", ask: "", answers: [] }] })
 
         verify(header.commandPalette.commands.find(c => c.text === "Szenen mit dem Buch abgleichen …").enabled)
         fake.projectJson = before

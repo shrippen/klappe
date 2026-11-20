@@ -425,15 +425,15 @@ pub mod qobject {
         #[qinvokable]
         fn autosave(self: Pin<&mut Self>);
 
-        /// Answers the open question about the register entry `id` (`projectJson.pending`): the
-        /// answer at position `index` of its `answers` (the scenes of the book, then "not in
-        /// the book" last). False when the question is gone or the answer is refused.
+        /// Answers the open question about the register entry `id` (`projectJson.questions`,
+        /// kind `scene`): the answer at position `index` of its `answers` (the scenes of the
+        /// book, then "not in the book" last). False when the question is gone or the answer is refused.
         #[qinvokable]
         #[cxx_name = "resolveScene"]
         fn resolve_scene(self: Pin<&mut Self>, id: &QString, index: i32) -> bool;
 
-        /// Answers the open question about the scripted location `name` of the scene headings
-        /// (`projectJson.pendingPlaces`): the answer at position `index` of its `answers`.
+        /// Answers the open question about the place name `name` of the scene headings
+        /// (`projectJson.questions`, kind `place`): the answer at position `index` of its `answers`.
         /// Written to `orte.toml` at once; no undo step. False when the answer is refused.
         #[qinvokable]
         #[cxx_name = "resolvePlace"]

@@ -221,7 +221,7 @@ impl ControllerRust {
             view_free: s.view() == klappe_services::View::Free,
             choices_json: q(&choices_json(s)),
             grid_name: q(s.grid().name()),
-            project_json: q(&manage::project_json(s)),
+            project_json: q(&manage::project_json(s, self.language)),
             // A name of the state, not a number to compare: it wraps.
             edit_revision: i32::try_from(s.edits() & EDIT_MASK).unwrap_or_default(),
             scene_id: q(s.scene().map(|sc| sc.id.as_str()).unwrap_or_default()),
