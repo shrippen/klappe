@@ -345,7 +345,10 @@ mod tests {
         // Tests run in parallel: two with one name would share and clear one folder.
         static NAMES: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
         let mut names = NAMES.lock().unwrap_or_else(|e| e.into_inner());
-        assert!(!names.iter().any(|n| n == name), "folder name {name} used twice");
+        assert!(
+            !names.iter().any(|n| n == name),
+            "folder name {name} used twice"
+        );
         names.push(name.to_owned());
         drop(names);
 
