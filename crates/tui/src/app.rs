@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use klappe_services::{load_notes_text, SceneSpan, ServiceError, Session, Slot};
+use klappe_services::{error_text, load_notes_text, SceneSpan, ServiceError, Session, Slot};
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
@@ -596,7 +596,7 @@ impl App {
                 self.refresh_book_note();
                 Notice::Saved
             }
-            Err(e) => Notice::SaveFailed(e.to_string()),
+            Err(e) => Notice::SaveFailed(error_text(self.lang, &e)),
         });
 
         Flow::Continue

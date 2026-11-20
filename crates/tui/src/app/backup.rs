@@ -3,7 +3,7 @@
 //! does; Ctrl+Q leaves with the backup kept.
 //! The files are the session's; this only calls it.
 
-use klappe_services::BackupState;
+use klappe_services::{error_text, BackupState};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{App, Flow, Mode, Notice};
@@ -60,7 +60,7 @@ impl App {
     /// Restores the backup; on an error the question stays open with the message.
     fn restore(&mut self) {
         if let Err(e) = self.session.restore_backup() {
-            self.notice = Some(Notice::SaveFailed(e.to_string()));
+            self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
             return;
         }
 
@@ -72,7 +72,7 @@ impl App {
 
     fn discard(&mut self) {
         if let Err(e) = self.session.discard_backup() {
-            self.notice = Some(Notice::SaveFailed(e.to_string()));
+            self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
             return;
         }
 
@@ -96,7 +96,7 @@ impl App {
         self.session.set_script_text(&self.editor.text());
         match self.session.autosave() {
             Ok(_) => self.autosaved = revision,
-            Err(e) => self.notice = Some(Notice::SaveFailed(e.to_string())),
+            Err(e) => self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e))),
         }
     }
 }
