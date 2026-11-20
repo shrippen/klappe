@@ -37,33 +37,14 @@ fn letter(kind: TextKind) -> char {
         .map_or(' ', |(_, letter, _)| *letter)
 }
 
-/// The slots of the element flow and their letters, as `KINDS` names the kinds.
-const SLOTS: [(Slot, TextKind); 6] = [
-    (Slot::Heading, TextKind::Heading),
-    (Slot::Action, TextKind::Action),
-    (Slot::Character, TextKind::Character),
-    (Slot::Parenthetical, TextKind::Parenthetical),
-    (Slot::Dialogue, TextKind::Dialogue),
-    (Slot::Transition, TextKind::Transition),
-];
-
 fn slot_of(letter: &str) -> Option<Slot> {
     let first = letter.chars().next()?;
-    let kind = KINDS.iter().find(|(_, l, _)| *l == first)?.0;
 
-    SLOTS
-        .iter()
-        .find(|(_, k)| *k == kind)
-        .map(|(slot, _)| *slot)
+    KINDS.iter().find(|(_, l, _)| *l == first)?.0.slot()
 }
 
 fn slot_letter(slot: Slot) -> String {
-    let kind = SLOTS
-        .iter()
-        .find(|(s, _)| *s == slot)
-        .map_or(TextKind::Action, |(_, k)| *k);
-
-    letter(kind).to_string()
+    letter(TextKind::of_slot(slot)).to_string()
 }
 
 /// What Enter does, as `enterStep` describes it.
@@ -97,7 +78,8 @@ pub(super) fn kinds_text(text: &str) -> String {
     text_kinds(text).into_iter().map(letter).collect()
 }
 
-/// Every letter of `kinds_text` with its kind and the columns the page sets it in.
+/// Every letter of `kinds_text` with its kind and the columns the page sets it in, and the
+/// letter of each kind by its name (`letters`).
 pub(super) fn looks_json() -> String {
     let looks: Map<String, Value> = KINDS
         .iter()
@@ -116,7 +98,12 @@ pub(super) fn looks_json() -> String {
         })
         .collect();
 
-    json!({ "columns": TEXT_COLUMNS, "looks": looks }).to_string()
+    let letters: Map<String, Value> = KINDS
+        .iter()
+        .map(|(_, letter, name)| (name.to_string(), json!(letter.to_string())))
+        .collect();
+
+    json!({ "columns": TEXT_COLUMNS, "looks": looks, "letters": letters }).to_string()
 }
 
 /// The sections and scenes of `text` for the scene list; synopses are left out.
@@ -365,6 +352,9 @@ mod tests {
         assert_eq!(v["looks"]["c"]["x"], 22);
         assert_eq!(v["looks"]["r"]["align"], "right");
         assert!(v["looks"]["s"].get("x").is_none());
+        assert_eq!(v["letters"]["blank"], " ");
+        assert_eq!(v["letters"]["action"], "a");
+        assert_eq!(v["letters"]["heading"], "h");
     }
 
     /// Sections and scenes are listed with their line; a synopsis is not.

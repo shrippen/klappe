@@ -23,6 +23,8 @@ QtObject {
     property string pendingKind: ""
     /// The kinds `scriptKinds` gave for the text last, as the editor shows them.
     property string shown: ""
+    /// The letter of each kind by its name, as `scriptLooks` gives them.
+    readonly property var letters: JSON.parse(controller.scriptLooks()).letters
 
     /// The lines of the text now; read again each time, as a binding lags behind an edit.
     function rows() {
@@ -52,8 +54,8 @@ QtObject {
             return kinds
         }
         const read = kinds[pendingLine]
-        const plain = read === " " || read === "a"
-        const heading = pendingKind === "h" && (rows()[pendingLine] || "").trim() !== ""
+        const plain = read === letters.blank || read === letters.action
+        const heading = pendingKind === letters.heading && (rows()[pendingLine] || "").trim() !== ""
         if (!plain || heading) {
             return kinds
         }
@@ -87,7 +89,7 @@ QtObject {
         const start = lineStart(line)
         const text = all[line]
         const below = line + 1 < all.length ? all[line + 1] : ""
-        const step = JSON.parse(controller.enterStep(text, area.cursorPosition - start, shown[line] || "a", below))
+        const step = JSON.parse(controller.enterStep(text, area.cursorPosition - start, shown[line] || letters.action, below))
 
         switch (step.step) {
         case "retag":
@@ -115,7 +117,7 @@ QtObject {
     function tab() {
         const line = cursorLine()
         const text = rows()[line]
-        const kind = line === pendingLine ? pendingKind : (shown[line] || "a")
+        const kind = line === pendingLine ? pendingKind : (shown[line] || letters.action)
         const found = controller.tabStep(text, kind)
         if (found === "") {
             return
@@ -132,7 +134,7 @@ QtObject {
     function capitalize() {
         const line = cursorLine()
         // A pending heading takes capitals once it is one (`INT.`), not while it may be prose.
-        const pending = line === pendingLine && pendingKind !== "h" ? pendingKind : ""
+        const pending = line === pendingLine && pendingKind !== letters.heading ? pendingKind : ""
         const caps = controller.typedCaps(area.text, line, pending)
         if (caps === "") {
             return false
