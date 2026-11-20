@@ -589,4 +589,32 @@ mod tests {
         assert_eq!(LineKind::Parenthetical.indent(), 15);
         assert_eq!(LineKind::Action.indent(), 0);
     }
+
+    #[test]
+    fn a_kind_and_its_slot_go_both_ways() {
+        let flow = [
+            LineKind::Heading,
+            LineKind::Action,
+            LineKind::Character,
+            LineKind::Parenthetical,
+            LineKind::Dialogue,
+            LineKind::Transition,
+        ];
+        for kind in flow {
+            let slot = kind.slot().expect("part of the flow");
+            assert_eq!(LineKind::of_slot(slot), kind);
+        }
+
+        let outside = [
+            LineKind::Blank,
+            LineKind::Centered,
+            LineKind::Section,
+            LineKind::Synopsis,
+            LineKind::Note,
+            LineKind::PageBreak,
+            LineKind::Lyrics,
+            LineKind::Title,
+        ];
+        assert!(outside.iter().all(|k| k.slot().is_none()));
+    }
 }

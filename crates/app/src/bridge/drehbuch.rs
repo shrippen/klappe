@@ -295,6 +295,29 @@ mod tests {
         assert_eq!(middle["step"], "break");
     }
 
+    /// Only the six elements of the flow take part: Enter leaves the others alone, Tab
+    /// counts them as action, and each flow element comes back as its own letter.
+    #[test]
+    fn the_flow_knows_six_letters() {
+        let json = |s: String| -> serde_json::Value { serde_json::from_str(&s).unwrap() };
+        let end = |line: &str, kind: &str| json(enter_json(line, line.chars().count(), kind, None));
+
+        for letter in ["m", "t", " ", "s", "y", "n", "b", "l", "x", ""] {
+            assert_eq!(end("Text", letter)["step"], "break", "Enter on {letter:?}");
+            assert_eq!(json(tab_json("", letter))["kind"], "c", "Tab on {letter:?}");
+        }
+        assert_eq!(tab_json("", "h"), "");
+        assert_eq!(tab_json("", "r"), "");
+        assert_eq!(end("Text", "r")["kind"], "h");
+        assert_eq!(end("Text", "d")["kind"], "a");
+        assert_eq!(end("Text", "a")["kind"], "a");
+        assert_eq!(end("(leise)", "p")["kind"], "d");
+        assert_eq!(json(tab_json("", "p"))["kind"], "d");
+        assert_eq!(json(tab_json("", "d"))["kind"], "p");
+        assert_eq!(json(tab_json("", "a"))["kind"], "c");
+        assert_eq!(json(tab_json("", "c"))["kind"], "a");
+    }
+
     /// Tab turns an empty action line into a cue, an empty dialogue into `()`.
     #[test]
     fn tab_turns_an_empty_line() {
