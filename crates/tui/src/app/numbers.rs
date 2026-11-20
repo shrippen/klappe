@@ -1,6 +1,6 @@
 //! The scene numbering form (`Ctrl+N`, DB-33): automatic or locked, and the first number.
 
-use klappe_services::SceneNumbering;
+use klappe_services::{error_text, SceneNumbering};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{App, Flow, Mode, Notice};
@@ -82,7 +82,7 @@ impl App {
         let before = self.session.project().script.first_scene;
         let first = form.first.parse().unwrap_or(before);
         if let Err(e) = self.session.set_scene_numbering(form.numbering, first) {
-            self.notice = Some(Notice::SaveFailed(e.to_string()));
+            self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
         }
     }
 }

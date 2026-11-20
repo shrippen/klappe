@@ -79,3 +79,19 @@ fn the_contd_setting_writes_no_other_file() {
     assert!(contd_saved(&s));
     assert_eq!(std::fs::read_to_string(&characters).unwrap(), theirs);
 }
+
+/// Audit A17, finding 5: a failed PDF says so in the language of the terminal, as the window
+/// does, not in the developer's English.
+#[test]
+fn a_failed_pdf_says_so_in_german() {
+    let s = Scratch::new(BOOK);
+    std::fs::create_dir_all(s.dir.join("drehbuch.pdf")).unwrap_or_default();
+    let mut app = App::open(&s.dir, Language::German).unwrap_or_else(|e| unreachable!("{e}"));
+    let _ = screen(&mut app, 160, 24);
+
+    ctrl(&mut app, 'e');
+    press(&mut app, KeyCode::Enter);
+
+    let shown = screen(&mut app, 160, 24);
+    assert!(shown.contains("Kann nicht schreiben"), "{shown}");
+}

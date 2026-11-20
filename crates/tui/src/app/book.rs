@@ -2,7 +2,7 @@
 //! book an entry is, then which play location a name of a heading is (DB-51), one question
 //! at a time.
 
-use klappe_services::{Answer, PendingPlace, PendingScene, PlaceAnswer};
+use klappe_services::{error_text, Answer, PendingPlace, PendingScene, PlaceAnswer};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::{App, Editor, Flow, Mode, Notice};
@@ -89,7 +89,7 @@ impl App {
         // The answer is written at once: the TUI saves no plans, so quitting asks nothing.
         let answered = self.session.answer_book(&id, self.book_sel);
         if let Err(e) = answered.and_then(|()| self.session.save_register()) {
-            self.notice = Some(Notice::SaveFailed(e.to_string()));
+            self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
             self.mode = Mode::Normal;
             return;
         }
@@ -112,9 +112,7 @@ impl App {
         let name = question.name.clone();
 
         if let Err(e) = self.session.answer_place(&name, self.book_sel) {
-            self.notice = Some(Notice::SaveFailed(klappe_services::error_text(
-                self.lang, &e,
-            )));
+            self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
             self.mode = Mode::Normal;
             return;
         }
@@ -169,7 +167,7 @@ impl App {
     /// Writes the register as undo or redo left it and shows its questions.
     fn settle_answer(&mut self) -> Flow {
         if let Err(e) = self.session.save_register() {
-            self.notice = Some(Notice::SaveFailed(e.to_string()));
+            self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
         }
         self.book_sel = 0;
         self.refresh_book_note();

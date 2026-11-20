@@ -1,7 +1,7 @@
 //! The script as PDF (`Ctrl+E`): scene numbers, header and the (CONT'D) setting of the
 //! project, then the file next to the screenplay (DB-70, DB-31).
 
-use klappe_services::{HeaderLine, SceneNumbers, ScriptPrint};
+use klappe_services::{error_text, HeaderLine, SceneNumbers, ScriptPrint};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::{App, Flow, Mode, Notice};
@@ -123,7 +123,7 @@ impl App {
 
         self.notice = Some(Notice::Pdf(match done {
             Ok(()) => self.texts.pdf_done(PDF_FILE),
-            Err(e) => e.to_string(),
+            Err(e) => error_text(self.lang, &e),
         }));
     }
 }
