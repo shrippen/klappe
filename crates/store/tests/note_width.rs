@@ -73,5 +73,5 @@ fn an_endless_note_does_not_load() {
 
     let err = load(&dir).unwrap_err();
 
-    assert!(err.to_string().contains("note n1"), "{err}");
+    assert!(err.to_string().contains("width_m"), "{err}");
 }

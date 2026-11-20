@@ -551,15 +551,6 @@ fn check_notes(path: &Path, locations: &[Location]) -> Result<(), StoreError> {
                     ),
                 });
             }
-            if !note.rotation_deg.is_finite() {
-                return Err(StoreError::Parse {
-                    path: path.to_path_buf(),
-                    message: format!(
-                        "{}: note {} is turned by {}°, not a finite number",
-                        location.id, note.id, note.rotation_deg
-                    ),
-                });
-            }
             if note.width_m.is_finite() && note.width_m >= NOTE_MIN_WIDTH_M {
                 continue;
             }

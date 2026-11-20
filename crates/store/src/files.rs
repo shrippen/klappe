@@ -171,13 +171,42 @@ pub fn load_script_file(path: &Path) -> Result<String, StoreError> {
     Ok(text.replace("\r\n", "\n").replace('\r', "\n"))
 }
 
+/// Reads a TOML file. TOML can write `nan` and `inf`, which no value of a project may be: it
+/// could be drawn nowhere and never saved again (`encode_toml` refuses it), so such a file
+/// does not load.
 pub(crate) fn read_toml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, StoreError> {
     let text = fs::read_to_string(path).map_err(|e| io_err(path, e))?;
-
-    toml::from_str(&text).map_err(|e| StoreError::Parse {
+    let parse = |message: String| StoreError::Parse {
         path: path.to_path_buf(),
-        message: e.to_string(),
-    })
+        message,
+    };
+
+    let value: toml::Value = toml::from_str(&text).map_err(|e| parse(e.to_string()))?;
+    if let Some(key) = endless(&value, "") {
+        return Err(parse(format!("{key} is no finite number")));
+    }
+
+    toml::from_str(&text).map_err(|e| parse(e.to_string()))
+}
+
+/// The dotted key of the first number in `value` that is NaN or endless, e.g.
+/// `set.notes[0].at.x_m`.
+fn endless(value: &toml::Value, key: &str) -> Option<String> {
+    match value {
+        toml::Value::Float(f) if !f.is_finite() => Some(key.to_owned()),
+        toml::Value::Table(table) => table.iter().find_map(|(name, inner)| {
+            let key = match key.is_empty() {
+                true => name.clone(),
+                false => format!("{key}.{name}"),
+            };
+            endless(inner, &key)
+        }),
+        toml::Value::Array(items) => items
+            .iter()
+            .enumerate()
+            .find_map(|(i, inner)| endless(inner, &format!("{key}[{i}]"))),
+        _ => None,
+    }
 }
 
 fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, StoreError> {
