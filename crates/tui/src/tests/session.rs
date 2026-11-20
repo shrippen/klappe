@@ -264,3 +264,20 @@ fn saving_writes_the_register_too() {
     assert!(text.contains("number = \"12\""), "{text}");
     assert!(text.contains("INT. SÄNGERSAAL – TAG"), "{text}");
 }
+
+/// Review of PR 284: why a project does not open is said in the terminal's language too, e.g.
+/// a project file with Git conflict markers.
+#[test]
+fn a_project_that_does_not_open_says_why_in_german() {
+    let s = Scratch::new("INT. A\n");
+    let path = s.dir.join("szenen.toml");
+    let text = std::fs::read_to_string(&path).unwrap_or_default();
+    std::fs::write(&path, format!("<<<<<<< HEAD\n{text}=======\n>>>>>>> b\n")).unwrap_or_default();
+
+    let Err(e) = App::open(&s.dir, Language::German) else {
+        unreachable!("a conflicted project opened")
+    };
+    let shown = crate::open_error(Language::German, &e);
+
+    assert!(shown.contains("Konfliktmarken"), "{shown}");
+}
