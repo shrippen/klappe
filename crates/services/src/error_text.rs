@@ -359,6 +359,26 @@ mod tests {
         assert!(text.starts_with("Projekt konnte nicht gelesen"), "{text}");
     }
 
+    /// A 12-bit JPEG (SOF1) reads fine but the PDF cannot print it.
+    #[test]
+    fn a_12_bit_jpeg_says_8_bit() {
+        let dir = std::env::temp_dir().join(format!("klappe-12bit-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let deep = dir.join("tief.jpg");
+        // SOI, SOF1: 12 bits, 1 x 1 pixel, 3 components.
+        let head = [
+            0xFF, 0xD8, 0xFF, 0xC1, 0x00, 0x11, 0x0C, 0x00, 0x01, 0x00, 0x01, 0x03, 0x01, 0x11,
+            0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00,
+        ];
+        std::fs::write(&deep, head).unwrap();
+        let error = klappe_store::add_image(&dir, &deep).unwrap_err();
+        std::fs::remove_dir_all(&dir).unwrap();
+
+        let text = error_text(Language::German, &ServiceError::Store(error));
+        assert!(text.contains("8 Bit"), "{text}");
+        assert!(!text.contains("kein brauchbares"), "{text}");
+    }
+
     /// Review of PR 37: a refused tilt said "field.tilt", the catalogue had no such key.
     #[test]
     fn every_refused_field_has_a_name() {
