@@ -360,3 +360,24 @@ fn many_questions_are_worded_fast() {
 
     assert!(per_round < BUDGET_PER_ROUND, "{per_round:?} per wording");
 }
+
+/// Review of PR 296: an older backup still holds an `orte.toml`; restoring it ignores the file,
+/// the disk wins.
+#[test]
+fn the_places_of_an_older_backup_are_ignored() {
+    let dir = make("places-old-backup", BOOK);
+    klappe_store::save_backup(&dir, &Project::new("Test"), Some(BOOK)).unwrap();
+    std::fs::write(
+        dir.join(".sicherung/orte.toml"),
+        "[[ort]]\nid = \"zz\"\nname = \"HOF\"\n",
+    )
+    .unwrap();
+
+    let mut s = Session::open(&dir).unwrap();
+    s.restore_backup().unwrap();
+
+    assert!(s.places().is_empty());
+    assert_eq!(names(&s).len(), 2, "HOF is still asked about");
+    s.save().unwrap();
+    assert!(!dir.join("orte.toml").exists());
+}

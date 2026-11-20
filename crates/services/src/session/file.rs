@@ -166,6 +166,8 @@ impl Session {
         if let Some(text) = loaded.script {
             self.set_script_text(&text);
         }
+        // Another program may have answered meanwhile: the places come from the disk.
+        self.reload_places()?;
         self.reconcile();
         self.keep_view_valid();
         self.end_stale_look();
