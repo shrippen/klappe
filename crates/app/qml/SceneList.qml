@@ -5,7 +5,7 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // D-13: the list of every scene of the project, the same in each module. A row shows the number,
-// the heading and small markers: T the scene is in the screenplay, P the number of its plans,
+// the heading and small markers: its length in pages (`1 3/8`), T the scene is in the screenplay, P the number of its plans,
 // S the number of its shots. A scene that is not in the screenplay is dimmed and says so. The
 // scene on view is highlighted; a click shows it (`controller.selectScene`) and then tells the
 // module with `picked`, so the screenplay view can move to its heading. The field above filters
@@ -34,6 +34,10 @@ ColumnLayout {
     // What the row's meta figure holds: "T P1 S5", each part only when it applies.
     function marks(scene) {
         const parts = []
+        // Its length on the page (DB-32), as in the terminal: `1 3/8`.
+        if (scene.length) {
+            parts.push(scene.length)
+        }
         if (scene.inBook) {
             parts.push(texts.t("scenelist.markText"))
         }
@@ -51,7 +55,11 @@ ColumnLayout {
         const text = scene.heading !== "" ? scene.number + " " + scene.heading : scene.number
         const book = texts.t(scene.inBook ? "scenelist.inBook" : "scene.notInBook")
 
-        return [text, book, texts.t("scenelist.marks", { plans: scene.plans, shots: scene.shots })].join(", ")
+        const all = [text, book, texts.t("scenelist.marks", { plans: scene.plans, shots: scene.shots })]
+        if (scene.length) {
+            all.push(texts.t("scenelist.length", { length: scene.length }))
+        }
+        return all.join(", ")
     }
 
     // Arrow keys: the focus moves from row to row and the view follows; up from the first row

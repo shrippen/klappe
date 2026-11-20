@@ -23,6 +23,9 @@ RowLayout {
     required property var controller
     /// How long typing rests before the text goes to the session.
     property int debounceMs: 500
+    /// How long no key is pressed before the pages and the scene lengths are laid out anew
+    /// (DN-02: typing never waits for it).
+    property int layoutRestMs: 5000
     /// The width of the text column at most, in characters of the monospace font: nearly the
     /// whole view (D-15), yet lines a reader can follow. The page's columns are scaled to it once,
     /// not to the view, so a resize never touches the text's undo history.
@@ -174,6 +177,8 @@ RowLayout {
         if (tools.item) {
             tools.item.forget()
         }
+        // No key was pressed: the pages and lengths follow the new text at once (DN-02).
+        controller.paginateScript()
     }
 
     Component.onCompleted: load()
@@ -200,6 +205,14 @@ RowLayout {
         id: push
         interval: view.debounceMs
         onTriggered: view.send()
+    }
+    Timer {
+        id: relayout
+        interval: view.layoutRestMs
+        onTriggered: {
+            view.flush()
+            view.controller.paginateScript()
+        }
     }
 
     ColumnLayout {
@@ -328,6 +341,7 @@ RowLayout {
                             return
                         }
                         push.restart()
+                        relayout.restart()
                         if (!view._replaying && flow.capitalize()) {
                             return
                         }

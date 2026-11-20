@@ -5,8 +5,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    CharacterRow, FigureColor, Hint, LocationRow, PlanEdit, PlanRow, ProjectEdit, SceneRow,
-    Session, SunTexts, TrackKind,
+    CharacterRow, FigureColor, Hint, Language, LocationRow, PlanEdit, PlanRow, ProjectEdit,
+    SceneRow, Session, SunTexts, TrackKind,
 };
 use serde_json::json;
 
@@ -61,6 +61,7 @@ fn the_overview_lists_scenes_locations_and_plans() {
             plans: 2,
             shots: 10,
             line: Some(0),
+            length: String::new(),
             location: s.project().scenes[0].location.clone(),
             location_name: s.project().locations[0].name.clone(),
             sun: SunTexts::default(),
@@ -242,4 +243,45 @@ fn the_other_hints_carry_their_fields() {
         serde_json::to_value(s.note_hint("x")).unwrap(),
         json!({ "kind": "note", "text": "", "bound": false })
     );
+}
+
+/// DB-32 in the window's scene list: each scene of the book has its length once the
+/// screenplay is laid out; a layout is made again only when the text changed.
+#[test]
+fn the_scene_list_shows_each_scenes_length() {
+    let mut s = open();
+    assert!(s.overview().scenes.iter().all(|r| r.length.is_empty()));
+
+    s.paginate_if_changed(Language::German);
+    let first = s.overview().scenes[0].clone();
+    assert!(first.in_book);
+    assert!(!first.length.is_empty(), "{first:?}");
+
+    let longer = format!("{}\n{}", s.script_text(), "Lange Handlung. ".repeat(400));
+    s.set_script_text(&longer);
+    assert_eq!(s.overview().scenes[0].length, first.length);
+    s.paginate_if_changed(Language::German);
+    assert_ne!(s.overview().scenes[0].length, first.length);
+}
+
+/// Review of PR 287: until the next layout a scene keeps its own last length, also when typing
+/// moves its heading to the line another scene's heading had.
+#[test]
+fn a_scene_keeps_its_own_length_until_the_next_layout() {
+    let mut s = open();
+    let heading = format!("{} #12#", s.project().scenes[0].heading);
+    let long = "Lange Handlung. ".repeat(300);
+    s.set_script_text(&format!(
+        "INT. FLUR - TAG\n\nKurz.\n\n{heading}\n\n{long}\n"
+    ));
+    s.paginate_if_changed(Language::German);
+    let scene = s.overview().scenes[0].clone();
+    assert_eq!(scene.line, Some(4));
+    assert_ne!(scene.length, "1/8", "the short scene's length");
+
+    s.set_script_text(&format!("{heading}\n\n{long}\n"));
+
+    let moved = s.overview().scenes[0].clone();
+    assert_eq!(moved.line, Some(0));
+    assert_eq!(moved.length, scene.length);
 }

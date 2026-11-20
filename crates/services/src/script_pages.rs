@@ -75,6 +75,29 @@ pub(crate) struct Layout {
     pagination: Pagination,
     title_page: Vec<(String, String)>,
     pub(crate) view: ScriptPages,
+    /// What it was laid out from: the text (as a hash), the setup and the fallback language.
+    made_for: Source,
+}
+
+/// The input of a layout, to see whether it is still the one for the text.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Source {
+    text: u64,
+    setup: ScriptSetup,
+    fallback: Language,
+}
+
+impl Source {
+    pub(crate) fn of(text: &str, setup: &ScriptSetup, fallback: Language) -> Self {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(text, &mut hasher);
+
+        Self {
+            text: std::hash::Hasher::finish(&hasher),
+            setup: *setup,
+            fallback,
+        }
+    }
 }
 
 /// International words, or those of the project's language; the surface's language stands in
@@ -117,6 +140,7 @@ pub(crate) fn lay_out(text: &str, setup: &ScriptSetup, fallback: Language) -> La
     };
 
     Layout {
+        made_for: Source::of(text, setup, fallback),
         pagination,
         title_page: title_fields(text),
         view,
@@ -179,6 +203,11 @@ fn title_key(title_page: &[(String, String)], name: &str) -> String {
 }
 
 impl Layout {
+    /// Whether it was laid out from `source`.
+    pub(crate) fn is_for(&self, source: &Source) -> bool {
+        self.made_for == *source
+    }
+
     /// The sheet export prints: the rows of every page as columns, the page number from
     /// page 2, the title page from the title page keys of the text.
     pub(crate) fn sheet(

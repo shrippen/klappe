@@ -13,7 +13,7 @@ TestCase {
     visible: true
 
     readonly property var base: [
-            { id: "a", number: "1", heading: "INT. SAAL - TAG", inBook: true, plans: 1, shots: 5 },
+            { id: "a", number: "1", heading: "INT. SAAL - TAG", inBook: true, plans: 1, shots: 5, length: "1 3/8" },
             { id: "b", number: "2", heading: "EXT. HOF - NACHT", inBook: true, plans: 0, shots: 0 },
             { id: "c", number: "3", heading: "INT. KELLER", inBook: false, plans: 2, shots: 7 },
             { id: "d", number: "12A", heading: "", inBook: false, plans: 0, shots: 0 }
@@ -85,7 +85,7 @@ TestCase {
     function test_the_markers_show_text_plans_and_shots() {
         const list = make()
 
-        compare(row(list, "a").meta, "T P1 S5")
+        compare(row(list, "a").meta, "1 3/8 T P1 S5")
         compare(row(list, "b").meta, "T")
         compare(row(list, "c").meta, "P2 S7")
         compare(row(list, "d").meta, "")
@@ -194,5 +194,13 @@ TestCase {
         verify(text.includes("Shots: 7"), text)
         verify(row(list, "a").Accessible.description.includes("im Buch"), "text marker")
         verify(!row(list, "a").Accessible.description.includes("nicht im Buch"))
+    }
+
+    // DB-32: a scene of the book says its length, to the eye and to a screen reader.
+    function test_a_scene_says_its_length() {
+        const list = make()
+
+        verify(row(list, "a").Accessible.description.includes("Länge 1 3/8"))
+        verify(!row(list, "b").Accessible.description.includes("Länge"))
     }
 }

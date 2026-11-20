@@ -56,6 +56,7 @@ impl Session {
             cut: klappe_stellprobe::Cut::Off,
             through: None,
             layout: None,
+            lengths: Default::default(),
             pending: Vec::new(),
             book_scene: Vec::new(),
             heading_line: Vec::new(),
