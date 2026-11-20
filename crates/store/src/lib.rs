@@ -10,7 +10,7 @@
 //!                            builtin_templates, vorlagen.toml (the project's own templates)
 //! load_template_file, save_template_file ◄──► vorlagen.toml, or any template file to pass on
 //! write_atomic, write_tree, project_mtime, ..  whole-folder file operations (tree.rs)
-//! read_files, folder_size, free_sibling, set_aside, move_to_trash   a folder as bytes, its size, a free name beside it, renamed to one, the system trash (folder.rs)
+//! read_files, folder_size, free_sibling, free_numbered, set_aside, move_to_trash   a folder as bytes, its size, a free name beside it, renamed to one, the system trash (folder.rs)
 //! ```
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
@@ -45,7 +45,7 @@ pub use camera::builtin_camera_presets;
 pub use error::StoreError;
 pub use files::load_script_file;
 use files::{Dir, Kind};
-pub use folder::{folder_size, free_sibling, move_to_trash, read_files, set_aside};
+pub use folder::{folder_size, free_numbered, free_sibling, move_to_trash, read_files, set_aside};
 pub use images::{
     add_image, add_image_bytes, image_size, image_stamp, is_image_path, read_image, ImageStamp,
 };

@@ -11,6 +11,7 @@ use crate::plan_edit::{Grid, Snapping};
 use plan_view::PlanView;
 use undo::Snapshot;
 
+mod blank;
 mod book;
 mod export;
 mod fade;
