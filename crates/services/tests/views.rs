@@ -263,3 +263,25 @@ fn the_scene_list_shows_each_scenes_length() {
     s.paginate_if_changed(Language::German);
     assert_ne!(s.overview().scenes[0].length, first.length);
 }
+
+/// Review of PR 287: until the next layout a scene keeps its own last length, also when typing
+/// moves its heading to the line another scene's heading had.
+#[test]
+fn a_scene_keeps_its_own_length_until_the_next_layout() {
+    let mut s = open();
+    let heading = format!("{} #12#", s.project().scenes[0].heading);
+    let long = "Lange Handlung. ".repeat(300);
+    s.set_script_text(&format!(
+        "INT. FLUR - TAG\n\nKurz.\n\n{heading}\n\n{long}\n"
+    ));
+    s.paginate_if_changed(Language::German);
+    let scene = s.overview().scenes[0].clone();
+    assert_eq!(scene.line, Some(4));
+    assert_ne!(scene.length, "1/8", "the short scene's length");
+
+    s.set_script_text(&format!("{heading}\n\n{long}\n"));
+
+    let moved = s.overview().scenes[0].clone();
+    assert_eq!(moved.line, Some(0));
+    assert_eq!(moved.length, scene.length);
+}

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use super::export::write_file;
@@ -13,18 +14,44 @@ use klappe_model::ScriptSetup;
 pub enum Laid {
     /// It had not changed: the last layout holds.
     Kept,
+    /// It had changed and is laid out anew.
     Anew,
 }
 
 impl Session {
     /// Lays the screenplay out again and keeps the result (DN-02). Nothing else does: typing
-    /// never lays out. A surface calls this (or `paginate_if_changed`) when 5 s have passed without a key, and
-    /// `export_script_pdf` and the printing call it themselves. `fallback` is the surface's
+    /// never lays out. A surface calls this (or `paginate_if_changed`) when 5 s have passed
+    /// without a key, and `export_script_pdf` and the printing call it themselves. `fallback` is the surface's
     /// language, used for the words (MORE) and (CONT'D) while the project has none.
     pub fn paginate(&mut self, fallback: Language) {
         let text = self.script_text().to_owned();
 
         self.paginate_text(&text, fallback);
+        self.lengths = self.scene_lengths();
+    }
+
+    /// The scenes' lengths in the layout just made, by the line of each scene's heading.
+    fn scene_lengths(&self) -> HashMap<String, String> {
+        let Some(pages) = self.script_pages() else {
+            return HashMap::new();
+        };
+        let spans: HashMap<usize, &str> = pages
+            .scenes
+            .iter()
+            .map(|s| (s.line, s.length.as_str()))
+            .collect();
+
+        self.project
+            .scenes
+            .iter()
+            .zip(self.heading_lines())
+            .filter_map(|(scene, line)| Some((scene.id.clone(), spans.get(&line?)?.to_string())))
+            .collect()
+    }
+
+    /// The length of scene `id` in the last `paginate`; empty before it or out of the book.
+    pub(crate) fn scene_length(&self, id: &str) -> String {
+        self.lengths.get(id).cloned().unwrap_or_default()
     }
 
     /// `paginate`, but only if text, paper or words changed since the last layout: the window

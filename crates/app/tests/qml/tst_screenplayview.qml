@@ -456,7 +456,7 @@ TestCase {
     // key, never at each key.
     function test_the_layout_waits_for_a_rest() {
         const view = make()
-        compare(fake.layouts, 1)
+        compare(fake.layouts, 1, "opening sets the text from outside")
         view.area.forceActiveFocus()
         view.area.cursorPosition = 0
 
@@ -467,5 +467,15 @@ TestCase {
 
         tryCompare(fake, "layouts", 2)
         verify(fake.edits.length > 0)
+    }
+
+    // Review of PR 287: a text from outside (import, undo in the project) is laid out at once.
+    function test_a_text_from_outside_is_laid_out_at_once() {
+        const view = make()
+        const before = fake.layouts
+
+        fake.scriptText = "INT. KELLER\n\nDunkel.\n"
+
+        compare(fake.layouts, before + 1)
     }
 }

@@ -177,12 +177,11 @@ RowLayout {
         if (tools.item) {
             tools.item.forget()
         }
-    }
-
-    Component.onCompleted: {
-        load()
+        // No key was pressed: the pages and lengths follow the new text at once (DN-02).
         controller.paginateScript()
     }
+
+    Component.onCompleted: load()
     Connections {
         target: view.controller
         function onScriptTextChanged() {

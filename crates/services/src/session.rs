@@ -186,6 +186,9 @@ pub struct Session {
     through: Option<Through>,
     /// The screenplay as last laid out on pages (DN-02); only `paginate` changes it.
     layout: Option<crate::script_pages::Layout>,
+    /// Each scene's length in the last `paginate`, by scene id: it stays the scene's while
+    /// typing moves its heading to another line (DN-02: the last calculation until the next).
+    lengths: std::collections::HashMap<String, String>,
     /// Entries the book could not place (`pending_scenes`).
     pending: Vec<crate::book::PendingScene>,
     /// For each entry of the register its scene in the book and that scene's heading line
