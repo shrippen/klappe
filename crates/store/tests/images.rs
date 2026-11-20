@@ -148,28 +148,33 @@ fn a_jpeg_cut_off_in_its_frame_header_is_refused() {
 #[test]
 fn images_the_export_cannot_print_are_refused() {
     let (project, source) = test_dirs("img-unprintable");
-    let cases = [
+    let broken = [
         // Colour type 1 does not exist.
         ("type.png", png_with(10, 10, 8, 1, b"")),
         // 3 bits per sample fit no colour type.
         ("depth.png", png_with(10, 10, 3, 2, b"")),
         // RGB needs 8 or 16 bits.
         ("rgb1.png", png_with(10, 10, 1, 2, b"")),
-        // 4 components: CMYK.
-        ("cmyk.jpg", jpeg_with(800, 600, 4)),
     ];
 
-    for (name, bytes) in cases {
+    for (name, bytes) in broken {
         let path = file(&source, name, &bytes);
 
         assert!(
-            matches!(
-                add_image(&project, &path),
-                Err(StoreError::BadImage { .. } | StoreError::ImageUnprintable { .. })
-            ),
-            "{name} was accepted"
+            matches!(add_image(&project, &path), Err(StoreError::BadImage { .. })),
+            "{name} was not refused as broken"
         );
     }
+
+    // 4 components: a valid JPEG the PDF cannot print, refused with its reason.
+    let path = file(&source, "cmyk.jpg", &jpeg_with(800, 600, 4));
+    assert!(
+        matches!(
+            add_image(&project, &path),
+            Err(StoreError::ImageUnprintable { .. })
+        ),
+        "cmyk.jpg was not refused as unprintable"
+    );
     assert!(!project.join("bilder").exists());
 }
 
