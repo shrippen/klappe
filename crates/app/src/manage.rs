@@ -342,6 +342,16 @@ mod tests {
     /// A session whose register holds "1 Keller" and "2 Hof" against a book that numbers them
     /// the other way round: both entries are asked about.
     fn asked(name: &str) -> Session {
+        // Tests run in parallel: two with one name would share and clear one folder.
+        static NAMES: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+        let mut names = NAMES.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(
+            !names.iter().any(|n| n == name),
+            "folder name {name} used twice"
+        );
+        names.push(name.to_owned());
+        drop(names);
+
         let dir = std::env::temp_dir().join(format!("klappe-manage-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         klappe_services::copy_example(Language::German, &dir).unwrap();
@@ -387,7 +397,7 @@ mod tests {
     /// Review of PR 298: every listed question finds its way back to the session by kind and key.
     #[test]
     fn each_listed_question_names_its_key() {
-        let session = asked("places");
+        let session = asked("keys");
         let value: Value =
             serde_json::from_str(&project_json(&session, Language::English)).unwrap();
         let keys: Vec<_> = value["questions"]
