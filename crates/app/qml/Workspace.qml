@@ -33,7 +33,7 @@ Item {
     property bool speak: false
     signal speakToggled(bool on)
 
-    // The scene on view as the script's head shows it: { id, number, heading } or null.
+    // The scene on view as the script's head shows it: { id, number, heading, inBook } or null.
     readonly property var sceneOnView: {
         if (!controller.projectJson || !controller.sceneId) {
             return null

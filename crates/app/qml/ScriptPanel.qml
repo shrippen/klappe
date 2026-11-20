@@ -19,7 +19,7 @@ Item {
     required property var texts
     required property var controller
     property var lines: []
-    // The scene on view: { id, number, heading } or null.
+    // The scene on view: { id, number, heading, inBook } or null.
     property var scene: null
     signal chipClicked(string kind, string target, int index, real at)
     // The head's button: show the scene's plan.
@@ -30,7 +30,7 @@ Item {
     signal importRequested()
     signal screenplayRequested()
 
-    // Why the column is empty (D-17): "book" no screenplay at all, "number" the book does not hold
+    // Why the column is empty (D-17): "book" no screenplay at all, "notInBook" the book does not hold
     // the scene (its row's `inBook`, never a search by number), "" otherwise (the scene is there,
     // without text).
     readonly property string emptyCause: {
@@ -40,7 +40,7 @@ Item {
         if ((controller.scriptText || "").trim() === "") {
             return "book"
         }
-        return scene.inBook === false ? "number" : ""
+        return scene.inBook === false ? "notInBook" : ""
     }
 
     // The line `index` in view, the arrow keys' current line, with the focus on the list.
@@ -125,7 +125,7 @@ Item {
             wrapMode: Text.Wrap
             color: KanteStyle.mutedTextColor
             text: panel.emptyCause === "book" ? panel.texts.t("script.noBook")
-                : panel.emptyCause === "number" ? (panel.scene.number !== ""
+                : panel.emptyCause === "notInBook" ? (panel.scene.number !== ""
                     ? panel.texts.t("script.noNumber", { number: panel.scene.number })
                     : panel.texts.t("script.notInBook"))
                 : panel.texts.t("script.empty")
@@ -138,7 +138,7 @@ Item {
         }
         KanteButton {
             objectName: "openScreenplay"
-            visible: panel.emptyCause === "number"
+            visible: panel.emptyCause === "notInBook"
             text: panel.texts.t("script.open")
             onClicked: panel.screenplayRequested()
         }
