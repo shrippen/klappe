@@ -49,6 +49,7 @@ pub use folder::{folder_size, free_numbered, free_sibling, move_to_trash, read_f
 pub use images::{
     add_image, add_image_bytes, image_size, image_stamp, is_image_path, read_image, ImageStamp,
 };
+pub use klappe_imagehead::Unprintable;
 pub use library::{builtin_forms, builtin_library, load_library, save_library};
 pub use light::builtin_lights;
 pub use lock::{load_lock, save_lock};

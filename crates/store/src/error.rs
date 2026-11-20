@@ -1,6 +1,8 @@
 use std::io;
 use std::path::PathBuf;
 
+use klappe_imagehead::Unprintable;
+
 /// Why a project folder could not be read or written. Every variant names the file.
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
@@ -44,6 +46,18 @@ pub enum StoreError {
     /// Not a PNG or JPEG, or one whose header cannot be read.
     #[error("{}: {message}", path.display())]
     BadImage { path: PathBuf, message: String },
+
+    /// An image file of a type the project does not take (not `.png`, `.jpg`, `.jpeg`).
+    #[error("{}: only .png, .jpg and .jpeg images are supported", path.display())]
+    ImageType { path: PathBuf },
+
+    /// A JPEG the PDF export cannot print.
+    #[error("{}: JPEG the PDF export cannot print ({reason:?})", path.display())]
+    ImageUnprintable { path: PathBuf, reason: Unprintable },
+
+    /// An image file whose name cannot be used in the project folder.
+    #[error("{name:?} is not usable as an image file name")]
+    ImageName { name: String },
 
     /// The system trash refused the folder.
     #[error("{}: cannot move to the trash: {message}", path.display())]

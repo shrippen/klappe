@@ -80,8 +80,8 @@ fn own_text(language: Language, error: &ServiceError) -> String {
 }
 
 /// A store error: a merge conflict and the format versions have their own text, naming the
-/// file; a missing file or one without permission says so in the language; the rest says
-/// what the store says.
+/// file; a missing file or one without permission says so in the language; so do the refusals
+/// a user's action causes (image, trash); the rest says what the store says.
 fn store_text(language: Language, error: &klappe_store::StoreError) -> (&'static str, String) {
     use klappe_store::StoreError;
 
@@ -95,6 +95,17 @@ fn store_text(language: Language, error: &klappe_store::StoreError) -> (&'static
         ),
         StoreError::NewerFormat { path, .. } => ("error.newerFormat", path.display().to_string()),
         StoreError::OlderFormat { path, .. } => ("error.olderFormat", path.display().to_string()),
+        StoreError::ImageType { path } => ("error.imageType", path.display().to_string()),
+        StoreError::BadImage { path, .. } => ("error.badImage", path.display().to_string()),
+        StoreError::Trash { path, .. } => ("error.trash", path.display().to_string()),
+        StoreError::ImageUnprintable { path, reason } => {
+            let key = match reason {
+                klappe_store::Unprintable::Channels => "error.imageCmyk",
+                klappe_store::Unprintable::Depth => "error.imageDepth",
+            };
+            (key, path.display().to_string())
+        }
+        StoreError::ImageName { name } => ("error.imageName", name.clone()),
         other => ("error.store", other.to_string()),
     }
 }
@@ -235,7 +246,7 @@ pub fn book_report_text(language: Language, report: &crate::BookReport) -> Strin
 mod tests {
     use super::*;
     use crate::Layer;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     /// Review of PR 286: a project that does not open said why in the system's English
     /// ("No such file or directory (os error 2)", "format version 9 is newer …").
@@ -265,6 +276,107 @@ mod tests {
             assert!(text.contains(german), "{text}");
             assert!(!text.contains("os error"), "{text}");
         }
+    }
+
+    /// Audit 18, finding 10: choosing `bild.gif` showed the store's English text in the German
+    /// window, behind "Projekt konnte nicht gelesen oder gespeichert werden".
+    #[test]
+    fn refusals_of_user_actions_speak_the_language() {
+        use klappe_store::StoreError;
+
+        let gif = klappe_store::add_image(Path::new("/p"), Path::new("/q/bild.gif")).unwrap_err();
+        let path = PathBuf::from("/q/bild.png");
+        let cases = [
+            (gif, "bild.gif", "Bilder"),
+            (
+                StoreError::BadImage {
+                    path: path.clone(),
+                    message: "not a readable PNG or JPEG image".to_owned(),
+                },
+                "bild.png",
+                "Bild",
+            ),
+            (
+                StoreError::Trash {
+                    path: path.clone(),
+                    message: "no trash".to_owned(),
+                },
+                "bild.png",
+                "Papierkorb",
+            ),
+        ];
+
+        for (error, detail, german) in cases {
+            let text = error_text(Language::German, &ServiceError::Store(error));
+
+            assert!(text.contains(german) && text.contains(detail), "{text}");
+            assert!(!text.contains("konnte nicht gelesen"), "{text}");
+            assert!(
+                !text.contains("supported") && !text.contains("no trash"),
+                "{text}"
+            );
+            assert!(
+                !text.contains("not a readable") && !text.contains("file name"),
+                "{text}"
+            );
+        }
+    }
+
+    /// Review of PR 306: a CMYK JPEG said "kein brauchbares Bild", hiding that it only has to
+    /// become RGB; a project file with a bad id lost the frame text of a broken project.
+    #[test]
+    fn image_and_name_refusals_say_what_to_do() {
+        use klappe_store::StoreError;
+
+        let dir = std::env::temp_dir().join(format!("klappe-cmyk-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let cmyk = dir.join("cmyk.jpg");
+        // SOI, SOF0: 8 bits, 1 x 1 pixel, 4 components.
+        let head = [
+            0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x14, 0x08, 0x00, 0x01, 0x00, 0x01, 0x04, 0x01, 0x11,
+            0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00, 0x04, 0x11, 0x00,
+        ];
+        std::fs::write(&cmyk, head).unwrap();
+        let error = klappe_store::add_image(&dir, &cmyk).unwrap_err();
+        std::fs::remove_dir_all(&dir).unwrap();
+
+        let text = error_text(Language::German, &ServiceError::Store(error));
+        assert!(text.contains("CMYK") && text.contains("RGB"), "{text}");
+        assert!(!text.contains("kein brauchbares"), "{text}");
+
+        let named = klappe_store::add_image(Path::new("/p"), Path::new("/q/.foto.png"));
+        let text = error_text(Language::German, &ServiceError::Store(named.unwrap_err()));
+        assert!(
+            text.contains(".foto.png") && text.contains("Bild"),
+            "{text}"
+        );
+        assert!(!text.contains("konnte nicht gelesen"), "{text}");
+
+        let broken = StoreError::BadId {
+            id: "../x".to_owned(),
+        };
+        let text = error_text(Language::German, &ServiceError::Store(broken));
+        assert!(text.starts_with("Projekt konnte nicht gelesen"), "{text}");
+    }
+
+    /// A 12-bit JPEG (SOF1) reads fine but the PDF cannot print it.
+    #[test]
+    fn a_12_bit_jpeg_says_8_bit() {
+        let dir = std::env::temp_dir().join(format!("klappe-12bit-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let deep = dir.join("tief.jpg");
+        // SOI, SOF1: 12 bits, 1 x 1 pixel, 3 components.
+        let head = [
+            0xFF, 0xD8, 0xFF, 0xC1, 0x00, 0x11, 0x0C, 0x00, 0x01, 0x00, 0x01, 0x03, 0x01, 0x11,
+            0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00,
+        ];
+        std::fs::write(&deep, head).unwrap();
+        let error = klappe_store::add_image(&dir, &deep).unwrap_err();
+        std::fs::remove_dir_all(&dir).unwrap();
+
+        let text = error_text(Language::German, &ServiceError::Store(error));
+        assert!(text.contains("8 Bit"), "{text}");
+        assert!(!text.contains("kein brauchbares"), "{text}");
     }
 
     /// Review of PR 37: a refused tilt said "field.tilt", the catalogue had no such key.
