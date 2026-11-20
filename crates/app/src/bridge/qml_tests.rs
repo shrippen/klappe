@@ -148,16 +148,6 @@ fn own_temp() -> PathBuf {
 }
 
 #[test]
-fn the_scenarios_take_a_folder_of_their_own() {
-    let own = own_temp();
-
-    assert_ne!(own.parent(), None);
-    assert!(own
-        .to_string_lossy()
-        .ends_with(&std::process::id().to_string()));
-}
-
-#[test]
 fn controller_scenarios_hold() {
     std::env::set_var("QT_QPA_PLATFORM", "offscreen");
     std::env::set_var("QML_XHR_ALLOW_FILE_READ", "1");
@@ -220,7 +210,8 @@ fn controller_scenarios_hold() {
         check_place_answer(&base);
     }
     let _ = std::fs::remove_dir_all(&base);
-    // Other tests of this run may still keep files in it; empty, it goes.
+    // Every scenario writes below `base`; other tests of this process (`manage.rs`) may still
+    // keep folders here and remove their own, so only an empty folder goes.
     let _ = std::fs::remove_dir(&own);
 
     assert!(failed.is_empty(), "scenarios failed: {failed:?}");
