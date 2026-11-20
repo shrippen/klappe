@@ -140,6 +140,13 @@ fn check_list_exports(base: &Path) {
         .all(|f| f.extension().is_some_and(|e| e == "png")));
 }
 
+/// This run's own temporary folder. The scenarios find their files under the temporary folder
+/// (`StandardPaths.TempLocation`); a fixed one there was cleared by a run in another worktree
+/// at the same time.
+fn own_temp() -> PathBuf {
+    std::env::temp_dir().join(format!("klappe-qml-{}", std::process::id()))
+}
+
 #[test]
 fn controller_scenarios_hold() {
     std::env::set_var("QT_QPA_PLATFORM", "offscreen");
@@ -149,8 +156,13 @@ fn controller_scenarios_hold() {
     assert!(crate::application::is_widgets(), "not a QApplication");
     let mut failed = Vec::new();
 
+    // The scenarios' temporary folder is this run's own, so runs side by side keep apart.
+    let own = own_temp();
+    std::fs::create_dir_all(&own).unwrap();
+    std::env::set_var("TMPDIR", &own);
+
     // `tests/controller/export_to.qml` writes here; a run that stopped early may have left it.
-    let base = std::env::temp_dir().join("klappe-export-test");
+    let base = own.join("klappe-export-test");
     let _ = std::fs::remove_dir_all(&base);
     copy_example(&base);
     write_crlf_project(&base);
@@ -198,6 +210,9 @@ fn controller_scenarios_hold() {
         check_place_answer(&base);
     }
     let _ = std::fs::remove_dir_all(&base);
+    // Every scenario writes below `base`; other tests of this process (`manage.rs`) may still
+    // keep folders here and remove their own, so only an empty folder goes.
+    let _ = std::fs::remove_dir(&own);
 
     assert!(failed.is_empty(), "scenarios failed: {failed:?}");
 }

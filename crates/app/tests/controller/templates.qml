@@ -76,7 +76,7 @@ Item {
                 return root.fail("a blank name and a built-in template must be refused")
             }
 
-            const file = StandardPaths.writableLocation(StandardPaths.TempLocation) + "/klappe-templates-test.toml"
+            const file = StandardPaths.writableLocation(StandardPaths.TempLocation) + "/klappe-export-test/klappe-templates-test.toml"
             if (!ctl.exportLibrary(file, "templates") || ctl.status.indexOf("1") < 0) {
                 return root.fail("export failed: " + ctl.status)
             }
