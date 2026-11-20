@@ -626,6 +626,15 @@ TestCase {
         return Qt.rect(p.x, p.y, Math.max(b.x - a.x, 1), a.height)
     }
 
+    /// The first line of the selection; a selection that wraps fills it to the text's right edge.
+    function firstLineBox(view) {
+        const a = view.area.positionToRectangle(view.area.selectionStart)
+        const b = view.area.positionToRectangle(view.area.selectionEnd)
+        const right = b.y > a.y ? view.area.width : b.x
+        const p = view.area.mapToItem(view, a.x, a.y)
+        return Qt.rect(p.x, p.y, Math.max(right - a.x, 1), a.height)
+    }
+
     function overlaps(a, b) {
         return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
     }
@@ -648,6 +657,21 @@ TestCase {
         // At the bottom right, same right margin.
         const box = cardBox(view)
         verify(box.y > view.height / 2, "card at y " + box.y)
+    }
+
+    // A hit that starts left of the card and wraps lies under it with the rest of its first line.
+    function test_the_card_moves_off_a_wrapped_hit() {
+        let words = []
+        for (let i = 0; i < 30; i++) {
+            words.push("wort" + i)
+        }
+        fake.scriptText = "INT. SAAL - TAG\n\n" + words.join(" ") + " \n\nEs regnet.\n"
+        const view = make()
+        view.search.open()
+        view.showText(30, 115)
+
+        verify(view.area.positionToRectangle(115).y > view.area.positionToRectangle(30).y, "hit wraps")
+        verify(!overlaps(firstLineBox(view), cardBox(view)), "hit " + JSON.stringify(firstLineBox(view)) + " under card " + JSON.stringify(cardBox(view)))
     }
 
     // A later hit under the card at the bottom sends it back to the top.

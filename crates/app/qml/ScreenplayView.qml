@@ -176,8 +176,10 @@ RowLayout {
     function dodgeSearch(from, to) {
         const a = area.positionToRectangle(from)
         const b = area.positionToRectangle(to)
+        // A hit that wraps covers its first line up to the text's right edge.
+        const right = b.y > a.y ? area.width : b.x
         const p = area.mapToItem(search, a.x, a.y)
-        const hit = Qt.rect(p.x, p.y, Math.max(b.x - a.x, 1), a.height)
+        const hit = Qt.rect(p.x, p.y, Math.max(right - a.x, 1), a.height)
         const under = hit.x < search.width && hit.x + hit.width > 0
             && hit.y < search.height && hit.y + hit.height > 0
         if (under) {
