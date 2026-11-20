@@ -1,5 +1,5 @@
-//! The register against the book: answering an open question about a scene or a play
-//! location. A place answer is no undo step: it goes to `orte.toml` and not to the project.
+//! The register against the book: answering an open question about a scene or a place
+//! name of a heading. A place answer is no undo step: it goes to `orte.toml` and not to the project.
 
 use super::qobject;
 use core::pin::Pin;

@@ -1,5 +1,5 @@
-//! The play locations against the book (DB-51): the locations of the scene headings no play
-//! location is called by, and the user's answer for each.
+//! The scripted locations against the book (DB-51): the place names of the scene headings no
+//! scripted location is called by, and the user's answer for each.
 //!
 //! The answer is written to `orte.toml` at once, from the file as it is on disk: another
 //! program (the TUI beside the window) may have changed it, and the answer changes only what
@@ -10,24 +10,24 @@ use super::Session;
 use crate::error::ServiceError;
 use crate::places::{self, PendingPlace, PlaceChoice};
 
-/// One line of the dialog for an unknown location: a new play location, another spelling of
+/// One line of the dialog for an unknown place name: a new scripted location, another spelling of
 /// one, or the new name of one. Surfaces show the lines and hand back the position.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlaceAnswer {
-    /// Name of the play location for `Variant` and `Rename`; empty for `Create`.
+    /// Name of the scripted location for `Variant` and `Rename`; empty for `Create`.
     pub name: String,
     pub choice: PlaceChoice,
 }
 
 impl Session {
-    /// The locations of the headings no play location is called by (DATENMODELL principle 6):
-    /// asked, never made play locations on their own.
+    /// The place names of the headings no scripted location is called by (DATENMODELL principle 6):
+    /// asked, never made scripted locations on their own.
     pub fn pending_places(&self) -> &[PendingPlace] {
         &self.pending_places
     }
 
-    /// The answers to the question about the location `name`: new play location; for each
-    /// play location the headings no longer name, its rename and its variant; for each other
+    /// The answers to the question about the place name `name`: new scripted location; for each
+    /// scripted location the headings no longer name, its rename and its variant; for each other
     /// its variant. Empty when there is no such question.
     pub fn place_answers(&self, name: &str) -> Vec<PlaceAnswer> {
         if !self.pending_places.iter().any(|p| p.name == name) {
@@ -70,7 +70,7 @@ impl Session {
             .collect()
     }
 
-    /// Answers the question about the location `name` with line `index` of `place_answers`.
+    /// Answers the question about the place name `name` with line `index` of `place_answers`.
     /// A question that is gone is no error: the disk is taken and the questions refreshed.
     pub fn answer_place(&mut self, name: &str, index: usize) -> Result<(), ServiceError> {
         let answers = self.place_answers(name);
@@ -85,7 +85,7 @@ impl Session {
         self.resolve_place(name, answer.choice)
     }
 
-    /// Settles the location `name`: a new play location, a variant of one, or the new name
+    /// Settles the place name `name`: a new scripted location, a variant of one, or the new name
     /// of one. Written to `orte.toml` at once. A question that is gone (another program
     /// answered it, or a backup came back) is no error: the disk is taken, the questions are
     /// refreshed and the question disappears.
@@ -107,7 +107,7 @@ impl Session {
         Ok(())
     }
 
-    /// Takes the play locations from `orte.toml`: the file is their only source.
+    /// Takes the scripted locations from `orte.toml`: the file is their only source.
     pub(super) fn reload_places(&mut self) -> Result<(), ServiceError> {
         self.project.places = klappe_store::load_places(&self.dir)?;
         self.refresh_places();
@@ -115,7 +115,7 @@ impl Session {
         Ok(())
     }
 
-    /// Asks the headings which locations are open, changing nothing.
+    /// Asks the headings which place names are open, changing nothing.
     pub(super) fn refresh_places(&mut self) {
         self.pending_places = places::pending(&self.project, &self.script);
     }

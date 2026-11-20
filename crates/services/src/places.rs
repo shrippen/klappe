@@ -1,12 +1,12 @@
-//! Joins the project's play locations to the scene headings of the book (DB-51, DATENMODELL
-//! §4): which locations the headings name that no play location answers to, and what the
-//! user can make of each. Nothing here becomes a play location on its own: a misspelling is
-//! a location too.
+//! Joins the project's scripted locations to the scene headings of the book (DB-51, DATENMODELL
+//! §4): which place names the headings use that no scripted location answers to, and what the
+//! user can make of each. Nothing here becomes a scripted location on its own: a misspelling is
+//! a place name too.
 
 use klappe_model::{random_id, Place, Project};
 use klappe_script::{heading_place, is_omitted, Element, Script};
 
-/// A location of the headings no play location is called by.
+/// A place name of the headings no scripted location is called by.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingPlace {
     /// As the book spells it the first time.
@@ -15,14 +15,14 @@ pub struct PendingPlace {
     pub headings: usize,
 }
 
-/// What the user makes of a location of the headings.
+/// What the user makes of a place name of the headings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlaceChoice {
-    /// A new play location of this name.
+    /// A new scripted location of this name.
     Create,
-    /// Another spelling of the play location with this id.
+    /// Another spelling of the scripted location with this id.
     Variant(String),
-    /// The play location with this id is called so now (the book renamed it): its name
+    /// The scripted location with this id is called so now (the book renamed it): its name
     /// changes, its id stays.
     Rename(String),
 }
@@ -40,7 +40,7 @@ fn heading_places(script: &Script) -> Vec<&str> {
         .collect()
 }
 
-/// The locations of the headings, each once, that no play location is called by, in book
+/// The place names of the headings, each once, that no scripted location is called by, in book
 /// order.
 pub(crate) fn pending(project: &Project, script: &Script) -> Vec<PendingPlace> {
     let mut found: Vec<PendingPlace> = Vec::new();
@@ -62,7 +62,7 @@ pub(crate) fn pending(project: &Project, script: &Script) -> Vec<PendingPlace> {
     found
 }
 
-/// The ids of the play locations the headings do not name any more: a rename outside the
+/// The ids of the scripted locations the headings do not name any more: a rename outside the
 /// program leaves the old name without a heading.
 pub(crate) fn unused(places: &[Place], script: &Script) -> Vec<String> {
     let named = heading_places(script);
@@ -74,8 +74,8 @@ pub(crate) fn unused(places: &[Place], script: &Script) -> Vec<String> {
         .collect()
 }
 
-/// Settles the location `name` in `places` as `choice`; `false` when `choice` names no play
-/// location or `name` already belongs to one (a name or variant belongs to one place).
+/// Settles the place name `name` in `places` as `choice`; `false` when `choice` names no
+/// scripted location or `name` already belongs to one (a name or variant belongs to one place).
 pub(crate) fn decide(places: &mut Vec<Place>, name: &str, choice: &PlaceChoice) -> bool {
     let name = name.split_whitespace().collect::<Vec<_>>().join(" ");
     if name.is_empty() || places.iter().any(|p| p.is_called(&name)) {

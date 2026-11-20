@@ -1,4 +1,4 @@
-//! The play locations meet the scene headings of the book (DB-51, DATENMODELL §4).
+//! The scripted locations meet the scene headings of the book (DB-51, DATENMODELL §4).
 #![allow(clippy::unwrap_used)]
 
 use std::collections::BTreeMap;

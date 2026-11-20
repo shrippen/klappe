@@ -17,7 +17,7 @@ use crate::template::Template;
 pub struct Project {
     pub title: String,
     pub characters: Vec<Character>,
-    /// The play locations of the scene headings (DB-51).
+    /// The scripted locations the scene headings name (DB-51).
     pub places: Vec<Place>,
     pub locations: Vec<Location>,
     pub scenes: Vec<Scene>,
@@ -56,7 +56,7 @@ impl Project {
         self.characters.iter().find(|c| c.id == id)
     }
 
-    /// The play location a heading's location `name` is, by name or variant.
+    /// The scripted location the place name `name` of a heading is, by name or variant.
     pub fn place_named(&self, name: &str) -> Option<&Place> {
         self.places.iter().find(|p| p.is_called(name))
     }

@@ -328,7 +328,7 @@ fn encode_header(dir: &Path, project: &Project) -> Result<(PathBuf, Vec<u8>), St
 /// A file's path with its content, or `None` when there is to be no file.
 type OptionalFile = (PathBuf, Option<Vec<u8>>);
 
-/// The files that exist only while there are entries: own objects, own templates and play
+/// The files that exist only while there are entries: own objects, own templates and scripted
 /// locations, each
 /// with its content, or `None` when there are none.
 fn optional_files(

@@ -328,7 +328,7 @@ fn a_book_without_any_number_stays_without_any() {
     assert_eq!(book(&dir), more);
 }
 
-/// Review round 4: `.ENTFÄLLT` is no play location.
+/// Review round 4: `.ENTFÄLLT` is no scripted location.
 #[test]
 fn a_struck_heading_is_no_pending_place() {
     let dir = make(

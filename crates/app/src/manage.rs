@@ -38,9 +38,9 @@ const HOME_SHORT: &str = "~";
 /// role name (`purple`), which Kante's `labelColor` takes as it is. `pending` holds the open
 /// questions about the book: `[{ id, number, heading, answers: [{ number, heading, none }] }]`,
 /// the scenes it may be best first, then "not in the book" (`none`); `resolveScene` answers by
-/// the position in that list. `pendingPlaces` holds those about the play locations of the scene
+/// the position in that list. `pendingPlaces` holds those about the scripted locations of the scene
 /// headings: `[{ name, headings, answers: [{ kind, name }] }]`, `kind` being `create`, `rename`
-/// or `variant` and `name` the play location it concerns (empty for `create`); `resolvePlace`
+/// or `variant` and `name` the scripted location it concerns (empty for `create`); `resolvePlace`
 /// answers by the position in `answers`.
 pub fn project_json(session: &Session) -> String {
     let mut value = serde_json::to_value(session.overview()).unwrap_or_default();

@@ -1,5 +1,5 @@
 //! The questions the register leaves open about the book (`Ctrl+K`): which scene of the
-//! book an entry is, then which play location a name of a heading is (DB-51), one question
+//! book an entry is, then which scripted location a name of a heading is (DB-51), one question
 //! at a time.
 
 use klappe_services::{error_text, Answer, PendingPlace, PendingScene, PlaceAnswer};
@@ -22,7 +22,7 @@ impl App {
         self.session.book_answers(&question.id)
     }
 
-    /// The location of the headings asked about once no scene is: the first open one.
+    /// The place name of the headings asked about once no scene is: the first open one.
     pub(crate) fn place_question(&self) -> Option<&PendingPlace> {
         self.session.pending_places().first()
     }
@@ -103,7 +103,7 @@ impl App {
         }
     }
 
-    /// Gives the chosen answer about a play location to the session. It writes only
+    /// Gives the chosen answer about a scripted location to the session. It writes only
     /// `orte.toml`, from the file as it is on disk, and is no step of Ctrl+Z.
     fn answer_place(&mut self) {
         let Some(question) = self.place_question() else {

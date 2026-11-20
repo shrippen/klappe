@@ -49,7 +49,7 @@ fn with_notice(scratch: &Scratch, notice: Notice) -> App {
 #[test]
 fn without_a_notice_the_status_line_is_unchanged() {
     let scratch = Scratch::named("INT. HOF – TAG\n\nEin Hund.\n", GOLDEN_FOLDER);
-    // HOF is a play location: no question about it adds to the line.
+    // HOF is a scripted location: no question about it adds to the line.
     let places = "[[ort]]\nid = \"hofhofho\"\nname = \"HOF\"\n";
     std::fs::write(scratch.dir.join("orte.toml"), places).unwrap_or_else(|e| unreachable!("{e}"));
     for (width, language, expected) in UNCHANGED {

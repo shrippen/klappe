@@ -5,9 +5,9 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The open questions about the book (DATENMODELL §4): a register entry the screenplay could not
-// place, then a location of the scene headings no play location is called by (DB-51).
+// place, then a place name of the scene headings no scripted location is called by (DB-51).
 // One question at a time: the scenes of the book it may be, best first, and "not in the book";
-// for a location the play locations it may be, or a new one. Arrows and Enter choose, a click
+// for a location the scripted locations it may be, or a new one. Arrows and Enter choose, a click
 // answers; Close (Esc) leaves the questions open. The next question follows; the dialog closes
 // after the last.
 Item {
@@ -15,8 +15,8 @@ Item {
 
     required property var texts
     required property var controller
-    /// The open questions in the order they are asked: the scenes (`pending`), then the play
-    /// locations of the headings (`pendingPlaces`), `[{ kind, key, title, ask, answers: [{ number, text }] }]`.
+    /// The open questions in the order they are asked: the scenes (`pending`), then the place
+    /// names of the headings (`pendingPlaces`), `[{ kind, key, title, ask, answers: [{ number, text }] }]`.
     readonly property var questions: {
         const project = controller.projectJson ? JSON.parse(controller.projectJson) : {}
         const scenes = (project.pending || []).map(q => ({
@@ -34,7 +34,7 @@ Item {
     readonly property var question: questions.length > 0 ? questions[0] : null
     readonly property alias dialog: dialog
 
-    // "New play location HOF", "Spelling of SAAL" or "SAAL is now called HOF".
+    // "New scripted location HOF", "Spelling of SAAL" or "SAAL is now called HOF".
     function placeText(answer, name) {
         const key = { create: "book.placeNew", rename: "book.placeRename", variant: "book.placeVariant" }[answer.kind]
         return texts.t(key, { name: name, old: answer.name, new: name })

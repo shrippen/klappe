@@ -2,7 +2,7 @@ import QtQuick
 import Kante
 
 // Over the plan: entries of the register wait for the answer which scene of the book they are, and
-// locations of the scene headings for the play location they belong to.
+// place names of the scene headings for the scripted location they belong to.
 // Stays while questions are open; the button opens the dialog.
 KanteCallout {
     id: notice
