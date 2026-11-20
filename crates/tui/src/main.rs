@@ -59,7 +59,7 @@ fn main() -> ExitCode {
     let mut app = match App::open(&args.dir, args.lang) {
         Ok(app) => app,
         Err(e) => {
-            eprintln!("klappe-tui: {}: {e}", klappe_tui::open_failed(args.lang));
+            eprintln!("klappe-tui: {}", klappe_tui::open_error(args.lang, &e));
             return ExitCode::FAILURE;
         }
     };
