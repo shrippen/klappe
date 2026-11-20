@@ -254,7 +254,7 @@ impl qobject::Controller {
     /// switch loses nothing. A refusal leaves the open project as it is.
     fn switch_to(mut self: Pin<&mut Self>, next: Result<Session, ServiceError>) -> bool {
         let language = self.rust().language;
-        let session = match next {
+        let mut session = match next {
             Ok(session) => session,
             Err(e) => {
                 self.say(error_text(language, &e));
@@ -276,6 +276,9 @@ impl qobject::Controller {
             book_report_text(language, &report),
         ];
         let notes = notes.join(" ").trim().to_owned();
+        // The scene list shows lengths at once, also when the editor's text stays the same and
+        // so does not lay out (DN-02: opening is no typing).
+        session.paginate(language);
         {
             let this = self.as_mut().rust_mut().get_mut();
             this.session = Some(session);
