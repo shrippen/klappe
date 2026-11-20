@@ -161,6 +161,43 @@ fn toggle_underline(chars: &[char], at: usize, now: &mut Marks) -> usize {
     1
 }
 
+/// The text of `text` without what a reader does not say: notes, the marks of emphasis
+/// (`*`, `_`) and the backslash of `\*`; lines are joined by a space. Example:
+/// `Hallo [[Regie]] *laut*` gives `Hallo laut`.
+/// Boneyards are gone before (the parser cuts them); a `/*` here is text, as in `Und/* oder`.
+pub fn plain_text(text: &str) -> String {
+    let mut out = String::new();
+
+    for line in text.lines() {
+        let (runs, _) = inline_runs(line, false);
+        let chars: Vec<char> = line.chars().collect();
+
+        for run in runs {
+            let marks = run.marks;
+            if marks.note {
+                continue;
+            }
+            let emphasis = marks.bold || marks.italic || marks.underline;
+            let part = &chars[run.start..run.end];
+            for (i, c) in part.iter().enumerate() {
+                let escapes = *c == ESCAPE && part.get(i + 1).is_some_and(|n| is_mark(*n));
+                if escapes || (emphasis && is_mark(*c)) {
+                    continue;
+                }
+                out.push(*c);
+            }
+        }
+        out.push(' ');
+    }
+
+    // Left-out parts leave double spaces.
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn is_mark(c: char) -> bool {
+    c == STAR || c == UNDERLINE
+}
+
 /// Joins neighbours with the same marks; plain text gets runs too, so they cover the line.
 fn runs(marks: &[Marks]) -> Vec<Run> {
     let mut out: Vec<Run> = Vec::new();
@@ -264,6 +301,20 @@ mod tests {
         let (whole, open) = inline_runs("x /* y */ z", false);
         assert!(!open);
         assert_eq!(whole.len(), 3);
+    }
+
+    #[test]
+    fn plain_text_drops_notes_and_marks() {
+        assert_eq!(
+            plain_text("Hallo [[Notiz an Regie]] *laut* _jetzt_.\nNoch **mehr**."),
+            "Hallo laut jetzt. Noch mehr."
+        );
+        assert_eq!(plain_text("Zwei \\* drei"), "Zwei * drei");
+        assert_eq!(
+            plain_text("Hallo  *laut* Und/* oder."),
+            "Hallo laut Und/* oder."
+        );
+        assert_eq!(plain_text("[[Nur eine Notiz]]"), "");
     }
 
     #[test]

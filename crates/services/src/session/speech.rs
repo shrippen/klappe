@@ -1,19 +1,10 @@
 //! The spoken dialogue of the scene (LH-64): which line a speech voice reads at which time.
 
-use klappe_script::inline_runs;
+use klappe_script::{plain_text, Element};
 use serde::Serialize;
 
 use super::Session;
-use crate::views::ScriptLine;
 use crate::Language;
-
-const DIALOGUE: &str = "dialogue";
-const CUE: &str = "character";
-const PARENTHETICAL: &str = "parenthetical";
-/// The characters that mark emphasis in Fountain.
-const EMPHASIS: [char; 2] = ['*', '_'];
-/// Fountain's escape: `\*` is a star, not emphasis.
-const ESCAPE: char = '\\';
 
 /// A line a voice reads when the playhead gets to `at_s`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -41,11 +32,27 @@ impl Session {
             .language
             .unwrap_or_else(|| fallback.into());
 
+        let items: Vec<Item> = self
+            .scene_elements()
+            .iter()
+            .enumerate()
+            .map(|(i, element)| Item {
+                element,
+                link_s: self.link_s(i),
+            })
+            .collect();
+
         Speech {
             language: language.name(),
-            lines: schedule(&self.script_lines()),
+            lines: schedule(&items),
         }
     }
+}
+
+/// An element of the scene with the earliest time it is linked to.
+struct Item<'a> {
+    element: &'a Element,
+    link_s: Option<f64>,
 }
 
 /// When each dialogue is read.
@@ -55,29 +62,28 @@ impl Session {
 /// included (Elisabeth walks to the table, then speaks), and at 0 s before any link. Lines
 /// that start together are read one after another, in the script's order; a line that
 /// starts while another is read waits. Parentheticals and actions are not read.
-fn schedule(lines: &[ScriptLine]) -> Vec<SpokenLine> {
+fn schedule(items: &[Item]) -> Vec<SpokenLine> {
     let mut spoken = Vec::new();
     let mut last_s = 0.0;
 
-    for (i, line) in lines.iter().enumerate() {
-        let cue_s = match line.kind == DIALOGUE {
-            true => cue_of(lines, i).and_then(link_s),
-            false => None,
+    for (i, item) in items.iter().enumerate() {
+        let Element::Dialogue(dialogue) = item.element else {
+            if let Some(at_s) = item.link_s {
+                last_s = at_s;
+            }
+            continue;
         };
-        let own_s = link_s(line).or(cue_s);
+        let own_s = item.link_s.or(cue_of(items, i).and_then(|cue| cue.link_s));
         if let Some(at_s) = own_s {
             last_s = at_s;
         }
-        if line.kind != DIALOGUE {
-            continue;
-        }
-        let text = readable(&line.text);
+        let text = plain_text(dialogue);
         if text.is_empty() {
             continue;
         }
 
         spoken.push(SpokenLine {
-            index: line.index,
+            index: i,
             at_s: own_s.unwrap_or(last_s),
             text,
         });
@@ -88,82 +94,62 @@ fn schedule(lines: &[ScriptLine]) -> Vec<SpokenLine> {
     spoken
 }
 
-/// What a voice reads of Fountain text: notes and the marks of emphasis (`*`, `_`, and the
-/// backslash of `\*`) are left out. Example: `Hallo [[Regie]] *laut*` is read as `Hallo laut`.
-/// Boneyards are gone before (the parser cuts them); a `/*` here is text, as in `Und/* oder`.
-fn readable(text: &str) -> String {
-    let mut out = String::new();
-
-    for line in text.lines() {
-        let (runs, _) = inline_runs(line, false);
-        let chars: Vec<char> = line.chars().collect();
-
-        for run in runs {
-            let marks = run.marks;
-            if marks.note {
-                continue;
-            }
-            let emphasis = marks.bold || marks.italic || marks.underline;
-            let part = &chars[run.start..run.end];
-            for (i, c) in part.iter().enumerate() {
-                let escapes = *c == ESCAPE && part.get(i + 1).is_some_and(|n| EMPHASIS.contains(n));
-                if escapes || (emphasis && EMPHASIS.contains(c)) {
-                    continue;
-                }
-                out.push(*c);
-            }
-        }
-        out.push(' ');
-    }
-
-    // Left-out parts leave double spaces.
-    out.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-/// The earliest time the line is linked to.
-fn link_s(line: &ScriptLine) -> Option<f64> {
-    line.chips.iter().map(|c| c.at_s).min_by(f64::total_cmp)
-}
-
 /// The cue above the dialogue at `i`, past parentheticals.
-fn cue_of(lines: &[ScriptLine], i: usize) -> Option<&ScriptLine> {
-    lines[..i]
+fn cue_of<'a>(items: &'a [Item], i: usize) -> Option<&'a Item<'a>> {
+    items[..i]
         .iter()
         .rev()
-        .find(|l| l.kind != PARENTHETICAL)
-        .filter(|l| l.kind == CUE)
+        .find(|l| !matches!(l.element, Element::Parenthetical(_)))
+        .filter(|l| matches!(l.element, Element::Character { .. }))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::views::{Chip, LinkKind};
+    /// An element of the scene and its links.
+    type Entry = (Element, Option<f64>);
 
-    fn chip(at_s: f64) -> Chip {
-        Chip {
-            kind: LinkKind::Mark,
-            text: String::new(),
-            target: String::new(),
-            label: String::new(),
-            index: 0,
-            at_s,
-        }
+    fn entry(element: Element, links: &[f64]) -> Entry {
+        (element, links.iter().copied().min_by(f64::total_cmp))
     }
 
-    fn line(index: usize, kind: &'static str, text: &str, links: &[f64]) -> ScriptLine {
-        ScriptLine {
-            index,
-            kind,
-            text: text.to_owned(),
-            chips: links.iter().map(|t| chip(*t)).collect(),
-            current: false,
-            character: String::new(),
-        }
+    fn cue(name: &str, links: &[f64]) -> Entry {
+        let element = Element::Character {
+            name: name.to_owned(),
+            extension: None,
+            dual: false,
+        };
+
+        entry(element, links)
+    }
+
+    fn paren(text: &str, links: &[f64]) -> Entry {
+        entry(Element::Parenthetical(text.to_owned()), links)
+    }
+
+    fn say(text: &str, links: &[f64]) -> Entry {
+        entry(Element::Dialogue(text.to_owned()), links)
+    }
+
+    fn act(text: &str, links: &[f64]) -> Entry {
+        entry(Element::Action(text.to_owned()), links)
+    }
+
+    fn cut(text: &str, links: &[f64]) -> Entry {
+        entry(Element::Transition(text.to_owned()), links)
     }
 
     /// Leaks the texts: test code only.
-    fn read(lines: &[ScriptLine]) -> Vec<(f64, &'static str)> {
-        schedule(lines)
+    fn read(lines: &[Entry]) -> Vec<(f64, &'static str)> {
+        let items: Vec<Item> = lines
+            .iter()
+            .map(|(element, link_s)| Item {
+                element,
+                link_s: *link_s,
+            })
+            .collect();
+
+        schedule(&items)
             .into_iter()
             .map(|s| (s.at_s, &*Box::leak(s.text.into_boxed_str())))
             .collect()
@@ -172,9 +158,9 @@ mod tests {
     #[test]
     fn a_link_on_the_cue_times_the_dialogue() {
         let lines = [
-            line(0, "character", "ANNA", &[6.0]),
-            line(1, "parenthetical", "(leise)", &[]),
-            line(2, "dialogue", "Hallo.", &[]),
+            cue("ANNA", &[6.0]),
+            paren("(leise)", &[]),
+            say("Hallo.", &[]),
         ];
 
         assert_eq!(read(&lines), [(6.0, "Hallo.")]);
@@ -182,10 +168,7 @@ mod tests {
 
     #[test]
     fn its_own_link_wins_over_the_cues() {
-        let lines = [
-            line(0, "character", "ANNA", &[6.0]),
-            line(1, "dialogue", "Hallo.", &[4.0, 5.0]),
-        ];
+        let lines = [cue("ANNA", &[6.0]), say("Hallo.", &[4.0, 5.0])];
 
         assert_eq!(read(&lines), [(4.0, "Hallo.")]);
     }
@@ -193,12 +176,12 @@ mod tests {
     #[test]
     fn an_unlinked_dialogue_follows_the_last_linked_line() {
         let lines = [
-            line(0, "dialogue", "Davor.", &[]),
-            line(1, "action", "Sie geht.", &[3.0]),
-            line(2, "character", "ANNA", &[]),
-            line(3, "dialogue", "Danach.", &[]),
-            line(4, "character", "BEN", &[8.0]),
-            line(5, "dialogue", "Später.", &[]),
+            say("Davor.", &[]),
+            act("Sie geht.", &[3.0]),
+            cue("ANNA", &[]),
+            say("Danach.", &[]),
+            cue("BEN", &[8.0]),
+            say("Später.", &[]),
         ];
 
         assert_eq!(
@@ -210,11 +193,11 @@ mod tests {
     #[test]
     fn lines_of_one_time_keep_the_script_order_and_time_sorts() {
         let lines = [
-            line(0, "character", "ANNA", &[9.0]),
-            line(1, "dialogue", "Spät.", &[]),
-            line(2, "character", "BEN", &[2.0]),
-            line(3, "dialogue", "Eins.", &[]),
-            line(4, "dialogue", "Zwei.", &[]),
+            cue("ANNA", &[9.0]),
+            say("Spät.", &[]),
+            cue("BEN", &[2.0]),
+            say("Eins.", &[]),
+            say("Zwei.", &[]),
         ];
 
         assert_eq!(
@@ -226,11 +209,11 @@ mod tests {
     #[test]
     fn only_dialogue_is_read() {
         let lines = [
-            line(0, "action", "Regen.", &[1.0]),
-            line(1, "character", "ANNA", &[]),
-            line(2, "parenthetical", "(leise)", &[]),
-            line(3, "dialogue", "  ", &[]),
-            line(4, "transition", "SCHNITT", &[]),
+            act("Regen.", &[1.0]),
+            cue("ANNA", &[]),
+            paren("(leise)", &[]),
+            say("  ", &[]),
+            cut("SCHNITT", &[]),
         ];
 
         assert!(read(&lines).is_empty());
@@ -249,9 +232,7 @@ mod tests {
 
     #[test]
     fn notes_and_emphasis_are_not_read() {
-        let lines = [line(
-            0,
-            "dialogue",
+        let lines = [say(
             "Hallo [[Notiz an Regie]] *laut* _jetzt_.\nNoch **mehr**.",
             &[],
         )];
@@ -261,7 +242,7 @@ mod tests {
 
     #[test]
     fn an_escaped_mark_is_read_without_its_backslash() {
-        let lines = [line(0, "dialogue", "Zwei \\* drei", &[])];
+        let lines = [say("Zwei \\* drei", &[])];
 
         assert_eq!(read(&lines), [(0.0, "Zwei * drei")]);
     }
@@ -271,14 +252,14 @@ mod tests {
         let text = parsed("Hallo /*weg*/ *laut* Und/\\* oder.");
         assert_eq!(text, "Hallo  *laut* Und/* oder.");
 
-        let lines = [line(0, "dialogue", &text, &[])];
+        let lines = [say(&text, &[])];
 
         assert_eq!(read(&lines), [(0.0, "Hallo laut Und/* oder.")]);
     }
 
     #[test]
     fn a_dialogue_of_notes_only_is_not_read() {
-        let lines = [line(0, "dialogue", "[[Nur eine Notiz]]", &[])];
+        let lines = [say("[[Nur eine Notiz]]", &[])];
 
         assert!(read(&lines).is_empty());
     }
