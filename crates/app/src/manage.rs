@@ -38,8 +38,8 @@ const HOME_SHORT: &str = "~";
 /// role name (`purple`), which Kante's `labelColor` takes as it is. `questions` holds the open
 /// questions about the book as the session words them in `language`, scenes first, then the
 /// place names of the headings: `[{ kind, key, title, ask, answers: [{ number, text }] }]`,
-/// `kind` being `scene` (answered by `resolveScene` with the entry id `key`) or `place`
-/// (`resolvePlace` with the place name `key`), both by the position in `answers`.
+/// `kind` being `scene` (`key` the entry id) or `place` (`key` the place name), answered by
+/// `answerQuestion(kind, key, index)` with the position in `answers`.
 pub fn project_json(session: &Session, language: Language) -> String {
     let mut value = serde_json::to_value(session.overview()).unwrap_or_default();
     value["questions"] = question_rows(session, language);

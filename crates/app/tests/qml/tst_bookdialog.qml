@@ -38,16 +38,13 @@ TestCase {
             projectJson = JSON.stringify({ scenes: [], questions: scenes.concat(named) })
         }
         // Answered: the question is gone, as the session has it.
-        function resolveScene(id, index) {
-            calls.push([id, index])
-            pending = pending.filter(p => p.id !== id)
-            show()
-            return true
-        }
-        // Answered: the question is gone, as the session has it.
-        function resolvePlace(name, index) {
-            calls.push([name, index])
-            places = places.filter(p => p.name !== name)
+        function answerQuestion(kind, key, index) {
+            calls.push([key, index])
+            if (kind === "place") {
+                places = places.filter(p => p.name !== key)
+            } else {
+                pending = pending.filter(p => p.id !== key)
+            }
             show()
             return true
         }
