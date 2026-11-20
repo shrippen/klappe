@@ -6,6 +6,8 @@
 //! it touches. It is no undo step; undo and redo keep the places as they are (like the paper).
 //! Nothing else writes the file: a save leaves it alone.
 
+use klappe_model::Place;
+
 use super::Session;
 use crate::error::ServiceError;
 use crate::places::{self, PendingPlace, PlaceChoice};
@@ -35,13 +37,7 @@ impl Session {
         }
 
         let answer = |id: &str, choice: PlaceChoice| {
-            let name = self
-                .project
-                .places
-                .iter()
-                .find(|p| p.id == id)?
-                .name
-                .clone();
+            let name = self.places.iter().find(|p| p.id == id)?.name.clone();
 
             Some(PlaceAnswer { name, choice })
         };
@@ -49,15 +45,14 @@ impl Session {
             name: String::new(),
             choice: PlaceChoice::Create,
         };
-        let unused = places::unused(&self.project.places, &self.script);
+        let unused = places::unused(&self.places, &self.script);
         let renames = unused
             .iter()
             .filter_map(|id| answer(id, PlaceChoice::Rename(id.clone())));
         let variants = unused
             .iter()
             .chain(
-                self.project
-                    .places
+                self.places
                     .iter()
                     .map(|p| &p.id)
                     .filter(|id| !unused.contains(id)),
@@ -101,15 +96,20 @@ impl Session {
         }
         klappe_store::save_places(&self.dir, &disk)?;
 
-        self.project.places = disk;
+        self.places = disk;
         self.refresh_places();
 
         Ok(())
     }
 
+    /// The scripted locations as `orte.toml` held them when last read or written.
+    pub fn places(&self) -> &[Place] {
+        &self.places
+    }
+
     /// Takes the scripted locations from `orte.toml`: the file is their only source.
     pub(super) fn reload_places(&mut self) -> Result<(), ServiceError> {
-        self.project.places = klappe_store::load_places(&self.dir)?;
+        self.places = klappe_store::load_places(&self.dir)?;
         self.refresh_places();
 
         Ok(())
@@ -117,6 +117,6 @@ impl Session {
 
     /// Asks the headings which place names are open, changing nothing.
     pub(super) fn refresh_places(&mut self) {
-        self.pending_places = places::pending(&self.project, &self.script);
+        self.pending_places = places::pending(&self.places, &self.script);
     }
 }

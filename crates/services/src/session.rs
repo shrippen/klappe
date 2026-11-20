@@ -197,6 +197,9 @@ pub struct Session {
     /// (`refresh_scene_map`), kept so a refresh of the window does not align the book again.
     book_scene: Vec<Option<usize>>,
     heading_line: Vec<Option<usize>>,
+    /// The scripted locations as `orte.toml` held them when last read or written (DB-51). Not
+    /// part of the project: no undo step, no backup, no save; `orte.toml` is their only source.
+    places: Vec<klappe_model::Place>,
     /// Place names of the headings no scripted location is called by (`pending_places`).
     pending_places: Vec<crate::places::PendingPlace>,
     /// The Sperrstand of the scene numbers (DB-33) as saved last; `None` without the file.

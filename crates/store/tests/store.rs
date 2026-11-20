@@ -375,8 +375,7 @@ fn loads_example() {
 #[test]
 fn example_matches_generator() {
     let loaded = load(Path::new(EXAMPLE)).unwrap();
-    let (places, project) = (loaded.project.places.clone(), example());
-    assert_eq!(loaded.project, Project { places, ..project });
+    assert_eq!(loaded.project, example());
 }
 
 /// A mark that walks and stays writes neither key, and a file without them loads as before;
