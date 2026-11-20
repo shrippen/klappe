@@ -282,9 +282,18 @@ mod tests {
         Some(OsString::from(s))
     }
 
+    /// A test's project folder, removed when the test ends.
+    struct Scratch(PathBuf);
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
     /// A session whose register holds "1 Keller" and "2 Hof" against a book that numbers them
-    /// the other way round: both entries are asked about.
-    fn asked(name: &str) -> Session {
+    /// the other way round: both entries are asked about. Its folder goes with the `Scratch`.
+    fn asked(name: &str) -> (Session, Scratch) {
         // Tests run in parallel: two with one name would share and clear one folder.
         static NAMES: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
         let mut names = NAMES.lock().unwrap_or_else(|e| e.into_inner());
@@ -311,12 +320,12 @@ mod tests {
         std::fs::write(dir.join("szenen.toml"), register).unwrap();
         let _ = std::fs::remove_dir_all(dir.join("szenen"));
 
-        Session::open(&dir).unwrap()
+        (Session::open(&dir).unwrap(), Scratch(dir))
     }
 
     #[test]
     fn the_open_questions_are_listed_worded() {
-        let session = asked("list");
+        let (session, _scratch) = asked("list");
 
         let value: Value =
             serde_json::from_str(&project_json(&session, Language::English)).unwrap();
@@ -340,7 +349,7 @@ mod tests {
     /// Review of PR 298: every listed question finds its way back to the session by kind and key.
     #[test]
     fn each_listed_question_names_its_key() {
-        let session = asked("keys");
+        let (session, _scratch) = asked("keys");
         let value: Value =
             serde_json::from_str(&project_json(&session, Language::English)).unwrap();
         let keys: Vec<_> = value["questions"]
@@ -366,7 +375,7 @@ mod tests {
 
     #[test]
     fn the_open_place_questions_follow_the_scenes() {
-        let session = asked("places");
+        let (session, _scratch) = asked("places");
         let value: Value =
             serde_json::from_str(&project_json(&session, Language::English)).unwrap();
         let questions = value["questions"].as_array().unwrap();
