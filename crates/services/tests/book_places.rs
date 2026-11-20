@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{FigureColor, Project};
-use klappe_services::{PlaceChoice, ProjectEdit, Session};
+use klappe_services::{Language, PlaceChoice, ProjectEdit, QuestionKey, Session};
 
 const BOOK: &str = "INT. SÄNGERSAAL – TAG #1#\n\nAnna wartet.\n\n\
 EXT. HOF - NACHT #2#\n\nEin Hund.\n\nINNEN SÄNGERSAAL - NACHT #3#\n\nStille.\n\n";
@@ -313,4 +313,55 @@ fn a_restored_backup_leaves_the_places_to_the_disk() {
 
     assert!(s.project().places.is_empty());
     assert_eq!(orte(&dir), "");
+}
+
+/// Audit 17, finding 1: the session words the questions, so window and terminal show the same.
+#[test]
+fn the_questions_come_worded_and_are_answered_by_position() {
+    let dir = make("places-worded", BOOK);
+    let mut s = Session::open(&dir).unwrap();
+
+    let questions = s.book_questions(Language::German);
+    let first = &questions[0];
+    assert_eq!(first.key, QuestionKey::Place("SÄNGERSAAL".to_owned()));
+    assert_eq!(first.title, Language::German.text("book.placeTitle"));
+    assert!(first.ask.contains("SÄNGERSAAL"), "{}", first.ask);
+    assert!(
+        first.answers[0].text.contains("SÄNGERSAAL"),
+        "{:?}",
+        first.answers
+    );
+
+    s.answer_question(&first.key.clone(), 0).unwrap();
+
+    let next = s.book_questions(Language::German);
+    assert_eq!(next.len(), 1);
+    assert_eq!(next[0].key, QuestionKey::Place("HOF".to_owned()));
+    let lines: Vec<_> = next[0].answers.iter().map(|a| a.text.as_str()).collect();
+    assert_eq!(lines, ["Neuer Spielort HOF", "Schreibweise von SÄNGERSAAL"]);
+}
+
+/// Review of PR 295: the window words the questions at every refresh (each frame of playback),
+/// so wording many is cheap. 80 open place names take about 10 ms per wording in a debug
+/// build here and took 400 ms before; the bound leaves room for a slow CI runner.
+#[test]
+fn many_questions_are_worded_fast() {
+    const PLACES: usize = 80;
+    const ROUNDS: u32 = 10;
+    const BUDGET_PER_ROUND: std::time::Duration = std::time::Duration::from_millis(150);
+
+    let book: String = (0..PLACES)
+        .map(|i| format!("INT. ORT {i} - TAG\n\nEtwas.\n\n"))
+        .collect();
+    let dir = make("places-many", &book);
+    let s = Session::open(&dir).unwrap();
+    assert_eq!(s.book_questions(Language::German).len(), PLACES);
+
+    let start = std::time::Instant::now();
+    for _ in 0..ROUNDS {
+        let _ = s.book_questions(Language::German);
+    }
+    let per_round = start.elapsed() / ROUNDS;
+
+    assert!(per_round < BUDGET_PER_ROUND, "{per_round:?} per wording");
 }

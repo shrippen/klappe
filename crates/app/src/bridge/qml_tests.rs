@@ -18,7 +18,7 @@ const PLACE_PROJECT: &str = "orte-projekt";
 /// The scripted location of the example, and the name the copy has before the scenario renames it.
 const PLACE_NAME: &str = "SÄNGERSAAL";
 const PLACE_OLD_NAME: &str = "FESTSAAL";
-/// The id of the renamed play place in the example project; a rename keeps it.
+/// The id of the renamed scripted location in the example project; a rename keeps it.
 const PLACE_ID: &str = "k3m9q2xa";
 /// Where the width sits in a PNG file; the height follows.
 const PNG_WIDTH_AT: usize = 16;

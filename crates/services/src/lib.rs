@@ -55,9 +55,9 @@ pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPag
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;
 pub use session::{
-    Answer, Autosave, BackupState, ExportOptions, Fade, Grab, Laid, Layer, Lock, Looping, Pages,
-    PlaceAnswer, Playing, Session, Size, Speech, SpokenLine, Step, TimeSnap, VideoJob, View,
-    ViewStep, Visibility,
+    Answer, AnswerLine, Autosave, BackupState, BookQuestion, ExportOptions, Fade, Grab, Laid,
+    Layer, Lock, Looping, Pages, PlaceAnswer, Playing, QuestionKey, Session, Size, Speech,
+    SpokenLine, Step, TimeSnap, VideoJob, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};

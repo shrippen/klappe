@@ -57,7 +57,7 @@ fn choosing_a_candidate_goes_on_to_the_next_question() {
 
     press(&mut app, KeyCode::Enter);
     assert_eq!(app.mode, Mode::Normal, "no question left");
-    assert!(app.book_question().is_none());
+    assert!(app.question().is_none());
     assert_eq!(app.book_note, "");
 }
 
@@ -69,11 +69,8 @@ fn not_in_the_book_closes_the_question() {
     press(&mut app, KeyCode::Up);
     press(&mut app, KeyCode::Enter);
 
-    assert_ne!(
-        app.book_question().map(|q| q.number.as_str()),
-        Some("1"),
-        "entry 1 is answered"
-    );
+    let ask = app.question().map(|q| q.ask).unwrap_or_default();
+    assert!(!ask.contains("Entry 1 "), "entry 1 is answered: {ask}");
 }
 
 #[test]
@@ -84,7 +81,7 @@ fn esc_keeps_the_questions_open() {
     press(&mut app, KeyCode::Esc);
 
     assert_eq!(app.mode, Mode::Normal);
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("1"));
+    assert_eq!(app.asked_entry().as_deref(), Some("1"));
     assert!(app.book_note.contains("2"), "{}", app.book_note);
     ctrl(&mut app, 'k');
     assert_eq!(app.book_sel, 0, "the dialog starts at the top again");
@@ -110,7 +107,7 @@ fn an_answer_is_kept_without_saving_the_book() {
 
     assert!(matches!(quit, Flow::Quit));
     let mut again = scratch.app();
-    assert!(again.book_question().is_none(), "{}", again.book_note);
+    assert!(again.question().is_none(), "{}", again.book_note);
     let _ = screen(&mut again, 100, 24);
 }
 
@@ -160,10 +157,10 @@ fn answer_first(app: &mut App) {
 fn ctrl_z_takes_back_an_answer_and_ctrl_y_does_it_again() {
     let (scratch, mut app) = swapped();
     answer_first(&mut app);
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("2"));
+    assert_eq!(app.asked_entry().as_deref(), Some("2"));
 
     ctrl(&mut app, 'z');
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("1"));
+    assert_eq!(app.asked_entry().as_deref(), Some("1"));
     assert!(app.book_note.contains("2"), "{}", app.book_note);
     ctrl(&mut app, 'k');
     assert_eq!(app.mode, Mode::Book, "the question is asked again");
@@ -172,7 +169,7 @@ fn ctrl_z_takes_back_an_answer_and_ctrl_y_does_it_again() {
     drop(app);
     let reopened = scratch.app();
     assert_eq!(
-        reopened.book_question().map(|q| q.number.as_str()),
+        reopened.asked_entry().as_deref(),
         Some("1"),
         "the register on disk has it open again"
     );
@@ -180,10 +177,10 @@ fn ctrl_z_takes_back_an_answer_and_ctrl_y_does_it_again() {
     answer_first(&mut app);
     ctrl(&mut app, 'z');
     ctrl(&mut app, 'y');
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("2"));
+    assert_eq!(app.asked_entry().as_deref(), Some("2"));
     drop(app);
     let again = scratch.app();
-    assert_eq!(again.book_question().map(|q| q.number.as_str()), Some("2"));
+    assert_eq!(again.asked_entry().as_deref(), Some("2"));
 }
 
 #[test]
@@ -196,14 +193,14 @@ fn ctrl_z_undoes_typing_after_an_answer_before_the_answer() {
 
     ctrl(&mut app, 'z');
     assert_eq!(app.text(), text, "only the typing is undone");
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("2"));
+    assert_eq!(app.asked_entry().as_deref(), Some("2"));
 
     ctrl(&mut app, 'z');
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("1"));
+    assert_eq!(app.asked_entry().as_deref(), Some("1"));
     assert_eq!(app.text(), text);
 
     ctrl(&mut app, 'y');
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("2"));
+    assert_eq!(app.asked_entry().as_deref(), Some("2"));
     ctrl(&mut app, 'y');
     assert!(app.text().ends_with("Ah"), "then the typing again");
 }
@@ -219,7 +216,7 @@ fn typing_after_an_answer_does_not_join_the_earlier_step() {
 
     ctrl(&mut app, 'z');
     assert!(app.text().trim_end().ends_with("ab"), "{}", app.text());
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("2"));
+    assert_eq!(app.asked_entry().as_deref(), Some("2"));
 }
 
 #[test]
@@ -236,7 +233,7 @@ fn ctrl_y_brings_an_answer_back_after_undoing_typing_before_it() {
     assert!(app.text().ends_with("ab"), "first the typing again");
     ctrl(&mut app, 'y');
 
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("2"));
+    assert_eq!(app.asked_entry().as_deref(), Some("2"));
 }
 
 #[test]
@@ -251,7 +248,7 @@ fn typing_after_taking_back_an_answer_drops_its_redo() {
     ctrl(&mut app, 'y');
 
     assert!(app.text().ends_with('x'), "the typing comes back");
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("1"));
+    assert_eq!(app.asked_entry().as_deref(), Some("1"));
 }
 
 #[test]
@@ -267,5 +264,5 @@ fn a_new_edit_at_the_same_depth_drops_the_answer_redo() {
 
     ctrl(&mut app, 'y');
 
-    assert_eq!(app.book_question().map(|q| q.number.as_str()), Some("1"));
+    assert_eq!(app.asked_entry().as_deref(), Some("1"));
 }

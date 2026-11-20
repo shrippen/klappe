@@ -121,7 +121,7 @@ fn an_answer_writes_only_the_places() {
         ["orte.toml".to_owned()]
     );
     let again = scratch.app();
-    assert!(again.place_question().is_none());
+    assert!(!again.asks_place());
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn an_answer_keeps_what_another_program_wrote_meanwhile() {
         file.contains("GARTEN") && file.contains("SÄNGERSAAL"),
         "{file}"
     );
-    assert!(app.place_question().is_some(), "HOF is still open");
+    assert!(app.asks_place(), "HOF is still open");
 }
 
 #[test]

@@ -27,7 +27,7 @@ TestCase {
 
     function init() {
         fake.loaded = true
-        fake.projectJson = JSON.stringify({ pending: [] })
+        fake.projectJson = JSON.stringify({ questions: [] })
     }
 
     function make() {
@@ -41,7 +41,7 @@ TestCase {
     }
 
     function test_open_questions_show_with_their_count_and_the_button_asks() {
-        fake.projectJson = JSON.stringify({ pending: [{ id: "a" }, { id: "b" }] })
+        fake.projectJson = JSON.stringify({ questions: [{ kind: "scene", key: "a" }, { kind: "scene", key: "b" }] })
         const notice = make()
         const asked = []
         notice.matchRequested.connect(() => asked.push(true))
@@ -54,13 +54,13 @@ TestCase {
     }
 
     function test_open_places_show_their_count_alone_and_after_the_scenes() {
-        fake.projectJson = JSON.stringify({ pending: [], pendingPlaces: [{ name: "HOF" }] })
+        fake.projectJson = JSON.stringify({ questions: [{ kind: "place", key: "HOF" }] })
         const notice = make()
 
         verify(notice.visible)
         compare(notice.text, "Spielorte offen: 1.")
 
-        fake.projectJson = JSON.stringify({ pending: [{ id: "a" }], pendingPlaces: [{ name: "HOF" }, { name: "KELLER" }] })
+        fake.projectJson = JSON.stringify({ questions: [{ kind: "scene", key: "a" }, { kind: "place", key: "HOF" }, { kind: "place", key: "KELLER" }] })
 
         compare(notice.text, "Szenen zuzuordnen: 1. Spielorte offen: 2.")
     }

@@ -27,7 +27,7 @@ pub enum PlaceChoice {
     Rename(String),
 }
 
-/// The location of every scene heading of the book, in book order.
+/// The place name of every scene heading of the book, in book order.
 fn heading_places(script: &Script) -> Vec<&str> {
     script
         .elements

@@ -10,8 +10,9 @@ KanteCallout {
     property var texts
     property var controller
     readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : {}
-    readonly property var pending: project.pending || []
-    readonly property var places: project.pendingPlaces || []
+    readonly property var questions: project.questions || []
+    readonly property var pending: questions.filter(q => q.kind === "scene")
+    readonly property var places: questions.filter(q => q.kind === "place")
 
     signal matchRequested()
 

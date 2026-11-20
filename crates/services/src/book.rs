@@ -50,7 +50,7 @@ pub struct BookReport {
     pub pending: usize,
     /// Entries whose scene is no longer in the book.
     pub not_in_book: usize,
-    /// Locations of the headings no scripted location is called by (DB-51).
+    /// Place names of the headings no scripted location is called by (DB-51).
     pub places: usize,
     /// Scene numbers two scenes carry that saving leaves alone (DB-33).
     pub twin_numbers: usize,
