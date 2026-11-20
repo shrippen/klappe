@@ -413,6 +413,30 @@ pub mod qobject {
         #[cxx_name = "typedCaps"]
         fn typed_caps(self: &Self, text: &QString, at: i32, pending: &QString) -> QString;
 
+        /// Every hit of `find` in `text` (DB-60) as `[[start, end], …]` in positions of the text
+        /// area; `matching` is `"match"` when case counts, else anything.
+        #[qinvokable]
+        #[cxx_name = "findInScript"]
+        fn find_in_script(
+            self: &Self,
+            text: &QString,
+            find: &QString,
+            matching: &QString,
+        ) -> QString;
+
+        /// `replacement` in place of hit `index` of `find` (all hits for -1) as `{ from, to,
+        /// text }`: put `text` in place of `from` to `to`; empty when nothing is found.
+        #[qinvokable]
+        #[cxx_name = "replaceInScript"]
+        fn replace_in_script(
+            self: &Self,
+            text: &QString,
+            find: &QString,
+            matching: &QString,
+            replacement: &QString,
+            index: i32,
+        ) -> QString;
+
         /// The screenplay's pages as they print (D-15), laid out from the session's text now:
         /// `{ fontPt, ascentPt, pages: [{ width, height, texts: [{ x, y, bold, text }] }] }`, in
         /// points from the page's top left, `y` the baseline. Scene numbers shown, no header.
@@ -1154,6 +1178,7 @@ mod qml_tests;
 mod retime;
 mod saved;
 mod script;
+mod search;
 mod selection;
 mod shots;
 mod sketch;

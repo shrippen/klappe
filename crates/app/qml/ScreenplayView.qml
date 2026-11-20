@@ -133,6 +133,7 @@ RowLayout {
         onPendingMoved: view.restyle()
     }
     readonly property alias flow: flow
+    readonly property alias search: search
     onLineLooksChanged: restyle()
 
     /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history, not the project's. A step
@@ -148,6 +149,48 @@ RowLayout {
         _replaying = true
         moveCursor(tools.item ? tools.item.redo() : -1)
         _replaying = false
+    }
+
+    /// Selects `from` to `to` and scrolls it into view (a hit of the search).
+    function showText(from, to) {
+        showLayout("flow")
+        area.select(from, to)
+        const flick = scroll.contentItem
+        const top = area.positionToRectangle(from).y
+        if (top < flick.contentY || top > flick.contentY + flick.height - metrics.height * 2) {
+            flick.contentY = Math.max(0, Math.min(top - flick.height / 3, flick.contentHeight - flick.height))
+        }
+    }
+
+    /// Puts `text` in place of `from` to `to` as one undo step; a replacement is no typing,
+    /// so it keeps its case.
+    function putText(from, to, text) {
+        _replaying = true
+        flow.replace(from, to, text)
+        _replaying = false
+    }
+
+    /// The keys of the text that are not typing: the element flow, the search, the text's undo.
+    function keyPressed(event) {
+        // The pad's Enter comes with the keypad modifier; it is a plain Enter all the same.
+        const plain = (event.modifiers & ~Qt.KeypadModifier) === Qt.NoModifier
+        const enter = event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+        if (plain && enter) {
+            event.accepted = flow.enter()
+            return
+        }
+        event.accepted = true
+        if (plain && event.key === Qt.Key_Tab) {
+            flow.tab()
+        } else if (event.matches(StandardKey.Find)) {
+            search.open()
+        } else if (event.matches(StandardKey.Undo)) {
+            undoText()
+        } else if (event.matches(StandardKey.Redo)) {
+            redoText()
+        } else {
+            event.accepted = false
+        }
     }
 
     function moveCursor(at) {
@@ -243,6 +286,20 @@ RowLayout {
         Layout.fillHeight: true
         spacing: 0
 
+        // Find and replace (DB-60), Ctrl+F in the text.
+        ScriptSearch {
+            id: search
+            objectName: "scriptSearch"
+            Layout.fillWidth: true
+            Layout.margins: Kirigami.Units.smallSpacing
+            texts: view.texts
+            controller: view.controller
+            area: area
+            showText: view.showText
+            putText: view.putText
+            onClosed: area.forceActiveFocus()
+        }
+
         // Flowing text to write in, or the pages as they print (D-15).
         KanteSegmented {
             objectName: "layoutSwitch"
@@ -318,23 +375,7 @@ RowLayout {
                     persistentSelection: true
                     Accessible.name: view.texts.t("screenplay.editor")
                     background: null
-                    Keys.onPressed: event => {
-                        // The pad's Enter comes with the keypad modifier; it is a plain Enter all the same.
-                        const plain = (event.modifiers & ~Qt.KeypadModifier) === Qt.NoModifier
-                        const enter = event.key === Qt.Key_Return || event.key === Qt.Key_Enter
-                        if (plain && enter) {
-                            event.accepted = flow.enter()
-                        } else if (plain && event.key === Qt.Key_Tab) {
-                            flow.tab()
-                            event.accepted = true
-                        } else if (event.matches(StandardKey.Undo)) {
-                            view.undoText()
-                            event.accepted = true
-                        } else if (event.matches(StandardKey.Redo)) {
-                            view.redoText()
-                            event.accepted = true
-                        }
-                    }
+                    Keys.onPressed: event => view.keyPressed(event)
                     onTextChanged: {
                         // A new look changes no text: nothing to send or set again.
                         if (view._loading || text === view._styled) {

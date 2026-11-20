@@ -62,6 +62,26 @@ TestCase {
         }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
+        // Search (DB-60) by a plain `indexOf` without case; the rules are `script/`'s, tested there.
+        function findInScript(text, find, matching) {
+            const hits = []
+            const low = text.toLowerCase(), key = find.toLowerCase()
+            for (let at = low.indexOf(key); at >= 0; at = low.indexOf(key, at + key.length)) {
+                hits.push([at, at + key.length])
+            }
+            return JSON.stringify(hits)
+        }
+        function replaceInScript(text, find, matching, replacement, index) {
+            const hits = JSON.parse(findInScript(text, find, matching))
+            const chosen = index < 0 ? hits : hits.slice(index, index + 1)
+            if (chosen.length === 0) {
+                return ""
+            }
+            const from = chosen[0][0], to = chosen[chosen.length - 1][1]
+            let out = "", at = from
+            chosen.forEach(h => { out += text.slice(at, h[0]) + replacement; at = h[1] })
+            return JSON.stringify({ from: from, to: to, text: out })
+        }
         function scriptLooks() {
             return JSON.stringify({ columns: 60, looks: {
                 "h": { kind: "heading", x: 0, width: 60, align: "left" },
@@ -477,5 +497,60 @@ TestCase {
         fake.scriptText = "INT. KELLER\n\nDunkel.\n"
 
         compare(fake.layouts, before + 1)
+    }
+
+    // DB-60: Ctrl+F opens the search; Enter walks the hits, the shown one selected.
+    function test_ctrl_f_finds_in_the_text() {
+        const view = make()
+        view.area.forceActiveFocus()
+        view.area.cursorPosition = 0
+
+        keySequence(StandardKey.Find)
+        verify(view.search.visible)
+        verify(view.search.findField.activeFocus)
+        keyClick("t")
+        keyClick("a")
+        keyClick("g")
+
+        compare(view.search.hits.length, 1)
+        compare(view.area.selectedText, "TAG")
+        compare(view.search.children.find(c => c.objectName === "hitCount").text, "1 von 1")
+    }
+
+    function test_enter_goes_to_the_next_hit_and_wraps() {
+        const view = make()
+        view.area.cursorPosition = 0
+        view.search.open()
+        keyClick("e")
+        const first = view.area.selectionStart
+
+        keyClick(Qt.Key_Return)
+        verify(view.area.selectionStart > first)
+        keyClick(Qt.Key_Return, Qt.ShiftModifier)
+        compare(view.area.selectionStart, first)
+        keyClick(Qt.Key_Return, Qt.ShiftModifier)
+        compare(view.search.current, view.search.hits.length - 1)
+    }
+
+    function test_replace_one_then_all_and_close() {
+        const view = make()
+        view.area.cursorPosition = 0
+        view.search.open()
+        view.search.findField.text = "e"
+        view.search.from(0)
+        view.search.replaceField.text = "E"
+
+        view.search.replaceOne()
+        compare(view.area.text, book.replace("Sie", "SiE"))
+        compare(view.area.selectedText.toLowerCase(), "e")
+        verify(view.area.selectionStart > book.indexOf("Sie"))
+
+        view.search.replaceAll()
+        compare(view.area.text, book.replace(/e/g, "E"))
+
+        view.search.findField.forceActiveFocus()
+        keyClick(Qt.Key_Escape)
+        verify(!view.search.visible)
+        verify(view.area.activeFocus)
     }
 }
