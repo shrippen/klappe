@@ -332,6 +332,8 @@
  "search.replaceOne": "Ersetzen",
  "search.replaceAll": "Alle ersetzen",
  "search.close": "Suche schließen",
+ "search.speaker": "Nur Dialog von",
+ "search.everyone": "Alle Figuren",
  "screenplay.empty": "Noch kein Drehbuch.",
  "screenplay.write": "Neu schreiben",
  "screenplay.scenes": "Szenen",

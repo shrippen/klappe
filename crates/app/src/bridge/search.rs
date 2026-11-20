@@ -7,7 +7,7 @@
 
 use super::{q, qobject};
 use cxx_qt_lib::QString;
-use klappe_services::{find_all, parse_located, replace_hits, Case, Hit, Query};
+use klappe_services::{find_all, parse_located, replace_hits, Case, Hit, Query, Vocabulary};
 use serde_json::json;
 
 /// How `caseMode` says case counts.
@@ -66,20 +66,33 @@ impl Lines {
     }
 }
 
-fn hits(lines: &Lines, text: &str, find: &str, case: Case) -> Vec<Hit> {
+/// The speaker filter; empty is everyone.
+fn speaker_of(speaker: &str) -> Option<&str> {
+    let speaker = speaker.trim();
+
+    (!speaker.is_empty()).then_some(speaker)
+}
+
+fn hits(lines: &Lines, text: &str, find: &str, case: Case, speaker: &str) -> Vec<Hit> {
     let query = Query {
         find,
         case,
-        speaker: None,
+        speaker: speaker_of(speaker),
     };
 
     find_all(&lines.rows, &parse_located(text), &query)
 }
 
-/// Every hit of `find` in `text` as `[[start, end], …]`.
-pub(super) fn hits_json(text: &str, find: &str, case_mode: &str) -> String {
+/// The cue names of `text`, most frequent first, as `["ANNA", …]`.
+pub(super) fn speakers_json(text: &str) -> String {
+    json!(Vocabulary::from_located(&parse_located(text)).characters()).to_string()
+}
+
+/// Every hit of `find` in `text` (only the dialogue of `speaker`, when given) as
+/// `[[start, end], …]`.
+pub(super) fn hits_json(text: &str, find: &str, case_mode: &str, speaker: &str) -> String {
     let lines = Lines::of(text);
-    let found: Vec<_> = hits(&lines, text, find, case_of(case_mode))
+    let found: Vec<_> = hits(&lines, text, find, case_of(case_mode), speaker)
         .iter()
         .map(|h| {
             json!([
@@ -98,11 +111,12 @@ pub(super) fn replace_json(
     text: &str,
     find: &str,
     case_mode: &str,
+    speaker: &str,
     replacement: &str,
     index: Option<usize>,
 ) -> String {
     let lines = Lines::of(text);
-    let all = hits(&lines, text, find, case_of(case_mode));
+    let all = hits(&lines, text, find, case_of(case_mode), speaker);
     let chosen = match index {
         Some(i) => all.get(i).map(|h| vec![*h]).unwrap_or_default(),
         None => all,
@@ -125,12 +139,18 @@ impl qobject::Controller {
         text: &QString,
         find: &QString,
         matching: &QString,
+        speaker: &QString,
     ) -> QString {
         q(&hits_json(
             &text.to_string(),
             &find.to_string(),
             &matching.to_string(),
+            &speaker.to_string(),
         ))
+    }
+
+    pub(super) fn script_speakers(&self, text: &QString) -> QString {
+        q(&speakers_json(&text.to_string()))
     }
 
     pub(super) fn replace_in_script(
@@ -138,6 +158,7 @@ impl qobject::Controller {
         text: &QString,
         find: &QString,
         matching: &QString,
+        speaker: &QString,
         replacement: &QString,
         index: i32,
     ) -> QString {
@@ -147,6 +168,7 @@ impl qobject::Controller {
             &text.to_string(),
             &find.to_string(),
             &matching.to_string(),
+            &speaker.to_string(),
             &replacement.to_string(),
             index,
         ))
@@ -155,7 +177,7 @@ impl qobject::Controller {
 
 #[cfg(test)]
 mod tests {
-    use super::{hits_json, replace_json};
+    use super::{hits_json, replace_json, speakers_json};
 
     fn parsed(json: &str) -> serde_json::Value {
         serde_json::from_str(json).unwrap()
@@ -167,11 +189,12 @@ mod tests {
             "INT. SAAL\n\nAnna sieht anna.",
             "anna",
             "ignore",
+            "",
         ));
 
         assert_eq!(v, serde_json::json!([[11, 15], [22, 26]]));
         assert_eq!(
-            parsed(&hits_json("Anna", "anna", "match")),
+            parsed(&hits_json("Anna", "anna", "match", "")),
             serde_json::json!([])
         );
     }
@@ -179,7 +202,7 @@ mod tests {
     /// The text area counts UTF-16 units: a character outside the BMP is two of them.
     #[test]
     fn positions_count_as_the_text_area_does() {
-        let v = parsed(&hits_json("🎬 Anna", "Anna", "ignore"));
+        let v = parsed(&hits_json("🎬 Anna", "Anna", "ignore", ""));
 
         assert_eq!(v, serde_json::json!([[3, 7]]));
     }
@@ -188,13 +211,38 @@ mod tests {
     fn one_hit_or_all_are_replaced() {
         let text = "INT. SAAL\n\nAnna sieht Anna.";
 
-        let one = parsed(&replace_json(text, "anna", "ignore", "Eva", Some(1)));
+        let one = parsed(&replace_json(text, "anna", "ignore", "", "Eva", Some(1)));
         assert_eq!(one["from"], 11);
         assert_eq!(one["to"], 27);
         assert_eq!(one["text"], "Anna sieht Eva.");
 
-        let all = parsed(&replace_json(text, "anna", "ignore", "Eva", None));
+        let all = parsed(&replace_json(text, "anna", "ignore", "", "Eva", None));
         assert_eq!(all["text"], "Eva sieht Eva.");
-        assert_eq!(replace_json(text, "Bert", "ignore", "Eva", None), "");
+        assert_eq!(replace_json(text, "Bert", "ignore", "", "Eva", None), "");
+    }
+
+    const DIALOGUE: &str = "ANNA\nJa, Eva.\n\nEVA\nEva ja.\n\nANNA\nNein.\n";
+
+    /// The speaker limits the hits to that cue's dialogue, without case.
+    #[test]
+    fn the_speaker_limits_hits_and_replacement() {
+        let all = parsed(&hits_json(DIALOGUE, "eva", "ignore", ""));
+        let anna = parsed(&hits_json(DIALOGUE, "eva", "ignore", "anna"));
+
+        // The cue line EVA is no dialogue: it counts without a speaker only.
+        assert_eq!(all.as_array().unwrap().len(), 3);
+        assert_eq!(anna, serde_json::json!([[9, 12]]));
+
+        let done = parsed(&replace_json(DIALOGUE, "eva", "ignore", "Anna", "X", None));
+        assert_eq!(done["text"], "Ja, X.");
+    }
+
+    #[test]
+    fn speakers_are_the_cues_most_frequent_first() {
+        assert_eq!(
+            parsed(&speakers_json(DIALOGUE)),
+            serde_json::json!(["ANNA", "EVA"])
+        );
+        assert_eq!(parsed(&speakers_json("")), serde_json::json!([]));
     }
 }

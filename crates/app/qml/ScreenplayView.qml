@@ -151,6 +151,9 @@ RowLayout {
         _replaying = false
     }
 
+    /// The share of the text's width the search card takes.
+    readonly property real searchShare: 0.6
+
     /// A hit closer than this many lines to the bottom is scrolled to; it then stands this far
     /// down the view (a third), so the lines before it show too.
     readonly property int hitMarginLines: 2
@@ -294,20 +297,6 @@ RowLayout {
         Layout.fillHeight: true
         spacing: 0
 
-        // Find and replace (DB-60), Ctrl+F in the text.
-        ScriptSearch {
-            id: search
-            objectName: "scriptSearch"
-            Layout.fillWidth: true
-            Layout.margins: Kirigami.Units.smallSpacing
-            texts: view.texts
-            controller: view.controller
-            area: area
-            showText: view.showText
-            putText: view.putText
-            onClosed: area.forceActiveFocus()
-        }
-
         // Flowing text to write in, or the pages as they print (D-15).
         KanteSegmented {
             objectName: "layoutSwitch"
@@ -323,6 +312,24 @@ RowLayout {
             Layout.fillHeight: true
 
             FontMetrics { id: metrics; font: area.font }
+
+            // Find and replace (DB-60), Ctrl+F in the view: a card over the top right of the
+            // text, so the layout switch above keeps its place.
+            ScriptSearch {
+                id: search
+                objectName: "scriptSearch"
+                z: 3
+                anchors.top: parent.top
+                anchors.right: scroll.right
+                anchors.margins: Kirigami.Units.largeSpacing
+                width: Math.max(Kirigami.Units.gridUnit * 30, scroll.width * view.searchShare)
+                texts: view.texts
+                controller: view.controller
+                area: area
+                showText: view.showText
+                putText: view.putText
+                onClosed: area.forceActiveFocus()
+            }
 
             PrintView {
                 id: printView

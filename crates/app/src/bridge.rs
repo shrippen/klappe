@@ -413,8 +413,15 @@ pub mod qobject {
         #[cxx_name = "typedCaps"]
         fn typed_caps(self: &Self, text: &QString, at: i32, pending: &QString) -> QString;
 
+        /// The cue names of `text`, most frequent first, as `["ANNA", …]` (the choices of
+        /// "only dialogue of" in the search).
+        #[qinvokable]
+        #[cxx_name = "scriptSpeakers"]
+        fn script_speakers(self: &Self, text: &QString) -> QString;
+
         /// Every hit of `find` in `text` (DB-60) as `[[start, end], …]` in positions of the text
-        /// area; `matching` is `"match"` when case counts, else anything.
+        /// area; `matching` is `"match"` when case counts, else anything; `speaker` limits the
+        /// hits to that cue's dialogue, empty for everyone.
         #[qinvokable]
         #[cxx_name = "findInScript"]
         fn find_in_script(
@@ -422,6 +429,7 @@ pub mod qobject {
             text: &QString,
             find: &QString,
             matching: &QString,
+            speaker: &QString,
         ) -> QString;
 
         /// `replacement` in place of hit `index` of `find` (all hits for -1) as `{ from, to,
@@ -433,6 +441,7 @@ pub mod qobject {
             text: &QString,
             find: &QString,
             matching: &QString,
+            speaker: &QString,
             replacement: &QString,
             index: i32,
         ) -> QString;

@@ -63,16 +63,27 @@ TestCase {
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
         // Search (DB-60) by a plain `indexOf` without case; the rules are `script/`'s, tested there.
-        function findInScript(text, find, matching) {
+        // A speaker keeps the hits below their cue: the last line in capitals above the hit.
+        function cueAt(text, at) {
+            const lines = text.slice(0, at).split("\n")
+            return lines.reverse().find(l => l !== "" && l === l.toUpperCase()) || ""
+        }
+        function scriptSpeakers(text) {
+            return JSON.stringify(speakers)
+        }
+        property var speakers: []
+        function findInScript(text, find, matching, speaker) {
             const hits = []
             const low = text.toLowerCase(), key = find.toLowerCase()
             for (let at = low.indexOf(key); at >= 0; at = low.indexOf(key, at + key.length)) {
-                hits.push([at, at + key.length])
+                if (speaker === "" || cueAt(text, at) === speaker) {
+                    hits.push([at, at + key.length])
+                }
             }
             return JSON.stringify(hits)
         }
-        function replaceInScript(text, find, matching, replacement, index) {
-            const hits = JSON.parse(findInScript(text, find, matching))
+        function replaceInScript(text, find, matching, speaker, replacement, index) {
+            const hits = JSON.parse(findInScript(text, find, matching, speaker))
             const chosen = index < 0 ? hits : hits.slice(index, index + 1)
             if (chosen.length === 0) {
                 return ""
@@ -514,7 +525,7 @@ TestCase {
 
         compare(view.search.hits.length, 1)
         compare(view.area.selectedText, "TAG")
-        compare(view.search.children.find(c => c.objectName === "hitCount").text, "1 von 1")
+        compare(findChild(view, "hitCount").text, "1 von 1")
     }
 
     function test_enter_goes_to_the_next_hit_and_wraps() {
@@ -548,7 +559,7 @@ TestCase {
         view.search.replaceAll()
         compare(view.area.text, book.replace(/e/g, "E"))
         // Without case the replacement still matches: the count, no "0 of".
-        compare(view.search.children.find(c => c.objectName === "hitCount").text, view.search.hits.length + " Treffer")
+        compare(findChild(view, "hitCount").text, view.search.hits.length + " Treffer")
 
         view.search.findField.forceActiveFocus()
         keyClick(Qt.Key_Escape)
@@ -584,5 +595,56 @@ TestCase {
         keySequence(StandardKey.Find)
 
         verify(view.search.visible)
+    }
+
+    // Placement C: the search floats over the text; opening it moves nothing.
+    function test_the_search_floats_over_the_text() {
+        const view = make()
+        const switchBar = findChild(view, "layoutSwitch")
+        const before = switchBar.mapToItem(view, 0, 0)
+
+        view.search.open()
+
+        const after = switchBar.mapToItem(view, 0, 0)
+        compare(after.x, before.x)
+        compare(after.y, before.y)
+        verify(view.search.height > 0)
+        verify(view.search.z > 0)
+        verify(view.search.width >= view.area.width * 0.5)
+        // At the top right of the text, clear of the layout switch above.
+        const box = view.search.mapToItem(view, 0, 0)
+        verify(box.y >= before.y + switchBar.height)
+        verify(box.x + view.search.width <= view.width)
+        verify(box.x > view.width / 3)
+    }
+
+    // "Nur Dialog von": the cues of the text, most frequent first, after "Alle Figuren"; the
+    // choice limits the hits, and a choice that is no longer a cue falls back to everyone.
+    function test_the_speaker_limits_the_hits() {
+        const view = make()
+        fake.speakers = ["ANNA", "EVA"]
+        fake.scriptText = "ANNA\nHallo Anna.\n\nEVA\nHallo Eva.\n"
+        view.search.open()
+        const box = findChild(view, "speakerBox")
+        compare(box.count, 3)
+        compare(box.textAt(0), "Alle Figuren")
+        compare(box.textAt(1), "ANNA")
+
+        view.search.findField.text = "hallo"
+        view.search.from(0)
+        compare(view.search.hits.length, 2)
+
+        box.currentIndex = 2
+        box.activated(2)
+        compare(view.search.speaker, "EVA")
+        compare(view.search.hits.length, 1)
+        compare(view.area.text.slice(view.area.selectionStart, view.area.selectionEnd), "Hallo")
+        verify(view.area.selectionStart > view.area.text.indexOf("EVA"))
+
+        fake.speakers = ["ANNA"]
+        view.search.open()
+        compare(box.count, 2)
+        compare(view.search.speaker, "")
+        fake.speakers = []
     }
 }

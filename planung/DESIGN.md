@@ -49,6 +49,7 @@ beiden sich unterscheiden (Werkzeugleiste, Shot-Bereich, Ebenen, Plan-Auswahl).
 | D-15 | Drehbuch-Modul | Fließtext über die ganze Breite, Elemente eingerückt, ohne Seiten; ein Schalter für das Druckbild (Seiten mit Umbrüchen wie gedruckt). |
 | D-16 | Import eines Drehbuchs | Gleicht sofort ab: die Szenen entstehen beim Import, nicht erst beim Speichern; danach ein Bericht („14 Szenen erkannt · 3 neu · 2 Fragen“) mit Knopf zu den Fragen. |
 | D-17 | Leere Flächen | Jede leere Fläche sagt, warum sie leer ist, und bietet den nächsten Schritt als Knopf (Szene ohne Plan: „Plan anlegen“; Spalte ohne Text: „Drehbuch laden …“ oder „Drehbuch öffnen“). Nichts entsteht ohne Klick. |
+| D-18 | Suchen im Drehbuch | Strg+F öffnet eine schwebende Karte oben rechts über dem Text (Suchen, Treffer, ↑ ↓, ✕; darunter Ersetzen, Alle ersetzen, Groß-/Kleinschreibung, „Nur Dialog von“); sie verschiebt nichts. Entschieden am 20.11.2026 (PR #288). |
 
 ## Werkzeuge je Modus
 
