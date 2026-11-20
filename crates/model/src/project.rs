@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::geometry::{Point, TurnedRect};
 use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
+use crate::place::capitals;
 use crate::plan::FloorPlan;
 use crate::register::{BookState, Kind, Print, SceneKey};
 use crate::saved_view::SavedView;
@@ -81,14 +82,10 @@ pub struct Character {
 }
 
 /// Whether two names are the same character name: compared as the cues over the lines are,
-/// in capitals, so two characters of one name would merge their cues. Upper case turns `ß`
-/// into `SS`, not the capital `ẞ`: both agree.
+/// in capitals (`ß` and `ẞ` agree with `SS`), so two characters of one name would merge their
+/// cues.
 pub fn same_character_name(a: &str, b: &str) -> bool {
-    capitals(a) == capitals(b)
-}
-
-fn capitals(name: &str) -> String {
-    name.trim().to_uppercase().replace('ẞ', "SS")
+    capitals(a.trim()) == capitals(b.trim())
 }
 
 /// A group has two to 999 people; one person is a figure, more would not fit the label.

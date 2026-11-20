@@ -23,8 +23,12 @@ pub fn same_place_name(a: &str, b: &str) -> bool {
 fn fold(name: &str) -> String {
     let words: Vec<&str> = name.split_whitespace().collect();
 
-    // Upper case turns `ß` into `SS`, not the capital `ẞ`.
-    words.join(" ").to_uppercase().replace('ẞ', "SS")
+    capitals(&words.join(" "))
+}
+
+/// Upper case turns `ß` into `SS`, not the capital `ẞ`: both become `SS`.
+pub(crate) fn capitals(name: &str) -> String {
+    name.to_uppercase().replace('ẞ', "SS")
 }
 
 impl Place {
