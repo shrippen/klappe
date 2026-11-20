@@ -44,11 +44,12 @@ TestCase {
             return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")
         }
         property int prints: 0
+        property string printLine: "INT. SAAL - TAG"
         // One page: a heading in bold where the PDF puts it.
         function scriptPrintJson() {
             prints += 1
             return JSON.stringify({ fontPt: 12, ascentPt: 10, pages: [
-                { width: 595, height: 842, texts: [{ x: 108, y: 82, bold: true, text: "INT. SAAL - TAG" }] }
+                { width: 595, height: 842, texts: [{ x: 108, y: 82, bold: true, text: printLine }] }
             ] })
         }
         function scriptLooks() {
@@ -83,6 +84,7 @@ TestCase {
         fake.selected = []
         fake.edits = []
         fake.prints = 0
+        fake.printLine = "INT. SAAL - TAG"
     }
 
     function make() {
@@ -369,5 +371,48 @@ TestCase {
         fake.scriptText = "INT. KELLER - NACHT\n"
 
         compare(fake.prints, 2)
+    }
+
+    // Review of PR 279: the print view is for reading. Picked with the mouse while writing, a
+    // key must not change the hidden text.
+    function test_keys_in_the_print_view_leave_the_text() {
+        const view = make()
+        view.area.forceActiveFocus()
+        const switcher = findChild(view, "layoutSwitch")
+
+        mouseClick(switcher, switcher.width * 3 / 4, switcher.height / 2)
+        keyClick(Qt.Key_Q)
+
+        compare(view.layout, "print")
+        verify(!view.area.activeFocus)
+        compare(view.area.text, book)
+    }
+
+    // "Neu schreiben" in the print view goes to the text it writes in.
+    function test_writing_shows_the_text() {
+        fake.scriptText = ""
+        const view = make()
+        view.showLayout("print")
+
+        findChild(view, "writeScreenplay").clicked()
+
+        compare(view.layout, "flow")
+        verify(view.area.activeFocus)
+    }
+
+    // Review of PR 279: 60 columns are as wide as 60 columns of the page at any size (the size
+    // of type is whole pixels; the page is scaled as a whole).
+    function test_a_line_is_as_wide_as_on_paper() {
+        fake.printLine = "x".repeat(60)
+        const view = make()
+        view.width = 700
+        view.showLayout("print")
+        tryVerify(() => findChild(view.printView, "page.0") !== null)
+        const page = findChild(view.printView, "page.0")
+        const line = findChild(page, "line.0")
+
+        const shown = line.mapToItem(page, line.contentWidth, 0).x - line.mapToItem(page, 0, 0).x
+        verify(view.printView.zoom < 1)
+        fuzzyCompare(shown, 60 * 7.2 * view.printView.zoom, 60 * 7.2 * view.printView.zoom * 0.02)
     }
 }

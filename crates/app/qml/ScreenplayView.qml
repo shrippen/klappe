@@ -70,13 +70,17 @@ RowLayout {
         flick.contentY = Math.max(0, Math.min(top, flick.contentHeight - flick.height))
     }
 
-    /// Shows `layout`; the pages are laid out from what was typed up to now.
+    /// Shows `layout`; the pages are laid out from what was typed up to now. The pages take the
+    /// keys: the hidden text must not change under them.
     function showLayout(name) {
         if (name === "print") {
             flush()
             printView.refresh()
         }
         layout = name
+        if (name === "print") {
+            printView.forceActiveFocus()
+        }
     }
 
     /// The cursor at the heading of `scene`, a row of the scene list: its `line` is the heading's
@@ -256,7 +260,10 @@ RowLayout {
                     KanteButton {
                         objectName: "writeScreenplay"
                         text: view.texts.t("screenplay.write")
-                        onClicked: area.forceActiveFocus()
+                        onClicked: {
+                        view.showLayout("flow")
+                        area.forceActiveFocus()
+                    }
                     }
                 }
             }
