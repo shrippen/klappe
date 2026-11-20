@@ -1,4 +1,4 @@
-//! The screenplay in the window: its text and outline for the editor, and the import.
+//! The screenplay in the window: its text for the editor, and the import.
 
 use super::{q, qobject};
 use crate::fileurl;
@@ -6,9 +6,9 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    enter_step, error_text, outline, tab_step, text_kinds, typed_caps, Align, EnterStep, Gap,
-    HeaderLine, ImportReport, Laid, OutlineKind, PrintFace, SceneNumbers, ScriptPrint, SheetPage,
-    Slot, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    enter_step, error_text, tab_step, text_kinds, typed_caps, Align, EnterStep, Gap, HeaderLine,
+    ImportReport, Laid, PrintFace, SceneNumbers, ScriptPrint, SheetPage, Slot, TextKind,
+    SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -104,30 +104,6 @@ pub(super) fn looks_json() -> String {
         .collect();
 
     json!({ "columns": TEXT_COLUMNS, "looks": looks, "letters": letters }).to_string()
-}
-
-/// The sections and scenes of `text` for the scene list; synopses are left out.
-pub(super) fn outline_json(text: &str) -> String {
-    let rows: Vec<_> = outline(text)
-        .into_iter()
-        .filter_map(|e| {
-            let kind = match e.kind {
-                OutlineKind::Section(_) => "section",
-                OutlineKind::Scene => "scene",
-                OutlineKind::Synopsis => return None,
-            };
-
-            Some(json!({
-                "kind": kind,
-                "depth": e.depth,
-                "line": e.line,
-                "number": e.number.unwrap_or_default(),
-                "text": e.text,
-            }))
-        })
-        .collect();
-
-    json!(rows).to_string()
 }
 
 /// The pages of the print view, as `scriptPrintJson` describes them.
@@ -263,7 +239,7 @@ impl qobject::Controller {
 
 #[cfg(test)]
 mod tests {
-    use super::{enter_json, kinds_text, looks_json, outline_json, print_json, tab_json};
+    use super::{enter_json, kinds_text, looks_json, print_json, tab_json};
 
     /// Enter at the end of a heading opens an action after a blank line; at the end of a cue
     /// the dialogue right below; in the middle of a line it is a plain break.
@@ -355,28 +331,5 @@ mod tests {
         assert_eq!(v["letters"]["blank"], " ");
         assert_eq!(v["letters"]["action"], "a");
         assert_eq!(v["letters"]["heading"], "h");
-    }
-
-    /// Sections and scenes are listed with their line; a synopsis is not.
-    #[test]
-    fn the_outline_lists_sections_and_scenes() {
-        let text = "# Akt I\n\nINT. SAAL - TAG #1#\n\n= Sie kommt an.\n\nEXT. HOF - NACHT\n";
-
-        let v: serde_json::Value = serde_json::from_str(&outline_json(text)).unwrap();
-        let rows = v.as_array().unwrap();
-
-        assert_eq!(rows.len(), 3);
-        assert_eq!(rows[0]["kind"], "section");
-        assert_eq!(rows[0]["text"], "Akt I");
-        assert_eq!(rows[1]["kind"], "scene");
-        assert_eq!(rows[1]["number"], "1");
-        assert_eq!(rows[1]["line"], 2);
-        assert_eq!(rows[2]["number"], "");
-        assert_eq!(rows[2]["line"], 6);
-    }
-
-    #[test]
-    fn no_text_is_an_empty_list() {
-        assert_eq!(outline_json(""), "[]");
     }
 }

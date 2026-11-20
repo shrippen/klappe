@@ -46,7 +46,6 @@ TestCase {
         property string projectJson: ""
         property string sceneId: ""
         property string scriptText: ""
-        property string outlineJson: "[]"
         property string locksJson: ""
         property string scriptJson: JSON.stringify([
             { kind: "scene", text: "INNEN. BURGHOF – TAG", current: false, chips: [] },
@@ -356,7 +355,7 @@ TestCase {
 
     // D-17: the script's empty column reaches the window through the workspace.
     function test_the_empty_script_column_asks_the_window() {
-        fake.projectJson = JSON.stringify({ scenes: [{ id: "s15", number: "15", heading: "INT. HOF - TAG" }],
+        fake.projectJson = JSON.stringify({ scenes: [{ id: "s15", number: "15", heading: "INT. HOF - TAG", inBook: false }],
                                             plans: [{ id: "plan-a", name: "Plan A", shots: 0 }], plan: "plan-a" })
         fake.sceneId = "s15"
         const keptScript = fake.scriptJson
@@ -369,7 +368,6 @@ TestCase {
         compare(imports.count, 1)
 
         fake.scriptText = "INT. HOF - TAG #1#\n"
-        fake.outlineJson = JSON.stringify([{ kind: "scene", depth: 1, line: 0, number: "1", text: "INT. HOF - TAG" }])
         tryVerify(() => findChild(work, "openScreenplay").visible)
         findChild(work, "openScreenplay").clicked()
         compare(opens.count, 1)
@@ -378,7 +376,6 @@ TestCase {
         fake.projectJson = ""
         fake.sceneId = ""
         fake.scriptText = ""
-        fake.outlineJson = "[]"
     }
 
     Component {

@@ -16,9 +16,6 @@ TestCase {
         id: fake
         property string status: ""
         property string scriptText: "INT. SÄNGERSAAL – TAG #12#\n"
-        property string outlineJson: JSON.stringify([
-            { kind: "scene", depth: 1, line: 0, number: "12", text: "INT. SÄNGERSAAL – TAG" }
-        ])
         property var asked: []
         // Replaces the character's scenes when set.
         property string noScenes: ""
@@ -61,7 +58,7 @@ TestCase {
             height: 500
             texts: de
             controller: fake
-            scene: { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG" }
+            scene: { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG", "inBook": true }
             lines: [
                 { kind: "action", text: "Elisabeth tritt ein.", current: false, character: "",
                   chips: [{ kind: "mark", text: "E · M2", target: "elisabeth", index: 1, label: "purple", at_s: 6 }] },
@@ -75,9 +72,6 @@ TestCase {
         fake.asked = []
         fake.noScenes = ""
         fake.scriptText = "INT. SÄNGERSAAL – TAG #12#\n"
-        fake.outlineJson = JSON.stringify([
-            { kind: "scene", depth: 1, line: 0, number: "12", text: "INT. SÄNGERSAAL – TAG" }
-        ])
     }
 
     function make() {
@@ -230,7 +224,6 @@ TestCase {
 
     function test_without_a_screenplay_it_offers_to_load_one() {
         fake.scriptText = ""
-        fake.outlineJson = "[]"
         const panel = makeEmpty()
 
         compare(findChild(panel, "emptyReason").text, "Noch kein Drehbuch.")
@@ -241,16 +234,42 @@ TestCase {
     }
 
     function test_a_missing_number_offers_to_open_the_screenplay() {
-        fake.outlineJson = JSON.stringify([
-            { kind: "scene", depth: 1, line: 0, number: "1", text: "INT. HOF - TAG" }
-        ])
+        fake.scriptText = "INT. HOF – NACHT #1#\n"
         const panel = makeEmpty()
+        panel.scene = { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG", "inBook": false }
 
         compare(findChild(panel, "emptyReason").text, "Keine Szene im Drehbuch trägt die Nummer 12.")
         verify(!findChild(panel, "loadScreenplay").visible)
         findChild(panel, "openScreenplay").clicked()
         compare(screenplays.count, 1)
         compare(imports.count, 0)
+    }
+
+    // The register and the book decide (`inBook`), not the number.
+    function test_a_scene_in_the_book_is_not_judged_by_its_number() {
+        // The book writes no number: a search by number would find nothing.
+        fake.scriptText = "INT. SÄNGERSAAL – TAG\n"
+        const panel = makeEmpty()
+
+        compare(findChild(panel, "emptyReason").text, "Zu dieser Szene gibt es keinen Drehbuchtext.")
+        verify(!findChild(panel, "openScreenplay").visible)
+    }
+
+    function test_a_scene_out_of_the_book_is_explained_although_its_number_is_in_the_text() {
+        fake.scriptText = "INT. SÄNGERSAAL – TAG #12#\n"
+        const panel = makeEmpty()
+        panel.scene = { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG", "inBook": false }
+
+        compare(findChild(panel, "emptyReason").text, "Keine Szene im Drehbuch trägt die Nummer 12.")
+        verify(findChild(panel, "openScreenplay").visible)
+    }
+
+    function test_an_unnumbered_scene_out_of_the_book_is_explained() {
+        const panel = makeEmpty()
+        panel.scene = { "id": "m4djbtj6", "number": "", "heading": "INT. SÄNGERSAAL – TAG", "inBook": false }
+
+        compare(findChild(panel, "emptyReason").text, "Diese Szene steht nicht im Drehbuch.")
+        verify(findChild(panel, "openScreenplay").visible)
     }
 
     function test_a_scene_in_the_screenplay_without_lines_keeps_the_plain_text() {
