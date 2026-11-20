@@ -70,10 +70,10 @@ pub use plan::{
     FloorPlan, Light, LightKind, LinkTarget, Mark, Pose, Rig, ScriptLink, Sensor,
 };
 pub use project::{
-    is_figure_size_m, is_image_opacity, is_opening_width_m, Background, Character, DoorSide,
-    FigureColor, Hinge, Location, Note, Opening, OpeningKind, PlanImage, Project, Scene, SetObject,
-    SetPlan, Wall, IMAGE_WIDTH_M, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M, MIN_GROUP,
-    MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
+    is_figure_size_m, is_image_opacity, is_opening_width_m, same_character_name, Background,
+    Character, DoorSide, FigureColor, Hinge, Location, Note, Opening, OpeningKind, PlanImage,
+    Project, Scene, SetObject, SetPlan, Wall, IMAGE_WIDTH_M, MAX_FIGURE_M, MAX_GROUP, MIN_FIGURE_M,
+    MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
 pub use register::{id_from_seed, random_id, BookState, Kind, LockedNumber, Print, SceneKey};
 pub use saved_view::SavedView;

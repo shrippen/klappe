@@ -7,7 +7,7 @@ use klappe_model::{
 };
 use klappe_store::{builtin_templates, check_template};
 
-use super::{add_character, name_of, slug, unique_id, ProjectEdit};
+use super::{add_character, free_character_name, name_of, slug, unique_id, Numbered, ProjectEdit};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::plan_edit::free_letter;
@@ -77,7 +77,8 @@ pub(crate) fn place(
         let character = match free {
             Some(character) => character.id.clone(),
             None => {
-                let name = free_name(project, &figure.slot);
+                let name =
+                    free_character_name(&project.characters, &figure.slot, Numbered::WhenTaken);
                 new_character(project, &name)?
             }
         };
@@ -159,26 +160,6 @@ fn moved_camera(mark: &CameraMark, by: Point) -> CameraMark {
         via: mark.via.iter().map(|via| moved(*via, by)).collect(),
         ..mark.clone()
     }
-}
-
-/// `base`, or `base 2`, `base 3` … when a character has that name; compared in capitals, as
-/// the cues are.
-fn free_name(project: &Project, base: &str) -> String {
-    let taken = |name: &str| {
-        project
-            .characters
-            .iter()
-            .any(|c| c.name.to_uppercase() == name.to_uppercase())
-    };
-
-    let mut name = base.to_owned();
-    let mut n = 1;
-    while taken(&name) {
-        n += 1;
-        name = format!("{base} {n}");
-    }
-
-    name
 }
 
 /// Files the figures and cameras of the plan `plan` of the scene `scene` under `name` in the

@@ -3,7 +3,7 @@
 //! (`ELISABETH`). Action and dialogue text is not searched: a name in a sentence may be
 //! meant differently.
 
-use klappe_model::{Character, Project, Scene};
+use klappe_model::{same_character_name, Character, Project, Scene};
 use klappe_script::{parse, parse_located, Element, Located};
 use serde::Serialize;
 
@@ -135,7 +135,7 @@ pub(crate) fn names(element: &Element, name: &str) -> bool {
         return false;
     };
 
-    cue.to_uppercase() == name.trim().to_uppercase()
+    same_character_name(cue, name)
 }
 
 /// The elements after the heading numbered `number`, up to the next heading.

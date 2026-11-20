@@ -2,7 +2,9 @@
 
 use klappe_model::Character;
 
-use super::{slug, unique_id, CHARACTER_ID_FALLBACK, MAX_SHORT_CHARS};
+use super::{
+    free_character_name, slug, unique_id, Numbered, CHARACTER_ID_FALLBACK, MAX_SHORT_CHARS,
+};
 use crate::error::ServiceError;
 
 /// Numbers tried for a short code: `A2` … `A999`; more would not fit the label.
@@ -20,7 +22,7 @@ pub(crate) fn copy_character(
         .cloned()
         .ok_or_else(|| ServiceError::NoCharacter(id.to_owned()))?;
 
-    let name = numbered(characters, stem_of(&origin.name));
+    let name = free_character_name(characters, stem_of(&origin.name), Numbered::Always);
     let new_id = unique_id(
         &slug(&name, CHARACTER_ID_FALLBACK),
         characters.iter().map(|c| c.id.as_str()),
@@ -49,21 +51,6 @@ fn stem_of(name: &str) -> &str {
         }
         _ => name,
     }
-}
-
-/// `stem 2`, `stem 3` … the first name no character has; compared in capitals, as the cues
-/// are. A copy always carries a number.
-fn numbered(characters: &[Character], stem: &str) -> String {
-    let taken = |name: &str| {
-        characters
-            .iter()
-            .any(|c| c.name.to_uppercase() == name.to_uppercase())
-    };
-
-    (2..)
-        .map(|n| format!("{stem} {n}"))
-        .find(|name| !taken(name))
-        .unwrap_or_default()
 }
 
 /// `text` without the digits a copy added: `A2` → `A`. A text that is
