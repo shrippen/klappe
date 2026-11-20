@@ -46,7 +46,6 @@ TestCase {
         property string projectJson: ""
         property string sceneId: ""
         property string scriptText: ""
-        property string outlineJson: "[]"
         property string locksJson: ""
         property string scriptJson: JSON.stringify([
             { kind: "scene", text: "INNEN. BURGHOF – TAG", current: false, chips: [] },
@@ -369,7 +368,6 @@ TestCase {
         compare(imports.count, 1)
 
         fake.scriptText = "INT. HOF - TAG #1#\n"
-        fake.outlineJson = JSON.stringify([{ kind: "scene", depth: 1, line: 0, number: "1", text: "INT. HOF - TAG" }])
         tryVerify(() => findChild(work, "openScreenplay").visible)
         findChild(work, "openScreenplay").clicked()
         compare(opens.count, 1)
@@ -378,7 +376,6 @@ TestCase {
         fake.projectJson = ""
         fake.sceneId = ""
         fake.scriptText = ""
-        fake.outlineJson = "[]"
     }
 
     Component {

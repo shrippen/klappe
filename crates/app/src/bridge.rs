@@ -39,9 +39,6 @@ pub mod qobject {
         /// The whole screenplay as Fountain text, for the editor of the screenplay view; change
         /// it with `editScript`.
         #[qproperty(QString, script_text, cxx_name = "scriptText")]
-        /// `[{ kind: "section" | "scene", depth, line, number, text }]`: the sections and scenes
-        /// of the screenplay in order; `line` counts from 0.
-        #[qproperty(QString, outline_json, cxx_name = "outlineJson")]
         /// `{ set, figures, cameras, lights, notes, drawings }`: true when shown.
         #[qproperty(QString, layers_json, cxx_name = "layersJson")]
         /// `{ set, figures, cameras, lights, notes, drawings }`: true when locked.

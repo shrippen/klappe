@@ -3,8 +3,8 @@ import io.github.shrippen.klappe
 import "lib"
 
 // E-09: the screenplay as text in the window. `editScript` replaces the text, which stays
-// unsaved, and the outline follows. `importScript` takes a Fountain file; a file that is not
-// text or not there changes nothing and says so in the status line.
+// unsaved. `importScript` takes a Fountain file; a file that is not text or not there changes
+// nothing and says so in the status line.
 Item {
     Watchdog {}
     Controller { id: ctl }
@@ -14,8 +14,9 @@ Item {
         Qt.exit(1)
     }
 
-    function titles() {
-        return JSON.parse(ctl.outlineJson).map(e => e.kind + ":" + e.text)
+    // The text line of each scene whose heading the text holds, in order.
+    function lines() {
+        return JSON.parse(ctl.projectJson).scenes.map(e => e.line).filter(l => l !== null)
     }
 
     Timer {
@@ -28,8 +29,8 @@ Item {
             }
 
             const original = ctl.scriptText
-            const originalTitles = titles()
-            if (original === "" || originalTitles.length === 0 || ctl.dirty) {
+            const originalLines = lines()
+            if (original === "" || originalLines.length === 0 || ctl.dirty) {
                 return fail("the example has a screenplay, saved: " + original.length + " " + ctl.dirty)
             }
 
@@ -38,15 +39,6 @@ Item {
             if (ctl.scriptText !== typed || !ctl.dirty) {
                 return fail("the typed text must be the screenplay and unsaved")
             }
-            const found = titles()
-            if (JSON.stringify(found) !== JSON.stringify(["section:Akt", "scene:INT. KELLER - NACHT", "scene:EXT. HOF - TAG"])) {
-                return fail("the outline did not follow the text: " + found)
-            }
-            const lines = JSON.parse(ctl.outlineJson).map(e => e.line)
-            if (JSON.stringify(lines) !== JSON.stringify([0, 2, 6])) {
-                return fail("the lines of the outline: " + lines)
-            }
-
             // The same text again changes nothing.
             ctl.editScript(typed)
             if (ctl.scriptText !== typed) {
@@ -65,14 +57,14 @@ Item {
             if (!ctl.importScript(example + "/drehbuch.fountain")) {
                 return fail("the file was refused: " + ctl.status)
             }
-            if (ctl.scriptText !== original || JSON.stringify(titles()) !== JSON.stringify(originalTitles)) {
+            if (ctl.scriptText !== original || JSON.stringify(lines()) !== JSON.stringify(originalLines)) {
                 return fail("the import did not replace the text")
             }
             if (ctl.status === "") {
                 return fail("an import says so in the status line")
             }
             const report = JSON.parse(ctl.importReport)
-            if (report.scenes !== originalTitles.filter(t => t.startsWith("scene:")).length || report.created !== 0) {
+            if (report.scenes !== originalLines.length || report.created !== 0) {
                 return fail("the import report: " + ctl.importReport)
             }
             Qt.exit(0)
