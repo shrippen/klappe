@@ -68,7 +68,7 @@ fn own_text(language: Language, error: &ServiceError) -> String {
         ServiceError::BadValue { field, value } => return bad_value(language, field, value),
         ServiceError::Store(e) => store_text(language, e),
         ServiceError::Export(e) => (export_key(e), e.to_string()),
-        // The path and the system's reason, e.g. "/a/b.pdf: No such file or directory".
+        // The path and why the system refused, e.g. "/a/b.pdf: Datei fehlt".
         ServiceError::Write { path, source } => (
             "error.write",
             format!("{}: {}", path.display(), io_reason(language, source)),
@@ -80,7 +80,8 @@ fn own_text(language: Language, error: &ServiceError) -> String {
 }
 
 /// A store error: a merge conflict and the format versions have their own text, naming the
-/// file; a missing or locked file says so in the language; the rest says what the store says.
+/// file; a missing file or one without permission says so in the language; the rest says
+/// what the store says.
 fn store_text(language: Language, error: &klappe_store::StoreError) -> (&'static str, String) {
     use klappe_store::StoreError;
 
@@ -92,12 +93,8 @@ fn store_text(language: Language, error: &klappe_store::StoreError) -> (&'static
             "error.store",
             format!("{}: {}", path.display(), io_reason(language, source)),
         ),
-        StoreError::NewerFormat { path, found, .. } => {
-            ("error.newerFormat", format!("{} ({found})", path.display()))
-        }
-        StoreError::OlderFormat { path, found, .. } => {
-            ("error.olderFormat", format!("{} ({found})", path.display()))
-        }
+        StoreError::NewerFormat { path, .. } => ("error.newerFormat", path.display().to_string()),
+        StoreError::OlderFormat { path, .. } => ("error.olderFormat", path.display().to_string()),
         other => ("error.store", other.to_string()),
     }
 }
