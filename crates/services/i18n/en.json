@@ -320,6 +320,7 @@
  "script.reportAsk": "Answer questions",
  "script.noBook": "No screenplay yet.",
  "script.noNumber": "No scene in the screenplay has the number {number}.",
+ "script.notInBook": "This scene is not in the screenplay.",
  "script.open": "Open screenplay",
  "search.find": "Find",
  "search.replace": "Replace with",

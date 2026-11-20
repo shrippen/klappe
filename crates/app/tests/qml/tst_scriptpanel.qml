@@ -61,7 +61,7 @@ TestCase {
             height: 500
             texts: de
             controller: fake
-            scene: { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG" }
+            scene: { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG", "inBook": true }
             lines: [
                 { kind: "action", text: "Elisabeth tritt ein.", current: false, character: "",
                   chips: [{ kind: "mark", text: "E · M2", target: "elisabeth", index: 1, label: "purple", at_s: 6 }] },
@@ -245,12 +245,40 @@ TestCase {
             { kind: "scene", depth: 1, line: 0, number: "1", text: "INT. HOF - TAG" }
         ])
         const panel = makeEmpty()
+        panel.scene = { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG", "inBook": false }
 
         compare(findChild(panel, "emptyReason").text, "Keine Szene im Drehbuch trägt die Nummer 12.")
         verify(!findChild(panel, "loadScreenplay").visible)
         findChild(panel, "openScreenplay").clicked()
         compare(screenplays.count, 1)
         compare(imports.count, 0)
+    }
+
+    // The register and the book decide (`inBook`), not the number in the outline.
+    function test_a_scene_in_the_book_is_not_judged_by_its_number() {
+        fake.outlineJson = JSON.stringify([
+            { kind: "scene", depth: 1, line: 0, number: "", text: "INT. SÄNGERSAAL – TAG" }
+        ])
+        const panel = makeEmpty()
+
+        compare(findChild(panel, "emptyReason").text, "Zu dieser Szene gibt es keinen Drehbuchtext.")
+        verify(!findChild(panel, "openScreenplay").visible)
+    }
+
+    function test_a_scene_out_of_the_book_is_explained_although_its_number_is_in_the_outline() {
+        const panel = makeEmpty()
+        panel.scene = { "id": "m4djbtj6", "number": "12", "heading": "INT. SÄNGERSAAL – TAG", "inBook": false }
+
+        compare(findChild(panel, "emptyReason").text, "Keine Szene im Drehbuch trägt die Nummer 12.")
+        verify(findChild(panel, "openScreenplay").visible)
+    }
+
+    function test_an_unnumbered_scene_out_of_the_book_is_explained() {
+        const panel = makeEmpty()
+        panel.scene = { "id": "m4djbtj6", "number": "", "heading": "INT. SÄNGERSAAL – TAG", "inBook": false }
+
+        compare(findChild(panel, "emptyReason").text, "Diese Szene steht nicht im Drehbuch.")
+        verify(findChild(panel, "openScreenplay").visible)
     }
 
     function test_a_scene_in_the_screenplay_without_lines_keeps_the_plain_text() {

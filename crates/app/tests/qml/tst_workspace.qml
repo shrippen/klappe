@@ -356,7 +356,7 @@ TestCase {
 
     // D-17: the script's empty column reaches the window through the workspace.
     function test_the_empty_script_column_asks_the_window() {
-        fake.projectJson = JSON.stringify({ scenes: [{ id: "s15", number: "15", heading: "INT. HOF - TAG" }],
+        fake.projectJson = JSON.stringify({ scenes: [{ id: "s15", number: "15", heading: "INT. HOF - TAG", inBook: false }],
                                             plans: [{ id: "plan-a", name: "Plan A", shots: 0 }], plan: "plan-a" })
         fake.sceneId = "s15"
         const keptScript = fake.scriptJson

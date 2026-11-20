@@ -30,8 +30,9 @@ Item {
     signal importRequested()
     signal screenplayRequested()
 
-    // Why the column is empty (D-17): "book" no screenplay at all, "number" none of its scenes
-    // carries this scene's number, "" otherwise (the scene is there, without text).
+    // Why the column is empty (D-17): "book" no screenplay at all, "number" the book does not hold
+    // the scene (its row's `inBook`, never a search by number), "" otherwise (the scene is there,
+    // without text).
     readonly property string emptyCause: {
         if (lines.length > 0 || scene === null) {
             return ""
@@ -39,9 +40,7 @@ Item {
         if ((controller.scriptText || "").trim() === "") {
             return "book"
         }
-        const outline = controller.outlineJson ? JSON.parse(controller.outlineJson) : []
-        const found = outline.some(e => e.kind === "scene" && e.number === scene.number)
-        return scene.number !== "" && !found ? "number" : ""
+        return scene.inBook === false ? "number" : ""
     }
 
     // The line `index` in view, the arrow keys' current line, with the focus on the list.
@@ -126,7 +125,9 @@ Item {
             wrapMode: Text.Wrap
             color: KanteStyle.mutedTextColor
             text: panel.emptyCause === "book" ? panel.texts.t("script.noBook")
-                : panel.emptyCause === "number" ? panel.texts.t("script.noNumber", { number: panel.scene.number })
+                : panel.emptyCause === "number" ? (panel.scene.number !== ""
+                    ? panel.texts.t("script.noNumber", { number: panel.scene.number })
+                    : panel.texts.t("script.notInBook"))
                 : panel.texts.t("script.empty")
         }
         KanteButton {

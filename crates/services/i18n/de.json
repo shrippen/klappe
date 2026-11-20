@@ -320,6 +320,7 @@
  "script.reportAsk": "Fragen beantworten",
  "script.noBook": "Noch kein Drehbuch.",
  "script.noNumber": "Keine Szene im Drehbuch trägt die Nummer {number}.",
+ "script.notInBook": "Diese Szene steht nicht im Drehbuch.",
  "script.open": "Drehbuch öffnen",
  "search.find": "Suchen",
  "search.replace": "Ersetzen durch",
