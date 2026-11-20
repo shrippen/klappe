@@ -296,6 +296,7 @@ fn resolving_assigns_the_scene_in_one_undo_step() {
     assert_eq!(s.undo_step(), Some("ResolveScene"));
 
     s.undo();
+    assert!(s.redo_is_answer());
 
     assert_eq!(scene(&s, "bbbb").heading, HOF);
     assert_eq!(s.pending_scenes().len(), 1);

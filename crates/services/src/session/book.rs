@@ -66,6 +66,11 @@ impl Session {
         self.undo_step() == Some(RESOLVE_STEP)
     }
 
+    /// Whether redo would do an answer again, as `undo_is_answer`.
+    pub fn redo_is_answer(&self) -> bool {
+        self.redo_step() == Some(RESOLVE_STEP)
+    }
+
     /// What there is to say about the book and the register: for the status line.
     pub fn book_report(&self) -> BookReport {
         let not_in_book = self
