@@ -342,13 +342,13 @@ fn the_questions_come_worded_and_are_answered_by_position() {
 }
 
 /// Review of PR 295: the window words the questions at every refresh (each frame of playback),
-/// so wording many is cheap. 80 open place names, worded 10 times, stay well under a frame
-/// budget per wording even in a debug build.
+/// so wording many is cheap. 80 open place names take about 10 ms per wording in a debug
+/// build here and took 400 ms before; the bound leaves room for a slow CI runner.
 #[test]
 fn many_questions_are_worded_fast() {
     const PLACES: usize = 80;
     const ROUNDS: u32 = 10;
-    const BUDGET_PER_ROUND: std::time::Duration = std::time::Duration::from_millis(40);
+    const BUDGET_PER_ROUND: std::time::Duration = std::time::Duration::from_millis(150);
 
     let book: String = (0..PLACES)
         .map(|i| format!("INT. ORT {i} - TAG\n\nEtwas.\n\n"))
