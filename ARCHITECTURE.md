@@ -122,7 +122,7 @@ A change that needs more places than listed is a finding for the audit.
 
 ## Known deviations
 
-- The window's screenplay editor (`ScreenplayView.qml`) is a rough first version: the whole
-  Fountain text in one text area, with the project's scene list (`SceneList.qml`) beside it. It has no element formatting, no
-  Enter and Tab flow, no suggestions and no search; the terminal editor is the full one
-  (`planung/STAND.md`). The window's editor keeps the text area's own undo, not the session's.
+- The window's screenplay editor (`ScreenplayView.qml`) lacks what the terminal editor has:
+  suggestions, the title page form, folding the outline and moving scenes, and page breaks in the
+  flowing text (`planung/STAND.md`). Its undo is the editor's own text history
+  (`scripthistory.h`), not the session's.
