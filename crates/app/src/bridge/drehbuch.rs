@@ -37,33 +37,14 @@ fn letter(kind: TextKind) -> char {
         .map_or(' ', |(_, letter, _)| *letter)
 }
 
-/// The slots of the element flow and their letters, as `KINDS` names the kinds.
-const SLOTS: [(Slot, TextKind); 6] = [
-    (Slot::Heading, TextKind::Heading),
-    (Slot::Action, TextKind::Action),
-    (Slot::Character, TextKind::Character),
-    (Slot::Parenthetical, TextKind::Parenthetical),
-    (Slot::Dialogue, TextKind::Dialogue),
-    (Slot::Transition, TextKind::Transition),
-];
-
 fn slot_of(letter: &str) -> Option<Slot> {
     let first = letter.chars().next()?;
-    let kind = KINDS.iter().find(|(_, l, _)| *l == first)?.0;
 
-    SLOTS
-        .iter()
-        .find(|(_, k)| *k == kind)
-        .map(|(slot, _)| *slot)
+    KINDS.iter().find(|(_, l, _)| *l == first)?.0.slot()
 }
 
 fn slot_letter(slot: Slot) -> String {
-    let kind = SLOTS
-        .iter()
-        .find(|(s, _)| *s == slot)
-        .map_or(TextKind::Action, |(_, k)| *k);
-
-    letter(kind).to_string()
+    letter(TextKind::of_slot(slot)).to_string()
 }
 
 /// What Enter does, as `enterStep` describes it.
@@ -97,7 +78,8 @@ pub(super) fn kinds_text(text: &str) -> String {
     text_kinds(text).into_iter().map(letter).collect()
 }
 
-/// Every letter of `kinds_text` with its kind and the columns the page sets it in.
+/// Every letter of `kinds_text` with its kind and the columns the page sets it in, and the
+/// letter of each kind by its name (`letters`).
 pub(super) fn looks_json() -> String {
     let looks: Map<String, Value> = KINDS
         .iter()
@@ -116,7 +98,12 @@ pub(super) fn looks_json() -> String {
         })
         .collect();
 
-    json!({ "columns": TEXT_COLUMNS, "looks": looks }).to_string()
+    let letters: Map<String, Value> = KINDS
+        .iter()
+        .map(|(_, letter, name)| (name.to_string(), json!(letter.to_string())))
+        .collect();
+
+    json!({ "columns": TEXT_COLUMNS, "looks": looks, "letters": letters }).to_string()
 }
 
 /// The sections and scenes of `text` for the scene list; synopses are left out.
@@ -295,6 +282,29 @@ mod tests {
         assert_eq!(middle["step"], "break");
     }
 
+    /// Only the six elements of the flow take part: Enter leaves the others alone, Tab
+    /// counts them as action, and each flow element comes back as its own letter.
+    #[test]
+    fn the_flow_knows_six_letters() {
+        let json = |s: String| -> serde_json::Value { serde_json::from_str(&s).unwrap() };
+        let end = |line: &str, kind: &str| json(enter_json(line, line.chars().count(), kind, None));
+
+        for letter in ["m", "t", " ", "s", "y", "n", "b", "l", "x", ""] {
+            assert_eq!(end("Text", letter)["step"], "break", "Enter on {letter:?}");
+            assert_eq!(json(tab_json("", letter))["kind"], "c", "Tab on {letter:?}");
+        }
+        assert_eq!(tab_json("", "h"), "");
+        assert_eq!(tab_json("", "r"), "");
+        assert_eq!(end("Text", "r")["kind"], "h");
+        assert_eq!(end("Text", "d")["kind"], "a");
+        assert_eq!(end("Text", "a")["kind"], "a");
+        assert_eq!(end("(leise)", "p")["kind"], "d");
+        assert_eq!(json(tab_json("", "p"))["kind"], "d");
+        assert_eq!(json(tab_json("", "d"))["kind"], "p");
+        assert_eq!(json(tab_json("", "a"))["kind"], "c");
+        assert_eq!(json(tab_json("", "c"))["kind"], "a");
+    }
+
     /// Tab turns an empty action line into a cue, an empty dialogue into `()`.
     #[test]
     fn tab_turns_an_empty_line() {
@@ -342,6 +352,9 @@ mod tests {
         assert_eq!(v["looks"]["c"]["x"], 22);
         assert_eq!(v["looks"]["r"]["align"], "right");
         assert!(v["looks"]["s"].get("x").is_none());
+        assert_eq!(v["letters"]["blank"], " ");
+        assert_eq!(v["letters"]["action"], "a");
+        assert_eq!(v["letters"]["heading"], "h");
     }
 
     /// Sections and scenes are listed with their line; a synopsis is not.

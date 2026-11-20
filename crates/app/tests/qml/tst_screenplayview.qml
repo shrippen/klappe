@@ -100,7 +100,7 @@ TestCase {
                 "c": { kind: "character", x: 22, width: 38, align: "left" },
                 "r": { kind: "transition", x: 0, width: 60, align: "right" },
                 "n": { kind: "note" }
-            } })
+            }, letters: { blank: " ", heading: "h", action: "a" } })
         }
     }
 

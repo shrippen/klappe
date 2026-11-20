@@ -8,7 +8,7 @@
 //!     Ihr kommt spät.   Dialogue
 //! ```
 
-use crate::{parse_located, title_page_lines, Element, PageKind};
+use crate::{parse_located, title_page_lines, Element, Located, PageKind, Slot};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextKind {
@@ -50,6 +50,31 @@ impl TextKind {
         }
     }
 
+    /// The element the line is for Enter and Tab; `None` for those outside the flow.
+    pub fn slot(self) -> Option<Slot> {
+        match self {
+            TextKind::Heading => Some(Slot::Heading),
+            TextKind::Action => Some(Slot::Action),
+            TextKind::Character => Some(Slot::Character),
+            TextKind::Parenthetical => Some(Slot::Parenthetical),
+            TextKind::Dialogue => Some(Slot::Dialogue),
+            TextKind::Transition => Some(Slot::Transition),
+            _ => None,
+        }
+    }
+
+    /// The kind of line an element of the flow is.
+    pub fn of_slot(slot: Slot) -> Self {
+        match slot {
+            Slot::Heading => TextKind::Heading,
+            Slot::Action => TextKind::Action,
+            Slot::Character => TextKind::Character,
+            Slot::Parenthetical => TextKind::Parenthetical,
+            Slot::Dialogue => TextKind::Dialogue,
+            Slot::Transition => TextKind::Transition,
+        }
+    }
+
     fn of(element: &Element) -> Self {
         match element {
             Element::SceneHeading { .. } => TextKind::Heading,
@@ -68,9 +93,14 @@ impl TextKind {
     }
 }
 
-/// The kind of every line of `text` (split at `\n`). The reader says which lines each
-/// element stands on; a line of no element (a boneyard) is action, or blank when empty.
+/// The kind of every line of `text` (split at `\n`).
 pub fn text_kinds(text: &str) -> Vec<TextKind> {
+    located_kinds(text, &parse_located(text))
+}
+
+/// `text_kinds` for a text already read as `located`. The reader says which lines each
+/// element stands on; a line of no element (a boneyard) is action, or blank when empty.
+pub fn located_kinds(text: &str, located: &[Located]) -> Vec<TextKind> {
     let mut kinds: Vec<TextKind> = text
         .split('\n')
         .map(|line| match line.trim().is_empty() {
@@ -79,9 +109,9 @@ pub fn text_kinds(text: &str) -> Vec<TextKind> {
         })
         .collect();
 
-    for located in parse_located(text) {
-        let kind = TextKind::of(&located.element);
-        for &at in &located.lines {
+    for item in located {
+        let kind = TextKind::of(&item.element);
+        for &at in &item.lines {
             if let Some(slot) = kinds.get_mut(at) {
                 *slot = kind;
             }
@@ -150,5 +180,28 @@ mod tests {
     #[test]
     fn an_empty_text_is_one_blank_line() {
         assert_eq!(text_kinds(""), [TextKind::Blank]);
+    }
+
+    /// The terminal and the window take the role of a line from here.
+    #[test]
+    fn a_kind_and_its_slot_go_both_ways() {
+        use TextKind::*;
+
+        for kind in [
+            Heading,
+            Action,
+            Character,
+            Parenthetical,
+            Dialogue,
+            Transition,
+        ] {
+            let slot = kind.slot().expect("part of the flow");
+            assert_eq!(TextKind::of_slot(slot), kind);
+        }
+
+        let outside = [
+            Blank, Centered, Section, Synopsis, Note, PageBreak, Lyrics, Title,
+        ];
+        assert!(outside.iter().all(|k| k.slot().is_none()));
     }
 }

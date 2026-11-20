@@ -99,7 +99,9 @@ pub use klappe_script::{
 
 // The kind of each text line and the columns the page sets it in (D-15), for an editor that
 // indents the elements like the page.
-pub use klappe_script::{text_kinds, Align, Margin, PageKind, TextKind, TEXT_COLUMNS};
+pub use klappe_script::{
+    located_kinds, text_kinds, Align, Margin, PageKind, TextKind, TEXT_COLUMNS,
+};
 
 // The outline of a screenplay (DB-20, DB-21): the tree, what a filter or a collapsed
 // section leaves, and moving a scene or a section.
