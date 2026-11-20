@@ -552,3 +552,37 @@ fn a_new_location_id_differs_from_others_in_more_than_case() {
     s.save().unwrap();
     assert_eq!(s.autosave().unwrap(), klappe_services::Autosave::Clean);
 }
+
+#[test]
+fn a_blank_project_takes_the_first_free_number() {
+    let folder = scratch("blank-numbers");
+
+    let german = Session::create_blank(&folder, Language::German).unwrap();
+    let english = Session::create_blank(&folder, Language::English).unwrap();
+    let third = Session::create_blank(&folder, Language::German).unwrap();
+
+    assert!(german.dir().ends_with("unbenannt-1.klappe"));
+    assert!(english.dir().ends_with("untitled-1.klappe"));
+    assert!(third.dir().ends_with("unbenannt-2.klappe"));
+    assert_eq!(german.project().title, "Unbenannt");
+    assert_eq!(third.project().title, "Unbenannt 2");
+}
+
+#[test]
+fn a_blank_project_has_one_scene_and_a_plain_set_and_is_saved() {
+    let folder = scratch("blank-content");
+
+    let session = Session::create_blank(&folder, Language::German).unwrap();
+
+    let set = &session.project().locations[0];
+    assert_eq!(session.project().locations.len(), 1);
+    assert_eq!(session.project().scenes.len(), 1);
+    assert_eq!(session.project().scenes[0].location, set.id);
+    assert_eq!(
+        (set.set.width_m, set.set.depth_m, set.set.wall_height_m),
+        (8.0, 5.0, 2.6)
+    );
+    assert!(session.plan().is_some());
+    assert!(!session.is_dirty());
+    assert!(!session.can_undo());
+}

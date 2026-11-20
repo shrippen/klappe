@@ -81,6 +81,21 @@ pub fn free_sibling(dir: &Path, ext: &str) -> Result<PathBuf, StoreError> {
     ))
 }
 
+/// The first `N` from 1 for which `<dir>/<stem>-<N><ext>` is not there, with that path.
+pub fn free_numbered(dir: &Path, stem: &str, ext: &str) -> Result<(u32, PathBuf), StoreError> {
+    for n in 1..=MAX_COPIES {
+        let path = dir.join(format!("{stem}-{n}{ext}"));
+        if !path.exists() {
+            return Ok((n, path));
+        }
+    }
+
+    Err(io_err(
+        dir,
+        std::io::Error::new(std::io::ErrorKind::AlreadyExists, "no free name"),
+    ))
+}
+
 /// Renames the folder `dir` to a free name beside it (`<dir>.alt`, `<dir> (2).alt` ...) and
 /// returns that name; for a copy that must not be overwritten or deleted.
 pub fn set_aside(dir: &Path) -> Result<PathBuf, StoreError> {
