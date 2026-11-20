@@ -66,27 +66,55 @@ fn own_text(language: Language, error: &ServiceError) -> String {
             return language.text("error.locked").replace("{layer}", &name);
         }
         ServiceError::BadValue { field, value } => return bad_value(language, field, value),
-        ServiceError::Store(e) => store_text(e),
+        ServiceError::Store(e) => store_text(language, e),
         ServiceError::Export(e) => (export_key(e), e.to_string()),
         // The path and the system's reason, e.g. "/a/b.pdf: No such file or directory".
-        ServiceError::Write { path, source } => {
-            ("error.write", format!("{}: {source}", path.display()))
-        }
+        ServiceError::Write { path, source } => (
+            "error.write",
+            format!("{}: {}", path.display(), io_reason(language, source)),
+        ),
         other => (plain_key(other).unwrap_or_default(), String::new()),
     };
 
     language.text(key).replace("{detail}", &detail)
 }
 
-/// A store error: a merge conflict has its own text, naming file and line; the rest says what
-/// the store says.
-fn store_text(error: &klappe_store::StoreError) -> (&'static str, String) {
+/// A store error: a merge conflict and the format versions have their own text, naming the
+/// file; a missing or locked file says so in the language; the rest says what the store says.
+fn store_text(language: Language, error: &klappe_store::StoreError) -> (&'static str, String) {
+    use klappe_store::StoreError;
+
     match error {
-        klappe_store::StoreError::Conflict { path, line } => {
+        StoreError::Conflict { path, line } => {
             ("error.conflict", format!("{}:{line}", path.display()))
+        }
+        StoreError::Io { path, source } => (
+            "error.store",
+            format!("{}: {}", path.display(), io_reason(language, source)),
+        ),
+        StoreError::NewerFormat { path, found, .. } => {
+            ("error.newerFormat", format!("{} ({found})", path.display()))
+        }
+        StoreError::OlderFormat { path, found, .. } => {
+            ("error.olderFormat", format!("{} ({found})", path.display()))
         }
         other => ("error.store", other.to_string()),
     }
+}
+
+/// Why the system refused a file: the common reasons in the language, e.g. "Datei fehlt"; the
+/// system's own words for the rest.
+fn io_reason(language: Language, error: &std::io::Error) -> String {
+    let key = match error.kind() {
+        std::io::ErrorKind::NotFound => "io.notFound",
+        std::io::ErrorKind::PermissionDenied => "io.denied",
+        std::io::ErrorKind::IsADirectory => "io.isFolder",
+        std::io::ErrorKind::StorageFull => "io.full",
+        std::io::ErrorKind::ReadOnlyFilesystem => "io.readOnly",
+        _ => return error.to_string(),
+    };
+
+    language.text(key)
 }
 
 /// The key of an export error: the one a user can act on has its own text.
@@ -211,6 +239,36 @@ mod tests {
     use super::*;
     use crate::Layer;
     use std::path::PathBuf;
+
+    /// Review of PR 286: a project that does not open said why in the system's English
+    /// ("No such file or directory (os error 2)", "format version 9 is newer …").
+    #[test]
+    fn store_errors_speak_the_language() {
+        let path = PathBuf::from("/p/projekt.toml");
+        let missing = ServiceError::Store(klappe_store::StoreError::Io {
+            path: path.clone(),
+            source: std::io::Error::from(std::io::ErrorKind::NotFound),
+        });
+        let newer = ServiceError::Store(klappe_store::StoreError::NewerFormat {
+            path: path.clone(),
+            found: 9,
+            supported: 1,
+        });
+        let folder = ServiceError::Write {
+            path,
+            source: std::io::Error::from(std::io::ErrorKind::IsADirectory),
+        };
+
+        for (error, german) in [
+            (missing, "Datei fehlt"),
+            (newer, "neuer"),
+            (folder, "ist ein Ordner"),
+        ] {
+            let text = error_text(Language::German, &error);
+            assert!(text.contains(german), "{text}");
+            assert!(!text.contains("os error"), "{text}");
+        }
+    }
 
     /// Review of PR 37: a refused tilt said "field.tilt", the catalogue had no such key.
     #[test]
