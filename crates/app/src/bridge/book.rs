@@ -5,10 +5,9 @@ use super::qobject;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
-use klappe_services::{error_text, QuestionKey};
+use klappe_services::error_text;
 
-/// The question kinds of `projectJson.questions` (`manage::project_json`).
-const PLACE_KIND: &str = "place";
+use crate::manage::question_key;
 
 impl qobject::Controller {
     pub(super) fn answer_question(
@@ -18,9 +17,8 @@ impl qobject::Controller {
         index: i32,
     ) -> bool {
         let language = self.rust().language;
-        let key = match kind.to_string().as_str() {
-            PLACE_KIND => QuestionKey::Place(key.to_string()),
-            _ => QuestionKey::Scene(key.to_string()),
+        let Some(key) = question_key(&kind.to_string(), key.to_string()) else {
+            return false;
         };
         let Some(s) = self.as_mut().session() else {
             return false;
