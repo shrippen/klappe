@@ -52,6 +52,10 @@ TestCase {
                 { width: 595, height: 842, texts: [{ x: 108, y: 82, bold: true, text: printLine }] }
             ] })
         }
+        // The element flow is the real controller's (tests/controller/script_flow.qml).
+        function enterStep(line, col, kind, below) { return JSON.stringify({ step: "break" }) }
+        function tabStep(line, kind) { return "" }
+        function typedCaps(text, at, pending) { return "" }
         function scriptLooks() {
             return JSON.stringify({ columns: 60, looks: {
                 "h": { kind: "heading", x: 0, width: 60, align: "left" },

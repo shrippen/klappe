@@ -36,6 +36,16 @@ ScriptHistory::Step difference(const QString& before, const QString& after)
     };
 }
 
+// A change of as many characters inside what the last step put: capitals as the writer
+// types, part of the same step.
+bool within(const ScriptHistory::Step& step, const ScriptHistory::Step& last)
+{
+    const int end = step.at + step.removed.size();
+
+    return !step.put.isEmpty() && step.removed.size() == step.put.size() && step.at >= last.at
+        && end <= last.at + last.put.size();
+}
+
 }
 
 ScriptHistory::ScriptHistory(QObject* parent)
@@ -102,7 +112,7 @@ bool ScriptHistory::joins(const Step& step) const
         && step.at + step.removed.size() == last.at && !step.removed.contains(LINE_BREAK)
         && !last.removed.contains(LINE_BREAK);
 
-    return typing || deleting;
+    return typing || deleting || within(step, last);
 }
 
 void ScriptHistory::changed()
@@ -118,7 +128,9 @@ void ScriptHistory::changed()
 
     if (joins(step)) {
         Step& last = m_undo.last();
-        if (step.put.isEmpty()) {
+        if (within(step, last)) {
+            last.put.replace(step.at - last.at, step.put.size(), step.put);
+        } else if (step.put.isEmpty()) {
             last.at = step.at;
             last.removed = step.removed + last.removed;
         } else {
@@ -149,6 +161,18 @@ int ScriptHistory::replay(const Step& step)
     m_since.invalidate();
 
     return step.at + step.put.size();
+}
+
+void ScriptHistory::replace(int from, int to, const QString& text)
+{
+    if (!m_document) {
+        return;
+    }
+
+    QTextCursor cursor(m_document->textDocument());
+    cursor.setPosition(from);
+    cursor.setPosition(to, QTextCursor::KeepAnchor);
+    cursor.insertText(text);
 }
 
 int ScriptHistory::undo()

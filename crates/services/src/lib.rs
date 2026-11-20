@@ -92,8 +92,8 @@ pub use klappe_script::{parse, parse_located, Element, Located};
 // marks), for the screenplay editors of the surfaces.
 pub use klappe_script::{
     boneyard_lines, enter_step, find_all, force_line, inline_runs, replace_hits, set_title_fields,
-    suggest, tab_step, title_fields, title_page_lines, upper, Case, Context, EnterStep, Forced,
-    Gap, Hit, Marks, Query, Run, Slot, Splice, Stage, Suggestions, TabStep, Vocabulary,
+    suggest, tab_step, title_fields, title_page_lines, typed_caps, upper, Case, Context, EnterStep,
+    Forced, Gap, Hit, Marks, Query, Run, Slot, Splice, Stage, Suggestions, TabStep, Vocabulary,
     FORCE_CHARACTER, NUMBER_MARK, TITLE_KEYS,
 };
 

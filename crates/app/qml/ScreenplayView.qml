@@ -118,17 +118,33 @@ RowLayout {
             return
         }
         _styled = area.text
-        tools.item.setLooks(controller.scriptKinds(_styled), lineLooks)
+        flow.shown = flow.withPending(controller.scriptKinds(_styled))
+        tools.item.setLooks(flow.shown, lineLooks)
     }
+
+    ScriptFlow {
+        id: flow
+        area: area
+        controller: view.controller
+        tools: view.tools
+        onPendingMoved: view.restyle()
+    }
+    readonly property alias flow: flow
     onLineLooksChanged: restyle()
 
-    /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history, not the project's.
+    /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history, not the project's. A step
+    /// back is no typing: its text keeps the case it had.
+    property bool _replaying: false
     function undoText() {
+        _replaying = true
         moveCursor(tools.item ? tools.item.undo() : -1)
+        _replaying = false
     }
 
     function redoText() {
+        _replaying = true
         moveCursor(tools.item ? tools.item.redo() : -1)
+        _replaying = false
     }
 
     function moveCursor(at) {
@@ -290,7 +306,14 @@ RowLayout {
                     Accessible.name: view.texts.t("screenplay.editor")
                     background: null
                     Keys.onPressed: event => {
-                        if (event.matches(StandardKey.Undo)) {
+                        const plain = event.modifiers === Qt.NoModifier
+                        const enter = event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                        if (plain && enter) {
+                            event.accepted = flow.enter()
+                        } else if (plain && event.key === Qt.Key_Tab) {
+                            flow.tab()
+                            event.accepted = true
+                        } else if (event.matches(StandardKey.Undo)) {
                             view.undoText()
                             event.accepted = true
                         } else if (event.matches(StandardKey.Redo)) {
@@ -304,8 +327,13 @@ RowLayout {
                             return
                         }
                         push.restart()
+                        if (!view._replaying && flow.capitalize()) {
+                            return
+                        }
                         view.restyle()
                     }
+                    // Later: while an edit runs, the cursor has moved but `text` is still the old one.
+                    onCursorPositionChanged: Qt.callLater(flow.leaveIfMoved)
                     // A leaving focus is a good moment to send: a menu or dialog may save next.
                     onActiveFocusChanged: {
                         if (!activeFocus) {
