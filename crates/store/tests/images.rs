@@ -163,7 +163,10 @@ fn images_the_export_cannot_print_are_refused() {
         let path = file(&source, name, &bytes);
 
         assert!(
-            matches!(add_image(&project, &path), Err(StoreError::BadImage { .. })),
+            matches!(
+                add_image(&project, &path),
+                Err(StoreError::BadImage { .. } | StoreError::ImageUnprintable { .. })
+            ),
             "{name} was accepted"
         );
     }

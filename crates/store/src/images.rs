@@ -25,8 +25,8 @@ pub fn add_image(dir: &Path, source: &Path) -> Result<String, StoreError> {
         .and_then(|n| n.to_str())
         .ok_or_else(|| bad("no file name"))?;
     if !files::safe_name(name) {
-        return Err(StoreError::BadId {
-            id: name.to_owned(),
+        return Err(StoreError::ImageName {
+            name: name.to_owned(),
         });
     }
 
@@ -39,7 +39,7 @@ pub fn add_image(dir: &Path, source: &Path) -> Result<String, StoreError> {
     }
 
     let bytes = fs::read(source).map_err(|e| io_err(source, e))?;
-    check_new(&bytes).map_err(|message| bad(&message))?;
+    check_new(&bytes, source)?;
 
     place(dir, stem, ext, &bytes)?.ok_or_else(|| bad("no free file name"))
 }
@@ -52,8 +52,8 @@ pub fn add_image_bytes(dir: &Path, name: &str, bytes: &[u8]) -> Result<String, S
         message: message.to_owned(),
     };
     if !files::safe_name(name) {
-        return Err(StoreError::BadId {
-            id: name.to_owned(),
+        return Err(StoreError::ImageName {
+            name: name.to_owned(),
         });
     }
 
@@ -64,7 +64,7 @@ pub fn add_image_bytes(dir: &Path, name: &str, bytes: &[u8]) -> Result<String, S
     if !EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()) {
         return Err(image_type());
     }
-    check_new(bytes).map_err(|message| bad(&message))?;
+    check_new(bytes, &dir.join(IMAGES_DIR).join(name))?;
 
     place(dir, stem, ext, bytes)?.ok_or_else(|| bad("no free file name"))
 }
@@ -156,11 +156,19 @@ pub fn image_size(dir: &Path, file: &str) -> Result<(u32, u32), StoreError> {
 }
 
 /// What an image must be to be added: readable, and printable by the PDF export.
-fn check_new(bytes: &[u8]) -> Result<(), String> {
-    dimensions(bytes)?;
+fn check_new(bytes: &[u8], path: &Path) -> Result<(), StoreError> {
+    dimensions(bytes).map_err(|message| StoreError::BadImage {
+        path: path.to_path_buf(),
+        message,
+    })?;
 
-    match jpeg_frame(bytes) {
-        Some(frame) => frame.check_printable(),
+    let reason = jpeg_frame(bytes).and_then(|frame| frame.unprintable());
+
+    match reason {
+        Some(reason) => Err(StoreError::ImageUnprintable {
+            path: path.to_path_buf(),
+            reason,
+        }),
         None => Ok(()),
     }
 }

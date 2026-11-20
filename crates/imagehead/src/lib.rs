@@ -45,20 +45,41 @@ pub struct JpegFrame {
     pub components: u8,
 }
 
+/// Why the PDF export cannot print a JPEG.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unprintable {
+    /// Not gray or RGB, e.g. CMYK.
+    Channels,
+    /// Not 8 bits per sample.
+    Depth,
+}
+
 impl JpegFrame {
-    /// Whether the PDF export can print this JPEG: gray or RGB, 8 bits per sample.
-    pub fn check_printable(&self) -> Result<(), String> {
+    /// What keeps the PDF export from printing this JPEG: it prints gray or RGB, 8 bits per
+    /// sample.
+    pub fn unprintable(&self) -> Option<Unprintable> {
         if !matches!(self.components, 1 | 3) {
-            return Err(format!(
-                "JPEG with {} colour channels (CMYK) is not supported",
-                self.components
-            ));
+            return Some(Unprintable::Channels);
         }
         if self.precision != JPEG_SAMPLE_BITS {
-            return Err(format!("JPEG with {} bits per sample", self.precision));
+            return Some(Unprintable::Depth);
         }
 
-        Ok(())
+        None
+    }
+
+    /// Whether the PDF export can print this JPEG: gray or RGB, 8 bits per sample.
+    pub fn check_printable(&self) -> Result<(), String> {
+        match self.unprintable() {
+            Some(Unprintable::Channels) => Err(format!(
+                "JPEG with {} colour channels (CMYK) is not supported",
+                self.components
+            )),
+            Some(Unprintable::Depth) => {
+                Err(format!("JPEG with {} bits per sample", self.precision))
+            }
+            None => Ok(()),
+        }
     }
 }
 

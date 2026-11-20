@@ -81,7 +81,7 @@ fn own_text(language: Language, error: &ServiceError) -> String {
 
 /// A store error: a merge conflict and the format versions have their own text, naming the
 /// file; a missing file or one without permission says so in the language; so do the refusals
-/// a user's action causes (image, trash, name); the rest says what the store says.
+/// a user's action causes (image, trash); the rest says what the store says.
 fn store_text(language: Language, error: &klappe_store::StoreError) -> (&'static str, String) {
     use klappe_store::StoreError;
 
@@ -98,7 +98,14 @@ fn store_text(language: Language, error: &klappe_store::StoreError) -> (&'static
         StoreError::ImageType { path } => ("error.imageType", path.display().to_string()),
         StoreError::BadImage { path, .. } => ("error.badImage", path.display().to_string()),
         StoreError::Trash { path, .. } => ("error.trash", path.display().to_string()),
-        StoreError::BadId { id } => ("error.badName", id.clone()),
+        StoreError::ImageUnprintable { path, reason } => {
+            let key = match reason {
+                klappe_store::Unprintable::Channels => "error.imageCmyk",
+                klappe_store::Unprintable::Depth => "error.imageDepth",
+            };
+            (key, path.display().to_string())
+        }
+        StoreError::ImageName { name } => ("error.imageName", name.clone()),
         other => ("error.store", other.to_string()),
     }
 }
@@ -297,13 +304,6 @@ mod tests {
                 "bild.png",
                 "Papierkorb",
             ),
-            (
-                StoreError::BadId {
-                    id: "a/b".to_owned(),
-                },
-                "a/b",
-                "Name",
-            ),
         ];
 
         for (error, detail, german) in cases {
@@ -320,6 +320,43 @@ mod tests {
                 "{text}"
             );
         }
+    }
+
+    /// Review of PR 306: a CMYK JPEG said "kein brauchbares Bild", hiding that it only has to
+    /// become RGB; a project file with a bad id lost the frame text of a broken project.
+    #[test]
+    fn image_and_name_refusals_say_what_to_do() {
+        use klappe_store::StoreError;
+
+        let dir = std::env::temp_dir().join(format!("klappe-cmyk-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let cmyk = dir.join("cmyk.jpg");
+        // SOI, SOF0: 8 bits, 1 x 1 pixel, 4 components.
+        let head = [
+            0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x14, 0x08, 0x00, 0x01, 0x00, 0x01, 0x04, 0x01, 0x11,
+            0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00, 0x04, 0x11, 0x00,
+        ];
+        std::fs::write(&cmyk, head).unwrap();
+        let error = klappe_store::add_image(&dir, &cmyk).unwrap_err();
+        std::fs::remove_dir_all(&dir).unwrap();
+
+        let text = error_text(Language::German, &ServiceError::Store(error));
+        assert!(text.contains("CMYK") && text.contains("RGB"), "{text}");
+        assert!(!text.contains("kein brauchbares"), "{text}");
+
+        let named = klappe_store::add_image(Path::new("/p"), Path::new("/q/.foto.png"));
+        let text = error_text(Language::German, &ServiceError::Store(named.unwrap_err()));
+        assert!(
+            text.contains(".foto.png") && text.contains("Bild"),
+            "{text}"
+        );
+        assert!(!text.contains("konnte nicht gelesen"), "{text}");
+
+        let broken = StoreError::BadId {
+            id: "../x".to_owned(),
+        };
+        let text = error_text(Language::German, &ServiceError::Store(broken));
+        assert!(text.starts_with("Projekt konnte nicht gelesen"), "{text}");
     }
 
     /// Review of PR 37: a refused tilt said "field.tilt", the catalogue had no such key.
