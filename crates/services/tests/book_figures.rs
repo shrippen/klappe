@@ -638,3 +638,67 @@ fn a_save_does_not_stop_at_an_unreadable_figures_file() {
 
     assert_eq!(names(&dir), ["Anna", "Bert", "Dora"]);
 }
+
+#[test]
+fn a_window_undo_of_an_alias_answer_stays_undone() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-win-undo-alias", vec![anna], BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    gui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
+        .unwrap();
+
+    gui.undo();
+    gui.save_figure_step().unwrap();
+    gui.save().unwrap();
+
+    assert!(aliases_of(&dir, "anna").is_empty());
+    assert!(asked_names(&dir).contains(&"BERT".to_owned()));
+}
+
+#[test]
+fn a_window_undo_of_a_not_figure_answer_stays_undone() {
+    let dir = make("fig-win-undo-none", Vec::new(), BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    gui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
+
+    gui.undo();
+    gui.save_figure_step().unwrap();
+    gui.save().unwrap();
+
+    assert!(not_figures(&dir).is_empty());
+    assert!(asked_names(&dir).contains(&"ALLE".to_owned()));
+}
+
+#[test]
+fn a_window_redo_writes_the_answer_again() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-win-redo", vec![anna], BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    gui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
+        .unwrap();
+    gui.undo();
+    gui.save_figure_step().unwrap();
+
+    gui.redo();
+    gui.save_figure_step().unwrap();
+
+    assert_eq!(aliases_of(&dir, "anna"), ["BERT"]);
+}
+
+#[test]
+fn an_alias_for_a_character_the_file_lost_is_refused() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let bert = character("bert", "Bert", "B", FigureColor::Blue);
+    let dir = make("fig-lost-target", vec![anna, bert], BOOK_MORE);
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    gui.edit_project(ProjectEdit::RemoveCharacter { id: "bert".into() })
+        .unwrap();
+    gui.save().unwrap();
+
+    let answered = tui.resolve_figure("LIESL", FigureChoice::Assign("bert".into()));
+
+    assert!(answered.is_err());
+    assert!(tui.pending_figures().iter().any(|p| p.name == "LIESL"));
+    assert!(!tui.undo_is_answer());
+}

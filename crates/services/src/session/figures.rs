@@ -92,6 +92,12 @@ impl Session {
         };
 
         let mut disk = self.project_with_disk_figures()?;
+        // An alias for a character the file no longer has would be lost without a trace.
+        if let FigureDelta::Alias { id, .. } = &delta {
+            if disk.character(id).is_none() {
+                return Err(ServiceError::NoCharacter(id.clone()));
+            }
+        }
         delta.run(&mut disk, Way::Apply);
         klappe_store::save_characters(&self.dir, &disk)?;
 
@@ -107,16 +113,22 @@ impl Session {
     }
 
     /// Writes what undo or redo left: the register, and for the answer to a cue only its
-    /// entry in `figuren.toml`, taken back or done again in the file as it is on disk (the
-    /// window beside the TUI may have changed the rest). Undo of anything else leaves
-    /// `figuren.toml` alone.
+    /// entry in `figuren.toml` (`save_figure_step`). For the terminal; the window has no
+    /// register to write on undo.
     pub fn save_answer(&mut self) -> Result<(), ServiceError> {
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
 
+        self.save_figure_step()
+    }
+
+    /// After undo or redo of the answer to a cue: its entry in `figuren.toml`, taken back or
+    /// done again in the file as it is on disk (another program may have changed the rest);
+    /// then what answers added there is adopted. Undo of anything else leaves the file alone.
+    pub fn save_figure_step(&mut self) -> Result<(), ServiceError> {
         // The delta stays until the file is written: a failed read or write keeps it for the
         // next try (`run` leaves an entry already (not) there as it is).
-        let mut disk = self.project_with_disk_figures()?;
         if let Some((delta, way)) = &self.disk_step {
+            let mut disk = self.project_with_disk_figures()?;
             delta.run(&mut disk, *way);
             klappe_store::save_characters(&self.dir, &disk)?;
         }
