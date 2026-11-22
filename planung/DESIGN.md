@@ -50,6 +50,7 @@ beiden sich unterscheiden (Werkzeugleiste, Shot-Bereich, Ebenen, Plan-Auswahl).
 | D-16 | Import eines Drehbuchs | Gleicht sofort ab: die Szenen entstehen beim Import, nicht erst beim Speichern; danach ein Bericht („14 Szenen erkannt · 3 neu · 2 Fragen“) mit Knopf zu den Fragen. |
 | D-17 | Leere Flächen | Jede leere Fläche sagt, warum sie leer ist, und bietet den nächsten Schritt als Knopf (Szene ohne Plan: „Plan anlegen“; Spalte ohne Text: „Drehbuch laden …“ oder „Drehbuch öffnen“). Nichts entsteht ohne Klick. |
 | D-18 | Suchen im Drehbuch | Strg+F öffnet eine schwebende Karte oben rechts über dem Text (Suchen, Treffer, ↑ ↓, ✕; darunter Ersetzen, Alle ersetzen, Groß-/Kleinschreibung, „Nur Dialog von“); sie verschiebt nichts und wandert nach unten rechts, solange der gezeigte Treffer unter ihr liegt (wieder nach oben, wenn ein späterer Treffer dort unter ihr liegt). Entschieden am 20.11.2026 (PR #288). |
+| D-19 | Änderungen von außen | Das Fenster prüft beim Aktivieren und vor dem Speichern, ob sich Dateien des Projektordners außerhalb geändert haben. Nichts Ungespeichertes: es lädt still neu, ein Hinweis nennt die Dateien, Rückgängig ist leer. Mit Ungespeichertem: sofort ein Hinweis über dem Plan, Speichern fragt in einem Dialog (Neu laden / Überschreiben / Abbrechen). Nur eine Datei, die beide geändert haben, braucht eine Frage; Drehbuch und Plan getrennt gehen ohne. Das TUI fragt vor Strg+S in einem Kasten wie Strg+K. Entschieden am 22.11.2026. |
 
 ## Werkzeuge je Modus
 
