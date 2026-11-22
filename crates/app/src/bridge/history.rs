@@ -10,18 +10,31 @@ use klappe_services::Autosave;
 
 impl qobject::Controller {
     pub(super) fn undo(mut self: Pin<&mut Self>) {
+        let language = self.rust().language;
+        let mut failed = None;
         if let Some(s) = self.as_mut().session() {
             s.undo();
+            // The answer to a figure question is on disk already: so is its undo.
+            failed = s.save_figure_step().err();
         }
         self.as_mut().changed();
+        if let Some(e) = failed {
+            self.as_mut().say(error_text(language, &e));
+        }
         self.refresh();
     }
 
     pub(super) fn redo(mut self: Pin<&mut Self>) {
+        let language = self.rust().language;
+        let mut failed = None;
         if let Some(s) = self.as_mut().session() {
             s.redo();
+            failed = s.save_figure_step().err();
         }
         self.as_mut().changed();
+        if let Some(e) = failed {
+            self.as_mut().say(error_text(language, &e));
+        }
         self.refresh();
     }
 

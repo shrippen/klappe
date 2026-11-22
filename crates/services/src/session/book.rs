@@ -3,12 +3,18 @@
 
 use klappe_model::{BookState, Kind, Project, Scene};
 
+use super::figures::RESOLVE_STEP as FIGURE_STEP;
 use super::Session;
 use crate::book::{self, BookReport, Choice, ImportReport, PendingScene};
 use crate::error::ServiceError;
 
 /// Undo step of `resolve_scene`.
 const RESOLVE_STEP: &str = "ResolveScene";
+
+/// Whether the undo step `name` answers a question about the book: a scene or a figure.
+fn is_answer_step(name: &str) -> bool {
+    name == RESOLVE_STEP || name == FIGURE_STEP
+}
 
 /// Undo step of `import_script`.
 const IMPORT_STEP: &str = "ImportScript";
@@ -63,12 +69,12 @@ impl Session {
     /// Whether undo would take back an answer to a question about the book: a surface that
     /// keeps its own text history beside the session's asks this before it takes the session's.
     pub fn undo_is_answer(&self) -> bool {
-        self.undo_step() == Some(RESOLVE_STEP)
+        self.undo_step().is_some_and(is_answer_step)
     }
 
     /// Whether redo would do an answer again, as `undo_is_answer`.
     pub fn redo_is_answer(&self) -> bool {
-        self.redo_step() == Some(RESOLVE_STEP)
+        self.redo_step().is_some_and(is_answer_step)
     }
 
     /// What there is to say about the book and the register: for the status line.
@@ -83,6 +89,7 @@ impl Session {
         BookReport {
             pending: self.pending.len(),
             not_in_book,
+            figures: self.pending_figures.len(),
             places: self.pending_places.len(),
             twin_numbers: self.twin_numbers,
         }
@@ -155,6 +162,7 @@ impl Session {
     /// project, without an undo step: the register follows the text, it is not an edit.
     /// Returns whether the register changed.
     pub(super) fn reconcile(&mut self) -> bool {
+        self.refresh_figures();
         self.refresh_places();
         if self.script.scenes().is_empty() {
             self.pending.clear();
@@ -182,6 +190,7 @@ impl Session {
     /// Asks the alignment which entries are open, changing nothing. After undo, redo and
     /// a new screenplay text, which move the register or the book under the list.
     pub(super) fn refresh_pending(&mut self) {
+        self.refresh_figures();
         self.refresh_places();
         if self.script.scenes().is_empty() {
             self.pending = Vec::new();
@@ -197,7 +206,7 @@ impl Session {
     }
 
     /// The scene and plan on view, to find them again after the entries moved.
-    fn ids_on_view(&self) -> (Option<String>, Option<String>) {
+    pub(super) fn ids_on_view(&self) -> (Option<String>, Option<String>) {
         let scene = self.scene().map(|s| s.id.clone());
         let plan = self.plan().map(|p| p.id.clone());
 
@@ -209,7 +218,9 @@ impl Session {
 /// that the open questions may have moved. An edit of the plans alone does not move them, and
 /// must not pay for aligning the register with the book again.
 pub(super) fn register_moved(before: &Project, after: &Project) -> bool {
-    before.scenes.len() != after.scenes.len()
+    before.characters != after.characters
+        || before.not_figures != after.not_figures
+        || before.scenes.len() != after.scenes.len()
         || before
             .scenes
             .iter()

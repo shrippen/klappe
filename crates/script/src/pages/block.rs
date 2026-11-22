@@ -377,14 +377,34 @@ pub(super) fn column(line: &Line) -> usize {
     usize::from(line.x >= DUAL_RIGHT_X)
 }
 
-/// The name with `(CONT'D)` after it, once.
+/// The words of a continued cue in either language, in any case (Fountain: an extension in
+/// parentheses after the name, in any order).
+const CONTD_WORDS: [&str; 3] = ["CONT'D", "WEITER", "FORTS."];
+
+/// What a word processor makes of the `'` in `CONT'D`.
+const TYPOGRAPHIC_APOSTROPHE: char = '\u{2019}';
+
+/// Whether an extension of `name` already says it is continued: `ANNA (cont'd)`,
+/// `ANNA (WEITER) (V.O.)`.
+fn has_contd(name: &str) -> bool {
+    name.split('(')
+        .skip(1)
+        .filter_map(|group| group.split(')').next())
+        .map(|word| {
+            word.trim()
+                .to_uppercase()
+                .replace(TYPOGRAPHIC_APOSTROPHE, "'")
+        })
+        .any(|word| CONTD_WORDS.contains(&word.as_str()))
+}
+
+/// The name with `(CONT'D)` after it, once: a name that has one in any spelling stays.
 pub(super) fn with_contd(name: &str, contd: &str) -> String {
-    let mark = format!(" ({contd})");
-    if name.ends_with(&mark) {
+    if has_contd(name) {
         return name.to_owned();
     }
 
-    format!("{name}{mark}")
+    format!("{name} ({contd})")
 }
 
 /// The name part of the next page's dialogue: the name with `(CONT'D)`.
@@ -533,7 +553,7 @@ fn dialogue(
     }
     let again = speaker.name.as_deref() == Some(name.as_str()) && speaker.after_action;
     if again && options.contd_after_action == ContdAfterAction::On && !*dual {
-        cue.push_str(&format!(" ({})", options.words.contd));
+        cue = with_contd(&cue, options.words.contd);
     }
     *speaker = Speaker {
         name: Some(name.clone()),

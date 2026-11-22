@@ -33,6 +33,8 @@ pub(crate) fn copy_character(
         id: new_id.clone(),
         name,
         short,
+        // The aliases name the origin; a cue must not name two characters.
+        aliases: Vec::new(),
         ..origin
     });
 
@@ -67,7 +69,7 @@ fn without_number(text: &str) -> &str {
 }
 
 /// `A2`, `A3` … the first short code of the stem of `short` that no character has.
-fn free_short(characters: &[Character], short: &str) -> String {
+pub(crate) fn free_short(characters: &[Character], short: &str) -> String {
     let stem = without_number(short);
 
     SHORT_NUMBERS
@@ -94,6 +96,7 @@ mod tests {
             color: FigureColor::ALL[0],
             group: Some(4),
             size_m: Some(1.5),
+            aliases: Vec::new(),
         }
     }
 
@@ -110,6 +113,17 @@ mod tests {
             (copy.color, copy.group, copy.size_m),
             (all[0].color, Some(4), Some(1.5))
         );
+    }
+
+    #[test]
+    fn a_copy_skips_a_name_another_figure_answers_to() {
+        let mut bert = character("bert", "Bert", "B");
+        bert.aliases = vec!["ANNA 2".into()];
+        let mut all = vec![character("anna", "Anna", "A"), bert];
+
+        copy_character(&mut all, "anna").unwrap();
+
+        assert_eq!(all.last().unwrap().name, "Anna 3");
     }
 
     #[test]

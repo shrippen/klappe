@@ -4,6 +4,7 @@ use klappe_model::Project;
 
 use super::book::register_moved;
 use super::Session;
+use crate::figure_file::{FigureDelta, Way};
 
 /// Undo keeps this many steps (LH-06 asks for no fixed limit within a session; this only
 /// guards memory on very long sessions).
@@ -25,6 +26,8 @@ pub(super) struct Snapshot {
     script: Option<String>,
     /// What the step that made this state's successor did (`AddObject`); empty if unnamed.
     step: String,
+    /// The entry of `figuren.toml` that step wrote, if it answered a cue (DB-50).
+    figure: Option<FigureDelta>,
 }
 
 /// The name of an edit for the undo tooltip: its variant (`Move { .. }` is `Move`). The app
@@ -54,12 +57,22 @@ impl Session {
         self.set_script_text(script);
     }
 
+    /// Like `commit_step`, for the answer to a cue: undo and redo write `figure` again or
+    /// take it back in `figuren.toml`.
+    pub(super) fn commit_answer(&mut self, next: Project, step: &str, figure: FigureDelta) {
+        self.commit_step(next, step);
+        if let Some(last) = self.undo.last_mut() {
+            last.figure = Some(figure);
+        }
+    }
+
     fn commit_with(&mut self, next: Project, script: Option<String>, step: &str) {
         let project = std::mem::replace(&mut self.project, next);
         self.undo.push(Snapshot {
             project,
             script,
             step: step.to_owned(),
+            figure: None,
         });
         if self.undo.len() > UNDO_LIMIT {
             self.undo.remove(0);
@@ -163,10 +176,13 @@ impl Session {
             return;
         };
         let step = previous.step.clone();
+        let figure = previous.figure.clone();
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());
         let mut current = self.swap(previous);
         current.step = step;
+        current.figure.clone_from(&figure);
+        self.disk_step = figure.map(|f| (f, Way::Revert));
         let moved = register_moved(&current.project, &self.project);
         self.redo.push(current);
         self.project_changed = true;
@@ -184,10 +200,13 @@ impl Session {
             return;
         };
         let step = next.step.clone();
+        let figure = next.figure.clone();
         let on_view = self.scene().map(|s| s.id.clone());
         let plan_on_view = self.plan().map(|p| p.id.clone());
         let mut current = self.swap(next);
         current.step = step;
+        current.figure.clone_from(&figure);
+        self.disk_step = figure.map(|f| (f, Way::Apply));
         let moved = register_moved(&current.project, &self.project);
         self.undo.push(current);
         self.project_changed = true;
@@ -197,6 +216,15 @@ impl Session {
         self.end_stale_look();
         if moved {
             self.refresh_pending();
+        }
+    }
+
+    /// Changes the project as it is and as every undo and redo step holds it, without a step of
+    /// its own: what the file gave the session (DB-50) must not vanish with an undo.
+    pub(super) fn in_every_state(&mut self, change: impl Fn(&mut Project)) {
+        change(&mut self.project);
+        for step in self.undo.iter_mut().chain(self.redo.iter_mut()) {
+            change(&mut step.project);
         }
     }
 
@@ -216,6 +244,7 @@ impl Session {
             project,
             script,
             step: String::new(),
+            figure: None,
         }
     }
 }

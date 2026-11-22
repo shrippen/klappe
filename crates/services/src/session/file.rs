@@ -58,6 +58,9 @@ impl Session {
             layout: None,
             lengths: Default::default(),
             pending: Vec::new(),
+            pending_figures: Vec::new(),
+            disk_step: None,
+            known_figures: HashSet::new(),
             book_scene: Vec::new(),
             heading_line: Vec::new(),
             places: klappe_store::load_places(dir)?,
@@ -65,6 +68,7 @@ impl Session {
             lock,
             twin_numbers: 0,
         };
+        session.know_figures();
         session.reconcile();
         session.scene = session
             .project
@@ -117,7 +121,11 @@ impl Session {
         self.number_script();
         // So the register holds the book as saved: the next outside change aligns against it.
         self.reconcile();
+        // What the terminal answered since the file was read goes into the project first: the
+        // file is written whole from it.
+        self.adopt_figures()?;
         klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
+        self.know_figures();
         self.write_lock()?;
         self.dirty = false;
         self.unbacked = false;
@@ -162,12 +170,15 @@ impl Session {
         let mut loaded = klappe_store::load_backup(&self.dir)?.ok_or(ServiceError::NoBackup)?;
 
         shot_edit::clear_orphans(&mut loaded.project);
+        // The figures are the backup's alone: it cannot tell a character the file gained
+        // since from one it deleted, so an answer given meanwhile is asked again.
         self.commit(loaded.project);
         if let Some(text) = loaded.script {
             self.set_script_text(&text);
         }
         // Another program may have answered meanwhile: the places come from the disk.
         self.reload_places()?;
+        self.refresh_figures();
         self.reconcile();
         self.keep_view_valid();
         self.end_stale_look();

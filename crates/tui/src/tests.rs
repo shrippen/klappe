@@ -14,6 +14,7 @@ use crate::app::{Focus, Mode};
 use crate::{draw, theme, App, Flow, Language};
 
 mod book;
+mod figures;
 mod find;
 mod flow;
 mod marks;

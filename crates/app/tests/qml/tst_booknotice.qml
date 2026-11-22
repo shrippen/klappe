@@ -64,4 +64,16 @@ TestCase {
 
         compare(notice.text, "Szenen zuzuordnen: 1. Spielorte offen: 2.")
     }
+
+    function test_open_names_show_their_count_between_the_scenes_and_the_places() {
+        fake.projectJson = JSON.stringify({ questions: [{ kind: "figure", key: "ALLE" }] })
+        const notice = make()
+
+        verify(notice.visible)
+        compare(notice.text, "Namen im Buch ohne Figur: 1.")
+
+        fake.projectJson = JSON.stringify({ questions: [{ kind: "scene", key: "a" }, { kind: "figure", key: "ALLE" }, { kind: "figure", key: "STIMME" }, { kind: "place", key: "HOF" }] })
+
+        compare(notice.text, "Szenen zuzuordnen: 1. Namen im Buch ohne Figur: 2. Spielorte offen: 1.")
+    }
 }

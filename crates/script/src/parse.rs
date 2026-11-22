@@ -571,10 +571,15 @@ fn cue(t: &str, mode: Cue) -> Option<Element> {
         None => (t, false),
     };
 
-    let (name, extension) = match t.strip_suffix(')').and_then(|b| b.rsplit_once('(')) {
-        Some((name, ext)) => (name.trim_end(), Some(ext.trim().to_string())),
-        None => (t, None),
-    };
+    // `ANNA (V.O.) (FORTS.)`: every trailing group is an extension, kept as `V.O.) (FORTS.`
+    // so the writer's `({extension})` gives the line back.
+    let mut name = t;
+    let mut extensions: Vec<&str> = Vec::new();
+    while let Some((head, ext)) = name.strip_suffix(')').and_then(|b| b.rsplit_once('(')) {
+        extensions.insert(0, ext.trim());
+        name = head.trim_end();
+    }
+    let extension = (!extensions.is_empty()).then(|| extensions.join(") ("));
 
     if name.is_empty() {
         return None;

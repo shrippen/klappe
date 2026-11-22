@@ -26,6 +26,7 @@ fn project() -> Project {
         color: FigureColor::Purple,
         group: None,
         size_m: None,
+        aliases: Vec::new(),
     }];
     p
 }

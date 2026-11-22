@@ -3,9 +3,9 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, is_object_height_m, normalize_deg, random_id, same_character_name, BookState,
-    Character, FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project,
-    Scene, SetPlan, Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    is_figure_size_m, is_object_height_m, normalize_deg, random_id, BookState, Character,
+    FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project, Scene, SetPlan,
+    Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -17,7 +17,7 @@ mod plans;
 pub(crate) mod templates;
 mod views;
 
-pub(crate) use copy::copy_character;
+pub(crate) use copy::{copy_character, free_short};
 pub(crate) use plans::{add_plan, copy_plan, move_plan, remove_plan, rename_plan, seat_speakers};
 pub use plans::{PlanShift, ShotsGo};
 pub(crate) use views::{remove_view, save_view};
@@ -377,13 +377,9 @@ enum Numbered {
     Always,
 }
 
-/// The first name of `base`, `base 2`, `base 3` … (as `numbered` allows) no character has.
+/// The first name of `base`, `base 2`, `base 3` … (as `numbered` allows) no character answers to.
 fn free_character_name(characters: &[Character], base: &str, numbered: Numbered) -> String {
-    let taken = |name: &str| {
-        characters
-            .iter()
-            .any(|c| same_character_name(&c.name, name))
-    };
+    let taken = |name: &str| characters.iter().any(|c| c.is_called(name));
     if numbered == Numbered::WhenTaken && !taken(base) {
         return base.to_owned();
     }
@@ -394,14 +390,14 @@ fn free_character_name(characters: &[Character], base: &str, numbered: Numbered)
         .unwrap_or_default()
 }
 
-/// Two characters of one name (compared as cues are, in capitals) would merge their cues; `own` is the
-/// character being renamed, which may keep its name.
+/// Two characters of one name or alias (compared as cues are) would merge their cues; `own` is
+/// the character being renamed, which may keep its name.
 fn check_free_name(project: &Project, name: &str, own: Option<&str>) -> Result<(), ServiceError> {
     let taken = project
         .characters
         .iter()
         .filter(|c| Some(c.id.as_str()) != own)
-        .any(|c| same_character_name(&c.name, name));
+        .any(|c| c.is_called(name));
     if !taken {
         return Ok(());
     }
@@ -434,6 +430,7 @@ fn add_character(
         color,
         group,
         size_m,
+        aliases: Vec::new(),
     });
     Ok(())
 }

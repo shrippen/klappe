@@ -1,6 +1,7 @@
 //! The questions the register leaves open about the book (`Ctrl+K`): which scene of the
-//! book an entry is, then which scripted location a place name of a heading is (DB-51), one
-//! question at a time; the session words them.
+//! book an entry is, then which character a name of a cue is (DB-50), then which scripted
+//! location a place name of a heading is (DB-51), one question at a time; the session words
+//! them.
 
 use klappe_services::{error_text, BookQuestion, QuestionKey};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
@@ -8,8 +9,8 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use super::{App, Editor, Flow, Mode, Notice};
 
 impl App {
-    /// The question being asked, worded by the session: a scene first, then a place name of
-    /// the headings.
+    /// The question being asked, worded by the session: a scene first, then a name of a cue,
+    /// then a place name of the headings.
     pub(crate) fn question(&self) -> Option<BookQuestion> {
         self.session.book_questions(self.lang).into_iter().next()
     }
@@ -31,6 +32,25 @@ impl App {
             .iter()
             .find(|p| p.id == id)
             .map(|p| p.number.clone())
+    }
+
+    /// The cue name asked about, if the question is about one (for the tests).
+    #[cfg(test)]
+    pub(crate) fn asked_figure(&self) -> Option<String> {
+        match self.question()?.key {
+            QuestionKey::Figure(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    /// Whether no question about a cue name is open (for the tests).
+    #[cfg(test)]
+    pub(crate) fn asks_no_figure(&self) -> bool {
+        !self
+            .session
+            .book_questions(self.lang)
+            .iter()
+            .any(|q| matches!(q.key, QuestionKey::Figure(_)))
     }
 
     /// Whether the question is about a place name of the headings (for the tests).
@@ -77,12 +97,14 @@ impl App {
 
     /// Gives the chosen answer to the session and goes on with the next question. An answer
     /// about a scene is written to the register at once and is a step of Ctrl+Z; one about a
+    /// name of a cue writes only its entry in `figuren.toml` and is a step too; one about a
     /// place name writes only `orte.toml`, from the file as it is on disk, and is none.
     fn answer_book(&mut self) {
         let Some(question) = self.question() else {
             return;
         };
         let scene = matches!(question.key, QuestionKey::Scene(_));
+        let step = !matches!(question.key, QuestionKey::Place(_));
 
         // The answer is written at once: the TUI saves no plans, so quitting asks nothing.
         let mut answered = self.session.answer_question(&question.key, self.book_sel);
@@ -95,7 +117,7 @@ impl App {
             return;
         }
 
-        if scene {
+        if step {
             self.answered.push(self.editor.mark_step());
             self.unanswered.clear();
         }
@@ -150,9 +172,10 @@ impl App {
         self.unanswered.clear();
     }
 
-    /// Writes the register as undo or redo left it and shows its questions.
+    /// Writes the register as undo or redo left it, and for a name of a cue its entry in
+    /// `figuren.toml`, and shows the questions.
     fn settle_answer(&mut self) -> Flow {
-        if let Err(e) = self.session.save_register() {
+        if let Err(e) = self.session.save_answer() {
             self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
         }
         self.book_sel = 0;

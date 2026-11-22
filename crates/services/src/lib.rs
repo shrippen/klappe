@@ -18,6 +18,8 @@ mod error_text;
 mod example;
 mod export_format;
 mod field;
+mod figure_file;
+mod figures;
 mod folder;
 mod library;
 mod light_edit;
@@ -44,6 +46,7 @@ pub use error_text::{book_report_text, error_text, load_notes_text};
 pub use example::{copy_example, ensure_example};
 pub use export_format::ExportFormat;
 pub use field::Field;
+pub use figures::{FigureChoice, PendingFigure};
 pub use folder::{archive_project, rename_project, trash_project};
 pub use light_edit::LightChange;
 pub use measure::measure_angle_deg;
@@ -55,9 +58,9 @@ pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPag
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;
 pub use session::{
-    Answer, AnswerLine, Autosave, BackupState, BookQuestion, ExportOptions, Fade, Grab, Laid,
-    Layer, Lock, Looping, Pages, PlaceAnswer, Playing, QuestionKey, Session, Size, Speech,
-    SpokenLine, Step, Tick, TimeSnap, VideoJob, View, ViewStep, Visibility,
+    Answer, AnswerLine, Autosave, BackupState, BookQuestion, ExportOptions, Fade, FigureAnswer,
+    Grab, Laid, Layer, Lock, Looping, Pages, PlaceAnswer, Playing, QuestionKey, Session, Size,
+    Speech, SpokenLine, Step, Tick, TimeSnap, VideoJob, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};

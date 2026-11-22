@@ -32,8 +32,9 @@ const HOME_SHORT: &str = "~";
 /// those of the scene on view and `plan` the id of the one shown. The colour is the model's
 /// role name (`purple`), which Kante's `labelColor` takes as it is. `questions` holds the open
 /// questions about the book as the session words them in `language`, scenes first, then the
-/// place names of the headings: `[{ kind, key, title, ask, answers: [{ number, text }] }]`,
-/// `kind` being `scene` (`key` the entry id) or `place` (`key` the place name), answered by
+/// names of the cues, then the place names of the headings:
+/// `[{ kind, key, title, ask, answers: [{ number, text }] }]`, `kind` being `scene` (`key` the
+/// entry id), `figure` (`key` the cue name) or `place` (`key` the place name), answered by
 /// `answerQuestion(kind, key, index)` with the position in `answers`.
 pub fn project_json(session: &Session, language: Language) -> String {
     let mut value = serde_json::to_value(session.overview()).unwrap_or_default();
@@ -44,12 +45,14 @@ pub fn project_json(session: &Session, language: Language) -> String {
 
 /// The question kinds of `questions`: written by `question_rows`, read back by `question_key`.
 const SCENE_KIND: &str = "scene";
+const FIGURE_KIND: &str = "figure";
 const PLACE_KIND: &str = "place";
 
 /// The question `kind`/`key` of `questions` names; `None` for an unknown kind.
 pub fn question_key(kind: &str, key: String) -> Option<QuestionKey> {
     match kind {
         SCENE_KIND => Some(QuestionKey::Scene(key)),
+        FIGURE_KIND => Some(QuestionKey::Figure(key)),
         PLACE_KIND => Some(QuestionKey::Place(key)),
         _ => None,
     }
@@ -62,6 +65,7 @@ fn question_rows(session: &Session, language: Language) -> Value {
         .map(|q| {
             let (kind, key) = match q.key {
                 QuestionKey::Scene(id) => (SCENE_KIND, id),
+                QuestionKey::Figure(name) => (FIGURE_KIND, name),
                 QuestionKey::Place(name) => (PLACE_KIND, name),
             };
             let answers: Vec<_> = q
@@ -391,6 +395,33 @@ mod tests {
         let last_scene = questions.iter().rposition(|q| q["kind"] == "scene");
         let first_place = questions.iter().position(|q| q["kind"] == "place");
         assert!(last_scene < first_place, "scenes first");
+    }
+
+    #[test]
+    fn the_open_figure_questions_sit_between_scenes_and_places() {
+        let (_, scratch) = asked("figures");
+        let book = "INT. HOF – NACHT #1#\n\nEin Hund bellt.\n\nSTIMME\nKomm.\n\n\
+                    INT. KELLER – NACHT #2#\n\nWasser tropft.\n";
+        std::fs::write(scratch.0.join("drehbuch.fountain"), book).unwrap();
+        let session = Session::open(&scratch.0).unwrap();
+
+        let value: Value =
+            serde_json::from_str(&project_json(&session, Language::English)).unwrap();
+        let kinds: Vec<_> = value["questions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|q| q["kind"].as_str().unwrap())
+            .collect();
+
+        let first = kinds.iter().position(|k| *k == "figure").unwrap();
+        let place = kinds.iter().position(|k| *k == "place").unwrap();
+        assert!(first < place, "{kinds:?}");
+        assert!(kinds[..first].iter().all(|k| *k == "scene"), "{kinds:?}");
+        assert_eq!(
+            question_key("figure", "STIMME".into()),
+            Some(QuestionKey::Figure("STIMME".into()))
+        );
     }
 
     #[test]

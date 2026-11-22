@@ -66,24 +66,28 @@ const BOOK_NOTES: [BookReport; 4] = [
     BookReport {
         pending: 1,
         not_in_book: 0,
+        figures: 0,
         places: 0,
         twin_numbers: 0,
     },
     BookReport {
         pending: 0,
         not_in_book: 1,
+        figures: 0,
         places: 0,
         twin_numbers: 0,
     },
     BookReport {
         pending: 0,
         not_in_book: 0,
+        figures: 0,
         places: 1,
         twin_numbers: 0,
     },
     BookReport {
         pending: 0,
         not_in_book: 0,
+        figures: 0,
         places: 0,
         twin_numbers: 1,
     },
