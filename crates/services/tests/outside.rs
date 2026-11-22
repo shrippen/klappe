@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use klappe_services::{OnOutside, ProjectEdit, Saved, Session};
+use klappe_services::{BackupState, OnOutside, ProjectEdit, Saved, Session};
 use klappe_store::FileKind;
 
 const SCRIPT_FILE: &str = "drehbuch.fountain";
@@ -295,4 +295,24 @@ fn a_script_both_changed_asks_in_save_script_too() {
     assert_eq!(read(&dir, SCRIPT_FILE), outside);
     assert_eq!(s.save_script(OnOutside::Overwrite).unwrap(), Saved::Done);
     assert_eq!(read(&dir, SCRIPT_FILE), text);
+}
+
+#[test]
+fn reload_keeps_a_backup_nobody_answered() {
+    let dir = copy("outside-reload-backup");
+    let mut a = Session::open(&dir).unwrap();
+    a.set_script_text("INT. A - TAG\n\nUngespeichert.\n");
+    a.autosave().unwrap();
+    drop(a);
+
+    let mut b = Session::open(&dir).unwrap();
+    assert_eq!(*b.backup(), BackupState::Found);
+    b.add_plan("Plan B").unwrap();
+    rename_plan_outside(&dir);
+    assert_eq!(b.save(OnOutside::Ask).unwrap(), Saved::Conflict);
+
+    b.reload().unwrap();
+
+    assert!(dir.join(".sicherung").exists());
+    assert_eq!(*b.backup(), BackupState::Found);
 }
