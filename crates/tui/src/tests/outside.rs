@@ -90,3 +90,38 @@ fn an_untouched_editor_follows_a_change_outside() {
     ctrl(&mut app, 'z');
     assert_eq!(app.text(), OTHER_BOOK);
 }
+
+/// Opens the numbering form and confirms it unchanged (Ctrl+N, Enter).
+fn confirm_numbers(app: &mut App) {
+    ctrl(app, 'n');
+    press(app, KeyCode::Enter);
+}
+
+#[test]
+fn a_writer_of_the_project_keeps_the_editor_in_step_with_a_change_outside() {
+    let scratch = Scratch::new(BOOK);
+    let mut app = scratch.app();
+    change_outside(&scratch);
+
+    confirm_numbers(&mut app);
+    assert_eq!(app.text(), OTHER_BOOK);
+    assert!(screen(&mut app, 100, 24).contains("Reloaded: Screenplay"));
+
+    ctrl(&mut app, 's');
+    assert_eq!(scratch.script(), OTHER_BOOK);
+}
+
+#[test]
+fn a_writer_of_the_project_leaves_typing_to_the_question_of_the_save() {
+    let scratch = Scratch::new(BOOK);
+    let mut app = scratch.app();
+    typed(&mut app, "neu ");
+    change_outside(&scratch);
+
+    confirm_numbers(&mut app);
+    ctrl(&mut app, 's');
+
+    assert_eq!(app.mode, Mode::Outside);
+    assert_eq!(scratch.script(), OTHER_BOOK, "nothing was written");
+    assert_eq!(app.text(), format!("neu {BOOK}"));
+}
