@@ -164,3 +164,47 @@ fn a_known_location_asks_nothing_and_its_file_stays() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn ctrl_z_takes_back_a_place_answer_and_ctrl_y_does_it_again() {
+    let scratch = bare(BOOK);
+    settle(&scratch);
+    let mut app = scratch.app();
+    let _ = screen(&mut app, 100, 24);
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    assert!(orte(&scratch).contains("SÄNGERSAAL"));
+
+    ctrl(&mut app, 'z');
+
+    assert!(!orte(&scratch).contains("SÄNGERSAAL"), "{}", orte(&scratch));
+    assert!(app.asks_place(), "the question is back");
+
+    ctrl(&mut app, 'y');
+
+    assert!(orte(&scratch).contains("name = \"SÄNGERSAAL\""));
+    assert!(!app.asks_place());
+}
+
+#[test]
+fn ctrl_z_undoes_typing_after_a_place_answer_before_the_answer() {
+    let scratch = bare(BOOK);
+    settle(&scratch);
+    let mut app = scratch.app();
+    let _ = screen(&mut app, 100, 24);
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    ctrl_end(&mut app);
+    let text = app.text();
+    typed(&mut app, "Ah");
+
+    ctrl(&mut app, 'z');
+
+    assert_eq!(app.text(), text, "only the typing is undone");
+    assert!(orte(&scratch).contains("SÄNGERSAAL"));
+
+    ctrl(&mut app, 'z');
+
+    assert!(!orte(&scratch).contains("SÄNGERSAAL"));
+    assert!(app.asks_place());
+}

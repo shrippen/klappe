@@ -97,14 +97,13 @@ impl App {
 
     /// Gives the chosen answer to the session and goes on with the next question. An answer
     /// about a scene is written to the register at once and is a step of Ctrl+Z; one about a
-    /// name of a cue writes only its entry in `figuren.toml` and is a step too; one about a
-    /// place name writes only `orte.toml`, from the file as it is on disk, and is none.
+    /// name of a cue writes only its entry in `figuren.toml` and is a step too; so is one about a
+    /// place name, which writes only its entry in `orte.toml`, from the file as it is on disk.
     fn answer_book(&mut self) {
         let Some(question) = self.question() else {
             return;
         };
         let scene = matches!(question.key, QuestionKey::Scene(_));
-        let step = !matches!(question.key, QuestionKey::Place(_));
 
         // The answer is written at once: the TUI saves no plans, so quitting asks nothing.
         let mut answered = self.session.answer_question(&question.key, self.book_sel);
@@ -117,10 +116,8 @@ impl App {
             return;
         }
 
-        if step {
-            self.answered.push(self.editor.mark_step());
-            self.unanswered.clear();
-        }
+        self.answered.push(self.editor.mark_step());
+        self.unanswered.clear();
         self.book_sel = 0;
         self.refresh_book_note();
         if !self.book_asks() {
@@ -172,8 +169,8 @@ impl App {
         self.unanswered.clear();
     }
 
-    /// Writes the register as undo or redo left it, and for a name of a cue its entry in
-    /// `figuren.toml`, and shows the questions.
+    /// Writes the register as undo or redo left it, and for a name of a cue or a place name its
+    /// entry in `figuren.toml` or `orte.toml`, and shows the questions.
     fn settle_answer(&mut self) -> Flow {
         if let Err(e) = self.session.save_answer() {
             self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));

@@ -434,8 +434,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Datei, ausgehend vom Stand auf der Platte (ein Programm daneben, etwa das TUI beim Fenster,
   behält seine Änderungen); Speichern und die Sicherung schreiben sie nie (nur eine Antwort
   tut es; eine Sicherung enthält keine `orte.toml`): der Stand auf der Platte gilt. Eine Frage, die
-  eine Antwort schon nicht mehr offen findet, verschwindet nach dem Neulesen der Platte. Antworten
-  sind kein Schritt von Rückgängig. Die Zuordnung Spielort → Drehort folgt (Datenmodell Schritt 2). Keine
+  eine Antwort schon nicht mehr offen findet, verschwindet nach dem Neulesen der Platte. Eine Antwort ist
+  ein Schritt von Rückgängig; sie und ihr Rückgängig und Wiederholen ändern nur ihren Eintrag in der
+  Datei, wie sie auf der Platte steht (eine Umbenennung nimmt den alten Namen nur zurück, wenn der
+  Eintrag noch den neuen trägt). Die Zuordnung Spielort → Drehort folgt (Datenmodell Schritt 2). Keine
   neue Formatversion: die Datei fehlt in älteren Projekten und gilt dann als leer.
 - **Aliasnamen und Nicht-Figuren (DB-50):** eine Figur in `figuren.toml` hat optional `aliases`,
   eine Liste weiterer Namen, unter denen das Buch sie nennt (`aliases = ["LIESL"]`); nur
