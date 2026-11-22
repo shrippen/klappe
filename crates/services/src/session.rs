@@ -51,6 +51,7 @@ pub use free_view::{Size, View, ViewStep};
 pub use outside::{OnOutside, Outside, OutsideFile, Saved};
 pub use pages::Pages;
 pub use places::PlaceAnswer;
+pub use questions::Answered;
 pub use questions::{AnswerLine, BookQuestion, QuestionKey};
 pub use retime::{Grab, TimeSnap};
 pub use script_pages::Laid;
@@ -212,14 +213,15 @@ pub struct Session {
     /// The ids of the characters as last read from or written to `figuren.toml`: a character
     /// of the file not among them is new there, one the session lacks was deleted here.
     known_figures: std::collections::HashSet<String>,
-    /// The figure answer `undo` or `redo` just went over, for `save_answer`.
-    disk_step: Option<(crate::figure_file::FigureDelta, crate::figure_file::Way)>,
+    /// The figure or place answer `undo` or `redo` just went over, for `save_answer`.
+    disk_step: Option<(undo::AnswerDelta, crate::figure_file::Way)>,
     /// For each entry of the register its scene in the book and that scene's heading line
     /// (`refresh_scene_map`), kept so a refresh of the window does not align the book again.
     book_scene: Vec<Option<usize>>,
     heading_line: Vec<Option<usize>>,
     /// The scripted locations as `orte.toml` held them when last read or written (DB-51). Not
-    /// part of the project: no undo step, no backup, no save; `orte.toml` is their only source.
+    /// part of the project: no backup, no save; `orte.toml` is their only source. An answer is
+    /// an undo step that carries its entry, not the places.
     places: Vec<klappe_model::Place>,
     /// Place names of the headings no scripted location is called by (`pending_places`).
     pending_places: Vec<crate::places::PendingPlace>,

@@ -459,8 +459,8 @@ pub mod qobject {
         fn autosave(self: Pin<&mut Self>);
 
         /// Answers the open question `kind`/`key` of `projectJson.questions` with the answer at
-        /// position `index` of its `answers`. A scene answer is an undo step; a place answer
-        /// goes to `orte.toml` at once and is none. False when the answer is refused.
+        /// position `index` of its `answers`. An answer is an undo step; a figure or place
+        /// answer also goes to its file at once. False when the answer is refused.
         #[qinvokable]
         #[cxx_name = "answerQuestion"]
         fn answer_question(self: Pin<&mut Self>, kind: &QString, key: &QString, index: i32)

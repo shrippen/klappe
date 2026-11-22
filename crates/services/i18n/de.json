@@ -1023,6 +1023,7 @@
  "step.ImportScript": "Drehbuch laden",
  "step.ResolveScene": "Szene dem Buch zuordnen",
  "step.ResolveFigure": "Namen einer Figur zuordnen",
+ "step.ResolvePlace": "Namen eines Spielorts zuordnen",
  "step.RemoveScene": "Szene löschen",
  "step.AddLocation": "Drehort anlegen",
  "step.EditLocation": "Drehort ändern",
