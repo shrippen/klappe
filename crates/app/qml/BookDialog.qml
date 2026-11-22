@@ -5,7 +5,8 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // The open questions about the book (DATENMODELL §4): a register entry the screenplay could not
-// place, then a place name of the scene headings no scripted location is called by (DB-51).
+// place, then a name of a cue no character is called by (DB-50), then a place name of the scene
+// headings no scripted location is called by (DB-51).
 // The session words them (title, question, answer lines); the dialog only shows them, one at a
 // time, and hands back the position. Arrows and Enter choose, a click answers; Close (Esc) leaves
 // the questions open. The next question follows; the dialog closes after the last.
