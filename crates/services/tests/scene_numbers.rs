@@ -45,7 +45,10 @@ fn make(name: &str, numbering: SceneNumbering, first: u32, book: &str) -> PathBu
     project.scenes = vec![entry("aaaa", "1", SAAL), entry("bbbb", "2", HOF)];
     klappe_store::save(&dir, &project, Some(book)).unwrap();
     // The first open and save puts the prints of the book in the register.
-    Session::open(&dir).unwrap().save().unwrap();
+    Session::open(&dir)
+        .unwrap()
+        .save(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     dir
 }
@@ -97,7 +100,7 @@ fn saving_numbers_automatically_from_the_first_number() {
     let mut s = Session::open(&dir).unwrap();
 
     s.set_script_text(&(keller(" #99#") + &saal(" #7#") + &hof("")));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), keller(" #10#") + &saal(" #11#") + &hof(" #12#"));
     assert_eq!(s.script_text(), book(&dir));
@@ -116,7 +119,7 @@ fn renumbering_keeps_the_plans_with_their_scenes() {
     let mut s = Session::open(&dir).unwrap();
 
     s.set_script_text(&(keller(" #1#") + &saal(" #2#") + &hof(" #3#")));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let s = Session::open(&dir).unwrap();
     assert_eq!(number_of(&s, "aaaa"), "2");
@@ -148,7 +151,7 @@ fn an_outside_change_is_numbered_at_the_next_save() {
 
     write(&dir, &(keller(" #1#") + &hof(" #3#")));
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), keller(" #1#") + &hof(" #2#"));
     assert_eq!(number_of(&s, "bbbb"), "2");
@@ -166,7 +169,8 @@ fn locked_numbers_stay_and_a_new_scene_gets_a_letter() {
     let text = saal(" #1#") + &keller("") + &hof(" #2#");
 
     s.set_script_text(&text);
-    s.save_script().unwrap();
+    s.save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     assert_eq!(book(&dir), saal(" #1#") + &keller(" #1A#") + &hof(" #2#"));
     assert_eq!(number_of(&Session::open(&dir).unwrap(), "bbbb"), "2");
@@ -183,7 +187,7 @@ fn a_struck_scene_stays_as_a_heading_and_keeps_its_plans() {
     let mut s = Session::open(&dir).unwrap();
 
     s.set_script_text(&(saal(" #1#") + &keller("") + "\n"));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let text = book(&dir);
     assert!(text.contains("INT. KELLER – NACHT #1A#"), "{text}");
@@ -199,7 +203,7 @@ fn a_struck_scene_stays_as_a_heading_and_keeps_its_plans() {
 
     // Saving again adds nothing.
     let mut s = s;
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     assert_eq!(book(&dir), text);
 }
 
@@ -218,7 +222,7 @@ fn an_english_project_says_omitted() {
     let mut s = Session::open(&dir).unwrap();
 
     s.set_script_text(&saal(" #1#"));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(book(&dir).contains(".OMITTED #2#"), "{}", book(&dir));
 }
@@ -268,7 +272,7 @@ fn a_project_without_the_key_keeps_its_text() {
     std::fs::remove_file(dir.join("nummern.toml")).unwrap();
 
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), text);
 }
@@ -309,9 +313,9 @@ fn an_entry_not_in_the_book_already_gets_no_heading() {
     let before = book(&dir);
 
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     s.set_script_text(&(saal(" #1#") + "\n"));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let text = book(&dir);
     assert!(!text.contains("#9#"), "{text}");
@@ -334,7 +338,10 @@ fn saving_a_locked_book_with_old_entries_leaves_the_text_alone() {
     klappe_store::save(&dir, &project, None).unwrap();
     let before = book(&dir);
 
-    Session::open(&dir).unwrap().save().unwrap();
+    Session::open(&dir)
+        .unwrap()
+        .save(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     assert_eq!(book(&dir), before);
 }
@@ -353,7 +360,8 @@ fn a_copy_placed_before_leaves_the_number_with_the_register_scene() {
     let copy = hof(" #2#").replace("Hund bellt", "Pferd wiehert");
 
     s.set_script_text(&(saal(" #1#") + &copy + &hof(" #2#")));
-    s.save_script().unwrap();
+    s.save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     let expected = saal(" #1#") + &copy.replace("#2#", "#1A#") + &hof(" #2#");
     assert_eq!(book(&dir), expected);
@@ -375,7 +383,7 @@ fn a_duplicate_number_from_outside_stays_when_no_scene_is_known_as_holder() {
     std::fs::remove_file(dir.join("nummern.toml")).unwrap();
 
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), text);
 }
@@ -401,7 +409,7 @@ fn open_twin_questions_write_no_number() {
 
     let mut s = Session::open(&dir).unwrap();
     assert_eq!(s.pending_scenes().len(), 1);
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), text);
 }

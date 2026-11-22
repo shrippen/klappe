@@ -430,7 +430,7 @@ fn variants_survive_saving_and_opening() {
     let mut s = open("variants-save");
     s.copy_plan("Stand 1").unwrap();
     s.add_plan("").unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let reopened = Session::open(s.dir()).unwrap();
 

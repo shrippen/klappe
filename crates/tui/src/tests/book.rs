@@ -266,3 +266,18 @@ fn a_new_edit_at_the_same_depth_drops_the_answer_redo() {
 
     assert_eq!(app.asked_entry().as_deref(), Some("1"));
 }
+
+#[test]
+fn an_answer_keeps_the_editor_in_step_with_a_change_outside() {
+    let (scratch, mut app) = swapped();
+    let outside = format!("{}\nVom Fenster.\n", scratch.script());
+    fs::write(scratch.dir.join("drehbuch.fountain"), &outside)
+        .unwrap_or_else(|e| unreachable!("{e}"));
+
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    assert_eq!(app.text(), outside);
+
+    ctrl(&mut app, 's');
+    assert_eq!(scratch.script(), outside);
+}

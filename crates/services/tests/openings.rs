@@ -369,7 +369,7 @@ fn openings_survive_saving_and_opening_again() {
 
     let mut s = Session::open(&dir).unwrap();
     s.edit_plan(add(OpeningKind::Window, p(8.0, 0.0))).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let again = Session::open(&dir).unwrap();
     assert_eq!(openings(&again, 0).len(), 1);

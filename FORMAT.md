@@ -16,7 +16,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
 ├── nummern.toml         Sperrstand der Szenennummern (optional, DB-33)
-└── .sicherung/          Sicherung ungespeicherter Änderungen (optional, siehe unten)
+├── .sicherung/          Sicherung ungespeicherter Änderungen (optional, siehe unten)
+└── .abgleich/           kurzlebige Kopie beim Übernehmen einer Änderung von außen (siehe unten)
 ```
 
 ## Regeln
@@ -499,6 +500,21 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.
 - Fehlende `figuren.toml`, `orte.toml`, fehlende Ordner und fehlendes Drehbuch gelten als leer.
+- **Speichern und Änderungen von außen:** Eine Sitzung merkt sich je Datei, was sie zuletzt gelesen
+  oder geschrieben hat, und was sie selbst daraus kodiert. Einheiten sind `projekt.toml`,
+  `figuren.toml`, `bibliothek.toml`, `vorlagen.toml`, `drehorte/<id>.toml`, `szenen.toml`,
+  `szenen/<id>.json` und `drehbuch.fountain`; `orte.toml` und `nummern.toml` liest sie mit, sie
+  ändert sie nie als eigene Änderung. `bilder/` und versteckte Ordner gehören nicht dazu.
+  Speichern schreibt nur Dateien, deren Kodierung von der Datei auf der Platte abweicht, die
+  Szenendateien vor `szenen.toml`; gelöscht wird nur, was die Sitzung kannte und nicht mehr
+  hat. Eine Datei, die sich außerhalb geändert hat und in der Sitzung nicht, wird übernommen
+  (die Sitzung liest sie neu, Rückgängig beginnt von vorn); eine Datei, die beide geändert
+  haben, wird erst beim Speichern gefragt (neu laden oder überschreiben). Antworten des
+  Terminals in `figuren.toml` (neue Figuren, Aliase, Nicht-Figuren) sind keine Änderung, die
+  gefragt wird. Eine von außen neu angelegte Datei zählt als Änderung von außen und bleibt.
+  Zum Lesen der Mischung aus Datei und eigener Fassung schreibt `load_tree` sie nach
+  `.abgleich/` im Projektordner, liest sie wie ein Projekt und löscht den Ordner; ein Rest
+  nach einem Absturz wird beim nächsten Aufruf entfernt. Git soll ihn ignorieren (`.abgleich/`).
 - **Sicherung (LH-05):** ungespeicherte Änderungen schreibt die Sitzung regelmäßig nach
   `.sicherung/`, ein vollständiger Projektordner im selben Format. Die Projektdateien bleiben
   dabei unberührt; erst der Nutzer speichert, und das Speichern löscht `.sicherung/`, außer die Sitzung

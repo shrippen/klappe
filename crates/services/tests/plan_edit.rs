@@ -834,7 +834,7 @@ fn edits_survive_saving_and_loading() {
         source: Source::Light("led-1".into()),
     })
     .unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let again = Session::open(&dir).unwrap();
     assert_eq!(again.project(), s.project());

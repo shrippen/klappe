@@ -499,7 +499,7 @@ fn saves_and_loads_again() {
     })
     .unwrap();
 
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let again = Session::open(s.dir()).unwrap();
     assert_eq!(again.project(), s.project());
@@ -516,7 +516,7 @@ fn a_new_project_fills_up_and_reloads() {
     s.edit_project(add_location("Halle")).unwrap();
     s.edit_project(add_scene("1", "halle")).unwrap();
     s.edit_project(add_character("Anna", "A")).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let again = Session::open(&dir).unwrap();
     assert_eq!(again.project(), s.project());
@@ -549,7 +549,7 @@ fn a_new_location_id_differs_from_others_in_more_than_case() {
         .map(|l| l.id.to_lowercase())
         .collect();
     assert_eq!(ids, ["hof", "hof-2", "saengersaal"]);
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     assert_eq!(s.autosave().unwrap(), klappe_services::Autosave::Clean);
 }
 

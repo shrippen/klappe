@@ -45,7 +45,10 @@ fn make(name: &str, numbering: SceneNumbering, book: &str) -> PathBuf {
     project.script.language = Some(ScriptLanguage::De);
     project.scenes = vec![entry("aaaa", "1", SAAL), entry("bbbb", "2", HOF)];
     klappe_store::save(&dir, &project, Some(book)).unwrap();
-    Session::open(&dir).unwrap().save().unwrap();
+    Session::open(&dir)
+        .unwrap()
+        .save(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     dir
 }
@@ -86,7 +89,7 @@ fn a_foreign_open_question_leaves_the_book_alone() {
 
     let mut s = Session::open(&dir).unwrap();
     assert_eq!(s.pending_scenes().len(), 1);
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), text);
 }
@@ -105,7 +108,8 @@ fn a_copy_behind_the_original_gets_a_letter_after_the_answer() {
     assert_eq!(s.pending_scenes().len(), 1);
 
     s.answer_book("bbbb", 0).unwrap();
-    s.save_script().unwrap();
+    s.save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     let text = book(&dir);
     assert_eq!(text.matches("#2#").count(), 1, "{text}");
@@ -124,7 +128,7 @@ fn a_struck_scene_stays_after_opening() {
     write(&dir, &saal(" #1#"));
 
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), saal(" #1#") + ".ENTFÄLLT #2#\n");
 }
@@ -143,7 +147,7 @@ fn a_struck_scene_stays_after_an_answer() {
     assert_eq!(s.pending_scenes().len(), 1);
 
     s.answer_book("cccc", 0).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(book(&dir).contains(".ENTFÄLLT #2#"), "{}", book(&dir));
 }
@@ -162,7 +166,7 @@ fn a_struck_scene_stays_after_restoring_a_backup() {
 
     let mut s = Session::open(&dir).unwrap();
     s.restore_backup().unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(book(&dir).contains(".ENTFÄLLT #2#"), "{}", book(&dir));
 }
@@ -184,7 +188,7 @@ fn a_book_without_a_lock_is_saved_byte_for_byte() {
     assert!(!dir.join(LOCK_FILE).exists());
 
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), text);
     assert!(dir.join(LOCK_FILE).exists());
@@ -207,7 +211,7 @@ fn a_text_equal_to_the_lock_ignores_the_register() {
     klappe_store::save(&dir, &project, None).unwrap();
 
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), text);
 }
@@ -222,7 +226,7 @@ fn automatic_removes_the_struck_headings() {
     let mut s = Session::open(&dir).unwrap();
 
     s.set_script_text(&(saal(" #1#") + ".ENTFÄLLT #2#\n\n" + &keller(" #3#")));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), saal(" #1#") + &keller(" #2#"));
 }
@@ -237,7 +241,7 @@ fn a_number_rewritten_by_hand_strikes_the_old_one() {
     let mut s = Session::open(&dir).unwrap();
 
     s.set_script_text(&(saal(" #1#") + &hof(" #13#")));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), saal(" #1#") + &hof(" #13#") + ".ENTFÄLLT #2#\n");
 }
@@ -251,12 +255,12 @@ fn a_struck_heading_deleted_by_hand_comes_back() {
     );
     let mut s = Session::open(&dir).unwrap();
     s.set_script_text(&saal(" #1#"));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     let struck = book(&dir);
     assert!(struck.contains(".ENTFÄLLT #2#"), "{struck}");
 
     s.set_script_text(&saal(" #1#"));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), struck);
 }
@@ -272,7 +276,7 @@ fn a_copy_before_the_original_gets_a_letter() {
     let mut s = Session::open(&dir).unwrap();
 
     s.set_script_text(&(saal(" #1#") + &copy_of_yard() + &hof(" #2#")));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let expected = saal(" #1#") + &copy_of_yard().replace("#2#", "#1A#") + &hof(" #2#");
     assert_eq!(book(&dir), expected);
@@ -316,14 +320,17 @@ fn a_book_without_any_number_stays_without_any() {
     klappe_store::save(&dir, &project, Some(UNNUMBERED)).unwrap();
 
     for _ in 0..3 {
-        Session::open(&dir).unwrap().save().unwrap();
+        Session::open(&dir)
+            .unwrap()
+            .save(klappe_services::OnOutside::Overwrite)
+            .unwrap();
         assert_eq!(book(&dir), UNNUMBERED);
     }
 
     let more = format!("{UNNUMBERED}\nINT. DACH - TAG\n\nDora.\n");
     let mut s = Session::open(&dir).unwrap();
     s.set_script_text(&more);
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(book(&dir), more);
 }
@@ -338,7 +345,7 @@ fn a_struck_heading_is_no_pending_place() {
     );
     write(&dir, &saal(" #1#"));
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(book(&dir).contains(".ENTFÄLLT #2#"));
     let names: Vec<String> = s.pending_places().iter().map(|p| p.name.clone()).collect();
@@ -358,7 +365,7 @@ fn setting_the_numbering_keeps_what_another_session_saved() {
     let mut window = Session::open(&dir).unwrap();
     let paper = klappe_model::PaperSetup::from("a3-landscape".to_owned());
     window.set_paper(paper);
-    window.save().unwrap();
+    window.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     tui.set_scene_numbering(SceneNumbering::Automatic, 5)
         .unwrap();

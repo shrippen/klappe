@@ -254,8 +254,10 @@ fn saving_writes_the_register_too() {
     let scratch = Scratch::new("INT. A - TAG\n\nx");
     let register = scratch.dir.join("szenen.toml");
     let mut app = scratch.app();
-    // The file on disk falls behind the register the session holds.
-    fs::write(&register, "").unwrap_or_else(|e| unreachable!("{e}"));
+    // The file on disk falls behind the register the session holds: the same entries, written
+    // another way (a blanked register would be an outside change the session takes over).
+    let before = fs::read_to_string(&register).unwrap_or_default();
+    fs::write(&register, format!("# alt\n{before}")).unwrap_or_else(|e| unreachable!("{e}"));
     typed(&mut app, "neu ");
 
     ctrl(&mut app, 's');

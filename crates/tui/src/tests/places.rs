@@ -223,14 +223,15 @@ fn a_gone_question_is_no_step_of_ctrl_z() {
     ctrl_end(&mut app);
     typed(&mut app, "Ah");
     ctrl(&mut app, 's');
+
+    // The scene question the save raised; its answer reads `orte.toml` again, so the other
+    // program answers after it, and the place question has gone only on disk.
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
     let mut other = klappe_services::Session::open(&scratch.dir).unwrap();
     other
         .resolve_place("HOF", klappe_services::PlaceChoice::Create)
         .unwrap();
-
-    // The scene question the save raised, then the place question that has gone.
-    ctrl(&mut app, 'k');
-    press(&mut app, KeyCode::Enter);
     assert!(app.asks_place(), "HOF is still asked");
     press(&mut app, KeyCode::Enter);
     press(&mut app, KeyCode::Esc);

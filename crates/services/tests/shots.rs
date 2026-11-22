@@ -365,7 +365,7 @@ fn new_shots_survive_saving_and_loading() {
     let added = s.add_shot(Some("b")).unwrap();
     let copied = s.copy_shot("s12-1").unwrap();
     s.delete_shot("s12-5").unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     let saved = s.shots();
 
     let back = Session::open(&dir).unwrap();
@@ -509,7 +509,7 @@ fn an_assigned_setup_survives_saving_and_loading() {
     let dir = copy("shots-setup");
     let mut s = Session::open(&dir).unwrap();
     s.edit_shot("s12-1", ShotField::Setup, "s12-3").unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let s = Session::open(&dir).unwrap();
 

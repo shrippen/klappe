@@ -239,7 +239,7 @@ fn notes_survive_saving_and_loading() {
         text: "Tür quietscht".into(),
     })
     .unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let again = Session::open(&dir).unwrap();
     assert_eq!(again.project(), s.project());

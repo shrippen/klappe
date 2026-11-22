@@ -105,6 +105,8 @@ impl App {
         };
         let scene = matches!(question.key, QuestionKey::Scene(_));
 
+        self.hand_over();
+
         // The answer is written at once: the TUI saves no plans, so quitting asks nothing.
         let mut answered = self.session.answer_question(&question.key, self.book_sel);
         if scene {
@@ -134,6 +136,7 @@ impl App {
     /// Ctrl+Z: takes back the latest of editor edit and book answer. The answer is the
     /// latest when the editor has no step since it.
     pub(super) fn undo(&mut self) -> Flow {
+        self.hand_over();
         // The session's top step is an answer, not another kind of step (audit 16, finding 2).
         let answer = self.session.undo_is_answer();
         if !answer || self.answered.last() != Some(&self.editor.undo_depth()) {
@@ -152,6 +155,7 @@ impl App {
     /// then (its undo depth, not its revision, which every undo and redo raises) and made no
     /// new edit since, which drops the answer from redo like any undone step.
     pub(super) fn redo(&mut self) -> Flow {
+        self.hand_over();
         let now = (self.editor.undo_depth(), self.editor.edits());
         // A new edit, or another step of the session, drops the answers from redo.
         let stale = self.unanswered.last().is_some_and(|then| then.1 != now.1);

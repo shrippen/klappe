@@ -1,6 +1,7 @@
 //! The register against the book: answering an open question about a scene, a name of a cue
-//! (a figure) or a place name of a heading. Every answer is an undo step (a
-//! figure answer also goes to `figuren.toml` at once, a place answer to `orte.toml`).
+//! (a figure) or a place name of a heading. An answer is an undo step, unless the question is
+//! gone (another program answered it): that one is none. A figure answer also goes to
+//! `figuren.toml` at once, a place answer to `orte.toml`.
 
 use super::qobject;
 use core::pin::Pin;

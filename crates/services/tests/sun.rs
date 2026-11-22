@@ -279,7 +279,7 @@ fn place_and_date_survive_saving() {
     })
     .unwrap();
     set_scene(&mut s, Some(noon())).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let back = Session::open(&dir).unwrap();
 

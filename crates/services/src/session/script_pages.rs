@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use super::export::write_file;
+use super::outside::PROJECT_FILE;
 use super::Session;
 use crate::catalog::Language;
 use crate::error::ServiceError;
@@ -95,8 +96,10 @@ impl Session {
     /// leaving everything else as it is on disk (the TUI, which saves the book without the
     /// plans).
     pub fn keep_contd(&mut self, on: bool) -> Result<(), ServiceError> {
+        let before = self.before(PROJECT_FILE)?;
         klappe_store::save_contd(&self.dir, on)?;
         self.project.script.contd_after_action = on;
+        self.rebase(PROJECT_FILE, before)?;
 
         Ok(())
     }

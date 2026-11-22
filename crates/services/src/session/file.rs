@@ -4,6 +4,7 @@ use std::path::Path;
 use klappe_model::{Project, SceneNumbering};
 use klappe_store::Loaded;
 
+use super::outside::{OnOutside, Saved, REGISTER_FILE, SCRIPT_FILE};
 use super::plan_view::PlanView;
 use super::{check_empty, check_title, Autosave, BackupState, Session, View};
 use crate::book::ImportReport;
@@ -15,27 +16,16 @@ use crate::shot_edit;
 impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
-        let mut loaded = crate::load::load_project(dir)?;
-        let lock = klappe_store::load_lock(dir)?;
-        shot_edit::clear_orphans(&mut loaded.project);
-        let script = loaded
-            .script
-            .as_deref()
-            .map(klappe_script::parse)
-            .unwrap_or_default();
-        let scene = loaded
-            .project
-            .scenes
-            .iter()
-            .position(|s| !s.plans.is_empty())
-            .unwrap_or(0);
+        // Read first: a change between the two reads is then taken over by the next check.
+        let disk = klappe_store::read_tree(dir)?;
+        let loaded = crate::load::load_project(dir)?;
 
         let mut session = Self {
             dir: dir.to_owned(),
-            project: loaded.project,
-            script_text: loaded.script,
-            script,
-            scene,
+            project: Project::new(""),
+            script_text: None,
+            script: Default::default(),
+            scene: 0,
             plan: 0,
             time_s: 0.0,
             selected_shot: None,
@@ -50,7 +40,7 @@ impl Session {
             project_changed: false,
             edits: super::undo::next_edit(),
             backup: BackupState::None,
-            load_notes: loaded.notes,
+            load_notes: Vec::new(),
             view: View::Plan,
             orbit: None,
             cut: klappe_stellprobe::Cut::Off,
@@ -60,16 +50,20 @@ impl Session {
             pending: Vec::new(),
             pending_figures: Vec::new(),
             disk_step: None,
-            known_figures: HashSet::new(),
+            file_figures: Default::default(),
             book_scene: Vec::new(),
             heading_line: Vec::new(),
-            places: klappe_store::load_places(dir)?,
+            places: Vec::new(),
             pending_places: Vec::new(),
-            lock,
+            lock: None,
             twin_numbers: 0,
+            disk,
+            own: Default::default(),
+            conflicts: Vec::new(),
         };
+        session.take(loaded)?;
         session.know_figures();
-        session.reconcile();
+        session.own = session.encode()?;
         session.scene = session
             .project
             .scenes
@@ -113,29 +107,6 @@ impl Session {
 
     pub fn is_dirty(&self) -> bool {
         self.dirty
-    }
-
-    /// Writes the project back to its folder and removes the backup. An unanswered backup
-    /// (`Found`, `Unreadable`) stays, as with `autosave`: the user decides on it.
-    pub fn save(&mut self) -> Result<(), ServiceError> {
-        self.number_script();
-        // So the register holds the book as saved: the next outside change aligns against it.
-        self.reconcile();
-        // What the terminal answered since the file was read goes into the project first: the
-        // file is written whole from it.
-        self.adopt_figures()?;
-        klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
-        self.know_figures();
-        self.write_lock()?;
-        self.dirty = false;
-        self.unbacked = false;
-        self.project_changed = false;
-        if self.backup != BackupState::None {
-            return Ok(());
-        }
-
-        klappe_store::drop_backup(&self.dir)?;
-        Ok(())
     }
 
     /// Writes the unsaved state into the backup, if it changed since the last save or
@@ -198,33 +169,62 @@ impl Session {
     /// as it is on disk. The backup then no longer holds the screenplay as unsaved work: it
     /// is removed if only the screenplay was unsaved, else rewritten with the saved screenplay.
     /// An unanswered backup (`Found`, `Unreadable`) stays for the user to decide.
-    pub fn save_script(&mut self) -> Result<(), ServiceError> {
+    /// A screenplay or register changed outside and in the session is `Conflict` with `Ask`,
+    /// written over with `Overwrite`; the other files are not its business.
+    pub fn save_script(&mut self, on: OnOutside) -> Result<Saved, ServiceError> {
+        if self.script_asks(on)? {
+            return Ok(Saved::Conflict);
+        }
+
         self.number_script();
         self.reconcile();
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
+        self.wrote(&[SCRIPT_FILE, REGISTER_FILE])?;
+        self.conflicts
+            .retain(|f| f.name != SCRIPT_FILE && f.name != REGISTER_FILE);
         self.write_lock()?;
         if self.backup != BackupState::None {
-            return Ok(());
+            return Ok(Saved::Done);
         }
 
         if self.project_changed {
             klappe_store::save_backup(&self.dir, &self.project, self.script_text.as_deref())?;
             self.unbacked = false;
-            return Ok(());
+            return Ok(Saved::Done);
         }
 
         self.dirty = false;
         self.unbacked = false;
         klappe_store::drop_backup(&self.dir)?;
-        Ok(())
+        Ok(Saved::Done)
+    }
+
+    /// Whether `save_script` has to ask: the screenplay or register changed outside and in the
+    /// session, and `on` is `Ask`.
+    fn script_asks(&mut self, on: OnOutside) -> Result<bool, ServiceError> {
+        // A file this save does not write that cannot be read is no reason to refuse.
+        let both = match (self.check(), on) {
+            (Ok(outside), _) => outside.both,
+            (Err(error), OnOutside::Ask) if self.moved(&[SCRIPT_FILE, REGISTER_FILE])? => {
+                return Err(error);
+            }
+            (Err(_), _) => Vec::new(),
+        };
+        let asks = both
+            .iter()
+            .any(|f| f.name == SCRIPT_FILE || f.name == REGISTER_FILE);
+
+        Ok(on == OnOutside::Ask && asks)
     }
 
     /// Writes only the register file `szenen.toml`, as the session holds it: an answer about
     /// the book is a decision, kept at once where the book is edited without the plans (TUI).
     pub fn save_register(&mut self) -> Result<(), ServiceError> {
+        let before = self.before(REGISTER_FILE)?;
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
+        self.rebase(REGISTER_FILE, before)?;
 
         Ok(())
     }

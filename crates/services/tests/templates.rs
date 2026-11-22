@@ -296,7 +296,7 @@ fn an_own_template_survives_saving_and_can_be_placed() {
 
     let mut s = Session::open(&dir).unwrap();
     s.save_template("Mein Dialog").unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     assert!(dir.join("vorlagen.toml").exists());
 
     let mut again = Session::open(&dir).unwrap();
@@ -406,7 +406,7 @@ fn a_plan_beyond_the_set_is_not_filed() {
         })
     ));
     assert!(s.project().templates.is_empty());
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 }
 
 /// A camera on the floor (height 0), which the editor takes, is filed as a template.

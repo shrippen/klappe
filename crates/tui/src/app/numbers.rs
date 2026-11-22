@@ -79,6 +79,7 @@ impl App {
         };
         self.mode = Mode::Normal;
 
+        self.hand_over();
         let before = self.session.project().script.first_scene;
         let first = form.first.parse().unwrap_or(before);
         if let Err(e) = self.session.set_scene_numbering(form.numbering, first) {

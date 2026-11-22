@@ -105,7 +105,7 @@ fn sets_a_background_as_wide_as_the_set_and_it_survives_save_and_undo() {
     );
     assert!(dir.join(IMAGE).is_file());
 
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     let reopened = Session::open(&dir).unwrap();
     assert_eq!(background(&reopened), background(&s));
 

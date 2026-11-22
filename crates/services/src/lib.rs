@@ -43,12 +43,13 @@ pub use book::{BookReport, Candidate, Choice, ImportReport, PendingScene};
 pub use catalog::Language;
 pub use edit::ShotField;
 pub use error::ServiceError;
-pub use error_text::{book_report_text, error_text, load_notes_text};
+pub use error_text::{book_report_text, error_text, load_notes_text, outside_files_text};
 pub use example::{copy_example, ensure_example};
 pub use export_format::ExportFormat;
 pub use field::Field;
 pub use figures::{FigureChoice, PendingFigure};
 pub use folder::{archive_project, rename_project, trash_project};
+pub use klappe_store::FileKind;
 pub use light_edit::LightChange;
 pub use measure::measure_angle_deg;
 pub use number::{read_number, Range, Unit};
@@ -60,8 +61,9 @@ pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;
 pub use session::{
     Answer, AnswerLine, Answered, Autosave, BackupState, BookQuestion, ExportOptions, Fade,
-    FigureAnswer, Grab, Laid, Layer, Lock, Looping, Pages, PlaceAnswer, Playing, QuestionKey,
-    Session, Size, Speech, SpokenLine, Step, Tick, TimeSnap, VideoJob, View, ViewStep, Visibility,
+    FigureAnswer, Grab, Laid, Layer, Lock, Looping, OnOutside, Outside, OutsideFile, Pages,
+    PlaceAnswer, Playing, QuestionKey, Saved, Session, Size, Speech, SpokenLine, Step, Tick,
+    TimeSnap, VideoJob, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};

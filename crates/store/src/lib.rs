@@ -9,6 +9,7 @@
 //! load_library, save_library ◄──►          bibliothek.toml, or any library file to pass on
 //!                            builtin_templates, vorlagen.toml (the project's own templates)
 //! load_template_file, save_template_file ◄──► vorlagen.toml, or any template file to pass on
+//! read_tree, encode_tree, load_tree, write_changes   a folder as bytes, what a save writes, reading such bytes as a project, writing only what changed (disk.rs)
 //! write_atomic, write_tree, project_mtime, ..  whole-folder file operations (tree.rs)
 //! read_files, folder_size, free_sibling, free_numbered, set_aside, move_to_trash   a folder as bytes, its size, a free name beside it, renamed to one, the system trash (folder.rs)
 //! ```
@@ -17,6 +18,7 @@
 
 mod camera;
 mod characters;
+mod disk;
 mod error;
 mod files;
 mod folder;
@@ -45,6 +47,7 @@ use serde::{Deserialize, Serialize};
 pub use camera::builtin_camera_presets;
 use characters::{encode_characters, load_characters};
 pub use characters::{load_figures, save_characters};
+pub use disk::{encode_tree, kind_of, load_tree, read_tree, write_changes, FileKind, Tree};
 pub use error::StoreError;
 pub use files::load_script_file;
 use files::{Dir, Kind};

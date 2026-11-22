@@ -121,6 +121,7 @@ impl ControllerRust {
             grip: Grip::Free,
             backup_state: QString::default(),
             backup_message: QString::default(),
+            outside_files: QString::default(),
             autosave_ms: AUTOSAVE_S * MS_PER_S,
             project_json: QString::default(),
             scene_id: QString::default(),

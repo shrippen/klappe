@@ -226,7 +226,7 @@ fn keeping_contd_leaves_the_rest_of_the_setup_on_disk() {
         language: Some(ScriptLanguage::En),
         ..ScriptSetup::default()
     });
-    window.save().unwrap();
+    window.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     tui.keep_contd(true).unwrap();
 

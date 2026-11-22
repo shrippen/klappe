@@ -3,6 +3,7 @@
 use crate::catalog::Language;
 use crate::error::ServiceError;
 use crate::field::Field;
+use crate::session::OutsideFile;
 
 /// The service's error in the given language; details (path, value) appended where they help.
 pub fn error_text(language: Language, error: &ServiceError) -> String {
@@ -204,6 +205,29 @@ fn nothing_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::NoPages => Some("error.noPages"),
         _ => None,
     }
+}
+
+/// The kinds of `files` as words, each once, in the order they first come ("Drehbuch, Pläne").
+pub fn outside_files_text(language: Language, files: &[OutsideFile]) -> String {
+    let mut words: Vec<String> = Vec::new();
+    for file in files {
+        let key = match file.kind {
+            klappe_store::FileKind::Project => "outside.file.project",
+            klappe_store::FileKind::Figures => "outside.file.figures",
+            klappe_store::FileKind::Library => "outside.file.library",
+            klappe_store::FileKind::Templates => "outside.file.templates",
+            klappe_store::FileKind::Location => "outside.file.location",
+            klappe_store::FileKind::Register => "outside.file.register",
+            klappe_store::FileKind::Scene => "outside.file.scene",
+            klappe_store::FileKind::Script => "outside.file.script",
+        };
+        let word = language.text(key);
+        if !words.contains(&word) {
+            words.push(word);
+        }
+    }
+
+    words.join(", ")
 }
 
 /// What loaded but is odd, one sentence per note, for the status line after opening.

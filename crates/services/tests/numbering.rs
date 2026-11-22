@@ -194,7 +194,7 @@ fn the_new_fields_and_the_scheme_survive_saving() {
         color: Some(FigureColor::Green),
     })
     .unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let again = Session::open(&dir).unwrap();
 
@@ -221,7 +221,7 @@ fn the_new_fields_and_the_scheme_survive_saving() {
 fn the_default_scheme_is_not_written() {
     let (mut s, dir) = open("numbering-default");
     s.edit_shot("s12-2", ShotField::Note, "x").unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let header = std::fs::read_to_string(dir.join("projekt.toml")).unwrap();
 
@@ -455,7 +455,7 @@ fn a_scene_number_with_a_letter_numbers_every_scheme() {
 fn a_version_is_stored_as_a_reference_and_an_orphan_becomes_a_base() {
     let (mut s, dir) = open("numbering-ref");
     let id = s.version_shot("s12-3").unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     let text = std::fs::read_to_string(dir.join("szenen/m4djbtj6.json")).unwrap();
     assert!(text.contains("\"version_of\""), "{text}");
 
@@ -517,7 +517,7 @@ fn a_version_keeps_the_camera_of_its_base() {
 fn a_version_of_no_shot_is_a_base_after_loading() {
     let (mut s, dir) = open("numbering-orphan-load");
     s.version_shot("s12-3").unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let file = dir.join("szenen/m4djbtj6.json");
     let text = std::fs::read_to_string(&file).unwrap();
@@ -529,7 +529,7 @@ fn a_version_of_no_shot_is_a_base_after_loading() {
     .unwrap();
 
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     let saved = std::fs::read_to_string(&file).unwrap();
 
     assert!(!saved.contains("version_of"), "{saved}");

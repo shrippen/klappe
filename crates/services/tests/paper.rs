@@ -65,7 +65,7 @@ fn the_paper_is_kept_in_the_project() {
     s.set_paper(LETTER_PORTRAIT);
     assert!(s.is_dirty());
     assert!(!s.can_undo());
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(
         Session::open(&dir).unwrap().project().paper,

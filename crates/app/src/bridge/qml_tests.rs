@@ -15,6 +15,8 @@ const CRLF_PROJECT: &str = "crlf-projekt";
 const CRLF_SCRIPT: &str = "INT. HALLE - TAG\r\n\r\nSie\u{a0}kommt an.\r\n";
 /// The copy of the example `place_answer.qml` opens.
 const PLACE_PROJECT: &str = "orte-projekt";
+/// The copy of the example `outside.qml` changes from two controllers.
+const OUTSIDE_PROJECT: &str = "aussen-projekt";
 /// The scripted location of the example, and the name the copy has before the scenario renames it.
 const PLACE_NAME: &str = "SÄNGERSAAL";
 const PLACE_OLD_NAME: &str = "FESTSAAL";
@@ -55,6 +57,7 @@ fn copy_example(base: &Path) {
 
     copy_dir(&example, &base.join(IMAGE_PROJECT));
     copy_dir(&example, &base.join(PLACE_PROJECT));
+    copy_dir(&example, &base.join(OUTSIDE_PROJECT));
 
     // The heading says SÄNGERSAAL: the book renamed what the file calls FESTSAAL.
     let places = base.join(PLACE_PROJECT).join("orte.toml");

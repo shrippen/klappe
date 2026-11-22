@@ -136,7 +136,7 @@ fn views_are_saved_in_the_project() {
     let mut s = open("views-file");
     s.set_track("b", Visibility::Hidden);
     s.save_view("Nur A").unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let text = std::fs::read_to_string(s.dir().join("projekt.toml")).unwrap();
     let again = Session::open(s.dir()).unwrap();

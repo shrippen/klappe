@@ -20,6 +20,7 @@ mod flow;
 mod marks;
 mod numbers;
 mod outline;
+mod outside;
 mod pdf;
 mod places;
 mod session;

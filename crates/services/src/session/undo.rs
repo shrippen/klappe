@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use klappe_model::Project;
 
 use super::book::register_moved;
+use super::outside::{FIGURES_FILE, REGISTER_FILE};
 use super::Session;
 use crate::error::ServiceError;
 use crate::figure_file::{FigureDelta, Way};
@@ -233,7 +234,9 @@ impl Session {
     /// name only its entry (`save_answer_step`). For the terminal; the window has no
     /// register to write on undo.
     pub fn save_answer(&mut self) -> Result<(), ServiceError> {
+        let before = self.before(REGISTER_FILE)?;
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
+        self.rebase(REGISTER_FILE, before)?;
 
         self.save_answer_step()
     }
@@ -245,8 +248,14 @@ impl Session {
     pub fn save_answer_step(&mut self) -> Result<(), ServiceError> {
         // The delta stays until the file is written: a failed read or write keeps it for the
         // next try (`run` leaves an entry already (not) there as it is).
-        match self.disk_step.clone() {
-            Some((AnswerDelta::Figure(delta), way)) => self.save_figure_delta(&delta, way)?,
+        // Taken first: a take-over by `before` clears the history and with it the step.
+        let step = self.disk_step.clone();
+        match step {
+            Some((AnswerDelta::Figure(delta), way)) => {
+                let before = self.before(FIGURES_FILE)?;
+                self.save_figure_delta(&delta, way)?;
+                self.rebase(FIGURES_FILE, before)?;
+            }
             Some((AnswerDelta::Place(delta), way)) => self.save_place_delta(&delta, way)?,
             None => {}
         }

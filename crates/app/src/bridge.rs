@@ -102,6 +102,9 @@ pub mod qobject {
         #[qproperty(QString, backup_state, cxx_name = "backupState")]
         /// Why an `unreadable` backup cannot be read.
         #[qproperty(QString, backup_message, cxx_name = "backupMessage")]
+        /// The files changed outside and in the window, worded; empty for none. Answer with
+        /// `reloadProject` or `saveOverwrite`.
+        #[qproperty(QString, outside_files, cxx_name = "outsideFiles")]
         /// Milliseconds between two calls of `autosave`.
         #[qproperty(i32, autosave_ms, cxx_name = "autosaveMs")]
         /// `{ scenes, locations, characters }` of the project, for the project view.
@@ -351,8 +354,36 @@ pub mod qobject {
         #[qinvokable]
         fn redo(self: Pin<&mut Self>);
 
+        /// Saves. False when it did not: an error (status) or a file changed outside and in
+        /// the window, which writes nothing and emits `outsideAsked`.
         #[qinvokable]
         fn save(self: Pin<&mut Self>) -> bool;
+
+        /// Saves and writes the window's version of the files changed outside too.
+        #[qinvokable]
+        #[cxx_name = "saveOverwrite"]
+        fn save_overwrite(self: Pin<&mut Self>) -> bool;
+
+        /// Compares the folder with what the window last saw (on activation of the window):
+        /// what changed outside only is taken over and told by `outsideTaken`.
+        #[qinvokable]
+        #[cxx_name = "checkOutside"]
+        fn check_outside(self: Pin<&mut Self>);
+
+        /// Drops the window's changes and reads the folder again; `outsideTaken` tells it.
+        #[qinvokable]
+        #[cxx_name = "reloadProject"]
+        fn reload_project(self: Pin<&mut Self>);
+
+        /// A file was taken over from outside (`text`: which, already translated).
+        #[qsignal]
+        #[cxx_name = "outsideTaken"]
+        fn outside_taken(self: Pin<&mut Self>, text: &QString);
+
+        /// A save found a file changed outside and in the window.
+        #[qsignal]
+        #[cxx_name = "outsideAsked"]
+        fn outside_asked(self: Pin<&mut Self>);
 
         /// Lays the screenplay out again if it changed since the last time (DN-02): the editor
         /// calls this after 5 s without a key; the scene list then shows the new lengths.
@@ -1178,6 +1209,7 @@ mod library;
 mod marks;
 mod measure;
 mod notes;
+mod outside;
 mod picture;
 mod plans;
 mod playback;

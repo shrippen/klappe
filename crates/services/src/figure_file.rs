@@ -3,8 +3,6 @@
 //! TUI), so an answer, its undo and its redo change only their entry, in the file as it is
 //! on disk.
 
-use std::collections::HashSet;
-
 use klappe_model::{same_character_name, Character, Project};
 
 use crate::figures::FigureChoice;
@@ -75,21 +73,21 @@ impl FigureDelta {
     }
 }
 
+/// The content of `figuren.toml`: the characters and the not-figures.
+pub(crate) type Figures = (Vec<Character>, Vec<String>);
+
 /// What `disk` (the figures read from `figuren.toml`) has added since the session last took
-/// them, as answers would: a character whose id neither `known` nor `state` has (whole, with
-/// its aliases), an alias `state`'s character of that id lacks, a not-figure `state` lacks.
+/// them (`file`), as answers would: a character whose id neither `file` nor `state` has (whole,
+/// with its aliases), an alias `state`'s character of that id lacks, a not-figure `state` lacks.
 /// Whatever else differs (renamed, deleted, recoloured) is the session's own and not adopted.
-pub(crate) fn added(
-    known: &HashSet<String>,
-    state: &Project,
-    disk: &(Vec<Character>, Vec<String>),
-) -> Vec<FigureDelta> {
+pub(crate) fn added(file: &Figures, state: &Project, disk: &Figures) -> Vec<FigureDelta> {
+    let known = |id: &str| file.0.iter().any(|c| c.id == id);
     let (characters, not_figures) = disk;
     let mut deltas = Vec::new();
 
     for on_disk in characters {
         let Some(own) = state.character(&on_disk.id) else {
-            if !known.contains(&on_disk.id) {
+            if !known(&on_disk.id) {
                 deltas.push(FigureDelta::Created(on_disk.clone()));
             }
             continue;
@@ -135,4 +133,19 @@ pub(crate) fn fits(project: &Project, delta: &FigureDelta) -> bool {
         }
         FigureDelta::NotFigure(_) => true,
     }
+}
+
+/// Whether `disk` is `file` plus what answers add, and nothing else: no rename, deletion or
+/// change of a character. Then taking it over loses nobody's work (the figure rule).
+pub(crate) fn answers_only(file: &Figures, disk: &Figures) -> bool {
+    let mut base = Project::new("");
+    base.characters.clone_from(&file.0);
+    base.not_figures.clone_from(&file.1);
+
+    let mut after = base.clone();
+    for delta in added(file, &base, disk) {
+        delta.run(&mut after, Way::Apply);
+    }
+
+    after.characters == disk.0 && after.not_figures == disk.1
 }
