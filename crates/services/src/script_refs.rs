@@ -137,6 +137,19 @@ pub(crate) fn calls(element: &Element, character: &Character) -> bool {
     }
 }
 
+/// The name of every cue of the book, one per cue, in book order. The extension (`V.O.`,
+/// `CONT'D`) and the dual mark are no part of the name: the parser has split them off.
+pub(crate) fn cue_names(script: &klappe_script::Script) -> Vec<String> {
+    script
+        .elements
+        .iter()
+        .filter_map(|e| match e {
+            Element::Character { name, .. } => Some(name.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Whether the element is a cue of `name` (the case of a cue is style).
 pub(crate) fn names(element: &Element, name: &str) -> bool {
     let Element::Character { name: cue, .. } = element else {

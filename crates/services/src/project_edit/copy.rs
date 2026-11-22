@@ -69,7 +69,7 @@ fn without_number(text: &str) -> &str {
 }
 
 /// `A2`, `A3` … the first short code of the stem of `short` that no character has.
-fn free_short(characters: &[Character], short: &str) -> String {
+pub(crate) fn free_short(characters: &[Character], short: &str) -> String {
     let stem = without_number(short);
 
     SHORT_NUMBERS

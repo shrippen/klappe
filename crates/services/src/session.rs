@@ -15,6 +15,7 @@ mod blank;
 mod book;
 mod export;
 mod fade;
+mod figures;
 mod file;
 mod free_view;
 mod layers;
@@ -44,6 +45,7 @@ mod views;
 pub use book::Answer;
 pub use export::ExportOptions;
 pub use fade::Fade;
+pub use figures::FigureAnswer;
 pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
 pub use places::PlaceAnswer;
@@ -203,6 +205,10 @@ pub struct Session {
     lengths: std::collections::HashMap<String, String>,
     /// Entries the book could not place (`pending_scenes`).
     pending: Vec<crate::book::PendingScene>,
+    /// Cues of the book no character answers to (`pending_figures`).
+    pending_figures: Vec<crate::figures::PendingFigure>,
+    /// The figure answer `undo` or `redo` just went over, for `save_answer`.
+    disk_step: Option<(crate::figure_file::FigureDelta, crate::figure_file::Way)>,
     /// For each entry of the register its scene in the book and that scene's heading line
     /// (`refresh_scene_map`), kept so a refresh of the window does not align the book again.
     book_scene: Vec<Option<usize>>,

@@ -1,5 +1,6 @@
 //! The open questions about the book as the surfaces show them (audit 17, finding 1): the
-//! scenes first, then the place names of the headings (DB-51), each with title, question and
+//! scenes first, then the names of the cues (DB-50), then the place names of the headings
+//! (DB-51), each with title, question and
 //! answer lines worded in the surface's language. A surface shows the lines and hands back the
 //! position; it words nothing itself.
 //!
@@ -10,16 +11,19 @@
 //!      Nicht im Drehbuch          Schreibweise von SAAL
 //! ```
 
-use super::{Answer, PlaceAnswer, Session};
+use super::{Answer, FigureAnswer, PlaceAnswer, Session};
 use crate::book::Choice;
 use crate::catalog::Language;
 use crate::error::ServiceError;
+use crate::figures::FigureChoice;
 use crate::places::PlaceChoice;
 
-/// What a question is about: an entry of the register (its id) or a place name of the headings.
+/// What a question is about: an entry of the register (its id), a cue name of the book or a
+/// place name of the headings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QuestionKey {
     Scene(String),
+    Figure(String),
     Place(String),
 }
 
@@ -51,6 +55,15 @@ impl Session {
                 .replace("{heading}", &p.heading),
             answers: self.scene_lines(&p.id, language),
         });
+        let figures = self.pending_figures().iter().map(|p| BookQuestion {
+            key: QuestionKey::Figure(p.name.clone()),
+            title: language.text("book.figureTitle"),
+            ask: language
+                .text("book.figureAsk")
+                .replace("{name}", &p.name)
+                .replace("{count}", &p.cues.to_string()),
+            answers: self.figure_lines(&p.name, language),
+        });
         let places = self.pending_places().iter().map(|p| BookQuestion {
             key: QuestionKey::Place(p.name.clone()),
             title: language.text("book.placeTitle"),
@@ -61,13 +74,14 @@ impl Session {
             answers: self.place_lines(&p.name, language),
         });
 
-        scenes.chain(places).collect()
+        scenes.chain(figures).chain(places).collect()
     }
 
     /// Answers question `key` with line `index` of its `answers`.
     pub fn answer_question(&mut self, key: &QuestionKey, index: usize) -> Result<(), ServiceError> {
         match key {
             QuestionKey::Scene(id) => self.answer_book(id, index),
+            QuestionKey::Figure(name) => self.answer_figure(name, index),
             QuestionKey::Place(name) => self.answer_place(name, index),
         }
     }
@@ -86,6 +100,24 @@ impl Session {
         };
 
         self.book_answers(id).into_iter().map(line).collect()
+    }
+
+    /// "New character STIMME", "Is Elisabeth" or "Not a character".
+    fn figure_lines(&self, name: &str, language: Language) -> Vec<AnswerLine> {
+        let line = |a: FigureAnswer| {
+            let (key, shown) = match a.choice {
+                FigureChoice::Create => ("book.figureNew", name),
+                FigureChoice::Assign(_) => ("book.figureIs", a.name.as_str()),
+                FigureChoice::NotFigure => ("book.figureNone", ""),
+            };
+
+            AnswerLine {
+                number: String::new(),
+                text: language.text(key).replace("{name}", shown),
+            }
+        };
+
+        self.figure_answers(name).into_iter().map(line).collect()
     }
 
     /// "New scripted location HOF", "Spelling of SAAL" or "SAAL is now called HOF".

@@ -58,6 +58,8 @@ impl Session {
             layout: None,
             lengths: Default::default(),
             pending: Vec::new(),
+            pending_figures: Vec::new(),
+            disk_step: None,
             book_scene: Vec::new(),
             heading_line: Vec::new(),
             places: klappe_store::load_places(dir)?,
