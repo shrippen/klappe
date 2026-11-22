@@ -16,6 +16,7 @@
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
 
 mod camera;
+mod characters;
 mod error;
 mod files;
 mod folder;
@@ -34,14 +35,16 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    is_figure_size_m, is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m,
-    is_opening_width_m, is_outline, Binding, Character, Location, Numbering, ObjectShape, Opening,
-    PaperSetup, Project, SavedView, Scene, ScriptSetup, FORMAT_VERSION, MAX_FIGURE_M, MAX_GROUP,
-    MAX_OBJECT_M, MIN_FIGURE_M, MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
+    is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m, is_opening_width_m,
+    is_outline, Binding, Location, Numbering, ObjectShape, Opening, PaperSetup, Project, SavedView,
+    Scene, ScriptSetup, FORMAT_VERSION, MAX_OBJECT_M, MIN_IMAGE_OPACITY, MIN_OBJECT_M,
+    NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
 pub use camera::builtin_camera_presets;
+use characters::{encode_characters, load_characters};
+pub use characters::{load_figures, save_characters};
 pub use error::StoreError;
 pub use files::load_script_file;
 use files::{Dir, Kind};
@@ -146,13 +149,6 @@ struct Version {
     format_version: u32,
 }
 
-/// `figuren.toml`.
-#[derive(Serialize, Deserialize)]
-struct Characters {
-    #[serde(default)]
-    figur: Vec<Character>,
-}
-
 /// `projekt.toml` read and checked.
 fn read_header(dir: &Path) -> Result<Header, StoreError> {
     let path = dir.join(PROJECT_FILE);
@@ -213,7 +209,8 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             numbering: header.numbering,
             script: header.script,
             views: header.ansicht,
-            characters,
+            characters: characters.figur,
+            not_figures: characters.not_figures,
             locations,
             scenes,
             library,
@@ -222,18 +219,6 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         script,
         notes,
     })
-}
-
-/// The characters of `figuren.toml`; none when the file is missing.
-fn load_characters(dir: &Path) -> Result<Vec<Character>, StoreError> {
-    let path = dir.join(CHARACTERS_FILE);
-    let characters: Characters = match files::exists(&path)? {
-        true => files::read_toml(&path)?,
-        false => Characters { figur: Vec::new() },
-    };
-    check_characters(&characters.figur).map_err(|message| StoreError::Parse { path, message })?;
-
-    Ok(characters.figur)
 }
 
 /// Writes `project` into `dir`, creating it if needed. Each file is replaced atomically;
@@ -279,11 +264,7 @@ fn encode_project(
 
     writes.push(encode_header(dir, project)?);
 
-    let characters = Characters {
-        figur: project.characters.clone(),
-    };
-    let path = dir.join(CHARACTERS_FILE);
-    writes.push((path.clone(), files::encode_toml(&path, &characters)?));
+    writes.push(encode_characters(dir, project)?);
 
     let optional = optional_files(dir, project)?;
     writes.extend(optional.iter().filter_map(|(path, bytes)| {
@@ -452,31 +433,6 @@ where
     }
 
     Ok(items)
-}
-
-/// A group has between `MIN_GROUP` and `MAX_GROUP` people (LH-23); a size is between
-/// `MIN_FIGURE_M` and `MAX_FIGURE_M` (LH-25).
-fn check_characters(characters: &[Character]) -> Result<(), String> {
-    for character in characters {
-        if let Some(count) = character.group {
-            if !(MIN_GROUP..=MAX_GROUP).contains(&count) {
-                return Err(format!(
-                    "{}: group of {count} is not usable ({MIN_GROUP} to {MAX_GROUP})",
-                    character.id
-                ));
-            }
-        }
-        if let Some(size_m) = character.size_m {
-            if !is_figure_size_m(size_m) {
-                return Err(format!(
-                    "{}: size of {size_m} m is not usable ({MIN_FIGURE_M} to {MAX_FIGURE_M})",
-                    character.id
-                ));
-            }
-        }
-    }
-
-    Ok(())
 }
 
 /// Saved views (LH-119): an id and a name each, and no id twice.

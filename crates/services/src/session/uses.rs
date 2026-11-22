@@ -83,7 +83,7 @@ impl Session {
         self.project
             .characters
             .iter()
-            .find(|c| script_refs::names(element, &c.name))
+            .find(|c| script_refs::calls(element, c))
             .map(|c| c.id.clone())
             .unwrap_or_default()
     }

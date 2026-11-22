@@ -72,6 +72,7 @@ fn character(i: usize) -> Character {
         color: FigureColor::ALL[i % FigureColor::ALL.len()],
         group: None,
         size_m: None,
+        aliases: Vec::new(),
     }
 }
 

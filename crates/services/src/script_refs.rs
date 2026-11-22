@@ -91,7 +91,7 @@ pub(crate) fn cue_count(text: &str, scene: &Scene, character: &Character) -> usi
 
     located[range]
         .iter()
-        .filter(|l| names(&l.element, &character.name))
+        .filter(|l| calls(&l.element, character))
         .count()
 }
 
@@ -108,7 +108,7 @@ pub(crate) fn speakers(text: &str, scene: &Scene, project: &Project) -> Vec<Stri
         let named = project
             .characters
             .iter()
-            .find(|c| names(&located.element, &c.name));
+            .find(|c| calls(&located.element, c));
         if let Some(character) = named.filter(|c| !ids.contains(&c.id)) {
             ids.push(character.id.clone());
         }
@@ -127,6 +127,14 @@ pub(crate) fn has_number(text: &str, number: &str) -> bool {
         }
         _ => false,
     })
+}
+
+/// Whether the element is a cue the character answers to: its name or an alias (DB-50).
+pub(crate) fn calls(element: &Element, character: &Character) -> bool {
+    match element {
+        Element::Character { name, .. } => character.is_called(name),
+        _ => false,
+    }
 }
 
 /// Whether the element is a cue of `name` (the case of a cue is style).
@@ -349,6 +357,7 @@ mod tests {
                 color: FigureColor::Red,
                 group: None,
                 size_m: None,
+                aliases: Vec::new(),
             });
         }
         for (id, number, heading) in [
@@ -365,6 +374,20 @@ mod tests {
             });
         }
         p
+    }
+
+    /// DB-50: a cue with an alias of the character is one of its speakers and cues.
+    #[test]
+    fn an_alias_cue_counts_for_the_character() {
+        let mut p = project();
+        let text = "INT. SAAL – TAG #12#\n\nLIESL (V.O.)\nHallo.\n\n";
+        let scene = p.scenes[0].clone();
+        assert!(speakers(text, &scene, &p).is_empty());
+
+        p.characters[0].aliases.push("liesl".into());
+
+        assert_eq!(speakers(text, &scene, &p), ["elisabeth"]);
+        assert_eq!(cue_count(text, &scene, &p.characters[0]), 1);
     }
 
     /// Every cue of the character changes, in all scenes, in its own case.

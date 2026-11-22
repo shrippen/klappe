@@ -18,6 +18,7 @@ fn printed_radius(size_m: Option<f64>) -> f64 {
         color: FigureColor::Purple,
         group: None,
         size_m,
+        aliases: Vec::new(),
     }];
     let mut plan = FloorPlan::new("a", "Plan A");
     plan.figures = vec![FigureTrack {
