@@ -120,8 +120,8 @@ impl Session {
         &self.conflicts
     }
 
-    /// Drops the session's own changes and reads the folder again; undo is cleared and an
-    /// unanswered backup removed, as a save does.
+    /// Drops the session's own changes and reads the folder again; undo is cleared. A backup
+    /// not yet answered (`Found`, `Unreadable`) stays, as with a save.
     pub fn reload(&mut self) -> Result<(), ServiceError> {
         let disk = klappe_store::read_tree(&self.dir)?;
         let loaded = crate::load::load_project(&self.dir)?;
@@ -136,8 +136,11 @@ impl Session {
         self.dirty = false;
         self.unbacked = false;
         self.project_changed = false;
+        if self.backup != super::BackupState::None {
+            return Ok(());
+        }
+
         klappe_store::drop_backup(&self.dir)?;
-        self.backup = super::BackupState::None;
 
         Ok(())
     }
