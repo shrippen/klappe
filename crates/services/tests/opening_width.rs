@@ -271,7 +271,7 @@ fn a_door_dragged_to_the_least_width_reopens() {
     s.set_snapping(Snapping::Off);
     s.edit_plan(drag(OpeningEnd::End, 5.0)).unwrap();
 
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let reopened = Session::open(&dir).unwrap();
     let door = &reopened.project().locations[0].set.walls[WALL].openings[0];

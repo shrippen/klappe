@@ -2,7 +2,7 @@ use std::path::Path;
 
 use klappe_model::SetPlan;
 
-use super::Session;
+use super::{OnOutside, Session};
 use crate::catalog::Language;
 use crate::error::ServiceError;
 use crate::project_edit::ProjectEdit;
@@ -45,7 +45,7 @@ impl Session {
             heading: language.text("start.blankHeading"),
             location,
         })?;
-        session.save()?;
+        session.save(OnOutside::Overwrite)?;
 
         // Opened again, so undo cannot take the set and scene back into an empty project.
         Self::open(session.dir())

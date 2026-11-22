@@ -471,7 +471,7 @@ fn own_objects_and_placed_shapes_survive_a_save() {
     let mut s = Session::open(&dir).unwrap();
     import(&mut s, vec![pond()]).unwrap();
     place(&mut s, "teich");
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let again = Session::open(&dir).unwrap();
 
@@ -626,5 +626,5 @@ fn an_unusable_object_does_not_go_into_the_library() {
         "{laid:?}"
     );
     assert!(s.project().library.is_empty());
-    assert!(s.save().is_ok());
+    assert!(s.save(klappe_services::OnOutside::Overwrite).is_ok());
 }

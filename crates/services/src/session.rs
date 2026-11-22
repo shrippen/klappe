@@ -21,6 +21,7 @@ mod free_view;
 mod layers;
 mod numbering;
 mod objects;
+mod outside;
 mod pages;
 mod pick;
 mod places;
@@ -47,6 +48,7 @@ pub use export::ExportOptions;
 pub use fade::Fade;
 pub use figures::FigureAnswer;
 pub use free_view::{Size, View, ViewStep};
+pub use outside::{OnOutside, Outside, OutsideFile, Saved};
 pub use pages::Pages;
 pub use places::PlaceAnswer;
 pub use questions::{AnswerLine, BookQuestion, QuestionKey};
@@ -226,6 +228,12 @@ pub struct Session {
     lock: Option<Vec<klappe_model::LockedNumber>>,
     /// How many numbers two scenes carry that the Sperrstand cannot settle (`book_report`).
     twin_numbers: usize,
+    /// The files of the folder as last read or written by this session (`outside.rs`).
+    disk: klappe_store::Tree,
+    /// What the session encodes of the same files at that moment, after load normalisation.
+    own: klappe_store::Tree,
+    /// Files changed on disk and in the session, which no save or check has settled yet.
+    conflicts: Vec<OutsideFile>,
 }
 
 /// A camera the 3D view looks through, with the scene and plan it was chosen on: it ends

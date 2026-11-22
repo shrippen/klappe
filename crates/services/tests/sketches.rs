@@ -132,7 +132,7 @@ fn the_layer_hides_and_nothing_picks_a_stroke() {
 fn strokes_are_saved_with_the_plan() {
     let mut s = open("sketch-save");
     s.add_sketch(&stroke(20)).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let again = Session::open(s.dir()).unwrap();
 

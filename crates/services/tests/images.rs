@@ -440,7 +440,7 @@ fn a_second_image_gets_the_next_id() {
 #[test]
 fn saved_and_reopened_the_image_is_there() {
     let (mut s, dir) = with_image("img-save");
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(images(&Session::open(&dir).unwrap()), images(&s));
 }

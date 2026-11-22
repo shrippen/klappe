@@ -252,7 +252,7 @@ fn an_answer_keeps_a_figure_the_window_saved_meanwhile() {
     let mut gui = Session::open(&dir).unwrap();
     let mut tui = Session::open(&dir).unwrap();
     gui.edit_project(add("Carl")).unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     tui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
     tui.save_register().unwrap();
@@ -271,7 +271,7 @@ fn an_alias_answer_keeps_a_figure_the_window_saved_meanwhile() {
     let mut gui = Session::open(&dir).unwrap();
     let mut tui = Session::open(&dir).unwrap();
     gui.edit_project(add("Carl")).unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     tui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
         .unwrap();
@@ -332,7 +332,7 @@ fn undoing_an_answer_keeps_a_figure_the_window_saved_meanwhile() {
     let mut gui = Session::open(&dir).unwrap();
     let mut tui = Session::open(&dir).unwrap();
     gui.edit_project(add("Carl")).unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
     tui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
 
     tui.undo();
@@ -365,7 +365,7 @@ fn undoing_an_alias_or_a_creation_takes_back_only_that_entry() {
     tui.resolve_figure("ALLE", FigureChoice::Create).unwrap();
     let mut gui = Session::open(&dir).unwrap();
     gui.edit_project(add("Carl")).unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     tui.undo();
     tui.save_answer().unwrap();
@@ -387,7 +387,7 @@ fn an_undo_that_is_no_figure_answer_leaves_the_figures_file_alone() {
     let mut tui = Session::open(&dir).unwrap();
     let mut gui = Session::open(&dir).unwrap();
     gui.edit_project(add("Carl")).unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
     tui.edit_project(add("Dora")).unwrap();
 
     tui.undo();
@@ -416,7 +416,7 @@ fn a_save_writes_the_window_s_changes_and_keeps_an_answer() {
         size_m: None,
     };
     gui.edit_project(rename).unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(names(&dir), ["Annabelle"]);
     assert_eq!(not_figures(&dir), ["ALLE"]);
@@ -535,7 +535,7 @@ fn a_save_keeps_the_answers_the_terminal_gave() {
     answers(&mut tui);
 
     gui.edit_project(add("Dora")).unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(names(&dir), ["Anna", "Bert", "Dora", "Carl"]);
     assert_eq!(aliases_of(&dir, "bert"), ["LIESL"]);
@@ -551,11 +551,11 @@ fn an_undo_in_the_window_keeps_an_adopted_answer() {
     gui.edit_project(add("Dora")).unwrap();
     tui.resolve_figure("CARL", FigureChoice::Create).unwrap();
     gui.edit_project(add("Erik")).unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     gui.undo();
     gui.undo();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(names(&dir), ["Anna", "Bert", "Carl"]);
 }
@@ -569,7 +569,7 @@ fn a_cue_the_window_took_for_a_name_gets_no_second_owner() {
     tui.resolve_figure("LIESL", FigureChoice::Assign("bert".into()))
         .unwrap();
 
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(names(&dir), ["LIESL", "Bert"]);
     assert!(aliases_of(&dir, "bert").is_empty());
@@ -584,7 +584,7 @@ fn a_character_the_window_deleted_stays_deleted() {
         .unwrap();
     tui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
 
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(names(&dir), ["Anna"]);
     assert_eq!(not_figures(&dir), ["ALLE"]);
@@ -622,7 +622,7 @@ fn a_restored_backup_takes_no_figures_from_the_file() {
 
     let mut gui = Session::open(&dir).unwrap();
     gui.restore_backup().unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     // The backup cannot tell an answer given after it from a character it deleted: the
     // answer is lost and asked again.
@@ -642,7 +642,7 @@ fn a_restored_backup_keeps_a_deleted_character_deleted() {
 
     let mut gui = Session::open(&dir).unwrap();
     gui.restore_backup().unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(names(&dir), ["Anna"]);
 }
@@ -660,7 +660,7 @@ fn a_restored_backup_s_new_character_takes_an_alias() {
     gui.restore_backup().unwrap();
     gui.resolve_figure("BERT", FigureChoice::Assign("berta".into()))
         .unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(aliases_of(&dir, "berta"), vec!["BERT".to_owned()]);
 }
@@ -672,7 +672,7 @@ fn a_save_does_not_stop_at_an_unreadable_figures_file() {
     gui.edit_project(add("Dora")).unwrap();
     std::fs::write(dir.join("figuren.toml"), "not = [toml").unwrap();
 
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(names(&dir), ["Anna", "Bert", "Dora"]);
 }
@@ -687,7 +687,7 @@ fn a_window_undo_of_an_alias_answer_stays_undone() {
 
     gui.undo();
     gui.save_figure_step().unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(aliases_of(&dir, "anna").is_empty());
     assert!(asked_names(&dir).contains(&"BERT".to_owned()));
@@ -701,7 +701,7 @@ fn a_window_undo_of_a_not_figure_answer_stays_undone() {
 
     gui.undo();
     gui.save_figure_step().unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(not_figures(&dir).is_empty());
     assert!(asked_names(&dir).contains(&"ALLE".to_owned()));
@@ -732,7 +732,7 @@ fn an_alias_for_a_character_the_file_lost_is_refused() {
     let mut tui = Session::open(&dir).unwrap();
     gui.edit_project(ProjectEdit::RemoveCharacter { id: "bert".into() })
         .unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let answered = tui.resolve_figure("LIESL", FigureChoice::Assign("bert".into()));
 
@@ -750,7 +750,7 @@ fn an_alias_for_an_unsaved_new_character_is_taken() {
 
     gui.resolve_figure("BERT", FigureChoice::Assign("berta".into()))
         .unwrap();
-    gui.save().unwrap();
+    gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(gui.pending_figures().iter().all(|p| p.name != "BERT"));
     assert_eq!(aliases_of(&dir, "berta"), vec!["BERT".to_owned()]);

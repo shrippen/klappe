@@ -250,7 +250,7 @@ fn save_writes_the_edit() {
 
     s.edit_shot("s12-3", ShotField::Description, "Burgvogt, Reaktion")
         .unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     let again = Session::open(&dir).unwrap();
     assert_eq!(again.shots()[2].description, "Burgvogt, Reaktion");
@@ -548,7 +548,7 @@ fn script_text_is_replaced_and_saved() {
     s.set_script_text(text);
     assert!(s.is_dirty());
     assert_eq!(s.script_lines()[0].text, "Neu.");
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(Session::open(&dir).unwrap().script_text(), text);
 }
@@ -649,7 +649,7 @@ fn save_removes_the_backup() {
     s.autosave().unwrap();
     assert!(dir.join(".sicherung").exists());
 
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(!dir.join(".sicherung").exists());
     assert_eq!(Session::open(&dir).unwrap().backup(), &BackupState::None);
@@ -667,7 +667,7 @@ fn autosave_writes_only_after_a_change() {
     assert_eq!(s.autosave().unwrap(), Autosave::Written);
     assert_eq!(s.autosave().unwrap(), Autosave::Clean);
 
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     assert_eq!(s.autosave().unwrap(), Autosave::Clean);
     assert!(!dir.join(".sicherung").exists());
 }
@@ -773,7 +773,7 @@ fn save_keeps_an_unanswered_backup() {
     assert_eq!(s.backup(), &BackupState::Found);
 
     s.edit_shot("s12-1", ShotField::Lens, "50 mm").unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(dir.join(".sicherung").exists());
     assert_eq!(s.backup(), &BackupState::Found);

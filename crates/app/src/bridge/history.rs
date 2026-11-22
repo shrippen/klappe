@@ -7,6 +7,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use klappe_services::error_text;
 use klappe_services::Autosave;
+use klappe_services::OnOutside;
 
 impl qobject::Controller {
     pub(super) fn undo(mut self: Pin<&mut Self>) {
@@ -41,7 +42,11 @@ impl qobject::Controller {
     pub(super) fn save(mut self: Pin<&mut Self>) -> bool {
         let language = self.rust().language;
         let result = match self.as_mut().session() {
-            Some(s) => s.save().map_err(|e| error_text(language, &e)),
+            // Not asking yet: the window's question for an outside change comes later.
+            Some(s) => s
+                .save(OnOutside::Overwrite)
+                .map(drop)
+                .map_err(|e| error_text(language, &e)),
             None => return false,
         };
 

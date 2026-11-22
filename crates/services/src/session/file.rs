@@ -15,27 +15,16 @@ use crate::shot_edit;
 impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
-        let mut loaded = crate::load::load_project(dir)?;
-        let lock = klappe_store::load_lock(dir)?;
-        shot_edit::clear_orphans(&mut loaded.project);
-        let script = loaded
-            .script
-            .as_deref()
-            .map(klappe_script::parse)
-            .unwrap_or_default();
-        let scene = loaded
-            .project
-            .scenes
-            .iter()
-            .position(|s| !s.plans.is_empty())
-            .unwrap_or(0);
+        // Read first: a change between the two reads is then taken over by the next check.
+        let disk = klappe_store::read_tree(dir)?;
+        let loaded = crate::load::load_project(dir)?;
 
         let mut session = Self {
             dir: dir.to_owned(),
-            project: loaded.project,
-            script_text: loaded.script,
-            script,
-            scene,
+            project: Project::new(""),
+            script_text: None,
+            script: Default::default(),
+            scene: 0,
             plan: 0,
             time_s: 0.0,
             selected_shot: None,
@@ -50,7 +39,7 @@ impl Session {
             project_changed: false,
             edits: super::undo::next_edit(),
             backup: BackupState::None,
-            load_notes: loaded.notes,
+            load_notes: Vec::new(),
             view: View::Plan,
             orbit: None,
             cut: klappe_stellprobe::Cut::Off,
@@ -63,13 +52,17 @@ impl Session {
             known_figures: HashSet::new(),
             book_scene: Vec::new(),
             heading_line: Vec::new(),
-            places: klappe_store::load_places(dir)?,
+            places: Vec::new(),
             pending_places: Vec::new(),
-            lock,
+            lock: None,
             twin_numbers: 0,
+            disk,
+            own: Default::default(),
+            conflicts: Vec::new(),
         };
+        session.take(loaded)?;
         session.know_figures();
-        session.reconcile();
+        session.own = session.encode()?;
         session.scene = session
             .project
             .scenes
@@ -113,29 +106,6 @@ impl Session {
 
     pub fn is_dirty(&self) -> bool {
         self.dirty
-    }
-
-    /// Writes the project back to its folder and removes the backup. An unanswered backup
-    /// (`Found`, `Unreadable`) stays, as with `autosave`: the user decides on it.
-    pub fn save(&mut self) -> Result<(), ServiceError> {
-        self.number_script();
-        // So the register holds the book as saved: the next outside change aligns against it.
-        self.reconcile();
-        // What the terminal answered since the file was read goes into the project first: the
-        // file is written whole from it.
-        self.adopt_figures()?;
-        klappe_store::save(&self.dir, &self.project, self.script_text.as_deref())?;
-        self.know_figures();
-        self.write_lock()?;
-        self.dirty = false;
-        self.unbacked = false;
-        self.project_changed = false;
-        if self.backup != BackupState::None {
-            return Ok(());
-        }
-
-        klappe_store::drop_backup(&self.dir)?;
-        Ok(())
     }
 
     /// Writes the unsaved state into the backup, if it changed since the last save or
@@ -204,6 +174,7 @@ impl Session {
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
+        self.wrote(&["drehbuch.fountain", "szenen.toml"])?;
         self.write_lock()?;
         if self.backup != BackupState::None {
             return Ok(());

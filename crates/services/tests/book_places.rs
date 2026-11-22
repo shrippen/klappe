@@ -212,7 +212,7 @@ fn undo_and_a_save_keep_the_places() {
     s.undo();
 
     assert_eq!(s.places().len(), 1);
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     assert!(orte(&dir).contains("SÄNGERSAAL"));
 }
 
@@ -223,7 +223,7 @@ fn a_save_keeps_what_another_program_answered() {
     let mut other = Session::open(&dir).unwrap();
     other.resolve_place("HOF", PlaceChoice::Create).unwrap();
 
-    early.save().unwrap();
+    early.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(orte(&dir).contains("HOF"));
 }
@@ -241,11 +241,14 @@ fn opening_and_saving_without_an_answer_changes_no_byte() {
         let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("places-bytes-{n}"));
         copy_tree(source, &dir);
         // The first save settles what follows the book (ids, prints): not the places' business.
-        Session::open(&dir).unwrap().save().unwrap();
+        Session::open(&dir)
+            .unwrap()
+            .save(klappe_services::OnOutside::Overwrite)
+            .unwrap();
         let before = snapshot(&dir);
 
         let mut s = Session::open(&dir).unwrap();
-        s.save().unwrap();
+        s.save(klappe_services::OnOutside::Overwrite).unwrap();
         s.save_script().unwrap();
 
         assert_eq!(
@@ -263,11 +266,14 @@ fn a_file_written_by_an_answer_is_saved_unchanged() {
     let mut s = Session::open(&dir).unwrap();
     s.resolve_place("SÄNGERSAAL", PlaceChoice::Create).unwrap();
     s.resolve_place("HOF", PlaceChoice::Create).unwrap();
-    Session::open(&dir).unwrap().save().unwrap();
+    Session::open(&dir)
+        .unwrap()
+        .save(klappe_services::OnOutside::Overwrite)
+        .unwrap();
     let before = snapshot(&dir);
 
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(changed(&snapshot(&dir), &before), Vec::<PathBuf>::new());
 }
@@ -304,7 +310,7 @@ fn a_restored_backup_leaves_the_places_to_the_disk() {
 
     let mut s = Session::open(&dir).unwrap();
     s.restore_backup().unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert!(s.places().is_empty());
     assert_eq!(orte(&dir), "");
@@ -378,6 +384,6 @@ fn the_places_of_an_older_backup_are_ignored() {
 
     assert!(s.places().is_empty());
     assert_eq!(names(&s).len(), 2, "HOF is still asked about");
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     assert!(!dir.join("orte.toml").exists());
 }

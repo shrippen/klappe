@@ -314,7 +314,7 @@ fn the_notes_layer_locks_the_opacity_and_the_replacement() {
 fn the_opacity_survives_saving() {
     let (mut s, dir) = with_image("card-save");
     s.edit_plan(opacity(0.3)).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     assert_eq!(images(&Session::open(&dir).unwrap())[0].opacity, 0.3);
 }

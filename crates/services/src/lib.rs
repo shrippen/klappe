@@ -59,8 +59,9 @@ pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;
 pub use session::{
     Answer, AnswerLine, Autosave, BackupState, BookQuestion, ExportOptions, Fade, FigureAnswer,
-    Grab, Laid, Layer, Lock, Looping, Pages, PlaceAnswer, Playing, QuestionKey, Session, Size,
-    Speech, SpokenLine, Step, Tick, TimeSnap, VideoJob, View, ViewStep, Visibility,
+    Grab, Laid, Layer, Lock, Looping, OnOutside, Outside, OutsideFile, Pages, PlaceAnswer, Playing,
+    QuestionKey, Saved, Session, Size, Speech, SpokenLine, Step, Tick, TimeSnap, VideoJob, View,
+    ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};

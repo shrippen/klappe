@@ -55,7 +55,7 @@ fn make(name: &str, entries: Vec<Scene>, book: &str) -> PathBuf {
 fn settled(name: &str, entries: Vec<Scene>, book: &str) -> PathBuf {
     let dir = make(name, entries, book);
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
 
     dir
 }
@@ -169,7 +169,7 @@ fn a_scene_struck_from_the_book_stays_not_in_book() {
 
     // Saved so, and back with the text.
     let mut s = s;
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     rewrite_book(&dir, &(saal("1") + &hof("2")));
     let s = Session::open(&dir).unwrap();
     assert_eq!(scene(&s, "bbbb").state, BookState::InBook);
@@ -341,7 +341,7 @@ fn saving_refreshes_the_register_from_the_book() {
     let mut s = Session::open(&dir).unwrap();
 
     s.set_script_text(&(saal("5") + &hof("6")));
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     let s = Session::open(&dir).unwrap();
 
     assert_eq!(scene(&s, "aaaa").number, "5");
@@ -424,7 +424,7 @@ fn an_answer_not_in_book_holds_after_reopening() {
 
     assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
     assert_eq!(scene(&s, "cccc").state, BookState::InBook);
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     let s = Session::open(&dir).unwrap();
     assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
     assert_eq!(scene(&s, "bbbb").state, BookState::NotInBook);
@@ -523,7 +523,7 @@ fn ids(s: &Session) -> Vec<String> {
 fn twice(dir: &Path, check: impl Fn(&Session)) {
     let mut s = Session::open(dir).unwrap();
     check(&s);
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     check(&Session::open(dir).unwrap());
 }
 
@@ -612,7 +612,10 @@ fn placeholder_scenes_with_only_a_heading_take_their_entries_in_order() {
     let head = format!("{HOF} #9#\n\n");
     let dir = settled("book-twin-heads", vec![entry("aaaa", "9", HOF)], &head);
     rewrite_book(&dir, &head.repeat(2));
-    Session::open(&dir).unwrap().save().unwrap();
+    Session::open(&dir)
+        .unwrap()
+        .save(klappe_services::OnOutside::Overwrite)
+        .unwrap();
     let before = ids(&Session::open(&dir).unwrap());
     assert_eq!(before.len(), 2);
 
@@ -643,7 +646,7 @@ fn a_scene_rewritten_into_a_twin_moves_no_other_entry() {
     // A second scene 9 with other lines gets its own entry.
     rewrite_book(&dir, &(x.clone() + &y));
     let mut s = Session::open(&dir).unwrap();
-    s.save().unwrap();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
     assert!(s.pending_scenes().is_empty(), "{:?}", s.pending_scenes());
     let second = ids(&s)[1].clone();
 
