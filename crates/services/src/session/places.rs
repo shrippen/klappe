@@ -3,14 +3,20 @@
 //!
 //! The answer is written to `orte.toml` at once, from the file as it is on disk: another
 //! program (the TUI beside the window) may have changed it, and the answer changes only what
-//! it touches. It is no undo step; undo and redo keep the places as they are (like the paper).
+//! it touches. It is one undo step that carries its entry, not the places: undo and redo
+//! change only that entry in the file as it is (`save_answer_step`, `place_file.rs`).
 //! Nothing else writes the file: a save leaves it alone.
 
 use klappe_model::Place;
 
+use super::undo::AnswerDelta;
 use super::Session;
 use crate::error::ServiceError;
+use crate::place_file::PlaceDelta;
 use crate::places::{self, PendingPlace, PlaceChoice};
+
+/// Undo step of `resolve_place`.
+pub(super) const RESOLVE_STEP: &str = "ResolvePlace";
 
 /// One line of the dialog for an unknown place name: a new scripted location, another spelling of
 /// one, or the new name of one. Surfaces show the lines and hand back the position.
@@ -81,7 +87,7 @@ impl Session {
     }
 
     /// Settles the place name `name`: a new scripted location, a variant of one, or the new name
-    /// of one. Written to `orte.toml` at once. A question that is gone (another program
+    /// of one. One undo step, written to `orte.toml` at once. A question that is gone (another program
     /// answered it, or a backup came back) is no error: the disk is taken, the questions are
     /// refreshed and the question disappears.
     pub fn resolve_place(&mut self, name: &str, choice: PlaceChoice) -> Result<(), ServiceError> {
@@ -90,14 +96,25 @@ impl Session {
         }
 
         // The file as it is now, not the session's copy: it may be older.
-        let mut disk = klappe_store::load_places(&self.dir)?;
+        let before = klappe_store::load_places(&self.dir)?;
+        let mut disk = before.clone();
         if !places::decide(&mut disk, name, &choice) {
             return self.reload_places();
         }
+        let Some(delta) = PlaceDelta::of(&before, &choice, &disk) else {
+            return self.reload_places();
+        };
         klappe_store::save_places(&self.dir, &disk)?;
 
         self.places = disk;
         self.refresh_places();
+        let (scene, shown) = self.ids_on_view();
+        self.commit_answer(
+            self.project.clone(),
+            RESOLVE_STEP,
+            AnswerDelta::Place(delta),
+        );
+        self.follow_scene(scene, shown);
 
         Ok(())
     }

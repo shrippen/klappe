@@ -14,8 +14,8 @@ impl qobject::Controller {
         let mut failed = None;
         if let Some(s) = self.as_mut().session() {
             s.undo();
-            // The answer to a figure question is on disk already: so is its undo.
-            failed = s.save_figure_step().err();
+            // The answer to a figure or place question is on disk already: so is its undo.
+            failed = s.save_answer_step().err();
         }
         self.as_mut().changed();
         if let Some(e) = failed {
@@ -29,7 +29,7 @@ impl qobject::Controller {
         let mut failed = None;
         if let Some(s) = self.as_mut().session() {
             s.redo();
-            failed = s.save_figure_step().err();
+            failed = s.save_answer_step().err();
         }
         self.as_mut().changed();
         if let Some(e) = failed {

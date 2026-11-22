@@ -1,7 +1,6 @@
 //! The register against the book: answering an open question about a scene, a name of a cue
-//! (a figure) or a place name of a heading. A scene and a figure answer are undo steps (a
-//! figure answer also goes to `figuren.toml` at once); a place answer is none: it goes to
-//! `orte.toml` and not to the project.
+//! (a figure) or a place name of a heading. Every answer is an undo step (a
+//! figure answer also goes to `figuren.toml` at once, a place answer to `orte.toml`).
 
 use super::qobject;
 use core::pin::Pin;
@@ -34,7 +33,6 @@ impl qobject::Controller {
             return false;
         }
 
-        // A place answer is no project change for "unsaved", but clears the status line's count.
         self.as_mut().changed();
         self.refresh();
         true

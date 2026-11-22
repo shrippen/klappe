@@ -381,3 +381,131 @@ fn the_places_of_an_older_backup_are_ignored() {
     s.save().unwrap();
     assert!(!dir.join("orte.toml").exists());
 }
+
+const TWO: &str = "INT. SÄNGERSAAL - TAG #1#\n\nA.\n\nINT. HOF - NACHT #2#\n\nB.\n\n";
+
+fn place_names(dir: &Path) -> Vec<String> {
+    let places = klappe_store::load_places(dir).unwrap();
+
+    places.iter().map(|p| p.name.clone()).collect()
+}
+
+#[test]
+fn an_answer_counts_as_an_answer_for_undo_and_redo() {
+    let dir = make("places-is-answer", BOOK);
+    let mut s = Session::open(&dir).unwrap();
+    assert!(!s.undo_is_answer());
+
+    s.resolve_place("SÄNGERSAAL", PlaceChoice::Create).unwrap();
+
+    assert!(s.undo_is_answer());
+    assert!(!s.redo_is_answer());
+    assert_eq!(s.undo_step(), Some("ResolvePlace"));
+
+    s.undo();
+
+    assert!(!s.undo_is_answer());
+    assert!(s.redo_is_answer());
+}
+
+#[test]
+fn undo_and_redo_of_a_new_place_change_the_file_and_the_question() {
+    let dir = make("places-undo-create", BOOK);
+    let mut s = Session::open(&dir).unwrap();
+    s.resolve_place("SÄNGERSAAL", PlaceChoice::Create).unwrap();
+    let id = s.places()[0].id.clone();
+
+    s.undo();
+    s.save_answer_step().unwrap();
+
+    assert!(!orte(&dir).contains("SÄNGERSAAL"), "{}", orte(&dir));
+    assert!(s.places().is_empty());
+    assert_eq!(names(&s).len(), 2, "the question is back");
+
+    s.redo();
+    s.save_answer_step().unwrap();
+
+    assert_eq!(klappe_store::load_places(&dir).unwrap()[0].id, id);
+    assert_eq!(names(&s), [("HOF".to_owned(), 1)]);
+}
+
+#[test]
+fn undo_and_redo_of_a_variant_and_a_rename() {
+    let dir = make("places-undo-variant", BOOK);
+    let mut s = Session::open(&dir).unwrap();
+    s.resolve_place("SÄNGERSAAL", PlaceChoice::Create).unwrap();
+    let id = s.places()[0].id.clone();
+    s.resolve_place("HOF", PlaceChoice::Variant(id.clone()))
+        .unwrap();
+
+    s.undo();
+    s.save_answer_step().unwrap();
+
+    assert_eq!(s.places()[0].variants, Vec::<String>::new());
+    assert!(!orte(&dir).contains("HOF"));
+    assert_eq!(names(&s), [("HOF".to_owned(), 1)]);
+
+    s.redo();
+    s.save_answer_step().unwrap();
+
+    assert!(orte(&dir).contains("HOF"));
+    drop(s);
+
+    std::fs::write(
+        dir.join("drehbuch.fountain"),
+        BOOK.replace("SÄNGERSAAL", "FESTSAAL"),
+    )
+    .unwrap();
+    let mut s = Session::open(&dir).unwrap();
+    s.resolve_place("FESTSAAL", PlaceChoice::Rename(id))
+        .unwrap();
+    assert_eq!(place_names(&dir), ["FESTSAAL"]);
+
+    s.undo();
+    s.save_answer_step().unwrap();
+
+    assert_eq!(place_names(&dir), ["SÄNGERSAAL"]);
+
+    s.redo();
+    s.save_answer_step().unwrap();
+
+    assert_eq!(place_names(&dir), ["FESTSAAL"]);
+}
+
+#[test]
+fn undo_takes_back_only_our_entry() {
+    let dir = make("places-undo-beside", TWO);
+    let mut ours = Session::open(&dir).unwrap();
+    let mut other = Session::open(&dir).unwrap();
+    ours.resolve_place("SÄNGERSAAL", PlaceChoice::Create)
+        .unwrap();
+    other.resolve_place("HOF", PlaceChoice::Create).unwrap();
+
+    ours.undo();
+    ours.save_answer_step().unwrap();
+
+    assert_eq!(place_names(&dir), ["HOF"]);
+    assert_eq!(ours.places().len(), 1);
+
+    ours.redo();
+    ours.save_answer_step().unwrap();
+
+    assert_eq!(place_names(&dir), ["HOF", "SÄNGERSAAL"]);
+}
+
+#[test]
+fn a_failed_write_keeps_the_entry_for_the_next_try() {
+    let dir = make("places-undo-retry", BOOK);
+    let mut s = Session::open(&dir).unwrap();
+    s.resolve_place("SÄNGERSAAL", PlaceChoice::Create).unwrap();
+    s.undo();
+    let good = orte(&dir);
+    std::fs::write(dir.join("orte.toml"), "not [ toml").unwrap();
+
+    assert!(s.save_answer_step().is_err());
+
+    std::fs::write(dir.join("orte.toml"), good).unwrap();
+    s.save_answer_step().unwrap();
+
+    assert!(!orte(&dir).contains("SÄNGERSAAL"));
+}

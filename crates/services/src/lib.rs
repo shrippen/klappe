@@ -26,6 +26,7 @@ mod light_edit;
 mod load;
 mod measure;
 mod number;
+mod place_file;
 mod places;
 mod plan_edit;
 mod project_edit;

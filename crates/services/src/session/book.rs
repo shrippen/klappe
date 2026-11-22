@@ -4,6 +4,7 @@
 use klappe_model::{BookState, Kind, Project, Scene};
 
 use super::figures::RESOLVE_STEP as FIGURE_STEP;
+use super::places::RESOLVE_STEP as PLACE_STEP;
 use super::Session;
 use crate::book::{self, BookReport, Choice, ImportReport, PendingScene};
 use crate::error::ServiceError;
@@ -11,9 +12,9 @@ use crate::error::ServiceError;
 /// Undo step of `resolve_scene`.
 const RESOLVE_STEP: &str = "ResolveScene";
 
-/// Whether the undo step `name` answers a question about the book: a scene or a figure.
+/// Whether the undo step `name` answers a question about the book: a scene, a figure or a place name.
 fn is_answer_step(name: &str) -> bool {
-    name == RESOLVE_STEP || name == FIGURE_STEP
+    [RESOLVE_STEP, FIGURE_STEP, PLACE_STEP].contains(&name)
 }
 
 /// Undo step of `import_script`.

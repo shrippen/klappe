@@ -3,6 +3,7 @@
 
 use klappe_model::Project;
 
+use super::undo::AnswerDelta;
 use super::Session;
 use crate::error::ServiceError;
 use crate::figure_file::{self, FigureDelta, Way};
@@ -106,32 +107,43 @@ impl Session {
             self.known_figures.insert(character.id.clone());
         }
         let (scene, shown) = self.ids_on_view();
-        self.commit_answer(next, RESOLVE_STEP, delta);
+        self.commit_answer(next, RESOLVE_STEP, AnswerDelta::Figure(delta));
         self.follow_scene(scene, shown);
         self.refresh_figures();
 
         Ok(())
     }
 
-    /// Writes what undo or redo left: the register, and for the answer to a cue only its
-    /// entry in `figuren.toml` (`save_figure_step`). For the terminal; the window has no
+    /// Writes what undo or redo left: the register, and for the answer to a cue or a place
+    /// name only its entry (`save_answer_step`). For the terminal; the window has no
     /// register to write on undo.
     pub fn save_answer(&mut self) -> Result<(), ServiceError> {
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
 
-        self.save_figure_step()
+        self.save_answer_step()
     }
 
-    /// After undo or redo of the answer to a cue: its entry in `figuren.toml`, taken back or
-    /// done again in the file as it is on disk (another program may have changed the rest);
-    /// then what answers added there is adopted. Undo of anything else leaves the file alone.
-    pub fn save_figure_step(&mut self) -> Result<(), ServiceError> {
+    /// After undo or redo of the answer to a cue or a place name: its entry in `figuren.toml`
+    /// or `orte.toml`, taken back or done again in the file as it is on disk (another program
+    /// may have changed the rest); then what answers added to `figuren.toml` is adopted. Undo
+    /// of anything else leaves the files alone.
+    pub fn save_answer_step(&mut self) -> Result<(), ServiceError> {
         // The delta stays until the file is written: a failed read or write keeps it for the
         // next try (`run` leaves an entry already (not) there as it is).
-        if let Some((delta, way)) = &self.disk_step {
-            let mut disk = self.project_with_disk_figures()?;
-            delta.run(&mut disk, *way);
-            klappe_store::save_characters(&self.dir, &disk)?;
+        match self.disk_step.clone() {
+            Some((AnswerDelta::Figure(delta), way)) => {
+                let mut disk = self.project_with_disk_figures()?;
+                delta.run(&mut disk, way);
+                klappe_store::save_characters(&self.dir, &disk)?;
+            }
+            Some((AnswerDelta::Place(delta), way)) => {
+                let mut disk = klappe_store::load_places(&self.dir)?;
+                delta.run(&mut disk, way);
+                klappe_store::save_places(&self.dir, &disk)?;
+                self.places = disk;
+                self.refresh_places();
+            }
+            None => {}
         }
         self.disk_step = None;
 
