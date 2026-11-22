@@ -51,7 +51,8 @@ Item {
                 return root.fail("a take-over without own work leaves nothing to undo or save")
             }
 
-            // Changed in both: the save asks and writes nothing.
+            // Changed in both: the save asks and writes nothing. The other window's save also
+            // moved the register, which the save takes over and tells (the second text).
             const own = outside + "Von hier.\n"
             ctl.editScript(own)
             const second = outside + "Noch einmal von draussen.\n"
@@ -81,8 +82,19 @@ Item {
             }
             ctl.editScript(own + "Noch mehr.\n")
             ctl.reloadProject()
-            if (ctl.scriptText !== third || ctl.dirty || ctl.canUndo || root.told.length !== 2) {
+            if (ctl.scriptText !== third || ctl.dirty || ctl.canUndo || root.told.length !== 3) {
                 return root.fail("reload must take the folder's text: " + ctl.scriptText.length)
+            }
+
+            // A save finds a change outside only: it takes it over, tells it and still saves.
+            const fourth = third + "Ein viertes Mal.\n"
+            other.checkOutside()
+            other.editScript(fourth)
+            if (!other.save()) {
+                return root.fail("the other window did not save a fourth time")
+            }
+            if (!ctl.save() || ctl.scriptText !== fourth || root.told.length !== 4) {
+                return root.fail("a save must tell what it took over: " + root.told.join("|"))
             }
             Qt.exit(0)
         }

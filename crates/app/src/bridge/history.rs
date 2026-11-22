@@ -50,6 +50,8 @@ impl qobject::Controller {
 
     /// Saves; a file changed outside and here is no save under `Ask` but a question.
     fn save_with(mut self: Pin<&mut Self>, on: OnOutside) -> bool {
+        // The save takes over what changed outside only; this tells it (`outsideTaken`).
+        self.as_mut().check_outside();
         let language = self.rust().language;
         let result = match self.as_mut().session() {
             Some(s) => s.save(on).map_err(|e| error_text(language, &e)),
