@@ -686,7 +686,7 @@ fn a_window_undo_of_an_alias_answer_stays_undone() {
         .unwrap();
 
     gui.undo();
-    gui.save_figure_step().unwrap();
+    gui.save_answer_step().unwrap();
     gui.save().unwrap();
 
     assert!(aliases_of(&dir, "anna").is_empty());
@@ -700,7 +700,7 @@ fn a_window_undo_of_a_not_figure_answer_stays_undone() {
     gui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
 
     gui.undo();
-    gui.save_figure_step().unwrap();
+    gui.save_answer_step().unwrap();
     gui.save().unwrap();
 
     assert!(not_figures(&dir).is_empty());
@@ -715,10 +715,10 @@ fn a_window_redo_writes_the_answer_again() {
     gui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
         .unwrap();
     gui.undo();
-    gui.save_figure_step().unwrap();
+    gui.save_answer_step().unwrap();
 
     gui.redo();
-    gui.save_figure_step().unwrap();
+    gui.save_answer_step().unwrap();
 
     assert_eq!(aliases_of(&dir, "anna"), ["BERT"]);
 }

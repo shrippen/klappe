@@ -1023,6 +1023,7 @@
  "step.ImportScript": "Load screenplay",
  "step.ResolveScene": "Match scene with the script",
  "step.ResolveFigure": "Match name with a character",
+ "step.ResolvePlace": "Match name with a scripted location",
  "step.RemoveScene": "Delete scene",
  "step.AddLocation": "Add location",
  "step.EditLocation": "Edit location",

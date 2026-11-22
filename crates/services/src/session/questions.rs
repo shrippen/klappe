@@ -43,6 +43,15 @@ pub struct BookQuestion {
     pub answers: Vec<AnswerLine>,
 }
 
+/// What an answer did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Answered {
+    /// An undo step was committed.
+    Step,
+    /// The question had gone (answered elsewhere): nothing was done, the questions are refreshed.
+    Gone,
+}
+
 impl Session {
     /// The open questions in the order they are asked, worded in `language`.
     pub fn book_questions(&self, language: Language) -> Vec<BookQuestion> {
@@ -78,7 +87,11 @@ impl Session {
     }
 
     /// Answers question `key` with line `index` of its `answers`.
-    pub fn answer_question(&mut self, key: &QuestionKey, index: usize) -> Result<(), ServiceError> {
+    pub fn answer_question(
+        &mut self,
+        key: &QuestionKey,
+        index: usize,
+    ) -> Result<Answered, ServiceError> {
         match key {
             QuestionKey::Scene(id) => self.answer_book(id, index),
             QuestionKey::Figure(name) => self.answer_figure(name, index),

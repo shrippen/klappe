@@ -4,6 +4,8 @@
 use klappe_model::{BookState, Kind, Project, Scene};
 
 use super::figures::RESOLVE_STEP as FIGURE_STEP;
+use super::places::RESOLVE_STEP as PLACE_STEP;
+use super::questions::Answered;
 use super::Session;
 use crate::book::{self, BookReport, Choice, ImportReport, PendingScene};
 use crate::error::ServiceError;
@@ -11,9 +13,9 @@ use crate::error::ServiceError;
 /// Undo step of `resolve_scene`.
 const RESOLVE_STEP: &str = "ResolveScene";
 
-/// Whether the undo step `name` answers a question about the book: a scene or a figure.
+/// Whether the undo step `name` answers a question about the book: a scene, a figure or a place name.
 fn is_answer_step(name: &str) -> bool {
-    name == RESOLVE_STEP || name == FIGURE_STEP
+    [RESOLVE_STEP, FIGURE_STEP, PLACE_STEP].contains(&name)
 }
 
 /// Undo step of `import_script`.
@@ -57,7 +59,7 @@ impl Session {
     }
 
     /// Answers the question about entry `id` with line `index` of `book_answers`.
-    pub fn answer_book(&mut self, id: &str, index: usize) -> Result<(), ServiceError> {
+    pub fn answer_book(&mut self, id: &str, index: usize) -> Result<Answered, ServiceError> {
         let answers = self.book_answers(id);
         let Some(answer) = answers.into_iter().nth(index) else {
             return Err(ServiceError::NoDecision(id.to_owned()));
@@ -98,7 +100,11 @@ impl Session {
     /// Answers the open question about entry `old_id`: it is one of its candidates, or no
     /// scene of the book (the candidates then become new entries). One undo step. The entry
     /// takes number, heading and prints from the scene, as if it had been matched.
-    pub fn resolve_scene(&mut self, old_id: &str, choice: Choice) -> Result<(), ServiceError> {
+    pub fn resolve_scene(
+        &mut self,
+        old_id: &str,
+        choice: Choice,
+    ) -> Result<Answered, ServiceError> {
         let none = || ServiceError::NoDecision(old_id.to_owned());
         if self.script.scenes().is_empty() {
             return Err(none());
@@ -119,7 +125,7 @@ impl Session {
         self.commit_step(next, RESOLVE_STEP);
         self.follow_scene(scene, shown);
 
-        Ok(())
+        Ok(Answered::Step)
     }
 
     /// Takes `text` as the screenplay and aligns the register with it in one undo step (undo

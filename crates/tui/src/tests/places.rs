@@ -164,3 +164,78 @@ fn a_known_location_asks_nothing_and_its_file_stays() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn ctrl_z_takes_back_a_place_answer_and_ctrl_y_does_it_again() {
+    let scratch = bare(BOOK);
+    settle(&scratch);
+    let mut app = scratch.app();
+    let _ = screen(&mut app, 100, 24);
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    assert!(orte(&scratch).contains("SÄNGERSAAL"));
+
+    ctrl(&mut app, 'z');
+
+    assert!(!orte(&scratch).contains("SÄNGERSAAL"), "{}", orte(&scratch));
+    assert!(app.asks_place(), "the question is back");
+
+    ctrl(&mut app, 'y');
+
+    assert!(orte(&scratch).contains("name = \"SÄNGERSAAL\""));
+    assert!(!app.asks_place());
+}
+
+#[test]
+fn ctrl_z_undoes_typing_after_a_place_answer_before_the_answer() {
+    let scratch = bare(BOOK);
+    settle(&scratch);
+    let mut app = scratch.app();
+    let _ = screen(&mut app, 100, 24);
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    ctrl_end(&mut app);
+    let text = app.text();
+    typed(&mut app, "Ah");
+
+    ctrl(&mut app, 'z');
+
+    assert_eq!(app.text(), text, "only the typing is undone");
+    assert!(orte(&scratch).contains("SÄNGERSAAL"));
+
+    ctrl(&mut app, 'z');
+
+    assert!(!orte(&scratch).contains("SÄNGERSAAL"));
+    assert!(app.asks_place());
+}
+
+/// Review of PR 313: an answer to a question another program had answered made no session step
+/// but was counted as one; Ctrl+Z then took back the earlier answer instead of the typing.
+#[test]
+fn a_gone_question_is_no_step_of_ctrl_z() {
+    let scratch = bare("INT. SÄNGERSAAL – TAG #12#\n\nA.\n\nINT. HOF – NACHT #13#\n\nB.\n\n");
+    settle(&scratch);
+    let mut app = scratch.app();
+    let _ = screen(&mut app, 100, 24);
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Esc);
+    ctrl_end(&mut app);
+    typed(&mut app, "Ah");
+    ctrl(&mut app, 's');
+    let mut other = klappe_services::Session::open(&scratch.dir).unwrap();
+    other
+        .resolve_place("HOF", klappe_services::PlaceChoice::Create)
+        .unwrap();
+
+    // The scene question the save raised, then the place question that has gone.
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    assert!(app.asks_place(), "HOF is still asked");
+    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Esc);
+    ctrl(&mut app, 'z');
+    ctrl(&mut app, 'z');
+
+    assert!(orte(&scratch).contains("SÄNGERSAAL"), "{}", orte(&scratch));
+}
