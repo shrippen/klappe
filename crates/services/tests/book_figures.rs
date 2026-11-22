@@ -702,3 +702,18 @@ fn an_alias_for_a_character_the_file_lost_is_refused() {
     assert!(tui.pending_figures().iter().any(|p| p.name == "LIESL"));
     assert!(!tui.undo_is_answer());
 }
+
+#[test]
+fn an_alias_for_an_unsaved_new_character_is_taken() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-unsaved-target", vec![anna], BOOK);
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Berta")).unwrap();
+
+    gui.resolve_figure("BERT", FigureChoice::Assign("berta".into()))
+        .unwrap();
+    gui.save().unwrap();
+
+    assert!(gui.pending_figures().iter().all(|p| p.name != "BERT"));
+    assert_eq!(aliases_of(&dir, "berta"), vec!["BERT".to_owned()]);
+}

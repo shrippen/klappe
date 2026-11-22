@@ -92,9 +92,10 @@ impl Session {
         };
 
         let mut disk = self.project_with_disk_figures()?;
-        // An alias for a character the file no longer has would be lost without a trace.
+        // An alias for a character the file had and lost (deleted elsewhere) would be lost
+        // without a trace. One the session added and not yet saved gets it at the save.
         if let FigureDelta::Alias { id, .. } = &delta {
-            if disk.character(id).is_none() {
+            if self.known_figures.contains(id) && disk.character(id).is_none() {
                 return Err(ServiceError::NoCharacter(id.clone()));
             }
         }
