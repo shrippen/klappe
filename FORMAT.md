@@ -437,6 +437,21 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   eine Antwort schon nicht mehr offen findet, verschwindet nach dem Neulesen der Platte. Antworten
   sind kein Schritt von Rückgängig. Die Zuordnung Spielort → Drehort folgt (Datenmodell Schritt 2). Keine
   neue Formatversion: die Datei fehlt in älteren Projekten und gilt dann als leer.
+- **Aliasnamen und Nicht-Figuren (DB-50):** eine Figur in `figuren.toml` hat optional `aliases`,
+  eine Liste weiterer Namen, unter denen das Buch sie nennt (`aliases = ["LIESL"]`); nur
+  geschrieben, wenn nicht leer, jeder Eintrag nicht leer (Laden lehnt einen leeren ab). Eine
+  Figurenzeile des Buchs gehört zur Figur, wenn sie ihren `name` oder einen Alias trägt
+  (Groß- und Kleinschreibung zählt nicht, `ß` gilt wie `SS`; Erweiterung `(V.O.)` und Dual-Zeichen `^`
+  gehören nicht zum Namen). Ein Name, den keine Figur trägt, wird nicht still zur Figur, sondern
+  vorgelegt; die Antwort ist ein Alias oder eine neue Figur oder, für `ALLE` und `STIMME`, ein
+  Eintrag in `not_figures`, einer Liste am Anfang von `figuren.toml` vor den `[[figur]]` (nur
+  geschrieben, wenn nicht leer). Umbenennen in Klappe ändert `name`, nicht `id` und nicht
+  `aliases`. Ein Name oder Alias gehört genau einer Figur: tragen zwei Figuren denselben (Groß- und
+  Kleinschreibung zählt nicht), lehnt Laden das Projekt ab. Keine neue Formatversion: Schlüssel,
+  die fehlen, gelten als leer. Eine zweite Sitzung (die TUI neben dem Fenster) kann
+  `figuren.toml` ändern; darum liest eine Antwort die Datei neu. Eine Antwort auf einen Namen,
+  auch ihr Rückgängig und Wiederholen, ändert nur ihren Eintrag (Figur, Alias, `not_figures`).
+  Speichern im Fenster schreibt die Datei ganz aus der Sitzung.
 - **Gruppen (LH-23):** eine Figur in `figuren.toml` hat optional `group`, die Zahl der Personen
   (2 bis 999). Mit `group` ist die Figur eine Gruppe (Gäste, Wachen): sie hat eine Spur, Marks
   und Wege wie jede Figur und wird größer gezeichnet, mit drei Punkten im Umriss, ihr Name trägt
