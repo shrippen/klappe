@@ -107,6 +107,7 @@ impl App {
         };
         self.mode = Mode::Normal;
 
+        self.hand_over();
         let changed = form.contd != self.session.project().script.contd_after_action;
 
         let path = self.session.dir().join(PDF_FILE);

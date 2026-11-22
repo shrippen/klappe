@@ -47,6 +47,18 @@ impl App {
         true
     }
 
+    /// Before a writer of one file of the project: the session must not take over a screenplay
+    /// behind the editor's back. An untouched editor follows a change outside now; typed text
+    /// goes to the session first, so a change outside is a conflict the next save asks about.
+    pub(super) fn hand_over(&mut self) {
+        if self.is_modified() {
+            self.session.set_script_text(&self.editor.text());
+            return;
+        }
+
+        self.follow_outside();
+    }
+
     fn taken_text(&self, files: &[OutsideFile]) -> String {
         self.lang
             .text("outside.taken")
