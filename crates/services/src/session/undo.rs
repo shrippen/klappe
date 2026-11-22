@@ -4,6 +4,7 @@ use klappe_model::Project;
 
 use super::book::register_moved;
 use super::Session;
+use crate::error::ServiceError;
 use crate::figure_file::{FigureDelta, Way};
 use crate::place_file::PlaceDelta;
 
@@ -226,6 +227,32 @@ impl Session {
         if moved {
             self.refresh_pending();
         }
+    }
+
+    /// Writes what undo or redo left: the register, and for the answer to a cue or a place
+    /// name only its entry (`save_answer_step`). For the terminal; the window has no
+    /// register to write on undo.
+    pub fn save_answer(&mut self) -> Result<(), ServiceError> {
+        klappe_store::save_register(&self.dir, &self.project.scenes)?;
+
+        self.save_answer_step()
+    }
+
+    /// After undo or redo of the answer to a cue or a place name: its entry in `figuren.toml`
+    /// or `orte.toml`, taken back or done again in the file as it is on disk (another program
+    /// may have changed the rest); then what answers added to `figuren.toml` is adopted. Undo
+    /// of anything else leaves the files alone.
+    pub fn save_answer_step(&mut self) -> Result<(), ServiceError> {
+        // The delta stays until the file is written: a failed read or write keeps it for the
+        // next try (`run` leaves an entry already (not) there as it is).
+        match self.disk_step.clone() {
+            Some((AnswerDelta::Figure(delta), way)) => self.save_figure_delta(&delta, way)?,
+            Some((AnswerDelta::Place(delta), way)) => self.save_place_delta(&delta, way)?,
+            None => {}
+        }
+        self.disk_step = None;
+
+        self.adopt_figures()
     }
 
     /// Changes the project as it is and as every undo and redo step holds it, without a step of

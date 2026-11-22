@@ -9,9 +9,11 @@
 
 use klappe_model::Place;
 
+use super::questions::Answered;
 use super::undo::AnswerDelta;
 use super::Session;
 use crate::error::ServiceError;
+use crate::figure_file::Way;
 use crate::place_file::PlaceDelta;
 use crate::places::{self, PendingPlace, PlaceChoice};
 
@@ -73,10 +75,10 @@ impl Session {
 
     /// Answers the question about the place name `name` with line `index` of `place_answers`.
     /// A question that is gone is no error: the disk is taken and the questions refreshed.
-    pub fn answer_place(&mut self, name: &str, index: usize) -> Result<(), ServiceError> {
+    pub fn answer_place(&mut self, name: &str, index: usize) -> Result<Answered, ServiceError> {
         let answers = self.place_answers(name);
         if answers.is_empty() {
-            return self.reload_places();
+            return self.reload_places().map(|()| Answered::Gone);
         }
 
         let Some(answer) = answers.into_iter().nth(index) else {
@@ -90,19 +92,24 @@ impl Session {
     /// of one. One undo step, written to `orte.toml` at once. A question that is gone (another program
     /// answered it, or a backup came back) is no error: the disk is taken, the questions are
     /// refreshed and the question disappears.
-    pub fn resolve_place(&mut self, name: &str, choice: PlaceChoice) -> Result<(), ServiceError> {
+    pub fn resolve_place(
+        &mut self,
+        name: &str,
+        choice: PlaceChoice,
+    ) -> Result<Answered, ServiceError> {
         if !self.pending_places.iter().any(|p| p.name == name) {
-            return self.reload_places();
+            return self.reload_places().map(|()| Answered::Gone);
         }
 
         // The file as it is now, not the session's copy: it may be older.
         let before = klappe_store::load_places(&self.dir)?;
         let mut disk = before.clone();
-        if !places::decide(&mut disk, name, &choice) {
-            return self.reload_places();
-        }
-        let Some(delta) = PlaceDelta::of(&before, &choice, &disk) else {
-            return self.reload_places();
+        let delta = match places::decide(&mut disk, name, &choice) {
+            true => PlaceDelta::of(&before, &choice, &disk),
+            false => None,
+        };
+        let Some(delta) = delta else {
+            return self.reload_places().map(|()| Answered::Gone);
         };
         klappe_store::save_places(&self.dir, &disk)?;
 
@@ -115,6 +122,21 @@ impl Session {
             AnswerDelta::Place(delta),
         );
         self.follow_scene(scene, shown);
+
+        Ok(Answered::Step)
+    }
+
+    /// Undo or redo of a place answer: its entry in `orte.toml`, in the file as it is on disk.
+    pub(super) fn save_place_delta(
+        &mut self,
+        delta: &PlaceDelta,
+        way: Way,
+    ) -> Result<(), ServiceError> {
+        let mut disk = klappe_store::load_places(&self.dir)?;
+        delta.run(&mut disk, way);
+        klappe_store::save_places(&self.dir, &disk)?;
+        self.places = disk;
+        self.refresh_places();
 
         Ok(())
     }

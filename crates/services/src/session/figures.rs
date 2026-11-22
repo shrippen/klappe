@@ -3,6 +3,7 @@
 
 use klappe_model::Project;
 
+use super::questions::Answered;
 use super::undo::AnswerDelta;
 use super::Session;
 use crate::error::ServiceError;
@@ -62,7 +63,7 @@ impl Session {
     }
 
     /// Answers the question about the cue `name` with line `index` of `figure_answers`.
-    pub fn answer_figure(&mut self, name: &str, index: usize) -> Result<(), ServiceError> {
+    pub fn answer_figure(&mut self, name: &str, index: usize) -> Result<Answered, ServiceError> {
         let answers = self.figure_answers(name);
         let Some(answer) = answers.into_iter().nth(index) else {
             return Err(ServiceError::NoDecision(name.to_owned()));
@@ -77,7 +78,11 @@ impl Session {
     /// its entry, never the session's list (the window's unsaved edits stay unsaved). What
     /// the file gained since is adopted first (`adopt_figures`). A question that is gone
     /// there (answered elsewhere) is no error: it disappears. A cue never asked is refused.
-    pub fn resolve_figure(&mut self, name: &str, choice: FigureChoice) -> Result<(), ServiceError> {
+    pub fn resolve_figure(
+        &mut self,
+        name: &str,
+        choice: FigureChoice,
+    ) -> Result<Answered, ServiceError> {
         if !self.pending_figures.iter().any(|p| p.name == name) {
             return Err(ServiceError::NoDecision(name.to_owned()));
         }
@@ -86,7 +91,7 @@ impl Session {
         let open = self.pending_figures.iter().any(|p| p.name == name);
         let mut next = self.project.clone();
         if !open || !figures::decide(&mut next, name, &choice) {
-            return Ok(());
+            return Ok(Answered::Gone);
         }
         let Some(delta) = FigureDelta::of(name, &choice, &next) else {
             return Err(ServiceError::NoDecision(name.to_owned()));
@@ -111,43 +116,21 @@ impl Session {
         self.follow_scene(scene, shown);
         self.refresh_figures();
 
+        Ok(Answered::Step)
+    }
+
+    /// Undo or redo of a figure answer: its entry in `figuren.toml`, in the file as it is on
+    /// disk (another program may have changed the rest).
+    pub(super) fn save_figure_delta(
+        &self,
+        delta: &FigureDelta,
+        way: Way,
+    ) -> Result<(), ServiceError> {
+        let mut disk = self.project_with_disk_figures()?;
+        delta.run(&mut disk, way);
+        klappe_store::save_characters(&self.dir, &disk)?;
+
         Ok(())
-    }
-
-    /// Writes what undo or redo left: the register, and for the answer to a cue or a place
-    /// name only its entry (`save_answer_step`). For the terminal; the window has no
-    /// register to write on undo.
-    pub fn save_answer(&mut self) -> Result<(), ServiceError> {
-        klappe_store::save_register(&self.dir, &self.project.scenes)?;
-
-        self.save_answer_step()
-    }
-
-    /// After undo or redo of the answer to a cue or a place name: its entry in `figuren.toml`
-    /// or `orte.toml`, taken back or done again in the file as it is on disk (another program
-    /// may have changed the rest); then what answers added to `figuren.toml` is adopted. Undo
-    /// of anything else leaves the files alone.
-    pub fn save_answer_step(&mut self) -> Result<(), ServiceError> {
-        // The delta stays until the file is written: a failed read or write keeps it for the
-        // next try (`run` leaves an entry already (not) there as it is).
-        match self.disk_step.clone() {
-            Some((AnswerDelta::Figure(delta), way)) => {
-                let mut disk = self.project_with_disk_figures()?;
-                delta.run(&mut disk, way);
-                klappe_store::save_characters(&self.dir, &disk)?;
-            }
-            Some((AnswerDelta::Place(delta), way)) => {
-                let mut disk = klappe_store::load_places(&self.dir)?;
-                delta.run(&mut disk, way);
-                klappe_store::save_places(&self.dir, &disk)?;
-                self.places = disk;
-                self.refresh_places();
-            }
-            None => {}
-        }
-        self.disk_step = None;
-
-        self.adopt_figures()
     }
 
     /// Takes what answers gave `figuren.toml` since the session last read it: new characters,
