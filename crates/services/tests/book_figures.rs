@@ -363,7 +363,6 @@ fn undoing_an_alias_or_a_creation_takes_back_only_that_entry() {
     tui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
         .unwrap();
     tui.resolve_figure("ALLE", FigureChoice::Create).unwrap();
-    // The window opens after the answers: a save of an older session would drop them.
     let mut gui = Session::open(&dir).unwrap();
     gui.edit_project(add("Carl")).unwrap();
     gui.save().unwrap();
@@ -398,11 +397,13 @@ fn an_undo_that_is_no_figure_answer_leaves_the_figures_file_alone() {
 }
 
 #[test]
-fn a_save_writes_the_window_s_figures_whole() {
+fn a_save_writes_the_window_s_changes_and_keeps_an_answer() {
     let anna = character("anna", "Anna", "A", FigureColor::Red);
     let bert = character("bert", "Bert", "B", FigureColor::Blue);
     let dir = make("fig-save-own", vec![anna, bert], BOOK);
     let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    tui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
 
     gui.edit_project(ProjectEdit::RemoveCharacter { id: "bert".into() })
         .unwrap();
@@ -418,6 +419,7 @@ fn a_save_writes_the_window_s_figures_whole() {
     gui.save().unwrap();
 
     assert_eq!(names(&dir), ["Annabelle"]);
+    assert_eq!(not_figures(&dir), ["ALLE"]);
 }
 
 #[test]
@@ -484,4 +486,155 @@ fn the_figure_questions_come_worded_and_are_answered_by_position() {
     let next = s.book_questions(Language::English);
     assert_eq!(next[0].key, QuestionKey::Figure("BERT".to_owned()));
     assert_eq!(s.project().not_figures, ["ALLE"]);
+}
+
+const BOOK_MORE: &str = "INT. SAAL – TAG #1#\n\nANNA\nHallo.\n\nALLE\nHallo!\n\n\
+BERT\nJa.\n\nCARL\nNa.\n\nLIESL\nHm.\n\n";
+
+fn not_figures(dir: &Path) -> Vec<String> {
+    klappe_store::load(dir).unwrap().project.not_figures
+}
+
+fn rename(id: &str, name: &str) -> ProjectEdit {
+    ProjectEdit::EditCharacter {
+        id: id.into(),
+        name: name.into(),
+        short: "X".into(),
+        color: FigureColor::Red,
+        group: None,
+        size_m: None,
+    }
+}
+
+fn two(name: &str) -> PathBuf {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let bert = character("bert", "Bert", "B", FigureColor::Blue);
+
+    make(name, vec![anna, bert], BOOK_MORE)
+}
+
+/// The three kinds of answer the terminal gives.
+fn answers(tui: &mut Session) {
+    tui.resolve_figure("CARL", FigureChoice::Create).unwrap();
+    tui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
+    tui.resolve_figure("LIESL", FigureChoice::Assign("bert".into()))
+        .unwrap();
+}
+
+fn asked_names(dir: &Path) -> Vec<String> {
+    let s = Session::open(dir).unwrap();
+
+    s.pending_figures().iter().map(|p| p.name.clone()).collect()
+}
+
+#[test]
+fn a_save_keeps_the_answers_the_terminal_gave() {
+    let dir = two("fig-keep-answers");
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    answers(&mut tui);
+
+    gui.edit_project(add("Dora")).unwrap();
+    gui.save().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Bert", "Dora", "Carl"]);
+    assert_eq!(aliases_of(&dir, "bert"), ["LIESL"]);
+    assert_eq!(not_figures(&dir), ["ALLE"]);
+    assert!(asked_names(&dir).is_empty());
+}
+
+#[test]
+fn an_undo_in_the_window_keeps_an_adopted_answer() {
+    let dir = two("fig-keep-undo");
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Dora")).unwrap();
+    tui.resolve_figure("CARL", FigureChoice::Create).unwrap();
+    gui.edit_project(add("Erik")).unwrap();
+    gui.save().unwrap();
+
+    gui.undo();
+    gui.undo();
+    gui.save().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Bert", "Carl"]);
+}
+
+#[test]
+fn a_cue_the_window_took_for_a_name_gets_no_second_owner() {
+    let dir = two("fig-collide");
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    gui.edit_project(rename("anna", "LIESL")).unwrap();
+    tui.resolve_figure("LIESL", FigureChoice::Assign("bert".into()))
+        .unwrap();
+
+    gui.save().unwrap();
+
+    assert_eq!(names(&dir), ["LIESL", "Bert"]);
+    assert!(aliases_of(&dir, "bert").is_empty());
+}
+
+#[test]
+fn a_character_the_window_deleted_stays_deleted() {
+    let dir = two("fig-deleted");
+    let mut gui = Session::open(&dir).unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    gui.edit_project(ProjectEdit::RemoveCharacter { id: "bert".into() })
+        .unwrap();
+    tui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
+
+    gui.save().unwrap();
+
+    assert_eq!(names(&dir), ["Anna"]);
+    assert_eq!(not_figures(&dir), ["ALLE"]);
+}
+
+#[test]
+fn a_window_answer_leaves_its_unsaved_edits_alone() {
+    let dir = two("fig-own-edit");
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(rename("anna", "Annabelle")).unwrap();
+    gui.edit_project(ProjectEdit::RemoveCharacter { id: "bert".into() })
+        .unwrap();
+
+    gui.resolve_figure("ALLE", FigureChoice::NotFigure).unwrap();
+
+    let in_session: Vec<_> = gui
+        .project()
+        .characters
+        .iter()
+        .map(|c| c.name.clone())
+        .collect();
+    assert_eq!(in_session, ["Annabelle"]);
+    assert_eq!(names(&dir), ["Anna", "Bert"]);
+    assert_eq!(not_figures(&dir), ["ALLE"]);
+}
+
+#[test]
+fn a_restored_backup_keeps_an_answer_given_after_it() {
+    let dir = two("fig-backup");
+    let mut before = Session::open(&dir).unwrap();
+    before.edit_project(add("Dora")).unwrap();
+    before.autosave().unwrap();
+    let mut tui = Session::open(&dir).unwrap();
+    tui.resolve_figure("CARL", FigureChoice::Create).unwrap();
+
+    let mut gui = Session::open(&dir).unwrap();
+    gui.restore_backup().unwrap();
+    gui.save().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Bert", "Dora", "Carl"]);
+}
+
+#[test]
+fn a_save_does_not_stop_at_an_unreadable_figures_file() {
+    let dir = two("fig-garbage");
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Dora")).unwrap();
+    std::fs::write(dir.join("figuren.toml"), "not = [toml").unwrap();
+
+    gui.save().unwrap();
+
+    assert_eq!(names(&dir), ["Anna", "Bert", "Dora"]);
 }

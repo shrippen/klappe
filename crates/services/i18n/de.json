@@ -485,7 +485,7 @@
  "legend.drawing.dotted": "Gepunktet",
  "legend.area": "Fläche",
  "error.noScene": "Szene nicht gefunden: {detail}",
- "error.noDecision": "Keine offene Entscheidung für diese Szene.",
+ "error.noDecision": "Keine offene Entscheidung für diese Frage.",
  "error.noPlaceAnswer": "Diese Antwort gibt es für die Frage zum Spielort nicht.",
  "book.pending": "Szenen zuzuordnen: {count}.",
  "book.notInBook": "Szenen nicht im Buch: {count}.",

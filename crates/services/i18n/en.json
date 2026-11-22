@@ -485,7 +485,7 @@
  "legend.drawing.dotted": "Dotted",
  "legend.area": "Area",
  "error.noScene": "Scene not found: {detail}",
- "error.noDecision": "No open decision for this scene.",
+ "error.noDecision": "No open decision for this question.",
  "error.noPlaceAnswer": "No such answer to the scripted location question.",
  "book.pending": "Scenes to match: {count}.",
  "book.notInBook": "Scenes not in the script: {count}.",

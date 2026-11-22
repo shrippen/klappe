@@ -219,6 +219,15 @@ impl Session {
         }
     }
 
+    /// Changes the project as it is and as every undo and redo step holds it, without a step of
+    /// its own: what the file gave the session (DB-50) must not vanish with an undo.
+    pub(super) fn in_every_state(&mut self, change: impl Fn(&mut Project)) {
+        change(&mut self.project);
+        for step in self.undo.iter_mut().chain(self.redo.iter_mut()) {
+            change(&mut step.project);
+        }
+    }
+
     /// Makes `step` the state and returns the one it replaces, for the other stack.
     fn swap(&mut self, step: Snapshot) -> Snapshot {
         // The export paper is a setting, not an edit: undo and redo keep the current one.

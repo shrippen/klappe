@@ -5,7 +5,7 @@ use klappe_model::Project;
 
 use super::Session;
 use crate::error::ServiceError;
-use crate::figure_file::FigureDelta;
+use crate::figure_file::{self, FigureDelta, Way};
 use crate::figures::{self, FigureChoice, PendingFigure};
 
 /// Undo step of `resolve_figure`.
@@ -73,27 +73,31 @@ impl Session {
     /// Settles the cue `name`: a new character, an alias of one, or no character. One undo
     /// step, written to `figuren.toml` at once, from the file as it is on disk: another
     /// program (the window beside the TUI) may have changed it, and the answer changes only
-    /// what it touches. A question that is gone there (answered elsewhere) is no error: the
-    /// disk is taken and the question disappears. A cue never asked is refused.
+    /// its entry, never the session's list (the window's unsaved edits stay unsaved). What
+    /// the file gained since is adopted first (`adopt_figures`). A question that is gone
+    /// there (answered elsewhere) is no error: it disappears. A cue never asked is refused.
     pub fn resolve_figure(&mut self, name: &str, choice: FigureChoice) -> Result<(), ServiceError> {
         if !self.pending_figures.iter().any(|p| p.name == name) {
             return Err(ServiceError::NoDecision(name.to_owned()));
         }
 
-        let mut next = self.project_with_disk_figures()?;
-        let open = figures::pending(&next, &self.script)
-            .iter()
-            .any(|p| p.name == name);
+        self.adopt_figures()?;
+        let open = self.pending_figures.iter().any(|p| p.name == name);
+        let mut next = self.project.clone();
         if !open || !figures::decide(&mut next, name, &choice) {
-            self.take_figures(next);
-
             return Ok(());
         }
-        klappe_store::save_characters(&self.dir, &next)?;
-
         let Some(delta) = FigureDelta::of(name, &choice, &next) else {
             return Err(ServiceError::NoDecision(name.to_owned()));
         };
+
+        let mut disk = self.project_with_disk_figures()?;
+        delta.run(&mut disk, Way::Apply);
+        klappe_store::save_characters(&self.dir, &disk)?;
+
+        if let FigureDelta::Created(character) = &delta {
+            self.known_figures.insert(character.id.clone());
+        }
         let (scene, shown) = self.ids_on_view();
         self.commit_answer(next, RESOLVE_STEP, delta);
         self.follow_scene(scene, shown);
@@ -104,8 +108,8 @@ impl Session {
 
     /// Writes what undo or redo left: the register, and for the answer to a cue only its
     /// entry in `figuren.toml`, taken back or done again in the file as it is on disk (the
-    /// window beside the TUI may have changed the rest). The session then has the file's
-    /// figures. Undo of anything else leaves `figuren.toml` alone.
+    /// window beside the TUI may have changed the rest). Undo of anything else leaves
+    /// `figuren.toml` alone.
     pub fn save_answer(&mut self) -> Result<(), ServiceError> {
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
 
@@ -117,9 +121,44 @@ impl Session {
             klappe_store::save_characters(&self.dir, &disk)?;
         }
         self.disk_step = None;
-        self.take_figures(disk);
+
+        self.adopt_figures()
+    }
+
+    /// Takes what answers gave `figuren.toml` since the session last read it: new characters,
+    /// aliases, not-figures, as long as no name would belong to two characters. They go into
+    /// the project and into every undo and redo step, so neither undo nor a save drops them.
+    /// The session's own changes (rename, delete) stay: the file is never taken whole. A file
+    /// that does not parse adopts nothing; the next save rewrites it.
+    pub(super) fn adopt_figures(&mut self) -> Result<(), ServiceError> {
+        let disk = match klappe_store::load_figures(&self.dir) {
+            Ok(disk) => disk,
+            Err(klappe_store::StoreError::Parse { .. }) => return Ok(()),
+            Err(other) => return Err(other.into()),
+        };
+
+        for delta in figure_file::added(&self.known_figures, &self.project, &disk) {
+            self.in_every_state(|project| {
+                if figure_file::fits(project, &delta) {
+                    delta.run(project, Way::Apply);
+                }
+            });
+        }
+        self.known_figures
+            .extend(disk.0.iter().map(|c| c.id.clone()));
+        self.refresh_figures();
 
         Ok(())
+    }
+
+    /// Sets the ids of the project's characters as just read from or written to `figuren.toml`.
+    pub(super) fn know_figures(&mut self) {
+        self.known_figures = self
+            .project
+            .characters
+            .iter()
+            .map(|c| c.id.clone())
+            .collect();
     }
 
     /// The project with the figures of `figuren.toml` as it is now, not the session's copy:
@@ -131,13 +170,6 @@ impl Session {
         project.not_figures = not_figures;
 
         Ok(project)
-    }
-
-    /// The figures of `from` (read from the file) become the session's.
-    fn take_figures(&mut self, from: Project) {
-        self.project.characters = from.characters;
-        self.project.not_figures = from.not_figures;
-        self.refresh_figures();
     }
 
     /// Asks the book which cues are open, changing nothing.

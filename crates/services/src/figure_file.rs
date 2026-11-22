@@ -3,6 +3,8 @@
 //! TUI), so an answer, its undo and its redo change only their entry, in the file as it is
 //! on disk.
 
+use std::collections::HashSet;
+
 use klappe_model::{same_character_name, Character, Project};
 
 use crate::figures::FigureChoice;
@@ -70,5 +72,67 @@ impl FigureDelta {
                 file.not_figures.retain(|n| !same_character_name(n, cue));
             }
         }
+    }
+}
+
+/// What `disk` (the figures read from `figuren.toml`) has added since the session last took
+/// them, as answers would: a character whose id neither `known` nor `state` has (whole, with
+/// its aliases), an alias `state`'s character of that id lacks, a not-figure `state` lacks.
+/// Whatever else differs (renamed, deleted, recoloured) is the session's own and not adopted.
+pub(crate) fn added(
+    known: &HashSet<String>,
+    state: &Project,
+    disk: &(Vec<Character>, Vec<String>),
+) -> Vec<FigureDelta> {
+    let (characters, not_figures) = disk;
+    let mut deltas = Vec::new();
+
+    for on_disk in characters {
+        let Some(own) = state.character(&on_disk.id) else {
+            if !known.contains(&on_disk.id) {
+                deltas.push(FigureDelta::Created(on_disk.clone()));
+            }
+            continue;
+        };
+        for alias in &on_disk.aliases {
+            if !own.aliases.iter().any(|a| same_character_name(a, alias)) {
+                deltas.push(FigureDelta::Alias {
+                    id: own.id.clone(),
+                    alias: alias.clone(),
+                });
+            }
+        }
+    }
+    for cue in not_figures {
+        if !state
+            .not_figures
+            .iter()
+            .any(|n| same_character_name(n, cue))
+        {
+            deltas.push(FigureDelta::NotFigure(cue.clone()));
+        }
+    }
+
+    deltas
+}
+
+/// Whether `delta` can be done in `project` without two characters answering to one name.
+pub(crate) fn fits(project: &Project, delta: &FigureDelta) -> bool {
+    match delta {
+        FigureDelta::Created(c) => {
+            let taken = |name: &str| project.characters.iter().any(|o| o.is_called(name));
+
+            project.character(&c.id).is_none()
+                && !taken(&c.name)
+                && !c.aliases.iter().any(|a| taken(a))
+        }
+        FigureDelta::Alias { id, alias } => {
+            project.character(id).is_some()
+                && !project
+                    .characters
+                    .iter()
+                    .any(|o| o.id != *id && o.is_called(alias))
+        }
+        FigureDelta::NotFigure(_) => true,
     }
 }
