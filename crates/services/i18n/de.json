@@ -1141,5 +1141,19 @@
  "error.noFfmpeg": "Für das Video fehlt ffmpeg. Bitte ffmpeg installieren (es muss im Suchpfad liegen); es wurde nichts geschrieben.",
  "error.video": "Das Video konnte nicht geschrieben werden: {detail}",
  "error.noDuration": "Der Plan hat keine Dauer, also kein Video.",
- "error.cancelled": "Das Video wurde abgebrochen."
+ "error.cancelled": "Das Video wurde abgebrochen.",
+ "outside.file.project": "Projekt",
+ "outside.file.figures": "Figuren",
+ "outside.file.library": "Bibliothek",
+ "outside.file.templates": "Vorlagen",
+ "outside.file.location": "Drehorte",
+ "outside.file.register": "Szenenliste",
+ "outside.file.scene": "Pläne",
+ "outside.file.script": "Drehbuch",
+ "outside.taken": "Neu geladen: {files} (außerhalb geändert).",
+ "outside.cleared": "Rückgängig geleert.",
+ "outside.both": "Außerhalb und hier geändert: {files}.",
+ "tui.mode.outside": "KONFLIKT",
+ "tui.outside.title": "Außerhalb geändert",
+ "tui.outside.hint": "r Neu laden (eigene Änderungen verwerfen)  o Überschreiben  Esc Abbrechen"
 }

@@ -172,15 +172,7 @@ impl Session {
     /// A screenplay or register changed outside and in the session is `Conflict` with `Ask`,
     /// written over with `Overwrite`; the other files are not its business.
     pub fn save_script(&mut self, on: OnOutside) -> Result<Saved, ServiceError> {
-        let both = match (self.check(), on) {
-            (Ok(outside), _) => outside.both,
-            (Err(error), OnOutside::Ask) => return Err(error),
-            (Err(_), OnOutside::Overwrite) => Vec::new(),
-        };
-        let asks = both
-            .iter()
-            .any(|f| f.name == SCRIPT_FILE || f.name == REGISTER_FILE);
-        if on == OnOutside::Ask && asks {
+        if self.script_asks(on)? {
             return Ok(Saved::Conflict);
         }
 
@@ -207,6 +199,24 @@ impl Session {
         self.unbacked = false;
         klappe_store::drop_backup(&self.dir)?;
         Ok(Saved::Done)
+    }
+
+    /// Whether `save_script` has to ask: the screenplay or register changed outside and in the
+    /// session, and `on` is `Ask`.
+    fn script_asks(&mut self, on: OnOutside) -> Result<bool, ServiceError> {
+        // A file this save does not write that cannot be read is no reason to refuse.
+        let both = match (self.check(), on) {
+            (Ok(outside), _) => outside.both,
+            (Err(error), OnOutside::Ask) if self.moved(&[SCRIPT_FILE, REGISTER_FILE])? => {
+                return Err(error);
+            }
+            (Err(_), _) => Vec::new(),
+        };
+        let asks = both
+            .iter()
+            .any(|f| f.name == SCRIPT_FILE || f.name == REGISTER_FILE);
+
+        Ok(on == OnOutside::Ask && asks)
     }
 
     /// Writes only the register file `szenen.toml`, as the session holds it: an answer about

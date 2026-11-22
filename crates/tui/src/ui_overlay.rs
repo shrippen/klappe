@@ -297,6 +297,28 @@ pub(crate) fn draw_backup(frame: &mut Frame, app: &App) {
     );
 }
 
+/// A save found the screenplay changed outside and here: what, and the keys that settle it.
+pub(crate) fn draw_outside(frame: &mut Frame, app: &App) {
+    let message = app.outside_text();
+    let hint = &app.texts.outside_hint;
+    let width = cols(message.chars()).max(cols(hint.chars())) + 4;
+    let area = centered(frame.area(), width, 4);
+    let block = framed(&app.texts.outside_title);
+    let inner = block.inner(area);
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+
+    let strong = Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD);
+    frame.render_widget(
+        Paragraph::new(message.as_str()).style(strong),
+        row(inner, 0),
+    );
+    frame.render_widget(
+        Paragraph::new(hint.as_str()).style(Style::new().fg(theme::MUTED)),
+        row(inner, 1),
+    );
+}
+
 /// The question about the book being asked and its lines, as the session words them: the
 /// scene number before a scene's heading.
 fn book_lines(app: &App) -> Option<(String, String, Vec<String>)> {

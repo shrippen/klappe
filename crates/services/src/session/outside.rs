@@ -350,6 +350,13 @@ impl Session {
             .collect()
     }
 
+    /// Whether any of the files `names` differs on disk from what the session last saw.
+    pub(super) fn moved(&self, names: &[&str]) -> Result<bool, ServiceError> {
+        let tree = klappe_store::read_tree(&self.dir)?;
+
+        Ok(names.iter().any(|n| tree.get(*n) != self.disk.get(*n)))
+    }
+
     /// The figure rule: `figuren.toml` changed outside by answers alone (new characters, aliases,
     /// not-figures) is adopted into the project and every undo step, whatever the session
     /// changed in it, and is no change to ask about. Anything else is left to `scan`.

@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use klappe_services::{
-    error_text, load_notes_text, SceneSpan, ServiceError, Session, Slot, TextKind,
+    error_text, load_notes_text, OnOutside, Saved, SceneSpan, ServiceError, Session, Slot, TextKind,
 };
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -25,6 +25,7 @@ mod compose;
 mod find;
 mod numbers;
 mod outline;
+mod outside;
 mod pdf;
 mod title;
 
@@ -90,6 +91,8 @@ pub(crate) enum Mode {
     Backup,
     /// `Ctrl+E`: the script as PDF.
     Pdf,
+    /// A save found the screenplay changed outside and here: reload or overwrite.
+    Outside,
 }
 
 /// A message for the status line, until the next key.
@@ -105,6 +108,8 @@ pub(crate) enum Notice {
     SaveFirst,
     /// What the PDF export did, or why it did not start.
     Pdf(String),
+    /// What the editor took from a change outside, or dropped for it.
+    Outside(String),
 }
 
 #[derive(Debug)]
@@ -388,6 +393,7 @@ impl App {
             Mode::Book => return self.book_key(key),
             Mode::Backup => return self.backup_key(key),
             Mode::Pdf => return self.pdf_key(key),
+            Mode::Outside => return self.outside_key(key),
             Mode::Normal => {}
         }
 
@@ -578,35 +584,39 @@ impl App {
         Flow::Continue
     }
 
-    /// Writes the text through the session.
+    /// Writes the text through the session. A screenplay changed outside and in the editor
+    /// opens the question (`Mode::Outside`) and writes nothing.
     fn save(&mut self) -> Flow {
         // The register follows changed text without an undo step: answers before it stay.
         if self.is_modified() {
             self.forget_answers();
         }
+        // An editor nobody typed in follows what changed outside; nothing is left to save.
+        if !self.is_modified() && self.follow_outside() {
+            return Flow::Continue;
+        }
+
         self.session.set_script_text(&self.editor.text());
-        self.notice = Some(
-            match self
-                .session
-                .save_script(klappe_services::OnOutside::Overwrite)
-            {
-                Ok(_) => {
-                    // Saving numbers the scenes: the editor takes the numbers as written.
-                    let text = self.session.script_text();
-                    if text != self.editor.text() {
-                        self.editor.set_text(text);
-                        self.built_for = None;
-                    }
-                    self.saved_revision = self.editor.revision();
-                    self.links = Links::read(&mut self.session);
-                    self.refresh_book_note();
-                    Notice::Saved
-                }
-                Err(e) => Notice::SaveFailed(error_text(self.lang, &e)),
-            },
-        );
+        match self.session.save_script(OnOutside::Ask) {
+            Ok(Saved::Conflict) => self.mode = Mode::Outside,
+            Ok(Saved::Done) => self.saved(),
+            Err(e) => self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e))),
+        }
 
         Flow::Continue
+    }
+
+    /// After a save: the editor takes the numbers as written, and the book's note is fresh.
+    fn saved(&mut self) {
+        let text = self.session.script_text();
+        if text != self.editor.text() {
+            self.editor.set_text(text);
+            self.built_for = None;
+        }
+        self.saved_revision = self.editor.revision();
+        self.links = Links::read(&mut self.session);
+        self.refresh_book_note();
+        self.notice = Some(Notice::Saved);
     }
 
     /// Moves the cursor to the heading of scene `index`.
