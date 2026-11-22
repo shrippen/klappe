@@ -170,15 +170,15 @@ impl Session {
         let mut loaded = klappe_store::load_backup(&self.dir)?.ok_or(ServiceError::NoBackup)?;
 
         shot_edit::clear_orphans(&mut loaded.project);
+        // The figures are the backup's alone: it cannot tell a character the file gained
+        // since from one it deleted, so an answer given meanwhile is asked again.
         self.commit(loaded.project);
-        self.know_figures();
         if let Some(text) = loaded.script {
             self.set_script_text(&text);
         }
         // Another program may have answered meanwhile: the places come from the disk.
         self.reload_places()?;
-        // An answer given after the backup was made is not lost with it.
-        self.adopt_figures()?;
+        self.refresh_figures();
         self.reconcile();
         self.keep_view_valid();
         self.end_stale_look();

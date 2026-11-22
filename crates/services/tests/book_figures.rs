@@ -612,7 +612,7 @@ fn a_window_answer_leaves_its_unsaved_edits_alone() {
 }
 
 #[test]
-fn a_restored_backup_keeps_an_answer_given_after_it() {
+fn a_restored_backup_takes_no_figures_from_the_file() {
     let dir = two("fig-backup");
     let mut before = Session::open(&dir).unwrap();
     before.edit_project(add("Dora")).unwrap();
@@ -624,7 +624,45 @@ fn a_restored_backup_keeps_an_answer_given_after_it() {
     gui.restore_backup().unwrap();
     gui.save().unwrap();
 
-    assert_eq!(names(&dir), ["Anna", "Bert", "Dora", "Carl"]);
+    // The backup cannot tell an answer given after it from a character it deleted: the
+    // answer is lost and asked again.
+    assert_eq!(names(&dir), ["Anna", "Bert", "Dora"]);
+    assert!(gui.pending_figures().iter().any(|p| p.name == "CARL"));
+}
+
+#[test]
+fn a_restored_backup_keeps_a_deleted_character_deleted() {
+    let dir = two("fig-backup-deleted");
+    let mut before = Session::open(&dir).unwrap();
+    before
+        .edit_project(ProjectEdit::RemoveCharacter { id: "bert".into() })
+        .unwrap();
+    before.autosave().unwrap();
+    drop(before);
+
+    let mut gui = Session::open(&dir).unwrap();
+    gui.restore_backup().unwrap();
+    gui.save().unwrap();
+
+    assert_eq!(names(&dir), ["Anna"]);
+}
+
+#[test]
+fn a_restored_backup_s_new_character_takes_an_alias() {
+    let anna = character("anna", "Anna", "A", FigureColor::Red);
+    let dir = make("fig-backup-new", vec![anna], BOOK);
+    let mut before = Session::open(&dir).unwrap();
+    before.edit_project(add("Berta")).unwrap();
+    before.autosave().unwrap();
+    drop(before);
+
+    let mut gui = Session::open(&dir).unwrap();
+    gui.restore_backup().unwrap();
+    gui.resolve_figure("BERT", FigureChoice::Assign("berta".into()))
+        .unwrap();
+    gui.save().unwrap();
+
+    assert_eq!(aliases_of(&dir, "berta"), vec!["BERT".to_owned()]);
 }
 
 #[test]
