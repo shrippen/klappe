@@ -1155,5 +1155,10 @@
  "outside.both": "Außerhalb und hier geändert: {files}.",
  "tui.mode.outside": "KONFLIKT",
  "tui.outside.title": "Außerhalb geändert",
- "tui.outside.hint": "r Neu laden (eigene Änderungen verwerfen)  o Überschreiben  Esc Abbrechen"
+ "tui.outside.hint": "r Neu laden (eigene Änderungen verwerfen)  o Überschreiben  Esc Abbrechen",
+ "outside.reload": "Neu laden (eigene Änderungen verwerfen)",
+ "outside.reloadShort": "Neu laden",
+ "outside.overwrite": "Überschreiben",
+ "outside.dialogTitle": "Außerhalb geändert",
+ "outside.dialogAsk": "Geändert außerhalb von Klappe und hier: {files}. Neu laden verwirft die eigenen Änderungen, Überschreiben ersetzt die Dateien auf der Platte."
 }

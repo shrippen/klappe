@@ -1,6 +1,6 @@
 //! What the header's status line says: translated messages, and when they go stale.
 
-use klappe_services::BackupState;
+use klappe_services::{outside_files_text, BackupState, Language, OutsideFile};
 
 /// How QML tells the backup states apart (`Controller.backupState`).
 pub const BACKUP_NONE: &str = "none";
@@ -15,6 +15,19 @@ pub fn backup_view(state: &BackupState) -> (&'static str, String) {
         BackupState::Found => (BACKUP_FOUND, String::new()),
         BackupState::Unreadable(reason) => (BACKUP_UNREADABLE, reason.clone()),
     }
+}
+
+/// The toast after a take-over: which files were read again, and that undo went with them when
+/// there was unsaved work (its steps no longer fit the files).
+pub fn outside_taken_text(language: Language, files: &[OutsideFile], unsaved: bool) -> String {
+    let taken = language
+        .text("outside.taken")
+        .replace("{files}", &outside_files_text(language, files));
+    if !unsaved {
+        return taken;
+    }
+
+    format!("{taken} {}", language.text("outside.cleared"))
 }
 
 /// One message in the header. A change to the project makes it stale: "saved" would
@@ -58,6 +71,23 @@ mod tests {
         assert_eq!(
             backup_view(&BackupState::Unreadable("kaputt".into())),
             (BACKUP_UNREADABLE, "kaputt".into())
+        );
+    }
+
+    #[test]
+    fn the_toast_names_the_files_and_the_cleared_undo() {
+        let files = [OutsideFile {
+            kind: klappe_services::FileKind::Script,
+            name: "drehbuch.fountain".into(),
+        }];
+
+        assert_eq!(
+            outside_taken_text(Language::German, &files, false),
+            "Neu geladen: Drehbuch (außerhalb geändert)."
+        );
+        assert_eq!(
+            outside_taken_text(Language::English, &files, true),
+            "Reloaded: Screenplay (changed outside). Undo history cleared."
         );
     }
 

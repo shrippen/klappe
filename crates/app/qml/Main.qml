@@ -212,6 +212,13 @@ Kirigami.ApplicationWindow {
                         onMatchRequested: bookDialog.open()
                     }
 
+                    OutsideNotice {
+                        Layout.fillWidth: true
+                        Layout.margins: Kirigami.Units.smallSpacing
+                        texts: texts
+                        controller: ctl
+                    }
+
                     BackupNotice {
                         id: backupNotice
                         Layout.fillWidth: true
@@ -307,6 +314,29 @@ Kirigami.ApplicationWindow {
         texts: texts
         controller: ctl
         onQuestionsRequested: bookDialog.open()
+    }
+
+    // A file may have changed outside while the window was in the background (the terminal
+    // beside it, a Git pull): typing is sent first, then the folder is compared.
+    onActiveChanged: {
+        if (!active || !ctl.loaded) {
+            return
+        }
+        screenplay.flush()
+        ctl.checkOutside()
+    }
+
+    OutsideToast { controller: ctl }
+    OutsideDialog {
+        id: outsideDialog
+        texts: texts
+        controller: ctl
+    }
+    Connections {
+        target: ctl
+        function onOutsideAsked() {
+            outsideDialog.open()
+        }
     }
 
     ProjectGuard {

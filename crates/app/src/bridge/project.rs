@@ -117,6 +117,7 @@ impl qobject::Controller {
         self.as_mut().rust_mut().get_mut().notice.say(String::new());
         self.as_mut().set_backup_state(QString::default());
         self.as_mut().set_backup_message(QString::default());
+        self.as_mut().set_outside_files(QString::default());
         self.as_mut().show(Shown::default());
         self.remember(&dir);
         true

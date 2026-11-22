@@ -1,0 +1,90 @@
+import QtQuick
+import QtCore
+import io.github.shrippen.klappe
+import "lib"
+
+// A file changed outside the window (here: a second controller on the same folder, as the
+// terminal beside it): the window takes over what it did not change itself and tells which
+// (`outsideTaken`); a file both changed is asked about on save (`outsideAsked`, nothing
+// written) and settled by `saveOverwrite` or `reloadProject`.
+Item {
+    id: root
+
+    Watchdog {}
+    Controller { id: ctl }
+    Controller { id: other }
+
+    property var told: []
+    property int asked: 0
+
+    function fail(message) {
+        console.error(message)
+        Qt.exit(1)
+    }
+
+    Connections {
+        target: ctl
+        function onOutsideTaken(text) { root.told.push(text) }
+        function onOutsideAsked() { root.asked += 1 }
+    }
+
+    Timer {
+        interval: 0
+        running: true
+        onTriggered: {
+            const base = StandardPaths.writableLocation(StandardPaths.TempLocation) + "/klappe-export-test"
+            if (!ctl.openProject(base + "/aussen-projekt") || !other.openProject(base + "/aussen-projekt")) {
+                return root.fail("project did not open: " + ctl.status)
+            }
+
+            // Changed outside only: taken over, told, no question.
+            const outside = ctl.scriptText + "\nVon draussen.\n"
+            other.editScript(outside)
+            if (!other.save()) {
+                return root.fail("the other window did not save: " + other.status)
+            }
+            ctl.checkOutside()
+            if (ctl.scriptText !== outside || root.told.length !== 1 || ctl.outsideFiles !== "") {
+                return root.fail("the change must be taken over and told: " + root.told.length)
+            }
+            if (ctl.canUndo || ctl.dirty) {
+                return root.fail("a take-over without own work leaves nothing to undo or save")
+            }
+
+            // Changed in both: the save asks and writes nothing.
+            const own = outside + "Von hier.\n"
+            ctl.editScript(own)
+            const second = outside + "Noch einmal von draussen.\n"
+            other.editScript(second)
+            if (!other.save()) {
+                return root.fail("the other window did not save again")
+            }
+            if (ctl.save() || root.asked !== 1) {
+                return root.fail("the save must ask, not write: " + root.asked)
+            }
+            if (ctl.outsideFiles === "" || ctl.scriptText !== own) {
+                return root.fail("the conflict is shown and the text is the window's")
+            }
+
+            // Overwrite: the window's version goes to the disk.
+            if (!ctl.saveOverwrite() || ctl.outsideFiles !== "" || ctl.dirty) {
+                return root.fail("overwrite must save and end the conflict: " + ctl.status)
+            }
+
+            // Reload: the window's changes go, the folder's text comes.
+            // The other window sees the overwrite first (its focus returned), then types.
+            other.checkOutside()
+            const third = second + "Und ein drittes Mal.\n"
+            other.editScript(third)
+            if (!other.save()) {
+                return root.fail("the other window did not save a third time")
+            }
+            ctl.editScript(own + "Noch mehr.\n")
+            ctl.reloadProject()
+            if (ctl.scriptText !== third || ctl.dirty || ctl.canUndo || root.told.length !== 2) {
+                return root.fail("reload must take the folder's text: " + ctl.scriptText.length)
+            }
+            Qt.exit(0)
+        }
+    }
+}

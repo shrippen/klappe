@@ -1155,5 +1155,10 @@
  "outside.both": "Changed outside and here: {files}.",
  "tui.mode.outside": "CONFLICT",
  "tui.outside.title": "Changed outside",
- "tui.outside.hint": "r Reload (drop own changes)  o Overwrite  Esc Cancel"
+ "tui.outside.hint": "r Reload (drop own changes)  o Overwrite  Esc Cancel",
+ "outside.reload": "Reload (drop own changes)",
+ "outside.reloadShort": "Reload",
+ "outside.overwrite": "Overwrite",
+ "outside.dialogTitle": "Changed outside",
+ "outside.dialogAsk": "Changed outside Klappe and here: {files}. Reload drops your changes, Overwrite replaces the files on disk."
 }

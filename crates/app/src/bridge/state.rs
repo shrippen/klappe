@@ -92,6 +92,7 @@ pub struct ControllerRust {
     pub(super) import_report: QString,
     pub(super) backup_state: QString,
     pub(super) backup_message: QString,
+    pub(super) outside_files: QString,
     pub(super) autosave_ms: i32,
     pub(super) project_json: QString,
     pub(super) scene_id: QString,

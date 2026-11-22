@@ -8,6 +8,7 @@ use cxx_qt::CxxQtType;
 use klappe_services::error_text;
 use klappe_services::Autosave;
 use klappe_services::OnOutside;
+use klappe_services::Saved;
 
 impl qobject::Controller {
     pub(super) fn undo(mut self: Pin<&mut Self>) {
@@ -39,19 +40,30 @@ impl qobject::Controller {
         self.refresh();
     }
 
-    pub(super) fn save(mut self: Pin<&mut Self>) -> bool {
+    pub(super) fn save(self: Pin<&mut Self>) -> bool {
+        self.save_with(OnOutside::Ask)
+    }
+
+    pub(super) fn save_overwrite(self: Pin<&mut Self>) -> bool {
+        self.save_with(OnOutside::Overwrite)
+    }
+
+    /// Saves; a file changed outside and here is no save under `Ask` but a question.
+    fn save_with(mut self: Pin<&mut Self>, on: OnOutside) -> bool {
         let language = self.rust().language;
         let result = match self.as_mut().session() {
-            // Not asking yet: the window's question for an outside change comes later.
-            Some(s) => s
-                .save(OnOutside::Overwrite)
-                .map(drop)
-                .map_err(|e| error_text(language, &e)),
+            Some(s) => s.save(on).map_err(|e| error_text(language, &e)),
             None => return false,
         };
 
+        self.as_mut().show_outside();
+        if result == Ok(Saved::Conflict) {
+            self.outside_asked();
+            return false;
+        }
+
         let message = match &result {
-            Ok(()) => language.text("menu.saved"),
+            Ok(_) => language.text("menu.saved"),
             Err(e) => e.clone(),
         };
         self.as_mut().say(message);
