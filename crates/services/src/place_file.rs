@@ -78,23 +78,26 @@ impl PlaceDelta {
                     p.variants.retain(|v| !same_place_name(v, name));
                 }
             }
-            (Self::Renamed { id, new, .. }, Way::Apply) => {
-                if places.iter().any(|o| o.is_called(new)) {
-                    return;
-                }
-                if let Some(p) = places.iter_mut().find(|p| p.id == *id) {
-                    p.name.clone_from(new);
-                }
-            }
-            (Self::Renamed { id, old, new }, Way::Revert) => {
-                let Some(p) = places.iter_mut().find(|p| p.id == *id) else {
-                    return;
-                };
-                if same_place_name(&p.name, new) {
-                    p.name.clone_from(old);
-                }
-            }
+            (Self::Renamed { id, old, new }, way) => rename(places, id, (old, new), way),
         }
+    }
+}
+
+/// Applies or reverts the rename of place `id` from `old` to `new`: the name changes only if
+/// the place still has the one the rename leaves, and no other place is called the one it takes.
+fn rename(places: &mut [Place], id: &str, (old, new): (&str, &str), way: Way) {
+    let (from, to) = match way {
+        Way::Apply => (old, new),
+        Way::Revert => (new, old),
+    };
+    if places.iter().any(|o| o.id != id && o.is_called(to)) {
+        return;
+    }
+    let Some(place) = places.iter_mut().find(|p| p.id == id) else {
+        return;
+    };
+    if same_place_name(&place.name, from) {
+        place.name = to.to_owned();
     }
 }
 
@@ -152,5 +155,23 @@ mod tests {
         delta.run(&mut places, Way::Revert);
 
         assert_eq!(places[0].name, "BALLSAAL");
+    }
+
+    /// Review of PR 313: the revert put the old name over another place's.
+    #[test]
+    fn a_rename_is_not_taken_back_onto_a_name_another_place_has() {
+        let delta = PlaceDelta::Renamed {
+            id: "a".into(),
+            old: "SÄNGERSAAL".into(),
+            new: "FESTSAAL".into(),
+        };
+        let mut places = vec![
+            place("a", "FESTSAAL", &[]),
+            place("b", "HOF", &["SÄNGERSAAL"]),
+        ];
+
+        delta.run(&mut places, Way::Revert);
+
+        assert_eq!(places[0].name, "FESTSAAL");
     }
 }
