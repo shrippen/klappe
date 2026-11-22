@@ -451,7 +451,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   die fehlen, gelten als leer. Eine zweite Sitzung (die TUI neben dem Fenster) kann
   `figuren.toml` ändern; darum liest eine Antwort die Datei neu. Eine Antwort auf einen Namen,
   auch ihr Rückgängig und Wiederholen, ändert nur ihren Eintrag (Figur, Alias, `not_figures`).
-  Speichern im Fenster schreibt die Datei ganz aus der Sitzung.
+  Speichern im Fenster übernimmt aus der Datei, was eine Antwort hinzugefügt hat (Figur, Alias,
+  `not_figures`), sofern kein Name kollidiert; alles andere überschreibt es. Grenze: macht die
+  TUI eine Antwort rückgängig, die ein Speichern im Fenster schon übernommen hat, schreibt das
+  nächste Speichern im Fenster sie zurück (die Frage gilt als beantwortet).
 - **Gruppen (LH-23):** eine Figur in `figuren.toml` hat optional `group`, die Zahl der Personen
   (2 bis 999). Mit `group` ist die Figur eine Gruppe (Gäste, Wachen): sie hat eine Spur, Marks
   und Wege wie jede Figur und wird größer gezeichnet, mit drei Punkten im Umriss, ihr Name trägt
