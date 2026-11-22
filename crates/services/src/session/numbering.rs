@@ -5,6 +5,7 @@ use klappe_model::{SceneNumbering, ScriptLanguage};
 use crate::error::ServiceError;
 use klappe_script::{number_scenes, NumberMode, NumberRules, OMITTED_DE, OMITTED_EN};
 
+use super::outside::PROJECT_FILE;
 use super::Session;
 use crate::book;
 
@@ -18,6 +19,7 @@ impl Session {
         numbering: SceneNumbering,
         first: u32,
     ) -> Result<(), ServiceError> {
+        let before = self.before(PROJECT_FILE)?;
         let setup = &mut self.project.script;
         if (setup.scene_numbering, setup.first_scene) == (numbering, first) {
             return Ok(());
@@ -26,6 +28,7 @@ impl Session {
         setup.scene_numbering = numbering;
         setup.first_scene = first;
         klappe_store::save_scene_numbering(&self.dir, numbering, first)?;
+        self.rebase(PROJECT_FILE, before)?;
 
         Ok(())
     }

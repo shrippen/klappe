@@ -4,6 +4,7 @@ use std::path::Path;
 use klappe_model::{Project, SceneNumbering};
 use klappe_store::Loaded;
 
+use super::outside::{OnOutside, Saved, REGISTER_FILE, SCRIPT_FILE};
 use super::plan_view::PlanView;
 use super::{check_empty, check_title, Autosave, BackupState, Session, View};
 use crate::book::ImportReport;
@@ -49,7 +50,7 @@ impl Session {
             pending: Vec::new(),
             pending_figures: Vec::new(),
             disk_step: None,
-            known_figures: HashSet::new(),
+            file_figures: Default::default(),
             book_scene: Vec::new(),
             heading_line: Vec::new(),
             places: Vec::new(),
@@ -168,34 +169,52 @@ impl Session {
     /// as it is on disk. The backup then no longer holds the screenplay as unsaved work: it
     /// is removed if only the screenplay was unsaved, else rewritten with the saved screenplay.
     /// An unanswered backup (`Found`, `Unreadable`) stays for the user to decide.
-    pub fn save_script(&mut self) -> Result<(), ServiceError> {
+    /// A screenplay or register changed outside and in the session is `Conflict` with `Ask`,
+    /// written over with `Overwrite`; the other files are not its business.
+    pub fn save_script(&mut self, on: OnOutside) -> Result<Saved, ServiceError> {
+        let both = match (self.check(), on) {
+            (Ok(outside), _) => outside.both,
+            (Err(error), OnOutside::Ask) => return Err(error),
+            (Err(_), OnOutside::Overwrite) => Vec::new(),
+        };
+        let asks = both
+            .iter()
+            .any(|f| f.name == SCRIPT_FILE || f.name == REGISTER_FILE);
+        if on == OnOutside::Ask && asks {
+            return Ok(Saved::Conflict);
+        }
+
         self.number_script();
         self.reconcile();
         let text = self.script_text.as_deref().unwrap_or_default();
         klappe_store::save_script(&self.dir, text)?;
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
-        self.wrote(&["drehbuch.fountain", "szenen.toml"])?;
+        self.wrote(&[SCRIPT_FILE, REGISTER_FILE])?;
+        self.conflicts
+            .retain(|f| f.name != SCRIPT_FILE && f.name != REGISTER_FILE);
         self.write_lock()?;
         if self.backup != BackupState::None {
-            return Ok(());
+            return Ok(Saved::Done);
         }
 
         if self.project_changed {
             klappe_store::save_backup(&self.dir, &self.project, self.script_text.as_deref())?;
             self.unbacked = false;
-            return Ok(());
+            return Ok(Saved::Done);
         }
 
         self.dirty = false;
         self.unbacked = false;
         klappe_store::drop_backup(&self.dir)?;
-        Ok(())
+        Ok(Saved::Done)
     }
 
     /// Writes only the register file `szenen.toml`, as the session holds it: an answer about
     /// the book is a decision, kept at once where the book is edited without the plans (TUI).
     pub fn save_register(&mut self) -> Result<(), ServiceError> {
+        let before = self.before(REGISTER_FILE)?;
         klappe_store::save_register(&self.dir, &self.project.scenes)?;
+        self.rebase(REGISTER_FILE, before)?;
 
         Ok(())
     }

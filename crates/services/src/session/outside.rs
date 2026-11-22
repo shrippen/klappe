@@ -15,11 +15,17 @@
 
 use std::collections::BTreeSet;
 
-use klappe_store::{kind_of, Loaded, Tree};
+use klappe_store::{kind_of, FileKind, Loaded, Tree};
 
 use super::Session;
 use crate::error::ServiceError;
+use crate::figure_file;
 use crate::shot_edit;
+
+pub(super) const PROJECT_FILE: &str = "projekt.toml";
+pub(super) const FIGURES_FILE: &str = "figuren.toml";
+pub(super) const REGISTER_FILE: &str = "szenen.toml";
+pub(super) const SCRIPT_FILE: &str = "drehbuch.fountain";
 
 /// What `save` does when a file changed outside and in the session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,7 +47,7 @@ pub enum Saved {
 /// A file of the project folder, named for the user.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OutsideFile {
-    pub kind: klappe_store::FileKind,
+    pub kind: FileKind,
     /// Below the project folder, `/` between the parts (`szenen/ab12.json`).
     pub name: String,
 }
@@ -53,6 +59,15 @@ pub struct Outside {
     pub taken: Vec<OutsideFile>,
     /// Changed outside and in the session: the session's version stays, nothing is lost yet.
     pub both: Vec<OutsideFile>,
+}
+
+/// What a writer of one file knows before it writes (`Session::before`).
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Before {
+    /// The session had changed the file itself.
+    mine: bool,
+    /// The file differs from what the session last saw and was not taken over: an open conflict.
+    held: bool,
 }
 
 /// The files that differ between two trees, by what each side holds.
@@ -72,6 +87,7 @@ impl Session {
     /// stays as the session has it, until `save` or `reload` settles it. An unreadable
     /// outside file is an error and changes nothing.
     pub fn check(&mut self) -> Result<Outside, ServiceError> {
+        self.settle_figures()?;
         let scan = self.scan()?;
         let both = self.files(&scan.both);
 
@@ -86,13 +102,17 @@ impl Session {
             });
         }
 
-        self.take_outside(&scan)?;
+        let changed = self.take_outside(&scan)?;
         self.conflicts.clone_from(&both);
 
-        Ok(Outside {
-            taken: self.files(&scan.taken),
-            both,
-        })
+        // A file written differently (another program's formatting) that reads the same is no
+        // change to tell about.
+        let taken = match changed {
+            true => self.files(&scan.taken),
+            false => Vec::new(),
+        };
+
+        Ok(Outside { taken, both })
     }
 
     /// The files `check` found changed outside and in the session, not yet settled.
@@ -112,6 +132,7 @@ impl Session {
         self.own = self.encode()?;
         self.conflicts.clear();
         self.forget_history();
+        self.disk_step = None;
         self.dirty = false;
         self.unbacked = false;
         self.project_changed = false;
@@ -126,8 +147,6 @@ impl Session {
     /// with `Ask` and written over with `Overwrite`; one changed outside only was taken over
     /// first. An unanswered backup (`Found`, `Unreadable`) stays: the user decides on it.
     pub fn save(&mut self, on: OnOutside) -> Result<Saved, ServiceError> {
-        // What the terminal answered since the file was read goes into the project first.
-        self.adopt_figures()?;
         match (self.check(), on) {
             (Ok(outside), OnOutside::Ask) if !outside.both.is_empty() => {
                 return Ok(Saved::Conflict);
@@ -249,7 +268,8 @@ impl Session {
 
     /// Takes over what changed outside and the session did not change; the files it changed
     /// itself stay as they are.
-    fn take_outside(&mut self, scan: &Scan) -> Result<(), ServiceError> {
+    /// Returns whether the project or the screenplay is another than before.
+    fn take_outside(&mut self, scan: &Scan) -> Result<bool, ServiceError> {
         let loaded = match scan.mine.is_empty() {
             true => crate::load::load_project(&self.dir)?,
             false => crate::load::load_overlay(&self.dir, &self.overlay(scan))?,
@@ -257,9 +277,11 @@ impl Session {
         let taken_figures = scan
             .taken
             .iter()
-            .any(|n| kind_of(n) == Some(klappe_store::FileKind::Figures));
+            .any(|n| kind_of(n) == Some(FileKind::Figures));
 
+        let (project, text) = (self.project.clone(), self.script_text.clone());
         self.take(loaded)?;
+        let changed = self.project != project || self.script_text != text;
         if taken_figures {
             self.know_figures();
         }
@@ -280,7 +302,9 @@ impl Session {
             copy_entry(&mut self.own, &now, name);
         }
 
-        self.forget_history();
+        if changed {
+            self.forget_history();
+        }
         let own_changes: Vec<&String> = names
             .iter()
             .filter(|n| now.get(*n) != self.own.get(*n))
@@ -289,9 +313,9 @@ impl Session {
         self.unbacked = self.dirty;
         self.project_changed = own_changes
             .iter()
-            .any(|n| kind_of(n) != Some(klappe_store::FileKind::Script));
+            .any(|n| kind_of(n) != Some(FileKind::Script));
 
-        Ok(())
+        Ok(changed)
     }
 
     /// The folder as it is, with the files the session changed in their own version.
@@ -304,11 +328,11 @@ impl Session {
         tree
     }
 
-    /// Clears undo and redo: their steps hold the state from before.
+    /// Clears undo and redo: their steps hold the state from before. The answer an undo just
+    /// took back and `save_answer_step` has yet to write stays: the file still needs it.
     fn forget_history(&mut self) {
         self.undo.clear();
         self.redo.clear();
-        self.disk_step = None;
     }
 
     /// `names` as files for the surface.
@@ -324,6 +348,71 @@ impl Session {
                 })
             })
             .collect()
+    }
+
+    /// The figure rule: `figuren.toml` changed outside by answers alone (new characters, aliases,
+    /// not-figures) is adopted into the project and every undo step, whatever the session
+    /// changed in it, and is no change to ask about. Anything else is left to `scan`.
+    fn settle_figures(&mut self) -> Result<(), ServiceError> {
+        let tree = klappe_store::read_tree(&self.dir)?;
+        if tree.get(FIGURES_FILE) == self.disk.get(FIGURES_FILE) {
+            return Ok(());
+        }
+        let Ok(on_disk) = klappe_store::load_figures(&self.dir) else {
+            return Ok(());
+        };
+        if !figure_file::answers_only(&self.file_figures, &on_disk) {
+            return Ok(());
+        }
+
+        let mine = self.encode()?.get(FIGURES_FILE) != self.own.get(FIGURES_FILE);
+        self.adopt_figures()?;
+        copy_entry(&mut self.disk, &tree, FIGURES_FILE);
+        if !mine {
+            let now = self.encode()?;
+            copy_entry(&mut self.own, &now, FIGURES_FILE);
+        }
+
+        Ok(())
+    }
+
+    /// For a writer of the one file `name` that changes only its part of it: takes over what
+    /// changed outside first (`check`; a file it cannot read is no reason to refuse, the writer
+    /// reads its own), and notes where `name` stands. Call before the session changes.
+    pub(super) fn before(&mut self, name: &str) -> Result<Before, ServiceError> {
+        let _ = self.check();
+        let tree = klappe_store::read_tree(&self.dir)?;
+        let mine = self
+            .encode()
+            .map_or(true, |now| now.get(name) != self.own.get(name));
+
+        Ok(Before {
+            mine,
+            held: tree.get(name) != self.disk.get(name),
+        })
+    }
+
+    /// After a writer wrote `name`: the folder and the session agree on it again. A file still
+    /// in conflict stays so (`disk` is left as it is, the conflict stays visible), and what the
+    /// session changed in it before stays its own change.
+    pub(super) fn rebase(&mut self, name: &str, before: Before) -> Result<(), ServiceError> {
+        if before.held {
+            return Ok(());
+        }
+
+        let tree = klappe_store::read_tree(&self.dir)?;
+        copy_entry(&mut self.disk, &tree, name);
+        let now = self.encode()?;
+        if !before.mine || tree.get(name) == now.get(name) {
+            copy_entry(&mut self.own, &now, name);
+        }
+        if name == FIGURES_FILE {
+            if let Ok(figures) = klappe_store::load_figures(&self.dir) {
+                self.file_figures = figures;
+            }
+        }
+
+        Ok(())
     }
 
     /// The files `names` were just written whole from the session's state (`save_script`):
@@ -357,7 +446,7 @@ fn changes(disk: &Tree, now: &Tree) -> Vec<(String, Option<Vec<u8>>)> {
     let removed = disk
         .keys()
         .filter(|name| !now.contains_key(*name))
-        .filter(|name| kind_of(name) != Some(klappe_store::FileKind::Script))
+        .filter(|name| kind_of(name) != Some(FileKind::Script))
         .map(|name| (name.clone(), None));
 
     written.chain(removed).collect()

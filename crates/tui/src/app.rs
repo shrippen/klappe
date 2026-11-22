@@ -585,21 +585,26 @@ impl App {
             self.forget_answers();
         }
         self.session.set_script_text(&self.editor.text());
-        self.notice = Some(match self.session.save_script() {
-            Ok(()) => {
-                // Saving numbers the scenes: the editor takes the numbers as written.
-                let text = self.session.script_text();
-                if text != self.editor.text() {
-                    self.editor.set_text(text);
-                    self.built_for = None;
+        self.notice = Some(
+            match self
+                .session
+                .save_script(klappe_services::OnOutside::Overwrite)
+            {
+                Ok(_) => {
+                    // Saving numbers the scenes: the editor takes the numbers as written.
+                    let text = self.session.script_text();
+                    if text != self.editor.text() {
+                        self.editor.set_text(text);
+                        self.built_for = None;
+                    }
+                    self.saved_revision = self.editor.revision();
+                    self.links = Links::read(&mut self.session);
+                    self.refresh_book_note();
+                    Notice::Saved
                 }
-                self.saved_revision = self.editor.revision();
-                self.links = Links::read(&mut self.session);
-                self.refresh_book_note();
-                Notice::Saved
-            }
-            Err(e) => Notice::SaveFailed(error_text(self.lang, &e)),
-        });
+                Err(e) => Notice::SaveFailed(error_text(self.lang, &e)),
+            },
+        );
 
         Flow::Continue
     }

@@ -249,7 +249,8 @@ fn opening_and_saving_without_an_answer_changes_no_byte() {
 
         let mut s = Session::open(&dir).unwrap();
         s.save(klappe_services::OnOutside::Overwrite).unwrap();
-        s.save_script().unwrap();
+        s.save_script(klappe_services::OnOutside::Overwrite)
+            .unwrap();
 
         assert_eq!(
             changed(&snapshot(&dir), &before),

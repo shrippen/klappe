@@ -210,9 +210,9 @@ pub struct Session {
     pending: Vec<crate::book::PendingScene>,
     /// Cues of the book no character answers to (`pending_figures`).
     pending_figures: Vec<crate::figures::PendingFigure>,
-    /// The ids of the characters as last read from or written to `figuren.toml`: a character
-    /// of the file not among them is new there, one the session lacks was deleted here.
-    known_figures: std::collections::HashSet<String>,
+    /// The figures as last read from or written to `figuren.toml`: a character of the file
+    /// not among them is new there, one the session lacks was deleted here.
+    file_figures: crate::figure_file::Figures,
     /// The figure or place answer `undo` or `redo` just went over, for `save_answer`.
     disk_step: Option<(undo::AnswerDelta, crate::figure_file::Way)>,
     /// For each entry of the register its scene in the book and that scene's heading line

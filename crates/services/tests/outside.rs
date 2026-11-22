@@ -64,7 +64,9 @@ fn a_save_keeps_the_script_another_session_saved() {
 
     let text = format!("{}{ADDED_LINE}", terminal.script_text());
     terminal.set_script_text(&text);
-    terminal.save_script().unwrap();
+    terminal
+        .save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     window.add_plan("Plan B").unwrap();
     window.save(OnOutside::Ask).unwrap();
@@ -211,7 +213,10 @@ fn normalising_a_hand_formatted_file_is_no_own_change() {
     write(
         &dir,
         PROJECT_FILE,
-        &format!("# von Hand, anders\n{original}"),
+        &format!(
+            "# von Hand, anders\n{}",
+            original.replace("Die Wartburg-Szene", "Von draussen")
+        ),
     );
     let found = s.check().unwrap();
 
@@ -254,4 +259,40 @@ fn keep_contd_after_an_outside_header_change_keeps_both() {
     let on_disk = read(&dir, PROJECT_FILE);
     assert!(on_disk.contains("Von draussen"), "{on_disk}");
     assert!(on_disk.contains("contd_after_action = true"), "{on_disk}");
+}
+
+#[test]
+fn the_partial_writers_leave_nothing_for_a_check_to_find() {
+    let dir = copy("outside-writers-quiet");
+    let mut s = Session::open(&dir).unwrap();
+
+    s.keep_contd(true).unwrap();
+    assert_eq!(s.check().unwrap(), Default::default());
+
+    s.set_scene_numbering(klappe_services::SceneNumbering::Locked, 5)
+        .unwrap();
+    assert_eq!(s.check().unwrap(), Default::default());
+
+    s.save_register().unwrap();
+    assert_eq!(s.check().unwrap(), Default::default());
+
+    let text = format!("{}{ADDED_LINE}", s.script_text());
+    s.set_script_text(&text);
+    assert_eq!(s.save_script(OnOutside::Ask).unwrap(), Saved::Done);
+    assert_eq!(s.check().unwrap(), Default::default());
+}
+
+#[test]
+fn a_script_both_changed_asks_in_save_script_too() {
+    let dir = copy("outside-script-conflict");
+    let mut s = Session::open(&dir).unwrap();
+    let text = format!("{}Eigene Zeile.\n", s.script_text());
+    s.set_script_text(&text);
+
+    let outside = append_line(&dir);
+
+    assert_eq!(s.save_script(OnOutside::Ask).unwrap(), Saved::Conflict);
+    assert_eq!(read(&dir, SCRIPT_FILE), outside);
+    assert_eq!(s.save_script(OnOutside::Overwrite).unwrap(), Saved::Done);
+    assert_eq!(read(&dir, SCRIPT_FILE), text);
 }

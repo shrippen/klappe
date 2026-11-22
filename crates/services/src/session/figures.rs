@@ -3,6 +3,7 @@
 
 use klappe_model::Project;
 
+use super::outside::FIGURES_FILE;
 use super::questions::Answered;
 use super::undo::AnswerDelta;
 use super::Session;
@@ -87,7 +88,14 @@ impl Session {
             return Err(ServiceError::NoDecision(name.to_owned()));
         }
 
+        let before = self.before(FIGURES_FILE)?;
         self.adopt_figures()?;
+        // The character may be gone from the file (deleted elsewhere), and with it from here.
+        if let FigureChoice::Assign(id) = &choice {
+            if self.project.character(id).is_none() {
+                return Err(ServiceError::NoCharacter(id.clone()));
+            }
+        }
         let open = self.pending_figures.iter().any(|p| p.name == name);
         let mut next = self.project.clone();
         if !open || !figures::decide(&mut next, name, &choice) {
@@ -101,20 +109,18 @@ impl Session {
         // An alias for a character the file had and lost (deleted elsewhere) would be lost
         // without a trace. One the session added and not yet saved gets it at the save.
         if let FigureDelta::Alias { id, .. } = &delta {
-            if self.known_figures.contains(id) && disk.character(id).is_none() {
+            if self.file_figures.0.iter().any(|c| c.id == *id) && disk.character(id).is_none() {
                 return Err(ServiceError::NoCharacter(id.clone()));
             }
         }
         delta.run(&mut disk, Way::Apply);
         klappe_store::save_characters(&self.dir, &disk)?;
 
-        if let FigureDelta::Created(character) = &delta {
-            self.known_figures.insert(character.id.clone());
-        }
         let (scene, shown) = self.ids_on_view();
         self.commit_answer(next, RESOLVE_STEP, AnswerDelta::Figure(delta));
         self.follow_scene(scene, shown);
         self.refresh_figures();
+        self.rebase(FIGURES_FILE, before)?;
 
         Ok(Answered::Step)
     }
@@ -145,15 +151,14 @@ impl Session {
             Err(other) => return Err(other.into()),
         };
 
-        for delta in figure_file::added(&self.known_figures, &self.project, &disk) {
+        for delta in figure_file::added(&self.file_figures, &self.project, &disk) {
             self.in_every_state(|project| {
                 if figure_file::fits(project, &delta) {
                     delta.run(project, Way::Apply);
                 }
             });
         }
-        self.known_figures
-            .extend(disk.0.iter().map(|c| c.id.clone()));
+        self.file_figures = disk;
         self.refresh_figures();
 
         Ok(())
@@ -161,12 +166,10 @@ impl Session {
 
     /// Sets the ids of the project's characters as just read from or written to `figuren.toml`.
     pub(super) fn know_figures(&mut self) {
-        self.known_figures = self
-            .project
-            .characters
-            .iter()
-            .map(|c| c.id.clone())
-            .collect();
+        self.file_figures = (
+            self.project.characters.clone(),
+            self.project.not_figures.clone(),
+        );
     }
 
     /// The project with the figures of `figuren.toml` as it is now, not the session's copy:

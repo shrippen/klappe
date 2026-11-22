@@ -108,7 +108,8 @@ fn a_copy_behind_the_original_gets_a_letter_after_the_answer() {
     assert_eq!(s.pending_scenes().len(), 1);
 
     s.answer_book("bbbb", 0).unwrap();
-    s.save_script().unwrap();
+    s.save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     let text = book(&dir);
     assert_eq!(text.matches("#2#").count(), 1, "{text}");

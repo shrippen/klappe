@@ -562,7 +562,8 @@ fn save_script_leaves_other_files_alone() {
     let project = std::fs::read(dir.join("projekt.toml")).unwrap();
 
     s.set_script_text("Neu.\n");
-    s.save_script().unwrap();
+    s.save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     assert!(foreign.exists());
     assert_eq!(std::fs::read(dir.join("projekt.toml")).unwrap(), project);
@@ -734,7 +735,8 @@ fn save_script_alone_removes_a_script_only_backup() {
     s.autosave().unwrap();
     assert!(dir.join(".sicherung").exists());
 
-    s.save_script().unwrap();
+    s.save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     assert!(!dir.join(".sicherung").exists());
     assert!(!s.is_dirty());
@@ -750,7 +752,8 @@ fn save_script_rewrites_the_backup_when_the_project_changed() {
     s.set_script_text("Neu.\n");
     s.autosave().unwrap();
 
-    s.save_script().unwrap();
+    s.save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     assert!(s.is_dirty());
     assert_eq!(s.autosave().unwrap(), Autosave::Clean);

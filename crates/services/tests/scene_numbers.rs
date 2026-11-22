@@ -169,7 +169,8 @@ fn locked_numbers_stay_and_a_new_scene_gets_a_letter() {
     let text = saal(" #1#") + &keller("") + &hof(" #2#");
 
     s.set_script_text(&text);
-    s.save_script().unwrap();
+    s.save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     assert_eq!(book(&dir), saal(" #1#") + &keller(" #1A#") + &hof(" #2#"));
     assert_eq!(number_of(&Session::open(&dir).unwrap(), "bbbb"), "2");
@@ -359,7 +360,8 @@ fn a_copy_placed_before_leaves_the_number_with_the_register_scene() {
     let copy = hof(" #2#").replace("Hund bellt", "Pferd wiehert");
 
     s.set_script_text(&(saal(" #1#") + &copy + &hof(" #2#")));
-    s.save_script().unwrap();
+    s.save_script(klappe_services::OnOutside::Overwrite)
+        .unwrap();
 
     let expected = saal(" #1#") + &copy.replace("#2#", "#1A#") + &hof(" #2#");
     assert_eq!(book(&dir), expected);
