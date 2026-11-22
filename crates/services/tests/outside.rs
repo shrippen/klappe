@@ -240,3 +240,18 @@ fn a_broken_outside_file_is_an_error_and_changes_nothing() {
     assert_eq!(s.save(OnOutside::Overwrite).unwrap(), Saved::Done);
     assert_eq!(read(&dir, PROJECT_FILE), good);
 }
+
+#[test]
+fn keep_contd_after_an_outside_header_change_keeps_both() {
+    let dir = copy("outside-contd");
+    let mut s = Session::open(&dir).unwrap();
+
+    let header = read(&dir, PROJECT_FILE).replace("Die Wartburg-Szene", "Von draussen");
+    write(&dir, PROJECT_FILE, &header);
+    s.keep_contd(true).unwrap();
+
+    assert_eq!(s.save(OnOutside::Ask).unwrap(), Saved::Done);
+    let on_disk = read(&dir, PROJECT_FILE);
+    assert!(on_disk.contains("Von draussen"), "{on_disk}");
+    assert!(on_disk.contains("contd_after_action = true"), "{on_disk}");
+}
