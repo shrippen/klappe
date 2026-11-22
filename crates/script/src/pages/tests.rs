@@ -191,6 +191,43 @@ fn contd_after_action_is_optional() {
 }
 
 #[test]
+fn a_cue_that_says_contd_gets_no_second_one() {
+    let text = "ANNA\nHi.\n\nShe waits.\n\nANNA (V.O.) (CONT'D)\nAgain.\n";
+    let mut options = PageOptions::new(PageSize::A4, Words::ENGLISH);
+    options.body_lines = 20;
+    options.contd_after_action = ContdAfterAction::On;
+    let on = paginate(&parse(text).elements, &options);
+
+    let cues: Vec<String> = page(&on, 1)
+        .into_iter()
+        .filter(|(_, x, _)| *x == 22)
+        .map(|(_, _, t)| t)
+        .collect();
+    assert_eq!(cues, ["ANNA", "ANNA (V.O.) (CONT'D)"]);
+}
+
+#[test]
+fn a_cue_with_contd_in_any_spelling_or_place_gets_no_second_one() {
+    let cases = [
+        ("ANNA (cont'd)", "CONT'D"),
+        ("ANNA (WEITER)", "FORTS."),
+        ("ANNA (weiter)", "CONT'D"),
+        ("ANNA (forts.)", "FORTS."),
+        ("ANNA (CONT'D) (V.O.)", "CONT'D"),
+        ("ANNA (V.O.) (cont'd) (O.S.)", "FORTS."),
+        ("ANNA (CONT\u{2019}D)", "CONT'D"),
+    ];
+
+    for (cue, contd) in cases {
+        assert_eq!(block::with_contd(cue, contd), cue, "{cue}");
+    }
+    assert_eq!(
+        block::with_contd("ANNA (V.O.)", "CONT'D"),
+        "ANNA (V.O.) (CONT'D)"
+    );
+}
+
+#[test]
 fn transition_and_centered_are_set_in_their_places() {
     let p = lay(">THE END<\n\nCUT TO:\n", 10);
 
