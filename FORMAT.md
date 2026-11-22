@@ -455,8 +455,10 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `not_figures`), sofern kein Name kollidiert; alles andere überschreibt es. Grenze: macht die
   TUI eine Antwort rückgängig, die ein Speichern im Fenster schon übernommen hat, schreibt das
   nächste Speichern im Fenster sie zurück (die Frage gilt als beantwortet). Wiederherstellen
-  einer Sicherung nimmt deren Figuren: eine seither in der TUI gegebene Antwort wird wieder
-  gefragt.
+  einer Sicherung nimmt deren Figuren: eine Figur, die die TUI seit der Sicherung und vor
+  dem Öffnen des Fensters anlegte, geht verloren und wird wieder gefragt, samt ihren Aliasen;
+  einen Alias auf eine Figur der Sicherung, ein `not_figures` und alles nach dem Öffnen
+  Beantwortete übernimmt das nächste Speichern.
 - **Gruppen (LH-23):** eine Figur in `figuren.toml` hat optional `group`, die Zahl der Personen
   (2 bis 999). Mit `group` ist die Figur eine Gruppe (Gäste, Wachen): sie hat eine Spur, Marks
   und Wege wie jede Figur und wird größer gezeichnet, mit drei Punkten im Umriss, ihr Name trägt
