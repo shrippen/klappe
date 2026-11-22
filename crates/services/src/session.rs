@@ -49,6 +49,7 @@ pub use figures::FigureAnswer;
 pub use free_view::{Size, View, ViewStep};
 pub use pages::Pages;
 pub use places::PlaceAnswer;
+pub use questions::Answered;
 pub use questions::{AnswerLine, BookQuestion, QuestionKey};
 pub use retime::{Grab, TimeSnap};
 pub use script_pages::Laid;

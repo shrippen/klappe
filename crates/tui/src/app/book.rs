@@ -3,7 +3,7 @@
 //! location a place name of a heading is (DB-51), one question at a time; the session words
 //! them.
 
-use klappe_services::{error_text, BookQuestion, QuestionKey};
+use klappe_services::{error_text, Answered, BookQuestion, QuestionKey};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::{App, Editor, Flow, Mode, Notice};
@@ -108,16 +108,22 @@ impl App {
         // The answer is written at once: the TUI saves no plans, so quitting asks nothing.
         let mut answered = self.session.answer_question(&question.key, self.book_sel);
         if scene {
-            answered = answered.and_then(|()| self.session.save_register());
+            answered = answered.and_then(|a| self.session.save_register().map(|()| a));
         }
-        if let Err(e) = answered {
-            self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
-            self.mode = Mode::Normal;
-            return;
-        }
+        let answered = match answered {
+            Ok(answered) => answered,
+            Err(e) => {
+                self.notice = Some(Notice::SaveFailed(error_text(self.lang, &e)));
+                self.mode = Mode::Normal;
+                return;
+            }
+        };
 
-        self.answered.push(self.editor.mark_step());
-        self.unanswered.clear();
+        // A question that had gone made no step of the session: none here either.
+        if answered == Answered::Step {
+            self.answered.push(self.editor.mark_step());
+            self.unanswered.clear();
+        }
         self.book_sel = 0;
         self.refresh_book_note();
         if !self.book_asks() {

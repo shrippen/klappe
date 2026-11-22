@@ -67,3 +67,31 @@ fn a_new_figure_is_written_and_undo_asks_again() {
     assert_eq!(app.asked_figure().as_deref(), Some("STIMME"));
     assert!(!figures_file(&scratch).contains("Stimme"));
 }
+
+/// Review of PR 313: an answer to a cue another program had answered made no session step but
+/// was counted as one; Ctrl+Z then took back the earlier answer instead of the typing.
+#[test]
+fn a_gone_cue_is_no_step_of_ctrl_z() {
+    let scratch = Scratch::new(&format!("{BOOK}CHOR\nHm.\n\n"));
+    let mut app = scratch.app();
+    let _ = screen(&mut app, 100, 24);
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Esc);
+    ctrl_end(&mut app);
+    let text = app.text();
+    typed(&mut app, "Ah");
+    ctrl(&mut app, 's');
+    let mut other = klappe_services::Session::open(&scratch.dir).unwrap();
+    other
+        .resolve_figure("CHOR", klappe_services::FigureChoice::NotFigure)
+        .unwrap();
+
+    ctrl(&mut app, 'k');
+    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Esc);
+    ctrl(&mut app, 'z');
+
+    assert_eq!(app.text(), text, "the typing is taken back first");
+    assert!(figures_file(&scratch).contains("Stimme"));
+}
