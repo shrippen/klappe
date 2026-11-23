@@ -155,8 +155,8 @@ mod tests {
 
     use super::*;
 
-    /// The place of a category in `ALL`. The match is exhaustive: a new variant does not
-    /// compile until it has a place here, and the test below then holds `ALL` to it.
+    /// The place of a category in `ALL`, for its order. That `ALL` has every variant at all
+    /// is checked against the source in `services/tests/step_texts.rs`.
     fn category_place(category: ElementCategory) -> usize {
         match category {
             ElementCategory::Costume => 0,

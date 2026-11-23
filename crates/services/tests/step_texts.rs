@@ -105,10 +105,21 @@ fn every_step_has_a_text_in_both_languages() {
     }
 }
 
-/// The breakdown lists show `elementCategory.<name>` and `elementStatus.<name>`.
+/// The breakdown lists show `elementCategory.<name>` and `elementStatus.<name>`; `ALL` holds
+/// every variant, or the scene sheet leaves a category's elements out without a word.
 #[test]
 fn every_element_name_has_a_text_in_both_languages() {
     use klappe_services::{ElementCategory, ElementStatus};
+
+    const SOURCE: &str = "../model/src/breakdown.rs";
+    assert_eq!(
+        variants(SOURCE, "ElementCategory").len(),
+        ElementCategory::ALL.len()
+    );
+    assert_eq!(
+        variants(SOURCE, "ElementStatus").len(),
+        ElementStatus::ALL.len()
+    );
 
     let keys: Vec<String> = ElementCategory::ALL
         .iter()
