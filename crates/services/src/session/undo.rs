@@ -5,8 +5,9 @@ use klappe_model::Project;
 use super::book::register_moved;
 use super::outside::{FIGURES_FILE, REGISTER_FILE};
 use super::Session;
+use crate::answer_way::Way;
 use crate::error::ServiceError;
-use crate::figure_file::{FigureDelta, Way};
+use crate::figure_file::FigureDelta;
 use crate::place_file::PlaceDelta;
 
 /// Undo keeps this many steps (LH-06 asks for no fixed limit within a session; this only

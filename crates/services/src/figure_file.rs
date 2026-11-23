@@ -5,16 +5,8 @@
 
 use klappe_model::{same_character_name, Character, Project};
 
+use crate::answer_way::Way;
 use crate::figures::FigureChoice;
-
-/// Which way a delta goes on the file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Way {
-    /// The answer, done (again).
-    Apply,
-    /// The answer, taken back.
-    Revert,
-}
 
 /// The one entry of `figuren.toml` an answer to a cue wrote.
 #[derive(Debug, Clone, PartialEq)]

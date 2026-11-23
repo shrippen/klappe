@@ -216,7 +216,7 @@ pub struct Session {
     /// not among them is new there, one the session lacks was deleted here.
     file_figures: crate::figure_file::Figures,
     /// The figure or place answer `undo` or `redo` just went over, for `save_answer`.
-    disk_step: Option<(undo::AnswerDelta, crate::figure_file::Way)>,
+    disk_step: Option<(undo::AnswerDelta, crate::answer_way::Way)>,
     /// For each entry of the register its scene in the book and that scene's heading line
     /// (`refresh_scene_map`), kept so a refresh of the window does not align the book again.
     book_scene: Vec<Option<usize>>,

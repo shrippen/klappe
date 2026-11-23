@@ -9,6 +9,7 @@
 //!        └─► views: ShotRow, Track, ScriptLine  (plain data, ready to show)
 //! ```
 
+mod answer_way;
 mod book;
 mod camera_edit;
 mod catalog;

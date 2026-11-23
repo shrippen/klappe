@@ -7,8 +7,9 @@ use super::outside::FIGURES_FILE;
 use super::questions::Answered;
 use super::undo::AnswerDelta;
 use super::Session;
+use crate::answer_way::Way;
 use crate::error::ServiceError;
-use crate::figure_file::{self, FigureDelta, Way};
+use crate::figure_file::{self, FigureDelta};
 use crate::figures::{self, FigureChoice, PendingFigure};
 
 /// Undo step of `resolve_figure`.

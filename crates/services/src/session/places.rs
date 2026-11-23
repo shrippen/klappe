@@ -14,9 +14,9 @@ use klappe_model::Place;
 use super::questions::Answered;
 use super::undo::AnswerDelta;
 use super::Session;
+use crate::answer_way::Way;
 use crate::error::ServiceError;
 use crate::field::Field;
-use crate::figure_file::Way;
 use crate::place_file::PlaceDelta;
 use crate::places::{self, PendingPlace, PlaceChoice, PlaceEdit};
 
@@ -107,20 +107,17 @@ impl Session {
             return self.reload_places().map(|()| Answered::Gone);
         }
 
-        // The file as it is now, not the session's copy: it may be older.
-        let before = klappe_store::load_places(&self.dir)?;
-        let mut disk = before.clone();
-        let delta = match places::decide(&mut disk, name, &choice) {
-            true => PlaceDelta::of(&before, &choice, &disk),
-            false => None,
-        };
+        let delta = self.rewrite_places(|disk| {
+            let before = disk.clone();
+            match places::decide(disk, name, &choice) {
+                true => PlaceDelta::of(&before, &choice, disk),
+                false => None,
+            }
+        })?;
         let Some(delta) = delta else {
             return self.reload_places().map(|()| Answered::Gone);
         };
-        klappe_store::save_places(&self.dir, &disk)?;
 
-        self.places = disk;
-        self.refresh_places();
         let (scene, shown) = self.ids_on_view();
         self.commit_answer(
             self.project.clone(),
@@ -179,12 +176,8 @@ impl Session {
 
     /// Writes `delta` to `orte.toml` as it is on disk and keeps it as undo step `step`.
     fn write_place(&mut self, delta: PlaceDelta, step: &str) -> Result<(), ServiceError> {
-        let mut disk = klappe_store::load_places(&self.dir)?;
-        delta.run(&mut disk, Way::Apply);
-        klappe_store::save_places(&self.dir, &disk)?;
+        self.save_place_delta(&delta, Way::Apply)?;
 
-        self.places = disk;
-        self.refresh_places();
         let (scene, shown) = self.ids_on_view();
         self.commit_answer(self.project.clone(), step, AnswerDelta::Place(delta));
         self.follow_scene(scene, shown);
@@ -192,19 +185,38 @@ impl Session {
         Ok(())
     }
 
-    /// Undo or redo of a place answer: its entry in `orte.toml`, in the file as it is on disk.
+    /// Applies a place delta or takes it back (an answer's undo or redo, a list edit): its entry in
+    /// `orte.toml`, in the file as it is on disk.
     pub(super) fn save_place_delta(
         &mut self,
         delta: &PlaceDelta,
         way: Way,
     ) -> Result<(), ServiceError> {
+        self.rewrite_places(|disk| {
+            delta.run(disk, way);
+            Some(())
+        })
+        .map(|_| ())
+    }
+
+    /// The one way `orte.toml` is written: reads it from disk, lets `change` alter it, writes it,
+    /// takes it as the session's places and recomputes the open questions. `change` returning
+    /// `None` leaves the file alone.
+    fn rewrite_places<T>(
+        &mut self,
+        change: impl FnOnce(&mut Vec<Place>) -> Option<T>,
+    ) -> Result<Option<T>, ServiceError> {
+        // The file as it is now, not the session's copy: it may be older.
         let mut disk = klappe_store::load_places(&self.dir)?;
-        delta.run(&mut disk, way);
+        let Some(done) = change(&mut disk) else {
+            return Ok(None);
+        };
         klappe_store::save_places(&self.dir, &disk)?;
+
         self.places = disk;
         self.refresh_places();
 
-        Ok(())
+        Ok(Some(done))
     }
 
     /// The scripted locations as `orte.toml` held them when last read or written.
