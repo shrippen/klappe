@@ -20,8 +20,6 @@ EditorPane {
     /// The scene `id` is asked for.
     signal sceneRequested(string id)
 
-    readonly property alias typedName: nameField.text
-
     title: texts.t(item ? "elements.edit" : "elements.new")
     applyText: texts.t(item ? "form.apply" : "form.add")
     canApply: nameField.text.trim() !== ""

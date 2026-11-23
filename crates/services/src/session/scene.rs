@@ -152,19 +152,12 @@ impl Session {
         category: ElementCategory,
         name: &str,
     ) -> Result<String, ServiceError> {
-        let known: HashSet<String> = self.project.elements.iter().map(|e| e.id.clone()).collect();
-        self.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddElement {
+        let edit = ProjectEdit::Breakdown(BreakdownEdit::AddElement {
             category,
             name: name.to_owned(),
-        }))?;
+        });
 
-        Ok(self
-            .project
-            .elements
-            .iter()
-            .find(|e| !known.contains(&e.id))
-            .map(|e| e.id.clone())
-            .unwrap_or_default())
+        self.add_and_name(edit, |p| p.elements.iter().map(|e| e.id.as_str()).collect())
     }
 
     /// Adds the location and returns its id; undoable. Refused like `AddLocation`.
@@ -175,27 +168,32 @@ impl Session {
         wall_height_m: f64,
         site: Option<Site>,
     ) -> Result<String, ServiceError> {
-        let known: HashSet<String> = self
-            .project
-            .locations
-            .iter()
-            .map(|l| l.id.clone())
-            .collect();
-        self.edit_project(ProjectEdit::AddLocation {
+        let edit = ProjectEdit::AddLocation {
             name: name.to_owned(),
             width_m: size_m.0,
             depth_m: size_m.1,
             wall_height_m,
             site,
-        })?;
+        };
 
-        Ok(self
-            .project
-            .locations
-            .iter()
-            .find(|l| !known.contains(&l.id))
-            .map(|l| l.id.clone())
-            .unwrap_or_default())
+        self.add_and_name(edit, |p| {
+            p.locations.iter().map(|l| l.id.as_str()).collect()
+        })
+    }
+
+    /// Applies an edit that adds one entry and returns the id `ids` did not list before it.
+    fn add_and_name(
+        &mut self,
+        edit: ProjectEdit,
+        ids: impl Fn(&Project) -> Vec<&str>,
+    ) -> Result<String, ServiceError> {
+        let known: HashSet<String> = ids(&self.project).into_iter().map(str::to_owned).collect();
+        self.edit_project(edit)?;
+
+        let added = ids(&self.project)
+            .into_iter()
+            .find(|id| !known.contains(*id));
+        Ok(added.unwrap_or_default().to_owned())
     }
 
     /// The scene `edit` added is the one the session did not have: where it is shot already
