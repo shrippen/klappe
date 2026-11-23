@@ -73,9 +73,45 @@ impl Session {
         script_refs::scene_changes(&self.project, self.script_text(), id, number, heading)
     }
 
-    /// What the new `name` of the character `id` would change in the script.
-    pub fn character_script_changes(&self, id: &str, name: &str) -> Vec<ScriptChange> {
-        script_refs::character_changes(&self.project, self.script_text(), id, name)
+    /// What the new `name` and other names `aliases` (`None`: kept) of the character `id`
+    /// would change in the script: the renamed cues, then the cues no character answers to
+    /// any more (DB-50).
+    pub fn character_script_changes(
+        &self,
+        id: &str,
+        name: &str,
+        aliases: Option<&[String]>,
+    ) -> Vec<ScriptChange> {
+        let text = self.script_text();
+        let mut changes = script_refs::character_changes(&self.project, text, id, name);
+
+        let mut after = self.project.clone();
+        let Some(character) = after.characters.iter_mut().find(|c| c.id == id) else {
+            return changes;
+        };
+        let old_name = std::mem::replace(&mut character.name, name.trim().to_owned());
+        if let Some(aliases) = aliases {
+            character.aliases = aliases.iter().map(|a| a.trim().to_owned()).collect();
+        }
+        changes.extend(script_refs::lost_cues(
+            &self.project,
+            &after,
+            text,
+            Some(&old_name),
+        ));
+
+        changes
+    }
+
+    /// The cues of the script that taking the mark "no character" from `name` leaves unknown
+    /// (DB-50): the book asks for them again.
+    pub fn not_figure_changes(&self, name: &str) -> Vec<ScriptChange> {
+        let mut after = self.project.clone();
+        after
+            .not_figures
+            .retain(|n| !klappe_model::same_character_name(n, name));
+
+        script_refs::lost_cues(&self.project, &after, self.script_text(), None)
     }
 
     /// The id of the character a cue names.

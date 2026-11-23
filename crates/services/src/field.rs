@@ -2,6 +2,8 @@
 /// (`field.<name>`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Field {
+    /// Another name the book calls a character by (DB-50).
+    Alias,
     Angle,
     Aspect,
     Base,
@@ -56,7 +58,8 @@ pub enum Field {
 }
 
 impl Field {
-    pub const ALL: [Field; 51] = [
+    pub const ALL: [Field; 52] = [
+        Self::Alias,
         Self::Angle,
         Self::Aspect,
         Self::Base,
@@ -113,6 +116,7 @@ impl Field {
     /// The part of the catalogue key behind `field.`.
     pub fn name(self) -> &'static str {
         match self {
+            Self::Alias => "alias",
             Self::Angle => "angle",
             Self::Aspect => "aspect",
             Self::Base => "base",

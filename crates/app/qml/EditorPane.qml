@@ -28,7 +28,8 @@ ColumnLayout {
     property var submit: function () { return true }
     // Called to delete; true when it was done.
     property var remove: function () { return true }
-    // The changes `submit` would make to the script text: [{ kind, from, to, count }].
+    // The changes `submit` would make to the script text: [{ kind, from, to, count }]; kind
+    // `unknown` is a cue no character answers to then (DB-50), the text stays.
     property var preview: function () { return [] }
     // Extra buttons beside Apply and Delete.
     property alias extras: extraRow.data
@@ -36,6 +37,8 @@ ColumnLayout {
     default property alias fields: fieldsColumn.data
 
     property var pendingChanges: []
+    // Only cues the book asks about again: the script text stays.
+    readonly property bool onlyAsks: pendingChanges.every(c => c.kind === "unknown")
     property bool asking: false
     readonly property bool busy: pendingChanges.length > 0 || asking
 
@@ -76,6 +79,9 @@ ColumnLayout {
         if (change.kind === "cue") {
             return texts.t(change.count === 1 ? "change.cue1" : "change.cue", args)
         }
+        if (change.kind === "unknown") {
+            return texts.t(change.count === 1 ? "change.unknown1" : "change.unknown", args)
+        }
         return texts.t(change.kind === "number" ? "change.number" : "change.heading", args)
     }
 
@@ -111,13 +117,13 @@ ColumnLayout {
         visible: pane.pendingChanges.length > 0
         autoHide: false
         kind: KanteCallout.Kind.Warn
-        title: pane.texts.t("change.title")
+        title: pane.texts.t(pane.onlyAsks ? "change.askTitle" : "change.title")
         text: pane.pendingChanges.map(c => pane.changeText(c)).concat([pane.texts.t("change.undo")]).join("\n")
 
         KanteButton {
             objectName: "confirmChange"
             emphasis: KanteButton.Emphasis.Primary
-            text: pane.texts.t("change.confirm")
+            text: pane.texts.t(pane.onlyAsks ? "change.askConfirm" : "change.confirm")
             onClicked: pane.commit()
         }
         KanteButton {

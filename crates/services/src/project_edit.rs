@@ -3,9 +3,9 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, is_object_height_m, normalize_deg, random_id, BookState, Character,
-    FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project, Scene, SetPlan,
-    Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    is_figure_size_m, is_object_height_m, normalize_deg, random_id, same_character_name, BookState,
+    Character, FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project,
+    Scene, SetPlan, Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -13,6 +13,7 @@ use crate::field::Field;
 
 mod copy;
 mod library;
+mod names;
 mod plans;
 pub(crate) mod templates;
 mod views;
@@ -83,10 +84,21 @@ pub enum ProjectEdit {
         color: FigureColor,
         group: Option<u32>,
         size_m: Option<f64>,
+        /// The other names the book calls the character by (DB-50); `None` keeps them.
+        aliases: Option<Vec<String>>,
     },
     /// Refused while a plan uses the character.
     RemoveCharacter {
         id: String,
+    },
+    /// Marks a cue as no character (DB-50), as `ALLE`: the book stops asking for it. Refused
+    /// when a character answers to it.
+    AddNotFigure {
+        name: String,
+    },
+    /// Takes the mark away: the book asks for the cue again.
+    RemoveNotFigure {
+        name: String,
     },
     /// Files the object `object` of the set at `location` in the project's library under
     /// `name` (LH-12): its size and shape, a kind of its own.
@@ -207,15 +219,11 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             group,
             size_m,
         } => add_character(project, name, short, *color, (*group, *size_m)),
-        ProjectEdit::EditCharacter {
-            id,
-            name,
-            short,
-            color,
-            group,
-            size_m,
-        } => edit_character(project, id, name, short, *color, (*group, *size_m)),
+        ProjectEdit::EditCharacter { .. } => edit_figure(project, edit),
         ProjectEdit::RemoveCharacter { id } => remove_character(project, id),
+        ProjectEdit::AddNotFigure { .. } | ProjectEdit::RemoveNotFigure { .. } => {
+            names::apply(project, edit)
+        }
         ProjectEdit::LibraryFromObject { .. } | ProjectEdit::ImportLibrary { .. } => {
             library::apply(project, edit)
         }
@@ -377,9 +385,18 @@ enum Numbered {
     Always,
 }
 
-/// The first name of `base`, `base 2`, `base 3` … (as `numbered` allows) no character answers to.
-fn free_character_name(characters: &[Character], base: &str, numbered: Numbered) -> String {
-    let taken = |name: &str| characters.iter().any(|c| c.is_called(name));
+/// The first name of `base`, `base 2`, `base 3` … (as `numbered` allows) no character answers to
+/// and not in `marked`, the names marked no character (DB-50).
+fn free_character_name(
+    characters: &[Character],
+    marked: &[String],
+    base: &str,
+    numbered: Numbered,
+) -> String {
+    let taken = |name: &str| {
+        characters.iter().any(|c| c.is_called(name))
+            || marked.iter().any(|m| same_character_name(m, name))
+    };
     if numbered == Numbered::WhenTaken && !taken(base) {
         return base.to_owned();
     }
@@ -392,13 +409,9 @@ fn free_character_name(characters: &[Character], base: &str, numbered: Numbered)
 
 /// Two characters of one name or alias (compared as cues are) would merge their cues; `own` is
 /// the character being renamed, which may keep its name.
+/// Refused: a name another character answers to, or one marked as no character (DB-50).
 fn check_free_name(project: &Project, name: &str, own: Option<&str>) -> Result<(), ServiceError> {
-    let taken = project
-        .characters
-        .iter()
-        .filter(|c| Some(c.id.as_str()) != own)
-        .any(|c| c.is_called(name));
-    if !taken {
+    if !names::is_taken(project, name, own) {
         return Ok(());
     }
 
@@ -433,6 +446,28 @@ fn add_character(
         aliases: Vec::new(),
     });
     Ok(())
+}
+
+/// `EditCharacter`: the character, then its other names (DB-50) when the edit gives them.
+fn edit_figure(project: &mut Project, edit: &ProjectEdit) -> Result<(), ServiceError> {
+    let ProjectEdit::EditCharacter {
+        id,
+        name,
+        short,
+        color,
+        group,
+        size_m,
+        aliases,
+    } = edit
+    else {
+        return Ok(());
+    };
+
+    edit_character(project, id, name, short, *color, (*group, *size_m))?;
+    match aliases {
+        Some(aliases) => names::set_aliases(project, id, aliases),
+        None => Ok(()),
+    }
 }
 
 fn edit_character(

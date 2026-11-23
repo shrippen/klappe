@@ -76,6 +76,7 @@ const PAGES: &[&str] = &[
     "qml/SceneEditor.qml",
     "qml/LocationEditor.qml",
     "qml/CharacterEditor.qml",
+    "qml/NotFigures.qml",
     "qml/ManageList.qml",
     "qml/ProjectDialog.qml",
     "qml/StartPage.qml",

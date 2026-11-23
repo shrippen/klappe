@@ -20,6 +20,9 @@ pub enum ChangeKind {
     Number,
     /// The name above a dialogue.
     Cue,
+    /// A cue that names no character any more (DB-50): the text stays, the book asks for it
+    /// again. `to` is empty.
+    Unknown,
 }
 
 /// A change of the text, grouped for the warning: `count` places go from `from` to `to`.
@@ -59,6 +62,35 @@ pub(crate) fn character_changes(
     name: &str,
 ) -> Vec<ScriptChange> {
     group(&cue_lines(project, text, id, name))
+}
+
+/// The cues of `text` that `before` knows and `after` does not (DB-50), by name as first
+/// written, in book order. A cue of the name `renamed` is left out: the rename carries it.
+pub(crate) fn lost_cues(
+    before: &Project,
+    after: &Project,
+    text: &str,
+    renamed: Option<&str>,
+) -> Vec<ScriptChange> {
+    let mut out: Vec<ScriptChange> = Vec::new();
+
+    for cue in cue_names(&parse(text)) {
+        let carried = renamed.is_some_and(|r| same_character_name(r, &cue));
+        if carried || !before.knows_cue(&cue) || after.knows_cue(&cue) {
+            continue;
+        }
+        match out.iter_mut().find(|c| same_character_name(&c.from, &cue)) {
+            Some(found) => found.count += 1,
+            None => out.push(ScriptChange {
+                kind: ChangeKind::Unknown,
+                from: cue,
+                to: String::new(),
+                count: 1,
+            }),
+        }
+    }
+
+    out
 }
 
 /// The text with the new `number` and `heading` of the scene `id`; `None` when nothing changes.

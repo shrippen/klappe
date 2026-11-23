@@ -38,6 +38,7 @@ fn rename_character(name: &str) -> ProjectEdit {
         color: FigureColor::Purple,
         group: None,
         size_m: None,
+        aliases: None,
     }
 }
 
@@ -48,7 +49,7 @@ fn a_character_rename_carries_into_the_script_in_one_undo_step() {
     let mut s = open("manage-rename-cue");
     let before = s.script_text().to_owned();
 
-    let changes = s.character_script_changes("elisabeth", "Elise");
+    let changes = s.character_script_changes("elisabeth", "Elise", None);
     assert_eq!(changes.len(), 1);
     assert_eq!(
         (changes[0].from.as_str(), changes[0].to.as_str()),
@@ -86,6 +87,7 @@ fn a_colour_change_leaves_the_script_alone() {
         color: FigureColor::Red,
         group: None,
         size_m: None,
+        aliases: None,
     };
 
     s.edit_project(edit).unwrap();
@@ -236,7 +238,7 @@ fn a_case_only_rename_leaves_the_text_and_the_undo_steps() {
     let before = s.script_text().to_owned();
 
     assert!(s
-        .character_script_changes("elisabeth", "ELISABETH")
+        .character_script_changes("elisabeth", "ELISABETH", None)
         .is_empty());
     s.edit_project(rename_character("ELISABETH")).unwrap();
     assert_eq!(s.script_text(), before);

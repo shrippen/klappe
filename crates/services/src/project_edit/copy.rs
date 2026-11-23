@@ -22,7 +22,8 @@ pub(crate) fn copy_character(
         .cloned()
         .ok_or_else(|| ServiceError::NoCharacter(id.to_owned()))?;
 
-    let name = free_character_name(characters, stem_of(&origin.name), Numbered::Always);
+    // The plan edit has no marked names at hand; a mark "Anna 2" is not to be expected.
+    let name = free_character_name(characters, &[], stem_of(&origin.name), Numbered::Always);
     let new_id = unique_id(
         &slug(&name, CHARACTER_ID_FALLBACK),
         characters.iter().map(|c| c.id.as_str()),

@@ -4,6 +4,9 @@
 //! cxx-qt generates C++ glue with `unsafe` blocks; the workspace lint is relaxed for this file
 //! only (agent.md allows `unsafe` in the cxx-qt bridge).
 #![allow(unsafe_code)]
+// cxx-qt takes no attributes on an invokable; `editCharacter` passes every field of the
+// character form, flat as QML has them.
+#![allow(clippy::too_many_arguments)]
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -1045,10 +1048,21 @@ pub mod qobject {
         fn scene_changes(self: &Self, id: &QString, number: &QString, heading: &QString)
             -> QString;
 
-        /// The same for the new name of character `id`.
+        /// The same for the new name and other names (a JSON array of strings, DB-50) of
+        /// character `id`; a cue no character answers to then has kind `unknown`.
         #[qinvokable]
         #[cxx_name = "characterChanges"]
-        fn character_changes(self: &Self, id: &QString, name: &QString) -> QString;
+        fn character_changes(
+            self: &Self,
+            id: &QString,
+            name: &QString,
+            aliases: &QString,
+        ) -> QString;
+
+        /// The cues that taking the mark "no character" from `name` leaves unknown (DB-50).
+        #[qinvokable]
+        #[cxx_name = "notFigureChanges"]
+        fn not_figure_changes(self: &Self, name: &QString) -> QString;
 
         /// The project view's changes. False when refused; the reason goes to `status`.
         #[qinvokable]
@@ -1128,11 +1142,21 @@ pub mod qobject {
             color: &QString,
             group: u32,
             size: &QString,
+            aliases: &QString,
         ) -> bool;
 
         #[qinvokable]
         #[cxx_name = "removeCharacter"]
         fn remove_character(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Marks the cue `name` as no character, or takes the mark away (DB-50).
+        #[qinvokable]
+        #[cxx_name = "addNotFigure"]
+        fn add_not_figure(self: Pin<&mut Self>, name: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removeNotFigure"]
+        fn remove_not_figure(self: Pin<&mut Self>, name: &QString) -> bool;
 
         /// Variants of the scene's plan (LH-04). Shows the plan `id` of the current scene.
         #[qinvokable]

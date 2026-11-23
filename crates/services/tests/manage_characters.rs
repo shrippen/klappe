@@ -76,6 +76,7 @@ fn adds_and_changes_a_character() {
         color: FigureColor::Red,
         group: None,
         size_m: None,
+        aliases: None,
     })
     .unwrap();
 
@@ -116,6 +117,7 @@ fn a_character_needs_a_name_and_a_short_label() {
             color: FigureColor::Blue,
             group: None,
             size_m: None,
+            aliases: None,
         })
         .unwrap_err();
     assert!(matches!(err, ServiceError::NoCharacter(_)));
@@ -129,6 +131,7 @@ fn group_edit(id: &str, group: Option<u32>) -> ProjectEdit {
         color: FigureColor::Cyan,
         group,
         size_m: None,
+        aliases: None,
     }
 }
 
@@ -140,6 +143,7 @@ fn size_edit(id: &str, size_m: Option<f64>) -> ProjectEdit {
         color: FigureColor::Cyan,
         group: None,
         size_m,
+        aliases: None,
     }
 }
 

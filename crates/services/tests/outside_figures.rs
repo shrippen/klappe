@@ -63,6 +63,7 @@ fn rename(id: &str, name: &str) -> ProjectEdit {
         color: FigureColor::Red,
         group: None,
         size_m: None,
+        aliases: None,
     }
 }
 

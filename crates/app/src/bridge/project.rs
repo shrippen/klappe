@@ -202,13 +202,29 @@ impl qobject::Controller {
         q(&to_json(&changes))
     }
 
-    pub(super) fn character_changes(&self, id: &QString, name: &QString) -> QString {
+    pub(super) fn character_changes(
+        &self,
+        id: &QString,
+        name: &QString,
+        aliases: &QString,
+    ) -> QString {
         let Some(s) = self.rust().session.as_ref() else {
             return QString::default();
         };
-        let changes = s.character_script_changes(&id.to_string(), &name.to_string());
+        // Names the form cannot send are refused on apply; the preview keeps them.
+        let aliases = super::script::aliases_of(aliases).ok();
+        let changes =
+            s.character_script_changes(&id.to_string(), &name.to_string(), aliases.as_deref());
 
         q(&to_json(&changes))
+    }
+
+    pub(super) fn not_figure_changes(&self, name: &QString) -> QString {
+        let Some(s) = self.rust().session.as_ref() else {
+            return QString::default();
+        };
+
+        q(&to_json(&s.not_figure_changes(&name.to_string())))
     }
 
     pub(super) fn clear_status(mut self: Pin<&mut Self>) {
