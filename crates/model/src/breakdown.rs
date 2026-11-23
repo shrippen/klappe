@@ -148,3 +148,68 @@ impl Sheet {
         *self == Sheet::default()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+
+    /// The place of a category in `ALL`. The match is exhaustive: a new variant does not
+    /// compile until it has a place here, and the test below then holds `ALL` to it.
+    fn category_place(category: ElementCategory) -> usize {
+        match category {
+            ElementCategory::Costume => 0,
+            ElementCategory::Makeup => 1,
+            ElementCategory::Construction => 2,
+            ElementCategory::SetDressing => 3,
+            ElementCategory::Prop => 4,
+            ElementCategory::Graphics => 5,
+            ElementCategory::Vehicle => 6,
+            ElementCategory::Animal => 7,
+            ElementCategory::Vfx => 8,
+            ElementCategory::Sfx => 9,
+            ElementCategory::Sound => 10,
+            ElementCategory::Music => 11,
+            ElementCategory::CameraLight => 12,
+            ElementCategory::Stunt => 13,
+            ElementCategory::Other => 14,
+        }
+    }
+
+    /// Like `category_place`, for the status.
+    fn status_place(status: ElementStatus) -> usize {
+        match status {
+            ElementStatus::Open => 0,
+            ElementStatus::Working => 1,
+            ElementStatus::Ready => 2,
+        }
+    }
+
+    /// `ALL` has every category once, in the order of the scene sheet; `name` is what the file
+    /// holds and `from_name` reads it back.
+    #[test]
+    fn category_names_are_the_file_names() {
+        for (place, category) in ElementCategory::ALL.into_iter().enumerate() {
+            assert_eq!(category_place(category), place);
+
+            let json = serde_json::to_string(&category).unwrap();
+            assert_eq!(json, format!("\"{}\"", category.name()));
+            assert_eq!(ElementCategory::from_name(category.name()), Some(category));
+        }
+        assert_eq!(ElementCategory::from_name("nothing"), None);
+    }
+
+    /// The same for the status.
+    #[test]
+    fn status_names_are_the_file_names() {
+        for (place, status) in ElementStatus::ALL.into_iter().enumerate() {
+            assert_eq!(status_place(status), place);
+
+            let json = serde_json::to_string(&status).unwrap();
+            assert_eq!(json, format!("\"{}\"", status.name()));
+            assert_eq!(ElementStatus::from_name(status.name()), Some(status));
+        }
+        assert_eq!(ElementStatus::from_name("nothing"), None);
+    }
+}
