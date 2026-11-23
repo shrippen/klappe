@@ -6,14 +6,15 @@ import Kante
 
 // D-22 (planung/DESIGN.md): the breakdown module (the module bar, Ctrl+3). On the left the
 // scene list or, switched by "Szenen | Elemente", the list of all elements; on the right the
-// sheet of the scene on view or the form of the element. A scene of an element's chips is shown
+// sheet of the scene on view and its text to mark elements in (D-23), or the form of the
+// element. A scene of an element's chips is shown
 // and the view goes back to the scenes.
 //
-//  ┌ [Szenen|Elemente] ┬──────────────────────────────────────┐
-//  │ 1 INT. SAAL       │ 1  INT. SAAL – TAG                   │
-//  │ 2 EXT. HOF        │ Spieltag, Vorstopp, Drehdauer …      │
-//  │                   │ Figuren, Elemente je Kategorie       │
-//  └───────────────────┴──────────────────────────────────────┘
+//  ┌ [Szenen|Elemente] ┬──────────────────────────┬──────────────────┐
+//  │ 1 INT. SAAL       │ 1  INT. SAAL – TAG       │ TEXT DER SZENE   │
+//  │ 2 EXT. HOF        │ Spieltag, Vorstopp …     │ Anna öffnet den  │
+//  │                   │ Figuren, Elemente …      │ Brief REQ …      │
+//  └───────────────────┴──────────────────────────┴──────────────────┘
 RowLayout {
     id: view
 
@@ -22,6 +23,8 @@ RowLayout {
 
     /// The width of the list beside the sheet.
     readonly property real listWidth: Kirigami.Units.gridUnit * 16
+    /// The width of the scene's text beside the sheet (D-23).
+    readonly property real textWidth: Math.max(0, Math.round((width - listWidth) * 0.42))
     /// The segments: the scene sheet and the elements.
     readonly property var modes: ["scenes", "elements"]
     property string mode: "scenes"
@@ -99,6 +102,23 @@ RowLayout {
         visible: view.mode === "scenes"
         Layout.fillWidth: true
         Layout.fillHeight: true
+        texts: view.texts
+        controller: view.controller
+    }
+
+    Kirigami.Separator { visible: view.mode === "scenes"; Layout.fillHeight: true }
+
+    // D-23: the scene's text beside its sheet, to mark elements in.
+    SceneText {
+        objectName: "sceneText"
+        visible: view.mode === "scenes"
+        Layout.fillHeight: true
+        // Its lines would ask for their full length: the width is set (all three, or the long
+        // hint's width fights the maximum), the sheet takes the rest.
+        Layout.minimumWidth: view.textWidth
+        Layout.preferredWidth: view.textWidth
+        Layout.maximumWidth: view.textWidth
+        Layout.margins: Kirigami.Units.largeSpacing
         texts: view.texts
         controller: view.controller
     }

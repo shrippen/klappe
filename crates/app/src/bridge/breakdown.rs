@@ -5,7 +5,7 @@ use super::qobject;
 use core::pin::Pin;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    BreakdownEdit, ElementCategory, ElementStatus, Field, ProjectEdit, ServiceError,
+    BreakdownEdit, ElementCategory, ElementStatus, Field, MarkTarget, ProjectEdit, ServiceError,
 };
 
 fn category_of(name: &QString) -> Result<ElementCategory, ServiceError> {
@@ -194,5 +194,43 @@ impl qobject::Controller {
                 element: Some(element).filter(|e| !e.is_empty()),
             },
         )))
+    }
+
+    pub(super) fn mark_text(
+        mut self: Pin<&mut Self>,
+        scene: &QString,
+        line: i32,
+        prefix: &QString,
+        text: &QString,
+        element: &QString,
+        category: &QString,
+    ) -> bool {
+        let target = match element.is_empty() {
+            true => category_of(category).map(MarkTarget::New),
+            false => Ok(MarkTarget::Element(element.to_string())),
+        };
+        let Ok(line) = usize::try_from(line) else {
+            return false;
+        };
+        let (prefix, text) = (prefix.to_string(), text.to_string());
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.mark_text(&scene.to_string(), (line, &prefix, &text), target?));
+
+        self.report(result)
+    }
+
+    pub(super) fn forget_lost(
+        mut self: Pin<&mut Self>,
+        scene: &QString,
+        element: &QString,
+    ) -> bool {
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.forget_lost(&scene.to_string(), &element.to_string()));
+
+        self.report(result)
     }
 }

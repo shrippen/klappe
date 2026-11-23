@@ -41,7 +41,8 @@ TestCase {
                 story_day: "3", prestop_text: "1:30", planned_text: "2:00", continuity: "Brief links", note: "Nachtdreh",
                 speaking: [{ id: "anna", name: "Anna", color: "purple", group: 0 }],
                 present: [{ id: "fischer", name: "Fischer", color: "green", group: 3 }],
-                categories: [{ category: "prop", elements: [{ id: "e1", name: "Brief", status: "open" }] }],
+                categories: [{ category: "prop", elements: [{ id: "e1", name: "Brief", status: "open", lost: true }] }],
+                text: [{ kind: "action", runs: [{ text: "Anna liest den Brief.", element: null, category: null }] }],
                 suggestions: [
                     { element: "e2", name: "Kerze", category: "prop", object: "Kerzenleuchter" },
                     { element: "e3", name: "Ballkleid", category: "costume", object: null }
@@ -70,6 +71,15 @@ TestCase {
         function excludeSuggestion(s, e) { return call("excludeSuggestion", [s, e]) }
         function addSceneCharacter(s, c) { return call("addSceneCharacter", [s, c]) }
         function removeSceneCharacter(s, c) { return call("removeSceneCharacter", [s, c]) }
+        // The page's columns as the bridge gives them (`scriptLooks`), for the kinds used here.
+        function scriptLooks() {
+            return JSON.stringify({ columns: 60,
+                looks: { a: { kind: "action", x: 0, width: 60, align: "left" },
+                         d: { kind: "dialogue", x: 10, width: 35, align: "left" },
+                         r: { kind: "transition", x: 40, width: 20, align: "right" } },
+                letters: { action: "a", dialogue: "d", transition: "r" } })
+        }
+        function forgetLost(s, e) { return call("forgetLost", [s, e]) }
         // Makes the element as the project then lists it, under an id the form cannot guess
         // from the name; answers the id.
         function addElement(c, n) {
@@ -284,6 +294,25 @@ TestCase {
         findChild(row, "suggestionChip").removeRequested()
 
         compare(fake.calls, [["takeSuggestion", "s1", "e2"], ["excludeSuggestion", "s1", "e2"]])
+    }
+
+    // D-23: an element whose spot the text lost says so; × drops the hint, not the element.
+    function test_a_lost_spot_is_shown_and_can_be_dropped() {
+        const s = sheet()
+
+        verify(findChild(s, "lost.e1").visible)
+        compare(findChild(s, "lost.e1").text, "Stelle nicht mehr im Text")
+        findChild(s, "forget.e1").clicked()
+
+        compare(fake.calls, [["forgetLost", "s1", "e1"]])
+    }
+
+    // D-23: the module shows the scene's text beside the sheet.
+    function test_the_scene_text_stands_beside_the_sheet() {
+        const v = view()
+
+        verify(findChild(v, "sceneText").visible)
+        compare(findChild(v, "textLine.0").getText(0, 100), "Anna liest den Brief.")
     }
 
     // D-23: a suggestion without an object comes from the scene's text.

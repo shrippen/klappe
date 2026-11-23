@@ -82,6 +82,7 @@ const PAGES: &[&str] = &[
     "qml/PlaceEditor.qml",
     "qml/BreakdownView.qml",
     "qml/SceneSheet.qml",
+    "qml/SceneText.qml",
     "qml/ElementList.qml",
     "qml/ElementEditor.qml",
     "qml/ElementChip.qml",

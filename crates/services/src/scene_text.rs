@@ -27,8 +27,8 @@ pub(crate) fn shown(scene: &[Line]) -> Vec<Shown> {
             Line::Character {
                 name, extension, ..
             } => match extension {
-                Some(x) => ("cue", format!("{name} ({x})")),
-                None => ("cue", name.clone()),
+                Some(x) => ("character", format!("{name} ({x})")),
+                None => ("character", name.clone()),
             },
             Line::Parenthetical(t) => ("parenthetical", format!("({t})")),
             Line::Dialogue(t) => ("dialogue", t.clone()),
@@ -143,7 +143,7 @@ mod tests {
             [
                 ("action", "Nebel."),
                 ("action", "Ein Stapel Seiten."),
-                ("cue", "ANNA (V.O.)"),
+                ("character", "ANNA (V.O.)"),
                 ("parenthetical", "(leise)"),
                 ("dialogue", "Wer da?"),
             ]

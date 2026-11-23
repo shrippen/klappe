@@ -498,7 +498,8 @@ pub struct SheetView {
 /// A line of a scene's text on the scene sheet (D-23).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TextLine {
-    /// `action`, `cue`, `parenthetical`, `dialogue`, `transition`, `centered` or `lyrics`.
+    /// `action`, `character` (a cue), `parenthetical`, `dialogue`, `transition`, `centered` or
+    /// `lyrics`, named like the kinds of the screenplay view.
     pub kind: &'static str,
     /// The line in pieces, marked and not; joined they are the line.
     pub runs: Vec<TextRun>,

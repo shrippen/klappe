@@ -288,17 +288,38 @@ Flickable {
 
                         Repeater {
                             model: categoryRow.own ? categoryRow.own.elements : []
-                            delegate: ElementChip {
+                            // D-23: an element whose spots the text no longer has says so beside
+                            // its chip; the hint can be dropped, the element stays.
+                            delegate: RowLayout {
+                                id: elementRow
                                 required property var modelData
-                                objectName: "element." + modelData.id
-                                text: modelData.name
-                                status: modelData.status
-                                removable: true
-                                removeText: sheetView.texts.t("sheet.elementRemove", { name: "%1" })
-                                toolTip: sheetView.texts.t("sheet.elementTip", {
-                                    category: sheetView.texts.t("elementCategory." + categoryRow.modelData),
-                                    status: sheetView.statusText(modelData.status) })
-                                onRemoveRequested: sheetView.controller.removeSceneElement(sheetView.scene.id, modelData.id)
+                                spacing: Kirigami.Units.smallSpacing
+
+                                ElementChip {
+                                    objectName: "element." + elementRow.modelData.id
+                                    text: elementRow.modelData.name
+                                    status: elementRow.modelData.status
+                                    removable: true
+                                    removeText: sheetView.texts.t("sheet.elementRemove", { name: "%1" })
+                                    toolTip: sheetView.texts.t("sheet.elementTip", {
+                                        category: sheetView.texts.t("elementCategory." + categoryRow.modelData),
+                                        status: sheetView.statusText(elementRow.modelData.status) })
+                                    onRemoveRequested: sheetView.controller.removeSceneElement(sheetView.scene.id, elementRow.modelData.id)
+                                }
+                                QQC2.Label {
+                                    objectName: "lost." + elementRow.modelData.id
+                                    visible: elementRow.modelData.lost === true
+                                    text: sheetView.texts.t("sheet.lost")
+                                    color: KanteStyle.warningColor
+                                }
+                                KanteButton {
+                                    objectName: "forget." + elementRow.modelData.id
+                                    visible: elementRow.modelData.lost === true
+                                    size: KanteButton.Size.Small
+                                    text: "×"
+                                    Accessible.name: sheetView.texts.t("sheet.forgetLost", { name: elementRow.modelData.name })
+                                    onClicked: sheetView.controller.forgetLost(sheetView.scene.id, elementRow.modelData.id)
+                                }
                             }
                         }
                     }

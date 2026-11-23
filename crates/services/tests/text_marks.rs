@@ -73,7 +73,7 @@ fn the_sheet_shows_the_scene_text_line_by_line() {
                 "action",
                 "Nebel. Ein Stapel Seiten liegt im Nebel.".to_owned()
             ),
-            ("cue", "ANNA".to_owned()),
+            ("character", "ANNA".to_owned()),
             ("dialogue", "Wo ist der Nebel?".to_owned()),
         ]
     );
