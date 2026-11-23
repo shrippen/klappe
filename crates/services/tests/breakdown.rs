@@ -105,13 +105,7 @@ fn open(name: &str) -> Session {
 }
 
 fn add(s: &mut Session, category: ElementCategory, name: &str) -> String {
-    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddElement {
-        category,
-        name: name.into(),
-    }))
-    .unwrap();
-
-    s.project().elements.last().unwrap().id.clone()
+    s.add_element(category, name).unwrap()
 }
 
 fn to_scene(s: &mut Session, scene: &str, element: &str) {
@@ -560,4 +554,34 @@ fn removing_a_character_takes_it_out_of_every_sheet() {
 
     s.undo();
     assert_eq!(sheet(&s, "aaaa").characters, ["crowd"]);
+}
+
+#[test]
+fn adding_an_element_returns_its_id() {
+    let mut s = open("add-id");
+
+    let id = s.add_element(ElementCategory::Prop, "Brief").unwrap();
+
+    let found = s.project().elements.iter().find(|e| e.id == id).unwrap();
+    assert_eq!(found.name, "Brief");
+    assert_eq!(s.undo_step(), Some("AddElement"));
+}
+
+#[test]
+fn a_refused_element_returns_no_id() {
+    let mut s = open("add-id-refused");
+    s.add_element(ElementCategory::Prop, "Brief").unwrap();
+
+    assert!(s.add_element(ElementCategory::Prop, "brief").is_err());
+    assert!(s.add_element(ElementCategory::Prop, " ").is_err());
+}
+
+#[test]
+fn adding_a_location_returns_its_id() {
+    let mut s = open("add-loc-id");
+
+    let id = s.add_location("Halle", (8.0, 5.5), 2.6, None).unwrap();
+
+    let found = s.project().locations.iter().find(|l| l.id == id).unwrap();
+    assert_eq!(found.name, "Halle");
 }

@@ -23,10 +23,9 @@ EditorPane {
     canApply: item !== null && nameField.text.trim() !== ""
     removeQuestion: item ? texts.t("remove.place", { name: item.name.trim() }) : ""
 
-    // Whether `name` is in the list already; headings compare in capitals.
+    // Whether `name` is in the list already, as the session compares place names.
     function hasVariant(name) {
-        const upper = name.toUpperCase()
-        return variants.some(v => v.toUpperCase() === upper)
+        return variants.some(v => controller.samePlaceName(v, name))
     }
 
     function addVariant() {

@@ -1,7 +1,9 @@
 //! The breakdown's edits (DB-60, D-22): elements, the scene sheet, the elements and the
 //! characters of a scene, and the element a set object stands for.
 
-use klappe_model::{random_id, Element, ElementCategory, ElementStatus, Project, Sheet};
+use klappe_model::{
+    free_random_id, Element, ElementCategory, ElementStatus, IdCase, Project, Sheet,
+};
 
 use crate::error::ServiceError;
 use crate::field::Field;
@@ -201,10 +203,10 @@ fn add_element(
         return Err(bad_name(&name));
     }
 
-    let mut id = random_id();
-    while project.elements.iter().any(|e| e.id == id) {
-        id = random_id();
-    }
+    let id = free_random_id(
+        project.elements.iter().map(|e| e.id.as_str()),
+        IdCase::Exact,
+    );
     project.elements.push(Element {
         id: id.clone(),
         category,

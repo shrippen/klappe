@@ -68,6 +68,9 @@ TestCase {
             const lines = text.slice(0, at).split("\n")
             return lines.reverse().find(l => l !== "" && l === l.toUpperCase()) || ""
         }
+        // The session's rules, as far as the tests need them.
+        function sameFigureName(a, b) { return a.trim().toUpperCase() === b.trim().toUpperCase() }
+
         function scriptSpeakers(text) {
             return JSON.stringify(speakers)
         }

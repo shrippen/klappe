@@ -67,7 +67,15 @@ TestCase {
         function excludeSuggestion(s, e) { return call("excludeSuggestion", [s, e]) }
         function addSceneCharacter(s, c) { return call("addSceneCharacter", [s, c]) }
         function removeSceneCharacter(s, c) { return call("removeSceneCharacter", [s, c]) }
-        function addElement(c, n) { return call("addElement", [c, n]) }
+        // Makes the element as the project then lists it, under an id the form cannot guess
+        // from the name; answers the id.
+        function addElement(c, n) {
+            const project = JSON.parse(projectJson)
+            project.elements.push({ id: "e9", category: c, name: "Neu", description: "", status: "open", scenes: [] })
+            projectJson = JSON.stringify(project)
+
+            return call("addElement", [c, n]) ? "e9" : ""
+        }
         function editElement(i, c, n, d, s) { return call("editElement", [i, c, n, d, s]) }
         function removeElement(i) { return call("removeElement", [i]) }
     }
@@ -381,5 +389,7 @@ TestCase {
         findChild(form, "apply").clicked()
 
         compare(fake.calls, [["addElement", "prop", "Zeitung"]])
+        compare(v.elementId, "e9")
+        verify(!v.creating)
     }
 }

@@ -24,7 +24,8 @@ ColumnLayout {
     property bool canApply: true
     // What deleting asks; "" for an entry that cannot be deleted (a new one).
     property string removeQuestion: ""
-    // Called to apply; true when the change was made.
+    // Called to apply; true when the change was made. A form that makes something answers with
+    // its id instead (empty when refused).
     property var submit: function () { return true }
     // Called to delete; true when it was done.
     property var remove: function () { return true }
@@ -42,8 +43,9 @@ ColumnLayout {
     property bool asking: false
     readonly property bool busy: pendingChanges.length > 0 || asking
 
-    // The applied change or the delete is done: the dialog shows another entry or none.
-    signal done()
+    // The applied change or the delete is done: the dialog shows another entry or none. `result`
+    // is what `submit` or `remove` answered: the id of what was made, or true.
+    signal done(var result)
 
     function reset() {
         pendingChanges = []
@@ -63,8 +65,9 @@ ColumnLayout {
 
     function commit() {
         pendingChanges = []
-        if (submit()) {
-            done()
+        const result = submit()
+        if (result) {
+            done(result)
         }
     }
 
@@ -147,8 +150,9 @@ ColumnLayout {
             text: pane.texts.t("remove.confirm")
             onClicked: {
                 pane.asking = false
-                if (pane.remove()) {
-                    pane.done()
+                const result = pane.remove()
+                if (result) {
+                    pane.done(result)
                 }
             }
         }

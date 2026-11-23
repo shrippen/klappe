@@ -54,7 +54,7 @@ Item {
             return
         }
         speakers = names
-        const at = speakers.findIndex(n => n.toLowerCase() === chosen.toLowerCase())
+        const at = speakers.findIndex(n => controller.sameFigureName(n, chosen))
         speakerBox.currentIndex = at + 1
     }
 

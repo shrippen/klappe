@@ -44,12 +44,10 @@ RowLayout {
         elementId = id
     }
 
-    // A new element is shown in its form afterwards.
-    function made(name, category) {
-        const lower = name.trim().toLowerCase()
-        const found = (project.elements || []).find(e => e.category === category && e.name.toLowerCase() === lower)
+    // The new element `id` is shown in its form afterwards.
+    function made(id) {
         creating = false
-        elementId = found ? found.id : ""
+        elementId = id
     }
 
     spacing: 0
@@ -124,9 +122,9 @@ RowLayout {
             statuses: view.project.element_statuses || []
             scenes: view.project.scenes || []
             onSceneRequested: id => view.showScene(id)
-            onDone: {
+            onDone: result => {
                 if (view.creating) {
-                    view.made(form.typedName, form.chosenCategory())
+                    view.made(result)
                 }
             }
         }

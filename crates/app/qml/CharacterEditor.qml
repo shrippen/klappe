@@ -36,10 +36,9 @@ EditorPane {
         return free < 0 ? 0 : free
     }
 
-    // Whether `name` is in the list already; cues compare in capitals.
+    // Whether `name` is in the list already, as the session compares character names.
     function hasAlias(name) {
-        const upper = name.toUpperCase()
-        return aliases.some(a => a.toUpperCase() === upper)
+        return aliases.some(a => controller.sameFigureName(a, name))
     }
 
     function addAlias() {

@@ -5,7 +5,7 @@
 
 use klappe_model::{same_place_name, Place};
 
-use crate::figure_file::Way;
+use crate::answer_way::Way;
 use crate::places::PlaceChoice;
 
 /// The one entry of `orte.toml` an answer to a place name wrote.

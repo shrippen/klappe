@@ -40,11 +40,6 @@ KanteEmptyState {
         controller.shootSceneAt(id)
     }
 
-    // "HAFEN" gives "Hafen".
-    function titleCase(name) {
-        return name.toLowerCase().replace(/(^|[\s-])(\S)/g, (m, space, letter) => space + letter.toUpperCase())
-    }
-
     Row {
         spacing: Kirigami.Units.smallSpacing
 
@@ -58,7 +53,7 @@ KanteEmptyState {
         KanteButton {
             objectName: "newLocation"
             text: none.texts.t("plan.newLocation")
-            onClicked: none.newLocationRequested(none.titleCase(none.notShot.place_name),
+            onClicked: none.newLocationRequested(none.controller.nameFromCapitals(none.notShot.place_name),
                 none.place ? none.place.id : "")
         }
     }

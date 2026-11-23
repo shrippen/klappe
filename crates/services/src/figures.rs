@@ -110,8 +110,13 @@ fn create(project: &mut Project, cue: &str) -> bool {
     project_edit::apply(project, &edit).is_ok()
 }
 
+/// The name a window shows for a cue the session would make a character of: `MARIE` → `Marie`.
+pub fn name_from_capitals(cue: &str) -> String {
+    display_name(cue)
+}
+
 /// A cue in capitals or all in small letters reads as a name in capitals and small letters:
-/// `MARIE` → `Marie`, `STRAUß` → `Strauß`. One that mixes them already (`@McBride`) stays.
+/// `MARIE` → `Marie`, `STRAUß` → `Strauß`, `JEAN-LUC` → `Jean-Luc`. One that mixes them already (`@McBride`) stays.
 fn display_name(cue: &str) -> String {
     let cue = cue.trim_start_matches(CUE_MARK);
     // `ß` has no uppercase form in everyday use, so it fits a name in capitals.
@@ -121,17 +126,19 @@ fn display_name(cue: &str) -> String {
         return cue.to_owned();
     }
 
-    cue.split(' ')
-        .map(|word| {
-            let mut letters = word.chars();
-            let first = letters.next().into_iter().flat_map(char::to_uppercase);
+    // A letter opens a word after a space or a hyphen: `JEAN-LUC` → `Jean-Luc`.
+    let mut opens = true;
+    let mut name = String::new();
+    for c in cue.chars() {
+        if opens {
+            name.extend(c.to_uppercase());
+        } else {
+            name.extend(c.to_lowercase());
+        }
+        opens = c == ' ' || c == '-';
+    }
 
-            first
-                .chain(letters.flat_map(char::to_lowercase))
-                .collect::<String>()
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+    name
 }
 
 /// The first letters of the name no character has as its short code: `M`, then `MA`, `MAR`;
@@ -186,6 +193,11 @@ mod tests {
         assert_eq!(display_name("STRAUß"), "Strauß");
         assert_eq!(display_name("@anna"), "Anna");
         assert_eq!(display_name("McBride"), "McBride");
+        assert_eq!(
+            name_from_capitals("CHARLOTTENBURG-NORD"),
+            "Charlottenburg-Nord"
+        );
+        assert_eq!(display_name("JEAN-LUC"), "Jean-Luc");
     }
 
     #[test]

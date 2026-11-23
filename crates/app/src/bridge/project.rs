@@ -247,6 +247,21 @@ impl qobject::Controller {
         self.report(Some(result))
     }
 
+    /// Tells what became of a change that makes something (`None`: no project open); the id
+    /// of what it made, empty when nothing was.
+    pub(super) fn made(
+        self: Pin<&mut Self>,
+        result: Option<Result<String, ServiceError>>,
+    ) -> QString {
+        let id = match &result {
+            Some(Ok(id)) => id.clone(),
+            _ => String::new(),
+        };
+        self.report(result.map(|r| r.map(drop)));
+
+        q(&id)
+    }
+
     /// Tells what became of a change (`None`: no project open): an error goes to the status
     /// line, a change makes an old message stale; the view is redrawn either way.
     pub(super) fn report(
