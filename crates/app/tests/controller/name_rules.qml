@@ -32,6 +32,20 @@ Item {
         notShot: ({ place: "", place_name: "CHARLOTTENBURG-NORD" })
     }
 
+    Item {
+        id: text
+        property string text: ""
+        property int selectionStart: 0
+    }
+    ScriptSearch {
+        id: search
+        texts: texts
+        controller: ctl
+        area: text
+        showText: () => {}
+        putText: () => {}
+    }
+
     function fail(message) {
         console.error(message)
         Qt.exit(1)
@@ -61,16 +75,31 @@ Item {
                 return root.fail("the place form refuses another spelling")
             }
 
-            figure.aliases = ["Frau Brandes"]
+            figure.aliases = ["Frau Brandes", "Straße"]
             if (!figure.hasAlias("FRAU BRANDES") || figure.hasAlias("Brandes")) {
                 return root.fail("the character form compares names on its own")
+            }
+            // `ẞ` agrees with `SS` and `ß` for the session, which upper-casing alone does not.
+            if (!figure.hasAlias("STRAẞE")) {
+                return root.fail("the character form does not equate the capital sharp s")
+            }
+
+            // The search finds the chosen speaker again when the cue is spelled the other way.
+            text.text = "@Straße\nHallo\n"
+            search.refreshSpeakers()
+            search.speakers = ["Straße", "Anna"]
+            child(search, "speakerBox").currentIndex = 1
+            text.text = "@STRASSE\nHallo\n\n@Anna\nHi\n"
+            search.refreshSpeakers()
+            if (search.speaker !== "STRASSE") {
+                return root.fail("the search lost the speaker " + JSON.stringify(search.speaker))
             }
 
             // The window shows the name the session would create.
             const asked = []
             notShot.newLocationRequested.connect((name, at) => asked.push(name))
             child(notShot, "newLocation").clicked()
-            if (asked.length !== 1 || asked[0] !== "Charlottenburg-nord") {
+            if (asked.length !== 1 || asked[0] !== "Charlottenburg-Nord") {
                 return root.fail("the empty page asks for " + JSON.stringify(asked))
             }
 

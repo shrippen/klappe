@@ -23,7 +23,7 @@ TestCase {
         property var calls: []
 
         function nameFromCapitals(name) {
-            return name.toLowerCase().replace(/(^|[\s-])(\S)/g, (m, space, letter) => space + letter.toUpperCase())
+            return "named:" + name
         }
         function addPlan(name) { calls.push(["addPlan", name]); return true }
         function shootSceneAt(id) { calls.push(["shootSceneAt", id]); return true }
@@ -155,7 +155,7 @@ TestCase {
         a.newLocationRequested.connect((name, place) => asked.push([name, place]))
 
         findChild(a, "newLocation").clicked()
-        compare(asked, [["Hafen", "hafen"]])
+        compare(asked, [["named:HAFEN", "hafen"]])
     }
 
     function test_without_a_location_in_the_project_only_a_new_one_is_offered() {
