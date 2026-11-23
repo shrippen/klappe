@@ -69,8 +69,8 @@ Flickable {
         }
     }
 
-    // Sends the sheet when a field differs from it; the session reads the times and a refusal
-    // marks their fields.
+    // Sends the sheet when a field differs from it; the session reads the times and the field
+    // it refuses is marked.
     function commit() {
         if (!sheet || !scene) {
             return
@@ -81,10 +81,10 @@ Flickable {
         if (same) {
             return
         }
-        const done = controller.setSheet(scene.id, dayField.text, prestopField.text, plannedField.text,
-                                         continuityField.text, noteField.text)
-        prestopField.invalid = !done
-        plannedField.invalid = !done
+        const refused = controller.setSheet(scene.id, dayField.text, prestopField.text, plannedField.text,
+                                            continuityField.text, noteField.text)
+        prestopField.invalid = refused === "prestop"
+        plannedField.invalid = refused === "planned"
     }
 
     function statusText(status) {

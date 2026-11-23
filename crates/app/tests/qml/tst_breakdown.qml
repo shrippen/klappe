@@ -55,7 +55,11 @@ TestCase {
         function selectScene(id) { sceneId = id; return call("selectScene", [id]) }
         function setSheet(s, d, p, m, c, n) {
             call("setSheet", [s, d, p, m, c, n])
-            return p !== "1:99"
+            // Like the bridge: the name of the refused field, empty when accepted.
+            if (p === "1:99") {
+                return "prestop"
+            }
+            return m === "1:99" ? "planned" : ""
         }
         function addElementToScene(s, c, n) { return call("addElementToScene", [s, c, n]) }
         function removeSceneElement(s, e) { return call("removeSceneElement", [s, e]) }
@@ -157,6 +161,16 @@ TestCase {
         type(findChild(s, "prestopField"), "1:99")
 
         verify(findChild(s, "prestopField").invalid)
+        verify(!findChild(s, "plannedField").invalid)
+    }
+
+    function test_a_refused_planned_time_marks_only_itself() {
+        const s = sheet()
+
+        type(findChild(s, "plannedField"), "1:99")
+
+        verify(findChild(s, "plannedField").invalid)
+        verify(!findChild(s, "prestopField").invalid)
     }
 
     function test_nothing_changed_sends_nothing() {

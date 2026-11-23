@@ -1201,7 +1201,8 @@ pub mod qobject {
         fn remove_element(self: Pin<&mut Self>, id: &QString) -> bool;
 
         /// What the sheet of scene `scene` says besides its lists. `prestop` is `m:ss` or
-        /// seconds and `planned` `h:mm` or minutes, as typed; empty is none.
+        /// seconds and `planned` `h:mm` or minutes, as typed; empty is none. Returns the name of
+        /// the field the session refused, empty when it took the sheet.
         #[qinvokable]
         #[cxx_name = "setSheet"]
         fn set_sheet(
@@ -1212,7 +1213,7 @@ pub mod qobject {
             planned: &QString,
             continuity: &QString,
             note: &QString,
-        ) -> bool;
+        ) -> QString;
 
         /// The element of that name and category, made if there is none, goes into the scene.
         #[qinvokable]

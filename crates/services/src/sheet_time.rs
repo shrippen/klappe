@@ -105,6 +105,19 @@ mod tests {
     }
 
     #[test]
+    fn a_full_minute_is_no_second() {
+        assert_eq!(field_of(read_prestop("0:60")), Field::Prestop);
+        assert_eq!(field_of(read_planned("0:60")), Field::Planned);
+    }
+
+    #[test]
+    fn a_count_too_big_is_refused_without_a_panic() {
+        assert_eq!(field_of(read_prestop("4294967296")), Field::Prestop);
+        assert_eq!(field_of(read_prestop("71582789:00")), Field::Prestop);
+        assert_eq!(field_of(read_planned("71582789:00")), Field::Planned);
+    }
+
+    #[test]
     fn a_time_shows_as_it_is_typed() {
         assert_eq!(show_prestop(Some(125)), "2:05");
         assert_eq!(show_planned(Some(240)), "4:00");

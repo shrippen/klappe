@@ -64,22 +64,32 @@ impl qobject::Controller {
     }
 
     pub(super) fn set_sheet(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         scene: &QString,
         story_day: &QString,
         prestop: &QString,
         planned: &QString,
         continuity: &QString,
         note: &QString,
-    ) -> bool {
-        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::SetSheet {
+    ) -> QString {
+        let edit = ProjectEdit::Breakdown(BreakdownEdit::SetSheet {
             scene: scene.to_string(),
             story_day: story_day.to_string(),
             prestop: prestop.to_string(),
             planned: planned.to_string(),
             continuity: continuity.to_string(),
             note: note.to_string(),
-        })))
+        });
+        let result = self.as_mut().session().map(|s| s.edit_project(edit));
+
+        // The page marks the field that was refused.
+        let refused = match &result {
+            Some(Err(ServiceError::BadValue { field, .. })) => field.name(),
+            _ => "",
+        };
+        let refused = QString::from(refused);
+        self.report(result);
+        refused
     }
 
     pub(super) fn add_element_to_scene(
