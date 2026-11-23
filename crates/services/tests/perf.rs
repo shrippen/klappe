@@ -349,6 +349,32 @@ fn an_edit_beside_a_screenplay_stays_fluid() {
     );
 }
 
+/// The window checks the folder on every activation (`Session::check` reads and encodes the
+/// whole project tree): on the large plan and beside a screenplay of `BOOK_SCENES` scenes it
+/// stays within one frame.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn a_check_of_the_folder_fits_a_frame() {
+    let mut plan = big_session("perf-check");
+    let plan_only = median(|| {
+        std::hint::black_box(plan.check().unwrap());
+    });
+    report("check, large plan", plan_only);
+
+    let mut book = big_session_with_book("perf-check-book");
+    let with_book = median(|| {
+        std::hint::black_box(book.check().unwrap());
+    });
+    report("check, large plan + screenplay", with_book);
+
+    for took in [plan_only, with_book] {
+        assert!(
+            took < BUDGET * LIMIT_FACTOR,
+            "{took:?} over {LIMIT_FACTOR}x the {BUDGET:?} budget"
+        );
+    }
+}
+
 /// The camera's picture as pixels (3D-KONZEPT.md, section 5.2): the shot card's size within
 /// `SHOT_PICTURE_BUDGET`, a full HD 3D view within the 16 ms of a frame; like the rest of
 /// `make perf`, it fails only above four times that.
