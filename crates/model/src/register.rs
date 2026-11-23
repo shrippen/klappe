@@ -149,6 +149,28 @@ pub fn random_id() -> String {
     id_from_seed(hasher.finish())
 }
 
+/// How a taken id is compared with a new one.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Case {
+    Exact,
+    /// For ids that are file names, which may not differ by case only.
+    Ignored,
+}
+
+/// A `random_id` that none of `taken` has.
+pub fn free_random_id<'a>(taken: impl IntoIterator<Item = &'a str> + Clone, case: Case) -> String {
+    loop {
+        let id = random_id();
+        let used = taken.clone().into_iter().any(|t| match case {
+            Case::Exact => t == id,
+            Case::Ignored => t.eq_ignore_ascii_case(&id),
+        });
+        if !used {
+            return id;
+        }
+    }
+}
+
 /// The id a seed gives: the same seed, the same id. For fixtures that must come out the same
 /// every time (the demo); everything else uses `random_id`.
 pub fn id_from_seed(seed: u64) -> String {
@@ -174,6 +196,22 @@ mod tests {
             assert_eq!(id.len(), ID_LEN);
             assert!(id.bytes().all(|b| ID_ALPHABET.contains(&b)), "{id}");
         }
+    }
+
+    #[test]
+    fn a_free_id_is_never_a_taken_one() {
+        // Taken ids are never returned; `Ignored` also rejects them in upper case (no collisions are
+        // forced here, so this guards the comparison, not the retry).
+        let taken: Vec<String> = (0..1000).map(|_| random_id()).collect();
+        let refs = || taken.iter().map(String::as_str);
+
+        for _ in 0..200 {
+            assert!(!taken.contains(&free_random_id(refs(), Case::Exact)));
+        }
+
+        let upper: Vec<String> = taken.iter().map(|t| t.to_ascii_uppercase()).collect();
+        let id = free_random_id(upper.iter().map(String::as_str), Case::Ignored);
+        assert!(!taken.contains(&id));
     }
 
     #[test]

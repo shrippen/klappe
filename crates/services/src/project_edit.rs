@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, random_id, same_character_name, BookState, Character, FigureColor, FloorPlan,
-    Kind, Numbering, Project, Scene, Site, SunTime, MAX_GROUP, MIN_GROUP,
+    free_random_id, is_figure_size_m, same_character_name, BookState, Case, Character, FigureColor,
+    FloorPlan, Kind, Numbering, Project, Scene, Site, SunTime, MAX_GROUP, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -527,17 +527,13 @@ fn check_sun_time(sun: Option<SunTime>) -> Result<(), ServiceError> {
 /// A random id that no entry has, kept or yet to be placed (ids are file names, which may
 /// not differ by case only).
 pub(crate) fn free_scene_id(project: &Project, placed: &[(usize, Scene)]) -> String {
-    loop {
-        let id = random_id();
-        let taken = project
-            .scenes
-            .iter()
-            .chain(placed.iter().map(|(_, s)| s))
-            .any(|s| s.id.eq_ignore_ascii_case(&id));
-        if !taken {
-            return id;
-        }
-    }
+    let taken = project
+        .scenes
+        .iter()
+        .chain(placed.iter().map(|(_, s)| s))
+        .map(|s| s.id.as_str());
+
+    free_random_id(taken, Case::Ignored)
 }
 
 /// Lower-case ASCII with `-` between words (`Sängersaal` → `saengersaal`); `fallback` when
