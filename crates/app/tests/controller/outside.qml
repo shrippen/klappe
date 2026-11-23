@@ -81,8 +81,12 @@ Item {
                 return root.fail("the other window did not save a third time")
             }
             ctl.editScript(own + "Noch mehr.\n")
+            ctl.checkOutside()
+            if (ctl.outsideFiles === "") {
+                return root.fail("the window's text and the folder's are in conflict")
+            }
             ctl.reloadProject()
-            if (ctl.scriptText !== third || ctl.dirty || ctl.canUndo || root.told.length !== 3) {
+            if (ctl.scriptText !== third || ctl.dirty || ctl.canUndo || root.told.length !== 4) {
                 return root.fail("reload must take the folder's text: " + ctl.scriptText.length)
             }
 
@@ -93,8 +97,30 @@ Item {
             if (!other.save()) {
                 return root.fail("the other window did not save a fourth time")
             }
-            if (!ctl.save() || ctl.scriptText !== fourth || root.told.length !== 4) {
+            if (!ctl.save() || ctl.scriptText !== fourth || root.told.length !== 5) {
                 return root.fail("a save must tell what it took over: " + root.told.join("|"))
+            }
+
+            // The dialog stays open while the window comes back to the front and the other
+            // side writes the window's own text: nothing is left to settle, "Neu laden" then
+            // has no file to tell about, so it says nothing.
+            const fifth = fourth + "Von beiden.\n"
+            ctl.editScript(fifth)
+            other.checkOutside()
+            other.editScript(fourth + "Nur von draussen.\n")
+            if (!other.save() || ctl.save() || root.asked !== 2) {
+                return root.fail("the save must ask again: " + root.asked)
+            }
+            other.editScript(fifth)
+            if (!other.save()) {
+                return root.fail("the other window did not save the shared text")
+            }
+            const before = root.told.length
+            ctl.checkOutside()
+            ctl.reloadProject()
+            if (ctl.outsideFiles !== "" || root.told.length !== before) {
+                return root.fail("a reload with no file outside must tell nothing: "
+                    + root.told.slice(before).join("|"))
             }
             Qt.exit(0)
         }
