@@ -407,6 +407,23 @@ fn the_other_refusals_are_in_german() {
     assert!(stderr(&lens).contains("Brennweite"), "{}", stderr(&lens));
 }
 
+/// Audit 19, finding 9: a body of the window's presets is a sensor, and a refusal lists them.
+#[test]
+fn fov_takes_the_preset_bodies() {
+    let fov = |sensor: &str| {
+        Command::new(env!("CARGO_BIN_EXE_klappe-cli"))
+            .args(["fov", "--lens", "35", "--sensor", sensor])
+            .output()
+            .unwrap()
+    };
+    let apsc = fov("aps-c");
+    let refused = fov("imax");
+
+    assert!(apsc.status.success(), "{}", stderr(&apsc));
+    assert!(!refused.status.success());
+    assert!(stderr(&refused).contains("aps-c"), "{}", stderr(&refused));
+}
+
 /// Every catalogue key the command line names is in both catalogues; a missing one would print
 /// the key itself (no scene with a plan missing is in the example to show `cli.noPlan`).
 #[test]
