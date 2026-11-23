@@ -51,6 +51,9 @@ TestCase {
             }
             return accept
         }
+        // The session's rules, as far as the tests need them.
+        function sameFigureName(a, b) { return a.trim().toUpperCase() === b.trim().toUpperCase() }
+        function samePlaceName(a, b) { return a.split(/\s+/).join(" ").toUpperCase() === b.split(/\s+/).join(" ").toUpperCase() }
         function clearStatus() { status = "" }
         function sceneChanges(id, n, h) { return JSON.stringify(changes) }
         function characterChanges(id, n, a) { return JSON.stringify(changes) }

@@ -22,6 +22,9 @@ TestCase {
         property string sceneId: "s15"
         property var calls: []
 
+        function nameFromCapitals(name) {
+            return "named:" + name
+        }
         function addPlan(name) { calls.push(["addPlan", name]); return true }
         function shootSceneAt(id) { calls.push(["shootSceneAt", id]); return true }
         function editPlace(id, name, variants, location) {
@@ -146,14 +149,13 @@ TestCase {
         compare(fake.calls, [["shootSceneAt", "hof"]])
     }
 
-    function test_a_new_location_is_asked_for_by_the_place_name_in_title_case() {
+    function test_a_new_location_is_asked_for_by_the_name_the_controller_makes() {
         const a = area(project({ not_shot: { place: "hafen", place_name: "HAFEN" } }))
         const asked = []
         a.newLocationRequested.connect((name, place) => asked.push([name, place]))
 
         findChild(a, "newLocation").clicked()
-        compare(asked, [["Hafen", "hafen"]])
-        compare(findChild(a, "notShot").titleCase("BURG AM SEE"), "Burg Am See")
+        compare(asked, [["named:HAFEN", "hafen"]])
     }
 
     function test_without_a_location_in_the_project_only_a_new_one_is_offered() {
