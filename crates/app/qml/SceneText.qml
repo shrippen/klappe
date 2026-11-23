@@ -90,8 +90,22 @@ ColumnLayout {
         return c !== undefined && (c.toLowerCase() !== c.toUpperCase() || (c >= "0" && c <= "9"))
     }
 
+    // Whether the line's text from `from` to `to` reaches into a marked run: a second mark
+    // there would not show, so it is not offered.
+    function touchesMark(runs, from, to) {
+        let at = 0
+        for (const r of runs) {
+            const end = at + r.text.length
+            if (r.element && from < end && to > at) {
+                return true
+            }
+            at = end
+        }
+        return false
+    }
+
     // The words chosen in line `index`, whole: spaces and marks at the ends are left out, a
-    // word cut at an end is taken in („pel Seiten. “ → „Stapel Seiten“). Null for none.
+    // word cut at an end is taken in („pel Seiten. “ → „Stapel Seiten“). Null for none or for marked words.
     function choice(index, runs, start, end) {
         const line = runs.map(r => r.text).join("")
         let from = sourceBefore(runs, start).length
@@ -110,6 +124,9 @@ ColumnLayout {
         }
         while (inWord(line[to])) {
             to++
+        }
+        if (touchesMark(runs, from, to)) {
+            return null
         }
         return { line: index, prefix: line.slice(0, from), text: line.slice(from, to) }
     }

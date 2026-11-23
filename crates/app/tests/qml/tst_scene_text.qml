@@ -94,6 +94,16 @@ TestCase {
         compare(v.choice(0, runs, 13, 15), null)
     }
 
+    // Words already marked are not offered again: a second mark there would not show.
+    function test_a_choice_over_a_marked_run_is_none() {
+        const v = make()
+        const runs = v.lines[0].runs
+
+        compare(v.choice(0, runs, 5, 8), null)
+        compare(v.choice(0, runs, 2, 16), null)
+        compare(v.choice(0, runs, 0, 3), { line: 0, prefix: "", text: "Ein" })
+    }
+
     // A word cut by the selection is taken whole, the full stop after it is not.
     function test_a_choice_takes_whole_words() {
         const v = make()
