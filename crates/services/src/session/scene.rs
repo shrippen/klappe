@@ -118,7 +118,9 @@ impl Session {
     /// Changes scenes, locations or characters; undoable. The scene on view stays, also when
     /// others come or go before it.
     pub fn edit_project(&mut self, edit: ProjectEdit) -> Result<(), ServiceError> {
+        let edit = self.plain_own(edit);
         self.check_script_number(&edit)?;
+        self.check_location_use(&edit)?;
         let step = step_name(&edit);
         let mut next = self.project.clone();
         project_edit::apply(&mut next, &edit)?;

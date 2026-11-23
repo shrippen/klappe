@@ -4,8 +4,8 @@
 use std::borrow::Cow;
 
 use klappe_model::{
-    BookState, CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper, Place,
-    Project, Scene, SetPlan,
+    BookState, CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper, Place, Scene,
+    SetPlan,
 };
 use klappe_stellprobe::{
     aim_at, axis_pair, camera_at, horizontal_fov_deg, object_extent, opening_span, picture, set_at,
@@ -29,13 +29,11 @@ const NO_GROUP: u32 = 0;
 
 /// One row of the scene list: the scene with its location and the counts of its markers.
 fn scene_row(
-    (project, places): (&Project, &[Place]),
     s: &Scene,
+    (place, location): (Option<&Place>, Option<&Location>),
     line: Option<usize>,
     length: String,
 ) -> SceneRow {
-    let location = scene_location::location_of(project, places, s);
-
     SceneRow {
         id: s.id.clone(),
         number: s.number.clone(),
@@ -48,9 +46,7 @@ fn scene_row(
         location: location.map(|l| l.id.clone()).unwrap_or_default(),
         location_name: location.map(|l| l.name.clone()).unwrap_or_default(),
         own_location: s.location.is_some(),
-        place: scene_location::place_of(places, s)
-            .map(|p| p.name.clone())
-            .unwrap_or_default(),
+        place: place.map(|p| p.name.clone()).unwrap_or_default(),
         sun: SunTexts::of(s.sun),
     }
 }
@@ -94,14 +90,24 @@ impl Session {
         )
     }
 
+    /// The rows of the scene list; `places` and `shot` hold each scene's scripted and
+    /// shooting location.
+    fn scene_rows(&self, places: &[Option<&Place>], shot: &[Option<&Location>]) -> Vec<SceneRow> {
+        let scenes = self.project().scenes.iter().zip(self.heading_lines());
+
+        scenes
+            .enumerate()
+            .map(|(i, (s, line))| {
+                scene_row(s, (places[i], shot[i]), line, self.scene_length(&s.id))
+            })
+            .collect()
+    }
+
     /// The lists of the project view.
     pub fn overview(&self) -> Overview {
         let project = self.project();
-        let lines = self.heading_lines();
-        let scenes =
-            project.scenes.iter().zip(lines).map(|(s, line)| {
-                scene_row((project, &self.places), s, line, self.scene_length(&s.id))
-            });
+        let (places, shot) = self.shot_scenes();
+        let scenes = self.scene_rows(&places, &shot);
         let locations = project.locations.iter().map(|l| LocationRow {
             id: l.id.clone(),
             name: l.name.clone(),
@@ -111,7 +117,7 @@ impl Session {
             latitude: l.site.map(|s| s.latitude_deg),
             longitude: l.site.map(|s| s.longitude_deg),
             north: l.site.map_or(0.0, |s| s.north_deg),
-            scenes: self.scenes_at(&l.id),
+            scenes: scene_location::scenes_using(project, &shot, &l.id),
         });
         let characters = project.characters.iter().map(|c| CharacterRow {
             id: c.id.clone(),
@@ -134,10 +140,10 @@ impl Session {
             });
 
         Overview {
-            scenes: scenes.collect(),
+            scenes,
             locations: locations.collect(),
             characters: characters.collect(),
-            places: self.place_rows(),
+            places: self.place_rows(&places),
             elsewhere: self.plan_elsewhere(),
             not_shot: self.not_shot(),
             not_figures: project.not_figures.clone(),

@@ -231,3 +231,34 @@ fn a_location_with_a_plan_on_it_stays() {
         "{err:?}"
     );
 }
+
+#[test]
+fn choosing_the_place_s_own_location_keeps_none_of_its_own() {
+    let mut s = Session::open(&make("shoot-same")).unwrap();
+
+    s.shoot_scene_at(Some("studio")).unwrap();
+    s.shoot_scene_at(Some("leuchtturm")).unwrap();
+
+    assert_eq!(s.project().scenes[0].location, None);
+    assert!(!s.overview().scenes[0].own_location);
+}
+
+#[test]
+fn a_location_a_scene_is_shot_at_stays_and_the_list_counts_alike() {
+    let mut s = Session::open(&make("shoot-count")).unwrap();
+    s.edit_place("hafen", &edit("HAFEN", &[], Some("studio")))
+        .unwrap();
+
+    let listed = s.overview().locations[1].scenes;
+    let err = s
+        .edit_project(ProjectEdit::RemoveLocation {
+            id: "studio".into(),
+        })
+        .unwrap_err();
+
+    assert_eq!(listed, 1);
+    assert!(
+        matches!(err, ServiceError::LocationInUse { scenes: 1, .. }),
+        "{err:?}"
+    );
+}
