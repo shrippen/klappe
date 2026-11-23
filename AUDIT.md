@@ -38,6 +38,7 @@ Jede Kategorie und jeder Stand hat einen Namen in der Datei und einen für den T
 Was es kostet: Fehlt eine neue Kategorie in der Liste, lässt das Szenenblatt ihre Elemente still weg. Vorschlag: denselben Test anlegen. Aufwand klein, Risiko keins. Beleg: `crates/model/src/breakdown.rs:7`, `crates/model/src/breakdown.rs:89`, `crates/services/src/session/breakdown.rs:124`.
 
 ### 7. Was zuletzt in `figuren.toml` stand, hält die Sitzung zweimal und gleicht es von Hand ab
+**Verworfen (23.11.2026, #327 geschlossen):** Die beiden Stände sind nicht dasselbe. Solange ein Konflikt um `figuren.toml` offen ist, hält die Figurenliste, was die Sitzung aus der Datei schon übernommen hat, der Plattenstand die zuletzt abgeglichene Datei. Beide zusammenzulegen brachte gelöschte Figuren zurück. Nicht neu melden.
 Neben dem gemerkten Inhalt jeder Datei hält die Sitzung für `figuren.toml` zusätzlich die gelesene Figurenliste. An fünf Stellen werden beide von Hand nachgezogen, eine Stelle zieht nur einen nach.
 Was es kostet: Wer am Abgleich mit der Platte etwas ändert, muss von beiden Ständen wissen; vergisst er einen, sieht die Sitzung dieselbe Datei als zwei Fassungen. Vorschlag: Die Figurenliste wird bei Bedarf aus dem gemerkten Inhalt gelesen, das eigene Feld entfällt. Aufwand klein, Risiko gering. Beleg: `crates/services/src/session.rs:217`, `crates/services/src/session/outside.rs:130`, `crates/services/src/session/outside.rs:374`, `crates/services/src/session/figures.rs:161`.
 

@@ -450,7 +450,8 @@ mod tests {
     #[test]
     fn the_screenplay_goes_to_a_pdf() {
         let project = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
-        let out = std::env::temp_dir().join("klappe-cli-script.pdf");
+        let out =
+            std::env::temp_dir().join(format!("klappe-cli-script-{}.pdf", std::process::id()));
         let print = ScriptPrint {
             scene_numbers: SceneNumbers::Shown,
             header: HeaderLine::Off,
