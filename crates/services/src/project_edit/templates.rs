@@ -7,7 +7,7 @@ use klappe_model::{
 };
 use klappe_store::{builtin_templates, check_template};
 
-use super::{add_character, free_character_name, name_of, slug, unique_id, Numbered, ProjectEdit};
+use super::{add_character, free_character_name, name_of, slug, unique_id, Numbered};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::plan_edit::free_letter;
@@ -355,19 +355,46 @@ fn import(project: &mut Project, items: &[Template]) -> Result<(), ServiceError>
     Ok(())
 }
 
-/// What the template edits of `ProjectEdit` do.
-pub(super) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), ServiceError> {
+/// Edits of the project's templates (LH-07).
+#[derive(Debug, Clone, PartialEq)]
+pub enum TemplateEdit {
+    /// Puts the template `template` on the plan `plan` of the scene `scene`, its insertion
+    /// point at `at` (LH-07).
+    PlaceTemplate {
+        scene: String,
+        plan: String,
+        template: String,
+        at: Point,
+    },
+    /// Files the figures and cameras of the plan as a template of the project (LH-07).
+    SaveTemplate {
+        scene: String,
+        plan: String,
+        name: String,
+    },
+    /// Renames the project's own template `id` (LH-07). A built-in template is not the
+    /// project's to change.
+    EditTemplate { id: String, name: String },
+    /// Takes the project's own template `id` away (LH-07).
+    RemoveTemplate { id: String },
+    /// Takes the templates of a template file over (LH-07). One the project has already (same
+    /// name and content) is skipped; one whose id is taken by something else gets an id of its
+    /// own.
+    ImportTemplates { items: Vec<Template> },
+}
+
+/// What the template edits do.
+pub(super) fn apply(project: &mut Project, edit: &TemplateEdit) -> Result<(), ServiceError> {
     match edit {
-        ProjectEdit::PlaceTemplate {
+        TemplateEdit::PlaceTemplate {
             scene,
             plan,
             template,
             at,
         } => place(project, (scene, plan), template, *at),
-        ProjectEdit::SaveTemplate { scene, plan, name } => save(project, scene, plan, name),
-        ProjectEdit::EditTemplate { id, name } => rename(project, id, name),
-        ProjectEdit::RemoveTemplate { id } => remove(project, id),
-        ProjectEdit::ImportTemplates { items } => import(project, items),
-        _ => Ok(()),
+        TemplateEdit::SaveTemplate { scene, plan, name } => save(project, scene, plan, name),
+        TemplateEdit::EditTemplate { id, name } => rename(project, id, name),
+        TemplateEdit::RemoveTemplate { id } => remove(project, id),
+        TemplateEdit::ImportTemplates { items } => import(project, items),
     }
 }

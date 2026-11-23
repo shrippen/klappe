@@ -2,23 +2,48 @@
 
 use klappe_model::{is_object_height_m, is_object_size_m, LibraryItem, Project, FREE_FORM_KIND};
 
-use super::{name_of, slug, unique_id, ProjectEdit};
+use super::{name_of, slug, unique_id};
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::library;
 
-/// What the library edits of `ProjectEdit` do.
-pub(super) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), ServiceError> {
+/// Edits of the project's library (LH-12).
+#[derive(Debug, Clone, PartialEq)]
+pub enum LibraryEdit {
+    /// Files the object `object` of the set at `location` in the project's library under
+    /// `name` (LH-12): its size and shape, a kind of its own.
+    LibraryFromObject {
+        location: String,
+        object: String,
+        name: String,
+    },
+    /// Takes the entries of a library file over (LH-12). An entry the project has already
+    /// (same kind and same content) is skipped; one whose kind is taken by something else
+    /// gets a kind of its own.
+    ImportLibrary { items: Vec<LibraryItem> },
+    /// Renames and regroups the project's own entry `kind` (LH-12); no group takes it out of
+    /// any. Placed objects keep their kind. A built-in entry is not the project's to change.
+    EditLibraryItem {
+        kind: String,
+        name: String,
+        group: String,
+    },
+    /// Takes the project's own entry `kind` out of the library (LH-12); objects placed from
+    /// it stay as they are.
+    RemoveLibraryItem { kind: String },
+}
+
+/// What the library edits do.
+pub(super) fn apply(project: &mut Project, edit: &LibraryEdit) -> Result<(), ServiceError> {
     match edit {
-        ProjectEdit::LibraryFromObject {
+        LibraryEdit::LibraryFromObject {
             location,
             object,
             name,
         } => from_object(project, location, object, name),
-        ProjectEdit::ImportLibrary { items } => import(project, items),
-        ProjectEdit::EditLibraryItem { kind, name, group } => edit_item(project, kind, name, group),
-        ProjectEdit::RemoveLibraryItem { kind } => remove_item(project, kind),
-        _ => Ok(()),
+        LibraryEdit::ImportLibrary { items } => import(project, items),
+        LibraryEdit::EditLibraryItem { kind, name, group } => edit_item(project, kind, name, group),
+        LibraryEdit::RemoveLibraryItem { kind } => remove_item(project, kind),
     }
 }
 

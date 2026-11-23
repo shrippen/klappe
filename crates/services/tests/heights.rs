@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use klappe_model::LibraryItem;
 use klappe_services::ObjectShape;
 use klappe_services::{
-    Layer, Lock, PlanEdit, Point, ProjectEdit, ServiceError, Session, Snapping, Source,
+    Layer, LibraryEdit, Lock, PlanEdit, Point, ProjectEdit, ServiceError, Session, Snapping, Source,
 };
 
 fn example() -> PathBuf {
@@ -180,7 +180,7 @@ fn a_new_object_takes_the_height_of_its_library_entry() {
 #[test]
 fn an_own_entry_without_a_height_gives_none() {
     let mut s = open();
-    s.edit_project(ProjectEdit::ImportLibrary {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::ImportLibrary {
         items: vec![LibraryItem {
             kind: "teppich".into(),
             group: String::new(),
@@ -191,7 +191,7 @@ fn an_own_entry_without_a_height_gives_none() {
             height_m: None,
             form: None,
         }],
-    })
+    }))
     .unwrap();
 
     assert_eq!(place(&mut s, "teppich"), None);
@@ -262,11 +262,11 @@ fn filing_an_object_in_the_library_takes_its_height() {
     let mut s = open();
     s.edit_plan(height_edit("tisch", Some(0.8))).unwrap();
 
-    s.edit_project(ProjectEdit::LibraryFromObject {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
         location: "saengersaal".into(),
         object: "tisch".into(),
         name: "Lange Tafel".into(),
-    })
+    }))
     .unwrap();
 
     let entry = s
@@ -293,22 +293,22 @@ fn an_import_with_an_unusable_height_changes_nothing() {
     };
 
     for bad in [0.0, -1.0, f64::NAN, 100.5] {
-        let result = s.edit_project(ProjectEdit::ImportLibrary {
+        let result = s.edit_project(ProjectEdit::Library(LibraryEdit::ImportLibrary {
             items: vec![item(bad)],
-        });
+        }));
 
         assert!(is_bad(result), "{bad}");
         assert!(s.project().library.is_empty());
     }
 
     // The same entry with another height is a different entry, not a repeat.
-    s.edit_project(ProjectEdit::ImportLibrary {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::ImportLibrary {
         items: vec![item(1.0)],
-    })
+    }))
     .unwrap();
-    s.edit_project(ProjectEdit::ImportLibrary {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::ImportLibrary {
         items: vec![item(1.2)],
-    })
+    }))
     .unwrap();
     assert_eq!(s.project().library.len(), 2);
 }

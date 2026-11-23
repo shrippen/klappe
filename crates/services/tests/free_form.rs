@@ -6,7 +6,8 @@ use std::path::Path;
 use klappe_model::LibraryItem;
 
 use klappe_services::{
-    Field, Layer, Lock, ObjectShape, PlanEdit, Point, ProjectEdit, ServiceError, Session,
+    Field, Layer, LibraryEdit, Lock, ObjectShape, PlanEdit, Point, ProjectEdit, ServiceError,
+    Session,
 };
 
 fn open() -> Session {
@@ -128,11 +129,11 @@ fn a_filed_free_form_keeps_its_outline() {
         .id
         .clone();
 
-    s.edit_project(ProjectEdit::LibraryFromObject {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
         location: "saengersaal".into(),
         object: id,
         name: "Winkel".into(),
-    })
+    }))
     .unwrap();
     s.edit_plan(PlanEdit::AddObject {
         kind: "winkel".into(),
@@ -211,11 +212,11 @@ fn a_library_entry_never_takes_the_free_form_kind() {
         .id
         .clone();
 
-    s.edit_project(ProjectEdit::LibraryFromObject {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
         location: "saengersaal".into(),
         object: id,
         name: "Form".into(),
-    })
+    }))
     .unwrap();
 
     let own = s.project().library.last().unwrap().kind.clone();
@@ -239,8 +240,10 @@ fn an_imported_entry_never_takes_the_free_form_kind() {
         form: None,
     };
 
-    s.edit_project(ProjectEdit::ImportLibrary { items: vec![item] })
-        .unwrap();
+    s.edit_project(ProjectEdit::Library(LibraryEdit::ImportLibrary {
+        items: vec![item],
+    }))
+    .unwrap();
 
     assert_ne!(s.project().library.last().unwrap().kind, "form");
 }

@@ -6,50 +6,136 @@ use klappe_model::{random_id, Element, ElementCategory, ElementStatus, Project, 
 use crate::error::ServiceError;
 use crate::field::Field;
 
-use super::ProjectEdit;
+/// Edits of the breakdown: elements and scene sheets (DB-60, D-22).
+#[derive(Debug, Clone, PartialEq)]
+pub enum BreakdownEdit {
+    /// A new element of the breakdown (DB-60, D-22). Refused: an empty name, or one the
+    /// category already has.
+    AddElement {
+        category: ElementCategory,
+        name: String,
+    },
+    EditElement {
+        id: String,
+        category: ElementCategory,
+        name: String,
+        description: String,
+        status: ElementStatus,
+    },
+    /// Takes the element out of every scene sheet and every set object too.
+    RemoveElement {
+        id: String,
+    },
+    /// Sets what the scene sheet says besides its lists.
+    SetSheet {
+        scene: String,
+        story_day: String,
+        prestop_s: Option<u32>,
+        planned_min: Option<u32>,
+        continuity: String,
+        note: String,
+    },
+    AddSceneElement {
+        scene: String,
+        element: String,
+    },
+    RemoveSceneElement {
+        scene: String,
+        element: String,
+    },
+    /// The field with suggestions: the element of that name and category, made if there is
+    /// none, goes into the scene.
+    AddElementToScene {
+        scene: String,
+        category: ElementCategory,
+        name: String,
+    },
+    /// Turns a suggestion of the set down for this scene.
+    ExcludeSuggestion {
+        scene: String,
+        element: String,
+    },
+    /// Takes a suggestion of the set into the scene.
+    TakeSuggestion {
+        scene: String,
+        element: String,
+    },
+    /// A character without a line in the scene (silent, extra) is in it. Refused for one that
+    /// speaks: the book says so already.
+    AddSceneCharacter {
+        scene: String,
+        character: String,
+    },
+    RemoveSceneCharacter {
+        scene: String,
+        character: String,
+    },
+    /// The object `object` of the set at `location` stands for `element` (`None`: for none).
+    SetObjectElement {
+        location: String,
+        object: String,
+        element: Option<String>,
+    },
+}
 
-/// The breakdown variants of `ProjectEdit`; others change nothing.
-pub(super) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), ServiceError> {
+/// What the breakdown edits do.
+pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), ServiceError> {
     match edit {
-        ProjectEdit::AddElement { category, name } => {
+        BreakdownEdit::AddElement { category, name } => {
             add_element(project, *category, name).map(drop)
         }
-        ProjectEdit::EditElement {
+        BreakdownEdit::EditElement {
             id,
             category,
             name,
             description,
             status,
         } => edit_element(project, id, (*category, name), (description, *status)),
-        ProjectEdit::RemoveElement { id } => remove_element(project, id),
-        ProjectEdit::SetSheet { scene, .. } => set_sheet(project, scene, edit),
-        ProjectEdit::AddSceneElement { scene, element }
-        | ProjectEdit::TakeSuggestion { scene, element } => take(project, scene, element),
-        ProjectEdit::RemoveSceneElement { scene, element } => {
+        BreakdownEdit::RemoveElement { id } => remove_element(project, id),
+        BreakdownEdit::SetSheet {
+            scene,
+            story_day,
+            prestop_s,
+            planned_min,
+            continuity,
+            note,
+        } => set_sheet(
+            project,
+            scene,
+            SheetText {
+                story_day,
+                prestop_s: *prestop_s,
+                planned_min: *planned_min,
+                continuity,
+                note,
+            },
+        ),
+        BreakdownEdit::AddSceneElement { scene, element }
+        | BreakdownEdit::TakeSuggestion { scene, element } => take(project, scene, element),
+        BreakdownEdit::RemoveSceneElement { scene, element } => {
             sheet_mut(project, scene)?.elements.retain(|e| e != element);
             Ok(())
         }
-        ProjectEdit::AddElementToScene {
+        BreakdownEdit::AddElementToScene {
             scene,
             category,
             name,
         } => add_to_scene(project, scene, *category, name),
-        ProjectEdit::ExcludeSuggestion { scene, element } => exclude(project, scene, element),
-        ProjectEdit::AddSceneCharacter { scene, character } => {
+        BreakdownEdit::ExcludeSuggestion { scene, element } => exclude(project, scene, element),
+        BreakdownEdit::AddSceneCharacter { scene, character } => {
             add_character(project, scene, character)
         }
-        ProjectEdit::RemoveSceneCharacter { scene, character } => {
+        BreakdownEdit::RemoveSceneCharacter { scene, character } => {
             sheet_mut(project, scene)?
                 .characters
                 .retain(|c| c != character);
             Ok(())
         }
-        ProjectEdit::SetObjectElement {
+        BreakdownEdit::SetObjectElement {
             location,
             object,
             element,
         } => set_object_element(project, (location, object), element.as_deref()),
-        _ => Ok(()),
     }
 }
 
@@ -170,25 +256,22 @@ fn remove_element(project: &mut Project, id: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
-fn set_sheet(project: &mut Project, scene: &str, edit: &ProjectEdit) -> Result<(), ServiceError> {
-    let ProjectEdit::SetSheet {
-        story_day,
-        prestop_s,
-        planned_min,
-        continuity,
-        note,
-        ..
-    } = edit
-    else {
-        return Ok(());
-    };
+/// What `SetSheet` says; the text is trimmed when it is stored.
+struct SheetText<'a> {
+    story_day: &'a str,
+    prestop_s: Option<u32>,
+    planned_min: Option<u32>,
+    continuity: &'a str,
+    note: &'a str,
+}
 
+fn set_sheet(project: &mut Project, scene: &str, text: SheetText) -> Result<(), ServiceError> {
     let sheet = sheet_mut(project, scene)?;
-    sheet.story_day = story_day.trim().to_owned();
-    sheet.prestop_s = *prestop_s;
-    sheet.planned_min = *planned_min;
-    sheet.continuity = continuity.trim().to_owned();
-    sheet.note = note.trim().to_owned();
+    sheet.story_day = text.story_day.trim().to_owned();
+    sheet.prestop_s = text.prestop_s;
+    sheet.planned_min = text.planned_min;
+    sheet.continuity = text.continuity.trim().to_owned();
+    sheet.note = text.note.trim().to_owned();
 
     Ok(())
 }

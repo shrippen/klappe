@@ -122,7 +122,7 @@ impl Session {
         self.check_script_number(&edit)?;
         self.check_location_use(&edit)?;
         self.check_sheet_character(&edit)?;
-        let step = step_name(&edit);
+        let step = project_step(&edit);
         let mut next = self.project.clone();
         project_edit::apply(&mut next, &edit)?;
         if let ProjectEdit::AddScene { .. } = edit {
@@ -308,6 +308,18 @@ impl Session {
             return String::new();
         };
         format!("{} · {} · {}", scene.number, scene.heading, plan.name)
+    }
+}
+
+/// The undo name of a project edit: the variant of the area's edit (`AddElement`), not the
+/// area (`Breakdown`).
+fn project_step(edit: &ProjectEdit) -> String {
+    match edit {
+        ProjectEdit::Names(inner) => step_name(inner),
+        ProjectEdit::Library(inner) => step_name(inner),
+        ProjectEdit::Template(inner) => step_name(inner),
+        ProjectEdit::Breakdown(inner) => step_name(inner),
+        other => step_name(other),
     }
 }
 

@@ -2,8 +2,8 @@
 //! it is filed in, each as an edit. Like the tools (`tools.rs`), no geometry here.
 
 use klappe_services::{
-    read_number, DoorSide, Field, Hinge, ObjectChange, PlanEdit, ProjectEdit, Range, ServiceError,
-    Source, Unit,
+    read_number, DoorSide, Field, Hinge, LibraryEdit, ObjectChange, PlanEdit, ProjectEdit, Range,
+    ServiceError, Source, Unit,
 };
 
 use crate::tools::{length_m, Typed};
@@ -187,11 +187,11 @@ pub fn library_edit(
         return None;
     }
 
-    Some(ProjectEdit::LibraryFromObject {
+    Some(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
         location: location?.to_owned(),
         object: id.clone(),
         name: name.to_owned(),
-    })
+    }))
 }
 
 /// Renames and regroups the own library entry `kind` (LH-12). `None` for a blank name.
@@ -201,18 +201,18 @@ pub fn library_rename_edit(kind: &str, name: &str, group: &str) -> Option<Projec
         return None;
     }
 
-    Some(ProjectEdit::EditLibraryItem {
+    Some(ProjectEdit::Library(LibraryEdit::EditLibraryItem {
         kind: kind.to_owned(),
         name: name.to_owned(),
         group: group.trim().to_owned(),
-    })
+    }))
 }
 
 /// Deletes the own library entry `kind` (LH-12).
 pub fn library_remove_edit(kind: &str) -> ProjectEdit {
-    ProjectEdit::RemoveLibraryItem {
+    ProjectEdit::Library(LibraryEdit::RemoveLibraryItem {
         kind: kind.to_owned(),
-    }
+    })
 }
 
 #[cfg(test)]
@@ -290,11 +290,11 @@ mod tests {
 
         assert_eq!(
             library_edit(Some(&object), Some("saal"), "  Thron "),
-            Some(ProjectEdit::LibraryFromObject {
+            Some(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
                 location: "saal".into(),
                 object: "o1".into(),
                 name: "Thron".into()
-            })
+            }))
         );
         assert_eq!(library_edit(Some(&object), Some("saal"), "  "), None);
         assert_eq!(library_edit(Some(&object), None, "Thron"), None);
@@ -309,18 +309,18 @@ mod tests {
     fn an_own_entry_is_renamed_under_a_trimmed_name_and_group() {
         assert_eq!(
             library_rename_edit("thron", "  Sessel ", " Hof "),
-            Some(ProjectEdit::EditLibraryItem {
+            Some(ProjectEdit::Library(LibraryEdit::EditLibraryItem {
                 kind: "thron".into(),
                 name: "Sessel".into(),
                 group: "Hof".into()
-            })
+            }))
         );
         assert_eq!(library_rename_edit("thron", "  ", "Hof"), None);
         assert_eq!(
             library_remove_edit("thron"),
-            ProjectEdit::RemoveLibraryItem {
+            ProjectEdit::Library(LibraryEdit::RemoveLibraryItem {
                 kind: "thron".into()
-            }
+            })
         );
     }
 

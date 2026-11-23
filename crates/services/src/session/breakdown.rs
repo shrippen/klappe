@@ -9,7 +9,7 @@ use klappe_script::Element as Line;
 use super::Session;
 use crate::error::ServiceError;
 use crate::field::Field;
-use crate::project_edit::ProjectEdit;
+use crate::project_edit::{BreakdownEdit, ProjectEdit};
 use crate::script_refs;
 use crate::views::{
     ElementRow, SceneRef, SheetCategory, SheetElement, SheetFigure, SheetView, Suggestion,
@@ -182,7 +182,8 @@ impl Session {
 
     /// A character with a cue in the scene is in it already: adding it to the sheet is refused.
     pub(super) fn check_sheet_character(&self, edit: &ProjectEdit) -> Result<(), ServiceError> {
-        let ProjectEdit::AddSceneCharacter { scene, character } = edit else {
+        let ProjectEdit::Breakdown(BreakdownEdit::AddSceneCharacter { scene, character }) = edit
+        else {
             return Ok(());
         };
         let Some(entry) = self.project.scenes.iter().position(|s| s.id == *scene) else {

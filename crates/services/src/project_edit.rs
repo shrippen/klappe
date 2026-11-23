@@ -3,9 +3,8 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, random_id, same_character_name, BookState, Character, ElementCategory,
-    ElementStatus, FigureColor, FloorPlan, Kind, LibraryItem, Numbering, Point, Project, Scene,
-    Site, SunTime, Template, MAX_GROUP, MIN_GROUP,
+    is_figure_size_m, random_id, same_character_name, BookState, Character, FigureColor, FloorPlan,
+    Kind, Numbering, Project, Scene, Site, SunTime, MAX_GROUP, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -20,10 +19,14 @@ mod plans;
 pub(crate) mod templates;
 mod views;
 
+pub use breakdown::BreakdownEdit;
 pub(crate) use copy::{copy_character, free_short};
+pub use library::LibraryEdit;
 use locations::{add_location, edit_location, remove_location};
+pub use names::NameEdit;
 pub(crate) use plans::{add_plan, copy_plan, move_plan, remove_plan, rename_plan, seat_speakers};
 pub use plans::{PlanShift, ShotsGo};
+pub use templates::TemplateEdit;
 pub(crate) use views::{remove_view, save_view};
 
 /// What the project view does. Ids are made from the name when something is added and never
@@ -97,142 +100,19 @@ pub enum ProjectEdit {
     RemoveCharacter {
         id: String,
     },
-    /// Marks a cue as no character (DB-50), as `ALLE`: the book stops asking for it. Refused
-    /// when a character answers to it.
-    AddNotFigure {
-        name: String,
-    },
-    /// Takes the mark away: the book asks for the cue again.
-    RemoveNotFigure {
-        name: String,
-    },
-    /// Files the object `object` of the set at `location` in the project's library under
-    /// `name` (LH-12): its size and shape, a kind of its own.
-    LibraryFromObject {
-        location: String,
-        object: String,
-        name: String,
-    },
-    /// Takes the entries of a library file over (LH-12). An entry the project has already
-    /// (same kind and same content) is skipped; one whose kind is taken by something else
-    /// gets a kind of its own.
-    ImportLibrary {
-        items: Vec<LibraryItem>,
-    },
-    /// Puts the template `template` on the plan `plan` of the scene `scene`, its insertion
-    /// point at `at` (LH-07).
-    PlaceTemplate {
-        scene: String,
-        plan: String,
-        template: String,
-        at: Point,
-    },
-    /// Files the figures and cameras of the plan as a template of the project (LH-07).
-    SaveTemplate {
-        scene: String,
-        plan: String,
-        name: String,
-    },
-    /// Renames the project's own template `id` (LH-07). A built-in template is not the
-    /// project's to change.
-    EditTemplate {
-        id: String,
-        name: String,
-    },
-    /// Takes the project's own template `id` away (LH-07).
-    RemoveTemplate {
-        id: String,
-    },
-    /// Takes the templates of a template file over (LH-07). One the project has already (same
-    /// name and content) is skipped; one whose id is taken by something else gets an id of its
-    /// own.
-    ImportTemplates {
-        items: Vec<Template>,
-    },
-    /// Renames and regroups the project's own entry `kind` (LH-12); no group takes it out of
-    /// any. Placed objects keep their kind. A built-in entry is not the project's to change.
-    EditLibraryItem {
-        kind: String,
-        name: String,
-        group: String,
-    },
-    /// Takes the project's own entry `kind` out of the library (LH-12); objects placed from
-    /// it stay as they are.
-    RemoveLibraryItem {
-        kind: String,
-    },
     /// Chooses how the project numbers new shots (LH-76). Numbers that exist stay until
     /// "Renumber".
     SetNumbering {
         numbering: Numbering,
     },
-    /// A new element of the breakdown (DB-60, D-22). Refused: an empty name, or one the
-    /// category already has.
-    AddElement {
-        category: ElementCategory,
-        name: String,
-    },
-    EditElement {
-        id: String,
-        category: ElementCategory,
-        name: String,
-        description: String,
-        status: ElementStatus,
-    },
-    /// Takes the element out of every scene sheet and every set object too.
-    RemoveElement {
-        id: String,
-    },
-    /// Sets what the scene sheet says besides its lists.
-    SetSheet {
-        scene: String,
-        story_day: String,
-        prestop_s: Option<u32>,
-        planned_min: Option<u32>,
-        continuity: String,
-        note: String,
-    },
-    AddSceneElement {
-        scene: String,
-        element: String,
-    },
-    RemoveSceneElement {
-        scene: String,
-        element: String,
-    },
-    /// The field with suggestions: the element of that name and category, made if there is
-    /// none, goes into the scene.
-    AddElementToScene {
-        scene: String,
-        category: ElementCategory,
-        name: String,
-    },
-    /// Turns a suggestion of the set down for this scene.
-    ExcludeSuggestion {
-        scene: String,
-        element: String,
-    },
-    /// Takes a suggestion of the set into the scene.
-    TakeSuggestion {
-        scene: String,
-        element: String,
-    },
-    /// A character without a line in the scene (silent, extra) is in it. Refused for one that
-    /// speaks: the book says so already.
-    AddSceneCharacter {
-        scene: String,
-        character: String,
-    },
-    RemoveSceneCharacter {
-        scene: String,
-        character: String,
-    },
-    /// The object `object` of the set at `location` stands for `element` (`None`: for none).
-    SetObjectElement {
-        location: String,
-        object: String,
-        element: Option<String>,
-    },
+    /// The other names of characters and the cues that are no character (DB-50).
+    Names(NameEdit),
+    /// Edits of the project's library (LH-12).
+    Library(LibraryEdit),
+    /// Edits of the project's templates (LH-07).
+    Template(TemplateEdit),
+    /// Edits of the breakdown: elements and scene sheets (DB-60, D-22).
+    Breakdown(BreakdownEdit),
 }
 
 /// The label in a figure's circle has room for this many letters.
@@ -301,32 +181,10 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
         } => add_character(project, name, short, *color, (*group, *size_m)),
         ProjectEdit::EditCharacter { .. } => edit_figure(project, edit),
         ProjectEdit::RemoveCharacter { id } => remove_character(project, id),
-        ProjectEdit::AddNotFigure { .. } | ProjectEdit::RemoveNotFigure { .. } => {
-            names::apply(project, edit)
-        }
-        ProjectEdit::LibraryFromObject { .. } | ProjectEdit::ImportLibrary { .. } => {
-            library::apply(project, edit)
-        }
-        ProjectEdit::PlaceTemplate { .. }
-        | ProjectEdit::SaveTemplate { .. }
-        | ProjectEdit::EditTemplate { .. }
-        | ProjectEdit::RemoveTemplate { .. }
-        | ProjectEdit::ImportTemplates { .. } => templates::apply(project, edit),
-        ProjectEdit::EditLibraryItem { .. } | ProjectEdit::RemoveLibraryItem { .. } => {
-            library::apply(project, edit)
-        }
-        ProjectEdit::AddElement { .. }
-        | ProjectEdit::EditElement { .. }
-        | ProjectEdit::RemoveElement { .. }
-        | ProjectEdit::SetSheet { .. }
-        | ProjectEdit::AddSceneElement { .. }
-        | ProjectEdit::RemoveSceneElement { .. }
-        | ProjectEdit::AddElementToScene { .. }
-        | ProjectEdit::ExcludeSuggestion { .. }
-        | ProjectEdit::TakeSuggestion { .. }
-        | ProjectEdit::AddSceneCharacter { .. }
-        | ProjectEdit::RemoveSceneCharacter { .. }
-        | ProjectEdit::SetObjectElement { .. } => breakdown::apply(project, edit),
+        ProjectEdit::Names(edit) => names::apply(project, edit),
+        ProjectEdit::Library(edit) => library::apply(project, edit),
+        ProjectEdit::Template(edit) => templates::apply(project, edit),
+        ProjectEdit::Breakdown(edit) => breakdown::apply(project, edit),
     }
 }
 
