@@ -450,7 +450,8 @@ mod tests {
     #[test]
     fn the_screenplay_goes_to_a_pdf() {
         let project = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
-        let out = std::env::temp_dir().join("klappe-cli-script.pdf");
+        let out =
+            std::env::temp_dir().join(format!("klappe-cli-script-{}.pdf", std::process::id()));
         let print = ScriptPrint {
             scene_numbers: SceneNumbers::Shown,
             header: HeaderLine::Off,
@@ -461,6 +462,7 @@ mod tests {
 
         assert_eq!(written, Ok(()));
         let bytes = std::fs::read(&out).unwrap_or_default();
+        let _ = std::fs::remove_file(&out);
         assert!(bytes.starts_with(b"%PDF"));
         assert!(String::from_utf8_lossy(&bytes).contains("/MediaBox [0 0 612 792]"));
     }

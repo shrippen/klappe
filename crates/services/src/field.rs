@@ -180,3 +180,15 @@ impl Field {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `SceneSheet.qml` marks the refused time field by these names.
+    #[test]
+    fn the_sheet_times_have_the_names_the_page_reads() {
+        assert_eq!(Field::Prestop.name(), "prestop");
+        assert_eq!(Field::Planned.name(), "planned");
+    }
+}
