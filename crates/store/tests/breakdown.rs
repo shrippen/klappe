@@ -84,15 +84,15 @@ fn the_files_exist_only_with_content() {
     assert!(toml.contains("[[element]]"));
     assert!(toml.contains("category = \"set-dressing\""));
     assert!(toml.contains("status = \"working\""));
-    assert!(dir.join("breakdown/aaaa.toml").is_file());
-    assert!(!dir.join("breakdown/bbbb.toml").exists());
+    assert!(dir.join("breakdown/szenen/aaaa.toml").is_file());
+    assert!(!dir.join("breakdown/szenen/bbbb.toml").exists());
 
     project.scenes[0].sheet = Sheet::default();
     project.elements.clear();
     save(&dir, &project, None).unwrap();
 
     assert!(!dir.join("breakdown/elemente.toml").exists());
-    assert!(!dir.join("breakdown/aaaa.toml").exists());
+    assert!(!dir.join("breakdown/szenen/aaaa.toml").exists());
 }
 
 #[test]
@@ -109,13 +109,17 @@ fn a_project_without_breakdown_has_no_folder() {
 fn a_sheet_of_a_gone_scene_is_not_kept() {
     let dir = dir("breakdown-orphan");
     save(&dir, &project(), None).unwrap();
-    fs::write(dir.join("breakdown/zzzz.toml"), "story_day = \"x\"\n").unwrap();
+    fs::write(
+        dir.join("breakdown/szenen/zzzz.toml"),
+        "story_day = \"x\"\n",
+    )
+    .unwrap();
 
     let loaded = load(&dir).unwrap().project;
     assert_eq!(loaded.scenes.len(), 2);
 
     save(&dir, &loaded, None).unwrap();
-    assert!(!dir.join("breakdown/zzzz.toml").exists());
+    assert!(!dir.join("breakdown/szenen/zzzz.toml").exists());
 }
 
 #[test]
@@ -172,14 +176,17 @@ fn the_files_are_part_of_the_tree() {
 
     let tree = read_tree(&dir).unwrap();
     assert!(tree.contains_key("breakdown/elemente.toml"));
-    assert!(tree.contains_key("breakdown/aaaa.toml"));
+    assert!(tree.contains_key("breakdown/szenen/aaaa.toml"));
     assert_eq!(tree, encode_tree(&project, None).unwrap());
 
     assert_eq!(
         kind_of("breakdown/elemente.toml"),
         Some(FileKind::Breakdown)
     );
-    assert_eq!(kind_of("breakdown/aaaa.toml"), Some(FileKind::Breakdown));
+    assert_eq!(
+        kind_of("breakdown/szenen/aaaa.toml"),
+        Some(FileKind::Breakdown)
+    );
     assert_eq!(kind_of("breakdown/a/b.toml"), None);
 }
 

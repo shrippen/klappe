@@ -85,9 +85,9 @@ const LOCK_FILE: &str = "nummern.toml";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
 const SCENES_FILE: &str = "szenen.toml";
-const BREAKDOWN_DIR: &str = "breakdown";
-/// The elements' file in `BREAKDOWN_DIR` (`elemente.toml`); a sheet file is named by its scene.
-const ELEMENTS_STEM: &str = "elemente";
+/// The breakdown (D-22): its elements, and a sheet file per scene named by the scene.
+const ELEMENTS_FILE: &str = "breakdown/elemente.toml";
+const SHEETS_DIR: &str = "breakdown/szenen";
 const IMAGES_DIR: &str = "bilder";
 /// Folder of the unsaved-changes backup inside a project folder (FORMAT.md).
 const BACKUP_DIR: &str = ".sicherung";
@@ -252,7 +252,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     Dir::new(dir.join(LOCATIONS_DIR), Kind::Toml).remove_except(&keep)?;
     let keep: HashSet<&str> = project.scenes.iter().map(|s| s.id.as_str()).collect();
     Dir::new(dir.join(SCENES_DIR), Kind::Json).remove_except(&keep)?;
-    Dir::new(dir.join(BREAKDOWN_DIR), Kind::Toml).remove_except(&breakdown::kept(project))?;
+    Dir::new(dir.join(SHEETS_DIR), Kind::Toml).remove_except(&breakdown::kept(project))?;
 
     if let Some(text) = script {
         files::write_atomic(&dir.join(SCRIPT_FILE), text.as_bytes())?;

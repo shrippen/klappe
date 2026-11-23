@@ -446,8 +446,8 @@ fn the_breakdown_survives_a_save_and_its_files_follow_the_content() {
     s.save(klappe_services::OnOutside::Ask).unwrap();
 
     assert!(dir.join("breakdown/elemente.toml").is_file());
-    assert!(dir.join("breakdown/aaaa.toml").is_file());
-    assert!(!dir.join("breakdown/bbbb.toml").exists());
+    assert!(dir.join("breakdown/szenen/aaaa.toml").is_file());
+    assert!(!dir.join("breakdown/szenen/bbbb.toml").exists());
 
     let again = Session::open(&dir).unwrap();
     assert_eq!(again.project().elements, s.project().elements);
@@ -468,7 +468,7 @@ fn the_breakdown_survives_a_save_and_its_files_follow_the_content() {
     .unwrap();
     s.save(klappe_services::OnOutside::Ask).unwrap();
     assert!(!dir.join("breakdown/elemente.toml").exists());
-    assert!(!dir.join("breakdown/aaaa.toml").exists());
+    assert!(!dir.join("breakdown/szenen/aaaa.toml").exists());
 }
 
 #[test]

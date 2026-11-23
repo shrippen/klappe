@@ -14,7 +14,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── szenen.toml          Register der Drehinhalte (Szenen, Content Items), je ein [[szene]], in Projektfolge
 ├── szenen/<id>.json     Stellprobe je Drehinhalt: eigener Drehort, Zeitpunkt der Sonne, Floorplans (Nummer und Kopf stehen im Register)
 ├── breakdown/elemente.toml  Elemente des Breakdowns, je ein [[element]] (optional)
-├── breakdown/<id>.toml  Szenenblatt der Szene <id> (optional)
+├── breakdown/szenen/<id>.toml  Szenenblatt der Szene <id> (optional)
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
 ├── nummern.toml         Sperrstand der Szenennummern (optional, DB-33)
@@ -62,7 +62,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Folge); `status`: `open` (Standard), `working`, `ready`. Jede `id` kommt einmal vor und ist nicht
   leer, eine unbekannte `category` oder ein unbekannter `status` lädt nicht. Der Name ist je
   Kategorie einmalig (Groß- und Kleinschreibung zählt nicht), das prüft das Programm beim
-  Ändern, nicht Laden. `breakdown/<id>.toml` ist das Szenenblatt der Szene (oder des Content
+  Ändern, nicht Laden. `breakdown/szenen/<id>.toml` ist das Szenenblatt der Szene (oder des Content
   Items) mit dieser Id und hat die Schlüssel `story_day` (Spieltag), `prestop_s` (Vorstopp in
   Sekunden), `planned_min` (geplante Drehdauer in Minuten), `continuity`, `note` (Hinweis für die
   Produktion), `elements` (Element-Ids in der Reihenfolge der Szene), `excluded` (Element-Ids
@@ -75,8 +75,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   fehlen, solange es nichts gibt: `save` schreibt kein Blatt, das leer ist, und löscht Blätter
   ohne Szene. Ein Blatt ohne Szene lädt nicht (es wird ignoriert); ein Blatt oder Objekt, das
   eine unbekannte Element- oder Figuren-Id nennt, lädt und wirkt nicht (kein Fehler), wie andere
-  Verweise ins Leere. Löschen eines Elements nimmt es aus allen Blättern und Objekten. Eine
-  Szene mit der Id `elemente` kann kein Blatt haben. Keine neue Formatversion, ältere Projekte
+  Verweise ins Leere. Löschen eines Elements nimmt es aus allen Blättern und Objekten. Keine neue Formatversion, ältere Projekte
   laden unverändert.
 - **Papier:** `paper` in `projekt.toml`, z. B. `"a4-portrait"`: Größe (`a4`, `a3`, `letter`),
   Bindestrich, Ausrichtung (`portrait`, `landscape`). Das Blatt, auf dem zuletzt ausgegeben wurde;
@@ -535,7 +534,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 - **Speichern und Änderungen von außen:** Eine Sitzung merkt sich je Datei, was sie zuletzt gelesen
   oder geschrieben hat, und was sie selbst daraus kodiert. Einheiten sind `projekt.toml`,
   `figuren.toml`, `bibliothek.toml`, `vorlagen.toml`, `drehorte/<id>.toml`, `szenen.toml`,
-  `szenen/<id>.json`, `breakdown/elemente.toml`, `breakdown/<id>.toml` und `drehbuch.fountain`;
+  `szenen/<id>.json`, `breakdown/elemente.toml`, `breakdown/szenen/<id>.toml` und `drehbuch.fountain`;
   `orte.toml` und `nummern.toml` liest sie mit, sie
   ändert sie nie als eigene Änderung. `bilder/` und versteckte Ordner gehören nicht dazu.
   Speichern schreibt nur Dateien, deren Kodierung von der Datei auf der Platte abweicht, die

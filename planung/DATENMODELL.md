@@ -213,7 +213,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
 ├── drehbuch/fassungen/       gesperrte Fassungen (DB-40, F-02 im Lastenheft Drehbuch)
 ├── szenen/<id>.json          Stellprobe: Floorplans, Shots je Drehinhalt
 ├── breakdown/elemente.toml   Elemente                                       (neu)
-├── breakdown/<szenen-id>.toml Szenenblatt                                   (neu)
+├── breakdown/szenen/<id>.toml Szenenblatt                                   (neu)
 ├── personen.toml             Personen, Besetzung, Team                     (neu)
 ├── kontakte.toml             persönliche Daten: Kontakte, Adressen          (neu, Abschnitt 10)
 ├── drehplan/<id>.toml        eine Drehplanversion: Tage und Streifen       (neu)

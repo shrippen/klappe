@@ -17,8 +17,8 @@ use klappe_model::Project;
 
 use crate::files::{self, io_err, Dir, Kind};
 use crate::{
-    encode_project, load, write_tree, Loaded, StoreError, BREAKDOWN_DIR, CHARACTERS_FILE,
-    LIBRARY_FILE, LOCATIONS_DIR, PROJECT_FILE, SCENES_DIR, SCENES_FILE, SCRIPT_FILE,
+    encode_project, load, write_tree, Loaded, StoreError, CHARACTERS_FILE, ELEMENTS_FILE,
+    LIBRARY_FILE, LOCATIONS_DIR, PROJECT_FILE, SCENES_DIR, SCENES_FILE, SCRIPT_FILE, SHEETS_DIR,
     TEMPLATES_FILE,
 };
 
@@ -58,7 +58,8 @@ pub fn kind_of(name: &str) -> Option<FileKind> {
         SCRIPT_FILE => FileKind::Script,
         _ if is_in(name, LOCATIONS_DIR) => FileKind::Location,
         _ if is_in(name, SCENES_DIR) => FileKind::Scene,
-        _ if is_in(name, BREAKDOWN_DIR) => FileKind::Breakdown,
+        ELEMENTS_FILE => FileKind::Breakdown,
+        _ if is_in(name, SHEETS_DIR) => FileKind::Breakdown,
         _ => return None,
     };
 
@@ -85,13 +86,14 @@ pub fn read_tree(dir: &Path) -> Result<Tree, StoreError> {
         TEMPLATES_FILE,
         SCENES_FILE,
         SCRIPT_FILE,
+        ELEMENTS_FILE,
     ] {
         read_into(&mut tree, dir, name)?;
     }
     for (folder, kind) in [
         (LOCATIONS_DIR, Kind::Toml),
         (SCENES_DIR, Kind::Json),
-        (BREAKDOWN_DIR, Kind::Toml),
+        (SHEETS_DIR, Kind::Toml),
     ] {
         for (_, path) in Dir::new(dir.join(folder), kind).list()? {
             let Some(file) = path.file_name().and_then(|n| n.to_str()) else {
