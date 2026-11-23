@@ -58,11 +58,14 @@ import "."
  * lies in it). Pan: middle button, space held, or left button on empty ground. Zoom: wheel or
  * pinch about the pointer. Keyboard (the item takes Tab): plus and minus zoom, 0 fits, arrows pan.
  *
- * Drawn with one Canvas, repainted when a property changes; 600 shapes with 272 captions take about
- * 15 ms to draw (offscreen), about 6 ms zoomed in, as shapes and captions out of view are left out.
- * A rotated caption (textRotation) costs one save, translate, rotate and restore more; with
- * none rotated the cost is unchanged.
- * Captions are the dear part (fillText, about 45 µs each): keep the text for what needs it.
+ * The shapes are drawn with one Canvas, repainted when a property changes; 600 shapes take about
+ * 5 ms to draw (offscreen), about 3 ms zoomed in, as shapes out of view are left out. The captions
+ * are Text items over the canvas (one per caption, hidden out of view): the canvas draws no text,
+ * a pan moves one container, and a caption costs the canvas nothing. A frame of that plan (272
+ * captions) takes about 28 ms against 45 ms with the captions drawn into the canvas (offscreen,
+ * loaded machine; qml/perf/tst_shapecanvas_perf.qml). A caption sized in model units is a whole
+ * pixel size scaled to the exact one; glyphs are the Text item's, so their edges differ a little
+ * from the canvas' own.
  */
 FocusScope {
     id: root
@@ -100,6 +103,11 @@ FocusScope {
     readonly property real _minCaptionPx: 4
     // The margin of a caption sized in model units, in its font sizes.
     readonly property real _captionGapEm: 0.3
+    // A Text line sits this many font sizes lower than a canvas line set on its middle baseline; found
+    // by laying both pictures over each other (Noto Sans).
+    readonly property real _baselineEm: 0.15
+    // Reach of a character for culling: wide glyphs (CJK) take up to about 1.1 em, so two em each.
+    readonly property real _emsPerChar: 2
     readonly property real _minGridGap: KanteStyle.unit(6)
     readonly property real _tintAlpha: 0.2
     readonly property real _gridAlpha: 0.3
@@ -340,6 +348,56 @@ FocusScope {
         }
     }
 
+    // The captions as plain data, worked out when the shapes change. `mx`, `my` is the anchor in
+    // model units; the anchor moves by `r` model units and `gx`, `gy` gaps (a circle's caption
+    // stands right of its edge, a line's right of and above its middle); `topLeft` hangs the
+    // lines from the anchor, else they centre on it ("center" aligns each line as well).
+    function _spots(list) {
+        const out = []
+        for (const s of list) {
+            if (s.text && s.kind !== "image" && (s.points || []).length >= 2) {
+                out.push(_spot(s, s.points))
+            }
+        }
+        return out
+    }
+
+    function _spot(s, pts) {
+        const c = { text: String(s.text), label: String(s.label), size: s.captionSize > 0 ? s.captionSize : 0,
+                    rot: s.textRotation || 0, alpha: Number.isFinite(s.opacity) ? Math.max(0, Math.min(1, s.opacity)) : 1,
+                    mx: pts[0], my: pts[1], r: 0, gx: 0, gy: 0, topLeft: false, center: false }
+        if (s.kind === "circle") {
+            c.r = s.radius || 0
+            c.gx = 1
+            return c
+        }
+        if (s.kind !== "polygon") {
+            const n = pts.length
+            c.mx = (pts[0] + pts[n - 2]) / 2
+            c.my = (pts[1] + pts[n - 1]) / 2
+            c.gx = 1
+            c.gy = -1
+            return c
+        }
+
+        const xs = pts.filter((v, i) => i % 2 === 0)
+        const ys = pts.filter((v, i) => i % 2 === 1)
+        c.topLeft = s.textAnchor === "topLeft"
+        c.center = !c.topLeft
+        if (c.center) {
+            c.mx = (Math.min(...xs) + Math.max(...xs)) / 2
+            c.my = (Math.min(...ys) + Math.max(...ys)) / 2
+            return c
+        }
+
+        // A rotated caption turns about the corner the card's own turn leaves in place.
+        c.mx = c.rot ? pts[0] : Math.min(...xs)
+        c.my = c.rot ? pts[1] : Math.min(...ys)
+        return c
+    }
+    readonly property var _captions: _spots(shapes)
+    readonly property real _fontPx: KanteStyle.fontPixels(KanteStyle.smallFont)
+
     // The theme and the font repaint the canvas.
     readonly property var _look: [KanteStyle.backgroundColor, KanteStyle.textColor, KanteStyle.mutedTextColor,
         KanteStyle.accentColor, KanteStyle.focusColor, KanteStyle.warningColor, KanteStyle.ruleColor,
@@ -356,14 +414,8 @@ FocusScope {
         // Per paint: colours by label name, and what the context was last given, so each
         // value is worked out once and a context state is set only when it changes.
         property var _colors: ({})
-        property var _inks: ({})
         property var _tints: ({})
         property string _dashKey: ""
-        property string _fillKey: ""
-        property string _align: ""
-        property real _fontPx: 0
-        property string _fontFamily: ""
-        property real _ctxFontPx: 0
 
         // The colour of a label name, worked out once per paint.
         function _color(name) {
@@ -371,16 +423,6 @@ FocusScope {
             if (c === undefined) {
                 c = KanteStyle.namedColor(name)
                 _colors[name] = c
-            }
-            return c
-        }
-
-        // The colour of a caption: the label colour, readable on the ground.
-        function _ink(name) {
-            let c = _inks[name]
-            if (c === undefined) {
-                c = KanteStyle.readable(_color(name), KanteStyle.backgroundColor)
-                _inks[name] = c
             }
             return c
         }
@@ -495,112 +537,6 @@ FocusScope {
             ctx.setLineDash([])
         }
 
-        // The caption's font size in pixels: model units grow with the zoom, else the small font;
-        // 0 when too small to read.
-        function _captionPx(s) {
-            if (!(s.captionSize > 0)) {
-                return _fontPx
-            }
-            const px = s.captionSize * root.zoom
-            return px < root._minCaptionPx ? 0 : px
-        }
-
-        // Where a caption goes, in view pixels: {x, y, align, top}; `top` lifts the first line.
-        function _captionSpot(s, pts, fontPx, gap, rows) {
-            const zx = v => root.panX + v * root.zoom
-            const zy = v => root.panY + v * root.zoom
-            if (s.kind === "circle") {
-                const cx = zx(pts[0]) + (s.radius || 0) * root.zoom + gap
-                return { x: cx, y: zy(pts[1]), ax: cx, ay: zy(pts[1]), align: "left", top: -rows / 2 }
-            }
-            if (s.kind !== "polygon") {
-                const n = pts.length
-                const lx = zx((pts[0] + pts[n - 2]) / 2) + gap
-                const ly = zy((pts[1] + pts[n - 1]) / 2) - gap
-                return { x: lx, y: ly, ax: lx, ay: ly, align: "left", top: -rows / 2 }
-            }
-            const xs = pts.filter((v, i) => i % 2 === 0)
-            const ys = pts.filter((v, i) => i % 2 === 1)
-            // Several lines hang from the top left when the shape asks, else centre on the box.
-            if (s.textAnchor === "topLeft") {
-                // A rotated caption turns about the corner the card's own turn leaves in place.
-                const cx = s.textRotation ? pts[0] : Math.min(...xs)
-                const cy = s.textRotation ? pts[1] : Math.min(...ys)
-                return { x: zx(cx) + gap, y: zy(cy) + gap + fontPx / 2, ax: zx(cx), ay: zy(cy),
-                         align: "left", top: 0 }
-            }
-            const mx = zx((Math.min(...xs) + Math.max(...xs)) / 2)
-            const my = zy((Math.min(...ys) + Math.max(...ys)) / 2)
-            return { x: mx, y: my, ax: mx, ay: my, align: "center", top: -rows / 2 }
-        }
-
-        // Whether a caption lies outside the view (fillText is the dearest call). Wide glyphs (CJK)
-        // take up to about 1.1 em; two em for each character leaves room for them. Turned text lies
-        // within a circle about its anchor: its lines, their length and the gap.
-        function _captionOut(s, spot, fontPx, gap, rows) {
-            const emsPerChar = 2
-            const reach = String(s.text).length * emsPerChar * fontPx
-            if (!s.textRotation) {
-                const yFirst = spot.y + spot.top
-                return spot.x + reach < 0 || spot.x - reach > width
-                    || yFirst + rows + fontPx < 0 || yFirst - fontPx > height
-            }
-
-            const r = reach + rows + gap + 2 * fontPx
-            return spot.ax + r < 0 || spot.ax - r > width || spot.ay + r < 0 || spot.ay - r > height
-        }
-
-        // Draws the lines of a caption; a turned one in a frame turned about its anchor.
-        function _captionLines(ctx, lines, spot, fontPx, rot) {
-            const turned = rot !== 0
-            if (turned) {
-                ctx.save()
-                ctx.translate(spot.ax, spot.ay)
-                ctx.rotate(rot * Math.PI / 180)
-            }
-
-            const ox = turned ? spot.ax : 0
-            const oy = turned ? spot.ay : 0
-            for (let i = 0; i < lines.length; i++) {
-                ctx.fillText(lines[i], spot.x - ox, spot.y + spot.top - oy + i * fontPx * root._lineSpacing)
-            }
-            if (turned) {
-                ctx.restore()
-            }
-        }
-
-        // Draws a shape's caption beside it.
-        function _caption(ctx, s) {
-            const pts = s.points || []
-            const fontPx = _captionPx(s)
-            if (pts.length < 2 || fontPx === 0) {
-                return
-            }
-
-            const gap = s.captionSize > 0 ? fontPx * root._captionGapEm : KanteStyle.unit(4)
-            const lines = String(s.text).split("\n")
-            const rows = (lines.length - 1) * fontPx * root._lineSpacing
-            const spot = _captionSpot(s, pts, fontPx, gap, rows)
-            if (_captionOut(s, spot, fontPx, gap, rows)) {
-                return
-            }
-
-            if (fontPx !== _ctxFontPx) {
-                _ctxFontPx = fontPx
-                ctx.font = fontPx + "px \"" + _fontFamily + "\", sans-serif"
-            }
-            if (spot.align !== _align) {
-                _align = spot.align
-                ctx.textAlign = spot.align
-            }
-            const label = String(s.label)
-            if (label !== _fillKey) {
-                _fillKey = label
-                ctx.fillStyle = _ink(s.label)
-            }
-            _captionLines(ctx, lines, spot, fontPx, s.textRotation || 0)
-        }
-
         function _grid(ctx) {
             const step = root.gridStep * root.zoom
             if (root.gridStep <= 0 || step < root._minGridGap) {
@@ -640,17 +576,10 @@ FocusScope {
             ctx.setLineDash([])
             ctx.strokeRect(root.panX, root.panY, root.contentWidth * root.zoom, root.contentHeight * root.zoom)
 
-            const font = KanteStyle.smallFont
-            _fontPx = KanteStyle.fontPixels(font)
-            _fontFamily = font.family
-            _ctxFontPx = _fontPx
-            ctx.font = _fontPx + "px \"" + font.family + "\", sans-serif"
-            ctx.textBaseline = "middle"
             ctx.lineJoin = "round"
             ctx.lineCap = "round"
 
             _colors = ({})
-            _inks = ({})
             _tints = ({})
             _dashKey = "solid"
 
@@ -686,17 +615,68 @@ FocusScope {
                 ctx.stroke()
             }
 
-            // Captions last, so no shape covers one.
-            ctx.setLineDash([])
-            _fillKey = ""
-            _align = ""
-            for (const s of root.shapes) {
-                if (s.text && s.kind !== "image") {
-                    ctx.globalAlpha = _alpha(s)
-                    _caption(ctx, s)
+            ctx.globalAlpha = 1
+        }
+    }
+
+    // Captions are Text items over the canvas, so a pan moves one container and a caption costs the
+    // canvas nothing. Each sits in an item at its anchor (turned and scaled about it); fractional
+    // font sizes are a whole pixel size scaled by `k`. Out of view ones are hidden, as they were
+    // left out of the drawing. No mouse input: the MouseArea below takes it all.
+    Item {
+        id: captionLayer
+        x: root.panX
+        y: root.panY
+        Accessible.ignored: true
+
+        Repeater {
+            model: root._captions.length
+
+            Item {
+                id: spot
+
+                required property int index
+                readonly property var c: root._captions[index]
+                readonly property bool sized: c.size > 0
+                // Font size on screen; 0 when too small to read.
+                readonly property real px: !sized ? root._fontPx : (c.size * root.zoom < root._minCaptionPx ? 0 : c.size * root.zoom)
+                readonly property real dp: sized ? Math.max(1, Math.round(px)) : px
+                readonly property real k: px / dp
+                readonly property real gap: sized ? px * root._captionGapEm : KanteStyle.unit(4)
+                readonly property real lineH: dp * root._lineSpacing
+                readonly property int rows: c.text.split("\n").length - 1
+                // Anchor in view pixels, then where the first line's middle lies from it.
+                readonly property real vx: root.panX + root.zoom * (c.mx + c.r) + c.gx * gap
+                readonly property real vy: root.panY + root.zoom * c.my + c.gy * gap
+                readonly property real first: c.topLeft ? gap + px / 2 : -rows * px * root._lineSpacing / 2
+                readonly property real reach: c.text.length * root._emsPerChar * px
+                readonly property real turnReach: reach + rows * px * root._lineSpacing + gap + 2 * px
+                readonly property bool out: c.rot
+                    ? vx + turnReach < 0 || vx - turnReach > root.width || vy + turnReach < 0 || vy - turnReach > root.height
+                    : vx + (c.topLeft ? gap : 0) + reach < 0 || vx + (c.topLeft ? gap : 0) - reach > root.width
+                      || vy + first + rows * px * root._lineSpacing + px < 0 || vy + first - px > root.height
+
+                visible: px > 0 && !out
+                x: root.zoom * (c.mx + c.r) + c.gx * gap
+                y: root.zoom * c.my + c.gy * gap
+                rotation: c.rot
+                scale: k
+                transformOrigin: Item.TopLeft
+                opacity: c.alpha
+
+                Text {
+                    x: (c.topLeft ? spot.gap / spot.k : 0) - (c.center ? implicitWidth / 2 : 0)
+                    y: (c.topLeft ? spot.gap / spot.k + spot.dp / 2 : -spot.rows * spot.lineH / 2) - spot.lineH / 2 - spot.dp * root._baselineEm
+                    text: spot.c.text
+                    textFormat: Text.PlainText
+                    color: KanteStyle.readable(KanteStyle.namedColor(spot.c.label), KanteStyle.backgroundColor)
+                    font: spot.sized ? Qt.font({ family: KanteStyle.smallFont.family, pixelSize: spot.dp }) : KanteStyle.smallFont
+                    lineHeight: spot.lineH
+                    lineHeightMode: Text.FixedHeight
+                    horizontalAlignment: spot.c.center ? Text.AlignHCenter : Text.AlignLeft
+                    Accessible.ignored: true
                 }
             }
-            ctx.globalAlpha = 1
         }
     }
 
