@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{LibraryItem, SetObject};
 use klappe_services::{
-    Field, Language, ObjectShape, PlanEdit, Point, ProjectEdit, ServiceError, Session,
+    Field, Language, LibraryEdit, ObjectShape, PlanEdit, Point, ProjectEdit, ServiceError, Session,
 };
 
 fn example() -> PathBuf {
@@ -73,7 +73,7 @@ fn pond() -> LibraryItem {
 }
 
 fn import(s: &mut Session, items: Vec<LibraryItem>) -> Result<(), ServiceError> {
-    s.edit_project(ProjectEdit::ImportLibrary { items })
+    s.edit_project(ProjectEdit::Library(LibraryEdit::ImportLibrary { items }))
 }
 
 fn own_kinds(s: &Session) -> Vec<&str> {
@@ -89,11 +89,11 @@ fn file_throne(s: &mut Session) {
 }
 
 fn rename(kind: &str, name: &str, group: &str) -> ProjectEdit {
-    ProjectEdit::EditLibraryItem {
+    ProjectEdit::Library(LibraryEdit::EditLibraryItem {
         kind: kind.into(),
         name: name.into(),
         group: group.into(),
-    }
+    })
 }
 
 /// LH-12: built-in entries have a group, own ones start without.
@@ -167,9 +167,9 @@ fn an_own_object_is_deleted_and_the_deletion_undone() {
     let mut s = open();
     import(&mut s, vec![throne(), pond()]).unwrap();
 
-    s.edit_project(ProjectEdit::RemoveLibraryItem {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::RemoveLibraryItem {
         kind: "thron".into(),
-    })
+    }))
     .unwrap();
 
     assert_eq!(own_kinds(&s), vec!["teich"]);
@@ -184,9 +184,9 @@ fn a_built_in_object_cannot_be_deleted() {
     let mut s = open();
     file_throne(&mut s);
 
-    let result = s.edit_project(ProjectEdit::RemoveLibraryItem {
+    let result = s.edit_project(ProjectEdit::Library(LibraryEdit::RemoveLibraryItem {
         kind: "table".into(),
-    });
+    }));
 
     assert!(matches!(result, Err(ServiceError::Gone)));
     assert_eq!(entry(&s, "table").uses, 1);
@@ -217,9 +217,9 @@ fn placed_objects_survive_their_entry() {
     s.edit_project(rename("thron", "Sessel", "")).unwrap();
     assert_eq!(objects(&s).last().unwrap().label, "Thron");
 
-    s.edit_project(ProjectEdit::RemoveLibraryItem {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::RemoveLibraryItem {
         kind: "thron".into(),
-    })
+    }))
     .unwrap();
 
     let kept = objects(&s).last().unwrap();

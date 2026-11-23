@@ -4,7 +4,7 @@ use super::qobject;
 use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
-use klappe_services::ProjectEdit;
+use klappe_services::{ProjectEdit, TemplateEdit};
 
 impl qobject::Controller {
     pub(super) fn apply_template(mut self: Pin<&mut Self>, id: &QString) -> bool {
@@ -36,13 +36,15 @@ impl qobject::Controller {
     }
 
     pub(super) fn rename_template(self: Pin<&mut Self>, id: &QString, name: &QString) -> bool {
-        self.commit_project(Ok(ProjectEdit::EditTemplate {
+        self.commit_project(Ok(ProjectEdit::Template(TemplateEdit::EditTemplate {
             id: id.to_string(),
             name: name.to_string(),
-        }))
+        })))
     }
 
     pub(super) fn remove_template(self: Pin<&mut Self>, id: &QString) -> bool {
-        self.commit_project(Ok(ProjectEdit::RemoveTemplate { id: id.to_string() }))
+        self.commit_project(Ok(ProjectEdit::Template(TemplateEdit::RemoveTemplate {
+            id: id.to_string(),
+        })))
     }
 }

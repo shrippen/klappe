@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{Character, FigureColor, Project, Scene};
 use klappe_services::{
-    ChangeKind, Field, OnOutside, ProjectEdit, ScriptChange, ServiceError, Session,
+    ChangeKind, Field, NameEdit, OnOutside, ProjectEdit, ScriptChange, ServiceError, Session,
 };
 
 const BOOK: &str = "INT. SAAL – TAG #1#\n\nANNA\nHallo.\n\nALLE\nHallo, Anna!\n\n\
@@ -171,17 +171,17 @@ fn a_mark_no_character_is_added_and_taken_away() {
     let mut s = Session::open(&make("names-none")).unwrap();
     s.edit_project(edit("Anna", &[])).unwrap();
 
-    s.edit_project(ProjectEdit::AddNotFigure {
+    s.edit_project(ProjectEdit::Names(NameEdit::AddNotFigure {
         name: " Anni ".into(),
-    })
+    }))
     .unwrap();
     assert_eq!(s.project().not_figures, ["ALLE", "Anni"]);
     assert!(asked(&s).is_empty());
 
     assert_eq!(s.not_figure_changes("alle"), [unknown("ALLE", 1)]);
-    s.edit_project(ProjectEdit::RemoveNotFigure {
+    s.edit_project(ProjectEdit::Names(NameEdit::RemoveNotFigure {
         name: "alle".into(),
-    })
+    }))
     .unwrap();
     assert_eq!(s.project().not_figures, ["Anni"]);
     assert_eq!(asked(&s), ["ALLE"]);
@@ -193,7 +193,9 @@ fn a_mark_no_character_is_refused_for_a_name_that_is_taken() {
 
     for name in ["bert", "ANNI", "Alle", " "] {
         let err = s
-            .edit_project(ProjectEdit::AddNotFigure { name: name.into() })
+            .edit_project(ProjectEdit::Names(NameEdit::AddNotFigure {
+                name: name.into(),
+            }))
             .unwrap_err();
         assert!(
             matches!(

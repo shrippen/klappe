@@ -6,7 +6,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Field, Layer, Lock, PlanEdit, Point, ProjectEdit, ServiceError, Session, Source, TemplateEntry,
+    Field, Layer, Lock, NameEdit, PlanEdit, Point, ProjectEdit, ServiceError, Session, Source,
+    TemplateEdit, TemplateEntry,
 };
 
 fn example() -> PathBuf {
@@ -132,8 +133,10 @@ fn placeholders_without_a_free_character_make_new_ones() {
 #[test]
 fn a_placeholder_named_as_a_name_marked_no_character_gets_a_number() {
     let mut s = open();
-    s.edit_project(ProjectEdit::AddNotFigure { name: "A".into() })
-        .unwrap();
+    s.edit_project(ProjectEdit::Names(NameEdit::AddNotFigure {
+        name: "A".into(),
+    }))
+    .unwrap();
 
     s.apply_template("shot-reverse", p(10.0, 5.0)).unwrap();
 
@@ -470,14 +473,14 @@ fn ids(s: &Session) -> Vec<String> {
 }
 
 fn rename(id: &str, name: &str) -> ProjectEdit {
-    ProjectEdit::EditTemplate {
+    ProjectEdit::Template(TemplateEdit::EditTemplate {
         id: id.into(),
         name: name.into(),
-    }
+    })
 }
 
 fn remove(id: &str) -> ProjectEdit {
-    ProjectEdit::RemoveTemplate { id: id.into() }
+    ProjectEdit::Template(TemplateEdit::RemoveTemplate { id: id.into() })
 }
 
 #[test]

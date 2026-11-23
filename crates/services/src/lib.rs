@@ -56,7 +56,9 @@ pub use measure::measure_angle_deg;
 pub use number::{read_number, Range, Unit};
 pub use places::{PendingPlace, PlaceChoice, PlaceEdit};
 pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdit, Snapping};
-pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
+pub use project_edit::{
+    BreakdownEdit, LibraryEdit, NameEdit, PlanShift, ProjectEdit, ShotsGo, TemplateEdit,
+};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;

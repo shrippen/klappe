@@ -5,7 +5,8 @@ use crate::manage;
 use core::pin::Pin;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    read_site, read_sun_time, Field, FigureColor, ProjectEdit, ServiceError, Site, SunTime,
+    read_site, read_sun_time, Field, FigureColor, NameEdit, ProjectEdit, ServiceError, Site,
+    SunTime,
 };
 
 impl qobject::Controller {
@@ -139,15 +140,15 @@ impl qobject::Controller {
     }
 
     pub(super) fn add_not_figure(self: Pin<&mut Self>, name: &QString) -> bool {
-        self.commit_project(Ok(ProjectEdit::AddNotFigure {
+        self.commit_project(Ok(ProjectEdit::Names(NameEdit::AddNotFigure {
             name: name.to_string(),
-        }))
+        })))
     }
 
     pub(super) fn remove_not_figure(self: Pin<&mut Self>, name: &QString) -> bool {
-        self.commit_project(Ok(ProjectEdit::RemoveNotFigure {
+        self.commit_project(Ok(ProjectEdit::Names(NameEdit::RemoveNotFigure {
             name: name.to_string(),
-        }))
+        })))
     }
 }
 

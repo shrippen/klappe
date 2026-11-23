@@ -5,7 +5,7 @@ use klappe_model::{CameraPresets, LightPreset};
 use super::Session;
 use crate::error::ServiceError;
 use crate::library;
-use crate::project_edit::ProjectEdit;
+use crate::project_edit::{LibraryEdit, ProjectEdit};
 use crate::views::LibraryEntry;
 
 impl Session {
@@ -46,7 +46,7 @@ impl Session {
         let items = klappe_store::load_library(path)?;
         let before = self.project.library.len();
 
-        self.edit_project(ProjectEdit::ImportLibrary { items })?;
+        self.edit_project(ProjectEdit::Library(LibraryEdit::ImportLibrary { items }))?;
 
         Ok(self.project.library.len() - before)
     }

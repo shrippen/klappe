@@ -104,7 +104,7 @@ mod tests {
     use super::*;
     use crate::bridge::tests::example;
     use crate::bridge::view::choices_json;
-    use klappe_services::{Bend, ElementCategory, FigureColor, ProjectEdit, Source};
+    use klappe_services::{Bend, BreakdownEdit, ElementCategory, FigureColor, ProjectEdit, Source};
 
     /// LH-26: the tooltip of a mark says where the figure appears or leaves.
     #[test]
@@ -346,10 +346,10 @@ mod tests {
     #[test]
     fn describe_names_the_element_an_object_stands_for() {
         let mut s = example();
-        s.edit_project(ProjectEdit::AddElement {
+        s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddElement {
             category: ElementCategory::Prop,
             name: "Tafel".into(),
-        })
+        }))
         .unwrap();
         let element = s.project().elements[0].id.clone();
 
@@ -360,11 +360,11 @@ mod tests {
             (Some("tisch"), Some("saengersaal"))
         );
 
-        s.edit_project(ProjectEdit::SetObjectElement {
+        s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::SetObjectElement {
             location: "saengersaal".into(),
             object: "tisch".into(),
             element: Some(element.clone()),
-        })
+        }))
         .unwrap();
 
         assert_eq!(describe(&s, "object:tisch")["element"], json!(element));

@@ -4,7 +4,9 @@
 use super::qobject;
 use core::pin::Pin;
 use cxx_qt_lib::QString;
-use klappe_services::{ElementCategory, ElementStatus, Field, ProjectEdit, ServiceError};
+use klappe_services::{
+    BreakdownEdit, ElementCategory, ElementStatus, Field, ProjectEdit, ServiceError,
+};
 
 fn category_of(name: &QString) -> Result<ElementCategory, ServiceError> {
     let name = name.to_string();
@@ -40,9 +42,11 @@ fn whole(text: &QString) -> Result<Option<u32>, ServiceError> {
 
 impl qobject::Controller {
     pub(super) fn add_element(self: Pin<&mut Self>, category: &QString, name: &QString) -> bool {
-        let edit = category_of(category).map(|category| ProjectEdit::AddElement {
-            category,
-            name: name.to_string(),
+        let edit = category_of(category).map(|category| {
+            ProjectEdit::Breakdown(BreakdownEdit::AddElement {
+                category,
+                name: name.to_string(),
+            })
         });
         self.commit_project(edit)
     }
@@ -56,19 +60,21 @@ impl qobject::Controller {
         status: &QString,
     ) -> bool {
         let edit = category_of(category).and_then(|category| {
-            Ok(ProjectEdit::EditElement {
+            Ok(ProjectEdit::Breakdown(BreakdownEdit::EditElement {
                 id: id.to_string(),
                 category,
                 name: name.to_string(),
                 description: description.to_string(),
                 status: status_of(status)?,
-            })
+            }))
         });
         self.commit_project(edit)
     }
 
     pub(super) fn remove_element(self: Pin<&mut Self>, id: &QString) -> bool {
-        self.commit_project(Ok(ProjectEdit::RemoveElement { id: id.to_string() }))
+        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::RemoveElement {
+            id: id.to_string(),
+        })))
     }
 
     pub(super) fn set_sheet(
@@ -81,14 +87,14 @@ impl qobject::Controller {
         note: &QString,
     ) -> bool {
         let edit = whole(prestop_s).and_then(|prestop_s| {
-            Ok(ProjectEdit::SetSheet {
+            Ok(ProjectEdit::Breakdown(BreakdownEdit::SetSheet {
                 scene: scene.to_string(),
                 story_day: story_day.to_string(),
                 prestop_s,
                 planned_min: whole(planned_min)?,
                 continuity: continuity.to_string(),
                 note: note.to_string(),
-            })
+            }))
         });
         self.commit_project(edit)
     }
@@ -99,10 +105,12 @@ impl qobject::Controller {
         category: &QString,
         name: &QString,
     ) -> bool {
-        let edit = category_of(category).map(|category| ProjectEdit::AddElementToScene {
-            scene: scene.to_string(),
-            category,
-            name: name.to_string(),
+        let edit = category_of(category).map(|category| {
+            ProjectEdit::Breakdown(BreakdownEdit::AddElementToScene {
+                scene: scene.to_string(),
+                category,
+                name: name.to_string(),
+            })
         });
         self.commit_project(edit)
     }
@@ -112,10 +120,12 @@ impl qobject::Controller {
         scene: &QString,
         element: &QString,
     ) -> bool {
-        self.commit_project(Ok(ProjectEdit::RemoveSceneElement {
-            scene: scene.to_string(),
-            element: element.to_string(),
-        }))
+        self.commit_project(Ok(ProjectEdit::Breakdown(
+            BreakdownEdit::RemoveSceneElement {
+                scene: scene.to_string(),
+                element: element.to_string(),
+            },
+        )))
     }
 
     pub(super) fn take_suggestion(
@@ -123,10 +133,10 @@ impl qobject::Controller {
         scene: &QString,
         element: &QString,
     ) -> bool {
-        self.commit_project(Ok(ProjectEdit::TakeSuggestion {
+        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::TakeSuggestion {
             scene: scene.to_string(),
             element: element.to_string(),
-        }))
+        })))
     }
 
     pub(super) fn exclude_suggestion(
@@ -134,10 +144,12 @@ impl qobject::Controller {
         scene: &QString,
         element: &QString,
     ) -> bool {
-        self.commit_project(Ok(ProjectEdit::ExcludeSuggestion {
-            scene: scene.to_string(),
-            element: element.to_string(),
-        }))
+        self.commit_project(Ok(ProjectEdit::Breakdown(
+            BreakdownEdit::ExcludeSuggestion {
+                scene: scene.to_string(),
+                element: element.to_string(),
+            },
+        )))
     }
 
     pub(super) fn add_scene_character(
@@ -145,10 +157,12 @@ impl qobject::Controller {
         scene: &QString,
         character: &QString,
     ) -> bool {
-        self.commit_project(Ok(ProjectEdit::AddSceneCharacter {
-            scene: scene.to_string(),
-            character: character.to_string(),
-        }))
+        self.commit_project(Ok(ProjectEdit::Breakdown(
+            BreakdownEdit::AddSceneCharacter {
+                scene: scene.to_string(),
+                character: character.to_string(),
+            },
+        )))
     }
 
     pub(super) fn remove_scene_character(
@@ -156,10 +170,12 @@ impl qobject::Controller {
         scene: &QString,
         character: &QString,
     ) -> bool {
-        self.commit_project(Ok(ProjectEdit::RemoveSceneCharacter {
-            scene: scene.to_string(),
-            character: character.to_string(),
-        }))
+        self.commit_project(Ok(ProjectEdit::Breakdown(
+            BreakdownEdit::RemoveSceneCharacter {
+                scene: scene.to_string(),
+                character: character.to_string(),
+            },
+        )))
     }
 
     pub(super) fn set_object_element(
@@ -170,10 +186,12 @@ impl qobject::Controller {
     ) -> bool {
         let element = element.to_string();
 
-        self.commit_project(Ok(ProjectEdit::SetObjectElement {
-            location: location.to_string(),
-            object: object.to_string(),
-            element: Some(element).filter(|e| !e.is_empty()),
-        }))
+        self.commit_project(Ok(ProjectEdit::Breakdown(
+            BreakdownEdit::SetObjectElement {
+                location: location.to_string(),
+                object: object.to_string(),
+                element: Some(element).filter(|e| !e.is_empty()),
+            },
+        )))
     }
 }

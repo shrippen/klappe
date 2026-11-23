@@ -7,6 +7,9 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
+/// The variants of `ProjectEdit` that hold the edits of one area.
+const AREAS: [&str; 4] = ["Names", "Library", "Template", "Breakdown"];
+
 fn read(path: &str) -> String {
     fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(path)).unwrap()
 }
@@ -61,21 +64,41 @@ fn session_steps() -> Vec<String> {
 #[test]
 fn every_step_has_a_text_in_both_languages() {
     // A scan that finds nothing, or misses a name known to be there, must not pass vacuously.
-    let scans = [
+    let scans: [(Vec<String>, &[&str]); 7] = [
         (
             variants("src/plan_edit.rs", "PlanEdit"),
-            ["Remove", "AddObject", "SetLens"],
+            &["Remove", "AddObject", "SetLens"],
         ),
         (
-            variants("src/project_edit.rs", "ProjectEdit"),
-            ["AddScene", "EditCharacter", "RemoveTemplate"],
+            // The variants that hold an area's own edits are no step: the inner one is.
+            variants("src/project_edit.rs", "ProjectEdit")
+                .into_iter()
+                .filter(|n| !AREAS.contains(&n.as_str()))
+                .collect(),
+            &["AddScene", "EditCharacter", "SetNumbering"],
+        ),
+        (
+            variants("src/project_edit/names.rs", "NameEdit"),
+            &["AddNotFigure", "RemoveNotFigure"],
+        ),
+        (
+            variants("src/project_edit/library.rs", "LibraryEdit"),
+            &["ImportLibrary", "RemoveLibraryItem", "EditLibraryItem"],
+        ),
+        (
+            variants("src/project_edit/templates.rs", "TemplateEdit"),
+            &["PlaceTemplate", "RemoveTemplate", "ImportTemplates"],
+        ),
+        (
+            variants("src/project_edit/breakdown.rs", "BreakdownEdit"),
+            &["AddElement", "SetObjectElement", "SetSheet"],
         ),
         (
             session_steps()
                 .into_iter()
                 .filter(|n| !n.is_empty())
                 .collect(),
-            ["AddShot", "RenamePlan", "Retime"],
+            &["AddShot", "RenamePlan", "Retime"],
         ),
     ];
     let mut names: BTreeSet<String> = BTreeSet::new();

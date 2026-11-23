@@ -7,17 +7,23 @@ use klappe_model::{same_character_name, Project};
 use crate::error::ServiceError;
 use crate::field::Field;
 
-use super::ProjectEdit;
+/// The other names of characters and the cues that are no character (DB-50).
+#[derive(Debug, Clone, PartialEq)]
+pub enum NameEdit {
+    /// Marks a cue as no character (DB-50), as `ALLE`: the book stops asking for it. Refused
+    /// when a character answers to it.
+    AddNotFigure { name: String },
+    /// Takes the mark away: the book asks for the cue again.
+    RemoveNotFigure { name: String },
+}
 
-/// `AddNotFigure` and `RemoveNotFigure`; other edits change nothing.
-pub(super) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), ServiceError> {
+pub(super) fn apply(project: &mut Project, edit: &NameEdit) -> Result<(), ServiceError> {
     match edit {
-        ProjectEdit::AddNotFigure { name } => add_not_figure(project, name),
-        ProjectEdit::RemoveNotFigure { name } => {
+        NameEdit::AddNotFigure { name } => add_not_figure(project, name),
+        NameEdit::RemoveNotFigure { name } => {
             remove_not_figure(project, name);
             Ok(())
         }
-        _ => Ok(()),
     }
 }
 

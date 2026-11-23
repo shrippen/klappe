@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{LibraryItem, SetObject};
 use klappe_services::{
-    Field, Language, Layer, Lock, ObjectShape, PlanEdit, Point, ProjectEdit, Role, ServiceError,
-    Session, Shape, Source,
+    Field, Language, Layer, LibraryEdit, Lock, ObjectShape, PlanEdit, Point, ProjectEdit, Role,
+    ServiceError, Session, Shape, Source,
 };
 
 fn example() -> PathBuf {
@@ -111,7 +111,7 @@ fn pond() -> LibraryItem {
 }
 
 fn import(s: &mut Session, items: Vec<LibraryItem>) -> Result<(), ServiceError> {
-    s.edit_project(ProjectEdit::ImportLibrary { items })
+    s.edit_project(ProjectEdit::Library(LibraryEdit::ImportLibrary { items }))
 }
 
 fn own_kinds(s: &Session) -> Vec<&str> {
@@ -240,11 +240,11 @@ fn an_ellipse_object_is_drawn_as_an_ellipse() {
 fn a_placed_object_can_be_filed_in_the_library() {
     let mut s = open();
 
-    s.edit_project(ProjectEdit::LibraryFromObject {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
         location: "saengersaal".into(),
         object: "tisch".into(),
         name: "  Lange Tafel ".into(),
-    })
+    }))
     .unwrap();
 
     assert_eq!(
@@ -273,11 +273,11 @@ fn a_filed_object_keeps_its_current_size_and_shape() {
     let tree = place(&mut s, "tree");
     resize(&mut s, &tree.id, 5.0, 4.0).unwrap();
 
-    s.edit_project(ProjectEdit::LibraryFromObject {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
         location: "saengersaal".into(),
         object: tree.id,
         name: "Alte Eiche".into(),
-    })
+    }))
     .unwrap();
 
     let item = &s.project().library[0];
@@ -290,11 +290,11 @@ fn a_filed_object_keeps_its_current_size_and_shape() {
 fn a_filed_object_gets_a_kind_of_its_own() {
     let mut s = open();
     let mut file = |name: &str| {
-        s.edit_project(ProjectEdit::LibraryFromObject {
+        s.edit_project(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
             location: "saengersaal".into(),
             object: "tisch".into(),
             name: name.into(),
-        })
+        }))
         .unwrap();
     };
 
@@ -309,11 +309,11 @@ fn a_filed_object_gets_a_kind_of_its_own() {
 fn filing_needs_a_name_and_an_object() {
     let mut s = open();
     let mut file = |location: &str, object: &str, name: &str| {
-        s.edit_project(ProjectEdit::LibraryFromObject {
+        s.edit_project(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
             location: location.into(),
             object: object.into(),
             name: name.into(),
-        })
+        }))
     };
 
     assert!(matches!(
@@ -596,11 +596,11 @@ fn a_locked_set_refuses_a_resize_and_the_other_layers_do_not() {
     assert_eq!(objects(&s)[0].width_m, 6.0);
 
     // Filing in the library changes no set: it works behind the lock.
-    s.edit_project(ProjectEdit::LibraryFromObject {
+    s.edit_project(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
         location: "saengersaal".into(),
         object: "tisch".into(),
         name: "Tafel".into(),
-    })
+    }))
     .unwrap();
     assert_eq!(s.project().library.len(), 1);
 }
@@ -615,11 +615,11 @@ fn an_unusable_object_does_not_go_into_the_library() {
     fs::write(&file, text.replacen("depth_m = 1.2", "depth_m = 0.0", 1)).unwrap();
     let mut s = Session::open(&dir).unwrap();
 
-    let laid = s.edit_project(ProjectEdit::LibraryFromObject {
+    let laid = s.edit_project(ProjectEdit::Library(LibraryEdit::LibraryFromObject {
         location: "saengersaal".into(),
         object: "tisch".into(),
         name: "Tisch flach".into(),
-    });
+    }));
 
     assert!(
         matches!(laid, Err(ServiceError::BadValue { .. })),

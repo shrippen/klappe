@@ -4,7 +4,7 @@ use klappe_model::Point;
 
 use super::{Layer, Lock, Session};
 use crate::error::ServiceError;
-use crate::project_edit::ProjectEdit;
+use crate::project_edit::{ProjectEdit, TemplateEdit};
 use crate::templates;
 use crate::views::TemplateEntry;
 
@@ -35,12 +35,12 @@ impl Session {
 
         let (scene, plan) = self.on_view()?;
 
-        self.edit_project(ProjectEdit::PlaceTemplate {
+        self.edit_project(ProjectEdit::Template(TemplateEdit::PlaceTemplate {
             scene,
             plan,
             template: id.to_owned(),
             at,
-        })
+        }))
     }
 
     /// Files the figures and cameras of the plan on view as a template of the project under
@@ -48,11 +48,11 @@ impl Session {
     pub fn save_template(&mut self, name: &str) -> Result<(), ServiceError> {
         let (scene, plan) = self.on_view()?;
 
-        self.edit_project(ProjectEdit::SaveTemplate {
+        self.edit_project(ProjectEdit::Template(TemplateEdit::SaveTemplate {
             scene,
             plan,
             name: name.to_owned(),
-        })
+        }))
     }
 
     /// Takes the templates of the file `path` into the project; one undo step. Returns how many
@@ -62,7 +62,9 @@ impl Session {
         let items = klappe_store::load_template_file(path)?;
         let before = self.project.templates.len();
 
-        self.edit_project(ProjectEdit::ImportTemplates { items })?;
+        self.edit_project(ProjectEdit::Template(TemplateEdit::ImportTemplates {
+            items,
+        }))?;
 
         Ok(self.project.templates.len() - before)
     }

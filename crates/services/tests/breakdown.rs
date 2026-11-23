@@ -8,7 +8,9 @@ use klappe_model::{
     BookState, Character, FigureColor, FloorPlan, Location, Place, Point, Project, Scene,
     SetObject, SetPlan,
 };
-use klappe_services::{ElementCategory, ElementStatus, ProjectEdit, ServiceError, Session};
+use klappe_services::{
+    BreakdownEdit, ElementCategory, ElementStatus, ProjectEdit, ServiceError, Session,
+};
 
 const BOOK: &str = "INT. WACHRAUM – NACHT #14#\n\nANNA\nHallo.\n\n\
 EXT. HAFEN – NACHT #23#\n\nWasser.\n\n";
@@ -103,20 +105,20 @@ fn open(name: &str) -> Session {
 }
 
 fn add(s: &mut Session, category: ElementCategory, name: &str) -> String {
-    s.edit_project(ProjectEdit::AddElement {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddElement {
         category,
         name: name.into(),
-    })
+    }))
     .unwrap();
 
     s.project().elements.last().unwrap().id.clone()
 }
 
 fn to_scene(s: &mut Session, scene: &str, element: &str) {
-    s.edit_project(ProjectEdit::AddSceneElement {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddSceneElement {
         scene: scene.into(),
         element: element.into(),
-    })
+    }))
     .unwrap();
 }
 
@@ -136,11 +138,11 @@ fn numbers(s: &Session) -> Vec<String> {
 }
 
 fn point_at(s: &mut Session, object: &str, element: &str) {
-    s.edit_project(ProjectEdit::SetObjectElement {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::SetObjectElement {
         location: "leuchtturm".into(),
         object: object.into(),
         element: Some(element.into()),
-    })
+    }))
     .unwrap();
 }
 
@@ -165,10 +167,10 @@ fn a_name_is_not_empty_and_not_used_twice_in_a_category() {
     let mut s = open("breakdown-names");
     add(&mut s, ElementCategory::Prop, "Öllampe");
     let again = |s: &mut Session, category, name: &str| {
-        s.edit_project(ProjectEdit::AddElement {
+        s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddElement {
             category,
             name: name.into(),
-        })
+        }))
     };
 
     assert!(matches!(
@@ -189,13 +191,13 @@ fn an_element_is_edited_and_undone() {
     let id = add(&mut s, ElementCategory::Prop, "Lampe");
     let lamp = add(&mut s, ElementCategory::Prop, "Laterne");
 
-    s.edit_project(ProjectEdit::EditElement {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::EditElement {
         id: id.clone(),
         category: ElementCategory::Vehicle,
         name: "Boot".into(),
         description: " rot ".into(),
         status: ElementStatus::Working,
-    })
+    }))
     .unwrap();
     let element = s.project().elements[0].clone();
     assert_eq!(element.category, ElementCategory::Vehicle);
@@ -205,13 +207,13 @@ fn an_element_is_edited_and_undone() {
     assert_eq!(s.undo_step(), Some("EditElement"));
 
     // Renaming into a name of the same category is refused.
-    let clash = s.edit_project(ProjectEdit::EditElement {
+    let clash = s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::EditElement {
         id: lamp,
         category: ElementCategory::Vehicle,
         name: "boot".into(),
         description: String::new(),
         status: ElementStatus::Open,
-    });
+    }));
     assert!(matches!(clash, Err(ServiceError::BadValue { .. })));
 
     s.undo();
@@ -222,14 +224,14 @@ fn an_element_is_edited_and_undone() {
 fn the_sheet_is_set_and_undone() {
     let mut s = open("breakdown-sheet");
 
-    s.edit_project(ProjectEdit::SetSheet {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::SetSheet {
         scene: "aaaa".into(),
         story_day: " Tag 3 ".into(),
         prestop_s: Some(95),
         planned_min: Some(240),
         continuity: "Anna trägt den Mantel".into(),
         note: "Nebelmaschine".into(),
-    })
+    }))
     .unwrap();
     let sheet = sheet(&s, "aaaa");
 
@@ -259,10 +261,10 @@ fn an_element_comes_into_a_scene_and_goes_again() {
     assert_eq!(view.categories[0].elements[0].name, "Öllampe");
     assert_eq!(numbers(&s), ["14"]);
 
-    s.edit_project(ProjectEdit::RemoveSceneElement {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::RemoveSceneElement {
         scene: "aaaa".into(),
         element: id,
-    })
+    }))
     .unwrap();
     assert!(s.overview().sheet.unwrap().categories.is_empty());
     assert!(s.overview().elements[0].scenes.is_empty());
@@ -272,11 +274,11 @@ fn an_element_comes_into_a_scene_and_goes_again() {
 fn the_field_with_suggestions_finds_or_makes_the_element_in_one_step() {
     let mut s = open("breakdown-to-scene");
     let add_to = |s: &mut Session, scene: &str, name: &str| {
-        s.edit_project(ProjectEdit::AddElementToScene {
+        s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddElementToScene {
             scene: scene.into(),
             category: ElementCategory::Costume,
             name: name.into(),
-        })
+        }))
         .unwrap();
     };
 
@@ -312,15 +314,15 @@ fn a_suggestion_comes_from_the_set_and_is_taken_or_turned_down() {
     assert_eq!(found[0].category, "prop");
     assert_eq!(found[0].object, "Öllampe");
 
-    s.edit_project(ProjectEdit::TakeSuggestion {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::TakeSuggestion {
         scene: "aaaa".into(),
         element: lamp.clone(),
-    })
+    }))
     .unwrap();
-    s.edit_project(ProjectEdit::ExcludeSuggestion {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::ExcludeSuggestion {
         scene: "aaaa".into(),
         element: table.clone(),
-    })
+    }))
     .unwrap();
 
     let view = s.overview().sheet.unwrap();
@@ -329,10 +331,10 @@ fn a_suggestion_comes_from_the_set_and_is_taken_or_turned_down() {
     assert_eq!(sheet(&s, "aaaa").excluded, std::slice::from_ref(&table));
 
     // Taking a turned down one lists it and drops the turning down.
-    s.edit_project(ProjectEdit::TakeSuggestion {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::TakeSuggestion {
         scene: "aaaa".into(),
         element: table.clone(),
-    })
+    }))
     .unwrap();
     assert!(sheet(&s, "aaaa").excluded.is_empty());
     assert!(sheet(&s, "aaaa").elements.contains(&table));
@@ -351,17 +353,21 @@ fn removing_an_element_cleans_every_reference() {
     point_at(&mut s, "o2", &table);
     to_scene(&mut s, "aaaa", &lamp);
     to_scene(&mut s, "bbbb", &lamp);
-    s.edit_project(ProjectEdit::ExcludeSuggestion {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::ExcludeSuggestion {
         scene: "aaaa".into(),
         element: table.clone(),
-    })
+    }))
     .unwrap();
 
-    s.edit_project(ProjectEdit::RemoveElement { id: lamp.clone() })
-        .unwrap();
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::RemoveElement {
+        id: lamp.clone(),
+    }))
+    .unwrap();
     assert_eq!(s.undo_step(), Some("RemoveElement"));
-    s.edit_project(ProjectEdit::RemoveElement { id: table.clone() })
-        .unwrap();
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::RemoveElement {
+        id: table.clone(),
+    }))
+    .unwrap();
 
     let project = s.project();
     assert!(project.elements.is_empty());
@@ -379,17 +385,17 @@ fn removing_an_element_cleans_every_reference() {
 fn an_unknown_element_or_scene_is_refused() {
     let mut s = open("breakdown-unknown");
 
-    let no_element = s.edit_project(ProjectEdit::AddSceneElement {
+    let no_element = s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddSceneElement {
         scene: "aaaa".into(),
         element: "weg".into(),
-    });
+    }));
     assert!(matches!(no_element, Err(ServiceError::NoElement(_))));
 
     let id = add(&mut s, ElementCategory::Prop, "Lampe");
-    let no_scene = s.edit_project(ProjectEdit::AddSceneElement {
+    let no_scene = s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddSceneElement {
         scene: "weg".into(),
         element: id,
-    });
+    }));
     assert!(matches!(no_scene, Err(ServiceError::NoScene(_))));
 }
 
@@ -397,10 +403,10 @@ fn an_unknown_element_or_scene_is_refused() {
 fn speaking_characters_come_from_the_book_and_others_are_added() {
     let mut s = open("breakdown-characters");
     let add_character = |s: &mut Session, scene: &str, id: &str| {
-        s.edit_project(ProjectEdit::AddSceneCharacter {
+        s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddSceneCharacter {
             scene: scene.into(),
             character: id.into(),
-        })
+        }))
     };
 
     let view = s.overview().sheet.unwrap();
@@ -432,10 +438,12 @@ fn speaking_characters_come_from_the_book_and_others_are_added() {
         .collect();
     assert_eq!(present, [("bob", 0), ("crowd", 12)]);
 
-    s.edit_project(ProjectEdit::RemoveSceneCharacter {
-        scene: "aaaa".into(),
-        character: "bob".into(),
-    })
+    s.edit_project(ProjectEdit::Breakdown(
+        BreakdownEdit::RemoveSceneCharacter {
+            scene: "aaaa".into(),
+            character: "bob".into(),
+        },
+    ))
     .unwrap();
     assert_eq!(s.overview().sheet.unwrap().present.len(), 1);
 }
@@ -449,10 +457,10 @@ fn the_breakdown_survives_a_save_and_its_files_follow_the_content() {
     let lamp = add(&mut s, ElementCategory::Prop, "Öllampe");
     point_at(&mut s, "o1", &lamp);
     to_scene(&mut s, "aaaa", &lamp);
-    s.edit_project(ProjectEdit::AddSceneCharacter {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddSceneCharacter {
         scene: "aaaa".into(),
         character: "crowd".into(),
-    })
+    }))
     .unwrap();
     s.save(klappe_services::OnOutside::Ask).unwrap();
 
@@ -470,12 +478,16 @@ fn the_breakdown_survives_a_save_and_its_files_follow_the_content() {
 
     // Empty again: the files go.
     let mut s = again;
-    s.edit_project(ProjectEdit::RemoveElement { id: lamp })
-        .unwrap();
-    s.edit_project(ProjectEdit::RemoveSceneCharacter {
-        scene: "aaaa".into(),
-        character: "crowd".into(),
-    })
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::RemoveElement {
+        id: lamp,
+    }))
+    .unwrap();
+    s.edit_project(ProjectEdit::Breakdown(
+        BreakdownEdit::RemoveSceneCharacter {
+            scene: "aaaa".into(),
+            character: "crowd".into(),
+        },
+    ))
     .unwrap();
     s.save(klappe_services::OnOutside::Ask).unwrap();
     assert!(!dir.join("breakdown/elemente.toml").exists());
@@ -504,10 +516,10 @@ fn a_breakdown_file_changed_outside_is_taken_over() {
 #[test]
 fn removing_a_character_takes_it_out_of_every_sheet() {
     let mut s = open("breakdown-character-gone");
-    s.edit_project(ProjectEdit::AddSceneCharacter {
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddSceneCharacter {
         scene: "aaaa".into(),
         character: "crowd".into(),
-    })
+    }))
     .unwrap();
 
     s.edit_project(ProjectEdit::RemoveCharacter { id: "crowd".into() })
