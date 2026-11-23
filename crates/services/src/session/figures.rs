@@ -90,6 +90,7 @@ impl Session {
         }
 
         let before = self.before(FIGURES_FILE)?;
+        self.refuse_lost(&choice)?;
         self.adopt_figures()?;
         // The character may be gone from the file (deleted elsewhere), and with it from here.
         if let FigureChoice::Assign(id) = &choice {
@@ -107,13 +108,6 @@ impl Session {
         };
 
         let mut disk = self.project_with_disk_figures()?;
-        // An alias for a character the file had and lost (deleted elsewhere) would be lost
-        // without a trace. One the session added and not yet saved gets it at the save.
-        if let FigureDelta::Alias { id, .. } = &delta {
-            if self.file_figures.0.iter().any(|c| c.id == *id) && disk.character(id).is_none() {
-                return Err(ServiceError::NoCharacter(id.clone()));
-            }
-        }
         delta.run(&mut disk, Way::Apply);
         klappe_store::save_characters(&self.dir, &disk)?;
 
@@ -124,6 +118,25 @@ impl Session {
         self.rebase(FIGURES_FILE, before)?;
 
         Ok(Answered::Step)
+    }
+
+    /// Refuses an alias for a character the file had when the session last read it and has
+    /// not now (deleted elsewhere): the answer would be lost without a trace. Checked before
+    /// `adopt_figures`, which moves `file_figures` on, so a second try is refused as well. One
+    /// the session added and not yet saved gets the alias at the save.
+    fn refuse_lost(&self, choice: &FigureChoice) -> Result<(), ServiceError> {
+        let FigureChoice::Assign(id) = choice else {
+            return Ok(());
+        };
+        let Ok((on_disk, _)) = klappe_store::load_figures(&self.dir) else {
+            return Ok(());
+        };
+        let known = self.file_figures.0.iter().any(|c| c.id == *id);
+        if known && !on_disk.iter().any(|c| c.id == *id) {
+            return Err(ServiceError::NoCharacter(id.clone()));
+        }
+
+        Ok(())
     }
 
     /// Undo or redo of a figure answer: its entry in `figuren.toml`, in the file as it is on

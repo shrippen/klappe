@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{Character, FigureColor, Project, Scene};
-use klappe_services::{FigureChoice, OnOutside, ProjectEdit, Saved, Session};
+use klappe_services::{FigureChoice, OnOutside, ProjectEdit, Saved, ServiceError, Session};
 
 const BOOK: &str =
     "INT. SAAL – TAG #1#\n\nAnna tritt ein.\n\nANNA\nHallo.\n\nBERT\nJa.\n\nCARL\nNa.\n\n";
@@ -133,4 +133,24 @@ fn an_answer_alone_keeps_the_windows_undo() {
     assert_eq!(found, Default::default());
     assert!(gui.can_undo());
     assert!(gui.project().characters.iter().any(|c| c.name == "Carl"));
+}
+
+#[test]
+fn an_alias_for_a_figure_deleted_outside_is_refused_in_a_conflict() {
+    let dir = two("fig-rule-held-alias");
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Dora")).unwrap();
+    let mut outside = klappe_store::load(&dir).unwrap().project;
+    outside.characters.retain(|c| c.id != "bert");
+    klappe_store::save_characters(&dir, &outside).unwrap();
+
+    // Twice: a refusal must not make the second try pass.
+    for _ in 0..2 {
+        let answered = gui.resolve_figure("CARL", FigureChoice::Assign("bert".into()));
+
+        assert!(
+            matches!(answered, Err(ServiceError::NoCharacter(_))),
+            "{answered:?}"
+        );
+    }
 }
