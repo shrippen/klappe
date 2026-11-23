@@ -15,17 +15,26 @@
 
 use std::collections::BTreeSet;
 
-use klappe_store::{kind_of, FileKind, Loaded, Tree};
+use klappe_store::{file_name, kind_of, FileKind, Loaded, Tree};
 
 use super::Session;
 use crate::error::ServiceError;
 use crate::figure_file;
 use crate::shot_edit;
 
-pub(super) const PROJECT_FILE: &str = "projekt.toml";
-pub(super) const FIGURES_FILE: &str = "figuren.toml";
-pub(super) const REGISTER_FILE: &str = "szenen.toml";
-pub(super) const SCRIPT_FILE: &str = "drehbuch.fountain";
+pub(super) const PROJECT_FILE: &str = single(FileKind::Project);
+pub(super) const FIGURES_FILE: &str = single(FileKind::Figures);
+pub(super) const REGISTER_FILE: &str = single(FileKind::Register);
+pub(super) const SCRIPT_FILE: &str = single(FileKind::Script);
+
+/// The store's name for a kind with one file; the store alone knows file names. A kind with
+/// many files gets "", which `kind_of` never matches (guarded by `single_files_are_named`).
+const fn single(kind: FileKind) -> &'static str {
+    match file_name(kind) {
+        Some(name) => name,
+        None => "",
+    }
+}
 
 /// What `save` does when a file changed outside and in the session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -460,4 +469,23 @@ fn changes(disk: &Tree, now: &Tree) -> Vec<(String, Option<Vec<u8>>)> {
         .map(|name| (name.clone(), None));
 
     written.chain(removed).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn single_files_are_named() {
+        let files = [
+            (PROJECT_FILE, FileKind::Project),
+            (FIGURES_FILE, FileKind::Figures),
+            (REGISTER_FILE, FileKind::Register),
+            (SCRIPT_FILE, FileKind::Script),
+        ];
+
+        for (name, kind) in files {
+            assert_eq!(kind_of(name), Some(kind));
+        }
+    }
 }
