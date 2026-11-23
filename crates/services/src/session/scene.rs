@@ -1,10 +1,12 @@
-use klappe_model::{FloorPlan, Project, Scene};
+use std::collections::HashSet;
+
+use klappe_model::{ElementCategory, FloorPlan, Project, Scene, Site};
 
 use super::undo::{next_edit, step_name};
 use super::Session;
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit};
-use crate::project_edit::{self, PlanShift, ProjectEdit, ShotsGo};
+use crate::project_edit::{self, BreakdownEdit, PlanShift, ProjectEdit, ShotsGo};
 use crate::scene_location;
 use crate::script_refs;
 
@@ -142,6 +144,56 @@ impl Session {
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
         Ok(())
+    }
+
+    /// Adds the element and returns its id; undoable. Refused like `AddElement`.
+    pub fn add_element(
+        &mut self,
+        category: ElementCategory,
+        name: &str,
+    ) -> Result<String, ServiceError> {
+        let edit = ProjectEdit::Breakdown(BreakdownEdit::AddElement {
+            category,
+            name: name.to_owned(),
+        });
+
+        self.add_and_name(edit, |p| p.elements.iter().map(|e| e.id.as_str()).collect())
+    }
+
+    /// Adds the location and returns its id; undoable. Refused like `AddLocation`.
+    pub fn add_location(
+        &mut self,
+        name: &str,
+        size_m: (f64, f64),
+        wall_height_m: f64,
+        site: Option<Site>,
+    ) -> Result<String, ServiceError> {
+        let edit = ProjectEdit::AddLocation {
+            name: name.to_owned(),
+            width_m: size_m.0,
+            depth_m: size_m.1,
+            wall_height_m,
+            site,
+        };
+
+        self.add_and_name(edit, |p| {
+            p.locations.iter().map(|l| l.id.as_str()).collect()
+        })
+    }
+
+    /// Applies an edit that adds one entry and returns the id `ids` did not list before it.
+    fn add_and_name(
+        &mut self,
+        edit: ProjectEdit,
+        ids: impl Fn(&Project) -> Vec<&str>,
+    ) -> Result<String, ServiceError> {
+        let known: HashSet<String> = ids(&self.project).into_iter().map(str::to_owned).collect();
+        self.edit_project(edit)?;
+
+        let added = ids(&self.project)
+            .into_iter()
+            .find(|id| !known.contains(*id));
+        Ok(added.unwrap_or_default().to_owned())
     }
 
     /// The scene `edit` added is the one the session did not have: where it is shot already

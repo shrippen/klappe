@@ -1091,7 +1091,8 @@ pub mod qobject {
         fn remove_scene(self: Pin<&mut Self>, id: &QString) -> bool;
 
         /// Sizes and the room height are text in metres (`8,5`); `site` is a JSON array of the
-        /// texts latitude, longitude and north in degrees, all blank is no place (LH-52).
+        /// texts latitude, longitude and north in degrees, all blank is no place (LH-52). Returns the
+        /// new location's id, empty when refused.
         #[qinvokable]
         #[cxx_name = "addLocation"]
         fn add_location(
@@ -1101,7 +1102,7 @@ pub mod qobject {
             depth: &QString,
             height: &QString,
             site: &QString,
-        ) -> bool;
+        ) -> QString;
 
         #[qinvokable]
         #[cxx_name = "editLocation"]
@@ -1195,10 +1196,11 @@ pub mod qobject {
         #[cxx_name = "shootSceneAt"]
         fn shoot_scene_at(self: Pin<&mut Self>, location: &QString) -> bool;
 
-        /// A new element of the breakdown (D-22); `category` is a name as `prop`.
+        /// A new element of the breakdown (D-22); `category` is a name as `prop`. Returns its id,
+        /// empty when refused.
         #[qinvokable]
         #[cxx_name = "addElement"]
-        fn add_element(self: Pin<&mut Self>, category: &QString, name: &QString) -> bool;
+        fn add_element(self: Pin<&mut Self>, category: &QString, name: &QString) -> QString;
 
         #[qinvokable]
         #[cxx_name = "editElement"]

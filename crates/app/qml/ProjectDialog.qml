@@ -41,10 +41,9 @@ Item {
     readonly property real dialogUnits: 64
 
     // A location made from the plan's empty state (D-21) goes to this scripted location, or to
-    // the scene on view when `""`; `knownLocations` are the ids that were there before.
+    // the scene on view when `""`.
     property bool assigning: false
     property string assignPlace: ""
-    property var knownLocations: []
 
     // The form is for a new entry, not for the selected one.
     property bool adding: false
@@ -70,20 +69,19 @@ Item {
         locationForm.preset(name)
         assigning = true
         assignPlace = place
-        knownLocations = project.locations.map(l => l.id)
     }
 
-    // Gives the location that was just added to what asked for it, and closes the dialog.
-    function assignNew() {
-        const made = project.locations.find(l => !knownLocations.includes(l.id))
+    // Gives the location `id` that was just added to what asked for it, and closes the dialog.
+    function assignNew(id) {
         assigning = false
-        if (!made) {
+        // An edit answers true, not the id of a new location.
+        if (typeof id !== "string") {
             return
         }
         const place = places.find(p => p.id === assignPlace)
         const done = place
-            ? controller.editPlace(place.id, place.name, JSON.stringify(place.variants), made.id)
-            : controller.shootSceneAt(made.id)
+            ? controller.editPlace(place.id, place.name, JSON.stringify(place.variants), id)
+            : controller.shootSceneAt(id)
         if (done) {
             dialog.close()
         }
@@ -267,10 +265,10 @@ Item {
                         texts: root.texts
                         controller: root.controller
                         item: root.adding ? null : locationList.current
-                        onDone: {
+                        onDone: result => {
                             root.finished(locationList)
                             if (root.assigning) {
-                                root.assignNew()
+                                root.assignNew(result)
                             }
                         }
                     }

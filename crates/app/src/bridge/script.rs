@@ -45,24 +45,28 @@ impl qobject::Controller {
         self.commit_project(Ok(ProjectEdit::RemoveScene { id: id.to_string() }))
     }
 
+    /// The new location's id; empty when it was refused.
     pub(super) fn add_location(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         name: &QString,
         width: &QString,
         depth: &QString,
         height: &QString,
         site: &QString,
-    ) -> bool {
-        let edit = sizes(width, depth, height).and_then(|(width_m, depth_m, wall_height_m)| {
-            Ok(ProjectEdit::AddLocation {
-                name: name.to_string(),
-                width_m,
-                depth_m,
-                wall_height_m,
-                site: site_of(site)?,
-            })
+    ) -> QString {
+        let input = sizes(width, depth, height).and_then(|(width_m, depth_m, wall_height_m)| {
+            Ok((width_m, depth_m, wall_height_m, site_of(site)?))
         });
-        self.commit_project(edit)
+        let (width_m, depth_m, wall_height_m, site) = match input {
+            Ok(input) => input,
+            Err(e) => return self.made(Some(Err(e))),
+        };
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.add_location(&name.to_string(), (width_m, depth_m), wall_height_m, site));
+
+        self.made(result)
     }
 
     pub(super) fn edit_location(

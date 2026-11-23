@@ -41,14 +41,22 @@ fn whole(text: &QString) -> Result<Option<u32>, ServiceError> {
 }
 
 impl qobject::Controller {
-    pub(super) fn add_element(self: Pin<&mut Self>, category: &QString, name: &QString) -> bool {
-        let edit = category_of(category).map(|category| {
-            ProjectEdit::Breakdown(BreakdownEdit::AddElement {
-                category,
-                name: name.to_string(),
-            })
-        });
-        self.commit_project(edit)
+    /// The new element's id; empty when it was refused.
+    pub(super) fn add_element(
+        mut self: Pin<&mut Self>,
+        category: &QString,
+        name: &QString,
+    ) -> QString {
+        let category = match category_of(category) {
+            Ok(category) => category,
+            Err(e) => return self.made(Some(Err(e))),
+        };
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.add_element(category, &name.to_string()));
+
+        self.made(result)
     }
 
     pub(super) fn edit_element(
