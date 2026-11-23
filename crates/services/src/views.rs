@@ -476,10 +476,10 @@ pub struct SceneRef {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SheetView {
     pub story_day: String,
-    /// The pre-stop in seconds.
-    pub prestop_s: Option<u32>,
-    /// The planned shooting time in minutes.
-    pub planned_min: Option<u32>,
+    /// The pre-stop as `m:ss`, empty for none.
+    pub prestop_text: String,
+    /// The planned shooting time as `h:mm`, empty for none.
+    pub planned_text: String,
     pub continuity: String,
     pub note: String,
     /// The characters with a cue in the book, in the order of their first cue.

@@ -9,7 +9,7 @@ use klappe_model::{
     SetObject, SetPlan,
 };
 use klappe_services::{
-    BreakdownEdit, ElementCategory, ElementStatus, ProjectEdit, ServiceError, Session,
+    BreakdownEdit, ElementCategory, ElementStatus, Field, ProjectEdit, ServiceError, Session,
 };
 
 const BOOK: &str = "INT. WACHRAUM – NACHT #14#\n\nANNA\nHallo.\n\n\
@@ -227,8 +227,8 @@ fn the_sheet_is_set_and_undone() {
     s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::SetSheet {
         scene: "aaaa".into(),
         story_day: " Tag 3 ".into(),
-        prestop_s: Some(95),
-        planned_min: Some(240),
+        prestop: "1:35".into(),
+        planned: "240".into(),
         continuity: "Anna trägt den Mantel".into(),
         note: "Nebelmaschine".into(),
     }))
@@ -239,11 +239,43 @@ fn the_sheet_is_set_and_undone() {
     assert_eq!(sheet.prestop_s, Some(95));
     assert_eq!(sheet.planned_min, Some(240));
     let view = s.overview().sheet.unwrap();
+    assert_eq!(view.prestop_text, "1:35");
+    assert_eq!(view.planned_text, "4:00");
     assert_eq!(view.continuity, "Anna trägt den Mantel");
     assert_eq!(view.note, "Nebelmaschine");
 
     s.undo();
     assert!(self::sheet(&s, "aaaa").is_empty());
+}
+
+#[test]
+fn a_sheet_time_that_is_none_is_refused_by_its_field() {
+    let mut s = open("breakdown-sheet-time");
+    let mut set = |prestop: &str, planned: &str| {
+        s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::SetSheet {
+            scene: "aaaa".into(),
+            story_day: String::new(),
+            prestop: prestop.into(),
+            planned: planned.into(),
+            continuity: String::new(),
+            note: String::new(),
+        }))
+    };
+
+    assert!(matches!(
+        set("1:7x", ""),
+        Err(ServiceError::BadValue {
+            field: Field::Prestop,
+            ..
+        })
+    ));
+    assert!(matches!(
+        set("", "1:60"),
+        Err(ServiceError::BadValue {
+            field: Field::Planned,
+            ..
+        })
+    ));
 }
 
 #[test]

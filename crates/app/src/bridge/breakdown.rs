@@ -21,22 +21,8 @@ fn status_of(name: &QString) -> Result<ElementStatus, ServiceError> {
     let name = name.to_string();
 
     ElementStatus::from_name(&name).ok_or(ServiceError::BadValue {
-        field: Field::Kind,
+        field: Field::Status,
         value: name,
-    })
-}
-
-/// A whole number typed in a sheet field; empty is none.
-fn whole(text: &QString) -> Result<Option<u32>, ServiceError> {
-    let text = text.to_string();
-    let typed = text.trim();
-    if typed.is_empty() {
-        return Ok(None);
-    }
-
-    typed.parse().map(Some).map_err(|_| ServiceError::BadValue {
-        field: Field::Time,
-        value: typed.to_owned(),
     })
 }
 
@@ -81,22 +67,19 @@ impl qobject::Controller {
         self: Pin<&mut Self>,
         scene: &QString,
         story_day: &QString,
-        prestop_s: &QString,
-        planned_min: &QString,
+        prestop: &QString,
+        planned: &QString,
         continuity: &QString,
         note: &QString,
     ) -> bool {
-        let edit = whole(prestop_s).and_then(|prestop_s| {
-            Ok(ProjectEdit::Breakdown(BreakdownEdit::SetSheet {
-                scene: scene.to_string(),
-                story_day: story_day.to_string(),
-                prestop_s,
-                planned_min: whole(planned_min)?,
-                continuity: continuity.to_string(),
-                note: note.to_string(),
-            }))
-        });
-        self.commit_project(edit)
+        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::SetSheet {
+            scene: scene.to_string(),
+            story_day: story_day.to_string(),
+            prestop: prestop.to_string(),
+            planned: planned.to_string(),
+            continuity: continuity.to_string(),
+            note: note.to_string(),
+        })))
     }
 
     pub(super) fn add_element_to_scene(

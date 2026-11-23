@@ -1200,16 +1200,16 @@ pub mod qobject {
         #[cxx_name = "removeElement"]
         fn remove_element(self: Pin<&mut Self>, id: &QString) -> bool;
 
-        /// What the sheet of scene `scene` says besides its lists. `prestop_s` and
-        /// `planned_min` are whole numbers as text, empty for none.
+        /// What the sheet of scene `scene` says besides its lists. `prestop` is `m:ss` or
+        /// seconds and `planned` `h:mm` or minutes, as typed; empty is none.
         #[qinvokable]
         #[cxx_name = "setSheet"]
         fn set_sheet(
             self: Pin<&mut Self>,
             scene: &QString,
             story_day: &QString,
-            prestop_s: &QString,
-            planned_min: &QString,
+            prestop: &QString,
+            planned: &QString,
             continuity: &QString,
             note: &QString,
         ) -> bool;
