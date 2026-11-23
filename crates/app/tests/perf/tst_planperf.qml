@@ -77,6 +77,34 @@ TestCase {
         return times[Math.floor(frames / 2)]
     }
 
+    // Median milliseconds of frames that change how many captions there are, as when a figure
+    // enters or leaves during playback: the plan alternates with one object fewer and two
+    // captioned marks more.
+    function changeMs(shapes) {
+        const other = shapes.slice(1)
+        other.push({ kind: "circle", points: [2, 2], radius: 0.22, label: "red", text: "X", key: "mark:x1" },
+                   { kind: "circle", points: [3, 3], radius: 0.22, label: "red", text: "Y", key: "mark:x2" })
+        const times = []
+        canvas.shapes = shapes
+        grabImage(canvas)
+
+        for (let i = 0; i < frames; ++i) {
+            const start = Date.now()
+            canvas.shapes = (i % 2 ? shapes : other).slice()
+            grabImage(canvas)
+            times.push(Date.now() - start)
+        }
+        times.sort((a, b) => a - b)
+        return times[Math.floor(frames / 2)]
+    }
+
+    function test_a_frame_with_other_captions_is_fast() {
+        const median = changeMs(bigPlan())
+
+        console.log("perf canvas caption change:", median, "ms (median)")
+        verify(median < limitMs, "frame took " + median + " ms, limit " + limitMs)
+    }
+
     function test_a_frame_of_the_large_plan_is_fast() {
         const plan = bigPlan()
         // An empty plan still costs the grid and the grab: what a frame has at least.
