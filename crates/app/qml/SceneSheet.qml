@@ -49,30 +49,6 @@ Flickable {
     }
     onSheetChanged: fill()
 
-    // The pre-stop as typed: `m:ss`.
-    function showPrestop(seconds) {
-        return seconds === null ? "" : Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
-    }
-
-    // The planned time as typed: `h:mm`.
-    function showPlanned(minutes) {
-        return minutes === null ? "" : Math.floor(minutes / 60) + ":" + String(minutes % 60).padStart(2, "0")
-    }
-
-    // `text` as a count of `unit` (`m:ss` is seconds, `h:mm` minutes; a plain number is already
-    // in the unit): null for empty, NaN for text that is none.
-    function readClock(text, unit) {
-        const typed = text.trim()
-        if (typed === "") {
-            return null
-        }
-        const clock = /^(\d+):([0-5]\d)$/.exec(typed)
-        if (clock) {
-            return Number(clock[1]) * unit + Number(clock[2])
-        }
-        return /^\d+$/.test(typed) ? Number(typed) : NaN
-    }
-
     // The fields show the sheet, except the one being typed in.
     function fill() {
         if (!sheet) {
@@ -80,8 +56,8 @@ Flickable {
         }
         const shown = [
             [dayField, sheet.story_day],
-            [prestopField, showPrestop(sheet.prestop_s)],
-            [plannedField, showPlanned(sheet.planned_min)],
+            [prestopField, sheet.prestop_text],
+            [plannedField, sheet.planned_text],
             [continuityField, sheet.continuity],
             [noteField, sheet.note]
         ]
@@ -93,27 +69,22 @@ Flickable {
         }
     }
 
-    // Sends the sheet when a field differs from it; a time that is none marks its field.
+    // Sends the sheet when a field differs from it; the session reads the times and the field
+    // it refuses is marked.
     function commit() {
         if (!sheet || !scene) {
             return
         }
-        const prestop = readClock(prestopField.text, 60)
-        const planned = readClock(plannedField.text, 60)
-        prestopField.invalid = Number.isNaN(prestop)
-        plannedField.invalid = Number.isNaN(planned)
-        if (prestopField.invalid || plannedField.invalid) {
-            return
-        }
-
-        const same = dayField.text === sheet.story_day && prestop === sheet.prestop_s
-            && planned === sheet.planned_min && continuityField.text === sheet.continuity
+        const same = dayField.text === sheet.story_day && prestopField.text === sheet.prestop_text
+            && plannedField.text === sheet.planned_text && continuityField.text === sheet.continuity
             && noteField.text === sheet.note
         if (same) {
             return
         }
-        controller.setSheet(scene.id, dayField.text, prestop === null ? "" : String(prestop),
-                            planned === null ? "" : String(planned), continuityField.text, noteField.text)
+        const refused = controller.setSheet(scene.id, dayField.text, prestopField.text, plannedField.text,
+                                            continuityField.text, noteField.text)
+        prestopField.invalid = refused === "prestop"
+        plannedField.invalid = refused === "planned"
     }
 
     function statusText(status) {

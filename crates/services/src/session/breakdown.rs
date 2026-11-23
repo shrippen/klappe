@@ -11,6 +11,7 @@ use crate::error::ServiceError;
 use crate::field::Field;
 use crate::project_edit::{BreakdownEdit, ProjectEdit};
 use crate::script_refs;
+use crate::sheet_time::{show_planned, show_prestop};
 use crate::views::{
     ElementRow, SceneRef, SheetCategory, SheetElement, SheetFigure, SheetView, Suggestion,
 };
@@ -100,8 +101,8 @@ impl Session {
 
         Some(SheetView {
             story_day: sheet.story_day.clone(),
-            prestop_s: sheet.prestop_s,
-            planned_min: sheet.planned_min,
+            prestop_text: show_prestop(sheet.prestop_s),
+            planned_text: show_planned(sheet.planned_min),
             continuity: sheet.continuity.clone(),
             note: sheet.note.clone(),
             speaking: spoken.map(figure).collect(),

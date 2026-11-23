@@ -7,6 +7,7 @@ use klappe_model::{
 
 use crate::error::ServiceError;
 use crate::field::Field;
+use crate::sheet_time::{read_planned, read_prestop};
 
 /// Edits of the breakdown: elements and scene sheets (DB-60, D-22).
 #[derive(Debug, Clone, PartialEq)]
@@ -32,8 +33,10 @@ pub enum BreakdownEdit {
     SetSheet {
         scene: String,
         story_day: String,
-        prestop_s: Option<u32>,
-        planned_min: Option<u32>,
+        /// As typed: `m:ss` or seconds, empty for none.
+        prestop: String,
+        /// As typed: `h:mm` or minutes, empty for none.
+        planned: String,
         continuity: String,
         note: String,
     },
@@ -97,8 +100,8 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
         BreakdownEdit::SetSheet {
             scene,
             story_day,
-            prestop_s,
-            planned_min,
+            prestop,
+            planned,
             continuity,
             note,
         } => set_sheet(
@@ -106,8 +109,8 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
             scene,
             SheetText {
                 story_day,
-                prestop_s: *prestop_s,
-                planned_min: *planned_min,
+                prestop,
+                planned,
                 continuity,
                 note,
             },
@@ -261,17 +264,19 @@ fn remove_element(project: &mut Project, id: &str) -> Result<(), ServiceError> {
 /// What `SetSheet` says; the text is trimmed when it is stored.
 struct SheetText<'a> {
     story_day: &'a str,
-    prestop_s: Option<u32>,
-    planned_min: Option<u32>,
+    prestop: &'a str,
+    planned: &'a str,
     continuity: &'a str,
     note: &'a str,
 }
 
 fn set_sheet(project: &mut Project, scene: &str, text: SheetText) -> Result<(), ServiceError> {
+    let prestop_s = read_prestop(text.prestop)?;
+    let planned_min = read_planned(text.planned)?;
     let sheet = sheet_mut(project, scene)?;
     sheet.story_day = text.story_day.trim().to_owned();
-    sheet.prestop_s = text.prestop_s;
-    sheet.planned_min = text.planned_min;
+    sheet.prestop_s = prestop_s;
+    sheet.planned_min = planned_min;
     sheet.continuity = text.continuity.trim().to_owned();
     sheet.note = text.note.trim().to_owned();
 

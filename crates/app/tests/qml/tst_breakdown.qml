@@ -38,7 +38,7 @@ TestCase {
                 { id: "e3", category: "costume", name: "Ballkleid", description: "", status: "ready", scenes: [{ id: "s1", number: "1" }, { id: "s2", number: "2" }] }
             ],
             sheet: {
-                story_day: "3", prestop_s: 90, planned_min: 120, continuity: "Brief links", note: "Nachtdreh",
+                story_day: "3", prestop_text: "1:30", planned_text: "2:00", continuity: "Brief links", note: "Nachtdreh",
                 speaking: [{ id: "anna", name: "Anna", color: "purple", group: 0 }],
                 present: [{ id: "fischer", name: "Fischer", color: "green", group: 3 }],
                 categories: [{ category: "prop", elements: [{ id: "e1", name: "Brief", status: "open" }] }],
@@ -53,7 +53,14 @@ TestCase {
         }
         function clearStatus() { status = "" }
         function selectScene(id) { sceneId = id; return call("selectScene", [id]) }
-        function setSheet(s, d, p, m, c, n) { return call("setSheet", [s, d, p, m, c, n]) }
+        function setSheet(s, d, p, m, c, n) {
+            call("setSheet", [s, d, p, m, c, n])
+            // Like the bridge: the name of the refused field, empty when accepted.
+            if (p === "1:99") {
+                return "prestop"
+            }
+            return m === "1:99" ? "planned" : ""
+        }
         function addElementToScene(s, c, n) { return call("addElementToScene", [s, c, n]) }
         function removeSceneElement(s, e) { return call("removeSceneElement", [s, e]) }
         function takeSuggestion(s, e) { return call("takeSuggestion", [s, e]) }
@@ -122,21 +129,21 @@ TestCase {
         compare(findChild(s, "noteField").text, "Nachtdreh")
     }
 
-    function test_the_pre_stop_goes_in_as_seconds() {
+    function test_the_pre_stop_goes_in_as_typed() {
         const s = sheet()
 
         type(findChild(s, "prestopField"), "2:05")
 
-        compare(fake.calls, [["setSheet", "s1", "3", "125", "120", "Brief links", "Nachtdreh"]])
+        compare(fake.calls, [["setSheet", "s1", "3", "2:05", "2:00", "Brief links", "Nachtdreh"]])
     }
 
-    function test_the_planned_time_goes_in_as_minutes() {
+    function test_the_planned_time_goes_in_as_typed() {
         const s = sheet()
 
         type(findChild(s, "plannedField"), "1:45")
         type(findChild(s, "plannedField"), "45")
 
-        compare(fake.calls[0][4], "105")
+        compare(fake.calls[0][4], "1:45")
         compare(fake.calls[1][4], "45")
     }
 
@@ -145,7 +152,7 @@ TestCase {
 
         type(findChild(s, "prestopField"), "")
 
-        compare(fake.calls, [["setSheet", "s1", "3", "", "120", "Brief links", "Nachtdreh"]])
+        compare(fake.calls, [["setSheet", "s1", "3", "", "2:00", "Brief links", "Nachtdreh"]])
     }
 
     function test_a_text_field_sends_the_whole_sheet() {
@@ -153,16 +160,25 @@ TestCase {
 
         type(findChild(s, "noteField"), "Früh")
 
-        compare(fake.calls, [["setSheet", "s1", "3", "90", "120", "Brief links", "Früh"]])
+        compare(fake.calls, [["setSheet", "s1", "3", "1:30", "2:00", "Brief links", "Früh"]])
     }
 
-    function test_a_time_that_is_none_is_marked_and_not_sent() {
+    function test_a_time_the_session_refuses_is_marked() {
         const s = sheet()
 
         type(findChild(s, "prestopField"), "1:99")
 
         verify(findChild(s, "prestopField").invalid)
-        compare(fake.calls.length, 0)
+        verify(!findChild(s, "plannedField").invalid)
+    }
+
+    function test_a_refused_planned_time_marks_only_itself() {
+        const s = sheet()
+
+        type(findChild(s, "plannedField"), "1:99")
+
+        verify(findChild(s, "plannedField").invalid)
+        verify(!findChild(s, "prestopField").invalid)
     }
 
     function test_nothing_changed_sends_nothing() {
