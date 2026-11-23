@@ -202,6 +202,8 @@ fn ordered(changes: &[Change]) -> Vec<(&str, Option<&[u8]>)> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn file_names_round_trip() {
         let kinds = [
@@ -218,8 +220,6 @@ mod tests {
             assert_eq!(kind_of(name), Some(kind));
         }
     }
-
-    use super::*;
 
     fn change(name: &str, write: bool) -> Change {
         (name.to_owned(), write.then(|| b"x".to_vec()))
