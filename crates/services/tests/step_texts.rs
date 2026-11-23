@@ -104,3 +104,41 @@ fn every_step_has_a_text_in_both_languages() {
         );
     }
 }
+
+/// The breakdown lists show `elementCategory.<name>` and `elementStatus.<name>`; `ALL` holds
+/// every variant, or the scene sheet leaves a category's elements out without a word.
+#[test]
+fn every_element_name_has_a_text_in_both_languages() {
+    use klappe_services::{ElementCategory, ElementStatus};
+
+    const SOURCE: &str = "../model/src/breakdown.rs";
+    assert_eq!(
+        variants(SOURCE, "ElementCategory").len(),
+        ElementCategory::ALL.len()
+    );
+    assert_eq!(
+        variants(SOURCE, "ElementStatus").len(),
+        ElementStatus::ALL.len()
+    );
+
+    let keys: Vec<String> = ElementCategory::ALL
+        .iter()
+        .map(|c| format!("elementCategory.{}", c.name()))
+        .chain(
+            ElementStatus::ALL
+                .iter()
+                .map(|s| format!("elementStatus.{}", s.name())),
+        )
+        .collect();
+
+    for language in ["de", "en"] {
+        let catalogue: serde_json::Value =
+            serde_json::from_str(&read(&format!("i18n/{language}.json"))).unwrap();
+        let missing: Vec<_> = keys
+            .iter()
+            .filter(|k| catalogue.get(k.as_str()).is_none())
+            .collect();
+
+        assert!(missing.is_empty(), "{language} lacks {missing:?}");
+    }
+}
