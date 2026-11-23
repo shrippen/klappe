@@ -42,7 +42,10 @@ TestCase {
                 speaking: [{ id: "anna", name: "Anna", color: "purple", group: 0 }],
                 present: [{ id: "fischer", name: "Fischer", color: "green", group: 3 }],
                 categories: [{ category: "prop", elements: [{ id: "e1", name: "Brief", status: "open" }] }],
-                suggestions: [{ element: "e2", name: "Kerze", category: "prop", object: "Kerzenleuchter" }]
+                suggestions: [
+                    { element: "e2", name: "Kerze", category: "prop", object: "Kerzenleuchter" },
+                    { element: "e3", name: "Ballkleid", category: "costume", object: null }
+                ]
             }
         })
         property string projectJson: fixture
@@ -281,6 +284,13 @@ TestCase {
         findChild(row, "suggestionChip").removeRequested()
 
         compare(fake.calls, [["takeSuggestion", "s1", "e2"], ["excludeSuggestion", "s1", "e2"]])
+    }
+
+    // D-23: a suggestion without an object comes from the scene's text.
+    function test_a_suggestion_from_the_text_says_so() {
+        const row = findChild(sheet(), "suggestion.e3")
+
+        verify(findChild(row, "suggestionChip").toolTip.includes("steht im Text der Szene"))
     }
 
     function test_without_a_scene_the_sheet_says_so() {

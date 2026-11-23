@@ -488,9 +488,30 @@ pub struct SheetView {
     pub present: Vec<SheetFigure>,
     /// The categories that have elements in this scene, in the order of `element_categories`.
     pub categories: Vec<SheetCategory>,
-    /// Objects of the set the scene is shot on that stand for an element the sheet neither
-    /// lists nor turned down.
+    /// Elements the sheet neither lists nor turned down that the set offers or whose name
+    /// stands in the scene's text (D-23).
     pub suggestions: Vec<Suggestion>,
+    /// The scene's text to mark elements in (D-23), one entry per line.
+    pub text: Vec<TextLine>,
+}
+
+/// A line of a scene's text on the scene sheet (D-23).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TextLine {
+    /// `action`, `cue`, `parenthetical`, `dialogue`, `transition`, `centered` or `lyrics`.
+    pub kind: &'static str,
+    /// The line in pieces, marked and not; joined they are the line.
+    pub runs: Vec<TextRun>,
+}
+
+/// A piece of a line: marked as an element or not.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TextRun {
+    pub text: String,
+    /// The element's id; `None` for text not marked.
+    pub element: Option<String>,
+    /// The element's category, e.g. `prop`.
+    pub category: Option<&'static str>,
 }
 
 /// A character on a scene sheet.
@@ -517,6 +538,8 @@ pub struct SheetElement {
     pub id: String,
     pub name: String,
     pub status: &'static str,
+    /// It was marked in the scene's text and no mark is found there any more (D-23).
+    pub lost: bool,
 }
 
 /// An element the set of the scene offers through one of its objects.
@@ -526,8 +549,8 @@ pub struct Suggestion {
     pub element: String,
     pub name: String,
     pub category: &'static str,
-    /// The label of the object that stands for it.
-    pub object: String,
+    /// The label of the set object that stands for it; `None`: its name is in the text.
+    pub object: Option<String>,
 }
 
 /// One saved view of the View menu and the palette (LH-119).

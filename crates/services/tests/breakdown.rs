@@ -338,7 +338,7 @@ fn a_suggestion_comes_from_the_set_and_is_taken_or_turned_down() {
     assert_eq!(found[0].element, lamp);
     assert_eq!(found[0].name, "Öllampe");
     assert_eq!(found[0].category, "prop");
-    assert_eq!(found[0].object, "Öllampe");
+    assert_eq!(found[0].object.as_deref(), Some("Öllampe"));
 
     s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::TakeSuggestion {
         scene: "aaaa".into(),

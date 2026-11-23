@@ -28,6 +28,8 @@ pub enum Field {
     Latitude,
     Lens,
     Longitude,
+    /// Words marked in a scene's text (D-23).
+    Mark,
     Movement,
     Name,
     North,
@@ -61,7 +63,7 @@ pub enum Field {
 }
 
 impl Field {
-    pub const ALL: [Field; 55] = [
+    pub const ALL: [Field; 56] = [
         Self::Alias,
         Self::Angle,
         Self::Aspect,
@@ -87,6 +89,7 @@ impl Field {
         Self::Latitude,
         Self::Lens,
         Self::Longitude,
+        Self::Mark,
         Self::Movement,
         Self::Name,
         Self::North,
@@ -147,6 +150,7 @@ impl Field {
             Self::Latitude => "latitude",
             Self::Lens => "lens",
             Self::Longitude => "longitude",
+            Self::Mark => "mark",
             Self::Movement => "movement",
             Self::Name => "name",
             Self::North => "north",

@@ -39,6 +39,7 @@ mod shots;
 mod sketch;
 mod speech;
 mod templates;
+mod text_marks;
 mod timeline;
 mod undo;
 mod uses;

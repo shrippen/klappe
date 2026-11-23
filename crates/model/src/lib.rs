@@ -49,7 +49,7 @@ mod sketch;
 mod template;
 
 pub use binding::Binding;
-pub use breakdown::{Element, ElementCategory, ElementStatus, Sheet};
+pub use breakdown::{Element, ElementCategory, ElementStatus, Sheet, TextMark};
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use curve::Curve;
 pub use drawing_style::{Dash, Fill};

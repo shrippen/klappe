@@ -140,6 +140,22 @@ pub struct Sheet {
     /// character with a head count, LH-23). The speaking ones follow from the book.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub characters: Vec<String>,
+    /// Where elements were marked in the scene's text (D-23).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub marks: Vec<TextMark>,
+}
+
+/// A place in a scene's text marked as an element (D-23), held as a quote: the words and
+/// which of their occurrences in the scene it is. The Fountain text stays clean (F-02).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TextMark {
+    /// The id of the element.
+    pub element: String,
+    /// The marked words, e.g. `Stapel Seiten`.
+    pub text: String,
+    /// Which occurrence of `text` in the scene's text, from 0.
+    #[serde(default)]
+    pub occurrence: usize,
 }
 
 impl Sheet {

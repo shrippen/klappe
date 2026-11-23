@@ -2,7 +2,7 @@
 //! characters of a scene, and the element a set object stands for.
 
 use klappe_model::{
-    free_random_id, Element, ElementCategory, ElementStatus, IdCase, Project, Sheet,
+    free_random_id, Element, ElementCategory, ElementStatus, IdCase, Project, Sheet, TextMark,
 };
 
 use crate::error::ServiceError;
@@ -81,6 +81,27 @@ pub enum BreakdownEdit {
         object: String,
         element: Option<String>,
     },
+    /// Words of the scene's text are marked as an element (D-23), which goes into the scene.
+    /// The session checks that the words stand there; `mark.element` is not read.
+    MarkText {
+        scene: String,
+        mark: TextMark,
+        target: MarkTarget,
+    },
+    /// The marks are dropped from the scene; the elements stay in it.
+    ForgetMarks {
+        scene: String,
+        marks: Vec<TextMark>,
+    },
+}
+
+/// What marked words become.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MarkTarget {
+    /// The element of this id.
+    Element(String),
+    /// The element of this category named like the words, made if there is none.
+    New(ElementCategory),
 }
 
 /// What the breakdown edits do.
@@ -117,10 +138,7 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
         ),
         BreakdownEdit::AddSceneElement { scene, element }
         | BreakdownEdit::TakeSuggestion { scene, element } => take(project, scene, element),
-        BreakdownEdit::RemoveSceneElement { scene, element } => {
-            sheet_mut(project, scene)?.elements.retain(|e| e != element);
-            Ok(())
-        }
+        BreakdownEdit::RemoveSceneElement { scene, element } => leave(project, scene, element),
         BreakdownEdit::AddElementToScene {
             scene,
             category,
@@ -141,6 +159,12 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
             object,
             element,
         } => set_object_element(project, (location, object), element.as_deref()),
+        BreakdownEdit::MarkText {
+            scene,
+            mark,
+            target,
+        } => mark_text(project, scene, mark, target),
+        BreakdownEdit::ForgetMarks { scene, marks } => forget(project, scene, marks),
     }
 }
 
@@ -249,6 +273,7 @@ fn remove_element(project: &mut Project, id: &str) -> Result<(), ServiceError> {
     for scene in &mut project.scenes {
         scene.sheet.elements.retain(|e| e != id);
         scene.sheet.excluded.retain(|e| e != id);
+        scene.sheet.marks.retain(|m| m.element != id);
     }
     let objects = project
         .locations
@@ -304,14 +329,66 @@ fn add_to_scene(
     name: &str,
 ) -> Result<(), ServiceError> {
     sheet_mut(project, scene)?;
-    let name = name_of(name)?;
-
-    let id = match find_element(project, (category, &name), None) {
-        Some(id) => id,
-        None => add_element(project, category, &name)?,
-    };
+    let id = found_or_new(project, category, name)?;
 
     take(project, scene, &id)
+}
+
+/// The id of the element of that name and category, made if there is none.
+fn found_or_new(
+    project: &mut Project,
+    category: ElementCategory,
+    name: &str,
+) -> Result<String, ServiceError> {
+    let name = name_of(name)?;
+
+    match find_element(project, (category, &name), None) {
+        Some(id) => Ok(id),
+        None => add_element(project, category, &name),
+    }
+}
+
+/// The element leaves the scene's list, its marks there with it.
+fn leave(project: &mut Project, scene: &str, element: &str) -> Result<(), ServiceError> {
+    let sheet = sheet_mut(project, scene)?;
+    sheet.elements.retain(|e| e != element);
+    sheet.marks.retain(|m| m.element != element);
+
+    Ok(())
+}
+
+fn forget(project: &mut Project, scene: &str, marks: &[TextMark]) -> Result<(), ServiceError> {
+    sheet_mut(project, scene)?
+        .marks
+        .retain(|m| !marks.contains(m));
+
+    Ok(())
+}
+
+/// The words become the target element, which goes into the scene; the same mark twice is
+/// kept once.
+fn mark_text(
+    project: &mut Project,
+    scene: &str,
+    mark: &TextMark,
+    target: &MarkTarget,
+) -> Result<(), ServiceError> {
+    let element = match target {
+        MarkTarget::Element(id) => id.clone(),
+        MarkTarget::New(category) => found_or_new(project, *category, &mark.text)?,
+    };
+    take(project, scene, &element)?;
+
+    let mark = TextMark {
+        element,
+        ..mark.clone()
+    };
+    let sheet = sheet_mut(project, scene)?;
+    if !sheet.marks.contains(&mark) {
+        sheet.marks.push(mark);
+    }
+
+    Ok(())
 }
 
 /// A suggestion is turned down: the scene does not list it and the set does not offer it again.
@@ -320,6 +397,7 @@ fn exclude(project: &mut Project, scene: &str, element: &str) -> Result<(), Serv
     let sheet = sheet_mut(project, scene)?;
 
     sheet.elements.retain(|e| e != element);
+    sheet.marks.retain(|m| m.element != element);
     if !sheet.excluded.iter().any(|e| e == element) {
         sheet.excluded.push(element.to_owned());
     }
