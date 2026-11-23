@@ -32,6 +32,7 @@ mod places;
 mod plan_edit;
 mod project_edit;
 mod scene_location;
+mod scene_text;
 mod script_pages;
 mod script_refs;
 mod session;
@@ -59,7 +60,7 @@ pub use number::{read_number, Range, Unit};
 pub use places::{PendingPlace, PlaceChoice, PlaceEdit};
 pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdit, Snapping};
 pub use project_edit::{
-    BreakdownEdit, LibraryEdit, NameEdit, PlanShift, ProjectEdit, ShotsGo, TemplateEdit,
+    BreakdownEdit, LibraryEdit, MarkTarget, NameEdit, PlanShift, ProjectEdit, ShotsGo, TemplateEdit,
 };
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};

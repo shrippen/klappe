@@ -10,6 +10,7 @@ use super::Session;
 use crate::error::ServiceError;
 use crate::field::Field;
 use crate::project_edit::{BreakdownEdit, ProjectEdit};
+use crate::scene_text::Shown;
 use crate::script_refs;
 use crate::sheet_time::{show_planned, show_prestop};
 use crate::views::{
@@ -91,6 +92,7 @@ impl Session {
         let scene = self.scene()?;
         let sheet = &scene.sheet;
         let speaking = self.speaking(self.scene);
+        let lines = self.book_lines(self.scene);
 
         let spoken = speaking.iter().filter_map(|id| self.project.character(id));
         let present = sheet
@@ -107,14 +109,15 @@ impl Session {
             note: sheet.note.clone(),
             speaking: spoken.map(figure).collect(),
             present: present.map(figure).collect(),
-            categories: self.sheet_categories(scene),
-            suggestions: self.suggestions(scene, shot.get(self.scene).copied().flatten()),
+            categories: self.sheet_categories(scene, &Self::lost_marks(scene, &lines)),
+            suggestions: self.suggestions(scene, shot.get(self.scene).copied().flatten(), &lines),
+            text: self.marked_text(scene, &lines),
         })
     }
 
-    /// The elements of the scene by category, only the categories that have any. An id no
-    /// element has is ignored.
-    fn sheet_categories(&self, scene: &Scene) -> Vec<SheetCategory> {
+    /// The elements of the scene by category, only the categories that have any; `lost` are
+    /// those whose marks the text no longer has. An id no element has is ignored.
+    fn sheet_categories(&self, scene: &Scene, lost: &HashSet<String>) -> Vec<SheetCategory> {
         let listed: Vec<&Element> = scene
             .sheet
             .elements
@@ -132,6 +135,7 @@ impl Session {
                         id: e.id.clone(),
                         name: e.name.clone(),
                         status: e.status.name(),
+                        lost: lost.contains(&e.id),
                     })
                     .collect();
 
@@ -143,9 +147,24 @@ impl Session {
             .collect()
     }
 
-    /// The objects of the set the scene is shot on that stand for an element the sheet neither
-    /// lists nor turned down, one suggestion per element.
-    fn suggestions(&self, scene: &Scene, at: Option<&Location>) -> Vec<Suggestion> {
+    /// The elements the sheet neither lists nor turned down that the set the scene is shot on
+    /// offers through an object, then those named in its text (D-23); one suggestion each.
+    fn suggestions(
+        &self,
+        scene: &Scene,
+        at: Option<&Location>,
+        lines: &[Shown],
+    ) -> Vec<Suggestion> {
+        let mut found = self.set_offers(scene, at);
+        let named = self.named_in_text(scene, lines, &found);
+        found.extend(named);
+
+        found
+    }
+
+    /// The objects of the set that stand for an element the sheet neither lists nor turned
+    /// down, one suggestion per element.
+    fn set_offers(&self, scene: &Scene, at: Option<&Location>) -> Vec<Suggestion> {
         let Some(location) = at else {
             return Vec::new();
         };
@@ -174,7 +193,7 @@ impl Session {
                 element: element.id.clone(),
                 name: element.name.clone(),
                 category: element.category.name(),
-                object: object.label.clone(),
+                object: Some(object.label.clone()),
             });
         }
 

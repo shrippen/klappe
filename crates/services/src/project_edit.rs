@@ -19,7 +19,7 @@ mod plans;
 pub(crate) mod templates;
 mod views;
 
-pub use breakdown::BreakdownEdit;
+pub use breakdown::{BreakdownEdit, MarkTarget};
 pub(crate) use copy::{copy_character, free_short};
 pub use library::LibraryEdit;
 use locations::{add_location, edit_location, remove_location};

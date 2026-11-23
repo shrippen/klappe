@@ -334,8 +334,8 @@ Flickable {
             }
         }
 
-        // The set's objects that stand for an element this sheet does not list. Not the sheet's
-        // yet: the chip is dimmed (Kante has no dashed chip), ✓ takes it, × turns it down.
+        // Elements this sheet does not list that the set offers or whose name is in the scene's
+        // text (D-23). Not the sheet's yet: the chip is dimmed (Kante has no dashed chip), ✓ takes it, × turns it down.
         ColumnLayout {
             visible: sheetView.sheet !== null && sheetView.sheet.suggestions.length > 0
             Layout.fillWidth: true
@@ -362,7 +362,8 @@ Flickable {
                             interactive: false
                             removeText: sheetView.texts.t("sheet.exclude", { name: "%1" })
                             toolTip: sheetView.texts.t("elementCategory." + suggestion.modelData.category)
-                                + " · " + sheetView.texts.t("sheet.suggestionFrom", { object: suggestion.modelData.object })
+                                + " · " + (suggestion.modelData.object === null ? sheetView.texts.t("sheet.suggestionText")
+                                    : sheetView.texts.t("sheet.suggestionFrom", { object: suggestion.modelData.object }))
                             onRemoveRequested: sheetView.controller.excludeSuggestion(sheetView.scene.id, suggestion.modelData.element)
                         }
                         KanteButton {

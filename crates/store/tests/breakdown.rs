@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     Element, ElementCategory, ElementStatus, Location, Point, Project, Scene, SetObject, SetPlan,
-    Sheet,
+    Sheet, TextMark,
 };
 use klappe_store::{encode_tree, kind_of, load, read_tree, save, FileKind, StoreError};
 
@@ -53,6 +53,11 @@ fn project() -> Project {
                 elements: vec!["e2".into(), "e1".into()],
                 excluded: vec!["e3".into()],
                 characters: vec!["bob".into()],
+                marks: vec![TextMark {
+                    element: "e1".into(),
+                    text: "Kronleuchter".into(),
+                    occurrence: 1,
+                }],
             },
         ),
         scene("bbbb", "2", Sheet::default()),
