@@ -41,10 +41,10 @@ fn new_object(s: &mut Session, scene: &str, at: Point) -> String {
     })
     .unwrap();
 
-    let location = &s.project().scene(scene).unwrap().location;
+    let location = s.project().scene(scene).unwrap().plans[0].location.clone();
 
     s.project()
-        .location(location)
+        .location(&location)
         .unwrap()
         .set
         .objects
@@ -144,10 +144,10 @@ fn removing_a_form_point_of_a_moving_object_keeps_the_others() {
     }
 }
 
-/// A scene that moves to another location must not bind its object ways to objects of the
-/// new set that happen to share an id; one undo step brings them back.
+/// A scene that gets another shooting location keeps its plans on the set they are drawn on,
+/// so its object ways stay bound to that set's objects (DB-51); undo restores the scene.
 #[test]
-fn changing_the_location_of_a_scene_drops_its_object_ways() {
+fn changing_the_location_of_a_scene_keeps_its_object_ways() {
     let mut s = open();
     let id = new_object(&mut s, "m4djbtj6", p(3.0, 3.0));
     s.edit_plan(PlanEdit::AddObjectMark {
@@ -174,7 +174,7 @@ fn changing_the_location_of_a_scene_drops_its_object_ways() {
     s.edit_project(ProjectEdit::AddScene {
         number: "99".into(),
         heading: "x".into(),
-        location: halle.clone(),
+        location: Some(halle.clone()),
     })
     .unwrap();
     let other = s
@@ -194,13 +194,15 @@ fn changing_the_location_of_a_scene_drops_its_object_ways() {
         id: "m4djbtj6".into(),
         number,
         heading: "x".into(),
-        location: halle,
+        location: Some(halle),
         sun: None,
     })
     .unwrap();
 
-    assert!(s.plan().unwrap().object_tracks.is_empty());
+    assert_eq!(s.plan().unwrap().object_tracks.len(), 1);
+    assert_eq!(s.plan().unwrap().location, "saengersaal");
     s.undo();
+    assert_eq!(s.project().scene("m4djbtj6").unwrap().location, None);
     assert_eq!(s.plan().unwrap().object_tracks.len(), 1);
 }
 

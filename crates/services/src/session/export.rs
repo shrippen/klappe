@@ -177,11 +177,7 @@ impl Session {
     /// What each shot's camera sees at the shot's start, as faces for print; a shot whose
     /// camera sees nothing has none.
     fn shot_views(&self) -> Vec<ShotView> {
-        let (Some(plan), Some(location)) = (
-            self.plan(),
-            self.scene()
-                .and_then(|s| self.project.location(&s.location)),
-        ) else {
+        let (Some(plan), Some(location)) = (self.plan(), self.plan_location()) else {
             return Vec::new();
         };
 
@@ -275,10 +271,7 @@ impl Session {
     /// Every lamp of the plan on view, hidden ones too: a table lists what the plan holds, as
     /// its shot sheet lists every shot. The printout leaves hidden lamps out (`display_list`).
     fn plan_lamps(&self) -> Vec<Lamp> {
-        let (Some(scene), Some(plan)) = (self.scene(), self.plan()) else {
-            return Vec::new();
-        };
-        let Some(location) = self.project.location(&scene.location) else {
+        let (Some(plan), Some(location)) = (self.plan(), self.plan_location()) else {
             return Vec::new();
         };
 

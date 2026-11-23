@@ -43,6 +43,8 @@ Item {
 
     // The script's cards ask to change a scene (`kind` "scene") or a character in the project dialog.
     signal projectEntryRequested(string kind, string id)
+    /// A scene without a location asks for a new one, named `name`, for the scripted location `place` or, when that is empty, for itself (D-21).
+    signal newLocationRequested(string name, string place)
     /// The script's empty column asks to load a screenplay or to open the screenplay view (D-17).
     signal scriptImportRequested()
     signal screenplayRequested()
@@ -314,6 +316,7 @@ Item {
                         cameraViews: work.cameraViews
                         toolHint: work.toolHint
                         onSelectToolRequested: work.selectToolRequested()
+                        onNewLocationRequested: (name, place) => work.newLocationRequested(name, place)
                         texts: work.texts
                         controller: work.controller
                     }

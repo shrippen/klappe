@@ -42,7 +42,8 @@ fn is_in_book(state: &BookState) -> bool {
 #[derive(Serialize, Deserialize)]
 struct Stage {
     id: String,
-    location: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    location: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     sun: Option<SunTime>,
     #[serde(default)]

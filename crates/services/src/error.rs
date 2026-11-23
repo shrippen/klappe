@@ -28,6 +28,10 @@ pub enum ServiceError {
     /// The scene's location is missing, so its set cannot change.
     #[error("no location {0}")]
     NoLocation(String),
+    /// The scene is shot nowhere yet (DB-51): neither it nor its scripted location has a
+    /// shooting location, so a plan has no set.
+    #[error("the scene has no shooting location")]
+    NotShot,
     /// A shot needs a camera, and the plan has none.
     #[error("the plan has no camera")]
     NoCamera,
@@ -47,6 +51,9 @@ pub enum ServiceError {
     /// A location cannot go while scenes are set there.
     #[error("location {id} is used by {scenes} scene(s)")]
     LocationInUse { id: String, scenes: usize },
+    /// A scripted location cannot go while scene headings name it (D-21).
+    #[error("{headings} heading(s) name the scripted location")]
+    PlaceInUse { headings: usize },
     /// A character cannot go while a plan uses it.
     #[error("character {id} appears in {plans} plan(s)")]
     CharacterInUse { id: String, plans: usize },

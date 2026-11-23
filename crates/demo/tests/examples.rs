@@ -81,7 +81,7 @@ fn the_examples_hold_together() {
         let plan = &scene.plans[0];
         let elements = script.scene(&scene.number).unwrap().elements;
 
-        assert!(project.location(&scene.location).is_some(), "{lang}");
+        assert!(project.location(&plan.location).is_some(), "{lang}");
         assert_eq!(plan.shots.len(), 5, "{lang}");
         for shot in &plan.shots {
             assert!(plan.camera(&shot.camera).is_some(), "{lang} {}", shot.id);

@@ -564,7 +564,7 @@ fn scene_made_again(s: &mut Session, first: String, location: String) {
         id: first.clone(),
         number: number.clone(),
         heading: heading.clone(),
-        location: hof,
+        location: Some(hof),
         sun: None,
     })
     .unwrap();
@@ -573,7 +573,7 @@ fn scene_made_again(s: &mut Session, first: String, location: String) {
     s.edit_project(ProjectEdit::AddScene {
         number,
         heading,
-        location,
+        location: Some(location),
     })
     .unwrap();
     let again = s.project().scenes.last().unwrap().id.clone();
@@ -597,7 +597,7 @@ fn scene_made_again(s: &mut Session, first: String, location: String) {
 fn a_label_ignores_the_same_figure_in_another_scene() {
     let mut s = open();
     let first = s.scene().unwrap().id.clone();
-    let location = s.scene().unwrap().location.clone();
+    let location = s.scene().unwrap().plans[0].location.clone();
     let kept = location.clone();
     s.set_time(6.0);
     s.edit_plan(label(Source::Figure("elisabeth".into()), "Auftritt"))
@@ -615,7 +615,7 @@ fn a_label_ignores_the_same_figure_in_another_scene() {
     s.edit_project(ProjectEdit::AddScene {
         number: "99".into(),
         heading: "INT. TEST".into(),
-        location: location.clone(),
+        location: Some(location.clone()),
     })
     .unwrap();
     let second = s.project().scenes.last().unwrap().id.clone();

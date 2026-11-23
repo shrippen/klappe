@@ -23,8 +23,12 @@ TestCase {
         property string projectJson: fixture
         readonly property string fixture: JSON.stringify({
             scenes: [
-                { id: "m4djbtj6", number: "12", heading: "INT. SÄNGERSAAL – TAG", location: "saengersaal", locationName: "Sängersaal" },
-                { id: "szene-013", number: "13", heading: "EXT. HOF", location: "hof", locationName: "Burghof" }
+                { id: "m4djbtj6", number: "12", heading: "INT. SÄNGERSAAL – TAG", location: "saengersaal", locationName: "Sängersaal", ownLocation: false, place: "Sängersaal" },
+                { id: "szene-013", number: "13", heading: "EXT. HOF", location: "hof", locationName: "Burghof", ownLocation: true, place: "Burg" }
+            ],
+            places: [
+                { id: "saal", name: "Sängersaal", variants: ["SAAL"], location: "saengersaal", location_name: "Sängersaal", scenes: ["12"] },
+                { id: "burg", name: "Burg", variants: [], location: "", location_name: "", scenes: ["13", "14"] }
             ],
             locations: [
                 { id: "hof", name: "Burghof", width: 30, depth: 20.5, height: 3.2, scenes: 1 },
@@ -147,7 +151,7 @@ TestCase {
         const pd = make()
         opened(pd)
         const form = findChild(pd, "locationForm")
-        showTab(pd, 1)
+        showTab(pd, 2)
 
         verify(!form.visible)
         verify(findChild(pd, "pick").visible)
@@ -187,7 +191,7 @@ TestCase {
         verify(findChild(form, "apply").enabled)
         press(form, "apply")
 
-        compare(fake.calls, [["addScene", "14", "INT. TURM", "hof"]])
+        compare(fake.calls, [["addScene", "14", "INT. TURM", ""]])
         // Done: the form for a new entry closes.
         verify(!form.visible)
     }
@@ -211,12 +215,13 @@ TestCase {
         const form = findChild(pd, "sceneForm")
 
         compare(findChild(form, "numberField").text, "12")
-        compare(findChild(form, "locationBox").currentIndex, 1)
+        // Follows its scripted location.
+        compare(findChild(form, "locationBox").currentIndex, 0)
 
         findChild(form, "headingField").text = "INT. SÄNGERSAAL – NACHT"
         press(form, "apply")
 
-        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – NACHT", "saengersaal", '["","",""]']])
+        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – NACHT", "", '["","",""]']])
     }
 
     function test_another_location_is_one_edit() {
@@ -224,24 +229,22 @@ TestCase {
         opened(pd)
         const form = findChild(pd, "sceneForm")
 
-        findChild(form, "locationBox").currentIndex = 0
+        findChild(form, "locationBox").currentIndex = 1
         press(form, "apply")
 
         compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – TAG", "hof", '["","",""]']])
     }
 
-    // The new location has other objects: the ways of objects are dropped, the form says so.
-    function test_another_location_says_the_object_ways_go() {
+    // Another location keeps the plans on their set with their object ways (DB-51): the form
+    // says nothing of dropped ways, and needs no location to exist first.
+    function test_another_location_drops_no_object_ways() {
         const pd = make()
         opened(pd)
         const form = findChild(pd, "sceneForm")
-        const hint = findChild(form, "waysDropped")
 
-        verify(!hint.visible)
-        findChild(form, "locationBox").currentIndex = 0
-        verify(hint.visible)
         findChild(form, "locationBox").currentIndex = 1
-        verify(!hint.visible)
+        compare(findChild(form, "waysDropped"), null)
+        compare(findChild(form, "needLocation"), null)
     }
 
     function test_a_refusal_keeps_the_form_with_the_message() {
@@ -275,7 +278,7 @@ TestCase {
         const pd = make()
         opened(pd)
         const form = findChild(pd, "locationForm")
-        showTab(pd, 1)
+        showTab(pd, 2)
 
         press(listOf(pd, "locationList"), "add")
         verify(form.visible)
@@ -293,7 +296,7 @@ TestCase {
     function test_a_location_edit_starts_with_its_values() {
         const pd = make()
         opened(pd)
-        showTab(pd, 1)
+        showTab(pd, 2)
 
         const form = select(pd, "locationList", "locationForm", "hof")
 
@@ -314,7 +317,7 @@ TestCase {
         fake.projectJson = JSON.stringify(project)
         const pd = make()
         opened(pd)
-        showTab(pd, 1)
+        showTab(pd, 2)
 
         const form = select(pd, "locationList", "locationForm", "hof")
         compare(findChild(form, "latitudeField").text, "52,52")
@@ -339,7 +342,7 @@ TestCase {
         fake.projectJson = JSON.stringify(project)
         const pd = make()
         opened(pd)
-        showTab(pd, 1)
+        showTab(pd, 2)
 
         const form = select(pd, "locationList", "locationForm", "hof")
         findChild(form, "nameField").text = "Burghof 2"
@@ -364,14 +367,14 @@ TestCase {
 
         findChild(form, "sunTimeField").text = "09:15"
         press(form, "apply")
-        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – TAG", "saengersaal", '["2026-06-21","09:15","+02:00"]']])
+        compare(fake.calls, [["editScene", "m4djbtj6", "12", "INT. SÄNGERSAAL – TAG", "", '["2026-06-21","09:15","+02:00"]']])
     }
 
     function test_a_new_character_gets_a_free_colour_and_a_label() {
         const pd = make()
         opened(pd)
         const form = findChild(pd, "characterForm")
-        showTab(pd, 2)
+        showTab(pd, 3)
 
         press(listOf(pd, "characterList"), "add")
         verify(form.visible)
@@ -389,7 +392,7 @@ TestCase {
     function test_a_character_edit_keeps_its_colour_and_picks_another() {
         const pd = make()
         opened(pd)
-        showTab(pd, 2)
+        showTab(pd, 3)
 
         const form = select(pd, "characterList", "characterForm", "elisabeth")
         compare(findChild(form, "colorPicker").currentIndex, 6)
@@ -404,7 +407,7 @@ TestCase {
         const pd = make()
         opened(pd)
         const form = findChild(pd, "characterForm")
-        showTab(pd, 2)
+        showTab(pd, 3)
 
         press(listOf(pd, "characterList"), "add")
         compare(findChild(form, "groupSwitch").checked, false)
@@ -422,7 +425,7 @@ TestCase {
     function test_a_group_edit_starts_from_its_count_and_can_become_single() {
         const pd = make()
         opened(pd)
-        showTab(pd, 2)
+        showTab(pd, 3)
 
         const form = select(pd, "characterList", "characterForm", "gaeste")
         compare(findChild(form, "groupSwitch").checked, true)
@@ -439,7 +442,7 @@ TestCase {
         const pd = make()
         opened(pd)
         const form = findChild(pd, "characterForm")
-        showTab(pd, 2)
+        showTab(pd, 3)
 
         press(listOf(pd, "characterList"), "add")
         compare(findChild(form, "sizeField").text, "")
@@ -454,7 +457,7 @@ TestCase {
     function test_a_figure_edit_starts_from_its_size_and_can_return_to_standard() {
         const pd = make()
         opened(pd)
-        showTab(pd, 2)
+        showTab(pd, 3)
 
         const form = select(pd, "characterList", "characterForm", "burgvogt")
         compare(findChild(form, "sizeField").text, de.num(2.4, 2))
@@ -470,7 +473,7 @@ TestCase {
         const pd = make()
         opened(pd)
         const form = findChild(pd, "characterForm")
-        showTab(pd, 2)
+        showTab(pd, 3)
 
         press(listOf(pd, "characterList"), "add")
 
@@ -482,7 +485,7 @@ TestCase {
         const pd = make()
         opened(pd)
         const form = findChild(pd, "characterForm")
-        showTab(pd, 2)
+        showTab(pd, 3)
 
         press(listOf(pd, "characterList"), "add")
 
@@ -493,7 +496,7 @@ TestCase {
     function test_a_rename_warns_before_it_changes_the_script() {
         const pd = make()
         opened(pd)
-        showTab(pd, 2)
+        showTab(pd, 3)
         const form = select(pd, "characterList", "characterForm", "elisabeth")
         fake.changes = [{ kind: "cue", from: "ELISABETH", to: "ELISE", count: 3 }]
 
@@ -521,7 +524,7 @@ TestCase {
     function test_the_fields_wait_while_the_warning_stands() {
         const pd = make()
         opened(pd)
-        showTab(pd, 2)
+        showTab(pd, 3)
         const form = select(pd, "characterList", "characterForm", "elisabeth")
         fake.changes = [{ kind: "cue", from: "ELISABETH", to: "ELISE", count: 3 }]
         const field = findChild(form, "nameField")
@@ -562,7 +565,7 @@ TestCase {
     function test_one_place_reads_in_the_singular() {
         const pd = make()
         opened(pd)
-        showTab(pd, 2)
+        showTab(pd, 3)
         const form = select(pd, "characterList", "characterForm", "burgvogt")
         fake.changes = [{ kind: "cue", from: "BURGVOGT", to: "VOGT", count: 1 }]
 
@@ -575,7 +578,7 @@ TestCase {
     function test_no_warning_without_a_change_in_the_text() {
         const pd = make()
         opened(pd)
-        showTab(pd, 2)
+        showTab(pd, 3)
         const form = select(pd, "characterList", "characterForm", "elisabeth")
 
         findChild(form, "colorPicker").picked(3)
@@ -610,13 +613,13 @@ TestCase {
         const pd = make()
         opened(pd)
 
-        showTab(pd, 1)
+        showTab(pd, 2)
         const place = select(pd, "locationList", "locationForm", "hof")
         press(place, "remove")
         compare(findChild(place, "removeAsk").text, "Drehort Burghof löschen?")
         press(place, "confirmRemove")
 
-        showTab(pd, 2)
+        showTab(pd, 3)
         const person = select(pd, "characterList", "characterForm", "burgvogt")
         press(person, "remove")
         compare(findChild(person, "removeAsk").text, "Figur Burgvogt löschen?")
@@ -629,7 +632,7 @@ TestCase {
         const pd = make()
         opened(pd)
         fake.accept = false
-        showTab(pd, 1)
+        showTab(pd, 2)
 
         const form = select(pd, "locationList", "locationForm", "hof")
         press(form, "remove")
@@ -647,7 +650,7 @@ TestCase {
         pd.openAt("character", "burgvogt")
         tryCompare(findChild(pd, "dialog"), "opened", true)
 
-        compare(findChild(pd, "tabs").currentIndex, 2)
+        compare(findChild(pd, "tabs").currentIndex, 3)
         compare(listOf(pd, "characterList").currentId, "burgvogt")
         const form = findChild(pd, "characterForm")
         verify(form.visible)

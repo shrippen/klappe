@@ -30,6 +30,7 @@ mod place_file;
 mod places;
 mod plan_edit;
 mod project_edit;
+mod scene_location;
 mod script_pages;
 mod script_refs;
 mod session;
@@ -53,7 +54,7 @@ pub use klappe_store::FileKind;
 pub use light_edit::LightChange;
 pub use measure::measure_angle_deg;
 pub use number::{read_number, Range, Unit};
-pub use places::{PendingPlace, PlaceChoice};
+pub use places::{PendingPlace, PlaceChoice, PlaceEdit};
 pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdit, Snapping};
 pub use project_edit::{PlanShift, ProjectEdit, ShotsGo};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
@@ -68,9 +69,9 @@ pub use session::{
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};
 pub use views::{
-    AxisChoice, CameraSpot, CastUse, CharacterRow, Chip, Hint, LibraryEntry, LinkKind, LocationRow,
-    Marker, Overview, PlanRow, SceneCard, SceneRow, SceneUse, ScriptLine, Segment, SetupOption,
-    ShotRow, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
+    AxisChoice, CameraSpot, CastUse, CharacterRow, Chip, Elsewhere, Hint, LibraryEntry, LinkKind,
+    LocationRow, Marker, NotShot, Overview, PlaceRow, PlanRow, SceneCard, SceneRow, SceneUse,
+    ScriptLine, Segment, SetupOption, ShotRow, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.

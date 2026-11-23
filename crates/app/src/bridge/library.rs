@@ -42,8 +42,9 @@ impl qobject::Controller {
         let name = name.to_string();
         let location = {
             let this = self.as_ref();
-            let scene = this.rust().session.as_ref().and_then(|s| s.scene());
-            scene.map(|scene| scene.location.clone())
+            // The set the plan on view is drawn on (DB-51).
+            let plan = this.rust().session.as_ref().and_then(|s| s.plan());
+            plan.map(|plan| plan.location.clone())
         };
         let selected = self.rust().selected.only();
         let Some(edit) = object::library_edit(selected, location.as_deref(), &name) else {

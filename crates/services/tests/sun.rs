@@ -275,7 +275,7 @@ fn place_and_date_survive_saving() {
     s.edit_project(ProjectEdit::AddScene {
         number: "1".into(),
         heading: "INT. SAAL - TAG".into(),
-        location: "saal".into(),
+        location: Some("saal".into()),
     })
     .unwrap();
     set_scene(&mut s, Some(noon())).unwrap();

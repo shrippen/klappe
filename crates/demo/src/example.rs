@@ -111,17 +111,24 @@ fn build(section: Section) -> Result<Example, DemoError> {
         let (elements, ids) = elements_of(&spec, &section.characters)?;
         let mut plans = Vec::new();
         for plan in &spec.plans {
-            plans.push(plan_of(plan, &ids)?);
+            plans.push(plan_of(plan, &ids, &spec.location)?);
         }
 
+        // The first scene at a place says where the place is shot (DB-51); a later one shot
+        // elsewhere keeps its own location.
         let place = heading_place(&spec.heading);
         if !place.is_empty() && !places.iter().any(|p| p.is_called(place)) {
             places.push(Place {
                 id: scene_id(&format!("{PLACE_SEED}{place}")),
                 name: place.to_owned(),
                 variants: Vec::new(),
+                location: Some(spec.location.clone()),
             });
         }
+        let own = places
+            .iter()
+            .find(|p| p.is_called(place))
+            .is_some_and(|p| p.location.as_ref() != Some(&spec.location));
 
         script.elements.push(Element::SceneHeading {
             text: spec.heading.clone(),
@@ -136,7 +143,7 @@ fn build(section: Section) -> Result<Example, DemoError> {
             state: BookState::InBook,
             prints: Vec::new(),
             refused: Vec::new(),
-            location: spec.location,
+            location: own.then_some(spec.location),
             sun: None,
             plans,
         });
@@ -201,8 +208,14 @@ fn elements_of(
 }
 
 /// A plan, with each link's `element` given as an index.
-fn plan_of(plan: &Value, ids: &HashMap<String, usize>) -> Result<FloorPlan, DemoError> {
+fn plan_of(
+    plan: &Value,
+    ids: &HashMap<String, usize>,
+    location: &str,
+) -> Result<FloorPlan, DemoError> {
     let mut plan = plan.clone();
+    // The world file draws each plan on its scene's set.
+    plan["location"] = Value::from(location);
     let links = plan.get_mut("links").and_then(Value::as_array_mut);
 
     for link in links.into_iter().flatten() {

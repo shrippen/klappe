@@ -88,14 +88,14 @@ fn anchor(set: &SetPlan, plan: &FloorPlan, time_s: f64, key: &str) -> Option<Anc
 
 /// The set and plan of the scene on view.
 fn parts(project: &Project, (scene, plan): (usize, usize)) -> Option<(&SetPlan, &FloorPlan)> {
-    let scene = project.scenes.get(scene)?;
+    let plan = project.scenes.get(scene)?.plans.get(plan)?;
     let set = &project
         .locations
         .iter()
-        .find(|l| l.id == scene.location)?
+        .find(|l| l.id == plan.location)?
         .set;
 
-    Some((set, scene.plans.get(plan)?))
+    Some((set, plan))
 }
 
 /// The bound notes of the scene's set and the plan's labels, with where they and their
@@ -133,17 +133,14 @@ pub(super) fn follow(project: &mut Project, at: (usize, usize), time_s: f64, hel
     let Project {
         locations, scenes, ..
     } = project;
-    let Some(scene) = scenes.get_mut(at.0) else {
+    let Some(plan) = scenes.get_mut(at.0).and_then(|s| s.plans.get_mut(at.1)) else {
         return;
     };
     let Some(set) = locations
         .iter_mut()
-        .find(|l| l.id == scene.location)
+        .find(|l| l.id == plan.location)
         .map(|l| &mut l.set)
     else {
-        return;
-    };
-    let Some(plan) = scene.plans.get_mut(at.1) else {
         return;
     };
 

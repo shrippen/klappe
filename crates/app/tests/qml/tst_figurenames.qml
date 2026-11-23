@@ -77,7 +77,7 @@ TestCase {
         verify(pd)
         pd.open()
         tryCompare(findChild(pd, "dialog"), "opened", true)
-        findChild(pd, "tabs").activated(2)
+        findChild(pd, "tabs").activated(3)
         findChild(pd, "characterList").currentId = id
         wait(0)
         return pd

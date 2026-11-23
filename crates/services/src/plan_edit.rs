@@ -504,16 +504,27 @@ pub fn layer_of_source(source: &Source) -> Layer {
 /// The parts of the project one edit works on, borrowed apart.
 struct Scope<'a> {
     plan: &'a mut FloorPlan,
-    /// `None` when the scene's location is missing.
+    /// `None` when the plan's location is missing.
     set: Option<&'a mut SetPlan>,
-    /// Id of the scene's location, for the error when it is missing.
+    /// Id of the location the plan is drawn on, for the error when it is missing.
     location: &'a str,
     characters: &'a mut Vec<Character>,
     /// The project's own library entries, for what a new object looks like.
     library: &'a [LibraryItem],
     time_s: f64,
-    /// Ids of the objects any plan of the scene's location has a track for, taken or not.
+    /// Ids of the objects any plan on this set has a track for, taken or not.
     tracked: &'a [String],
+}
+
+/// The set the plan at `at` is drawn on (DB-51), not where the scene is shot now.
+/// Empty when there is no such plan: `apply` then finds no plan.
+fn drawn_on(project: &Project, (scene, plan): (usize, usize)) -> String {
+    project
+        .scenes
+        .get(scene)
+        .and_then(|s| s.plans.get(plan))
+        .map(|p| p.location.clone())
+        .unwrap_or_default()
 }
 
 /// Applies `edit` to the plan `plan` of scene `scene` at playhead `time_s`; `snap_to` is for
@@ -533,8 +544,9 @@ pub(crate) fn apply(
 
     let at = (scene, plan);
     let held = bound::held(project, at, time_s);
-    let tracked = props::tracked_ids(project, scene);
-    let removing = props::watch_removal(project, scene, edit);
+    let location = drawn_on(project, at);
+    let tracked = props::tracked_ids(project, &location);
+    let removing = props::watch_removal(project, &location, edit);
     let Project {
         characters,
         locations,
@@ -542,9 +554,7 @@ pub(crate) fn apply(
         library,
         ..
     } = project;
-    let Scene {
-        location, plans, ..
-    } = scenes
+    let Scene { plans, .. } = scenes
         .get_mut(scene)
         .ok_or_else(|| ServiceError::NoScene(scene.to_string()))?;
     let plan = plans
@@ -552,13 +562,13 @@ pub(crate) fn apply(
         .ok_or_else(|| ServiceError::NoScene(scene.to_string()))?;
     let set = locations
         .iter_mut()
-        .find(|l| l.id == *location)
+        .find(|l| l.id == location)
         .map(|l| &mut l.set);
 
     let mut scope = Scope {
         plan,
         set,
-        location,
+        location: &location,
         characters,
         library,
         time_s,
@@ -635,7 +645,7 @@ pub(crate) fn apply(
         | PlanEdit::SetCameraAim { .. } => edit_field(&mut scope, edit),
     };
 
-    props::forget_removed(project, scene, removing.as_deref());
+    props::forget_removed(project, &location, removing.as_deref());
     bound::follow(project, at, time_s, &held);
 
     done

@@ -53,17 +53,17 @@ Item {
     property point tipAt: Qt.point(0, 0)
     /// The 3D view shows instead of the plan (J).
     readonly property bool free: controller.viewFree === true
+    /// The overview (`projectJson`) parsed; null without a project.
+    readonly property var project: controller.loaded && controller.projectJson ? JSON.parse(controller.projectJson) : null
     /// The scene on view has no plan yet (D-17): { number } or null.
     readonly property var planless: {
-        if (!controller.loaded || !controller.projectJson || !controller.sceneId) {
-            return null
-        }
-        const project = JSON.parse(controller.projectJson)
-        if (project.plans.length > 0) {
+        if (!project || !controller.sceneId || project.plans.length > 0) {
             return null
         }
         return project.scenes.find(s => s.id === controller.sceneId) || null
     }
+    /// The empty state or the notice asks the project dialog for a new location (D-21).
+    signal newLocationRequested(string name, string place)
 
     KanteEmptyState {
         anchors.centerIn: parent
@@ -73,16 +73,14 @@ Item {
         text: area.texts.t("empty.text")
     }
 
-    Loader {
-        active: area.planless !== null
+    PlanNotices {
+        anchors.fill: parent
         z: 1
-        anchors.centerIn: parent
-        width: Math.min(area.width, Kirigami.Units.gridUnit * 24)
-        sourceComponent: PlanNone {
-            texts: area.texts
-            controller: area.controller
-            scene: area.planless
-        }
+        texts: area.texts
+        controller: area.controller
+        project: area.project
+        planless: area.planless
+        onNewLocationRequested: (name, place) => area.newLocationRequested(name, place)
     }
 
     KanteShapeCanvas {

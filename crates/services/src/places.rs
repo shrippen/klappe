@@ -3,7 +3,7 @@
 //! user can make of each. Nothing here becomes a scripted location on its own: a misspelling is
 //! a place name too.
 
-use klappe_model::{random_id, Place};
+use klappe_model::{random_id, same_place_name, Place};
 use klappe_script::{heading_place, is_omitted, Element, Script};
 
 /// A place name of the headings no scripted location is called by.
@@ -89,6 +89,7 @@ pub(crate) fn decide(places: &mut Vec<Place>, name: &str, choice: &PlaceChoice) 
                 id,
                 name,
                 variants: Vec::new(),
+                location: None,
             });
 
             true
@@ -112,6 +113,68 @@ pub(crate) fn decide(places: &mut Vec<Place>, name: &str, choice: &PlaceChoice) 
     }
 }
 
+/// What the list of scripted locations sets of one (D-21): name, other spellings in a heading
+/// and the shooting location (`None`: none yet).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlaceEdit {
+    pub name: String,
+    pub variants: Vec<String>,
+    pub location: Option<String>,
+}
+
+/// Place `id` as `edit` makes it, white space folded. A name the headings use and the edit
+/// drops stays as a variant: renaming in Klappe does not make the book ask again. `Err` with
+/// the name that is empty, given twice, or another place's.
+pub(crate) fn edited(
+    places: &[Place],
+    script: &Script,
+    id: &str,
+    edit: &PlaceEdit,
+) -> Result<Place, String> {
+    let Some(old) = places.iter().find(|p| p.id == id) else {
+        return Err(id.to_owned());
+    };
+    let fold = |n: &str| n.split_whitespace().collect::<Vec<_>>().join(" ");
+    let name = fold(&edit.name);
+    let mut variants: Vec<String> = edit.variants.iter().map(|v| fold(v)).collect();
+    let named = heading_places(script);
+    let kept = std::iter::once(&old.name)
+        .chain(&old.variants)
+        .filter(|n| named.iter().any(|h| same_place_name(h, n)));
+    for n in kept {
+        let given = same_place_name(&name, n) || variants.iter().any(|v| same_place_name(v, n));
+        if !given {
+            variants.push(n.clone());
+        }
+    }
+
+    let mut seen: Vec<&str> = Vec::new();
+    for n in std::iter::once(&name).chain(&variants) {
+        let taken = n.is_empty()
+            || seen.iter().any(|s| same_place_name(s, n))
+            || places.iter().any(|p| p.id != id && p.is_called(n));
+        if taken {
+            return Err(n.clone());
+        }
+        seen.push(n);
+    }
+
+    Ok(Place {
+        id: id.to_owned(),
+        name,
+        variants,
+        location: edit.location.clone(),
+    })
+}
+
+/// How many headings name a place `place` is called by: a place they name cannot go.
+pub(crate) fn headings_of(place: &Place, script: &Script) -> usize {
+    heading_places(script)
+        .iter()
+        .filter(|n| place.is_called(n))
+        .count()
+}
+
 fn free_id(places: &[Place]) -> String {
     loop {
         let id = random_id();
@@ -130,6 +193,7 @@ mod tests {
             id: id.into(),
             name: name.into(),
             variants: variants.iter().map(|v| (*v).into()).collect(),
+            location: None,
         }
     }
 

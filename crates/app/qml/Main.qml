@@ -248,6 +248,7 @@ Kirigami.ApplicationWindow {
                         speak: playback.speak
                         onSpeakToggled: on => playback.speak = on
                         onProjectEntryRequested: (kind, id) => projectDialog.openAt(kind, id)
+                        onNewLocationRequested: (name, place) => projectDialog.openNewLocation(name, place)
                         onScriptImportRequested: scriptImport.start()
                         onScreenplayRequested: root.openModule("screenplay")
                     }

@@ -1,10 +1,10 @@
 {
   "id": "25u6ixvb",
-  "location": "leuchtturm",
   "plans": [
     {
       "id": "plan-a",
       "name": "Plan A",
+      "location": "leuchtturm",
       "figures": [
         {
           "character": "ilva",

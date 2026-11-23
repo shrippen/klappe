@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 
 use klappe_model::{
     Arrival, Camera, CameraMark, Character, Dash, Departure, Drawing, DrawingShape, FigureColor,
-    FigureTrack, Fill, FloorPlan, Light, LightKind, Location, Mark, Pose, Project, Rig, Scene,
-    Sensor, SetObject, SetPlan, Shot, ShotSize, Wall,
+    FigureTrack, Fill, FloorPlan, Light, LightKind, Location, Mark, Place, Pose, Project, Rig,
+    Scene, Sensor, SetObject, SetPlan, Shot, ShotSize, Wall,
 };
 use klappe_services::{Angle, Looping, Movement, PlanEdit, Point, Session, Source};
 
@@ -42,6 +42,10 @@ const BOOK_SCENES: usize = 150;
 /// An edit of the plan does not touch the register: it must not pay for aligning it with
 /// the book (over 1 ms for `BOOK_SCENES`, against 0.05 ms for the edit itself).
 const BOOK_EDIT_BUDGET: Duration = Duration::from_micros(100);
+/// Scripted locations of that screenplay, three scenes each (DB-51).
+const BOOK_PLACES: usize = 50;
+/// The project lists are built on every playback tick (`projectJson`): a small part of it.
+const OVERVIEW_BUDGET: Duration = Duration::from_millis(1);
 
 /// A point on a fixed pseudo-random walk over the set, so runs repeat.
 fn spot(n: usize) -> Point {
@@ -211,12 +215,52 @@ fn big_session_with_book(name: &str) -> Session {
             id: format!("s{n}"),
             number: n.to_string(),
             heading,
-            location: "l1".into(),
+            location: Some("l1".into()),
             ..Default::default()
         });
     }
 
     open(name, project, Some(&book))
+}
+
+/// A screenplay of `BOOK_SCENES` scenes at `BOOK_PLACES` scripted locations, each shot at the
+/// hall, with `orte.toml`.
+fn session_with_places(name: &str) -> Session {
+    let mut project = big_project();
+    let mut book = String::new();
+    let mut places = Vec::new();
+
+    for n in 1..=BOOK_SCENES {
+        let place = format!("ORT {}", n % BOOK_PLACES);
+        let heading = format!("INT. {place} – TAG");
+        book += &format!("{heading} #{n}#\n\nAnna wartet.\n\n");
+        if n <= BOOK_PLACES {
+            places.push(Place {
+                id: format!("o{n}"),
+                name: place,
+                variants: vec![format!("RAUM {n}")],
+                location: Some("l1".into()),
+            });
+        }
+        if n == 1 {
+            project.scenes[0].heading = heading;
+            project.scenes[0].location = None;
+            continue;
+        }
+        project.scenes.push(Scene {
+            id: format!("s{n}"),
+            number: n.to_string(),
+            heading,
+            ..Default::default()
+        });
+    }
+
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    klappe_store::save(&dir, &project, Some(&book)).unwrap();
+    klappe_store::save_places(&dir, &places).unwrap();
+
+    Session::open(&dir).unwrap()
 }
 
 fn open(name: &str, project: Project, book: Option<&str>) -> Session {
@@ -229,6 +273,7 @@ fn open(name: &str, project: Project, book: Option<&str>) -> Session {
 
 fn big_project() -> Project {
     let mut plan = FloorPlan::new("p1", "Plan A");
+    plan.location = "l1".into();
     plan.figures = (0..FIGURES).map(figure).collect();
     plan.cameras = (0..CAMERAS).map(camera).collect();
     plan.lights = (0..LIGHTS).map(light).collect();
@@ -256,7 +301,7 @@ fn big_project() -> Project {
         id: "s1".into(),
         number: "1".into(),
         heading: "INT. HALLE".into(),
-        location: "l1".into(),
+        location: Some("l1".into()),
         plans: vec![plan],
         ..Default::default()
     }];
@@ -346,6 +391,26 @@ fn an_edit_beside_a_screenplay_stays_fluid() {
     assert!(
         edit < BOOK_EDIT_BUDGET * LIMIT_FACTOR,
         "{edit:?} over {LIMIT_FACTOR}x the {BOOK_EDIT_BUDGET:?} budget"
+    );
+}
+
+/// The project lists beside a screenplay of `BOOK_SCENES` scenes at `BOOK_PLACES` scripted
+/// locations: built on every playback tick, they must not grow with places × scenes.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn the_project_lists_fit_a_tick_beside_many_places() {
+    let s = session_with_places("perf-places");
+    assert!(s.pending_places().is_empty(), "every heading has its place");
+    assert_eq!(s.overview().scenes[1].location, "l1");
+
+    let lists = median(|| {
+        s.overview();
+    });
+    report("project lists beside scripted locations", lists);
+
+    assert!(
+        lists < OVERVIEW_BUDGET * LIMIT_FACTOR,
+        "{lists:?} over {LIMIT_FACTOR}x the {OVERVIEW_BUDGET:?} budget"
     );
 }
 

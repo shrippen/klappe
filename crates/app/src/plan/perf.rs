@@ -41,7 +41,7 @@ fn big_session(dir: &Path) -> Session {
     project(ProjectEdit::AddScene {
         number: "1".to_owned(),
         heading: "INT. HALLE".to_owned(),
-        location: "halle".to_owned(),
+        location: Some("halle".to_owned()),
     });
     for i in 0..FIGURES {
         project(ProjectEdit::AddCharacter {

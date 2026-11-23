@@ -4,8 +4,8 @@
 use std::borrow::Cow;
 
 use klappe_model::{
-    BookState, CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper, Project,
-    Scene, SetPlan,
+    BookState, CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper, Place, Scene,
+    SetPlan,
 };
 use klappe_stellprobe::{
     aim_at, axis_pair, camera_at, horizontal_fov_deg, object_extent, opening_span, picture, set_at,
@@ -14,6 +14,7 @@ use klappe_stellprobe::{
 
 use super::{Layer, Session, Visibility};
 use crate::library;
+use crate::scene_location;
 use crate::views::{
     AxisChoice, CameraSpot, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow,
     PlanRow, SceneRow, SunTexts, ViewRow,
@@ -27,9 +28,12 @@ const FOV_STEPS_PER_DEG: f64 = 10.0;
 const NO_GROUP: u32 = 0;
 
 /// One row of the scene list: the scene with its location and the counts of its markers.
-fn scene_row(project: &Project, s: &Scene, line: Option<usize>, length: String) -> SceneRow {
-    let location = project.location(&s.location);
-
+fn scene_row(
+    s: &Scene,
+    (place, location): (Option<&Place>, Option<&Location>),
+    line: Option<usize>,
+    length: String,
+) -> SceneRow {
     SceneRow {
         id: s.id.clone(),
         number: s.number.clone(),
@@ -39,8 +43,10 @@ fn scene_row(project: &Project, s: &Scene, line: Option<usize>, length: String) 
         shots: s.plans.iter().map(|p| p.shots.len()).sum(),
         line,
         length,
-        location: s.location.clone(),
+        location: location.map(|l| l.id.clone()).unwrap_or_default(),
         location_name: location.map(|l| l.name.clone()).unwrap_or_default(),
+        own_location: s.location.is_some(),
+        place: place.map(|p| p.name.clone()).unwrap_or_default(),
         sun: SunTexts::of(s.sun),
     }
 }
@@ -58,20 +64,20 @@ impl Session {
         })
     }
 
-    /// The location of the scene on view.
-    pub(crate) fn scene_location(&self) -> Option<&Location> {
-        self.project().location(&self.scene()?.location)
+    /// The location the plan on view is drawn on (DB-51).
+    pub(crate) fn plan_location(&self) -> Option<&Location> {
+        self.project().location(&self.plan()?.location)
     }
 
     /// Whether the scene's set has a background image.
     pub fn has_background(&self) -> bool {
-        self.scene_location()
+        self.plan_location()
             .is_some_and(|l| l.set.background.is_some())
     }
 
     /// The text of the note `id` on the scene's set.
     pub fn note_text(&self, id: &str) -> Option<String> {
-        let set = &self.scene_location()?.set;
+        let set = &self.plan_location()?.set;
         let labels = self.plan().map_or(&[][..], |p| p.labels.as_slice());
 
         Some(
@@ -84,15 +90,24 @@ impl Session {
         )
     }
 
+    /// The rows of the scene list; `places` and `shot` hold each scene's scripted and
+    /// shooting location.
+    fn scene_rows(&self, places: &[Option<&Place>], shot: &[Option<&Location>]) -> Vec<SceneRow> {
+        let scenes = self.project().scenes.iter().zip(self.heading_lines());
+
+        scenes
+            .enumerate()
+            .map(|(i, (s, line))| {
+                scene_row(s, (places[i], shot[i]), line, self.scene_length(&s.id))
+            })
+            .collect()
+    }
+
     /// The lists of the project view.
     pub fn overview(&self) -> Overview {
         let project = self.project();
-        let lines = self.heading_lines();
-        let scenes = project
-            .scenes
-            .iter()
-            .zip(lines)
-            .map(|(s, line)| scene_row(project, s, line, self.scene_length(&s.id)));
+        let (places, shot) = self.shot_scenes();
+        let scenes = self.scene_rows(&places, &shot);
         let locations = project.locations.iter().map(|l| LocationRow {
             id: l.id.clone(),
             name: l.name.clone(),
@@ -102,7 +117,7 @@ impl Session {
             latitude: l.site.map(|s| s.latitude_deg),
             longitude: l.site.map(|s| s.longitude_deg),
             north: l.site.map_or(0.0, |s| s.north_deg),
-            scenes: project.scenes.iter().filter(|s| s.location == l.id).count(),
+            scenes: scene_location::scenes_using(project, &shot, &l.id),
         });
         let characters = project.characters.iter().map(|c| CharacterRow {
             id: c.id.clone(),
@@ -125,9 +140,12 @@ impl Session {
             });
 
         Overview {
-            scenes: scenes.collect(),
+            scenes,
             locations: locations.collect(),
             characters: characters.collect(),
+            places: self.place_rows(&places),
+            elsewhere: self.plan_elsewhere(),
+            not_shot: self.not_shot(),
             not_figures: project.not_figures.clone(),
             plans: plans.collect(),
             plan: self.plan().map(|p| p.id.clone()).unwrap_or_default(),
@@ -219,7 +237,7 @@ impl Session {
         width_px: usize,
     ) -> Option<Picture> {
         let plan = self.plan()?;
-        let location = self.project.location(&self.scene()?.location)?;
+        let location = self.plan_location()?;
         let eye = Eye::Shot {
             camera,
             t_s,
@@ -343,7 +361,7 @@ impl Session {
     /// The scene's set with its moving objects where they stand at the playhead (LH-24).
     pub(super) fn set_now(&self) -> Option<Cow<'_, SetPlan>> {
         Some(set_at(
-            &self.scene_location()?.set,
+            &self.plan_location()?.set,
             self.plan()?,
             self.time_s,
         ))
@@ -351,7 +369,7 @@ impl Session {
 
     /// How many objects of the scene's set have no height yet (LH-93).
     pub fn missing_heights(&self) -> usize {
-        let Some(location) = self.scene_location() else {
+        let Some(location) = self.plan_location() else {
             return 0;
         };
 
@@ -367,7 +385,7 @@ impl Session {
     /// round again (LH-93); the first one without `after` or when it is gone. `None` when
     /// all have a height. The object `after` itself comes last.
     pub fn next_missing_height(&self, after: Option<&str>) -> Option<String> {
-        let objects = &self.scene_location()?.set.objects;
+        let objects = &self.plan_location()?.set.objects;
         let count = objects.len();
         let last = after
             .and_then(|id| objects.iter().position(|o| o.id == id))
@@ -416,7 +434,7 @@ impl Session {
 
     /// The card of the set's wall `index` (LH-90); `None` without such a wall.
     pub fn wall_hint(&self, index: usize) -> Option<Hint> {
-        let set = &self.scene_location()?.set;
+        let set = &self.plan_location()?.set;
         let wall = set.walls.get(index)?;
 
         Some(Hint::Wall {
@@ -428,7 +446,7 @@ impl Session {
     /// The tooltip and card of opening `index` of the set's wall `wall` (LH-10); `None`
     /// without such an opening.
     pub fn opening_hint(&self, wall: usize, index: usize) -> Option<Hint> {
-        let set = &self.scene_location()?.set;
+        let set = &self.plan_location()?.set;
         let o = set.walls.get(wall)?.openings.get(index)?;
 
         let (sill_m, head_m) = opening_span(o);
@@ -462,7 +480,7 @@ impl Session {
 
     /// The tooltip of note `id`; empty text for an unknown note.
     pub fn note_hint(&self, id: &str) -> Hint {
-        let notes = self.scene_location().map(|l| l.set.notes.as_slice());
+        let notes = self.plan_location().map(|l| l.set.notes.as_slice());
         let labels = self.plan().map_or(&[][..], |p| p.labels.as_slice());
         let bound = notes
             .unwrap_or_default()
@@ -478,7 +496,7 @@ impl Session {
 
     /// The tooltip of image `id`; `None` for an unknown image.
     pub fn image_hint(&self, id: &str) -> Option<Hint> {
-        let set = &self.scene_location()?.set;
+        let set = &self.plan_location()?.set;
         let image = set.images.iter().find(|i| i.id == id)?;
 
         Some(Hint::Image {

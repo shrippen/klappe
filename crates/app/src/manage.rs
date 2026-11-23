@@ -685,7 +685,7 @@ mod tests {
             .edit_project(ProjectEdit::AddScene {
                 number: "1".to_owned(),
                 heading: "INT. HALLE".to_owned(),
-                location: "halle".to_owned(),
+                location: Some("halle".to_owned()),
             })
             .unwrap();
         session

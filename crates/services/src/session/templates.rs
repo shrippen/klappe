@@ -17,10 +17,7 @@ impl Session {
     /// The middle of the set the plan on view is drawn on: where a template goes down unless
     /// the user says otherwise. The origin when the scene has no set.
     pub fn plan_middle(&self) -> Point {
-        let set = self
-            .scene()
-            .and_then(|scene| self.project.location(&scene.location))
-            .map(|location| &location.set);
+        let set = self.plan_location().map(|location| &location.set);
 
         set.map_or(Point::default(), |set| {
             Point::new(set.width_m / 2.0, set.depth_m / 2.0)

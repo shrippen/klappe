@@ -306,8 +306,11 @@ fn example() -> Project {
         id: "m4djbtj6".into(),
         number: "12".into(),
         heading: "INT. SÄNGERSAAL – TAG".into(),
-        location: "saengersaal".into(),
-        plans: vec![plan()],
+        location: None,
+        plans: vec![FloorPlan {
+            location: "saengersaal".into(),
+            ..plan()
+        }],
         ..Default::default()
     }];
 
@@ -349,7 +352,8 @@ fn loads_example() {
     let scene = project.scene("m4djbtj6").unwrap();
     assert_eq!(scene.number, "12");
     assert_eq!(scene.heading, "INT. SÄNGERSAAL – TAG");
-    assert_eq!(scene.location, "saengersaal");
+    assert_eq!(scene.location, None);
+    assert_eq!(scene.plans[0].location, "saengersaal");
 
     let plan = &scene.plans[0];
     assert_eq!(plan.figure("elisabeth").unwrap().marks.len(), 3);

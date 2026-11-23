@@ -17,6 +17,7 @@ fn place(id: &str, name: &str, variants: &[&str]) -> Place {
         id: id.into(),
         name: name.into(),
         variants: variants.iter().map(|v| (*v).into()).collect(),
+        location: None,
     }
 }
 
@@ -31,7 +32,10 @@ fn dir(name: &str) -> PathBuf {
 fn the_example_has_its_place() {
     assert_eq!(
         load_places(Path::new(EXAMPLE)).unwrap(),
-        [place("k3m9q2xa", "SÄNGERSAAL", &[])]
+        [Place {
+            location: Some("saengersaal".into()),
+            ..place("k3m9q2xa", "SÄNGERSAAL", &[])
+        }]
     );
 }
 

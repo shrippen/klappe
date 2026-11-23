@@ -83,4 +83,4 @@ pub use sketch::Sketch;
 pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).
-pub const FORMAT_VERSION: u32 = 3;
+pub const FORMAT_VERSION: u32 = 4;

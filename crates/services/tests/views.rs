@@ -63,8 +63,10 @@ fn the_overview_lists_scenes_locations_and_plans() {
             shots: 10,
             line: Some(0),
             length: String::new(),
-            location: s.project().scenes[0].location.clone(),
+            location: s.project().locations[0].id.clone(),
             location_name: s.project().locations[0].name.clone(),
+            own_location: false,
+            place: "SÄNGERSAAL".into(),
             sun: SunTexts::default(),
         }
     );

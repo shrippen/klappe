@@ -18,7 +18,7 @@ impl qobject::Controller {
         self.commit_project(Ok(ProjectEdit::AddScene {
             number: number.to_string(),
             heading: heading.to_string(),
-            location: location.to_string(),
+            location: own_location(location),
         }))
     }
 
@@ -34,7 +34,7 @@ impl qobject::Controller {
             id: id.to_string(),
             number: number.to_string(),
             heading: heading.to_string(),
-            location: location.to_string(),
+            location: own_location(location),
             sun,
         });
         self.commit_project(edit)
@@ -198,4 +198,11 @@ fn color_edit(name: &QString) -> Result<FigureColor, ServiceError> {
         field: Field::Color,
         value: name,
     })
+}
+
+/// A scene's own shooting location from the form: empty follows its scripted location (DB-51).
+pub(super) fn own_location(location: &QString) -> Option<String> {
+    let id = location.to_string();
+
+    (!id.is_empty()).then_some(id)
 }

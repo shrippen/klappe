@@ -1158,6 +1158,28 @@ pub mod qobject {
         #[cxx_name = "removeNotFigure"]
         fn remove_not_figure(self: Pin<&mut Self>, name: &QString) -> bool;
 
+        /// Changes scripted location `id` (D-21): `variants` is a JSON array of other spellings
+        /// in a heading, an empty `location` means no shooting location yet.
+        #[qinvokable]
+        #[cxx_name = "editPlace"]
+        fn edit_place(
+            self: Pin<&mut Self>,
+            id: &QString,
+            name: &QString,
+            variants: &QString,
+            location: &QString,
+        ) -> bool;
+
+        /// Takes scripted location `id` out of the list; refused while a heading names it.
+        #[qinvokable]
+        #[cxx_name = "removePlace"]
+        fn remove_place(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// Shoots the scene on view at `location`; empty: as its scripted location (D-21).
+        #[qinvokable]
+        #[cxx_name = "shootSceneAt"]
+        fn shoot_scene_at(self: Pin<&mut Self>, location: &QString) -> bool;
+
         /// Variants of the scene's plan (LH-04). Shows the plan `id` of the current scene.
         #[qinvokable]
         #[cxx_name = "selectPlan"]
@@ -1235,6 +1257,7 @@ mod measure;
 mod notes;
 mod outside;
 mod picture;
+mod places;
 mod plans;
 mod playback;
 mod project;

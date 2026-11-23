@@ -27,19 +27,22 @@ pub(crate) use views::{remove_view, save_view};
 /// change after.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProjectEdit {
-    /// A scene with an empty `Plan A`.
+    /// A scene without a plan; the session gives it an empty `Plan A` on the set it is shot
+    /// at. `location` is its own shooting location (DB-51); `None` follows its scripted
+    /// location.
     AddScene {
         number: String,
         heading: String,
-        location: String,
+        location: Option<String>,
     },
-    /// Sets number, heading and location; the number is only checked when it changes, so a
-    /// scene whose script is linked by its number keeps it while the heading changes.
+    /// Sets number, heading and own shooting location; the number is only checked when it
+    /// changes, so a scene whose script is linked by its number keeps it while the heading
+    /// changes. Its plans stay on the sets they are drawn on.
     EditScene {
         id: String,
         number: String,
         heading: String,
-        location: String,
+        location: Option<String>,
         /// When it is shot (LH-52); `None` clears it.
         sun: Option<SunTime>,
     },
@@ -170,20 +173,28 @@ const CHARACTER_ID_FALLBACK: &str = "figur";
 const FIRST_PLAN_ID: &str = "plan-a";
 const FIRST_PLAN_NAME: &str = "Plan A";
 
+/// The empty `Plan A` a new scene starts with, on the set of `location`.
+pub(crate) fn first_plan(location: &str) -> FloorPlan {
+    let mut plan = FloorPlan::new(FIRST_PLAN_ID, FIRST_PLAN_NAME);
+    plan.location = location.to_owned();
+
+    plan
+}
+
 pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), ServiceError> {
     match edit {
         ProjectEdit::AddScene {
             number,
             heading,
             location,
-        } => add_scene(project, number, heading, location),
+        } => add_scene(project, number, heading, location.as_deref()),
         ProjectEdit::EditScene {
             id,
             number,
             heading,
             location,
             sun,
-        } => edit_scene(project, id, number, heading, location, *sun),
+        } => edit_scene(project, id, number, heading, location.as_deref(), *sun),
         ProjectEdit::RemoveScene { id } => remove_scene(project, id),
         ProjectEdit::SetNumbering { numbering } => {
             project.numbering = *numbering;
@@ -242,11 +253,11 @@ fn add_scene(
     project: &mut Project,
     number: &str,
     heading: &str,
-    location: &str,
+    location: Option<&str>,
 ) -> Result<(), ServiceError> {
     let heading = check_heading(heading)?;
     let number = free_number(project, number, None)?;
-    check_location(project, location)?;
+    check_own_location(project, location)?;
 
     // Appended: the register keeps the order of the project, not of the ids.
     project.scenes.push(Scene {
@@ -257,9 +268,9 @@ fn add_scene(
         state: BookState::InBook,
         prints: Vec::new(),
         refused: Vec::new(),
-        location: location.to_owned(),
+        location: location.map(str::to_owned),
         sun: None,
-        plans: vec![FloorPlan::new(FIRST_PLAN_ID, FIRST_PLAN_NAME)],
+        plans: Vec::new(),
     });
     Ok(())
 }
@@ -269,7 +280,7 @@ fn edit_scene(
     id: &str,
     number: &str,
     heading: &str,
-    location: &str,
+    location: Option<&str>,
     sun: Option<SunTime>,
 ) -> Result<(), ServiceError> {
     let heading = check_heading(heading)?;
@@ -281,18 +292,14 @@ fn edit_scene(
         true => current.number.clone(),
         false => free_number(project, number, Some(id))?,
     };
-    check_location(project, location)?;
+    check_own_location(project, location)?;
 
     let Some(scene) = project.scenes.iter_mut().find(|s| s.id == id) else {
         return Err(ServiceError::NoScene(id.to_owned()));
     };
     scene.number = number;
     scene.heading = heading;
-    // The ways name objects of the old set; a same-named object of the new one is another.
-    if scene.location != location {
-        scene.plans.iter_mut().for_each(|p| p.object_tracks.clear());
-    }
-    scene.location = location.to_owned();
+    scene.location = location.map(str::to_owned);
     scene.sun = sun;
     Ok(())
 }
@@ -364,7 +371,11 @@ fn remove_location(project: &mut Project, id: &str) -> Result<(), ServiceError> 
         return Err(ServiceError::NoLocation(id.to_owned()));
     }
 
-    let scenes = project.scenes.iter().filter(|s| s.location == id).count();
+    let scenes = project
+        .scenes
+        .iter()
+        .filter(|s| s.location.as_deref() == Some(id) || s.plans.iter().any(|p| p.location == id))
+        .count();
     if scenes > 0 {
         return Err(ServiceError::LocationInUse {
             id: id.to_owned(),
@@ -563,6 +574,14 @@ fn free_number(project: &Project, number: &str, own: Option<&str>) -> Result<Str
     }
 
     Ok(number.to_owned())
+}
+
+/// A scene's own shooting location, if it has one, must exist.
+fn check_own_location(project: &Project, id: Option<&str>) -> Result<(), ServiceError> {
+    match id {
+        Some(id) => check_location(project, id),
+        None => Ok(()),
+    }
 }
 
 fn check_location(project: &Project, id: &str) -> Result<(), ServiceError> {
