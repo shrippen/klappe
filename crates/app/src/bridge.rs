@@ -1277,6 +1277,26 @@ pub mod qobject {
             element: &QString,
         ) -> bool;
 
+        /// Marks the words `text` standing in line `line` of the scene's text right after
+        /// `prefix` (D-23) as the element `element`, or, when it is empty, as a new element
+        /// of `category` named like the words.
+        #[qinvokable]
+        #[cxx_name = "markText"]
+        fn mark_text(
+            self: Pin<&mut Self>,
+            scene: &QString,
+            line: i32,
+            prefix: &QString,
+            text: &QString,
+            element: &QString,
+            category: &QString,
+        ) -> bool;
+
+        /// Drops the element's spots in the scene that its text no longer has (D-23).
+        #[qinvokable]
+        #[cxx_name = "forgetLost"]
+        fn forget_lost(self: Pin<&mut Self>, scene: &QString, element: &QString) -> bool;
+
         /// Variants of the scene's plan (LH-04). Shows the plan `id` of the current scene.
         #[qinvokable]
         #[cxx_name = "selectPlan"]
