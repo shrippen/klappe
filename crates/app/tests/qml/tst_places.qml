@@ -48,6 +48,8 @@ TestCase {
             return accept
         }
         function clearStatus() { status = "" }
+        // Another program adds a location right before the dialog's own.
+        property bool outside: false
         function sceneChanges(id, n, h) { return "[]" }
         function addScene(n, h, l) { return call("addScene", [n, h, l]) }
         function editScene(id, n, h, l, sun) { return call("editScene", [id, l]) }
@@ -57,9 +59,13 @@ TestCase {
         // Makes the location, as the project then lists it.
         function addLocation(n, w, d, h, site) {
             const project = JSON.parse(projectJson)
+            if (outside) {
+                project.locations.push({ id: "fremd", name: "Fremd", width: 10, depth: 8, height: 2.6, scenes: 0 })
+            }
             project.locations.push({ id: "neu", name: n, width: 10, depth: 8, height: 2.6, scenes: 0 })
             projectJson = JSON.stringify(project)
-            return call("addLocation", [n])
+
+            return call("addLocation", [n]) ? "neu" : ""
         }
         function setNumbering(name) { return call("setNumbering", [name]) }
     }
@@ -77,6 +83,7 @@ TestCase {
     function init() {
         fake.status = ""
         fake.accept = true
+        fake.outside = false
         fake.calls = []
         fake.projectJson = fake.fixture
     }
@@ -275,6 +282,20 @@ TestCase {
     }
 
     function test_a_new_location_without_a_place_goes_to_the_scene() {
+        const pd = createTemporaryObject(dialogComponent, tc)
+        pd.openNewLocation("", "")
+        tryCompare(findChild(pd, "dialog"), "opened", true)
+        const form = findChild(pd, "locationForm")
+
+        findChild(form, "nameField").text = "Keller"
+        findChild(form, "apply").clicked()
+
+        compare(fake.calls, [["addLocation", "Keller"], ["shootSceneAt", "neu"]])
+    }
+
+    // A location another program added while the form is open is not the one made.
+    function test_a_location_from_outside_is_not_linked() {
+        fake.outside = true
         const pd = createTemporaryObject(dialogComponent, tc)
         pd.openNewLocation("", "")
         tryCompare(findChild(pd, "dialog"), "opened", true)

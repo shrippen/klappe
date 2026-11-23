@@ -1,10 +1,12 @@
-use klappe_model::{FloorPlan, Project, Scene};
+use std::collections::HashSet;
+
+use klappe_model::{ElementCategory, FloorPlan, Project, Scene, Site};
 
 use super::undo::{next_edit, step_name};
 use super::Session;
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit};
-use crate::project_edit::{self, PlanShift, ProjectEdit, ShotsGo};
+use crate::project_edit::{self, BreakdownEdit, PlanShift, ProjectEdit, ShotsGo};
 use crate::scene_location;
 use crate::script_refs;
 
@@ -142,6 +144,58 @@ impl Session {
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
         Ok(())
+    }
+
+    /// Adds the element and returns its id; undoable. Refused like `AddElement`.
+    pub fn add_element(
+        &mut self,
+        category: ElementCategory,
+        name: &str,
+    ) -> Result<String, ServiceError> {
+        let known: HashSet<String> = self.project.elements.iter().map(|e| e.id.clone()).collect();
+        self.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddElement {
+            category,
+            name: name.to_owned(),
+        }))?;
+
+        Ok(self
+            .project
+            .elements
+            .iter()
+            .find(|e| !known.contains(&e.id))
+            .map(|e| e.id.clone())
+            .unwrap_or_default())
+    }
+
+    /// Adds the location and returns its id; undoable. Refused like `AddLocation`.
+    pub fn add_location(
+        &mut self,
+        name: &str,
+        size_m: (f64, f64),
+        wall_height_m: f64,
+        site: Option<Site>,
+    ) -> Result<String, ServiceError> {
+        let known: HashSet<String> = self
+            .project
+            .locations
+            .iter()
+            .map(|l| l.id.clone())
+            .collect();
+        self.edit_project(ProjectEdit::AddLocation {
+            name: name.to_owned(),
+            width_m: size_m.0,
+            depth_m: size_m.1,
+            wall_height_m,
+            site,
+        })?;
+
+        Ok(self
+            .project
+            .locations
+            .iter()
+            .find(|l| !known.contains(&l.id))
+            .map(|l| l.id.clone())
+            .unwrap_or_default())
     }
 
     /// The scene `edit` added is the one the session did not have: where it is shot already
