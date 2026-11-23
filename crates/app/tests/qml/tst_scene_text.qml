@@ -37,6 +37,14 @@ TestCase {
 
         property string projectJson: fixture
 
+        // The page's columns as the bridge gives them (`scriptLooks`), for the kinds used here.
+        function scriptLooks() {
+            return JSON.stringify({ columns: 60,
+                looks: { a: { kind: "action", x: 0, width: 60, align: "left" },
+                         d: { kind: "dialogue", x: 10, width: 35, align: "left" },
+                         r: { kind: "transition", x: 40, width: 20, align: "right" } },
+                letters: { action: "a", dialogue: "d", transition: "r" } })
+        }
         function markText(s, l, p, t, e, c) {
             calls.push(["markText", s, l, p, t, e, c])
             return true
@@ -130,6 +138,24 @@ TestCase {
         project.elements.push({ id: "e3", category: "prop", name: "Seiten", description: "", status: "open", scenes: [] })
         fake.projectJson = JSON.stringify(project)
         compare(v.entries.length, 4)
+    }
+
+    // A line stands in its column of the printed page; a kind without one takes the width.
+    function test_a_line_stands_in_its_page_column() {
+        const v = make()
+        const dialogue = findChild(v, "textLine.1")
+
+        fuzzyCompare(dialogue.x, 10 / 60 * 700, 1)
+        fuzzyCompare(dialogue.width, 35 / 60 * 700, 1)
+        compare(v.placeOf("transition").align, "right")
+        compare(v.placeOf("lyrics"), { left: 0, width: 1, align: "left" })
+    }
+
+    function test_without_a_scene_the_text_says_so() {
+        fake.projectJson = JSON.stringify({ element_categories: [], elements: [] })
+        const v = make()
+
+        compare(findChild(v, "textHint").text, "Keine Szene gewählt.")
     }
 
     // A selection made with the keyboard opens the menu on Enter.

@@ -71,6 +71,14 @@ TestCase {
         function excludeSuggestion(s, e) { return call("excludeSuggestion", [s, e]) }
         function addSceneCharacter(s, c) { return call("addSceneCharacter", [s, c]) }
         function removeSceneCharacter(s, c) { return call("removeSceneCharacter", [s, c]) }
+        // The page's columns as the bridge gives them (`scriptLooks`), for the kinds used here.
+        function scriptLooks() {
+            return JSON.stringify({ columns: 60,
+                looks: { a: { kind: "action", x: 0, width: 60, align: "left" },
+                         d: { kind: "dialogue", x: 10, width: 35, align: "left" },
+                         r: { kind: "transition", x: 40, width: 20, align: "right" } },
+                letters: { action: "a", dialogue: "d", transition: "r" } })
+        }
         function forgetLost(s, e) { return call("forgetLost", [s, e]) }
         // Makes the element as the project then lists it, under an id the form cannot guess
         // from the name; answers the id.

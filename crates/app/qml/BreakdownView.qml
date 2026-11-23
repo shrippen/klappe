@@ -24,7 +24,7 @@ RowLayout {
     /// The width of the list beside the sheet.
     readonly property real listWidth: Kirigami.Units.gridUnit * 16
     /// The width of the scene's text beside the sheet (D-23).
-    readonly property real textWidth: Math.round((width - listWidth) * 0.42)
+    readonly property real textWidth: Math.max(0, Math.round((width - listWidth) * 0.42))
     /// The segments: the scene sheet and the elements.
     readonly property var modes: ["scenes", "elements"]
     property string mode: "scenes"
@@ -113,7 +113,9 @@ RowLayout {
         objectName: "sceneText"
         visible: view.mode === "scenes"
         Layout.fillHeight: true
-        // Its lines would ask for their full length: the width is set, the sheet takes the rest.
+        // Its lines would ask for their full length: the width is set (all three, or the long
+        // hint's width fights the maximum), the sheet takes the rest.
+        Layout.minimumWidth: view.textWidth
         Layout.preferredWidth: view.textWidth
         Layout.maximumWidth: view.textWidth
         Layout.margins: Kirigami.Units.largeSpacing

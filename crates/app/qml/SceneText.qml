@@ -35,6 +35,19 @@ ColumnLayout {
     /// The line the menu was opened on; its selection goes when the menu closes.
     property var chosenOn: null
 
+    /// The page's columns per kind, as the screenplay view sets them (`scriptLooks`).
+    readonly property var pageLooks: JSON.parse(controller.scriptLooks())
+
+    // Where a line of `kind` stands, as shares of the width, and how it is aligned: the
+    // columns of the printed page.
+    function placeOf(kind) {
+        const look = pageLooks.looks[pageLooks.letters[kind]]
+        if (!look || look.x === undefined) {
+            return { left: 0, width: 1, align: "left" }
+        }
+        return { left: look.x / pageLooks.columns, width: look.width / pageLooks.columns, align: look.align }
+    }
+
     // The colour of a category: Kante's label colours in turn (seven for fifteen), so its short
     // name tells the category, the colour only groups.
     function colorOf(category) {
@@ -179,7 +192,8 @@ ColumnLayout {
     }
     QQC2.Label {
         objectName: "textHint"
-        text: sceneText.texts.t(sceneText.lines.length > 0 ? "textMark.hint" : "textMark.none")
+        text: sceneText.texts.t(!sceneText.project.sheet ? "sheet.none"
+            : sceneText.lines.length > 0 ? "textMark.hint" : "textMark.none")
         color: KanteStyle.mutedTextColor
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
@@ -207,11 +221,12 @@ ColumnLayout {
                     required property var modelData
                     required property int index
                     objectName: "textLine." + index
-                    readonly property bool speech: ["dialogue", "parenthetical"].includes(modelData.kind)
-                    readonly property bool cue: modelData.kind === "cue"
+                    readonly property var place: sceneText.placeOf(modelData.kind)
 
-                    x: cue ? column.width * 0.3 : speech ? column.width * 0.15 : 0
-                    width: column.width - x - (speech ? column.width * 0.1 : 0)
+                    x: place.left * column.width
+                    width: place.width * column.width
+                    horizontalAlignment: place.align === "right" ? TextEdit.AlignRight
+                        : place.align === "center" ? TextEdit.AlignHCenter : TextEdit.AlignLeft
                     readOnly: true
                     selectByMouse: true
                     selectByKeyboard: true
