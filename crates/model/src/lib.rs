@@ -7,8 +7,10 @@
 //! ├── library      LibraryItem      (the project's own objects, LH-12)
 //! ├── templates    Template         (the project's own set-ups, LH-07)
 //! ├── views        SavedView        (named choices of visible layers, cameras, figures, LH-119)
+//! ├── elements     Element          (the breakdown's things: costumes, props …, DB-60)
 //! └── scenes       Scene → FloorPlan   (the register of what is shot: a scene or a content item,
 //!                           by `kind`; its order is the project's order)
+//!                           ├── sheet    Sheet       (the scene sheet: story day, elements, extras)
 //!                           ├── figures  FigureTrack → Mark (time, place, facing)
 //!                           ├── object_tracks ObjectTrack → ObjectMark (a set object's way, LH-24)
 //!                           ├── cameras  Camera      → CameraMark
@@ -24,6 +26,7 @@
 //! y downwards (as drawn); 0° faces right (+x), angles grow clockwise on screen.
 
 mod binding;
+mod breakdown;
 mod camera_color;
 mod camera_preset;
 mod curve;
@@ -46,6 +49,7 @@ mod sketch;
 mod template;
 
 pub use binding::Binding;
+pub use breakdown::{Element, ElementCategory, ElementStatus, Sheet};
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use curve::Curve;
 pub use drawing_style::{Dash, Fill};

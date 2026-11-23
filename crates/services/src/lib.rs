@@ -69,9 +69,10 @@ pub use session::{
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};
 pub use views::{
-    AxisChoice, CameraSpot, CastUse, CharacterRow, Chip, Elsewhere, Hint, LibraryEntry, LinkKind,
-    LocationRow, Marker, NotShot, Overview, PlaceRow, PlanRow, SceneCard, SceneRow, SceneUse,
-    ScriptLine, Segment, SetupOption, ShotRow, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
+    AxisChoice, CameraSpot, CastUse, CharacterRow, Chip, ElementRow, Elsewhere, Hint, LibraryEntry,
+    LinkKind, LocationRow, Marker, NotShot, Overview, PlaceRow, PlanRow, SceneCard, SceneRow,
+    SceneUse, ScriptLine, Segment, SetupOption, SheetCategory, SheetElement, SheetFigure,
+    SheetView, ShotRow, Suggestion, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.
@@ -80,10 +81,10 @@ pub use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts, 
 pub use klappe_export::{Face as PrintFace, Placed, SheetPage, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT};
 pub use klappe_model::{
     same_character_name, Angle, Arrival, CameraBody, CameraPresets, Curve, Dash, Departure,
-    DoorSide, DrawingShape, FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset,
-    Movement, Numbering, ObjectShape, OpeningKind, Orientation, Paper, PaperSetup, Point, Pose,
-    Rig, SceneNumbering, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords, Sensor, ShotSize,
-    Site, SunTime, MIN_IMAGE_OPACITY, MIN_OBJECT_HEIGHT_M,
+    DoorSide, DrawingShape, ElementCategory, ElementStatus, FigureColor, Fill, FloorPlan, Hinge,
+    LensSet, LightKind, LightPreset, Movement, Numbering, ObjectShape, OpeningKind, Orientation,
+    Paper, PaperSetup, Point, Pose, Rig, SceneNumbering, ScriptLanguage, ScriptPaper, ScriptSetup,
+    ScriptWords, Sensor, ShotSize, Site, SunTime, MIN_IMAGE_OPACITY, MIN_OBJECT_HEIGHT_M,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, scene_look, Area, Bend, Cut, DisplayList, Frame, Hue, Item,

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::breakdown::{Element, Sheet};
 use crate::geometry::{Point, TurnedRect};
 use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
@@ -28,6 +29,8 @@ pub struct Project {
     pub templates: Vec<Template>,
     /// The saved views of the plan (LH-119).
     pub views: Vec<SavedView>,
+    /// The breakdown's elements (DB-60); a scene's sheet names them by id.
+    pub elements: Vec<Element>,
     /// The sheet the plan was last exported on; the export dialog starts from it.
     pub paper: PaperSetup,
     /// How the shots are numbered (LH-76).
@@ -47,6 +50,7 @@ impl Project {
             library: Vec::new(),
             templates: Vec::new(),
             views: Vec::new(),
+            elements: Vec::new(),
             paper: PaperSetup::default(),
             numbering: Numbering::default(),
             script: ScriptSetup::default(),
@@ -541,6 +545,10 @@ pub struct SetObject {
     /// Flipped left to right (LH-115), along its own width, before the turn.
     #[serde(default, skip_serializing_if = "is_false")]
     pub mirrored: bool,
+    /// The breakdown element the object stands for (DB-60, D-22): the scenes shot on this set
+    /// get it as a suggestion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub element: Option<String>,
 }
 
 impl SetObject {
@@ -592,6 +600,8 @@ pub struct Scene {
     pub location: Option<String>,
     /// When it is shot (LH-52); `None` shows no sun.
     pub sun: Option<SunTime>,
+    /// What the production notes down for the scene (DB-60).
+    pub sheet: Sheet,
     pub plans: Vec<FloorPlan>,
 }
 
@@ -625,6 +635,7 @@ mod tests {
             height_m: None,
             base_m: None,
             mirrored: false,
+            element: None,
         };
 
         assert_eq!(table.placed(1.0, 0.0), Point::new(11.0, 5.0));

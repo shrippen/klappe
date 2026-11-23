@@ -423,6 +423,7 @@ fn a_free_form_leaves_its_notch_open() {
         height_m: Some(0.05),
         base_m: None,
         mirrored: false,
+        element: None,
     }];
     let plan = plan(35.0, &[]);
     let eye = orbit_eye(Orbit::fitting(set.width_m, set.depth_m));
@@ -478,6 +479,7 @@ fn one_sees_under_a_table_between_its_legs() {
         height_m: Some(3.0),
         base_m: None,
         mirrored: false,
+        element: None,
     }];
     let plan = plan(35.0, &[]);
     let leg = |x: f64, y: f64| FormBox {
@@ -590,6 +592,7 @@ fn with_crate(height_m: f64) -> SetPlan {
         height_m: Some(height_m),
         base_m: None,
         mirrored: false,
+        element: None,
     }];
 
     set

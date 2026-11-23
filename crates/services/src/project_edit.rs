@@ -3,22 +3,25 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, is_object_height_m, normalize_deg, random_id, same_character_name, BookState,
-    Character, FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project,
-    Scene, SetPlan, Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    is_figure_size_m, random_id, same_character_name, BookState, Character, ElementCategory,
+    ElementStatus, FigureColor, FloorPlan, Kind, LibraryItem, Numbering, Point, Project, Scene,
+    Site, SunTime, Template, MAX_GROUP, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
 use crate::field::Field;
 
+mod breakdown;
 mod copy;
 mod library;
+mod locations;
 mod names;
 mod plans;
 pub(crate) mod templates;
 mod views;
 
 pub(crate) use copy::{copy_character, free_short};
+use locations::{add_location, edit_location, remove_location};
 pub(crate) use plans::{add_plan, copy_plan, move_plan, remove_plan, rename_plan, seat_speakers};
 pub use plans::{PlanShift, ShotsGo};
 pub(crate) use views::{remove_view, save_view};
@@ -163,12 +166,78 @@ pub enum ProjectEdit {
     SetNumbering {
         numbering: Numbering,
     },
+    /// A new element of the breakdown (DB-60, D-22). Refused: an empty name, or one the
+    /// category already has.
+    AddElement {
+        category: ElementCategory,
+        name: String,
+    },
+    EditElement {
+        id: String,
+        category: ElementCategory,
+        name: String,
+        description: String,
+        status: ElementStatus,
+    },
+    /// Takes the element out of every scene sheet and every set object too.
+    RemoveElement {
+        id: String,
+    },
+    /// Sets what the scene sheet says besides its lists.
+    SetSheet {
+        scene: String,
+        story_day: String,
+        prestop_s: Option<u32>,
+        planned_min: Option<u32>,
+        continuity: String,
+        note: String,
+    },
+    AddSceneElement {
+        scene: String,
+        element: String,
+    },
+    RemoveSceneElement {
+        scene: String,
+        element: String,
+    },
+    /// The field with suggestions: the element of that name and category, made if there is
+    /// none, goes into the scene.
+    AddElementToScene {
+        scene: String,
+        category: ElementCategory,
+        name: String,
+    },
+    /// Turns a suggestion of the set down for this scene.
+    ExcludeSuggestion {
+        scene: String,
+        element: String,
+    },
+    /// Takes a suggestion of the set into the scene.
+    TakeSuggestion {
+        scene: String,
+        element: String,
+    },
+    /// A character without a line in the scene (silent, extra) is in it. Refused for one that
+    /// speaks: the book says so already.
+    AddSceneCharacter {
+        scene: String,
+        character: String,
+    },
+    RemoveSceneCharacter {
+        scene: String,
+        character: String,
+    },
+    /// The object `object` of the set at `location` stands for `element` (`None`: for none).
+    SetObjectElement {
+        location: String,
+        object: String,
+        element: Option<String>,
+    },
 }
 
 /// The label in a figure's circle has room for this many letters.
 const MAX_SHORT_CHARS: usize = 3;
 
-const LOCATION_ID_FALLBACK: &str = "drehort";
 const CHARACTER_ID_FALLBACK: &str = "figur";
 const FIRST_PLAN_ID: &str = "plan-a";
 const FIRST_PLAN_NAME: &str = "Plan A";
@@ -246,6 +315,18 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
         ProjectEdit::EditLibraryItem { .. } | ProjectEdit::RemoveLibraryItem { .. } => {
             library::apply(project, edit)
         }
+        ProjectEdit::AddElement { .. }
+        | ProjectEdit::EditElement { .. }
+        | ProjectEdit::RemoveElement { .. }
+        | ProjectEdit::SetSheet { .. }
+        | ProjectEdit::AddSceneElement { .. }
+        | ProjectEdit::RemoveSceneElement { .. }
+        | ProjectEdit::AddElementToScene { .. }
+        | ProjectEdit::ExcludeSuggestion { .. }
+        | ProjectEdit::TakeSuggestion { .. }
+        | ProjectEdit::AddSceneCharacter { .. }
+        | ProjectEdit::RemoveSceneCharacter { .. }
+        | ProjectEdit::SetObjectElement { .. } => breakdown::apply(project, edit),
     }
 }
 
@@ -271,6 +352,7 @@ fn add_scene(
         location: location.map(str::to_owned),
         sun: None,
         plans: Vec::new(),
+        sheet: Default::default(),
     });
     Ok(())
 }
@@ -310,80 +392,6 @@ fn remove_scene(project: &mut Project, id: &str) -> Result<(), ServiceError> {
     if project.scenes.len() == before {
         return Err(ServiceError::NoScene(id.to_owned()));
     }
-    Ok(())
-}
-
-fn add_location(
-    project: &mut Project,
-    name: &str,
-    (width_m, depth_m): (f64, f64),
-    wall_height_m: f64,
-    site: Option<Site>,
-) -> Result<(), ServiceError> {
-    let name = name_of(name)?;
-    check_size(width_m, depth_m)?;
-    check_room_height(wall_height_m)?;
-    let site = check_site(site)?;
-
-    let base = slug(&name, LOCATION_ID_FALLBACK);
-    let id = unique_id(&base, project.locations.iter().map(|l| l.id.as_str()));
-    project.locations.push(Location {
-        id,
-        name,
-        site,
-        set: SetPlan {
-            width_m,
-            depth_m,
-            wall_height_m,
-            ..SetPlan::default()
-        },
-    });
-    project.locations.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(())
-}
-
-fn edit_location(
-    project: &mut Project,
-    id: &str,
-    name: &str,
-    (width_m, depth_m): (f64, f64),
-    wall_height_m: f64,
-    site: Option<Site>,
-) -> Result<(), ServiceError> {
-    let name = name_of(name)?;
-    check_size(width_m, depth_m)?;
-    check_room_height(wall_height_m)?;
-    let site = check_site(site)?;
-
-    let Some(location) = project.locations.iter_mut().find(|l| l.id == id) else {
-        return Err(ServiceError::NoLocation(id.to_owned()));
-    };
-    location.name = name;
-    location.set.width_m = width_m;
-    location.set.depth_m = depth_m;
-    location.set.wall_height_m = wall_height_m;
-    location.site = site;
-    Ok(())
-}
-
-fn remove_location(project: &mut Project, id: &str) -> Result<(), ServiceError> {
-    if project.location(id).is_none() {
-        return Err(ServiceError::NoLocation(id.to_owned()));
-    }
-
-    let scenes = project
-        .scenes
-        .iter()
-        .filter(|s| s.location.as_deref() == Some(id) || s.plans.iter().any(|p| p.location == id))
-        .count();
-    if scenes > 0 {
-        return Err(ServiceError::LocationInUse {
-            id: id.to_owned(),
-            scenes,
-        });
-    }
-
-    project.locations.retain(|l| l.id != id);
     Ok(())
 }
 
@@ -637,63 +645,6 @@ fn check_figure_size(size_m: Option<f64>) -> Result<(), ServiceError> {
         });
     }
     Ok(())
-}
-
-/// Both sides in `(0, MAX_SET_M]`; also excludes NaN.
-fn check_size(width_m: f64, depth_m: f64) -> Result<(), ServiceError> {
-    let fits = |side: f64| side > 0.0 && side <= MAX_SET_M;
-
-    for (field, side) in [(Field::Width, width_m), (Field::Depth, depth_m)] {
-        if !fits(side) {
-            return Err(ServiceError::BadValue {
-                field,
-                value: side.to_string(),
-            });
-        }
-    }
-    Ok(())
-}
-
-/// The room height: a number, not under the least height, not absurd.
-fn check_room_height(wall_height_m: f64) -> Result<(), ServiceError> {
-    if is_object_height_m(wall_height_m) {
-        return Ok(());
-    }
-
-    Err(ServiceError::BadValue {
-        field: Field::RoomHeight,
-        value: wall_height_m.to_string(),
-    })
-}
-
-/// Folding into the circle adds float residue (370.1 gives 10.100000000000023); the form shows
-/// the stored value, so it is rounded to 1e-9°, far below what a plan shows (a power of ten
-/// as a divisor, so the result is the nearest double of the decimal).
-const NORTH_STEPS_PER_DEG: f64 = 1e9;
-
-fn fold_north(deg: f64) -> f64 {
-    let folded = (normalize_deg(deg) * NORTH_STEPS_PER_DEG).round() / NORTH_STEPS_PER_DEG;
-
-    // Rounding up to 360 is the top again.
-    normalize_deg(folded)
-}
-
-/// The place is on the globe; north is turned into `[0, 360)`.
-fn check_site(site: Option<Site>) -> Result<Option<Site>, ServiceError> {
-    let Some(site) = site else {
-        return Ok(None);
-    };
-    if site.is_valid() {
-        return Ok(Some(Site {
-            north_deg: fold_north(site.north_deg),
-            ..site
-        }));
-    }
-
-    Err(ServiceError::BadValue {
-        field: Field::Latitude,
-        value: format!("{}, {}", site.latitude_deg, site.longitude_deg),
-    })
 }
 
 /// The date exists and the time is on a clock.

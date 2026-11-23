@@ -45,6 +45,8 @@ pub enum ServiceError {
     Locked(Layer),
     #[error("no character {0}")]
     NoCharacter(String),
+    #[error("no element {0}")]
+    NoElement(String),
     /// Scene numbers are unique within a project.
     #[error("scene number {0} is taken")]
     NumberTaken(String),

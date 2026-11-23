@@ -146,6 +146,7 @@ fn build(section: Section) -> Result<Example, DemoError> {
             location: own.then_some(spec.location),
             sun: None,
             plans,
+            sheet: Default::default(),
         });
     }
     project.characters = section.characters;

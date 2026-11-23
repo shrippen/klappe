@@ -121,6 +121,7 @@ impl Session {
         let edit = self.plain_own(edit);
         self.check_script_number(&edit)?;
         self.check_location_use(&edit)?;
+        self.check_sheet_character(&edit)?;
         let step = step_name(&edit);
         let mut next = self.project.clone();
         project_edit::apply(&mut next, &edit)?;

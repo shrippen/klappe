@@ -370,16 +370,10 @@ fn background_needs_a_set_entry_and_a_size() {
 fn objects_turn_clockwise() {
     let o = SetObject {
         id: "t".into(),
-        kind: "table".into(),
-        label: String::new(),
         at: Point::new(0.0, 0.0),
         width_m: 2.0,
         depth_m: 0.0,
-        rotation_deg: 90.0,
-        shape: ObjectShape::Rect,
-        height_m: None,
-        base_m: None,
-        mirrored: false,
+        ..object("table", ObjectShape::Rect, 90.0)
     };
     let corners = object_corners(&o);
 
@@ -400,6 +394,7 @@ fn object(kind: &str, shape: ObjectShape, rotation_deg: f64) -> SetObject {
         height_m: None,
         base_m: None,
         mirrored: false,
+        element: None,
     }
 }
 

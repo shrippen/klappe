@@ -132,6 +132,7 @@ fn join(entry: Entry, stage: Option<Stage>) -> Scene {
         refused: entry.refused,
         location,
         sun,
+        sheet: Default::default(),
         plans,
     }
 }

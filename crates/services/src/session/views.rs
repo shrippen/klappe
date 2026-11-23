@@ -4,8 +4,8 @@
 use std::borrow::Cow;
 
 use klappe_model::{
-    BookState, CameraPresets, DrawingShape, Location, Numbering, Orientation, Paper, Place, Scene,
-    SetPlan,
+    BookState, CameraPresets, DrawingShape, ElementCategory, ElementStatus, Location, Numbering,
+    Orientation, Paper, Place, Scene, SetPlan,
 };
 use klappe_stellprobe::{
     aim_at, axis_pair, camera_at, horizontal_fov_deg, object_extent, opening_span, picture, set_at,
@@ -175,6 +175,10 @@ impl Session {
                     name: v.name.clone(),
                 })
                 .collect(),
+            elements: self.element_rows(),
+            element_categories: ElementCategory::ALL.map(ElementCategory::name).into(),
+            element_statuses: ElementStatus::ALL.map(ElementStatus::name).into(),
+            sheet: self.sheet_view(&shot),
         }
     }
 

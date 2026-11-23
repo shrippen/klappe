@@ -249,6 +249,7 @@ pub(super) fn add_object(scope: &mut Scope<'_>, kind: &str, at: Point) -> Result
         height_m,
         base_m: None,
         mirrored: false,
+        element: None,
     });
 
     Ok(())
@@ -297,6 +298,7 @@ fn add_shape(scope: &mut Scope<'_>, points: &[Point]) -> Result<(), ServiceError
         height_m: None,
         base_m: None,
         mirrored: false,
+        element: None,
     });
 
     Ok(())

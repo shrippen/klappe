@@ -13,6 +13,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── drehorte/<id>.toml   ein Drehort samt Set (Wände, Objekte)
 ├── szenen.toml          Register der Drehinhalte (Szenen, Content Items), je ein [[szene]], in Projektfolge
 ├── szenen/<id>.json     Stellprobe je Drehinhalt: eigener Drehort, Zeitpunkt der Sonne, Floorplans (Nummer und Kopf stehen im Register)
+├── breakdown/elemente.toml  Elemente des Breakdowns, je ein [[element]] (optional)
+├── breakdown/<id>.toml  Szenenblatt der Szene <id> (optional)
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
 ├── nummern.toml         Sperrstand der Szenennummern (optional, DB-33)
@@ -53,6 +55,29 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Kopf und `prints` der Szene; nach ihnen wird nicht wieder gefragt, solange ihr Inhalt
   gleich bleibt. Nicht geschrieben, solange leer; wird geleert, sobald der Eintrag einer
   Szene zugeordnet ist.
+- **Breakdown (DB-60, D-22):** `breakdown/elemente.toml` hat je Element ein `[[element]]` mit `id`
+  (zufällig, stabil), `category`, `name`, `description` (nur geschrieben, wenn nicht leer) und
+  `status`. `category`: `costume`, `makeup`, `construction`, `set-dressing`, `prop`, `graphics`,
+  `vehicle`, `animal`, `vfx`, `sfx`, `sound`, `music`, `camera-light`, `stunt`, `other` (in dieser
+  Folge); `status`: `open` (Standard), `working`, `ready`. Jede `id` kommt einmal vor und ist nicht
+  leer, eine unbekannte `category` oder ein unbekannter `status` lädt nicht. Der Name ist je
+  Kategorie einmalig (Groß- und Kleinschreibung zählt nicht), das prüft das Programm beim
+  Ändern, nicht Laden. `breakdown/<id>.toml` ist das Szenenblatt der Szene (oder des Content
+  Items) mit dieser Id und hat die Schlüssel `story_day` (Spieltag), `prestop_s` (Vorstopp in
+  Sekunden), `planned_min` (geplante Drehdauer in Minuten), `continuity`, `note` (Hinweis für die
+  Produktion), `elements` (Element-Ids in der Reihenfolge der Szene), `excluded` (Element-Ids
+  von Vorschlägen aus dem Set, die der Nutzer ausgeschlossen hat) und `characters` (Figuren-Ids
+  ohne Dialog: stumme Figuren und Komparsen, also Figuren mit `group`); jeder Schlüssel nur
+  geschrieben, wenn nicht leer. Die sprechenden Figuren stehen nicht darin, sie folgen aus den
+  Figurenzeilen des Buchs. Ein Objekt eines Sets (`drehorte/<id>.toml`) hat optional `element`,
+  die Id des Elements, für das es steht; es erscheint dann im Szenenblatt jeder Szene, die an
+  diesem Drehort gedreht wird, als Vorschlag. Beide Dateien und der Ordner sind optional und
+  fehlen, solange es nichts gibt: `save` schreibt kein Blatt, das leer ist, und löscht Blätter
+  ohne Szene. Ein Blatt ohne Szene lädt nicht (es wird ignoriert); ein Blatt oder Objekt, das
+  eine unbekannte Element- oder Figuren-Id nennt, lädt und wirkt nicht (kein Fehler), wie andere
+  Verweise ins Leere. Löschen eines Elements nimmt es aus allen Blättern und Objekten. Eine
+  Szene mit der Id `elemente` kann kein Blatt haben. Keine neue Formatversion, ältere Projekte
+  laden unverändert.
 - **Papier:** `paper` in `projekt.toml`, z. B. `"a4-portrait"`: Größe (`a4`, `a3`, `letter`),
   Bindestrich, Ausrichtung (`portrait`, `landscape`). Das Blatt, auf dem zuletzt ausgegeben wurde;
   der Ausgabedialog beginnt damit. Fehlt der Schlüssel (und er wird bei `a4-landscape` nicht
@@ -506,11 +531,12 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.
-- Fehlende `figuren.toml`, `orte.toml`, fehlende Ordner und fehlendes Drehbuch gelten als leer.
+- Fehlende `figuren.toml`, `orte.toml`, `breakdown/`, fehlende Ordner und fehlendes Drehbuch gelten als leer.
 - **Speichern und Änderungen von außen:** Eine Sitzung merkt sich je Datei, was sie zuletzt gelesen
   oder geschrieben hat, und was sie selbst daraus kodiert. Einheiten sind `projekt.toml`,
   `figuren.toml`, `bibliothek.toml`, `vorlagen.toml`, `drehorte/<id>.toml`, `szenen.toml`,
-  `szenen/<id>.json` und `drehbuch.fountain`; `orte.toml` und `nummern.toml` liest sie mit, sie
+  `szenen/<id>.json`, `breakdown/elemente.toml`, `breakdown/<id>.toml` und `drehbuch.fountain`;
+  `orte.toml` und `nummern.toml` liest sie mit, sie
   ändert sie nie als eigene Änderung. `bilder/` und versteckte Ordner gehören nicht dazu.
   Speichern schreibt nur Dateien, deren Kodierung von der Datei auf der Platte abweicht, die
   Szenendateien vor `szenen.toml`; gelöscht wird nur, was die Sitzung kannte und nicht mehr

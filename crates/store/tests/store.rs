@@ -35,6 +35,7 @@ fn object(id: &str, kind: &str, label: &str, at: Point, w: f64, d: f64) -> SetOb
         height_m: None,
         base_m: None,
         mirrored: false,
+        element: None,
     }
 }
 
