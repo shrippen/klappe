@@ -32,7 +32,7 @@ fn add(number: &str) -> ProjectEdit {
     ProjectEdit::AddScene {
         number: number.into(),
         heading: "INT. HOF – NACHT".into(),
-        location: "saengersaal".into(),
+        location: Some("saengersaal".into()),
     }
 }
 
@@ -61,7 +61,7 @@ fn renumbering_a_scene_keeps_its_id() {
         id: FIXTURE_ID.into(),
         number: "40".into(),
         heading: "INT. SÄNGERSAAL – TAG".into(),
-        location: "saengersaal".into(),
+        location: Some("saengersaal".into()),
         sun: None,
     })
     .unwrap();
@@ -139,13 +139,13 @@ fn a_heading_with_a_line_break_is_refused() {
     let added = s.edit_project(ProjectEdit::AddScene {
         number: "1".into(),
         heading: "INT. HOF\n– NACHT".into(),
-        location: "saengersaal".into(),
+        location: Some("saengersaal".into()),
     });
     let edited = s.edit_project(ProjectEdit::EditScene {
         id: FIXTURE_ID.into(),
         number: "12".into(),
         heading: "INT.\r\nSAAL".into(),
-        location: "saengersaal".into(),
+        location: Some("saengersaal".into()),
         sun: None,
     });
 

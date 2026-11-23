@@ -241,7 +241,7 @@ impl Session {
     /// The 3D view at the playhead, `size` in pixels; `None` before the first switch to 3D,
     /// without a plan, or at no size.
     pub fn free_picture(&self, size: Size) -> Option<Picture> {
-        let (plan, set) = (self.plan()?, &self.scene_location()?.set);
+        let (plan, set) = (self.plan()?, &self.plan_location()?.set);
 
         let forms = library::forms_of(&self.project.library, set);
 
@@ -322,7 +322,7 @@ impl Session {
     }
 
     fn fitting_orbit(&self) -> Option<Orbit> {
-        let set = &self.scene_location()?.set;
+        let set = &self.plan_location()?.set;
 
         Some(Orbit::fitting(set.width_m, set.depth_m))
     }

@@ -4,14 +4,15 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// The project (LH-01 to LH-03, D-08): scenes, locations and characters.
+// The project (LH-01 to LH-03, D-08, D-21): scenes, scripted locations, locations and
+// characters.
 //
-//   ┌ Szenen │ Drehorte │ Figuren ┬───────────────────────────┐
-//   │ 12 INT. SÄNGERSAAL – TAG    │ Szene bearbeiten          │
-//   │ 13 EXT. HOF                 │ Nummer [ 12             ] │
-//   │                             │ Szenenkopf [ INT. …     ] │
-//   │ [ Neu… ]                    │ [ Übernehmen ] [ Löschen… ]│
-//   └─────────────────────────────┴───────────────────────────┘
+//   ┌ Szenen │ Spielorte │ Drehorte │ Figuren ┬─────────────────┐
+//   │ 12 INT. SÄNGERSAAL – TAG               │ Szene bearbeiten │
+//   │ 13 EXT. HOF                            │ Nummer [ 12    ] │
+//   │                                        │ Szenenkopf [ …  ] │
+//   │ [ Neu… ]                               │ [ Übernehmen ]   │
+//   └────────────────────────────────────────┴──────────────────┘
 //
 // The list on the left picks, the form on the right changes: no dialog opens over this one,
 // and a question (a change that alters the script, a delete) stands in the form. A dialog and
@@ -26,12 +27,24 @@ Item {
 
     readonly property var numberings: project.numberings || []
 
+    readonly property var places: project.places || []
+
     readonly property var project: controller.projectJson
         ? JSON.parse(controller.projectJson)
-        : { scenes: [], locations: [], characters: [], numberings: [], numbering: "" }
+        : { scenes: [], places: [], locations: [], characters: [], numberings: [], numbering: "" }
 
     // The kinds, in the order of the tabs.
-    readonly property var kinds: ["scene", "location", "character"]
+    readonly property var kinds: ["scene", "place", "location", "character"]
+
+    // The dialog is wider than Kante's Large step (48 units): the four tabs with their counts
+    // stand whole in the left column and the form keeps its room.
+    readonly property real dialogUnits: 64
+
+    // A location made from the plan's empty state (D-21) goes to this scripted location, or to
+    // the scene on view when `""`; `knownLocations` are the ids that were there before.
+    property bool assigning: false
+    property string assignPlace: ""
+    property var knownLocations: []
 
     // The form is for a new entry, not for the selected one.
     property bool adding: false
@@ -48,8 +61,36 @@ Item {
         adding = false
     }
 
+    // Opens the form for a new location named `name`; once it is added, it becomes the
+    // location of the scripted location `place`, or of the scene on view when `place` is empty.
+    function openNewLocation(name, place) {
+        dialog.open()
+        tabs.currentIndex = kinds.indexOf("location")
+        add(locationList, locationForm)
+        locationForm.preset(name)
+        assigning = true
+        assignPlace = place
+        knownLocations = project.locations.map(l => l.id)
+    }
+
+    // Gives the location that was just added to what asked for it, and closes the dialog.
+    function assignNew() {
+        const made = project.locations.find(l => !knownLocations.includes(l.id))
+        assigning = false
+        if (!made) {
+            return
+        }
+        const place = places.find(p => p.id === assignPlace)
+        const done = place
+            ? controller.editPlace(place.id, place.name, JSON.stringify(place.variants), made.id)
+            : controller.shootSceneAt(made.id)
+        if (done) {
+            dialog.close()
+        }
+    }
+
     function listOf(kind) {
-        return kind === "scene" ? sceneList : kind === "location" ? locationList : characterList
+        return [sceneList, placeList, locationList, characterList][kinds.indexOf(kind)]
     }
 
     implicitWidth: 0
@@ -62,7 +103,7 @@ Item {
         parent: QQC2.Overlay.overlay
         anchors.centerIn: parent
         modal: true
-        size: KanteDialog.Size.Large
+        width: Math.min(Kirigami.Units.gridUnit * root.dialogUnits, QQC2.Overlay.overlay.width * 0.9)
         title: root.texts.t("project.title")
         standardButtons: QQC2.Dialog.Close
         rejectText: root.texts.t("project.close")
@@ -70,7 +111,9 @@ Item {
         onAboutToShow: {
             root.controller.clearStatus()
             root.adding = false
+            root.assigning = false
             sceneList.currentId = root.controller.sceneId
+            placeList.currentId = ""
             locationList.currentId = ""
             characterList.currentId = ""
             tabs.currentIndex = 0
@@ -85,8 +128,9 @@ Item {
                 spacing: Kirigami.Units.largeSpacing
 
                 ColumnLayout {
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 18
-                    Layout.maximumWidth: Kirigami.Units.gridUnit * 18
+                    Layout.preferredWidth: tabs.implicitWidth
+                    Layout.minimumWidth: tabs.implicitWidth
+                    Layout.maximumWidth: tabs.implicitWidth
                     Layout.alignment: Qt.AlignTop
                     spacing: Kirigami.Units.smallSpacing
 
@@ -96,17 +140,20 @@ Item {
                         Layout.fillWidth: true
                         model: [
                             root.texts.t("project.scenes"),
+                            root.texts.t("project.places"),
                             root.texts.t("project.locations"),
                             root.texts.t("project.characters")
                         ]
                         counts: [
                             String(root.project.scenes.length),
+                            String(root.places.length),
                             String(root.project.locations.length),
                             String(root.project.characters.length)
                         ]
                         onActivated: index => {
                             currentIndex = index
                             root.adding = false
+                            root.assigning = false
                         }
                     }
 
@@ -124,6 +171,14 @@ Item {
                             kind: "scene"
                             items: root.project.scenes
                             onAddRequested: root.add(sceneList, sceneForm)
+                            onCurrentIdChanged: root.adding = false
+                        }
+                        ManageList {
+                            id: placeList
+                            objectName: "placeList"
+                            texts: root.texts
+                            kind: "place"
+                            items: root.places
                             onCurrentIdChanged: root.adding = false
                         }
                         ManageList {
@@ -184,6 +239,7 @@ Item {
                         texts: root.texts
                         controller: root.controller
                         locations: root.project.locations
+                        places: root.places
                         item: root.adding ? null : sceneList.current
                         onDone: root.finished(sceneList)
                         onShowRequested: id => {
@@ -192,21 +248,37 @@ Item {
                             }
                         }
                     }
+                    PlaceEditor {
+                        id: placeForm
+                        objectName: "placeForm"
+                        Layout.fillWidth: true
+                        visible: tabs.currentIndex === 1 && placeList.current !== null
+                        texts: root.texts
+                        controller: root.controller
+                        locations: root.project.locations
+                        item: placeList.current
+                        onDone: root.finished(placeList)
+                    }
                     LocationEditor {
                         id: locationForm
                         objectName: "locationForm"
                         Layout.fillWidth: true
-                        visible: tabs.currentIndex === 1 && (root.adding || locationList.current !== null)
+                        visible: tabs.currentIndex === 2 && (root.adding || locationList.current !== null)
                         texts: root.texts
                         controller: root.controller
                         item: root.adding ? null : locationList.current
-                        onDone: root.finished(locationList)
+                        onDone: {
+                            root.finished(locationList)
+                            if (root.assigning) {
+                                root.assignNew()
+                            }
+                        }
                     }
                     CharacterEditor {
                         id: characterForm
                         objectName: "characterForm"
                         Layout.fillWidth: true
-                        visible: tabs.currentIndex === 2 && (root.adding || characterList.current !== null)
+                        visible: tabs.currentIndex === 3 && (root.adding || characterList.current !== null)
                         texts: root.texts
                         controller: root.controller
                         characters: root.project.characters

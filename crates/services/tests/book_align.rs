@@ -472,7 +472,7 @@ fn adding_or_renaming_an_entry_refreshes_the_questions() {
         id: "aaaa".into(),
         number: "9".into(),
         heading: KELLER.into(),
-        location: halle.clone(),
+        location: Some(halle.clone()),
         sun: None,
     })
     .unwrap();
@@ -482,7 +482,7 @@ fn adding_or_renaming_an_entry_refreshes_the_questions() {
     s.edit_project(ProjectEdit::AddScene {
         number: "10".into(),
         heading: HOF.into(),
-        location: halle.clone(),
+        location: Some(halle.clone()),
     })
     .unwrap();
     assert_eq!(s.pending_scenes().len(), 1);

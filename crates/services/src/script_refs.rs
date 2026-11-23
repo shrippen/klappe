@@ -413,7 +413,7 @@ mod tests {
                 id: id.into(),
                 number: number.into(),
                 heading: heading.into(),
-                location: "saal".into(),
+                location: Some("saal".into()),
                 plans: Vec::new(),
                 ..Default::default()
             });

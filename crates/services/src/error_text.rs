@@ -49,6 +49,11 @@ fn own_text(language: Language, error: &ServiceError) -> String {
                 .text("error.locationInUse")
                 .replace("{count}", &scenes.to_string());
         }
+        ServiceError::PlaceInUse { headings } => {
+            return language
+                .text("error.placeInUse")
+                .replace("{count}", &headings.to_string());
+        }
         ServiceError::CharacterInUse { plans, .. } => {
             return language
                 .text("error.characterInUse")
@@ -156,6 +161,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
     match error {
         ServiceError::Gone => Some("error.gone"),
         ServiceError::NoFreeCamera => Some("error.noFreeCamera"),
+        ServiceError::NotShot => Some("error.notShot"),
         ServiceError::NoCamera => Some("error.noCamera"),
         ServiceError::NoBackup => Some("error.noBackup"),
         ServiceError::EmptyLibrary => Some("error.emptyLibrary"),
@@ -182,6 +188,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::CameraInUse { .. }
         | ServiceError::NumberTaken(_)
         | ServiceError::LocationInUse { .. }
+        | ServiceError::PlaceInUse { .. }
         | ServiceError::CharacterInUse { .. }
         | ServiceError::PlanHasShots { .. }
         | ServiceError::PlanNameTaken(_)
@@ -603,6 +610,7 @@ mod tests {
             ServiceError::NoShot("x".to_owned()),
             ServiceError::Gone,
             ServiceError::NoLocation("l".to_owned()),
+            ServiceError::NotShot,
             ServiceError::NoFreeCamera,
             ServiceError::NoCamera,
             ServiceError::NoBackup,
@@ -614,6 +622,7 @@ mod tests {
                 id: "l".to_owned(),
                 scenes: 2,
             },
+            ServiceError::PlaceInUse { headings: 2 },
             ServiceError::CharacterInUse {
                 id: "c".to_owned(),
                 plans: 1,

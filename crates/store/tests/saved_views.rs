@@ -98,13 +98,14 @@ fn sketches_are_part_of_the_plan_and_optional() {
     assert_eq!(load(&dir).unwrap().project, with);
 }
 
-fn scene_with(project: &Project, plan: FloorPlan) -> Project {
+fn scene_with(project: &Project, mut plan: FloorPlan) -> Project {
     let mut project = project.clone();
+    plan.location = "saal".into();
     project.scenes = vec![Scene {
         id: "szene-001".into(),
         number: "1".into(),
         heading: "INT. SAAL – TAG".into(),
-        location: "saal".into(),
+        location: Some("saal".into()),
         plans: vec![plan],
         ..Default::default()
     }];

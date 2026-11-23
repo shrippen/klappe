@@ -14,6 +14,9 @@ use crate::sketch::Sketch;
 pub struct FloorPlan {
     pub id: String,
     pub name: String,
+    /// The shooting location whose set the plan is drawn on (`Location` id, DB-51). It stays
+    /// when the scene is shot elsewhere later: marks never move to another room unasked.
+    pub location: String,
     #[serde(default)]
     pub figures: Vec<FigureTrack>,
     /// Ways of set objects through this scene, e.g. a prop a figure carries (LH-24); an
@@ -52,10 +55,12 @@ pub struct AxisPair {
 }
 
 impl FloorPlan {
+    /// An empty plan on no set yet: the caller sets `location`.
     pub fn new(id: &str, name: &str) -> Self {
         Self {
             id: id.to_owned(),
             name: name.to_owned(),
+            location: String::new(),
             figures: Vec::new(),
             object_tracks: Vec::new(),
             cameras: Vec::new(),

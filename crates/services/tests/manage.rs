@@ -42,7 +42,7 @@ fn add_scene(number: &str, location: &str) -> ProjectEdit {
     ProjectEdit::AddScene {
         number: number.into(),
         heading: "INT. HOF – NACHT".into(),
-        location: location.into(),
+        location: Some(location.into()),
     }
 }
 
@@ -153,7 +153,7 @@ fn adds_a_scene_with_an_empty_plan() {
     let scene = s.project().scene(&id_of(&s, "13")).unwrap();
     assert_eq!(scene.number, "13");
     assert_eq!(scene.heading, "INT. HOF – NACHT");
-    assert_eq!(scene.location, "saengersaal");
+    assert_eq!(scene.location, Some("saengersaal".to_owned()));
     assert_eq!(scene.plans.len(), 1);
     assert_eq!(scene.plans[0].name, "Plan A");
     assert!(scene.plans[0].figures.is_empty());
@@ -199,7 +199,7 @@ fn changing_the_heading_keeps_the_number() {
         id: "m4djbtj6".into(),
         number: "12".into(),
         heading: " INT. SÄNGERSAAL – NACHT ".into(),
-        location: "saengersaal".into(),
+        location: Some("saengersaal".into()),
         sun: None,
     })
     .unwrap();
@@ -222,7 +222,7 @@ fn renumbers_a_scene_but_not_onto_another() {
             id: id.clone(),
             number: "12".into(),
             heading: "x".into(),
-            location: "saengersaal".into(),
+            location: Some("saengersaal".into()),
             sun: None,
         })
         .unwrap_err();
@@ -232,7 +232,7 @@ fn renumbers_a_scene_but_not_onto_another() {
         id: id.clone(),
         number: "14".into(),
         heading: "x".into(),
-        location: "saengersaal".into(),
+        location: Some("saengersaal".into()),
         sun: None,
     })
     .unwrap();
@@ -250,26 +250,26 @@ fn edits_a_scene_and_moves_it_in_one_undo_step() {
         id: "m4djbtj6".into(),
         number: "13".into(),
         heading: "EXT. BURGHOF".into(),
-        location: "burghof".into(),
+        location: Some("burghof".into()),
         sun: None,
     })
     .unwrap();
     let scene = s.project().scene("m4djbtj6").unwrap();
     assert_eq!(scene.number, "13");
-    assert_eq!(scene.location, "burghof");
+    assert_eq!(scene.location, Some("burghof".to_owned()));
 
     s.undo();
     let scene = s.project().scene("m4djbtj6").unwrap();
     assert_eq!(scene.number, "12");
     assert_eq!(scene.heading, "INT. SÄNGERSAAL – TAG");
-    assert_eq!(scene.location, "saengersaal");
+    assert_eq!(scene.location, None);
 
     let err = s
         .edit_project(ProjectEdit::EditScene {
             id: "m4djbtj6".into(),
             number: "12".into(),
             heading: "x".into(),
-            location: "nirgends".into(),
+            location: Some("nirgends".into()),
             sun: None,
         })
         .unwrap_err();
@@ -577,7 +577,7 @@ fn a_blank_project_has_one_scene_and_a_plain_set_and_is_saved() {
     let set = &session.project().locations[0];
     assert_eq!(session.project().locations.len(), 1);
     assert_eq!(session.project().scenes.len(), 1);
-    assert_eq!(session.project().scenes[0].location, set.id);
+    assert_eq!(session.project().scenes[0].location.as_ref(), Some(&set.id));
     assert_eq!(
         (set.set.width_m, set.set.depth_m, set.set.wall_height_m),
         (8.0, 5.0, 2.6)

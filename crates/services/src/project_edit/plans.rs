@@ -21,13 +21,16 @@ const SEAT_FACING_DEG: f64 = 90.0;
 /// A copy of "Plan A" is named "Plan A (2)", the next "Plan A (3)".
 const COPY_FIRST_NUMBER: usize = 2;
 
-/// An empty plan in the scene at `scene`, named `name` (empty: the next free `Plan B` …);
-/// the index of the new plan.
+/// An empty plan on the set of `location` in the scene at `scene`, named `name` (empty: the
+/// next free `Plan B` …); the index of the new plan.
 pub(crate) fn add_plan(
     project: &mut Project,
-    scene: usize,
+    (scene, location): (usize, &str),
     name: &str,
 ) -> Result<usize, ServiceError> {
+    if project.location(location).is_none() {
+        return Err(ServiceError::NoLocation(location.to_owned()));
+    }
     let scene = scene_at(project, scene)?;
     let name = match name.trim() {
         "" => free_letter_name(scene),
@@ -35,7 +38,8 @@ pub(crate) fn add_plan(
     };
     check_plan_name(scene, &name, None)?;
 
-    let plan = FloorPlan::new(&plan_id(scene, &name), &name);
+    let mut plan = FloorPlan::new(&plan_id(scene, &name), &name);
+    plan.location = location.to_owned();
     scene.plans.push(plan);
     Ok(scene.plans.len() - 1)
 }
@@ -70,7 +74,8 @@ pub(crate) fn seat_speakers(project: &mut Project, scene: usize, plan: usize, id
     let places = project
         .scenes
         .get(scene)
-        .and_then(|s| project.location(&s.location))
+        .and_then(|s| s.plans.get(plan))
+        .and_then(|p| project.location(&p.location))
         .map(|l| seats(&l.set, ids.len()));
     let Some(places) = places else {
         return;

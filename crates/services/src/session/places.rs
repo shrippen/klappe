@@ -5,7 +5,9 @@
 //! program (the TUI beside the window) may have changed it, and the answer changes only what
 //! it touches. It is one undo step that carries its entry, not the places: undo and redo
 //! change only that entry in the file as it is (`save_answer_step`, `place_file.rs`).
-//! Nothing else writes the file: a save leaves it alone.
+//! The list of scripted locations (D-21) writes it the same way: a change of one scripted
+//! location is one undo step that carries its entry. Nothing else writes the file: a save
+//! leaves it alone.
 
 use klappe_model::Place;
 
@@ -13,12 +15,16 @@ use super::questions::Answered;
 use super::undo::AnswerDelta;
 use super::Session;
 use crate::error::ServiceError;
+use crate::field::Field;
 use crate::figure_file::Way;
 use crate::place_file::PlaceDelta;
-use crate::places::{self, PendingPlace, PlaceChoice};
+use crate::places::{self, PendingPlace, PlaceChoice, PlaceEdit};
 
 /// Undo step of `resolve_place`.
 pub(super) const RESOLVE_STEP: &str = "ResolvePlace";
+/// Undo steps of `edit_place` and `remove_place`.
+const EDIT_STEP: &str = "EditPlace";
+const REMOVE_STEP: &str = "RemovePlace";
 
 /// One line of the dialog for an unknown place name: a new scripted location, another spelling of
 /// one, or the new name of one. Surfaces show the lines and hand back the position.
@@ -124,6 +130,66 @@ impl Session {
         self.follow_scene(scene, shown);
 
         Ok(Answered::Step)
+    }
+
+    /// Changes scripted location `id` as the list of scripted locations says (D-21): its name,
+    /// other spellings and shooting location. A name the headings use and the edit drops stays
+    /// as a spelling. One undo step, written to `orte.toml` at once like an answer.
+    pub fn edit_place(&mut self, id: &str, edit: &PlaceEdit) -> Result<(), ServiceError> {
+        if let Some(location) = &edit.location {
+            if self.project.location(location).is_none() {
+                return Err(ServiceError::NoLocation(location.clone()));
+            }
+        }
+
+        // The file as it is now, not the session's copy: it may be older.
+        let disk = klappe_store::load_places(&self.dir)?;
+        let Some(before) = disk.iter().find(|p| p.id == id).cloned() else {
+            self.reload_places()?;
+            return Err(ServiceError::Gone);
+        };
+        let after = places::edited(&disk, &self.script, id, edit).map_err(|value| {
+            ServiceError::BadValue {
+                field: Field::Name,
+                value,
+            }
+        })?;
+        if after == before {
+            return Ok(());
+        }
+
+        self.write_place(PlaceDelta::Edited { before, after }, EDIT_STEP)
+    }
+
+    /// Takes scripted location `id` out of the list; refused while a heading names it. One undo
+    /// step, written to `orte.toml` at once.
+    pub fn remove_place(&mut self, id: &str) -> Result<(), ServiceError> {
+        let disk = klappe_store::load_places(&self.dir)?;
+        let Some(place) = disk.iter().find(|p| p.id == id).cloned() else {
+            self.reload_places()?;
+            return Err(ServiceError::Gone);
+        };
+        let headings = places::headings_of(&place, &self.script);
+        if headings > 0 {
+            return Err(ServiceError::PlaceInUse { headings });
+        }
+
+        self.write_place(PlaceDelta::Removed(place), REMOVE_STEP)
+    }
+
+    /// Writes `delta` to `orte.toml` as it is on disk and keeps it as undo step `step`.
+    fn write_place(&mut self, delta: PlaceDelta, step: &str) -> Result<(), ServiceError> {
+        let mut disk = klappe_store::load_places(&self.dir)?;
+        delta.run(&mut disk, Way::Apply);
+        klappe_store::save_places(&self.dir, &disk)?;
+
+        self.places = disk;
+        self.refresh_places();
+        let (scene, shown) = self.ids_on_view();
+        self.commit_answer(self.project.clone(), step, AnswerDelta::Place(delta));
+        self.follow_scene(scene, shown);
+
+        Ok(())
     }
 
     /// Undo or redo of a place answer: its entry in `orte.toml`, in the file as it is on disk.

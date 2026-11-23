@@ -22,8 +22,11 @@ fn scene(id: &str, number: &str, heading: &str) -> Scene {
         id: id.into(),
         number: number.into(),
         heading: heading.into(),
-        location: "saal".into(),
-        plans: vec![FloorPlan::new("plan-a", "Plan A")],
+        location: Some("saal".into()),
+        plans: vec![FloorPlan {
+            location: "saal".into(),
+            ..FloorPlan::new("plan-a", "Plan A")
+        }],
         ..Default::default()
     }
 }
@@ -174,7 +177,7 @@ fn an_entry_without_a_file_loads_empty() {
     let loaded = load(&dir).unwrap();
 
     assert_eq!(loaded.project.scenes[0].plans, []);
-    assert_eq!(loaded.project.scenes[0].location, "");
+    assert_eq!(loaded.project.scenes[0].location, None);
     assert!(loaded.notes.is_empty());
 }
 

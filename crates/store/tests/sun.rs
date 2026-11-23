@@ -26,9 +26,12 @@ fn project(site: Option<Site>, sun: Option<SunTime>) -> Project {
         id: "szene-001".into(),
         number: "1".into(),
         heading: "INT. SAAL – TAG".into(),
-        location: "saal".into(),
+        location: Some("saal".into()),
         sun,
-        plans: vec![FloorPlan::new("plan-a", "Plan A")],
+        plans: vec![FloorPlan {
+            location: "saal".into(),
+            ..FloorPlan::new("plan-a", "Plan A")
+        }],
         ..Default::default()
     }];
 

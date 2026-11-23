@@ -83,7 +83,7 @@ fn the_first_plan_of_a_new_scene_holds_the_matched_speakers_once() {
     s.edit_project(ProjectEdit::AddScene {
         number: "13".into(),
         heading: "INT. HOF – NACHT".into(),
-        location: "saengersaal".into(),
+        location: Some("saengersaal".into()),
     })
     .unwrap();
     let id = s.project().scenes.last().unwrap().id.clone();
@@ -100,7 +100,7 @@ fn a_scene_the_script_does_not_have_starts_empty() {
     s.edit_project(ProjectEdit::AddScene {
         number: "14".into(),
         heading: "EXT. HOF – TAG".into(),
-        location: "saengersaal".into(),
+        location: Some("saengersaal".into()),
     })
     .unwrap();
     let id = s.project().scenes.last().unwrap().id.clone();
@@ -138,7 +138,7 @@ fn a_narrow_set_closes_the_row_up() {
     s.edit_project(ProjectEdit::AddScene {
         number: "15".into(),
         heading: "INT. FLUR – TAG".into(),
-        location: "flur".into(),
+        location: Some("flur".into()),
     })
     .unwrap();
     let id = s.project().scenes.last().unwrap().id.clone();

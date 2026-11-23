@@ -43,7 +43,7 @@ impl Session {
         session.edit_project(ProjectEdit::AddScene {
             number: BLANK_SCENE_NUMBER.to_owned(),
             heading: language.text("start.blankHeading"),
-            location,
+            location: Some(location),
         })?;
         session.save(OnOutside::Overwrite)?;
 

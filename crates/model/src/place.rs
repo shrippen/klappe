@@ -12,6 +12,10 @@ pub struct Place {
     /// Other spellings of the place in a heading, e.g. `SAAL` for `SÄNGERSAAL`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub variants: Vec<String>,
+    /// The shooting location its scenes are shot at (`Location` id); `None` is "no shooting
+    /// location yet". A scene may differ (`Scene::location`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
 }
 
 /// Whether two names are the same place name: the case of a heading is style, and so is the

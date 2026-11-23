@@ -5,6 +5,7 @@ use super::Session;
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit};
 use crate::project_edit::{self, PlanShift, ProjectEdit, ShotsGo};
+use crate::scene_location;
 use crate::script_refs;
 
 impl Session {
@@ -140,16 +141,27 @@ impl Session {
         Ok(())
     }
 
-    /// The scene `edit` added is the one the session did not have: its first plan starts with
-    /// the speakers of the screenplay (LH-09).
+    /// The scene `edit` added is the one the session did not have: where it is shot already
+    /// (DB-51), it gets `Plan A` on that set, starting with the speakers of the screenplay
+    /// (LH-09). Shot nowhere yet, it has no plan.
     fn seat_new_scene(&self, next: &mut Project) {
         let new = next
             .scenes
             .iter()
             .position(|s| self.project.scene(&s.id).is_none());
-        if let Some(scene) = new {
-            self.seat_speakers(next, scene, 0);
-        }
+        let Some(scene) = new else {
+            return;
+        };
+        let location = scene_location::location_of(next, &self.places, &next.scenes[scene])
+            .map(|l| l.id.clone());
+        let Some(location) = location else {
+            return;
+        };
+
+        next.scenes[scene]
+            .plans
+            .push(project_edit::first_plan(&location));
+        self.seat_speakers(next, scene, 0);
     }
 
     /// A new scene number must not be one that another heading of the script carries: both
@@ -191,8 +203,13 @@ impl Session {
     /// Adds an empty plan to the current scene and shows it; `name` empty: `Plan B` …
     /// Undoable. Returns the new plan's id.
     pub fn add_plan(&mut self, name: &str) -> Result<String, ServiceError> {
+        let location = self
+            .scene()
+            .and_then(|s| scene_location::location_of(&self.project, &self.places, s))
+            .map(|l| l.id.clone())
+            .ok_or(ServiceError::NotShot)?;
         let mut next = self.project.clone();
-        let at = project_edit::add_plan(&mut next, self.scene, name)?;
+        let at = project_edit::add_plan(&mut next, (self.scene, &location), name)?;
         self.seat_speakers(&mut next, self.scene, at);
 
         Ok(self.commit_new_plan(next, at))

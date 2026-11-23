@@ -74,7 +74,12 @@ impl Session {
         }
 
         let notes = |project: &Project| {
-            let location = &project.scenes.get(self.scene)?.location;
+            let location = &project
+                .scenes
+                .get(self.scene)?
+                .plans
+                .get(self.plan)?
+                .location;
             let set = &project.locations.iter().find(|l| l.id == *location)?.set;
             let labels = project.scenes[self.scene]
                 .plans

@@ -1,10 +1,10 @@
 {
   "id": "m4djbtj6",
-  "location": "saengersaal",
   "plans": [
     {
       "id": "plan-a",
       "name": "Plan A",
+      "location": "saengersaal",
       "figures": [
         {
           "character": "elisabeth",

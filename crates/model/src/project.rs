@@ -587,7 +587,9 @@ pub struct Scene {
     pub prints: Vec<Print>,
     /// Scenes of the book the user said this entry is not, so they are not asked about again.
     pub refused: Vec<SceneKey>,
-    pub location: String,
+    /// The shooting location of this scene when it differs from its scripted location's
+    /// (DB-51); `None` follows the scripted location.
+    pub location: Option<String>,
     /// When it is shot (LH-52); `None` shows no sun.
     pub sun: Option<SunTime>,
     pub plans: Vec<FloorPlan>,

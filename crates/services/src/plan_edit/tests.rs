@@ -14,8 +14,11 @@ pub(super) fn empty() -> Project {
         id: "s".into(),
         number: "1".into(),
         heading: String::new(),
-        location: "l".into(),
-        plans: vec![FloorPlan::new("p", "Plan A")],
+        location: Some("l".into()),
+        plans: vec![FloorPlan {
+            location: "l".into(),
+            ..FloorPlan::new("p", "Plan A")
+        }],
         ..Default::default()
     }];
     project

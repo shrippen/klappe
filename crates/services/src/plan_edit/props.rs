@@ -161,18 +161,14 @@ pub(super) fn set_carrier(
     Ok(())
 }
 
-/// The object ids a track names in any plan of the location of scene `scene`, orphans
-/// included: a new object must not take one over.
-pub(super) fn tracked_ids(project: &Project, scene: usize) -> Vec<String> {
-    let Some(location) = project.scenes.get(scene).map(|s| &s.location) else {
-        return Vec::new();
-    };
-
+/// The object ids a track names in any plan on the set of `location`, orphans included: a
+/// new object must not take one over.
+pub(super) fn tracked_ids(project: &Project, location: &str) -> Vec<String> {
     project
         .scenes
         .iter()
-        .filter(|s| s.location == *location)
         .flat_map(|s| &s.plans)
+        .filter(|p| p.location == location)
         .flat_map(|p| &p.object_tracks)
         .map(|t| t.object.clone())
         .collect()
@@ -185,14 +181,12 @@ pub(super) fn free_object_id(set: &SetPlan, tracked: &[String]) -> String {
     free_id("o", taken.chain(tracked.iter().map(String::as_str)))
 }
 
-/// The ids of the objects in the set of scene `scene`'s location.
-pub(super) fn object_ids(project: &Project, scene: usize) -> Vec<String> {
-    let location = project.scenes.get(scene).map(|s| &s.location);
-
+/// The ids of the objects in the set of `location`.
+pub(super) fn object_ids(project: &Project, location: &str) -> Vec<String> {
     project
         .locations
         .iter()
-        .filter(|l| Some(&l.id) == location)
+        .filter(|l| l.id == location)
         .flat_map(|l| l.set.objects.iter().map(|o| o.id.clone()))
         .collect()
 }
@@ -200,30 +194,27 @@ pub(super) fn object_ids(project: &Project, scene: usize) -> Vec<String> {
 /// The objects of the set before an edit that may remove some, for `forget_removed`.
 pub(super) fn watch_removal(
     project: &Project,
-    scene: usize,
+    location: &str,
     edit: &PlanEdit,
 ) -> Option<Vec<String>> {
     matches!(edit, PlanEdit::Remove { .. } | PlanEdit::RemoveGroup { .. })
-        .then(|| object_ids(project, scene))
+        .then(|| object_ids(project, location))
 }
 
 /// Takes the tracks of the objects an edit removed from the set out of every plan of that
 /// location: an object removed in one scene leaves no way behind in another. `before` is
 /// `watch_removal` from before the edit; a track that named no object already stays.
-pub(super) fn forget_removed(project: &mut Project, scene: usize, before: Option<&[String]>) {
+pub(super) fn forget_removed(project: &mut Project, location: &str, before: Option<&[String]>) {
     let Some(before) = before else {
         return;
     };
-    let now = object_ids(project, scene);
-    let Some(location) = project.scenes.get(scene).map(|s| s.location.clone()) else {
-        return;
-    };
+    let now = object_ids(project, location);
 
     for plan in project
         .scenes
         .iter_mut()
-        .filter(|s| s.location == location)
         .flat_map(|s| &mut s.plans)
+        .filter(|p| p.location == location)
     {
         plan.object_tracks
             .retain(|t| now.contains(&t.object) || !before.contains(&t.object));

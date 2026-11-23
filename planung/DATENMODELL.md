@@ -245,7 +245,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
    `testdata/` und Demo werden im neuen Format geschrieben, `format_version` 3. Vorhandene
    Projekte werden nicht migriert: es gibt kein Release (Eigentümer, 17.11.2026).
 2. Breakdown: Elemente, Szenenblatt, Figuren der Szene, Vorschläge aus dem Set; Zuordnung
-   Spielort → Drehort (`orte.toml`, Rest von DB-51).
+   Spielort → Drehort (`orte.toml`, Rest von DB-51; fertig, D-21, Formatversion 4).
 3. Besetzung/Team.
 4. Drehplan (Stripboard, Versionen, Day out of Days).
 5. Dispo als Druckvorlage.

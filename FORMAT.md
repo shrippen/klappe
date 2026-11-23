@@ -12,7 +12,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── vorlagen.toml        eigene Vorlagen, je ein [[vorlage]] (optional)
 ├── drehorte/<id>.toml   ein Drehort samt Set (Wände, Objekte)
 ├── szenen.toml          Register der Drehinhalte (Szenen, Content Items), je ein [[szene]], in Projektfolge
-├── szenen/<id>.json     Stellprobe je Drehinhalt: Drehort, Zeitpunkt der Sonne, Floorplans (Nummer und Kopf stehen im Register)
+├── szenen/<id>.json     Stellprobe je Drehinhalt: eigener Drehort, Zeitpunkt der Sonne, Floorplans (Nummer und Kopf stehen im Register)
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
 ├── nummern.toml         Sperrstand der Szenennummern (optional, DB-33)
@@ -22,7 +22,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 
 ## Regeln
 
-- **Formatversion:** `format_version` in `projekt.toml` (aktuell 3). Eine andere Version als die
+- **Formatversion:** `format_version` in `projekt.toml` (aktuell 4). Eine andere Version als die
   des Programms wird nicht geladen, sondern gemeldet; ältere Projekte werden nicht migriert (es
   gibt kein Release).
 - **Register `szenen.toml` (Formatversion 3):** je Drehinhalt ein `[[szene]]` mit `id` (zufällig,
@@ -33,7 +33,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   (aus dem Buch gestrichen, bleibt mit seinen Floorplans). `prints`: Fingerabdrücke der Elemente
   im Buch, je `"<Art>:<Hash>"` (Zahl, Doppelpunkt, 8 Hexziffern), wie `script/` sie bildet; nicht
   geschrieben, solange leer. Die Folge der Einträge ist die Folge im Projekt. Zu jedem Eintrag
-  gehört `szenen/<id>.json` (fehlt sie, hat er keinen Drehort und keinen Plan). Eine Datei ohne
+  gehört `szenen/<id>.json` (fehlt sie, hat er keinen eigenen Drehort und keinen Plan). Eine Datei ohne
   Eintrag (Absturz beim Speichern, Git-Zusammenführung) lädt: als Eintrag am Ende, ohne Nummer
   und Kopf, `state = "not-in-book"`; das Programm meldet es. `save` schreibt erst die
   Szenen-Dateien, dann `szenen.toml`, dann löscht es Dateien ohne Eintrag. `szenen.toml` lehnt
@@ -438,8 +438,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   eine Antwort schon nicht mehr offen findet, verschwindet nach dem Neulesen der Platte. Eine Antwort ist
   ein Schritt von Rückgängig; sie und ihr Rückgängig und Wiederholen ändern nur ihren Eintrag in der
   Datei, wie sie auf der Platte steht (eine Umbenennung nimmt den alten Namen nur zurück, wenn der
-  Eintrag noch den neuen trägt). Die Zuordnung Spielort → Drehort folgt (Datenmodell Schritt 2). Keine
-  neue Formatversion: die Datei fehlt in älteren Projekten und gilt dann als leer.
+  Eintrag noch den neuen trägt). Die Datei fehlt in älteren Projekten und gilt dann als leer.
+- **Spielort → Drehort (DB-51, Formatversion 4):** ein `[[ort]]` hat optional `location`, die Id
+  des Drehorts, an dem seine Szenen gedreht werden; fehlt sie, hat er „noch keinen Drehort“.
+  `szenen/<id>.json` hat optional `location`, den eigenen Drehort der Szene, nur wenn sie anders
+  als ihr Spielort gedreht wird. Gedreht wird eine Szene an ihrem eigenen Drehort, sonst an dem
+  ihres Spielorts. Jeder Floorplan hat `location`, den Drehort, auf dessen Set er gezeichnet ist;
+  er bleibt, wenn die Szene später woanders gedreht wird (Marks wandern nie still in einen
+  anderen Raum). Ein neuer Plan entsteht auf dem Drehort der Szene; ohne Drehort gibt es keinen.
+  Ein Drehort, auf dem ein Plan liegt oder den eine Szene als eigenen hat, lässt sich nicht löschen.
 - **Aliasnamen und Nicht-Figuren (DB-50):** eine Figur in `figuren.toml` hat optional `aliases`,
   eine Liste weiterer Namen, unter denen das Buch sie nennt (`aliases = ["LIESL"]`); nur
   geschrieben, wenn nicht leer, jeder Eintrag nicht leer (Laden lehnt einen leeren ab). Eine

@@ -24,7 +24,7 @@ fn on_empty_plan() -> Session {
     s.edit_project(ProjectEdit::AddScene {
         number: "13".into(),
         heading: "INT. SAAL".into(),
-        location: "saengersaal".into(),
+        location: Some("saengersaal".into()),
     })
     .unwrap();
     let id = s.project().scenes.last().unwrap().id.clone();
@@ -322,7 +322,7 @@ fn an_own_template_survives_saving_and_can_be_placed() {
         .edit_project(ProjectEdit::AddScene {
             number: "13".into(),
             heading: "INT. SAAL".into(),
-            location: "saengersaal".into(),
+            location: Some("saengersaal".into()),
         })
         .unwrap();
     let id = again.project().scenes.last().unwrap().id.clone();

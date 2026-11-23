@@ -107,7 +107,7 @@ impl PlanView {
         let Some((scene, plan)) = scene.and_then(|s| Some((s, s.plans.get(plan)?))) else {
             return DisplayList::default();
         };
-        let Some(location) = project.location(&scene.location) else {
+        let Some(location) = project.location(&plan.location) else {
             return DisplayList::default();
         };
 

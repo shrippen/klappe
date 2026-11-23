@@ -211,7 +211,7 @@ fn big_session_with_book(name: &str) -> Session {
             id: format!("s{n}"),
             number: n.to_string(),
             heading,
-            location: "l1".into(),
+            location: Some("l1".into()),
             ..Default::default()
         });
     }
@@ -229,6 +229,7 @@ fn open(name: &str, project: Project, book: Option<&str>) -> Session {
 
 fn big_project() -> Project {
     let mut plan = FloorPlan::new("p1", "Plan A");
+    plan.location = "l1".into();
     plan.figures = (0..FIGURES).map(figure).collect();
     plan.cameras = (0..CAMERAS).map(camera).collect();
     plan.lights = (0..LIGHTS).map(light).collect();
@@ -256,7 +257,7 @@ fn big_project() -> Project {
         id: "s1".into(),
         number: "1".into(),
         heading: "INT. HALLE".into(),
-        location: "l1".into(),
+        location: Some("l1".into()),
         plans: vec![plan],
         ..Default::default()
     }];

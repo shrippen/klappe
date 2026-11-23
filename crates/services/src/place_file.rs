@@ -21,6 +21,12 @@ pub(crate) enum PlaceDelta {
         old: String,
         new: String,
     },
+    /// Changed in the list of scripted locations (D-21): name, variants, shooting location.
+    Edited {
+        before: Place,
+        after: Place,
+    },
+    Removed(Place),
 }
 
 impl PlaceDelta {
@@ -79,8 +85,46 @@ impl PlaceDelta {
                 }
             }
             (Self::Renamed { id, old, new }, way) => rename(places, id, (old, new), way),
+            (Self::Edited { .. } | Self::Removed(_), way) => self.run_listed(places, way),
         }
     }
+
+    /// `run` for a change in the list of scripted locations (D-21).
+    fn run_listed(&self, places: &mut Vec<Place>, way: Way) {
+        match (self, way) {
+            (Self::Edited { after, .. }, Way::Apply) => replace(places, after),
+            (Self::Edited { before, .. }, Way::Revert) => replace(places, before),
+            (Self::Removed(p), Way::Apply) => places.retain(|o| o.id != p.id),
+            (Self::Removed(p), Way::Revert) => {
+                let taken = places.iter().any(|o| o.id == p.id || calls_alike(o, p));
+                if !taken {
+                    places.push(p.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Puts `place` in for the entry of its id, unless another place is called by one of its
+/// names (a name belongs to one place); a gone entry stays gone.
+fn replace(places: &mut [Place], place: &Place) {
+    if places
+        .iter()
+        .any(|o| o.id != place.id && calls_alike(o, place))
+    {
+        return;
+    }
+    if let Some(entry) = places.iter_mut().find(|p| p.id == place.id) {
+        *entry = place.clone();
+    }
+}
+
+/// Whether `a` is called by a name or variant of `b`.
+fn calls_alike(a: &Place, b: &Place) -> bool {
+    std::iter::once(&b.name)
+        .chain(&b.variants)
+        .any(|n| a.is_called(n))
 }
 
 /// Applies or reverts the rename of place `id` from `old` to `new`: the name changes only if
@@ -110,6 +154,7 @@ mod tests {
             id: id.into(),
             name: name.into(),
             variants: variants.iter().map(|v| (*v).into()).collect(),
+            location: None,
         }
     }
 
@@ -126,7 +171,16 @@ mod tests {
             new: "FESTSAAL".into(),
         };
 
-        for delta in [created, variant, renamed] {
+        let edited = PlaceDelta::Edited {
+            before: place("a", "SÄNGERSAAL", &[]),
+            after: Place {
+                location: Some("burg".into()),
+                ..place("a", "FESTSAAL", &["SÄNGERSAAL"])
+            },
+        };
+        let removed = PlaceDelta::Removed(place("a", "SÄNGERSAAL", &[]));
+
+        for delta in [created, variant, renamed, edited, removed] {
             let start = vec![place("a", "SÄNGERSAAL", &[])];
             let mut places = start.clone();
 

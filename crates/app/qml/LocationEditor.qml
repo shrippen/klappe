@@ -28,6 +28,11 @@ EditorPane {
         northField.text = item && item.latitude != null ? texts.exact(item.north) : ""
     }
 
+    // A new location starts with this name (the empty state of a scene without a location, D-21).
+    function preset(name) {
+        nameField.text = name
+    }
+
     // The place as the controller takes it: latitude, longitude and north as typed.
     function site() {
         return JSON.stringify([latitudeField.text, longitudeField.text, northField.text])

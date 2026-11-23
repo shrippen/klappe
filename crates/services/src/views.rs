@@ -292,8 +292,14 @@ pub struct SceneRow {
     /// Its length on the page as the last layout has it (`1 3/8`, DB-32); empty without one or
     /// out of the book.
     pub length: String,
+    /// Where it is shot (DB-51): its own shooting location, else its scripted location's;
+    /// empty when neither has one.
     pub location: String,
     pub location_name: String,
+    /// True when the scene has a shooting location of its own, unlike its scripted location.
+    pub own_location: bool,
+    /// The scripted location its heading names; empty when it names none known.
+    pub place: String,
     /// When it is shot (LH-52); `sunDate`, `sunTime` and `sunOffset` in the JSON.
     #[serde(flatten)]
     pub sun: SunTexts,
@@ -321,6 +327,39 @@ impl SunTexts {
             sun_offset: time.offset_text(),
         }
     }
+}
+
+/// One scripted location in the project lists (D-21).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PlaceRow {
+    pub id: String,
+    pub name: String,
+    /// Other spellings in a heading.
+    pub variants: Vec<String>,
+    /// Its shooting location; empty for "no shooting location yet".
+    pub location: String,
+    pub location_name: String,
+    /// The numbers of the scenes whose heading names it, in project order.
+    pub scenes: Vec<String>,
+}
+
+/// The plan on view lies on another set than the scene is shot at (DB-51): it stays there.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Elsewhere {
+    /// The location the plan is drawn on.
+    pub drawn_on: String,
+    pub drawn_on_name: String,
+    /// The location the scene is shot at now.
+    pub shot_at: String,
+    pub shot_at_name: String,
+}
+
+/// The scene on view is shot nowhere yet and so has no plan (D-21, empty state).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct NotShot {
+    /// Its scripted location; both empty when the heading names none known.
+    pub place: String,
+    pub place_name: String,
 }
 
 /// One location in the project lists.
@@ -375,6 +414,11 @@ pub struct Overview {
     pub scenes: Vec<SceneRow>,
     pub locations: Vec<LocationRow>,
     pub characters: Vec<CharacterRow>,
+    pub places: Vec<PlaceRow>,
+    /// The plan on view lies on another set than the scene is shot at (DB-51).
+    pub elsewhere: Option<Elsewhere>,
+    /// The scene on view is shot nowhere yet (D-21).
+    pub not_shot: Option<NotShot>,
     /// The cues marked as no character (DB-50), as `ALLE`.
     pub not_figures: Vec<String>,
     pub plans: Vec<PlanRow>,
