@@ -47,6 +47,7 @@ TestCase {
             }
             return accept
         }
+        function samePlaceName(a, b) { return a.split(/\s+/).join(" ").toUpperCase() === b.split(/\s+/).join(" ").toUpperCase() }
         function clearStatus() { status = "" }
         function sceneChanges(id, n, h) { return "[]" }
         function addScene(n, h, l) { return call("addScene", [n, h, l]) }

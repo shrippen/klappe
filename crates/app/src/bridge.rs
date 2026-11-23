@@ -1158,6 +1158,21 @@ pub mod qobject {
         #[cxx_name = "removeNotFigure"]
         fn remove_not_figure(self: Pin<&mut Self>, name: &QString) -> bool;
 
+        /// Whether `a` and `b` are the same character name, as the session compares them.
+        #[qinvokable]
+        #[cxx_name = "sameFigureName"]
+        fn same_figure_name(self: &Self, a: &QString, b: &QString) -> bool;
+
+        /// Whether `a` and `b` are the same place name, as the session compares them.
+        #[qinvokable]
+        #[cxx_name = "samePlaceName"]
+        fn same_place_name(self: &Self, a: &QString, b: &QString) -> bool;
+
+        /// The name the session makes of `capitals`: `HAFEN` gives `Hafen`.
+        #[qinvokable]
+        #[cxx_name = "nameFromCapitals"]
+        fn name_from_capitals(self: &Self, capitals: &QString) -> QString;
+
         /// Changes scripted location `id` (D-21): `variants` is a JSON array of other spellings
         /// in a heading, an empty `location` means no shooting location yet.
         #[qinvokable]
@@ -1334,6 +1349,7 @@ mod layers;
 mod library;
 mod marks;
 mod measure;
+mod names;
 mod notes;
 mod outside;
 mod picture;

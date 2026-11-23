@@ -110,6 +110,11 @@ fn create(project: &mut Project, cue: &str) -> bool {
     project_edit::apply(project, &edit).is_ok()
 }
 
+/// The name a window shows for a cue the session would make a character of: `MARIE` → `Marie`.
+pub fn name_from_capitals(cue: &str) -> String {
+    display_name(cue)
+}
+
 /// A cue in capitals or all in small letters reads as a name in capitals and small letters:
 /// `MARIE` → `Marie`, `STRAUß` → `Strauß`. One that mixes them already (`@McBride`) stays.
 fn display_name(cue: &str) -> String {
@@ -186,6 +191,10 @@ mod tests {
         assert_eq!(display_name("STRAUß"), "Strauß");
         assert_eq!(display_name("@anna"), "Anna");
         assert_eq!(display_name("McBride"), "McBride");
+        assert_eq!(
+            name_from_capitals("CHARLOTTENBURG-NORD"),
+            "Charlottenburg-nord"
+        );
     }
 
     #[test]
