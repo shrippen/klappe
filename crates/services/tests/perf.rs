@@ -135,6 +135,7 @@ fn object(i: usize) -> SetObject {
         height_m: None,
         base_m: None,
         mirrored: false,
+        element: None,
     }
 }
 

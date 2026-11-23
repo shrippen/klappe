@@ -17,8 +17,9 @@ use klappe_model::Project;
 
 use crate::files::{self, io_err, Dir, Kind};
 use crate::{
-    encode_project, load, write_tree, Loaded, StoreError, CHARACTERS_FILE, LIBRARY_FILE,
-    LOCATIONS_DIR, PROJECT_FILE, SCENES_DIR, SCENES_FILE, SCRIPT_FILE, TEMPLATES_FILE,
+    encode_project, load, write_tree, Loaded, StoreError, CHARACTERS_FILE, ELEMENTS_FILE,
+    LIBRARY_FILE, LOCATIONS_DIR, PROJECT_FILE, SCENES_DIR, SCENES_FILE, SCRIPT_FILE, SHEETS_DIR,
+    TEMPLATES_FILE,
 };
 
 /// Where `load_tree` builds the folder it reads; hidden, so listings and `project_mtime`
@@ -42,6 +43,7 @@ pub enum FileKind {
     Location,
     Register,
     Scene,
+    Breakdown,
     Script,
 }
 
@@ -56,6 +58,8 @@ pub fn kind_of(name: &str) -> Option<FileKind> {
         SCRIPT_FILE => FileKind::Script,
         _ if is_in(name, LOCATIONS_DIR) => FileKind::Location,
         _ if is_in(name, SCENES_DIR) => FileKind::Scene,
+        ELEMENTS_FILE => FileKind::Breakdown,
+        _ if is_in(name, SHEETS_DIR) => FileKind::Breakdown,
         _ => return None,
     };
 
@@ -70,7 +74,7 @@ fn is_in(name: &str, folder: &str) -> bool {
 }
 
 /// The files of the project folder `dir` as they are on disk: the single files, the location
-/// files and the scene files. Images, hidden folders (backups) and `orte.toml`, `nummern.toml`
+/// files, the scene files and the breakdown files. Images, hidden folders (backups) and `orte.toml`, `nummern.toml`
 /// are not part of it.
 pub fn read_tree(dir: &Path) -> Result<Tree, StoreError> {
     let mut tree = Tree::new();
@@ -82,10 +86,15 @@ pub fn read_tree(dir: &Path) -> Result<Tree, StoreError> {
         TEMPLATES_FILE,
         SCENES_FILE,
         SCRIPT_FILE,
+        ELEMENTS_FILE,
     ] {
         read_into(&mut tree, dir, name)?;
     }
-    for (folder, kind) in [(LOCATIONS_DIR, Kind::Toml), (SCENES_DIR, Kind::Json)] {
+    for (folder, kind) in [
+        (LOCATIONS_DIR, Kind::Toml),
+        (SCENES_DIR, Kind::Json),
+        (SHEETS_DIR, Kind::Toml),
+    ] {
         for (_, path) in Dir::new(dir.join(folder), kind).list()? {
             let Some(file) = path.file_name().and_then(|n| n.to_str()) else {
                 continue;

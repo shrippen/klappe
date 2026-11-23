@@ -52,10 +52,43 @@ fn describe(s: &Session, key: &str) -> serde_json::Value {
     };
 
     // Without a plan nothing is described, a note included.
-    match s.plan().and(hint) {
-        Some(hint) => serde_json::to_value(hint).unwrap_or_default(),
-        None => json!({}),
+    s.plan().and(hint).map_or_else(
+        || json!({}),
+        |hint| {
+            with_object_element(
+                s,
+                (kind, id),
+                serde_json::to_value(hint).unwrap_or_default(),
+            )
+        },
+    )
+}
+
+/// What the card of an object needs to bind it to a breakdown element (D-22): its id, the
+/// location whose set it stands on and the element it stands for, `null` for none. Any other
+/// kind of element is returned as it is.
+fn with_object_element(
+    s: &Session,
+    (kind, id): (ElementKind, &str),
+    mut value: serde_json::Value,
+) -> serde_json::Value {
+    let Some(location) = s.plan().and_then(|p| s.project().location(&p.location)) else {
+        return value;
+    };
+    if kind != ElementKind::Object {
+        return value;
     }
+    let element = location
+        .set
+        .objects
+        .iter()
+        .find(|o| o.id == id)
+        .and_then(|o| o.element.as_deref());
+
+    value["id"] = json!(id);
+    value["location"] = json!(location.id);
+    value["element"] = json!(element);
+    value
 }
 
 /// A grip has one line, the text key of what dragging it does; QML looks it up.
@@ -71,7 +104,7 @@ mod tests {
     use super::*;
     use crate::bridge::tests::example;
     use crate::bridge::view::choices_json;
-    use klappe_services::{Bend, FigureColor, ProjectEdit, Source};
+    use klappe_services::{Bend, ElementCategory, FigureColor, ProjectEdit, Source};
 
     /// LH-26: the tooltip of a mark says where the figure appears or leaves.
     #[test]
@@ -304,8 +337,37 @@ mod tests {
             json!({
                 "kind": "object", "label": "Tafel", "library": "table", "width": 6.0,
                 "depth": 1.2, "height": null, "base": 0.0, "baseDefault": true, "mirrored": false,
+                "id": "tisch", "location": "saengersaal", "element": null,
             })
         );
+    }
+
+    /// The object card binds the object to an element: it needs the object, its set and the element.
+    #[test]
+    fn describe_names_the_element_an_object_stands_for() {
+        let mut s = example();
+        s.edit_project(ProjectEdit::AddElement {
+            category: ElementCategory::Prop,
+            name: "Tafel".into(),
+        })
+        .unwrap();
+        let element = s.project().elements[0].id.clone();
+
+        let none = describe(&s, "object:tisch");
+        assert_eq!(none["element"], serde_json::Value::Null);
+        assert_eq!(
+            (none["id"].as_str(), none["location"].as_str()),
+            (Some("tisch"), Some("saengersaal"))
+        );
+
+        s.edit_project(ProjectEdit::SetObjectElement {
+            location: "saengersaal".into(),
+            object: "tisch".into(),
+            element: Some(element.clone()),
+        })
+        .unwrap();
+
+        assert_eq!(describe(&s, "object:tisch")["element"], json!(element));
     }
 
     /// The scene's set decides the background and the notes the tooltips read.

@@ -440,6 +440,94 @@ pub struct Overview {
     pub numberings: Vec<&'static str>,
     /// The saved views (LH-119), in the order they were made.
     pub views: Vec<ViewRow>,
+    /// The breakdown's elements (DB-60), in the order they were made.
+    pub elements: Vec<ElementRow>,
+    /// The categories an element can have, as `set-dressing`; the surface names them
+    /// (`elementCategory.<name>`).
+    pub element_categories: Vec<&'static str>,
+    /// The states of an element, as `working` (`elementStatus.<name>`).
+    pub element_statuses: Vec<&'static str>,
+    /// The sheet of the scene on view; `None` without one.
+    pub sheet: Option<SheetView>,
+}
+
+/// One element of the breakdown with the scenes that need it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ElementRow {
+    pub id: String,
+    /// The category's name, as `prop`.
+    pub category: &'static str,
+    pub name: String,
+    pub description: String,
+    /// The status' name, as `open`.
+    pub status: &'static str,
+    /// The scenes whose sheet lists it, in scene order; numbers may repeat (DB-33).
+    pub scenes: Vec<SceneRef>,
+}
+
+/// A scene named in a list: its id, and its number to show.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SceneRef {
+    pub id: String,
+    pub number: String,
+}
+
+/// The scene sheet of the scene on view (D-22).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SheetView {
+    pub story_day: String,
+    /// The pre-stop in seconds.
+    pub prestop_s: Option<u32>,
+    /// The planned shooting time in minutes.
+    pub planned_min: Option<u32>,
+    pub continuity: String,
+    pub note: String,
+    /// The characters with a cue in the book, in the order of their first cue.
+    pub speaking: Vec<SheetFigure>,
+    /// The characters without a cue the sheet names: silent ones and extras.
+    pub present: Vec<SheetFigure>,
+    /// The categories that have elements in this scene, in the order of `element_categories`.
+    pub categories: Vec<SheetCategory>,
+    /// Objects of the set the scene is shot on that stand for an element the sheet neither
+    /// lists nor turned down.
+    pub suggestions: Vec<Suggestion>,
+}
+
+/// A character on a scene sheet.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SheetFigure {
+    pub id: String,
+    pub name: String,
+    /// The colour's role name, e.g. `purple`.
+    pub color: &'static str,
+    /// Head count of a group of extras (LH-23); 0 for a single person.
+    pub group: u32,
+}
+
+/// The elements of one category in a scene.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SheetCategory {
+    pub category: &'static str,
+    pub elements: Vec<SheetElement>,
+}
+
+/// An element in a scene.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SheetElement {
+    pub id: String,
+    pub name: String,
+    pub status: &'static str,
+}
+
+/// An element the set of the scene offers through one of its objects.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Suggestion {
+    /// The element's id.
+    pub element: String,
+    pub name: String,
+    pub category: &'static str,
+    /// The label of the object that stands for it.
+    pub object: String,
 }
 
 /// One saved view of the View menu and the palette (LH-119).

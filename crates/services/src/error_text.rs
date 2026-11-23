@@ -25,13 +25,27 @@ pub fn error_text(language: Language, error: &ServiceError) -> String {
         .replace("{aside}", &aside.to_string_lossy())
 }
 
+/// The text key and id of a lookup that found nothing.
+fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
+    let found = match error {
+        ServiceError::NoScene(id) => ("error.noScene", id),
+        ServiceError::NoPlan(id) => ("error.noPlan", id),
+        ServiceError::NoShot(id) => ("error.noShot", id),
+        ServiceError::NoLocation(id) => ("error.noLocation", id),
+        ServiceError::NoCharacter(id) => ("error.noCharacter", id),
+        ServiceError::NoElement(id) => ("error.noElement", id),
+        _ => return None,
+    };
+
+    Some((found.0, found.1.clone()))
+}
+
 fn own_text(language: Language, error: &ServiceError) -> String {
+    if let Some((key, id)) = missing(error) {
+        return language.text(key).replace("{detail}", &id);
+    }
+
     let (key, detail) = match error {
-        ServiceError::NoScene(id) => ("error.noScene", id.clone()),
-        ServiceError::NoPlan(id) => ("error.noPlan", id.clone()),
-        ServiceError::NoShot(id) => ("error.noShot", id.clone()),
-        ServiceError::NoLocation(id) => ("error.noLocation", id.clone()),
-        ServiceError::NoCharacter(id) => ("error.noCharacter", id.clone()),
         ServiceError::NotEmpty(path) => ("error.notEmpty", path.to_string_lossy().into_owned()),
         ServiceError::CameraInUse { camera, shot } => {
             return language
@@ -184,6 +198,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::NoShot(_)
         | ServiceError::NoLocation(_)
         | ServiceError::NoCharacter(_)
+        | ServiceError::NoElement(_)
         | ServiceError::NotEmpty(_)
         | ServiceError::CameraInUse { .. }
         | ServiceError::NumberTaken(_)
@@ -226,6 +241,7 @@ pub fn outside_files_text(language: Language, files: &[OutsideFile]) -> String {
             klappe_store::FileKind::Location => "outside.file.location",
             klappe_store::FileKind::Register => "outside.file.register",
             klappe_store::FileKind::Scene => "outside.file.scene",
+            klappe_store::FileKind::Breakdown => "outside.file.breakdown",
             klappe_store::FileKind::Script => "outside.file.script",
         };
         let word = language.text(key);
@@ -617,6 +633,7 @@ mod tests {
             ServiceError::EmptyTemplate,
             ServiceError::Locked(Layer::Set),
             ServiceError::NoCharacter("c".to_owned()),
+            ServiceError::NoElement("e".to_owned()),
             ServiceError::NumberTaken("12".to_owned()),
             ServiceError::LocationInUse {
                 id: "l".to_owned(),

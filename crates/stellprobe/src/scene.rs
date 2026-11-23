@@ -408,6 +408,7 @@ mod tests {
                 height_m: Some(height_m),
                 base_m: None,
                 mirrored: false,
+                element: None,
             }],
             ..SetPlan::default()
         }

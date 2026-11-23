@@ -1,7 +1,7 @@
 //! Reads and writes a Klappe project folder (FORMAT.md).
 //!
 //! ```text
-//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen.toml, szenen/
+//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen.toml, szenen/, breakdown/
 //! load(dir)                  ◄──         drehbuch.fountain
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
@@ -16,6 +16,7 @@
 //!
 //! Depends on the model only; knows nothing of Stellprobe or the script parser.
 
+mod breakdown;
 mod camera;
 mod characters;
 mod disk;
@@ -84,6 +85,9 @@ const LOCK_FILE: &str = "nummern.toml";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
 const SCENES_FILE: &str = "szenen.toml";
+/// The breakdown (D-22): its elements, and a sheet file per scene named by the scene.
+const ELEMENTS_FILE: &str = "breakdown/elemente.toml";
+const SHEETS_DIR: &str = "breakdown/szenen";
 const IMAGES_DIR: &str = "bilder";
 /// Folder of the unsaved-changes backup inside a project folder (FORMAT.md).
 const BACKUP_DIR: &str = ".sicherung";
@@ -202,7 +206,8 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
 
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
-    let (scenes, notes) = load_scenes(dir)?;
+    let (mut scenes, notes) = load_scenes(dir)?;
+    let elements = breakdown::load(dir, &mut scenes)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -212,6 +217,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             numbering: header.numbering,
             script: header.script,
             views: header.ansicht,
+            elements,
             characters: characters.figur,
             not_figures: characters.not_figures,
             locations,
@@ -246,6 +252,7 @@ pub fn save(dir: &Path, project: &Project, script: Option<&str>) -> Result<(), S
     Dir::new(dir.join(LOCATIONS_DIR), Kind::Toml).remove_except(&keep)?;
     let keep: HashSet<&str> = project.scenes.iter().map(|s| s.id.as_str()).collect();
     Dir::new(dir.join(SCENES_DIR), Kind::Json).remove_except(&keep)?;
+    Dir::new(dir.join(SHEETS_DIR), Kind::Toml).remove_except(&breakdown::kept(project))?;
 
     if let Some(text) = script {
         files::write_atomic(&dir.join(SCRIPT_FILE), text.as_bytes())?;
@@ -321,7 +328,11 @@ fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, St
         false => Some(template::encode(&templates_path, &project.templates)?),
     };
 
-    Ok(vec![(library_path, library), (templates_path, templates)])
+    let sheets = breakdown::encode(dir, project)?;
+    let mut files = vec![(library_path, library), (templates_path, templates)];
+    files.extend(sheets);
+
+    Ok(files)
 }
 
 /// Writes `project` as a backup into `dir/.sicherung`, in the project format. The project

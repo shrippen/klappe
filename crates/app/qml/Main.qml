@@ -35,7 +35,8 @@ Kirigami.ApplicationWindow {
     // here, its view below with `visible: root.module === <id>`, and its texts `module.<id>`.
     readonly property var modules: [
         { id: "screenplay", name: "module.screenplay", icon: "document-edit" },
-        { id: "stellprobe", name: "module.stellprobe", icon: "view-split-left-right" }
+        { id: "stellprobe", name: "module.stellprobe", icon: "view-split-left-right" },
+        { id: "breakdown", name: "module.breakdown", icon: "view-list-details" }
     ]
     // The open module; the settings keep it over a restart (an unknown stored id gives Stellprobe).
     readonly property string module: modules.some(m => m.id === windowStore.module) ? windowStore.module : "stellprobe"
@@ -251,6 +252,16 @@ Kirigami.ApplicationWindow {
                         onNewLocationRequested: (name, place) => projectDialog.openNewLocation(name, place)
                         onScriptImportRequested: scriptImport.start()
                         onScreenplayRequested: root.openModule("screenplay")
+                    }
+
+                    BreakdownView {
+                        objectName: "breakdown"
+                        visible: ctl.loaded && root.module === "breakdown"
+                        enabled: !backupNotice.blocking
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        texts: texts
+                        controller: ctl
                     }
 
                     ScreenplayView {

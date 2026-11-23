@@ -30,6 +30,11 @@ TestCase {
         property bool fileOk: true
         property var changes: []
         property int labels: 0
+        property var elementCalls: []
+        property string projectJson: JSON.stringify({ elements: [
+            { id: "e1", category: "prop", name: "Brief" },
+            { id: "e2", category: "costume", name: "Ballkleid" }
+        ] })
         property string choicesJson: JSON.stringify({ object: [
             { kind: "table", custom: false, group: "furniture" },
             { kind: "sofa", custom: false, group: "furniture" },
@@ -38,10 +43,10 @@ TestCase {
 
         function describe(key) {
             if (key === "object:o1") {
-                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: table.depth, height: null, base: 0, baseDefault: true })
+                return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: table.depth, height: null, base: 0, baseDefault: true, id: "o1", location: "saal", element: null })
             }
             if (key === "object:o2") {
-                return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8, base: 0.4, baseDefault: false })
+                return JSON.stringify({ kind: "object", label: "Thron", library: "thron", width: 0.9, depth: 0.8, height: 0.8, base: 0.4, baseDefault: false, id: "o2", location: "saal", element: "e2" })
             }
             if (key === "object:o4") {
                 return JSON.stringify({ kind: "object", label: "", library: "sofa", width: 2, depth: 0.9, height: 0.85, base: 0, baseDefault: true, mirrored: true })
@@ -65,6 +70,10 @@ TestCase {
         }
         function changeSelected(what, arg) {
             changes.push([what, arg])
+            return true
+        }
+        function setObjectElement(location, object, element) {
+            elementCalls.push([location, object, element])
             return true
         }
         function labelSelected() {
@@ -100,6 +109,7 @@ TestCase {
         fake.fileOk = true
         fake.changes = []
         fake.labels = 0
+        fake.elementCalls = []
     }
 
     function make() {
@@ -484,5 +494,24 @@ TestCase {
                            "object.resetSizeTip", "object.label", "object.labelTip", "note.unbind"]) {
             verify(de.t(key) !== key, "de " + key)
         }
+    }
+
+    // D-22: the object stands for an element of the breakdown; none is the first entry.
+    function test_the_element_box_binds_the_object_to_an_element() {
+        const card = make()
+        card.expanded = true
+        const box = findChild(card, "elementBox")
+
+        fake.selectedKey = "object:o1"
+        compare(box.model, ["keins", "Requisite · Brief", "Kostüm · Ballkleid"])
+        compare(box.currentIndex, 0)
+
+        box.activated(1)
+        compare(fake.elementCalls, [["saal", "o1", "e1"]])
+
+        fake.selectedKey = "object:o2"
+        compare(box.currentIndex, 2)
+        box.activated(0)
+        compare(fake.elementCalls[1], ["saal", "o2", ""])
     }
 }

@@ -13,6 +13,7 @@ use undo::Snapshot;
 
 mod blank;
 mod book;
+mod breakdown;
 mod export;
 mod fade;
 mod figures;

@@ -245,9 +245,10 @@ fn aligned(scene: &Scene) -> impl PartialEq + '_ {
         state,
         prints,
         refused,
-        // Not read by the alignment: where it is shot and what is staged.
+        // Not read by the alignment: where it is shot, its sheet and what is staged.
         location: _,
         sun: _,
+        sheet: _,
         plans: _,
     } = scene;
 

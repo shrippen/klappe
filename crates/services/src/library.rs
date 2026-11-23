@@ -60,6 +60,7 @@ mod tests {
             height_m: Some(1.0),
             base_m: None,
             mirrored: false,
+            element: None,
         }
     }
 

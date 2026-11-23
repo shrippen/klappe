@@ -32,6 +32,7 @@ fn with_table(marks: Vec<ObjectMark>) -> (SetPlan, FloorPlan) {
         height_m: Some(0.8),
         base_m: None,
         mirrored: false,
+        element: None,
     }];
     let mut plan = plan();
     plan.object_tracks = vec![ObjectTrack {
