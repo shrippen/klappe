@@ -13,6 +13,7 @@ use crate::field::Field;
 
 mod copy;
 mod library;
+mod names;
 mod plans;
 pub(crate) mod templates;
 mod views;
@@ -83,10 +84,21 @@ pub enum ProjectEdit {
         color: FigureColor,
         group: Option<u32>,
         size_m: Option<f64>,
+        /// The other names the book calls the character by (DB-50); `None` keeps them.
+        aliases: Option<Vec<String>>,
     },
     /// Refused while a plan uses the character.
     RemoveCharacter {
         id: String,
+    },
+    /// Marks a cue as no character (DB-50), as `ALLE`: the book stops asking for it. Refused
+    /// when a character answers to it.
+    AddNotFigure {
+        name: String,
+    },
+    /// Takes the mark away: the book asks for the cue again.
+    RemoveNotFigure {
+        name: String,
     },
     /// Files the object `object` of the set at `location` in the project's library under
     /// `name` (LH-12): its size and shape, a kind of its own.
@@ -207,15 +219,11 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
             group,
             size_m,
         } => add_character(project, name, short, *color, (*group, *size_m)),
-        ProjectEdit::EditCharacter {
-            id,
-            name,
-            short,
-            color,
-            group,
-            size_m,
-        } => edit_character(project, id, name, short, *color, (*group, *size_m)),
+        ProjectEdit::EditCharacter { .. } => edit_figure(project, edit),
         ProjectEdit::RemoveCharacter { id } => remove_character(project, id),
+        ProjectEdit::AddNotFigure { .. } | ProjectEdit::RemoveNotFigure { .. } => {
+            names::apply(project, edit)
+        }
         ProjectEdit::LibraryFromObject { .. } | ProjectEdit::ImportLibrary { .. } => {
             library::apply(project, edit)
         }
@@ -433,6 +441,28 @@ fn add_character(
         aliases: Vec::new(),
     });
     Ok(())
+}
+
+/// `EditCharacter`: the character, then its other names (DB-50) when the edit gives them.
+fn edit_figure(project: &mut Project, edit: &ProjectEdit) -> Result<(), ServiceError> {
+    let ProjectEdit::EditCharacter {
+        id,
+        name,
+        short,
+        color,
+        group,
+        size_m,
+        aliases,
+    } = edit
+    else {
+        return Ok(());
+    };
+
+    edit_character(project, id, name, short, *color, (*group, *size_m))?;
+    match aliases {
+        Some(aliases) => names::set_aliases(project, id, aliases),
+        None => Ok(()),
+    }
 }
 
 fn edit_character(

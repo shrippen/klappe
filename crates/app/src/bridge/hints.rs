@@ -109,6 +109,7 @@ mod tests {
             color: FigureColor::Blue,
             group: Some(12),
             size_m: None,
+            aliases: None,
         })
         .unwrap();
 

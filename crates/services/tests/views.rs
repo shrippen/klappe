@@ -29,6 +29,7 @@ fn a_group_track_is_named_with_its_count() {
         color: FigureColor::Blue,
         group: Some(12),
         size_m: None,
+        aliases: None,
     })
     .unwrap();
 
@@ -110,6 +111,7 @@ fn the_overview_gives_groups_their_count() {
         color: FigureColor::Blue,
         group: Some(12),
         size_m: None,
+        aliases: None,
     })
     .unwrap();
 
@@ -126,6 +128,7 @@ fn the_overview_gives_groups_their_count() {
             color: "blue",
             group: 12,
             size_m: None,
+            aliases: Vec::new(),
         }
     );
     assert_eq!(elisabeth.group, 0);

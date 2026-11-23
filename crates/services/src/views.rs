@@ -356,6 +356,8 @@ pub struct CharacterRow {
     /// Diameter of the body in metres (LH-25); `None` is the standard.
     #[serde(rename = "size")]
     pub size_m: Option<f64>,
+    /// The other names the book calls the character by (DB-50).
+    pub aliases: Vec<String>,
 }
 
 /// One plan variant of the scene on view (LH-04).
@@ -373,6 +375,8 @@ pub struct Overview {
     pub scenes: Vec<SceneRow>,
     pub locations: Vec<LocationRow>,
     pub characters: Vec<CharacterRow>,
+    /// The cues marked as no character (DB-50), as `ALLE`.
+    pub not_figures: Vec<String>,
     pub plans: Vec<PlanRow>,
     /// Id of the plan shown; empty without one.
     pub plan: String,

@@ -33,9 +33,9 @@ TestCase {
             numbering: "scene",
             numberings: ["scene", "camera", "group"],
             characters: [
-                { id: "elisabeth", name: "Elisabeth", short: "E", color: "purple", group: 0, size: null },
-                { id: "burgvogt", name: "Burgvogt", short: "B", color: "blue", group: 0, size: 2.4 },
-                { id: "gaeste", name: "Gäste", short: "G", color: "green", group: 12, size: null }
+                { id: "elisabeth", name: "Elisabeth", short: "E", color: "purple", group: 0, size: null, aliases: [] },
+                { id: "burgvogt", name: "Burgvogt", short: "B", color: "blue", group: 0, size: 2.4, aliases: [] },
+                { id: "gaeste", name: "Gäste", short: "G", color: "green", group: 12, size: null, aliases: [] }
             ]
         })
 
@@ -49,7 +49,7 @@ TestCase {
         }
         function clearStatus() { status = "" }
         function sceneChanges(id, n, h) { return JSON.stringify(changes) }
-        function characterChanges(id, n) { return JSON.stringify(changes) }
+        function characterChanges(id, n, a) { return JSON.stringify(changes) }
         function selectScene(id) { return call("selectScene", [id]) }
         function addScene(n, h, l) { return call("addScene", [n, h, l]) }
         function editScene(id, n, h, l, sun) { return call("editScene", [id, n, h, l, sun]) }
@@ -58,7 +58,7 @@ TestCase {
         function editLocation(id, n, w, d, h, site) { return call("editLocation", [id, n, w, d, h, site]) }
         function removeLocation(id) { return call("removeLocation", [id]) }
         function addCharacter(n, s, c, g, z) { return call("addCharacter", [n, s, c, g, z]) }
-        function editCharacter(id, n, s, c, g, z) { return call("editCharacter", [id, n, s, c, g, z]) }
+        function editCharacter(id, n, s, c, g, z, a) { return call("editCharacter", [id, n, s, c, g, z, a]) }
         function removeCharacter(id) { return call("removeCharacter", [id]) }
         function setNumbering(name) { return call("setNumbering", [name]) }
     }
@@ -397,7 +397,7 @@ TestCase {
         findChild(form, "colorPicker").picked(3)
         press(form, "apply")
 
-        compare(fake.calls, [["editCharacter", "elisabeth", "Elisabeth", "E", "green", 0, ""]])
+        compare(fake.calls, [["editCharacter", "elisabeth", "Elisabeth", "E", "green", 0, "", "[]"]])
     }
 
     function test_a_new_group_sends_its_head_count() {
@@ -431,7 +431,7 @@ TestCase {
         findChild(form, "groupSwitch").checked = false
         press(form, "apply")
 
-        compare(fake.calls, [["editCharacter", "gaeste", "Gäste", "G", "green", 0, ""]])
+        compare(fake.calls, [["editCharacter", "gaeste", "Gäste", "G", "green", 0, "", "[]"]])
     }
 
     // LH-25: the size is typed in metres; empty is the standard.
@@ -513,7 +513,7 @@ TestCase {
 
         press(form, "apply")
         press(form, "confirmChange")
-        compare(fake.calls, [["editCharacter", "elisabeth", "Elise", "E", "purple", 0, ""]])
+        compare(fake.calls, [["editCharacter", "elisabeth", "Elise", "E", "purple", 0, "", "[]"]])
         verify(!warning.visible)
     }
 

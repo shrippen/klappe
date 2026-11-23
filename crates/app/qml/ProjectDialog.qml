@@ -112,7 +112,9 @@ Item {
 
                     StackLayout {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Kirigami.Units.gridUnit * 20
+                        // Grows when the names under the characters need more room.
+                        Layout.preferredHeight: Math.max(Kirigami.Units.gridUnit * 20,
+                            characterColumn.implicitHeight)
                         currentIndex: tabs.currentIndex
 
                         ManageList {
@@ -133,14 +135,29 @@ Item {
                             onAddRequested: root.add(locationList, locationForm)
                             onCurrentIdChanged: root.adding = false
                         }
-                        ManageList {
-                            id: characterList
-                            objectName: "characterList"
-                            texts: root.texts
-                            kind: "character"
-                            items: root.project.characters
-                            onAddRequested: root.add(characterList, characterForm)
-                            onCurrentIdChanged: root.adding = false
+                        // The characters, and under them the names that are none (DB-50).
+                        ColumnLayout {
+                            id: characterColumn
+                            spacing: Kirigami.Units.largeSpacing
+
+                            ManageList {
+                                id: characterList
+                                objectName: "characterList"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                texts: root.texts
+                                kind: "character"
+                                items: root.project.characters
+                                onAddRequested: root.add(characterList, characterForm)
+                                onCurrentIdChanged: root.adding = false
+                            }
+                            NotFigures {
+                                objectName: "notFigures"
+                                Layout.fillWidth: true
+                                texts: root.texts
+                                controller: root.controller
+                                names: root.project.not_figures || []
+                            }
                         }
                     }
                 }

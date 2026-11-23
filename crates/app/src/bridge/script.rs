@@ -110,6 +110,7 @@ impl qobject::Controller {
         self.commit_project(edit)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn edit_character(
         self: Pin<&mut Self>,
         id: &QString,
@@ -118,6 +119,7 @@ impl qobject::Controller {
         color: &QString,
         group: u32,
         size: &QString,
+        aliases: &QString,
     ) -> bool {
         let edit = color_edit(color).and_then(|color| {
             Ok(ProjectEdit::EditCharacter {
@@ -127,6 +129,7 @@ impl qobject::Controller {
                 color,
                 group: manage::group_of(group),
                 size_m: manage::figure_size(&size.to_string())?,
+                aliases: Some(aliases_of(aliases)?),
             })
         });
         self.commit_project(edit)
@@ -134,6 +137,18 @@ impl qobject::Controller {
 
     pub(super) fn remove_character(self: Pin<&mut Self>, id: &QString) -> bool {
         self.commit_project(Ok(ProjectEdit::RemoveCharacter { id: id.to_string() }))
+    }
+
+    pub(super) fn add_not_figure(self: Pin<&mut Self>, name: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::AddNotFigure {
+            name: name.to_string(),
+        }))
+    }
+
+    pub(super) fn remove_not_figure(self: Pin<&mut Self>, name: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::RemoveNotFigure {
+            name: name.to_string(),
+        }))
     }
 }
 
@@ -150,6 +165,14 @@ fn sizes(
 fn texts3(json: &QString, field: Field) -> Result<[String; 3], ServiceError> {
     serde_json::from_str(&json.to_string()).map_err(|_| ServiceError::BadValue {
         field,
+        value: json.to_string(),
+    })
+}
+
+/// The other names of the character form (DB-50): a JSON array of strings.
+pub(super) fn aliases_of(json: &QString) -> Result<Vec<String>, ServiceError> {
+    serde_json::from_str(&json.to_string()).map_err(|_| ServiceError::BadValue {
+        field: Field::Alias,
         value: json.to_string(),
     })
 }

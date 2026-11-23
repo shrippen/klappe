@@ -111,6 +111,7 @@ impl Session {
             color: c.color.name(),
             group: c.group.unwrap_or(NO_GROUP),
             size_m: c.size_m,
+            aliases: c.aliases.clone(),
         });
         let plans = self
             .scene()
@@ -127,6 +128,7 @@ impl Session {
             scenes: scenes.collect(),
             locations: locations.collect(),
             characters: characters.collect(),
+            not_figures: project.not_figures.clone(),
             plans: plans.collect(),
             plan: self.plan().map(|p| p.id.clone()).unwrap_or_default(),
             numbering: project.numbering.name(),

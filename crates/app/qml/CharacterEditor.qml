@@ -6,6 +6,8 @@ import Kante
 // Adds a character or changes one (LH-03, D-08): name, the short label drawn in the figure,
 // one of Kante's label colours, its size across in metres (LH-25; empty is the standard),
 // and whether it is a group of extras with a head count (LH-23). A new name is carried into the cues of the script text (the pane warns first).
+// A character's other names in the book (DB-50) show as chips; a name typed and not yet
+// entered counts on Apply. A removed name the book uses is said first: the book asks again.
 EditorPane {
     id: form
 
@@ -20,6 +22,9 @@ EditorPane {
     readonly property int noGroup: 0
     readonly property var colors: KanteStyle.labels
 
+    // The other names as the form holds them until Apply.
+    property var aliases: []
+
     title: texts.t(item ? "character.edit" : "character.new")
     applyText: texts.t(item ? "form.apply" : "form.add")
     canApply: nameField.text.trim() !== "" && shortField.text.trim() !== ""
@@ -31,7 +36,29 @@ EditorPane {
         return free < 0 ? 0 : free
     }
 
+    // Whether `name` is in the list already; cues compare in capitals.
+    function hasAlias(name) {
+        const upper = name.toUpperCase()
+        return aliases.some(a => a.toUpperCase() === upper)
+    }
+
+    function addAlias() {
+        const name = aliasField.text.trim()
+        if (name !== "" && !hasAlias(name)) {
+            aliases = aliases.concat([name])
+        }
+        aliasField.text = ""
+    }
+
+    // The chips and a name typed but not entered.
+    function allAliases() {
+        const typed = aliasField.text.trim()
+        return typed === "" || hasAlias(typed) ? aliases : aliases.concat([typed])
+    }
+
     function load() {
+        aliases = item ? item.aliases.slice() : []
+        aliasField.text = ""
         nameField.text = item ? item.name : ""
         shortField.text = item ? item.short : ""
         picker.currentIndex = item ? colors.indexOf(item.color) : firstFree()
@@ -47,7 +74,8 @@ EditorPane {
         if (!item) {
             return []
         }
-        const raw = controller.characterChanges(item.id, nameField.text)
+        const raw = controller.characterChanges(item.id, nameField.text,
+            JSON.stringify(allAliases()))
         return raw ? JSON.parse(raw) : []
     }
     submit: function () {
@@ -58,7 +86,7 @@ EditorPane {
                 sizeField.text)
         }
         return controller.editCharacter(item.id, nameField.text, shortField.text, color, group,
-            sizeField.text)
+            sizeField.text, JSON.stringify(allAliases()))
     }
     remove: function () { return controller.removeCharacter(item.id) }
 
@@ -111,5 +139,37 @@ EditorPane {
         value: form.minGroup
         editable: true
         Accessible.name: form.texts.t("character.groupSize")
+    }
+
+    KanteSectionLabel {
+        visible: form.item !== null
+        text: form.texts.t("character.aliases")
+    }
+    Flow {
+        objectName: "aliasChips"
+        Layout.fillWidth: true
+        visible: form.item !== null && form.aliases.length > 0
+        spacing: Kirigami.Units.smallSpacing
+
+        Repeater {
+            model: form.aliases
+            delegate: KanteChip {
+                required property string modelData
+                objectName: "alias"
+                text: modelData
+                removable: true
+                removeText: form.texts.t("character.aliasRemove", { name: "%1" })
+                onRemoveRequested: form.aliases = form.aliases.filter(a => a !== modelData)
+            }
+        }
+    }
+    KanteTextField {
+        id: aliasField
+        objectName: "aliasField"
+        Layout.fillWidth: true
+        visible: form.item !== null
+        placeholderText: form.texts.t("character.aliasAdd")
+        Accessible.name: form.texts.t("character.aliases")
+        onAccepted: form.addAlias()
     }
 }

@@ -167,6 +167,7 @@ fn renaming_in_klappe_keeps_the_id_and_the_aliases() {
         color: FigureColor::Red,
         group: None,
         size_m: None,
+        aliases: None,
     })
     .unwrap();
 
@@ -219,6 +220,7 @@ fn a_name_is_free_against_names_and_aliases_of_other_figures() {
         color: FigureColor::Blue,
         group: None,
         size_m: None,
+        aliases: None,
     };
     assert!(s.edit_project(rename).is_err());
     assert!(s.edit_project(add("Carl")).is_ok());
@@ -414,6 +416,7 @@ fn a_save_writes_the_window_s_changes_and_keeps_an_answer() {
         color: FigureColor::Red,
         group: None,
         size_m: None,
+        aliases: None,
     };
     gui.edit_project(rename).unwrap();
     gui.save(klappe_services::OnOutside::Overwrite).unwrap();
@@ -503,6 +506,7 @@ fn rename(id: &str, name: &str) -> ProjectEdit {
         color: FigureColor::Red,
         group: None,
         size_m: None,
+        aliases: None,
     }
 }
 
