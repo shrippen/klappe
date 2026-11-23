@@ -3,9 +3,9 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    is_figure_size_m, is_object_height_m, normalize_deg, random_id, BookState, Character,
-    FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project, Scene, SetPlan,
-    Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
+    is_figure_size_m, is_object_height_m, normalize_deg, random_id, same_character_name, BookState,
+    Character, FigureColor, FloorPlan, Kind, LibraryItem, Location, Numbering, Point, Project,
+    Scene, SetPlan, Site, SunTime, Template, MAX_GROUP, MAX_SET_M, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -385,9 +385,18 @@ enum Numbered {
     Always,
 }
 
-/// The first name of `base`, `base 2`, `base 3` … (as `numbered` allows) no character answers to.
-fn free_character_name(characters: &[Character], base: &str, numbered: Numbered) -> String {
-    let taken = |name: &str| characters.iter().any(|c| c.is_called(name));
+/// The first name of `base`, `base 2`, `base 3` … (as `numbered` allows) no character answers to
+/// and not in `marked`, the names marked no character (DB-50).
+fn free_character_name(
+    characters: &[Character],
+    marked: &[String],
+    base: &str,
+    numbered: Numbered,
+) -> String {
+    let taken = |name: &str| {
+        characters.iter().any(|c| c.is_called(name))
+            || marked.iter().any(|m| same_character_name(m, name))
+    };
     if numbered == Numbered::WhenTaken && !taken(base) {
         return base.to_owned();
     }

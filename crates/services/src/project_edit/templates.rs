@@ -77,8 +77,12 @@ pub(crate) fn place(
         let character = match free {
             Some(character) => character.id.clone(),
             None => {
-                let name =
-                    free_character_name(&project.characters, &figure.slot, Numbered::WhenTaken);
+                let name = free_character_name(
+                    &project.characters,
+                    &project.not_figures,
+                    &figure.slot,
+                    Numbered::WhenTaken,
+                );
                 new_character(project, &name)?
             }
         };

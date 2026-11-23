@@ -128,6 +128,22 @@ fn placeholders_without_a_free_character_make_new_ones() {
     assert!(!s.can_undo());
 }
 
+/// A placeholder named as a cue marked no character (DB-50) gets a number, as a taken name.
+#[test]
+fn a_placeholder_named_as_a_name_marked_no_character_gets_a_number() {
+    let mut s = open();
+    s.edit_project(ProjectEdit::AddNotFigure { name: "A".into() })
+        .unwrap();
+
+    s.apply_template("shot-reverse", p(10.0, 5.0)).unwrap();
+
+    let names: Vec<&str> = s.project().characters[2..]
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(names, ["A 2", "B"]);
+}
+
 /// A new scene has no figure yet: the placeholders take the project's characters in order.
 #[test]
 fn placeholders_take_the_characters_the_plan_has_no_figure_of() {
