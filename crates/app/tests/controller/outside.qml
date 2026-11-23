@@ -81,8 +81,12 @@ Item {
                 return root.fail("the other window did not save a third time")
             }
             ctl.editScript(own + "Noch mehr.\n")
+            ctl.checkOutside()
+            if (ctl.outsideFiles === "") {
+                return root.fail("the window's text and the folder's are in conflict")
+            }
             ctl.reloadProject()
-            if (ctl.scriptText !== third || ctl.dirty || ctl.canUndo || root.told.length !== 3) {
+            if (ctl.scriptText !== third || ctl.dirty || ctl.canUndo || root.told.length !== 4) {
                 return root.fail("reload must take the folder's text: " + ctl.scriptText.length)
             }
 
@@ -93,7 +97,7 @@ Item {
             if (!other.save()) {
                 return root.fail("the other window did not save a fourth time")
             }
-            if (!ctl.save() || ctl.scriptText !== fourth || root.told.length !== 4) {
+            if (!ctl.save() || ctl.scriptText !== fourth || root.told.length !== 5) {
                 return root.fail("a save must tell what it took over: " + root.told.join("|"))
             }
 

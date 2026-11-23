@@ -59,6 +59,12 @@ impl qobject::Controller {
         self.as_mut().refresh();
         self.as_mut().show_backup();
         self.as_mut().show_outside();
+
+        // Nothing was in conflict any more (settled since the dialog opened): no file to name.
+        if files.is_empty() {
+            return;
+        }
+
         let text = outside_taken_text(language, &files, false);
         self.outside_taken(&q(&text));
     }
