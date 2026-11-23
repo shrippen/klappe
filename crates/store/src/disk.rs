@@ -66,6 +66,19 @@ pub fn kind_of(name: &str) -> Option<FileKind> {
     Some(kind)
 }
 
+/// The name of the one file of the kind `kind`; `None` for a kind with many files (a folder).
+pub const fn file_name(kind: FileKind) -> Option<&'static str> {
+    match kind {
+        FileKind::Project => Some(PROJECT_FILE),
+        FileKind::Figures => Some(CHARACTERS_FILE),
+        FileKind::Library => Some(LIBRARY_FILE),
+        FileKind::Templates => Some(TEMPLATES_FILE),
+        FileKind::Register => Some(SCENES_FILE),
+        FileKind::Script => Some(SCRIPT_FILE),
+        FileKind::Location | FileKind::Scene | FileKind::Breakdown => None,
+    }
+}
+
 /// Whether `name` is `<folder>/<file>`.
 fn is_in(name: &str, folder: &str) -> bool {
     name.strip_prefix(folder)
@@ -189,6 +202,23 @@ fn ordered(changes: &[Change]) -> Vec<(&str, Option<&[u8]>)> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn file_names_round_trip() {
+        let kinds = [
+            FileKind::Project,
+            FileKind::Figures,
+            FileKind::Library,
+            FileKind::Templates,
+            FileKind::Register,
+            FileKind::Script,
+        ];
+
+        for kind in kinds {
+            let name = file_name(kind).expect("single file");
+            assert_eq!(kind_of(name), Some(kind));
+        }
+    }
+
     use super::*;
 
     fn change(name: &str, write: bool) -> Change {

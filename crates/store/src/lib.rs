@@ -48,7 +48,9 @@ use serde::{Deserialize, Serialize};
 pub use camera::builtin_camera_presets;
 use characters::{encode_characters, load_characters};
 pub use characters::{load_figures, save_characters};
-pub use disk::{encode_tree, kind_of, load_tree, read_tree, write_changes, FileKind, Tree};
+pub use disk::{
+    encode_tree, file_name, kind_of, load_tree, read_tree, write_changes, FileKind, Tree,
+};
 pub use error::StoreError;
 pub use files::load_script_file;
 use files::{Dir, Kind};
