@@ -462,6 +462,7 @@ mod tests {
 
         assert_eq!(written, Ok(()));
         let bytes = std::fs::read(&out).unwrap_or_default();
+        let _ = std::fs::remove_file(&out);
         assert!(bytes.starts_with(b"%PDF"));
         assert!(String::from_utf8_lossy(&bytes).contains("/MediaBox [0 0 612 792]"));
     }
