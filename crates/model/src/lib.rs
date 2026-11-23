@@ -79,7 +79,7 @@ pub use project::{
     MIN_GROUP, MIN_IMAGE_OPACITY, MIN_OPENING_WIDTH_M, NOTE_MIN_WIDTH_M, NOTE_WIDTH_M,
 };
 pub use register::{
-    free_random_id, id_from_seed, random_id, BookState, Case, Kind, LockedNumber, Print, SceneKey,
+    free_random_id, id_from_seed, random_id, BookState, IdCase, Kind, LockedNumber, Print, SceneKey,
 };
 pub use saved_view::SavedView;
 pub use script_setup::{SceneNumbering, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};

@@ -134,8 +134,8 @@ const ID_ALPHABET: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz234567";
 
 /// A new id, short and random, so that two people adding an entry at the same time in Git do
 /// not get the same id (DATENMODELL §2). Seeded by the operating system through the keys of
-/// `RandomState`, plus a counter and the clock so that no two calls repeat; callers that need
-/// a free id retry while it is taken.
+/// `RandomState`, plus a counter and the clock so that no two calls repeat; a caller that needs
+/// a free id takes `free_random_id`.
 pub fn random_id() -> String {
     static CALLS: AtomicU64 = AtomicU64::new(0);
 
@@ -151,23 +151,30 @@ pub fn random_id() -> String {
 
 /// How a taken id is compared with a new one.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Case {
+pub enum IdCase {
     Exact,
     /// For ids that are file names, which may not differ by case only.
     Ignored,
 }
 
 /// A `random_id` that none of `taken` has.
-pub fn free_random_id<'a>(taken: impl IntoIterator<Item = &'a str> + Clone, case: Case) -> String {
+pub fn free_random_id<'a>(
+    taken: impl IntoIterator<Item = &'a str> + Clone,
+    case: IdCase,
+) -> String {
     loop {
         let id = random_id();
-        let used = taken.clone().into_iter().any(|t| match case {
-            Case::Exact => t == id,
-            Case::Ignored => t.eq_ignore_ascii_case(&id),
-        });
-        if !used {
+        if !taken.clone().into_iter().any(|t| is_taken(t, &id, case)) {
             return id;
         }
+    }
+}
+
+/// Whether the taken id `taken` blocks `id`.
+fn is_taken(taken: &str, id: &str, case: IdCase) -> bool {
+    match case {
+        IdCase::Exact => taken == id,
+        IdCase::Ignored => taken.eq_ignore_ascii_case(id),
     }
 }
 
@@ -200,18 +207,21 @@ mod tests {
 
     #[test]
     fn a_free_id_is_never_a_taken_one() {
-        // Taken ids are never returned; `Ignored` also rejects them in upper case (no collisions are
-        // forced here, so this guards the comparison, not the retry).
         let taken: Vec<String> = (0..1000).map(|_| random_id()).collect();
         let refs = || taken.iter().map(String::as_str);
 
         for _ in 0..200 {
-            assert!(!taken.contains(&free_random_id(refs(), Case::Exact)));
+            assert!(!taken.contains(&free_random_id(refs(), IdCase::Exact)));
         }
+    }
 
-        let upper: Vec<String> = taken.iter().map(|t| t.to_ascii_uppercase()).collect();
-        let id = free_random_id(upper.iter().map(String::as_str), Case::Ignored);
-        assert!(!taken.contains(&id));
+    /// Scene ids are file names: another case of a taken id is taken too.
+    #[test]
+    fn the_case_rule_decides_what_is_taken() {
+        assert!(is_taken("abcdefgh", "abcdefgh", IdCase::Exact));
+        assert!(!is_taken("ABCDEFGH", "abcdefgh", IdCase::Exact));
+        assert!(is_taken("ABCDEFGH", "abcdefgh", IdCase::Ignored));
+        assert!(!is_taken("abcdefgx", "abcdefgh", IdCase::Ignored));
     }
 
     #[test]

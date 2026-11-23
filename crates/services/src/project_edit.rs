@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 
 use klappe_model::{
-    free_random_id, is_figure_size_m, same_character_name, BookState, Case, Character, FigureColor,
-    FloorPlan, Kind, Numbering, Project, Scene, Site, SunTime, MAX_GROUP, MIN_GROUP,
+    free_random_id, is_figure_size_m, same_character_name, BookState, Character, FigureColor,
+    FloorPlan, IdCase, Kind, Numbering, Project, Scene, Site, SunTime, MAX_GROUP, MIN_GROUP,
 };
 
 use crate::error::ServiceError;
@@ -533,7 +533,7 @@ pub(crate) fn free_scene_id(project: &Project, placed: &[(usize, Scene)]) -> Str
         .chain(placed.iter().map(|(_, s)| s))
         .map(|s| s.id.as_str());
 
-    free_random_id(taken, Case::Ignored)
+    free_random_id(taken, IdCase::Ignored)
 }
 
 /// Lower-case ASCII with `-` between words (`Sängersaal` → `saengersaal`); `fallback` when

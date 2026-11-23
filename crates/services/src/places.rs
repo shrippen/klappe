@@ -3,7 +3,7 @@
 //! user can make of each. Nothing here becomes a scripted location on its own: a misspelling is
 //! a place name too.
 
-use klappe_model::{free_random_id, same_place_name, Case, Place};
+use klappe_model::{free_random_id, same_place_name, IdCase, Place};
 use klappe_script::{heading_place, is_omitted, Element, Script};
 
 /// A place name of the headings no scripted location is called by.
@@ -176,7 +176,7 @@ pub(crate) fn headings_of(place: &Place, script: &Script) -> usize {
 }
 
 fn free_id(places: &[Place]) -> String {
-    free_random_id(places.iter().map(|p| p.id.as_str()), Case::Exact)
+    free_random_id(places.iter().map(|p| p.id.as_str()), IdCase::Exact)
 }
 
 #[cfg(test)]
