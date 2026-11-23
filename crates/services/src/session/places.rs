@@ -185,7 +185,8 @@ impl Session {
         Ok(())
     }
 
-    /// Undo or redo of a place answer: its entry in `orte.toml`, in the file as it is on disk.
+    /// Applies a place delta or takes it back (an answer's undo or redo, a list edit): its entry in
+    /// `orte.toml`, in the file as it is on disk.
     pub(super) fn save_place_delta(
         &mut self,
         delta: &PlaceDelta,
