@@ -154,3 +154,29 @@ fn an_alias_for_a_figure_deleted_outside_is_refused_in_a_conflict() {
         );
     }
 }
+
+/// A figure the session itself created by an answer while the conflict is open is known too:
+/// deleted outside afterwards, an alias for it is refused, not lost.
+#[test]
+fn an_alias_for_an_own_answer_deleted_outside_is_refused_in_a_conflict() {
+    let dir = two("fig-rule-held-own");
+    let book = format!("{BOOK}DORIS\nGut.\n\n");
+    std::fs::write(dir.join("drehbuch.fountain"), book).unwrap();
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Emil")).unwrap();
+    let delete = |id: &str| {
+        let mut outside = klappe_store::load(&dir).unwrap().project;
+        outside.characters.retain(|c| c.id != id);
+        klappe_store::save_characters(&dir, &outside).unwrap();
+    };
+
+    delete("bert");
+    gui.resolve_figure("CARL", FigureChoice::Create).unwrap();
+    delete("carl");
+    let answered = gui.resolve_figure("DORIS", FigureChoice::Assign("carl".into()));
+
+    assert!(
+        matches!(answered, Err(ServiceError::NoCharacter(_))),
+        "{answered:?}"
+    );
+}

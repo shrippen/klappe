@@ -110,6 +110,9 @@ impl Session {
         let mut disk = self.project_with_disk_figures()?;
         delta.run(&mut disk, Way::Apply);
         klappe_store::save_characters(&self.dir, &disk)?;
+        // What the file holds now, also while a conflict is held (`rebase` stops there): a
+        // figure this answer created is known, so an alias for it is refused once deleted.
+        self.file_figures = (disk.characters.clone(), disk.not_figures.clone());
 
         let (scene, shown) = self.ids_on_view();
         self.commit_answer(next, RESOLVE_STEP, AnswerDelta::Figure(delta));
