@@ -43,6 +43,12 @@ ColumnLayout {
             group: !o.custom ? card.texts.t("objectGroup." + o.group) : (o.group || card.texts.t("library.custom"))
         }))
     }
+    /// The breakdown's elements the object can stand for (D-22), each as the box shows it.
+    readonly property var elements: card.controller.projectJson ? (JSON.parse(card.controller.projectJson).elements || []) : []
+    readonly property var elementNames: elements.map(e => card.texts.t("object.elementEntry",
+        { category: card.texts.t("elementCategory." + e.category), name: e.name }))
+    /// Entry 0 of the box is "none".
+    readonly property int elementIndex: info && info.element ? 1 + elements.findIndex(e => e.id === info.element) : 0
     readonly property int kindIndex: info ? kinds.findIndex(k => k.value === info.library) : -1
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: widthField.typing || depthField.typing
@@ -207,6 +213,28 @@ ColumnLayout {
         target: kindBox
         property: "currentIndex"
         value: card.kindIndex
+    }
+
+    // The breakdown element the object stands for: scenes shot on this set get it as a suggestion.
+    KanteSectionLabel {
+        visible: card.expanded
+        text: card.texts.t("object.element")
+    }
+    KanteComboBox {
+        id: elementBox
+        objectName: "elementBox"
+        visible: card.expanded
+        Layout.fillWidth: true
+        Accessible.name: card.texts.t("object.element")
+        model: [card.texts.t("object.noElement")].concat(card.elementNames)
+        // A pick sets the index itself, which ends the binding; Binding keeps it.
+        onActivated: index => card.controller.setObjectElement(card.info.location, card.info.id,
+            index > 0 ? card.elements[index - 1].id : "")
+    }
+    Binding {
+        target: elementBox
+        property: "currentIndex"
+        value: card.elementIndex
     }
 
     RowLayout {

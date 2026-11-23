@@ -43,7 +43,7 @@ Item {
         if (window.module !== "stellprobe" || header.module !== "stellprobe") {
             return fail("not Stellprobe: " + window.module)
         }
-        if (window.modules.map(m => m.id).join() !== "screenplay,stellprobe") {
+        if (window.modules.map(m => m.id).join() !== "screenplay,stellprobe,breakdown") {
             return fail("modules: " + JSON.stringify(window.modules))
         }
 
@@ -51,6 +51,13 @@ Item {
         if (window.module !== "screenplay" || header.module !== "screenplay") {
             return fail("module request: " + window.module)
         }
+
+        // The breakdown (D-22) is the third module.
+        header.moduleRequested("breakdown")
+        if (window.module !== "breakdown" || header.module !== "breakdown") {
+            return fail("breakdown: " + window.module)
+        }
+        header.moduleRequested("screenplay")
 
         // A jump to the plan or the script (DB-63) goes to Stellprobe.
         header.planRequested()

@@ -1180,6 +1180,85 @@ pub mod qobject {
         #[cxx_name = "shootSceneAt"]
         fn shoot_scene_at(self: Pin<&mut Self>, location: &QString) -> bool;
 
+        /// A new element of the breakdown (D-22); `category` is a name as `prop`.
+        #[qinvokable]
+        #[cxx_name = "addElement"]
+        fn add_element(self: Pin<&mut Self>, category: &QString, name: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "editElement"]
+        fn edit_element(
+            self: Pin<&mut Self>,
+            id: &QString,
+            category: &QString,
+            name: &QString,
+            description: &QString,
+            status: &QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removeElement"]
+        fn remove_element(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// What the sheet of scene `scene` says besides its lists. `prestop_s` and
+        /// `planned_min` are whole numbers as text, empty for none.
+        #[qinvokable]
+        #[cxx_name = "setSheet"]
+        fn set_sheet(
+            self: Pin<&mut Self>,
+            scene: &QString,
+            story_day: &QString,
+            prestop_s: &QString,
+            planned_min: &QString,
+            continuity: &QString,
+            note: &QString,
+        ) -> bool;
+
+        /// The element of that name and category, made if there is none, goes into the scene.
+        #[qinvokable]
+        #[cxx_name = "addElementToScene"]
+        fn add_element_to_scene(
+            self: Pin<&mut Self>,
+            scene: &QString,
+            category: &QString,
+            name: &QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removeSceneElement"]
+        fn remove_scene_element(self: Pin<&mut Self>, scene: &QString, element: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "takeSuggestion"]
+        fn take_suggestion(self: Pin<&mut Self>, scene: &QString, element: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "excludeSuggestion"]
+        fn exclude_suggestion(self: Pin<&mut Self>, scene: &QString, element: &QString) -> bool;
+
+        /// A character without a line (silent, extra) is in the scene.
+        #[qinvokable]
+        #[cxx_name = "addSceneCharacter"]
+        fn add_scene_character(self: Pin<&mut Self>, scene: &QString, character: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removeSceneCharacter"]
+        fn remove_scene_character(
+            self: Pin<&mut Self>,
+            scene: &QString,
+            character: &QString,
+        ) -> bool;
+
+        /// The object of the set at `location` stands for `element`; empty: for none.
+        #[qinvokable]
+        #[cxx_name = "setObjectElement"]
+        fn set_object_element(
+            self: Pin<&mut Self>,
+            location: &QString,
+            object: &QString,
+            element: &QString,
+        ) -> bool;
+
         /// Variants of the scene's plan (LH-04). Shows the plan `id` of the current scene.
         #[qinvokable]
         #[cxx_name = "selectPlan"]
@@ -1243,6 +1322,7 @@ pub use state::ControllerRust;
 
 mod arm;
 mod book;
+mod breakdown;
 mod draw;
 mod drehbuch;
 mod export;
