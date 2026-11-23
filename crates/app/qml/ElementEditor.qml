@@ -104,12 +104,13 @@ EditorPane {
         Repeater {
             model: form.item ? form.item.scenes : []
             delegate: KanteChip {
-                required property string modelData
-                objectName: "scene." + modelData
-                text: modelData
-                toolTip: form.texts.t("elements.sceneJump", { number: modelData })
+                // { id, number }: numbers may repeat (DB-33), the id names the scene.
+                required property var modelData
+                objectName: "scene." + modelData.id
+                text: modelData.number
+                toolTip: form.texts.t("elements.sceneJump", { number: modelData.number })
                 onClicked: {
-                    const scene = form.scenes.find(s => s.number === modelData)
+                    const scene = form.scenes.find(s => s.id === modelData.id)
                     if (scene) {
                         form.sceneRequested(scene.id)
                     }

@@ -124,6 +124,17 @@ fn sheet(s: &Session, scene: &str) -> klappe_model::Sheet {
     s.project().scene(scene).unwrap().sheet.clone()
 }
 
+/// The numbers of the scenes the first element is in.
+fn numbers(s: &Session) -> Vec<String> {
+    let elements = s.overview().elements;
+
+    elements[0]
+        .scenes
+        .iter()
+        .map(|r| r.number.clone())
+        .collect()
+}
+
 fn point_at(s: &mut Session, object: &str, element: &str) {
     s.edit_project(ProjectEdit::SetObjectElement {
         location: "leuchtturm".into(),
@@ -246,7 +257,7 @@ fn an_element_comes_into_a_scene_and_goes_again() {
     assert_eq!(view.categories.len(), 1);
     assert_eq!(view.categories[0].category, "prop");
     assert_eq!(view.categories[0].elements[0].name, "Öllampe");
-    assert_eq!(s.overview().elements[0].scenes, ["14"]);
+    assert_eq!(numbers(&s), ["14"]);
 
     s.edit_project(ProjectEdit::RemoveSceneElement {
         scene: "aaaa".into(),
@@ -276,7 +287,7 @@ fn the_field_with_suggestions_finds_or_makes_the_element_in_one_step() {
     // The same name in another scene is the same element.
     add_to(&mut s, "bbbb", " mantel ");
     assert_eq!(s.project().elements.len(), 1);
-    assert_eq!(s.overview().elements[0].scenes, ["14", "23"]);
+    assert_eq!(numbers(&s), ["14", "23"]);
 
     s.undo();
     assert_eq!(s.project().elements.len(), 1);
@@ -486,4 +497,23 @@ fn a_breakdown_file_changed_outside_is_taken_over() {
 
     assert_eq!(s.project().elements.len(), 1);
     assert_eq!(s.project().elements[0].name, "Krug");
+}
+
+/// Character ids come from the name: a deleted one must not linger in a sheet, or a later
+/// character of that name would stand in the scene unasked.
+#[test]
+fn removing_a_character_takes_it_out_of_every_sheet() {
+    let mut s = open("breakdown-character-gone");
+    s.edit_project(ProjectEdit::AddSceneCharacter {
+        scene: "aaaa".into(),
+        character: "crowd".into(),
+    })
+    .unwrap();
+
+    s.edit_project(ProjectEdit::RemoveCharacter { id: "crowd".into() })
+        .unwrap();
+    assert!(sheet(&s, "aaaa").characters.is_empty());
+
+    s.undo();
+    assert_eq!(sheet(&s, "aaaa").characters, ["crowd"]);
 }

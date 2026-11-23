@@ -33,9 +33,9 @@ TestCase {
             element_categories: categories,
             element_statuses: ["open", "working", "ready"],
             elements: [
-                { id: "e1", category: "prop", name: "Brief", description: "", status: "open", scenes: ["1"] },
+                { id: "e1", category: "prop", name: "Brief", description: "", status: "open", scenes: [{ id: "s1", number: "1" }] },
                 { id: "e2", category: "prop", name: "Kerze", description: "Wachs", status: "working", scenes: [] },
-                { id: "e3", category: "costume", name: "Ballkleid", description: "", status: "ready", scenes: ["1", "2"] }
+                { id: "e3", category: "costume", name: "Ballkleid", description: "", status: "ready", scenes: [{ id: "s1", number: "1" }, { id: "s2", number: "2" }] }
             ],
             sheet: {
                 story_day: "3", prestop_s: 90, planned_min: 120, continuity: "Brief links", note: "Nachtdreh",
@@ -328,11 +328,27 @@ TestCase {
         showElements(v)
 
         row(v, "e3").clicked()
-        findChild(findChild(v, "elementForm"), "scene.2").clicked()
+        findChild(findChild(v, "elementForm"), "scene.s2").clicked()
 
         compare(fake.calls, [["selectScene", "s2"]])
         compare(v.mode, "scenes")
         verify(findChild(v, "sheet").visible)
+    }
+
+    // Two scenes may carry one number (DB-33): the chip jumps to the scene by its id.
+    function test_a_scene_chip_jumps_to_its_scene_when_numbers_repeat() {
+        const project = JSON.parse(fake.fixture)
+        project.scenes.push({ id: "s3", number: "2", heading: "EXT. HOF – TAG", inBook: true,
+            plans: 0, shots: 0, length: "" })
+        project.elements[2].scenes = [{ id: "s3", number: "2" }]
+        fake.projectJson = JSON.stringify(project)
+        const v = view()
+        showElements(v)
+
+        row(v, "e3").clicked()
+        findChild(findChild(v, "elementForm"), "scene.s3").clicked()
+
+        compare(fake.calls, [["selectScene", "s3"]])
     }
 
     function test_new_makes_an_element_with_a_category() {

@@ -11,7 +11,9 @@ use crate::error::ServiceError;
 use crate::field::Field;
 use crate::project_edit::ProjectEdit;
 use crate::script_refs;
-use crate::views::{ElementRow, SheetCategory, SheetElement, SheetFigure, SheetView, Suggestion};
+use crate::views::{
+    ElementRow, SceneRef, SheetCategory, SheetElement, SheetFigure, SheetView, Suggestion,
+};
 
 /// What a group's head count is for a single person.
 const NO_GROUP: u32 = 0;
@@ -29,10 +31,13 @@ impl Session {
     /// The elements with the numbers of the scenes that list them, built in one pass over
     /// the scenes, not once per element.
     pub(super) fn element_rows(&self) -> Vec<ElementRow> {
-        let mut scenes: HashMap<&str, Vec<String>> = HashMap::new();
+        let mut scenes: HashMap<&str, Vec<SceneRef>> = HashMap::new();
         for scene in &self.project.scenes {
             for id in &scene.sheet.elements {
-                scenes.entry(id).or_default().push(scene.number.clone());
+                scenes.entry(id).or_default().push(SceneRef {
+                    id: scene.id.clone(),
+                    number: scene.number.clone(),
+                });
             }
         }
 

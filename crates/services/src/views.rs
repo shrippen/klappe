@@ -461,8 +461,15 @@ pub struct ElementRow {
     pub description: String,
     /// The status' name, as `open`.
     pub status: &'static str,
-    /// The numbers of the scenes whose sheet lists it, in scene order.
-    pub scenes: Vec<String>,
+    /// The scenes whose sheet lists it, in scene order; numbers may repeat (DB-33).
+    pub scenes: Vec<SceneRef>,
+}
+
+/// A scene named in a list: its id, and its number to show.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SceneRef {
+    pub id: String,
+    pub number: String,
 }
 
 /// The scene sheet of the scene on view (D-22).

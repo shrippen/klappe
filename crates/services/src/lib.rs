@@ -70,8 +70,8 @@ pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};
 pub use views::{
     AxisChoice, CameraSpot, CastUse, CharacterRow, Chip, ElementRow, Elsewhere, Hint, LibraryEntry,
-    LinkKind, LocationRow, Marker, NotShot, Overview, PlaceRow, PlanRow, SceneCard, SceneRow,
-    SceneUse, ScriptLine, Segment, SetupOption, SheetCategory, SheetElement, SheetFigure,
+    LinkKind, LocationRow, Marker, NotShot, Overview, PlaceRow, PlanRow, SceneCard, SceneRef,
+    SceneRow, SceneUse, ScriptLine, Segment, SetupOption, SheetCategory, SheetElement, SheetFigure,
     SheetView, ShotRow, Suggestion, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
 };
 

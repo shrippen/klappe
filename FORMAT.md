@@ -67,7 +67,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Sekunden), `planned_min` (geplante Drehdauer in Minuten), `continuity`, `note` (Hinweis für die
   Produktion), `elements` (Element-Ids in der Reihenfolge der Szene), `excluded` (Element-Ids
   von Vorschlägen aus dem Set, die der Nutzer ausgeschlossen hat) und `characters` (Figuren-Ids
-  ohne Dialog: stumme Figuren und Komparsen, also Figuren mit `group`); jeder Schlüssel nur
+  ohne Dialog in der Szene: stumme Figuren und Komparsen, eine Figur mit `group` mit ihrer Kopfzahl); jeder Schlüssel nur
   geschrieben, wenn nicht leer. Die sprechenden Figuren stehen nicht darin, sie folgen aus den
   Figurenzeilen des Buchs. Ein Objekt eines Sets (`drehorte/<id>.toml`) hat optional `element`,
   die Id des Elements, für das es steht; es erscheint dann im Szenenblatt jeder Szene, die an

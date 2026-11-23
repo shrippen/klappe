@@ -534,6 +534,10 @@ fn remove_character(project: &mut Project, id: &str) -> Result<(), ServiceError>
     }
 
     project.characters.retain(|c| c.id != id);
+    // Ids come from the name: a later character of that name must not inherit the scenes.
+    for scene in &mut project.scenes {
+        scene.sheet.characters.retain(|c| c != id);
+    }
     Ok(())
 }
 
