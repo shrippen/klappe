@@ -61,7 +61,8 @@ pub(crate) fn locate(lines: &[Shown], mark: &TextMark) -> Option<(usize, usize)>
 }
 
 /// Which occurrence the words `text` are that stand in line `line` right after `prefix`.
-/// `None`: they do not stand there, or they are blank.
+/// `None`: they do not stand there, they are blank, or they overlap the occurrence before
+/// them (`locate` would not find them).
 pub(crate) fn occurrence(lines: &[Shown], line: usize, prefix: &str, text: &str) -> Option<usize> {
     let shown = &lines.get(line)?.text;
     let at = prefix.len();
@@ -74,10 +75,8 @@ pub(crate) fn occurrence(lines: &[Shown], line: usize, prefix: &str, text: &str)
         .iter()
         .map(|l| l.text.matches(text).count())
         .sum();
-    let here = shown
-        .match_indices(text)
-        .take_while(|(i, _)| *i < at)
-        .count();
+    // Counted like `locate`, without overlaps: a spot it skips is not one.
+    let here = shown.match_indices(text).position(|(i, _)| i == at)?;
 
     Some(before + here)
 }
@@ -172,6 +171,16 @@ mod tests {
         assert_eq!(occurrence(&lines, 0, "Ein Nebel. ", "Nebel"), Some(1));
         assert_eq!(occurrence(&lines, 1, "", "Nebel"), Some(2));
         assert_eq!(locate(&lines, &mark("Nebel", 2)), Some((1, 0)));
+    }
+
+    /// Words that overlap themselves: only the spots `locate` finds can be marked. In
+    /// „banana“ „ana“ is found at 1, not at 3.
+    #[test]
+    fn an_overlapping_selection_is_one_locate_finds() {
+        let lines = lines(&["banana"]);
+
+        assert_eq!(occurrence(&lines, 0, "b", "ana"), Some(0));
+        assert_eq!(occurrence(&lines, 0, "ban", "ana"), None);
     }
 
     #[test]
