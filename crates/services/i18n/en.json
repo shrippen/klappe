@@ -526,7 +526,7 @@
  "cli.noScene": "no scene {number}",
  "cli.noPlan": "scene {number} has no plan",
  "cli.badTime": "time must be a number of seconds from 0, not {value}",
- "cli.unknownSensor": "unknown sensor {sensor}",
+ "cli.unknownSensor": "unknown sensor {sensor}; use one of {names} or a width in mm",
  "cli.badLens": "lens must be a positive length in mm, not {value}",
  "error.store": "Project could not be read or saved: {detail}",
  "error.imageCmyk": "The JPEG is CMYK and cannot be printed; please convert it to RGB or grayscale: {detail}",

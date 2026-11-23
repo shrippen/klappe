@@ -33,6 +33,13 @@ pub enum ScriptPaper {
 }
 
 impl ScriptPaper {
+    pub const ALL: [ScriptPaper; 2] = [ScriptPaper::A4, ScriptPaper::Letter];
+
+    /// The paper `name` names; `None` for any other text.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|p| p.name() == name)
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             ScriptPaper::A4 => "a4",

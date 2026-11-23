@@ -526,7 +526,7 @@
  "cli.noScene": "Keine Szene {number}",
  "cli.noPlan": "Szene {number} hat keinen Plan",
  "cli.badTime": "Die Zeit muss eine Zahl von Sekunden ab 0 sein, nicht {value}",
- "cli.unknownSensor": "Unbekannter Sensor {sensor}",
+ "cli.unknownSensor": "Unbekannter Sensor {sensor}; erlaubt sind {names} oder eine Breite in mm",
  "cli.badLens": "Die Brennweite muss eine positive Länge in mm sein, nicht {value}",
  "error.store": "Projekt konnte nicht gelesen oder gespeichert werden: {detail}",
  "error.imageCmyk": "Das JPEG ist CMYK und lässt sich nicht drucken; bitte nach RGB oder Graustufen umwandeln: {detail}",

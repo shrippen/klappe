@@ -1,7 +1,7 @@
 //! `klappe-cli`: Klappe without the GUI (planung/KONZEPT.md, E-10).
 //!
 //! ```text
-//! klappe-cli fov --lens 35 [--sensor super35|full-frame|mft|<width mm>]
+//! klappe-cli fov --lens 35 [--sensor <camera id, e.g. super35|aps-c>|<width mm>]
 //! klappe-cli export --project <folder> --scene <nr> --out <file> [--plan <id>] [--at <s>]
 //!                   [--paper a4|a3|letter] [--orientation landscape|portrait]
 //!                   [--language de|en] [--format pdf|svg|png|csv|ods|xlsx|frames|camera|
@@ -14,9 +14,9 @@
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
-    error_text, load_notes_text, read_number, ExportFormat, ExportOptions, Field, HeaderLine,
-    Language, Orientation, Paper, PaperSetup, Range, SceneNumbers, ScriptPaper, ScriptPrint,
-    Sensor, Session, ShotOrder, Size, Unit,
+    builtin_camera_presets, error_text, load_notes_text, read_number, ExportFormat, ExportOptions,
+    Field, HeaderLine, Language, Orientation, Paper, PaperSetup, Range, SceneNumbers, ScriptPaper,
+    ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -35,7 +35,8 @@ enum Command {
         /// Focal length in millimetres.
         #[arg(long)]
         lens: f64,
-        /// super35, full-frame, mft or the sensor width in millimetres.
+        /// A camera body's id from the presets (super35, full-frame, aps-c, ...) or the sensor
+        /// width in millimetres.
         #[arg(long, default_value = "super35")]
         sensor: String,
     },
@@ -87,8 +88,8 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
         /// Paper of the pages; the project's own (A4 if never chosen) if left out.
-        #[arg(long, value_enum)]
-        paper: Option<PaperArg>,
+        #[arg(long, value_parser = script_paper_arg)]
+        paper: Option<ScriptPaper>,
         /// Language of (MORE) and (CONT'D) when the project has none; the system's if left out.
         #[arg(long, value_enum)]
         language: Option<LanguageArg>,
@@ -99,12 +100,6 @@ enum Command {
         #[arg(long)]
         header: bool,
     },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum PaperArg {
-    A4,
-    Letter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -202,7 +197,7 @@ fn main() -> ExitCode {
 fn script_pdf(
     project: &Path,
     out: &Path,
-    paper: Option<PaperArg>,
+    paper: Option<ScriptPaper>,
     print: &ScriptPrint,
 ) -> ExitCode {
     let written = write_script_pdf(project, out, paper, print);
@@ -219,7 +214,7 @@ fn script_pdf(
 fn write_script_pdf(
     project: &Path,
     out: &Path,
-    paper: Option<PaperArg>,
+    paper: Option<ScriptPaper>,
     print: &ScriptPrint,
 ) -> Result<(), String> {
     let mut session = Session::open(project).map_err(|e| error_text(print.language, &e))?;
@@ -227,10 +222,7 @@ fn write_script_pdf(
     if let Some(paper) = paper {
         // Only in memory: the CLI saves nothing.
         let mut setup = session.project().script;
-        setup.paper = match paper {
-            PaperArg::A4 => ScriptPaper::A4,
-            PaperArg::Letter => ScriptPaper::Letter,
-        };
+        setup.paper = paper;
         session.set_script_setup(setup);
     }
 
@@ -242,10 +234,13 @@ fn write_script_pdf(
 fn fov(lens_mm: f64, sensor: &str) -> ExitCode {
     let language = Language::pick(None);
     let Some(sensor) = parse_sensor(sensor) else {
+        let names = sensor_ids().join(", ");
+
         return refuse(
             language
                 .text("cli.unknownSensor")
-                .replace("{sensor}", sensor),
+                .replace("{sensor}", sensor)
+                .replace("{names}", &names),
         );
     };
     if !is_length(lens_mm) {
@@ -336,6 +331,12 @@ fn paper_arg(name: &str) -> Result<Paper, String> {
     Paper::from_name(name).ok_or_else(|| format!("use one of {}", names.join(", ")))
 }
 
+fn script_paper_arg(name: &str) -> Result<ScriptPaper, String> {
+    let names: Vec<&str> = ScriptPaper::ALL.iter().map(|p| p.name()).collect();
+
+    ScriptPaper::from_name(name).ok_or_else(|| format!("use one of {}", names.join(", ")))
+}
+
 fn orientation_arg(name: &str) -> Result<Orientation, String> {
     let names: Vec<&str> = Orientation::ALL.iter().map(|o| o.name()).collect();
 
@@ -378,16 +379,26 @@ fn format_of(out: &Path) -> Option<ExportFormat> {
         .find(|f| f.extension() == Some(extension.as_str()))
 }
 
-/// A sensor by name, or by its width in millimetres (e.g. `23.76`).
+/// The ids of the camera bodies the window offers.
+fn sensor_ids() -> Vec<&'static str> {
+    let bodies = &builtin_camera_presets().bodies;
+
+    bodies.iter().map(|body| body.id.as_str()).collect()
+}
+
+/// A sensor by a camera body's id (e.g. `aps-c`), or by its width in millimetres (e.g. `23.76`).
 fn parse_sensor(name: &str) -> Option<Sensor> {
-    match name {
-        "super35" | "s35" => Some(Sensor::Super35),
-        "full-frame" | "ff" => Some(Sensor::FullFrame),
-        "mft" => Some(Sensor::MicroFourThirds),
-        _ => read_number(Field::Sensor, name, Unit::Millimetre, Range::Positive)
-            .ok()
-            .map(|width_mm| Sensor::Custom { width_mm }),
+    let body = builtin_camera_presets()
+        .bodies
+        .iter()
+        .find(|b| b.id == name);
+    if let Some(body) = body {
+        return Some(Sensor::of_width_mm(body.width_mm));
     }
+
+    read_number(Field::Sensor, name, Unit::Millimetre, Range::Positive)
+        .ok()
+        .map(|width_mm| Sensor::Custom { width_mm })
 }
 
 /// A finite, positive number of millimetres.
@@ -401,7 +412,7 @@ mod tests {
 
     #[test]
     fn sensors_by_name_and_width() {
-        assert_eq!(parse_sensor("s35"), Some(Sensor::Super35));
+        assert_eq!(parse_sensor("super35"), Some(Sensor::Super35));
         assert_eq!(
             parse_sensor("23.5"),
             Some(Sensor::Custom { width_mm: 23.5 })
@@ -415,7 +426,25 @@ mod tests {
             Some(Sensor::Custom { width_mm: 36.0 })
         );
         assert_eq!(parse_sensor("-1"), None);
+        assert_eq!(parse_sensor("s35"), None);
         assert_eq!(parse_sensor("imax"), None);
+    }
+
+    /// Audit 19, finding 9: the window offers these, the command line refused them.
+    #[test]
+    fn every_preset_body_is_a_sensor() {
+        assert_eq!(
+            parse_sensor("aps-c"),
+            Some(Sensor::Custom { width_mm: 23.5 })
+        );
+        assert_eq!(
+            parse_sensor("micro-four-thirds"),
+            Some(Sensor::MicroFourThirds)
+        );
+        assert_eq!(parse_sensor("full-frame"), Some(Sensor::FullFrame));
+        for id in sensor_ids() {
+            assert!(parse_sensor(id).is_some(), "{id}");
+        }
     }
 
     #[test]
@@ -428,7 +457,7 @@ mod tests {
             language: Language::English,
         };
 
-        let written = write_script_pdf(&project, &out, Some(PaperArg::Letter), &print);
+        let written = write_script_pdf(&project, &out, Some(ScriptPaper::Letter), &print);
 
         assert_eq!(written, Ok(()));
         let bytes = std::fs::read(&out).unwrap_or_default();
@@ -455,7 +484,7 @@ mod tests {
     fn nonsense_values_are_refused() {
         assert_eq!(parse_sensor("inf"), None);
         assert_eq!(parse_sensor("NaN"), None);
-        assert_eq!(fov(0.0, "s35"), ExitCode::FAILURE);
-        assert_eq!(fov(f64::NAN, "s35"), ExitCode::FAILURE);
+        assert_eq!(fov(0.0, "super35"), ExitCode::FAILURE);
+        assert_eq!(fov(f64::NAN, "super35"), ExitCode::FAILURE);
     }
 }
