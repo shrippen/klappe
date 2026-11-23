@@ -218,3 +218,31 @@ fn the_overview_carries_the_other_names_and_the_marks() {
     assert_eq!(overview.characters[0].aliases, ["ANNI"]);
     assert_eq!(overview.not_figures, ["ALLE"]);
 }
+
+#[test]
+fn a_new_or_renamed_character_cannot_take_a_name_marked_no_character() {
+    let mut s = Session::open(&make("names-marked")).unwrap();
+    let add = ProjectEdit::AddCharacter {
+        name: "Alle".into(),
+        short: "AL".into(),
+        color: FigureColor::Blue,
+        group: None,
+        size_m: None,
+    };
+
+    for refused in [add, edit("Alle", &["ANNI"])] {
+        let err = s.edit_project(refused).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                ServiceError::BadValue {
+                    field: Field::Name,
+                    ..
+                }
+            ),
+            "{err:?}"
+        );
+    }
+    assert_eq!(s.project().characters.len(), 2);
+    assert_eq!(s.project().characters[0].name, "Anna");
+}

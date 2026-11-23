@@ -74,7 +74,7 @@ fn remove_not_figure(project: &mut Project, name: &str) {
 }
 
 /// Whether a character other than `own` answers to `name`, or it is marked as no character.
-fn is_taken(project: &Project, name: &str, own: Option<&str>) -> bool {
+pub(super) fn is_taken(project: &Project, name: &str, own: Option<&str>) -> bool {
     let character = project
         .characters
         .iter()

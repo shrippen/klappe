@@ -110,7 +110,6 @@ impl qobject::Controller {
         self.commit_project(edit)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn edit_character(
         self: Pin<&mut Self>,
         id: &QString,

@@ -400,13 +400,9 @@ fn free_character_name(characters: &[Character], base: &str, numbered: Numbered)
 
 /// Two characters of one name or alias (compared as cues are) would merge their cues; `own` is
 /// the character being renamed, which may keep its name.
+/// Refused: a name another character answers to, or one marked as no character (DB-50).
 fn check_free_name(project: &Project, name: &str, own: Option<&str>) -> Result<(), ServiceError> {
-    let taken = project
-        .characters
-        .iter()
-        .filter(|c| Some(c.id.as_str()) != own)
-        .any(|c| c.is_called(name));
-    if !taken {
+    if !names::is_taken(project, name, own) {
         return Ok(());
     }
 
