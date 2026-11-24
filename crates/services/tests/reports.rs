@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{BookState, Character, FigureColor, Location, Place, Project, Scene, SetPlan};
 use klappe_services::{
-    BreakdownEdit, ElementCategory, Language, ProjectEdit, Report, ReportFormat, Session,
+    error_text, BreakdownEdit, ElementCategory, Language, ProjectEdit, Report, ReportFormat,
+    Session,
 };
 
 /// ANNA speaks in 14; BOB is silent there; scene 23 has nobody. CARL is in no scene.
@@ -330,4 +331,26 @@ fn struck_scenes_are_in_no_report() {
     assert_eq!(cast, [["Szene", "ANNA"], ["14", "X"]]);
     assert_eq!(extract.len(), 1);
     assert_eq!(sheets_in(&pdf), 1);
+}
+
+#[test]
+fn a_book_without_scenes_has_no_report() {
+    let mut s = open_struck("report-none", false);
+    let path = dir_of("report-none-file").with_extension("csv");
+
+    for report in Report::ALL {
+        let result = s.export_report(report, ReportFormat::Csv, &path, Language::German);
+
+        let error = result.unwrap_err();
+        assert_eq!(
+            error_text(Language::German, &error),
+            "Keine Szenen im Buch",
+            "{}",
+            report.name()
+        );
+        assert_eq!(
+            error_text(Language::English, &error),
+            "No scenes in the book"
+        );
+    }
 }

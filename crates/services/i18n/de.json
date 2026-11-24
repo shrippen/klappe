@@ -951,6 +951,7 @@
  "elementStatus.working": "in Arbeit",
  "elementStatus.ready": "bereit",
  "error.noScript": "Das Projekt hat kein Drehbuch.",
+ "error.noBookScenes": "Keine Szenen im Buch",
  "note.orphanScene": "Szene ohne Eintrag im Register (Datei {id}.json) als „nicht im Buch“ übernommen.",
  "error.conflict": "Ungelöste Git-Konfliktmarken in {detail}; das Projekt wird nicht geöffnet.",
  "undo.tip": "Rückgängig: {step} ({key})",

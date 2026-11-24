@@ -951,6 +951,7 @@
  "elementStatus.working": "In progress",
  "elementStatus.ready": "Ready",
  "error.noScript": "The project has no script.",
+ "error.noBookScenes": "No scenes in the book",
  "note.orphanScene": "Scene without a register entry (file {id}.json) taken in as “not in script”.",
  "error.conflict": "Unresolved Git conflict markers in {detail}; the project is not opened.",
  "undo.tip": "Undo: {step} ({key})",

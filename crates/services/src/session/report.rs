@@ -33,6 +33,9 @@ impl Session {
         language: Language,
     ) -> Result<(), ServiceError> {
         self.paginate_if_changed(language);
+        if self.book_scenes().next().is_none() {
+            return Err(ServiceError::NoBookScenes);
+        }
         let bytes = self.report_bytes(report, format, language)?;
 
         write_file(path, bytes)
