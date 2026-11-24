@@ -127,6 +127,20 @@ TestCase {
         compare(findChild(v, "textHint").text, "Wörter wählen, um sie als Element zu markieren.")
     }
 
+    // New lines (another scene, the chip removed) end the hint about marked words.
+    function test_new_lines_end_the_hint_about_marked_words() {
+        const v = make()
+        const line = findChild(v, "textLine.0")
+        line.select(5, 8)
+        v.offer(0, line)
+
+        const project = JSON.parse(fake.projectJson)
+        project.sheet.text[0].runs = [{ text: "Ein Nebel  und Seiten.", element: null, category: null }]
+        fake.projectJson = JSON.stringify(project)
+
+        compare(findChild(v, "textHint").text, "Wörter wählen, um sie als Element zu markieren.")
+    }
+
     // A word cut by the selection is taken whole, the full stop after it is not.
     function test_a_choice_takes_whole_words() {
         const v = make()

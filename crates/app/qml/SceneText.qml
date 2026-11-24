@@ -34,6 +34,8 @@ ColumnLayout {
     property var chosen: null
     /// The last choice reached into marked words: the hint says why no menu opened.
     property bool onMark: false
+    // New lines (another scene, a chip removed) leave no selection: the hint ends too.
+    onLinesChanged: onMark = false
     /// The line the menu was opened on; its selection goes when the menu closes.
     property var chosenOn: null
 
