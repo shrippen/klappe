@@ -109,6 +109,48 @@ fn open(name: &str) -> Session {
     s
 }
 
+/// Scene 14 is in the book (ANNA speaks); scene 99 is struck from it but still has a sheet with
+/// CARL, an element and the place HAFEN. With `keep` false, 14 is struck too.
+fn open_struck(name: &str, keep: bool) -> Session {
+    let dir = dir_of(name);
+    let mut project = Project::new("Test");
+    project.characters = vec![character("anna"), character("carl")];
+    let mut kept = scene("aaaa", "14", "INT. WACHRAUM – NACHT");
+    let mut struck = scene("cccc", "99", "EXT. HAFEN – TAG");
+    struck.state = BookState::NotInBook;
+    if !keep {
+        kept.state = BookState::NotInBook;
+    }
+    project.scenes = vec![kept, struck];
+    let book = match keep {
+        true => "INT. WACHRAUM – NACHT #14#\n\nANNA\nHallo.\n\n",
+        false => "",
+    };
+    klappe_store::save(&dir, &project, Some(book)).unwrap();
+    let place = |id: &str, name: &str| Place {
+        id: id.into(),
+        name: name.into(),
+        variants: Vec::new(),
+        location: None,
+    };
+    klappe_store::save_places(&dir, &[place("wach", "WACHRAUM"), place("hafen", "HAFEN")]).unwrap();
+
+    let mut s = Session::open(&dir).unwrap();
+    let brief = s.add_element(ElementCategory::Prop, "Brief").unwrap();
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddSceneElement {
+        scene: "cccc".into(),
+        element: brief,
+    }))
+    .unwrap();
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddSceneCharacter {
+        scene: "cccc".into(),
+        character: "carl".into(),
+    }))
+    .unwrap();
+
+    s
+}
+
 /// The report as CSV, read back as rows of fields (none of the cells holds a comma or a quote).
 fn rows(s: &mut Session, report: Report, name: &str) -> Vec<Vec<String>> {
     let path = dir_of(name).with_extension("csv");
@@ -265,4 +307,27 @@ fn the_overview_offers_the_reports() {
         ["szenen", "spielorte", "figuren", "auszug"]
     );
     assert_eq!(overview.report_formats, ["pdf", "csv", "ods", "xlsx"]);
+}
+
+#[test]
+fn struck_scenes_are_in_no_report() {
+    let mut s = open_struck("report-struck", true);
+
+    let scenes = rows(&mut s, Report::Scenes, "report-struck-scenes");
+    let places = rows(&mut s, Report::Places, "report-struck-places");
+    let cast = rows(&mut s, Report::Cast, "report-struck-cast");
+    let extract = rows(&mut s, Report::Extract, "report-struck-extract");
+    let pdf = write(
+        &mut s,
+        Report::Extract,
+        ReportFormat::Pdf,
+        "report-struck-pdf",
+    );
+
+    assert_eq!(scenes.len(), 2);
+    assert_eq!(scenes[1][0], "14");
+    assert_eq!(places[1..], [["WACHRAUM", "", "14"], ["HAFEN", "", ""]]);
+    assert_eq!(cast, [["Szene", "ANNA"], ["14", "X"]]);
+    assert_eq!(extract.len(), 1);
+    assert_eq!(sheets_in(&pdf), 1);
 }

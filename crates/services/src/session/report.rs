@@ -9,7 +9,7 @@
 use std::path::Path;
 
 use klappe_export::{ExtractBox, ExtractPage, ReportTable, Theme};
-use klappe_model::{Character, Scene};
+use klappe_model::{BookState, Character, Kind, Scene};
 
 use super::export::write_file;
 use super::Session;
@@ -93,6 +93,14 @@ impl Session {
         ReportTable { title, head, rows }
     }
 
+    /// The scenes of the book with their index in `project.scenes`: the reports leave out
+    /// what is struck from the book and what is no scene.
+    fn book_scenes(&self) -> impl Iterator<Item = (usize, &Scene)> {
+        let scenes = self.project.scenes.iter().enumerate();
+
+        scenes.filter(|(_, s)| s.kind == Kind::Scene && s.state == BookState::InBook)
+    }
+
     /// The characters of the scene at `entry`: those with a cue in the book, then those the
     /// sheet names that have none.
     fn scene_figures(&self, entry: usize, scene: &Scene) -> Vec<&Character> {
@@ -112,9 +120,7 @@ impl Session {
 
     /// Number, heading, length (pages in eighths, from the layout) and characters.
     fn report_scene_rows(&self) -> Vec<Vec<String>> {
-        let scenes = self.project.scenes.iter().enumerate();
-
-        scenes
+        self.book_scenes()
             .map(|(i, scene)| {
                 let names: Vec<&str> = self
                     .scene_figures(i, scene)
@@ -133,7 +139,13 @@ impl Session {
     }
 
     fn place_report_rows(&self) -> Vec<Vec<String>> {
-        let (places, _) = self.shot_scenes();
+        let (mut places, _) = self.shot_scenes();
+        let in_book: Vec<usize> = self.book_scenes().map(|(i, _)| i).collect();
+        for (i, place) in places.iter_mut().enumerate() {
+            if !in_book.contains(&i) {
+                *place = None;
+            }
+        }
 
         self.place_rows(&places)
             .into_iter()
@@ -144,10 +156,7 @@ impl Session {
     /// A row per scene, a column per character that is in any scene, `X` where it is in it.
     fn cast_table(&self, scene_head: &str) -> (Vec<String>, Vec<Vec<String>>) {
         let in_scenes: Vec<Vec<&str>> = self
-            .project
-            .scenes
-            .iter()
-            .enumerate()
+            .book_scenes()
             .map(|(i, s)| {
                 let figures = self.scene_figures(i, s);
 
@@ -164,11 +173,9 @@ impl Session {
         let mut head = vec![scene_head.to_owned()];
         head.extend(cast.iter().map(|c| c.name.clone()));
         let rows = self
-            .project
-            .scenes
-            .iter()
+            .book_scenes()
             .zip(&in_scenes)
-            .map(|(scene, ids)| {
+            .map(|((_, scene), ids)| {
                 let mut row = vec![scene.number.clone()];
                 for c in &cast {
                     let mark = if ids.contains(&c.id.as_str()) {
@@ -190,7 +197,7 @@ impl Session {
     fn element_rows_of_scenes(&self, language: Language) -> Vec<Vec<String>> {
         let mut rows = Vec::new();
 
-        for scene in &self.project.scenes {
+        for (_, scene) in self.book_scenes() {
             for (category, elements) in self.by_category(scene) {
                 for element in elements {
                     rows.push(vec![
@@ -209,9 +216,7 @@ impl Session {
     /// A page per scene: head, the sheet's facts, a box per category that has elements and one
     /// for the characters.
     fn extract_pages(&self, language: Language) -> Vec<ExtractPage> {
-        let scenes = self.project.scenes.iter().enumerate();
-
-        scenes
+        self.book_scenes()
             .map(|(i, scene)| {
                 let sheet = &scene.sheet;
                 let facts = [
