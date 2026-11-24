@@ -1273,6 +1273,7 @@
  "sheet.exclude": "Turn {name} down",
  "textMark.title": "Scene text",
  "textMark.hint": "Select words to mark them as an element.",
+ "textMark.marked": "These words are marked already. To change it, remove the chip in the scene sheet.",
  "textMark.none": "This scene has no text in the book.",
  "textMark.new": "New: {category}",
  "sheet.lost": "Spot no longer in the text",

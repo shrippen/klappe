@@ -1273,6 +1273,7 @@
  "sheet.exclude": "{name} ausschließen",
  "textMark.title": "Text der Szene",
  "textMark.hint": "Wörter wählen, um sie als Element zu markieren.",
+ "textMark.marked": "Diese Wörter sind schon markiert. Zum Ändern den Chip im Szenenblatt entfernen.",
  "textMark.none": "Diese Szene hat keinen Text im Buch.",
  "textMark.new": "Neu: {category}",
  "sheet.lost": "Stelle nicht mehr im Text",
