@@ -32,6 +32,8 @@ ColumnLayout {
     /// What the menu marks: line, the text before the words, the words. Kept while the menu
     /// closes, so its rows do not change under it.
     property var chosen: null
+    /// The last choice reached into marked words: the hint says why no menu opened.
+    property bool onMark: false
     /// The line the menu was opened on; its selection goes when the menu closes.
     property var chosenOn: null
 
@@ -118,7 +120,8 @@ ColumnLayout {
     }
 
     // The words chosen in line `index`, whole: spaces and marks at the ends are left out, a
-    // word cut at an end is taken in („pel Seiten. “ → „Stapel Seiten“). Null for none or for marked words.
+    // word cut at an end is taken in („pel Seiten. “ → „Stapel Seiten“). Null for none;
+    // `marked` when they reach into marked words.
     function choice(index, runs, start, end) {
         const line = runs.map(r => r.text).join("")
         let from = sourceBefore(runs, start).length
@@ -139,7 +142,7 @@ ColumnLayout {
             to++
         }
         if (touchesMark(runs, from, to)) {
-            return null
+            return { line: index, marked: true }
         }
         return { line: index, prefix: line.slice(0, from), text: line.slice(from, to) }
     }
@@ -168,10 +171,12 @@ ColumnLayout {
 
     function offer(index, edit) {
         const runs = lines[index].runs
-        chosen = choice(index, runs, edit.selectionStart, edit.selectionEnd)
-        if (!chosen) {
+        const found = choice(index, runs, edit.selectionStart, edit.selectionEnd)
+        onMark = found !== null && found.marked === true
+        if (!found || onMark) {
             return
         }
+        chosen = found
         chosenOn = edit
         entries = rowsFor(chosen.text)
         const at = edit.positionToRectangle(edit.selectionEnd)
@@ -193,7 +198,8 @@ ColumnLayout {
     QQC2.Label {
         objectName: "textHint"
         text: sceneText.texts.t(!sceneText.project.sheet ? "sheet.none"
-            : sceneText.lines.length > 0 ? "textMark.hint" : "textMark.none")
+            : sceneText.lines.length === 0 ? "textMark.none"
+            : sceneText.onMark ? "textMark.marked" : "textMark.hint")
         color: KanteStyle.mutedTextColor
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
