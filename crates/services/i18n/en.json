@@ -1305,5 +1305,22 @@
  "remove.element": "Delete element {name}? It leaves every scene and set object; Undo brings it back.",
  "object.element": "Element (breakdown)",
  "object.noElement": "none",
- "object.elementEntry": "{category} · {name}"
+ "object.elementEntry": "{category} · {name}",
+ "report.szenen": "Scenes",
+ "report.spielorte": "Scripted locations",
+ "report.figuren": "Characters by scene",
+ "report.auszug": "Breakdown extract",
+ "report.heading": "Heading",
+ "report.length": "Length (pages)",
+ "report.figures": "Characters",
+ "report.place": "Scripted location",
+ "report.location": "Shooting location",
+ "report.scenes": "Scenes",
+ "report.scene": "Scene",
+ "report.category": "Category",
+ "report.element": "Element",
+ "report.status": "Status",
+ "report.storyDay": "Story day",
+ "report.prestop": "Pre-stop",
+ "report.planned": "Planned shooting time"
 }
