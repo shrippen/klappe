@@ -107,9 +107,38 @@ TestCase {
         const v = make()
         const runs = v.lines[0].runs
 
-        compare(v.choice(0, runs, 5, 8), null)
-        compare(v.choice(0, runs, 2, 16), null)
+        compare(v.choice(0, runs, 5, 8), { line: 0, marked: true })
+        compare(v.choice(0, runs, 2, 16), { line: 0, marked: true })
         compare(v.choice(0, runs, 0, 3), { line: 0, prefix: "", text: "Ein" })
+    }
+
+    // A selection over marked words says why no menu opens; the next choice clears it.
+    function test_a_selection_over_a_mark_says_why_nothing_opens() {
+        const v = make()
+        const line = findChild(v, "textLine.0")
+        line.select(5, 8)
+        v.offer(0, line)
+
+        verify(!findChild(v, "markMenu").visible)
+        compare(findChild(v, "textHint").text, "Diese Wörter sind schon markiert. Zum Ändern den Chip im Szenenblatt entfernen.")
+
+        line.select(19, 25)
+        v.offer(0, line)
+        compare(findChild(v, "textHint").text, "Wörter wählen, um sie als Element zu markieren.")
+    }
+
+    // New lines (another scene, the chip removed) end the hint about marked words.
+    function test_new_lines_end_the_hint_about_marked_words() {
+        const v = make()
+        const line = findChild(v, "textLine.0")
+        line.select(5, 8)
+        v.offer(0, line)
+
+        const project = JSON.parse(fake.projectJson)
+        project.sheet.text[0].runs = [{ text: "Ein Nebel  und Seiten.", element: null, category: null }]
+        fake.projectJson = JSON.stringify(project)
+
+        compare(findChild(v, "textHint").text, "Wörter wählen, um sie als Element zu markieren.")
     }
 
     // A word cut by the selection is taken whole, the full stop after it is not.
