@@ -7,6 +7,8 @@
 //!                   [--language de|en] [--format pdf|svg|png|csv|ods|xlsx|frames|camera|
 //!                                                shotpages|camerapages|shotfiles|camerafiles|mp4]
 //!                   [--camera <id>]
+//! klappe-cli report --project <folder> --report <szenen|spielorte|figuren|auszug> --out <file>
+//!                   [--language de|en]      (pdf, csv, ods or xlsx, by the extension of --out)
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
 //!                       [--scene-numbers] [--header]
 //! ```
@@ -15,8 +17,8 @@ use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
     builtin_camera_presets, error_text, load_notes_text, read_number, ExportFormat, ExportOptions,
-    Field, HeaderLine, Language, Orientation, Paper, PaperSetup, Range, SceneNumbers, ScriptPaper,
-    ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
+    Field, HeaderLine, Language, Orientation, Paper, PaperSetup, Range, Report, ReportFormat,
+    SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -75,6 +77,23 @@ enum Command {
         #[arg(long)]
         camera: Option<String>,
         /// The file to write; the folder for `--format frames`.
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// A report (DB-61) as PDF, CSV, ODS or XLSX, by the extension of --out: the scenes, the
+    /// scripted locations with their shooting locations, the characters by scene, or the
+    /// extract of the breakdown.
+    Report {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// `szenen`, `spielorte`, `figuren` or `auszug`.
+        #[arg(long, value_parser = report_arg())]
+        report: Report,
+        /// Language of the headings; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
+        /// The file to write: .pdf, .csv, .ods or .xlsx.
         #[arg(long)]
         out: PathBuf,
     },
@@ -166,6 +185,12 @@ fn main() -> ExitCode {
 
             export(&job)
         }
+        Command::Report {
+            project,
+            report,
+            language,
+            out,
+        } => write_report(&project, report, &out, language_of(language)),
         Command::ScriptPdf {
             project,
             out,
@@ -190,6 +215,29 @@ fn main() -> ExitCode {
 
             script_pdf(&project, &out, paper, &print)
         }
+    }
+}
+
+/// Writes `report`; the format is the extension's.
+fn write_report(project: &Path, report: Report, out: &Path, language: Language) -> ExitCode {
+    let extension = out.extension().and_then(|e| e.to_str()).unwrap_or_default();
+    let Some(format) = ReportFormat::from_extension(extension) else {
+        let path = format!("{out:?}");
+        return refuse(language.text("cli.noReportFormat").replace("{path}", &path));
+    };
+
+    let written = Session::open(project)
+        .map_err(|e| error_text(language, &e))
+        .and_then(|mut session| {
+            warn_load_notes(&session, language);
+
+            session
+                .export_report(report, format, out, language)
+                .map_err(|e| error_text(language, &e))
+        });
+    match written {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => refuse(message),
     }
 }
 
@@ -367,6 +415,12 @@ fn format_arg() -> impl TypedValueParser<Value = ExportFormat> {
 
     PossibleValuesParser::new(names)
         .try_map(|name| ExportFormat::from_name(&name).ok_or("unknown format"))
+}
+
+/// The reports by name, listed in --help.
+fn report_arg() -> impl TypedValueParser<Value = Report> {
+    PossibleValuesParser::new(Report::ALL.map(Report::name))
+        .try_map(|name| Report::from_name(&name).ok_or("unknown report"))
 }
 
 /// The format a file name asks for by its extension (`plan.PNG`). `png` is the plan's, the

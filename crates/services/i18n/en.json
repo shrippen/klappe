@@ -1322,5 +1322,6 @@
  "report.status": "Status",
  "report.storyDay": "Story day",
  "report.prestop": "Pre-stop",
- "report.planned": "Planned shooting time"
+ "report.planned": "Planned shooting time",
+ "cli.noReportFormat": "cannot tell the format of {path}; use .pdf, .csv, .ods or .xlsx"
 }

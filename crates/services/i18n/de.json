@@ -1322,5 +1322,6 @@
  "report.status": "Status",
  "report.storyDay": "Spieltag",
  "report.prestop": "Vorstopp",
- "report.planned": "Geplante Drehdauer"
+ "report.planned": "Geplante Drehdauer",
+ "cli.noReportFormat": "Das Format von {path} ist unklar; Endung .pdf, .csv, .ods oder .xlsx wählen"
 }
