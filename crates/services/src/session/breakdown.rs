@@ -116,8 +116,28 @@ impl Session {
     }
 
     /// The elements of the scene by category, only the categories that have any; `lost` are
-    /// those whose marks the text no longer has. An id no element has is ignored.
+    /// those whose marks the text no longer has.
     fn sheet_categories(&self, scene: &Scene, lost: &HashSet<String>) -> Vec<SheetCategory> {
+        self.by_category(scene)
+            .into_iter()
+            .map(|(category, elements)| SheetCategory {
+                category: category.name(),
+                elements: elements
+                    .into_iter()
+                    .map(|e| SheetElement {
+                        id: e.id.clone(),
+                        name: e.name.clone(),
+                        status: e.status.name(),
+                        lost: lost.contains(&e.id),
+                    })
+                    .collect(),
+            })
+            .collect()
+    }
+
+    /// The elements of a scene's sheet, by category in the sheet's order; an id no element
+    /// has is ignored.
+    pub(super) fn by_category(&self, scene: &Scene) -> Vec<(ElementCategory, Vec<&Element>)> {
         let listed: Vec<&Element> = scene
             .sheet
             .elements
@@ -127,23 +147,16 @@ impl Session {
 
         ElementCategory::ALL
             .into_iter()
-            .filter_map(|category| {
-                let elements: Vec<SheetElement> = listed
+            .map(|category| {
+                let elements: Vec<&Element> = listed
                     .iter()
                     .filter(|e| e.category == category)
-                    .map(|e| SheetElement {
-                        id: e.id.clone(),
-                        name: e.name.clone(),
-                        status: e.status.name(),
-                        lost: lost.contains(&e.id),
-                    })
+                    .copied()
                     .collect();
 
-                (!elements.is_empty()).then(|| SheetCategory {
-                    category: category.name(),
-                    elements,
-                })
+                (category, elements)
             })
+            .filter(|(_, elements)| !elements.is_empty())
             .collect()
     }
 

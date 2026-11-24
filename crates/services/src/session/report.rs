@@ -9,7 +9,7 @@
 use std::path::Path;
 
 use klappe_export::{ExtractBox, ExtractPage, ReportTable, Theme};
-use klappe_model::{Character, Element, ElementCategory, Scene};
+use klappe_model::{Character, Scene};
 
 use super::export::write_file;
 use super::Session;
@@ -184,31 +184,6 @@ impl Session {
             .collect();
 
         (head, rows)
-    }
-
-    /// The elements of a scene's sheet, by category in the sheet's order; an id no element
-    /// has is ignored.
-    fn by_category(&self, scene: &Scene) -> Vec<(ElementCategory, Vec<&Element>)> {
-        let listed: Vec<&Element> = scene
-            .sheet
-            .elements
-            .iter()
-            .filter_map(|id| self.project.elements.iter().find(|e| e.id == *id))
-            .collect();
-
-        ElementCategory::ALL
-            .into_iter()
-            .map(|category| {
-                let elements: Vec<&Element> = listed
-                    .iter()
-                    .filter(|e| e.category == category)
-                    .copied()
-                    .collect();
-
-                (category, elements)
-            })
-            .filter(|(_, elements)| !elements.is_empty())
-            .collect()
     }
 
     /// Scene, category, element and status: a row per element of a scene.
