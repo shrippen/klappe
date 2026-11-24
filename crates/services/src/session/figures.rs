@@ -113,7 +113,7 @@ impl Session {
         // The answer's entry is taken from the file, also while a conflict is held (`rebase`
         // stops there): a figure it created is known, so an alias for it is refused once
         // deleted. What else changed outside stays a change (a held conflict stays held).
-        self.file_figures = figure_file::with_delta(&self.file_figures, &delta);
+        self.file_figures = figure_file::with_delta(&self.file_figures, &delta, Way::Apply);
 
         let (scene, shown) = self.ids_on_view();
         self.commit_answer(next, RESOLVE_STEP, AnswerDelta::Figure(delta));
@@ -146,13 +146,16 @@ impl Session {
     /// Undo or redo of a figure answer: its entry in `figuren.toml`, in the file as it is on
     /// disk (another program may have changed the rest).
     pub(super) fn save_figure_delta(
-        &self,
+        &mut self,
         delta: &FigureDelta,
         way: Way,
     ) -> Result<(), ServiceError> {
         let mut disk = self.project_with_disk_figures()?;
         delta.run(&mut disk, way);
         klappe_store::save_characters(&self.dir, &disk)?;
+        // The entry is the file's as written, also while a conflict is held (`rebase` stops
+        // there): an answer taken back is no longer known.
+        self.file_figures = figure_file::with_delta(&self.file_figures, delta, way);
 
         Ok(())
     }

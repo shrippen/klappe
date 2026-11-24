@@ -275,6 +275,13 @@ impl Session {
             }
             copy_entry(&mut self.disk, &scan.disk_now, name);
             copy_entry(&mut self.own, &scan.own_now, name);
+            // Both sides hold the same figures: the file is known as it is (a figure deleted
+            // outside while the conflict was held is no longer counted).
+            if name == FIGURES_FILE {
+                if let Ok(figures) = klappe_store::load_figures(&self.dir) {
+                    self.file_figures = figures;
+                }
+            }
         }
     }
 

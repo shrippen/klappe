@@ -142,12 +142,12 @@ pub(crate) fn with_answers(file: &Figures, disk: &Figures) -> Figures {
     (after.characters, after.not_figures)
 }
 
-/// `file` with the one entry `delta` wrote.
-pub(crate) fn with_delta(file: &Figures, delta: &FigureDelta) -> Figures {
+/// `file` with the one entry `delta` wrote, or took back (`way`).
+pub(crate) fn with_delta(file: &Figures, delta: &FigureDelta, way: Way) -> Figures {
     let mut after = Project::new("");
     after.characters.clone_from(&file.0);
     after.not_figures.clone_from(&file.1);
-    delta.run(&mut after, Way::Apply);
+    delta.run(&mut after, way);
 
     (after.characters, after.not_figures)
 }

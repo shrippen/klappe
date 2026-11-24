@@ -200,3 +200,39 @@ fn an_answer_keeps_a_held_conflict() {
     assert_eq!(gui.save(OnOutside::Ask).unwrap(), Saved::Conflict);
     assert_eq!(names(&dir), ["Anna", "Carl"]);
 }
+
+/// A held conflict that ends with both sides alike leaves the figure rule as it was: a later
+/// answer elsewhere is no conflict. The figure deleted outside is no longer counted as known.
+#[test]
+fn a_conflict_both_sides_settled_alike_keeps_the_figure_rule() {
+    let dir = two("fig-rule-held-agreed");
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Emil")).unwrap();
+    let mut outside = klappe_store::load(&dir).unwrap().project;
+    outside.characters.retain(|c| c.id != "bert");
+    klappe_store::save_characters(&dir, &outside).unwrap();
+    gui.resolve_figure("CARL", FigureChoice::Create).unwrap();
+    let emil = gui
+        .project()
+        .characters
+        .iter()
+        .find(|c| c.name == "Emil")
+        .unwrap()
+        .id
+        .clone();
+    for id in ["bert".to_owned(), emil] {
+        gui.edit_project(ProjectEdit::RemoveCharacter { id })
+            .unwrap();
+    }
+    assert_eq!(gui.check().unwrap().both.len(), 0);
+
+    let mut tui = Session::open(&dir).unwrap();
+    tui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
+        .unwrap();
+    gui.edit_project(add("Fritz")).unwrap();
+
+    assert_eq!(gui.check().unwrap().both.len(), 0);
+    assert_eq!(gui.save(OnOutside::Ask).unwrap(), Saved::Done);
+    let anna = gui.project().characters[0].clone();
+    assert_eq!(anna.aliases, ["BERT"]);
+}
