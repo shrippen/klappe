@@ -99,6 +99,7 @@ impl Session {
         self.settle_figures()?;
         let scan = self.scan()?;
         let both = self.files(&scan.both);
+        self.figures_alike(&scan);
 
         if scan.taken.is_empty() {
             self.conflicts.clone_from(&both);
@@ -275,13 +276,20 @@ impl Session {
             }
             copy_entry(&mut self.disk, &scan.disk_now, name);
             copy_entry(&mut self.own, &scan.own_now, name);
-            // Both sides hold the same figures: the file is known as it is (a figure deleted
-            // outside while the conflict was held is no longer counted).
-            if name == FIGURES_FILE {
-                if let Ok(figures) = klappe_store::load_figures(&self.dir) {
-                    self.file_figures = figures;
-                }
-            }
+        }
+    }
+
+    /// Both sides hold the same `figuren.toml`: the file is known as it is, so a figure
+    /// deleted outside while a conflict was held is no longer counted. Before either way of
+    /// `check` (`agree`, `take_outside`).
+    fn figures_alike(&mut self, scan: &Scan) {
+        let alike = scan.mine.contains(FIGURES_FILE)
+            && scan.disk_now.get(FIGURES_FILE) == scan.own_now.get(FIGURES_FILE);
+        if !alike {
+            return;
+        }
+        if let Ok(figures) = klappe_store::load_figures(&self.dir) {
+            self.file_figures = figures;
         }
     }
 

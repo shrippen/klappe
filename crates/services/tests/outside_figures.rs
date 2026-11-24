@@ -205,7 +205,23 @@ fn an_answer_keeps_a_held_conflict() {
 /// answer elsewhere is no conflict. The figure deleted outside is no longer counted as known.
 #[test]
 fn a_conflict_both_sides_settled_alike_keeps_the_figure_rule() {
-    let dir = two("fig-rule-held-agreed");
+    settled_alike("fig-rule-held-agreed", Also::Nothing);
+}
+
+/// The same while another file changed outside at once: the check takes that one over.
+#[test]
+fn a_conflict_settled_alike_beside_an_outside_change_keeps_the_figure_rule() {
+    settled_alike("fig-rule-held-agreed-taken", Also::ProjectFile);
+}
+
+/// What else changes outside before the check that finds both sides alike.
+enum Also {
+    Nothing,
+    ProjectFile,
+}
+
+fn settled_alike(name: &str, also: Also) {
+    let dir = two(name);
     let mut gui = Session::open(&dir).unwrap();
     gui.edit_project(add("Emil")).unwrap();
     let mut outside = klappe_store::load(&dir).unwrap().project;
@@ -223,6 +239,11 @@ fn a_conflict_both_sides_settled_alike_keeps_the_figure_rule() {
     for id in ["bert".to_owned(), emil] {
         gui.edit_project(ProjectEdit::RemoveCharacter { id })
             .unwrap();
+    }
+    if let Also::ProjectFile = also {
+        let path = dir.join("projekt.toml");
+        let text = std::fs::read_to_string(&path).unwrap();
+        std::fs::write(&path, text + "# outside\n").unwrap();
     }
     assert_eq!(gui.check().unwrap().both.len(), 0);
 
