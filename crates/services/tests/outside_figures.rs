@@ -214,10 +214,18 @@ fn a_conflict_settled_alike_beside_an_outside_change_keeps_the_figure_rule() {
     settled_alike("fig-rule-held-agreed-taken", Also::ProjectFile);
 }
 
-/// What else changes outside before the check that finds both sides alike.
+/// The same with no check between both sides becoming alike and the answer elsewhere: the
+/// window checks only when it is activated.
+#[test]
+fn a_conflict_settled_alike_unchecked_keeps_the_figure_rule() {
+    settled_alike("fig-rule-held-agreed-unchecked", Also::Unchecked);
+}
+
+/// What else happens before the answer elsewhere, after both sides became alike.
 enum Also {
     Nothing,
     ProjectFile,
+    Unchecked,
 }
 
 fn settled_alike(name: &str, also: Also) {
@@ -245,7 +253,9 @@ fn settled_alike(name: &str, also: Also) {
         let text = std::fs::read_to_string(&path).unwrap();
         std::fs::write(&path, text + "# outside\n").unwrap();
     }
-    assert_eq!(gui.check().unwrap().both.len(), 0);
+    if !matches!(also, Also::Unchecked) {
+        assert_eq!(gui.check().unwrap().both.len(), 0);
+    }
 
     let mut tui = Session::open(&dir).unwrap();
     tui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))

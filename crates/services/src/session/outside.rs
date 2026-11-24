@@ -99,7 +99,6 @@ impl Session {
         self.settle_figures()?;
         let scan = self.scan()?;
         let both = self.files(&scan.both);
-        self.figures_alike(&scan);
 
         if scan.taken.is_empty() {
             self.conflicts.clone_from(&both);
@@ -279,20 +278,6 @@ impl Session {
         }
     }
 
-    /// Both sides hold the same `figuren.toml`: the file is known as it is, so a figure
-    /// deleted outside while a conflict was held is no longer counted. Before either way of
-    /// `check` (`agree`, `take_outside`).
-    fn figures_alike(&mut self, scan: &Scan) {
-        let alike = scan.mine.contains(FIGURES_FILE)
-            && scan.disk_now.get(FIGURES_FILE) == scan.own_now.get(FIGURES_FILE);
-        if !alike {
-            return;
-        }
-        if let Ok(figures) = klappe_store::load_figures(&self.dir) {
-            self.file_figures = figures;
-        }
-    }
-
     /// Takes over what changed outside and the session did not change; the files it changed
     /// itself stay as they are.
     /// Returns whether the project or the screenplay is another than before.
@@ -386,7 +371,9 @@ impl Session {
 
     /// The figure rule: `figuren.toml` changed outside by answers alone (new characters, aliases,
     /// not-figures) is adopted into the project and every undo step, whatever the session
-    /// changed in it, and is no change to ask about. Anything else is left to `scan`.
+    /// changed in it, and is no change to ask about. Anything else is left to `scan`. First
+    /// what the session and the file agree on is known (both deleted Bert): only the rest
+    /// counts as changed outside.
     fn settle_figures(&mut self) -> Result<(), ServiceError> {
         let tree = klappe_store::read_tree(&self.dir)?;
         if tree.get(FIGURES_FILE) == self.disk.get(FIGURES_FILE) {
@@ -395,6 +382,11 @@ impl Session {
         let Ok(on_disk) = klappe_store::load_figures(&self.dir) else {
             return Ok(());
         };
+        let own = (
+            self.project.characters.clone(),
+            self.project.not_figures.clone(),
+        );
+        self.file_figures = figure_file::settled(&self.file_figures, &own, &on_disk);
         if !figure_file::answers_only(&self.file_figures, &on_disk) {
             return Ok(());
         }
