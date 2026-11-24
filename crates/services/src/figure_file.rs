@@ -127,9 +127,9 @@ pub(crate) fn fits(project: &Project, delta: &FigureDelta) -> bool {
     }
 }
 
-/// Whether `disk` is `file` plus what answers add, and nothing else: no rename, deletion or
-/// change of a character. Then taking it over loses nobody's work (the figure rule).
-pub(crate) fn answers_only(file: &Figures, disk: &Figures) -> bool {
+/// `file` plus what answers added to it in `disk`; what else `disk` changed (a deletion
+/// outside) is left out, so it still shows as a change of the file.
+pub(crate) fn with_answers(file: &Figures, disk: &Figures) -> Figures {
     let mut base = Project::new("");
     base.characters.clone_from(&file.0);
     base.not_figures.clone_from(&file.1);
@@ -139,5 +139,21 @@ pub(crate) fn answers_only(file: &Figures, disk: &Figures) -> bool {
         delta.run(&mut after, Way::Apply);
     }
 
-    after.characters == disk.0 && after.not_figures == disk.1
+    (after.characters, after.not_figures)
+}
+
+/// `file` with the one entry `delta` wrote.
+pub(crate) fn with_delta(file: &Figures, delta: &FigureDelta) -> Figures {
+    let mut after = Project::new("");
+    after.characters.clone_from(&file.0);
+    after.not_figures.clone_from(&file.1);
+    delta.run(&mut after, Way::Apply);
+
+    (after.characters, after.not_figures)
+}
+
+/// Whether `disk` is `file` plus what answers add, and nothing else: no rename, deletion or
+/// change of a character. Then taking it over loses nobody's work (the figure rule).
+pub(crate) fn answers_only(file: &Figures, disk: &Figures) -> bool {
+    with_answers(file, disk) == *disk
 }

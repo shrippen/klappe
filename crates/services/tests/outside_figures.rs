@@ -180,3 +180,23 @@ fn an_alias_for_an_own_answer_deleted_outside_is_refused_in_a_conflict() {
         "{answered:?}"
     );
 }
+
+/// A conflict on `figuren.toml` stays while it is held: an answer written into the file in
+/// between does not make the deletion outside look like the session's own. The save asks
+/// and does not bring the deleted figure back.
+#[test]
+fn an_answer_keeps_a_held_conflict() {
+    let dir = two("fig-rule-held-answer");
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Emil")).unwrap();
+    let mut outside = klappe_store::load(&dir).unwrap().project;
+    outside.characters.retain(|c| c.id != "bert");
+    klappe_store::save_characters(&dir, &outside).unwrap();
+    assert_eq!(gui.check().unwrap().both.len(), 1);
+
+    gui.resolve_figure("CARL", FigureChoice::Create).unwrap();
+
+    assert_eq!(gui.check().unwrap().both.len(), 1);
+    assert_eq!(gui.save(OnOutside::Ask).unwrap(), Saved::Conflict);
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+}

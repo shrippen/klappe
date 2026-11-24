@@ -110,9 +110,10 @@ impl Session {
         let mut disk = self.project_with_disk_figures()?;
         delta.run(&mut disk, Way::Apply);
         klappe_store::save_characters(&self.dir, &disk)?;
-        // What the file holds now, also while a conflict is held (`rebase` stops there): a
-        // figure this answer created is known, so an alias for it is refused once deleted.
-        self.file_figures = (disk.characters.clone(), disk.not_figures.clone());
+        // The answer's entry is taken from the file, also while a conflict is held (`rebase`
+        // stops there): a figure it created is known, so an alias for it is refused once
+        // deleted. What else changed outside stays a change (a held conflict stays held).
+        self.file_figures = figure_file::with_delta(&self.file_figures, &delta);
 
         let (scene, shown) = self.ids_on_view();
         self.commit_answer(next, RESOLVE_STEP, AnswerDelta::Figure(delta));
@@ -124,8 +125,8 @@ impl Session {
     }
 
     /// Refuses an alias for a character the file had when the session last read it and has
-    /// not now (deleted elsewhere): the answer would be lost without a trace. Checked before
-    /// `adopt_figures`, which moves `file_figures` on, so a second try is refused as well. One
+    /// not now (deleted elsewhere): the answer would be lost without a trace. `adopt_figures`
+    /// takes no deletion into `file_figures`, so a second try is refused as well. One
     /// the session added and not yet saved gets the alias at the save.
     fn refuse_lost(&self, choice: &FigureChoice) -> Result<(), ServiceError> {
         let FigureChoice::Assign(id) = choice else {
@@ -175,7 +176,9 @@ impl Session {
                 }
             });
         }
-        self.file_figures = disk;
+        // Only the answers are taken: a deletion outside stays a change of the file, so a
+        // conflict on it is still found.
+        self.file_figures = figure_file::with_answers(&self.file_figures, &disk);
         self.refresh_figures();
 
         Ok(())
