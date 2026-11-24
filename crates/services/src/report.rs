@@ -72,11 +72,6 @@ impl ReportFormat {
 
         Self::ALL.into_iter().find(|f| f.name() == lower)
     }
-
-    /// The file name offered for `report` of a project called `title`, e.g. `Film-szenen.pdf`.
-    pub fn file_name(self, title: &str, report: Report) -> String {
-        format!("{title}-{}.{}", report.name(), self.name())
-    }
 }
 
 #[cfg(test)]
@@ -101,24 +96,6 @@ mod tests {
             Some(ReportFormat::Xlsx)
         );
         assert_eq!(ReportFormat::from_extension("png"), None);
-    }
-
-    #[test]
-    fn names_of_the_files_offered() {
-        let names: Vec<String> = ReportFormat::ALL
-            .iter()
-            .map(|f| f.file_name("Film", Report::Cast))
-            .collect();
-
-        assert_eq!(
-            names,
-            [
-                "Film-figuren.pdf",
-                "Film-figuren.csv",
-                "Film-figuren.ods",
-                "Film-figuren.xlsx"
-            ]
-        );
     }
 
     /// Menus and files carry the report's title: `report.<name>` in both languages.
