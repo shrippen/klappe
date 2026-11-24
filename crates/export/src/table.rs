@@ -35,14 +35,14 @@ use crate::page::{Page, ShotTexts};
 use crate::palette::Palette;
 use crate::shots::{cells, heads, COLUMNS};
 
-const CELL_PT: f64 = MIN_TEXT_PT;
-const LINE_PT: f64 = 10.5;
-const PAD_PT: f64 = 2.5;
+pub(crate) const CELL_PT: f64 = MIN_TEXT_PT;
+pub(crate) const LINE_PT: f64 = 10.5;
+pub(crate) const PAD_PT: f64 = 2.5;
 /// Rounding slack when a width comes back from `+ 2 * PAD_PT - 2 * PAD_PT`.
 const FIT_SLACK_PT: f64 = 1e-6;
-const ROW_PAD_PT: f64 = 3.0;
-const HEAD_RULE_PT: f64 = 0.75;
-const ROW_RULE_PT: f64 = 0.5;
+pub(crate) const ROW_PAD_PT: f64 = 3.0;
+pub(crate) const HEAD_RULE_PT: f64 = 0.75;
+pub(crate) const ROW_RULE_PT: f64 = 0.5;
 /// Longer cells are cut, so one row always fits a sheet.
 const MAX_CELL_LINES: usize = 8;
 const ELLIPSIS: char = '…';
@@ -463,7 +463,7 @@ fn wrapped(
 
 /// Greedy word wrap to `max_w`; words wider than the column break by letter. Cut at
 /// `MAX_CELL_LINES` with an ellipsis.
-fn cell_lines(text: &str, max_w: f64, weight: Weight) -> Vec<String> {
+pub(crate) fn cell_lines(text: &str, max_w: f64, weight: Weight) -> Vec<String> {
     let fits = |t: &str| text_width_pt(t, CELL_PT, weight) <= max_w + FIT_SLACK_PT;
     let mut lines = Vec::new();
 
