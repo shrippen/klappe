@@ -371,7 +371,9 @@ impl Session {
 
     /// The figure rule: `figuren.toml` changed outside by answers alone (new characters, aliases,
     /// not-figures) is adopted into the project and every undo step, whatever the session
-    /// changed in it, and is no change to ask about. Anything else is left to `scan`.
+    /// changed in it, and is no change to ask about. Anything else is left to `scan`. First
+    /// what the session and the file agree on is known (both deleted Bert): only the rest
+    /// counts as changed outside.
     fn settle_figures(&mut self) -> Result<(), ServiceError> {
         let tree = klappe_store::read_tree(&self.dir)?;
         if tree.get(FIGURES_FILE) == self.disk.get(FIGURES_FILE) {
@@ -380,6 +382,11 @@ impl Session {
         let Ok(on_disk) = klappe_store::load_figures(&self.dir) else {
             return Ok(());
         };
+        let own = (
+            self.project.characters.clone(),
+            self.project.not_figures.clone(),
+        );
+        self.file_figures = figure_file::settled(&self.file_figures, &own, &on_disk);
         if !figure_file::answers_only(&self.file_figures, &on_disk) {
             return Ok(());
         }

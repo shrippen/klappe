@@ -127,9 +127,9 @@ pub(crate) fn fits(project: &Project, delta: &FigureDelta) -> bool {
     }
 }
 
-/// Whether `disk` is `file` plus what answers add, and nothing else: no rename, deletion or
-/// change of a character. Then taking it over loses nobody's work (the figure rule).
-pub(crate) fn answers_only(file: &Figures, disk: &Figures) -> bool {
+/// `file` plus what answers added to it in `disk`; what else `disk` changed (a deletion
+/// outside) is left out, so it still shows as a change of the file.
+pub(crate) fn with_answers(file: &Figures, disk: &Figures) -> Figures {
     let mut base = Project::new("");
     base.characters.clone_from(&file.0);
     base.not_figures.clone_from(&file.1);
@@ -139,5 +139,63 @@ pub(crate) fn answers_only(file: &Figures, disk: &Figures) -> bool {
         delta.run(&mut after, Way::Apply);
     }
 
-    after.characters == disk.0 && after.not_figures == disk.1
+    (after.characters, after.not_figures)
+}
+
+/// `file` with the one entry `delta` wrote, or took back (`way`).
+pub(crate) fn with_delta(file: &Figures, delta: &FigureDelta, way: Way) -> Figures {
+    let mut after = Project::new("");
+    after.characters.clone_from(&file.0);
+    after.not_figures.clone_from(&file.1);
+    delta.run(&mut after, way);
+
+    (after.characters, after.not_figures)
+}
+
+/// `file` with every entry the session (`own`) and `disk` agree on taken as `disk` has it: a
+/// character both deleted is gone, one both changed alike is known. Where they differ, `file`
+/// stays. In the order of `disk`, so `answers_only` can compare.
+/// E.g. file Anna, Bert; own Anna; disk Anna + alias: Anna stays as in file, Bert is gone.
+pub(crate) fn settled(file: &Figures, own: &Figures, disk: &Figures) -> Figures {
+    let entry = |list: &[Character], id: &str| list.iter().find(|c| c.id == id).cloned();
+    let mut characters = Vec::new();
+
+    // On disk: agreed as on disk, else as the file had it (absent if it had it not).
+    for d in &disk.0 {
+        let agreed = entry(&own.0, &d.id).as_ref() == Some(d);
+        let kept = match agreed {
+            true => Some(d.clone()),
+            false => entry(&file.0, &d.id),
+        };
+        characters.extend(kept);
+    }
+
+    // Gone from disk: kept unless the session deleted it too.
+    for f in &file.0 {
+        let gone = entry(&disk.0, &f.id).is_none();
+        if gone && entry(&own.0, &f.id).is_some() {
+            characters.push(f.clone());
+        }
+    }
+
+    // Not-figures alike: present in disk and own, or kept from the file where they differ.
+    let mut not_figures: Vec<String> = disk
+        .1
+        .iter()
+        .filter(|n| own.1.contains(n) || file.1.contains(n))
+        .cloned()
+        .collect();
+    for n in &file.1 {
+        if !disk.1.contains(n) && own.1.contains(n) {
+            not_figures.push(n.clone());
+        }
+    }
+
+    (characters, not_figures)
+}
+
+/// Whether `disk` is `file` plus what answers add, and nothing else: no rename, deletion or
+/// change of a character. Then taking it over loses nobody's work (the figure rule).
+pub(crate) fn answers_only(file: &Figures, disk: &Figures) -> bool {
+    with_answers(file, disk) == *disk
 }

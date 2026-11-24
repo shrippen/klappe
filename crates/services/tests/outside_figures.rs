@@ -180,3 +180,90 @@ fn an_alias_for_an_own_answer_deleted_outside_is_refused_in_a_conflict() {
         "{answered:?}"
     );
 }
+
+/// A conflict on `figuren.toml` stays while it is held: an answer written into the file in
+/// between does not make the deletion outside look like the session's own. The save asks
+/// and does not bring the deleted figure back.
+#[test]
+fn an_answer_keeps_a_held_conflict() {
+    let dir = two("fig-rule-held-answer");
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Emil")).unwrap();
+    let mut outside = klappe_store::load(&dir).unwrap().project;
+    outside.characters.retain(|c| c.id != "bert");
+    klappe_store::save_characters(&dir, &outside).unwrap();
+    assert_eq!(gui.check().unwrap().both.len(), 1);
+
+    gui.resolve_figure("CARL", FigureChoice::Create).unwrap();
+
+    assert_eq!(gui.check().unwrap().both.len(), 1);
+    assert_eq!(gui.save(OnOutside::Ask).unwrap(), Saved::Conflict);
+    assert_eq!(names(&dir), ["Anna", "Carl"]);
+}
+
+/// A held conflict that ends with both sides alike leaves the figure rule as it was: a later
+/// answer elsewhere is no conflict. The figure deleted outside is no longer counted as known.
+#[test]
+fn a_conflict_both_sides_settled_alike_keeps_the_figure_rule() {
+    settled_alike("fig-rule-held-agreed", Also::Nothing);
+}
+
+/// The same while another file changed outside at once: the check takes that one over.
+#[test]
+fn a_conflict_settled_alike_beside_an_outside_change_keeps_the_figure_rule() {
+    settled_alike("fig-rule-held-agreed-taken", Also::ProjectFile);
+}
+
+/// The same with no check between both sides becoming alike and the answer elsewhere: the
+/// window checks only when it is activated.
+#[test]
+fn a_conflict_settled_alike_unchecked_keeps_the_figure_rule() {
+    settled_alike("fig-rule-held-agreed-unchecked", Also::Unchecked);
+}
+
+/// What else happens before the answer elsewhere, after both sides became alike.
+enum Also {
+    Nothing,
+    ProjectFile,
+    Unchecked,
+}
+
+fn settled_alike(name: &str, also: Also) {
+    let dir = two(name);
+    let mut gui = Session::open(&dir).unwrap();
+    gui.edit_project(add("Emil")).unwrap();
+    let mut outside = klappe_store::load(&dir).unwrap().project;
+    outside.characters.retain(|c| c.id != "bert");
+    klappe_store::save_characters(&dir, &outside).unwrap();
+    gui.resolve_figure("CARL", FigureChoice::Create).unwrap();
+    let emil = gui
+        .project()
+        .characters
+        .iter()
+        .find(|c| c.name == "Emil")
+        .unwrap()
+        .id
+        .clone();
+    for id in ["bert".to_owned(), emil] {
+        gui.edit_project(ProjectEdit::RemoveCharacter { id })
+            .unwrap();
+    }
+    if let Also::ProjectFile = also {
+        let path = dir.join("projekt.toml");
+        let text = std::fs::read_to_string(&path).unwrap();
+        std::fs::write(&path, text + "# outside\n").unwrap();
+    }
+    if !matches!(also, Also::Unchecked) {
+        assert_eq!(gui.check().unwrap().both.len(), 0);
+    }
+
+    let mut tui = Session::open(&dir).unwrap();
+    tui.resolve_figure("BERT", FigureChoice::Assign("anna".into()))
+        .unwrap();
+    gui.edit_project(add("Fritz")).unwrap();
+
+    assert_eq!(gui.check().unwrap().both.len(), 0);
+    assert_eq!(gui.save(OnOutside::Ask).unwrap(), Saved::Done);
+    let anna = gui.project().characters[0].clone();
+    assert_eq!(anna.aliases, ["BERT"]);
+}
