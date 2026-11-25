@@ -6,7 +6,7 @@ use super::outside::PROJECT_FILE;
 use super::Session;
 use crate::catalog::Language;
 use crate::error::ServiceError;
-use crate::script_pages::{lay_out, ScriptPages, ScriptPrint, Source};
+use crate::script_pages::{lay_out, SceneSpan, ScriptPages, ScriptPrint, Source};
 use klappe_export::SheetPage;
 use klappe_model::ScriptSetup;
 
@@ -33,20 +33,32 @@ impl Session {
 
     /// The scenes' lengths in the layout just made, by the line of each scene's heading.
     fn scene_lengths(&self) -> HashMap<String, String> {
+        self.scene_spans()
+            .into_iter()
+            .map(|(id, span)| (id, span.length.clone()))
+            .collect()
+    }
+
+    /// The scenes as the last layout has them, by scene id.
+    fn scene_spans(&self) -> HashMap<String, &SceneSpan> {
         let Some(pages) = self.script_pages() else {
             return HashMap::new();
         };
-        let spans: HashMap<usize, &str> = pages
-            .scenes
-            .iter()
-            .map(|s| (s.line, s.length.as_str()))
-            .collect();
+        let spans: HashMap<usize, &SceneSpan> = pages.scenes.iter().map(|s| (s.line, s)).collect();
 
         self.project
             .scenes
             .iter()
             .zip(self.heading_lines())
-            .filter_map(|(scene, line)| Some((scene.id.clone(), spans.get(&line?)?.to_string())))
+            .filter_map(|(scene, line)| Some((scene.id.clone(), *spans.get(&line?)?)))
+            .collect()
+    }
+
+    /// The length of each scene in the last layout, in eighths of a page, by scene id.
+    pub(super) fn scene_eighths(&self) -> HashMap<String, usize> {
+        self.scene_spans()
+            .into_iter()
+            .map(|(id, span)| (id, span.eighths))
             .collect()
     }
 

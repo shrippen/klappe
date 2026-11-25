@@ -28,10 +28,34 @@ const LOOK_SEPARATOR: &str = " – ";
 
 impl Session {
     /// Writes `report` to `path` as `format`; the words are `language`'s. The scenes' lengths
-    /// are those of the screenplay's layout, made first if there is none for this text.
+    /// are those of the screenplay's layout, made first if there is none for this text. The
+    /// dialogue report needs `export_dialogue`: it is of one character.
     pub fn export_report(
         &mut self,
         report: Report,
+        format: ReportFormat,
+        path: &Path,
+        language: Language,
+    ) -> Result<(), ServiceError> {
+        self.write_report(report, "", format, path, language)
+    }
+
+    /// Writes the dialogue report (DB-52) of the character `figure` to `path`, as
+    /// `export_report` does the others.
+    pub fn export_dialogue(
+        &mut self,
+        figure: &str,
+        format: ReportFormat,
+        path: &Path,
+        language: Language,
+    ) -> Result<(), ServiceError> {
+        self.write_report(Report::Dialogue, figure, format, path, language)
+    }
+
+    fn write_report(
+        &mut self,
+        report: Report,
+        figure: &str,
         format: ReportFormat,
         path: &Path,
         language: Language,
@@ -40,7 +64,7 @@ impl Session {
         if report.needs_scenes() && self.book_scenes().next().is_none() {
             return Err(ServiceError::NoBookScenes);
         }
-        let bytes = self.report_bytes(report, format, language)?;
+        let bytes = self.report_bytes(report, figure, format, language)?;
 
         write_file(path, bytes)
     }
@@ -48,6 +72,7 @@ impl Session {
     fn report_bytes(
         &self,
         report: Report,
+        figure: &str,
         format: ReportFormat,
         language: Language,
     ) -> Result<Vec<u8>, ServiceError> {
@@ -57,12 +82,17 @@ impl Session {
             return Ok(klappe_export::extract_pdf(&pages, Theme::Light)?);
         }
 
-        let table = self.report_table(report, language);
-        let bytes = match format {
-            ReportFormat::Pdf => klappe_export::report_pdf(&table, Theme::Light)?,
-            ReportFormat::Csv => klappe_export::report_csv(&table).into_bytes(),
-            ReportFormat::Ods => klappe_export::report_ods(&table)?,
-            ReportFormat::Xlsx => klappe_export::report_xlsx(&table)?,
+        let tables = match report {
+            Report::Statistics => self.statistic_tables(language),
+            Report::Dialogue => vec![self.dialogue_table(figure, language)?],
+            _ => vec![self.report_table(report, language)],
+        };
+        let bytes = match (format, tables.as_slice()) {
+            (ReportFormat::Pdf, _) => klappe_export::tables_pdf(&tables, Theme::Light)?,
+            (ReportFormat::Csv, [one]) => klappe_export::report_csv(one).into_bytes(),
+            (ReportFormat::Csv, _) => klappe_export::tables_csv(&tables).into_bytes(),
+            (ReportFormat::Ods, _) => klappe_export::tables_ods(&tables)?,
+            (ReportFormat::Xlsx, _) => klappe_export::tables_xlsx(&tables)?,
         };
 
         Ok(bytes)
@@ -106,6 +136,8 @@ impl Session {
                 ],
                 self.element_rows_of_scenes(language),
             ),
+            // These have tables of their own (`statistics.rs`).
+            Report::Statistics | Report::Dialogue => (Vec::new(), Vec::new()),
         };
 
         ReportTable { title, head, rows }

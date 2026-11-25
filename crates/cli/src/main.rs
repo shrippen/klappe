@@ -7,7 +7,8 @@
 //!                   [--language de|en] [--format pdf|svg|png|csv|ods|xlsx|frames|camera|
 //!                                                shotpages|camerapages|shotfiles|camerafiles|mp4]
 //!                   [--camera <id>]
-//! klappe-cli report --project <folder> --report <szenen|spielorte|figuren|auszug|kontakte> --out <file>
+//! klappe-cli report --project <folder> --report <szenen|spielorte|figuren|auszug|kontakte|statistik> --out <file>
+//! klappe-cli report --project <folder> --report dialog --figure <id|name> --out <file>
 //!                   [--language de|en]      (pdf, csv, ods or xlsx, by the extension of --out)
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
 //!                       [--scene-numbers] [--header]
@@ -81,15 +82,19 @@ enum Command {
         out: PathBuf,
     },
     /// A report (DB-61) as PDF, CSV, ODS or XLSX, by the extension of --out: the scenes, the
-    /// scripted locations with their shooting locations, the characters by scene, or the
-    /// extract of the breakdown.
+    /// scripted locations with their shooting locations, the characters by scene, the
+    /// extract of the breakdown, the statistics (DB-53) or the dialogue of one character
+    /// (DB-52, with --figure).
     Report {
         /// The project folder.
         #[arg(long)]
         project: PathBuf,
-        /// `szenen`, `spielorte`, `figuren`, `auszug` or `kontakte`.
+        /// `szenen`, `spielorte`, `figuren`, `auszug`, `kontakte`, `statistik` or `dialog`.
         #[arg(long, value_parser = report_arg())]
         report: Report,
+        /// The character of `dialog`, by id or name.
+        #[arg(long)]
+        figure: Option<String>,
         /// Language of the headings; the system's if left out.
         #[arg(long, value_enum)]
         language: Option<LanguageArg>,
@@ -188,9 +193,15 @@ fn main() -> ExitCode {
         Command::Report {
             project,
             report,
+            figure,
             language,
             out,
-        } => write_report(&project, report, &out, language_of(language)),
+        } => write_report(
+            &project,
+            (report, figure.as_deref().unwrap_or_default()),
+            &out,
+            language_of(language),
+        ),
         Command::ScriptPdf {
             project,
             out,
@@ -218,8 +229,13 @@ fn main() -> ExitCode {
     }
 }
 
-/// Writes `report`; the format is the extension's.
-fn write_report(project: &Path, report: Report, out: &Path, language: Language) -> ExitCode {
+/// Writes `report` (for `dialog`, of the character `figure`); the format is the extension's.
+fn write_report(
+    project: &Path,
+    (report, figure): (Report, &str),
+    out: &Path,
+    language: Language,
+) -> ExitCode {
     let extension = out.extension().and_then(|e| e.to_str()).unwrap_or_default();
     let Some(format) = ReportFormat::from_extension(extension) else {
         let path = format!("{out:?}");
@@ -231,14 +247,32 @@ fn write_report(project: &Path, report: Report, out: &Path, language: Language) 
         .and_then(|mut session| {
             warn_load_notes(&session, language);
 
-            session
-                .export_report(report, format, out, language)
-                .map_err(|e| error_text(language, &e))
+            let written = match report {
+                Report::Dialogue => {
+                    let id = figure_id(&session, figure);
+
+                    session.export_dialogue(&id, format, out, language)
+                }
+                _ => session.export_report(report, format, out, language),
+            };
+
+            written.map_err(|e| error_text(language, &e))
         });
     match written {
         Ok(()) => ExitCode::SUCCESS,
         Err(message) => refuse(message),
     }
+}
+
+/// The id of the character `given` names, by id or by name in any case; `given` as it is when
+/// no character with a reply has either.
+fn figure_id(session: &Session, given: &str) -> String {
+    let figures = session.dialogue_figures();
+    let named = figures
+        .iter()
+        .find(|f| f.id == given || f.name.to_lowercase() == given.to_lowercase());
+
+    named.map_or_else(|| given.to_owned(), |f| f.id.clone())
 }
 
 /// Writes the screenplay; `paper` replaces the project's for this one PDF.

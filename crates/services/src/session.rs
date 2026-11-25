@@ -39,6 +39,7 @@ mod shooting;
 mod shots;
 mod sketch;
 mod speech;
+mod statistics;
 mod team;
 mod templates;
 mod text_marks;
@@ -61,6 +62,7 @@ pub use questions::{AnswerLine, BookQuestion, QuestionKey};
 pub use retime::{Grab, TimeSnap};
 pub use script_pages::Laid;
 pub use speech::{Speech, SpokenLine};
+pub use statistics::DialogueFigure;
 pub use video::{frame_count as video_frame_count, VideoJob};
 
 /// Groups of the plan the timeline's layer switches show or hide.

@@ -977,6 +977,23 @@ pub mod qobject {
             path: &QString,
         ) -> bool;
 
+        /// Writes the dialogue report (DB-52) of the character `figure` (an id) as `format`
+        /// to `path`, as `exportReport`.
+        #[qinvokable]
+        #[cxx_name = "exportDialogue"]
+        fn export_dialogue(
+            self: Pin<&mut Self>,
+            figure: &QString,
+            format: &QString,
+            path: &QString,
+        ) -> bool;
+
+        /// The characters with a reply in the book, most replies first, as
+        /// `[{ id, name, replies }]`; the choice before the dialogue report.
+        #[qinvokable]
+        #[cxx_name = "dialogueFigures"]
+        fn dialogue_figures(self: &Self) -> QString;
+
         /// The file URL a report is offered under: next to the project folder, named by the
         /// report as a PDF; empty without a project.
         #[qinvokable]

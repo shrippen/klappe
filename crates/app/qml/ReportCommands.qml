@@ -14,8 +14,10 @@ Item {
     readonly property alias cast: actCast
     readonly property alias extract: actExtract
     readonly property alias contacts: actContacts
+    readonly property alias statistics: actStatistics
+    readonly property alias dialogue: actDialogue
     /// In the order of the palette.
-    readonly property var actions: [actScenes, actPlaces, actCast, actExtract, actContacts]
+    readonly property var actions: [actScenes, actPlaces, actCast, actExtract, actContacts, actStatistics, actDialogue]
 
     visible: false
     width: 0
@@ -60,5 +62,22 @@ Item {
         text: reports.texts.t("report.kontakte")
         enabled: reports.controller.loaded
         onTriggered: reports.dialog.requestReport("kontakte")
+    }
+    CommandAction {
+        id: actStatistics
+        cmd: "report.statistik"
+        group: "export"
+        text: reports.texts.t("report.statistik")
+        enabled: reports.controller.loaded
+        onTriggered: reports.dialog.requestReport("statistik")
+    }
+    // DB-52: the character is chosen first, then the file.
+    CommandAction {
+        id: actDialogue
+        cmd: "report.dialog"
+        group: "export"
+        text: reports.texts.t("report.dialog")
+        enabled: reports.controller.loaded
+        onTriggered: reports.dialog.requestReport("dialog")
     }
 }

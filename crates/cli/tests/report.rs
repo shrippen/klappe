@@ -55,7 +55,14 @@ fn the_contact_list_is_a_csv() {
 
 #[test]
 fn every_report_is_a_pdf() {
-    for kind in ["szenen", "spielorte", "figuren", "auszug", "kontakte"] {
+    for kind in [
+        "szenen",
+        "spielorte",
+        "figuren",
+        "auszug",
+        "kontakte",
+        "statistik",
+    ] {
         let out = out_file(&format!("cli-report-{kind}.pdf"));
 
         let output = report(kind, &out);
@@ -96,5 +103,45 @@ fn an_unknown_extension_is_refused_in_german() {
 
     assert!(!output.status.success());
     assert!(stderr(&output).contains("klappe-cli: Das Format von"));
+    assert!(!out.exists());
+}
+
+#[test]
+fn the_statistics_hold_all_their_tables_in_one_csv() {
+    let out = out_file("cli-report-statistik.csv");
+
+    let output = report("statistik", &out);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = std::fs::read_to_string(&out).unwrap();
+    for title in ["Gesamtlänge", "Figuren", "Spielorte", "Tageszeiten"] {
+        assert!(text.lines().any(|l| l == title), "{title}");
+    }
+}
+
+#[test]
+fn the_dialogue_is_of_a_character_by_name() {
+    let out = out_file("cli-report-dialog.csv");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_klappe-cli"))
+        .args(["report", "--project", EXAMPLE, "--report", "dialog"])
+        .args(["--figure", "ELISABETH", "--language", "de", "--out"])
+        .arg(&out)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.starts_with("Szene,Klammer,Dialog\r\n"));
+    assert!(text.lines().count() > 1);
+}
+
+#[test]
+fn the_dialogue_without_a_character_is_refused() {
+    let out = out_file("cli-report-dialog-none.csv");
+
+    let output = report("dialog", &out);
+
+    assert!(!output.status.success());
     assert!(!out.exists());
 }
