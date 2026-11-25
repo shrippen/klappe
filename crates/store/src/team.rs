@@ -66,7 +66,8 @@ pub(crate) fn load(dir: &Path) -> Result<Team, StoreError> {
     Ok(team)
 }
 
-/// Ids are not empty and used once; one casting per character; a stored number is above 0.
+/// Ids are not empty and used once; one casting per character; a stored number is above 0 and
+/// belongs to one character.
 fn check_people(persons: &[Person], castings: &[Casting]) -> Result<(), String> {
     let ids: Vec<&str> = persons.iter().map(|p| p.id.as_str()).collect();
     check_ids(&ids)?;
@@ -75,6 +76,13 @@ fn check_people(persons: &[Person], castings: &[Casting]) -> Result<(), String> 
     check_ids(&characters)?;
     if castings.iter().any(|c| c.cast_number == Some(0)) {
         return Err("a cast number is 1 or more".into());
+    }
+
+    let mut numbers = HashSet::new();
+    for number in castings.iter().filter_map(|c| c.cast_number) {
+        if !numbers.insert(number) {
+            return Err(format!("{number}: the cast number is used twice"));
+        }
     }
 
     Ok(())

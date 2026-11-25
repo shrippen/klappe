@@ -555,7 +555,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   leer), nach Personen-Id sortiert; sie steht in einer eigenen Datei als Grenze für Rechte
   (`planung/DATENMODELL.md`, Abschnitt 10). Beide Dateien sind optional und fehlen, solange es
   nichts gibt. Jede `id` und jede `person` kommt einmal vor und ist nicht leer, jede `character`
-  einmal, eine unbekannte `department` oder eine `cast_number` von 0 lädt nicht. Eine Id, die
+  einmal, eine unbekannte `department`, eine `cast_number` von 0 oder eine, die zwei
+  Besetzungen tragen, lädt nicht. Eine Id, die
   keine Person oder Figur nennt (Besetzung einer gelöschten Figur, Vorschlag einer fehlenden
   Person), lädt und bleibt beim Speichern; angeboten wird sie nicht. `breakdown/elemente.toml` kennt je
   Element `responsible`, die Id der verantwortlichen Person (nur geschrieben, wenn gesetzt).

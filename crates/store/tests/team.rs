@@ -158,6 +158,10 @@ fn unreadable_or_invalid_values_do_not_load() {
             "personen.toml",
             "[[besetzung]]\ncharacter = \"a\"\ncast_number = 0\n",
         ),
+        (
+            "personen.toml",
+            "[[besetzung]]\ncharacter = \"a\"\ncast_number = 3\n\n[[besetzung]]\ncharacter = \"b\"\ncast_number = 3\n",
+        ),
         ("personen.toml", "this is not toml"),
         (
             "kontakte.toml",
