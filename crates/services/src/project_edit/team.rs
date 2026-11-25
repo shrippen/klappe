@@ -33,6 +33,12 @@ pub enum TeamEdit {
         character: String,
         person: String,
     },
+    /// A new person in the cast department is a proposal for the character, in one step.
+    /// Refused: an empty name, an unknown character.
+    ProposeNew {
+        character: String,
+        name: String,
+    },
     /// The person plays the character; a person not yet proposed is proposed, the other
     /// proposals stay. `None` fixes nobody.
     FixCast {
@@ -58,7 +64,9 @@ pub enum TeamEdit {
 /// What the team edits do.
 pub(super) fn apply(project: &mut Project, edit: &TeamEdit) -> Result<(), ServiceError> {
     match edit {
-        TeamEdit::AddPerson { name, department } => add_person(project, name, *department),
+        TeamEdit::AddPerson { name, department } => {
+            add_person(project, name, *department).map(drop)
+        }
         TeamEdit::EditPerson {
             id,
             name,
@@ -74,6 +82,7 @@ pub(super) fn apply(project: &mut Project, edit: &TeamEdit) -> Result<(), Servic
         ),
         TeamEdit::RemovePerson { id } => remove_person(project, id),
         TeamEdit::ProposeCast { character, person } => propose(project, character, person),
+        TeamEdit::ProposeNew { character, name } => propose_new(project, character, name),
         TeamEdit::FixCast { character, person } => fix(project, character, person.as_deref()),
         TeamEdit::DropProposal { character, person } => drop_proposal(project, character, person),
         TeamEdit::SetCastNumber { character, number } => set_number(project, character, *number),
@@ -117,20 +126,20 @@ fn add_person(
     project: &mut Project,
     name: &str,
     department: Option<Department>,
-) -> Result<(), ServiceError> {
+) -> Result<String, ServiceError> {
     let name = name_of(name)?;
     let taken = project.team.persons.iter().map(|p| p.id.as_str());
 
     let id = free_random_id(taken, IdCase::Exact);
     project.team.persons.push(Person {
-        id,
+        id: id.clone(),
         name,
         department,
         function: String::new(),
         agency: String::new(),
     });
 
-    Ok(())
+    Ok(id)
 }
 
 fn edit_person(
@@ -231,6 +240,14 @@ fn propose(project: &mut Project, character: &str, person: &str) -> Result<(), S
     }
 
     Ok(())
+}
+
+fn propose_new(project: &mut Project, character: &str, name: &str) -> Result<(), ServiceError> {
+    check_character(project, character)?;
+
+    let person = add_person(project, name, Some(Department::Cast))?;
+
+    propose(project, character, &person)
 }
 
 fn fix(project: &mut Project, character: &str, person: Option<&str>) -> Result<(), ServiceError> {

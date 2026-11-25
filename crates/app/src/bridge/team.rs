@@ -108,6 +108,13 @@ impl qobject::Controller {
         })))
     }
 
+    pub(super) fn propose_new(self: Pin<&mut Self>, character: &QString, name: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::Team(TeamEdit::ProposeNew {
+            character: character.to_string(),
+            name: name.to_string(),
+        })))
+    }
+
     pub(super) fn fix_cast(self: Pin<&mut Self>, character: &QString, person: &QString) -> bool {
         self.commit_project(Ok(ProjectEdit::Team(TeamEdit::FixCast {
             character: character.to_string(),

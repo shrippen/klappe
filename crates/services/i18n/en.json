@@ -1338,6 +1338,7 @@
  "step.EditPerson": "Edit person",
  "step.RemovePerson": "Remove person",
  "step.ProposeCast": "Propose cast",
+ "step.ProposeNew": "Propose new person",
  "step.FixCast": "Fix cast",
  "step.DropProposal": "Remove proposal",
  "step.SetCastNumber": "Change cast number",

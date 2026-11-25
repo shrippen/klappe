@@ -53,7 +53,7 @@ TestCase {
         function proposeCast(c, p) { return call("proposeCast", [c, p]) }
         function fixCast(c, p) { return call("fixCast", [c, p]) }
         function dropProposal(c, p) { return call("dropProposal", [c, p]) }
-        function addPerson(n, d) { call("addPerson", [n, d]); return "p9" }
+        function proposeNew(c, n) { return call("proposeNew", [c, n]) }
     }
 
     TestTexts { id: de; language: "de" }
@@ -300,12 +300,12 @@ TestCase {
         compare(fake.calls, [["proposeCast", "clara", "p3"]])
     }
 
-    function test_a_new_name_makes_a_cast_person_and_proposes_it() {
+    function test_a_new_name_makes_a_cast_person_and_proposes_it_in_one_call() {
         const v = view()
         const form = pick(v, "clara")
 
         findChild(form, "personSearch").newEntered("Eva Grün")
 
-        compare(fake.calls, [["addPerson", "Eva Grün", "cast"], ["proposeCast", "clara", "p9"]])
+        compare(fake.calls, [["proposeNew", "clara", "Eva Grün"]])
     }
 }

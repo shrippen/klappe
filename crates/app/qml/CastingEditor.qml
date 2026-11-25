@@ -76,14 +76,6 @@ ColumnLayout {
         return texts.t(casting.stored ? "casting.numberSet" : "casting.numberAuto", { number: casting.number })
     }
 
-    // A person made here plays no other role yet: it is proposed for this one.
-    function addNew(name) {
-        const id = controller.addPerson(name, castDepartment)
-        if (id !== "") {
-            controller.proposeCast(role.id, id)
-        }
-    }
-
     KanteHeading {
         objectName: "roleTitle"
         Layout.fillWidth: true
@@ -196,7 +188,8 @@ ColumnLayout {
         placeholderText: form.texts.t("casting.search")
         newText: form.texts.t("casting.new")
         onActivated: index => form.controller.proposeCast(form.role.id, form.candidates[index].id)
-        onNewEntered: text => form.addNew(text)
+        // A person made here plays no other role yet: it is proposed for this one.
+        onNewEntered: text => form.controller.proposeNew(form.role.id, text)
     }
 
     QQC2.Label {

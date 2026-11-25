@@ -160,6 +160,19 @@ Item {
                 return root.fail("deleting twice must be refused")
             }
 
+            // A new name for a role makes a cast person and proposes it.
+            const before = project().persons.length
+            if (!ctl.proposeNew(bert, "Eva Grün") || project().persons.length !== before + 1) {
+                return root.fail("new proposal: " + ctl.status)
+            }
+            const eva = project().persons.find(p => p.name === "Eva Grün")
+            if (eva.department !== "cast" || castingOf(bert).proposed.join() !== eva.id) {
+                return root.fail("new proposal: " + JSON.stringify(castingOf(bert)))
+            }
+            if (ctl.proposeNew(bert, " ") || project().persons.length !== before + 1) {
+                return root.fail("a blank name must make no person")
+            }
+
             Qt.exit(0)
         }
     }

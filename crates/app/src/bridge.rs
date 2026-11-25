@@ -1347,6 +1347,11 @@ pub mod qobject {
         #[cxx_name = "proposeCast"]
         fn propose_cast(self: Pin<&mut Self>, character: &QString, person: &QString) -> bool;
 
+        /// A new person in the cast department is a proposal for the character, in one step.
+        #[qinvokable]
+        #[cxx_name = "proposeNew"]
+        fn propose_new(self: Pin<&mut Self>, character: &QString, name: &QString) -> bool;
+
         /// The person plays the character; empty fixes nobody.
         #[qinvokable]
         #[cxx_name = "fixCast"]

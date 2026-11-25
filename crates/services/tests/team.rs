@@ -2,105 +2,14 @@
 //! list; each edit is one undo step and the team survives a save.
 #![allow(clippy::unwrap_used)]
 
-use std::path::{Path, PathBuf};
+mod team_common;
 
-use klappe_model::{BookState, Character, Contact, FigureColor, Project, Scene};
+use klappe_model::{Contact, FigureColor};
 use klappe_services::{
-    BreakdownEdit, Department, ElementCategory, Language, OnOutside, ProjectEdit, Report,
-    ReportFormat, ServiceError, Session, TeamEdit,
+    BreakdownEdit, Department, ElementCategory, Language, OnOutside, ProjectEdit, ServiceError,
+    Session, TeamEdit,
 };
-
-/// ANNA is in all three scenes, WÄRTER in 1 and 2, BOB in 2 and 3; CHRIS is in none. CROWD is a
-/// group of extras the sheet of scene 3 names.
-const BOOK: &str = "INT. WACHRAUM – TAG #1#\n\nANNA\nHallo.\n\nWÄRTER\nHalt.\n\n\
-INT. HAFEN – NACHT #2#\n\nANNA\nHi.\n\nWÄRTER\nWer da?\n\nBOB\nIch.\n\n\
-EXT. DECK – TAG #3#\n\nANNA\nLos.\n\nBOB\nJa.\n\n";
-
-fn character(id: &str, name: &str, group: Option<u32>) -> Character {
-    Character {
-        id: id.into(),
-        name: name.into(),
-        short: name[..1].into(),
-        color: FigureColor::ALL[0],
-        group,
-        size_m: None,
-        aliases: Vec::new(),
-    }
-}
-
-fn scene(id: &str, number: &str, heading: &str) -> Scene {
-    Scene {
-        id: id.into(),
-        number: number.into(),
-        heading: heading.into(),
-        state: BookState::InBook,
-        ..Scene::default()
-    }
-}
-
-fn dir_of(name: &str) -> PathBuf {
-    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
-    let _ = std::fs::remove_dir_all(&dir);
-
-    dir
-}
-
-fn project() -> Project {
-    let mut project = Project::new("Test");
-    project.characters = vec![
-        character("anna", "ANNA", None),
-        character("waerter", "WÄRTER", None),
-        character("bob", "BOB", None),
-        character("crowd", "CROWD", Some(12)),
-        character("chris", "CHRIS", None),
-    ];
-    project.scenes = vec![
-        scene("aaaa", "1", "INT. WACHRAUM – TAG"),
-        scene("bbbb", "2", "INT. HAFEN – NACHT"),
-        scene("cccc", "3", "EXT. DECK – TAG"),
-    ];
-
-    project
-}
-
-fn open_with(name: &str, project: &Project, book: &str) -> Session {
-    let dir = dir_of(name);
-    klappe_store::save(&dir, project, Some(book)).unwrap();
-
-    Session::open(&dir).unwrap()
-}
-
-/// The sheet of scene 3 names the extras.
-fn open(name: &str) -> Session {
-    let mut s = open_with(name, &project(), BOOK);
-    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::AddSceneCharacter {
-        scene: "cccc".into(),
-        character: "crowd".into(),
-    }))
-    .unwrap();
-
-    s
-}
-
-fn team(s: &mut Session, edit: TeamEdit) {
-    s.edit_project(ProjectEdit::Team(edit)).unwrap();
-}
-
-/// Sets the contact of the person and leaves its other fields as they are.
-fn set_contact(s: &mut Session, id: &str, contact: Contact) {
-    let person = s.project().team.person(id).cloned().unwrap();
-    team(
-        s,
-        TeamEdit::EditPerson {
-            id: id.into(),
-            name: person.name,
-            department: person.department,
-            function: person.function,
-            agency: person.agency,
-            contact,
-        },
-    );
-}
+use team_common::{dir_of, open, open_with, project, set_contact, team, BOOK};
 
 /// Sets the responsible person of the element and leaves its other fields as they are.
 fn responsible(s: &mut Session, element: &str, person: Option<String>) -> Result<(), ServiceError> {
@@ -150,6 +59,50 @@ fn propose(s: &mut Session, character: &str, person: &str) {
 
 fn casting(s: &Session, character: &str) -> klappe_model::Casting {
     s.project().team.casting(character).cloned().unwrap()
+}
+
+/// A new name for a role makes a person in the cast department and proposes it, one step.
+#[test]
+fn a_new_person_is_proposed_in_one_step() {
+    let mut s = open("team-propose-new");
+
+    team(
+        &mut s,
+        TeamEdit::ProposeNew {
+            character: "anna".into(),
+            name: " Eva Grün ".into(),
+        },
+    );
+    assert_eq!(s.undo_step(), Some("ProposeNew"));
+    let row = s.overview().persons[0].clone();
+    assert_eq!(
+        (row.name.as_str(), row.department),
+        ("Eva Grün", Some("cast"))
+    );
+    assert_eq!(casting(&s, "anna").proposed, [row.id.as_str()]);
+
+    // A refusal makes no person.
+    let blank = TeamEdit::ProposeNew {
+        character: "anna".into(),
+        name: "  ".into(),
+    };
+    assert!(matches!(
+        refused(&mut s, blank),
+        ServiceError::BadValue { .. }
+    ));
+    let nobody = TeamEdit::ProposeNew {
+        character: "x".into(),
+        name: "Jo".into(),
+    };
+    assert!(matches!(
+        refused(&mut s, nobody),
+        ServiceError::NoCharacter(_)
+    ));
+    assert_eq!(s.overview().persons.len(), 1);
+
+    s.undo();
+    assert!(s.overview().persons.is_empty());
+    assert!(s.project().team.casting("anna").is_none());
 }
 
 #[test]
@@ -635,114 +588,6 @@ fn an_orphan_casting_is_kept() {
     let again = klappe_store::load(&dir).unwrap().project;
     assert_eq!(again.team.castings, orphaned.team.castings);
 }
-
-fn contact_rows(s: &mut Session, name: &str, language: Language) -> Vec<Vec<String>> {
-    let path = dir_of(name).with_extension("csv");
-    s.export_report(Report::Contacts, ReportFormat::Csv, &path, language)
-        .unwrap();
-    let text = std::fs::read_to_string(&path).unwrap();
-
-    text.trim_end()
-        .split("\r\n")
-        .map(|l| vec![l.to_owned()])
-        .collect()
-}
-
-/// Sorted by department (none last), then by name; the address, which runs over two lines,
-/// is quoted.
-#[test]
-fn the_contact_list_is_a_report() {
-    let mut s = open("team-contacts-report");
-    let a = s.add_person("Zora", Some(Department::Camera)).unwrap();
-    s.add_person("Ben", Some(Department::Camera)).unwrap();
-    s.add_person("Yves", Some(Department::Direction)).unwrap();
-    s.add_person("Nobody", None).unwrap();
-    set_contact(
-        &mut s,
-        &a,
-        Contact {
-            phone: "0151".into(),
-            mail: "z@example.org".into(),
-            address: "Weg 1\n10115 Berlin".into(),
-        },
-    );
-
-    let lines = contact_rows(&mut s, "team-contacts-de", Language::German);
-
-    assert_eq!(lines[0], ["Name,Department,Funktion,Telefon,Mail,Adresse"]);
-    assert_eq!(lines[1], ["Yves,Regie,,,,"]);
-    assert_eq!(lines[2], ["Ben,Kamera,,,,"]);
-    assert_eq!(
-        lines[3],
-        ["Zora,Kamera,,0151,z@example.org,\"Weg 1\n10115 Berlin\""]
-    );
-    assert_eq!(lines[4], ["Nobody,,,,,"]);
-
-    let lines = contact_rows(&mut s, "team-contacts-en", Language::English);
-    assert_eq!(lines[0], ["Name,Department,Function,Phone,Mail,Address"]);
-    assert_eq!(lines[1], ["Yves,Direction,,,,"]);
-
-    for format in [ReportFormat::Pdf, ReportFormat::Ods, ReportFormat::Xlsx] {
-        let path = dir_of("team-contacts-file").with_extension(format.name());
-        s.export_report(Report::Contacts, format, &path, Language::German)
-            .unwrap();
-        assert!(std::fs::metadata(&path).unwrap().len() > 0);
-    }
-}
-
-/// The contact list does not depend on the book; the scene reports still do.
-#[test]
-fn the_contact_list_needs_no_scenes() {
-    let mut s = open_with("team-contacts-no-scenes", &Project::new("Leer"), "");
-    s.add_person("Ines", Some(Department::Sound)).unwrap();
-
-    let lines = contact_rows(&mut s, "team-contacts-empty-book", Language::German);
-    assert_eq!(lines[1], ["Ines,Ton,,,,"]);
-
-    let path = dir_of("team-scenes-empty-book").with_extension("csv");
-    for report in [
-        Report::Scenes,
-        Report::Places,
-        Report::Cast,
-        Report::Extract,
-    ] {
-        let result = s.export_report(report, ReportFormat::Csv, &path, Language::German);
-
-        assert!(
-            matches!(result, Err(ServiceError::NoBookScenes)),
-            "{report:?}"
-        );
-    }
-}
-
-/// The head of the cast report shows the number before the name; the scenes report does not.
-#[test]
-fn the_cast_report_shows_the_number() {
-    let mut s = open("team-cast-head");
-    team(
-        &mut s,
-        TeamEdit::SetCastNumber {
-            character: "bob".into(),
-            number: Some(7),
-        },
-    );
-    let path = dir_of("team-cast-report").with_extension("csv");
-    s.export_report(Report::Cast, ReportFormat::Csv, &path, Language::German)
-        .unwrap();
-    let text = std::fs::read_to_string(&path).unwrap();
-    let head = text.lines().next().unwrap();
-
-    // The group has no number; the others are in the order of the project.
-    assert_eq!(head, "Szene,1  ANNA,2  WÄRTER,7  BOB,CROWD");
-
-    let path = dir_of("team-scenes-report").with_extension("csv");
-    s.export_report(Report::Scenes, ReportFormat::Csv, &path, Language::German)
-        .unwrap();
-    let text = std::fs::read_to_string(&path).unwrap();
-    assert!(text.contains("ANNA, WÄRTER"));
-    assert!(!text.contains("1  ANNA"));
-}
-
 #[test]
 fn every_department_has_its_text() {
     for department in Department::ALL {
