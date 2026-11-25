@@ -5,8 +5,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    HeaderLine, Language, SceneNumbers, ScriptLanguage, ScriptPaper, ScriptPrint, ScriptSetup,
-    ScriptWords, ServiceError, Session,
+    HeaderLine, Language, SceneNumbering, SceneNumbers, ScriptLanguage, ScriptPaper, ScriptPrint,
+    ScriptSetup, ScriptWords, ServiceError, Session,
 };
 
 const PRINT: ScriptPrint = ScriptPrint {
@@ -249,4 +249,54 @@ fn the_print_pages_follow_the_text() {
     assert_eq!(pages.len(), 1);
     assert_eq!(numbers, 2);
     assert!(pages[0].texts.iter().any(|t| t.text == "Nachtwache"));
+}
+
+/// The project form: the numbering reaches `projekt.toml` at once, the paper and the rest wait
+/// for the next save, and English words are never international.
+#[test]
+fn the_form_chooses_the_whole_setup() {
+    let mut s = session("pages-form", &scene(1, 3));
+    let dir = s.dir().to_path_buf();
+
+    s.choose_script_setup(ScriptSetup {
+        language: Some(ScriptLanguage::En),
+        words: ScriptWords::International,
+        paper: ScriptPaper::Letter,
+        contd_after_action: true,
+        scene_numbering: SceneNumbering::Locked,
+        first_scene: 7,
+    })
+    .unwrap();
+
+    let chosen = s.project().script;
+    assert_eq!(chosen.words, ScriptWords::Local);
+    assert_eq!(chosen.paper, ScriptPaper::Letter);
+    assert_eq!(chosen.first_scene, 7);
+
+    // Only the numbering is on disk yet; the paper is written with the save.
+    let on_disk = Session::open(&dir).unwrap().project().script;
+    assert_eq!(on_disk.scene_numbering, SceneNumbering::Locked);
+    assert_eq!(on_disk.first_scene, 7);
+    assert_eq!(on_disk.paper, ScriptPaper::A4);
+
+    // The project view shows the setup by names.
+    let row = s.overview().script;
+    assert_eq!(row.language, "en");
+    assert_eq!(row.paper, "letter");
+    assert_eq!(row.scene_numbering, "locked");
+    assert_eq!(s.overview().script_papers, ["a4", "letter"]);
+}
+
+#[test]
+fn german_words_may_be_international() {
+    let mut s = session("pages-form-de", &scene(1, 3));
+
+    s.choose_script_setup(ScriptSetup {
+        language: Some(ScriptLanguage::De),
+        words: ScriptWords::International,
+        ..ScriptSetup::default()
+    })
+    .unwrap();
+
+    assert_eq!(s.project().script.words, ScriptWords::International);
 }

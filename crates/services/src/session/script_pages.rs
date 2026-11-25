@@ -8,7 +8,7 @@ use crate::catalog::Language;
 use crate::error::ServiceError;
 use crate::script_pages::{lay_out, ScriptPages, ScriptPrint, Source};
 use klappe_export::SheetPage;
-use klappe_model::ScriptSetup;
+use klappe_model::{ScriptLanguage, ScriptSetup, ScriptWords};
 
 /// Whether `paginate_if_changed` laid the screenplay out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,6 +90,21 @@ impl Session {
         self.project.script = setup;
         self.project_changed = true;
         self.touch();
+    }
+
+    /// Takes the setup the project form chose (DN-05, DB-31, DB-33): the words at a page
+    /// break only stay international for a German project, the numbering is written to
+    /// `projekt.toml` at once (`set_scene_numbering`), the rest goes the way of
+    /// `set_script_setup`.
+    pub fn choose_script_setup(&mut self, mut setup: ScriptSetup) -> Result<(), ServiceError> {
+        if setup.language == Some(ScriptLanguage::En) {
+            setup.words = ScriptWords::Local;
+        }
+
+        self.set_scene_numbering(setup.scene_numbering, setup.first_scene)?;
+        self.set_script_setup(setup);
+
+        Ok(())
     }
 
     /// Sets "(CONT'D) after action" (DB-31) and writes only that into `projekt.toml` at once,

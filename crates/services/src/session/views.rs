@@ -5,7 +5,7 @@ use std::borrow::Cow;
 
 use klappe_model::{
     BookState, CameraPresets, Character, Department, DrawingShape, ElementCategory, ElementStatus,
-    Location, Numbering, Orientation, Paper, Place, Scene, SetPlan,
+    Location, Numbering, Orientation, Paper, Place, Scene, ScriptPaper, SetPlan,
 };
 use klappe_stellprobe::{
     aim_at, axis_pair, camera_at, horizontal_fov_deg, object_extent, opening_span, picture, set_at,
@@ -17,7 +17,7 @@ use crate::library;
 use crate::scene_location;
 use crate::views::{
     AxisChoice, CameraSpot, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow,
-    PlanRow, SceneRow, SunTexts, ViewRow,
+    PlanRow, SceneRow, ScriptRow, SunTexts, ViewRow,
 };
 use crate::{ExportFormat, Report, ReportFormat};
 
@@ -177,6 +177,8 @@ impl Session {
             departments: Department::ALL.map(Department::name).into(),
             castings: self.casting_rows(),
             numbers_locked: project.team.numbers_locked,
+            script: ScriptRow::from(&project.script),
+            script_papers: ScriptPaper::ALL.map(ScriptPaper::name).into(),
         }
     }
 
