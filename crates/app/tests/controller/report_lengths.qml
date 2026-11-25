@@ -23,7 +23,7 @@ Item {
         interval: 0
         running: true
         onTriggered: {
-            const base = StandardPaths.writableLocation(StandardPaths.TempLocation) + "/klappe-report-lengths"
+            const base = StandardPaths.writableLocation(StandardPaths.TempLocation) + "/klappe-export-test/report-lengths"
             const example = Qt.resolvedUrl("../../../../testdata/beispiel.klappe")
             if (!ctl.openProject(example)) {
                 return fail("project did not open")
