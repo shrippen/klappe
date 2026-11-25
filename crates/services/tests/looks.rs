@@ -323,7 +323,7 @@ fn removing_things_cleans_up_the_looks() {
     s.undo();
     assert_eq!(worn(&s, "aaaa", "anna"), Some(wet));
 
-    // A deleted character leaves no look in a sheet; its looks stay as orphans.
+    // A deleted character leaves no look in a sheet.
     edit(
         &mut s,
         BreakdownEdit::AddSceneCharacter {
@@ -335,7 +335,39 @@ fn removing_things_cleans_up_the_looks() {
     s.edit_project(ProjectEdit::RemoveCharacter { id: "bob".into() })
         .unwrap();
     assert_eq!(worn(&s, "aaaa", "bob"), None);
+}
+
+#[test]
+fn a_removed_character_takes_its_looks_along() {
+    let mut s = open("looks-removed");
+    let suit = s.add_look("bob", "Anzug").unwrap();
+    let wet = s.add_look("anna", "Ölzeug, nass").unwrap();
+    put_on(&mut s, "aaaa", "bob", Some(&suit)).unwrap();
+
+    s.edit_project(ProjectEdit::RemoveCharacter { id: "bob".into() })
+        .unwrap();
+    assert_eq!(s.undo_step(), Some("RemoveCharacter"));
+    assert_eq!(s.project().looks.len(), 1);
+    assert_eq!(s.project().looks[0].id, wet);
+
+    // Ids come from the name: the next BOB starts without the old looks.
+    s.edit_project(ProjectEdit::AddCharacter {
+        name: "BOB".into(),
+        short: "B".into(),
+        color: FigureColor::ALL[0],
+        group: None,
+        size_m: None,
+    })
+    .unwrap();
+    assert!(s.overview().looks.iter().all(|l| l.id != suit));
+    s.add_look("bob", "Anzug").unwrap();
+    s.undo();
+    s.undo();
+
+    // One undo step brings the look and its place in the sheet back.
+    s.undo();
     assert_eq!(s.project().looks.len(), 2);
+    assert_eq!(worn(&s, "aaaa", "bob"), Some(suit));
 }
 
 #[test]
@@ -351,15 +383,15 @@ fn the_looks_survive_a_save_and_an_orphan_is_kept_but_not_offered() {
     s.save(OnOutside::Ask).unwrap();
 
     assert!(dir.join("breakdown/looks.toml").is_file());
-    let mut again = Session::open(&dir).unwrap();
+    let again = Session::open(&dir).unwrap();
     assert_eq!(again.project().looks, s.project().looks);
     assert_eq!(worn(&again, "aaaa", "anna"), Some(wet.clone()));
 
-    // BOB is gone from the project file; his look loads, is saved again, and is not offered.
-    again
-        .edit_project(ProjectEdit::RemoveCharacter { id: "bob".into() })
-        .unwrap();
-    again.save(OnOutside::Ask).unwrap();
+    // BOB is gone from the project file (not removed in Klappe); his look loads, is saved
+    // again, and is not offered.
+    let mut project = again.project().clone();
+    project.characters.retain(|c| c.id != "bob");
+    klappe_store::save(&dir, &project, Some(BOOK)).unwrap();
     let orphaned = Session::open(&dir).unwrap();
     assert!(orphaned.project().looks.iter().any(|l| l.id == suit));
     let offered: Vec<String> = orphaned

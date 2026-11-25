@@ -74,9 +74,9 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   stabil), `character` (Figuren-Id), `name` und `elements` (Element-Ids, nur Kostüm und
   Maskenbild; nur geschrieben, wenn nicht leer). Jede `id` kommt einmal vor und ist nicht leer,
   sonst lädt die Datei nicht; der Name ist je Figur einmalig (Groß- und Kleinschreibung zählt
-  nicht), das prüft das Programm beim Ändern, nicht Laden. Ein Look einer Figur, die es nicht
-  mehr gibt, oder mit Element-Ids ohne Element lädt und bleibt, das Programm bietet ihn nicht
-  an. Ein Objekt eines Sets (`drehorte/<id>.toml`) hat optional `element`,
+  nicht), das prüft das Programm beim Ändern, nicht Laden. Entfernt Klappe eine Figur, entfernt es
+  ihre Looks mit; ein Look einer Figur, die es nicht gibt (von außen bearbeitet), oder mit
+  Element-Ids ohne Element lädt und bleibt, das Programm bietet ihn nicht an. Ein Objekt eines Sets (`drehorte/<id>.toml`) hat optional `element`,
   die Id des Elements, für das es steht; es erscheint dann im Szenenblatt jeder Szene, die an
   diesem Drehort gedreht wird, als Vorschlag. Beide Dateien und der Ordner sind optional und
   fehlen, solange es nichts gibt: `save` schreibt kein Blatt, das leer ist, und löscht Blätter
