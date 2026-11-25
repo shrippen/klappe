@@ -1217,6 +1217,38 @@ pub mod qobject {
         #[cxx_name = "removeElement"]
         fn remove_element(self: Pin<&mut Self>, id: &QString) -> bool;
 
+        /// A new look of `character` (breakdown); returns its id, empty when refused.
+        #[qinvokable]
+        #[cxx_name = "addLook"]
+        fn add_look(self: Pin<&mut Self>, character: &QString, name: &QString) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "editLook"]
+        fn edit_look(self: Pin<&mut Self>, id: &QString, name: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removeLook"]
+        fn remove_look(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// A costume or make-up element goes into the look, or leaves it.
+        #[qinvokable]
+        #[cxx_name = "addLookElement"]
+        fn add_look_element(self: Pin<&mut Self>, look: &QString, element: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "removeLookElement"]
+        fn remove_look_element(self: Pin<&mut Self>, look: &QString, element: &QString) -> bool;
+
+        /// `character` wears `look` in `scene`; empty: no look.
+        #[qinvokable]
+        #[cxx_name = "setSceneLook"]
+        fn set_scene_look(
+            self: Pin<&mut Self>,
+            scene: &QString,
+            character: &QString,
+            look: &QString,
+        ) -> bool;
+
         /// What the sheet of scene `scene` says besides its lists. `prestop` is `m:ss` or
         /// seconds and `planned` `h:mm` or minutes, as typed; empty is none. Returns the name of
         /// the field the session refused, empty when it took the sheet.

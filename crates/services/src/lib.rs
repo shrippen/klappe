@@ -79,8 +79,8 @@ pub use views::{
     AxisChoice, CameraSpot, CastUse, CharacterRow, Chip, ElementRow, Elsewhere, Hint, LibraryEntry,
     LinkKind, LocationRow, LookElement, LookRow, Marker, NotShot, Overview, PlaceRow, PlanRow,
     SceneCard, SceneRef, SceneRow, SceneUse, ScriptLine, Segment, SetupOption, SheetCategory,
-    SheetElement, SheetFigure, SheetView, ShotRow, Suggestion, SunTexts, TemplateEntry, Track,
-    TrackKind, ViewRow,
+    SheetElement, SheetFigure, SheetLookElement, SheetView, ShotRow, Suggestion, SunTexts,
+    TemplateEntry, Track, TrackKind, ViewRow,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.

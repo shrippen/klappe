@@ -108,7 +108,7 @@ impl Session {
 
     /// The characters of the scene at `entry`: those with a cue in the book, then those the
     /// sheet names that have none.
-    fn scene_figures(&self, entry: usize, scene: &Scene) -> Vec<&Character> {
+    pub(super) fn scene_figures(&self, entry: usize, scene: &Scene) -> Vec<&Character> {
         let speaking = self.speaking(entry);
         let silent = scene
             .sheet

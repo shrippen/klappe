@@ -7,11 +7,14 @@ import Kante
 // D-22: the sheet of the scene on view. Story day, pre-stop, planned shooting time, continuity and
 // the note for the production; the figures (those with a cue are fixed, silent ones and extras
 // come and go); the elements per category, only the categories that have some; and what the set
-// suggests. A field is taken when its editing ends: one undo step per change.
+// suggests. A field is taken when its editing ends: one undo step per change. A figure's chip
+// shows its look and opens the menu of its looks (D-25); costume and make-up also list the
+// elements of the looks worn, without a cross: they leave with the look.
 //
 //  ┌ 12  INT. SAAL – TAG ────────────────────────┐
 //  │ Spieltag [3]  Vorstopp [1:30]  Drehdauer [2:00]│
-//  │ FIGUREN   ANNA  BERT  [Fischer ×3 ×]  [Figur hinzufügen ▾]│
+//  │ FIGUREN   ANNA · Ölzeug, nass  BERT  [Fischer ×3 ×]  [Figur hinzufügen ▾]│
+//  │ KOSTÜM    [Ölzeug (nass) · Look Anna]  [ ____ ]│
 //  │ REQUISITE [Brief ×] [Kerze ×]  [ ____ ]        │
 //  │ [Kategorie hinzufügen ▾]                       │
 //  │ VORSCHLÄGE AUS DEM SET  ┆Vase┆ ✓ ×              │
@@ -27,6 +30,9 @@ Flickable {
     readonly property var scene: (project.scenes || []).find(s => s.id === controller.sceneId) || null
     readonly property var categories: project.element_categories || []
     readonly property var elements: project.elements || []
+    /// The look "Edit looks …" asks for: its id (empty for none) and its character's.
+    signal looksRequested(string look, string character)
+
     /// Categories opened by "Add category" that have no element yet.
     property var extraCategories: []
     /// The categories a row is shown for, in the catalogue's order.
@@ -106,6 +112,12 @@ Flickable {
 
     function nameOfFigure(f) {
         return f.group > 0 ? f.name + " ×" + f.group : f.name
+    }
+
+    // The figure's chip: its name, and the look it wears in this scene.
+    function figureText(f) {
+        const look = f.look ? (project.looks || []).find(l => l.id === f.look) : null
+        return look ? nameOfFigure(f) + " · " + look.name : nameOfFigure(f)
     }
 
     ColumnLayout {
@@ -216,23 +228,27 @@ Flickable {
                 Repeater {
                     model: sheetView.sheet ? sheetView.sheet.speaking : []
                     delegate: KanteChip {
+                        id: speakingChip
                         required property var modelData
                         objectName: "speaking." + modelData.id
-                        text: sheetView.nameOfFigure(modelData)
+                        text: sheetView.figureText(modelData)
                         chipColor: KanteStyle.labelColor(modelData.color)
-                        interactive: false
-                        toolTip: sheetView.texts.t("sheet.speaks")
+                        toolTip: sheetView.texts.t("sheet.speaks") + " · "
+                            + sheetView.texts.t("sheet.lookChoose", { name: modelData.name })
+                        onClicked: lookMenu.openFor(modelData, speakingChip)
                     }
                 }
                 Repeater {
                     model: sheetView.sheet ? sheetView.sheet.present : []
                     delegate: KanteChip {
+                        id: presentChip
                         required property var modelData
                         objectName: "present." + modelData.id
-                        text: sheetView.nameOfFigure(modelData)
+                        text: sheetView.figureText(modelData)
                         chipColor: KanteStyle.labelColor(modelData.color)
                         removable: true
-                        interactive: false
+                        toolTip: sheetView.texts.t("sheet.lookChoose", { name: modelData.name })
+                        onClicked: lookMenu.openFor(modelData, presentChip)
                         removeText: sheetView.texts.t("sheet.characterRemove", { name: "%1" })
                         onRemoveRequested: sheetView.controller.removeSceneCharacter(sheetView.scene.id, modelData.id)
                     }
@@ -322,6 +338,21 @@ Flickable {
                                 }
                             }
                         }
+                        // Worn through a look: no cross, they leave with the look.
+                        Repeater {
+                            model: categoryRow.own ? categoryRow.own.from_looks : []
+                            delegate: ElementChip {
+                                required property var modelData
+                                objectName: "lookElement." + modelData.id
+                                text: sheetView.texts.t("sheet.lookElement", {
+                                    name: modelData.name, figure: modelData.figure })
+                                status: modelData.status
+                                interactive: false
+                                toolTip: sheetView.texts.t("sheet.elementTip", {
+                                    category: sheetView.texts.t("elementCategory." + categoryRow.modelData),
+                                    status: sheetView.statusText(modelData.status) })
+                            }
+                        }
                     }
                     // Typing narrows the elements of this category the scene lacks; Enter takes the
                     // one under the cursor, or makes the typed one.
@@ -398,5 +429,24 @@ Flickable {
                 }
             }
         }
+    }
+
+    LookMenu {
+        id: lookMenu
+        objectName: "lookMenu"
+        texts: sheetView.texts
+        controller: sheetView.controller
+        scene: sheetView.scene ? sheetView.scene.id : ""
+        looks: sheetView.project.looks || []
+        onNewRequested: figure => lookForm.show(lookMenu.scene, figure.id)
+        onEditRequested: figure => sheetView.looksRequested(figure.look || "", figure.id)
+    }
+
+    LookForm {
+        id: lookForm
+        objectName: "sheetLookForm"
+        texts: sheetView.texts
+        controller: sheetView.controller
+        characters: sheetView.project.characters || []
     }
 }

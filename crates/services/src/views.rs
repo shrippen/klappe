@@ -480,6 +480,8 @@ pub struct LookRow {
     pub character: String,
     pub name: String,
     pub elements: Vec<LookElement>,
+    /// The scenes whose sheet gives it to its character, in scene order.
+    pub scenes: Vec<SceneRef>,
 }
 
 /// An element of a look.
@@ -559,6 +561,18 @@ pub struct SheetFigure {
 pub struct SheetCategory {
     pub category: &'static str,
     pub elements: Vec<SheetElement>,
+    /// The elements of the looks worn in the scene, not part of its sheet.
+    pub from_looks: Vec<SheetLookElement>,
+}
+
+/// An element a character brings into a scene through its look.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SheetLookElement {
+    pub id: String,
+    pub name: String,
+    pub status: &'static str,
+    /// The name of the character that wears the look.
+    pub figure: String,
 }
 
 /// An element in a scene.
