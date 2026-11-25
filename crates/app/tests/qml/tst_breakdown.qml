@@ -32,9 +32,14 @@ TestCase {
             ],
             element_categories: categories,
             element_statuses: ["open", "working", "ready"],
+            persons: [
+                { id: "p1", name: "Jo Berg", department: "camera" },
+                { id: "p2", name: "Mia Rot", department: "props" },
+                { id: "p3", name: "Ole Blau", department: null }
+            ],
             elements: [
-                { id: "e1", category: "prop", name: "Brief", description: "", status: "open", scenes: [{ id: "s1", number: "1" }] },
-                { id: "e2", category: "prop", name: "Kerze", description: "Wachs", status: "working", scenes: [] },
+                { id: "e1", category: "prop", name: "Brief", description: "", status: "open", scenes: [{ id: "s1", number: "1" }], responsible: null },
+                { id: "e2", category: "prop", name: "Kerze", description: "Wachs", status: "working", scenes: [], responsible: "p3" },
                 { id: "e3", category: "costume", name: "Ballkleid", description: "", status: "ready", scenes: [{ id: "s1", number: "1" }, { id: "s2", number: "2" }] }
             ],
             sheet: {
@@ -80,6 +85,14 @@ TestCase {
                 letters: { action: "a", dialogue: "d", transition: "r" } })
         }
         function forgetLost(s, e) { return call("forgetLost", [s, e]) }
+        function setResponsible(e, p) { return call("setResponsible", [e, p]) }
+        // Like the bridge: the persons, those of the department of the category first (only
+        // the props department is known here).
+        function personsFor(category) {
+            const all = JSON.parse(projectJson).persons
+            const own = all.filter(p => category === "prop" && p.department === "props")
+            return JSON.stringify(own.concat(all.filter(p => !own.includes(p))))
+        }
         // Makes the element as the project then lists it, under an id the form cannot guess
         // from the name; answers the id.
         function addElement(c, n) {
@@ -443,5 +456,76 @@ TestCase {
         compare(fake.calls, [["addElement", "prop", "Zeitung"]])
         compare(v.elementId, "e9")
         verify(!v.creating)
+    }
+
+    // D-26: the responsible person. The persons of the department of the category come first.
+    function test_the_responsible_box_lists_the_matching_department_first() {
+        const v = view()
+        showElements(v)
+
+        row(v, "e2").clicked()
+        const box = findChild(findChild(v, "elementForm"), "responsibleBox")
+
+        compare(box.model, ["keine", "Mia Rot", "Jo Berg", "Ole Blau"])
+        compare(box.currentIndex, 3)
+    }
+
+    function test_an_element_without_a_responsible_person_shows_none() {
+        const v = view()
+        showElements(v)
+
+        row(v, "e1").clicked()
+
+        compare(findChild(findChild(v, "elementForm"), "responsibleBox").currentIndex, 0)
+    }
+
+    function test_choosing_a_person_sets_the_responsible_with_apply() {
+        const v = view()
+        showElements(v)
+
+        row(v, "e1").clicked()
+        const form = findChild(v, "elementForm")
+        findChild(form, "responsibleBox").currentIndex = 1
+        compare(fake.calls.length, 0)
+        findChild(form, "apply").clicked()
+
+        compare(fake.calls, [["editElement", "e1", "prop", "Brief", "", "open"], ["setResponsible", "e1", "p2"]])
+    }
+
+    function test_none_takes_the_responsible_person_away() {
+        const v = view()
+        showElements(v)
+
+        row(v, "e2").clicked()
+        const form = findChild(v, "elementForm")
+        findChild(form, "responsibleBox").currentIndex = 0
+        findChild(form, "apply").clicked()
+
+        compare(fake.calls[1], ["setResponsible", "e2", ""])
+    }
+
+    function test_an_unchanged_responsible_person_is_not_sent() {
+        const v = view()
+        showElements(v)
+
+        row(v, "e2").clicked()
+        findChild(findChild(v, "elementForm"), "apply").clicked()
+
+        compare(fake.calls.map(c => c[0]), ["editElement"])
+    }
+
+    function test_without_persons_the_form_says_where_they_are_made() {
+        const project = JSON.parse(fake.fixture)
+        project.persons = []
+        project.elements[1].responsible = null
+        fake.projectJson = JSON.stringify(project)
+        const v = view()
+        showElements(v)
+
+        row(v, "e2").clicked()
+        const form = findChild(v, "elementForm")
+
+        verify(findChild(form, "noPersons").visible)
+        compare(findChild(form, "noPersons").text, "Noch keine Personen; sie entstehen im Modul Team.")
     }
 }

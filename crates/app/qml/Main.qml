@@ -36,7 +36,9 @@ Kirigami.ApplicationWindow {
     readonly property var modules: [
         { id: "screenplay", name: "module.screenplay", icon: "document-edit" },
         { id: "stellprobe", name: "module.stellprobe", icon: "view-split-left-right" },
-        { id: "breakdown", name: "module.breakdown", icon: "view-list-details" }
+        { id: "breakdown", name: "module.breakdown", icon: "view-list-details" },
+        { id: "casting", name: "module.casting", icon: "view-media-artist" },
+        { id: "team", name: "module.team", icon: "system-users" }
     ]
     // The open module; the settings keep it over a restart (an unknown stored id gives Stellprobe).
     readonly property string module: modules.some(m => m.id === windowStore.module) ? windowStore.module : "stellprobe"
@@ -257,6 +259,26 @@ Kirigami.ApplicationWindow {
                     BreakdownView {
                         objectName: "breakdown"
                         visible: ctl.loaded && root.module === "breakdown"
+                        enabled: !backupNotice.blocking
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        texts: texts
+                        controller: ctl
+                    }
+
+                    CastingView {
+                        objectName: "casting"
+                        visible: ctl.loaded && root.module === "casting"
+                        enabled: !backupNotice.blocking
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        texts: texts
+                        controller: ctl
+                    }
+
+                    TeamView {
+                        objectName: "team"
+                        visible: ctl.loaded && root.module === "team"
                         enabled: !backupNotice.blocking
                         Layout.fillWidth: true
                         Layout.fillHeight: true

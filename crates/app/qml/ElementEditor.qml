@@ -6,8 +6,9 @@ import Kante
 
 // D-22: one element of the breakdown. Name, category, description and status; the scenes that
 // need it as chips that show the scene. Without an `item` the form makes a new element: name and
-// category only, the rest is changed afterwards. Deleting takes the element out of every scene
-// and every set object.
+// category only, the rest is changed afterwards. The responsible person (D-26) is chosen from the
+// team, the persons of the department that usually answers for the category first. Deleting takes
+// the element out of every scene and every set object.
 EditorPane {
     id: form
 
@@ -16,6 +17,12 @@ EditorPane {
     property var statuses: []
     /// The project's scenes, `{ id, number }`: a chip of the element's scenes shows its scene.
     property var scenes: []
+    /// The persons for the element's category, the matching department first (`personsFor`);
+    /// follows the project, so a person made or deleted shows at once.
+    readonly property var people: {
+        void controller.projectJson
+        return item ? JSON.parse(controller.personsFor(item.category)) : []
+    }
 
     /// The scene `id` is asked for.
     signal sceneRequested(string id)
@@ -35,6 +42,19 @@ EditorPane {
         descriptionField.text = item ? item.description : ""
         categoryBox.currentIndex = item ? categories.indexOf(item.category) : 0
         statusBox.currentIndex = item ? statuses.indexOf(item.status) : 0
+        loadResponsible()
+    }
+
+    // The box shows "none" first, then the persons.
+    function loadResponsible() {
+        const at = item && item.responsible ? people.findIndex(p => p.id === item.responsible) : -1
+        responsibleBox.currentIndex = at + 1
+    }
+
+    // The id of the person the box shows; "" for none.
+    function chosenResponsible() {
+        const person = people[responsibleBox.currentIndex - 1]
+        return person ? person.id : ""
     }
 
     onItemChanged: load()
@@ -44,8 +64,10 @@ EditorPane {
         if (!item) {
             return controller.addElement(chosenCategory(), nameField.text)
         }
-        return controller.editElement(item.id, chosenCategory(), nameField.text,
-                                      descriptionField.text, statuses[statusBox.currentIndex])
+        const edited = controller.editElement(item.id, chosenCategory(), nameField.text,
+                                              descriptionField.text, statuses[statusBox.currentIndex])
+        const same = chosenResponsible() === (item.responsible || "")
+        return edited && (same || controller.setResponsible(item.id, chosenResponsible()))
     }
     remove: function () { return controller.removeElement(item.id) }
 
@@ -87,6 +109,29 @@ EditorPane {
         objectName: "statusBox"
         visible: form.item !== null
         model: form.statuses.map(s => form.texts.t("elementStatus." + s))
+    }
+
+    KanteSectionLabel {
+        visible: form.item !== null
+        text: form.texts.t("elements.responsible")
+    }
+    KanteComboBox {
+        id: responsibleBox
+        objectName: "responsibleBox"
+        visible: form.item !== null
+        Layout.fillWidth: true
+        Accessible.name: form.texts.t("elements.responsible")
+        model: [form.texts.t("elements.noResponsible")].concat(form.people.map(p => p.name))
+        // A new model resets the box: it shows the element's person again.
+        onModelChanged: form.loadResponsible()
+    }
+    QQC2.Label {
+        objectName: "noPersons"
+        visible: form.item !== null && form.people.length === 0
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        color: KanteStyle.mutedTextColor
+        text: form.texts.t("elements.noPersons")
     }
 
     KanteSectionLabel {
