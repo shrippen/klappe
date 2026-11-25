@@ -108,6 +108,13 @@ pub enum BreakdownEdit {
         look: String,
         element: String,
     },
+    /// The field with suggestions in a look: the element of that name and category, made if
+    /// there is none, goes into the look. Refused unless it is a costume or make-up.
+    AddElementToLook {
+        look: String,
+        category: ElementCategory,
+        name: String,
+    },
     RemoveLookElement {
         look: String,
         element: String,
@@ -207,6 +214,7 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
         | BreakdownEdit::EditLook { .. }
         | BreakdownEdit::RemoveLook { .. }
         | BreakdownEdit::AddLookElement { .. }
+        | BreakdownEdit::AddElementToLook { .. }
         | BreakdownEdit::RemoveLookElement { .. }
         | BreakdownEdit::SetSceneLook { .. } => looks::apply(project, edit),
     }

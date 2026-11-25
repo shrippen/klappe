@@ -121,7 +121,7 @@ impl Session {
 
     /// The characters of the scene at `entry`: those with a cue in the book, then those the
     /// sheet names that have none.
-    fn scene_figures(&self, entry: usize, scene: &Scene) -> Vec<&Character> {
+    pub(super) fn scene_figures(&self, entry: usize, scene: &Scene) -> Vec<&Character> {
         let speaking = self.speaking(entry);
         let silent = scene
             .sheet
@@ -284,10 +284,7 @@ impl Session {
     ) -> Vec<(ElementCategory, Vec<&Element>)> {
         let mut ids = scene.sheet.elements.clone();
 
-        for character in self.scene_figures(entry, scene) {
-            let Some(look) = self.scene_look(scene, &character.id) else {
-                continue;
-            };
+        for (_, look) in self.worn_looks(entry, scene) {
             for id in &look.elements {
                 if !ids.contains(id) {
                     ids.push(id.clone());

@@ -5,16 +5,16 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // D-22 (planung/DESIGN.md): the breakdown module (the module bar, Ctrl+3). On the left the
-// scene list or, switched by "Szenen | Elemente", the list of all elements; on the right the
-// sheet of the scene on view and its text to mark elements in (D-23), or the form of the
-// element. A scene of an element's chips is shown
-// and the view goes back to the scenes.
+// scene list or, switched by "Szenen | Elemente | Looks", the list of all elements or of all
+// looks (D-25); on the right the sheet of the scene on view and its text to mark elements in
+// (D-23), or the form of the element or of the look. A scene of an element's or look's chips is
+// shown and the view goes back to the scenes.
 //
-//  ┌ [Szenen|Elemente] ┬──────────────────────────┬──────────────────┐
-//  │ 1 INT. SAAL       │ 1  INT. SAAL – TAG       │ TEXT DER SZENE   │
-//  │ 2 EXT. HOF        │ Spieltag, Vorstopp …     │ Anna öffnet den  │
-//  │                   │ Figuren, Elemente …      │ Brief REQ …      │
-//  └───────────────────┴──────────────────────────┴──────────────────┘
+//  ┌ [Szenen|Elemente|Looks] ┬──────────────────────┬──────────────────┐
+//  │ 1 INT. SAAL             │ 1  INT. SAAL – TAG   │ TEXT DER SZENE   │
+//  │ 2 EXT. HOF              │ Spieltag, Vorstopp … │ Anna öffnet den  │
+//  │                         │ Figuren, Elemente …  │ Brief REQ …      │
+//  └─────────────────────────┴──────────────────────┴──────────────────┘
 RowLayout {
     id: view
 
@@ -25,16 +25,19 @@ RowLayout {
     readonly property real listWidth: Kirigami.Units.gridUnit * 16
     /// The width of the scene's text beside the sheet (D-23).
     readonly property real textWidth: Math.max(0, Math.round((width - listWidth) * 0.42))
-    /// The segments: the scene sheet and the elements.
-    readonly property var modes: ["scenes", "elements"]
+    /// The segments: the scene sheet, the elements and the looks.
+    readonly property var modes: ["scenes", "elements", "looks"]
     property string mode: "scenes"
     /// The element the form shows; "" for none.
     property string elementId: ""
     /// The form makes a new element instead of changing `element`.
     property bool creating: false
+    /// The look the form shows; "" for none.
+    property string lookId: ""
 
     readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
     readonly property var element: (project.elements || []).find(e => e.id === elementId) || null
+    readonly property var look: (project.looks || []).find(l => l.id === lookId) || null
 
     // Shows the scene `id`: the list and the sheet of the scenes follow.
     function showScene(id) {
@@ -51,6 +54,13 @@ RowLayout {
     function made(id) {
         creating = false
         elementId = id
+    }
+
+    // Shows the looks: `id` is chosen, else the first look of `character`, if it has one.
+    function showLooks(id, character) {
+        const first = (project.looks || []).find(l => l.character === character)
+        lookId = id !== "" ? id : (first ? first.id : "")
+        mode = "looks"
     }
 
     spacing: 0
@@ -93,6 +103,17 @@ RowLayout {
                 view.creating = true
             }
         }
+
+        LookList {
+            objectName: "lookList"
+            visible: view.mode === "looks"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            texts: view.texts
+            controller: view.controller
+            currentId: view.lookId
+            onPicked: id => view.lookId = id
+        }
     }
 
     Kirigami.Separator { Layout.fillHeight: true }
@@ -104,6 +125,7 @@ RowLayout {
         Layout.fillHeight: true
         texts: view.texts
         controller: view.controller
+        onLooksRequested: (look, character) => view.showLooks(look, character)
     }
 
     Kirigami.Separator { visible: view.mode === "scenes"; Layout.fillHeight: true }
@@ -156,6 +178,37 @@ RowLayout {
             Layout.fillWidth: true
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
             title: view.texts.t("elements.pick")
+        }
+        Item { Layout.fillHeight: true }
+    }
+
+    ColumnLayout {
+        visible: view.mode === "looks"
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.margins: Kirigami.Units.largeSpacing
+
+        LookEditor {
+            id: lookForm
+            objectName: "lookForm"
+            visible: view.look !== null
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 32
+            texts: view.texts
+            controller: view.controller
+            item: view.look
+            characters: view.project.characters || []
+            elements: view.project.elements || []
+            onSceneRequested: id => view.showScene(id)
+        }
+
+        // Nothing chosen: say how to get a form.
+        KanteEmptyState {
+            objectName: "lookHint"
+            visible: !lookForm.visible
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            title: view.texts.t("looks.pick")
         }
         Item { Layout.fillHeight: true }
     }

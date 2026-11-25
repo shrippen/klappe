@@ -15,7 +15,7 @@ use crate::script_refs;
 use crate::sheet_time::{show_planned, show_prestop};
 use crate::views::{
     ElementRow, LookElement, LookRow, SceneRef, SheetCategory, SheetElement, SheetFigure,
-    SheetView, Suggestion,
+    SheetLookElement, SheetView, Suggestion,
 };
 
 /// What a group's head count is for a single person.
@@ -66,6 +66,15 @@ impl Session {
     /// The looks of the characters the project has, in the order they were made; a look of a
     /// character that is gone is not offered. An element id no element has is left out.
     pub(super) fn look_rows(&self) -> Vec<LookRow> {
+        let mut scenes: HashMap<&str, Vec<SceneRef>> = HashMap::new();
+        for (entry, scene) in self.project.scenes.iter().enumerate() {
+            for (_, look) in self.worn_looks(entry, scene) {
+                scenes.entry(&look.id).or_default().push(SceneRef {
+                    id: scene.id.clone(),
+                    number: scene.number.clone(),
+                });
+            }
+        }
         let named = |l: &&Look| self.project.character(&l.character).is_some();
 
         self.project
@@ -73,6 +82,7 @@ impl Session {
             .iter()
             .filter(named)
             .map(|l| LookRow {
+                scenes: scenes.get(l.id.as_str()).cloned().unwrap_or_default(),
                 id: l.id.clone(),
                 character: l.character.clone(),
                 name: l.name.clone(),
@@ -99,6 +109,15 @@ impl Session {
             .looks
             .iter()
             .find(|l| l.id == *id && l.character == character)
+    }
+
+    /// The looks worn in the scene at `entry`, each with its character: only characters in the
+    /// scene wear one there.
+    pub(super) fn worn_looks(&self, entry: usize, scene: &Scene) -> Vec<(&Character, &Look)> {
+        self.scene_figures(entry, scene)
+            .into_iter()
+            .filter_map(|c| Some((c, self.scene_look(scene, &c.id)?)))
+            .collect()
     }
 
     /// The ids of the characters with a cue in the scene at `entry`, in the order of their
@@ -157,30 +176,80 @@ impl Session {
             present: present
                 .map(|c| figure(c, self.scene_look(scene, &c.id)))
                 .collect(),
-            categories: self.sheet_categories(scene, &Self::lost_marks(scene, &lines)),
+            categories: self.sheet_categories(self.scene, scene, &Self::lost_marks(scene, &lines)),
             suggestions: self.suggestions(scene, shot.get(self.scene).copied().flatten(), &lines),
             text: self.marked_text(scene, &lines),
         })
     }
 
-    /// The elements of the scene by category, only the categories that have any; `lost` are
-    /// those whose marks the text no longer has.
-    fn sheet_categories(&self, scene: &Scene, lost: &HashSet<String>) -> Vec<SheetCategory> {
-        self.by_category(scene)
-            .into_iter()
-            .map(|(category, elements)| SheetCategory {
+    /// The elements of the scene by category, only the categories that have any, its own or
+    /// those of the looks worn in it; `lost` are those whose marks the text no longer has.
+    fn sheet_categories(
+        &self,
+        entry: usize,
+        scene: &Scene,
+        lost: &HashSet<String>,
+    ) -> Vec<SheetCategory> {
+        let worn = self.look_elements(entry, scene);
+        let listed = self.by_category(scene);
+        let mut rows: Vec<SheetCategory> = Vec::new();
+
+        for category in ElementCategory::ALL {
+            let own: Vec<SheetElement> = listed
+                .iter()
+                .filter(|(c, _)| *c == category)
+                .flat_map(|(_, elements)| elements)
+                .map(|e| SheetElement {
+                    id: e.id.clone(),
+                    name: e.name.clone(),
+                    status: e.status.name(),
+                    lost: lost.contains(&e.id),
+                })
+                .collect();
+            let from_looks: Vec<SheetLookElement> = worn
+                .iter()
+                .filter(|(c, _)| *c == category)
+                .map(|(_, e)| e.clone())
+                .collect();
+            if own.is_empty() && from_looks.is_empty() {
+                continue;
+            }
+
+            rows.push(SheetCategory {
                 category: category.name(),
-                elements: elements
-                    .into_iter()
-                    .map(|e| SheetElement {
-                        id: e.id.clone(),
-                        name: e.name.clone(),
-                        status: e.status.name(),
-                        lost: lost.contains(&e.id),
-                    })
-                    .collect(),
-            })
-            .collect()
+                elements: own,
+                from_looks,
+            });
+        }
+
+        rows
+    }
+
+    /// The elements of the looks the scene's characters wear, with their category.
+    fn look_elements(
+        &self,
+        entry: usize,
+        scene: &Scene,
+    ) -> Vec<(ElementCategory, SheetLookElement)> {
+        let mut worn = Vec::new();
+
+        for (character, look) in self.worn_looks(entry, scene) {
+            let found = look
+                .elements
+                .iter()
+                .filter_map(|id| self.project.elements.iter().find(|e| e.id == *id));
+            for e in found {
+                let shown = SheetLookElement {
+                    id: e.id.clone(),
+                    name: e.name.clone(),
+                    status: e.status.name(),
+                    figure: character.name.clone(),
+                };
+                worn.push((e.category, shown));
+            }
+        }
+
+        worn
     }
 
     /// The elements of a scene's sheet, by category in the sheet's order; an id no element

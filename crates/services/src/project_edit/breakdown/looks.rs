@@ -3,7 +3,7 @@
 
 use klappe_model::{free_random_id, ElementCategory, IdCase, Look, Project};
 
-use super::{bad_name, check_element, name_of, sheet_mut, BreakdownEdit};
+use super::{bad_name, check_element, found_or_new, name_of, sheet_mut, BreakdownEdit};
 use crate::error::ServiceError;
 
 /// The categories whose elements a look is made of.
@@ -16,6 +16,11 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
         BreakdownEdit::EditLook { id, name } => edit_look(project, id, name),
         BreakdownEdit::RemoveLook { id } => remove_look(project, id),
         BreakdownEdit::AddLookElement { look, element } => add_look_element(project, look, element),
+        BreakdownEdit::AddElementToLook {
+            look,
+            category,
+            name,
+        } => add_to_look(project, look, *category, name),
         BreakdownEdit::RemoveLookElement { look, element } => {
             remove_look_element(project, look, element)
         }
@@ -121,6 +126,23 @@ fn add_look_element(project: &mut Project, look: &str, element: &str) -> Result<
     }
 
     Ok(())
+}
+
+/// The element of that name and category, made if there is none, goes into the look. Refused
+/// for any category but costume and make-up, before anything is made.
+fn add_to_look(
+    project: &mut Project,
+    look: &str,
+    category: ElementCategory,
+    name: &str,
+) -> Result<(), ServiceError> {
+    look_mut(project, look)?;
+    if !LOOK_CATEGORIES.contains(&category) {
+        return Err(ServiceError::NotLookElement(name.trim().to_owned()));
+    }
+    let id = found_or_new(project, category, name)?;
+
+    add_look_element(project, look, &id)
 }
 
 fn remove_look_element(
