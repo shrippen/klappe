@@ -11,6 +11,7 @@ use crate::saved_view::SavedView;
 use crate::script_setup::ScriptSetup;
 use crate::shot::Numbering;
 use crate::site::{Site, SunTime};
+use crate::team::Team;
 use crate::template::Template;
 
 /// One film: everything every module works on.
@@ -31,6 +32,8 @@ pub struct Project {
     pub views: Vec<SavedView>,
     /// The breakdown's elements (DB-60); a scene's sheet names them by id.
     pub elements: Vec<Element>,
+    /// The persons, the casting and the contacts.
+    pub team: Team,
     /// The characters' looks (DB-60); a scene's sheet names them by id.
     pub looks: Vec<Look>,
     /// The sheet the plan was last exported on; the export dialog starts from it.
@@ -53,6 +56,7 @@ impl Project {
             templates: Vec::new(),
             views: Vec::new(),
             elements: Vec::new(),
+            team: Team::default(),
             looks: Vec::new(),
             paper: PaperSetup::default(),
             numbering: Numbering::default(),

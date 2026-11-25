@@ -43,8 +43,19 @@ fn the_scene_report_is_a_csv() {
 }
 
 #[test]
+fn the_contact_list_is_a_csv() {
+    let out = out_file("cli-report-kontakte.csv");
+
+    let output = report("kontakte", &out);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.starts_with("Name,Department,Funktion,Telefon,Mail,Adresse\r\n"));
+}
+
+#[test]
 fn every_report_is_a_pdf() {
-    for kind in ["szenen", "spielorte", "figuren", "auszug"] {
+    for kind in ["szenen", "spielorte", "figuren", "auszug", "kontakte"] {
         let out = out_file(&format!("cli-report-{kind}.pdf"));
 
         let output = report(kind, &out);

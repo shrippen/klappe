@@ -24,3 +24,4 @@ crates/services/tests/plan_edit.rs	-	lines=841
 crates/stellprobe/src/look.rs	look	ccn=16
 crates/store/tests/store.rs	-	lines=846
 crates/store/tests/store.rs	plan	length=125
+crates/model/src/team.rs	name	ccn=17

@@ -4,8 +4,8 @@
 use std::borrow::Cow;
 
 use klappe_model::{
-    BookState, CameraPresets, DrawingShape, ElementCategory, ElementStatus, Location, Numbering,
-    Orientation, Paper, Place, Scene, SetPlan,
+    BookState, CameraPresets, Character, Department, DrawingShape, ElementCategory, ElementStatus,
+    Location, Numbering, Orientation, Paper, Place, Scene, SetPlan,
 };
 use klappe_stellprobe::{
     aim_at, axis_pair, camera_at, horizontal_fov_deg, object_extent, opening_span, picture, set_at,
@@ -119,15 +119,6 @@ impl Session {
             north: l.site.map_or(0.0, |s| s.north_deg),
             scenes: scene_location::scenes_using(project, &shot, &l.id),
         });
-        let characters = project.characters.iter().map(|c| CharacterRow {
-            id: c.id.clone(),
-            name: c.name.clone(),
-            short: c.short.clone(),
-            color: c.color.name(),
-            group: c.group.unwrap_or(NO_GROUP),
-            size_m: c.size_m,
-            aliases: c.aliases.clone(),
-        });
         let plans = self
             .scene()
             .map(|s| s.plans.as_slice())
@@ -142,7 +133,7 @@ impl Session {
         Overview {
             scenes,
             locations: locations.collect(),
-            characters: characters.collect(),
+            characters: project.characters.iter().map(character_row).collect(),
             places: self.place_rows(&places),
             elsewhere: self.plan_elsewhere(),
             not_shot: self.not_shot(),
@@ -182,6 +173,10 @@ impl Session {
             element_categories: ElementCategory::ALL.map(ElementCategory::name).into(),
             element_statuses: ElementStatus::ALL.map(ElementStatus::name).into(),
             sheet: self.sheet_view(&shot),
+            persons: self.person_rows(),
+            departments: Department::ALL.map(Department::name).into(),
+            castings: self.casting_rows(),
+            numbers_locked: project.team.numbers_locked,
         }
     }
 
@@ -533,4 +528,17 @@ fn body_id(presets: &CameraPresets, width_mm: f64) -> &str {
     let body = presets.bodies.iter().find(|b| b.width_mm == width_mm);
 
     body.map(|b| b.id.as_str()).unwrap_or_default()
+}
+
+/// A character as the project view lists it.
+fn character_row(c: &Character) -> CharacterRow {
+    CharacterRow {
+        id: c.id.clone(),
+        name: c.name.clone(),
+        short: c.short.clone(),
+        color: c.color.name(),
+        group: c.group.unwrap_or(NO_GROUP),
+        size_m: c.size_m,
+        aliases: c.aliases.clone(),
+    }
 }

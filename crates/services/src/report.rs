@@ -11,15 +11,18 @@ pub enum Report {
     Cast,
     /// The breakdown of every scene: a page per scene, or a row per element.
     Extract,
+    /// Every person of the team with phone, mail and address.
+    Contacts,
 }
 
 impl Report {
     /// Every report, in the order the menu offers them.
-    pub const ALL: [Report; 4] = [
+    pub const ALL: [Report; 5] = [
         Report::Scenes,
         Report::Places,
         Report::Cast,
         Report::Extract,
+        Report::Contacts,
     ];
 
     /// How surfaces, the command line and the catalogue (`report.<name>`) call the report.
@@ -29,7 +32,13 @@ impl Report {
             Report::Places => "spielorte",
             Report::Cast => "figuren",
             Report::Extract => "auszug",
+            Report::Contacts => "kontakte",
         }
+    }
+
+    /// Whether the report lists the scenes of the book and so has nothing to write without them.
+    pub(crate) fn needs_scenes(self) -> bool {
+        self != Report::Contacts
     }
 
     /// The report `name` names; `None` for any other text.

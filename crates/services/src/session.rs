@@ -39,6 +39,7 @@ mod shooting;
 mod shots;
 mod sketch;
 mod speech;
+mod team;
 mod templates;
 mod text_marks;
 mod timeline;

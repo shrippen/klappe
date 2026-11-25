@@ -216,7 +216,7 @@ fn the_cross_table_marks_who_is_in_which_scene() {
     let rows = rows(&mut s, Report::Cast, "report-cast-csv");
 
     // CARL is in no scene and has no column.
-    assert_eq!(rows[0], ["Szene", "ANNA", "BOB"]);
+    assert_eq!(rows[0], ["Szene", "1  ANNA", "2  BOB"]);
     assert_eq!(rows[1], ["14", "X", "X"]);
     assert_eq!(rows[2], ["23", "", ""]);
 }
@@ -305,7 +305,7 @@ fn the_overview_offers_the_reports() {
 
     assert_eq!(
         overview.reports,
-        ["szenen", "spielorte", "figuren", "auszug"]
+        ["szenen", "spielorte", "figuren", "auszug", "kontakte"]
     );
     assert_eq!(overview.report_formats, ["pdf", "csv", "ods", "xlsx"]);
 }
@@ -328,7 +328,7 @@ fn struck_scenes_are_in_no_report() {
     assert_eq!(scenes.len(), 2);
     assert_eq!(scenes[1][0], "14");
     assert_eq!(places[1..], [["WACHRAUM", "", "14"], ["HAFEN", "", ""]]);
-    assert_eq!(cast, [["Szene", "ANNA"], ["14", "X"]]);
+    assert_eq!(cast, [["Szene", "1  ANNA"], ["14", "X"]]);
     assert_eq!(extract.len(), 1);
     assert_eq!(sheets_in(&pdf), 1);
 }
@@ -338,7 +338,8 @@ fn a_book_without_scenes_has_no_report() {
     let mut s = open_struck("report-none", false);
     let path = dir_of("report-none-file").with_extension("csv");
 
-    for report in Report::ALL {
+    // The contact list lists no scenes and so has none missing.
+    for report in Report::ALL.into_iter().filter(|r| *r != Report::Contacts) {
         let result = s.export_report(report, ReportFormat::Csv, &path, Language::German);
 
         let error = result.unwrap_err();

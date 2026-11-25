@@ -24,6 +24,7 @@ fn element(id: &str, name: &str) -> Element {
         name: name.into(),
         description: "Messing, alt".into(),
         status: ElementStatus::Working,
+        responsible: None,
     }
 }
 

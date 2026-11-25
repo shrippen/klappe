@@ -481,7 +481,8 @@ fn the_cross_table_shows_the_look_instead_of_an_x() {
 
     let rows = rows(&mut s, Report::Cast, "looks-cast-csv");
 
-    assert_eq!(rows[0], ["Szene", "ANNA", "BOB"]);
+    // The cast number stands before the name (Besetzung/Team).
+    assert_eq!(rows[0], ["Szene", "1  ANNA", "2  BOB"]);
     assert_eq!(rows[1], ["14", "\"Ölzeug", " nass\"", "X"]);
     assert_eq!(rows[2], ["23", "", ""]);
 }

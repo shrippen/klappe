@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 
 /// The variants of `ProjectEdit` that hold the edits of one area.
-const AREAS: [&str; 4] = ["Names", "Library", "Template", "Breakdown"];
+const AREAS: [&str; 5] = ["Names", "Library", "Template", "Breakdown", "Team"];
 
 fn read(path: &str) -> String {
     fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(path)).unwrap()
@@ -64,7 +64,7 @@ fn session_steps() -> Vec<String> {
 #[test]
 fn every_step_has_a_text_in_both_languages() {
     // A scan that finds nothing, or misses a name known to be there, must not pass vacuously.
-    let scans: [(Vec<String>, &[&str]); 7] = [
+    let scans: [(Vec<String>, &[&str]); 8] = [
         (
             variants("src/plan_edit.rs", "PlanEdit"),
             &["Remove", "AddObject", "SetLens"],
@@ -92,6 +92,10 @@ fn every_step_has_a_text_in_both_languages() {
         (
             variants("src/project_edit/breakdown.rs", "BreakdownEdit"),
             &["AddElement", "SetObjectElement", "SetSheet"],
+        ),
+        (
+            variants("src/project_edit/team.rs", "TeamEdit"),
+            &["AddPerson", "FixCast", "LockCastNumbers"],
         ),
         (
             session_steps()

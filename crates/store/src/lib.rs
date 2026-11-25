@@ -1,7 +1,7 @@
 //! Reads and writes a Klappe project folder (FORMAT.md).
 //!
 //! ```text
-//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen.toml, szenen/, breakdown/
+//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen.toml, szenen/, breakdown/, personen.toml, kontakte.toml
 //! load(dir)                  ◄──         drehbuch.fountain
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
@@ -31,6 +31,7 @@ mod partial;
 mod places;
 mod register;
 mod sun;
+mod team;
 mod template;
 mod tree;
 
@@ -39,9 +40,9 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m, is_opening_width_m,
-    is_outline, Binding, Location, Numbering, ObjectShape, Opening, PaperSetup, Project, SavedView,
-    Scene, ScriptSetup, FORMAT_VERSION, MAX_OBJECT_M, MIN_IMAGE_OPACITY, MIN_OBJECT_M,
-    NOTE_MIN_WIDTH_M,
+    is_outline, Binding, Element, Location, Look, Numbering, ObjectShape, Opening, PaperSetup,
+    Project, SavedView, Scene, ScriptSetup, Team, FORMAT_VERSION, MAX_OBJECT_M, MIN_IMAGE_OPACITY,
+    MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
@@ -92,6 +93,9 @@ const ELEMENTS_FILE: &str = "breakdown/elemente.toml";
 /// The looks' file (`looks.toml`), also in the breakdown folder.
 const LOOKS_FILE: &str = "breakdown/looks.toml";
 const SHEETS_DIR: &str = "breakdown/szenen";
+/// The team (Besetzung/Team): persons and casting, and the contacts apart from them.
+const PEOPLE_FILE: &str = "personen.toml";
+const CONTACTS_FILE: &str = "kontakte.toml";
 const IMAGES_DIR: &str = "bilder";
 /// Folder of the unsaved-changes backup inside a project folder (FORMAT.md).
 const BACKUP_DIR: &str = ".sicherung";
@@ -211,7 +215,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
     let (mut scenes, notes) = load_scenes(dir)?;
-    let (elements, looks) = breakdown::load(dir, &mut scenes)?;
+    let (elements, looks, team) = load_production(dir, &mut scenes)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -222,6 +226,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             script: header.script,
             views: header.ansicht,
             elements,
+            team,
             looks,
             characters: characters.figur,
             not_figures: characters.not_figures,
@@ -233,6 +238,16 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         script,
         notes,
     })
+}
+
+/// The breakdown's elements and looks and the team: what the production adds to the book.
+fn load_production(
+    dir: &Path,
+    scenes: &mut [Scene],
+) -> Result<(Vec<Element>, Vec<Look>, Team), StoreError> {
+    let (elements, looks) = breakdown::load(dir, scenes)?;
+
+    Ok((elements, looks, team::load(dir)?))
 }
 
 /// Writes `project` into `dir`, creating it if needed. Each file is replaced atomically;
@@ -336,6 +351,7 @@ fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, St
     let sheets = breakdown::encode(dir, project)?;
     let mut files = vec![(library_path, library), (templates_path, templates)];
     files.extend(sheets);
+    files.extend(team::encode(dir, &project.team)?);
 
     Ok(files)
 }
