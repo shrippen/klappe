@@ -1343,7 +1343,6 @@
  "step.SetCastNumber": "Change cast number",
  "step.LockCastNumbers": "Lock cast numbers",
  "step.UnlockCastNumbers": "Unlock cast numbers",
- "step.SetResponsible": "Change responsible person",
  "error.noPerson": "Person not found: {detail}",
  "error.castNumberTaken": "Another character has cast number {number}",
  "outside.file.team": "Team",

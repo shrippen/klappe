@@ -382,6 +382,7 @@ fn an_element_leaves_the_looks_when_it_is_no_costume_or_makeup() {
         name: "Ölmantel".into(),
         description: String::new(),
         status: Default::default(),
+        responsible: None,
     };
 
     // Costume to make-up: still fits.

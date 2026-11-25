@@ -102,6 +102,25 @@ fn set_contact(s: &mut Session, id: &str, contact: Contact) {
     );
 }
 
+/// Sets the responsible person of the element and leaves its other fields as they are.
+fn responsible(s: &mut Session, element: &str, person: Option<String>) -> Result<(), ServiceError> {
+    let found = s
+        .project()
+        .elements
+        .iter()
+        .find(|e| e.id == element)
+        .cloned()
+        .unwrap();
+    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::EditElement {
+        id: found.id,
+        category: found.category,
+        name: found.name,
+        description: found.description,
+        status: found.status,
+        responsible: person,
+    }))
+}
+
 fn refused(s: &mut Session, edit: TeamEdit) -> ServiceError {
     s.edit_project(ProjectEdit::Team(edit)).unwrap_err()
 }
@@ -220,11 +239,7 @@ fn removing_a_person_cleans_castings_and_elements() {
     );
     propose(&mut s, "bob", &ines);
     let lamp = s.add_element(ElementCategory::Prop, "Lampe").unwrap();
-    s.edit_project(ProjectEdit::Breakdown(BreakdownEdit::SetResponsible {
-        element: lamp,
-        person: Some(ines.clone()),
-    }))
-    .unwrap();
+    responsible(&mut s, &lamp, Some(ines.clone())).unwrap();
     set_contact(
         &mut s,
         &ines,
@@ -256,21 +271,36 @@ fn a_responsible_person_is_set_and_undone() {
     let ines = s.add_person("Ines", Some(Department::Props)).unwrap();
     let lamp = s.add_element(ElementCategory::Prop, "Lampe").unwrap();
 
-    let set = |person: Option<String>| {
-        ProjectEdit::Breakdown(BreakdownEdit::SetResponsible {
-            element: lamp.clone(),
-            person,
-        })
-    };
-    s.edit_project(set(Some(ines.clone()))).unwrap();
-    assert_eq!(s.undo_step(), Some("SetResponsible"));
-    assert_eq!(s.overview().elements[0].responsible, Some(ines));
+    responsible(&mut s, &lamp, Some(ines.clone())).unwrap();
+    assert_eq!(s.undo_step(), Some("EditElement"));
+    assert_eq!(
+        s.overview().elements[0].responsible.as_deref(),
+        Some(ines.as_str())
+    );
 
     assert!(matches!(
-        s.edit_project(set(Some("x".into()))),
+        responsible(&mut s, &lamp, Some("x".into())),
         Err(ServiceError::NoPerson(_))
     ));
 
+    // The name and the person go in one step.
+    let edit = BreakdownEdit::EditElement {
+        id: lamp.clone(),
+        category: ElementCategory::Prop,
+        name: "Laterne".into(),
+        description: String::new(),
+        status: Default::default(),
+        responsible: None,
+    };
+    s.edit_project(ProjectEdit::Breakdown(edit)).unwrap();
+    assert_eq!(s.overview().elements[0].responsible, None);
+
+    s.undo();
+    assert_eq!(s.project().elements[0].name, "Lampe");
+    assert_eq!(
+        s.overview().elements[0].responsible.as_deref(),
+        Some(ines.as_str())
+    );
     s.undo();
     assert_eq!(s.overview().elements[0].responsible, None);
 }

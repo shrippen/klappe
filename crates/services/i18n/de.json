@@ -1343,7 +1343,6 @@
  "step.SetCastNumber": "Cast-Nummer ändern",
  "step.LockCastNumbers": "Cast-Nummern festschreiben",
  "step.UnlockCastNumbers": "Cast-Nummern freigeben",
- "step.SetResponsible": "Verantwortliche Person ändern",
  "error.noPerson": "Person nicht gefunden: {detail}",
  "error.castNumberTaken": "Die Cast-Nummer {number} hat eine andere Figur",
  "outside.file.team": "Team",

@@ -1219,6 +1219,7 @@ pub mod qobject {
         #[cxx_name = "addElement"]
         fn add_element(self: Pin<&mut Self>, category: &QString, name: &QString) -> QString;
 
+        /// `responsible` is the person who answers for the element; empty for nobody.
         #[qinvokable]
         #[cxx_name = "editElement"]
         fn edit_element(
@@ -1228,6 +1229,7 @@ pub mod qobject {
             name: &QString,
             description: &QString,
             status: &QString,
+            responsible: &QString,
         ) -> bool;
 
         #[qinvokable]
@@ -1368,11 +1370,6 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "unlockNumbers"]
         fn unlock_numbers(self: Pin<&mut Self>) -> bool;
-
-        /// The person who answers for the element; empty for nobody.
-        #[qinvokable]
-        #[cxx_name = "setResponsible"]
-        fn set_responsible(self: Pin<&mut Self>, element: &QString, person: &QString) -> bool;
 
         /// The persons as JSON (`id`, `name`, `department`, …), those of the department that
         /// answers for elements of `category` (a name as `prop`) first.

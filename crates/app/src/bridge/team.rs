@@ -7,7 +7,7 @@ use super::view::to_json;
 use core::pin::Pin;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    BreakdownEdit, Contact, Department, ElementCategory, Field, ProjectEdit, ServiceError, TeamEdit,
+    Contact, Department, ElementCategory, Field, ProjectEdit, ServiceError, TeamEdit,
 };
 
 /// A department's name as the catalogue has it; empty is none.
@@ -146,17 +146,6 @@ impl qobject::Controller {
 
     pub(super) fn unlock_numbers(self: Pin<&mut Self>) -> bool {
         self.commit_project(Ok(ProjectEdit::Team(TeamEdit::UnlockCastNumbers)))
-    }
-
-    pub(super) fn set_responsible(
-        self: Pin<&mut Self>,
-        element: &QString,
-        person: &QString,
-    ) -> bool {
-        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::SetResponsible {
-            element: element.to_string(),
-            person: person_of(person),
-        })))
     }
 
     /// The persons, those of the department that answers for `category` first, as JSON.

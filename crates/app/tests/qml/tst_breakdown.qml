@@ -85,7 +85,6 @@ TestCase {
                 letters: { action: "a", dialogue: "d", transition: "r" } })
         }
         function forgetLost(s, e) { return call("forgetLost", [s, e]) }
-        function setResponsible(e, p) { return call("setResponsible", [e, p]) }
         // Like the bridge: the persons, those of the department of the category first (only
         // the props department is known here).
         function personsFor(category) {
@@ -102,7 +101,7 @@ TestCase {
 
             return call("addElement", [c, n]) ? "e9" : ""
         }
-        function editElement(i, c, n, d, s) { return call("editElement", [i, c, n, d, s]) }
+        function editElement(i, c, n, d, s, r) { return call("editElement", [i, c, n, d, s, r]) }
         function removeElement(i) { return call("removeElement", [i]) }
     }
 
@@ -396,7 +395,7 @@ TestCase {
         findChild(form, "statusBox").select(2)
         findChild(form, "apply").clicked()
 
-        compare(fake.calls, [["editElement", "e2", "prop", "Kerzen", "Wachs", "ready"]])
+        compare(fake.calls, [["editElement", "e2", "prop", "Kerzen", "Wachs", "ready", "p3"]])
     }
 
     function test_an_element_is_deleted_after_asking() {
@@ -479,7 +478,7 @@ TestCase {
         compare(findChild(findChild(v, "elementForm"), "responsibleBox").currentIndex, 0)
     }
 
-    function test_choosing_a_person_sets_the_responsible_with_apply() {
+    function test_choosing_a_person_sends_the_responsible_with_the_element() {
         const v = view()
         showElements(v)
 
@@ -489,7 +488,7 @@ TestCase {
         compare(fake.calls.length, 0)
         findChild(form, "apply").clicked()
 
-        compare(fake.calls, [["editElement", "e1", "prop", "Brief", "", "open"], ["setResponsible", "e1", "p2"]])
+        compare(fake.calls, [["editElement", "e1", "prop", "Brief", "", "open", "p2"]])
     }
 
     function test_none_takes_the_responsible_person_away() {
@@ -501,17 +500,17 @@ TestCase {
         findChild(form, "responsibleBox").currentIndex = 0
         findChild(form, "apply").clicked()
 
-        compare(fake.calls[1], ["setResponsible", "e2", ""])
+        compare(fake.calls, [["editElement", "e2", "prop", "Kerze", "Wachs", "working", ""]])
     }
 
-    function test_an_unchanged_responsible_person_is_not_sent() {
+    function test_an_unchanged_responsible_person_is_sent_as_it_is() {
         const v = view()
         showElements(v)
 
         row(v, "e2").clicked()
         findChild(findChild(v, "elementForm"), "apply").clicked()
 
-        compare(fake.calls.map(c => c[0]), ["editElement"])
+        compare(fake.calls, [["editElement", "e2", "prop", "Kerze", "Wachs", "working", "p3"]])
     }
 
     function test_without_persons_the_form_says_where_they_are_made() {

@@ -64,10 +64,9 @@ EditorPane {
         if (!item) {
             return controller.addElement(chosenCategory(), nameField.text)
         }
-        const edited = controller.editElement(item.id, chosenCategory(), nameField.text,
-                                              descriptionField.text, statuses[statusBox.currentIndex])
-        const same = chosenResponsible() === (item.responsible || "")
-        return edited && (same || controller.setResponsible(item.id, chosenResponsible()))
+        return controller.editElement(item.id, chosenCategory(), nameField.text,
+                                      descriptionField.text, statuses[statusBox.currentIndex],
+                                      chosenResponsible())
     }
     remove: function () { return controller.removeElement(item.id) }
 

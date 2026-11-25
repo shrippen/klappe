@@ -124,7 +124,7 @@ Item {
 
             // The responsible person; the department of the category first.
             const element = ctl.addElement("costume", "Hut")
-            if (element === "" || !ctl.setResponsible(element, jo)) {
+            if (element === "" || !ctl.editElement(element, "costume", "Hut", "", "open", jo)) {
                 return root.fail("responsible was refused: " + ctl.status)
             }
             if (project().elements.find(e => e.id === element).responsible !== jo) {

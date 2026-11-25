@@ -23,17 +23,14 @@ pub enum BreakdownEdit {
         name: String,
     },
     /// A category that is no costume or make-up takes the element out of every look.
+    /// `responsible` is the person of the team who answers for the element, `None` for nobody.
     EditElement {
         id: String,
         category: ElementCategory,
         name: String,
         description: String,
         status: ElementStatus,
-    },
-    /// The person of the team who answers for the element; `None` for nobody.
-    SetResponsible {
-        element: String,
-        person: Option<String>,
+        responsible: Option<String>,
     },
     /// Takes the element out of every scene sheet and every set object too.
     RemoveElement {
@@ -157,10 +154,13 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
             name,
             description,
             status,
-        } => edit_element(project, id, (*category, name), (description, *status)),
-        BreakdownEdit::SetResponsible { element, person } => {
-            set_responsible(project, element, person.as_deref())
-        }
+            responsible,
+        } => edit_element(
+            project,
+            id,
+            (*category, name),
+            (description, *status, responsible.as_deref()),
+        ),
         BreakdownEdit::RemoveElement { id } => remove_element(project, id),
         BreakdownEdit::SetSheet {
             scene,
@@ -307,9 +307,12 @@ fn edit_element(
     project: &mut Project,
     id: &str,
     (category, name): (ElementCategory, &str),
-    (description, status): (&str, ElementStatus),
+    (description, status, responsible): (&str, ElementStatus, Option<&str>),
 ) -> Result<(), ServiceError> {
     check_element(project, id)?;
+    if let Some(person) = responsible {
+        check_person(project, person)?;
+    }
     let name = name_of(name)?;
     if find_element(project, (category, &name), Some(id)).is_some() {
         return Err(bad_name(&name));
@@ -322,24 +325,8 @@ fn edit_element(
     element.name = name;
     element.description = description.trim().to_owned();
     element.status = status;
+    element.responsible = responsible.map(str::to_owned);
     looks::fit_looks(project, id, category);
-
-    Ok(())
-}
-
-fn set_responsible(
-    project: &mut Project,
-    element: &str,
-    person: Option<&str>,
-) -> Result<(), ServiceError> {
-    check_element(project, element)?;
-    if let Some(id) = person {
-        check_person(project, id)?;
-    }
-
-    if let Some(found) = project.elements.iter_mut().find(|e| e.id == element) {
-        found.responsible = person.map(str::to_owned);
-    }
 
     Ok(())
 }

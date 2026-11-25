@@ -52,6 +52,7 @@ impl qobject::Controller {
         name: &QString,
         description: &QString,
         status: &QString,
+        responsible: &QString,
     ) -> bool {
         let edit = category_of(category).and_then(|category| {
             Ok(ProjectEdit::Breakdown(BreakdownEdit::EditElement {
@@ -60,6 +61,7 @@ impl qobject::Controller {
                 name: name.to_string(),
                 description: description.to_string(),
                 status: status_of(status)?,
+                responsible: Some(responsible.to_string()).filter(|id| !id.is_empty()),
             }))
         });
         self.commit_project(edit)

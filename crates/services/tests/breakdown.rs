@@ -191,6 +191,7 @@ fn an_element_is_edited_and_undone() {
         name: "Boot".into(),
         description: " rot ".into(),
         status: ElementStatus::Working,
+        responsible: None,
     }))
     .unwrap();
     let element = s.project().elements[0].clone();
@@ -207,6 +208,7 @@ fn an_element_is_edited_and_undone() {
         name: "boot".into(),
         description: String::new(),
         status: ElementStatus::Open,
+        responsible: None,
     }));
     assert!(matches!(clash, Err(ServiceError::BadValue { .. })));
 
