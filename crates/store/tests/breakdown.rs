@@ -5,8 +5,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use klappe_model::{
-    Element, ElementCategory, ElementStatus, Location, Point, Project, Scene, SetObject, SetPlan,
-    Sheet, TextMark,
+    Element, ElementCategory, ElementStatus, Location, Look, Point, Project, Scene, SetObject,
+    SetPlan, Sheet, TextMark,
 };
 use klappe_store::{encode_tree, kind_of, load, read_tree, save, FileKind, StoreError};
 
@@ -27,6 +27,15 @@ fn element(id: &str, name: &str) -> Element {
     }
 }
 
+fn look(id: &str, character: &str, name: &str) -> Look {
+    Look {
+        id: id.into(),
+        character: character.into(),
+        name: name.into(),
+        elements: vec!["e1".into()],
+    }
+}
+
 fn scene(id: &str, number: &str, sheet: Sheet) -> Scene {
     Scene {
         id: id.into(),
@@ -40,6 +49,7 @@ fn scene(id: &str, number: &str, sheet: Sheet) -> Scene {
 fn project() -> Project {
     let mut project = Project::new("T");
     project.elements = vec![element("e1", "Kronleuchter"), element("e2", "Teppich")];
+    project.looks = vec![look("l1", "bob", "Ölzeug, nass")];
     project.scenes = vec![
         scene(
             "aaaa",
@@ -58,6 +68,7 @@ fn project() -> Project {
                     text: "Kronleuchter".into(),
                     occurrence: 1,
                 }],
+                looks: [("bob".to_owned(), "l1".to_owned())].into(),
             },
         ),
         scene("bbbb", "2", Sheet::default()),
@@ -75,6 +86,7 @@ fn the_breakdown_survives_a_save() {
     let loaded = load(&dir).unwrap().project;
 
     assert_eq!(loaded.elements, project.elements);
+    assert_eq!(loaded.looks, project.looks);
     assert_eq!(loaded.scenes[0].sheet, project.scenes[0].sheet);
     assert!(loaded.scenes[1].sheet.is_empty());
 }
@@ -89,14 +101,19 @@ fn the_files_exist_only_with_content() {
     assert!(toml.contains("[[element]]"));
     assert!(toml.contains("category = \"set-dressing\""));
     assert!(toml.contains("status = \"working\""));
+    let toml = fs::read_to_string(dir.join("breakdown/looks.toml")).unwrap();
+    assert!(toml.contains("[[look]]"));
+    assert!(toml.contains("name = \"Ölzeug, nass\""));
     assert!(dir.join("breakdown/szenen/aaaa.toml").is_file());
     assert!(!dir.join("breakdown/szenen/bbbb.toml").exists());
 
     project.scenes[0].sheet = Sheet::default();
     project.elements.clear();
+    project.looks.clear();
     save(&dir, &project, None).unwrap();
 
     assert!(!dir.join("breakdown/elemente.toml").exists());
+    assert!(!dir.join("breakdown/looks.toml").exists());
     assert!(!dir.join("breakdown/szenen/aaaa.toml").exists());
 }
 
@@ -108,6 +125,44 @@ fn a_project_without_breakdown_has_no_folder() {
 
     assert!(!dir.join("breakdown").exists());
     assert!(load(&dir).unwrap().project.elements.is_empty());
+    assert!(load(&dir).unwrap().project.looks.is_empty());
+}
+
+/// The character of a look may be gone, so may the elements: it loads and a save keeps it.
+#[test]
+fn a_look_of_a_gone_character_is_kept() {
+    let dir = dir("breakdown-look-orphan");
+    let mut project = project();
+    project.elements.clear();
+    save(&dir, &project, None).unwrap();
+
+    let loaded = load(&dir).unwrap().project;
+    assert!(loaded.character("bob").is_none());
+    assert_eq!(loaded.looks, project.looks);
+
+    save(&dir, &loaded, None).unwrap();
+    assert_eq!(load(&dir).unwrap().project.looks, project.looks);
+}
+
+#[test]
+fn a_look_id_used_twice_does_not_load_or_save() {
+    let dir = dir("breakdown-look-duplicate");
+    save(&dir, &project(), None).unwrap();
+    fs::write(
+        dir.join("breakdown/looks.toml"),
+        "[[look]]\nid = \"l1\"\ncharacter = \"bob\"\nname = \"A\"\n\n\
+         [[look]]\nid = \"l1\"\ncharacter = \"bob\"\nname = \"B\"\n",
+    )
+    .unwrap();
+
+    assert!(matches!(load(&dir), Err(StoreError::Parse { .. })));
+
+    let mut twice = project();
+    twice.looks.push(look("l1", "bob", "Noch einer"));
+    assert!(matches!(
+        save(&dir, &twice, None),
+        Err(StoreError::Parse { .. })
+    ));
 }
 
 #[test]
@@ -181,6 +236,7 @@ fn the_files_are_part_of_the_tree() {
 
     let tree = read_tree(&dir).unwrap();
     assert!(tree.contains_key("breakdown/elemente.toml"));
+    assert!(tree.contains_key("breakdown/looks.toml"));
     assert!(tree.contains_key("breakdown/szenen/aaaa.toml"));
     assert_eq!(tree, encode_tree(&project, None).unwrap());
 
@@ -188,6 +244,7 @@ fn the_files_are_part_of_the_tree() {
         kind_of("breakdown/elemente.toml"),
         Some(FileKind::Breakdown)
     );
+    assert_eq!(kind_of("breakdown/looks.toml"), Some(FileKind::Breakdown));
     assert_eq!(
         kind_of("breakdown/szenen/aaaa.toml"),
         Some(FileKind::Breakdown)

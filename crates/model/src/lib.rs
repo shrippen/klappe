@@ -8,6 +8,7 @@
 //! ├── templates    Template         (the project's own set-ups, LH-07)
 //! ├── views        SavedView        (named choices of visible layers, cameras, figures, LH-119)
 //! ├── elements     Element          (the breakdown's things: costumes, props …, DB-60)
+//! ├── looks        Look             (a character's named costume and make-up)
 //! └── scenes       Scene → FloorPlan   (the register of what is shot: a scene or a content item,
 //!                           by `kind`; its order is the project's order)
 //!                           ├── sheet    Sheet       (the scene sheet: story day, elements, extras)
@@ -49,7 +50,7 @@ mod sketch;
 mod template;
 
 pub use binding::Binding;
-pub use breakdown::{Element, ElementCategory, ElementStatus, Sheet, TextMark};
+pub use breakdown::{Element, ElementCategory, ElementStatus, Look, Sheet, TextMark};
 pub use camera_preset::{CameraBody, CameraPresets, LensSet};
 pub use curve::Curve;
 pub use drawing_style::{Dash, Fill};

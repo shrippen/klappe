@@ -77,9 +77,10 @@ pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};
 pub use views::{
     AxisChoice, CameraSpot, CastUse, CharacterRow, Chip, ElementRow, Elsewhere, Hint, LibraryEntry,
-    LinkKind, LocationRow, Marker, NotShot, Overview, PlaceRow, PlanRow, SceneCard, SceneRef,
-    SceneRow, SceneUse, ScriptLine, Segment, SetupOption, SheetCategory, SheetElement, SheetFigure,
-    SheetView, ShotRow, Suggestion, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
+    LinkKind, LocationRow, LookElement, LookRow, Marker, NotShot, Overview, PlaceRow, PlanRow,
+    SceneCard, SceneRef, SceneRow, SceneUse, ScriptLine, Segment, SetupOption, SheetCategory,
+    SheetElement, SheetFigure, SheetView, ShotRow, Suggestion, SunTexts, TemplateEntry, Track,
+    TrackKind, ViewRow,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.
