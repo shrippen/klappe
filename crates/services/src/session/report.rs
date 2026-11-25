@@ -9,7 +9,9 @@
 use std::path::Path;
 
 use klappe_export::{ExtractBox, ExtractPage, ReportTable, Theme};
-use klappe_model::{BookState, Character, Department, Kind, Person, Scene};
+use klappe_model::{
+    BookState, Character, Department, Element, ElementCategory, Kind, Person, Scene,
+};
 
 use super::export::write_file;
 use super::Session;
@@ -21,6 +23,8 @@ use crate::{Language, Report, ReportFormat};
 const IN_SCENE: &str = "X";
 const LIST_SEPARATOR: &str = ", ";
 const NUMBER_SEPARATOR: &str = "  ";
+/// Between a character's name and its look in the extract.
+const LOOK_SEPARATOR: &str = " – ";
 
 impl Session {
     /// Writes `report` to `path` as `format`; the words are `language`'s. The scenes' lengths
@@ -167,7 +171,8 @@ impl Session {
             .collect()
     }
 
-    /// A row per scene, a column per character that is in any scene, `X` where it is in it.
+    /// A row per scene, a column per character that is in any scene, `X` where it is in it,
+    /// or the name of its look there.
     fn cast_table(&self, scene_head: &str) -> (Vec<String>, Vec<Vec<String>>) {
         let in_scenes: Vec<Vec<&str>> = self
             .book_scenes()
@@ -196,12 +201,13 @@ impl Session {
             .map(|((_, scene), ids)| {
                 let mut row = vec![scene.number.clone()];
                 for c in &cast {
-                    let mark = if ids.contains(&c.id.as_str()) {
-                        IN_SCENE
-                    } else {
-                        ""
-                    };
-                    row.push(mark.to_owned());
+                    if !ids.contains(&c.id.as_str()) {
+                        row.push(String::new());
+                        continue;
+                    }
+
+                    let look = self.scene_look(scene, &c.id);
+                    row.push(look.map_or(IN_SCENE, |l| l.name.as_str()).to_owned());
                 }
 
                 row
@@ -253,8 +259,8 @@ impl Session {
     fn element_rows_of_scenes(&self, language: Language) -> Vec<Vec<String>> {
         let mut rows = Vec::new();
 
-        for (_, scene) in self.book_scenes() {
-            for (category, elements) in self.by_category(scene) {
+        for (i, scene) in self.book_scenes() {
+            for (category, elements) in self.extract_categories(i, scene) {
                 for element in elements {
                     rows.push(vec![
                         scene.number.clone(),
@@ -269,6 +275,29 @@ impl Session {
         rows
     }
 
+    /// The elements of the scene's sheet and those of the looks its characters wear, by
+    /// category; an element in both is there once.
+    fn extract_categories(
+        &self,
+        entry: usize,
+        scene: &Scene,
+    ) -> Vec<(ElementCategory, Vec<&Element>)> {
+        let mut ids = scene.sheet.elements.clone();
+
+        for character in self.scene_figures(entry, scene) {
+            let Some(look) = self.scene_look(scene, &character.id) else {
+                continue;
+            };
+            for id in &look.elements {
+                if !ids.contains(id) {
+                    ids.push(id.clone());
+                }
+            }
+        }
+
+        self.group_by_category(&ids)
+    }
+
     /// A page per scene: head, the sheet's facts, a box per category that has elements and one
     /// for the characters.
     fn extract_pages(&self, language: Language) -> Vec<ExtractPage> {
@@ -281,7 +310,7 @@ impl Session {
                     ("report.planned", show_planned(sheet.planned_min)),
                 ];
                 let mut boxes: Vec<ExtractBox> = self
-                    .by_category(scene)
+                    .extract_categories(i, scene)
                     .into_iter()
                     .map(|(category, elements)| ExtractBox {
                         title: language.text(&format!("elementCategory.{}", category.name())),
@@ -299,7 +328,13 @@ impl Session {
                 if !figures.is_empty() {
                     boxes.push(ExtractBox {
                         title: language.text("report.figures"),
-                        lines: figures.iter().map(|c| c.name.clone()).collect(),
+                        lines: figures
+                            .iter()
+                            .map(|c| match self.scene_look(scene, &c.id) {
+                                Some(look) => format!("{}{LOOK_SEPARATOR}{}", c.name, look.name),
+                                None => c.name.clone(),
+                            })
+                            .collect(),
                     });
                 }
 

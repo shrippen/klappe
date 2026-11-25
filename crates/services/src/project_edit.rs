@@ -99,7 +99,7 @@ pub enum ProjectEdit {
         /// The other names the book calls the character by (DB-50); `None` keeps them.
         aliases: Option<Vec<String>>,
     },
-    /// Refused while a plan uses the character.
+    /// Refused while a plan uses the character. Its looks go with it.
     RemoveCharacter {
         id: String,
     },
@@ -398,9 +398,12 @@ fn remove_character(project: &mut Project, id: &str) -> Result<(), ServiceError>
     }
 
     project.characters.retain(|c| c.id != id);
-    // Ids come from the name: a later character of that name must not inherit the scenes.
+    // Ids come from the name: a later character of that name must not inherit the scenes
+    // or the looks.
+    project.looks.retain(|l| l.character != id);
     for scene in &mut project.scenes {
         scene.sheet.characters.retain(|c| c != id);
+        scene.sheet.looks.remove(id);
     }
     project.team.castings.retain(|c| c.character != id);
     Ok(())

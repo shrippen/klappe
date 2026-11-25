@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::breakdown::{Element, Sheet};
+use crate::breakdown::{Element, Look, Sheet};
 use crate::geometry::{Point, TurnedRect};
 use crate::library::{LibraryItem, ObjectShape, MAX_OBJECT_M};
 use crate::paper::PaperSetup;
@@ -34,6 +34,8 @@ pub struct Project {
     pub elements: Vec<Element>,
     /// The persons, the casting and the contacts.
     pub team: Team,
+    /// The characters' looks (DB-60); a scene's sheet names them by id.
+    pub looks: Vec<Look>,
     /// The sheet the plan was last exported on; the export dialog starts from it.
     pub paper: PaperSetup,
     /// How the shots are numbered (LH-76).
@@ -55,6 +57,7 @@ impl Project {
             views: Vec::new(),
             elements: Vec::new(),
             team: Team::default(),
+            looks: Vec::new(),
             paper: PaperSetup::default(),
             numbering: Numbering::default(),
             script: ScriptSetup::default(),

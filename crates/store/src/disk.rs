@@ -18,8 +18,8 @@ use klappe_model::Project;
 use crate::files::{self, io_err, Dir, Kind};
 use crate::{
     encode_project, load, write_tree, Loaded, StoreError, CHARACTERS_FILE, CONTACTS_FILE,
-    ELEMENTS_FILE, LIBRARY_FILE, LOCATIONS_DIR, PEOPLE_FILE, PROJECT_FILE, SCENES_DIR, SCENES_FILE,
-    SCRIPT_FILE, SHEETS_DIR, TEMPLATES_FILE,
+    ELEMENTS_FILE, LIBRARY_FILE, LOCATIONS_DIR, LOOKS_FILE, PEOPLE_FILE, PROJECT_FILE, SCENES_DIR,
+    SCENES_FILE, SCRIPT_FILE, SHEETS_DIR, TEMPLATES_FILE,
 };
 
 /// Where `load_tree` builds the folder it reads; hidden, so listings and `project_mtime`
@@ -68,7 +68,7 @@ pub fn kind_of(name: &str) -> Option<FileKind> {
 }
 
 /// The project's files that stand alone, not in a folder, with their kind.
-const SINGLE_FILES: [(&str, FileKind); 9] = [
+const SINGLE_FILES: [(&str, FileKind); 10] = [
     (PROJECT_FILE, FileKind::Project),
     (CHARACTERS_FILE, FileKind::Figures),
     (LIBRARY_FILE, FileKind::Library),
@@ -76,6 +76,7 @@ const SINGLE_FILES: [(&str, FileKind); 9] = [
     (SCENES_FILE, FileKind::Register),
     (SCRIPT_FILE, FileKind::Script),
     (ELEMENTS_FILE, FileKind::Breakdown),
+    (LOOKS_FILE, FileKind::Breakdown),
     (PEOPLE_FILE, FileKind::Team),
     (CONTACTS_FILE, FileKind::Contacts),
 ];
@@ -118,6 +119,7 @@ pub fn read_tree(dir: &Path) -> Result<Tree, StoreError> {
         ELEMENTS_FILE,
         PEOPLE_FILE,
         CONTACTS_FILE,
+        LOOKS_FILE,
     ] {
         read_into(&mut tree, dir, name)?;
     }

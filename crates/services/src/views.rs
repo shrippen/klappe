@@ -447,6 +447,8 @@ pub struct Overview {
     pub views: Vec<ViewRow>,
     /// The breakdown's elements (DB-60), in the order they were made.
     pub elements: Vec<ElementRow>,
+    /// The looks of the project's characters (breakdown), in the order they were made.
+    pub looks: Vec<LookRow>,
     /// The categories an element can have, as `set-dressing`; the surface names them
     /// (`elementCategory.<name>`).
     pub element_categories: Vec<&'static str>,
@@ -510,6 +512,25 @@ pub struct ElementRow {
     pub responsible: Option<String>,
 }
 
+/// A look of a character with the costume and make-up it is made of.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LookRow {
+    pub id: String,
+    /// The id of the character it belongs to.
+    pub character: String,
+    pub name: String,
+    pub elements: Vec<LookElement>,
+}
+
+/// An element of a look.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LookElement {
+    pub id: String,
+    pub name: String,
+    /// The category's name: `costume` or `makeup`.
+    pub category: &'static str,
+}
+
 /// A scene named in a list: its id, and its number to show.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SceneRef {
@@ -569,6 +590,8 @@ pub struct SheetFigure {
     pub color: &'static str,
     /// Head count of a group of extras (LH-23); 0 for a single person.
     pub group: u32,
+    /// The id of the look it wears in the scene; `None` for none.
+    pub look: Option<String>,
 }
 
 /// The elements of one category in a scene.

@@ -3,7 +3,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use klappe_model::{Character, Element, ElementCategory, Location, Scene};
+use klappe_model::{Character, Element, ElementCategory, Location, Look, Scene};
 use klappe_script::Element as Line;
 
 use super::Session;
@@ -14,18 +14,20 @@ use crate::scene_text::Shown;
 use crate::script_refs;
 use crate::sheet_time::{show_planned, show_prestop};
 use crate::views::{
-    ElementRow, SceneRef, SheetCategory, SheetElement, SheetFigure, SheetView, Suggestion,
+    ElementRow, LookElement, LookRow, SceneRef, SheetCategory, SheetElement, SheetFigure,
+    SheetView, Suggestion,
 };
 
 /// What a group's head count is for a single person.
 const NO_GROUP: u32 = 0;
 
-fn figure(character: &Character) -> SheetFigure {
+fn figure(character: &Character, look: Option<&Look>) -> SheetFigure {
     SheetFigure {
         id: character.id.clone(),
         name: character.name.clone(),
         color: character.color.name(),
         group: character.group.unwrap_or(NO_GROUP),
+        look: look.map(|l| l.id.clone()),
     }
 }
 
@@ -59,6 +61,44 @@ impl Session {
                     .filter(|id| self.project.team.person(id).is_some()),
             })
             .collect()
+    }
+
+    /// The looks of the characters the project has, in the order they were made; a look of a
+    /// character that is gone is not offered. An element id no element has is left out.
+    pub(super) fn look_rows(&self) -> Vec<LookRow> {
+        let named = |l: &&Look| self.project.character(&l.character).is_some();
+
+        self.project
+            .looks
+            .iter()
+            .filter(named)
+            .map(|l| LookRow {
+                id: l.id.clone(),
+                character: l.character.clone(),
+                name: l.name.clone(),
+                elements: l
+                    .elements
+                    .iter()
+                    .filter_map(|id| self.project.elements.iter().find(|e| e.id == *id))
+                    .map(|e| LookElement {
+                        id: e.id.clone(),
+                        name: e.name.clone(),
+                        category: e.category.name(),
+                    })
+                    .collect(),
+            })
+            .collect()
+    }
+
+    /// The look `character` wears in `scene`; `None` for none, or a look that is gone or is
+    /// another character's.
+    pub(super) fn scene_look(&self, scene: &Scene, character: &str) -> Option<&Look> {
+        let id = scene.sheet.looks.get(character)?;
+
+        self.project
+            .looks
+            .iter()
+            .find(|l| l.id == *id && l.character == character)
     }
 
     /// The ids of the characters with a cue in the scene at `entry`, in the order of their
@@ -111,8 +151,12 @@ impl Session {
             planned_text: show_planned(sheet.planned_min),
             continuity: sheet.continuity.clone(),
             note: sheet.note.clone(),
-            speaking: spoken.map(figure).collect(),
-            present: present.map(figure).collect(),
+            speaking: spoken
+                .map(|c| figure(c, self.scene_look(scene, &c.id)))
+                .collect(),
+            present: present
+                .map(|c| figure(c, self.scene_look(scene, &c.id)))
+                .collect(),
             categories: self.sheet_categories(scene, &Self::lost_marks(scene, &lines)),
             suggestions: self.suggestions(scene, shot.get(self.scene).copied().flatten(), &lines),
             text: self.marked_text(scene, &lines),
@@ -142,9 +186,16 @@ impl Session {
     /// The elements of a scene's sheet, by category in the sheet's order; an id no element
     /// has is ignored.
     pub(super) fn by_category(&self, scene: &Scene) -> Vec<(ElementCategory, Vec<&Element>)> {
-        let listed: Vec<&Element> = scene
-            .sheet
-            .elements
+        self.group_by_category(&scene.sheet.elements)
+    }
+
+    /// The elements of these ids by category in the sheet's order, only the categories that
+    /// have any; an id no element has is ignored.
+    pub(super) fn group_by_category(
+        &self,
+        ids: &[String],
+    ) -> Vec<(ElementCategory, Vec<&Element>)> {
+        let listed: Vec<&Element> = ids
             .iter()
             .filter_map(|id| self.project.elements.iter().find(|e| e.id == *id))
             .collect();
@@ -227,6 +278,34 @@ impl Session {
             return Ok(());
         };
         if !self.speaking(entry).contains(character) {
+            return Ok(());
+        }
+
+        Err(ServiceError::BadValue {
+            field: Field::Character,
+            value: character.clone(),
+        })
+    }
+
+    /// A character not in the scene wears no look there: `SetSceneLook` is refused for it.
+    /// In the scene is: with a cue in the book, or named by the sheet.
+    pub(super) fn check_scene_look(&self, edit: &ProjectEdit) -> Result<(), ServiceError> {
+        let ProjectEdit::Breakdown(BreakdownEdit::SetSceneLook {
+            scene,
+            character,
+            look: Some(_),
+        }) = edit
+        else {
+            return Ok(());
+        };
+        let Some(entry) = self.project.scenes.iter().position(|s| s.id == *scene) else {
+            return Ok(());
+        };
+        let named = self.project.scenes[entry]
+            .sheet
+            .characters
+            .contains(character);
+        if named || self.speaking(entry).contains(character) {
             return Ok(());
         }
 

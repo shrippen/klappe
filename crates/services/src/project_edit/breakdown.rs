@@ -1,6 +1,8 @@
 //! The breakdown's edits (DB-60, D-22): elements, the scene sheet, the elements and the
 //! characters of a scene, and the element a set object stands for.
 
+mod looks;
+
 use klappe_model::{
     free_random_id, Element, ElementCategory, ElementStatus, IdCase, Project, Sheet, TextMark,
 };
@@ -20,6 +22,7 @@ pub enum BreakdownEdit {
         category: ElementCategory,
         name: String,
     },
+    /// A category that is no costume or make-up takes the element out of every look.
     EditElement {
         id: String,
         category: ElementCategory,
@@ -88,6 +91,37 @@ pub enum BreakdownEdit {
         object: String,
         element: Option<String>,
     },
+    /// A new look of a character, without elements (breakdown). Refused: an empty name, or
+    /// one the character already has.
+    AddLook {
+        character: String,
+        name: String,
+    },
+    /// Renames the look; refused like `AddLook`.
+    EditLook {
+        id: String,
+        name: String,
+    },
+    /// Takes the look away; no sheet gives it to a character any more.
+    RemoveLook {
+        id: String,
+    },
+    /// An element goes into the look. Refused unless it is a costume or make-up.
+    AddLookElement {
+        look: String,
+        element: String,
+    },
+    RemoveLookElement {
+        look: String,
+        element: String,
+    },
+    /// The character wears `look` in the scene (`None`: none). Refused: a look of another
+    /// character, or a character that is not in the scene.
+    SetSceneLook {
+        scene: String,
+        character: String,
+        look: Option<String>,
+    },
     /// Words of the scene's text are marked as an element (D-23), which goes into the scene.
     /// The session checks that the words stand there; `mark.element` is not read.
     MarkText {
@@ -155,14 +189,8 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
             name,
         } => add_to_scene(project, scene, *category, name),
         BreakdownEdit::ExcludeSuggestion { scene, element } => exclude(project, scene, element),
-        BreakdownEdit::AddSceneCharacter { scene, character } => {
-            add_character(project, scene, character)
-        }
-        BreakdownEdit::RemoveSceneCharacter { scene, character } => {
-            sheet_mut(project, scene)?
-                .characters
-                .retain(|c| c != character);
-            Ok(())
+        BreakdownEdit::AddSceneCharacter { .. } | BreakdownEdit::RemoveSceneCharacter { .. } => {
+            scene_character(project, edit)
         }
         BreakdownEdit::SetObjectElement {
             location,
@@ -175,6 +203,28 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
             target,
         } => mark_text(project, scene, mark, target),
         BreakdownEdit::ForgetMarks { scene, marks } => forget(project, scene, marks),
+        BreakdownEdit::AddLook { .. }
+        | BreakdownEdit::EditLook { .. }
+        | BreakdownEdit::RemoveLook { .. }
+        | BreakdownEdit::AddLookElement { .. }
+        | BreakdownEdit::RemoveLookElement { .. }
+        | BreakdownEdit::SetSceneLook { .. } => looks::apply(project, edit),
+    }
+}
+
+/// A character comes into a scene's sheet or leaves it (with its look).
+fn scene_character(project: &mut Project, edit: &BreakdownEdit) -> Result<(), ServiceError> {
+    match edit {
+        BreakdownEdit::AddSceneCharacter { scene, character } => {
+            add_character(project, scene, character)
+        }
+        BreakdownEdit::RemoveSceneCharacter { scene, character } => {
+            let sheet = sheet_mut(project, scene)?;
+            sheet.characters.retain(|c| c != character);
+            sheet.looks.remove(character);
+            Ok(())
+        }
+        _ => Ok(()),
     }
 }
 
@@ -272,6 +322,7 @@ fn edit_element(
     element.name = name;
     element.description = description.trim().to_owned();
     element.status = status;
+    looks::fit_looks(project, id, category);
 
     Ok(())
 }
@@ -298,6 +349,9 @@ fn remove_element(project: &mut Project, id: &str) -> Result<(), ServiceError> {
     check_element(project, id)?;
 
     project.elements.retain(|e| e.id != id);
+    for look in &mut project.looks {
+        look.elements.retain(|e| e != id);
+    }
     for scene in &mut project.scenes {
         scene.sheet.elements.retain(|e| e != id);
         scene.sheet.excluded.retain(|e| e != id);

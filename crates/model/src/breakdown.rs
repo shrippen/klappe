@@ -1,5 +1,7 @@
 //! The breakdown (DB-60, D-22): the elements of the film and what each scene needs of them.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 /// What kind of thing an element is; the order is the one of the scene sheet.
@@ -116,6 +118,21 @@ pub struct Element {
     pub responsible: Option<String>,
 }
 
+/// A named look of a character, e.g. `Ölzeug, nass`: the costume and make-up elements it
+/// is made of. In a scene's sheet a character in the scene gets one of its looks
+/// (`Sheet::looks`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Look {
+    /// Random and stable: the name may change, the id does not.
+    pub id: String,
+    /// The id of the character it belongs to.
+    pub character: String,
+    pub name: String,
+    /// Ids of elements of the categories costume and make-up.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub elements: Vec<String>,
+}
+
 /// The scene sheet of a scene (DB-60): what the production notes down for it.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Sheet {
@@ -146,6 +163,10 @@ pub struct Sheet {
     /// Where elements were marked in the scene's text (D-23).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub marks: Vec<TextMark>,
+    /// The look each character in the scene wears: character id to look id. Only characters
+    /// in the scene have one.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub looks: BTreeMap<String, String>,
 }
 
 /// A place in a scene's text marked as an element (D-23), held as a quote: the words and

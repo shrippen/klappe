@@ -125,6 +125,7 @@ impl Session {
         self.check_location_use(&edit)?;
         self.check_sheet_character(&edit)?;
         self.check_cast_number(&edit)?;
+        self.check_scene_look(&edit)?;
         let step = project_step(&edit);
         let mut next = self.project.clone();
         project_edit::apply(&mut next, &edit)?;
@@ -176,6 +177,16 @@ impl Session {
         self.add_and_name(edit, |p| {
             p.team.persons.iter().map(|p| p.id.as_str()).collect()
         })
+    }
+
+    /// Adds the look of `character` and returns its id; undoable. Refused like `AddLook`.
+    pub fn add_look(&mut self, character: &str, name: &str) -> Result<String, ServiceError> {
+        let edit = ProjectEdit::Breakdown(BreakdownEdit::AddLook {
+            character: character.to_owned(),
+            name: name.to_owned(),
+        });
+
+        self.add_and_name(edit, |p| p.looks.iter().map(|l| l.id.as_str()).collect())
     }
 
     /// Adds the location and returns its id; undoable. Refused like `AddLocation`.

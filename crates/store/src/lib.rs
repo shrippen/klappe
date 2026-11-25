@@ -40,9 +40,9 @@ use std::path::{Path, PathBuf};
 
 use klappe_model::{
     is_floor_offset_m, is_image_opacity, is_object_height_m, is_object_size_m, is_opening_width_m,
-    is_outline, Binding, Location, Numbering, ObjectShape, Opening, PaperSetup, Project, SavedView,
-    Scene, ScriptSetup, FORMAT_VERSION, MAX_OBJECT_M, MIN_IMAGE_OPACITY, MIN_OBJECT_M,
-    NOTE_MIN_WIDTH_M,
+    is_outline, Binding, Element, Location, Look, Numbering, ObjectShape, Opening, PaperSetup,
+    Project, SavedView, Scene, ScriptSetup, Team, FORMAT_VERSION, MAX_OBJECT_M, MIN_IMAGE_OPACITY,
+    MIN_OBJECT_M, NOTE_MIN_WIDTH_M,
 };
 use serde::{Deserialize, Serialize};
 
@@ -90,6 +90,8 @@ const SCENES_DIR: &str = "szenen";
 const SCENES_FILE: &str = "szenen.toml";
 /// The breakdown (D-22): its elements, and a sheet file per scene named by the scene.
 const ELEMENTS_FILE: &str = "breakdown/elemente.toml";
+/// The looks' file (`looks.toml`), also in the breakdown folder.
+const LOOKS_FILE: &str = "breakdown/looks.toml";
 const SHEETS_DIR: &str = "breakdown/szenen";
 /// The team (Besetzung/Team): persons and casting, and the contacts apart from them.
 const PEOPLE_FILE: &str = "personen.toml";
@@ -213,8 +215,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
     let (mut scenes, notes) = load_scenes(dir)?;
-    let elements = breakdown::load(dir, &mut scenes)?;
-    let team = team::load(dir)?;
+    let (elements, looks, team) = load_production(dir, &mut scenes)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -226,6 +227,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             views: header.ansicht,
             elements,
             team,
+            looks,
             characters: characters.figur,
             not_figures: characters.not_figures,
             locations,
@@ -236,6 +238,16 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
         script,
         notes,
     })
+}
+
+/// The breakdown's elements and looks and the team: what the production adds to the book.
+fn load_production(
+    dir: &Path,
+    scenes: &mut [Scene],
+) -> Result<(Vec<Element>, Vec<Look>, Team), StoreError> {
+    let (elements, looks) = breakdown::load(dir, scenes)?;
+
+    Ok((elements, looks, team::load(dir)?))
 }
 
 /// Writes `project` into `dir`, creating it if needed. Each file is replaced atomically;
