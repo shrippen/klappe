@@ -70,6 +70,9 @@ impl qobject::Controller {
         department: &QString,
         function: &QString,
         agency: &QString,
+        phone: &QString,
+        mail: &QString,
+        address: &QString,
     ) -> bool {
         let edit = department_of(department).map(|department| {
             ProjectEdit::Team(TeamEdit::EditPerson {
@@ -78,6 +81,11 @@ impl qobject::Controller {
                 department,
                 function: function.to_string(),
                 agency: agency.to_string(),
+                contact: Contact {
+                    phone: phone.to_string(),
+                    mail: mail.to_string(),
+                    address: address.to_string(),
+                },
             })
         });
         self.commit_project(edit)
@@ -86,23 +94,6 @@ impl qobject::Controller {
     pub(super) fn remove_person(self: Pin<&mut Self>, id: &QString) -> bool {
         self.commit_project(Ok(ProjectEdit::Team(TeamEdit::RemovePerson {
             id: id.to_string(),
-        })))
-    }
-
-    pub(super) fn set_contact(
-        self: Pin<&mut Self>,
-        person: &QString,
-        phone: &QString,
-        mail: &QString,
-        address: &QString,
-    ) -> bool {
-        self.commit_project(Ok(ProjectEdit::Team(TeamEdit::SetContact {
-            person: person.to_string(),
-            contact: Contact {
-                phone: phone.to_string().trim().to_owned(),
-                mail: mail.to_string().trim().to_owned(),
-                address: address.to_string().trim().to_owned(),
-            },
         })))
     }
 

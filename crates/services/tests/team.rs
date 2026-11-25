@@ -86,6 +86,22 @@ fn team(s: &mut Session, edit: TeamEdit) {
     s.edit_project(ProjectEdit::Team(edit)).unwrap();
 }
 
+/// Sets the contact of the person and leaves its other fields as they are.
+fn set_contact(s: &mut Session, id: &str, contact: Contact) {
+    let person = s.project().team.person(id).cloned().unwrap();
+    team(
+        s,
+        TeamEdit::EditPerson {
+            id: id.into(),
+            name: person.name,
+            department: person.department,
+            function: person.function,
+            agency: person.agency,
+            contact,
+        },
+    );
+}
+
 fn refused(s: &mut Session, edit: TeamEdit) -> ServiceError {
     s.edit_project(ProjectEdit::Team(edit)).unwrap_err()
 }
@@ -137,11 +153,16 @@ fn a_person_is_added_edited_and_removed() {
             department: Some(Department::Camera),
             function: " Oberbeleuchter ".into(),
             agency: "Licht & Co".into(),
+            contact: Contact {
+                phone: " 0151 ".into(),
+                ..Contact::default()
+            },
         },
     );
     assert_eq!(s.undo_step(), Some("EditPerson"));
     let row = s.overview().persons[0].clone();
     assert_eq!(row.name, "Ines Weber");
+    assert_eq!(row.phone, "0151");
     assert_eq!(row.department, Some("camera"));
     assert_eq!(row.function, "Oberbeleuchter");
     assert_eq!(row.agency, "Licht & Co");
@@ -204,14 +225,12 @@ fn removing_a_person_cleans_castings_and_elements() {
         person: Some(ines.clone()),
     }))
     .unwrap();
-    team(
+    set_contact(
         &mut s,
-        TeamEdit::SetContact {
-            person: ines.clone(),
-            contact: Contact {
-                phone: "1".into(),
-                ..Contact::default()
-            },
+        &ines,
+        Contact {
+            phone: "1".into(),
+            ..Contact::default()
         },
     );
 
@@ -515,18 +534,16 @@ fn contacts_are_kept_apart_from_the_persons() {
     let mut s = Session::open(&dir).unwrap();
     let ines = s.add_person("Ines", Some(Department::Lighting)).unwrap();
 
-    team(
+    set_contact(
         &mut s,
-        TeamEdit::SetContact {
-            person: ines.clone(),
-            contact: Contact {
-                phone: " 0151 1234 ".into(),
-                mail: "ines@example.org".into(),
-                address: "Hauptstr. 1\n10115 Berlin".into(),
-            },
+        &ines,
+        Contact {
+            phone: " 0151 1234 ".into(),
+            mail: "ines@example.org".into(),
+            address: "Hauptstr. 1\n10115 Berlin".into(),
         },
     );
-    assert_eq!(s.undo_step(), Some("SetContact"));
+    assert_eq!(s.undo_step(), Some("EditPerson"));
     let row = s.overview().persons[0].clone();
     assert_eq!(row.phone, "0151 1234");
     assert_eq!(row.address, "Hauptstr. 1\n10115 Berlin");
@@ -542,13 +559,7 @@ fn contacts_are_kept_apart_from_the_persons() {
     assert!(!contacts.contains("Ines"));
 
     // An empty contact removes the file again.
-    team(
-        &mut s,
-        TeamEdit::SetContact {
-            person: ines,
-            contact: Contact::default(),
-        },
-    );
+    set_contact(&mut s, &ines, Contact::default());
     s.save(OnOutside::Ask).unwrap();
     assert!(!dir.join("kontakte.toml").exists());
 }
@@ -616,15 +627,13 @@ fn the_contact_list_is_a_report() {
     s.add_person("Ben", Some(Department::Camera)).unwrap();
     s.add_person("Yves", Some(Department::Direction)).unwrap();
     s.add_person("Nobody", None).unwrap();
-    team(
+    set_contact(
         &mut s,
-        TeamEdit::SetContact {
-            person: a,
-            contact: Contact {
-                phone: "0151".into(),
-                mail: "z@example.org".into(),
-                address: "Weg 1\n10115 Berlin".into(),
-            },
+        &a,
+        Contact {
+            phone: "0151".into(),
+            mail: "z@example.org".into(),
+            address: "Weg 1\n10115 Berlin".into(),
         },
     );
 

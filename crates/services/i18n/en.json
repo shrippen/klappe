@@ -1337,7 +1337,6 @@
  "step.AddPerson": "Add person",
  "step.EditPerson": "Edit person",
  "step.RemovePerson": "Remove person",
- "step.SetContact": "Edit contact",
  "step.ProposeCast": "Propose cast",
  "step.FixCast": "Fix cast",
  "step.DropProposal": "Remove proposal",

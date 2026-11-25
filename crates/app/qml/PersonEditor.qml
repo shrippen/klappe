@@ -37,19 +37,18 @@ EditorPane {
     onItemChanged: load()
     onDepartmentsChanged: load()
 
-    // Each edit only when something it holds changed: one undo step each.
+    // One edit for the whole form, only when something changed: one undo step.
     submit: function () {
         if (!item) {
             return controller.addPerson(nameField.text, chosenDepartment())
         }
-        const person = nameField.text !== item.name || chosenDepartment() !== (item.department || "")
+        const changed = nameField.text !== item.name || chosenDepartment() !== (item.department || "")
             || functionField.text !== item.function || agencyField.text !== item.agency
-        const contact = phoneField.text !== item.phone || mailField.text !== item.mail
+            || phoneField.text !== item.phone || mailField.text !== item.mail
             || addressField.text !== item.address
-        const edited = !person || controller.editPerson(item.id, nameField.text, chosenDepartment(),
-                                                         functionField.text, agencyField.text)
-        return edited && (!contact || controller.setContact(item.id, phoneField.text, mailField.text,
-                                                            addressField.text))
+        return !changed || controller.editPerson(item.id, nameField.text, chosenDepartment(),
+                                                 functionField.text, agencyField.text,
+                                                 phoneField.text, mailField.text, addressField.text)
     }
     remove: function () { return controller.removePerson(item.id) }
 

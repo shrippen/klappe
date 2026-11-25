@@ -37,8 +37,7 @@ TestCase {
         }
         function clearStatus() { status = "" }
         function addPerson(n, d) { call("addPerson", [n, d]); return "p9" }
-        function editPerson(i, n, d, f, a) { return call("editPerson", [i, n, d, f, a]) }
-        function setContact(i, p, m, a) { return call("setContact", [i, p, m, a]) }
+        function editPerson(i, n, d, f, a, p, m, ad) { return call("editPerson", [i, n, d, f, a, p, m, ad]) }
         function removePerson(i) { return call("removePerson", [i]) }
     }
 
@@ -123,7 +122,7 @@ TestCase {
         compare(findChild(pick(v, "p3"), "departmentBox").currentIndex, 0)
     }
 
-    function test_apply_sends_the_person_and_the_contact() {
+    function test_apply_sends_the_person_and_the_contact_as_one_edit() {
         const v = view()
         const form = pick(v, "p1")
 
@@ -132,22 +131,28 @@ TestCase {
         findChild(form, "mailField").text = "jo@kamera.example"
         findChild(form, "apply").clicked()
 
-        compare(fake.calls, [["editPerson", "p1", "Jo Berger", "cast", "Kamera", ""],
-                             ["setContact", "p1", "0301", "jo@kamera.example", "Hauptstr. 1"]])
+        compare(fake.calls, [["editPerson", "p1", "Jo Berger", "cast", "Kamera", "",
+                              "0301", "jo@kamera.example", "Hauptstr. 1"]])
     }
 
-    function test_only_what_changed_is_sent() {
+    function test_the_contact_alone_is_sent_with_the_person_as_it_is() {
         const v = view()
         const form = pick(v, "p1")
 
         findChild(form, "phoneField").text = "0302"
         findChild(form, "apply").clicked()
-        compare(fake.calls.map(c => c[0]), ["setContact"])
 
-        fake.calls = []
-        findChild(form, "agencyField").text = "Agentur Zwei"
+        compare(fake.calls, [["editPerson", "p1", "Jo Berg", "camera", "Kamera", "",
+                              "0302", "jo@example.org", "Hauptstr. 1"]])
+    }
+
+    function test_nothing_is_sent_when_nothing_changed() {
+        const v = view()
+        const form = pick(v, "p1")
+
         findChild(form, "apply").clicked()
-        compare(fake.calls.map(c => c[0]), ["editPerson", "setContact"])
+
+        compare(fake.calls.length, 0)
     }
 
     function test_no_department_is_sent_as_empty() {
@@ -157,7 +162,7 @@ TestCase {
         findChild(form, "departmentBox").currentIndex = 0
         findChild(form, "apply").clicked()
 
-        compare(fake.calls[0], ["editPerson", "p1", "Jo Berg", "", "Kamera", ""])
+        compare(fake.calls[0].slice(0, 6), ["editPerson", "p1", "Jo Berg", "", "Kamera", ""])
     }
 
     function test_a_person_is_deleted_after_asking_and_the_question_names_the_losses() {

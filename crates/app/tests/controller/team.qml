@@ -77,8 +77,8 @@ Item {
             if (lena === "" || jo === "" || project().persons.length !== 2) {
                 return root.fail("persons were not made: " + ctl.status)
             }
-            if (!ctl.editPerson(jo, "Jo Berger", "costume", "Gewandmeister", "Agentur")
-                    || !ctl.setContact(jo, "0301", "jo@example.org", "Hauptstr. 1")) {
+            if (!ctl.editPerson(jo, "Jo Berger", "costume", "Gewandmeister", "Agentur",
+                                "0301", "jo@example.org", "Hauptstr. 1")) {
                 return root.fail("person was not changed: " + ctl.status)
             }
             const row = project().persons.find(p => p.id === jo)

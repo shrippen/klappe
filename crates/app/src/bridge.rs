@@ -1320,6 +1320,7 @@ pub mod qobject {
         #[cxx_name = "addPerson"]
         fn add_person(self: Pin<&mut Self>, name: &QString, department: &QString) -> QString;
 
+        /// The person's fields and contact in one step; an empty contact removes it.
         #[qinvokable]
         #[cxx_name = "editPerson"]
         fn edit_person(
@@ -1329,23 +1330,15 @@ pub mod qobject {
             department: &QString,
             function: &QString,
             agency: &QString,
+            phone: &QString,
+            mail: &QString,
+            address: &QString,
         ) -> bool;
 
         /// Takes the person out of every casting and every element's answer too.
         #[qinvokable]
         #[cxx_name = "removePerson"]
         fn remove_person(self: Pin<&mut Self>, id: &QString) -> bool;
-
-        /// The person's contact; all three empty removes it.
-        #[qinvokable]
-        #[cxx_name = "setContact"]
-        fn set_contact(
-            self: Pin<&mut Self>,
-            person: &QString,
-            phone: &QString,
-            mail: &QString,
-            address: &QString,
-        ) -> bool;
 
         /// The person is a proposal for the character.
         #[qinvokable]

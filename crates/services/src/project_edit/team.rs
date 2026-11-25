@@ -15,21 +15,18 @@ pub enum TeamEdit {
         name: String,
         department: Option<Department>,
     },
+    /// The person's fields and contact in one step; an empty contact removes it.
     EditPerson {
         id: String,
         name: String,
         department: Option<Department>,
         function: String,
         agency: String,
+        contact: Contact,
     },
     /// Takes the person out of every casting and every element's answer too.
     RemovePerson {
         id: String,
-    },
-    /// An empty contact removes it.
-    SetContact {
-        person: String,
-        contact: Contact,
     },
     /// The person is a proposal for the character.
     ProposeCast {
@@ -68,9 +65,14 @@ pub(super) fn apply(project: &mut Project, edit: &TeamEdit) -> Result<(), Servic
             department,
             function,
             agency,
-        } => edit_person(project, id, (name, *department), (function, agency)),
+            contact,
+        } => edit_person(
+            project,
+            id,
+            (name, *department),
+            (function, agency, contact),
+        ),
         TeamEdit::RemovePerson { id } => remove_person(project, id),
-        TeamEdit::SetContact { person, contact } => set_contact(project, person, contact),
         TeamEdit::ProposeCast { character, person } => propose(project, character, person),
         TeamEdit::FixCast { character, person } => fix(project, character, person.as_deref()),
         TeamEdit::DropProposal { character, person } => drop_proposal(project, character, person),
@@ -135,7 +137,7 @@ fn edit_person(
     project: &mut Project,
     id: &str,
     (name, department): (&str, Option<Department>),
-    (function, agency): (&str, &str),
+    (function, agency, contact): (&str, &str, &Contact),
 ) -> Result<(), ServiceError> {
     check_person(project, id)?;
     let name = name_of(name)?;
@@ -147,6 +149,7 @@ fn edit_person(
     person.department = department;
     person.function = function.trim().to_owned();
     person.agency = agency.trim().to_owned();
+    set_contact(project, id, contact);
 
     Ok(())
 }
@@ -175,9 +178,8 @@ fn remove_person(project: &mut Project, id: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
-fn set_contact(project: &mut Project, person: &str, contact: &Contact) -> Result<(), ServiceError> {
-    check_person(project, person)?;
-
+/// Stores the trimmed contact of the person; an empty one removes it.
+fn set_contact(project: &mut Project, person: &str, contact: &Contact) {
     let contact = Contact {
         phone: contact.phone.trim().to_owned(),
         mail: contact.mail.trim().to_owned(),
@@ -187,8 +189,6 @@ fn set_contact(project: &mut Project, person: &str, contact: &Contact) -> Result
         true => project.team.contacts.remove(person),
         false => project.team.contacts.insert(person.to_owned(), contact),
     };
-
-    Ok(())
 }
 
 /// The casting of the character, made if there is none.
