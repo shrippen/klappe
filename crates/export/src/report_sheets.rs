@@ -110,11 +110,18 @@ impl<'a> Writer<'a> {
         self.width_pt - 2.0 * self.margin
     }
 
-    /// The title at the top of a fresh sheet, wrapped to the content width. `cell_lines`
-    /// measures at `CELL_PT`, so the width is scaled to it.
+    /// The title at the top of a fresh sheet. One too wide wraps to the content width;
+    /// `cell_lines` measures at `CELL_PT`, so the width is scaled to it. One that fits stays
+    /// as it is, since wrapping folds the two spaces after a scene number into one.
     fn begin(&mut self) {
-        let max_w = self.content_w() * CELL_PT / TITLE_PT;
-        let lines = cell_lines(&self.title, max_w, Weight::Bold);
+        let fits = text_width_pt(&self.title, TITLE_PT, Weight::Bold) <= self.content_w();
+        let lines = match fits {
+            true => vec![self.title.clone()],
+            false => {
+                let max_w = self.content_w() * CELL_PT / TITLE_PT;
+                cell_lines(&self.title, max_w, Weight::Bold)
+            }
+        };
         let mut y = self.margin + TITLE_PT;
         for line in &lines {
             self.text(self.margin, y, TITLE_PT, Weight::Bold, line);
@@ -386,5 +393,28 @@ mod tests {
             let end = at.0 + text_width_pt(text, *size_pt, *weight);
             assert!(end <= right, "{text:?} ends at {end}, margin at {right}");
         }
+    }
+
+    /// A head that fits keeps its spacing: two spaces after the number.
+    #[test]
+    fn a_short_extract_head_keeps_its_spacing() {
+        let pal = palette(Theme::Light).unwrap();
+        let page = ExtractPage {
+            title: "12  INT. SALON".into(),
+            facts: Vec::new(),
+            boxes: Vec::new(),
+        };
+
+        let sheets = extract_sheets(&[page], pal);
+
+        let titles: Vec<&str> = sheets[0]
+            .prims
+            .iter()
+            .filter_map(|p| match p {
+                Prim::Text { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(titles, ["12  INT. SALON"]);
     }
 }
