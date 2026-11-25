@@ -76,12 +76,14 @@ impl Session {
     /// Like `cast_numbers`, for the team of `project`, a copy of this session's.
     fn numbers_in(&self, project: &Project) -> HashMap<String, u32> {
         let seen = self.scene_counts();
-        let appearances: Vec<Appearance> = project
+        let mut appearances: Vec<Appearance> = project
             .characters
             .iter()
             .zip(seen)
             .map(|(c, (scenes, first))| appearance(project, c, scenes, first))
             .collect();
+        // A casting whose character is gone (removed from outside) keeps its number taken.
+        appearances.extend(orphan_numbers(project));
         let mode = match project.team.numbers_locked {
             true => Numbers::Locked,
             false => Numbers::Moving,
@@ -156,6 +158,24 @@ impl Session {
 
         project_edit::store_numbers(next, &self.cast_numbers());
     }
+}
+
+/// The stored numbers of castings whose character the project no longer has.
+fn orphan_numbers(project: &Project) -> impl Iterator<Item = Appearance<'_>> {
+    let castings = project.team.castings.iter();
+
+    castings
+        .filter(|k| project.character(&k.character).is_none())
+        .filter_map(|k| {
+            Some(Appearance {
+                id: &k.character,
+                name: &k.character,
+                extra: false,
+                scenes: 0,
+                first: usize::MAX,
+                stored: Some(k.cast_number?),
+            })
+        })
 }
 
 fn appearance<'a>(

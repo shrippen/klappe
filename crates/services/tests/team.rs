@@ -762,3 +762,21 @@ fn removing_a_character_drops_its_casting() {
     s.undo();
     assert_eq!(casting(&s, "chris").proposed, [ines.as_str()]);
 }
+
+/// A casting whose character left `figuren.toml` from outside keeps its number: no one else
+/// gets it, so locking can still be saved.
+#[test]
+fn the_number_of_an_orphan_casting_is_taken() {
+    let mut project = project();
+    project.team.castings.push(klappe_model::Casting {
+        character: "gone".into(),
+        cast_number: Some(1),
+        ..Default::default()
+    });
+    let mut s = open_with("team-orphan-number", &project, BOOK);
+
+    assert_eq!(number(&s, "anna"), Some(2));
+
+    team(&mut s, TeamEdit::LockCastNumbers);
+    s.save(OnOutside::Ask).unwrap();
+}
