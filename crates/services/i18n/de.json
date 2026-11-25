@@ -1391,6 +1391,7 @@
  "casting.cast": "Besetzung",
  "casting.fixed": "fest",
  "casting.fix": "{name} festlegen",
+ "casting.fixAction": "Festlegen",
  "casting.drop": "{name} nicht mehr vorschlagen",
  "casting.nobody": "Noch niemand vorgeschlagen.",
  "casting.search": "Person suchen oder neu anlegen",

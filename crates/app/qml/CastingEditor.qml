@@ -6,14 +6,14 @@ import Kante
 
 // Besetzung (D-26): one role. Its cast number (shown, and set by hand; empty gives it back to the
 // book), the buttons that lock or free the numbers of all roles, and the casting: the persons
-// proposed as chips, the fixed one marked, each with a ✓ to fix it and a × to drop it; a search
+// proposed as chips, the fixed one marked, each with a button to fix it and a × to drop it; a search
 // field with the persons the role does not have yet (the cast department first), where a new name
 // makes a person and proposes it. Every change goes in at once, one undo step each.
 //
 //  ┌ Anna ───────────────────────────────────┐
 //  │ CAST-NUMMER  1, automatisch  [ leer: automatisch ]│
 //  │ [Nummern festschreiben]                        │
-//  │ BESETZUNG  [Lena Weber · fest ×] [Jo Berg ×] ✓ │
+//  │ BESETZUNG  [Lena Weber · fest ×] [Jo Berg ×] [Festlegen] │
 //  │ [ Person suchen oder neu anlegen ]             │
 //  │ In 7 Szenen                                    │
 //  └────────────────────────────────────────────────┘
@@ -172,7 +172,7 @@ ColumnLayout {
                     objectName: "fix"
                     visible: !proposal.fixed
                     size: KanteButton.Size.Small
-                    text: "✓"
+                    text: form.texts.t("casting.fixAction")
                     Accessible.name: form.texts.t("casting.fix", { name: proposal.name })
                     onClicked: form.controller.fixCast(form.role.id, proposal.modelData)
                 }

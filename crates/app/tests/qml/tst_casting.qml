@@ -214,6 +214,15 @@ TestCase {
         verify(findChild(findChild(form, "proposal.p3"), "fix").visible)
     }
 
+    function test_the_fix_action_has_a_text_and_names_the_person() {
+        const v = view()
+        const form = pick(v, "anna")
+        const fix = findChild(findChild(form, "proposal.p3"), "fix")
+
+        verify(fix.text.length > 1)
+        verify(fix.Accessible.name.includes("Mia Rot"))
+    }
+
     function test_the_check_fixes_a_proposal() {
         const v = view()
         const form = pick(v, "anna")

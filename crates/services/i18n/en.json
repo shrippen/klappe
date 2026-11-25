@@ -1391,6 +1391,7 @@
  "casting.cast": "Casting",
  "casting.fixed": "fixed",
  "casting.fix": "Fix {name}",
+ "casting.fixAction": "Make fixed",
  "casting.drop": "Stop proposing {name}",
  "casting.nobody": "Nobody proposed yet.",
  "casting.search": "Find a person or make a new one",
