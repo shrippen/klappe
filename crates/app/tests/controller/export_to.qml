@@ -185,7 +185,8 @@ Item {
                 return root.fail("an unknown report or format reported success")
             }
             // The name follows the language of the surface (CI runs in English).
-            if (!/\/(Drehbuchauszug|Breakdown-extract)\.pdf$/.test(ctl.reportFile("auszug"))) {
+            const extract = JSON.parse(ctl.texts)["report.auszug"].replace(/[ \/]/g, "-")
+            if (!ctl.reportFile("auszug").endsWith("/" + extract + ".pdf")) {
                 return root.fail("the file offered for a report is " + ctl.reportFile("auszug"))
             }
 
