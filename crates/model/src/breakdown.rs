@@ -113,6 +113,9 @@ pub struct Element {
     pub description: String,
     #[serde(default)]
     pub status: ElementStatus,
+    /// The id of the person of the team who answers for it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub responsible: Option<String>,
 }
 
 /// A named look of a character, e.g. `Ölzeug, nass`: the costume and make-up elements it

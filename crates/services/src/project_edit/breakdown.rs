@@ -11,6 +11,8 @@ use crate::error::ServiceError;
 use crate::field::Field;
 use crate::sheet_time::{read_planned, read_prestop};
 
+use super::team::check_person;
+
 /// Edits of the breakdown: elements and scene sheets (DB-60, D-22).
 #[derive(Debug, Clone, PartialEq)]
 pub enum BreakdownEdit {
@@ -27,6 +29,11 @@ pub enum BreakdownEdit {
         name: String,
         description: String,
         status: ElementStatus,
+    },
+    /// The person of the team who answers for the element; `None` for nobody.
+    SetResponsible {
+        element: String,
+        person: Option<String>,
     },
     /// Takes the element out of every scene sheet and every set object too.
     RemoveElement {
@@ -158,6 +165,9 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
             description,
             status,
         } => edit_element(project, id, (*category, name), (description, *status)),
+        BreakdownEdit::SetResponsible { element, person } => {
+            set_responsible(project, element, person.as_deref())
+        }
         BreakdownEdit::RemoveElement { id } => remove_element(project, id),
         BreakdownEdit::SetSheet {
             scene,
@@ -186,14 +196,8 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
             name,
         } => add_to_scene(project, scene, *category, name),
         BreakdownEdit::ExcludeSuggestion { scene, element } => exclude(project, scene, element),
-        BreakdownEdit::AddSceneCharacter { scene, character } => {
-            add_character(project, scene, character)
-        }
-        BreakdownEdit::RemoveSceneCharacter { scene, character } => {
-            let sheet = sheet_mut(project, scene)?;
-            sheet.characters.retain(|c| c != character);
-            sheet.looks.remove(character);
-            Ok(())
+        BreakdownEdit::AddSceneCharacter { .. } | BreakdownEdit::RemoveSceneCharacter { .. } => {
+            scene_character(project, edit)
         }
         BreakdownEdit::SetObjectElement {
             location,
@@ -213,6 +217,22 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
         | BreakdownEdit::AddElementToLook { .. }
         | BreakdownEdit::RemoveLookElement { .. }
         | BreakdownEdit::SetSceneLook { .. } => looks::apply(project, edit),
+    }
+}
+
+/// A character comes into a scene's sheet or leaves it (with its look).
+fn scene_character(project: &mut Project, edit: &BreakdownEdit) -> Result<(), ServiceError> {
+    match edit {
+        BreakdownEdit::AddSceneCharacter { scene, character } => {
+            add_character(project, scene, character)
+        }
+        BreakdownEdit::RemoveSceneCharacter { scene, character } => {
+            let sheet = sheet_mut(project, scene)?;
+            sheet.characters.retain(|c| c != character);
+            sheet.looks.remove(character);
+            Ok(())
+        }
+        _ => Ok(()),
     }
 }
 
@@ -285,6 +305,7 @@ fn add_element(
         name,
         description: String::new(),
         status: ElementStatus::default(),
+        responsible: None,
     });
 
     Ok(id)
@@ -310,6 +331,23 @@ fn edit_element(
     element.description = description.trim().to_owned();
     element.status = status;
     looks::fit_looks(project, id, category);
+
+    Ok(())
+}
+
+fn set_responsible(
+    project: &mut Project,
+    element: &str,
+    person: Option<&str>,
+) -> Result<(), ServiceError> {
+    check_element(project, element)?;
+    if let Some(id) = person {
+        check_person(project, id)?;
+    }
+
+    if let Some(found) = project.elements.iter_mut().find(|e| e.id == element) {
+        found.responsible = person.map(str::to_owned);
+    }
 
     Ok(())
 }

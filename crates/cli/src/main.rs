@@ -7,7 +7,7 @@
 //!                   [--language de|en] [--format pdf|svg|png|csv|ods|xlsx|frames|camera|
 //!                                                shotpages|camerapages|shotfiles|camerafiles|mp4]
 //!                   [--camera <id>]
-//! klappe-cli report --project <folder> --report <szenen|spielorte|figuren|auszug> --out <file>
+//! klappe-cli report --project <folder> --report <szenen|spielorte|figuren|auszug|kontakte> --out <file>
 //!                   [--language de|en]      (pdf, csv, ods or xlsx, by the extension of --out)
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
 //!                       [--scene-numbers] [--header]
@@ -87,7 +87,7 @@ enum Command {
         /// The project folder.
         #[arg(long)]
         project: PathBuf,
-        /// `szenen`, `spielorte`, `figuren` or `auszug`.
+        /// `szenen`, `spielorte`, `figuren`, `auszug` or `kontakte`.
         #[arg(long, value_parser = report_arg())]
         report: Report,
         /// Language of the headings; the system's if left out.

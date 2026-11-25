@@ -34,6 +34,7 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
         ServiceError::NoLocation(id) => ("error.noLocation", id),
         ServiceError::NoCharacter(id) => ("error.noCharacter", id),
         ServiceError::NoElement(id) => ("error.noElement", id),
+        ServiceError::NoPerson(id) => ("error.noPerson", id),
         ServiceError::NoLook(id) => ("error.noLook", id),
         ServiceError::NotLookElement(id) => ("error.notLookElement", id),
         _ => return None,
@@ -42,9 +43,23 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
     Some((found.0, found.1.clone()))
 }
 
+/// A number already in use: a shot's (e.g. "12.3") or a role's cast number.
+fn taken_text(language: Language, error: &ServiceError) -> Option<String> {
+    let (key, number) = match error {
+        ServiceError::CastNumberTaken(number) => ("error.castNumberTaken", number.to_string()),
+        ServiceError::NumberTaken(number) => ("error.numberTaken", number.clone()),
+        _ => return None,
+    };
+
+    Some(language.text(key).replace("{number}", &number))
+}
+
 fn own_text(language: Language, error: &ServiceError) -> String {
     if let Some((key, id)) = missing(error) {
         return language.text(key).replace("{detail}", &id);
+    }
+    if let Some(text) = taken_text(language, error) {
+        return text;
     }
 
     let (key, detail) = match error {
@@ -54,11 +69,6 @@ fn own_text(language: Language, error: &ServiceError) -> String {
                 .text("error.cameraInUse")
                 .replace("{camera}", camera)
                 .replace("{shot}", shot);
-        }
-        ServiceError::NumberTaken(number) => {
-            return language
-                .text("error.numberTaken")
-                .replace("{number}", number);
         }
         ServiceError::LocationInUse { scenes, .. } => {
             return language
@@ -202,6 +212,8 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::NoLocation(_)
         | ServiceError::NoCharacter(_)
         | ServiceError::NoElement(_)
+        | ServiceError::NoPerson(_)
+        | ServiceError::CastNumberTaken(_)
         | ServiceError::NoLook(_)
         | ServiceError::NotLookElement(_)
         | ServiceError::NotEmpty(_)
@@ -248,6 +260,8 @@ pub fn outside_files_text(language: Language, files: &[OutsideFile]) -> String {
             klappe_store::FileKind::Register => "outside.file.register",
             klappe_store::FileKind::Scene => "outside.file.scene",
             klappe_store::FileKind::Breakdown => "outside.file.breakdown",
+            klappe_store::FileKind::Team => "outside.file.team",
+            klappe_store::FileKind::Contacts => "outside.file.contacts",
             klappe_store::FileKind::Script => "outside.file.script",
         };
         let word = language.text(key);

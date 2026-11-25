@@ -47,6 +47,11 @@ pub enum ServiceError {
     NoCharacter(String),
     #[error("no element {0}")]
     NoElement(String),
+    #[error("no person {0}")]
+    NoPerson(String),
+    /// Another character has the cast number.
+    #[error("cast number {0} is taken")]
+    CastNumberTaken(u32),
     #[error("no look {0}")]
     NoLook(String),
     /// Only costume and make-up elements belong to a look; holds the element's name.

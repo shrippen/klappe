@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
-use klappe_model::{ElementCategory, FloorPlan, Project, Scene, Site};
+use klappe_model::{Department, ElementCategory, FloorPlan, Project, Scene, Site};
 
 use super::undo::{next_edit, step_name};
 use super::Session;
 use crate::error::ServiceError;
 use crate::plan_edit::{self, PlanEdit};
-use crate::project_edit::{self, BreakdownEdit, PlanShift, ProjectEdit, ShotsGo};
+use crate::project_edit::{self, BreakdownEdit, PlanShift, ProjectEdit, ShotsGo, TeamEdit};
 use crate::scene_location;
 use crate::script_refs;
 
@@ -124,6 +124,7 @@ impl Session {
         self.check_script_number(&edit)?;
         self.check_location_use(&edit)?;
         self.check_sheet_character(&edit)?;
+        self.check_cast_number(&edit)?;
         self.check_scene_look(&edit)?;
         let step = project_step(&edit);
         let mut next = self.project.clone();
@@ -131,6 +132,7 @@ impl Session {
         if let ProjectEdit::AddScene { .. } = edit {
             self.seat_new_scene(&mut next);
         }
+        self.store_numbers(&edit, &mut next);
         self.check_figure_sizes(&next)?;
         if next == self.project {
             return Ok(());
@@ -159,6 +161,22 @@ impl Session {
         });
 
         self.add_and_name(edit, |p| p.elements.iter().map(|e| e.id.as_str()).collect())
+    }
+
+    /// Adds the person and returns their id; undoable. Refused like `AddPerson`.
+    pub fn add_person(
+        &mut self,
+        name: &str,
+        department: Option<Department>,
+    ) -> Result<String, ServiceError> {
+        let edit = ProjectEdit::Team(TeamEdit::AddPerson {
+            name: name.to_owned(),
+            department,
+        });
+
+        self.add_and_name(edit, |p| {
+            p.team.persons.iter().map(|p| p.id.as_str()).collect()
+        })
     }
 
     /// Adds the look of `character` and returns its id; undoable. Refused like `AddLook`.
@@ -382,6 +400,7 @@ fn project_step(edit: &ProjectEdit) -> String {
         ProjectEdit::Library(inner) => step_name(inner),
         ProjectEdit::Template(inner) => step_name(inner),
         ProjectEdit::Breakdown(inner) => step_name(inner),
+        ProjectEdit::Team(inner) => step_name(inner),
         other => step_name(other),
     }
 }
