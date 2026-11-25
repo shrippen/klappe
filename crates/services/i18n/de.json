@@ -1305,6 +1305,7 @@
  "elements.new": "Element anlegen",
  "elements.edit": "Element bearbeiten",
  "elements.none": "Noch keine Elemente.",
+ "elements.pick": "Links ein Element wählen oder mit „Neu…“ anlegen.",
  "elements.category": "Kategorie",
  "elements.description": "Beschreibung",
  "elements.status": "Status",

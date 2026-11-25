@@ -1305,6 +1305,7 @@
  "elements.new": "New element",
  "elements.edit": "Change element",
  "elements.none": "No elements yet.",
+ "elements.pick": "Pick an element on the left or make one with “New…”.",
  "elements.category": "Category",
  "elements.description": "Description",
  "elements.status": "Status",
