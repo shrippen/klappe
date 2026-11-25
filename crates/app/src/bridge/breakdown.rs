@@ -233,4 +233,86 @@ impl qobject::Controller {
 
         self.report(result)
     }
+
+    /// The new look's id; empty when it was refused.
+    pub(super) fn add_look(
+        mut self: Pin<&mut Self>,
+        character: &QString,
+        name: &QString,
+    ) -> QString {
+        let result = self
+            .as_mut()
+            .session()
+            .map(|s| s.add_look(&character.to_string(), &name.to_string()));
+
+        self.made(result)
+    }
+
+    pub(super) fn edit_look(self: Pin<&mut Self>, id: &QString, name: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::EditLook {
+            id: id.to_string(),
+            name: name.to_string(),
+        })))
+    }
+
+    pub(super) fn remove_look(self: Pin<&mut Self>, id: &QString) -> bool {
+        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::RemoveLook {
+            id: id.to_string(),
+        })))
+    }
+
+    pub(super) fn add_look_element(
+        self: Pin<&mut Self>,
+        look: &QString,
+        element: &QString,
+    ) -> bool {
+        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::AddLookElement {
+            look: look.to_string(),
+            element: element.to_string(),
+        })))
+    }
+
+    pub(super) fn add_element_to_look(
+        self: Pin<&mut Self>,
+        look: &QString,
+        category: &QString,
+        name: &QString,
+    ) -> bool {
+        let edit = category_of(category).map(|category| {
+            ProjectEdit::Breakdown(BreakdownEdit::AddElementToLook {
+                look: look.to_string(),
+                category,
+                name: name.to_string(),
+            })
+        });
+        self.commit_project(edit)
+    }
+
+    pub(super) fn remove_look_element(
+        self: Pin<&mut Self>,
+        look: &QString,
+        element: &QString,
+    ) -> bool {
+        self.commit_project(Ok(ProjectEdit::Breakdown(
+            BreakdownEdit::RemoveLookElement {
+                look: look.to_string(),
+                element: element.to_string(),
+            },
+        )))
+    }
+
+    pub(super) fn set_scene_look(
+        self: Pin<&mut Self>,
+        scene: &QString,
+        character: &QString,
+        look: &QString,
+    ) -> bool {
+        let look = look.to_string();
+
+        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::SetSceneLook {
+            scene: scene.to_string(),
+            character: character.to_string(),
+            look: Some(look).filter(|l| !l.is_empty()),
+        })))
+    }
 }

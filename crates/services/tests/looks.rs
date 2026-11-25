@@ -524,3 +524,106 @@ fn a_look_of_a_character_not_in_the_scene_is_not_shown() {
     let rows = rows(&mut s, Report::Cast, "looks-left-csv");
     assert_eq!(rows[1], ["14", "X"]);
 }
+
+#[test]
+fn a_new_element_goes_into_a_look_in_one_step() {
+    let mut s = open("looks-to-look");
+    let wet = s.add_look("anna", "Ölzeug, nass").unwrap();
+    let add = |s: &mut Session, name: &str| {
+        run(
+            s,
+            BreakdownEdit::AddElementToLook {
+                look: wet.clone(),
+                category: ElementCategory::Costume,
+                name: name.into(),
+            },
+        )
+    };
+
+    add(&mut s, "Ölmantel").unwrap();
+    assert_eq!(s.project().elements.len(), 1);
+    assert_eq!(s.project().looks[0].elements.len(), 1);
+    assert_eq!(s.undo_step(), Some("AddElementToLook"));
+
+    // One undo takes the element and its place in the look.
+    s.undo();
+    assert!(s.project().elements.is_empty());
+    assert!(s.project().looks[0].elements.is_empty());
+
+    // The same name, the case aside, is the same element, once in the look.
+    add(&mut s, "Ölmantel").unwrap();
+    add(&mut s, " ölmantel ").unwrap();
+    assert_eq!(s.project().elements.len(), 1);
+    assert_eq!(s.project().looks[0].elements.len(), 1);
+}
+
+#[test]
+fn a_new_prop_does_not_go_into_a_look() {
+    let mut s = open("looks-prop");
+    let wet = s.add_look("anna", "Ölzeug, nass").unwrap();
+
+    let refused = run(
+        &mut s,
+        BreakdownEdit::AddElementToLook {
+            look: wet,
+            category: ElementCategory::Prop,
+            name: "Lampe".into(),
+        },
+    )
+    .unwrap_err();
+
+    assert!(matches!(refused, ServiceError::NotLookElement(_)));
+    assert!(s.project().elements.is_empty());
+}
+
+#[test]
+fn a_look_lists_no_scene_its_character_left() {
+    let mut s = dressed("looks-left-scenes");
+    assert_eq!(s.overview().looks[0].scenes.len(), 1);
+
+    s.set_script_text(&BOOK.replace("ANNA\nHallo.", "Hallo."));
+
+    assert!(s.overview().looks[0].scenes.is_empty());
+}
+
+#[test]
+fn a_sheet_shows_the_elements_of_the_looks_worn_and_a_look_its_scenes() {
+    let mut s = open("looks-sheet");
+    let wet = s.add_look("anna", "Ölzeug, nass").unwrap();
+    let coat = s.add_element(ElementCategory::Costume, "Ölmantel").unwrap();
+    let blood = s.add_element(ElementCategory::Makeup, "Schramme").unwrap();
+    in_look(&mut s, &wet, &coat).unwrap();
+    in_look(&mut s, &wet, &blood).unwrap();
+
+    // Not worn yet: nothing in the sheet, no scene for the look.
+    let seen = s.overview();
+    assert!(seen.sheet.unwrap().categories.is_empty());
+    assert!(seen.looks[0].scenes.is_empty());
+
+    put_on(&mut s, "aaaa", "anna", Some(&wet)).unwrap();
+    let seen = s.overview();
+    let categories = seen.sheet.unwrap().categories;
+    let names: Vec<_> = categories.iter().map(|c| c.category).collect();
+    assert_eq!(names, ["costume", "makeup"]);
+    assert!(categories[0].elements.is_empty());
+    assert_eq!(categories[0].from_looks[0].name, "Ölmantel");
+    assert_eq!(categories[0].from_looks[0].figure, "ANNA");
+    assert_eq!(seen.looks[0].scenes.len(), 1);
+    assert_eq!(seen.looks[0].scenes[0].id, "aaaa");
+
+    // The same element on the sheet itself is listed there as well.
+    edit(
+        &mut s,
+        BreakdownEdit::AddElementToScene {
+            scene: "aaaa".into(),
+            category: ElementCategory::Costume,
+            name: "Ölmantel".into(),
+        },
+    );
+    let categories = s.overview().sheet.unwrap().categories;
+    assert_eq!(categories[0].elements.len(), 1);
+    assert_eq!(categories[0].from_looks.len(), 1);
+
+    put_on(&mut s, "aaaa", "anna", None).unwrap();
+    assert!(s.overview().looks[0].scenes.is_empty());
+}
