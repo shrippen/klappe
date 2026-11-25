@@ -176,8 +176,11 @@ pub(crate) fn table(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> Ta
 
 /// The plan's shots as CSV: head row, then one row per shot in `order`.
 pub(crate) fn csv(plan: &FloorPlan, texts: &ShotTexts, order: ShotOrder) -> String {
-    let table = table(plan, texts, order);
+    csv_of(&table(plan, texts, order))
+}
 
+/// Any table as CSV: head row, then the rows.
+pub(crate) fn csv_of(table: &Table) -> String {
     let mut out = row(&table.head);
     for cells in &table.rows {
         out.push_str(&row(cells));

@@ -19,7 +19,7 @@ use crate::views::{
     AxisChoice, CameraSpot, CharacterRow, ExportRow, Hint, LocationRow, Overview, PaperRow,
     PlanRow, SceneRow, SunTexts, ViewRow,
 };
-use crate::ExportFormat;
+use crate::{ExportFormat, Report, ReportFormat};
 
 /// Tenths of a degree: the angle of view in a tooltip is shown to one decimal.
 const FOV_STEPS_PER_DEG: f64 = 10.0;
@@ -167,6 +167,8 @@ impl Session {
                     extension: f.extension(),
                 })
                 .into(),
+            reports: Report::ALL.map(Report::name).into(),
+            report_formats: ReportFormat::ALL.map(ReportFormat::name).into(),
             views: self
                 .saved_views()
                 .iter()

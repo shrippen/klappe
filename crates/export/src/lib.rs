@@ -1,4 +1,4 @@
-//! Writes Stellprobe's display list as SVG, PDF and PNG, the shot list as PDF, CSV, ODS and XLSX, and the views of the set (PNG, PDF pages) (planung/KONZEPT.md, section 4).
+//! Writes Stellprobe's display list as SVG, PDF and PNG, the shot list as PDF, CSV, ODS and XLSX, the reports as the same (DB-61), and the views of the set (PNG, PDF pages) (planung/KONZEPT.md, section 4).
 //! The GUI draws the same list, so the printout matches the screen (LH-80/81).
 //!
 //! ```text
@@ -28,6 +28,8 @@ mod picture_png;
 mod png;
 mod png_write;
 mod raster;
+mod report;
+mod report_sheets;
 mod rgb8;
 mod scan;
 mod script;
@@ -50,6 +52,10 @@ pub use page::{
     DrawingTexts, LampColumns, LampTexts, Page, ShotColumns, ShotTexts, ShotView, Texts,
 };
 pub use palette::Theme;
+pub use report::{
+    extract_pdf, report_csv, report_ods, report_pdf, report_xlsx, ExtractBox, ExtractPage,
+    ReportTable,
+};
 pub use script::{
     Face, Placed, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, SheetPage, TitlePage,
     ASCENT_PT as SCRIPT_ASCENT_PT, FONT_PT as SCRIPT_FONT_PT,

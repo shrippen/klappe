@@ -99,6 +99,9 @@ pub enum ServiceError {
     /// The project has no screenplay to page or print (DB-70).
     #[error("the project has no screenplay")]
     NoScript,
+    /// A report has no scene to list: none is in the book.
+    #[error("no scenes in the book")]
+    NoBookScenes,
     /// A plan with no figure and no camera has nothing to file as a template.
     #[error("the plan has no figure and no camera")]
     EmptyTemplate,

@@ -29,6 +29,7 @@ mod places;
 mod plan_view;
 mod playback;
 mod questions;
+mod report;
 mod retime;
 mod saved;
 mod scene;

@@ -185,6 +185,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::Cancelled
         | ServiceError::NoPicture
         | ServiceError::NoScript
+        | ServiceError::NoBookScenes
         | ServiceError::NoPages => nothing_key(error),
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
         ServiceError::FewPoints => Some("error.fewPoints"),
@@ -224,6 +225,7 @@ fn nothing_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::Cancelled => Some("error.cancelled"),
         ServiceError::NoPicture => Some("error.noPicture"),
         ServiceError::NoScript => Some("error.noScript"),
+        ServiceError::NoBookScenes => Some("error.noBookScenes"),
         ServiceError::NoPages => Some("error.noPages"),
         _ => None,
     }
@@ -652,6 +654,7 @@ mod tests {
             ServiceError::NoMarks,
             ServiceError::NoPicture,
             ServiceError::NoScript,
+            ServiceError::NoBookScenes,
             ServiceError::NoDuration,
             ServiceError::Cancelled,
             ServiceError::NotCopyable,

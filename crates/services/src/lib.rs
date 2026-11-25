@@ -31,6 +31,7 @@ mod place_file;
 mod places;
 mod plan_edit;
 mod project_edit;
+mod report;
 mod scene_location;
 mod scene_text;
 mod script_pages;
@@ -62,6 +63,7 @@ pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdi
 pub use project_edit::{
     BreakdownEdit, LibraryEdit, MarkTarget, NameEdit, PlanShift, ProjectEdit, ShotsGo, TemplateEdit,
 };
+pub use report::{Report, ReportFormat};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;

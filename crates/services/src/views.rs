@@ -434,6 +434,11 @@ pub struct Overview {
     pub orientations: Vec<&'static str>,
     /// The exports, in the order the menu offers them.
     pub formats: Vec<ExportRow>,
+    /// The reports (DB-61), in the order the menu offers them, as `szenen`; the surface names
+    /// them (`report.<name>`).
+    pub reports: Vec<&'static str>,
+    /// The files a report can be written as, as `pdf`; also the extension.
+    pub report_formats: Vec<&'static str>,
     /// How the project numbers its shots, as `camera` (LH-76).
     pub numbering: &'static str,
     /// The numbering schemes to choose from; the surface names them.
