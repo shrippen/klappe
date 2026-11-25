@@ -93,6 +93,18 @@ fn remove_look(project: &mut Project, id: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
+/// Takes the element out of every look unless `category` is one a look is made of: a prop in a
+/// look would show as a prop in the extract.
+pub(super) fn fit_looks(project: &mut Project, element: &str, category: ElementCategory) {
+    if LOOK_CATEGORIES.contains(&category) {
+        return;
+    }
+
+    for look in &mut project.looks {
+        look.elements.retain(|e| e != element);
+    }
+}
+
 /// The element goes into the look, once. Refused for any category but costume and make-up.
 fn add_look_element(project: &mut Project, look: &str, element: &str) -> Result<(), ServiceError> {
     look_mut(project, look)?;

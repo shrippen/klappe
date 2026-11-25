@@ -20,6 +20,7 @@ pub enum BreakdownEdit {
         category: ElementCategory,
         name: String,
     },
+    /// A category that is no costume or make-up takes the element out of every look.
     EditElement {
         id: String,
         category: ElementCategory,
@@ -300,6 +301,7 @@ fn edit_element(
     element.name = name;
     element.description = description.trim().to_owned();
     element.status = status;
+    looks::fit_looks(project, id, category);
 
     Ok(())
 }

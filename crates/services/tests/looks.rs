@@ -371,6 +371,31 @@ fn a_removed_character_takes_its_looks_along() {
 }
 
 #[test]
+fn an_element_leaves_the_looks_when_it_is_no_costume_or_makeup() {
+    let mut s = open("looks-recategory");
+    let look = s.add_look("anna", "Ölzeug, nass").unwrap();
+    let coat = s.add_element(ElementCategory::Costume, "Ölmantel").unwrap();
+    in_look(&mut s, &look, &coat).unwrap();
+    let to = |category| BreakdownEdit::EditElement {
+        id: coat.clone(),
+        category,
+        name: "Ölmantel".into(),
+        description: String::new(),
+        status: Default::default(),
+    };
+
+    // Costume to make-up: still fits.
+    edit(&mut s, to(ElementCategory::Makeup));
+    assert_eq!(s.project().looks[0].elements, std::slice::from_ref(&coat));
+
+    edit(&mut s, to(ElementCategory::Prop));
+    assert!(s.project().looks[0].elements.is_empty());
+    assert_eq!(s.undo_step(), Some("EditElement"));
+    s.undo();
+    assert_eq!(s.project().looks[0].elements, [coat]);
+}
+
+#[test]
 fn the_looks_survive_a_save_and_an_orphan_is_kept_but_not_offered() {
     let dir = dir_of("looks-save");
     let mut s = open_in(&dir);
