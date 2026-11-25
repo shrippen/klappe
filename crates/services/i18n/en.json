@@ -1414,5 +1414,12 @@
  "remove.person": "Delete person {name}? Castings and responsibilities go too; Undo brings them back.",
  "elements.responsible": "Responsible",
  "elements.noResponsible": "none",
- "elements.noPersons": "No persons yet; they are made in the Team module."
+ "elements.noPersons": "No persons yet; they are made in the Team module.",
+ "menu.reports": "Reports",
+ "menu.reportSaved": "Report saved: {path}",
+ "export.pick.report": "Save report",
+ "export.filter.report.pdf": "PDF (*.pdf)",
+ "export.filter.report.csv": "CSV (*.csv)",
+ "export.filter.report.ods": "ODS (*.ods)",
+ "export.filter.report.xlsx": "XLSX (*.xlsx)"
 }

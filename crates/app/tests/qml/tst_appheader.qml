@@ -72,7 +72,7 @@ TestCase {
         fake.selectedKey = ""
         fake.curve = ""
         fake.plan = "plan-a"
-        fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats })
+        fake.projectJson = JSON.stringify({ scenes: fake.scenes, plans: fake.plans, plan: fake.plan, formats: fake.formats, report_formats: fake.reportFormats })
         fakeTools.tool = "select"
         fakeTools.mode = "build"
         fakeTools.enabled = true
@@ -371,6 +371,36 @@ TestCase {
         dialog.save("file:///work/Wartburg.mp4")
 
         compare(fake.calls, [["exportTo", "mp4", "cut", "a4-landscape", "file:///work/Wartburg.mp4"]])
+    }
+
+    // DB-61: the four reports sit under the outputs and in the palette; they ask for the file
+    // only, and the extension typed (else the filter's) sets the format.
+    function test_the_reports_are_in_the_menu() {
+        const header = make()
+        const dialog = findChild(header, "exportDialog")
+        const files = findChild(dialog, "files")
+        const reports = { reportScenes: "szenen", reportPlaces: "spielorte",
+                          reportCast: "figuren", reportExtract: "auszug" }
+
+        for (const name in reports) {
+            verify(entry(header, "exportMenu", name).enabled, name)
+            pick(header, "exportMenu", name)
+            compare(dialog.report, reports[name])
+            verify(!dialog.opened)
+            tryCompare(files, "visible", true)
+            compare(files.nameFilters.length, 4)
+            compare(files.currentFile.toString(), "file:///work/" + reports[name] + ".pdf")
+            files.close()
+            tryCompare(files, "visible", false)
+            back()
+            verify(header.commandPalette.commands.some(c => c.id === "report." + reports[name]), name)
+        }
+
+        dialog.report = "szenen"
+        dialog.save("file:///work/Liste.CSV")
+        dialog.save("file:///work/Liste")
+        compare(fake.calls, [["exportReport", "szenen", "csv", "file:///work/Liste.CSV"],
+                             ["exportReport", "szenen", "pdf", "file:///work/Liste"]])
     }
 
     function test_the_exports_use_the_shot_order() {

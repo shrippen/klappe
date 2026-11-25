@@ -1414,5 +1414,12 @@
  "remove.person": "Person {name} löschen? Besetzungen und Verantwortlichkeiten gehen mit; Rückgängig bringt sie zurück.",
  "elements.responsible": "Verantwortlich",
  "elements.noResponsible": "keine",
- "elements.noPersons": "Noch keine Personen; sie entstehen im Modul Team."
+ "elements.noPersons": "Noch keine Personen; sie entstehen im Modul Team.",
+ "menu.reports": "Berichte",
+ "menu.reportSaved": "Bericht gespeichert: {path}",
+ "export.pick.report": "Bericht speichern",
+ "export.filter.report.pdf": "PDF (*.pdf)",
+ "export.filter.report.csv": "CSV (*.csv)",
+ "export.filter.report.ods": "ODS (*.ods)",
+ "export.filter.report.xlsx": "XLSX (*.xlsx)"
 }

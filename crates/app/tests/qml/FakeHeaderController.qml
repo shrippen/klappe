@@ -52,7 +52,9 @@ QtObject {
         { id: "view3d", paper: false, extension: "png" },
         { id: "camera", paper: false, extension: "png" }
     ]
-    property string projectJson: JSON.stringify({ scenes: scenes, plans: plans, plan: plan, formats: formats })
+    // The files a report can be written as (services/views.rs `Overview.report_formats`).
+    readonly property var reportFormats: ["pdf", "csv", "ods", "xlsx"]
+    property string projectJson: JSON.stringify({ scenes: scenes, plans: plans, plan: plan, formats: formats, report_formats: reportFormats })
 
     function call(name, args) {
         calls.push([name].concat(args))
@@ -63,6 +65,8 @@ QtObject {
     function save() { return call("save", []) }
     function removeBackground() { call("removeBackground", []) }
     function exportFile(extension) { return "file:///work/Wartburg." + extension }
+    function reportFile(report) { return "file:///work/" + report + ".pdf" }
+    function exportReport(report, format, path) { return call("exportReport", [report, format, path]) }
     function exportTo(kind, order, paper, path) { return call("exportTo", [kind, order, paper, path]) }
     function selectScene(id) { return call("selectScene", [id]) }
     function selectPlan(id) { return call("selectPlan", [id]) }
