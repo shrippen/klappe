@@ -16,7 +16,7 @@ use crate::{align, parse_located, scene_states, Alignment, Element, Outcome, Scr
 
 /// What became of a scene between the two states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Status {
+pub enum SceneStatus {
     /// Only in the new state.
     New,
     /// Only in the old state.
@@ -29,14 +29,14 @@ pub enum Status {
 
 /// Whether a scene that is in both states kept its place among them (DB-44).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Place {
+pub enum ScenePlace {
     Kept,
     /// It stands elsewhere now; its text counts as changed only where the lines differ.
     Moved,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Change {
+pub enum Edit {
     Added,
     Removed,
 }
@@ -44,7 +44,7 @@ pub enum Change {
 /// One line that is only in one of the states.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LineChange {
-    pub change: Change,
+    pub change: Edit,
     /// From 0, in the text of its state: the new one for `Added`, the old one for `Removed`.
     pub line: usize,
     pub text: String,
@@ -55,8 +55,8 @@ pub struct SceneDiff {
     /// The new scene's number and heading, the old one's for a removed scene.
     pub number: Option<String>,
     pub heading: Option<String>,
-    pub status: Status,
-    pub place: Place,
+    pub status: SceneStatus,
+    pub place: ScenePlace,
     /// Removed lines first, then added ones, each in text order. A new scene has all its
     /// lines added, a removed one has all its lines removed.
     pub lines: Vec<LineChange>,
@@ -77,7 +77,7 @@ impl Comparison {
             .scenes
             .iter()
             .flat_map(|s| &s.lines)
-            .filter(|l| l.change == Change::Added)
+            .filter(|l| l.change == Edit::Added)
             .map(|l| l.line)
             .collect();
         lines.sort_unstable();
@@ -96,7 +96,7 @@ struct Row {
 }
 
 impl Row {
-    fn change(&self, change: Change) -> LineChange {
+    fn change(&self, change: Edit) -> LineChange {
         LineChange {
             change,
             line: self.line,
@@ -143,14 +143,14 @@ pub fn compare(old: &str, new: &str) -> Comparison {
             anchor = n + 1;
             continue;
         }
-        slots[anchor].push(lone(scene, Status::Removed));
+        slots[anchor].push(lone(scene, SceneStatus::Removed));
     }
 
     let mut out = std::mem::take(&mut slots[0]);
     for (n, scene) in new.scenes.iter().enumerate() {
         out.push(match old_of(n) {
             Some(o) => both(&old.scenes[o], scene, moved(n)),
-            None => lone(scene, Status::New),
+            None => lone(scene, SceneStatus::New),
         });
         out.append(&mut slots[n + 1]);
     }
@@ -171,17 +171,17 @@ fn pairs(al: &Alignment) -> Vec<(usize, usize)> {
 }
 
 /// A scene that has no partner: all its lines are added or removed.
-fn lone(scene: &Scene, status: Status) -> SceneDiff {
+fn lone(scene: &Scene, status: SceneStatus) -> SceneDiff {
     let change = match status {
-        Status::Removed => Change::Removed,
-        _ => Change::Added,
+        SceneStatus::Removed => Edit::Removed,
+        _ => Edit::Added,
     };
 
     SceneDiff {
         number: scene.number.clone(),
         heading: scene.heading.clone(),
         status,
-        place: Place::Kept,
+        place: ScenePlace::Kept,
         lines: scene.lines.iter().map(|row| row.change(change)).collect(),
     }
 }
@@ -193,21 +193,25 @@ fn both(old: &Scene, new: &Scene, moved: bool) -> SceneDiff {
 
     let mut lines: Vec<LineChange> = removed
         .iter()
-        .map(|&i| (Change::Removed, &old.lines[i]))
-        .chain(added.iter().map(|&i| (Change::Added, &new.lines[i])))
+        .map(|&i| (Edit::Removed, &old.lines[i]))
+        .chain(added.iter().map(|&i| (Edit::Added, &new.lines[i])))
         .map(|(change, row)| row.change(change))
         .collect();
-    lines.sort_by_key(|l| l.change == Change::Added);
+    lines.sort_by_key(|l| l.change == Edit::Added);
 
     SceneDiff {
         number: new.number.clone(),
         heading: new.heading.clone(),
         status: if lines.is_empty() {
-            Status::Same
+            SceneStatus::Same
         } else {
-            Status::Changed
+            SceneStatus::Changed
         },
-        place: if moved { Place::Moved } else { Place::Kept },
+        place: if moved {
+            ScenePlace::Moved
+        } else {
+            ScenePlace::Kept
+        },
         lines,
     }
 }

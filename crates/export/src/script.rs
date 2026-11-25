@@ -41,6 +41,18 @@ const TITLE_GAP_ROWS: usize = 2;
 const FOOT_PT: f64 = 72.0;
 /// A scene number stands this many columns away from the text.
 const NUMBER_GAP_COLUMNS: usize = 1;
+/// The revision mark stands this many columns right of the text, beyond a scene number.
+const REVISION_MARK_COLUMNS: usize = 6;
+/// What marks a line of a revision in the margin.
+const REVISION_MARK: &str = "*";
+
+/// Whether a line is new or changed in the revision (DB-41): it gets a mark in the right margin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Revised {
+    #[default]
+    No,
+    Yes,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Face {
@@ -60,6 +72,7 @@ pub struct ScriptLine {
     pub face: Face,
     /// The number of the scene a heading starts: printed at both sides if asked for.
     pub scene_number: Option<String>,
+    pub revised: Revised,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -103,6 +116,8 @@ pub struct ScriptSheet {
     pub scene_numbers: SceneNumbers,
     /// A line at the top left of every page but the title page, e.g. the title and draft.
     pub header: Option<String>,
+    /// A line above the page number of every page but the title page, e.g. `Revision Blau`.
+    pub revision: Option<String>,
 }
 
 /// A text on a page: `x_pt` from the left edge, its baseline `baseline_pt` below the top.
@@ -225,6 +240,11 @@ fn page_texts(sheet: &ScriptSheet, page: &ScriptPage) -> Vec<Placed> {
     if let Some(header) = &sheet.header {
         place(&mut out, Face::Regular, LEFT_PT, HEADER_BASELINE_PT, header);
     }
+    if let Some(revision) = &sheet.revision {
+        let x_pt = right_pt(sheet.columns) - width_pt(revision);
+        let at_pt = HEADER_BASELINE_PT - ROW_PT;
+        place(&mut out, Face::Regular, x_pt, at_pt, revision);
+    }
     if let Some(label) = &page.label {
         let x_pt = right_pt(sheet.columns) - width_pt(label);
         place(&mut out, Face::Regular, x_pt, HEADER_BASELINE_PT, label);
@@ -234,6 +254,11 @@ fn page_texts(sheet: &ScriptSheet, page: &ScriptPage) -> Vec<Placed> {
         let at_pt = TOP_PT + line.row as f64 * ROW_PT + ASCENT_PT;
         let x_pt = LEFT_PT + line.col as f64 * COLUMN_PT;
         place(&mut out, line.face, x_pt, at_pt, &line.text);
+
+        if line.revised == Revised::Yes {
+            let mark_pt = right_pt(sheet.columns) + REVISION_MARK_COLUMNS as f64 * COLUMN_PT;
+            place(&mut out, Face::Regular, mark_pt, at_pt, REVISION_MARK);
+        }
 
         let Some(number) = line
             .scene_number

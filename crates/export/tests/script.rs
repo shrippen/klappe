@@ -2,8 +2,8 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    script_pdf, script_sheet_pages, Face, Paper, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet,
-    TitlePage,
+    script_pdf, script_sheet_pages, Face, Paper, Revised, SceneNumbers, ScriptLine, ScriptPage,
+    ScriptSheet, TitlePage,
 };
 
 fn line(row: usize, col: usize, text: &str) -> ScriptLine {
@@ -13,6 +13,7 @@ fn line(row: usize, col: usize, text: &str) -> ScriptLine {
         text: text.into(),
         face: Face::Regular,
         scene_number: None,
+        revised: Revised::No,
     }
 }
 
@@ -37,6 +38,7 @@ fn sheet() -> ScriptSheet {
         ],
         scene_numbers: SceneNumbers::Hidden,
         header: None,
+        revision: None,
     }
 }
 
@@ -165,4 +167,42 @@ fn the_pages_place_each_text_as_the_pdf_does() {
 
 fn pdf_has(sheet: &ScriptSheet, ops: &str) -> bool {
     text(&script_pdf(sheet)).contains(ops)
+}
+
+#[test]
+fn a_revised_line_has_a_mark_in_the_right_margin_and_the_page_a_revision_line() {
+    let mut s = sheet();
+    s.pages[1].lines[0].revised = Revised::Yes;
+    s.revision = Some("Revision Blau · 2026-11-25".into());
+    let pages = script_sheet_pages(&s);
+
+    let marks = |page: usize| {
+        pages[page]
+            .texts
+            .iter()
+            .filter(|t| t.text == "*")
+            .collect::<Vec<_>>()
+    };
+    assert!(marks(0).is_empty());
+    let [mark] = marks(1)[..] else {
+        panic!("one mark expected");
+    };
+    // Right of the text area (108 pt + 60 columns), on the row of the line.
+    assert!(mark.x_pt > 108.0 + 60.0 * 7.2);
+    let hello = pages[1]
+        .texts
+        .iter()
+        .find(|t| t.text.starts_with("Hello"))
+        .unwrap();
+    assert_eq!(mark.baseline_pt, hello.baseline_pt);
+
+    // The revision line is on both pages, above the page number's line.
+    for page in &pages {
+        let revision = page
+            .texts
+            .iter()
+            .find(|t| t.text.starts_with("Revision"))
+            .unwrap();
+        assert!(revision.baseline_pt < 46.0);
+    }
 }

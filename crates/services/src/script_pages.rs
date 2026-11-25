@@ -6,7 +6,7 @@
 //!                                                      └─► export::ScriptSheet (the PDF)
 //! ```
 
-use klappe_export::{Face, Paper, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
+use klappe_export::{Face, Paper, Revised, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
 use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 use klappe_script::{
     length_text, paginate, parse_located, title_fields, ContdAfterAction, Element, Located,
@@ -16,6 +16,7 @@ use klappe_script::{
 pub use klappe_export::SceneNumbers;
 
 use crate::catalog::Language;
+use crate::session::{Revision, Revisions};
 
 /// The first line of a page after the first (DB-30).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,12 +68,16 @@ pub struct ScriptPrint {
     pub header: HeaderLine,
     /// Used for the words (MORE) and (CONT'D) when the project has no language (DN-05).
     pub language: Language,
+    /// Mark what changed since the last locked version (DB-41).
+    pub revisions: Revisions,
 }
 
 /// A laid-out screenplay, kept for the next export and for the editor.
 #[derive(Debug, Clone)]
 pub(crate) struct Layout {
     pagination: Pagination,
+    /// The elements with their text lines, to say which line of the text a printed row is from.
+    located: Vec<Located>,
     title_page: Vec<(String, String)>,
     pub(crate) view: ScriptPages,
     /// What it was laid out from: the text (as a hash), the setup and the fallback language.
@@ -142,6 +147,7 @@ pub(crate) fn lay_out(text: &str, setup: &ScriptSetup, fallback: Language) -> La
     Layout {
         made_for: Source::of(text, setup, fallback),
         pagination,
+        located,
         title_page: title_fields(text),
         view,
     }
@@ -209,12 +215,14 @@ impl Layout {
     }
 
     /// The sheet export prints: the rows of every page as columns, the page number from
-    /// page 2, the title page from the title page keys of the text.
+    /// page 2, the title page from the title page keys of the text; with a `revision`, the
+    /// marks of its lines and its header.
     pub(crate) fn sheet(
         &self,
         setup: &ScriptSetup,
         print: &ScriptPrint,
         project_title: &str,
+        revision: Option<&Revision>,
     ) -> ScriptSheet {
         let ordinal = |element: usize| {
             self.pagination
@@ -241,6 +249,7 @@ impl Layout {
                             PageKind::Heading => Face::Bold,
                             _ => Face::Regular,
                         },
+                        revised: self.revised(line, revision),
                         // A heading without a number gets its place in the script.
                         scene_number: match (line.kind, line.offset) {
                             (PageKind::Heading, 0) => {
@@ -278,6 +287,21 @@ impl Layout {
             pages,
             scene_numbers: print.scene_numbers,
             header,
+            revision: revision.map(|r| r.header.clone()),
+        }
+    }
+
+    /// Whether the text line a printed row is from is new or changed. A repeated name and
+    /// (MORE) are not in the text.
+    fn revised(&self, line: &klappe_script::Line, revision: Option<&Revision>) -> Revised {
+        let Some(revision) = revision.filter(|_| !line.added) else {
+            return Revised::No;
+        };
+        let at = text_line(&self.located, line.element, line.offset);
+
+        match at.is_some_and(|l| revision.marked.contains(&l)) {
+            true => Revised::Yes,
+            false => Revised::No,
         }
     }
 }

@@ -10,15 +10,20 @@
 //! klappe-cli report --project <folder> --report <szenen|spielorte|figuren|auszug|kontakte> --out <file>
 //!                   [--language de|en]      (pdf, csv, ods or xlsx, by the extension of --out)
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
-//!                       [--scene-numbers] [--header]
+//!                       [--scene-numbers] [--header] [--revisions]
+//! klappe-cli lock-version --project <folder> --name <name> [--language de|en]
+//! klappe-cli versions --project <folder> [--language de|en]
+//! klappe-cli compare --project <folder> [--from <version id>] [--to <version id>] [--language de|en]
 //! ```
+
+mod versions;
 
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
     builtin_camera_presets, error_text, load_notes_text, read_number, ExportFormat, ExportOptions,
     Field, HeaderLine, Language, Orientation, Paper, PaperSetup, Range, Report, ReportFormat,
-    SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
+    Revisions, SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -118,6 +123,49 @@ enum Command {
         /// Print title and draft date at the top of every page.
         #[arg(long)]
         header: bool,
+        /// Mark what changed since the last locked version: `*` in the margin and the next
+        /// revision's colour above the page number.
+        #[arg(long)]
+        revisions: bool,
+    },
+    /// Locks the book as a version (DB-40): saves the project, locks the scene numbers and
+    /// keeps the text for comparing.
+    LockVersion {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// The version's name, e.g. "Drehfassung"; a name no other version has.
+        #[arg(long)]
+        name: String,
+        /// Language of the pages' words and of the output; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
+    },
+    /// The locked versions in the order of locking: id, name, date, colour.
+    Versions {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// Language of the colour names; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
+    },
+    /// What changed between two states of the book (DB-41, DB-42): per scene its number,
+    /// heading and status (new, removed, changed, unchanged, moved), under a changed scene its
+    /// lines with `-` and `+`. Without options the last version against the book now.
+    Compare {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// A version's id; the last version if left out.
+        #[arg(long)]
+        from: Option<String>,
+        /// A version's id; the book now if left out.
+        #[arg(long)]
+        to: Option<String>,
+        /// Language of the output; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
     },
 }
 
@@ -198,23 +246,58 @@ fn main() -> ExitCode {
             language,
             scene_numbers,
             header,
+            revisions,
         } => {
-            let print = ScriptPrint {
-                scene_numbers: if scene_numbers {
-                    SceneNumbers::Shown
-                } else {
-                    SceneNumbers::Hidden
-                },
-                header: if header {
-                    HeaderLine::Title
-                } else {
-                    HeaderLine::Off
-                },
-                language: language_of(language),
+            let flags = PrintFlags {
+                scene_numbers,
+                header,
+                revisions,
             };
+            let print = print_of(language_of(language), flags);
 
             script_pdf(&project, &out, paper, &print)
         }
+        Command::LockVersion {
+            project,
+            name,
+            language,
+        } => versions::lock(&project, &name, language_of(language)),
+        Command::Versions { project, language } => versions::list(&project, language_of(language)),
+        Command::Compare {
+            project,
+            from,
+            to,
+            language,
+        } => versions::compare(&project, from, to, language_of(language)),
+    }
+}
+
+/// The flags of `script-pdf` that switch something on.
+struct PrintFlags {
+    scene_numbers: bool,
+    header: bool,
+    revisions: bool,
+}
+
+/// What `script-pdf` prints, from its flags.
+fn print_of(language: Language, flags: PrintFlags) -> ScriptPrint {
+    ScriptPrint {
+        scene_numbers: if flags.scene_numbers {
+            SceneNumbers::Shown
+        } else {
+            SceneNumbers::Hidden
+        },
+        header: if flags.header {
+            HeaderLine::Title
+        } else {
+            HeaderLine::Off
+        },
+        language,
+        revisions: if flags.revisions {
+            Revisions::On
+        } else {
+            Revisions::Off
+        },
     }
 }
 
@@ -510,6 +593,7 @@ mod tests {
             scene_numbers: SceneNumbers::Shown,
             header: HeaderLine::Off,
             language: Language::English,
+            revisions: Revisions::Off,
         };
 
         let written = write_script_pdf(&project, &out, Some(ScriptPaper::Letter), &print);

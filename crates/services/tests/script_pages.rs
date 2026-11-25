@@ -5,14 +5,15 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    HeaderLine, Language, SceneNumbers, ScriptLanguage, ScriptPaper, ScriptPrint, ScriptSetup,
-    ScriptWords, ServiceError, Session,
+    HeaderLine, Language, Revisions, SceneNumbers, ScriptLanguage, ScriptPaper, ScriptPrint,
+    ScriptSetup, ScriptWords, ServiceError, Session,
 };
 
 const PRINT: ScriptPrint = ScriptPrint {
     scene_numbers: SceneNumbers::Shown,
     header: HeaderLine::Title,
     language: Language::English,
+    revisions: Revisions::Off,
 };
 
 fn session(name: &str, text: &str) -> Session {
