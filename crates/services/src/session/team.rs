@@ -125,7 +125,8 @@ impl Session {
         counts
     }
 
-    /// A cast number another character has is refused.
+    /// A cast number another character has stored is refused. A number the book only gives
+    /// another character is free: that character gives way.
     pub(super) fn check_cast_number(&self, edit: &ProjectEdit) -> Result<(), ServiceError> {
         let ProjectEdit::Team(TeamEdit::SetCastNumber {
             character,
@@ -136,9 +137,11 @@ impl Session {
         };
 
         let taken = self
-            .cast_numbers()
+            .project
+            .team
+            .castings
             .iter()
-            .any(|(id, n)| id != character && n == number);
+            .any(|c| c.character != *character && c.cast_number == Some(*number));
         match taken {
             true => Err(ServiceError::CastNumberTaken(*number)),
             false => Ok(()),

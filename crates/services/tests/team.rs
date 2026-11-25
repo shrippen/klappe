@@ -403,34 +403,10 @@ fn a_number_by_hand_stays_and_gives_way() {
 }
 
 #[test]
-fn a_number_another_character_has_is_refused() {
+fn a_number_another_character_has_stored_is_refused() {
     let mut s = open("team-number-taken");
 
-    // 1 is ANNA's by the book, 9 is free; 0 is no number.
-    let taken = refused(
-        &mut s,
-        TeamEdit::SetCastNumber {
-            character: "bob".into(),
-            number: Some(1),
-        },
-    );
-    assert!(matches!(taken, ServiceError::CastNumberTaken(1)));
-    for language in [Language::German, Language::English] {
-        let text = klappe_services::error_text(language, &taken);
-        assert!(text.contains('1'));
-        assert!(!text.contains("error."));
-    }
-    assert!(matches!(
-        refused(
-            &mut s,
-            TeamEdit::SetCastNumber {
-                character: "bob".into(),
-                number: Some(0)
-            }
-        ),
-        ServiceError::BadValue { .. }
-    ));
-
+    // 9 is free; 0 is no number.
     team(
         &mut s,
         TeamEdit::SetCastNumber {
@@ -438,6 +414,29 @@ fn a_number_another_character_has_is_refused() {
             number: Some(9),
         },
     );
+    let taken = refused(
+        &mut s,
+        TeamEdit::SetCastNumber {
+            character: "anna".into(),
+            number: Some(9),
+        },
+    );
+    assert!(matches!(taken, ServiceError::CastNumberTaken(9)));
+    for language in [Language::German, Language::English] {
+        let text = klappe_services::error_text(language, &taken);
+        assert!(text.contains('9'));
+        assert!(!text.contains("error."));
+    }
+    assert!(matches!(
+        refused(
+            &mut s,
+            TeamEdit::SetCastNumber {
+                character: "anna".into(),
+                number: Some(0)
+            }
+        ),
+        ServiceError::BadValue { .. }
+    ));
     assert_eq!(number(&s, "bob"), Some(9));
 
     // The number it has itself is no clash.
@@ -448,6 +447,24 @@ fn a_number_another_character_has_is_refused() {
             number: Some(9),
         },
     );
+}
+
+/// Unlocked, a number only the book gives another character is free to take by hand: that
+/// character gives way.
+#[test]
+fn a_number_only_the_book_gives_can_be_taken() {
+    let mut s = open("team-number-book");
+    assert_eq!(number(&s, "anna"), Some(1));
+
+    team(
+        &mut s,
+        TeamEdit::SetCastNumber {
+            character: "bob".into(),
+            number: Some(1),
+        },
+    );
+
+    assert_eq!(numbers(&s), [Some(2), Some(3), Some(1), None, Some(4)]);
 }
 
 /// Locked, the numbers stay as they are; a new character takes the next; unlocked, the
