@@ -184,7 +184,8 @@ Item {
             if (ctl.exportReport("nope", "csv", base + "/x.csv") || ctl.exportReport("szenen", "png", base + "/x.png")) {
                 return root.fail("an unknown report or format reported success")
             }
-            if (!ctl.reportFile("auszug").endsWith("/Drehbuchauszug.pdf")) {
+            // The name follows the language of the surface (CI runs in English).
+            if (!/\/(Drehbuchauszug|Breakdown-extract)\.pdf$/.test(ctl.reportFile("auszug"))) {
                 return root.fail("the file offered for a report is " + ctl.reportFile("auszug"))
             }
 
