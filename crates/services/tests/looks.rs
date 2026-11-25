@@ -525,6 +525,16 @@ fn a_look_of_a_character_not_in_the_scene_is_not_shown() {
 }
 
 #[test]
+fn a_look_lists_no_scene_its_character_left() {
+    let mut s = dressed("looks-left-scenes");
+    assert_eq!(s.overview().looks[0].scenes.len(), 1);
+
+    s.set_script_text(&BOOK.replace("ANNA\nHallo.", "Hallo."));
+
+    assert!(s.overview().looks[0].scenes.is_empty());
+}
+
+#[test]
 fn a_sheet_shows_the_elements_of_the_looks_worn_and_a_look_its_scenes() {
     let mut s = open("looks-sheet");
     let wet = s.add_look("anna", "Ölzeug, nass").unwrap();

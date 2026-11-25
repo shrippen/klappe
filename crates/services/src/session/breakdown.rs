@@ -63,12 +63,9 @@ impl Session {
     /// character that is gone is not offered. An element id no element has is left out.
     pub(super) fn look_rows(&self) -> Vec<LookRow> {
         let mut scenes: HashMap<&str, Vec<SceneRef>> = HashMap::new();
-        for scene in &self.project.scenes {
-            for (character, id) in &scene.sheet.looks {
-                if self.scene_look(scene, character).is_none() {
-                    continue;
-                }
-                scenes.entry(id).or_default().push(SceneRef {
+        for (entry, scene) in self.project.scenes.iter().enumerate() {
+            for (_, look) in self.worn_looks(entry, scene) {
+                scenes.entry(&look.id).or_default().push(SceneRef {
                     id: scene.id.clone(),
                     number: scene.number.clone(),
                 });
@@ -108,6 +105,15 @@ impl Session {
             .looks
             .iter()
             .find(|l| l.id == *id && l.character == character)
+    }
+
+    /// The looks worn in the scene at `entry`, each with its character: only characters in the
+    /// scene wear one there.
+    pub(super) fn worn_looks(&self, entry: usize, scene: &Scene) -> Vec<(&Character, &Look)> {
+        self.scene_figures(entry, scene)
+            .into_iter()
+            .filter_map(|c| Some((c, self.scene_look(scene, &c.id)?)))
+            .collect()
     }
 
     /// The ids of the characters with a cue in the scene at `entry`, in the order of their
