@@ -22,6 +22,8 @@ use crate::Paper;
 
 const MARGIN_MM: f64 = 10.0;
 const FACT_SEPARATOR: &str = "  ·  ";
+/// Baseline to baseline of a wrapped title.
+const TITLE_LINE_PT: f64 = 17.0;
 
 pub(crate) fn table_sheets(table: &ReportTable, pal: &Palette) -> Vec<Sheet> {
     let mut out = Writer::new(pal, Orientation::Landscape, &table.title);
@@ -108,17 +110,19 @@ impl<'a> Writer<'a> {
         self.width_pt - 2.0 * self.margin
     }
 
-    /// The title at the top of a fresh sheet.
+    /// The title at the top of a fresh sheet, wrapped to the content width. `cell_lines`
+    /// measures at `CELL_PT`, so the width is scaled to it.
     fn begin(&mut self) {
-        let title = self.title.clone();
-        self.text(
-            self.margin,
-            self.margin + TITLE_PT,
-            TITLE_PT,
-            Weight::Bold,
-            &title,
-        );
-        self.y = self.margin + TITLE_BAND_PT + GAP_PT;
+        let max_w = self.content_w() * CELL_PT / TITLE_PT;
+        let lines = cell_lines(&self.title, max_w, Weight::Bold);
+        let mut y = self.margin + TITLE_PT;
+        for line in &lines {
+            self.text(self.margin, y, TITLE_PT, Weight::Bold, line);
+            y += TITLE_LINE_PT;
+        }
+
+        let extra = lines.len().saturating_sub(1) as f64 * TITLE_LINE_PT;
+        self.y = self.margin + TITLE_BAND_PT + extra + GAP_PT;
         self.rows = 0;
     }
 
@@ -344,4 +348,43 @@ fn column_widths(head: &[String], rows: &[Vec<String>], content_w: f64) -> Vec<f
         .zip(&natural)
         .map(|(s, n)| s + (n - s) * share)
         .collect()
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use crate::palette::palette;
+    use crate::Theme;
+
+    /// A scene head longer than the sheet is wide wraps inside the right margin.
+    #[test]
+    fn a_long_extract_head_wraps() {
+        let pal = palette(Theme::Light).unwrap();
+        let head = "12  INT. ALTES HERRENHAUS AM SEE – GROSSER SALON MIT KAMIN – NACHT";
+        let page = ExtractPage {
+            title: head.repeat(2),
+            facts: Vec::new(),
+            boxes: Vec::new(),
+        };
+
+        let sheets = extract_sheets(&[page], pal);
+
+        let sheet = &sheets[0];
+        let right = sheet.width_pt - MARGIN_MM * PT_PER_MM;
+        for prim in &sheet.prims {
+            let Prim::Text {
+                at,
+                size_pt,
+                weight,
+                text,
+                ..
+            } = prim
+            else {
+                continue;
+            };
+            let end = at.0 + text_width_pt(text, *size_pt, *weight);
+            assert!(end <= right, "{text:?} ends at {end}, margin at {right}");
+        }
+    }
 }
