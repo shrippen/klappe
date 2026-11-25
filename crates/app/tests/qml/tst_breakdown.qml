@@ -355,6 +355,19 @@ TestCase {
         compare(findChild(v, "elementList").rows.map(e => e.id), ["e3", "e1", "e2"])
     }
 
+    function test_without_a_chosen_element_the_form_says_what_to_do() {
+        const v = view()
+        showElements(v)
+
+        const hint = findChild(v, "elementHint")
+        verify(hint.visible)
+        compare(hint.title, "Links ein Element wählen oder mit „Neu…“ anlegen.")
+        verify(!findChild(v, "elementForm").visible)
+
+        row(v, "e2").clicked()
+        verify(!hint.visible)
+    }
+
     function test_an_element_shows_in_the_form_and_applies() {
         const v = view()
         showElements(v)
