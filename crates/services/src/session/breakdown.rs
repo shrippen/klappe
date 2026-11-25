@@ -172,7 +172,7 @@ impl Session {
             present: present
                 .map(|c| figure(c, self.scene_look(scene, &c.id)))
                 .collect(),
-            categories: self.sheet_categories(scene, &Self::lost_marks(scene, &lines)),
+            categories: self.sheet_categories(self.scene, scene, &Self::lost_marks(scene, &lines)),
             suggestions: self.suggestions(scene, shot.get(self.scene).copied().flatten(), &lines),
             text: self.marked_text(scene, &lines),
         })
@@ -180,8 +180,13 @@ impl Session {
 
     /// The elements of the scene by category, only the categories that have any, its own or
     /// those of the looks worn in it; `lost` are those whose marks the text no longer has.
-    fn sheet_categories(&self, scene: &Scene, lost: &HashSet<String>) -> Vec<SheetCategory> {
-        let worn = self.look_elements(scene);
+    fn sheet_categories(
+        &self,
+        entry: usize,
+        scene: &Scene,
+        lost: &HashSet<String>,
+    ) -> Vec<SheetCategory> {
+        let worn = self.look_elements(entry, scene);
         let listed = self.by_category(scene);
         let mut rows: Vec<SheetCategory> = Vec::new();
 
@@ -217,17 +222,14 @@ impl Session {
     }
 
     /// The elements of the looks the scene's characters wear, with their category.
-    fn look_elements(&self, scene: &Scene) -> Vec<(ElementCategory, SheetLookElement)> {
+    fn look_elements(
+        &self,
+        entry: usize,
+        scene: &Scene,
+    ) -> Vec<(ElementCategory, SheetLookElement)> {
         let mut worn = Vec::new();
-        let entry = self.project.scenes.iter().position(|s| s.id == scene.id);
-        let Some(entry) = entry else {
-            return worn;
-        };
 
-        for character in self.scene_figures(entry, scene) {
-            let Some(look) = self.scene_look(scene, &character.id) else {
-                continue;
-            };
+        for (character, look) in self.worn_looks(entry, scene) {
             let found = look
                 .elements
                 .iter()

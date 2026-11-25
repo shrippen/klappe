@@ -229,10 +229,7 @@ impl Session {
     ) -> Vec<(ElementCategory, Vec<&Element>)> {
         let mut ids = scene.sheet.elements.clone();
 
-        for character in self.scene_figures(entry, scene) {
-            let Some(look) = self.scene_look(scene, &character.id) else {
-                continue;
-            };
+        for (_, look) in self.worn_looks(entry, scene) {
             for id in &look.elements {
                 if !ids.contains(id) {
                     ids.push(id.clone());
