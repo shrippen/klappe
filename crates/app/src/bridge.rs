@@ -1219,6 +1219,7 @@ pub mod qobject {
         #[cxx_name = "addElement"]
         fn add_element(self: Pin<&mut Self>, category: &QString, name: &QString) -> QString;
 
+        /// `responsible` is the person who answers for the element; empty for nobody.
         #[qinvokable]
         #[cxx_name = "editElement"]
         fn edit_element(
@@ -1228,6 +1229,7 @@ pub mod qobject {
             name: &QString,
             description: &QString,
             status: &QString,
+            responsible: &QString,
         ) -> bool;
 
         #[qinvokable]
@@ -1356,6 +1358,72 @@ pub mod qobject {
         #[cxx_name = "forgetLost"]
         fn forget_lost(self: Pin<&mut Self>, scene: &QString, element: &QString) -> bool;
 
+        /// A new person (Besetzung/Team); `department` is a name as `cast`, empty for none.
+        /// Returns the id, empty when refused.
+        #[qinvokable]
+        #[cxx_name = "addPerson"]
+        fn add_person(self: Pin<&mut Self>, name: &QString, department: &QString) -> QString;
+
+        /// The person's fields and contact in one step; an empty contact removes it.
+        #[qinvokable]
+        #[cxx_name = "editPerson"]
+        fn edit_person(
+            self: Pin<&mut Self>,
+            id: &QString,
+            name: &QString,
+            department: &QString,
+            function: &QString,
+            agency: &QString,
+            phone: &QString,
+            mail: &QString,
+            address: &QString,
+        ) -> bool;
+
+        /// Takes the person out of every casting and every element's answer too.
+        #[qinvokable]
+        #[cxx_name = "removePerson"]
+        fn remove_person(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// The person is a proposal for the character.
+        #[qinvokable]
+        #[cxx_name = "proposeCast"]
+        fn propose_cast(self: Pin<&mut Self>, character: &QString, person: &QString) -> bool;
+
+        /// A new person in the cast department is a proposal for the character, in one step.
+        #[qinvokable]
+        #[cxx_name = "proposeNew"]
+        fn propose_new(self: Pin<&mut Self>, character: &QString, name: &QString) -> bool;
+
+        /// The person plays the character; empty fixes nobody.
+        #[qinvokable]
+        #[cxx_name = "fixCast"]
+        fn fix_cast(self: Pin<&mut Self>, character: &QString, person: &QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "dropProposal"]
+        fn drop_proposal(self: Pin<&mut Self>, character: &QString, person: &QString) -> bool;
+
+        /// The character's cast number as typed; empty gives it back to the book. False when
+        /// it is no number or another character has it.
+        #[qinvokable]
+        #[cxx_name = "setCastNumber"]
+        fn set_cast_number(self: Pin<&mut Self>, character: &QString, number: &QString) -> bool;
+
+        /// The cast numbers stay as they are now, for all characters.
+        #[qinvokable]
+        #[cxx_name = "lockNumbers"]
+        fn lock_numbers(self: Pin<&mut Self>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "unlockNumbers"]
+        fn unlock_numbers(self: Pin<&mut Self>) -> bool;
+
+        /// The persons as JSON (`id`, `name`, `department`, …), those of the department that
+        /// answers for elements of `category` (a name as `prop`) first.
+        #[qinvokable]
+        #[cxx_name = "personsFor"]
+        fn persons_for(self: Pin<&mut Self>, category: &QString) -> QString;
+
         /// Variants of the scene's plan (LH-04). Shows the plan `id` of the current scene.
         #[qinvokable]
         #[cxx_name = "selectPlan"]
@@ -1450,6 +1518,7 @@ mod shots;
 mod sketch;
 mod start;
 mod state;
+mod team;
 mod templates;
 mod view;
 

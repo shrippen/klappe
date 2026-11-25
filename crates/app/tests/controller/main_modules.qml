@@ -43,7 +43,7 @@ Item {
         if (window.module !== "stellprobe" || header.module !== "stellprobe") {
             return fail("not Stellprobe: " + window.module)
         }
-        if (window.modules.map(m => m.id).join() !== "screenplay,stellprobe,breakdown") {
+        if (window.modules.map(m => m.id).join() !== "screenplay,stellprobe,breakdown,casting,team") {
             return fail("modules: " + JSON.stringify(window.modules))
         }
 
@@ -56,6 +56,15 @@ Item {
         header.moduleRequested("breakdown")
         if (window.module !== "breakdown" || header.module !== "breakdown") {
             return fail("breakdown: " + window.module)
+        }
+        header.moduleRequested("screenplay")
+
+        // Casting and team (D-26) are the fourth and the fifth.
+        for (const id of ["casting", "team"]) {
+            header.moduleRequested(id)
+            if (window.module !== id || header.module !== id) {
+                return fail(id + ": " + window.module)
+            }
         }
         header.moduleRequested("screenplay")
 

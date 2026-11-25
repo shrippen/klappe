@@ -198,6 +198,7 @@ RowLayout {
         KanteMenuItem { objectName: "reportPlaces"; action: reportCommands.places; iconRoom: true }
         KanteMenuItem { objectName: "reportCast"; action: reportCommands.cast; iconRoom: true }
         KanteMenuItem { objectName: "reportExtract"; action: reportCommands.extract; iconRoom: true }
+        KanteMenuItem { objectName: "reportContacts"; action: reportCommands.contacts; iconRoom: true }
     }
     HeaderMenu {
         id: viewMenu

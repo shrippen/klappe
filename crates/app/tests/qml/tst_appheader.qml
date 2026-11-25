@@ -373,14 +373,15 @@ TestCase {
         compare(fake.calls, [["exportTo", "mp4", "cut", "a4-landscape", "file:///work/Wartburg.mp4"]])
     }
 
-    // DB-61: the four reports sit under the outputs and in the palette; they ask for the file
+    // DB-61: the reports sit under the outputs and in the palette; they ask for the file
     // only, and the extension typed (else the filter's) sets the format.
     function test_the_reports_are_in_the_menu() {
         const header = make()
         const dialog = findChild(header, "exportDialog")
         const files = findChild(dialog, "files")
         const reports = { reportScenes: "szenen", reportPlaces: "spielorte",
-                          reportCast: "figuren", reportExtract: "auszug" }
+                          reportCast: "figuren", reportExtract: "auszug",
+                          reportContacts: "kontakte" }
 
         for (const name in reports) {
             verify(entry(header, "exportMenu", name).enabled, name)
