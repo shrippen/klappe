@@ -51,32 +51,28 @@ impl Department {
         Department::Cast,
     ];
 
-    const NAMES: [(Department, &'static str); 17] = [
-        (Department::Direction, "direction"),
-        (Department::Production, "production"),
-        (Department::UnitManagement, "unit-management"),
-        (Department::Casting, "casting"),
-        (Department::Camera, "camera"),
-        (Department::Lighting, "lighting"),
-        (Department::Sound, "sound"),
-        (Department::ProductionDesign, "production-design"),
-        (Department::SetDecoration, "set-decoration"),
-        (Department::Props, "props"),
-        (Department::Costume, "costume"),
-        (Department::Makeup, "makeup"),
-        (Department::Editing, "editing"),
-        (Department::Vfx, "vfx"),
-        (Department::Sfx, "sfx"),
-        (Department::Stunt, "stunt"),
-        (Department::Cast, "cast"),
-    ];
-
     /// The name the file format uses, e.g. `unit-management`; also the end of the text key
     /// `department.<name>`.
     pub fn name(self) -> &'static str {
-        let named = Self::NAMES.iter().find(|(d, _)| *d == self);
-
-        named.map_or("", |(_, name)| name)
+        match self {
+            Department::Direction => "direction",
+            Department::Production => "production",
+            Department::UnitManagement => "unit-management",
+            Department::Casting => "casting",
+            Department::Camera => "camera",
+            Department::Lighting => "lighting",
+            Department::Sound => "sound",
+            Department::ProductionDesign => "production-design",
+            Department::SetDecoration => "set-decoration",
+            Department::Props => "props",
+            Department::Costume => "costume",
+            Department::Makeup => "makeup",
+            Department::Editing => "editing",
+            Department::Vfx => "vfx",
+            Department::Sfx => "sfx",
+            Department::Stunt => "stunt",
+            Department::Cast => "cast",
+        }
     }
 
     pub fn from_name(name: &str) -> Option<Self> {
