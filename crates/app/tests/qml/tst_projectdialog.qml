@@ -35,6 +35,9 @@ TestCase {
                 { id: "saengersaal", name: "Sängersaal", width: 20, depth: 13, height: 2.6, scenes: 1 }
             ],
             numbering: "scene",
+            papers: [{ id: "a4", label: "A4" }, { id: "a3", label: "A3" }, { id: "letter", label: "Letter" }],
+            script_papers: ["a4", "letter"],
+            script: { language: "de", words: "local", paper: "letter", contd_after_action: false, scene_numbering: "locked", first_scene: 1 },
             numberings: ["scene", "camera", "group"],
             characters: [
                 { id: "elisabeth", name: "Elisabeth", short: "E", color: "purple", group: 0, size: null, aliases: [] },
@@ -68,6 +71,7 @@ TestCase {
         function editCharacter(id, n, s, c, g, z, a) { return call("editCharacter", [id, n, s, c, g, z, a]) }
         function removeCharacter(id) { return call("removeCharacter", [id]) }
         function setNumbering(name) { return call("setNumbering", [name]) }
+        function setScriptSetup(l, w, p, c, n, f) { return call("setScriptSetup", [l, w, p, c, n, f]) }
     }
 
     TestTexts { id: de; language: "de" }
@@ -689,5 +693,18 @@ TestCase {
         box.activated(2)
 
         compare(fake.calls, [["setNumbering", "group"]])
+    }
+
+    // DN-05, DB-31, DB-33: the project form has the screenplay's setup, in the papers it offers.
+    function test_the_screenplay_setup_is_in_the_project_form() {
+        const pd = make()
+        opened(pd)
+        const form = findChild(pd, "scriptSetup")
+
+        compare(findChild(form, "paperBox").model, ["A4", "Letter"])
+        compare(findChild(form, "paperBox").currentIndex, 1)
+
+        findChild(form, "paperBox").activated(0)
+        compare(fake.calls, [["setScriptSetup", "de", "local", "a4", false, "locked", 1]])
     }
 }

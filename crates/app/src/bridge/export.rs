@@ -8,8 +8,8 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
 use klappe_services::{
-    ExportFormat, ExportOptions, Laid, PaperSetup, Report, ReportFormat, Session, ShotOrder,
-    Source, Texts, FFMPEG,
+    ExportFormat, ExportOptions, HeaderLine, Laid, PaperSetup, Report, ReportFormat, SceneNumbers,
+    ScriptPaper, ScriptPrint, Session, ShotOrder, Source, Texts, FFMPEG,
 };
 use std::ops::ControlFlow;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -19,6 +19,7 @@ static VIDEO_RUNNING: AtomicBool = AtomicBool::new(false);
 /// Set when the window closes: the video stops and its part file goes.
 static VIDEO_STOP: AtomicBool = AtomicBool::new(false);
 const PERCENT: usize = 100;
+const SCRIPT_EXTENSION: &str = "pdf";
 /// How long closing the window waits for ffmpeg to be stopped and its file removed.
 const STOP_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
 const STOP_POLL: std::time::Duration = std::time::Duration::from_millis(20);
@@ -254,6 +255,74 @@ impl qobject::Controller {
             .text(&format!("report.{report}"))
             .replace([' ', '/'], "-");
         let name = format!("{title}.{}", ReportFormat::Pdf.name());
+        let path = s
+            .dir()
+            .parent()
+            .map(|p| p.join(&name))
+            .unwrap_or_else(|| name.into());
+
+        QString::from(fileurl::from_path(&path))
+    }
+
+    pub(super) fn export_script(
+        mut self: Pin<&mut Self>,
+        paper: &QString,
+        numbers: bool,
+        header: bool,
+        path: &QString,
+    ) -> bool {
+        let language = self.rust().language;
+        let path = fileurl::to_path(&path.to_string());
+        let Some(path) = self.as_mut().named_file(path, SCRIPT_EXTENSION) else {
+            return false;
+        };
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        // The paper stays in the project, as the plan's does; an unknown one is the project's.
+        let mut setup = s.project().script;
+        setup.paper = ScriptPaper::from_name(&paper.to_string()).unwrap_or(setup.paper);
+        s.set_script_setup(setup);
+
+        let print = ScriptPrint {
+            scene_numbers: if numbers {
+                SceneNumbers::Shown
+            } else {
+                SceneNumbers::Hidden
+            },
+            header: if header {
+                HeaderLine::Title
+            } else {
+                HeaderLine::Off
+            },
+            language,
+        };
+        let result = s.export_script_pdf(&path, &print);
+        let ok = result.is_ok();
+        let message = match result {
+            Ok(()) => language
+                .text("script.pdfSaved")
+                .replace("{path}", &path.to_string_lossy()),
+            Err(e) => error_text(language, &e),
+        };
+
+        // The sheet was set and the screenplay laid out again; the project view shows both.
+        self.as_mut().refresh();
+        self.as_mut().say(message);
+
+        ok
+    }
+
+    /// The file the screenplay PDF is offered under: next to the project folder, named by
+    /// the project's title.
+    pub(super) fn script_file(mut self: Pin<&mut Self>) -> QString {
+        let Some(s) = self.as_mut().session() else {
+            return QString::default();
+        };
+
+        let title = s.project().title.replace([' ', '/'], "-");
+        let name = format!("{title}.{SCRIPT_EXTENSION}");
         let path = s
             .dir()
             .parent()
