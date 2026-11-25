@@ -13,8 +13,9 @@ Item {
     readonly property alias places: actPlaces
     readonly property alias cast: actCast
     readonly property alias extract: actExtract
+    readonly property alias contacts: actContacts
     /// In the order of the palette.
-    readonly property var actions: [actScenes, actPlaces, actCast, actExtract]
+    readonly property var actions: [actScenes, actPlaces, actCast, actExtract, actContacts]
 
     visible: false
     width: 0
@@ -51,5 +52,13 @@ Item {
         text: reports.texts.t("report.auszug")
         enabled: reports.controller.loaded
         onTriggered: reports.dialog.requestReport("auszug")
+    }
+    CommandAction {
+        id: actContacts
+        cmd: "report.kontakte"
+        group: "export"
+        text: reports.texts.t("report.kontakte")
+        enabled: reports.controller.loaded
+        onTriggered: reports.dialog.requestReport("kontakte")
     }
 }
