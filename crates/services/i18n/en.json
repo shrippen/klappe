@@ -1371,5 +1371,12 @@
  "department.vfx": "Visual effects",
  "department.sfx": "Special effects",
  "department.stunt": "Stunt",
- "department.cast": "Cast"
+ "department.cast": "Cast",
+ "menu.reports": "Reports",
+ "menu.reportSaved": "Report saved: {path}",
+ "export.pick.report": "Save report",
+ "export.filter.report.pdf": "PDF (*.pdf)",
+ "export.filter.report.csv": "CSV (*.csv)",
+ "export.filter.report.ods": "ODS (*.ods)",
+ "export.filter.report.xlsx": "XLSX (*.xlsx)"
 }

@@ -72,7 +72,7 @@ RowLayout {
                                     actFree, actWallCut, actThrough, actHeights,
                                     actScript, actShot, actTimeline,
                                     actUndo, actRedo].concat(moduleCommands.actions, exportCommands.actions, shotViews.actions, zoom.actions,
-                                    pageExports.actions, viewCommands.actions, objectCommands.actions,
+                                    pageExports.actions, reportCommands.actions, viewCommands.actions, objectCommands.actions,
                                     playCommands.actions, navCommands.actions, armCommands.actions, jumpCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
@@ -193,6 +193,11 @@ RowLayout {
         KanteMenuItem { objectName: "cameraPages"; action: pageExports.cameraPages; iconRoom: true }
         KanteMenuItem { objectName: "shotFiles"; action: pageExports.shotFiles; iconRoom: true }
         KanteMenuItem { objectName: "cameraFiles"; action: pageExports.cameraFiles; iconRoom: true }
+        KanteMenuSection { text: header.texts.t("menu.reports") }
+        KanteMenuItem { objectName: "reportScenes"; action: reportCommands.scenes; iconRoom: true }
+        KanteMenuItem { objectName: "reportPlaces"; action: reportCommands.places; iconRoom: true }
+        KanteMenuItem { objectName: "reportCast"; action: reportCommands.cast; iconRoom: true }
+        KanteMenuItem { objectName: "reportExtract"; action: reportCommands.extract; iconRoom: true }
     }
     HeaderMenu {
         id: viewMenu
@@ -360,6 +365,7 @@ RowLayout {
         papers: header.project.papers || []
         orientations: header.project.orientations || []
         formats: header.project.formats || []
+        reportFormats: header.project.report_formats || []
         projectSize: header.project.paper_size || ""
         projectOrientation: header.project.paper_orientation || ""
     }
@@ -374,6 +380,14 @@ RowLayout {
     // LH-87: one page per shot or per camera, its camera strong and the rest faded.
     PageExports {
         id: pageExports
+        texts: header.texts
+        controller: header.controller
+        dialog: exportDialog
+    }
+
+    // DB-61: the reports, as the file dialog takes them.
+    ReportCommands {
+        id: reportCommands
         texts: header.texts
         controller: header.controller
         dialog: exportDialog
