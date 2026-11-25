@@ -363,6 +363,9 @@ TestCase {
         verify(hint.visible)
         compare(hint.title, "Links ein Element wählen oder mit „Neu…“ anlegen.")
         verify(!findChild(v, "elementForm").visible)
+
+        row(v, "e2").clicked()
+        verify(!hint.visible)
     }
 
     function test_an_element_shows_in_the_form_and_applies() {

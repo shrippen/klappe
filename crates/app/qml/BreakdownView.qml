@@ -148,6 +148,7 @@ RowLayout {
                 }
             }
         }
+
         // Nothing chosen: say how to get a form (the right side was blank).
         KanteEmptyState {
             objectName: "elementHint"
