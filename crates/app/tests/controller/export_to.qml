@@ -170,6 +170,24 @@ Item {
                 return root.fail("frames of a plan without marks reported success")
             }
 
+            // DB-61: a report is written as the format says, a name without its extension gets
+            // it, an unknown report or format is refused, and the file offered is a PDF.
+            if (!ctl.exportReport("szenen", "csv", base + "/Szenen.csv") || size(base + "/Szenen.csv") <= 0) {
+                return root.fail("report export failed: " + ctl.status)
+            }
+            if (!ctl.exportReport("figuren", "xlsx", base + "/Figuren") || size(base + "/Figuren.xlsx") <= 0) {
+                return root.fail("report without extension failed: " + ctl.status)
+            }
+            if (ctl.status.indexOf("Figuren.xlsx") < 0) {
+                return root.fail("the saved message does not name the file: " + ctl.status)
+            }
+            if (ctl.exportReport("nope", "csv", base + "/x.csv") || ctl.exportReport("szenen", "png", base + "/x.png")) {
+                return root.fail("an unknown report or format reported success")
+            }
+            if (!ctl.reportFile("auszug").endsWith("/Drehbuchauszug.pdf")) {
+                return root.fail("the file offered for a report is " + ctl.reportFile("auszug"))
+            }
+
             if (ctl.exportTo("zip", "cut", "a4", base + "/x.zip")) {
                 return root.fail("an unknown kind reported success")
             }

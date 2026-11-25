@@ -1,4 +1,5 @@
-//! Exports of the plan: PDF, PNG, SVG, the shot list (CSV, ODS, XLSX) and the frames.
+//! Exports of the plan: PDF, PNG, SVG, the shot list (CSV, ODS, XLSX) and the frames; the
+//! reports of DB-61.
 
 use super::qobject;
 use crate::fileurl;
@@ -7,7 +8,8 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
 use klappe_services::{
-    ExportFormat, ExportOptions, PaperSetup, Session, ShotOrder, Source, Texts, FFMPEG,
+    ExportFormat, ExportOptions, PaperSetup, Report, ReportFormat, Session, ShotOrder, Source,
+    Texts, FFMPEG,
 };
 use std::ops::ControlFlow;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -193,6 +195,67 @@ impl qobject::Controller {
         }
 
         ok
+    }
+
+    pub(super) fn export_report(
+        mut self: Pin<&mut Self>,
+        report: &QString,
+        format: &QString,
+        path: &QString,
+    ) -> bool {
+        let language = self.rust().language;
+        let (report, format) = (report.to_string(), format.to_string());
+        let (Some(kind), Some(format)) = (
+            Report::from_name(&report),
+            ReportFormat::from_extension(&format),
+        ) else {
+            let message = language
+                .text("error.export")
+                .replace("{detail}", &format!("{report} {format}"));
+            self.as_mut().say(message);
+            return false;
+        };
+
+        let path = fileurl::to_path(&path.to_string());
+        let Some(path) = self.as_mut().named_file(path, format.name()) else {
+            return false;
+        };
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        let result = s.export_report(kind, format, &path, language);
+        let ok = result.is_ok();
+        let message = match result {
+            Ok(()) => language
+                .text("menu.reportSaved")
+                .replace("{path}", &path.to_string_lossy()),
+            Err(e) => error_text(language, &e),
+        };
+        self.as_mut().say(message);
+
+        ok
+    }
+
+    /// The file the export dialog offers for a report: next to the project folder, named by
+    /// the report.
+    pub(super) fn report_file(mut self: Pin<&mut Self>, report: &QString) -> QString {
+        let language = self.rust().language;
+        let Some(s) = self.as_mut().session() else {
+            return QString::default();
+        };
+
+        let title = language
+            .text(&format!("report.{report}"))
+            .replace([' ', '/'], "-");
+        let name = format!("{title}.{}", ReportFormat::Pdf.name());
+        let path = s
+            .dir()
+            .parent()
+            .map(|p| p.join(&name))
+            .unwrap_or_else(|| name.into());
+
+        QString::from(fileurl::from_path(&path))
     }
 
     /// The file the export dialog offers: next to the project folder, named by the plan.

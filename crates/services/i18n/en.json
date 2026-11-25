@@ -1324,5 +1324,12 @@
  "report.storyDay": "Story day",
  "report.prestop": "Pre-stop",
  "report.planned": "Planned shooting time",
- "cli.noReportFormat": "cannot tell the format of {path}; use .pdf, .csv, .ods or .xlsx"
+ "cli.noReportFormat": "cannot tell the format of {path}; use .pdf, .csv, .ods or .xlsx",
+ "menu.reports": "Reports",
+ "menu.reportSaved": "Report saved: {path}",
+ "export.pick.report": "Save report",
+ "export.filter.report.pdf": "PDF (*.pdf)",
+ "export.filter.report.csv": "CSV (*.csv)",
+ "export.filter.report.ods": "ODS (*.ods)",
+ "export.filter.report.xlsx": "XLSX (*.xlsx)"
 }
