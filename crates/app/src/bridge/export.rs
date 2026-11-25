@@ -8,8 +8,8 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
 use klappe_services::{
-    ExportFormat, ExportOptions, PaperSetup, Report, ReportFormat, Session, ShotOrder, Source,
-    Texts, FFMPEG,
+    ExportFormat, ExportOptions, Laid, PaperSetup, Report, ReportFormat, Session, ShotOrder,
+    Source, Texts, FFMPEG,
 };
 use std::ops::ControlFlow;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -224,6 +224,8 @@ impl qobject::Controller {
             return false;
         };
 
+        // The report lays the text out if need be; the scene list then shows its lengths.
+        let laid = s.paginate_if_changed(language);
         let result = s.export_report(kind, format, &path, language);
         let ok = result.is_ok();
         let message = match result {
@@ -232,6 +234,9 @@ impl qobject::Controller {
                 .replace("{path}", &path.to_string_lossy()),
             Err(e) => error_text(language, &e),
         };
+        if laid == Laid::Anew {
+            self.as_mut().refresh();
+        }
         self.as_mut().say(message);
 
         ok
