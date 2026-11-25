@@ -178,6 +178,7 @@ impl Session {
                 })
                 .collect(),
             elements: self.element_rows(),
+            looks: self.look_rows(),
             element_categories: ElementCategory::ALL.map(ElementCategory::name).into(),
             element_statuses: ElementStatus::ALL.map(ElementStatus::name).into(),
             sheet: self.sheet_view(&shot),
