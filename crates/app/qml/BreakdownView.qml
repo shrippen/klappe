@@ -148,6 +148,15 @@ RowLayout {
                 }
             }
         }
+
+        // Nothing chosen: say how to get a form (the right side was blank).
+        KanteEmptyState {
+            objectName: "elementHint"
+            visible: !form.visible
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            title: view.texts.t("elements.pick")
+        }
         Item { Layout.fillHeight: true }
     }
 }
