@@ -75,6 +75,7 @@ TestCase {
         function editLook(i, n) { return call("editLook", [i, n]) }
         function removeLook(i) { return call("removeLook", [i]) }
         function addLookElement(l, e) { return call("addLookElement", [l, e]) }
+        function addElementToLook(l, c, n) { return call("addElementToLook", [l, c, n]) }
         function removeLookElement(l, e) { return call("removeLookElement", [l, e]) }
         function setSceneLook(s, c, l) { return call("setSceneLook", [s, c, l]) }
     }
@@ -374,8 +375,8 @@ TestCase {
         compare(fake.calls, [["addLookElement", "l2", "e5"]])
     }
 
-    // A costume the look lacks is offered; the typed name of a new one makes the element first.
-    function test_a_new_element_is_made_then_put_in_the_look() {
+    // A costume the look lacks is offered; the typed name of a new one is one step.
+    function test_a_new_element_is_made_and_put_in_the_look_in_one_call() {
         const v = view()
         showLooks(v)
 
@@ -384,7 +385,7 @@ TestCase {
         compare(field.model, ["Ballkleid"])
         field.newEntered("Hut")
 
-        compare(fake.calls, [["addElement", "costume", "Hut"], ["addLookElement", "l2", "e9"]])
+        compare(fake.calls, [["addElementToLook", "l2", "costume", "Hut"]])
     }
 
     function test_a_typed_name_of_an_existing_element_does_not_make_another() {

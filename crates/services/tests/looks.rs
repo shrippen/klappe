@@ -525,6 +525,57 @@ fn a_look_of_a_character_not_in_the_scene_is_not_shown() {
 }
 
 #[test]
+fn a_new_element_goes_into_a_look_in_one_step() {
+    let mut s = open("looks-to-look");
+    let wet = s.add_look("anna", "Ölzeug, nass").unwrap();
+    let add = |s: &mut Session, name: &str| {
+        run(
+            s,
+            BreakdownEdit::AddElementToLook {
+                look: wet.clone(),
+                category: ElementCategory::Costume,
+                name: name.into(),
+            },
+        )
+    };
+
+    add(&mut s, "Ölmantel").unwrap();
+    assert_eq!(s.project().elements.len(), 1);
+    assert_eq!(s.project().looks[0].elements.len(), 1);
+    assert_eq!(s.undo_step(), Some("AddElementToLook"));
+
+    // One undo takes the element and its place in the look.
+    s.undo();
+    assert!(s.project().elements.is_empty());
+    assert!(s.project().looks[0].elements.is_empty());
+
+    // The same name, the case aside, is the same element, once in the look.
+    add(&mut s, "Ölmantel").unwrap();
+    add(&mut s, " ölmantel ").unwrap();
+    assert_eq!(s.project().elements.len(), 1);
+    assert_eq!(s.project().looks[0].elements.len(), 1);
+}
+
+#[test]
+fn a_new_prop_does_not_go_into_a_look() {
+    let mut s = open("looks-prop");
+    let wet = s.add_look("anna", "Ölzeug, nass").unwrap();
+
+    let refused = run(
+        &mut s,
+        BreakdownEdit::AddElementToLook {
+            look: wet,
+            category: ElementCategory::Prop,
+            name: "Lampe".into(),
+        },
+    )
+    .unwrap_err();
+
+    assert!(matches!(refused, ServiceError::NotLookElement(_)));
+    assert!(s.project().elements.is_empty());
+}
+
+#[test]
 fn a_look_lists_no_scene_its_character_left() {
     let mut s = dressed("looks-left-scenes");
     assert_eq!(s.overview().looks[0].scenes.len(), 1);

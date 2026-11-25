@@ -1235,6 +1235,16 @@ pub mod qobject {
         #[cxx_name = "addLookElement"]
         fn add_look_element(self: Pin<&mut Self>, look: &QString, element: &QString) -> bool;
 
+        /// The element of that name and category, made if there is none, goes into the look.
+        #[qinvokable]
+        #[cxx_name = "addElementToLook"]
+        fn add_element_to_look(
+            self: Pin<&mut Self>,
+            look: &QString,
+            category: &QString,
+            name: &QString,
+        ) -> bool;
+
         #[qinvokable]
         #[cxx_name = "removeLookElement"]
         fn remove_look_element(self: Pin<&mut Self>, look: &QString, element: &QString) -> bool;

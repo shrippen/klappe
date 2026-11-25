@@ -61,6 +61,11 @@ Item {
                 return root.fail("the sheet must list the look's costume: " + ctl.projectJson)
             }
 
+            if (!ctl.addElementToLook(look, "makeup", "Schramme")
+                    || project().looks[0].elements.length !== 2) {
+                return root.fail("the new make-up must go into the look: " + ctl.status)
+            }
+
             const prop = ctl.addElement("prop", "Lampe")
             if (ctl.addLookElement(look, prop)) {
                 return root.fail("a prop must not go into a look")
@@ -69,7 +74,7 @@ Item {
             if (!ctl.editLook(look, "Ölzeug") || project().looks[0].name !== "Ölzeug") {
                 return root.fail("the look was not renamed: " + ctl.status)
             }
-            if (!ctl.removeLookElement(look, coat) || project().looks[0].elements.length !== 0) {
+            if (!ctl.removeLookElement(look, coat) || project().looks[0].elements.length !== 1) {
                 return root.fail("the costume did not leave the look")
             }
 

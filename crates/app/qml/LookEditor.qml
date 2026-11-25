@@ -51,10 +51,11 @@ EditorPane {
             return
         }
         const known = elements.find(e => e.category === category && e.name.toLowerCase() === text.toLowerCase())
-        const id = known ? known.id : controller.addElement(category, text)
-        if (id !== "") {
-            controller.addLookElement(item.id, id)
+        if (known) {
+            controller.addLookElement(item.id, known.id)
+            return
         }
+        controller.addElementToLook(item.id, category, text)
     }
 
     onItemChanged: {

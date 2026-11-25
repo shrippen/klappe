@@ -272,6 +272,22 @@ impl qobject::Controller {
         })))
     }
 
+    pub(super) fn add_element_to_look(
+        self: Pin<&mut Self>,
+        look: &QString,
+        category: &QString,
+        name: &QString,
+    ) -> bool {
+        let edit = category_of(category).map(|category| {
+            ProjectEdit::Breakdown(BreakdownEdit::AddElementToLook {
+                look: look.to_string(),
+                category,
+                name: name.to_string(),
+            })
+        });
+        self.commit_project(edit)
+    }
+
     pub(super) fn remove_look_element(
         self: Pin<&mut Self>,
         look: &QString,
