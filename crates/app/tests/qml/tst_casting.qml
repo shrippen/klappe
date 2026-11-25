@@ -241,6 +241,38 @@ TestCase {
         compare(fake.calls, [["dropProposal", "anna", "p3"]])
     }
 
+    function test_a_proposal_is_dropped_and_fixed_with_the_keyboard() {
+        const v = view()
+        const form = pick(v, "anna")
+        const chip = findChild(findChild(form, "proposal.p3"), "proposalChip")
+
+        verify(chip.activeFocusOnTab)
+        verify(chip.removable)
+        verify(chip.Accessible.name.includes("Mia Rot"))
+        verify(chip.removeText.arg(chip.text).includes("Mia Rot"))
+
+        chip.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+        compare(fake.calls, [["fixCast", "anna", "p3"]])
+
+        fake.calls = []
+        keyClick(Qt.Key_Delete)
+        compare(fake.calls, [["dropProposal", "anna", "p3"]])
+    }
+
+    function test_the_fixed_proposal_is_dropped_with_the_keyboard_and_not_fixed_again() {
+        const v = view()
+        const form = pick(v, "anna")
+        const chip = findChild(findChild(form, "proposal.p2"), "proposalChip")
+
+        chip.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+        compare(fake.calls, [])
+
+        keyClick(Qt.Key_Delete)
+        compare(fake.calls, [["dropProposal", "anna", "p2"]])
+    }
+
     function test_a_role_without_proposals_says_so() {
         const v = view()
 

@@ -158,14 +158,19 @@ ColumnLayout {
                 objectName: "proposal." + modelData
                 spacing: Kirigami.Units.smallSpacing
 
-                // The fixed one is marked in words, not by colour alone.
+                // The fixed one is marked in words, not by colour alone. The chip takes the focus:
+                // Delete drops the proposal, Enter or Space fixes it (as the ✓ does).
                 KanteChip {
                     objectName: "proposalChip"
                     text: proposal.fixed ? proposal.name + " · " + form.texts.t("casting.fixed") : proposal.name
                     checked: proposal.fixed
                     removable: true
-                    interactive: false
                     removeText: form.texts.t("casting.drop", { name: "%1" })
+                    onClicked: {
+                        if (!proposal.fixed) {
+                            form.controller.fixCast(form.role.id, proposal.modelData)
+                        }
+                    }
                     onRemoveRequested: form.controller.dropProposal(form.role.id, proposal.modelData)
                 }
                 KanteButton {
