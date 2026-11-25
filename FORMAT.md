@@ -14,6 +14,7 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── szenen.toml          Register der Drehinhalte (Szenen, Content Items), je ein [[szene]], in Projektfolge
 ├── szenen/<id>.json     Stellprobe je Drehinhalt: eigener Drehort, Zeitpunkt der Sonne, Floorplans (Nummer und Kopf stehen im Register)
 ├── breakdown/elemente.toml  Elemente des Breakdowns, je ein [[element]] (optional)
+├── breakdown/looks.toml  Looks der Figuren, je ein [[look]] (optional)
 ├── breakdown/szenen/<id>.toml  Szenenblatt der Szene <id> (optional)
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
@@ -67,9 +68,15 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   Sekunden), `planned_min` (geplante Drehdauer in Minuten), `continuity`, `note` (Hinweis für die
   Produktion), `elements` (Element-Ids in der Reihenfolge der Szene), `excluded` (Element-Ids
   von Vorschlägen aus dem Set, die der Nutzer ausgeschlossen hat) und `characters` (Figuren-Ids
-  ohne Dialog in der Szene: stumme Figuren und Komparsen, eine Figur mit `group` mit ihrer Kopfzahl) und `marks` (im Text der Szene markierte Stellen, D-23: je Eintrag `element`, die Element-Id, `text`, die markierten Wörter, und `occurrence`, das wievielte Vorkommen dieser Wörter im Text der Szene ab 0, Zeile für Zeile in Lesefolge gezählt; der Fountain-Text bleibt unverändert); jeder Schlüssel nur
+  ohne Dialog in der Szene: stumme Figuren und Komparsen, eine Figur mit `group` mit ihrer Kopfzahl) und `marks` (im Text der Szene markierte Stellen, D-23: je Eintrag `element`, die Element-Id, `text`, die markierten Wörter, und `occurrence`, das wievielte Vorkommen dieser Wörter im Text der Szene ab 0, Zeile für Zeile in Lesefolge gezählt; der Fountain-Text bleibt unverändert) und `looks` (Tabelle Figuren-Id → Look-Id: der Look, den die Figur in der Szene trägt); jeder Schlüssel nur
   geschrieben, wenn nicht leer. Die sprechenden Figuren stehen nicht darin, sie folgen aus den
-  Figurenzeilen des Buchs. Ein Objekt eines Sets (`drehorte/<id>.toml`) hat optional `element`,
+  Figurenzeilen des Buchs. `breakdown/looks.toml` hat je Look ein `[[look]]` mit `id` (zufällig,
+  stabil), `character` (Figuren-Id), `name` und `elements` (Element-Ids, nur Kostüm und
+  Maskenbild; nur geschrieben, wenn nicht leer). Jede `id` kommt einmal vor und ist nicht leer,
+  sonst lädt die Datei nicht; der Name ist je Figur einmalig (Groß- und Kleinschreibung zählt
+  nicht), das prüft das Programm beim Ändern, nicht Laden. Ein Look einer Figur, die es nicht
+  mehr gibt, oder mit Element-Ids ohne Element lädt und bleibt, das Programm bietet ihn nicht
+  an. Ein Objekt eines Sets (`drehorte/<id>.toml`) hat optional `element`,
   die Id des Elements, für das es steht; es erscheint dann im Szenenblatt jeder Szene, die an
   diesem Drehort gedreht wird, als Vorschlag. Beide Dateien und der Ordner sind optional und
   fehlen, solange es nichts gibt: `save` schreibt kein Blatt, das leer ist, und löscht Blätter
@@ -534,7 +541,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 - **Speichern und Änderungen von außen:** Eine Sitzung merkt sich je Datei, was sie zuletzt gelesen
   oder geschrieben hat, und was sie selbst daraus kodiert. Einheiten sind `projekt.toml`,
   `figuren.toml`, `bibliothek.toml`, `vorlagen.toml`, `drehorte/<id>.toml`, `szenen.toml`,
-  `szenen/<id>.json`, `breakdown/elemente.toml`, `breakdown/szenen/<id>.toml` und `drehbuch.fountain`;
+  `szenen/<id>.json`, `breakdown/elemente.toml`, `breakdown/looks.toml`, `breakdown/szenen/<id>.toml` und
+  `drehbuch.fountain`;
   `orte.toml` und `nummern.toml` liest sie mit, sie
   ändert sie nie als eigene Änderung. `bilder/` und versteckte Ordner gehören nicht dazu.
   Speichern schreibt nur Dateien, deren Kodierung von der Datei auf der Platte abweicht, die

@@ -89,6 +89,8 @@ const SCENES_DIR: &str = "szenen";
 const SCENES_FILE: &str = "szenen.toml";
 /// The breakdown (D-22): its elements, and a sheet file per scene named by the scene.
 const ELEMENTS_FILE: &str = "breakdown/elemente.toml";
+/// The looks' file (`looks.toml`), also in the breakdown folder.
+const LOOKS_FILE: &str = "breakdown/looks.toml";
 const SHEETS_DIR: &str = "breakdown/szenen";
 const IMAGES_DIR: &str = "bilder";
 /// Folder of the unsaved-changes backup inside a project folder (FORMAT.md).
@@ -209,7 +211,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     let locations = load_all::<Location>(&dir.join(LOCATIONS_DIR), Kind::Toml, |l| &l.id)?;
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
     let (mut scenes, notes) = load_scenes(dir)?;
-    let elements = breakdown::load(dir, &mut scenes)?;
+    let (elements, looks) = breakdown::load(dir, &mut scenes)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -220,6 +222,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             script: header.script,
             views: header.ansicht,
             elements,
+            looks,
             characters: characters.figur,
             not_figures: characters.not_figures,
             locations,

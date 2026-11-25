@@ -395,6 +395,7 @@ fn remove_character(project: &mut Project, id: &str) -> Result<(), ServiceError>
     // Ids come from the name: a later character of that name must not inherit the scenes.
     for scene in &mut project.scenes {
         scene.sheet.characters.retain(|c| c != id);
+        scene.sheet.looks.remove(id);
     }
     Ok(())
 }
