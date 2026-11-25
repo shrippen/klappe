@@ -966,6 +966,23 @@ pub mod qobject {
         #[cxx_name = "exportFile"]
         fn export_file(self: Pin<&mut Self>, kind: &QString) -> QString;
 
+        /// Writes the report `report` (`szenen` …) as `format` (`pdf`, `csv`, `ods`, `xlsx`)
+        /// to `path` (a `file://` URL); the result goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "exportReport"]
+        fn export_report(
+            self: Pin<&mut Self>,
+            report: &QString,
+            format: &QString,
+            path: &QString,
+        ) -> bool;
+
+        /// The file URL a report is offered under: next to the project folder, named by the
+        /// report as a PDF; empty without a project.
+        #[qinvokable]
+        #[cxx_name = "reportFile"]
+        fn report_file(self: Pin<&mut Self>, report: &QString) -> QString;
+
         /// What a tooltip says about a plan element (`camera:a` …), as JSON.
         #[qinvokable]
         fn describe(self: &Self, key: &QString) -> QString;

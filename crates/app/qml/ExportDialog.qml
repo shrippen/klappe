@@ -9,6 +9,9 @@ import Kante
 //
 //   request("pdf") → paper A4 | A3 | Letter, Hoch | Quer → file dialog
 //                  → controller.exportTo("pdf", order, "a4-portrait", file)
+//
+// A report (DB-61) asks for the file only; the file's extension or the chosen filter sets the
+// format:  requestReport("szenen") → file dialog → controller.exportReport("szenen", "csv", file)
 FormDialog {
     id: dialog
 
@@ -33,11 +36,21 @@ FormDialog {
     /// The id of the format being asked for, one of `formats`.
     property string kind: ""
     readonly property var format: formats.find(f => f.id === kind)
+    /// The files a report can be written as, as ids (also the extensions); from the project view.
+    property var reportFormats: []
+    /// The report being asked for, as `szenen`; empty while a plan export is.
+    property string report: ""
 
     title: texts.t("export.paperTitle")
     acceptText: texts.t("export.next")
 
+    function requestReport(name) {
+        dialog.report = name
+        pick()
+    }
+
     function request(kind) {
+        dialog.report = ""
         dialog.kind = kind
         if (!format || !format.paper) {
             pick()
@@ -52,6 +65,14 @@ FormDialog {
 
     // The file dialog, offered the plan's name in the folder of the last export.
     function pick() {
+        if (report !== "") {
+            files.title = texts.t("export.pick.report")
+            files.nameFilters = reportFormats.map(f => texts.t("export.filter.report." + f))
+            files.defaultSuffix = reportFormats[0] || ""
+            files.currentFile = suggestion()
+            files.open()
+            return
+        }
         if (format && format.extension === null) {
             folders.title = texts.t("export.pick." + kind)
             folders.currentFolder = suggestion().replace(/\/[^/]*$/, "")
@@ -66,16 +87,29 @@ FormDialog {
     }
 
     function suggestion() {
-        const url = controller.exportFile(kind)
+        const url = report !== "" ? controller.reportFile(report) : controller.exportFile(kind)
         if (url === "" || folder === "") {
             return url
         }
         return folder + url.substring(url.lastIndexOf("/"))
     }
 
+    // The format of a report file: the extension typed, else the one of the filter chosen.
+    function reportFormat(url, filterIndex) {
+        const name = url.substring(url.lastIndexOf("/") + 1)
+        const typed = name.substring(name.lastIndexOf(".") + 1).toLowerCase()
+        if (name.includes(".") && reportFormats.includes(typed)) {
+            return typed
+        }
+        return reportFormats[filterIndex] || reportFormats[0]
+    }
+
     // The file was chosen: remembers the folder and writes.
     function save(url) {
         dialog.folder = url.substring(0, url.lastIndexOf("/"))
+        if (report !== "") {
+            return controller.exportReport(report, reportFormat(url, files.selectedNameFilter.index), url)
+        }
         return controller.exportTo(kind, order, paper, url)
     }
 

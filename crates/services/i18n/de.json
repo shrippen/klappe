@@ -1354,5 +1354,12 @@
  "report.storyDay": "Spieltag",
  "report.prestop": "Vorstopp",
  "report.planned": "Geplante Drehdauer",
- "cli.noReportFormat": "Das Format von {path} ist unklar; Endung .pdf, .csv, .ods oder .xlsx wählen"
+ "cli.noReportFormat": "Das Format von {path} ist unklar; Endung .pdf, .csv, .ods oder .xlsx wählen",
+ "menu.reports": "Berichte",
+ "menu.reportSaved": "Bericht gespeichert: {path}",
+ "export.pick.report": "Bericht speichern",
+ "export.filter.report.pdf": "PDF (*.pdf)",
+ "export.filter.report.csv": "CSV (*.csv)",
+ "export.filter.report.ods": "ODS (*.ods)",
+ "export.filter.report.xlsx": "XLSX (*.xlsx)"
 }
