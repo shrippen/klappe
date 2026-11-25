@@ -80,7 +80,7 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 |---|---|---|---|---|
 | Drehinhalt (Register: Szene oder Content Item) | Projekt; mit Buch ist das Buch die Quelle von Nummer und Kopf einer Szene (F-07); Klappe führt die Identität (DB-65) | zufällig, stabil | Art (Szene, Interview, …), Nummer, Kopf bzw. Titel, Beschreibung, Zustand (im Buch, nicht im Buch), kurze Fingerabdrücke je Element | alle |
 | Szenenblatt | Breakdown | Szenen-Id | Spieltag, Vorstopp, geplante Drehdauer, Continuity, Hinweis für die Produktion, Figuren ohne Dialog (stumm, Komparsen), Element-Zuordnungen, Looks (Kostüm, Maske je Figur), Drehort abweichend | Drehplan, Dispo |
-| Figur (Rolle) | Projekt (`figuren.toml`: Name, Kürzel, Farbe, Cast-Nummer, Gruppe, Größe, Aliasnamen); mit Buch kommt der Name aus den Figurenzeilen | stabil | | alle |
+| Figur (Rolle) | Projekt (`figuren.toml`: Name, Kürzel, Farbe, Gruppe, Größe, Aliasnamen; die Cast-Nummer gehört zur Besetzung); mit Buch kommt der Name aus den Figurenzeilen | stabil | | alle |
 | Figur ↔ Szene | abgeleitet: Figurenzeilen + Spuren im Floorplan + Szenenblatt | – | | Drehplan, Day out of Days, Dispo |
 | Spielort | Projekt (`orte.toml`); entsteht aus dem Ort im Kopf, mit und ohne Buch (DB-51) | zufällig, stabil | Name, Varianten (andere Schreibweisen im Kopf) | Breakdown, Drehplan |
 | Spielort → Drehort | Projekt (Ortsplanung) | – | Vorgabe je Spielort; Abweichung je Szene im Szenenblatt | Stellprobe, Drehplan, Dispo |
@@ -90,7 +90,7 @@ Budget, Finanzierung, Reisen und Postproduktion gehören nicht zu Klappe.
 | Element | Breakdown | zufällig | Kategorie, Name, Beschreibung, verantwortliche Person, Status | Dispo, Stellprobe |
 | Person | Besetzung/Team | zufällig | Name, Department, Funktion, Agentur | Dispo |
 | Kontakt | Besetzung/Team | Personen-Id | Telefon, Mail, Adresse; später weitere persönliche Daten | Dispo |
-| Besetzung | Besetzung/Team | – | Figur → Person (vorgeschlagen, fest) | Dispo, Drehplan |
+| Besetzung | Besetzung/Team (`personen.toml`) | Figur-Id | Vorgeschlagene Personen (beliebig viele), davon höchstens eine fest; Cast-Nummer (gespeichert, wenn von Hand oder festgeschrieben, sonst aus der Zahl der Szenen im Buch, Gruppen ohne) | Dispo, Drehplan; sie nehmen nur die feste Person |
 | Drehplanversion | Drehplan | zufällig | Name, aktiv | Dispo |
 | Drehtag | Drehplan | zufällig; Datum und Unit sind Felder | Streifen (Szenen in Reihenfolge, Umzug, Pause), Beginn/Ende | Dispo |
 | Dispo | Dispo | Drehtag-Id | Zeiten, Ortsangaben, Zeiten je Darsteller, Fahrzeuge, Kontakte, Notizen | – |
@@ -246,7 +246,7 @@ kann auf ein Element zeigen; im Breakdown einer Szene erscheint es dann als **Vo
    Projekte werden nicht migriert: es gibt kein Release (Eigentümer, 17.11.2026).
 2. Breakdown: Elemente, Szenenblatt, Figuren der Szene, Vorschläge aus dem Set; Zuordnung
    Spielort → Drehort (`orte.toml`, Rest von DB-51; fertig, D-21, Formatversion 4).
-3. Besetzung/Team.
+3. Besetzung/Team (Daten, `store/`, `services/` und Berichte fertig; die Oberfläche folgt).
 4. Drehplan (Stripboard, Versionen, Day out of Days).
 5. Dispo als Druckvorlage.
 6. Storyboard-Ansicht über den Shots.

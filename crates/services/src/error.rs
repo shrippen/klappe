@@ -47,6 +47,11 @@ pub enum ServiceError {
     NoCharacter(String),
     #[error("no element {0}")]
     NoElement(String),
+    #[error("no person {0}")]
+    NoPerson(String),
+    /// Another character has the cast number.
+    #[error("cast number {0} is taken")]
+    CastNumberTaken(u32),
     /// Scene numbers are unique within a project.
     #[error("scene number {0} is taken")]
     NumberTaken(String),

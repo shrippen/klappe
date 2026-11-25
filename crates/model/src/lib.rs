@@ -8,6 +8,7 @@
 //! ├── templates    Template         (the project's own set-ups, LH-07)
 //! ├── views        SavedView        (named choices of visible layers, cameras, figures, LH-119)
 //! ├── elements     Element          (the breakdown's things: costumes, props …, DB-60)
+//! ├── team         Team             (persons, casting of the characters, contacts)
 //! └── scenes       Scene → FloorPlan   (the register of what is shot: a scene or a content item,
 //!                           by `kind`; its order is the project's order)
 //!                           ├── sheet    Sheet       (the scene sheet: story day, elements, extras)
@@ -46,6 +47,7 @@ mod script_setup;
 mod shot;
 mod site;
 mod sketch;
+mod team;
 mod template;
 
 pub use binding::Binding;
@@ -86,6 +88,7 @@ pub use script_setup::{SceneNumbering, ScriptLanguage, ScriptPaper, ScriptSetup,
 pub use shot::{Angle, Movement, Numbering, Shot, ShotSize, VersionOf};
 pub use site::{Site, SunTime, MAX_UTC_OFFSET_MIN};
 pub use sketch::Sketch;
+pub use team::{Casting, Contact, Department, Person, Team};
 pub use template::{Template, TemplateFigure};
 
 /// The version of the project format this model reads and writes (FORMAT.md).

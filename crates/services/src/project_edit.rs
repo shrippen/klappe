@@ -16,6 +16,7 @@ mod library;
 mod locations;
 mod names;
 mod plans;
+mod team;
 pub(crate) mod templates;
 mod views;
 
@@ -26,6 +27,8 @@ use locations::{add_location, edit_location, remove_location};
 pub use names::NameEdit;
 pub(crate) use plans::{add_plan, copy_plan, move_plan, remove_plan, rename_plan, seat_speakers};
 pub use plans::{PlanShift, ShotsGo};
+pub(crate) use team::store_numbers;
+pub use team::TeamEdit;
 pub use templates::TemplateEdit;
 pub(crate) use views::{remove_view, save_view};
 
@@ -113,6 +116,8 @@ pub enum ProjectEdit {
     Template(TemplateEdit),
     /// Edits of the breakdown: elements and scene sheets (DB-60, D-22).
     Breakdown(BreakdownEdit),
+    /// Edits of the persons, the contacts and the casting (Besetzung/Team).
+    Team(TeamEdit),
 }
 
 /// The label in a figure's circle has room for this many letters.
@@ -185,6 +190,7 @@ pub(crate) fn apply(project: &mut Project, edit: &ProjectEdit) -> Result<(), Ser
         ProjectEdit::Library(edit) => library::apply(project, edit),
         ProjectEdit::Template(edit) => templates::apply(project, edit),
         ProjectEdit::Breakdown(edit) => breakdown::apply(project, edit),
+        ProjectEdit::Team(edit) => team::apply(project, edit),
     }
 }
 
@@ -396,6 +402,7 @@ fn remove_character(project: &mut Project, id: &str) -> Result<(), ServiceError>
     for scene in &mut project.scenes {
         scene.sheet.characters.retain(|c| c != id);
     }
+    project.team.castings.retain(|c| c.character != id);
     Ok(())
 }
 

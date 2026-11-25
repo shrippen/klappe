@@ -9,6 +9,8 @@ use crate::error::ServiceError;
 use crate::field::Field;
 use crate::sheet_time::{read_planned, read_prestop};
 
+use super::team::check_person;
+
 /// Edits of the breakdown: elements and scene sheets (DB-60, D-22).
 #[derive(Debug, Clone, PartialEq)]
 pub enum BreakdownEdit {
@@ -24,6 +26,11 @@ pub enum BreakdownEdit {
         name: String,
         description: String,
         status: ElementStatus,
+    },
+    /// The person of the team who answers for the element; `None` for nobody.
+    SetResponsible {
+        element: String,
+        person: Option<String>,
     },
     /// Takes the element out of every scene sheet and every set object too.
     RemoveElement {
@@ -117,6 +124,9 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
             description,
             status,
         } => edit_element(project, id, (*category, name), (description, *status)),
+        BreakdownEdit::SetResponsible { element, person } => {
+            set_responsible(project, element, person.as_deref())
+        }
         BreakdownEdit::RemoveElement { id } => remove_element(project, id),
         BreakdownEdit::SetSheet {
             scene,
@@ -237,6 +247,7 @@ fn add_element(
         name,
         description: String::new(),
         status: ElementStatus::default(),
+        responsible: None,
     });
 
     Ok(id)
@@ -261,6 +272,23 @@ fn edit_element(
     element.name = name;
     element.description = description.trim().to_owned();
     element.status = status;
+
+    Ok(())
+}
+
+fn set_responsible(
+    project: &mut Project,
+    element: &str,
+    person: Option<&str>,
+) -> Result<(), ServiceError> {
+    check_element(project, element)?;
+    if let Some(id) = person {
+        check_person(project, id)?;
+    }
+
+    if let Some(found) = project.elements.iter_mut().find(|e| e.id == element) {
+        found.responsible = person.map(str::to_owned);
+    }
 
     Ok(())
 }

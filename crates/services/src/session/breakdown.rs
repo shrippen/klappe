@@ -53,6 +53,10 @@ impl Session {
                 description: e.description.clone(),
                 status: e.status.name(),
                 scenes: scenes.remove(e.id.as_str()).unwrap_or_default(),
+                responsible: e
+                    .responsible
+                    .clone()
+                    .filter(|id| self.project.team.person(id).is_some()),
             })
             .collect()
     }

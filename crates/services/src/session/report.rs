@@ -9,7 +9,7 @@
 use std::path::Path;
 
 use klappe_export::{ExtractBox, ExtractPage, ReportTable, Theme};
-use klappe_model::{BookState, Character, Kind, Scene};
+use klappe_model::{BookState, Character, Department, Kind, Person, Scene};
 
 use super::export::write_file;
 use super::Session;
@@ -33,7 +33,7 @@ impl Session {
         language: Language,
     ) -> Result<(), ServiceError> {
         self.paginate_if_changed(language);
-        if self.book_scenes().next().is_none() {
+        if report.needs_scenes() && self.book_scenes().next().is_none() {
             return Err(ServiceError::NoBookScenes);
         }
         let bytes = self.report_bytes(report, format, language)?;
@@ -68,6 +68,17 @@ impl Session {
         let t = |k: &str| language.text(k);
         let title = t(&format!("report.{}", report.name()));
         let (head, rows) = match report {
+            Report::Contacts => (
+                vec![
+                    t("field.name"),
+                    t("report.department"),
+                    t("report.function"),
+                    t("report.phone"),
+                    t("report.mail"),
+                    t("report.address"),
+                ],
+                self.contact_rows(language),
+            ),
             Report::Scenes => (
                 vec![
                     t("field.number"),
@@ -98,7 +109,7 @@ impl Session {
 
     /// The scenes of the book with their index in `project.scenes`: the reports leave out
     /// what is struck from the book and what is no scene.
-    fn book_scenes(&self) -> impl Iterator<Item = (usize, &Scene)> {
+    pub(super) fn book_scenes(&self) -> impl Iterator<Item = (usize, &Scene)> {
         let scenes = self.project.scenes.iter().enumerate();
 
         scenes.filter(|(_, s)| s.kind == Kind::Scene && s.state == BookState::InBook)
@@ -173,8 +184,12 @@ impl Session {
             .filter(|c| in_scenes.iter().any(|ids| ids.contains(&c.id.as_str())))
             .collect();
 
+        let numbers = self.cast_numbers();
         let mut head = vec![scene_head.to_owned()];
-        head.extend(cast.iter().map(|c| c.name.clone()));
+        head.extend(cast.iter().map(|c| match numbers.get(&c.id) {
+            Some(number) => format!("{number}{NUMBER_SEPARATOR}{}", c.name),
+            None => c.name.clone(),
+        }));
         let rows = self
             .book_scenes()
             .zip(&in_scenes)
@@ -194,6 +209,44 @@ impl Session {
             .collect();
 
         (head, rows)
+    }
+
+    /// Name, department, function, phone, mail and address of every person, by department
+    /// (those without one last), then by name.
+    fn contact_rows(&self, language: Language) -> Vec<Vec<String>> {
+        let team = &self.project.team;
+        let place = |p: &Person| {
+            let department = p
+                .department
+                .and_then(|d| Department::ALL.iter().position(|a| *a == d));
+
+            (
+                department.unwrap_or(Department::ALL.len()),
+                p.name.to_lowercase(),
+            )
+        };
+        let mut persons: Vec<&Person> = team.persons.iter().collect();
+        persons.sort_by_key(|p| place(p));
+
+        persons
+            .into_iter()
+            .map(|p| {
+                let contact = team.contacts.get(&p.id).cloned().unwrap_or_default();
+                let department = p
+                    .department
+                    .map(|d| language.text(&format!("department.{}", d.name())))
+                    .unwrap_or_default();
+
+                vec![
+                    p.name.clone(),
+                    department,
+                    p.function.clone(),
+                    contact.phone,
+                    contact.mail,
+                    contact.address,
+                ]
+            })
+            .collect()
     }
 
     /// Scene, category, element and status: a row per element of a scene.

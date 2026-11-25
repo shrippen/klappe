@@ -12,6 +12,7 @@
 mod answer_way;
 mod book;
 mod camera_edit;
+mod cast_number;
 mod catalog;
 mod edit;
 mod error;
@@ -61,7 +62,8 @@ pub use number::{read_number, Range, Unit};
 pub use places::{PendingPlace, PlaceChoice, PlaceEdit};
 pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdit, Snapping};
 pub use project_edit::{
-    BreakdownEdit, LibraryEdit, MarkTarget, NameEdit, PlanShift, ProjectEdit, ShotsGo, TemplateEdit,
+    BreakdownEdit, LibraryEdit, MarkTarget, NameEdit, PlanShift, ProjectEdit, ShotsGo, TeamEdit,
+    TemplateEdit,
 };
 pub use report::{Report, ReportFormat};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
@@ -76,10 +78,11 @@ pub use session::{
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};
 pub use views::{
-    AxisChoice, CameraSpot, CastUse, CharacterRow, Chip, ElementRow, Elsewhere, Hint, LibraryEntry,
-    LinkKind, LocationRow, Marker, NotShot, Overview, PlaceRow, PlanRow, SceneCard, SceneRef,
-    SceneRow, SceneUse, ScriptLine, Segment, SetupOption, SheetCategory, SheetElement, SheetFigure,
-    SheetView, ShotRow, Suggestion, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
+    AxisChoice, CameraSpot, CastUse, CastingRow, CharacterRow, Chip, ElementRow, Elsewhere, Hint,
+    LibraryEntry, LinkKind, LocationRow, Marker, NotShot, Overview, PersonRow, PlaceRow, PlanRow,
+    SceneCard, SceneRef, SceneRow, SceneUse, ScriptLine, Segment, SetupOption, SheetCategory,
+    SheetElement, SheetFigure, SheetView, ShotRow, Suggestion, SunTexts, TemplateEntry, Track,
+    TrackKind, ViewRow,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.
@@ -87,12 +90,12 @@ pub use klappe_export::{DrawingTexts, LampTexts, ShotColumns, ShotTexts, Texts, 
 // The screenplay's pages as they print, for a surface's print view (D-15).
 pub use klappe_export::{Face as PrintFace, Placed, SheetPage, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT};
 pub use klappe_model::{
-    same_character_name, same_place_name, Angle, Arrival, CameraBody, CameraPresets, Curve, Dash,
-    Departure, DoorSide, DrawingShape, ElementCategory, ElementStatus, FigureColor, Fill,
-    FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, Numbering, ObjectShape,
-    OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, SceneNumbering, ScriptLanguage,
-    ScriptPaper, ScriptSetup, ScriptWords, Sensor, ShotSize, Site, SunTime, MIN_IMAGE_OPACITY,
-    MIN_OBJECT_HEIGHT_M,
+    same_character_name, same_place_name, Angle, Arrival, CameraBody, CameraPresets, Contact,
+    Curve, Dash, Department, Departure, DoorSide, DrawingShape, ElementCategory, ElementStatus,
+    FigureColor, Fill, FloorPlan, Hinge, LensSet, LightKind, LightPreset, Movement, Numbering,
+    ObjectShape, OpeningKind, Orientation, Paper, PaperSetup, Point, Pose, Rig, SceneNumbering,
+    ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords, Sensor, ShotSize, Site, SunTime,
+    MIN_IMAGE_OPACITY, MIN_OBJECT_HEIGHT_M,
 };
 pub use klappe_stellprobe::{
     horizontal_fov_deg, look, scene_look, Area, Bend, Cut, DisplayList, Frame, Hue, Item,

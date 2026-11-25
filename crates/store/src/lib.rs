@@ -1,7 +1,7 @@
 //! Reads and writes a Klappe project folder (FORMAT.md).
 //!
 //! ```text
-//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen.toml, szenen/, breakdown/
+//! save(dir, project, script) ──► store ──► projekt.toml, figuren.toml, drehorte/, szenen.toml, szenen/, breakdown/, personen.toml, kontakte.toml
 //! load(dir)                  ◄──         drehbuch.fountain
 //! add_image(dir, file)       ───►         bilder/ (the user's images; `save` never deletes them)
 //! save_backup(dir, ..)       ──► store ──► .sicherung/ (the same files; load_backup, drop_backup)
@@ -31,6 +31,7 @@ mod partial;
 mod places;
 mod register;
 mod sun;
+mod team;
 mod template;
 mod tree;
 
@@ -90,6 +91,9 @@ const SCENES_FILE: &str = "szenen.toml";
 /// The breakdown (D-22): its elements, and a sheet file per scene named by the scene.
 const ELEMENTS_FILE: &str = "breakdown/elemente.toml";
 const SHEETS_DIR: &str = "breakdown/szenen";
+/// The team (Besetzung/Team): persons and casting, and the contacts apart from them.
+const PEOPLE_FILE: &str = "personen.toml";
+const CONTACTS_FILE: &str = "kontakte.toml";
 const IMAGES_DIR: &str = "bilder";
 /// Folder of the unsaved-changes backup inside a project folder (FORMAT.md).
 const BACKUP_DIR: &str = ".sicherung";
@@ -210,6 +214,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
     check_sets(&dir.join(LOCATIONS_DIR), &locations)?;
     let (mut scenes, notes) = load_scenes(dir)?;
     let elements = breakdown::load(dir, &mut scenes)?;
+    let team = team::load(dir)?;
     let script = files::read_optional(&dir.join(SCRIPT_FILE))?;
 
     Ok(Loaded {
@@ -220,6 +225,7 @@ pub fn load(dir: &Path) -> Result<Loaded, StoreError> {
             script: header.script,
             views: header.ansicht,
             elements,
+            team,
             characters: characters.figur,
             not_figures: characters.not_figures,
             locations,
@@ -333,6 +339,7 @@ fn optional_files(dir: &Path, project: &Project) -> Result<Vec<OptionalFile>, St
     let sheets = breakdown::encode(dir, project)?;
     let mut files = vec![(library_path, library), (templates_path, templates)];
     files.extend(sheets);
+    files.extend(team::encode(dir, &project.team)?);
 
     Ok(files)
 }

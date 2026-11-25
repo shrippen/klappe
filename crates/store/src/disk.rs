@@ -17,9 +17,9 @@ use klappe_model::Project;
 
 use crate::files::{self, io_err, Dir, Kind};
 use crate::{
-    encode_project, load, write_tree, Loaded, StoreError, CHARACTERS_FILE, ELEMENTS_FILE,
-    LIBRARY_FILE, LOCATIONS_DIR, PROJECT_FILE, SCENES_DIR, SCENES_FILE, SCRIPT_FILE, SHEETS_DIR,
-    TEMPLATES_FILE,
+    encode_project, load, write_tree, Loaded, StoreError, CHARACTERS_FILE, CONTACTS_FILE,
+    ELEMENTS_FILE, LIBRARY_FILE, LOCATIONS_DIR, PEOPLE_FILE, PROJECT_FILE, SCENES_DIR, SCENES_FILE,
+    SCRIPT_FILE, SHEETS_DIR, TEMPLATES_FILE,
 };
 
 /// Where `load_tree` builds the folder it reads; hidden, so listings and `project_mtime`
@@ -44,27 +44,41 @@ pub enum FileKind {
     Register,
     Scene,
     Breakdown,
+    /// `personen.toml`: persons and casting.
+    Team,
+    /// `kontakte.toml`: phone, mail and address, apart from the team.
+    Contacts,
     Script,
 }
 
 /// What the file `name` of a `Tree` is; `None` for a name that is no file of the project.
 pub fn kind_of(name: &str) -> Option<FileKind> {
+    if let Some((_, kind)) = SINGLE_FILES.iter().find(|(file, _)| *file == name) {
+        return Some(*kind);
+    }
+
     let kind = match name {
-        PROJECT_FILE => FileKind::Project,
-        CHARACTERS_FILE => FileKind::Figures,
-        LIBRARY_FILE => FileKind::Library,
-        TEMPLATES_FILE => FileKind::Templates,
-        SCENES_FILE => FileKind::Register,
-        SCRIPT_FILE => FileKind::Script,
         _ if is_in(name, LOCATIONS_DIR) => FileKind::Location,
         _ if is_in(name, SCENES_DIR) => FileKind::Scene,
-        ELEMENTS_FILE => FileKind::Breakdown,
         _ if is_in(name, SHEETS_DIR) => FileKind::Breakdown,
         _ => return None,
     };
 
     Some(kind)
 }
+
+/// The project's files that stand alone, not in a folder, with their kind.
+const SINGLE_FILES: [(&str, FileKind); 9] = [
+    (PROJECT_FILE, FileKind::Project),
+    (CHARACTERS_FILE, FileKind::Figures),
+    (LIBRARY_FILE, FileKind::Library),
+    (TEMPLATES_FILE, FileKind::Templates),
+    (SCENES_FILE, FileKind::Register),
+    (SCRIPT_FILE, FileKind::Script),
+    (ELEMENTS_FILE, FileKind::Breakdown),
+    (PEOPLE_FILE, FileKind::Team),
+    (CONTACTS_FILE, FileKind::Contacts),
+];
 
 /// The name of the one file of the kind `kind`; `None` for a kind with many files (a folder).
 pub const fn file_name(kind: FileKind) -> Option<&'static str> {
@@ -74,6 +88,8 @@ pub const fn file_name(kind: FileKind) -> Option<&'static str> {
         FileKind::Library => Some(LIBRARY_FILE),
         FileKind::Templates => Some(TEMPLATES_FILE),
         FileKind::Register => Some(SCENES_FILE),
+        FileKind::Team => Some(PEOPLE_FILE),
+        FileKind::Contacts => Some(CONTACTS_FILE),
         FileKind::Script => Some(SCRIPT_FILE),
         FileKind::Location | FileKind::Scene | FileKind::Breakdown => None,
     }
@@ -87,7 +103,7 @@ fn is_in(name: &str, folder: &str) -> bool {
 }
 
 /// The files of the project folder `dir` as they are on disk: the single files, the location
-/// files, the scene files and the breakdown files. Images, hidden folders (backups) and `orte.toml`, `nummern.toml`
+/// files, the scene files, the breakdown files and the team files. Images, hidden folders (backups) and `orte.toml`, `nummern.toml`
 /// are not part of it.
 pub fn read_tree(dir: &Path) -> Result<Tree, StoreError> {
     let mut tree = Tree::new();
@@ -100,6 +116,8 @@ pub fn read_tree(dir: &Path) -> Result<Tree, StoreError> {
         SCENES_FILE,
         SCRIPT_FILE,
         ELEMENTS_FILE,
+        PEOPLE_FILE,
+        CONTACTS_FILE,
     ] {
         read_into(&mut tree, dir, name)?;
     }

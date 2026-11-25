@@ -15,6 +15,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── szenen/<id>.json     Stellprobe je Drehinhalt: eigener Drehort, Zeitpunkt der Sonne, Floorplans (Nummer und Kopf stehen im Register)
 ├── breakdown/elemente.toml  Elemente des Breakdowns, je ein [[element]] (optional)
 ├── breakdown/szenen/<id>.toml  Szenenblatt der Szene <id> (optional)
+├── personen.toml        Personen, Besetzung, Cast-Nummern gesperrt (optional)
+├── kontakte.toml        Telefon, Mail, Adresse je Person, getrennt von den Personen (optional)
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
 ├── nummern.toml         Sperrstand der Szenennummern (optional, DB-33)
@@ -527,14 +529,36 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   unbrauchbar ist. Beim Import wird eine Vorlage mit gleichem `label`, gleichen Figuren und
   Kameras übersprungen; ist ihre `id` sonst schon vergeben (eigen oder eingebaut), bekommt sie
   eine freie (`id-2`, `id-3` …).
+- **Team (Besetzung/Team):** `personen.toml` hat je Person ein `[[person]]` mit `id` (zufällig,
+  stabil), `name`, `department` (nur geschrieben, wenn gesetzt), `function` und `agency` (nur
+  geschrieben, wenn nicht leer) und je Rolle ein `[[besetzung]]` mit `character` (die Figuren-Id),
+  `fixed` (die Id der festen Person, immer auch in `proposed`), `proposed` (Personen-Ids in der
+  Folge der Vorschläge) und `cast_number` (die gespeicherte Cast-Nummer, 1 oder mehr: von Hand
+  gesetzt oder beim Festschreiben); jeder Schlüssel außer `character` nur geschrieben, wenn er
+  etwas sagt, eine Besetzung ohne Inhalt hat keinen Eintrag. `numbers_locked = true` (sonst nicht
+  geschrieben): die Cast-Nummern folgen nicht mehr dem Buch, eine neue Figur bekommt die Nummer
+  nach der höchsten. Ohne gespeicherte Nummer richtet sich die Cast-Nummer nach der Zahl der Szenen
+  im Buch (die meisten zuerst, dann die frühere erste Szene, dann der Name), mit den niedrigsten
+  freien Nummern; eine Gruppe (`group` der Figur) hat keine. `department`: `direction`,
+  `production`, `unit-management`, `casting`, `camera`, `lighting`, `sound`, `production-design`,
+  `set-decoration`, `props`, `costume`, `makeup`, `editing`, `vfx`, `sfx`, `stunt`, `cast` (in
+  dieser Folge). `kontakte.toml` hat je Person mit Kontakt ein `[[kontakt]]` mit `person` (die
+  Personen-Id), `phone`, `mail` und `address` (mehrzeilig möglich; je nur geschrieben, wenn nicht
+  leer), nach Personen-Id sortiert; sie steht in einer eigenen Datei als Grenze für Rechte
+  (`planung/DATENMODELL.md`, Abschnitt 10). Beide Dateien sind optional und fehlen, solange es
+  nichts gibt. Jede `id` und jede `person` kommt einmal vor und ist nicht leer, jede `character`
+  einmal, eine unbekannte `department` oder eine `cast_number` von 0 lädt nicht. Eine Id, die
+  keine Person oder Figur nennt (Besetzung einer gelöschten Figur, Vorschlag einer fehlenden
+  Person), lädt und bleibt beim Speichern; angeboten wird sie nicht. `breakdown/elemente.toml` kennt je
+  Element `responsible`, die Id der verantwortlichen Person (nur geschrieben, wenn gesetzt).
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.
-- Fehlende `figuren.toml`, `orte.toml`, `breakdown/`, fehlende Ordner und fehlendes Drehbuch gelten als leer.
+- Fehlende `figuren.toml`, `orte.toml`, `breakdown/`, `personen.toml`, `kontakte.toml`, fehlende Ordner und fehlendes Drehbuch gelten als leer.
 - **Speichern und Änderungen von außen:** Eine Sitzung merkt sich je Datei, was sie zuletzt gelesen
   oder geschrieben hat, und was sie selbst daraus kodiert. Einheiten sind `projekt.toml`,
   `figuren.toml`, `bibliothek.toml`, `vorlagen.toml`, `drehorte/<id>.toml`, `szenen.toml`,
-  `szenen/<id>.json`, `breakdown/elemente.toml`, `breakdown/szenen/<id>.toml` und `drehbuch.fountain`;
+  `szenen/<id>.json`, `breakdown/elemente.toml`, `breakdown/szenen/<id>.toml`, `personen.toml`, `kontakte.toml` und `drehbuch.fountain`;
   `orte.toml` und `nummern.toml` liest sie mit, sie
   ändert sie nie als eigene Änderung. `bilder/` und versteckte Ordner gehören nicht dazu.
   Speichern schreibt nur Dateien, deren Kodierung von der Datei auf der Platte abweicht, die
