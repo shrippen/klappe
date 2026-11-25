@@ -34,6 +34,7 @@ mod sun;
 mod team;
 mod template;
 mod tree;
+mod versions;
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -67,6 +68,9 @@ pub use partial::{save_contd, save_register, save_scene_numbering, save_script};
 pub use places::{load_places, save_places};
 pub use template::{builtin_templates, check_template, load_template_file, save_template_file};
 pub use tree::{is_empty_dir, project_mtime, remove_prefixed, write_atomic, write_tree};
+pub use versions::{
+    load_version_text, load_versions, remove_version_text, save_version_text, save_versions,
+};
 
 /// Whether `id` may name a location or scene file on every system (FORMAT.md, Ids).
 pub fn is_safe_id(id: &str) -> bool {
@@ -85,6 +89,10 @@ const LIBRARY_FILE: &str = "bibliothek.toml";
 const TEMPLATES_FILE: &str = "vorlagen.toml";
 const SCRIPT_FILE: &str = "drehbuch.fountain";
 const LOCK_FILE: &str = "nummern.toml";
+/// The locked versions of the screenplay: the list, and the folder of their texts.
+const VERSIONS_FILE: &str = "drehbuch/fassungen.toml";
+const VERSIONS_DIR: &str = "drehbuch/fassungen";
+const VERSION_EXT: &str = "fountain";
 const LOCATIONS_DIR: &str = "drehorte";
 const SCENES_DIR: &str = "szenen";
 const SCENES_FILE: &str = "szenen.toml";
