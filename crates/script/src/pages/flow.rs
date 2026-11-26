@@ -14,8 +14,14 @@
 //! the chain and the block after it are placed on a copy; if a heading would end a page,
 //! the page ends first, once.
 
+use std::cmp::Ordering;
+
 use super::block::{blocks, column, with_contd, Block, MIN_SPLIT_ROWS};
-use super::{Line, Page, PageKind, PageOptions, Pagination, SceneLength, Words};
+use super::locked::{split_blocks, Start};
+use super::{
+    compare_labels, page_label_after, Line, Page, PageKind, PageOptions, Pagination, SceneLength,
+};
+use super::{Words, TEXT_COLUMNS};
 use crate::Element;
 
 /// What the placement does, in order; the real run turns it into pages.
@@ -27,6 +33,8 @@ enum Step {
         rows: Vec<Vec<Line>>,
     },
     EndPage,
+    /// The locked page with this label starts.
+    Section(String),
 }
 
 /// Where the next row goes, and what the pages so far would look like.
@@ -85,13 +93,16 @@ impl Sim {
 fn plan(sim: &mut Sim, o: &PageOptions, mut block: Block, out: &mut Vec<Step>) {
     if block.page_break {
         sim.end_page(out);
+        if let Some(label) = block.section {
+            out.push(Step::Section(label));
+        }
         return;
     }
 
     loop {
         let at_top = sim.used == 0;
         let before = if at_top { 0 } else { block.before };
-        let rows = block.rows();
+        let rows = rows_of(&block, o);
         if rows.is_empty() {
             return;
         }
@@ -130,6 +141,21 @@ fn plan(sim: &mut Sim, o: &PageOptions, mut block: Block, out: &mut Vec<Step>) {
         sim.end_page(out);
         block = Block::from_rows(rest);
     }
+}
+
+/// The rows of `block`; the first half of a dialogue a locked page start cut ends in `(MORE)`.
+fn rows_of(block: &Block, o: &PageOptions) -> Vec<Vec<Line>> {
+    let mut rows = block.rows();
+    if !block.more {
+        return rows;
+    }
+
+    if let Some(cues) = cue_row(&rows) {
+        let more = marked(cues, PageKind::More, o.words);
+        rows.push(more);
+    }
+
+    rows
 }
 
 /// Cuts `rows` after at most `take` rows, both parts keeping `MIN_SPLIT_ROWS`; a dialogue
@@ -198,10 +224,23 @@ struct Flow<'a> {
     used: usize,
     scenes: Vec<SceneLength>,
     total: usize,
+    /// The locked page the pages now made belong to, if any.
+    section: Option<Section>,
+    /// Labels of locked pages that got no text, for the sheet before the next page.
+    struck: Vec<String>,
+    /// The label of the last page made.
+    last: Option<String>,
 }
 
-pub(super) fn run(elements: &[Element], options: &PageOptions) -> Pagination {
-    let blocks = blocks(elements, options);
+/// The run of pages from one locked page start to the next (DB-34).
+struct Section {
+    label: String,
+    /// A page was made in it.
+    made: bool,
+}
+
+pub(super) fn run(elements: &[Element], options: &PageOptions, spots: &[Start]) -> Pagination {
+    let blocks = split_blocks(blocks(elements, options), spots, options.words);
     let mut flow = Flow {
         options,
         sim: Sim {
@@ -216,6 +255,9 @@ pub(super) fn run(elements: &[Element], options: &PageOptions) -> Pagination {
         used: 0,
         scenes: Vec::new(),
         total: 0,
+        section: None,
+        struck: Vec::new(),
+        last: None,
     };
 
     for (i, block) in blocks.iter().enumerate() {
@@ -229,6 +271,8 @@ pub(super) fn run(elements: &[Element], options: &PageOptions) -> Pagination {
         flow.apply(steps);
     }
     flow.end_page();
+    flow.close_section();
+    flow.sheet_of_struck();
 
     let mut result = Pagination {
         size: options.size,
@@ -274,6 +318,7 @@ impl Flow<'_> {
         for step in steps {
             match step {
                 Step::EndPage => self.end_page(),
+                Step::Section(label) => self.start_section(label),
                 Step::Put {
                     heading,
                     element,
@@ -292,11 +337,106 @@ impl Flow<'_> {
         }
 
         let number = self.pages.len() + 1;
+        let label = self.next_label(number);
         let lines = std::mem::take(&mut self.lines);
-        self.pages.push(Page { number, lines });
+        self.pages.push(Page {
+            number,
+            label,
+            lines,
+            omitted: Vec::new(),
+        });
+    }
+
+    /// The label of the page being finished. The first page of a locked page carries its
+    /// label if that is past the last one given, else (the pages before ran over into it)
+    /// the next after the last; so the labels are unique and rise.
+    fn next_label(&mut self, number: usize) -> String {
+        // Before the first locked page (or without any) the pages are numbered in a row.
+        if self.section.is_none() {
+            let label = number.to_string();
+            self.last = Some(label.clone());
+
+            return label;
+        }
+
+        let wanted = self
+            .section
+            .as_ref()
+            .filter(|s| !s.made)
+            .map(|s| s.label.clone());
+        if let Some(section) = &mut self.section {
+            section.made = true;
+        }
+
+        let label = match (&self.last, wanted) {
+            (None, None) => number.to_string(),
+            (None, Some(label)) => label,
+            (Some(last), None) => page_label_after(last),
+            (Some(last), Some(label)) => match compare_labels(&label, last) {
+                Ordering::Greater => label,
+                _ => page_label_after(last),
+            },
+        };
+        self.last = Some(label.clone());
+
+        label
+    }
+
+    /// A locked page starts: the one before is finished, and had no text if it made no page.
+    fn start_section(&mut self, label: String) {
+        self.end_page();
+        self.close_section();
+        self.section = Some(Section { label, made: false });
+    }
+
+    fn close_section(&mut self) {
+        let Some(section) = self.section.take() else {
+            return;
+        };
+        // A number the pages that ran over already took is not struck twice.
+        let given = self
+            .last
+            .as_ref()
+            .is_some_and(|last| compare_labels(&section.label, last) != Ordering::Greater);
+        if !section.made && !given {
+            self.struck.push(section.label);
+        }
+    }
+
+    /// One sheet for the struck pages so far (`12-13 ENTFÄLLT`), before the next page of text.
+    fn sheet_of_struck(&mut self) {
+        let (Some(first), Some(last)) = (self.struck.first(), self.struck.last()) else {
+            return;
+        };
+        let range = match first == last {
+            true => first.clone(),
+            false => format!("{first}-{last}"),
+        };
+        let text = format!("{range} {}", self.options.words.omitted);
+        let x = TEXT_COLUMNS.saturating_sub(text.chars().count()) / 2;
+
+        let line = Line {
+            row: self.options.body_lines / 3,
+            x,
+            kind: PageKind::Centered,
+            text,
+            element: 0,
+            offset: 0,
+            number: None,
+            added: true,
+        };
+        self.pages.push(Page {
+            number: self.pages.len() + 1,
+            label: first.clone(),
+            lines: vec![line],
+            omitted: std::mem::take(&mut self.struck),
+        });
     }
 
     fn put(&mut self, heading: bool, element: usize, before: usize, rows: Vec<Vec<Line>>) {
+        if self.lines.is_empty() {
+            self.sheet_of_struck();
+        }
         self.used += before;
         if heading {
             self.scenes.push(SceneLength {

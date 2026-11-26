@@ -92,7 +92,7 @@ pub use site::{Site, SunTime, MAX_UTC_OFFSET_MIN};
 pub use sketch::Sketch;
 pub use team::{Casting, Contact, Department, Person, Team};
 pub use template::{Template, TemplateFigure};
-pub use version::{is_version_date, RevisionColor, Version};
+pub use version::{is_version_date, PageStart, RevisionColor, Version};
 
 /// The version of the project format this model reads and writes (FORMAT.md).
 pub const FORMAT_VERSION: u32 = 4;

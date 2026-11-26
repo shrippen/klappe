@@ -589,6 +589,10 @@
  "field.power": "Leistung (W)",
  "field.temp": "Farbtemperatur (K)",
  "error.noCharacter": "Figur nicht gefunden: {detail}",
+ "error.nameUnchanged": "Die Figur heißt schon so: {detail}",
+ "error.nameAsked": "Das Buch fragt nach {detail}; im Buchdialog zuordnen.",
+ "error.nameIsOwnAlias": "{detail} ist schon ein anderer Name dieser Figur.",
+ "error.nameNotCue": "{detail} kann keine Figurzeile sein.",
  "error.noElement": "Element nicht gefunden: {detail}",
  "error.noLook": "Look nicht gefunden: {detail}",
  "error.notLookElement": "Zu einem Look gehören nur Kostüm und Maskenbild: {detail}",
@@ -1470,6 +1474,9 @@
  "export.filter.report.xlsx": "XLSX (*.xlsx)",
  "error.noVersion": "Fassung nicht gefunden: {detail}",
  "error.noVersions": "Es gibt noch keine gesperrte Fassung.",
+ "error.noChangedPages": "Keine Seite ist geändert seit der gesperrten Fassung.",
+ "error.noLockedPages": "Die Fassung hat keine festen Seiten; bitte das ganze Buch drucken.",
+ "error.noDialogue": "Figur ohne Dialog: {detail}",
  "error.versionNameEmpty": "Eine Fassung braucht einen Namen.",
  "error.versionNameTaken": "Eine Fassung „{name}“ gibt es schon.",
  "revision.header": "Revision {color} · {date}",
@@ -1521,5 +1528,7 @@
  "versions.locked": "Fassung „{name}“ gesperrt",
  "versions.removed": "Fassung gelöscht",
  "version.dateFormat": "dd.MM.yyyy",
- "version.conflict": "Nichts gesperrt: Dateien des Projekts wurden außerhalb geändert. Erst die Frage dazu beantworten."
+ "version.conflict": "Nichts gesperrt: Dateien des Projekts wurden außerhalb geändert. Erst die Frage dazu beantworten.",
+ "cli.figureRenamed": "„{from}“ heißt jetzt „{to}“ (Figurenzeilen geändert: {count})",
+ "cli.renameConflict": "Das Drehbuch oder das Register wurde außerhalb geändert; nichts umbenannt"
 }

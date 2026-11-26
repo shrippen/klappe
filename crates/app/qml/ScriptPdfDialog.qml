@@ -6,8 +6,8 @@ import Kante
 // project's and is kept there by the export; scene numbers and header line are asked each
 // time. Cancelling either step writes nothing. The folder is kept for the session.
 //
-//   request() → Papier A4 | Letter, Szenennummern, Kopfzeile → file dialog
-//             → controller.exportScript("a4", true, false, file)
+//   request() → Papier A4 | Letter, Szenennummern, Kopfzeile, Fassungen → file dialog
+//             → controller.exportScript("a4", "shown", "title", "on", file)
 FormDialog {
     id: dialog
 

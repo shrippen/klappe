@@ -8,7 +8,7 @@
 //! The versions belong to the session like the Sperrstand of the scene numbers: no undo step,
 //! no part of the project's save; locking and deleting write them at once.
 
-use klappe_model::{free_random_id, IdCase, RevisionColor, SceneNumbering, Version};
+use klappe_model::{free_random_id, IdCase, PageStart, RevisionColor, SceneNumbering, Version};
 use klappe_script::{compare, Comparison};
 
 use super::{OnOutside, Saved, Session};
@@ -26,11 +26,14 @@ pub enum Draft {
     Current,
 }
 
-/// Whether a screenplay PDF marks what changed since the last locked version (DB-41).
+/// Whether a screenplay PDF marks what changed since the last locked version (DB-41), and
+/// whether it prints only the changed pages (DB-43).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Revisions {
     Off,
     On,
+    /// The marks (DB-41), and only the pages that have one (DB-43), without a title page.
+    ChangedPages,
 }
 
 /// What the revision adds to the pages of a PDF.
@@ -39,6 +42,11 @@ pub(crate) struct Revision {
     pub(crate) marked: std::collections::HashSet<usize>,
     /// The line above the page number.
     pub(crate) header: String,
+    /// The numbers of the pages the last version had.
+    pub(crate) old_pages: Vec<String>,
+    /// The numbers of the pages whose text differs from the page of that number in the last
+    /// version (DB-43).
+    pub(crate) changed: Vec<String>,
 }
 
 impl Session {
@@ -81,12 +89,19 @@ impl Session {
         let first = self.project.script.first_scene;
         self.set_scene_numbering(SceneNumbering::Locked, first)?;
 
+        // The pages as they were just laid out: they stay as they are from now on (DB-34).
+        let pages = match &self.layout {
+            Some(layout) => layout.page_starts(self.script_text()),
+            None => Vec::new(),
+        };
+
         let taken = self.versions.iter().map(|v| v.id.as_str());
         let version = Version {
             id: free_random_id(taken, IdCase::Ignored),
             name,
             date: today(),
             color: next_color(&self.versions),
+            pages,
         };
 
         // The text first, so the list never names a text that is not there.
@@ -148,16 +163,84 @@ impl Session {
         &self,
         print: &ScriptPrint,
     ) -> Result<Option<Revision>, ServiceError> {
-        if print.revisions == Revisions::Off || self.versions.is_empty() {
+        if print.revisions == Revisions::Off {
             return Ok(None);
+        }
+        if self.versions.is_empty() {
+            return match print.revisions {
+                Revisions::ChangedPages => Err(ServiceError::NoVersions),
+                _ => Ok(None),
+            };
         }
 
         let language = text_language(&self.project.script, print.language);
         let next = next_color(&self.versions);
 
+        let last = self.versions.last().ok_or(ServiceError::NoVersions)?;
+        if print.revisions == Revisions::ChangedPages && last.pages.is_empty() {
+            return Err(ServiceError::NoLockedPages);
+        }
+
         Ok(Some(Revision {
             marked: self.revision()?.marked_lines().into_iter().collect(),
             header: header_text(language, next, &today()),
+            old_pages: last.pages.iter().map(|p| p.label.clone()).collect(),
+            changed: self.changed_pages(print, last)?,
         }))
     }
+
+    /// The numbers of the pages of the layout now whose text differs from the page of that
+    /// number in `last` (DB-43); only a print of the changed pages asks.
+    fn changed_pages(
+        &self,
+        print: &ScriptPrint,
+        last: &Version,
+    ) -> Result<Vec<String>, ServiceError> {
+        let Some(layout) = self
+            .layout
+            .as_ref()
+            .filter(|_| print.revisions == Revisions::ChangedPages)
+        else {
+            return Ok(Vec::new());
+        };
+        let before = self.draft_text(&Draft::Version(last.id.clone()))?;
+        let before = page_texts(&before, &last.pages);
+        let now = page_texts(self.script_text(), &layout.page_starts(self.script_text()));
+
+        Ok(now
+            .into_iter()
+            .filter(|(label, text)| before.iter().any(|(l, t)| l == label && t != text))
+            .map(|(label, _)| label)
+            .collect())
+    }
+}
+
+/// The text of the lines `from..to`, as the comparison reads it: no blank line, no
+/// surrounding space.
+fn page_text(lines: &[&str], from: usize, to: usize) -> String {
+    let end = to.min(lines.len());
+    let from = from.min(end);
+
+    lines[from..end]
+        .iter()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// The text of each page of `starts` in `text`, by number: the lines up to the next page's.
+fn page_texts(text: &str, starts: &[PageStart]) -> Vec<(String, String)> {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let lines: Vec<&str> = text.split('\n').collect();
+
+    starts
+        .iter()
+        .enumerate()
+        .map(|(i, page)| {
+            let end = starts.get(i + 1).map_or(lines.len(), |next| next.line);
+
+            (page.label.clone(), page_text(&lines, page.line, end))
+        })
+        .collect()
 }

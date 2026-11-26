@@ -568,7 +568,13 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `farbe` der Revision: `white`, `blue`, `pink`, `yellow`, `green`, `goldenrod`, `buff`,
   `salmon`, `cherry`; eine neue Fassung bekommt die Farbe nach der der letzten Fassung (die erste Weiß), nach der
   letzten Farbe beginnt die Folge von vorn. `drehbuch/fassungen/<id>.fountain` ist der Buchtext genau so, wie er beim
-  Sperren gespeichert wurde (Vergleichsbasis der Revisionen). Beides gehört der Sitzung, nicht
+  Sperren gespeichert wurde (Vergleichsbasis der Revisionen). Je Fassung steht, wo die Seiten des
+  Drehbuchs beim Sperren begannen (DB-34), je Seite ein `[[fassung.seiten]]` mit `nummer`
+  (`"12"`, `"12A"`), `zeile` (Textzeile des gesperrten Textes ab 0, mit der die Seite beginnt;
+  die Zahl der Zeilen bei einer Seite, die am Ende gestrichen war) und `spalte` (Byte in der
+  Zeile, nur wenn die Seite mitten in einer Zeile beginnt, sonst nicht geschrieben); mehrere Seiten
+  an derselben Stelle sind gestrichene (ENTFÄLLT). Die letzte Fassung sperrt die Seiten, solange
+  sie `seiten` hat; eine Fassung ohne `seiten` (vor diesem Feld gesperrt) sperrt keine. Beides gehört der Sitzung, nicht
   dem Projekt, wie `nummern.toml`: Speichern, Rückgängig und die Sicherung tragen sie nicht;
   nur Sperren und Löschen einer Fassung schreiben sie (erst der Text, dann die Liste). Fehlt
   die Liste, gibt es keine Fassungen (keine neue Formatversion). Eine kaputte Liste

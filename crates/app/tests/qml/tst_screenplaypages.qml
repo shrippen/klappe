@@ -18,7 +18,7 @@ TestCase {
         { id: "s2", number: "2", heading: "EXT. HOF - NACHT", inBook: true, plans: 0, shots: 0, line: 6 }
     ]
     // Page 2 starts at the text's line 6 (the second heading); two pages.
-    readonly property var twoPages: ({ pages: 2, breaks: [{ page: 2, line: 6 }],
+    readonly property var twoPages: ({ pages: 2, breaks: [{ page: 2, label: "2", line: 6 }],
                                        scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] })
 
     QtObject {
@@ -95,7 +95,7 @@ TestCase {
     // scene's heading; the title page, if there is one, comes before the counted pages.
     function test_a_scene_in_the_print_view_goes_to_its_page() {
         const view = make()
-        fake.pages = { pages: 3, breaks: [{ page: 2, line: 4 }, { page: 3, line: 6 }],
+        fake.pages = { pages: 3, breaks: [{ page: 2, label: "2", line: 4 }, { page: 3, label: "3", line: 6 }],
                        scenes: [{ line: 2, page: 1 }, { line: 6, page: 3 }] }
         view.showLayout("print")
         const list = findChild(view, "sceneRows")
@@ -125,12 +125,25 @@ TestCase {
         compare(mark.width, view.area.width - view.area.leftPadding - view.area.rightPadding)
     }
 
+    // DB-34: a page added to a locked script carries the letter, not its place among the pages.
+    function test_a_page_added_after_the_lock_shows_its_letter() {
+        const view = make()
+        fake.pages = { pages: 3, breaks: [{ page: 2, label: "1A", line: 4 }, { page: 3, label: "2", line: 6 }],
+                       scenes: [] }
+        view.layOut()
+
+        const mark = findChild(view.area, "pageBreak.1A")
+        verify(mark !== null)
+        compare(findChild(view.area, "pageNumber.1A").text, "1A.")
+        verify(findChild(view.area, "pageBreak.2") !== null)
+    }
+
     // A line the text does not have (it got shorter since) gives no position.
     function test_a_break_beyond_the_text_has_no_place() {
         const view = make()
 
-        compare(view.breakMarks([{ page: 2, line: 99 }], "a\nb")[0].at, -1)
-        compare(view.breakMarks([{ page: 2, line: 1 }, { page: 3, line: 2 }], "a\nb\nc").map(m => m.at).join(), "2,4")
+        compare(view.breakMarks([{ page: 2, label: "2", line: 99 }], "a\nb")[0].at, -1)
+        compare(view.breakMarks([{ page: 2, label: "2", line: 1 }, { page: 3, label: "3", line: 2 }], "a\nb\nc").map(m => m.at).join(), "2,4")
         compare(view.lineStart("a\nb", 0), 0)
     }
 
@@ -166,7 +179,7 @@ TestCase {
         const view = make()
         compare(view.pageMap.pages, 2)
 
-        fake.pages = { pages: 3, breaks: [{ page: 2, line: 4 }, { page: 3, line: 6 }], scenes: [] }
+        fake.pages = { pages: 3, breaks: [{ page: 2, label: "2", line: 4 }, { page: 3, label: "3", line: 6 }], scenes: [] }
         fake.projectJson = JSON.stringify({ scenes: tc.scenes, paper: "letter" })
 
         compare(view.pageMap.pages, 3)
