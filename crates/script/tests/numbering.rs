@@ -305,3 +305,13 @@ fn a_struck_heading_without_a_number_gets_none_while_locked() {
         text
     );
 }
+
+#[test]
+fn a_number_replaces_only_a_closed_mark_at_the_end() {
+    let text = "INT. A - DAY   #7#\n\nINT. #1 B\n\nINT. C ##\n\nINT. D #a b#\n";
+
+    assert_eq!(
+        numbered(text, NumberMode::Automatic),
+        "INT. A - DAY #1#\n\nINT. #1 B #2#\n\nINT. C ## #3#\n\nINT. D #a b# #4#\n"
+    );
+}

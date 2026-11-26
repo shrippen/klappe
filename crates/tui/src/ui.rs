@@ -1,6 +1,6 @@
 //! Drawing a frame: header, scene list, editor, status line and the overlays, in Kante's colours.
 
-use klappe_services::inline_runs;
+use klappe_services::{inline_runs, split_number};
 use ratatui::layout::{Alignment, Constraint, Layout, Position, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -364,12 +364,10 @@ fn dual_style(style: Style, app: &App, line: usize) -> Style {
 
 /// Characters of a heading line left of its `#number#` and the space before it.
 fn shown_chars(text: &str, number: &str) -> usize {
-    let marker = format!("#{number}#");
-    let Some(before) = text.trim_end().strip_suffix(&marker) else {
-        return text.chars().count();
-    };
-
-    before.trim_end().chars().count()
+    match split_number(text.trim_end()) {
+        (head, Some(n)) if n == number => head.chars().count(),
+        _ => text.chars().count(),
+    }
 }
 
 /// The shots and marks linked to the element starting on this row, at its right edge, if
@@ -677,5 +675,24 @@ pub(crate) fn centered(area: Rect, width: usize, height: usize) -> Rect {
         y: area.y + (area.height - height) / 2,
         width,
         height,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shown_chars;
+
+    #[test]
+    fn shown_chars_stop_before_the_number() {
+        for (text, number, want) in [
+            ("INT. A #12A#", "12A", 6),
+            ("INT. A   #12A#  ", "12A", 6),
+            ("INT. #1 A #2#", "2", 9),
+            ("INT. A #12A#", "7", 12),
+            ("INT. A", "1", 6),
+            (".INT. Ä #3#", "3", 7),
+        ] {
+            assert_eq!(shown_chars(text, number), want, "{text:?}");
+        }
     }
 }

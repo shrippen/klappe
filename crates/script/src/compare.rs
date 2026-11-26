@@ -12,9 +12,9 @@
 
 use crate::lcs::{in_rising, unpaired};
 use crate::numbering::is_omitted;
-use crate::plain_text;
 use crate::text::normal;
 use crate::{align, parse_located, scene_states, Alignment, Element, Outcome, Script};
+use crate::{numbered_head, plain_text};
 
 /// What became of a scene between the two states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -324,11 +324,10 @@ fn read(text: &str) -> Book {
 /// sections, synopses). Boneyards are gone by the parser, inline notes by `plain_text`.
 fn printed(element: &Element) -> Vec<String> {
     match element {
-        Element::SceneHeading { text, number } => {
-            let mark = number.as_ref().map(|n| format!(" #{n}#"));
-
-            vec![format!("{text}{}", mark.unwrap_or_default())]
-        }
+        Element::SceneHeading { text, number } => match number {
+            Some(n) => vec![numbered_head(text, n)],
+            None => vec![text.clone()],
+        },
         Element::Character {
             name, extension, ..
         } => {

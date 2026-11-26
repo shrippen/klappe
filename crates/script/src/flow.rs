@@ -2,8 +2,8 @@
 //! on Tab on an empty line. `assist.rs` offers the suggestions for the same line.
 
 use crate::parse::{
-    boneyard_lines, parse_located, title_page_lines, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING,
-    FORCE_TRANSITION, NUMBER_MARK,
+    boneyard_lines, parse_located, split_number, title_page_lines, FORCE_ACTION, FORCE_CHARACTER,
+    FORCE_HEADING, FORCE_TRANSITION,
 };
 use crate::text::SHARP_S;
 use crate::Element;
@@ -174,13 +174,12 @@ pub fn upper(text: &str) -> String {
 
 /// `text` in capitals, a trailing scene number `#12a#` as typed.
 fn capitals(text: &str) -> String {
-    let body = text.strip_suffix(NUMBER_MARK).unwrap_or(text);
-    let cut = match body.rfind(NUMBER_MARK) {
-        Some(at) if text.ends_with(NUMBER_MARK) && !body[at..].contains(char::is_whitespace) => at,
-        _ => text.len(),
-    };
+    let (head, number) = split_number(text);
+    if number.is_none() {
+        return upper(text);
+    }
 
-    upper(&text[..cut]) + &text[cut..]
+    upper(head) + &text[head.len()..]
 }
 
 /// `text` without a leading forcing marker (and the `<` of a centered `>text<`).
@@ -387,6 +386,11 @@ mod tests {
             ("  >Fade out. ", Slot::Heading, ".FADE OUT."),
             ("Gasse #3#", Slot::Heading, ".GASSE #3#"),
             ("int. a #12a#", Slot::Heading, "INT. A #12a#"),
+            ("int. #x y #3a#", Slot::Heading, "INT. #X Y #3a#"),
+            ("int. a #1 b#", Slot::Heading, "INT. A #1 B#"),
+            ("int. a ##", Slot::Heading, "INT. A ##"),
+            ("int. a #1a", Slot::Heading, "INT. A #1A"),
+            ("int. a   #1a#", Slot::Heading, "INT. A   #1a#"),
             ("cut to:", Slot::Transition, "CUT TO:"),
             ("fade out.", Slot::Transition, ">FADE OUT."),
             (".INT. A", Slot::Transition, ">INT. A"),

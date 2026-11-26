@@ -290,3 +290,13 @@ fn changes_apart_get_their_own_group() {
         ]
     );
 }
+
+#[test]
+fn a_changed_heading_prints_its_number_behind_the_text() {
+    let old = book(&THREE);
+    let new = old.replace("KÜCHE", "KELLER");
+    let c = compare(&old, &new);
+    let texts: Vec<_> = c.scenes[1].lines.iter().map(|l| l.text.as_str()).collect();
+
+    assert_eq!(texts, ["INT. KÜCHE – TAG #2#", "INT. KELLER – TAG #2#"]);
+}
