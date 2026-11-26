@@ -6,9 +6,10 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    enter_step, error_text, tab_step, text_kinds, typed_caps, Align, EnterStep, Gap, HeaderLine,
-    ImportReport, Laid, PrintFace, Revisions, SceneNumbers, ScriptPages, ScriptPrint, SheetPage,
-    Slot, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    enter_step, error_text, set_title_fields, tab_step, text_kinds, title_fields, typed_caps,
+    Align, EnterStep, Gap, HeaderLine, ImportReport, Laid, PrintFace, Revisions, SceneNumbers,
+    ScriptPages, ScriptPrint, SheetPage, Slot, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT,
+    TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -150,6 +151,30 @@ pub(super) fn breaks_json(pages: Option<&ScriptPages>) -> String {
     json!({ "pages": pages.pages, "breaks": breaks, "scenes": scenes }).to_string()
 }
 
+/// The title page fields of `text` as one JSON object by key.
+pub(super) fn title_json(text: &str) -> String {
+    let fields: Map<String, Value> = title_fields(text)
+        .into_iter()
+        .map(|(key, value)| (key, json!(value)))
+        .collect();
+
+    Value::Object(fields).to_string()
+}
+
+/// `text` with the fields of the JSON object `fields` set; text unchanged for JSON that
+/// is no object.
+pub(super) fn title_set(text: &str, fields: &str) -> String {
+    let Ok(Value::Object(map)) = serde_json::from_str::<Value>(fields) else {
+        return text.to_owned();
+    };
+    let pairs: Vec<(String, String)> = map
+        .into_iter()
+        .filter_map(|(key, value)| Some((key, value.as_str()?.to_owned())))
+        .collect();
+
+    set_title_fields(text, &pairs)
+}
+
 /// The counts of an import for the report dialog.
 fn report_json(report: &ImportReport) -> String {
     json!({
@@ -168,6 +193,14 @@ impl qobject::Controller {
 
     pub(super) fn script_looks(&self) -> QString {
         q(&looks_json())
+    }
+
+    pub(super) fn title_fields(&self, text: &QString) -> QString {
+        q(&title_json(&text.to_string()))
+    }
+
+    pub(super) fn title_text(&self, text: &QString, fields: &QString) -> QString {
+        q(&title_set(&text.to_string(), &fields.to_string()))
     }
 
     pub(super) fn script_print_json(mut self: Pin<&mut Self>) -> QString {
@@ -268,7 +301,10 @@ impl qobject::Controller {
 
 #[cfg(test)]
 mod tests {
-    use super::{breaks_json, enter_json, kinds_text, looks_json, print_json, tab_json};
+    use super::{
+        breaks_json, enter_json, kinds_text, looks_json, print_json, tab_json, title_json,
+        title_set,
+    };
 
     /// Enter at the end of a heading opens an action after a blank line; at the end of a cue
     /// the dialogue right below; in the middle of a line it is a plain break.
@@ -398,5 +434,27 @@ mod tests {
         assert_eq!(v["letters"]["blank"], " ");
         assert_eq!(v["letters"]["action"], "a");
         assert_eq!(v["letters"]["heading"], "h");
+    }
+
+    /// The form reads the title page by key and writes it back; an emptied field leaves the
+    /// text, the body stays, and JSON that is no object changes nothing.
+    #[test]
+    fn the_title_page_goes_through_json() {
+        let text = "Title: Heimat\nContact: A\n  B\n\nINT. SAAL\n";
+
+        let v: serde_json::Value = serde_json::from_str(&title_json(text)).unwrap();
+        assert_eq!(v["Title"], "Heimat");
+        assert_eq!(v["Contact"], "A\nB");
+        assert_eq!(v["Author"], "");
+
+        let set = title_set(text, r#"{"Title":"Neu","Contact":"","Author":"Anna"}"#);
+        let v: serde_json::Value = serde_json::from_str(&title_json(&set)).unwrap();
+        assert_eq!(v["Title"], "Neu");
+        assert_eq!(v["Author"], "Anna");
+        assert_eq!(v["Contact"], "");
+        assert!(set.ends_with("INT. SAAL\n"));
+        assert!(!set.contains("Contact"));
+
+        assert_eq!(title_set(text, "nonsense"), text);
     }
 }

@@ -43,6 +43,8 @@ RowLayout {
     signal backgroundRequested()
     /// A screenplay file is to be loaded: the window asks for it.
     signal scriptImportRequested()
+    /// The title page form is asked for.
+    signal titlePageRequested()
     /// The screenplay view sends what is typed (before a save).
     signal flushRequested()
     signal viewToggled(string area, bool shown)
@@ -68,7 +70,7 @@ RowLayout {
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
-    readonly property var entries: [actNew, actOpen, actProject, actBook, actSave, actClose, actBackground, actBackgroundRemove, actScriptImport,
+    readonly property var entries: [actNew, actOpen, actProject, actBook, actSave, actClose, actBackground, actBackgroundRemove, actScriptImport, actTitlePage,
                                     actFree, actWallCut, actThrough, actHeights,
                                     actScript, actShot, actTimeline,
                                     actUndo, actRedo].concat(moduleCommands.actions, exportCommands.actions, shotViews.actions, zoom.actions,
@@ -173,6 +175,7 @@ RowLayout {
         }
         QQC2.MenuSeparator { visible: header.controller.loaded }
         KanteMenuItem { objectName: "scriptImport"; action: actScriptImport; iconRoom: true; visible: header.controller.loaded }
+        KanteMenuItem { objectName: "titlePage"; action: actTitlePage; iconRoom: true; visible: header.controller.loaded }
     }
     HeaderMenu {
         objectName: "exportMenu"
@@ -355,6 +358,15 @@ RowLayout {
         text: header.texts.t("script.import")
         enabled: header.controller.loaded && !header.locked
         onTriggered: header.scriptImportRequested()
+    }
+
+    CommandAction {
+        id: actTitlePage
+        cmd: "script.titlePage"
+        group: "file"
+        text: header.texts.t("titlepage.open")
+        enabled: header.controller.loaded && !header.locked
+        onTriggered: header.titlePageRequested()
     }
 
     ExportDialog {

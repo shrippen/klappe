@@ -22,6 +22,7 @@ TestCase {
     }
 
     SignalSpy { id: importSpy; signalName: "scriptImportRequested" }
+    SignalSpy { id: titleSpy; signalName: "titlePageRequested" }
     SignalSpy { id: viewSpy; signalName: "viewToggled" }
     SignalSpy { id: flushSpy; signalName: "flushRequested" }
 
@@ -33,7 +34,7 @@ TestCase {
     function make() {
         const header = createTemporaryObject(headerComponent, tc)
         verify(header)
-        for (const spy of [importSpy, viewSpy, flushSpy]) {
+        for (const spy of [importSpy, titleSpy, viewSpy, flushSpy]) {
             spy.target = header
             spy.clear()
         }
@@ -63,6 +64,18 @@ TestCase {
         pick(header, "fileMenu", "scriptImport")
 
         compare(importSpy.count, 1)
+    }
+
+    function test_the_file_menu_asks_for_the_title_page() {
+        const header = make()
+
+        compare(entry(header, "fileMenu", "titlePage").text, "Titelseite …")
+        pick(header, "fileMenu", "titlePage")
+
+        compare(titleSpy.count, 1)
+        const found = header.commands.find(c => c.id === "script.titlePage")
+        verify(found)
+        verify(found.enabled)
     }
 
     function test_the_entry_is_in_the_palette() {

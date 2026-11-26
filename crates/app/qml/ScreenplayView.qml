@@ -44,6 +44,7 @@ RowLayout {
     readonly property var layouts: ["flow", "print"]
     property string layout: "flow"
     readonly property alias printView: printView
+    readonly property alias titlePage: titlePage
     /// The last layout's page starts: `{ pages, breaks: [{ page, line }], scenes: [{ line, page }] }`
     /// (`scriptBreaksJson`). Shown as lines in the flowing text, used to find a scene's page.
     property var pageMap: ({ pages: 0, breaks: [], scenes: [] })
@@ -321,6 +322,19 @@ RowLayout {
             }
         }
     }
+    TitlePageDialog {
+        id: titlePage
+        objectName: "titlePage"
+        texts: view.texts
+        controller: view.controller
+        area: area
+        putText: view.putText
+        onClosed: {
+            if (view.layout === "flow") {
+                area.forceActiveFocus()
+            }
+        }
+    }
     Loader {
         id: tools
         source: view.toolsSource
@@ -386,6 +400,14 @@ RowLayout {
             Layout.margins: Kirigami.Units.smallSpacing
             spacing: Kirigami.Units.smallSpacing
 
+            KanteButton {
+                objectName: "titlePageButton"
+                emphasis: KanteButton.Emphasis.Quiet
+                size: KanteButton.Size.Small
+                text: view.texts.t("titlepage.open")
+                onClicked: titlePage.show()
+            }
+
             // Typed since the last layout (DN-02): the page lines and lengths are of the text before.
             QQC2.Label {
                 objectName: "staleNote"
@@ -437,6 +459,9 @@ RowLayout {
                 visible: view.layout === "print" && area.text !== ""
                 controller: view.controller
                 texts: view.texts
+                // A title page comes before the pages the layout counts.
+                titleIndex: sheet.pages.length > view.pageMap.pages ? 0 : -1
+                onTitlePageClicked: titlePage.show()
             }
 
             // Without text the view says why and offers the next step (D-17); it gives way to the

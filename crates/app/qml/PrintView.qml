@@ -25,6 +25,10 @@ ListView {
     readonly property real pageWidth: sheet.pages.length > 0 ? sheet.pages[0].width : 1
     readonly property real zoom: Math.min(fullScale, (width - 2 * Kirigami.Units.largeSpacing) / pageWidth)
 
+    /// The index of the title page among the pages, -1 without one: a click on it asks for the form.
+    property int titleIndex: -1
+    signal titlePageClicked()
+
     /// Lays the session's text out again.
     function refresh() {
         sheet = JSON.parse(controller.scriptPrintJson())
@@ -57,6 +61,17 @@ ListView {
         color: KanteStyle.cardColor
         borderColor: KanteStyle.frameColor
         chamfer: 0
+
+        // The title page opens its form (DB-06).
+        TapHandler {
+            enabled: page.index === sheetList.titleIndex
+            cursorShape: Qt.PointingHandCursor
+            onTapped: sheetList.titlePageClicked()
+        }
+        QQC2.ToolTip.text: texts.t("titlepage.edit")
+        QQC2.ToolTip.visible: page.index === sheetList.titleIndex && titleHover.hovered
+        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+        HoverHandler { id: titleHover }
 
         Item {
             width: page.modelData.width

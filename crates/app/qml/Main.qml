@@ -109,6 +109,10 @@ Kirigami.ApplicationWindow {
                 onTemplateExportRequested: templateExportDialog.open()
                 onBackgroundRequested: backgroundDialog.open()
                 onScriptImportRequested: scriptImport.start()
+                onTitlePageRequested: {
+                    root.openModule("screenplay")
+                    screenplay.titlePage.show()
+                }
                 onFlushRequested: screenplay.flush()
                 onViewToggled: (area, shown) => {
                     switch (area) {
