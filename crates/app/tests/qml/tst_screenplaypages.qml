@@ -183,6 +183,38 @@ TestCase {
         compare(view.lineStart("a\nb", 0), 0)
     }
 
+    // Where a line starts, at and past the end of the text: the jump lands at the end of the
+    // text for a line the text does not have; a page break there has no place (-1).
+    function test_the_ends_of_the_text_for_a_line() {
+        const view = make()
+
+        // "a\nb\n": three lines, the last one empty and at position 4.
+        view.doc.load("a\nb\n")
+        const jumps = [0, 1, 2, 3, 99].map(n => { view.goToLine(n); return view.doc.cursor })
+        compare(jumps.join(), "0,2,4,4,4")
+
+        const breaks = [0, 1, 2, 3, 99].map(n => ({ page: 2, label: "2", line: n }))
+        fake.pages = { pages: 2, breaks: breaks, scenes: [] }
+        view.readLayout()
+        compare(view.marks.map(m => m.at).join(), "0,2,4,-1,-1")
+
+        // No text: one empty line.
+        view.doc.load("")
+        view.goToLine(0)
+        compare(view.doc.cursor, 0)
+        view.goToLine(1)
+        compare(view.doc.cursor, 0)
+    }
+
+    // The flow's own start of a line: right for every line the text has, one past the end for
+    // the line after the last (the editor never asks for it).
+    function test_the_flow_start_of_a_line() {
+        const view = make()
+        view.doc.load("ab\n\ncd")
+
+        compare([0, 1, 2, 3].map(n => view.flow.lineStart(n)).join(), "0,3,4,7")
+    }
+
     // DN-02: typing makes the lines and lengths stale until the layout is made anew; the note
     // "Seiten veraltet" stands beside the switch for that time.
     function test_typing_makes_the_pages_stale_until_laid_out() {

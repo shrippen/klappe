@@ -484,6 +484,18 @@ TestCase {
         compare(view.lineRanges([1, 9], "ab\ncd").map(r => r.from).join(), "3,-1")
     }
 
+    // The marks at the end of the text: the empty last line is a line, one more is none.
+    function test_the_marks_at_the_end_of_the_text() {
+        lockedTwice()
+        fake.revision = [0, 2, 3]
+        const view = make()
+
+        view.doc.load("ab\n\n")
+        view.readRevision()
+
+        compare(view.revisionRanges.map(r => r.from + ":" + r.to).join(), "0:2,4:4,-1:-1")
+    }
+
     // DB-42: von / bis, the scenes with a word for what became of them, the lines of the one chosen.
     function test_the_comparison_lists_scenes_with_their_status() {
         lockedTwice()
