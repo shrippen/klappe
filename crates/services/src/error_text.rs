@@ -36,6 +36,7 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
         ServiceError::NoElement(id) => ("error.noElement", id),
         ServiceError::NoPerson(id) => ("error.noPerson", id),
         ServiceError::NoVersion(id) => ("error.noVersion", id),
+        ServiceError::NoDialogue(name) => ("error.noDialogue", name),
         ServiceError::NoLook(id) => ("error.noLook", id),
         ServiceError::NotLookElement(id) => ("error.notLookElement", id),
         _ => return None,
@@ -206,6 +207,8 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::Cancelled
         | ServiceError::NoPicture
         | ServiceError::NoScript
+        | ServiceError::NoChangedPages
+        | ServiceError::NoLockedPages
         | ServiceError::NoBookScenes
         | ServiceError::NoPages => nothing_key(error),
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
@@ -225,6 +228,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::NoElement(_)
         | ServiceError::NoPerson(_)
         | ServiceError::NoVersion(_)
+        | ServiceError::NoDialogue(_)
         | ServiceError::VersionNameTaken(_)
         | ServiceError::CastNumberTaken(_)
         | ServiceError::NoLook(_)
@@ -254,6 +258,8 @@ fn nothing_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::Cancelled => Some("error.cancelled"),
         ServiceError::NoPicture => Some("error.noPicture"),
         ServiceError::NoScript => Some("error.noScript"),
+        ServiceError::NoChangedPages => Some("error.noChangedPages"),
+        ServiceError::NoLockedPages => Some("error.noLockedPages"),
         ServiceError::NoBookScenes => Some("error.noBookScenes"),
         ServiceError::NoPages => Some("error.noPages"),
         _ => None,
@@ -687,6 +693,9 @@ mod tests {
             ServiceError::NoMarks,
             ServiceError::NoPicture,
             ServiceError::NoScript,
+            ServiceError::NoChangedPages,
+            ServiceError::NoLockedPages,
+            ServiceError::NoDialogue("d".to_owned()),
             ServiceError::NoBookScenes,
             ServiceError::NoDuration,
             ServiceError::Cancelled,

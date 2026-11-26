@@ -10,7 +10,8 @@
 //! klappe-cli report --project <folder> --report <szenen|spielorte|figuren|auszug|kontakte> --out <file>
 //!                   [--language de|en]      (pdf, csv, ods or xlsx, by the extension of --out)
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
-//!                       [--scene-numbers] [--header] [--revisions]
+//!                       [--scene-numbers] [--header] [--revisions] [--changed-pages]
+//! klappe-cli sides --project <folder> --figure <name> --out <file> [--language de|en]
 //! klappe-cli lock-version --project <folder> --name <name> [--language de|en]
 //! klappe-cli remove-version --project <folder> --id <version id> [--language de|en]
 //! klappe-cli versions --project <folder> [--language de|en]
@@ -128,6 +129,26 @@ enum Command {
         /// revision's colour above the page number.
         #[arg(long)]
         revisions: bool,
+        /// Print only the pages that carry a revision mark (DB-43), under their locked
+        /// numbers, without a title page; implies --revisions.
+        #[arg(long)]
+        changed_pages: bool,
+    },
+    /// The sides of a character as PDF (DB-62): the scenes it speaks in, whole, with their
+    /// scene numbers, the character's name above every page.
+    Sides {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// The character's name or an alias, or a cue of the book.
+        #[arg(long)]
+        figure: String,
+        /// The PDF to write.
+        #[arg(long)]
+        out: PathBuf,
+        /// Language of (MORE) and (CONT'D) when the project has none; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
     },
     #[command(flatten)]
     Versions(versions::VersionCommand),
@@ -211,16 +232,24 @@ fn main() -> ExitCode {
             scene_numbers,
             header,
             revisions,
+            changed_pages,
         } => {
             let flags = PrintFlags {
                 scene_numbers,
                 header,
                 revisions,
+                changed_pages,
             };
             let print = print_of(language_of(language), flags);
 
             script_pdf(&project, &out, paper, &print)
         }
+        Command::Sides {
+            project,
+            figure,
+            out,
+            language,
+        } => sides_pdf(&project, &figure, &out, language_of(language)),
         Command::Versions(command) => command.run(),
     }
 }
@@ -230,6 +259,7 @@ struct PrintFlags {
     scene_numbers: bool,
     header: bool,
     revisions: bool,
+    changed_pages: bool,
 }
 
 /// What `script-pdf` prints, from its flags.
@@ -246,7 +276,9 @@ fn print_of(language: Language, flags: PrintFlags) -> ScriptPrint {
             HeaderLine::Off
         },
         language,
-        revisions: if flags.revisions {
+        revisions: if flags.changed_pages {
+            Revisions::ChangedPages
+        } else if flags.revisions {
             Revisions::On
         } else {
             Revisions::Off
@@ -313,6 +345,30 @@ fn write_script_pdf(
     session
         .export_script_pdf(out, print)
         .map_err(|e| error_text(print.language, &e))
+}
+
+/// Writes the sides of `figure`; the scene numbers are always printed.
+fn sides_pdf(project: &Path, figure: &str, out: &Path, language: Language) -> ExitCode {
+    let print = ScriptPrint {
+        scene_numbers: SceneNumbers::Shown,
+        header: HeaderLine::Off,
+        language,
+        revisions: Revisions::Off,
+    };
+    let written = Session::open(project)
+        .map_err(|e| error_text(language, &e))
+        .and_then(|mut session| {
+            warn_load_notes(&session, language);
+
+            session
+                .export_sides_pdf(out, figure, &print)
+                .map_err(|e| error_text(language, &e))
+        });
+
+    match written {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => refuse(message),
+    }
 }
 
 fn fov(lens_mm: f64, sensor: &str) -> ExitCode {
