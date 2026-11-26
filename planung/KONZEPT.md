@@ -14,6 +14,7 @@ Anforderungen des ersten Moduls: [`stellprobe/LASTENHEFT.md`](stellprobe/LASTENH
 | Besetzung/Team | Rollen besetzen, Personen, Departments | GUI | später |
 | Drehplan | Szenen auf Drehtage verteilen (Stripboard), Versionen | GUI | später |
 | Dispo | Tagesdisposition je Drehtag, als Druckvorlage | GUI | später |
+| Unterwegs | Android-App für Begehung und Drehtag: Sucher (Objektiv und Sensor der Kamera des Shots, Storyboard und Floorplan im Bild), dazu Werkzeuge für Motivbesichtigung und Drehtag; liest und schreibt dasselbe Projekt. Ideen und Recherche: Seite „Klappe unterwegs“ (26.11.2026), Auswahl offen. | Android | später |
 
 Alle Module arbeiten auf demselben Projekt und demselben Datenmodell
 ([`DATENMODELL.md`](DATENMODELL.md): wer welche Daten besitzt, Verweise, Ablage).
