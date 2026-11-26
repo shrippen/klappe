@@ -78,6 +78,26 @@ TestCase {
         compare(doc.rectOf(3).y, doc.rectOf(0).y)
     }
 
+    function test_lineStart_is_where_a_line_begins() {
+        const doc = make(makeArea())
+
+        // "INT. SAAL - TAG\nSie kommt an.\n": three lines, the last one empty.
+        compare([0, 1, 2].map(n => doc.lineStart(n)).join(), "0,16,30")
+        compare(doc.lineStart(3), -1)
+        compare(doc.lineStart(99), -1)
+    }
+
+    function test_lineStarts_gives_minus_one_for_lines_the_text_lacks() {
+        const area = makeArea()
+        const doc = make(area)
+
+        compare(doc.lineStarts([0, 2, 2, 3, 9]).join(), "0,30,30,-1,-1")
+        compare(doc.lineStarts([]).length, 0)
+
+        area.text = ""
+        compare(doc.lineStarts([0, 1]).join(), "0,-1")
+    }
+
     function test_replace_is_one_step_of_the_history() {
         const doc = make(makeArea())
         doc.tools = history

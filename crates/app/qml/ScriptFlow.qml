@@ -44,15 +44,6 @@ QtObject {
         return doc.read().slice(0, doc.cursor).split("\n").length - 1
     }
 
-    function lineStart(line) {
-        const all = rows()
-        let at = 0
-        for (let i = 0; i < line; i++) {
-            at += all[i].length + 1
-        }
-        return at
-    }
-
     /// `kinds` with the pending line as its element while the reader sees it as plain: an empty
     /// line, or prose on one meant as cue, parenthetical or dialogue.
     function withPending(kinds) {
@@ -96,7 +87,7 @@ QtObject {
         }
         const all = rows()
         const line = cursorLine()
-        const start = lineStart(line)
+        const start = doc.lineStart(line)
         const text = all[line]
         const below = line + 1 < all.length ? all[line + 1] : ""
         const step = JSON.parse(controller.enterStep(text, doc.cursor - start, shown[line] || letters.action, below))
@@ -138,7 +129,7 @@ QtObject {
         }
 
         const step = JSON.parse(found)
-        const start = lineStart(line)
+        const start = doc.lineStart(line)
         doc.replace(start, start + text.length, step.text)
         doc.setCursor(start + step.col)
         setPending(line, step.kind)
@@ -152,7 +143,7 @@ QtObject {
         }
         const line = cursorLine()
         const text = rows()[line]
-        if (doc.cursor !== lineStart(line) + text.length) {
+        if (doc.cursor !== doc.lineStart(line) + text.length) {
             return null
         }
 
@@ -192,7 +183,7 @@ QtObject {
 
         const line = cursorLine()
         const all = rows()
-        const start = lineStart(line)
+        const start = doc.lineStart(line)
         const choice = open.options[suggestSel]
         doc.replace(start + open.from, start + all[line].length, choice)
         const end = start + open.from + choice.length
@@ -216,7 +207,7 @@ QtObject {
         }
 
         const at = doc.cursor
-        const start = lineStart(line)
+        const start = doc.lineStart(line)
         doc.replace(start, start + rows()[line].length, caps)
         doc.setCursor(at)
         return true

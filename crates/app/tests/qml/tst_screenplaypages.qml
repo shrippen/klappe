@@ -178,9 +178,50 @@ TestCase {
     function test_a_break_beyond_the_text_has_no_place() {
         const view = make()
 
-        compare(view.breakMarks([{ page: 2, label: "2", line: 99 }], "a\nb")[0].at, -1)
-        compare(view.breakMarks([{ page: 2, label: "2", line: 1 }, { page: 3, label: "3", line: 2 }], "a\nb\nc").map(m => m.at).join(), "2,4")
-        compare(view.lineStart("a\nb", 0), 0)
+        view.doc.load("a\nb")
+        compare(view.breakMarks([{ page: 2, label: "2", line: 99 }])[0].at, -1)
+        view.doc.load("a\nb\nc")
+        compare(view.breakMarks([{ page: 2, label: "2", line: 1 }, { page: 3, label: "3", line: 2 }]).map(m => m.at).join(), "2,4")
+        compare(view.doc.lineStart(0), 0)
+    }
+
+    // The page marks follow the text without a new layout: the binding reads the text.
+    function test_the_page_marks_follow_the_text() {
+        const view = make()
+        fake.pages = { pages: 2, breaks: [{ page: 2, label: "2", line: 1 }], scenes: [] }
+        view.readLayout()
+
+        view.doc.load("a\nb")
+        compare(view.marks[0].at, 2)
+        view.doc.load("aaaa\nb")
+        compare(view.marks[0].at, 5)
+        view.doc.insert(0, "xx")
+        compare(view.marks[0].at, 7)
+        view.doc.load("abc")
+        compare(view.marks[0].at, -1)
+    }
+
+    // Where a line starts, at and past the end of the text: the jump lands at the end of the
+    // text for a line the text does not have; a page break there has no place (-1).
+    function test_the_ends_of_the_text_for_a_line() {
+        const view = make()
+
+        // "a\nb\n": three lines, the last one empty and at position 4.
+        view.doc.load("a\nb\n")
+        const jumps = [0, 1, 2, 3, 99].map(n => { view.goToLine(n); return view.doc.cursor })
+        compare(jumps.join(), "0,2,4,4,4")
+
+        const breaks = [0, 1, 2, 3, 99].map(n => ({ page: 2, label: "2", line: n }))
+        fake.pages = { pages: 2, breaks: breaks, scenes: [] }
+        view.readLayout()
+        compare(view.marks.map(m => m.at).join(), "0,2,4,-1,-1")
+
+        // No text: one empty line.
+        view.doc.load("")
+        view.goToLine(0)
+        compare(view.doc.cursor, 0)
+        view.goToLine(1)
+        compare(view.doc.cursor, 0)
     }
 
     // DN-02: typing makes the lines and lengths stale until the layout is made anew; the note
