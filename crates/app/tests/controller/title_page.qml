@@ -39,9 +39,11 @@ Item {
             const area = view.area
             const form = view.titleCard
             const before = area.text
+            // The head follows the language of the surface (CI runs in English).
+            const head = texts.t("titlepage.title")
 
             // Folded at first; the menu's request unfolds it over the text (the focus is in tst_titlecard).
-            if (!form.collapsed || form.title !== "Titelseite · Heimat") {
+            if (!form.collapsed || form.title !== head + " · Heimat") {
                 return root.fail("folded line: " + form.title)
             }
             view.showLayout("print")
@@ -72,7 +74,7 @@ Item {
             if (area.text !== "Title: Neu\nAuthor: Anna\n\n" + body) {
                 return root.fail("Apply wrote " + JSON.stringify(area.text))
             }
-            if (!form.collapsed || form.title !== "Titelseite · Neu · Anna") {
+            if (!form.collapsed || form.title !== head + " · Neu · Anna") {
                 return root.fail("folded line after Apply: " + form.title)
             }
 
