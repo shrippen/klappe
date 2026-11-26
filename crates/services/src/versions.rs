@@ -4,6 +4,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use klappe_model::{RevisionColor, ScriptLanguage, ScriptSetup, Version};
+use klappe_script::{SceneDiff, ScenePlace, SceneStatus};
 
 use crate::catalog::Language;
 use crate::error::ServiceError;
@@ -79,6 +80,36 @@ pub fn color_text(language: Language, color: RevisionColor) -> String {
     language.text(&format!("revision_color.{}", color.name()))
 }
 
+/// What became of a scene, in words: `changed, moved`; `moved` for one that only moved;
+/// `unchanged` when nothing did.
+pub fn scene_status_text(language: Language, scene: &SceneDiff) -> String {
+    let mut parts = Vec::new();
+    match scene.status {
+        SceneStatus::New => parts.push("compare.new"),
+        SceneStatus::Removed => parts.push("compare.removed"),
+        SceneStatus::Changed => parts.push("compare.changed"),
+        SceneStatus::Same => {}
+    }
+    if scene.place == ScenePlace::Moved {
+        parts.push("compare.moved");
+    }
+    if parts.is_empty() {
+        parts.push("compare.same");
+    }
+
+    let words: Vec<_> = parts.into_iter().map(|key| language.text(key)).collect();
+
+    words.join(", ")
+}
+
+/// The heading of a scene as shown; `(ohne Überschrift)` for a scene without one.
+pub fn scene_heading_text(language: Language, heading: Option<&str>) -> String {
+    match heading {
+        Some(h) if !h.is_empty() => h.to_owned(),
+        _ => language.text("version.noHeading"),
+    }
+}
+
 /// The line above the pages of a revision: `Revision Blau · 2026-11-25`, the colour of the
 /// next version and today.
 pub(crate) fn header_text(language: Language, color: RevisionColor, date: &str) -> String {
@@ -129,6 +160,48 @@ mod tests {
             check_name("drehfassung", &used),
             Err(ServiceError::VersionNameTaken(_))
         ));
+    }
+
+    fn scene(status: SceneStatus, place: ScenePlace, heading: Option<&str>) -> SceneDiff {
+        SceneDiff {
+            number: Some("3".into()),
+            heading: heading.map(Into::into),
+            old_number: None,
+            old_heading: None,
+            status,
+            place,
+            lines: Vec::new(),
+        }
+    }
+
+    /// Owner decision 26.11.: one wording for window and command line.
+    #[test]
+    fn a_scene_status_names_what_became_of_it() {
+        let text = |s, p| scene_status_text(Language::German, &scene(s, p, None));
+
+        assert_eq!(text(SceneStatus::Same, ScenePlace::Kept), "unverändert");
+        assert_eq!(text(SceneStatus::Same, ScenePlace::Moved), "verschoben");
+        assert_eq!(
+            text(SceneStatus::Changed, ScenePlace::Moved),
+            "geändert, verschoben"
+        );
+        assert_eq!(text(SceneStatus::New, ScenePlace::Kept), "neu");
+    }
+
+    #[test]
+    fn a_scene_without_heading_says_so() {
+        assert_eq!(
+            scene_heading_text(Language::German, None),
+            "(ohne Überschrift)"
+        );
+        assert_eq!(
+            scene_heading_text(Language::German, Some("")),
+            "(ohne Überschrift)"
+        );
+        assert_eq!(
+            scene_heading_text(Language::German, Some("INT. HOF")),
+            "INT. HOF"
+        );
     }
 
     #[test]

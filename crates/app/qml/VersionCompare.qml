@@ -72,20 +72,13 @@ KanteDialog {
         rows.currentIndex = scenes.length === 0 ? -1 : Math.max(first, 0)
     }
 
-    // What became of a scene, in words: "changed, moved"; "unchanged" when nothing did.
+    // What became of a scene, in words, as the session words it: "changed, moved".
     function status(scene) {
-        const parts = []
-        if (scene.status !== "same") {
-            parts.push(texts.t("compare." + scene.status))
-        }
-        if (scene.place === "moved") {
-            parts.push(texts.t("compare.moved"))
-        }
-        return parts.length > 0 ? parts.join(", ") : texts.t("compare.same")
+        return scene.statusText
     }
 
     function heading(scene) {
-        return scene.heading || texts.t("version.noHeading")
+        return scene.headingText
     }
 
     /// Whether the scene has a half on that side: a new one has none in the old state, a
@@ -121,9 +114,9 @@ KanteDialog {
         }
         const old = side === "old"
         const number = old ? (scene.oldNumber ?? scene.number) : scene.number
-        const heading = old ? (scene.oldHeading ?? scene.heading) : scene.heading
+        const heading = old ? scene.oldHeadingText : scene.headingText
         const moved = scene.status !== "same" || scene.place === "moved"
-        return (number ? number + " " : "") + (heading || texts.t("version.noHeading"))
+        return (number ? number + " " : "") + heading
             + (moved ? " · " + status(scene) : "")
     }
 

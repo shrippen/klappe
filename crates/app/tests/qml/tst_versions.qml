@@ -25,13 +25,17 @@ TestCase {
     readonly property var diff: [
         { number: "1", heading: "INT. SAAL - TAG", oldNumber: "1", oldHeading: "INT. SAAL - NACHT",
           status: "changed", place: "kept",
+          headingText: "INT. SAAL - TAG", oldHeadingText: "INT. SAAL - NACHT", statusText: "geändert",
           lines: [{ change: "removed", line: 2, text: "Er kommt an.", group: 0 }, { change: "added", line: 2, text: "Sie kommt an.", group: 0 },
                   { change: "added", line: 3, text: "Sie setzt sich.", group: 0 }, { change: "added", line: 4, text: "Sie wartet.", group: 0 },
                   { change: "removed", line: 7, text: "Er geht.", group: 1 }, { change: "added", line: 9, text: "Sie geht.", group: 1 }] },
-        { number: "2", heading: "EXT. HOF - NACHT", status: "same", place: "moved", lines: [] },
+        { number: "2", heading: "EXT. HOF - NACHT", status: "same", place: "moved",
+          headingText: "EXT. HOF - NACHT", oldHeadingText: "EXT. HOF - NACHT", statusText: "verschoben", lines: [] },
         { number: "3", heading: "INT. KELLER", status: "removed", place: "kept",
+          headingText: "INT. KELLER", oldHeadingText: "INT. KELLER", statusText: "gestrichen",
           lines: [{ change: "removed", line: 0, text: "Dunkel.", group: 0 }] },
         { number: "4", heading: "INT. DACH", status: "new", place: "kept",
+          headingText: "INT. DACH", oldHeadingText: "INT. DACH", statusText: "neu",
           lines: [{ change: "added", line: 7, text: "Wind.", group: 0 }] }
     ]
 
