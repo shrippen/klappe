@@ -171,12 +171,15 @@ impl Session {
         paper: ScriptPaper,
     ) -> Result<(), ServiceError> {
         let (before, changed) = (self.project.script, self.project_changed);
+        let (dirty, unbacked) = (self.dirty, self.unbacked);
         self.set_script_setup(ScriptSetup { paper, ..before });
 
         let result = self.export_script_pdf(path, print);
         if result.is_err() {
             self.project.script = before;
             self.project_changed = changed;
+            self.dirty = dirty;
+            self.unbacked = unbacked;
         }
 
         result
