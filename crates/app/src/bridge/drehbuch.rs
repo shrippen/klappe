@@ -140,7 +140,7 @@ pub(super) fn breaks_json(pages: Option<&ScriptPages>) -> String {
     let breaks: Vec<_> = pages
         .breaks
         .iter()
-        .map(|b| json!({ "page": b.page, "line": b.line }))
+        .map(|b| json!({ "page": b.page, "label": b.label, "line": b.line }))
         .collect();
     let scenes: Vec<_> = pages
         .scenes
@@ -380,7 +380,11 @@ mod tests {
     #[test]
     fn breaks_list_pages_and_scene_pages() {
         let pages = ScriptPages {
-            breaks: vec![PageBreak { page: 2, line: 59 }],
+            breaks: vec![PageBreak {
+                page: 2,
+                label: "2".into(),
+                line: 59,
+            }],
             scenes: vec![
                 SceneSpan {
                     line: 0,
@@ -404,6 +408,7 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&breaks_json(Some(&pages))).unwrap();
         assert_eq!(v["pages"], 2);
         assert_eq!(v["breaks"][0]["page"], 2);
+        assert_eq!(v["breaks"][0]["label"], "2");
         assert_eq!(v["breaks"][0]["line"], 59);
         assert_eq!(v["scenes"][1]["line"], 60);
         assert_eq!(v["scenes"][1]["page"], 2);

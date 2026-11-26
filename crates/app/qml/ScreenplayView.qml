@@ -511,7 +511,7 @@ RowLayout {
                             required property var modelData
                             required property int index
                             readonly property int at: index < view.marks.length ? view.marks[index].at : -1
-                            objectName: "pageBreak." + modelData.page
+                            objectName: "pageBreak." + modelData.label
                             visible: at >= 0
                             readonly property real lineTop: area.contentHeight >= 0 && area.width > 0
                                 ? area.positionToRectangle(at).y : 0
@@ -529,11 +529,12 @@ RowLayout {
                             }
                             QQC2.Label {
                                 id: pageNumber
+                                objectName: "pageNumber." + modelData.label
                                 anchors.right: parent.right
-                                text: modelData.page + "."
+                                text: modelData.label + "."
                                 color: KanteStyle.mutedTextColor
                                 font: KanteStyle.smallFont
-                                Accessible.name: view.texts.t("screenplay.pageNumber", { page: modelData.page })
+                                Accessible.name: view.texts.t("screenplay.pageNumber", { page: modelData.label })
                             }
                         }
                     }

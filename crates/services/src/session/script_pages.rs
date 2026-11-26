@@ -6,7 +6,7 @@ use super::outside::PROJECT_FILE;
 use super::Session;
 use crate::catalog::Language;
 use crate::error::ServiceError;
-use crate::script_pages::{lay_out, ScriptPages, ScriptPrint, Source};
+use crate::script_pages::{lay_out, PageLock, ScriptPages, ScriptPrint, Source};
 use klappe_export::SheetPage;
 use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 
@@ -58,7 +58,8 @@ impl Session {
     /// `paginate`, but only if text, paper or words changed since the last layout: the window
     /// calls it after 5 s without a key (DN-02) and need not show the same lengths again.
     pub fn paginate_if_changed(&mut self, fallback: Language) -> Laid {
-        let source = Source::of(self.script_text(), &self.project.script, fallback);
+        let lock = self.page_lock_id();
+        let source = Source::of(self.script_text(), &self.project.script, fallback, lock);
         if self.layout.as_ref().is_some_and(|l| l.is_for(&source)) {
             return Laid::Kept;
         }
@@ -70,7 +71,29 @@ impl Session {
     /// Like `paginate` for `text` that is not (yet) the session's: the terminal editor holds
     /// its text apart until it is saved. The session's screenplay stays as it is.
     pub fn paginate_text(&mut self, text: &str, fallback: Language) {
-        self.layout = Some(lay_out(text, &self.project.script, fallback));
+        let lock = self.page_lock();
+        self.layout = Some(lay_out(text, &self.project.script, fallback, lock.as_ref()));
+    }
+
+    /// The version whose pages the screenplay keeps (DB-34): the last one, if it kept any.
+    pub(super) fn page_lock_id(&self) -> Option<&str> {
+        let last = self.versions.last()?;
+
+        (!last.pages.is_empty()).then_some(last.id.as_str())
+    }
+
+    /// That version's text and page starts. A text that cannot be read locks no pages: the
+    /// layout is then the free one (the version itself is reported by `compare_drafts`).
+    fn page_lock(&self) -> Option<PageLock> {
+        let id = self.page_lock_id()?;
+        let text = klappe_store::load_version_text(&self.dir, id).ok()?;
+        let starts = self.versions.last()?.pages.clone();
+
+        Some(PageLock {
+            id: id.to_owned(),
+            text,
+            starts,
+        })
     }
 
     /// The result of the last `paginate`: page breaks, scene lengths, total length. `None`

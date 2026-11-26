@@ -73,12 +73,19 @@ impl Session {
         let first = self.project.script.first_scene;
         self.set_scene_numbering(SceneNumbering::Locked, first)?;
 
+        // The pages as they were just laid out: they stay as they are from now on (DB-34).
+        let pages = match &self.layout {
+            Some(layout) => layout.page_starts(self.script_text()),
+            None => Vec::new(),
+        };
+
         let taken = self.versions.iter().map(|v| v.id.as_str());
         let version = Version {
             id: free_random_id(taken, IdCase::Ignored),
             name,
             date: today(),
             color: next_color(&self.versions),
+            pages,
         };
 
         // The text first, so the list never names a text that is not there.
