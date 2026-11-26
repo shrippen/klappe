@@ -398,6 +398,21 @@ TestCase {
         compare(fake.calls, [["addLookElement", "l2", "e3"]])
     }
 
+    // The name decides nothing in the form: the same name, another case and a new one all go
+    // to the session in one call (it takes the element of that name, or makes one).
+    function test_a_typed_name_in_any_case_is_one_call_for_the_session() {
+        const v = view()
+        showLooks(v)
+
+        look(v, "l2").clicked()
+        const field = findChild(findChild(v, "lookForm"), "add.costume")
+        field.newEntered("Ballkleid")
+        field.newEntered("BALLKLEID")
+        field.newEntered("Hut")
+
+        compare(fake.calls.map(c => c[0]).filter(n => n.startsWith("add")), ["addLookElement", "addLookElement", "addElementToLook"])
+    }
+
     function test_the_scenes_of_a_look_show_the_scene() {
         const v = view()
         showLooks(v)

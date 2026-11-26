@@ -66,6 +66,25 @@ Item {
                 return root.fail("the new make-up must go into the look: " + ctl.status)
             }
 
+            // The same name, another case and a new name: the session takes the element of that
+            // name or makes one. Same text for the user in each case.
+            const before = project().elements.length
+            const names = ["Schramme", "SCHRAMME", "Narbe"]
+            const steps = []
+            for (const name of names) {
+                if (!ctl.addElementToLook(look, "makeup", name)) {
+                    return root.fail("the make-up '" + name + "' did not go into the look: " + ctl.status)
+                }
+                steps.push(ctl.undoStep)
+            }
+            if (project().elements.length !== before + 1 || project().looks[0].elements.length !== 3) {
+                return root.fail("only 'Narbe' may be new: " + ctl.projectJson)
+            }
+            if (steps.join() !== "AddElementToLook,AddElementToLook,AddElementToLook") {
+                return root.fail("the undo steps of the three names: " + steps)
+            }
+            ctl.removeLookElement(look, project().looks[0].elements[2].id)
+
             const prop = ctl.addElement("prop", "Lampe")
             if (ctl.addLookElement(look, prop)) {
                 return root.fail("a prop must not go into a look")
