@@ -532,12 +532,14 @@ pub mod qobject {
         fn script_outline_json(self: Pin<&mut Self>, folded: &QString) -> QString;
 
         /// Moves the scene or section at text line `line` one place, `way` `up` or `down`
-        /// (DB-21): `{ from, to, lines, line }`, the text lines `from..to` to be replaced by
-        /// `lines`, `line` where the block starts then; empty where it cannot move. Changes
-        /// nothing itself: the editor applies it as one edit.
+        /// (DB-21): `{ from, to, lines, line, unfold }`, the text lines `from..to` to be replaced
+        /// by `lines`, `line` where the block starts then, `unfold` the `key`s of the folded
+        /// sections it steps into (to open); empty where it cannot move. Changes nothing itself:
+        /// the editor applies it as one edit.
         #[qinvokable]
         #[cxx_name = "moveOutline"]
         fn move_outline(self: Pin<&mut Self>, line: i32, way: &QString) -> QString;
+
         /// The locked versions of the screenplay (DB-40) and the colour of the revision since the
         /// last one: `{ versions: [{ id, name, date, color, colorName }], next: { color,
         /// colorName } | null }`; `color` is the file's name of the colour (`blue`), `colorName`

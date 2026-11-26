@@ -25,14 +25,14 @@ TestCase {
     readonly property var diff: [
         { number: "1", heading: "INT. SAAL - TAG", oldNumber: "1", oldHeading: "INT. SAAL - NACHT",
           status: "changed", place: "kept",
-          lines: [{ change: "removed", line: 2, text: "Er kommt an." }, { change: "added", line: 2, text: "Sie kommt an." },
-                  { change: "added", line: 3, text: "Sie setzt sich." }, { change: "added", line: 4, text: "Sie wartet." },
-                  { change: "removed", line: 7, text: "Er geht." }, { change: "added", line: 9, text: "Sie geht." }] },
+          lines: [{ change: "removed", line: 2, text: "Er kommt an.", group: 0 }, { change: "added", line: 2, text: "Sie kommt an.", group: 0 },
+                  { change: "added", line: 3, text: "Sie setzt sich.", group: 0 }, { change: "added", line: 4, text: "Sie wartet.", group: 0 },
+                  { change: "removed", line: 7, text: "Er geht.", group: 1 }, { change: "added", line: 9, text: "Sie geht.", group: 1 }] },
         { number: "2", heading: "EXT. HOF - NACHT", status: "same", place: "moved", lines: [] },
         { number: "3", heading: "INT. KELLER", status: "removed", place: "kept",
-          lines: [{ change: "removed", line: 0, text: "Dunkel." }] },
+          lines: [{ change: "removed", line: 0, text: "Dunkel.", group: 0 }] },
         { number: "4", heading: "INT. DACH", status: "new", place: "kept",
-          lines: [{ change: "added", line: 7, text: "Wind." }] }
+          lines: [{ change: "added", line: 7, text: "Wind.", group: 0 }] }
     ]
 
     QtObject {
@@ -54,6 +54,7 @@ TestCase {
         function scriptKinds(text) {
             return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")
         }
+        function scriptOutlineJson() { return "[]" }
         function scriptPrintJson() { return JSON.stringify({ fontPt: 12, ascentPt: 10, pages: [] }) }
         function enterStep(line, col, kind, below) { return JSON.stringify({ step: "break" }) }
         function tabStep(line, kind) { return "" }
@@ -155,7 +156,6 @@ TestCase {
         item.triggered()
     }
 
-    // The row of scene `at`: a list makes its rows when it lays out.
     // Every descendant of `parent` with that object name (findChild finds only the first).
     function allChildren(parent, name) {
         const found = []
@@ -171,6 +171,7 @@ TestCase {
         return found
     }
 
+    // The row of scene `at`: a list makes its rows when it lays out.
     function row(dialog, at) {
         tryVerify(() => findChild(dialog.rows, "compare." + at) !== null)
         return findChild(dialog.rows, "compare." + at)
@@ -547,6 +548,17 @@ TestCase {
         compare(old[1], now[3])
         verify(old[1] > old[0])
         dialog.close()
+    }
+
+    // Old `[H, a, b, c, d]`, new `[H, a, c, Y]`: `b` goes alone, `Y` replaces `d` and stands level
+    // with it, not with `b` (the lines between them are common ones).
+    function test_changes_apart_are_not_one_hunk() {
+        const view = make()
+        const out = view.compareDialog.hunks({ lines: [
+            { change: "removed", line: 2, text: "b", group: 0 },
+            { change: "removed", line: 4, text: "d", group: 1 },
+            { change: "added", line: 3, text: "Y", group: 1 }] })
+        compare(out, [{ removed: ["b"], added: [] }, { removed: ["d"], added: ["Y"] }])
     }
 
     // The heads: the old heading left, the new one right.

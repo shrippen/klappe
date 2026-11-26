@@ -37,6 +37,7 @@ TestCase {
         function editScript(text) { scriptText = text }
         function paginateScript() { layouts += 1 }
         function scriptBreaksJson() { return JSON.stringify(pages) }
+        function scriptOutlineJson() { return "[]" }
         function versionsJson() { return JSON.stringify({ versions: [], next: null }) }
         function revisionJson() { return "[]" }
         function scriptKinds(text) {

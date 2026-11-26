@@ -95,14 +95,16 @@ KanteDialog {
     }
 
     /// The changes of a scene, each `{ removed: [text], added: [text] }`: the lines come in text
-    /// order, the removed lines of a change right above the added ones that replace it, so a
-    /// removed line after an added one starts the next change.
+    /// order, the removed lines of a change right above the added ones that replace it; a change
+    /// is the lines with one `group` (the same gap between common lines).
     function hunks(scene) {
         const out = []
         let at = null
+        let group = null
         for (const l of scene.lines) {
             const removed = l.change === "removed"
-            if (at === null || (removed && at.added.length > 0)) {
+            if (at === null || l.group !== group) {
+                group = l.group
                 at = { removed: [], added: [] }
                 out.push(at)
             }

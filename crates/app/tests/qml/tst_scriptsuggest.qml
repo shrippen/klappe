@@ -27,6 +27,9 @@ TestCase {
         function scriptKinds(text) {
             return text.split("\n").map(l => l.startsWith("INT.") ? "h" : "a").join("")
         }
+        function scriptOutlineJson() { return "[]" }
+        function versionsJson() { return JSON.stringify({ versions: [], next: null }) }
+        function revisionJson() { return "[]" }
         function scriptPrintJson() { return JSON.stringify({ fontPt: 12, ascentPt: 10, pages: [] }) }
         function enterStep(line, col, kind, below) {
             enters += 1
@@ -131,6 +134,26 @@ TestCase {
         view.area.cursorPosition = view.area.length
         view.flow.updateSuggest()
         verify(view.flow.suggestions !== null)
+    }
+
+    // A click takes the choice, as Enter does, and the typing stays in the field without a
+    // warning from the click handler.
+    function test_a_click_takes_a_choice() {
+        fake.scriptText = "INT. SAAL - T"
+        fake.suggestAnswers = { "INT. SAAL - T": { from: 12, options: ["TAG", "TEXT"], finishes: false, kind: "a", gap: "none" } }
+        const view = make()
+        const popup = findChild(view.area, "scriptSuggest")
+        view.area.forceActiveFocus()
+        view.area.cursorPosition = view.area.length
+        view.flow.updateSuggest()
+        tryVerify(() => popup.visible)
+        failOnWarning(/ScriptSuggest.qml.*not defined/)
+
+        mouseClick(findChild(popup.contentItem, "suggestion.1"))
+
+        compare(view.area.text, "INT. SAAL - TEXT")
+        compare(view.flow.suggestions, null)
+        verify(view.area.activeFocus)
     }
 
     // A choice that ends the element does not open the next one while text stands below.
