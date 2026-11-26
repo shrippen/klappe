@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-02, D-03 (planung/DESIGN.md): the window's header. The mark, where we are (project ›
 // scene › plan, the plan's name a menu), the menus, undo and redo, and the command palette.
@@ -68,7 +69,7 @@ RowLayout {
     /// A command of the screenplay's versions: `"lock"` or `"compare"` (DB-40, DB-42).
     signal versionRequested(string what)
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : { scenes: [], plans: [], plan: "" }
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.

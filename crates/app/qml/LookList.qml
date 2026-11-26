@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-25: every look, grouped by character in the order of the characters, with the number of
 // scenes that put it on. A click picks a look; "New…" asks for a character and a name.
@@ -22,7 +23,7 @@ ColumnLayout {
     /// The id of the look the form shows.
     property string currentId: ""
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var characters: project.characters || []
     /// The looks by character, then in the order they were made.
     readonly property var rows: characters.reduce((all, c) => all.concat((project.looks || [])

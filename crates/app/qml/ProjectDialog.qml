@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // The project (LH-01 to LH-03, D-08, D-21): scenes, scripted locations, locations and
 // characters.
@@ -33,9 +34,7 @@ Item {
     readonly property var noScript: ({ language: "", words: "local", paper: "a4", contd_after_action: false,
                                        scene_numbering: "locked", first_scene: 1 })
 
-    readonly property var project: controller.projectJson
-        ? JSON.parse(controller.projectJson)
-        : { scenes: [], places: [], locations: [], characters: [], numberings: [], numbering: "" }
+    readonly property var project: ProjectData.of(controller.projectJson)
 
     // The kinds, in the order of the tabs.
     readonly property var kinds: ["scene", "place", "location", "character"]

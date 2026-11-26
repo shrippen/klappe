@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-26 (planung/DESIGN.md): the casting module (the module bar, Ctrl+4). On the left the roles,
 // on the right the form of the role chosen.
@@ -22,7 +23,7 @@ RowLayout {
     /// The role the form shows; "" for none.
     property string roleId: ""
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var role: (project.characters || []).find(c => c.id === roleId) || null
     readonly property var casting: (project.castings || []).find(k => k.character === roleId) || null
 

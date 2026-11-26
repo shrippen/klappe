@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // The card of a scene or a character, opened from the script (D-08): its properties and where
 // it occurs. The numbers come from the controller's `usesOf`; the button hands the entry on to
@@ -20,9 +21,7 @@ KantePopover {
     // `usesOf`: a scene's card, or the list of scenes a character plays in.
     property var uses: null
 
-    readonly property var project: controller.projectJson
-        ? JSON.parse(controller.projectJson)
-        : { scenes: [], characters: [] }
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var scene: kind === "scene" ? project.scenes.find(s => s.id === refId) || null : null
     readonly property var character: kind === "character" ? project.characters.find(c => c.id === refId) || null : null
 

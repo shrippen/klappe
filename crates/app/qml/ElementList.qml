@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-22: every element of the breakdown, grouped by category in the catalogue's order, with its
 // status as the colour of the square and as text. A click picks an element; "New…" asks for a
@@ -23,7 +24,7 @@ ColumnLayout {
     /// The id of the element the form shows.
     property string currentId: ""
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var categories: project.element_categories || []
     /// The elements by category, then by name.
     readonly property var rows: categories.reduce((all, c) => all.concat((project.elements || [])

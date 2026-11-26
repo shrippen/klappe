@@ -3,6 +3,7 @@ import QtQuick.Controls as QQC2
 import QtQml
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // The variants of the scene's plan (LH-04, D-03): the plan's name in the header's path is a
 // menu. It lists the variants (a tick on the one on view), then makes, copies, renames and
@@ -31,7 +32,7 @@ HeaderMenu {
     // While the backup question is open nothing may change the project, also not from the palette.
     property bool locked: false
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : { plans: [], plan: "" }
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var plans: project.plans
     readonly property int index: plans.findIndex(p => p.id === project.plan)
     readonly property var current: index < 0 ? null : plans[index]

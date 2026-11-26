@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // Besetzung (D-26): the roles of the project, the characters. A row shows the cast number, the
 // name and who plays it (the fixed person) or how many are proposed. Groups of extras come last,
@@ -22,7 +23,7 @@ ColumnLayout {
     /// The id of the role the form shows.
     property string currentId: ""
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var characters: project.characters || []
     /// The roles with their casting, the groups last.
     readonly property var rows: characters.filter(c => c.group === 0).concat(characters.filter(c => c.group > 0))

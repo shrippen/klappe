@@ -1,5 +1,6 @@
 import QtQuick
 import Kante
+import "ProjectData.js" as ProjectData
 
 // Over the plan: entries of the register wait for the answer which scene of the book they are,
 // names of the cues for the character they belong to, and place names of the scene headings for
@@ -10,7 +11,7 @@ KanteCallout {
 
     property var texts
     property var controller
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : {}
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var questions: project.questions || []
     readonly property var pending: questions.filter(q => q.kind === "scene")
     readonly property var figures: questions.filter(q => q.kind === "figure")

@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-26 (planung/DESIGN.md): the team module (the module bar, Ctrl+5). On the left the persons by
 // department, on the right the form of the person chosen or of a new one.
@@ -25,7 +26,7 @@ RowLayout {
     /// The form makes a new person instead of changing `person`.
     property bool creating: false
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var person: (project.persons || []).find(p => p.id === personId) || null
 
     function pick(id) {

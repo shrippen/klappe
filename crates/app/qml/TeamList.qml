@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-26: the persons of the team grouped by department in the catalogue's order, those without a
 // department last. A box narrows the list to one department. A click picks a person; "New…"
@@ -24,7 +25,7 @@ ColumnLayout {
     /// The id of the person the form shows.
     property string currentId: ""
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var departments: project.departments || []
     /// The filter box: "all" first, then the departments.
     readonly property var choices: [""].concat(departments)

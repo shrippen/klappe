@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-22 (planung/DESIGN.md): the breakdown module (the module bar, Ctrl+3). On the left the
 // scene list or, switched by "Szenen | Elemente | Looks", the list of all elements or of all
@@ -35,7 +36,7 @@ RowLayout {
     /// The look the form shows; "" for none.
     property string lookId: ""
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var element: (project.elements || []).find(e => e.id === elementId) || null
     readonly property var look: (project.looks || []).find(l => l.id === lookId) || null
 

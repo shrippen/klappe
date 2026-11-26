@@ -1,4 +1,5 @@
 import QtQuick
+import "ProjectData.js" as ProjectData
 
 // The commands of the View menu that keep or clear what the plan shows: save and delete a
 // view (LH-119, each asks in the form), and the sketch pen's one command (LH-120). Choosing a
@@ -12,7 +13,7 @@ Item {
     property bool locked: false
 
     /// [{ id, name }] as the project view lists them.
-    readonly property var savedViews: controller.projectJson ? (JSON.parse(controller.projectJson).views || []) : []
+    readonly property var savedViews: ProjectData.of(controller.projectJson).views || []
     readonly property alias saveAction: actSave
     readonly property alias removeAction: actRemove
     readonly property alias clearAction: actClear

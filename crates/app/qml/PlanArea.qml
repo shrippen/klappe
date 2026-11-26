@@ -4,6 +4,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // The floor plan: Stellprobe's display list drawn by KanteShapeCanvas (no geometry here,
 // agent.md), with a tooltip for what the pointer is over (round 2, design 4). The drawing
@@ -54,7 +55,7 @@ Item {
     /// The 3D view shows instead of the plan (J).
     readonly property bool free: controller.viewFree === true
     /// The overview (`projectJson`) parsed; null without a project.
-    readonly property var project: controller.loaded && controller.projectJson ? JSON.parse(controller.projectJson) : null
+    readonly property var project: controller.loaded && controller.projectJson ? ProjectData.of(controller.projectJson) : null
     /// The scene on view has no plan yet (D-17): { number } or null.
     readonly property var planless: {
         if (!project || !controller.sceneId || project.plans.length > 0) {
