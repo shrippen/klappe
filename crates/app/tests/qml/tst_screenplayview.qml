@@ -66,8 +66,8 @@ TestCase {
         }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
-        // Search (DB-07) by a plain `indexOf` without case; the rules are `script/`'s, tested there.
-        // A speaker keeps the hits below their cue: the last line in capitals above the hit.
+        function scriptSuggest(text, line, kind) { return "" }
+        // Search (DB-07) by a plain `indexOf`; a speaker keeps the hits below their cue (the last line in capitals above).
         function cueAt(text, at) {
             const lines = text.slice(0, at).split("\n")
             return lines.reverse().find(l => l !== "" && l === l.toUpperCase()) || ""

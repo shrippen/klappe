@@ -26,6 +26,12 @@ QtObject {
     /// The letter of each kind by its name, as `scriptLooks` gives them.
     readonly property var letters: JSON.parse(controller.scriptLooks()).letters
 
+    /// The choices under the cursor line (`scriptSuggest`: `{ from, options, finishes, kind, gap }`),
+    /// null for none, and the one marked. Dismissed (Esc) for the text it was dismissed on.
+    property var suggestions: null
+    property int suggestSel: 0
+    property var dismissedText: null
+
     /// The lines of the text now; read again each time, as a binding lags behind an edit.
     function rows() {
         return area.text.split("\n")
@@ -84,6 +90,9 @@ QtObject {
         if (area.selectedText !== "") {
             return false
         }
+        if (suggestions) {
+            return acceptSuggest()
+        }
         const all = rows()
         const line = cursorLine()
         const start = lineStart(line)
@@ -115,6 +124,10 @@ QtObject {
 
     /// Tab on an empty line changes its element; the line takes the text Tab gives it (`()`).
     function tab() {
+        if (suggestions) {
+            acceptSuggest()
+            return
+        }
         const line = cursorLine()
         const text = rows()[line]
         const kind = line === pendingLine ? pendingKind : (shown[line] || letters.action)
@@ -128,6 +141,67 @@ QtObject {
         replace(start, start + text.length, step.text)
         area.cursorPosition = start + step.col
         setPending(line, step.kind)
+    }
+
+    /// The choices for the end of the cursor line; null while the cursor is elsewhere, a selection
+    /// is made, the editor has no focus or Esc closed them for this text.
+    function findSuggest() {
+        if (!area.activeFocus || area.selectedText !== "" || area.text === dismissedText) {
+            return null
+        }
+        const line = cursorLine()
+        const text = rows()[line]
+        if (area.cursorPosition !== lineStart(line) + text.length) {
+            return null
+        }
+
+        const kind = line === pendingLine ? pendingKind : (shown[line] || letters.action)
+        const found = controller.scriptSuggest(area.text, line, kind)
+        return found === "" ? null : JSON.parse(found)
+    }
+
+    /// Shows what `findSuggest` finds; the first choice is marked anew when the choices change.
+    function updateSuggest() {
+        const found = findSuggest()
+        if (JSON.stringify(found) === JSON.stringify(suggestions)) {
+            return
+        }
+        suggestions = found
+        suggestSel = 0
+    }
+
+    function moveSuggest(delta) {
+        suggestSel = Math.max(0, Math.min(suggestions.options.length - 1, suggestSel + delta))
+    }
+
+    function dismissSuggest() {
+        dismissedText = area.text
+        suggestions = null
+    }
+
+    /// Puts the marked choice in place of the typed part of the line. One that ends the element
+    /// (a time of day, a name, an extension) goes on to the next at once, as Enter would, unless
+    /// text stands below.
+    function acceptSuggest() {
+        const open = suggestions
+        suggestions = null
+        if (!open) {
+            return false
+        }
+
+        const line = cursorLine()
+        const all = rows()
+        const start = lineStart(line)
+        const choice = open.options[suggestSel]
+        replace(start + open.from, start + all[line].length, choice)
+        const end = start + open.from + choice.length
+        area.cursorPosition = end
+
+        const below = line + 1 < all.length ? all[line + 1] : ""
+        if (open.finishes && below.trim() === "") {
+            openAfter(line, end, open)
+        }
+        return true
     }
 
     /// The cursor line in capitals if it is a heading or cue; true when it changed the text.

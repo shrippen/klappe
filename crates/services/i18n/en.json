@@ -344,6 +344,7 @@
  "screenplay.stale": "Pages out of date",
  "screenplay.pageNumber": "Page {page}",
  "screenplay.editor": "Screenplay text",
+ "screenplay.suggestions": "Suggestions",
  "scenelist.filter": "Filter scenes",
  "scenelist.noMatch": "No scene matches.",
  "scenelist.markText": "T",
