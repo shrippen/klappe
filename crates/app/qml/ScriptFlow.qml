@@ -155,8 +155,8 @@ QtObject {
             return null
         }
 
-        const kind = line === pendingLine ? pendingKind : (shown[line] || letters.action)
-        const found = controller.scriptSuggest(area.text, line, kind)
+        const pending = line === pendingLine ? pendingKind : ""
+        const found = controller.scriptSuggest(area.text, line, shown[line] || letters.action, pending)
         return found === "" ? null : JSON.parse(found)
     }
 

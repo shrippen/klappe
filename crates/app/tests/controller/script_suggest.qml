@@ -95,6 +95,15 @@ Window {
             if (JSON.stringify(root.options()) !== JSON.stringify(["BEN"]) && root.options()[0] !== "BEN") {
                 return root.fail("the other speaker is offered: " + JSON.stringify(root.options()))
             }
+
+            // An opened heading line holding prose is an action: no location offered.
+            ctl.editScript("INT. GARTEN - TAG\n\nAnna liest.\n\nCUT TO:\n\n")
+            area.cursorPosition = area.text.length
+            flow.setPending(6, flow.letters.heading)
+            root.type("Sie g")
+            if (flow.suggestions !== null) {
+                return root.fail("prose on an opened heading offers: " + JSON.stringify(root.options()))
+            }
             Qt.exit(0)
         }
     }

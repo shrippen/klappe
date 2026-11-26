@@ -25,7 +25,9 @@ mod title;
 mod write;
 
 pub use align::{align, heading_print, scene_states, Alignment, Fingerprint, Outcome, SceneState};
-pub use assist::{heading_place, suggest, Context, Stage, Suggestions, Vocabulary};
+pub use assist::{
+    can_suggest, heading_like, heading_place, suggest, Context, Stage, Suggestions, Vocabulary,
+};
 pub use caps::typed_caps;
 pub use compare::{compare, Comparison, Edit, LineChange, SceneDiff, ScenePlace, SceneStatus};
 pub use conflict::conflict_line;

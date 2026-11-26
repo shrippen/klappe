@@ -115,10 +115,10 @@ pub use klappe_script::{Comparison, Edit, LineChange, SceneDiff, ScenePlace, Sce
 // The writing aids of `script/` (completion, Enter and Tab flow, search, title page, inline
 // marks), for the screenplay editors of the surfaces.
 pub use klappe_script::{
-    boneyard_lines, enter_step, find_all, force_line, inline_runs, replace_hits, set_title_fields,
-    suggest, tab_step, title_fields, title_page_lines, typed_caps, upper, Case, Context, EnterStep,
-    Forced, Gap, Hit, Marks, Query, Run, Slot, Splice, Stage, Suggestions, TabStep, Vocabulary,
-    FORCE_CHARACTER, NUMBER_MARK, TITLE_KEYS,
+    boneyard_lines, can_suggest, enter_step, find_all, force_line, heading_like, inline_runs,
+    replace_hits, set_title_fields, suggest, tab_step, title_fields, title_page_lines, typed_caps,
+    upper, Case, Context, EnterStep, Forced, Gap, Hit, Marks, Query, Run, Slot, Splice, Stage,
+    Suggestions, TabStep, Vocabulary, FORCE_CHARACTER, NUMBER_MARK, TITLE_KEYS,
 };
 
 // The kind of each text line and the columns the page sets it in (D-15), for an editor that

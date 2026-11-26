@@ -6,10 +6,10 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    enter_step, error_text, parse_located, suggest, tab_step, text_kinds, typed_caps, Align,
-    Context, EnterStep, Gap, HeaderLine, ImportReport, Laid, PrintFace, Revisions, SceneNumbers,
-    ScriptPages, ScriptPrint, SheetPage, Slot, Stage, TextKind, Vocabulary, SCRIPT_ASCENT_PT,
-    SCRIPT_FONT_PT, TEXT_COLUMNS,
+    can_suggest, enter_step, error_text, heading_like, parse_located, suggest, tab_step,
+    text_kinds, typed_caps, Align, Context, EnterStep, Gap, HeaderLine, ImportReport, Laid,
+    PrintFace, Revisions, SceneNumbers, ScriptPages, ScriptPrint, SheetPage, Slot, Stage, TextKind,
+    Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -78,16 +78,23 @@ pub(super) fn tab_json(line: &str, kind: &str) -> String {
 }
 
 /// The suggestions for the end of line `line` of `text`, a line of kind `kind`, as `scriptSuggest`
-/// describes them; empty for none.
-pub(super) fn suggest_json(text: &str, line: usize, kind: &str) -> String {
+/// describes them; empty for none. `pending` is the letter of the slot Enter or Tab made the line,
+/// or empty: such a line is that element, a heading only while it still looks like one.
+pub(super) fn suggest_json(text: &str, line: usize, kind: &str, pending: &str) -> String {
     let Some(row) = text.split('\n').nth(line) else {
         return String::new();
     };
-    let context = match slot_of(kind) {
+    let slot = slot_of(if pending.is_empty() { kind } else { pending });
+    let context = match slot {
+        Some(Slot::Heading) if !pending.is_empty() && !heading_like(row) => Context::Line,
         Some(Slot::Heading) => Context::Heading,
         Some(Slot::Character) => Context::Cue,
         _ => Context::Line,
     };
+    // Plain text gets none: no need to read the whole book for it.
+    if !can_suggest(row, context) {
+        return String::new();
+    }
     let vocab = Vocabulary::from_located(&parse_located(text));
     let Some(found) = suggest(&vocab, row, line, context) else {
         return String::new();
@@ -252,10 +259,21 @@ impl qobject::Controller {
         q(&tab_json(&line.to_string(), &kind.to_string()))
     }
 
-    pub(super) fn script_suggest(&self, text: &QString, line: i32, kind: &QString) -> QString {
+    pub(super) fn script_suggest(
+        &self,
+        text: &QString,
+        line: i32,
+        kind: &QString,
+        pending: &QString,
+    ) -> QString {
         let line = usize::try_from(line).unwrap_or_default();
 
-        q(&suggest_json(&text.to_string(), line, &kind.to_string()))
+        q(&suggest_json(
+            &text.to_string(),
+            line,
+            &kind.to_string(),
+            &pending.to_string(),
+        ))
     }
 
     pub(super) fn typed_caps(&self, text: &QString, at: i32, pending: &QString) -> QString {
@@ -454,31 +472,36 @@ mod tests {
         let json = |s: String| -> serde_json::Value { serde_json::from_str(&s).unwrap() };
         let book = "A\n\nANNA\nx\n\nBEN\ny\n\nANNA\nz\n\n";
 
-        let names = json(suggest_json(&format!("{book}A"), 11, "c"));
+        let names = json(suggest_json(&format!("{book}A"), 11, "c", ""));
         assert_eq!(names["options"], serde_json::json!(["ANNA"]));
         assert_eq!(names["from"], 0);
         assert_eq!(names["finishes"], true);
         assert_eq!(names["kind"], "d");
         assert_eq!(names["gap"], "none");
 
-        let other = json(suggest_json(book, 11, "c"));
+        let other = json(suggest_json(book, 11, "c", ""));
         assert_eq!(other["options"], serde_json::json!(["BEN"]));
 
-        let time = json(suggest_json("INT. SAAL - TA", 0, "h"));
+        let time = json(suggest_json("INT. SAAL - TA", 0, "h", ""));
         assert_eq!(time["options"][0], "TAG");
         assert_eq!(time["kind"], "a");
         assert_eq!(time["gap"], "blank");
         assert_eq!(time["from"], 12);
 
-        assert_eq!(suggest_json("Sie kommt.", 0, "a"), "");
-        assert_eq!(suggest_json("INT. SAAL", 5, "h"), "");
+        assert_eq!(suggest_json("Sie kommt.", 0, "a", ""), "");
+        assert_eq!(suggest_json("INT. SAAL", 5, "h", ""), "");
+
+        // An opened heading line with prose is an action: no location offered.
+        let book = "INT. GARTEN - TAG\n\nAnna liest.\n\nCUT TO:\n\nSie g";
+        assert_eq!(suggest_json(book, 6, "h", "h"), "");
+        assert!(!suggest_json("INT. GARTEN - TAG\n\nINT. G", 2, "h", "h").is_empty());
     }
 
     #[test]
     fn at_most_eight_suggestions_show() {
         let names: String = ('A'..='L').map(|c| format!("FIG{c}\nx\n\n")).collect();
         let found: serde_json::Value =
-            serde_json::from_str(&suggest_json(&format!("{names}FIG"), 36, "c")).unwrap();
+            serde_json::from_str(&suggest_json(&format!("{names}FIG"), 36, "c", "")).unwrap();
 
         assert_eq!(found["options"].as_array().map(Vec::len), Some(8));
     }
