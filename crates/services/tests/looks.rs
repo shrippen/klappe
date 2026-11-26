@@ -94,12 +94,22 @@ fn put_on(
     )
 }
 
+/// The element with that id goes into the look, by its category and name.
 fn in_look(s: &mut Session, look: &str, element: &str) -> Result<(), ServiceError> {
+    let found = s
+        .project()
+        .elements
+        .iter()
+        .find(|e| e.id == element)
+        .unwrap();
+    let (category, name) = (found.category, found.name.clone());
+
     run(
         s,
-        BreakdownEdit::AddLookElement {
+        BreakdownEdit::AddElementToLook {
             look: look.into(),
-            element: element.into(),
+            category,
+            name,
         },
     )
 }
@@ -205,17 +215,13 @@ fn only_costume_and_makeup_belong_to_a_look() {
     in_look(&mut s, &look, &blood).unwrap();
     in_look(&mut s, &look, &coat).unwrap();
     assert_eq!(s.project().looks[0].elements, [coat.clone(), blood.clone()]);
-    assert_eq!(s.undo_step(), Some("AddLookElement"));
+    assert_eq!(s.undo_step(), Some("AddElementToLook"));
 
     let refused = in_look(&mut s, &look, &lamp).unwrap_err();
     assert!(matches!(refused, ServiceError::NotLookElement(_)));
     assert!(error_text(Language::German, &refused).contains("Öllampe"));
     assert!(error_text(Language::German, &refused).contains("Kostüm und Maskenbild"));
     assert!(error_text(Language::English, &refused).contains("costume and make-up"));
-    assert!(matches!(
-        in_look(&mut s, &look, "weg"),
-        Err(ServiceError::NoElement(_))
-    ));
     assert!(matches!(
         in_look(&mut s, "weg", &coat),
         Err(ServiceError::NoLook(_))

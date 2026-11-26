@@ -1393,11 +1393,6 @@ pub mod qobject {
         #[cxx_name = "removeLook"]
         fn remove_look(self: Pin<&mut Self>, id: &QString) -> bool;
 
-        /// A costume or make-up element goes into the look, or leaves it.
-        #[qinvokable]
-        #[cxx_name = "addLookElement"]
-        fn add_look_element(self: Pin<&mut Self>, look: &QString, element: &QString) -> bool;
-
         /// The element of that name and category, made if there is none, goes into the look.
         #[qinvokable]
         #[cxx_name = "addElementToLook"]

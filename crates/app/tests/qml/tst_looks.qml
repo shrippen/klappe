@@ -74,7 +74,6 @@ TestCase {
         function addLook(c, n) { return call("addLook", [c, n]) ? "l9" : "" }
         function editLook(i, n) { return call("editLook", [i, n]) }
         function removeLook(i) { return call("removeLook", [i]) }
-        function addLookElement(l, e) { return call("addLookElement", [l, e]) }
         function addElementToLook(l, c, n) { return call("addElementToLook", [l, c, n]) }
         function removeLookElement(l, e) { return call("removeLookElement", [l, e]) }
         function setSceneLook(s, c, l) { return call("setSceneLook", [s, c, l]) }
@@ -372,7 +371,7 @@ TestCase {
         compare(field.model, ["Schramme"])
         field.activated(0)
 
-        compare(fake.calls, [["addLookElement", "l2", "e5"]])
+        compare(fake.calls, [["addElementToLook", "l2", "makeup", "Schramme"]])
     }
 
     // A costume the look lacks is offered; the typed name of a new one is one step.
@@ -388,14 +387,30 @@ TestCase {
         compare(fake.calls, [["addElementToLook", "l2", "costume", "Hut"]])
     }
 
-    function test_a_typed_name_of_an_existing_element_does_not_make_another() {
+    function test_a_typed_name_of_an_existing_element_goes_to_the_session_trimmed() {
         const v = view()
         showLooks(v)
 
         look(v, "l2").clicked()
         findChild(findChild(v, "lookForm"), "add.costume").newEntered(" ballkleid ")
 
-        compare(fake.calls, [["addLookElement", "l2", "e3"]])
+        compare(fake.calls, [["addElementToLook", "l2", "costume", "ballkleid"]])
+    }
+
+    // The name decides nothing in the form: the same name, another case and a new one all go
+    // to the session in one call (it takes the element of that name, or makes one).
+    function test_a_typed_name_in_any_case_is_one_call_for_the_session() {
+        const v = view()
+        showLooks(v)
+
+        look(v, "l2").clicked()
+        const field = findChild(findChild(v, "lookForm"), "add.costume")
+        field.newEntered("Ballkleid")
+        field.newEntered("BALLKLEID")
+        field.newEntered("Hut")
+
+        compare(fake.calls, [["addElementToLook", "l2", "costume", "Ballkleid"],
+            ["addElementToLook", "l2", "costume", "BALLKLEID"], ["addElementToLook", "l2", "costume", "Hut"]])
     }
 
     function test_the_scenes_of_a_look_show_the_scene() {

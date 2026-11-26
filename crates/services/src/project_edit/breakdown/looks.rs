@@ -3,7 +3,7 @@
 
 use klappe_model::{free_random_id, ElementCategory, IdCase, Look, Project};
 
-use super::{bad_name, check_element, found_or_new, name_of, sheet_mut, BreakdownEdit};
+use super::{bad_name, found_or_new, name_of, sheet_mut, BreakdownEdit};
 use crate::error::ServiceError;
 
 /// The categories whose elements a look is made of.
@@ -15,7 +15,6 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
         BreakdownEdit::AddLook { character, name } => add_look(project, character, name),
         BreakdownEdit::EditLook { id, name } => edit_look(project, id, name),
         BreakdownEdit::RemoveLook { id } => remove_look(project, id),
-        BreakdownEdit::AddLookElement { look, element } => add_look_element(project, look, element),
         BreakdownEdit::AddElementToLook {
             look,
             category,
@@ -110,26 +109,8 @@ pub(super) fn fit_looks(project: &mut Project, element: &str, category: ElementC
     }
 }
 
-/// The element goes into the look, once. Refused for any category but costume and make-up.
-fn add_look_element(project: &mut Project, look: &str, element: &str) -> Result<(), ServiceError> {
-    look_mut(project, look)?;
-    check_element(project, element)?;
-
-    let found = project.elements.iter().find(|e| e.id == element);
-    if let Some(e) = found.filter(|e| !LOOK_CATEGORIES.contains(&e.category)) {
-        return Err(ServiceError::NotLookElement(e.name.clone()));
-    }
-
-    let look = look_mut(project, look)?;
-    if !look.elements.iter().any(|e| e == element) {
-        look.elements.push(element.to_owned());
-    }
-
-    Ok(())
-}
-
-/// The element of that name and category, made if there is none, goes into the look. Refused
-/// for any category but costume and make-up, before anything is made.
+/// The element of that name and category, made if there is none, goes into the look once.
+/// Refused for any category but costume and make-up, before anything is made.
 fn add_to_look(
     project: &mut Project,
     look: &str,
@@ -142,7 +123,12 @@ fn add_to_look(
     }
     let id = found_or_new(project, category, name)?;
 
-    add_look_element(project, look, &id)
+    let look = look_mut(project, look)?;
+    if !look.elements.contains(&id) {
+        look.elements.push(id);
+    }
+
+    Ok(())
 }
 
 fn remove_look_element(

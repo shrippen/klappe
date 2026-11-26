@@ -44,15 +44,11 @@ EditorPane {
         return (elements.find(e => e.id === id) || { status: "open" }).status
     }
 
-    // The element of that name goes into the look; one that is not there yet is made first.
+    // The element of that name goes into the look; the session takes the one it knows by that
+    // name or makes it.
     function add(category, name) {
         const text = name.trim()
         if (text === "" || !item) {
-            return
-        }
-        const known = elements.find(e => e.category === category && e.name.toLowerCase() === text.toLowerCase())
-        if (known) {
-            controller.addLookElement(item.id, known.id)
             return
         }
         controller.addElementToLook(item.id, category, text)

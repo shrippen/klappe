@@ -263,17 +263,6 @@ impl qobject::Controller {
         })))
     }
 
-    pub(super) fn add_look_element(
-        self: Pin<&mut Self>,
-        look: &QString,
-        element: &QString,
-    ) -> bool {
-        self.commit_project(Ok(ProjectEdit::Breakdown(BreakdownEdit::AddLookElement {
-            look: look.to_string(),
-            element: element.to_string(),
-        })))
-    }
-
     pub(super) fn add_element_to_look(
         self: Pin<&mut Self>,
         look: &QString,
