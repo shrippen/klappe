@@ -22,7 +22,7 @@
 mod versions;
 
 use clap::builder::{PossibleValuesParser, TypedValueParser};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use klappe_services::{
     builtin_camera_presets, error_text, load_notes_text, read_number, ExportFormat, ExportOptions,
     Field, HeaderLine, Language, OnOutside, Orientation, Paper, PaperSetup, Range, Report,
@@ -37,6 +37,44 @@ use std::process::ExitCode;
 struct Cli {
     #[command(subcommand)]
     command: Command,
+}
+
+/// The flags of `export`.
+#[derive(Debug, Args)]
+struct ExportArgs {
+    /// The project folder.
+    #[arg(long)]
+    project: PathBuf,
+    /// The scene's number as in the script, e.g. 12 or 12A.
+    #[arg(long)]
+    scene: String,
+    /// The plan's id; the scene's first plan if left out.
+    #[arg(long)]
+    plan: Option<String>,
+    /// Seconds into the scene.
+    #[arg(long, default_value_t = 0.0)]
+    at: f64,
+    /// Sheet size; the project's own (A4 if never chosen) if left out.
+    #[arg(long, value_parser = paper_arg)]
+    paper: Option<Paper>,
+    /// Sheet orientation; the project's own (landscape if never chosen) if left out.
+    #[arg(long, value_parser = orientation_arg)]
+    orientation: Option<Orientation>,
+    /// Language of the legend; the system's if left out.
+    #[arg(long, value_enum)]
+    language: Option<LanguageArg>,
+    /// Taken from the extension of --out if left out; `frames` and `camera` are never guessed.
+    /// `frames`: one PNG per mark into the folder --out, --at is ignored. `camera`: what
+    /// --camera sees at --at, 1920 px wide. `mp4`: the playback as 1920x1080 video, 25 fps,
+    /// written by the installed ffmpeg; --at, --paper and --orientation are ignored.
+    #[arg(long, value_parser = format_arg())]
+    format: Option<ExportFormat>,
+    /// The camera `--format camera` shows.
+    #[arg(long)]
+    camera: Option<String>,
+    /// The file to write; the folder for `--format frames`.
+    #[arg(long)]
+    out: PathBuf,
 }
 
 #[derive(Debug, Subcommand)]
@@ -54,41 +92,7 @@ enum Command {
     /// The plan of a scene at a time as PDF (with shot list), SVG or PNG (LH-80, LH-81); the shot
     /// list as ODS or XLSX (LH-85); the plan at every mark as PNGs in a folder (LH-83); what a
     /// camera sees at a time as PNG (LH-86); the playback as MP4 (LH-84).
-    Export {
-        /// The project folder.
-        #[arg(long)]
-        project: PathBuf,
-        /// The scene's number as in the script, e.g. 12 or 12A.
-        #[arg(long)]
-        scene: String,
-        /// The plan's id; the scene's first plan if left out.
-        #[arg(long)]
-        plan: Option<String>,
-        /// Seconds into the scene.
-        #[arg(long, default_value_t = 0.0)]
-        at: f64,
-        /// Sheet size; the project's own (A4 if never chosen) if left out.
-        #[arg(long, value_parser = paper_arg)]
-        paper: Option<Paper>,
-        /// Sheet orientation; the project's own (landscape if never chosen) if left out.
-        #[arg(long, value_parser = orientation_arg)]
-        orientation: Option<Orientation>,
-        /// Language of the legend; the system's if left out.
-        #[arg(long, value_enum)]
-        language: Option<LanguageArg>,
-        /// Taken from the extension of --out if left out; `frames` and `camera` are never guessed.
-        /// `frames`: one PNG per mark into the folder --out, --at is ignored. `camera`: what
-        /// --camera sees at --at, 1920 px wide. `mp4`: the playback as 1920x1080 video, 25 fps,
-        /// written by the installed ffmpeg; --at, --paper and --orientation are ignored.
-        #[arg(long, value_parser = format_arg())]
-        format: Option<ExportFormat>,
-        /// The camera `--format camera` shows.
-        #[arg(long)]
-        camera: Option<String>,
-        /// The file to write; the folder for `--format frames`.
-        #[arg(long)]
-        out: PathBuf,
-    },
+    Export(ExportArgs),
     /// A report (DB-61) as PDF, CSV, ODS or XLSX, by the extension of --out: the scenes, the
     /// scripted locations with their shooting locations, the characters by scene, or the
     /// extract of the breakdown.
@@ -198,7 +202,7 @@ struct ExportJob {
 fn main() -> ExitCode {
     match Cli::parse().command {
         Command::Fov { lens, sensor } => fov(lens, &sensor),
-        command @ Command::Export { .. } => export_command(command),
+        Command::Export(args) => export_command(args),
         Command::Report {
             project,
             report,
@@ -242,8 +246,8 @@ fn main() -> ExitCode {
 }
 
 /// Checks the export flags and runs the export.
-fn export_command(command: Command) -> ExitCode {
-    let Command::Export {
+fn export_command(args: ExportArgs) -> ExitCode {
+    let ExportArgs {
         project,
         scene,
         plan,
@@ -254,10 +258,7 @@ fn export_command(command: Command) -> ExitCode {
         format,
         camera,
         out,
-    } = command
-    else {
-        unreachable!("only called for export");
-    };
+    } = args;
     let language = language_of(language);
     let Some(format) = format.or_else(|| format_of(&out)) else {
         let path = format!("{out:?}");
