@@ -681,3 +681,20 @@ fn a_value_is_written_without_blank_lines() {
 
     assert_eq!(text, "Contact:\n   Eva\n   Weg 1\n\nINT. A\n\nx\n");
 }
+
+/// A key the title page has keeps its place and spelling; a line left empty in its new value
+/// is not written either.
+#[test]
+fn an_existing_key_is_set_without_blank_lines() {
+    let fields = vec![("Contact".to_owned(), "Eva\n\nWeg 1".to_owned())];
+
+    let text = set_title_fields(
+        "Title: T\ncontact: Alt\nAuthor: A\n\nINT. A\n\nx\n",
+        &fields,
+    );
+
+    assert_eq!(
+        text,
+        "Title: T\ncontact:\n   Eva\n   Weg 1\nAuthor: A\n\nINT. A\n\nx\n"
+    );
+}

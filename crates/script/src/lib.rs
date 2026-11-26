@@ -45,7 +45,7 @@ pub use parse::{
 pub use quote::{find_quote, find_quotes, quote_at, Found, LineKind, Quote};
 pub use search::{find_all, replace_hits, Case, Hit, Query, Splice};
 pub use text::normal;
-pub use title::{set_title_fields, title_fields, without_blank_lines, TITLE_KEYS};
+pub use title::{set_title_fields, title_fields, TITLE_KEYS};
 pub use write::write;
 
 /// One block of a screenplay.

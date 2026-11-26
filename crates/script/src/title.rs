@@ -15,7 +15,7 @@ pub const TITLE_KEYS: [&str; 6] = [
 ];
 
 /// The value without empty lines (a new line left empty, `Contact:` with a gap).
-pub fn without_blank_lines(value: &str) -> String {
+fn without_blank_lines(value: &str) -> String {
     let lines: Vec<&str> = value.lines().filter(|l| !l.trim().is_empty()).collect();
 
     lines.join("\n")

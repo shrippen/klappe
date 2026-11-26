@@ -1,7 +1,7 @@
 //! The title page form (`Ctrl+T`): Title, Credit, Author, Source, Draft date, Contact,
 //! stored as the Fountain title page at the top of the text.
 
-use klappe_services::{set_title_fields, title_fields, without_blank_lines};
+use klappe_services::{set_title_fields, title_fields};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{App, Flow, Mode};
@@ -101,4 +101,11 @@ impl App {
         self.pending = None;
         self.built_for = None;
     }
+}
+
+/// The value without empty lines (a new line left empty, `Contact:` with a gap).
+fn without_blank_lines(value: &str) -> String {
+    let lines: Vec<&str> = value.lines().filter(|l| !l.trim().is_empty()).collect();
+
+    lines.join(LINE)
 }
