@@ -9,7 +9,7 @@
 
 use klappe_model::PageStart;
 
-use super::block::{sentence_starts, Block, Hit};
+use super::block::{Block, Hit};
 use super::{Pagination, Words};
 use crate::lcs::unpaired;
 use crate::{Element, Located};
@@ -90,60 +90,19 @@ fn line_map(old: &[String], new: &[String]) -> Vec<Option<usize>> {
         .collect()
 }
 
-/// Where `offset` of the line `old` lies in the line `new`: unchanged text before the first
-/// change keeps its place, text behind the last change moves by the change in length, and
-/// within the change it keeps its share of it.
-fn follow(offset: usize, old: &str, new: &str) -> usize {
-    let (old_b, new_b) = (old.as_bytes(), new.as_bytes());
-    let same = old_b.iter().zip(new_b).take_while(|(a, b)| a == b).count();
-    let tail = old_b[same..]
-        .iter()
-        .rev()
-        .zip(new_b[same..].iter().rev())
-        .take_while(|(a, b)| a == b)
-        .count();
-
-    if offset <= same {
-        return offset;
-    }
-    if offset >= old.len() - tail {
-        return offset + new.len() - old.len();
-    }
-
-    let (old_mid, new_mid) = (old.len() - tail - same, new.len() - tail - same);
-
-    same + (offset - same) * new_mid / old_mid
-}
-
-/// Where a start at `offset` of the line `old` goes in the line `new`: the sentence start
-/// nearest to where the text it starts has gone, behind `floor`, so no page starts within a
-/// sentence (DB-31). Without one: the start of the line.
-fn snapped(offset: usize, old: &str, new: &str, floor: usize) -> usize {
-    let goal = follow(offset, old, new);
-
-    sentence_starts(new)
-        .into_iter()
-        .filter(|&at| at > floor)
-        .min_by_key(|&at| at.abs_diff(goal))
-        .unwrap_or(0)
-}
-
 /// The starts of a locked version's pages (`starts`, in the text `old`) as they stand in the
 /// text `new`: a start moves with its line, one on a line that is gone moves to the next
 /// line that is kept, one with no such line (and the pages struck at the end) goes to the
 /// end. The first page starts at the top. A start on a changed line moves to the changed
 /// lines right before the next kept one. A start within a line keeps its place only if the
-/// line is unchanged. Else it moves to the start of the line, but when several starts share
-/// the line, each moves to the sentence start nearest its share of the line, behind the
-/// start before it (none: the start of the line).
+/// line is unchanged, else it moves to the start of the line.
 pub fn carry(old: &str, new: &str, starts: &[PageStart]) -> Vec<PageStart> {
     let (old, new) = (lines_of(old), lines_of(new));
     let map = line_map(&old, &new);
     let mut kept = vec![false; new.len()];
     map.iter().flatten().for_each(|&j| kept[j] = true);
 
-    let moved = |start: &PageStart, before: Option<(usize, usize)>| {
-        let crowded = starts.iter().filter(|s| s.line == start.line).count() > 1;
+    let moved = |start: &PageStart| {
         let found = (start.line..old.len()).find_map(|i| Some((i, map[i]?)));
         let Some((at, line)) = found else {
             return (new.len(), 0);
@@ -161,34 +120,25 @@ pub fn carry(old: &str, new: &str, starts: &[PageStart]) -> Vec<PageStart> {
             first -= 1;
         }
 
-        // Several starts in one changed line, once it is a single line again: they keep
-        // their share of it, else they all fall on its start and leave pages empty.
-        if crowded && line - first == 1 {
-            let floor = before.filter(|b| b.0 == first).map_or(0, |b| b.1);
-            let offset = snapped(start.offset, &old[start.line], &new[first], floor);
-
-            return (first, offset);
-        }
-
         (first, 0)
     };
 
-    let mut carried: Vec<PageStart> = Vec::new();
-    for (i, start) in starts.iter().enumerate() {
-        let before = carried.last().map(|b| (b.line, b.offset));
-        let (line, offset) = match i {
-            0 => (0, 0),
-            _ => moved(start, before),
-        };
+    starts
+        .iter()
+        .enumerate()
+        .map(|(i, start)| {
+            let (line, offset) = match i {
+                0 => (0, 0),
+                _ => moved(start),
+            };
 
-        carried.push(PageStart {
-            label: start.label.clone(),
-            line,
-            offset,
-        });
-    }
-
-    carried
+            PageStart {
+                label: start.label.clone(),
+                line,
+                offset,
+            }
+        })
+        .collect()
 }
 
 /// Where each page of `pages` starts in the text of `located` (of `line_count` lines), to lock
