@@ -118,11 +118,7 @@ fn scan(line: &str, in_boneyard: bool) -> Scan {
         }
         if c == ESCAPE {
             // An escaped character is text inside the emphasis it stands in.
-            for m in marks.iter_mut().skip(at).take(2) {
-                m.bold = now.bold;
-                m.italic = now.italic;
-                m.underline = now.underline;
-            }
+            paint(&mut marks, at, 2, now, now);
             at += 2;
             continue;
         }
@@ -134,11 +130,7 @@ fn scan(line: &str, in_boneyard: bool) -> Scan {
             _ => 1,
         };
         // The marks of an emphasis count to it, the opening and the closing one.
-        for m in marks.iter_mut().skip(at).take(step) {
-            m.bold = before.bold || now.bold;
-            m.italic = before.italic || now.italic;
-            m.underline = before.underline || now.underline;
-        }
+        paint(&mut marks, at, step, before, now);
         // A mark that changed the emphasis is a mark; any other is text.
         if now != before {
             toggles[at..at + step].iter_mut().for_each(|t| *t = true);
@@ -150,6 +142,15 @@ fn scan(line: &str, in_boneyard: bool) -> Scan {
         marks,
         toggles,
         boneyard,
+    }
+}
+
+/// Gives `len` characters from `at` the emphasis that holds before or after them.
+fn paint(marks: &mut [Marks], at: usize, len: usize, before: Marks, now: Marks) {
+    for m in marks.iter_mut().skip(at).take(len) {
+        m.bold = before.bold || now.bold;
+        m.italic = before.italic || now.italic;
+        m.underline = before.underline || now.underline;
     }
 }
 
