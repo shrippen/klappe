@@ -15,6 +15,8 @@ use crate::palette::{palette, Theme};
 use crate::shots::{csv_of, Kind, Table};
 use crate::{ods, pdf, report_sheets, sheet, xlsx};
 
+const LINE_END: &str = "\r\n";
+
 /// A report as text: its title, the head row and the rows.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReportTable {
@@ -60,19 +62,65 @@ pub fn report_csv(report: &ReportTable) -> String {
 
 /// The report as OpenDocument spreadsheet.
 pub fn report_ods(report: &ReportTable) -> Result<Vec<u8>, ExportError> {
-    ods::write(&[worksheet(report)])
+    tables_ods(std::slice::from_ref(report))
 }
 
 /// The report as Excel workbook.
 pub fn report_xlsx(report: &ReportTable) -> Result<Vec<u8>, ExportError> {
-    xlsx::write(&[worksheet(report)])
+    tables_xlsx(std::slice::from_ref(report))
 }
 
 /// The report as PDF 1.4 on A4 landscape sheets; the head row repeats on every sheet.
 pub fn report_pdf(report: &ReportTable, theme: Theme) -> Result<Vec<u8>, ExportError> {
-    let pal = palette(theme)?;
+    tables_pdf(std::slice::from_ref(report), theme)
+}
 
-    write_sheets(report_sheets::table_sheets(report, pal), theme)
+/// A report of several tables as CSV: each table is its title on a line, its head and its
+/// rows, a blank line between two tables (a CSV file has no sheets).
+pub fn tables_csv(tables: &[ReportTable]) -> String {
+    let parts: Vec<String> = tables
+        .iter()
+        .map(|t| {
+            let title = ReportTable {
+                title: String::new(),
+                head: vec![t.title.clone()],
+                rows: Vec::new(),
+            };
+
+            report_csv(&title) + &report_csv(t)
+        })
+        .collect();
+
+    parts.join(LINE_END)
+}
+
+/// A report of several tables as OpenDocument spreadsheet: a worksheet per table.
+pub fn tables_ods(tables: &[ReportTable]) -> Result<Vec<u8>, ExportError> {
+    let sheets: Vec<_> = tables.iter().map(worksheet).collect();
+
+    ods::write(&sheets)
+}
+
+/// A report of several tables as Excel workbook: a worksheet per table.
+pub fn tables_xlsx(tables: &[ReportTable]) -> Result<Vec<u8>, ExportError> {
+    let sheets: Vec<_> = tables.iter().map(worksheet).collect();
+
+    xlsx::write(&sheets)
+}
+
+/// A report of several tables as PDF 1.4: each table starts on a sheet of its own. No table is
+/// `ExportError::EmptyPlan`.
+pub fn tables_pdf(tables: &[ReportTable], theme: Theme) -> Result<Vec<u8>, ExportError> {
+    if tables.is_empty() {
+        return Err(ExportError::EmptyPlan);
+    }
+    let pal = palette(theme)?;
+    let sheets = tables
+        .iter()
+        .flat_map(|t| report_sheets::table_sheets(t, pal))
+        .collect();
+
+    write_sheets(sheets, theme)
 }
 
 /// The extract as PDF 1.4: a page of A4 portrait for each of `pages`, more where a scene's

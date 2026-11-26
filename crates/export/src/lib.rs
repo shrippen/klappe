@@ -53,8 +53,8 @@ pub use page::{
 };
 pub use palette::Theme;
 pub use report::{
-    extract_pdf, report_csv, report_ods, report_pdf, report_xlsx, ExtractBox, ExtractPage,
-    ReportTable,
+    extract_pdf, report_csv, report_ods, report_pdf, report_xlsx, tables_csv, tables_ods,
+    tables_pdf, tables_xlsx, ExtractBox, ExtractPage, ReportTable,
 };
 pub use script::{
     Face, Placed, Revised, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, SheetPage, TitlePage,
