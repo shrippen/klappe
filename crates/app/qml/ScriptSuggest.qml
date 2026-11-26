@@ -17,11 +17,12 @@ QQC2.Popup {
 
     required property var flow
     required property var area
+    required property var doc
     required property var texts
 
     readonly property var options: flow.suggestions ? flow.suggestions.options : []
     // Under the cursor's line, at the cursor.
-    readonly property rect caret: area.positionToRectangle(area.cursorPosition)
+    readonly property rect caret: doc.rectOf(doc.cursor)
 
     parent: area
     x: caret.x
