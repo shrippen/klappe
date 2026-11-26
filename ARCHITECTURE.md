@@ -131,6 +131,5 @@ A change that needs more places than listed is a finding for the audit.
 ## Known deviations
 
 - The window's screenplay editor (`ScreenplayView.qml`) lacks what the terminal editor has:
-  the title page form, and folding the outline and moving scenes
-  (`planung/STAND.md`). Its undo is the editor's own text history
+  the title page form (`planung/STAND.md`). Its undo is the editor's own text history
   (`scripthistory.h`), not the session's.

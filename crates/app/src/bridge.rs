@@ -510,6 +510,21 @@ pub mod qobject {
         #[cxx_name = "scriptBreaksJson"]
         fn script_breaks_json(self: Pin<&mut Self>) -> QString;
 
+        /// The outline of the screenplay for the scene list: `[{ kind, level, depth, line, end,
+        /// text, number, length, key, folded }]`, `kind` `section`, `scene` or `synopsis`, `length` from
+        /// the last layout (a section's the total of its scenes). `folded` is a JSON array of the
+        /// `key`s of the folded sections; what they hold is left out.
+        #[qinvokable]
+        #[cxx_name = "scriptOutlineJson"]
+        fn script_outline_json(self: Pin<&mut Self>, folded: &QString) -> QString;
+
+        /// Moves the scene or section at text line `line` one place, `way` `up` or `down`
+        /// (DB-21): `{ from, to, lines, line }`, the text lines `from..to` to be replaced by
+        /// `lines`, `line` where the block starts then; empty where it cannot move. Changes
+        /// nothing itself: the editor applies it as one edit.
+        #[qinvokable]
+        #[cxx_name = "moveOutline"]
+        fn move_outline(self: Pin<&mut Self>, line: i32, way: &QString) -> QString;
         /// The locked versions of the screenplay (DB-40) and the colour of the revision since the
         /// last one: `{ versions: [{ id, name, date, color, colorName }], next: { color,
         /// colorName } | null }`; `color` is the file's name of the colour (`blue`), `colorName`

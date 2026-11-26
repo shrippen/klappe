@@ -175,6 +175,22 @@ pub fn visible(entries: &[Entry], collapsed: &dyn Fn(&Entry) -> bool, filter: &s
     shown
 }
 
+/// Indices of the sections around entry `index`, the nearest first.
+pub fn sections_around(entries: &[Entry], index: usize) -> Vec<usize> {
+    let mut depth = entries[index].depth;
+    let mut found = Vec::new();
+
+    for (i, entry) in entries[..index].iter().enumerate().rev() {
+        if !matches!(entry.kind, EntryKind::Section(_)) || entry.depth >= depth {
+            continue;
+        }
+        found.push(i);
+        depth = entry.depth;
+    }
+
+    found
+}
+
 fn inside_hit(entries: &[Entry], section: usize, hit: &dyn Fn(&Entry) -> bool) -> bool {
     let end = entries[section].end;
 
