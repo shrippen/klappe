@@ -97,11 +97,6 @@ TestCase {
         fake.script = { language: "en", words: "local", paper: "a4", contd_after_action: false,
                         scene_numbering: "locked", first_scene: 1 }
         verify(!findChild(form, "wordsBox").enabled)
-
-        fake.script = { language: "", words: "local", paper: "a4", contd_after_action: false,
-                        scene_numbering: "locked", first_scene: 1 }
-        verify(!findChild(form, "wordsBox").enabled)
-        compare(findChild(form, "languageBox").currentIndex, -1)
     }
 
     // The first number counts only while Klappe numbers.

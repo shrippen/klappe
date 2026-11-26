@@ -27,7 +27,8 @@ ColumnLayout {
     readonly property var languages: ["de", "en"]
     readonly property var wordSets: ["local", "international"]
     readonly property var numberings: ["automatic", "locked"]
-    /// A not yet chosen language shows no segment; the words are German ones only then.
+    /// `script.language` is the effective one (the project's, else the window's); the words are
+    /// a choice for German only.
     readonly property bool german: script.language === "de"
     readonly property bool automatic: script.scene_numbering === "automatic"
 
