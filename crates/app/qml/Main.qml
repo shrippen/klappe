@@ -109,6 +109,10 @@ Kirigami.ApplicationWindow {
                 onTemplateExportRequested: templateExportDialog.open()
                 onBackgroundRequested: backgroundDialog.open()
                 onScriptImportRequested: scriptImport.start()
+                onTitlePageRequested: {
+                    root.openModule("screenplay")
+                    screenplay.showTitlePage()
+                }
                 onVersionRequested: what => what === "lock" ? screenplay.askLock() : screenplay.askCompare("")
                 onFlushRequested: screenplay.flush()
                 onViewToggled: (area, shown) => {
@@ -289,6 +293,7 @@ Kirigami.ApplicationWindow {
 
                     ScreenplayView {
                         id: screenplay
+                        objectName: "screenplay"
                         visible: ctl.loaded && root.module === "screenplay"
                         enabled: !backupNotice.blocking
                         Layout.fillWidth: true

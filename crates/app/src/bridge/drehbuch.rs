@@ -7,11 +7,11 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     can_suggest, enter_step, error_text, heading_like, length_text, move_entry, outline,
-    parse_located, sections_around, suggest, tab_step, text_kinds, typed_caps, visible_entries,
-    Align, Context, EnterStep, Gap, HeaderLine, ImportReport, Laid, MoveWay, OutlineEntry,
-    OutlineKind, PrintFace, Revisions, SceneNumbering, SceneNumbers, SceneSpan, ScriptLanguage,
-    ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords, SheetPage, Slot, Stage,
-    TextKind, Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    parse_located, sections_around, set_title_fields, suggest, tab_step, text_kinds, title_fields,
+    typed_caps, visible_entries, Align, Context, EnterStep, Gap, HeaderLine, ImportReport, Laid,
+    MoveWay, OutlineEntry, OutlineKind, PrintFace, Revisions, SceneNumbering, SceneNumbers,
+    SceneSpan, ScriptLanguage, ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords,
+    SheetPage, Slot, Stage, TextKind, Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -200,6 +200,30 @@ pub(super) fn breaks_json(pages: Option<&ScriptPages>) -> String {
     json!({ "pages": pages.pages, "breaks": breaks, "scenes": scenes }).to_string()
 }
 
+/// The title page fields of `text` as one JSON object by key.
+pub(super) fn title_json(text: &str) -> String {
+    let fields: Map<String, Value> = title_fields(text)
+        .into_iter()
+        .map(|(key, value)| (key, json!(value)))
+        .collect();
+
+    Value::Object(fields).to_string()
+}
+
+/// `text` with the fields of the JSON object `fields` set; text unchanged for JSON that
+/// is no object.
+pub(super) fn title_set(text: &str, fields: &str) -> String {
+    let Ok(Value::Object(map)) = serde_json::from_str::<Value>(fields) else {
+        return text.to_owned();
+    };
+    let pairs: Vec<(String, String)> = map
+        .into_iter()
+        .filter_map(|(key, value)| Some((key, value.as_str()?.to_owned())))
+        .collect();
+
+    set_title_fields(text, &pairs)
+}
+
 /// The page span of the scene `index` of `entries` in the last layout: by position while the
 /// layout has as many scenes as the text, else by the heading's line (typing since).
 fn span_of<'a>(
@@ -347,6 +371,14 @@ impl qobject::Controller {
 
     pub(super) fn script_looks(&self) -> QString {
         q(&looks_json())
+    }
+
+    pub(super) fn title_fields(&self, text: &QString) -> QString {
+        q(&title_json(&text.to_string()))
+    }
+
+    pub(super) fn title_text(&self, text: &QString, fields: &QString) -> QString {
+        q(&title_set(&text.to_string(), &fields.to_string()))
     }
 
     pub(super) fn script_print_json(mut self: Pin<&mut Self>) -> QString {

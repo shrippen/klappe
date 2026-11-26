@@ -1,6 +1,6 @@
 use super::{
     breaks_json, enter_json, kinds_text, looks_json, move_json, outline_json, print_json,
-    report_json, suggest_json, tab_json, ImportReport,
+    report_json, suggest_json, tab_json, title_json, title_set, ImportReport,
 };
 
 /// Enter at the end of a heading opens an action after a blank line; at the end of a cue
@@ -308,4 +308,37 @@ fn at_most_eight_suggestions_show() {
         serde_json::from_str(&suggest_json(&format!("{names}FIG"), 36, "c", "")).unwrap();
 
     assert_eq!(found["options"].as_array().map(Vec::len), Some(8));
+}
+
+/// The form reads the title page by key and writes it back; an emptied field leaves the
+/// text, the body stays, and JSON that is no object changes nothing.
+#[test]
+fn the_title_page_goes_through_json() {
+    let text = "Title: Heimat\nContact: A\n  B\n\nINT. SAAL\n";
+
+    let v: serde_json::Value = serde_json::from_str(&title_json(text)).unwrap();
+    assert_eq!(v["Title"], "Heimat");
+    assert_eq!(v["Contact"], "A\nB");
+    assert_eq!(v["Author"], "");
+
+    let set = title_set(text, r#"{"Title":"Neu","Contact":"","Author":"Anna"}"#);
+    let v: serde_json::Value = serde_json::from_str(&title_json(&set)).unwrap();
+    assert_eq!(v["Title"], "Neu");
+    assert_eq!(v["Author"], "Anna");
+    assert_eq!(v["Contact"], "");
+    assert!(set.ends_with("INT. SAAL\n"));
+    assert!(!set.contains("Contact"));
+
+    assert_eq!(title_set(text, "nonsense"), text);
+}
+
+/// An empty line in a field (Contact: "Eva", "", "Weg 1") does not reach the text, as in
+/// the terminal's form.
+#[test]
+fn blank_lines_of_a_field_are_dropped() {
+    let set = title_set("INT. SAAL\n", r#"{"Contact":"Eva\n\nWeg 1"}"#);
+
+    let v: serde_json::Value = serde_json::from_str(&title_json(&set)).unwrap();
+    assert_eq!(v["Contact"], "Eva\nWeg 1");
+    assert_eq!(set, "Contact:\n   Eva\n   Weg 1\n\nINT. SAAL\n");
 }

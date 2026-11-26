@@ -69,6 +69,8 @@ TestCase {
         }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
+        // The title is the text's first line after "Title: ", if there is one.
+        function titleFields(text) { return JSON.stringify({ "Title": text.startsWith("Title: ") ? text.split("\n")[0].slice(7) : "", "Credit": "", "Author": "", "Source": "", "Draft date": "", "Contact": "" }) }
         function scriptSuggest(text, line, kind, pending) { return "" }
         // Search (DB-07) by a plain `indexOf` without case; the rules are `script/`'s, tested there.
         // A speaker keeps the hits below their cue: the last line in capitals above the hit.
@@ -452,6 +454,40 @@ TestCase {
 
         compare(view.layout, "flow")
         verify(view.area.activeFocus)
+    }
+
+    // DB-06: the title page is the top card above the flowing text, folded; not beside the pages.
+    function test_the_title_card_stands_above_the_text() {
+        const view = make()
+        const card = findChild(view, "titleCard")
+
+        verify(card.visible)
+        verify(card.collapsed)
+        verify(card.y + card.height <= view.area.mapToItem(view, 0, 0).y)
+        compare(view.titleCard, card)
+        view.showLayout("print")
+        verify(!card.visible)
+        view.showTitlePage()
+        compare(view.layout, "flow")
+        verify(!card.collapsed)
+    }
+
+    // Review of PR 356: another text from outside (another project, an import) drops what is
+    // typed in the card; else it showed and applied the other project's title page.
+    function test_a_new_text_drops_what_is_typed_in_the_card() {
+        fake.scriptText = "Title: Heimat\n\nINT. SAAL\n"
+        const view = make()
+        const card = findChild(view, "titleCard")
+        compare(findChild(card, "field.Title").text, "Heimat")
+        card.setField("Author", "Anna")
+        verify(card.dirty)
+
+        fake.scriptText = "INT. KELLER\n"
+
+        verify(!card.dirty)
+        compare(findChild(card, "field.Title").text, "")
+        compare(findChild(card, "field.Author").text, "")
+        compare(card.title, "Titelseite · leer")
     }
 
     // Review of PR 279: 60 columns are as wide as 60 columns of the page at any size (the size

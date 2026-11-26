@@ -14,6 +14,13 @@ pub const TITLE_KEYS: [&str; 6] = [
     "Contact",
 ];
 
+/// The value without empty lines (a new line left empty, `Contact:` with a gap).
+fn without_blank_lines(value: &str) -> String {
+    let lines: Vec<&str> = value.lines().filter(|l| !l.trim().is_empty()).collect();
+
+    lines.join("\n")
+}
+
 /// A key as compared: no case, no spaces.
 fn same_key(a: &str, b: &str) -> bool {
     let plain = |s: &str| {
@@ -60,7 +67,7 @@ fn merged(old: Vec<(String, String)>, fields: &[(String, String)]) -> Vec<(Strin
         let new = fields.iter().find(|(k, _)| same_key(k, TITLE_KEYS[rank]));
         match new {
             Some((_, v)) if v.trim().is_empty() => {}
-            Some((_, v)) => pairs.push((key, v.trim().to_owned())),
+            Some((_, v)) => pairs.push((key, without_blank_lines(v.trim()))),
             None => pairs.push((key, value)),
         }
     }
@@ -80,7 +87,7 @@ fn merged(old: Vec<(String, String)>, fields: &[(String, String)]) -> Vec<(Strin
             .iter()
             .rposition(|(k, _)| rank(k).is_some_and(|r| r < rank(key).unwrap_or(0)))
             .map_or(0, |i| i + 1);
-        pairs.insert(at, (key.to_owned(), value.to_owned()));
+        pairs.insert(at, (key.to_owned(), without_blank_lines(value)));
     }
 
     pairs

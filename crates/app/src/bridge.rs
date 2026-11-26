@@ -463,6 +463,19 @@ pub mod qobject {
         #[cxx_name = "typedCaps"]
         fn typed_caps(self: &Self, text: &QString, at: i32, pending: &QString) -> QString;
 
+        /// The six title page fields of `text` as `{ "Title": …, "Credit": …, "Author": …,
+        /// "Source": …, "Draft date": …, "Contact": … }`, `""` for a missing one.
+        #[qinvokable]
+        #[cxx_name = "titleFields"]
+        fn title_fields(self: &Self, text: &QString) -> QString;
+
+        /// `text` with its title page fields set from `fields`, a JSON object as `titleFields`
+        /// gives it; an empty field is left out, the rest of the text stays. Changes nothing
+        /// in the session: the editor puts the result in place (one undo step of its own).
+        #[qinvokable]
+        #[cxx_name = "titleText"]
+        fn title_text(self: &Self, text: &QString, fields: &QString) -> QString;
+
         /// The cue names of `text`, most frequent first, as `["ANNA", …]` (the choices of
         /// "only dialogue of" in the search).
         #[qinvokable]

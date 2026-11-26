@@ -52,6 +52,14 @@ Item {
             return fail("module request: " + window.module)
         }
 
+        // DB-06: File > Title page unfolds the card in the screenplay, from any module.
+        header.moduleRequested("stellprobe")
+        header.titlePageRequested()
+        const screenplay = find(window.contentItem, "screenplay")
+        if (window.module !== "screenplay" || !screenplay || screenplay.titleCard.collapsed) {
+            return fail("title page request: " + window.module)
+        }
+
         // The breakdown (D-22) is the third module.
         header.moduleRequested("breakdown")
         if (window.module !== "breakdown" || header.module !== "breakdown") {

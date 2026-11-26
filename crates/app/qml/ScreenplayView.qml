@@ -44,6 +44,7 @@ RowLayout {
     readonly property var layouts: ["flow", "print"]
     property string layout: "flow"
     readonly property alias printView: printView
+    readonly property alias titleCard: titleCard
     /// The last layout's page starts: `{ pages, breaks: [{ page, line }], scenes: [{ line, page }] }`
     /// (`scriptBreaksJson`). Shown as lines in the flowing text, used to find a scene's page.
     property var pageMap: ({ pages: 0, breaks: [], scenes: [] })
@@ -312,6 +313,13 @@ RowLayout {
     /// down the view (a third), so the lines before it show too.
     readonly property int hitMarginLines: 2
     readonly property real hitHeight: 1 / 3
+    /// Unfolds the title page card (DB-06) over the flowing text, with the cursor in its first
+    /// field; the pages as they print give way to the text for it.
+    function showTitlePage() {
+        showLayout("flow")
+        titleCard.show()
+    }
+
     /// Selects `from` to `to` and scrolls it into view (a hit of the search).
     function showText(from, to) {
         showLayout("flow")
@@ -430,6 +438,9 @@ RowLayout {
         area.text = controller.scriptText
         _loading = false
         restyle()
+        // Another text from outside (another project, an import): what is typed in the card was
+        // for the old one.
+        titleCard.discard()
         if (tools.item) {
             tools.item.forget()
         }
@@ -453,6 +464,8 @@ RowLayout {
         }
         function onScriptTextChanged() {
             view.load()
+            // Typing reaches here after its pause: the card shows the title block as it stands.
+            titleCard.follow()
             if (view.layout === "print") {
                 printView.refresh()
             }
@@ -581,6 +594,23 @@ RowLayout {
             }
         }
 
+        // The title page (DB-06): the top card above the flowing text, as wide as the text.
+        TitleCard {
+            id: titleCard
+            objectName: "titleCard"
+            visible: view.layout === "flow"
+            Layout.alignment: Qt.AlignHCenter
+            Layout.fillWidth: true
+            Layout.maximumWidth: metrics.averageCharacterWidth * view.columns + area.leftPadding + area.rightPadding
+            Layout.bottomMargin: Kirigami.Units.smallSpacing
+            texts: view.texts
+            controller: view.controller
+            area: area
+            putText: view.putText
+            onApplied: area.forceActiveFocus()
+            onDismissed: area.forceActiveFocus()
+        }
+
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -616,6 +646,9 @@ RowLayout {
                 visible: view.layout === "print" && area.text !== ""
                 controller: view.controller
                 texts: view.texts
+                // A title page comes before the pages the layout counts.
+                titleIndex: sheet.pages.length > view.pageMap.pages ? 0 : -1
+                onTitlePageClicked: view.showTitlePage()
             }
 
             // Without text the view says why and offers the next step (D-17); it gives way to the
