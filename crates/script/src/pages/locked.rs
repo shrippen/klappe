@@ -90,6 +90,16 @@ fn line_map(old: &[String], new: &[String]) -> Vec<Option<usize>> {
         .collect()
 }
 
+/// `offset` in `old` as the same share of `new`, on a character boundary.
+fn scaled(offset: usize, old: &str, new: &str) -> usize {
+    let mut at = (offset * new.len()).checked_div(old.len()).unwrap_or(0);
+    while !new.is_char_boundary(at) {
+        at -= 1;
+    }
+
+    at
+}
+
 /// The starts of a locked version's pages (`starts`, in the text `old`) as they stand in the
 /// text `new`: a start moves with its line, one on a line that is gone moves to the next
 /// line that is kept, one with no such line (and the pages struck at the end) goes to the
@@ -103,6 +113,7 @@ pub fn carry(old: &str, new: &str, starts: &[PageStart]) -> Vec<PageStart> {
     map.iter().flatten().for_each(|&j| kept[j] = true);
 
     let moved = |start: &PageStart| {
+        let crowded = starts.iter().filter(|s| s.line == start.line).count() > 1;
         let found = (start.line..old.len()).find_map(|i| Some((i, map[i]?)));
         let Some((at, line)) = found else {
             return (new.len(), 0);
@@ -118,6 +129,12 @@ pub fn carry(old: &str, new: &str, starts: &[PageStart]) -> Vec<PageStart> {
         let mut first = line;
         while first > 0 && !kept[first - 1] && !new[first - 1].is_empty() {
             first -= 1;
+        }
+
+        // Several starts in one changed line, once it is a single line again: they keep
+        // their share of it, else they all fall on its start and leave pages empty.
+        if crowded && line - first == 1 {
+            return (first, scaled(start.offset, &old[start.line], &new[first]));
         }
 
         (first, 0)

@@ -501,3 +501,18 @@ fn a_struck_section_never_takes_a_number_already_given() {
         );
     }
 }
+
+#[test]
+fn a_changed_paragraph_with_two_page_starts_keeps_its_pages() {
+    let words: Vec<String> = (0..400).map(|n| format!("w{n}")).collect();
+    let text = format!("INT. ROOM - DAY\n\n{}\n", words.join(" "));
+    let (pages, starts) = lock(&text);
+    assert!(starts.len() >= 3);
+    assert_eq!(starts[1].line, starts[2].line);
+
+    let changed = text.replacen("w0 ", "x0 ", 1);
+    let now = locked(&text, &starts, &changed);
+
+    assert_eq!(labels(&now), labels(&pages));
+    assert!(now.pages.iter().all(|p| p.omitted.is_empty()));
+}
