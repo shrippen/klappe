@@ -220,16 +220,6 @@ fn edit_name(name: &str) -> ProjectEdit {
     }
 }
 
-fn is_name_error(err: ServiceError) -> bool {
-    matches!(
-        err,
-        ServiceError::BadValue {
-            field: Field::Name,
-            ..
-        }
-    )
-}
-
 /// A cue the book asks about stays unknown: no rename takes it silently.
 #[test]
 fn a_name_the_book_asks_about_is_refused() {
@@ -237,8 +227,10 @@ fn a_name_the_book_asks_about_is_refused() {
     let mut s = Session::open(&make_book("rename-fig-pending", book)).unwrap();
     assert_eq!(s.pending_figures()[0].name, "EVA");
 
-    assert!(is_name_error(s.rename_figure("Anna", "Eva").unwrap_err()));
-    assert!(is_name_error(s.edit_project(edit_name("Eva")).unwrap_err()));
+    let by_rename = s.rename_figure("Anna", "Eva").unwrap_err();
+    let by_edit = s.edit_project(edit_name("Eva")).unwrap_err();
+    assert!(matches!(by_rename, ServiceError::NameAsked(_)));
+    assert!(matches!(by_edit, ServiceError::NameAsked(_)));
 
     assert_eq!(s.script_text(), book);
     assert_eq!(s.pending_figures().len(), 1);
@@ -248,10 +240,10 @@ fn a_name_the_book_asks_about_is_refused() {
 fn the_figures_own_other_name_is_refused() {
     let mut s = Session::open(&make("rename-fig-own-alias")).unwrap();
 
-    assert!(is_name_error(s.rename_figure("Anna", "Anni").unwrap_err()));
-    assert!(is_name_error(
-        s.edit_project(edit_name("Anni")).unwrap_err()
-    ));
+    let by_rename = s.rename_figure("Anna", "Anni").unwrap_err();
+    let by_edit = s.edit_project(edit_name("Anni")).unwrap_err();
+    assert!(matches!(by_rename, ServiceError::NameIsOwnAlias(_)));
+    assert!(matches!(by_edit, ServiceError::NameIsOwnAlias(_)));
     assert!(!s.can_undo());
 }
 
@@ -261,12 +253,10 @@ fn the_figures_own_other_name_is_refused() {
 fn a_name_that_would_not_read_as_a_cue_is_forced_or_refused() {
     let mut s = Session::open(&make("rename-fig-reads")).unwrap();
 
-    assert!(is_name_error(
-        s.rename_figure("Anna", "Anna (jung)").unwrap_err()
-    ));
-    assert!(is_name_error(
-        s.edit_project(edit_name("Anna (jung)")).unwrap_err()
-    ));
+    let by_rename = s.rename_figure("Anna", "Anna (jung)").unwrap_err();
+    let by_edit = s.edit_project(edit_name("Anna (jung)")).unwrap_err();
+    assert!(matches!(by_rename, ServiceError::NameNotCue(_)));
+    assert!(matches!(by_edit, ServiceError::NameNotCue(_)));
     assert_eq!(s.script_text(), BOOK);
 
     s.rename_figure("Anna", "Ext. Agentin").unwrap();
@@ -278,4 +268,33 @@ fn a_name_that_would_not_read_as_a_cue_is_forced_or_refused() {
     s.edit_project(edit_name("Ext. Agentin")).unwrap();
     assert!(s.script_text().contains("@EXT. AGENTIN (V.O.)"));
     assert!(s.pending_figures().is_empty());
+}
+
+/// A name the book already has stays editable: only a new name is checked.
+#[test]
+fn an_unchanged_name_passes_whatever_it_looks_like() {
+    let dir = make("rename-fig-same");
+    let mut s = Session::open(&dir).unwrap();
+    s.edit_project(ProjectEdit::AddCharacter {
+        name: "Anna (jung)".into(),
+        short: "AJ".into(),
+        color: FigureColor::Red,
+        group: None,
+        size_m: None,
+    })
+    .unwrap();
+    let id = s.project().characters[2].id.clone();
+
+    let recolour = ProjectEdit::EditCharacter {
+        id,
+        name: "Anna (jung)".into(),
+        short: "AJ".into(),
+        color: FigureColor::Blue,
+        group: None,
+        size_m: None,
+        aliases: None,
+    };
+
+    s.edit_project(recolour).unwrap();
+    assert_eq!(s.project().characters[2].color, FigureColor::Blue);
 }

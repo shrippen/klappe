@@ -34,6 +34,9 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
         ServiceError::NoLocation(id) => ("error.noLocation", id),
         ServiceError::NoCharacter(id) => ("error.noCharacter", id),
         ServiceError::NameUnchanged(name) => ("error.nameUnchanged", name),
+        ServiceError::NameAsked(name) => ("error.nameAsked", name),
+        ServiceError::NameIsOwnAlias(name) => ("error.nameIsOwnAlias", name),
+        ServiceError::NameNotCue(name) => ("error.nameNotCue", name),
         ServiceError::NoElement(id) => ("error.noElement", id),
         ServiceError::NoPerson(id) => ("error.noPerson", id),
         ServiceError::NoVersion(id) => ("error.noVersion", id),
@@ -224,6 +227,9 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::NoLocation(_)
         | ServiceError::NoCharacter(_)
         | ServiceError::NameUnchanged(_)
+        | ServiceError::NameAsked(_)
+        | ServiceError::NameIsOwnAlias(_)
+        | ServiceError::NameNotCue(_)
         | ServiceError::NoElement(_)
         | ServiceError::NoPerson(_)
         | ServiceError::NoVersion(_)
@@ -669,6 +675,9 @@ mod tests {
             ServiceError::Locked(Layer::Set),
             ServiceError::NoCharacter("c".to_owned()),
             ServiceError::NameUnchanged("c".to_owned()),
+            ServiceError::NameAsked("c".to_owned()),
+            ServiceError::NameIsOwnAlias("c".to_owned()),
+            ServiceError::NameNotCue("c".to_owned()),
             ServiceError::NoElement("e".to_owned()),
             ServiceError::NoLook("l".to_owned()),
             ServiceError::NotLookElement("e".to_owned()),

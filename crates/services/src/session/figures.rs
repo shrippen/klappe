@@ -9,7 +9,6 @@ use super::undo::AnswerDelta;
 use super::Session;
 use crate::answer_way::Way;
 use crate::error::ServiceError;
-use crate::field::Field;
 use crate::figure_file::{self, FigureDelta};
 use crate::figures::{self, FigureChoice, PendingFigure};
 use crate::project_edit::ProjectEdit;
@@ -138,24 +137,32 @@ impl Session {
             return Ok(());
         };
         let name = name.trim();
-        let own = |alias: &String| same_character_name(alias, name);
-        // A new list is checked against the name when it is set.
-        let own_alias = match (aliases, self.project.character(id)) {
-            (None, Some(character)) => character.aliases.iter().any(own),
-            _ => false,
+        let Some(character) = self.project.character(id) else {
+            return Ok(());
         };
+        // Only a new name is checked: the one the character has stays as it is. An empty one
+        // is refused with the other values of the form.
+        if name.is_empty() || same_character_name(&character.name, name) {
+            return Ok(());
+        }
+
         let asked = self
             .pending_figures
             .iter()
             .any(|p| same_character_name(&p.name, name));
-        if !asked && !own_alias && script_refs::can_be_cue(name) {
-            return Ok(());
+        if asked {
+            return Err(ServiceError::NameAsked(name.to_owned()));
+        }
+        // A new list is checked against the name when it is set.
+        let own = |alias: &String| same_character_name(alias, name);
+        if aliases.is_none() && character.aliases.iter().any(own) {
+            return Err(ServiceError::NameIsOwnAlias(name.to_owned()));
+        }
+        if !script_refs::can_be_cue(name) {
+            return Err(ServiceError::NameNotCue(name.to_owned()));
         }
 
-        Err(ServiceError::BadValue {
-            field: Field::Name,
-            value: name.to_owned(),
-        })
+        Ok(())
     }
 
     /// Refuses an alias for a character the file had when the session last read it and has
