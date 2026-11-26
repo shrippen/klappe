@@ -577,13 +577,14 @@ mod tests {
         }
     }
 
-    /// The errors without a detail to word, and the ones that wrap another.
+    /// Every error the session makes, in two lists only to keep each function short (part 1).
     fn bare_errors() -> Vec<ServiceError> {
         vec![
             ServiceError::NoScene("s".to_owned()),
             ServiceError::NoDecision("s".to_owned()),
             ServiceError::NoShot("x".to_owned()),
             ServiceError::Gone,
+            ServiceError::NoPages,
             ServiceError::NoLocation("l".to_owned()),
             ServiceError::NotShot,
             ServiceError::NoFreeCamera,
@@ -632,7 +633,7 @@ mod tests {
         ]
     }
 
-    /// The errors that name an id, a number, a count or a path.
+    /// Every error the session makes, part 2.
     fn named_errors() -> Vec<ServiceError> {
         vec![
             ServiceError::NoPlaceAnswer(1),
