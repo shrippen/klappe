@@ -7,8 +7,10 @@ use klappe_model::{
 use klappe_stellprobe::SetupChoice;
 use serde::{Deserialize, Serialize};
 
+mod script;
 mod team;
 
+pub use script::ScriptRow;
 pub use team::{CastingRow, PersonRow};
 
 /// The frame a shot shows when its camera is gone (16:9).
@@ -468,6 +470,12 @@ pub struct Overview {
     pub castings: Vec<CastingRow>,
     /// The cast numbers no longer follow the book.
     pub numbers_locked: bool,
+    /// How the screenplay is paged, printed and numbered (`[script]`).
+    pub script: ScriptRow,
+    /// The papers the screenplay can be paged for, as `a4`; the labels are those of `papers`.
+    pub script_papers: Vec<&'static str>,
+    /// How many versions of the screenplay are locked (DB-40).
+    pub script_versions: usize,
 }
 
 /// One element of the breakdown with the scenes that need it.
