@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Dialogs
+import QtQuick.Layouts
 import Kante
 
 // LH-80, LH-81, LH-83: asks where an export goes. A plan export (PDF, PNG, SVG, frames) asks
@@ -12,6 +13,8 @@ import Kante
 //
 // A report (DB-61) asks for the file only; the file's extension or the chosen filter sets the
 // format:  requestReport("szenen") → file dialog → controller.exportReport("szenen", "csv", file)
+// The dialogue of one character (DB-52) asks for the character first:
+//   requestReport("dialog") → character → file dialog → controller.exportDialogue(id, "csv", file)
 FormDialog {
     id: dialog
 
@@ -40,13 +43,28 @@ FormDialog {
     property var reportFormats: []
     /// The report being asked for, as `szenen`; empty while a plan export is.
     property string report: ""
+    /// The characters the dialogue report offers, `{ id, name, replies }` each, most replies
+    /// first, and the id of the one chosen.
+    property var figures: []
+    property string figure: ""
+    readonly property bool asksFigure: report === "dialog"
 
-    title: texts.t("export.paperTitle")
+    title: asksFigure ? texts.t("report.pickFigure") : texts.t("export.paperTitle")
     acceptText: texts.t("export.next")
 
     function requestReport(name) {
         dialog.report = name
-        pick()
+        if (!asksFigure) {
+            pick()
+            return
+        }
+        figures = JSON.parse(controller.dialogueFigures())
+        // The controller has said why there is nobody to choose.
+        if (figures.length === 0) {
+            return
+        }
+        figure = figures[0].id
+        open()
     }
 
     function request(kind) {
@@ -107,6 +125,9 @@ FormDialog {
     // The file was chosen: remembers the folder and writes.
     function save(url) {
         dialog.folder = url.substring(0, url.lastIndexOf("/"))
+        if (asksFigure) {
+            return controller.exportDialogue(figure, reportFormat(url, files.selectedNameFilter.index), url)
+        }
         if (report !== "") {
             return controller.exportReport(report, reportFormat(url, files.selectedNameFilter.index), url)
         }
@@ -118,9 +139,21 @@ FormDialog {
         return true
     }
 
-    KanteSectionLabel { text: dialog.texts.t("export.paper") }
+    KanteSectionLabel { visible: dialog.asksFigure; text: dialog.texts.t("report.figure") }
+    KanteComboBox {
+        objectName: "figureBox"
+        Layout.fillWidth: true
+        visible: dialog.asksFigure
+        model: dialog.figures.map(f => f.name + " (" + f.replies + ")")
+        currentIndex: dialog.figures.findIndex(f => f.id === dialog.figure)
+        Accessible.name: dialog.texts.t("report.figure")
+        onActivated: index => dialog.figure = dialog.figures[index].id
+    }
+
+    KanteSectionLabel { visible: !dialog.asksFigure; text: dialog.texts.t("export.paper") }
     KanteSegmented {
         objectName: "paper"
+        visible: !dialog.asksFigure
         model: dialog.papers.map(p => p.label)
         currentIndex: dialog.papers.findIndex(p => p.id === dialog.size)
         onActivated: index => {
@@ -130,9 +163,10 @@ FormDialog {
             currentIndex = Qt.binding(() => dialog.papers.findIndex(p => p.id === dialog.size))
         }
     }
-    KanteSectionLabel { text: dialog.texts.t("export.orientation") }
+    KanteSectionLabel { visible: !dialog.asksFigure; text: dialog.texts.t("export.orientation") }
     KanteSegmented {
         objectName: "orientation"
+        visible: !dialog.asksFigure
         model: dialog.orientations.map(o => dialog.texts.t("export." + o))
         currentIndex: dialog.orientations.indexOf(dialog.orientation)
         onActivated: index => {
