@@ -12,6 +12,7 @@
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
 //!                       [--scene-numbers] [--header] [--revisions] [--changed-pages]
 //! klappe-cli sides --project <folder> --figure <name> --out <file> [--language de|en]
+//! klappe-cli rename-figure --project <folder> --from <name> --to <name> [--language de|en]
 //! klappe-cli lock-version --project <folder> --name <name> [--language de|en]
 //! klappe-cli remove-version --project <folder> --id <version id> [--language de|en]
 //! klappe-cli versions --project <folder> [--language de|en]
@@ -24,8 +25,9 @@ use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
     builtin_camera_presets, error_text, load_notes_text, read_number, ExportFormat, ExportOptions,
-    Field, HeaderLine, Language, Orientation, Paper, PaperSetup, Range, Report, ReportFormat,
-    Revisions, SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
+    Field, HeaderLine, Language, OnOutside, Orientation, Paper, PaperSetup, Range, Report,
+    ReportFormat, Revisions, Saved, SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session,
+    ShotOrder, Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -150,6 +152,22 @@ enum Command {
         #[arg(long, value_enum)]
         language: Option<LanguageArg>,
     },
+    /// Renames a character in the whole book (DB-04): every cue it answers to, in
+    /// `figuren.toml` too; its id, colour and short code stay. Saves the project.
+    RenameFigure {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// The character's name or one of its other names.
+        #[arg(long)]
+        from: String,
+        /// The new name.
+        #[arg(long)]
+        to: String,
+        /// Language of the output; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
+    },
     #[command(flatten)]
     Versions(versions::VersionCommand),
 }
@@ -180,44 +198,7 @@ struct ExportJob {
 fn main() -> ExitCode {
     match Cli::parse().command {
         Command::Fov { lens, sensor } => fov(lens, &sensor),
-        Command::Export {
-            project,
-            scene,
-            plan,
-            at,
-            paper,
-            orientation,
-            language,
-            format,
-            camera,
-            out,
-        } => {
-            let language = language_of(language);
-            let Some(format) = format.or_else(|| format_of(&out)) else {
-                let path = format!("{out:?}");
-                return refuse(language.text("cli.noFormat").replace("{path}", &path));
-            };
-            if format == ExportFormat::Camera && camera.is_none() {
-                return refuse(language.text("cli.cameraNeedsId"));
-            }
-            if format != ExportFormat::Camera && camera.is_some() {
-                return refuse(language.text("cli.cameraOnly"));
-            }
-            let job = ExportJob {
-                project,
-                scene,
-                plan,
-                at_s: at,
-                paper,
-                orientation,
-                language,
-                format,
-                camera,
-                out,
-            };
-
-            export(&job)
-        }
+        command @ Command::Export { .. } => export_command(command),
         Command::Report {
             project,
             report,
@@ -244,6 +225,12 @@ fn main() -> ExitCode {
 
             script_pdf(&project, &out, paper, &print)
         }
+        Command::RenameFigure {
+            project,
+            from,
+            to,
+            language,
+        } => rename_figure(&project, (&from, &to), language_of(language)),
         Command::Sides {
             project,
             figure,
@@ -251,6 +238,77 @@ fn main() -> ExitCode {
             language,
         } => sides_pdf(&project, &figure, &out, language_of(language)),
         Command::Versions(command) => command.run(),
+    }
+}
+
+/// Checks the export flags and runs the export.
+fn export_command(command: Command) -> ExitCode {
+    let Command::Export {
+        project,
+        scene,
+        plan,
+        at,
+        paper,
+        orientation,
+        language,
+        format,
+        camera,
+        out,
+    } = command
+    else {
+        unreachable!("only called for export");
+    };
+    let language = language_of(language);
+    let Some(format) = format.or_else(|| format_of(&out)) else {
+        let path = format!("{out:?}");
+        return refuse(language.text("cli.noFormat").replace("{path}", &path));
+    };
+    if format == ExportFormat::Camera && camera.is_none() {
+        return refuse(language.text("cli.cameraNeedsId"));
+    }
+    if format != ExportFormat::Camera && camera.is_some() {
+        return refuse(language.text("cli.cameraOnly"));
+    }
+    let job = ExportJob {
+        project,
+        scene,
+        plan,
+        at_s: at,
+        paper,
+        orientation,
+        language,
+        format,
+        camera,
+        out,
+    };
+
+    export(&job)
+}
+
+/// Renames the character `from` to `to` in the book and saves the project.
+fn rename_figure(project: &Path, (from, to): (&str, &str), language: Language) -> ExitCode {
+    let renamed = Session::open(project)
+        .and_then(|mut s| {
+            let count = s.rename_figure(from, to)?;
+            let saved = s.save(OnOutside::Ask)?;
+
+            Ok((count, saved))
+        })
+        .map_err(|e| error_text(language, &e));
+
+    match renamed {
+        Ok((count, Saved::Done)) => {
+            let text = language
+                .text("cli.figureRenamed")
+                .replace("{from}", from)
+                .replace("{to}", to.trim())
+                .replace("{count}", &count.to_string());
+            println!("{text}");
+
+            ExitCode::SUCCESS
+        }
+        Ok(_) => refuse(language.text("cli.renameConflict")),
+        Err(message) => refuse(message),
     }
 }
 

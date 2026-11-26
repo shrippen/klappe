@@ -45,6 +45,18 @@ pub enum ServiceError {
     Locked(Layer),
     #[error("no character {0}")]
     NoCharacter(String),
+    /// The new name of a rename is a cue the book still asks about (DB-50).
+    #[error("the book asks about {0}")]
+    NameAsked(String),
+    /// The new name of a rename is another name of the same character.
+    #[error("{0} is another name of the character")]
+    NameIsOwnAlias(String),
+    /// The new name cannot be written as a cue (`Anna (jung)` reads as `Anna` with an extension).
+    #[error("{0} cannot be a cue")]
+    NameNotCue(String),
+    /// The new name of a rename is the one the character has.
+    #[error("the character is called {0} already")]
+    NameUnchanged(String),
     #[error("no element {0}")]
     NoElement(String),
     #[error("no person {0}")]
