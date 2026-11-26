@@ -69,7 +69,7 @@ TestCase {
     function test_the_file_menu_asks_for_the_title_page() {
         const header = make()
 
-        compare(entry(header, "fileMenu", "titlePage").text, "Titelseite …")
+        compare(entry(header, "fileMenu", "titlePage").text, "Titelseite")
         pick(header, "fileMenu", "titlePage")
 
         compare(titleSpy.count, 1)

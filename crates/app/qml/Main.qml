@@ -111,7 +111,7 @@ Kirigami.ApplicationWindow {
                 onScriptImportRequested: scriptImport.start()
                 onTitlePageRequested: {
                     root.openModule("screenplay")
-                    screenplay.titlePage.show()
+                    screenplay.showTitlePage()
                 }
                 onFlushRequested: screenplay.flush()
                 onViewToggled: (area, shown) => {

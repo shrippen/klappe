@@ -52,14 +52,13 @@ Item {
             return fail("module request: " + window.module)
         }
 
-        // DB-06: File > Title page opens the form in the screenplay, from any module.
+        // DB-06: File > Title page unfolds the card in the screenplay, from any module.
         header.moduleRequested("stellprobe")
         header.titlePageRequested()
         const screenplay = find(window.contentItem, "screenplay")
-        if (window.module !== "screenplay" || !screenplay || !screenplay.titlePage.visible) {
+        if (window.module !== "screenplay" || !screenplay || screenplay.titleCard.collapsed) {
             return fail("title page request: " + window.module)
         }
-        screenplay.titlePage.reject()
 
         // The breakdown (D-22) is the third module.
         header.moduleRequested("breakdown")

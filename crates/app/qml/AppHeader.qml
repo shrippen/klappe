@@ -366,7 +366,7 @@ RowLayout {
         id: actTitlePage
         cmd: "script.titlePage"
         group: "file"
-        text: header.texts.t("titlepage.open")
+        text: header.texts.t("titlepage.title")
         enabled: header.controller.loaded && !header.locked
         onTriggered: header.titlePageRequested()
     }

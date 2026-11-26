@@ -75,7 +75,7 @@ const PAGES: &[&str] = &[
     "qml/Workspace.qml",
     "qml/TileDialog.qml",
     "qml/FormDialog.qml",
-    "qml/TitlePageDialog.qml",
+    "qml/TitleCard.qml",
     "qml/NewProjectDialog.qml",
     "qml/RefCard.qml",
     "qml/EditorPane.qml",

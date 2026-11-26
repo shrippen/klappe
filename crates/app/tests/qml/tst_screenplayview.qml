@@ -66,6 +66,7 @@ TestCase {
         }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
+        function titleFields(text) { return JSON.stringify({ "Title": "", "Credit": "", "Author": "", "Source": "", "Draft date": "", "Contact": "" }) }
         // Search (DB-07) by a plain `indexOf` without case; the rules are `script/`'s, tested there.
         // A speaker keeps the hits below their cue: the last line in capitals above the hit.
         function cueAt(text, at) {
@@ -437,6 +438,22 @@ TestCase {
 
         compare(view.layout, "flow")
         verify(view.area.activeFocus)
+    }
+
+    // DB-06: the title page is the top card above the flowing text, folded; not beside the pages.
+    function test_the_title_card_stands_above_the_text() {
+        const view = make()
+        const card = findChild(view, "titleCard")
+
+        verify(card.visible)
+        verify(card.collapsed)
+        verify(card.y + card.height <= view.area.mapToItem(view, 0, 0).y)
+        compare(view.titleCard, card)
+        view.showLayout("print")
+        verify(!card.visible)
+        view.showTitlePage()
+        compare(view.layout, "flow")
+        verify(!card.collapsed)
     }
 
     // Review of PR 279: 60 columns are as wide as 60 columns of the page at any size (the size

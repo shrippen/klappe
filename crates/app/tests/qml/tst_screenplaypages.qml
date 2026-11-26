@@ -48,6 +48,7 @@ TestCase {
         function enterStep(line, col, kind, below) { return JSON.stringify({ step: "break" }) }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
+        function titleFields(text) { return JSON.stringify({ "Title": "", "Credit": "", "Author": "", "Source": "", "Draft date": "", "Contact": "" }) }
         function sameFigureName(a, b) { return a === b }
         function scriptSpeakers(text) { return "[]" }
         function findInScript(text, find, matching, speaker) { return "[]" }
