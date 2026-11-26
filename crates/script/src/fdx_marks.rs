@@ -57,16 +57,16 @@ pub(crate) enum Reading {
     Literal,
 }
 
-/// The paragraph's text as Fountain. Literal special characters get a backslash so they
-/// stay text (`/*` is protected when the book is written); `lost` counts the runs that
-/// had to give up their style.
+/// The paragraph's text as Fountain. Read `Inline`, literal special characters get a
+/// backslash so they stay text (`/*` is protected when the book is written); read `Literal`,
+/// the text stands as it is. `lost` counts the runs that had to give up their style, and
+/// every styled run of a `Literal` paragraph.
 pub(crate) fn marked_text(par: &Node, reading: Reading, lost: &mut usize) -> String {
     if reading == Reading::Literal {
-        return par
-            .nodes()
-            .filter(|n| n.name == TEXT)
-            .map(Node::text)
-            .collect();
+        let runs = runs(par);
+        *lost += runs.iter().filter(|(s, _)| *s != Style::default()).count();
+
+        return runs.into_iter().map(|(_, text)| text).collect();
     }
 
     let mut lines: Vec<Vec<Frag>> = vec![Vec::new()];

@@ -731,7 +731,7 @@ fn heading_cue_and_transition_keep_their_text() {
 }
 
 #[test]
-fn a_cue_with_an_underscore_reads_through_fountain() {
+fn heading_cue_and_transition_read_through_fountain() {
     for (kind, text) in RAW_KINDS {
         let xml = one_paragraph(kind, &format!("<Text>{text}</Text>"));
         let script = read(&xml).unwrap();
@@ -772,5 +772,23 @@ fn a_heading_that_fountain_would_misread_stays_a_heading() {
         let script = read(&xml).unwrap();
 
         assert_eq!(parse(&write(&script)).elements, script.elements, "{text}");
+    }
+}
+
+#[test]
+fn a_style_on_a_heading_or_a_name_is_counted() {
+    let runs = [
+        ("Scene Heading", "<Text Style=\"Bold\">INT. HAUS</Text>"),
+        ("Character", "<Text Style=\"Underline\">MAX</Text>"),
+        (
+            "Transition",
+            "<Text Style=\"Italic\">CUT</Text><Text>X</Text>",
+        ),
+    ];
+
+    for (kind, runs) in runs {
+        let (_, loss) = read_fdx(&one_paragraph(kind, runs)).unwrap();
+
+        assert_eq!(loss.styles, 1, "{kind}");
     }
 }
