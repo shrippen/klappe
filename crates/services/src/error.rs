@@ -121,6 +121,9 @@ pub enum ServiceError {
     /// The project has no screenplay to page or print (DB-70).
     #[error("the project has no screenplay")]
     NoScript,
+    /// A file to import is no Final Draft file; holds what is wrong with it (DB-72).
+    #[error("not a Final Draft file: {0}")]
+    BadFdx(String),
     #[error("no version {0}")]
     NoVersion(String),
     /// No version is locked yet, so there is nothing to compare the book with (DB-41).

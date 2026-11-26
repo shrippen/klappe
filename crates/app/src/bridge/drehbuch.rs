@@ -335,6 +335,7 @@ fn report_json(report: &ImportReport) -> String {
         "created": report.created,
         "pending": report.pending,
         "notInBook": report.not_in_book,
+        "stylesLost": report.styles_lost,
     })
     .to_string()
 }

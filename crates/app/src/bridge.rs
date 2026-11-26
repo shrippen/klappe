@@ -95,7 +95,7 @@ pub mod qobject {
         /// Last message for the status line, already translated.
         #[qproperty(QString, status)]
         /// What the last `importScript` made of the register, as JSON `{ scenes, created,
-        /// pending, notInBook }`; empty before the first import.
+        /// pending, notInBook, stylesLost }`; empty before the first import.
         #[qproperty(QString, import_report, cxx_name = "importReport")]
         /// Where the example's old copy went, already translated; empty for none. Kept until
         /// the user closes it or another project opens (`AsideNotice`).
