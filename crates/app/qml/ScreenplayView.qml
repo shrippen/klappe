@@ -438,7 +438,9 @@ RowLayout {
         area.text = controller.scriptText
         _loading = false
         restyle()
-        titleCard.follow()
+        // Another text from outside (another project, an import): what is typed in the card was
+        // for the old one.
+        titleCard.discard()
         if (tools.item) {
             tools.item.forget()
         }

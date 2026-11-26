@@ -6,8 +6,8 @@ import Kante
 // one line (the title and the author, or "empty"); unfolded it holds the six fields of the
 // Fountain title page. Apply writes them into the text (the block at the top, an empty field is
 // left out) as one replacement of the editor (`putText`, as one of the search), so Ctrl+Z in
-// the text takes it back as one step; Discard sets the fields to what the text says. While
-// nothing is typed in the card it follows the text.
+// the text takes it back as one step; Discard sets the fields to what the text says. It follows
+// the text, except in a field typed in the card.
 //
 //  ┌ TITELSEITE · Heimat · Eva ─ ▸ ┐     ┌ TITELSEITE ──────────────── ▾ ┐
 //  └───────────────────────────────┘     │ Titel [ Heimat ] Nennung [   ] │
@@ -59,23 +59,48 @@ KanteFloatingPanel {
         event.accepted = true
     }
 
-    /// Reads the fields from the text unless something is typed in the card.
+    /// Reads the fields from the text, but keeps a field typed in the card: Apply then writes
+    /// that field and leaves what the text got since (e.g. a title typed there) as it is.
     function follow() {
-        if (dirty) {
+        if (!dirty) {
+            discard()
             return
         }
-        discard()
+        const was = JSON.parse(base)
+        const typed = values()
+        const now = read()
+        for (const key in now) {
+            if (typed[key] === was[key]) {
+                setField(key, now[key])
+            }
+        }
+        take(now)
     }
 
     /// Sets the fields to what the text says.
     function discard() {
-        const values = JSON.parse(controller.titleFields(area.text))
-        for (let i = 0; i < singles.length; i++) {
-            singles[i].text = values[singles[i].key]
+        const now = read()
+        for (const key in now) {
+            setField(key, now[key])
         }
-        contact.text = values[contactKey]
-        base = JSON.stringify(card.values())
-        summary = [values["Title"], values["Author"]].filter(v => v !== "").join(" · ")
+        take(now)
+    }
+
+    /// What the text says, by key in the order of `values()`.
+    function read() {
+        const fields = JSON.parse(controller.titleFields(area.text))
+        const out = {}
+        for (let i = 0; i < singles.length; i++) {
+            out[singles[i].key] = fields[singles[i].key]
+        }
+        out[contactKey] = fields[contactKey]
+        return out
+    }
+
+    /// Marks `now` (what the text says) as read: the base of `dirty` and the folded line.
+    function take(now) {
+        base = JSON.stringify(now)
+        summary = [now["Title"], now["Author"]].filter(v => v !== "").join(" · ")
     }
 
     /// Unfolds the card and puts the cursor in the first field.
@@ -121,6 +146,7 @@ KanteFloatingPanel {
 
     /// Writes the fields into the text, folds the card and gives the keys back to the text.
     function apply() {
+        follow()
         const before = area.text
         const after = controller.titleText(before, JSON.stringify(values()))
         if (after !== before) {

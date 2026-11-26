@@ -22,11 +22,13 @@ TestCase {
                             "Draft date": "", "Contact": "Eva\nWeg 1" })
     // What the controller makes of the text: the title line replaced, the rest kept.
     property string result: ""
+    // The fields the last Apply sent, as JSON.
+    property string sent: ""
 
     QtObject {
         id: fake
         function titleFields(text) { return JSON.stringify(tc.fields) }
-        function titleText(text, json) { return tc.result !== "" ? tc.result : text }
+        function titleText(text, json) { tc.sent = json; return tc.result !== "" ? tc.result : text }
     }
 
     TextEdit { id: editor; text: "Title: Heimat\nContact:\n  Eva\n  Weg 1\n\nINT. SAAL\n" }
@@ -50,6 +52,7 @@ TestCase {
         appliedCount = 0
         dismissedCount = 0
         result = ""
+        sent = ""
         fields = { "Title": "Heimat", "Credit": "", "Author": "Eva", "Source": "",
                    "Draft date": "", "Contact": "Eva\nWeg 1" }
     }
@@ -181,8 +184,48 @@ TestCase {
                    "Draft date": "", "Contact": "" }
         form.follow()
 
-        compare(findChild(form, "field.Title").text, "Heimat")
         compare(findChild(form, "field.Author").text, "Anna")
+        verify(form.dirty)
+    }
+
+    // Review of PR 356: a field not typed in the card takes what the text says now, so Apply
+    // never sets a title typed in the text back.
+    function test_untyped_fields_follow_the_text_while_something_is_typed() {
+        const form = make()
+        form.show()
+        form.setField("Author", "Anna")
+
+        fields = { "Title": "Neu", "Credit": "", "Author": "Eva", "Source": "",
+                   "Draft date": "", "Contact": "" }
+        form.follow()
+
+        compare(findChild(form, "field.Title").text, "Neu")
+        compare(form.contactField.text, "")
+    }
+
+    function test_apply_keeps_what_the_text_got_since_the_card_read_it() {
+        const form = make()
+        form.show()
+        form.setField("Author", "Anna")
+
+        fields = { "Title": "Neu", "Credit": "", "Author": "Eva", "Source": "",
+                   "Draft date": "", "Contact": "Eva\nWeg 1" }
+        form.apply()
+
+        const json = JSON.parse(sent)
+        compare(json["Title"], "Neu")
+        compare(json["Author"], "Anna")
+    }
+
+    function test_the_folded_line_follows_the_text_while_something_is_typed() {
+        const form = make()
+        form.setField("Author", "Anna")
+
+        fields = { "Title": "Neu", "Credit": "", "Author": "Eva", "Source": "",
+                   "Draft date": "", "Contact": "" }
+        form.follow()
+
+        compare(form.title, "Titelseite · Neu · Eva · geändert")
     }
 
     function test_the_folded_line_follows_the_text() {
